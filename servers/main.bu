@@ -29,7 +29,7 @@ systemd:
         # if the package is already installed. This is useful if the package is
         # added to the root image in a future Fedora CoreOS release as it will
         # prevent the service from failing.
-        ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive cockpit-system cockpit-ostree cockpit-podman cockpit-storaged cockpit-networkmanager cockpit-ostree cockpit-selinux cockpit-kdump cockpit-certificates cockpit-sosreport cockpit-tailscale 
+        ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive cockpit-system cockpit-ostree cockpit-podman cockpit-storaged cockpit-networkmanager cockpit-ostree cockpit-selinux cockpit-kdump cockpit-certificates cockpit-sosreport cockpit-tailscale cockpit-pcp
         ExecStart=/bin/touch /var/lib/%N.stamp
 
         [Install]

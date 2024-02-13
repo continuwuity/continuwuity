@@ -3,7 +3,7 @@ FROM node AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
-COPY . /app
+COPY ./../.. /app/
 WORKDIR /app
 
 # FROM base AS prod-deps

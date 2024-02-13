@@ -1,0 +1,11 @@
+
+version: '2'
+services:
+
+  jade-website-frontend:
+    image: jade-website-frontend:latest
+    build:
+      context: .
+      dockerfile: packages/website/Dockerfile
+    ports:
+      - 3000:3000
