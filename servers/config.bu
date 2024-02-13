@@ -1,0 +1,11 @@
+variant: fcos
+version: 1.5.0
+ignition:
+  config:
+    replace:
+      source: https://jade-coreos-config.netlify.app/main.ign
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILqathM/KAjYvI4NzwDs4UJxVcMyv+xwYt0axPP7HzmZ
