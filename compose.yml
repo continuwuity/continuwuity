@@ -1,11 +1,114 @@
+# podman save --format oci-archive jade-website-frontend:latest | gzip | ssh core@176.126.240.240 -T "zcat | podman load"
+# podman compose create
+# let containers = podman ps -a --format json | from json | where Labels."com.docker.compose.project" == "jade-website"
+
+# podman compose create; let containers = podman ps -a --format json | from json | where Labels."com.docker.compose.project" == "jade-website"; podman kube generate ($containers | get Id) | save deployment.yml
+# echo deployment.yml | ssh core@176.126.240.240 -T "cat > deployment.yml"
+#  $containers.1.Labels | to yaml
+
+# podman kube generate -s ($containers | get Id) --podman-only | ssh core@176.126.240.240 -T "cat > deployment.yml"
+
 
 version: '2'
 services:
-
   jade-website-frontend:
     image: jade-website-frontend:latest
     build:
       context: .
       dockerfile: packages/website/Dockerfile
+    restart: unless-stopped
+    # ports:
+      # - 3000:3000
+    networks:
+        - proxy
+    # deploy:
+      
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"  # Change this to the name of your Traefik docker proxy network
+
+      # - "traefik.http.routers.to-website.rule=Host(`jade.ellis.link`)"
+      # - "traefik.http.routers.to-website.entrypoints=http"
+      - "traefik.http.routers.to-website.rule=Host(`jade.ellis.link`)"
+      - "traefik.http.routers.to-website.entrypoints=https"
+      - "traefik.http.routers.to-website.tls=true"
+      - "traefik.http.routers.to-website.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.to-website.middlewares=cors-headers@docker"
+
+      # - "traefik.http.middlewares.cors-headers.headers.accessControlAllowOriginList=*"
+      # - "traefik.http.middlewares.cors-headers.headers.accessControlAllowHeaders=Origin, X-Requested-With, Content-Type, Accept, Authorization"
+      # - "traefik.http.middlewares.cors-headers.headers.accessControlAllowMethods=GET, POST, PUT, DELETE, OPTIONS"
+
+
+  traefik:
+    image: "traefik:latest"
+    container_name: "traefik"
+    restart: "unless-stopped"
+    # privileged: true
+    security_opt:
+      - "label=type:container_runtime_t"
+    command: 
+      - "--log.level=DEBUG"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.http.address=:80"
+      - "--entrypoints.https.address=:443"
+      # - "--acme"
+      - "--certificatesresolvers.letsencrypt.acme.email='jade@ellis.link'"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/certificates/acme.json"
+
+      # - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      # - "--certificatesresolvers.letsencrypt.acme.httpChallenge.entryPoint=http"
+      - "--certificatesresolvers.lets-encrypt.acme.tlschallenge=true"
+
+      - "--entrypoints.http.http.redirections.entryPoint.to=https" 
+      - "--entrypoints.http.http.redirections.entryPoint.scheme=https"
+      
+      # - --api.dashboard=true 
+      # - --api.insecure=true 
     ports:
-      - 3000:3000
+      - "80:80"
+      - "443:443"
+      # - "8080:8080"
+    volumes:
+      - "/run/user/1000/podman/podman.sock:/var/run/docker.sock"
+      # - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "traefik-public-certificates:/certificates"
+      # - "./traefik_config:/etc/traefik"
+    # labels:
+      # - "traefik.enable=true"
+
+      # # middleware redirect
+      # - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # # global redirect to https
+      # - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      # - "traefik.http.routers.redirs.entrypoints=http"
+      # - "traefik.http.routers.redirs.middlewares=redirect-to-https"
+
+    networks:
+      - proxy
+
+networks:
+    proxy:
+      # external: true
+      enable_ipv6: true
+
+      
+
+
+volumes:
+  traefik-public-certificates:
+# mkdir -p ~/.config/containers/systemd
+#  nano  ~/.config/containers/systemd/deployment.kube
+
+# [Unit]
+# Description=Deployment via kubernetes
+# Before=local-fs.target
+# [Kube]
+# Yaml=/var/home/core/deployment.yml
+# [Install]
+# # Start by default on boot
+# WantedBy=multi-user.target default.target
+
+# systemctl --user daemon-reload
+# systemctl --user start deployment.service
