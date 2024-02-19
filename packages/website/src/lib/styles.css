@@ -11,7 +11,8 @@
     --font-color-secondary: rgba(0, 0, 0, .6);
     --font-family-base: Roboto, sans-serif;
     --font-family-heading: "Sen", Roboto, sans-serif;
-    --border-radius: 8px
+    --border-radius: 8px;
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -54,4 +55,24 @@ svg {
     max-width: 1056px;
     margin: 0 auto;
     padding: 0 var(--spacing);
+    --edge-border-radius: var(--border-radius);
+}
+
+@media screen and (max-width: 320px) {
+    .main {
+        padding: 0 0;
+        --edge-border-radius: 0;
+    }
+}
+
+
+.card {
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow);
+    background-color: var(--surface-color);
+}
+
+
+.edge {
+    border-radius: var(--edge-border-radius);
 }
