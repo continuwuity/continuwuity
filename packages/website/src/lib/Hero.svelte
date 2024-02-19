@@ -1,3 +1,17 @@
+<script lang="ts">
+    import url from "./logo.svg?url";
+</script>
+
+<div class="hero card edge">
+    <div class="logo">
+        <img src={url} alt="Logo" />
+    </div>
+    <div class="content">
+        <h1 class="title">JadedBlueEyes</h1>
+        <div class="description">Finally, a website!</div>
+    </div>
+</div>
+
 <style>
     .hero {
         display: flex;
@@ -7,6 +21,7 @@
         gap: var(--spacing);
         margin: 48px auto;
         max-width: 320px;
+        padding: 3rem 0;
     }
 
     .logo {
@@ -17,8 +32,8 @@
 
     .content {
         display: flex;
-  flex-direction: column;
-  gap: calc(var(--spacing) / 2);
+        flex-direction: column;
+        gap: calc(var(--spacing) / 2);
     }
 
     .title {
@@ -31,33 +46,15 @@
         text-align: center;
     }
 
-    
     @media screen and (min-width: 540px) {
         .hero {
             flex-direction: row;
             margin: 96px auto;
             max-width: 520px;
         }
-        .title, .description {
+        .title,
+        .description {
             text-align: left;
         }
     }
-
 </style>
-
-<script lang="ts">
-    import url from "./logo.svg?url"
-</script>
-<div class="hero">
-    <div class="logo">
-        <img src="{url}" alt="Logo">
-    </div>
-    <div class="content">
-        <h1 class="title">
-            Jade
-        </h1>
-        <div class="description">
-            Finally, a website!
-        </div>
-    </div>
-</div>
