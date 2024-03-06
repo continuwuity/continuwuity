@@ -1,0 +1,29 @@
+# build the sapper app
+FROM node AS base
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable
+COPY ./../.. /app/
+WORKDIR /app
+
+# FROM base AS prod-deps
+# RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
+
+FROM base AS build
+ENV CI=1 
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+# RUN cd packages/website; --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
+
+RUN cd packages/website; pnpm run build
+
+
+# copy node_modules/ and other build files over
+FROM node:alpine
+
+WORKDIR /app
+
+COPY --from=build /app/packages/website/build .
+COPY --from=build /app/packages/website/package.json ./package.json
+
+EXPOSE 3000
+CMD ["node", "."]
