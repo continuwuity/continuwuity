@@ -1,0 +1,25 @@
+[log]
+level = "DEBUG"
+# [ping]
+
+[providers.docker]
+exposedbydefault = false
+[entrypoints.http]
+address = ":80"
+[entrypoints.https]
+address = ":443"
+
+[certificatesresolvers.letsencrypt.acme]
+email = 'jade@ellis.link'
+storage = "/certificates/acme.json"
+
+# - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+# - "--certificatesresolvers.letsencrypt.acme.httpChallenge.entryPoint=http"
+tlschallenge = true
+
+[entrypoints.http.http.redirections.entryPoint]
+to="https" 
+scheme = "https"
+
+[entryPoints.traefik]
+address = ":9000"

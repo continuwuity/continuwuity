@@ -1,11 +1,26 @@
+# butane --pretty --strict main.bu -d . | save -f main.ign
+# open main.ign | ssh -o "UserKnownHostsFile=/dev/null" -o "StrictHostKeyChecking=no" core@176.126.240.240 -T "cat > main.ign"
+#  sudo coreos-installer install /dev/vda --ignition-file main.ign --save-partlabel *
+
 variant: fcos
 version: 1.5.0
-ignition:
-  config:
-    replace:
-      source: https://jade-coreos-config.netlify.app/main.ign
+# ignition:
+#   config:
+#     replace:
+#       source: https://jade-coreos-config.netlify.app/main.ign
 passwd:
   users:
     - name: core
       ssh_authorized_keys:
         - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILqathM/KAjYvI4NzwDs4UJxVcMyv+xwYt0axPP7HzmZ
+
+storage:
+  files:
+    - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+      mode: 0644
+      contents:
+        inline: |
+          # Fedora CoreOS disables SSH password login by default.
+          # Enable it.
+          # This file must sort before 40-disable-passwords.conf.
+          PasswordAuthentication yes

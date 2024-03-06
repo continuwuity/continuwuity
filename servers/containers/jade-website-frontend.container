@@ -1,0 +1,27 @@
+
+
+[Unit]
+Description=Website Frontend
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=jade-website-frontend
+NoNewPrivileges=true
+Image=oci-archive:/opt/images/jade-website-frontend
+# Volume=/var/opt/thelounge:/var/opt/thelounge:z,U
+AutoUpdate=local
+Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.jade-website-frontend.rule=Host(`jade.ellis.link`)"
+Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
+
+Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

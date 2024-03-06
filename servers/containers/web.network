@@ -1,0 +1,7 @@
+[Network]
+DisableDNS=false
+Internal=false
+
+# Manual subnet to avoid issues with DNS resolution
+Subnet=10.89.1.0/24
+Gateway=10.89.1.1

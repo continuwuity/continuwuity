@@ -8,7 +8,7 @@
     </div>
     <div class="content">
         <h1 class="title">JadedBlueEyes</h1>
-        <div class="description">Finally, a website!</div>
+        <div class="description">Working on it! Come back later :&rpar;</div>
     </div>
 </div>
 

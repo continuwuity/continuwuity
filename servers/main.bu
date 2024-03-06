@@ -1,3 +1,5 @@
+ #butane --pretty --strict main.bu -d . | save -f main.ign
+
 variant: fcos
 version: 1.5.0
 passwd:
@@ -9,40 +11,118 @@ passwd:
 
 systemd:
   units:
-    # Installing Cockpit as a layered package with rpm-ostree
-    - name: rpm-ostree-install-cockpit.service
+    # Installing customisations as a layered package with rpm-ostree
+    # - name: rpm-ostree-install-packages.service
+    #   enabled: true
+    #   # cockpit-certificates cockpit-tailscale 
+    #   # cockpit-system cockpit-ostree cockpit-podman cockpit-storaged cockpit-networkmanager cockpit-ostree cockpit-selinux cockpit-kdump  cockpit-sosreport cockpit-pcp
+    #   #  --disablerepo fedora-cisco-openh264 
+    #   contents: |
+    #     [Unit]
+    #     Description=Layer packages with rpm-ostree
+    #     Wants=network-online.target
+    #     After=network-online.target
+    #     # We run before `zincati.service` to avoid conflicting rpm-ostree
+    #     # transactions.
+    #     Before=zincati.service
+    #     ConditionPathExists=!/var/lib/%N.stamp
+
+    #     [Service]
+    #     Type=oneshot
+    #     RemainAfterExit=yes
+    #     # `--allow-inactive` ensures that rpm-ostree does not return an error
+    #     # if the package is already installed. This is useful if the package is
+    #     # added to the root image in a future Fedora CoreOS release as it will
+    #     # prevent the service from failing.
+    #     ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive fail2ban fail2ban-firewalld firewalld
+    #     ExecStart=/bin/touch /var/lib/%N.stamp
+
+    #     [Install]
+    #     WantedBy=multi-user.target
+    - name: podman.socket
       enabled: true
-      contents: |
-        [Unit]
-        Description=Layer Cockpit with rpm-ostree
-        Wants=network-online.target
-        After=network-online.target
-        # We run before `zincati.service` to avoid conflicting rpm-ostree
-        # transactions.
-        Before=zincati.service
-        ConditionPathExists=!/var/lib/%N.stamp
-
-        [Service]
-        Type=oneshot
-        RemainAfterExit=yes
-        # `--allow-inactive` ensures that rpm-ostree does not return an error
-        # if the package is already installed. This is useful if the package is
-        # added to the root image in a future Fedora CoreOS release as it will
-        # prevent the service from failing.
-        ExecStart=/usr/bin/rpm-ostree install --apply-live --allow-inactive cockpit-system cockpit-ostree cockpit-podman cockpit-storaged cockpit-networkmanager cockpit-ostree cockpit-selinux cockpit-kdump cockpit-certificates cockpit-sosreport cockpit-tailscale cockpit-pcp
-        ExecStart=/bin/touch /var/lib/%N.stamp
-
-        [Install]
-        WantedBy=multi-user.target
-
+    - name: podman.service
+      enabled: true
+    # - name: firewalld.service
+    #   enabled: true
+    # - name: pmlogger.service
+    #   enabled: true
+    # - name: fail2ban.service
+    #   enabled: true
+    # - name: cockpit.service
+    #   enabled: true
 
 storage:
+  directories:
+    - path: /var/opt/thelounge
+    - path: /var/srv/traefik
+    # - path: /etc/firewalld
+    #   mode: 0750
+  # See: https://docs.fedoraproject.org/en-US/fedora-coreos/storage/
+  # filesystems:
+  #   - device: /dev/disk/by-partlabel/var
+  #     label: var
+  #     format: xfs
+  #     wipe_filesystem: false
+  #     path: /var
+  #     with_mount_unit: true
+  trees:
+  - local: containers
+    path: /etc/containers/systemd
+  - local: traefik
+    path: /etc/traefik
+  # - local: images
+  #   path: /var/opt/images
   files:
-    - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: jade-personal1
+    # - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+    #   mode: 0644
+    #   contents:
+    #     inline: |
+    #       # Fedora CoreOS disables SSH password login by default.
+    #       # Enable it.
+    #       # This file must sort before 40-disable-passwords.conf.
+    #       PasswordAuthentication yes
+    - path: /etc/zincati/config.d/55-updates-strategy.toml
+      contents:
+        inline: |
+          [updates]
+          strategy = "periodic"
+          [[updates.periodic.window]]
+          days = [ "Sat", "Sun" ]
+          start_time = "22:30"
+          length_minutes = 60
+
+    - path: /etc/systemd/zram-generator.conf
       mode: 0644
       contents:
         inline: |
-          # Fedora CoreOS disables SSH password login by default.
-          # Enable it.
-          # This file must sort before 40-disable-passwords.conf.
-          PasswordAuthentication yes
+          # This config file enables a /dev/zram0 device with the default settings
+          [zram0]
+    # - path: /etc/yum.repos.d/fedora-cisco-openh264.repo
+      # contents:
+      #   inline: |
+      #     [fedora-cisco-openh264]
+      #     name=Fedora $releasever openh264 (From Cisco) - $basearch
+      #     metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-cisco-openh264-$releasever&arch=$basearch
+      #     type=rpm
+      #     enabled=0
+      #     metadata_expire=14d
+      #     repo_gpgcheck=0
+      #     gpgcheck=1
+      #     gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
+      #     skip_if_unavailable=True
+
+      #     [fedora-cisco-openh264-debuginfo]
+      #     name=Fedora $releasever openh264 (From Cisco) - $basearch - Debug
+      #     metalink=https://mirrors.fedoraproject.org/metalink?repo=fedora-cisco-openh264-debug-$releasever&arch=$basearch
+      #     type=rpm
+      #     enabled=0
+      #     metadata_expire=14d
+      #     repo_gpgcheck=0
+      #     gpgcheck=1
+      #     gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-$basearch
+      #     skip_if_unavailable=True
