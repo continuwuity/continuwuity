@@ -11,9 +11,14 @@ ContainerName=traefik
 PodmanArgs=--privileged
 NoNewPrivileges=true
 Image=docker.io/library/traefik:latest
-PublishPort=80:80/tcp
-PublishPort=443:443/tcp
-PublishPort=443:443/udp
+PublishPort=0.0.0.0:80:80/tcp
+PublishPort=0.0.0.0:443:443/tcp
+PublishPort=0.0.0.0:443:443/udp
+
+PublishPort=[::]:80:80/tcp
+PublishPort=[::]:443:443/tcp
+PublishPort=[::]:443:443/udp
+
 # PublishPort=8448:8448/tcp
 ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
@@ -24,7 +29,9 @@ Volume=/etc/traefik:/etc/traefik:ro,z
 # Volume=/var/srv/matrix/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
 AutoUpdate=registry
 Network=web.network
-# IP=10.89.1.10
+
+IP=176.126.240.240
+IP6=fe80::9724:38eb:9b0f:df7c
 
 Exec=traefik --configFile=/etc/traefik/config.toml 
 
