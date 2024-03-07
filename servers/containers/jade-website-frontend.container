@@ -22,6 +22,12 @@ Label="traefik.http.routers.jade-website-frontend.middlewares=jade-website-front
 
 Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
 
+Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+Label="traefik.http.routers.jade-website-frontend.middlewares=hsts"
+
 [Service]
 Restart=on-failure
 TimeoutStartSec=900
