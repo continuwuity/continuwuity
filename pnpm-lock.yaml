@@ -129,6 +129,9 @@ importers:
       svelte-check:
         specifier: ^3.6.0
         version: 3.6.2(svelte@4.2.8)
+      svelte-seo:
+        specifier: ^1.6.0
+        version: 1.6.0(typescript@5.3.3)
       tslib:
         specifier: ^2.4.1
         version: 2.6.2
@@ -1751,6 +1754,14 @@ packages:
       rimraf: 2.7.1
     dev: true
 
+  /schema-dts@1.1.2(typescript@5.3.3):
+    resolution: {integrity: sha512-MpNwH0dZJHinVxk9bT8XUdjKTxMYrA5bLtrrGmFA6PTLwlOKnhi67XoRd6/ty+Djt6ZC0slR57qFhZDNMI6DhQ==}
+    peerDependencies:
+      typescript: '>=4.1.0'
+    dependencies:
+      typescript: 5.3.3
+    dev: true
+
   /set-cookie-parser@2.6.0:
     resolution: {integrity: sha512-RVnVQxTXuerk653XfuliOxBP81Sf0+qfQE73LIYKcyMYHG94AuH0kgrQpRDuTZnSmjpysHmzxJXKNfa6PjFhyQ==}
     dev: true
@@ -1897,6 +1908,14 @@ packages:
       strip-indent: 3.0.0
       svelte: 4.2.8
       typescript: 5.3.3
+    dev: true
+
+  /svelte-seo@1.6.0(typescript@5.3.3):
+    resolution: {integrity: sha512-xgyJ2evRrgukCIOl4EMNrXyKXAQxJVYchqw9iTG1pv143bQ9vnI/wrrI1ew+fOLVRnU7yuJVdvgKUSD+sZXXtg==}
+    dependencies:
+      schema-dts: 1.1.2(typescript@5.3.3)
+    transitivePeerDependencies:
+      - typescript
     dev: true
 
   /svelte@4.2.8:
