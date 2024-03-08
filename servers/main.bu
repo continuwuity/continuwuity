@@ -102,6 +102,29 @@ storage:
         inline: |
           # This config file enables a /dev/zram0 device with the default settings
           [zram0]
+    - path: /etc/NetworkManager/system-connections/Wired connection 1.nmconnection
+      mode: 0600
+      contents:
+        inline: |
+          [connection]
+          id=Wired connection 1
+          uuid=e8a777c2-85a8-3edc-8895-cd9c9f9c06bc
+          type=ethernet
+          autoconnect-priority=-999
+          interface-name=ens3
+          timestamp=1709836038
+
+          [ethernet]
+
+          [ipv4]
+          method=auto
+
+          [ipv6]
+          addr-gen-mode=default
+          address1=2a00:1098:318::1/64
+          method=auto
+
+          [proxy]
     # - path: /etc/yum.repos.d/fedora-cisco-openh264.repo
       # contents:
       #   inline: |
