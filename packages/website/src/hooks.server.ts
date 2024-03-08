@@ -6,7 +6,7 @@ const securityHeaders = {
 
     "Referrer-Policy": "no-referrer-when-downgrade",
 
-    "Permissions-Policy": "payment=(), geolocation=(self), notifications=(self), push=(self), fullscreen=(self)",
+    "Permissions-Policy": "payment=(), geolocation=(self), fullscreen=(self)",
 
     'Cross-Origin-Embedder-Policy': 'require-corp',
     'Cross-Origin-Opener-Policy': 'same-origin',
