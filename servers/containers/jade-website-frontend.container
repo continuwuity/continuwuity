@@ -17,16 +17,15 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.jade-website-frontend.rule=Host(`jade.ellis.link`)"
 Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
 
-Label="traefik.http.middlewares.jade-website-frontend-compress.compress=true"
-Label="traefik.http.routers.jade-website-frontend.middlewares=jade-website-frontend-compress"
-
 Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
+
+Label="traefik.http.middlewares.compress.compress=true"
 
 Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
 Label="traefik.http.middlewares.hsts.headers.stspreload=true"
 Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
 Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
-Label="traefik.http.routers.jade-website-frontend.middlewares=hsts"
+Label="traefik.http.routers.jade-website-frontend.middlewares=hsts,compress"
 
 [Service]
 Restart=on-failure
