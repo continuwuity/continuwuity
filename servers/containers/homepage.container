@@ -12,7 +12,7 @@ Image=ghcr.io/gethomepage/homepage:latest
 Volume=/etc/homepage:/app/config:z
 PodmanArgs=--privileged
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
-AutoUpdate=local
+AutoUpdate=registry
 Network=web.network
 
 Label="traefik.enable=true"
@@ -20,6 +20,22 @@ Label="traefik.http.routers.homepage.rule=Host(`homepage.ellis.link`)"
 Label="traefik.http.routers.homepage.entrypoints=https"
 
 Label="traefik.http.routers.homepage.tls.certresolver=letsencrypt"
+
+
+Label="traefik.http.middlewares.compress.compress=true"
+
+Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
+Label="traefik.http.routers.homepage.middlewares=hsts,compress"
+
+
+Label="homepage.group=Public"
+Label="homepage.name=Homepage"
+Label="homepage.href=https://homepage.ellis.link/"
+Label="homepage.description=Here!"
 
 [Service]
 Restart=on-failure

@@ -19,13 +19,21 @@ Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
 
 Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
 
+
 Label="traefik.http.middlewares.compress.compress=true"
 
 Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
 Label="traefik.http.middlewares.hsts.headers.stspreload=true"
 Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
 Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
 Label="traefik.http.routers.jade-website-frontend.middlewares=hsts,compress"
+
+Label="homepage.group=Public"
+Label="homepage.name=Website"
+Label="homepage.href=https://jade.ellis.link/"
+Label="homepage.siteMonitor=https://jade.ellis.link/"
+Label="homepage.description=My personal website!"
 
 [Service]
 Restart=on-failure

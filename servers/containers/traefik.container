@@ -30,10 +30,18 @@ Volume=/etc/traefik:/etc/traefik:ro,z
 AutoUpdate=registry
 Network=web.network
 
-IP=176.126.240.240
-IP6=fe80::9724:38eb:9b0f:df7c
+# IP=176.126.240.240
+# IP6=fe80::9724:38eb:9b0f:df7c
 
 Exec=traefik --configFile=/etc/traefik/config.toml 
+
+
+Label="traefik.http.middlewares.compress.compress=true"
+
+Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
 
 [Service]
 Restart=on-failure

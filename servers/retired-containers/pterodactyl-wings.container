@@ -1,0 +1,59 @@
+[Unit]
+Description=Pterodactyl Wings
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=pterodactyl-wings
+NoNewPrivileges=true
+Image=ghcr.io/pterodactyl/wings:latest
+
+Volume=/run/podman/podman.sock:/var/run/docker.sock:z
+Volume=/etc/ssl/certs:/etc/ssl/certs:ro
+Volume=/tmp/pterodactyl/:/tmp/pterodactyl/:ro
+Volume=/var/opt/pterodactyl/wings/etc/:/etc/pterodactyl:z,U
+Volume=/var/opt/pterodactyl/wings/logs:/var/log/pterodactyl:z,U
+
+PublishPort=2022:2022
+
+Environment=TZ=Europe/London
+Environment=WINGS_UID=988
+Environment=WINGS_GID=988
+Environment=WINGS_USERNAME=pterodactyl
+
+AutoUpdate=registry
+Network=web.network
+Network=pterodactyl-wings-0.network
+
+Label="traefik.enable=true"
+
+
+Label="traefik.http.routers.pterodactyl-wings.entrypoints=http"
+Label="traefik.http.routers.pterodactyl-wings.rule=Host(`wings-0.ellis.link`)"
+Label="traefik.http.routers.pterodactyl-wings.middlewares=panel_https"
+Label="traefik.http.middlewares.panel_https.redirectscheme.scheme=https"
+# HTTPS
+Label="traefik.http.routers.pterodactyl-wings-https.entrypoints=https"
+Label="traefik.http.routers.pterodactyl-wings-https.rule=Host(`wings-0.ellis.link`)"
+Label="traefik.http.routers.pterodactyl-wings-https.tls=true"
+Label="traefik.http.routers.pterodactyl-wings-https.tls.certresolver=letsencrypt"
+Label="traefik.http.services.pterodactyl-wings-https.loadbalancer.server.port=443"
+# Label="traefik.http.routers.pterodactyl-wings-https.middlewares=hsts,compress"
+# 
+# Label="traefik.http.middlewares.compress.compress=true"
+# 
+# Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+# Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+# Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+# Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
+
+Label="homepage.group=Games"
+Label="homepage.name=Pterodactyl Wings"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

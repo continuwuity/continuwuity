@@ -56,6 +56,11 @@ storage:
   directories:
     - path: /var/opt/thelounge
     - path: /var/srv/traefik
+    # - path: /var/opt/mysql-database
+    # - path: /var/opt/pterodactyl
+    # - path: /var/opt/pterodactyl/panel/nginx
+    # - path: /var/opt/pterodactyl/panel/var
+    # - path: /var/opt/pterodactyl/panel/logs
     # - path: /etc/firewalld
     #   mode: 0750
   # See: https://docs.fedoraproject.org/en-US/fedora-coreos/storage/

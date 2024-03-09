@@ -1,0 +1,27 @@
+
+
+[Unit]
+Description=MySQL Server
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=database-mysql
+NoNewPrivileges=true
+Image=docker.io/library/mysql:8.0
+Volume=/var/opt/mysql-database:/var/lib/mysql:Z,U
+AutoUpdate=registry
+Network=internal.network
+EnvironmentFile=mysql.env
+Exec=mysqld --default-authentication-plugin=mysql_native_password
+
+
+Label="homepage.group=Services"
+Label="homepage.name=MySQL"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,7 @@
+[Network]
+DisableDNS=false
+Internal=true
+IPv6=true
+Driver=bridge
+
+Options=com.docker.network.bridge.name=wings0

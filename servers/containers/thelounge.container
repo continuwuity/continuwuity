@@ -20,6 +20,16 @@ Label="traefik.http.routers.thelounge.entrypoints=https"
 
 Label="traefik.http.routers.thelounge.tls.certresolver=letsencrypt"
 
+
+Label="traefik.http.middlewares.compress.compress=true"
+
+Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
+Label="traefik.http.routers.thelounge.middlewares=hsts,compress"
+
 Label="homepage.group=Social"
 Label="homepage.name=TheLounge"
 Label="homepage.href=https://thelounge.ellis.link/"

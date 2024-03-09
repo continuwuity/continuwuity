@@ -1,0 +1,18 @@
+debug: false
+uuid: 5bbf3bd5-4b9b-4ee4-8cd9-6ddd9dd88781
+token_id: xsKUjOLapARK0xmv
+token: 7rdoH6dUAODDBs5FFUPsYFxHQhi5IHx8xnnMuGGC8ZxXR7JPRO6HLP6X5WjlCY3v
+api:
+  host: 0.0.0.0
+  port: 443
+  ssl:
+    enabled: true
+    cert: /etc/letsencrypt/live/wings-0.ellis.link/fullchain.pem
+    key: /etc/letsencrypt/live/wings-0.ellis.link/privkey.pem
+  upload_limit: 100
+system:
+  data: /var/lib/pterodactyl/volumes
+  sftp:
+    bind_port: 2022
+allowed_mounts: []
+remote: 'https://pterodactyl.ellis.link'

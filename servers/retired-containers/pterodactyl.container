@@ -1,0 +1,61 @@
+
+
+[Unit]
+Description=Pterodactyl Panel
+Wants=network-online.target
+After=network-online.target
+
+Wants=redis.service
+Wants=mysql.service
+
+[Container]
+ContainerName=pterodactyl-panel
+NoNewPrivileges=true
+Image=ghcr.io/pterodactyl/panel:latest
+Volume=/var/opt/pterodactyl/panel/var:/app/var/:z,U
+Volume=/var/opt/pterodactyl/panel/logs:/app/storage/logs:z,U
+Volume=/var/opt/pterodactyl/panel/nginx:/etc/nginx/conf.d:z,U
+
+EnvironmentFile=pterodactyl.env
+
+AutoUpdate=registry
+Network=web.network
+Network=internal.network
+
+Label="traefik.enable=true"
+
+
+Label="traefik.http.routers.pterodactyl-panel.entrypoints=http"
+Label="traefik.http.routers.pterodactyl-panel.rule=Host(`pterodactyl.ellis.link`)"
+Label="traefik.http.routers.pterodactyl-panel.middlewares=panel_https"
+Label="traefik.http.middlewares.panel_https.redirectscheme.scheme=https"
+# HTTPS
+Label="traefik.http.routers.pterodactyl-panel-https.entrypoints=https"
+Label="traefik.http.routers.pterodactyl-panel-https.rule=Host(`pterodactyl.ellis.link`)"
+Label="traefik.http.routers.pterodactyl-panel-https.tls=true"
+Label="traefik.http.routers.pterodactyl-panel-https.tls.certresolver=letsencrypt"
+Label="traefik.http.services.pterodactyl-panel-https.loadbalancer.server.port=80"
+# Label="traefik.http.routers.pterodactyl-panel-https.middlewares=hsts,compress"
+# 
+# Label="traefik.http.middlewares.compress.compress=true"
+# 
+# Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+# Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+# Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+# Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
+
+Label="homepage.group=Games"
+Label="homepage.name=Pterodactyl Panel"
+Label="homepage.href=https://pterodactyl.ellis.link/"
+Label="homepage.description=Game server manager"
+Label="homepage.widget.type=pterodactyl"
+Label="homepage.widget.url=https://pterodactyl.ellis.link"
+Label="homepage.widget.key=ptla_1nPixV9s1UJccf98TUGSO2ViY92MndM7qZKH76k1Tm5"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
