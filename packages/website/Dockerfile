@@ -25,5 +25,6 @@ WORKDIR /app
 COPY --from=build /app/packages/website/build .
 COPY --from=build /app/packages/website/package.json ./package.json
 
+ENV NODE_ENV production
 EXPOSE 3000
 CMD ["node", "."]
