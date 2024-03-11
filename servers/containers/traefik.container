@@ -5,12 +5,13 @@
 Description=traefik web server
 Wants=network-online.target
 After=network-online.target
+After=kanidm.service
 
 [Container]
 ContainerName=traefik
 PodmanArgs=--privileged
 NoNewPrivileges=true
-Image=docker.io/library/traefik:latest
+Image=docker.io/library/traefik:3.0
 PublishPort=0.0.0.0:80:80/tcp
 PublishPort=0.0.0.0:443:443/tcp
 PublishPort=0.0.0.0:443:443/udp
@@ -24,6 +25,8 @@ ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
 Volume=/var/srv/traefik:/certificates:z
 Volume=/etc/traefik:/etc/traefik:ro,z
+Volume=kanidm-certs.volume:/kanidm_certs:ro,z
+
 # Volume=/var/srv/matrix/caddy/config:/config:z
 # Volume=/var/srv/matrix/caddy/data:/data:z
 # Volume=/var/srv/matrix/caddy/Caddyfile:/etc/caddy/Caddyfile:ro,z
@@ -34,7 +37,7 @@ Network=web.network
 # IP6=fe80::9724:38eb:9b0f:df7c
 
 Exec=traefik --configFile=/etc/traefik/config.toml 
-
+Environment="SSL_CERT_FILE=/kanidm_certs/ca.pem"
 
 Label="traefik.http.middlewares.compress.compress=true"
 

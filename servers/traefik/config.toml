@@ -4,6 +4,10 @@ level = "DEBUG"
 
 [providers.docker]
 exposedbydefault = false
+[providers.file]
+directory="/etc/traefik/additional/" 
+watch=true 
+
 [entrypoints.http]
 address = ":80"
 [entrypoints.https]

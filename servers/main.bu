@@ -56,6 +56,7 @@ storage:
   directories:
     - path: /var/opt/thelounge
     - path: /var/srv/traefik
+    - path: /var/opt/kanidm_data
     # - path: /var/opt/mysql-database
     # - path: /var/opt/pterodactyl
     # - path: /var/opt/pterodactyl/panel/nginx
@@ -76,6 +77,8 @@ storage:
     path: /etc/containers/systemd
   - local: traefik
     path: /etc/traefik
+  - local: kanidm
+    path: /etc/kanidm
   # - local: images
   #   path: /var/opt/images
   files:

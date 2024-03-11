@@ -1,0 +1,61 @@
+
+
+
+[Unit]
+Description=Kanidm identity server
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=kanidm
+
+NoNewPrivileges=true
+Image=docker.io/kanidm/server:latest
+
+ReadOnly=true
+# Volume=/run/podman/podman.sock:/var/run/docker.sock:z
+Volume=/var/opt/kanidm_data:/data:Z
+Volume=kanidm-certs.volume:/data/certs:z
+Volume=/etc/kanidm/entrypoint.sh:/entrypoint.sh:ro,z
+Volume=/etc/kanidm/data/server.toml:/data/server.toml:ro,z
+
+Exec="/entrypoint.sh"
+
+AutoUpdate=registry
+Network=web.network
+
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.kanidm.rule=Host(`idm.ellis.link`)"
+Label="traefik.http.routers.kanidm.entrypoints=https"
+Label="traefik.http.routers.kanidm.service=kanidm"
+
+Label="traefik.http.routers.kanidm.tls.certresolver=letsencrypt"
+
+# Kanidm is a bit odd here
+Label="traefik.http.services.kanidm.loadbalancer.server.port=8443"
+Label="traefik.http.services.kanidm.loadbalancer.server.scheme=https"
+Label="traefik.http.services.kanidm.loadbalancer.serversTransport=kanidm@file"
+# Label="traefik.http.serversTransports.kanidm.insecureSkipVerify=true"
+
+Label="traefik.http.middlewares.compress.compress=true"
+
+Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
+Label="traefik.http.middlewares.hsts.headers.stspreload=true"
+Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
+Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
+
+Label="traefik.http.routers.kanidm.middlewares=compress" # hsts,
+
+Label="homepage.group=Services"
+Label="homepage.name=Kanidm"
+Label="homepage.href=https://idm.ellis.link/"
+Label="homepage.description=Identity server"
+
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

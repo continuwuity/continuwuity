@@ -9,6 +9,7 @@ After=network-online.target
 ContainerName=pitch-tagai
 NoNewPrivileges=true
 Image=localhost/pitch-tagai:latest
+ReadOnly=true
 PodmanArgs=--stop-timeout=0
 # StopTimeout=1
 

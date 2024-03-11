@@ -9,6 +9,7 @@ After=network-online.target
 ContainerName=jade-website-frontend
 NoNewPrivileges=true
 Image=oci-archive:/opt/images/jade-website-frontend
+ReadOnly=true
 # Volume=/var/opt/thelounge:/var/opt/thelounge:z,U
 AutoUpdate=local
 Network=web.network
