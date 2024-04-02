@@ -30,6 +30,9 @@ Label="traefik.http.routers.kanidm.rule=Host(`idm.ellis.link`)"
 Label="traefik.http.routers.kanidm.entrypoints=https"
 Label="traefik.http.routers.kanidm.service=kanidm"
 
+# Label="traefik.tcp.routers.kanidm-tcp.rule=HostSNI(`idm.ellis.link`)"
+# Label="traefik.tcp.routers.kanidm-tcp.service=kanidm"
+
 Label="traefik.http.routers.kanidm.tls.certresolver=letsencrypt"
 
 # Kanidm is a bit odd here

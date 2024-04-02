@@ -1,15 +1,14 @@
 
 
 [Unit]
-Description=pitch-tagai
+Description=demo-tagai
 Wants=network-online.target
 After=network-online.target
 
 [Container]
-ContainerName=pitch-tagai
+ContainerName=demo-tagai
 NoNewPrivileges=true
-Image=localhost/pitch-tagai:latest
-Exec=/slide-server/slide-server /slide-server/srv
+Image=localhost/demo-tagai:latest
 ReadOnly=true
 PodmanArgs=--stop-timeout=0
 # StopTimeout=1
@@ -19,10 +18,10 @@ AutoUpdate=local
 Network=web.network
 
 Label="traefik.enable=true"
-Label="traefik.http.routers.pitch-tagai.rule=Host(`pitch-tagai.ellis.link`)"
-Label="traefik.http.routers.pitch-tagai.entrypoints=https"
+Label="traefik.http.routers.demo-tagai.rule=Host(`demo-tagai.ellis.link`)"
+Label="traefik.http.routers.demo-tagai.entrypoints=https"
 
-Label="traefik.http.routers.pitch-tagai.tls.certresolver=letsencrypt"
+Label="traefik.http.routers.demo-tagai.tls.certresolver=letsencrypt"
 
 
 Label="traefik.http.middlewares.compress.compress=true"
@@ -32,7 +31,7 @@ Label="traefik.http.middlewares.hsts.headers.stspreload=true"
 Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
 Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
 
-Label="traefik.http.routers.pitch-tagai.middlewares=hsts"
+Label="traefik.http.routers.demo-tagai.middlewares=hsts,compress"
 
 # Label="homepage.group=Public"
 # Label="homepage.name=Website"
