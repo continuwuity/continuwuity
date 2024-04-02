@@ -19,16 +19,9 @@ Label="traefik.http.routers.jade-website-frontend.rule=Host(`jade.ellis.link`)"
 Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
 
 Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.jade-website-frontend.tls.options=intermediate@file"
 
-
-Label="traefik.http.middlewares.compress.compress=true"
-
-Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"
-Label="traefik.http.middlewares.hsts.headers.stspreload=true"
-Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
-Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
-
-Label="traefik.http.routers.jade-website-frontend.middlewares=hsts,compress"
+Label="traefik.http.routers.jade-website-frontend.middlewares=default@file"
 
 Label="homepage.group=Public"
 Label="homepage.name=Website"

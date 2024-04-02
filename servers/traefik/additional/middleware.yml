@@ -1,0 +1,27 @@
+http:
+  middlewares:
+    default:
+      chain:
+        middlewares:
+          - security-headers
+          - hsts
+          - compress
+    compress:
+      compress: true
+    hsts:
+      headers: 
+        stsIncludeSubdomains: false
+        stsPreload: true
+        stsSeconds: 31536000
+        isDevelopment: false
+        forceSTSHeader: true
+    security-headers:
+      headers: 
+        contentTypeNosniff: true
+        referrerPolicy: "no-referrer-when-downgrade"
+        frameDeny: true
+        customResponseHeaders:
+          Cross-Origin-Resource-Policy: same-origin
+          Cross-Origin-Opener-Policy: same-origin
+          Cross-Origin-Embedded-Policy: require-corp
+
