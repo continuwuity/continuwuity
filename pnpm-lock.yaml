@@ -23,6 +23,9 @@ importers:
       '@fontsource/fira-mono':
         specifier: ^4.5.10
         version: 4.5.10
+      '@json-feed-types/1_1':
+        specifier: ^1.0.2
+        version: 1.0.2
       '@neoconfetti/svelte':
         specifier: ^1.0.0
         version: 1.0.0
@@ -536,6 +539,17 @@ packages:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.1
       '@jridgewell/sourcemap-codec': 1.4.15
+    dev: true
+
+  /@json-feed-types/1_1@1.0.2:
+    resolution: {integrity: sha512-Ht6Qm53qhWZvvPat4vScXSxiD3MdULuSZrOzUWgMPuez6HMcv5BQcb0OFvIH6WxH72rE8mZTWHrE2FF22XIAgg==}
+    dependencies:
+      '@json-feed-types/common': 1.0.2
+      type-fest: 2.19.0
+    dev: true
+
+  /@json-feed-types/common@1.0.2:
+    resolution: {integrity: sha512-IWcSEjI+2bjl1T0R4cIPHu2DZ6PF/unRdEl9VZ1vTtLNaybzirGCywat+KLIpbmxrg48kRNgasH4CBYkq99NDw==}
     dev: true
 
   /@neoconfetti/svelte@1.0.0:
@@ -2227,6 +2241,11 @@ packages:
 
   /tslib@2.6.2:
     resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
+    dev: true
+
+  /type-fest@2.19.0:
+    resolution: {integrity: sha512-RAH822pAdBgcNMAfWnCBU3CFZcfZ/i1eZjwFU/dsLKumyuuP3niueg2UAukXYF0E2AAoc82ZSSf9J0WQBinzHA==}
+    engines: {node: '>=12.20'}
     dev: true
 
   /typescript@5.3.3:
