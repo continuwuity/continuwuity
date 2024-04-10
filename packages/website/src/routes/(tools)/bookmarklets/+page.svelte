@@ -48,7 +48,7 @@
     <p style="color: red">{error.message}</p>
 {/await}
 <label for="output">Bookmarklet code</label>
-<textarea name="output" class="output card" rows="1" value={output} readonly
+<textarea name="output" id="output" class="output card" rows="1" value={output} readonly
 ></textarea>
 
 <!-- <Editor readonly={true}  /> -->
