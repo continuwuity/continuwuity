@@ -81,6 +81,6 @@
         padding: 4px 2px 4px 6px;
         font-size: 1rem;
         scrollbar-gutter: stable;
-        user-select: all;
+        /* user-select: all; */
     }
 </style>
