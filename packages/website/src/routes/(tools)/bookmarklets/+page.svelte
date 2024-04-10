@@ -21,6 +21,8 @@
         }
     }
 
+    let contentAttributes = {"aria-label": "Bookmarklet editor"}
+
     $: progress = process(value);
 </script>
 
@@ -34,6 +36,7 @@
     {value}
     on:change={(e) => (value = e.detail)}
     lang={LanguageConfig.JavaScript}
+    {contentAttributes}
 >
     <div slot="header" class="code-header">Input</div>
 </Editor>
@@ -44,6 +47,7 @@
 {:catch error}
     <p style="color: red">{error.message}</p>
 {/await}
+<label for="output">Bookmarklet code</label>
 <textarea name="output" class="output card" rows="1" value={output} readonly
 ></textarea>
 
@@ -53,7 +57,7 @@
 </p>
 <p>
     Either drag the link to your bookmarlets bar or, on FireFox, right click and
-    select "Bookmark Link"
+    select "Bookmark Link".
 </p>
 
 <style>
