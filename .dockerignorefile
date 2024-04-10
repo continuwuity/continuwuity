@@ -1,3 +1,5 @@
 servers
 compose.yml
 node_modules
+.gitignore
+Dockerfile

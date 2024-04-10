@@ -20,7 +20,7 @@ const cspDirectives = {
   'manifest-src': ["'self'"],
   'media-src': ["'self'", 'data:'],
   'object-src': ["'none'"],
-  'style-src': ["'self'"],
+  'style-src': ["'self'", "'unsafe-inline'"],
   // 'style-src': ["'self'", "'unsafe-inline'", 'https://hcaptcha.com', 'https://*.hcaptcha.com'],
   'default-src': [
     'self',

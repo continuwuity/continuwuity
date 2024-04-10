@@ -16,13 +16,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 RUN cd packages/website; pnpm run build
 
-
+run cd packages/website; pnpm exec rollup -c server-rollup.config.mjs
 # copy node_modules/ and other build files over
 FROM node:alpine
 
 WORKDIR /app
 
-COPY --from=build /app/packages/website/build .
+COPY --from=build /app/packages/website/output .
+COPY --from=build /app/packages/website/build/client ./client/
+COPY --from=build /app/packages/website/build/prerendered ./prerendered/
 COPY --from=build /app/packages/website/package.json ./package.json
 
 ENV NODE_ENV production

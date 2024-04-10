@@ -29,10 +29,10 @@ services:
 
       # - "traefik.http.routers.to-website.rule=Host(`jade.ellis.link`)"
       # - "traefik.http.routers.to-website.entrypoints=http"
-      - "traefik.http.routers.to-website.rule=Host(`jade.ellis.link`)"
-      - "traefik.http.routers.to-website.entrypoints=https"
-      - "traefik.http.routers.to-website.tls=true"
-      - "traefik.http.routers.to-website.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.to-website.rule=Host(`jade.ellis.link.localhost`)"
+      - "traefik.http.routers.to-website.entrypoints=http"
+      # - "traefik.http.routers.to-website.tls=true"
+      # - "traefik.http.routers.to-website.tls.certresolver=letsencrypt"
       # - "traefik.http.routers.to-website.middlewares=cors-headers@docker"
 
       # - "traefik.http.middlewares.cors-headers.headers.accessControlAllowOriginList=*"
@@ -51,25 +51,25 @@ services:
       - "--log.level=DEBUG"
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
-      - "--entrypoints.http.address=:80"
-      - "--entrypoints.https.address=:443"
+      - "--entrypoints.http.address=:8080"
+      # - "--entrypoints.https.address=:443"
       # - "--acme"
-      - "--certificatesresolvers.letsencrypt.acme.email='jade@ellis.link'"
-      - "--certificatesresolvers.letsencrypt.acme.storage=/certificates/acme.json"
+      # - "--certificatesresolvers.letsencrypt.acme.email='jade@ellis.link'"
+      # - "--certificatesresolvers.letsencrypt.acme.storage=/certificates/acme.json"
 
       # - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
       # - "--certificatesresolvers.letsencrypt.acme.httpChallenge.entryPoint=http"
-      - "--certificatesresolvers.lets-encrypt.acme.tlschallenge=true"
+      # - "--certificatesresolvers.lets-encrypt.acme.tlschallenge=true"
 
-      - "--entrypoints.http.http.redirections.entryPoint.to=https" 
-      - "--entrypoints.http.http.redirections.entryPoint.scheme=https"
+      # - "--entrypoints.http.http.redirections.entryPoint.to=https" 
+      # - "--entrypoints.http.http.redirections.entryPoint.scheme=https"
       
       # - --api.dashboard=true 
       # - --api.insecure=true 
     ports:
-      - "80:80"
-      - "443:443"
-      # - "8080:8080"
+      # - "80:80"
+      # - "443:443"
+      - "8080:8080"
     volumes:
       - "/run/user/1000/podman/podman.sock:/var/run/docker.sock"
       # - "/var/run/docker.sock:/var/run/docker.sock:ro"

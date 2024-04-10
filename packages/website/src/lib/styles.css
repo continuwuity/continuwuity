@@ -4,6 +4,10 @@
     --theme: #242424;
     --background-color: #f8f8f8;
     --surface-color: #fff;
+    --surface-secondary-color: #ededed;
+    
+    --input-background-color: #fff;
+    --input-color: #24292e;
     --backdrop-color: rgba(247, 247, 247, .54);
     --shadow-color: rgba(0, 0, 0, .12);
     --font-color: rgba(0, 0, 0, .87);
@@ -23,6 +27,10 @@
         --backdrop-color: rgba(20, 20, 20, .54);
         --shadow-color: rgba(255, 255, 255, .12);
         --surface-color: #242424;
+        --surface-secondary-color: #222222;
+        
+        --input-background-color: #161616;
+        --input-color: #d8d8d8;
         --font-color: rgba(255, 255, 255, .87);
         --font-color-contrast: rgba(0, 0, 0, .87);
         --font-color-secondary: rgba(255, 255, 255, .6)
