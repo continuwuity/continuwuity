@@ -3,6 +3,8 @@
     import SvelteSeo from "svelte-seo";
     import { bookmarkify, parseMeta } from "./bookmarklets";
     import type { Config } from "./config";
+    
+    import { SITE_URL } from '$lib/metadata';
 
     /** @type {import('./$types').Snapshot<string>} */
     export const snapshot = {
@@ -29,7 +31,7 @@
 <SvelteSeo
     title="Bookmarklet Maker"
     description="Make booklets in your browser with this tool. Make handy shortcuts to save time."
-    canonical="https://jade.ellis.link/bookmarklets"
+    canonical={SITE_URL + "/bookmarklets"}
 />
 <h1>Bookmarklet Maker</h1>
 <Editor

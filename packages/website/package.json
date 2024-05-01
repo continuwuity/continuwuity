@@ -1,63 +1,76 @@
 {
-	"name": "website",
-	"version": "0.0.1",
-	"scripts": {
-		"dev": "vite dev",
-		"build": "vite build",
-		"preview": "vite preview",
-		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
-	},
-	"devDependencies": {
-		"@fontsource/fira-mono": "^5.0.13",
-		"@json-feed-types/1_1": "^1.0.2",
-		"@rollup/plugin-node-resolve": "^15.2.3",
-		"@sveltejs/adapter-auto": "^3.2.0",
-		"@sveltejs/adapter-node": "^5.0.1",
-		"@sveltejs/kit": "^2.5.7",
-		"@sveltejs/vite-plugin-svelte": "^3.1.0",
-		"rollup": "^4.17.0",
-		"rollup-plugin-type-as-json-schema": "^0.2.6",
-		"sharp": "^0.33.3",
-		"svelte": "^4.2.15",
-		"svelte-check": "^3.7.0",
-		"svelte-seo": "^1.6.0",
-		"sveltekit-html-minifier": "^1.0.3",
-		"svgo": "^3.2.0",
-		"tslib": "^2.6.2",
-		"typescript": "^5.4.5",
-		"vite": "^5.2.10",
-		"vite-plugin-image-optimizer": "^1.1.7"
-	},
-	"type": "module",
-	"dependencies": {
-		"@codemirror/lang-javascript": "^6.2.2",
-		"@codemirror/language": "^6.10.1",
-		"@codemirror/lint": "^6.5.0",
-		"@codemirror/state": "^6.4.1",
-		"@codemirror/view": "^6.26.3",
-		"@lezer/highlight": "^1.2.0",
-		"@steeze-ui/svelte-icon": "^1.5.0",
-		"@uiw/codemirror-theme-github": "^4.21.25",
-		"acorn": "^8.11.3",
-		"magic-string": "^0.30.10",
-		"super-sitemap": "^0.14.14",
-		"svelte-codemirror-editor": "^1.3.0",
-		"terser": "^5.30.4",
-		"xmlbuilder2": "^3.1.1"
-	},
-	"targets": {
-		"module": {
-			"context": "node",
-			"engines": {
-				"node": ">= 20"
-			},
-			"outputFormat": "esmodule",
-			"optimize": true,
-			"includeNodeModules": true
-		}
-	},
-	"@parcel/resolver-default": {
-		"packageExports": true
-	}
+  "name": "website",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+  },
+  "devDependencies": {
+    "@fontsource/fira-mono": "^5.0.13",
+    "@json-feed-types/1_1": "^1.0.2",
+    "@rollup/plugin-dynamic-import-vars": "^2.1.2",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@sveltejs/adapter-auto": "^3.2.0",
+    "@sveltejs/adapter-node": "^5.0.1",
+    "@sveltejs/kit": "^2.5.7",
+    "@sveltejs/vite-plugin-svelte": "^3.1.0",
+    "@types/node": "^20.12.7",
+    "glob": "^10.3.12",
+    "mdsvex": "^0.11.0",
+    "rehype-slug": "^6.0.0",
+    "remark-frontmatter": "^5.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "remark-wiki-link": "^2.0.1",
+    "rollup": "^4.17.0",
+    "rollup-plugin-type-as-json-schema": "^0.2.6",
+    "sharp": "^0.33.3",
+    "svelte": "^4.2.15",
+    "svelte-check": "^3.7.0",
+    "svelte-seo": "^1.6.0",
+    "sveltekit-html-minifier": "^1.0.3",
+    "svgo": "^3.2.0",
+    "tslib": "^2.6.2",
+    "typescript": "^5.4.5",
+    "unified": "^11.0.4",
+    "vite": "^5.2.10",
+    "vite-plugin-dynamic-import": "^1.5.0",
+    "vite-plugin-image-optimizer": "^1.1.7"
+  },
+  "type": "module",
+  "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.2",
+    "@codemirror/language": "^6.10.1",
+    "@codemirror/lint": "^6.5.0",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.26.3",
+    "@lezer/highlight": "^1.2.0",
+    "@steeze-ui/svelte-icon": "^1.5.0",
+    "@uiw/codemirror-theme-github": "^4.21.25",
+    "Notes": "link:~/Documents/Notes/",
+    "acorn": "^8.11.3",
+    "magic-string": "^0.30.10",
+    "slugify": "^1.6.6",
+    "super-sitemap": "^0.14.14",
+    "svelte-codemirror-editor": "^1.3.0",
+    "terser": "^5.30.4",
+    "xmlbuilder2": "^3.1.1"
+  },
+  "targets": {
+    "module": {
+      "context": "node",
+      "engines": {
+        "node": ">= 20"
+      },
+      "outputFormat": "esmodule",
+      "optimize": true,
+      "includeNodeModules": true
+    }
+  },
+  "@parcel/resolver-default": {
+    "packageExports": true
+  }
 }
