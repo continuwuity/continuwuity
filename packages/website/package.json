@@ -51,7 +51,7 @@
     "@lezer/highlight": "^1.2.0",
     "@steeze-ui/svelte-icon": "^1.5.0",
     "@uiw/codemirror-theme-github": "^4.21.25",
-    "Notes": "link:~/Documents/Notes/",
+    "Notes": "file:Notes-1.0.0.tgz",
     "acorn": "^8.11.3",
     "magic-string": "^0.30.10",
     "slugify": "^1.6.6",
