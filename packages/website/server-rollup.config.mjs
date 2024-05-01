@@ -1,5 +1,6 @@
 // rollup.config.mjs
 import { nodeResolve } from '@rollup/plugin-node-resolve';
+import commonjs from '@rollup/plugin-commonjs';
 
 export default {
     input: 'build/index.js',
@@ -7,5 +8,5 @@ export default {
         dir: "output",
         format: 'esm'
     },
-    plugins: [nodeResolve()]
+    plugins: [nodeResolve(), commonjs()]
 };

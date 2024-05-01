@@ -65,6 +65,9 @@ importers:
       '@json-feed-types/1_1':
         specifier: ^1.0.2
         version: 1.0.2
+      '@rollup/plugin-commonjs':
+        specifier: ^25.0.7
+        version: 25.0.7(rollup@4.17.0)
       '@rollup/plugin-dynamic-import-vars':
         specifier: ^2.1.2
         version: 2.1.2(rollup@4.17.0)
