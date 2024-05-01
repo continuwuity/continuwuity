@@ -61,8 +61,8 @@ const hrefTemplate = (/** @type {string} */ permalink) => `#${permalink}`
 const config = defineConfig({
   extensions: [".svelte.md", ".md", ".svx"],
 
-  fences: true,
-  ruleSpaces: false,
+//   fences: true,
+//   ruleSpaces: false,
   smartypants: {
     dashes: "oldschool",
   },
