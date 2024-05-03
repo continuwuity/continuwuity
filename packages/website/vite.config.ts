@@ -4,7 +4,7 @@ import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import dynamicImport from 'vite-plugin-dynamic-import'
 import typeAsJsonSchemaPlugin from "rollup-plugin-type-as-json-schema";
 import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
-
+import path from "node:path";
 import { mdsvex } from 'mdsvex';
 import mdsvexConfig from "./mdsvex.config.js";
 import { extname } from 'node:path';
@@ -26,7 +26,7 @@ function mdsvex_transform() {
 export default defineConfig({
     resolve: {
         alias: {
-            "Notes": "node_modules/Notes"
+            "Notes": path.join(__dirname, "node_modules/Notes")
         }
     },
     plugins: [
@@ -37,6 +37,12 @@ export default defineConfig({
         // mdsvex_transform(),
         sveltekit(),
         dynamicImport({
+            
+  filter(id) {
+    if (id.includes('node_modules/Notes')) {
+      return true
+    }
+  }
         }),
         // dynamicImportVars({
         //   // options
