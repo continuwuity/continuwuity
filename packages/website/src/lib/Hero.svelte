@@ -8,7 +8,7 @@
     </div>
     <div class="content">
         <h1 class="title">JadedBlueEyes</h1>
-        <div class="description">Working on it! Come back later :&rpar;</div>
+        <div class="description">Student, Computer Scientist and Creative</div>
     </div>
 </div>
 
@@ -21,7 +21,7 @@
         gap: var(--spacing);
         margin: 48px auto;
         max-width: 320px;
-        padding: 3rem 0;
+        padding: 3rem .5rem;
     }
 
     .logo {

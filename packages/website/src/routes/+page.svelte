@@ -1,6 +1,7 @@
 <script lang="ts">
     import Hero from "$lib/Hero.svelte";
     import SvelteSeo from "svelte-seo";
+    import Homepage from "Notes/Website Homepage.md";
 </script>
 <SvelteSeo
   title="Jade Ellis"
@@ -8,4 +9,5 @@
   canonical="https://jade.ellis.link"
 />
 <Hero />
-<a rel="me" href="https://tech.lgbt/@JadedBlueEyes">Mastodon</a>
+
+<Homepage />
