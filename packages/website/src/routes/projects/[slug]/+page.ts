@@ -14,8 +14,10 @@ export async function load({ data }) {
         await import("Notes/Projects/" + data.page.filepath.name + ".md")
     // console.log(data.page.filepath)
 
+
     return {
         post: data.page,
+        ghReleaseData: data.ghReleaseData,
         component: component.default
     }
 }
