@@ -7,7 +7,7 @@
 </script>
 
 <div class="release">
-    {#if !browser &&navigator}
+    {#if browser && navigator}
         {#if navigator.platform.startsWith("Win")}
             {@const asset  =releaseData.assets.filter((a) => a.name.endsWith(".exe"))[0]}
             {#if asset}
