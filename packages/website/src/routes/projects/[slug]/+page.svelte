@@ -15,6 +15,7 @@
 
 <SvelteSeo
     title={data.post.title}
+    description={data.post.description}
     canonical={SITE_URL + "/projects/" + data.post.slug}
 />
 <h1>{data.post.title}</h1>

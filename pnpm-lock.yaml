@@ -889,7 +889,7 @@ packages:
       '@codemirror/view': '>=6.0.0'
 
   Notes@file:packages/website/Notes-1.0.0.tgz:
-    resolution: {integrity: sha512-Tk+4sugCT0Dw+CUlWJALNdqzKm9vEbaHY2+PKC1yACaYqfQHdnzLF1g1ndAJlx3781Kf9eAkc1g5UiEAuIJdiA==, tarball: file:packages/website/Notes-1.0.0.tgz}
+    resolution: {integrity: sha512-3R1MlrB7PgI9UiA5sFREozIR3wfi6cn+IEgi4FaXbhgCo5TI66cu5/Jh7Ii9Y+K/U4NHPudFpjWI6QEkKjXoFw==, tarball: file:packages/website/Notes-1.0.0.tgz}
     version: 1.0.0
 
   acorn@8.11.3:
