@@ -19,7 +19,7 @@
             <a href={asset.browser_download_url}>Download for MacOS</a>
         {/if}
 
-        {:else if navigator.platform.startsWith("Linux")}
+        {:else if navigator.platform.startsWith("Linux") && navigator.platform.includes("x86_64")}
 
         {@const asset  =releaseData.assets.filter((a) => a.name.endsWith(".AppImage"))[0]}
         {#if asset}
