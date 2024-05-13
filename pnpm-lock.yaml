@@ -101,6 +101,9 @@ importers:
       '@types/node':
         specifier: ^20.12.7
         version: 20.12.7
+      '@types/sharedworker':
+        specifier: ^0.0.115
+        version: 0.0.115
       glob:
         specifier: ^10.3.12
         version: 10.3.12
@@ -871,6 +874,9 @@ packages:
 
   '@types/resolve@1.20.2':
     resolution: {integrity: sha512-60BCwRFOZCQhDncwQdxxeOEEkbc5dIMccYLwbxsS4TUNeVECQ/pBJ0j09mrHOl/JJvpRPGwO9SvE4nR2Nb/a4Q==}
+
+  '@types/sharedworker@0.0.115':
+    resolution: {integrity: sha512-istxrCv9mbZQt7kXMVMsc4U+dbxG5y+ae5N+9f6pM9VOJmclF7FBWtTog9SMT16s1pZUTjga7ewaMVgqhDpTOg==}
 
   '@types/unist@2.0.10':
     resolution: {integrity: sha512-IfYcSBWE3hLpBg8+X2SEa8LVkJdJEkT2Ese2aaLs3ptGdVtABxndrMaxuFlQ1qdFf9Q5rDvDpxI3WwgvKFAsQA==}
@@ -2840,6 +2846,8 @@ snapshots:
   '@types/pug@2.0.10': {}
 
   '@types/resolve@1.20.2': {}
+
+  '@types/sharedworker@0.0.115': {}
 
   '@types/unist@2.0.10': {}
 

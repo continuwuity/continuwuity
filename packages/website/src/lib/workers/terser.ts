@@ -1,0 +1,48 @@
+import type { MinifyOptions, MinifyOutput } from "terser";
+import { recieveMessageData, sendMessageData } from "./util";
+
+export function init() {
+
+    let worker: SharedWorker;
+    let currentId = 0;
+    let terserModule: typeof import("terser");
+    let promises: { [id: number]: [(value: MinifyOutput | PromiseLike<MinifyOutput>) => void, (reason?: any) => void] } = {};
+    return {
+        minify: async function minify(files: string | string[] | {
+            [file: string]: string;
+        }, options?: MinifyOptions): Promise<MinifyOutput> {
+
+            if (!!window.SharedWorker) {
+                if (!worker) {
+                    worker = new SharedWorker(new URL('./terserWorker.ts', import.meta.url), { type: "module" })
+                    worker.port.onmessage = (e: MessageEvent<any>) => {
+                        // invoke the promise's resolve() or reject() depending on whether there was an error.
+                        promises[e.data[recieveMessageData.MessageId]][e.data[recieveMessageData.MessageType]](e.data[recieveMessageData.Return]);
+
+                        // ... then delete the promise controller
+                        delete promises[e.data[recieveMessageData.MessageId]];
+
+                    }
+                }
+                worker.port.start()
+                return new Promise((resolve, reject) => {
+                    promises[++currentId] = [resolve, reject];
+
+                    let data = {
+                        [sendMessageData.MessageId]: currentId,
+                        [sendMessageData.Parameters]: [files, options
+                        ]
+                    }
+                    worker.port.postMessage(data)
+                });
+
+            } else {
+                if (!terserModule) {
+                    terserModule = await import("terser")
+                }
+                return await terserModule.minify(files, options)
+            }
+        }
+    }
+
+}

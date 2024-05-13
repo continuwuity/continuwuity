@@ -2,14 +2,17 @@
 
 import MagicString from "magic-string";
 import { Parser } from "acorn";
-import { minify } from "terser";
+import { type MinifyOptions, type MinifyOutput } from "terser";
 
 let sourceMap = false;
 
 import { configSchema } from "./config.schema";
 import type { Config } from "./config";
 // console.log(configSchema)
-export async function bookmarkify(code: string, options: Config) {
+export async function bookmarkify(code: string, options: Config, minify: (files: string | string[] | {
+    [file: string]: string;
+}, options?: MinifyOptions | undefined) => Promise<MinifyOutput>
+) {
 
     // try {
     if (options.script) {

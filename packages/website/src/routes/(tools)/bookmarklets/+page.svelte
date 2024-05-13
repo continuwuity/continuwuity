@@ -3,7 +3,7 @@
     import SvelteSeo from "svelte-seo";
     import { bookmarkify, parseMeta } from "./bookmarklets";
     import type { Config } from "./config";
-    
+    import { init } from "$lib/workers/terser";
     import { SITE_URL } from '$lib/metadata';
 
     /** @type {import('./$types').Snapshot<string>} */
@@ -12,12 +12,14 @@
         restore: (v: string) => (value = v),
     };
 
+    let minify = init().minify
+
     let value = "";
     let output = "";
     let options: Config = {};
     async function process(str: string) {
         options = await parseMeta(str);
-        let res = await bookmarkify(str, options);
+        let res = await bookmarkify(str, options, minify);
         if (typeof res == "string") {
             output = res;
         }
