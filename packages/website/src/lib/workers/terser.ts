@@ -1,6 +1,7 @@
 import type { MinifyOptions, MinifyOutput } from "terser";
 import { recieveMessageData, sendMessageData } from "./util";
 
+const is_browser = typeof window !== "undefined";
 export function init() {
 
     let worker: SharedWorker;
@@ -36,11 +37,13 @@ export function init() {
                     worker.port.postMessage(data)
                 });
 
-            } else {
+            } else if (is_browser) {
                 if (!terserModule) {
                     terserModule = await import("terser")
                 }
                 return await terserModule.minify(files, options)
+            } else {
+                return {}
             }
         }
     }
