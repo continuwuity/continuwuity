@@ -16,6 +16,10 @@
     let value = "";
     let output = "";
     async function process(str: string) {
+        if (value === "") {
+            output = "";
+            return
+        }
         let result = await minify(str)
         if (typeof result.code == "string") {
             output = result.code
