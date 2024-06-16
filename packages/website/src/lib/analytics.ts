@@ -1,7 +1,13 @@
-(<any>window).dataLayer = (<any>window).dataLayer || [];
+const is_browser = typeof window !== "undefined";
+
+if (is_browser) {
+    (<any>window).dataLayer = (<any>window).dataLayer || [];
+}
 
 export function gtag(...args: any[]) {
-    (<any>window).dataLayer.push(arguments);
+    if (is_browser) {
+        (<any>window).dataLayer.push(arguments);
+    }
 }
 
 gtag('js', new Date());
