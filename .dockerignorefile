@@ -3,3 +3,6 @@ compose.yml
 node_modules
 .gitignore
 Dockerfile
+.svelte-kit
+build
+output
