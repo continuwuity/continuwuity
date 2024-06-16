@@ -38,6 +38,7 @@ const cspDirectives = {
   ],
   'script-src': [
     'self',
+    'unsafe-inline' // chrome suggestion
     // 'https://*.stripe.com',
     // 'https://*.facebook.com',
     // 'https://*.facebook.net',
