@@ -1,6 +1,8 @@
 :root {
     color-scheme: light;
     --spacing: 24px;
+    --page-width: 57.75rem;
+
     --theme: #242424;
     --background-color: #f8f8f8;
     --surface-color: #fff;
@@ -13,10 +15,14 @@
     --font-color: rgba(0, 0, 0, .87);
     --font-color-contrast: rgba(255, 255, 255, 1);
     --font-color-secondary: rgba(0, 0, 0, .6);
+
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+
     --font-family-base: Roboto, sans-serif;
     --font-family-heading: "Sen", Roboto, sans-serif;
+
     --border-radius: 8px;
-    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    
 }
 
 @media (prefers-color-scheme: dark) {
@@ -78,11 +84,18 @@ svg {
     height: 100%;
     display: block;
 }
-
+.container {
+    
+    --container-max-width: var(--page-width);
+    --padding-x: var(--spacing);
+    max-width: calc(var(--container-max-width) + 2*var(--padding-x));
+    /* width: 100%; */
+    margin-inline: auto;
+    padding-inline: var(--padding-x);
+  }
+  
 .main {
-    max-width: 1056px;
-    margin: 0 auto;
-    padding: 0 var(--spacing);
+    /* margin: 0 auto; */
     --edge-border-radius: var(--border-radius);
 }
 
@@ -104,3 +117,12 @@ svg {
 .edge {
     border-radius: var(--edge-border-radius);
 }
+
+.screen-reader-only {
+    position: absolute;
+    clip: rect(0, 0, 0, 0);
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    white-space: nowrap;
+  }
