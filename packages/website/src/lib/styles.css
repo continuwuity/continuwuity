@@ -7,7 +7,7 @@
     --background-color: #f8f8f8;
     --surface-color: #fff;
     --surface-secondary-color: #ededed;
-    
+
     --input-background-color: #fff;
     --input-color: #24292e;
     --backdrop-color: rgba(247, 247, 247, .54);
@@ -22,7 +22,7 @@
     --font-family-heading: "Sen", Roboto, sans-serif;
 
     --border-radius: 8px;
-    
+
 }
 
 @media (prefers-color-scheme: dark) {
@@ -34,7 +34,7 @@
         --shadow-color: rgba(255, 255, 255, .12);
         --surface-color: #242424;
         --surface-secondary-color: #222222;
-        
+
         --input-background-color: #161616;
         --input-color: #d8d8d8;
         --font-color: rgba(255, 255, 255, .87);
@@ -84,16 +84,16 @@ svg {
     height: 100%;
     display: block;
 }
+
 .container {
-    
     --container-max-width: var(--page-width);
     --padding-x: var(--spacing);
     max-width: calc(var(--container-max-width) + 2*var(--padding-x));
     /* width: 100%; */
     margin-inline: auto;
     padding-inline: var(--padding-x);
-  }
-  
+}
+
 .main {
     /* margin: 0 auto; */
     --edge-border-radius: var(--border-radius);
@@ -125,4 +125,12 @@ svg {
     height: 1px;
     overflow: hidden;
     white-space: nowrap;
-  }
+}
+
+.screen-reader-only:focus {
+	clip: auto;
+	width: auto;
+	height: auto;
+	white-space: normal;
+	overflow: visible;
+}
