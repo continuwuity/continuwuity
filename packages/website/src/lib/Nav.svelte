@@ -1,5 +1,7 @@
 <script lang="ts">
     import url from "./logo.svg?url";
+    // https://www.aleksandrhovhannisyan.com/
+    // https://github.com/AleksandrHovhannisyan/aleksandrhovhannisyan.com/tree/master
 </script>
 
 <header id="navbar">

@@ -21,6 +21,7 @@ export function get_base_extensions(
         basicSetup
     ];
 
+    // @ts-ignore
     if (useTab) extensions.push(keymap.of([indentWithTab]));
     // if (placeholder) extensions.push(placeholderExt(placeholder));
     if (lang) extensions.push(lang);
