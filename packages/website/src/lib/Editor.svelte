@@ -181,8 +181,8 @@
                 <div class="scm-loading__spinner" />
                 <p class="scm-loading__text">Loading editor...</p>
             </div>
-
-            <pre class="scm-pre cm-editor">{value}</pre>
+            <div class="cm-editor"><pre class="scm-pre">{value}</pre></div>
+            
         </div>
     {/if}
     <!-- <CodeMirror
@@ -199,7 +199,7 @@
 
 <style>
     .editor-wrapper {
-        min-height: 200px;
+        /* min-height: 200px; */
         position: relative;
         z-index: 1;
         background-color: var(--surface-secondary-color);
@@ -210,7 +210,6 @@
     }
 
     .scm-waiting {
-        padding: 4px 2px 4px 6px;
         position: relative;
     }
     .scm-waiting__loading {
@@ -241,6 +240,8 @@
     }
     .scm-pre {
         font-size: 0.85rem;
+        margin: 0;
+        padding: 4px 2px 4px 6px;
         font-family: monospace;
         tab-size: 2;
         -moz-tab-size: 2;
