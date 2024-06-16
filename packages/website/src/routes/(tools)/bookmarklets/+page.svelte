@@ -1,5 +1,6 @@
 <script lang="ts">
-    import Editor, { LanguageConfig } from "$lib/Editor.svelte";
+    import Editor from "$lib/Editor.svelte";
+    import { javascript } from "@codemirror/lang-javascript";
     import SvelteSeo from "svelte-seo";
     import { bookmarkify, parseMeta } from "./bookmarklets";
     import type { Config } from "./config";
@@ -39,7 +40,7 @@
 <Editor
     {value}
     on:change={(e) => (value = e.detail)}
-    lang={LanguageConfig.JavaScript}
+    lang={javascript()}
     {contentAttributes}
 >
     <div slot="header" class="code-header">Input</div>

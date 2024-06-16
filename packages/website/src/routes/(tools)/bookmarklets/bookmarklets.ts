@@ -1,6 +1,6 @@
 
 
-import MagicString from "magic-string";
+// import MagicString from "magic-string";
 import { Parser } from "acorn";
 import { type MinifyOptions, type MinifyOutput } from "terser";
 
