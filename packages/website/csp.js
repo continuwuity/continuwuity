@@ -3,7 +3,7 @@ const rootDomain = process.env.VITE_DOMAIN; // or your server IP for dev
 const cspDirectives = {
   'base-uri': ["'self'"],
   'child-src': ["'self'"],
-  'connect-src': ["'self'"],
+  'connect-src': ["'self'", "https://*.google-analytics.com"],
   // 'connect-src': ["'self'", 'ws://localhost:*', 'https://hcaptcha.com', 'https://*.hcaptcha.com'],
   'img-src': ["'self'", 'data:'],
   'font-src': ["'self'", 'data:'],
@@ -38,7 +38,8 @@ const cspDirectives = {
   ],
   'script-src': [
     'self',
-    'unsafe-inline' // chrome suggestion
+    'unsafe-inline', // chrome suggestion
+    'https://*.googletagmanager.com'
     // 'https://*.stripe.com',
     // 'https://*.facebook.com',
     // 'https://*.facebook.net',
