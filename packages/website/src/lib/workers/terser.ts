@@ -13,7 +13,7 @@ export function init() {
             [file: string]: string;
         }, options?: MinifyOptions): Promise<MinifyOutput> {
 
-            if (!!window.SharedWorker) {
+            if (is_browser && !!window.SharedWorker) {
                 if (!worker) {
                     worker = new SharedWorker(new URL('./terserWorker.ts', import.meta.url), { type: "module" })
                     worker.port.onmessage = (e: MessageEvent<any>) => {
