@@ -1,12 +1,20 @@
-import { defineMDSveXConfig as defineConfig } from "mdsvex";
+// https://github.com/String10/Hakuba/blob/master/package.json
+// import { defineMDSveXConfig as defineConfig } from "mdsvex";
 // import type { Plugin, Settings } from 'unified';
 
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
-import remarkMath from "remark-math";
 import remarkWikiLink, { } from "remark-wiki-link";
 
-import slug from 'rehype-slug';
+import remarkMath from "remark-math"
+// @ts-ignore
+import remarkAbbr from "remark-abbr"
+import remarkFootnotes from 'remark-footnotes'
+
+import rehypeKatexSvelte from 'rehype-katex-svelte';
+// import github from "remark-github";
+
+import rehypeSlug from 'rehype-slug';
 
 import { parse, format } from "node:path";
 
@@ -57,61 +65,68 @@ function pageResolver(pageName) {
 }
 
 const hrefTemplate = (/** @type {string} */ permalink) => `#${permalink}`
+/**
+ * @type {import("mdsvex").MdsvexOptions}
+ */
+const config = {
+    extensions: [".svelte.md", ".md", ".svx"],
 
-const config = defineConfig({
-  extensions: [".svelte.md", ".md", ".svx"],
+    //   fences: true,
+    //   ruleSpaces: false,
+    smartypants: {
+        dashes: "oldschool",
+    },
 
-//   fences: true,
-//   ruleSpaces: false,
-  smartypants: {
-    dashes: "oldschool",
-  },
-  
-  highlight: {
-    alias: {
-      ts: "typescript",
-      mdx: "markdown",
-      svelte: "svelte",
-      svx: "svx",
-      mdsvex: "svx",
-      sig: "ts",
-    }
-  },
+    highlight: {
+        alias: {
+            ts: "typescript",
+            mdx: "markdown",
+            svelte: "svelte",
+            svx: "svx",
+            mdsvex: "svx",
+            sig: "ts",
+        }
+    },
 
-  remarkPlugins: [
-    remarkGfm,
-    remarkFrontmatter,
-    remarkMath,
-    [remarkWikiLink, {
-      // @ts-ignore
-      aliasDivider: "|",
-      permalinks: permalinks,
-      pageResolver,
-      hrefTemplate,
-      
-      // wikiLinkClassName,
-      // newClassName,
-    }],
-    // [citePlugin, {
-    //   syntax: {
-    //     // see micromark-extension-cite
-    //     enableAltSyntax: false,
-    //     enablePandocSyntax: true,
-    //   },
-    //   toMarkdown: {
-    //     // see mdast-util-cite
-    //     standardizeAltSyntax: false,
-    //     enableAuthorSuppression: true,
-    //     useNodeValue: false,
-    //   },
-    // }],
-    // [remarkBibliography, { bibliography }],
-    // [remarkMermaid, {}]
-  ],
-  rehypePlugins: [
-    // @ts-ignore
-    slug 
-  ],
-});
+    remarkPlugins: [
+        // remarkFrontmatter,
+        // [github, {repository}],
+        remarkMath,
+        remarkAbbr,
+        [remarkFootnotes, { inlineNotes: true }],
+        remarkGfm,
+        [remarkWikiLink, {
+            // @ts-ignore
+            aliasDivider: "|",
+            permalinks: permalinks,
+            pageResolver,
+            hrefTemplate,
+
+            // wikiLinkClassName,
+            // newClassName,
+        }],
+        // [citePlugin, {
+        //   syntax: {
+        //     // see micromark-extension-cite
+        //     enableAltSyntax: false,
+        //     enablePandocSyntax: true,
+        //   },
+        //   toMarkdown: {
+        //     // see mdast-util-cite
+        //     standardizeAltSyntax: false,
+        //     enableAuthorSuppression: true,
+        //     useNodeValue: false,
+        //   },
+        // }],
+        // [remarkBibliography, { bibliography }],
+        // [remarkMermaid, {}]
+    ],
+    rehypePlugins: [
+        // @ts-ignore
+        rehypeKatexSvelte,
+        // @ts-ignore
+        rehypeSlug
+    ],
+};
 
 export default config;

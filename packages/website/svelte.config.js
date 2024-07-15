@@ -8,7 +8,7 @@ import cspDirectives from "./csp.js";
 /** @type {import('@sveltejs/kit').Config} */
 
 const config = {
-    extensions: [".svelte", ".md"],
+	extensions: ['.svelte', '.md', '.svelte.md'],
 
     // Consult https://kit.svelte.dev/docs/integrations#preprocessors
     // for more information about preprocessors

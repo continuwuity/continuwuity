@@ -24,8 +24,8 @@
                     </a>
                 </li>
                 <!-- <li><a href="/about/" class="navbar-link">About</a></li>
-                <li><a href="/art/" class="navbar-link">Art</a></li>
-                <li><a href="/blog/" class="navbar-link">Blog</a></li> -->
+                <li><a href="/art/" class="navbar-link">Art</a></li> -->
+                <li><a href="/blog/" class="navbar-link">Blog</a></li>
             </ul>
         </nav>
     </div>
