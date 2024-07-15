@@ -35,6 +35,8 @@ export const ICONS = {
 };
 
 import { globSync } from 'glob'
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
 const projects = globSync('/node_modules/Notes/Projects/*.md')
     .map((filepath) => {
@@ -69,14 +71,14 @@ function pageResolver(pageName) {
 // console.log()
 // let http = grammars.find((grammar) => grammar.name == "json")
 // console.log(http)
-import httpGrammar from 'tm-grammars/grammars/http.json' assert { type: "json" };
+// import httpGrammar from 'tm-grammars/grammars/http.json' assert { type: "json" };
 // @ts-ignore
 // http.grammar = httpGrammar;
-// console.log(httpGrammar)
+// console.log(import.meta.resolve('tm-grammars/grammars/http.json'))
 const httpHighlight = {
     id: 'http',
     // aliases: ['http', "https"],
-    grammar: httpGrammar,
+    grammar: JSON.parse(readFileSync(fileURLToPath(import.meta.resolve('tm-grammars/grammars/http.json')), 'utf8')),
     categories: ['web', 'utility'],
     displayName: 'HTTP',
     embedded: ['shellscript', 'json', 'xml', 'graphql'],
