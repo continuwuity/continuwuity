@@ -1,24 +1,30 @@
 <script lang="ts">
     import { page } from "$app/stores";
+    import { SITE_URL } from "$lib/metadata";
+    import SvelteSeo from "svelte-seo";
 
     export let data;
     let { pages } = data;
     // $: console.log(data);
 </script>
 
-<section role="feed">
-    <h1>Blog Posts</h1>
+<SvelteSeo
+    title=""
+    canonical={SITE_URL + "/blog"} />
+
+<section role="feed" class="h-feed" id="feed">
+    <h1 class="p-name">Blog Posts <a class="u-url" href="/#feed"></a></h1>
     {#each pages as post, index}
-        <article aria-posinset={index + 1} aria-setsize={pages.length}>
+        <article aria-posinset={index + 1} aria-setsize={pages.length} class="h-entry">
             <div class="content" data-sveltekit-preload-data="hover">
                 <h2>
-                    <a href="/blog/{post.canonical}" class="text-link">
+                    <a class="u-url p-name" href="/blog/{post.canonical}">
                         {post.title}
                     </a>
                 </h2>
-                <span class="quiet">{post.date}</span>
+                <span class="quiet"><time class="dt-published" datetime={post.date}>{new Date(post.date).toLocaleDateString()}</time></span>
                 {#if post.description}
-                <p>{post.description}</p>
+                <p class="p-summary">{post.description}</p>
                 {/if}
             </div>
         </article>

@@ -8,20 +8,37 @@
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
     // }
-
-    console.log(data)
 </script>
 
 <SvelteSeo
     title={data.post.title}
     description={data.post.description}
     canonical={SITE_URL + "/blog/" + data.post.canonical}
+    twitter={{
+        card: "summary",
+        // site: "@primalmovement",
+        title: data.post.title,
+        description: data.post.description,
+        // image: data.post.image
+    }}
+    openGraph={{
+        title: data.post.title,
+        description: data.post.description,
+    }}
 />
-<h1>{data.post.title}</h1>
-<!-- {#await GhReleasesDownload}
+
+<article class="h-entry">
+    <h1 id="title" class="p-name">{data.post.title}</h1>
+    <aside>Published on <time class="dt-published" datetime={data.post.date}>{new Date(data.post.date).toLocaleDateString()}</time></aside>
+    <!-- {#await GhReleasesDownload}
     
 {:then component} 
     <svelte:component this={component} releaseData={data.ghReleaseData} />
 {/await} -->
 
-<svelte:component this={data.component} />
+    <svelte:component this={data.component} />
+</article>
+
+<style>
+    aside {font-size: .85em;}
+</style>
