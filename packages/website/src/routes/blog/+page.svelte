@@ -3,7 +3,7 @@
 
     export let data;
     let { pages } = data;
-    $: console.log(data);
+    // $: console.log(data);
 </script>
 
 <section role="feed">
