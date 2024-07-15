@@ -23,6 +23,9 @@
 
     --border-radius: 8px;
 
+    --code-colour-scheme: dark;
+    --code-background-color: #0d1117;
+    --code-color: #fff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -128,9 +131,44 @@ svg {
 }
 
 .screen-reader-only:focus {
-	clip: auto;
-	width: auto;
-	height: auto;
-	white-space: normal;
-	overflow: visible;
+    clip: auto;
+    width: auto;
+    height: auto;
+    white-space: normal;
+    overflow: visible;
+}
+
+/* Code */
+pre {
+    color-scheme: var(--code-colour-scheme);
+    color: var(--code-color);
+    background-color: var(--code-background-color);
+    overflow-x: auto;
+    font-weight: 400;
+    font-size: .875em;
+    line-height: 1.7142857;
+    margin-top: 1.7142857em;
+    margin-bottom: 1.7142857em;
+    border-radius: .375rem;
+    display: flex;
+    flex-direction: column;
+    padding: calc(var(--spacing)/2);
+    box-shadow: 0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a
+}
+
+code[data-line-numbers]>span[data-line-number]::before {
+    /* Insert the line number data attribute before the line */
+    content: attr(data-line-number);
+    /* Other styling */
+    display: inline-block;
+    width: 1rem;
+    margin-right: 1rem;
+    margin-left: 1rem;
+    text-align: right;
+    color: gray;
+}
+
+code>span[data-highlighted] {
+    background: #3b4252;
+    width: 100%;
 }

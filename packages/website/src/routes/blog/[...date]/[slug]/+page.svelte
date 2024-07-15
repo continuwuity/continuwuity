@@ -36,6 +36,7 @@
     <svelte:component this={component} releaseData={data.ghReleaseData} />
 {/await} -->
 
+    <!-- <div class="e-content"> -->
     <svelte:component this={data.component} />
 </article>
 

@@ -8,7 +8,7 @@ export async function load({ data, params }) {
     //   throw error(404, 'Post not found')
     // }
     // load the markdown file based on slug
-    console.log(data)
+    // console.log(data)
     const component =
         // await import(data.page.filepath)
         await import("Notes/Blogs/" + data.page.filepath.name + ".md")

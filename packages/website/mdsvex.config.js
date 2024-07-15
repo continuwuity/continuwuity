@@ -16,6 +16,8 @@ import rehypeKatexSvelte from 'rehype-katex-svelte';
 
 import rehypeSlug from 'rehype-slug';
 
+import { createHighlighter } from "@bitmachina/highlighter";
+
 import { parse, format } from "node:path";
 
 import slugify from 'slugify';
@@ -63,6 +65,29 @@ function pageResolver(pageName) {
     const slug = slugify(pageName, { lower: true });
     return ["/", "/projects/"].map((p) => p + slug);
 }
+// import { grammars } from 'tm-grammars'
+// console.log()
+// let http = grammars.find((grammar) => grammar.name == "json")
+// console.log(http)
+import httpGrammar from 'tm-grammars/grammars/http.json' assert { type: "json" };
+// @ts-ignore
+// http.grammar = httpGrammar;
+// console.log(httpGrammar)
+const httpHighlight = {
+    id: 'http',
+    // aliases: ['http', "https"],
+    grammar: httpGrammar,
+    categories: ['web', 'utility'],
+    displayName: 'HTTP',
+    embedded: ['shellscript', 'json', 'xml', 'graphql'],
+    lastUpdate: '2023-07-24T09:58:17Z',
+    license: 'MIT',
+    licenseUrl: 'https://raw.githubusercontent.com/Huachao/vscode-restclient/master/LICENSE',
+    name: 'http',
+    scopeName: 'source.http',
+    sha: 'a89f8bce1b5e3d5bd955f10916b0c101e20431d3',
+    source: 'https://github.com/Huachao/vscode-restclient/blob/a89f8bce1b5e3d5bd955f10916b0c101e20431d3/syntaxes/http.tmLanguage.json',
+}
 
 const hrefTemplate = (/** @type {string} */ permalink) => `#${permalink}`
 /**
@@ -78,6 +103,8 @@ const config = {
     },
 
     highlight: {
+        // @ts-ignore
+        highlighter: await createHighlighter({ theme: "github-dark", langs: [httpHighlight] }),
         alias: {
             ts: "typescript",
             mdx: "markdown",

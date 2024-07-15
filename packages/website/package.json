@@ -9,6 +9,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
   },
   "devDependencies": {
+    "@bitmachina/highlighter": "1.0.0-alpha.6",
     "@fontsource/fira-mono": "^5.0.13",
     "@json-feed-types/1_1": "^1.0.2",
     "@rollup/plugin-commonjs": "^25.0.8",
@@ -39,6 +40,7 @@
     "svelte-seo": "^1.6.1",
     "sveltekit-html-minifier": "^1.0.3",
     "svgo": "^3.3.2",
+    "tm-grammars": "^1.13.11",
     "tslib": "^2.6.3",
     "typescript": "^5.4.5",
     "unified": "^11.0.4",
