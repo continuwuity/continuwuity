@@ -3,7 +3,7 @@
     export let alt;
     export let title;
     export let thumb;
-    console.log("imgcmp", thumb);
+    // console.log("imgcmp", thumb);
     let className = "";
     export { className as class };
     // console.log(src)
