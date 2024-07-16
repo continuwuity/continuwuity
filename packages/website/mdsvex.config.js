@@ -284,6 +284,13 @@ function vite_images_rehype(opts) {
             }
         });
 
+        if (!is_script) {
+            tree.children.push({
+                type: 'raw',
+                value: `<script>\n${scripts}</script>`,
+            })
+        }
+
     };
 }
 /**
