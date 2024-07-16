@@ -1,6 +1,7 @@
 <script>
     export let src;
     export let alt;
+    export let title;
     let className = ""
     export { className as class };
     // console.log(src)
@@ -8,9 +9,9 @@
 </script>
 
 <figure class={className}>
-    <img {src} {alt} />
-    {#if alt}
-        <figcaption>{alt}</figcaption>
+    <img {src} {alt} {title} />
+    {#if title}
+        <figcaption>{title}</figcaption>
     {/if}
 </figure>
 
