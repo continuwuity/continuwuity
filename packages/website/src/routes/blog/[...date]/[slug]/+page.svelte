@@ -18,10 +18,12 @@
     $: handleWebShare;
     const handleWebShare = async () => {
         try {
+            let url = new URL(canonical)
+            url.searchParams.set("utm_medium", "share")
             navigator.share({
                 title: data.post.title,
                 text: data.post.description,
-                url: canonical,
+                url: url.href,
             });
         } catch (error) {
             webShareAPISupported = false;

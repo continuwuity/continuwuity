@@ -1,7 +1,7 @@
 {
     "name": "JadedBlueEyes",
     "short_name": "Jade",
-    "start_url": "/",
+    "start_url": "/?utm_source=manifest",
     "display": "minimal-ui",
     "icons": [
         {
