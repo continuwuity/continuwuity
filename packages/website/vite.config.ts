@@ -9,6 +9,8 @@ import { mdsvex } from 'mdsvex';
 import mdsvexConfig from "./mdsvex.config.js";
 import { extname } from 'node:path';
 
+// import { imagetools } from 'vite-imagetools'
+
 function mdsvex_transform() {
     return {
         name: "Mdsvex transformer",
@@ -23,6 +25,17 @@ function mdsvex_transform() {
         }
     };
 }
+const fallback: {[key: string]: string} = {
+	'.avif': 'png',
+	'.gif': 'gif',
+	'.heif': 'jpg',
+	'.jpeg': 'jpg',
+	'.jpg': 'jpg',
+	'.png': 'png',
+	'.tiff': 'jpg',
+	'.webp': 'png'
+};
+
 export default defineConfig({
     resolve: {
         alias: {
@@ -34,6 +47,25 @@ export default defineConfig({
         ViteImageOptimizer({
             /* pass your config */
         }),
+        // imagetools({
+        //     namedExports: false,
+        //     defaultDirectives: async (url, metadata) => {
+        //         console.log("vite", url)
+        //         // if (!url.searchParams.has('svex-enhanced')) return new URLSearchParams();
+    
+        //         // const img_width = url.searchParams.get('imgWidth');
+        //         // const width = img_width ? parseInt(img_width) : (await metadata()).width;
+        //         // if (!width) {
+        //         //     console.warn(`Could not determine width of image ${url.href}`);
+        //             return new URLSearchParams();
+        //         // }
+    
+        //         // return new URLSearchParams({
+        //         //     'metadata': '',
+        //         //     // format: `avif;webp;${fallback[path.extname(url.href)] ?? 'png'}`
+        //         // });
+        //     },
+        // }),
         // mdsvex_transform(),
         sveltekit(),
         dynamicImport({

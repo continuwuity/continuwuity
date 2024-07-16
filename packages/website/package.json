@@ -24,6 +24,7 @@
     "github-slugger": "^2.0.0",
     "glob": "^10.4.1",
     "hast-util-to-string": "^3.0.0",
+    "just-camel-case": "^6.2.0",
     "mdast-util-to-string": "^4.0.0",
     "mdsvex": "^0.11.2",
     "rehype-katex-svelte": "1.2",

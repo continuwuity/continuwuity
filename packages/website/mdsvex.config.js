@@ -185,7 +185,7 @@ function add_toc_rehype(self, opts) {
         vFile.data.headings = [];
 
         visit(tree, isHeadingNode, (node) => {
-            console.log(node)
+            // console.log(node)
             vFile.data.headings.push({
                 level: node.depth,
                 title: hast_tree_to_string(node),
@@ -194,6 +194,96 @@ function add_toc_rehype(self, opts) {
 
         if (!vFile.data.fm) vFile.data.fm = {};
         vFile.data.fm.headings = vFile.data.headings;
+    };
+}
+
+
+import toCamel from "just-camel-case";
+const RE_SCRIPT_START =
+    /<script(?:\s+?[a-zA-z]+(=(?:["']){0,1}[a-zA-Z0-9]+(?<!module)(?:["']){0,1}){0,1})*\s*?>/;
+function vite_images_rehype(opts) {
+    return async function transformer(tree, vFile) {
+        const urls = new Map();
+        const url_count = new Map();
+
+        /**
+         * @param {string} url
+         */
+        function transformUrl(url) {
+            // url = decodeURIComponent(url)
+            // console.log("decoded", url)
+
+            // filenames can start with digits,
+            // prepend underscore to guarantee valid module name
+            let camel = `_${toCamel(url)}`;
+            const count = url_count.get(camel);
+            const dupe = urls.get(url);
+
+            if (count && !dupe) {
+                url_count.set(camel, count + 1);
+                camel = `${camel}_${count}`;
+            } else if (!dupe) {
+                url_count.set(camel, 1);
+            }
+
+            urls.set(url, {
+                path: url,
+                id: camel
+            });
+
+            return camel;
+
+
+        }
+        // console.log(tree)
+        // vFile.data.headings = [];
+
+        // console.log(tree)
+        visit(tree, { tagName: "img" }, (node) => {
+            node.properties.src = `{${transformUrl(node.properties.src)}}`
+            // new URL('./img.png', import.meta.url).href
+            // vFile.data.headings.push({
+            //     level: node.depth,
+            //     title: hast_tree_to_string(node),
+            // });
+        });
+        visit(tree, { tagName: "Components.img" }, (node) => {
+            // let url = node.properties.src;
+            // url.includes("?") ? url = url + "&svex-enhanced" : url + "?svex-enhanced";
+
+            node.properties.src = `{${transformUrl(node.properties.src)}}`
+            // node.properties.src = `{new URL('${url}', import.meta.url)}`
+            // new URL('./img.png', import.meta.url).href
+            // vFile.data.headings.push({
+            //     level: node.depth,
+            //     title: hast_tree_to_string(node),
+            // });
+        });
+
+        let scripts = "";
+        // urls.forEach((x) => (scripts += `import ${x.id} from "${(x.path.includes("?") ? x.path + "&" : x.path + "?") + "url"}";\n`));
+        urls.forEach((x) => (scripts += `const ${x.id} = new URL("${x.path}", import.meta.url);\n`));
+        // console.log(scripts)
+        // urls.forEach((x) => {
+        //     if (x.meta) {
+        //         let a = ["src", "width", "height"]
+        //         scripts += `import {${a.map((a) => a + " as " + x.id + "_" + a).join(",")}} from "${x.path.includes("?") ? x.path + "&as=metadata" : x.path + "?as=metadata:src;width;height"}";\n`
+        //     }
+        // });
+
+        let is_script = false;
+
+        visit(tree, { type: "raw" }, (node) => {
+            // console.log(node)
+            if (RE_SCRIPT_START.test(node.value)) {
+                // console.log("inserting")
+                is_script = true;
+                node.value = node.value.replace(RE_SCRIPT_START, (script) => {
+                    return `${script}\n${scripts}`;
+                });
+            }
+        });
+
     };
 }
 /**
@@ -209,7 +299,7 @@ const config = {
     },
 
     // layout: {
-    //     _: "./src/layout.svelte"
+    //     _: "./src/lib/mdlayouts/default.svelte"
     // },
 
     highlight: {
@@ -264,6 +354,7 @@ const config = {
         rehypeKatexSvelte,
         // @ts-ignore
         [rehypeSlug, { prefix: "h-" }],
+        vite_images_rehype
     ],
 };
 
