@@ -7,7 +7,7 @@
 </script>
 
 <div class="release">
-    {#if browser && navigator}
+    {#if releaseData?.assets && browser && navigator}
         {#if navigator.platform.startsWith("Win")}
             {@const asset = (releaseData?.assets || []).filter((a) =>
                 a.name.endsWith(".exe"),
@@ -29,8 +29,11 @@
             {#if asset}
                 <a href={asset.browser_download_url}>Download AppImage</a>
             {/if}
+        {:else}
+            <span>No download found for your device</span>
         {/if}
-        <!-- {:else} -->
+    {:else if releaseData?.assets}
+        <span>Finding download for your device</span>
     {/if}
     <p>Latest release: <a href={releaseData.html_url}>{releaseData.name}</a></p>
 </div>
