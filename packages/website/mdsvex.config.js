@@ -4,7 +4,7 @@
 
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
-import remarkWikiLink, { } from "remark-wiki-link";
+import remarkWikiLink from "remark-wiki-link";
 
 import remarkMath from "remark-math"
 // @ts-ignore
@@ -39,7 +39,7 @@ import { globSync } from 'glob'
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-const projects = globSync('/node_modules/Notes/Projects/*.md')
+const projects = globSync('node_modules/Notes/Projects/*.md')
     .map((filepath) => {
         return parse(filepath)
     })
@@ -58,7 +58,7 @@ const projects = globSync('/node_modules/Notes/Projects/*.md')
  */
 const permalinks = projects.map((p) => "/projects/" + p)
 
-
+// console.log(permalinks)
 
 /**
  * @param {string} pageName
@@ -92,7 +92,7 @@ const httpHighlight = {
     source: 'https://github.com/Huachao/vscode-restclient/blob/a89f8bce1b5e3d5bd955f10916b0c101e20431d3/syntaxes/http.tmLanguage.json',
 }
 
-const hrefTemplate = (/** @type {string} */ permalink) => `#${permalink}`
+const hrefTemplate = (/** @type {string} */ permalink) => permalink
 
 // function customizeTOC(toc) {
 //     // console.log(toc)
@@ -342,17 +342,17 @@ const config = {
         remarkMath,
         remarkAbbr,
         [remarkFootnotes, { inlineNotes: true }],
-        remarkGfm,
         [remarkWikiLink, {
             // @ts-ignore
             aliasDivider: "|",
-            permalinks: permalinks,
+            permalinks,
             pageResolver,
             hrefTemplate,
 
             // wikiLinkClassName,
             // newClassName,
         }],
+        remarkGfm,
         // [citePlugin, {
         //   syntax: {
         //     // see micromark-extension-cite
