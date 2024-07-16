@@ -34,7 +34,7 @@
     <aside>
         <a class="u-url" href={canonical}>Published on <time class="dt-published" datetime={data.post.date}
             >{new Date(data.post.date).toLocaleDateString()}</time
-        ></a>
+        ></a> · <span>{data.post.readingTime.text}</span>
     </aside>
     <Toc headings={data.post.headings} />
     <!-- {#await GhReleasesDownload}

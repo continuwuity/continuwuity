@@ -15,6 +15,7 @@ import rehypeKatexSvelte from 'rehype-katex-svelte';
 // import github from "remark-github";
 
 import rehypeSlug from 'rehype-slug';
+import remarkReadingTime from "remark-reading-time";
 // import rehypeToc from '@jsdevtools/rehype-toc';
 import { createHighlighter } from "@bitmachina/highlighter";
 
@@ -161,6 +162,14 @@ function add_toc_remark(opts) {
         vFile.data.fm.headings = buildNestedHeadings(vFile.data.flattenedHeadings);
     };
 }
+
+function add_data_to_fm(opts) {
+    return async function transformer(tree, vFile) {
+        if (!vFile.data.fm) vFile.data.fm = {};
+
+        vFile.data.fm.readingTime = vFile.data.readingTime;
+    };
+}
 import { toString as hast_tree_to_string } from 'hast-util-to-string'
 /**
  * Determines whether the given node is an HTML element.
@@ -242,7 +251,7 @@ function vite_images_rehype(opts) {
         visit(tree, { tagName: "img" }, (node) => {
             let url = node.properties.src;
             url = (url.includes("?") ? url + "&" : url + "?") + "url";
-            
+
             node.properties.src = `{${transformUrl(url)}}`
             // new URL('./img.png', import.meta.url).href
             // vFile.data.headings.push({
@@ -359,6 +368,8 @@ const config = {
         // }],
         // [remarkBibliography, { bibliography }],
         // [remarkMermaid, {}]
+        remarkReadingTime,
+        add_data_to_fm,
         [add_toc_remark, { prefix: "h-" }]
     ],
     rehypePlugins: [
