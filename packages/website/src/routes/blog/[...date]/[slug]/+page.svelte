@@ -9,12 +9,13 @@
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
     // }
+    $: canonical = SITE_URL + "/blog/" + data.post.canonical
 </script>
 
 <SvelteSeo
     title={data.post.title}
     description={data.post.description}
-    canonical={SITE_URL + "/blog/" + data.post.canonical}
+    {canonical}
     twitter={{
         card: "summary",
         // site: "@primalmovement",
@@ -31,9 +32,9 @@
 <article class="h-entry">
     <h1 id="title" class="p-name">{data.post.title}</h1>
     <aside>
-        Published on <time class="dt-published" datetime={data.post.date}
+        <a class="u-url" href={canonical}>Published on <time class="dt-published" datetime={data.post.date}
             >{new Date(data.post.date).toLocaleDateString()}</time
-        >
+        ></a>
     </aside>
     <Toc headings={data.post.headings} />
     <!-- {#await GhReleasesDownload}
@@ -50,5 +51,9 @@
 <style>
     aside {
         font-size: 0.85em;
+    }
+    aside a {
+        color: currentColor;
+        text-decoration: unset;
     }
 </style>
