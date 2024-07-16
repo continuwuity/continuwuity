@@ -1,5 +1,6 @@
 <script lang="ts">
     import url from "./logo.svg?url";
+    import { SITE_URL } from "$lib/metadata";
     // https://www.aleksandrhovhannisyan.com/
     // https://github.com/AleksandrHovhannisyan/aleksandrhovhannisyan.com/tree/master
 </script>
@@ -12,7 +13,7 @@
             >
             <ul class="navbar-links">
                 <li>
-                    <a class="navbar-link-home" href="/">
+                    <a class="navbar-link-home" href={SITE_URL}>
                         <img
                             src={url}
                             class="navbar-logo"

@@ -46,6 +46,12 @@
     }
 }
 
+@media print {
+    :root {
+        --background-color: white;
+    }
+}
+
 h2,
 h3,
 h4,
@@ -62,7 +68,7 @@ canvas {
 }
 
 @media print {
-    a::after {
+    a:not(:where(.footnote-ref, .footnote-backref)):after {
         content: " (" attr(href) ")";
     }
 }
