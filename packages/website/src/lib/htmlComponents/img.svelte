@@ -6,6 +6,7 @@
     // console.log("imgcmp", thumb);
     let className = "";
     export { className as class };
+    let loaded = false
     // console.log(src)
     // import _PastedImage20240716123726Png from "./Pasted%20image%2020240716123726.png?meta";
 </script>
@@ -17,7 +18,8 @@
         {title}
         width={thumb?.originalWidth}
         height={thumb?.originalHeight}
-        style:background-image="url('{thumb?.thumbSrc}')"
+        style:background-image={loaded ? "none" : `url('${thumb?.thumbSrc}')`}
+        on:load={() => loaded = true}
     />
     {#if title}
         <figcaption>{title}</figcaption>
@@ -28,6 +30,7 @@
     img {
         max-height: 60vh;
         background-size: cover;
+        background-repeat: no-repeat;
         width: auto;
         height: auto;
         display: block;
