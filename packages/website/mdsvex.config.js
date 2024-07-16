@@ -15,7 +15,7 @@ import rehypeKatexSvelte from 'rehype-katex-svelte';
 // import github from "remark-github";
 
 import rehypeSlug from 'rehype-slug';
-
+// import rehypeToc from '@jsdevtools/rehype-toc';
 import { createHighlighter } from "@bitmachina/highlighter";
 
 import { parse, format } from "node:path";
@@ -92,6 +92,110 @@ const httpHighlight = {
 }
 
 const hrefTemplate = (/** @type {string} */ permalink) => `#${permalink}`
+
+// function customizeTOC(toc) {
+//     // console.log(toc)
+
+//     return {
+//         type: 'root',
+//         children: [{
+//             type: "element",
+//             // tagName: "svelte:component",
+//             // properties: { this: "{tocComponent}" },
+//             tagName: "div",
+//             properties: {},
+//             children: [toc],
+//         }]
+//     };
+// }
+function buildNestedHeadings(headings) {
+    let result = [];
+    let stack = [{ level: 0, children: result }];
+
+    for (let heading of headings) {
+        while (
+            stack.length > 1 &&
+            heading.level <= stack[stack.length - 1].level
+        ) {
+            stack.pop();
+        }
+        let parent = stack[stack.length - 1];
+        let newHeading = {
+            ...heading,
+            children: [],
+            level: heading.level,
+        };
+        parent.children.push(newHeading);
+        stack.push(newHeading);
+    }
+
+    return result;
+}
+import { visit } from 'unist-util-visit';
+import { toString as mdast_tree_to_string } from 'mdast-util-to-string'
+
+
+import GithubSlugger from 'github-slugger'
+/**
+ * @param {{ prefix?: string; }} opts
+ */
+function add_toc_remark(opts) {
+    const slugs = new GithubSlugger()
+    const prefix = opts?.prefix || "";
+    return async function transformer(tree, vFile) {
+        slugs.reset()
+
+        vFile.data.flattenedHeadings = [];
+
+        visit(tree, 'heading', (node) => {
+            let title = mdast_tree_to_string(node);
+            vFile.data.flattenedHeadings.push({
+                level: node.depth,
+                title,
+                id: prefix + slugs.slug(title)
+            });
+        });
+
+        if (!vFile.data.fm) vFile.data.fm = {};
+        vFile.data.fm.flattenedHeadings = vFile.data.flattenedHeadings;
+        vFile.data.fm.headings = buildNestedHeadings(vFile.data.flattenedHeadings);
+    };
+}
+import { toString as hast_tree_to_string } from 'hast-util-to-string'
+/**
+ * Determines whether the given node is an HTML element.
+ */
+function isHtmlElementNode(node) {
+    return typeof node === "object" &&
+        node.type === "element" &&
+        typeof node.tagName === "string" &&
+        "properties" in node &&
+        typeof node.properties === "object";
+}
+const HEADINGS = ["h1", "h2", "h3", "h4", "h5", "h6"]
+/**
+ * Determines whether the given node is an HTML heading node, according to the specified options
+ */
+function isHeadingNode(node) {
+    return isHtmlElementNode(node) && HEADINGS.includes(node.tagName);
+}
+function add_toc_rehype(self, opts) {
+    return async function transformer(tree, vFile) {
+        // console.log(tree)
+        vFile.data.headings = [];
+
+        visit(tree, isHeadingNode, (node) => {
+            console.log(node)
+            vFile.data.headings.push({
+                level: node.depth,
+                title: hast_tree_to_string(node),
+            });
+        });
+
+        if (!vFile.data.fm) vFile.data.fm = {};
+        vFile.data.fm.headings = vFile.data.headings;
+    };
+}
 /**
  * @type {import("mdsvex").MdsvexOptions}
  */
@@ -103,6 +207,10 @@ const config = {
     smartypants: {
         dashes: "oldschool",
     },
+
+    // layout: {
+    //     _: "./src/layout.svelte"
+    // },
 
     highlight: {
         // @ts-ignore
@@ -149,12 +257,13 @@ const config = {
         // }],
         // [remarkBibliography, { bibliography }],
         // [remarkMermaid, {}]
+        [add_toc_remark, { prefix: "h-" }]
     ],
     rehypePlugins: [
         // @ts-ignore
         rehypeKatexSvelte,
         // @ts-ignore
-        rehypeSlug
+        [rehypeSlug, { prefix: "h-" }],
     ],
 };
 

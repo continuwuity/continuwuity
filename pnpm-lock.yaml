@@ -113,9 +113,18 @@ importers:
       '@types/sharedworker':
         specifier: ^0.0.115
         version: 0.0.115
+      github-slugger:
+        specifier: ^2.0.0
+        version: 2.0.0
       glob:
         specifier: ^10.4.1
         version: 10.4.1
+      hast-util-to-string:
+        specifier: ^3.0.0
+        version: 3.0.0
+      mdast-util-to-string:
+        specifier: ^4.0.0
+        version: 4.0.0
       mdsvex:
         specifier: ^0.11.2
         version: 0.11.2(svelte@4.2.18)
@@ -182,6 +191,9 @@ importers:
       unified:
         specifier: ^11.0.4
         version: 11.0.4
+      unist-util-visit:
+        specifier: ^5.0.0
+        version: 5.0.0
       vite:
         specifier: ^5.3.1
         version: 5.3.1(@types/node@20.14.2)(terser@5.31.1)
@@ -934,7 +946,7 @@ packages:
       '@codemirror/view': '>=6.0.0'
 
   Notes@file:packages/website/Notes-1.0.0.tgz:
-    resolution: {integrity: sha512-vppkFly1DinPtUJSGlwbSWHXq7R9ozQoZHrWLjsnIDOvsbXYezdHm+KquuWVIEkEveDmg6SODp49j1Bsflnyzw==, tarball: file:packages/website/Notes-1.0.0.tgz}
+    resolution: {integrity: sha512-5ly2YBmx1v2j7S5QtOTzZbTY5WJv1/1JNKGXOle8VtgRwg1WvOohRqDSaySiypHDWOGebqLq9KbxIr/Y6VCUnw==, tarball: file:packages/website/Notes-1.0.0.tgz}
     version: 1.0.0
 
   acorn@8.12.0:

@@ -4,6 +4,7 @@
     import SvelteSeo from "svelte-seo";
     export let data;
     import { SITE_URL } from "$lib/metadata";
+    import Toc from "$lib/Toc.svelte";
     // let GhReleasesDownload: Promise<any>;
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
@@ -29,17 +30,25 @@
 
 <article class="h-entry">
     <h1 id="title" class="p-name">{data.post.title}</h1>
-    <aside>Published on <time class="dt-published" datetime={data.post.date}>{new Date(data.post.date).toLocaleDateString()}</time></aside>
+    <aside>
+        Published on <time class="dt-published" datetime={data.post.date}
+            >{new Date(data.post.date).toLocaleDateString()}</time
+        >
+    </aside>
+    <Toc headings={data.post.headings} />
     <!-- {#await GhReleasesDownload}
     
 {:then component} 
     <svelte:component this={component} releaseData={data.ghReleaseData} />
 {/await} -->
 
-    <!-- <div class="e-content"> -->
-    <svelte:component this={data.component} />
+    <div class="e-content">
+        <svelte:component this={data.component} />
+    </div>
 </article>
 
 <style>
-    aside {font-size: .85em;}
+    aside {
+        font-size: 0.85em;
+    }
 </style>
