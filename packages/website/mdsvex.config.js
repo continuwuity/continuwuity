@@ -305,9 +305,9 @@ const config = {
         dashes: "oldschool",
     },
 
-    // layout: {
-    //     _: "./src/lib/mdlayouts/default.svelte"
-    // },
+    layout: {
+        _: "./src/lib/mdlayouts/default.svelte"
+    },
 
     highlight: {
         // @ts-ignore

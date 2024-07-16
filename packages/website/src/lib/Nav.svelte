@@ -59,6 +59,7 @@
     }
     .navbar-logo {
         width: 3rem;
+        height: 100%;
     }
     .navbar-links {
         width: 100%;
