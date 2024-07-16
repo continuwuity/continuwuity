@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import dynamicImport from 'vite-plugin-dynamic-import'
 import typeAsJsonSchemaPlugin from "rollup-plugin-type-as-json-schema";
-import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
+// import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
 import path from "node:path";
 import { mdsvex } from 'mdsvex';
 import mdsvexConfig from "./mdsvex.config.js";

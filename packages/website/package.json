@@ -13,7 +13,6 @@
     "@fontsource/fira-mono": "^5.0.13",
     "@json-feed-types/1_1": "^1.0.2",
     "@rollup/plugin-commonjs": "^25.0.8",
-    "@rollup/plugin-dynamic-import-vars": "^2.1.2",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@sveltejs/adapter-auto": "^3.2.2",
     "@sveltejs/adapter-node": "^5.1.1",
