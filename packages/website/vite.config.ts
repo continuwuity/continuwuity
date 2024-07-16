@@ -9,6 +9,7 @@ import { mdsvex } from 'mdsvex';
 import mdsvexConfig from "./mdsvex.config.js";
 import { extname } from 'node:path';
 
+import { thumbHash } from 'vite-plugin-thumbhash'
 // import { imagetools } from 'vite-imagetools'
 
 function mdsvex_transform() {
@@ -25,6 +26,18 @@ function mdsvex_transform() {
         }
     };
 }
+// export const blurRE = /(\?|&)blurhash(?:&|$)/
+// function blurhash_transform() {
+//     return {
+//         name: "blurhash transformer",
+//         async transform(code: string, id: string) {
+//             if (!blurRE.test(id)) return; 
+//             console.log(id.includes("blurhash"), id)
+//             return code;
+//             // return `export default \`${c.replace(/`/g, "\\`").trim()}\`;`;
+//         }
+//     };
+// }
 const fallback: {[key: string]: string} = {
 	'.avif': 'png',
 	'.gif': 'gif',
@@ -43,6 +56,7 @@ export default defineConfig({
         }
     },
     plugins: [
+        // blurhash_transform(),
         typeAsJsonSchemaPlugin(),
         ViteImageOptimizer({
             /* pass your config */
@@ -76,6 +90,7 @@ export default defineConfig({
     }
   }
         }),
+        thumbHash(),
         // dynamicImportVars({
         //   // options
         // })

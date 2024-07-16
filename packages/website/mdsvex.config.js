@@ -240,7 +240,10 @@ function vite_images_rehype(opts) {
 
         // console.log(tree)
         visit(tree, { tagName: "img" }, (node) => {
-            node.properties.src = `{${transformUrl(node.properties.src)}}`
+            let url = node.properties.src;
+            url = (url.includes("?") ? url + "&" : url + "?") + "url";
+            
+            node.properties.src = `{${transformUrl(url)}}`
             // new URL('./img.png', import.meta.url).href
             // vFile.data.headings.push({
             //     level: node.depth,
@@ -248,10 +251,12 @@ function vite_images_rehype(opts) {
             // });
         });
         visit(tree, { tagName: "Components.img" }, (node) => {
-            // let url = node.properties.src;
-            // url.includes("?") ? url = url + "&svex-enhanced" : url + "?svex-enhanced";
+            let url = node.properties.src;
+            let thumb = (url.includes("?") ? url + "&" : url + "?") + "thumb";
+            url = (url.includes("?") ? url + "&" : url + "?") + "url";
 
-            node.properties.src = `{${transformUrl(node.properties.src)}}`
+            node.properties.src = `{${transformUrl(url)}}`
+            node.properties.thumb = `{${transformUrl(thumb)}}`
             // node.properties.src = `{new URL('${url}', import.meta.url)}`
             // new URL('./img.png', import.meta.url).href
             // vFile.data.headings.push({
@@ -261,8 +266,8 @@ function vite_images_rehype(opts) {
         });
 
         let scripts = "";
-        // urls.forEach((x) => (scripts += `import ${x.id} from "${(x.path.includes("?") ? x.path + "&" : x.path + "?") + "url"}";\n`));
-        urls.forEach((x) => (scripts += `const ${x.id} = new URL("${x.path}", import.meta.url);\n`));
+        urls.forEach((x) => (scripts += `import ${x.id} from "./${x.path}";\n`));
+        // urls.forEach((x) => (scripts += `const ${x.id} = new URL("${x.path}", import.meta.url);\n`));
         // console.log(scripts)
         // urls.forEach((x) => {
         //     if (x.meta) {
