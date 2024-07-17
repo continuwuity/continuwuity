@@ -12,7 +12,7 @@ import { create } from 'xmlbuilder2';
 import { error } from '@sveltejs/kit'
 //   import { base } from '$app/paths';
 
-export const prerender = true;
+// export const prerender = true;
 
 export async function GET({ url, params }) {
     let dateParts = params.date.split(/[\/-]/).filter((s)=>s.length !== 0).map((p) => parseInt(p, 10))
