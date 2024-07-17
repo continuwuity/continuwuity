@@ -4,7 +4,7 @@
     import { browser } from "$app/environment";
     import SvelteSeo from "svelte-seo";
     export let data;
-    import { SITE_URL } from "$lib/metadata";
+    import { SITE_URL, SITE_TITLE } from "$lib/metadata";
     import Toc from "$lib/Toc.svelte";
     // let GhReleasesDownload: Promise<any>;
     // if (data.ghReleaseData) {
@@ -30,6 +30,11 @@
         }
     };
 </script>
+
+<svelte:head>
+    <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={SITE_URL + "/blog/rss.xml"}>
+    <link rel="alternate" type="application/feed+json" title={SITE_TITLE} href={SITE_URL + "/blog/feed.json"}>
+</svelte:head>
 
 <SvelteSeo
     title={data.post.title}

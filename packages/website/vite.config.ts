@@ -1,5 +1,5 @@
 import { sveltekit } from "@sveltejs/kit/vite";
-import { defineConfig } from "vite";
+import { defineConfig, type PluginOption  } from "vite";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
 import dynamicImport from 'vite-plugin-dynamic-import'
 import typeAsJsonSchemaPlugin from "rollup-plugin-type-as-json-schema";
@@ -49,6 +49,9 @@ const fallback: {[key: string]: string} = {
 	'.webp': 'png'
 };
 
+
+import { visualizer } from "rollup-plugin-visualizer";
+
 export default defineConfig({
     resolve: {
         alias: {
@@ -94,6 +97,10 @@ export default defineConfig({
         // dynamicImportVars({
         //   // options
         // })
+        // visualizer({
+        //     emitFile: true,
+        //     filename: "stats.html",
+        //   }) as PluginOption
 
     ],
     build: {

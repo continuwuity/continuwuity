@@ -1,0 +1,34 @@
+@import url("$lib/styles.css");
+
+body {
+    padding-block: var(--spacing);
+}
+.inline-icon {
+    margin-right: 0.75rem
+}
+h1 {
+    /* font-size: 3.8rem; */
+    line-height: 1;
+    /* font-weight: 800; */
+    /* margin-bottom: 4rem; */
+    text-wrap: balance;
+  }
+.flex {
+    display: flex
+}
+
+.flex-col {
+    flex-direction: column
+}
+
+.flex-wrap {
+    flex-wrap: wrap
+}
+
+.items-center {
+    align-items: center
+}
+
+.items-start {
+    align-items: flex-start
+}

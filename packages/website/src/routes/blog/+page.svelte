@@ -1,12 +1,17 @@
 <script lang="ts">
     import { page } from "$app/stores";
-    import { SITE_URL } from "$lib/metadata";
+    import { SITE_URL, SITE_TITLE } from "$lib/metadata";
     import SvelteSeo from "svelte-seo";
 
     export let data;
     let { pages } = data;
     // $: console.log(data);
 </script>
+
+<svelte:head>
+    <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={SITE_URL + "/blog/rss.xml"}>
+    <link rel="alternate" type="application/feed+json" title={SITE_TITLE} href={SITE_URL + "/blog/feed.json"}>
+</svelte:head>
 
 <SvelteSeo
     title=""
