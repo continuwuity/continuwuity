@@ -1,0 +1,37 @@
+{
+  "name": "vite-plugin-thumbhash-svg",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "main": "dist/index.esm.js",
+  "exports": {
+    "import": "./dist/index.esm.js",
+    "require": "./dist/index.cjs.js",
+    "types": "./dist/index.d.ts"
+  },
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "rollup -c",
+    "dev": "rollup -c -w",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^20.14.2",
+    "rollup": "^4.18.0",
+    "rollup-plugin-dts": "^6.1.1",
+    "vite": "^5.3.1"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.53",
+    "@resvg/resvg-js": "^2.6.2",
+    "@rollup/pluginutils": "^5.1.0",
+    "thumbhash-node": "^0.1.3"
+  }
+}
