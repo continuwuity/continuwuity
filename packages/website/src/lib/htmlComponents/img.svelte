@@ -1,8 +1,10 @@
-<script>
+<script lang="ts">
     export let src;
     export let alt;
     export let title;
     export let thumb;
+    // export let align
+    // export let small: boolean;
     // console.log("imgcmp", thumb);
     let className = "";
     export { className as class };
@@ -25,6 +27,18 @@
         <figcaption>{title}</figcaption>
     {/if}
 </figure>
+<!-- {:else}
+<img
+    {src}
+    {alt}
+    {title}
+    style:float={align}
+    width={thumb?.originalWidth}
+    height={thumb?.originalHeight}
+    style:background-image={loaded ? "none" : `url('${thumb?.thumbSrc}')`}
+    on:load={() => loaded = true}
+/>
+{/if} -->
 
 <style>
     img {
