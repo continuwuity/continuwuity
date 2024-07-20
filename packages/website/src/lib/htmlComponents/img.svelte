@@ -9,7 +9,7 @@
     let className = "";
     export { className as class };
     let loaded = false
-    // console.log(src)
+    // console.log(thumb)
     // import _PastedImage20240716123726Png from "./Pasted%20image%2020240716123726.png?meta";
 </script>
 
