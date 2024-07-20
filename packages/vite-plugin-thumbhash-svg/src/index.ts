@@ -39,22 +39,10 @@ async function loadImageAndConvertToRgba(path: string) {
     let image;
     //   console.log(path, extname(path))
     if (extname(path) === ".svg") {
-
-        if (await exists(imgPath)) {
-            const svg = await readFile(imgPath);
-            const resvg = new Resvg(svg)
-            const render = resvg.render()
-            image = await loadImage(render.asPng())
-        } else {
-            throw new TypeError("Could not resolve image source!")
-            // Try URI decode path?
-            // console.log(decodeURIComponent(imgPath))
-            // const svg = await readFile(decodeURIComponent(imgPath));
-            // const resvg = new Resvg(svg)
-            // const render = resvg.render()
-            // image = await loadImage(render.asPng())
-
-        }
+        const svg = await readFile(imgPath);
+        const resvg = new Resvg(svg)
+        const render = resvg.render()
+        image = await loadImage(render.asPng())
     } else {
         // canvas handles all file loading for us
         image = await loadImage(imgPath)
@@ -116,11 +104,12 @@ const extToMimeTypeMap: Record<OutputExtension, MimeType> = {
     webp: 'image/webp',
 }
 
+export const blurRE = /(?:\?|&)th(umb)?(?:&|$)/
 const isThumbHash = (id: string) => {
-    return id.endsWith('?th') || id.endsWith('?thumb')
+    return !!id.match(blurRE)
 }
 
-const cleanId = (id: string) => decodeURIComponent(id.replace('?thumb', '').replace('?th', ''))
+const cleanId = (id: string) => id.replace(blurRE, '')
 
 const buildViteAsset = (referenceId: string) => `__VITE_ASSET__${referenceId}__`
 
@@ -167,14 +156,9 @@ const thumbHash = (options: Options = {}): Plugin => {
             if (!filter(id)) {
                 return null
             }
-            
-            if (id.includes("Design")) {
-                console.log('raw', id)
-            }
 
             if (isThumbHash(id)) {
                 const cleanedId = cleanId(id)
-                console.log('clean', cleanedId)
 
                 if (config.command === 'serve') {
                     if (devCache.has(id)) {
