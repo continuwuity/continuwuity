@@ -139,9 +139,15 @@ const thumbHash = (options: Options = {}): Plugin => {
 
     let config: ResolvedConfig
 
-    const devCache = new Map<string, string>()
-
-    const buildCache = new Map<string, string>()
+    const cache = new Map<string, importItem>()
+    type importItem = {
+        thumbSrc: string;
+        thumbWidth: number;
+        thumbHeight: number;
+        originalSrc: string;
+        originalWidth: number;
+        originalHeight: number;
+    }
 
     return {
         name: 'vite-plugin-thumbhash',
@@ -160,39 +166,17 @@ const thumbHash = (options: Options = {}): Plugin => {
             if (isThumbHash(id)) {
                 const cleanedId = cleanId(id)
 
-                if (config.command === 'serve') {
-                    if (devCache.has(id)) {
-                        return devCache.get(id)
+                if (cache.has(id)) {
+                    let loadedSource = cache.get(id) as importItem
+                    if (config.command === 'serve') {
+                        const originalRefId = this.emitFile({
+                            type: 'asset',
+                            name: basename(cleanedId),
+                            source: await readFile(cleanedId),
+                        })
+                        loadedSource.originalSrc = buildViteAsset(originalRefId);
                     }
-
-                    const { rgba, width, height, originalHeight, originalWidth } =
-                        await loadImageAndConvertToRgba(cleanedId)
-
-                    const buffer = fromRGBAToImageBuffer(
-                        rgba,
-                        bufferMimeType,
-                        width,
-                        height
-                    )
-
-                    const dataURL = buildDataURL(buffer, bufferMimeType)
-
-                    const loadedSource = loader({
-                        thumbSrc: dataURL,
-                        thumbWidth: width,
-                        thumbHeight: height,
-                        originalSrc: relative(config.root, cleanedId),
-                        originalWidth: originalWidth,
-                        originalHeight: originalHeight,
-                    })
-
-                    devCache.set(id, loadedSource)
-
-                    return loadedSource
-                }
-
-                if (buildCache.has(id)) {
-                    return buildCache.get(id)
+                    return loader(loadedSource)
                 }
 
                 const { rgba, width, height, originalHeight, originalWidth } =
@@ -205,35 +189,43 @@ const thumbHash = (options: Options = {}): Plugin => {
                     height
                 )
 
-                const referenceId = this.emitFile({
-                    type: 'asset',
-                    name: basename(cleanedId).replace(
-                        /\.(jpg)|(jpeg)|(png)|(webp)|(avif)/g,
-                        `.${outputExtension}`
-                    ),
-                    source: buffer,
-                })
+                const dataURL = buildDataURL(buffer, bufferMimeType)
 
-                const originalRefId = this.emitFile({
-                    type: 'asset',
-                    name: basename(cleanedId),
-                    source: await readFile(cleanedId),
-                })
+                // const referenceId = this.emitFile({
+                //     type: 'asset',
+                //     name: basename(cleanedId).replace(
+                //         /\.(jpg)|(jpeg)|(png)|(webp)|(avif)|(svg)/g,
+                //         `.${outputExtension}`
+                //     ),
+                //     source: buffer,
+                // })
+                const originalSrc = relative(config.root, cleanedId);
+                const loadedSource = {
+                    thumbSrc: dataURL,
+                    thumbWidth: width,
+                    thumbHeight: height,
+                    originalSrc,
+                    originalWidth: originalWidth,
+                    originalHeight: originalHeight,
+                }
+
+                cache.set(id, loadedSource)
+
+                if (config.command === 'serve') {
+                    const originalRefId = this.emitFile({
+                        type: 'asset',
+                        name: basename(cleanedId),
+                        source: await readFile(cleanedId),
+                    })
+                    loadedSource.originalSrc = buildViteAsset(originalRefId);
+                }
+
+                return loader(loadedSource)
+
+
 
                 // import.meta.ROLLUP_FILE_URL_
 
-                const loadedSource = loader({
-                    thumbSrc: buildViteAsset(referenceId),
-                    thumbWidth: width,
-                    thumbHeight: height,
-                    originalSrc: buildViteAsset(originalRefId),
-                    originalWidth: originalWidth,
-                    originalHeight: originalHeight,
-                })
-
-                buildCache.set(id, loadedSource)
-
-                return loadedSource
             }
 
             return null
