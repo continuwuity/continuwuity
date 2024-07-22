@@ -26,6 +26,8 @@
     --code-colour-scheme: dark;
     --code-background-color: #0d1117;
     --code-color: #fff;
+
+    scroll-behavior: smooth;
 }
 
 @media (prefers-color-scheme: dark) {
