@@ -81,7 +81,7 @@
         // site: "@primalmovement",
         title: data.post.title,
         description: data.post.description,
-        image: calcOgURL(data.post.slug, data.post.date, 1/2, 1200).toString()}
+        image: calcOgURL(data.post.slug, data.post.date, 1/2, 1200).toString()
     }}
     openGraph={{
         title: data.post.title,
