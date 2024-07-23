@@ -1,12 +1,12 @@
 import { pages } from '../../posts'
 import { error } from '@sveltejs/kit'
-import TTLCache, { } from "@isaacs/ttlcache";
-import { parse } from "@tusbar/cache-control";
-const cache = new TTLCache({ max: 10000, ttl: 1000 })
+// import TTLCache, { } from "@isaacs/ttlcache";
+// import { parse } from "@tusbar/cache-control";
+// const cache = new TTLCache({ max: 10000, ttl: 1000 })
 
-import type { Endpoints } from "@octokit/types";
+// import type { Endpoints } from "@octokit/types";
 
-let repoRegex = new RegExp("https?://github\.com/(?<repo>[a-zA-Z0-9]+/[a-zA-Z0-9]+)/?")
+// let repoRegex = new RegExp("https?://github\.com/(?<repo>[a-zA-Z0-9]+/[a-zA-Z0-9]+)/?")
 
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params }) {
