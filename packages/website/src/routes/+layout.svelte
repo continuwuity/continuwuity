@@ -6,6 +6,7 @@
 </script>
 <svelte:head>
     <Favicons />
+    <link rel="webmention" href="https://webmention.io/jade.ellis.link/webmention" />
 </svelte:head>
 <Nav />
 <main class="main container" id="page-content">
