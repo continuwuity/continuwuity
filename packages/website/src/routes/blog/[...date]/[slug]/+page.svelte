@@ -63,6 +63,10 @@
     {#if defaultAuthor?.fediverse}
         <meta name="fediverse:creator" content={defaultAuthor?.fediverse} />
     {/if}
+    <meta property="og:image" content={calcOgURL(data.post.slug, data.post.date, 1200).toString()} />
+    <meta property="og:image:width" content={(1200).toString()} />
+    <meta property="og:image:height" content={(1200 / 2).toString()} />
+    <meta property="og:image:type" content="image/png" />
 </svelte:head>
 
 <SvelteSeo
@@ -78,14 +82,7 @@
     }}
     openGraph={{
         title: data.post.title,
-        description: data.post.description,
-        images: [
-            {
-                url: calcOgURL(data.post.slug, data.post.date, 1200).toString(),
-                width: 1200,
-                height: 1200 / 2,
-            },
-        ],
+        description: data.post.description
     }}
 />
 
