@@ -12,14 +12,24 @@
     // }
     $: canonical = SITE_URL + "/blog/" + data.post.canonical;
 
-    $: webShareAPISupported = browser && typeof navigator.share !== 'undefined';
+    function calcOgURL(slug: string, date: string, width?: number): URL {
+        let url = new URL(SITE_URL + "/blog/image");
+        url.searchParams.set("slug", slug);
+        url.searchParams.set("date", date);
+        if (width) {
+            url.searchParams.set("width", width.toString());
+        }
+        return url;
+    }
+
+    $: webShareAPISupported = browser && typeof navigator.share !== "undefined";
     // let webShareAPISupported = true;
 
     $: handleWebShare;
     const handleWebShare = async () => {
         try {
-            let url = new URL(canonical)
-            url.searchParams.set("utm_medium", "share")
+            let url = new URL(canonical);
+            url.searchParams.set("utm_medium", "share");
             navigator.share({
                 title: data.post.title,
                 text: data.post.description,
@@ -33,15 +43,25 @@
     const defaultAuthor = {
         name: "Jade Ellis",
         url: "https://jade.ellis.link",
-        fediverse: "@JadedBlueEyes@tech.lgbt"
-    }
+        fediverse: "@JadedBlueEyes@tech.lgbt",
+    };
 </script>
 
 <svelte:head>
-    <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={SITE_URL + "/blog/rss.xml"}>
-    <link rel="alternate" type="application/feed+json" title={SITE_TITLE} href={SITE_URL + "/blog/feed.json"}>
+    <link
+        rel="alternate"
+        type="application/rss+xml"
+        title={SITE_TITLE}
+        href={SITE_URL + "/blog/rss.xml"}
+    />
+    <link
+        rel="alternate"
+        type="application/feed+json"
+        title={SITE_TITLE}
+        href={SITE_URL + "/blog/feed.json"}
+    />
     {#if defaultAuthor?.fediverse}
-        <meta name="fediverse:creator" content={defaultAuthor?.fediverse}>
+        <meta name="fediverse:creator" content={defaultAuthor?.fediverse} />
     {/if}
 </svelte:head>
 
@@ -59,6 +79,13 @@
     openGraph={{
         title: data.post.title,
         description: data.post.description,
+        images: [
+            {
+                url: calcOgURL(data.post.slug, data.post.date, 1200).toString(),
+                width: 1200,
+                height: 1200 / 2,
+            },
+        ],
     }}
 />
 
@@ -70,11 +97,15 @@
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
         >
-        · <span>By <a class="p-author h-card" href={defaultAuthor.url}>{defaultAuthor.name}</a></span>
+        ·
+        <span
+            >By <a class="p-author h-card" href={defaultAuthor.url}
+                >{defaultAuthor.name}</a
+            ></span
+        >
         · <span>{data.post.readingTime.text}</span>
-        {#if webShareAPISupported} · <button class="link" on:click={handleWebShare}
-                >Share</button
-            >
+        {#if webShareAPISupported}
+            · <button class="link" on:click={handleWebShare}>Share</button>
         {/if}
     </aside>
     <Toc headings={data.post.headings} />
