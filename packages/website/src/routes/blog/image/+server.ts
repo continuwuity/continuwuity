@@ -37,6 +37,7 @@ export async function GET({ url }) {
     if (width > 10000 || ratio > 50) {
         throw error(400, 'Image too big')
     }
+    let image;
     if (!cache.has(slug + "/" + dateParts?.join("-") + "/" + width + "/" + ratio)) {
 
         // let start = new Date(dateParts[0] || 1, dateParts[1] || 0, dateParts[2] || 0);
@@ -123,24 +124,22 @@ export async function GET({ url }) {
             }
         });
 
-        const image = resvg.render().asPng();
+        image = resvg.render().asPng();
         cache.set(slug + "/" + dateParts?.join("-") + "/" + width, image)
-        return new Response(image, {
-            headers: {
-                'content-type': 'image/png'
-            }
-        });
         ;
     } else {
-        return new Response(cache.get(slug + "/" + dateParts?.join("-") + "/" + width), {
-            headers: {
-                'Content-Type': 'image/png',
-                'Cache-Control': format({
-                    public: true,
-                    // immutable: true
-                    maxAge: 60 * 60 * 24
-                })
-            }
-        });
+        image = cache.get(slug + "/" + dateParts?.join("-") + "/" + width) as Buffer
     }
+    
+    return new Response(image, {
+        headers: {
+            'Content-Type': 'image/png',
+            'Cache-Control': format({
+                public: true,
+                // immutable: true
+                maxAge: 60 * 60 * 24
+            }),
+            'Cross-Origin-Resource-Policy': 'cross-origin'
+        }
+    });
 }
