@@ -17,7 +17,11 @@ const securityHeaders = {
 export const handle: Handle = async ({ event, resolve }) => {
     const response = await resolve(event);
     Object.entries(securityHeaders).forEach(
-        ([header, value]) => response.headers.set(header, value)
+        ([header, value]) => {
+            if (!response.headers.has(header)) {
+                response.headers.set(header, value)
+            }
+        }
     );
 
     response.headers.delete("x-sveltekit-page")
