@@ -1,14 +1,17 @@
 <script lang="ts">
     import url from "./logo.svg?url";
+    import { SITE_URL } from "$lib/metadata";
 </script>
 
-<div class="hero card edge">
+<div class="hero card edge h-card">
     <div class="logo">
-        <img src={url} alt="Logo" />
+        <a href={SITE_URL} class="u-url"><img class="u-photo" src={url} alt="Logo" /></a>
     </div>
     <div class="content">
-        <h1 class="title">JadedBlueEyes</h1>
-        <div class="description">Student, Computer Scientist and Creative</div>
+        <div>
+        <h1 class="title p-name"><span class="p-given-name">Jade</span> <span class="p-family-name">Ellis</span></h1>
+        <div role="doc-subtitle"><span class="p-nickname">JadedBlueEyes</span></div></div>
+        <div class="description p-note">Student, Computer Scientist and Creative</div>
     </div>
 </div>
 
@@ -40,6 +43,11 @@
         text-align: center;
         font-size: 32px;
         margin: 0;
+    }
+    [role="doc-subtitle"] { 
+        padding-block-start: 0;
+        font-size: 18px;
+        font-weight: 600;
     }
 
     .description {

@@ -29,11 +29,20 @@
             webShareAPISupported = false;
         }
     };
+
+    const defaultAuthor = {
+        name: "Jade Ellis",
+        url: "https://jade.ellis.link",
+        fediverse: "@JadedBlueEyes@tech.lgbt"
+    }
 </script>
 
 <svelte:head>
     <link rel="alternate" type="application/rss+xml" title={SITE_TITLE} href={SITE_URL + "/blog/rss.xml"}>
     <link rel="alternate" type="application/feed+json" title={SITE_TITLE} href={SITE_URL + "/blog/feed.json"}>
+    {#if defaultAuthor?.fediverse}
+        <meta name="fediverse:creator" content={defaultAuthor?.fediverse}>
+    {/if}
 </svelte:head>
 
 <SvelteSeo
@@ -61,6 +70,7 @@
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
         >
+        · <span>By <a class="p-author h-card" href={defaultAuthor.url}>{defaultAuthor.name}</a></span>
         · <span>{data.post.readingTime.text}</span>
         {#if webShareAPISupported} · <button class="link" on:click={handleWebShare}
                 >Share</button
