@@ -19,8 +19,9 @@ const fontData: ArrayBuffer = await fontFile.arrayBuffer();
 
 // const height = 630;
 // const width = 1200;
-const defaultHeight = 400;
 const defaultWidth = 800;
+const defaultRatio = 0.5
+// const defaultWidth = 800;
 
 const h = (type: any, props: any) => { return { type, props } }
 
@@ -32,10 +33,11 @@ export async function GET({ url }) {
         throw error(404, 'Post not found (bad date)')
     }
     const width = Number(url.searchParams.get('width'))
-    if (width > 10000) {
+    const ratio = Number(url.searchParams.get('ratio'))
+    if (width > 10000 || ratio > 50) {
         throw error(400, 'Image too big')
     }
-    if (!cache.has(slug + "/" + dateParts?.join("-") + "/" + width)) {
+    if (!cache.has(slug + "/" + dateParts?.join("-") + "/" + width + "/" + ratio)) {
 
         // let start = new Date(dateParts[0] || 1, dateParts[1] || 0, dateParts[2] || 0);
         // // @ts-ignore
@@ -110,7 +112,7 @@ export async function GET({ url }) {
                     style: 'normal'
                 }
             ],
-            height: defaultHeight,
+            height: defaultWidth * (ratio || defaultRatio),
             width: defaultWidth,
         });
 

@@ -12,10 +12,13 @@
     // }
     $: canonical = SITE_URL + "/blog/" + data.post.canonical;
 
-    function calcOgURL(slug: string, date: string, width?: number): URL {
+    function calcOgURL(slug: string, date: string, ratio?: number, width?: number): URL {
         let url = new URL(SITE_URL + "/blog/image");
         url.searchParams.set("slug", slug);
         url.searchParams.set("date", date);
+        if (ratio) {
+            url.searchParams.set("ratio", ratio.toString());
+        }
         if (width) {
             url.searchParams.set("width", width.toString());
         }
@@ -63,7 +66,7 @@
     {#if defaultAuthor?.fediverse}
         <meta name="fediverse:creator" content={defaultAuthor?.fediverse} />
     {/if}
-    <meta property="og:image" content={calcOgURL(data.post.slug, data.post.date, 1200).toString()} />
+    <meta property="og:image" content={calcOgURL(data.post.slug, data.post.date, 630/1200, 1200).toString()} />
     <meta property="og:image:width" content={(1200).toString()} />
     <meta property="og:image:height" content={(1200 / 2).toString()} />
     <meta property="og:image:type" content="image/png" />
@@ -74,11 +77,11 @@
     description={data.post.description}
     {canonical}
     twitter={{
-        card: "summary",
+        card: "summary_large_image",
         // site: "@primalmovement",
         title: data.post.title,
         description: data.post.description,
-        // image: data.post.image
+        image: calcOgURL(data.post.slug, data.post.date, 1/2, 1200).toString()}
     }}
     openGraph={{
         title: data.post.title,
