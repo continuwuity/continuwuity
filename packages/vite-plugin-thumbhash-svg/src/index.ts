@@ -168,7 +168,7 @@ const thumbHash = (options: Options = {}): Plugin => {
 
                 if (cache.has(id)) {
                     let loadedSource = cache.get(id) as importItem
-                    if (config.command === 'serve') {
+                    if (config.command !== 'serve') {
                         const originalRefId = this.emitFile({
                             type: 'asset',
                             name: basename(cleanedId),
@@ -211,7 +211,7 @@ const thumbHash = (options: Options = {}): Plugin => {
 
                 cache.set(id, loadedSource)
 
-                if (config.command === 'serve') {
+                if (config.command !== 'serve') {
                     const originalRefId = this.emitFile({
                         type: 'asset',
                         name: basename(cleanedId),
