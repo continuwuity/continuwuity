@@ -1,5 +1,5 @@
 # build the sapper app
-FROM node:alpine AS base
+FROM node:slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
