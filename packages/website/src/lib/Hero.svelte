@@ -48,6 +48,7 @@
         padding-block-start: 0;
         font-size: 18px;
         font-weight: 600;
+        text-align: center;
     }
 
     .description {
