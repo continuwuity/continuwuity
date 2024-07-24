@@ -167,12 +167,12 @@
 <article class="h-entry">
     <h1 id="title" class="p-name">{data.post.title}</h1>
     <aside>
-        <a class="u-url" href={canonical}
-            >Published on <time class="dt-published" datetime={data.post.date}
+        <a class="u-url ib" href={canonical}
+            >Published on <time class="dt-published ib" datetime={data.post.date}
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
         >
-        <span class="author p-author h-card vcard">
+        <span class="author p-author h-card vcard ib">
             by <img
                 loading="lazy"
                 style="display: none;"
@@ -182,7 +182,7 @@
                 >{defaultAuthor.name}</a
             ></span
         >
-        · <span>{data.post.readingTime.text}</span>
+        · <span class="reading-time ib">{data.post.readingTime.text}</span>
         {#if webShareAPISupported}
             · <button class="link" on:click={handleWebShare}>Share</button>
         {/if}
@@ -216,5 +216,8 @@
         display: inline;
         text-decoration: underline;
         cursor: pointer;
+    }
+    .ib {
+        display: inline-block;
     }
 </style>
