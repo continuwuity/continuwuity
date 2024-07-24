@@ -102,7 +102,7 @@ export async function GET({ url }) {
                     color: '#202020',
                     margin: '10px 0 10px'
                 },
-                children: `Published on ${new Date(page.date).toLocaleDateString()} · By Jade Ellis · ${page.readingTime.text}`
+                children: `Published on ${new Date(page.date).toLocaleDateString()} by Jade Ellis · ${page.readingTime.text}`
             })]
         });
         const svg = await satori(template, {

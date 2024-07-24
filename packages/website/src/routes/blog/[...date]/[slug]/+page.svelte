@@ -96,10 +96,8 @@
             >Published on <time class="dt-published" datetime={data.post.date}
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
-        >
-        ·
-        <span
-            >By <a class="p-author h-card" href={defaultAuthor.url}
+        > <span
+            >by <a class="p-author h-card" href={defaultAuthor.url}
                 >{defaultAuthor.name}</a
             ></span
         >
