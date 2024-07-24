@@ -6,13 +6,20 @@
     export let data;
     import { SITE_URL, SITE_TITLE } from "$lib/metadata";
     import Toc from "$lib/Toc.svelte";
+    import type { WithContext, Thing } from "schema-dts";
+    import pfpUrl from "$lib/logo.svg?url";
     // let GhReleasesDownload: Promise<any>;
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
     // }
     $: canonical = SITE_URL + "/blog/" + data.post.canonical;
 
-    function calcOgURL(slug: string, date: string, ratio?: number, width?: number): URL {
+    function calcOgURL(
+        slug: string,
+        date: string,
+        ratio?: number,
+        width?: number,
+    ): URL {
         let url = new URL(SITE_URL + "/blog/image");
         url.searchParams.set("slug", slug);
         url.searchParams.set("date", date);
@@ -44,10 +51,62 @@
     };
 
     const defaultAuthor = {
+        "@type": "Person",
         name: "Jade Ellis",
         url: "https://jade.ellis.link",
         fediverse: "@JadedBlueEyes@tech.lgbt",
+        image: pfpUrl,
     };
+    $: jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        breadcrumb: {
+            "@type": "BreadcrumbList",
+
+            itemListElement: [
+                {
+                    "@type": "ListItem",
+                    position: 1,
+                    name: "Blog",
+                    item: SITE_URL + "/blog",
+                },
+                {
+                    "@type": "ListItem",
+                    position: 2,
+                    name: data.post.title,
+                    item: canonical,
+                },
+            ],
+        },
+        mainEntity: {
+            "@type": "BlogPosting",
+            "@id": canonical,
+            url: canonical,
+            mainEntityOfPage: canonical,
+            name: data.post.title,
+            headline: data.post.title,
+            datePublished: new Date(data.post.date).toISOString(),
+            author: defaultAuthor,
+            description: data.post.description,
+            wordCount: data.post.readingTime.words,
+            image: {
+                "@type": "ImageObject",
+                width: "1200",
+                height: "630",
+                url: calcOgURL(
+                    data.post.slug,
+                    data.post.date,
+                    630 / 1200,
+                    1200,
+                ).toString(),
+            },
+            isPartOf: {
+                "@type": "Blog",
+                "@id": SITE_URL + "/blog",
+                name: "Jade's Blog",
+            },
+        },
+    } as WithContext<Thing>;
 </script>
 
 <svelte:head>
@@ -66,10 +125,21 @@
     {#if defaultAuthor?.fediverse}
         <meta name="fediverse:creator" content={defaultAuthor?.fediverse} />
     {/if}
-    <meta property="og:image" content={calcOgURL(data.post.slug, data.post.date, 630/1200, 1200).toString()} />
-    <meta property="og:image:width" content={(1200).toString()} />
-    <meta property="og:image:height" content={(1200 / 2).toString()} />
+    <meta
+        property="og:image"
+        content={calcOgURL(
+            data.post.slug,
+            data.post.date,
+            630 / 1200,
+            1200,
+        ).toString()}
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
     <meta property="og:image:type" content="image/png" />
+    {@html `<script type="application/ld+json">${
+        JSON.stringify(jsonLd) + "<"
+    }/script>`}
 </svelte:head>
 
 <SvelteSeo
@@ -81,11 +151,16 @@
         // site: "@primalmovement",
         title: data.post.title,
         description: data.post.description,
-        image: calcOgURL(data.post.slug, data.post.date, 630/1200, 1200).toString()
+        image: calcOgURL(
+            data.post.slug,
+            data.post.date,
+            630 / 1200,
+            1200,
+        ).toString(),
     }}
     openGraph={{
         title: data.post.title,
-        description: data.post.description
+        description: data.post.description,
     }}
 />
 
@@ -96,8 +171,14 @@
             >Published on <time class="dt-published" datetime={data.post.date}
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
-        > <span
-            >by <a class="p-author h-card" href={defaultAuthor.url}
+        >
+        <span class="author p-author h-card vcard">
+            by <img
+                loading="lazy"
+                style="display: none;"
+                src={defaultAuthor.image}
+                class="avatar avatar-96 photo u-photo"
+            /><a class="u-url url fn n p-name" href={defaultAuthor.url}
                 >{defaultAuthor.name}</a
             ></span
         >

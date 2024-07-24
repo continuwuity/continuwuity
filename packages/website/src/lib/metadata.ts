@@ -3,7 +3,7 @@ import { dev } from '$app/environment';
 
 
 
-export const SITE_TITLE = 'JadedBlueEyes';
+export const SITE_TITLE = "Jade's Website";
 
 export const SITE_URL = dev ? "http://localhost:5173" : "https://jade.ellis.link"
 

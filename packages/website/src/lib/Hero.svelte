@@ -5,7 +5,7 @@
 
 <div class="hero card edge h-card">
     <div class="logo">
-        <a href={SITE_URL} class="u-url"><img class="u-photo" src={url} alt="Logo" /></a>
+        <a href={SITE_URL} class="u-url u-uid" rel="me"><img class="u-photo" src={url} alt="Logo" /></a>
     </div>
     <div class="content">
         <div>
