@@ -61,6 +61,7 @@
             max-width: 520px;
         }
         .title,
+        [role="doc-subtitle"],
         .description {
             text-align: left;
         }
