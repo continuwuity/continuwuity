@@ -1,5 +1,5 @@
 import { pages } from '../posts'
-import { error } from '@sveltejs/kit'
+import { error, type RequestHandler } from '@sveltejs/kit'
 
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
@@ -7,12 +7,11 @@ import { SITE_DOMAIN } from '$lib/metadata';
 import TTLCache, { } from "@isaacs/ttlcache";
 import { format } from "@tusbar/cache-control";
 const cache = new TTLCache({ max: 10000, ttl: 1000 * 60 * 60 })
+import fnv from "fnv-plus"
 
 // import type { Endpoints } from "@octokit/types";
 
 // let repoRegex = new RegExp("https?://github\.com/(?<repo>[a-zA-Z0-9]+/[a-zA-Z0-9]+)/?")
-
-
 
 const fontFile = await fetch('https://og-playground.vercel.app/inter-latin-ext-700-normal.woff');
 const fontData: ArrayBuffer = await fontFile.arrayBuffer();
@@ -24,9 +23,9 @@ const defaultRatio = 0.5
 // const defaultWidth = 800;
 
 const h = (type: any, props: any) => { return { type, props } }
-
-/** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+type a = RequestHandler;
+/** @type {RequestHandler} */
+export async function GET({ url, request }) {
     const slug = url.searchParams.get('slug')
     let dateParts = url.searchParams.get('date')?.split(/[\/-]/)?.map((p: string) => parseInt(p, 10))
     if (dateParts && dateParts.length > 3) {
@@ -38,30 +37,40 @@ export async function GET({ url }) {
         throw error(400, 'Image too big')
     }
     let image;
-    if (!cache.has(slug + "/" + dateParts?.join("-") + "/" + width + "/" + ratio)) {
 
-        // let start = new Date(dateParts[0] || 1, dateParts[1] || 0, dateParts[2] || 0);
-        // // @ts-ignore
-        // let end = new Date(...dateParts);
-        // console.log(dateParts)
+    // let start = new Date(dateParts[0] || 1, dateParts[1] || 0, dateParts[2] || 0);
+    // // @ts-ignore
+    // let end = new Date(...dateParts);
+    // console.log(dateParts)
 
-        // get post with metadata
-        const page = pages
-            .filter((post) => slug === post.slug)
-            .filter((post) => {
-                if (dateParts) {
-                    let date = new Date(post.date)
-                    return (
-                        (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
-                        (!dateParts[1] || date.getMonth() + 1 == dateParts[1]) &&
-                        (!dateParts[2] || date.getDate() == dateParts[2])
-                    )
-                } else { return true }
-            })[0]
+    // get post with metadata
+    const page = pages
+        .filter((post) => slug === post.slug)
+        .filter((post) => {
+            if (dateParts) {
+                let date = new Date(post.date)
+                return (
+                    (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
+                    (!dateParts[1] || date.getMonth() + 1 == dateParts[1]) &&
+                    (!dateParts[2] || date.getDate() == dateParts[2])
+                )
+            } else { return true }
+        })[0]
 
-        if (!page) {
-            throw error(404, 'Post not found')
-        }
+    if (!page) {
+        throw error(404, 'Post not found')
+    }
+
+    let cache_key = fnv.hash(page.canonical + "\x00" + page.readingTime.text + "\x00" + width + "\x00" + ratio).str()
+
+    let recieved_etag = request.headers.get("if-none-match");
+
+    if (recieved_etag == cache_key) {
+        console.log("304")
+        return new Response(null, { status: 304 })
+    }
+
+    if (!cache.has(cache_key)) {
         let template = h("div", {
             style: {
                 display: 'flex',
@@ -125,12 +134,11 @@ export async function GET({ url }) {
         });
 
         image = resvg.render().asPng();
-        cache.set(slug + "/" + dateParts?.join("-") + "/" + width, image)
-        ;
+        cache.set(cache_key, image);
     } else {
-        image = cache.get(slug + "/" + dateParts?.join("-") + "/" + width) as Buffer
+        image = cache.get(cache_key) as Buffer
     }
-    
+
     return new Response(image, {
         headers: {
             'Content-Type': 'image/png',
@@ -139,6 +147,7 @@ export async function GET({ url }) {
                 // immutable: true
                 maxAge: 60 * 60 * 24
             }),
+            'ETag': cache_key,
             'Cross-Origin-Resource-Policy': 'cross-origin'
         }
     });
