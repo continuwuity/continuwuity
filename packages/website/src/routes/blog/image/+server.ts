@@ -89,7 +89,7 @@ export async function GET({ url }) {
                 children: SITE_DOMAIN
             }), h("div", {
                 style: {
-                    backgroundImage: 'linear-gradient(90deg, rgb(22, 61, 120), rgb(30, 42, 85))',
+                    backgroundImage: 'linear-gradient(90deg, rgb(30, 42, 85), rgb(22, 61, 120))',
                     backgroundClip: 'text',
                     '-webkit-background-clip': 'text',
                     color: 'transparent'
