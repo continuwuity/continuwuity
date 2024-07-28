@@ -4,6 +4,11 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  mdsvex@0.11.2:
+    hash: ms5oa5yo65j2h5hjycgqfevyce
+    path: patches/mdsvex@0.11.2.patch
+
 importers:
 
   .: {}
@@ -179,7 +184,7 @@ importers:
         version: 4.0.0
       mdsvex:
         specifier: ^0.11.2
-        version: 0.11.2(svelte@4.2.18)
+        version: 0.11.2(patch_hash=ms5oa5yo65j2h5hjycgqfevyce)(svelte@4.2.18)
       rehype-katex-svelte:
         specifier: '1.2'
         version: 1.2.0
@@ -4499,7 +4504,7 @@ snapshots:
 
   mdn-data@2.0.30: {}
 
-  mdsvex@0.11.2(svelte@4.2.18):
+  mdsvex@0.11.2(patch_hash=ms5oa5yo65j2h5hjycgqfevyce)(svelte@4.2.18):
     dependencies:
       '@types/unist': 2.0.10
       prism-svelte: 0.4.7

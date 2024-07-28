@@ -1,0 +1,60 @@
+diff --git a/dist/browser-es.js b/dist/browser-es.js
+index a0b50af984340ca02b8ab51e96571d4cb02e5d5f..58d143784c2a0be12ab30b5aaa84bf9b8cd49850 100644
+--- a/dist/browser-es.js
++++ b/dist/browser-es.js
+@@ -40143,6 +40143,10 @@ function parse$6(value, settings) {
+ 
+         namedEntity = type === name$1 ? decodeEntity(characters) : false;
+ 
++        // QUICKFIX https://github.com/pngwn/MDsveX/issues/296
++        if (namedEntity == '<') namedEntity = '&lt;';
++        if (namedEntity == '>') namedEntity = '&gt;';
++
+         if (namedEntity) {
+           entityCharacters = characters;
+           entity = namedEntity;
+diff --git a/dist/browser-umd.js b/dist/browser-umd.js
+index 10195fa23730cc1a6b3cdcbfc2bb02abf8974140..f105c1eb55b1ed999c0e451371fbe5ae8aed8d86 100644
+--- a/dist/browser-umd.js
++++ b/dist/browser-umd.js
+@@ -40149,6 +40149,10 @@
+ 
+           namedEntity = type === name$1 ? decodeEntity(characters) : false;
+ 
++          // QUICKFIX https://github.com/pngwn/MDsveX/issues/296
++          if (namedEntity == '<') namedEntity = '&lt;';
++          if (namedEntity == '>') namedEntity = '&gt;';
++
+           if (namedEntity) {
+             entityCharacters = characters;
+             entity = namedEntity;
+diff --git a/dist/main.cjs.js b/dist/main.cjs.js
+index 7c8cdc59fc04d05308d2799d283b01c934d6c46f..d68acf75b3382d38c6286a00ec71d9bd0e98a8af 100644
+--- a/dist/main.cjs.js
++++ b/dist/main.cjs.js
+@@ -6428,6 +6428,10 @@ function parse$6(value, settings) {
+ 
+         namedEntity = type === name$1 ? decodeEntity(characters) : false;
+ 
++        // QUICKFIX https://github.com/pngwn/MDsveX/issues/296
++        if (namedEntity == '<') namedEntity = '&lt;';
++        if (namedEntity == '>') namedEntity = '&gt;';
++
+         if (namedEntity) {
+           entityCharacters = characters;
+           entity = namedEntity;
+diff --git a/dist/main.es.js b/dist/main.es.js
+index f58fffbfddbb48410d4e442b679b5f18bdb89dcd..2f2bdbb9778faf6cfe8dc7da620a9292604550a1 100644
+--- a/dist/main.es.js
++++ b/dist/main.es.js
+@@ -6401,6 +6401,10 @@ function parse$6(value, settings) {
+ 
+         namedEntity = type === name$1 ? decodeEntity(characters) : false;
+ 
++        // QUICKFIX https://github.com/pngwn/MDsveX/issues/296
++        if (namedEntity == '<') namedEntity = '&lt;';
++        if (namedEntity == '>') namedEntity = '&gt;';
++
+         if (namedEntity) {
+           entityCharacters = characters;
+           entity = namedEntity;
