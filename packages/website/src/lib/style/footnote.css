@@ -1,0 +1,20 @@
+.footnote-ref {
+    text-decoration: none;
+    font-size: var(--footnote-size);
+}
+
+sup:has(.footnote-ref) {
+    vertical-align: super;
+}
+
+.footnotes {
+    font-size: var(--footnote-size);
+}
+
+.footnote-backref {
+    display: inline-block;
+    /* margin-inline-start: var(--size-4-1); */
+    margin-inline-start: .5em;
+    /* color: var(--text-faint); */
+    text-decoration: none;
+  }

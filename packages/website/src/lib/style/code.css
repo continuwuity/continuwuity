@@ -1,0 +1,57 @@
+
+/* Code */
+
+pre {
+    color-scheme: var(--code-colour-scheme);
+    color: var(--code-color);
+    background-color: var(--code-background-color);
+    overflow-x: auto;
+    font-weight: 400;
+    font-size: .875em;
+    line-height: 1.7142857;
+    margin-top: 1.7142857em;
+    margin-bottom: 1.7142857em;
+    border-radius: .375rem;
+    padding: calc(var(--spacing)/2);
+    box-shadow: 0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a
+}
+pre>code {
+    word-wrap: normal;
+    background-color: initial;
+    border: 0;
+    border-radius: initial;
+    display: flex;
+    flex-direction: column;
+    line-height: inherit;
+    margin: 0;
+    width: max-content;
+    min-width: 100%;
+    max-width: auto;
+    overflow: visible;
+}
+
+code[data-line-numbers]>span[data-line-number] {
+    padding-left: 0;
+}
+
+code[data-line-numbers]>span[data-line-number]::before {
+    /* Insert the line number data attribute before the line */
+    content: attr(data-line-number);
+    /* Other styling */
+    display: inline-block;
+    width: 1rem;
+    margin-inline-start: .25rem;
+    margin-inline-end: .8rem;
+    text-align: right;
+    color: var(--code-color);
+    opacity: 0.25;
+}
+
+code>span[data-highlighted] {
+    background: var(--code-highlighted);
+    width: 100%;
+}
+
+/* code>span[data-highlighted]+span[data-highlighted] {
+    border-top: 1px solid theme("colors.slate.800");
+} */
