@@ -11,7 +11,7 @@ pre {
     line-height: 1.7142857;
     margin-top: 1.7142857em;
     margin-bottom: 1.7142857em;
-    border-radius: .375rem;
+    border-radius: var(--edge-border-radius, --border-radius);
     padding: calc(var(--spacing)/2);
     box-shadow: 0 4px 6px -1px #0000001a, 0 2px 4px -2px #0000001a
 }
