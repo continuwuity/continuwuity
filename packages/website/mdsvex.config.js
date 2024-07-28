@@ -68,28 +68,23 @@ function pageResolver(pageName) {
     const slug = slugify(pageName, { lower: true });
     return ["/", "/projects/"].map((p) => p + slug);
 }
-// import { grammars } from 'tm-grammars'
+import { grammars } from 'tm-grammars'
 // console.log()
-// let http = grammars.find((grammar) => grammar.name == "json")
-// console.log(http)
-// import httpGrammar from 'tm-grammars/grammars/http.json' assert { type: "json" };
-// @ts-ignore
-// http.grammar = httpGrammar;
-// console.log(import.meta.resolve('tm-grammars/grammars/http.json'))
-const httpHighlight = {
-    id: 'http',
-    // aliases: ['http', "https"],
-    grammar: JSON.parse(readFileSync(fileURLToPath(import.meta.resolve('tm-grammars/grammars/http.json')), 'utf8')),
-    categories: ['web', 'utility'],
-    displayName: 'HTTP',
-    embedded: ['shellscript', 'json', 'xml', 'graphql'],
-    lastUpdate: '2023-07-24T09:58:17Z',
-    license: 'MIT',
-    licenseUrl: 'https://raw.githubusercontent.com/Huachao/vscode-restclient/master/LICENSE',
-    name: 'http',
-    scopeName: 'source.http',
-    sha: 'a89f8bce1b5e3d5bd955f10916b0c101e20431d3',
-    source: 'https://github.com/Huachao/vscode-restclient/blob/a89f8bce1b5e3d5bd955f10916b0c101e20431d3/syntaxes/http.tmLanguage.json',
+
+/**
+ * @param {string} name
+ */
+function getGrammar(name) {
+    let metadata = grammars.find((grammar) => grammar.name == name)
+    if (!metadata) {
+        throw "Grammar not found"
+    }
+    return {
+        ...metadata,
+        id: name,
+
+        grammar: JSON.parse(readFileSync(fileURLToPath(import.meta.resolve('tm-grammars/grammars/' + name + '.json')), 'utf8')),
+    }
 }
 
 const hrefTemplate = (/** @type {string} */ permalink) => permalink
@@ -109,7 +104,13 @@ const hrefTemplate = (/** @type {string} */ permalink) => permalink
 //         }]
 //     };
 // }
+/**
+ * @param {{level: number, title: string}[]} headings
+ */
 function buildNestedHeadings(headings) {
+    /**
+     * @type {{level: number, title: string, children: unknown}[]}
+     */
     let result = [];
     let stack = [{ level: 0, children: result }];
 
@@ -163,7 +164,7 @@ function add_toc_remark(opts) {
     };
 }
 
-function add_data_to_fm(opts) {
+function add_data_to_fm(_opts) {
     return async function transformer(tree, vFile) {
         if (!vFile.data.fm) vFile.data.fm = {};
 
@@ -325,7 +326,7 @@ const config = {
 
     highlight: {
         // @ts-ignore
-        highlighter: await createHighlighter({ theme: "github-dark", langs: [httpHighlight] }),
+        highlighter: await createHighlighter({ theme: "github-dark", langs: ["http", "jsx", "javascript", "typescript", "rust"].map(getGrammar) }),
         alias: {
             ts: "typescript",
             mdx: "markdown",
