@@ -1,4 +1,5 @@
 @import "./style/code.css";
+@import "./style/callout.css";
 @import "./style/footnote.css";
 
 :root {
@@ -32,6 +33,15 @@
     --code-background-color: #0d1117;
     --code-color: #fff;
 
+    --color-red: #e93147;
+    --color-orange: #ec7500;
+    --color-yellow: #e0ac00;
+    --color-green: #08b94e;
+    --color-cyan: #00bfbc;
+    --color-blue: #086ddd;
+    --color-purple: #7852ee;
+    --color-pink: #d53984;
+
     scroll-behavior: smooth;
 }
 
@@ -49,7 +59,16 @@
         --input-color: #d8d8d8;
         --font-color: rgba(255, 255, 255, .87);
         --font-color-contrast: rgba(0, 0, 0, .87);
-        --font-color-secondary: rgba(255, 255, 255, .6)
+        --font-color-secondary: rgba(255, 255, 255, .6);
+        
+        --color-red: #fb464c;
+        --color-orange: #e9973f;
+        --color-yellow: #e0de71;
+        --color-green: #44cf6e;
+        --color-cyan: #53dfdd;
+        --color-blue: #027aff;
+        --color-purple: #a882ff;
+        --color-pink: #fa99cd;
     }
 }
 

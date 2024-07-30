@@ -10,6 +10,7 @@ import remarkMath from "remark-math"
 // @ts-ignore
 import remarkAbbr from "remark-abbr"
 import remarkFootnotes from 'remark-footnotes'
+import remarkCallouts from "remark-callouts";
 
 import rehypeKatexSvelte from 'rehype-katex-svelte';
 // import github from "remark-github";
@@ -343,6 +344,8 @@ const config = {
         remarkMath,
         remarkAbbr,
         [remarkFootnotes, { inlineNotes: true }],
+        remarkGfm,
+        [remarkCallouts, {}],
         [remarkWikiLink, {
             // @ts-ignore
             aliasDivider: "|",
@@ -353,7 +356,6 @@ const config = {
             // wikiLinkClassName,
             // newClassName,
         }],
-        remarkGfm,
         // [citePlugin, {
         //   syntax: {
         //     // see micromark-extension-cite

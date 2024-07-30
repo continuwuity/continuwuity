@@ -1,0 +1,194 @@
+:root {
+    --callout-bug: var(--color-red);
+    --callout-default: var(--color-blue);
+    --callout-error: var(--color-red);
+    --callout-example: var(--color-purple);
+    --callout-fail: var(--color-red);
+    --callout-important: var(--color-cyan);
+    --callout-info: var(--color-blue);
+    --callout-question: var(--color-orange);
+    --callout-success: var(--color-green);
+    --callout-summary: var(--color-cyan);
+    --callout-tip: var(--color-cyan);
+    --callout-todo: var(--color-blue);
+    --callout-warning: var(--color-orange);
+    --callout-quote: rgb(158, 158, 158);
+
+    --callout-title-weight: bold;
+    
+    --callout-radius: var(--border-radius);
+
+    --callout-border-opacity: 25%;
+    --callout-background-opacity: 10%;
+    --callout-content-padding: 0;
+    --callout-content-background: transparent;
+}
+.callout {
+    --callout-color: var(--callout-default);
+    /* --callout-icon: lucide-pencil; */
+}
+
+.callout[data-callout="abstract"],
+.callout[data-callout="summary"],
+.callout[data-callout="tldr"] {
+    --callout-color: var(--callout-summary);
+    /* --callout-icon: lucide-clipboard-list; */
+}
+
+.callout[data-callout="info"] {
+    --callout-color: var(--callout-info);
+    /* --callout-icon: lucide-info; */
+}
+
+.callout[data-callout="todo"] {
+    --callout-color: var(--callout-todo);
+    /* --callout-icon: lucide-check-circle-2; */
+}
+
+.callout[data-callout="important"] {
+    --callout-color: var(--callout-important);
+    /* --callout-icon: lucide-flame; */
+}
+
+.callout[data-callout="tip"],
+.callout[data-callout="hint"] {
+    --callout-color: var(--callout-tip);
+    /* --callout-icon: lucide-flame; */
+}
+
+.callout[data-callout="success"],
+.callout[data-callout="check"],
+.callout[data-callout="done"] {
+    --callout-color: var(--callout-success);
+    /* --callout-icon: lucide-check; */
+}
+
+.callout[data-callout="question"],
+.callout[data-callout="help"],
+.callout[data-callout="faq"] {
+    --callout-color: var(--callout-question);
+    /* --callout-icon: help-circle; */
+}
+
+.callout[data-callout="warning"],
+.callout[data-callout="caution"],
+.callout[data-callout="attention"] {
+    --callout-color: var(--callout-warning);
+    /* --callout-icon: lucide-alert-triangle; */
+}
+
+.callout[data-callout="failure"],
+.callout[data-callout="fail"],
+.callout[data-callout="missing"] {
+    --callout-color: var(--callout-fail);
+    /* --callout-icon: lucide-x; */
+}
+
+.callout[data-callout="danger"],
+.callout[data-callout="error"] {
+    --callout-color: var(--callout-error);
+    /* --callout-icon: lucide-zap; */
+}
+
+.callout[data-callout="bug"] {
+    --callout-color: var(--callout-bug);
+    /* --callout-icon: lucide-bug; */
+}
+
+.callout[data-callout="example"] {
+    --callout-color: var(--callout-example);
+    /* --callout-icon: lucide-list; */
+}
+
+.callout[data-callout="quote"],
+.callout[data-callout="cite"] {
+    --callout-color: var(--callout-quote);
+    /* --callout-icon: quote-glyph; */
+}
+
+.callout {
+    overflow: hidden;
+    border-style: solid;
+    
+    border-color: color-mix(in srgb, var(--callout-color) var(--callout-border-opacity), transparent);
+    border-width: var(--callout-border-width);
+    border-radius: var(--callout-radius);
+    margin-block: 1em;
+    margin-inline: 0;
+    mix-blend-mode: var(--callout-blend-mode);
+    background-color: color-mix(in srgb, var(--callout-color) var(--callout-background-opacity), transparent);
+    padding: 0.75em;
+    padding-inline-start: 1.5em;
+    --callout-title-color: var(--callout-color);
+}
+
+.callout.is-collapsible .callout-title {
+    cursor: var(--cursor);
+}
+
+.callout-title {
+    padding: var(--callout-title-padding);
+    display: flex;
+    gap: calc(var(--spacing)/4);
+    font-size: var(--callout-title-size);
+    color: rgb(var(--callout-color));
+    line-height: var(--line-height-tight);
+    align-items: flex-start;
+}
+
+.callout-title-inner {
+    --font-weight: var(--callout-title-weight);
+    font-weight: var(--font-weight);
+    color: var(--callout-title-color);
+}
+/* .callout-title {
+    --font-weight: var(--callout-title-weight);
+    font-weight: var(--font-weight);
+    color: var(--callout-title-color);
+    padding: var(--callout-title-padding);
+    font-size: var(--callout-title-size);
+    line-height: var(--line-height-tight);
+} */
+
+
+.callout-content {
+    overflow-block: auto;
+    padding: var(--callout-content-padding);
+    background-color: var(--callout-content-background);
+}
+
+.callout-content .callout {
+    margin-block-start: 20px;
+}
+
+.callout-icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+}
+
+.callout-icon .tabler-icon {
+    color: var(--callout-color);
+}
+
+.callout-icon::after {
+    content: "\200B";
+}
+
+/* .callout-fold {
+    display: flex;
+    align-items: center;
+    padding-inline-end: var(--size-4-2);
+}
+
+.callout-fold::after {
+    content: "\200B";
+}
+
+.callout-fold .svg-icon {
+    transition: transform 100ms ease-in-out;
+}
+
+.callout-fold.is-collapsed .svg-icon {
+    transform: rotate(calc(var(--direction) * -1 * 90deg));
+} */
