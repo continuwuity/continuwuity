@@ -1,0 +1,1 @@
+podman build . -f packages/website/Dockerfile  -t jade-website-frontend:latest; podman save --format oci-archive jade-website-frontend:latest | gzip | ssh core@176.126.240.240 -T "zcat > /opt/images/jade-website-frontend"
