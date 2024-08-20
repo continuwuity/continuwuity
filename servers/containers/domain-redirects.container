@@ -17,7 +17,7 @@ AutoUpdate=registry
 Label="traefik.enable=true"
 Label="traefik.http.routers.domain-redirects.rule=(Host(`ellis.link`) || Host(`joel.ellis.link`))"
 Label="traefik.http.routers.domain-redirects.priority=1"
-
+# https://jensknipper.de/blog/traefik-redirect-to-external-domain/ maybe?
 Label="traefik.http.routers.domain-redirects.entrypoints=https"
 # Label="traefik.http.services.domain-redirects.loadbalancer.server.port=3000"
 # Environment="WHOAMI_PORT_NUMBER=3000"
