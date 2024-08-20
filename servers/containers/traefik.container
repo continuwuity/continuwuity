@@ -46,6 +46,9 @@ Label="traefik.http.middlewares.hsts.headers.stspreload=true"
 Label="traefik.http.middlewares.hsts.headers.stsseconds=31536000"
 Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
 
+# Label="traefik.http.routers.dashboard.rule=Host(`traefik.ellis.link`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+# Label="traefik.http.routers.dashboard.service=api@internal"
+
 [Service]
 Restart=on-failure
 TimeoutStartSec=900

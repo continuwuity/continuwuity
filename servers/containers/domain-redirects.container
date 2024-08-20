@@ -1,0 +1,45 @@
+
+
+[Unit]
+Description=Domain Redirects
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=domain-redirects
+NoNewPrivileges=true
+Image=docker.io/morbz/docker-web-redirect:latest
+# ReadOnly=true
+AutoUpdate=registry
+# Volume=/var/opt/thelounge:/var/opt/thelounge:z,U
+# Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.domain-redirects.rule=(Host(`ellis.link`) || Host(`joel.ellis.link`))"
+Label="traefik.http.routers.domain-redirects.priority=1"
+
+Label="traefik.http.routers.domain-redirects.entrypoints=https"
+# Label="traefik.http.services.domain-redirects.loadbalancer.server.port=3000"
+# Environment="WHOAMI_PORT_NUMBER=3000"
+Environment="REDIRECT_TARGET=jade.ellis.link"
+Environment="REDIRECT_TYPE=redirect"
+
+Label="traefik.http.routers.domain-redirects.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.domain-redirects.tls.options=intermediate@file"
+
+Label="traefik.http.routers.domain-redirects.middlewares=default@file"
+# Label="traefik.http.routers.domain-redirects.middlewares=ellis-link-redirect,joel-ellis-link-redirect,default@file"
+
+# Label="traefik.http.middlewares.ellis-link-redirect.redirectregex.regex=^https?://(www\\.)?ellis\\.link/(.*)"
+# Label="traefik.http.middlewares.ellis-link-redirect.redirectregex.replacement=https://jade.ellis.link/$${2}"
+# Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.permanent=false"
+# Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.regex=^https?://joel\\.ellis\\.link/(.*)"
+# Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.replacement=https://jade.ellis.link/$${1}"
+# Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.permanent=true"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
