@@ -19,7 +19,7 @@ Environment=ORIGIN=https://jade.ellis.link
 # PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host 
 
 Label="traefik.enable=true"
-Label="traefik.http.routers.jade-website-frontend.rule=Host(`jade.ellis.link`) || (Host(`ellis.link`) && Path(`/.well-known/webfinger`))"
+Label="traefik.http.routers.jade-website-frontend.rule=(Host(`jade.ellis.link`) || (Host(`ellis.link`) && Path(`/.well-known/webfinger`)))"
 
 Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
 
