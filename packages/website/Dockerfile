@@ -10,7 +10,7 @@ WORKDIR /app
 # RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile
 
 FROM base AS deps
-ENV CI=1 
+ENV CI=1
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # RUN cd packages/website; --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM deps as build
@@ -18,14 +18,9 @@ RUN cd packages/website; pnpm run build
 
 RUN cd packages/website; pnpm exec rollup -c server-rollup.config.mjs
 # copy node_modules/ and other build files over
-FROM deps as deploy-deps
-
-RUN mkdir ../node_modules
-RUN cp -Lr node_modules/.pnpm/@resvg+resvg-*@*/node_modules/* ../node_modules/
-RUN cp -Lr node_modules/.pnpm/@sentry+sveltekit@*/node_modules/* ../node_modules/
-RUN cp -Lr node_modules/.pnpm/@opentelemetry+instrumentation-http@*/node_modules/* ../node_modules/
-RUN cp -Lr node_modules/.pnpm/@opentelemetry+instrumentation-http@*/node_modules/* ../node_modules/
-RUN cp -Lr node_modules/.pnpm/@opentelemetry+api-logs@*/node_modules/* ../node_modules/
+FROM base as deploy-deps
+ENV CI=1
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod
 FROM node:alpine
 
 WORKDIR /app
@@ -34,7 +29,7 @@ COPY --from=build /app/packages/website/output .
 COPY --from=build /app/packages/website/build/client ./client/
 COPY --from=build /app/packages/website/build/prerendered ./prerendered/
 COPY --from=build /app/packages/website/package.json ./package.json
-COPY --from=deploy-deps /node_modules ./node_modules/
+COPY --from=deploy-deps /app/node_modules ./node_modules/
 
 ENV NODE_ENV production
 EXPOSE 3000
