@@ -18,6 +18,7 @@ export default {
         sentryRollupPlugin({
             org: "jade-ellis",
             project: "jade-website-sveltekit",
+            authToken: process.env.SENTRY_AUTH_TOKEN,
         }),
     ]
 };
