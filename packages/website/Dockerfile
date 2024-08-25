@@ -16,6 +16,7 @@ RUN mkdir ../node_modules
 RUN cp -Lr node_modules/.pnpm/@resvg+resvg-*@*/node_modules/* ../node_modules/
 RUN cp -Lr node_modules/.pnpm/@sentry+sveltekit@*/node_modules/* ../node_modules/
 RUN cp -Lr node_modules/.pnpm/@opentelemetry+instrumentation-http@*/node_modules/* ../node_modules/
+RUN cp -Lr node_modules/.pnpm/@opentelemetry+instrumentation@*/node_modules/* ../node_modules/
 # RUN cd packages/website; --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 RUN cd packages/website; pnpm run build
