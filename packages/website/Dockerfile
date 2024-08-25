@@ -26,7 +26,7 @@ RUN corepack enable
 
 COPY --from=base /app/packages/website/package.json ./package.json
 COPY --from=base /app/pnpm-lock.yaml ./pnpm-lock.yaml
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --no-frozen-lockfile --prod
 
 FROM node:alpine
 
