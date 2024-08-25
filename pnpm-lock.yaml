@@ -1801,7 +1801,7 @@ packages:
       '@codemirror/view': '>=6.0.0'
 
   Notes@file:packages/website/Notes-1.0.0.tgz:
-    resolution: {integrity: sha512-nsOzNRykNhqckMrkXHQBoz/6alimpB4JspWrVZ541UUHzpH17XQMK63dtTvWhNDwhVNSQLIa1DPoF5NFzP5Jmw==, tarball: file:packages/website/Notes-1.0.0.tgz}
+    resolution: {integrity: sha512-R2HuoRnQvFdtS9KTSaCKFxnSedtPh9zwqLVsm5Y27zNLvBe8EZYE1NlPZv36g8ZlWU/PTFhRnWr6lKbnPwx1Qg==, tarball: file:packages/website/Notes-1.0.0.tgz}
     version: 1.0.0
 
   acorn-import-assertions@1.9.0:
