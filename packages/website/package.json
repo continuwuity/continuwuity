@@ -16,6 +16,7 @@
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/pluginutils": "^5.1.0",
+    "@sentry/rollup-plugin": "^2.22.2",
     "@sveltejs/adapter-auto": "^3.2.2",
     "@sveltejs/adapter-node": "^5.1.1",
     "@sveltejs/kit": "^2.5.16",
