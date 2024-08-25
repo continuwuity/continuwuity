@@ -6,3 +6,4 @@ Dockerfile
 .svelte-kit
 build
 output
+.git
