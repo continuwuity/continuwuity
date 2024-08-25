@@ -14,6 +14,7 @@ ENV CI=1
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 # RUN cd packages/website; --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 FROM deps as build
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
 RUN cd packages/website; pnpm run build
 
 RUN cd packages/website; pnpm exec rollup -c server-rollup.config.mjs
