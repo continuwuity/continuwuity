@@ -1,4 +1,11 @@
+import {sequence} from '@sveltejs/kit/hooks';
+import * as Sentry from '@sentry/sveltekit';
 import type { Handle } from "@sveltejs/kit";
+
+Sentry.init({
+    dsn: "https://d006c73cc53783930a1521a68ae1c312@o4507835405369344.ingest.de.sentry.io/4507835410481232",
+    tracesSampleRate: 1
+})
 
 const securityHeaders = {
     'X-Content-Type-Options': 'nosniff',
@@ -14,7 +21,7 @@ const securityHeaders = {
 
 }
 
-export const handle: Handle = async ({ event, resolve }) => {
+export const handle: Handle = sequence(Sentry.sentryHandle(), async ({ event, resolve }) => {
     const response = await resolve(event);
     Object.entries(securityHeaders).forEach(
         ([header, value]) => {
@@ -27,4 +34,5 @@ export const handle: Handle = async ({ event, resolve }) => {
     response.headers.delete("x-sveltekit-page")
 
     return response;
-}
+})
+export const handleError = Sentry.handleErrorWithSentry();

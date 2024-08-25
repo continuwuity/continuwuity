@@ -12,3 +12,5 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 output
 Notes-1.0.0.tgz
+# Sentry Config File
+.sentryclirc

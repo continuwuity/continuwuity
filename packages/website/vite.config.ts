@@ -1,3 +1,4 @@
+import { sentrySvelteKit } from "@sentry/sveltekit";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig, type PluginOption } from "vite";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
@@ -49,20 +50,20 @@ function relativeResolver({ include, exclude, rootdir: rootDirCfg }: Options = {
             }
 
             if (opt.isEntry) return
-            
+
             if (!filter(origin)) {
                 // console.log(origin, "not filter")
                 return null
             }
-            
+
             console.log("relatively resolving")
             console.log(relative(rootDir, resolve(dirname(origin as string), decodeURIComponent(file))))
             // if (!isThumbHash(file)) return 
             // Your local include path must either starts with `./` or `../`
             // if (file.startsWith('./') || file.startsWith('../')) {
-                // console.log(file, 'from', origin, 'to', resolve(dirname(origin as string), file))
-                // Return an absolute include path
-                return relative(rootDir, resolve(dirname(origin as string), decodeURIComponent(file)));
+            // console.log(file, 'from', origin, 'to', resolve(dirname(origin as string), file))
+            // Return an absolute include path
+            return relative(rootDir, resolve(dirname(origin as string), decodeURIComponent(file)));
             // }
             return null; // Continue to the next plugins!
         },
@@ -107,6 +108,12 @@ export default defineConfig({
         }
     },
     plugins: [
+        sentrySvelteKit({
+            sourceMapsUploadOptions: {
+                org: "jade-ellis",
+                project: "jade-website-sveltekit"
+            }
+        }),
         // relativeResolver({include: [/node_modules\/Notes/]}),
         // blurhash_transform(),
         typeAsJsonSchemaPlugin(),
@@ -135,7 +142,6 @@ export default defineConfig({
         // mdsvex_transform(),
         sveltekit(),
         dynamicImport({
-
             filter(id) {
                 if (id.includes('node_modules/Notes')) {
                     return true
@@ -153,7 +159,6 @@ export default defineConfig({
         //     emitFile: true,
         //     filename: "stats.html",
         //   }) as PluginOption
-
     ],
     build: {
         assetsInlineLimit: 0,
