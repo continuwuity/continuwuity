@@ -29,7 +29,7 @@ COPY --from=build /app/packages/website/output .
 COPY --from=build /app/packages/website/build/client ./client/
 COPY --from=build /app/packages/website/build/prerendered ./prerendered/
 COPY --from=build /app/packages/website/package.json ./package.json
-COPY --from=deploy-deps /app/node_modules ./node_modules/
+COPY --from=deploy-deps /app/packages/website/node_modules ./node_modules/
 
 ENV NODE_ENV production
 EXPOSE 3000
