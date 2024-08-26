@@ -1,9 +1,12 @@
 const rootDomain = process.env.VITE_DOMAIN; // or your server IP for dev
 
+/**
+ * @type {import("@sveltejs/kit").CspDirectives}
+ */
 const cspDirectives = {
     'base-uri': ["'self'"],
-    'child-src': ["'self'"],
-    'connect-src': ["'self'", "https://*.google-analytics.com"],
+    'child-src': ["'self'", "blob:"],
+    'connect-src': ["'self'", "https://*.google-analytics.com", "https://*.sentry.io"],
     // 'connect-src': ["'self'", 'ws://localhost:*', 'https://hcaptcha.com', 'https://*.hcaptcha.com'],
     'img-src': ["'self'", 'data:',
         'https://*.googletagmanager.com'],
@@ -49,12 +52,15 @@ const cspDirectives = {
         // 'https://*.sentry.io',
         // 'https://polyfill.io',
     ],
-    'worker-src': ["'self'"],
+    'worker-src': ["'self'", "blob:"],
     // remove report-to & report-uri if you do not want to use Sentry reporting
-    //   'report-to': ["'csp-endpoint'"],
-    //   'report-uri': [
-    //     `https://sentry.io/api/${process.env.VITE_SENTRY_PROJECT_ID}/security/?sentry_key=${process.env.VITE_SENTRY_KEY}`,
-    //   ],
+    'report-to': ["'csp-endpoint'"],
+    'report-uri': [
+        'https://o4507835405369344.ingest.de.sentry.io/api/4507835410481232/security/?sentry_key=d006c73cc53783930a1521a68ae1c312',
+    ],
 };
+
+// Report-To: {"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://o4507835405369344.ingest.de.sentry.io/api/4507835410481232/security/?sentry_key=d006c73cc53783930a1521a68ae1c312"}],"include_subdomains":true}
+
 
 export default cspDirectives;

@@ -19,6 +19,7 @@ const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Resource-Policy': 'same-origin',
 
+    'Report-To': '{"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://o4507835405369344.ingest.de.sentry.io/api/4507835410481232/security/?sentry_key=d006c73cc53783930a1521a68ae1c312"}],"include_subdomains":true}',
 }
 
 export const handle: Handle = sequence(Sentry.sentryHandle(), async ({ event, resolve }) => {
