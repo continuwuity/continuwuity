@@ -24,7 +24,7 @@
         if (typeof result.code == "string") {
             output = result.code
         } else {
-            console.log(result)
+            console.error(result)
         }
     }
 

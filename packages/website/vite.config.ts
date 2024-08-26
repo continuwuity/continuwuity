@@ -41,13 +41,13 @@ type Options =
 function relativeResolver({ include, exclude, rootdir: rootDirCfg }: Options = {}): import('vite').Plugin {
     const rootDir = resolve(rootDirCfg || process.cwd());
     const filter = createFilter(include, exclude)
-    console.log(rootDir)
+    // console.log(rootDir)
     return {
         name: "relative resolver",
         async resolveId(file, origin, opt) {
-            if (file.includes("Design")) {
-                console.log(file, origin, !filter(origin), opt.isEntry)
-            }
+            // if (file.includes("Design")) {
+            //     console.log(file, origin, !filter(origin), opt.isEntry)
+            // }
 
             if (opt.isEntry) return
 
@@ -56,8 +56,8 @@ function relativeResolver({ include, exclude, rootdir: rootDirCfg }: Options = {
                 return null
             }
 
-            console.log("relatively resolving")
-            console.log(relative(rootDir, resolve(dirname(origin as string), decodeURIComponent(file))))
+            // console.log("relatively resolving")
+            // console.log(relative(rootDir, resolve(dirname(origin as string), decodeURIComponent(file))))
             // if (!isThumbHash(file)) return 
             // Your local include path must either starts with `./` or `../`
             // if (file.startsWith('./') || file.startsWith('../')) {
@@ -80,7 +80,7 @@ function blurhash_transform() {
 
             // if (!blurRE.test(id)) return; 
             if (!isThumbHash(id)) return;
-            console.log(id, code)
+            // console.log(id, code)
             // console.log(id.includes("blurhash"), id)
             return code;
             // return `export default \`${c.replace(/`/g, "\\`").trim()}\`;`;

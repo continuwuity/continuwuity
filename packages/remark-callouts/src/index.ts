@@ -58,11 +58,9 @@ export const callouts: Plugin = function (providedConfig?: Partial<Config>) {
 //     .join("|");
     // @ts-ignore
   const Parser = this.Parser
-  console.log(Parser)
-
   const blockTokenizers = Parser.prototype.blockTokenizers
   const blockMethods = Parser.prototype.blockMethods
-  console.log(blockMethods, blockTokenizers)
+//   console.log(blockMethods, blockTokenizers)
 
   
   blockTokenizers.callout = tok
