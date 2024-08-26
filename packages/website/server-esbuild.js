@@ -27,8 +27,8 @@ await (async () => {
 `;
 const banner = {
     "js": ESM_REQUIRE_SHIM
-  };
-  
+};
+
 esbuild.build({
     sourcemap: true, // Source map generation must be turned on
     platform: "node", // Node.js platform
@@ -38,7 +38,7 @@ esbuild.build({
     bundle: true, // Generate an external bundle
     format: "esm", // Output format
     loader: {
-        ".node": "file",
+        ".node": "copy",
     },
     alias: {
         "perf_hooks": "node:perf_hooks",
