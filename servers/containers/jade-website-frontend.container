@@ -16,7 +16,17 @@ Network=web.network
 
 
 Environment=ORIGIN=https://jade.ellis.link
-# PROTOCOL_HEADER=x-forwarded-proto HOST_HEADER=x-forwarded-host 
+Environment=PROTOCOL_HEADER=X-Forwarded-Proto
+Environment=HOST_HEADER=X-Forwarded-Host
+Environment=PORT_HEADER=X-Forwarded-Port
+Environment=ADDRESS_HEADER=X-Forwarded-For
+Entrypoint=XFF_DEPTH=1
+# 'x-forwarded-for': '145.40.150.118',
+# 'x-forwarded-host': 'jade.ellis.link',
+# 'x-forwarded-port': '443',
+# 'x-forwarded-proto': 'https',
+# 'x-forwarded-server': 'a9544f90abe7',
+# 'x-real-ip': '145.40.150.118'
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.jade-website-frontend.rule=(Host(`jade.ellis.link`) || (Host(`ellis.link`) && Path(`/.well-known/webfinger`)))"
