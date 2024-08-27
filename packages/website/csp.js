@@ -1,6 +1,6 @@
 const rootDomain = process.env.VITE_DOMAIN; // or your server IP for dev
 
-import { SENTRY_REPORT_URL } from './src/lib/config';
+import { SENTRY_REPORT_URL } from './src/lib/config.js';
 /**
  * @type {import("@sveltejs/kit").CspDirectives}
  */
