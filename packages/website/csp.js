@@ -1,5 +1,6 @@
 const rootDomain = process.env.VITE_DOMAIN; // or your server IP for dev
 
+import { SENTRY_REPORT_URL } from './lib/config';
 /**
  * @type {import("@sveltejs/kit").CspDirectives}
  */
@@ -56,7 +57,7 @@ const cspDirectives = {
     // remove report-to & report-uri if you do not want to use Sentry reporting
     'report-to': ["'csp-endpoint'"],
     'report-uri': [
-        process.env.SENTRY_REPORT_URL,
+        SENTRY_REPORT_URL,
     ],
 };
 

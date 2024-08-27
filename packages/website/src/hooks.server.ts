@@ -2,7 +2,7 @@ import { sequence } from '@sveltejs/kit/hooks';
 import {init as initSentry, handleErrorWithSentry, sentryHandle} from '@sentry/sveltekit';
 import type { Handle } from "@sveltejs/kit";
 import { randomBytes } from 'crypto';
-import { SENTRY_DSN, SENTRY_REPORT_URL } from './lib/config';
+import { SENTRY_DSN, SENTRY_REPORT_URL } from '$lib/config';
 
 initSentry({
     dsn: SENTRY_DSN,
