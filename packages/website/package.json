@@ -22,6 +22,7 @@
     "@types/node": "^20.16.1",
     "@types/polka": "^0.5.7",
     "@types/sharedworker": "^0.0.115",
+    "dotenv": "^16.4.5",
     "esbuild": "^0.23.1",
     "github-slugger": "^2.0.0",
     "glob": "^10.4.5",

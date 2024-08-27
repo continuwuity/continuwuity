@@ -56,11 +56,9 @@ const cspDirectives = {
     // remove report-to & report-uri if you do not want to use Sentry reporting
     'report-to': ["'csp-endpoint'"],
     'report-uri': [
-        'https://o4507835405369344.ingest.de.sentry.io/api/4507835410481232/security/?sentry_key=d006c73cc53783930a1521a68ae1c312',
+        process.env.SENTRY_REPORT_URL,
     ],
 };
-
-// Report-To: {"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://o4507835405369344.ingest.de.sentry.io/api/4507835410481232/security/?sentry_key=d006c73cc53783930a1521a68ae1c312"}],"include_subdomains":true}
 
 
 export default cspDirectives;

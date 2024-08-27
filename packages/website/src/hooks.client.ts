@@ -1,7 +1,8 @@
 import { init as initSentry, handleErrorWithSentry, makeBrowserOfflineTransport, makeFetchTransport } from '@sentry/sveltekit';
 
 initSentry({
-    dsn: 'https://d006c73cc53783930a1521a68ae1c312@o4507835405369344.ingest.de.sentry.io/4507835410481232',
+    dsn: import.meta.env.SENTRY_DSN,
+    environment: import.meta.env.MODE,
     tracesSampleRate: 1.0,
 
     // This sets the sample rate to be 10%. You may want this to be 100% while

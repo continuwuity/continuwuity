@@ -1,8 +1,9 @@
+import "dotenv/config";
 import { mdsvex } from "mdsvex";
 import mdsvexConfig from "./mdsvex.config.js";
 import adapter from "@sveltejs/adapter-node";
 import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
-import htmlMinifierAdaptor from "sveltekit-html-minifier";
+// import htmlMinifierAdaptor from "sveltekit-html-minifier";
 
 import cspDirectives from "./csp.js";
 /** @type {import('@sveltejs/kit').Config} */

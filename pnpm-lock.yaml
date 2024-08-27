@@ -216,6 +216,9 @@ importers:
       '@types/sharedworker':
         specifier: ^0.0.115
         version: 0.0.115
+      dotenv:
+        specifier: ^16.4.5
+        version: 16.4.5
       esbuild:
         specifier: ^0.23.1
         version: 0.23.1

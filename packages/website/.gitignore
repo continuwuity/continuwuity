@@ -3,8 +3,9 @@ node_modules
 /build
 /.svelte-kit
 /package
-.env
-.env.*
+.env.sentry-build-plugin
+.env.local
+.env.*.local
 !.env.example
 .vercel
 .output
