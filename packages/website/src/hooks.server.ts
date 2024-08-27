@@ -2,9 +2,10 @@ import { sequence } from '@sveltejs/kit/hooks';
 import {init as initSentry, handleErrorWithSentry, sentryHandle} from '@sentry/sveltekit';
 import type { Handle } from "@sveltejs/kit";
 import { randomBytes } from 'crypto';
+import { SENTRY_DSN, SENTRY_REPORT_URL } from './lib/config';
 
 initSentry({
-    dsn: import.meta.env.SENTRY_DSN,
+    dsn: SENTRY_DSN,
     environment: import.meta.env.MODE,
     tracesSampleRate: 1
 })
@@ -21,7 +22,7 @@ const securityHeaders = {
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Cross-Origin-Resource-Policy': 'same-origin',
 
-    'Report-To': '{"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"' + import.meta.env.SENTRY_REPORT_URL + '"}],"include_subdomains":true}',
+    'Report-To': '{"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"' + SENTRY_REPORT_URL + '"}],"include_subdomains":true}',
 }
 
 export const handle: Handle = async (input) => {

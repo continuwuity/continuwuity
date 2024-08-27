@@ -1,7 +1,8 @@
+import { SENTRY_DSN } from '$lib/config';
 import { init as initSentry, handleErrorWithSentry, makeBrowserOfflineTransport, makeFetchTransport, replayIntegration } from '@sentry/sveltekit';
 
 initSentry({
-    dsn: import.meta.env.SENTRY_DSN,
+    dsn: SENTRY_DSN,
     environment: import.meta.env.MODE,
     tracesSampleRate: 1.0,
 
