@@ -40,12 +40,15 @@
         try {
             let url = new URL(canonical);
             url.searchParams.set("utm_medium", "share");
-            navigator.share({
+            await navigator.share({
                 title: data.post.title,
                 text: data.post.description,
                 url: url.href,
             });
-        } catch (error) {
+        } catch (error: any) {
+            if (error.toString().includes("AbortError")) {
+                return;
+            }
             webShareAPISupported = false;
         }
     };
@@ -168,7 +171,9 @@
     <h1 id="title" class="p-name">{data.post.title}</h1>
     <aside>
         <a class="u-url ib" href={canonical}
-            >Published on <time class="dt-published ib" datetime={data.post.date}
+            >Published on <time
+                class="dt-published ib"
+                datetime={data.post.date}
                 >{new Date(data.post.date).toLocaleDateString()}</time
             ></a
         >
