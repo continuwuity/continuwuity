@@ -8,6 +8,7 @@
     import Toc from "$lib/Toc.svelte";
     import type { WithContext, Thing } from "schema-dts";
     import pfpUrl from "$lib/logo.svg?url";
+    import { gtag } from "$lib/analytics.js";
     // let GhReleasesDownload: Promise<any>;
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
@@ -44,6 +45,14 @@
                 title: data.post.title,
                 text: data.post.description,
                 url: url.href,
+            });
+
+            gtag("event", "share", {
+                "share_url": url.href,
+                "share_title": data.post.title,
+                "share_button": "article_top",
+                "method": "navigator_share",
+                "content_type": "article",
             });
         } catch (error: any) {
             if (error.toString().includes("AbortError")) {
