@@ -1996,7 +1996,7 @@ packages:
       '@codemirror/view': '>=6.0.0'
 
   Notes@file:packages/website/Notes-1.0.0.tgz:
-    resolution: {integrity: sha512-GR6kf97yuTJY1Yj+Jp43yJhA0Ok2M2oiOtlHMnZGN4QeyuvnkChLCnsCSKYaAPW7/JfGPWGI+02t0jfu7Kf5pQ==, tarball: file:packages/website/Notes-1.0.0.tgz}
+    resolution: {integrity: sha512-feYKhsNmEUzP7Oa07rb2mW0Aw7fgTq8AnfykTxJYA+0hci8kj0FzutdzeLRZrKKMlXW6xj2ls2zOtp9PCQ6BAA==, tarball: file:packages/website/Notes-1.0.0.tgz}
     version: 1.0.0
 
   acorn-import-assertions@1.9.0:
