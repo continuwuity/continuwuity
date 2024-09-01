@@ -19,11 +19,11 @@
     // console.log(headings);
 </script>
 
-<aside class={className}>
-    <details bind:open>
-        <summary accesskey="c" title="(Alt + C)">Table of Contents</summary>
-        <div class="inner">
-            {#if headings?.length > 0}
+{#if headings?.length > 0}
+    <aside class={className}>
+        <details bind:open>
+            <summary accesskey="c" title="(Alt + C)">Table of Contents</summary>
+            <div class="inner">
                 <svelte:element
                     this={listType}
                     class="toc-level {'toc-level-' + headings[0].level}"
@@ -32,10 +32,10 @@
                         <TocItem {node} {listType} />
                     {/each}
                 </svelte:element>
-            {/if}
-        </div>
-    </details>
-</aside>
+            </div>
+        </details>
+    </aside>
+{/if}
 
 <style>
     aside {
