@@ -43,6 +43,7 @@
 <style>
     img {
         max-height: 60vh;
+        height: 100%;
         background-size: cover;
         background-repeat: no-repeat;
         display: block;
