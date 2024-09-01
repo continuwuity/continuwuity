@@ -45,8 +45,6 @@
         max-height: 60vh;
         background-size: cover;
         background-repeat: no-repeat;
-        width: auto;
-        height: auto;
         display: block;
         margin-inline: auto;
     }
