@@ -22,6 +22,7 @@
         height={thumb?.originalHeight}
         style:background-image={loaded ? "none" : `url('${thumb?.thumbSrc}')`}
         on:load={() => loaded = true}
+        style:--aspect-ratio={thumb?.originalWidth / thumb?.originalHeight}
     />
     {#if title}
         <figcaption>{title}</figcaption>
@@ -42,12 +43,12 @@
 
 <style>
     img {
-        max-height: 60vh;
         height: 100%;
         background-size: cover;
         background-repeat: no-repeat;
         display: block;
         margin-inline: auto;
+        max-width: calc(min(100%, 60vh * var(--aspect-ratio)));
     }
     figure {
         text-align: center;
