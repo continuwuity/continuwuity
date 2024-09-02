@@ -22,6 +22,7 @@
         height={thumb?.originalHeight}
         style:background-image={loaded ? "none" : `url('${thumb?.thumbSrc}')`}
         on:load={() => loaded = true}
+        decoding="async"
         style:--aspect-ratio={thumb?.originalWidth / thumb?.originalHeight}
     />
     {#if title}
