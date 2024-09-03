@@ -1,0 +1,39 @@
+# sudo mkdir /etc/sentry-relay
+# podman run --rm -it -v /etc/sentry-relay/:/work/.relay/:z --entrypoint bash getsentry/relay -c 'chown -R relay:relay /work/.relay'
+# podman run --rm -it -v /etc/sentry-relay/:/work/.relay/:z getsentry/relay config init
+# podman run --rm -it -v /etc/sentry-relay/:/work/.relay/:z getsentry/relay credentials show
+# Or add static config
+
+[Unit]
+Description=Sentry Relay
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=sentry-relay
+NoNewPrivileges=true
+Image=docker.io/getsentry/relay:latest
+Exec=run
+Volume=/etc/sentry-relay/:/work/.relay/:z
+AutoUpdate=registry
+Network=web.network
+
+
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.sentry-relay.rule=Host(`relay.ellis.link`)"
+
+Label="traefik.http.routers.sentry-relay.entrypoints=https"
+
+Label="traefik.http.routers.sentry-relay.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.sentry-relay.tls.options=intermediate@file"
+
+Label="traefik.http.routers.sentry-relay.middlewares=default@file"
+
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target

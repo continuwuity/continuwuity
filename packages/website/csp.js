@@ -1,5 +1,5 @@
 const rootDomain = process.env.VITE_DOMAIN; // or your server IP for dev
-
+import { SENTRY_HOST } from './src/lib/config.js';
 import { SENTRY_REPORT_URL } from './src/lib/config.js';
 /**
  * @type {import("@sveltejs/kit").CspDirectives}
@@ -7,7 +7,7 @@ import { SENTRY_REPORT_URL } from './src/lib/config.js';
 const cspDirectives = {
     'base-uri': ["'self'"],
     'child-src': ["'self'", "blob:"],
-    'connect-src': ["'self'", "https://*.google-analytics.com", "https://*.sentry.io"],
+    'connect-src': ["'self'", "https://*.google-analytics.com", "https://" + SENTRY_HOST],
     // 'connect-src': ["'self'", 'ws://localhost:*', 'https://hcaptcha.com', 'https://*.hcaptcha.com'],
     'img-src': ["'self'", 'data:',
         'https://*.googletagmanager.com'],
