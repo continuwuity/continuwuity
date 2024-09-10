@@ -51,7 +51,7 @@
                 <span class="site-name">Jade Ellis</span>
             </a>
             
-            <button on:click={sendFeedback}>Report a bug</button>
+            <button on:click={sendFeedback} class="feedback-button">Report a bug</button>
         </div>
 
         {#each Object.entries(links) as [title, inner_links]}
@@ -129,5 +129,9 @@
         align-items: center;
         padding: 8px;
         font-weight: 700;
+    }
+    
+    .feedback-button {
+        margin: 8px;
     }
 </style>
