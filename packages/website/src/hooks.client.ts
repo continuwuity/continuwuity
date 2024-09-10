@@ -18,6 +18,9 @@ initSentry({
         autoInject: false,
     })],
 
+    // replay:
+    // - https://github.com/getsentry/sentry-javascript/tree/develop/packages/replay-worker
+    // https://docs.sentry.io/platforms/javascript/guides/solidstart/session-replay/configuration/#using-a-custom-compression-worker
     // To enable offline events caching, use makeBrowserOfflineTransport to wrap
     // existing transports and queue events using the browsers' IndexedDB storage
     transport: makeBrowserOfflineTransport(makeFetchTransport),

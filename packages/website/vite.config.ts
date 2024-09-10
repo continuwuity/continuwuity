@@ -112,6 +112,11 @@ export default defineConfig({
             sourceMapsUploadOptions: {
                 org: "jade-ellis",
                 project: "jade-website-sveltekit"
+            },
+            bundleSizeOptimizations: {
+                excludeDebugStatements: true,
+                excludeReplayShadowDom: true,
+                excludeReplayIframe: true,
             }
         }),
         // relativeResolver({include: [/node_modules\/Notes/]}),
