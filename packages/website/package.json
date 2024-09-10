@@ -75,7 +75,6 @@
     "@lezer/highlight": "^1.2.1",
     "@octokit/types": "^13.5.0",
     "@resvg/resvg-js": "^2.6.2",
-    "@sentry/profiling-node": "^8.29.0",
     "@sentry/sveltekit": "^8.26.0",
     "@steeze-ui/svelte-icon": "^1.5.0",
     "@tabler/icons-svelte": "^3.12.0",
