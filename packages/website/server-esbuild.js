@@ -51,6 +51,10 @@ esbuild.build({
             org: "jade-ellis",
             project: "jade-website-sveltekit",
             authToken: process.env.SENTRY_AUTH_TOKEN,
+            sourcemaps: {
+                // Specify the directory containing build artifacts
+                assets: "./output/**",
+            } 
         }),
     ],
 });
