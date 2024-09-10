@@ -21,6 +21,10 @@
                 title: "LinkedIn",
             },
         ],
+        Feeds: [
+            { href: SITE_URL + "/blog/rss.xml", title: "RSS (Atom)" },
+            { href: SITE_URL + "/blog/feed.json", title: "JSON Feed" },
+        ]
     };
     const sendFeedback = async () => {
         const feedback = Sentry.getFeedback();
@@ -46,6 +50,8 @@
                 />
                 <span class="site-name">Jade Ellis</span>
             </a>
+            
+            <button on:click={sendFeedback}>Report a bug</button>
         </div>
 
         {#each Object.entries(links) as [title, inner_links]}
@@ -57,10 +63,9 @@
             </div>
         {/each}
 
-        <div class="feedback">
-            <button on:click={sendFeedback}>Report a bug</button>
-        </div>
         <div class="copyright">© 2024 Jade Ellis</div>
+        <!-- <div class="feedback">
+        </div> -->
     </footer>
 </div>
 
