@@ -3,7 +3,7 @@
     import { javascript } from "@codemirror/lang-javascript";
     import SvelteSeo from "svelte-seo";
     import { init } from "$lib/workers/terser";
-    import { SITE_URL } from '$lib/metadata';
+    import { SITE_URL } from "$lib/metadata";
 
     /** @type {import('./$types').Snapshot<string>} */
     export const snapshot = {
@@ -11,24 +11,24 @@
         restore: (v: string) => (value = v),
     };
 
-    let minify = init().minify
+    let minify = init().minify;
 
     let value = "";
     let output = "";
     async function process(str: string) {
         if (value === "") {
             output = "";
-            return
+            return;
         }
-        let result = await minify(str)
+        let result = await minify(str);
         if (typeof result.code == "string") {
-            output = result.code
+            output = result.code;
         } else {
-            console.error(result)
+            console.error(result);
         }
     }
 
-    let contentAttributes = {"aria-label": "Javascript editor"}
+    let contentAttributes = { "aria-label": "Javascript editor" };
 
     $: progress = process(value);
 </script>
@@ -38,26 +38,34 @@
     description="Reduce JavaScript code size with this handy online tool. It's easy to minify your JavaScript code."
     canonical={SITE_URL + "/javascript-minifier"}
 />
-<h1>Javascript Minifier</h1>
-<Editor
-    {value}
-    on:change={(e) => (value = e.detail)}
-    lang={javascript()}
-    {contentAttributes}
->
-    <div slot="header" class="code-header">Input</div>
-</Editor>
 
-<h2>Output</h2>
-{#await progress}
-    <p>...waiting</p>
-{:catch error}
-    <p style="color: red">{error.message}</p>
-{/await}
-<label for="output">Minified code</label>
-<textarea name="output" id="output" class="output card" rows="1" value={output} readonly
-></textarea>
+<main class="main container" id="page-content">
+    <h1>Javascript Minifier</h1>
+    <Editor
+        {value}
+        on:change={(e) => (value = e.detail)}
+        lang={javascript()}
+        {contentAttributes}
+    >
+        <div slot="header" class="code-header">Input</div>
+    </Editor>
 
+    <h2>Output</h2>
+    {#await progress}
+        <p>...waiting</p>
+    {:catch error}
+        <p style="color: red">{error.message}</p>
+    {/await}
+    <label for="output">Minified code</label>
+    <textarea
+        name="output"
+        id="output"
+        class="output card"
+        rows="1"
+        value={output}
+        readonly
+    ></textarea>
+</main>
 
 <style>
     .code-header {

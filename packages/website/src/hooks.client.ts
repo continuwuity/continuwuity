@@ -1,5 +1,5 @@
 import { SENTRY_DSN } from '$lib/config';
-import { init as initSentry, handleErrorWithSentry, makeBrowserOfflineTransport, makeFetchTransport } from '@sentry/sveltekit';
+import { init as initSentry, handleErrorWithSentry, makeBrowserOfflineTransport, makeFetchTransport, feedbackIntegration } from '@sentry/sveltekit';
 
 initSentry({
     dsn: SENTRY_DSN,
@@ -14,8 +14,9 @@ initSentry({
     // sessions when an error occurs.
     replaysOnErrorSampleRate: 1.0,
 
-    // If you don't want to use Session Replay, just remove the line below:
-    // integrations: [replayIntegration()],
+    integrations: [feedbackIntegration({
+        autoInject: false,
+    })],
 
     // To enable offline events caching, use makeBrowserOfflineTransport to wrap
     // existing transports and queue events using the browsers' IndexedDB storage

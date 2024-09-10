@@ -18,15 +18,18 @@
     description={data.post.description}
     canonical={SITE_URL + "/projects/" + data.post.slug}
 />
-<h1>{data.post.title}</h1>
-<!-- {#await GhReleasesDownload}
+
+<main class="main container" id="page-content">
+    <h1>{data.post.title}</h1>
+    <!-- {#await GhReleasesDownload}
     
 {:then component} 
     <svelte:component this={component} releaseData={data.ghReleaseData} />
 {/await} -->
 
-{#if data.ghReleaseData}
-    <GhReleasesDownload releaseData={data.ghReleaseData} />
-{/if}
+    {#if data.ghReleaseData}
+        <GhReleasesDownload releaseData={data.ghReleaseData} />
+    {/if}
 
-<svelte:component this={data.component} />
+    <svelte:component this={data.component} />
+</main>

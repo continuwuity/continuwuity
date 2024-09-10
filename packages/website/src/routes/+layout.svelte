@@ -11,7 +11,4 @@
     <meta property="og:site_name" content={SITE_TITLE}>
 </svelte:head>
 <Nav />
-<main class="main container" id="page-content">
-    <slot />
-
-</main>
+<slot />

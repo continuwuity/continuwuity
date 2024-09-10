@@ -48,11 +48,11 @@
             });
 
             gtag("event", "share", {
-                "share_url": url.href,
-                "share_title": data.post.title,
-                "share_button": "article_top",
-                "method": "navigator_share",
-                "content_type": "article",
+                share_url: url.href,
+                share_title: data.post.title,
+                share_button: "article_top",
+                method: "navigator_share",
+                content_type: "article",
             });
         } catch (error: any) {
             if (error.toString().includes("AbortError")) {
@@ -176,42 +176,44 @@
     }}
 />
 
-<article class="h-entry">
-    <h1 id="title" class="p-name">{data.post.title}</h1>
-    <aside>
-        <a class="u-url ib" href={canonical}
-            >Published on <time
-                class="dt-published ib"
-                datetime={data.post.date}
-                >{new Date(data.post.date).toLocaleDateString()}</time
-            ></a
-        >
-        <span class="author p-author h-card vcard ib">
-            by <img
-                loading="lazy"
-                style="display: none;"
-                src={defaultAuthor.image}
-                class="avatar avatar-96 photo u-photo"
-            /><a class="u-url url fn n p-name" href={defaultAuthor.url}
-                >{defaultAuthor.name}</a
-            ></span
-        >
-        · <span class="reading-time ib">{data.post.readingTime.text}</span>
-        {#if webShareAPISupported}
-            · <button class="link" on:click={handleWebShare}>Share</button>
-        {/if}
-    </aside>
-    <Toc headings={data.post.headings} />
-    <!-- {#await GhReleasesDownload}
+<main class="main container" id="page-content">
+    <article class="h-entry">
+        <h1 id="title" class="p-name">{data.post.title}</h1>
+        <aside>
+            <a class="u-url ib" href={canonical}
+                >Published on <time
+                    class="dt-published ib"
+                    datetime={data.post.date}
+                    >{new Date(data.post.date).toLocaleDateString()}</time
+                ></a
+            >
+            <span class="author p-author h-card vcard ib">
+                by <img
+                    loading="lazy"
+                    style="display: none;"
+                    src={defaultAuthor.image}
+                    class="avatar avatar-96 photo u-photo"
+                /><a class="u-url url fn n p-name" href={defaultAuthor.url}
+                    >{defaultAuthor.name}</a
+                ></span
+            >
+            · <span class="reading-time ib">{data.post.readingTime.text}</span>
+            {#if webShareAPISupported}
+                · <button class="link" on:click={handleWebShare}>Share</button>
+            {/if}
+        </aside>
+        <Toc headings={data.post.headings} />
+        <!-- {#await GhReleasesDownload}
     
 {:then component} 
     <svelte:component this={component} releaseData={data.ghReleaseData} />
 {/await} -->
 
-    <div class="e-content">
-        <svelte:component this={data.component} />
-    </div>
-</article>
+        <div class="e-content">
+            <svelte:component this={data.component} />
+        </div>
+    </article>
+</main>
 
 <style>
     aside {

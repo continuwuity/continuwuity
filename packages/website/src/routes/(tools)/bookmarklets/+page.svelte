@@ -5,7 +5,7 @@
     import { bookmarkify, parseMeta } from "./bookmarklets";
     import type { Config } from "./config";
     import { init } from "$lib/workers/terser";
-    import { SITE_URL } from '$lib/metadata';
+    import { SITE_URL } from "$lib/metadata";
 
     /** @type {import('./$types').Snapshot<string>} */
     export const snapshot = {
@@ -13,7 +13,7 @@
         restore: (v: string) => (value = v),
     };
 
-    let minify = init().minify
+    let minify = init().minify;
 
     let value = "";
     let output = "";
@@ -26,7 +26,7 @@
         }
     }
 
-    let contentAttributes = {"aria-label": "Bookmarklet editor"}
+    let contentAttributes = { "aria-label": "Bookmarklet editor" };
 
     $: progress = process(value);
 </script>
@@ -36,34 +36,45 @@
     description="Make booklets in your browser with this tool. Make handy shortcuts to save time."
     canonical={SITE_URL + "/bookmarklets"}
 />
-<h1>Bookmarklet Maker</h1>
-<Editor
-    {value}
-    on:change={(e) => (value = e.detail)}
-    lang={javascript()}
-    {contentAttributes}
->
-    <div slot="header" class="code-header">Input</div>
-</Editor>
 
-<h2>Output</h2>
-{#await progress}
-    <p>...waiting</p>
-{:catch error}
-    <p style="color: red">{error.message}</p>
-{/await}
-<label for="output">Bookmarklet code</label>
-<textarea name="output" id="output" class="output card" rows="1" value={output} readonly
-></textarea>
+<main class="main container" id="page-content">
+    <h1>Bookmarklet Maker</h1>
+    <Editor
+        {value}
+        on:change={(e) => (value = e.detail)}
+        lang={javascript()}
+        {contentAttributes}
+    >
+        <div slot="header" class="code-header">Input</div>
+    </Editor>
 
-<!-- <Editor readonly={true}  /> -->
-<p>
-    Bookmark this link: <a href={output}>{options.name || "My Bookmarklet"}</a>
-</p>
-<p>
-    Either drag the link to your bookmarlets bar or, on FireFox, right click and
-    select "Bookmark Link".
-</p>
+    <h2>Output</h2>
+    {#await progress}
+        <p>...waiting</p>
+    {:catch error}
+        <p style="color: red">{error.message}</p>
+    {/await}
+    <label for="output">Bookmarklet code</label>
+    <textarea
+        name="output"
+        id="output"
+        class="output card"
+        rows="1"
+        value={output}
+        readonly
+    ></textarea>
+
+    <!-- <Editor readonly={true}  /> -->
+    <p>
+        Bookmark this link: <a href={output}
+            >{options.name || "My Bookmarklet"}</a
+        >
+    </p>
+    <p>
+        Either drag the link to your bookmarlets bar or, on FireFox, right click
+        and select "Bookmark Link".
+    </p>
+</main>
 
 <style>
     .code-header {
