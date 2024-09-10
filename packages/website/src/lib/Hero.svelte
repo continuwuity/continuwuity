@@ -23,7 +23,7 @@
         bind:this={logo}
     >
         <a href={SITE_URL} class="u-url u-uid" rel="me"
-            ><img class="u-photo" src={url} alt="Logo" /></a
+            ><img class="u-photo" src={url} alt="Logo" width="128" height="128" /></a
         >
     </div>
     <div class="content">
