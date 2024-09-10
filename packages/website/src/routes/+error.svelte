@@ -9,6 +9,7 @@
     const title = `${status}: ${message}`;
     let sentryElement: HTMLDivElement;
     let openForm = () => {};
+	let online = typeof navigator !== 'undefined' ? navigator.onLine : true;
     onMount(async () => {
         const feedback = Sentry.getFeedback({
             el: sentryElement,
@@ -19,7 +20,7 @@
         //     console.log("feedback", feedback);
         const form = await feedback.createForm({});
         form.appendToDom();
-        form.open();
+        // form.open();
         openForm = async () => {
             form.open();
         };
@@ -28,13 +29,37 @@
 
 <SvelteSeo {title} />
 
+<div bind:this={sentryElement} class="feedback"></div>
 <main class="main container" id="page-content">
     <div class="wrapper">
-        <h1>{title}</h1>
-        <div bind:this={sentryElement} class="feedback"></div>
-        <button on:click={openForm}>Send Feedback</button>
-        <button class="secondary" on:click={()=> window.location.reload()}>Reload</button>
-        <!-- <div role="doc-subtitle">{status}</div> -->
+        {#if $page.status === 404}
+            <h1>{$page.status}: {$page.error.message}</h1>
+        {:else if online}
+            <h1>Hmm!</h1>
+
+            {#if $page.error.message}
+                <p class="error">{$page.status}: {$page.error.message}</p>
+            {/if}
+
+            <p>Please try reloading the page.</p>
+
+            <p>
+                If the error persists, please <a
+                    href="https://matrix.to/#/@jadedblueeyes:matrix.org">contact me on Matrix</a
+                >
+                and let me know, or send feedback using the button below.
+            </p>
+        {:else}
+            <h1>It looks like you're offline</h1>
+
+            <p>Reload the page once you've found the internet.</p>
+        {/if}
+        <p>
+            <button on:click={openForm}>Send Feedback</button>
+            <button class="secondary" on:click={() => window.location.reload()}
+                >Reload</button
+            >
+        </p>
     </div>
 </main>
 
@@ -42,11 +67,12 @@
     main {
         display: grid;
         place-items: center;
+        min-height: 60vh;
     }
     .wrapper {
         flex-grow: 2;
-        width: 40vw;
-        max-width: 500px;
+        /* width: 40vw; */
+        /* max-width: 500px; */
         margin: 0 auto;
         /* display: flex;
         flex-direction: column;
@@ -71,7 +97,6 @@
         --dialog-inset: auto auto 0;
     }
     p {
-        width: 95%;
         font-size: 1.5em;
         line-height: 1.4;
     }

@@ -3,6 +3,7 @@
     import SvelteSeo from "svelte-seo";
     import Homepage from "Notes/Website Homepage.md";
     import { SITE_URL, SITE_TITLE } from "$lib/metadata";
+    import { onMount } from "svelte";
 </script>
 
 <svelte:head>
