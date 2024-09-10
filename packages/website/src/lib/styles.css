@@ -214,4 +214,12 @@ button {
 
 #sentry-feedback {
     --dialog-inset: auto auto 0;
+    --foreground: var(--color-secondary);
+    --background: var(--color-primary);
+    --accent-foreground: var(--color-primary);
+    --accent-background: var(--color-accent);
+    --success-color: var(--color-green);
+    --error-color: var(--color-red);
+    --border: 1.5px solid color-mix(in srgb, var(--color-secondary) 25%, transparent);
+    --box-shadow: var(--shadow);
 }
