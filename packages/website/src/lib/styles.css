@@ -70,7 +70,7 @@
         --color-secondary: hsl(230, 50%, 90%);
         --color-tertiary: hsl(290, 80%, 80%);
         --color-accent: hsl(195, 80%, 80%);
-        
+
         --color-red: #fb464c;
         --color-orange: #e9973f;
         --color-yellow: #e0de71;
@@ -139,6 +139,7 @@ svg {
 a {
     color: var(--color-accent);
 }
+
 a:visited {
     color: var(--color-tertiary);
 }
@@ -195,17 +196,22 @@ a:visited {
 
 
 button {
-        display: inline-block;
-        color: var(--color-primary);
-        background: var(--color-accent);
-        border-radius: 4px;
-        margin: 8px 8px 8px 0px;
-        padding: 12px 24px;
-        border: solid 2px var(--color-accent);
+    display: inline-block;
+    color: var(--color-primary);
+    background: var(--color-accent);
+    border-radius: 4px;
+    margin: 8px 8px 8px 0px;
+    padding: 12px 24px;
+    border: solid 2px var(--color-accent);
 }
 
 .secondary {
     border: solid 2px var(--color-accent);
     color: var(--color-accent);
     background: transparent;
-  }
+}
+
+
+#sentry-feedback {
+    --dialog-inset: auto auto 0;
+}

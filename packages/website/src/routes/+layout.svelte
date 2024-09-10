@@ -3,6 +3,7 @@
     import "$lib/styles.css";
     import Favicons from "$lib/Favicons.svelte";
     import Nav from "$lib/Nav.svelte";
+    import Footer from "$lib/Footer.svelte";
     import { SITE_TITLE } from "$lib/metadata"
 </script>
 <svelte:head>
@@ -12,3 +13,4 @@
 </svelte:head>
 <Nav />
 <slot />
+<Footer />

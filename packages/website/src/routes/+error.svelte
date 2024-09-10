@@ -93,9 +93,7 @@
         font-size: 2em;
         font-weight: 600;
     } */
-    :global(#sentry-feedback) {
-        --dialog-inset: auto auto 0;
-    }
+     
     p {
         font-size: 1.5em;
         line-height: 1.4;
