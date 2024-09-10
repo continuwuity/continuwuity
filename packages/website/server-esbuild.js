@@ -36,6 +36,7 @@ esbuild.build({
     entryPoints: ["./build/index.js"], // Entry point file
     outdir: "./output", // Output directory
     bundle: true, // Generate an external bundle
+    splitting: true, // Enable code splitting
     format: "esm", // Output format
     loader: {
         ".node": "copy",
