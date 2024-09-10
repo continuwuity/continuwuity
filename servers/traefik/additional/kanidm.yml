@@ -2,3 +2,6 @@ http:
   serversTransports:
     kanidm:
       serverName: idm.ellis.link
+      # rootCAs:
+      #   - /kanidm_certs/ca.pem
+      insecureSkipVerify: true

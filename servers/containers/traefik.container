@@ -37,7 +37,6 @@ Network=web.network
 # IP6=fe80::9724:38eb:9b0f:df7c
 
 Exec=traefik --configFile=/etc/traefik/config.toml 
-Environment="SSL_CERT_FILE=/kanidm_certs/ca.pem"
 
 Label="traefik.http.middlewares.compress.compress=true"
 
