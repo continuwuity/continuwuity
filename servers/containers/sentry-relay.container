@@ -31,6 +31,10 @@ Label="traefik.http.routers.sentry-relay.tls.certresolver=letsencrypt"
 Label="traefik.http.routers.sentry-relay.middlewares=default@file"
 
 
+Label="homepage.group=Services"
+Label="homepage.name=Sentry Relay"
+Label="homepage.href=https://relay.ellis.link/"
+
 [Service]
 Restart=on-failure
 TimeoutStartSec=900

@@ -30,7 +30,7 @@ Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
 
 Label="traefik.http.routers.thelounge.middlewares=hsts,compress"
 
-Label="homepage.group=Social"
+Label="homepage.group=Public"
 Label="homepage.name=TheLounge"
 Label="homepage.href=https://thelounge.ellis.link/"
 Label="homepage.description=IRC web client / bouncer"

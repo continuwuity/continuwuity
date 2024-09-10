@@ -36,6 +36,8 @@ Label="traefik.http.routers.domain-redirects.middlewares=default@file"
 # Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.regex=^https?://joel\\.ellis\\.link/(.*)"
 # Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.replacement=https://jade.ellis.link/$${1}"
 # Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.permanent=true"
+Label="homepage.group=Services"
+Label="homepage.name=Redirector service"
 
 [Service]
 Restart=on-failure
