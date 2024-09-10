@@ -1,13 +1,19 @@
 import { sequence } from '@sveltejs/kit/hooks';
-import {init as initSentry, handleErrorWithSentry, sentryHandle} from '@sentry/sveltekit';
+import { init as initSentry, handleErrorWithSentry, sentryHandle } from '@sentry/sveltekit';
 import type { Handle } from "@sveltejs/kit";
 import { randomBytes } from 'crypto';
 import { SENTRY_DSN, SENTRY_REPORT_URL } from '$lib/config';
-
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 initSentry({
     dsn: SENTRY_DSN,
     environment: import.meta.env.MODE,
-    tracesSampleRate: 1
+    tracesSampleRate: 1.0,
+    profilesSampleRate: 1.0,
+
+    integrations: [
+        // Add our Profiling integration
+        nodeProfilingIntegration(),
+    ],
 })
 
 const securityHeaders = {
