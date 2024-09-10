@@ -18,7 +18,7 @@
 <div class="hero card edge h-card">
     <div
         class="logo"
-        on:click={wiggle}
+        on:click|preventDefault={wiggle}
         on:animationiteration={wiggleIteration}
         bind:this={logo}
     >
