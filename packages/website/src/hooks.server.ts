@@ -39,7 +39,7 @@ export const handle: Handle = async (input) => {
         }),
         async ({ event, resolve }) => {
             const response = await resolve(event);
-            let csp = response.headers.get("Content-Security-Policy");
+            const csp = response.headers.get("Content-Security-Policy");
             if (csp) {
                 response.headers.set("Content-Security-Policy", csp.replace("script-src", "script-src 'nonce-" + sentryNonce + "'"));
             }

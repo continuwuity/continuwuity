@@ -11,7 +11,7 @@ import { error } from '@sveltejs/kit'
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ params }) {
     const { slug } = params
-    let dateParts = params.date.split(/[\/-]/).map((p) => parseInt(p, 10))
+    const dateParts = params.date.split(/[\/-]/).map((p) => Number.parseInt(p, 10))
     if (dateParts.length > 3) {
         throw error(404, 'Post not found (bad date)')
     }
@@ -25,7 +25,7 @@ export async function load({ params }) {
     const page = pages
         .filter((post) => slug === post.slug)
         .filter((post) => {
-        let date = new Date(post.date)
+        const date = new Date(post.date)
         return (
             (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
             (!dateParts[1] || date.getMonth()+1 == dateParts[1]) &&

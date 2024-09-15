@@ -13,20 +13,20 @@
         restore: (v: string) => (value = v),
     };
 
-    let minify = init().minify;
+    const minify = init().minify;
 
     let value = "";
     let output = "";
     let options: Config = {};
     async function process(str: string) {
         options = await parseMeta(str);
-        let res = await bookmarkify(str, options, minify);
+        const res = await bookmarkify(str, options, minify);
         if (typeof res == "string") {
             output = res;
         }
     }
 
-    let contentAttributes = { "aria-label": "Bookmarklet editor" };
+    const contentAttributes = { "aria-label": "Bookmarklet editor" };
 
     $: progress = process(value);
 </script>

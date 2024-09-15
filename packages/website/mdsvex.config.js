@@ -76,7 +76,7 @@ import { grammars } from 'tm-grammars'
  * @param {string} name
  */
 function getGrammar(name) {
-    let metadata = grammars.find((grammar) => grammar.name == name)
+    const metadata = grammars.find((grammar) => grammar.name == name)
     if (!metadata) {
         throw "Grammar not found"
     }
@@ -112,18 +112,18 @@ function buildNestedHeadings(headings) {
     /**
      * @type {{level: number, title: string, children: unknown}[]}
      */
-    let result = [];
-    let stack = [{ level: 0, children: result }];
+    const result = [];
+    const stack = [{ level: 0, children: result }];
 
-    for (let heading of headings) {
+    for (const heading of headings) {
         while (
             stack.length > 1 &&
             heading.level <= stack[stack.length - 1].level
         ) {
             stack.pop();
         }
-        let parent = stack[stack.length - 1];
-        let newHeading = {
+        const parent = stack[stack.length - 1];
+        const newHeading = {
             ...heading,
             children: [],
             level: heading.level,
@@ -151,7 +151,7 @@ function add_toc_remark(opts) {
         vFile.data.flattenedHeadings = [];
 
         visit(tree, 'heading', (node) => {
-            let title = mdast_tree_to_string(node);
+            const title = mdast_tree_to_string(node);
             vFile.data.flattenedHeadings.push({
                 level: node.depth,
                 title,
@@ -263,7 +263,7 @@ function vite_images_rehype(opts) {
         });
         visit(tree, { tagName: "Components.img" }, (node) => {
             let url = node.properties.src;
-            let thumb = (url.includes("?") ? url + "&" : url + "?") + "thumb";
+            const thumb = (url.includes("?") ? url + "&" : url + "?") + "thumb";
             url = (url.includes("?") ? url + "&" : url + "?") + "url";
 
             node.properties.src = `{${transformUrl(url)}}`

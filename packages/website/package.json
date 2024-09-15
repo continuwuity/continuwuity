@@ -6,9 +6,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+    "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+    "fix": "biome lint --write . && biome format --write . && biome check . --write"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.0",
     "@bitmachina/highlighter": "1.0.0-alpha.6",
     "@fontsource/fira-mono": "^5.0.14",
     "@json-feed-types/1_1": "^1.0.2",

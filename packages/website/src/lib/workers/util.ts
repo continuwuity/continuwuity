@@ -1,9 +1,9 @@
 export type FunctionMap = { [x: string]: Function }
 
 export enum sendMessageData {
-    MessageId,
-    Function,
-    Parameters
+    MessageId = 0,
+    Function = 1,
+    Parameters = 2
 }
 
 export interface sendMessageMap <T> {
@@ -12,27 +12,27 @@ export interface sendMessageMap <T> {
     [sendMessageData.Parameters]: T[],
 }
 
-export enum recieveMessageTypes {
-    RESOLVE, // OK
-    REJECT // ERROR
+export enum receiveMessageTypes {
+    RESOLVE = 0, // OK
+    REJECT = 1 // ERROR
 }
 
 
-export enum recieveMessageData {
-    MessageId,
-    MessageType,
-    Return
+export enum receiveMessageData {
+    MessageId = 0,
+    MessageType = 1,
+    Return = 2
 }
 
-export interface recieveMessageMap <T> {
-    [recieveMessageData.MessageId]: number,
-    [recieveMessageData.MessageType]: recieveMessageTypes,
-    [recieveMessageData.Return]: T,
+export interface receiveMessageMap <T> {
+    [receiveMessageData.MessageId]: number,
+    [receiveMessageData.MessageType]: receiveMessageTypes,
+    [receiveMessageData.Return]: T,
 }
 
 
 // // worker
-// import { recieveMessageTypes, type FunctionMap } from "./util";
+// import { receiveMessageTypes, type FunctionMap } from "./util";
 
 // function makeMessageHandler(functions: FunctionMap) {
 
@@ -44,20 +44,20 @@ export interface recieveMessageMap <T> {
 //             // success handler - callback(id, SUCCESS(0), result)
 //             // if `d` is transferable transfer zero-copy
 //             d => {
-//                 postMessage([e.data[0], recieveMessageTypes.SUCCESS, d], [d].filter(x => (
+//                 postMessage([e.data[0], receiveMessageTypes.SUCCESS, d], [d].filter(x => (
 //                     (x instanceof ArrayBuffer) ||
 //                     (x instanceof MessagePort) ||
 //                     (self.ImageBitmap && x instanceof ImageBitmap)
 //                 )));
 //             },
 //             // error handler - callback(id, ERROR(1), error)
-//             er => { postMessage([e.data[0], recieveMessageTypes.ERROR, '' + er]); }
+//             er => { postMessage([e.data[0], receiveMessageTypes.ERROR, '' + er]); }
 //         );
 //     }
 // }
 
 // // host
-// import { recieveMessageData, recieveMessageTypes, sendMessageData, type recieveMessageMap, type sendMessageMap } from "./util";
+// import { receiveMessageData, receiveMessageTypes, sendMessageData, type receiveMessageMap, type sendMessageMap } from "./util";
 
 // function makeHostHandler(worker: Worker) {
 
@@ -72,7 +72,7 @@ export interface recieveMessageMap <T> {
 //          *    status - 0 for success, 1 for failure
 //          *    result - the result or error, depending on `status`
 //          */
-//         worker.onmessage = (e: MessageEvent<recieveMessageMap>) => {
+//         worker.onmessage = (e: MessageEvent<receiveMessageMap>) => {
 //             // invoke the promise's resolve() or reject() depending on whether there was an error.
 //             promises[e.data[0]][e.data[1]](e.data[2]);
     

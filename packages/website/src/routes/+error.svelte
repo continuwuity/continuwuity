@@ -9,7 +9,7 @@
     const title = `${status}: ${message}`;
     let sentryElement: HTMLDivElement;
     let openForm = () => {};
-	let online = typeof navigator !== 'undefined' ? navigator.onLine : true;
+	const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
     onMount(async () => {
         const feedback = Sentry.getFeedback({
             el: sentryElement,

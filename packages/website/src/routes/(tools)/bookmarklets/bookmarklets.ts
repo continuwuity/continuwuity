@@ -2,9 +2,9 @@
 
 // import MagicString from "magic-string";
 import { Parser } from "acorn";
-import { type MinifyOptions, type MinifyOutput } from "terser";
+import type { MinifyOptions, MinifyOutput } from "terser";
 
-let sourceMap = false;
+const sourceMap = false;
 
 import { configSchema } from "./config.schema";
 import type { Config } from "./config";
@@ -18,14 +18,14 @@ export async function bookmarkify(code: string, options: Config, minify: (files:
     if (options.script) {
         options.script = options.script.reverse();
         options.script.forEach(s => {
-            let { path, opts } = extractOptions(s);
+            const { path, opts } = extractOptions(s);
             code = loadScript(code, path, opts.loadOnce);
         });
     }
 
     if (options.style) {
         options.style.forEach(s => {
-            let { path, opts } = extractOptions(s);
+            const { path, opts } = extractOptions(s);
             code = loadStyle(path, opts.loadOnce) + code;
         });
     }
@@ -43,9 +43,9 @@ export async function bookmarkify(code: string, options: Config, minify: (files:
 
 export async function parseMeta(str: string): Promise<Config> {
     enum MetaState {
-        PreOpen,
-        Opened,
-        Closed
+        PreOpen = 0,
+        Opened = 1,
+        Closed = 2
     }
     let state: MetaState = MetaState.PreOpen
 
@@ -53,7 +53,7 @@ export async function parseMeta(str: string): Promise<Config> {
     const openMetadata = /==bookmarklet==/gim;
     const closeMetadata = /==\/bookmarklet==/gim;
     const metaLine = /^[\s]*@([^\s]+)\s+(.*)$/gim;
-    let options: Config = {};
+    const options: Config = {};
 
     Parser.parse(str, {
         ecmaVersion: "latest",
@@ -62,7 +62,7 @@ export async function parseMeta(str: string): Promise<Config> {
             closeMetadata.lastIndex = 0;
             metaLine.lastIndex = 0;
             if (state == MetaState.PreOpen) {
-                let res = openMetadata.exec(text)
+                const res = openMetadata.exec(text)
                 if (res !== null) {
                     state = MetaState.Opened
                     closeMetadata.lastIndex = openMetadata.lastIndex;
@@ -75,8 +75,8 @@ export async function parseMeta(str: string): Promise<Config> {
             while (state == MetaState.Opened && (res = metaLine.exec(text)) !== null) {
                 closeMetadata.lastIndex = metaLine.lastIndex;
                 // console.log(str.slice(start + 2 + (metaLine.lastIndex - res[0].length), start + 2 + metaLine.lastIndex ))
-                let k = res[1];
-                let v = res[2];
+                const k = res[1];
+                const v = res[2];
                 if (k) {
                     if (configSchema.properties[k]?.type == "array") {
                         options[k] = options[k] || [];
@@ -90,7 +90,7 @@ export async function parseMeta(str: string): Promise<Config> {
             }
 
             if (state == MetaState.Opened) {
-                let endRes = closeMetadata.exec(text)
+                const endRes = closeMetadata.exec(text)
                 if (endRes !== null) {
                     state = MetaState.Closed;
 
@@ -110,7 +110,7 @@ export async function parseMeta(str: string): Promise<Config> {
 
 function loadScript(code: string, path: string, loadOnce: boolean) {
     loadOnce = !!loadOnce;
-    let id = `bookmarklet__script_${cyrb53(path).toString(36).substring(0, 7)}`;
+    const id = `bookmarklet__script_${cyrb53(path).toString(36).substring(0, 7)}`;
     return `
           function callback(){
             ${code}
@@ -136,7 +136,7 @@ function loadScript(code: string, path: string, loadOnce: boolean) {
 
 function loadStyle(path: string, loadOnce: boolean) {
     loadOnce = !!loadOnce;
-    let id = `bookmarklet__style_${cyrb53(path).toString(36).substring(0, 7)}`;
+    const id = `bookmarklet__style_${cyrb53(path).toString(36).substring(0, 7)}`;
     return `
           if (!${loadOnce} || !document.getElementById("${id}")) {
             var link = document.createElement("link");
@@ -178,16 +178,16 @@ function extractOptions(path: string) {
     // If there is no `=`, then the value of the option defaults to `true`.
     // Values get converted via JSON.parse if possible, o/w they're a string.
     //
-    let opts: { [x: string]: any } = {};
+    const opts: { [x: string]: any } = {};
 
-    let matcher = /^(\![^\s]+)\s+/g
+    const matcher = /^(\![^\s]+)\s+/g
 
     let m
     let splitAfter = 0;
     while ((m = matcher.exec(path)) !== null) {
         splitAfter = matcher.lastIndex;
 
-        let opt = m[1].substring(1).split('=');
+        const opt = m[1].substring(1).split('=');
         opts[opt[0]] = opt[1] === undefined ? true : _fuzzyParse(opt[1]);
         // break
     }

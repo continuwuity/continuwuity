@@ -67,16 +67,16 @@ if (browser) {
 const dateRegex = /^((?<year>\d{4})-(?<month>[0][1-9]|1[0-2])-(?<day>[0][1-9]|[1-2]\d|3[01]))\s*/
 export const pages = Object.entries(import.meta.glob('/node_modules/Notes/Blogs/*.md', { eager: true }))
     .map(([filepath, post]) => {
-        let path = parse(filepath);
-        let title = path.name.replace(dateRegex, "")
+        const path = parse(filepath);
+        const title = path.name.replace(dateRegex, "")
         
         // @ts-ignore
         // let {year, month, day}: { year: string, month: string, day: string } = path.name.match(dateRegex)?.groups;
 
         // console.log(year, month, day)
-        let date = path.name.match(dateRegex)[1];
-        let datePath = date.replaceAll("-", "/")
-        let slug = slugify(title, { lower: true })
+        const date = path.name.match(dateRegex)[1];
+        const datePath = date.replaceAll("-", "/")
+        const slug = slugify(title, { lower: true })
         return {
             title,
             date,

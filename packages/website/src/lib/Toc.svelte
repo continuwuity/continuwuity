@@ -1,13 +1,13 @@
 <script lang="ts">
     import TocItem from "./TocItem.svelte";
-    let className = "toc";
+    const className = "toc";
     type FlatHeading = { level: number; title: string };
     export let headings: nestedListNode[];
 
     // creates a `class` property, even
     // though it is a reserved word
     export { className as class };
-    export let listType = "ul";
+    export const listType = "ul";
 
     let open = false;
     /** @type {import('./$types').Snapshot<string>} */

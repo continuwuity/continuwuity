@@ -15,7 +15,7 @@ import { error } from '@sveltejs/kit'
 // export const prerender = true;
 
 export async function GET({ url, params }) {
-    let dateParts = params.date.split(/[\/-]/).filter((s)=>s.length !== 0).map((p) => parseInt(p, 10))
+    const dateParts = params.date.split(/[\/-]/).filter((s)=>s.length !== 0).map((p) => Number.parseInt(p, 10))
     if (dateParts.length > 3) {
         throw error(404, 'Feed not found (bad date)')
     }
@@ -23,7 +23,7 @@ export async function GET({ url, params }) {
     const selectedPages =  dateParts.length ? pages
         .filter((post) => {
             console.log("filtering")
-        let date = new Date(post.date)
+        const date = new Date(post.date)
         return (
             (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
             (!dateParts[1] || date.getMonth()+1 == dateParts[1]) &&

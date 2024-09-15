@@ -29,15 +29,15 @@ const accounts = [
 ].map(i => i.toLowerCase())
 export async function GET({ url }: RequestEvent) {
     // export const GET = async ({ url }) => {
-    let resource = url.searchParams.get("resource");
+    const resource = url.searchParams.get("resource");
     if (resource?.split(":")[0] !== "acct") {
-        let res = new Response("", { status: 404 })
+        const res = new Response("", { status: 404 })
         return res;
     }
-    let account = resource?.split(":")[1]
+    const account = resource?.split(":")[1]
     if (!accounts.includes(account.toLowerCase()) && !account.toLowerCase().endsWith("@jade.ellis.link")) {
         if (resource?.split(":")[0] !== "acct") {
-            let res = new Response("", { status: 404 })
+            const res = new Response("", { status: 404 })
             return res;
         }
     }
@@ -75,6 +75,6 @@ export async function GET({ url }: RequestEvent) {
         ]
     }
     // const isMe = (user.toLowerCase() == EMAIL.toLowerCase()) ? true : false;
-        let res = new Response(JSON.stringify(webFinger), { headers: { "content-type": "application/jrd+json" }, status: 200 })
+        const res = new Response(JSON.stringify(webFinger), { headers: { "content-type": "application/jrd+json" }, status: 200 })
         return res;
 }

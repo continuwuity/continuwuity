@@ -1,7 +1,7 @@
 <script lang="ts">
     
     export let node: nestedListNode;
-    export let listType = "ul"
+    export const listType = "ul"
 </script>
 
 <li class="toc-item {"toc-item-" + node.level}">

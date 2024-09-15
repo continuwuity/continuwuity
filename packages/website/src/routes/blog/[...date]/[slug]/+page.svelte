@@ -21,7 +21,7 @@
         ratio?: number,
         width?: number,
     ): URL {
-        let url = new URL(SITE_URL + "/blog/image");
+        const url = new URL(SITE_URL + "/blog/image");
         url.searchParams.set("slug", slug);
         url.searchParams.set("date", date);
         if (ratio) {
@@ -39,7 +39,7 @@
     $: handleWebShare;
     const handleWebShare = async () => {
         try {
-            let url = new URL(canonical);
+            const url = new URL(canonical);
             url.searchParams.set("utm_medium", "share");
             await navigator.share({
                 title: data.post.title,

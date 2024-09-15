@@ -1,5 +1,5 @@
 import type { MinifyOptions, MinifyOutput } from "terser";
-import { recieveMessageData, sendMessageData } from "./util";
+import { receiveMessageData, sendMessageData } from "./util";
 
 const is_browser = typeof window !== "undefined";
 export function init() {
@@ -7,7 +7,7 @@ export function init() {
     let worker: SharedWorker;
     let currentId = 0;
     let terserModule: typeof import("terser");
-    let promises: { [id: number]: [(value: MinifyOutput | PromiseLike<MinifyOutput>) => void, (reason?: any) => void] } = {};
+    const promises: { [id: number]: [(value: MinifyOutput | PromiseLike<MinifyOutput>) => void, (reason?: any) => void] } = {};
     return {
         minify: async function minify(files: string | string[] | {
             [file: string]: string;
@@ -18,10 +18,10 @@ export function init() {
                     worker = new SharedWorker(new URL('./terserWorker.ts', import.meta.url), { type: "module" })
                     worker.port.onmessage = (e: MessageEvent<any>) => {
                         // invoke the promise's resolve() or reject() depending on whether there was an error.
-                        promises[e.data[recieveMessageData.MessageId]][e.data[recieveMessageData.MessageType]](e.data[recieveMessageData.Return]);
+                        promises[e.data[receiveMessageData.MessageId]][e.data[receiveMessageData.MessageType]](e.data[receiveMessageData.Return]);
 
                         // ... then delete the promise controller
-                        delete promises[e.data[recieveMessageData.MessageId]];
+                        delete promises[e.data[receiveMessageData.MessageId]];
 
                     }
                 }
@@ -29,7 +29,7 @@ export function init() {
                 return new Promise((resolve, reject) => {
                     promises[++currentId] = [resolve, reject];
 
-                    let data = {
+                    const data = {
                         [sendMessageData.MessageId]: currentId,
                         [sendMessageData.Parameters]: [files, options
                         ]

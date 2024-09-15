@@ -14,14 +14,14 @@ import { error } from '@sveltejs/kit'
 // export const prerender = true;
 
 export async function GET({ params, url}) {
-    let dateParts = params.date.split(/[\/-]/).filter((s)=>s.length !== 0).map((p) => parseInt(p, 10))
+    const dateParts = params.date.split(/[\/-]/).filter((s)=>s.length !== 0).map((p) => Number.parseInt(p, 10))
     if (dateParts.length > 3) {
         throw error(404, 'Feed not found (bad date)')
     }
     
     const selectedPages =  dateParts.length ? pages
         .filter((post) => {
-        let date = new Date(post.date)
+        const date = new Date(post.date)
         return (
             (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
             (!dateParts[1] || date.getMonth()+1 == dateParts[1]) &&
@@ -57,7 +57,7 @@ async function getJsonFeed(selfUrl: string, pages: any[]): Promise<string> {
         const postUrl = SITE_URL + "/blog/" + post.canonical
         // const postHtml = 
         const summary = post.description;
-        let item: typeof feed.items[number] = {
+        const item: typeof feed.items[number] = {
             id: post.postUrl,
             title,
             url: postUrl,

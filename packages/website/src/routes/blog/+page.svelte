@@ -5,7 +5,7 @@
 
     import type { WithContext, Thing } from "schema-dts";
     export let data;
-    let { pages } = data;
+    const { pages } = data;
 
     const jsonLd = {
         "@context": "https://schema.org",

@@ -11,7 +11,7 @@
         restore: (v: string) => (value = v),
     };
 
-    let minify = init().minify;
+    const minify = init().minify;
 
     let value = "";
     let output = "";
@@ -20,7 +20,7 @@
             output = "";
             return;
         }
-        let result = await minify(str);
+        const result = await minify(str);
         if (typeof result.code == "string") {
             output = result.code;
         } else {
@@ -28,7 +28,7 @@
         }
     }
 
-    let contentAttributes = { "aria-label": "Javascript editor" };
+    const contentAttributes = { "aria-label": "Javascript editor" };
 
     $: progress = process(value);
 </script>

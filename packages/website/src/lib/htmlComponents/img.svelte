@@ -6,7 +6,7 @@
     // export let align
     // export let small: boolean;
     // console.log("imgcmp", thumb);
-    let className = "";
+    const className = "";
     export { className as class };
     let loaded = false
     // console.log(thumb)

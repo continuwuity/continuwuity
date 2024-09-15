@@ -24,7 +24,7 @@ export async function GET({ url, request }) {
     // First, get the information about the post
     // We have the slug and date of the post, which we can use to look up the post
     const slug = url.searchParams.get('slug')
-    let dateParts = url.searchParams.get('date')?.split(/[\/-]/)?.map((p: string) => parseInt(p, 10))
+    const dateParts = url.searchParams.get('date')?.split(/[\/-]/)?.map((p: string) => Number.parseInt(p, 10))
     if (dateParts && dateParts.length > 3) {
         throw error(404, 'Post not found (bad date)')
     }
@@ -43,7 +43,7 @@ export async function GET({ url, request }) {
         .filter((post) => slug === post.slug)
         .filter((post) => {
             if (dateParts) {
-                let date = new Date(post.date)
+                const date = new Date(post.date)
                 return (
                     (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
                     (!dateParts[1] || date.getMonth() + 1 == dateParts[1]) &&
@@ -59,9 +59,9 @@ export async function GET({ url, request }) {
     // Generate a cache key based on the post's canonical URL, reading time, width, and ratio
     // Caching the image based on this key ensures that the image is not regenerated every time
     // The cache key is also used for browser caching
-    let cache_key = fnv.hash(page.canonical + "\x00" + page.readingTime.text + "\x00" + width + "\x00" + ratio).str()
+    const cache_key = fnv.hash(page.canonical + "\x00" + page.readingTime.text + "\x00" + width + "\x00" + ratio).str()
 
-    let received_etag = request.headers.get("if-none-match");
+    const received_etag = request.headers.get("if-none-match");
     // If the client has a cached version of the image, return a 304 Not Modified response, indicating that the image has not changed
     // This means we don't even have to have the image cached in memory
     if (received_etag == cache_key) {
@@ -71,7 +71,7 @@ export async function GET({ url, request }) {
     // If the image is not cached, generate the image and cache it
     if (!cache.has(cache_key)) {
         // First, render the HTML / JSX-based template
-        let template = h("div", {
+        const template = h("div", {
             style: {
                 display: 'flex',
                 height: '100%',

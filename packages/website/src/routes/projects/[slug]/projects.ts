@@ -11,8 +11,8 @@ if (browser) {
 
 export const pages = Object.entries(import.meta.glob('/node_modules/Notes/Projects/*.md', { eager: true }))
     .map(([filepath, post]) => {
-        let path = parse(filepath);
-        let slug = slugify(path.name, { lower: true })
+        const path = parse(filepath);
+        const slug = slugify(path.name, { lower: true })
         return {
             title: path.name,
             // @ts-ignore
