@@ -4,7 +4,7 @@ import { error, type RequestHandler } from '@sveltejs/kit'
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { SITE_DOMAIN } from '$lib/metadata';
-import TTLCache, { } from "@isaacs/ttlcache";
+import TTLCache from "@isaacs/ttlcache";
 import { format } from "@tusbar/cache-control";
 const cache = new TTLCache({ max: 10000, ttl: 1000 * 60 * 60 })
 import fnv from "fnv-plus"
