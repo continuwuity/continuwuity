@@ -8,9 +8,13 @@ import TTLCache from "@isaacs/ttlcache";
 import { format } from "@tusbar/cache-control";
 const cache = new TTLCache({ max: 10000, ttl: 1000 * 60 * 60 })
 import fnv from "fnv-plus"
+import { readFileSync } from 'fs';
 
-const fontFile = await fetch('https://og-playground.vercel.app/inter-latin-ext-700-normal.woff');
-const fontData: ArrayBuffer = await fontFile.arrayBuffer();
+// const fontFile = await fetch('https://og-playground.vercel.app/inter-latin-ext-700-normal.woff');
+const fontBoldUrl = new URL('./Inter-Bold.ttf', import.meta.url)
+const fontBoldData = readFileSync(fontBoldUrl);
+const fontRegularUrl = new URL('./Inter-Regular.ttf', import.meta.url)
+const fontRegularData = readFileSync(fontRegularUrl);
 
 const defaultWidth = 800;
 const defaultRatio = 0.5
@@ -119,7 +123,12 @@ export async function GET({ url, request }) {
             fonts: [
                 {
                     name: 'Inter Latin',
-                    data: fontData,
+                    data: fontBoldData,
+                    style: 'normal'
+                },
+                {
+                    name: 'Inter Latin',
+                    data: fontRegularData,
                     style: 'normal'
                 }
             ],
