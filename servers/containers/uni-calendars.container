@@ -1,0 +1,37 @@
+[Unit]
+Description=Calendars service
+Wants=network-online.target
+After=network-online.target
+
+# Kent and SUMS block mythic beast IPs
+
+[Container]
+ContainerName=uni-calendar-service
+NoNewPrivileges=true
+Image=ghcr.io/jadedblueeyes/kent-calendar-service:main
+ReadOnly=true
+AutoUpdate=registry
+Network=web.network
+
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.uni-calendars.rule=(Host(`uni-calendars.ellis.link`))"
+
+Label="traefik.http.routers.uni-calendars.entrypoints=https"
+
+Label="traefik.http.routers.uni-calendars.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.uni-calendars.tls.options=intermediate@file"
+
+Label="traefik.http.routers.uni-calendars.middlewares=default@file"
+
+Label="homepage.group=Public"
+Label="homepage.name=Calendars service"
+Label="homepage.href=https://uni-calendars.ellis.link/"
+Label="homepage.siteMonitor=https://uni-calendars.ellis.link/"
+
+[Service]
+Restart=on-failure
+TimeoutStartSec=900
+
+[Install]
+WantedBy=default.target
