@@ -31,8 +31,10 @@ Label="traefik.http.routers.conduwuit.middlewares=default@file"
 Label="homepage.group=Public"
 Label="homepage.name=Conduwuit"
 # Label="homepage.href=https://jade.ellis.link/"
-# Label="homepage.siteMonitor=https://jade.ellis.link/"
-# Label="homepage.description=
+# https://github.com/girlbossceo/conduwuit/blob/032b199129f8648a77bde285f755a78e9ec349a7/src/api/client/unversioned.rs#L142
+# Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
+Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix homeserver"
 
 
 Environment="CONDUWUIT_SERVER_NAME=ellis.link"
@@ -46,7 +48,7 @@ Environment="CONDUWUIT_MAX_REQUEST_SIZE=20000000"
 Environment="CONDUWUIT_ALLOW_REGISTRATION=false"
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
 # Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\"]"
-# Environment="CONDUWUIT_LOG: warn,state_res=warn"
+Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
 Environment="CONDUWUIT_ADDRESS=0.0.0.0"
 Environment="CONDUWUIT_WELL_KNOWN={ \
 client=https://matrix.ellis.link, \
