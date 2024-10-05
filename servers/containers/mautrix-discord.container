@@ -1,0 +1,47 @@
+
+
+[Unit]
+Description=Matrix Discord Bridge
+Wants=network-online.target
+After=network-online.target
+Documentation=https://github.com/mautrix/discord
+
+[Container]
+ContainerName=mautrix-discord
+Image=dock.mau.dev/mautrix/discord:latest
+Volume=/var/opt/mautrix/discord:/data:z
+AutoUpdate=registry
+# Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-discord.rule=Host(`mautrix-discord.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-discord.entrypoints=https"
+Label="traefik.http.services.mautrix-discord.loadbalancer.server.port=29334"
+
+Label="traefik.http.routers.mautrix-discord.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.mautrix-discord.tls.options=intermediate@file"
+
+Label="traefik.http.routers.mautrix-discord.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-discord"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

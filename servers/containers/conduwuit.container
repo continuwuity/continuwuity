@@ -13,7 +13,7 @@ Image=ghcr.io/girlbossceo/conduwuit:latest
 ReadOnly=true
 Volume=/var/opt/conduwuit:/var/lib/conduwuit:z,U
 AutoUpdate=registry
-Network=web.network
+# Network=web.network
 # conduwuit uses quite a few file descriptors, and on some systems it defaults to 1024
 Ulimit=nofile=1048567:1048567
 

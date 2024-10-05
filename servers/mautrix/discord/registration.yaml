@@ -1,0 +1,14 @@
+id: mautrix-discord
+url: http://mautrix-discord
+as_token: 5ngb86SSXij50hLfnt1BC0K7NVmxiXlagCtmcXXVFFTqh76zUkX3FI7NyERXaAFD
+hs_token: 1ni0upPYy21f5GTLvCGCvTqdYrv7d6NWiRvMaC2XahWluAL6fjqLvSCd5S3PiMsv
+sender_localpart: K3hPufeGniHhdywShci90i8ZGRYu0YRF
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@discordbot:ellis\.link$
+          exclusive: true
+        - regex: ^@discord_mautrix_.*:ellis\.link$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+push_ephemeral: true
