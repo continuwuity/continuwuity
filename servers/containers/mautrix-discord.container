@@ -4,6 +4,7 @@
 Description=Matrix Discord Bridge
 Wants=network-online.target
 After=network-online.target
+After=conduwuit.service
 Documentation=https://github.com/mautrix/discord
 
 [Container]
