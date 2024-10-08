@@ -1,0 +1,77 @@
+
+
+[Unit]
+Description=Conduwuit testing (matrix)
+Wants=network-online.target
+After=network-online.target
+Documentation=https://conduwuit.puppyirl.gay/
+
+[Container]
+ContainerName=conduwuit-testing
+NoNewPrivileges=true
+Image=ghcr.io/girlbossceo/conduwuit:merge-585-girlbossceo
+ReadOnly=true
+Volume=/var/opt/conduwuit-testing:/var/lib/conduwuit:z,U
+AutoUpdate=registry
+# Network=web.network
+# conduwuit uses quite a few file descriptors, and on some systems it defaults to 1024
+Ulimit=nofile=1048567:1048567
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.conduwuit-testing.rule=(Host(`matrix.pissing.dev`) || (Host(`pissing.dev`) && PathPrefix(`/.well-known/matrix`)))"
+Label="traefik.http.services.conduwuit-testing.loadbalancer.server.port=6167"
+
+Label="traefik.http.routers.conduwuit-testing.entrypoints=https"
+
+Label="traefik.http.routers.conduwuit-testing.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.conduwuit-testing.tls.options=intermediate@file"
+
+Label="traefik.http.routers.conduwuit-testing.middlewares=default@file"
+
+Label="homepage.group=Public"
+Label="homepage.name=Conduwuit (testing)"
+# Label="homepage.href=https://jade.pissing.dev/"
+# https://github.com/girlbossceo/conduwuit/blob/032b199129f8648a77bde285f755a78e9ec349a7/src/api/client/unversioned.rs#L142
+# Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
+Label="homepage.siteMonitor=https://matrix.pissing.dev/client/server.json" 
+Label="homepage.description=Matrix homeserver (pissing.dev)"
+
+
+Environment="CONDUWUIT_SERVER_NAME=pissing.dev"
+
+Environment="CONDUWUIT_DATABASE_PATH=/var/lib/conduwuit"
+Environment="CONDUWUIT_DATABASE_BACKEND=rocksdb"
+# should match the loadbalancer traefik label
+Environment="CONDUWUIT_PORT=6167"
+# in bytes, ~20 MB
+Environment="CONDUWUIT_MAX_REQUEST_SIZE=20000000"
+Environment="CONDUWUIT_ALLOW_REGISTRATION=false"
+Environment="CONDUWUIT_ALLOW_FEDERATION=true"
+# Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\"]"
+Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
+Environment="CONDUWUIT_ADDRESS=0.0.0.0"
+Environment="CONDUWUIT_WELL_KNOWN={ \
+client=https://matrix.pissing.dev, \
+server=matrix.pissing.dev:443 \
+}"
+
+# Environment="CONDUWUIT_SENTRY=true"
+# Environment="CONDUWUIT_SENTRY_ENDPOINT=https://c885d1475cef5c54bbd32b1512e0ae20@o4507835405369344.ingest.de.sentry.io/4508059491696720"
+
+# Environment="CONDUWUIT_EMERGENCY_PASSWORD="
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
