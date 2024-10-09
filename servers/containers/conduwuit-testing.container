@@ -30,7 +30,7 @@ Label="traefik.http.routers.conduwuit-testing.middlewares=default@file"
 
 Label="homepage.group=Public"
 Label="homepage.name=Conduwuit (testing)"
-# Label="homepage.href=https://jade.pissing.dev/"
+Label="homepage.href=https://element.pissing.dev/"
 # https://github.com/girlbossceo/conduwuit/blob/032b199129f8648a77bde285f755a78e9ec349a7/src/api/client/unversioned.rs#L142
 # Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
 Label="homepage.siteMonitor=https://matrix.pissing.dev/client/server.json" 

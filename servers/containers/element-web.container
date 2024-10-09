@@ -1,0 +1,53 @@
+
+
+[Unit]
+Description=Element Web (matrix)
+Wants=network-online.target
+After=network-online.target
+Documentation=https://github.com/element-hq/element-web/blob/develop/docs/install.md
+
+[Container]
+ContainerName=element-web
+# NoNewPrivileges=true
+Image=docker.io/vectorim/element-web:latest
+# ReadOnly=true
+Volume=/etc/element-web/config.json:/app/config.json:ro,z
+Volume=/etc/element-web/config.element.ellis.link.json:/app/config.element.ellis.link.json:ro,z
+Volume=/etc/element-web/config.element.pissing.dev.json:/app/config.element.pissing.dev.json:ro,z
+AutoUpdate=registry
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.element-web.rule=(Host(`element.pissing.dev`) || Host(`element.ellis.link`))"
+Label="traefik.http.services.element-web.loadbalancer.server.port=80"
+
+Label="traefik.http.routers.element-web.entrypoints=https"
+
+Label="traefik.http.routers.element-web.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.element-web.tls.options=intermediate@file"
+
+Label="traefik.http.routers.element-web.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=Element Web"
+# Label="homepage.href=https://jade.pissing.dev/"
+# https://github.com/girlbossceo/conduwuit/blob/032b199129f8648a77bde285f755a78e9ec349a7/src/api/client/unversioned.rs#L142
+# Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
+# Label="homepage.siteMonitor=https://matrix.pissing.dev/client/server.json" 
+Label="homepage.description=Element Web for matrix servers"
+
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

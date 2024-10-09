@@ -1,0 +1,72 @@
+{
+    "default_server_name": "possing.dev",
+    "default_server_config": {
+        "m.homeserver": {
+            "base_url": "https://matrix.pissing.dev/"
+        },
+        "org.matrix.msc3575.proxy": {
+            "url": "https://matrix.pissing.dev/"
+        },
+        "m.identity_server": {
+            "base_url": "https://vector.im"
+        }
+    },
+    "brand": "Element",
+    "integrations_ui_url": "https://scalar.vector.im/",
+    "integrations_rest_url": "https://scalar.vector.im/api",
+    "integrations_widgets_urls": [
+        "https://scalar.vector.im/_matrix/integrations/v1",
+        "https://scalar.vector.im/api",
+        "https://scalar-staging.vector.im/_matrix/integrations/v1",
+        "https://scalar-staging.vector.im/api",
+        "https://scalar-staging.riot.im/scalar/api"
+    ],
+    "bug_report_endpoint_url": "https://element.io/bugreports/submit",
+    "uisi_autorageshake_app": "element-auto-uisi",
+    "show_labs_settings": true,
+    "room_directory": {
+        "servers": [
+            "ellis.link",
+            "pissing.dev",
+            "matrix.org",
+            "gitter.im",
+            "libera.chat",
+            "schildi.chat"
+        ]
+    },
+    "enable_presence_by_hs_url": {
+        "https://matrix.org": false,
+        "https://matrix-client.matrix.org": false,
+        "https://matrix.ellis.link": true,
+        "https://ellis.link": true,
+        "https://matrix.pissing.dev": true,
+        "https://pissing.dev": true
+    },
+    "terms_and_conditions_links": [
+        {
+            "url": "https://element.io/privacy",
+            "text": "Privacy Policy (Element)"
+        },
+        {
+            "url": "https://element.io/cookie-policy",
+            "text": "Cookie Policy (Element)"
+        }
+    ],
+    "features": {
+        "threadsActivityCentre": true,
+        "feature_video_rooms": true,
+        "feature_group_calls": true,
+        "feature_element_call_video_rooms": true,
+        "feature_latex_maths": true,
+        "feature_bridge_state": true,
+        "feature_render_reaction_images": true
+    },
+    "setting_defaults": {
+        "RustCrypto.staged_rollout_percent": 100,
+        "Registration.mobileRegistrationHelper": true
+    },
+    "element_call": {
+        "url": "https://call.element.dev"
+    },
+    "map_style_url": "https://api.maptiler.com/maps/streets/style.json?key=fU3vlMsMn4Jb6dnEIFsx"
+}
