@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Google Messages Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/gmessages
+
+[Container]
+ContainerName=mautrix-gmessages
+Image=dock.mau.dev/mautrix/gmessages:latest
+Volume=/var/opt/mautrix/gmessages:/data:z
+AutoUpdate=registry
+# Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-gmessages.rule=Host(`mautrix-gmessages.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-gmessages.entrypoints=https"
+Label="traefik.http.services.mautrix-gmessages.loadbalancer.server.port=29334"
+
+Label="traefik.http.routers.mautrix-gmessages.tls.certresolver=letsencrypt"
+# Label="traefik.http.routers.mautrix-gmessages.tls.options=intermediate@file"
+
+Label="traefik.http.routers.mautrix-gmessages.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-gmessages"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

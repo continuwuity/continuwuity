@@ -62,7 +62,7 @@ appservice:
         username: discordbot
         # Display name and avatar for bot. Set to "remove" to remove display name/avatar, leave empty
         # to leave display name/avatar as-is.
-        displayname: remove
+        displayname: Discord bridge bot
         avatar: mxc://maunium.net/nIdEykemnwdisvHbpxflpDlC
     # Whether or not to receive ephemeral events via appservice transactions.
     # Requires MSC2409 support (i.e. Synapse 1.22+).
@@ -212,6 +212,7 @@ bridge:
     # manually.
     login_shared_secret_map:
         ellis.link: "as_token:fR52cysNJ2s7MbQ7PscEfHIyiW"
+        pissing.dev: "as_token:fR52cysNJ2s7MbQ7PscEfHIyiW"
 
     # The prefix for commands. Only required in non-management rooms.
     command_prefix: '!discord'
@@ -358,9 +359,9 @@ logging:
     writers:
         - type: stdout
           format: pretty-colored
-        - type: file
-          format: json
-          filename: ./logs/mautrix-discord.log
-          max_size: 100
-          max_backups: 10
-          compress: true
+        # - type: file
+        #   format: json
+        #   filename: ./logs/mautrix-discord.log
+        #   max_size: 100
+        #   max_backups: 10
+        #   compress: true
