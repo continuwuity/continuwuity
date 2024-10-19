@@ -1,0 +1,13 @@
+{
+  "slug": "jade-website-sveltekit",
+  "publicKeys": [
+    {
+      "publicKey": "d006c73cc53783930a1521a68ae1c312",
+      "isEnabled": true
+    }
+  ],
+  "config": {
+    "allowedDomains": ["*"],
+    "features": ["organizations:session-replay", "organizations:session-replay-combined-envelope-items", "organizations:user-feedback-ingest", "organizations:device-class-synthesis", "organizations:custom-metrics", "organizations:continuous-profiling", "projects:span-metrics-extraction", "projects:span-metrics-extraction-addons", "organizations:indexed-spans-extraction"]
+  }
+}
