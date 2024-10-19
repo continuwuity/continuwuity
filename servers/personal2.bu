@@ -1,0 +1,88 @@
+# coreos-installer install /dev/nvme0n1 --ignition-url https://config-servers-1.ellis.link/personal2.ign 
+variant: fcos
+version: 1.5.0
+# ignition:
+#   config:
+#     replace:
+#       source: https://jade-coreos-config.netlify.app/main.ign
+passwd:
+  users:
+    - name: core
+      ssh_authorized_keys:
+        - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILqathM/KAjYvI4NzwDs4UJxVcMyv+xwYt0axPP7HzmZ  
+
+boot_device:
+  mirror:
+    devices:
+      - /dev/nvme0n1
+      - /dev/nvme1n1
+storage:
+  disks:
+    - device: /dev/nvme0n1
+      # We do not want to wipe the partition table since this is the primary
+      # device.
+      wipe_table: false 
+      partitions:
+        # - number: 4
+        #   label: root
+        #   # Allocate at least 8 GiB to the rootfs. See NOTE above about this.
+        #   size_mib: 8192
+        #   resize: true
+        - label: var-1
+          size_mib: 0 # 0 means all remaining space
+    - device: /dev/nvme1n1
+      wipe_table: false 
+      partitions:
+        - label: var-2
+          size_mib: 0
+
+  filesystems:
+    - device: /dev/disk/by-partlabel/var
+      label: var
+      format: xfs
+      wipe_filesystem: false
+      path: /var
+      with_mount_unit: true
+  files:
+    - path: /etc/hostname
+      mode: 0644
+      contents:
+        inline: jade-personal2
+  # directories:
+  #   - path: /var/opt/thelounge
+  #   - path: /var/srv/traefik
+  #   - path: /var/opt/kanidm_data
+    # - path: /var/opt/mysql-database
+    # - path: /var/opt/pterodactyl
+    # - path: /var/opt/pterodactyl/panel/nginx
+    # - path: /var/opt/pterodactyl/panel/var
+    # - path: /var/opt/pterodactyl/panel/logs
+    # - path: /etc/firewalld
+    #   mode: 0750
+  # See: https://docs.fedoraproject.org/en-US/fedora-coreos/storage/
+  # filesystems:
+  #   - device: /dev/disk/by-partlabel/var
+  #     label: var
+  #     format: xfs
+  #     wipe_filesystem: false
+  #     path: /var
+  #     with_mount_unit: true
+  # trees:
+  # - local: containers
+  #   path: /etc/containers/systemd
+  # - local: traefik
+  #   path: /etc/traefik
+  # - local: kanidm
+  #   path: /etc/kanidm
+  # - local: images
+  #   path: /var/opt/images
+# storage:
+#   files:
+#     - path: /etc/ssh/sshd_config.d/20-enable-passwords.conf
+#       mode: 0644
+#       contents:
+#         inline: |
+#           # Fedora CoreOS disables SSH password login by default.
+#           # Enable it.
+#           # This file must sort before 40-disable-passwords.conf.
+#           PasswordAuthentication yes
