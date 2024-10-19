@@ -44,6 +44,8 @@ Network=web.network
 
 Exec=traefik --configFile=/etc/traefik/config.toml 
 
+Environment="CF_DNS_API_TOKEN=OzdeI-Km-mI3_WlSOO83Zu0id7rmdd0k2QhOoGNE"
+
 Label="traefik.http.middlewares.compress.compress=true"
 
 Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"

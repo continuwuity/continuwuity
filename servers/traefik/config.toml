@@ -65,4 +65,6 @@ storage = "/certificates/acme.json"
 
 # - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
 # - "--certificatesresolvers.letsencrypt.acme.httpChallenge.entryPoint=http"
-tlschallenge = true
+# tlschallenge = true
+[certificatesresolvers.letsencrypt.acme.dnschallenge]
+provider = "cloudflare"
