@@ -21,7 +21,7 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.conduwuit-testing.rule=(Host(`matrix.pissing.dev`) || (Host(`pissing.dev`) && PathPrefix(`/.well-known/matrix`)))"
 Label="traefik.http.services.conduwuit-testing.loadbalancer.server.port=6167"
 
-Label="traefik.http.routers.conduwuit-testing.entrypoints=https"
+Label="traefik.http.routers.conduwuit-testing.entrypoints=https,matrix"
 
 Label="traefik.http.routers.conduwuit-testing.tls.certresolver=letsencrypt"
 # Label="traefik.http.routers.conduwuit-testing.tls.options=intermediate@file"

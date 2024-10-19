@@ -20,6 +20,12 @@ PublishPort=[::]:80:80/tcp
 PublishPort=[::]:443:443/tcp
 PublishPort=[::]:443:443/udp
 
+# Matrix
+PublishPort=0.0.0.0:8448:8448/tcp
+PublishPort=0.0.0.0:8448:8448/udp
+PublishPort=[::]:8448:8448/tcp
+PublishPort=[::]:8448:8448/udp
+
 # PublishPort=8448:8448/tcp
 ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z

@@ -14,6 +14,10 @@ address = ":80"
 address = ":443"
 [entrypoints.https.http3]
 
+[entrypoints.matrix]
+address = ":8448"
+[entrypoints.matrix.http3]
+
 [entryPoints.http.proxyProtocol]
 insecure = false
 trustedIPs = [ ]
@@ -27,6 +31,14 @@ insecure = false
 trustedIPs = [ ]
 
 [entryPoints.https.forwardedHeaders]
+insecure = false
+trustedIPs = [ ]
+
+[entryPoints.matrix.proxyProtocol]
+insecure = false
+trustedIPs = [ ]
+
+[entryPoints.matrix.forwardedHeaders]
 insecure = false
 trustedIPs = [ ]
 

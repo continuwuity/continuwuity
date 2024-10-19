@@ -21,7 +21,7 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.conduwuit.rule=(Host(`matrix.ellis.link`) || (Host(`ellis.link`) && PathPrefix(`/.well-known/matrix`)))"
 Label="traefik.http.services.conduwuit.loadbalancer.server.port=6167"
 
-Label="traefik.http.routers.conduwuit.entrypoints=https"
+Label="traefik.http.routers.conduwuit.entrypoints=https,matrix"
 
 Label="traefik.http.routers.conduwuit.tls.certresolver=letsencrypt"
 # Label="traefik.http.routers.conduwuit.tls.options=intermediate@file"
