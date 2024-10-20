@@ -50,6 +50,24 @@ entrypoints:
       trustedIPs: # Trust IPs from inside the "web" network
         - 10.89.0.0/24
         - fd76:6f6d:f45e:ea1a::/64
+  pop:
+    address: :110
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+  managesieve:
+    address: :4190
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+  smtpstarttls:
+    address: :587
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
   smtps:
     address: :465
     proxyProtocol:
@@ -58,6 +76,12 @@ entrypoints:
         - fd76:6f6d:f45e:ea1a::/64
   imaps:
     address: :993
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+  pops:
+    address: :995
     proxyProtocol:
       trustedIPs:
         - 10.89.0.0/24

@@ -40,6 +40,25 @@ PublishPort=0.0.0.0:25:25/tcp
 PublishPort=[::]:25:25/tcp
 # PublishPort=[::]:25:25/udp
 
+# POP
+PublishPort=0.0.0.0:110:110/tcp
+# PublishPort=0.0.0.0:110:110/udp
+PublishPort=[::]:110:110/tcp
+# PublishPort=[::]:110:110/udp
+
+# ManageSieve
+PublishPort=0.0.0.0:4190:4190/tcp
+# PublishPort=0.0.0.0:4190:4190/udp
+PublishPort=[::]:4190:4190/tcp
+# PublishPort=[::]:4190:4190/udp
+
+
+# SMTP submission over STARTTLS
+PublishPort=0.0.0.0:587:587/tcp
+# PublishPort=0.0.0.0:587:587/udp
+PublishPort=[::]:587:587/tcp
+# PublishPort=[::]:587:587/udp
+
 # SMTPS
 PublishPort=0.0.0.0:465:465/tcp
 # PublishPort=0.0.0.0:465:465/udp
@@ -47,10 +66,17 @@ PublishPort=[::]:465:465/tcp
 # PublishPort=[::]:465:465/udp
 
 # IMAPS
-PublishPort=0.0.0.0:465:465/tcp
-# PublishPort=0.0.0.0:465:465/udp
-PublishPort=[::]:465:465/tcp
-# PublishPort=[::]:465:465/udp
+PublishPort=0.0.0.0:993:993/tcp
+# PublishPort=0.0.0.0:993:993/udp
+PublishPort=[::]:993:993/tcp
+# PublishPort=[::]:993:993/udp
+
+# POPS
+PublishPort=0.0.0.0:995:995/tcp
+# PublishPort=0.0.0.0:995:995/udp
+PublishPort=[::]:995:995/tcp
+# PublishPort=[::]:995:995/udp
+
 
 ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
