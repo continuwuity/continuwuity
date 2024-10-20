@@ -1,0 +1,59 @@
+- name: My first play
+  hosts: personal
+  tasks:
+    - name: Ping my hosts
+      ansible.builtin.ping:
+
+    - name: Print message
+      ansible.builtin.debug:
+        msg: Hello world
+    # - name: Copy conduwuit backup
+    #   ansible.builtin.copy:
+    #     src: ./conduwuit-testing
+    #     dest: /var/opt/
+    - name: Copy containers
+      ansible.builtin.copy:
+        src: ../containers/
+        dest: /etc/containers/systemd
+    - name: Reload systemd generators
+      ansible.builtin.command: sudo systemctl daemon-reload
+    - name: Copy traefik config
+      ansible.builtin.copy:
+        src: ../traefik/
+        dest: /etc/traefik
+    - name: Creates traefik state directory
+      file:
+        path: /var/srv/traefik
+        state: directory
+    - name: Copy kanidm config
+      ansible.builtin.copy:
+        src: ../kanidm/
+        dest: /etc/kanidm
+    - name: Creates kanidm data directory
+      file:
+        path: /var/opt/kanidm_data
+        state: directory
+    - name: Copy Element Web config
+      ansible.builtin.copy:
+        src: ../element-web/
+        dest: /etc/element-web
+    - name: Copy homepage config
+      ansible.builtin.copy:
+        src: ../homepage/
+        dest: /etc/homepage
+    - name: Copy sentry relay config
+      ansible.builtin.copy:
+        src: ../sentry-relay/
+        dest: /etc/sentry-relay
+    # - name: install linux-system-roles
+    #   package:
+    #     name: linux-system-roles
+    #     state: present
+    #   delegate_to: 127.0.0.1
+    #   become: true
+    # - name: run kdump system role
+    #   include_role:
+    #     name: linux-system-roles.kdump
+    #   vars:
+    #     kdump_path: /var/crash
+    #     kdump_core_collector: makedumpfile -l --message-level 7 -d 31
