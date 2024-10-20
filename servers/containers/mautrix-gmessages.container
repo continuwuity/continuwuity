@@ -16,7 +16,7 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-gmessages.rule=Host(`mautrix-gmessages.ellis.link`)"
 
 Label="traefik.http.routers.mautrix-gmessages.entrypoints=https"
-Label="traefik.http.services.mautrix-gmessages.loadbalancer.server.port=29334"
+Label="traefik.http.services.mautrix-gmessages.loadbalancer.server.port=29336"
 
 Label="traefik.http.routers.mautrix-gmessages.middlewares=default@file"
 
