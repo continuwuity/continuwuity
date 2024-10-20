@@ -27,7 +27,6 @@ Environment="REDIRECT_TYPE=redirect"
 Label="traefik.http.routers.domain-redirects.tls.certresolver=letsencrypt"
 Label="traefik.http.routers.domain-redirects.tls.domains[0].main=ellis.link"
 Label="traefik.http.routers.domain-redirects.tls.domains[0].sans=*.ellis.link"
-# Label="traefik.http.routers.domain-redirects.tls.options=intermediate@file"
 
 Label="traefik.http.routers.domain-redirects.middlewares=default@file"
 # Label="traefik.http.routers.domain-redirects.middlewares=ellis-link-redirect,joel-ellis-link-redirect,default@file"

@@ -19,10 +19,12 @@ IP6=fd76:6f6d:f45e:ea1a::15
 
 # HTTP(S)
 PublishPort=0.0.0.0:80:80/tcp
+PublishPort=0.0.0.0:80:80/udp
 PublishPort=0.0.0.0:443:443/tcp
 PublishPort=0.0.0.0:443:443/udp
 
 PublishPort=[::]:80:80/tcp
+PublishPort=[::]:80:80/udp
 PublishPort=[::]:443:443/tcp
 PublishPort=[::]:443:443/udp
 
@@ -34,21 +36,21 @@ PublishPort=[::]:8448:8448/udp
 
 # SMTP
 PublishPort=0.0.0.0:25:25/tcp
-PublishPort=0.0.0.0:25:25/udp
+# PublishPort=0.0.0.0:25:25/udp
 PublishPort=[::]:25:25/tcp
-PublishPort=[::]:25:25/udp
+# PublishPort=[::]:25:25/udp
 
 # SMTPS
 PublishPort=0.0.0.0:465:465/tcp
-PublishPort=0.0.0.0:465:465/udp
+# PublishPort=0.0.0.0:465:465/udp
 PublishPort=[::]:465:465/tcp
-PublishPort=[::]:465:465/udp
+# PublishPort=[::]:465:465/udp
 
 # IMAPS
 PublishPort=0.0.0.0:465:465/tcp
-PublishPort=0.0.0.0:465:465/udp
+# PublishPort=0.0.0.0:465:465/udp
 PublishPort=[::]:465:465/tcp
-PublishPort=[::]:465:465/udp
+# PublishPort=[::]:465:465/udp
 
 ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
@@ -66,7 +68,7 @@ Network=web.network
 # IP=176.126.240.240
 # IP6=fe80::9724:38eb:9b0f:df7c
 
-Exec=traefik --configFile=/etc/traefik/config.toml 
+Exec=traefik --configFile=/etc/traefik/config.yml 
 
 Environment="CF_DNS_API_TOKEN=OzdeI-Km-mI3_WlSOO83Zu0id7rmdd0k2QhOoGNE"
 

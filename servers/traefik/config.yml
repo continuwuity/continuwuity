@@ -1,0 +1,82 @@
+global:
+  checkNewVersion: false
+log:
+  level: INFO
+providers:
+  docker:
+    exposedbydefault: false
+  file:
+    directory: /etc/traefik/additional/
+    watch: true
+entrypoints:
+  http:
+    address: :80
+    http3: {}
+    http:
+      redirections:
+        entryPoint:
+          to: https
+          scheme: https
+    # proxyProtocol:
+    #   insecure: false
+    #   trustedIPs: []
+    # forwardedHeaders:
+    #   insecure: false
+    #   trustedIPs: []
+  https:
+    address: :443
+    http3: {}
+    # proxyProtocol:
+    #   insecure: false
+    #   trustedIPs: []
+    # forwardedHeaders:
+    #   insecure: false
+    #   trustedIPs: []
+    http:
+      tls:
+        certResolver: letsencrypt
+  matrix:
+    address: :8448
+    http3: {}
+    # proxyProtocol:
+    #   insecure: false
+    #   trustedIPs: []
+    # forwardedHeaders:
+    #   insecure: false
+    #   trustedIPs: []
+  smtp:
+    address: :25
+    proxyProtocol:
+      trustedIPs: # Trust IPs from inside the "web" network
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+  smtps:
+    address: :465
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+  imaps:
+    address: :993
+    proxyProtocol:
+      trustedIPs:
+        - 10.89.0.0/24
+        - fd76:6f6d:f45e:ea1a::/64
+http:
+  middlewares:
+    traefik-compress:
+      compress: {}
+  routers:
+    http:
+      middlewares: traefik-compress
+    https:
+      middlewares: traefik-compress
+    traefik:
+      middlewares: traefik-compress
+certificatesresolvers:
+  letsencrypt:
+    acme:
+      email: jade@ellis.link
+      storage: /certificates/acme.json
+      dnschallenge:
+        provider: cloudflare

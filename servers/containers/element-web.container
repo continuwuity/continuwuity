@@ -22,9 +22,6 @@ Label="traefik.http.services.element-web.loadbalancer.server.port=80"
 
 Label="traefik.http.routers.element-web.entrypoints=https"
 
-Label="traefik.http.routers.element-web.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.element-web.tls.options=intermediate@file"
-
 Label="traefik.http.routers.element-web.middlewares=default@file"
 
 Label="homepage.group=Services"

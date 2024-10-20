@@ -33,9 +33,6 @@ Label="traefik.http.routers.jade-website-frontend.rule=(Host(`jade.ellis.link`) 
 
 Label="traefik.http.routers.jade-website-frontend.entrypoints=https"
 
-Label="traefik.http.routers.jade-website-frontend.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.jade-website-frontend.tls.options=intermediate@file"
-
 Label="traefik.http.routers.jade-website-frontend.middlewares=default@file"
 
 Label="homepage.group=Public"

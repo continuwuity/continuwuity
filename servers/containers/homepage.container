@@ -19,9 +19,6 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.homepage.rule=Host(`homepage.ellis.link`)"
 Label="traefik.http.routers.homepage.entrypoints=https"
 
-Label="traefik.http.routers.homepage.tls.certresolver=letsencrypt"
-
-
 Label="traefik.http.middlewares.compress.compress=true"
 
 Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"

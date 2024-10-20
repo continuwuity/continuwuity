@@ -25,9 +25,6 @@ Label="traefik.http.routers.sentry-relay.rule=Host(`relay.ellis.link`)"
 
 Label="traefik.http.routers.sentry-relay.entrypoints=https"
 
-Label="traefik.http.routers.sentry-relay.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.sentry-relay.tls.options=intermediate@file"
-
 Label="traefik.http.routers.sentry-relay.middlewares=default@file"
 
 

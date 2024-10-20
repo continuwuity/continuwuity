@@ -24,9 +24,6 @@ Label="traefik.http.services.conduwuit-testing.loadbalancer.server.port=6167"
 
 Label="traefik.http.routers.conduwuit-testing.entrypoints=https,matrix"
 
-Label="traefik.http.routers.conduwuit-testing.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.conduwuit-testing.tls.options=intermediate@file"
-
 Label="traefik.http.routers.conduwuit-testing.middlewares=default@file"
 
 Label="homepage.group=Public"

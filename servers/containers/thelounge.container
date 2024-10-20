@@ -18,9 +18,6 @@ Label="traefik.http.routers.thelounge.rule=Host(`thelounge.ellis.link`)"
 Label="traefik.http.services.thelounge.loadbalancer.server.port=9000"
 Label="traefik.http.routers.thelounge.entrypoints=https"
 
-Label="traefik.http.routers.thelounge.tls.certresolver=letsencrypt"
-
-
 Label="traefik.http.middlewares.compress.compress=true"
 
 Label="traefik.http.middlewares.hsts.headers.stsincludesubdomains=false"

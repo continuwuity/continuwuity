@@ -22,9 +22,6 @@ Label="traefik.http.services.maubot.loadbalancer.server.port=29316"
 
 Label="traefik.http.routers.maubot.entrypoints=https"
 
-Label="traefik.http.routers.maubot.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.maubot.tls.options=intermediate@file"
-
 Label="traefik.http.routers.maubot.middlewares=default@file"
 
 Label="homepage.group=Services"

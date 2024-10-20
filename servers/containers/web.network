@@ -2,6 +2,7 @@
 DisableDNS=false
 Internal=false
 IPv6=true
-# Manual subnet to avoid issues with DNS resolution
-# Subnet=10.89.1.0/24
-# Gateway=10.89.1.1
+Subnet=10.89.0.0/24
+Gateway=10.89.0.1
+Subnet=fd76:6f6d:f45e:ea1a::/64
+Gateway=fd76:6f6d:f45e:ea1a::1

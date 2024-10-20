@@ -33,8 +33,6 @@ Label="traefik.http.routers.kanidm.service=kanidm"
 # Label="traefik.tcp.routers.kanidm-tcp.rule=HostSNI(`idm.ellis.link`)"
 # Label="traefik.tcp.routers.kanidm-tcp.service=kanidm"
 
-Label="traefik.http.routers.kanidm.tls.certresolver=letsencrypt"
-
 # Kanidm is a bit odd here
 Label="traefik.http.services.kanidm.loadbalancer.server.port=8443"
 Label="traefik.http.services.kanidm.loadbalancer.server.scheme=https"

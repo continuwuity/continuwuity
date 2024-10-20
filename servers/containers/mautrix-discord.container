@@ -20,9 +20,6 @@ Label="traefik.http.routers.mautrix-discord.rule=Host(`mautrix-discord.ellis.lin
 Label="traefik.http.routers.mautrix-discord.entrypoints=https"
 Label="traefik.http.services.mautrix-discord.loadbalancer.server.port=29334"
 
-Label="traefik.http.routers.mautrix-discord.tls.certresolver=letsencrypt"
-# Label="traefik.http.routers.mautrix-discord.tls.options=intermediate@file"
-
 Label="traefik.http.routers.mautrix-discord.middlewares=default@file"
 
 Label="homepage.group=Services"
