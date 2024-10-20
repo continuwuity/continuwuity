@@ -4,6 +4,7 @@
 Description=Maubot
 Wants=network-online.target
 After=network-online.target
+After=conduwuit.service
 Documentation=https://docs.mau.fi/maubot/index.html
 
 [Container]

@@ -12,6 +12,12 @@ ContainerName=traefik
 PodmanArgs=--privileged
 NoNewPrivileges=true
 Image=docker.io/library/traefik:3.0
+
+# Static IPs assigned for proxy-protocol trust
+IP=10.89.0.21
+IP6=fd76:6f6d:f45e:ea1a::15
+
+# HTTP(S)
 PublishPort=0.0.0.0:80:80/tcp
 PublishPort=0.0.0.0:443:443/tcp
 PublishPort=0.0.0.0:443:443/udp
@@ -26,9 +32,27 @@ PublishPort=0.0.0.0:8448:8448/udp
 PublishPort=[::]:8448:8448/tcp
 PublishPort=[::]:8448:8448/udp
 
-# PublishPort=8448:8448/tcp
+# SMTP
+PublishPort=0.0.0.0:25:25/tcp
+PublishPort=0.0.0.0:25:25/udp
+PublishPort=[::]:25:25/tcp
+PublishPort=[::]:25:25/udp
+
+# SMTPS
+PublishPort=0.0.0.0:465:465/tcp
+PublishPort=0.0.0.0:465:465/udp
+PublishPort=[::]:465:465/tcp
+PublishPort=[::]:465:465/udp
+
+# IMAPS
+PublishPort=0.0.0.0:465:465/tcp
+PublishPort=0.0.0.0:465:465/udp
+PublishPort=[::]:465:465/tcp
+PublishPort=[::]:465:465/udp
+
 ReadOnly=true
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
+Volume=/etc/localtime:/etc/localtime:ro
 Volume=/var/srv/traefik:/certificates:z
 Volume=/etc/traefik:/etc/traefik:ro,z
 Volume=kanidm-certs.volume:/kanidm_certs:ro,z

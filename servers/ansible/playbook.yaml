@@ -8,17 +8,17 @@
       ansible.builtin.debug:
         msg: Hello world
     # - name: Copy conduwuit backup
-    #   ansible.builtin.copy:
+    #   ansible.posix.synchronize:
     #     src: ./conduwuit-testing
     #     dest: /var/opt/
     - name: Copy containers
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../containers/
         dest: /etc/containers/systemd
     - name: Reload systemd generators
       ansible.builtin.command: sudo systemctl daemon-reload
     - name: Copy traefik config
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../traefik/
         dest: /etc/traefik
     - name: Creates traefik state directory
@@ -26,7 +26,7 @@
         path: /var/srv/traefik
         state: directory
     - name: Copy kanidm config
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../kanidm/
         dest: /etc/kanidm
     - name: Creates kanidm data directory
@@ -34,15 +34,15 @@
         path: /var/opt/kanidm_data
         state: directory
     - name: Copy Element Web config
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../element-web/
         dest: /etc/element-web
     - name: Copy homepage config
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../homepage/
         dest: /etc/homepage
     - name: Copy sentry relay config
-      ansible.builtin.copy:
+      ansible.posix.synchronize:
         src: ../sentry-relay/
         dest: /etc/sentry-relay
     # - name: install linux-system-roles

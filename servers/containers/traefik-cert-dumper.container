@@ -1,0 +1,19 @@
+[Unit]
+Description=traefik cert dumper
+After=traefik.service
+
+
+[Container]
+ContainerName=traefik-cert-dumper
+NoNewPrivileges=true
+Image=ghcr.io/kereis/traefik-certs-dumper:latest
+Volume=/etc/localtime:/etc/localtime:ro
+Volume=/var/srv/traefik:/traefik:ro
+Volume=traefik-certs.volume:/output
+# AutoUpdate=registry
+
+[Service]
+Restart=unless-stopped
+
+[Install]
+WantedBy=default.target

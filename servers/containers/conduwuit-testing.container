@@ -3,6 +3,7 @@
 [Unit]
 Description=Conduwuit testing (matrix)
 Wants=network-online.target
+Wants=traefik.service
 After=network-online.target
 Documentation=https://conduwuit.puppyirl.gay/
 
