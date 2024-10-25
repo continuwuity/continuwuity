@@ -45,6 +45,14 @@
       ansible.posix.synchronize:
         src: ../sentry-relay/
         dest: /etc/sentry-relay
+    - name: Creates stalwart mail data directory
+      file:
+        path: /var/opt/stalwart-mail
+        state: directory
+    - name: Copy stalwart config
+      ansible.posix.synchronize:
+        src: ../stalwart/
+        dest: /etc/stalwart
     # - name: install linux-system-roles
     #   package:
     #     name: linux-system-roles
