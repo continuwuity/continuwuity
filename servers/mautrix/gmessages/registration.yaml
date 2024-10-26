@@ -1,0 +1,14 @@
+id: gmessages
+url: https://mautrix-gmessages.ellis.link
+as_token: APWnNkbbzv0qLd9ipuK7r6uYpSZz7p9PrbNU77YSPor6zaXAL8InKxPkgMpKH6KP
+hs_token: Q8Ide055pQfvQwfDXusifJSscHkbB07DRaGoHQN39oj50DCbXiGXmTAYyCb61spa
+sender_localpart: IDSTAgz6EZUIU4rLdnGkbeCT0fFUH14E
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@gmessagesbot:ellis\.link$
+          exclusive: true
+        - regex: ^@gmessages_mautrix_.*:ellis\.link$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+push_ephemeral: true

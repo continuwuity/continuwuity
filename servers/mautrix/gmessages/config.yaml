@@ -30,9 +30,10 @@ bridge:
     personal_filtering_spaces: true
     # Whether the bridge should set names and avatars explicitly for DM portals.
     # This is only necessary when using clients that don't support MSC4171.
-    private_chat_portal_meta: false
+    private_chat_portal_meta: true
     # Should events be handled asynchronously within portal rooms?
     # If true, events may end up being out of order, but slow events won't block other ones.
+    # This is not yet safe to use.
     async_events: false
     # Should every user have their own portals rather than sharing them?
     # By default, users who are in the same group on the remote network will be
@@ -182,8 +183,12 @@ homeserver:
 # Changing these values requires regeneration of the registration (except when noted otherwise)
 appservice:
     # The address that the homeserver can use to connect to this appservice.
+    # Like the homeserver address, a local non-https address is recommended when the bridge is on the same machine.
+    # If the bridge is elsewhere, you must secure the connection yourself (e.g. with https or wireguard)
+    # If you want to use https, you need to use a reverse proxy. The bridge does not have TLS support built in.
     address: https://mautrix-gmessages.ellis.link
     # A public address that external services can use to reach this appservice.
+    # This is only needed for things like public media. A reverse proxy is generally necessary when using this field.
     # This value doesn't affect the registration file.
     public_address: https://mautrix-gmessages.ellis.link
     
@@ -312,7 +317,7 @@ backfill:
     # Settings for backfilling threads within other backfills.
     threads:
         # Maximum number of messages to backfill in a new thread.
-        max_initial_messages: 5000
+        max_initial_messages: 50000
     # Settings for the backwards backfill queue. This only applies when connecting to
     # Beeper as standard Matrix servers don't support inserting messages into history.
     queue:

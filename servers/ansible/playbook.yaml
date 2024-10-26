@@ -53,6 +53,9 @@
       ansible.posix.synchronize:
         src: ../stalwart/
         dest: /etc/stalwart
+    # Pull mautrix config:
+    # rsync --rsync-path="sudo rsync" -r -t -z -P --include "*/" --include="*.yaml" --exclude="*" ansible@213.32.25.24:/var/opt/mautrix/ ./mautrix
+
     # - name: install linux-system-roles
     #   package:
     #     name: linux-system-roles
