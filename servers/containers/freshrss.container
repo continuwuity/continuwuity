@@ -1,0 +1,56 @@
+
+
+[Unit]
+Description=FreshRSS
+Wants=network-online.target
+Wants=traefik.service
+After=network-online.target
+
+
+[Container]
+ContainerName=freshrss
+Image=docker.io/freshrss/freshrss:latest
+Volume=/etc/localtime:/etc/localtime:ro
+Volume=/var/opt/freshrss:/var/www/FreshRSS/data:z,U
+Volume=/var/opt/freshrss-extensions:/var/www/FreshRSS/extensions:z,U
+AutoUpdate=registry
+Network=web.network
+
+# allow many file descriptors for rocksdb
+Ulimit=nofile=1048567:1048567
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.freshrss.rule=Host(`freshrss.ellis.link`)"
+
+Label="traefik.http.routers.freshrss.entrypoints=https"
+
+Label="traefik.http.routers.freshrss.middlewares=default@file"
+
+Environment="TRUSTED_PROXY=10.89.0.0/24 fd76:6f6d:f45e:ea1a::/64"
+Environment="CRON_MIN=13,43"
+Environment="BASE_URL=https://freshrss.ellis.link"
+
+
+Label="homepage.group=Public"
+Label="homepage.name=FreshRSS"
+Label="homepage.href=https://freshrss.ellis.link/"
+
+# Label="homepage.siteMonitor=" 
+Label="homepage.description=RSS feed reader"
+
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

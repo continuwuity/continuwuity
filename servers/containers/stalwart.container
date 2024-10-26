@@ -5,7 +5,6 @@ Description=Stalwart Mail
 Wants=network-online.target
 Wants=traefik.service
 After=network-online.target
-Documentation=https://conduwuit.puppyirl.gay/
 
 [Container]
 ContainerName=stalwart-mail

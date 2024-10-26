@@ -66,6 +66,14 @@
           - --include="*/"
           - --include="*.yaml"
           - --exclude="*"
+    - name: Creates freshrss data directory
+      file:
+        path: /var/opt/freshrss
+        state: directory
+    - name: Creates freshrss extensions directory
+      file:
+        path: /var/opt/freshrss-extensions
+        state: directory
 
 
     # - name: install linux-system-roles
