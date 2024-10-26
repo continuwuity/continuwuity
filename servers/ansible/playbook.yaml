@@ -15,6 +15,7 @@
       ansible.posix.synchronize:
         src: ../containers/
         dest: /etc/containers/systemd
+        delete: true # Remove retired containers
     - name: Reload systemd generators
       ansible.builtin.command: sudo systemctl daemon-reload
     - name: Copy traefik config
@@ -55,6 +56,17 @@
         dest: /etc/stalwart
     # Pull mautrix config:
     # rsync --rsync-path="sudo rsync" -r -t -z -P --include "*/" --include="*.yaml" --exclude="*" ansible@213.32.25.24:/var/opt/mautrix/ ./mautrix
+    - name: Copy mautrix config
+      ansible.posix.synchronize:
+        src: ../mautrix/
+        dest: /var/opt/mautrix
+        recursive: true
+        delete: false # Explicitly don't delete, we have databases here
+        rsync_opts: # Only sync YAML files
+          - --include="*/"
+          - --include="*.yaml"
+          - --exclude="*"
+
 
     # - name: install linux-system-roles
     #   package:

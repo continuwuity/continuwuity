@@ -1,0 +1,43 @@
+[Unit]
+Description=Matrix Signal Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/signal
+
+[Container]
+ContainerName=mautrix-signal
+Image=dock.mau.dev/mautrix/signal:latest
+Volume=/var/opt/mautrix/signal:/data:z
+AutoUpdate=registry
+# Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-signal.rule=Host(`mautrix-signal.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-signal.entrypoints=https"
+Label="traefik.http.services.mautrix-signal.loadbalancer.server.port=29328"
+
+Label="traefik.http.routers.mautrix-signal.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-signal"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
