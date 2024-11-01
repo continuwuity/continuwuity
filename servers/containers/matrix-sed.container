@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Sed bot
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+
+[Container]
+ContainerName=matrix-sed
+NoNewPrivileges=true
+Image=ghcr.io/jadedblueeyes/matrix-sed:latest
+ReadOnly=true
+Volume=/var/opt/matrix-sed:/matrix-sed:z,U
+Volume=/etc/ssl/certs:/etc/ssl/certs:ro
+AutoUpdate=registry
+
+Network=web.network
+
+Label="traefik.enable=false"
+
+
+Label="homepage.group=Services"
+Label="homepage.name=Matrix Sed bot"
+Label="homepage.description=@sed:ellis.link"
+
+
+#Environment="MATRIX_SERVER=https://matrix.ellis.link"
+Environment="MATRIX_SERVER=http://conduwuit:6167"
+Environment="MATRIX_USERNAME=sed"
+Environment="MATRIX_PASSWORD=v5ejzugOtMj2faGp2GSjSjiow"
+Environment="MATRIX_CLIENT_NAME=Sed bot ellis.link"
+Environment="XDG_DATA_HOME=/"
+Environment=RUST_LOG="matrix_sed=trace,matrix_sdk_crypto::backups=error,warn"
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

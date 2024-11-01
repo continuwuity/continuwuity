@@ -74,6 +74,10 @@
       file:
         path: /var/opt/freshrss-extensions
         state: directory
+    - name: Creates matrix-sed bot state directory
+      file:
+        path: /var/opt/matrix-sed
+        state: directory
 
 
     # - name: install linux-system-roles
