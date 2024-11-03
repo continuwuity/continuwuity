@@ -45,8 +45,8 @@ db_path = "/data/kanidm.db"
 # db_arc_size = 2048
 #
 #   TLS chain and key in pem format. Both must be present
-tls_chain = "/data/certs/chain.pem"
-tls_key = "/data/certs/key.pem"
+tls_chain = "/data/certs/idm.ellis.link/cert.pem"
+tls_key = "/data/certs/idm.ellis.link/key.pem"
 #
 #   The log level of the server. May be one of info, debug, trace
 #

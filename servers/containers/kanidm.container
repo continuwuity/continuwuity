@@ -15,7 +15,8 @@ Image=docker.io/kanidm/server:latest
 ReadOnly=true
 # Volume=/run/podman/podman.sock:/var/run/docker.sock:z
 Volume=/var/opt/kanidm_data:/data:Z
-Volume=kanidm-certs.volume:/data/certs:z
+# Volume=kanidm-certs.volume:/data/certs:z
+Volume=traefik-certs.volume:/data/certs:ro
 Volume=/etc/kanidm/entrypoint.sh:/entrypoint.sh:ro,z
 Volume=/etc/kanidm/data/server.toml:/data/server.toml:ro,z
 

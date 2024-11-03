@@ -30,6 +30,8 @@
       ansible.posix.synchronize:
         src: ../kanidm/
         dest: /etc/kanidm
+    - name: Make kanidm entrypoint executable
+      file: dest=/etc/kanidm/entrypoint.sh mode=a+x
     - name: Creates kanidm data directory
       file:
         path: /var/opt/kanidm_data
