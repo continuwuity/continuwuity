@@ -76,6 +76,10 @@
       file:
         path: /var/opt/freshrss-extensions
         state: directory
+    - name: Copy freshrss config
+      ansible.posix.synchronize:
+        src: ../freshrss/
+        dest: /etc/freshrss
     - name: Creates matrix-sed bot state directory
       file:
         path: /var/opt/matrix-sed

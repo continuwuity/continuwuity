@@ -13,6 +13,7 @@ Image=docker.io/freshrss/freshrss:latest
 Volume=/etc/localtime:/etc/localtime:ro
 Volume=/var/opt/freshrss:/var/www/FreshRSS/data:z,U
 Volume=/var/opt/freshrss-extensions:/var/www/FreshRSS/extensions:z,U
+Volume=/etc/freshrss/conf-enabled:/etc/apache2/conf-enabled:ro
 AutoUpdate=registry
 Network=web.network
 
@@ -30,6 +31,37 @@ Environment="TRUSTED_PROXY=10.89.0.0/24 fd76:6f6d:f45e:ea1a::/64"
 Environment="CRON_MIN=13,43"
 Environment="BASE_URL=https://freshrss.ellis.link"
 
+# OIDC
+# kanidm system oauth2 create freshrss "FreshRSS" https://freshrss.ellis.link/
+# kanidm system oauth2 add-redirect-url freshrss https://freshrss.ellis.link/i/oidc/
+# kanidm group create freshrss_users
+# kanidm system oauth2 update-scope-map freshrss freshrss_users email profile openid
+# kanidm group add-members freshrss_users idm_all_persons
+# kanidm system oauth2 show-basic-secret freshrss -o json
+# EnvironmentFile
+
+
+Environment=OIDC_ENABLED=1
+Environment=OIDC_PROVIDER_METADATA_URL=https://idm.ellis.link/oauth2/openid/freshrss/.well-known/openid-configuration
+Environment=OIDC_CLIENT_ID=freshrss
+Environment=OIDC_CLIENT_SECRET=LAAy7cSYr2b1e9Cf42ULs8FCzprgX3c7FTQ3Mdv6yJHpkE7N
+Environment=OIDC_CLIENT_CRYPTO_KEY=9ub2rc^orMH9Fi2ogacTs3j
+Environment=OIDC_REMOTE_USER_CLAIM=preferred_username
+Environment="OIDC_SCOPES=openid profile"
+Environment="OIDC_X_FORWARDED_HEADERS=X-Forwarded-Host X-Forwarded-Port X-Forwarded-Proto"
+#Environment=OIDC_SESSION_INACTIVITY_TIMEOUT: Optional. Interval in seconds after which the session will be invalidated when no interaction has occurred. When not defined, the default is 300 seconds.
+#Environment=OIDC_SESSION_MAX_DURATION: Optional. Maximum duration of the application session. When not defined the default is 8 hours (3600 * 8 seconds). When set to 0, the session duration will be set equal to the expiry time of the ID token.
+# Environment=OIDC_SESSION_TYPE
+
+# OIDCRedirectURI /oauth2/callback
+# OIDCCryptoPassphrase <random password here>
+# OIDCProviderMetadataURL https://kanidm.example.com/oauth2/openid/<client name>/.well-known/openid-configuration
+# OIDCScope "openid"
+# OIDCUserInfoTokenMethod authz_header
+# OIDCClientID <client name>
+# OIDCClientSecret <client password>
+# OIDCPKCEMethod S256
+# OIDCCookieSameSite On
 
 Label="homepage.group=Public"
 Label="homepage.name=FreshRSS"
