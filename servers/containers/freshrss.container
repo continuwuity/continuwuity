@@ -49,7 +49,7 @@ Environment=OIDC_CLIENT_CRYPTO_KEY=9ub2rc^orMH9Fi2ogacTs3j
 Environment=OIDC_REMOTE_USER_CLAIM=preferred_username
 Environment="OIDC_SCOPES=openid profile"
 Environment="OIDC_X_FORWARDED_HEADERS=X-Forwarded-Host X-Forwarded-Port X-Forwarded-Proto"
-#Environment=OIDC_SESSION_INACTIVITY_TIMEOUT: Optional. Interval in seconds after which the session will be invalidated when no interaction has occurred. When not defined, the default is 300 seconds.
+Environment=OIDC_SESSION_INACTIVITY_TIMEOUT=7200
 #Environment=OIDC_SESSION_MAX_DURATION: Optional. Maximum duration of the application session. When not defined the default is 8 hours (3600 * 8 seconds). When set to 0, the session duration will be set equal to the expiry time of the ID token.
 # Environment=OIDC_SESSION_TYPE
 
