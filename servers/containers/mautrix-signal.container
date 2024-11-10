@@ -10,7 +10,7 @@ ContainerName=mautrix-signal
 Image=dock.mau.dev/mautrix/signal:latest
 Volume=/var/opt/mautrix/signal:/data:z
 AutoUpdate=registry
-# Network=web.network
+Network=web.network
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-signal.rule=Host(`mautrix-signal.ellis.link`)"
