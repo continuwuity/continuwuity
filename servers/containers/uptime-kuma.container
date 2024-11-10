@@ -1,0 +1,50 @@
+
+
+
+[Unit]
+Description=Uptime Kuma 
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=uptime-kuma
+NoNewPrivileges=true
+Image=docker.io/louislam/uptime-kuma:1
+# ReadOnly=true
+Volume=/var/opt/uptime-kuma:/app/data:z,U
+Volume=/run/podman/podman.sock:/var/run/docker.sock:z
+AutoUpdate=registry
+Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.uptime-kuma.rule=Host(`uptime-kuma.ellis.link`)"
+Label="traefik.http.services.uptime-kuma.loadbalancer.server.port=3001"
+
+Label="traefik.http.routers.uptime-kuma.entrypoints=https"
+
+Label="traefik.http.routers.uptime-kuma.middlewares=default@file"
+
+Label="homepage.group=Public"
+Label="homepage.name=Uptime Kuma"
+Label="homepage.href=https://uptime-kuma.ellis.link"
+Label="homepage.siteMonitor=https://uptime-kuma.ellis.link"
+Label="homepage.description=Uptime monitoring"
+
+# Label="kuma.uptime-kuma.http.name=Uptime Kuma"
+Label=kuma.__web='"uptime-kuma.ellis.link"'
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

@@ -84,6 +84,14 @@
       file:
         path: /var/opt/matrix-sed
         state: directory
+    - name: Creates uptime-kuma state directory
+      file:
+        path: /var/opt/uptime-kuma
+        state: directory
+    - name: Creates autokuma state directory
+      file:
+        path: /var/opt/autokuma
+        state: directory
 
 
     # - name: install linux-system-roles

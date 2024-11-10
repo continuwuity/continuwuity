@@ -41,6 +41,8 @@ Label="homepage.href=https://jade.ellis.link/"
 Label="homepage.siteMonitor=https://jade.ellis.link/"
 Label="homepage.description=My personal website!"
 
+Label=kuma.__web='"jade.ellis.link"'
+
 [Service]
 Restart=on-failure
 TimeoutStartSec=900
