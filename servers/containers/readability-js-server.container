@@ -1,0 +1,36 @@
+
+[Unit]
+Description=Readability API
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=readability-js-server
+NoNewPrivileges=true
+Image=docker.io/phpdockerio/readability-js-server:latest
+# ReadOnly=true
+Volume=/etc/ssl/certs:/etc/ssl/certs:ro
+AutoUpdate=registry
+
+Network=web.network
+
+Label="traefik.enable=false"
+
+
+Label="homepage.group=Services"
+Label="homepage.name=Readability API"
+Label="homepage.description=readability-js-server API"
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
