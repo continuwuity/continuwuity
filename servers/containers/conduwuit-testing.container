@@ -10,7 +10,7 @@ Documentation=https://conduwuit.puppyirl.gay/
 [Container]
 ContainerName=conduwuit-testing
 NoNewPrivileges=true
-Image=ghcr.io/girlbossceo/conduwuit:merge-585-girlbossceo
+Image=ghcr.io/girlbossceo/conduwuit:merge-608-girlbossceo
 ReadOnly=true
 Volume=/var/opt/conduwuit-testing:/var/lib/conduwuit:z,U
 AutoUpdate=registry
@@ -45,6 +45,7 @@ Environment="CONDUWUIT_PORT=6167"
 Environment="CONDUWUIT_MAX_REQUEST_SIZE=20000000"
 Environment="CONDUWUIT_ALLOW_REGISTRATION=false"
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
+Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
 # Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\"]"
 Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
 Environment="CONDUWUIT_ADDRESS=0.0.0.0"
@@ -52,7 +53,6 @@ Environment="CONDUWUIT_WELL_KNOWN={ \
 client=https://matrix.pissing.dev, \
 server=matrix.pissing.dev:443 \
 }"
-
 # Environment="CONDUWUIT_SENTRY=true"
 # Environment="CONDUWUIT_SENTRY_ENDPOINT=https://c885d1475cef5c54bbd32b1512e0ae20@o4507835405369344.ingest.de.sentry.io/4508059491696720"
 
