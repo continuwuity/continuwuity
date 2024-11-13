@@ -50,7 +50,7 @@ bridge:
     tag_only_on_create: true
     # Should room mute status only be synced when creating the portal?
     # Like tags, mutes can't currently be synced back to the remote network.
-    mute_only_on_create: true
+    mute_only_on_create: false
     
     # What should be done to portal rooms when a user logs out or is logged out?
     # Permitted values:
@@ -127,6 +127,7 @@ bridge:
     permissions:
         "*": relay
         "ellis.link": user
+        "pissing.dev": user
         "@jade:ellis.link": admin
 
 # Config for the bridge's database.
@@ -233,7 +234,7 @@ matrix:
     # Whether the bridge should send error notices via m.notice events when a message fails to bridge.
     message_error_notices: true
     # Whether the bridge should update the m.direct account data event when double puppeting is enabled.
-    sync_direct_chat_list: false
+    sync_direct_chat_list: true
     # Whether created rooms should have federation enabled. If false, created portal rooms
     # will never be federated. Changing this option requires recreating rooms.
     federate_rooms: true

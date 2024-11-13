@@ -348,6 +348,7 @@ bridge:
     permissions:
         "*": relay
         "ellis.link": user
+        "pissing.dev": user
         "@jade:ellis.link": admin
 
 # Logging config. See https://github.com/tulir/zeroconfig for details.

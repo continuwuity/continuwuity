@@ -129,6 +129,7 @@ bridge:
     permissions:
         "*": relay
         "ellis.link": user
+        "pissing.dev": user
         "@jade:ellis.link": admin
 
 # Config for the bridge's database.
