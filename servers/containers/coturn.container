@@ -1,0 +1,63 @@
+
+
+
+[Unit]
+Description=Coturn 
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=coturn
+NoNewPrivileges=true
+Image=docker.io/coturn/coturn:latest
+ReadOnly=true
+AutoUpdate=registry
+Network=web.network
+
+PublishPort=0.0.0.0:60006-65535:60006-65535/udp
+PublishPort=[::]:60006-65535:60006-65535/udp
+# PublishPort=0.0.0.0:3478:3478
+# PublishPort=[::]:3478:3478
+# PublishPort=0.0.0.0:3478:3478/udp
+# PublishPort=[::]:3478:3478/udp
+# PublishPort=0.0.0.0:5349:5349
+# PublishPort=[::]:5349:5349
+# PublishPort=0.0.0.0:5349:5349/udp
+# PublishPort=[::]:5349:5349/udp
+
+Exec= --realm coturn.ellis.link \
+--tls-listening-port=443 \
+--listening-ip=0.0.0.0 \
+--min-port=60006 \
+--max-port=65535 \
+--use-auth-secret \
+--static-auth-secret=qjRh55G51K7V0ZqB7Z8ZEkxZjBLJMgkwEs8acFjx
+Label="traefik.enable=true"
+Label="traefik.http.routers.coturn.rule=Host(`coturn.ellis.link`)"
+
+Label="traefik.http.routers.coturn.entrypoints=https"
+
+Label="traefik.http.routers.coturn.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=coturn"
+Label="homepage.href=https://coturn.ellis.link"
+
+# Label="kuma.coturn.http.name=Uptime Kuma"
+# Label=kuma.__web='"coturn.ellis.link"'
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+# WantedBy=default.target
