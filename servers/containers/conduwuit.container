@@ -34,6 +34,7 @@ Label="homepage.href=https://element.ellis.link/"
 Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
 Label="homepage.description=Matrix homeserver"
 
+Label=kuma.__web='"matrix.ellis.link"'
 
 Environment="CONDUWUIT_SERVER_NAME=ellis.link"
 

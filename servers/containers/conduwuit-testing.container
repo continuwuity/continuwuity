@@ -34,6 +34,7 @@ Label="homepage.href=https://element.pissing.dev/"
 Label="homepage.siteMonitor=https://matrix.pissing.dev/client/server.json" 
 Label="homepage.description=Matrix homeserver (pissing.dev)"
 
+Label=kuma.__web='"matrix.pissing.dev"'
 
 Environment="CONDUWUIT_SERVER_NAME=pissing.dev"
 
