@@ -22,7 +22,10 @@ Label="traefik.http.services.element-web.loadbalancer.server.port=80"
 
 Label="traefik.http.routers.element-web.entrypoints=https"
 
-Label="traefik.http.routers.element-web.middlewares=default@file"
+# Required for Element Call to work with Element Web
+Label="traefik.http.middlewares.enable-coep.headers.customResponseHeaders.Cross-Origin-Embedder-Policy=unsafe-none" 
+Label="traefik.http.routers.element-web.middlewares=enable-coep,default@file"
+
 
 Label="homepage.group=Services"
 Label="homepage.name=Element Web"
