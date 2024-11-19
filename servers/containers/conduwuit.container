@@ -54,8 +54,8 @@ client=https://matrix.ellis.link, \
 server=matrix.ellis.link:443 \
 }"
 
-# Environment="CONDUWUIT_TURN_URIS=[\"turns:coturn.ellis.link?transport=udp\",\"turns:coturn.ellis.link?transport=tcp\"]"
-# Environment="CONDUWUIT_TURN_SECRET=qjRh55G51K7V0ZqB7Z8ZEkxZjBLJMgkwEs8acFjx"
+Environment="CONDUWUIT_TURN_URIS=[\"turns:coturn.ellis.link?transport=udp\",\"turns:coturn.ellis.link?transport=tcp\",\"turn:coturn.ellis.link?transport=udp\",\"turn:coturn.ellis.link?transport=tcp\"]"
+Environment="CONDUWUIT_TURN_SECRET=qjRh55G51K7V0ZqB7Z8ZEkxZjBLJMgkwEs8acFjx"
 
 Environment="CONDUWUIT_SENTRY=true"
 Environment="CONDUWUIT_SENTRY_ENDPOINT=https://c885d1475cef5c54bbd32b1512e0ae20@o4507835405369344.ingest.de.sentry.io/4508059491696720"
