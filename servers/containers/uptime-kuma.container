@@ -31,7 +31,8 @@ Label="homepage.siteMonitor=https://uptime-kuma.ellis.link"
 Label="homepage.description=Uptime monitoring"
 
 # Label="kuma.uptime-kuma.http.name=Uptime Kuma"
-Label=kuma.__web='"uptime-kuma.ellis.link"'
+
+Label=kuma.__monitor=''
 
 StopTimeout=100
 

@@ -33,8 +33,7 @@ Label="homepage.href=https://element.pissing.dev/"
 # Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
 Label="homepage.siteMonitor=https://matrix.pissing.dev/client/server.json" 
 Label="homepage.description=Matrix homeserver (pissing.dev)"
-
-Label=kuma.__web='"matrix.pissing.dev"'
+Label=kuma.__monitor=''
 
 Environment="CONDUWUIT_SERVER_NAME=pissing.dev"
 

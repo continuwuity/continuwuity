@@ -111,6 +111,8 @@ Label="traefik.http.middlewares.hsts.headers.isdevelopment=false"
 Label="homepage.group=Services"
 Label="homepage.name=Traefik"
 
+Label=kuma.__monitor=''
+
 [Service]
 Restart=on-failure
 TimeoutStartSec=900

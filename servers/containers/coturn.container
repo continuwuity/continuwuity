@@ -39,9 +39,8 @@ Label="traefik.http.routers.coturn.rule=Host(`coturn.ellis.link`)"
 Label="homepage.group=Services"
 Label="homepage.name=coturn"
 # Label="homepage.href=https://coturn.ellis.link"
-
+Label=kuma.__monitor=''
 # Label="kuma.coturn.http.name=Uptime Kuma"
-# Label=kuma.__web='"coturn.ellis.link"'
 
 StopTimeout=100
 

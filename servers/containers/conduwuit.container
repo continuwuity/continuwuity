@@ -33,8 +33,7 @@ Label="homepage.href=https://element.ellis.link/"
 # Endpoint provided by sliding sync proxy used by some clients such as Element Web as a non-standard health check.
 Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
 Label="homepage.description=Matrix homeserver"
-
-Label=kuma.__web='"matrix.ellis.link"'
+Label=kuma.__monitor=''
 
 Environment="CONDUWUIT_SERVER_NAME=ellis.link"
 

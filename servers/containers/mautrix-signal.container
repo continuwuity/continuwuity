@@ -25,6 +25,9 @@ Label="homepage.name=mautrix-signal"
 # Label="homepage.href=https://jade.ellis.link/"
 # Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
 Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-signal.ellis.link/_matrix/mau/ready" 
+# https://github.com/mautrix/go/blob/d89912cfcb416ffe26101790c043dd47e4508811/appservice/appservice.go#L69
+Label=kuma.__monitor=''
 
 StopTimeout=100
 

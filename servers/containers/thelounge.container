@@ -30,7 +30,9 @@ Label="traefik.http.routers.thelounge.middlewares=hsts,compress"
 Label="homepage.group=Public"
 Label="homepage.name=TheLounge"
 Label="homepage.href=https://thelounge.ellis.link/"
+Label="homepage.siteMonitor=https://thelounge.ellis.link/"
 Label="homepage.description=IRC web client / bouncer"
+Label=kuma.__monitor=''
 
 [Service]
 Restart=on-failure

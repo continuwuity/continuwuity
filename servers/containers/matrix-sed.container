@@ -21,6 +21,7 @@ Label="traefik.enable=false"
 Label="homepage.group=Services"
 Label="homepage.name=Matrix Sed bot"
 Label="homepage.description=@sed:ellis.link"
+Label=kuma.__monitor=''
 
 
 #Environment="MATRIX_SERVER=https://matrix.ellis.link"

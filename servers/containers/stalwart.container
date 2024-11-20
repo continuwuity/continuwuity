@@ -33,8 +33,9 @@ Label="homepage.group=Public"
 Label="homepage.name=Stalwart Mail"
 Label="homepage.href=https://mail.ellis.link/"
 
-# Label="homepage.siteMonitor=" 
 Label="homepage.description=AIO mail server"
+Label="homepage.siteMonitor=https://mail.ellis.link" 
+Label=kuma.__monitor=''
 
 
 

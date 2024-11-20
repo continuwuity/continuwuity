@@ -39,6 +39,7 @@ Label="traefik.http.routers.domain-redirects.middlewares=default@file"
 # Label="traefik.http.middlewares.joel-ellis-link-redirect.redirectregex.permanent=true"
 Label="homepage.group=Services"
 Label="homepage.name=Redirector service"
+Label=kuma.__monitor=''
 
 [Service]
 Restart=on-failure

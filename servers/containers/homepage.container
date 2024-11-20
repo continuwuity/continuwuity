@@ -33,6 +33,8 @@ Label="homepage.group=Public"
 Label="homepage.name=Homepage"
 Label="homepage.href=https://homepage.ellis.link/"
 Label="homepage.description=Here!"
+Label="homepage.siteMonitor=https://homepage.ellis.link/"
+Label=kuma.__monitor=''
 
 [Service]
 Restart=on-failure

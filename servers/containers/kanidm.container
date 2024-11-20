@@ -52,7 +52,9 @@ Label="traefik.http.routers.kanidm.middlewares=compress" # hsts,
 Label="homepage.group=Services"
 Label="homepage.name=Kanidm"
 Label="homepage.href=https://idm.ellis.link/"
+Label="homepage.siteMonitor=https://idm.ellis.link/"
 Label="homepage.description=Identity server"
+Label=kuma.__monitor=''
 
 
 [Service]

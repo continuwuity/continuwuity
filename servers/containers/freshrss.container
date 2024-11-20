@@ -66,10 +66,9 @@ Environment=OIDC_SESSION_INACTIVITY_TIMEOUT=7200
 Label="homepage.group=Public"
 Label="homepage.name=FreshRSS"
 Label="homepage.href=https://freshrss.ellis.link/"
-
-# Label="homepage.siteMonitor=" 
+Label="homepage.siteMonitor=https://freshrss.ellis.link/" 
 Label="homepage.description=RSS feed reader"
-
+Label=kuma.__monitor=''
 
 StopTimeout=100
 

@@ -23,8 +23,9 @@ Label="traefik.http.routers.mautrix-gmessages.middlewares=default@file"
 Label="homepage.group=Services"
 Label="homepage.name=mautrix-gmessages"
 # Label="homepage.href=https://jade.ellis.link/"
-# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
 Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-gmessages.ellis.link/_matrix/mau/ready" 
+Label=kuma.__monitor=''
 
 StopTimeout=100
 

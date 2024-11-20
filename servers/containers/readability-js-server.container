@@ -20,6 +20,7 @@ Label="traefik.enable=false"
 Label="homepage.group=Services"
 Label="homepage.name=Readability API"
 Label="homepage.description=readability-js-server API"
+Label=kuma.__monitor=''
 
 [Service]
 

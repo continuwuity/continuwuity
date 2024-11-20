@@ -25,8 +25,9 @@ Label="traefik.http.routers.mautrix-discord.middlewares=default@file"
 Label="homepage.group=Services"
 Label="homepage.name=mautrix-discord"
 # Label="homepage.href=https://jade.ellis.link/"
-# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.siteMonitor=https://mautrix-discord.ellis.link/_matrix/mau/ready" 
 Label="homepage.description=Matrix bridge"
+Label=kuma.__monitor=''
 
 StopTimeout=100
 
