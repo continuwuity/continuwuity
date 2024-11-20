@@ -31,7 +31,7 @@ Label="traefik.http.routers.sentry-relay.middlewares=default@file"
 Label="homepage.group=Services"
 Label="homepage.name=Sentry Relay"
 Label="homepage.href=https://relay.ellis.link/"
-Label="homepage.siteMonitor=https://relay.ellis.link" 
+Label="homepage.siteMonitor=https://relay.ellis.link/api/relay/healthcheck/ready/" 
 Label=kuma.__monitor=''
 
 [Service]
