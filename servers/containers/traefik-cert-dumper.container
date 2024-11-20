@@ -13,7 +13,7 @@ Volume=traefik-certs.volume:/output
 # AutoUpdate=registry
 
 [Service]
-Restart=unless-stopped
+Restart=on-failure
 
 [Install]
 WantedBy=default.target
