@@ -39,7 +39,7 @@ Environment=AUTOKUMA__SNIPPETS__MONITOR='\
     {{ container_name }}_http.http.description: {{ container.Labels | get(key="homepage.description", default="") }}\n\
     {{ container_name }}_http.http.parent_name: {{ container_name }}_group\n\
     {{ container_name }}_http.http.url: {{ container.Labels | get(key="homepage.siteMonitor") }}\n{% endif %}\
-    {{ container_name }}_docker.docker.name: {{ container_name }} container \n\
+    {{ container_name }}_docker.docker.name: {{ container_name }} container\n\
     {{ container_name }}_docker.docker.description: {{ container.Labels | get(key="org.opencontainers.image.description", default=container.Labels | get(key="homepage.description", default="")) }} \\n{{ container.Labels | get(key="org.opencontainers.image.url", default=container.Labels | get(key="org.opencontainers.image.source", default="")) }}\n\
     {{ container_name }}_docker.docker.parent_name: {{ container_name }}_group\n\
     {{ container_name }}_docker.docker.docker_container: {{ container_name }}\n\
