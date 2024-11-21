@@ -9,7 +9,7 @@ After=network-online.target
 [Container]
 ContainerName=autokuma
 NoNewPrivileges=true
-Image=ghcr.io/bigboot/autokuma:latest
+Image=ghcr.io/bigboot/autokuma:master
 # ReadOnly=true
 Volume=/var/opt/autokuma:/data:z,U
 Volume=/run/podman/podman.sock:/var/run/docker.sock:z
@@ -21,7 +21,17 @@ Label="traefik.enable=false"
 Environment=AUTOKUMA__KUMA__URL=https://uptime-kuma.ellis.link
 Environment="AUTOKUMA__KUMA__USERNAME=jade"
 Environment="AUTOKUMA__KUMA__PASSWORD=N3oPQ8aJ8rYh0PKTI6O0Kwz5GNIBy31Uhusy"
+# Environment=AUTOKUMA__MIGRATE=true
 Environment=AUTOKUMA__DOCKER__HOSTS=unix:///var/run/docker.sock
+
+Environment=AUTOKUMA__ON_DELETE=keep
+Label="kuma.podman_host.docker_host.name=Podman"
+Label="kuma.podman_host.docker_host.connection_type=socket"
+Label="kuma.podman_host.docker_host.path=/var/run/docker.sock"
+
+# Label="kuma.container_tag.tag.name: 'Container'"
+# Label="kuma.container_tag.tag.color: '#FF00FF'"
+
 Environment=AUTOKUMA__SNIPPETS__MONITOR='\
     {{ container_name }}_group.group.name: {{ container.Labels | get(key="homepage.name", default=container_name) }}\n\
     {{ container_name }}_group.group.description: {{ container.Labels | get(key="homepage.description", default="") }}\n\
@@ -33,16 +43,15 @@ Environment=AUTOKUMA__SNIPPETS__MONITOR='\
     {{ container_name }}_docker.docker.description: {{ container.Labels | get(key="org.opencontainers.image.description", default=container.Labels | get(key="homepage.description", default="")) }}\n\
     {{ container_name }}_docker.docker.parent_name: {{ container_name }}_group\n\
     {{ container_name }}_docker.docker.docker_container: {{ container_name }}\n\
-    {{ container_name }}_docker.docker.docker_host: 1'
+    {{ container_name }}_docker.docker.docker_host_name: podman_host\n\
+    '
+
+    # {{ container_name }}_docker.docker.tag_names: \'[{"name": "container_tag", "value": {{ container_name | json_encode() }} }]\' }}\n\
 
 Label="homepage.group=Services"
 Label="homepage.name=AutoKuma"
 Label="homepage.description=Configure uptime monitoring"
 
-# Label="kuma.podman_host.docker_host.name=Podman"
-# Label="kuma.podman_host.docker_host.connection_type=socket"
-# Label="kuma.podman_host.docker_host.path=/var/run/docker.sock"
-# docker_host_name: podman_host
 
 Label=kuma.__monitor=''
 
