@@ -43,11 +43,16 @@ Environment="CONDUWUIT_DATABASE_BACKEND=rocksdb"
 Environment="CONDUWUIT_PORT=6167"
 # in bytes, ~20 MB
 Environment="CONDUWUIT_MAX_REQUEST_SIZE=20000000"
+
 Environment="CONDUWUIT_ALLOW_REGISTRATION=true"
 Environment="CONDUWUIT_REGISTRATION_TOKEN=pissing-atlantic-proclaim-canine-drivable"
 Environment='CONDUWUIT_AUTO_JOIN_ROOMS=["!UgUxfVZAEj2pcBRRdv:ellis.link", "!C8jPKMPkMsnd1wmm5j:ellis.link"]'
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
 Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
+# Work around conduwuit sync polling bug
+Environment="CONDUWUIT_ALLOW_INCOMING_PRESENCE=false"
+
+
 Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\"]"
 Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
 Environment="CONDUWUIT_ADDRESS=0.0.0.0"
