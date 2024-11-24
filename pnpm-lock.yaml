@@ -2127,7 +2127,7 @@ packages:
     engines: {node: 18 >=18.20 || 20 || >=22}
 
   Notes@file:packages/website/Notes-1.0.0.tgz:
-    resolution: {integrity: sha512-6Iyw0AamCiXTcKrRtop8f+5+6wNeP6MhOM0/18xDSnj/s6OXzujgA/ID3zBvUCGIUr7M8yNkXd9B/it370s8SQ==, tarball: file:packages/website/Notes-1.0.0.tgz}
+    resolution: {integrity: sha512-rcob4WQRTLLFu9Cs/xqUfIBg46fKPKtv1Dr4i2UnEMs81szhbWa5Gh+XbfjeWWH6CcgVYczBujyxtx8rtvxJWw==, tarball: file:packages/website/Notes-1.0.0.tgz}
     version: 1.0.0
 
   acorn-import-attributes@1.9.5:
