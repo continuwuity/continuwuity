@@ -46,7 +46,7 @@ const cspDirectives = {
     ],
     'script-src': [
         self,
-        "unsafe-inline", // chrome suggestion
+        // "unsafe-inline", // chrome suggestion
         'https://*.googletagmanager.com'
         // 'https://*.stripe.com',
         // 'https://*.facebook.com',
