@@ -23,7 +23,6 @@ export async function GET({ url, params }) {
 
     const selectedPages =  dateParts?.length ? pages
         .filter((post) => {
-            console.log("filtering")
         const date = new Date(post.date)
         return (
             (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
