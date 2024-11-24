@@ -11,7 +11,7 @@ export async function load({ data }) {
     // load the markdown file based on slug
     const component =
         // await import(data.page.filepath)
-        await import("Notes/Projects/" + data.page.filepath.name + ".md")
+        await import(`$notes/Projects/${data.page.filepath.name}.md`)
     // console.log(data.page.filepath)
 
 

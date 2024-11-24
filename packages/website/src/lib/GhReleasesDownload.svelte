@@ -1,8 +1,12 @@
 <script lang="ts">
     import type { Endpoints } from "@octokit/types";
 
-    export let releaseData: Endpoints["GET /repos/{owner}/{repo}/releases/latest"]["response"]["data"];
     import { browser } from "$app/environment";
+    interface Props {
+        releaseData: Endpoints["GET /repos/{owner}/{repo}/releases/latest"]["response"]["data"];
+    }
+
+    let { releaseData }: Props = $props();
     // console.log(releaseData);
 </script>
 

@@ -1,6 +1,11 @@
 <script lang="ts">
+    import TocItem from './TocItem.svelte';
     
-    export let node: nestedListNode;
+    interface Props {
+        node: nestedListNode;
+    }
+
+    let { node }: Props = $props();
     export const listType = "ul"
 </script>
 
@@ -9,7 +14,7 @@
 {#if node.children.length > 0}
 <svelte:element this={listType} class="toc-level {"toc-level-" + node.children[0].level}">
     {#each node.children as nodes}
-        <svelte:self node={nodes} {listType} />
+        <TocItem node={nodes} {listType} />
     {/each}
 </svelte:element>
 {/if}

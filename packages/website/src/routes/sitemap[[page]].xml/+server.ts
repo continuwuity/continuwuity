@@ -7,7 +7,7 @@ import slugify from 'slugify';
 
 import { parse, format } from "node:path";
 import { pages as blogPosts } from "../blog/posts"
-const projects = Object.entries(import.meta.glob('/node_modules/Notes/Projects/*.md', { eager: true }))
+const projects = Object.entries(import.meta.glob('$notes/Projects/*.md', { eager: true }))
     .map(([filepath, post]) => {
         return parse(filepath)
     })

@@ -7,8 +7,8 @@
     const { status, error } = $page;
     const message = error?.message || "Hmm";
     const title = `${status}: ${message}`;
-    let sentryElement: HTMLDivElement;
-    let openForm = () => {};
+    let sentryElement: HTMLDivElement = $state();
+    let openForm = $state(() => {});
 	const online = typeof navigator !== 'undefined' ? navigator.onLine : true;
     onMount(async () => {
         const feedback = Sentry.getFeedback({
@@ -55,8 +55,8 @@
             <p>Reload the page once you've found the internet.</p>
         {/if}
         <p>
-            <button on:click={openForm}>Send Feedback</button>
-            <button class="secondary" on:click={() => window.location.reload()}
+            <button onclick={openForm}>Send Feedback</button>
+            <button class="secondary" onclick={() => window.location.reload()}
                 >Reload</button
             >
         </p>

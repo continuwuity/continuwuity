@@ -4,7 +4,11 @@
     import SvelteSeo from "svelte-seo";
 
     import type { WithContext, Thing } from "schema-dts";
-    export let data;
+    interface Props {
+        data: any;
+    }
+
+    let { data }: Props = $props();
     const { pages } = data;
 
     const jsonLd = {

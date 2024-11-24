@@ -1,23 +1,33 @@
 <script lang="ts">
-    export let src;
-    export let alt;
-    export let title;
-    export let thumb;
+    interface Props {
+        src: any;
+        alt: any;
+        title: any;
+        thumb: any;
+        class?: string;
+    }
+
+    let {
+        src,
+        alt,
+        title,
+        thumb,
+        class: className
+    }: Props = $props();
     // export let align
     // export let small: boolean;
     // console.log("imgcmp", thumb);
-    const className = "";
-    export { className as class };
-    let loaded = false
+    let loaded = $state(false)
     // console.log(thumb)
     // import _PastedImage20240716123726Png from "./Pasted%20image%2020240716123726.png?meta";
 </script>
-
-<figure class={className}>
+<!-- <figure class={className}> -->
+<!-- Svelte 5 hydration bug means we can't nest image inside figure -->
     <img
         {src}
         {alt}
         {title}
+        class={className}
         width={thumb?.originalWidth}
         height={thumb?.originalHeight}
         style:background-image={loaded ? "none" : `url('${thumb?.thumbSrc}')`}
@@ -25,10 +35,10 @@
         decoding="async"
         style:--aspect-ratio={thumb?.originalWidth / thumb?.originalHeight}
     />
-    {#if title}
+    <!-- {#if title}
         <figcaption>{title}</figcaption>
-    {/if}
-</figure>
+    {/if} -->
+<!-- </figure> -->
 <!-- {:else}
 <img
     {src}

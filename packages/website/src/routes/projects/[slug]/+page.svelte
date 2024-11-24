@@ -2,9 +2,13 @@
     // https://github.com/mattjennings/sveltekit-blog-template/blob/main/src/routes/post/%5Bslug%5D/%2Bpage.svelte
 
     import SvelteSeo from "svelte-seo";
-    export let data;
     import { SITE_URL } from "$lib/metadata";
     import GhReleasesDownload from "$lib/GhReleasesDownload.svelte";
+    interface Props {
+        data: any;
+    }
+
+    let { data }: Props = $props();
     // let GhReleasesDownload: Promise<any>;
     // if (data.ghReleaseData) {
     //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
@@ -31,5 +35,5 @@
         <GhReleasesDownload releaseData={data.ghReleaseData} />
     {/if}
 
-    <svelte:component this={data.component} />
+    <data.component />
 </main>

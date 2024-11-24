@@ -1,4 +1,4 @@
-<script lang="ts" context="module">
+<script lang="ts" module>
     type Attrs = {
         [name: string]: string;
     };
@@ -6,6 +6,8 @@
 </script>
 
 <script lang="ts">
+    import { run } from 'svelte/legacy';
+
     // look at https://github.com/sveltejs/learn.svelte.dev/blob/main/src/routes/tutorial/%5Bslug%5D/Editor.svelte
     // import { javascript } from "@codemirror/lang-javascript";
     import { onDestroy, onMount, createEventDispatcher } from "svelte";
@@ -21,27 +23,40 @@
     import { type LanguageSupport } from "@codemirror/language";
     import { get_base_extensions } from "./editorExtensions";
 
-    export let value = "";
-    export let contentAttributes: AttrSource | null = null;
-    export let lang: LanguageSupport | null = null;
 
-    export let useTab = true;
-    export let tabSize = 2;
 
-    export let lineWrapping = false;
-    export let editable = true;
-    export let readonly = false;
-    export let placeholder: string | HTMLElement | null | undefined = undefined;
+    interface Props {
+        value?: string;
+        contentAttributes?: AttrSource | null;
+        lang?: LanguageSupport | null;
+        useTab?: boolean;
+        tabSize?: number;
+        lineWrapping?: boolean;
+        editable?: boolean;
+        readonly?: boolean;
+        placeholder?: string | HTMLElement | null | undefined;
+        header?: import('svelte').Snippet;
+    }
+
+    let {
+        value = $bindable(""),
+        contentAttributes = null,
+        lang = null,
+        useTab = true,
+        tabSize = 2,
+        lineWrapping = false,
+        editable = true,
+        readonly = false,
+        placeholder = undefined,
+        header
+    }: Props = $props();
 
     const is_browser = typeof window !== "undefined";
 
-    let element: HTMLDivElement;
-    let view: EditorView;
+    let element: HTMLDivElement = $state();
+    let view: EditorView = $state();
 
-    $: view && update(value);
-    $: view && state_extensions && reconfigure();
 
-    $: on_change = handle_change;
 
     let update_from_prop = false;
     let update_from_state = false;
@@ -52,19 +67,6 @@
 
     let extensions: Extension[] = [];
 
-    $: state_extensions = [
-        ...get_base_extensions(
-            useTab,
-            tabSize,
-            lineWrapping,
-            placeholder,
-            editable,
-            readonly,
-            lang,
-        ),
-        $theme == "dark" ? githubDark : githubLight,
-        ...extensions,
-    ];
 
     if (langPlugin !== null) extensions.push(langPlugin);
     if (contentAttributes !== null)
@@ -165,20 +167,40 @@
 
     // lintGutter(),
     // linter(esLint(new eslint.Linter(), config)),
+    run(() => {
+        view && update(value);
+    });
+    let state_extensions = $derived([
+        ...get_base_extensions(
+            useTab,
+            tabSize,
+            lineWrapping,
+            placeholder,
+            editable,
+            readonly,
+            lang,
+        ),
+        $theme == "dark" ? githubDark : githubLight,
+        ...extensions,
+    ]);
+    run(() => {
+        view && state_extensions && reconfigure();
+    });
+    let on_change = $derived(handle_change);
 </script>
 
-<div class="editor-wrapper card" class:no-header={!$$slots.header}>
-    {#if $$slots.header}
+<div class="editor-wrapper card" class:no-header={!header}>
+    {#if header}
         <div class="header">
-            <slot name="header" />
+            {@render header?.()}
         </div>
     {/if}
     {#if is_browser}
-        <div class="codemirror-wrapper editor" bind:this={element} />
+        <div class="codemirror-wrapper editor" bind:this={element}></div>
     {:else}
         <div class="scm-waiting editor">
             <div class="scm-waiting__loading scm-loading">
-                <div class="scm-loading__spinner" />
+                <div class="scm-loading__spinner"></div>
                 <p class="scm-loading__text">Loading editor...</p>
             </div>
             <div class="cm-editor"><pre class="scm-pre">{value}</pre></div>

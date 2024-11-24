@@ -13,16 +13,15 @@
 
     const minify = init().minify;
 
-    let value = "";
-    let output = "";
-    async function process(str: string) {
+    let value = $state("");
+    let output = $state("");
+    async function process(str: string): string {
         if (value === "") {
-            output = "";
-            return;
+            return "";
         }
         const result = await minify(str);
         if (typeof result.code == "string") {
-            output = result.code;
+            return result.code;
         } else {
             console.error(result);
         }
@@ -30,7 +29,11 @@
 
     const contentAttributes = { "aria-label": "Javascript editor" };
 
-    $: progress = process(value);
+    let computation = $derived(process(value));
+
+    $effect(async () => {
+        output = await computation;
+    });
 </script>
 
 <SvelteSeo
@@ -47,11 +50,13 @@
         lang={javascript()}
         {contentAttributes}
     >
-        <div slot="header" class="code-header">Input</div>
+        {#snippet header()}
+                <div  class="code-header">Input</div>
+            {/snippet}
     </Editor>
 
     <h2>Output</h2>
-    {#await progress}
+    {#await computation}
         <p>...waiting</p>
     {:catch error}
         <p style="color: red">{error.message}</p>

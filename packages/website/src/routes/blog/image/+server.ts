@@ -1,6 +1,6 @@
 import { pages } from '../posts'
 import { error, type RequestHandler } from '@sveltejs/kit'
-
+export const prerender = false;
 import satori from 'satori';
 import { Resvg } from '@resvg/resvg-js';
 import { SITE_DOMAIN } from '$lib/metadata';
@@ -8,13 +8,18 @@ import TTLCache from "@isaacs/ttlcache";
 import { format } from "@tusbar/cache-control";
 const cache = new TTLCache({ max: 10000, ttl: 1000 * 60 * 60 })
 import fnv from "fnv-plus"
-import { readFileSync } from 'fs';
-
 // const fontFile = await fetch('https://og-playground.vercel.app/inter-latin-ext-700-normal.woff');
-const fontBoldUrl = new URL('./Inter-Bold.ttf', import.meta.url)
-const fontBoldData = readFileSync(fontBoldUrl);
-const fontRegularUrl = new URL('./Inter-Regular.ttf', import.meta.url)
-const fontRegularData = readFileSync(fontRegularUrl);
+
+// import fontBoldString from '$lib/assets/Inter-Bold.ttf?raw';
+// import fontRegularString from '$lib/assets/Inter-Regular.ttf?raw';
+// const fontBoldData = Buffer.from(fontBoldString);
+// const fontRegularData = Buffer.from(fontRegularString);
+
+// import { fontBoldData, fontRegularData } from '$lib/assets/fonts';
+// Hacky hack because sveltekit
+const fontBoldData = await (await fetch("https://config-servers-1.ellis.link/Inter-Bold.ttf")).arrayBuffer();
+const fontRegularData = await (await fetch("https://config-servers-1.ellis.link/Inter-Regular.ttf")).arrayBuffer();
+
 
 const defaultWidth = 800;
 const defaultRatio = 0.5

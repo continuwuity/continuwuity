@@ -1,20 +1,21 @@
 <script lang="ts">
+    import { run } from 'svelte/legacy';
+
     // https://github.com/mattjennings/sveltekit-blog-template/blob/main/src/routes/post/%5Bslug%5D/%2Bpage.svelte
 
     import { browser } from "$app/environment";
     import SvelteSeo from "svelte-seo";
-    export let data;
     import { SITE_URL, SITE_TITLE } from "$lib/metadata";
     import Toc from "$lib/Toc.svelte";
     import type { WithContext, Thing } from "schema-dts";
     import pfpUrl from "$lib/logo.svg?url";
     import { gtag } from "$lib/analytics.js";
-    // let GhReleasesDownload: Promise<any>;
-    // if (data.ghReleaseData) {
-    //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
-    // }
-    $: canonical = SITE_URL + "/blog/" + data.post.canonical;
+    interface Props {
+        data: any;
+    }
 
+    let { data }: Props = $props();
+    // console.log(data)
     function calcOgURL(
         slug: string,
         date: string,
@@ -33,10 +34,6 @@
         return url;
     }
 
-    $: webShareAPISupported = browser && typeof navigator.share !== "undefined";
-    // let webShareAPISupported = true;
-
-    $: handleWebShare;
     const handleWebShare = async () => {
         try {
             const url = new URL(canonical);
@@ -69,7 +66,21 @@
         fediverse: "@JadedBlueEyes@tech.lgbt",
         image: pfpUrl,
     };
-    $: jsonLd = {
+    // let GhReleasesDownload: Promise<any>;
+    // if (data.ghReleaseData) {
+    //     GhReleasesDownload = import("$lib/GhReleasesDownload.svelte").then((m) => m.default)
+    // }
+    let canonical = $derived(SITE_URL + "/blog/" + data.post.canonical);
+    let webShareAPISupported;
+    run(() => {
+        webShareAPISupported = browser && typeof navigator.share !== "undefined";
+    });
+    // let webShareAPISupported = true;
+
+    run(() => {
+        handleWebShare;
+    });
+    let jsonLd = $derived({
         "@context": "https://schema.org",
         "@type": "WebPage",
         breadcrumb: {
@@ -118,7 +129,7 @@
                 name: "Jade's Blog",
             },
         },
-    } as WithContext<Thing>;
+    } as WithContext<Thing>);
 </script>
 
 <svelte:head>
@@ -199,7 +210,7 @@
             >
             · <span class="reading-time ib">{data.post.readingTime.text}</span>
             {#if webShareAPISupported}
-                · <button class="link" on:click={handleWebShare}>Share</button>
+                · <button class="link" onclick={handleWebShare}>Share</button>
             {/if}
         </aside>
         <Toc headings={data.post.headings} />
@@ -210,7 +221,7 @@
 {/await} -->
 
         <div class="e-content">
-            <svelte:component this={data.component} />
+            <data.component />
         </div>
     </article>
 </main>

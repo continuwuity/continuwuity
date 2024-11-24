@@ -65,18 +65,20 @@ if (browser) {
 //     previous: allPosts[index + 1]
 //   }))
 const dateRegex = /^((?<year>\d{4})-(?<month>[0][1-9]|1[0-2])-(?<day>[0][1-9]|[1-2]\d|3[01]))\s*/
-export const pages = Object.entries(import.meta.glob('/node_modules/Notes/Blogs/*.md', { eager: true }))
-    .map(([filepath, post]) => {
+
+export const pages = (await Promise.all(Object.entries(import.meta.glob('$notes/Blogs/*.md', { eager: true}))
+    .map(async ([filepath, post]) => {
         const path = parse(filepath);
         const title = path.name.replace(dateRegex, "")
-        
+
         // @ts-ignore
-        // let {year, month, day}: { year: string, month: string, day: string } = path.name.match(dateRegex)?.groups;
+        // let {year, month, day}: { year: string, month: string, day: strisng } = path.name.match(dateRegex)?.groups;
 
         // console.log(year, month, day)
         const date = path.name.match(dateRegex)[1];
         const datePath = date.replaceAll("-", "/")
         const slug = slugify(title, { lower: true })
+
         return {
             title,
             date,
@@ -85,10 +87,9 @@ export const pages = Object.entries(import.meta.glob('/node_modules/Notes/Blogs/
             ...post.metadata,
 
             slug,
-            // filepath: relative(import.meta.dirname, filepath)
             filepath: path
         }
-    })
+    })))
     // sort by date
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 // Get all posts and add metadata

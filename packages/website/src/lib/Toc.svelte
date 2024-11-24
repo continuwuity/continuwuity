@@ -1,15 +1,18 @@
 <script lang="ts">
     import TocItem from "./TocItem.svelte";
-    const className = "toc";
     type FlatHeading = { level: number; title: string };
-    export let headings: nestedListNode[];
+    interface Props {
+        headings: nestedListNode[];
+        class?: string;
+    }
+
+    let { headings }: Props = $props();
 
     // creates a `class` property, even
     // though it is a reserved word
-    export { className as class };
     export const listType = "ul";
 
-    let open = false;
+    let open = $state(false);
     /** @type {import('./$types').Snapshot<string>} */
     export const snapshot = {
         capture: () => open,
@@ -20,7 +23,7 @@
 </script>
 
 {#if headings?.length > 0}
-    <aside class={className}>
+    <aside class="toc">
         <details bind:open>
             <summary accesskey="c" title="(Alt + C)">Table of Contents</summary>
             <div class="inner">

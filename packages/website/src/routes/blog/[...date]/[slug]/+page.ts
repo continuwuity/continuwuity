@@ -11,9 +11,8 @@ export async function load({ data, params }) {
     // console.log(data)
     const component =
         // await import(data.page.filepath)
-        await import("Notes/Blogs/" + data.page.filepath.name + ".md")
+        await import(`$notes/Blogs/${data.page.filepath.name}.md`)
     // console.log(data.page.filepath)
-
 
     return {
         post: data.page,

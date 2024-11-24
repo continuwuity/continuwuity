@@ -51,7 +51,7 @@
                 <span class="site-name">Jade Ellis</span>
             </a>
             
-            <button on:click={sendFeedback} class="feedback-button">Report a bug</button>
+            <button onclick={sendFeedback} class="feedback-button">Report a bug</button>
         </div>
 
         {#each Object.entries(links) as [title, inner_links]}

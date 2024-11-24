@@ -5,6 +5,11 @@
     import Nav from "$lib/Nav.svelte";
     import Footer from "$lib/Footer.svelte";
     import { SITE_TITLE } from "$lib/metadata"
+    interface Props {
+        children?: import('svelte').Snippet;
+    }
+
+    let { children }: Props = $props();
 </script>
 <svelte:head>
     <Favicons />
@@ -12,5 +17,5 @@
     <meta property="og:site_name" content={SITE_TITLE}>
 </svelte:head>
 <Nav />
-<slot />
+{@render children?.()}
 <Footer />

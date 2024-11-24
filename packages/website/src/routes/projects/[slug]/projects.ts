@@ -9,7 +9,7 @@ if (browser) {
     throw new Error(`posts can only be imported server-side`)
 }
 
-export const pages = Object.entries(import.meta.glob('/node_modules/Notes/Projects/*.md', { eager: true }))
+export const pages = Object.entries(import.meta.glob('$notes/Projects/*.md', { eager: true }))
     .map(([filepath, post]) => {
         const path = parse(filepath);
         const slug = slugify(path.name, { lower: true })

@@ -1,7 +1,9 @@
 <script lang="ts">
+    import { preventDefault } from 'svelte/legacy';
+
     import url from "./logo.svg?url";
     import { SITE_URL } from "$lib/metadata";
-    let logo: HTMLDivElement;
+    let logo: HTMLDivElement = $state();
     let wiggleCount = 0;
     function wiggle() {
         wiggleCount++;
@@ -18,8 +20,8 @@
 <div class="hero card edge h-card">
     <div
         class="logo"
-        on:click|preventDefault={wiggle}
-        on:animationiteration={wiggleIteration}
+        onclick={preventDefault(wiggle)}
+        onanimationiteration={wiggleIteration}
         bind:this={logo}
     >
         <a href={SITE_URL} class="u-url u-uid" rel="me"

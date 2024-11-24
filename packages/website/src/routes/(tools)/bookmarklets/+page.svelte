@@ -15,20 +15,24 @@
 
     const minify = init().minify;
 
-    let value = "";
-    let output = "";
-    let options: Config = {};
+    let value = $state("");
+    let output = $state("");
+    let options: Config = $state({});
     async function process(str: string) {
         options = await parseMeta(str);
         const res = await bookmarkify(str, options, minify);
         if (typeof res == "string") {
-            output = res;
+            return res;
         }
     }
 
     const contentAttributes = { "aria-label": "Bookmarklet editor" };
 
-    $: progress = process(value);
+    let computation = $derived(process(value));
+
+    $effect(async () => {
+        output = await computation;
+    });
 </script>
 
 <SvelteSeo
@@ -45,11 +49,13 @@
         lang={javascript()}
         {contentAttributes}
     >
-        <div slot="header" class="code-header">Input</div>
+        {#snippet header()}
+                <div  class="code-header">Input</div>
+            {/snippet}
     </Editor>
 
     <h2>Output</h2>
-    {#await progress}
+    {#await computation}
         <p>...waiting</p>
     {:catch error}
         <p style="color: red">{error.message}</p>

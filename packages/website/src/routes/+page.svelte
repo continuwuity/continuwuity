@@ -1,7 +1,7 @@
 <script lang="ts">
     import Hero from "$lib/Hero.svelte";
     import SvelteSeo from "svelte-seo";
-    import Homepage from "Notes/Website Homepage.md";
+    import Homepage from "$notes/Website Homepage.md";
     import { SITE_URL, SITE_TITLE } from "$lib/metadata";
     import { onMount } from "svelte";
 </script>

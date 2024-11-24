@@ -1,27 +1,37 @@
 <script lang="ts">
-    export let calloutType: string;
     import { IconExclamationCircle } from "@tabler/icons-svelte";
+    interface Props {
+        calloutType: string;
+        icon?: import('svelte').Snippet;
+        title?: import('svelte').Snippet;
+        body?: import('svelte').Snippet;
+    }
+
+    let {
+        calloutType,
+        icon,
+        title,
+        body
+    }: Props = $props();
 </script>
 
 <div class="callout" data-callout={calloutType}>
     <div class="callout-title">
-        {#if $$slots.icon}
-            <div class="callout-icon"><slot name="icon" /></div>
+        {#if icon}
+            <div class="callout-icon">{@render icon?.()}</div>
         {:else}
             <div class="callout-icon"><IconExclamationCircle /></div>
         {/if}
         <div class="callout-title-inner">
-            <slot name="title"
-                >{calloutType.replace(/\w\S*/g, function (txt) {
+            {#if title}{@render title()}{:else}{calloutType.replace(/\w\S*/g, function (txt) {
                     return (
                         txt.charAt(0).toUpperCase() +
                         txt.substring(1).toLowerCase()
                     );
-                })}</slot
-            >
+                })}{/if}
         </div>
     </div>
-    {#if $$slots.body}
-        <div class="callout-body"><slot name="body" /></div>
+    {#if body}
+        <div class="callout-body">{@render body?.()}</div>
     {/if}
 </div>

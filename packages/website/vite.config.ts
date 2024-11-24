@@ -2,7 +2,7 @@ import { sentrySvelteKit } from "@sentry/sveltekit";
 import { sveltekit } from "@sveltejs/kit/vite";
 import { defineConfig, type PluginOption } from "vite";
 import { ViteImageOptimizer } from "vite-plugin-image-optimizer";
-import dynamicImport from 'vite-plugin-dynamic-import'
+// import dynamicImport from 'vite-plugin-dynamic-import'
 import typeAsJsonSchemaPlugin from "rollup-plugin-type-as-json-schema";
 // import dynamicImportVars from '@rollup/plugin-dynamic-import-vars';
 import path from "node:path";
@@ -104,7 +104,7 @@ import { visualizer } from "rollup-plugin-visualizer";
 export default defineConfig({
     resolve: {
         alias: {
-            "Notes": path.join(__dirname, "node_modules/Notes")
+            "$notes": path.join(__dirname, "node_modules/Notes")
         }
     },
     plugins: [
@@ -146,13 +146,13 @@ export default defineConfig({
         // }),
         // mdsvex_transform(),
         sveltekit(),
-        dynamicImport({
-            filter(id) {
-                if (id.includes('node_modules/Notes')) {
-                    return true
-                }
-            }
-        }),
+        // dynamicImport({
+        //     filter(id) {
+        //         if (id.includes('node_modules/Notes')) {
+        //             return true
+        //         }
+        //     }
+        // }),
         // blurhash_transform(),
         thumbHash({
             // exclude: [/\.svg/]
