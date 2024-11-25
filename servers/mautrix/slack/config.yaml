@@ -1,33 +1,68 @@
 # Network-specific config options
 network:
-    # Displayname template for Signal users.
-    # {{.ProfileName}} - The Signal profile name set by the user.
-    # {{.ContactName}} - The name for the user from your phone's contact list. This is not safe on multi-user instances.
-    # {{.PhoneNumber}} - The phone number of the user.
-    # {{.UUID}} - The UUID of the Signal user.
-    # {{.AboutEmoji}} - The emoji set by the user in their profile.
-    displayname_template: '{{or .ContactName .ProfileName .PhoneNumber "Unknown user"}} ({{.AboutEmoji}})'
-    # Should avatars from the user's contact list be used? This is not safe on multi-user instances.
-    use_contact_avatars: false
-    # Should the bridge request the user's contact list from the phone on startup?
-    sync_contacts_on_startup: true
-    # Should the bridge sync ghost user info even if profile fetching fails? This is not safe on multi-user instances.
-    use_outdated_profiles: true
-    # Should the Signal user's phone number be included in the room topic in private chat portal rooms?
-    number_in_topic: true
-    # Default device name that shows up in the Signal app.
-    device_name: mautrix-signal
-    # Avatar image for the Note to Self room.
-    note_to_self_avatar: mxc://maunium.net/REBIVrqjZwmaWpssCZpBlmlL
-    # Format for generating URLs from location messages for sending to Signal.
-    # Google Maps: 'https://www.google.com/maps/place/%[1]s,%[2]s'
-    # OpenStreetMap: 'https://www.openstreetmap.org/?mlat=%[1]s&mlon=%[2]s'
-    location_format: 'https://www.google.com/maps/place/%[1]s,%[2]s'
+    # Displayname template for Slack users. Available variables:
+    #  .Name - The username of the user
+    #  .Team.Name - The name of the team the channel is in
+    #  .Team.Domain - The Slack subdomain of the team the channel is in
+    #  .ID - The internal ID of the user
+    #  .IsBot - Whether the user is a bot
+    #  .Profile.DisplayName - The username or real name of the user (depending on settings)
+    # Variables only available for users (not bots):
+    #  .TeamID - The internal ID of the workspace the user is in
+    #  .TZ - The timezone region of the user (e.g. Europe/London)
+    #  .TZLabel - The label of the timezone of the user (e.g. Greenwich Mean Time)
+    #  .TZOffset - The UTC offset of the timezone of the user (e.g. 0)
+    #  .Profile.RealName - The real name of the user
+    #  .Profile.FirstName - The first name of the user
+    #  .Profile.LastName - The last name of the user
+    #  .Profile.Title - The job title of the user
+    #  .Profile.Pronouns - The pronouns of the user
+    #  .Profile.Email - The email address of the user
+    #  .Profile.Phone - The formatted phone number of the user
+    displayname_template: '{{or .Profile.DisplayName .Profile.RealName .Name}}{{if .IsBot}} (bot){{end}}'
+    # Channel name template for Slack channels (all types). Available variables:
+    #  .Name - The name of the channel
+    #  .Team.Name - The name of the team the channel is in
+    #  .Team.Domain - The Slack subdomain of the team the channel is in
+    #  .ID - The internal ID of the channel
+    #  .IsNoteToSelf - Whether the channel is a DM with yourself
+    #  .IsGeneral - Whether the channel is the #general channel
+    #  .IsChannel - Whether the channel is a channel (rather than a DM)
+    #  .IsPrivate - Whether the channel is private
+    #  .IsIM - Whether the channel is a one-to-one DM
+    #  .IsMpIM - Whether the channel is a group DM
+    #  .IsShared - Whether the channel is shared with another workspace.
+    #  .IsExtShared - Whether the channel is shared with an external organization.
+    #  .IsOrgShared - Whether the channel is shared with an organization in the same enterprise grid.
+    channel_name_template: '{{if and .IsChannel (not .IsPrivate)}}#{{end}}{{.Name}}{{if .IsNoteToSelf}} (you){{end}}'
+    # Displayname template for Slack workspaces. Available variables:
+    #  .Name - The name of the team
+    #  .Domain - The Slack subdomain of the team
+    #  .ID - The internal ID of the team
+    team_name_template: "{{ .Name }}"
+    # Should incoming custom emoji reactions be bridged as mxc:// URIs?
+    # If set to false, custom emoji reactions will be bridged as the shortcode instead, and the image won't be available.
+    custom_emoji_reactions: true
+    # Should channels and group DMs have the workspace icon as the Matrix room avatar?
+    workspace_avatar_in_rooms: true
+    # Number of participants to sync in channels (doesn't affect group DMs)
+    participant_sync_count: 5
+    # Should channel participants only be synced when creating the room?
+    # If you want participants to always be accurately synced, set participant_sync_count to a high value and this to false.
+    participant_sync_only_on_create: true
+    # Should channel portals be muted by default?
+    mute_channels_by_default: false
+    # Options for backfilling messages from Slack.
+    backfill:
+        # Number of conversations to fetch from Slack when syncing workspace.
+        # This option applies even if message backfill is disabled below.
+        # If set to -1, all chats in the client.boot response will be bridged, and nothing will be fetched separately.
+        conversation_count: -1
 
 # Config options that affect the central bridge module.
 bridge:
     # The prefix for commands. Only required in non-management rooms.
-    command_prefix: '!signal'
+    command_prefix: '!slack'
     # Should the bridge create a space for each login containing the rooms that account is in?
     personal_filtering_spaces: true
     # Whether the bridge should set names and avatars explicitly for DM portals.
@@ -41,7 +76,7 @@ bridge:
     # By default, users who are in the same group on the remote network will be
     # in the same Matrix room bridged to that group. If this is set to true,
     # every user will get their own Matrix room instead.
-    split_portals: true
+    split_portals: false
     # Should the bridge resend `m.bridge` events to all portals on startup?
     resend_bridge_info: false
     
@@ -143,7 +178,7 @@ database:
     #           https://github.com/mattn/go-sqlite3#connection-string
     #   Postgres: Connection string. For example, postgres://user:password@host/database?sslmode=disable
     #             To connect via Unix socket, use something like postgres:///dbname?host=/var/run/postgresql
-    uri: file:/data/mautrix-signal.db?_txlock=immediate
+    uri: file:/data/mautrix-slack.db?_txlock=immediate
     # Maximum number of connections.
     max_open_conns: 5
     max_idle_conns: 1
@@ -191,27 +226,27 @@ appservice:
     # Like the homeserver address, a local non-https address is recommended when the bridge is on the same machine.
     # If the bridge is elsewhere, you must secure the connection yourself (e.g. with https or wireguard)
     # If you want to use https, you need to use a reverse proxy. The bridge does not have TLS support built in.
-    address: http://mautrix-signal:29328
+    address: http://mautrix-slack:29335
     # A public address that external services can use to reach this appservice.
     # This is only needed for things like public media. A reverse proxy is generally necessary when using this field.
     # This value doesn't affect the registration file.
-    public_address: https://mautrix-signal.ellis.link
+    public_address: https://mautrix-slack.ellis.link
     
     # The hostname and port where this appservice should listen.
     # For Docker, you generally have to change the hostname to 0.0.0.0.
     hostname: 0.0.0.0
-    port: 29328
+    port: 29335
     
     # The unique ID of this appservice.
-    id: signal
+    id: slack
     # Appservice bot details.
     bot:
         # Username of the appservice bot.
-        username: signalbot
+        username: slackbot
         # Display name and avatar for bot. Set to "remove" to remove display name/avatar, leave empty
         # to leave display name/avatar as-is.
-        displayname: Signal bridge bot
-        avatar: mxc://maunium.net/wPJgTQbZOtpBFmDNkiNEMDUp
+        displayname: Slack bridge bot
+        avatar: mxc://maunium.net/pVtzLmChZejGxLqmXtQjFxem
     
     # Whether to receive ephemeral events via appservice transactions.
     ephemeral_events: true
@@ -222,12 +257,12 @@ appservice:
     async_transactions: false
     
     # Authentication tokens for AS <-> HS communication. Autogenerated; do not modify.
-    as_token: "ldsvjlrfQ1J20jkEpiLcQWV0ao3s6HnQUnZSoxwD0C9TaC6KtXuIg7BQfLzy0MBS"
-    hs_token: "IXI940ZGDb0YOugWLBAroVVsl32cUpukL8y2JdCqcvyqJZzjG4XRWodlvwR73RTL"
+    as_token: "hKvxR9H2FUQusZY5Ug7JWtrOqugLLU3m8kIQnGApTTIYGTbIvKNOS0bFv1BAAtwg"
+    hs_token: "SptrHkculXlvYvMUHwv1Tmr7TxnfD9RY6NKM89mTXgdMkgKC6j9WdlDOUWvxuTd5"
     
     # Localpart template of MXIDs for remote users.
     # {{.}} is replaced with the internal ID of the user.
-    username_template: signal_mautrix_{{.}}
+    username_template: slack_mautrix_{{.}}
 
 # Config options that affect the Matrix connector of the bridge.
 matrix:
@@ -261,7 +296,7 @@ provisioning:
     prefix: /_matrix/provision
     # Shared secret for authentication. If set to "generate" or null, a random secret will be generated,
     # or if set to "disable", the provisioning API will be disabled.
-    shared_secret: R01cZGhYqNLASeP3qfAqczonl4497iXxqSDGVU09dBLjfveWGvTQgyDonujmXent
+    shared_secret: GkjU4w46RquPB1ghAbXuN7HPSlQsVGbANutYKxuj8oedVp2vyk4NcUrsTmqN5Oi4
     # Whether to allow provisioning API requests to be authed using Matrix access tokens.
     # This follows the same rules as double puppeting to determine which server to contact to check the token,
     # which means that by default, it only works for users on the same server as the bridge.
@@ -274,10 +309,10 @@ provisioning:
 public_media:
     # Should public media be enabled at all?
     # The public_address field under the appservice section MUST be set when enabling public media.
-    enabled: false
+    enabled: true
     # A key for signing public media URLs.
     # If set to "generate", a random key will be generated.
-    signing_key: OTk6JJMb8BI8CALdkd8LrIyZSOQQQpkD2LumUFknRBedpWJN8D5uH0GMUBAqm1mB
+    signing_key: x5ldVpWu7UNg1D63tn52bDPRWlpG5cUlY8Oxihnm0tcd9WSWbSb63p1Csl4prs7Y
     # Number of seconds that public media URLs are valid for.
     # If set to 0, URLs will never expire.
     expiry: 0
@@ -292,7 +327,7 @@ direct_media:
     # The server name to use for the custom mxc:// URIs.
     # This server name will effectively be a real Matrix server, it just won't implement anything other than media.
     # You must either set up .well-known delegation from this domain to the bridge, or proxy the domain directly to the bridge.
-    server_name: mautrix-signal.ellis.link
+    server_name: mautrix-slack.ellis.link
     # Optionally a custom .well-known response. This defaults to `server_name:443`
     well_known_response:
     # Optionally specify a custom prefix for the media ID part of the MXC URI.
@@ -304,7 +339,7 @@ direct_media:
     allow_proxy: true
     # Matrix server signing key to make the federation tester pass, same format as synapse's .signing.key file.
     # This key is also used to sign the mxc:// URIs to ensure only the bridge can generate them.
-    server_key: ed25519 h2QRPw 2VURumyLmFy4lg47lCGjKlsPwPOyECO52kBb5/JIw98
+    server_key: ed25519 kdQNLw NU9lNJD9eVa3x9SYXPGIau6DrLW060h/VuIDX7Yinkg
 
 # Settings for backfilling messages.
 # Note that the exact way settings are applied depends on the network connector.
@@ -313,16 +348,16 @@ backfill:
     # Whether to do backfilling at all.
     enabled: true
     # Maximum number of messages to backfill in empty rooms.
-    max_initial_messages: 10000
+    max_initial_messages: 5000
     # Maximum number of missed messages to backfill after bridge restarts.
-    max_catchup_messages: 50000
+    max_catchup_messages: 5000
     # If a backfilled chat is older than this number of hours,
     # mark it as read even if it's unread on the remote network.
     unread_hours_threshold: 720
     # Settings for backfilling threads within other backfills.
     threads:
         # Maximum number of messages to backfill in a new thread.
-        max_initial_messages: 50000
+        max_initial_messages: 500
     # Settings for the backwards backfill queue. This only applies when connecting to
     # Beeper as standard Matrix servers don't support inserting messages into history.
     queue:
@@ -362,7 +397,7 @@ encryption:
     # Whether to enable encryption at all. If false, the bridge will not function in encrypted rooms.
     allow: true
     # Whether to force-enable encryption in all bridged rooms.
-    default: true
+    default: false
     # Whether to require all messages to be encrypted and drop any unencrypted messages.
     require: false
     # Whether to use MSC2409/MSC3202 instead of /sync long polling for receiving encryption-related data.
@@ -373,7 +408,7 @@ encryption:
     allow_key_sharing: true
     # Pickle key for encrypting encryption keys in the bridge database.
     # If set to generate, a random key will be generated.
-    pickle_key: fheJVBthyOj5cMZitFjr081q6TZOqEgKPHLlDuIPIJ2O67B7df814CAGqov1FMLI
+    pickle_key: JtjJUeXBR2JCtBvx1F2oxeE2c2c6SdsGGPaYqNbty9jcDZMlSw7SnVFSWPtJh9eF
     # Options for deleting megolm sessions from the bridge.
     delete_keys:
         # Beeper-specific: delete outbound sessions when hungryserv confirms

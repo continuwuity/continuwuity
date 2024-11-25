@@ -1,0 +1,14 @@
+id: slack
+url: http://mautrix-slack:29335
+as_token: hKvxR9H2FUQusZY5Ug7JWtrOqugLLU3m8kIQnGApTTIYGTbIvKNOS0bFv1BAAtwg
+hs_token: SptrHkculXlvYvMUHwv1Tmr7TxnfD9RY6NKM89mTXgdMkgKC6j9WdlDOUWvxuTd5
+sender_localpart: BPv5f9VoCPflaOvndjDnG56dgLLeTq7g
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@slackbot:ellis\.link$
+          exclusive: true
+        - regex: ^@slack_mautrix_.*:ellis\.link$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+receive_ephemeral: true

@@ -1,33 +1,43 @@
 # Network-specific config options
 network:
-    # Displayname template for Signal users.
-    # {{.ProfileName}} - The Signal profile name set by the user.
-    # {{.ContactName}} - The name for the user from your phone's contact list. This is not safe on multi-user instances.
-    # {{.PhoneNumber}} - The phone number of the user.
-    # {{.UUID}} - The UUID of the Signal user.
-    # {{.AboutEmoji}} - The emoji set by the user in their profile.
-    displayname_template: '{{or .ContactName .ProfileName .PhoneNumber "Unknown user"}} ({{.AboutEmoji}})'
-    # Should avatars from the user's contact list be used? This is not safe on multi-user instances.
-    use_contact_avatars: false
-    # Should the bridge request the user's contact list from the phone on startup?
-    sync_contacts_on_startup: true
-    # Should the bridge sync ghost user info even if profile fetching fails? This is not safe on multi-user instances.
-    use_outdated_profiles: true
-    # Should the Signal user's phone number be included in the room topic in private chat portal rooms?
-    number_in_topic: true
-    # Default device name that shows up in the Signal app.
-    device_name: mautrix-signal
-    # Avatar image for the Note to Self room.
-    note_to_self_avatar: mxc://maunium.net/REBIVrqjZwmaWpssCZpBlmlL
-    # Format for generating URLs from location messages for sending to Signal.
-    # Google Maps: 'https://www.google.com/maps/place/%[1]s,%[2]s'
-    # OpenStreetMap: 'https://www.openstreetmap.org/?mlat=%[1]s&mlon=%[2]s'
-    location_format: 'https://www.google.com/maps/place/%[1]s,%[2]s'
+    # Which service is this bridge for? Available options:
+    # * unset - allow users to pick any service when logging in (except facebook-tor)
+    # * facebook - connect to FB Messenger via facebook.com
+    # * facebook-tor - connect to FB Messenger via facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd.onion
+    #                  (note: does not currently proxy media downloads)
+    # * messenger - connect to FB Messenger via messenger.com (can be used with the facebook side deactivated)
+    # * instagram - connect to Instagram DMs via instagram.com
+    #
+    # Remember to change the appservice id, bot profile info, bridge username_template and management_room_text too.
+    mode:
+    # When in Instagram mode, should the bridge connect to WhatsApp servers for encrypted chats?
+    # In FB/Messenger mode encryption is always enabled, this option only affects Instagram mode.
+    ig_e2ee: true
+    # Displayname template for FB/IG users. Available variables:
+    #  .DisplayName - The display name set by the user.
+    #  .Username - The username set by the user.
+    #  .ID - The internal user ID of the user.
+    displayname_template: '{{or .DisplayName .Username "Unknown user"}}'
+    # Static proxy address (HTTP or SOCKS5) for connecting to Meta.
+    proxy:
+    # HTTP endpoint to request new proxy address from, for dynamically assigned proxies.
+    # The endpoint must return a JSON body with a string field called proxy_url.
+    get_proxy_from:
+    # Should media be proxied too?
+    proxy_media: false
+    # Minimum interval between full reconnects in seconds, default is 1 hour
+    min_full_reconnect_interval_seconds: 3600
+    # Interval to force refresh the connection (full reconnect), default is 20 hours. Set 0 to disable force refreshes.
+    force_refresh_interval_seconds: 72000
+    # Disable fetching XMA media (reels, stories, etc) when backfilling.
+    disable_xma_backfill: true
+    # Disable fetching XMA media entirely.
+    disable_xma_always: false
 
 # Config options that affect the central bridge module.
 bridge:
     # The prefix for commands. Only required in non-management rooms.
-    command_prefix: '!signal'
+    command_prefix: '!meta'
     # Should the bridge create a space for each login containing the rooms that account is in?
     personal_filtering_spaces: true
     # Whether the bridge should set names and avatars explicitly for DM portals.
@@ -41,7 +51,7 @@ bridge:
     # By default, users who are in the same group on the remote network will be
     # in the same Matrix room bridged to that group. If this is set to true,
     # every user will get their own Matrix room instead.
-    split_portals: true
+    split_portals: false
     # Should the bridge resend `m.bridge` events to all portals on startup?
     resend_bridge_info: false
     
@@ -143,7 +153,7 @@ database:
     #           https://github.com/mattn/go-sqlite3#connection-string
     #   Postgres: Connection string. For example, postgres://user:password@host/database?sslmode=disable
     #             To connect via Unix socket, use something like postgres:///dbname?host=/var/run/postgresql
-    uri: file:/data/mautrix-signal.db?_txlock=immediate
+    uri: file:/data/mautrix-meta.db?_txlock=immediate
     # Maximum number of connections.
     max_open_conns: 5
     max_idle_conns: 1
@@ -191,27 +201,27 @@ appservice:
     # Like the homeserver address, a local non-https address is recommended when the bridge is on the same machine.
     # If the bridge is elsewhere, you must secure the connection yourself (e.g. with https or wireguard)
     # If you want to use https, you need to use a reverse proxy. The bridge does not have TLS support built in.
-    address: http://mautrix-signal:29328
+    address: http://mautrix-meta:29319
     # A public address that external services can use to reach this appservice.
     # This is only needed for things like public media. A reverse proxy is generally necessary when using this field.
     # This value doesn't affect the registration file.
-    public_address: https://mautrix-signal.ellis.link
+    public_address: https://mautrix-meta.ellis.link
     
     # The hostname and port where this appservice should listen.
     # For Docker, you generally have to change the hostname to 0.0.0.0.
     hostname: 0.0.0.0
-    port: 29328
+    port: 29319
     
     # The unique ID of this appservice.
-    id: signal
+    id: meta
     # Appservice bot details.
     bot:
         # Username of the appservice bot.
-        username: signalbot
+        username: metabot
         # Display name and avatar for bot. Set to "remove" to remove display name/avatar, leave empty
         # to leave display name/avatar as-is.
-        displayname: Signal bridge bot
-        avatar: mxc://maunium.net/wPJgTQbZOtpBFmDNkiNEMDUp
+        displayname: Meta bridge bot
+        avatar: mxc://maunium.net/DxpVrwwzPUwaUSazpsjXgcKB
     
     # Whether to receive ephemeral events via appservice transactions.
     ephemeral_events: true
@@ -222,12 +232,12 @@ appservice:
     async_transactions: false
     
     # Authentication tokens for AS <-> HS communication. Autogenerated; do not modify.
-    as_token: "ldsvjlrfQ1J20jkEpiLcQWV0ao3s6HnQUnZSoxwD0C9TaC6KtXuIg7BQfLzy0MBS"
-    hs_token: "IXI940ZGDb0YOugWLBAroVVsl32cUpukL8y2JdCqcvyqJZzjG4XRWodlvwR73RTL"
+    as_token: "0lyeofAXPdUo8CGiaRSDf9AznhSn2uwVTWz7rk8uMjzgYoPVmml9HsVV69qw05GY"
+    hs_token: "niBvXHLbGcwS85ytNyRqRQ4RLHtsE23n3nA62ufulH11Aui7nvVWXNr1Yc59qizm"
     
     # Localpart template of MXIDs for remote users.
     # {{.}} is replaced with the internal ID of the user.
-    username_template: signal_mautrix_{{.}}
+    username_template: meta_mautrix_{{.}}
 
 # Config options that affect the Matrix connector of the bridge.
 matrix:
@@ -261,7 +271,7 @@ provisioning:
     prefix: /_matrix/provision
     # Shared secret for authentication. If set to "generate" or null, a random secret will be generated,
     # or if set to "disable", the provisioning API will be disabled.
-    shared_secret: R01cZGhYqNLASeP3qfAqczonl4497iXxqSDGVU09dBLjfveWGvTQgyDonujmXent
+    shared_secret: p4KjPCSsV8IWuffblnhDuUsWGN98tdZMiQ7Uy5RBAY3VOwtf6NNlb3Weo6kMDBJb
     # Whether to allow provisioning API requests to be authed using Matrix access tokens.
     # This follows the same rules as double puppeting to determine which server to contact to check the token,
     # which means that by default, it only works for users on the same server as the bridge.
@@ -274,10 +284,10 @@ provisioning:
 public_media:
     # Should public media be enabled at all?
     # The public_address field under the appservice section MUST be set when enabling public media.
-    enabled: false
+    enabled: true
     # A key for signing public media URLs.
     # If set to "generate", a random key will be generated.
-    signing_key: OTk6JJMb8BI8CALdkd8LrIyZSOQQQpkD2LumUFknRBedpWJN8D5uH0GMUBAqm1mB
+    signing_key: rUU8zdYwJ5t2YxBW46NiOkYj1XAYZGE78YaCvqmsQVPgRxP5r7qlt9FjejuBolKw
     # Number of seconds that public media URLs are valid for.
     # If set to 0, URLs will never expire.
     expiry: 0
@@ -292,7 +302,7 @@ direct_media:
     # The server name to use for the custom mxc:// URIs.
     # This server name will effectively be a real Matrix server, it just won't implement anything other than media.
     # You must either set up .well-known delegation from this domain to the bridge, or proxy the domain directly to the bridge.
-    server_name: mautrix-signal.ellis.link
+    server_name: mautrix-meta.ellis.link
     # Optionally a custom .well-known response. This defaults to `server_name:443`
     well_known_response:
     # Optionally specify a custom prefix for the media ID part of the MXC URI.
@@ -304,7 +314,7 @@ direct_media:
     allow_proxy: true
     # Matrix server signing key to make the federation tester pass, same format as synapse's .signing.key file.
     # This key is also used to sign the mxc:// URIs to ensure only the bridge can generate them.
-    server_key: ed25519 h2QRPw 2VURumyLmFy4lg47lCGjKlsPwPOyECO52kBb5/JIw98
+    server_key: ed25519 EvLWeg lnhT3MBOejlgcZjbH4TzW9wrrPShgk9lHm7ZMtr9g1Y
 
 # Settings for backfilling messages.
 # Note that the exact way settings are applied depends on the network connector.
@@ -313,16 +323,16 @@ backfill:
     # Whether to do backfilling at all.
     enabled: true
     # Maximum number of messages to backfill in empty rooms.
-    max_initial_messages: 10000
+    max_initial_messages: 200
     # Maximum number of missed messages to backfill after bridge restarts.
-    max_catchup_messages: 50000
+    max_catchup_messages: 500
     # If a backfilled chat is older than this number of hours,
     # mark it as read even if it's unread on the remote network.
     unread_hours_threshold: 720
     # Settings for backfilling threads within other backfills.
     threads:
         # Maximum number of messages to backfill in a new thread.
-        max_initial_messages: 50000
+        max_initial_messages: 500
     # Settings for the backwards backfill queue. This only applies when connecting to
     # Beeper as standard Matrix servers don't support inserting messages into history.
     queue:
@@ -362,7 +372,7 @@ encryption:
     # Whether to enable encryption at all. If false, the bridge will not function in encrypted rooms.
     allow: true
     # Whether to force-enable encryption in all bridged rooms.
-    default: true
+    default: false
     # Whether to require all messages to be encrypted and drop any unencrypted messages.
     require: false
     # Whether to use MSC2409/MSC3202 instead of /sync long polling for receiving encryption-related data.
@@ -373,7 +383,7 @@ encryption:
     allow_key_sharing: true
     # Pickle key for encrypting encryption keys in the bridge database.
     # If set to generate, a random key will be generated.
-    pickle_key: fheJVBthyOj5cMZitFjr081q6TZOqEgKPHLlDuIPIJ2O67B7df814CAGqov1FMLI
+    pickle_key: SCn8tBvXYXttBnRQvzfo1vPGGjemnQD1sRzSwqReQ1Mdxr6I92PlwrGnSr3nEfwf
     # Options for deleting megolm sessions from the bridge.
     delete_keys:
         # Beeper-specific: delete outbound sessions when hungryserv confirms

@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Meta Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/meta
+
+[Container]
+ContainerName=mautrix-meta
+Image=dock.mau.dev/mautrix/meta:latest
+Volume=/var/opt/mautrix/meta:/data:z
+AutoUpdate=registry
+Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-meta.rule=Host(`mautrix-meta.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-meta.entrypoints=https"
+Label="traefik.http.services.mautrix-meta.loadbalancer.server.port=29319"
+
+Label="traefik.http.routers.mautrix-meta.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-meta"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-meta.ellis.link/_matrix/mau/ready" 
+# https://github.com/mautrix/go/blob/d89912cfcb416ffe26101790c043dd47e4508811/appservice/appservice.go#L69
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

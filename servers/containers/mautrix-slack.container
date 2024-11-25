@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Slack Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/slack
+
+[Container]
+ContainerName=mautrix-slack
+Image=dock.mau.dev/mautrix/slack:latest
+Volume=/var/opt/mautrix/slack:/data:z
+AutoUpdate=registry
+Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-slack.rule=Host(`mautrix-slack.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-slack.entrypoints=https"
+Label="traefik.http.services.mautrix-slack.loadbalancer.server.port=29335"
+
+Label="traefik.http.routers.mautrix-slack.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-slack"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-slack.ellis.link/_matrix/mau/ready" 
+# https://github.com/mautrix/go/blob/d89912cfcb416ffe26101790c043dd47e4508811/appservice/appservice.go#L69
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

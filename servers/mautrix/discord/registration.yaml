@@ -1,8 +1,8 @@
 id: mautrix-discord
-url: http://mautrix-discord
-as_token: BeqHdZlIs5kscUgQG03TxLO6dWjjuFKTL0T0T5CGoBNxUfsAaYMGuNONgzrvXSni
-hs_token: IvmSDAdVFV63hR7hjQDEDOptyyNm81JRvkr3l5l653lWG0MLJKlOc7mbNm0extWA
-sender_localpart: zByRv7CUznpsLSEXztOuO05F3qhgRiqG
+url: http://mautrix-discord:29334
+as_token: mR1qkqQ8XCgJ61ZkhPdPUfgrjpZFVUhwRqizD8AiAsPFKdHVtvwnNVAH4vvDKyks
+hs_token: F3WF7uirTPUwMoUNBObcjZghoOUikYkFZtV8yPI3l4UxrNvVOjndmW3ev7Ypl099
+sender_localpart: KFwAMWXBNgYvWToZxHzoxdUvFCGe7W4d
 rate_limited: false
 namespaces:
     users:

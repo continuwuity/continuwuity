@@ -1,8 +1,8 @@
 id: signal
-url: https://mautrix-signal.ellis.link
-as_token: rVGOwgNx47PAAG4FKGyJ8RTBVykukhCTX7mFgaw5bssQp0XxZqOuVxZNEBcbL6ye
-hs_token: OEaJcaOwEsvSiYqQ8B48YPUN4RNvEWFGX9Jtp3u99teVNIkyW8WOKgCjaoYkLuGf
-sender_localpart: HNbLNuLwQBDrav8OHEzhatWaZXC67aKn
+url: http://mautrix-signal:29328
+as_token: ldsvjlrfQ1J20jkEpiLcQWV0ao3s6HnQUnZSoxwD0C9TaC6KtXuIg7BQfLzy0MBS
+hs_token: IXI940ZGDb0YOugWLBAroVVsl32cUpukL8y2JdCqcvyqJZzjG4XRWodlvwR73RTL
+sender_localpart: fqdcOOEFXg119Er1ZGhybnolo0G2qWaR
 rate_limited: false
 namespaces:
     users:
@@ -11,4 +11,4 @@ namespaces:
         - regex: ^@signal_mautrix_.*:ellis\.link$
           exclusive: true
 de.sorunome.msc2409.push_ephemeral: true
-push_ephemeral: true
+receive_ephemeral: true

@@ -1,0 +1,14 @@
+id: meta
+url: http://mautrix-meta:29319
+as_token: 0lyeofAXPdUo8CGiaRSDf9AznhSn2uwVTWz7rk8uMjzgYoPVmml9HsVV69qw05GY
+hs_token: niBvXHLbGcwS85ytNyRqRQ4RLHtsE23n3nA62ufulH11Aui7nvVWXNr1Yc59qizm
+sender_localpart: Th7nrwqlBwmYlwg749Qa8IGlHYPjYQC5
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@metabot:ellis\.link$
+          exclusive: true
+        - regex: ^@meta_mautrix_.*:ellis\.link$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+receive_ephemeral: true
