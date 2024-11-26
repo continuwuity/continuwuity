@@ -7,7 +7,7 @@
     const links = {
         Connect: [
             {
-                href: "https://matrix.to/#/@jadedblueeyes:matrix.org",
+                href: "https://matrix.to/#/@jade:ellis.link",
                 title: "Matrix",
             },
             { href: "https://github.com/JadedBlueEyes", title: "GitHub" },
