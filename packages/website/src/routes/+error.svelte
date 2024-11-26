@@ -45,7 +45,7 @@
 
             <p>
                 If the error persists, please <a
-                    href="https://matrix.to/#/@jadedblueeyes:matrix.org">contact me on Matrix</a
+                    href="https://matrix.to/#/@jade:ellis.link">contact me on Matrix</a
                 >
                 and let me know, or send feedback using the button below.
             </p>
