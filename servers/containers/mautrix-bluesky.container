@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Bluesky Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/bluesky
+
+[Container]
+ContainerName=mautrix-bluesky
+Image=dock.mau.dev/mautrix/bluesky:latest
+Volume=/var/opt/mautrix/bluesky:/data:z
+AutoUpdate=registry
+Network=web.network
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-bluesky.rule=Host(`mautrix-bluesky.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-bluesky.entrypoints=https"
+Label="traefik.http.services.mautrix-bluesky.loadbalancer.server.port=29340"
+
+Label="traefik.http.routers.mautrix-bluesky.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-bluesky"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-bluesky.ellis.link/_matrix/mau/ready" 
+# https://github.com/mautrix/go/blob/d89912cfcb416ffe26101790c043dd47e4508811/appservice/appservice.go#L69
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

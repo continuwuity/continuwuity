@@ -1,0 +1,14 @@
+id: bluesky
+url: http://mautrix-bluesky:29340
+as_token: 9OPP6xqAGuqulOqnXOGfgPnzM8cyghJa5MtDNjWHThjmOcCS0IQ8PZqBuyLLpfFh
+hs_token: Sl7EkoLPyr6mcetgS9MOat3d3autdCdyf5yJfLmGEVHQQFqeh7sKBt6aDwggKml0
+sender_localpart: rMm1j8cwMahcMPaEe5NOKqFqRc7DXzBJ
+rate_limited: false
+namespaces:
+    users:
+        - regex: ^@blueskybot:ellis\.link$
+          exclusive: true
+        - regex: ^@bluesky_mautrix_.*:ellis\.link$
+          exclusive: true
+de.sorunome.msc2409.push_ephemeral: true
+receive_ephemeral: true
