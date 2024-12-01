@@ -83,6 +83,7 @@ Volume=/run/podman/podman.sock:/var/run/docker.sock:z
 Volume=/etc/localtime:/etc/localtime:ro
 Volume=/var/srv/traefik:/certificates:z
 Volume=/etc/traefik:/etc/traefik:ro,z
+Volume=/var/log/traefik:/var/log/traefik:z
 Volume=kanidm-certs.volume:/kanidm_certs:ro,z
 
 # Volume=/var/srv/matrix/caddy/config:/config:z

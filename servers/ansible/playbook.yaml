@@ -18,6 +18,22 @@
         delete: true # Remove retired containers
     - name: Reload systemd generators
       ansible.builtin.command: sudo systemctl daemon-reload
+    - name: Install logrotate
+      ansible.builtin.package:
+        name: logrotate
+        state: present
+    - name: Copy logrotate config
+      ansible.posix.synchronize:
+        src: ../logrotate.d/
+        dest: /etc/logrotate.d
+    - name: find files with possible suspect line endings
+      ansible.builtin.find:
+        paths: /etc/logrotate.d
+        patterns: '*'
+      register: output
+    - name: fix suspect line endings
+      replace: path={{item.path}} regexp="\r"
+      with_items: "{{ output.files }}"
     - name: Copy traefik config
       ansible.posix.synchronize:
         src: ../traefik/
@@ -25,6 +41,10 @@
     - name: Creates traefik state directory
       file:
         path: /var/srv/traefik
+        state: directory
+    - name: Creates traefik log directory
+      file:
+        path: /var/log/traefik
         state: directory
     - name: Copy kanidm config
       ansible.posix.synchronize:
@@ -98,7 +118,6 @@
       file:
         path: /var/opt/autokuma
         state: directory
-
 
     # - name: install linux-system-roles
     #   package:
