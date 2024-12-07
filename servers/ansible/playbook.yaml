@@ -40,9 +40,9 @@
       replace: path={{item.path}} regexp="\r"
       with_items: "{{ output.files }}"
     - name: fix logrotate permissions
-      file: path={{item.path}} mode=644 user=root group=root
+      file: path={{item.path}} mode=644 owner=root group=root
       with_items: "{{ output.files }}"
-      become_user: root
+      become: true 
     - name: Copy traefik config
       ansible.posix.synchronize:
         src: ../traefik/
