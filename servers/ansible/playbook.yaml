@@ -11,6 +11,11 @@
     #   ansible.posix.synchronize:
     #     src: ./conduwuit-testing
     #     dest: /var/opt/
+    - name: Enable netavark dhcp daemon
+      ansible.builtin.systemd:
+        name: netavark-dhcp-proxy.socket
+        enabled: true
+        state: started
     - name: Copy containers
       ansible.posix.synchronize:
         src: ../containers/
@@ -26,7 +31,7 @@
       ansible.posix.synchronize:
         src: ../logrotate.d/
         dest: /etc/logrotate.d
-    - name: find files with possible suspect line endings
+    - name: find files with possible suspect line endings or perms
       ansible.builtin.find:
         paths: /etc/logrotate.d
         patterns: '*'
@@ -34,6 +39,10 @@
     - name: fix suspect line endings
       replace: path={{item.path}} regexp="\r"
       with_items: "{{ output.files }}"
+    - name: fix logrotate permissions
+      file: path={{item.path}} mode=644 user=root group=root
+      with_items: "{{ output.files }}"
+      become_user: root
     - name: Copy traefik config
       ansible.posix.synchronize:
         src: ../traefik/

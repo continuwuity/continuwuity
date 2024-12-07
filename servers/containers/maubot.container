@@ -14,7 +14,8 @@ Image=dock.mau.dev/maubot/maubot:latest
 # ReadOnly=true
 Volume=/var/opt/maubot:/data:z,U
 AutoUpdate=registry
-# Network=web.network=
+# Network=web.network
+# Network=pub.network
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.maubot.rule=Host(`maubot.ellis.link`)"
