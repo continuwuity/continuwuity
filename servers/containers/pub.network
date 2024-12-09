@@ -3,5 +3,7 @@ DisableDNS=false
 IPv6=true
 Subnet=10.89.1.0/24
 Gateway=10.89.1.1
-Driver=macvlan
+Driver=ipvlan
 Options=parent=eno1
+Options=mode=l3
+
