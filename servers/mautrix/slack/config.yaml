@@ -267,7 +267,7 @@ appservice:
 # Config options that affect the Matrix connector of the bridge.
 matrix:
     # Whether the bridge should send the message status as a custom com.beeper.message_send_status event.
-    message_status_events: false
+    message_status_events: true
     # Whether the bridge should send a read receipt after successfully bridging a message.
     delivery_receipts: true
     # Whether the bridge should send error notices via m.notice events when a message fails to bridge.
