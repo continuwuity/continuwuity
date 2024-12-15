@@ -10,7 +10,7 @@ ContainerName=mautrix-slack
 Image=dock.mau.dev/mautrix/slack:latest
 Volume=/var/opt/mautrix/slack:/data:z
 AutoUpdate=registry
-Network=web.network
+Network=web.network:alias=as-mautrix-slack
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-slack.rule=Host(`mautrix-slack.ellis.link`)"

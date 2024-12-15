@@ -24,7 +24,7 @@ Label="traefik.http.services.conduwuit.loadbalancer.server.port=6167"
 Environment="CONDUWUIT_PORT=6167"
 
 # 
-Network=web.network:ip=10.89.0.248,ip6=fd76:6f6d:f45e:ea1a::fb
+Network=web.network:ip=10.89.0.248,ip6=fd76:6f6d:f45e:ea1a::fb,alias=cwt-ellis-internal
 Environment="CONDUWUIT_ADDRESS=[\"10.89.0.248\", \"fd76:6f6d:f45e:ea1a::fb\"]"
 Label="traefik.docker.network=systemd-web"
 

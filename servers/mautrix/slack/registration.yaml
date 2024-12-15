@@ -1,5 +1,5 @@
 id: slack
-url: http://mautrix-slack:29335
+url: http://as-mautrix-slack:29335
 as_token: hKvxR9H2FUQusZY5Ug7JWtrOqugLLU3m8kIQnGApTTIYGTbIvKNOS0bFv1BAAtwg
 hs_token: SptrHkculXlvYvMUHwv1Tmr7TxnfD9RY6NKM89mTXgdMkgKC6j9WdlDOUWvxuTd5
 sender_localpart: BPv5f9VoCPflaOvndjDnG56dgLLeTq7g

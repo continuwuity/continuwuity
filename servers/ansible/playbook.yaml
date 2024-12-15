@@ -103,6 +103,14 @@
           - --include="*/"
           - --include="*.yaml"
           - --exclude="*"
+    # Reregister appservices:
+    # ls | filter {|n| $n.type == "dir" } | each {|n| open --raw ("./" + $n.name + "/registration.yaml")} | each {|as| nu ~\Code\scripts\scripts\matrix.nu send_message "https://matrix.ellis.link" $env.MATRIX_TOKEN "!1al3YiWSKCq0tASeCX%3Aellis.link" ({
+    #      "msgtype":"m.text",
+    #      "body":$"!admin appservices register\n\n```\n($as)\n```",
+    #      "format":"org.matrix.custom.html",
+    #      "formatted_body":$"<p>!admin appservices register</p>\n<pre><code>($as)\n</code></pre>\n",
+    #      "m.mentions":{}
+    #  } | to json) }
     - name: Creates freshrss data directory
       file:
         path: /var/opt/freshrss

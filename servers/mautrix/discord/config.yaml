@@ -27,7 +27,7 @@ homeserver:
 # Changing these values requires regeneration of the registration.
 appservice:
     # The address that the homeserver can use to connect to this appservice.
-    address: http://mautrix-discord:29334
+    address: http://as-mautrix-discord:29334
     
     # The hostname and port where this appservice should listen.
     hostname: 0.0.0.0

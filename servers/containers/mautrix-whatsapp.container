@@ -10,7 +10,7 @@ ContainerName=mautrix-whatsapp
 Image=dock.mau.dev/mautrix/whatsapp:latest
 Volume=/var/opt/mautrix/whatsapp:/data:z
 AutoUpdate=registry
-Network=web.network
+Network=web.network:alias=as-mautrix-whatsapp
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-whatsapp.rule=Host(`mautrix-whatsapp.ellis.link`)"
