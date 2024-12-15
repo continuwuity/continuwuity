@@ -66,6 +66,7 @@ server=matrix.ellis.link:443 \
 Environment="CONDUWUIT_TURN_URIS=[\"turns:coturn.ellis.link?transport=udp\",\"turns:coturn.ellis.link?transport=tcp\",\"turn:coturn.ellis.link?transport=udp\",\"turn:coturn.ellis.link?transport=tcp\"]"
 Environment="CONDUWUIT_TURN_SECRET=qjRh55G51K7V0ZqB7Z8ZEkxZjBLJMgkwEs8acFjx"
 
+# Network=slirp4netns:interface_name=pub,allow_host_loopback=false,outbound_addr=eno1,outbound_addr6=eno1
 # Network=pub.network:interface_name=pub
 # Environment="CONDUWUIT_URL_PREVIEW_DOMAIN_EXPLICIT_ALLOWLIST=[\"*\"]"
 # Environment="CONDUWUIT_URL_PREVIEW_BOUND_INTERFACE=pub"
