@@ -1,0 +1,4 @@
+[Network]
+DisableDNS=false
+Internal=false
+IPv6=true
