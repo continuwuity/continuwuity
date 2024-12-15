@@ -57,7 +57,7 @@ Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
 Environment="CONDUWUIT_ALLOW_INCOMING_PRESENCE=false"
 
 
-Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\"]"
+Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\", "tchncs.de", "envs.net"]"
 Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
 Environment="CONDUWUIT_WELL_KNOWN={ \
 client=https://matrix.pissing.dev, \

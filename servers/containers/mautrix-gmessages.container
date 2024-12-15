@@ -10,7 +10,7 @@ ContainerName=mautrix-gmessages
 Image=dock.mau.dev/mautrix/gmessages:latest
 Volume=/var/opt/mautrix/gmessages:/data:z
 AutoUpdate=registry
-Network=web.network::alias=as-mautrix-gmessages
+Network=web.network:alias=as-mautrix-gmessages
 
 Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-gmessages.rule=Host(`mautrix-gmessages.ellis.link`)"
