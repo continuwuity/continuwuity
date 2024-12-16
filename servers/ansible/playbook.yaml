@@ -67,9 +67,12 @@
       file:
         path: /var/opt/kanidm_data
         state: directory
+    # - name: Generate Element Web config
+    #   # run on localhost
+    #   local_action: ansible.builtin.command cd ../element-web && node config.js
     - name: Copy Element Web config
       ansible.posix.synchronize:
-        src: ../element-web/
+        src: ../element-web/public/
         dest: /etc/element-web
     - name: Copy homepage config
       ansible.posix.synchronize:
