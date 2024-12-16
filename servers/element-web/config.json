@@ -60,7 +60,10 @@
         "feature_element_call_video_rooms": true,
         "feature_latex_maths": true,
         "feature_bridge_state": true,
-        "feature_render_reaction_images": true
+        "feature_render_reaction_images": true,
+        "feature_custom_themes": true,
+        "feature_hidden_read_receipts": true,
+        "feature_mjolnir": true
     },
     "setting_defaults": {
         "RustCrypto.staged_rollout_percent": 100,

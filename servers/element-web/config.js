@@ -1,12 +1,27 @@
 import fs from 'node:fs';
 // Read base config
-const baseConfig = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+let baseConfig = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 // Server list
 const servers = JSON.parse(fs.readFileSync('./servers.json', 'utf8'));
 // Default server config
 const defaultServerConfig = "element.ellis.link";
 const defaultConfigPath = './public/config.json';
 
+// raim.ist config
+const raimConfig = await fetch('https://riot.raim.ist/config.json').then(res => res.json());
+
+baseConfig = {
+    ...baseConfig,
+    enable_presence_by_hs_url: {
+        ...raimConfig.enable_presence_by_hs_url,
+        ...baseConfig.enable_presence_by_hs_url,
+    },
+    setting_defaults: {
+        ...baseConfig.setting_defaults,
+        custom_themes: raimConfig.setting_defaults.custom_themes,
+    },
+
+};
 // biome-ignore lint/complexity/noForEach: <explanation>
 Object.keys(servers).forEach(server => {
     // Get server config
