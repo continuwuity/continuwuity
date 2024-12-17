@@ -1,0 +1,46 @@
+[Unit]
+Description=Matrix Twitter Bridge
+Wants=network-online.target
+After=network-online.target
+After=conduwuit.service
+Documentation=https://github.com/mautrix/twitter
+
+[Container]
+ContainerName=mautrix-twitter
+Image=dock.mau.dev/mautrix/twitter:latest
+Volume=/var/opt/mautrix/twitter:/data:z
+AutoUpdate=registry
+Network=web.network:alias=as-mautrix-twitter
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.mautrix-twitter.rule=Host(`mautrix-twitter.ellis.link`)"
+
+Label="traefik.http.routers.mautrix-twitter.entrypoints=https"
+Label="traefik.http.services.mautrix-twitter.loadbalancer.server.port=29340"
+
+Label="traefik.http.routers.mautrix-twitter.middlewares=default@file"
+
+Label="homepage.group=Services"
+Label="homepage.name=mautrix-twitter"
+# Label="homepage.href=https://jade.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Matrix bridge"
+Label="homepage.siteMonitor=https://mautrix-twitter.ellis.link/_matrix/mau/ready" 
+# https://github.com/mautrix/go/blob/d89912cfcb416ffe26101790c043dd47e4508811/appservice/appservice.go#L69
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=on-failure
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
