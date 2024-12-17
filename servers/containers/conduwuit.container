@@ -57,7 +57,7 @@ Environment="CONDUWUIT_ALLOW_INCOMING_PRESENCE=false"
 
 
 Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\", "tchncs.de", "envs.net"]"
-Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
+Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error,conduit_service::pusher=error"
 Environment="CONDUWUIT_WELL_KNOWN={ \
 client=https://matrix.ellis.link, \
 server=matrix.ellis.link:443 \
