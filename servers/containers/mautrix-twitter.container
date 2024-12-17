@@ -16,7 +16,7 @@ Label="traefik.enable=true"
 Label="traefik.http.routers.mautrix-twitter.rule=Host(`mautrix-twitter.ellis.link`)"
 
 Label="traefik.http.routers.mautrix-twitter.entrypoints=https"
-Label="traefik.http.services.mautrix-twitter.loadbalancer.server.port=29340"
+Label="traefik.http.services.mautrix-twitter.loadbalancer.server.port=29327"
 
 Label="traefik.http.routers.mautrix-twitter.middlewares=default@file"
 
