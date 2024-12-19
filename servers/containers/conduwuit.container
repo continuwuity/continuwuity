@@ -10,7 +10,7 @@ Documentation=https://conduwuit.puppyirl.gay/
 [Container]
 ContainerName=conduwuit
 NoNewPrivileges=true
-Image=ghcr.io/girlbossceo/conduwuit:main
+Image=ghcr.io/girlbossceo/conduwuit:main-5b6ff3869c118c4d5cde7b43c48f0b4be0d406ae
 ReadOnly=true
 Volume=/var/opt/conduwuit:/var/lib/conduwuit:z,U
 AutoUpdate=registry
