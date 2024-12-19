@@ -330,7 +330,7 @@ double_puppet:
     # Servers to always allow double puppeting from.
     # This is only for other servers and should NOT contain the server the bridge is on.
     servers:
-        anotherserver.example.org: https://matrix.anotherserver.example.org
+        pissing.dev: https://matrix.pissing.dev
     # Whether to allow client API URL discovery for other servers. When using this option,
     # users on other servers can use double puppeting even if their server URLs aren't
     # explicitly added to the servers map above.
