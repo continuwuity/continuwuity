@@ -20,7 +20,7 @@ Label="traefik.http.services.mautrix-meta.loadbalancer.server.port=29319"
 
 Label="traefik.http.routers.mautrix-meta.middlewares=default@file"
 
-Label="homepage.group=Services"
+Label="homepage.group=Mautrix Bridges"
 Label="homepage.name=mautrix-meta"
 # Label="homepage.href=https://jade.ellis.link/"
 # Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 

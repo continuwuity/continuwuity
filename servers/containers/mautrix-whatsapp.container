@@ -20,7 +20,7 @@ Label="traefik.http.services.mautrix-whatsapp.loadbalancer.server.port=29318"
 
 Label="traefik.http.routers.mautrix-whatsapp.middlewares=default@file"
 
-Label="homepage.group=Services"
+Label="homepage.group=Mautrix Bridges"
 Label="homepage.name=mautrix-whatsapp"
 # Label="homepage.href=https://jade.ellis.link/"
 # Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 

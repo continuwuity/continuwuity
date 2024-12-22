@@ -20,7 +20,7 @@ Label="traefik.http.services.mautrix-slack.loadbalancer.server.port=29335"
 
 Label="traefik.http.routers.mautrix-slack.middlewares=default@file"
 
-Label="homepage.group=Services"
+Label="homepage.group=Mautrix Bridges"
 Label="homepage.name=mautrix-slack"
 # Label="homepage.href=https://jade.ellis.link/"
 # Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
