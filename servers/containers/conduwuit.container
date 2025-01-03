@@ -10,7 +10,7 @@ Documentation=https://conduwuit.puppyirl.gay/
 [Container]
 ContainerName=conduwuit
 NoNewPrivileges=true
-Image=ghcr.io/jadedblueeyes/conduwuit:main-31fd5afb2bf375c06ad184e09599a7db94cf5f01-amd64
+Image=ghcr.io/jadedblueeyes/conduwuit:syncv3-improvement
 ReadOnly=true
 Volume=/var/opt/conduwuit:/var/lib/conduwuit:z,U
 AutoUpdate=registry
