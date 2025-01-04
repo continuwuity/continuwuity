@@ -10,7 +10,7 @@ Documentation=https://conduwuit.puppyirl.gay/
 [Container]
 ContainerName=conduwuit-testing
 NoNewPrivileges=true
-Image=ghcr.io/jadedblueeyes/conduwuit:syncv3-improvement
+Image=ghcr.io/girlbossceo/conduwuit:main
 ReadOnly=true
 Volume=/var/opt/conduwuit-testing:/var/lib/conduwuit:z,U
 AutoUpdate=registry
@@ -53,8 +53,6 @@ Environment="CONDUWUIT_REGISTRATION_TOKEN=pissing-atlantic-proclaim-canine-driva
 Environment='CONDUWUIT_AUTO_JOIN_ROOMS=["!UgUxfVZAEj2pcBRRdv:ellis.link", "!C8jPKMPkMsnd1wmm5j:ellis.link"]'
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
 Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
-# Work around conduwuit sync polling bug
-Environment="CONDUWUIT_ALLOW_INCOMING_PRESENCE=false"
 
 
 Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\", "tchncs.de", "envs.net"]"

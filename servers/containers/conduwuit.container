@@ -10,7 +10,7 @@ Documentation=https://conduwuit.puppyirl.gay/
 [Container]
 ContainerName=conduwuit
 NoNewPrivileges=true
-Image=ghcr.io/jadedblueeyes/conduwuit:syncv3-improvement
+Image=ghcr.io/girlbossceo/conduwuit:main
 ReadOnly=true
 Volume=/var/opt/conduwuit:/var/lib/conduwuit:z,U
 AutoUpdate=registry
@@ -52,8 +52,6 @@ Environment="CONDUWUIT_ALLOW_REGISTRATION=true"
 Environment="CONDUWUIT_REGISTRATION_TOKEN=mousiness-magical-swung-atlantic"
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
 Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
-# Work around conduwuit sync polling bug
-Environment="CONDUWUIT_ALLOW_INCOMING_PRESENCE=false"
 
 
 Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\", "tchncs.de", "envs.net"]"
