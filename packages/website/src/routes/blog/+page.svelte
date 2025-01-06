@@ -4,12 +4,11 @@
     import SvelteSeo from "svelte-seo";
 
     import type { WithContext, Thing } from "schema-dts";
-    interface Props {
-        data: any;
-    }
+    import type { BlogPage } from "./posts";
 
-    let { data }: Props = $props();
+    const { data }: { data: { pages: BlogPage[] } } = $props();
     const { pages } = data;
+    console.log(data)
 
     const jsonLd = {
         "@context": "https://schema.org",
@@ -23,15 +22,15 @@
                     "@type": "ListItem",
                     position: 1,
                     name: "Blog",
-                    item: SITE_URL + "/blog",
+                    item: `${SITE_URL}/blog`,
                 },
             ],
         },
         mainEntity: {
             "@type": "Blog",
-            "@id": SITE_URL + "/blog",
+            "@id": `${SITE_URL}/blog`,
             name: "Jade's Blog",
-            mainEntityOfPage: SITE_URL + "/blog",
+            mainEntityOfPage: `${SITE_URL}/blog`,
         },
     } as WithContext<Thing>;
 </script>

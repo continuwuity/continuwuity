@@ -2,11 +2,12 @@ import { browser } from '$app/environment'
 // import { format } from 'date-fns'
 
 import slugify from 'slugify';
-import { parse, format, relative } from "node:path";
+import { parse, type ParsedPath } from "node:path";
+import type { MdsvexPage } from '$lib/pageTypes';
 
 // we require some server-side APIs to parse all metadata
 if (browser) {
-    throw new Error(`posts can only be imported server-side`)
+    throw new Error("posts can only be imported server-side")
 }
 // import { browser } from '$app/environment'
 // import { format } from 'date-fns'
@@ -66,7 +67,17 @@ if (browser) {
 //   }))
 const dateRegex = /^((?<year>\d{4})-(?<month>[0][1-9]|1[0-2])-(?<day>[0][1-9]|[1-2]\d|3[01]))\s*/
 
-export const pages = (await Promise.all(Object.entries(import.meta.glob('$notes/Blogs/*.md', { eager: true}))
+export interface BlogPage extends MdsvexPage {
+    title: string
+    date: string
+    canonical: string
+    slug: string
+    description: string
+    filepath: ParsedPath
+    syndication?: string[]
+    listed?: string
+}
+export const pages: BlogPage[] = (await Promise.all(Object.entries(import.meta.glob('$notes/Blogs/*.md', { eager: true }))
     .map(async ([filepath, post]) => {
         const path = parse(filepath);
         const title = path.name.replace(dateRegex, "")
@@ -79,14 +90,15 @@ export const pages = (await Promise.all(Object.entries(import.meta.glob('$notes/
         const datePath = date.replaceAll("-", "/")
         const slug = slugify(title, { lower: true })
 
+
         return {
             title,
             date,
-            canonical: datePath + "/" + slug,
+            canonical: `${datePath}/${slug}`,
+            slug,
             // @ts-ignore
             ...post.metadata,
 
-            slug,
             filepath: path
         }
     })))
@@ -99,8 +111,6 @@ export const pages = (await Promise.all(Object.entries(import.meta.glob('$notes/
 //   next: allPosts[index - 1],
 //   previous: allPosts[index + 1]
 // }))
-
-
 // function addTimezoneOffset(date) {
 //   const offsetInMilliseconds = new Date().getTimezoneOffset() * 60 * 1000
 //   return new Date(new Date(date).getTime() + offsetInMilliseconds)

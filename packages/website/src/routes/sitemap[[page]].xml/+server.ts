@@ -28,7 +28,7 @@ export const GET: RequestHandler = async ({ params }) => {
         page: params.page,
         paramValues: {
             '/projects/[slug]': projects,
-            '/blog/[...date]/[slug]': blogPosts.map((post) => post.canonical)
+            '/blog/[...date]/[slug]': blogPosts.filter((page) => page.listed !== "false").map((post) => post.canonical)
         }
     });
 };

@@ -1,4 +1,4 @@
-import { pages } from '../posts'
+import { pages, type BlogPage } from '../posts'
 
 import type Feed from '@json-feed-types/1_1'
 import {
@@ -23,9 +23,9 @@ export async function GET({ params, url}) {
         .filter((post) => {
         const date = new Date(post.date)
         return (
-            (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
-            (!dateParts[1] || date.getMonth()+1 == dateParts[1]) &&
-            (!dateParts[2] || date.getDate() == dateParts[2])
+            (!dateParts[0] || date.getFullYear() === dateParts[0]) &&
+            (!dateParts[1] || date.getMonth()+1 === dateParts[1]) &&
+            (!dateParts[2] || date.getDate() === dateParts[2])
         )
     }) : pages;
     const headers = {
@@ -37,7 +37,7 @@ export async function GET({ params, url}) {
 
 const AUTHOR = "Jade Ellis"
 // prettier-ignore
-async function getJsonFeed(selfUrl: string, pages: any[]): Promise<string> {
+async function getJsonFeed(selfUrl: string, pages: BlogPage[]): Promise<string> {
 
     const feed: Feed = {
         version: 'https://jsonfeed.org/version/1.1',
@@ -51,14 +51,16 @@ async function getJsonFeed(selfUrl: string, pages: any[]): Promise<string> {
         ],
     }
     
-    for await (const post of pages) {
+    const shownPages = pages.filter((page) => page.listed !== "false")
+    
+    for await (const post of shownPages) {
         const title = post.title;
         const pubDate = post.date
-        const postUrl = SITE_URL + "/blog/" + post.canonical
+        const postUrl = `${SITE_URL}/blog/${post.canonical}`
         // const postHtml = 
         const summary = post.description;
         const item: typeof feed.items[number] = {
-            id: post.postUrl,
+            id: postUrl,
             title,
             url: postUrl,
             date_published: pubDate,

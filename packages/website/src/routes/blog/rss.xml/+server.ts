@@ -1,4 +1,4 @@
-import { pages } from '../posts'
+import { pages, type BlogPage } from '../posts'
 
 import {
     SITE_DEFAULT_DESCRIPTION,
@@ -25,9 +25,9 @@ export async function GET({ url, params }) {
         .filter((post) => {
         const date = new Date(post.date)
         return (
-            (!dateParts[0] || date.getFullYear() == dateParts[0]) &&
-            (!dateParts[1] || date.getMonth()+1 == dateParts[1]) &&
-            (!dateParts[2] || date.getDate() == dateParts[2])
+            (!dateParts[0] || date.getFullYear() === dateParts[0]) &&
+            (!dateParts[1] || date.getMonth()+1 === dateParts[1]) &&
+            (!dateParts[2] || date.getDate() === dateParts[2])
         )
     }) : pages;
     const headers = {
@@ -40,7 +40,7 @@ export async function GET({ url, params }) {
 
 const AUTHOR = "Jade Ellis"
 // prettier-ignore
-async function getRssXml(selfUrl: string, pages: any[]): Promise<string> {
+async function getRssXml(selfUrl: string, pages: BlogPage[]): Promise<string> {
     // const rssUrl = `${SITE_URL}/rss.xml`;
     const root = create({ version: '1.0', encoding: 'utf-8' })
         .ins('xml-stylesheet', `type="text/xsl" href="${rssStyle}"`)
@@ -58,11 +58,13 @@ async function getRssXml(selfUrl: string, pages: any[]): Promise<string> {
         .ele('name').txt(AUTHOR).up()
         .up()
         .ele('subtitle').txt(SITE_DEFAULT_DESCRIPTION).up()
+    
+    const shownPages = pages.filter((page) => page.listed !== "false")
 
-    for await (const post of pages) {
+    for await (const post of shownPages) {
         const title = post.title;
         const pubDate = post.date
-        const postUrl = SITE_URL + "/blog/" + post.canonical
+        const postUrl = `${SITE_URL}/blog/${post.canonical}`
         // const postHtml = 
         const summary = post.description;
 
