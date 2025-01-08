@@ -54,6 +54,7 @@ Environment='CONDUWUIT_AUTO_JOIN_ROOMS=["!UgUxfVZAEj2pcBRRdv:ellis.link", "!C8jP
 Environment="CONDUWUIT_ALLOW_FEDERATION=true"
 Environment="CONDUWUIT_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION=true"
 
+Environment="CONDUWUIT_ALLOW_LEGACY_MEDIA=false"
 
 Environment="CONDUWUIT_TRUSTED_SERVERS=[\"matrix.org\", \"matrix.pissing.dev\", \"matrix.ellis.link\", "tchncs.de", "envs.net"]"
 Environment="CONDUWUIT_LOG=info,hickory_proto::xfer::dns_exchange=error"
