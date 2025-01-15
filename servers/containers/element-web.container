@@ -16,9 +16,10 @@ Volume=/etc/element-web/config.element.ellis.link.json:/app/config.element.ellis
 Volume=/etc/element-web/config.element.pissing.dev.json:/app/config.element.pissing.dev.json:ro,z
 AutoUpdate=registry
 
+Environment="ELEMENT_WEB_PORT=8000"
 Label="traefik.enable=true"
 Label="traefik.http.routers.element-web.rule=(Host(`element.pissing.dev`) || Host(`element.ellis.link`))"
-Label="traefik.http.services.element-web.loadbalancer.server.port=80"
+Label="traefik.http.services.element-web.loadbalancer.server.port=8000"
 
 Label="traefik.http.routers.element-web.entrypoints=https"
 
