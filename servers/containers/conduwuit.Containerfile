@@ -1,4 +1,7 @@
 ARG RUST_VERSION=1.84
+# Match Rustc version as close as possible
+# rustc -vV
+ARG LLVM_VERSION=19
 
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-bookworm AS base
@@ -7,9 +10,6 @@ FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-bookworm AS builder
 # Prevent deletion of apt cache
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
-# Match Rustc version as close as possible
-# rustc -vV
-ARG LLVM_VERSION=19
 ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
 
 # Install repo tools
