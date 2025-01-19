@@ -1,0 +1,19 @@
+
+
+[Unit]
+Description=Conduwuit image build
+Wants=network-online.target
+After=network-online.target
+
+
+[Build]
+
+ImageTag=localhost/conduwuit:git
+
+# File=https://gist.githubusercontent.com/JadedBlueEyes/01848fc7388ab5bc0b0fbd552e075a67/raw/Containerfile
+File=/etc/containers/systemd/conduwuit.Containerfile
+
+SetWorkingDirectory=https://github.com/girlbossceo/conduwuit.git
+PodmanArgs=--build-arg TARGET_CPU=native
+        #    --build-arg COMMIT_SHA=
+Annotation=org.opencontainers.image.title=Conduwuit (custom build)
