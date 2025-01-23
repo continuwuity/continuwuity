@@ -17,12 +17,11 @@ ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
 # Line two: curl, for downloading binaries
 # Line three: for xx-verify
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked <<EOF
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
 apt-get update && apt-get install -y \
     clang-${LLVM_VERSION} lld-${LLVM_VERSION} pkg-config make \
     curl git \
     file
-EOF
 
 # Create symlinks for LLVM tools
 RUN <<EOF
@@ -53,11 +52,10 @@ ARG TARGETPLATFORM
 # Install libraries linked by the binary
 # xx-* are xx-specific meta-packages
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked <<EOF
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
 xx-apt-get install -y \
     xx-c-essentials xx-cxx-essentials \
     liburing-dev
-EOF
 
 # Set up Rust toolchain
 WORKDIR /app
