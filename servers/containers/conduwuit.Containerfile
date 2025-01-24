@@ -92,7 +92,6 @@ EOF
 
 # Apply CPU-specific optimizations if TARGET_CPU is provided
 ARG TARGET_CPU=
-ARG TARGET_CPU
 RUN <<EOF
   set -o allexport
   . /etc/environment

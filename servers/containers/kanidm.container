@@ -10,7 +10,7 @@ After=network-online.target
 ContainerName=kanidm
 
 NoNewPrivileges=true
-Image=docker.io/kanidm/server:latest
+Image=docker.io/jadedblueeyes/kanidmd:latest
 
 ReadOnly=true
 # Volume=/run/podman/podman.sock:/var/run/docker.sock:z
@@ -20,7 +20,7 @@ Volume=traefik-certs.volume:/data/certs:ro
 Volume=/etc/kanidm/entrypoint.sh:/entrypoint.sh:ro,z
 Volume=/etc/kanidm/data/server.toml:/data/server.toml:ro,z
 
-Exec="/entrypoint.sh"
+# Exec="/entrypoint.sh"
 
 AutoUpdate=registry
 Network=web.network

@@ -1,0 +1,41 @@
+[Unit]
+Description=Image Camo
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=image-camo
+NoNewPrivileges=true
+Image=ghcr.io/cactus/go-camo:latest
+AutoUpdate=registry
+
+Environment="GOCAMO_HMAC=woR9L9z6GszksKzRLfWkYVGvqW0hAyqUp8ZRUM8n"
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.image-camo.rule=Host(`image-camo.ellis.link`)"
+
+Label="traefik.http.middlewares.cross-origin.headers.customResponseHeaders.Cross-Origin-Resource-Policy=cross-origin"
+
+Label="traefik.http.routers.image-camo.middlewares=default@file,cross-origin"
+
+Label="homepage.group=Services"
+Label="homepage.name=Go Camo"
+Label="homepage.siteMonitor=https://image-camo.ellis.link/healthcheck"
+Label="homepage.description=Image proxy"
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=always
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target

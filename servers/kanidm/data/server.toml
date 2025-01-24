@@ -18,7 +18,7 @@ ldapbindaddress = "[::]:3636"
 #   connected client. If you are not using a load balancer
 #   then you should leave this value as default.
 #   Defaults to false
-# trust_x_forward_for = false
+trust_x_forward_for = true
 #
 #   The path to the kanidm database.
 db_path = "/data/kanidm.db"

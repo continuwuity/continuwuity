@@ -3,9 +3,11 @@ authentication.fallback-admin.user = "admin"
 directory.internal.store = "rocksdb"
 directory.internal.type = "internal"
 
-certificate.default.cert = "%{file:/data/certs/*.ellis.link/cert.pem}%"
+certificate.default.cert = "%{file:/data/certs/mail.ellis.link/cert.pem}%"
 certificate.default.default = true
-certificate.default.private-key = "%{file:/data/certs/*.ellis.link/key.pem}%"
+certificate.default.private-key = "%{file:/data/certs/mail.ellis.link/key.pem}%"
+certificate.pissing.cert = "%{file:/data/certs/pissing.dev/cert.pem}%"
+certificate.pissing.private-key = "%{file:/data/certs/pissing.dev/key.pem}%"
 lookup.default.hostname = "mail.ellis.link"
 server.http.hsts = true
 server.http.permissive-cors = false

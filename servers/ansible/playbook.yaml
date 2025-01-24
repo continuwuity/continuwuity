@@ -1,12 +1,13 @@
-- name: My first play
+- name: Set up servers
   hosts: personal
+  gather_facts: false
   tasks:
-    - name: Ping my hosts
-      ansible.builtin.ping:
+    # - name: Change SSH port
+    #   ansible.builtin.include_role: 
+    #     name: ssh-port
+    - name: Run deferred setup to gather facts
+      setup:
 
-    - name: Print message
-      ansible.builtin.debug:
-        msg: Hello world
     # - name: Copy conduwuit backup
     #   ansible.posix.synchronize:
     #     src: ./conduwuit-testing
@@ -17,6 +18,7 @@
         enabled: true
         state: started
     - name: Copy containers
+      become: true
       ansible.posix.synchronize:
         src: ../containers/
         dest: /etc/containers/systemd
@@ -24,19 +26,23 @@
     - name: Reload systemd generators
       ansible.builtin.command: sudo systemctl daemon-reload
     - name: Install logrotate
+      become: true
       ansible.builtin.package:
         name: logrotate
         state: present
     - name: Copy logrotate config
+      become: true
       ansible.posix.synchronize:
         src: ../logrotate.d/
         dest: /etc/logrotate.d
     - name: find files with possible suspect line endings or perms
+      become: true
       ansible.builtin.find:
         paths: /etc/logrotate.d
         patterns: '*'
       register: output
     - name: fix suspect line endings
+      become: true
       replace: path={{item.path}} regexp="\r"
       with_items: "{{ output.files }}"
     - name: fix logrotate permissions
@@ -56,6 +62,7 @@
         path: /var/log/traefik
         state: directory
     - name: Copy kanidm config
+      become: true
       ansible.posix.synchronize:
         src: ../kanidm/
         dest: /etc/kanidm
@@ -67,18 +74,25 @@
       file:
         path: /var/opt/kanidm_data
         state: directory
+    - name: Creates forgejo data directory
+      file:
+        path: /var/opt/forgejo_data
+        state: directory
     # - name: Generate Element Web config
     #   # run on localhost
     #   local_action: ansible.builtin.command cd ../element-web && node config.js
     - name: Copy Element Web config
+      become: true
       ansible.posix.synchronize:
         src: ../element-web/public/
         dest: /etc/element-web
     - name: Copy homepage config
+      become: true
       ansible.posix.synchronize:
         src: ../homepage/
         dest: /etc/homepage
     - name: Copy sentry relay config
+      become: true
       ansible.posix.synchronize:
         src: ../sentry-relay/
         dest: /etc/sentry-relay
@@ -87,16 +101,19 @@
         path: /var/opt/stalwart-mail
         state: directory
     - name: Copy stalwart config
+      become: true
       ansible.posix.synchronize:
         src: ../stalwart/
         dest: /etc/stalwart
     - name: Copy coturn config
+      become: true
       ansible.posix.synchronize:
         src: ../coturn/
         dest: /etc/coturn
     # Pull mautrix config:
     # rsync --rsync-path="sudo rsync" -r -t -z -P --include "*/" --include="*.yaml" --exclude="*" ansible@213.32.25.24:/var/opt/mautrix/ ./mautrix
     - name: Copy mautrix config
+      become: true
       ansible.posix.synchronize:
         src: ../mautrix/
         dest: /var/opt/mautrix
@@ -123,6 +140,7 @@
         path: /var/opt/freshrss-extensions
         state: directory
     - name: Copy freshrss config
+      become: true
       ansible.posix.synchronize:
         src: ../freshrss/
         dest: /etc/freshrss

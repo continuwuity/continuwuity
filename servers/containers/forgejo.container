@@ -1,0 +1,49 @@
+[Unit]
+Description=Forgejo
+Wants=network-online.target
+After=network-online.target
+
+[Container]
+ContainerName=forgejo
+Environment=USER_UID=1000
+Environment=USER_GID=1000
+Image=codeberg.org/forgejo-experimental/forgejo:11
+AutoUpdate=registry
+Network=web.network
+# PublishPort=222:22
+PublishPort=22:22
+Volume=/var/opt/forgejo_data:/data
+
+Label="traefik.enable=true"
+Label="traefik.http.routers.forgejo.rule=Host(`forgejo.ellis.link`)"
+
+Label="traefik.http.routers.forgejo.entrypoints=https"
+Label="traefik.http.services.forgejo.loadbalancer.server.port=3000"
+
+
+Label="traefik.http.middlewares.cross-origin-embedder.headers.customResponseHeaders.Cross-Origin-Embedder-Policy=credentialless"
+
+Label="traefik.http.routers.forgejo.middlewares=cross-origin-embedder,default@file"
+
+Label="homepage.group=Public"
+Label="homepage.name=Forgejo"
+Label="homepage.href=https://forgejo.ellis.link/"
+# Label="homepage.siteMonitor=https://matrix.ellis.link/client/server.json" 
+Label="homepage.description=Git host"
+Label=kuma.__monitor=''
+
+StopTimeout=100
+
+[Service]
+
+Restart=always
+RestartSec=5
+
+TimeoutStopSec=2m
+TimeoutStartSec=2m
+
+# StartLimitInterval=1m
+StartLimitBurst=5
+
+[Install]
+WantedBy=default.target
