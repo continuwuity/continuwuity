@@ -28,6 +28,9 @@ entrypoints:
     #   trustedIPs: []
   https:
     address: :443
+    transport:
+      respondingTimeouts:
+        readTimeout: 600
     http3: {}
     # proxyProtocol:
     #   insecure: false
