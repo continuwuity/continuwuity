@@ -17,17 +17,24 @@ crate-type = [
 ]
 
 [features]
-release_max_log_level = [
-	"tracing/max_level_trace",
-	"tracing/release_max_level_info",
-	"log/max_level_trace",
-	"log/release_max_level_info",
+brotli_compression = [
+	"reqwest/brotli",
+]
+conduwuit_mods = [
+    "dep:libloading"
+]
+gzip_compression = [
+	"reqwest/gzip",
+]
+hardened_malloc = [
+	"dep:hardened_malloc-rs"
 ]
 jemalloc = [
 	"dep:tikv-jemalloc-sys",
 	"dep:tikv-jemalloc-ctl",
 	"dep:tikv-jemallocator",
 ]
+jemalloc_conf = []
 jemalloc_prof = [
 	"tikv-jemalloc-sys/profiling",
 ]
@@ -36,23 +43,16 @@ jemalloc_stats = [
     "tikv-jemalloc-ctl/stats",
     "tikv-jemallocator/stats",
 ]
-jemalloc_conf = []
-hardened_malloc = [
-	"dep:hardened_malloc-rs"
+perf_measurements = []
+release_max_log_level = [
+	"tracing/max_level_trace",
+	"tracing/release_max_level_info",
+	"log/max_level_trace",
+	"log/release_max_level_info",
 ]
-gzip_compression = [
-	"reqwest/gzip",
-]
-brotli_compression = [
-	"reqwest/brotli",
-]
+sentry_telemetry = []
 zstd_compression = [
     "reqwest/zstd",
-]
-perf_measurements = []
-sentry_telemetry = []
-conduwuit_mods = [
-    "dep:libloading"
 ]
 
 [dependencies]

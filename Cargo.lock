@@ -784,7 +784,6 @@ dependencies = [
  "base64 0.22.1",
  "bytes",
  "conduwuit_core",
- "conduwuit_database",
  "conduwuit_service",
  "const-str",
  "futures",

@@ -17,7 +17,12 @@ crate-type = [
 ]
 
 [features]
+blurhashing = [
+	"dep:image",
+	"dep:blurhash",
+]
 brotli_compression = [
+	"conduwuit-core/brotli_compression",
 	"reqwest/brotli",
 ]
 console = [
@@ -26,25 +31,48 @@ console = [
 ]
 element_hacks = []
 gzip_compression = [
+	"conduwuit-core/gzip_compression",
 	"reqwest/gzip",
+]
+io_uring = [
+	"conduwuit-database/io_uring",
+]
+jemalloc = [
+	"conduwuit-core/jemalloc",
+	"conduwuit-database/jemalloc",
+]
+jemalloc_conf = [
+	"conduwuit-core/jemalloc_conf",
+	"conduwuit-database/jemalloc_conf",
+]
+jemalloc_prof = [
+	"conduwuit-core/jemalloc_prof",
+	"conduwuit-database/jemalloc_prof",
+]
+jemalloc_stats = [
+	"conduwuit-core/jemalloc_stats",
+	"conduwuit-database/jemalloc_stats",
 ]
 media_thumbnail = [
 	"dep:image",
 ]
 release_max_log_level = [
-	"tracing/max_level_trace",
-	"tracing/release_max_level_info",
+	"conduwuit-core/release_max_log_level",
+	"conduwuit-database/release_max_log_level",
 	"log/max_level_trace",
 	"log/release_max_level_info",
+	"tracing/max_level_trace",
+	"tracing/release_max_level_info",
 ]
 url_preview = [
 	"dep:image",
 	"dep:webpage",
 ]
 zstd_compression = [
+	"conduwuit-core/zstd_compression",
+	"conduwuit-database/zstd_compression",
     "reqwest/zstd",
 ]
-blurhashing = ["dep:image","dep:blurhash"]
 
 [dependencies]
 async-trait.workspace = true

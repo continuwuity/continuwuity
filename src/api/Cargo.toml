@@ -17,21 +17,50 @@ crate-type = [
 ]
 
 [features]
-element_hacks = []
-release_max_log_level = [
-	"tracing/max_level_trace",
-	"tracing/release_max_level_info",
-	"log/max_level_trace",
-	"log/release_max_level_info",
+brotli_compression = [
+	"conduwuit-core/brotli_compression",
+	"conduwuit-service/brotli_compression",
+	"reqwest/brotli",
 ]
-zstd_compression = [
-    "reqwest/zstd",
+element_hacks = [
+	"conduwuit-service/element_hacks",
 ]
 gzip_compression = [
+	"conduwuit-core/gzip_compression",
+	"conduwuit-service/gzip_compression",
 	"reqwest/gzip",
 ]
-brotli_compression = [
-	"reqwest/brotli",
+io_uring = [
+	"conduwuit-service/io_uring",
+]
+jemalloc = [
+    "conduwuit-core/jemalloc",
+    "conduwuit-service/jemalloc",
+]
+jemalloc_conf = [
+	"conduwuit-core/jemalloc_conf",
+	"conduwuit-service/jemalloc_conf",
+]
+jemalloc_prof = [
+	"conduwuit-core/jemalloc_prof",
+	"conduwuit-service/jemalloc_prof",
+]
+jemalloc_stats = [
+	"conduwuit-core/jemalloc_stats",
+	"conduwuit-service/jemalloc_stats",
+]
+release_max_log_level = [
+	"conduwuit-core/release_max_log_level",
+	"conduwuit-service/release_max_log_level",
+	"log/max_level_trace",
+	"log/release_max_level_info",
+	"tracing/max_level_trace",
+	"tracing/release_max_level_info",
+]
+zstd_compression = [
+	"conduwuit-core/zstd_compression",
+	"conduwuit-service/zstd_compression",
+	"reqwest/zstd",
 ]
 
 [dependencies]
@@ -42,7 +71,6 @@ axum.workspace = true
 base64.workspace = true
 bytes.workspace = true
 conduwuit-core.workspace = true
-conduwuit-database.workspace = true
 conduwuit-service.workspace = true
 const-str.workspace = true
 futures.workspace = true
