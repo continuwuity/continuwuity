@@ -115,6 +115,9 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::get_protocols_route)
 		.route("/_matrix/client/unstable/thirdparty/protocols",
 			get(client::get_protocols_route_unstable))
+		// MSC2965 is still not stabilized. See https://github.com/sandhose/matrix-spec-proposals/blob/msc/sandhose/oidc-discovery/proposals/2965-auth-metadata.md#unstable-prefix
+		.route("/_matrix/client/unstable/org.matrix.msc2965/auth_metadata",
+			get(client::get_auth_metadata))
 		.ruma_route(&client::send_message_event_route)
 		.ruma_route(&client::send_state_event_for_key_route)
 		.ruma_route(&client::get_state_events_route)

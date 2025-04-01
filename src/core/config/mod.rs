@@ -104,7 +104,9 @@ pub struct Config {
 	#[serde(default)]
 	pub tls: TlsConfig,
 
-	/// The UNIX socket continuwuity will listen on.
+	pub auth: Option<AuthConfig>,
+
+	/// The UNIX socket conduwuit will listen on.
 	///
 	/// continuwuity cannot listen on both an IP address and a UNIX socket. If
 	/// listening on a UNIX socket, you MUST remove/comment the `address` key.
@@ -2018,6 +2020,20 @@ pub struct TlsConfig {
 	/// Whether to listen and allow for HTTP and HTTPS connections (insecure!)
 	#[serde(default)]
 	pub dual_protocol: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
+#[config_example_generator(filename = "conduwuit-example.toml", section = "global.auth")]
+pub struct AuthConfig {
+	/// Use this homeserver as the OIDC authentication reference.
+	/// Note that the legacy Matrix authentication still will work.
+	/// Unset by default.
+	pub enable_oidc_login: bool,
+
+	/// The URL where the user is able to access the account management
+	/// capabilities of the homeserver. Only used if `enable_oidc_login` is set.
+	/// Unset by default.
+	pub enable_oidc_account_management: bool,
 }
 
 #[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]

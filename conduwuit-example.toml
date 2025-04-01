@@ -1754,6 +1754,20 @@
 #
 #dual_protocol = false
 
+[global.auth]
+
+# Use this homeserver as the OIDC authentication reference.
+# Note that the legacy Matrix authentication still will work.
+# Unset by default.
+#
+#enable_oidc_login =
+
+# The URL where the user is able to access the account management
+# capabilities of the homeserver. Only used if `enable_oidc_login` is set.
+# Unset by default.
+#
+#enable_oidc_account_management =
+
 [global.well_known]
 
 # The server URL that the client well-known file will serve. This should

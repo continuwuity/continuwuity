@@ -289,6 +289,17 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
+	if let Some(auth) = &config.auth {
+		if auth.enable_oidc_login {
+			if config.well_known.client.is_none() {
+				return Err!(Config(
+					"auth.enable_oidc_login",
+					"Oidc authentication is enabled but the well-known client is not set."
+				))
+			}
+		}
+	}
+
 	Ok(())
 }
 
