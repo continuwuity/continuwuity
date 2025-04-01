@@ -17,11 +17,60 @@ crate-type = [
 ]
 
 [features]
+brotli_compression = [
+	"conduwuit-api/brotli_compression",
+	"conduwuit-core/brotli_compression",
+	"conduwuit-service/brotli_compression",
+]
+gzip_compression = [
+	"conduwuit-api/gzip_compression",
+	"conduwuit-core/gzip_compression",
+	"conduwuit-service/gzip_compression",
+]
+io_uring = [
+	"conduwuit-api/io_uring",
+	"conduwuit-database/io_uring",
+	"conduwuit-service/io_uring",
+]
+jemalloc = [
+	"conduwuit-api/jemalloc",
+	"conduwuit-core/jemalloc",
+	"conduwuit-database/jemalloc",
+	"conduwuit-service/jemalloc",
+]
+jemalloc_conf = [
+	"conduwuit-api/jemalloc_conf",
+	"conduwuit-core/jemalloc_conf",
+	"conduwuit-database/jemalloc_conf",
+	"conduwuit-service/jemalloc_conf",
+]
+jemalloc_prof = [
+	"conduwuit-api/jemalloc_prof",
+	"conduwuit-core/jemalloc_prof",
+	"conduwuit-database/jemalloc_prof",
+	"conduwuit-service/jemalloc_prof",
+]
+jemalloc_stats = [
+	"conduwuit-api/jemalloc_stats",
+	"conduwuit-core/jemalloc_stats",
+	"conduwuit-database/jemalloc_stats",
+	"conduwuit-service/jemalloc_stats",
+]
 release_max_log_level = [
+	"conduwuit-api/release_max_log_level",
+	"conduwuit-core/release_max_log_level",
+	"conduwuit-database/release_max_log_level",
+	"conduwuit-service/release_max_log_level",
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 	"log/max_level_trace",
 	"log/release_max_level_info",
+]
+zstd_compression = [
+	"conduwuit-api/zstd_compression",
+	"conduwuit-core/zstd_compression",
+	"conduwuit-database/zstd_compression",
+	"conduwuit-service/zstd_compression",
 ]
 
 [dependencies]

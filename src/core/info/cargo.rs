@@ -31,7 +31,7 @@ const ROUTER_MANIFEST: &'static str = ();
 #[cargo_manifest(crate = "main")]
 const MAIN_MANIFEST: &'static str = ();
 
-/// Processed list of features access all project crates. This is generated from
+/// Processed list of features across all project crates. This is generated from
 /// the data in the MANIFEST strings and contains all possible project features.
 /// For *enabled* features see the info::rustc module instead.
 static FEATURES: OnceLock<Vec<String>> = OnceLock::new();
