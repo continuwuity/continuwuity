@@ -14,6 +14,7 @@ pub const EMPTY: &str = "";
 /// returned otherwise the input (i.e. &'static str) is returned. If multiple
 /// arguments are provided the first is assumed to be a format string.
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! format_maybe {
 	($s:literal $(,)?) => {
 		if $crate::is_format!($s) { std::format!($s).into() } else { $s.into() }
@@ -27,6 +28,7 @@ macro_rules! format_maybe {
 /// Constant expression to decide if a literal is a format string. Note: could
 /// use some improvement.
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! is_format {
 	($s:literal) => {
 		::const_str::contains!($s, "{") && ::const_str::contains!($s, "}")
