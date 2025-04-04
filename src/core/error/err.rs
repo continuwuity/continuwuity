@@ -33,6 +33,7 @@
 //!    option of replacing `error!` with `debug_error!`.
 
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! Err {
 	($($args:tt)*) => {
 		Err($crate::err!($($args)*))
@@ -40,6 +41,7 @@ macro_rules! Err {
 }
 
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! err {
 	(Request(Forbidden($level:ident!($($args:tt)+)))) => {{
 		let mut buf = String::new();
@@ -109,6 +111,7 @@ macro_rules! err {
 /// can share the same callsite metadata for the source of our Error and the
 /// associated logging and tracing event dispatches.
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! err_log {
 	($out:ident, $level:ident, $($fields:tt)+) => {{
 		use $crate::tracing::{

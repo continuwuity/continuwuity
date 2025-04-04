@@ -12,6 +12,7 @@ pub use crate::{result::DebugInspect, utils::debug::*};
 /// Log event at given level in debug-mode (when debug-assertions are enabled).
 /// In release-mode it becomes DEBUG level, and possibly subject to elision.
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! debug_event {
 	( $level:expr_2021, $($x:tt)+ ) => {
 		if $crate::debug::logging() {

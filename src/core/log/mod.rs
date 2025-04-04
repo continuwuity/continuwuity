@@ -33,6 +33,7 @@ pub struct Log {
 // the crate namespace like these.
 
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! event {
 	( $level:expr_2021, $($x:tt)+ ) => { ::tracing::event!( $level, $($x)+ ) }
 }

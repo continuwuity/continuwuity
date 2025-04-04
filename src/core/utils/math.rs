@@ -10,6 +10,7 @@ use crate::{Err, Error, Result, debug::type_name, err};
 
 /// Checked arithmetic expression. Returns a Result<R, Error::Arithmetic>
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! checked {
 	($($input:tt)+) => {
 		$crate::utils::math::checked_ops!($($input)+)
@@ -22,6 +23,7 @@ macro_rules! checked {
 /// has no realistic expectation for error and no interest in cluttering the
 /// callsite with result handling from checked!.
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! expected {
 	($msg:literal, $($input:tt)+) => {
 		$crate::checked!($($input)+).expect($msg)
@@ -37,6 +39,7 @@ macro_rules! expected {
 /// regression analysis.
 #[cfg(not(debug_assertions))]
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! validated {
 	($($input:tt)+) => {
 		//#[allow(clippy::arithmetic_side_effects)] {
@@ -53,6 +56,7 @@ macro_rules! validated {
 /// the expression is obviously safe. The check is elided in release-mode.
 #[cfg(debug_assertions)]
 #[macro_export]
+#[collapse_debuginfo(yes)]
 macro_rules! validated {
 	($($input:tt)+) => { $crate::expected!($($input)+) }
 }
