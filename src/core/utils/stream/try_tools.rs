@@ -8,8 +8,8 @@ use crate::Result;
 /// TryStreamTools
 pub trait TryTools<T, E, S>
 where
-	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + Send + ?Sized,
-	Self: TryStream + Send + Sized,
+	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + ?Sized,
+	Self: TryStream + Sized,
 {
 	fn try_take(
 		self,
@@ -23,8 +23,8 @@ where
 
 impl<T, E, S> TryTools<T, E, S> for S
 where
-	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + Send + ?Sized,
-	Self: TryStream + Send + Sized,
+	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + ?Sized,
+	Self: TryStream + Sized,
 {
 	#[inline]
 	fn try_take(
