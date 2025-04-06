@@ -2,7 +2,7 @@
 #![allow(clippy::type_complexity)]
 
 use futures::{
-	future::{Ready, ready},
+	future::{FutureExt, Ready, ready},
 	stream::{
 		All, Any, Filter, FilterMap, Fold, ForEach, Scan, SkipWhile, Stream, StreamExt, TakeWhile,
 	},
@@ -25,6 +25,12 @@ where
 	fn ready_any<F>(self, f: F) -> Any<Self, Ready<bool>, impl FnMut(Item) -> Ready<bool>>
 	where
 		F: Fn(Item) -> bool;
+
+	fn ready_find<'a, F>(self, f: F) -> impl Future<Output = Option<Item>> + Send
+	where
+		Self: Send + Unpin + 'a,
+		F: Fn(&Item) -> bool + Send + 'a,
+		Item: Send;
 
 	fn ready_filter<'a, F>(
 		self,
@@ -109,6 +115,19 @@ where
 		F: Fn(Item) -> bool,
 	{
 		self.any(move |t| ready(f(t)))
+	}
+
+	#[inline]
+	fn ready_find<'a, F>(self, f: F) -> impl Future<Output = Option<Item>> + Send
+	where
+		Self: Send + Unpin + 'a,
+		F: Fn(&Item) -> bool + Send + 'a,
+		Item: Send,
+	{
+		self.ready_filter(f)
+			.take(1)
+			.into_future()
+			.map(|(curr, _next)| curr)
 	}
 
 	#[inline]
