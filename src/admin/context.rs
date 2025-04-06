@@ -3,13 +3,13 @@ use std::{fmt, time::SystemTime};
 use conduwuit::Result;
 use conduwuit_service::Services;
 use futures::{
-	Future, FutureExt,
+	Future, FutureExt, TryFutureExt,
 	io::{AsyncWriteExt, BufWriter},
 	lock::Mutex,
 };
 use ruma::EventId;
 
-pub(crate) struct Command<'a> {
+pub(crate) struct Context<'a> {
 	pub(crate) services: &'a Services,
 	pub(crate) body: &'a [&'a str],
 	pub(crate) timer: SystemTime,
@@ -17,14 +17,14 @@ pub(crate) struct Command<'a> {
 	pub(crate) output: Mutex<BufWriter<Vec<u8>>>,
 }
 
-impl Command<'_> {
+impl Context<'_> {
 	pub(crate) fn write_fmt(
 		&self,
 		arguments: fmt::Arguments<'_>,
 	) -> impl Future<Output = Result> + Send + '_ + use<'_> {
 		let buf = format!("{arguments}");
-		self.output.lock().then(|mut output| async move {
-			output.write_all(buf.as_bytes()).await.map_err(Into::into)
+		self.output.lock().then(async move |mut output| {
+			output.write_all(buf.as_bytes()).map_err(Into::into).await
 		})
 	}
 
@@ -32,8 +32,8 @@ impl Command<'_> {
 		&'a self,
 		s: &'a str,
 	) -> impl Future<Output = Result> + Send + 'a {
-		self.output.lock().then(move |mut output| async move {
-			output.write_all(s.as_bytes()).await.map_err(Into::into)
+		self.output.lock().then(async move |mut output| {
+			output.write_all(s.as_bytes()).map_err(Into::into).await
 		})
 	}
 }

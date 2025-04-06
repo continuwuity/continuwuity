@@ -4,7 +4,7 @@
 #![allow(clippy::too_many_arguments)]
 
 pub(crate) mod admin;
-pub(crate) mod command;
+pub(crate) mod context;
 pub(crate) mod processor;
 mod tests;
 pub(crate) mod utils;
@@ -23,13 +23,9 @@ extern crate conduwuit_api as api;
 extern crate conduwuit_core as conduwuit;
 extern crate conduwuit_service as service;
 
-pub(crate) use conduwuit::Result;
 pub(crate) use conduwuit_macros::{admin_command, admin_command_dispatch};
 
-pub(crate) use crate::{
-	command::Command,
-	utils::{escape_html, get_room_info},
-};
+pub(crate) use crate::{context::Context, utils::get_room_info};
 
 pub(crate) const PAGE_SIZE: usize = 100;
 

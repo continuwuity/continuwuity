@@ -1,11 +1,11 @@
 use std::fmt::Write;
 
 use clap::Subcommand;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomAliasId, OwnedRoomId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedRoomAliasId, OwnedRoomId};
 
-use crate::{Command, escape_html};
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum RoomAliasCommand {
@@ -42,17 +42,7 @@ pub(crate) enum RoomAliasCommand {
 	},
 }
 
-pub(super) async fn process(command: RoomAliasCommand, context: &Command<'_>) -> Result {
-	let c = reprocess(command, context).await?;
-	context.write_str(c.body()).await?;
-
-	Ok(())
-}
-
-pub(super) async fn reprocess(
-	command: RoomAliasCommand,
-	context: &Command<'_>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn process(command: RoomAliasCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 	let server_user = &services.globals.server_user;
 
@@ -65,9 +55,7 @@ pub(super) async fn reprocess(
 			let room_alias = match OwnedRoomAliasId::parse(room_alias_str) {
 				| Ok(alias) => alias,
 				| Err(err) => {
-					return Ok(RoomMessageEventContent::text_plain(format!(
-						"Failed to parse alias: {err}"
-					)));
+					return Err!("Failed to parse alias: {err}");
 				},
 			};
 			match command {
@@ -79,60 +67,50 @@ pub(super) async fn reprocess(
 								&room_id,
 								server_user,
 							) {
-								| Ok(()) => Ok(RoomMessageEventContent::text_plain(format!(
-									"Successfully overwrote alias (formerly {id})"
-								))),
-								| Err(err) => Ok(RoomMessageEventContent::text_plain(format!(
-									"Failed to remove alias: {err}"
-								))),
+								| Err(err) => Err!("Failed to remove alias: {err}"),
+								| Ok(()) =>
+									context
+										.write_str(&format!(
+											"Successfully overwrote alias (formerly {id})"
+										))
+										.await,
 							}
 						},
-						| (false, Ok(id)) => Ok(RoomMessageEventContent::text_plain(format!(
+						| (false, Ok(id)) => Err!(
 							"Refusing to overwrite in use alias for {id}, use -f or --force to \
 							 overwrite"
-						))),
+						),
 						| (_, Err(_)) => {
 							match services.rooms.alias.set_alias(
 								&room_alias,
 								&room_id,
 								server_user,
 							) {
-								| Ok(()) => Ok(RoomMessageEventContent::text_plain(
-									"Successfully set alias",
-								)),
-								| Err(err) => Ok(RoomMessageEventContent::text_plain(format!(
-									"Failed to remove alias: {err}"
-								))),
+								| Err(err) => Err!("Failed to remove alias: {err}"),
+								| Ok(()) => context.write_str("Successfully set alias").await,
 							}
 						},
 					}
 				},
 				| RoomAliasCommand::Remove { .. } => {
 					match services.rooms.alias.resolve_local_alias(&room_alias).await {
+						| Err(_) => Err!("Alias isn't in use."),
 						| Ok(id) => match services
 							.rooms
 							.alias
 							.remove_alias(&room_alias, server_user)
 							.await
 						{
-							| Ok(()) => Ok(RoomMessageEventContent::text_plain(format!(
-								"Removed alias from {id}"
-							))),
-							| Err(err) => Ok(RoomMessageEventContent::text_plain(format!(
-								"Failed to remove alias: {err}"
-							))),
+							| Err(err) => Err!("Failed to remove alias: {err}"),
+							| Ok(()) =>
+								context.write_str(&format!("Removed alias from {id}")).await,
 						},
-						| Err(_) =>
-							Ok(RoomMessageEventContent::text_plain("Alias isn't in use.")),
 					}
 				},
 				| RoomAliasCommand::Which { .. } => {
 					match services.rooms.alias.resolve_local_alias(&room_alias).await {
-						| Ok(id) => Ok(RoomMessageEventContent::text_plain(format!(
-							"Alias resolves to {id}"
-						))),
-						| Err(_) =>
-							Ok(RoomMessageEventContent::text_plain("Alias isn't in use.")),
+						| Err(_) => Err!("Alias isn't in use."),
+						| Ok(id) => context.write_str(&format!("Alias resolves to {id}")).await,
 					}
 				},
 				| RoomAliasCommand::List { .. } => unreachable!(),
@@ -154,15 +132,8 @@ pub(super) async fn reprocess(
 					output
 				});
 
-				let html_list = aliases.iter().fold(String::new(), |mut output, alias| {
-					writeln!(output, "<li>{}</li>", escape_html(alias.as_ref()))
-						.expect("should be able to write to string buffer");
-					output
-				});
-
 				let plain = format!("Aliases for {room_id}:\n{plain_list}");
-				let html = format!("Aliases for {room_id}:\n<ul>{html_list}</ul>");
-				Ok(RoomMessageEventContent::text_html(plain, html))
+				context.write_str(&plain).await
 			} else {
 				let aliases = services
 					.rooms
@@ -181,23 +152,8 @@ pub(super) async fn reprocess(
 						output
 					});
 
-				let html_list = aliases
-					.iter()
-					.fold(String::new(), |mut output, (alias, id)| {
-						writeln!(
-							output,
-							"<li><code>{}</code> -> #{}:{}</li>",
-							escape_html(alias.as_ref()),
-							escape_html(id),
-							server_name
-						)
-						.expect("should be able to write to string buffer");
-						output
-					});
-
 				let plain = format!("Aliases:\n{plain_list}");
-				let html = format!("Aliases:\n<ul>{html_list}</ul>");
-				Ok(RoomMessageEventContent::text_html(plain, html))
+				context.write_str(&plain).await
 			},
 	}
 }

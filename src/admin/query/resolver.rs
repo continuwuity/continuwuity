@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::{Result, utils::time};
 use futures::StreamExt;
-use ruma::{OwnedServerName, events::room::message::RoomMessageEventContent};
+use ruma::OwnedServerName;
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -21,10 +21,7 @@ pub(crate) enum ResolverCommand {
 }
 
 #[admin_command]
-async fn destinations_cache(
-	&self,
-	server_name: Option<OwnedServerName>,
-) -> Result<RoomMessageEventContent> {
+async fn destinations_cache(&self, server_name: Option<OwnedServerName>) -> Result {
 	use service::resolver::cache::CachedDest;
 
 	writeln!(self, "| Server Name | Destination | Hostname | Expires |").await?;
@@ -44,11 +41,11 @@ async fn destinations_cache(
 			.await?;
 	}
 
-	Ok(RoomMessageEventContent::notice_plain(""))
+	Ok(())
 }
 
 #[admin_command]
-async fn overrides_cache(&self, server_name: Option<String>) -> Result<RoomMessageEventContent> {
+async fn overrides_cache(&self, server_name: Option<String>) -> Result {
 	use service::resolver::cache::CachedOverride;
 
 	writeln!(self, "| Server Name | IP  | Port | Expires | Overriding |").await?;
@@ -70,5 +67,5 @@ async fn overrides_cache(&self, server_name: Option<String>) -> Result<RoomMessa
 			.await?;
 	}
 
-	Ok(RoomMessageEventContent::notice_plain(""))
+	Ok(())
 }

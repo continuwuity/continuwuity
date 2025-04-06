@@ -1,10 +1,10 @@
 use clap::Subcommand;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedServerName, OwnedUserId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedServerName, OwnedUserId};
 use service::sending::Destination;
 
-use crate::Command;
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/sending.rs
@@ -62,17 +62,7 @@ pub(crate) enum SendingCommand {
 }
 
 /// All the getters and iterators in key_value/sending.rs
-pub(super) async fn process(subcommand: SendingCommand, context: &Command<'_>) -> Result {
-	let c = reprocess(subcommand, context).await?;
-	context.write_str(c.body()).await?;
-	Ok(())
-}
-
-/// All the getters and iterators in key_value/sending.rs
-pub(super) async fn reprocess(
-	subcommand: SendingCommand,
-	context: &Command<'_>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn process(subcommand: SendingCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 
 	match subcommand {
@@ -82,9 +72,11 @@ pub(super) async fn reprocess(
 			let active_requests = results.collect::<Vec<_>>().await;
 			let query_time = timer.elapsed();
 
-			Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{active_requests:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{active_requests:#?}\n```"
+				))
+				.await
 		},
 		| SendingCommand::QueuedRequests {
 			appservice_id,
@@ -97,19 +89,19 @@ pub(super) async fn reprocess(
 				&& user_id.is_none()
 				&& push_key.is_none()
 			{
-				return Ok(RoomMessageEventContent::text_plain(
+				return Err!(
 					"An appservice ID, server name, or a user ID with push key must be \
 					 specified via arguments. See --help for more details.",
-				));
+				);
 			}
 			let timer = tokio::time::Instant::now();
 			let results = match (appservice_id, server_name, user_id, push_key) {
 				| (Some(appservice_id), None, None, None) => {
 					if appservice_id.is_empty() {
-						return Ok(RoomMessageEventContent::text_plain(
+						return Err!(
 							"An appservice ID, server name, or a user ID with push key must be \
 							 specified via arguments. See --help for more details.",
-						));
+						);
 					}
 
 					services
@@ -123,10 +115,10 @@ pub(super) async fn reprocess(
 					.queued_requests(&Destination::Federation(server_name)),
 				| (None, None, Some(user_id), Some(push_key)) => {
 					if push_key.is_empty() {
-						return Ok(RoomMessageEventContent::text_plain(
+						return Err!(
 							"An appservice ID, server name, or a user ID with push key must be \
 							 specified via arguments. See --help for more details.",
-						));
+						);
 					}
 
 					services
@@ -135,25 +127,27 @@ pub(super) async fn reprocess(
 						.queued_requests(&Destination::Push(user_id, push_key))
 				},
 				| (Some(_), Some(_), Some(_), Some(_)) => {
-					return Ok(RoomMessageEventContent::text_plain(
+					return Err!(
 						"An appservice ID, server name, or a user ID with push key must be \
 						 specified via arguments. Not all of them See --help for more details.",
-					));
+					);
 				},
 				| _ => {
-					return Ok(RoomMessageEventContent::text_plain(
+					return Err!(
 						"An appservice ID, server name, or a user ID with push key must be \
 						 specified via arguments. See --help for more details.",
-					));
+					);
 				},
 			};
 
 			let queued_requests = results.collect::<Vec<_>>().await;
 			let query_time = timer.elapsed();
 
-			Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{queued_requests:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{queued_requests:#?}\n```"
+				))
+				.await
 		},
 		| SendingCommand::ActiveRequestsFor {
 			appservice_id,
@@ -166,20 +160,20 @@ pub(super) async fn reprocess(
 				&& user_id.is_none()
 				&& push_key.is_none()
 			{
-				return Ok(RoomMessageEventContent::text_plain(
+				return Err!(
 					"An appservice ID, server name, or a user ID with push key must be \
 					 specified via arguments. See --help for more details.",
-				));
+				);
 			}
 
 			let timer = tokio::time::Instant::now();
 			let results = match (appservice_id, server_name, user_id, push_key) {
 				| (Some(appservice_id), None, None, None) => {
 					if appservice_id.is_empty() {
-						return Ok(RoomMessageEventContent::text_plain(
+						return Err!(
 							"An appservice ID, server name, or a user ID with push key must be \
 							 specified via arguments. See --help for more details.",
-						));
+						);
 					}
 
 					services
@@ -193,10 +187,10 @@ pub(super) async fn reprocess(
 					.active_requests_for(&Destination::Federation(server_name)),
 				| (None, None, Some(user_id), Some(push_key)) => {
 					if push_key.is_empty() {
-						return Ok(RoomMessageEventContent::text_plain(
+						return Err!(
 							"An appservice ID, server name, or a user ID with push key must be \
 							 specified via arguments. See --help for more details.",
-						));
+						);
 					}
 
 					services
@@ -205,34 +199,38 @@ pub(super) async fn reprocess(
 						.active_requests_for(&Destination::Push(user_id, push_key))
 				},
 				| (Some(_), Some(_), Some(_), Some(_)) => {
-					return Ok(RoomMessageEventContent::text_plain(
+					return Err!(
 						"An appservice ID, server name, or a user ID with push key must be \
 						 specified via arguments. Not all of them See --help for more details.",
-					));
+					);
 				},
 				| _ => {
-					return Ok(RoomMessageEventContent::text_plain(
+					return Err!(
 						"An appservice ID, server name, or a user ID with push key must be \
 						 specified via arguments. See --help for more details.",
-					));
+					);
 				},
 			};
 
 			let active_requests = results.collect::<Vec<_>>().await;
 			let query_time = timer.elapsed();
 
-			Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{active_requests:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{active_requests:#?}\n```"
+				))
+				.await
 		},
 		| SendingCommand::GetLatestEduCount { server_name } => {
 			let timer = tokio::time::Instant::now();
 			let results = services.sending.db.get_latest_educount(&server_name).await;
 			let query_time = timer.elapsed();
 
-			Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 	}
 }

@@ -33,7 +33,7 @@ use service::{
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
-use crate::{Command, admin, admin::AdminCommand};
+use crate::{admin, admin::AdminCommand, context::Context};
 
 #[must_use]
 pub(super) fn complete(line: &str) -> String { complete_command(AdminCommand::command(), line) }
@@ -58,7 +58,7 @@ async fn process_command(services: Arc<Services>, input: &CommandInput) -> Proce
 		| Ok(parsed) => parsed,
 	};
 
-	let context = Command {
+	let context = Context {
 		services: &services,
 		body: &body,
 		timer: SystemTime::now(),
@@ -103,7 +103,7 @@ fn handle_panic(error: &Error, command: &CommandInput) -> ProcessorResult {
 
 /// Parse and process a message from the admin room
 async fn process(
-	context: &Command<'_>,
+	context: &Context<'_>,
 	command: AdminCommand,
 	args: &[String],
 ) -> (Result, String) {
@@ -132,7 +132,7 @@ async fn process(
 	(result, output)
 }
 
-fn capture_create(context: &Command<'_>) -> (Arc<Capture>, Arc<Mutex<String>>) {
+fn capture_create(context: &Context<'_>) -> (Arc<Capture>, Arc<Mutex<String>>) {
 	let env_config = &context.services.server.config.admin_log_capture;
 	let env_filter = EnvFilter::try_new(env_config).unwrap_or_else(|e| {
 		warn!("admin_log_capture filter invalid: {e:?}");

@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{OwnedRoomId, OwnedUserId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedRoomId, OwnedUserId};
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -36,7 +36,7 @@ async fn changes_since(
 	user_id: OwnedUserId,
 	since: u64,
 	room_id: Option<OwnedRoomId>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let timer = tokio::time::Instant::now();
 	let results: Vec<_> = self
 		.services
@@ -46,9 +46,8 @@ async fn changes_since(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"))
+		.await
 }
 
 #[admin_command]
@@ -57,7 +56,7 @@ async fn account_data_get(
 	user_id: OwnedUserId,
 	kind: String,
 	room_id: Option<OwnedRoomId>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let timer = tokio::time::Instant::now();
 	let results = self
 		.services
@@ -66,7 +65,6 @@ async fn account_data_get(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"))
+		.await
 }

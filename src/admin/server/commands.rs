@@ -1,12 +1,11 @@
 use std::{fmt::Write, path::PathBuf, sync::Arc};
 
 use conduwuit::{Err, Result, info, utils::time, warn};
-use ruma::events::room::message::RoomMessageEventContent;
 
 use crate::admin_command;
 
 #[admin_command]
-pub(super) async fn uptime(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn uptime(&self) -> Result {
 	let elapsed = self
 		.services
 		.server
@@ -15,47 +14,36 @@ pub(super) async fn uptime(&self) -> Result<RoomMessageEventContent> {
 		.expect("standard duration");
 
 	let result = time::pretty(elapsed);
-	Ok(RoomMessageEventContent::notice_plain(format!("{result}.")))
+	self.write_str(&format!("{result}.")).await
 }
 
 #[admin_command]
-pub(super) async fn show_config(&self) -> Result<RoomMessageEventContent> {
-	// Construct and send the response
-	Ok(RoomMessageEventContent::text_markdown(format!(
-		"{}",
-		*self.services.server.config
-	)))
+pub(super) async fn show_config(&self) -> Result {
+	self.write_str(&format!("{}", *self.services.server.config))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn reload_config(
-	&self,
-	path: Option<PathBuf>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn reload_config(&self, path: Option<PathBuf>) -> Result {
 	let path = path.as_deref().into_iter();
 	self.services.config.reload(path)?;
 
-	Ok(RoomMessageEventContent::text_plain("Successfully reconfigured."))
+	self.write_str("Successfully reconfigured.").await
 }
 
 #[admin_command]
-pub(super) async fn list_features(
-	&self,
-	available: bool,
-	enabled: bool,
-	comma: bool,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn list_features(&self, available: bool, enabled: bool, comma: bool) -> Result {
 	let delim = if comma { "," } else { " " };
 	if enabled && !available {
 		let features = info::rustc::features().join(delim);
 		let out = format!("`\n{features}\n`");
-		return Ok(RoomMessageEventContent::text_markdown(out));
+		return self.write_str(&out).await;
 	}
 
 	if available && !enabled {
 		let features = info::cargo::features().join(delim);
 		let out = format!("`\n{features}\n`");
-		return Ok(RoomMessageEventContent::text_markdown(out));
+		return self.write_str(&out).await;
 	}
 
 	let mut features = String::new();
@@ -68,41 +56,42 @@ pub(super) async fn list_features(
 		writeln!(features, "{emoji} {feature} {remark}")?;
 	}
 
-	Ok(RoomMessageEventContent::text_markdown(features))
+	self.write_str(&features).await
 }
 
 #[admin_command]
-pub(super) async fn memory_usage(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn memory_usage(&self) -> Result {
 	let services_usage = self.services.memory_usage().await?;
 	let database_usage = self.services.db.db.memory_usage()?;
 	let allocator_usage =
 		conduwuit::alloc::memory_usage().map_or(String::new(), |s| format!("\nAllocator:\n{s}"));
 
-	Ok(RoomMessageEventContent::text_plain(format!(
+	self.write_str(&format!(
 		"Services:\n{services_usage}\nDatabase:\n{database_usage}{allocator_usage}",
-	)))
+	))
+	.await
 }
 
 #[admin_command]
-pub(super) async fn clear_caches(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn clear_caches(&self) -> Result {
 	self.services.clear_cache().await;
 
-	Ok(RoomMessageEventContent::text_plain("Done."))
+	self.write_str("Done.").await
 }
 
 #[admin_command]
-pub(super) async fn list_backups(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn list_backups(&self) -> Result {
 	let result = self.services.db.db.backup_list()?;
 
 	if result.is_empty() {
-		Ok(RoomMessageEventContent::text_plain("No backups found."))
-	} else {
-		Ok(RoomMessageEventContent::text_plain(result))
+		return Err!("No backups found.");
 	}
+
+	self.write_str(&result).await
 }
 
 #[admin_command]
-pub(super) async fn backup_database(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn backup_database(&self) -> Result {
 	let db = Arc::clone(&self.services.db);
 	let mut result = self
 		.services
@@ -118,27 +107,27 @@ pub(super) async fn backup_database(&self) -> Result<RoomMessageEventContent> {
 		result = self.services.db.db.backup_list()?;
 	}
 
-	Ok(RoomMessageEventContent::notice_markdown(result))
+	self.write_str(&result).await
 }
 
 #[admin_command]
-pub(super) async fn admin_notice(&self, message: Vec<String>) -> Result<RoomMessageEventContent> {
+pub(super) async fn admin_notice(&self, message: Vec<String>) -> Result {
 	let message = message.join(" ");
 	self.services.admin.send_text(&message).await;
 
-	Ok(RoomMessageEventContent::notice_plain("Notice was sent to #admins"))
+	self.write_str("Notice was sent to #admins").await
 }
 
 #[admin_command]
-pub(super) async fn reload_mods(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn reload_mods(&self) -> Result {
 	self.services.server.reload()?;
 
-	Ok(RoomMessageEventContent::notice_plain("Reloading server..."))
+	self.write_str("Reloading server...").await
 }
 
 #[admin_command]
 #[cfg(unix)]
-pub(super) async fn restart(&self, force: bool) -> Result<RoomMessageEventContent> {
+pub(super) async fn restart(&self, force: bool) -> Result {
 	use conduwuit::utils::sys::current_exe_deleted;
 
 	if !force && current_exe_deleted() {
@@ -150,13 +139,13 @@ pub(super) async fn restart(&self, force: bool) -> Result<RoomMessageEventConten
 
 	self.services.server.restart()?;
 
-	Ok(RoomMessageEventContent::notice_plain("Restarting server..."))
+	self.write_str("Restarting server...").await
 }
 
 #[admin_command]
-pub(super) async fn shutdown(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn shutdown(&self) -> Result {
 	warn!("shutdown command");
 	self.services.server.shutdown()?;
 
-	Ok(RoomMessageEventContent::notice_plain("Shutting down server..."))
+	self.write_str("Shutting down server...").await
 }

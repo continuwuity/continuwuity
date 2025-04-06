@@ -1,7 +1,7 @@
 use clap::Subcommand;
-use conduwuit::{Result, utils::ReadyExt};
+use conduwuit::{Err, Result, utils::ReadyExt};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
+use ruma::OwnedRoomId;
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -27,11 +27,7 @@ pub(crate) enum RoomInfoCommand {
 }
 
 #[admin_command]
-async fn list_joined_members(
-	&self,
-	room_id: OwnedRoomId,
-	local_only: bool,
-) -> Result<RoomMessageEventContent> {
+async fn list_joined_members(&self, room_id: OwnedRoomId, local_only: bool) -> Result {
 	let room_name = self
 		.services
 		.rooms
@@ -64,22 +60,19 @@ async fn list_joined_members(
 		.collect()
 		.await;
 
-	let output_plain = format!(
-		"{} Members in Room \"{}\":\n```\n{}\n```",
-		member_info.len(),
-		room_name,
-		member_info
-			.into_iter()
-			.map(|(displayname, mxid)| format!("{mxid} | {displayname}"))
-			.collect::<Vec<_>>()
-			.join("\n")
-	);
+	let num = member_info.len();
+	let body = member_info
+		.into_iter()
+		.map(|(displayname, mxid)| format!("{mxid} | {displayname}"))
+		.collect::<Vec<_>>()
+		.join("\n");
 
-	Ok(RoomMessageEventContent::notice_markdown(output_plain))
+	self.write_str(&format!("{num} Members in Room \"{room_name}\":\n```\n{body}\n```",))
+		.await
 }
 
 #[admin_command]
-async fn view_room_topic(&self, room_id: OwnedRoomId) -> Result<RoomMessageEventContent> {
+async fn view_room_topic(&self, room_id: OwnedRoomId) -> Result {
 	let Ok(room_topic) = self
 		.services
 		.rooms
@@ -87,10 +80,9 @@ async fn view_room_topic(&self, room_id: OwnedRoomId) -> Result<RoomMessageEvent
 		.get_room_topic(&room_id)
 		.await
 	else {
-		return Ok(RoomMessageEventContent::text_plain("Room does not have a room topic set."));
+		return Err!("Room does not have a room topic set.");
 	};
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Room topic:\n```\n{room_topic}\n```"
-	)))
+	self.write_str(&format!("Room topic:\n```\n{room_topic}\n```"))
+		.await
 }

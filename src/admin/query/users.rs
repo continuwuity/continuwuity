@@ -1,9 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::stream::StreamExt;
-use ruma::{
-	OwnedDeviceId, OwnedRoomId, OwnedUserId, events::room::message::RoomMessageEventContent,
-};
+use ruma::{OwnedDeviceId, OwnedRoomId, OwnedUserId};
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -99,11 +97,7 @@ pub(crate) enum UsersCommand {
 }
 
 #[admin_command]
-async fn get_shared_rooms(
-	&self,
-	user_a: OwnedUserId,
-	user_b: OwnedUserId,
-) -> Result<RoomMessageEventContent> {
+async fn get_shared_rooms(&self, user_a: OwnedUserId, user_b: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result: Vec<_> = self
 		.services
@@ -115,9 +109,8 @@ async fn get_shared_rooms(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
@@ -127,7 +120,7 @@ async fn get_backup_session(
 	version: String,
 	room_id: OwnedRoomId,
 	session_id: String,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -136,9 +129,8 @@ async fn get_backup_session(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
@@ -147,7 +139,7 @@ async fn get_room_backups(
 	user_id: OwnedUserId,
 	version: String,
 	room_id: OwnedRoomId,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -156,32 +148,22 @@ async fn get_room_backups(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_all_backups(
-	&self,
-	user_id: OwnedUserId,
-	version: String,
-) -> Result<RoomMessageEventContent> {
+async fn get_all_backups(&self, user_id: OwnedUserId, version: String) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.key_backups.get_all(&user_id, &version).await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_backup_algorithm(
-	&self,
-	user_id: OwnedUserId,
-	version: String,
-) -> Result<RoomMessageEventContent> {
+async fn get_backup_algorithm(&self, user_id: OwnedUserId, version: String) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -190,16 +172,12 @@ async fn get_backup_algorithm(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_latest_backup_version(
-	&self,
-	user_id: OwnedUserId,
-) -> Result<RoomMessageEventContent> {
+async fn get_latest_backup_version(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -208,36 +186,33 @@ async fn get_latest_backup_version(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_latest_backup(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn get_latest_backup(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.key_backups.get_latest_backup(&user_id).await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn iter_users(&self) -> Result<RoomMessageEventContent> {
+async fn iter_users(&self) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result: Vec<OwnedUserId> = self.services.users.stream().map(Into::into).collect().await;
 
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn iter_users2(&self) -> Result<RoomMessageEventContent> {
+async fn iter_users2(&self) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result: Vec<_> = self.services.users.stream().collect().await;
 	let result: Vec<_> = result
@@ -248,35 +223,32 @@ async fn iter_users2(&self) -> Result<RoomMessageEventContent> {
 
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn count_users(&self) -> Result<RoomMessageEventContent> {
+async fn count_users(&self) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.users.count().await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn password_hash(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn password_hash(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.users.password_hash(&user_id).await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn list_devices(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn list_devices(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let devices = self
 		.services
@@ -288,13 +260,12 @@ async fn list_devices(&self, user_id: OwnedUserId) -> Result<RoomMessageEventCon
 
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{devices:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{devices:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn list_devices_metadata(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn list_devices_metadata(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let devices = self
 		.services
@@ -304,17 +275,12 @@ async fn list_devices_metadata(&self, user_id: OwnedUserId) -> Result<RoomMessag
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{devices:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{devices:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_device_metadata(
-	&self,
-	user_id: OwnedUserId,
-	device_id: OwnedDeviceId,
-) -> Result<RoomMessageEventContent> {
+async fn get_device_metadata(&self, user_id: OwnedUserId, device_id: OwnedDeviceId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let device = self
 		.services
@@ -323,28 +289,22 @@ async fn get_device_metadata(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{device:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{device:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_devices_version(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn get_devices_version(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let device = self.services.users.get_devicelist_version(&user_id).await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{device:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{device:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn count_one_time_keys(
-	&self,
-	user_id: OwnedUserId,
-	device_id: OwnedDeviceId,
-) -> Result<RoomMessageEventContent> {
+async fn count_one_time_keys(&self, user_id: OwnedUserId, device_id: OwnedDeviceId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -353,17 +313,12 @@ async fn count_one_time_keys(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_device_keys(
-	&self,
-	user_id: OwnedUserId,
-	device_id: OwnedDeviceId,
-) -> Result<RoomMessageEventContent> {
+async fn get_device_keys(&self, user_id: OwnedUserId, device_id: OwnedDeviceId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -372,24 +327,22 @@ async fn get_device_keys(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_user_signing_key(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn get_user_signing_key(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.users.get_user_signing_key(&user_id).await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_master_key(&self, user_id: OwnedUserId) -> Result<RoomMessageEventContent> {
+async fn get_master_key(&self, user_id: OwnedUserId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -398,17 +351,12 @@ async fn get_master_key(&self, user_id: OwnedUserId) -> Result<RoomMessageEventC
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-async fn get_to_device_events(
-	&self,
-	user_id: OwnedUserId,
-	device_id: OwnedDeviceId,
-) -> Result<RoomMessageEventContent> {
+async fn get_to_device_events(&self, user_id: OwnedUserId, device_id: OwnedDeviceId) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self
 		.services
@@ -418,7 +366,6 @@ async fn get_to_device_events(
 		.await;
 	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
