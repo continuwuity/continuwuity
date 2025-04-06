@@ -6,22 +6,23 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Error, PduCount, PduEvent, Result, debug, error, extract_variant,
+	Err, Error, PduCount, PduEvent, Result, debug, error, extract_variant,
 	utils::{
 		BoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		math::{ruma_from_usize, usize_from_ruma, usize_from_u64_truncated},
 	},
 	warn,
 };
+use conduwuit_service::{
+	rooms::read_receipt::pack_receipts,
+	sync::{into_db_key, into_snake_key},
+};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
-	api::client::{
-		error::ErrorKind,
-		sync::sync_events::{
-			self, DeviceLists, UnreadNotificationsCount,
-			v4::{SlidingOp, SlidingSyncRoomHero},
-		},
+	api::client::sync::sync_events::{
+		self, DeviceLists, UnreadNotificationsCount,
+		v4::{SlidingOp, SlidingSyncRoomHero},
 	},
 	events::{
 		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, StateEventType,
@@ -31,7 +32,6 @@ use ruma::{
 	serde::Raw,
 	uint,
 };
-use service::rooms::read_receipt::pack_receipts;
 
 use super::{load_timeline, share_encrypted_room};
 use crate::{
@@ -50,10 +50,11 @@ pub(crate) async fn sync_events_v4_route(
 ) -> Result<sync_events::v4::Response> {
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let sender_device = body.sender_device.expect("user is authenticated");
+	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
 	let mut body = body.body;
+
 	// Setup watchers, so if there's no response, we can wait for them
-	let watcher = services.sync.watch(sender_user, &sender_device);
+	let watcher = services.sync.watch(sender_user, sender_device);
 
 	let next_batch = services.globals.next_count()?;
 
@@ -68,33 +69,21 @@ pub(crate) async fn sync_events_v4_route(
 		.and_then(|string| string.parse().ok())
 		.unwrap_or(0);
 
-	if globalsince != 0
-		&& !services
-			.sync
-			.remembered(sender_user.clone(), sender_device.clone(), conn_id.clone())
-	{
+	let db_key = into_db_key(sender_user, sender_device, conn_id.clone());
+	if globalsince != 0 && !services.sync.remembered(&db_key) {
 		debug!("Restarting sync stream because it was gone from the database");
-		return Err(Error::Request(
-			ErrorKind::UnknownPos,
-			"Connection data lost since last time".into(),
-			http::StatusCode::BAD_REQUEST,
-		));
+		return Err!(Request(UnknownPos("Connection data lost since last time")));
 	}
 
 	if globalsince == 0 {
-		services.sync.forget_sync_request_connection(
-			sender_user.clone(),
-			sender_device.clone(),
-			conn_id.clone(),
-		);
+		services.sync.forget_sync_request_connection(&db_key);
 	}
 
 	// Get sticky parameters from cache
-	let known_rooms = services.sync.update_sync_request_with_cache(
-		sender_user.clone(),
-		sender_device.clone(),
-		&mut body,
-	);
+	let snake_key = into_snake_key(sender_user, sender_device, conn_id.clone());
+	let known_rooms = services
+		.sync
+		.update_sync_request_with_cache(&snake_key, &mut body);
 
 	let all_joined_rooms: Vec<_> = services
 		.rooms
@@ -136,7 +125,7 @@ pub(crate) async fn sync_events_v4_route(
 	if body.extensions.to_device.enabled.unwrap_or(false) {
 		services
 			.users
-			.remove_to_device_events(sender_user, &sender_device, globalsince)
+			.remove_to_device_events(sender_user, sender_device, globalsince)
 			.await;
 	}
 
@@ -261,7 +250,7 @@ pub(crate) async fn sync_events_v4_route(
 								if let Some(Ok(user_id)) =
 									pdu.state_key.as_deref().map(UserId::parse)
 								{
-									if user_id == *sender_user {
+									if user_id == sender_user {
 										continue;
 									}
 
@@ -299,7 +288,7 @@ pub(crate) async fn sync_events_v4_route(
 								.state_cache
 								.room_members(room_id)
 								// Don't send key updates from the sender to the sender
-								.ready_filter(|user_id| sender_user != user_id)
+								.ready_filter(|&user_id| sender_user != user_id)
 								// Only send keys if the sender doesn't share an encrypted room with the target
 								// already
 								.filter_map(|user_id| {
@@ -425,10 +414,9 @@ pub(crate) async fn sync_events_v4_route(
 		});
 
 		if let Some(conn_id) = &body.conn_id {
+			let db_key = into_db_key(sender_user, sender_device, conn_id);
 			services.sync.update_sync_known_rooms(
-				sender_user,
-				&sender_device,
-				conn_id.clone(),
+				&db_key,
 				list_id.clone(),
 				new_known_rooms,
 				globalsince,
@@ -478,23 +466,20 @@ pub(crate) async fn sync_events_v4_route(
 	}
 
 	if let Some(conn_id) = &body.conn_id {
+		let db_key = into_db_key(sender_user, sender_device, conn_id);
 		services.sync.update_sync_known_rooms(
-			sender_user,
-			&sender_device,
-			conn_id.clone(),
+			&db_key,
 			"subscriptions".to_owned(),
 			known_subscription_rooms,
 			globalsince,
 		);
 	}
 
-	if let Some(conn_id) = &body.conn_id {
-		services.sync.update_sync_subscriptions(
-			sender_user.clone(),
-			sender_device.clone(),
-			conn_id.clone(),
-			body.room_subscriptions,
-		);
+	if let Some(conn_id) = body.conn_id.clone() {
+		let db_key = into_db_key(sender_user, sender_device, conn_id);
+		services
+			.sync
+			.update_sync_subscriptions(&db_key, body.room_subscriptions);
 	}
 
 	let mut rooms = BTreeMap::new();
@@ -648,7 +633,7 @@ pub(crate) async fn sync_events_v4_route(
 			.rooms
 			.state_cache
 			.room_members(room_id)
-			.ready_filter(|member| member != sender_user)
+			.ready_filter(|&member| member != sender_user)
 			.filter_map(|user_id| {
 				services
 					.rooms
@@ -787,7 +772,7 @@ pub(crate) async fn sync_events_v4_route(
 						.users
 						.get_to_device_events(
 							sender_user,
-							&sender_device,
+							sender_device,
 							Some(globalsince),
 							Some(next_batch),
 						)
@@ -805,7 +790,7 @@ pub(crate) async fn sync_events_v4_route(
 				},
 				device_one_time_keys_count: services
 					.users
-					.count_one_time_keys(sender_user, &sender_device)
+					.count_one_time_keys(sender_user, sender_device)
 					.await,
 				// Fallback keys are not yet supported
 				device_unused_fallback_key_types: None,
