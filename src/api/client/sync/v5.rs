@@ -6,7 +6,7 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Error, Result, debug, error, extract_variant,
+	Err, Error, Result, error, extract_variant,
 	matrix::{
 		TypeStateKey,
 		pdu::{PduCount, PduEvent},
@@ -18,14 +18,11 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::rooms::read_receipt::pack_receipts;
+use conduwuit_service::{rooms::read_receipt::pack_receipts, sync::into_snake_key};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::{
 	DeviceId, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
-	api::client::{
-		error::ErrorKind,
-		sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
-	},
+	api::client::sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
 	events::{
 		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
@@ -74,35 +71,23 @@ pub(crate) async fn sync_events_v5_route(
 		.and_then(|string| string.parse().ok())
 		.unwrap_or(0);
 
-	if globalsince != 0
-		&& !services.sync.snake_connection_cached(
-			sender_user.clone(),
-			sender_device.clone(),
-			conn_id.clone(),
-		) {
-		debug!("Restarting sync stream because it was gone from the database");
-		return Err(Error::Request(
-			ErrorKind::UnknownPos,
-			"Connection data lost since last time".into(),
-			http::StatusCode::BAD_REQUEST,
-		));
+	let snake_key = into_snake_key(sender_user, sender_device, conn_id);
+
+	if globalsince != 0 && !services.sync.snake_connection_cached(&snake_key) {
+		return Err!(Request(UnknownPos(
+			"Connection data unknown to server; restarting sync stream."
+		)));
 	}
 
 	// Client / User requested an initial sync
 	if globalsince == 0 {
-		services.sync.forget_snake_sync_connection(
-			sender_user.clone(),
-			sender_device.clone(),
-			conn_id.clone(),
-		);
+		services.sync.forget_snake_sync_connection(&snake_key);
 	}
 
 	// Get sticky parameters from cache
-	let known_rooms = services.sync.update_snake_sync_request_with_cache(
-		sender_user.clone(),
-		sender_device.clone(),
-		&mut body,
-	);
+	let known_rooms = services
+		.sync
+		.update_snake_sync_request_with_cache(&snake_key, &mut body);
 
 	let all_joined_rooms: Vec<_> = services
 		.rooms
@@ -254,11 +239,10 @@ async fn fetch_subscriptions(
 	//	body.room_subscriptions.remove(&r);
 	//}
 
-	if let Some(conn_id) = &body.conn_id {
+	if let Some(conn_id) = body.conn_id.clone() {
+		let snake_key = into_snake_key(sender_user, sender_device, conn_id);
 		services.sync.update_snake_sync_known_rooms(
-			sender_user,
-			sender_device,
-			conn_id.clone(),
+			&snake_key,
 			"subscriptions".to_owned(),
 			known_subscription_rooms,
 			globalsince,
@@ -340,11 +324,10 @@ async fn handle_lists<'a>(
 				count: ruma_from_usize(active_rooms.len()),
 			});
 
-		if let Some(conn_id) = &body.conn_id {
+		if let Some(conn_id) = body.conn_id.clone() {
+			let snake_key = into_snake_key(sender_user, sender_device, conn_id);
 			services.sync.update_snake_sync_known_rooms(
-				sender_user,
-				sender_device,
-				conn_id.clone(),
+				&snake_key,
 				list_id.clone(),
 				new_known_rooms,
 				globalsince,
