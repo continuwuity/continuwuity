@@ -1,7 +1,10 @@
 use axum::extract::State;
 use conduwuit::{
 	Result,
-	utils::{future::BoolExt, stream::BroadbandExt},
+	utils::{
+		future::BoolExt,
+		stream::{BroadbandExt, ReadyExt},
+	},
 };
 use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
@@ -30,29 +33,21 @@ pub(crate) async fn search_users_route(
 		.map_or(LIMIT_DEFAULT, usize::from)
 		.min(LIMIT_MAX);
 
+	let search_term = body.search_term.to_lowercase();
 	let mut users = services
 		.users
 		.stream()
+		.ready_filter(|user_id| user_id.as_str().to_lowercase().contains(&search_term))
 		.map(ToOwned::to_owned)
 		.broad_filter_map(async |user_id| {
-			let user = search_users::v3::User {
-				user_id: user_id.clone(),
-				display_name: services.users.displayname(&user_id).await.ok(),
-				avatar_url: services.users.avatar_url(&user_id).await.ok(),
-			};
+			let display_name = services.users.displayname(&user_id).await.ok();
 
-			let user_id_matches = user
-				.user_id
-				.as_str()
-				.to_lowercase()
-				.contains(&body.search_term.to_lowercase());
+			let display_name_matches = display_name
+				.as_deref()
+				.map(str::to_lowercase)
+				.is_some_and(|display_name| display_name.contains(&search_term));
 
-			let user_displayname_matches = user.display_name.as_ref().is_some_and(|name| {
-				name.to_lowercase()
-					.contains(&body.search_term.to_lowercase())
-			});
-
-			if !user_id_matches && !user_displayname_matches {
+			if !display_name_matches {
 				return None;
 			}
 
@@ -61,11 +56,11 @@ pub(crate) async fn search_users_route(
 				.state_cache
 				.rooms_joined(&user_id)
 				.map(ToOwned::to_owned)
-				.any(|room| async move {
+				.broad_any(async |room_id| {
 					services
 						.rooms
 						.state_accessor
-						.get_join_rules(&room)
+						.get_join_rules(&room_id)
 						.map(|rule| matches!(rule, JoinRule::Public))
 						.await
 				});
@@ -76,8 +71,14 @@ pub(crate) async fn search_users_route(
 				.user_sees_user(sender_user, &user_id);
 
 			pin_mut!(user_in_public_room, user_sees_user);
-
-			user_in_public_room.or(user_sees_user).await.then_some(user)
+			user_in_public_room
+				.or(user_sees_user)
+				.await
+				.then_some(search_users::v3::User {
+					user_id: user_id.clone(),
+					display_name,
+					avatar_url: services.users.avatar_url(&user_id).await.ok(),
+				})
 		});
 
 	let results = users.by_ref().take(limit).collect().await;
