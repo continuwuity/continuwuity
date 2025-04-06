@@ -28,7 +28,7 @@ pub use self::{
 	bool::BoolExt,
 	bytes::{increment, u64_from_bytes, u64_from_u8, u64_from_u8x8},
 	debug::slice_truncated as debug_slice_truncated,
-	future::TryExtExt as TryFutureExtExt,
+	future::{BoolExt as FutureBoolExt, OptionStream, TryExtExt as TryFutureExtExt},
 	hash::sha256::delimited as calculate_hash,
 	html::Escape as HtmlEscape,
 	json::{deserialize_from_str, to_canonical_object},

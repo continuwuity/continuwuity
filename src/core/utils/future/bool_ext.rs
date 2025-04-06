@@ -22,30 +22,6 @@ where
 		Self: Sized + Unpin;
 }
 
-pub async fn and<I, F>(args: I) -> impl Future<Output = bool> + Send
-where
-	I: Iterator<Item = F> + Send,
-	F: Future<Output = bool> + Send,
-{
-	type Result = crate::Result<(), ()>;
-
-	let args = args.map(|a| a.map(|a| a.then_some(()).ok_or(Result::Err(()))));
-
-	try_join_all(args).map(|result| result.is_ok())
-}
-
-pub async fn or<I, F>(args: I) -> impl Future<Output = bool> + Send
-where
-	I: Iterator<Item = F> + Send,
-	F: Future<Output = bool> + Send + Unpin,
-{
-	type Result = crate::Result<(), ()>;
-
-	let args = args.map(|a| a.map(|a| a.then_some(()).ok_or(Result::Err(()))));
-
-	select_ok(args).map(|result| result.is_ok())
-}
-
 impl<Fut> BoolExt for Fut
 where
 	Fut: Future<Output = bool> + Send,
@@ -79,4 +55,28 @@ where
 
 		try_select(a, b).map(|result| result.is_ok())
 	}
+}
+
+pub async fn and<I, F>(args: I) -> impl Future<Output = bool> + Send
+where
+	I: Iterator<Item = F> + Send,
+	F: Future<Output = bool> + Send,
+{
+	type Result = crate::Result<(), ()>;
+
+	let args = args.map(|a| a.map(|a| a.then_some(()).ok_or(Result::Err(()))));
+
+	try_join_all(args).map(|result| result.is_ok())
+}
+
+pub async fn or<I, F>(args: I) -> impl Future<Output = bool> + Send
+where
+	I: Iterator<Item = F> + Send,
+	F: Future<Output = bool> + Send + Unpin,
+{
+	type Result = crate::Result<(), ()>;
+
+	let args = args.map(|a| a.map(|a| a.then_some(()).ok_or(Result::Err(()))));
+
+	select_ok(args).map(|result| result.is_ok())
 }
