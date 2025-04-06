@@ -5,16 +5,12 @@ mod v5;
 use conduwuit::{
 	Error, PduCount, Result,
 	matrix::pdu::PduEvent,
-	utils::{
-		IterStream,
-		stream::{BroadbandExt, ReadyExt, TryIgnore},
-	},
+	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
 };
 use conduwuit_service::Services;
 use futures::{StreamExt, pin_mut};
 use ruma::{
 	RoomId, UserId,
-	directory::RoomTypeFilter,
 	events::TimelineEventType::{
 		self, Beacon, CallInvite, PollStart, RoomEncrypted, RoomMessage, Sticker,
 	},
@@ -85,35 +81,5 @@ async fn share_encrypted_room(
 				.is_encrypted_room(&other_room_id)
 				.await
 		})
-		.await
-}
-
-pub(crate) async fn filter_rooms<'a>(
-	services: &Services,
-	rooms: &[&'a RoomId],
-	filter: &[RoomTypeFilter],
-	negate: bool,
-) -> Vec<&'a RoomId> {
-	rooms
-		.iter()
-		.stream()
-		.filter_map(|r| async move {
-			let room_type = services.rooms.state_accessor.get_room_type(r).await;
-
-			if room_type.as_ref().is_err_and(|e| !e.is_not_found()) {
-				return None;
-			}
-
-			let room_type_filter = RoomTypeFilter::from(room_type.ok());
-
-			let include = if negate {
-				!filter.contains(&room_type_filter)
-			} else {
-				filter.is_empty() || filter.contains(&room_type_filter)
-			};
-
-			include.then_some(r)
-		})
-		.collect()
 		.await
 }
