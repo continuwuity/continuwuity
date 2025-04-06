@@ -16,7 +16,7 @@ use futures::{
 /// This interface is not necessarily complete; feel free to add as-needed.
 pub trait ReadyExt<Item>
 where
-	Self: Stream<Item = Item> + Send + Sized,
+	Self: Stream<Item = Item> + Sized,
 {
 	fn ready_all<F>(self, f: F) -> All<Self, Ready<bool>, impl FnMut(Item) -> Ready<bool>>
 	where
@@ -93,7 +93,7 @@ where
 
 impl<Item, S> ReadyExt<Item> for S
 where
-	S: Stream<Item = Item> + Send + Sized,
+	S: Stream<Item = Item> + Sized,
 {
 	#[inline]
 	fn ready_all<F>(self, f: F) -> All<Self, Ready<bool>, impl FnMut(Item) -> Ready<bool>>

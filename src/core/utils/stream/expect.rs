@@ -10,7 +10,7 @@ pub trait TryExpect<'a, Item> {
 
 impl<'a, T, Item> TryExpect<'a, Item> for T
 where
-	T: Stream<Item = Result<Item>> + TryStream + Send + 'a,
+	T: Stream<Item = Result<Item>> + Send + TryStream + 'a,
 	Item: 'a,
 {
 	#[inline]

@@ -13,8 +13,8 @@ use crate::Result;
 /// This interface is not necessarily complete; feel free to add as-needed.
 pub trait TryReadyExt<T, E, S>
 where
-	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + Send + ?Sized,
-	Self: TryStream + Send + Sized,
+	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + ?Sized,
+	Self: TryStream + Sized,
 {
 	fn ready_and_then<U, F>(
 		self,
@@ -67,8 +67,8 @@ where
 
 impl<T, E, S> TryReadyExt<T, E, S> for S
 where
-	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + Send + ?Sized,
-	Self: TryStream + Send + Sized,
+	S: TryStream<Ok = T, Error = E, Item = Result<T, E>> + ?Sized,
+	Self: TryStream + Sized,
 {
 	#[inline]
 	fn ready_and_then<U, F>(
