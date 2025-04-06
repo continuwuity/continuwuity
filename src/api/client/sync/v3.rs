@@ -14,8 +14,8 @@ use conduwuit::{
 	pair_of, ref_at,
 	result::FlatOk,
 	utils::{
-		self, BoolExt, IterStream, ReadyExt, TryFutureExtExt,
-		future::OptionStream,
+		self, BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
+		future::{OptionStream, ReadyEqExt},
 		math::ruma_from_u64,
 		stream::{BroadbandExt, Tools, TryExpect, WidebandExt},
 	},
@@ -32,6 +32,7 @@ use conduwuit_service::{
 use futures::{
 	FutureExt, StreamExt, TryFutureExt, TryStreamExt,
 	future::{OptionFuture, join, join3, join4, join5, try_join, try_join4},
+	pin_mut,
 };
 use ruma::{
 	DeviceId, EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
@@ -433,10 +434,14 @@ async fn handle_left_room(
 		return Ok(None);
 	}
 
-	if !services.rooms.metadata.exists(room_id).await
-		|| services.rooms.metadata.is_disabled(room_id).await
-		|| services.rooms.metadata.is_banned(room_id).await
-	{
+	let is_not_found = services.rooms.metadata.exists(room_id).eq(&false);
+
+	let is_disabled = services.rooms.metadata.is_disabled(room_id);
+
+	let is_banned = services.rooms.metadata.is_banned(room_id);
+
+	pin_mut!(is_not_found, is_disabled, is_banned);
+	if is_not_found.or(is_disabled).or(is_banned).await {
 		// This is just a rejected invite, not a room we know
 		// Insert a leave event anyways for the client
 		let event = PduEvent {
