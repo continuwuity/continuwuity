@@ -1,7 +1,6 @@
-use conduwuit::Err;
-use ruma::events::room::message::RoomMessageEventContent;
+use conduwuit::{Err, Result};
 
-use crate::{Result, admin_command, admin_command_dispatch};
+use crate::{admin_command, admin_command_dispatch};
 
 #[admin_command_dispatch]
 #[derive(Debug, clap::Subcommand)]
@@ -14,14 +13,14 @@ pub(crate) enum TesterCommand {
 
 #[rustfmt::skip]
 #[admin_command]
-async fn panic(&self) -> Result<RoomMessageEventContent> {
+async fn panic(&self) -> Result {
 
 	panic!("panicked")
 }
 
 #[rustfmt::skip]
 #[admin_command]
-async fn failure(&self) -> Result<RoomMessageEventContent> {
+async fn failure(&self) -> Result {
 
 	Err!("failed")
 }
@@ -29,20 +28,20 @@ async fn failure(&self) -> Result<RoomMessageEventContent> {
 #[inline(never)]
 #[rustfmt::skip]
 #[admin_command]
-async fn tester(&self) -> Result<RoomMessageEventContent> {
+async fn tester(&self) -> Result {
 
-	Ok(RoomMessageEventContent::notice_plain("legacy"))
+	self.write_str("Ok").await
 }
 
 #[inline(never)]
 #[rustfmt::skip]
 #[admin_command]
-async fn timer(&self) -> Result<RoomMessageEventContent> {
+async fn timer(&self) -> Result {
 	let started = std::time::Instant::now();
 	timed(self.body);
 
 	let elapsed = started.elapsed();
-	Ok(RoomMessageEventContent::notice_plain(format!("completed in {elapsed:#?}")))
+	self.write_str(&format!("completed in {elapsed:#?}")).await
 }
 
 #[inline(never)]

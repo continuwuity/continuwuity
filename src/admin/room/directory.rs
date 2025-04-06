@@ -1,9 +1,9 @@
 use clap::Subcommand;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
+use ruma::OwnedRoomId;
 
-use crate::{Command, PAGE_SIZE, get_room_info};
+use crate::{Context, PAGE_SIZE, get_room_info};
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum RoomDirectoryCommand {
@@ -25,25 +25,16 @@ pub(crate) enum RoomDirectoryCommand {
 	},
 }
 
-pub(super) async fn process(command: RoomDirectoryCommand, context: &Command<'_>) -> Result {
-	let c = reprocess(command, context).await?;
-	context.write_str(c.body()).await?;
-	Ok(())
-}
-
-pub(super) async fn reprocess(
-	command: RoomDirectoryCommand,
-	context: &Command<'_>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn process(command: RoomDirectoryCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 	match command {
 		| RoomDirectoryCommand::Publish { room_id } => {
 			services.rooms.directory.set_public(&room_id);
-			Ok(RoomMessageEventContent::notice_plain("Room published"))
+			context.write_str("Room published").await
 		},
 		| RoomDirectoryCommand::Unpublish { room_id } => {
 			services.rooms.directory.set_not_public(&room_id);
-			Ok(RoomMessageEventContent::notice_plain("Room unpublished"))
+			context.write_str("Room unpublished").await
 		},
 		| RoomDirectoryCommand::List { page } => {
 			// TODO: i know there's a way to do this with clap, but i can't seem to find it
@@ -66,20 +57,18 @@ pub(super) async fn reprocess(
 				.collect();
 
 			if rooms.is_empty() {
-				return Ok(RoomMessageEventContent::text_plain("No more rooms."));
+				return Err!("No more rooms.");
 			}
 
-			let output = format!(
-				"Rooms (page {page}):\n```\n{}\n```",
-				rooms
-					.iter()
-					.map(|(id, members, name)| format!(
-						"{id} | Members: {members} | Name: {name}"
-					))
-					.collect::<Vec<_>>()
-					.join("\n")
-			);
-			Ok(RoomMessageEventContent::text_markdown(output))
+			let body = rooms
+				.iter()
+				.map(|(id, members, name)| format!("{id} | Members: {members} | Name: {name}"))
+				.collect::<Vec<_>>()
+				.join("\n");
+
+			context
+				.write_str(&format!("Rooms (page {page}):\n```\n{body}\n```",))
+				.await
 		},
 	}
 }

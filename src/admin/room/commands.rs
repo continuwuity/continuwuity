@@ -1,6 +1,6 @@
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
+use ruma::OwnedRoomId;
 
 use crate::{PAGE_SIZE, admin_command, get_room_info};
 
@@ -11,7 +11,7 @@ pub(super) async fn list_rooms(
 	exclude_disabled: bool,
 	exclude_banned: bool,
 	no_details: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	// TODO: i know there's a way to do this with clap, but i can't seem to find it
 	let page = page.unwrap_or(1);
 	let mut rooms = self
@@ -41,29 +41,28 @@ pub(super) async fn list_rooms(
 		.collect::<Vec<_>>();
 
 	if rooms.is_empty() {
-		return Ok(RoomMessageEventContent::text_plain("No more rooms."));
+		return Err!("No more rooms.");
 	}
 
-	let output_plain = format!(
-		"Rooms ({}):\n```\n{}\n```",
-		rooms.len(),
-		rooms
-			.iter()
-			.map(|(id, members, name)| if no_details {
+	let body = rooms
+		.iter()
+		.map(|(id, members, name)| {
+			if no_details {
 				format!("{id}")
 			} else {
 				format!("{id}\tMembers: {members}\tName: {name}")
-			})
-			.collect::<Vec<_>>()
-			.join("\n")
-	);
+			}
+		})
+		.collect::<Vec<_>>()
+		.join("\n");
 
-	Ok(RoomMessageEventContent::notice_markdown(output_plain))
+	self.write_str(&format!("Rooms ({}):\n```\n{body}\n```", rooms.len(),))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn exists(&self, room_id: OwnedRoomId) -> Result<RoomMessageEventContent> {
+pub(super) async fn exists(&self, room_id: OwnedRoomId) -> Result {
 	let result = self.services.rooms.metadata.exists(&room_id).await;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!("{result}")))
+	self.write_str(&format!("{result}")).await
 }

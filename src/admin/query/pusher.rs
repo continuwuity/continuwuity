@@ -2,7 +2,7 @@ use clap::Subcommand;
 use conduwuit::Result;
 use ruma::OwnedUserId;
 
-use crate::Command;
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum PusherCommand {
@@ -13,7 +13,7 @@ pub(crate) enum PusherCommand {
 	},
 }
 
-pub(super) async fn process(subcommand: PusherCommand, context: &Command<'_>) -> Result {
+pub(super) async fn process(subcommand: PusherCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 
 	match subcommand {

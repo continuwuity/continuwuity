@@ -11,7 +11,6 @@ use conduwuit::{
 use conduwuit_database::Map;
 use conduwuit_service::Services;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
-use ruma::events::room::message::RoomMessageEventContent;
 use tokio::time::Instant;
 
 use crate::{admin_command, admin_command_dispatch};
@@ -170,7 +169,7 @@ pub(super) async fn compact(
 	into: Option<usize>,
 	parallelism: Option<usize>,
 	exhaustive: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	use conduwuit_database::compact::Options;
 
 	let default_all_maps: Option<_> = map.is_none().then(|| {
@@ -221,17 +220,11 @@ pub(super) async fn compact(
 	let results = results.await;
 	let query_time = timer.elapsed();
 	self.write_str(&format!("Jobs completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_count(
-	&self,
-	map: Option<String>,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_count(&self, map: Option<String>, prefix: Option<String>) -> Result {
 	let prefix = prefix.as_deref().unwrap_or(EMPTY);
 
 	let timer = Instant::now();
@@ -242,17 +235,11 @@ pub(super) async fn raw_count(
 
 	let query_time = timer.elapsed();
 	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{count:#?}\n```"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_keys(
-	&self,
-	map: String,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_keys(&self, map: String, prefix: Option<String>) -> Result {
 	writeln!(self, "```").boxed().await?;
 
 	let map = self.services.db.get(map.as_str())?;
@@ -266,18 +253,12 @@ pub(super) async fn raw_keys(
 		.await?;
 
 	let query_time = timer.elapsed();
-	let out = format!("\n```\n\nQuery completed in {query_time:?}");
-	self.write_str(out.as_str()).await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+	self.write_str(&format!("\n```\n\nQuery completed in {query_time:?}"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_keys_sizes(
-	&self,
-	map: Option<String>,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_keys_sizes(&self, map: Option<String>, prefix: Option<String>) -> Result {
 	let prefix = prefix.as_deref().unwrap_or(EMPTY);
 
 	let timer = Instant::now();
@@ -294,18 +275,12 @@ pub(super) async fn raw_keys_sizes(
 		.await;
 
 	let query_time = timer.elapsed();
-	let result = format!("```\n{result:#?}\n```\n\nQuery completed in {query_time:?}");
-	self.write_str(result.as_str()).await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+	self.write_str(&format!("```\n{result:#?}\n```\n\nQuery completed in {query_time:?}"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_keys_total(
-	&self,
-	map: Option<String>,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_keys_total(&self, map: Option<String>, prefix: Option<String>) -> Result {
 	let prefix = prefix.as_deref().unwrap_or(EMPTY);
 
 	let timer = Instant::now();
@@ -318,19 +293,12 @@ pub(super) async fn raw_keys_total(
 		.await;
 
 	let query_time = timer.elapsed();
-
 	self.write_str(&format!("```\n{result:#?}\n\n```\n\nQuery completed in {query_time:?}"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_vals_sizes(
-	&self,
-	map: Option<String>,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_vals_sizes(&self, map: Option<String>, prefix: Option<String>) -> Result {
 	let prefix = prefix.as_deref().unwrap_or(EMPTY);
 
 	let timer = Instant::now();
@@ -348,18 +316,12 @@ pub(super) async fn raw_vals_sizes(
 		.await;
 
 	let query_time = timer.elapsed();
-	let result = format!("```\n{result:#?}\n```\n\nQuery completed in {query_time:?}");
-	self.write_str(result.as_str()).await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+	self.write_str(&format!("```\n{result:#?}\n```\n\nQuery completed in {query_time:?}"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_vals_total(
-	&self,
-	map: Option<String>,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_vals_total(&self, map: Option<String>, prefix: Option<String>) -> Result {
 	let prefix = prefix.as_deref().unwrap_or(EMPTY);
 
 	let timer = Instant::now();
@@ -373,19 +335,12 @@ pub(super) async fn raw_vals_total(
 		.await;
 
 	let query_time = timer.elapsed();
-
 	self.write_str(&format!("```\n{result:#?}\n\n```\n\nQuery completed in {query_time:?}"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_iter(
-	&self,
-	map: String,
-	prefix: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_iter(&self, map: String, prefix: Option<String>) -> Result {
 	writeln!(self, "```").await?;
 
 	let map = self.services.db.get(&map)?;
@@ -401,9 +356,7 @@ pub(super) async fn raw_iter(
 
 	let query_time = timer.elapsed();
 	self.write_str(&format!("\n```\n\nQuery completed in {query_time:?}"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
@@ -412,7 +365,7 @@ pub(super) async fn raw_keys_from(
 	map: String,
 	start: String,
 	limit: Option<usize>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	writeln!(self, "```").await?;
 
 	let map = self.services.db.get(&map)?;
@@ -426,9 +379,7 @@ pub(super) async fn raw_keys_from(
 
 	let query_time = timer.elapsed();
 	self.write_str(&format!("\n```\n\nQuery completed in {query_time:?}"))
-		.await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+		.await
 }
 
 #[admin_command]
@@ -437,7 +388,7 @@ pub(super) async fn raw_iter_from(
 	map: String,
 	start: String,
 	limit: Option<usize>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let map = self.services.db.get(&map)?;
 	let timer = Instant::now();
 	let result = map
@@ -449,41 +400,38 @@ pub(super) async fn raw_iter_from(
 		.await?;
 
 	let query_time = timer.elapsed();
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_del(&self, map: String, key: String) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_del(&self, map: String, key: String) -> Result {
 	let map = self.services.db.get(&map)?;
 	let timer = Instant::now();
 	map.remove(&key);
-	let query_time = timer.elapsed();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Operation completed in {query_time:?}"
-	)))
+	let query_time = timer.elapsed();
+	self.write_str(&format!("Operation completed in {query_time:?}"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_get(&self, map: String, key: String) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_get(&self, map: String, key: String) -> Result {
 	let map = self.services.db.get(&map)?;
 	let timer = Instant::now();
 	let handle = map.get(&key).await?;
+
 	let query_time = timer.elapsed();
 	let result = String::from_utf8_lossy(&handle);
-
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"Query completed in {query_time:?}:\n\n```rs\n{result:?}\n```"
-	)))
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:?}\n```"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn raw_maps(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn raw_maps(&self) -> Result {
 	let list: Vec<_> = self.services.db.iter().map(at!(0)).copied().collect();
 
-	Ok(RoomMessageEventContent::notice_markdown(format!("{list:#?}")))
+	self.write_str(&format!("{list:#?}")).await
 }
 
 fn with_maps_or<'a>(

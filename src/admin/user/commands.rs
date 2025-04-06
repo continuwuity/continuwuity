@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, fmt::Write as _};
 
 use api::client::{full_user_deactivate, join_room_by_id_helper, leave_room};
 use conduwuit::{
-	Result, debug, debug_warn, error, info, is_equal_to,
+	Err, Result, debug, debug_warn, error, info, is_equal_to,
 	matrix::pdu::PduBuilder,
 	utils::{self, ReadyExt},
 	warn,
@@ -14,7 +14,6 @@ use ruma::{
 	events::{
 		RoomAccountDataEventType, StateEventType,
 		room::{
-			message::RoomMessageEventContent,
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 			redaction::RoomRedactionEventContent,
 		},
@@ -31,7 +30,7 @@ const AUTO_GEN_PASSWORD_LENGTH: usize = 25;
 const BULK_JOIN_REASON: &str = "Bulk force joining this room as initiated by the server admin.";
 
 #[admin_command]
-pub(super) async fn list_users(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn list_users(&self) -> Result {
 	let users: Vec<_> = self
 		.services
 		.users
@@ -44,30 +43,22 @@ pub(super) async fn list_users(&self) -> Result<RoomMessageEventContent> {
 	plain_msg += users.join("\n").as_str();
 	plain_msg += "\n```";
 
-	self.write_str(plain_msg.as_str()).await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+	self.write_str(&plain_msg).await
 }
 
 #[admin_command]
-pub(super) async fn create_user(
-	&self,
-	username: String,
-	password: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn create_user(&self, username: String, password: Option<String>) -> Result {
 	// Validate user id
 	let user_id = parse_local_user_id(self.services, &username)?;
 
 	if let Err(e) = user_id.validate_strict() {
 		if self.services.config.emergency_password.is_none() {
-			return Ok(RoomMessageEventContent::text_plain(format!(
-				"Username {user_id} contains disallowed characters or spaces: {e}"
-			)));
+			return Err!("Username {user_id} contains disallowed characters or spaces: {e}");
 		}
 	}
 
 	if self.services.users.exists(&user_id).await {
-		return Ok(RoomMessageEventContent::text_plain(format!("User {user_id} already exists")));
+		return Err!("User {user_id} already exists");
 	}
 
 	let password = password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
@@ -89,8 +80,7 @@ pub(super) async fn create_user(
 		.new_user_displayname_suffix
 		.is_empty()
 	{
-		write!(displayname, " {}", self.services.server.config.new_user_displayname_suffix)
-			.expect("should be able to write to string buffer");
+		write!(displayname, " {}", self.services.server.config.new_user_displayname_suffix)?;
 	}
 
 	self.services
@@ -110,15 +100,17 @@ pub(super) async fn create_user(
 				content: ruma::events::push_rules::PushRulesEventContent {
 					global: ruma::push::Ruleset::server_default(&user_id),
 				},
-			})
-			.expect("to json value always works"),
+			})?,
 		)
 		.await?;
 
 	if !self.services.server.config.auto_join_rooms.is_empty() {
 		for room in &self.services.server.config.auto_join_rooms {
 			let Ok(room_id) = self.services.rooms.alias.resolve(room).await else {
-				error!(%user_id, "Failed to resolve room alias to room ID when attempting to auto join {room}, skipping");
+				error!(
+					%user_id,
+					"Failed to resolve room alias to room ID when attempting to auto join {room}, skipping"
+				);
 				continue;
 			};
 
@@ -154,18 +146,17 @@ pub(super) async fn create_user(
 						info!("Automatically joined room {room} for user {user_id}");
 					},
 					| Err(e) => {
-						self.services
-							.admin
-							.send_message(RoomMessageEventContent::text_plain(format!(
-								"Failed to automatically join room {room} for user {user_id}: \
-								 {e}"
-							)))
-							.await
-							.ok();
 						// don't return this error so we don't fail registrations
 						error!(
 							"Failed to automatically join room {room} for user {user_id}: {e}"
 						);
+						self.services
+							.admin
+							.send_text(&format!(
+								"Failed to automatically join room {room} for user {user_id}: \
+								 {e}"
+							))
+							.await;
 					},
 				}
 			}
@@ -192,25 +183,18 @@ pub(super) async fn create_user(
 		debug!("create_user admin command called without an admin room being available");
 	}
 
-	Ok(RoomMessageEventContent::text_plain(format!(
-		"Created user with user_id: {user_id} and password: `{password}`"
-	)))
+	self.write_str(&format!("Created user with user_id: {user_id} and password: `{password}`"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn deactivate(
-	&self,
-	no_leave_rooms: bool,
-	user_id: String,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> Result {
 	// Validate user id
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 
 	// don't deactivate the server service account
 	if user_id == self.services.globals.server_user {
-		return Ok(RoomMessageEventContent::text_plain(
-			"Not allowed to deactivate the server service account.",
-		));
+		return Err!("Not allowed to deactivate the server service account.",);
 	}
 
 	self.services.users.deactivate_account(&user_id).await?;
@@ -218,11 +202,8 @@ pub(super) async fn deactivate(
 	if !no_leave_rooms {
 		self.services
 			.admin
-			.send_message(RoomMessageEventContent::text_plain(format!(
-				"Making {user_id} leave all rooms after deactivation..."
-			)))
-			.await
-			.ok();
+			.send_text(&format!("Making {user_id} leave all rooms after deactivation..."))
+			.await;
 
 		let all_joined_rooms: Vec<OwnedRoomId> = self
 			.services
@@ -239,24 +220,19 @@ pub(super) async fn deactivate(
 		leave_all_rooms(self.services, &user_id).await;
 	}
 
-	Ok(RoomMessageEventContent::text_plain(format!(
-		"User {user_id} has been deactivated"
-	)))
+	self.write_str(&format!("User {user_id} has been deactivated"))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn reset_password(
-	&self,
-	username: String,
-	password: Option<String>,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn reset_password(&self, username: String, password: Option<String>) -> Result {
 	let user_id = parse_local_user_id(self.services, &username)?;
 
 	if user_id == self.services.globals.server_user {
-		return Ok(RoomMessageEventContent::text_plain(
+		return Err!(
 			"Not allowed to set the password for the server account. Please use the emergency \
 			 password config option.",
-		));
+		);
 	}
 
 	let new_password = password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
@@ -266,28 +242,20 @@ pub(super) async fn reset_password(
 		.users
 		.set_password(&user_id, Some(new_password.as_str()))
 	{
-		| Ok(()) => Ok(RoomMessageEventContent::text_plain(format!(
-			"Successfully reset the password for user {user_id}: `{new_password}`"
-		))),
-		| Err(e) => Ok(RoomMessageEventContent::text_plain(format!(
-			"Couldn't reset the password for user {user_id}: {e}"
-		))),
+		| Err(e) => return Err!("Couldn't reset the password for user {user_id}: {e}"),
+		| Ok(()) =>
+			write!(self, "Successfully reset the password for user {user_id}: `{new_password}`"),
 	}
+	.await
 }
 
 #[admin_command]
-pub(super) async fn deactivate_all(
-	&self,
-	no_leave_rooms: bool,
-	force: bool,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
 		|| self.body.last().unwrap_or(&"").trim() != "```"
 	{
-		return Ok(RoomMessageEventContent::text_plain(
-			"Expected code block in command body. Add --help for details.",
-		));
+		return Err!("Expected code block in command body. Add --help for details.",);
 	}
 
 	let usernames = self
@@ -301,15 +269,23 @@ pub(super) async fn deactivate_all(
 
 	for username in usernames {
 		match parse_active_local_user_id(self.services, username).await {
+			| Err(e) => {
+				self.services
+					.admin
+					.send_text(&format!("{username} is not a valid username, skipping over: {e}"))
+					.await;
+
+				continue;
+			},
 			| Ok(user_id) => {
 				if self.services.users.is_admin(&user_id).await && !force {
 					self.services
 						.admin
-						.send_message(RoomMessageEventContent::text_plain(format!(
+						.send_text(&format!(
 							"{username} is an admin and --force is not set, skipping over"
-						)))
-						.await
-						.ok();
+						))
+						.await;
+
 					admins.push(username);
 					continue;
 				}
@@ -318,25 +294,15 @@ pub(super) async fn deactivate_all(
 				if user_id == self.services.globals.server_user {
 					self.services
 						.admin
-						.send_message(RoomMessageEventContent::text_plain(format!(
+						.send_text(&format!(
 							"{username} is the server service account, skipping over"
-						)))
-						.await
-						.ok();
+						))
+						.await;
+
 					continue;
 				}
 
 				user_ids.push(user_id);
-			},
-			| Err(e) => {
-				self.services
-					.admin
-					.send_message(RoomMessageEventContent::text_plain(format!(
-						"{username} is not a valid username, skipping over: {e}"
-					)))
-					.await
-					.ok();
-				continue;
 			},
 		}
 	}
@@ -345,6 +311,12 @@ pub(super) async fn deactivate_all(
 
 	for user_id in user_ids {
 		match self.services.users.deactivate_account(&user_id).await {
+			| Err(e) => {
+				self.services
+					.admin
+					.send_text(&format!("Failed deactivating user: {e}"))
+					.await;
+			},
 			| Ok(()) => {
 				deactivation_count = deactivation_count.saturating_add(1);
 				if !no_leave_rooms {
@@ -365,33 +337,24 @@ pub(super) async fn deactivate_all(
 					leave_all_rooms(self.services, &user_id).await;
 				}
 			},
-			| Err(e) => {
-				self.services
-					.admin
-					.send_message(RoomMessageEventContent::text_plain(format!(
-						"Failed deactivating user: {e}"
-					)))
-					.await
-					.ok();
-			},
 		}
 	}
 
 	if admins.is_empty() {
-		Ok(RoomMessageEventContent::text_plain(format!(
-			"Deactivated {deactivation_count} accounts."
-		)))
+		write!(self, "Deactivated {deactivation_count} accounts.")
 	} else {
-		Ok(RoomMessageEventContent::text_plain(format!(
+		write!(
+			self,
 			"Deactivated {deactivation_count} accounts.\nSkipped admin accounts: {}. Use \
 			 --force to deactivate admin accounts",
 			admins.join(", ")
-		)))
+		)
 	}
+	.await
 }
 
 #[admin_command]
-pub(super) async fn list_joined_rooms(&self, user_id: String) -> Result<RoomMessageEventContent> {
+pub(super) async fn list_joined_rooms(&self, user_id: String) -> Result {
 	// Validate user id
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 
@@ -405,23 +368,20 @@ pub(super) async fn list_joined_rooms(&self, user_id: String) -> Result<RoomMess
 		.await;
 
 	if rooms.is_empty() {
-		return Ok(RoomMessageEventContent::text_plain("User is not in any rooms."));
+		return Err!("User is not in any rooms.");
 	}
 
 	rooms.sort_by_key(|r| r.1);
 	rooms.reverse();
 
-	let output_plain = format!(
-		"Rooms {user_id} Joined ({}):\n```\n{}\n```",
-		rooms.len(),
-		rooms
-			.iter()
-			.map(|(id, members, name)| format!("{id}\tMembers: {members}\tName: {name}"))
-			.collect::<Vec<_>>()
-			.join("\n")
-	);
+	let body = rooms
+		.iter()
+		.map(|(id, members, name)| format!("{id}\tMembers: {members}\tName: {name}"))
+		.collect::<Vec<_>>()
+		.join("\n");
 
-	Ok(RoomMessageEventContent::notice_markdown(output_plain))
+	self.write_str(&format!("Rooms {user_id} Joined ({}):\n```\n{body}\n```", rooms.len(),))
+		.await
 }
 
 #[admin_command]
@@ -429,27 +389,23 @@ pub(super) async fn force_join_list_of_local_users(
 	&self,
 	room_id: OwnedRoomOrAliasId,
 	yes_i_want_to_do_this: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
 		|| self.body.last().unwrap_or(&"").trim() != "```"
 	{
-		return Ok(RoomMessageEventContent::text_plain(
-			"Expected code block in command body. Add --help for details.",
-		));
+		return Err!("Expected code block in command body. Add --help for details.",);
 	}
 
 	if !yes_i_want_to_do_this {
-		return Ok(RoomMessageEventContent::notice_markdown(
+		return Err!(
 			"You must pass the --yes-i-want-to-do-this-flag to ensure you really want to force \
 			 bulk join all specified local users.",
-		));
+		);
 	}
 
 	let Ok(admin_room) = self.services.admin.get_admin_room().await else {
-		return Ok(RoomMessageEventContent::notice_markdown(
-			"There is not an admin room to check for server admins.",
-		));
+		return Err!("There is not an admin room to check for server admins.",);
 	};
 
 	let (room_id, servers) = self
@@ -466,7 +422,7 @@ pub(super) async fn force_join_list_of_local_users(
 		.server_in_room(self.services.globals.server_name(), &room_id)
 		.await
 	{
-		return Ok(RoomMessageEventContent::notice_markdown("We are not joined in this room."));
+		return Err!("We are not joined in this room.");
 	}
 
 	let server_admins: Vec<_> = self
@@ -486,9 +442,7 @@ pub(super) async fn force_join_list_of_local_users(
 		.ready_any(|user_id| server_admins.contains(&user_id.to_owned()))
 		.await
 	{
-		return Ok(RoomMessageEventContent::notice_markdown(
-			"There is not a single server admin in the room.",
-		));
+		return Err!("There is not a single server admin in the room.",);
 	}
 
 	let usernames = self
@@ -506,11 +460,11 @@ pub(super) async fn force_join_list_of_local_users(
 				if user_id == self.services.globals.server_user {
 					self.services
 						.admin
-						.send_message(RoomMessageEventContent::text_plain(format!(
+						.send_text(&format!(
 							"{username} is the server service account, skipping over"
-						)))
-						.await
-						.ok();
+						))
+						.await;
+
 					continue;
 				}
 
@@ -519,11 +473,9 @@ pub(super) async fn force_join_list_of_local_users(
 			| Err(e) => {
 				self.services
 					.admin
-					.send_message(RoomMessageEventContent::text_plain(format!(
-						"{username} is not a valid username, skipping over: {e}"
-					)))
-					.await
-					.ok();
+					.send_text(&format!("{username} is not a valid username, skipping over: {e}"))
+					.await;
+
 				continue;
 			},
 		}
@@ -554,10 +506,11 @@ pub(super) async fn force_join_list_of_local_users(
 		}
 	}
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
+	self.write_str(&format!(
 		"{successful_joins} local users have been joined to {room_id}. {failed_joins} joins \
 		 failed.",
-	)))
+	))
+	.await
 }
 
 #[admin_command]
@@ -565,18 +518,16 @@ pub(super) async fn force_join_all_local_users(
 	&self,
 	room_id: OwnedRoomOrAliasId,
 	yes_i_want_to_do_this: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	if !yes_i_want_to_do_this {
-		return Ok(RoomMessageEventContent::notice_markdown(
+		return Err!(
 			"You must pass the --yes-i-want-to-do-this-flag to ensure you really want to force \
 			 bulk join all local users.",
-		));
+		);
 	}
 
 	let Ok(admin_room) = self.services.admin.get_admin_room().await else {
-		return Ok(RoomMessageEventContent::notice_markdown(
-			"There is not an admin room to check for server admins.",
-		));
+		return Err!("There is not an admin room to check for server admins.",);
 	};
 
 	let (room_id, servers) = self
@@ -593,7 +544,7 @@ pub(super) async fn force_join_all_local_users(
 		.server_in_room(self.services.globals.server_name(), &room_id)
 		.await
 	{
-		return Ok(RoomMessageEventContent::notice_markdown("We are not joined in this room."));
+		return Err!("We are not joined in this room.");
 	}
 
 	let server_admins: Vec<_> = self
@@ -613,9 +564,7 @@ pub(super) async fn force_join_all_local_users(
 		.ready_any(|user_id| server_admins.contains(&user_id.to_owned()))
 		.await
 	{
-		return Ok(RoomMessageEventContent::notice_markdown(
-			"There is not a single server admin in the room.",
-		));
+		return Err!("There is not a single server admin in the room.",);
 	}
 
 	let mut failed_joins: usize = 0;
@@ -650,10 +599,11 @@ pub(super) async fn force_join_all_local_users(
 		}
 	}
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
+	self.write_str(&format!(
 		"{successful_joins} local users have been joined to {room_id}. {failed_joins} joins \
 		 failed.",
-	)))
+	))
+	.await
 }
 
 #[admin_command]
@@ -661,7 +611,7 @@ pub(super) async fn force_join_room(
 	&self,
 	user_id: String,
 	room_id: OwnedRoomOrAliasId,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	let (room_id, servers) = self
 		.services
@@ -677,9 +627,8 @@ pub(super) async fn force_join_room(
 	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers, None, &None)
 		.await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"{user_id} has been joined to {room_id}.",
-	)))
+	self.write_str(&format!("{user_id} has been joined to {room_id}.",))
+		.await
 }
 
 #[admin_command]
@@ -687,7 +636,7 @@ pub(super) async fn force_leave_room(
 	&self,
 	user_id: String,
 	room_id: OwnedRoomOrAliasId,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
@@ -703,24 +652,17 @@ pub(super) async fn force_leave_room(
 		.is_joined(&user_id, &room_id)
 		.await
 	{
-		return Ok(RoomMessageEventContent::notice_markdown(format!(
-			"{user_id} is not joined in the room"
-		)));
+		return Err!("{user_id} is not joined in the room");
 	}
 
 	leave_room(self.services, &user_id, &room_id, None).await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"{user_id} has left {room_id}.",
-	)))
+	self.write_str(&format!("{user_id} has left {room_id}.",))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn force_demote(
-	&self,
-	user_id: String,
-	room_id: OwnedRoomOrAliasId,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAliasId) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
@@ -731,15 +673,11 @@ pub(super) async fn force_demote(
 
 	let state_lock = self.services.rooms.state.mutex.lock(&room_id).await;
 
-	let room_power_levels = self
+	let room_power_levels: Option<RoomPowerLevelsEventContent> = self
 		.services
 		.rooms
 		.state_accessor
-		.room_state_get_content::<RoomPowerLevelsEventContent>(
-			&room_id,
-			&StateEventType::RoomPowerLevels,
-			"",
-		)
+		.room_state_get_content(&room_id, &StateEventType::RoomPowerLevels, "")
 		.await
 		.ok();
 
@@ -757,9 +695,7 @@ pub(super) async fn force_demote(
 		.is_ok_and(|event| event.sender == user_id);
 
 	if !user_can_demote_self {
-		return Ok(RoomMessageEventContent::notice_markdown(
-			"User is not allowed to modify their own power levels in the room.",
-		));
+		return Err!("User is not allowed to modify their own power levels in the room.",);
 	}
 
 	let mut power_levels_content = room_power_levels.unwrap_or_default();
@@ -777,25 +713,25 @@ pub(super) async fn force_demote(
 		)
 		.await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
+	self.write_str(&format!(
 		"User {user_id} demoted themselves to the room default power level in {room_id} - \
 		 {event_id}"
-	)))
+	))
+	.await
 }
 
 #[admin_command]
-pub(super) async fn make_user_admin(&self, user_id: String) -> Result<RoomMessageEventContent> {
+pub(super) async fn make_user_admin(&self, user_id: String) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
-
 	assert!(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
+
 	self.services.admin.make_user_admin(&user_id).await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"{user_id} has been granted admin privileges.",
-	)))
+	self.write_str(&format!("{user_id} has been granted admin privileges.",))
+		.await
 }
 
 #[admin_command]
@@ -804,7 +740,7 @@ pub(super) async fn put_room_tag(
 	user_id: String,
 	room_id: OwnedRoomId,
 	tag: String,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 	let mut tags_event = self
@@ -831,9 +767,10 @@ pub(super) async fn put_room_tag(
 		)
 		.await?;
 
-	Ok(RoomMessageEventContent::text_plain(format!(
+	self.write_str(&format!(
 		"Successfully updated room account data for {user_id} and room {room_id} with tag {tag}"
-	)))
+	))
+	.await
 }
 
 #[admin_command]
@@ -842,7 +779,7 @@ pub(super) async fn delete_room_tag(
 	user_id: String,
 	room_id: OwnedRoomId,
 	tag: String,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 	let mut tags_event = self
@@ -866,18 +803,15 @@ pub(super) async fn delete_room_tag(
 		)
 		.await?;
 
-	Ok(RoomMessageEventContent::text_plain(format!(
+	self.write_str(&format!(
 		"Successfully updated room account data for {user_id} and room {room_id}, deleting room \
 		 tag {tag}"
-	)))
+	))
+	.await
 }
 
 #[admin_command]
-pub(super) async fn get_room_tags(
-	&self,
-	user_id: String,
-	room_id: OwnedRoomId,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn get_room_tags(&self, user_id: String, room_id: OwnedRoomId) -> Result {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 	let tags_event = self
@@ -889,17 +823,12 @@ pub(super) async fn get_room_tags(
 			content: TagEventContent { tags: BTreeMap::new() },
 		});
 
-	Ok(RoomMessageEventContent::notice_markdown(format!(
-		"```\n{:#?}\n```",
-		tags_event.content.tags
-	)))
+	self.write_str(&format!("```\n{:#?}\n```", tags_event.content.tags))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn redact_event(
-	&self,
-	event_id: OwnedEventId,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 	let Ok(event) = self
 		.services
 		.rooms
@@ -907,20 +836,18 @@ pub(super) async fn redact_event(
 		.get_non_outlier_pdu(&event_id)
 		.await
 	else {
-		return Ok(RoomMessageEventContent::text_plain("Event does not exist in our database."));
+		return Err!("Event does not exist in our database.");
 	};
 
 	if event.is_redacted() {
-		return Ok(RoomMessageEventContent::text_plain("Event is already redacted."));
+		return Err!("Event is already redacted.");
 	}
 
 	let room_id = event.room_id;
 	let sender_user = event.sender;
 
 	if !self.services.globals.user_is_local(&sender_user) {
-		return Ok(RoomMessageEventContent::text_plain(
-			"This command only works on local users.",
-		));
+		return Err!("This command only works on local users.");
 	}
 
 	let reason = format!(
@@ -949,9 +876,8 @@ pub(super) async fn redact_event(
 			.await?
 	};
 
-	let out = format!("Successfully redacted event. Redaction event ID: {redaction_event_id}");
-
-	self.write_str(out.as_str()).await?;
-
-	Ok(RoomMessageEventContent::text_plain(""))
+	self.write_str(&format!(
+		"Successfully redacted event. Redaction event ID: {redaction_event_id}"
+	))
+	.await
 }

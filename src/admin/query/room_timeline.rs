@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::{PduCount, Result, utils::stream::TryTools};
 use futures::TryStreamExt;
-use ruma::{OwnedRoomOrAliasId, events::room::message::RoomMessageEventContent};
+use ruma::OwnedRoomOrAliasId;
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -24,7 +24,7 @@ pub(crate) enum RoomTimelineCommand {
 }
 
 #[admin_command]
-pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result<RoomMessageEventContent> {
+pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result {
 	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
 	let result = self
@@ -34,7 +34,7 @@ pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result<RoomMessa
 		.last_timeline_count(None, &room_id)
 		.await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!("{result:#?}")))
+	self.write_str(&format!("{result:#?}")).await
 }
 
 #[admin_command]
@@ -43,7 +43,7 @@ pub(super) async fn pdus(
 	room_id: OwnedRoomOrAliasId,
 	from: Option<String>,
 	limit: Option<usize>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
 	let from: Option<PduCount> = from.as_deref().map(str::parse).transpose()?;
@@ -57,5 +57,5 @@ pub(super) async fn pdus(
 		.try_collect()
 		.await?;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!("{result:#?}")))
+	self.write_str(&format!("{result:#?}")).await
 }

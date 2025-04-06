@@ -8,7 +8,7 @@ use crate::{Result, utils::camel_to_snake_string};
 
 pub(super) fn command(mut item: ItemFn, _args: &[Meta]) -> Result<TokenStream> {
 	let attr: Attribute = parse_quote! {
-		#[conduwuit_macros::implement(crate::Command, params = "<'_>")]
+		#[conduwuit_macros::implement(crate::Context, params = "<'_>")]
 	};
 
 	item.attrs.push(attr);
@@ -19,15 +19,16 @@ pub(super) fn command_dispatch(item: ItemEnum, _args: &[Meta]) -> Result<TokenSt
 	let name = &item.ident;
 	let arm: Vec<TokenStream2> = item.variants.iter().map(dispatch_arm).try_collect()?;
 	let switch = quote! {
+		#[allow(clippy::large_stack_frames)] //TODO: fixme
 		pub(super) async fn process(
 			command: #name,
-			context: &crate::Command<'_>
+			context: &crate::Context<'_>
 		) -> Result {
 			use #name::*;
 			#[allow(non_snake_case)]
-			Ok(match command {
+			match command {
 				#( #arm )*
-			})
+			}
 		}
 	};
 
@@ -47,8 +48,7 @@ fn dispatch_arm(v: &Variant) -> Result<TokenStream2> {
 			let arg = field.clone();
 			quote! {
 				#name { #( #field ),* } => {
-					let c = Box::pin(context.#handler(#( #arg ),*)).await?;
-					Box::pin(context.write_str(c.body())).await?;
+					Box::pin(context.#handler(#( #arg ),*)).await
 				},
 			}
 		},
@@ -58,15 +58,14 @@ fn dispatch_arm(v: &Variant) -> Result<TokenStream2> {
 			};
 			quote! {
 				#name ( #field ) => {
-					Box::pin(#handler::process(#field, context)).await?;
+					Box::pin(#handler::process(#field, context)).await
 				}
 			}
 		},
 		| Fields::Unit => {
 			quote! {
 				#name => {
-					let c = Box::pin(context.#handler()).await?;
-					Box::pin(context.write_str(c.body())).await?;
+					Box::pin(context.#handler()).await
 				},
 			}
 		},

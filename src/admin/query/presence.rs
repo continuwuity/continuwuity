@@ -3,7 +3,7 @@ use conduwuit::Result;
 use futures::StreamExt;
 use ruma::OwnedUserId;
 
-use crate::Command;
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/presence.rs
@@ -23,7 +23,7 @@ pub(crate) enum PresenceCommand {
 }
 
 /// All the getters and iterators in key_value/presence.rs
-pub(super) async fn process(subcommand: PresenceCommand, context: &Command<'_>) -> Result {
+pub(super) async fn process(subcommand: PresenceCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 
 	match subcommand {

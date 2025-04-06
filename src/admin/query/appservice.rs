@@ -2,7 +2,7 @@ use clap::Subcommand;
 use conduwuit::Result;
 use futures::TryStreamExt;
 
-use crate::Command;
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/appservice.rs
@@ -18,7 +18,7 @@ pub(crate) enum AppserviceCommand {
 }
 
 /// All the getters and iterators from src/database/key_value/appservice.rs
-pub(super) async fn process(subcommand: AppserviceCommand, context: &Command<'_>) -> Result {
+pub(super) async fn process(subcommand: AppserviceCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 
 	match subcommand {

@@ -1,11 +1,9 @@
 use clap::Subcommand;
-use conduwuit::{Error, Result};
+use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{
-	OwnedRoomId, OwnedServerName, OwnedUserId, events::room::message::RoomMessageEventContent,
-};
+use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
 
-use crate::Command;
+use crate::Context;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum RoomStateCacheCommand {
@@ -78,10 +76,10 @@ pub(crate) enum RoomStateCacheCommand {
 	},
 }
 
-pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command<'_>) -> Result {
+pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context<'_>) -> Result {
 	let services = context.services;
 
-	let c = match subcommand {
+	match subcommand {
 		| RoomStateCacheCommand::ServerInRoom { server, room_id } => {
 			let timer = tokio::time::Instant::now();
 			let result = services
@@ -91,9 +89,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomServers { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -106,9 +106,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::ServerRooms { server } => {
 			let timer = tokio::time::Instant::now();
@@ -121,9 +123,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomMembers { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -136,9 +140,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::LocalUsersInRoom { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -151,9 +157,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::ActiveLocalUsersInRoom { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -166,18 +174,22 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomJoinedCount { room_id } => {
 			let timer = tokio::time::Instant::now();
 			let results = services.rooms.state_cache.room_joined_count(&room_id).await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomInvitedCount { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -188,9 +200,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomUserOnceJoined { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -203,9 +217,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomMembersInvited { room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -218,9 +234,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::GetInviteCount { room_id, user_id } => {
 			let timer = tokio::time::Instant::now();
@@ -231,9 +249,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::GetLeftCount { room_id, user_id } => {
 			let timer = tokio::time::Instant::now();
@@ -244,9 +264,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomsJoined { user_id } => {
 			let timer = tokio::time::Instant::now();
@@ -259,9 +281,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomsInvited { user_id } => {
 			let timer = tokio::time::Instant::now();
@@ -273,9 +297,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::RoomsLeft { user_id } => {
 			let timer = tokio::time::Instant::now();
@@ -287,9 +313,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
 		| RoomStateCacheCommand::InviteState { user_id, room_id } => {
 			let timer = tokio::time::Instant::now();
@@ -300,13 +328,11 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Command
 				.await;
 			let query_time = timer.elapsed();
 
-			Result::<_, Error>::Ok(RoomMessageEventContent::notice_markdown(format!(
-				"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
-			)))
+			context
+				.write_str(&format!(
+					"Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"
+				))
+				.await
 		},
-	}?;
-
-	context.write_str(c.body()).await?;
-
-	Ok(())
+	}
 }

@@ -1,15 +1,12 @@
 use api::client::leave_room;
 use clap::Subcommand;
 use conduwuit::{
-	Result, debug,
+	Err, Result, debug,
 	utils::{IterStream, ReadyExt},
 	warn,
 };
 use futures::StreamExt;
-use ruma::{
-	OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId,
-	events::room::message::RoomMessageEventContent,
-};
+use ruma::{OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId};
 
 use crate::{admin_command, admin_command_dispatch, get_room_info};
 
@@ -49,14 +46,14 @@ pub(crate) enum RoomModerationCommand {
 }
 
 #[admin_command]
-async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventContent> {
+async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 	debug!("Got room alias or ID: {}", room);
 
 	let admin_room_alias = &self.services.globals.admin_alias;
 
 	if let Ok(admin_room_id) = self.services.admin.get_admin_room().await {
 		if room.to_string().eq(&admin_room_id) || room.to_string().eq(admin_room_alias) {
-			return Ok(RoomMessageEventContent::text_plain("Not allowed to ban the admin room."));
+			return Err!("Not allowed to ban the admin room.");
 		}
 	}
 
@@ -64,11 +61,11 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventCon
 		let room_id = match RoomId::parse(&room) {
 			| Ok(room_id) => room_id,
 			| Err(e) => {
-				return Ok(RoomMessageEventContent::text_plain(format!(
+				return Err!(
 					"Failed to parse room ID {room}. Please note that this requires a full room \
 					 ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 					 (`#roomalias:example.com`): {e}"
-				)));
+				);
 			},
 		};
 
@@ -80,11 +77,11 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventCon
 		let room_alias = match RoomAliasId::parse(&room) {
 			| Ok(room_alias) => room_alias,
 			| Err(e) => {
-				return Ok(RoomMessageEventContent::text_plain(format!(
+				return Err!(
 					"Failed to parse room ID {room}. Please note that this requires a full room \
 					 ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 					 (`#roomalias:example.com`): {e}"
-				)));
+				);
 			},
 		};
 
@@ -123,9 +120,9 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventCon
 						room_id
 					},
 					| Err(e) => {
-						return Ok(RoomMessageEventContent::notice_plain(format!(
+						return Err!(
 							"Failed to resolve room alias {room_alias} to a room ID: {e}"
-						)));
+						);
 					},
 				}
 			},
@@ -135,11 +132,11 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventCon
 
 		room_id
 	} else {
-		return Ok(RoomMessageEventContent::text_plain(
+		return Err!(
 			"Room specified is not a room ID or room alias. Please note that this requires a \
 			 full room ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 			 (`#roomalias:example.com`)",
-		));
+		);
 	};
 
 	debug!("Making all users leave the room {room_id} and forgetting it");
@@ -185,20 +182,19 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventCon
 
 	self.services.rooms.metadata.disable_room(&room_id, true);
 
-	Ok(RoomMessageEventContent::text_plain(
+	self.write_str(
 		"Room banned, removed all our local users, and disabled incoming federation with room.",
-	))
+	)
+	.await
 }
 
 #[admin_command]
-async fn ban_list_of_rooms(&self) -> Result<RoomMessageEventContent> {
+async fn ban_list_of_rooms(&self) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
 		|| self.body.last().unwrap_or(&"").trim() != "```"
 	{
-		return Ok(RoomMessageEventContent::text_plain(
-			"Expected code block in command body. Add --help for details.",
-		));
+		return Err!("Expected code block in command body. Add --help for details.",);
 	}
 
 	let rooms_s = self
@@ -356,23 +352,24 @@ async fn ban_list_of_rooms(&self) -> Result<RoomMessageEventContent> {
 		self.services.rooms.metadata.disable_room(&room_id, true);
 	}
 
-	Ok(RoomMessageEventContent::text_plain(format!(
+	self.write_str(&format!(
 		"Finished bulk room ban, banned {room_ban_count} total rooms, evicted all users, and \
 		 disabled incoming federation with the room."
-	)))
+	))
+	.await
 }
 
 #[admin_command]
-async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventContent> {
+async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 	let room_id = if room.is_room_id() {
 		let room_id = match RoomId::parse(&room) {
 			| Ok(room_id) => room_id,
 			| Err(e) => {
-				return Ok(RoomMessageEventContent::text_plain(format!(
+				return Err!(
 					"Failed to parse room ID {room}. Please note that this requires a full room \
 					 ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 					 (`#roomalias:example.com`): {e}"
-				)));
+				);
 			},
 		};
 
@@ -384,11 +381,11 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventC
 		let room_alias = match RoomAliasId::parse(&room) {
 			| Ok(room_alias) => room_alias,
 			| Err(e) => {
-				return Ok(RoomMessageEventContent::text_plain(format!(
+				return Err!(
 					"Failed to parse room ID {room}. Please note that this requires a full room \
 					 ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 					 (`#roomalias:example.com`): {e}"
-				)));
+				);
 			},
 		};
 
@@ -427,9 +424,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventC
 						room_id
 					},
 					| Err(e) => {
-						return Ok(RoomMessageEventContent::text_plain(format!(
-							"Failed to resolve room alias {room} to a room ID: {e}"
-						)));
+						return Err!("Failed to resolve room alias {room} to a room ID: {e}");
 					},
 				}
 			},
@@ -439,19 +434,20 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventC
 
 		room_id
 	} else {
-		return Ok(RoomMessageEventContent::text_plain(
+		return Err!(
 			"Room specified is not a room ID or room alias. Please note that this requires a \
 			 full room ID (`!awIh6gGInaS5wLQJwa:example.com`) or a room alias \
 			 (`#roomalias:example.com`)",
-		));
+		);
 	};
 
 	self.services.rooms.metadata.disable_room(&room_id, false);
-	Ok(RoomMessageEventContent::text_plain("Room unbanned and federation re-enabled."))
+	self.write_str("Room unbanned and federation re-enabled.")
+		.await
 }
 
 #[admin_command]
-async fn list_banned_rooms(&self, no_details: bool) -> Result<RoomMessageEventContent> {
+async fn list_banned_rooms(&self, no_details: bool) -> Result {
 	let room_ids: Vec<OwnedRoomId> = self
 		.services
 		.rooms
@@ -462,7 +458,7 @@ async fn list_banned_rooms(&self, no_details: bool) -> Result<RoomMessageEventCo
 		.await;
 
 	if room_ids.is_empty() {
-		return Ok(RoomMessageEventContent::text_plain("No rooms are banned."));
+		return Err!("No rooms are banned.");
 	}
 
 	let mut rooms = room_ids
@@ -475,19 +471,20 @@ async fn list_banned_rooms(&self, no_details: bool) -> Result<RoomMessageEventCo
 	rooms.sort_by_key(|r| r.1);
 	rooms.reverse();
 
-	let output_plain = format!(
-		"Rooms Banned ({}):\n```\n{}\n```",
-		rooms.len(),
-		rooms
-			.iter()
-			.map(|(id, members, name)| if no_details {
+	let num = rooms.len();
+
+	let body = rooms
+		.iter()
+		.map(|(id, members, name)| {
+			if no_details {
 				format!("{id}")
 			} else {
 				format!("{id}\tMembers: {members}\tName: {name}")
-			})
-			.collect::<Vec<_>>()
-			.join("\n")
-	);
+			}
+		})
+		.collect::<Vec<_>>()
+		.join("\n");
 
-	Ok(RoomMessageEventContent::notice_markdown(output_plain))
+	self.write_str(&format!("Rooms Banned ({num}):\n```\n{body}\n```",))
+		.await
 }

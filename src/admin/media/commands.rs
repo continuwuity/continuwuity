@@ -1,13 +1,11 @@
 use std::time::Duration;
 
 use conduwuit::{
-	Result, debug, debug_info, debug_warn, error, info, trace, utils::time::parse_timepoint_ago,
+	Err, Result, debug, debug_info, debug_warn, error, info, trace,
+	utils::time::parse_timepoint_ago, warn,
 };
 use conduwuit_service::media::Dim;
-use ruma::{
-	Mxc, OwnedEventId, OwnedMxcUri, OwnedServerName,
-	events::room::message::RoomMessageEventContent,
-};
+use ruma::{Mxc, OwnedEventId, OwnedMxcUri, OwnedServerName};
 
 use crate::{admin_command, utils::parse_local_user_id};
 
@@ -16,11 +14,9 @@ pub(super) async fn delete(
 	&self,
 	mxc: Option<OwnedMxcUri>,
 	event_id: Option<OwnedEventId>,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	if event_id.is_some() && mxc.is_some() {
-		return Ok(RoomMessageEventContent::text_plain(
-			"Please specify either an MXC or an event ID, not both.",
-		));
+		return Err!("Please specify either an MXC or an event ID, not both.",);
 	}
 
 	if let Some(mxc) = mxc {
@@ -30,9 +26,7 @@ pub(super) async fn delete(
 			.delete(&mxc.as_str().try_into()?)
 			.await?;
 
-		return Ok(RoomMessageEventContent::text_plain(
-			"Deleted the MXC from our database and on our filesystem.",
-		));
+		return Err!("Deleted the MXC from our database and on our filesystem.",);
 	}
 
 	if let Some(event_id) = event_id {
@@ -113,41 +107,36 @@ pub(super) async fn delete(
 										let final_url = url.to_string().replace('"', "");
 										mxc_urls.push(final_url);
 									} else {
-										info!(
+										warn!(
 											"Found a URL in the event ID {event_id} but did not \
 											 start with mxc://, ignoring"
 										);
 									}
 								} else {
-									info!("No \"url\" key in \"file\" key.");
+									error!("No \"url\" key in \"file\" key.");
 								}
 							}
 						}
 					} else {
-						return Ok(RoomMessageEventContent::text_plain(
+						return Err!(
 							"Event ID does not have a \"content\" key or failed parsing the \
 							 event ID JSON.",
-						));
+						);
 					}
 				} else {
-					return Ok(RoomMessageEventContent::text_plain(
+					return Err!(
 						"Event ID does not have a \"content\" key, this is not a message or an \
 						 event type that contains media.",
-					));
+					);
 				}
 			},
 			| _ => {
-				return Ok(RoomMessageEventContent::text_plain(
-					"Event ID does not exist or is not known to us.",
-				));
+				return Err!("Event ID does not exist or is not known to us.",);
 			},
 		}
 
 		if mxc_urls.is_empty() {
-			info!("Parsed event ID {event_id} but did not contain any MXC URLs.");
-			return Ok(RoomMessageEventContent::text_plain(
-				"Parsed event ID but found no MXC URLs.",
-			));
+			return Err!("Parsed event ID but found no MXC URLs.",);
 		}
 
 		let mut mxc_deletion_count: usize = 0;
@@ -170,27 +159,27 @@ pub(super) async fn delete(
 			}
 		}
 
-		return Ok(RoomMessageEventContent::text_plain(format!(
-			"Deleted {mxc_deletion_count} total MXCs from our database and the filesystem from \
-			 event ID {event_id}."
-		)));
+		return self
+			.write_str(&format!(
+				"Deleted {mxc_deletion_count} total MXCs from our database and the filesystem \
+				 from event ID {event_id}."
+			))
+			.await;
 	}
 
-	Ok(RoomMessageEventContent::text_plain(
+	Err!(
 		"Please specify either an MXC using --mxc or an event ID using --event-id of the \
-		 message containing an image. See --help for details.",
-	))
+		 message containing an image. See --help for details."
+	)
 }
 
 #[admin_command]
-pub(super) async fn delete_list(&self) -> Result<RoomMessageEventContent> {
+pub(super) async fn delete_list(&self) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
 		|| self.body.last().unwrap_or(&"").trim() != "```"
 	{
-		return Ok(RoomMessageEventContent::text_plain(
-			"Expected code block in command body. Add --help for details.",
-		));
+		return Err!("Expected code block in command body. Add --help for details.",);
 	}
 
 	let mut failed_parsed_mxcs: usize = 0;
@@ -204,7 +193,6 @@ pub(super) async fn delete_list(&self) -> Result<RoomMessageEventContent> {
 				.try_into()
 				.inspect_err(|e| {
 					debug_warn!("Failed to parse user-provided MXC URI: {e}");
-
 					failed_parsed_mxcs = failed_parsed_mxcs.saturating_add(1);
 				})
 				.ok()
@@ -227,10 +215,11 @@ pub(super) async fn delete_list(&self) -> Result<RoomMessageEventContent> {
 		}
 	}
 
-	Ok(RoomMessageEventContent::text_plain(format!(
+	self.write_str(&format!(
 		"Finished bulk MXC deletion, deleted {mxc_deletion_count} total MXCs from our database \
 		 and the filesystem. {failed_parsed_mxcs} MXCs failed to be parsed from the database.",
-	)))
+	))
+	.await
 }
 
 #[admin_command]
@@ -240,11 +229,9 @@ pub(super) async fn delete_past_remote_media(
 	before: bool,
 	after: bool,
 	yes_i_want_to_delete_local_media: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	if before && after {
-		return Ok(RoomMessageEventContent::text_plain(
-			"Please only pick one argument, --before or --after.",
-		));
+		return Err!("Please only pick one argument, --before or --after.",);
 	}
 	assert!(!(before && after), "--before and --after should not be specified together");
 
@@ -260,23 +247,18 @@ pub(super) async fn delete_past_remote_media(
 		)
 		.await?;
 
-	Ok(RoomMessageEventContent::text_plain(format!(
-		"Deleted {deleted_count} total files.",
-	)))
+	self.write_str(&format!("Deleted {deleted_count} total files.",))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn delete_all_from_user(
-	&self,
-	username: String,
-) -> Result<RoomMessageEventContent> {
+pub(super) async fn delete_all_from_user(&self, username: String) -> Result {
 	let user_id = parse_local_user_id(self.services, &username)?;
 
 	let deleted_count = self.services.media.delete_from_user(&user_id).await?;
 
-	Ok(RoomMessageEventContent::text_plain(format!(
-		"Deleted {deleted_count} total files.",
-	)))
+	self.write_str(&format!("Deleted {deleted_count} total files.",))
+		.await
 }
 
 #[admin_command]
@@ -284,11 +266,9 @@ pub(super) async fn delete_all_from_server(
 	&self,
 	server_name: OwnedServerName,
 	yes_i_want_to_delete_local_media: bool,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	if server_name == self.services.globals.server_name() && !yes_i_want_to_delete_local_media {
-		return Ok(RoomMessageEventContent::text_plain(
-			"This command only works for remote media by default.",
-		));
+		return Err!("This command only works for remote media by default.",);
 	}
 
 	let Ok(all_mxcs) = self
@@ -298,9 +278,7 @@ pub(super) async fn delete_all_from_server(
 		.await
 		.inspect_err(|e| error!("Failed to get MXC URIs from our database: {e}"))
 	else {
-		return Ok(RoomMessageEventContent::text_plain(
-			"Failed to get MXC URIs from our database",
-		));
+		return Err!("Failed to get MXC URIs from our database",);
 	};
 
 	let mut deleted_count: usize = 0;
@@ -336,17 +314,16 @@ pub(super) async fn delete_all_from_server(
 		}
 	}
 
-	Ok(RoomMessageEventContent::text_plain(format!(
-		"Deleted {deleted_count} total files.",
-	)))
+	self.write_str(&format!("Deleted {deleted_count} total files.",))
+		.await
 }
 
 #[admin_command]
-pub(super) async fn get_file_info(&self, mxc: OwnedMxcUri) -> Result<RoomMessageEventContent> {
+pub(super) async fn get_file_info(&self, mxc: OwnedMxcUri) -> Result {
 	let mxc: Mxc<'_> = mxc.as_str().try_into()?;
 	let metadata = self.services.media.get_metadata(&mxc).await;
 
-	Ok(RoomMessageEventContent::notice_markdown(format!("```\n{metadata:#?}\n```")))
+	self.write_str(&format!("```\n{metadata:#?}\n```")).await
 }
 
 #[admin_command]
@@ -355,7 +332,7 @@ pub(super) async fn get_remote_file(
 	mxc: OwnedMxcUri,
 	server: Option<OwnedServerName>,
 	timeout: u32,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let mxc: Mxc<'_> = mxc.as_str().try_into()?;
 	let timeout = Duration::from_millis(timeout.into());
 	let mut result = self
@@ -368,8 +345,8 @@ pub(super) async fn get_remote_file(
 	let len = result.content.as_ref().expect("content").len();
 	result.content.as_mut().expect("content").clear();
 
-	let out = format!("```\n{result:#?}\nreceived {len} bytes for file content.\n```");
-	Ok(RoomMessageEventContent::notice_markdown(out))
+	self.write_str(&format!("```\n{result:#?}\nreceived {len} bytes for file content.\n```"))
+		.await
 }
 
 #[admin_command]
@@ -380,7 +357,7 @@ pub(super) async fn get_remote_thumbnail(
 	timeout: u32,
 	width: u32,
 	height: u32,
-) -> Result<RoomMessageEventContent> {
+) -> Result {
 	let mxc: Mxc<'_> = mxc.as_str().try_into()?;
 	let timeout = Duration::from_millis(timeout.into());
 	let dim = Dim::new(width, height, None);
@@ -394,6 +371,6 @@ pub(super) async fn get_remote_thumbnail(
 	let len = result.content.as_ref().expect("content").len();
 	result.content.as_mut().expect("content").clear();
 
-	let out = format!("```\n{result:#?}\nreceived {len} bytes for file content.\n```");
-	Ok(RoomMessageEventContent::notice_markdown(out))
+	self.write_str(&format!("```\n{result:#?}\nreceived {len} bytes for file content.\n```"))
+		.await
 }
