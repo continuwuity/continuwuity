@@ -1,20 +1,20 @@
 mod namespace_regex;
 mod registration_info;
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, iter::IntoIterator, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Result, err, utils::stream::TryIgnore};
+use conduwuit::{Result, err, utils::stream::IterStream};
 use database::Map;
-use futures::{Future, StreamExt, TryStreamExt};
+use futures::{Future, FutureExt, Stream, TryStreamExt};
 use ruma::{RoomAliasId, RoomId, UserId, api::appservice::Registration};
-use tokio::sync::RwLock;
+use tokio::sync::{RwLock, RwLockReadGuard};
 
 pub use self::{namespace_regex::NamespaceRegex, registration_info::RegistrationInfo};
 use crate::{Dep, sending};
 
 pub struct Service {
-	registration_info: RwLock<BTreeMap<String, RegistrationInfo>>,
+	registration_info: RwLock<Registrations>,
 	services: Services,
 	db: Data,
 }
@@ -26,6 +26,8 @@ struct Services {
 struct Data {
 	id_appserviceregistrations: Arc<Map>,
 }
+
+type Registrations = BTreeMap<String, RegistrationInfo>;
 
 #[async_trait]
 impl crate::Service for Service {
@@ -41,19 +43,18 @@ impl crate::Service for Service {
 		}))
 	}
 
-	async fn worker(self: Arc<Self>) -> Result<()> {
+	async fn worker(self: Arc<Self>) -> Result {
 		// Inserting registrations into cache
-		for appservice in self.iter_db_ids().await? {
-			self.registration_info.write().await.insert(
-				appservice.0,
-				appservice
-					.1
-					.try_into()
-					.expect("Should be validated on registration"),
-			);
-		}
+		self.iter_db_ids()
+			.try_for_each(async |appservice| {
+				self.registration_info
+					.write()
+					.await
+					.insert(appservice.0, appservice.1.try_into()?);
 
-		Ok(())
+				Ok(())
+			})
+			.await
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
@@ -84,7 +85,7 @@ impl Service {
 	/// # Arguments
 	///
 	/// * `service_name` - the registration ID of the appservice
-	pub async fn unregister_appservice(&self, appservice_id: &str) -> Result<()> {
+	pub async fn unregister_appservice(&self, appservice_id: &str) -> Result {
 		// removes the appservice registration info
 		self.registration_info
 			.write()
@@ -110,15 +111,6 @@ impl Service {
 			.get(id)
 			.cloned()
 			.map(|info| info.registration)
-	}
-
-	pub async fn iter_ids(&self) -> Vec<String> {
-		self.registration_info
-			.read()
-			.await
-			.keys()
-			.cloned()
-			.collect()
 	}
 
 	pub async fn find_from_token(&self, token: &str) -> Option<RegistrationInfo> {
@@ -156,15 +148,22 @@ impl Service {
 			.any(|info| info.rooms.is_exclusive_match(room_id.as_str()))
 	}
 
-	pub fn read(
-		&self,
-	) -> impl Future<Output = tokio::sync::RwLockReadGuard<'_, BTreeMap<String, RegistrationInfo>>>
-	{
-		self.registration_info.read()
+	pub fn iter_ids(&self) -> impl Stream<Item = String> + Send {
+		self.read()
+			.map(|info| info.keys().cloned().collect::<Vec<_>>())
+			.map(IntoIterator::into_iter)
+			.map(IterStream::stream)
+			.flatten_stream()
 	}
 
-	#[inline]
-	pub async fn all(&self) -> Result<Vec<(String, Registration)>> { self.iter_db_ids().await }
+	pub fn iter_db_ids(&self) -> impl Stream<Item = Result<(String, Registration)>> + Send {
+		self.db
+			.id_appserviceregistrations
+			.keys()
+			.and_then(move |id: &str| async move {
+				Ok((id.to_owned(), self.get_db_registration(id).await?))
+			})
+	}
 
 	pub async fn get_db_registration(&self, id: &str) -> Result<Registration> {
 		self.db
@@ -175,16 +174,7 @@ impl Service {
 			.map_err(|e| err!(Database("Invalid appservice {id:?} registration: {e:?}")))
 	}
 
-	async fn iter_db_ids(&self) -> Result<Vec<(String, Registration)>> {
-		self.db
-			.id_appserviceregistrations
-			.keys()
-			.ignore_err()
-			.then(|id: String| async move {
-				let reg = self.get_db_registration(&id).await?;
-				Ok((id, reg))
-			})
-			.try_collect()
-			.await
+	pub fn read(&self) -> impl Future<Output = RwLockReadGuard<'_, Registrations>> + Send {
+		self.registration_info.read()
 	}
 }

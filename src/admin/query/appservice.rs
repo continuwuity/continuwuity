@@ -1,5 +1,6 @@
 use clap::Subcommand;
 use conduwuit::Result;
+use futures::TryStreamExt;
 
 use crate::Command;
 
@@ -31,7 +32,7 @@ pub(super) async fn process(subcommand: AppserviceCommand, context: &Command<'_>
 		},
 		| AppserviceCommand::All => {
 			let timer = tokio::time::Instant::now();
-			let results = services.appservice.all().await;
+			let results: Vec<_> = services.appservice.iter_db_ids().try_collect().await?;
 			let query_time = timer.elapsed();
 
 			write!(context, "Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```")
