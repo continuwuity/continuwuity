@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::UserId;
+use ruma::OwnedUserId;
 
 use crate::Command;
 
@@ -9,7 +9,7 @@ pub(crate) enum PusherCommand {
 	/// - Returns all the pushers for the user.
 	GetPushers {
 		/// Full user ID
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 }
 

@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::UserId;
+use ruma::OwnedUserId;
 
 use crate::Command;
 
@@ -11,7 +11,7 @@ pub(crate) enum PresenceCommand {
 	/// - Returns the latest presence event for the given user.
 	GetPresence {
 		/// Full user ID
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 
 	/// - Iterator of the most recent presence updates that happened after the

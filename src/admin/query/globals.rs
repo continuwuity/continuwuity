@@ -1,6 +1,6 @@
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::ServerName;
+use ruma::OwnedServerName;
 
 use crate::Command;
 
@@ -16,7 +16,7 @@ pub(crate) enum GlobalsCommand {
 	/// - This returns an empty `Ok(BTreeMap<..>)` when there are no keys found
 	///   for the server.
 	SigningKeysFor {
-		origin: Box<ServerName>,
+		origin: OwnedServerName,
 	},
 }
 

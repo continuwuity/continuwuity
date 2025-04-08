@@ -3,9 +3,7 @@ use std::fmt::Write;
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{
-	OwnedRoomAliasId, OwnedRoomId, RoomId, events::room::message::RoomMessageEventContent,
-};
+use ruma::{OwnedRoomAliasId, OwnedRoomId, events::room::message::RoomMessageEventContent};
 
 use crate::{Command, escape_html};
 
@@ -18,7 +16,7 @@ pub(crate) enum RoomAliasCommand {
 		force: bool,
 
 		/// The room id to set the alias on
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 
 		/// The alias localpart to use (`alias`, not `#alias:servername.tld`)
 		room_alias_localpart: String,
@@ -40,7 +38,7 @@ pub(crate) enum RoomAliasCommand {
 	/// - List aliases currently being used
 	List {
 		/// If set, only list the aliases for this room
-		room_id: Option<Box<RoomId>>,
+		room_id: Option<OwnedRoomId>,
 	},
 }
 

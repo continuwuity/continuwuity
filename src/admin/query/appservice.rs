@@ -9,7 +9,7 @@ pub(crate) enum AppserviceCommand {
 	/// - Gets the appservice registration info/details from the ID as a string
 	GetRegistration {
 		/// Appservice registration ID
-		appservice_id: Box<str>,
+		appservice_id: String,
 	},
 
 	/// - Gets all appservice registrations with their ID and registration info

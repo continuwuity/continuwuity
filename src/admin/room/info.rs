@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::{Result, utils::ReadyExt};
 use futures::StreamExt;
-use ruma::{RoomId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -10,7 +10,7 @@ use crate::{admin_command, admin_command_dispatch};
 pub(crate) enum RoomInfoCommand {
 	/// - List joined members in a room
 	ListJoinedMembers {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 
 		/// Lists only our local users in the specified room
 		#[arg(long)]
@@ -22,14 +22,14 @@ pub(crate) enum RoomInfoCommand {
 	/// Room topics can be huge, so this is in its
 	/// own separate command
 	ViewRoomTopic {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 }
 
 #[admin_command]
 async fn list_joined_members(
 	&self,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 	local_only: bool,
 ) -> Result<RoomMessageEventContent> {
 	let room_name = self
@@ -79,7 +79,7 @@ async fn list_joined_members(
 }
 
 #[admin_command]
-async fn view_room_topic(&self, room_id: Box<RoomId>) -> Result<RoomMessageEventContent> {
+async fn view_room_topic(&self, room_id: OwnedRoomId) -> Result<RoomMessageEventContent> {
 	let Ok(room_topic) = self
 		.services
 		.rooms

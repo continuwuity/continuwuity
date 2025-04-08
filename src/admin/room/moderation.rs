@@ -7,7 +7,7 @@ use conduwuit::{
 };
 use futures::StreamExt;
 use ruma::{
-	OwnedRoomId, RoomAliasId, RoomId, RoomOrAliasId,
+	OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId,
 	events::room::message::RoomMessageEventContent,
 };
 
@@ -24,7 +24,7 @@ pub(crate) enum RoomModerationCommand {
 	BanRoom {
 		/// The room in the format of `!roomid:example.com` or a room alias in
 		/// the format of `#roomalias:example.com`
-		room: Box<RoomOrAliasId>,
+		room: OwnedRoomOrAliasId,
 	},
 
 	/// - Bans a list of rooms (room IDs and room aliases) from a newline
@@ -36,7 +36,7 @@ pub(crate) enum RoomModerationCommand {
 	UnbanRoom {
 		/// The room in the format of `!roomid:example.com` or a room alias in
 		/// the format of `#roomalias:example.com`
-		room: Box<RoomOrAliasId>,
+		room: OwnedRoomOrAliasId,
 	},
 
 	/// - List of all rooms we have banned
@@ -49,7 +49,7 @@ pub(crate) enum RoomModerationCommand {
 }
 
 #[admin_command]
-async fn ban_room(&self, room: Box<RoomOrAliasId>) -> Result<RoomMessageEventContent> {
+async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventContent> {
 	debug!("Got room alias or ID: {}", room);
 
 	let admin_room_alias = &self.services.globals.admin_alias;
@@ -363,7 +363,7 @@ async fn ban_list_of_rooms(&self) -> Result<RoomMessageEventContent> {
 }
 
 #[admin_command]
-async fn unban_room(&self, room: Box<RoomOrAliasId>) -> Result<RoomMessageEventContent> {
+async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result<RoomMessageEventContent> {
 	let room_id = if room.is_room_id() {
 		let room_id = match RoomId::parse(&room) {
 			| Ok(room_id) => room_id,

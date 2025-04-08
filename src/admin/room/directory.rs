@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{RoomId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedRoomId, events::room::message::RoomMessageEventContent};
 
 use crate::{Command, PAGE_SIZE, get_room_info};
 
@@ -10,13 +10,13 @@ pub(crate) enum RoomDirectoryCommand {
 	/// - Publish a room to the room directory
 	Publish {
 		/// The room id of the room to publish
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Unpublish a room to the room directory
 	Unpublish {
 		/// The room id of the room to unpublish
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - List rooms that are published

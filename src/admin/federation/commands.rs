@@ -3,19 +3,19 @@ use std::fmt::Write;
 use conduwuit::Result;
 use futures::StreamExt;
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UserId, events::room::message::RoomMessageEventContent,
+	OwnedRoomId, OwnedServerName, OwnedUserId, events::room::message::RoomMessageEventContent,
 };
 
 use crate::{admin_command, get_room_info};
 
 #[admin_command]
-pub(super) async fn disable_room(&self, room_id: Box<RoomId>) -> Result<RoomMessageEventContent> {
+pub(super) async fn disable_room(&self, room_id: OwnedRoomId) -> Result<RoomMessageEventContent> {
 	self.services.rooms.metadata.disable_room(&room_id, true);
 	Ok(RoomMessageEventContent::text_plain("Room disabled."))
 }
 
 #[admin_command]
-pub(super) async fn enable_room(&self, room_id: Box<RoomId>) -> Result<RoomMessageEventContent> {
+pub(super) async fn enable_room(&self, room_id: OwnedRoomId) -> Result<RoomMessageEventContent> {
 	self.services.rooms.metadata.disable_room(&room_id, false);
 	Ok(RoomMessageEventContent::text_plain("Room enabled."))
 }
@@ -42,7 +42,7 @@ pub(super) async fn incoming_federation(&self) -> Result<RoomMessageEventContent
 #[admin_command]
 pub(super) async fn fetch_support_well_known(
 	&self,
-	server_name: Box<ServerName>,
+	server_name: OwnedServerName,
 ) -> Result<RoomMessageEventContent> {
 	let response = self
 		.services
@@ -90,7 +90,7 @@ pub(super) async fn fetch_support_well_known(
 #[admin_command]
 pub(super) async fn remote_user_in_rooms(
 	&self,
-	user_id: Box<UserId>,
+	user_id: OwnedUserId,
 ) -> Result<RoomMessageEventContent> {
 	if user_id.server_name() == self.services.server.name {
 		return Ok(RoomMessageEventContent::text_plain(

@@ -5,7 +5,7 @@ use conduwuit::{
 };
 use conduwuit_service::media::Dim;
 use ruma::{
-	EventId, Mxc, MxcUri, OwnedMxcUri, OwnedServerName, ServerName,
+	Mxc, OwnedEventId, OwnedMxcUri, OwnedServerName,
 	events::room::message::RoomMessageEventContent,
 };
 
@@ -14,8 +14,8 @@ use crate::{admin_command, utils::parse_local_user_id};
 #[admin_command]
 pub(super) async fn delete(
 	&self,
-	mxc: Option<Box<MxcUri>>,
-	event_id: Option<Box<EventId>>,
+	mxc: Option<OwnedMxcUri>,
+	event_id: Option<OwnedEventId>,
 ) -> Result<RoomMessageEventContent> {
 	if event_id.is_some() && mxc.is_some() {
 		return Ok(RoomMessageEventContent::text_plain(
@@ -282,7 +282,7 @@ pub(super) async fn delete_all_from_user(
 #[admin_command]
 pub(super) async fn delete_all_from_server(
 	&self,
-	server_name: Box<ServerName>,
+	server_name: OwnedServerName,
 	yes_i_want_to_delete_local_media: bool,
 ) -> Result<RoomMessageEventContent> {
 	if server_name == self.services.globals.server_name() && !yes_i_want_to_delete_local_media {

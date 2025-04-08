@@ -1,78 +1,80 @@
 use clap::Subcommand;
 use conduwuit::{Error, Result};
 use futures::StreamExt;
-use ruma::{RoomId, ServerName, UserId, events::room::message::RoomMessageEventContent};
+use ruma::{
+	OwnedRoomId, OwnedServerName, OwnedUserId, events::room::message::RoomMessageEventContent,
+};
 
 use crate::Command;
 
 #[derive(Debug, Subcommand)]
 pub(crate) enum RoomStateCacheCommand {
 	ServerInRoom {
-		server: Box<ServerName>,
-		room_id: Box<RoomId>,
+		server: OwnedServerName,
+		room_id: OwnedRoomId,
 	},
 
 	RoomServers {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	ServerRooms {
-		server: Box<ServerName>,
+		server: OwnedServerName,
 	},
 
 	RoomMembers {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	LocalUsersInRoom {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	ActiveLocalUsersInRoom {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	RoomJoinedCount {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	RoomInvitedCount {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	RoomUserOnceJoined {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	RoomMembersInvited {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	GetInviteCount {
-		room_id: Box<RoomId>,
-		user_id: Box<UserId>,
+		room_id: OwnedRoomId,
+		user_id: OwnedUserId,
 	},
 
 	GetLeftCount {
-		room_id: Box<RoomId>,
-		user_id: Box<UserId>,
+		room_id: OwnedRoomId,
+		user_id: OwnedUserId,
 	},
 
 	RoomsJoined {
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 
 	RoomsLeft {
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 
 	RoomsInvited {
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 
 	InviteState {
-		user_id: Box<UserId>,
-		room_id: Box<RoomId>,
+		user_id: OwnedUserId,
+		room_id: OwnedRoomId,
 	},
 }
 

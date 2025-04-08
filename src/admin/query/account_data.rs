@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{RoomId, UserId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedRoomId, OwnedUserId, events::room::message::RoomMessageEventContent};
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -12,30 +12,30 @@ pub(crate) enum AccountDataCommand {
 	/// - Returns all changes to the account data that happened after `since`.
 	ChangesSince {
 		/// Full user ID
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 		/// UNIX timestamp since (u64)
 		since: u64,
 		/// Optional room ID of the account data
-		room_id: Option<Box<RoomId>>,
+		room_id: Option<OwnedRoomId>,
 	},
 
 	/// - Searches the account data for a specific kind.
 	AccountDataGet {
 		/// Full user ID
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 		/// Account data event type
 		kind: String,
 		/// Optional room ID of the account data
-		room_id: Option<Box<RoomId>>,
+		room_id: Option<OwnedRoomId>,
 	},
 }
 
 #[admin_command]
 async fn changes_since(
 	&self,
-	user_id: Box<UserId>,
+	user_id: OwnedUserId,
 	since: u64,
-	room_id: Option<Box<RoomId>>,
+	room_id: Option<OwnedRoomId>,
 ) -> Result<RoomMessageEventContent> {
 	let timer = tokio::time::Instant::now();
 	let results: Vec<_> = self
@@ -54,9 +54,9 @@ async fn changes_since(
 #[admin_command]
 async fn account_data_get(
 	&self,
-	user_id: Box<UserId>,
+	user_id: OwnedUserId,
 	kind: String,
-	room_id: Option<Box<RoomId>>,
+	room_id: Option<OwnedRoomId>,
 ) -> Result<RoomMessageEventContent> {
 	let timer = tokio::time::Instant::now();
 	let results = self
