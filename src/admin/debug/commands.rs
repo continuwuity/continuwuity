@@ -17,10 +17,9 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomOrAliasId, RoomId, RoomVersionId,
-	ServerName,
-	api::{client::error::ErrorKind, federation::event::get_room_state},
-	events::room::message::RoomMessageEventContent,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
+	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId,
+	api::federation::event::get_room_state, events::room::message::RoomMessageEventContent,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -40,7 +39,7 @@ pub(super) async fn echo(&self, message: Vec<String>) -> Result<RoomMessageEvent
 #[admin_command]
 pub(super) async fn get_auth_chain(
 	&self,
-	event_id: Box<EventId>,
+	event_id: OwnedEventId,
 ) -> Result<RoomMessageEventContent> {
 	let Ok(event) = self.services.rooms.timeline.get_pdu_json(&event_id).await else {
 		return Ok(RoomMessageEventContent::notice_plain("Event not found."));
@@ -109,7 +108,7 @@ pub(super) async fn parse_pdu(&self) -> Result<RoomMessageEventContent> {
 }
 
 #[admin_command]
-pub(super) async fn get_pdu(&self, event_id: Box<EventId>) -> Result<RoomMessageEventContent> {
+pub(super) async fn get_pdu(&self, event_id: OwnedEventId) -> Result<RoomMessageEventContent> {
 	let mut outlier = false;
 	let mut pdu_json = self
 		.services
@@ -173,7 +172,7 @@ pub(super) async fn get_short_pdu(
 #[admin_command]
 pub(super) async fn get_remote_pdu_list(
 	&self,
-	server: Box<ServerName>,
+	server: OwnedServerName,
 	force: bool,
 ) -> Result<RoomMessageEventContent> {
 	if !self.services.server.config.allow_federation {
@@ -359,7 +358,7 @@ pub(super) async fn get_room_state(
 }
 
 #[admin_command]
-pub(super) async fn ping(&self, server: Box<ServerName>) -> Result<RoomMessageEventContent> {
+pub(super) async fn ping(&self, server: OwnedServerName) -> Result<RoomMessageEventContent> {
 	if server == self.services.globals.server_name() {
 		return Ok(RoomMessageEventContent::text_plain(
 			"Not allowed to send federation requests to ourselves.",
@@ -538,7 +537,7 @@ pub(super) async fn verify_json(&self) -> Result<RoomMessageEventContent> {
 }
 
 #[admin_command]
-pub(super) async fn verify_pdu(&self, event_id: Box<EventId>) -> Result<RoomMessageEventContent> {
+pub(super) async fn verify_pdu(&self, event_id: OwnedEventId) -> Result<RoomMessageEventContent> {
 	let mut event = self.services.rooms.timeline.get_pdu_json(&event_id).await?;
 
 	event.remove("event_id");
@@ -556,7 +555,7 @@ pub(super) async fn verify_pdu(&self, event_id: Box<EventId>) -> Result<RoomMess
 #[tracing::instrument(skip(self))]
 pub(super) async fn first_pdu_in_room(
 	&self,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 ) -> Result<RoomMessageEventContent> {
 	if !self
 		.services
@@ -585,7 +584,7 @@ pub(super) async fn first_pdu_in_room(
 #[tracing::instrument(skip(self))]
 pub(super) async fn latest_pdu_in_room(
 	&self,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 ) -> Result<RoomMessageEventContent> {
 	if !self
 		.services
@@ -614,8 +613,8 @@ pub(super) async fn latest_pdu_in_room(
 #[tracing::instrument(skip(self))]
 pub(super) async fn force_set_room_state_from_server(
 	&self,
-	room_id: Box<RoomId>,
-	server_name: Box<ServerName>,
+	room_id: OwnedRoomId,
+	server_name: OwnedServerName,
 ) -> Result<RoomMessageEventContent> {
 	if !self
 		.services
@@ -763,8 +762,8 @@ pub(super) async fn force_set_room_state_from_server(
 #[admin_command]
 pub(super) async fn get_signing_keys(
 	&self,
-	server_name: Option<Box<ServerName>>,
-	notary: Option<Box<ServerName>>,
+	server_name: Option<OwnedServerName>,
+	notary: Option<OwnedServerName>,
 	query: bool,
 ) -> Result<RoomMessageEventContent> {
 	let server_name = server_name.unwrap_or_else(|| self.services.server.name.clone().into());
@@ -801,7 +800,7 @@ pub(super) async fn get_signing_keys(
 #[admin_command]
 pub(super) async fn get_verify_keys(
 	&self,
-	server_name: Option<Box<ServerName>>,
+	server_name: Option<OwnedServerName>,
 ) -> Result<RoomMessageEventContent> {
 	let server_name = server_name.unwrap_or_else(|| self.services.server.name.clone().into());
 
@@ -824,7 +823,7 @@ pub(super) async fn get_verify_keys(
 #[admin_command]
 pub(super) async fn resolve_true_destination(
 	&self,
-	server_name: Box<ServerName>,
+	server_name: OwnedServerName,
 	no_cache: bool,
 ) -> Result<RoomMessageEventContent> {
 	if !self.services.server.config.allow_federation {

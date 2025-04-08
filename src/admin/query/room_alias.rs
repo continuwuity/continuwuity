@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{RoomAliasId, RoomId};
+use ruma::{OwnedRoomAliasId, OwnedRoomId};
 
 use crate::Command;
 
@@ -10,13 +10,13 @@ use crate::Command;
 pub(crate) enum RoomAliasCommand {
 	ResolveLocalAlias {
 		/// Full room alias
-		alias: Box<RoomAliasId>,
+		alias: OwnedRoomAliasId,
 	},
 
 	/// - Iterator of all our local room aliases for the room ID
 	LocalAliasesForRoom {
 		/// Full room ID
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Iterator of all our local aliases in our database with their room IDs

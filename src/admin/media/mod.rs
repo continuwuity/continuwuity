@@ -3,7 +3,7 @@ mod commands;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{EventId, MxcUri, OwnedMxcUri, OwnedServerName, ServerName};
+use ruma::{OwnedEventId, OwnedMxcUri, OwnedServerName};
 
 use crate::admin_command_dispatch;
 
@@ -15,12 +15,12 @@ pub(super) enum MediaCommand {
 	Delete {
 		/// The MXC URL to delete
 		#[arg(long)]
-		mxc: Option<Box<MxcUri>>,
+		mxc: Option<OwnedMxcUri>,
 
 		/// - The message event ID which contains the media and thumbnail MXC
 		///   URLs
 		#[arg(long)]
-		event_id: Option<Box<EventId>>,
+		event_id: Option<OwnedEventId>,
 	},
 
 	/// - Deletes a codeblock list of MXC URLs from our database and on the
@@ -57,7 +57,7 @@ pub(super) enum MediaCommand {
 	/// - Deletes all remote media from the specified remote server. This will
 	///   always ignore errors by default.
 	DeleteAllFromServer {
-		server_name: Box<ServerName>,
+		server_name: OwnedServerName,
 
 		/// Long argument to delete local media
 		#[arg(long)]

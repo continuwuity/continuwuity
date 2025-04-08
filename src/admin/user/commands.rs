@@ -10,7 +10,7 @@ use conduwuit::{
 use conduwuit_api::client::{leave_all_rooms, update_avatar_url, update_displayname};
 use futures::StreamExt;
 use ruma::{
-	EventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, RoomId, UserId,
+	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,
 	events::{
 		RoomAccountDataEventType, StateEventType,
 		room::{
@@ -802,7 +802,7 @@ pub(super) async fn make_user_admin(&self, user_id: String) -> Result<RoomMessag
 pub(super) async fn put_room_tag(
 	&self,
 	user_id: String,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 	tag: String,
 ) -> Result<RoomMessageEventContent> {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
@@ -840,7 +840,7 @@ pub(super) async fn put_room_tag(
 pub(super) async fn delete_room_tag(
 	&self,
 	user_id: String,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 	tag: String,
 ) -> Result<RoomMessageEventContent> {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
@@ -876,7 +876,7 @@ pub(super) async fn delete_room_tag(
 pub(super) async fn get_room_tags(
 	&self,
 	user_id: String,
-	room_id: Box<RoomId>,
+	room_id: OwnedRoomId,
 ) -> Result<RoomMessageEventContent> {
 	let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
@@ -898,7 +898,7 @@ pub(super) async fn get_room_tags(
 #[admin_command]
 pub(super) async fn redact_event(
 	&self,
-	event_id: Box<EventId>,
+	event_id: OwnedEventId,
 ) -> Result<RoomMessageEventContent> {
 	let Ok(event) = self
 		.services

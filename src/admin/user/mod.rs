@@ -2,7 +2,7 @@ mod commands;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{EventId, OwnedRoomOrAliasId, RoomId};
+use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId};
 
 use crate::admin_command_dispatch;
 
@@ -102,21 +102,21 @@ pub(super) enum UserCommand {
 	/// room's internal ID, and the tag name `m.server_notice`.
 	PutRoomTag {
 		user_id: String,
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 		tag: String,
 	},
 
 	/// - Deletes the room tag for the specified user and room ID
 	DeleteRoomTag {
 		user_id: String,
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 		tag: String,
 	},
 
 	/// - Gets all the room tags for the specified user and room ID
 	GetRoomTags {
 		user_id: String,
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Attempts to forcefully redact the specified event ID from the sender
@@ -124,7 +124,7 @@ pub(super) enum UserCommand {
 	///
 	/// This is only valid for local users
 	RedactEvent {
-		event_id: Box<EventId>,
+		event_id: OwnedEventId,
 	},
 
 	/// - Force joins a specified list of local users to join the specified

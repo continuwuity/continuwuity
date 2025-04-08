@@ -1,7 +1,7 @@
 use clap::Subcommand;
 use conduwuit::Result;
 use futures::StreamExt;
-use ruma::{ServerName, UserId, events::room::message::RoomMessageEventContent};
+use ruma::{OwnedServerName, OwnedUserId, events::room::message::RoomMessageEventContent};
 use service::sending::Destination;
 
 use crate::Command;
@@ -27,9 +27,9 @@ pub(crate) enum SendingCommand {
 		#[arg(short, long)]
 		appservice_id: Option<String>,
 		#[arg(short, long)]
-		server_name: Option<Box<ServerName>>,
+		server_name: Option<OwnedServerName>,
 		#[arg(short, long)]
-		user_id: Option<Box<UserId>>,
+		user_id: Option<OwnedUserId>,
 		#[arg(short, long)]
 		push_key: Option<String>,
 	},
@@ -49,15 +49,15 @@ pub(crate) enum SendingCommand {
 		#[arg(short, long)]
 		appservice_id: Option<String>,
 		#[arg(short, long)]
-		server_name: Option<Box<ServerName>>,
+		server_name: Option<OwnedServerName>,
 		#[arg(short, long)]
-		user_id: Option<Box<UserId>>,
+		user_id: Option<OwnedUserId>,
 		#[arg(short, long)]
 		push_key: Option<String>,
 	},
 
 	GetLatestEduCount {
-		server_name: Box<ServerName>,
+		server_name: OwnedServerName,
 	},
 }
 
@@ -120,7 +120,7 @@ pub(super) async fn reprocess(
 				| (None, Some(server_name), None, None) => services
 					.sending
 					.db
-					.queued_requests(&Destination::Federation(server_name.into())),
+					.queued_requests(&Destination::Federation(server_name)),
 				| (None, None, Some(user_id), Some(push_key)) => {
 					if push_key.is_empty() {
 						return Ok(RoomMessageEventContent::text_plain(
@@ -132,7 +132,7 @@ pub(super) async fn reprocess(
 					services
 						.sending
 						.db
-						.queued_requests(&Destination::Push(user_id.into(), push_key))
+						.queued_requests(&Destination::Push(user_id, push_key))
 				},
 				| (Some(_), Some(_), Some(_), Some(_)) => {
 					return Ok(RoomMessageEventContent::text_plain(
@@ -190,7 +190,7 @@ pub(super) async fn reprocess(
 				| (None, Some(server_name), None, None) => services
 					.sending
 					.db
-					.active_requests_for(&Destination::Federation(server_name.into())),
+					.active_requests_for(&Destination::Federation(server_name)),
 				| (None, None, Some(user_id), Some(push_key)) => {
 					if push_key.is_empty() {
 						return Ok(RoomMessageEventContent::text_plain(
@@ -202,7 +202,7 @@ pub(super) async fn reprocess(
 					services
 						.sending
 						.db
-						.active_requests_for(&Destination::Push(user_id.into(), push_key))
+						.active_requests_for(&Destination::Push(user_id, push_key))
 				},
 				| (Some(_), Some(_), Some(_), Some(_)) => {
 					return Ok(RoomMessageEventContent::text_plain(

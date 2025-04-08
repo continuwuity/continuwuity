@@ -2,7 +2,7 @@ mod commands;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{RoomId, ServerName, UserId};
+use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
 
 use crate::admin_command_dispatch;
 
@@ -14,12 +14,12 @@ pub(super) enum FederationCommand {
 
 	/// - Disables incoming federation handling for a room.
 	DisableRoom {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Enables incoming federation handling for a room again.
 	EnableRoom {
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Fetch `/.well-known/matrix/support` from the specified server
@@ -32,11 +32,11 @@ pub(super) enum FederationCommand {
 	/// moderation, and security inquiries. This command provides a way to
 	/// easily fetch that information.
 	FetchSupportWellKnown {
-		server_name: Box<ServerName>,
+		server_name: OwnedServerName,
 	},
 
 	/// - Lists all the rooms we share/track with the specified *remote* user
 	RemoteUserInRooms {
-		user_id: Box<UserId>,
+		user_id: OwnedUserId,
 	},
 }

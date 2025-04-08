@@ -3,7 +3,7 @@ pub(crate) mod tester;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{EventId, OwnedRoomOrAliasId, RoomId, ServerName};
+use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName};
 use service::rooms::short::{ShortEventId, ShortRoomId};
 
 use self::tester::TesterCommand;
@@ -20,7 +20,7 @@ pub(super) enum DebugCommand {
 	/// - Get the auth_chain of a PDU
 	GetAuthChain {
 		/// An event ID (the $ character followed by the base64 reference hash)
-		event_id: Box<EventId>,
+		event_id: OwnedEventId,
 	},
 
 	/// - Parse and print a PDU from a JSON
@@ -35,7 +35,7 @@ pub(super) enum DebugCommand {
 	/// - Retrieve and print a PDU by EventID from the conduwuit database
 	GetPdu {
 		/// An event ID (a $ followed by the base64 reference hash)
-		event_id: Box<EventId>,
+		event_id: OwnedEventId,
 	},
 
 	/// - Retrieve and print a PDU by PduId from the conduwuit database
@@ -52,11 +52,11 @@ pub(super) enum DebugCommand {
 	///   (following normal event auth rules, handles it as an incoming PDU).
 	GetRemotePdu {
 		/// An event ID (a $ followed by the base64 reference hash)
-		event_id: Box<EventId>,
+		event_id: OwnedEventId,
 
 		/// Argument for us to attempt to fetch the event from the
 		/// specified remote server.
-		server: Box<ServerName>,
+		server: OwnedServerName,
 	},
 
 	/// - Same as `get-remote-pdu` but accepts a codeblock newline delimited
@@ -64,7 +64,7 @@ pub(super) enum DebugCommand {
 	GetRemotePduList {
 		/// Argument for us to attempt to fetch all the events from the
 		/// specified remote server.
-		server: Box<ServerName>,
+		server: OwnedServerName,
 
 		/// If set, ignores errors, else stops at the first error/failure.
 		#[arg(short, long)]
@@ -88,10 +88,10 @@ pub(super) enum DebugCommand {
 
 	/// - Get and display signing keys from local cache or remote server.
 	GetSigningKeys {
-		server_name: Option<Box<ServerName>>,
+		server_name: Option<OwnedServerName>,
 
 		#[arg(long)]
-		notary: Option<Box<ServerName>>,
+		notary: Option<OwnedServerName>,
 
 		#[arg(short, long)]
 		query: bool,
@@ -99,14 +99,14 @@ pub(super) enum DebugCommand {
 
 	/// - Get and display signing keys from local cache or remote server.
 	GetVerifyKeys {
-		server_name: Option<Box<ServerName>>,
+		server_name: Option<OwnedServerName>,
 	},
 
 	/// - Sends a federation request to the remote server's
 	///   `/_matrix/federation/v1/version` endpoint and measures the latency it
 	///   took for the server to respond
 	Ping {
-		server: Box<ServerName>,
+		server: OwnedServerName,
 	},
 
 	/// - Forces device lists for all local and remote users to be updated (as
@@ -141,21 +141,21 @@ pub(super) enum DebugCommand {
 	///
 	/// This re-verifies a PDU existing in the database found by ID.
 	VerifyPdu {
-		event_id: Box<EventId>,
+		event_id: OwnedEventId,
 	},
 
 	/// - Prints the very first PDU in the specified room (typically
 	///   m.room.create)
 	FirstPduInRoom {
 		/// The room ID
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Prints the latest ("last") PDU in the specified room (typically a
 	///   message)
 	LatestPduInRoom {
 		/// The room ID
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 	},
 
 	/// - Forcefully replaces the room state of our local copy of the specified
@@ -174,9 +174,9 @@ pub(super) enum DebugCommand {
 	/// `/_matrix/federation/v1/state/{roomId}`.
 	ForceSetRoomStateFromServer {
 		/// The impacted room ID
-		room_id: Box<RoomId>,
+		room_id: OwnedRoomId,
 		/// The server we will use to query the room state for
-		server_name: Box<ServerName>,
+		server_name: OwnedServerName,
 	},
 
 	/// - Runs a server name through conduwuit's true destination resolution
@@ -184,7 +184,7 @@ pub(super) enum DebugCommand {
 	///
 	/// Useful for debugging well-known issues
 	ResolveTrueDestination {
-		server_name: Box<ServerName>,
+		server_name: OwnedServerName,
 
 		#[arg(short, long)]
 		no_cache: bool,
