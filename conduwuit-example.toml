@@ -970,8 +970,8 @@
 #
 #rocksdb_compaction_ioprio_idle = true
 
-# Disables RocksDB compaction. You should never ever have to set this
-# option to true. If you for some reason find yourself needing to use this
+# Enables RocksDB compaction. You should never ever have to set this
+# option to false. If you for some reason find yourself needing to use this
 # option as part of troubleshooting or a bug, please reach out to us in
 # the conduwuit Matrix room with information and details.
 #
@@ -1208,8 +1208,6 @@
 # sender user's server name, inbound federation X-Matrix origin, and
 # outbound federation handler.
 #
-# Basically "global" ACLs.
-#
 # You can set this to ["*"] to block all servers by default, and then
 # use `allowed_remote_server_names` to allow only specific servers.
 #
@@ -1219,6 +1217,8 @@
 
 # List of allowed server names via regex patterns that we will allow,
 # regardless of if they match `forbidden_remote_server_names`.
+#
+# This option has no effect if `forbidden_remote_server_names` is empty.
 #
 # example: ["goodserver\.tld$", "goodphrase"]
 #
