@@ -31,12 +31,14 @@ pub(super) async fn serve(
 		.install_default()
 		.expect("failed to initialise aws-lc-rs rustls crypto provider");
 
-	debug!("Using direct TLS. Certificate path {certs} and certificate private key path {key}",);
 	info!(
 		"Note: It is strongly recommended that you use a reverse proxy instead of running \
 		 conduwuit directly with TLS."
 	);
-	let conf = RustlsConfig::from_pem_file(certs, key).await?;
+	debug!("Using direct TLS. Certificate path {certs} and certificate private key path {key}",);
+	let conf = RustlsConfig::from_pem_file(certs, key)
+		.await
+		.map_err(|e| err!(Config("tls", "Failed to load certificates or key: {e}")))?;
 
 	let mut join_set = JoinSet::new();
 	let app = app.into_make_service_with_connect_info::<SocketAddr>();
