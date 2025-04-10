@@ -1,24 +1,16 @@
-use std::fmt::Write;
+use std::{ffi::OsString, path::PathBuf};
 
-use conduwuit::{Result, error, implement, info, utils::time::rfc2822_from_seconds, warn};
+use conduwuit::{Err, Result, error, implement, info, utils::time::rfc2822_from_seconds, warn};
 use rocksdb::backup::{BackupEngine, BackupEngineOptions};
 
 use super::Engine;
-use crate::{or_else, util::map_err};
+use crate::util::map_err;
 
 #[implement(Engine)]
 #[tracing::instrument(skip(self))]
 pub fn backup(&self) -> Result {
-	let server = &self.ctx.server;
-	let config = &server.config;
-	let path = config.database_backup_path.as_ref();
-	if path.is_none() || path.is_some_and(|path| path.as_os_str().is_empty()) {
-		return Ok(());
-	}
-
-	let options =
-		BackupEngineOptions::new(path.expect("valid database backup path")).map_err(map_err)?;
-	let mut engine = BackupEngine::open(&options, &*self.ctx.env.lock()?).map_err(map_err)?;
+	let mut engine = self.backup_engine()?;
+	let config = &self.ctx.server.config;
 	if config.database_backups_to_keep > 0 {
 		let flush = !self.is_read_only();
 		engine
@@ -40,34 +32,62 @@ pub fn backup(&self) -> Result {
 		}
 	}
 
+	if config.database_backups_to_keep == 0 {
+		warn!("Configuration item `database_backups_to_keep` is set to 0.");
+	}
+
 	Ok(())
 }
 
 #[implement(Engine)]
-pub fn backup_list(&self) -> Result<String> {
-	let server = &self.ctx.server;
-	let config = &server.config;
-	let path = config.database_backup_path.as_ref();
-	if path.is_none() || path.is_some_and(|path| path.as_os_str().is_empty()) {
-		return Ok("Configure database_backup_path to enable backups, or the path specified is \
-		           not valid"
-			.to_owned());
+pub fn backup_list(&self) -> Result<impl Iterator<Item = String> + Send> {
+	let info = self.backup_engine()?.get_backup_info();
+
+	if info.is_empty() {
+		return Err!("No backups found.");
 	}
 
-	let mut res = String::new();
-	let options =
-		BackupEngineOptions::new(path.expect("valid database backup path")).or_else(or_else)?;
-	let engine = BackupEngine::open(&options, &*self.ctx.env.lock()?).or_else(or_else)?;
-	for info in engine.get_backup_info() {
-		writeln!(
-			res,
+	let list = info.into_iter().map(|info| {
+		format!(
 			"#{} {}: {} bytes, {} files",
 			info.backup_id,
 			rfc2822_from_seconds(info.timestamp),
 			info.size,
 			info.num_files,
-		)?;
+		)
+	});
+
+	Ok(list)
+}
+
+#[implement(Engine)]
+pub fn backup_count(&self) -> Result<usize> {
+	let info = self.backup_engine()?.get_backup_info();
+
+	Ok(info.len())
+}
+
+#[implement(Engine)]
+fn backup_engine(&self) -> Result<BackupEngine> {
+	let path = self.backup_path()?;
+	let options = BackupEngineOptions::new(path).map_err(map_err)?;
+	BackupEngine::open(&options, &*self.ctx.env.lock()?).map_err(map_err)
+}
+
+#[implement(Engine)]
+fn backup_path(&self) -> Result<OsString> {
+	let path = self
+		.ctx
+		.server
+		.config
+		.database_backup_path
+		.clone()
+		.map(PathBuf::into_os_string)
+		.unwrap_or_default();
+
+	if path.is_empty() {
+		return Err!(Config("database_backup_path", "Configure path to enable backups"));
 	}
 
-	Ok(res)
+	Ok(path)
 }

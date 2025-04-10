@@ -1,6 +1,11 @@
 use std::{fmt::Write, path::PathBuf, sync::Arc};
 
-use conduwuit::{Err, Result, info, utils::time, warn};
+use conduwuit::{
+	Err, Result, info,
+	utils::{stream::IterStream, time},
+	warn,
+};
+use futures::TryStreamExt;
 
 use crate::admin_command;
 
@@ -81,33 +86,31 @@ pub(super) async fn clear_caches(&self) -> Result {
 
 #[admin_command]
 pub(super) async fn list_backups(&self) -> Result {
-	let result = self.services.db.db.backup_list()?;
-
-	if result.is_empty() {
-		return Err!("No backups found.");
-	}
-
-	self.write_str(&result).await
+	self.services
+		.db
+		.db
+		.backup_list()?
+		.try_stream()
+		.try_for_each(|result| write!(self, "{result}"))
+		.await
 }
 
 #[admin_command]
 pub(super) async fn backup_database(&self) -> Result {
 	let db = Arc::clone(&self.services.db);
-	let mut result = self
+	let result = self
 		.services
 		.server
 		.runtime()
 		.spawn_blocking(move || match db.db.backup() {
-			| Ok(()) => String::new(),
-			| Err(e) => e.to_string(),
+			| Ok(()) => "Done".to_owned(),
+			| Err(e) => format!("Failed: {e}"),
 		})
 		.await?;
 
-	if result.is_empty() {
-		result = self.services.db.db.backup_list()?;
-	}
-
-	self.write_str(&result).await
+	let count = self.services.db.db.backup_count()?;
+	self.write_str(&format!("{result}. Currently have {count} backups."))
+		.await
 }
 
 #[admin_command]
