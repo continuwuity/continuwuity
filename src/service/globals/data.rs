@@ -72,10 +72,4 @@ impl Data {
 	pub fn bump_database_version(&self, new_version: u64) {
 		self.global.raw_put(b"version", new_version);
 	}
-
-	#[inline]
-	pub fn backup(&self) -> Result { self.db.db.backup() }
-
-	#[inline]
-	pub fn backup_list(&self) -> Result<String> { self.db.db.backup_list() }
 }
