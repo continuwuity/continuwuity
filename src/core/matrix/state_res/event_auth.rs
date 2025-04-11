@@ -1112,8 +1112,6 @@ fn verify_third_party_invite(
 
 #[cfg(test)]
 mod tests {
-	use std::sync::Arc;
-
 	use ruma::events::{
 		StateEventType, TimelineEventType,
 		room::{
@@ -1143,7 +1141,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
@@ -1188,7 +1186,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
@@ -1233,7 +1231,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
@@ -1278,7 +1276,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
@@ -1340,7 +1338,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
@@ -1412,7 +1410,7 @@ mod tests {
 
 		let auth_events = events
 			.values()
-			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), Arc::clone(ev)))
+			.map(|ev| (ev.event_type().with_state_key(ev.state_key().unwrap()), ev.clone()))
 			.collect::<StateMap<_>>();
 
 		let requester = to_pdu_event(
