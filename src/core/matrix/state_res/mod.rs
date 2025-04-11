@@ -861,10 +861,7 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::{
-		collections::{HashMap, HashSet},
-		sync::Arc,
-	};
+	use std::collections::{HashMap, HashSet};
 
 	use maplit::{hashmap, hashset};
 	use rand::seq::SliceRandom;
@@ -906,7 +903,7 @@ mod tests {
 
 		let power_events = event_map
 			.values()
-			.filter(|&pdu| is_power_event(&**pdu))
+			.filter(|&pdu| is_power_event(&*pdu))
 			.map(|pdu| pdu.event_id.clone())
 			.collect::<Vec<_>>();
 
@@ -1489,7 +1486,7 @@ mod tests {
 	}
 
 	#[allow(non_snake_case)]
-	fn BAN_STATE_SET() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+	fn BAN_STATE_SET() -> HashMap<OwnedEventId, PduEvent> {
 		vec![
 			to_pdu_event(
 				"PA",
@@ -1534,7 +1531,7 @@ mod tests {
 	}
 
 	#[allow(non_snake_case)]
-	fn JOIN_RULE() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+	fn JOIN_RULE() -> HashMap<OwnedEventId, PduEvent> {
 		vec![
 			to_pdu_event(
 				"JR",

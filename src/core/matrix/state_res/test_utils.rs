@@ -1,10 +1,7 @@
 use std::{
 	borrow::Borrow,
 	collections::{BTreeMap, HashMap, HashSet},
-	sync::{
-		Arc,
-		atomic::{AtomicU64, Ordering::SeqCst},
-	},
+	sync::atomic::{AtomicU64, Ordering::SeqCst},
 };
 
 use futures::future::ready;
@@ -36,7 +33,7 @@ use crate::{
 static SERVER_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) async fn do_check(
-	events: &[Arc<PduEvent>],
+	events: &[PduEvent],
 	edges: Vec<Vec<OwnedEventId>>,
 	expected_state_ids: Vec<OwnedEventId>,
 ) {
@@ -85,7 +82,7 @@ pub(crate) async fn do_check(
 	}
 
 	// event_id -> PduEvent
-	let mut event_map: HashMap<OwnedEventId, Arc<PduEvent>> = HashMap::new();
+	let mut event_map: HashMap<OwnedEventId, PduEvent> = HashMap::new();
 	// event_id -> StateMap<OwnedEventId>
 	let mut state_at_event: HashMap<OwnedEventId, StateMap<OwnedEventId>> = HashMap::new();
 
@@ -194,7 +191,7 @@ pub(crate) async fn do_check(
 		store.0.insert(ev_id.to_owned(), event.clone());
 
 		state_at_event.insert(node, state_after);
-		event_map.insert(event_id.to_owned(), Arc::clone(store.0.get(ev_id).unwrap()));
+		event_map.insert(event_id.to_owned(), store.0.get(ev_id).unwrap().clone());
 	}
 
 	let mut expected_state = StateMap::new();
@@ -235,10 +232,10 @@ pub(crate) async fn do_check(
 }
 
 #[allow(clippy::exhaustive_structs)]
-pub(crate) struct TestStore<E: Event>(pub(crate) HashMap<OwnedEventId, Arc<E>>);
+pub(crate) struct TestStore<E: Event>(pub(crate) HashMap<OwnedEventId, E>);
 
-impl<E: Event> TestStore<E> {
-	pub(crate) fn get_event(&self, _: &RoomId, event_id: &EventId) -> Result<Arc<E>> {
+impl<E: Event + Clone> TestStore<E> {
+	pub(crate) fn get_event(&self, _: &RoomId, event_id: &EventId) -> Result<E> {
 		self.0
 			.get(event_id)
 			.cloned()
@@ -288,7 +285,7 @@ impl TestStore<PduEvent> {
 			&[],
 		);
 		let cre = create_event.event_id().to_owned();
-		self.0.insert(cre.clone(), Arc::clone(&create_event));
+		self.0.insert(cre.clone(), create_event.clone());
 
 		let alice_mem = to_pdu_event(
 			"IMA",
@@ -300,7 +297,7 @@ impl TestStore<PduEvent> {
 			&[cre.clone()],
 		);
 		self.0
-			.insert(alice_mem.event_id().to_owned(), Arc::clone(&alice_mem));
+			.insert(alice_mem.event_id().to_owned(), alice_mem.clone());
 
 		let join_rules = to_pdu_event(
 			"IJR",
@@ -399,7 +396,7 @@ pub(crate) fn to_init_pdu_event(
 	ev_type: TimelineEventType,
 	state_key: Option<&str>,
 	content: Box<RawJsonValue>,
-) -> Arc<PduEvent> {
+) -> PduEvent {
 	let ts = SERVER_TIMESTAMP.fetch_add(1, SeqCst);
 	let id = if id.contains('$') {
 		id.to_owned()
@@ -408,7 +405,7 @@ pub(crate) fn to_init_pdu_event(
 	};
 
 	let state_key = state_key.map(ToOwned::to_owned);
-	Arc::new(PduEvent {
+	PduEvent {
 		event_id: id.try_into().unwrap(),
 		rest: Pdu::RoomV3Pdu(RoomV3Pdu {
 			room_id: room_id().to_owned(),
@@ -425,7 +422,7 @@ pub(crate) fn to_init_pdu_event(
 			hashes: EventHash::new("".to_owned()),
 			signatures: ServerSignatures::default(),
 		}),
-	})
+	}
 }
 
 pub(crate) fn to_pdu_event<S>(
@@ -436,7 +433,7 @@ pub(crate) fn to_pdu_event<S>(
 	content: Box<RawJsonValue>,
 	auth_events: &[S],
 	prev_events: &[S],
-) -> Arc<PduEvent>
+) -> PduEvent
 where
 	S: AsRef<str>,
 {
@@ -458,7 +455,7 @@ where
 		.collect::<Vec<_>>();
 
 	let state_key = state_key.map(ToOwned::to_owned);
-	Arc::new(PduEvent {
+	PduEvent {
 		event_id: id.try_into().unwrap(),
 		rest: Pdu::RoomV3Pdu(RoomV3Pdu {
 			room_id: room_id().to_owned(),
@@ -475,12 +472,12 @@ where
 			hashes: EventHash::new("".to_owned()),
 			signatures: ServerSignatures::default(),
 		}),
-	})
+	}
 }
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, PduEvent> {
 	vec![
 		to_pdu_event::<&EventId>(
 			"CREATE",
@@ -562,7 +559,7 @@ pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, Arc<PduEvent>> {
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-pub(crate) fn INITIAL_EVENTS_CREATE_ROOM() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+pub(crate) fn INITIAL_EVENTS_CREATE_ROOM() -> HashMap<OwnedEventId, PduEvent> {
 	vec![to_pdu_event::<&EventId>(
 		"CREATE",
 		alice(),

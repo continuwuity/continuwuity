@@ -4,10 +4,7 @@ extern crate test;
 use std::{
 	borrow::Borrow,
 	collections::{HashMap, HashSet},
-	sync::{
-		Arc,
-		atomic::{AtomicU64, Ordering::SeqCst},
-	},
+	sync::atomic::{AtomicU64, Ordering::SeqCst},
 };
 
 use futures::{future, future::ready};
@@ -64,7 +61,7 @@ fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
 	c.iter(|| async {
 		let ev_map = store.0.clone();
 		let state_sets = [&state_at_bob, &state_at_charlie];
-		let fetch = |id: OwnedEventId| ready(ev_map.get(&id).map(Arc::clone));
+		let fetch = |id: OwnedEventId| ready(ev_map.get(&id).clone());
 		let exists = |id: OwnedEventId| ready(ev_map.get(&id).is_some());
 		let auth_chain_sets: Vec<HashSet<_>> = state_sets
 			.iter()
@@ -148,7 +145,7 @@ fn resolve_deeper_event_set(c: &mut test::Bencher) {
 			})
 			.collect();
 
-		let fetch = |id: OwnedEventId| ready(inner.get(&id).map(Arc::clone));
+		let fetch = |id: OwnedEventId| ready(inner.get(&id).clone());
 		let exists = |id: OwnedEventId| ready(inner.get(&id).is_some());
 		let _ = match state_res::resolve(
 			&RoomVersionId::V6,
@@ -171,20 +168,20 @@ fn resolve_deeper_event_set(c: &mut test::Bencher) {
 //  IMPLEMENTATION DETAILS AHEAD
 //
 /////////////////////////////////////////////////////////////////////*/
-struct TestStore<E: Event>(HashMap<OwnedEventId, Arc<E>>);
+struct TestStore<E: Event>(HashMap<OwnedEventId, E>);
 
 #[allow(unused)]
-impl<E: Event> TestStore<E> {
-	fn get_event(&self, room_id: &RoomId, event_id: &EventId) -> Result<Arc<E>> {
+impl<E: Event + Clone> TestStore<E> {
+	fn get_event(&self, room_id: &RoomId, event_id: &EventId) -> Result<E> {
 		self.0
 			.get(event_id)
-			.map(Arc::clone)
+			.cloned()
 			.ok_or_else(|| Error::NotFound(format!("{} not found", event_id)))
 	}
 
 	/// Returns the events that correspond to the `event_ids` sorted in the same
 	/// order.
-	fn get_events(&self, room_id: &RoomId, event_ids: &[OwnedEventId]) -> Result<Vec<Arc<E>>> {
+	fn get_events(&self, room_id: &RoomId, event_ids: &[OwnedEventId]) -> Result<Vec<E>> {
 		let mut events = vec![];
 		for id in event_ids {
 			events.push(self.get_event(room_id, id)?);
@@ -264,7 +261,7 @@ impl TestStore<PduEvent> {
 			&[],
 		);
 		let cre = create_event.event_id().to_owned();
-		self.0.insert(cre.clone(), Arc::clone(&create_event));
+		self.0.insert(cre.clone(), create_event.clone());
 
 		let alice_mem = to_pdu_event(
 			"IMA",
@@ -276,7 +273,7 @@ impl TestStore<PduEvent> {
 			&[cre.clone()],
 		);
 		self.0
-			.insert(alice_mem.event_id().to_owned(), Arc::clone(&alice_mem));
+			.insert(alice_mem.event_id().to_owned(), alice_mem.clone());
 
 		let join_rules = to_pdu_event(
 			"IJR",
@@ -383,7 +380,7 @@ fn to_pdu_event<S>(
 	content: Box<RawJsonValue>,
 	auth_events: &[S],
 	prev_events: &[S],
-) -> Arc<PduEvent>
+) -> PduEvent
 where
 	S: AsRef<str>,
 {
@@ -407,7 +404,7 @@ where
 		.collect::<Vec<_>>();
 
 	let state_key = state_key.map(ToOwned::to_owned);
-	Arc::new(PduEvent {
+	PduEvent {
 		event_id: id.try_into().unwrap(),
 		rest: Pdu::RoomV3Pdu(RoomV3Pdu {
 			room_id: room_id().to_owned(),
@@ -424,12 +421,12 @@ where
 			hashes: EventHash::new(String::new()),
 			signatures: Signatures::new(),
 		}),
-	})
+	}
 }
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-fn INITIAL_EVENTS() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+fn INITIAL_EVENTS() -> HashMap<OwnedEventId, PduEvent> {
 	vec![
 		to_pdu_event::<&EventId>(
 			"CREATE",
@@ -511,7 +508,7 @@ fn INITIAL_EVENTS() -> HashMap<OwnedEventId, Arc<PduEvent>> {
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-fn BAN_STATE_SET() -> HashMap<OwnedEventId, Arc<PduEvent>> {
+fn BAN_STATE_SET() -> HashMap<OwnedEventId, PduEvent> {
 	vec![
 		to_pdu_event(
 			"PA",
