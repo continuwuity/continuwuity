@@ -1,18 +1,5 @@
 # continuwuity
 
-<!-- 
-[![conduwuit main room](https://img.shields.io/matrix/conduwuit%3Apuppygock.gay?server_fqdn=matrix.transfem.dev&style=flat&logo=matrix&logoColor=%23f5b3ff&label=%23conduwuit%3Apuppygock.gay&color=%23f652ff)](https://matrix.to/#/#conduwuit:puppygock.gay) [![conduwuit space](https://img.shields.io/matrix/conduwuit-space%3Apuppygock.gay?server_fqdn=matrix.transfem.dev&style=flat&logo=matrix&logoColor=%23f5b3ff&label=%23conduwuit-space%3Apuppygock.gay&color=%23f652ff)](https://matrix.to/#/#conduwuit-space:puppygock.gay)
-
-[![CI and Artifacts](https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml)
-
-![GitHub Repo stars](https://img.shields.io/github/stars/girlbossceo/conduwuit?style=flat&color=%23fcba03&link=https%3A%2F%2Fgithub.com%2Fgirlbossceo%2Fconduwuit) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/girlbossceo/conduwuit?style=flat&color=%2303fcb1&link=https%3A%2F%2Fgithub.com%2Fgirlbossceo%2Fconduwuit%2Fpulse%2Fmonthly) ![GitHub Created At](https://img.shields.io/github/created-at/girlbossceo/conduwuit) ![GitHub Sponsors](https://img.shields.io/github/sponsors/girlbossceo?color=%23fc03ba&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fgirlbossceo) ![GitHub License](https://img.shields.io/github/license/girlbossceo/conduwuit)
-
-
-
-![Docker Image Size (tag)](https://img.shields.io/docker/image-size/girlbossceo/conduwuit/latest?label=image%20size%20(latest)&link=https%3A%2F%2Fhub.docker.com%2Frepository%2Fdocker%2Fgirlbossceo%2Fconduwuit%2Ftags%3Fname%3Dlatest) ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/girlbossceo/conduwuit/main?label=image%20size%20(main)&link=https%3A%2F%2Fhub.docker.com%2Frepository%2Fdocker%2Fgirlbossceo%2Fconduwuit%2Ftags%3Fname%3Dmain)
--->
-
-
 <!-- ANCHOR: catchphrase -->
 
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
