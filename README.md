@@ -70,8 +70,7 @@ We're working our way through all of the issues in the [Forgejo project](https:/
 - Dendrite: No
 - Synapse: No
 
-Although you can't migrate your data from other homeservers, it is perfectly acceptable to set up continuwuity on the same domain as a previous homeserver.
-
+We haven't written up a guide on migrating from incompatible homeservers yet. Reach out to us if you need to do this!
 
 <!-- ANCHOR_END: body -->
 
