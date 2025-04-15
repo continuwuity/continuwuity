@@ -21,7 +21,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	RoomId, UserId,
+	DeviceId, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -67,8 +67,8 @@ pub(crate) async fn get_message_events_route(
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
 	debug_assert!(IGNORED_MESSAGE_TYPES.is_sorted(), "IGNORED_MESSAGE_TYPES is not sorted");
-	let sender = body.sender();
-	let (sender_user, sender_device) = sender;
+	let sender_user = body.sender_user();
+	let sender_device = body.sender_device.as_ref();
 	let room_id = &body.room_id;
 	let filter = &body.filter;
 
@@ -132,7 +132,7 @@ pub(crate) async fn get_message_events_route(
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: sender_device,
+		device_id: sender_device.map_or_else(|| <&DeviceId>::from(""), AsRef::as_ref),
 		room_id,
 		token: Some(from.into_unsigned()),
 		options: Some(&filter.lazy_load_options),
