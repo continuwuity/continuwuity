@@ -1428,7 +1428,7 @@
 
 # Sentry reporting URL, if a custom one is desired.
 #
-#sentry_endpoint = "https://fe2eb4536aa04949e28eff3128d64757@o4506996327251968.ingest.us.sentry.io/4506996334657536"
+#sentry_endpoint = ""
 
 # Report your conduwuit server_name in Sentry.io crash reports and
 # metrics.
