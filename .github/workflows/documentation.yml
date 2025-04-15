@@ -1,0 +1,104 @@
+name: Documentation and GitHub Pages
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  # Required to make some things output color
+  TERM: ansi
+  # Publishing to my nix binary cache
+  ATTIC_TOKEN: ${{ secrets.ATTIC_TOKEN }}
+  # conduwuit.cachix.org
+  CACHIX_AUTH_TOKEN: ${{ secrets.CACHIX_AUTH_TOKEN }}
+  # Custom nix binary cache if fork is being used
+  ATTIC_ENDPOINT: ${{ vars.ATTIC_ENDPOINT }}
+  ATTIC_PUBLIC_KEY: ${{ vars.ATTIC_PUBLIC_KEY }}
+  # Get error output from nix that we can actually use, and use our binary caches for the earlier CI steps
+  NIX_CONFIG: |
+    show-trace = true
+    extra-substituters = https://attic.kennel.juneis.dog/conduwuit https://attic.kennel.juneis.dog/conduit https://conduwuit.cachix.org https://aseipp-nix-cache.freetls.fastly.net https://nix-community.cachix.org https://crane.cachix.org
+    extra-trusted-public-keys = conduit:eEKoUwlQGDdYmAI/Q/0slVlegqh/QmAvQd7HBSm21Wk= conduwuit:BbycGUgTISsltcmH0qNjFR9dbrQNYgdIAcmViSGoVTE= cache.lix.systems:aBnZUw8zA7H35Cz2RyKFVs3H4PlGTLawyY5KRbvJR8o= conduwuit.cachix.org-1:MFRm6jcnfTf0jSAbmvLfhO3KBMt4px+1xaereWXp8Xg= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= crane.cachix.org-1:8Scfpmn9w+hGdXH/Q9tTLiYAE/2dnJYRJP7kl80GuRk=
+    experimental-features = nix-command flakes
+    extra-experimental-features = nix-command flakes
+    accept-flake-config = true
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  docs:
+    name: Documentation and GitHub Pages
+    runs-on: self-hosted
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Sync repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup GitHub Pages
+        if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && (github.event_name != 'pull_request')
+        uses: actions/configure-pages@v5
+
+      - name: Prepare build environment
+        run: |
+            echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
+            direnv allow
+            nix develop --command true
+
+      - name: Cache CI dependencies
+        run: |
+            bin/nix-build-and-cache ci
+
+      - name: Run lychee and markdownlint
+        run: |
+            direnv exec . engage just lints lychee
+            direnv exec . engage just lints markdownlint
+
+      - name: Build documentation (book)
+        run: |
+            bin/nix-build-and-cache just .#book
+
+            cp -r --dereference result public
+            chmod u+w -R public
+
+      - name: Upload generated documentation (book) as normal artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: public
+          path: public
+          if-no-files-found: error
+          # don't compress again
+          compression-level: 0
+
+      - name: Upload generated documentation (book) as GitHub Pages artifact
+        if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && (github.event_name != 'pull_request')
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      - name: Deploy to GitHub Pages
+        if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') && (github.event_name != 'pull_request')
+        id: deployment
+        uses: actions/deploy-pages@v4

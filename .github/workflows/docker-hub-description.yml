@@ -1,0 +1,41 @@
+name: Update Docker Hub Description
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - README.md
+      - .github/workflows/docker-hub-description.yml
+
+  workflow_dispatch:
+
+jobs:
+  dockerHubDescription:
+    runs-on: ubuntu-latest
+    if: ${{ (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || (github.event.pull_request.draft != true)) && github.event.pull_request.user.login != 'renovate[bot]' && (vars.DOCKER_USERNAME != '') }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        persist-credentials: false
+
+    - name: Setting variables
+      uses: actions/github-script@v7
+      id: var
+      with:
+        script: |
+          const githubRepo = '${{ github.repository }}'.toLowerCase()
+          const repoId = githubRepo.split('/')[1]
+          
+          core.setOutput('github_repository', githubRepo)
+          const dockerRepo = '${{ vars.DOCKER_USERNAME }}'.toLowerCase() + '/' + repoId
+          core.setOutput('docker_repo', dockerRepo)
+
+    - name: Docker Hub Description
+      uses: peter-evans/dockerhub-description@v4
+      with:
+        username: ${{ vars.DOCKER_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
+        repository: ${{ steps.var.outputs.docker_repo }}
+        short-description: ${{ github.event.repository.description }}
+        enable-url-completion: true
