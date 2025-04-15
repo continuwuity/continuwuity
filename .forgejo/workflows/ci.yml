@@ -49,9 +49,11 @@ permissions: {}
 jobs:
     tests:
         name: Test
-        runs-on: self-hosted
-        volumes:
-            - /nix/store:/nix/store
+        runs-on: [ubuntu-latest, dind, nix]
+        container:
+          volumes:
+              - /nix/store:/nix/store
+              - /nix/var/nix/db:/nix/var/nix/db
         steps:
             - name: Setup SSH web publish
               env:
@@ -102,12 +104,10 @@ jobs:
                     exit 1
                   fi
 
-            #- uses: nixbuild/nix-quick-install-action@master
             - uses: https://github.com/cachix/install-nix-action@v31.1.0
-              if: ${{ env.ACT }}
 
             - name: Nom
-              if: ${{ env.ACT }}
+              if: ${{ env.ACT_EXEC }}
               run: |
                   echo "aaaa"
                   nix profile install nixpkgs#nix-output-monitor
@@ -115,20 +115,23 @@ jobs:
                   file $(which nom)
                   lsblk
 
-            #- uses: https://github.com/cachix/install-nix-action@v27
-            #  if: ${{ ! env.ACT }}
-
             - name: Prepare build environment
               run: |
+                  du -shc /nix/*
+                  #du -shc /root/.profile/*
                   if ! type nom &> /dev/null; then
                     sudo cp $(which nix) /usr/bin/nom-or-nix
                   fi
                   echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
                   nix profile install --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv
                   direnv allow
-                  set -x
-                  file $(which nom-nix)
-                  nom develop .#all-features --command true
+
+                  du -shc /nix/*
+                  if type nom &> /dev/null; then
+                    nom develop .#all-features --command true
+                  else
+                    nix develop .#all-features --command true
+                  fi
 
             - name: Cache CI dependencies
               run: |
@@ -208,9 +211,11 @@ jobs:
 
     build:
         name: Build
-        runs-on: self-hosted
-        volumes:
-            - /nix/store:/nix/store
+        runs-on: [not-nexy, nix, dind]
+        container:
+            volumes:
+                - /nix/store:/nix/store
+                - /nix/var/nix/db:/nix/var/nix/db
         strategy:
             matrix:
                 include:
