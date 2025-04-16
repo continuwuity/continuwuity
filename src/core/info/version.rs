@@ -7,7 +7,7 @@
 
 use std::sync::OnceLock;
 
-static BRANDING: &str = "conduwuit";
+static BRANDING: &str = "continuwuity";
 static SEMANTIC: &str = env!("CARGO_PKG_VERSION");
 
 static VERSION: OnceLock<String> = OnceLock::new();
