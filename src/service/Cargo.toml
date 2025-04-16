@@ -125,6 +125,7 @@ ctor.workspace = true
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true
 sd-notify.optional = true
+oxide-auth.workspace = true
 
 [lints]
 workspace = true

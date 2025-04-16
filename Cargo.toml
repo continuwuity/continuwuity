@@ -103,6 +103,7 @@ features = [
 	"matched-path",
 	"tokio",
 	"tracing",
+    "query",
 ]
 
 [workspace.dependencies.axum-extra]
@@ -558,6 +559,14 @@ features = ["sync", "tls-rustls", "rustls-provider"]
 [workspace.dependencies.resolv-conf]
 version = "0.7.5"
 
+[workspace.dependencies.oxide-auth]
+version = "0.6.1"
+
+[workspace.dependencies.oxide-auth-axum]
+version = "0.5.0"
+
+[workspace.dependencies.percent-encoding]
+version = "2.3.1"
 #
 # Patches
 #

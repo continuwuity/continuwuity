@@ -107,6 +107,7 @@ impl Services {
 			users: build!(users::Service),
 			moderation: build!(moderation::Service),
 			announcements: build!(announcements::Service),
+			oidc: build!(oidc::Service),
 
 			manager: Mutex::new(None),
 			service,

@@ -94,6 +94,9 @@ sha1.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 ctor.workspace = true
+oxide-auth.workspace = true
+oxide-auth-axum.workspace = true
+percent-encoding.workspace = true
 
 [lints]
 workspace = true
