@@ -1,8 +1,8 @@
 [book]
-title = "conduwuit 🏳️‍⚧️ 💜 🦴"
-description = "conduwuit, which is a well-maintained fork of Conduit, is a simple, fast and reliable chat server for the Matrix protocol"
+title = "continuwuity"
+description = "continuwuity is a community continuation of the conduwuit Matrix homeserver, written in Rust."
 language = "en"
-authors = ["strawberry (June)"]
+authors = ["The continuwuity Community"]
 text-direction = "ltr"
 multilingual = false
 src = "docs"
@@ -16,12 +16,9 @@ extra-watch-dirs = ["debian", "docs"]
 edition = "2024"
 
 [output.html]
-git-repository-url = "https://github.com/girlbossceo/conduwuit"
-edit-url-template = "https://github.com/girlbossceo/conduwuit/edit/main/{path}"
-git-repository-icon = "fa-github-square"
-
-[output.html.redirect]
-"/differences.html" = "https://conduwuit.puppyirl.gay/#where-is-the-differences-page"
+edit-url-template = "https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/{path}"
+git-repository-url = "https://forgejo.ellis.link/continuwuation/continuwuity"
+git-repository-icon = "fa-git-alt"
 
 [output.html.search]
 limit-results = 15
