@@ -14,8 +14,10 @@ mod discovery;
 mod login;
 mod authorize;
 mod token;
+mod register;
 
 pub(crate) use self::discovery::get_auth_metadata;
 pub(crate) use self::login::oidc_login;
 pub(crate) use self::authorize::{authorize, authorize_consent};
+pub(crate) use self::register::register_client;
 pub(crate) use self::token::token;

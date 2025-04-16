@@ -127,6 +127,9 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			post(client::oidc_login))
 		.route("/_matrix/client/unstable/org.matrix.msc2964/token",
 			post(client::token))
+		// MSC2966 route.
+		.route("/_matrix/client/unstable/org.matrix.msc2964/device/register",
+			post(client::register_client))
 		.ruma_route(&client::send_message_event_route)
 		.ruma_route(&client::send_state_event_for_key_route)
 		.ruma_route(&client::get_state_events_route)

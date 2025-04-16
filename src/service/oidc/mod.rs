@@ -45,6 +45,16 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	pub fn register_client(&self, client: &Client) -> Result<()> {
+		self
+			.registrar
+			.lock()
+			.expect("lockable registrar")
+			.register_client(client.clone());
+
+		Ok(())
+	}
+
 	pub fn preconfigured() -> Self {
 		Service {
 			registrar: Mutex::new(
