@@ -1,0 +1,68 @@
+name: Documentation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+concurrency:
+  group: "pages-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Build and Deploy Documentation
+    runs-on: not-nexy
+
+    steps:
+      - name: Sync repository
+        uses: https://github.com/actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup mdBook
+        uses: https://github.com/peaceiris/actions-mdbook@v2
+        with:
+          mdbook-version: "latest"
+
+      - name: Build mdbook
+        run: mdbook build
+
+      - name: Prepare static files for deployment
+        run: |
+          mkdir -p ./public/.well-known/matrix
+          # Copy the Matrix .well-known files
+          cp ./docs/static/server ./public/.well-known/matrix/server
+          cp ./docs/static/client ./public/.well-known/matrix/client
+          # Copy the custom headers file
+          cp ./docs/static/_headers ./public/_headers
+          echo "Copied .well-known files and _headers to ./public"
+
+      - name: Setup Node.js
+        uses: https://github.com/actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install --save-dev wrangler@latest
+
+      - name: Deploy to Cloudflare Pages (Production)
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: https://github.com/cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy ./public --branch=main --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+        uses: https://github.com/cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy ./public --branch=${{ github.head_ref }} --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}"
