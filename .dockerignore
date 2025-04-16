@@ -1,9 +1,9 @@
 # Local build and dev artifacts
-target
-tests
+target/
 
 # Docker files
 Dockerfile*
+docker/
 
 # IDE files
 .vscode
