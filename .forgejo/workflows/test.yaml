@@ -9,11 +9,51 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - name: Set env
-      run: echo "GITHUB_SHA_SHORT=$(echo $GITHUB_SHA | cut -c 1-6)" >> $GITHUB_ENV
-    - name: Test
-      if: false
-      run: echo $GITHUB_SHA_SHORT
-    - name: Test
-      if: ${{ 3 < 4 }}
-      run: echo $GITHUB_SHA_SHORT
+    - run: echo "gitea.action = ${{gitea.action}}"
+    - run: echo "gitea.action_path = ${{gitea.action_path}}"
+    - run: echo "gitea.action_ref = ${{gitea.action_ref}}"
+    - run: echo "gitea.workflow_ref = ${{gitea.workflow_ref}}"
+    - run: echo "gitea.workflow_sha = ${{gitea.workflow_sha}}"
+    - run: echo "gitea.workspace = ${{gitea.workspace}}"
+    - run: echo "forgejo.action = ${{forgejo.action}}"
+    - run: echo "forgejo.action_path = ${{forgejo.action_path}}"
+    - run: echo "forgejo.action_ref = ${{forgejo.action_ref}}"
+    - run: echo "forgejo.action_repository = ${{forgejo.action_repository}}"
+    - run: echo "forgejo.action_status = ${{forgejo.action_status}}"
+    - run: echo "forgejo.actor = ${{forgejo.actor}}"
+    - run: echo "forgejo.actor_id = ${{forgejo.actor_id}}"
+    - run: echo "forgejo.api_url = ${{forgejo.api_url}}"
+    - run: echo "forgejo.base_ref = ${{forgejo.base_ref}}"
+    - run: echo "forgejo.env = ${{forgejo.env}}"
+    - run: echo "forgejo.event = ${{forgejo.event}}"
+    - run: echo "forgejo.event_name = ${{forgejo.event_name}}"
+    - run: echo "forgejo.event_path = ${{forgejo.event_path}}"
+    - run: echo "forgejo.graphql_url = ${{forgejo.graphql_url}}"
+    - run: echo "forgejo.head_ref = ${{forgejo.head_ref}}"
+    - run: echo "forgejo.job = ${{forgejo.job}}"
+    - run: echo "forgejo.job_workflow_sha = ${{forgejo.job_workflow_sha}}"
+    - run: echo "forgejo.path = ${{forgejo.path}}"
+    - run: echo "forgejo.ref = ${{forgejo.ref}}"
+    - run: echo "forgejo.ref_name = ${{forgejo.ref_name}}"
+    - run: echo "forgejo.ref_protected = ${{forgejo.ref_protected}}"
+    - run: echo "forgejo.ref_type = ${{forgejo.ref_type}}"
+    - run: echo "forgejo.ref = ${{forgejo.ref}}"
+    - run: echo "forgejo.repository = ${{forgejo.repository}}"
+    - run: echo "forgejo.repository_id = ${{forgejo.repository_id}}"
+    - run: echo "forgejo.repository_owner = ${{forgejo.repository_owner}}"
+    - run: echo "forgejo.repository_owner_id = ${{forgejo.repository_owner_id}}"
+    - run: echo "forgejo.repositoryUrl = ${{forgejo.repositoryUrl}}"
+    - run: echo "forgejo.retention_days = ${{forgejo.retention_days}}"
+    - run: echo "forgejo.run_id = ${{forgejo.run_id}}"
+    - run: echo "forgejo.run_number = ${{forgejo.run_number}}"
+    - run: echo "forgejo.run_attempt = ${{forgejo.run_attempt}}"
+    - run: echo "forgejo.secret_source = ${{forgejo.secret_source}}"
+    - run: echo "forgejo.server_url = ${{forgejo.server_url}}"
+    - run: echo "forgejo.sha = ${{forgejo.sha}}"
+    - run: echo "forgejo.token = ${{forgejo.token}}"
+    - run: echo "forgejo.triggering_actor = ${{forgejo.triggering_actor}}"
+    - run: echo "forgejo.workflow = ${{forgejo.workflow}}"
+    - run: echo "forgejo.workflow_ref = ${{forgejo.workflow_ref}}"
+    - run: echo "forgejo.workflow_sha = ${{forgejo.workflow_sha}}"
+    - run: echo "forgejo.workspace = ${{forgejo.workspace}}"
+
