@@ -1,0 +1,223 @@
+name: Release Docker Image
+
+on:
+  pull_request:
+  push:
+    paths-ignore:
+      - '.gitlab-ci.yml'
+      - '.gitignore'
+      - 'renovate.json'
+      - 'debian/**'
+      - 'docker/**'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+    BUILTIN_REGISTRY: forgejo.ellis.link
+    BUILTIN_REGISTRY_ENABLED: "${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && 'true' || 'false' }}"
+
+jobs:
+  define-variables:
+    runs-on: ubuntu-latest
+
+    outputs:
+      images: ${{ steps.var.outputs.images }}
+      images_list: ${{ steps.var.outputs.images_list }}
+      build_matrix: ${{ steps.var.outputs.build_matrix }}
+
+    steps:
+      - name: Setting variables
+        uses: https://github.com/actions/github-script@v7
+        id: var
+        with:
+          script: |
+            const githubRepo = '${{ github.repository }}'.toLowerCase()
+            const repoId = githubRepo.split('/')[1]
+            
+            core.setOutput('github_repository', githubRepo)
+            const builtinImage = '${{ env.BUILTIN_REGISTRY }}/' + githubRepo
+            let images = []
+            if (process.env.BUILTIN_REGISTRY_ENABLED === "true") {
+              images.push(builtinImage)
+            }
+            core.setOutput('images', images.join("\n"))
+            core.setOutput('images_list', images.join(","))
+            const platforms = ['linux/amd64', 'linux/arm64']
+            core.setOutput('build_matrix', JSON.stringify({
+              platform: platforms, 
+              include: platforms.map(platform => { return {
+                platform,
+                slug: platform.replace('/', '-')
+              }})
+            }))
+
+  build-image:
+    runs-on: not-nexy
+    container: ghcr.io/catthehacker/ubuntu:act-latest
+    needs: define-variables
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    strategy:
+      matrix: ${{ fromJSON(needs.define-variables.outputs.build_matrix) }}
+    steps:
+      - name: Echo strategy
+        run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
+      - name: Echo matrix
+        run: echo '${{ toJSON(matrix) }}'
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      # Uses the `docker/login-action` action to log in to the Container registry registry using the account and password that will publish the packages. Once published, the packages are scoped to the account defined here.
+      - name: Login to builtin registry
+        uses: docker/login-action@v3
+        with:
+            registry: ${{ env.BUILTIN_REGISTRY }}
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+      # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
+      - name: Extract metadata (labels, annotations) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{needs.define-variables.outputs.images}}
+          # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+
+      # This step uses the `docker/build-push-action` action to build the image, based on your repository's `Dockerfile`. If the build succeeds, it pushes the image to GitHub Packages.
+      # It uses the `context` parameter to define the build's context as the set of files located in the specified path. For more information, see "[Usage](https://github.com/docker/build-push-action#usage)" in the README of the `docker/build-push-action` repository.
+      # It uses the `tags` and `labels` parameters to tag and label the image with the output from the "meta" step.
+      # It will not push images generated from a pull request
+      - name: Get short git commit SHA
+        id: sha
+        run: |
+          calculatedSha=$(git rev-parse --short ${{ github.sha }})
+          echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+      - name: Get Git commit timestamps
+        run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+      - uses: https://github.com/Swatinem/rust-cache@v2
+        with:
+          prefix-key: v0-rust-linux/${{ matrix.slug }}
+        id: rust-cache
+      - name: Inject cache into Docker
+        uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.1.2
+        with:
+          cache-map: |
+            {
+              "/home/runner/.cargo/registry": "/usr/local/cargo/registry",
+              "/home/runner/.cargo/git/db": "/usr/local/cargo/git/db",
+              "./target": "/app/target",
+              "./timelord": "/timelord"
+            }
+      - name: Cache timelord state
+        uses: actions/cache@v4
+        with:
+            path: "./timelord"
+            key: ${{ runner.os }}-${{ matrix.slug }}
+      - name: Build and push Docker image by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: "docker/Dockerfile"
+          build-args: |
+            CONDUWUIT_VERSION_EXTRA=${{ env.COMMIT_SHORT_SHA }}
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          sbom: true
+          outputs: type=image,"name=${{ needs.define-variables.outputs.images_list }}",push-by-digest=true,name-canonical=true,push=true
+        env:
+          SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
+
+      # For publishing multi-platform manifests
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"          
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+  
+  merge:
+    runs-on: not-nexy
+    container: ghcr.io/catthehacker/ubuntu:act-latest
+    needs: [define-variables, build-image]
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+      # Uses the `docker/login-action` action to log in to the Container registry registry using the account and password that will publish the packages. Once published, the packages are scoped to the account defined here.
+      - name: Login to builtin registry
+        uses: docker/login-action@v3
+        with:
+            registry: ${{ env.BUILTIN_REGISTRY }}
+            username: ${{ github.actor }}
+            password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata (tags) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern=v{{version}}
+            type=semver,pattern=v{{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }}
+            type=semver,pattern=v{{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,format=long
+          images: ${{needs.define-variables.outputs.images}}
+          # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index         
+
+      - name: Create manifest list and push
+        working-directory: /tmp/digests
+        env:
+          IMAGES: ${{needs.define-variables.outputs.images}}
+        shell: bash
+        run: |
+          IFS=$'\n'
+          IMAGES_LIST=($IMAGES)
+          ANNOTATIONS_LIST=($DOCKER_METADATA_OUTPUT_ANNOTATIONS)
+          TAGS_LIST=($DOCKER_METADATA_OUTPUT_TAGS)
+          for REPO in "${IMAGES_LIST[@]}"; do
+              docker buildx imagetools create \
+                $(for tag in "${TAGS_LIST[@]}"; do echo "--tag"; echo "$tag"; done) \
+                $(for annotation in "${ANNOTATIONS_LIST[@]}"; do echo "--annotation"; echo "$annotation"; done) \
+                $(for reference in *; do printf "$REPO@sha256:%s\n" $reference; done)
+          done
+
+      - name: Inspect image
+        env:
+          IMAGES: ${{needs.define-variables.outputs.images}}
+        shell: bash
+        run: |
+          IMAGES_LIST=($IMAGES)
+          for REPO in "${IMAGES_LIST[@]}"; do
+            docker buildx imagetools inspect $REPO:${{ steps.meta.outputs.version }}
+          done
