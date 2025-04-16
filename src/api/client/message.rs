@@ -26,7 +26,10 @@ use ruma::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
 	},
-	events::{AnyStateEvent, StateEventType, TimelineEventType, TimelineEventType::*},
+	events::{
+		AnyStateEvent, StateEventType,
+		TimelineEventType::{self, *},
+	},
 	serde::Raw,
 };
 
@@ -129,10 +132,20 @@ pub(crate) async fn get_message_events_route(
 		.take(limit)
 		.collect()
 		.await;
+	// let appservice_id = body.appservice_info.map(|appservice|
+	// appservice.registration.id);
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: sender_device.map_or_else(|| <&DeviceId>::from(""), AsRef::as_ref),
+		device_id: match sender_device {
+			| Some(device_id) => device_id,
+			| None =>
+				if let Some(registration) = body.appservice_info.as_ref() {
+					<&DeviceId>::from(registration.registration.id.as_str())
+				} else {
+					<&DeviceId>::from("")
+				},
+		},
 		room_id,
 		token: Some(from.into_unsigned()),
 		options: Some(&filter.lazy_load_options),
