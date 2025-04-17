@@ -1,4 +1,6 @@
 name: Release Docker Image
+concurrency: 
+  group: "release-image-${{ github.ref }}"
 
 on:
   pull_request:
