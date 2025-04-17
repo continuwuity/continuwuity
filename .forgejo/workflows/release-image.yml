@@ -107,7 +107,7 @@ jobs:
         run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
       - uses: https://github.com/Swatinem/rust-cache@v2
         with:
-          prefix-key: v0-rust-linux/${{ matrix.slug }}
+          prefix-key: v0-rust-linux/${{ matrix.platform.slug }}
         id: rust-cache
       - name: Inject cache into Docker
         uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.1.2
@@ -123,7 +123,7 @@ jobs:
         uses: actions/cache@v4
         with:
             path: "./timelord"
-            key: ${{ runner.os }}-${{ matrix.slug }}
+            key: ${{ runner.os }}-${{ matrix.platform.slug }}
       - name: Build and push Docker image by digest
         id: build
         uses: docker/build-push-action@v6
