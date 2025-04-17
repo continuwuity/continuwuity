@@ -61,7 +61,22 @@ jobs:
       attestations: write
       id-token: write
     strategy:
-      matrix: ${{ fromJSON(needs.define-variables.outputs.build_matrix) }}
+      matrix: {
+        "include": [
+          {
+            "platform": "linux/amd64",
+            "slug": "linux-amd64"
+          },
+          {
+            "platform": "linux/arm64",
+            "slug": "linux-arm64"
+          }
+        ],
+        "platform": [
+          "linux/amd64",
+          "linux/arm64"
+        ]
+      }
     steps:
       - name: Echo strategy
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
