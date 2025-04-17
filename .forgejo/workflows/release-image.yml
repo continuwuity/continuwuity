@@ -120,10 +120,20 @@ jobs:
           echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
       - name: Get Git commit timestamps
         run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
-      - uses: https://github.com/Swatinem/rust-cache@v2
+      - name: Rust cache
+        uses: actions/cache@v4
         with:
-          prefix-key: v0-rust-linux/${{ matrix.platform.slug }}
+          key: v0-rust-linux/${{ runner.os }}-${{ matrix.slug }}
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git/db
+            ./target
         id: rust-cache
+      - name: Cache timelord state
+        uses: actions/cache@v4
+        with:
+          path: "./timelord"
+          key: ${{ runner.os }}-${{ matrix.slug }}
       - name: Inject cache into Docker
         uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.1.2
         with:
@@ -134,11 +144,6 @@ jobs:
               "./target": "/app/target",
               "./timelord": "/timelord"
             }
-      - name: Cache timelord state
-        uses: actions/cache@v4
-        with:
-            path: "./timelord"
-            key: ${{ runner.os }}-${{ matrix.platform.slug }}
       - name: Build and push Docker image by digest
         id: build
         uses: docker/build-push-action@v6
