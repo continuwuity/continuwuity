@@ -202,7 +202,7 @@ jobs:
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }}
             type=semver,pattern=v{{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
-            type=ref,event=branch
+            type=ref,event=branch,prefix=branch-
             type=ref,event=pr
             type=sha,format=long
           images: ${{needs.define-variables.outputs.images}}
