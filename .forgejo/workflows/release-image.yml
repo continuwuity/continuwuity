@@ -89,7 +89,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+      - run: |
+          if ! command -v rustup &> /dev/null ; then
+            curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+            echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
+          fi
+      - uses: https://github.com/cargo-bins/cargo-binstall@main
+      - run: cargo binstall timelord-cli@3.0.1
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Set up QEMU
@@ -123,6 +129,18 @@ jobs:
           echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
       - name: Get Git commit timestamps
         run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+      - name: Set up timelord
+        uses: actions/cache/restore@v3
+        with:
+          path: /timelord/
+          key: timelord-v0 # Cache is already split per runner
+      - name: Run timelord to set timestamps
+        run: timelord sync --source-dir . --cache-dir /timelord/
+      - name: Save timelord
+        uses: actions/cache/save@v3
+        with:
+          path: /timelord/
+          key: timelord-v0
       - name: Build and push Docker image by digest
         id: build
         uses: docker/build-push-action@v6

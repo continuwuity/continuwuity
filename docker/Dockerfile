@@ -44,15 +44,11 @@ ENV CARGO_SBOM_VERSION=0.9.1
 # renovate: datasource=crate depName=lddtree
 ENV LDDTREE_VERSION=0.3.7
 
-# renovate: datasource=crate depName=timelord-cli
-ENV TIMELORD_VERSION=3.0.1
-
 # Install unpackaged tools
 RUN <<EOF
     curl --retry 5 -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
     cargo binstall --no-confirm cargo-sbom --version $CARGO_SBOM_VERSION
     cargo binstall --no-confirm lddtree --version $LDDTREE_VERSION
-    cargo binstall --no-confirm timelord-cli --version $TIMELORD_VERSION
 EOF
 
 # Set up xx (cross-compilation scripts)
@@ -133,10 +129,6 @@ RUN xx-cargo --print-target-triple
 
 # Get source
 COPY . .
-
-# Timelord sync
-RUN --mount=type=cache,target=/timelord/ \
-    timelord sync --source-dir . --cache-dir /timelord/
 
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
