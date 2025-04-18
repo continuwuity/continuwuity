@@ -16,7 +16,8 @@ on:
 
 env:
     BUILTIN_REGISTRY: forgejo.ellis.link
-    BUILTIN_REGISTRY_ENABLED: "${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && 'true' || 'false' }}"
+    BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
+
 
 jobs:
   define-variables:
