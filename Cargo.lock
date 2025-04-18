@@ -118,7 +118,7 @@ checksum = "5f093eed78becd229346bf859eec0aa4dd7ddde0757287b2b4107a1f09c80002"
 [[package]]
 name = "async-channel"
 version = "2.3.1"
-source = "git+https://github.com/girlbossceo/async-channel?rev=92e5e74063bf2a3b10414bcc8a0d68b235644280#92e5e74063bf2a3b10414bcc8a0d68b235644280"
+source = "git+https://forgejo.ellis.link/continuwuation/async-channel?rev=92e5e74063bf2a3b10414bcc8a0d68b235644280#92e5e74063bf2a3b10414bcc8a0d68b235644280"
 dependencies = [
  "concurrent-queue",
  "event-listener-strategy",
@@ -1047,7 +1047,7 @@ checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 [[package]]
 name = "core_affinity"
 version = "0.8.1"
-source = "git+https://github.com/girlbossceo/core_affinity_rs?rev=9c8e51510c35077df888ee72a36b4b05637147da#9c8e51510c35077df888ee72a36b4b05637147da"
+source = "git+https://forgejo.ellis.link/continuwuation/core_affinity_rs?rev=9c8e51510c35077df888ee72a36b4b05637147da#9c8e51510c35077df888ee72a36b4b05637147da"
 dependencies = [
  "libc",
  "num_cpus",
@@ -1379,7 +1379,7 @@ dependencies = [
 [[package]]
 name = "event-listener"
 version = "5.3.1"
-source = "git+https://github.com/girlbossceo/event-listener?rev=fe4aebeeaae435af60087ddd56b573a2e0be671d#fe4aebeeaae435af60087ddd56b573a2e0be671d"
+source = "git+https://forgejo.ellis.link/continuwuation/event-listener?rev=fe4aebeeaae435af60087ddd56b573a2e0be671d#fe4aebeeaae435af60087ddd56b573a2e0be671d"
 dependencies = [
  "concurrent-queue",
  "parking",
@@ -2030,7 +2030,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.11"
-source = "git+https://github.com/girlbossceo/hyper-util?rev=e4ae7628fe4fcdacef9788c4c8415317a4489941#e4ae7628fe4fcdacef9788c4c8415317a4489941"
+source = "git+https://forgejo.ellis.link/continuwuation/hyper-util?rev=e4ae7628fe4fcdacef9788c4c8415317a4489941#e4ae7628fe4fcdacef9788c4c8415317a4489941"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -3625,7 +3625,7 @@ dependencies = [
 [[package]]
 name = "resolv-conf"
 version = "0.7.1"
-source = "git+https://github.com/girlbossceo/resolv-conf?rev=200e958941d522a70c5877e3d846f55b5586c68d#200e958941d522a70c5877e3d846f55b5586c68d"
+source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=200e958941d522a70c5877e3d846f55b5586c68d#200e958941d522a70c5877e3d846f55b5586c68d"
 dependencies = [
  "hostname",
 ]
@@ -3653,7 +3653,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.10.1"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "assign",
  "js_int",
@@ -3673,7 +3673,7 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.10.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3685,7 +3685,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.18.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "as_variant",
  "assign",
@@ -3708,7 +3708,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.13.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
@@ -3740,7 +3740,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.28.1"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "as_variant",
  "indexmap 2.8.0",
@@ -3765,7 +3765,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.9.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "bytes",
  "headers",
@@ -3787,7 +3787,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.9.5"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "js_int",
  "thiserror 2.0.12",
@@ -3796,7 +3796,7 @@ dependencies = [
 [[package]]
 name = "ruma-identity-service-api"
 version = "0.9.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3806,7 +3806,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.13.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "cfg-if",
  "proc-macro-crate",
@@ -3821,7 +3821,7 @@ dependencies = [
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.9.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3833,7 +3833,7 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.15.0"
-source = "git+https://github.com/girlbossceo/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=920148dca1076454ca0ca5d43b5ce1aa708381d4#920148dca1076454ca0ca5d43b5ce1aa708381d4"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -3849,7 +3849,7 @@ dependencies = [
 [[package]]
 name = "rust-librocksdb-sys"
 version = "0.33.0+9.11.1"
-source = "git+https://github.com/girlbossceo/rust-rocksdb-zaidoon1?rev=1c267e0bf0cc7b7702e9a329deccd89de79ef4c3#1c267e0bf0cc7b7702e9a329deccd89de79ef4c3"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd#fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd"
 dependencies = [
  "bindgen 0.71.1",
  "bzip2-sys",
@@ -3866,7 +3866,7 @@ dependencies = [
 [[package]]
 name = "rust-rocksdb"
 version = "0.37.0"
-source = "git+https://github.com/girlbossceo/rust-rocksdb-zaidoon1?rev=1c267e0bf0cc7b7702e9a329deccd89de79ef4c3#1c267e0bf0cc7b7702e9a329deccd89de79ef4c3"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd#fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd"
 dependencies = [
  "libc",
  "rust-librocksdb-sys",
@@ -3979,7 +3979,7 @@ checksum = "eded382c5f5f786b989652c49544c4877d9f015cc22e145a5ea8ea66c2921cd2"
 [[package]]
 name = "rustyline-async"
 version = "0.4.3"
-source = "git+https://github.com/girlbossceo/rustyline-async?rev=deaeb0694e2083f53d363b648da06e10fc13900c#deaeb0694e2083f53d363b648da06e10fc13900c"
+source = "git+https://forgejo.ellis.link/continuwuation/rustyline-async?rev=deaeb0694e2083f53d363b648da06e10fc13900c#deaeb0694e2083f53d363b648da06e10fc13900c"
 dependencies = [
  "crossterm",
  "futures-channel",
@@ -4675,7 +4675,7 @@ dependencies = [
 [[package]]
 name = "tikv-jemalloc-ctl"
 version = "0.6.0"
-source = "git+https://github.com/girlbossceo/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 dependencies = [
  "libc",
  "paste",
@@ -4685,7 +4685,7 @@ dependencies = [
 [[package]]
 name = "tikv-jemalloc-sys"
 version = "0.6.0+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7"
-source = "git+https://github.com/girlbossceo/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 dependencies = [
  "cc",
  "libc",
@@ -4694,7 +4694,7 @@ dependencies = [
 [[package]]
 name = "tikv-jemallocator"
 version = "0.6.0"
-source = "git+https://github.com/girlbossceo/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 dependencies = [
  "libc",
  "tikv-jemalloc-sys",
@@ -4980,7 +4980,7 @@ checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
 [[package]]
 name = "tracing"
 version = "0.1.41"
-source = "git+https://github.com/girlbossceo/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+source = "git+https://forgejo.ellis.link/continuwuation/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 dependencies = [
  "pin-project-lite",
  "tracing-attributes",
@@ -4990,7 +4990,7 @@ dependencies = [
 [[package]]
 name = "tracing-attributes"
 version = "0.1.28"
-source = "git+https://github.com/girlbossceo/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+source = "git+https://forgejo.ellis.link/continuwuation/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5000,7 +5000,7 @@ dependencies = [
 [[package]]
 name = "tracing-core"
 version = "0.1.33"
-source = "git+https://github.com/girlbossceo/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+source = "git+https://forgejo.ellis.link/continuwuation/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 dependencies = [
  "once_cell",
  "valuable",
@@ -5020,7 +5020,7 @@ dependencies = [
 [[package]]
 name = "tracing-log"
 version = "0.2.0"
-source = "git+https://github.com/girlbossceo/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+source = "git+https://forgejo.ellis.link/continuwuation/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 dependencies = [
  "log",
  "once_cell",
@@ -5048,7 +5048,7 @@ dependencies = [
 [[package]]
 name = "tracing-subscriber"
 version = "0.3.19"
-source = "git+https://github.com/girlbossceo/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+source = "git+https://forgejo.ellis.link/continuwuation/tracing?rev=1e64095a8051a1adf0d1faa307f9f030889ec2aa#1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 dependencies = [
  "matchers",
  "nu-ansi-term",

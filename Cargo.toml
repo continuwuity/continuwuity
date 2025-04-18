@@ -14,12 +14,12 @@ authors = [
 categories = ["network-programming"]
 description = "a very cool Matrix chat homeserver written in Rust"
 edition = "2024"
-homepage = "https://conduwuit.puppyirl.gay/"
+homepage = "https://continuwuity.org/"
 keywords = ["chat", "matrix", "networking", "server", "uwu"]
 license = "Apache-2.0"
 # See also `rust-toolchain.toml`
 readme = "README.md"
-repository = "https://github.com/girlbossceo/conduwuit"
+repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
 rust-version = "1.86.0"
 version = "0.5.0"
 
@@ -348,7 +348,7 @@ version = "0.1.2"
 
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
-git = "https://github.com/girlbossceo/ruwuma"
+git = "https://forgejo.ellis.link/continuwuation/ruwuma"
 #branch = "conduwuit-changes"
 rev = "920148dca1076454ca0ca5d43b5ce1aa708381d4"
 features = [
@@ -388,8 +388,8 @@ features = [
 ]
 
 [workspace.dependencies.rust-rocksdb]
-git = "https://github.com/girlbossceo/rust-rocksdb-zaidoon1"
-rev = "1c267e0bf0cc7b7702e9a329deccd89de79ef4c3"
+git = "https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1"
+rev = "fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd"
 default-features = false
 features = [
 	"multi-threaded-cf",
@@ -449,7 +449,7 @@ version = "0.37.0"
 
 # jemalloc usage
 [workspace.dependencies.tikv-jemalloc-sys]
-git = "https://github.com/girlbossceo/jemallocator"
+git = "https://forgejo.ellis.link/continuwuation/jemallocator"
 rev = "82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 default-features = false
 features = [
@@ -457,7 +457,7 @@ features = [
 	"unprefixed_malloc_on_supported_platforms",
 ]
 [workspace.dependencies.tikv-jemallocator]
-git = "https://github.com/girlbossceo/jemallocator"
+git = "https://forgejo.ellis.link/continuwuation/jemallocator"
 rev = "82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 default-features = false
 features = [
@@ -465,7 +465,7 @@ features = [
 	"unprefixed_malloc_on_supported_platforms",
 ]
 [workspace.dependencies.tikv-jemalloc-ctl]
-git = "https://github.com/girlbossceo/jemallocator"
+git = "https://forgejo.ellis.link/continuwuation/jemallocator"
 rev = "82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 default-features = false
 features = ["use_std"]
@@ -542,49 +542,49 @@ version = "1.0.2"
 
 # backport of [https://github.com/tokio-rs/tracing/pull/2956] to the 0.1.x branch of tracing.
 # we can switch back to upstream if #2956 is merged and backported in the upstream repo.
-# https://github.com/girlbossceo/tracing/commit/b348dca742af641c47bc390261f60711c2af573c
+# https://forgejo.ellis.link/continuwuation/tracing/commit/b348dca742af641c47bc390261f60711c2af573c
 [patch.crates-io.tracing-subscriber]
-git = "https://github.com/girlbossceo/tracing"
+git = "https://forgejo.ellis.link/continuwuation/tracing"
 rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 [patch.crates-io.tracing]
-git = "https://github.com/girlbossceo/tracing"
+git = "https://forgejo.ellis.link/continuwuation/tracing"
 rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 [patch.crates-io.tracing-core]
-git = "https://github.com/girlbossceo/tracing"
+git = "https://forgejo.ellis.link/continuwuation/tracing"
 rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 [patch.crates-io.tracing-log]
-git = "https://github.com/girlbossceo/tracing"
+git = "https://forgejo.ellis.link/continuwuation/tracing"
 rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 
-# adds a tab completion callback: https://github.com/girlbossceo/rustyline-async/commit/de26100b0db03e419a3d8e1dd26895d170d1fe50
-# adds event for CTRL+\: https://github.com/girlbossceo/rustyline-async/commit/67d8c49aeac03a5ef4e818f663eaa94dd7bf339b
+# adds a tab completion callback: https://forgejo.ellis.link/continuwuation/rustyline-async/commit/de26100b0db03e419a3d8e1dd26895d170d1fe50
+# adds event for CTRL+\: https://forgejo.ellis.link/continuwuation/rustyline-async/commit/67d8c49aeac03a5ef4e818f663eaa94dd7bf339b
 [patch.crates-io.rustyline-async]
-git = "https://github.com/girlbossceo/rustyline-async"
+git = "https://forgejo.ellis.link/continuwuation/rustyline-async"
 rev = "deaeb0694e2083f53d363b648da06e10fc13900c"
 
 # adds LIFO queue scheduling; this should be updated with PR progress.
 [patch.crates-io.event-listener]
-git = "https://github.com/girlbossceo/event-listener"
+git = "https://forgejo.ellis.link/continuwuation/event-listener"
 rev = "fe4aebeeaae435af60087ddd56b573a2e0be671d"
 [patch.crates-io.async-channel]
-git = "https://github.com/girlbossceo/async-channel"
+git = "https://forgejo.ellis.link/continuwuation/async-channel"
 rev = "92e5e74063bf2a3b10414bcc8a0d68b235644280"
 
 # adds affinity masks for selecting more than one core at a time
 [patch.crates-io.core_affinity]
-git = "https://github.com/girlbossceo/core_affinity_rs"
+git = "https://forgejo.ellis.link/continuwuation/core_affinity_rs"
 rev = "9c8e51510c35077df888ee72a36b4b05637147da"
 
 # reverts hyperium#148 conflicting with our delicate federation resolver hooks
 [patch.crates-io.hyper-util]
-git = "https://github.com/girlbossceo/hyper-util"
+git = "https://forgejo.ellis.link/continuwuation/hyper-util"
 rev = "e4ae7628fe4fcdacef9788c4c8415317a4489941"
 
 # allows no-aaaa option in resolv.conf
 # bumps rust edition and toolchain to 1.86.0 and 2024
 # use sat_add on line number errors
 [patch.crates-io.resolv-conf]
-git = "https://github.com/girlbossceo/resolv-conf"
+git = "https://forgejo.ellis.link/continuwuation/resolv-conf"
 rev = "200e958941d522a70c5877e3d846f55b5586c68d"
 
 #
