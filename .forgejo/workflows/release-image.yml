@@ -54,7 +54,7 @@ jobs:
             }))
 
   build-image:
-    runs-on: not-nexy
+    runs-on: dind
     container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: define-variables
     permissions:
@@ -156,7 +156,7 @@ jobs:
           retention-days: 1
   
   merge:
-    runs-on: not-nexy
+    runs-on: dind
     container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: [define-variables, build-image]
     steps:
