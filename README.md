@@ -1,59 +1,7 @@
-<<<<<<< HEAD
-# Tuwunel <sup>🎔</sup>
-=======
 # continuwuity
-
-<!-- 
-[![conduwuit main room](https://img.shields.io/matrix/conduwuit%3Apuppygock.gay?server_fqdn=matrix.transfem.dev&style=flat&logo=matrix&logoColor=%23f5b3ff&label=%23conduwuit%3Apuppygock.gay&color=%23f652ff)](https://matrix.to/#/#conduwuit:puppygock.gay) [![conduwuit space](https://img.shields.io/matrix/conduwuit-space%3Apuppygock.gay?server_fqdn=matrix.transfem.dev&style=flat&logo=matrix&logoColor=%23f5b3ff&label=%23conduwuit-space%3Apuppygock.gay&color=%23f652ff)](https://matrix.to/#/#conduwuit-space:puppygock.gay)
-
-[![CI and Artifacts](https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml)
-
-![GitHub Repo stars](https://img.shields.io/github/stars/girlbossceo/conduwuit?style=flat&color=%23fcba03&link=https%3A%2F%2Fgithub.com%2Fgirlbossceo%2Fconduwuit) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/girlbossceo/conduwuit?style=flat&color=%2303fcb1&link=https%3A%2F%2Fgithub.com%2Fgirlbossceo%2Fconduwuit%2Fpulse%2Fmonthly) ![GitHub Created At](https://img.shields.io/github/created-at/girlbossceo/conduwuit) ![GitHub Sponsors](https://img.shields.io/github/sponsors/girlbossceo?color=%23fc03ba&link=https%3A%2F%2Fgithub.com%2Fsponsors%2Fgirlbossceo) ![GitHub License](https://img.shields.io/github/license/girlbossceo/conduwuit)
-
-
-
-![Docker Image Size (tag)](https://img.shields.io/docker/image-size/girlbossceo/conduwuit/latest?label=image%20size%20(latest)&link=https%3A%2F%2Fhub.docker.com%2Frepository%2Fdocker%2Fgirlbossceo%2Fconduwuit%2Ftags%3Fname%3Dlatest) ![Docker Image Size (tag)](https://img.shields.io/docker/image-size/girlbossceo/conduwuit/main?label=image%20size%20(main)&link=https%3A%2F%2Fhub.docker.com%2Frepository%2Fdocker%2Fgirlbossceo%2Fconduwuit%2Ftags%3Fname%3Dmain)
--->
->>>>>>> e054a56b (docs: New readme)
-
-![GitHub Repo stars](https://img.shields.io/github/stars/matrix-construct/tuwunel?style=flat&color=%23fcba03&link=https%3A%2F%2Fgithub.com%2Fmatrix-construct%2Ftuwunel) ![GitHub commit activity](https://img.shields.io/github/commit-activity/m/matrix-construct/tuwunel?style=flat&color=%2303fcb1&link=https%3A%2F%2Fgithub.com%2Fmatrix-construct%2Ftuwunel%2Fpulse%2Fmonthly) ![GitHub Created At](https://img.shields.io/github/created-at/matrix-construct/tuwunel) ![GitHub License](https://img.shields.io/github/license/matrix-construct/tuwunel)
 
 <!-- ANCHOR: catchphrase -->
 
-<<<<<<< HEAD
-## High Performance [Matrix](https://matrix.org/) Chat Homeserver in Rust!
-
-<!-- ANCHOR_END: catchphrase -->
-
-<!-- ANCHOR: body -->
-
-### Status
-
-Tuwunel is a successor to conduwuit. We are currently in the process of transitioning.
-The software is just as great as before. Please bear with us.
-
-### Goals
-
-**Maximum Performance.** Tuwunel relentlessly pursues optimization, embracing hardware
-acceleration with the highest throughput and lowest latency for messages.
-
-**Unlimited Features.** Tuwunel is working toward a fully modular design to leverage
-the widest number of contributor features. Our goal is to never have to say no to your ideas.
-
-#### Can I migrate or switch from Conduwuit?
-
-Yes.
-
-#### Can I migrate or switch from Conduit?
-
-No.
-
-#### Can I migrate from Synapse?
-
-No, but this is planned.
-
-## Tuwunel <sup>🎔</sup>
-=======
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
 
 <!-- ANCHOR_END: catchphrase -->
@@ -122,10 +70,7 @@ We're working our way through all of the issues in the [Forgejo project](https:/
 - Dendrite: No
 - Synapse: No
 
-Although you can't migrate your data from other homeservers, it is perfectly acceptable to set up continuwuity on the same domain as a previous homeserver.
->>>>>>> e054a56b (docs: New readme)
-
-Tuwunel's theme is **empathy in communication** defined by the works of [Edith Stein](https://plato.stanford.edu/entries/stein/).
+We haven't written up a guide on migrating from incompatible homeservers yet. Reach out to us if you need to do this!
 
 <!-- ANCHOR_END: body -->
 
@@ -158,14 +103,12 @@ When incorporating code from other forks:
 
 <!-- ANCHOR: footer -->
 
-<<<<<<< HEAD
-=======
 #### Contact
 
 <!-- TODO: contact details -->
 
->>>>>>> e054a56b (docs: New readme)
 <!-- ANCHOR_END: footer -->
 
 
 [continuwuity]: https://forgejo.ellis.link/continuwuation/continuwuity
+
