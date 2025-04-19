@@ -24,8 +24,23 @@ impl crate::Service for Service {
 #[implement(Service)]
 #[must_use]
 pub fn is_remote_server_forbidden(&self, server_name: &ServerName) -> bool {
-	// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
-	// OR forbidden contains server
+	// We must never block federating with ourselves
+	if server_name == self.services.server.config.server_name {
+		return false;
+	}
+
+	// Check if server is explicitly allowed
+	if self
+		.services
+		.server
+		.config
+		.allowed_remote_server_names
+		.is_match(server_name.host())
+	{
+		return false;
+	}
+
+	// Check if server is explicitly forbidden
 	self.services
 		.server
 		.config

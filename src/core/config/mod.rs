@@ -1383,11 +1383,23 @@ pub struct Config {
 	///
 	/// Basically "global" ACLs.
 	///
+	/// You can set this to ["*"] to block all servers by default, and then
+	/// use `allowed_remote_server_names` to allow only specific servers.
+	///
 	/// example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
 	///
 	/// default: []
 	#[serde(default, with = "serde_regex")]
 	pub forbidden_remote_server_names: RegexSet,
+
+	/// List of allowed server names via regex patterns that we will allow,
+	/// regardless of if they match `forbidden_remote_server_names`.
+	///
+	/// example: ["goodserver\.tld$", "goodphrase"]
+	///
+	/// default: []
+	#[serde(default, with = "serde_regex")]
+	pub allowed_remote_server_names: RegexSet,
 
 	/// List of forbidden server names via regex patterns that we will block all
 	/// outgoing federated room directory requests for. Useful for preventing
