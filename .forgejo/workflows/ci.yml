@@ -49,11 +49,13 @@ permissions: {}
 jobs:
     tests:
         name: Test
-        runs-on: [ubuntu-latest, dind, nix]
+        runs-on: [tom, dind, nix]
         container:
+          network: host
+          image: catthehacker/ubuntu:act-latest
           volumes:
-              - /nix/store:/nix/store
-              - /nix/var/nix/db:/nix/var/nix/db
+            - /nix/store:/nix/store
+            - /nix/var/nix/db:/nix/var/nix/db
         steps:
             - name: Setup SSH web publish
               env:
@@ -117,9 +119,10 @@ jobs:
 
             - name: Prepare build environment
               run: |
+                  df -h /nix/var/nix/db
                   du -shc /nix/*
                   #du -shc /root/.profile/*
-                  if ! type nom &> /dev/null; then
+                  if ! command -v nom &> /dev/null; then
                     sudo cp $(which nix) /usr/bin/nom-or-nix
                   fi
                   echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
@@ -127,7 +130,7 @@ jobs:
                   direnv allow
 
                   du -shc /nix/*
-                  if type nom &> /dev/null; then
+                  if command -v nom &> /dev/null; then
                     nom develop .#all-features --command true
                   else
                     nix develop .#all-features --command true
@@ -211,8 +214,9 @@ jobs:
 
     build:
         name: Build
-        runs-on: [not-nexy, nix, dind]
+        runs-on: [tom, nix, dind]
         container:
+            image: catthehacker/ubuntu:act-latest
             volumes:
                 - /nix/store:/nix/store
                 - /nix/var/nix/db:/nix/var/nix/db
