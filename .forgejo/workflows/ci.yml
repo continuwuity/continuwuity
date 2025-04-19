@@ -52,7 +52,7 @@ jobs:
         runs-on: [tom, dind, nix]
         container:
           network: host
-          image: catthehacker/ubuntu:act-latest
+          image: catthehacker/ubuntu:js-latest
           volumes:
             - /nix/store:/nix/store
             - /nix/var/nix/db:/nix/var/nix/db
@@ -216,7 +216,7 @@ jobs:
         name: Build
         runs-on: [tom, nix, dind]
         container:
-            image: catthehacker/ubuntu:act-latest
+            image: catthehacker/ubuntu:js-latest
             volumes:
                 - /nix/store:/nix/store
                 - /nix/var/nix/db:/nix/var/nix/db
