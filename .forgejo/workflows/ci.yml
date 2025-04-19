@@ -52,7 +52,7 @@ jobs:
         runs-on: [tom, dind, nix]
         container:
           network: host
-          image: catthehacker/ubuntu:js-latest
+          image: catthehacker/ubuntu:act-latest
           volumes:
             - /nix/store:/nix/store
             - /nix/var/nix/db:/nix/var/nix/db
@@ -127,7 +127,7 @@ jobs:
                     sudo cp $(which nix) /usr/bin/nom-or-nix
                   fi
                   echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
-                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv
+                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv nixpkgs#nodejs
                   direnv allow
 
                   if type nom &> /dev/null; then
@@ -161,6 +161,7 @@ jobs:
                   direnv exec . engage > >(tee -a test_output.log)
 
             - name: Run Complement tests
+              shell: bash
               env:
                 CARGO_PROFILE: "test"
               run: |
@@ -374,7 +375,7 @@ jobs:
                   dpkg-deb --info ${{ matrix.target }}-debug.deb
 
             - name: Upload static-x86_64-linux-musl-all-features-x86_64-haswell-optimised to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               if: ${{ matrix.target == 'x86_64-linux-musl' }}
               with:
                   name: static-x86_64-linux-musl-x86_64-haswell-optimised
@@ -382,14 +383,14 @@ jobs:
                   if-no-files-found: error
 
             - name: Upload static-${{ matrix.target }}-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: static-${{ matrix.target }}
                   path: static-${{ matrix.target }}
                   if-no-files-found: error
 
             - name: Upload static deb ${{ matrix.target }}-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: deb-${{ matrix.target }}
                   path: ${{ matrix.target }}.deb
@@ -425,14 +426,14 @@ jobs:
                   fi
 
             - name: Upload static-${{ matrix.target }}-debug-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: static-${{ matrix.target }}-debug
                   path: static-${{ matrix.target }}-debug
                   if-no-files-found: error
 
             - name: Upload static deb ${{ matrix.target }}-debug-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: deb-${{ matrix.target }}-debug
                   path: ${{ matrix.target }}-debug.deb
@@ -472,14 +473,14 @@ jobs:
 
             - name: Upload OCI image x86_64-linux-musl-all-features-x86_64-haswell-optimised to GitHub
               if: ${{ matrix.target == 'x86_64-linux-musl' }}
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: oci-image-x86_64-linux-musl-all-features-x86_64-haswell-optimised
                   path: oci-image-x86_64-linux-musl-all-features-x86_64-haswell-optimised.tar.gz
                   if-no-files-found: error
                   compression-level: 0
             - name: Upload OCI image ${{ matrix.target }}-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: oci-image-${{ matrix.target }}
                   path: oci-image-${{ matrix.target }}.tar.gz
@@ -487,7 +488,7 @@ jobs:
                   compression-level: 0
 
             - name: Upload OCI image ${{ matrix.target }}-debug-all-features to GitHub
-              uses: actions/upload-artifact@v4
+              uses: forgejo/upload-artifact@v4
               with:
                   name: oci-image-${{ matrix.target }}-debug
                   path: oci-image-${{ matrix.target }}-debug.tar.gz
