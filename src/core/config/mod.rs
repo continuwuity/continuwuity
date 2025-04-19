@@ -1385,8 +1385,6 @@ pub struct Config {
 	/// sender user's server name, inbound federation X-Matrix origin, and
 	/// outbound federation handler.
 	///
-	/// Basically "global" ACLs.
-	///
 	/// You can set this to ["*"] to block all servers by default, and then
 	/// use `allowed_remote_server_names` to allow only specific servers.
 	///
@@ -1398,6 +1396,8 @@ pub struct Config {
 
 	/// List of allowed server names via regex patterns that we will allow,
 	/// regardless of if they match `forbidden_remote_server_names`.
+	///
+	/// This option has no effect if `forbidden_remote_server_names` is empty.
 	///
 	/// example: ["goodserver\.tld$", "goodphrase"]
 	///
