@@ -112,25 +112,25 @@ jobs:
               if: ${{ env.ACT_EXEC }}
               run: |
                   echo "aaaa"
-                  nix profile install nixpkgs#nix-output-monitor
+                  nix profile install nixpkgs#nix-output-monitor -v
                   sudo cp $(which nom) /usr/bin/nom-nix
                   file $(which nom)
                   lsblk
 
             - name: Prepare build environment
+              shell: bash
               run: |
+                  echo $SHELL
                   df -h /nix/var/nix/db
-                  du -shc /nix/*
-                  #du -shc /root/.profile/*
-                  if ! command -v nom &> /dev/null; then
+                  du -had 1 /nix/
+                  if ! type nom &> /dev/null; then
                     sudo cp $(which nix) /usr/bin/nom-or-nix
                   fi
                   echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
-                  nix profile install --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv
+                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv
                   direnv allow
 
-                  du -shc /nix/*
-                  if command -v nom &> /dev/null; then
+                  if type nom &> /dev/null; then
                     nom develop .#all-features --command true
                   else
                     nix develop .#all-features --command true
@@ -154,6 +154,7 @@ jobs:
                 cache-targets: "true"
 
             - name: Run CI tests
+              shell: bash
               env:
                 CARGO_PROFILE: "test"
               run: |
@@ -280,6 +281,7 @@ jobs:
                 cache-targets: "true"
 
             - name: Build static ${{ matrix.target }}-all-features
+              shell: bash
               run: |
                   if [[ ${{ matrix.target }} == "x86_64-linux-musl" ]]
                   then
@@ -329,6 +331,7 @@ jobs:
                   fi
 
             - name: Build static debug ${{ matrix.target }}-all-features
+              shell: bash
               run: |
                   if [[ ${{ matrix.target }} == "x86_64-linux-musl" ]]
                   then
