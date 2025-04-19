@@ -55,7 +55,7 @@ jobs:
             }))
 
   build-image:
-    runs-on: dind
+    runs-on: docker
     container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: define-variables
     permissions:
@@ -175,7 +175,7 @@ jobs:
           retention-days: 1
   
   merge:
-    runs-on: dind
+    runs-on: docker
     container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: [define-variables, build-image]
     steps:
