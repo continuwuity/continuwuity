@@ -1200,6 +1200,10 @@
 # Additionally, it will hide messages from these servers for all users
 # on this server.
 #
+# Note that your messages can still make it to forbidden servers through
+# backfilling. Events we receive from forbidden servers via backfill will
+# be stored in the database, but will not be sent to the client.
+#
 # This check is applied on the room ID, room alias, sender server name,
 # sender user's server name, inbound federation X-Matrix origin, and
 # outbound federation handler.
