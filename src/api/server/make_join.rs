@@ -42,9 +42,8 @@ pub(crate) async fn create_join_event_template_route(
 		.await?;
 
 	if services
-		.config
-		.forbidden_remote_server_names
-		.is_match(body.origin().host())
+		.moderation
+		.is_remote_server_forbidden(body.origin())
 	{
 		warn!(
 			"Server {} for remote user {} tried joining room ID {} which has a server name that \
@@ -57,11 +56,7 @@ pub(crate) async fn create_join_event_template_route(
 	}
 
 	if let Some(server) = body.room_id.server_name() {
-		if services
-			.config
-			.forbidden_remote_server_names
-			.is_match(server.host())
-		{
+		if services.moderation.is_remote_server_forbidden(server) {
 			return Err!(Request(Forbidden(warn!(
 				"Room ID server name {server} is banned on this homeserver."
 			))));

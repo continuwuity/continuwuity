@@ -1374,6 +1374,9 @@ pub struct Config {
 	/// incoming AND outgoing federation with, and block client room joins /
 	/// remote user invites.
 	///
+	/// Additionally, it will hide messages from these servers for all users
+	/// on this server.
+	///
 	/// This check is applied on the room ID, room alias, sender server name,
 	/// sender user's server name, inbound federation X-Matrix origin, and
 	/// outbound federation handler.
@@ -1954,7 +1957,7 @@ impl Config {
 		let mut addrs = Vec::with_capacity(
 			self.get_bind_hosts()
 				.len()
-				.saturating_add(self.get_bind_ports().len()),
+				.saturating_mul(self.get_bind_ports().len()),
 		);
 		for host in &self.get_bind_hosts() {
 			for port in &self.get_bind_ports() {

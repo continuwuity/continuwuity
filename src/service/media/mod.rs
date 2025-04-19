@@ -22,7 +22,7 @@ use tokio::{
 
 use self::data::{Data, Metadata};
 pub use self::thumbnail::Dim;
-use crate::{Dep, client, globals, sending};
+use crate::{Dep, client, globals, moderation, sending};
 
 #[derive(Debug)]
 pub struct FileMeta {
@@ -42,6 +42,7 @@ struct Services {
 	client: Dep<client::Service>,
 	globals: Dep<globals::Service>,
 	sending: Dep<sending::Service>,
+	moderation: Dep<moderation::Service>,
 }
 
 /// generated MXC ID (`media-id`) length
@@ -64,6 +65,7 @@ impl crate::Service for Service {
 				client: args.depend::<client::Service>("client"),
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
+				moderation: args.depend::<moderation::Service>("moderation"),
 			},
 		}))
 	}

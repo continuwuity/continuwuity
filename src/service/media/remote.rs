@@ -423,16 +423,8 @@ pub async fn fetch_remote_content_legacy(
 fn check_fetch_authorized(&self, mxc: &Mxc<'_>) -> Result<()> {
 	if self
 		.services
-		.server
-		.config
-		.prevent_media_downloads_from
-		.is_match(mxc.server_name.host())
-		|| self
-			.services
-			.server
-			.config
-			.forbidden_remote_server_names
-			.is_match(mxc.server_name.host())
+		.moderation
+		.is_remote_server_media_downloads_forbidden(mxc.server_name)
 	{
 		// we'll lie to the client and say the blocked server's media was not found and
 		// log. the client has no way of telling anyways so this is a security bonus.

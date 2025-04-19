@@ -306,7 +306,7 @@ async fn auth_server(
 }
 
 fn auth_server_checks(services: &Services, x_matrix: &XMatrix) -> Result<()> {
-	if !services.server.config.allow_federation {
+	if !services.config.allow_federation {
 		return Err!(Config("allow_federation", "Federation is disabled."));
 	}
 
@@ -316,11 +316,7 @@ fn auth_server_checks(services: &Services, x_matrix: &XMatrix) -> Result<()> {
 	}
 
 	let origin = &x_matrix.origin;
-	if services
-		.config
-		.forbidden_remote_server_names
-		.is_match(origin.host())
-	{
+	if services.moderation.is_remote_server_forbidden(origin) {
 		return Err!(Request(Forbidden(debug_warn!(
 			"Federation requests from {origin} denied."
 		))));

@@ -1197,6 +1197,9 @@
 # incoming AND outgoing federation with, and block client room joins /
 # remote user invites.
 #
+# Additionally, it will hide messages from these servers for all users
+# on this server.
+#
 # This check is applied on the room ID, room alias, sender server name,
 # sender user's server name, inbound federation X-Matrix origin, and
 # outbound federation handler.

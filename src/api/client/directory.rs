@@ -52,13 +52,8 @@ pub(crate) async fn get_public_rooms_filtered_route(
 ) -> Result<get_public_rooms_filtered::v3::Response> {
 	if let Some(server) = &body.server {
 		if services
-			.config
-			.forbidden_remote_room_directory_server_names
-			.is_match(server.host())
-			|| services
-				.config
-				.forbidden_remote_server_names
-				.is_match(server.host())
+			.moderation
+			.is_remote_server_room_directory_forbidden(server)
 		{
 			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 		}
@@ -92,15 +87,7 @@ pub(crate) async fn get_public_rooms_route(
 	body: Ruma<get_public_rooms::v3::Request>,
 ) -> Result<get_public_rooms::v3::Response> {
 	if let Some(server) = &body.server {
-		if services
-			.config
-			.forbidden_remote_room_directory_server_names
-			.is_match(server.host())
-			|| services
-				.config
-				.forbidden_remote_server_names
-				.is_match(server.host())
-		{
+		if services.moderation.is_remote_server_forbidden(server) {
 			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 		}
 	}

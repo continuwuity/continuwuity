@@ -274,9 +274,8 @@ pub(crate) async fn is_ignored_pdu(
 	let ignored_type = IGNORED_MESSAGE_TYPES.binary_search(&pdu.kind).is_ok();
 
 	let ignored_server = services
-		.config
-		.forbidden_remote_server_names
-		.is_match(pdu.sender().server_name().host());
+		.moderation
+		.is_remote_server_forbidden(pdu.sender().server_name());
 
 	if ignored_type
 		&& (ignored_server || services.users.user_is_ignored(&pdu.sender, user_id).await)

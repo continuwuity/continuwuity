@@ -33,9 +33,8 @@ pub(crate) async fn create_knock_event_template_route(
 		.await?;
 
 	if services
-		.config
-		.forbidden_remote_server_names
-		.is_match(body.origin().host())
+		.moderation
+		.is_remote_server_forbidden(body.origin())
 	{
 		warn!(
 			"Server {} for remote user {} tried knocking room ID {} which has a server name \
@@ -48,11 +47,7 @@ pub(crate) async fn create_knock_event_template_route(
 	}
 
 	if let Some(server) = body.room_id.server_name() {
-		if services
-			.config
-			.forbidden_remote_server_names
-			.is_match(server.host())
-		{
+		if services.moderation.is_remote_server_forbidden(server) {
 			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 		}
 	}

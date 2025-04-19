@@ -16,6 +16,7 @@ pub mod federation;
 pub mod globals;
 pub mod key_backups;
 pub mod media;
+pub mod moderation;
 pub mod presence;
 pub mod pusher;
 pub mod resolver;
