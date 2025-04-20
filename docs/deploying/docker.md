@@ -84,26 +84,28 @@ Additional info about deploying Continuwuity can be found [here](generic.md).
 
 ### Build
 
-Official Continuwuity images are built using Nix's
-[`buildLayeredImage`][nix-buildlayeredimage]. This ensures all OCI images are
-repeatable and reproducible by anyone, keeps the images lightweight, and can be
-built offline.
+Official Continuwuity images are built using **Docker Buildx** and the Dockerfile found at [`docker/Dockerfile`][dockerfile-path]. This approach uses common Docker tooling and enables multi-platform builds efficiently.
 
-This also ensures portability of our images because `buildLayeredImage` builds
-OCI images, not Docker images, and works with other container software.
+The resulting images are broadly compatible with Docker and other container runtimes like Podman or containerd.
 
-The OCI images are OS-less with only a very minimal environment of the `tini`
-init system, CA certificates, and the Continuwuity binary. This does mean there is
-not a shell, but in theory you can get a shell by adding the necessary layers
-to the layered image. However it's very unlikely you will need a shell for any
-real troubleshooting.
+The images *do not contain a shell*. They contain only the Continuwuity binary, required libraries, TLS certificates and metadata. Please refer to the [`docker/Dockerfile`][dockerfile-path] for the specific details of the image composition.
 
-To build an OCI image using Nix, the following outputs can be built:
-- `nix build -L .#oci-image` (default features, x86_64 glibc)
-- `nix build -L .#oci-image-x86_64-linux-musl` (default features, x86_64 musl)
-- `nix build -L .#oci-image-aarch64-linux-musl` (default features, aarch64 musl)
-- `nix build -L .#oci-image-x86_64-linux-musl-all-features` (all features, x86_64 musl)
-- `nix build -L .#oci-image-aarch64-linux-musl-all-features` (all features, aarch64 musl)
+To build an image locally using Docker Buildx, you can typically run a command like:
+
+```bash
+# Build for the current platform and load into the local Docker daemon
+docker buildx build --load --tag continuwuity:latest -f docker/Dockerfile .
+
+# Example: Build for specific platforms and push to a registry.
+# docker buildx build --platform linux/amd64,linux/arm64 --tag registry.io/org/continuwuity:latest -f docker/Dockerfile . --push
+
+# Example: Build binary optimized for the current CPU
+# docker buildx build --load --tag continuwuity:latest --build-arg TARGET_CPU=native -f docker/Dockerfile .
+```
+
+Refer to the Docker Buildx documentation for more advanced build options.
+
+[dockerfile-path]: ../../docker/Dockerfile
 
 ### Run
 
