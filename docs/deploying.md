@@ -1,3 +1,3 @@
 # Deploying
 
-This chapter describes various ways to deploy conduwuit.
+This chapter describes various ways to deploy Continuwuity.

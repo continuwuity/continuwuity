@@ -1,9 +1,9 @@
-# Troubleshooting conduwuit
+# Troubleshooting Continuwuity
 
 > ## Docker users ⚠️
 >
 > Docker is extremely UX unfriendly. Because of this, a ton of issues or support
-> is actually Docker support, not conduwuit support. We also cannot document the
+> is actually Docker support, not Continuwuity support. We also cannot document the
 > ever-growing list of Docker issues here.
 >
 > If you intend on asking for support and you are using Docker, **PLEASE**
@@ -13,14 +13,14 @@
 > If there are things like Compose file issues or Dockerhub image issues, those
 > can still be mentioned as long as they're something we can fix.
 
-## conduwuit and Matrix issues
+## Continuwuity and Matrix issues
 
 #### Lost access to admin room
 
 You can reinvite yourself to the admin room through the following methods:
-- Use the `--execute "users make_user_admin <username>"` conduwuit binary
+- Use the `--execute "users make_user_admin <username>"` Continuwuity binary
 argument once to invite yourslf to the admin room on startup
-- Use the conduwuit console/CLI to run the `users make_user_admin` command
+- Use the Continuwuity console/CLI to run the `users make_user_admin` command
 - Or specify the `emergency_password` config option to allow you to temporarily
 log into the server account (`@conduit`) from a web client
 
@@ -29,12 +29,12 @@ log into the server account (`@conduit`) from a web client
 #### Potential DNS issues when using Docker
 
 Docker has issues with its default DNS setup that may cause DNS to not be
-properly functional when running conduwuit, resulting in federation issues. The
+properly functional when running Continuwuity, resulting in federation issues. The
 symptoms of this have shown in excessively long room joins (30+ minutes) from
 very long DNS timeouts, log entries of "mismatching responding nameservers",
 and/or partial or non-functional inbound/outbound federation.
 
-This is **not** a conduwuit issue, and is purely a Docker issue. It is not
+This is **not** a Continuwuity issue, and is purely a Docker issue. It is not
 sustainable for heavy DNS activity which is normal for Matrix federation. The
 workarounds for this are:
 - Use DNS over TCP via the config option `query_over_tcp_only = true`
@@ -64,7 +64,7 @@ very computationally expensive, and is extremely susceptible to denial of
 service, especially on Matrix. Many servers also strangely have broken DNSSEC
 setups and will result in non-functional federation.
 
-conduwuit cannot provide a "works-for-everyone" Unbound DNS setup guide, but
+Continuwuity cannot provide a "works-for-everyone" Unbound DNS setup guide, but
 the [official Unbound tuning guide][unbound-tuning] and the [Unbound Arch Linux wiki page][unbound-arch]
 may be of interest. Disabling DNSSEC on Unbound is commenting out trust-anchors
 config options and removing the `validator` module.
@@ -75,9 +75,9 @@ high load, and we have identified its DNS caching to not be very effective.
 dnsmasq can possibly work, but it does **not** support TCP fallback which can be
 problematic when receiving large DNS responses such as from large SRV records.
 If you still want to use dnsmasq, make sure you **disable** `dns_tcp_fallback`
-in conduwuit config.
+in Continuwuity config.
 
-Raising `dns_cache_entries` in conduwuit config from the default can also assist
+Raising `dns_cache_entries` in Continuwuity config from the default can also assist
 in DNS caching, but a full-fledged external caching resolver is better and more
 reliable.
 
@@ -97,7 +97,7 @@ If your database is corrupted *and* is failing to start (e.g. checksum
 mismatch), it may be recoverable but careful steps must be taken, and there is
 no guarantee it may be recoverable.
 
-The first thing that can be done is launching conduwuit with the
+The first thing that can be done is launching Continuwuity with the
 `rocksdb_repair` config option set to true. This will tell RocksDB to attempt to
 repair itself at launch. If this does not work, disable the option and continue
 reading.
@@ -109,7 +109,7 @@ RocksDB has the following recovery modes:
 - `PointInTime`
 - `SkipAnyCorruptedRecord`
 
-By default, conduwuit uses `TolerateCorruptedTailRecords` as generally these may
+By default, Continuwuity uses `TolerateCorruptedTailRecords` as generally these may
 be due to bad federation and we can re-fetch the correct data over federation.
 The RocksDB default is `PointInTime` which will attempt to restore a "snapshot"
 of the data when it was last known to be good. This data can be either a few
@@ -126,12 +126,12 @@ if `PointInTime` does not work as a last ditch effort.
 
 With this in mind:
 
-- First start conduwuit with the `PointInTime` recovery method. See the [example
+- First start Continuwuity with the `PointInTime` recovery method. See the [example
 config](configuration/examples.md) for how to do this using
 `rocksdb_recovery_mode`
 - If your database successfully opens, clients are recommended to clear their
 client cache to account for the rollback
-- Leave your conduwuit running in `PointInTime` for at least 30-60 minutes so as
+- Leave your Continuwuity running in `PointInTime` for at least 30-60 minutes so as
 much possible corruption is restored
 - If all goes will, you should be able to restore back to using
 `TolerateCorruptedTailRecords` and you have successfully recovered your database
@@ -144,14 +144,14 @@ Various debug commands can be found in `!admin debug`.
 
 #### Debug/Trace log level
 
-conduwuit builds without debug or trace log levels at compile time by default
+Continuwuity builds without debug or trace log levels at compile time by default
 for substantial performance gains in CPU usage and improved compile times. If
 you need to access debug/trace log levels, you will need to build without the
 `release_max_log_level` feature or use our provided static debug binaries.
 
 #### Changing log level dynamically
 
-conduwuit supports changing the tracing log environment filter on-the-fly using
+Continuwuity supports changing the tracing log environment filter on-the-fly using
 the admin command `!admin debug change-log-level <log env filter>`. This accepts
 a string **without quotes** the same format as the `log` config option.
 
@@ -168,7 +168,7 @@ load, simply pass the `--reset` flag.
 
 #### Pinging servers
 
-conduwuit can ping other servers using `!admin debug ping <server>`. This takes
+Continuwuity can ping other servers using `!admin debug ping <server>`. This takes
 a server name and goes through the server discovery process and queries
 `/_matrix/federation/v1/version`. Errors are outputted.
 
@@ -180,12 +180,12 @@ bandwidth and computationally.
 #### Allocator memory stats
 
 When using jemalloc with jemallocator's `stats` feature (`--enable-stats`), you
-can see conduwuit's high-level allocator stats by using
+can see Continuwuity's high-level allocator stats by using
 `!admin server memory-usage` at the bottom.
 
 If you are a developer, you can also view the raw jemalloc statistics with
 `!admin debug memory-stats`. Please note that this output is extremely large
-which may only be visible in the conduwuit console CLI due to PDU size limits,
+which may only be visible in the Continuwuity console CLI due to PDU size limits,
 and is not easy for non-developers to understand.
 
 [unbound-tuning]: https://unbound.docs.nlnetlabs.nl/en/latest/topics/core/performance.html

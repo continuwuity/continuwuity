@@ -2,11 +2,11 @@
 
 > ### Getting help
 >
-> If you run into any problems while setting up conduwuit, ask us in
-> `#conduwuit:puppygock.gay` or [open an issue on
-> GitHub](https://github.com/girlbossceo/conduwuit/issues/new).
+> If you run into any problems while setting up Continuwuity, ask us in
+> `#continuwuity:continuwuity.org` or [open an issue on
+> Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/issues/new).
 
-## Installing conduwuit
+## Installing Continuwuity
 
 ### Static prebuilt binary
 
@@ -14,11 +14,9 @@ You may simply download the binary that fits your machine architecture (x86_64
 or aarch64). Run `uname -m` to see what you need.
 
 Prebuilt fully static musl binaries can be downloaded from the latest tagged
-release [here](https://github.com/girlbossceo/conduwuit/releases/latest) or
+release [here](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest) or
 `main` CI branch workflow artifact output. These also include Debian/Ubuntu
 packages.
-
-Binaries are also available on my website directly at: <https://pup.systems/~strawberry/conduwuit/>
 
 These can be curl'd directly from. `ci-bins` are CI workflow binaries by commit
 hash/revision, and `releases` are tagged releases. Sort by descending last
@@ -37,7 +35,7 @@ for performance.
 ### Compiling
 
 Alternatively, you may compile the binary yourself. We recommend using
-Nix (or [Lix](https://lix.systems)) to build conduwuit as this has the most
+Nix (or [Lix](https://lix.systems)) to build Continuwuity as this has the most
 guaranteed reproducibiltiy and easiest to get a build environment and output
 going. This also allows easy cross-compilation.
 
@@ -51,35 +49,35 @@ If wanting to build using standard Rust toolchains, make sure you install:
 - `liburing-dev` on the compiling machine, and `liburing` on the target host
 - LLVM and libclang for RocksDB
 
-You can build conduwuit using `cargo build --release --all-features`
+You can build Continuwuity using `cargo build --release --all-features`
 
-## Adding a conduwuit user
+## Adding a Continuwuity user
 
-While conduwuit can run as any user it is better to use dedicated users for
+While Continuwuity can run as any user it is better to use dedicated users for
 different services. This also allows you to make sure that the file permissions
 are correctly set up.
 
-In Debian, you can use this command to create a conduwuit user:
+In Debian, you can use this command to create a Continuwuity user:
 
 ```bash
-sudo adduser --system conduwuit --group --disabled-login --no-create-home
+sudo adduser --system continuwuity --group --disabled-login --no-create-home
 ```
 
 For distros without `adduser` (or where it's a symlink to `useradd`):
 
 ```bash
-sudo useradd -r --shell /usr/bin/nologin --no-create-home conduwuit
+sudo useradd -r --shell /usr/bin/nologin --no-create-home continuwuity
 ```
 
 ## Forwarding ports in the firewall or the router
 
 Matrix's default federation port is port 8448, and clients must be using port 443.
 If you would like to use only port 443, or a different port, you will need to setup
-delegation. conduwuit has config options for doing delegation, or you can configure
+delegation. Continuwuity has config options for doing delegation, or you can configure
 your reverse proxy to manually serve the necessary JSON files to do delegation
 (see the `[global.well_known]` config section).
 
-If conduwuit runs behind a router or in a container and has a different public
+If Continuwuity runs behind a router or in a container and has a different public
 IP address than the host system these public ports need to be forwarded directly
 or indirectly to the port mentioned in the config.
 
@@ -94,9 +92,9 @@ on the network level, consider something like NextDNS or Pi-Hole.
 
 ## Setting up a systemd service
 
-Two example systemd units for conduwuit can be found
+Two example systemd units for Continuwuity can be found
 [on the configuration page](../configuration/examples.md#debian-systemd-unit-file).
-You may need to change the `ExecStart=` path to where you placed the conduwuit
+You may need to change the `ExecStart=` path to where you placed the Continuwuity
 binary if it is not `/usr/bin/conduwuit`.
 
 On systems where rsyslog is used alongside journald (i.e. Red Hat-based distros
@@ -114,9 +112,9 @@ and entering the following:
 ReadWritePaths=/path/to/custom/database/path
 ```
 
-## Creating the conduwuit configuration file
+## Creating the Continuwuity configuration file
 
-Now we need to create the conduwuit's config file in
+Now we need to create the Continuwuity's config file in
 `/etc/conduwuit/conduwuit.toml`. The example config can be found at
 [conduwuit-example.toml](../configuration/examples.md).
 
@@ -127,7 +125,7 @@ RocksDB is the only supported database backend.
 
 ## Setting the correct file permissions
 
-If you are using a dedicated user for conduwuit, you will need to allow it to
+If you are using a dedicated user for Continuwuity, you will need to allow it to
 read the config. To do that you can run this:
 
 ```bash
@@ -139,7 +137,7 @@ If you use the default database path you also need to run this:
 
 ```bash
 sudo mkdir -p /var/lib/conduwuit/
-sudo chown -R conduwuit:conduwuit /var/lib/conduwuit/
+sudo chown -R continuwuity:continuwuity /var/lib/conduwuit/
 sudo chmod 700 /var/lib/conduwuit/
 ```
 
@@ -174,13 +172,13 @@ As we would prefer our users to use Caddy, we will not provide configuration fil
 
 You will need to reverse proxy everything under following routes:
 - `/_matrix/` - core Matrix C-S and S-S APIs
-- `/_conduwuit/` - ad-hoc conduwuit routes such as `/local_user_count` and
+- `/_conduwuit/` - ad-hoc Continuwuity routes such as `/local_user_count` and
 `/server_version`
 
 You can optionally reverse proxy the following individual routes:
 - `/.well-known/matrix/client` and `/.well-known/matrix/server` if using
-conduwuit to perform delegation (see the `[global.well_known]` config section)
-- `/.well-known/matrix/support` if using conduwuit to send the homeserver admin
+Continuwuity to perform delegation (see the `[global.well_known]` config section)
+- `/.well-known/matrix/support` if using Continuwuity to send the homeserver admin
 contact and support page (formerly known as MSC1929)
 - `/` if you would like to see `hewwo from conduwuit woof!` at the root
 
@@ -200,7 +198,7 @@ header, making federation non-functional. If a workaround is found, feel free to
 
 If using Apache, you need to use `nocanon` in your `ProxyPass` directive to prevent httpd from messing with the `X-Matrix` header (note that Apache isn't very good as a general reverse proxy and we discourage the usage of it if you can).
 
-If using Nginx, you need to give conduwuit the request URI using `$request_uri`, or like so:
+If using Nginx, you need to give Continuwuity the request URI using `$request_uri`, or like so:
 - `proxy_pass http://127.0.0.1:6167$request_uri;`
 - `proxy_pass http://127.0.0.1:6167;`
 
@@ -209,7 +207,7 @@ Nginx users need to increase `client_max_body_size` (default is 1M) to match
 
 ## You're done
 
-Now you can start conduwuit with:
+Now you can start Continuwuity with:
 
 ```bash
 sudo systemctl start conduwuit

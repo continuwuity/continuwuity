@@ -1,10 +1,10 @@
 # Configuration
 
-This chapter describes various ways to configure conduwuit.
+This chapter describes various ways to configure Continuwuity.
 
 ## Basics
 
-conduwuit uses a config file for the majority of the settings, but also supports
+Continuwuity uses a config file for the majority of the settings, but also supports
 setting individual config options via commandline.
 
 Please refer to the [example config
@@ -12,13 +12,13 @@ file](./configuration/examples.md#example-configuration) for all of those
 settings.
 
 The config file to use can be specified on the commandline when running
-conduwuit by specifying the `-c`, `--config` flag. Alternatively, you can use
+Continuwuity by specifying the `-c`, `--config` flag. Alternatively, you can use
 the environment variable `CONDUWUIT_CONFIG` to specify the config file to used.
 Conduit's environment variables are supported for backwards compatibility.
 
 ## Option commandline flag
 
-conduwuit supports setting individual config options in TOML format from the
+Continuwuity supports setting individual config options in TOML format from the
 `-O` / `--option` flag. For example, you can set your server name via `-O
 server_name=\"example.com\"`.
 
@@ -33,7 +33,7 @@ string. This does not apply to options that take booleans or numbers:
 
 ## Execute commandline flag
 
-conduwuit supports running admin commands on startup using the commandline
+Continuwuity supports running admin commands on startup using the commandline
 argument `--execute`. The most notable use for this is to create an admin user
 on first startup.
 

@@ -1,5 +1,5 @@
-# conduwuit for FreeBSD
+# Continuwuity for FreeBSD
 
-conduwuit at the moment does not provide FreeBSD builds or have FreeBSD packaging, however conduwuit does build and work on FreeBSD using the system-provided RocksDB.
+Continuwuity at the moment does not provide FreeBSD builds or have FreeBSD packaging, however Continuwuity does build and work on FreeBSD using the system-provided RocksDB.
 
-Contributions for getting conduwuit packaged are welcome.
+Contributions for getting Continuwuity packaged are welcome.

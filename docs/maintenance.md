@@ -1,14 +1,14 @@
-# Maintaining your conduwuit setup
+# Maintaining your Continuwuity setup
 
 ## Moderation
 
-conduwuit has moderation through admin room commands. "binary commands" (medium
+Continuwuity has moderation through admin room commands. "binary commands" (medium
 priority) and an admin API (low priority) is planned. Some moderation-related
 config options are available in the example config such as "global ACLs" and
 blocking media requests to certain servers. See the example config for the
 moderation config options under the "Moderation / Privacy / Security" section.
 
-conduwuit has moderation admin commands for:
+Continuwuity has moderation admin commands for:
 
 - managing room aliases (`!admin rooms alias`)
 - managing room directory (`!admin rooms directory`)
@@ -36,7 +36,7 @@ each object being newline delimited. An example of doing this is:
 ## Database (RocksDB)
 
 Generally there is very little you need to do. [Compaction][rocksdb-compaction]
-is ran automatically based on various defined thresholds tuned for conduwuit to
+is ran automatically based on various defined thresholds tuned for Continuwuity to
 be high performance with the least I/O amplifcation or overhead. Manually
 running compaction is not recommended, or compaction via a timer, due to
 creating unnecessary I/O amplification. RocksDB is built with io_uring support
@@ -50,7 +50,7 @@ Some RocksDB settings can be adjusted such as the compression method chosen. See
 the RocksDB section in the [example config](configuration/examples.md).
 
 btrfs users have reported that database compression does not need to be disabled
-on conduwuit as the filesystem already does not attempt to compress. This can be
+on Continuwuity as the filesystem already does not attempt to compress. This can be
 validated by using `filefrag -v` on a `.SST` file in your database, and ensure
 the `physical_offset` matches (no filesystem compression). It is very important
 to ensure no additional filesystem compression takes place as this can render
@@ -70,7 +70,7 @@ they're server logs or database logs, however they are critical RocksDB files
 related to WAL tracking.
 
 The only safe files that can be deleted are the `LOG` files (all caps). These
-are the real RocksDB telemetry/log files, however conduwuit has already
+are the real RocksDB telemetry/log files, however Continuwuity has already
 configured to only store up to 3 RocksDB `LOG` files due to generall being
 useless for average users unless troubleshooting something low-level. If you
 would like to store nearly none at all, see the `rocksdb_max_log_files`
@@ -88,7 +88,7 @@ still be joined together.
 
 To restore a backup from an online RocksDB backup:
 
-- shutdown conduwuit
+- shutdown Continuwuity
 - create a new directory for merging together the data
 - in the online backup created, copy all `.sst` files in
 `$DATABASE_BACKUP_PATH/shared_checksum` to your new directory
@@ -99,9 +99,9 @@ To restore a backup from an online RocksDB backup:
 if you have multiple) to your new directory
 - set your `database_path` config option to your new directory, or replace your
 old one with the new one you crafted
-- start up conduwuit again and it should open as normal
+- start up Continuwuity again and it should open as normal
 
-If you'd like to do an offline backup, shutdown conduwuit and copy your
+If you'd like to do an offline backup, shutdown Continuwuity and copy your
 `database_path` directory elsewhere. This can be restored with no modifications
 needed.
 
@@ -110,7 +110,7 @@ directory.
 
 ## Media
 
-Media still needs various work, however conduwuit implements media deletion via:
+Media still needs various work, however Continuwuity implements media deletion via:
 
 - MXC URI or Event ID (unencrypted and attempts to find the MXC URI in the
 event)
@@ -118,17 +118,17 @@ event)
 - Delete remote media in the past `N` seconds/minutes via filesystem metadata on
 the file created time (`btime`) or file modified time (`mtime`)
 
-See the `!admin media` command for further information. All media in conduwuit
+See the `!admin media` command for further information. All media in Continuwuity
 is stored at `$DATABASE_DIR/media`. This will be configurable soon.
 
 If you are finding yourself needing extensive granular control over media, we
 recommend looking into [Matrix Media
-Repo](https://github.com/t2bot/matrix-media-repo). conduwuit intends to
+Repo](https://github.com/t2bot/matrix-media-repo). Continuwuity intends to
 implement various utilities for media, but MMR is dedicated to extensive media
 management.
 
 Built-in S3 support is also planned, but for now using a "S3 filesystem" on
-`media/` works. conduwuit also sends a `Cache-Control` header of 1 year and
+`media/` works. Continuwuity also sends a `Cache-Control` header of 1 year and
 immutable for all media requests (download and thumbnail) to reduce unnecessary
 media requests from browsers, reduce bandwidth usage, and reduce load.
 

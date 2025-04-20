@@ -4,7 +4,7 @@ services:
     homeserver:
         ### If you already built the conduwuit image with 'docker build' or want to use a registry image,
         ### then you are ready to go.
-        image: girlbossceo/conduwuit:latest
+        image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
         ports:
             - 8448:6167

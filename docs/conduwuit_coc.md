@@ -1,17 +1,17 @@
-# conduwuit Community Code of Conduct
+# Continuwuity Community Code of Conduct
 
-Welcome to the conduwuit community! We’re excited to have you here. conduwuit is
+Welcome to the Continuwuity community! We’re excited to have you here. Continuwuity is
 a hard-fork of the Conduit homeserver, aimed at making Matrix more accessible
 and inclusive for everyone.
 
 This space is dedicated to fostering a positive, supportive, and inclusive
-environment for everyone. This Code of Conduct applies to all conduwuit spaces,
+environment for everyone. This Code of Conduct applies to all Continuwuity spaces,
 including any further community rooms that reference this CoC. Here are our
-guidelines to help maintain the welcoming atmosphere that sets conduwuit apart.
+guidelines to help maintain the welcoming atmosphere that sets Continuwuity apart.
 
 For the general foundational rules, please refer to the [Contributor's
-Covenant](https://github.com/girlbossceo/conduwuit/blob/main/CODE_OF_CONDUCT.md).
-Below are additional guidelines specific to the conduwuit community.
+Covenant](https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CODE_OF_CONDUCT.md).
+Below are additional guidelines specific to the Continuwuity community.
 
 ## Our Values and Guidelines
 
@@ -48,25 +48,25 @@ members.
 
 ## Matrix Community
 
-This Code of Conduct applies to the entire [conduwuit Matrix
-Space](https://matrix.to/#/#conduwuit-space:puppygock.gay) and its rooms,
+This Code of Conduct applies to the entire [Continuwuity Matrix
+Space](https://matrix.to/#/#space:continuwuity.org) and its rooms,
 including:
 
-### [#conduwuit:puppygock.gay](https://matrix.to/#/#conduwuit:puppygock.gay)
+### [#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org)
 
-This room is for support and discussions about conduwuit. Ask questions, share
+This room is for support and discussions about Continuwuity. Ask questions, share
 insights, and help each other out.
 
-### [#conduwuit-offtopic:girlboss.ceo](https://matrix.to/#/#conduwuit-offtopic:girlboss.ceo)
+### [#continuwuity-offtopic:continuwuity.org](https://matrix.to/#/#continuwuity-offtopic:continuwuity.org)
 
 For off-topic community conversations about any subject. While this room allows
 for a wide range of topics, the same CoC applies. Keep discussions respectful
 and inclusive, and avoid divisive subjects like country/world politics. General
 topics, such as world events, are welcome as long as they follow the CoC.
 
-### [#conduwuit-dev:puppygock.gay](https://matrix.to/#/#conduwuit-dev:puppygock.gay)
+### [#dev:continuwuity.org](https://matrix.to/#/#dev:continuwuity.org)
 
-This room is dedicated to discussing active development of conduwuit. Posting
+This room is dedicated to discussing active development of Continuwuity. Posting
 requires an elevated power level, which can be requested in one of the other
 rooms. Use this space to collaborate and innovate.
 
@@ -90,4 +90,4 @@ comfortable doing that, then please send a DM to one of the moderators directly.
 
 Together, let’s build a community where everyone feels valued and respected.
 
-— The conduwuit Moderation Team
+— The Continuwuity Moderation Team
