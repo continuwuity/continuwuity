@@ -46,8 +46,9 @@ Continuwuity aims to:
 
 ### Can I try it out?
 
-Not right now. We've still got work to do!
+Check out the [documentation](introduction) for installation instructions.
 
+There are currently no open registration Continuwuity instances available.
 
 ### What are we working on?
 
@@ -111,3 +112,4 @@ When incorporating code from other forks:
 
 
 [continuwuity]: https://forgejo.ellis.link/continuwuation/continuwuity
+F
