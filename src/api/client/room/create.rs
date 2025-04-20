@@ -606,23 +606,20 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 		return Err(Error::BadRequest(ErrorKind::Unknown, "Custom room ID is forbidden."));
 	}
 
+	let server_name = services.globals.server_name();
+	let mut room_id = custom_room_id.to_owned();
 	if custom_room_id.contains(':') {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"Custom room ID contained `:` which is not allowed. Please note that this expects a \
-			 localpart, not the full room ID.",
-		));
-	} else if custom_room_id.contains(char::is_whitespace) {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"Custom room ID contained spaces which is not valid.",
-		));
+		if !custom_room_id.starts_with('!') {
+			return Err(Error::BadRequest(
+				ErrorKind::InvalidParam,
+				"Custom room ID contains an unexpected `:` which is not allowed.",
+			));
+		}
+	} else {
+		room_id = format!("!{custom_room_id}:{server_name}");
 	}
 
-	let server_name = services.globals.server_name();
-	let full_room_id = format!("!{custom_room_id}:{server_name}");
-
-	OwnedRoomId::parse(full_room_id)
+	OwnedRoomId::parse(room_id)
 		.map_err(Into::into)
 		.inspect(|full_room_id| debug_info!(?full_room_id, "Full custom room ID"))
 		.inspect_err(|e| warn!(?e, ?custom_room_id, "Failed to create room with custom room ID",))
