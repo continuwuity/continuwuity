@@ -621,6 +621,11 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 
 	OwnedRoomId::parse(room_id)
 		.map_err(Into::into)
-		.inspect(|full_room_id| debug_info!(?full_room_id, "Full custom room ID"))
+		.inspect(|full_room_id| {
+			debug_info!(?full_room_id, "Full custom room ID");
+			if full_room_id.server_name().expect("failed to extract server name from room ID") != server_name {
+				error!("Custom room ID does not match server name");
+			}
+		})
 		.inspect_err(|e| warn!(?e, ?custom_room_id, "Failed to create room with custom room ID",))
 }
