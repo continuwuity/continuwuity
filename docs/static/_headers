@@ -1,3 +1,6 @@
 /.well-known/matrix/*
   Access-Control-Allow-Origin: *
   Content-Type: application/json
+/.well-known/continuwuity/*
+  Access-Control-Allow-Origin: *
+  Content-Type: application/json

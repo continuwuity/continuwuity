@@ -127,7 +127,9 @@ impl Service {
 		&self.server.config.new_user_displayname_suffix
 	}
 
-	pub fn allow_check_for_updates(&self) -> bool { self.server.config.allow_check_for_updates }
+	pub fn allow_announcements_check(&self) -> bool {
+		self.server.config.allow_announcements_check
+	}
 
 	pub fn trusted_servers(&self) -> &[OwnedServerName] { &self.server.config.trusted_servers }
 

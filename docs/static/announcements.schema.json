@@ -1,0 +1,31 @@
+{
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "$id": "https://continwuity.org/schema/announcements.schema.json",
+    "type": "object",
+    "properties": {
+      "updates": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer"
+            },
+            "message": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "message"
+          ]
+        }
+      }
+    },
+    "required": [
+      "updates"
+    ]
+  }

@@ -113,14 +113,10 @@
 #new_user_displayname_suffix = "🏳️‍⚧️"
 
 # If enabled, conduwuit will send a simple GET request periodically to
-# `https://pupbrain.dev/check-for-updates/stable` for any new
-# announcements made. Despite the name, this is not an update check
-# endpoint, it is simply an announcement check endpoint.
+# `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
+# announcements or major updates. This is not an update check endpoint.
 #
-# This is disabled by default as this is rarely used except for security
-# updates or major updates.
-#
-#allow_check_for_updates = false
+#allow_announcements_check =
 
 # Set this to any float value to multiply conduwuit's in-memory LRU caches
 # with such as "auth_chain_cache_capacity".

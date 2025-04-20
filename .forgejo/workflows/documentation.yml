@@ -36,9 +36,13 @@ jobs:
       - name: Prepare static files for deployment
         run: |
           mkdir -p ./public/.well-known/matrix
+          mkdir -p ./public/.well-known/continuwuity
+          mkdir -p ./public/schema
           # Copy the Matrix .well-known files
           cp ./docs/static/server ./public/.well-known/matrix/server
           cp ./docs/static/client ./public/.well-known/matrix/client
+          cp ./docs/static/announcements.json ./public/.well-known/continuwuity/announcements
+          cp ./docs/static/announcements.schema.json ./public/schema/announcements.schema.json
           # Copy the custom headers file
           cp ./docs/static/_headers ./public/_headers
           echo "Copied .well-known files and _headers to ./public"

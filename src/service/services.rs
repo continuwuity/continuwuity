@@ -10,11 +10,12 @@ use futures::{Stream, StreamExt, TryStreamExt};
 use tokio::sync::Mutex;
 
 use crate::{
-	account_data, admin, appservice, client, config, emergency, federation, globals, key_backups,
+	account_data, admin, announcements, appservice, client, config, emergency, federation,
+	globals, key_backups,
 	manager::Manager,
 	media, moderation, presence, pusher, resolver, rooms, sending, server_keys, service,
 	service::{Args, Map, Service},
-	sync, transaction_ids, uiaa, updates, users,
+	sync, transaction_ids, uiaa, users,
 };
 
 pub struct Services {
@@ -37,9 +38,9 @@ pub struct Services {
 	pub sync: Arc<sync::Service>,
 	pub transaction_ids: Arc<transaction_ids::Service>,
 	pub uiaa: Arc<uiaa::Service>,
-	pub updates: Arc<updates::Service>,
 	pub users: Arc<users::Service>,
 	pub moderation: Arc<moderation::Service>,
+	pub announcements: Arc<announcements::Service>,
 
 	manager: Mutex<Option<Arc<Manager>>>,
 	pub(crate) service: Arc<Map>,
@@ -105,9 +106,9 @@ impl Services {
 			sync: build!(sync::Service),
 			transaction_ids: build!(transaction_ids::Service),
 			uiaa: build!(uiaa::Service),
-			updates: build!(updates::Service),
 			users: build!(users::Service),
 			moderation: build!(moderation::Service),
+			announcements: build!(announcements::Service),
 
 			manager: Mutex::new(None),
 			service,

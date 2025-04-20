@@ -1,0 +1,9 @@
+{
+    "$schema": "https://continuwuity.org/schema/announcements.schema.json",
+    "announcements": [
+        {
+            "id": 1,
+            "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
+        }
+    ]
+}

@@ -8,6 +8,7 @@ pub mod services;
 
 pub mod account_data;
 pub mod admin;
+pub mod announcements;
 pub mod appservice;
 pub mod client;
 pub mod config;
@@ -26,7 +27,6 @@ pub mod server_keys;
 pub mod sync;
 pub mod transaction_ids;
 pub mod uiaa;
-pub mod updates;
 pub mod users;
 
 extern crate conduwuit_core as conduwuit;
