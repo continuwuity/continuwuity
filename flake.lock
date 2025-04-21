@@ -80,18 +80,18 @@
     "complement": {
       "flake": false,
       "locked": {
-        "lastModified": 1741891349,
-        "narHash": "sha256-YvrzOWcX7DH1drp5SGa+E/fc7wN3hqFtPbqPjZpOu1Q=",
-        "owner": "girlbossceo",
-        "repo": "complement",
-        "rev": "e587b3df569cba411aeac7c20b6366d03c143745",
-        "type": "github"
+        "lastModified": 1745202855,
+        "narHash": "sha256-Jr4625Gp5SzL1teCAEkIBiwIhWBZ3UlPXa//I+6Ncyk=",
+        "ref": "morguldir/hs-ip",
+        "rev": "d44afcb142a0d1e3d877e3f2e38115910f7f062c",
+        "revCount": 860,
+        "type": "git",
+        "url": "https://forgejo.ellis.link/continuwuation/complement"
       },
       "original": {
-        "owner": "girlbossceo",
-        "ref": "main",
-        "repo": "complement",
-        "type": "github"
+        "ref": "morguldir/hs-ip",
+        "type": "git",
+        "url": "https://forgejo.ellis.link/continuwuation/complement"
       }
     },
     "crane": {

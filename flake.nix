@@ -2,7 +2,7 @@
   inputs = {
     attic.url = "github:zhaofengli/attic?ref=main";
     cachix.url = "github:cachix/cachix?ref=master";
-    complement = { url = "github:girlbossceo/complement?ref=main"; flake = false; };
+    complement = { url = "git+https://forgejo.ellis.link/continuwuation/complement?ref=morguldir/hs-ip"; flake = false; };
     crane = { url = "github:ipetkov/crane?ref=master"; };
     fenix = { url = "github:nix-community/fenix?ref=main"; inputs.nixpkgs.follows = "nixpkgs"; };
     flake-compat = { url = "github:edolstra/flake-compat?ref=master"; flake = false; };

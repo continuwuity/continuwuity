@@ -43,15 +43,47 @@ env:
     WEB_UPLOAD_SSH_USERNAME: ${{ secrets.WEB_UPLOAD_SSH_USERNAME }}
     GH_REF_NAME: ${{ github.ref_name }}
     WEBSERVER_DIR_NAME: ${{ (github.head_ref != '' && format('merge-{0}-{1}', github.event.number, github.event.pull_request.user.login)) || github.ref_name }}-${{ github.sha }}
+    DOCKER_HOST: "tcp://docker:2375"
+    DOCKER_TLS_CERTDIR: ""
 
 permissions: {}
 
 jobs:
+    dind-test:
+        name: dind-${{ matrix.runner }}
+        strategy:
+          matrix:
+            runner:
+              - jade
+              - tom
+              - ubuntu-22.04
+        runs-on: ${{ matrix.runner }}
+        services:
+          dind:
+            env:
+              DOCKER_HOST: unix:///var/run/dind.socket
+              DOCKER_TLS_CERTDIR: ""
+            image: docker:dind
+            options: >-
+              --tty
+              --restart always
+        steps:
+          - name: curl
+            run: |-
+              sleep 30
+              curl dind:2375 || true
     tests:
         name: Test
-        runs-on: [tom, dind, nix]
+        runs-on: [tom, nix]
+        services:
+          dind:
+              image: docker:dind
+              options: >-
+                  --privileged
+              env:
+                  DOCKER_TLS_CERTDIR: ""
+                  DOCKER_HOST: unix:///var/run/dind.socket
         container:
-          network: host
           image: catthehacker/ubuntu:act-latest
           volumes:
             - /nix/store:/nix/store
@@ -111,8 +143,8 @@ jobs:
             - name: Nom
               if: ${{ env.ACT_EXEC }}
               run: |
-                  echo "aaaa"
-                  nix profile install nixpkgs#nix-output-monitor -v
+                  echo "Installing nix output monitor"
+                  nix profile install nixpkgs#nix-output-monitor -Lv
                   sudo cp $(which nom) /usr/bin/nom-nix
                   file $(which nom)
                   lsblk
@@ -127,7 +159,8 @@ jobs:
                     sudo cp $(which nix) /usr/bin/nom-or-nix
                   fi
                   echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
-                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv nixpkgs#nodejs
+                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv nixpkgs#nodejs nixpkgs#iproute2 nixpkgs#nettools nixpkgs#bind
+                  ip a
                   direnv allow
 
                   if type nom &> /dev/null; then
@@ -160,14 +193,23 @@ jobs:
               run: |
                   direnv exec . engage > >(tee -a test_output.log)
 
+            - name: Build complement image
+              run: |
+                  bin/nix-build-and-cache just .#complement
+
             - name: Run Complement tests
               shell: bash
               env:
+                DOCKER_HOST: tcp://dind:2375
                 CARGO_PROFILE: "test"
               run: |
+                  addr=$(ip -brief address show eth0 | awk '{print $3}' | awk -F/ '{print $1}')
+                  export COMPLEMENT_HS_PORT_BINDING_IP=$(dig +short dind)
+                  export COMPLEMENT_HOSTNAME_RUNNING_COMPLEMENT=dind
                   # the nix devshell sets $COMPLEMENT_SRC, so "/dev/null" is no-op
                   direnv exec . bin/complement "/dev/null" complement_test_logs.jsonl complement_test_results.jsonl > >(tee -a test_output.log)
                   cp -v -f result complement_oci_image.tar.gz
+                  netstat -tnlp
 
             - name: Upload Complement OCI image
               uses: actions/upload-artifact@v4
@@ -216,7 +258,7 @@ jobs:
 
     build:
         name: Build
-        runs-on: [tom, nix, dind]
+        runs-on: [tom, nix]
         container:
             image: catthehacker/ubuntu:js-latest
             volumes:
