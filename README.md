@@ -106,10 +106,10 @@ When incorporating code from other forks:
 
 #### Contact
 
-<!-- TODO: contact details -->
+Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org) and [space](https://matrix.to/#/#space:continuwuity.org) to chat with us about the project!
 
 <!-- ANCHOR_END: footer -->
 
 
 [continuwuity]: https://forgejo.ellis.link/continuwuation/continuwuity
-F
+
