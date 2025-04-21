@@ -1,6 +1,6 @@
 # Troubleshooting Continuwuity
 
-> ## Docker users ⚠️
+> **Docker users ⚠️**
 >
 > Docker can be difficult to use and debug. It's common for Docker
 > misconfigurations to cause issues, particularly with networking and permissions.
@@ -8,9 +8,10 @@
 
 ## Continuwuity and Matrix issues
 
-#### Lost access to admin room
+### Lost access to admin room
 
 You can reinvite yourself to the admin room through the following methods:
+
 - Use the `--execute "users make_user_admin <username>"` Continuwuity binary
 argument once to invite yourslf to the admin room on startup
 - Use the Continuwuity console/CLI to run the `users make_user_admin` command
@@ -19,22 +20,29 @@ log into the server account (`@conduit`) from a web client
 
 ## General potential issues
 
-#### Potential DNS issues when using Docker
+### Potential DNS issues when using Docker
 
-Docker has issues with its default DNS setup that may cause DNS to not be
-properly functional when running Continuwuity, resulting in federation issues. The
-symptoms of this have shown in excessively long room joins (30+ minutes) from
-very long DNS timeouts, log entries of "mismatching responding nameservers",
+Docker's DNS setup for containers in a non-default network intercepts queries to
+enable resolving of container hostnames to IP addresses. However, due to
+performance issues with Docker's built-in resolver, this can cause DNS queries
+to take a long time to resolve, resulting in federation issues.
+
+This is particularly common with Docker Compose, as custom networks are easily
+created and configured.
+
+Symptoms of this include excessively long room joins (30+ minutes) from very
+long DNS timeouts, log entries of "mismatching responding nameservers",
 and/or partial or non-functional inbound/outbound federation.
 
-This is **not** a Continuwuity issue, and is purely a Docker issue. It is not
-sustainable for heavy DNS activity which is normal for Matrix federation. The
-workarounds for this are:
-- Use DNS over TCP via the config option `query_over_tcp_only = true`
-- Don't use Docker's default DNS setup and instead allow the container to use
-and communicate with your host's DNS servers (host's `/etc/resolv.conf`)
+This is not a bug in continuwuity. Docker's default DNS resolver is not suitable
+for heavy DNS activity, which is normal for federated protocols like Matrix.
 
-#### DNS No connections available error message
+Workarounds:
+
+- Use DNS over TCP via the config option `query_over_tcp_only = true`
+- Bypass Docker's default DNS setup and instead allow the container to use and communicate with your host's DNS servers. Typically, this can be done by mounting the host's `/etc/resolv.conf`.
+
+### DNS No connections available error message
 
 If you receive spurious amounts of error logs saying "DNS No connections
 available", this is due to your DNS server (servers from `/etc/resolv.conf`)
@@ -84,7 +92,7 @@ reliability at a slight performance cost due to TCP overhead.
 
 ## RocksDB / database issues
 
-#### Database corruption
+### Database corruption
 
 If your database is corrupted *and* is failing to start (e.g. checksum
 mismatch), it may be recoverable but careful steps must be taken, and there is
@@ -135,14 +143,14 @@ Note that users should not really be debugging things. If you find yourself
 debugging and find the issue, please let us know and/or how we can fix it.
 Various debug commands can be found in `!admin debug`.
 
-#### Debug/Trace log level
+### Debug/Trace log level
 
 Continuwuity builds without debug or trace log levels at compile time by default
 for substantial performance gains in CPU usage and improved compile times. If
 you need to access debug/trace log levels, you will need to build without the
 `release_max_log_level` feature or use our provided static debug binaries.
 
-#### Changing log level dynamically
+### Changing log level dynamically
 
 Continuwuity supports changing the tracing log environment filter on-the-fly using
 the admin command `!admin debug change-log-level <log env filter>`. This accepts
@@ -159,7 +167,7 @@ load, simply pass the `--reset` flag.
 
 `!admin debug change-log-level --reset`
 
-#### Pinging servers
+### Pinging servers
 
 Continuwuity can ping other servers using `!admin debug ping <server>`. This takes
 a server name and goes through the server discovery process and queries
@@ -170,7 +178,7 @@ server performance on either side as that endpoint is completely unauthenticated
 and simply fetches a string on a static JSON endpoint. It is very low cost both
 bandwidth and computationally.
 
-#### Allocator memory stats
+### Allocator memory stats
 
 When using jemalloc with jemallocator's `stats` feature (`--enable-stats`), you
 can see Continuwuity's high-level allocator stats by using
