@@ -2,16 +2,9 @@
 
 > ## Docker users ⚠️
 >
-> Docker is extremely UX unfriendly. Because of this, a ton of issues or support
-> is actually Docker support, not Continuwuity support. We also cannot document the
-> ever-growing list of Docker issues here.
->
-> If you intend on asking for support and you are using Docker, **PLEASE**
-> triple validate your issues are **NOT** because you have a misconfiguration in
-> your Docker setup.
->
-> If there are things like Compose file issues or Dockerhub image issues, those
-> can still be mentioned as long as they're something we can fix.
+> Docker can be difficult to use and debug. It's common for Docker
+> misconfigurations to cause issues, particularly with networking and permissions.
+> Please check that your issues are not due to problems with your Docker setup.
 
 ## Continuwuity and Matrix issues
 
