@@ -57,7 +57,7 @@ including:
 This room is for support and discussions about Continuwuity. Ask questions, share
 insights, and help each other out.
 
-### [#continuwuity-offtopic:continuwuity.org](https://matrix.to/#/#continuwuity-offtopic:continuwuity.org)
+### [#offtopic:continuwuity.org](https://matrix.to/#/#offtopic:continuwuity.org)
 
 For off-topic community conversations about any subject. While this room allows
 for a wide range of topics, the same CoC applies. Keep discussions respectful
