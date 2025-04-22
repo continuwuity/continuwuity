@@ -133,7 +133,7 @@ pub fn auth_types_for_event(
 	level = "debug",
 	skip_all,
 	fields(
-		event_id = incoming_event.event_id().borrow().as_str()
+		event_id = incoming_event.event_id().as_str(),
 	)
 )]
 pub async fn auth_check<F, Fut, Fetched, Incoming>(
@@ -259,7 +259,7 @@ where
 	// 3. If event does not have m.room.create in auth_events reject
 	if !incoming_event
 		.auth_events()
-		.any(|id| id.borrow() == room_create_event.event_id().borrow())
+		.any(|id| id == room_create_event.event_id())
 	{
 		warn!("no m.room.create event in auth events");
 		return Ok(false);
@@ -1021,11 +1021,11 @@ fn check_redaction(
 
 	// If the domain of the event_id of the event being redacted is the same as the
 	// domain of the event_id of the m.room.redaction, allow
-	if redaction_event.event_id().borrow().server_name()
+	if redaction_event.event_id().server_name()
 		== redaction_event
 			.redacts()
 			.as_ref()
-			.and_then(|&id| id.borrow().server_name())
+			.and_then(|&id| id.server_name())
 	{
 		debug!("redaction event allowed via room version 1 rules");
 		return Ok(true);
