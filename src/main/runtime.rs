@@ -98,12 +98,7 @@ pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
 		Level::INFO
 	};
 
-	debug!(
-		timeout = ?SHUTDOWN_TIMEOUT,
-		"Waiting for runtime..."
-	);
-
-	runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
+	wait_shutdown(server, runtime);
 	let runtime_metrics = server.server.metrics.runtime_interval().unwrap_or_default();
 
 	event!(LEVEL, ?runtime_metrics, "Final runtime metrics");
@@ -111,13 +106,23 @@ pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
 
 #[cfg(not(tokio_unstable))]
 #[tracing::instrument(name = "stop", level = "info", skip_all)]
-pub(super) fn shutdown(_server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
+pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
+	wait_shutdown(server, runtime);
+}
+
+fn wait_shutdown(_server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
 	debug!(
 		timeout = ?SHUTDOWN_TIMEOUT,
 		"Waiting for runtime..."
 	);
 
 	runtime.shutdown_timeout(SHUTDOWN_TIMEOUT);
+
+	// Join any jemalloc threads so they don't appear in use at exit.
+	#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
+	conduwuit_core::alloc::je::background_thread_enable(false)
+		.log_debug_err()
+		.ok();
 }
 
 #[tracing::instrument(
