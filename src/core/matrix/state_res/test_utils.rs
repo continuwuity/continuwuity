@@ -241,8 +241,8 @@ impl<E: Event + Clone> TestStore<E> {
 	pub(crate) fn auth_event_ids(
 		&self,
 		room_id: &RoomId,
-		event_ids: Vec<E::Id>,
-	) -> Result<HashSet<E::Id>> {
+		event_ids: Vec<OwnedEventId>,
+	) -> Result<HashSet<OwnedEventId>> {
 		let mut result = HashSet::new();
 		let mut stack = event_ids;
 
@@ -578,7 +578,7 @@ pub(crate) fn INITIAL_EDGES() -> Vec<OwnedEventId> {
 
 pub(crate) mod event {
 	use ruma::{
-		MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
+		EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
 		events::{TimelineEventType, pdu::Pdu},
 	};
 	use serde::{Deserialize, Serialize};
@@ -587,9 +587,7 @@ pub(crate) mod event {
 	use crate::Event;
 
 	impl Event for PduEvent {
-		type Id = OwnedEventId;
-
-		fn event_id(&self) -> &Self::Id { &self.event_id }
+		fn event_id(&self) -> &EventId { &self.event_id }
 
 		fn room_id(&self) -> &RoomId {
 			match &self.rest {
@@ -646,29 +644,31 @@ pub(crate) mod event {
 		}
 
 		#[allow(refining_impl_trait)]
-		fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + Send + '_> {
+		fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => Box::new(ev.prev_events.iter().map(|(id, _)| id)),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.prev_events.iter()),
+				| Pdu::RoomV1Pdu(ev) =>
+					Box::new(ev.prev_events.iter().map(|(id, _)| id.as_ref())),
+				| Pdu::RoomV3Pdu(ev) => Box::new(ev.prev_events.iter().map(AsRef::as_ref)),
 				#[allow(unreachable_patterns)]
 				| _ => unreachable!("new PDU version"),
 			}
 		}
 
 		#[allow(refining_impl_trait)]
-		fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + Send + '_> {
+		fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => Box::new(ev.auth_events.iter().map(|(id, _)| id)),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.auth_events.iter()),
+				| Pdu::RoomV1Pdu(ev) =>
+					Box::new(ev.auth_events.iter().map(|(id, _)| id.as_ref())),
+				| Pdu::RoomV3Pdu(ev) => Box::new(ev.auth_events.iter().map(AsRef::as_ref)),
 				#[allow(unreachable_patterns)]
 				| _ => unreachable!("new PDU version"),
 			}
 		}
 
-		fn redacts(&self) -> Option<&Self::Id> {
+		fn redacts(&self) -> Option<&EventId> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => ev.redacts.as_ref(),
-				| Pdu::RoomV3Pdu(ev) => ev.redacts.as_ref(),
+				| Pdu::RoomV1Pdu(ev) => ev.redacts.as_deref(),
+				| Pdu::RoomV3Pdu(ev) => ev.redacts.as_deref(),
 				#[allow(unreachable_patterns)]
 				| _ => unreachable!("new PDU version"),
 			}

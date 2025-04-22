@@ -8,7 +8,7 @@ use conduwuit::{
 	Error, Result, err, implement,
 	state_res::{self, StateMap},
 	trace,
-	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt, automatic_width},
+	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt},
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future::try_join};
 use ruma::{OwnedEventId, RoomId, RoomVersionId};

@@ -79,9 +79,7 @@ impl Pdu {
 }
 
 impl Event for Pdu {
-	type Id = OwnedEventId;
-
-	fn event_id(&self) -> &Self::Id { &self.event_id }
+	fn event_id(&self) -> &EventId { &self.event_id }
 
 	fn room_id(&self) -> &RoomId { &self.room_id }
 
@@ -97,15 +95,15 @@ impl Event for Pdu {
 
 	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
 
-	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &Self::Id> + Send + '_ {
-		self.prev_events.iter()
+	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+		self.prev_events.iter().map(AsRef::as_ref)
 	}
 
-	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &Self::Id> + Send + '_ {
-		self.auth_events.iter()
+	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+		self.auth_events.iter().map(AsRef::as_ref)
 	}
 
-	fn redacts(&self) -> Option<&Self::Id> { self.redacts.as_ref() }
+	fn redacts(&self) -> Option<&EventId> { self.redacts.as_deref() }
 }
 
 /// Prevent derived equality which wouldn't limit itself to event_id
