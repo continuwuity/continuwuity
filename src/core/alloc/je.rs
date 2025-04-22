@@ -274,6 +274,10 @@ pub fn set_dirty_decay<I: Into<Option<usize>>>(arena: I, decay_ms: isize) -> Res
 	}
 }
 
+pub fn background_thread_enable(enable: bool) -> Result<bool> {
+	set::<u8>(&mallctl!("background_thread"), enable.into()).map(is_nonzero!())
+}
+
 #[inline]
 #[must_use]
 pub fn is_affine_arena() -> bool { is_percpu_arena() || is_phycpu_arena() }
