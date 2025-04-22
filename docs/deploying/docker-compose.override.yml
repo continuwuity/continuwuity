@@ -1,4 +1,4 @@
-# conduwuit - Traefik Reverse Proxy Labels
+# Continuwuity - Traefik Reverse Proxy Labels
 
 services:
   homeserver:
@@ -6,7 +6,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"  # Change this to the name of your Traefik docker proxy network
 
-      - "traefik.http.routers.to-conduwuit.rule=Host(`<SUBDOMAIN>.<DOMAIN>`)"  # Change to the address on which conduwuit is hosted
+      - "traefik.http.routers.to-conduwuit.rule=Host(`<SUBDOMAIN>.<DOMAIN>`)"  # Change to the address on which Continuwuity is hosted
       - "traefik.http.routers.to-conduwuit.tls=true"
       - "traefik.http.routers.to-conduwuit.tls.certresolver=letsencrypt"
       - "traefik.http.routers.to-conduwuit.middlewares=cors-headers@docker"
@@ -16,7 +16,7 @@ services:
       - "traefik.http.middlewares.cors-headers.headers.accessControlAllowHeaders=Origin, X-Requested-With, Content-Type, Accept, Authorization"
       - "traefik.http.middlewares.cors-headers.headers.accessControlAllowMethods=GET, POST, PUT, DELETE, OPTIONS"
 
-      # If you want to have your account on <DOMAIN>, but host conduwuit on a subdomain,
+      # If you want to have your account on <DOMAIN>, but host Continuwuity on a subdomain,
       # you can let it only handle the well known file on that domain instead
       #- "traefik.http.routers.to-matrix-wellknown.rule=Host(`<DOMAIN>`) && PathPrefix(`/.well-known/matrix`)"
       #- "traefik.http.routers.to-matrix-wellknown.tls=true"

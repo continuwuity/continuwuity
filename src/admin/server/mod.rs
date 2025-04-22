@@ -36,7 +36,7 @@ pub(super) enum ServerCommand {
 	/// - Print database memory usage statistics
 	MemoryUsage,
 
-	/// - Clears all of Conduwuit's caches
+	/// - Clears all of Continuwuity's caches
 	ClearCaches,
 
 	/// - Performs an online backup of the database (only available for RocksDB

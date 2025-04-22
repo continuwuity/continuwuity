@@ -1,8 +1,8 @@
-# conduwuit - Behind Traefik Reverse Proxy
+# Continuwuity - Behind Traefik Reverse Proxy
 
 services:
   homeserver:
-    ### If you already built the conduwuit image with 'docker build' or want to use the Docker Hub image,
+    ### If you already built the Continuwuity image with 'docker build' or want to use the Docker Hub image,
     ### then you are ready to go.
     image: forgejo.ellis.link/continuwuation/continuwuity:latest
     restart: unless-stopped
@@ -22,7 +22,7 @@ services:
       CONDUWUIT_PORT: 6167 # you need to match this with the traefik load balancer label if you're want to change it
       CONDUWUIT_DATABASE_PATH: /var/lib/conduwuit
       #CONDUWUIT_CONFIG: '/etc/conduit.toml' # Uncomment if you mapped config toml above
-      ### Uncomment and change values as desired, note that conduwuit has plenty of config options, so you should check out the example example config too
+      ### Uncomment and change values as desired, note that Continuwuity has plenty of config options, so you should check out the example example config too
       # Available levels are: error, warn, info, debug, trace - more info at: https://docs.rs/env_logger/*/env_logger/#enabling-logging
       # CONDUWUIT_LOG: info  # default is: "warn,state_res=warn"
       # CONDUWUIT_ALLOW_ENCRYPTION: 'true'
@@ -44,14 +44,14 @@ services:
           server=your.server.name.example:443
         }
     #cpuset: "0-4" # Uncomment to limit to specific CPU cores
-    ulimits: # conduwuit uses quite a few file descriptors, and on some systems it defaults to 1024, so you can tell docker to increase it
+    ulimits: # Continuwuity uses quite a few file descriptors, and on some systems it defaults to 1024, so you can tell docker to increase it
       nofile:
         soft: 1048567
         hard: 1048567
 
     ### Uncomment if you want to use your own Element-Web App.
     ### Note: You need to provide a config.json for Element and you also need a second
-    ###       Domain or Subdomain for the communication between Element and conduwuit
+    ###       Domain or Subdomain for the communication between Element and Continuwuity
     ### Config-Docs: https://github.com/vector-im/element-web/blob/develop/docs/config.md
     # element-web:
     #     image: vectorim/element-web:latest

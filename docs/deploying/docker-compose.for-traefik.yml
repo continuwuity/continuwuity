@@ -1,4 +1,4 @@
-# conduwuit - Behind Traefik Reverse Proxy
+# Continuwuity - Behind Traefik Reverse Proxy
 
 services:
   homeserver:
@@ -36,14 +36,14 @@ services:
         server=your.server.name.example:443
         }
     #cpuset: "0-4" # Uncomment to limit to specific CPU cores
-    ulimits: # conduwuit uses quite a few file descriptors, and on some systems it defaults to 1024, so you can tell docker to increase it
+    ulimits: # Continuwuity uses quite a few file descriptors, and on some systems it defaults to 1024, so you can tell docker to increase it
       nofile:
         soft: 1048567
         hard: 1048567
 
     ### Uncomment if you want to use your own Element-Web App.
     ### Note: You need to provide a config.json for Element and you also need a second
-    ###       Domain or Subdomain for the communication between Element and conduwuit
+    ###       Domain or Subdomain for the communication between Element and Continuwuity
     ### Config-Docs: https://github.com/vector-im/element-web/blob/develop/docs/config.md
     # element-web:
     #     image: vectorim/element-web:latest

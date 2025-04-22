@@ -1,8 +1,8 @@
-# conduwuit
+# Continuwuity
 
 services:
     homeserver:
-        ### If you already built the conduwuit image with 'docker build' or want to use a registry image,
+        ### If you already built the Continuwuity image with 'docker build' or want to use a registry image,
         ### then you are ready to go.
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
@@ -28,7 +28,7 @@ services:
     #
     ### Uncomment if you want to use your own Element-Web App.
     ### Note: You need to provide a config.json for Element and you also need a second
-    ###       Domain or Subdomain for the communication between Element and conduwuit
+    ###       Domain or Subdomain for the communication between Element and Continuwuity
     ### Config-Docs: https://github.com/vector-im/element-web/blob/develop/docs/config.md
     # element-web:
     #     image: vectorim/element-web:latest

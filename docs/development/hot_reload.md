@@ -5,7 +5,7 @@ guaranteed to work at this time.
 
 ### Summary
 
-When developing in debug-builds with the nightly toolchain, conduwuit is modular
+When developing in debug-builds with the nightly toolchain, Continuwuity is modular
 using dynamic libraries and various parts of the application are hot-reloadable
 while the server is running: http api handlers, admin commands, services,
 database, etc. These are all split up into individual workspace crates as seen
@@ -42,7 +42,7 @@ library, macOS, and likely other host architectures are not supported (if other
 architectures work, feel free to let us know and/or make a PR updating this).
 This should work on GNU ld and lld (rust-lld) and gcc/clang, however if you
 happen to have linker issues it's recommended to try using `mold` or `gold`
-linkers, and please let us know in the [conduwuit Matrix room][7] the linker
+linkers, and please let us know in the [Continuwuity Matrix room][7] the linker
 error and what linker solved this issue so we can figure out a solution. Ideally
 there should be minimal friction to using this, and in the future a build script
 (`build.rs`) may be suitable to making this easier to use if the capabilities
@@ -52,13 +52,13 @@ allow us.
 
 As of 19 May 2024, the instructions for using this are:
 
-0. Have patience. Don't hesitate to join the [conduwuit Matrix room][7] to
+0. Have patience. Don't hesitate to join the [Continuwuity Matrix room][7] to
    receive help using this. As indicated by the various rustflags used and some
 of the interesting issues linked at the bottom, this is definitely not something
 the Rust ecosystem or toolchain is used to doing.
 
 1. Install the nightly toolchain using rustup. You may need to use `rustup
-   override set nightly` in your local conduwuit directory, or use `cargo
+   override set nightly` in your local Continuwuity directory, or use `cargo
 +nightly` for all actions.
 
 2. Uncomment `cargo-features` at the top level / root Cargo.toml
@@ -85,14 +85,14 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/.rustup/toolchains/nightly-x86_64-unknown
    Cargo should only rebuild what was changed / what's necessary, so it should
    not be rebuilding all the crates.
 
-9. In your conduwuit server terminal, hit/send `CTRL+C` signal. This will tell
-   conduwuit to find which libraries need to be reloaded, and reloads them as
+9. In your Continuwuity server terminal, hit/send `CTRL+C` signal. This will tell
+   Continuwuity to find which libraries need to be reloaded, and reloads them as
    necessary.
 
 10. If there were no errors, it will tell you it successfully reloaded `#`
    modules, and your changes should now be visible. Repeat 7 - 9 as needed.
 
-To shutdown conduwuit in this setup, hit/send `CTRL+\`. Normal builds still
+To shutdown Continuwuity in this setup, hit/send `CTRL+\`. Normal builds still
 shutdown with `CTRL+C` as usual.
 
 Steps 1 - 5 are the initial first-time steps for using this. To remove the hot
@@ -101,7 +101,7 @@ reload setup, revert/comment all the Cargo.toml changes.
 As mentioned in the requirements section, if you happen to have some linker
 issues, try using the `-fuse-ld=` rustflag and specify mold or gold in all the
 `rustflags` definitions in the top level Cargo.toml, and please let us know in
-the [conduwuit Matrix room][7] the problem. mold can be installed typically
+the [Continuwuity Matrix room][7] the problem. mold can be installed typically
 through your distro, and gold is provided by the binutils package.
 
 It's possible a helper script can be made to do all of this, or most preferably
@@ -136,7 +136,7 @@ acyclic graph. The primary rule is simple and illustrated in the figure below:
 **no crate is allowed to call a function or use a variable from a crate below
 it.**
 
-![conduwuit's dynamic library setup diagram - created by Jason
+![Continuwuity's dynamic library setup diagram - created by Jason
 Volk](assets/libraries.png)
 
 When a symbol is referenced between crates they become bound: **crates cannot be
@@ -147,7 +147,7 @@ by using an `RTLD_LOCAL` binding for just one link between the main executable
 and the first crate, freeing the executable from all modules as no global
 binding ever occurs between them.
 
-![conduwuit's reload and load order diagram - created by Jason
+![Continuwuity's reload and load order diagram - created by Jason
 Volk](assets/reload_order.png)
 
 Proper resource management is essential for reliable reloading to occur. This is
@@ -196,5 +196,5 @@ The initial implementation PR is available [here][1].
 [4]: https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049
 [5]: https://github.com/rust-lang/cargo/issues/12746
 [6]: https://crates.io/crates/hot-lib-reloader/
-[7]: https://matrix.to/#/#conduwuit:puppygock.gay
+[7]: https://matrix.to/#/#continuwuity:continuwuity.org
 [8]: https://crates.io/crates/libloading

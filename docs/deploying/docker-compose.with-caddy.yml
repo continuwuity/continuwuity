@@ -1,6 +1,6 @@
 services:
     caddy:
-    # This compose file uses caddy-docker-proxy as the reverse proxy for conduwuit!
+    # This compose file uses caddy-docker-proxy as the reverse proxy for Continuwuity!
     # For more info, visit https://github.com/lucaslorentz/caddy-docker-proxy
         image: lucaslorentz/caddy-docker-proxy:ci-alpine
         ports:
@@ -20,7 +20,7 @@ services:
             caddy.1_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc3575.proxy":{"url":"https://matrix.example.com"}}
 
     homeserver:
-        ### If you already built the conduwuit image with 'docker build' or want to use a registry image,
+        ### If you already built the Continuwuity image with 'docker build' or want to use a registry image,
         ### then you are ready to go.
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
