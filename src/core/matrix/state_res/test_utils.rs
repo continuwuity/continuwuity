@@ -133,17 +133,11 @@ pub(crate) async fn do_check(
 				.collect();
 
 			let event_map = &event_map;
-			let fetch = |id: <PduEvent as Event>::Id| ready(event_map.get(&id).cloned());
-			let exists = |id: <PduEvent as Event>::Id| ready(event_map.get(&id).is_some());
-			let resolved = super::resolve(
-				&RoomVersionId::V6,
-				state_sets,
-				&auth_chain_sets,
-				&fetch,
-				&exists,
-				1,
-			)
-			.await;
+			let fetch = |id: OwnedEventId| ready(event_map.get(&id).cloned());
+			let exists = |id: OwnedEventId| ready(event_map.get(&id).is_some());
+			let resolved =
+				super::resolve(&RoomVersionId::V6, state_sets, &auth_chain_sets, &fetch, &exists)
+					.await;
 
 			match resolved {
 				| Ok(state) => state,

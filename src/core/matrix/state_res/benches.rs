@@ -52,7 +52,6 @@ fn lexico_topo_sort(c: &mut test::Bencher) {
 #[cfg(conduwuit_bench)]
 #[cfg_attr(conduwuit_bench, bench)]
 fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
-	let parallel_fetches = 32;
 	let mut store = TestStore(hashmap! {});
 
 	// build up the DAG
@@ -78,7 +77,6 @@ fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
 			&auth_chain_sets,
 			&fetch,
 			&exists,
-			parallel_fetches,
 		)
 		.await
 		{
@@ -91,7 +89,6 @@ fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
 #[cfg(conduwuit_bench)]
 #[cfg_attr(conduwuit_bench, bench)]
 fn resolve_deeper_event_set(c: &mut test::Bencher) {
-	let parallel_fetches = 32;
 	let mut inner = INITIAL_EVENTS();
 	let ban = BAN_STATE_SET();
 
@@ -153,7 +150,6 @@ fn resolve_deeper_event_set(c: &mut test::Bencher) {
 			&auth_chain_sets,
 			&fetch,
 			&exists,
-			parallel_fetches,
 		)
 		.await
 		{
