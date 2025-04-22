@@ -26,6 +26,7 @@ services:
         restart: unless-stopped
         volumes:
             - db:/var/lib/conduwuit
+            - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's. 
             #- ./conduwuit.toml:/etc/conduwuit.toml
         environment:
             CONDUWUIT_SERVER_NAME: example.com # EDIT THIS
