@@ -186,7 +186,11 @@ impl<E: Event + Clone> TestStore<E> {
 	}
 
 	/// Returns a Vec of the related auth events to the given `event`.
-	fn auth_event_ids(&self, room_id: &RoomId, event_ids: Vec<E::Id>) -> Result<HashSet<E::Id>> {
+	fn auth_event_ids(
+		&self,
+		room_id: &RoomId,
+		event_ids: Vec<OwnedEventId>,
+	) -> Result<HashSet<OwnedEventId>> {
 		let mut result = HashSet::new();
 		let mut stack = event_ids;
 
@@ -212,8 +216,8 @@ impl<E: Event + Clone> TestStore<E> {
 	fn auth_chain_diff(
 		&self,
 		room_id: &RoomId,
-		event_ids: Vec<Vec<E::Id>>,
-	) -> Result<Vec<E::Id>> {
+		event_ids: Vec<Vec<OwnedEventId>>,
+	) -> Result<Vec<OwnedEventId>> {
 		let mut auth_chain_sets = vec![];
 		for ids in event_ids {
 			// TODO state store `auth_event_ids` returns self in the event ids list
@@ -234,7 +238,7 @@ impl<E: Event + Clone> TestStore<E> {
 			Ok(auth_chain_sets
 				.into_iter()
 				.flatten()
-				.filter(|id| !common.contains(id.borrow()))
+				.filter(|id| !common.contains(id))
 				.collect())
 		} else {
 			Ok(vec![])
@@ -561,7 +565,7 @@ impl EventTypeExt for &TimelineEventType {
 
 mod event {
 	use ruma::{
-		MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
+		EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
 		events::{TimelineEventType, pdu::Pdu},
 	};
 	use serde::{Deserialize, Serialize};
@@ -570,9 +574,7 @@ mod event {
 	use super::Event;
 
 	impl Event for PduEvent {
-		type Id = OwnedEventId;
-
-		fn event_id(&self) -> &Self::Id { &self.event_id }
+		fn event_id(&self) -> &EventId { &self.event_id }
 
 		fn room_id(&self) -> &RoomId {
 			match &self.rest {
@@ -628,28 +630,30 @@ mod event {
 			}
 		}
 
-		fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + Send + '_> {
+		fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => Box::new(ev.prev_events.iter().map(|(id, _)| id)),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.prev_events.iter()),
+				| Pdu::RoomV1Pdu(ev) =>
+					Box::new(ev.prev_events.iter().map(|(id, _)| id.as_ref())),
+				| Pdu::RoomV3Pdu(ev) => Box::new(ev.prev_events.iter().map(AsRef::as_ref)),
 				#[cfg(not(feature = "unstable-exhaustive-types"))]
 				| _ => unreachable!("new PDU version"),
 			}
 		}
 
-		fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + Send + '_> {
+		fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => Box::new(ev.auth_events.iter().map(|(id, _)| id)),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.auth_events.iter()),
+				| Pdu::RoomV1Pdu(ev) =>
+					Box::new(ev.auth_events.iter().map(|(id, _)| id.as_ref())),
+				| Pdu::RoomV3Pdu(ev) => Box::new(ev.auth_events.iter().map(AsRef::as_ref)),
 				#[cfg(not(feature = "unstable-exhaustive-types"))]
 				| _ => unreachable!("new PDU version"),
 			}
 		}
 
-		fn redacts(&self) -> Option<&Self::Id> {
+		fn redacts(&self) -> Option<&EventId> {
 			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => ev.redacts.as_ref(),
-				| Pdu::RoomV3Pdu(ev) => ev.redacts.as_ref(),
+				| Pdu::RoomV1Pdu(ev) => ev.redacts.as_deref(),
+				| Pdu::RoomV3Pdu(ev) => ev.redacts.as_deref(),
 				#[cfg(not(feature = "unstable-exhaustive-types"))]
 				| _ => unreachable!("new PDU version"),
 			}
