@@ -116,7 +116,7 @@
 # `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 # announcements or major updates. This is not an update check endpoint.
 #
-#allow_announcements_check =
+#allow_announcements_check = true
 
 # Set this to any float value to multiply conduwuit's in-memory LRU caches
 # with such as "auth_chain_cache_capacity".
@@ -1207,7 +1207,7 @@
 # You can set this to ["*"] to block all servers by default, and then
 # use `allowed_remote_server_names` to allow only specific servers.
 #
-# example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
+# example: ["badserver\\.tld$", "badphrase", "19dollarfortnitecards"]
 #
 #forbidden_remote_server_names = []
 
@@ -1216,7 +1216,7 @@
 #
 # This option has no effect if `forbidden_remote_server_names` is empty.
 #
-# example: ["goodserver\.tld$", "goodphrase"]
+# example: ["goodserver\\.tld$", "goodphrase"]
 #
 #allowed_remote_server_names = []
 

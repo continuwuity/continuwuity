@@ -163,6 +163,8 @@ pub struct Config {
 	/// If enabled, conduwuit will send a simple GET request periodically to
 	/// `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 	/// announcements or major updates. This is not an update check endpoint.
+	/// 
+	/// default: true
 	#[serde(alias = "allow_check_for_updates", default = "true_fn")]
 	pub allow_announcements_check: bool,
 
@@ -1384,7 +1386,7 @@ pub struct Config {
 	/// You can set this to ["*"] to block all servers by default, and then
 	/// use `allowed_remote_server_names` to allow only specific servers.
 	///
-	/// example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
+	/// example: ["badserver\\.tld$", "badphrase", "19dollarfortnitecards"]
 	///
 	/// default: []
 	#[serde(default, with = "serde_regex")]
@@ -1395,7 +1397,7 @@ pub struct Config {
 	///
 	/// This option has no effect if `forbidden_remote_server_names` is empty.
 	///
-	/// example: ["goodserver\.tld$", "goodphrase"]
+	/// example: ["goodserver\\.tld$", "goodphrase"]
 	///
 	/// default: []
 	#[serde(default, with = "serde_regex")]
