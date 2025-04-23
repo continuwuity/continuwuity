@@ -10,19 +10,35 @@ pub struct Service {
 }
 
 struct Services {
-	pub config: Dep<config::Service>
+	// pub server: Arc<Server>,
+	pub config: Dep<config::Service>,
 }
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				config: args.depend::<config::Service>("config")
+				// server: args.server.clone(),
+				config: args.depend::<config::Service>("config"),
 			},
 		}))
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
+}
+
+#[implement(Service)]
+#[must_use]
+pub fn is_remote_server_ignored(&self, server_name: &ServerName) -> bool {
+	// We must never block federating with ourselves
+	if server_name == self.services.config.server_name {
+		return false;
+	}
+
+	self.services
+		.config
+		.ignore_messages_from_server_names
+		.is_match(server_name.host())
 }
 
 #[implement(Service)]

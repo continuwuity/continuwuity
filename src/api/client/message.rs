@@ -275,10 +275,12 @@ pub(crate) async fn is_ignored_pdu(
 
 	let ignored_server = services
 		.moderation
-		.is_remote_server_forbidden(pdu.sender().server_name());
+		.is_remote_server_ignored(pdu.sender().server_name());
 
 	if ignored_type
-		&& (ignored_server || services.users.user_is_ignored(&pdu.sender, user_id).await)
+		&& (ignored_server
+			|| (!services.config.send_messages_from_ignored_users_to_client
+				&& services.users.user_is_ignored(&pdu.sender, user_id).await))
 	{
 		return true;
 	}
