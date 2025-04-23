@@ -16,7 +16,7 @@ concurrency:
 jobs:
   docs:
     name: Build and Deploy Documentation
-    runs-on: not-nexy
+    runs-on: ubuntu-latest
 
     steps:
       - name: Sync repository
@@ -41,6 +41,7 @@ jobs:
           # Copy the Matrix .well-known files
           cp ./docs/static/server ./public/.well-known/matrix/server
           cp ./docs/static/client ./public/.well-known/matrix/client
+          cp ./docs/static/client ./public/.well-known/matrix/support
           cp ./docs/static/announcements.json ./public/.well-known/continuwuity/announcements
           cp ./docs/static/announcements.schema.json ./public/schema/announcements.schema.json
           # Copy the custom headers file
