@@ -163,7 +163,7 @@ pub struct Config {
 	/// If enabled, conduwuit will send a simple GET request periodically to
 	/// `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 	/// announcements or major updates. This is not an update check endpoint.
-	/// 
+	///
 	/// default: true
 	#[serde(alias = "allow_check_for_updates", default = "true_fn")]
 	pub allow_announcements_check: bool,
@@ -1359,25 +1359,13 @@ pub struct Config {
 	#[serde(default)]
 	pub prune_missing_media: bool,
 
-	/// Vector list of regex patterns of server names that conduwuit will refuse
-	/// to download remote media from.
-	///
-	/// example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
-	///
-	/// default: []
-	#[serde(default, with = "serde_regex")]
-	pub prevent_media_downloads_from: RegexSet,
-
 	/// List of forbidden server names via regex patterns that we will block
 	/// incoming AND outgoing federation with, and block client room joins /
 	/// remote user invites.
 	///
-	/// Additionally, it will hide messages from these servers for all users
-	/// on this server.
-	///
 	/// Note that your messages can still make it to forbidden servers through
-	/// backfilling. Events we receive from forbidden servers via backfill will
-	/// be stored in the database, but will not be sent to the client.
+	/// backfilling. Events we receive from forbidden servers via backfill
+	/// from servers we *do* federate with will be stored in the database.
 	///
 	/// This check is applied on the room ID, room alias, sender server name,
 	/// sender user's server name, inbound federation X-Matrix origin, and
@@ -1403,6 +1391,15 @@ pub struct Config {
 	#[serde(default, with = "serde_regex")]
 	pub allowed_remote_server_names: RegexSet,
 
+	/// Vector list of regex patterns of server names that conduwuit will refuse
+	/// to download remote media from.
+	///
+	/// example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
+	///
+	/// default: []
+	#[serde(default, with = "serde_regex")]
+	pub prevent_media_downloads_from: RegexSet,
+
 	/// List of forbidden server names via regex patterns that we will block all
 	/// outgoing federated room directory requests for. Useful for preventing
 	/// our users from wandering into bad servers or spaces.
@@ -1412,6 +1409,31 @@ pub struct Config {
 	/// default: []
 	#[serde(default, with = "serde_regex")]
 	pub forbidden_remote_room_directory_server_names: RegexSet,
+
+	/// Vector list of regex patterns of server names that conduwuit will not
+	/// send messages to the client from.
+	///
+	/// Note that there is no way for clients to receive messages once a server
+	/// has become unignored without doing a full sync. This is a protocol
+	/// limitation with the current sync protocols. This means this is somewhat
+	/// of a nuclear option.
+	///
+	/// example: ["reallybadserver\.tld$", "reallybadphrase",
+	/// "69dollarfortnitecards"]
+	///
+	/// default: []
+	#[serde(default, with = "serde_regex")]
+	pub ignore_messages_from_server_names: RegexSet,
+
+	/// Send messages from users that the user has ignored to the client.
+	///
+	/// There is no way for clients to receive messages sent while a user was
+	/// ignored without doing a full sync. This is a protocol limitation with
+	/// the current sync protocols. Disabling this option will move
+	/// responsibility of ignoring messages to the client, which can avoid this
+	/// limitation.
+	#[serde(default)]
+	pub send_messages_from_ignored_users_to_client: bool,
 
 	/// Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
 	/// do not want conduwuit to send outbound requests to. Defaults to
