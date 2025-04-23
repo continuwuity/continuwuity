@@ -1855,7 +1855,10 @@ pub async fn leave_room(
 
 	// Ask a remote server if we don't have this room and are not knocking on it
 	if dont_have_room.and(not_knocked).await {
-		if let Err(e) = remote_leave_room(services, user_id, room_id).boxed().await {
+		if let Err(e) = remote_leave_room(services, user_id, room_id, reason.clone())
+			.boxed()
+			.await
+		{
 			warn!(%user_id, "Failed to leave room {room_id} remotely: {e}");
 			// Don't tell the client about this error
 		}
@@ -1940,6 +1943,7 @@ async fn remote_leave_room(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,
+	reason: Option<String>,
 ) -> Result<()> {
 	let mut make_leave_response_and_server =
 		Err!(BadServerResponse("No remote server available to assist in leaving {room_id}."));
@@ -2056,6 +2060,12 @@ async fn remote_leave_room(
 				.expect("Timestamp is valid js_int value"),
 		),
 	);
+	// Inject the reason key into the event content dict if it exists
+	if let Some(reason) = reason {
+		if let Some(CanonicalJsonValue::Object(content)) = leave_event_stub.get_mut("content") {
+			content.insert("reason".to_owned(), CanonicalJsonValue::String(reason));
+		}
+	}
 
 	// room v3 and above removed the "event_id" field from remote PDU format
 	match room_version_id {
