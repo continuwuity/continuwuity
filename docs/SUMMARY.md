@@ -19,4 +19,4 @@
   - [Contributing](contributing.md)
   - [Testing](development/testing.md)
   - [Hot Reloading ("Live" Development)](development/hot_reload.md)
-- [conduwuit Community Code of Conduct](conduwuit_coc.md)
+- [Community (and Guidelines)](community.md)
