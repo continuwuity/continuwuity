@@ -1,0 +1,24 @@
+{
+  "contacts": [
+    {
+      "email_address": "security@continuwuity.org",
+      "role": "m.role.security"
+    },
+    {
+      "matrix_id": "@tom:continuwuity.org",
+      "email_address": "tom@continuwuity.org",
+      "role": "m.role.admin"
+    },
+    {
+      "matrix_id": "@jade:continuwuity.org",
+      "email_address": "jade@continuwuity.org",
+      "role": "m.role.admin"
+    },
+    {
+      "matrix_id": "@nex:continuwuity.org",
+      "email_address": "nex@continuwuity.org",
+      "role": "m.role.admin"
+    }
+  ],
+  "support_page": "https://continuwuity.org/introduction#contact"
+}
