@@ -967,9 +967,9 @@
 #rocksdb_compaction_ioprio_idle = true
 
 # Enables RocksDB compaction. You should never ever have to set this
-# option to false. If you for some reason find yourself needing to use this
-# option as part of troubleshooting or a bug, please reach out to us in
-# the conduwuit Matrix room with information and details.
+# option to false. If you for some reason find yourself needing to use
+# this option as part of troubleshooting or a bug, please reach out to us
+# in the conduwuit Matrix room with information and details.
 #
 # Disabling compaction will lead to a significantly bloated and
 # explosively large database, gradually poor performance, unnecessarily

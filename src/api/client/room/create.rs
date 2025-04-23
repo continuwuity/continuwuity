@@ -614,24 +614,31 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 				"Custom room ID contains an unexpected `:` which is not allowed.",
 			));
 		}
-	} else if custom_room_id.starts_with('!'){
+	} else if custom_room_id.starts_with('!') {
 		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam, 
-			"Room ID is prefixed with !, but is not fully qualified. You likely did not want this."));
+			ErrorKind::InvalidParam,
+			"Room ID is prefixed with !, but is not fully qualified. You likely did not want \
+			 this.",
+		));
 	} else {
 		room_id = format!("!{custom_room_id}:{server_name}");
 	}
 	OwnedRoomId::parse(room_id)
 		.map_err(Into::into)
-		.and_then(
-			|full_room_id| {
-				if full_room_id.server_name().expect("failed to extract server name from room ID") != server_name {
-					Err(Error::BadRequest(ErrorKind::InvalidParam, "Custom room ID must be on this server."))
-				} else {
-					Ok(full_room_id)
-				}
+		.and_then(|full_room_id| {
+			if full_room_id
+				.server_name()
+				.expect("failed to extract server name from room ID")
+				!= server_name
+			{
+				Err(Error::BadRequest(
+					ErrorKind::InvalidParam,
+					"Custom room ID must be on this server.",
+				))
+			} else {
+				Ok(full_room_id)
 			}
-		)
+		})
 		.inspect(|full_room_id| {
 			debug_info!(?full_room_id, "Full custom room ID");
 		})
