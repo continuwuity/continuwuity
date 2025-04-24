@@ -36,6 +36,7 @@ assets = [
 
 [features]
 default = [
+    "blurhashing",
 	"brotli_compression",
 	"element_hacks",
 	"gzip_compression",
