@@ -1,24 +1,25 @@
 name: Release Docker Image
-concurrency: 
+concurrency:
   group: "release-image-${{ github.ref }}"
 
 on:
   pull_request:
   push:
     paths-ignore:
-      - '.gitlab-ci.yml'
-      - '.gitignore'
-      - 'renovate.json'
-      - 'debian/**'
-      - 'docker/**'
-      - 'docs/**'
+      - "*.md"
+      - "**/*.md"
+      - ".gitlab-ci.yml"
+      - ".gitignore"
+      - "renovate.json"
+      - "debian/**"
+      - "docker/**"
+      - "docs/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 env:
-    BUILTIN_REGISTRY: forgejo.ellis.link
-    BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
-
+  BUILTIN_REGISTRY: forgejo.ellis.link
+  BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
 
 jobs:
   define-variables:
@@ -37,7 +38,7 @@ jobs:
           script: |
             const githubRepo = '${{ github.repository }}'.toLowerCase()
             const repoId = githubRepo.split('/')[1]
-            
+
             core.setOutput('github_repository', githubRepo)
             const builtinImage = '${{ env.BUILTIN_REGISTRY }}/' + githubRepo
             let images = []
@@ -48,7 +49,7 @@ jobs:
             core.setOutput('images_list', images.join(","))
             const platforms = ['linux/amd64', 'linux/arm64']
             core.setOutput('build_matrix', JSON.stringify({
-              platform: platforms, 
+              platform: platforms,
               include: platforms.map(platform => { return {
                 platform,
                 slug: platform.replace('/', '-')
@@ -65,22 +66,15 @@ jobs:
       attestations: write
       id-token: write
     strategy:
-      matrix: {
-        "include": [
-          {
-            "platform": "linux/amd64",
-            "slug": "linux-amd64"
-          },
-          {
-            "platform": "linux/arm64",
-            "slug": "linux-arm64"
-          }
-        ],
-        "platform": [
-          "linux/amd64",
-          "linux/arm64"
-        ]
-      }
+      matrix:
+        {
+          "include":
+            [
+              { "platform": "linux/amd64", "slug": "linux-amd64" },
+              { "platform": "linux/arm64", "slug": "linux-arm64" },
+            ],
+          "platform": ["linux/amd64", "linux/arm64"],
+        }
     steps:
       - name: Echo strategy
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
@@ -105,9 +99,9 @@ jobs:
       - name: Login to builtin registry
         uses: docker/login-action@v3
         with:
-            registry: ${{ env.BUILTIN_REGISTRY }}
-            username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
-            password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          registry: ${{ env.BUILTIN_REGISTRY }}
+          username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
+          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
 
       # This step uses [docker/metadata-action](https://github.com/docker/metadata-action#about) to extract tags and labels that will be applied to the specified image. The `id` "meta" allows the output of this step to be referenced in a subsequent step. The `images` value provides the base name for the tags and labels.
       - name: Extract metadata (labels, annotations) for Docker
@@ -165,7 +159,7 @@ jobs:
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"          
+          touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
         uses: forgejo/upload-artifact@v4
@@ -174,7 +168,7 @@ jobs:
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 1
-  
+
   merge:
     runs-on: dind
     container: ghcr.io/catthehacker/ubuntu:act-latest
@@ -190,9 +184,9 @@ jobs:
       - name: Login to builtin registry
         uses: docker/login-action@v3
         with:
-            registry: ${{ env.BUILTIN_REGISTRY }}
-            username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
-            password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          registry: ${{ env.BUILTIN_REGISTRY }}
+          username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
+          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -211,7 +205,7 @@ jobs:
           images: ${{needs.define-variables.outputs.images}}
           # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
         env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: index         
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
