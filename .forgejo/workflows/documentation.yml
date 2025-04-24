@@ -57,17 +57,17 @@ jobs:
         run: npm install --save-dev wrangler@latest
 
       - name: Deploy to Cloudflare Pages (Production)
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/main') && vars.CLOUDFLARE_PROJECT_NAME != ''
         uses: https://github.com/cloudflare/wrangler-action@v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./public --branch=main --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+          command: pages deploy ./public --branch=main --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
 
       - name: Deploy to Cloudflare Pages (Preview)
-        if: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+        if: (github.event_name != 'push' || github.ref != 'refs/heads/main') && vars.CLOUDFLARE_PROJECT_NAME != ''
         uses: https://github.com/cloudflare/wrangler-action@v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./public --branch=${{ github.head_ref }} --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+          command: pages deploy ./public --branch=${{ github.head_ref }} --commit-dirty=true --project-name=${{ vars.CLOUDFLARE_PROJECT_NAME }}
