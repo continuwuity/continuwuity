@@ -1,0 +1,127 @@
+name: Deploy Element Web
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: "element-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    name: Build and Deploy Element Web
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Node.js
+        uses: https://code.forgejo.org/actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Clone, setup, and build Element Web
+        run: |
+          echo "Cloning Element Web..."
+          git clone https://github.com/maunium/element-web
+          cd element-web
+          git checkout develop
+          git pull
+
+          echo "Cloning matrix-js-sdk..."
+          git clone https://github.com/matrix-org/matrix-js-sdk.git
+
+          echo "Installing Yarn..."
+          npm install -g yarn
+
+          echo "Installing dependencies..."
+          yarn install
+
+          echo "Preparing build environment..."
+          mkdir -p .home
+
+          echo "Cleaning up specific node_modules paths..."
+          rm -rf node_modules/@types/eslint-scope/ matrix-*-sdk/node_modules/@types/eslint-scope || echo "Cleanup paths not found, continuing."
+
+          echo "Getting matrix-js-sdk commit hash..."
+          cd matrix-js-sdk
+          jsver=$(git rev-parse HEAD)
+          jsver=${jsver:0:12}
+          cd ..
+          echo "matrix-js-sdk version hash: $jsver"
+
+          echo "Getting element-web commit hash..."
+          ver=$(git rev-parse HEAD)
+          ver=${ver:0:12}
+          echo "element-web version hash: $ver"
+
+          chmod +x ./build-sh
+
+          export VERSION="$ver-js-$jsver"
+          echo "Building Element Web version: $VERSION"
+          ./build-sh
+
+          echo "Checking for build output..."
+          ls -la webapp/
+
+      - name: Create config.json
+        run: |
+          cat <<EOF > ./element-web/webapp/config.json
+          {
+            "default_server_name": "continuwuity.org",
+            "default_server_config": {
+              "m.homeserver": {
+                "base_url": "https://matrix.continuwuity.org"
+              }
+            },
+            "default_country_code": "GB",
+            "default_theme": "dark",
+            "mobile_guide_toast": false,
+            "show_labs_settings": true,
+            "room_directory": [
+              "continuwuity.org",
+              "matrixrooms.info"
+            ],
+            "settings_defaults": {
+              "UIFeature.urlPreviews": true,
+              "UIFeature.feedback": false,
+              "UIFeature.voip": false,
+              "UIFeature.shareQrCode": false,
+              "UIFeature.shareSocial": false,
+              "UIFeature.locationSharing": false,
+              "enableSyntaxHighlightLanguageDetection": true
+            },
+            "features": {
+              "feature_pinning": true,
+              "feature_custom_themes": true
+            }
+          }
+          EOF
+          echo "Created ./element-web/webapp/config.json"
+          cat ./element-web/webapp/config.json
+
+      - name: Upload Artifact
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: element-web
+          path: ./element-web/webapp/
+          retention-days: 14
+
+      - name: Install Wrangler
+        run: npm install --save-dev wrangler@latest
+
+      - name: Deploy to Cloudflare Pages (Production)
+        if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
+        uses: https://github.com/cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy ./element-web/webapp --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}-element"
+
+      - name: Deploy to Cloudflare Pages (Preview)
+        if: github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
+        uses: https://github.com/cloudflare/wrangler-action@v3
+        with:
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: pages deploy ./element-web/webapp --branch="${{ github.head_ref || github.ref_name }}" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}-element"
