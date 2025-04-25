@@ -11,7 +11,7 @@ docker/
 *.iml
 
 # Git folder
-.git
+# .git
 .gitea
 .gitlab
 .github

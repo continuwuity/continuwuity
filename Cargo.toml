@@ -626,6 +626,11 @@ package = "conduwuit_macros"
 path = "src/macros"
 default-features = false
 
+[workspace.dependencies.conduwuit-web]
+package = "conduwuit_web"
+path = "src/web"
+default-features = false
+
 ###############################################################################
 #
 # Release profiles

@@ -103,6 +103,7 @@ conduwuit-admin.workspace = true
 conduwuit-api.workspace = true
 conduwuit-core.workspace = true
 conduwuit-service.workspace = true
+conduwuit-web.workspace = true
 const-str.workspace = true
 futures.workspace = true
 http.workspace = true

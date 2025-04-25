@@ -144,6 +144,9 @@ jobs:
           file: "docker/Dockerfile"
           build-args: |
             CONDUWUIT_VERSION_EXTRA=${{ env.COMMIT_SHORT_SHA }}
+            COMMIT_SHA=${{ github.sha }})
+            REMOTE_URL=${{github.event.repository.html_url }}
+            REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
