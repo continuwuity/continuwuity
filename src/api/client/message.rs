@@ -1,3 +1,5 @@
+use core::panic;
+
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, at,
@@ -132,8 +134,6 @@ pub(crate) async fn get_message_events_route(
 		.take(limit)
 		.collect()
 		.await;
-	// let appservice_id = body.appservice_info.map(|appservice|
-	// appservice.registration.id);
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
@@ -143,7 +143,7 @@ pub(crate) async fn get_message_events_route(
 				if let Some(registration) = body.appservice_info.as_ref() {
 					<&DeviceId>::from(registration.registration.id.as_str())
 				} else {
-					<&DeviceId>::from("")
+					panic!("No device_id provided and no appservice registration found, this should be unreachable");
 				},
 		},
 		room_id,
