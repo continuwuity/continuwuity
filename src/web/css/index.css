@@ -1,0 +1,68 @@
+:root {
+	color-scheme: light;
+	--font-stack: sans-serif;
+
+	--background-color: #fff;
+	--text-color: #000;
+
+	--bg: oklch(0.76 0.0854 317.27);
+	--panel-bg: oklch(0.91 0.042 317.27);
+
+	--name-lightness: 0.45;
+
+	@media (prefers-color-scheme: dark) {
+		color-scheme: dark;
+		--text-color: #fff;
+		--bg: oklch(0.15 0.042 317.27);
+		--panel-bg: oklch(0.24 0.03 317.27);
+
+		--name-lightness: 0.8;
+	}
+
+	--c1: oklch(0.44 0.177 353.06);
+	--c2: oklch(0.59 0.158 150.88);
+
+	--normal-font-size: 1rem;
+	--small-font-size: 0.8rem;
+}
+
+body {
+	color: var(--text-color);
+	font-family: var(--font-stack);
+	margin: 0;
+	padding: 0;
+	display: grid;
+	place-items: center;
+	min-height: 100vh;
+}
+
+html {
+	background-color: var(--bg);
+	background-image: linear-gradient(
+		70deg,
+		oklch(from var(--bg) l + 0.2 c h),
+		oklch(from var(--bg) l - 0.2 c h)
+	);
+	font-size: 16px;
+}
+
+.panel {
+	width: min(clamp(24rem, 12rem + 40vw, 48rem), 100vw);
+	border-radius: 15px;
+	background-color: var(--panel-bg);
+	padding-inline: 1.5rem;
+	padding-block: 1rem;
+	box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
+}
+
+.project-name {
+	text-decoration: none;
+	background: linear-gradient(
+		130deg,
+		oklch(from var(--c1) var(--name-lightness) c h),
+		oklch(from var(--c2) var(--name-lightness) c h)
+	);
+	background-clip: text;
+	color: transparent;
+	filter: brightness(1.2);
+}

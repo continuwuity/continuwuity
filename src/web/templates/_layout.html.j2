@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}Continuwuity{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <style type="text/css" nonce="{{ nonce }}">
+        /*<![CDATA[*/
+            {{ include_str !("css/index.css") | safe }}
+        /*]]>*/
+    </style>
+</head>
+
+<body>
+    <main>{%~ block content %}{% endblock ~%}</main>
+    {%~ block footer ~%}
+        <footer>
+            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a>
+                {%~ if let Some(version_info) = option_env!("CONDUWUIT_VERSION_EXTRA").or(option_env!("SHORT_COMMIT_SHA")) ~%}
+                    {%~ if let Some(url) = option_env!("REMOTE_COMMIT_URL").or(option_env!("REMOTE_URL")) ~%}
+                        (<a href="{{ url }}">{{ version_info }}</a>)
+                    {%~ else ~%}
+                        ({{ version_info }})
+                    {%~ endif ~%}
+                {%~ endif ~%}</p>
+        </footer>
+    {%~ endblock ~%}
+</body>
+
+</html>

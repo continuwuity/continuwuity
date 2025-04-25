@@ -1,0 +1,20 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Server Error
+{%- endblock -%}
+
+{%- block content -%}
+<h1>
+    {%- match err -%}
+    {% else -%} 500: Internal Server Error
+    {%- endmatch -%}
+</h1>
+
+{%- match err -%}
+    {% when WebError::Render(err) -%}
+        <pre>{{ err }}</pre>
+    {% else -%} <p>An error occurred</p>
+{%- endmatch -%}
+
+{%- endblock -%}

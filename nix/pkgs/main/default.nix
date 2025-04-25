@@ -130,6 +130,8 @@ buildDepsOnlyEnv =
   });
 
 buildPackageEnv = {
+  COMMIT_SHA = inputs.self.rev or inputs.self.dirtyRev or "";
+  SHORT_COMMIT_SHA = inputs.self.shortRev or inputs.self.dirtyShortRev or "";
   CONDUWUIT_VERSION_EXTRA = inputs.self.shortRev or inputs.self.dirtyShortRev or "";
 } // buildDepsOnlyEnv // {
   # Only needed in static stdenv because these are transitive dependencies of rocksdb
