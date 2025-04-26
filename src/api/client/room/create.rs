@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug_info, debug_warn, err, error, info,
+	Err, Result, debug_info, debug_warn, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 	warn,
 };
@@ -10,10 +10,7 @@ use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId,
-	api::client::{
-		error::ErrorKind,
-		room::{self, create_room},
-	},
+	api::client::room::{self, create_room},
 	events::{
 		TimelineEventType,
 		room::{
@@ -64,10 +61,7 @@ pub(crate) async fn create_room_route(
 		&& body.appservice_info.is_none()
 		&& !services.users.is_admin(sender_user).await
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::forbidden(),
-			"Room creation has been disabled.",
-		));
+		return Err!(Request(Forbidden("Room creation has been disabled.",)));
 	}
 
 	let room_id: OwnedRoomId = match &body.room_id {
@@ -77,10 +71,7 @@ pub(crate) async fn create_room_route(
 
 	// check if room ID doesn't already exist instead of erroring on auth check
 	if services.rooms.short.get_shortroomid(&room_id).await.is_ok() {
-		return Err(Error::BadRequest(
-			ErrorKind::RoomInUse,
-			"Room with that custom room ID already exists",
-		));
+		return Err!(Request(RoomInUse("Room with that custom room ID already exists",)));
 	}
 
 	if body.visibility == room::Visibility::Public
@@ -123,10 +114,9 @@ pub(crate) async fn create_room_route(
 			if services.server.supported_room_version(&room_version) {
 				room_version
 			} else {
-				return Err(Error::BadRequest(
-					ErrorKind::UnsupportedRoomVersion,
-					"This server does not support that room version.",
-				));
+				return Err!(Request(UnsupportedRoomVersion(
+					"This server does not support that room version."
+				)));
 			},
 		| None => services.server.config.default_room_version.clone(),
 	};
@@ -138,16 +128,17 @@ pub(crate) async fn create_room_route(
 			let mut content = content
 				.deserialize_as::<CanonicalJsonObject>()
 				.map_err(|e| {
-					error!("Failed to deserialise content as canonical JSON: {}", e);
-					Error::bad_database("Failed to deserialise content as canonical JSON.")
+					err!(Request(BadJson(error!(
+						"Failed to deserialise content as canonical JSON: {e}"
+					))))
 				})?;
+
 			match room_version {
 				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
 					content.insert(
 						"creator".into(),
 						json!(&sender_user).try_into().map_err(|e| {
-							info!("Invalid creation content: {e}");
-							Error::BadRequest(ErrorKind::BadJson, "Invalid creation content")
+							err!(Request(BadJson(debug_error!("Invalid creation content: {e}"))))
 						})?,
 					);
 				},
@@ -157,9 +148,9 @@ pub(crate) async fn create_room_route(
 			}
 			content.insert(
 				"room_version".into(),
-				json!(room_version.as_str()).try_into().map_err(|_| {
-					Error::BadRequest(ErrorKind::BadJson, "Invalid creation content")
-				})?,
+				json!(room_version.as_str())
+					.try_into()
+					.map_err(|e| err!(Request(BadJson("Invalid creation content: {e}"))))?,
 			);
 			content
 		},
@@ -341,8 +332,7 @@ pub(crate) async fn create_room_route(
 	// 6. Events listed in initial_state
 	for event in &body.initial_state {
 		let mut pdu_builder = event.deserialize_as::<PduBuilder>().map_err(|e| {
-			warn!("Invalid initial state event: {:?}", e);
-			Error::BadRequest(ErrorKind::InvalidParam, "Invalid initial state event.")
+			err!(Request(InvalidParam(warn!("Invalid initial state event: {e:?}"))))
 		})?;
 
 		debug_info!("Room creation initial state event: {event:?}");
@@ -351,7 +341,7 @@ pub(crate) async fn create_room_route(
 		// state event in there with the content of literally `{}` (not null or empty
 		// string), let's just skip it over and warn.
 		if pdu_builder.content.get().eq("{}") {
-			info!("skipping empty initial state event with content of `{{}}`: {event:?}");
+			debug_warn!("skipping empty initial state event with content of `{{}}`: {event:?}");
 			debug_warn!("content: {}", pdu_builder.content.get());
 			continue;
 		}
@@ -498,9 +488,7 @@ fn default_power_levels_content(
 
 	if let Some(power_level_content_override) = power_level_content_override {
 		let json: JsonObject = serde_json::from_str(power_level_content_override.json().get())
-			.map_err(|_| {
-				Error::BadRequest(ErrorKind::BadJson, "Invalid power_level_content_override.")
-			})?;
+			.map_err(|e| err!(Request(BadJson("Invalid power_level_content_override: {e:?}"))))?;
 
 		for (key, value) in json {
 			power_levels_content[key] = value;
@@ -518,16 +506,14 @@ async fn room_alias_check(
 ) -> Result<OwnedRoomAliasId> {
 	// Basic checks on the room alias validity
 	if room_alias_name.contains(':') {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
+		return Err!(Request(InvalidParam(
 			"Room alias contained `:` which is not allowed. Please note that this expects a \
 			 localpart, not the full room alias.",
-		));
+		)));
 	} else if room_alias_name.contains(char::is_whitespace) {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
+		return Err!(Request(InvalidParam(
 			"Room alias contained spaces which is not a valid room alias.",
-		));
+		)));
 	}
 
 	// check if room alias is forbidden
@@ -536,7 +522,7 @@ async fn room_alias_check(
 		.forbidden_alias_names()
 		.is_match(room_alias_name)
 	{
-		return Err(Error::BadRequest(ErrorKind::Unknown, "Room alias name is forbidden."));
+		return Err!(Request(Unknown("Room alias name is forbidden.")));
 	}
 
 	let server_name = services.globals.server_name();
@@ -556,25 +542,19 @@ async fn room_alias_check(
 		.await
 		.is_ok()
 	{
-		return Err(Error::BadRequest(ErrorKind::RoomInUse, "Room alias already exists."));
+		return Err!(Request(RoomInUse("Room alias already exists.")));
 	}
 
 	if let Some(info) = appservice_info {
 		if !info.aliases.is_match(full_room_alias.as_str()) {
-			return Err(Error::BadRequest(
-				ErrorKind::Exclusive,
-				"Room alias is not in namespace.",
-			));
+			return Err!(Request(Exclusive("Room alias is not in namespace.")));
 		}
 	} else if services
 		.appservice
 		.is_exclusive_alias(&full_room_alias)
 		.await
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::Exclusive,
-			"Room alias reserved by appservice.",
-		));
+		return Err!(Request(Exclusive("Room alias reserved by appservice.",)));
 	}
 
 	debug_info!("Full room alias: {full_room_alias}");
@@ -590,24 +570,33 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 		.forbidden_alias_names()
 		.is_match(custom_room_id)
 	{
-		return Err(Error::BadRequest(ErrorKind::Unknown, "Custom room ID is forbidden."));
+		return Err!(Request(Unknown("Custom room ID is forbidden.")));
+	}
+
+	if custom_room_id.contains(':') {
+		return Err!(Request(InvalidParam(
+			"Custom room ID contained `:` which is not allowed. Please note that this expects a \
+			 localpart, not the full room ID.",
+		)));
+	} else if custom_room_id.contains(char::is_whitespace) {
+		return Err!(Request(InvalidParam(
+			"Custom room ID contained spaces which is not valid."
+		)));
 	}
 
 	let server_name = services.globals.server_name();
 	let mut room_id = custom_room_id.to_owned();
 	if custom_room_id.contains(':') {
 		if !custom_room_id.starts_with('!') {
-			return Err(Error::BadRequest(
-				ErrorKind::InvalidParam,
+			return Err!(Request(InvalidParam(
 				"Custom room ID contains an unexpected `:` which is not allowed.",
-			));
+			)));
 		}
 	} else if custom_room_id.starts_with('!') {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
+		return Err!(Request(InvalidParam(
 			"Room ID is prefixed with !, but is not fully qualified. You likely did not want \
 			 this.",
-		));
+		)));
 	} else {
 		room_id = format!("!{custom_room_id}:{server_name}");
 	}
@@ -619,10 +608,7 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 				.expect("failed to extract server name from room ID")
 				!= server_name
 			{
-				Err(Error::BadRequest(
-					ErrorKind::InvalidParam,
-					"Custom room ID must be on this server.",
-				))
+				Err!(Request(InvalidParam("Custom room ID must be on this server.",)))
 			} else {
 				Ok(full_room_id)
 			}

@@ -1,7 +1,7 @@
 use axum::extract::State;
-use conduwuit::{Error, Result};
+use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::api::client::{error::ErrorKind, room::aliases};
+use ruma::api::client::room::aliases;
 
 use crate::Ruma;
 
@@ -23,10 +23,7 @@ pub(crate) async fn get_room_aliases_route(
 		.user_can_see_state_events(sender_user, &body.room_id)
 		.await
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::forbidden(),
-			"You don't have permission to view this room.",
-		));
+		return Err!(Request(Forbidden("You don't have permission to view this room.",)));
 	}
 
 	Ok(aliases::v3::Response {

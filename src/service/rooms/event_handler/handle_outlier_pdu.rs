@@ -1,12 +1,11 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Error, PduEvent, Result, debug, debug_info, err, implement, state_res, trace, warn,
+	Err, PduEvent, Result, debug, debug_info, err, implement, state_res, trace, warn,
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomId, ServerName,
-	api::client::error::ErrorKind, events::StateEventType,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomId, ServerName, events::StateEventType,
 };
 
 use super::{check_room_id, get_room_version_id, to_room_version};
@@ -110,10 +109,9 @@ pub(super) async fn handle_outlier_pdu<'a>(
 				v.insert(auth_event);
 			},
 			| hash_map::Entry::Occupied(_) => {
-				return Err(Error::BadRequest(
-					ErrorKind::InvalidParam,
+				return Err!(Request(InvalidParam(
 					"Auth event's type and state_key combination exists multiple times.",
-				));
+				)));
 			},
 		}
 	}

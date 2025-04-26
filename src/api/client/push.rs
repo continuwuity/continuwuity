@@ -218,7 +218,7 @@ pub(crate) async fn get_pushrule_route(
 	if let Some(rule) = rule {
 		Ok(get_pushrule::v3::Response { rule })
 	} else {
-		Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."))
+		Err!(Request(NotFound("Push rule not found.")))
 	}
 }
 
@@ -333,7 +333,7 @@ pub(crate) async fn set_pushrule_actions_route(
 		.set_actions(body.kind.clone(), &body.rule_id, body.actions.clone())
 		.is_err()
 	{
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."));
+		return Err!(Request(NotFound("Push rule not found.")));
 	}
 
 	let ty = GlobalAccountDataEventType::PushRules;
@@ -400,7 +400,7 @@ pub(crate) async fn set_pushrule_enabled_route(
 		.set_enabled(body.kind.clone(), &body.rule_id, body.enabled)
 		.is_err()
 	{
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Push rule not found."));
+		return Err!(Request(NotFound("Push rule not found.")));
 	}
 
 	let ty = GlobalAccountDataEventType::PushRules;
