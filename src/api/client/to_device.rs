@@ -21,7 +21,7 @@ pub(crate) async fn send_event_to_device_route(
 	State(services): State<crate::State>,
 	body: Ruma<send_event_to_device::v3::Request>,
 ) -> Result<send_event_to_device::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 	let sender_device = body.sender_device.as_deref();
 
 	// Check if this is a new transaction id
@@ -47,7 +47,7 @@ pub(crate) async fn send_event_to_device_route(
 				serde_json::to_writer(
 					&mut buf,
 					&federation::transactions::edu::Edu::DirectToDevice(DirectDeviceContent {
-						sender: sender_user.clone(),
+						sender: sender_user.to_owned(),
 						ev_type: body.event_type.clone(),
 						message_id: count.to_string().into(),
 						messages,

@@ -73,7 +73,7 @@ pub(crate) async fn get_state_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_events::v3::Request>,
 ) -> Result<get_state_events::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if !services
 		.rooms

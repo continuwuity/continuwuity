@@ -126,7 +126,7 @@ pub(crate) async fn get_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_keys::v3::Request>,
 ) -> Result<get_keys::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	get_keys_helper(
 		&services,
@@ -157,8 +157,7 @@ pub(crate) async fn upload_signing_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<upload_signing_keys::v3::Request>,
 ) -> Result<upload_signing_keys::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
+	let (sender_user, sender_device) = body.sender();
 
 	// UIAA
 	let mut uiaainfo = UiaaInfo {
@@ -203,12 +202,12 @@ pub(crate) async fn upload_signing_keys_route(
 					}
 					// Success!
 				},
-				| _ => match body.json_body {
+				| _ => match body.json_body.as_ref() {
 					| Some(json) => {
 						uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
 						services
 							.uiaa
-							.create(sender_user, sender_device, &uiaainfo, &json);
+							.create(sender_user, sender_device, &uiaainfo, json);
 
 						return Err(Error::Uiaa(uiaainfo));
 					},
@@ -373,7 +372,7 @@ pub(crate) async fn get_key_changes_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_key_changes::v3::Request>,
 ) -> Result<get_key_changes::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let mut device_list_updates = HashSet::new();
 

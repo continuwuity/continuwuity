@@ -15,8 +15,8 @@ pub(crate) async fn redact_event_route(
 	State(services): State<crate::State>,
 	body: Ruma<redact_event::v3::Request>,
 ) -> Result<redact_event::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let body = body.body;
+	let sender_user = body.sender_user();
+	let body = &body.body;
 
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
 

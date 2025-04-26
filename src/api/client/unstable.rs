@@ -69,7 +69,7 @@ pub(crate) async fn delete_timezone_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_timezone_key::unstable::Request>,
 ) -> Result<delete_timezone_key::unstable::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -97,7 +97,7 @@ pub(crate) async fn set_timezone_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_timezone_key::unstable::Request>,
 ) -> Result<set_timezone_key::unstable::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -125,7 +125,7 @@ pub(crate) async fn set_profile_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_profile_key::unstable::Request>,
 ) -> Result<set_profile_key::unstable::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -218,7 +218,7 @@ pub(crate) async fn delete_profile_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_profile_key::unstable::Request>,
 ) -> Result<delete_profile_key::unstable::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));

@@ -19,9 +19,9 @@ pub(crate) async fn create_openid_token_route(
 	State(services): State<crate::State>,
 	body: Ruma<account::request_openid_token::v3::Request>,
 ) -> Result<account::request_openid_token::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
-	if sender_user != &body.user_id {
+	if sender_user != body.user_id {
 		return Err(Error::BadRequest(
 			ErrorKind::InvalidParam,
 			"Not allowed to request OpenID tokens on behalf of other users",
