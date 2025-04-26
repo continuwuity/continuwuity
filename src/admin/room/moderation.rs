@@ -5,7 +5,7 @@ use conduwuit::{
 	utils::{IterStream, ReadyExt},
 	warn,
 };
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId};
 
 use crate::{admin_command, admin_command_dispatch, get_room_info};
@@ -132,7 +132,10 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 			 evicting admins too)",
 		);
 
-		if let Err(e) = leave_room(self.services, user_id, &room_id, None).await {
+		if let Err(e) = leave_room(self.services, user_id, &room_id, None)
+			.boxed()
+			.await
+		{
 			warn!("Failed to leave room: {e}");
 		}
 
@@ -297,7 +300,10 @@ async fn ban_list_of_rooms(&self) -> Result {
 				 evicting admins too)",
 			);
 
-			if let Err(e) = leave_room(self.services, user_id, &room_id, None).await {
+			if let Err(e) = leave_room(self.services, user_id, &room_id, None)
+				.boxed()
+				.await
+			{
 				warn!("Failed to leave room: {e}");
 			}
 

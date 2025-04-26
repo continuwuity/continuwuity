@@ -777,7 +777,9 @@ pub(crate) async fn deactivate_route(
 	super::update_displayname(&services, sender_user, None, &all_joined_rooms).await;
 	super::update_avatar_url(&services, sender_user, None, None, &all_joined_rooms).await;
 
-	full_user_deactivate(&services, sender_user, &all_joined_rooms).await?;
+	full_user_deactivate(&services, sender_user, &all_joined_rooms)
+		.boxed()
+		.await?;
 
 	info!("User {sender_user} deactivated their account.");
 
@@ -929,7 +931,7 @@ pub async fn full_user_deactivate(
 		}
 	}
 
-	super::leave_all_rooms(services, user_id).await;
+	super::leave_all_rooms(services, user_id).boxed().await;
 
 	Ok(())
 }

@@ -8,7 +8,7 @@ use conduwuit::{
 	warn,
 };
 use conduwuit_api::client::{leave_all_rooms, update_avatar_url, update_displayname};
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,
 	events::{
@@ -696,7 +696,9 @@ pub(super) async fn force_leave_room(
 		return Err!("{user_id} is not joined in the room");
 	}
 
-	leave_room(self.services, &user_id, &room_id, None).await?;
+	leave_room(self.services, &user_id, &room_id, None)
+		.boxed()
+		.await?;
 
 	self.write_str(&format!("{user_id} has left {room_id}.",))
 		.await

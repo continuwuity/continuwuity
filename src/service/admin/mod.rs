@@ -4,7 +4,6 @@ mod execute;
 mod grant;
 
 use std::{
-	future::Future,
 	pin::Pin,
 	sync::{Arc, RwLock as StdRwLock, Weak},
 };
@@ -14,7 +13,7 @@ use conduwuit::{
 	Error, PduEvent, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
 pub use create::create_admin_room;
-use futures::{FutureExt, TryFutureExt};
+use futures::{Future, FutureExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, UserId,

@@ -114,7 +114,9 @@ async fn banned_room_check(
 					.collect()
 					.await;
 
-				full_user_deactivate(services, user_id, &all_joined_rooms).await?;
+				full_user_deactivate(services, user_id, &all_joined_rooms)
+					.boxed()
+					.await?;
 			}
 
 			return Err!(Request(Forbidden("This room is banned on this homeserver.")));
@@ -153,7 +155,9 @@ async fn banned_room_check(
 					.collect()
 					.await;
 
-				full_user_deactivate(services, user_id, &all_joined_rooms).await?;
+				full_user_deactivate(services, user_id, &all_joined_rooms)
+					.boxed()
+					.await?;
 			}
 
 			return Err!(Request(Forbidden("This remote server is banned on this homeserver.")));
@@ -265,6 +269,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 				room_id.server_name(),
 				client,
 			)
+			.boxed()
 			.await?;
 
 			let mut servers = body.via.clone();
@@ -487,6 +492,7 @@ pub(crate) async fn leave_room_route(
 	body: Ruma<leave_room::v3::Request>,
 ) -> Result<leave_room::v3::Response> {
 	leave_room(&services, body.sender_user(), &body.room_id, body.reason.clone())
+		.boxed()
 		.await
 		.map(|()| leave_room::v3::Response::new())
 }
@@ -1825,7 +1831,7 @@ pub async fn leave_all_rooms(services: &Services, user_id: &UserId) {
 
 	for room_id in all_rooms {
 		// ignore errors
-		if let Err(e) = leave_room(services, user_id, &room_id, None).await {
+		if let Err(e) = leave_room(services, user_id, &room_id, None).boxed().await {
 			warn!(%user_id, "Failed to leave {room_id} remotely: {e}");
 		}
 
