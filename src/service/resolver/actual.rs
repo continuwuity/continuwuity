@@ -306,28 +306,25 @@ impl super::Service {
 
 	#[tracing::instrument(name = "srv", level = "debug", skip(self))]
 	async fn query_srv_record(&self, hostname: &'_ str) -> Result<Option<FedDest>> {
-		let hostnames =
-			[format!("_matrix-fed._tcp.{hostname}."), format!("_matrix._tcp.{hostname}.")];
+		self.services.server.check_running()?;
 
-		for hostname in hostnames {
-			self.services.server.check_running()?;
+		debug!("querying SRV for {hostname:?}");
 
-			debug!("querying SRV for {hostname:?}");
-			let hostname = hostname.trim_end_matches('.');
-			match self.resolver.resolver.srv_lookup(hostname).await {
-				| Err(e) => Self::handle_resolve_error(&e, hostname)?,
-				| Ok(result) => {
-					return Ok(result.iter().next().map(|result| {
-						FedDest::Named(
-							result.target().to_string().trim_end_matches('.').to_owned(),
-							format!(":{}", result.port())
-								.as_str()
-								.try_into()
-								.unwrap_or_else(|_| FedDest::default_port()),
-						)
-					}));
-				},
-			}
+		let hostname_suffix = format!("_matrix-fed._tcp.{hostname}.");
+		let hostname = hostname_suffix.trim_end_matches('.');
+		match self.resolver.resolver.srv_lookup(hostname).await {
+			| Err(e) => Self::handle_resolve_error(&e, hostname)?,
+			| Ok(result) => {
+				return Ok(result.iter().next().map(|result| {
+					FedDest::Named(
+						result.target().to_string().trim_end_matches('.').to_owned(),
+						format!(":{}", result.port())
+							.as_str()
+							.try_into()
+							.unwrap_or_else(|_| FedDest::default_port()),
+					)
+				}));
+			},
 		}
 
 		Ok(None)
