@@ -51,7 +51,7 @@ pub(crate) async fn create_content_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<create_content::v3::Request>,
 ) -> Result<create_content::v3::Response> {
-	let user = body.sender_user.as_ref().expect("user is authenticated");
+	let user = body.sender_user();
 	if services.users.is_suspended(user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
@@ -97,7 +97,7 @@ pub(crate) async fn get_content_thumbnail_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<get_content_thumbnail::v1::Request>,
 ) -> Result<get_content_thumbnail::v1::Response> {
-	let user = body.sender_user.as_ref().expect("user is authenticated");
+	let user = body.sender_user();
 
 	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
 	let mxc = Mxc {
@@ -134,7 +134,7 @@ pub(crate) async fn get_content_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<get_content::v1::Request>,
 ) -> Result<get_content::v1::Response> {
-	let user = body.sender_user.as_ref().expect("user is authenticated");
+	let user = body.sender_user();
 
 	let mxc = Mxc {
 		server_name: &body.server_name,
@@ -170,7 +170,7 @@ pub(crate) async fn get_content_as_filename_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<get_content_as_filename::v1::Request>,
 ) -> Result<get_content_as_filename::v1::Response> {
-	let user = body.sender_user.as_ref().expect("user is authenticated");
+	let user = body.sender_user();
 
 	let mxc = Mxc {
 		server_name: &body.server_name,
@@ -206,7 +206,7 @@ pub(crate) async fn get_media_preview_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<get_media_preview::v1::Request>,
 ) -> Result<get_media_preview::v1::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	let url = &body.url;
 	let url = Url::parse(&body.url).map_err(|e| {

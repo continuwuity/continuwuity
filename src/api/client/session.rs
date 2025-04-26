@@ -269,11 +269,9 @@ pub(crate) async fn login_token_route(
 		return Err!(Request(Forbidden("Login via an existing session is not enabled")));
 	}
 
-	let sender_user = body.sender_user();
-	let sender_device = body.sender_device();
-
 	// This route SHOULD have UIA
 	// TODO: How do we make only UIA sessions that have not been used before valid?
+	let (sender_user, sender_device) = body.sender();
 
 	let mut uiaainfo = uiaa::UiaaInfo {
 		flows: vec![uiaa::AuthFlow { stages: vec![uiaa::AuthType::Password] }],
@@ -335,12 +333,9 @@ pub(crate) async fn logout_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<logout::v3::Request>,
 ) -> Result<logout::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
-
 	services
 		.users
-		.remove_device(sender_user, sender_device)
+		.remove_device(body.sender_user(), body.sender_device())
 		.await;
 
 	Ok(logout::v3::Response::new())
@@ -365,12 +360,10 @@ pub(crate) async fn logout_all_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<logout_all::v3::Request>,
 ) -> Result<logout_all::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-
 	services
 		.users
-		.all_device_ids(sender_user)
-		.for_each(|device_id| services.users.remove_device(sender_user, device_id))
+		.all_device_ids(body.sender_user())
+		.for_each(|device_id| services.users.remove_device(body.sender_user(), device_id))
 		.await;
 
 	Ok(logout_all::v3::Response::new())

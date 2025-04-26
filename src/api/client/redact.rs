@@ -15,8 +15,8 @@ pub(crate) async fn redact_event_route(
 	State(services): State<crate::State>,
 	body: Ruma<redact_event::v3::Request>,
 ) -> Result<redact_event::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let body = body.body;
+	let sender_user = body.sender_user();
+	let body = &body.body;
 	if services.users.is_suspended(sender_user).await? {
 		// TODO: Users can redact their own messages while suspended
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));

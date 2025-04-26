@@ -603,7 +603,6 @@ pub(crate) async fn change_password_route(
 		.sender_user
 		.as_ref()
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
-	let sender_device = body.sender_device();
 
 	let mut uiaainfo = UiaaInfo {
 		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
@@ -617,7 +616,7 @@ pub(crate) async fn change_password_route(
 		| Some(auth) => {
 			let (worked, uiaainfo) = services
 				.uiaa
-				.try_auth(sender_user, sender_device, auth, &uiaainfo)
+				.try_auth(sender_user, body.sender_device(), auth, &uiaainfo)
 				.await?;
 
 			if !worked {
@@ -631,7 +630,7 @@ pub(crate) async fn change_password_route(
 				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
 				services
 					.uiaa
-					.create(sender_user, sender_device, &uiaainfo, json);
+					.create(sender_user, body.sender_device(), &uiaainfo, json);
 
 				return Err(Error::Uiaa(uiaainfo));
 			},
@@ -650,7 +649,7 @@ pub(crate) async fn change_password_route(
 		services
 			.users
 			.all_device_ids(sender_user)
-			.ready_filter(|id| *id != sender_device)
+			.ready_filter(|id| *id != body.sender_device())
 			.for_each(|id| services.users.remove_device(sender_user, id))
 			.await;
 
@@ -659,17 +658,17 @@ pub(crate) async fn change_password_route(
 			.pusher
 			.get_pushkeys(sender_user)
 			.map(ToOwned::to_owned)
-			.broad_filter_map(|pushkey| async move {
+			.broad_filter_map(async |pushkey| {
 				services
 					.pusher
 					.get_pusher_device(&pushkey)
 					.await
 					.ok()
-					.filter(|pusher_device| pusher_device != sender_device)
+					.filter(|pusher_device| pusher_device != body.sender_device())
 					.is_some()
 					.then_some(pushkey)
 			})
-			.for_each(|pushkey| async move {
+			.for_each(async |pushkey| {
 				services.pusher.delete_pusher(sender_user, &pushkey).await;
 			})
 			.await;
@@ -699,13 +698,10 @@ pub(crate) async fn whoami_route(
 	State(services): State<crate::State>,
 	body: Ruma<whoami::v3::Request>,
 ) -> Result<whoami::v3::Response> {
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let device_id = body.sender_device.clone();
-
 	Ok(whoami::v3::Response {
-		user_id: sender_user.clone(),
-		device_id,
-		is_guest: services.users.is_deactivated(sender_user).await?
+		user_id: body.sender_user().to_owned(),
+		device_id: body.sender_device.clone(),
+		is_guest: services.users.is_deactivated(body.sender_user()).await?
 			&& body.appservice_info.is_none(),
 	})
 }
@@ -733,7 +729,6 @@ pub(crate) async fn deactivate_route(
 		.sender_user
 		.as_ref()
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
-	let sender_device = body.sender_device();
 
 	let mut uiaainfo = UiaaInfo {
 		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
@@ -747,7 +742,7 @@ pub(crate) async fn deactivate_route(
 		| Some(auth) => {
 			let (worked, uiaainfo) = services
 				.uiaa
-				.try_auth(sender_user, sender_device, auth, &uiaainfo)
+				.try_auth(sender_user, body.sender_device(), auth, &uiaainfo)
 				.await?;
 
 			if !worked {
@@ -760,7 +755,7 @@ pub(crate) async fn deactivate_route(
 				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
 				services
 					.uiaa
-					.create(sender_user, sender_device, &uiaainfo, json);
+					.create(sender_user, body.sender_device(), &uiaainfo, json);
 
 				return Err(Error::Uiaa(uiaainfo));
 			},

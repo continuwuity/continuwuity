@@ -249,14 +249,14 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<join_room_by_id_or_alias::v3::Request>,
 ) -> Result<join_room_by_id_or_alias::v3::Response> {
-	let sender_user = body.sender_user.as_deref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 	let appservice_info = &body.appservice_info;
-	let body = body.body;
+	let body = &body.body;
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	let (servers, room_id) = match OwnedRoomId::try_from(body.room_id_or_alias) {
+	let (servers, room_id) = match OwnedRoomId::try_from(body.room_id_or_alias.clone()) {
 		| Ok(room_id) => {
 			banned_room_check(
 				&services,

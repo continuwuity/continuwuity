@@ -58,7 +58,7 @@ pub(crate) async fn create_room_route(
 ) -> Result<create_room::v3::Response> {
 	use create_room::v3::RoomPreset;
 
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	let sender_user = body.sender_user();
 
 	if !services.globals.allow_room_creation()
 		&& body.appservice_info.is_none()
@@ -174,7 +174,7 @@ pub(crate) async fn create_room_route(
 
 			let content = match room_version {
 				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
-					RoomCreateEventContent::new_v1(sender_user.clone()),
+					RoomCreateEventContent::new_v1(sender_user.to_owned()),
 				| _ => RoomCreateEventContent::new_v11(),
 			};
 			let mut content = serde_json::from_str::<CanonicalJsonObject>(
@@ -239,7 +239,7 @@ pub(crate) async fn create_room_route(
 		| _ => RoomPreset::PrivateChat, // Room visibility should not be custom
 	});
 
-	let mut users = BTreeMap::from_iter([(sender_user.clone(), int!(100))]);
+	let mut users = BTreeMap::from_iter([(sender_user.to_owned(), int!(100))]);
 
 	if preset == RoomPreset::TrustedPrivateChat {
 		for invite in &body.invite {
