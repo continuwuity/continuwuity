@@ -173,18 +173,10 @@ pub(crate) async fn create_room_route(
 					RoomCreateEventContent::new_v1(sender_user.to_owned()),
 				| _ => RoomCreateEventContent::new_v11(),
 			};
-			let mut content = serde_json::from_str::<CanonicalJsonObject>(
-				to_raw_value(&content)
-					.expect("we just created this as content was None")
-					.get(),
-			)
-			.unwrap();
-			content.insert(
-				"room_version".into(),
-				json!(room_version.as_str())
-					.try_into()
-					.expect("we just created this as content was None"),
-			);
+			let mut content =
+				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())
+					.unwrap();
+			content.insert("room_version".into(), json!(room_version.as_str()).try_into()?);
 			content
 		},
 	};
@@ -196,8 +188,7 @@ pub(crate) async fn create_room_route(
 		.build_and_append_pdu(
 			PduBuilder {
 				event_type: TimelineEventType::RoomCreate,
-				content: to_raw_value(&create_content)
-					.expect("create event content serialization"),
+				content: to_raw_value(&create_content)?,
 				state_key: Some(StateKey::new()),
 				..Default::default()
 			},
@@ -263,8 +254,7 @@ pub(crate) async fn create_room_route(
 		.build_and_append_pdu(
 			PduBuilder {
 				event_type: TimelineEventType::RoomPowerLevels,
-				content: to_raw_value(&power_levels_content)
-					.expect("serialized power_levels event content"),
+				content: to_raw_value(&power_levels_content)?,
 				state_key: Some(StateKey::new()),
 				..Default::default()
 			},

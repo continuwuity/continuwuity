@@ -37,7 +37,7 @@ pub(crate) async fn set_read_marker_route(
 				Some(&body.room_id),
 				sender_user,
 				RoomAccountDataEventType::FullyRead,
-				&serde_json::to_value(fully_read_event).expect("to json value always works"),
+				&serde_json::to_value(fully_read_event)?,
 			)
 			.await?;
 	}
@@ -146,7 +146,7 @@ pub(crate) async fn create_receipt_route(
 					Some(&body.room_id),
 					sender_user,
 					RoomAccountDataEventType::FullyRead,
-					&serde_json::to_value(fully_read_event).expect("to json value always works"),
+					&serde_json::to_value(fully_read_event)?,
 				)
 				.await?;
 		},

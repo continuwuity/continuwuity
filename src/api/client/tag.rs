@@ -42,7 +42,7 @@ pub(crate) async fn update_tag_route(
 			Some(&body.room_id),
 			sender_user,
 			RoomAccountDataEventType::Tag,
-			&serde_json::to_value(tags_event).expect("to json value always works"),
+			&serde_json::to_value(tags_event)?,
 		)
 		.await?;
 
@@ -76,7 +76,7 @@ pub(crate) async fn delete_tag_route(
 			Some(&body.room_id),
 			sender_user,
 			RoomAccountDataEventType::Tag,
-			&serde_json::to_value(tags_event).expect("to json value always works"),
+			&serde_json::to_value(tags_event)?,
 		)
 		.await?;
 
