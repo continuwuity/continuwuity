@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, Server, implement};
+use conduwuit::{Result, implement};
 use ruma::ServerName;
 
 use crate::{Dep, config};
@@ -10,16 +10,14 @@ pub struct Service {
 }
 
 struct Services {
-	pub server: Arc<Server>,
-	pub config: Dep<config::Service>,
+	pub config: Dep<config::Service>
 }
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				server: args.server.clone(),
-				config: args.depend::<config::Service>("config"),
+				config: args.depend::<config::Service>("config")
 			},
 		}))
 	}
