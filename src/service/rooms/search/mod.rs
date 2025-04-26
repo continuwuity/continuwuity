@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use conduwuit::{
-	PduCount, PduEvent, Result,
+use conduwuit_core::{
+	Event, PduCount, PduEvent, Result,
 	arrayvec::ArrayVec,
 	implement,
 	utils::{

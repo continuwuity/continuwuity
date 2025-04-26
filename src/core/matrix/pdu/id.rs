@@ -3,6 +3,7 @@ use crate::utils::u64_from_u8x8;
 
 pub type ShortRoomId = ShortId;
 pub type ShortEventId = ShortId;
+pub type ShortStateKey = ShortId;
 pub type ShortId = u64;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

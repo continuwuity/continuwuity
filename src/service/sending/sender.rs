@@ -9,8 +9,8 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use conduwuit::{
-	Error, Result, debug, err, error,
+use conduwuit_core::{
+	Error, Event, Result, debug, err, error,
 	result::LogErr,
 	trace,
 	utils::{
@@ -697,7 +697,7 @@ impl Service {
 			match event {
 				| SendingEvent::Pdu(pdu_id) => {
 					if let Ok(pdu) = self.services.timeline.get_pdu_from_id(pdu_id).await {
-						pdu_jsons.push(pdu.into_room_event());
+						pdu_jsons.push(pdu.to_format());
 					}
 				},
 				| SendingEvent::Edu(edu) =>

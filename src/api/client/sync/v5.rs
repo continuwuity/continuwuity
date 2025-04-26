@@ -7,11 +7,8 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, error, extract_variant, is_equal_to,
-	matrix::{
-		TypeStateKey,
-		pdu::{PduCount, PduEvent},
-	},
+	Err, Error, Result, at, error, extract_variant, is_equal_to,
+	matrix::{Event, TypeStateKey, pdu::PduCount},
 	trace,
 	utils::{
 		BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
@@ -515,7 +512,8 @@ where
 			.iter()
 			.stream()
 			.filter_map(|item| ignored_filter(services, item.clone(), sender_user))
-			.map(|(_, pdu)| pdu.to_sync_room_event())
+			.map(at!(1))
+			.map(Event::into_format)
 			.collect()
 			.await;
 
@@ -537,7 +535,7 @@ where
 					.state_accessor
 					.room_state_get(room_id, &state.0, &state.1)
 					.await
-					.map(PduEvent::into_sync_state_event)
+					.map(Event::into_format)
 					.ok()
 			})
 			.collect()

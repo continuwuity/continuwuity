@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
 	Result, at,
-	matrix::pdu::PduCount,
+	matrix::{Event, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
 use conduwuit_service::{Services, rooms::timeline::PdusIterItem};
@@ -167,7 +167,7 @@ async fn paginate_relations_with_filter(
 		chunk: events
 			.into_iter()
 			.map(at!(1))
-			.map(|pdu| pdu.to_message_like_event())
+			.map(Event::into_format)
 			.collect(),
 	})
 }

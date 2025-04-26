@@ -126,7 +126,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 
 	let state_fetch = |ty: &StateEventType, sk: &str| {
 		let key = (ty.to_owned(), sk.into());
-		ready(auth_events.get(&key))
+		ready(auth_events.get(&key).map(ToOwned::to_owned))
 	};
 
 	let auth_check = state_res::event_auth::auth_check(

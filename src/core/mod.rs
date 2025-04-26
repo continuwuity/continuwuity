@@ -25,7 +25,9 @@ pub use info::{
 	rustc_flags_capture, version,
 	version::{name, version},
 };
-pub use matrix::{Event, EventTypeExt, PduCount, PduEvent, PduId, RoomVersion, pdu, state_res};
+pub use matrix::{
+	Event, EventTypeExt, Pdu, PduCount, PduEvent, PduId, RoomVersion, pdu, state_res,
+};
 pub use server::Server;
 pub use utils::{ctor, dtor, implement, result, result::Result};
 

@@ -40,5 +40,5 @@ pub(crate) async fn get_room_event_route(
 
 	event.add_age().ok();
 
-	Ok(get_room_event::v3::Response { event: event.into_room_event() })
+	Ok(get_room_event::v3::Response { event: event.into_format() })
 }

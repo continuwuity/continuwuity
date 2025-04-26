@@ -1,13 +1,15 @@
 use std::{collections::BTreeMap, fmt::Write as _};
 
-use api::client::{full_user_deactivate, join_room_by_id_helper, leave_room};
+use api::client::{
+	full_user_deactivate, join_room_by_id_helper, leave_all_rooms, leave_room, update_avatar_url,
+	update_displayname,
+};
 use conduwuit::{
 	Err, Result, debug, debug_warn, error, info, is_equal_to,
-	matrix::pdu::PduBuilder,
+	matrix::{Event, pdu::PduBuilder},
 	utils::{self, ReadyExt},
 	warn,
 };
-use conduwuit_api::client::{leave_all_rooms, update_avatar_url, update_displayname};
 use futures::{FutureExt, StreamExt};
 use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,

@@ -9,8 +9,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{
-	Error, PduEvent, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
+use conduwuit_core::{
+	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
 pub use create::create_admin_room;
 use futures::{Future, FutureExt, TryFutureExt};
@@ -361,7 +361,10 @@ impl Service {
 		Ok(())
 	}
 
-	pub async fn is_admin_command(&self, pdu: &PduEvent, body: &str) -> bool {
+	pub async fn is_admin_command<E>(&self, event: &E, body: &str) -> bool
+	where
+		E: Event + Send + Sync,
+	{
 		// Server-side command-escape with public echo
 		let is_escape = body.starts_with('\\');
 		let is_public_escape = is_escape && body.trim_start_matches('\\').starts_with("!admin");
@@ -376,8 +379,10 @@ impl Service {
 			return false;
 		}
 
+		let user_is_local = self.services.globals.user_is_local(event.sender());
+
 		// only allow public escaped commands by local admins
-		if is_public_escape && !self.services.globals.user_is_local(&pdu.sender) {
+		if is_public_escape && !user_is_local {
 			return false;
 		}
 
@@ -387,20 +392,20 @@ impl Service {
 		}
 
 		// Prevent unescaped !admin from being used outside of the admin room
-		if is_public_prefix && !self.is_admin_room(&pdu.room_id).await {
+		if is_public_prefix && !self.is_admin_room(event.room_id()).await {
 			return false;
 		}
 
 		// Only senders who are admin can proceed
-		if !self.user_is_admin(&pdu.sender).await {
+		if !self.user_is_admin(event.sender()).await {
 			return false;
 		}
 
 		// This will evaluate to false if the emergency password is set up so that
 		// the administrator can execute commands as the server user
 		let emergency_password_set = self.services.server.config.emergency_password.is_some();
-		let from_server = pdu.sender == *server_user && !emergency_password_set;
-		if from_server && self.is_admin_room(&pdu.room_id).await {
+		let from_server = event.sender() == server_user && !emergency_password_set;
+		if from_server && self.is_admin_room(event.room_id()).await {
 			return false;
 		}
 

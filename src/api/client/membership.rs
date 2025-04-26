@@ -9,7 +9,8 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, at, debug, debug_error, debug_info, debug_warn, err, error, info, is_matching,
+	Err, Event, Result, at, debug, debug_error, debug_info, debug_warn, err, error, info,
+	is_matching,
 	matrix::{
 		StateKey,
 		pdu::{PduBuilder, PduEvent, gen_event_id, gen_event_id_canonical_json},
@@ -880,7 +881,7 @@ pub(crate) async fn get_member_events_route(
 			.ready_filter(|((ty, _), _)| *ty == StateEventType::RoomMember)
 			.map(at!(1))
 			.ready_filter_map(|pdu| membership_filter(pdu, membership, not_membership))
-			.map(PduEvent::into_member_event)
+			.map(Event::into_format)
 			.collect()
 			.await,
 	})

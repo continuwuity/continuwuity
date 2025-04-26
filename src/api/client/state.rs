@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, err,
-	matrix::pdu::{PduBuilder, PduEvent},
+	matrix::{Event, pdu::PduBuilder},
 	utils::BoolExt,
 };
 use conduwuit_service::Services;
@@ -21,6 +21,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use serde_json::json;
 
 use crate::{Ruma, RumaResponse};
 
@@ -94,7 +95,7 @@ pub(crate) async fn get_state_events_route(
 			.rooms
 			.state_accessor
 			.room_state_full_pdus(&body.room_id)
-			.map_ok(PduEvent::into_state_event)
+			.map_ok(Event::into_format)
 			.try_collect()
 			.await?,
 	})
@@ -145,7 +146,18 @@ pub(crate) async fn get_state_events_for_key_route(
 
 	Ok(get_state_events_for_key::v3::Response {
 		content: event_format.or(|| event.get_content_as_value()),
-		event: event_format.then(|| event.into_state_event_value()),
+		event: event_format.then(|| {
+			json!({
+				"content": event.content(),
+				"event_id": event.event_id(),
+				"origin_server_ts": event.origin_server_ts(),
+				"room_id": event.room_id(),
+				"sender": event.sender(),
+				"state_key": event.state_key(),
+				"type": event.kind(),
+				"unsigned": event.unsigned(),
+			})
+		}),
 	})
 }
 

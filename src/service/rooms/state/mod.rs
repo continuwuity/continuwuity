@@ -1,8 +1,8 @@
 use std::{collections::HashMap, fmt::Write, iter::once, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{
-	PduEvent, Result, err,
+use conduwuit_core::{
+	Event, PduEvent, Result, err,
 	result::FlatOk,
 	state_res::{self, StateMap},
 	utils::{
@@ -11,7 +11,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use database::{Deserialized, Ignore, Interfix, Map};
+use conduwuit_database::{Deserialized, Ignore, Interfix, Map};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };
@@ -319,30 +319,34 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip_all, level = "debug")]
-	pub async fn summary_stripped(&self, event: &PduEvent) -> Vec<Raw<AnyStrippedStateEvent>> {
+	pub async fn summary_stripped<'a, E>(&self, event: &'a E) -> Vec<Raw<AnyStrippedStateEvent>>
+	where
+		E: Event + Send + Sync,
+		&'a E: Event + Send,
+	{
 		let cells = [
 			(&StateEventType::RoomCreate, ""),
 			(&StateEventType::RoomJoinRules, ""),
 			(&StateEventType::RoomCanonicalAlias, ""),
 			(&StateEventType::RoomName, ""),
 			(&StateEventType::RoomAvatar, ""),
-			(&StateEventType::RoomMember, event.sender.as_str()), // Add recommended events
+			(&StateEventType::RoomMember, event.sender().as_str()), // Add recommended events
 			(&StateEventType::RoomEncryption, ""),
 			(&StateEventType::RoomTopic, ""),
 		];
 
-		let fetches = cells.iter().map(|(event_type, state_key)| {
+		let fetches = cells.into_iter().map(|(event_type, state_key)| {
 			self.services
 				.state_accessor
-				.room_state_get(&event.room_id, event_type, state_key)
+				.room_state_get(event.room_id(), event_type, state_key)
 		});
 
 		join_all(fetches)
 			.await
 			.into_iter()
 			.filter_map(Result::ok)
-			.map(PduEvent::into_stripped_state_event)
-			.chain(once(event.to_stripped_state_event()))
+			.map(Event::into_format)
+			.chain(once(event.to_format()))
 			.collect()
 	}
 

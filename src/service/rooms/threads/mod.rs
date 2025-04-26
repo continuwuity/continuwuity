@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{
-	Result, err,
+use conduwuit_core::{
+	Event, Result, err,
 	matrix::pdu::{PduCount, PduEvent, PduId, RawPduId},
 	utils::{
 		ReadyExt,
@@ -49,7 +49,11 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn add_to_thread(&self, root_event_id: &EventId, pdu: &PduEvent) -> Result<()> {
+	pub async fn add_to_thread<'a, E>(&self, root_event_id: &EventId, event: &'a E) -> Result
+	where
+		E: Event + Send + Sync,
+		&'a E: Event + Send,
+	{
 		let root_id = self
 			.services
 			.timeline
@@ -86,7 +90,7 @@ impl Service {
 				}) {
 				// Thread already existed
 				relations.count = relations.count.saturating_add(uint!(1));
-				relations.latest_event = pdu.to_message_like_event();
+				relations.latest_event = event.to_format();
 
 				let content = serde_json::to_value(relations).expect("to_value always works");
 
@@ -99,7 +103,7 @@ impl Service {
 			} else {
 				// New thread
 				let relations = BundledThread {
-					latest_event: pdu.to_message_like_event(),
+					latest_event: event.to_format(),
 					count: uint!(1),
 					current_user_participated: true,
 				};
@@ -129,7 +133,7 @@ impl Service {
 				users.push(root_pdu.sender);
 			},
 		}
-		users.push(pdu.sender.clone());
+		users.push(event.sender().to_owned());
 
 		self.update_participants(&root_id, &users)
 	}
