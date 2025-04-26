@@ -26,10 +26,7 @@ use ruma::{
 	},
 	events::{
 		GlobalAccountDataEventType, StateEventType,
-		room::{
-			message::RoomMessageEventContent,
-			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-		},
+		room::power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 	},
 	push,
 };
@@ -414,32 +411,21 @@ pub(crate) async fn register_route(
 	// log in conduit admin channel if a non-guest user registered
 	if body.appservice_info.is_none() && !is_guest {
 		if !device_display_name.is_empty() {
-			info!(
-				"New user \"{user_id}\" registered on this server with device display name: \
-				 \"{device_display_name}\""
+			let notice = format!(
+				"New user \"{user_id}\" registered on this server from IP {client} and device \
+				 display name \"{device_display_name}\""
 			);
 
+			info!("{notice}");
 			if services.server.config.admin_room_notices {
-				services
-					.admin
-					.send_message(RoomMessageEventContent::notice_plain(format!(
-						"New user \"{user_id}\" registered on this server from IP {client} and \
-						 device display name \"{device_display_name}\""
-					)))
-					.await
-					.ok();
+				services.admin.notice(&notice).await;
 			}
 		} else {
-			info!("New user \"{user_id}\" registered on this server.");
+			let notice = format!("New user \"{user_id}\" registered on this server.");
 
+			info!("{notice}");
 			if services.server.config.admin_room_notices {
-				services
-					.admin
-					.send_message(RoomMessageEventContent::notice_plain(format!(
-						"New user \"{user_id}\" registered on this server from IP {client}"
-					)))
-					.await
-					.ok();
+				services.admin.notice(&notice).await;
 			}
 		}
 	}
@@ -452,24 +438,22 @@ pub(crate) async fn register_route(
 			if services.server.config.admin_room_notices {
 				services
 					.admin
-					.send_message(RoomMessageEventContent::notice_plain(format!(
+					.notice(&format!(
 						"Guest user \"{user_id}\" with device display name \
 						 \"{device_display_name}\" registered on this server from IP {client}"
-					)))
-					.await
-					.ok();
+					))
+					.await;
 			}
 		} else {
 			#[allow(clippy::collapsible_else_if)]
 			if services.server.config.admin_room_notices {
 				services
 					.admin
-					.send_message(RoomMessageEventContent::notice_plain(format!(
+					.notice(&format!(
 						"Guest user \"{user_id}\" with no device display name registered on \
 						 this server from IP {client}",
-					)))
-					.await
-					.ok();
+					))
+					.await;
 			}
 		}
 	}
@@ -677,11 +661,8 @@ pub(crate) async fn change_password_route(
 	if services.server.config.admin_room_notices {
 		services
 			.admin
-			.send_message(RoomMessageEventContent::notice_plain(format!(
-				"User {sender_user} changed their password."
-			)))
-			.await
-			.ok();
+			.notice(&format!("User {sender_user} changed their password."))
+			.await;
 	}
 
 	Ok(change_password::v3::Response {})
@@ -784,11 +765,8 @@ pub(crate) async fn deactivate_route(
 	if services.server.config.admin_room_notices {
 		services
 			.admin
-			.send_message(RoomMessageEventContent::notice_plain(format!(
-				"User {sender_user} deactivated their account."
-			)))
-			.await
-			.ok();
+			.notice(&format!("User {sender_user} deactivated their account."))
+			.await;
 	}
 
 	Ok(deactivate::v3::Response {

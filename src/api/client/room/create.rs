@@ -92,19 +92,17 @@ pub(crate) async fn create_room_route(
 		&& !services.users.is_admin(sender_user).await
 		&& body.appservice_info.is_none()
 	{
-		info!(
-			"Non-admin user {sender_user} tried to publish {0} to the room directory while \
-			 \"lockdown_public_room_directory\" is enabled",
-			&room_id
+		warn!(
+			"Non-admin user {sender_user} tried to publish {room_id} to the room directory \
+			 while \"lockdown_public_room_directory\" is enabled"
 		);
 
 		if services.server.config.admin_room_notices {
 			services
 				.admin
-				.send_text(&format!(
-					"Non-admin user {sender_user} tried to publish {0} to the room directory \
-					 while \"lockdown_public_room_directory\" is enabled",
-					&room_id
+				.notice(&format!(
+					"Non-admin user {sender_user} tried to publish {room_id} to the room \
+					 directory while \"lockdown_public_room_directory\" is enabled"
 				))
 				.await;
 		}
