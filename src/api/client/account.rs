@@ -13,22 +13,14 @@ use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt};
 use register::RegistrationKind;
 use ruma::{
-	OwnedRoomId, UserId,
 	api::client::{
 		account::{
-			ThirdPartyIdRemovalStatus, change_password, check_registration_token_validity,
-			deactivate, get_3pids, get_username_availability,
-			register::{self, LoginType},
-			request_3pid_management_token_via_email, request_3pid_management_token_via_msisdn,
-			whoami,
+			change_password, check_registration_token_validity, deactivate, get_3pids, get_username_availability, register::{self, LoginType}, request_3pid_management_token_via_email, request_3pid_management_token_via_msisdn, whoami, ThirdPartyIdRemovalStatus
 		},
 		uiaa::{AuthFlow, AuthType, UiaaInfo},
-	},
-	events::{
-		GlobalAccountDataEventType, StateEventType,
-		room::power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-	},
-	push,
+	}, events::{
+		room::{message::RoomMessageEventContent, power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent}}, GlobalAccountDataEventType, StateEventType
+	}, push, OwnedRoomId, UserId
 };
 
 use super::{DEVICE_ID_LENGTH, SESSION_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};

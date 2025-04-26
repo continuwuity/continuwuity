@@ -56,7 +56,7 @@ pub(crate) async fn create_invite_route(
 	}
 
 	let mut signed_event = utils::to_canonical_object(&body.event)
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invite event is invalid."))?;
+		.map_err(|_| err!(Request(InvalidParam("Invite event is invalid."))))?;
 
 	let invited_user: OwnedUserId = signed_event
 		.get("state_key")
