@@ -473,9 +473,7 @@ async fn handle_left_room(
 				prev_batch: Some(next_batch.to_string()),
 				events: Vec::new(),
 			},
-			state: RoomState {
-				events: vec![event.into_sync_state_event()],
-			},
+			state: RoomState { events: vec![event.into_format()] },
 		}));
 	}
 
@@ -559,7 +557,7 @@ async fn handle_left_room(
 				continue;
 			}
 
-			left_state_events.push(pdu.into_sync_state_event());
+			left_state_events.push(pdu.into_format());
 		}
 	}
 
@@ -755,7 +753,7 @@ async fn load_joined_room(
 		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
 		.map(at!(1))
 		.chain(joined_sender_member.into_iter().stream())
-		.map(|pdu| pdu.to_sync_room_event())
+		.map(Event::into_format)
 		.collect::<Vec<_>>();
 
 	let account_data_events = services
@@ -877,10 +875,7 @@ async fn load_joined_room(
 			events: room_events,
 		},
 		state: RoomState {
-			events: state_events
-				.into_iter()
-				.map(PduEvent::into_sync_state_event)
-				.collect(),
+			events: state_events.into_iter().map(Event::into_format).collect(),
 		},
 		ephemeral: Ephemeral { events: edus },
 		unread_thread_notifications: BTreeMap::new(),

@@ -2,7 +2,8 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result, err, pdu::gen_event_id, utils, utils::hash::sha256, warn,
+	Err, Error, PduEvent, Result, err, matrix::Event, pdu::gen_event_id, utils,
+	utils::hash::sha256, warn,
 };
 use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
@@ -111,7 +112,7 @@ pub(crate) async fn create_invite_route(
 	let pdu: PduEvent = serde_json::from_value(event.into())
 		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
 
-	invite_state.push(pdu.to_stripped_state_event());
+	invite_state.push(pdu.to_format());
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
@@ -144,7 +145,7 @@ pub(crate) async fn create_invite_route(
 					.send_appservice_request(
 						appservice.registration.clone(),
 						ruma::api::appservice::event::push_events::v1::Request {
-							events: vec![pdu.to_room_event()],
+							events: vec![pdu.to_format()],
 							txn_id: general_purpose::URL_SAFE_NO_PAD
 								.encode(sha256::hash(pdu.event_id.as_bytes()))
 								.into(),

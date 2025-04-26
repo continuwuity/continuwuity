@@ -37,7 +37,7 @@ pub use self::{
 };
 use crate::{
 	debug, debug_error,
-	matrix::{event::Event, pdu::StateKey},
+	matrix::{Event, StateKey},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
 	warn,
@@ -90,7 +90,7 @@ where
 	SetIter: Iterator<Item = &'a StateMap<OwnedEventId>> + Clone + Send,
 	Hasher: BuildHasher + Send + Sync,
 	E: Event + Clone + Send + Sync,
-	for<'b> &'b E: Send,
+	for<'b> &'b E: Event + Send,
 {
 	debug!("State resolution starting");
 
@@ -522,6 +522,7 @@ where
 	Fut: Future<Output = Option<E>> + Send,
 	S: Stream<Item = &'a EventId> + Send + 'a,
 	E: Event + Clone + Send + Sync,
+	for<'b> &'b E: Event + Send,
 {
 	debug!("starting iterative auth check");
 
@@ -552,7 +553,7 @@ where
 
 	let auth_events = &auth_events;
 	let mut resolved_state = unconflicted_state;
-	for event in &events_to_check {
+	for event in events_to_check {
 		let state_key = event
 			.state_key()
 			.ok_or_else(|| Error::InvalidPdu("State event had no state key".to_owned()))?;
@@ -607,11 +608,15 @@ where
 		});
 
 		let fetch_state = |ty: &StateEventType, key: &str| {
-			future::ready(auth_state.get(&ty.with_state_key(key)))
+			future::ready(
+				auth_state
+					.get(&ty.with_state_key(key))
+					.map(ToOwned::to_owned),
+			)
 		};
 
 		let auth_result =
-			auth_check(room_version, &event, current_third_party.as_ref(), fetch_state).await;
+			auth_check(room_version, &event, current_third_party, fetch_state).await;
 
 		match auth_result {
 			| Ok(true) => {
@@ -794,11 +799,11 @@ where
 	}
 }
 
-fn is_type_and_key(ev: impl Event, ev_type: &TimelineEventType, state_key: &str) -> bool {
+fn is_type_and_key(ev: &impl Event, ev_type: &TimelineEventType, state_key: &str) -> bool {
 	ev.event_type() == ev_type && ev.state_key() == Some(state_key)
 }
 
-fn is_power_event(event: impl Event) -> bool {
+fn is_power_event(event: &impl Event) -> bool {
 	match event.event_type() {
 		| TimelineEventType::RoomPowerLevels
 		| TimelineEventType::RoomJoinRules
@@ -859,15 +864,19 @@ mod tests {
 	use serde_json::{json, value::to_raw_value as to_raw_json_value};
 
 	use super::{
-		Event, EventTypeExt, StateMap, is_power_event,
+		StateMap, is_power_event,
 		room_version::RoomVersion,
 		test_utils::{
-			INITIAL_EVENTS, PduEvent, TestStore, alice, bob, charlie, do_check, ella, event_id,
+			INITIAL_EVENTS, TestStore, alice, bob, charlie, do_check, ella, event_id,
 			member_content_ban, member_content_join, room_id, to_init_pdu_event, to_pdu_event,
 			zara,
 		},
 	};
-	use crate::{debug, utils::stream::IterStream};
+	use crate::{
+		debug,
+		matrix::{Event, EventTypeExt, Pdu as PduEvent},
+		utils::stream::IterStream,
+	};
 
 	async fn test_event_sort() {
 		use futures::future::ready;

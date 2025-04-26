@@ -1,12 +1,12 @@
 use std::{fmt::Debug, mem, sync::Arc};
 
 use bytes::BytesMut;
-use conduwuit::{
-	Err, PduEvent, Result, debug_warn, err, trace,
+use conduwuit_core::{
+	Err, Event, Result, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
 	warn,
 };
-use database::{Deserialized, Ignore, Interfix, Json, Map};
+use conduwuit_database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
 use ipaddress::IPAddress;
 use ruma::{
@@ -272,22 +272,26 @@ impl Service {
 		}
 	}
 
-	#[tracing::instrument(skip(self, user, unread, pusher, ruleset, pdu))]
-	pub async fn send_push_notice(
+	#[tracing::instrument(skip(self, user, unread, pusher, ruleset, event))]
+	pub async fn send_push_notice<E>(
 		&self,
 		user: &UserId,
 		unread: UInt,
 		pusher: &Pusher,
 		ruleset: Ruleset,
-		pdu: &PduEvent,
-	) -> Result<()> {
+		event: &E,
+	) -> Result
+	where
+		E: Event + Send + Sync,
+		for<'a> &'a E: Event + Send,
+	{
 		let mut notify = None;
 		let mut tweaks = Vec::new();
 
 		let power_levels: RoomPowerLevelsEventContent = self
 			.services
 			.state_accessor
-			.room_state_get(&pdu.room_id, &StateEventType::RoomPowerLevels, "")
+			.room_state_get(event.room_id(), &StateEventType::RoomPowerLevels, "")
 			.await
 			.and_then(|ev| {
 				serde_json::from_str(ev.content.get()).map_err(|e| {
@@ -296,8 +300,9 @@ impl Service {
 			})
 			.unwrap_or_default();
 
+		let serialized = event.to_format();
 		for action in self
-			.get_actions(user, &ruleset, &power_levels, &pdu.to_sync_room_event(), &pdu.room_id)
+			.get_actions(user, &ruleset, &power_levels, &serialized, event.room_id())
 			.await
 		{
 			let n = match action {
@@ -319,7 +324,7 @@ impl Service {
 		}
 
 		if notify == Some(true) {
-			self.send_notice(unread, pusher, tweaks, pdu).await?;
+			self.send_notice(unread, pusher, tweaks, event).await?;
 		}
 		// Else the event triggered no actions
 
@@ -369,13 +374,16 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip(self, unread, pusher, tweaks, event))]
-	async fn send_notice(
+	async fn send_notice<E>(
 		&self,
 		unread: UInt,
 		pusher: &Pusher,
 		tweaks: Vec<Tweak>,
-		event: &PduEvent,
-	) -> Result {
+		event: &E,
+	) -> Result
+	where
+		E: Event + Send + Sync,
+	{
 		// TODO: email
 		match &pusher.kind {
 			| PusherKind::Http(http) => {
@@ -421,8 +429,8 @@ impl Service {
 				let d = vec![device];
 				let mut notifi = Notification::new(d);
 
-				notifi.event_id = Some((*event.event_id).to_owned());
-				notifi.room_id = Some((*event.room_id).to_owned());
+				notifi.event_id = Some(event.event_id().to_owned());
+				notifi.room_id = Some(event.room_id().to_owned());
 				if http
 					.data
 					.get("org.matrix.msc4076.disable_badge_count")
@@ -442,7 +450,7 @@ impl Service {
 					)
 					.await?;
 				} else {
-					if event.kind == TimelineEventType::RoomEncrypted
+					if *event.kind() == TimelineEventType::RoomEncrypted
 						|| tweaks
 							.iter()
 							.any(|t| matches!(t, Tweak::Highlight(true) | Tweak::Sound(_)))
@@ -451,29 +459,29 @@ impl Service {
 					} else {
 						notifi.prio = NotificationPriority::Low;
 					}
-					notifi.sender = Some(event.sender.clone());
-					notifi.event_type = Some(event.kind.clone());
-					notifi.content = serde_json::value::to_raw_value(&event.content).ok();
+					notifi.sender = Some(event.sender().to_owned());
+					notifi.event_type = Some(event.kind().to_owned());
+					notifi.content = serde_json::value::to_raw_value(event.content()).ok();
 
-					if event.kind == TimelineEventType::RoomMember {
+					if *event.kind() == TimelineEventType::RoomMember {
 						notifi.user_is_target =
-							event.state_key.as_deref() == Some(event.sender.as_str());
+							event.state_key() == Some(event.sender().as_str());
 					}
 
 					notifi.sender_display_name =
-						self.services.users.displayname(&event.sender).await.ok();
+						self.services.users.displayname(event.sender()).await.ok();
 
 					notifi.room_name = self
 						.services
 						.state_accessor
-						.get_name(&event.room_id)
+						.get_name(event.room_id())
 						.await
 						.ok();
 
 					notifi.room_alias = self
 						.services
 						.state_accessor
-						.get_canonical_alias(&event.room_id)
+						.get_canonical_alias(event.room_id())
 						.await
 						.ok();
 

@@ -175,7 +175,7 @@ pub(crate) async fn get_message_events_route(
 	let chunk = events
 		.into_iter()
 		.map(at!(1))
-		.map(PduEvent::into_room_event)
+		.map(Event::into_format)
 		.collect();
 
 	Ok(get_message_events::v3::Response {
@@ -241,7 +241,7 @@ async fn get_member_event(
 		.rooms
 		.state_accessor
 		.room_state_get(room_id, &StateEventType::RoomMember, user_id.as_str())
-		.map_ok(PduEvent::into_state_event)
+		.map_ok(Event::into_format)
 		.await
 		.ok()
 }

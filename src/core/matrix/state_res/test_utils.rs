@@ -10,7 +10,6 @@ use ruma::{
 	UserId, event_id,
 	events::{
 		TimelineEventType,
-		pdu::{EventHash, Pdu, RoomV3Pdu},
 		room::{
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			member::{MembershipState, RoomMemberEventContent},
@@ -23,17 +22,16 @@ use serde_json::{
 	value::{RawValue as RawJsonValue, to_raw_value as to_raw_json_value},
 };
 
-pub(crate) use self::event::PduEvent;
 use super::auth_types_for_event;
 use crate::{
 	Result, info,
-	matrix::{Event, EventTypeExt, StateMap},
+	matrix::{Event, EventTypeExt, Pdu, StateMap, pdu::EventHash},
 };
 
 static SERVER_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
 
 pub(crate) async fn do_check(
-	events: &[PduEvent],
+	events: &[Pdu],
 	edges: Vec<Vec<OwnedEventId>>,
 	expected_state_ids: Vec<OwnedEventId>,
 ) {
@@ -81,8 +79,8 @@ pub(crate) async fn do_check(
 		}
 	}
 
-	// event_id -> PduEvent
-	let mut event_map: HashMap<OwnedEventId, PduEvent> = HashMap::new();
+	// event_id -> Pdu
+	let mut event_map: HashMap<OwnedEventId, Pdu> = HashMap::new();
 	// event_id -> StateMap<OwnedEventId>
 	let mut state_at_event: HashMap<OwnedEventId, StateMap<OwnedEventId>> = HashMap::new();
 
@@ -265,7 +263,7 @@ impl<E: Event + Clone> TestStore<E> {
 
 // A StateStore implementation for testing
 #[allow(clippy::type_complexity)]
-impl TestStore<PduEvent> {
+impl TestStore<Pdu> {
 	pub(crate) fn set_up(
 		&mut self,
 	) -> (StateMap<OwnedEventId>, StateMap<OwnedEventId>, StateMap<OwnedEventId>) {
@@ -390,7 +388,7 @@ pub(crate) fn to_init_pdu_event(
 	ev_type: TimelineEventType,
 	state_key: Option<&str>,
 	content: Box<RawJsonValue>,
-) -> PduEvent {
+) -> Pdu {
 	let ts = SERVER_TIMESTAMP.fetch_add(1, SeqCst);
 	let id = if id.contains('$') {
 		id.to_owned()
@@ -398,24 +396,22 @@ pub(crate) fn to_init_pdu_event(
 		format!("${id}:foo")
 	};
 
-	let state_key = state_key.map(ToOwned::to_owned);
-	PduEvent {
+	Pdu {
 		event_id: id.try_into().unwrap(),
-		rest: Pdu::RoomV3Pdu(RoomV3Pdu {
-			room_id: room_id().to_owned(),
-			sender: sender.to_owned(),
-			origin_server_ts: MilliSecondsSinceUnixEpoch(ts.try_into().unwrap()),
-			state_key,
-			kind: ev_type,
-			content,
-			redacts: None,
-			unsigned: BTreeMap::new(),
-			auth_events: vec![],
-			prev_events: vec![],
-			depth: uint!(0),
-			hashes: EventHash::new("".to_owned()),
-			signatures: ServerSignatures::default(),
-		}),
+		room_id: room_id().to_owned(),
+		sender: sender.to_owned(),
+		origin_server_ts: ts.try_into().unwrap(),
+		state_key: state_key.map(Into::into),
+		kind: ev_type,
+		content,
+		origin: None,
+		redacts: None,
+		unsigned: None,
+		auth_events: vec![],
+		prev_events: vec![],
+		depth: uint!(0),
+		hashes: EventHash { sha256: "".to_owned() },
+		signatures: None,
 	}
 }
 
@@ -427,7 +423,7 @@ pub(crate) fn to_pdu_event<S>(
 	content: Box<RawJsonValue>,
 	auth_events: &[S],
 	prev_events: &[S],
-) -> PduEvent
+) -> Pdu
 where
 	S: AsRef<str>,
 {
@@ -448,30 +444,28 @@ where
 		.map(event_id)
 		.collect::<Vec<_>>();
 
-	let state_key = state_key.map(ToOwned::to_owned);
-	PduEvent {
+	Pdu {
 		event_id: id.try_into().unwrap(),
-		rest: Pdu::RoomV3Pdu(RoomV3Pdu {
-			room_id: room_id().to_owned(),
-			sender: sender.to_owned(),
-			origin_server_ts: MilliSecondsSinceUnixEpoch(ts.try_into().unwrap()),
-			state_key,
-			kind: ev_type,
-			content,
-			redacts: None,
-			unsigned: BTreeMap::new(),
-			auth_events,
-			prev_events,
-			depth: uint!(0),
-			hashes: EventHash::new("".to_owned()),
-			signatures: ServerSignatures::default(),
-		}),
+		room_id: room_id().to_owned(),
+		sender: sender.to_owned(),
+		origin_server_ts: ts.try_into().unwrap(),
+		state_key: state_key.map(Into::into),
+		kind: ev_type,
+		content,
+		origin: None,
+		redacts: None,
+		unsigned: None,
+		auth_events,
+		prev_events,
+		depth: uint!(0),
+		hashes: EventHash { sha256: "".to_owned() },
+		signatures: None,
 	}
 }
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, PduEvent> {
+pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, Pdu> {
 	vec![
 		to_pdu_event::<&EventId>(
 			"CREATE",
@@ -553,7 +547,7 @@ pub(crate) fn INITIAL_EVENTS() -> HashMap<OwnedEventId, PduEvent> {
 
 // all graphs start with these input events
 #[allow(non_snake_case)]
-pub(crate) fn INITIAL_EVENTS_CREATE_ROOM() -> HashMap<OwnedEventId, PduEvent> {
+pub(crate) fn INITIAL_EVENTS_CREATE_ROOM() -> HashMap<OwnedEventId, Pdu> {
 	vec![to_pdu_event::<&EventId>(
 		"CREATE",
 		alice(),
@@ -574,112 +568,4 @@ pub(crate) fn INITIAL_EDGES() -> Vec<OwnedEventId> {
 		.into_iter()
 		.map(event_id)
 		.collect::<Vec<_>>()
-}
-
-pub(crate) mod event {
-	use ruma::{
-		EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
-		events::{TimelineEventType, pdu::Pdu},
-	};
-	use serde::{Deserialize, Serialize};
-	use serde_json::value::RawValue as RawJsonValue;
-
-	use crate::Event;
-
-	impl Event for PduEvent {
-		fn event_id(&self) -> &EventId { &self.event_id }
-
-		fn room_id(&self) -> &RoomId {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => &ev.room_id,
-				| Pdu::RoomV3Pdu(ev) => &ev.room_id,
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn sender(&self) -> &UserId {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => &ev.sender,
-				| Pdu::RoomV3Pdu(ev) => &ev.sender,
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn event_type(&self) -> &TimelineEventType {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => &ev.kind,
-				| Pdu::RoomV3Pdu(ev) => &ev.kind,
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn content(&self) -> &RawJsonValue {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => &ev.content,
-				| Pdu::RoomV3Pdu(ev) => &ev.content,
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn origin_server_ts(&self) -> MilliSecondsSinceUnixEpoch {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => ev.origin_server_ts,
-				| Pdu::RoomV3Pdu(ev) => ev.origin_server_ts,
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn state_key(&self) -> Option<&str> {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => ev.state_key.as_deref(),
-				| Pdu::RoomV3Pdu(ev) => ev.state_key.as_deref(),
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		#[allow(refining_impl_trait)]
-		fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) =>
-					Box::new(ev.prev_events.iter().map(|(id, _)| id.as_ref())),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.prev_events.iter().map(AsRef::as_ref)),
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		#[allow(refining_impl_trait)]
-		fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &EventId> + Send + '_> {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) =>
-					Box::new(ev.auth_events.iter().map(|(id, _)| id.as_ref())),
-				| Pdu::RoomV3Pdu(ev) => Box::new(ev.auth_events.iter().map(AsRef::as_ref)),
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-
-		fn redacts(&self) -> Option<&EventId> {
-			match &self.rest {
-				| Pdu::RoomV1Pdu(ev) => ev.redacts.as_deref(),
-				| Pdu::RoomV3Pdu(ev) => ev.redacts.as_deref(),
-				#[allow(unreachable_patterns)]
-				| _ => unreachable!("new PDU version"),
-			}
-		}
-	}
-
-	#[derive(Clone, Debug, Deserialize, Serialize)]
-	#[allow(clippy::exhaustive_structs)]
-	pub(crate) struct PduEvent {
-		pub(crate) event_id: OwnedEventId,
-		#[serde(flatten)]
-		pub(crate) rest: Pdu,
-	}
 }

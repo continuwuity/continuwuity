@@ -6,7 +6,7 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, PduCount, PduEvent, Result, debug, error, extract_variant,
+	Err, Error, Event, PduCount, PduEvent, Result, at, debug, error, extract_variant,
 	matrix::TypeStateKey,
 	utils::{
 		BoolExt, IterStream, ReadyExt, TryFutureExtExt,
@@ -604,7 +604,8 @@ pub(crate) async fn sync_events_v4_route(
 			.iter()
 			.stream()
 			.filter_map(|item| ignored_filter(&services, item.clone(), sender_user))
-			.map(|(_, pdu)| pdu.to_sync_room_event())
+			.map(at!(1))
+			.map(Event::into_format)
 			.collect()
 			.await;
 
@@ -626,7 +627,7 @@ pub(crate) async fn sync_events_v4_route(
 					.state_accessor
 					.room_state_get(room_id, &state.0, &state.1)
 					.await
-					.map(PduEvent::into_sync_state_event)
+					.map(PduEvent::into_format)
 					.ok()
 			})
 			.collect()

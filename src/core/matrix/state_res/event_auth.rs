@@ -136,17 +136,17 @@ pub fn auth_types_for_event(
 		event_id = incoming_event.event_id().as_str(),
 	)
 )]
-pub async fn auth_check<F, Fut, Fetched, Incoming>(
+pub async fn auth_check<E, F, Fut>(
 	room_version: &RoomVersion,
-	incoming_event: &Incoming,
-	current_third_party_invite: Option<&Incoming>,
+	incoming_event: &E,
+	current_third_party_invite: Option<&E>,
 	fetch_state: F,
 ) -> Result<bool, Error>
 where
 	F: Fn(&StateEventType, &str) -> Fut + Send,
-	Fut: Future<Output = Option<Fetched>> + Send,
-	Fetched: Event + Send,
-	Incoming: Event + Send + Sync,
+	Fut: Future<Output = Option<E>> + Send,
+	E: Event + Send + Sync,
+	for<'a> &'a E: Event + Send,
 {
 	debug!(
 		event_id = format!("{}", incoming_event.event_id()),
@@ -514,20 +514,24 @@ where
 /// event and the current State.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::cognitive_complexity)]
-fn valid_membership_change(
+fn valid_membership_change<E>(
 	room_version: &RoomVersion,
 	target_user: &UserId,
-	target_user_membership_event: Option<&impl Event>,
+	target_user_membership_event: Option<&E>,
 	sender: &UserId,
-	sender_membership_event: Option<&impl Event>,
-	current_event: impl Event,
-	current_third_party_invite: Option<&impl Event>,
-	power_levels_event: Option<&impl Event>,
-	join_rules_event: Option<&impl Event>,
+	sender_membership_event: Option<&E>,
+	current_event: &E,
+	current_third_party_invite: Option<&E>,
+	power_levels_event: Option<&E>,
+	join_rules_event: Option<&E>,
 	user_for_join_auth: Option<&UserId>,
 	user_for_join_auth_membership: &MembershipState,
-	create_room: &impl Event,
-) -> Result<bool> {
+	create_room: &E,
+) -> Result<bool>
+where
+	E: Event + Send + Sync,
+	for<'a> &'a E: Event + Send,
+{
 	#[derive(Deserialize)]
 	struct GetThirdPartyInvite {
 		third_party_invite: Option<Raw<ThirdPartyInvite>>,
@@ -820,7 +824,7 @@ fn valid_membership_change(
 ///
 /// Does the event have the correct userId as its state_key if it's not the ""
 /// state_key.
-fn can_send_event(event: impl Event, ple: Option<impl Event>, user_level: Int) -> bool {
+fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int) -> bool {
 	let event_type_power_level = get_send_level(event.event_type(), event.state_key(), ple);
 
 	debug!(
@@ -846,8 +850,8 @@ fn can_send_event(event: impl Event, ple: Option<impl Event>, user_level: Int) -
 /// Confirm that the event sender has the required power levels.
 fn check_power_levels(
 	room_version: &RoomVersion,
-	power_event: impl Event,
-	previous_power_event: Option<impl Event>,
+	power_event: &impl Event,
+	previous_power_event: Option<&impl Event>,
 	user_level: Int,
 ) -> Option<bool> {
 	match power_event.state_key() {
@@ -1010,7 +1014,7 @@ fn get_deserialize_levels(
 /// given event.
 fn check_redaction(
 	_room_version: &RoomVersion,
-	redaction_event: impl Event,
+	redaction_event: &impl Event,
 	user_level: Int,
 	redact_level: Int,
 ) -> Result<bool> {
@@ -1039,7 +1043,7 @@ fn check_redaction(
 fn get_send_level(
 	e_type: &TimelineEventType,
 	state_key: Option<&str>,
-	power_lvl: Option<impl Event>,
+	power_lvl: Option<&impl Event>,
 ) -> Int {
 	power_lvl
 		.and_then(|ple| {
@@ -1062,7 +1066,7 @@ fn verify_third_party_invite(
 	target_user: Option<&UserId>,
 	sender: &UserId,
 	tp_id: &ThirdPartyInvite,
-	current_third_party_invite: Option<impl Event>,
+	current_third_party_invite: Option<&impl Event>,
 ) -> bool {
 	// 1. Check for user being banned happens before this is called
 	// checking for mxid and token keys is done by ruma when deserializing
@@ -1128,12 +1132,15 @@ mod tests {
 	};
 	use serde_json::value::to_raw_value as to_raw_json_value;
 
-	use crate::state_res::{
-		Event, EventTypeExt, RoomVersion, StateMap,
-		event_auth::valid_membership_change,
-		test_utils::{
-			INITIAL_EVENTS, INITIAL_EVENTS_CREATE_ROOM, PduEvent, alice, charlie, ella, event_id,
-			member_content_ban, member_content_join, room_id, to_pdu_event,
+	use crate::{
+		matrix::{Event, EventTypeExt, Pdu as PduEvent},
+		state_res::{
+			RoomVersion, StateMap,
+			event_auth::valid_membership_change,
+			test_utils::{
+				INITIAL_EVENTS, INITIAL_EVENTS_CREATE_ROOM, alice, charlie, ella, event_id,
+				member_content_ban, member_content_join, room_id, to_pdu_event,
+			},
 		},
 	};
 

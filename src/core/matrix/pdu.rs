@@ -7,8 +7,6 @@ mod id;
 mod raw_id;
 mod redact;
 mod relation;
-mod state_key;
-mod strip;
 #[cfg(test)]
 mod tests;
 mod unsigned;
@@ -27,37 +25,50 @@ pub use self::{
 	builder::{Builder, Builder as PduBuilder},
 	count::Count,
 	event_id::*,
-	id::*,
+	id::{ShortId, *},
 	raw_id::*,
-	state_key::{ShortStateKey, StateKey},
 };
-use super::Event;
+use super::{Event, StateKey};
 use crate::Result;
 
 /// Persistent Data Unit (Event)
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Pdu {
 	pub event_id: OwnedEventId,
+
 	pub room_id: OwnedRoomId,
+
 	pub sender: OwnedUserId,
+
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub origin: Option<OwnedServerName>,
+
 	pub origin_server_ts: UInt,
+
 	#[serde(rename = "type")]
 	pub kind: TimelineEventType,
+
 	pub content: Box<RawJsonValue>,
+
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub state_key: Option<StateKey>,
+
 	pub prev_events: Vec<OwnedEventId>,
+
 	pub depth: UInt,
+
 	pub auth_events: Vec<OwnedEventId>,
+
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub redacts: Option<OwnedEventId>,
+
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub unsigned: Option<Box<RawJsonValue>>,
+
 	pub hashes: EventHash,
-	#[serde(default, skip_serializing_if = "Option::is_none")]
+
 	// BTreeMap<Box<ServerName>, BTreeMap<ServerSigningKeyId, String>>
+	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub signatures: Option<Box<RawJsonValue>>,
 }
 
@@ -79,31 +90,91 @@ impl Pdu {
 }
 
 impl Event for Pdu {
-	fn event_id(&self) -> &EventId { &self.event_id }
-
-	fn room_id(&self) -> &RoomId { &self.room_id }
-
-	fn sender(&self) -> &UserId { &self.sender }
-
-	fn event_type(&self) -> &TimelineEventType { &self.kind }
-
-	fn content(&self) -> &RawJsonValue { &self.content }
-
-	fn origin_server_ts(&self) -> MilliSecondsSinceUnixEpoch {
-		MilliSecondsSinceUnixEpoch(self.origin_server_ts)
-	}
-
-	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
-
-	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
-		self.prev_events.iter().map(AsRef::as_ref)
-	}
-
+	#[inline]
 	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
 		self.auth_events.iter().map(AsRef::as_ref)
 	}
 
+	#[inline]
+	fn content(&self) -> &RawJsonValue { &self.content }
+
+	#[inline]
+	fn event_id(&self) -> &EventId { &self.event_id }
+
+	#[inline]
+	fn origin_server_ts(&self) -> MilliSecondsSinceUnixEpoch {
+		MilliSecondsSinceUnixEpoch(self.origin_server_ts)
+	}
+
+	#[inline]
+	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+		self.prev_events.iter().map(AsRef::as_ref)
+	}
+
+	#[inline]
 	fn redacts(&self) -> Option<&EventId> { self.redacts.as_deref() }
+
+	#[inline]
+	fn room_id(&self) -> &RoomId { &self.room_id }
+
+	#[inline]
+	fn sender(&self) -> &UserId { &self.sender }
+
+	#[inline]
+	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
+
+	#[inline]
+	fn kind(&self) -> &TimelineEventType { &self.kind }
+
+	#[inline]
+	fn unsigned(&self) -> Option<&RawJsonValue> { self.unsigned.as_deref() }
+
+	#[inline]
+	fn is_owned(&self) -> bool { true }
+}
+
+impl Event for &Pdu {
+	#[inline]
+	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+		self.auth_events.iter().map(AsRef::as_ref)
+	}
+
+	#[inline]
+	fn content(&self) -> &RawJsonValue { &self.content }
+
+	#[inline]
+	fn event_id(&self) -> &EventId { &self.event_id }
+
+	#[inline]
+	fn origin_server_ts(&self) -> MilliSecondsSinceUnixEpoch {
+		MilliSecondsSinceUnixEpoch(self.origin_server_ts)
+	}
+
+	#[inline]
+	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+		self.prev_events.iter().map(AsRef::as_ref)
+	}
+
+	#[inline]
+	fn redacts(&self) -> Option<&EventId> { self.redacts.as_deref() }
+
+	#[inline]
+	fn room_id(&self) -> &RoomId { &self.room_id }
+
+	#[inline]
+	fn sender(&self) -> &UserId { &self.sender }
+
+	#[inline]
+	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
+
+	#[inline]
+	fn kind(&self) -> &TimelineEventType { &self.kind }
+
+	#[inline]
+	fn unsigned(&self) -> Option<&RawJsonValue> { self.unsigned.as_deref() }
+
+	#[inline]
+	fn is_owned(&self) -> bool { false }
 }
 
 /// Prevent derived equality which wouldn't limit itself to event_id
