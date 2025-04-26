@@ -137,6 +137,13 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Sends markdown notice to the admin room as the admin user.
+	pub async fn notice(&self, body: &str) {
+		self.send_message(RoomMessageEventContent::notice_markdown(body))
+			.await
+			.ok();
+	}
+
 	/// Sends markdown message (not an m.notice for notification reasons) to the
 	/// admin room as the admin user.
 	pub async fn send_text(&self, body: &str) {
