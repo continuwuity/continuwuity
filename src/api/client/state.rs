@@ -5,7 +5,7 @@ use conduwuit::{
 	utils::BoolExt,
 };
 use conduwuit_service::Services;
-use futures::TryStreamExt;
+use futures::{FutureExt, TryStreamExt};
 use ruma::{
 	OwnedEventId, RoomId, UserId,
 	api::client::state::{get_state_events, get_state_events_for_key, send_state_event},
@@ -59,6 +59,7 @@ pub(crate) async fn send_state_event_for_empty_key_route(
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<RumaResponse<send_state_event::v3::Response>> {
 	send_state_event_for_key_route(State(services), body)
+		.boxed()
 		.await
 		.map(RumaResponse)
 }
