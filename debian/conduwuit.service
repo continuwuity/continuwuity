@@ -3,7 +3,7 @@ Description=conduwuit Matrix homeserver
 Wants=network-online.target
 After=network-online.target
 Alias=matrix-conduwuit.service
-Documentation=https://conduwuit.puppyirl.gay/
+Documentation=https://continuwuity.org/
 
 [Service]
 DynamicUser=yes
