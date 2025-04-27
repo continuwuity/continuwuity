@@ -75,16 +75,8 @@ jobs:
     tests:
         name: Test
         runs-on: [tom, nix]
-        services:
-          dind:
-              image: docker:dind
-              options: >-
-                  --privileged
-              env:
-                  DOCKER_TLS_CERTDIR: ""
-                  DOCKER_HOST: unix:///var/run/dind.socket
         container:
-          image: catthehacker/ubuntu:act-latest
+          image: catthehacker/ubuntu:rust-latest
           volumes:
             - /nix/store:/nix/store
             - /nix/var/nix/db:/nix/var/nix/db
@@ -196,6 +188,68 @@ jobs:
             - name: Build complement image
               run: |
                   bin/nix-build-and-cache just .#complement
+                  cp -v -f result complement_oci_image.tar.gz
+
+
+            - name: Upload Complement OCI image
+              uses: https://data.forgejo.org/forgejo/upload-artifact@v4
+              env:
+              with:
+                name: complement_oci_image.tar.gz
+                path: complement_oci_image.tar.gz
+                if-no-files-found: error
+                compression-level: 0
+
+
+    complement:
+        name: complement
+        runs-on: [tom, nix]
+        needs: tests
+        services:
+          dind:
+              image: docker:dind
+              options: >-
+                  --privileged
+              env:
+                  DOCKER_TLS_CERTDIR: ""
+                  DOCKER_HOST: unix:///var/run/dind.socket
+        container:
+          image: catthehacker/ubuntu:act-latest
+          volumes:
+            - /nix/store:/nix/store
+            - /nix/var/nix/db:/nix/var/nix/db
+        steps:
+            - name: Sync repository
+              uses: actions/checkout@v4
+              with:
+                persist-credentials: false
+
+            - uses: https://github.com/cachix/install-nix-action@v31.1.0
+
+            - name: Prepare build environment
+              shell: bash
+              run: |
+                  echo $SHELL
+                  df -h /nix/var/nix/db
+                  du -had 1 /nix/
+                  if ! type nom &> /dev/null; then
+                    sudo cp $(which nix) /usr/bin/nom-or-nix
+                  fi
+                  echo 'source $HOME/.nix-profile/share/nix-direnv/direnvrc' > "$HOME/.direnvrc"
+                  nix profile install -v --inputs-from . nixpkgs#direnv nixpkgs#nix-direnv nixpkgs#nodejs nixpkgs#iproute2 nixpkgs#nettools nixpkgs#bind
+                  ip a
+                  direnv allow
+
+                  if type nom &> /dev/null; then
+                    nom develop .#all-features --command true
+                  else
+                    nix develop .#all-features --command true
+                  fi
+
+            - name: Download artifacts
+              uses: https://data.forgejo.org/forgejo/download-artifact@v4
+              with:
+                pattern: "complement_oci_image.tar.gz"
 
             - name: Run Complement tests
               shell: bash
@@ -208,36 +262,29 @@ jobs:
                   export COMPLEMENT_HOSTNAME_RUNNING_COMPLEMENT=dind
                   # the nix devshell sets $COMPLEMENT_SRC, so "/dev/null" is no-op
                   direnv exec . bin/complement "/dev/null" complement_test_logs.jsonl complement_test_results.jsonl > >(tee -a test_output.log)
-                  cp -v -f result complement_oci_image.tar.gz
                   netstat -tnlp
 
-            - name: Upload Complement OCI image
-              uses: actions/upload-artifact@v4
-              with:
-                name: complement_oci_image.tar.gz
-                path: complement_oci_image.tar.gz
-                if-no-files-found: error
-                compression-level: 0
-
             - name: Upload Complement logs
-              uses: actions/upload-artifact@v4
+              uses: https://data.forgejo.org/forgejo/upload-artifact@v4
               with:
                 name: complement_test_logs.jsonl
                 path: complement_test_logs.jsonl
                 if-no-files-found: error
 
             - name: Upload Complement results
-              uses: actions/upload-artifact@v4
+              uses: https://data.forgejo.org/forgejo/upload-artifact@v4
               with:
                 name: complement_test_results.jsonl
                 path: complement_test_results.jsonl
                 if-no-files-found: error
 
             - name: Diff Complement results with checked-in repo results
+              shell: bash
               run: |
                   diff -u --color=always tests/test_results/complement/test_results.jsonl complement_test_results.jsonl > >(tee -a complement_diff_output.log)
 
             - name: Update Job Summary
+              shell: bash
               env:
                 GH_JOB_STATUS: ${{ job.status }}
               if: success() || failure()
