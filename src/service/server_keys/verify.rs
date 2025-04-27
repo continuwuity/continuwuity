@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, implement, pdu::gen_event_id_canonical_json};
+use conduwuit::{Err, Result, implement, matrix::event::gen_event_id_canonical_json};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId, signatures::Verified,
 };

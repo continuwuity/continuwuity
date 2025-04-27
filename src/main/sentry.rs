@@ -35,11 +35,13 @@ fn options(config: &Config) -> ClientOptions {
 		.expect("init_sentry should only be called if sentry is enabled and this is not None")
 		.as_str();
 
+	let server_name = config
+		.sentry_send_server_name
+		.then(|| config.server_name.to_string().into());
+
 	ClientOptions {
 		dsn: Some(Dsn::from_str(dsn).expect("sentry_endpoint must be a valid URL")),
-		server_name: config
-			.sentry_send_server_name
-			.then(|| config.server_name.to_string().into()),
+		server_name,
 		traces_sample_rate: config.sentry_traces_sample_rate,
 		debug: cfg!(debug_assertions),
 		release: sentry::release_name!(),

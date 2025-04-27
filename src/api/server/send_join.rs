@@ -5,7 +5,7 @@ use std::borrow::Borrow;
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, at, err,
-	pdu::gen_event_id_canonical_json,
+	matrix::event::gen_event_id_canonical_json,
 	utils::stream::{IterStream, TryBroadbandExt},
 	warn,
 };

@@ -1,10 +1,10 @@
 use ruma::{RoomVersionId, canonical_json::redact_content_in_place};
-use serde_json::{json, value::to_raw_value};
+use serde_json::{Value as JsonValue, json, value::to_raw_value};
 
 use crate::{Error, Result, err, implement};
 
 #[implement(super::Pdu)]
-pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: &Self) -> Result {
+pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> Result {
 	self.unsigned = None;
 
 	let mut content = serde_json::from_str(self.content.get())

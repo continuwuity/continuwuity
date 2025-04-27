@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
-	matrix::pdu::{PduBuilder, gen_event_id_canonical_json},
+	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
 };
 use futures::{FutureExt, join};
 use ruma::{

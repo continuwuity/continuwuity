@@ -2,9 +2,10 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Result, at,
 	matrix::{
-		Event,
-		pdu::{PduCount, PduEvent},
+		event::{Event, Matches},
+		pdu::PduCount,
 	},
+	ref_at,
 	utils::{
 		IterStream, ReadyExt,
 		result::{FlatOk, LogErr},
@@ -216,7 +217,9 @@ where
 	pin_mut!(receipts);
 	let witness: Witness = events
 		.stream()
-		.map(|(_, pdu)| pdu.sender.clone())
+		.map(ref_at!(1))
+		.map(Event::sender)
+		.map(ToOwned::to_owned)
 		.chain(
 			receipts
 				.ready_take_while(|(_, c, _)| *c <= newest.into_unsigned())
@@ -261,27 +264,33 @@ pub(crate) async fn ignored_filter(
 }
 
 #[inline]
-pub(crate) async fn is_ignored_pdu(
+pub(crate) async fn is_ignored_pdu<Pdu>(
 	services: &Services,
-	pdu: &PduEvent,
+	event: &Pdu,
 	user_id: &UserId,
-) -> bool {
+) -> bool
+where
+	Pdu: Event + Send + Sync,
+{
 	// exclude Synapse's dummy events from bloating up response bodies. clients
 	// don't need to see this.
-	if pdu.kind.to_cow_str() == "org.matrix.dummy_event" {
+	if event.kind().to_cow_str() == "org.matrix.dummy_event" {
 		return true;
 	}
 
-	let ignored_type = IGNORED_MESSAGE_TYPES.binary_search(&pdu.kind).is_ok();
+	let ignored_type = IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok();
 
 	let ignored_server = services
 		.moderation
-		.is_remote_server_ignored(pdu.sender().server_name());
+		.is_remote_server_ignored(event.sender().server_name());
 
 	if ignored_type
 		&& (ignored_server
 			|| (!services.config.send_messages_from_ignored_users_to_client
-				&& services.users.user_is_ignored(&pdu.sender, user_id).await))
+				&& services
+					.users
+					.user_is_ignored(event.sender(), user_id)
+					.await))
 	{
 		return true;
 	}
@@ -300,7 +309,7 @@ pub(crate) async fn visibility_filter(
 	services
 		.rooms
 		.state_accessor
-		.user_can_see_event(user_id, &pdu.room_id, &pdu.event_id)
+		.user_can_see_event(user_id, pdu.room_id(), pdu.event_id())
 		.await
 		.then_some(item)
 }
@@ -308,7 +317,7 @@ pub(crate) async fn visibility_filter(
 #[inline]
 pub(crate) fn event_filter(item: PdusIterItem, filter: &RoomEventFilter) -> Option<PdusIterItem> {
 	let (_, pdu) = &item;
-	pdu.matches(filter).then_some(item)
+	filter.matches(pdu).then_some(item)
 }
 
 #[cfg_attr(debug_assertions, conduwuit::ctor)]

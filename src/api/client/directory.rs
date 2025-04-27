@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, err, info,
+	Err, Event, Result, err, info,
 	utils::{
 		TryFutureExtExt,
 		math::Expected,
@@ -352,7 +352,7 @@ async fn user_can_publish_room(
 		.room_state_get(room_id, &StateEventType::RoomPowerLevels, "")
 		.await
 	{
-		| Ok(event) => serde_json::from_str(event.content.get())
+		| Ok(event) => serde_json::from_str(event.content().get())
 			.map_err(|_| err!(Database("Invalid event content for m.room.power_levels")))
 			.map(|content: RoomPowerLevelsEventContent| {
 				RoomPowerLevels::from(content)
@@ -365,7 +365,7 @@ async fn user_can_publish_room(
 				.room_state_get(room_id, &StateEventType::RoomCreate, "")
 				.await
 			{
-				| Ok(event) => Ok(event.sender == user_id),
+				| Ok(event) => Ok(event.sender() == user_id),
 				| _ => Err!(Request(Forbidden("User is not allowed to publish this room"))),
 			}
 		},

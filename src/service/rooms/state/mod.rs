@@ -356,8 +356,8 @@ impl Service {
 		&self,
 		room_id: &RoomId,
 		shortstatehash: u64,
-		_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
-		                               * state mutex */
+		// Take mutex guard to make sure users get the room state mutex
+		_mutex_lock: &RoomMutexGuard,
 	) {
 		const BUFSIZE: usize = size_of::<u64>();
 

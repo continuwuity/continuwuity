@@ -51,7 +51,9 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 			},
 		};
 	}
+
 	server.server.stopping.store(false, Ordering::Release);
+
 	let run = main_mod.get::<RunFuncProto>("run")?;
 	if let Err(error) = run(server
 		.services
@@ -64,7 +66,9 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 		error!("Running server: {error}");
 		return Err(error);
 	}
+
 	let reloads = server.server.reloading.swap(false, Ordering::AcqRel);
+
 	let stops = !reloads || stale(server).await? <= restart_thresh();
 	let starts = reloads && stops;
 	if stops {

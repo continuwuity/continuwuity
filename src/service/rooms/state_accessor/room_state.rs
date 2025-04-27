@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 
 use conduwuit::{
 	Result, err, implement,
-	matrix::{PduEvent, StateKey},
+	matrix::{Event, StateKey},
 };
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{EventId, RoomId, events::StateEventType};
@@ -30,7 +30,7 @@ where
 pub fn room_state_full<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = Result<((StateEventType, StateKey), PduEvent)>> + Send + 'a {
+) -> impl Stream<Item = Result<((StateEventType, StateKey), impl Event)>> + Send + 'a {
 	self.services
 		.state
 		.get_room_shortstatehash(room_id)
@@ -45,7 +45,7 @@ pub fn room_state_full<'a>(
 pub fn room_state_full_pdus<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = Result<PduEvent>> + Send + 'a {
+) -> impl Stream<Item = Result<impl Event>> + Send + 'a {
 	self.services
 		.state
 		.get_room_shortstatehash(room_id)
@@ -84,7 +84,7 @@ pub async fn room_state_get(
 	room_id: &RoomId,
 	event_type: &StateEventType,
 	state_key: &str,
-) -> Result<PduEvent> {
+) -> Result<impl Event> {
 	self.services
 		.state
 		.get_room_shortstatehash(room_id)

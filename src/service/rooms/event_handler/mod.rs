@@ -18,7 +18,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{Err, PduEvent, Result, RoomVersion, Server, utils::MutexMap};
+use conduwuit::{Err, Event, PduEvent, Result, RoomVersion, Server, utils::MutexMap};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
 	events::room::create::RoomCreateEventContent,
@@ -104,11 +104,11 @@ impl Service {
 	}
 }
 
-fn check_room_id(room_id: &RoomId, pdu: &PduEvent) -> Result {
-	if pdu.room_id != room_id {
+fn check_room_id<Pdu: Event>(room_id: &RoomId, pdu: &Pdu) -> Result {
+	if pdu.room_id() != room_id {
 		return Err!(Request(InvalidParam(error!(
-			pdu_event_id = ?pdu.event_id,
-			pdu_room_id = ?pdu.room_id,
+			pdu_event_id = ?pdu.event_id(),
+			pdu_room_id = ?pdu.room_id(),
 			?room_id,
 			"Found event from room in room",
 		))));
@@ -117,7 +117,7 @@ fn check_room_id(room_id: &RoomId, pdu: &PduEvent) -> Result {
 	Ok(())
 }
 
-fn get_room_version_id(create_event: &PduEvent) -> Result<RoomVersionId> {
+fn get_room_version_id<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionId> {
 	let content: RoomCreateEventContent = create_event.get_content()?;
 	let room_version = content.room_version;
 

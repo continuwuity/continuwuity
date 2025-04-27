@@ -1,11 +1,14 @@
 mod data;
 use std::sync::Arc;
 
-use conduwuit::{PduCount, Result};
+use conduwuit::{
+	Result,
+	matrix::{Event, PduCount},
+};
 use futures::{StreamExt, future::try_join};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
-use self::data::{Data, PdusIterItem};
+use self::data::Data;
 use crate::{Dep, rooms};
 
 pub struct Service {
@@ -44,16 +47,16 @@ impl Service {
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	pub async fn get_relations(
-		&self,
-		user_id: &UserId,
-		room_id: &RoomId,
-		target: &EventId,
+	pub async fn get_relations<'a>(
+		&'a self,
+		user_id: &'a UserId,
+		room_id: &'a RoomId,
+		target: &'a EventId,
 		from: PduCount,
 		limit: usize,
 		max_depth: u8,
 		dir: Direction,
-	) -> Vec<PdusIterItem> {
+	) -> Vec<(PduCount, impl Event)> {
 		let room_id = self.services.short.get_shortroomid(room_id);
 
 		let target = self.services.timeline.get_pdu_count(target);

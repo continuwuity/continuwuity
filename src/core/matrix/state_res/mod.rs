@@ -74,7 +74,7 @@ type Result<T, E = Error> = crate::Result<T, E>;
 /// event is part of the same room.
 //#[tracing::instrument(level = "debug", skip(state_sets, auth_chain_sets,
 //#[tracing::instrument(level event_fetch))]
-pub async fn resolve<'a, E, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, ExistsFut>(
+pub async fn resolve<'a, Pdu, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, ExistsFut>(
 	room_version: &RoomVersionId,
 	state_sets: Sets,
 	auth_chain_sets: &'a [HashSet<OwnedEventId, Hasher>],
@@ -83,14 +83,14 @@ pub async fn resolve<'a, E, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, Exis
 ) -> Result<StateMap<OwnedEventId>>
 where
 	Fetch: Fn(OwnedEventId) -> FetchFut + Sync,
-	FetchFut: Future<Output = Option<E>> + Send,
+	FetchFut: Future<Output = Option<Pdu>> + Send,
 	Exists: Fn(OwnedEventId) -> ExistsFut + Sync,
 	ExistsFut: Future<Output = bool> + Send,
 	Sets: IntoIterator<IntoIter = SetIter> + Send,
 	SetIter: Iterator<Item = &'a StateMap<OwnedEventId>> + Clone + Send,
 	Hasher: BuildHasher + Send + Sync,
-	E: Event + Clone + Send + Sync,
-	for<'b> &'b E: Event + Send,
+	Pdu: Event + Clone + Send + Sync,
+	for<'b> &'b Pdu: Event + Send,
 {
 	debug!("State resolution starting");
 
@@ -221,6 +221,7 @@ where
 
 	let state_sets_iter =
 		state_sets_iter.inspect(|_| state_set_count = state_set_count.saturating_add(1));
+
 	for (k, v) in state_sets_iter.flatten() {
 		occurrences
 			.entry(k)
@@ -305,6 +306,7 @@ where
 			let pl = get_power_level_for_sender(&event_id, fetch_event)
 				.await
 				.ok()?;
+
 			Some((event_id, pl))
 		})
 		.inspect(|(event_id, pl)| {

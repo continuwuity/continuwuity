@@ -1,11 +1,10 @@
 use std::collections::BTreeMap;
 
 use ruma::MilliSecondsSinceUnixEpoch;
-use serde::Deserialize;
 use serde_json::value::{RawValue as RawJsonValue, Value as JsonValue, to_raw_value};
 
 use super::Pdu;
-use crate::{Result, err, implement, is_true};
+use crate::{Result, err, implement};
 
 #[implement(Pdu)]
 pub fn remove_transaction_id(&mut self) -> Result {
@@ -73,44 +72,4 @@ pub fn add_relation(&mut self, name: &str, pdu: Option<&Pdu>) -> Result {
 	self.unsigned = Some(to_raw_value(&unsigned)?);
 
 	Ok(())
-}
-
-#[implement(Pdu)]
-pub fn contains_unsigned_property<F>(&self, property: &str, is_type: F) -> bool
-where
-	F: FnOnce(&JsonValue) -> bool,
-{
-	self.get_unsigned_as_value()
-		.get(property)
-		.map(is_type)
-		.is_some_and(is_true!())
-}
-
-#[implement(Pdu)]
-pub fn get_unsigned_property<T>(&self, property: &str) -> Result<T>
-where
-	T: for<'de> Deserialize<'de>,
-{
-	self.get_unsigned_as_value()
-		.get_mut(property)
-		.map(JsonValue::take)
-		.map(serde_json::from_value)
-		.ok_or(err!(Request(NotFound("property not found in unsigned object"))))?
-		.map_err(|e| err!(Database("Failed to deserialize unsigned.{property} into type: {e}")))
-}
-
-#[implement(Pdu)]
-#[must_use]
-pub fn get_unsigned_as_value(&self) -> JsonValue {
-	self.get_unsigned::<JsonValue>().unwrap_or_default()
-}
-
-#[implement(Pdu)]
-pub fn get_unsigned<T>(&self) -> Result<JsonValue> {
-	self.unsigned
-		.as_ref()
-		.map(|raw| raw.get())
-		.map(serde_json::from_str)
-		.ok_or(err!(Request(NotFound("\"unsigned\" property not found in pdu"))))?
-		.map_err(|e| err!(Database("Failed to deserialize \"unsigned\" into value: {e}")))
 }

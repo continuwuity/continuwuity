@@ -1,10 +1,10 @@
 use axum::extract::State;
 use conduwuit::{
 	Result, at,
-	matrix::{Event, pdu::PduCount},
+	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
-use conduwuit_service::{Services, rooms::timeline::PdusIterItem};
+use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
 	EventId, RoomId, UInt, UserId,
@@ -129,7 +129,7 @@ async fn paginate_relations_with_filter(
 	// Spec (v1.10) recommends depth of at least 3
 	let depth: u8 = if recurse { 3 } else { 1 };
 
-	let events: Vec<PdusIterItem> = services
+	let events: Vec<_> = services
 		.rooms
 		.pdu_metadata
 		.get_relations(sender_user, room_id, target, start, limit, depth, dir)
@@ -138,12 +138,12 @@ async fn paginate_relations_with_filter(
 		.filter(|(_, pdu)| {
 			filter_event_type
 				.as_ref()
-				.is_none_or(|kind| *kind == pdu.kind)
+				.is_none_or(|kind| kind == pdu.kind())
 		})
 		.filter(|(_, pdu)| {
 			filter_rel_type
 				.as_ref()
-				.is_none_or(|rel_type| pdu.relation_type_equal(rel_type))
+				.is_none_or(|rel_type| rel_type.relation_type_equal(pdu))
 		})
 		.stream()
 		.ready_take_while(|(count, _)| Some(*count) != to)
@@ -172,17 +172,17 @@ async fn paginate_relations_with_filter(
 	})
 }
 
-async fn visibility_filter(
+async fn visibility_filter<Pdu: Event + Send + Sync>(
 	services: &Services,
 	sender_user: &UserId,
-	item: PdusIterItem,
-) -> Option<PdusIterItem> {
+	item: (PduCount, Pdu),
+) -> Option<(PduCount, Pdu)> {
 	let (_, pdu) = &item;
 
 	services
 		.rooms
 		.state_accessor
-		.user_can_see_event(sender_user, &pdu.room_id, &pdu.event_id)
+		.user_can_see_event(sender_user, pdu.room_id(), pdu.event_id())
 		.await
 		.then_some(item)
 }

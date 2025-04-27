@@ -305,13 +305,13 @@ impl Service {
 			return Ok(());
 		};
 
-		let response_sender = if self.is_admin_room(&pdu.room_id).await {
+		let response_sender = if self.is_admin_room(pdu.room_id()).await {
 			&self.services.globals.server_user
 		} else {
-			&pdu.sender
+			pdu.sender()
 		};
 
-		self.respond_to_room(content, &pdu.room_id, response_sender)
+		self.respond_to_room(content, pdu.room_id(), response_sender)
 			.boxed()
 			.await
 	}

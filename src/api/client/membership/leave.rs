@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug_info, debug_warn, err,
-	matrix::pdu::{PduBuilder, gen_event_id},
+	matrix::{event::gen_event_id, pdu::PduBuilder},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},
 	warn,
 };

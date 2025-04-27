@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, err, info,
+	Err, Error, Event, Result, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 };
 use futures::StreamExt;
@@ -215,7 +215,7 @@ pub(crate) async fn upgrade_room_route(
 			.room_state_get(&body.room_id, event_type, "")
 			.await
 		{
-			| Ok(v) => v.content.clone(),
+			| Ok(v) => v.content().to_owned(),
 			| Err(_) => continue, // Skipping missing events.
 		};
 

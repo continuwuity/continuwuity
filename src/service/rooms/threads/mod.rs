@@ -49,10 +49,9 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn add_to_thread<'a, E>(&self, root_event_id: &EventId, event: &'a E) -> Result
+	pub async fn add_to_thread<E>(&self, root_event_id: &EventId, event: &E) -> Result
 	where
 		E: Event + Send + Sync,
-		&'a E: Event + Send,
 	{
 		let root_id = self
 			.services
@@ -120,7 +119,7 @@ impl Service {
 
 			self.services
 				.timeline
-				.replace_pdu(&root_id, &root_pdu_json, &root_pdu)
+				.replace_pdu(&root_id, &root_pdu_json)
 				.await?;
 		}
 
@@ -130,7 +129,7 @@ impl Service {
 				users.extend_from_slice(&userids);
 			},
 			| _ => {
-				users.push(root_pdu.sender);
+				users.push(root_pdu.sender().to_owned());
 			},
 		}
 		users.push(event.sender().to_owned());
@@ -162,10 +161,10 @@ impl Service {
 			.ready_take_while(move |pdu_id| pdu_id.shortroomid() == shortroomid.to_be_bytes())
 			.wide_filter_map(move |pdu_id| async move {
 				let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
-				let pdu_id: PduId = pdu_id.into();
 
-				if pdu.sender != user_id {
-					pdu.remove_transaction_id().ok();
+				let pdu_id: PduId = pdu_id.into();
+				if pdu.sender() != user_id {
+					pdu.as_mut_pdu().remove_transaction_id().ok();
 				}
 
 				Some((pdu_id.shorteventid, pdu))

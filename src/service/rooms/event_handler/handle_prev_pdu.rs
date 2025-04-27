@@ -1,10 +1,11 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, PduEvent, Result, debug, debug::INFO_SPAN_LEVEL, defer, implement,
+	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, defer, implement,
 	utils::continue_exponential_backoff_secs,
 };
-use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UInt};
+use ruma::{CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, RoomId, ServerName};
+use tracing::debug;
 
 #[implement(super::Service)]
 #[allow(clippy::type_complexity)]
@@ -15,16 +16,19 @@ use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UInt};
 	skip_all,
 	fields(%prev_id),
 )]
-pub(super) async fn handle_prev_pdu<'a>(
+pub(super) async fn handle_prev_pdu<'a, Pdu>(
 	&self,
 	origin: &'a ServerName,
 	event_id: &'a EventId,
 	room_id: &'a RoomId,
 	eventid_info: Option<(PduEvent, BTreeMap<String, CanonicalJsonValue>)>,
-	create_event: &'a PduEvent,
-	first_ts_in_room: UInt,
+	create_event: &'a Pdu,
+	first_ts_in_room: MilliSecondsSinceUnixEpoch,
 	prev_id: &'a EventId,
-) -> Result {
+) -> Result
+where
+	Pdu: Event + Send + Sync,
+{
 	// Check for disabled again because it might have changed
 	if self.services.metadata.is_disabled(room_id).await {
 		return Err!(Request(Forbidden(debug_warn!(
@@ -59,7 +63,7 @@ pub(super) async fn handle_prev_pdu<'a>(
 	};
 
 	// Skip old events
-	if pdu.origin_server_ts < first_ts_in_room {
+	if pdu.origin_server_ts() < first_ts_in_room {
 		return Ok(());
 	}
 

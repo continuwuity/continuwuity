@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement,
+	Err, Result, debug, debug_info, err, implement, is_equal_to,
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
 	trace,
 	utils::stream::{BroadbandExt, ReadyExt},
@@ -17,19 +17,22 @@ use crate::rooms::{
 };
 
 #[implement(super::Service)]
-pub(super) async fn upgrade_outlier_to_timeline_pdu(
+pub(super) async fn upgrade_outlier_to_timeline_pdu<Pdu>(
 	&self,
 	incoming_pdu: PduEvent,
 	val: BTreeMap<String, CanonicalJsonValue>,
-	create_event: &PduEvent,
+	create_event: &Pdu,
 	origin: &ServerName,
 	room_id: &RoomId,
-) -> Result<Option<RawPduId>> {
+) -> Result<Option<RawPduId>>
+where
+	Pdu: Event + Send + Sync,
+{
 	// Skip the PDU if we already have it as a timeline event
 	if let Ok(pduid) = self
 		.services
 		.timeline
-		.get_pdu_id(&incoming_pdu.event_id)
+		.get_pdu_id(incoming_pdu.event_id())
 		.await
 	{
 		return Ok(Some(pduid));
@@ -38,7 +41,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	if self
 		.services
 		.pdu_metadata
-		.is_event_soft_failed(&incoming_pdu.event_id)
+		.is_event_soft_failed(incoming_pdu.event_id())
 		.await
 	{
 		return Err!(Request(InvalidParam("Event has been soft failed")));
@@ -53,7 +56,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	//     These are not timeline events.
 
 	debug!("Resolving state at event");
-	let mut state_at_incoming_event = if incoming_pdu.prev_events.len() == 1 {
+	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
 		self.state_at_incoming_resolved(&incoming_pdu, room_id, &room_version_id)
@@ -62,12 +65,13 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 
 	if state_at_incoming_event.is_none() {
 		state_at_incoming_event = self
-			.fetch_state(origin, create_event, room_id, &incoming_pdu.event_id)
+			.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
 			.await?;
 	}
 
 	let state_at_incoming_event =
 		state_at_incoming_event.expect("we always set this to some above");
+
 	let room_version = to_room_version(&room_version_id);
 
 	debug!("Performing auth check");
@@ -99,10 +103,10 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		.state
 		.get_auth_events(
 			room_id,
-			&incoming_pdu.kind,
-			&incoming_pdu.sender,
-			incoming_pdu.state_key.as_deref(),
-			&incoming_pdu.content,
+			incoming_pdu.kind(),
+			incoming_pdu.sender(),
+			incoming_pdu.state_key(),
+			incoming_pdu.content(),
 		)
 		.await?;
 
@@ -129,7 +133,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 			!self
 				.services
 				.state_accessor
-				.user_can_redact(&redact_id, &incoming_pdu.sender, &incoming_pdu.room_id, true)
+				.user_can_redact(&redact_id, incoming_pdu.sender(), incoming_pdu.room_id(), true)
 				.await?,
 	};
 
@@ -149,7 +153,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		.map(ToOwned::to_owned)
 		.ready_filter(|event_id| {
 			// Remove any that are referenced by this incoming event's prev_events
-			!incoming_pdu.prev_events.contains(event_id)
+			!incoming_pdu.prev_events().any(is_equal_to!(event_id))
 		})
 		.broad_filter_map(|event_id| async move {
 			// Only keep those extremities were not referenced yet
@@ -166,7 +170,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
 		extremities.len(),
-		incoming_pdu.prev_events.len()
+		incoming_pdu.prev_events().count()
 	);
 
 	let state_ids_compressed: Arc<CompressedState> = self
@@ -181,20 +185,20 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		.map(Arc::new)
 		.await;
 
-	if incoming_pdu.state_key.is_some() {
+	if incoming_pdu.state_key().is_some() {
 		debug!("Event is a state-event. Deriving new room state");
 
 		// We also add state after incoming event to the fork states
 		let mut state_after = state_at_incoming_event.clone();
-		if let Some(state_key) = &incoming_pdu.state_key {
+		if let Some(state_key) = incoming_pdu.state_key() {
 			let shortstatekey = self
 				.services
 				.short
-				.get_or_create_shortstatekey(&incoming_pdu.kind.to_string().into(), state_key)
+				.get_or_create_shortstatekey(&incoming_pdu.kind().to_string().into(), state_key)
 				.await;
 
-			let event_id = &incoming_pdu.event_id;
-			state_after.insert(shortstatekey, event_id.clone());
+			let event_id = incoming_pdu.event_id();
+			state_after.insert(shortstatekey, event_id.to_owned());
 		}
 
 		let new_room_state = self
@@ -236,9 +240,9 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		// Soft fail, we keep the event as an outlier but don't add it to the timeline
 		self.services
 			.pdu_metadata
-			.mark_event_soft_failed(&incoming_pdu.event_id);
+			.mark_event_soft_failed(incoming_pdu.event_id());
 
-		warn!("Event was soft failed: {incoming_pdu:?}");
+		warn!("Event was soft failed: {:?}", incoming_pdu.event_id());
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
@@ -249,7 +253,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	let extremities = extremities
 		.iter()
 		.map(Borrow::borrow)
-		.chain(once(incoming_pdu.event_id.borrow()));
+		.chain(once(incoming_pdu.event_id()));
 
 	let pdu_id = self
 		.services

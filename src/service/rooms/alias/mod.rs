@@ -3,7 +3,7 @@ mod remote;
 use std::sync::Arc;
 
 use conduwuit::{
-	Err, Result, Server, err,
+	Err, Event, Result, Server, err,
 	utils::{ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Map};
@@ -241,7 +241,7 @@ impl Service {
 			.room_state_get(&room_id, &StateEventType::RoomCreate, "")
 			.await
 		{
-			return Ok(event.sender == user_id);
+			return Ok(event.sender() == user_id);
 		}
 
 		Err!(Database("Room has no m.room.create event"))

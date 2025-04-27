@@ -260,5 +260,6 @@ async fn delay_response() {
 		"Got successful /report request, waiting {time_to_wait} seconds before sending \
 		 successful response."
 	);
+
 	sleep(Duration::from_secs(time_to_wait)).await;
 }

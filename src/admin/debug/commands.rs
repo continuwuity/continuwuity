@@ -558,8 +558,8 @@ pub(super) async fn force_set_room_state_from_server(
 			.latest_pdu_in_room(&room_id)
 			.await
 			.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?
-			.event_id
-			.clone(),
+			.event_id()
+			.to_owned(),
 	};
 
 	let room_version = self.services.rooms.state.get_room_version(&room_id).await?;
