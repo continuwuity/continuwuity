@@ -189,11 +189,9 @@ pub(crate) async fn get_avatar_url_route(
 			services
 				.users
 				.set_displayname(&body.user_id, response.displayname.clone());
-
 			services
 				.users
 				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-
 			services
 				.users
 				.set_blurhash(&body.user_id, response.blurhash.clone());
@@ -250,15 +248,12 @@ pub(crate) async fn get_profile_route(
 			services
 				.users
 				.set_displayname(&body.user_id, response.displayname.clone());
-
 			services
 				.users
 				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-
 			services
 				.users
 				.set_blurhash(&body.user_id, response.blurhash.clone());
-
 			services
 				.users
 				.set_timezone(&body.user_id, response.tz.clone());

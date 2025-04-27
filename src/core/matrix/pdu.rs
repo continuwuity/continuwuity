@@ -1,12 +1,8 @@
 mod builder;
-mod content;
 mod count;
-mod event_id;
-mod filter;
 mod id;
 mod raw_id;
 mod redact;
-mod relation;
 #[cfg(test)]
 mod tests;
 mod unsigned;
@@ -24,7 +20,6 @@ pub use self::{
 	Count as PduCount, Id as PduId, Pdu as PduEvent, RawId as RawPduId,
 	builder::{Builder, Builder as PduBuilder},
 	count::Count,
-	event_id::*,
 	id::{ShortId, *},
 	raw_id::*,
 };
@@ -91,7 +86,7 @@ impl Pdu {
 
 impl Event for Pdu {
 	#[inline]
-	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.auth_events.iter().map(AsRef::as_ref)
 	}
 
@@ -107,7 +102,7 @@ impl Event for Pdu {
 	}
 
 	#[inline]
-	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.prev_events.iter().map(AsRef::as_ref)
 	}
 
@@ -128,6 +123,15 @@ impl Event for Pdu {
 
 	#[inline]
 	fn unsigned(&self) -> Option<&RawJsonValue> { self.unsigned.as_deref() }
+
+	#[inline]
+	fn as_mut_pdu(&mut self) -> &mut Pdu { self }
+
+	#[inline]
+	fn as_pdu(&self) -> &Pdu { self }
+
+	#[inline]
+	fn into_pdu(self) -> Pdu { self }
 
 	#[inline]
 	fn is_owned(&self) -> bool { true }
@@ -135,7 +139,7 @@ impl Event for Pdu {
 
 impl Event for &Pdu {
 	#[inline]
-	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.auth_events.iter().map(AsRef::as_ref)
 	}
 
@@ -151,7 +155,7 @@ impl Event for &Pdu {
 	}
 
 	#[inline]
-	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Send + '_ {
+	fn prev_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.prev_events.iter().map(AsRef::as_ref)
 	}
 
@@ -172,6 +176,12 @@ impl Event for &Pdu {
 
 	#[inline]
 	fn unsigned(&self) -> Option<&RawJsonValue> { self.unsigned.as_deref() }
+
+	#[inline]
+	fn as_pdu(&self) -> &Pdu { self }
+
+	#[inline]
+	fn into_pdu(self) -> Pdu { self.clone() }
 
 	#[inline]
 	fn is_owned(&self) -> bool { false }

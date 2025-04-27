@@ -84,10 +84,12 @@ fn append_features(features: &mut Vec<String>, manifest: &str) -> Result<()> {
 
 fn init_dependencies() -> Result<DepsSet> {
 	let manifest = Manifest::from_str(WORKSPACE_MANIFEST)?;
-	Ok(manifest
+	let deps_set = manifest
 		.workspace
 		.as_ref()
 		.expect("manifest has workspace section")
 		.dependencies
-		.clone())
+		.clone();
+
+	Ok(deps_set)
 }

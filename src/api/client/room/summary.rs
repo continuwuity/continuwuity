@@ -113,13 +113,15 @@ async fn local_room_summary_response(
 ) -> Result<get_summary::msc3266::Response> {
 	trace!(?sender_user, "Sending local room summary response for {room_id:?}");
 	let join_rule = services.rooms.state_accessor.get_join_rules(room_id);
+
 	let world_readable = services.rooms.state_accessor.is_world_readable(room_id);
+
 	let guest_can_join = services.rooms.state_accessor.guest_can_join(room_id);
 
 	let (join_rule, world_readable, guest_can_join) =
 		join3(join_rule, world_readable, guest_can_join).await;
-	trace!("{join_rule:?}, {world_readable:?}, {guest_can_join:?}");
 
+	trace!("{join_rule:?}, {world_readable:?}, {guest_can_join:?}");
 	user_can_see_summary(
 		services,
 		room_id,

@@ -23,8 +23,10 @@ impl fmt::Display for Escape<'_> {
 				| '"' => "&quot;",
 				| _ => continue,
 			};
+
 			fmt.write_str(&pile_o_bits[last..i])?;
 			fmt.write_str(s)?;
+
 			// NOTE: we only expect single byte characters here - which is fine as long as
 			// we only match single byte characters
 			last = i.saturating_add(1);

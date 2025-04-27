@@ -105,14 +105,11 @@ pub fn whole_unit(d: Duration) -> Unit {
 		| 86_400.. => Days(d.as_secs() / 86_400),
 		| 3_600..=86_399 => Hours(d.as_secs() / 3_600),
 		| 60..=3_599 => Mins(d.as_secs() / 60),
-
 		| _ => match d.as_micros() {
 			| 1_000_000.. => Secs(d.as_secs()),
 			| 1_000..=999_999 => Millis(d.subsec_millis().into()),
-
 			| _ => match d.as_nanos() {
 				| 1_000.. => Micros(d.subsec_micros().into()),
-
 				| _ => Nanos(d.subsec_nanos().into()),
 			},
 		},

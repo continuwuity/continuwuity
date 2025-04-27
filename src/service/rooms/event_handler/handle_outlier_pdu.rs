@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, PduEvent, Result, debug, debug_info, err, implement, state_res, trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, err, implement, state_res, trace, warn,
 };
 use futures::future::ready;
 use ruma::{
@@ -12,15 +12,18 @@ use super::{check_room_id, get_room_version_id, to_room_version};
 
 #[implement(super::Service)]
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn handle_outlier_pdu<'a>(
+pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 	&self,
 	origin: &'a ServerName,
-	create_event: &'a PduEvent,
+	create_event: &'a Pdu,
 	event_id: &'a EventId,
 	room_id: &'a RoomId,
 	mut value: CanonicalJsonObject,
 	auth_events_known: bool,
-) -> Result<(PduEvent, BTreeMap<String, CanonicalJsonValue>)> {
+) -> Result<(PduEvent, BTreeMap<String, CanonicalJsonValue>)>
+where
+	Pdu: Event + Send + Sync,
+{
 	// 1. Remove unsigned field
 	value.remove("unsigned");
 
@@ -29,7 +32,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 	// 2. Check signatures, otherwise drop
 	// 3. check content hash, redact if doesn't match
 	let room_version_id = get_room_version_id(create_event)?;
-	let mut val = match self
+	let mut incoming_pdu = match self
 		.services
 		.server_keys
 		.verify_event(&value, Some(&room_version_id))
@@ -61,13 +64,15 @@ pub(super) async fn handle_outlier_pdu<'a>(
 
 	// Now that we have checked the signature and hashes we can add the eventID and
 	// convert to our PduEvent type
-	val.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.as_str().to_owned()));
-	let incoming_pdu = serde_json::from_value::<PduEvent>(
-		serde_json::to_value(&val).expect("CanonicalJsonObj is a valid JsonValue"),
+	incoming_pdu
+		.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.as_str().to_owned()));
+
+	let pdu_event = serde_json::from_value::<PduEvent>(
+		serde_json::to_value(&incoming_pdu).expect("CanonicalJsonObj is a valid JsonValue"),
 	)
 	.map_err(|e| err!(Request(BadJson(debug_warn!("Event is not a valid PDU: {e}")))))?;
 
-	check_room_id(room_id, &incoming_pdu)?;
+	check_room_id(room_id, &pdu_event)?;
 
 	if !auth_events_known {
 		// 4. fetch any missing auth events doing all checks listed here starting at 1.
@@ -78,7 +83,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 		debug!("Fetching auth events");
 		Box::pin(self.fetch_and_handle_outliers(
 			origin,
-			&incoming_pdu.auth_events,
+			pdu_event.auth_events(),
 			create_event,
 			room_id,
 		))
@@ -89,8 +94,8 @@ pub(super) async fn handle_outlier_pdu<'a>(
 	//    auth events
 	debug!("Checking based on auth events");
 	// Build map of auth events
-	let mut auth_events = HashMap::with_capacity(incoming_pdu.auth_events.len());
-	for id in &incoming_pdu.auth_events {
+	let mut auth_events = HashMap::with_capacity(pdu_event.auth_events().count());
+	for id in pdu_event.auth_events() {
 		let Ok(auth_event) = self.services.timeline.get_pdu(id).await else {
 			warn!("Could not find auth event {id}");
 			continue;
@@ -131,7 +136,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 
 	let auth_check = state_res::event_auth::auth_check(
 		&to_room_version(&room_version_id),
-		&incoming_pdu,
+		&pdu_event,
 		None, // TODO: third party invite
 		state_fetch,
 	)
@@ -147,9 +152,9 @@ pub(super) async fn handle_outlier_pdu<'a>(
 	// 7. Persist the event as an outlier.
 	self.services
 		.outlier
-		.add_pdu_outlier(&incoming_pdu.event_id, &val);
+		.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 
 	trace!("Added pdu as outlier.");
 
-	Ok((incoming_pdu, val))
+	Ok((pdu_event, incoming_pdu))
 }

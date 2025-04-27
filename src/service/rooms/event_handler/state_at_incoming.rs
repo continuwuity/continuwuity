@@ -6,7 +6,7 @@ use std::{
 
 use conduwuit::{
 	Result, debug, err, implement,
-	matrix::{PduEvent, StateMap},
+	matrix::{Event, StateMap},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, TryWidebandExt},
 };
@@ -19,11 +19,18 @@ use crate::rooms::short::ShortStateHash;
 #[implement(super::Service)]
 // request and build the state from a known point and resolve if > 1 prev_event
 #[tracing::instrument(name = "state", level = "debug", skip_all)]
-pub(super) async fn state_at_incoming_degree_one(
+pub(super) async fn state_at_incoming_degree_one<Pdu>(
 	&self,
-	incoming_pdu: &PduEvent,
-) -> Result<Option<HashMap<u64, OwnedEventId>>> {
-	let prev_event = &incoming_pdu.prev_events[0];
+	incoming_pdu: &Pdu,
+) -> Result<Option<HashMap<u64, OwnedEventId>>>
+where
+	Pdu: Event + Send + Sync,
+{
+	let prev_event = incoming_pdu
+		.prev_events()
+		.next()
+		.expect("at least one prev_event");
+
 	let Ok(prev_event_sstatehash) = self
 		.services
 		.state_accessor
@@ -55,7 +62,7 @@ pub(super) async fn state_at_incoming_degree_one(
 			.get_or_create_shortstatekey(&prev_pdu.kind.to_string().into(), state_key)
 			.await;
 
-		state.insert(shortstatekey, prev_event.clone());
+		state.insert(shortstatekey, prev_event.to_owned());
 		// Now it's the state after the pdu
 	}
 
@@ -66,16 +73,18 @@ pub(super) async fn state_at_incoming_degree_one(
 
 #[implement(super::Service)]
 #[tracing::instrument(name = "state", level = "debug", skip_all)]
-pub(super) async fn state_at_incoming_resolved(
+pub(super) async fn state_at_incoming_resolved<Pdu>(
 	&self,
-	incoming_pdu: &PduEvent,
+	incoming_pdu: &Pdu,
 	room_id: &RoomId,
 	room_version_id: &RoomVersionId,
-) -> Result<Option<HashMap<u64, OwnedEventId>>> {
+) -> Result<Option<HashMap<u64, OwnedEventId>>>
+where
+	Pdu: Event + Send + Sync,
+{
 	trace!("Calculating extremity statehashes...");
 	let Ok(extremity_sstatehashes) = incoming_pdu
-		.prev_events
-		.iter()
+		.prev_events()
 		.try_stream()
 		.broad_and_then(|prev_eventid| {
 			self.services
@@ -133,12 +142,15 @@ pub(super) async fn state_at_incoming_resolved(
 }
 
 #[implement(super::Service)]
-async fn state_at_incoming_fork(
+async fn state_at_incoming_fork<Pdu>(
 	&self,
 	room_id: &RoomId,
 	sstatehash: ShortStateHash,
-	prev_event: PduEvent,
-) -> Result<(StateMap<OwnedEventId>, HashSet<OwnedEventId>)> {
+	prev_event: Pdu,
+) -> Result<(StateMap<OwnedEventId>, HashSet<OwnedEventId>)>
+where
+	Pdu: Event,
+{
 	let mut leaf_state: HashMap<_, _> = self
 		.services
 		.state_accessor
@@ -146,15 +158,15 @@ async fn state_at_incoming_fork(
 		.collect()
 		.await;
 
-	if let Some(state_key) = &prev_event.state_key {
+	if let Some(state_key) = prev_event.state_key() {
 		let shortstatekey = self
 			.services
 			.short
-			.get_or_create_shortstatekey(&prev_event.kind.to_string().into(), state_key)
+			.get_or_create_shortstatekey(&prev_event.kind().to_string().into(), state_key)
 			.await;
 
-		let event_id = &prev_event.event_id;
-		leaf_state.insert(shortstatekey, event_id.clone());
+		let event_id = prev_event.event_id();
+		leaf_state.insert(shortstatekey, event_id.to_owned());
 		// Now it's the state after the pdu
 	}
 

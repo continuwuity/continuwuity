@@ -207,7 +207,6 @@ impl Data {
 		&self,
 		pdu_id: &RawPduId,
 		pdu_json: &CanonicalJsonObject,
-		_pdu: &PduEvent,
 	) -> Result {
 		if self.pduid_pdu.get(pdu_id).await.is_not_found() {
 			return Err!(Request(NotFound("PDU does not exist.")));

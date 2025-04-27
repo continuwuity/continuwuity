@@ -22,10 +22,12 @@ pub(crate) fn init(
 	let reload_handles = LogLevelReloadHandles::default();
 
 	let console_span_events = fmt_span::from_str(&config.log_span_events).unwrap_or_err();
+
 	let console_filter = EnvFilter::builder()
 		.with_regex(config.log_filter_regex)
 		.parse(&config.log)
 		.map_err(|e| err!(Config("log", "{e}.")))?;
+
 	let console_layer = fmt::Layer::new()
 		.with_span_events(console_span_events)
 		.event_format(ConsoleFormat::new(config))
@@ -34,6 +36,7 @@ pub(crate) fn init(
 
 	let (console_reload_filter, console_reload_handle) =
 		reload::Layer::new(console_filter.clone());
+
 	reload_handles.add("console", Box::new(console_reload_handle));
 
 	let cap_state = Arc::new(capture::State::new());
@@ -47,8 +50,10 @@ pub(crate) fn init(
 	let subscriber = {
 		let sentry_filter = EnvFilter::try_new(&config.sentry_filter)
 			.map_err(|e| err!(Config("sentry_filter", "{e}.")))?;
+
 		let sentry_layer = sentry_tracing::layer();
 		let (sentry_reload_filter, sentry_reload_handle) = reload::Layer::new(sentry_filter);
+
 		reload_handles.add("sentry", Box::new(sentry_reload_handle));
 		subscriber.with(sentry_layer.with_filter(sentry_reload_filter))
 	};
@@ -58,12 +63,15 @@ pub(crate) fn init(
 		let (flame_layer, flame_guard) = if config.tracing_flame {
 			let flame_filter = EnvFilter::try_new(&config.tracing_flame_filter)
 				.map_err(|e| err!(Config("tracing_flame_filter", "{e}.")))?;
+
 			let (flame_layer, flame_guard) =
 				tracing_flame::FlameLayer::with_file(&config.tracing_flame_output_path)
 					.map_err(|e| err!(Config("tracing_flame_output_path", "{e}.")))?;
+
 			let flame_layer = flame_layer
 				.with_empty_samples(false)
 				.with_filter(flame_filter);
+
 			(Some(flame_layer), Some(flame_guard))
 		} else {
 			(None, None)
@@ -71,19 +79,24 @@ pub(crate) fn init(
 
 		let jaeger_filter = EnvFilter::try_new(&config.jaeger_filter)
 			.map_err(|e| err!(Config("jaeger_filter", "{e}.")))?;
+
 		let jaeger_layer = config.allow_jaeger.then(|| {
 			opentelemetry::global::set_text_map_propagator(
 				opentelemetry_jaeger::Propagator::new(),
 			);
+
 			let tracer = opentelemetry_jaeger::new_agent_pipeline()
 				.with_auto_split_batch(true)
 				.with_service_name("conduwuit")
 				.install_batch(opentelemetry_sdk::runtime::Tokio)
 				.expect("jaeger agent pipeline");
+
 			let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
 			let (jaeger_reload_filter, jaeger_reload_handle) =
 				reload::Layer::new(jaeger_filter.clone());
 			reload_handles.add("jaeger", Box::new(jaeger_reload_handle));
+
 			Some(telemetry.with_filter(jaeger_reload_filter))
 		});
 

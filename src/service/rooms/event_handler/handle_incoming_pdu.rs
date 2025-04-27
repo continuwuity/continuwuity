@@ -4,7 +4,7 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug, debug::INFO_SPAN_LEVEL, defer, err, implement, utils::stream::IterStream,
+	Err, Event, Result, debug::INFO_SPAN_LEVEL, defer, err, implement, utils::stream::IterStream,
 	warn,
 };
 use futures::{
@@ -12,6 +12,7 @@ use futures::{
 	future::{OptionFuture, try_join5},
 };
 use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId, events::StateEventType};
+use tracing::debug;
 
 use crate::rooms::timeline::RawPduId;
 
@@ -121,22 +122,16 @@ pub async fn handle_incoming_pdu<'a>(
 		.timeline
 		.first_pdu_in_room(room_id)
 		.await?
-		.origin_server_ts;
+		.origin_server_ts();
 
-	if incoming_pdu.origin_server_ts < first_ts_in_room {
+	if incoming_pdu.origin_server_ts() < first_ts_in_room {
 		return Ok(None);
 	}
 
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
 	let (sorted_prev_events, mut eventid_info) = self
-		.fetch_prev(
-			origin,
-			create_event,
-			room_id,
-			first_ts_in_room,
-			incoming_pdu.prev_events.clone(),
-		)
+		.fetch_prev(origin, create_event, room_id, first_ts_in_room, incoming_pdu.prev_events())
 		.await?;
 
 	debug!(

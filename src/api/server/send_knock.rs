@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, err,
-	matrix::pdu::{PduEvent, gen_event_id_canonical_json},
+	matrix::{event::gen_event_id_canonical_json, pdu::PduEvent},
 	warn,
 };
 use futures::FutureExt;

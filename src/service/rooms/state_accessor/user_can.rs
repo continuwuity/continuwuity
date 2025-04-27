@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, implement, pdu::PduBuilder};
+use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{
@@ -29,14 +29,14 @@ pub async fn user_can_redact(
 
 	if redacting_event
 		.as_ref()
-		.is_ok_and(|pdu| pdu.kind == TimelineEventType::RoomCreate)
+		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomCreate)
 	{
 		return Err!(Request(Forbidden("Redacting m.room.create is not safe, forbidding.")));
 	}
 
 	if redacting_event
 		.as_ref()
-		.is_ok_and(|pdu| pdu.kind == TimelineEventType::RoomServerAcl)
+		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomServerAcl)
 	{
 		return Err!(Request(Forbidden(
 			"Redacting m.room.server_acl will result in the room being inaccessible for \
@@ -59,9 +59,9 @@ pub async fn user_can_redact(
 					&& match redacting_event {
 						| Ok(redacting_event) =>
 							if federation {
-								redacting_event.sender.server_name() == sender.server_name()
+								redacting_event.sender().server_name() == sender.server_name()
 							} else {
-								redacting_event.sender == sender
+								redacting_event.sender() == sender
 							},
 						| _ => false,
 					})
@@ -72,10 +72,10 @@ pub async fn user_can_redact(
 				.room_state_get(room_id, &StateEventType::RoomCreate, "")
 				.await
 			{
-				| Ok(room_create) => Ok(room_create.sender == sender
+				| Ok(room_create) => Ok(room_create.sender() == sender
 					|| redacting_event
 						.as_ref()
-						.is_ok_and(|redacting_event| redacting_event.sender == sender)),
+						.is_ok_and(|redacting_event| redacting_event.sender() == sender)),
 				| _ => Err!(Database(
 					"No m.room.power_levels or m.room.create events in database for room"
 				)),

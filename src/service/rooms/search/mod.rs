@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use conduwuit_core::{
-	Event, PduCount, PduEvent, Result,
+use conduwuit::{
+	PduCount, Result,
 	arrayvec::ArrayVec,
 	implement,
+	matrix::event::{Event, Matches},
 	utils::{
 		ArrayVecExt, IterStream, ReadyExt, set,
 		stream::{TryIgnore, WidebandExt},
@@ -103,9 +104,10 @@ pub fn deindex_pdu(&self, shortroomid: ShortRoomId, pdu_id: &RawPduId, message_b
 pub async fn search_pdus<'a>(
 	&'a self,
 	query: &'a RoomQuery<'a>,
-) -> Result<(usize, impl Stream<Item = PduEvent> + Send + 'a)> {
+) -> Result<(usize, impl Stream<Item = impl Event + use<>> + Send + '_)> {
 	let pdu_ids: Vec<_> = self.search_pdu_ids(query).await?.collect().await;
 
+	let filter = &query.criteria.filter;
 	let count = pdu_ids.len();
 	let pdus = pdu_ids
 		.into_iter()
@@ -118,11 +120,11 @@ pub async fn search_pdus<'a>(
 				.ok()
 		})
 		.ready_filter(|pdu| !pdu.is_redacted())
-		.ready_filter(|pdu| pdu.matches(&query.criteria.filter))
+		.ready_filter(move |pdu| filter.matches(pdu))
 		.wide_filter_map(move |pdu| async move {
 			self.services
 				.state_accessor
-				.user_can_see_event(query.user_id?, &pdu.room_id, &pdu.event_id)
+				.user_can_see_event(query.user_id?, pdu.room_id(), pdu.event_id())
 				.await
 				.then_some(pdu)
 		})

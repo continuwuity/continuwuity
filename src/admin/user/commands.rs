@@ -697,7 +697,7 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 		.state_accessor
 		.room_state_get(&room_id, &StateEventType::RoomCreate, "")
 		.await
-		.is_ok_and(|event| event.sender == user_id);
+		.is_ok_and(|event| event.sender() == user_id);
 
 	if !user_can_demote_self {
 		return Err!("User is not allowed to modify their own power levels in the room.",);
@@ -848,10 +848,7 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 		return Err!("Event is already redacted.");
 	}
 
-	let room_id = event.room_id;
-	let sender_user = event.sender;
-
-	if !self.services.globals.user_is_local(&sender_user) {
+	if !self.services.globals.user_is_local(event.sender()) {
 		return Err!("This command only works on local users.");
 	}
 
@@ -861,21 +858,21 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 	);
 
 	let redaction_event_id = {
-		let state_lock = self.services.rooms.state.mutex.lock(&room_id).await;
+		let state_lock = self.services.rooms.state.mutex.lock(event.room_id()).await;
 
 		self.services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
 				PduBuilder {
-					redacts: Some(event.event_id.clone()),
+					redacts: Some(event.event_id().to_owned()),
 					..PduBuilder::timeline(&RoomRedactionEventContent {
-						redacts: Some(event.event_id.clone()),
+						redacts: Some(event.event_id().to_owned()),
 						reason: Some(reason),
 					})
 				},
-				&sender_user,
-				&room_id,
+				event.sender(),
+				event.room_id(),
 				&state_lock,
 			)
 			.await?

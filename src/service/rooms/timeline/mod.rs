@@ -14,8 +14,8 @@ pub use conduwuit::matrix::pdu::{PduId, RawPduId};
 use conduwuit::{
 	Err, Error, Result, Server, at, debug, debug_warn, err, error, implement, info,
 	matrix::{
-		Event,
-		pdu::{EventHash, PduBuilder, PduCount, PduEvent, gen_event_id},
+		event::{Event, gen_event_id},
+		pdu::{EventHash, PduBuilder, PduCount, PduEvent},
 		state_res::{self, RoomVersion},
 	},
 	utils::{
@@ -159,12 +159,12 @@ impl crate::Service for Service {
 
 impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn first_pdu_in_room(&self, room_id: &RoomId) -> Result<PduEvent> {
+	pub async fn first_pdu_in_room(&self, room_id: &RoomId) -> Result<impl Event> {
 		self.first_item_in_room(room_id).await.map(at!(1))
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn first_item_in_room(&self, room_id: &RoomId) -> Result<(PduCount, PduEvent)> {
+	pub async fn first_item_in_room(&self, room_id: &RoomId) -> Result<(PduCount, impl Event)> {
 		let pdus = self.pdus(None, room_id, None);
 
 		pin_mut!(pdus);
@@ -174,7 +174,7 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn latest_pdu_in_room(&self, room_id: &RoomId) -> Result<PduEvent> {
+	pub async fn latest_pdu_in_room(&self, room_id: &RoomId) -> Result<impl Event> {
 		self.db.latest_pdu_in_room(None, room_id).await
 	}
 
@@ -216,13 +216,14 @@ impl Service {
 	///
 	/// Checks the `eventid_outlierpdu` Tree if not found in the timeline.
 	#[inline]
-	pub async fn get_non_outlier_pdu(&self, event_id: &EventId) -> Result<PduEvent> {
+	pub async fn get_non_outlier_pdu(&self, event_id: &EventId) -> Result<impl Event> {
 		self.db.get_non_outlier_pdu(event_id).await
 	}
 
 	/// Returns the pdu.
 	///
 	/// Checks the `eventid_outlierpdu` Tree if not found in the timeline.
+	#[inline]
 	pub async fn get_pdu(&self, event_id: &EventId) -> Result<PduEvent> {
 		self.db.get_pdu(event_id).await
 	}
@@ -230,11 +231,13 @@ impl Service {
 	/// Returns the pdu.
 	///
 	/// This does __NOT__ check the outliers `Tree`.
+	#[inline]
 	pub async fn get_pdu_from_id(&self, pdu_id: &RawPduId) -> Result<PduEvent> {
 		self.db.get_pdu_from_id(pdu_id).await
 	}
 
 	/// Returns the pdu as a `BTreeMap<String, CanonicalJsonValue>`.
+	#[inline]
 	pub async fn get_pdu_json_from_id(&self, pdu_id: &RawPduId) -> Result<CanonicalJsonObject> {
 		self.db.get_pdu_json_from_id(pdu_id).await
 	}
@@ -242,6 +245,7 @@ impl Service {
 	/// Checks if pdu exists
 	///
 	/// Checks the `eventid_outlierpdu` Tree if not found in the timeline.
+	#[inline]
 	pub fn pdu_exists<'a>(
 		&'a self,
 		event_id: &'a EventId,
@@ -251,13 +255,8 @@ impl Service {
 
 	/// Removes a pdu and creates a new one with the same id.
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn replace_pdu(
-		&self,
-		pdu_id: &RawPduId,
-		pdu_json: &CanonicalJsonObject,
-		pdu: &PduEvent,
-	) -> Result<()> {
-		self.db.replace_pdu(pdu_id, pdu_json, pdu).await
+	pub async fn replace_pdu(&self, pdu_id: &RawPduId, pdu_json: &CanonicalJsonObject) -> Result {
+		self.db.replace_pdu(pdu_id, pdu_json).await
 	}
 
 	/// Creates a new persisted data unit and adds it to a room.
@@ -310,25 +309,21 @@ impl Service {
 						unsigned.insert(
 							"prev_content".to_owned(),
 							CanonicalJsonValue::Object(
-								utils::to_canonical_object(prev_state.content.clone()).map_err(
-									|e| {
-										error!(
-											"Failed to convert prev_state to canonical JSON: {e}"
-										);
-										Error::bad_database(
-											"Failed to convert prev_state to canonical JSON.",
-										)
-									},
-								)?,
+								utils::to_canonical_object(prev_state.get_content_as_value())
+									.map_err(|e| {
+										err!(Database(error!(
+											"Failed to convert prev_state to canonical JSON: {e}",
+										)))
+									})?,
 							),
 						);
 						unsigned.insert(
 							String::from("prev_sender"),
-							CanonicalJsonValue::String(prev_state.sender.to_string()),
+							CanonicalJsonValue::String(prev_state.sender().to_string()),
 						);
 						unsigned.insert(
 							String::from("replaces_state"),
-							CanonicalJsonValue::String(prev_state.event_id.to_string()),
+							CanonicalJsonValue::String(prev_state.event_id().to_string()),
 						);
 					}
 				}
@@ -707,14 +702,11 @@ impl Service {
 				.await
 			{
 				unsigned.insert("prev_content".to_owned(), prev_pdu.get_content_as_value());
-				unsigned.insert(
-					"prev_sender".to_owned(),
-					serde_json::to_value(&prev_pdu.sender)
-						.expect("UserId::to_value always works"),
-				);
+				unsigned
+					.insert("prev_sender".to_owned(), serde_json::to_value(prev_pdu.sender())?);
 				unsigned.insert(
 					"replaces_state".to_owned(),
-					serde_json::to_value(&prev_pdu.event_id).expect("EventId is valid json"),
+					serde_json::to_value(prev_pdu.event_id())?,
 				);
 			}
 		}
@@ -745,7 +737,7 @@ impl Service {
 			unsigned: if unsigned.is_empty() {
 				None
 			} else {
-				Some(to_raw_value(&unsigned).expect("to_raw_value always works"))
+				Some(to_raw_value(&unsigned)?)
 			},
 			hashes: EventHash { sha256: "aaa".to_owned() },
 			signatures: None,
@@ -1027,10 +1019,10 @@ impl Service {
 
 	/// Replace a PDU with the redacted form.
 	#[tracing::instrument(name = "redact", level = "debug", skip(self))]
-	pub async fn redact_pdu(
+	pub async fn redact_pdu<Pdu: Event + Send + Sync>(
 		&self,
 		event_id: &EventId,
-		reason: &PduEvent,
+		reason: &Pdu,
 		shortroomid: ShortRoomId,
 	) -> Result {
 		// TODO: Don't reserialize, keep original json
@@ -1039,9 +1031,13 @@ impl Service {
 			return Ok(());
 		};
 
-		let mut pdu = self.get_pdu_from_id(&pdu_id).await.map_err(|e| {
-			err!(Database(error!(?pdu_id, ?event_id, ?e, "PDU ID points to invalid PDU.")))
-		})?;
+		let mut pdu = self
+			.get_pdu_from_id(&pdu_id)
+			.await
+			.map(Event::into_pdu)
+			.map_err(|e| {
+				err!(Database(error!(?pdu_id, ?event_id, ?e, "PDU ID points to invalid PDU.")))
+			})?;
 
 		if let Ok(content) = pdu.get_content::<ExtractBody>() {
 			if let Some(body) = content.body {
@@ -1051,15 +1047,15 @@ impl Service {
 			}
 		}
 
-		let room_version_id = self.services.state.get_room_version(&pdu.room_id).await?;
+		let room_version_id = self.services.state.get_room_version(pdu.room_id()).await?;
 
-		pdu.redact(&room_version_id, reason)?;
+		pdu.redact(&room_version_id, reason.to_value())?;
 
 		let obj = utils::to_canonical_object(&pdu).map_err(|e| {
 			err!(Database(error!(?event_id, ?e, "Failed to convert PDU to canonical JSON")))
 		})?;
 
-		self.replace_pdu(&pdu_id, &obj, &pdu).await
+		self.replace_pdu(&pdu_id, &obj).await
 	}
 
 	#[tracing::instrument(name = "backfill", level = "debug", skip(self))]
@@ -1149,7 +1145,7 @@ impl Service {
 					backfill_server,
 					federation::backfill::get_backfill::v1::Request {
 						room_id: room_id.to_owned(),
-						v: vec![first_pdu.1.event_id.clone()],
+						v: vec![first_pdu.1.event_id().to_owned()],
 						limit: uint!(100),
 					},
 				)
@@ -1234,8 +1230,11 @@ impl Service {
 
 #[implement(Service)]
 #[tracing::instrument(skip_all, level = "debug")]
-async fn check_pdu_for_admin_room(&self, pdu: &PduEvent, sender: &UserId) -> Result<()> {
-	match &pdu.kind {
+async fn check_pdu_for_admin_room<Pdu>(&self, pdu: &Pdu, sender: &UserId) -> Result
+where
+	Pdu: Event + Send + Sync,
+{
+	match pdu.kind() {
 		| TimelineEventType::RoomEncryption => {
 			return Err!(Request(Forbidden(error!("Encryption not supported in admins room."))));
 		},
@@ -1259,7 +1258,7 @@ async fn check_pdu_for_admin_room(&self, pdu: &PduEvent, sender: &UserId) -> Res
 					let count = self
 						.services
 						.state_cache
-						.room_members(&pdu.room_id)
+						.room_members(pdu.room_id())
 						.ready_filter(|user| self.services.globals.user_is_local(user))
 						.ready_filter(|user| *user != target)
 						.boxed()
@@ -1283,7 +1282,7 @@ async fn check_pdu_for_admin_room(&self, pdu: &PduEvent, sender: &UserId) -> Res
 					let count = self
 						.services
 						.state_cache
-						.room_members(&pdu.room_id)
+						.room_members(pdu.room_id())
 						.ready_filter(|user| self.services.globals.user_is_local(user))
 						.ready_filter(|user| *user != target)
 						.boxed()

@@ -44,6 +44,7 @@ impl Module {
 			.handle
 			.as_ref()
 			.expect("backing library loaded by this instance");
+
 		// SAFETY: Calls dlsym(3) on unix platforms. This might not have to be unsafe
 		// if wrapped in libloading with_dlerror().
 		let sym = unsafe { handle.get::<Prototype>(cname.as_bytes()) };

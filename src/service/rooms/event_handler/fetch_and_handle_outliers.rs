@@ -4,11 +4,13 @@ use std::{
 };
 
 use conduwuit::{
-	PduEvent, debug, debug_error, debug_warn, implement, pdu, trace,
-	utils::continue_exponential_backoff_secs, warn,
+	Event, PduEvent, debug, debug_error, debug_warn, implement,
+	matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs,
+	warn,
 };
 use ruma::{
-	CanonicalJsonValue, OwnedEventId, RoomId, ServerName, api::federation::event::get_event,
+	CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
+	api::federation::event::get_event,
 };
 
 use super::get_room_version_id;
@@ -23,13 +25,17 @@ use super::get_room_version_id;
 /// c. Ask origin server over federation
 /// d. TODO: Ask other servers over federation?
 #[implement(super::Service)]
-pub(super) async fn fetch_and_handle_outliers<'a>(
+pub(super) async fn fetch_and_handle_outliers<'a, Pdu, Events>(
 	&self,
 	origin: &'a ServerName,
-	events: &'a [OwnedEventId],
-	create_event: &'a PduEvent,
+	events: Events,
+	create_event: &'a Pdu,
 	room_id: &'a RoomId,
-) -> Vec<(PduEvent, Option<BTreeMap<String, CanonicalJsonValue>>)> {
+) -> Vec<(PduEvent, Option<BTreeMap<String, CanonicalJsonValue>>)>
+where
+	Pdu: Event + Send + Sync,
+	Events: Iterator<Item = &'a EventId> + Clone + Send,
+{
 	let back_off = |id| match self
 		.services
 		.globals
@@ -46,22 +52,23 @@ pub(super) async fn fetch_and_handle_outliers<'a>(
 		},
 	};
 
-	let mut events_with_auth_events = Vec::with_capacity(events.len());
+	let mut events_with_auth_events = Vec::with_capacity(events.clone().count());
+
 	for id in events {
 		// a. Look in the main timeline (pduid_pdu tree)
 		// b. Look at outlier pdu tree
 		// (get_pdu_json checks both)
 		if let Ok(local_pdu) = self.services.timeline.get_pdu(id).await {
-			trace!("Found {id} in db");
-			events_with_auth_events.push((id, Some(local_pdu), vec![]));
+			events_with_auth_events.push((id.to_owned(), Some(local_pdu), vec![]));
 			continue;
 		}
 
 		// c. Ask origin server over federation
 		// We also handle its auth chain here so we don't get a stack overflow in
 		// handle_outlier_pdu.
-		let mut todo_auth_events: VecDeque<_> = [id.clone()].into();
+		let mut todo_auth_events: VecDeque<_> = [id.to_owned()].into();
 		let mut events_in_reverse_order = Vec::with_capacity(todo_auth_events.len());
+
 		let mut events_all = HashSet::with_capacity(todo_auth_events.len());
 		while let Some(next_id) = todo_auth_events.pop_front() {
 			if let Some((time, tries)) = self
@@ -117,7 +124,7 @@ pub(super) async fn fetch_and_handle_outliers<'a>(
 					};
 
 					let Ok((calculated_event_id, value)) =
-						pdu::gen_event_id_canonical_json(&res.pdu, &room_version_id)
+						gen_event_id_canonical_json(&res.pdu, &room_version_id)
 					else {
 						back_off((*next_id).to_owned());
 						continue;
@@ -160,7 +167,8 @@ pub(super) async fn fetch_and_handle_outliers<'a>(
 				},
 			}
 		}
-		events_with_auth_events.push((id, None, events_in_reverse_order));
+
+		events_with_auth_events.push((id.to_owned(), None, events_in_reverse_order));
 	}
 
 	let mut pdus = Vec::with_capacity(events_with_auth_events.len());
@@ -217,5 +225,6 @@ pub(super) async fn fetch_and_handle_outliers<'a>(
 			}
 		}
 	}
+
 	pdus
 }

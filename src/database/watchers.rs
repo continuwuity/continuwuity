@@ -37,7 +37,6 @@ impl Watchers {
 	pub(crate) fn wake(&self, key: &[u8]) {
 		let watchers = self.watchers.read().unwrap();
 		let mut triggered = Vec::new();
-
 		for length in 0..=key.len() {
 			if watchers.contains_key(&key[..length]) {
 				triggered.push(&key[..length]);

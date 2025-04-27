@@ -1,8 +1,8 @@
 use std::{mem::size_of, sync::Arc};
 
 use conduwuit::{
-	PduCount, PduEvent,
 	arrayvec::ArrayVec,
+	matrix::{Event, PduCount},
 	result::LogErr,
 	utils::{
 		ReadyExt,
@@ -33,8 +33,6 @@ struct Services {
 	timeline: Dep<rooms::timeline::Service>,
 }
 
-pub(super) type PdusIterItem = (PduCount, PduEvent);
-
 impl Data {
 	pub(super) fn new(args: &crate::Args<'_>) -> Self {
 		let db = &args.db;
@@ -62,7 +60,7 @@ impl Data {
 		target: ShortEventId,
 		from: PduCount,
 		dir: Direction,
-	) -> impl Stream<Item = PdusIterItem> + Send + '_ {
+	) -> impl Stream<Item = (PduCount, impl Event)> + Send + '_ {
 		let mut current = ArrayVec::<u8, 16>::new();
 		current.extend(target.to_be_bytes());
 		current.extend(from.saturating_inc(dir).into_unsigned().to_be_bytes());
@@ -80,8 +78,8 @@ impl Data {
 
 			let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
-			if pdu.sender != user_id {
-				pdu.remove_transaction_id().log_err().ok();
+			if pdu.sender() != user_id {
+				pdu.as_mut_pdu().remove_transaction_id().log_err().ok();
 			}
 
 			Some((shorteventid, pdu))

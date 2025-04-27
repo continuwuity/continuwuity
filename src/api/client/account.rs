@@ -3,10 +3,9 @@ use std::fmt::Write;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug_info, err, error, info, is_equal_to,
+	Err, Error, Event, Result, debug_info, err, error, info, is_equal_to,
 	matrix::pdu::PduBuilder,
-	utils,
-	utils::{ReadyExt, stream::BroadbandExt},
+	utils::{self, ReadyExt, stream::BroadbandExt},
 	warn,
 };
 use conduwuit_service::Services;
@@ -148,16 +147,32 @@ pub(crate) async fn register_route(
 	if !services.config.allow_registration && body.appservice_info.is_none() {
 		match (body.username.as_ref(), body.initial_device_display_name.as_ref()) {
 			| (Some(username), Some(device_display_name)) => {
-				info!(%is_guest, user = %username, device_name = %device_display_name, "Rejecting registration attempt as registration is disabled");
+				info!(
+					%is_guest,
+					user = %username,
+					device_name = %device_display_name,
+					"Rejecting registration attempt as registration is disabled"
+				);
 			},
 			| (Some(username), _) => {
-				info!(%is_guest, user = %username, "Rejecting registration attempt as registration is disabled");
+				info!(
+					%is_guest,
+					user = %username,
+					"Rejecting registration attempt as registration is disabled"
+				);
 			},
 			| (_, Some(device_display_name)) => {
-				info!(%is_guest, device_name = %device_display_name, "Rejecting registration attempt as registration is disabled");
+				info!(
+					%is_guest,
+					device_name = %device_display_name,
+					"Rejecting registration attempt as registration is disabled"
+				);
 			},
 			| (None, _) => {
-				info!(%is_guest, "Rejecting registration attempt as registration is disabled");
+				info!(
+					%is_guest,
+					"Rejecting registration attempt as registration is disabled"
+				);
 			},
 		}
 
@@ -824,6 +839,7 @@ pub async fn full_user_deactivate(
 	all_joined_rooms: &[OwnedRoomId],
 ) -> Result<()> {
 	services.users.deactivate_account(user_id).await.ok();
+
 	super::update_displayname(services, user_id, None, all_joined_rooms).await;
 	super::update_avatar_url(services, user_id, None, None, all_joined_rooms).await;
 
@@ -860,7 +876,7 @@ pub async fn full_user_deactivate(
 				.state_accessor
 				.room_state_get(room_id, &StateEventType::RoomCreate, "")
 				.await
-				.is_ok_and(|event| event.sender == user_id);
+				.is_ok_and(|event| event.sender() == user_id);
 
 		if user_can_demote_self {
 			let mut power_levels_content = room_power_levels.unwrap_or_default();

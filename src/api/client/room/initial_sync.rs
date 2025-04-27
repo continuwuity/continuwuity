@@ -49,7 +49,9 @@ pub(crate) async fn room_initial_sync_route(
 		.try_collect::<Vec<_>>();
 
 	let (membership, visibility, state, events) =
-		try_join4(membership, visibility, state, events).await?;
+		try_join4(membership, visibility, state, events)
+			.boxed()
+			.await?;
 
 	let messages = PaginationChunk {
 		start: events.last().map(at!(0)).as_ref().map(ToString::to_string),

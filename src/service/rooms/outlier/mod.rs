@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, implement, matrix::pdu::PduEvent};
-use conduwuit_database::{Deserialized, Json, Map};
+use conduwuit::{Result, implement, matrix::PduEvent};
+use database::{Deserialized, Json, Map};
 use ruma::{CanonicalJsonObject, EventId};
 
 pub struct Service {
