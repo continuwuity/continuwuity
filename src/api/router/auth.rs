@@ -54,7 +54,8 @@ pub(super) async fn auth(
 	json_body: Option<&CanonicalJsonValue>,
 	metadata: &Metadata,
 ) -> Result<Auth> {
-	let bearer: Option<TypedHeader<Authorization<Bearer>>> = request.parts.extract().await?;
+	let bearer: Option<TypedHeader<Authorization<Bearer>>> =
+		request.parts.extract().await.unwrap_or(None);
 	let token = match &bearer {
 		| Some(TypedHeader(Authorization(bearer))) => Some(bearer.token()),
 		| None => request.query.access_token.as_deref(),

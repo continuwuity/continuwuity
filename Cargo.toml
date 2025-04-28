@@ -84,7 +84,7 @@ version = "1.3.1"
 version = "1.11.1"
 
 [workspace.dependencies.axum]
-version = "0.7.9"
+version = "0.8.3"
 default-features = false
 features = [
     "form",
@@ -97,7 +97,7 @@ features = [
 ]
 
 [workspace.dependencies.axum-extra]
-version = "0.9.6"
+version = "0.10.1"
 default-features = false
 features = ["typed-header", "tracing"]
 
@@ -110,7 +110,7 @@ default-features = false
 version = "0.7"
 
 [workspace.dependencies.axum-client-ip]
-version = "0.6.1"
+version = "0.7"
 
 [workspace.dependencies.tower]
 version = "0.5.2"
@@ -118,7 +118,7 @@ default-features = false
 features = ["util"]
 
 [workspace.dependencies.tower-http]
-version = "0.6.2"
+version = "0.6.8"
 default-features = false
 features = [
     "add-extension",
@@ -342,7 +342,8 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-rev = "b496b7f38d517149361a882e75d3fd4faf210441"
+#branch = "conduwuit-changes"
+rev = "3126cb5eea991ec40590e54d8c9d75637650641a"
 features = [
     "compat",
     "rand",

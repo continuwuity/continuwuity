@@ -122,23 +122,23 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		// Ruma doesn't have support for multiple paths for a single endpoint yet, and these routes
 		// share one Ruma request / response type pair with {get,send}_state_event_for_key_route
 		.route(
-			"/_matrix/client/r0/rooms/:room_id/state/:event_type",
+			"/_matrix/client/r0/rooms/{room_id}/state/{event_type}",
 			get(client::get_state_events_for_empty_key_route)
 				.put(client::send_state_event_for_empty_key_route),
 		)
 		.route(
-			"/_matrix/client/v3/rooms/:room_id/state/:event_type",
+			"/_matrix/client/v3/rooms/{room_id}/state/{event_type}",
 			get(client::get_state_events_for_empty_key_route)
 				.put(client::send_state_event_for_empty_key_route),
 		)
 		// These two endpoints allow trailing slashes
 		.route(
-			"/_matrix/client/r0/rooms/:room_id/state/:event_type/",
+			"/_matrix/client/r0/rooms/{room_id}/state/{event_type}/",
 			get(client::get_state_events_for_empty_key_route)
 				.put(client::send_state_event_for_empty_key_route),
 		)
 		.route(
-			"/_matrix/client/v3/rooms/:room_id/state/:event_type/",
+			"/_matrix/client/v3/rooms/{room_id}/state/{event_type}/",
 			get(client::get_state_events_for_empty_key_route)
 				.put(client::send_state_event_for_empty_key_route),
 		)
@@ -177,7 +177,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::get_mutual_rooms_route)
 		.ruma_route(&client::get_room_summary)
 		.route(
-			"/_matrix/client/unstable/im.nheko.summary/rooms/:room_id_or_alias/summary",
+			"/_matrix/client/unstable/im.nheko.summary/rooms/{room_id_or_alias}/summary",
 			get(client::get_room_summary_legacy)
 		)
 		.ruma_route(&client::get_suspended_status)
@@ -196,7 +196,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			.ruma_route(&server::get_server_version_route)
 			.route("/_matrix/key/v2/server", get(server::get_server_keys_route))
 			.route(
-				"/_matrix/key/v2/server/:key_id",
+				"/_matrix/key/v2/server/{key_id}",
 				get(server::get_server_keys_deprecated_route),
 			)
 			.ruma_route(&server::get_public_rooms_route)
@@ -232,9 +232,9 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			.route("/_continuwuity/local_user_count", get(client::conduwuit_local_user_count));
 	} else {
 		router = router
-			.route("/_matrix/federation/*path", any(federation_disabled))
+			.route("/_matrix/federation/{*path}", any(federation_disabled))
 			.route("/.well-known/matrix/server", any(federation_disabled))
-			.route("/_matrix/key/*path", any(federation_disabled))
+			.route("/_matrix/key/{*path}", any(federation_disabled))
 			.route("/_conduwuit/local_user_count", any(federation_disabled))
 			.route("/_continuwuity/local_user_count", any(federation_disabled));
 	}
@@ -253,27 +253,27 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 				get(client::get_media_preview_legacy_legacy_route),
 			)
 			.route(
-				"/_matrix/media/v1/download/:server_name/:media_id",
+				"/_matrix/media/v1/download/{server_name}/{media_id}",
 				get(client::get_content_legacy_legacy_route),
 			)
 			.route(
-				"/_matrix/media/v1/download/:server_name/:media_id/:file_name",
+				"/_matrix/media/v1/download/{server_name}/{media_id}/{file_name}",
 				get(client::get_content_as_filename_legacy_legacy_route),
 			)
 			.route(
-				"/_matrix/media/v1/thumbnail/:server_name/:media_id",
+				"/_matrix/media/v1/thumbnail/{server_name}/{media_id}",
 				get(client::get_content_thumbnail_legacy_legacy_route),
 			);
 	} else {
 		router = router
-			.route("/_matrix/media/v1/*path", any(legacy_media_disabled))
+			.route("/_matrix/media/v1/{*path}", any(legacy_media_disabled))
 			.route("/_matrix/media/v3/config", any(legacy_media_disabled))
-			.route("/_matrix/media/v3/download/*path", any(legacy_media_disabled))
-			.route("/_matrix/media/v3/thumbnail/*path", any(legacy_media_disabled))
+			.route("/_matrix/media/v3/download/{*path}", any(legacy_media_disabled))
+			.route("/_matrix/media/v3/thumbnail/{*path}", any(legacy_media_disabled))
 			.route("/_matrix/media/v3/preview_url", any(redirect_legacy_preview))
 			.route("/_matrix/media/r0/config", any(legacy_media_disabled))
-			.route("/_matrix/media/r0/download/*path", any(legacy_media_disabled))
-			.route("/_matrix/media/r0/thumbnail/*path", any(legacy_media_disabled))
+			.route("/_matrix/media/r0/download/{*path}", any(legacy_media_disabled))
+			.route("/_matrix/media/r0/thumbnail/{*path}", any(legacy_media_disabled))
 			.route("/_matrix/media/r0/preview_url", any(redirect_legacy_preview));
 	}
 
