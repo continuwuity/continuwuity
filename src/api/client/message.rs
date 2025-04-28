@@ -1,5 +1,3 @@
-use core::panic;
-
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, at,
@@ -34,6 +32,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use tracing::warn;
 
 use crate::Ruma;
 
@@ -73,7 +72,7 @@ pub(crate) async fn get_message_events_route(
 ) -> Result<get_message_events::v3::Response> {
 	debug_assert!(IGNORED_MESSAGE_TYPES.is_sorted(), "IGNORED_MESSAGE_TYPES is not sorted");
 	let sender_user = body.sender_user();
-	let sender_device = body.sender_device.as_ref();
+	let sender_device = body.sender_device.as_deref();
 	let room_id = &body.room_id;
 	let filter = &body.filter;
 
@@ -137,18 +136,17 @@ pub(crate) async fn get_message_events_route(
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: match sender_device {
-			| Some(device_id) => device_id,
-			| None =>
-				if let Some(registration) = body.appservice_info.as_ref() {
-					<&DeviceId>::from(registration.registration.id.as_str())
-				} else {
-					panic!(
-						"No device_id provided and no appservice registration found, this \
-						 should be unreachable"
-					);
-				},
-		},
+		device_id: sender_device.or_else(|| {
+			if let Some(registration) = body.appservice_info.as_ref() {
+				Some(<&DeviceId>::from(registration.registration.id.as_str()))
+			} else {
+				warn!(
+					"No device_id provided and no appservice registration found, this should be \
+					 unreachable"
+				);
+				None
+			}
+		}),
 		room_id,
 		token: Some(from.into_unsigned()),
 		options: Some(&filter.lazy_load_options),

@@ -111,7 +111,7 @@ pub(crate) async fn get_context_route(
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: sender_device,
+		device_id: Some(sender_device),
 		room_id,
 		token: Some(base_count.into_unsigned()),
 		options: Some(&filter.lazy_load_options),

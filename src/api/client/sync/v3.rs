@@ -645,7 +645,7 @@ async fn load_joined_room(
 
 	let lazy_loading_context = &lazy_loading::Context {
 		user_id: sender_user,
-		device_id: sender_device,
+		device_id: Some(sender_device),
 		room_id,
 		token: Some(since),
 		options: Some(&filter.room.state.lazy_load_options),
