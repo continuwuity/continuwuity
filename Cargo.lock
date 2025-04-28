@@ -353,13 +353,13 @@ dependencies = [
 
 [[package]]
 name = "axum"
-version = "0.7.9"
+version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edca88bc138befd0323b20752846e6587272d3b03b0343c8ea28a6f819e6e71f"
+checksum = "8a18ed336352031311f4e0b4dd2ff392d4fbb370777c9d18d7fc9d7359f73871"
 dependencies = [
- "async-trait",
- "axum-core 0.4.5",
+ "axum-core",
  "bytes",
+ "form_urlencoded",
  "futures-util",
  "http",
  "http-body",
@@ -367,13 +367,12 @@ dependencies = [
  "hyper",
  "hyper-util",
  "itoa",
- "matchit 0.7.3",
+ "matchit",
  "memchr",
  "mime",
  "percent-encoding",
  "pin-project-lite",
- "rustversion",
- "serde",
+ "serde_core",
  "serde_json",
  "serde_path_to_error",
  "serde_urlencoded",
@@ -386,60 +385,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum"
-version = "0.8.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a18ed336352031311f4e0b4dd2ff392d4fbb370777c9d18d7fc9d7359f73871"
-dependencies = [
- "axum-core 0.5.5",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "itoa",
- "matchit 0.8.4",
- "memchr",
- "mime",
- "percent-encoding",
- "pin-project-lite",
- "serde_core",
- "sync_wrapper",
- "tower",
- "tower-layer",
- "tower-service",
-]
-
-[[package]]
 name = "axum-client-ip"
-version = "0.6.1"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9eefda7e2b27e1bda4d6fa8a06b50803b8793769045918bc37ad062d48a6efac"
+checksum = "dff8ee1869817523c8f91c20bf17fd932707f66c2e7e0b0f811b29a227289562"
 dependencies = [
- "axum 0.7.9",
+ "axum",
  "forwarded-header-value",
  "serde",
-]
-
-[[package]]
-name = "axum-core"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09f2bd6146b97ae3359fa0cc6d6b376d9539582c7b4220f041a33ec24c226199"
-dependencies = [
- "async-trait",
- "bytes",
- "futures-util",
- "http",
- "http-body",
- "http-body-util",
- "mime",
- "pin-project-lite",
- "rustversion",
- "sync_wrapper",
- "tower-layer",
- "tower-service",
- "tracing",
 ]
 
 [[package]]
@@ -458,16 +411,17 @@ dependencies = [
  "sync_wrapper",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
 name = "axum-extra"
-version = "0.9.6"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c794b30c904f0a1c2fb7740f7df7f7972dfaa14ef6f57cb6178dc63e5dca2f04"
+checksum = "9963ff19f40c6102c76756ef0a46004c0d58957d87259fc9208ff8441c12ab96"
 dependencies = [
- "axum 0.7.9",
- "axum-core 0.4.5",
+ "axum",
+ "axum-core",
  "bytes",
  "futures-util",
  "headers",
@@ -476,10 +430,11 @@ dependencies = [
  "http-body-util",
  "mime",
  "pin-project-lite",
- "serde",
- "tower",
+ "rustversion",
+ "serde_core",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
@@ -959,7 +914,7 @@ name = "conduwuit_api"
 version = "0.5.0-rc.8"
 dependencies = [
  "async-trait",
- "axum 0.7.9",
+ "axum",
  "axum-client-ip",
  "axum-extra",
  "base64 0.22.1",
@@ -1000,7 +955,7 @@ version = "0.5.0-rc.8"
 dependencies = [
  "argon2",
  "arrayvec",
- "axum 0.7.9",
+ "axum",
  "axum-extra",
  "bytes",
  "bytesize",
@@ -1088,7 +1043,7 @@ dependencies = [
 name = "conduwuit_router"
 version = "0.5.0-rc.8"
 dependencies = [
- "axum 0.7.9",
+ "axum",
  "axum-client-ip",
  "axum-server",
  "axum-server-dual-protocol",
@@ -1165,7 +1120,7 @@ name = "conduwuit_web"
 version = "0.5.0-rc.8"
 dependencies = [
  "askama",
- "axum 0.7.9",
+ "axum",
  "conduwuit_build_metadata",
  "conduwuit_service",
  "futures",
@@ -1685,7 +1640,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -2340,7 +2295,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tokio",
  "tower-service",
  "tracing",
@@ -2888,12 +2843,6 @@ checksum = "d1525a2a28c7f4fa0fc98bb91ae755d1e2d1505079e05539e35bc876b5d65ae9"
 dependencies = [
  "regex-automata",
 ]
-
-[[package]]
-name = "matchit"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0e7465ac9959cc2b1404e8e2367b43684a6d13790fe23056cc8c6c5a6b7bcb94"
 
 [[package]]
 name = "matchit"
@@ -3611,7 +3560,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9120690fafc389a67ba3803df527d0ec9cbbc9cc45e4cc20b332996dfb672425"
 dependencies = [
  "anyhow",
- "itertools 0.12.1",
+ "itertools 0.14.0",
  "proc-macro2",
  "quote",
  "syn",
@@ -3690,7 +3639,7 @@ dependencies = [
  "quinn-udp",
  "rustc-hash",
  "rustls",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -3727,9 +3676,9 @@ dependencies = [
  "cfg_aliases",
  "libc",
  "once_cell",
- "socket2 0.5.10",
+ "socket2 0.6.1",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -4006,7 +3955,7 @@ checksum = "88f8660c1ff60292143c98d08fc6e2f654d722db50410e3f3797d40baaf9d8f3"
 [[package]]
 name = "ruma"
 version = "0.10.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "assign",
  "js_int",
@@ -4026,7 +3975,7 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.10.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4038,7 +3987,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.18.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "as_variant",
  "assign",
@@ -4061,7 +4010,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
@@ -4093,7 +4042,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.28.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "as_variant",
  "indexmap",
@@ -4118,7 +4067,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "bytes",
  "headers",
@@ -4140,7 +4089,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.9.5"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "js_int",
  "thiserror 2.0.17",
@@ -4149,7 +4098,7 @@ dependencies = [
 [[package]]
 name = "ruma-identity-service-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4159,7 +4108,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "cfg-if",
  "proc-macro-crate",
@@ -4174,7 +4123,7 @@ dependencies = [
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4186,7 +4135,7 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.15.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=50b2a91b2ab8f9830eea80b9911e11234e0eac66#50b2a91b2ab8f9830eea80b9911e11234e0eac66"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=4582e5b1be056734abfcd643fcdedd14cb46ae58#4582e5b1be056734abfcd643fcdedd14cb46ae58"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -4266,7 +4215,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5312,7 +5261,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb7613188ce9f7df5bfe185db26c5814347d110db17920415cf2fbcad85e7203"
 dependencies = [
  "async-trait",
- "axum 0.8.6",
+ "axum",
  "base64 0.22.1",
  "bytes",
  "h2",

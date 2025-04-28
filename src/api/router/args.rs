@@ -1,6 +1,5 @@
 use std::{mem, ops::Deref};
 
-use async_trait::async_trait;
 use axum::{body::Body, extract::FromRequest};
 use bytes::{BufMut, Bytes, BytesMut};
 use conduwuit::{Error, Result, debug, debug_warn, err, trace, utils::string::EMPTY};
@@ -79,7 +78,6 @@ where
 	fn deref(&self) -> &Self::Target { &self.body }
 }
 
-#[async_trait]
 impl<T> FromRequest<State, Body> for Args<T>
 where
 	T: IncomingRequest + Send + Sync + 'static,
