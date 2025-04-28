@@ -60,7 +60,7 @@ pub(crate) async fn get_mutual_rooms_route(
 	})
 }
 
-/// # `DELETE /_matrix/client/unstable/uk.tcpip.msc4133/profile/:user_id/us.cloke.msc4175.tz`
+/// # `DELETE /_matrix/client/unstable/uk.tcpip.msc4133/profile/{user_id}/us.cloke.msc4175.tz`
 ///
 /// Deletes the `tz` (timezone) of a user, as per MSC4133 and MSC4175.
 ///
@@ -88,7 +88,7 @@ pub(crate) async fn delete_timezone_key_route(
 	Ok(delete_timezone_key::unstable::Response {})
 }
 
-/// # `PUT /_matrix/client/unstable/uk.tcpip.msc4133/profile/:user_id/us.cloke.msc4175.tz`
+/// # `PUT /_matrix/client/unstable/uk.tcpip.msc4133/profile/{user_id}/us.cloke.msc4175.tz`
 ///
 /// Updates the `tz` (timezone) of a user, as per MSC4133 and MSC4175.
 ///
@@ -268,7 +268,7 @@ pub(crate) async fn delete_profile_key_route(
 	Ok(delete_profile_key::unstable::Response {})
 }
 
-/// # `GET /_matrix/client/unstable/uk.tcpip.msc4133/profile/:user_id/us.cloke.msc4175.tz`
+/// # `GET /_matrix/client/unstable/uk.tcpip.msc4133/profile/{user_id}/us.cloke.msc4175.tz`
 ///
 /// Returns the `timezone` of the user as per MSC4133 and MSC4175.
 ///
