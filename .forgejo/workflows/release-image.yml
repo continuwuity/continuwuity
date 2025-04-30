@@ -80,17 +80,29 @@ jobs:
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
       - name: Echo matrix
         run: echo '${{ toJSON(matrix) }}'
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
       - run: |
           if ! command -v rustup &> /dev/null ; then
             curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
             echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
           fi
-      - uses: https://github.com/cargo-bins/cargo-binstall@main
+      
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Cache timelord-cli installation
+        id: cache-timelord-bin
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/timelord
+          key: timelord-cli-v3.0.1
+      - name: Install timelord-cli
+        uses: https://github.com/cargo-bins/cargo-binstall@main
+        if: steps.cache-timelord-bin.outputs.cache-hit != 'true'
       - run: cargo binstall timelord-cli@3.0.1
+        if: steps.cache-timelord-bin.outputs.cache-hit != 'true'
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Set up QEMU
