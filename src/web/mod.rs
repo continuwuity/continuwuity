@@ -5,6 +5,7 @@ use axum::{
 	response::{Html, IntoResponse, Response},
 	routing::get,
 };
+use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, VERSION_EXTRA};
 
 pub fn build<S>() -> Router<()> { Router::new().route("/", get(index_handler)) }
 

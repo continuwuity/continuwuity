@@ -67,6 +67,7 @@ checked_ops.workspace = true
 chrono.workspace = true
 clap.workspace = true
 conduwuit-macros.workspace = true
+conduwuit-build-metadata.workspace = true
 const-str.workspace = true
 core_affinity.workspace = true
 ctor.workspace = true

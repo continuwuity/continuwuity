@@ -584,6 +584,9 @@ name = "built"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56ed6191a7e78c36abdb16ab65341eefd73d64d303fffccdbb00d51e4205967b"
+dependencies = [
+ "cargo-lock",
+]
 
 [[package]]
 name = "bumpalo"
@@ -629,6 +632,19 @@ checksum = "225bff33b2141874fe80d71e07d6eec4f85c5c216453dd96388240f96e1acc14"
 dependencies = [
  "cc",
  "pkg-config",
+]
+
+[[package]]
+name = "cargo-lock"
+version = "10.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c06acb4f71407ba205a07cb453211e0e6a67b21904e47f6ba1f9589e38f2e454"
+dependencies = [
+ "petgraph",
+ "semver",
+ "serde",
+ "toml",
+ "url",
 ]
 
 [[package]]
@@ -857,6 +873,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "conduwuit_build_metadata"
+version = "0.5.0-rc.5"
+dependencies = [
+ "built",
+]
+
+[[package]]
 name = "conduwuit_core"
 version = "0.5.0-rc.5"
 dependencies = [
@@ -870,6 +893,7 @@ dependencies = [
  "checked_ops",
  "chrono",
  "clap",
+ "conduwuit_build_metadata",
  "conduwuit_macros",
  "const-str",
  "core_affinity",
@@ -1019,6 +1043,7 @@ version = "0.5.0-rc.5"
 dependencies = [
  "askama",
  "axum",
+ "conduwuit_build_metadata",
  "futures",
  "rand 0.8.5",
  "thiserror 2.0.12",
@@ -1514,6 +1539,12 @@ dependencies = [
  "libc",
  "winapi",
 ]
+
+[[package]]
+name = "fixedbitset"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "flate2"
@@ -3133,6 +3164,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3148f5046208a5d56bcfc03053e3ca6334e51da8dfb19b6cdc8b306fae3283e"
 
 [[package]]
+name = "petgraph"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b4c5cc86750666a3ed20bdaf5ca2a0344f9c67674cae0515bec2da16fbaa47db"
+dependencies = [
+ "fixedbitset",
+ "indexmap 2.8.0",
+]
+
+[[package]]
 name = "phf"
 version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4127,6 +4168,9 @@ name = "semver"
 version = "1.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "56e6fa9c48d24d85fb3de5ad847117517440f6beceb7798af16b4a87d616b8d0"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "sentry"

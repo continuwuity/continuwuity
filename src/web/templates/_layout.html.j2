@@ -18,8 +18,8 @@
     {%~ block footer ~%}
         <footer>
             <p>Powered by <a href="https://continuwuity.org">Continuwuity</a>
-                {%~ if let Some(version_info) = option_env!("CONDUWUIT_VERSION_EXTRA").or(option_env!("SHORT_COMMIT_SHA")) ~%}
-                    {%~ if let Some(url) = option_env!("REMOTE_COMMIT_URL").or(option_env!("REMOTE_URL")) ~%}
+                {%~ if let Some(version_info) = VERSION_EXTRA ~%}
+                    {%~ if let Some(url) = GIT_REMOTE_COMMIT_URL.or(GIT_REMOTE_WEB_URL) ~%}
                         (<a href="{{ url }}">{{ version_info }}</a>)
                     {%~ else ~%}
                         ({{ version_info }})
