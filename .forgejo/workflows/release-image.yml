@@ -143,10 +143,10 @@ jobs:
           context: .
           file: "docker/Dockerfile"
           build-args: |
-            CONDUWUIT_VERSION_EXTRA=${{ env.COMMIT_SHORT_SHA }}
-            COMMIT_SHA=${{ github.sha }})
-            REMOTE_URL=${{github.event.repository.html_url }}
-            REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
+            GIT_COMMIT_HASH=${{ github.sha }})
+            GIT_COMMIT_HASH_SHORT=${{ env.COMMIT_SHORT_SHA }})
+            GIT_REMOTE_URL=${{github.event.repository.html_url }}
+            GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}

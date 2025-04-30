@@ -115,115 +115,25 @@ FROM toolchain AS builder
 # Get source
 COPY . .
 
-# Conduwuit version info
-ARG COMMIT_SHA=
-ARG SHORT_COMMIT_SHA=
-ARG REMOTE_URL=
-ARG CONDUWUIT_VERSION_EXTRA=
-ENV COMMIT_SHA=$COMMIT_SHA
-ENV SHORT_COMMIT_SHA=$SHORT_COMMIT_SHA
-ENV REMOTE_URL=$REMOTE_URL
-ENV CONDUWUIT_VERSION_EXTRA=$CONDUWUIT_VERSION_EXTRA
-
-# Calculate version info from git if not provided via ARGs
-# and write all relevant vars to /etc/environment
-RUN <<'EOF'
-set -e # Exit on error
-
-# Use temp variables to store calculated values
-calculated_commit_sha=""
-calculated_remote_url=""
-calculated_version_extra=""
-
-# --- COMMIT_SHA ---
-# Calculate COMMIT_SHA if ENV var (from ARG) is empty
-if [ -z "${COMMIT_SHA}" ]; then
-    # Try to get short commit hash from git
-    calculated_commit_sha=$(git rev-parse HEAD 2>/dev/null || echo "")
-    if [ -n "${calculated_commit_sha}" ]; then
-        echo "COMMIT_SHA='${calculated_commit_sha}'" >> /etc/environment
-    fi
-else
-    # Ensure ARG-provided value is in /etc/environment
-    echo "COMMIT_SHA='${COMMIT_SHA}'" >> /etc/environment
-fi
-
-
-if [ -z "${SHORT_COMMIT_SHA}" ]; then
-    # Try to get short commit hash from git
-    calculated_short_commit_sha=$(git rev-parse --short HEAD 2>/dev/null || echo "")
-    if [ -n "${calculated_short_commit_sha}" ]; then
-        echo "SHORT_COMMIT_SHA='${calculated_short_commit_sha}'" >> /etc/environment
-    fi
-else
-    # Ensure ARG-provided value is in /etc/environment
-    echo "SHORT_COMMIT_SHA='${SHORT_COMMIT_SHA}'" >> /etc/environment
-fi
-
-# --- REMOTE_URL ---
-# Calculate REMOTE_URL if ENV var (from ARG) is empty
-if [ -z "${REMOTE_URL}" ]; then
-    # Try to get remote origin URL from git
-    remote_url_raw=$(git config --get remote.origin.url 2>/dev/null || echo "")
-    if [ -n "${remote_url_raw}" ]; then
-        # Transform git URL (SSH or HTTPS) to web URL
-        if [[ $remote_url_raw == "https://"* ]]; then
-            # Already HTTPS, just remove .git suffix
-            calculated_remote_url=$(echo "$remote_url_raw" | sed 's/\.git$//')
-        else
-            # Convert SSH URL to HTTPS URL
-            calculated_remote_url=$(echo "$remote_url_raw" | sed 's/\.git$//' | sed 's/:/\//' | sed 's/^git@/https:\/\//')
-        fi
-
-        # Write calculated web URL if transformation was successful
-        if [ -n "${calculated_remote_url}" ]; then
-             echo "REMOTE_URL='${calculated_remote_url}'" >> /etc/environment
-        fi
-    fi
-else
-     # Ensure ARG-provided value is in /etc/environment (assume it's a valid web URL)
-     echo "REMOTE_URL='${REMOTE_URL}'" >> /etc/environment
-     # Use provided value for REMOTE_COMMIT_URL calculation below
-     calculated_remote_url="${REMOTE_URL}"
-fi
-
-# --- Determine effective values for subsequent calculations ---
-# Use ENV var value if set (from ARG), otherwise use calculated value
-effective_commit_sha="${COMMIT_SHA:-$calculated_commit_sha}"
-effective_short_commit_sha="${SHORT_COMMIT_SHA:-$calculated_short_commit_sha}"
-effective_remote_url="${REMOTE_URL:-$calculated_remote_url}"
-
-# --- REMOTE_COMMIT_URL ---
-# Calculate and write REMOTE_COMMIT_URL if both components are available
-if [ -z "${REMOTE_COMMIT_URL}" ] && [ -n "${effective_remote_url}" ] && [ -n "${effective_commit_sha}" ]; then
-    echo "REMOTE_COMMIT_URL='${effective_remote_url}/commit/${effective_commit_sha}'" >> /etc/environment
-else
-    # Ensure ARG-provided value is in /etc/environment
-    echo "REMOTE_COMMIT_URL='${REMOTE_COMMIT_URL}'" >> /etc/environment
-fi
-
-# --- CONDUWUIT_VERSION_EXTRA ---
-# Calculate CONDUWUIT_VERSION_EXTRA if ENV var (from ARG) is empty
-if [ -z "${CONDUWUIT_VERSION_EXTRA}" ]; then
-    # Use the effective short commit sha, fallback to "unknown revision"
-    calculated_version_extra="${effective_short_commit_sha:-unknown revision}"
-    # Handle case where commit sha calculation failed and ARG wasn't set
-    if [ -z "${calculated_version_extra}" ]; then
-         calculated_version_extra="unknown revision"
-    fi
-    echo "CONDUWUIT_VERSION_EXTRA='${calculated_version_extra}'" >> /etc/environment
-else
-    # Ensure ARG-provided value is in /etc/environment
-    echo "CONDUWUIT_VERSION_EXTRA='${CONDUWUIT_VERSION_EXTRA}'" >> /etc/environment
-fi
-
-EOF
-
 ARG TARGETPLATFORM
 
 # Verify environment configuration
 RUN cat /etc/environment
 RUN xx-cargo --print-target-triple
+
+# Conduwuit version info
+ARG GIT_COMMIT_HASH=
+ARG GIT_COMMIT_HASH_SHORT=
+ARG GIT_REMOTE_URL=
+ARG GIT_REMOTE_COMMIT_URL=
+ARG CONDUWUIT_VERSION_EXTRA=
+ARG CONTINUWUITY_VERSION_EXTRA=
+ENV GIT_COMMIT_HASH=$GIT_COMMIT_HASH
+ENV GIT_COMMIT_HASH_SHORT=$GIT_COMMIT_HASH_SHORT
+ENV GIT_REMOTE_URL=$GIT_REMOTE_URL
+ENV GIT_REMOTE_COMMIT_URL=$GIT_REMOTE_COMMIT_URL
+ENV CONDUWUIT_VERSION_EXTRA=$CONDUWUIT_VERSION_EXTRA
+ENV CONTINUWUITY_VERSION_EXTRA=$CONTINUWUITY_VERSION_EXTRA
 
 
 # Build the binary

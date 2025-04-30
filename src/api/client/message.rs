@@ -143,7 +143,10 @@ pub(crate) async fn get_message_events_route(
 				if let Some(registration) = body.appservice_info.as_ref() {
 					<&DeviceId>::from(registration.registration.id.as_str())
 				} else {
-					panic!("No device_id provided and no appservice registration found, this should be unreachable");
+					panic!(
+						"No device_id provided and no appservice registration found, this \
+						 should be unreachable"
+					);
 				},
 		},
 		room_id,

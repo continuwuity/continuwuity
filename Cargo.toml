@@ -631,6 +631,12 @@ package = "conduwuit_web"
 path = "src/web"
 default-features = false
 
+
+[workspace.dependencies.conduwuit-build-metadata]
+package = "conduwuit_build_metadata"
+path = "src/build_metadata"
+default-features = false
+
 ###############################################################################
 #
 # Release profiles
