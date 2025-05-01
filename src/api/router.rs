@@ -3,7 +3,6 @@ mod auth;
 mod handler;
 mod request;
 mod response;
-pub mod state;
 
 use std::str::FromStr;
 
@@ -13,10 +12,11 @@ use axum::{
 	routing::{any, get, post},
 };
 use conduwuit::{Server, err};
+pub(super) use conduwuit_service::state::State;
 use http::{Uri, uri};
 
 use self::handler::RouterExt;
-pub(super) use self::{args::Args as Ruma, response::RumaResponse, state::State};
+pub(super) use self::{args::Args as Ruma, response::RumaResponse};
 use crate::{client, server};
 
 pub fn build(router: Router<State>, server: &Server) -> Router<State> {

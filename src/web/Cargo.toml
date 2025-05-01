@@ -21,6 +21,7 @@ crate-type = [
 
 [dependencies]
 conduwuit-build-metadata.workspace = true
+conduwuit-service.workspace = true
 
 askama = "0.14.0"
 
