@@ -1044,6 +1044,7 @@ dependencies = [
  "askama",
  "axum",
  "conduwuit_build_metadata",
+ "conduwuit_service",
  "futures",
  "rand 0.8.5",
  "thiserror 2.0.12",

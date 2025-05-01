@@ -5,6 +5,7 @@ mod manager;
 mod migrations;
 mod service;
 pub mod services;
+pub mod state;
 
 pub mod account_data;
 pub mod admin;
