@@ -13,7 +13,7 @@ use crate::{
 	manager::Manager,
 	media, moderation, presence, pusher, resolver, rooms, sending, server_keys, service,
 	service::{Args, Map, Service},
-	sync, transaction_ids, uiaa, users,
+	sync, transaction_ids, uiaa, users, oidc,
 };
 
 pub struct Services {
@@ -39,6 +39,7 @@ pub struct Services {
 	pub users: Arc<users::Service>,
 	pub moderation: Arc<moderation::Service>,
 	pub announcements: Arc<announcements::Service>,
+	pub oidc: Arc<oidc::Service>,
 
 	manager: Mutex<Option<Arc<Manager>>>,
 	pub(crate) service: Arc<Map>,

@@ -58,7 +58,11 @@
 #
 #port = 8008
 
-# The UNIX socket continuwuity will listen on.
+# This item is undocumented. Please contribute documentation for it.
+#
+#auth =
+
+# The UNIX socket conduwuit will listen on.
 #
 # continuwuity cannot listen on both an IP address and a UNIX socket. If
 # listening on a UNIX socket, you MUST remove/comment the `address` key.
