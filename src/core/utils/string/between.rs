@@ -1,12 +1,12 @@
 type Delim<'a> = (&'a str, &'a str);
 
-/// Slice a string between a pair of delimeters.
+/// Slice a string between a pair of delimiters.
 pub trait Between<'a> {
-	/// Extract a string between the delimeters. If the delimeters were not
+	/// Extract a string between the delimiters. If the delimiters were not
 	/// found None is returned, otherwise the first extraction is returned.
 	fn between(&self, delim: Delim<'_>) -> Option<&'a str>;
 
-	/// Extract a string between the delimeters. If the delimeters were not
+	/// Extract a string between the delimiters. If the delimiters were not
 	/// found the original string is returned; take note of this behavior,
 	/// if an empty slice is desired for this case use the fallible version and
 	/// unwrap to EMPTY.

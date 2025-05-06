@@ -13,8 +13,8 @@ pub(super) fn restart() -> ! {
 	//
 	// We can (and do) prevent that panic by checking the result of current_exe()
 	// prior to committing to restart, returning an error to the user without any
-	// unexpected shutdown. In a nutshell that is the execuse for this unsafety.
-	// Nevertheless, we still want a way to override the restart preventation (i.e.
+	// unexpected shutdown. In a nutshell that is the excuse for this unsafety.
+	// Nevertheless, we still want a way to override the restart presentation (i.e.
 	// admin server restart --force).
 	let exe = unsafe { utils::sys::current_exe().expect("program path must be available") };
 	let envs = env::vars();

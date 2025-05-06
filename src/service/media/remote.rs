@@ -338,7 +338,7 @@ fn handle_federation_error(
 		return fallback();
 	}
 
-	// Reached for 5xx errors. This is where we don't fallback given the likelyhood
+	// Reached for 5xx errors. This is where we don't fallback given the likelihood
 	// the other endpoint will also be a 5xx and we're wasting time.
 	error
 }
@@ -356,7 +356,7 @@ pub async fn fetch_remote_thumbnail_legacy(
 
 	self.check_legacy_freeze()?;
 	self.check_fetch_authorized(&mxc)?;
-	let reponse = self
+	let response = self
 		.services
 		.sending
 		.send_federation_request(mxc.server_name, media::get_content_thumbnail::v3::Request {
@@ -373,10 +373,17 @@ pub async fn fetch_remote_thumbnail_legacy(
 		.await?;
 
 	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
-	self.upload_thumbnail(&mxc, None, None, reponse.content_type.as_deref(), &dim, &reponse.file)
-		.await?;
+	self.upload_thumbnail(
+		&mxc,
+		None,
+		None,
+		response.content_type.as_deref(),
+		&dim,
+		&response.file,
+	)
+	.await?;
 
-	Ok(reponse)
+	Ok(response)
 }
 
 #[implement(super::Service)]

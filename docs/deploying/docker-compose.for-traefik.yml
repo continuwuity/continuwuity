@@ -28,7 +28,7 @@ services:
       #CONDUWUIT_CONFIG: '/etc/conduwuit.toml' # Uncomment if you mapped config toml above
 
       # We need some way to serve the client and server .well-known json. The simplest way is via the CONDUWUIT_WELL_KNOWN
-      # variable / config option, there are multiple ways to do this, e.g. in the conduwuit.toml file, and in a seperate
+      # variable / config option, there are multiple ways to do this, e.g. in the conduwuit.toml file, and in a separate
       # see the override file for more information about delegation
       CONDUWUIT_WELL_KNOWN: |
         {

@@ -25,7 +25,7 @@ pub(super) async fn console_auto_stop(&self) {
 /// Execute admin commands after startup
 #[implement(super::Service)]
 pub(super) async fn startup_execute(&self) -> Result {
-	// List of comamnds to execute
+	// List of commands to execute
 	let commands = &self.services.server.config.admin_execute;
 
 	// Determine if we're running in smoketest-mode which will change some behaviors
@@ -64,7 +64,7 @@ pub(super) async fn startup_execute(&self) -> Result {
 /// Execute admin commands after signal
 #[implement(super::Service)]
 pub(super) async fn signal_execute(&self) -> Result {
-	// List of comamnds to execute
+	// List of commands to execute
 	let commands = self.services.server.config.admin_signal_execute.clone();
 
 	// When true, errors are ignored and execution continues.

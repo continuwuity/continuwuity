@@ -36,7 +36,7 @@ services:
       # CONDUWUIT_NEW_USER_DISPLAYNAME_SUFFIX = "🏳<200d>⚧"
 
       # We need some way to serve the client and server .well-known json. The simplest way is via the CONDUWUIT_WELL_KNOWN
-      # variable / config option, there are multiple ways to do this, e.g. in the conduwuit.toml file, and in a seperate
+      # variable / config option, there are multiple ways to do this, e.g. in the conduwuit.toml file, and in a separate
       # reverse proxy, but since you do not have a reverse proxy and following this guide, this example is included
       CONDUWUIT_WELL_KNOWN: |
         {

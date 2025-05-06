@@ -15,7 +15,7 @@ use crate::Ruma;
 
 /// # `GET /_matrix/client/v3/capabilities`
 ///
-/// Get information on the supported feature set and other relevent capabilities
+/// Get information on the supported feature set and other relevant capabilities
 /// of this server.
 pub(crate) async fn get_capabilities_route(
 	State(services): State<crate::State>,

@@ -166,7 +166,7 @@ impl Service {
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
-	/// Dispatches a comamnd to the processor on the current task and waits for
+	/// Dispatches a command to the processor on the current task and waits for
 	/// completion.
 	pub async fn command_in_place(
 		&self,

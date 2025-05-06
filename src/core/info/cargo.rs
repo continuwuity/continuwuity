@@ -36,7 +36,7 @@ const MAIN_MANIFEST: &'static str = ();
 /// For *enabled* features see the info::rustc module instead.
 static FEATURES: OnceLock<Vec<String>> = OnceLock::new();
 
-/// Processed list of dependencies. This is generated from the datas captured in
+/// Processed list of dependencies. This is generated from the data captured in
 /// the MANIFEST.
 static DEPENDENCIES: OnceLock<DepsSet> = OnceLock::new();
 
