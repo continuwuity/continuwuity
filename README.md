@@ -16,7 +16,7 @@ It's a community continuation of the [conduwuit](https://github.com/girlbossceo/
 
 The original conduwuit project has been archived and is no longer maintained. Rather than letting this Rust-based Matrix homeserver disappear, a group of community contributors have forked the project to continue its development, fix outstanding issues, and add new features.
 
-We aim to provide a stable, well-maintained alternative for current Conduit users and welcome newcomers seeking a lightweight, efficient Matrix homeserver.
+We aim to provide a stable, well-maintained alternative for current conduwuit users and welcome newcomers seeking a lightweight, efficient Matrix homeserver.
 
 ### Who are we?
 
