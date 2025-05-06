@@ -193,7 +193,7 @@ fn get_cache(ctx: &Context, desc: &Descriptor) -> Option<Cache> {
 		return None;
 	}
 
-	// Some cache capacities are overriden by server config in a strange but
+	// Some cache capacities are overridden by server config in a strange but
 	// legacy-compat way
 	let config = &ctx.server.config;
 	let cap = match desc.name {

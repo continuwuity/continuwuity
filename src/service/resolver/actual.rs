@@ -296,7 +296,7 @@ impl super::Service {
 					expire: CachedOverride::default_expire(),
 					overriding: (hostname != untername)
 						.then_some(hostname.into())
-						.inspect(|_| debug_info!("{untername:?} overriden by {hostname:?}")),
+						.inspect(|_| debug_info!("{untername:?} overridden by {hostname:?}")),
 				});
 
 				Ok(())

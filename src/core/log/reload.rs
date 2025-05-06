@@ -16,9 +16,9 @@ use crate::{Result, error};
 /// pulling in a version of tracing that's incompatible with the rest of our
 /// deps.
 ///
-/// To work around this, we define an trait without the S paramter that forwards
-/// to the reload::Handle::reload method, and then store the handle as a trait
-/// object.
+/// To work around this, we define an trait without the S parameter that
+/// forwards to the reload::Handle::reload method, and then store the handle as
+/// a trait object.
 ///
 /// [1]: <https://github.com/tokio-rs/tracing/pull/1035/commits/8a87ea52425098d3ef8f56d92358c2f6c144a28f>
 pub trait ReloadHandle<L> {

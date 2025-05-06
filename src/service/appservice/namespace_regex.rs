@@ -26,7 +26,7 @@ impl NamespaceRegex {
 		false
 	}
 
-	/// Checks if this namespace has exlusive rights to a namespace
+	/// Checks if this namespace has exclusive rights to a namespace
 	#[inline]
 	#[must_use]
 	pub fn is_exclusive_match(&self, heystack: &str) -> bool {

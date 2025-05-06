@@ -71,7 +71,7 @@ related to WAL tracking.
 
 The only safe files that can be deleted are the `LOG` files (all caps). These
 are the real RocksDB telemetry/log files, however Continuwuity has already
-configured to only store up to 3 RocksDB `LOG` files due to generall being
+configured to only store up to 3 RocksDB `LOG` files due to generally being
 useless for average users unless troubleshooting something low-level. If you
 would like to store nearly none at all, see the `rocksdb_max_log_files`
 config option.

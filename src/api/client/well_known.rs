@@ -60,7 +60,7 @@ pub(crate) async fn well_known_support(
 		return Err(Error::BadRequest(ErrorKind::NotFound, "Not found."));
 	}
 
-	// TOOD: support defining multiple contacts in the config
+	// TODO: support defining multiple contacts in the config
 	let mut contacts: Vec<Contact> = vec![];
 
 	if let Some(role) = role {

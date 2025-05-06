@@ -399,7 +399,7 @@ async fn get_room_summary(
 	Ok(summary)
 }
 
-/// With the given identifier, checks if a room is accessable
+/// With the given identifier, checks if a room is accessible
 #[implement(Service)]
 async fn is_accessible_child<'a, I>(
 	&self,

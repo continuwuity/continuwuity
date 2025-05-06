@@ -267,15 +267,15 @@ impl Service {
 	///
 	/// Returns pdu id
 	#[tracing::instrument(level = "debug", skip_all)]
-	pub async fn append_pdu<'a, Leafs>(
+	pub async fn append_pdu<'a, Leaves>(
 		&'a self,
 		pdu: &'a PduEvent,
 		mut pdu_json: CanonicalJsonObject,
-		leafs: Leafs,
+		leaves: Leaves,
 		state_lock: &'a RoomMutexGuard,
 	) -> Result<RawPduId>
 	where
-		Leafs: Iterator<Item = &'a EventId> + Send + 'a,
+		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
 	{
 		// Coalesce database writes for the remainder of this scope.
 		let _cork = self.db.db.cork_and_flush();
@@ -344,7 +344,7 @@ impl Service {
 
 		self.services
 			.state
-			.set_forward_extremities(&pdu.room_id, leafs, state_lock)
+			.set_forward_extremities(&pdu.room_id, leaves, state_lock)
 			.await;
 
 		let insert_lock = self.mutex_insert.lock(&pdu.room_id).await;
@@ -951,17 +951,17 @@ impl Service {
 	/// Append the incoming event setting the state snapshot to the state from
 	/// the server that sent the event.
 	#[tracing::instrument(level = "debug", skip_all)]
-	pub async fn append_incoming_pdu<'a, Leafs>(
+	pub async fn append_incoming_pdu<'a, Leaves>(
 		&'a self,
 		pdu: &'a PduEvent,
 		pdu_json: CanonicalJsonObject,
-		new_room_leafs: Leafs,
+		new_room_leaves: Leaves,
 		state_ids_compressed: Arc<CompressedState>,
 		soft_fail: bool,
 		state_lock: &'a RoomMutexGuard,
 	) -> Result<Option<RawPduId>>
 	where
-		Leafs: Iterator<Item = &'a EventId> + Send + 'a,
+		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
 	{
 		// We append to state before appending the pdu, so we don't have a moment in
 		// time with the pdu without it's state. This is okay because append_pdu can't
@@ -978,14 +978,14 @@ impl Service {
 
 			self.services
 				.state
-				.set_forward_extremities(&pdu.room_id, new_room_leafs, state_lock)
+				.set_forward_extremities(&pdu.room_id, new_room_leaves, state_lock)
 				.await;
 
 			return Ok(None);
 		}
 
 		let pdu_id = self
-			.append_pdu(pdu, pdu_json, new_room_leafs, state_lock)
+			.append_pdu(pdu, pdu_json, new_room_leaves, state_lock)
 			.await?;
 
 		Ok(Some(pdu_id))
