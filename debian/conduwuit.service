@@ -1,9 +1,10 @@
 [Unit]
-Description=conduwuit Matrix homeserver
+
+Description=Continuwuity - Matrix homeserver
 Wants=network-online.target
 After=network-online.target
-Alias=matrix-conduwuit.service
 Documentation=https://continuwuity.org/
+Alias=matrix-conduwuit.service
 
 [Service]
 DynamicUser=yes
@@ -11,7 +12,7 @@ User=conduwuit
 Group=conduwuit
 Type=notify
 
-Environment="CONDUWUIT_CONFIG=/etc/conduwuit/conduwuit.toml"
+Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
 
 ExecStart=/usr/sbin/conduwuit
 
