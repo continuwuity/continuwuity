@@ -1962,7 +1962,11 @@ impl Config {
 	where
 		I: Iterator<Item = &'a Path>,
 	{
-		let envs = [Env::var("CONDUIT_CONFIG"), Env::var("CONDUWUIT_CONFIG")];
+		let envs = [
+			Env::var("CONDUIT_CONFIG"),
+			Env::var("CONDUWUIT_CONFIG"),
+			Env::var("CONTINUWUITY_CONFIG"),
+		];
 
 		let config = envs
 			.into_iter()
@@ -1971,7 +1975,8 @@ impl Config {
 			.chain(paths.map(Toml::file))
 			.fold(Figment::new(), |config, file| config.merge(file.nested()))
 			.merge(Env::prefixed("CONDUIT_").global().split("__"))
-			.merge(Env::prefixed("CONDUWUIT_").global().split("__"));
+			.merge(Env::prefixed("CONDUWUIT_").global().split("__"))
+			.merge(Env::prefixed("CONTINUWUITY_").global().split("__"));
 
 		Ok(config)
 	}

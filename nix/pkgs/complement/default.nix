@@ -75,9 +75,9 @@ dockerTools.buildImage {
       else [];
 
     Env = [
-      "CONDUWUIT_TLS__KEY=${./private_key.key}"
-      "CONDUWUIT_TLS__CERTS=${./certificate.crt}"
-      "CONDUWUIT_CONFIG=${./config.toml}"
+      "CONTINUWUITY_TLS__KEY=${./private_key.key}"
+      "CONTINUWUITY_TLS__CERTS=${./certificate.crt}"
+      "CONTINUWUITY_CONFIG=${./config.toml}"
       "RUST_BACKTRACE=full"
     ];
 
