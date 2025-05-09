@@ -113,6 +113,42 @@ pub(crate) async fn create_invite_route(
 
 	invite_state.push(pdu.to_stripped_state_event());
 
+	// Check the invite against any user_may_invite callbacks
+	for appservice in services.appservice.read().await.values() {
+		if let Some(callbacks) = &appservice.registration.callbacks {
+			if callbacks.user_may_invite.is_some() {
+				let resp = services
+					.sending
+					.send_appservice_request(
+						appservice.registration.clone(),
+						ruma::api::appservice::callback::user_may_invite::unstable::Request::new(
+							sender.to_owned(),
+							invited_user.clone(),
+							body.room_id.clone(),
+						),
+					)
+					.await?;
+				let as_id = &appservice.registration.id;
+				match resp {
+					| None => {
+						warn!(
+							"Failed to contact appservice {as_id} for user_may_invite callback."
+						);
+						return Err!(Request(Forbidden("User may not invite.")));
+					},
+					| Some(r) => {
+						if !r.ok {
+							let reason = r.reason.unwrap_or_else(|| "No reason".to_string());
+							warn!("Appservice {as_id} denied user_may_invite callback: {reason}");
+							return Err!(Request(Forbidden("User may not invite: {reason}")));
+						}
+						// Otherwise, continue
+					},
+				}
+			}
+		}
+	}
+
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
 	// record the invited state for client /sync through update_membership(), and
