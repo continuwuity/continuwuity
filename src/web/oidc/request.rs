@@ -1,6 +1,5 @@
-use super::OidcResponse;
+use super::{OidcError, OidcResponse};
 use oxide_auth::endpoint::{NormalizedParameter, QueryParameter, WebRequest};
-use oxide_auth_axum::WebError;
 use async_trait::async_trait;
 use axum::{
 	extract::{Form, FromRequest, FromRequestParts, Query, Request},
@@ -45,21 +44,21 @@ impl OidcRequest {
 }
 
 impl WebRequest for OidcRequest {
-    type Error = WebError;
+    type Error = OidcError;
     type Response = OidcResponse;
 
     fn query(&mut self) -> Result<Cow<'_, dyn QueryParameter + 'static>, Self::Error> {
         self.query
             .as_ref()
             .map(|q| Cow::Borrowed(q as &dyn QueryParameter))
-            .ok_or(WebError::Query)
+            .ok_or(OidcError::Query)
     }
 
     fn urlbody(&mut self) -> Result<Cow<'_, dyn QueryParameter + 'static>, Self::Error> {
         self.body
             .as_ref()
             .map(|b| Cow::Borrowed(b as &dyn QueryParameter))
-            .ok_or(WebError::Body)
+            .ok_or(OidcError::Body)
     }
 
     fn authheader(&mut self) -> Result<Option<Cow<'_, str>>, Self::Error> {
@@ -72,14 +71,14 @@ impl<S> FromRequest<S> for OidcRequest
 where
     S: Send + Sync,
 {
-    type Rejection = WebError;
+    type Rejection = OidcError;
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let mut all_auth = req.headers().get_all(header::AUTHORIZATION).iter();
         let optional = all_auth.next();
 
         let auth = if all_auth.next().is_some() {
-            return Err(WebError::Authorization);
+            return Err(OidcError::Authorization);
         } else {
             optional.and_then(|hv| hv.to_str().ok().map(str::to_owned))
         };

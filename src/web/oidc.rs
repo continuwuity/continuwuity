@@ -7,11 +7,13 @@ use crate::{
 
 mod authorize;
 mod consent;
+mod error;
 mod login;
 mod response;
 mod request;
 pub use authorize::AuthorizationQuery;
 pub use consent::oidc_consent_form;
+pub use error::OidcError;
 pub use login::{LoginQuery, LoginError, oidc_login_form};
 pub use request::OidcRequest;
 pub use response::OidcResponse;

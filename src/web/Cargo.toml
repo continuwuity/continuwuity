@@ -36,7 +36,6 @@ serde.workspace = true
 url.workspace = true
 percent-encoding.workspace = true
 oxide-auth.workspace = true
-oxide-auth-axum.workspace = true
 
 [lints]
 workspace = true

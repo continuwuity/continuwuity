@@ -1,5 +1,4 @@
 use conduwuit_web::oidc::{oidc_consent_form, oidc_login_form, AuthorizationQuery, OidcRequest, OidcResponse};
-use oxide_auth_axum::{OAuthResponse, OAuthRequest};
 use oxide_auth::{
 	endpoint::{OwnerConsent, Solicitation},
 	frontends::simple::endpoint::FnSolicitor,
@@ -78,8 +77,8 @@ pub(crate) struct Allowance {
 pub(crate) async fn authorize_consent(
 	Query(Allowance { allow }): Query<Allowance>,
 	State(services): State<crate::State>,
-	oauth: OAuthRequest,
-) -> Result<OAuthResponse> {
+	oauth: OidcRequest,
+) -> Result<OidcResponse> {
 	let allowed = allow.unwrap_or(false);
 	tracing::debug!("processing user's consent: {:?} - {:?}", allowed, oauth);
 

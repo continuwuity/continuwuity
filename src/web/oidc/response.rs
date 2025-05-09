@@ -1,14 +1,11 @@
-use super::{OidcRequest, oidc_consent_form};
-
-use crate::oidc::LoginQuery;
+use super::{oidc_consent_form, LoginQuery, OidcError, OidcRequest};
 use oxide_auth::{
 	endpoint::{OwnerConsent, OwnerSolicitor, Solicitation, WebRequest, WebResponse},
 	frontends::simple::request::{Body as OAuthRequestBody, Status},
 };
-use oxide_auth_axum::WebError;
 use axum::{
 	body::Body,
-    http::{Response, header},
+    http::{header, Response},
 	response::IntoResponse,
 };
 use url::Url;
@@ -26,7 +23,7 @@ pub struct OidcResponse {
 
 impl OidcResponse {
 	/// Instanciate from a response body. Used to send login or consent forms.
-	pub fn from_body(body: &str) -> Result<Self, WebError> {
+	pub fn from_body(body: &str) -> Result<Self, OidcError> {
 		let mut result = OidcResponse::default();
 		result.body_text(body)?;
 
@@ -50,22 +47,16 @@ impl IntoResponse for OidcResponse {
 	}
 }
 
+/// OidcResponse uses [super::oidc_consent_form] to be turned into an owner
+/// consent solicitation.
 impl OwnerSolicitor<OidcRequest> for OidcResponse {
 	fn check_consent(
 		&mut self,
 		request: &mut OidcRequest,
 		_: Solicitation<'_>,
 	) -> OwnerConsent<<OidcRequest as WebRequest>::Response> {
-		//let hostname = self.location.map(|l| l.as_str()).unwrap_or("Continuwuity");
+		// TODO find a way to pass the hostname to the template.
 		let hostname = "Continuwuity";
-		/*
-		let hostname = request
-			.query()
-			.expect("query in OAuth request")
-			.unique_value("hostname")
-			.expect("hostname in OAuth request")
-			.as_str();
-		*/
 		let query: LoginQuery = request
 			.clone()
 			.try_into()
@@ -79,7 +70,7 @@ impl OwnerSolicitor<OidcRequest> for OidcResponse {
 }
 
 impl WebResponse for OidcResponse {
-	type Error = WebError;
+	type Error = OidcError;
 
 	fn ok(&mut self) -> Result<(), Self::Error> {
 		self.status = Status::Ok;

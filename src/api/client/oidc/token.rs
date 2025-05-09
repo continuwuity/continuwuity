@@ -1,10 +1,7 @@
-use oxide_auth_axum::{OAuthResponse, OAuthRequest};
-use oxide_auth::endpoint::QueryParameter;
-use axum::{
-	extract::State,
-	response::IntoResponse,
-};
+use conduwuit_web::oidc::{OidcRequest, OidcResponse};
 use conduwuit::{Result, err};
+use oxide_auth::endpoint::QueryParameter;
+use axum::extract::State;
 
 /// # `POST /_matrix/client/unstable/org.matrix.msc2964/token`
 ///
@@ -12,8 +9,8 @@ use conduwuit::{Result, err};
 /// it in the server's ring, or refresh the token.
 pub(crate) async fn token(
 	State(services): State<crate::State>,
-	oauth: OAuthRequest,
-) -> Result<OAuthResponse> {
+	oauth: OidcRequest,
+) -> Result<OidcResponse> {
 	let Some(body) = oauth.body() else {
 		return Err(err!(Request(Unknown("OAuth request had an empty body"))));
 	};
@@ -37,36 +34,3 @@ pub(crate) async fn token(
 			Err(err!(Request(Unknown("unsupported grant type: {other:?}")))),
 	}
 }
-
-/// Sample protected content. TODO check that resources are available with the returned token.
-pub(crate) async fn _protected_resource(
-	State(services): State<crate::State>,
-	oauth: OAuthRequest,
-) -> impl IntoResponse {
-	const DENY_TEXT: &str = "<html>
-This page should be accessed via an oauth token from the client in the example. Click
-<a href=\"/authorize?response_type=code&client_id=LocalClient\">
-here</a> to begin the authorization process.
-</html>
-";
-
-	let protect = services
-		.oidc
-		.endpoint()
-		.with_scopes(vec!["default-scope".parse().unwrap()])
-		.resource_flow()
-		.execute(oauth);
-	match protect {
-		Ok(_grant) => Ok("Hello, world"),
-		Err(Ok(response)) => {
-			let error: OAuthResponse = response
-				//.header(ContentType::HTML)
-				.body(DENY_TEXT)
-				//.finalize()
-				.into();
-			Err(Ok(error))
-		}
-		Err(Err(err)) => Err(Err(err!(Request(Unknown("auth failed: {err:?}"))))),
-	}
-}
-
