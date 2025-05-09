@@ -51,7 +51,7 @@ pub(crate) struct ClientResponse {
 
 /// # `GET /_matrix/client/unstable/org.matrix.msc2964/device/register`
 ///
-/// Register a client, as specified in [MSC2966]. This client, "device" in Oidc parlance,
+/// Register a client, as specified in [MSC2966]. This client, "device" in OIDC parlance,
 /// will have the right to submit [super::authorize::authorize] requests.
 ///
 /// [MSC2966]: https://github.com/matrix-org/matrix-spec-proposals/pull/2966

@@ -1,0 +1,43 @@
+use url::Url;
+use super::LoginQuery;
+
+/// The set of parameters required for an OIDC authorization request.
+#[derive(serde::Deserialize, Debug)]
+pub struct AuthorizationQuery {
+	pub client_id: String,
+	pub redirect_uri: Url,
+	pub scope: String,
+	pub state: String,
+	pub code_challenge: String,
+	pub code_challenge_method: String,
+	pub response_type: String,
+	pub response_mode: String,
+}
+
+impl From<LoginQuery> for AuthorizationQuery {
+	fn from(value: LoginQuery) -> Self {
+		let LoginQuery {
+			client_id,
+			redirect_uri,
+			scope,
+			state,
+			code_challenge,
+			code_challenge_method,
+			response_type,
+			response_mode,
+			..
+		} = value;
+		
+		AuthorizationQuery {
+			client_id,
+			redirect_uri,
+			scope,
+			state,
+			code_challenge,
+			code_challenge_method,
+			response_type,
+			response_mode,
+		}
+	}
+}
+

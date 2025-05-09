@@ -96,6 +96,7 @@ tracing.workspace = true
 ctor.workspace = true
 oxide-auth.workspace = true
 oxide-auth-axum.workspace = true
+conduwuit-web.workspace = true
 percent-encoding.workspace = true
 
 [lints]

@@ -1,9 +1,3 @@
-/// Implementation of [MSC2964]'s OAuth2 restricted flow using the [oxide-auth]
-/// crate. See the MSC for restrictions that apply to this flow.
-///
-/// [MSC2965]: https://github.com/matrix-org/matrix-spec-proposals/pull/2965
-/// [oxide-auth]: https://docs.rs/oxide-auth
-
 use oxide_auth_axum::{OAuthResponse, OAuthRequest};
 use oxide_auth::endpoint::QueryParameter;
 use axum::{

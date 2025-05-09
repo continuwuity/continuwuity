@@ -104,6 +104,8 @@ features = [
 	"tokio",
 	"tracing",
     "query",
+    # Needed for debug_handler.
+    #"macros",
 ]
 
 [workspace.dependencies.axum-extra]

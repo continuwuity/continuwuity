@@ -3,8 +3,7 @@
 /// Provides the registrar, authorizer and issuer needed by [api::client::oidc].
 /// The whole OAuth2 flow is taken care of by [oxide-auth].
 ///
-/// TODO At the moment this service provides no method to dynamically add a
-/// client. That would need a dedicated space in the database.
+/// TODO this service would need a dedicated space in the database.
 ///
 /// [oxide-auth]: https://docs.rs/oxide-auth
 
@@ -90,7 +89,6 @@ impl Service {
 			solicitor: Vacant,
 			// Scope configured later.
 			scopes: Vacant,
-			// `rocket::Response` is `Default`, so we don't need more configuration.
 			response: Vacant,
 		}
 	}

@@ -8,6 +8,7 @@ use axum::{
 };
 use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, version_tag};
 use conduwuit_service::state;
+pub mod oidc;
 
 pub fn build() -> Router<state::State> {
 	let router = Router::<state::State>::new();
