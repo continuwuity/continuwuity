@@ -1,7 +1,7 @@
-use conduwuit_web::oidc::{OidcRequest, OidcResponse};
-use conduwuit::{Result, err};
-use oxide_auth::endpoint::QueryParameter;
 use axum::extract::State;
+use conduwuit::{Result, err};
+use conduwuit_web::oidc::{OidcRequest, OidcResponse};
+use oxide_auth::endpoint::QueryParameter;
 
 /// # `POST /_matrix/client/unstable/org.matrix.msc2964/token`
 ///
@@ -20,17 +20,14 @@ pub(crate) async fn token(
 	let endpoint = services.oidc.endpoint();
 
 	match grant_type.as_deref() {
-		| Some("authorization_code") =>
-			endpoint
-				.access_token_flow()
-				.execute(oauth)
-				.map_err(|err| err!(Request(Unknown("token grant failed: {err:?}")))),
-		| Some("refresh_token") =>
-			endpoint
-				.refresh_flow()
-				.execute(oauth)
-				.map_err(|err| err!(Request(Unknown("token refresh failed: {err:?}")))),
-		| other =>
-			Err(err!(Request(Unknown("unsupported grant type: {other:?}")))),
+		| Some("authorization_code") => endpoint
+			.access_token_flow()
+			.execute(oauth)
+			.map_err(|err| err!(Request(Unknown("token grant failed: {err:?}")))),
+		| Some("refresh_token") => endpoint
+			.refresh_flow()
+			.execute(oauth)
+			.map_err(|err| err!(Request(Unknown("token refresh failed: {err:?}")))),
+		| other => Err(err!(Request(Unknown("unsupported grant type: {other:?}")))),
 	}
 }

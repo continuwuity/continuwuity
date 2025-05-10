@@ -11,9 +11,9 @@ use crate::{
 	account_data, admin, announcements, appservice, client, config, emergency, federation,
 	globals, key_backups,
 	manager::Manager,
-	media, moderation, presence, pusher, resolver, rooms, sending, server_keys, service,
+	media, moderation, oidc, presence, pusher, resolver, rooms, sending, server_keys, service,
 	service::{Args, Map, Service},
-	sync, transaction_ids, uiaa, users, oidc,
+	sync, transaction_ids, uiaa, users,
 };
 
 pub struct Services {

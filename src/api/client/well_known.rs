@@ -4,10 +4,7 @@ use futures::StreamExt;
 use ruma::api::client::{
 	discovery::{
 		discover_homeserver::{
-			self,
-			HomeserverInfo,
-			SlidingSyncProxyInfo,
-			AuthenticationServerInfo,
+			self, AuthenticationServerInfo, HomeserverInfo, SlidingSyncProxyInfo,
 		},
 		discover_support::{self, Contact},
 	},
@@ -33,16 +30,14 @@ pub(crate) async fn well_known_client(
 		identity_server: None,
 		sliding_sync_proxy: Some(SlidingSyncProxyInfo { url: client_url.clone() }),
 		tile_server: None,
-		authentication: services.config.auth.as_ref().and_then(|auth|
-			auth.enable_oidc_login.then_some(
-				AuthenticationServerInfo::new(
+		authentication: services.config.auth.as_ref().and_then(|auth| {
+			auth.enable_oidc_login
+				.then_some(AuthenticationServerInfo::new(
 					client_url.clone(),
-					auth.enable_oidc_account_management.then_some(
-						format!("{client_url}/account")
-					)
-				)
-			)
-		)
+					auth.enable_oidc_account_management
+						.then_some(format!("{client_url}/account")),
+				))
+		}),
 	})
 }
 

@@ -1,32 +1,25 @@
-/// OIDC service.
-///
-/// Provides the registrar, authorizer and issuer needed by [api::client::oidc].
-/// The whole OAuth2 flow is taken care of by [oxide-auth].
-///
-/// TODO this service would need a dedicated space in the database.
-///
-/// [oxide-auth]: https://docs.rs/oxide-auth
+//! OIDC service.
+//!
+//! Provides the registrar, authorizer and issuer needed by [api::client::oidc].
+//! The whole OAuth2 flow is taken care of by [oxide-auth].
+//!
+//! TODO this service would need a dedicated space in the database.
+//!
+//! [oxide-auth]: https://docs.rs/oxide-auth
 
+use std::sync::{Arc, Mutex};
+
+use async_trait::async_trait;
 use conduwuit::Result;
 use oxide_auth::{
 	frontends::simple::endpoint::{Generic, Vacant},
 	primitives::{
 		prelude::{
-			AuthMap,
-			Authorizer,
-			Client,
-			ClientMap,
-			Issuer,
-			RandomGenerator,
-			Registrar,
-			TokenMap,
+			AuthMap, Authorizer, Client, ClientMap, Issuer, RandomGenerator, Registrar, TokenMap,
 		},
 		registrar::RegisteredUrl,
 	},
 };
-
-use async_trait::async_trait;
-use std::sync::{Arc, Mutex};
 
 pub struct Service {
 	registrar: Mutex<ClientMap>,
@@ -36,17 +29,14 @@ pub struct Service {
 
 #[async_trait]
 impl crate::Service for Service {
-	fn build(_args: crate::Args<'_>) -> Result<Arc<Self>> {
-		Ok(Arc::new(Self::preconfigured()))
-	}
+	fn build(_args: crate::Args<'_>) -> Result<Arc<Self>> { Ok(Arc::new(Self::preconfigured())) }
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
 impl Service {
 	pub fn register_client(&self, client: &Client) -> Result<()> {
-		self
-			.registrar
+		self.registrar
 			.lock()
 			.expect("lockable registrar")
 			.register_client(client.clone());
@@ -54,8 +44,9 @@ impl Service {
 		Ok(())
 	}
 
+	#[must_use]
 	pub fn preconfigured() -> Self {
-		Service {
+		Self {
 			registrar: Mutex::new(
 				vec![Client::public(
 					"LocalClient",
@@ -80,7 +71,9 @@ impl Service {
 	}
 
 	/// The oxide-auth carry-all endpoint.
-	pub fn endpoint(&self) -> Generic<impl Registrar + '_, impl Authorizer + '_, impl Issuer + '_> {
+	pub fn endpoint(
+		&self,
+	) -> Generic<impl Registrar + '_, impl Authorizer + '_, impl Issuer + '_> {
 		Generic {
 			registrar: self.registrar.lock().unwrap(),
 			authorizer: self.authorizer.lock().unwrap(),

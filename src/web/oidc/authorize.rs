@@ -1,4 +1,5 @@
 use url::Url;
+
 use super::LoginQuery;
 
 /// The set of parameters required for an OIDC authorization request.
@@ -27,8 +28,8 @@ impl From<LoginQuery> for AuthorizationQuery {
 			response_mode,
 			..
 		} = value;
-		
-		AuthorizationQuery {
+
+		Self {
 			client_id,
 			redirect_uri,
 			scope,
@@ -40,4 +41,3 @@ impl From<LoginQuery> for AuthorizationQuery {
 		}
 	}
 }
-

@@ -1,20 +1,19 @@
-use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
 use askama::Template;
+use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
+
 // Imports needed by askama templates.
-use crate::{
-	VERSION_EXTRA, GIT_REMOTE_WEB_URL, GIT_REMOTE_COMMIT_URL,
-};
+use crate::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, VERSION_EXTRA};
 
 mod authorize;
 mod consent;
 mod error;
 mod login;
-mod response;
 mod request;
+mod response;
 pub use authorize::AuthorizationQuery;
 pub use consent::oidc_consent_form;
 pub use error::OidcError;
-pub use login::{LoginQuery, LoginError, oidc_login_form};
+pub use login::{LoginError, LoginQuery, oidc_login_form};
 pub use request::OidcRequest;
 pub use response::OidcResponse;
 
@@ -34,7 +33,6 @@ pub(crate) struct LoginPageTemplate<'a> {
 	response_type: &'a str,
 	response_mode: &'a str,
 }
-
 
 /// The parameters for the OIDC consent page template.
 #[derive(Template)]

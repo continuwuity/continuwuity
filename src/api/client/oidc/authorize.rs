@@ -1,10 +1,12 @@
-use conduwuit_web::oidc::{oidc_consent_form, oidc_login_form, AuthorizationQuery, OidcRequest, OidcResponse};
+use axum::extract::{Query, State};
+use conduwuit::{Result, err};
+use conduwuit_web::oidc::{
+	AuthorizationQuery, OidcRequest, OidcResponse, oidc_consent_form, oidc_login_form,
+};
 use oxide_auth::{
 	endpoint::{OwnerConsent, Solicitation},
 	frontends::simple::endpoint::FnSolicitor,
 };
-use axum::extract::{Query, State};
-use conduwuit::{Result, err};
 use percent_encoding::percent_decode_str;
 
 /// # `GET /_matrix/client/unstable/org.matrix.msc2964/authorize`
@@ -24,12 +26,12 @@ pub(crate) async fn authorize(
 	// Enforce MSC2964's restrictions on OAuth2 flow.
 	let Ok(scope) = percent_decode_str(&query.scope).decode_utf8() else {
 		return Err(err!(Request(Unknown("the scope could not be percent-decoded"))));
-	} ;
+	};
 	//if ! scope.contains("urn:matrix:api:*") {
-	if ! scope.contains("urn:matrix:org.matrix.msc2967.client:api:*") {
+	if !scope.contains("urn:matrix:org.matrix.msc2967.client:api:*") {
 		return Err(err!(Request(Unknown("the scope does not include the client API"))));
 	}
-	if ! scope.contains("urn:matrix:org.matrix.msc2967.client:device:") {
+	if !scope.contains("urn:matrix:org.matrix.msc2967.client:device:") {
 		return Err(err!(Request(Unknown("the scope does not include a device ID"))));
 	}
 	if query.code_challenge_method != "S256" {
@@ -48,22 +50,23 @@ pub(crate) async fn authorize(
 		| None => {
 			return Ok(oidc_login_form(hostname, &query));
 		},
-		| Some(token) => if services.users.find_from_token(token).await.is_err() {
-			return Ok(oidc_login_form(hostname, &query)); 
-		}
+		| Some(token) =>
+			if services.users.find_from_token(token).await.is_err() {
+				return Ok(oidc_login_form(hostname, &query));
+			},
 	}
 	// TODO register the device ID ?
 
 	services
 		.oidc
 		.endpoint()
-        .with_solicitor(oidc_consent_form(hostname, &query))
+		.with_solicitor(oidc_consent_form(hostname, &query))
 		.authorization_flow()
 		.execute(oauth)
 		.map_err(|err| err!("authorization failed: {err:?}"))
 }
 
-/// Wether a user allows their device to access this homeserver's resources.
+/// Whether a user allows their device to access this homeserver's resources.
 #[derive(serde::Deserialize)]
 pub(crate) struct Allowance {
 	allow: Option<bool>,
@@ -85,14 +88,12 @@ pub(crate) async fn authorize_consent(
 	services
 		.oidc
 		.endpoint()
-		.with_solicitor(
-			FnSolicitor(move |_: &mut _, solicitation: Solicitation<'_>|
-				match allowed {
-					| false => OwnerConsent::Denied,
-					| true => OwnerConsent::Authorized(solicitation.pre_grant().client_id.clone())
-				}
-			)
-		)
+		.with_solicitor(FnSolicitor(
+			move |_: &mut _, solicitation: Solicitation<'_>| match allowed {
+				| false => OwnerConsent::Denied,
+				| true => OwnerConsent::Authorized(solicitation.pre_grant().client_id.clone()),
+			},
+		))
 		.authorization_flow()
 		.execute(oauth)
 		.map_err(|err| err!(Request(Unknown("consent request failed: {err:?}"))))

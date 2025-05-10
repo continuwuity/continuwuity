@@ -1,20 +1,14 @@
-use super::{
-	encode,
-	ConsentPageTemplate,
-	AuthorizationQuery,
-	OidcResponse,
-};
 use askama::Template;
 use oxide_auth::frontends::simple::request::{Body, Status};
+
+use super::{AuthorizationQuery, ConsentPageTemplate, OidcResponse, encode};
 
 /// A web consent solicitor form for the OIDC authentication flow.
 ///
 /// Asks the resource owner for their consent to let a client access their data
 /// on this server.
-pub fn oidc_consent_form(
-	hostname: &str,
-	query: &AuthorizationQuery,
-) -> OidcResponse {
+#[must_use]
+pub fn oidc_consent_form(hostname: &str, query: &AuthorizationQuery) -> OidcResponse {
 	// The target request route.
 	let route = "/_matrix/client/unstable/org.matrix.msc2964/authorize";
 	let nonce = rand::random::<u64>().to_string();
@@ -30,12 +24,7 @@ pub fn oidc_consent_form(
 }
 
 /// Render the html contents of the user consent page.
-fn consent_page(
-	hostname: &str,
-	query: &AuthorizationQuery,
-	route: &str,
-	nonce: &str,
-) -> String {
+fn consent_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &str) -> String {
 	let template = ConsentPageTemplate {
 		nonce,
 		hostname,

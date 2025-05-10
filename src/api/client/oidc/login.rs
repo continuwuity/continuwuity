@@ -1,16 +1,7 @@
-use conduwuit_web::oidc::{
-	oidc_consent_form,
-	AuthorizationQuery,
-	LoginError,
-	LoginQuery,
-	OidcRequest,
-	OidcResponse,
-};
 use axum::extract::State;
-use conduwuit::{
-	Result,
-	err,
-	utils::hash::verify_password,
+use conduwuit::{Result, err, utils::hash::verify_password};
+use conduwuit_web::oidc::{
+	AuthorizationQuery, LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form,
 };
 use ruma::user_id::UserId;
 
@@ -25,17 +16,15 @@ pub(crate) async fn oidc_login(
 	State(services): State<crate::State>,
 	request: OidcRequest,
 ) -> Result<OidcResponse> {
-	let query: LoginQuery = request.clone().try_into().map_err(|LoginError(err)|
+	let query: LoginQuery = request.clone().try_into().map_err(|LoginError(err)| {
 		err!(Request(InvalidParam("Cannot process login form. {err}")))
-	)?;
+	})?;
 	// Only accept local usernames. Mostly to simplify things at first.
-	let user_id = UserId::parse_with_server_name(
-			query.username.clone(),
-			&services.config.server_name
-		)
-		.map_err(|e| err!(Request(InvalidUsername("Username is invalid: {e}"))))?;
+	let user_id =
+		UserId::parse_with_server_name(query.username.clone(), &services.config.server_name)
+			.map_err(|e| err!(Request(InvalidUsername("Username is invalid: {e}"))))?;
 
-	if ! services.users.exists(&user_id).await {
+	if !services.users.exists(&user_id).await {
 		return Err(err!(Request(Unknown("unknown username"))));
 	}
 	tracing::info!("logging in: {user_id:?}");
@@ -48,7 +37,7 @@ pub(crate) async fn oidc_login(
 	if valid_hash.is_empty() {
 		return Err(err!(Request(UserDeactivated("the user's hash was not found"))));
 	}
-	if let Err(_) = verify_password(&query.password, &valid_hash) {
+	if verify_password(&query.password, &valid_hash).is_err() {
 		return Err(err!(Request(InvalidParam("password does not match"))));
 	}
 	tracing::info!("{user_id:?} passed, forwarding to consent page");

@@ -1,17 +1,13 @@
-use super::{
-	AuthorizationQuery,
-	LoginPageTemplate,
-	OidcRequest,
-	OidcResponse,
-};
+use std::str::FromStr;
+
 use askama::Template;
 use oxide_auth::{
 	endpoint::QueryParameter,
 	frontends::simple::request::{Body, Status},
 };
 use url::Url;
-use std::str::FromStr;
 
+use super::{AuthorizationQuery, LoginPageTemplate, OidcRequest, OidcResponse};
 
 /// The set of query parameters a client needs to get authorization.
 #[derive(serde::Deserialize, Debug, Clone)]
@@ -38,40 +34,40 @@ impl TryFrom<OidcRequest> for LoginQuery {
 		let body = value.body().expect("body in OidcRequest");
 
 		let Some(username) = body.unique_value("username") else {
-			return Err(LoginError("missing field: username".to_string()));
+			return Err(LoginError("missing field: username".to_owned()));
 		};
 		let Some(password) = body.unique_value("password") else {
-			return Err(LoginError("missing field: password".to_string()));
+			return Err(LoginError("missing field: password".to_owned()));
 		};
 		let Some(client_id) = body.unique_value("client_id") else {
-			return Err(LoginError("missing field: client_id".to_string()));
+			return Err(LoginError("missing field: client_id".to_owned()));
 		};
 		let Some(redirect_uri) = body.unique_value("redirect_uri") else {
-			return Err(LoginError("missing field: redirect_uri".to_string()));
+			return Err(LoginError("missing field: redirect_uri".to_owned()));
 		};
 		let Some(scope) = body.unique_value("scope") else {
-			return Err(LoginError("missing field: scope".to_string()));
+			return Err(LoginError("missing field: scope".to_owned()));
 		};
 		let Some(state) = body.unique_value("state") else {
-			return Err(LoginError("missing field: state".to_string()));
+			return Err(LoginError("missing field: state".to_owned()));
 		};
 		let Some(code_challenge) = body.unique_value("code_challenge") else {
-			return Err(LoginError("missing field: code_challenge".to_string()));
+			return Err(LoginError("missing field: code_challenge".to_owned()));
 		};
 		let Some(code_challenge_method) = body.unique_value("code_challenge_method") else {
-			return Err(LoginError("missing field: code_challenge_method".to_string()));
+			return Err(LoginError("missing field: code_challenge_method".to_owned()));
 		};
 		let Some(response_type) = body.unique_value("response_type") else {
-			return Err(LoginError("missing field: response_type".to_string()));
+			return Err(LoginError("missing field: response_type".to_owned()));
 		};
 		let Some(response_mode) = body.unique_value("response_mode") else {
-			return Err(LoginError("missing field: response_mode".to_string()));
+			return Err(LoginError("missing field: response_mode".to_owned()));
 		};
 		let Ok(redirect_uri) = Url::from_str(&redirect_uri) else {
-			return Err(LoginError("invalid field: redirect_uri".to_string()));
+			return Err(LoginError("invalid field: redirect_uri".to_owned()));
 		};
 
-		Ok(LoginQuery {
+		Ok(Self {
 			username: username.to_string(),
 			password: password.to_string(),
 			client_id: client_id.to_string(),
@@ -89,10 +85,8 @@ impl TryFrom<OidcRequest> for LoginQuery {
 /// A web login form for the OIDC authentication flow.
 ///
 /// The returned `OidcResponse` handles CSP headers to allow that form.
-pub fn oidc_login_form(
-	hostname: &str,
-	query: &AuthorizationQuery,
-) -> OidcResponse {
+#[must_use]
+pub fn oidc_login_form(hostname: &str, query: &AuthorizationQuery) -> OidcResponse {
 	// The target request route.
 	let route = "/_matrix/client/unstable/org.matrix.msc2964/login";
 	let nonce = rand::random::<u64>().to_string();
@@ -108,12 +102,7 @@ pub fn oidc_login_form(
 }
 
 /// Render the html contents of the login page.
-fn login_page(
-	hostname: &str,
-	query: &AuthorizationQuery,
-	route: &str,
-	nonce: &str,
-) -> String {
+fn login_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &str) -> String {
 	let template = LoginPageTemplate {
 		nonce,
 		hostname,

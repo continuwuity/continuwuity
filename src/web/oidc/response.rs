@@ -1,14 +1,15 @@
-use super::{oidc_consent_form, LoginQuery, OidcError, OidcRequest};
+use axum::{
+	body::Body,
+	http::{Response, header},
+	response::IntoResponse,
+};
 use oxide_auth::{
 	endpoint::{OwnerConsent, OwnerSolicitor, Solicitation, WebRequest, WebResponse},
 	frontends::simple::request::{Body as OAuthRequestBody, Status},
 };
-use axum::{
-	body::Body,
-    http::{header, Response},
-	response::IntoResponse,
-};
 use url::Url;
+
+use super::{LoginQuery, OidcError, OidcRequest, oidc_consent_form};
 
 /// A Web response that can be processed by the OIDC authentication flow before
 /// being sent over.
@@ -22,9 +23,9 @@ pub struct OidcResponse {
 }
 
 impl OidcResponse {
-	/// Instanciate from a response body. Used to send login or consent forms.
+	/// Instantiate from a response body. Used to send login or consent forms.
 	pub fn from_body(body: &str) -> Result<Self, OidcError> {
-		let mut result = OidcResponse::default();
+		let mut result = Self::default();
 		result.body_text(body)?;
 
 		Ok(result)
@@ -33,17 +34,19 @@ impl OidcResponse {
 
 impl IntoResponse for OidcResponse {
 	fn into_response(self) -> Response<Body> {
-		let body = self.body.expect("body").as_str().to_string();
-		let response = Response::builder()
+		let body = self.body.expect("body").as_str().to_owned();
+
+		Response::builder()
 			.header(header::CONTENT_TYPE, "text/html")
 			.header(
 				header::CONTENT_SECURITY_POLICY,
-				format!("default-src 'nonce-{}'; form-action https://eon.presentmatter.one/;", self.nonce)
+				format!(
+					"default-src 'nonce-{}'; form-action https://eon.presentmatter.one/;",
+					self.nonce
+				),
 			)
 			.body(body.into())
-			.unwrap();
-
-		response
+			.unwrap()
 	}
 }
 
@@ -62,10 +65,7 @@ impl OwnerSolicitor<OidcRequest> for OidcResponse {
 			.try_into()
 			.expect("login query from OidcRequest");
 
-		OwnerConsent::InProgress(oidc_consent_form(
-			hostname,
-			&query.into(),
-		))
+		OwnerConsent::InProgress(oidc_consent_form(hostname, &query.into()))
 	}
 }
 
@@ -80,39 +80,40 @@ impl WebResponse for OidcResponse {
 		Ok(())
 	}
 
-    /// A response which will redirect the user-agent to which the response is issued.
-    fn redirect(&mut self, url: Url) -> Result<(), Self::Error> {
-        self.status = Status::Redirect;
-        self.location = Some(url);
-        self.www_authenticate = None;
-        Ok(())
-    }
+	/// A response which will redirect the user-agent to which the response is
+	/// issued.
+	fn redirect(&mut self, url: Url) -> Result<(), Self::Error> {
+		self.status = Status::Redirect;
+		self.location = Some(url);
+		self.www_authenticate = None;
+		Ok(())
+	}
 
-    /// Set the response status to 400.
-    fn client_error(&mut self) -> Result<(), Self::Error> {
-        self.status = Status::BadRequest;
-        self.location = None;
-        self.www_authenticate = None;
-        Ok(())
-    }
+	/// Set the response status to 400.
+	fn client_error(&mut self) -> Result<(), Self::Error> {
+		self.status = Status::BadRequest;
+		self.location = None;
+		self.www_authenticate = None;
+		Ok(())
+	}
 
-    /// Set the response status to 401 and add a `WWW-Authenticate` header.
-    fn unauthorized(&mut self, header_value: &str) -> Result<(), Self::Error> {
-        self.status = Status::Unauthorized;
-        self.location = None;
-        self.www_authenticate = Some(header_value.to_owned());
-        Ok(())
-    }
+	/// Set the response status to 401 and add a `WWW-Authenticate` header.
+	fn unauthorized(&mut self, header_value: &str) -> Result<(), Self::Error> {
+		self.status = Status::Unauthorized;
+		self.location = None;
+		self.www_authenticate = Some(header_value.to_owned());
+		Ok(())
+	}
 
-    /// A pure text response with no special media type set.
-    fn body_text(&mut self, text: &str) -> Result<(), Self::Error> {
-        self.body = Some(OAuthRequestBody::Text(text.to_owned()));
-        Ok(())
-    }
+	/// A pure text response with no special media type set.
+	fn body_text(&mut self, text: &str) -> Result<(), Self::Error> {
+		self.body = Some(OAuthRequestBody::Text(text.to_owned()));
+		Ok(())
+	}
 
-    /// Json repsonse data, with media type `aplication/json.
-    fn body_json(&mut self, data: &str) -> Result<(), Self::Error> {
-        self.body = Some(OAuthRequestBody::Json(data.to_owned()));
-        Ok(())
-    }
+	/// Json response data, with media type `aplication/json.
+	fn body_json(&mut self, data: &str) -> Result<(), Self::Error> {
+		self.body = Some(OAuthRequestBody::Json(data.to_owned()));
+		Ok(())
+	}
 }
