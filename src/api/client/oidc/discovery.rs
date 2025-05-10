@@ -5,12 +5,9 @@ use axum::extract::State;
 use conduwuit::Result;
 use ruma::{
 	api::client::{
-		discovery::get_authorization_server_metadata::{
-			self,
-			msc2965::{
-				AccountManagementAction, AuthorizationServerMetadata, CodeChallengeMethod,
-				GrantType, Prompt, ResponseMode, ResponseType,
-			},
+		discovery::get_authorization_server_metadata::msc2965::{
+			self, AccountManagementAction, AuthorizationServerMetadata, CodeChallengeMethod,
+			GrantType, Prompt, ResponseMode, ResponseType,
 		},
 		error::{
 			Error as ClientError, ErrorBody as ClientErrorBody, ErrorKind as ClientErrorKind,
@@ -92,5 +89,5 @@ pub(crate) async fn get_auth_metadata(
 	};
 	let metadata = Raw::new(&metadata).expect("authorization server metadata should serialize");
 
-	Ok(RumaResponse(Response::new(metadata)))
+	Ok(RumaResponse(msc2965::Response::new(metadata)))
 }

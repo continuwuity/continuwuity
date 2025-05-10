@@ -39,10 +39,7 @@ pub(crate) async fn authorize(
 	}
 
 	// Redirect to the login page if no token or token not known.
-	let hostname = services
-		.config
-		.server_name
-		.host();
+	let hostname = services.config.server_name.host();
 	match oauth.authorization_header() {
 		| None => {
 			return Ok(oidc_login_form(hostname, &query));

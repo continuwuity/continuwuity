@@ -23,7 +23,7 @@
 # See the docs for reverse proxying and delegation:
 # https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 #
-# Also see the `[global.well_known]` config section at the very bottom.
+# Also see the `[global.auth]` and `[global.well_known]` config sections at the very bottom.
 #
 # Examples of delegation:
 # - https://puppygock.gay/.well-known/matrix/server
@@ -57,10 +57,6 @@
 # To listen on multiple ports, specify a vector e.g. [8080, 8448]
 #
 #port = 8008
-
-# This item is undocumented. Please contribute documentation for it.
-#
-#auth =
 
 # The UNIX socket conduwuit will listen on.
 #
@@ -1760,14 +1756,18 @@
 
 [global.auth]
 
-# Use this homeserver as the OIDC authentication reference.
-# Note that the legacy Matrix authentication still will work.
+# Use this homeserver as the OIDC authentication reference. It will
+# advertise itself as the OIDC authentication issuer to new clients,
+# and use the internal user database to answer on the advertised
+# endpoints. Note that the legacy Matrix authentication still will be
+# reachable.
 # Unset by default.
 #
 #enable_oidc_login =
 
-# The URL where the user is able to access the account management
-# capabilities of the homeserver. Only used if `enable_oidc_login` is set.
+# Whether this homeserver should provide users with an account management 
+# interface. Only used if `enable_oidc_login` is set. Note that the
+# endpoint is unimplemented at the moment.
 # Unset by default.
 #
 #enable_oidc_account_management =

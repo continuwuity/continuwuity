@@ -62,7 +62,8 @@ pub struct Config {
 	/// See the docs for reverse proxying and delegation:
 	/// https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 	///
-	/// Also see the `[global.auth]` and `[global.well_known]` config sections at the very bottom.
+	/// Also see the `[global.auth]` and `[global.well_known]` config sections
+	/// at the very bottom.
 	///
 	/// Examples of delegation:
 	/// - https://puppygock.gay/.well-known/matrix/server
@@ -2035,7 +2036,7 @@ pub struct AuthConfig {
 	/// Unset by default.
 	pub enable_oidc_login: bool,
 
-	/// Whether this homeserver should provide users with an account management 
+	/// Whether this homeserver should provide users with an account management
 	/// interface. Only used if `enable_oidc_login` is set. Note that the
 	/// endpoint is unimplemented at the moment.
 	/// Unset by default.
