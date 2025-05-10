@@ -71,7 +71,7 @@ pub(crate) async fn get_auth_metadata(
 				.unwrap(),
 		),
 		revocation_endpoint: issuer
-			.join("_matrix/client/unstable/org.matrix.msc2964/revoke")
+			.join("/_matrix/client/unstable/org.matrix.msc2964/revoke")
 			.unwrap(),
 		response_types_supported: [ResponseType::Code].into(),
 		grant_types_supported: [GrantType::AuthorizationCode, GrantType::RefreshToken].into(),
