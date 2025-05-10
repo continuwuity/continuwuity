@@ -27,12 +27,10 @@ pub(crate) async fn oidc_login(
 	if !services.users.exists(&user_id).await {
 		return Err(err!(Request(Unknown("unknown username"))));
 	}
-	tracing::info!("logging in: {user_id:?}");
 	let valid_hash = services
 		.users
 		.password_hash(&user_id)
-		.await
-		.inspect_err(|e| tracing::info!("could not get user's hash: {e:?}"))?;
+		.await?;
 
 	if valid_hash.is_empty() {
 		return Err(err!(Request(UserDeactivated("the user's hash was not found"))));
@@ -40,7 +38,7 @@ pub(crate) async fn oidc_login(
 	if verify_password(&query.password, &valid_hash).is_err() {
 		return Err(err!(Request(InvalidParam("password does not match"))));
 	}
-	tracing::info!("{user_id:?} passed, forwarding to consent page");
+	tracing::info!("logging in: {user_id:?}");
 
 	let hostname = services
 		.config
