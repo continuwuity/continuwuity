@@ -44,7 +44,7 @@ pub(crate) async fn authorize(
 		.well_known
 		.client
 		.as_ref()
-		.map(|s| s.domain().expect("well-known client should be a domain"));
+		.map(|s| s.host_str().expect("well-known client should have a host"));
 	let hostname = hostname.unwrap_or("Continuwuity");
 	match oauth.authorization_header() {
 		| None => {

@@ -47,7 +47,7 @@ pub(crate) async fn oidc_login(
 		.well_known
 		.client
 		.as_ref()
-		.map(|s| s.domain().expect("well-known client should have a domain"));
+		.map(|s| s.host_str().expect("well-known client should have a host"));
 
 	let hostname = hostname.unwrap_or("Continuwuity");
 	let authorization_query: AuthorizationQuery = query.into();
