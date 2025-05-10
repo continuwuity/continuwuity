@@ -104,6 +104,7 @@ pub struct Config {
 	#[serde(default)]
 	pub tls: TlsConfig,
 
+	// external structure; separate section
 	pub auth: Option<AuthConfig>,
 
 	/// The UNIX socket conduwuit will listen on.

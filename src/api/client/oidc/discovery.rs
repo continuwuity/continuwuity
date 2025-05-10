@@ -9,7 +9,7 @@ use ruma::{
 			self,
 			msc2965::{
 				AccountManagementAction, AuthorizationServerMetadata, CodeChallengeMethod,
-				GrantType, Prompt, Response, ResponseMode, ResponseType,
+				GrantType, Prompt, ResponseMode, ResponseType,
 			},
 		},
 		error::{
@@ -28,8 +28,8 @@ use crate::{Ruma, RumaResponse, conduwuit::Error};
 /// with 404/M_UNRECOGNIZED.
 pub(crate) async fn get_auth_metadata(
 	State(services): State<crate::State>,
-	_body: Ruma<get_authorization_server_metadata::msc2965::Request>,
-) -> Result<RumaResponse<Response>> {
+	_body: Ruma<msc2965::Request>,
+) -> Result<RumaResponse<msc2965::Response>> {
 	let unrecognized_error = Err(Error::Ruma(ClientError::new(
 		http::StatusCode::NOT_FOUND,
 		ClientErrorBody::Standard {
@@ -52,6 +52,7 @@ pub(crate) async fn get_auth_metadata(
 			.unwrap(),
 	);
 
+	// Build up metadata with primitives from ruma::api::client::msc2965.
 	let metadata = AuthorizationServerMetadata {
 		issuer: issuer.clone(),
 		authorization_endpoint: issuer
