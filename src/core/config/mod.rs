@@ -53,7 +53,7 @@ use crate::{Result, err, error::Error, utils::sys};
 ### For more information, see:
 ### https://continuwuity.org/configuration.html
 "#,
-	ignore = "catchall well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
+	ignore = "catchall auth well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
 )]
 pub struct Config {
 	/// The server_name is the pretty name of this server. It is used as a
@@ -62,7 +62,7 @@ pub struct Config {
 	/// See the docs for reverse proxying and delegation:
 	/// https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 	///
-	/// Also see the `[global.well_known]` config section at the very bottom.
+	/// Also see the `[global.auth]` and `[global.well_known]` config sections at the very bottom.
 	///
 	/// Examples of delegation:
 	/// - https://puppygock.gay/.well-known/matrix/server
@@ -2022,16 +2022,21 @@ pub struct TlsConfig {
 	pub dual_protocol: bool,
 }
 
+#[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]
 #[derive(Clone, Debug, Deserialize, Default)]
 #[config_example_generator(filename = "conduwuit-example.toml", section = "global.auth")]
 pub struct AuthConfig {
-	/// Use this homeserver as the OIDC authentication reference.
-	/// Note that the legacy Matrix authentication still will work.
+	/// Use this homeserver as the OIDC authentication reference. It will
+	/// advertise itself as the OIDC authentication issuer to new clients,
+	/// and use the internal user database to answer on the advertised
+	/// endpoints. Note that the legacy Matrix authentication still will be
+	/// reachable.
 	/// Unset by default.
 	pub enable_oidc_login: bool,
 
-	/// The URL where the user is able to access the account management
-	/// capabilities of the homeserver. Only used if `enable_oidc_login` is set.
+	/// Whether this homeserver should provide users with an account management 
+	/// interface. Only used if `enable_oidc_login` is set. Note that the
+	/// endpoint is unimplemented at the moment.
 	/// Unset by default.
 	pub enable_oidc_account_management: bool,
 }
