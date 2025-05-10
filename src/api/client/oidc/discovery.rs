@@ -34,7 +34,7 @@ pub(crate) async fn get_auth_metadata(
 		http::StatusCode::NOT_FOUND,
 		ClientErrorBody::Standard {
 			kind: ClientErrorKind::Unrecognized,
-			message: "This homeserver doesn't do OIDC authentication.".to_owned(),
+			message: "This homeserver has disabled OIDC authentication.".to_owned(),
 		},
 	)));
 	let Some(ref auth) = services.server.config.auth else {
