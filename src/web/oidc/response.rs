@@ -40,10 +40,7 @@ impl IntoResponse for OidcResponse {
 			.header(header::CONTENT_TYPE, "text/html")
 			.header(
 				header::CONTENT_SECURITY_POLICY,
-				format!(
-					"default-src 'nonce-{}'; form-action https://eon.presentmatter.one/;",
-					self.nonce
-				),
+				format!("default-src 'nonce-{}'; form-action 'self';", self.nonce),
 			)
 			.body(body.into())
 			.unwrap()
