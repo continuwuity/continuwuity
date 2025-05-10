@@ -6,11 +6,11 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"  # Change this to the name of your Traefik docker proxy network
 
-      - "traefik.http.routers.to-conduwuit.rule=Host(`<SUBDOMAIN>.<DOMAIN>`)"  # Change to the address on which Continuwuity is hosted
-      - "traefik.http.routers.to-conduwuit.tls=true"
-      - "traefik.http.routers.to-conduwuit.tls.certresolver=letsencrypt"
-      - "traefik.http.routers.to-conduwuit.middlewares=cors-headers@docker"
-      - "traefik.http.services.to_conduwuit.loadbalancer.server.port=6167"
+      - "traefik.http.routers.to-continuwuity.rule=Host(`<SUBDOMAIN>.<DOMAIN>`)"  # Change to the address on which Continuwuity is hosted
+      - "traefik.http.routers.to-continuwuity.tls=true"
+      - "traefik.http.routers.to-continuwuity.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.to-continuwuity.middlewares=cors-headers@docker"
+      - "traefik.http.services.to_continuwuity.loadbalancer.server.port=6167"
 
       - "traefik.http.middlewares.cors-headers.headers.accessControlAllowOriginList=*"
       - "traefik.http.middlewares.cors-headers.headers.accessControlAllowHeaders=Origin, X-Requested-With, Content-Type, Accept, Authorization"

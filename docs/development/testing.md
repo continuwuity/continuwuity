@@ -24,8 +24,9 @@ and run the script.
 If you're on macOS and need to build an image, run `nix build .#linux-complement`.
 
 We have a Complement fork as some tests have needed to be fixed. This can be found
-at: <https://github.com/girlbossceo/complement>
+at: <https://forgejo.ellis.link/continuwuation/complement>
 
-[ci-workflows]: https://github.com/girlbossceo/conduwuit/actions/workflows/ci.yml?query=event%3Apush+is%3Asuccess+actor%3Agirlbossceo
+[ci-workflows]:
+https://forgejo.ellis.link/continuwuation/continuwuity/actions/?workflow=ci.yml&actor=0&status=1
 [complement]: https://github.com/matrix-org/complement
 [direnv]: https://direnv.net/docs/hook.html

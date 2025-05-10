@@ -1,4 +1,4 @@
-# conduwuit for Debian
+# Continuwuity for Debian
 
 Information about downloading and deploying the Debian package. This may also be
 referenced for other `apt`-based distros such as Ubuntu.
@@ -22,7 +22,7 @@ options in `/etc/conduwuit/conduwuit.toml`.
 
 ### Running
 
-The package uses the [`conduwuit.service`](../configuration/examples.md#example-systemd-unit-file) systemd unit file to start and stop conduwuit. The binary is installed at `/usr/sbin/conduwuit`.
+The package uses the [`conduwuit.service`](../configuration/examples.md#example-systemd-unit-file) systemd unit file to start and stop Continuwuity. The binary is installed at `/usr/sbin/conduwuit`.
 
 This package assumes by default that conduwuit will be placed behind a reverse proxy. The default config options apply (listening on `localhost` and TCP port `6167`). Matrix federation requires a valid domain name and TLS, so you will need to set up TLS certificates and renewal for it to work properly if you intend to federate.
 

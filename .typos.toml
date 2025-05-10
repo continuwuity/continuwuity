@@ -5,4 +5,5 @@ extend-exclude = ["*.csr"]
 "allocatedp" = "allocatedp"
 "conduwuit" = "conduwuit"
 "continuwuity" = "continuwuity"
+"continuwity" = "continuwuity"
 "execuse" = "execuse"

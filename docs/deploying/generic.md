@@ -115,7 +115,7 @@ ReadWritePaths=/path/to/custom/database/path
 ## Creating the Continuwuity configuration file
 
 Now we need to create the Continuwuity's config file in
-`/etc/conduwuit/conduwuit.toml`. The example config can be found at
+`/etc/continuwuity/continuwuity.toml`. The example config can be found at
 [conduwuit-example.toml](../configuration/examples.md).
 
 **Please take a moment to read the config. You need to change at least the

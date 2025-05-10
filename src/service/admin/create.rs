@@ -165,7 +165,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.timeline
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &RoomTopicEventContent {
-				topic: format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://conduwuit.puppyirl.gay/", services.config.server_name),
+				topic: format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/", services.config.server_name),
 			}),
 			server_user,
 			&room_id,

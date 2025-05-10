@@ -1,4 +1,4 @@
-### conduwuit Configuration
+### continuwuity Configuration
 ###
 ### THIS FILE IS GENERATED. CHANGES/CONTRIBUTIONS IN THE REPO WILL BE
 ### OVERWRITTEN!
@@ -13,7 +13,7 @@
 ### that say "YOU NEED TO EDIT THIS".
 ###
 ### For more information, see:
-### https://conduwuit.puppyirl.gay/configuration.html
+### https://continuwuity.org/configuration.html
 
 [global]
 
@@ -21,7 +21,7 @@
 # suffix for user and room IDs/aliases.
 #
 # See the docs for reverse proxying and delegation:
-# https://conduwuit.puppyirl.gay/deploying/generic.html#setting-up-the-reverse-proxy
+# https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 #
 # Also see the `[global.well_known]` config section at the very bottom.
 #
@@ -32,11 +32,11 @@
 # YOU NEED TO EDIT THIS. THIS CANNOT BE CHANGED AFTER WITHOUT A DATABASE
 # WIPE.
 #
-# example: "conduwuit.woof"
+# example: "continuwuity.org"
 #
 #server_name =
 
-# The default address (IPv4 or IPv6) conduwuit will listen on.
+# The default address (IPv4 or IPv6) continuwuity will listen on.
 #
 # If you are using Docker or a container NAT networking setup, this must
 # be "0.0.0.0".
@@ -46,10 +46,10 @@
 #
 #address = ["127.0.0.1", "::1"]
 
-# The port(s) conduwuit will listen on.
+# The port(s) continuwuity will listen on.
 #
 # For reverse proxying, see:
-# https://conduwuit.puppyirl.gay/deploying/generic.html#setting-up-the-reverse-proxy
+# https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 #
 # If you are using Docker, don't change this, you'll need to map an
 # external port to this.
@@ -58,16 +58,17 @@
 #
 #port = 8008
 
-# The UNIX socket conduwuit will listen on.
+# The UNIX socket continuwuity will listen on.
 #
-# conduwuit cannot listen on both an IP address and a UNIX socket. If
+# continuwuity cannot listen on both an IP address and a UNIX socket. If
 # listening on a UNIX socket, you MUST remove/comment the `address` key.
 #
 # Remember to make sure that your reverse proxy has access to this socket
-# file, either by adding your reverse proxy to the 'conduwuit' group or
-# granting world R/W permissions with `unix_socket_perms` (666 minimum).
+# file, either by adding your reverse proxy to the appropriate user group
+# or granting world R/W permissions with `unix_socket_perms` (666
+# minimum).
 #
-# example: "/run/conduwuit/conduwuit.sock"
+# example: "/run/continuwuity/continuwuity.sock"
 #
 #unix_socket_path =
 
@@ -75,23 +76,23 @@
 #
 #unix_socket_perms = 660
 
-# This is the only directory where conduwuit will save its data, including
-# media. Note: this was previously "/var/lib/matrix-conduit".
+# This is the only directory where continuwuity will save its data,
+# including media. Note: this was previously "/var/lib/matrix-conduit".
 #
 # YOU NEED TO EDIT THIS.
 #
-# example: "/var/lib/conduwuit"
+# example: "/var/lib/continuwuity"
 #
 #database_path =
 
-# conduwuit supports online database backups using RocksDB's Backup engine
-# API. To use this, set a database backup path that conduwuit can write
-# to.
+# continuwuity supports online database backups using RocksDB's Backup
+# engine API. To use this, set a database backup path that continuwuity
+# can write to.
 #
 # For more information, see:
-# https://conduwuit.puppyirl.gay/maintenance.html#backups
+# https://continuwuity.org/maintenance.html#backups
 #
-# example: "/opt/conduwuit-db-backups"
+# example: "/opt/continuwuity-db-backups"
 #
 #database_backup_path =
 
@@ -112,14 +113,14 @@
 #
 #new_user_displayname_suffix = "🏳️‍⚧️"
 
-# If enabled, conduwuit will send a simple GET request periodically to
+# If enabled, continuwuity will send a simple GET request periodically to
 # `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 # announcements or major updates. This is not an update check endpoint.
 #
 #allow_announcements_check = true
 
-# Set this to any float value to multiply conduwuit's in-memory LRU caches
-# with such as "auth_chain_cache_capacity".
+# Set this to any float value to multiply continuwuity's in-memory LRU
+# caches with such as "auth_chain_cache_capacity".
 #
 # May be useful if you have significant memory to spare to increase
 # performance.
@@ -131,7 +132,7 @@
 #
 #cache_capacity_modifier = 1.0
 
-# Set this to any float value in megabytes for conduwuit to tell the
+# Set this to any float value in megabytes for continuwuity to tell the
 # database engine that this much memory is available for database read
 # caches.
 #
@@ -145,7 +146,7 @@
 #
 #db_cache_capacity_mb = varies by system
 
-# Set this to any float value in megabytes for conduwuit to tell the
+# Set this to any float value in megabytes for continuwuity to tell the
 # database engine that this much memory is available for database write
 # caches.
 #
@@ -250,9 +251,9 @@
 # Enable using *only* TCP for querying your specified nameservers instead
 # of UDP.
 #
-# If you are running conduwuit in a container environment, this config
+# If you are running continuwuity in a container environment, this config
 # option may need to be enabled. For more details, see:
-# https://conduwuit.puppyirl.gay/troubleshooting.html#potential-dns-issues-when-using-docker
+# https://continuwuity.org/troubleshooting.html#potential-dns-issues-when-using-docker
 #
 #query_over_tcp_only = false
 
@@ -418,9 +419,9 @@
 # tokens. Multiple tokens can be added if you separate them with
 # whitespace
 #
-# conduwuit must be able to access the file, and it must not be empty
+# continuwuity must be able to access the file, and it must not be empty
 #
-# example: "/etc/conduwuit/.reg_token"
+# example: "/etc/continuwuity/.reg_token"
 #
 #registration_token_file =
 
@@ -512,16 +513,16 @@
 #allow_room_creation = true
 
 # Set to false to disable users from joining or creating room versions
-# that aren't officially supported by conduwuit.
+# that aren't officially supported by continuwuity.
 #
-# conduwuit officially supports room versions 6 - 11.
+# continuwuity officially supports room versions 6 - 11.
 #
-# conduwuit has slightly experimental (though works fine in practice)
+# continuwuity has slightly experimental (though works fine in practice)
 # support for versions 3 - 5.
 #
 #allow_unstable_room_versions = true
 
-# Default room version conduwuit will create rooms with.
+# Default room version continuwuity will create rooms with.
 #
 # Per spec, room version 11 is the default.
 #
@@ -587,7 +588,7 @@
 # Servers listed here will be used to gather public keys of other servers
 # (notary trusted key servers).
 #
-# Currently, conduwuit doesn't support inbound batched key requests, so
+# Currently, continuwuity doesn't support inbound batched key requests, so
 # this list should only contain other Synapse servers.
 #
 # example: ["matrix.org", "tchncs.de"]
@@ -628,7 +629,7 @@
 #
 #trusted_server_batch_size = 1024
 
-# Max log level for conduwuit. Allows debug, info, warn, or error.
+# Max log level for continuwuity. Allows debug, info, warn, or error.
 #
 # See also:
 # https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives
@@ -649,8 +650,9 @@
 #
 #log_span_events = "none"
 
-# Configures whether CONDUWUIT_LOG EnvFilter matches values using regular
-# expressions. See the tracing_subscriber documentation on Directives.
+# Configures whether CONTINUWUITY_LOG EnvFilter matches values using
+# regular expressions. See the tracing_subscriber documentation on
+# Directives.
 #
 #log_filter_regex = true
 
@@ -718,7 +720,7 @@
 # This takes priority over "turn_secret" first, and falls back to
 # "turn_secret" if invalid or failed to open.
 #
-# example: "/etc/conduwuit/.turn_secret"
+# example: "/etc/continuwuity/.turn_secret"
 #
 #turn_secret_file =
 
@@ -726,12 +728,12 @@
 #
 #turn_ttl = 86400
 
-# List/vector of room IDs or room aliases that conduwuit will make newly
-# registered users join. The rooms specified must be rooms that you have
-# joined at least once on the server, and must be public.
+# List/vector of room IDs or room aliases that continuwuity will make
+# newly registered users join. The rooms specified must be rooms that you
+# have joined at least once on the server, and must be public.
 #
-# example: ["#conduwuit:puppygock.gay",
-# "!eoIzvAvVwY23LPDay8:puppygock.gay"]
+# example: ["#continuwuity:continuwuity.org",
+# "!main-1:continuwuity.org"]
 #
 #auto_join_rooms = []
 
@@ -754,10 +756,10 @@
 #
 #auto_deactivate_banned_room_attempts = false
 
-# RocksDB log level. This is not the same as conduwuit's log level. This
-# is the log level for the RocksDB engine/library which show up in your
-# database folder/path as `LOG` files. conduwuit will log RocksDB errors
-# as normal through tracing or panics if severe for safety.
+# RocksDB log level. This is not the same as continuwuity's log level.
+# This is the log level for the RocksDB engine/library which show up in
+# your database folder/path as `LOG` files. continuwuity will log RocksDB
+# errors as normal through tracing or panics if severe for safety.
 #
 #rocksdb_log_level = "error"
 
@@ -777,7 +779,7 @@
 # Set this to true to use RocksDB config options that are tailored to HDDs
 # (slower device storage).
 #
-# It is worth noting that by default, conduwuit will use RocksDB with
+# It is worth noting that by default, continuwuity will use RocksDB with
 # Direct IO enabled. *Generally* speaking this improves performance as it
 # bypasses buffered I/O (system page cache). However there is a potential
 # chance that Direct IO may cause issues with database operations if your
@@ -785,7 +787,7 @@
 # possibly ZFS filesystem. RocksDB generally deals/corrects these issues
 # but it cannot account for all setups. If you experience any weird
 # RocksDB issues, try enabling this option as it turns off Direct IO and
-# feel free to report in the conduwuit Matrix room if this option fixes
+# feel free to report in the continuwuity Matrix room if this option fixes
 # your DB issues.
 #
 # For more information, see:
@@ -840,7 +842,7 @@
 # as they all differ. See their `kDefaultCompressionLevel`.
 #
 # Note when using the default value we may override it with a setting
-# tailored specifically conduwuit.
+# tailored specifically for continuwuity.
 #
 #rocksdb_compression_level = 32767
 
@@ -856,7 +858,7 @@
 # algorithm.
 #
 # Note when using the default value we may override it with a setting
-# tailored specifically conduwuit.
+# tailored specifically for continuwuity.
 #
 #rocksdb_bottommost_compression_level = 32767
 
@@ -896,13 +898,13 @@
 # 0 = AbsoluteConsistency
 # 1 = TolerateCorruptedTailRecords (default)
 # 2 = PointInTime (use me if trying to recover)
-# 3 = SkipAnyCorruptedRecord (you now voided your Conduwuit warranty)
+# 3 = SkipAnyCorruptedRecord (you now voided your Continuwuity warranty)
 #
 # For more information on these modes, see:
 # https://github.com/facebook/rocksdb/wiki/WAL-Recovery-Modes
 #
 # For more details on recovering a corrupt database, see:
-# https://conduwuit.puppyirl.gay/troubleshooting.html#database-corruption
+# https://continuwuity.org/troubleshooting.html#database-corruption
 #
 #rocksdb_recovery_mode = 1
 
@@ -942,7 +944,7 @@
 # - Disabling repair mode and restarting the server is recommended after
 #   running the repair.
 #
-# See https://conduwuit.puppyirl.gay/troubleshooting.html#database-corruption for more details on recovering a corrupt database.
+# See https://continuwuity.org/troubleshooting.html#database-corruption for more details on recovering a corrupt database.
 #
 #rocksdb_repair = false
 
@@ -969,7 +971,7 @@
 # Enables RocksDB compaction. You should never ever have to set this
 # option to false. If you for some reason find yourself needing to use
 # this option as part of troubleshooting or a bug, please reach out to us
-# in the conduwuit Matrix room with information and details.
+# in the continuwuity Matrix room with information and details.
 #
 # Disabling compaction will lead to a significantly bloated and
 # explosively large database, gradually poor performance, unnecessarily
@@ -995,7 +997,7 @@
 # purposes such as recovering/recreating your admin room, or inviting
 # yourself back.
 #
-# See https://conduwuit.puppyirl.gay/troubleshooting.html#lost-access-to-admin-room for other ways to get back into your admin room.
+# See https://continuwuity.org/troubleshooting.html#lost-access-to-admin-room for other ways to get back into your admin room.
 #
 # Once this password is unset, all sessions will be logged out for
 # security purposes.
@@ -1010,8 +1012,8 @@
 
 # Allow local (your server only) presence updates/requests.
 #
-# Note that presence on conduwuit is very fast unlike Synapse's. If using
-# outgoing presence, this MUST be enabled.
+# Note that presence on continuwuity is very fast unlike Synapse's. If
+# using outgoing presence, this MUST be enabled.
 #
 #allow_local_presence = true
 
@@ -1019,7 +1021,7 @@
 #
 # This option receives presence updates from other servers, but does not
 # send any unless `allow_outgoing_presence` is true. Note that presence on
-# conduwuit is very fast unlike Synapse's.
+# continuwuity is very fast unlike Synapse's.
 #
 #allow_incoming_presence = true
 
@@ -1027,8 +1029,8 @@
 #
 # This option sends presence updates to other servers, but does not
 # receive any unless `allow_incoming_presence` is true. Note that presence
-# on conduwuit is very fast unlike Synapse's. If using outgoing presence,
-# you MUST enable `allow_local_presence` as well.
+# on continuwuity is very fast unlike Synapse's. If using outgoing
+# presence, you MUST enable `allow_local_presence` as well.
 #
 #allow_outgoing_presence = true
 
@@ -1081,8 +1083,8 @@
 #
 #typing_client_timeout_max_s = 45
 
-# Set this to true for conduwuit to compress HTTP response bodies using
-# zstd. This option does nothing if conduwuit was not built with
+# Set this to true for continuwuity to compress HTTP response bodies using
+# zstd. This option does nothing if continuwuity was not built with
 # `zstd_compression` feature. Please be aware that enabling HTTP
 # compression may weaken TLS. Most users should not need to enable this.
 # See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
@@ -1090,8 +1092,8 @@
 #
 #zstd_compression = false
 
-# Set this to true for conduwuit to compress HTTP response bodies using
-# gzip. This option does nothing if conduwuit was not built with
+# Set this to true for continuwuity to compress HTTP response bodies using
+# gzip. This option does nothing if continuwuity was not built with
 # `gzip_compression` feature. Please be aware that enabling HTTP
 # compression may weaken TLS. Most users should not need to enable this.
 # See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH before
@@ -1102,8 +1104,8 @@
 #
 #gzip_compression = false
 
-# Set this to true for conduwuit to compress HTTP response bodies using
-# brotli. This option does nothing if conduwuit was not built with
+# Set this to true for continuwuity to compress HTTP response bodies using
+# brotli. This option does nothing if continuwuity was not built with
 # `brotli_compression` feature. Please be aware that enabling HTTP
 # compression may weaken TLS. Most users should not need to enable this.
 # See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
@@ -1165,7 +1167,7 @@
 # Otherwise setting this to false reduces filesystem clutter and overhead
 # for managing these symlinks in the directory. This is now disabled by
 # default. You may still return to upstream Conduit but you have to run
-# conduwuit at least once with this set to true and allow the
+# continuwuity at least once with this set to true and allow the
 # media_startup_check to take place before shutting down to return to
 # Conduit.
 #
@@ -1210,8 +1212,8 @@
 #
 #allowed_remote_server_names = []
 
-# Vector list of regex patterns of server names that conduwuit will refuse
-# to download remote media from.
+# Vector list of regex patterns of server names that continuwuity will
+# refuse to download remote media from.
 #
 # example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
 #
@@ -1225,7 +1227,7 @@
 #
 #forbidden_remote_room_directory_server_names = []
 
-# Vector list of regex patterns of server names that conduwuit will not
+# Vector list of regex patterns of server names that continuwuity will not
 # send messages to the client from.
 #
 # Note that there is no way for clients to receive messages once a server
@@ -1249,7 +1251,7 @@
 #send_messages_from_ignored_users_to_client = false
 
 # Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
-# do not want conduwuit to send outbound requests to. Defaults to
+# do not want continuwuity to send outbound requests to. Defaults to
 # RFC1918, unroutable, loopback, multicast, and testnet addresses for
 # security.
 #
@@ -1399,26 +1401,26 @@
 
 # Allow admins to enter commands in rooms other than "#admins" (admin
 # room) by prefixing your message with "\!admin" or "\\!admin" followed up
-# a normal conduwuit admin command. The reply will be publicly visible to
-# the room, originating from the sender.
+# a normal continuwuity admin command. The reply will be publicly visible
+# to the room, originating from the sender.
 #
 # example: \\!admin debug ping puppygock.gay
 #
 #admin_escape_commands = true
 
-# Automatically activate the conduwuit admin room console / CLI on
-# startup. This option can also be enabled with `--console` conduwuit
+# Automatically activate the continuwuity admin room console / CLI on
+# startup. This option can also be enabled with `--console` continuwuity
 # argument.
 #
 #admin_console_automatic = false
 
 # List of admin commands to execute on startup.
 #
-# This option can also be configured with the `--execute` conduwuit
+# This option can also be configured with the `--execute` continuwuity
 # argument and can take standard shell commands and environment variables
 #
-# For example: `./conduwuit --execute "server admin-notice conduwuit has
-# started up at $(date)"`
+# For example: `./continuwuity --execute "server admin-notice continuwuity
+# has started up at $(date)"`
 #
 # example: admin_execute = ["debug ping puppygock.gay", "debug echo hi"]`
 #
@@ -1426,7 +1428,7 @@
 
 # Ignore errors in startup commands.
 #
-# If false, conduwuit will error and fail to start if an admin execute
+# If false, continuwuity will error and fail to start if an admin execute
 # command (`--execute` / `admin_execute`) fails.
 #
 #admin_execute_errors_ignore = false
@@ -1447,15 +1449,14 @@
 # The default room tag to apply on the admin room.
 #
 # On some clients like Element, the room tag "m.server_notice" is a
-# special pinned room at the very bottom of your room list. The conduwuit
-# admin room can be pinned here so you always have an easy-to-access
-# shortcut dedicated to your admin room.
+# special pinned room at the very bottom of your room list. The
+# continuwuity admin room can be pinned here so you always have an
+# easy-to-access shortcut dedicated to your admin room.
 #
 #admin_room_tag = "m.server_notice"
 
 # Sentry.io crash/panic reporting, performance monitoring/metrics, etc.
-# This is NOT enabled by default. conduwuit's default Sentry reporting
-# endpoint domain is `o4506996327251968.ingest.us.sentry.io`.
+# This is NOT enabled by default.
 #
 #sentry = false
 
@@ -1463,7 +1464,7 @@
 #
 #sentry_endpoint = ""
 
-# Report your conduwuit server_name in Sentry.io crash reports and
+# Report your continuwuity server_name in Sentry.io crash reports and
 # metrics.
 #
 #sentry_send_server_name = false
@@ -1500,7 +1501,7 @@
 # Enable the tokio-console. This option is only relevant to developers.
 #
 #	For more information, see:
-# https://conduwuit.puppyirl.gay/development.html#debugging-with-tokio-console
+# https://continuwuity.org/development.html#debugging-with-tokio-console
 #
 #tokio_console = false
 

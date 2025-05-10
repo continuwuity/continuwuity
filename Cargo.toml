@@ -298,7 +298,7 @@ version = "1.15.0"
 default-features = false
 features = ["serde"]
 
-# Used for reading the configuration from conduwuit.toml & environment variables
+# Used for reading the configuration from continuwuity.toml & environment variables
 [workspace.dependencies.figment]
 version = "0.10.19"
 default-features = false

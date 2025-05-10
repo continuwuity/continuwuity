@@ -118,7 +118,7 @@ pub fn check(config: &Config) -> Result {
 	if cfg!(not(debug_assertions)) && config.server_name == "your.server.name" {
 		return Err!(Config(
 			"server_name",
-			"You must specify a valid server name for production usage of conduwuit."
+			"You must specify a valid server name for production usage of continuwuity."
 		));
 	}
 
@@ -290,7 +290,7 @@ fn warn_deprecated(config: &Config) {
 
 	if was_deprecated {
 		warn!(
-			"Read conduwuit config documentation at https://conduwuit.puppyirl.gay/configuration.html and check your \
+			"Read continuwuity config documentation at https://continuwuity.org/configuration.html and check your \
 			 configuration if any new configuration parameters should be adjusted"
 		);
 	}

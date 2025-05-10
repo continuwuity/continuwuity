@@ -30,16 +30,16 @@ When you have the image you can simply run it with
 
 ```bash
 docker run -d -p 8448:6167 \
-    -v db:/var/lib/conduwuit/ \
-    -e CONDUWUIT_SERVER_NAME="your.server.name" \
-    -e CONDUWUIT_ALLOW_REGISTRATION=false \
-    --name conduwuit $LINK
+    -v db:/var/lib/continuwuity/ \
+    -e CONTINUWUITY_SERVER_NAME="your.server.name" \
+    -e CONTINUWUITY_ALLOW_REGISTRATION=false \
+    --name continuwuity $LINK
 ```
 
 or you can use [docker compose](#docker-compose).
 
 The `-d` flag lets the container run in detached mode. You may supply an
-optional `conduwuit.toml` config file, the example config can be found
+optional `continuwuity.toml` config file, the example config can be found
 [here](../configuration/examples.md). You can pass in different env vars to
 change config values on the fly. You can even configure Continuwuity completely by
 using env vars. For an overview of possible values, please take a look at the

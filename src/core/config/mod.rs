@@ -27,7 +27,7 @@ use self::proxy::ProxyConfig;
 pub use self::{check::check, manager::Manager};
 use crate::{Result, err, error::Error, utils::sys};
 
-/// All the config options for conduwuit.
+/// All the config options for continuwuity.
 #[allow(clippy::struct_excessive_bools)]
 #[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]
 #[derive(Clone, Debug, Deserialize)]
@@ -35,7 +35,7 @@ use crate::{Result, err, error::Error, utils::sys};
 	filename = "conduwuit-example.toml",
 	section = "global",
 	undocumented = "# This item is undocumented. Please contribute documentation for it.",
-	header = r#"### conduwuit Configuration
+	header = r#"### continuwuity Configuration
 ###
 ### THIS FILE IS GENERATED. CHANGES/CONTRIBUTIONS IN THE REPO WILL BE
 ### OVERWRITTEN!
@@ -50,7 +50,7 @@ use crate::{Result, err, error::Error, utils::sys};
 ### that say "YOU NEED TO EDIT THIS".
 ###
 ### For more information, see:
-### https://conduwuit.puppyirl.gay/configuration.html
+### https://continuwuity.org/configuration.html
 "#,
 	ignore = "catchall well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
 )]
@@ -59,7 +59,7 @@ pub struct Config {
 	/// suffix for user and room IDs/aliases.
 	///
 	/// See the docs for reverse proxying and delegation:
-	/// https://conduwuit.puppyirl.gay/deploying/generic.html#setting-up-the-reverse-proxy
+	/// https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 	///
 	/// Also see the `[global.well_known]` config section at the very bottom.
 	///
@@ -70,10 +70,10 @@ pub struct Config {
 	/// YOU NEED TO EDIT THIS. THIS CANNOT BE CHANGED AFTER WITHOUT A DATABASE
 	/// WIPE.
 	///
-	/// example: "conduwuit.woof"
+	/// example: "continuwuity.org"
 	pub server_name: OwnedServerName,
 
-	/// The default address (IPv4 or IPv6) conduwuit will listen on.
+	/// The default address (IPv4 or IPv6) continuwuity will listen on.
 	///
 	/// If you are using Docker or a container NAT networking setup, this must
 	/// be "0.0.0.0".
@@ -85,10 +85,10 @@ pub struct Config {
 	#[serde(default = "default_address")]
 	address: ListeningAddr,
 
-	/// The port(s) conduwuit will listen on.
+	/// The port(s) continuwuity will listen on.
 	///
 	/// For reverse proxying, see:
-	/// https://conduwuit.puppyirl.gay/deploying/generic.html#setting-up-the-reverse-proxy
+	/// https://continuwuity.org/deploying/generic.html#setting-up-the-reverse-proxy
 	///
 	/// If you are using Docker, don't change this, you'll need to map an
 	/// external port to this.
@@ -103,16 +103,17 @@ pub struct Config {
 	#[serde(default)]
 	pub tls: TlsConfig,
 
-	/// The UNIX socket conduwuit will listen on.
+	/// The UNIX socket continuwuity will listen on.
 	///
-	/// conduwuit cannot listen on both an IP address and a UNIX socket. If
+	/// continuwuity cannot listen on both an IP address and a UNIX socket. If
 	/// listening on a UNIX socket, you MUST remove/comment the `address` key.
 	///
 	/// Remember to make sure that your reverse proxy has access to this socket
-	/// file, either by adding your reverse proxy to the 'conduwuit' group or
-	/// granting world R/W permissions with `unix_socket_perms` (666 minimum).
+	/// file, either by adding your reverse proxy to the appropriate user group
+	/// or granting world R/W permissions with `unix_socket_perms` (666
+	/// minimum).
 	///
-	/// example: "/run/conduwuit/conduwuit.sock"
+	/// example: "/run/continuwuity/continuwuity.sock"
 	pub unix_socket_path: Option<PathBuf>,
 
 	/// The default permissions (in octal) to create the UNIX socket with.
@@ -121,22 +122,22 @@ pub struct Config {
 	#[serde(default = "default_unix_socket_perms")]
 	pub unix_socket_perms: u32,
 
-	/// This is the only directory where conduwuit will save its data, including
-	/// media. Note: this was previously "/var/lib/matrix-conduit".
+	/// This is the only directory where continuwuity will save its data,
+	/// including media. Note: this was previously "/var/lib/matrix-conduit".
 	///
 	/// YOU NEED TO EDIT THIS.
 	///
-	/// example: "/var/lib/conduwuit"
+	/// example: "/var/lib/continuwuity"
 	pub database_path: PathBuf,
 
-	/// conduwuit supports online database backups using RocksDB's Backup engine
-	/// API. To use this, set a database backup path that conduwuit can write
-	/// to.
+	/// continuwuity supports online database backups using RocksDB's Backup
+	/// engine API. To use this, set a database backup path that continuwuity
+	/// can write to.
 	///
 	/// For more information, see:
-	/// https://conduwuit.puppyirl.gay/maintenance.html#backups
+	/// https://continuwuity.org/maintenance.html#backups
 	///
-	/// example: "/opt/conduwuit-db-backups"
+	/// example: "/opt/continuwuity-db-backups"
 	pub database_backup_path: Option<PathBuf>,
 
 	/// The amount of online RocksDB database backups to keep/retain, if using
@@ -160,7 +161,7 @@ pub struct Config {
 	#[serde(default = "default_new_user_displayname_suffix")]
 	pub new_user_displayname_suffix: String,
 
-	/// If enabled, conduwuit will send a simple GET request periodically to
+	/// If enabled, continuwuity will send a simple GET request periodically to
 	/// `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 	/// announcements or major updates. This is not an update check endpoint.
 	///
@@ -168,8 +169,8 @@ pub struct Config {
 	#[serde(alias = "allow_check_for_updates", default = "true_fn")]
 	pub allow_announcements_check: bool,
 
-	/// Set this to any float value to multiply conduwuit's in-memory LRU caches
-	/// with such as "auth_chain_cache_capacity".
+	/// Set this to any float value to multiply continuwuity's in-memory LRU
+	/// caches with such as "auth_chain_cache_capacity".
 	///
 	/// May be useful if you have significant memory to spare to increase
 	/// performance.
@@ -186,7 +187,7 @@ pub struct Config {
 	)]
 	pub cache_capacity_modifier: f64,
 
-	/// Set this to any float value in megabytes for conduwuit to tell the
+	/// Set this to any float value in megabytes for continuwuity to tell the
 	/// database engine that this much memory is available for database read
 	/// caches.
 	///
@@ -202,7 +203,7 @@ pub struct Config {
 	#[serde(default = "default_db_cache_capacity_mb")]
 	pub db_cache_capacity_mb: f64,
 
-	/// Set this to any float value in megabytes for conduwuit to tell the
+	/// Set this to any float value in megabytes for continuwuity to tell the
 	/// database engine that this much memory is available for database write
 	/// caches.
 	///
@@ -319,9 +320,9 @@ pub struct Config {
 	/// Enable using *only* TCP for querying your specified nameservers instead
 	/// of UDP.
 	///
-	/// If you are running conduwuit in a container environment, this config
+	/// If you are running continuwuity in a container environment, this config
 	/// option may need to be enabled. For more details, see:
-	/// https://conduwuit.puppyirl.gay/troubleshooting.html#potential-dns-issues-when-using-docker
+	/// https://continuwuity.org/troubleshooting.html#potential-dns-issues-when-using-docker
 	#[serde(default)]
 	pub query_over_tcp_only: bool,
 
@@ -534,9 +535,9 @@ pub struct Config {
 	/// tokens. Multiple tokens can be added if you separate them with
 	/// whitespace
 	///
-	/// conduwuit must be able to access the file, and it must not be empty
+	/// continuwuity must be able to access the file, and it must not be empty
 	///
-	/// example: "/etc/conduwuit/.reg_token"
+	/// example: "/etc/continuwuity/.reg_token"
 	pub registration_token_file: Option<PathBuf>,
 
 	/// Controls whether encrypted rooms and events are allowed.
@@ -627,16 +628,16 @@ pub struct Config {
 	pub allow_room_creation: bool,
 
 	/// Set to false to disable users from joining or creating room versions
-	/// that aren't officially supported by conduwuit.
+	/// that aren't officially supported by continuwuity.
 	///
-	/// conduwuit officially supports room versions 6 - 11.
+	/// continuwuity officially supports room versions 6 - 11.
 	///
-	/// conduwuit has slightly experimental (though works fine in practice)
+	/// continuwuity has slightly experimental (though works fine in practice)
 	/// support for versions 3 - 5.
 	#[serde(default = "true_fn")]
 	pub allow_unstable_room_versions: bool,
 
-	/// Default room version conduwuit will create rooms with.
+	/// Default room version continuwuity will create rooms with.
 	///
 	/// Per spec, room version 11 is the default.
 	///
@@ -710,7 +711,7 @@ pub struct Config {
 	/// Servers listed here will be used to gather public keys of other servers
 	/// (notary trusted key servers).
 	///
-	/// Currently, conduwuit doesn't support inbound batched key requests, so
+	/// Currently, continuwuity doesn't support inbound batched key requests, so
 	/// this list should only contain other Synapse servers.
 	///
 	/// example: ["matrix.org", "tchncs.de"]
@@ -755,7 +756,7 @@ pub struct Config {
 	#[serde(default = "default_trusted_server_batch_size")]
 	pub trusted_server_batch_size: usize,
 
-	/// Max log level for conduwuit. Allows debug, info, warn, or error.
+	/// Max log level for continuwuity. Allows debug, info, warn, or error.
 	///
 	/// See also:
 	/// https://docs.rs/tracing-subscriber/latest/tracing_subscriber/filter/struct.EnvFilter.html#directives
@@ -780,8 +781,9 @@ pub struct Config {
 	#[serde(default = "default_log_span_events")]
 	pub log_span_events: String,
 
-	/// Configures whether CONDUWUIT_LOG EnvFilter matches values using regular
-	/// expressions. See the tracing_subscriber documentation on Directives.
+	/// Configures whether CONTINUWUITY_LOG EnvFilter matches values using
+	/// regular expressions. See the tracing_subscriber documentation on
+	/// Directives.
 	///
 	/// default: true
 	#[serde(default = "true_fn")]
@@ -863,7 +865,7 @@ pub struct Config {
 	/// This takes priority over "turn_secret" first, and falls back to
 	/// "turn_secret" if invalid or failed to open.
 	///
-	/// example: "/etc/conduwuit/.turn_secret"
+	/// example: "/etc/continuwuity/.turn_secret"
 	pub turn_secret_file: Option<PathBuf>,
 
 	/// TURN TTL, in seconds.
@@ -872,12 +874,12 @@ pub struct Config {
 	#[serde(default = "default_turn_ttl")]
 	pub turn_ttl: u64,
 
-	/// List/vector of room IDs or room aliases that conduwuit will make newly
-	/// registered users join. The rooms specified must be rooms that you have
-	/// joined at least once on the server, and must be public.
+	/// List/vector of room IDs or room aliases that continuwuity will make
+	/// newly registered users join. The rooms specified must be rooms that you
+	/// have joined at least once on the server, and must be public.
 	///
-	/// example: ["#conduwuit:puppygock.gay",
-	/// "!eoIzvAvVwY23LPDay8:puppygock.gay"]
+	/// example: ["#continuwuity:continuwuity.org",
+	/// "!main-1:continuwuity.org"]
 	///
 	/// default: []
 	#[serde(default = "Vec::new")]
@@ -902,10 +904,10 @@ pub struct Config {
 	#[serde(default)]
 	pub auto_deactivate_banned_room_attempts: bool,
 
-	/// RocksDB log level. This is not the same as conduwuit's log level. This
-	/// is the log level for the RocksDB engine/library which show up in your
-	/// database folder/path as `LOG` files. conduwuit will log RocksDB errors
-	/// as normal through tracing or panics if severe for safety.
+	/// RocksDB log level. This is not the same as continuwuity's log level.
+	/// This is the log level for the RocksDB engine/library which show up in
+	/// your database folder/path as `LOG` files. continuwuity will log RocksDB
+	/// errors as normal through tracing or panics if severe for safety.
 	///
 	/// default: "error"
 	#[serde(default = "default_rocksdb_log_level")]
@@ -930,7 +932,7 @@ pub struct Config {
 	/// Set this to true to use RocksDB config options that are tailored to HDDs
 	/// (slower device storage).
 	///
-	/// It is worth noting that by default, conduwuit will use RocksDB with
+	/// It is worth noting that by default, continuwuity will use RocksDB with
 	/// Direct IO enabled. *Generally* speaking this improves performance as it
 	/// bypasses buffered I/O (system page cache). However there is a potential
 	/// chance that Direct IO may cause issues with database operations if your
@@ -938,7 +940,7 @@ pub struct Config {
 	/// possibly ZFS filesystem. RocksDB generally deals/corrects these issues
 	/// but it cannot account for all setups. If you experience any weird
 	/// RocksDB issues, try enabling this option as it turns off Direct IO and
-	/// feel free to report in the conduwuit Matrix room if this option fixes
+	/// feel free to report in the continuwuity Matrix room if this option fixes
 	/// your DB issues.
 	///
 	/// For more information, see:
@@ -999,7 +1001,7 @@ pub struct Config {
 	/// as they all differ. See their `kDefaultCompressionLevel`.
 	///
 	/// Note when using the default value we may override it with a setting
-	/// tailored specifically conduwuit.
+	/// tailored specifically for continuwuity.
 	///
 	/// default: 32767
 	#[serde(default = "default_rocksdb_compression_level")]
@@ -1017,7 +1019,7 @@ pub struct Config {
 	/// algorithm.
 	///
 	/// Note when using the default value we may override it with a setting
-	/// tailored specifically conduwuit.
+	/// tailored specifically for continuwuity.
 	///
 	/// default: 32767
 	#[serde(default = "default_rocksdb_bottommost_compression_level")]
@@ -1059,13 +1061,13 @@ pub struct Config {
 	/// 0 = AbsoluteConsistency
 	/// 1 = TolerateCorruptedTailRecords (default)
 	/// 2 = PointInTime (use me if trying to recover)
-	/// 3 = SkipAnyCorruptedRecord (you now voided your Conduwuit warranty)
+	/// 3 = SkipAnyCorruptedRecord (you now voided your Continuwuity warranty)
 	///
 	/// For more information on these modes, see:
 	/// https://github.com/facebook/rocksdb/wiki/WAL-Recovery-Modes
 	///
 	/// For more details on recovering a corrupt database, see:
-	/// https://conduwuit.puppyirl.gay/troubleshooting.html#database-corruption
+	/// https://continuwuity.org/troubleshooting.html#database-corruption
 	///
 	/// default: 1
 	#[serde(default = "default_rocksdb_recovery_mode")]
@@ -1109,7 +1111,7 @@ pub struct Config {
 	/// - Disabling repair mode and restarting the server is recommended after
 	///   running the repair.
 	///
-	/// See https://conduwuit.puppyirl.gay/troubleshooting.html#database-corruption for more details on recovering a corrupt database.
+	/// See https://continuwuity.org/troubleshooting.html#database-corruption for more details on recovering a corrupt database.
 	#[serde(default)]
 	pub rocksdb_repair: bool,
 
@@ -1134,7 +1136,7 @@ pub struct Config {
 	/// Enables RocksDB compaction. You should never ever have to set this
 	/// option to false. If you for some reason find yourself needing to use
 	/// this option as part of troubleshooting or a bug, please reach out to us
-	/// in the conduwuit Matrix room with information and details.
+	/// in the continuwuity Matrix room with information and details.
 	///
 	/// Disabling compaction will lead to a significantly bloated and
 	/// explosively large database, gradually poor performance, unnecessarily
@@ -1162,7 +1164,7 @@ pub struct Config {
 	/// purposes such as recovering/recreating your admin room, or inviting
 	/// yourself back.
 	///
-	/// See https://conduwuit.puppyirl.gay/troubleshooting.html#lost-access-to-admin-room for other ways to get back into your admin room.
+	/// See https://continuwuity.org/troubleshooting.html#lost-access-to-admin-room for other ways to get back into your admin room.
 	///
 	/// Once this password is unset, all sessions will be logged out for
 	/// security purposes.
@@ -1178,8 +1180,8 @@ pub struct Config {
 
 	/// Allow local (your server only) presence updates/requests.
 	///
-	/// Note that presence on conduwuit is very fast unlike Synapse's. If using
-	/// outgoing presence, this MUST be enabled.
+	/// Note that presence on continuwuity is very fast unlike Synapse's. If
+	/// using outgoing presence, this MUST be enabled.
 	#[serde(default = "true_fn")]
 	pub allow_local_presence: bool,
 
@@ -1187,7 +1189,7 @@ pub struct Config {
 	///
 	/// This option receives presence updates from other servers, but does not
 	/// send any unless `allow_outgoing_presence` is true. Note that presence on
-	/// conduwuit is very fast unlike Synapse's.
+	/// continuwuity is very fast unlike Synapse's.
 	#[serde(default = "true_fn")]
 	pub allow_incoming_presence: bool,
 
@@ -1195,8 +1197,8 @@ pub struct Config {
 	///
 	/// This option sends presence updates to other servers, but does not
 	/// receive any unless `allow_incoming_presence` is true. Note that presence
-	/// on conduwuit is very fast unlike Synapse's. If using outgoing presence,
-	/// you MUST enable `allow_local_presence` as well.
+	/// on continuwuity is very fast unlike Synapse's. If using outgoing
+	/// presence, you MUST enable `allow_local_presence` as well.
 	#[serde(default = "true_fn")]
 	pub allow_outgoing_presence: bool,
 
@@ -1259,8 +1261,8 @@ pub struct Config {
 	#[serde(default = "default_typing_client_timeout_max_s")]
 	pub typing_client_timeout_max_s: u64,
 
-	/// Set this to true for conduwuit to compress HTTP response bodies using
-	/// zstd. This option does nothing if conduwuit was not built with
+	/// Set this to true for continuwuity to compress HTTP response bodies using
+	/// zstd. This option does nothing if continuwuity was not built with
 	/// `zstd_compression` feature. Please be aware that enabling HTTP
 	/// compression may weaken TLS. Most users should not need to enable this.
 	/// See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
@@ -1268,8 +1270,8 @@ pub struct Config {
 	#[serde(default)]
 	pub zstd_compression: bool,
 
-	/// Set this to true for conduwuit to compress HTTP response bodies using
-	/// gzip. This option does nothing if conduwuit was not built with
+	/// Set this to true for continuwuity to compress HTTP response bodies using
+	/// gzip. This option does nothing if continuwuity was not built with
 	/// `gzip_compression` feature. Please be aware that enabling HTTP
 	/// compression may weaken TLS. Most users should not need to enable this.
 	/// See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH before
@@ -1280,8 +1282,8 @@ pub struct Config {
 	#[serde(default)]
 	pub gzip_compression: bool,
 
-	/// Set this to true for conduwuit to compress HTTP response bodies using
-	/// brotli. This option does nothing if conduwuit was not built with
+	/// Set this to true for continuwuity to compress HTTP response bodies using
+	/// brotli. This option does nothing if continuwuity was not built with
 	/// `brotli_compression` feature. Please be aware that enabling HTTP
 	/// compression may weaken TLS. Most users should not need to enable this.
 	/// See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
@@ -1342,7 +1344,7 @@ pub struct Config {
 	/// Otherwise setting this to false reduces filesystem clutter and overhead
 	/// for managing these symlinks in the directory. This is now disabled by
 	/// default. You may still return to upstream Conduit but you have to run
-	/// conduwuit at least once with this set to true and allow the
+	/// continuwuity at least once with this set to true and allow the
 	/// media_startup_check to take place before shutting down to return to
 	/// Conduit.
 	#[serde(default)]
@@ -1391,8 +1393,8 @@ pub struct Config {
 	#[serde(default, with = "serde_regex")]
 	pub allowed_remote_server_names: RegexSet,
 
-	/// Vector list of regex patterns of server names that conduwuit will refuse
-	/// to download remote media from.
+	/// Vector list of regex patterns of server names that continuwuity will
+	/// refuse to download remote media from.
 	///
 	/// example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
 	///
@@ -1410,7 +1412,7 @@ pub struct Config {
 	#[serde(default, with = "serde_regex")]
 	pub forbidden_remote_room_directory_server_names: RegexSet,
 
-	/// Vector list of regex patterns of server names that conduwuit will not
+	/// Vector list of regex patterns of server names that continuwuity will not
 	/// send messages to the client from.
 	///
 	/// Note that there is no way for clients to receive messages once a server
@@ -1436,7 +1438,7 @@ pub struct Config {
 	pub send_messages_from_ignored_users_to_client: bool,
 
 	/// Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
-	/// do not want conduwuit to send outbound requests to. Defaults to
+	/// do not want continuwuity to send outbound requests to. Defaults to
 	/// RFC1918, unroutable, loopback, multicast, and testnet addresses for
 	/// security.
 	///
@@ -1604,26 +1606,26 @@ pub struct Config {
 
 	/// Allow admins to enter commands in rooms other than "#admins" (admin
 	/// room) by prefixing your message with "\!admin" or "\\!admin" followed up
-	/// a normal conduwuit admin command. The reply will be publicly visible to
-	/// the room, originating from the sender.
+	/// a normal continuwuity admin command. The reply will be publicly visible
+	/// to the room, originating from the sender.
 	///
 	/// example: \\!admin debug ping puppygock.gay
 	#[serde(default = "true_fn")]
 	pub admin_escape_commands: bool,
 
-	/// Automatically activate the conduwuit admin room console / CLI on
-	/// startup. This option can also be enabled with `--console` conduwuit
+	/// Automatically activate the continuwuity admin room console / CLI on
+	/// startup. This option can also be enabled with `--console` continuwuity
 	/// argument.
 	#[serde(default)]
 	pub admin_console_automatic: bool,
 
 	/// List of admin commands to execute on startup.
 	///
-	/// This option can also be configured with the `--execute` conduwuit
+	/// This option can also be configured with the `--execute` continuwuity
 	/// argument and can take standard shell commands and environment variables
 	///
-	/// For example: `./conduwuit --execute "server admin-notice conduwuit has
-	/// started up at $(date)"`
+	/// For example: `./continuwuity --execute "server admin-notice continuwuity
+	/// has started up at $(date)"`
 	///
 	/// example: admin_execute = ["debug ping puppygock.gay", "debug echo hi"]`
 	///
@@ -1633,7 +1635,7 @@ pub struct Config {
 
 	/// Ignore errors in startup commands.
 	///
-	/// If false, conduwuit will error and fail to start if an admin execute
+	/// If false, continuwuity will error and fail to start if an admin execute
 	/// command (`--execute` / `admin_execute`) fails.
 	#[serde(default)]
 	pub admin_execute_errors_ignore: bool,
@@ -1658,17 +1660,16 @@ pub struct Config {
 	/// The default room tag to apply on the admin room.
 	///
 	/// On some clients like Element, the room tag "m.server_notice" is a
-	/// special pinned room at the very bottom of your room list. The conduwuit
-	/// admin room can be pinned here so you always have an easy-to-access
-	/// shortcut dedicated to your admin room.
+	/// special pinned room at the very bottom of your room list. The
+	/// continuwuity admin room can be pinned here so you always have an
+	/// easy-to-access shortcut dedicated to your admin room.
 	///
 	/// default: "m.server_notice"
 	#[serde(default = "default_admin_room_tag")]
 	pub admin_room_tag: String,
 
 	/// Sentry.io crash/panic reporting, performance monitoring/metrics, etc.
-	/// This is NOT enabled by default. conduwuit's default Sentry reporting
-	/// endpoint domain is `o4506996327251968.ingest.us.sentry.io`.
+	/// This is NOT enabled by default.
 	#[serde(default)]
 	pub sentry: bool,
 
@@ -1679,7 +1680,7 @@ pub struct Config {
 	#[serde(default = "default_sentry_endpoint")]
 	pub sentry_endpoint: Option<Url>,
 
-	/// Report your conduwuit server_name in Sentry.io crash reports and
+	/// Report your continuwuity server_name in Sentry.io crash reports and
 	/// metrics.
 	#[serde(default)]
 	pub sentry_send_server_name: bool,
@@ -1720,7 +1721,7 @@ pub struct Config {
 	/// Enable the tokio-console. This option is only relevant to developers.
 	///
 	///	For more information, see:
-	/// https://conduwuit.puppyirl.gay/development.html#debugging-with-tokio-console
+	/// https://continuwuity.org/development.html#debugging-with-tokio-console
 	#[serde(default)]
 	pub tokio_console: bool,
 

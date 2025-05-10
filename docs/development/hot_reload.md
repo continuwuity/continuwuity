@@ -190,7 +190,7 @@ The initial implementation PR is available [here][1].
 - [Workspace-level metadata
 (cargo-deb)](https://github.com/kornelski/cargo-deb/issues/68)
 
-[1]: https://github.com/girlbossceo/conduwuit/pull/387
+[1]: https://forgejo.ellis.link/continuwuation/continuwuity/pulls/387
 [2]: https://wiki.musl-libc.org/functional-differences-from-glibc.html#Unloading-libraries
 [3]: https://github.com/rust-lang/rust/issues/28794
 [4]: https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049

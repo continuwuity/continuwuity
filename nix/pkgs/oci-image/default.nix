@@ -33,13 +33,13 @@ dockerTools.buildLayeredImage {
       <jason@zemos.net>";
       "org.opencontainers.image.created" ="@${toString inputs.self.lastModified}";
       "org.opencontainers.image.description" = "a very cool Matrix chat homeserver written in Rust";
-      "org.opencontainers.image.documentation" = "https://conduwuit.puppyirl.gay/";
+      "org.opencontainers.image.documentation" = "https://continuwuity.org/";
       "org.opencontainers.image.licenses" = "Apache-2.0";
       "org.opencontainers.image.revision" = inputs.self.rev or inputs.self.dirtyRev or "";
-      "org.opencontainers.image.source" = "https://github.com/girlbossceo/conduwuit";
+      "org.opencontainers.image.source" = "https://forgejo.ellis.link/continuwuation/continuwuity";
       "org.opencontainers.image.title" = main.pname;
-      "org.opencontainers.image.url" = "https://conduwuit.puppyirl.gay/";
-      "org.opencontainers.image.vendor" = "girlbossceo";
+      "org.opencontainers.image.url" = "https://continuwuity.org/";
+      "org.opencontainers.image.vendor" = "continuwuation";
       "org.opencontainers.image.version" = main.version;
     };
   };

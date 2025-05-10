@@ -7,30 +7,30 @@ services:
     image: forgejo.ellis.link/continuwuation/continuwuity:latest
     restart: unless-stopped
     volumes:
-      - db:/var/lib/conduwuit
-      - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's. 
-      #- ./conduwuit.toml:/etc/conduwuit.toml
+      - db:/var/lib/continuwuity
+      - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
+      #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
       - proxy
     environment:
-      CONDUWUIT_SERVER_NAME: your.server.name.example # EDIT THIS
-      CONDUWUIT_DATABASE_PATH: /var/lib/conduwuit
-      CONDUWUIT_PORT: 6167 # should match the loadbalancer traefik label
-      CONDUWUIT_MAX_REQUEST_SIZE: 20000000 # in bytes, ~20 MB
-      CONDUWUIT_ALLOW_REGISTRATION: 'true'
-      CONDUWUIT_REGISTRATION_TOKEN: 'YOUR_TOKEN' # A registration token is required when registration is allowed.
-      #CONDUWUIT_YES_I_AM_VERY_VERY_SURE_I_WANT_AN_OPEN_REGISTRATION_SERVER_PRONE_TO_ABUSE: 'true'
-      CONDUWUIT_ALLOW_FEDERATION: 'true'
-      CONDUWUIT_ALLOW_CHECK_FOR_UPDATES: 'true'
-      CONDUWUIT_TRUSTED_SERVERS: '["matrix.org"]'
-      #CONDUWUIT_LOG: warn,state_res=warn
-      CONDUWUIT_ADDRESS: 0.0.0.0
-      #CONDUWUIT_CONFIG: '/etc/conduwuit.toml' # Uncomment if you mapped config toml above
+      CONTINUWUITY_SERVER_NAME: your.server.name.example # EDIT THIS
+      CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
+      CONTINUWUITY_PORT: 6167 # should match the loadbalancer traefik label
+      CONTINUWUITY_MAX_REQUEST_SIZE: 20000000 # in bytes, ~20 MB
+      CONTINUWUITY_ALLOW_REGISTRATION: 'true'
+      CONTINUWUITY_REGISTRATION_TOKEN: 'YOUR_TOKEN' # A registration token is required when registration is allowed.
+      #CONTINUWUITY_YES_I_AM_VERY_VERY_SURE_I_WANT_AN_OPEN_REGISTRATION_SERVER_PRONE_TO_ABUSE: 'true'
+      CONTINUWUITY_ALLOW_FEDERATION: 'true'
+      CONTINUWUITY_ALLOW_CHECK_FOR_UPDATES: 'true'
+      CONTINUWUITY_TRUSTED_SERVERS: '["matrix.org"]'
+      #CONTINUWUITY_LOG: warn,state_res=warn
+      CONTINUWUITY_ADDRESS: 0.0.0.0
+      #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
-      # We need some way to serve the client and server .well-known json. The simplest way is via the CONDUWUIT_WELL_KNOWN
-      # variable / config option, there are multiple ways to do this, e.g. in the conduwuit.toml file, and in a separate
+      # We need some way to serve the client and server .well-known json. The simplest way is via the CONTINUWUITY_WELL_KNOWN
+      # variable / config option, there are multiple ways to do this, e.g. in the continuwuity.toml file, and in a separate
       # see the override file for more information about delegation
-      CONDUWUIT_WELL_KNOWN: |
+      CONTINUWUITY_WELL_KNOWN: |
         {
         client=https://your.server.name.example,
         server=your.server.name.example:443

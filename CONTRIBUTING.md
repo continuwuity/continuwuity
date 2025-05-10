@@ -1,6 +1,6 @@
 # Contributing guide
 
-This page is for about contributing to conduwuit. The
+This page is for about contributing to Continuwuity. The
 [development](./development.md) page may be of interest for you as well.
 
 If you would like to work on an [issue][issues] that is not assigned, preferably
@@ -73,7 +73,7 @@ If you'd like to run Complement locally using Nix, see the
 
 ### Writing documentation
 
-conduwuit's website uses [`mdbook`][mdbook] and deployed via CI using GitHub
+Continuwuity's website uses [`mdbook`][mdbook] and deployed via CI using GitHub
 Pages in the [`documentation.yml`][documentation.yml] workflow file with Nix's
 mdbook in the devshell. All documentation is in the `docs/` directory at the top
 level. The compiled mdbook website is also uploaded as an artifact.
