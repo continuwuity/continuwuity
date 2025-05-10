@@ -41,11 +41,8 @@ pub(crate) async fn authorize(
 	// Redirect to the login page if no token or token not known.
 	let hostname = services
 		.config
-		.well_known
-		.client
-		.as_ref()
-		.map(|s| s.host_str().expect("well-known client should have a host"));
-	let hostname = hostname.unwrap_or("Continuwuity");
+		.server_name
+		.host();
 	match oauth.authorization_header() {
 		| None => {
 			return Ok(oidc_login_form(hostname, &query));

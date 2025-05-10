@@ -44,12 +44,8 @@ pub(crate) async fn oidc_login(
 
 	let hostname = services
 		.config
-		.well_known
-		.client
-		.as_ref()
-		.map(|s| s.host_str().expect("well-known client should have a host"));
-
-	let hostname = hostname.unwrap_or("Continuwuity");
+		.server_name
+		.host();
 	let authorization_query: AuthorizationQuery = query.into();
 
 	services
