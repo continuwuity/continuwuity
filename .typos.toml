@@ -1,3 +1,6 @@
+[files]
+extend-exclude = ["*.csr"]
+
 [default.extend-words]
 "allocatedp" = "allocatedp"
 "conduwuit" = "conduwuit"
