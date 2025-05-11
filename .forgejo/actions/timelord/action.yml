@@ -1,0 +1,46 @@
+name: timelord
+description: |
+  Use timelord to set file timestamps
+inputs:
+  key:
+    description: |
+      The key to use for caching the timelord data.
+      This should be unique to the repository and the runner.
+    required: true
+    default: timelord-v0
+  path:
+    description: |
+      The path to the directory to be timestamped.
+      This should be the root of the repository.
+    required: true
+    default: .
+
+runs:
+  using: composite
+  steps:
+    - name: Cache timelord-cli installation
+      id: cache-timelord-bin
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/bin/timelord
+        key: timelord-cli-v3.0.1
+    - name: Install timelord-cli
+      uses: https://github.com/cargo-bins/cargo-binstall@main
+      if: steps.cache-timelord-bin.outputs.cache-hit != 'true'
+    - run: cargo binstall timelord-cli@3.0.1
+      shell: bash
+      if: steps.cache-timelord-bin.outputs.cache-hit != 'true'
+
+    - name: Load timelord files
+      uses: actions/cache/restore@v3
+      with:
+        path: /timelord/
+        key: ${{ inputs.key }}
+    - name: Run timelord to set timestamps
+      shell: bash
+      run: timelord sync --source-dir ${{ inputs.path }} --cache-dir /timelord/
+    - name: Save timelord
+      uses: actions/cache/save@v3
+      with:
+        path: /timelord/
+        key: ${{ inputs.key }}
