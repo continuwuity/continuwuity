@@ -50,7 +50,9 @@ jobs:
         uses: ./.forgejo/actions/sccache
         with:
           token: ${{ steps.app-token.outputs.token }}
-
+      - name: Install system dependencies
+        run: |
+          sudo apt-get install clang
       - name: Check formatting
         run: |
           cargo clippy \
