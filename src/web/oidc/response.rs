@@ -25,8 +25,8 @@ pub struct OidcResponse {
 impl IntoResponse for OidcResponse {
 	fn into_response(self) -> Response<Body> {
 		let content_csp = match self.nonce {
-			| Some(nonce) => &format!("default-src 'nonce-{}'; form-action 'self';", nonce),
-			| None => "default-src 'none'; form-action 'self';"
+			| Some(nonce) => &format!("default-src 'nonce-{nonce}'; form-action 'self';"),
+			| None => "default-src 'none'; form-action 'self';",
 		};
 		let content_type = match self.body {
 			| Some(OAuthRequestBody::Json(_)) => "application/json",
@@ -40,14 +40,9 @@ impl IntoResponse for OidcResponse {
 			response = response.header(header::LOCATION, location.as_str());
 		}
 		// Transform from OAuthRequestBody to String.
-		let body_content = self
-			.body
-			.map(|b| b.as_str().to_string())
-			.unwrap_or_default();
+		let body_content = self.body.map(|b| b.as_str().to_owned()).unwrap_or_default();
 
-		response
-			.body(body_content.into())
-			.unwrap()
+		response.body(body_content.into()).unwrap()
 	}
 }
 

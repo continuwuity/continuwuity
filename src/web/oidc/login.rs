@@ -2,10 +2,7 @@ use std::str::FromStr;
 
 use askama::Template;
 use axum::http::StatusCode;
-use oxide_auth::{
-	endpoint::QueryParameter,
-	frontends::simple::request::Body,
-};
+use oxide_auth::{endpoint::QueryParameter, frontends::simple::request::Body};
 use url::Url;
 
 use super::{AuthorizationQuery, LoginPageTemplate, OidcRequest, OidcResponse};
