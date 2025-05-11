@@ -65,7 +65,11 @@ jobs:
             ~/.cargo/registry
             !~/.cargo/registry/src
           key: rust-registry-${{hashFiles('**/Cargo.lock') }}
-      - name: Check formatting
+      - uses: ./.forgejo/actions/timelord
+        with:
+          key: sccache-v0
+          path: .
+      - name: Clippy
         run: |
           cargo clippy \
             --workspace \
