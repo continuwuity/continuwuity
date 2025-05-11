@@ -745,7 +745,6 @@ incremental = true
 
 [profile.dev.package.conduwuit_core]
 inherits = "dev"
-incremental = false
 #rustflags = [
 #	'--cfg', 'conduwuit_mods',
 #	'-Ztime-passes',
@@ -785,7 +784,6 @@ inherits = "dev"
 [profile.dev.package.'*']
 inherits = "dev"
 debug = 'limited'
-incremental = false
 codegen-units = 1
 opt-level = 'z'
 #rustflags = [
@@ -807,7 +805,6 @@ inherits = "dev"
 strip = false
 opt-level = 0
 codegen-units = 16
-incremental = false
 
 [profile.test.package.'*']
 inherits = "dev"
@@ -815,7 +812,6 @@ debug = 0
 strip = false
 opt-level = 0
 codegen-units = 16
-incremental = false
 
 ###############################################################################
 #
