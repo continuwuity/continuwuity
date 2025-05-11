@@ -51,9 +51,10 @@ jobs:
         with:
           token: ${{ steps.app-token.outputs.token }}
       - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y clang
+        uses: https://github.com/awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: clang io-uring
+          version: 1
       - name: Check formatting
         run: |
           cargo clippy \
