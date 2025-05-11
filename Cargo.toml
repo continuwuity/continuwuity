@@ -988,3 +988,6 @@ let_underscore_future = { level = "allow", priority = 1 }
 
 # rust doesnt understand conduwuit's custom log macros
 literal_string_with_formatting_args = { level = "allow", priority = 1 }
+
+
+needless_raw_string_hashes = "allow"
