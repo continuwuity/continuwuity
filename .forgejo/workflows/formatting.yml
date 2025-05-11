@@ -65,7 +65,7 @@ jobs:
             ~/.cargo/registry
             !~/.cargo/registry/src
           key: rust-registry-${{hashFiles('**/Cargo.lock') }}
-      - name: Check formatting
+      - name: Clippy
         run: |
           cargo clippy \
             --workspace \
