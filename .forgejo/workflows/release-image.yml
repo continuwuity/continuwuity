@@ -3,7 +3,6 @@ concurrency:
   group: "release-image-${{ github.ref }}"
 
 on:
-  pull_request:
   push:
     paths-ignore:
       - "*.md"
