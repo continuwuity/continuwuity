@@ -56,6 +56,15 @@ jobs:
         with:
           packages: clang liburing-dev
           version: 1
+      - name: Cache Rust registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/git
+            !~/.cargo/git/checkouts
+            ~/.cargo/registry
+            !~/.cargo/registry/src
+          key: rust-registry-${{hashFiles('**/Cargo.lock') }}
       - name: Check formatting
         run: |
           cargo clippy \
