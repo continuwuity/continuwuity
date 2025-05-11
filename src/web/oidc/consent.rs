@@ -1,5 +1,6 @@
 use askama::Template;
-use oxide_auth::frontends::simple::request::{Body, Status};
+use axum::http::StatusCode;
+use oxide_auth::frontends::simple::request::Body;
 
 use super::{AuthorizationQuery, ConsentPageTemplate, OidcResponse, encode};
 
@@ -15,11 +16,11 @@ pub fn oidc_consent_form(hostname: &str, query: &AuthorizationQuery) -> OidcResp
 	let body = Some(Body::Text(consent_page(hostname, query, route, &nonce)));
 
 	OidcResponse {
-		status: Status::Ok,
+		status: StatusCode::OK,
 		location: None,
 		www_authenticate: None,
 		body,
-		nonce,
+		nonce: Some(nonce),
 	}
 }
 

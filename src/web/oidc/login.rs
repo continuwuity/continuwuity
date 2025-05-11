@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
 use askama::Template;
+use axum::http::StatusCode;
 use oxide_auth::{
 	endpoint::QueryParameter,
-	frontends::simple::request::{Body, Status},
+	frontends::simple::request::Body,
 };
 use url::Url;
 
@@ -93,11 +94,11 @@ pub fn oidc_login_form(hostname: &str, query: &AuthorizationQuery) -> OidcRespon
 	let body = Some(Body::Text(login_page(hostname, query, route, &nonce)));
 
 	OidcResponse {
-		status: Status::Ok,
+		status: StatusCode::OK,
 		location: None,
 		www_authenticate: None,
 		body,
-		nonce,
+		nonce: Some(nonce),
 	}
 }
 
