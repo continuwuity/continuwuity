@@ -1,28 +1,42 @@
 name: Rust Formatting
 
 on:
-    push:
-    pull_request:
+  push:
+  pull_request:
 
 jobs:
   format:
     name: Format
     runs-on: ubuntu-latest
-    env:
-      SCCACHE_GHA_ENABLED: "true"
-      RUSTC_WRAPPER: "sccache"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-      
+
       - name: Install rust
         uses: ./.forgejo/actions/rust-toolchain
         with:
           toolchain: "nightly"
           components: "rustfmt"
+
+      - name: Check formatting
+        run: |
+          cargo +nightly fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install rust
+        uses: ./.forgejo/actions/rust-toolchain
 
       - uses: https://github.com/actions/create-github-app-token@v2
         id: app-token
@@ -36,9 +50,20 @@ jobs:
         uses: ./.forgejo/actions/sccache
         with:
           token: ${{ steps.app-token.outputs.token }}
+      - run: sudo apt-get update
+      - name: Install system dependencies
+        uses: https://github.com/awalsh128/cache-apt-pkgs-action@v1
+        with:
+          packages: clang liburing-dev
+          version: 1
       - name: Check formatting
         run: |
-          cargo +nightly fmt --all -- --check
+          cargo clippy \
+            --workspace \
+            --locked \
+            --profile test \
+            -- \
+            -D warnings
 
       - name: Show sccache stats
         run: sccache --show-stats
