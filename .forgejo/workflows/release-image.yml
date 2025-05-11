@@ -79,16 +79,13 @@ jobs:
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
       - name: Echo matrix
         run: echo '${{ toJSON(matrix) }}'
-      - run: |
-          if ! command -v rustup &> /dev/null ; then
-            curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
-            echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
-          fi
       
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
+      - name: Install rust
+        uses: ./.forgejo/actions/rust-toolchain
 
       - name: Cache timelord-cli installation
         id: cache-timelord-bin

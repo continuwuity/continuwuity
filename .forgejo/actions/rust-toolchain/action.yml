@@ -1,0 +1,45 @@
+name: rust-toolchain
+description: |
+  Install a Rust toolchain using rustup.
+  See https://rust-lang.github.io/rustup/concepts/toolchains.html#toolchain-specification
+  for more information about toolchains.
+inputs:
+  toolchain:
+    description: |
+      Rust toolchain name.
+      See https://rust-lang.github.io/rustup/concepts/toolchains.html#toolchain-specification
+    required: false
+  target:
+    description: Target triple to install for this toolchain
+    required: false
+  components:
+    description: Space-separated list of components to be additionally installed for a new toolchain
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Cache rustup toolchains
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.rustup
+          !~/.rustup/tmp
+          !~/.rustup/downloads
+        # Requires repo to be cloned if toolchain is not specified
+        key: ${{ runner.os }}-rustup-${{ inputs.toolchain || hashFiles('**/rust-toolchain.toml') }}
+    - name: Install Rust toolchain
+      shell: bash
+      run: |
+        if ! command -v rustup &> /dev/null ; then
+            curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused -fsSL "https://sh.rustup.rs" | sh -s -- --default-toolchain none -y
+            echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> $GITHUB_PATH
+        fi
+    - shell: bash
+      run: |
+        set -x
+        ${{ inputs.toolchain && format('rustup override set {0}', inputs.toolchain) }}
+        ${{ inputs.target && format('rustup target add {0}', inputs.target) }}
+        ${{ inputs.components && format('rustup component add {0}', inputs.components) }}
+        cargo --version
+        rustc --version
