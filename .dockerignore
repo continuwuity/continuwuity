@@ -15,6 +15,7 @@ docker/
 .gitea
 .gitlab
 .github
+.forgejo
 
 # Dot files
 .env
