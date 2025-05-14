@@ -170,3 +170,56 @@ async fn set_room_tag(&self, room_id: &RoomId, user_id: &UserId, tag: &str) -> R
 		)
 		.await
 }
+
+/// Demote an admin, removing its rights.
+#[implement(super::Service)]
+pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
+	use MembershipState::{Invite, Join, Knock, Leave};
+
+	let Ok(room_id) = self.get_admin_room().await else {
+		return Err!(error!("No admin room available or created."));
+	};
+
+	let state_lock = self.services.state.mutex.lock(&room_id).await;
+
+	let event = match self
+		.services
+		.state_accessor
+		.get_member(&room_id, user_id)
+		.await
+	{
+		| Err(e) if e.is_not_found() => return Err!("{user_id} was never an admin."),
+
+		| Err(e) => return Err!(error!(?e, "Failure occurred while attempting revoke.")),
+
+		| Ok(event) if !matches!(event.membership, Invite | Knock | Join) =>
+			return Err!("Cannot revoke {user_id} in membership state {:?}.", event.membership),
+
+		| Ok(event) => {
+			assert!(
+				matches!(event.membership, Invite | Knock | Join),
+				"Incorrect membership state to remove user."
+			);
+
+			event
+		},
+	};
+
+	self.services
+		.timeline
+		.build_and_append_pdu(
+			PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
+				membership: Leave,
+				reason: Some("Admin Revoked".into()),
+				is_direct: None,
+				join_authorized_via_users_server: None,
+				third_party_invite: None,
+				..event
+			}),
+			self.services.globals.server_user.as_ref(),
+			&room_id,
+			&state_lock,
+		)
+		.await
+		.map(|_| ())
+}
