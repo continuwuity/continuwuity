@@ -29,7 +29,7 @@ fn descriptor_cf_options(
 	set_table_options(&mut opts, &desc, cache)?;
 
 	opts.set_min_write_buffer_number(1);
-	opts.set_max_write_buffer_number(2);
+	opts.set_max_write_buffer_number(3);
 	opts.set_write_buffer_size(desc.write_size);
 
 	opts.set_target_file_size_base(desc.file_size);
