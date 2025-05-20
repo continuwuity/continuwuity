@@ -18,13 +18,14 @@ ARG LLVM_VERSION=19
 # Line three: for xx-verify
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-apt-get update && apt-get install -y \
+    apt-get update && apt-get install -y \
     clang-${LLVM_VERSION} lld-${LLVM_VERSION} pkg-config make jq \
     curl git \
     file
 
 # Create symlinks for LLVM tools
 RUN <<EOF
+    set -o xtrace
     # clang
     ln -s /usr/bin/clang-${LLVM_VERSION} /usr/bin/clang
     ln -s "/usr/bin/clang++-${LLVM_VERSION}" "/usr/bin/clang++"
@@ -46,6 +47,7 @@ ENV LDDTREE_VERSION=0.3.7
 
 # Install unpackaged tools
 RUN <<EOF
+    set -o xtrace
     curl --retry 5 -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
     cargo binstall --no-confirm cargo-sbom --version $CARGO_SBOM_VERSION
     cargo binstall --no-confirm lddtree --version $LDDTREE_VERSION
@@ -59,7 +61,7 @@ ARG TARGETPLATFORM
 # xx-* are xx-specific meta-packages
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
-xx-apt-get install -y \
+    xx-apt-get install -y \
     xx-c-essentials xx-cxx-essentials pkg-config \
     liburing-dev
 
@@ -75,6 +77,7 @@ RUN echo "CARGO_INCREMENTAL=0" >> /etc/environment
 
 # Configure pkg-config
 RUN <<EOF
+    set -o xtrace
     echo "PKG_CONFIG_LIBDIR=/usr/lib/$(xx-info)/pkgconfig" >> /etc/environment
     echo "PKG_CONFIG=/usr/bin/$(xx-info)-pkg-config" >> /etc/environment
     echo "PKG_CONFIG_ALLOW_CROSS=true" >> /etc/environment
@@ -82,12 +85,14 @@ EOF
 
 # Configure cc to use clang version
 RUN <<EOF
+    set -o xtrace
     echo "CC=clang" >> /etc/environment
     echo "CXX=clang++" >> /etc/environment
 EOF
 
 # Cross-language LTO
 RUN <<EOF
+    set -o xtrace
     echo "CFLAGS=-flto" >> /etc/environment
     echo "CXXFLAGS=-flto" >> /etc/environment
     # Linker is set to target-compatible clang by xx
@@ -98,6 +103,7 @@ EOF
 ARG TARGET_CPU=
 RUN <<EOF
   set -o allexport
+  set -o xtrace
   . /etc/environment
   if [ -n "${TARGET_CPU}" ]; then
     echo "CFLAGS='${CFLAGS} -march=${TARGET_CPU}'" >> /etc/environment
@@ -118,7 +124,6 @@ COPY . .
 ARG TARGETPLATFORM
 
 # Verify environment configuration
-RUN cat /etc/environment
 RUN xx-cargo --print-target-triple
 
 # Conduwuit version info
@@ -142,6 +147,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/app/target \
     bash <<'EOF'
     set -o allexport
+    set -o xtrace
     . /etc/environment
     TARGET_DIR=($(cargo metadata --no-deps --format-version 1 | \
             jq -r ".target_directory"))
@@ -162,6 +168,7 @@ EOF
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git/db \
     bash <<'EOF'
+    set -o xtrace
     mkdir /out/sbom
     typeset -A PACKAGES
     for BINARY in /out/sbin/*; do
@@ -180,6 +187,7 @@ EOF
 
 # Extract dynamically linked dependencies
 RUN <<EOF
+    set -o xtrace
     mkdir /out/libs
     mkdir /out/libs-root
     for BINARY in /out/sbin/*; do
