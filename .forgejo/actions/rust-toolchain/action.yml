@@ -15,6 +15,10 @@ inputs:
   components:
     description: Space-separated list of components to be additionally installed for a new toolchain
     required: false
+outputs:
+  rustc_version:
+    description: The rustc version installed
+    value: ${{ steps.rustc-version.outputs.version }}
 
 runs:
   using: composite
@@ -43,3 +47,7 @@ runs:
         ${{ inputs.components && format('rustup component add {0}', inputs.components) }}
         cargo --version
         rustc --version
+    - id: rustc-version
+      shell: bash
+      run: |
+        echo "version=$(rustc --version)" >> $GITHUB_OUTPUT

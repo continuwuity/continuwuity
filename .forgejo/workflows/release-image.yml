@@ -79,12 +79,13 @@ jobs:
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
       - name: Echo matrix
         run: echo '${{ toJSON(matrix) }}'
-      
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: false
       - name: Install rust
+        id: rust-toolchain
         uses: ./.forgejo/actions/rust-toolchain
 
       - name: Set up Docker Buildx
@@ -125,6 +126,52 @@ jobs:
         with:
           key: timelord-v0
           path: .
+
+      - name: Cache Rust registry
+        uses: actions/cache@v3
+        with:
+          path: |
+            .cargo/git
+            .cargo/git/checkouts
+            .cargo/registry
+            .cargo/registry/src
+          key: rust-registry-image-${{hashFiles('**/Cargo.lock') }}
+      - name: Cache cargo target
+        id: cache-cargo-target
+        uses: actions/cache@v3
+        with:
+          path: |
+            cargo-target-${{ matrix.slug }}
+          key: cargo-target-${{ matrix.slug }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
+      - name: Cache apt cache
+        id: cache-apt
+        uses: actions/cache@v3
+        with:
+          path: |
+            var-cache-apt-${{ matrix.slug }}
+          key: var-cache-apt-${{ matrix.slug }}
+      - name: Cache apt lib
+        id: cache-apt-lib
+        uses: actions/cache@v3
+        with:
+          path: |
+            var-lib-apt-${{ matrix.slug }}
+          key: var-lib-apt-${{ matrix.slug }}
+      - name: inject cache into docker
+        uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.1.0
+        with:
+          cache-map: |
+            {
+              ".cargo/registry": "/usr/local/cargo/registry",
+              ".cargo/git/db": "/usr/local/cargo/git/db",
+              "cargo-target-${{ matrix.slug }}": {
+                "target": "/app/target",
+                "id": "cargo-target-${{ matrix.platform }}"
+              },
+              "var-cache-apt-${{ matrix.slug }}": "/var/cache/apt",
+              "var-lib-apt-${{ matrix.slug }}": "/var/lib/apt"
+            }
+          skip-extraction: ${{ steps.cache.outputs.cache-hit }}
 
       - name: Build and push Docker image by digest
         id: build
