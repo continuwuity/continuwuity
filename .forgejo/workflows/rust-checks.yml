@@ -1,8 +1,7 @@
-name: Rust Formatting
+name: Rust Checks
 
 on:
   push:
-  pull_request:
 
 jobs:
   format:
@@ -65,7 +64,8 @@ jobs:
             ~/.cargo/registry
             !~/.cargo/registry/src
           key: rust-registry-${{hashFiles('**/Cargo.lock') }}
-      - uses: ./.forgejo/actions/timelord
+      - name: Timelord
+        uses: ./.forgejo/actions/timelord
         with:
           key: sccache-v0
           path: .
@@ -74,6 +74,7 @@ jobs:
           cargo clippy \
             --workspace \
             --locked \
+            --no-deps \
             --profile test \
             -- \
             -D warnings
