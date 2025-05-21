@@ -6,7 +6,7 @@ mod moderation;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::OwnedRoomId;
+use ruma::{OwnedRoomId, OwnedRoomOrAliasId};
 
 use self::{
 	alias::RoomAliasCommand, directory::RoomDirectoryCommand, info::RoomInfoCommand,
@@ -59,5 +59,12 @@ pub enum RoomCommand {
 	/// Check if we know about a room
 	Exists {
 		room_id: OwnedRoomId,
+	},
+
+	/// - Delete all sync tokens for a room
+	PurgeSyncTokens {
+		/// Room ID or alias to purge sync tokens for
+		#[arg(value_parser)]
+		room: OwnedRoomOrAliasId,
 	},
 }
