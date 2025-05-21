@@ -18,7 +18,7 @@ pub(crate) async fn well_known_client(
 	State(services): State<crate::State>,
 	_body: Ruma<discover_homeserver::Request>,
 ) -> Result<discover_homeserver::Response> {
-	let client_url = match services.server.config.well_known.client.as_ref() {
+	let client_url = match services.config.well_known.client.as_ref() {
 		| Some(url) => url.to_string(),
 		| None => return Err(Error::BadRequest(ErrorKind::NotFound, "Not found.")),
 	};
@@ -41,21 +41,19 @@ pub(crate) async fn well_known_support(
 	_body: Ruma<discover_support::Request>,
 ) -> Result<discover_support::Response> {
 	let support_page = services
-		.server
 		.config
 		.well_known
 		.support_page
 		.as_ref()
 		.map(ToString::to_string);
 
-	let email_address = services.server.config.well_known.support_email.clone();
-	let matrix_id = services.server.config.well_known.support_mxid.clone();
+	let email_address = services.config.well_known.support_email.clone();
+	let matrix_id = services.config.well_known.support_mxid.clone();
 
 	// TODO: support defining multiple contacts in the config
 	let mut contacts: Vec<Contact> = vec![];
 
 	let role_value = services
-		.server
 		.config
 		.well_known
 		.support_role
@@ -106,9 +104,9 @@ pub(crate) async fn well_known_support(
 pub(crate) async fn syncv3_client_server_json(
 	State(services): State<crate::State>,
 ) -> Result<impl IntoResponse> {
-	let server_url = match services.server.config.well_known.client.as_ref() {
+	let server_url = match services.config.well_known.client.as_ref() {
 		| Some(url) => url.to_string(),
-		| None => match services.server.config.well_known.server.as_ref() {
+		| None => match services.config.well_known.server.as_ref() {
 			| Some(url) => url.to_string(),
 			| None => return Err(Error::BadRequest(ErrorKind::NotFound, "Not found.")),
 		},
