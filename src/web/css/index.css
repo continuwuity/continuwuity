@@ -1,68 +1,85 @@
 :root {
-	color-scheme: light;
-	--font-stack: sans-serif;
+    color-scheme: light;
+    --font-stack: sans-serif;
 
-	--background-color: #fff;
-	--text-color: #000;
+    --background-color: #fff;
+    --text-color: #000;
 
-	--bg: oklch(0.76 0.0854 317.27);
-	--panel-bg: oklch(0.91 0.042 317.27);
+    --bg: oklch(0.76 0.0854 317.27);
+    --panel-bg: oklch(0.91 0.042 317.27);
 
-	--name-lightness: 0.45;
+    --name-lightness: 0.45;
 
-	@media (prefers-color-scheme: dark) {
-		color-scheme: dark;
-		--text-color: #fff;
-		--bg: oklch(0.15 0.042 317.27);
-		--panel-bg: oklch(0.24 0.03 317.27);
+    @media (prefers-color-scheme: dark) {
+        color-scheme: dark;
+        --text-color: #fff;
+        --bg: oklch(0.15 0.042 317.27);
+        --panel-bg: oklch(0.24 0.03 317.27);
 
-		--name-lightness: 0.8;
-	}
+        --name-lightness: 0.8;
+    }
 
-	--c1: oklch(0.44 0.177 353.06);
-	--c2: oklch(0.59 0.158 150.88);
+    --c1: oklch(0.44 0.177 353.06);
+    --c2: oklch(0.59 0.158 150.88);
 
-	--normal-font-size: 1rem;
-	--small-font-size: 0.8rem;
+    --normal-font-size: 1rem;
+    --small-font-size: 0.8rem;
 }
 
 body {
-	color: var(--text-color);
-	font-family: var(--font-stack);
-	margin: 0;
-	padding: 0;
-	display: grid;
-	place-items: center;
-	min-height: 100vh;
+    color: var(--text-color);
+    font-family: var(--font-stack);
+    margin: 0;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
 }
 
 html {
-	background-color: var(--bg);
-	background-image: linear-gradient(
-		70deg,
-		oklch(from var(--bg) l + 0.2 c h),
-		oklch(from var(--bg) l - 0.2 c h)
-	);
-	font-size: 16px;
+    background-color: var(--bg);
+    background-image: linear-gradient(
+        70deg,
+        oklch(from var(--bg) l + 0.2 c h),
+        oklch(from var(--bg) l - 0.2 c h)
+    );
+    font-size: 16px;
 }
 
 .panel {
-	width: min(clamp(24rem, 12rem + 40vw, 48rem), 100vw);
-	border-radius: 15px;
-	background-color: var(--panel-bg);
-	padding-inline: 1.5rem;
-	padding-block: 1rem;
-	box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
+    width: min(clamp(24rem, 12rem + 40vw, 48rem), calc(100vw - 3rem));
+    border-radius: 15px;
+    background-color: var(--panel-bg);
+    padding-inline: 1.5rem;
+    padding-block: 1rem;
+    box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
+}
+
+@media (max-width: 24rem) {
+    .panel {
+        padding-inline: 0.25rem;
+        width: calc(100vw - 0.5rem);
+        border-radius: 0;
+        margin-block-start: 0.2rem;
+    }
+    main {
+        height: 100%;
+    }
+}
+
+footer {
+    padding-inline: 0.25rem;
+    height: max(fit-content, 2rem);
 }
 
 .project-name {
-	text-decoration: none;
-	background: linear-gradient(
-		130deg,
-		oklch(from var(--c1) var(--name-lightness) c h),
-		oklch(from var(--c2) var(--name-lightness) c h)
-	);
-	background-clip: text;
-	color: transparent;
-	filter: brightness(1.2);
+    text-decoration: none;
+    background: linear-gradient(
+        130deg,
+        oklch(from var(--c1) var(--name-lightness) c h),
+        oklch(from var(--c2) var(--name-lightness) c h)
+    );
+    background-clip: text;
+    color: transparent;
+    filter: brightness(1.2);
 }
