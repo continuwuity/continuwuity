@@ -26,6 +26,6 @@ pub fn user_agent() -> &'static str { USER_AGENT.get_or_init(init_user_agent) }
 fn init_user_agent() -> String { format!("{}/{}", name(), version()) }
 
 fn init_version() -> String {
-	conduwuit_build_metadata::VERSION_EXTRA
+	conduwuit_build_metadata::version_tag()
 		.map_or(SEMANTIC.to_owned(), |extra| format!("{SEMANTIC} ({extra})"))
 }

@@ -12,11 +12,16 @@ pub static VERSION_EXTRA: Option<&str> =
 		v
 	} else if let v @ Some(_) = option_env!("CONDUWUIT_VERSION_EXTRA") {
 		v
-	} else if let v @ Some(_) = option_env!("CONDUIT_VERSION_EXTRA") {
-		v
 	} else {
-		GIT_COMMIT_HASH_SHORT
+		option_env!("CONDUIT_VERSION_EXTRA")
 	};
+
+pub fn version_tag() -> Option<&'static str> {
+	VERSION_EXTRA
+		.filter(|s| !s.is_empty())
+		.or(GIT_COMMIT_HASH_SHORT)
+}
+
 pub static GIT_REMOTE_WEB_URL: Option<&str> = option_env!("GIT_REMOTE_WEB_URL");
 pub static GIT_REMOTE_COMMIT_URL: Option<&str> = option_env!("GIT_REMOTE_COMMIT_URL");
 

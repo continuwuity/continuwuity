@@ -6,7 +6,7 @@ use axum::{
 	response::{Html, IntoResponse, Response},
 	routing::get,
 };
-use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, VERSION_EXTRA};
+use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, version_tag};
 use conduwuit_service::state;
 
 pub fn build() -> Router<state::State> {

@@ -78,6 +78,7 @@ fn main() {
 	}
 
 	// --- Rerun Triggers ---
+	// TODO: The git rerun triggers seem to always run
 	// Rerun if the git HEAD changes
 	println!("cargo:rerun-if-changed=.git/HEAD");
 	// Rerun if the ref pointed to by HEAD changes (e.g., new commit on branch)

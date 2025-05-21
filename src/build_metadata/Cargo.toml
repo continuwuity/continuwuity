@@ -13,13 +13,13 @@ version.workspace = true
 build = "build.rs"
 # [[bin]]
 # path = "main.rs"
-# name = "conduwuit_build_metadata" 
+# name = "conduwuit_build_metadata"
 
 [lib]
 path = "mod.rs"
 crate-type = [
-	"rlib",
-#	"dylib",
+    "rlib",
+    # "dylib",
 ]
 
 [features]
@@ -28,7 +28,7 @@ crate-type = [
 [dependencies]
 
 [build-dependencies]
-built = {version = "0.7", features = ["cargo-lock", "dependency-tree"]}
+built = { version = "0.8", features = [] }
 
 [lints]
 workspace = true
