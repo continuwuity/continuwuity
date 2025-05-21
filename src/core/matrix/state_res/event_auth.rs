@@ -638,7 +638,7 @@ fn valid_membership_change(
 				warn!(?target_user_membership_event_id, "Banned user can't join");
 				false
 			} else if (join_rules == JoinRule::Invite
-                    || room_version.allow_knocking && join_rules == JoinRule::Knock)
+                    || room_version.allow_knocking && (join_rules == JoinRule::Knock || matches!(join_rules, JoinRule::KnockRestricted(_))))
                 // If the join_rule is invite then allow if membership state is invite or join
                     && (target_user_current_membership == MembershipState::Join
                         || target_user_current_membership == MembershipState::Invite)
