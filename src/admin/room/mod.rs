@@ -22,13 +22,13 @@ pub(super) enum RoomCommand {
 	ListRooms {
 		page: Option<usize>,
 
-		/// Excludes rooms that we have federation disabled with
+		/// Only purge rooms that have federation disabled
 		#[arg(long)]
-		exclude_disabled: bool,
+		only_disabled: bool,
 
-		/// Excludes rooms that we have banned
+		/// Only purge rooms that have been banned
 		#[arg(long)]
-		exclude_banned: bool,
+		only_banned: bool,
 
 		#[arg(long)]
 		/// Whether to only output room IDs without supplementary room
@@ -62,5 +62,28 @@ pub(super) enum RoomCommand {
 		/// Room ID or alias to purge sync tokens for
 		#[arg(value_parser)]
 		room: OwnedRoomOrAliasId,
+	},
+
+	/// - Delete sync tokens for all rooms that have no local users
+	///
+	/// By default, processes all empty rooms. You can use --target-disabled
+	/// and/or --target-banned to exclusively process rooms matching those
+	/// conditions.
+	PurgeEmptyRoomTokens {
+		/// Confirm you want to delete tokens from potentially many rooms
+		#[arg(long)]
+		yes: bool,
+
+		/// Only purge rooms that have federation disabled
+		#[arg(long)]
+		target_disabled: bool,
+
+		/// Only purge rooms that have been banned
+		#[arg(long)]
+		target_banned: bool,
+
+		/// Perform a dry run without actually deleting any tokens
+		#[arg(long)]
+		dry_run: bool,
 	},
 }
