@@ -65,11 +65,13 @@ jobs:
               DOCKER_TLS_CERTDIR: ""
             image: docker:dind
             options: >-
-              --tty
-              --restart always
+              --privileged
         steps:
           - name: curl
             run: |-
+              cat /etc/resolv.conf
+              sleep 10
+              curl -v dind:2375 || true
               sleep 30
               curl dind:2375 || true
     tests:
@@ -203,22 +205,28 @@ jobs:
 
     complement:
         name: complement
-        runs-on: [tom, nix]
+        runs-on: tom
         needs: tests
         services:
           dind:
+              env:
+                  DOCKER_HOST: unix:///var/run/dind.socket
+                  DOCKER_TLS_CERTDIR: ""
               image: docker:dind
               options: >-
-                  --privileged
-              env:
-                  DOCKER_TLS_CERTDIR: ""
-                  DOCKER_HOST: unix:///var/run/dind.socket
-        container:
-          image: catthehacker/ubuntu:act-latest
-          volumes:
-            - /nix/store:/nix/store
-            - /nix/var/nix/db:/nix/var/nix/db
+                  --tty
+                  --restart always
+        #container:
+        #  image: catthehacker/ubuntu:act-latest
+        #  volumes:
+        #    - /nix/store:/nix/store
+        #    - /nix/var/nix/db:/nix/var/nix/db
         steps:
+            - name: Verify dind
+              run: |
+                sleep 15
+                curl dind:2375
+
             - name: Sync repository
               uses: actions/checkout@v4
               with:
@@ -606,6 +614,7 @@ jobs:
     variables: 
       outputs:
         github_repository: ${{ steps.var.outputs.github_repository }}
+        forgejo_repository: ${{ steps.var.outputs.forgejo_repository }}
       runs-on: self-hosted
       steps:
         - name: Setting global variables
@@ -613,7 +622,10 @@ jobs:
           id: var
           with:
             script: |
-              core.setOutput('github_repository', '${{ github.repository }}'.toLowerCase())
+              const repo = '${{ github.repository }}'
+              core.setOutput('forgejo_repository', repo.toLowerCase())
+              const replaced = repo.replace(/continuwuation/g, "continuwuity")
+              core.setOutput('github_repository', replaced.toLowerCase())
     docker:
         name: Docker publish
         runs-on: self-hosted
@@ -623,22 +635,30 @@ jobs:
           contents: read
         if: (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' || (github.event.pull_request.draft != true)) && github.event.pull_request.user.login != 'renovate[bot]'
         env:
+            FORGEJO_REPO: forgejo.ellis.link/${{ needs.variables.outputs.forgejo_repository }}
             DOCKER_HUB_REPO: docker.io/${{ needs.variables.outputs.github_repository }}
             GHCR_REPO: ghcr.io/${{ needs.variables.outputs.github_repository }}
-            GLCR_REPO: registry.gitlab.com/conduwuit/conduwuit
+            GLCR_REPO: registry.gitlab.com/continuwuity/continuwuity
             UNIQUE_TAG: ${{ (github.head_ref != '' && format('merge-{0}-{1}', github.event.number, github.event.pull_request.user.login)) || github.ref_name }}-${{ github.sha }}
             BRANCH_TAG: ${{ (startsWith(github.ref, 'refs/tags/v') && !endsWith(github.ref, '-rc') && 'latest') || (github.head_ref != '' && format('merge-{0}-{1}', github.event.number, github.event.pull_request.user.login)) || github.ref_name }}
 
             DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
             GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
-            GHCR_ENABLED: "${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && 'true' || 'false' }}"
+            GHCR_ENABLED: "${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) && 'true' && secrets.GHCR_TOKEN }}"
         steps:
+            - name: Login to Forgejo Container Registry
+              uses: docker/login-action@v3
+              with:
+                  registry: forgejo.ellis.link
+                  username: ${{ vars.BUILTIN_REGISTRY_USER }}
+                  password: ${{ vars.BUILTIN_REGISTRY_PASSWORD }}
+
             - name: Login to GitHub Container Registry
               uses: docker/login-action@v3
               with:
                   registry: ghcr.io
                   username: ${{ github.actor }}
-                  password: ${{ secrets.GITHUB_TOKEN }}
+                  password: ${{ secrets.GHCR_TOKEN }}
 
             - name: Login to Docker Hub
               if: ${{ (vars.DOCKER_USERNAME != '') && (env.DOCKERHUB_TOKEN != '') }}
@@ -662,6 +682,7 @@ jobs:
                 pattern: "oci*"
 
             - name: Move OCI images into position
+              shell: bash
               run: |
                   mv -v oci-image-x86_64-linux-musl-all-features-x86_64-haswell-optimised/*.tar.gz oci-image-amd64-haswell-optimised.tar.gz
                   mv -v oci-image-x86_64-linux-musl/*.tar.gz oci-image-amd64.tar.gz
@@ -670,7 +691,12 @@ jobs:
                   mv -v oci-image-aarch64-linux-musl-debug/*.tar.gz oci-image-arm64v8-debug.tar.gz
 
             - name: Load and push amd64 haswell image
+              shell: bash
               run: |
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker tag $(docker images -q conduwuit:main) ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell
+                    docker push ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell
+                  fi
                   docker load -i oci-image-amd64-haswell-optimised.tar.gz
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker tag $(docker images -q conduwuit:main) ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell
@@ -686,7 +712,13 @@ jobs:
                   fi
 
             - name: Load and push amd64 image
+              shell: bash
               run: |
+                  docker load -i oci-image-amd64.tar.gz
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker tag $(docker images -q conduwuit:main) ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64
+                    docker push ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64
+                  fi
                   docker load -i oci-image-amd64.tar.gz
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker tag $(docker images -q conduwuit:main) ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64
@@ -702,7 +734,13 @@ jobs:
                   fi
 
             - name: Load and push arm64 image
+              shell: bash
               run: |
+                  docker load -i oci-image-arm64v8.tar.gz
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker tag $(docker images -q conduwuit:main) ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8
+                    docker push ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8
+                  fi
                   docker load -i oci-image-arm64v8.tar.gz
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker tag $(docker images -q conduwuit:main) ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8
@@ -718,8 +756,13 @@ jobs:
                   fi
 
             - name: Load and push amd64 debug image
+              shell: bash
               run: |
                   docker load -i oci-image-amd64-debug.tar.gz
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker tag $(docker images -q conduwuit:main) ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                    docker push ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker tag $(docker images -q conduwuit:main) ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64-debug
                     docker push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64-debug
@@ -734,12 +777,16 @@ jobs:
                   fi
 
             - name: Load and push arm64 debug image
+              shell: bash
               run: |
                   docker load -i oci-image-arm64v8-debug.tar.gz
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker tag $(docker images -q conduwuit:main) ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8-debug
+                    #docker push ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8-debug
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker tag $(docker images -q conduwuit:main) ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8-debug
                     docker push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8-debug
-                  fi
                   if [ $GHCR_ENABLED = "true" ]; then
                     docker tag $(docker images -q conduwuit:main) ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8-debug
                     docker push ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8-debug
@@ -750,8 +797,13 @@ jobs:
                   fi
 
             - name: Create Docker haswell manifests
+              shell: bash
               run: |
                   # Dockerhub Container Registry
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker manifest create ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell
+                    docker manifest create ${FORGEJO_REPO}:${BRANCH_TAG}-haswell --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker manifest create ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell
                     docker manifest create ${DOCKER_HUB_REPO}:${BRANCH_TAG}-haswell --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell
@@ -768,26 +820,39 @@ jobs:
                   fi
 
             - name: Create Docker combined manifests
+              shell: bash
               run: |
                   # Dockerhub Container Registry
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
-                    docker manifest create ${DOCKER_HUB_REPO}:${UNIQUE_TAG} --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64
-                    docker manifest create ${DOCKER_HUB_REPO}:${BRANCH_TAG} --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${FORGEJO_REPO}:${UNIQUE_TAG}-all-features --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${FORGEJO_REPO}:${BRANCH_TAG}-all-features --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64
+                  fi
+                  if [ ! -z $DOCKERHUB_TOKEN ]; then
+                    docker manifest create ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-all-features --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${DOCKER_HUB_REPO}:${BRANCH_TAG}-all-features --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64
                   fi
                   # GitHub Container Registry
                   if [ $GHCR_ENABLED = "true" ]; then
-                    docker manifest create ${GHCR_REPO}:${UNIQUE_TAG} --amend ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GHCR_REPO}:${UNIQUE_TAG}-amd64
-                    docker manifest create ${GHCR_REPO}:${BRANCH_TAG} --amend ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GHCR_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${GHCR_REPO}:${UNIQUE_TAG}-all-features --amend ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GHCR_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${GHCR_REPO}:${BRANCH_TAG}-all-features --amend ${GHCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GHCR_REPO}:${UNIQUE_TAG}-amd64
                   fi
                   # GitLab Container Registry
                   if [ ! -z $GITLAB_TOKEN ]; then
-                    docker manifest create ${GLCR_REPO}:${UNIQUE_TAG} --amend ${GLCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GLCR_REPO}:${UNIQUE_TAG}-amd64
-                    docker manifest create ${GLCR_REPO}:${BRANCH_TAG} --amend ${GLCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GLCR_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${GLCR_REPO}:${UNIQUE_TAG}-all-features --amend ${GLCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GLCR_REPO}:${UNIQUE_TAG}-amd64
+                    docker manifest create ${GLCR_REPO}:${BRANCH_TAG}-all-features --amend ${GLCR_REPO}:${UNIQUE_TAG}-arm64v8 --amend ${GLCR_REPO}:${UNIQUE_TAG}-amd64
                   fi
 
             - name: Create Docker combined debug manifests
+              shell: bash
               run: |
                   # Dockerhub Container Registry
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    #docker manifest create ${FORGEJO_REPO}:${UNIQUE_TAG}-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                    #docker manifest create ${FORGEJO_REPO}:${BRANCH_TAG}-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-arm64v8-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                    # Slightly save space by disabling arm debug images for now
+                    docker manifest create ${FORGEJO_REPO}:${UNIQUE_TAG}-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                    docker manifest create ${FORGEJO_REPO}:${BRANCH_TAG}-debug --amend ${FORGEJO_REPO}:${UNIQUE_TAG}-amd64-debug
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
                     docker manifest create ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-debug --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8-debug --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64-debug
                     docker manifest create ${DOCKER_HUB_REPO}:${BRANCH_TAG}-debug --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-arm64v8-debug --amend ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-amd64-debug
@@ -804,26 +869,35 @@ jobs:
                   fi
 
             - name: Push manifests to Docker registries
+              shell: bash
               run: |
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    docker manifest push ${FORGEJO_REPO}:${UNIQUE_TAG}-all-features
+                    docker manifest push ${FORGEJO_REPO}:${BRANCH_TAG}-all-features
+                    docker manifest push ${FORGEJO_REPO}:${UNIQUE_TAG}-debug
+                    docker manifest push ${FORGEJO_REPO}:${BRANCH_TAG}-debug
+                    docker manifest push ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell
+                    docker manifest push ${FORGEJO_REPO}:${BRANCH_TAG}-haswell
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
-                    docker manifest push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}
-                    docker manifest push ${DOCKER_HUB_REPO}:${BRANCH_TAG}
+                    docker manifest push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-all-features
+                    docker manifest push ${DOCKER_HUB_REPO}:${BRANCH_TAG}-all-features
                     docker manifest push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-debug
                     docker manifest push ${DOCKER_HUB_REPO}:${BRANCH_TAG}-debug
                     docker manifest push ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell
                     docker manifest push ${DOCKER_HUB_REPO}:${BRANCH_TAG}-haswell
                   fi
                   if [ $GHCR_ENABLED = "true" ]; then
-                    docker manifest push ${GHCR_REPO}:${UNIQUE_TAG}
-                    docker manifest push ${GHCR_REPO}:${BRANCH_TAG}
+                    docker manifest push ${GHCR_REPO}:${UNIQUE_TAG}-all-features
+                    docker manifest push ${GHCR_REPO}:${BRANCH_TAG}-all-features
                     docker manifest push ${GHCR_REPO}:${UNIQUE_TAG}-debug
                     docker manifest push ${GHCR_REPO}:${BRANCH_TAG}-debug
                     docker manifest push ${GHCR_REPO}:${UNIQUE_TAG}-haswell
                     docker manifest push ${GHCR_REPO}:${BRANCH_TAG}-haswell
                   fi
                   if [ ! -z $GITLAB_TOKEN ]; then
-                    docker manifest push ${GLCR_REPO}:${UNIQUE_TAG}
-                    docker manifest push ${GLCR_REPO}:${BRANCH_TAG}
+                    docker manifest push ${GLCR_REPO}:${UNIQUE_TAG}-all-features
+                    docker manifest push ${GLCR_REPO}:${BRANCH_TAG}-all-features
                     docker manifest push ${GLCR_REPO}:${UNIQUE_TAG}-debug
                     docker manifest push ${GLCR_REPO}:${BRANCH_TAG}-debug
                     docker manifest push ${GLCR_REPO}:${UNIQUE_TAG}-haswell
@@ -831,19 +905,25 @@ jobs:
                   fi
 
             - name: Add Image Links to Job Summary
+              shell: bash
               run: |
+                  if [ ! -z $FORGEJO_TOKEN ]; then
+                    echo "- \`docker pull ${FORGEJO_REPO}:${UNIQUE_TAG}-all-features\`" >> $GITHUB_STEP_SUMMARY
+                    echo "- \`docker pull ${FORGEJO_REPO}:${UNIQUE_TAG}-debug\`" >> $GITHUB_STEP_SUMMARY
+                    echo "- \`docker pull ${FORGEJO_REPO}:${UNIQUE_TAG}-haswell\`" >> $GITHUB_STEP_SUMMARY
+                  fi
                   if [ ! -z $DOCKERHUB_TOKEN ]; then
-                    echo "- \`docker pull ${DOCKER_HUB_REPO}:${UNIQUE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+                    echo "- \`docker pull ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-all-features\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-debug\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${DOCKER_HUB_REPO}:${UNIQUE_TAG}-haswell\`" >> $GITHUB_STEP_SUMMARY
                   fi
                   if [ $GHCR_ENABLED = "true" ]; then
-                    echo "- \`docker pull ${GHCR_REPO}:${UNIQUE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+                    echo "- \`docker pull ${GHCR_REPO}:${UNIQUE_TAG}-all-features\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${GHCR_REPO}:${UNIQUE_TAG}-debug\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${GHCR_REPO}:${UNIQUE_TAG}-haswell\`" >> $GITHUB_STEP_SUMMARY
                   fi
                   if [ ! -z $GITLAB_TOKEN ]; then
-                    echo "- \`docker pull ${GLCR_REPO}:${UNIQUE_TAG}\`" >> $GITHUB_STEP_SUMMARY
+                    echo "- \`docker pull ${GLCR_REPO}:${UNIQUE_TAG}-all-features\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${GLCR_REPO}:${UNIQUE_TAG}-debug\`" >> $GITHUB_STEP_SUMMARY
                     echo "- \`docker pull ${GLCR_REPO}:${UNIQUE_TAG}-haswell\`" >> $GITHUB_STEP_SUMMARY
                   fi
