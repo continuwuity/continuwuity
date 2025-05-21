@@ -16,6 +16,7 @@ pub static VERSION_EXTRA: Option<&str> =
 		option_env!("CONDUIT_VERSION_EXTRA")
 	};
 
+#[must_use]
 pub fn version_tag() -> Option<&'static str> {
 	VERSION_EXTRA
 		.filter(|s| !s.is_empty())
