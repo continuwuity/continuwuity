@@ -127,3 +127,40 @@ pub async fn get_token_shortstatehash(
 		.await
 		.deserialized()
 }
+
+/// Delete all sync tokens associated with a room
+///
+/// This helps clean up the database as these tokens are never otherwise removed
+#[implement(Service)]
+pub async fn delete_room_tokens(&self, room_id: &RoomId) -> Result<usize> {
+	use futures::TryStreamExt;
+
+	let shortroomid = self.services.short.get_shortroomid(room_id).await?;
+
+	// Create a prefix to search by - all entries for this room will start with its
+	// short ID
+	let prefix = &[shortroomid];
+
+	// Get all keys with this room prefix
+	let mut count = 0;
+
+	// Collect all keys into a Vec first, then delete them
+	let keys = self
+		.db
+		.roomsynctoken_shortstatehash
+		.keys_prefix_raw(prefix)
+		.map_ok(|key| {
+			// Clone the key since we can't store references in the Vec
+			Vec::from(key)
+		})
+		.try_collect::<Vec<_>>()
+		.await?;
+
+	// Delete each key individually
+	for key in &keys {
+		self.db.roomsynctoken_shortstatehash.del(key);
+		count += 1;
+	}
+
+	Ok(count)
+}
