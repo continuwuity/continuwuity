@@ -2162,6 +2162,109 @@ async fn knock_room_by_id_helper(
 		}
 	}
 
+	// For knock_restricted rooms, check if the user meets the restricted conditions
+	// If they do, attempt to join instead of knock
+	// This is not mentioned in the spec, but should be allowable (we're allowed to
+	// auto-join invites to knocked rooms)
+	let join_rule = services.rooms.state_accessor.get_join_rules(room_id).await;
+	if let JoinRule::KnockRestricted(restricted) = &join_rule {
+		let restriction_rooms: Vec<_> = restricted
+			.allow
+			.iter()
+			.filter_map(|a| match a {
+				| AllowRule::RoomMembership(r) => Some(&r.room_id),
+				| _ => None,
+			})
+			.collect();
+
+		// Check if the user is in any of the allowed rooms
+		let mut user_meets_restrictions = false;
+		for restriction_room_id in &restriction_rooms {
+			if services
+				.rooms
+				.state_cache
+				.is_joined(sender_user, restriction_room_id)
+				.await
+			{
+				user_meets_restrictions = true;
+				break;
+			}
+		}
+
+		// If the user meets the restrictions, try joining instead
+		if user_meets_restrictions {
+			debug_info!(
+				"{sender_user} meets the restricted criteria in knock_restricted room \
+				 {room_id}, attempting to join instead of knock"
+			);
+			// For this case, we need to drop the state lock and get a new one in
+			// join_room_by_id_helper We need to release the lock here and let
+			// join_room_by_id_helper acquire it again
+			drop(state_lock);
+			match join_room_by_id_helper(
+				services,
+				sender_user,
+				room_id,
+				reason.clone(),
+				servers,
+				None,
+				&None,
+			)
+			.await
+			{
+				| Ok(_) => return Ok(knock_room::v3::Response::new(room_id.to_owned())),
+				| Err(e) => {
+					debug_warn!(
+						"Failed to convert knock to join for {sender_user} in {room_id}: {e:?}"
+					);
+					// Get a new state lock for the remaining knock logic
+					let new_state_lock = services.rooms.state.mutex.lock(room_id).await;
+
+					let server_in_room = services
+						.rooms
+						.state_cache
+						.server_in_room(services.globals.server_name(), room_id)
+						.await;
+
+					let local_knock = server_in_room
+						|| servers.is_empty()
+						|| (servers.len() == 1 && services.globals.server_is_ours(&servers[0]));
+
+					if local_knock {
+						knock_room_helper_local(
+							services,
+							sender_user,
+							room_id,
+							reason,
+							servers,
+							new_state_lock,
+						)
+						.boxed()
+						.await?;
+					} else {
+						knock_room_helper_remote(
+							services,
+							sender_user,
+							room_id,
+							reason,
+							servers,
+							new_state_lock,
+						)
+						.boxed()
+						.await?;
+					}
+
+					return Ok(knock_room::v3::Response::new(room_id.to_owned()));
+				},
+			}
+		}
+	} else if !matches!(join_rule, JoinRule::Knock | JoinRule::KnockRestricted(_)) {
+		debug_warn!(
+			"{sender_user} attempted to knock on room {room_id} but its join rule is \
+			 {join_rule:?}, not knock or knock_restricted"
+		);
+	}
+
 	let server_in_room = services
 		.rooms
 		.state_cache
@@ -2207,6 +2310,12 @@ async fn knock_room_helper_local(
 			| RoomVersionId::V6
 	) {
 		return Err!(Request(Forbidden("This room does not support knocking.")));
+	}
+
+	// Verify that this room has a valid knock or knock_restricted join rule
+	let join_rule = services.rooms.state_accessor.get_join_rules(room_id).await;
+	if !matches!(join_rule, JoinRule::Knock | JoinRule::KnockRestricted(_)) {
+		return Err!(Request(Forbidden("This room's join rule does not allow knocking.")));
 	}
 
 	let content = RoomMemberEventContent {
