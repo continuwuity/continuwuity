@@ -7,10 +7,15 @@
 <!-- ANCHOR_END: catchphrase -->
 
 [continuwuity] is a Matrix homeserver written in Rust.
-It's a community continuation of the [conduwuit](https://github.com/girlbossceo/conduwuit) homeserver. 
+It's a community continuation of the [conduwuit](https://github.com/girlbossceo/conduwuit) homeserver.
 
 <!-- ANCHOR: body -->
 
+[![forgejo.ellis.link](https://img.shields.io/badge/Ellis%20Git-main+packages-green?style=flat&logo=forgejo&labelColor=fff)](https://forgejo.ellis.link/continuwuation/continuwuity) ![](https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat) [![](https://forgejo.ellis.link/continuwuation/continuwuity/badges/issues/open.svg?style=flat)](https://forgejo.ellis.link/continuwuation/continuwuity/issues?state=open) [![](https://forgejo.ellis.link/continuwuation/continuwuity/badges/pulls/open.svg?style=flat)](https://forgejo.ellis.link/continuwuation/continuwuity/pulls?state=open)
+
+[![GitHub](https://img.shields.io/badge/GitHub-mirror-blue?style=flat&logo=github&labelColor=fff&logoColor=24292f)](https://github.com/continuwuity/continuwuity) ![](https://img.shields.io/github/stars/continuwuity/continuwuity?style=flat)
+
+[![Codeberg](https://img.shields.io/badge/Codeberg-mirror-2185D0?style=flat&logo=codeberg&labelColor=fff)](https://codeberg.org/nexy7574/continuwuity) ![](https://codeberg.org/nexy7574/continuwuity/badges/stars.svg?style=flat)
 
 ### Why does this exist?
 
@@ -112,4 +117,3 @@ Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org) and [
 
 
 [continuwuity]: https://forgejo.ellis.link/continuwuation/continuwuity
-
