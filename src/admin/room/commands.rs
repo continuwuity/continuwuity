@@ -1,6 +1,6 @@
 use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::OwnedRoomId;
+use ruma::{OwnedRoomId, OwnedRoomOrAliasId};
 
 use crate::{PAGE_SIZE, admin_command, get_room_info};
 
@@ -65,4 +65,21 @@ pub(super) async fn exists(&self, room_id: OwnedRoomId) -> Result {
 	let result = self.services.rooms.metadata.exists(&room_id).await;
 
 	self.write_str(&format!("{result}")).await
+}
+
+#[admin_command]
+pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result {
+	// Resolve the room ID from the room or alias ID
+	let room_id = self.services.rooms.alias.resolve(&room).await?;
+
+	// Delete all tokens for this room using the service method
+	let deleted_count = match self.services.rooms.user.delete_room_tokens(&room_id).await {
+		| Ok(count) => count,
+		| Err(_) => return Err!("Failed to delete sync tokens for room {}", room_id),
+	};
+
+	self.write_str(&format!(
+		"Successfully deleted {deleted_count} sync tokens for room {room_id}"
+	))
+	.await
 }
