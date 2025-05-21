@@ -63,4 +63,27 @@ pub(super) enum RoomCommand {
 		#[arg(value_parser)]
 		room: OwnedRoomOrAliasId,
 	},
+
+	/// - Delete sync tokens for all rooms that have no local users
+	///
+	/// By default, processes all empty rooms. You can use --target-disabled
+	/// and/or --target-banned to exclusively process rooms matching those
+	/// conditions.
+	PurgeEmptyRoomTokens {
+		/// Confirm you want to delete tokens from potentially many rooms
+		#[arg(long)]
+		yes: bool,
+
+		/// Only purge rooms that have federation disabled
+		#[arg(long)]
+		target_disabled: bool,
+
+		/// Only purge rooms that have been banned
+		#[arg(long)]
+		target_banned: bool,
+
+		/// Perform a dry run without actually deleting any tokens
+		#[arg(long)]
+		dry_run: bool,
+	},
 }
