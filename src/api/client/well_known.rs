@@ -1,5 +1,6 @@
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{Error, Result};
+use futures::StreamExt;
 use ruma::api::client::{
 	discovery::{
 		discover_homeserver::{self, HomeserverInfo, SlidingSyncProxyInfo},
@@ -33,6 +34,8 @@ pub(crate) async fn well_known_client(
 /// # `GET /.well-known/matrix/support`
 ///
 /// Server support contact and support page of a homeserver's domain.
+/// Implements MSC1929 for server discovery.
+/// If no configuration is set, uses admin users as contacts.
 pub(crate) async fn well_known_support(
 	State(services): State<crate::State>,
 	_body: Ruma<discover_support::Request>,
@@ -45,32 +48,51 @@ pub(crate) async fn well_known_support(
 		.as_ref()
 		.map(ToString::to_string);
 
-	let role = services.server.config.well_known.support_role.clone();
-
-	// support page or role must be either defined for this to be valid
-	if support_page.is_none() && role.is_none() {
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Not found."));
-	}
-
 	let email_address = services.server.config.well_known.support_email.clone();
 	let matrix_id = services.server.config.well_known.support_mxid.clone();
-
-	// if a role is specified, an email address or matrix id is required
-	if role.is_some() && (email_address.is_none() && matrix_id.is_none()) {
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Not found."));
-	}
 
 	// TODO: support defining multiple contacts in the config
 	let mut contacts: Vec<Contact> = vec![];
 
-	if let Some(role) = role {
-		let contact = Contact { role, email_address, matrix_id };
+	let role_value = services
+		.server
+		.config
+		.well_known
+		.support_role
+		.clone()
+		.unwrap_or_else(|| "m.role.admin".to_owned().into());
 
-		contacts.push(contact);
+	// Add configured contact if at least one contact method is specified
+	if email_address.is_some() || matrix_id.is_some() {
+		contacts.push(Contact {
+			role: role_value.clone(),
+			email_address: email_address.clone(),
+			matrix_id: matrix_id.clone(),
+		});
 	}
 
-	// support page or role+contacts must be either defined for this to be valid
+	// Try to add admin users as contacts if no contacts are configured
+	if contacts.is_empty() {
+		if let Ok(admin_room) = services.admin.get_admin_room().await {
+			let admin_users = services.rooms.state_cache.room_members(&admin_room);
+			let mut stream = admin_users;
+
+			while let Some(user_id) = stream.next().await {
+				// Skip server user
+				if *user_id == services.globals.server_user {
+					break;
+				}
+				contacts.push(Contact {
+					role: role_value.clone(),
+					email_address: None,
+					matrix_id: Some(user_id.to_owned()),
+				});
+			}
+		}
+	}
+
 	if contacts.is_empty() && support_page.is_none() {
+		// No admin room, no configured contacts, and no support page
 		return Err(Error::BadRequest(ErrorKind::NotFound, "Not found."));
 	}
 

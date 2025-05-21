@@ -1641,19 +1641,29 @@
 #
 #server =
 
-# This item is undocumented. Please contribute documentation for it.
+# URL to a support page for the server, which will be served as part of
+# the MSC1929 server support endpoint at /.well-known/matrix/support.
+# Will be included alongside any contact information
 #
 #support_page =
 
-# This item is undocumented. Please contribute documentation for it.
+# Role string for server support contacts, to be served as part of the
+# MSC1929 server support endpoint at /.well-known/matrix/support.
 #
-#support_role =
+#support_role = "m.role.admin"
 
-# This item is undocumented. Please contribute documentation for it.
+# Email address for server support contacts, to be served as part of the
+# MSC1929 server support endpoint.
+# This will be used along with support_mxid if specified.
 #
 #support_email =
 
-# This item is undocumented. Please contribute documentation for it.
+# Matrix ID for server support contacts, to be served as part of the
+# MSC1929 server support endpoint.
+# This will be used along with support_email if specified.
+#
+# If no email or mxid is specified, all of the server's admins will be
+# listed.
 #
 #support_mxid =
 

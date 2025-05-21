@@ -1897,12 +1897,28 @@ pub struct WellKnownConfig {
 	/// example: "matrix.example.com:443"
 	pub server: Option<OwnedServerName>,
 
+	/// URL to a support page for the server, which will be served as part of
+	/// the MSC1929 server support endpoint at /.well-known/matrix/support.
+	/// Will be included alongside any contact information
 	pub support_page: Option<Url>,
 
+	/// Role string for server support contacts, to be served as part of the
+	/// MSC1929 server support endpoint at /.well-known/matrix/support.
+	///
+	/// default: "m.role.admin"
 	pub support_role: Option<ContactRole>,
 
+	/// Email address for server support contacts, to be served as part of the
+	/// MSC1929 server support endpoint.
+	/// This will be used along with support_mxid if specified.
 	pub support_email: Option<String>,
 
+	/// Matrix ID for server support contacts, to be served as part of the
+	/// MSC1929 server support endpoint.
+	/// This will be used along with support_email if specified.
+	///
+	/// If no email or mxid is specified, all of the server's admins will be
+	/// listed.
 	pub support_mxid: Option<OwnedUserId>,
 }
 
