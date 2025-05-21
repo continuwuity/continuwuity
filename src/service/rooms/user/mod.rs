@@ -128,6 +128,31 @@ pub async fn get_token_shortstatehash(
 		.deserialized()
 }
 
+/// Count how many sync tokens exist for a room without deleting them
+///
+/// This is useful for dry runs to see how many tokens would be deleted
+#[implement(Service)]
+pub async fn count_room_tokens(&self, room_id: &RoomId) -> Result<usize> {
+	use futures::TryStreamExt;
+
+	let shortroomid = self.services.short.get_shortroomid(room_id).await?;
+
+	// Create a prefix to search by - all entries for this room will start with its
+	// short ID
+	let prefix = &[shortroomid];
+
+	// Collect all keys into a Vec and count them
+	let keys = self
+		.db
+		.roomsynctoken_shortstatehash
+		.keys_prefix_raw(prefix)
+		.map_ok(|_| ()) // We only need to count, not store the keys
+		.try_collect::<Vec<_>>()
+		.await?;
+
+	Ok(keys.len())
+}
+
 /// Delete all sync tokens associated with a room
 ///
 /// This helps clean up the database as these tokens are never otherwise removed
