@@ -112,32 +112,23 @@ pub(crate) enum RoomTargetOption {
 }
 
 #[admin_command]
-pub(super) async fn purge_empty_room_tokens(
+pub(super) async fn purge_all_sync_tokens(
 	&self,
-	yes: bool,
 	target_option: Option<RoomTargetOption>,
-	dry_run: bool,
+	execute: bool,
 ) -> Result {
 	use conduwuit::{debug, info};
 
-	if !yes && !dry_run {
-		return Err!(
-			"Please confirm this operation with --yes as it may delete tokens from many rooms, \
-			 or use --dry-run to simulate"
-		);
-	}
-
-	let mode = if dry_run { "Simulating" } else { "Starting" };
+	let mode = if !execute { "Simulating" } else { "Starting" };
 
 	// strictly, we should check if these reach the max value after the loop and
 	// warn the user that the count is too large
-	let mut total_rooms_processed: usize = 0;
-	let mut empty_rooms_processed: u32 = 0;
+	let mut total_rooms_checked: usize = 0;
 	let mut total_tokens_deleted: usize = 0;
 	let mut error_count: u32 = 0;
-	let mut skipped_rooms: u32 = 0;
+	let mut skipped_rooms: usize = 0;
 
-	info!("{} purge of sync tokens for rooms with no local users", mode);
+	info!("{} purge of sync tokens", mode);
 
 	// Get all rooms in the server
 	let all_rooms = self
@@ -185,102 +176,86 @@ pub(super) async fn purge_empty_room_tokens(
 
 	// Process each room
 	for room_id in rooms {
-		total_rooms_processed = total_rooms_processed.saturating_add(1);
-
-		// Count local users in this room
-		let local_users_count = self
-			.services
-			.rooms
-			.state_cache
-			.local_users_in_room(room_id)
-			.count()
-			.await;
-
-		// Only process rooms with no local users
-		if local_users_count == 0 {
-			empty_rooms_processed = empty_rooms_processed.saturating_add(1);
-
-			// In dry run mode, just count what would be deleted, don't actually delete
-			debug!(
-				"Room {} has no local users, {}",
-				room_id,
-				if dry_run {
-					"would purge sync tokens"
-				} else {
-					"purging sync tokens"
-				}
-			);
-
-			if dry_run {
-				// For dry run mode, count tokens without deleting
-				match self.services.rooms.user.count_room_tokens(room_id).await {
-					| Ok(count) =>
-						if count > 0 {
-							debug!("Would delete {} sync tokens for room {}", count, room_id);
-							total_tokens_deleted = total_tokens_deleted.saturating_add(count);
-						} else {
-							debug!("No sync tokens found for room {}", room_id);
-						},
-					| Err(e) => {
-						debug!("Error counting sync tokens for room {}: {:?}", room_id, e);
-						error_count = error_count.saturating_add(1);
-					},
-				}
-			} else {
-				// Real deletion mode
-				match self.services.rooms.user.delete_room_tokens(room_id).await {
-					| Ok(count) =>
-						if count > 0 {
-							debug!("Deleted {} sync tokens for room {}", count, room_id);
-							total_tokens_deleted = total_tokens_deleted.saturating_add(count);
-						} else {
-							debug!("No sync tokens found for room {}", room_id);
-						},
-					| Err(e) => {
-						debug!("Error purging sync tokens for room {}: {:?}", room_id, e);
-						error_count = error_count.saturating_add(1);
-					},
-				}
-			}
-		} else {
-			debug!("Room {} has {} local users, skipping", room_id, local_users_count);
-		}
+		total_rooms_checked = total_rooms_checked.saturating_add(1);
 
 		// Log progress periodically
-		if total_rooms_processed % 100 == 0 || total_rooms_processed == total_rooms {
+		if total_rooms_checked % 100 == 0 || total_rooms_checked == total_rooms {
 			info!(
-				"Progress: {}/{} rooms processed, {} empty rooms found, {} tokens {}",
-				total_rooms_processed,
+				"Progress: {}/{} rooms checked, {} tokens {}",
+				total_rooms_checked,
 				total_rooms,
-				empty_rooms_processed,
 				total_tokens_deleted,
-				if dry_run { "would be deleted" } else { "deleted" }
+				if !execute { "would be deleted" } else { "deleted" }
 			);
+		}
+
+		// In dry run mode, just count what would be deleted, don't actually delete
+		debug!(
+			"Room {} has no local users, {}",
+			room_id,
+			if !execute {
+				"would purge sync tokens"
+			} else {
+				"purging sync tokens"
+			}
+		);
+
+		if !execute {
+			// For dry run mode, count tokens without deleting
+			match self.services.rooms.user.count_room_tokens(room_id).await {
+				| Ok(count) =>
+					if count > 0 {
+						debug!("Would delete {} sync tokens for room {}", count, room_id);
+						total_tokens_deleted = total_tokens_deleted.saturating_add(count);
+					} else {
+						debug!("No sync tokens found for room {}", room_id);
+					},
+				| Err(e) => {
+					debug!("Error counting sync tokens for room {}: {:?}", room_id, e);
+					error_count = error_count.saturating_add(1);
+				},
+			}
+		} else {
+			// Real deletion mode
+			match self.services.rooms.user.delete_room_tokens(room_id).await {
+				| Ok(count) =>
+					if count > 0 {
+						debug!("Deleted {} sync tokens for room {}", count, room_id);
+						total_tokens_deleted = total_tokens_deleted.saturating_add(count);
+					} else {
+						debug!("No sync tokens found for room {}", room_id);
+					},
+				| Err(e) => {
+					debug!("Error purging sync tokens for room {}: {:?}", room_id, e);
+					error_count = error_count.saturating_add(1);
+				},
+			}
 		}
 	}
 
-	let action = if dry_run { "would be deleted" } else { "deleted" };
+	let action = if !execute { "would be deleted" } else { "deleted" };
 	info!(
-		"Finished {}: processed {} empty rooms out of {} total, {} tokens {}, errors: {}",
-		if dry_run {
+		"Finished {}: checked {} rooms out of {} total, {} tokens {}, errors: {}",
+		if !execute {
 			"purge simulation"
 		} else {
 			"purging sync tokens"
 		},
-		empty_rooms_processed,
+		total_rooms_checked,
 		total_rooms,
 		total_tokens_deleted,
 		action,
 		error_count
 	);
 
-	let mode_msg = if dry_run { "DRY RUN: " } else { "" };
 	self.write_str(&format!(
-		"{}Successfully processed {empty_rooms_processed} empty rooms (out of {total_rooms} \
-		 total rooms), {total_tokens_deleted} tokens {}. Skipped {skipped_rooms} rooms based on \
-		 filters. Failed for {error_count} rooms.",
-		mode_msg,
-		if dry_run { "would be deleted" } else { "deleted" }
+		"Finished {}: checked {} rooms out of {} total, {} tokens {}, errors: {}",
+		if !execute { "simulation" } else { "purging sync tokens" },
+		total_rooms_checked,
+		total_rooms,
+		total_tokens_deleted,
+		action,
+		error_count
 	))
 	.await
 }
