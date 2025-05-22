@@ -166,9 +166,6 @@ pub async fn delete_room_tokens(&self, room_id: &RoomId) -> Result<usize> {
 	// short ID
 	let prefix = &[shortroomid];
 
-	// Get all keys with this room prefix
-	let mut count = 0;
-
 	// Collect all keys into a Vec first, then delete them
 	let keys = self
 		.db
@@ -184,8 +181,9 @@ pub async fn delete_room_tokens(&self, room_id: &RoomId) -> Result<usize> {
 	// Delete each key individually
 	for key in &keys {
 		self.db.roomsynctoken_shortstatehash.del(key);
-		count += 1;
 	}
+
+	let count = keys.len();
 
 	Ok(count)
 }
