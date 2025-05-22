@@ -22,13 +22,13 @@ pub(super) enum RoomCommand {
 	ListRooms {
 		page: Option<usize>,
 
-		/// Only purge rooms that have federation disabled
+		/// Excludes rooms that we have federation disabled with
 		#[arg(long)]
-		only_disabled: bool,
+		exclude_disabled: bool,
 
-		/// Only purge rooms that have been banned
+		/// Excludes rooms that we have banned
 		#[arg(long)]
-		only_banned: bool,
+		exclude_banned: bool,
 
 		#[arg(long)]
 		/// Whether to only output room IDs without supplementary room
