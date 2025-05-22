@@ -57,7 +57,6 @@ jobs:
 
   build-image:
     runs-on: dind
-    container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: define-variables
     permissions:
       contents: read
@@ -211,7 +210,6 @@ jobs:
 
   merge:
     runs-on: dind
-    container: ghcr.io/catthehacker/ubuntu:act-latest
     needs: [define-variables, build-image]
     steps:
       - name: Download digests
