@@ -811,6 +811,24 @@ pub struct Config {
 	#[serde(default)]
 	pub log_thread_ids: bool,
 
+	/// Enable journald logging on Unix platforms
+	///
+	/// When enabled, log output will be sent to the systemd journal
+	/// This is only supported on Unix platforms
+	///
+	/// default: false
+	#[cfg(target_family = "unix")]
+	#[serde(default)]
+	pub log_to_journald: bool,
+
+	/// The syslog identifier to use with journald logging
+	///
+	/// Only used when journald logging is enabled
+	///
+	/// Defaults to the binary name
+	#[cfg(target_family = "unix")]
+	pub journald_identifier: Option<String>,
+
 	/// OpenID token expiration/TTL in seconds.
 	///
 	/// These are the OpenID tokens that are primarily used for Matrix account

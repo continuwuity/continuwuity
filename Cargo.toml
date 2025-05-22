@@ -213,6 +213,8 @@ default-features = false
 version = "0.3.19"
 default-features = false
 features = ["env-filter", "std", "tracing", "tracing-log", "ansi", "fmt"]
+[workspace.dependencies.tracing-journald]
+version = "0.3.1"
 [workspace.dependencies.tracing-core]
 version = "0.1.33"
 default-features = false
