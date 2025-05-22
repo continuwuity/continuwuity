@@ -6,6 +6,7 @@ use conduwuit::{
 };
 use conduwuit_service::Services;
 use futures::TryStreamExt;
+use futures::FutureExt;
 use ruma::{
 	OwnedEventId, RoomId, UserId,
 	api::client::state::{get_state_events, get_state_events_for_key, send_state_event},
