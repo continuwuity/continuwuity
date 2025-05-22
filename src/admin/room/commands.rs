@@ -89,9 +89,8 @@ pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result
 	let room_id = self.services.rooms.alias.resolve(&room).await?;
 
 	// Delete all tokens for this room using the service method
-	let deleted_count = match self.services.rooms.user.delete_room_tokens(&room_id).await {
-		| Ok(count) => count,
-		| Err(_) => return Err!("Failed to delete sync tokens for room {}", room_id),
+	let Ok(deleted_count) = self.services.rooms.user.delete_room_tokens(&room_id).await else {
+		return Err!("Failed to delete sync tokens for room {}", room_id);
 	};
 
 	self.write_str(&format!(
@@ -100,12 +99,23 @@ pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result
 	.await
 }
 
+/// Target options for room purging
+#[derive(Default, Debug, clap::ValueEnum, Clone)]
+pub(crate) enum RoomTargetOption {
+	#[default]
+	/// Target all rooms
+	All,
+	/// Target only disabled rooms
+	DisabledOnly,
+	/// Target only banned rooms
+	BannedOnly,
+}
+
 #[admin_command]
 pub(super) async fn purge_empty_room_tokens(
 	&self,
 	yes: bool,
-	target_disabled: bool,
-	target_banned: bool,
+	target_option: Option<RoomTargetOption>,
 	dry_run: bool,
 ) -> Result {
 	use conduwuit::{debug, info};
@@ -119,11 +129,13 @@ pub(super) async fn purge_empty_room_tokens(
 
 	let mode = if dry_run { "Simulating" } else { "Starting" };
 
-	let mut total_rooms_processed = 0;
-	let mut empty_rooms_processed = 0;
-	let mut total_tokens_deleted = 0;
-	let mut error_count = 0;
-	let mut skipped_rooms = 0;
+	// strictly, we should check if these reach the max value after the loop and
+	// warn the user that the count is too large
+	let mut total_rooms_processed: usize = 0;
+	let mut empty_rooms_processed: u32 = 0;
+	let mut total_tokens_deleted: usize = 0;
+	let mut error_count: u32 = 0;
+	let mut skipped_rooms: u32 = 0;
 
 	info!("{} purge of sync tokens for rooms with no local users", mode);
 
@@ -141,17 +153,24 @@ pub(super) async fn purge_empty_room_tokens(
 	// Filter rooms based on options
 	let mut rooms = Vec::new();
 	for room_id in all_rooms {
-		// Filter rooms based on targeting options
-		let is_disabled = self.services.rooms.metadata.is_disabled(room_id).await;
-		let is_banned = self.services.rooms.metadata.is_banned(room_id).await;
-
-		// If targeting specific types of rooms, only include matching rooms
-		if (target_disabled || target_banned)
-			&& !((target_disabled && is_disabled) || (target_banned && is_banned))
-		{
-			debug!("Skipping room {} as it doesn't match targeting criteria", room_id);
-			skipped_rooms += 1;
-			continue;
+		if let Some(target) = &target_option {
+			match target {
+				| RoomTargetOption::DisabledOnly => {
+					if !self.services.rooms.metadata.is_disabled(room_id).await {
+						debug!("Skipping room {} as it's not disabled", room_id);
+						skipped_rooms = skipped_rooms.saturating_add(1);
+						continue;
+					}
+				},
+				| RoomTargetOption::BannedOnly => {
+					if !self.services.rooms.metadata.is_banned(room_id).await {
+						debug!("Skipping room {} as it's not banned", room_id);
+						skipped_rooms = skipped_rooms.saturating_add(1);
+						continue;
+					}
+				},
+				| RoomTargetOption::All => {},
+			}
 		}
 
 		rooms.push(room_id);
@@ -166,7 +185,7 @@ pub(super) async fn purge_empty_room_tokens(
 
 	// Process each room
 	for room_id in rooms {
-		total_rooms_processed += 1;
+		total_rooms_processed = total_rooms_processed.saturating_add(1);
 
 		// Count local users in this room
 		let local_users_count = self
@@ -179,7 +198,7 @@ pub(super) async fn purge_empty_room_tokens(
 
 		// Only process rooms with no local users
 		if local_users_count == 0 {
-			empty_rooms_processed += 1;
+			empty_rooms_processed = empty_rooms_processed.saturating_add(1);
 
 			// In dry run mode, just count what would be deleted, don't actually delete
 			debug!(
@@ -198,13 +217,13 @@ pub(super) async fn purge_empty_room_tokens(
 					| Ok(count) =>
 						if count > 0 {
 							debug!("Would delete {} sync tokens for room {}", count, room_id);
-							total_tokens_deleted += count;
+							total_tokens_deleted = total_tokens_deleted.saturating_add(count);
 						} else {
 							debug!("No sync tokens found for room {}", room_id);
 						},
 					| Err(e) => {
 						debug!("Error counting sync tokens for room {}: {:?}", room_id, e);
-						error_count += 1;
+						error_count = error_count.saturating_add(1);
 					},
 				}
 			} else {
@@ -213,13 +232,13 @@ pub(super) async fn purge_empty_room_tokens(
 					| Ok(count) =>
 						if count > 0 {
 							debug!("Deleted {} sync tokens for room {}", count, room_id);
-							total_tokens_deleted += count;
+							total_tokens_deleted = total_tokens_deleted.saturating_add(count);
 						} else {
 							debug!("No sync tokens found for room {}", room_id);
 						},
 					| Err(e) => {
 						debug!("Error purging sync tokens for room {}: {:?}", room_id, e);
-						error_count += 1;
+						error_count = error_count.saturating_add(1);
 					},
 				}
 			}
