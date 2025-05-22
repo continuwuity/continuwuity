@@ -5,6 +5,7 @@ mod info;
 mod moderation;
 
 use clap::Subcommand;
+use commands::RoomTargetOption;
 use conduwuit::Result;
 use ruma::{OwnedRoomId, OwnedRoomOrAliasId};
 
@@ -66,21 +67,15 @@ pub(super) enum RoomCommand {
 
 	/// - Delete sync tokens for all rooms that have no local users
 	///
-	/// By default, processes all empty rooms. You can use --target-disabled
-	/// and/or --target-banned to exclusively process rooms matching those
-	/// conditions.
+	/// By default, processes all empty rooms.
 	PurgeEmptyRoomTokens {
 		/// Confirm you want to delete tokens from potentially many rooms
 		#[arg(long)]
 		yes: bool,
 
-		/// Only purge rooms that have federation disabled
-		#[arg(long)]
-		target_disabled: bool,
-
-		/// Only purge rooms that have been banned
-		#[arg(long)]
-		target_banned: bool,
+		/// Target specific room types
+		#[arg(long, value_enum)]
+		target_option: Option<RoomTargetOption>,
 
 		/// Perform a dry run without actually deleting any tokens
 		#[arg(long)]
