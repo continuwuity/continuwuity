@@ -68,17 +68,14 @@ pub(super) enum RoomCommand {
 	/// - Delete sync tokens for all rooms that have no local users
 	///
 	/// By default, processes all empty rooms.
-	PurgeEmptyRoomTokens {
-		/// Confirm you want to delete tokens from potentially many rooms
-		#[arg(long)]
-		yes: bool,
-
+	PurgeAllSyncTokens {
 		/// Target specific room types
 		#[arg(long, value_enum)]
 		target_option: Option<RoomTargetOption>,
 
-		/// Perform a dry run without actually deleting any tokens
+		/// Execute token deletions. Otherwise,
+		/// Performs a dry run without actually deleting any tokens
 		#[arg(long)]
-		dry_run: bool,
+		execute: bool,
 	},
 }
