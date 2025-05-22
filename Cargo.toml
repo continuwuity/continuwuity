@@ -213,6 +213,8 @@ default-features = false
 version = "0.3.19"
 default-features = false
 features = ["env-filter", "std", "tracing", "tracing-log", "ansi", "fmt"]
+[workspace.dependencies.tracing-journald]
+version = "0.3.1"
 [workspace.dependencies.tracing-core]
 version = "0.1.33"
 default-features = false
@@ -381,7 +383,7 @@ features = [
     "unstable-msc4121",
     "unstable-msc4125",
     "unstable-msc4186",
-    "unstable-msc4203", # sending to-device events to appservices 
+    "unstable-msc4203", # sending to-device events to appservices
     "unstable-msc4210", # remove legacy mentions
     "unstable-extensible-events",
     "unstable-pdu",

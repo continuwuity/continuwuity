@@ -660,6 +660,15 @@
 #
 #log_thread_ids = false
 
+# Enable journald logging on Unix platforms
+#
+#log_to_journald = false
+
+# The syslog identifier to use with journald logging
+# Only used when journald logging is enabled
+#
+#journald_identifier = "conduwuit"
+
 # OpenID token expiration/TTL in seconds.
 #
 # These are the OpenID tokens that are primarily used for Matrix account
