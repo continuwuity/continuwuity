@@ -35,8 +35,8 @@ env:
     # Get error output from nix that we can actually use, and use our binary caches for the earlier CI steps
     NIX_CONFIG: |
       show-trace = true
-      extra-substituters = https://attic.kennel.juneis.dog/conduwuit https://attic.kennel.juneis.dog/conduit https://conduwuit.cachix.org https://aseipp-nix-cache.freetls.fastly.net https://nix-community.cachix.org https://crane.cachix.org
-      extra-trusted-public-keys = conduit:eEKoUwlQGDdYmAI/Q/0slVlegqh/QmAvQd7HBSm21Wk= conduwuit:BbycGUgTISsltcmH0qNjFR9dbrQNYgdIAcmViSGoVTE= conduwuit.cachix.org-1:MFRm6jcnfTf0jSAbmvLfhO3KBMt4px+1xaereWXp8Xg= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= crane.cachix.org-1:8Scfpmn9w+hGdXH/Q9tTLiYAE/2dnJYRJP7kl80GuRk=
+      extra-substituters = https://continuwuity.cachix.org https://conduwuit.cachix.org https://aseipp-nix-cache.freetls.fastly.net https://nix-community.cachix.org https://crane.cachix.org
+      extra-trusted-public-keys = continuwuity.cachix.org-1:Plj5sm9Wtk2USNVLAku/iNOXxu4LXT35OlMNkGmShvs= conduwuit.cachix.org-1:MFRm6jcnfTf0jSAbmvLfhO3KBMt4px+1xaereWXp8Xg= nix-community.cachix.org-1:mB9FSh9qf2dCimDSUo8Zy7bkq5CX+/rkCWyvRCYg3Fs= crane.cachix.org-1:8Scfpmn9w+hGdXH/Q9tTLiYAE/2dnJYRJP7kl80GuRk=
       experimental-features = nix-command flakes
       extra-experimental-features = nix-command flakes
       accept-flake-config = true
