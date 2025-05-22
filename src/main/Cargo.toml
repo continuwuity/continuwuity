@@ -43,6 +43,7 @@ default = [
 	"io_uring",
 	"jemalloc",
 	"jemalloc_conf",
+	"journald",
 	"media_thumbnail",
 	"release_max_log_level",
 	"systemd",
@@ -130,6 +131,11 @@ sentry_telemetry = [
 systemd = [
 	"conduwuit-router/systemd",
 ]
+journald = [ # This is a stub on non-unix platforms
+	"dep:tracing-journald",
+]
+
+
 # enable the tokio_console server ncompatible with release_max_log_level
 tokio_console = [
 	"dep:console-subscriber",
@@ -183,6 +189,7 @@ tracing-opentelemetry.optional = true
 tracing-opentelemetry.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
+tracing-journald = { workspace = true, optional = true }
 
 [target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]
 hardened_malloc-rs.workspace = true

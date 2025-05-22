@@ -16,6 +16,10 @@ DeviceAllow=char-tty
 StandardInput=tty-force
 StandardOutput=tty
 StandardError=journal+console
+
+Environment="CONTINUWUITY_LOG_TO_JOURNALD=1"
+Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
+
 TTYReset=yes
 # uncomment to allow buffer to be cleared every restart
 TTYVTDisallocate=no
