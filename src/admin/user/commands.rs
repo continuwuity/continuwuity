@@ -9,6 +9,7 @@ use conduwuit::{
 };
 use conduwuit_api::client::{leave_all_rooms, update_avatar_url, update_displayname};
 use futures::StreamExt;
+use futures::FutureExt;
 use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,
 	events::{
