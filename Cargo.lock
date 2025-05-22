@@ -797,6 +797,7 @@ dependencies = [
  "tokio-metrics",
  "tracing",
  "tracing-flame",
+ "tracing-journald",
  "tracing-opentelemetry",
  "tracing-subscriber",
 ]
@@ -5175,6 +5176,17 @@ checksum = "0bae117ee14789185e129aaee5d93750abe67fdc5a9a62650452bfe4e122a3a9"
 dependencies = [
  "lazy_static",
  "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "tracing-journald"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc0b4143302cf1022dac868d521e36e8b27691f72c84b3311750d5188ebba657"
+dependencies = [
+ "libc",
+ "tracing-core",
  "tracing-subscriber",
 ]
 

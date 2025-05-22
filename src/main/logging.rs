@@ -46,6 +46,16 @@ pub(crate) fn init(
 		.with(console_layer.with_filter(console_reload_filter))
 		.with(cap_layer);
 
+	// If journald logging is enabled on Unix platforms, create a separate
+	// subscriber for it
+	#[cfg(all(target_family = "unix", feature = "journald"))]
+	if config.log_to_journald {
+		println!("Initialising journald logging");
+		if let Err(e) = init_journald_logging(config) {
+			eprintln!("Failed to initialize journald logging: {e}");
+		}
+	}
+
 	#[cfg(feature = "sentry_telemetry")]
 	let subscriber = {
 		let sentry_filter = EnvFilter::try_new(&config.sentry_filter)
@@ -135,6 +145,28 @@ pub(crate) fn init(
 	Ok(ret)
 }
 
+#[cfg(all(target_family = "unix", feature = "journald"))]
+fn init_journald_logging(config: &Config) -> Result<()> {
+	use tracing_journald::Layer as JournaldLayer;
+
+	let journald_filter =
+		EnvFilter::try_new(&config.log).map_err(|e| err!(Config("log", "{e}.")))?;
+
+	let mut journald_layer = JournaldLayer::new()
+		.map_err(|e| err!(Config("journald", "Failed to initialize journald layer: {e}.")))?;
+
+	if let Some(ref identifier) = config.journald_identifier {
+		journald_layer = journald_layer.with_syslog_identifier(identifier.to_owned());
+	}
+
+	let journald_subscriber =
+		Registry::default().with(journald_layer.with_filter(journald_filter));
+
+	let _guard = tracing::subscriber::set_default(journald_subscriber);
+
+	Ok(())
+}
+
 fn tokio_console_enabled(config: &Config) -> (bool, &'static str) {
 	if !cfg!(all(feature = "tokio_console", tokio_unstable)) {
 		return (false, "");
@@ -154,7 +186,10 @@ fn tokio_console_enabled(config: &Config) -> (bool, &'static str) {
 	(true, "")
 }
 
-fn set_global_default<S: SubscriberExt + Send + Sync>(subscriber: S) {
+fn set_global_default<S>(subscriber: S)
+where
+	S: tracing::Subscriber + Send + Sync + 'static,
+{
 	tracing::subscriber::set_global_default(subscriber)
 		.expect("the global default tracing subscriber failed to be initialized");
 }
