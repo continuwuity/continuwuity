@@ -19,11 +19,20 @@ outputs:
   rustc_version:
     description: The rustc version installed
     value: ${{ steps.rustc-version.outputs.version }}
+  rustup_version:
+    description: The rustup version installed
+    value: ${{ steps.rustup-version.outputs.version }}
 
 runs:
   using: composite
   steps:
+    - name: Check if rustup is already installed
+      shell: bash
+      id: rustup-version
+      run: |
+        echo "version=$(rustup --version)" >> $GITHUB_OUTPUT
     - name: Cache rustup toolchains
+      if: steps.rustup-version.outputs.version == ''
       uses: actions/cache@v3
       with:
         path: |
@@ -33,6 +42,7 @@ runs:
         # Requires repo to be cloned if toolchain is not specified
         key: ${{ runner.os }}-rustup-${{ inputs.toolchain || hashFiles('**/rust-toolchain.toml') }}
     - name: Install Rust toolchain
+      if: steps.rustup-version.outputs.version == ''
       shell: bash
       run: |
         if ! command -v rustup &> /dev/null ; then
