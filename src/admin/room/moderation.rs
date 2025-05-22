@@ -6,6 +6,7 @@ use conduwuit::{
 	warn,
 };
 use futures::StreamExt;
+use futures::FutureExt;
 use ruma::{OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId};
 
 use crate::{admin_command, admin_command_dispatch, get_room_info};
