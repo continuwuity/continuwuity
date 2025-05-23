@@ -8,7 +8,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// Resolver service and caches
-pub(crate) enum ResolverCommand {
+pub enum ResolverCommand {
 	/// Query the destinations cache
 	DestinationsCache {
 		server_name: Option<OwnedServerName>,

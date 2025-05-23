@@ -662,12 +662,18 @@
 
 # Enable journald logging on Unix platforms
 #
+# When enabled, log output will be sent to the systemd journal
+# This is only supported on Unix platforms
+#
 #log_to_journald = false
 
 # The syslog identifier to use with journald logging
+#
 # Only used when journald logging is enabled
 #
-#journald_identifier = "conduwuit"
+# Defaults to the binary name
+#
+#journald_identifier =
 
 # OpenID token expiration/TTL in seconds.
 #

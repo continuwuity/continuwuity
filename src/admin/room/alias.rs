@@ -8,7 +8,7 @@ use ruma::{OwnedRoomAliasId, OwnedRoomId};
 use crate::Context;
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum RoomAliasCommand {
+pub enum RoomAliasCommand {
 	/// - Make an alias point to a room.
 	Set {
 		#[arg(short, long)]

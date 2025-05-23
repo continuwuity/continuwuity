@@ -12,7 +12,7 @@ use crate::{admin_command, admin_command_dispatch, get_room_info};
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(crate) enum RoomModerationCommand {
+pub enum RoomModerationCommand {
 	/// - Bans a room from local users joining and evicts all our local users
 	///   (including server
 	/// admins)

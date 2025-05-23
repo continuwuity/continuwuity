@@ -2,7 +2,7 @@
 
 [workspace]
 resolver = "2"
-members = ["src/*"]
+members = ["src/*", "xtask/*"]
 default-members = ["src/*"]
 
 [workspace.package]
@@ -638,6 +638,11 @@ default-features = false
 package = "conduwuit_build_metadata"
 path = "src/build_metadata"
 default-features = false
+
+
+[workspace.dependencies.conduwuit]
+package = "conduwuit"
+path = "src/main"
 
 ###############################################################################
 #

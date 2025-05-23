@@ -8,7 +8,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/sending.rs
-pub(crate) enum SendingCommand {
+pub enum SendingCommand {
 	/// - Queries database for all `servercurrentevent_data`
 	ActiveRequests,
 

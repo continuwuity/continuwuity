@@ -8,7 +8,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/account_data.rs
-pub(crate) enum AccountDataCommand {
+pub enum AccountDataCommand {
 	/// - Returns all changes to the account data that happened after `since`.
 	ChangesSince {
 		/// Full user ID

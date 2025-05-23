@@ -4,7 +4,7 @@ use crate::{admin_command, admin_command_dispatch};
 
 #[admin_command_dispatch]
 #[derive(Debug, clap::Subcommand)]
-pub(crate) enum TesterCommand {
+pub enum TesterCommand {
 	Panic,
 	Failure,
 	Tester,
