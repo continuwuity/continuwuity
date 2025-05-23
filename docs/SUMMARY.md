@@ -15,6 +15,7 @@
 - [Appservices](appservices.md)
 - [Maintenance](maintenance.md)
 - [Troubleshooting](troubleshooting.md)
+- [Admin Command Reference](admin_reference.md)
 - [Development](development.md)
   - [Contributing](contributing.md)
   - [Testing](development/testing.md)

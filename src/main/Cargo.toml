@@ -14,6 +14,13 @@ rust-version.workspace = true
 version.workspace = true
 metadata.crane.workspace = true
 
+[lib]
+path = "mod.rs"
+crate-type = [
+	"rlib",
+#	"dylib",
+]
+
 [package.metadata.deb]
 name = "conduwuit"
 maintainer = "strawberry <strawberry@puppygock.gay>"

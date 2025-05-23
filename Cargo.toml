@@ -2,7 +2,7 @@
 
 [workspace]
 resolver = "2"
-members = ["src/*"]
+members = ["src/*", "xtask/*"]
 default-members = ["src/*"]
 
 [workspace.package]
@@ -638,6 +638,11 @@ package = "conduwuit_build_metadata"
 path = "src/build_metadata"
 default-features = false
 
+
+[workspace.dependencies.conduwuit]
+package = "conduwuit"
+path = "src/main"
+
 ###############################################################################
 #
 # Release profiles
@@ -763,7 +768,8 @@ inherits = "dev"
 #	'-Clink-arg=-Wl,-z,nodlopen',
 #	'-Clink-arg=-Wl,-z,nodelete',
 #]
-
+[profile.dev.package.xtask-admin-command]
+inherits = "dev"
 [profile.dev.package.conduwuit]
 inherits = "dev"
 #rustflags = [

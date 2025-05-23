@@ -9,7 +9,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum ServerCommand {
+pub enum ServerCommand {
 	/// - Time elapsed since startup
 	Uptime,
 

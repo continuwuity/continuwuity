@@ -5,7 +5,7 @@ use ruma::OwnedUserId;
 use crate::Context;
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum PusherCommand {
+pub enum PusherCommand {
 	/// - Returns all the pushers for the user.
 	GetPushers {
 		/// Full user ID

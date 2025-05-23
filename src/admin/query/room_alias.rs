@@ -7,7 +7,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/rooms/alias.rs
-pub(crate) enum RoomAliasCommand {
+pub enum RoomAliasCommand {
 	ResolveLocalAlias {
 		/// Full room alias
 		alias: OwnedRoomAliasId,

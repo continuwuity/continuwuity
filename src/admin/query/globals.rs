@@ -6,7 +6,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/globals.rs
-pub(crate) enum GlobalsCommand {
+pub enum GlobalsCommand {
 	DatabaseVersion,
 
 	CurrentCount,

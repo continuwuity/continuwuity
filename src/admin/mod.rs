@@ -33,6 +33,8 @@ conduwuit::mod_ctor! {}
 conduwuit::mod_dtor! {}
 conduwuit::rustc_flags_capture! {}
 
+pub use crate::admin::AdminCommand;
+
 /// Install the admin command processor
 pub async fn init(admin_service: &service::admin::Service) {
 	_ = admin_service

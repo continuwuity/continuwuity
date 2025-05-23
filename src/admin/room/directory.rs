@@ -6,7 +6,7 @@ use ruma::OwnedRoomId;
 use crate::{Context, PAGE_SIZE, get_room_info};
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum RoomDirectoryCommand {
+pub enum RoomDirectoryCommand {
 	/// - Publish a room to the room directory
 	Publish {
 		/// The room id of the room to publish
