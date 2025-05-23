@@ -8,7 +8,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// Query tables from database
-pub(crate) enum RoomTimelineCommand {
+pub enum RoomTimelineCommand {
 	Pdus {
 		room_id: OwnedRoomOrAliasId,
 

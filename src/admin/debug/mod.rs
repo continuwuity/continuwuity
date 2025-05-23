@@ -11,7 +11,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum DebugCommand {
+pub enum DebugCommand {
 	/// - Echo input of admin command
 	Echo {
 		message: Vec<String>,

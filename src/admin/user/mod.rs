@@ -8,7 +8,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum UserCommand {
+pub enum UserCommand {
 	/// - Create a new user
 	#[clap(alias = "create")]
 	CreateUser {
