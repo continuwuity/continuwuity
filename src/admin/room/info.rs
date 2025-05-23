@@ -7,7 +7,7 @@ use crate::{admin_command, admin_command_dispatch};
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(crate) enum RoomInfoCommand {
+pub enum RoomInfoCommand {
 	/// - List joined members in a room
 	ListJoinedMembers {
 		room_id: OwnedRoomId,

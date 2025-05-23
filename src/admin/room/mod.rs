@@ -16,7 +16,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum RoomCommand {
+pub enum RoomCommand {
 	/// - List all rooms the server knows about
 	#[clap(alias = "list")]
 	ListRooms {

@@ -6,7 +6,7 @@ use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
 use crate::Context;
 
 #[derive(Debug, Subcommand)]
-pub(crate) enum RoomStateCacheCommand {
+pub enum RoomStateCacheCommand {
 	ServerInRoom {
 		server: OwnedServerName,
 		room_id: OwnedRoomId,

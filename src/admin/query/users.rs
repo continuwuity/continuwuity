@@ -8,7 +8,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/users.rs
-pub(crate) enum UsersCommand {
+pub enum UsersCommand {
 	CountUsers,
 
 	IterUsers,

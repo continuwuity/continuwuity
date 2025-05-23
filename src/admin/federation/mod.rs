@@ -8,7 +8,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum FederationCommand {
+pub enum FederationCommand {
 	/// - List all rooms we are currently handling an incoming pdu from
 	IncomingFederation,
 

@@ -19,7 +19,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[derive(Debug, Subcommand)]
 #[allow(clippy::enum_variant_names)]
 /// Query tables from database
-pub(crate) enum RawCommand {
+pub enum RawCommand {
 	/// - List database maps
 	RawMaps,
 

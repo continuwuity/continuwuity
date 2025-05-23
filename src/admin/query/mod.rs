@@ -27,7 +27,7 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// Query tables from database
-pub(super) enum QueryCommand {
+pub enum QueryCommand {
 	/// - account_data.rs iterators and getters
 	#[command(subcommand)]
 	AccountData(AccountDataCommand),

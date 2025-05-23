@@ -7,7 +7,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 /// Query tables from database
-pub(crate) enum ShortCommand {
+pub enum ShortCommand {
 	ShortEventId {
 		event_id: OwnedEventId,
 	},

@@ -7,7 +7,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/presence.rs
-pub(crate) enum PresenceCommand {
+pub enum PresenceCommand {
 	/// - Returns the latest presence event for the given user.
 	GetPresence {
 		/// Full user ID

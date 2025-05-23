@@ -1,0 +1,26 @@
+[package]
+name = "xtask-admin-command"
+authors.workspace = true
+categories.workspace = true
+description.workspace = true
+edition.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+clap-markdown = "0.1.5"
+clap_builder = { version = "4.5.38", default-features = false }
+clap_mangen = "0.2"
+
+conduwuit-admin.workspace = true
+
+# Hack to prevent rebuilds
+conduwuit.workspace = true
+
+[lints]
+workspace = true

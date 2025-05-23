@@ -9,7 +9,7 @@ use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
-pub(super) enum MediaCommand {
+pub enum MediaCommand {
 	/// - Deletes a single media file from our database and on the filesystem
 	///   via a single MXC URL or event ID (not redacted)
 	Delete {
@@ -90,10 +90,10 @@ pub(super) enum MediaCommand {
 		#[arg(short, long, default_value("10000"))]
 		timeout: u32,
 
-		#[arg(short, long, default_value("800"))]
+		#[arg(long, default_value("800"))]
 		width: u32,
 
-		#[arg(short, long, default_value("800"))]
+		#[arg(long, default_value("800"))]
 		height: u32,
 	},
 }
