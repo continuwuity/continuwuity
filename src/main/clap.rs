@@ -15,7 +15,7 @@ use conduwuit_core::{
 #[clap(
 	about,
 	long_about = None,
-	name = "conduwuit",
+	name = conduwuit_core::name(),
 	version = conduwuit_core::version(),
 )]
 pub(crate) struct Args {
