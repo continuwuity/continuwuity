@@ -175,8 +175,8 @@ pub(super) async fn purge_all_sync_tokens(
 
 		// In dry run mode, just count what would be deleted, don't actually delete
 		debug!(
-			"Room {} has no local users, {}",
-			room_id,
+			"Room {}: {}",
+			room_id.as_str(),
 			if !execute {
 				"would purge sync tokens"
 			} else {
@@ -204,7 +204,7 @@ pub(super) async fn purge_all_sync_tokens(
 			match self.services.rooms.user.delete_room_tokens(room_id).await {
 				| Ok(count) =>
 					if count > 0 {
-						debug!("Deleted {} sync tokens for room {}", count, room_id);
+						debug!("Deleted {} sync tokens for room {}", count, room_id.as_str());
 						total_tokens_deleted = total_tokens_deleted.saturating_add(count);
 					} else {
 						debug!("No sync tokens found for room {}", room_id);
