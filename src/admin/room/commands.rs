@@ -74,11 +74,12 @@ pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result
 
 	// Delete all tokens for this room using the service method
 	let Ok(deleted_count) = self.services.rooms.user.delete_room_tokens(&room_id).await else {
-		return Err!("Failed to delete sync tokens for room {}", room_id);
+		return Err!("Failed to delete sync tokens for room {}", room_id.as_str());
 	};
 
 	self.write_str(&format!(
-		"Successfully deleted {deleted_count} sync tokens for room {room_id}"
+		"Successfully deleted {deleted_count} sync tokens for room {}",
+		room_id.as_str()
 	))
 	.await
 }
@@ -132,14 +133,14 @@ pub(super) async fn purge_all_sync_tokens(
 			match target {
 				| RoomTargetOption::DisabledOnly => {
 					if !self.services.rooms.metadata.is_disabled(room_id).await {
-						debug!("Skipping room {} as it's not disabled", room_id);
+						debug!("Skipping room {} as it's not disabled", room_id.as_str());
 						skipped_rooms = skipped_rooms.saturating_add(1);
 						continue;
 					}
 				},
 				| RoomTargetOption::BannedOnly => {
 					if !self.services.rooms.metadata.is_banned(room_id).await {
-						debug!("Skipping room {} as it's not banned", room_id);
+						debug!("Skipping room {} as it's not banned", room_id.as_str());
 						skipped_rooms = skipped_rooms.saturating_add(1);
 						continue;
 					}
@@ -175,8 +176,8 @@ pub(super) async fn purge_all_sync_tokens(
 
 		// In dry run mode, just count what would be deleted, don't actually delete
 		debug!(
-			"Room {} has no local users, {}",
-			room_id,
+			"Room {}: {}",
+			room_id.as_str(),
 			if !execute {
 				"would purge sync tokens"
 			} else {
@@ -189,13 +190,17 @@ pub(super) async fn purge_all_sync_tokens(
 			match self.services.rooms.user.count_room_tokens(room_id).await {
 				| Ok(count) =>
 					if count > 0 {
-						debug!("Would delete {} sync tokens for room {}", count, room_id);
+						debug!(
+							"Would delete {} sync tokens for room {}",
+							count,
+							room_id.as_str()
+						);
 						total_tokens_deleted = total_tokens_deleted.saturating_add(count);
 					} else {
-						debug!("No sync tokens found for room {}", room_id);
+						debug!("No sync tokens found for room {}", room_id.as_str());
 					},
 				| Err(e) => {
-					debug!("Error counting sync tokens for room {}: {:?}", room_id, e);
+					debug!("Error counting sync tokens for room {}: {:?}", room_id.as_str(), e);
 					error_count = error_count.saturating_add(1);
 				},
 			}
@@ -204,13 +209,13 @@ pub(super) async fn purge_all_sync_tokens(
 			match self.services.rooms.user.delete_room_tokens(room_id).await {
 				| Ok(count) =>
 					if count > 0 {
-						debug!("Deleted {} sync tokens for room {}", count, room_id);
+						debug!("Deleted {} sync tokens for room {}", count, room_id.as_str());
 						total_tokens_deleted = total_tokens_deleted.saturating_add(count);
 					} else {
-						debug!("No sync tokens found for room {}", room_id);
+						debug!("No sync tokens found for room {}", room_id.as_str());
 					},
 				| Err(e) => {
-					debug!("Error purging sync tokens for room {}: {:?}", room_id, e);
+					debug!("Error purging sync tokens for room {}: {:?}", room_id.as_str(), e);
 					error_count = error_count.saturating_add(1);
 				},
 			}
