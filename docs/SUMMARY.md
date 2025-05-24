@@ -20,3 +20,4 @@
   - [Testing](development/testing.md)
   - [Hot Reloading ("Live" Development)](development/hot_reload.md)
 - [Community (and Guidelines)](community.md)
+- [Security](security.md)
