@@ -1,5 +1,5 @@
 [files]
-extend-exclude = ["*.csr"]
+extend-exclude = ["*.csr", "*.lock"]
 
 [default.extend-words]
 "allocatedp" = "allocatedp"
