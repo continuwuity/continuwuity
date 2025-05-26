@@ -1009,8 +1009,6 @@ async fn calculate_state_incremental<'a>(
 ) -> Result<StateChanges> {
 	let since_shortstatehash = since_shortstatehash.unwrap_or(current_shortstatehash);
 
-	let state_changed = since_shortstatehash != current_shortstatehash;
-
 	let encrypted_room = services
 		.rooms
 		.state_accessor
@@ -1042,7 +1040,7 @@ async fn calculate_state_incremental<'a>(
 		})
 		.into();
 
-	let state_diff_ids: OptionFuture<_> = (!full_state && state_changed)
+	let state_diff_ids: OptionFuture<_> = (!full_state)
 		.then(|| {
 			StreamExt::into_future(
 				services
