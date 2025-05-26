@@ -12,16 +12,18 @@ We provide security updates for the following versions of Continuwuity:
 | Main branch    |        ✅        |
 | Older releases |        ❌        |
 
+We may backport fixes to the previous release at our discretion, but we don't guarantee this.
+
 ## Reporting a Vulnerability
 
 ### Responsible Disclosure
 
 We appreciate the efforts of security researchers and the community in identifying and reporting vulnerabilities. To ensure that potential vulnerabilities are addressed properly, please follow these guidelines:
 
-1. **Email the security team** directly at [security@continuwuity.org](mailto:security@continuwuity.org)
-2. Contact members of the team over E2EE private message.
+1. Contact members of the team over E2EE private message.
    - [@jade:ellis.link](https://matrix.to/#/@jade:ellis.link)
    - [@nex:nexy7574.co.uk](https://matrix.to/#/@nex:nexy7574.co.uk) <!-- ? -->
+2. **Email the security team** directly at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so don't include sensitive details.
 3. **Do not disclose the vulnerability publicly** until it has been addressed
 4. **Provide detailed information** about the vulnerability, including:
    - A clear description of the issue
@@ -29,6 +31,8 @@ We appreciate the efforts of security researchers and the community in identifyi
    - Potential impact
    - Any possible mitigations
    - Version(s) affected, including specific commits if possible
+
+If you have any doubts about a potential security vulnerability, contact us via private channels first! We'd prefer that you bother us, instead of having a vulnerability disclosed without a fix.
 
 ### What to Expect
 
