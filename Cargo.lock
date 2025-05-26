@@ -3695,7 +3695,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.10.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "assign",
  "js_int",
@@ -3715,7 +3715,7 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.10.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3727,7 +3727,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.18.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "as_variant",
  "assign",
@@ -3750,7 +3750,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
@@ -3782,7 +3782,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.28.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "as_variant",
  "indexmap 2.9.0",
@@ -3807,7 +3807,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "bytes",
  "headers",
@@ -3829,7 +3829,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.9.5"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "js_int",
  "thiserror 2.0.12",
@@ -3838,7 +3838,7 @@ dependencies = [
 [[package]]
 name = "ruma-identity-service-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3848,7 +3848,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "cfg-if",
  "proc-macro-crate",
@@ -3863,7 +3863,7 @@ dependencies = [
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -3875,7 +3875,7 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.15.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d6870a7fb7f6cccff63f7fd0ff6c581bad80e983#d6870a7fb7f6cccff63f7fd0ff6c581bad80e983"
+source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=a48665b682be1016cea53ea5e7787442dfe7c1de#a48665b682be1016cea53ea5e7787442dfe7c1de"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
