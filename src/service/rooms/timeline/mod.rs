@@ -1074,7 +1074,7 @@ impl Service {
 
 		let room_version_id = self.services.state.get_room_version(&pdu.room_id).await?;
 
-		if keep_original_content {
+		if keep_original_content && !pdu.is_redacted() {
 			let original_pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
 				err!(Database(error!(
 					?event_id,
