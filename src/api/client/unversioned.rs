@@ -40,6 +40,7 @@ pub(crate) async fn get_supported_versions_route(
 			"v1.11".to_owned(),
 		],
 		unstable_features: BTreeMap::from_iter([
+			("fi.mau.msc2815".to_owned(), true),
 			("org.matrix.e2e_cross_signing".to_owned(), true),
 			("org.matrix.msc2285.stable".to_owned(), true), /* private read receipts (https://github.com/matrix-org/matrix-spec-proposals/pull/2285) */
 			("uk.half-shot.msc2666.query_mutual_rooms".to_owned(), true), /* query mutual rooms (https://github.com/matrix-org/matrix-spec-proposals/pull/2666) */
