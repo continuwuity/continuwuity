@@ -260,6 +260,16 @@ impl Service {
 		self.db.replace_pdu(pdu_id, pdu_json, pdu).await
 	}
 
+	/// Stores the content of a to-be redacted pdu.
+	#[tracing::instrument(skip(self), level = "debug")]
+	pub async fn store_redacted_pdu_content(
+		&self,
+		pdu_id: &RawPduId,
+		pdu_json: &CanonicalJsonObject,
+	) -> Result<()> {
+		self.db.store_redacted_pdu_content(pdu_id, pdu_json).await
+	}
+
 	/// Creates a new persisted data unit and adds it to a room.
 	///
 	/// By this point the incoming event should be fully authenticated, no auth
@@ -472,7 +482,7 @@ impl Service {
 								.user_can_redact(redact_id, &pdu.sender, &pdu.room_id, false)
 								.await?
 							{
-								self.redact_pdu(redact_id, pdu, shortroomid).await?;
+								self.redact_pdu(redact_id, pdu, shortroomid, true).await?;
 							}
 						}
 					},
@@ -485,7 +495,7 @@ impl Service {
 								.user_can_redact(redact_id, &pdu.sender, &pdu.room_id, false)
 								.await?
 							{
-								self.redact_pdu(redact_id, pdu, shortroomid).await?;
+								self.redact_pdu(redact_id, pdu, shortroomid, true).await?;
 							}
 						}
 					},
@@ -1033,6 +1043,7 @@ impl Service {
 		event_id: &EventId,
 		reason: &PduEvent,
 		shortroomid: ShortRoomId,
+		keep_original_content: bool,
 	) -> Result {
 		// TODO: Don't reserialize, keep original json
 		let Ok(pdu_id) = self.get_pdu_id(event_id).await else {
@@ -1053,6 +1064,19 @@ impl Service {
 		}
 
 		let room_version_id = self.services.state.get_room_version(&pdu.room_id).await?;
+
+		if keep_original_content {
+			let original_pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
+				err!(Database(error!(
+					?event_id,
+					?e,
+					"Failed to convert PDU to canonical JSON for original content storage"
+				)))
+			})?;
+			self.db
+				.store_redacted_pdu_content(&pdu_id, &original_pdu_json)
+				.await?;
+		}
 
 		pdu.redact(&room_version_id, reason)?;
 

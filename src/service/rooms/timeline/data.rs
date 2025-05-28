@@ -19,6 +19,8 @@ pub(super) struct Data {
 	pduid_pdu: Arc<Map>,
 	userroomid_highlightcount: Arc<Map>,
 	userroomid_notificationcount: Arc<Map>,
+	/// Stores the original content of redacted PDUs.
+	pduid_originalcontent: Arc<Map>,
 	pub(super) db: Arc<Database>,
 	services: Services,
 }
@@ -38,6 +40,7 @@ impl Data {
 			pduid_pdu: db["pduid_pdu"].clone(),
 			userroomid_highlightcount: db["userroomid_highlightcount"].clone(),
 			userroomid_notificationcount: db["userroomid_notificationcount"].clone(),
+			pduid_originalcontent: db["pduid_originalcontent"].clone(), // Initialize new table
 			db: args.db.clone(),
 			services: Services {
 				short: args.depend::<rooms::short::Service>("rooms::short"),
@@ -175,6 +178,16 @@ impl Data {
 		pdu_id: &RawPduId,
 	) -> Result<CanonicalJsonObject> {
 		self.pduid_pdu.get(pdu_id).await.deserialized()
+	}
+
+	/// Stores the original content of a PDU that is about to be redacted.
+	pub(super) async fn store_redacted_pdu_content(
+		&self,
+		pdu_id: &RawPduId,
+		pdu_json: &CanonicalJsonObject,
+	) -> Result<()> {
+		self.pduid_originalcontent.raw_put(pdu_id, Json(pdu_json));
+		Ok(())
 	}
 
 	pub(super) async fn append_pdu(
