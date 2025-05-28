@@ -270,6 +270,15 @@ impl Service {
 		self.db.store_redacted_pdu_content(pdu_id, pdu_json).await
 	}
 
+	/// Returns the original content of a redacted PDU.
+	#[tracing::instrument(skip(self), level = "debug")]
+	pub async fn get_original_pdu_content(
+		&self,
+		pdu_id: &RawPduId,
+	) -> Result<Option<CanonicalJsonObject>> {
+		self.db.get_original_pdu_content(pdu_id).await
+	}
+
 	/// Creates a new persisted data unit and adds it to a room.
 	///
 	/// By this point the incoming event should be fully authenticated, no auth

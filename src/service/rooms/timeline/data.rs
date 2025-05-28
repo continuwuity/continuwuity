@@ -190,6 +190,14 @@ impl Data {
 		Ok(())
 	}
 
+	/// Returns the original content of a redacted PDU.
+	pub(super) async fn get_original_pdu_content(
+		&self,
+		pdu_id: &RawPduId,
+	) -> Result<Option<CanonicalJsonObject>> {
+		self.pduid_originalcontent.get(pdu_id).await.deserialized()
+	}
+
 	pub(super) async fn append_pdu(
 		&self,
 		pdu_id: &RawPduId,
