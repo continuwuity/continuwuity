@@ -20,10 +20,10 @@ We may backport fixes to the previous release at our discretion, but we don't gu
 
 We appreciate the efforts of security researchers and the community in identifying and reporting vulnerabilities. To ensure that potential vulnerabilities are addressed properly, please follow these guidelines:
 
-1. Contact members of the team over E2EE private message.
+1. **Contact members of the team directly** over E2EE private message.
    - [@jade:ellis.link](https://matrix.to/#/@jade:ellis.link)
    - [@nex:nexy7574.co.uk](https://matrix.to/#/@nex:nexy7574.co.uk) <!-- ? -->
-2. **Email the security team** directly at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so don't include sensitive details.
+2. **Email the security team** at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so don't include sensitive details.
 3. **Do not disclose the vulnerability publicly** until it has been addressed
 4. **Provide detailed information** about the vulnerability, including:
    - A clear description of the issue
@@ -48,7 +48,7 @@ When you report a security vulnerability:
 
 When security vulnerabilities are identified:
 
-1. We will develop and test fixes in a private branch
+1. We will develop and test fixes in a private fork
 2. Security updates will be released as soon as possible
 3. Release notes will include information about the vulnerabilities, avoiding details that could facilitate exploitation where possible
 4. Critical security updates may be backported to the previous stable release
