@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, PduEvent, Result, at,
+	Err, PduEvent, Result, at, debug_warn,
 	utils::{BoolExt, stream::TryTools},
 };
 use futures::TryStreamExt;
@@ -35,7 +35,16 @@ pub(crate) async fn room_initial_sync_route(
 		.try_take(limit)
 		.and_then(async |mut pdu| {
 			pdu.1.set_unsigned(body.sender_user.as_deref());
-			// TODO: bundled aggregations
+			if let Some(sender_user) = body.sender_user.as_deref() {
+				if let Err(e) = services
+					.rooms
+					.pdu_metadata
+					.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+					.await
+				{
+					debug_warn!("Failed to add bundled aggregations: {e}");
+				}
+			}
 			Ok(pdu)
 		})
 		.try_collect()
