@@ -165,7 +165,7 @@ impl Service {
 
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub async fn first_item_in_room(&self, room_id: &RoomId) -> Result<(PduCount, PduEvent)> {
-		let pdus = self.pdus(None, room_id, None);
+		let pdus = self.pdus(room_id, None);
 
 		pin_mut!(pdus);
 		pdus.try_next()
@@ -175,16 +175,12 @@ impl Service {
 
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub async fn latest_pdu_in_room(&self, room_id: &RoomId) -> Result<PduEvent> {
-		self.db.latest_pdu_in_room(None, room_id).await
+		self.db.latest_pdu_in_room(room_id).await
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn last_timeline_count(
-		&self,
-		sender_user: Option<&UserId>,
-		room_id: &RoomId,
-	) -> Result<PduCount> {
-		self.db.last_timeline_count(sender_user, room_id).await
+	pub async fn last_timeline_count(&self, room_id: &RoomId) -> Result<PduCount> {
+		self.db.last_timeline_count(room_id).await
 	}
 
 	/// Returns the `count` of this pdu's id.
@@ -544,6 +540,10 @@ impl Service {
 			},
 			| _ => {},
 		}
+
+		// CONCERN: If we receive events with a relation out-of-order, we never write
+		// their relation / thread. We need some kind of way to trigger when we receive
+		// this event, and potentially a way to rebuild the table entirely.
 
 		if let Ok(content) = pdu.get_content::<ExtractRelatesToEventId>() {
 			if let Ok(related_pducount) = self.get_pdu_count(&content.relates_to.event_id).await {
@@ -996,34 +996,30 @@ impl Service {
 	#[inline]
 	pub fn all_pdus<'a>(
 		&'a self,
-		user_id: &'a UserId,
 		room_id: &'a RoomId,
 	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
-		self.pdus(Some(user_id), room_id, None).ignore_err()
+		self.pdus(room_id, None).ignore_err()
 	}
 
 	/// Reverse iteration starting at from.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus_rev<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		until: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
 		self.db
-			.pdus_rev(user_id, room_id, until.unwrap_or_else(PduCount::max))
+			.pdus_rev(room_id, until.unwrap_or_else(PduCount::max))
 	}
 
 	/// Forward iteration starting at from.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		from: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
-		self.db
-			.pdus(user_id, room_id, from.unwrap_or_else(PduCount::min))
+		self.db.pdus(room_id, from.unwrap_or_else(PduCount::min))
 	}
 
 	/// Replace a PDU with the redacted form.
