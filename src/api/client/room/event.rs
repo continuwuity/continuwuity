@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, err};
+use conduwuit::{Err, Event, Result, debug_warn, err};
 use futures::{FutureExt, TryFutureExt, future::try_join};
 use ruma::api::client::room::get_room_event;
 
@@ -37,6 +37,15 @@ pub(crate) async fn get_room_event_route(
 		event.event_id() == event_id && event.room_id() == room_id,
 		"Fetched PDU must match requested"
 	);
+
+	if let Err(e) = services
+		.rooms
+		.pdu_metadata
+		.add_bundled_aggregations_to_pdu(body.sender_user(), &mut event)
+		.await
+	{
+		debug_warn!("Failed to add bundled aggregations to event: {e}");
+	}
 
 	event.set_unsigned(body.sender_user.as_deref());
 

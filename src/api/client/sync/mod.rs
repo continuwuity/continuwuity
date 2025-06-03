@@ -3,7 +3,7 @@ mod v4;
 mod v5;
 
 use conduwuit::{
-	Error, PduCount, Result,
+	Error, PduCount, Result, debug_warn,
 	matrix::pdu::PduEvent,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
 };
@@ -42,13 +42,23 @@ async fn load_timeline(
 		.timeline
 		.pdus_rev(room_id, None)
 		.ignore_err()
+		.ready_skip_while(|&(pducount, _)| pducount > next_batch.unwrap_or_else(PduCount::max))
+		.ready_take_while(|&(pducount, _)| pducount > roomsincecount)
 		.map(move |mut pdu| {
 			pdu.1.set_unsigned(Some(sender_user));
-			// TODO: bundled aggregations
 			pdu
 		})
-		.ready_skip_while(|&(pducount, _)| pducount > next_batch.unwrap_or_else(PduCount::max))
-		.ready_take_while(|&(pducount, _)| pducount > roomsincecount);
+		.then(async move |mut pdu| {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
+			pdu
+		});
 
 	// Take the last events for the timeline
 	pin_mut!(non_timeline_pdus);
