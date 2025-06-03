@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at, is_true,
+	Err, Result, at, debug_warn, is_true,
 	matrix::Event,
 	result::FlatOk,
 	utils::{IterStream, stream::ReadyExt},
@@ -144,6 +144,17 @@ async fn category_room_events(
 		.map(at!(2))
 		.flatten()
 		.stream()
+		.then(|mut pdu| async {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations to search result: {e}");
+			}
+			pdu
+		})
 		.map(Event::into_format)
 		.map(|result| SearchResult {
 			rank: None,

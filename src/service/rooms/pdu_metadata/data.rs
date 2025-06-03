@@ -14,10 +14,11 @@ use futures::{Stream, StreamExt};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use crate::{
-	Dep, rooms,
+	Dep,
 	rooms::{
+		self,
 		short::{ShortEventId, ShortRoomId},
-		timeline::{PduId, RawPduId},
+		timeline::{PduId, PdusIterItem, RawPduId},
 	},
 };
 
@@ -59,7 +60,7 @@ impl Data {
 		target: ShortEventId,
 		from: PduCount,
 		dir: Direction,
-	) -> impl Stream<Item = (PduCount, impl Event)> + Send + 'a {
+	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
 		// Query from exact position then filter excludes it (saturating_inc could skip
 		// events at min/max boundaries)
 		let from_unsigned = from.into_unsigned();

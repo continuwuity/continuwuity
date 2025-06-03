@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use conduwuit::{
-	PduCount, Result,
+	PduCount, PduEvent, Result,
 	arrayvec::ArrayVec,
 	implement,
 	matrix::event::{Event, Matches},
@@ -104,7 +104,7 @@ pub fn deindex_pdu(&self, shortroomid: ShortRoomId, pdu_id: &RawPduId, message_b
 pub async fn search_pdus<'a>(
 	&'a self,
 	query: &'a RoomQuery<'a>,
-) -> Result<(usize, impl Stream<Item = impl Event + use<>> + Send + 'a)> {
+) -> Result<(usize, impl Stream<Item = PduEvent> + Send + 'a)> {
 	let pdu_ids: Vec<_> = self.search_pdu_ids(query).await?.collect().await;
 
 	let filter = &query.criteria.filter;

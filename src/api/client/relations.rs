@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Result, at,
+	Result, at, debug_warn,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
@@ -154,6 +154,17 @@ async fn paginate_relations_with_filter(
 		.ready_take_while(|(count, _)| Some(*count) != to)
 		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
 		.take(limit)
+		.then(async |mut pdu| {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations to relation: {e}");
+			}
+			pdu
+		})
 		.collect()
 		.await;
 

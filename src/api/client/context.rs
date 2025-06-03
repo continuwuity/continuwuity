@@ -91,7 +91,14 @@ pub(crate) async fn get_context_route(
 		.ignore_err()
 		.then(async |mut pdu| {
 			pdu.1.set_unsigned(Some(sender_user));
-			// TODO: bundled aggregations
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
 			pdu
 		})
 		.ready_filter_map(|item| event_filter(item, filter))
@@ -107,7 +114,14 @@ pub(crate) async fn get_context_route(
 		.ignore_err()
 		.then(async |mut pdu| {
 			pdu.1.set_unsigned(Some(sender_user));
-			// TODO: bundled aggregations
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
 			pdu
 		})
 		.ready_filter_map(|item| event_filter(item, filter))
