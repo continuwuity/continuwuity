@@ -1191,7 +1191,7 @@ async fn calculate_heroes(
 	services
 		.rooms
 		.timeline
-		.all_pdus(sender_user, room_id)
+		.all_pdus(room_id)
 		.ready_filter(|(_, pdu)| pdu.kind == RoomMember)
 		.fold_default(|heroes: Vec<_>, (_, pdu)| {
 			fold_hero(heroes, services, room_id, sender_user, pdu)

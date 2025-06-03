@@ -38,7 +38,7 @@ pub(crate) async fn get_room_event_route(
 		"Fetched PDU must match requested"
 	);
 
-	event.add_age().ok();
+	event.set_unsigned(body.sender_user.as_deref());
 
 	Ok(get_room_event::v3::Response { event: event.into_room_event() })
 }

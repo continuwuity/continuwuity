@@ -31,11 +31,7 @@ async fn load_timeline(
 	next_batch: Option<PduCount>,
 	limit: usize,
 ) -> Result<(Vec<(PduCount, PduEvent)>, bool), Error> {
-	let last_timeline_count = services
-		.rooms
-		.timeline
-		.last_timeline_count(Some(sender_user), room_id)
-		.await?;
+	let last_timeline_count = services.rooms.timeline.last_timeline_count(room_id).await?;
 
 	if last_timeline_count <= roomsincecount {
 		return Ok((Vec::new(), false));
@@ -44,8 +40,13 @@ async fn load_timeline(
 	let non_timeline_pdus = services
 		.rooms
 		.timeline
-		.pdus_rev(Some(sender_user), room_id, None)
+		.pdus_rev(room_id, None)
 		.ignore_err()
+		.map(move |mut pdu| {
+			pdu.1.set_unsigned(Some(sender_user));
+			// TODO: bundled aggregations
+			pdu
+		})
 		.ready_skip_while(|&(pducount, _)| pducount > next_batch.unwrap_or_else(PduCount::max))
 		.ready_take_while(|&(pducount, _)| pducount > roomsincecount);
 
