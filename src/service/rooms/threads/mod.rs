@@ -163,9 +163,7 @@ impl Service {
 				let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
 				let pdu_id: PduId = pdu_id.into();
-				if pdu.sender() != user_id {
-					pdu.as_mut_pdu().remove_transaction_id().ok();
-				}
+				pdu.as_mut_pdu().set_unsigned(Some(user_id));
 
 				Some((pdu_id.shorteventid, pdu))
 			});

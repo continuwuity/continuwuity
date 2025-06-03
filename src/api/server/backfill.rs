@@ -3,6 +3,7 @@ use std::cmp;
 use axum::extract::State;
 use conduwuit::{
 	Event, PduCount, Result,
+	result::LogErr,
 	utils::{IterStream, ReadyExt, stream::TryTools},
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
@@ -62,7 +63,7 @@ pub(crate) async fn get_backfill_route(
 		pdus: services
 			.rooms
 			.timeline
-			.pdus_rev(None, &body.room_id, Some(from.saturating_add(1)))
+			.pdus_rev(&body.room_id, Some(from.saturating_add(1)))
 			.try_take(limit)
 			.try_filter_map(|(_, pdu)| async move {
 				Ok(services
@@ -71,6 +72,15 @@ pub(crate) async fn get_backfill_route(
 					.server_can_see_event(body.origin(), &pdu.room_id_or_hash(), &pdu.event_id)
 					.await
 					.then_some(pdu))
+			})
+			.and_then(async |mut pdu| {
+				// Strip the transaction ID, as that is private
+				pdu.remove_transaction_id().log_err().ok();
+				// Add age, as this is specified
+				pdu.add_age().log_err().ok();
+				// It's not clear if we should strip or add any more data, leave as is.
+				// In particular: Redaction?
+				Ok(pdu)
 			})
 			.try_filter_map(|pdu| async move {
 				Ok(services

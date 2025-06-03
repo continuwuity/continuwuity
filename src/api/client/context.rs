@@ -82,11 +82,18 @@ pub(crate) async fn get_context_route(
 
 	let base_event = ignored_filter(&services, (base_count, base_pdu), sender_user);
 
+	// PDUs are used to get seen user IDs and then returned in response.
+
 	let events_before = services
 		.rooms
 		.timeline
-		.pdus_rev(Some(sender_user), room_id, Some(base_count))
+		.pdus_rev(room_id, Some(base_count))
 		.ignore_err()
+		.then(async |mut pdu| {
+			pdu.1.set_unsigned(Some(sender_user));
+			// TODO: bundled aggregations
+			pdu
+		})
 		.ready_filter_map(|item| event_filter(item, filter))
 		.wide_filter_map(|item| ignored_filter(&services, item, sender_user))
 		.wide_filter_map(|item| visibility_filter(&services, item, sender_user))
@@ -96,8 +103,13 @@ pub(crate) async fn get_context_route(
 	let events_after = services
 		.rooms
 		.timeline
-		.pdus(Some(sender_user), room_id, Some(base_count))
+		.pdus(room_id, Some(base_count))
 		.ignore_err()
+		.then(async |mut pdu| {
+			pdu.1.set_unsigned(Some(sender_user));
+			// TODO: bundled aggregations
+			pdu
+		})
 		.ready_filter_map(|item| event_filter(item, filter))
 		.wide_filter_map(|item| ignored_filter(&services, item, sender_user))
 		.wide_filter_map(|item| visibility_filter(&services, item, sender_user))

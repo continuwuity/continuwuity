@@ -3,7 +3,6 @@ use std::{mem::size_of, sync::Arc};
 use conduwuit::{
 	arrayvec::ArrayVec,
 	matrix::{Event, PduCount},
-	result::LogErr,
 	utils::{
 		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
@@ -92,9 +91,7 @@ impl Data {
 
 			let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
-			if pdu.sender() != user_id {
-				pdu.as_mut_pdu().remove_transaction_id().log_err().ok();
-			}
+			pdu.as_mut_pdu().set_unsigned(Some(user_id));
 
 			Some((shorteventid, pdu))
 		})

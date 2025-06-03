@@ -129,7 +129,12 @@ pub async fn search_pdus<'a>(
 				.then_some(pdu)
 		})
 		.skip(query.skip)
-		.take(query.limit);
+		.take(query.limit)
+		.map(move |mut pdu| {
+			pdu.set_unsigned(query.user_id);
+			// TODO: bundled aggregation
+			pdu
+		});
 
 	Ok((count, pdus))
 }

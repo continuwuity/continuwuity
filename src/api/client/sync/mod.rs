@@ -53,7 +53,7 @@ async fn load_timeline(
 			let last_timeline_count = services
 				.rooms
 				.timeline
-				.last_timeline_count(Some(sender_user), room_id)
+				.last_timeline_count(room_id)
 				.await
 				.map_err(|err| {
 					err!(Database(warn!("Failed to fetch end of room timeline: {}", err)))
@@ -71,12 +71,13 @@ async fn load_timeline(
 			services
 				.rooms
 				.timeline
-				.pdus_rev(
-					Some(sender_user),
-					room_id,
-					ending_count.map(|count| count.saturating_add(1)),
-				)
+				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
+				.map(move |mut pdu| {
+					pdu.1.set_unsigned(Some(sender_user));
+					// TODO: bundled aggregations
+					pdu
+				})
 				.ready_take_while(move |&(pducount, _)| pducount > starting_count)
 				.boxed()
 		},
@@ -86,12 +87,13 @@ async fn load_timeline(
 			services
 				.rooms
 				.timeline
-				.pdus_rev(
-					Some(sender_user),
-					room_id,
-					ending_count.map(|count| count.saturating_add(1)),
-				)
+				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
+				.map(move |mut pdu| {
+					pdu.1.set_unsigned(Some(sender_user));
+					// TODO: bundled aggregations
+					pdu
+				})
 				.boxed()
 		},
 	};

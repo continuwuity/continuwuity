@@ -33,7 +33,7 @@ pub(crate) async fn get_room_event_route(
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));
 	}
 
-	event.add_age().ok();
+	event.set_unsigned(body.sender_user.as_deref());
 
 	Ok(get_room_event::v3::Response { event: event.into_format() })
 }
