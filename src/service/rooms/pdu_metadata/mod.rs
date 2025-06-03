@@ -1,3 +1,4 @@
+mod bundled_aggregations;
 mod data;
 use std::sync::Arc;
 

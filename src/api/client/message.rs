@@ -2,7 +2,7 @@ use core::panic;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at,
+	Err, Result, at, debug_warn,
 	matrix::{
 		Event,
 		pdu::{PduCount, PduEvent},
@@ -134,7 +134,14 @@ pub(crate) async fn get_message_events_route(
 		.take(limit)
 		.then(async |mut pdu| {
 			pdu.1.set_unsigned(Some(sender_user));
-			// TODO: bundled aggregations
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
 			pdu
 		})
 		.collect()

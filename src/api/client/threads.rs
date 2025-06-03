@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Result, at,
+	Result, at, debug_warn,
 	matrix::pdu::{PduCount, PduEvent},
 };
 use futures::StreamExt;
@@ -28,7 +28,6 @@ pub(crate) async fn get_threads_route(
 		.transpose()?
 		.unwrap_or_else(PduCount::max);
 
-	// TODO: bundled aggregation
 	// TODO: user_can_see_event and set_unsigned should be at the same level /
 	// function, so unsigned is only set for seen events.
 	let threads: Vec<(PduCount, PduEvent)> = services
@@ -44,6 +43,17 @@ pub(crate) async fn get_threads_route(
 				.user_can_see_event(body.sender_user(), &body.room_id, &pdu.event_id)
 				.await
 				.then_some((count, pdu))
+		})
+		.then(|(count, mut pdu)| async move {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(body.sender_user(), &mut pdu)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations to thread: {e}");
+			}
+			(count, pdu)
 		})
 		.collect()
 		.await;
