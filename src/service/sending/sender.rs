@@ -781,7 +781,7 @@ impl Service {
 
 		for pdu in pdus {
 			// Redacted events are not notification targets (we don't send push for them)
-			if pdu.contains_unsigned_property("redacted_because", serde_json::Value::is_string) {
+			if pdu.is_redacted() {
 				continue;
 			}
 

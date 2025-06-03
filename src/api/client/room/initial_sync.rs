@@ -25,12 +25,19 @@ pub(crate) async fn room_initial_sync_route(
 		return Err!(Request(Forbidden("No room preview available.")));
 	}
 
+	// Events are returned in body
+
 	let limit = LIMIT_MAX;
 	let events: Vec<_> = services
 		.rooms
 		.timeline
-		.pdus_rev(None, room_id, None)
+		.pdus_rev(room_id, None)
 		.try_take(limit)
+		.and_then(async |mut pdu| {
+			pdu.1.set_unsigned(body.sender_user.as_deref());
+			// TODO: bundled aggregations
+			Ok(pdu)
+		})
 		.try_collect()
 		.await?;
 
