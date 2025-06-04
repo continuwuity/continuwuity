@@ -43,7 +43,10 @@ impl super::Service {
 			return Ok(None);
 		}
 
-		let mut replace_events = Vec::with_capacity(relations.len().min(10)); // Most events have few replacements
+		// Get the original event for validation of replacement events
+		let original_event = self.services.timeline.get_pdu(event_id).await?;
+
+		let mut replace_events = Vec::with_capacity(relations.len());
 		let mut reference_events = Vec::with_capacity(relations.len());
 
 		for relation in &relations {
@@ -56,7 +59,10 @@ impl super::Service {
 				if let Some(rel_type) = relates_to.get("rel_type") {
 					match rel_type.as_str() {
 						| Some("m.replace") => {
-							replace_events.push(relation);
+							// Only consider valid replacements
+							if Self::is_valid_replacement_event(&original_event, pdu).await? {
+								replace_events.push(relation);
+							}
 						},
 						| Some("m.reference") => {
 							reference_events.push(relation);
@@ -228,6 +234,56 @@ impl super::Service {
 
 		Ok(())
 	}
+
+	/// Validates that an event is acceptable as a replacement for another event
+	/// See C/S spec "Validity of replacement events"
+	#[tracing::instrument(level = "debug")]
+	async fn is_valid_replacement_event(
+		original_event: &PduEvent,
+		replacement_event: &PduEvent,
+	) -> Result<bool> {
+		// 1. Same room_id
+		if original_event.room_id() != replacement_event.room_id() {
+			return Ok(false);
+		}
+
+		// 2. Same sender
+		if original_event.sender() != replacement_event.sender() {
+			return Ok(false);
+		}
+
+		// 3. Same type
+		if original_event.event_type() != replacement_event.event_type() {
+			return Ok(false);
+		}
+
+		// 4. Neither event should have a state_key property
+		if original_event.state_key().is_some() || replacement_event.state_key().is_some() {
+			return Ok(false);
+		}
+
+		// 5. Original event must not have rel_type of m.replace
+		let original_content = original_event.get_content_as_value();
+		if let Some(relates_to) = original_content.get("m.relates_to") {
+			if let Some(rel_type) = relates_to.get("rel_type") {
+				if rel_type.as_str() == Some("m.replace") {
+					return Ok(false);
+				}
+			}
+		}
+
+		// 6. Replacement event must have m.new_content property
+		// Skip this check for encrypted events, as m.new_content would be inside the
+		// encrypted payload
+		if replacement_event.event_type() != &ruma::events::TimelineEventType::RoomEncrypted {
+			let replacement_content = replacement_event.get_content_as_value();
+			if replacement_content.get("m.new_content").is_none() {
+				return Ok(false);
+			}
+		}
+
+		Ok(true)
+	}
 }
 
 #[cfg(test)]
@@ -390,5 +446,320 @@ mod tests {
 
 		assert!(result.is_err(), "fails when existing unsigned is invalid");
 		// Should we ignore the error and overwrite anyway?
+	}
+
+	// Test helper function to create test PDU events
+	fn create_test_event(
+		event_id: &str,
+		room_id: &str,
+		sender: &str,
+		event_type: TimelineEventType,
+		content: &JsonValue,
+		state_key: Option<&str>,
+	) -> PduEvent {
+		PduEvent {
+			event_id: event_id.try_into().unwrap(),
+			room_id: Some(room_id.try_into().unwrap()),
+			sender: sender.try_into().unwrap(),
+			origin_server_ts: UInt::try_from(1_234_567_890_u64).unwrap(),
+			kind: event_type,
+			content: to_raw_value(&content).unwrap(),
+			state_key: state_key.map(Into::into),
+			prev_events: vec![],
+			depth: UInt::from(1_u32),
+			auth_events: vec![],
+			redacts: None,
+			unsigned: None,
+			hashes: EventHash { sha256: "test_hash".to_owned() },
+			signatures: None,
+			origin: None,
+		}
+	}
+
+	/// Test that a valid replacement event passes validation
+	#[tokio::test]
+	async fn test_valid_replacement_event() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({"msgtype": "m.text", "body": "original message"}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited message",
+				"m.new_content": {
+					"msgtype": "m.text",
+					"body": "edited message"
+				},
+				"m.relates_to": {
+					"rel_type": "m.replace",
+					"event_id": "$original:example.com"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(result.unwrap(), "Valid replacement event should be accepted");
+	}
+
+	/// Test replacement event with different room ID is rejected
+	#[tokio::test]
+	async fn test_replacement_event_different_room() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room1:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({"msgtype": "m.text", "body": "original message"}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room2:example.com", // Different room
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited message",
+				"m.new_content": {
+					"msgtype": "m.text",
+					"body": "edited message"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Different room ID should be rejected");
+	}
+
+	/// Test replacement event with different sender is rejected
+	#[tokio::test]
+	async fn test_replacement_event_different_sender() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user1:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({"msgtype": "m.text", "body": "original message"}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user2:example.com", // Different sender
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited message",
+				"m.new_content": {
+					"msgtype": "m.text",
+					"body": "edited message"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Different sender should be rejected");
+	}
+
+	/// Test replacement event with different type is rejected
+	#[tokio::test]
+	async fn test_replacement_event_different_type() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({"msgtype": "m.text", "body": "original message"}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomTopic, // Different event type
+			&json!({
+				"topic": "new topic",
+				"m.new_content": {
+					"topic": "new topic"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Different event type should be rejected");
+	}
+
+	/// Test replacement event with state key is rejected
+	#[tokio::test]
+	async fn test_replacement_event_with_state_key() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomName,
+			&json!({"name": "room name"}),
+			Some(""), // Has state key
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomName,
+			&json!({
+				"name": "new room name",
+				"m.new_content": {
+					"name": "new room name"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Event with state key should be rejected");
+	}
+
+	/// Test replacement of an event that is already a replacement is rejected
+	#[tokio::test]
+	async fn test_replacement_event_original_is_replacement() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited message",
+				"m.relates_to": {
+					"rel_type": "m.replace", // Original is already a replacement
+					"event_id": "$some_other:example.com"
+				}
+			}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited again",
+				"m.new_content": {
+					"msgtype": "m.text",
+					"body": "edited again"
+				}
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Replacement of replacement should be rejected");
+	}
+
+	/// Test replacement event missing m.new_content is rejected
+	#[tokio::test]
+	async fn test_replacement_event_missing_new_content() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({"msgtype": "m.text", "body": "original message"}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomMessage,
+			&json!({
+				"msgtype": "m.text",
+				"body": "* edited message"
+				// Missing m.new_content
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(!result.unwrap(), "Missing m.new_content should be rejected");
+	}
+
+	/// Test encrypted replacement event without m.new_content is accepted
+	#[tokio::test]
+	async fn test_replacement_event_encrypted_missing_new_content_is_valid() {
+		let original = create_test_event(
+			"$original:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomEncrypted,
+			&json!({
+				"algorithm": "m.megolm.v1.aes-sha2",
+				"ciphertext": "encrypted_payload_base64",
+				"sender_key": "sender_key",
+				"session_id": "session_id"
+			}),
+			None,
+		);
+
+		let replacement = create_test_event(
+			"$replacement:example.com",
+			"!room:example.com",
+			"@user:example.com",
+			TimelineEventType::RoomEncrypted,
+			&json!({
+				"algorithm": "m.megolm.v1.aes-sha2",
+				"ciphertext": "encrypted_replacement_payload_base64",
+				"sender_key": "sender_key",
+				"session_id": "session_id",
+				"m.relates_to": {
+					"rel_type": "m.replace",
+					"event_id": "$original:example.com"
+				}
+				// No m.new_content in cleartext - this is valid for encrypted events
+			}),
+			None,
+		);
+
+		let result =
+			super::super::Service::is_valid_replacement_event(&original, &replacement).await;
+		assert!(result.is_ok(), "Validation should succeed");
+		assert!(
+			result.unwrap(),
+			"Encrypted replacement without cleartext m.new_content should be accepted"
+		);
 	}
 }
