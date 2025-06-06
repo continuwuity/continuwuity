@@ -255,6 +255,16 @@ where
 		},
 		| Some(e) => e,
 	};
+	// just re-check 1.2 to work around a bug
+	let Some(room_id_server_name) = incoming_event.room_id().server_name() else {
+		warn!("room ID has no servername");
+		return Ok(false);
+	};
+
+	if room_id_server_name != sender.server_name() {
+		warn!("servername of room ID does not match servername of m.room.create sender");
+		return Ok(false);
+	}
 
 	if incoming_event.room_id() != room_create_event.room_id() {
 		warn!("room_id of incoming event does not match room_id of m.room.create event");
