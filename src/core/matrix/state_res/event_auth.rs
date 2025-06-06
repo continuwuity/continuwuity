@@ -149,8 +149,8 @@ where
 	for<'a> &'a E: Event + Send,
 {
 	debug!(
-		event_id = %incoming_event.event_id(),
-		event_type = ?incoming_event.event_type(),
+		event_id = format!("{}", incoming_event.event_id()),
+		event_type = format!("{}", incoming_event.event_type()),
 		"auth_check beginning"
 	);
 
@@ -219,7 +219,7 @@ where
 	/*
 	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
 	// longer the case. This needs to be implemented.
-	// See also: https://github.com/ruma/ruma/pull/2064
+	// See also: https://github.com/ruma/ruma/pull/2064    
 	//
 	// 2. Reject if auth_events
 	// a. auth_events cannot have duplicate keys since it's a BTree
