@@ -217,8 +217,9 @@ where
 	}
 
 	/*
-	// TODO: In the past this code caused problems federating with synapse, maybe this has been
-	// resolved already. Needs testing.
+	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
+	// longer the case. This needs to be implemented.
+	// See also: https://github.com/ruma/ruma/pull/2064    
 	//
 	// 2. Reject if auth_events
 	// a. auth_events cannot have duplicate keys since it's a BTree
