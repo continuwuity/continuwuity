@@ -255,6 +255,16 @@ where
 		},
 		| Some(e) => e,
 	};
+	// just re-check 1.2 to work around a bug
+	let Some(room_id_server_name) = incoming_event.room_id().server_name() else {
+		warn!("room ID has no servername");
+		return Ok(false);
+	};
+
+	if room_id_server_name != sender.server_name() {
+		warn!("servername of room ID does not match servername of m.room.create sender");
+		return Ok(false);
+	}
 
 	// 3. If event does not have m.room.create in auth_events reject
 	if !incoming_event
