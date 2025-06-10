@@ -30,7 +30,7 @@ use super::{
 	},
 	room_version::RoomVersion,
 };
-use crate::{debug, error, trace, warn};
+use crate::{debug, err_log, error, trace, warn};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -251,7 +251,7 @@ where
 
 	let room_create_event = match room_create_event {
 		| None => {
-			warn!("no m.room.create event in auth chain");
+			error!("no m.room.create event in auth chain for {}!", incoming_event.event_id());
 			return Ok(false);
 		},
 		| Some(e) => e,
