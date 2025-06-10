@@ -30,7 +30,7 @@ use super::{
 	},
 	room_version::RoomVersion,
 };
-use crate::{debug, err_log, error, trace, warn};
+use crate::{debug, error, trace, warn};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -251,7 +251,7 @@ where
 
 	let room_create_event = match room_create_event {
 		| None => {
-			error!("no m.room.create event in auth chain for {}!", incoming_event.event_id());
+			error!("no m.room.create event found for {}!", incoming_event.event_id());
 			return Ok(false);
 		},
 		| Some(e) => e,
@@ -262,8 +262,11 @@ where
 		return Ok(false);
 	};
 
-	if room_id_server_name != sender.server_name() {
-		warn!("servername of room ID does not match servername of m.room.create sender");
+	if room_id_server_name != room_create_event.sender().server_name() {
+		warn!(
+			"servername of room ID origin ({}) does not match servername of m.room.create sender ({})",
+			room_id_server_name,
+			room_create_event.sender().server_name());
 		return Ok(false);
 	}
 
