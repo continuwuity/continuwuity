@@ -698,6 +698,20 @@ impl Service {
 			.await
 			.saturating_add(uint!(1));
 
+		if state_key.is_none() {
+			if prev_events.is_empty() {
+				warn!("Timeline event had zero prev_events, something broke.");
+				return Err!(Request(Unknown("Timeline event had zero prev_events.")));
+			}
+			if depth.le(&uint!(2)) {
+				warn!(
+					"Had unsafe depth of {depth} in {room_id} when creating non-state event. \
+					 Bad!"
+				);
+				return Err!(Request(Unknown("Unsafe depth for non-state event.")));
+			}
+		};
+
 		let mut unsigned = unsigned.unwrap_or_default();
 
 		if let Some(state_key) = &state_key {

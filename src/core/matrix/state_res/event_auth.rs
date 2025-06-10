@@ -219,7 +219,7 @@ where
 	/*
 	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
 	// longer the case. This needs to be implemented.
-	// See also: https://github.com/ruma/ruma/pull/2064    
+	// See also: https://github.com/ruma/ruma/pull/2064
 	//
 	// 2. Reject if auth_events
 	// a. auth_events cannot have duplicate keys since it's a BTree
@@ -264,9 +264,11 @@ where
 
 	if room_id_server_name != room_create_event.sender().server_name() {
 		warn!(
-			"servername of room ID origin ({}) does not match servername of m.room.create sender ({})",
+			"servername of room ID origin ({}) does not match servername of m.room.create \
+			 sender ({})",
 			room_id_server_name,
-			room_create_event.sender().server_name());
+			room_create_event.sender().server_name()
+		);
 		return Ok(false);
 	}
 
