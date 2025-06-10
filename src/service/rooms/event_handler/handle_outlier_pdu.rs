@@ -122,10 +122,7 @@ where
 	}
 
 	// The original create event must be in the auth events
-	if !matches!(
-		auth_events.get(&(StateEventType::RoomCreate, String::new().into())),
-		Some(_) | None
-	) {
+	if !auth_events.contains_key(&(StateEventType::RoomCreate, String::new().into())) {
 		return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
 	}
 
