@@ -746,7 +746,7 @@ where
 			}
 		}
 	}
-	// Did not find a power level event so we default to zero
+	warn!("could not find a power event in the mainline map, defaulting to zero depth");
 	Ok(0)
 }
 
