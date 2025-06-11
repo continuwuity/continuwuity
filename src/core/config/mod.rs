@@ -2096,7 +2096,8 @@ fn default_servernameevent_data_cache_capacity() -> u32 {
 fn default_stateinfo_cache_capacity() -> u32 {
 	parallelism_scaled_u32(500).clamp(100, 12000) }
 
-fn default_roomid_spacehierarchy_cache_capacity() -> u32 { parallelism_scaled_u32(1000) }
+fn default_roomid_spacehierarchy_cache_capacity() -> u32 {
+	parallelism_scaled_u32(500).clamp(100, 12000) }
 
 fn default_dns_cache_entries() -> u32 { 327680 }
 
