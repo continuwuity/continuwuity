@@ -609,7 +609,7 @@ where
 		let fetch_state = |ty: &StateEventType, key: &str| {
 			future::ready(auth_state.get(&ty.with_state_key(key)))
 		};
-
+		debug!("running auth check on {:?}", event.event_id());
 		let auth_result =
 			auth_check(room_version, &event, current_third_party.as_ref(), fetch_state).await;
 
