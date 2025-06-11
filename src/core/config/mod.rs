@@ -2093,7 +2093,8 @@ fn default_servernameevent_data_cache_capacity() -> u32 {
 	parallelism_scaled_u32(200_000).saturating_add(500_000)
 }
 
-fn default_stateinfo_cache_capacity() -> u32 { parallelism_scaled_u32(5000) }
+fn default_stateinfo_cache_capacity() -> u32 {
+	parallelism_scaled_u32(500).clamp(100, 12000) }
 
 fn default_roomid_spacehierarchy_cache_capacity() -> u32 { parallelism_scaled_u32(1000) }
 
