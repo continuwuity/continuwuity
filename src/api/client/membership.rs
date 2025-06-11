@@ -1243,6 +1243,7 @@ async fn join_room_by_id_helper_remote(
 		services.rooms.timeline.get_pdu(event_id).await.ok()
 	};
 
+	debug!("running stateres check on send_join parsed PDU");
 	let auth_check = state_res::event_auth::auth_check(
 		&state_res::RoomVersion::new(&room_version_id)?,
 		&parsed_join_pdu,

@@ -76,7 +76,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 		// 5. Reject "due to auth events" if can't get all the auth events or some of
 		//    the auth events are also rejected "due to auth events"
 		// NOTE: Step 5 is not applied anymore because it failed too often
-		debug!("Fetching auth events");
+		debug!("Fetching auth events for {}", incoming_pdu.event_id);
 		Box::pin(self.fetch_and_handle_outliers(
 			origin,
 			&incoming_pdu.auth_events,
@@ -88,12 +88,12 @@ pub(super) async fn handle_outlier_pdu<'a>(
 
 	// 6. Reject "due to auth events" if the event doesn't pass auth based on the
 	//    auth events
-	debug!("Checking based on auth events");
+	debug!("Checking {} based on auth events", incoming_pdu.event_id);
 	// Build map of auth events
 	let mut auth_events = HashMap::with_capacity(incoming_pdu.auth_events.len());
 	for id in &incoming_pdu.auth_events {
 		let Ok(auth_event) = self.services.timeline.get_pdu(id).await else {
-			warn!("Could not find auth event {id}");
+			warn!("Could not find auth event {id} for {}", incoming_pdu.event_id);
 			continue;
 		};
 
@@ -128,6 +128,7 @@ pub(super) async fn handle_outlier_pdu<'a>(
 		ready(auth_events.get(&key))
 	};
 
+	debug!("running auth check to handle outlier pdu {:?}", incoming_pdu.event_id);
 	let auth_check = state_res::event_auth::auth_check(
 		&to_room_version(&room_version_id),
 		&incoming_pdu,

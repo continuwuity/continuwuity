@@ -771,6 +771,7 @@ impl Service {
 			ready(auth_events.get(&key))
 		};
 
+		debug!("running auth check on new {} event by {} in {}", pdu.kind, pdu.sender, pdu.room_id);
 		let auth_check = state_res::auth_check(
 			&room_version,
 			&pdu,
