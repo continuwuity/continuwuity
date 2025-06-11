@@ -726,8 +726,12 @@ where
 	Fut: Future<Output = Option<E>> + Send,
 	E: Event + Send + Sync,
 {
+	let mut room_id = None;
 	while let Some(sort_ev) = event {
 		debug!(event_id = sort_ev.event_id().as_str(), "mainline");
+		if room_id.is_none() {
+			room_id = Some(sort_ev.room_id().to_owned());
+		}
 
 		let id = sort_ev.event_id();
 		if let Some(depth) = mainline_map.get(id) {
@@ -746,7 +750,7 @@ where
 			}
 		}
 	}
-	warn!("could not find a power event in the mainline map, defaulting to zero depth");
+	warn!("could not find a power event in the mainline map for {room_id:?}, defaulting to zero depth");
 	Ok(0)
 }
 
