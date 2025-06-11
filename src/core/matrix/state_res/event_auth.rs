@@ -13,6 +13,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 		third_party_invite::RoomThirdPartyInviteEventContent,
 	},
+	EventId,
 	int,
 	serde::{Base64, Raw},
 };
@@ -21,7 +22,6 @@ use serde::{
 	de::{Error as _, IgnoredAny},
 };
 use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
-
 use super::{
 	Error, Event, Result, StateEventType, StateKey, TimelineEventType,
 	power_levels::{
@@ -217,8 +217,9 @@ where
 	}
 
 	/*
-	// TODO: In the past this code caused problems federating with synapse, maybe this has been
-	// resolved already. Needs testing.
+	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
+	// longer the case. This needs to be implemented.
+	// See also: https://github.com/ruma/ruma/pull/2064
 	//
 	// 2. Reject if auth_events
 	// a. auth_events cannot have duplicate keys since it's a BTree
@@ -250,11 +251,33 @@ where
 
 	let room_create_event = match room_create_event {
 		| None => {
-			warn!("no m.room.create event in auth chain");
+			error!(
+				create_event = room_create_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				power_levels = power_levels_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				member_event = sender_member_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				"no m.room.create event found for {} ({})!",
+				incoming_event.event_id().as_str(),
+				incoming_event.room_id().as_str()
+			);
 			return Ok(false);
 		},
 		| Some(e) => e,
 	};
+	// just re-check 1.2 to work around a bug
+	let Some(room_id_server_name) = incoming_event.room_id().server_name() else {
+		warn!("room ID has no servername");
+		return Ok(false);
+	};
+
+	if room_id_server_name != room_create_event.sender().server_name() {
+		warn!(
+			"servername of room ID origin ({}) does not match servername of m.room.create \
+			 sender ({})",
+			room_id_server_name,
+			room_create_event.sender().server_name()
+		);
+		return Ok(false);
+	}
 
 	// 3. If event does not have m.room.create in auth_events reject
 	if !incoming_event
