@@ -13,6 +13,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 		third_party_invite::RoomThirdPartyInviteEventContent,
 	},
+	EventId,
 	int,
 	serde::{Base64, Raw},
 };
@@ -21,7 +22,6 @@ use serde::{
 	de::{Error as _, IgnoredAny},
 };
 use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
-
 use super::{
 	Error, Event, Result, StateEventType, StateKey, TimelineEventType,
 	power_levels::{
@@ -251,7 +251,14 @@ where
 
 	let room_create_event = match room_create_event {
 		| None => {
-			error!("no m.room.create event found for {}!", incoming_event.event_id());
+			error!(
+				create_event = room_create_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				power_levels = power_levels_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				member_event = sender_member_event.as_ref().map(Event::event_id).unwrap_or(<&EventId>::try_from("$unknown").unwrap()).as_str(),
+				"no m.room.create event found for {} ({})!",
+				incoming_event.event_id().as_str(),
+				incoming_event.room_id().as_str()
+			);
 			return Ok(false);
 		},
 		| Some(e) => e,
