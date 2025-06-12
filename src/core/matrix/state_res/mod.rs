@@ -728,7 +728,7 @@ where
 {
 	let mut room_id = None;
 	while let Some(sort_ev) = event {
-		debug!(event_id = sort_ev.event_id().as_str(), "mainline");
+		trace!(event_id = sort_ev.event_id().as_str(), "mainline");
 		if room_id.is_none() {
 			room_id = Some(sort_ev.room_id().to_owned());
 		}

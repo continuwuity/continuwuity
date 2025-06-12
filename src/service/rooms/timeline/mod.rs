@@ -1157,7 +1157,7 @@ impl Service {
 			.boxed();
 
 		while let Some(ref backfill_server) = servers.next().await {
-			info!("Asking {backfill_server} for backfill");
+			info!("Asking {backfill_server} for backfill in {:?}", room_id.to_owned());
 			let response = self
 				.services
 				.sending
@@ -1185,7 +1185,7 @@ impl Service {
 			}
 		}
 
-		info!("No servers could backfill, but backfill was needed in room {room_id}");
+		warn!("No servers could backfill, but backfill was needed in room {room_id}");
 		Ok(())
 	}
 
