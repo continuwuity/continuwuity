@@ -219,6 +219,15 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
+	// Check if support contact information is configured
+	if config.well_known.support_email.is_none() && config.well_known.support_mxid.is_none() {
+		warn!(
+			"No support contact information (support_email or support_mxid) is configured in \
+			 the well_known section. Users in the admin room will be automatically listed as \
+			 support contacts in the /.well-known/matrix/support endpoint."
+		);
+	}
+
 	if config
 		.url_preview_domain_contains_allowlist
 		.contains(&"*".to_owned())
