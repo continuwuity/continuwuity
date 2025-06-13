@@ -180,7 +180,7 @@ jobs:
           file: "docker/Dockerfile"
           build-args: |
             GIT_COMMIT_HASH=${{ github.sha }})
-            GIT_COMMIT_HASH_SHORT=${{ env.COMMIT_SHORT_SHA }})
+            GIT_COMMIT_HASH_SHORT=${{ env.COMMIT_SHORT_SHA }}
             GIT_REMOTE_URL=${{github.event.repository.html_url }}
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
           platforms: ${{ matrix.platform }}
