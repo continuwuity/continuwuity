@@ -609,7 +609,7 @@ where
 		let fetch_state = |ty: &StateEventType, key: &str| {
 			future::ready(auth_state.get(&ty.with_state_key(key)))
 		};
-
+		debug!("running auth check on {:?}", event.event_id());
 		let auth_result =
 			auth_check(room_version, &event, current_third_party.as_ref(), fetch_state).await;
 
@@ -728,7 +728,7 @@ where
 {
 	let mut room_id = None;
 	while let Some(sort_ev) = event {
-		debug!(event_id = sort_ev.event_id().as_str(), "mainline");
+		trace!(event_id = sort_ev.event_id().as_str(), "mainline");
 		if room_id.is_none() {
 			room_id = Some(sort_ev.room_id().to_owned());
 		}
