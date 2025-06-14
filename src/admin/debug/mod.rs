@@ -125,13 +125,13 @@ pub(super) enum DebugCommand {
 		reset: bool,
 	},
 
-	/// - Verify json signatures
+	/// - Sign JSON blob
 	///
 	/// This command needs a JSON blob provided in a Markdown code block below
 	/// the command.
 	SignJson,
 
-	/// - Verify json signatures
+	/// - Verify JSON signatures
 	///
 	/// This command needs a JSON blob provided in a Markdown code block below
 	/// the command.
