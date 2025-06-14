@@ -2,7 +2,7 @@ use std::{cmp, convert::TryFrom};
 
 use conduwuit::{Config, Result, utils};
 use rocksdb::{Cache, DBRecoveryMode, Env, LogLevel, Options, statistics::StatsLevel};
-
+use conduwuit::config::{parallelism_scaled_i32, parallelism_scaled_u32};
 use super::{cf_opts::cache_size_f64, logger::handle as handle_log};
 
 /// Create database-wide options suitable for opening the database. This also
@@ -23,8 +23,8 @@ pub(crate) fn db_options(config: &Config, env: &Env, row_cache: &Cache) -> Resul
 	set_logging_defaults(&mut opts, config);
 
 	// Processing
-	opts.set_max_background_jobs(num_threads::<i32>(config)?);
-	opts.set_max_subcompactions(num_threads::<u32>(config)?);
+	opts.set_max_background_jobs(parallelism_scaled_i32(1));
+	opts.set_max_subcompactions(parallelism_scaled_u32(1));
 	opts.set_avoid_unnecessary_blocking_io(true);
 	opts.set_max_file_opening_threads(0);
 
@@ -128,7 +128,7 @@ fn set_logging_defaults(opts: &mut Options, config: &Config) {
 }
 
 fn num_threads<T: TryFrom<usize>>(config: &Config) -> Result<T> {
-	const MIN_PARALLELISM: usize = 2;
+	const MIN_PARALLELISM: usize = 4;
 
 	let requested = if config.rocksdb_parallelism_threads != 0 {
 		config.rocksdb_parallelism_threads
