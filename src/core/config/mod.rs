@@ -1828,7 +1828,7 @@ pub struct Config {
 	/// setting a non-zero value.
 	///
 	/// default: 0
-	#[serde(default)]
+	#[serde(default = "default_sender_workers")]
 	pub sender_workers: usize,
 
 	/// Enables listener sockets; can be set to false to disable listening. This
@@ -2314,6 +2314,8 @@ fn default_stream_width_default() -> usize { 32 }
 fn default_stream_width_scale() -> f32 { 1.0 }
 
 fn default_stream_amplification() -> usize { 1024 }
+
+fn default_sender_workers() -> usize { 4 }
 
 fn default_client_receive_timeout() -> u64 { 75 }
 
