@@ -20,7 +20,7 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use conduwuit::{Result, Server, debug, info, warn};
 use database::{Deserialized, Map};
-use ruma::events::room::message::RoomMessageEventContent;
+use ruma::events::{Mentions, room::message::RoomMessageEventContent};
 use serde::Deserialize;
 use tokio::{
 	sync::Notify,
@@ -53,6 +53,8 @@ struct CheckForAnnouncementsResponseEntry {
 	id: u64,
 	date: Option<String>,
 	message: String,
+	#[serde(default, skip_serializing_if = "bool::not")]
+	mention_room: bool,
 }
 
 const CHECK_FOR_ANNOUNCEMENTS_URL: &str =
@@ -139,19 +141,20 @@ impl Service {
 		} else {
 			info!("[announcements] {:#}", announcement.message);
 		}
+		let mut message = RoomMessageEventContent::text_markdown(format!(
+			"### New announcement{}\n\n{}",
+			announcement
+				.date
+				.as_ref()
+				.map_or_else(String::new, |date| format!(" - `{date}`")),
+			announcement.message
+		));
 
-		self.services
-			.admin
-			.send_message(RoomMessageEventContent::text_markdown(format!(
-				"### New announcement{}\n\n{}",
-				announcement
-					.date
-					.as_ref()
-					.map_or_else(String::new, |date| format!(" - `{date}`")),
-				announcement.message
-			)))
-			.await
-			.ok();
+		if announcement.mention_room {
+			message = message.add_mentions(Mentions::with_room_mention());
+		}
+
+		self.services.admin.send_message(message).await.ok();
 	}
 
 	#[inline]

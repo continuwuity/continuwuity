@@ -3,7 +3,7 @@
     "$id": "https://continwuity.org/schema/announcements.schema.json",
     "type": "object",
     "properties": {
-      "updates": {
+      "announcements": {
         "type": "array",
         "items": {
           "type": "object",
@@ -16,6 +16,10 @@
             },
             "date": {
               "type": "string"
+            },
+            "mention_room": {
+              "type": "boolean",
+              "description": "Whether to mention the room (@room) when posting this announcement"
             }
           },
           "required": [
@@ -26,6 +30,6 @@
       }
     },
     "required": [
-      "updates"
+      "announcements"
     ]
   }
