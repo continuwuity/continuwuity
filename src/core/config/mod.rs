@@ -1155,7 +1155,7 @@ pub struct Config {
 	/// 3 to 5 = Statistics with possible performance impact.
 	/// 6 = All statistics.
 	///
-	/// default: 1
+	/// default: 3
 	#[serde(default = "default_rocksdb_stats_level")]
 	pub rocksdb_stats_level: u8,
 
@@ -2231,7 +2231,7 @@ fn default_rocksdb_compression_level() -> i32 { 32767 }
 #[allow(clippy::doc_markdown)]
 fn default_rocksdb_bottommost_compression_level() -> i32 { 32767 }
 
-fn default_rocksdb_stats_level() -> u8 { 1 }
+fn default_rocksdb_stats_level() -> u8 { 3 }
 
 // I know, it's a great name
 #[must_use]
