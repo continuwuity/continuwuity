@@ -2286,14 +2286,13 @@ fn default_admin_log_capture() -> String {
 fn default_admin_room_tag() -> String { "m.server_notice".to_owned() }
 
 #[allow(clippy::as_conversions, clippy::cast_precision_loss)]
-fn parallelism_scaled_f64(val: f64) -> f64 { val * (sys::available_parallelism() as f64) }
+pub fn parallelism_scaled_f64(val: f64) -> f64 { val * (sys::available_parallelism() as f64) }
 
-fn parallelism_scaled_u32(val: u32) -> u32 {
-	let val = val.try_into().expect("failed to cast u32 to usize");
-	parallelism_scaled(val).try_into().unwrap_or(u32::MAX)
-}
+pub fn parallelism_scaled_u32(val: u32) -> u32 { val.saturating_mul(sys::available_parallelism() as u32) }
 
-fn parallelism_scaled(val: usize) -> usize { val.saturating_mul(sys::available_parallelism()) }
+pub fn parallelism_scaled_i32(val: i32) -> i32 { val.saturating_mul(sys::available_parallelism() as i32) }
+
+pub fn parallelism_scaled(val: usize) -> usize { val.saturating_mul(sys::available_parallelism()) }
 
 fn default_trusted_server_batch_size() -> usize { 256 }
 
