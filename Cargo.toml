@@ -21,7 +21,7 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
 rust-version = "1.86.0"
-version = "0.5.0-rc.5"
+version = "0.5.0-rc.6"
 
 [workspace.metadata.crane]
 name = "conduwuit"
