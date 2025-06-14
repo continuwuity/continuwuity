@@ -146,6 +146,16 @@ pub(super) async fn restart(&self, force: bool) -> Result {
 }
 
 #[admin_command]
+pub(super) async fn upload_analytics(&self) -> Result {
+	match self.services.analytics.force_upload().await {
+		| Ok(()) => self.write_str("Analytics uploaded successfully.").await,
+		| Err(e) =>
+			self.write_str(&format!("Failed to upload analytics: {e}"))
+				.await,
+	}
+}
+
+#[admin_command]
 pub(super) async fn shutdown(&self) -> Result {
 	warn!("shutdown command");
 	self.services.server.shutdown()?;

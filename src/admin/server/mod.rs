@@ -64,4 +64,7 @@ pub(super) enum ServerCommand {
 
 	/// - Shutdown the server
 	Shutdown,
+
+	/// - Upload analytics
+	UploadAnalytics,
 }

@@ -987,6 +987,7 @@ dependencies = [
  "base64 0.22.1",
  "blurhash",
  "bytes",
+ "conduwuit_build_metadata",
  "conduwuit_core",
  "conduwuit_database",
  "const-str",

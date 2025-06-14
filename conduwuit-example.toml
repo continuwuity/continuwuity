@@ -119,6 +119,15 @@
 #
 #allow_announcements_check = true
 
+# If enabled, continuwuity will send anonymous analytics data periodically
+# to help improve development. This includes basic server metadata like
+# version, commit hash, and federation status. All requests are signed
+# with the server's federation signing key. Data is sent on startup (with
+# up to 5 minutes jitter) and every 12 hours thereafter (with up to 30
+# minutes jitter) to distribute load.
+#
+#allow_analytics = true
+
 # Set this to any float value to multiply continuwuity's in-memory LRU
 # caches with such as "auth_chain_cache_capacity".
 #

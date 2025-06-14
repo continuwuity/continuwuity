@@ -9,6 +9,7 @@ pub mod state;
 
 pub mod account_data;
 pub mod admin;
+pub mod analytics;
 pub mod announcements;
 pub mod appservice;
 pub mod client;

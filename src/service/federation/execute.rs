@@ -108,6 +108,20 @@ fn prepare(&self, dest: &ServerName, mut request: http::Request<Vec<u8>>) -> Res
 }
 
 #[implement(super::Service)]
+pub fn sign_non_federation_request(
+	&self,
+	dest: &ServerName,
+	mut request: http::Request<Vec<u8>>,
+) -> Result<Request> {
+	self.sign_request(&mut request, dest);
+
+	let request = Request::try_from(request)?;
+	self.services.server.check_running()?;
+
+	Ok(request)
+}
+
+#[implement(super::Service)]
 fn validate_url(&self, url: &Url) -> Result<()> {
 	if let Some(url_host) = url.host_str() {
 		if let Ok(ip) = IPAddress::parse(url_host) {

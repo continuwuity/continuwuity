@@ -169,6 +169,18 @@ pub struct Config {
 	#[serde(alias = "allow_check_for_updates", default = "true_fn")]
 	pub allow_announcements_check: bool,
 
+	/// If enabled, continuwuity will send anonymous analytics data periodically
+	/// to help improve development. This includes basic server metadata like
+	/// version, build information and federation status. All requests are
+	/// signed with the server's federation signing key.
+	///
+	/// This is also used to warn about potential problems with federation, if
+	/// federation is enabled.
+	///
+	/// default: true
+	#[serde(default = "true_fn")]
+	pub allow_analytics: bool,
+
 	/// Set this to any float value to multiply continuwuity's in-memory LRU
 	/// caches with such as "auth_chain_cache_capacity".
 	///

@@ -78,6 +78,7 @@ zstd_compression = [
 async-trait.workspace = true
 base64.workspace = true
 bytes.workspace = true
+conduwuit-build-metadata.workspace = true
 conduwuit-core.workspace = true
 conduwuit-database.workspace = true
 const-str.workspace = true
