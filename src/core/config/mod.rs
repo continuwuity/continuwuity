@@ -2199,7 +2199,7 @@ fn default_typing_client_timeout_max_s() -> u64 { 45 }
 
 fn default_rocksdb_recovery_mode() -> u8 { 1 }
 
-fn default_rocksdb_log_level() -> String { "error".to_owned() }
+fn default_rocksdb_log_level() -> String { "info".to_owned() }
 
 fn default_rocksdb_log_time_to_roll() -> usize { 0 }
 
