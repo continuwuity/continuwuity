@@ -4,6 +4,10 @@
         {
             "id": 1,
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
+        },
+        {
+            "id": 2,
+            "message": "🎉 Continuwuity v0.5.0-rc.6 is now available! This release includes improved knock-restricted room handling, automatic support contact configuration, and a new HTML landing page. Check [the release notes for full details](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.0-rc.6) and upgrade instructions."
         }
     ]
 }
