@@ -430,7 +430,7 @@ pub(super) async fn sign_json(&self) -> Result {
 
 	let string = self.body[1..self.body.len().checked_sub(1).unwrap()].join("\n");
 	match serde_json::from_str(&string) {
-		| Err(e) => return Err!("Infirst_pdu.event_id.clone()valid json: {e}"),
+		| Err(e) => return Err!("Invalid json: {e}"),
 		| Ok(mut value) => {
 			self.services.server_keys.sign_json(&mut value)?;
 			let json_text = serde_json::to_string_pretty(&value)?;
