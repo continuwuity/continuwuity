@@ -242,12 +242,16 @@ where
 	}
 	*/
 
-	let (room_create_event, power_levels_event, sender_member_event) = join3(
-		fetch_state(&StateEventType::RoomCreate, ""),
-		fetch_state(&StateEventType::RoomPowerLevels, ""),
-		fetch_state(&StateEventType::RoomMember, sender.as_str()),
-	)
-	.await;
+	// let (room_create_event, power_levels_event, sender_member_event) = join3(
+	// 	fetch_state(&StateEventType::RoomCreate, ""),
+	// 	fetch_state(&StateEventType::RoomPowerLevels, ""),
+	// 	fetch_state(&StateEventType::RoomMember, sender.as_str()),
+	// )
+	// .await;
+
+	let room_create_event = fetch_state(&StateEventType::RoomCreate, "").await;
+	let power_levels_event = fetch_state(&StateEventType::RoomPowerLevels, "").await;
+	let sender_member_event = fetch_state(&StateEventType::RoomMember, sender.as_str()).await;
 
 	let room_create_event = match room_create_event {
 		| None => {
