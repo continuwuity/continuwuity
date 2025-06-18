@@ -141,7 +141,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	let extremities: Vec<_> = self
 		.services
 		.state
-		.get_forward_extremities(room_id)
+		.get_forward_extremities(room_id, &state_lock)
 		.map(ToOwned::to_owned)
 		.ready_filter(|event_id| {
 			// Remove any that are referenced by this incoming event's prev_events
