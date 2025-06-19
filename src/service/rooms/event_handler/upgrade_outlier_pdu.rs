@@ -1,12 +1,6 @@
 use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::Instant};
 
-use conduwuit::{
-	Err, Result, debug, debug_info, err, implement,
-	matrix::{EventTypeExt, PduEvent, StateKey, state_res},
-	trace,
-	utils::stream::{BroadbandExt, ReadyExt},
-	warn,
-};
+use conduwuit::{Err, Result, debug, debug_info, err, implement, info, matrix::{EventTypeExt, PduEvent, StateKey, state_res}, trace, utils::stream::{BroadbandExt, ReadyExt}, warn, Event};
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 
@@ -240,6 +234,20 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 
 		warn!("Event was soft failed: {incoming_pdu:?}");
 		return Err!(Request(InvalidParam("Event has been soft failed")));
+	}
+
+	// 15. If the event is not a state event, ask the policy server about it
+	if incoming_pdu.state_key.is_none() {
+		debug!("Checking policy server for event {}", incoming_pdu.event_id);
+		let policy = self.policyserv_check(
+			&incoming_pdu.event_id,
+			room_id,
+		);
+		if let Err(e) = policy.await {
+			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
+			return Err!(Request(Forbidden("Event was marked as spam by policy server")));
+		}
+		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
 	}
 
 	// Now that the event has passed all auth it is added into the timeline.
