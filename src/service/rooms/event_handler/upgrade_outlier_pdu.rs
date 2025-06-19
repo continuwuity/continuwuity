@@ -215,6 +215,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	//     if not soft fail it
 	if soft_fail {
 		info!("Soft failing event {}", incoming_pdu.event_id);
+		assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
 
 		self.services

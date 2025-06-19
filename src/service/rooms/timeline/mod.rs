@@ -976,8 +976,9 @@ impl Service {
 		state_lock: &'a RoomMutexGuard,
 	) -> Result<Option<RawPduId>>
 	where
-		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
+		Leaves: Iterator<Item = &'a EventId> + Send + Clone + 'a,
 	{
+		assert!(new_room_leaves.clone().count() > 0, "extremities are empty");
 		// We append to state before appending the pdu, so we don't have a moment in
 		// time with the pdu without it's state. This is okay because append_pdu can't
 		// fail.
