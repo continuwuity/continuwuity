@@ -237,7 +237,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	}
 
 	// 15. If the event is not a state event, ask the policy server about it
-	if incoming_pdu.state_key.is_none() {
+	if incoming_pdu.state_key.is_none() && incoming_pdu.sender().server_name() != self.services.globals.server_name() {
 		debug!("Checking policy server for event {}", incoming_pdu.event_id);
 		let policy = self.policyserv_check(
 			&incoming_pdu.event_id,
