@@ -1,6 +1,12 @@
 use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::Instant};
 
-use conduwuit::{Err, Result, debug, debug_info, err, implement, info, matrix::{EventTypeExt, PduEvent, StateKey, state_res}, trace, utils::stream::{BroadbandExt, ReadyExt}, warn, Event};
+use conduwuit::{
+	Err, Event, Result, debug, debug_info, err, implement, info,
+	matrix::{EventTypeExt, PduEvent, StateKey, state_res},
+	trace,
+	utils::stream::{BroadbandExt, ReadyExt},
+	warn,
+};
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 
@@ -115,8 +121,8 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
 
 	// Soft fail check before doing state res
-	debug!("Performing soft-fail check");
-	let soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
+	debug!("Performing soft-fail check on {}", incoming_pdu.event_id);
+	let mut soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
 		| (false, _) => true,
 		| (true, None) => false,
 		| (true, Some(redact_id)) =>
@@ -209,6 +215,21 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 			.await?;
 	}
 
+	// 14-pre. If the event is not a state event, ask the policy server about it
+	if incoming_pdu.state_key.is_none()
+		&& incoming_pdu.sender().server_name() != self.services.globals.server_name()
+	{
+		debug!("Checking policy server for event {}", incoming_pdu.event_id);
+		let policy = self.policyserv_check(&incoming_pdu.event_id, room_id);
+		if let Err(e) = policy.await {
+			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
+			if !soft_fail {
+				soft_fail = true;
+			}
+		}
+		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
+	}
+
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
 	if soft_fail {
@@ -234,20 +255,6 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 
 		warn!("Event was soft failed: {incoming_pdu:?}");
 		return Err!(Request(InvalidParam("Event has been soft failed")));
-	}
-
-	// 15. If the event is not a state event, ask the policy server about it
-	if incoming_pdu.state_key.is_none() && incoming_pdu.sender().server_name() != self.services.globals.server_name() {
-		debug!("Checking policy server for event {}", incoming_pdu.event_id);
-		let policy = self.policyserv_check(
-			&incoming_pdu.event_id,
-			room_id,
-		);
-		if let Err(e) = policy.await {
-			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
-			return Err!(Request(Forbidden("Event was marked as spam by policy server")));
-		}
-		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
 	}
 
 	// Now that the event has passed all auth it is added into the timeline.
