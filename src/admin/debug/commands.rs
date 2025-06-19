@@ -239,10 +239,11 @@ pub(super) async fn get_remote_pdu(
 		})
 		.await
 	{
-		| Err(e) =>
+		| Err(e) => {
 			return Err!(
 				"Remote server did not have PDU or failed sending request to remote server: {e}"
-			),
+			);
+		},
 		| Ok(response) => {
 			let json: CanonicalJsonObject =
 				serde_json::from_str(response.pdu.get()).map_err(|e| {
@@ -384,8 +385,9 @@ pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool)
 			.reload
 			.reload(&old_filter_layer, Some(handles))
 		{
-			| Err(e) =>
-				return Err!("Failed to modify and reload the global tracing log level: {e}"),
+			| Err(e) => {
+				return Err!("Failed to modify and reload the global tracing log level: {e}");
+			},
 			| Ok(()) => {
 				let value = &self.services.server.config.log;
 				let out = format!("Successfully changed log level back to config value {value}");
@@ -408,8 +410,9 @@ pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool)
 			.reload(&new_filter_layer, Some(handles))
 		{
 			| Ok(()) => return self.write_str("Successfully changed log level").await,
-			| Err(e) =>
-				return Err!("Failed to modify and reload the global tracing log level: {e}"),
+			| Err(e) => {
+				return Err!("Failed to modify and reload the global tracing log level: {e}");
+			},
 		}
 	}
 
@@ -529,6 +532,7 @@ pub(super) async fn force_set_room_state_from_server(
 	&self,
 	room_id: OwnedRoomId,
 	server_name: OwnedServerName,
+	at_event: Option<OwnedEventId>,
 ) -> Result {
 	if !self
 		.services
@@ -540,13 +544,18 @@ pub(super) async fn force_set_room_state_from_server(
 		return Err!("We are not participating in the room / we don't know about the room ID.");
 	}
 
-	let first_pdu = self
-		.services
-		.rooms
-		.timeline
-		.latest_pdu_in_room(&room_id)
-		.await
-		.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?;
+	let at_event_id = match at_event {
+		| Some(event_id) => event_id,
+		| None => self
+			.services
+			.rooms
+			.timeline
+			.latest_pdu_in_room(&room_id)
+			.await
+			.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?
+			.event_id
+			.clone(),
+	};
 
 	let room_version = self.services.rooms.state.get_room_version(&room_id).await?;
 
@@ -557,7 +566,7 @@ pub(super) async fn force_set_room_state_from_server(
 		.sending
 		.send_federation_request(&server_name, get_room_state::v1::Request {
 			room_id: room_id.clone(),
-			event_id: first_pdu.event_id.clone(),
+			event_id: at_event_id,
 		})
 		.await?;
 

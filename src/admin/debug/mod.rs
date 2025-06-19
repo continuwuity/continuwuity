@@ -177,6 +177,9 @@ pub(super) enum DebugCommand {
 		room_id: OwnedRoomId,
 		/// The server we will use to query the room state for
 		server_name: OwnedServerName,
+		/// The event ID of the latest known PDU in the room. Will be found
+		/// automatically if not provided.
+		event_id: Option<OwnedEventId>,
 	},
 
 	/// - Runs a server name through conduwuit's true destination resolution
