@@ -1,21 +1,18 @@
-use conduwuit::{Err, Result, debug, implement, trace, warn};
-use ruma::{
-	EventId, OwnedEventId, OwnedServerName, RoomId, ServerName,
-	api::federation::room::policy::v1::{Request as PolicyRequest, Response as PolicyResponse},
-	events::{
-		StateEventType,
-		room::{
-			policy::{PolicyServerResponseContent, RoomPolicyEventContent},
-			server_acl::RoomServerAclEventContent,
-		},
-	},
+use conduwuit::{
+	Err, Event, PduEvent, Result, debug, implement, utils::to_canonical_object, warn,
 };
-use serde::{Deserialize, Serialize};
+use ruma::{
+	RoomId, ServerName,
+	api::federation::room::policy::v1::Request as PolicyRequest,
+	events::StateEventType,
+	events::room::policy::RoomPolicyEventContent,
+};
+use ruma::canonical_json::to_canonical_value;
 
 /// Returns Ok if the policy server allows the event
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
-pub async fn policyserv_check(&self, event_id: &EventId, room_id: &RoomId) -> Result {
+pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result {
 	let Ok(policyserver) = self
 		.services
 		.state_accessor
@@ -33,10 +30,27 @@ pub async fn policyserv_check(&self, event_id: &EventId, room_id: &RoomId) -> Re
 			return Ok(());
 		},
 	};
+	// TODO: dont do *this*
+	let pdu_json = self.services.timeline.get_pdu_json(pdu.event_id()).await?;
+	let outgoing = self.services
+		.sending
+		.convert_to_outgoing_federation_event(pdu_json)
+		.await;
+	// let s = match serde_json::to_string(outgoing.as_ref()) {
+	// 	| Ok(s) => s,
+	// 	| Err(e) => {
+	// 		warn!("Failed to convert pdu {} to outgoing federation event: {e}", pdu.event_id());
+	// 		return Err!(Request(InvalidParam("Failed to convert PDU to outgoing event.")));
+	// 	},
+	// };
 	let response = self
 		.services
 		.sending
-		.send_federation_request(via, PolicyRequest { event_id: event_id.to_owned() })
+		.send_federation_request(via, PolicyRequest {
+			event_id: pdu.event_id().to_owned(),
+			// pdu: Some(outgoing),
+			pdu: None,  // TODO: figure out why providing the PDU makes the signature invalid
+		})
 		.await;
 	let response = match response {
 		| Ok(response) => response,
@@ -46,7 +60,10 @@ pub async fn policyserv_check(&self, event_id: &EventId, room_id: &RoomId) -> Re
 		},
 	};
 	if response.recommendation == "spam" {
-		warn!("Event {event_id} in room {room_id} was marked as spam by policy server {via}");
+		warn!(
+			"Event {} in room {room_id} was marked as spam by policy server {via}",
+			pdu.event_id().to_owned()
+		);
 		return Err!(Request(Forbidden("Event was marked as spam by policy server")));
 	};
 

@@ -220,7 +220,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		&& incoming_pdu.sender().server_name() != self.services.globals.server_name()
 	{
 		debug!("Checking policy server for event {}", incoming_pdu.event_id);
-		let policy = self.policyserv_check(&incoming_pdu.event_id, room_id);
+		let policy = self.policyserv_check(&incoming_pdu, room_id);
 		if let Err(e) = policy.await {
 			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
 			if !soft_fail {
