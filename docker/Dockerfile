@@ -1,8 +1,9 @@
 ARG RUST_VERSION=1
+ARG DEBIAN_VERSION=bookworm
 
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx AS xx
-FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-bookworm AS base
-FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-bookworm AS toolchain
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS base
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS toolchain
 
 # Prevent deletion of apt cache
 RUN rm -f /etc/apt/apt.conf.d/docker-clean
