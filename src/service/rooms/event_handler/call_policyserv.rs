@@ -4,10 +4,9 @@ use conduwuit::{
 use ruma::{
 	RoomId, ServerName,
 	api::federation::room::policy::v1::Request as PolicyRequest,
-	events::StateEventType,
-	events::room::policy::RoomPolicyEventContent,
+	canonical_json::to_canonical_value,
+	events::{StateEventType, room::policy::RoomPolicyEventContent},
 };
-use ruma::canonical_json::to_canonical_value;
 
 /// Returns Ok if the policy server allows the event
 #[implement(super::Service)]
@@ -32,16 +31,17 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 	};
 	// TODO: dont do *this*
 	let pdu_json = self.services.timeline.get_pdu_json(pdu.event_id()).await?;
-	let outgoing = self.services
+	let outgoing = self
+		.services
 		.sending
 		.convert_to_outgoing_federation_event(pdu_json)
 		.await;
 	// let s = match serde_json::to_string(outgoing.as_ref()) {
 	// 	| Ok(s) => s,
 	// 	| Err(e) => {
-	// 		warn!("Failed to convert pdu {} to outgoing federation event: {e}", pdu.event_id());
-	// 		return Err!(Request(InvalidParam("Failed to convert PDU to outgoing event.")));
-	// 	},
+	// 		warn!("Failed to convert pdu {} to outgoing federation event: {e}",
+	// pdu.event_id()); 		return Err!(Request(InvalidParam("Failed to convert PDU
+	// to outgoing event."))); 	},
 	// };
 	debug!("Checking pdu {outgoing:?} for spam with policy server {via} for room {room_id}");
 	let response = self
