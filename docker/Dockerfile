@@ -10,7 +10,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 # Match Rustc version as close as possible
 # rustc -vV
-ARG LLVM_VERSION=19
+ARG LLVM_VERSION=20
 # ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
 
 # Install repo tools
@@ -20,9 +20,17 @@ ARG LLVM_VERSION=19
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y \
-    clang-${LLVM_VERSION} lld-${LLVM_VERSION} pkg-config make jq \
-    curl git \
+    pkg-config make jq \
+    curl git software-properties-common \
     file
+
+# LLVM packages
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    curl https://apt.llvm.org/llvm.sh > llvm.sh && \
+    chmod +x llvm.sh && \
+    ./llvm.sh ${LLVM_VERSION} && \
+    rm llvm.sh
 
 # Create symlinks for LLVM tools
 RUN <<EOF
@@ -40,7 +48,7 @@ EOF
 
 # Developer tool versions
 # renovate: datasource=github-releases depName=cargo-bins/cargo-binstall
-ENV BINSTALL_VERSION=1.12.3
+ENV BINSTALL_VERSION=1.13.0
 # renovate: datasource=github-releases depName=psastras/sbom-rs
 ENV CARGO_SBOM_VERSION=0.9.1
 # renovate: datasource=crate depName=lddtree
