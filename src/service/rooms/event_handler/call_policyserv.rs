@@ -43,13 +43,13 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 	// 		return Err!(Request(InvalidParam("Failed to convert PDU to outgoing event.")));
 	// 	},
 	// };
+	debug!("Checking pdu {outgoing:?} for spam with policy server {via} for room {room_id}");
 	let response = self
 		.services
 		.sending
 		.send_federation_request(via, PolicyRequest {
 			event_id: pdu.event_id().to_owned(),
-			// pdu: Some(outgoing),
-			pdu: None,  // TODO: figure out why providing the PDU makes the signature invalid
+			pdu: Some(outgoing),
 		})
 		.await;
 	let response = match response {

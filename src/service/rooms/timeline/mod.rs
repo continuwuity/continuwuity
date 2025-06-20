@@ -698,6 +698,20 @@ impl Service {
 			.await
 			.saturating_add(uint!(1));
 
+		if state_key.is_none() {
+			if prev_events.is_empty() {
+				warn!("Timeline event had zero prev_events, something broke.");
+				return Err!(Request(Unknown("Timeline event had zero prev_events.")));
+			}
+			if depth.le(&uint!(2)) {
+				warn!(
+					"Had unsafe depth of {depth} in {room_id} when creating non-state event. \
+					 Bad!"
+				);
+				return Err!(Request(Unknown("Unsafe depth for non-state event.")));
+			}
+		};
+
 		let mut unsigned = unsigned.unwrap_or_default();
 
 		if let Some(state_key) = &state_key {
@@ -757,6 +771,10 @@ impl Service {
 			ready(auth_events.get(&key))
 		};
 
+		debug!(
+			"running auth check on new {} event by {} in {}",
+			pdu.kind, pdu.sender, pdu.room_id
+		);
 		let auth_check = state_res::auth_check(
 			&room_version,
 			&pdu,
@@ -961,8 +979,9 @@ impl Service {
 		state_lock: &'a RoomMutexGuard,
 	) -> Result<Option<RawPduId>>
 	where
-		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
+		Leaves: Iterator<Item = &'a EventId> + Send + Clone + 'a,
 	{
+		// assert!(new_room_leaves.clone().count() > 0, "extremities are empty");
 		// We append to state before appending the pdu, so we don't have a moment in
 		// time with the pdu without it's state. This is okay because append_pdu can't
 		// fail.
