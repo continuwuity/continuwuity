@@ -381,7 +381,7 @@ features = [
     "unstable-msc4121",
     "unstable-msc4125",
     "unstable-msc4186",
-    "unstable-msc4203", # sending to-device events to appservices 
+    "unstable-msc4203", # sending to-device events to appservices
     "unstable-msc4210", # remove legacy mentions
     "unstable-extensible-events",
     "unstable-pdu",
@@ -580,12 +580,11 @@ rev = "9c8e51510c35077df888ee72a36b4b05637147da"
 git = "https://forgejo.ellis.link/continuwuation/hyper-util"
 rev = "e4ae7628fe4fcdacef9788c4c8415317a4489941"
 
-# allows no-aaaa option in resolv.conf
-# bumps rust edition and toolchain to 1.86.0 and 2024
-# use sat_add on line number errors
+# Allows no-aaaa option in resolv.conf
+# Use 1-indexed line numbers when displaying parse error messages
 [patch.crates-io.resolv-conf]
 git = "https://forgejo.ellis.link/continuwuation/resolv-conf"
-rev = "200e958941d522a70c5877e3d846f55b5586c68d"
+rev = "56251316cc4127bcbf36e68ce5e2093f4d33e227"
 
 #
 # Our crates

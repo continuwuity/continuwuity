@@ -3788,11 +3788,8 @@ dependencies = [
 
 [[package]]
 name = "resolv-conf"
-version = "0.7.1"
-source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=200e958941d522a70c5877e3d846f55b5586c68d#200e958941d522a70c5877e3d846f55b5586c68d"
-dependencies = [
- "hostname",
-]
+version = "0.7.4"
+source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=56251316cc4127bcbf36e68ce5e2093f4d33e227#56251316cc4127bcbf36e68ce5e2093f4d33e227"
 
 [[package]]
 name = "rgb"
