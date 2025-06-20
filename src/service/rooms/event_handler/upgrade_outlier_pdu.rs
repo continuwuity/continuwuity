@@ -44,7 +44,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
-	debug!("Upgrading to timeline pdu");
+	debug!("Upgrading pdu {} from outlier to timeline pdu", incoming_pdu.event_id);
 	let timer = Instant::now();
 	let room_version_id = get_room_version_id(create_event)?;
 
@@ -52,7 +52,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	//     backwards extremities doing all the checks in this list starting at 1.
 	//     These are not timeline events.
 
-	debug!("Resolving state at event");
+	debug!("Resolving state at event {}", incoming_pdu.event_id);
 	let mut state_at_incoming_event = if incoming_pdu.prev_events.len() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
@@ -70,7 +70,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		state_at_incoming_event.expect("we always set this to some above");
 	let room_version = to_room_version(&room_version_id);
 
-	debug!("Performing auth check");
+	debug!("Performing auth check to upgrade {}", incoming_pdu.event_id);
 	// 11. Check the auth of the event passes based on the state of the event
 	let state_fetch_state = &state_at_incoming_event;
 	let state_fetch = |k: StateEventType, s: StateKey| async move {
@@ -80,6 +80,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		self.services.timeline.get_pdu(event_id).await.ok()
 	};
 
+	debug!("running auth check on {}", incoming_pdu.event_id);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -93,7 +94,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		return Err!(Request(Forbidden("Event has failed auth check with state at the event.")));
 	}
 
-	debug!("Gathering auth events");
+	debug!("Gathering auth events for {}", incoming_pdu.event_id);
 	let auth_events = self
 		.services
 		.state
@@ -111,6 +112,7 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		ready(auth_events.get(&key).cloned())
 	};
 
+	debug!("running auth check on {} with claimed state auth", incoming_pdu.event_id);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -233,7 +235,8 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
 	if soft_fail {
-		debug!("Soft failing event");
+		info!("Soft failing event {}", incoming_pdu.event_id);
+		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
 
 		self.services
