@@ -149,11 +149,12 @@ ENV GIT_REMOTE_COMMIT_URL=$GIT_REMOTE_COMMIT_URL
 ENV CONDUWUIT_VERSION_EXTRA=$CONDUWUIT_VERSION_EXTRA
 ENV CONTINUWUITY_VERSION_EXTRA=$CONTINUWUITY_VERSION_EXTRA
 
+ARG RUST_PROFILE=release
 
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/app/target,id=cargo-target-${TARGETPLATFORM} \
+    --mount=type=cache,target=/app/target,id=cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-${RUST_PROFILE} \
     bash <<'EOF'
     set -o allexport
     set -o xtrace
@@ -162,7 +163,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
             jq -r ".target_directory"))
     mkdir /out/sbin
     PACKAGE=conduwuit
-    xx-cargo build --locked --release \
+    xx-cargo build --locked --profile ${RUST_PROFILE} \
         -p $PACKAGE;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
