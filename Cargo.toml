@@ -556,11 +556,11 @@ rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 git = "https://forgejo.ellis.link/continuwuation/tracing"
 rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
 
-# adds a tab completion callback: https://forgejo.ellis.link/continuwuation/rustyline-async/commit/de26100b0db03e419a3d8e1dd26895d170d1fe50
-# adds event for CTRL+\: https://forgejo.ellis.link/continuwuation/rustyline-async/commit/67d8c49aeac03a5ef4e818f663eaa94dd7bf339b
+# adds a tab completion callback: https://forgejo.ellis.link/continuwuation/rustyline-async/src/branch/main/.patchy/0002-add-tab-completion-callback.patch
+# adds event for CTRL+\: https://forgejo.ellis.link/continuwuation/rustyline-async/src/branch/main/.patchy/0001-add-event-for-ctrl.patch
 [patch.crates-io.rustyline-async]
 git = "https://forgejo.ellis.link/continuwuation/rustyline-async"
-rev = "deaeb0694e2083f53d363b648da06e10fc13900c"
+rev = "e9f01cf8c6605483cb80b3b0309b400940493d7f"
 
 # adds LIFO queue scheduling; this should be updated with PR progress.
 [patch.crates-io.event-listener]
