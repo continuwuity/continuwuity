@@ -1,0 +1,50 @@
+default_install_hook_types:
+  - pre-commit
+  - commit-msg
+default_stages:
+  - pre-commit
+  - manual
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+        - id: check-byte-order-marker
+        - id: check-case-conflict
+        - id: check-symlinks
+        - id: destroyed-symlinks
+        - id: check-yaml
+        - id: check-json
+        - id: check-toml
+        - id: end-of-file-fixer
+        - id: trailing-whitespace
+        - id: mixed-line-ending
+        - id: check-merge-conflict
+        - id: check-added-large-files
+
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.26.0
+    hooks:
+      - id: typos
+
+  - repo: local
+    hooks:
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo +nightly fmt --
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages:
+            - pre-commit
+
+  - repo: local
+    hooks:
+      - id: cargo-clippy
+        name: cargo clippy
+        language: system
+        types: [rust]
+        pass_filenames: false
+        entry: cargo clippy --workspace --locked --no-deps --profile test -- -D warnings
+        stages:
+            - pre-commit
