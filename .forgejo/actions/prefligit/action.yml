@@ -12,6 +12,9 @@ runs:
   steps:
   - name: Install uv
     uses: https://github.com/astral-sh/setup-uv@v6
+    with:
+      enable-cache: true
+      ignore-nothing-to-cache: true
   - name: Install Prefligit
     shell: bash
     run: |
