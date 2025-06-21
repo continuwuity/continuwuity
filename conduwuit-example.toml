@@ -1767,11 +1767,9 @@
 #stream_amplification = 1024
 
 # Number of sender task workers; determines sender parallelism. Default is
-# '0' which means the value is determined internally, likely matching the
-# number of tokio worker-threads or number of cores, etc. Override by
-# setting a non-zero value.
+# number of CPU cores. Override by setting a different value.
 #
-#sender_workers = 0
+#sender_workers = 4
 
 # Enables listener sockets; can be set to false to disable listening. This
 # option is intended for developer/diagnostic purposes only.
