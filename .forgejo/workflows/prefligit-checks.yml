@@ -2,6 +2,7 @@ name: Checks / Prefligit
 
 on:
   push:
+  pull_request:
 
 jobs:
   prefligit:
@@ -10,6 +11,10 @@ jobs:
       FROM_REF: ${{ github.event.pull_request.base.sha || (!github.event.forced && ( github.event.before != '0000000000000000000000000000000000000000'  && github.event.before || github.sha )) || format('{0}~', github.sha) }}
       TO_REF: ${{ github.sha }}
     steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        persist-credentials: false
     - uses: ./.forgejo/actions/prefligit
       with:
         extra_args: --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }} --hook-stage manual

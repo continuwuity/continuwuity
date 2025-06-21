@@ -1,6 +1,6 @@
-name: reflighit
+name: prefligit
 description: |
-  Runs reflighit, pre-commit reimplemented in Rust.
+  Runs prefligit, pre-commit reimplemented in Rust.
 inputs:
   extra_args:
     description: options to pass to pre-commit run
