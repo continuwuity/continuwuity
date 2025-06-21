@@ -159,6 +159,8 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		.collect()
 		.await;
 
+	if extremities.len() == 0 { info!("Retained zero extremities when upgrading outlier PDU to timeline PDU with {} previous events", incoming_pdu.prev_events.len()) }
+	
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
 		extremities.len(),
