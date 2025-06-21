@@ -20,5 +20,5 @@ runs:
     with:
       path: ~/.cache/prefligit
       key: prefligit-0|${{ hashFiles('.pre-commit-config.yaml') }}
-  - run: prefligit run --show-diff-on-failure --color=always ${{ inputs.extra_args }}
+  - run: prefligit run --show-diff-on-failure --color=always -v ${{ inputs.extra_args }}
     shell: bash
