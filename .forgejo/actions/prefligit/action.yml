@@ -10,6 +10,8 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Install uv
+    uses: https://github.com/astral-sh/setup-uv@v6
   - name: Install Prefligit
     shell: bash
     run: |
