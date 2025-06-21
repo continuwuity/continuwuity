@@ -16,8 +16,9 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        persist-credentials: false
+        persist-credentials: true
         depth: 0 # we need to be able to get diffs
+    - run: git fetch origin --unshallow # work around checkout
     - uses: ./.forgejo/actions/prefligit
       with:
         extra_args: --from-ref ${{ env.FROM_REF }} --to-ref ${{ env.TO_REF }} --hook-stage manual
