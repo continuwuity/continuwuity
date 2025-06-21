@@ -1041,7 +1041,7 @@
 # 3 to 5 = Statistics with possible performance impact.
 # 6 = All statistics.
 #
-#rocksdb_stats_level = 1
+#rocksdb_stats_level = 3
 
 # This is a password that can be configured that will let you login to the
 # server bot account (currently `@conduit`) for emergency troubleshooting

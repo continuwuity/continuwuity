@@ -1207,7 +1207,7 @@ pub struct Config {
 	/// 3 to 5 = Statistics with possible performance impact.
 	/// 6 = All statistics.
 	///
-	/// default: 1
+	/// default: 3
 	#[serde(default = "default_rocksdb_stats_level")]
 	pub rocksdb_stats_level: u8,
 
@@ -2265,7 +2265,7 @@ fn default_typing_client_timeout_max_s() -> u64 { 45 }
 
 fn default_rocksdb_recovery_mode() -> u8 { 1 }
 
-fn default_rocksdb_log_level() -> String { "error".to_owned() }
+fn default_rocksdb_log_level() -> String { "info".to_owned() }
 
 fn default_rocksdb_log_time_to_roll() -> usize { 0 }
 
@@ -2297,7 +2297,7 @@ fn default_rocksdb_compression_level() -> i32 { 32767 }
 #[allow(clippy::doc_markdown)]
 fn default_rocksdb_bottommost_compression_level() -> i32 { 32767 }
 
-fn default_rocksdb_stats_level() -> u8 { 1 }
+fn default_rocksdb_stats_level() -> u8 { 3 }
 
 // I know, it's a great name
 #[must_use]
