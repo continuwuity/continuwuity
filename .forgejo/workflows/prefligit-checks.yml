@@ -3,6 +3,8 @@ name: Checks / Prefligit
 on:
   push:
   pull_request:
+permissions:
+  contents: read
 
 jobs:
   prefligit:
