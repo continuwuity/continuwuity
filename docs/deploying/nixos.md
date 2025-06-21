@@ -29,7 +29,7 @@ appropriately to use Continuwuity instead of Conduit.
 
 Due to the lack of a Continuwuity NixOS module, when using the `services.matrix-conduit` module
 a workaround like the one below is necessary to use UNIX sockets. This is because the UNIX
-socket option does not exist in Conduit, and the module forcibly sets the `address` and 
+socket option does not exist in Conduit, and the module forcibly sets the `address` and
 `port` config options.
 
 ```nix

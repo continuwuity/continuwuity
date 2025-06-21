@@ -34,4 +34,3 @@ services:
   #         - "traefik.http.routers.to-element-web.tls.certresolver=letsencrypt"
 
 # vim: ts=2:sw=2:expandtab
-
