@@ -1,6 +1,6 @@
-name: reflighit
+name: prefligit
 description: |
-  Runs reflighit, pre-commit reimplemented in Rust.
+  Runs prefligit, pre-commit reimplemented in Rust.
 inputs:
   extra_args:
     description: options to pass to pre-commit run
@@ -10,6 +10,11 @@ inputs:
 runs:
   using: composite
   steps:
+  - name: Install uv
+    uses: https://github.com/astral-sh/setup-uv@v6
+    with:
+      enable-cache: true
+      ignore-nothing-to-cache: true
   - name: Install Prefligit
     shell: bash
     run: |
@@ -18,5 +23,5 @@ runs:
     with:
       path: ~/.cache/prefligit
       key: prefligit-0|${{ hashFiles('.pre-commit-config.yaml') }}
-  - run: prefligit run --show-diff-on-failure --color=always ${{ inputs.extra_args }}
+  - run: prefligit run --show-diff-on-failure --color=always -v ${{ inputs.extra_args }}
     shell: bash
