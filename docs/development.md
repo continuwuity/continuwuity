@@ -68,31 +68,22 @@ do this if Rust supported workspace-level features to begin with.
 
 ## List of forked dependencies
 
-During Continuwuity development, we have had to fork
-some dependencies to support our use-cases in some areas. This ranges from
-things said upstream project won't accept for any reason, faster-paced
-development (unresponsive or slow upstream), Continuwuity-specific usecases, or
-lack of time to upstream some things.
+During Continuwuity (and prior projects) development, we have had to fork some dependencies to support our use-cases.
+These forks exist for various reasons including features that upstream projects won't accept,
+faster-paced development, Continuwuity-specific usecases, or lack of time to upstream changes.
 
-- [ruma/ruma][1]: <https://github.com/girlbossceo/ruwuma> - various performance
-improvements, more features, faster-paced development, better client/server interop
-hacks upstream won't accept, etc
-- [facebook/rocksdb][2]: <https://github.com/girlbossceo/rocksdb> - liburing
-build fixes and GCC debug build fix
-- [tikv/jemallocator][3]: <https://github.com/girlbossceo/jemallocator> - musl
-builds seem to be broken on upstream, fixes some broken/suspicious code in
-places, additional safety measures, and support redzones for Valgrind
-- [zyansheep/rustyline-async][4]:
-<https://github.com/girlbossceo/rustyline-async> - tab completion callback and
-`CTRL+\` signal quit event for Continuwuity console CLI
-- [rust-rocksdb/rust-rocksdb][5]:
-<https://github.com/girlbossceo/rust-rocksdb-zaidoon1> - [`@zaidoon1`][8]'s fork
-has quicker updates, more up to date dependencies, etc. Our fork fixes musl build
-issues, removes unnecessary `gtest` include, and uses our RocksDB and jemallocator
-forks.
-- [tokio-rs/tracing][6]: <https://github.com/girlbossceo/tracing> - Implements
-`Clone` for `EnvFilter` to support dynamically changing tracing envfilter's
-alongside other logging/metrics things
+All forked dependencies are maintained under the [continuwuation organization on Forgejo](https://forgejo.ellis.link/continuwuation):
+
+- [ruwuma][continuwuation-ruwuma] - Fork of [ruma/ruma][ruma] with various performance improvements, more features and better client/server interop
+- [rocksdb][continuwuation-rocksdb] - Fork of [facebook/rocksdb][rocksdb] via [`@zaidoon1`][8] with liburing build fixes and GCC debug build fixes
+- [jemallocator][continuwuation-jemallocator] - Fork of [tikv/jemallocator][jemallocator] fixing musl builds, suspicious code,
+  and adding support for redzones in Valgrind
+- [rustyline-async][continuwuation-rustyline-async] - Fork of [zyansheep/rustyline-async][rustyline-async] with tab completion callback
+  and `CTRL+\` signal quit event for Continuwuity console CLI
+- [rust-rocksdb][continuwuation-rust-rocksdb] - Fork of [rust-rocksdb/rust-rocksdb][rust-rocksdb] fixing musl build issues,
+  removing unnecessary `gtest` include, and using our RocksDB and jemallocator forks
+- [tracing][continuwuation-tracing] - Fork of [tokio-rs/tracing][tracing] implementing `Clone` for `EnvFilter` to
+  support dynamically changing tracing environments
 
 ## Debugging with `tokio-console`
 
@@ -113,12 +104,37 @@ You will also need to enable the `tokio_console` config option in Continuwuity w
 starting it. This was due to tokio-console causing gradual memory leak/usage
 if left enabled.
 
-[1]: https://github.com/ruma/ruma/
-[2]: https://github.com/facebook/rocksdb/
-[3]: https://github.com/tikv/jemallocator/
-[4]: https://github.com/zyansheep/rustyline-async/
-[5]: https://github.com/rust-rocksdb/rust-rocksdb/
-[6]: https://github.com/tokio-rs/tracing/
+## Building Docker Images
+
+To build a Docker image for Continuwuity, use the standard Docker build command:
+
+```bash
+docker build -f docker/Dockerfile .
+```
+
+The image can be cross-compiled for different architectures.
+
+## Matrix Protocol Compliance Testing
+
+Complement (the Matrix protocol compliance testing suite) is run manually by developers.
+Documentation on how to run Complement tests locally is being developed and will be added soon.
+
+Sytest is currently unsupported.
+
+[continuwuation-ruwuma]: https://forgejo.ellis.link/continuwuation/ruwuma
+[continuwuation-rocksdb]: https://forgejo.ellis.link/continuwuation/rocksdb
+[continuwuation-jemallocator]: https://forgejo.ellis.link/continuwuation/jemallocator
+[continuwuation-rustyline-async]: https://forgejo.ellis.link/continuwuation/rustyline-async
+[continuwuation-rust-rocksdb]: https://forgejo.ellis.link/continuwuation/rust-rocksdb
+[continuwuation-tracing]: https://forgejo.ellis.link/continuwuation/tracing
+
+[ruma]: https://github.com/ruma/ruma/
+[rocksdb]: https://github.com/facebook/rocksdb/
+[jemallocator]: https://github.com/tikv/jemallocator/
+[rustyline-async]: https://github.com/zyansheep/rustyline-async/
+[rust-rocksdb]: https://github.com/rust-rocksdb/rust-rocksdb/
+[tracing]: https://github.com/tokio-rs/tracing/
+
 [7]: https://docs.rs/tokio-console/latest/tokio_console/
 [8]: https://github.com/zaidoon1/
 [9]: https://github.com/rust-lang/cargo/issues/12162
