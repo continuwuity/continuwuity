@@ -114,13 +114,6 @@ docker build -f docker/Dockerfile .
 
 The image can be cross-compiled for different architectures.
 
-## Matrix Protocol Compliance Testing
-
-Complement (the Matrix protocol compliance testing suite) is run manually by developers.
-Documentation on how to run Complement tests locally is being developed and will be added soon.
-
-Sytest is currently unsupported.
-
 [continuwuation-ruwuma]: https://forgejo.ellis.link/continuwuation/ruwuma
 [continuwuation-rocksdb]: https://forgejo.ellis.link/continuwuation/rocksdb
 [continuwuation-jemallocator]: https://forgejo.ellis.link/continuwuation/jemallocator

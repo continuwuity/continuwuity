@@ -40,16 +40,6 @@ cargo clippy --workspace
 cargo +nightly fmt
 ```
 
-### Building Docker images
-
-Docker images can be built using the standard Docker build command:
-
-```bash
-docker build -f docker/Dockerfile .
-```
-
-The Docker image can be cross-compiled for different architectures if needed.
-
 ### Matrix tests
 
 Continuwuity uses [Complement][complement] for Matrix protocol compliance testing. Complement tests are run manually by developers, and documentation on how to run these tests locally is currently being developed.
@@ -120,9 +110,9 @@ By sending a pull request or patch, you are agreeing that your changes are
 allowed to be licenced under the Apache-2.0 licence and all of your conduct is
 in line with the Contributor's Covenant, and continuwuity's Code of Conduct.
 
-Contribution by users who violate either of these code of conducts will not have
+Contribution by users who violate either of these code of conducts may not have
 their contributions accepted. This includes users who have been banned from
-continuwuityMatrix rooms for Code of Conduct violations.
+continuwuity Matrix rooms for Code of Conduct violations.
 
 [issues]: https://forgejo.ellis.link/continuwuation/continuwuity/issues
 [continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org
