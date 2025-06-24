@@ -30,6 +30,11 @@ repos:
         name: commit-msg-typos
         stages: [commit-msg]
 
+  - repo: https://github.com/crate-ci/committed
+    rev: v1.1.7
+    hooks:
+    - id: committed
+
   - repo: local
     hooks:
       - id: cargo-fmt

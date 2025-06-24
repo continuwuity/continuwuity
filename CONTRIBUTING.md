@@ -21,6 +21,45 @@ comment saying why. Do not write inefficient code for the sake of satisfying
 lints. If a lint is wrong and provides a more inefficient solution or
 suggestion, allow the lint and mention that in a comment.
 
+### Pre-commit Checks
+
+Continuwuity uses pre-commit hooks to enforce various coding standards and catch common issues before they're committed. These checks include:
+
+- Code formatting and linting
+- Typo detection (both in code and commit messages)
+- Checking for large files
+- Ensuring proper line endings and no trailing whitespace
+- Validating YAML, JSON, and TOML files
+- Checking for merge conflicts
+
+You can run these checks locally by installing [prefligit](https://github.com/j178/prefligit):
+
+
+```bash
+# Install prefligit using cargo-binstall
+cargo binstall prefligit
+
+# Install git hooks to run checks automatically
+prefligit install
+
+# Run all checks
+prefligit --all-files
+```
+
+Alternatively, you can use [pre-commit](https://pre-commit.com/):
+```bash
+# Install pre-commit
+pip install pre-commit
+
+# Install the hooks
+pre-commit install
+
+# Run all checks manually
+pre-commit run --all-files
+```
+
+These same checks are run in CI via the prefligit-checks workflow to ensure consistency.
+
 ### Running tests locally
 
 Tests, compilation, and linting can be run with standard Cargo commands:
@@ -94,6 +133,40 @@ Rust's default style and standards with regards to [function names, variable
 names, comments](https://rust-lang.github.io/api-guidelines/naming.html), etc
 applies here.
 
+### Commit Messages
+
+Continuwuity follows the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages. This provides a standardized format that makes the commit history more readable and enables automated tools to generate changelogs.
+
+The basic structure is:
+```
+<type>[(optional scope)]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+The allowed types for commits are:
+- `fix`: Bug fixes
+- `feat`: New features
+- `docs`: Documentation changes
+- `style`: Changes that don't affect the meaning of the code (formatting, etc.)
+- `refactor`: Code changes that neither fix bugs nor add features
+- `perf`: Performance improvements
+- `test`: Adding or fixing tests
+- `build`: Changes to the build system or dependencies
+- `ci`: Changes to CI configuration
+- `chore`: Other changes that don't modify source or test files
+
+Examples:
+```
+feat: add user authentication
+fix(database): resolve connection pooling issue
+docs: update installation instructions
+```
+
+The project uses the `committed` hook to validate commit messages in pre-commit. This ensures all commits follow the conventional format.
+
 ### Creating pull requests
 
 Please try to keep contributions to the Forgejo Instance. While the mirrors of continuwuity
@@ -102,6 +175,13 @@ manner. Additionally, please mark WIP or unfinished or incomplete PRs as drafts.
 This prevents us from having to ping once in a while to double check the status
 of it, especially when the CI completed successfully and everything so it
 *looks* done.
+
+Before submitting a pull request, please ensure:
+1. Your code passes all CI checks (formatting, linting, typo detection, etc.)
+2. Your commit messages follow the conventional commits format
+3. Tests are added for new functionality
+4. Documentation is updated if needed
+
 
 
 Direct all PRs/MRs to the `main` branch.

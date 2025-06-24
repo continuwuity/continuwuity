@@ -1,0 +1,2 @@
+style = "conventional"
+allowed_types = ["ci", "build", "fix", "feat", "chore", "docs", "style", "refactor", "perf", "test"]
