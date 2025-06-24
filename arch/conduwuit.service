@@ -6,6 +6,7 @@ After=network-online.target
 Documentation=https://continuwuity.org/
 RequiresMountsFor=/var/lib/private/conduwuit
 Alias=matrix-conduwuit.service
+
 [Service]
 DynamicUser=yes
 Type=notify-reload
@@ -59,7 +60,8 @@ StateDirectory=conduwuit
 RuntimeDirectory=conduwuit
 RuntimeDirectoryMode=0750
 
-Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
+Environment=CONTINUWUITY_CONFIG=${CREDENTIALS_DIRECTORY}/config.toml
+LoadCredential=config.toml:/etc/conduwuit/conduwuit.toml
 BindPaths=/var/lib/private/conduwuit:/var/lib/matrix-conduit
 BindPaths=/var/lib/private/conduwuit:/var/lib/private/matrix-conduit
 
