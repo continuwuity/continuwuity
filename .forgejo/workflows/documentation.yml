@@ -17,6 +17,7 @@ jobs:
   docs:
     name: Build and Deploy Documentation
     runs-on: ubuntu-latest
+    if: secrets.CLOUDFLARE_API_TOKEN != ''
 
     steps:
       - name: Sync repository
