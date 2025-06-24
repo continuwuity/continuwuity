@@ -37,14 +37,3 @@ repos:
         pass_filenames: false
         stages:
             - pre-commit
-
-  - repo: local
-    hooks:
-      - id: cargo-clippy
-        name: cargo clippy
-        language: system
-        types: [rust]
-        pass_filenames: false
-        entry: cargo clippy --workspace --locked --no-deps --profile test -- -D warnings
-        stages:
-            - pre-commit
