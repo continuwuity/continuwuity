@@ -61,8 +61,6 @@ There are currently no open registration Continuwuity instances available.
 
 We're working our way through all of the issues in the [Forgejo project](https://forgejo.ellis.link/continuwuation/continuwuity/issues).
 
-- [Replacing old conduwuit links with working continuwuity links](https://forgejo.ellis.link/continuwuation/continuwuity/issues/742)
-- [Getting CI and docs deployment working on the new Forgejo project](https://forgejo.ellis.link/continuwuation/continuwuity/issues/740)
 - [Packaging & availability in more places](https://forgejo.ellis.link/continuwuation/continuwuity/issues/747)
 - [Appservices bugs & features](https://forgejo.ellis.link/continuwuation/continuwuity/issues?q=&type=all&state=open&labels=178&milestone=0&assignee=0&poster=0)
 - [Improving compatibility and spec compliance](https://forgejo.ellis.link/continuwuation/continuwuity/issues?labels=119)
