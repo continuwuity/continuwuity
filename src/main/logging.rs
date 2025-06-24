@@ -77,7 +77,7 @@ pub(crate) fn init(
 			);
 			let tracer = opentelemetry_jaeger::new_agent_pipeline()
 				.with_auto_split_batch(true)
-				.with_service_name("conduwuit")
+				.with_service_name(conduwuit_core::name())
 				.install_batch(opentelemetry_sdk::runtime::Tokio)
 				.expect("jaeger agent pipeline");
 			let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
