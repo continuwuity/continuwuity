@@ -26,6 +26,9 @@ repos:
     rev: v1.26.0
     hooks:
       - id: typos
+      - id: typos
+        name: commit-msg-typos
+        stages: [commit-msg]
 
   - repo: local
     hooks:
