@@ -719,6 +719,18 @@ impl Service {
 				);
 			}
 		}
+		if event_type != TimelineEventType::RoomCreate && prev_events.is_empty() {
+			return Err!(Request(Unknown("Event incorrectly had zero prev_events.")));
+		}
+		if state_key.is_none() && depth.le(&uint!(2)) {
+			// The first two events in a room are always m.room.create and m.room.member,
+			// so any other events with that same depth are illegal.
+			warn!(
+				"Had unsafe depth {depth} when creating non-state event in {room_id}. Cowardly \
+				 aborting"
+			);
+			return Err!(Request(Unknown("Unsafe depth for non-state event.")));
+		}
 
 		let mut pdu = PduEvent {
 			event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
