@@ -4,6 +4,10 @@
 
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
 
+[![Chat on Matrix](https://img.shields.io/matrix/continuwuity%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix)](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) [![Join the space](https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space)](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
+
+
+
 <!-- ANCHOR_END: catchphrase -->
 
 [continuwuity] is a Matrix homeserver written in Rust.
