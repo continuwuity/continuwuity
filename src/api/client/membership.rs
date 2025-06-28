@@ -925,23 +925,31 @@ pub async fn join_room_by_id_helper(
 		return Ok(join_room_by_id::v3::Response { room_id: room_id.into() });
 	}
 
-	if let Ok(membership) = services
-		.rooms
-		.state_accessor
-		.get_member(room_id, sender_user)
-		.await
-	{
-		if membership.membership == MembershipState::Ban {
-			debug_warn!("{sender_user} is banned from {room_id} but attempted to join");
-			return Err!(Request(Forbidden("You are banned from the room.")));
-		}
-	}
-
 	let server_in_room = services
 		.rooms
 		.state_cache
 		.server_in_room(services.globals.server_name(), room_id)
 		.await;
+
+	// Only check our known membership if we're already in the room.
+	// See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/855
+	let membership = if server_in_room {
+		services
+			.rooms
+			.state_accessor
+			.get_member(room_id, sender_user)
+			.await
+	} else {
+		debug!("Ignoring local state for join {room_id}, we aren't in the room yet.");
+		Ok(RoomMemberEventContent::new(MembershipState::Leave))
+	};
+	if let Ok(m) = membership {
+		if m.membership == MembershipState::Ban {
+			debug_warn!("{sender_user} is banned from {room_id} but attempted to join");
+			// TODO: return reason
+			return Err!(Request(Forbidden("You are banned from the room.")));
+		}
+	}
 
 	let local_join = server_in_room
 		|| servers.is_empty()
