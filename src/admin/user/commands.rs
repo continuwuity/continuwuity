@@ -225,6 +225,40 @@ pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> 
 }
 
 #[admin_command]
+pub(super) async fn suspend(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+
+	if user_id == self.services.globals.server_user {
+		return Err!("Not allowed to suspend the server service account.",);
+	}
+
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	self.services.users.suspend_account(&user_id).await;
+
+	self.write_str(&format!("User {user_id} has been suspended."))
+		.await
+}
+
+#[admin_command]
+pub(super) async fn unsuspend(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+
+	if user_id == self.services.globals.server_user {
+		return Err!("Not allowed to unsuspend the server service account.",);
+	}
+
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	self.services.users.unsuspend_account(&user_id).await;
+
+	self.write_str(&format!("User {user_id} has been unsuspended."))
+		.await
+}
+
+#[admin_command]
 pub(super) async fn reset_password(&self, username: String, password: Option<String>) -> Result {
 	let user_id = parse_local_user_id(self.services, &username)?;
 

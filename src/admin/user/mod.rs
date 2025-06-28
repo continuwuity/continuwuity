@@ -59,6 +59,28 @@ pub(super) enum UserCommand {
 		force: bool,
 	},
 
+	/// - Suspend a user
+	///
+	/// Suspended users are able to log in, sync, and read messages, but are not
+	/// able to send events nor redact them, cannot change their profile, and
+	/// are unable to join, invite to, or knock on rooms.
+	///
+	/// Suspended users can still leave rooms and deactivate their account.
+	/// Suspending them effectively makes them read-only.
+	Suspend {
+		/// Username of the user to suspend
+		user_id: String,
+	},
+
+	/// - Unsuspend a user
+	///
+	/// Reverses the effects of the `suspend` command, allowing the user to send
+	/// messages, change their profile, create room invites, etc.
+	Unsuspend {
+		/// Username of the user to unsuspend
+		user_id: String,
+	},
+
 	/// - List local users in the database
 	#[clap(alias = "list")]
 	ListUsers,
