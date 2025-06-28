@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Error, Result, err, info,
+	Err, Error, Result, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 };
 use futures::StreamExt;
@@ -61,6 +61,10 @@ pub(crate) async fn upgrade_room_route(
 			ErrorKind::UnsupportedRoomVersion,
 			"This server does not support that room version.",
 		));
+	}
+
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
 	// Create a replacement room
