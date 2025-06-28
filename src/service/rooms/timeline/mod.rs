@@ -722,7 +722,7 @@ impl Service {
 		if event_type != TimelineEventType::RoomCreate && prev_events.is_empty() {
 			return Err!(Request(Unknown("Event incorrectly had zero prev_events.")));
 		}
-		if state_key.is_none() && depth.le(&uint!(2)) {
+		if state_key.is_none() && depth.lt(&uint!(2)) {
 			// The first two events in a room are always m.room.create and m.room.member,
 			// so any other events with that same depth are illegal.
 			warn!(
