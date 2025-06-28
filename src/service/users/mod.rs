@@ -15,7 +15,6 @@ use ruma::{
 		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
 	},
 	serde::Raw,
-	uint,
 };
 use serde_json::json;
 
@@ -147,12 +146,12 @@ impl Service {
 	}
 
 	/// Suspend account, placing it in a read-only state
-	pub async fn suspend_account(&self, user_id: &UserId) -> () {
+	pub async fn suspend_account(&self, user_id: &UserId) {
 		self.db.userid_suspended.insert(user_id, "1");
 	}
 
 	/// Unsuspend account, placing it in a read-write state
-	pub async fn unsuspend_account(&self, user_id: &UserId) -> () {
+	pub async fn unsuspend_account(&self, user_id: &UserId) {
 		self.db.userid_suspended.remove(user_id);
 	}
 
