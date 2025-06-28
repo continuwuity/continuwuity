@@ -177,7 +177,7 @@ impl Service {
 		self.db
 			.userid_suspended
 			.get(user_id)
-			.map_ok(|val| val.is_empty())
+			.map_ok(|val| !val.is_empty())
 			.map_err(|_| err!(Request(NotFound("User does not exist."))))
 			.await
 	}
