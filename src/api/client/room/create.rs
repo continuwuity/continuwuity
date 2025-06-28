@@ -70,6 +70,10 @@ pub(crate) async fn create_room_route(
 		));
 	}
 
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
+
 	let room_id: OwnedRoomId = match &body.room_id {
 		| Some(custom_room_id) => custom_room_id_check(&services, custom_room_id)?,
 		| _ => RoomId::new(&services.server.name),
