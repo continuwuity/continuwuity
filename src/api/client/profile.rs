@@ -36,6 +36,9 @@ pub(crate) async fn set_displayname_route(
 	body: Ruma<set_display_name::v3::Request>,
 ) -> Result<set_display_name::v3::Response> {
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
@@ -125,6 +128,9 @@ pub(crate) async fn set_avatar_url_route(
 	body: Ruma<set_avatar_url::v3::Request>,
 ) -> Result<set_avatar_url::v3::Response> {
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if *sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update the profile of another user")));
