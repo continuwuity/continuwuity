@@ -23,6 +23,9 @@ pub(crate) async fn send_message_event_route(
 	let sender_user = body.sender_user();
 	let sender_device = body.sender_device.as_deref();
 	let appservice_info = body.appservice_info.as_ref();
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	// Forbid m.room.encrypted if encryption is disabled
 	if MessageLikeEventType::RoomEncrypted == body.event_type && !services.config.allow_encryption
