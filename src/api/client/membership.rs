@@ -578,6 +578,10 @@ pub(crate) async fn kick_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<kick_user::v3::Request>,
 ) -> Result<kick_user::v3::Response> {
+	let sender_user = body.sender_user();
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
 
 	let Ok(event) = services
@@ -613,7 +617,7 @@ pub(crate) async fn kick_user_route(
 				third_party_invite: None,
 				..event
 			}),
-			body.sender_user(),
+			sender_user,
 			&body.room_id,
 			&state_lock,
 		)
@@ -635,6 +639,10 @@ pub(crate) async fn ban_user_route(
 
 	if sender_user == body.user_id {
 		return Err!(Request(Forbidden("You cannot ban yourself.")));
+	}
+
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
@@ -679,6 +687,10 @@ pub(crate) async fn unban_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<unban_user::v3::Request>,
 ) -> Result<unban_user::v3::Response> {
+	let sender_user = body.sender_user();
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
 
 	let current_member_content = services
@@ -707,7 +719,7 @@ pub(crate) async fn unban_user_route(
 				is_direct: None,
 				..current_member_content
 			}),
-			body.sender_user(),
+			sender_user,
 			&body.room_id,
 			&state_lock,
 		)

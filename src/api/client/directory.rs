@@ -128,6 +128,9 @@ pub(crate) async fn set_room_visibility_route(
 		// Return 404 if the room doesn't exist
 		return Err!(Request(NotFound("Room not found")));
 	}
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if services
 		.users

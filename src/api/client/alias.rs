@@ -18,6 +18,9 @@ pub(crate) async fn create_alias_route(
 	body: Ruma<create_alias::v3::Request>,
 ) -> Result<create_alias::v3::Response> {
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	services
 		.rooms
@@ -63,6 +66,9 @@ pub(crate) async fn delete_alias_route(
 	body: Ruma<delete_alias::v3::Request>,
 ) -> Result<delete_alias::v3::Response> {
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	services
 		.rooms
