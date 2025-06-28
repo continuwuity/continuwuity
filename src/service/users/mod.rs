@@ -15,6 +15,7 @@ use ruma::{
 		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
 	},
 	serde::Raw,
+	uint,
 };
 use serde_json::json;
 
@@ -52,6 +53,7 @@ struct Data {
 	userid_lastonetimekeyupdate: Arc<Map>,
 	userid_masterkeyid: Arc<Map>,
 	userid_password: Arc<Map>,
+	userid_suspended: Arc<Map>,
 	userid_selfsigningkeyid: Arc<Map>,
 	userid_usersigningkeyid: Arc<Map>,
 	useridprofilekey_value: Arc<Map>,
@@ -87,6 +89,7 @@ impl crate::Service for Service {
 				userid_lastonetimekeyupdate: args.db["userid_lastonetimekeyupdate"].clone(),
 				userid_masterkeyid: args.db["userid_masterkeyid"].clone(),
 				userid_password: args.db["userid_password"].clone(),
+				userid_suspended: args.db["userid_suspended"].clone(),
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
@@ -143,6 +146,16 @@ impl Service {
 		Ok(())
 	}
 
+	/// Suspend account, placing it in a read-only state
+	pub async fn suspend_account(&self, user_id: &UserId) -> () {
+		self.db.userid_suspended.insert(user_id, "1");
+	}
+
+	/// Unsuspend account, placing it in a read-write state
+	pub async fn unsuspend_account(&self, user_id: &UserId) -> () {
+		self.db.userid_suspended.remove(user_id);
+	}
+
 	/// Check if a user has an account on this homeserver.
 	#[inline]
 	pub async fn exists(&self, user_id: &UserId) -> bool {
@@ -153,6 +166,16 @@ impl Service {
 	pub async fn is_deactivated(&self, user_id: &UserId) -> Result<bool> {
 		self.db
 			.userid_password
+			.get(user_id)
+			.map_ok(|val| val.is_empty())
+			.map_err(|_| err!(Request(NotFound("User does not exist."))))
+			.await
+	}
+
+	/// Check if account is suspended
+	pub async fn is_suspended(&self, user_id: &UserId) -> Result<bool> {
+		self.db
+			.userid_suspended
 			.get(user_id)
 			.map_ok(|val| val.is_empty())
 			.map_err(|_| err!(Request(NotFound("User does not exist."))))
