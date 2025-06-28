@@ -58,29 +58,34 @@ pub(crate) async fn set_read_marker_route(
 	}
 
 	if let Some(event) = &body.read_receipt {
-		let receipt_content = BTreeMap::from_iter([(
-			event.to_owned(),
-			BTreeMap::from_iter([(
-				ReceiptType::Read,
-				BTreeMap::from_iter([(sender_user.to_owned(), ruma::events::receipt::Receipt {
-					ts: Some(MilliSecondsSinceUnixEpoch::now()),
-					thread: ReceiptThread::Unthreaded,
-				})]),
-			)]),
-		)]);
+		if !services.users.is_suspended(sender_user).await? {
+			let receipt_content = BTreeMap::from_iter([(
+				event.to_owned(),
+				BTreeMap::from_iter([(
+					ReceiptType::Read,
+					BTreeMap::from_iter([(
+						sender_user.to_owned(),
+						ruma::events::receipt::Receipt {
+							ts: Some(MilliSecondsSinceUnixEpoch::now()),
+							thread: ReceiptThread::Unthreaded,
+						},
+					)]),
+				)]),
+			)]);
 
-		services
-			.rooms
-			.read_receipt
-			.readreceipt_update(
-				sender_user,
-				&body.room_id,
-				&ruma::events::receipt::ReceiptEvent {
-					content: ruma::events::receipt::ReceiptEventContent(receipt_content),
-					room_id: body.room_id.clone(),
-				},
-			)
-			.await;
+			services
+				.rooms
+				.read_receipt
+				.readreceipt_update(
+					sender_user,
+					&body.room_id,
+					&ruma::events::receipt::ReceiptEvent {
+						content: ruma::events::receipt::ReceiptEventContent(receipt_content),
+						room_id: body.room_id.clone(),
+					},
+				)
+				.await;
+		}
 	}
 
 	if let Some(event) = &body.private_read_receipt {
