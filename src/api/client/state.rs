@@ -33,6 +33,10 @@ pub(crate) async fn send_state_event_for_key_route(
 ) -> Result<send_state_event::v3::Response> {
 	let sender_user = body.sender_user();
 
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
+
 	Ok(send_state_event::v3::Response {
 		event_id: send_state_event_for_key_helper(
 			&services,
