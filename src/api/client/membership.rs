@@ -178,6 +178,9 @@ pub(crate) async fn join_room_by_id_route(
 	body: Ruma<join_room_by_id::v3::Request>,
 ) -> Result<join_room_by_id::v3::Response> {
 	let sender_user = body.sender_user();
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	banned_room_check(
 		&services,
@@ -249,6 +252,9 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	let sender_user = body.sender_user.as_deref().expect("user is authenticated");
 	let appservice_info = &body.appservice_info;
 	let body = body.body;
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	let (servers, room_id) = match OwnedRoomId::try_from(body.room_id_or_alias) {
 		| Ok(room_id) => {
@@ -369,6 +375,9 @@ pub(crate) async fn knock_room_route(
 ) -> Result<knock_room::v3::Response> {
 	let sender_user = body.sender_user();
 	let body = &body.body;
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	let (servers, room_id) = match OwnedRoomId::try_from(body.room_id_or_alias.clone()) {
 		| Ok(room_id) => {
@@ -492,6 +501,9 @@ pub(crate) async fn invite_user_route(
 	body: Ruma<invite_user::v3::Request>,
 ) -> Result<invite_user::v3::Response> {
 	let sender_user = body.sender_user();
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if !services.users.is_admin(sender_user).await && services.config.block_non_admin_invites {
 		debug_error!(
