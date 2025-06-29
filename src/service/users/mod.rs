@@ -2,7 +2,7 @@ use std::{collections::BTreeMap, mem, sync::Arc};
 
 use conduwuit::{
 	Err, Error, Result, Server, at, debug_warn, err, trace,
-	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
+	utils::{self, ReadyExt, TryFutureExtExt, stream::TryIgnore, string::Unquoted},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
@@ -176,8 +176,7 @@ impl Service {
 		self.db
 			.userid_suspended
 			.get(user_id)
-			.map_ok(|val| !val.is_empty())
-			.map_err(|_| err!(Request(NotFound("User does not exist."))))
+			.map_ok_or(Ok(false), |_| Ok(true))
 			.await
 	}
 
