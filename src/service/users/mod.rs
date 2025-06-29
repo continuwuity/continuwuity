@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, mem, sync::Arc};
 
 use conduwuit::{
-	Err, Error, Result, Server, at, debug_warn, err, result, trace,
-	utils::{self, ReadyExt, TryFutureExtExt, stream::TryIgnore, string::Unquoted},
+	Err, Error, Result, Server, at, debug_warn, err, trace,
+	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
-use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
