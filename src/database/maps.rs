@@ -379,7 +379,7 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM
 	},
 	Descriptor {
-		name: "userid_suspended",
+		name: "userid_suspension",
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {

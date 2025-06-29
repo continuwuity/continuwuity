@@ -16,9 +16,20 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{Dep, account_data, admin, globals, rooms};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserSuspension {
+	/// Whether the user is currently suspended
+	pub suspended: bool,
+	/// When the user was suspended (Unix timestamp in milliseconds)
+	pub suspended_at: u64,
+	/// User ID of who suspended this user
+	pub suspended_by: String,
+}
 
 pub struct Service {
 	services: Services,
@@ -52,7 +63,7 @@ struct Data {
 	userid_lastonetimekeyupdate: Arc<Map>,
 	userid_masterkeyid: Arc<Map>,
 	userid_password: Arc<Map>,
-	userid_suspended: Arc<Map>,
+	userid_suspension: Arc<Map>,
 	userid_selfsigningkeyid: Arc<Map>,
 	userid_usersigningkeyid: Arc<Map>,
 	useridprofilekey_value: Arc<Map>,
@@ -88,7 +99,7 @@ impl crate::Service for Service {
 				userid_lastonetimekeyupdate: args.db["userid_lastonetimekeyupdate"].clone(),
 				userid_masterkeyid: args.db["userid_masterkeyid"].clone(),
 				userid_password: args.db["userid_password"].clone(),
-				userid_suspended: args.db["userid_suspended"].clone(),
+				userid_suspension: args.db["userid_suspension"].clone(),
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
@@ -146,13 +157,20 @@ impl Service {
 	}
 
 	/// Suspend account, placing it in a read-only state
-	pub async fn suspend_account(&self, user_id: &UserId) {
-		self.db.userid_suspended.insert(user_id, "1");
+	pub async fn suspend_account(&self, user_id: &UserId, suspending_user: &UserId) {
+		self.db.userid_suspension.raw_put(
+			user_id,
+			Json(UserSuspension {
+				suspended: true,
+				suspended_at: MilliSecondsSinceUnixEpoch::now().get().into(),
+				suspended_by: suspending_user.to_string(),
+			}),
+		);
 	}
 
 	/// Unsuspend account, placing it in a read-write state
 	pub async fn unsuspend_account(&self, user_id: &UserId) {
-		self.db.userid_suspended.remove(user_id);
+		self.db.userid_suspension.remove(user_id);
 	}
 
 	/// Check if a user has an account on this homeserver.
@@ -173,23 +191,21 @@ impl Service {
 
 	/// Check if account is suspended
 	pub async fn is_suspended(&self, user_id: &UserId) -> Result<bool> {
-		self.db
-			.userid_suspended
+		match self
+			.db
+			.userid_suspension
 			.get(user_id)
-			.map_ok_or_else(
-				|err| {
-					if err.is_not_found() {
-						Ok(false)
-					} else {
-						err!(Database(error!(
-							"Failed to check if user {user_id} is suspended: {err}"
-						)));
-						Ok(true)
-					}
-				},
-				|_| Ok(true),
-			)
 			.await
+			.deserialized::<UserSuspension>()
+		{
+			| Ok(s) => Ok(s.suspended),
+			| Err(e) =>
+				if e.is_not_found() {
+					Ok(false)
+				} else {
+					Err(e)
+				},
+		}
 	}
 
 	/// Check if account is active, infallible

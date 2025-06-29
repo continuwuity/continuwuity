@@ -238,7 +238,11 @@ pub(super) async fn suspend(&self, user_id: String) -> Result {
 	if self.services.users.is_admin(&user_id).await {
 		return Err!("Admin users cannot be suspended.");
 	}
-	self.services.users.suspend_account(&user_id).await;
+	// TODO: Record the actual user that sent the suspension where possible
+	self.services
+		.users
+		.suspend_account(&user_id, self.services.globals.server_user.as_ref())
+		.await;
 
 	self.write_str(&format!("User {user_id} has been suspended."))
 		.await
