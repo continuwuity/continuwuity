@@ -189,6 +189,7 @@ pub(crate) async fn upgrade_room_route(
 					blurhash: services.users.blurhash(sender_user).await.ok(),
 					reason: None,
 					join_authorized_via_users_server: None,
+					redact_events: None,
 				})
 				.expect("event is valid, we just created it"),
 				unsigned: None,

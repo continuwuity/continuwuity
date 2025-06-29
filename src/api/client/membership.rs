@@ -1824,6 +1824,7 @@ pub async fn leave_room(
 		displayname: None,
 		third_party_invite: None,
 		blurhash: None,
+		redact_events: None,
 	};
 
 	let is_banned = services.rooms.metadata.is_banned(room_id);

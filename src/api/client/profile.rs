@@ -343,6 +343,7 @@ pub async fn update_displayname(
 				reason: None,
 				is_direct: None,
 				third_party_invite: None,
+				redact_events: None,
 			});
 
 			Ok((pdu, room_id))
@@ -396,6 +397,7 @@ pub async fn update_avatar_url(
 				reason: None,
 				is_direct: None,
 				third_party_invite: None,
+				redact_events: None,
 			});
 
 			Ok((pdu, room_id))
