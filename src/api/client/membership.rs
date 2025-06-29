@@ -646,6 +646,7 @@ pub(crate) async fn ban_user_route(
 				is_direct: None,
 				join_authorized_via_users_server: None,
 				third_party_invite: None,
+				redact_events: body.redact_events,
 				..current_member_content
 			}),
 			sender_user,
