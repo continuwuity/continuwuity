@@ -7,13 +7,14 @@ use futures::{
 	io::{AsyncWriteExt, BufWriter},
 	lock::Mutex,
 };
-use ruma::EventId;
+use ruma::{EventId, UserId};
 
 pub(crate) struct Context<'a> {
 	pub(crate) services: &'a Services,
 	pub(crate) body: &'a [&'a str],
 	pub(crate) timer: SystemTime,
 	pub(crate) reply_id: Option<&'a EventId>,
+	pub(crate) sender: Option<&'a UserId>,
 	pub(crate) output: Mutex<BufWriter<Vec<u8>>>,
 }
 
@@ -35,5 +36,17 @@ impl Context<'_> {
 		self.output.lock().then(async move |mut output| {
 			output.write_all(s.as_bytes()).map_err(Into::into).await
 		})
+	}
+
+	/// Get the sender of the admin command, if available
+	pub(crate) fn sender(&self) -> Option<&UserId> { self.sender }
+
+	/// Check if the command has sender information
+	pub(crate) fn has_sender(&self) -> bool { self.sender.is_some() }
+
+	/// Get the sender as a string, or service user ID if not available
+	pub(crate) fn sender_or_service_user(&self) -> &UserId {
+		self.sender
+			.unwrap_or_else(|| self.services.globals.server_user.as_ref())
 	}
 }

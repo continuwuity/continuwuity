@@ -45,11 +45,13 @@ struct Services {
 	services: StdRwLock<Option<Weak<crate::Services>>>,
 }
 
-/// Inputs to a command are a multi-line string and optional reply_id.
+/// Inputs to a command are a multi-line string, optional reply_id, and optional
+/// sender.
 #[derive(Debug)]
 pub struct CommandInput {
 	pub command: String,
 	pub reply_id: Option<OwnedEventId>,
+	pub sender: Option<Box<UserId>>,
 }
 
 /// Prototype of the tab-completer. The input is buffered text when tab
@@ -162,7 +164,22 @@ impl Service {
 	pub fn command(&self, command: String, reply_id: Option<OwnedEventId>) -> Result<()> {
 		self.channel
 			.0
-			.send(CommandInput { command, reply_id })
+			.send(CommandInput { command, reply_id, sender: None })
+			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
+	}
+
+	/// Posts a command to the command processor queue with sender information
+	/// and returns. Processing will take place on the service worker's task
+	/// asynchronously. Errors if the queue is full.
+	pub fn command_with_sender(
+		&self,
+		command: String,
+		reply_id: Option<OwnedEventId>,
+		sender: Box<UserId>,
+	) -> Result<()> {
+		self.channel
+			.0
+			.send(CommandInput { command, reply_id, sender: Some(sender) })
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
@@ -173,7 +190,7 @@ impl Service {
 		command: String,
 		reply_id: Option<OwnedEventId>,
 	) -> ProcessorResult {
-		self.process_command(CommandInput { command, reply_id })
+		self.process_command(CommandInput { command, reply_id, sender: None })
 			.await
 	}
 

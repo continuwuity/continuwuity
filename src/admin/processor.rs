@@ -63,6 +63,7 @@ async fn process_command(services: Arc<Services>, input: &CommandInput) -> Proce
 		body: &body,
 		timer: SystemTime::now(),
 		reply_id: input.reply_id.as_deref(),
+		sender: input.sender.as_deref(),
 		output: BufWriter::new(Vec::new()).into(),
 	};
 
