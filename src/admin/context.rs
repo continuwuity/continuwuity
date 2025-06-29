@@ -38,12 +38,6 @@ impl Context<'_> {
 		})
 	}
 
-	/// Get the sender of the admin command, if available
-	pub(crate) fn sender(&self) -> Option<&UserId> { self.sender }
-
-	/// Check if the command has sender information
-	pub(crate) fn has_sender(&self) -> bool { self.sender.is_some() }
-
 	/// Get the sender as a string, or service user ID if not available
 	pub(crate) fn sender_or_service_user(&self) -> &UserId {
 		self.sender
