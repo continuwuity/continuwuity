@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, mem, sync::Arc};
 
 use conduwuit::{
-	Err, Error, Result, Server, at, debug_warn, err, trace,
+	Err, Error, Result, Server, at, debug_warn, err, result, trace,
 	utils::{self, ReadyExt, TryFutureExtExt, stream::TryIgnore, string::Unquoted},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{Stream, StreamExt, TryFutureExt, TryStreamExt};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
@@ -176,7 +176,19 @@ impl Service {
 		self.db
 			.userid_suspended
 			.get(user_id)
-			.map_ok_or(Ok(false), |_| Ok(true))
+			.map_ok_or_else(
+				|err| {
+					if err.is_not_found() {
+						Ok(false)
+					} else {
+						err!(Database(error!(
+							"Failed to check if user {user_id} is suspended: {err}"
+						)));
+						Ok(true)
+					}
+				},
+				|_| Ok(true),
+			)
 			.await
 	}
 
