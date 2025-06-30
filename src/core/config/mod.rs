@@ -2125,40 +2125,41 @@ fn default_db_write_buffer_capacity_mb() -> f64 { 48.0 + parallelism_scaled_f64(
 
 fn default_db_cache_capacity_mb() -> f64 { 512.0 + parallelism_scaled_f64(512.0) }
 
-fn default_pdu_cache_capacity() -> u32 { parallelism_scaled_u32(50_000).saturating_add(500_000) }
+fn default_pdu_cache_capacity() -> u32 { parallelism_scaled_u32(50_000).saturating_add(100_000) }
 
 fn default_cache_capacity_modifier() -> f64 { 1.0 }
 
 fn default_auth_chain_cache_capacity() -> u32 {
-	parallelism_scaled_u32(50_000).saturating_add(500_000)
+	parallelism_scaled_u32(50_000).saturating_add(100_000)
 }
 
 fn default_shorteventid_cache_capacity() -> u32 {
-	parallelism_scaled_u32(100_000).saturating_add(500_000)
+	parallelism_scaled_u32(100_000).saturating_add(100_000)
 }
 
 fn default_eventidshort_cache_capacity() -> u32 {
-	parallelism_scaled_u32(100_000).saturating_add(500_000)
+	parallelism_scaled_u32(50_000).saturating_add(100_000)
 }
 
 fn default_eventid_pdu_cache_capacity() -> u32 {
-	parallelism_scaled_u32(50_000).saturating_add(500_000)
+	parallelism_scaled_u32(50_000).saturating_add(100_000)
 }
 
 fn default_shortstatekey_cache_capacity() -> u32 {
-	parallelism_scaled_u32(50_000).saturating_add(500_000)
+	parallelism_scaled_u32(50_000).saturating_add(100_000)
 }
 
 fn default_statekeyshort_cache_capacity() -> u32 {
-	parallelism_scaled_u32(50_000).saturating_add(500_000)
+	parallelism_scaled_u32(50_000).saturating_add(100_000)
 }
 
 fn default_servernameevent_data_cache_capacity() -> u32 {
-	parallelism_scaled_u32(200_000).saturating_add(500_000)
+	parallelism_scaled_u32(100_000).saturating_add(100_000)
 }
 
 fn default_stateinfo_cache_capacity() -> u32 {
-	parallelism_scaled_u32(500).clamp(100, 12000) }
+	parallelism_scaled_u32(500).clamp(100, 12000)
+}
 
 fn default_roomid_spacehierarchy_cache_capacity() -> u32 {
 	parallelism_scaled_u32(500).clamp(100, 12000) }
