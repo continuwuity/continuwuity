@@ -513,6 +513,17 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_registration: bool,
 
+	/// If registration is enabled, and this setting is true, new users
+	/// registered after the first admin user will be automatically suspended
+	/// and will require an admin to run `!admin users unsuspend <user_id>`.
+	///
+	/// Suspended users are still able to read messages, make profile updates,
+	/// leave rooms, and deactivate their account, however cannot send messages,
+	/// invites, or create/join or otherwise modify rooms.
+	/// They are effectively read-only.
+	#[serde(default)]
+	pub suspend_on_register: bool,
+
 	/// Enabling this setting opens registration to anyone without restrictions.
 	/// This makes your server vulnerable to abuse
 	#[serde(default)]

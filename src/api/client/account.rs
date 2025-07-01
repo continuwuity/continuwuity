@@ -2,6 +2,7 @@ use std::fmt::Write;
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
+use axum_extra::headers::UserAgent;
 use conduwuit::{
 	Err, Error, Result, debug_info, err, error, info, is_equal_to,
 	matrix::pdu::PduBuilder,
@@ -490,6 +491,25 @@ pub(crate) async fn register_route(
 			{
 				services.admin.make_user_admin(&user_id).await?;
 				warn!("Granting {user_id} admin privileges as the first user");
+			} else if services.config.suspend_on_register {
+				// This is not an admin, suspend them.
+				// Note that we can still do auto joins for suspended users
+				services
+					.users
+					.suspend_account(&user_id, &services.globals.server_user)
+					.await;
+				// And send an @room notice to the admin room, to prompt admins to review the
+				// new user and ideally unsuspend them if deemed appropriate.
+				if services.server.config.admin_room_notices {
+					services
+						.admin
+						.send_loud_message(RoomMessageEventContent::text_plain(format!(
+							"User {user_id} has been suspended as they are not the first user \
+							 on this server. Please review and unsuspend them if appropriate."
+						)))
+						.await
+						.ok();
+				}
 			}
 		}
 	}

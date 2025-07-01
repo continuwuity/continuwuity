@@ -18,7 +18,10 @@ use futures::{FutureExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, UserId,
-	events::room::message::{Relation, RoomMessageEventContent},
+	events::{
+		Mentions,
+		room::message::{Relation, RoomMessageEventContent},
+	},
 };
 use tokio::sync::RwLock;
 
@@ -156,6 +159,17 @@ impl Service {
 		self.respond_to_room(message_content, &room_id, user_id)
 			.boxed()
 			.await
+	}
+
+	/// Sends a message, the same as send_message() but with an @room ping to
+	/// notify all users in the room.
+	pub async fn send_loud_message(
+		&self,
+		mut message_content: RoomMessageEventContent,
+	) -> Result<()> {
+		// Add @room ping
+		message_content = message_content.add_mentions(Mentions::with_room_mention());
+		self.send_message(message_content).await
 	}
 
 	/// Posts a command to the command processor queue and returns. Processing
