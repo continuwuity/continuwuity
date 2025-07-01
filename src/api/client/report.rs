@@ -1,4 +1,7 @@
-use std::time::Duration;
+use std::{
+	ops::{Mul, Sub},
+	time::Duration,
+};
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
@@ -6,18 +9,34 @@ use conduwuit::{Err, Error, Result, debug_info, info, matrix::pdu::PduEvent, uti
 use conduwuit_service::Services;
 use rand::Rng;
 use ruma::{
-	EventId, RoomId, UserId,
+	EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{
 		error::ErrorKind,
 		report_user,
 		room::{report_content, report_room},
 	},
-	events::room::message,
+	events::{
+		Mentions,
+		room::{
+			message,
+			message::{RoomMessageEvent, RoomMessageEventContent},
+		},
+	},
 	int,
 };
 use tokio::time::sleep;
 
 use crate::Ruma;
+
+struct Report {
+	sender: OwnedUserId,
+	room_id: Option<OwnedRoomId>,
+	event_id: Option<OwnedEventId>,
+	user_id: Option<OwnedUserId>,
+	report_type: String,
+	reason: Option<String>,
+	score: Option<ruma::Int>,
+}
 
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report`
 ///
@@ -56,18 +75,17 @@ pub(crate) async fn report_room_route(
 		body.reason.as_deref().unwrap_or("")
 	);
 
-	// send admin room message that we received the report with an @room ping for
-	// urgency
-	services
-		.admin
-		.send_message(message::RoomMessageEventContent::text_markdown(format!(
-			"@room Room report received from {} -\n\nRoom ID: {}\n\nReport Reason: {}",
-			sender_user.to_owned(),
-			body.room_id,
-			body.reason.as_deref().unwrap_or("")
-		)))
-		.await
-		.ok();
+	let report = Report {
+		sender: sender_user.to_owned(),
+		room_id: Some(body.room_id.to_owned()),
+		event_id: None,
+		user_id: None,
+		report_type: "room".to_string(),
+		reason: body.reason.clone(),
+		score: None,
+	};
+
+	services.admin.send_message(build_report(report)).await.ok();
 
 	Ok(report_room::v3::Response {})
 }
@@ -108,23 +126,16 @@ pub(crate) async fn report_event_route(
 		body.event_id,
 		body.reason.as_deref().unwrap_or("")
 	);
-
-	// send admin room message that we received the report with an @room ping for
-	// urgency
-	services
-		.admin
-		.send_message(message::RoomMessageEventContent::text_markdown(format!(
-			"@room Event report received from {} -\n\nEvent ID: {}\nRoom ID: {}\nSent By: \
-			 {}\n\nReport Score: {}\nReport Reason: {}",
-			sender_user.to_owned(),
-			pdu.event_id,
-			pdu.room_id,
-			pdu.sender,
-			body.score.unwrap_or_else(|| ruma::Int::from(0)),
-			body.reason.as_deref().unwrap_or("")
-		)))
-		.await
-		.ok();
+	let report = Report {
+		sender: sender_user.to_owned(),
+		room_id: Some(body.room_id.to_owned()),
+		event_id: Some(body.event_id.to_owned()),
+		user_id: None,
+		report_type: "event".to_string(),
+		reason: body.reason.clone(),
+		score: body.score,
+	};
+	services.admin.send_message(build_report(report)).await.ok();
 
 	Ok(report_content::v3::Response {})
 }
@@ -152,24 +163,23 @@ pub(crate) async fn report_user_route(
 		return Ok(report_user::v3::Response {});
 	}
 
+	let report = Report {
+		sender: sender_user.to_owned(),
+		room_id: None,
+		event_id: None,
+		user_id: Some(body.user_id.to_owned()),
+		report_type: "user".to_string(),
+		reason: body.reason.clone(),
+		score: None,
+	};
+
 	info!(
 		"Received room report from {sender_user} for user {} with reason: \"{}\"",
 		body.user_id,
 		body.reason.as_deref().unwrap_or("")
 	);
 
-	// send admin room message that we received the report with an @room ping for
-	// urgency
-	services
-		.admin
-		.send_message(message::RoomMessageEventContent::text_markdown(format!(
-			"@room User report received from {} -\n\nUser ID: {}\n\nReport Reason: {}",
-			sender_user.to_owned(),
-			body.user_id,
-			body.reason.as_deref().unwrap_or("")
-		)))
-		.await
-		.ok();
+	services.admin.send_message(build_report(report)).await.ok();
 
 	Ok(report_user::v3::Response {})
 }
@@ -229,6 +239,33 @@ async fn is_event_report_valid(
 	}
 
 	Ok(())
+}
+
+/// Builds a report message to be sent to the admin room.
+fn build_report(report: Report) -> RoomMessageEventContent {
+	let mut text =
+		format!("@room New {} report received from {}:\n\n", report.report_type, report.sender);
+	if report.user_id.is_some() {
+		text.push_str(&format!("- Reported User ID: `{}`\n", report.user_id.unwrap()));
+	}
+	if report.room_id.is_some() {
+		text.push_str(&format!("- Reported Room ID: `{}`\n", report.room_id.unwrap()));
+	}
+	if report.event_id.is_some() {
+		text.push_str(&format!("- Reported Event ID: `{}`\n", report.event_id.unwrap()));
+	}
+	if let Some(score) = report.score {
+		if score < int!(0) {
+			score.mul(int!(-1)); // invert the score to make it N/100
+			// unsure why the spec says -100 to 0, but 0 to 100 is more human.
+		}
+		text.push_str(&format!("- User-supplied offensiveness score: {}%\n", -score));
+	}
+	if let Some(reason) = report.reason {
+		text.push_str(&format!("- Report Reason: {}\n", reason));
+	}
+
+	RoomMessageEventContent::text_markdown(text).add_mentions(Mentions::with_room_mention());
 }
 
 /// even though this is kinda security by obscurity, let's still make a small
