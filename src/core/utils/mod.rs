@@ -19,6 +19,7 @@ pub mod sys;
 #[cfg(test)]
 mod tests;
 pub mod time;
+pub mod with_lock;
 
 pub use ::conduwuit_macros::implement;
 pub use ::ctor::{ctor, dtor};
