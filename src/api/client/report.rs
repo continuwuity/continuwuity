@@ -1,7 +1,4 @@
-use std::{
-	ops::{Mul, Sub},
-	time::Duration,
-};
+use std::{fmt::Write as _, ops::Mul, time::Duration};
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
@@ -15,13 +12,7 @@ use ruma::{
 		report_user,
 		room::{report_content, report_room},
 	},
-	events::{
-		Mentions,
-		room::{
-			message,
-			message::{RoomMessageEvent, RoomMessageEventContent},
-		},
-	},
+	events::{Mentions, room::message::RoomMessageEventContent},
 	int,
 };
 use tokio::time::sleep;
@@ -80,10 +71,10 @@ pub(crate) async fn report_room_route(
 
 	let report = Report {
 		sender: sender_user.to_owned(),
-		room_id: Some(body.room_id.to_owned()),
+		room_id: Some(body.room_id.clone()),
 		event_id: None,
 		user_id: None,
-		report_type: "room".to_string(),
+		report_type: "room".to_owned(),
 		reason: body.reason.clone(),
 		score: None,
 	};
@@ -134,10 +125,10 @@ pub(crate) async fn report_event_route(
 	);
 	let report = Report {
 		sender: sender_user.to_owned(),
-		room_id: Some(body.room_id.to_owned()),
-		event_id: Some(body.event_id.to_owned()),
+		room_id: Some(body.room_id.clone()),
+		event_id: Some(body.event_id.clone()),
 		user_id: None,
-		report_type: "event".to_string(),
+		report_type: "event".to_owned(),
 		reason: body.reason.clone(),
 		score: body.score,
 	};
@@ -167,7 +158,7 @@ pub(crate) async fn report_user_route(
 
 	delay_response().await;
 
-	if !services.users.is_active_local(&body.user_id) {
+	if !services.users.is_active_local(&body.user_id).await {
 		// return 200 as to not reveal if the user exists. Recommended by spec.
 		return Ok(report_user::v3::Response {});
 	}
@@ -176,8 +167,8 @@ pub(crate) async fn report_user_route(
 		sender: sender_user.to_owned(),
 		room_id: None,
 		event_id: None,
-		user_id: Some(body.user_id.to_owned()),
-		report_type: "user".to_string(),
+		user_id: Some(body.user_id.clone()),
+		report_type: "user".to_owned(),
 		reason: body.reason.clone(),
 		score: None,
 	};
@@ -255,26 +246,22 @@ fn build_report(report: Report) -> RoomMessageEventContent {
 	let mut text =
 		format!("@room New {} report received from {}:\n\n", report.report_type, report.sender);
 	if report.user_id.is_some() {
-		text.push_str(&format!("- Reported User ID: `{}`\n", report.user_id.unwrap()));
+		let _ = writeln!(text, "- Reported User ID: `{}`", report.user_id.unwrap());
 	}
 	if report.room_id.is_some() {
-		text.push_str(&format!("- Reported Room ID: `{}`\n", report.room_id.unwrap()));
+		let _ = writeln!(text, "- Reported Room ID: `{}`", report.room_id.unwrap());
 	}
 	if report.event_id.is_some() {
-		text.push_str(&format!("- Reported Event ID: `{}`\n", report.event_id.unwrap()));
+		let _ = writeln!(text, "- Reported Event ID: `{}`", report.event_id.unwrap());
 	}
 	if let Some(score) = report.score {
-		if score < int!(0) {
-			score.mul(int!(-1)); // invert the score to make it N/100
-			// unsure why the spec says -100 to 0, but 0 to 100 is more human.
-		}
-		text.push_str(&format!("- User-supplied offensiveness score: {}%\n", -score));
+		let _ = writeln!(text, "- User-supplied offensiveness score: {}%", score.mul(int!(-1)));
 	}
 	if let Some(reason) = report.reason {
-		text.push_str(&format!("- Report Reason: {}\n", reason));
+		let _ = writeln!(text, "- Report Reason: {reason}");
 	}
 
-	RoomMessageEventContent::text_markdown(text).add_mentions(Mentions::with_room_mention());
+	RoomMessageEventContent::text_markdown(text).add_mentions(Mentions::with_room_mention())
 }
 
 /// even though this is kinda security by obscurity, let's still make a small
