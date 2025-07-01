@@ -521,6 +521,11 @@ pub struct Config {
 	/// leave rooms, and deactivate their account, however cannot send messages,
 	/// invites, or create/join or otherwise modify rooms.
 	/// They are effectively read-only.
+	///
+	/// If you want to use this to screen people who register on your server,
+	/// you should add a room to `auto_join_rooms` that is public, and contains
+	/// information that new users can read (since they won't be able to DM
+	/// anyone, or send a message, and may be confused).
 	#[serde(default)]
 	pub suspend_on_register: bool,
 
