@@ -43,10 +43,9 @@ pub(crate) async fn get_room_summary_legacy(
 }
 
 /// # `GET /_matrix/client/unstable/im.nheko.summary/summary/{roomIdOrAlias}`
+/// # `GET /_matrix/client/v1/room_summary/{roomIdOrAlias}`
 ///
 /// Returns a short description of the state of a room.
-///
-/// An implementation of [MSC3266](https://github.com/matrix-org/matrix-spec-proposals/pull/3266)
 #[tracing::instrument(skip_all, fields(%client), name = "room_summary")]
 pub(crate) async fn get_room_summary(
 	State(services): State<crate::State>,
