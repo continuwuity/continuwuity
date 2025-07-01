@@ -1,7 +1,7 @@
 use api::client::leave_room;
 use clap::Subcommand;
 use conduwuit::{
-	Err, Result, debug,
+	Err, Result, debug, info,
 	utils::{IterStream, ReadyExt},
 	warn,
 };
@@ -70,7 +70,6 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		};
 
 		debug!("Room specified is a room ID, banning room ID");
-		self.services.rooms.metadata.ban_room(room_id, true);
 
 		room_id.to_owned()
 	} else if room.is_room_alias_id() {
@@ -90,47 +89,25 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 			 locally, if not using get_alias_helper to fetch room ID remotely"
 		);
 
-		let room_id = match self
+		match self
 			.services
 			.rooms
 			.alias
-			.resolve_local_alias(room_alias)
+			.resolve_alias(room_alias, None)
 			.await
 		{
-			| Ok(room_id) => room_id,
-			| _ => {
+			| Ok((room_id, servers)) => {
 				debug!(
-					"We don't have this room alias to a room ID locally, attempting to fetch \
-					 room ID over federation"
+					?room_id,
+					?servers,
+					"Got federation response fetching room ID for room {room}"
 				);
-
-				match self
-					.services
-					.rooms
-					.alias
-					.resolve_alias(room_alias, None)
-					.await
-				{
-					| Ok((room_id, servers)) => {
-						debug!(
-							?room_id,
-							?servers,
-							"Got federation response fetching room ID for {room_id}"
-						);
-						room_id
-					},
-					| Err(e) => {
-						return Err!(
-							"Failed to resolve room alias {room_alias} to a room ID: {e}"
-						);
-					},
-				}
+				room_id
 			},
-		};
-
-		self.services.rooms.metadata.ban_room(&room_id, true);
-
-		room_id
+			| Err(e) => {
+				return Err!("Failed to resolve room alias {room} to a room ID: {e}");
+			},
+		}
 	} else {
 		return Err!(
 			"Room specified is not a room ID or room alias. Please note that this requires a \
@@ -139,7 +116,7 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		);
 	};
 
-	debug!("Making all users leave the room {room_id} and forgetting it");
+	info!("Making all users leave the room {room_id} and forgetting it");
 	let mut users = self
 		.services
 		.rooms
@@ -150,7 +127,7 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		.boxed();
 
 	while let Some(ref user_id) = users.next().await {
-		debug!(
+		info!(
 			"Attempting leave for user {user_id} in room {room_id} (ignoring all errors, \
 			 evicting admins too)",
 		);
@@ -177,10 +154,9 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		})
 		.await;
 
-	// unpublish from room directory
-	self.services.rooms.directory.set_not_public(&room_id);
-
-	self.services.rooms.metadata.disable_room(&room_id, true);
+	self.services.rooms.directory.set_not_public(&room_id); // remove from the room directory
+	self.services.rooms.metadata.ban_room(&room_id, true); // prevent further joins
+	self.services.rooms.metadata.disable_room(&room_id, true); // disable federation
 
 	self.write_str(
 		"Room banned, removed all our local users, and disabled incoming federation with room.",
@@ -302,8 +278,6 @@ async fn ban_list_of_rooms(&self) -> Result {
 	}
 
 	for room_id in room_ids {
-		self.services.rooms.metadata.ban_room(&room_id, true);
-
 		debug!("Banned {room_id} successfully");
 		room_ban_count = room_ban_count.saturating_add(1);
 
@@ -346,9 +320,9 @@ async fn ban_list_of_rooms(&self) -> Result {
 			})
 			.await;
 
+		self.services.rooms.metadata.ban_room(&room_id, true);
 		// unpublish from room directory, ignore errors
 		self.services.rooms.directory.set_not_public(&room_id);
-
 		self.services.rooms.metadata.disable_room(&room_id, true);
 	}
 
