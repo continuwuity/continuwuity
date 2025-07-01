@@ -49,6 +49,9 @@ pub(crate) async fn report_room_route(
 ) -> Result<report_room::v3::Response> {
 	// user authentication
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if body.reason.as_ref().is_some_and(|s| s.len() > 750) {
 		return Err(Error::BadRequest(
@@ -101,6 +104,9 @@ pub(crate) async fn report_event_route(
 ) -> Result<report_content::v3::Response> {
 	// user authentication
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	delay_response().await;
 
@@ -148,6 +154,9 @@ pub(crate) async fn report_user_route(
 ) -> Result<report_user::v3::Response> {
 	// user authentication
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+	if services.users.is_suspended(sender_user).await? {
+		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
 
 	if body.reason.as_ref().is_some_and(|s| s.len() > 750) {
 		return Err(Error::BadRequest(
