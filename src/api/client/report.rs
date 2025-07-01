@@ -9,6 +9,7 @@ use ruma::{
 	EventId, RoomId, UserId,
 	api::client::{
 		error::ErrorKind,
+		report_user,
 		room::{report_content, report_room},
 	},
 	events::room::message,
@@ -30,12 +31,6 @@ pub(crate) async fn report_room_route(
 	// user authentication
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 
-	info!(
-		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
-		body.room_id,
-		body.reason.as_deref().unwrap_or("")
-	);
-
 	if body.reason.as_ref().is_some_and(|s| s.len() > 750) {
 		return Err(Error::BadRequest(
 			ErrorKind::InvalidParam,
@@ -55,6 +50,11 @@ pub(crate) async fn report_room_route(
 			"Room does not exist to us, no local users have joined at all"
 		)));
 	}
+	info!(
+		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
+		body.room_id,
+		body.reason.as_deref().unwrap_or("")
+	);
 
 	// send admin room message that we received the report with an @room ping for
 	// urgency
@@ -84,14 +84,6 @@ pub(crate) async fn report_event_route(
 	// user authentication
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 
-	info!(
-		"Received event report by user {sender_user} for room {} and event ID {}, with reason: \
-		 \"{}\"",
-		body.room_id,
-		body.event_id,
-		body.reason.as_deref().unwrap_or("")
-	);
-
 	delay_response().await;
 
 	// check if we know about the reported event ID or if it's invalid
@@ -109,6 +101,13 @@ pub(crate) async fn report_event_route(
 		&pdu,
 	)
 	.await?;
+	info!(
+		"Received event report by user {sender_user} for room {} and event ID {}, with reason: \
+		 \"{}\"",
+		body.room_id,
+		body.event_id,
+		body.reason.as_deref().unwrap_or("")
+	);
 
 	// send admin room message that we received the report with an @room ping for
 	// urgency
@@ -128,6 +127,51 @@ pub(crate) async fn report_event_route(
 		.ok();
 
 	Ok(report_content::v3::Response {})
+}
+
+#[tracing::instrument(skip_all, fields(%client), name = "report_user")]
+pub(crate) async fn report_user_route(
+	State(services): State<crate::State>,
+	InsecureClientIp(client): InsecureClientIp,
+	body: Ruma<report_user::v3::Request>,
+) -> Result<report_user::v3::Response> {
+	// user authentication
+	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
+
+	if body.reason.as_ref().is_some_and(|s| s.len() > 750) {
+		return Err(Error::BadRequest(
+			ErrorKind::InvalidParam,
+			"Reason too long, should be 750 characters or fewer",
+		));
+	}
+
+	delay_response().await;
+
+	if !services.users.is_active_local(&body.user_id) {
+		// return 200 as to not reveal if the user exists. Recommended by spec.
+		return Ok(report_user::v3::Response {});
+	}
+
+	info!(
+		"Received room report from {sender_user} for user {} with reason: \"{}\"",
+		body.user_id,
+		body.reason.as_deref().unwrap_or("")
+	);
+
+	// send admin room message that we received the report with an @room ping for
+	// urgency
+	services
+		.admin
+		.send_message(message::RoomMessageEventContent::text_markdown(format!(
+			"@room User report received from {} -\n\nUser ID: {}\n\nReport Reason: {}",
+			sender_user.to_owned(),
+			body.user_id,
+			body.reason.as_deref().unwrap_or("")
+		)))
+		.await
+		.ok();
+
+	Ok(report_user::v3::Response {})
 }
 
 /// in the following order:

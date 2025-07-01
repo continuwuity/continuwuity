@@ -94,6 +94,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::redact_event_route)
 		.ruma_route(&client::report_event_route)
 		.ruma_route(&client::report_room_route)
+		.ruma_route(&client::report_user_route)
 		.ruma_route(&client::create_alias_route)
 		.ruma_route(&client::delete_alias_route)
 		.ruma_route(&client::get_alias_route)
