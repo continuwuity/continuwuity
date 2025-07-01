@@ -38,6 +38,10 @@ You can run these checks locally by installing [prefligit](https://github.com/j1
 
 
 ```bash
+# Requires UV:
+# Mac/linux: curl -LsSf https://astral.sh/uv/install.sh | sh
+# Windows: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
 # Install prefligit using cargo-binstall
 cargo binstall prefligit
 
@@ -50,6 +54,8 @@ prefligit --all-files
 
 Alternatively, you can use [pre-commit](https://pre-commit.com/):
 ```bash
+# Requires python
+
 # Install pre-commit
 pip install pre-commit
 
