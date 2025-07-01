@@ -1,27 +1,15 @@
 # Contributing guide
 
 This page is about contributing to Continuwuity. The
-[development](./development.md) page may be of interest for you as well.
+[development](./development.md) and [code style guide](./development/code_style.md) pages may be of interest for you as well.
 
 If you would like to work on an [issue][issues] that is not assigned, preferably
 ask in the Matrix room first at [#continuwuity:continuwuity.org][continuwuity-matrix],
 and comment on it.
 
-### Linting and Formatting
+### Code Style
 
-It is mandatory all your changes satisfy the lints (clippy, rustc, rustdoc, etc)
-and your code is formatted via the **nightly** rustfmt (`cargo +nightly fmt`). A lot of the
-`rustfmt.toml` features depend on nightly toolchain. It would be ideal if they
-weren't nightly-exclusive features, but they currently still are. CI's rustfmt
-uses nightly.
-
-If you need to allow a lint, please make sure it's either obvious as to why
-(e.g. clippy saying redundant clone but it's actually required) or it has a
-comment saying why. Do not write inefficient code for the sake of satisfying
-lints. If a lint is wrong and provides a more inefficient solution or
-suggestion, allow the lint and mention that in a comment.
-
-If there is a large formatting change across unrelated files, make a separate commit so that it can be added to the `.git-blame-ignore-revs` file.
+Please review and follow the [code style guide](./development/code_style.md) for formatting, linting, naming conventions, and other code standards.
 
 ### Pre-commit Checks
 
@@ -66,7 +54,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-These same checks are run in CI via the prefligit-checks workflow to ensure consistency.
+These same checks are run in CI via the prefligit-checks workflow to ensure consistency. These must pass before the PR is merged.
 
 ### Running tests locally
 
@@ -115,37 +103,13 @@ To build the documentation locally:
 
 The output of the mdbook generation is in `public/`. You can open the HTML files directly in your browser without needing a web server.
 
-### Inclusivity and Diversity
-
-All **MUST** code and write with inclusivity and diversity in mind. See the
-[following page by Google on writing inclusive code and
-documentation](https://developers.google.com/style/inclusive-documentation).
-
-This **EXPLICITLY** forbids usage of terms like "blacklist"/"whitelist" and
-"master"/"slave", [forbids gender-specific words and
-phrases](https://developers.google.com/style/pronouns#gender-neutral-pronouns),
-forbids ableist language like "sanity-check", "cripple", or "insane", and
-forbids culture-specific language (e.g. US-only holidays or cultures).
-
-No exceptions are allowed. Dependencies that may use these terms are allowed but
-[do not replicate the name in your functions or
-variables](https://developers.google.com/style/inclusive-documentation#write-around).
-
-In addition to language, write and code with the user experience in mind. This
-is software that intends to be used by everyone, so make it easy and comfortable
-for everyone to use. 🏳️‍⚧️
-
-### Variable, comment, function, etc standards
-
-Rust's default style and standards with regards to [function names, variable
-names, comments](https://rust-lang.github.io/api-guidelines/naming.html), etc
-applies here.
 
 ### Commit Messages
 
 Continuwuity follows the [Conventional Commits](https://www.conventionalcommits.org/) specification for commit messages. This provides a standardized format that makes the commit history more readable and enables automated tools to generate changelogs.
 
 The basic structure is:
+
 ```
 <type>[(optional scope)]: <description>
 
@@ -186,11 +150,10 @@ of it, especially when the CI completed successfully and everything so it
 
 Before submitting a pull request, please ensure:
 1. Your code passes all CI checks (formatting, linting, typo detection, etc.)
-2. Your commit messages follow the conventional commits format
-3. Tests are added for new functionality
-4. Documentation is updated if needed
-
-
+2. Your code follows the [code style guide](./development/code_style.md)
+3. Your commit messages follow the conventional commits format
+4. Tests are added for new functionality
+5. Documentation is updated if needed
 
 Direct all PRs/MRs to the `main` branch.
 

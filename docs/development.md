@@ -2,7 +2,7 @@
 
 Information about developing the project. If you are only interested in using
 it, you can safely ignore this page. If you plan on contributing, see the
-[contributor's guide](./contributing.md).
+[contributor's guide](./contributing.md) and [code style guide](./development/code_style.md).
 
 ## Continuwuity project layout
 
