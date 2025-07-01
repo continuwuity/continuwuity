@@ -37,7 +37,10 @@ pub(crate) async fn get_supported_versions_route(
 			"v1.3".to_owned(),
 			"v1.4".to_owned(),
 			"v1.5".to_owned(),
+			"v1.8".to_owned(),
 			"v1.11".to_owned(),
+			"v1.12".to_owned(),
+			"v1.13".to_owned(),
 			"v1.14".to_owned(),
 		],
 		unstable_features: BTreeMap::from_iter([
