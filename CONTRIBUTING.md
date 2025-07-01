@@ -21,6 +21,8 @@ comment saying why. Do not write inefficient code for the sake of satisfying
 lints. If a lint is wrong and provides a more inefficient solution or
 suggestion, allow the lint and mention that in a comment.
 
+If there is a large formatting change across unrelated files, make a separate commit so that it can be added to the `.git-blame-ignore-revs` file.
+
 ### Pre-commit Checks
 
 Continuwuity uses pre-commit hooks to enforce various coding standards and catch common issues before they're committed. These checks include:
