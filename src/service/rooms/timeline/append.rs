@@ -348,9 +348,11 @@ where
 				self.services.search.index_pdu(shortroomid, &pdu_id, &body);
 
 				if self.services.admin.is_admin_command(pdu, &body).await {
-					self.services
-						.admin
-						.command_with_sender(body, Some((pdu.event_id()).into()), pdu.sender.clone().into())?;
+					self.services.admin.command_with_sender(
+						body,
+						Some((pdu.event_id()).into()),
+						pdu.sender.clone().into(),
+					)?;
 				}
 			}
 		},

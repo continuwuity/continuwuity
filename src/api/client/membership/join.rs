@@ -139,7 +139,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	let sender_user = body.sender_user();
 	let appservice_info = &body.appservice_info;
 	let body = &body.body;
-		if services.users.is_suspended(sender_user).await? {
+	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 

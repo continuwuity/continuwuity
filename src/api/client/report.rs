@@ -8,7 +8,6 @@ use rand::Rng;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{
-		error::ErrorKind,
 		report_user,
 		room::{report_content, report_room},
 	},

@@ -110,7 +110,7 @@ pub async fn create_hash_and_sign_event(
 		// so any other events with that same depth are illegal.
 		warn!(
 			"Had unsafe depth {depth} when creating non-state event in {room_id}. Cowardly \
-				aborting"
+			 aborting"
 		);
 		return Err!(Request(Unknown("Unsafe depth for non-state event.")));
 	}
