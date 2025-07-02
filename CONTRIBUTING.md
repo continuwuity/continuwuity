@@ -26,7 +26,7 @@ You can run these checks locally by installing [prefligit](https://github.com/j1
 
 
 ```bash
-# Requires UV:
+# Requires UV: https://docs.astral.sh/uv/getting-started/installation/
 # Mac/linux: curl -LsSf https://astral.sh/uv/install.sh | sh
 # Windows: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
