@@ -181,10 +181,10 @@ debug!(
 
 **Always use closure guards instead of implicitly dropped guards.** This makes lock scopes explicit and helps prevent deadlocks.
 
-Use the `WithLock` trait from `continuwuity-core::utils::with_lock`:
+Use the `WithLock` trait from `core::utils::with_lock`:
 
 ```rs
-use continuwuity_core::utils::with_lock::WithLock;
+use conduwuit::utils::with_lock::WithLock;
 
 // Good - explicit closure guard
 shared_data.with_lock(|data| {
@@ -205,7 +205,7 @@ shared_data.with_lock(|data| {
 For async contexts, use the async variant:
 
 ```rs
-use continuwuity_core::utils::with_lock::WithLockAsync;
+use conduwuit::utils::with_lock::WithLockAsync;
 
 // Good - async closure guard
 async_shared_data.with_lock(|data| {
