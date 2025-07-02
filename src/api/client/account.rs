@@ -2,7 +2,6 @@ use std::fmt::Write;
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use axum_extra::headers::UserAgent;
 use conduwuit::{
 	Err, Error, Result, debug_info, err, error, info, is_equal_to,
 	matrix::pdu::PduBuilder,
