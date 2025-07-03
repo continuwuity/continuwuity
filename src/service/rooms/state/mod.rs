@@ -388,6 +388,7 @@ impl Service {
 	pub fn get_forward_extremities<'a>(
 		&'a self,
 		room_id: &'a RoomId,
+		_state_lock: &'a RoomMutexGuard,
 	) -> impl Stream<Item = &EventId> + Send + '_ {
 		let prefix = (room_id, Interfix);
 
