@@ -105,6 +105,15 @@
                   # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
                   # Unsetting this so we don't have to revert it and make this nix exclusive
                   patches = [ ];
+
+                  postPatch = ''
+                    # Fix gcc-13 build failures due to missing <cstdint> and
+                    # <system_error> includes, fixed upstream since 8.x
+                    sed -e '1i #include <cstdint>' -i db/compaction/compaction_iteration_stats.h
+                    sed -e '1i #include <cstdint>' -i table/block_based/data_block_hash_index.h
+                    sed -e '1i #include <cstdint>' -i util/string_util.h
+                    sed -e '1i #include <cstdint>' -i include/rocksdb/utilities/checkpoint.h
+                  '';
                 });
           });
 
@@ -218,7 +227,8 @@
                     {
                       name = "${binaryName}-x86_64-haswell-optimised";
                       value = scopeCrossStatic.main.override {
-                        x86_64_haswell_target_optimised = if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
+                        x86_64_haswell_target_optimised =
+                          if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
                       };
                     }
 
@@ -288,7 +298,8 @@
                           # conduwuit_mods is a development-only hot reload feature
                           "conduwuit_mods"
                         ];
-                        x86_64_haswell_target_optimised = if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
+                        x86_64_haswell_target_optimised =
+                          if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
                       };
                     }
 
