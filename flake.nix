@@ -42,9 +42,8 @@
         mkScope =
           pkgs:
           pkgs.lib.makeScope pkgs.newScope (self: {
-            inherit pkgs;
+            inherit pkgs inputs;
             craneLib = ((inputs.crane.mkLib pkgs).overrideToolchain (_: toolchain));
-            inherit inputs;
             main = self.callPackage ./nix/pkgs/main { };
             liburing = pkgs.liburing.overrideAttrs {
               # Tests weren't building
@@ -56,14 +55,17 @@
               buildFlags = [ "library" ];
             };
             rocksdb =
-              (pkgs.rocksdb.override {
+              (pkgs.rocksdb_9_10.override {
+                # Override the liburing input for the build with our own so
+                # we have it built with the library flag
+                liburing = self.liburing;
               }).overrideAttrs
                 (old: {
                   src = inputs.rocksdb;
                   version = "v9.11.1";
                   cmakeFlags =
                     pkgs.lib.subtractLists [
-                      # no real reason to have snappy or zlib, no one uses this
+                      # No real reason to have snappy or zlib, no one uses this
                       "-DWITH_SNAPPY=1"
                       "-DZLIB=1"
                       "-DWITH_ZLIB=1"
