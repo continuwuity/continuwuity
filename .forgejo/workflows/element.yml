@@ -11,16 +11,16 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    name: Build and Deploy Element Web
+    name: 🏗️ Build and Deploy
     runs-on: ubuntu-latest
 
     steps:
-      - name: Setup Node.js
-        uses: https://code.forgejo.org/actions/setup-node@v4
+      - name: 📦 Setup Node.js
+        uses: https://github.com/actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
-      - name: Clone, setup, and build Element Web
+      - name: 🔨 Clone, setup, and build Element Web
         run: |
           echo "Cloning Element Web..."
           git clone https://github.com/maunium/element-web
@@ -64,7 +64,7 @@ jobs:
           echo "Checking for build output..."
           ls -la webapp/
 
-      - name: Create config.json
+      - name: ⚙️ Create config.json
         run: |
           cat <<EOF > ./element-web/webapp/config.json
           {
@@ -100,28 +100,25 @@ jobs:
           echo "Created ./element-web/webapp/config.json"
           cat ./element-web/webapp/config.json
 
-      - name: Upload Artifact
+      - name: 📤 Upload Artifact
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: element-web
           path: ./element-web/webapp/
           retention-days: 14
 
-      - name: Install Wrangler
+      - name: 🛠️ Install Wrangler
         run: npm install --save-dev wrangler@latest
 
-      - name: Deploy to Cloudflare Pages (Production)
-        if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
+      - name: 🚀 Deploy to Cloudflare Pages
+        if: vars.CLOUDFLARE_PROJECT_NAME != ''
+        id: deploy
         uses: https://github.com/cloudflare/wrangler-action@v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./element-web/webapp --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}-element"
-
-      - name: Deploy to Cloudflare Pages (Preview)
-        if: github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
-        uses: https://github.com/cloudflare/wrangler-action@v3
-        with:
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./element-web/webapp --branch="${{ github.head_ref || github.ref_name }}" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}-element"
+          command: >-
+            pages deploy ./element-web/webapp
+            --branch="${{ github.ref == 'refs/heads/main' && 'main' || github.head_ref || github.ref_name }}"
+            --commit-dirty=true
+            --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}-element"
