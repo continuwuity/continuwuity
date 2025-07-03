@@ -6,6 +6,7 @@ use conduwuit::{
 	trace,
 	utils::stream::{BroadbandExt, ReadyExt},
 	warn,
+    info
 };
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
@@ -193,6 +194,8 @@ where
 		.collect()
 		.await;
 
+	if extremities.len() == 0 { info!("Retained zero extremities when upgrading outlier PDU to timeline PDU with {} previous events, event id: {}", incoming_pdu.prev_events.len(), incoming_pdu.event_id) }
+	
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
 		extremities.len(),
