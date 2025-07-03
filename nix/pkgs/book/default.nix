@@ -1,6 +1,6 @@
 { inputs
 
-# Dependencies
+  # Dependencies
 , main
 , mdbook
 , stdenv

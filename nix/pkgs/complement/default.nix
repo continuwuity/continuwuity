@@ -16,24 +16,24 @@ let
     all_features = true;
     disable_release_max_log_level = true;
     disable_features = [
-        # console/CLI stuff isn't used or relevant for complement
-        "console"
-        "tokio_console"
-        # sentry telemetry isn't useful for complement, disabled by default anyways
-        "sentry_telemetry"
-        "perf_measurements"
-        # this is non-functional on nix for some reason
-        "hardened_malloc"
-        # dont include experimental features
-        "experimental"
-        # compression isn't needed for complement
-        "brotli_compression"
-        "gzip_compression"
-        "zstd_compression"
-        # complement doesn't need hot reloading
-        "conduwuit_mods"
-        # complement doesn't have URL preview media tests
-        "url_preview"
+      # console/CLI stuff isn't used or relevant for complement
+      "console"
+      "tokio_console"
+      # sentry telemetry isn't useful for complement, disabled by default anyways
+      "sentry_telemetry"
+      "perf_measurements"
+      # this is non-functional on nix for some reason
+      "hardened_malloc"
+      # dont include experimental features
+      "experimental"
+      # compression isn't needed for complement
+      "brotli_compression"
+      "gzip_compression"
+      "zstd_compression"
+      # complement doesn't need hot reloading
+      "conduwuit_mods"
+      # complement doesn't have URL preview media tests
+      "url_preview"
     ];
   };
 
@@ -68,11 +68,12 @@ dockerTools.buildImage {
       "${lib.getExe start}"
     ];
 
-    Entrypoint = if !stdenv.hostPlatform.isDarwin
+    Entrypoint =
+      if !stdenv.hostPlatform.isDarwin
       # Use the `tini` init system so that signals (e.g. ctrl+c/SIGINT)
       # are handled as expected
       then [ "${lib.getExe' tini "tini"}" "--" ]
-      else [];
+      else [ ];
 
     Env = [
       "CONTINUWUITY_TLS__KEY=${./private_key.key}"
@@ -82,8 +83,8 @@ dockerTools.buildImage {
     ];
 
     ExposedPorts = {
-      "8008/tcp" = {};
-      "8448/tcp" = {};
+      "8008/tcp" = { };
+      "8448/tcp" = { };
     };
   };
 }
