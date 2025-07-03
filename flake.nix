@@ -43,7 +43,7 @@
           pkgs:
           pkgs.lib.makeScope pkgs.newScope (self: {
             inherit pkgs inputs;
-            craneLib = ((inputs.crane.mkLib pkgs).overrideToolchain (_: toolchain));
+            craneLib = (inputs.crane.mkLib pkgs).overrideToolchain (_: toolchain);
             main = self.callPackage ./nix/pkgs/main { };
             liburing = pkgs.liburing.overrideAttrs {
               # Tests weren't building
@@ -58,7 +58,7 @@
               (pkgs.rocksdb_9_10.override {
                 # Override the liburing input for the build with our own so
                 # we have it built with the library flag
-                liburing = self.liburing;
+                inherit (self) liburing;
               }).overrideAttrs
                 (old: {
                   src = inputs.rocksdb;
@@ -218,9 +218,7 @@
                     {
                       name = "${binaryName}-x86_64-haswell-optimised";
                       value = scopeCrossStatic.main.override {
-                        x86_64_haswell_target_optimised = (
-                          if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false
-                        );
+                        x86_64_haswell_target_optimised = if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
                       };
                     }
 
@@ -290,9 +288,7 @@
                           # conduwuit_mods is a development-only hot reload feature
                           "conduwuit_mods"
                         ];
-                        x86_64_haswell_target_optimised = (
-                          if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false
-                        );
+                        x86_64_haswell_target_optimised = if (crossSystem == "x86_64-linux-gnu" || crossSystem == "x86_64-linux-musl") then true else false;
                       };
                     }
 

@@ -93,16 +93,16 @@ let
 
         # for some reason enableLiburing in nixpkgs rocksdb is default true
         # which breaks Darwin entirely
-        enableLiburing = enableLiburing;
+        inherit enableLiburing;
       }).overrideAttrs (old: {
-        enableLiburing = enableLiburing;
+        inherit enableLiburing;
         cmakeFlags = (if x86_64_haswell_target_optimised then
           (lib.subtractLists [
             # dont make a portable build if x86_64_haswell_target_optimised is enabled
             "-DPORTABLE=1"
           ]
             old.cmakeFlags
-          ++ [ "-DPORTABLE=haswell" ]) else ([ "-DPORTABLE=1" ])
+          ++ [ "-DPORTABLE=haswell" ]) else [ "-DPORTABLE=1" ]
         )
         ++ old.cmakeFlags;
 
