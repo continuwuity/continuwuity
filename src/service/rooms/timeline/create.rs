@@ -42,7 +42,7 @@ pub async fn create_hash_and_sign_event(
 	let prev_events: Vec<OwnedEventId> = self
 		.services
 		.state
-		.get_forward_extremities(room_id)
+		.get_forward_extremities(room_id, _mutex_lock)
 		.take(20)
 		.map(Into::into)
 		.collect()
