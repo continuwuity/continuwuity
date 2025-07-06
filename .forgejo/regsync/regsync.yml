@@ -1,0 +1,55 @@
+version: 1
+
+x-source: &source forgejo.ellis.link/continuwuation/continuwuity
+
+x-tags:
+  releases: &tags-releases
+    tags:
+      allow:
+      - "latest"
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+"
+      - "v[0-9]+\\.[0-9]+"
+      - "v[0-9]+"
+  main: &tags-main
+    tags:
+      allow:
+      - "latest"
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+"
+      - "v[0-9]+\\.[0-9]+"
+      - "v[0-9]+"
+      - "main"
+  commits: &tags-commits
+    tags:
+      allow:
+      - "latest"
+      - "v[0-9]+\\.[0-9]+\\.[0-9]+"
+      - "v[0-9]+\\.[0-9]+"
+      - "v[0-9]+"
+      - "main"
+      - "sha-[a-f0-9]+"
+  all: &tags-all
+    tags:
+      allow:
+      - ".*"
+
+# Registry credentials
+creds:
+  - registry: forgejo.ellis.link
+    user: "{{env \"BUILTIN_REGISTRY_USER\"}}"
+    pass: "{{env \"BUILTIN_REGISTRY_PASSWORD\"}}"
+  - registry: registry.gitlab.com
+    user: "{{env \"GITLAB_USERNAME\"}}"
+    pass: "{{env \"GITLAB_TOKEN\"}}"
+
+# Global defaults
+defaults:
+  parallel: 3
+  interval: 2h
+  digestTags: true
+
+# Sync configuration - each registry gets different image sets
+sync:
+  - source: *source
+    target: registry.gitlab.com/continuwuity/continuwuity
+    type: repository
+    <<: *tags-main
