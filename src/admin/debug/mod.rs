@@ -32,13 +32,13 @@ pub(super) enum DebugCommand {
 	/// the command.
 	ParsePdu,
 
-	/// - Retrieve and print a PDU by EventID from the conduwuit database
+	/// - Retrieve and print a PDU by EventID from the Continuwuity database
 	GetPdu {
 		/// An event ID (a $ followed by the base64 reference hash)
 		event_id: OwnedEventId,
 	},
 
-	/// - Retrieve and print a PDU by PduId from the conduwuit database
+	/// - Retrieve and print a PDU by PduId from the Continuwuity database
 	GetShortPdu {
 		/// Shortroomid integer
 		shortroomid: ShortRoomId,
@@ -182,7 +182,7 @@ pub(super) enum DebugCommand {
 		event_id: Option<OwnedEventId>,
 	},
 
-	/// - Runs a server name through conduwuit's true destination resolution
+	/// - Runs a server name through Continuwuity's true destination resolution
 	///   process
 	///
 	/// Useful for debugging well-known issues
