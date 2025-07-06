@@ -20,9 +20,9 @@ jobs:
   mirror-images:
     runs-on: ubuntu-latest
     env:
-      BUILTIN_REGISTRY_USER: ${{ secrets.BUILTIN_REGISTRY_USER }}
+      BUILTIN_REGISTRY_USER: ${{ vars.BUILTIN_REGISTRY_USER }}
       BUILTIN_REGISTRY_PASSWORD: ${{ secrets.BUILTIN_REGISTRY_PASSWORD }}
-      GITLAB_USERNAME: ${{ secrets.GITLAB_USERNAME }}
+      GITLAB_USERNAME: ${{ vars.GITLAB_USERNAME }}
       GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
     steps:
       - name: Checkout repository
