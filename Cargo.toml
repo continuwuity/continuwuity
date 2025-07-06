@@ -768,7 +768,7 @@ inherits = "dev"
 #	'-Clink-arg=-Wl,-z,nodlopen',
 #	'-Clink-arg=-Wl,-z,nodelete',
 #]
-[profile.dev.package.xtask-admin-command]
+[profile.dev.package.xtask-generate-commands]
 inherits = "dev"
 [profile.dev.package.conduwuit]
 inherits = "dev"

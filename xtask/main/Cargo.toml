@@ -15,7 +15,7 @@ version.workspace = true
 [dependencies]
 clap.workspace = true
 # Required for working with JSON output from cargo metadata
-serde = { version = "1.0", features = ["derive"] }
+serde.workspace = true
 serde_json = "1.0"
 
 [lints]

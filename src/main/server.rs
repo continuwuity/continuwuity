@@ -9,7 +9,10 @@ use conduwuit_core::{
 };
 use tokio::{runtime, sync::Mutex};
 
-use crate::{clap::Args, logging::TracingFlameGuard};
+use crate::{
+	clap::{Args, update},
+	logging::TracingFlameGuard,
+};
 
 /// Server runtime state; complete
 pub(crate) struct Server {
@@ -43,7 +46,7 @@ impl Server {
 			.map(PathBuf::as_path);
 
 		let config = Config::load(config_paths)
-			.and_then(|raw| crate::clap::update(raw, args))
+			.and_then(|raw| update(raw, args))
 			.and_then(|raw| Config::new(&raw))?;
 
 		let (tracing_reload_handle, tracing_flame_guard, capture) =

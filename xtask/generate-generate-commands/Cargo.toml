@@ -1,5 +1,5 @@
 [package]
-name = "xtask-admin-command"
+name = "xtask-generate-commands"
 authors.workspace = true
 categories.workspace = true
 description.workspace = true
