@@ -204,13 +204,31 @@ jobs:
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
+      - name: Extract binary from container (image)
+        id: extract-binary-image
+        run: |
+          mkdir -p /tmp/binaries
+          digest="${{ steps.build.outputs.digest }}"
+          echo "container_id=$(docker create --platform ${{ matrix.platform }} ${{ needs.define-variables.outputs.images_list }}@$digest)" >> $GITHUB_OUTPUT
+      - name: Extract binary from container (copy)
+        run: docker cp ${{ steps.extract-binary-image.outputs.container_id }}:/sbin/conduwuit /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+      - name: Extract binary from container (cleanup)
+        run: docker rm ${{ steps.extract-binary-image.outputs.container_id }}
+
+      - name: Upload binary artifact
+        uses: forgejo/upload-artifact@v4
+        with:
+          name: conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+          path: /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+          if-no-files-found: error
+
       - name: Upload digest
         uses: forgejo/upload-artifact@v4
         with:
           name: digests-${{ matrix.slug }}
           path: /tmp/digests/*
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 5
 
   merge:
     runs-on: dind
