@@ -18,7 +18,7 @@ pub(crate) async fn get_room_event_route(
 	let event = services
 		.rooms
 		.timeline
-		.get_pdu(event_id)
+		.get_remote_pdu(room_id, event_id)
 		.map_err(|_| err!(Request(NotFound("Event {} not found.", event_id))));
 
 	let visible = services
@@ -32,11 +32,6 @@ pub(crate) async fn get_room_event_route(
 	if !visible || is_ignored_pdu(services, &event, body.sender_user()).await {
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));
 	}
-
-	debug_assert!(
-		event.event_id() == event_id && event.room_id() == room_id,
-		"Fetched PDU must match requested"
-	);
 
 	event.add_age().ok();
 
