@@ -180,11 +180,18 @@ pub fn check(config: &Config) -> Result {
 		}
 	}
 
+	if config.recaptcha_site_key.is_some() && config.recaptcha_private_site_key.is_none() {
+		return Err!(Config(
+			"recaptcha_private_site_key",
+			"reCAPTCHA private site key is required when reCAPTCHA site key is set."
+		));
+	}
+
 	if config.allow_registration
 		&& !config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
 		&& config.registration_token.is_none()
 		&& config.registration_token_file.is_none()
-		&& !(config.recaptcha_site_key.is_some() && config.recaptcha_private_site_key.is_some())
+		&& config.recaptcha_site_key.is_none()
 	{
 		return Err!(Config(
 			"registration_token",
