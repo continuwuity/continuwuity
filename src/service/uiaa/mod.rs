@@ -192,7 +192,7 @@ pub async fn try_auth(
 			)
 			.await
 			{
-				| Ok(_) => {
+				| Ok() => {
 					uiaainfo.completed.push(AuthType::ReCaptcha);
 				},
 				| Err(e) => {

@@ -305,7 +305,7 @@ pub(crate) async fn register_route(
 			stages: vec![AuthType::RegistrationToken],
 		});
 	}
-	if !services.config.recaptcha_private_site_key.is_none() {
+	if services.config.recaptcha_private_site_key.is_some() {
 		if let Some(pubkey) = &services.config.recaptcha_site_key {
 			// ReCaptcha required
 			uiaainfo
@@ -329,7 +329,7 @@ pub(crate) async fn register_route(
 			auth_error: None,
 		};
 		skip_auth = skip_auth || is_guest;
-	};
+	}
 
 	if !skip_auth {
 		match &body.auth {
