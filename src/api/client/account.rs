@@ -298,26 +298,27 @@ pub(crate) async fn register_route(
 		session: None,
 		auth_error: None,
 	};
-	let mut skip_auth = false;
+	let mut skip_auth = body.appservice_info.is_some();
 	if services.globals.registration_token.is_some() {
 		// Registration token required
 		uiaainfo.flows.push(AuthFlow {
 			stages: vec![AuthType::RegistrationToken],
 		});
-		skip_auth = body.appservice_info.is_some();
 	}
-	if let Some(pubkey) = &services.config.recaptcha_site_key {
-		// ReCaptcha required
-		uiaainfo
-			.flows
-			.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
-		uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
-			"m.login.recaptcha": {
-				"public_key": pubkey,
-			},
-		}))
-		.expect("Failed to serialize recaptcha params");
-		skip_auth = body.appservice_info.is_some() || skip_auth;
+	if !services.config.recaptcha_private_site_key.is_none() {
+		if let Some(pubkey) = &services.config.recaptcha_site_key {
+			// ReCaptcha required
+			uiaainfo
+				.flows
+				.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
+			uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
+				"m.login.recaptcha": {
+					"public_key": pubkey,
+				},
+			}))
+			.expect("Failed to serialize recaptcha params");
+			skip_auth = skip_auth || is_guest;
+		}
 	} else {
 		// No registration token necessary, but clients must still go through the flow
 		uiaainfo = UiaaInfo {
@@ -327,7 +328,7 @@ pub(crate) async fn register_route(
 			session: None,
 			auth_error: None,
 		};
-		skip_auth = skip_auth || body.appservice_info.is_some() || is_guest;
+		skip_auth = skip_auth || is_guest;
 	};
 
 	if !skip_auth {

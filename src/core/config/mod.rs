@@ -556,8 +556,21 @@ pub struct Config {
 	/// example: "/etc/continuwuity/.reg_token"
 	pub registration_token_file: Option<PathBuf>,
 
+	/// The public site key for reCaptcha. If this is provided, reCaptcha
+	/// becomes required during registration, **even if token registration is
+	/// enabled**.
+	///
+	/// IMPORTANT: "Verify the origin of reCAPTCHA solutions" **MUST** BE
+	/// DISABLED IF YOU WANT THE CAPTCHA TO WORK IN 3RD PARTY CLIENTS, OR
+	/// CLIENTS HOSTED ON DOMAINS OTHER THAN YOUR OWN!
+	///
+	/// Registration must be enabled (`allow_registration` must be true) for
+	/// this to have any effect.
 	pub recaptcha_site_key: Option<String>,
 
+	/// The private site key for reCaptcha.
+	/// If this is omitted, captcha registration will not work,
+	/// even if `recaptcha_site_key` is set.
 	pub recaptcha_private_site_key: Option<String>,
 
 	/// Controls whether encrypted rooms and events are allowed.
