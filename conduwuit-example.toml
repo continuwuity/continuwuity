@@ -1084,7 +1084,10 @@
 #
 #presence_timeout_remote_users = true
 
-# Allow local read receipts
+# Allow local read receipts.
+#
+# Disabling this will effectively also disable outgoing federated read
+# receipts.
 #
 #allow_local_read_receipts = true
 
@@ -1097,6 +1100,9 @@
 #allow_outgoing_read_receipts = true
 
 # Allow local typing updates.
+#
+# Disabling this will effectively also disable outgoing federated typing
+# updates.
 #
 #allow_local_typing = true
 
