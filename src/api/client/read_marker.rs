@@ -58,7 +58,9 @@ pub(crate) async fn set_read_marker_route(
 	}
 
 	if let Some(event) = &body.read_receipt {
-		if !services.users.is_suspended(sender_user).await? {
+		if services.config.allow_local_read_receipts
+			&& !services.users.is_suspended(sender_user).await?
+		{
 			let receipt_content = BTreeMap::from_iter([(
 				event.to_owned(),
 				BTreeMap::from_iter([(

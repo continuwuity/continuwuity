@@ -1084,6 +1084,10 @@
 #
 #presence_timeout_remote_users = true
 
+# Allow local read receipts
+#
+#allow_local_read_receipts = true
+
 # Allow receiving incoming read receipts from remote servers.
 #
 #allow_incoming_read_receipts = true
@@ -1091,6 +1095,10 @@
 # Allow sending read receipts to remote servers.
 #
 #allow_outgoing_read_receipts = true
+
+# Allow local typing updates.
+#
+#allow_local_typing = true
 
 # Allow outgoing typing updates to federation.
 #

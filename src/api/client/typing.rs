@@ -26,7 +26,7 @@ pub(crate) async fn create_typing_event_route(
 	{
 		return Err!(Request(Forbidden("You are not in this room.")));
 	}
-	if !services.users.is_suspended(sender_user).await? {
+	if services.config.allow_local_typing && !services.users.is_suspended(sender_user).await? {
 		match body.state {
 			| Typing::Yes(duration) => {
 				let duration = utils::clamp(
