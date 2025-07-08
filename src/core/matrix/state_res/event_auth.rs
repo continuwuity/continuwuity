@@ -256,6 +256,18 @@ where
 		| Some(e) => e,
 	};
 
+	if incoming_event.room_id() != room_create_event.room_id() {
+		warn!("room_id of incoming event does not match room_id of m.room.create event");
+		return Ok(false);
+	}
+
+	if let Some(ref pe) = power_levels_event {
+		if pe.room_id() != room_create_event.room_id() {
+			warn!("room_id of power levels event does not match room_id of m.room.create event");
+			return Ok(false);
+		}
+	}
+
 	// 3. If event does not have m.room.create in auth_events reject
 	if !incoming_event
 		.auth_events()
@@ -380,6 +392,11 @@ where
 			return Ok(false);
 		},
 	};
+
+	if sender_member_event.room_id() != room_create_event.room_id() {
+		warn!("room_id of incoming event does not match room_id of m.room.create event");
+		return Ok(false);
+	}
 
 	let sender_membership_event_content: RoomMemberContentFields =
 		from_json_str(sender_member_event.content().get())?;
