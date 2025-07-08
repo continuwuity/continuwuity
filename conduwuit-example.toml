@@ -441,6 +441,14 @@
 #
 #registration_token_file =
 
+# This item is undocumented. Please contribute documentation for it.
+#
+#recaptcha_site_key =
+
+# This item is undocumented. Please contribute documentation for it.
+#
+#recaptcha_private_site_key =
+
 # Controls whether encrypted rooms and events are allowed.
 #
 #allow_encryption = true

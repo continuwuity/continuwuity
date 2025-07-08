@@ -177,6 +177,34 @@ pub async fn try_auth(
 			// Password was correct! Let's add it to `completed`
 			uiaainfo.completed.push(AuthType::Password);
 		},
+		| AuthData::ReCaptcha(r) => {
+			if self.services.config.recaptcha_private_site_key.is_none() {
+				return Err!(Request(Forbidden("ReCaptcha is not configured.")));
+			}
+			match recaptcha_verify::verify(
+				self.services
+					.config
+					.recaptcha_private_site_key
+					.as_ref()
+					.unwrap(),
+				r.response.as_str(),
+				None,
+			)
+			.await
+			{
+				| Ok(_) => {
+					uiaainfo.completed.push(AuthType::ReCaptcha);
+				},
+				| Err(e) => {
+					error!("ReCaptcha verification failed: {e:?}");
+					uiaainfo.auth_error = Some(ruma::api::client::error::StandardErrorBody {
+						kind: ErrorKind::forbidden(),
+						message: "ReCaptcha verification failed.".to_owned(),
+					});
+					return Ok((false, uiaainfo));
+				},
+			}
+		},
 		| AuthData::RegistrationToken(t) => {
 			let tokens = self.read_tokens().await?;
 			if tokens.contains(t.token.trim()) {

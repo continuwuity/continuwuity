@@ -556,6 +556,10 @@ pub struct Config {
 	/// example: "/etc/continuwuity/.reg_token"
 	pub registration_token_file: Option<PathBuf>,
 
+	pub recaptcha_site_key: Option<String>,
+
+	pub recaptcha_private_site_key: Option<String>,
+
 	/// Controls whether encrypted rooms and events are allowed.
 	#[serde(default = "true_fn")]
 	pub allow_encryption: bool,

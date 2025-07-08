@@ -111,6 +111,7 @@ webpage.workspace = true
 webpage.optional = true
 blurhash.workspace = true
 blurhash.optional = true
+recaptcha-verify = { version = "0.1.5", default-features = false }
 
 [lints]
 workspace = true

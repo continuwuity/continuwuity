@@ -1076,6 +1076,7 @@ dependencies = [
  "loole",
  "lru-cache",
  "rand 0.8.5",
+ "recaptcha-verify",
  "regex",
  "reqwest",
  "ruma",
@@ -3749,6 +3750,17 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
+]
+
+[[package]]
+name = "recaptcha-verify"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "71e3be7b2e46e24637ac96b0c9f70070f188652018573f36f4e511dcad09738a"
+dependencies = [
+ "reqwest",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

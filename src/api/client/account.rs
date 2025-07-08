@@ -291,19 +291,33 @@ pub(crate) async fn register_route(
 	}
 
 	// UIAA
-	let mut uiaainfo;
-	let skip_auth = if services.globals.registration_token.is_some() {
+	let mut uiaainfo = UiaaInfo {
+		flows: Vec::new(),
+		completed: Vec::new(),
+		params: Box::default(),
+		session: None,
+		auth_error: None,
+	};
+	let mut skip_auth = false;
+	if services.globals.registration_token.is_some() {
 		// Registration token required
-		uiaainfo = UiaaInfo {
-			flows: vec![AuthFlow {
-				stages: vec![AuthType::RegistrationToken],
-			}],
-			completed: Vec::new(),
-			params: Box::default(),
-			session: None,
-			auth_error: None,
-		};
-		body.appservice_info.is_some()
+		uiaainfo.flows.push(AuthFlow {
+			stages: vec![AuthType::RegistrationToken],
+		});
+		skip_auth = body.appservice_info.is_some();
+	}
+	if let Some(pubkey) = &services.config.recaptcha_site_key {
+		// ReCaptcha required
+		uiaainfo
+			.flows
+			.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
+		uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
+			"m.login.recaptcha": {
+				"public_key": pubkey,
+			},
+		}))
+		.expect("Failed to serialize recaptcha params");
+		skip_auth = body.appservice_info.is_some() || skip_auth;
 	} else {
 		// No registration token necessary, but clients must still go through the flow
 		uiaainfo = UiaaInfo {
@@ -313,7 +327,7 @@ pub(crate) async fn register_route(
 			session: None,
 			auth_error: None,
 		};
-		body.appservice_info.is_some() || is_guest
+		skip_auth = skip_auth || body.appservice_info.is_some() || is_guest;
 	};
 
 	if !skip_auth {
