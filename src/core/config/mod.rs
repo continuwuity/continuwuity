@@ -557,8 +557,9 @@ pub struct Config {
 	pub registration_token_file: Option<PathBuf>,
 
 	/// The public site key for reCaptcha. If this is provided, reCaptcha
-	/// becomes required during registration, **even if token registration is
-	/// enabled**.
+	/// becomes required during registration. If both captcha *and*
+	/// registration token are enabled, both will be required during
+	/// registration.
 	///
 	/// IMPORTANT: "Verify the origin of reCAPTCHA solutions" **MUST** BE
 	/// DISABLED IF YOU WANT THE CAPTCHA TO WORK IN 3RD PARTY CLIENTS, OR
