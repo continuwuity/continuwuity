@@ -1259,7 +1259,10 @@ pub struct Config {
 	#[serde(default = "true_fn")]
 	pub presence_timeout_remote_users: bool,
 
-	/// Allow local read receipts
+	/// Allow local read receipts.
+	///
+	/// Disabling this will effectively also disable outgoing federated read
+	/// receipts.
 	#[serde(default = "true_fn")]
 	pub allow_local_read_receipts: bool,
 
@@ -1272,6 +1275,9 @@ pub struct Config {
 	pub allow_outgoing_read_receipts: bool,
 
 	/// Allow local typing updates.
+	///
+	/// Disabling this will effectively also disable outgoing federated typing
+	/// updates.
 	#[serde(default = "true_fn")]
 	pub allow_local_typing: bool,
 
