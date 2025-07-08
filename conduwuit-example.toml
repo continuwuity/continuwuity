@@ -441,11 +441,22 @@
 #
 #registration_token_file =
 
-# This item is undocumented. Please contribute documentation for it.
+# The public site key for reCaptcha. If this is provided, reCaptcha
+# becomes required during registration, **even if token registration is
+# enabled**.
+#
+# IMPORTANT: "Verify the origin of reCAPTCHA solutions" **MUST** BE
+# DISABLED IF YOU WANT THE CAPTCHA TO WORK IN 3RD PARTY CLIENTS, OR
+# CLIENTS HOSTED ON DOMAINS OTHER THAN YOUR OWN!
+#
+# Registration must be enabled (`allow_registration` must be true) for
+# this to have any effect.
 #
 #recaptcha_site_key =
 
-# This item is undocumented. Please contribute documentation for it.
+# The private site key for reCaptcha.
+# If this is omitted, captcha registration will not work,
+# even if `recaptcha_site_key` is set.
 #
 #recaptcha_private_site_key =
 
