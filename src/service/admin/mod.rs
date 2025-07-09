@@ -9,6 +9,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use conduwuit::{Err, utils};
 use conduwuit_core::{
 	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
@@ -16,15 +17,20 @@ pub use create::create_admin_room;
 use futures::{Future, FutureExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
-	OwnedEventId, OwnedRoomId, RoomId, UserId,
+	Mxc, OwnedEventId, OwnedMxcUri, OwnedRoomId, RoomId, UInt, UserId,
 	events::{
 		Mentions,
-		room::message::{Relation, RoomMessageEventContent},
+		room::{
+			MediaSource,
+			message::{
+				FileInfo, FileMessageEventContent, MessageType, Relation, RoomMessageEventContent,
+			},
+		},
 	},
 };
 use tokio::sync::RwLock;
 
-use crate::{Dep, account_data, globals, rooms, rooms::state::RoomMutexGuard};
+use crate::{Dep, account_data, globals, media::MXC_LENGTH, rooms, rooms::state::RoomMutexGuard};
 
 pub struct Service {
 	services: Services,
@@ -45,6 +51,7 @@ struct Services {
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	account_data: Dep<account_data::Service>,
 	services: StdRwLock<Option<Weak<crate::Services>>>,
+	media: Dep<crate::media::Service>,
 }
 
 /// Inputs to a command are a multi-line string, optional reply_id, and optional
@@ -94,6 +101,7 @@ impl crate::Service for Service {
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				account_data: args.depend::<account_data::Service>("account_data"),
 				services: None.into(),
+				media: args.depend::<crate::media::Service>("media"),
 			},
 			channel: loole::bounded(COMMAND_QUEUE_LIMIT),
 			handle: RwLock::new(None),
@@ -157,8 +165,64 @@ impl Service {
 			.ok();
 	}
 
-	/// Sends a message to the admin room as the admin user (see send_text() for
-	/// convenience).
+	/// Either returns a small-enough message, or converts a large message into
+	/// a file
+	pub async fn text_or_file(
+		&self,
+		message_content: RoomMessageEventContent,
+	) -> RoomMessageEventContent {
+		let body_len = Self::collate_msg_size(&message_content);
+		if body_len > 60000 {
+			// Intercept and send as file
+			let file = self
+				.text_to_file(message_content.body())
+				.await
+				.expect("failed to create text file");
+			let metadata = FileInfo {
+				mimetype: Some("text/markdown".to_owned()),
+				size: Some(UInt::new_saturating(message_content.body().len() as u64)),
+				thumbnail_info: None,
+				thumbnail_source: None,
+			};
+			let content = FileMessageEventContent {
+				body: "Output was too large to send as text.".to_owned(),
+				formatted: None,
+				filename: Some("output.md".to_owned()),
+				source: MediaSource::Plain(file),
+				info: Some(Box::new(metadata)),
+			};
+			RoomMessageEventContent::new(MessageType::File(content))
+		} else {
+			message_content
+		}
+	}
+
+	#[must_use]
+	pub fn collate_msg_size(content: &RoomMessageEventContent) -> u64 {
+		content
+			.body()
+			.len()
+			.saturating_add(match &content.msgtype {
+				| MessageType::Text(t) =>
+					if t.formatted.is_some() {
+						t.formatted.as_ref().map_or(0, |f| f.body.len())
+					} else {
+						0
+					},
+				| MessageType::Notice(n) =>
+					if n.formatted.is_some() {
+						n.formatted.as_ref().map_or(0, |f| f.body.len())
+					} else {
+						0
+					},
+				| _ => 0,
+			})
+			.try_into()
+			.expect("size too large")
+	}
+
+	/// Sends a message to the admin room as the admin user (see send_text()
+	/// for convenience).
 	pub async fn send_message(&self, message_content: RoomMessageEventContent) -> Result<()> {
 		let user_id = &self.services.globals.server_user;
 		let room_id = self.get_admin_room().await?;
@@ -176,6 +240,36 @@ impl Service {
 		// Add @room ping
 		message_content = message_content.add_mentions(Mentions::with_room_mention());
 		self.send_message(message_content).await
+	}
+
+	/// Casts a text body into a file and creates a file for it.
+	pub async fn text_to_file(&self, body: &str) -> Result<OwnedMxcUri> {
+		let mxc = Mxc {
+			server_name: self.services.globals.server_name(),
+			media_id: &utils::random_string(MXC_LENGTH),
+		};
+		match self
+			.services
+			.media
+			.create(
+				&mxc,
+				Some(self.services.globals.server_user.as_ref()),
+				Some(&utils::content_disposition::make_content_disposition(
+					None,
+					Some("text/markdown"),
+					Some("output.md"),
+				)),
+				Some("text/markdown"),
+				body.as_bytes(),
+			)
+			.await
+		{
+			| Ok(()) => Ok(mxc.to_string().into()),
+			| Err(e) => {
+				error!("Failed to upload text to file: {e}");
+				Err!(Request(Unknown("Failed to upload text to file")))
+			},
+		}
 	}
 
 	/// Posts a command to the command processor queue and returns. Processing
@@ -325,11 +419,15 @@ impl Service {
 		assert!(self.user_is_admin(user_id).await, "sender is not admin");
 
 		let state_lock = self.services.state.mutex.lock(room_id).await;
-
 		if let Err(e) = self
 			.services
 			.timeline
-			.build_and_append_pdu(PduBuilder::timeline(&content), user_id, room_id, &state_lock)
+			.build_and_append_pdu(
+				PduBuilder::timeline(&self.text_or_file(content).await),
+				user_id,
+				room_id,
+				&state_lock,
+			)
 			.await
 		{
 			self.handle_response_error(e, room_id, user_id, &state_lock)

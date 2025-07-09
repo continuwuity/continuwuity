@@ -192,8 +192,9 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 
 		| Err(e) => return Err!(error!(?e, "Failure occurred while attempting revoke.")),
 
-		| Ok(event) if !matches!(event.membership, Invite | Knock | Join) =>
-			return Err!("Cannot revoke {user_id} in membership state {:?}.", event.membership),
+		| Ok(event) if !matches!(event.membership, Invite | Knock | Join) => {
+			return Err!("Cannot revoke {user_id} in membership state {:?}.", event.membership);
+		},
 
 		| Ok(event) => {
 			assert!(
