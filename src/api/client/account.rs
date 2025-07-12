@@ -298,7 +298,9 @@ pub(crate) async fn register_route(
 		session: None,
 		auth_error: None,
 	};
-	let mut skip_auth = body.appservice_info.is_some();
+	let skip_auth = body.appservice_info.is_some() || is_guest;
+
+	// Populate required UIAA flows
 	if services.globals.registration_token.is_some() {
 		// Registration token required
 		uiaainfo.flows.push(AuthFlow {
@@ -317,9 +319,10 @@ pub(crate) async fn register_route(
 				},
 			}))
 			.expect("Failed to serialize recaptcha params");
-			skip_auth = skip_auth || is_guest;
 		}
-	} else {
+	}
+
+	if uiaainfo.flows.is_empty() && !skip_auth {
 		// No registration token necessary, but clients must still go through the flow
 		uiaainfo = UiaaInfo {
 			flows: vec![AuthFlow { stages: vec![AuthType::Dummy] }],
@@ -328,7 +331,6 @@ pub(crate) async fn register_route(
 			session: None,
 			auth_error: None,
 		};
-		skip_auth = skip_auth || is_guest;
 	}
 
 	if !skip_auth {
