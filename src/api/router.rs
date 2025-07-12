@@ -187,6 +187,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::well_known_support)
 		.ruma_route(&client::well_known_client)
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
+		.route("/_continuwuity/server_version", get(client::conduwuit_server_version))
 		.ruma_route(&client::room_initial_sync_route)
 		.route("/client/server.json", get(client::syncv3_client_server_json));
 
@@ -226,13 +227,15 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			.ruma_route(&server::well_known_server)
 			.ruma_route(&server::get_content_route)
 			.ruma_route(&server::get_content_thumbnail_route)
-			.route("/_conduwuit/local_user_count", get(client::conduwuit_local_user_count));
+			.route("/_conduwuit/local_user_count", get(client::conduwuit_local_user_count))
+			.route("/_continuwuity/local_user_count", get(client::conduwuit_local_user_count));
 	} else {
 		router = router
 			.route("/_matrix/federation/*path", any(federation_disabled))
 			.route("/.well-known/matrix/server", any(federation_disabled))
 			.route("/_matrix/key/*path", any(federation_disabled))
-			.route("/_conduwuit/local_user_count", any(federation_disabled));
+			.route("/_conduwuit/local_user_count", any(federation_disabled))
+			.route("/_continuwuity/local_user_count", any(federation_disabled));
 	}
 
 	if config.allow_legacy_media {

@@ -172,7 +172,7 @@ As we would prefer our users to use Caddy, we will not provide configuration fil
 
 You will need to reverse proxy everything under following routes:
 - `/_matrix/` - core Matrix C-S and S-S APIs
-- `/_conduwuit/` - ad-hoc Continuwuity routes such as `/local_user_count` and
+- `/_conduwuit/` and/or `/_continuwuity/` - ad-hoc Continuwuity routes such as `/local_user_count` and
 `/server_version`
 
 You can optionally reverse proxy the following individual routes:
