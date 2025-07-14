@@ -34,22 +34,27 @@ for performance.
 
 ### Compiling
 
-Alternatively, you may compile the binary yourself. We recommend using
-Nix (or [Lix](https://lix.systems)) to build Continuwuity as this provides the most
-guaranteed reproducibility and makes it easiest to set up a build environment and generate
-output. This approach also allows for easy cross-compilation.
+Alternatively, you may compile the binary yourself.
+
+### Building with the Rust toolchain
+
+If wanting to build using standard Rust toolchains, make sure you install:
+
+- (On linux) `liburing-dev` on the compiling machine, and `liburing` on the target host
+- (On linux) `pkg-config` on the compiling machine to allow finding `liburing`
+- A C++ compiler and (on linux) `libclang` for RocksDB
+
+You can build Continuwuity using `cargo build --release --all-features`.
+
+### Building with Nix
+
+If you prefer, you can use Nix (or [Lix](https://lix.systems)) to build Continuwuity. This provides improved reproducibility and makes it easy to set up a build environment and generate output. This approach also allows for easy cross-compilation.
 
 You can run the `nix build -L .#static-x86_64-linux-musl-all-features` or
 `nix build -L .#static-aarch64-linux-musl-all-features` commands based
 on architecture to cross-compile the necessary static binary located at
 `result/bin/conduwuit`. This is reproducible with the static binaries produced
 in our CI.
-
-If wanting to build using standard Rust toolchains, make sure you install:
-- `liburing-dev` on the compiling machine, and `liburing` on the target host
-- LLVM and libclang for RocksDB
-
-You can build Continuwuity using `cargo build --release --all-features`
 
 ## Adding a Continuwuity user
 

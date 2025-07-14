@@ -137,6 +137,8 @@ and `.well-known/matrix/server`.
 With the service `well-known`, we use a single `nginx` container that serves
 those two files.
 
+Alternatively, you can use Continuwuity's built-in delegation file capability. Set up the delegation files in the configuration file, and then proxy paths under `/.well-known/matrix` to continuwuity. For example, the label ``traefik.http.routers.continuwuity.rule=(Host(`matrix.ellis.link`) || (Host(`ellis.link`) && PathPrefix(`/.well-known/matrix`)))`` does this for the domain `ellis.link`.
+
 ## Voice communication
 
 See the [TURN](../turn.md) page.
