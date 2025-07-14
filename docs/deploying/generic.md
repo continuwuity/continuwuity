@@ -13,31 +13,31 @@
 You may simply download the binary that fits your machine architecture (x86_64
 or aarch64). Run `uname -m` to see what you need.
 
-Prebuilt fully static musl binaries can be downloaded from the latest tagged
+You can download prebuilt fully static musl binaries from the latest tagged
 release [here](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest) or
-`main` CI branch workflow artifact output. These also include Debian/Ubuntu
+from the `main` CI branch workflow artifact output. These also include Debian/Ubuntu
 packages.
 
-These can be curl'd directly from. `ci-bins` are CI workflow binaries by commit
+You can download these directly using curl. The `ci-bins` are CI workflow binaries organized by commit
 hash/revision, and `releases` are tagged releases. Sort by descending last
-modified for the latest.
+modified date to find the latest.
 
 These binaries have jemalloc and io_uring statically linked and included with
 them, so no additional dynamic dependencies need to be installed.
 
-For the **best** performance; if using an `x86_64` CPU made in the last ~15 years,
-we recommend using the `-haswell-` optimised binaries. This sets
-`-march=haswell` which is the most compatible and highest performance with
-optimised binaries. The database backend, RocksDB, most benefits from this as it
-will then use hardware accelerated CRC32 hashing/checksumming which is critical
+For the **best** performance: if you are using an `x86_64` CPU made in the last ~15 years,
+we recommend using the `-haswell-` optimized binaries. These set
+`-march=haswell`, which provides the most compatible and highest performance with
+optimized binaries. The database backend, RocksDB, benefits most from this as it
+uses hardware-accelerated CRC32 hashing/checksumming, which is critical
 for performance.
 
 ### Compiling
 
 Alternatively, you may compile the binary yourself. We recommend using
-Nix (or [Lix](https://lix.systems)) to build Continuwuity as this has the most
-guaranteed reproducibiltiy and easiest to get a build environment and output
-going. This also allows easy cross-compilation.
+Nix (or [Lix](https://lix.systems)) to build Continuwuity as this provides the most
+guaranteed reproducibility and makes it easiest to set up a build environment and generate
+output. This approach also allows for easy cross-compilation.
 
 You can run the `nix build -L .#static-x86_64-linux-musl-all-features` or
 `nix build -L .#static-aarch64-linux-musl-all-features` commands based
@@ -53,9 +53,9 @@ You can build Continuwuity using `cargo build --release --all-features`
 
 ## Adding a Continuwuity user
 
-While Continuwuity can run as any user it is better to use dedicated users for
-different services. This also allows you to make sure that the file permissions
-are correctly set up.
+While Continuwuity can run as any user, it is better to use dedicated users for
+different services. This also ensures that the file permissions
+are set up correctly.
 
 In Debian, you can use this command to create a Continuwuity user:
 
@@ -71,18 +71,18 @@ sudo useradd -r --shell /usr/bin/nologin --no-create-home continuwuity
 
 ## Forwarding ports in the firewall or the router
 
-Matrix's default federation port is port 8448, and clients must be using port 443.
-If you would like to use only port 443, or a different port, you will need to setup
-delegation. Continuwuity has config options for doing delegation, or you can configure
-your reverse proxy to manually serve the necessary JSON files to do delegation
+Matrix's default federation port is 8448, and clients must use port 443.
+If you would like to use only port 443 or a different port, you will need to set up
+delegation. Continuwuity has configuration options for delegation, or you can configure
+your reverse proxy to manually serve the necessary JSON files for delegation
 (see the `[global.well_known]` config section).
 
 If Continuwuity runs behind a router or in a container and has a different public
-IP address than the host system these public ports need to be forwarded directly
-or indirectly to the port mentioned in the config.
+IP address than the host system, you need to forward these public ports directly
+or indirectly to the port mentioned in the configuration.
 
-Note for NAT users; if you have trouble connecting to your server from the inside
-of your network, you need to research your router and see if it supports "NAT
+Note for NAT users: if you have trouble connecting to your server from inside
+your network, check if your router supports "NAT
 hairpinning" or "NAT loopback".
 
 If your router does not support this feature, you need to research doing local
@@ -92,19 +92,19 @@ on the network level, consider something like NextDNS or Pi-Hole.
 
 ## Setting up a systemd service
 
-Two example systemd units for Continuwuity can be found
+You can find two example systemd units for Continuwuity
 [on the configuration page](../configuration/examples.md#debian-systemd-unit-file).
-You may need to change the `ExecStart=` path to where you placed the Continuwuity
-binary if it is not `/usr/bin/conduwuit`.
+You may need to change the `ExecStart=` path to match where you placed the Continuwuity
+binary if it is not in `/usr/bin/conduwuit`.
 
 On systems where rsyslog is used alongside journald (i.e. Red Hat-based distros
 and OpenSUSE), put `$EscapeControlCharactersOnReceive off` inside
 `/etc/rsyslog.conf` to allow color in logs.
 
-If you are using a different `database_path` other than the systemd unit
+If you are using a different `database_path` than the systemd unit's
 configured default `/var/lib/conduwuit`, you need to add your path to the
-systemd unit's `ReadWritePaths=`. This can be done by either directly editing
-`conduwuit.service` and reloading systemd, or running `systemctl edit conduwuit.service`
+systemd unit's `ReadWritePaths=`. You can do this by either directly editing
+`conduwuit.service` and reloading systemd, or by running `systemctl edit conduwuit.service`
 and entering the following:
 
 ```
@@ -114,8 +114,8 @@ ReadWritePaths=/path/to/custom/database/path
 
 ## Creating the Continuwuity configuration file
 
-Now we need to create the Continuwuity's config file in
-`/etc/continuwuity/continuwuity.toml`. The example config can be found at
+Now you need to create the Continuwuity configuration file in
+`/etc/continuwuity/continuwuity.toml`. You can find an example configuration at
 [conduwuit-example.toml](../configuration/examples.md).
 
 **Please take a moment to read the config. You need to change at least the
@@ -125,8 +125,8 @@ RocksDB is the only supported database backend.
 
 ## Setting the correct file permissions
 
-If you are using a dedicated user for Continuwuity, you will need to allow it to
-read the config. To do that you can run this:
+If you are using a dedicated user for Continuwuity, you need to allow it to
+read the configuration. To do this, run:
 
 ```bash
 sudo chown -R root:root /etc/conduwuit
@@ -143,13 +143,13 @@ sudo chmod 700 /var/lib/conduwuit/
 
 ## Setting up the Reverse Proxy
 
-We recommend Caddy as a reverse proxy, as it is trivial to use, handling TLS certificates, reverse proxy headers, etc transparently with proper defaults.
+We recommend Caddy as a reverse proxy because it is trivial to use and handles TLS certificates, reverse proxy headers, etc. transparently with proper defaults.
 For other software, please refer to their respective documentation or online guides.
 
 ### Caddy
 
 After installing Caddy via your preferred method, create `/etc/caddy/conf.d/conduwuit_caddyfile`
-and enter this (substitute for your server name).
+and enter the following (substitute your actual server name):
 
 ```caddyfile
 your.server.name, your.server.name:8448 {
@@ -168,9 +168,9 @@ sudo systemctl enable --now caddy
 
 ### Other Reverse Proxies
 
-As we would prefer our users to use Caddy, we will not provide configuration files for other proxys.
+As we prefer our users to use Caddy, we do not provide configuration files for other proxies.
 
-You will need to reverse proxy everything under following routes:
+You will need to reverse proxy everything under the following routes:
 - `/_matrix/` - core Matrix C-S and S-S APIs
 - `/_conduwuit/` and/or `/_continuwuity/` - ad-hoc Continuwuity routes such as `/local_user_count` and
 `/server_version`
@@ -193,16 +193,16 @@ Examples of delegation:
 
 For Apache and Nginx there are many examples available online.
 
-Lighttpd is not supported as it seems to mess with the `X-Matrix` Authorization
-header, making federation non-functional. If a workaround is found, feel free to share to get it added to the documentation here.
+Lighttpd is not supported as it appears to interfere with the `X-Matrix` Authorization
+header, making federation non-functional. If you find a workaround, please share it so we can add it to this documentation.
 
-If using Apache, you need to use `nocanon` in your `ProxyPass` directive to prevent httpd from messing with the `X-Matrix` header (note that Apache isn't very good as a general reverse proxy and we discourage the usage of it if you can).
+If using Apache, you need to use `nocanon` in your `ProxyPass` directive to prevent httpd from interfering with the `X-Matrix` header (note that Apache is not ideal as a general reverse proxy, so we discourage using it if alternatives are available).
 
-If using Nginx, you need to give Continuwuity the request URI using `$request_uri`, or like so:
+If using Nginx, you need to pass the request URI to Continuwuity using `$request_uri`, like this:
 - `proxy_pass http://127.0.0.1:6167$request_uri;`
 - `proxy_pass http://127.0.0.1:6167;`
 
-Nginx users need to increase `client_max_body_size` (default is 1M) to match
+Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the
 `max_request_size` defined in conduwuit.toml.
 
 ## You're done
@@ -222,7 +222,7 @@ sudo systemctl enable conduwuit
 ## How do I know it works?
 
 You can open [a Matrix client](https://matrix.org/ecosystem/clients), enter your
-homeserver and try to register.
+homeserver address, and try to register.
 
 You can also use these commands as a quick health check (replace
 `your.server.name`).
@@ -237,10 +237,10 @@ curl https://your.server.name:8448/_conduwuit/server_version
 curl https://your.server.name:8448/_matrix/federation/v1/version
 ```
 
-- To check if your server can talk with other homeservers, you can use the
+- To check if your server can communicate with other homeservers, use the
 [Matrix Federation Tester](https://federationtester.matrix.org/). If you can
-register but cannot join federated rooms check your config again and also check
-if the port 8448 is open and forwarded correctly.
+register but cannot join federated rooms, check your configuration and verify
+that port 8448 is open and forwarded correctly.
 
 # What's next?
 

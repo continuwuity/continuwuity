@@ -1,6 +1,6 @@
 # Continuwuity for NixOS
 
-Continuwuity can be acquired by Nix (or [Lix][lix]) from various places:
+You can acquire Continuwuity with Nix (or [Lix][lix]) from various places:
 
 * The `flake.nix` at the root of the repo
 * The `default.nix` at the root of the repo
@@ -9,25 +9,25 @@ Continuwuity can be acquired by Nix (or [Lix][lix]) from various places:
 ### NixOS module
 
 The `flake.nix` and `default.nix` do not currently provide a NixOS module (contributions
-welcome!), so [`services.matrix-conduit`][module] from Nixpkgs can be used to configure
+welcome!), so you can use [`services.matrix-conduit`][module] from Nixpkgs to configure
 Continuwuity.
 
 ### Conduit NixOS Config Module and SQLite
 
 Beware! The [`services.matrix-conduit`][module] module defaults to SQLite as a database backend.
 Continuwuity dropped SQLite support in favor of exclusively supporting the much faster RocksDB.
-Make sure that you are using the RocksDB backend before migrating!
+Make sure you are using the RocksDB backend before migrating!
 
-There is a [tool to  migrate a Conduit SQLite database to
+There is a [tool to migrate a Conduit SQLite database to
 RocksDB](https://github.com/ShadowJonathan/conduit_toolbox/).
 
-If you want to run the latest code, you should get Continuwuity from the `flake.nix`
+If you want to run the latest code, get Continuwuity from the `flake.nix`
 or `default.nix` and set [`services.matrix-conduit.package`][package]
 appropriately to use Continuwuity instead of Conduit.
 
 ### UNIX sockets
 
-Due to the lack of a Continuwuity NixOS module, when using the `services.matrix-conduit` module
+Due to the lack of a Continuwuity NixOS module, when using the `services.matrix-conduit` module,
 a workaround like the one below is necessary to use UNIX sockets. This is because the UNIX
 socket option does not exist in Conduit, and the module forcibly sets the `address` and
 `port` config options.
@@ -44,21 +44,21 @@ options.services.matrix-conduit.settings = lib.mkOption {
 ```
 
 Additionally, the [`matrix-conduit` systemd unit][systemd-unit] in the module does not allow
-the `AF_UNIX` socket address family in their systemd unit's `RestrictAddressFamilies=` which
-disallows the namespace from accessing or creating UNIX sockets and has to be enabled like so:
+the `AF_UNIX` socket address family in its systemd unit's `RestrictAddressFamilies=`. This
+disallows the namespace from accessing or creating UNIX sockets and must be enabled like this:
 
 ```nix
 systemd.services.conduit.serviceConfig.RestrictAddressFamilies = [ "AF_UNIX" ];
 ```
 
-Even though those workarounds are feasible a Continuwuity NixOS configuration module, developed and
+Although these workarounds are feasible, a dedicated Continuwuity NixOS configuration module, developed and
 published by the community, would be appreciated.
 
 ### jemalloc and hardened profile
 
 Continuwuity uses jemalloc by default. This may interfere with the [`hardened.nix` profile][hardened.nix]
-due to them using `scudo` by default. You must either disable/hide `scudo` from Continuwuity, or
-disable jemalloc like so:
+because it uses `scudo` by default. You must either disable/hide `scudo` from Continuwuity or
+disable jemalloc like this:
 
 ```nix
 let
