@@ -2,7 +2,7 @@
 
 Continuwuity doesn't support horizontal scalability or distributed loading
 natively. However, a community-maintained Helm Chart is available here to run
-Continuwuity on Kubernetes: <https://gitlab.cronce.io/charts/conduwuit>
+conduwuit on Kubernetes: <https://gitlab.cronce.io/charts/conduwuit>
 
 This should be compatible with Continuwuity, but you will need to change the image reference.
 

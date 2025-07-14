@@ -1,75 +1,130 @@
 # Continuwuity for NixOS
 
-You can acquire Continuwuity with Nix (or [Lix][lix]) from various places:
+NixOS packages Continuwuity as `matrix-continuwuity`. This package includes both the Continuwuity software and a dedicated NixOS module for configuration and deployment.
 
-* The `flake.nix` at the root of the repo
-* The `default.nix` at the root of the repo
-* From Continuwuity's binary cache
+## Installation methods
 
-### NixOS module
+You can acquire Continuwuity with Nix (or [Lix][lix]) from these sources:
 
-The `flake.nix` and `default.nix` do not currently provide a NixOS module (contributions
-welcome!), so you can use [`services.matrix-conduit`][module] from Nixpkgs to configure
-Continuwuity.
+* Directly from Nixpkgs using the official package (`pkgs.matrix-continuwuity`)
+* The `flake.nix` at the root of the Continuwuity repo
+* The `default.nix` at the root of the Continuwuity repo
 
-### Conduit NixOS Config Module and SQLite
+## NixOS module
 
-Beware! The [`services.matrix-conduit`][module] module defaults to SQLite as a database backend.
-Continuwuity dropped SQLite support in favor of exclusively supporting the much faster RocksDB.
-Make sure you are using the RocksDB backend before migrating!
+Continuwuity now has an official NixOS module that simplifies configuration and deployment. The module is available in Nixpkgs as `services.matrix-continuwuity` from NixOS 25.05.
 
-There is a [tool to migrate a Conduit SQLite database to
-RocksDB](https://github.com/ShadowJonathan/conduit_toolbox/).
+Here's a basic example of how to use the module:
 
-If you want to run the latest code, get Continuwuity from the `flake.nix`
-or `default.nix` and set [`services.matrix-conduit.package`][package]
-appropriately to use Continuwuity instead of Conduit.
+```nix
+{ config, pkgs, ... }:
+
+{
+  services.matrix-continuwuity = {
+    enable = true;
+    settings = {
+      global = {
+        server_name = "example.com";
+        # Listening on localhost by default
+        # address and port are handled automatically
+        allow_registration = false;
+        allow_encryption = true;
+        allow_federation = true;
+        trusted_servers = [ "matrix.org" ];
+      };
+    };
+  };
+}
+```
+
+### Available options
+
+The NixOS module provides these configuration options:
+
+- `enable`: Enable the Continuwuity service
+- `user`: The user to run Continuwuity as (defaults to "continuwuity")
+- `group`: The group to run Continuwuity as (defaults to "continuwuity")
+- `extraEnvironment`: Extra environment variables to pass to the Continuwuity server
+- `package`: The Continuwuity package to use
+- `settings`: The Continuwuity configuration (in TOML format)
+
+Use the `settings` option to configure Continuwuity itself. See the [example configuration file](../configuration/examples.md#example-configuration) for all available options.
 
 ### UNIX sockets
 
-Due to the lack of a Continuwuity NixOS module, when using the `services.matrix-conduit` module,
-a workaround like the one below is necessary to use UNIX sockets. This is because the UNIX
-socket option does not exist in Conduit, and the module forcibly sets the `address` and
-`port` config options.
+The NixOS module natively supports UNIX sockets through the `global.unix_socket_path` option. When using UNIX sockets, set `global.address` to `null`:
 
 ```nix
-options.services.matrix-conduit.settings = lib.mkOption {
-  apply = old: old // (
-    if (old.global ? "unix_socket_path")
-    then { global = builtins.removeAttrs old.global [ "address" "port" ]; }
-    else {  }
-  );
+services.matrix-continuwuity = {
+  enable = true;
+  settings = {
+    global = {
+      server_name = "example.com";
+      address = null; # Must be null when using unix_socket_path
+      unix_socket_path = "/run/continuwuity/continuwuity.sock";
+      unix_socket_perms = 660; # Default permissions for the socket
+      # ...
+    };
+  };
 };
-
 ```
 
-Additionally, the [`matrix-conduit` systemd unit][systemd-unit] in the module does not allow
-the `AF_UNIX` socket address family in its systemd unit's `RestrictAddressFamilies=`. This
-disallows the namespace from accessing or creating UNIX sockets and must be enabled like this:
+The module automatically sets the correct `RestrictAddressFamilies` in the systemd service configuration to allow access to UNIX sockets.
 
-```nix
-systemd.services.conduit.serviceConfig.RestrictAddressFamilies = [ "AF_UNIX" ];
-```
+### RocksDB database
 
-Although these workarounds are feasible, a dedicated Continuwuity NixOS configuration module, developed and
-published by the community, would be appreciated.
+Continuwuity exclusively uses RocksDB as its database backend. The system configures the database path automatically to `/var/lib/continuwuity/` and you cannot change it due to the service's reliance on systemd's StateDir.
+
+If you're migrating from Conduit with SQLite, use this [tool to migrate a Conduit SQLite database to RocksDB](https://github.com/ShadowJonathan/conduit_toolbox/).
 
 ### jemalloc and hardened profile
 
-Continuwuity uses jemalloc by default. This may interfere with the [`hardened.nix` profile][hardened.nix]
-because it uses `scudo` by default. You must either disable/hide `scudo` from Continuwuity or
-disable jemalloc like this:
+Continuwuity uses jemalloc by default. This may interfere with the [`hardened.nix` profile][hardened.nix] because it uses `scudo` by default. Either disable/hide `scudo` from Continuwuity or disable jemalloc like this:
 
 ```nix
-let
-    conduwuit = pkgs.unstable.conduwuit.override {
-      enableJemalloc = false;
-    };
-in
+services.matrix-continuwuity = {
+  enable = true;
+  package = pkgs.matrix-continuwuity.override {
+    enableJemalloc = false;
+  };
+  # ...
+};
+```
+
+## Upgrading from Conduit
+
+If you previously used Conduit with the `services.matrix-conduit` module:
+
+1. Ensure your Conduit uses the RocksDB backend, or migrate from SQLite using the [migration tool](https://github.com/ShadowJonathan/conduit_toolbox/)
+2. Switch to the new module by changing `services.matrix-conduit` to `services.matrix-continuwuity` in your configuration
+3. Update any custom configuration to match the new module's structure
+
+## Reverse proxy configuration
+
+You'll need to set up a reverse proxy (like nginx or caddy) to expose Continuwuity to the internet. Configure your reverse proxy to forward requests to `/_matrix` on port 443 and 8448 to your Continuwuity instance.
+
+Here's an example nginx configuration:
+
+```nginx
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    listen 8448 ssl;
+    listen [::]:8448 ssl;
+
+    server_name example.com;
+
+    # SSL configuration here...
+
+    location /_matrix/ {
+        proxy_pass http://127.0.0.1:6167$request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 [lix]: https://lix.systems/
-[module]: https://search.nixos.org/options?channel=unstable&query=services.matrix-conduit
-[package]: https://search.nixos.org/options?channel=unstable&query=services.matrix-conduit.package
-[hardened.nix]: https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/profiles/hardened.nix#L22
-[systemd-unit]: https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/services/matrix/conduit.nix#L132
+[hardened.nix]: https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/profiles/hardened.nix
