@@ -1,29 +1,23 @@
 # Continuwuity for Debian
 
-Information about downloading and deploying the Debian package. This may also be
-referenced for other `apt`-based distros such as Ubuntu.
+This document provides information about downloading and deploying the Debian package. You can also use this guide for other `apt`-based distributions such as Ubuntu.
 
 ### Installation
 
-It is recommended to see the [generic deployment guide](../deploying/generic.md)
-for further information if needed as usage of the Debian package is generally
-related.
+See the [generic deployment guide](../deploying/generic.md) for additional information about using the Debian package.
 
-No `apt` repository is currently offered yet, it is in the works/development.
+No `apt` repository is currently available. This feature is in development.
 
 ### Configuration
 
-When installed, the example config is placed at `/etc/conduwuit/conduwuit.toml`
-as the default config. The config mentions things required to be changed before
-starting.
+After installation, Continuwuity places the example configuration at `/etc/conduwuit/conduwuit.toml` as the default configuration file. The configuration file indicates which settings you must change before starting the service.
 
-You can tweak more detailed settings by uncommenting and setting the config
-options in `/etc/conduwuit/conduwuit.toml`.
+You can customize additional settings by uncommenting and modifying the configuration options in `/etc/conduwuit/conduwuit.toml`.
 
 ### Running
 
-The package uses the [`conduwuit.service`](../configuration/examples.md#example-systemd-unit-file) systemd unit file to start and stop Continuwuity. The binary is installed at `/usr/sbin/conduwuit`.
+The package uses the [`conduwuit.service`](../configuration/examples.md#example-systemd-unit-file) systemd unit file to start and stop Continuwuity. The binary installs at `/usr/sbin/conduwuit`.
 
-This package assumes by default that conduwuit will be placed behind a reverse proxy. The default config options apply (listening on `localhost` and TCP port `6167`). Matrix federation requires a valid domain name and TLS, so you will need to set up TLS certificates and renewal for it to work properly if you intend to federate.
+By default, this package assumes that Continuwuity runs behind a reverse proxy. The default configuration options apply (listening on `localhost` and TCP port `6167`). Matrix federation requires a valid domain name and TLS. To federate properly, you must set up TLS certificates and certificate renewal.
 
-Consult various online documentation and guides on setting up a reverse proxy and TLS. Caddy is documented at the [generic deployment guide](../deploying/generic.md#setting-up-the-reverse-proxy) as it's the easiest and most user friendly.
+For information about setting up a reverse proxy and TLS, consult online documentation and guides. The [generic deployment guide](../deploying/generic.md#setting-up-the-reverse-proxy) documents Caddy, which is the most user-friendly option for reverse proxy configuration.
