@@ -18,7 +18,7 @@ StandardInput=tty-force
 StandardOutput=tty
 StandardError=journal+console
 
-Environment="CONTINUWUITY_LOG_TO_JOURNALD=1"
+Environment="CONTINUWUITY_LOG_TO_JOURNALD=true"
 Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
 
 TTYReset=yes

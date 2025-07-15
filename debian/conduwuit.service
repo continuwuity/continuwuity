@@ -14,7 +14,7 @@ Type=notify
 
 Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
 
-Environment="CONTINUWUITY_LOG_TO_JOURNALD=1"
+Environment="CONTINUWUITY_LOG_TO_JOURNALD=true"
 Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
 
 ExecStart=/usr/sbin/conduwuit
