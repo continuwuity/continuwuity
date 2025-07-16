@@ -68,3 +68,27 @@ documentation](https://github.com/coturn/coturn/blob/master/docker/coturn/README
 
 For security recommendations see Synapse's [Coturn
 documentation](https://element-hq.github.io/synapse/latest/turn-howto.html).
+
+### Testing
+
+To make sure turn credentials are being correctly served to clients, you can manually make a HTTP request to the turnServer endpoint.
+
+`curl "https://<matrix.example.com>/_matrix/client/r0/voip/turnServer" -H 'Authorization: Bearer <your_client_token>' | jq`
+
+You should get a response like this:
+
+```json
+{
+  "username": "1752792167:@jade:example.com",
+  "password": "KjlDlawdPbU9mvP4bhdV/2c/h65=",
+  "uris": [
+    "turns:coturn.example.com?transport=udp",
+    "turns:coturn.example.com?transport=tcp",
+    "turn:coturn.example.com?transport=udp",
+    "turn:coturn.example.com?transport=tcp"
+  ],
+  "ttl": 86400
+}
+```
+
+You can test these credentials work using [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/)
