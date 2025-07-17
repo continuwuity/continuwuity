@@ -24,7 +24,7 @@ use serde_json::{json, value::to_raw_value};
 use crate::Ruma;
 
 /// Recommended transferable state events list from the spec
-const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 9] = &[
+const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
 	StateEventType::RoomAvatar,
 	StateEventType::RoomEncryption,
 	StateEventType::RoomGuestAccess,
@@ -34,6 +34,9 @@ const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 9] = &[
 	StateEventType::RoomPowerLevels,
 	StateEventType::RoomServerAcl,
 	StateEventType::RoomTopic,
+	// Not explicitly recommended in spec, but very useful.
+	StateEventType::SpaceChild,
+	StateEventType::SpaceParent, // TODO: m.room.policy
 ];
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/upgrade`
@@ -50,10 +53,7 @@ pub(crate) async fn upgrade_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<upgrade_room::v3::Request>,
 ) -> Result<upgrade_room::v3::Response> {
-	debug_assert!(
-		TRANSFERABLE_STATE_EVENTS.is_sorted(),
-		"TRANSFERABLE_STATE_EVENTS is not sorted"
-	);
+	// TODO[v12]: Handle additional creators
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 
 	if !services.server.supported_room_version(&body.new_version) {
