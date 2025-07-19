@@ -212,32 +212,39 @@ pub(crate) async fn upgrade_room_route(
 
 	// Replicate transferable state events to the new room
 	for event_type in TRANSFERABLE_STATE_EVENTS {
-		let event_content = match services
+		let state_keys = services
 			.rooms
 			.state_accessor
-			.room_state_get(&body.room_id, event_type, "")
-			.await
-		{
-			| Ok(v) => v.content().to_owned(),
-			| Err(_) => continue, // Skipping missing events.
-		};
-
-		services
-			.rooms
-			.timeline
-			.build_and_append_pdu(
-				PduBuilder {
-					event_type: event_type.to_string().into(),
-					content: event_content,
-					state_key: Some(StateKey::new()),
-					..Default::default()
-				},
-				sender_user,
-				&replacement_room,
-				&state_lock,
-			)
-			.boxed()
+			.room_state_keys(&body.room_id, event_type)
 			.await?;
+		for state_key in state_keys {
+			let event_content = match services
+				.rooms
+				.state_accessor
+				.room_state_get(&body.room_id, event_type, &state_key)
+				.await
+			{
+				| Ok(v) => v.content().to_owned(),
+				| Err(_) => continue, // Skipping missing events.
+			};
+
+			services
+				.rooms
+				.timeline
+				.build_and_append_pdu(
+					PduBuilder {
+						event_type: event_type.to_string().into(),
+						content: event_content,
+						state_key: Some(StateKey::from(state_key)),
+						..Default::default()
+					},
+					sender_user,
+					&replacement_room,
+					&state_lock,
+				)
+				.boxed()
+				.await?;
+		}
 	}
 
 	// Moves any local aliases to the new room
