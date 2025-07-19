@@ -40,7 +40,6 @@ where
 		self.state
 			.active
 			.read()
-			.expect("shared lock")
 			.iter()
 			.filter(|capture| filter(self, capture, event, &ctx))
 			.for_each(|capture| handle(self, capture, event, &ctx));

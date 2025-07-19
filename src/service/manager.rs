@@ -58,7 +58,6 @@ impl Manager {
 		let services: Vec<Arc<dyn Service>> = self
 			.service
 			.read()
-			.expect("locked for reading")
 			.values()
 			.map(|val| val.0.upgrade())
 			.map(|arc| arc.expect("services available for manager startup"))

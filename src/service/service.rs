@@ -3,11 +3,13 @@ use std::{
 	collections::BTreeMap,
 	fmt::Write,
 	ops::Deref,
-	sync::{Arc, OnceLock, RwLock, Weak},
+	sync::{Arc, OnceLock, Weak},
 };
 
 use async_trait::async_trait;
-use conduwuit::{Err, Result, Server, err, error::inspect_log, utils::string::SplitInfallible};
+use conduwuit::{
+	Err, Result, Server, SyncRwLock, err, error::inspect_log, utils::string::SplitInfallible,
+};
 use database::Database;
 
 /// Abstract interface for a Service
@@ -62,7 +64,7 @@ pub(crate) struct Dep<T: Service + Send + Sync> {
 	name: &'static str,
 }
 
-pub(crate) type Map = RwLock<MapType>;
+pub(crate) type Map = SyncRwLock<MapType>;
 pub(crate) type MapType = BTreeMap<MapKey, MapVal>;
 pub(crate) type MapVal = (Weak<dyn Service>, Weak<dyn Any + Send + Sync>);
 pub(crate) type MapKey = String;
@@ -143,15 +145,12 @@ pub(crate) fn get<T>(map: &Map, name: &str) -> Option<Arc<T>>
 where
 	T: Any + Send + Sync + Sized,
 {
-	map.read()
-		.expect("locked for reading")
-		.get(name)
-		.map(|(_, s)| {
-			s.upgrade().map(|s| {
-				s.downcast::<T>()
-					.expect("Service must be correctly downcast.")
-			})
-		})?
+	map.read().get(name).map(|(_, s)| {
+		s.upgrade().map(|s| {
+			s.downcast::<T>()
+				.expect("Service must be correctly downcast.")
+		})
+	})?
 }
 
 /// Reference a Service by name. Returns Err if the Service does not exist or
@@ -160,21 +159,18 @@ pub(crate) fn try_get<T>(map: &Map, name: &str) -> Result<Arc<T>>
 where
 	T: Any + Send + Sync + Sized,
 {
-	map.read()
-		.expect("locked for reading")
-		.get(name)
-		.map_or_else(
-			|| Err!("Service {name:?} does not exist or has not been built yet."),
-			|(_, s)| {
-				s.upgrade().map_or_else(
-					|| Err!("Service {name:?} no longer exists."),
-					|s| {
-						s.downcast::<T>()
-							.map_err(|_| err!("Service {name:?} must be correctly downcast."))
-					},
-				)
-			},
-		)
+	map.read().get(name).map_or_else(
+		|| Err!("Service {name:?} does not exist or has not been built yet."),
+		|(_, s)| {
+			s.upgrade().map_or_else(
+				|| Err!("Service {name:?} no longer exists."),
+				|s| {
+					s.downcast::<T>()
+						.map_err(|_| err!("Service {name:?} must be correctly downcast."))
+				},
+			)
+		},
+	)
 }
 
 /// Utility for service implementations; see Service::name() in the trait.

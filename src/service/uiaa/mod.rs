@@ -1,10 +1,10 @@
 use std::{
 	collections::{BTreeMap, HashSet},
-	sync::{Arc, RwLock},
+	sync::Arc,
 };
 
 use conduwuit::{
-	Err, Error, Result, err, error, implement, utils,
+	Err, Error, Result, SyncRwLock, err, error, implement, utils,
 	utils::{hash, string::EMPTY},
 };
 use database::{Deserialized, Json, Map};
@@ -19,7 +19,7 @@ use ruma::{
 use crate::{Dep, config, globals, users};
 
 pub struct Service {
-	userdevicesessionid_uiaarequest: RwLock<RequestMap>,
+	userdevicesessionid_uiaarequest: SyncRwLock<RequestMap>,
 	db: Data,
 	services: Services,
 }
@@ -42,7 +42,7 @@ pub const SESSION_ID_LENGTH: usize = 32;
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			userdevicesessionid_uiaarequest: RwLock::new(RequestMap::new()),
+			userdevicesessionid_uiaarequest: SyncRwLock::new(RequestMap::new()),
 			db: Data {
 				userdevicesessionid_uiaainfo: args.db["userdevicesessionid_uiaainfo"].clone(),
 			},
@@ -268,7 +268,6 @@ fn set_uiaa_request(
 	let key = (user_id.to_owned(), device_id.to_owned(), session.to_owned());
 	self.userdevicesessionid_uiaarequest
 		.write()
-		.expect("locked for writing")
 		.insert(key, request.to_owned());
 }
 
@@ -287,7 +286,6 @@ pub fn get_uiaa_request(
 
 	self.userdevicesessionid_uiaarequest
 		.read()
-		.expect("locked for reading")
 		.get(&key)
 		.cloned()
 }

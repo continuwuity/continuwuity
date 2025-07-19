@@ -2,12 +2,12 @@ use std::{
 	collections::{HashMap, hash_map},
 	future::Future,
 	pin::Pin,
-	sync::RwLock,
 };
 
+use conduwuit::SyncRwLock;
 use tokio::sync::watch;
 
-type Watcher = RwLock<HashMap<Vec<u8>, (watch::Sender<()>, watch::Receiver<()>)>>;
+type Watcher = SyncRwLock<HashMap<Vec<u8>, (watch::Sender<()>, watch::Receiver<()>)>>;
 
 #[derive(Default)]
 pub(crate) struct Watchers {
@@ -19,7 +19,7 @@ impl Watchers {
 		&'a self,
 		prefix: &[u8],
 	) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
-		let mut rx = match self.watchers.write().unwrap().entry(prefix.to_vec()) {
+		let mut rx = match self.watchers.write().entry(prefix.to_vec()) {
 			| hash_map::Entry::Occupied(o) => o.get().1.clone(),
 			| hash_map::Entry::Vacant(v) => {
 				let (tx, rx) = watch::channel(());
@@ -35,7 +35,7 @@ impl Watchers {
 	}
 
 	pub(crate) fn wake(&self, key: &[u8]) {
-		let watchers = self.watchers.read().unwrap();
+		let watchers = self.watchers.read();
 		let mut triggered = Vec::new();
 		for length in 0..=key.len() {
 			if watchers.contains_key(&key[..length]) {
@@ -46,7 +46,7 @@ impl Watchers {
 		drop(watchers);
 
 		if !triggered.is_empty() {
-			let mut watchers = self.watchers.write().unwrap();
+			let mut watchers = self.watchers.write();
 			for prefix in triggered {
 				if let Some(tx) = watchers.remove(prefix) {
 					tx.0.send(()).expect("channel should still be open");

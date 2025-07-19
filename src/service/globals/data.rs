@@ -1,11 +1,11 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
-use conduwuit::{Result, utils};
+use conduwuit::{Result, SyncRwLock, utils};
 use database::{Database, Deserialized, Map};
 
 pub struct Data {
 	global: Arc<Map>,
-	counter: RwLock<u64>,
+	counter: SyncRwLock<u64>,
 	pub(super) db: Arc<Database>,
 }
 
@@ -16,25 +16,21 @@ impl Data {
 		let db = &args.db;
 		Self {
 			global: db["global"].clone(),
-			counter: RwLock::new(
-				Self::stored_count(&db["global"]).expect("initialized global counter"),
-			),
+			counter: SyncRwLock::new(Self::stored_count(&db["global"]).unwrap_or_default()),
 			db: args.db.clone(),
 		}
 	}
 
 	pub fn next_count(&self) -> Result<u64> {
 		let _cork = self.db.cork();
-		let mut lock = self.counter.write().expect("locked");
+		let mut lock = self.counter.write();
 		let counter: &mut u64 = &mut lock;
 		debug_assert!(
-			*counter == Self::stored_count(&self.global).expect("database failure"),
+			*counter == Self::stored_count(&self.global).unwrap_or_default(),
 			"counter mismatch"
 		);
 
-		*counter = counter
-			.checked_add(1)
-			.expect("counter must not overflow u64");
+		*counter = counter.checked_add(1).unwrap_or(*counter);
 
 		self.global.insert(COUNTER, counter.to_be_bytes());
 
@@ -43,10 +39,10 @@ impl Data {
 
 	#[inline]
 	pub fn current_count(&self) -> u64 {
-		let lock = self.counter.read().expect("locked");
+		let lock = self.counter.read();
 		let counter: &u64 = &lock;
 		debug_assert!(
-			*counter == Self::stored_count(&self.global).expect("database failure"),
+			*counter == Self::stored_count(&self.global).unwrap_or_default(),
 			"counter mismatch"
 		);
 

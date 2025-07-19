@@ -1,10 +1,8 @@
-use std::{
-	any::Any,
-	collections::BTreeMap,
-	sync::{Arc, RwLock},
-};
+use std::{any::Any, collections::BTreeMap, sync::Arc};
 
-use conduwuit::{Result, Server, debug, debug_info, info, trace, utils::stream::IterStream};
+use conduwuit::{
+	Result, Server, SyncRwLock, debug, debug_info, info, trace, utils::stream::IterStream,
+};
 use database::Database;
 use futures::{Stream, StreamExt, TryStreamExt};
 use tokio::sync::Mutex;
@@ -52,7 +50,7 @@ impl Services {
 	#[allow(clippy::cognitive_complexity)]
 	pub async fn build(server: Arc<Server>) -> Result<Arc<Self>> {
 		let db = Database::open(&server).await?;
-		let service: Arc<Map> = Arc::new(RwLock::new(BTreeMap::new()));
+		let service: Arc<Map> = Arc::new(SyncRwLock::new(BTreeMap::new()));
 		macro_rules! build {
 			($tyname:ty) => {{
 				let built = <$tyname>::build(Args {
@@ -193,7 +191,7 @@ impl Services {
 
 	fn interrupt(&self) {
 		debug!("Interrupting services...");
-		for (name, (service, ..)) in self.service.read().expect("locked for reading").iter() {
+		for (name, (service, ..)) in self.service.read().iter() {
 			if let Some(service) = service.upgrade() {
 				trace!("Interrupting {name}");
 				service.interrupt();
@@ -205,7 +203,6 @@ impl Services {
 	fn services(&self) -> impl Stream<Item = Arc<dyn Service>> + Send {
 		self.service
 			.read()
-			.expect("locked for reading")
 			.values()
 			.filter_map(|val| val.0.upgrade())
 			.collect::<Vec<_>>()
@@ -233,10 +230,9 @@ impl Services {
 #[allow(clippy::needless_pass_by_value)]
 fn add_service(map: &Arc<Map>, s: Arc<dyn Service>, a: Arc<dyn Any + Send + Sync>) {
 	let name = s.name();
-	let len = map.read().expect("locked for reading").len();
+	let len = map.read().len();
 
 	trace!("built service #{len}: {name:?}");
 	map.write()
-		.expect("locked for writing")
 		.insert(name.to_owned(), (Arc::downgrade(&s), Arc::downgrade(&a)));
 }
