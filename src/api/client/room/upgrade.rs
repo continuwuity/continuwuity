@@ -227,6 +227,10 @@ pub(crate) async fn upgrade_room_route(
 				| Ok(v) => v.content().to_owned(),
 				| Err(_) => continue, // Skipping missing events.
 			};
+			if event_content.get() == "{}" {
+				// If the event content is empty, we skip it
+				continue;
+			}
 
 			services
 				.rooms
