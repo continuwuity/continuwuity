@@ -519,8 +519,8 @@ version = "1.0"
 version = "0.12.4"
 
 # Use this when extending with_lock::WithLock to parking_lot
-# [workspace.dependencies.lock_api]
-# version = "0.4.13"
+[workspace.dependencies.lock_api]
+version = "0.4.13"
 
 [workspace.dependencies.bytesize]
 version = "2.0"

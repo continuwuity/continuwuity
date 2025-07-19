@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-pub trait WithLock<T> {
+pub trait WithLock<T: ?Sized> {
 	/// Acquires a lock and executes the given closure with the locked data.
 	fn with_lock<F>(&self, f: F)
 	where
@@ -28,6 +28,30 @@ impl<T> WithLock<T> for Arc<Mutex<T>> {
 	{
 		// The locking and unlocking logic is hidden inside this function.
 		let mut data_guard = self.lock().unwrap();
+		f(&mut data_guard);
+		// Lock is released here when `data_guard` goes out of scope.
+	}
+}
+
+impl<R: lock_api::RawMutex, T: ?Sized> WithLock<T> for lock_api::Mutex<R, T> {
+	fn with_lock<F>(&self, mut f: F)
+	where
+		F: FnMut(&mut T),
+	{
+		// The locking and unlocking logic is hidden inside this function.
+		let mut data_guard = self.lock();
+		f(&mut data_guard);
+		// Lock is released here when `data_guard` goes out of scope.
+	}
+}
+
+impl<R: lock_api::RawMutex, T: ?Sized> WithLock<T> for Arc<lock_api::Mutex<R, T>> {
+	fn with_lock<F>(&self, mut f: F)
+	where
+		F: FnMut(&mut T),
+	{
+		// The locking and unlocking logic is hidden inside this function.
+		let mut data_guard = self.lock();
 		f(&mut data_guard);
 		// Lock is released here when `data_guard` goes out of scope.
 	}
