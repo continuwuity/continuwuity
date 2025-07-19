@@ -1,14 +1,8 @@
-use std::{
-	fmt::Write,
-	mem::take,
-	panic::AssertUnwindSafe,
-	sync::{Arc, Mutex},
-	time::SystemTime,
-};
+use std::{fmt::Write, mem::take, panic::AssertUnwindSafe, sync::Arc, time::SystemTime};
 
 use clap::{CommandFactory, Parser};
 use conduwuit::{
-	Error, Result, debug, error,
+	Error, Result, SyncMutex, debug, error,
 	log::{
 		capture,
 		capture::Capture,
@@ -123,7 +117,7 @@ async fn process(
 	let mut output = String::new();
 
 	// Prepend the logs only if any were captured
-	let logs = logs.lock().expect("locked");
+	let logs = logs.lock();
 	if logs.lines().count() > 2 {
 		writeln!(&mut output, "{logs}").expect("failed to format logs to command output");
 	}
@@ -132,7 +126,7 @@ async fn process(
 	(result, output)
 }
 
-fn capture_create(context: &Context<'_>) -> (Arc<Capture>, Arc<Mutex<String>>) {
+fn capture_create(context: &Context<'_>) -> (Arc<Capture>, Arc<SyncMutex<String>>) {
 	let env_config = &context.services.server.config.admin_log_capture;
 	let env_filter = EnvFilter::try_new(env_config).unwrap_or_else(|e| {
 		warn!("admin_log_capture filter invalid: {e:?}");
@@ -152,7 +146,7 @@ fn capture_create(context: &Context<'_>) -> (Arc<Capture>, Arc<Mutex<String>>) {
 		data.level() <= log_level && data.our_modules() && data.scope.contains(&"admin")
 	};
 
-	let logs = Arc::new(Mutex::new(
+	let logs = Arc::new(SyncMutex::new(
 		collect_stream(|s| markdown_table_head(s)).expect("markdown table header"),
 	));
 

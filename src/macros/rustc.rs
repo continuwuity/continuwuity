@@ -15,13 +15,13 @@ pub(super) fn flags_capture(args: TokenStream) -> TokenStream {
 
 		#[conduwuit_core::ctor]
 		fn _set_rustc_flags() {
-			conduwuit_core::info::rustc::FLAGS.lock().expect("locked").insert(#crate_name, &RUSTC_FLAGS);
+			conduwuit_core::info::rustc::FLAGS.lock().insert(#crate_name, &RUSTC_FLAGS);
 		}
 
 		// static strings have to be yanked on module unload
 		#[conduwuit_core::dtor]
 		fn _unset_rustc_flags() {
-			conduwuit_core::info::rustc::FLAGS.lock().expect("locked").remove(#crate_name);
+			conduwuit_core::info::rustc::FLAGS.lock().remove(#crate_name);
 		}
 	};
 

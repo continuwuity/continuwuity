@@ -967,6 +967,7 @@ dependencies = [
  "maplit",
  "nix",
  "num-traits",
+ "parking_lot",
  "rand 0.8.5",
  "regex",
  "reqwest",

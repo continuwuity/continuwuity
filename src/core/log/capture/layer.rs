@@ -55,7 +55,7 @@ where
 	let mut visitor = Visitor { values: Values::new() };
 	event.record(&mut visitor);
 
-	let mut closure = capture.closure.lock().expect("exclusive lock");
+	let mut closure = capture.closure.lock();
 	closure(Data {
 		layer,
 		event,

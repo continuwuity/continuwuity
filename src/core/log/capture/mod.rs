@@ -4,13 +4,15 @@ pub mod layer;
 pub mod state;
 pub mod util;
 
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 pub use data::Data;
 use guard::Guard;
 pub use layer::{Layer, Value};
 pub use state::State;
 pub use util::*;
+
+use crate::SyncMutex;
 
 pub type Filter = dyn Fn(Data<'_>) -> bool + Send + Sync + 'static;
 pub type Closure = dyn FnMut(Data<'_>) + Send + Sync + 'static;
@@ -19,7 +21,7 @@ pub type Closure = dyn FnMut(Data<'_>) + Send + Sync + 'static;
 pub struct Capture {
 	state: Arc<State>,
 	filter: Option<Box<Filter>>,
-	closure: Mutex<Box<Closure>>,
+	closure: SyncMutex<Box<Closure>>,
 }
 
 impl Capture {
@@ -34,7 +36,7 @@ impl Capture {
 		Arc::new(Self {
 			state: state.clone(),
 			filter: filter.map(|p| -> Box<Filter> { Box::new(p) }),
-			closure: Mutex::new(Box::new(closure)),
+			closure: SyncMutex::new(Box::new(closure)),
 		})
 	}
 

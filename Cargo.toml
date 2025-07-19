@@ -515,6 +515,13 @@ version = "1.0"
 [workspace.dependencies.proc-macro2]
 version = "1.0"
 
+[workspace.dependencies.parking_lot]
+version = "0.12.4"
+
+# Use this when extending with_lock::WithLock to parking_lot
+# [workspace.dependencies.lock_api]
+# version = "0.4.13"
+
 [workspace.dependencies.bytesize]
 version = "2.0"
 

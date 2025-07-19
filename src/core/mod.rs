@@ -28,6 +28,7 @@ pub use info::{
 pub use matrix::{
 	Event, EventTypeExt, Pdu, PduCount, PduEvent, PduId, RoomVersion, pdu, state_res,
 };
+pub use parking_lot::{Mutex as SyncMutex, RwLock as SyncRwLock};
 pub use server::Server;
 pub use utils::{ctor, dtor, implement, result, result::Result};
 

@@ -1,11 +1,8 @@
-use std::{
-	collections::HashMap,
-	sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use tracing_subscriber::{EnvFilter, reload};
 
-use crate::{Result, error};
+use crate::{Result, SyncMutex, error};
 
 /// We need to store a reload::Handle value, but can't name it's type explicitly
 /// because the S type parameter depends on the subscriber's previous layers. In
@@ -35,7 +32,7 @@ impl<L: Clone, S> ReloadHandle<L> for reload::Handle<L, S> {
 
 #[derive(Clone)]
 pub struct LogLevelReloadHandles {
-	handles: Arc<Mutex<HandleMap>>,
+	handles: Arc<SyncMutex<HandleMap>>,
 }
 
 type HandleMap = HashMap<String, Handle>;
@@ -43,16 +40,12 @@ type Handle = Box<dyn ReloadHandle<EnvFilter> + Send + Sync>;
 
 impl LogLevelReloadHandles {
 	pub fn add(&self, name: &str, handle: Handle) {
-		self.handles
-			.lock()
-			.expect("locked")
-			.insert(name.into(), handle);
+		self.handles.lock().insert(name.into(), handle);
 	}
 
 	pub fn reload(&self, new_value: &EnvFilter, names: Option<&[&str]>) -> Result<()> {
 		self.handles
 			.lock()
-			.expect("locked")
 			.iter()
 			.filter(|(name, _)| names.is_some_and(|names| names.contains(&name.as_str())))
 			.for_each(|(_, handle)| {
@@ -66,7 +59,6 @@ impl LogLevelReloadHandles {
 	pub fn current(&self, name: &str) -> Option<EnvFilter> {
 		self.handles
 			.lock()
-			.expect("locked")
 			.get(name)
 			.map(|handle| handle.current())?
 	}

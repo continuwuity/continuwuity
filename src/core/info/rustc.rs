@@ -3,18 +3,15 @@
 //! several crates, lower-level information is supplied from each crate during
 //! static initialization.
 
-use std::{
-	collections::BTreeMap,
-	sync::{Mutex, OnceLock},
-};
+use std::{collections::BTreeMap, sync::OnceLock};
 
-use crate::utils::exchange;
+use crate::{SyncMutex, utils::exchange};
 
 /// Raw capture of rustc flags used to build each crate in the project. Informed
 /// by rustc_flags_capture macro (one in each crate's mod.rs). This is
 /// done during static initialization which is why it's mutex-protected and pub.
 /// Should not be written to by anything other than our macro.
-pub static FLAGS: Mutex<BTreeMap<&str, &[&str]>> = Mutex::new(BTreeMap::new());
+pub static FLAGS: SyncMutex<BTreeMap<&str, &[&str]>> = SyncMutex::new(BTreeMap::new());
 
 /// Processed list of enabled features across all project crates. This is
 /// generated from the data in FLAGS.
@@ -27,7 +24,6 @@ fn init_features() -> Vec<&'static str> {
 	let mut features = Vec::new();
 	FLAGS
 		.lock()
-		.expect("locked")
 		.iter()
 		.for_each(|(_, flags)| append_features(&mut features, flags));
 

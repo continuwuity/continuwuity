@@ -1,12 +1,8 @@
-use std::{
-	fmt::Debug,
-	hash::Hash,
-	sync::{Arc, TryLockError::WouldBlock},
-};
+use std::{fmt::Debug, hash::Hash, sync::Arc};
 
 use tokio::sync::OwnedMutexGuard as Omg;
 
-use crate::{Result, err};
+use crate::{Result, SyncMutex, err};
 
 /// Map of Mutexes
 pub struct MutexMap<Key, Val> {
@@ -19,7 +15,7 @@ pub struct Guard<Key, Val> {
 }
 
 type Map<Key, Val> = Arc<MapMutex<Key, Val>>;
-type MapMutex<Key, Val> = std::sync::Mutex<HashMap<Key, Val>>;
+type MapMutex<Key, Val> = SyncMutex<HashMap<Key, Val>>;
 type HashMap<Key, Val> = std::collections::HashMap<Key, Value<Val>>;
 type Value<Val> = Arc<tokio::sync::Mutex<Val>>;
 
@@ -45,7 +41,6 @@ where
 		let val = self
 			.map
 			.lock()
-			.expect("locked")
 			.entry(k.try_into().expect("failed to construct key"))
 			.or_default()
 			.clone();
@@ -66,7 +61,6 @@ where
 		let val = self
 			.map
 			.lock()
-			.expect("locked")
 			.entry(k.try_into().expect("failed to construct key"))
 			.or_default()
 			.clone();
@@ -87,10 +81,7 @@ where
 		let val = self
 			.map
 			.try_lock()
-			.map_err(|e| match e {
-				| WouldBlock => err!("would block"),
-				| _ => panic!("{e:?}"),
-			})?
+			.ok_or_else(|| err!("would block"))?
 			.entry(k.try_into().expect("failed to construct key"))
 			.or_default()
 			.clone();
@@ -102,13 +93,13 @@ where
 	}
 
 	#[must_use]
-	pub fn contains(&self, k: &Key) -> bool { self.map.lock().expect("locked").contains_key(k) }
+	pub fn contains(&self, k: &Key) -> bool { self.map.lock().contains_key(k) }
 
 	#[must_use]
-	pub fn is_empty(&self) -> bool { self.map.lock().expect("locked").is_empty() }
+	pub fn is_empty(&self) -> bool { self.map.lock().is_empty() }
 
 	#[must_use]
-	pub fn len(&self) -> usize { self.map.lock().expect("locked").len() }
+	pub fn len(&self) -> usize { self.map.lock().len() }
 }
 
 impl<Key, Val> Default for MutexMap<Key, Val>
@@ -123,7 +114,7 @@ impl<Key, Val> Drop for Guard<Key, Val> {
 	#[tracing::instrument(name = "unlock", level = "trace", skip_all)]
 	fn drop(&mut self) {
 		if Arc::strong_count(Omg::mutex(&self.val)) <= 2 {
-			self.map.lock().expect("locked").retain(|_, val| {
+			self.map.lock().retain(|_, val| {
 				!Arc::ptr_eq(val, Omg::mutex(&self.val)) || Arc::strong_count(val) > 2
 			});
 		}
