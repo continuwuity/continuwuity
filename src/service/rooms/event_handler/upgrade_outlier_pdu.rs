@@ -222,9 +222,7 @@ where
 	}
 
 	// 14-pre. If the event is not a state event, ask the policy server about it
-	if incoming_pdu.state_key.is_none()
-		&& incoming_pdu.sender().server_name() != self.services.globals.server_name()
-	{
+	if incoming_pdu.state_key.is_none() {
 		debug!("Checking policy server for event {}", incoming_pdu.event_id);
 		let policy = self.policyserv_check(&incoming_pdu, room_id);
 		if let Err(e) = policy.await {
@@ -234,6 +232,24 @@ where
 			}
 		}
 		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
+	}
+
+	// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
+	// also
+	if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
+		debug!("Checking if redaction {} is for a soft-failed event", redact_id);
+		if self
+			.services
+			.pdu_metadata
+			.is_event_soft_failed(&redact_id)
+			.await
+		{
+			warn!(
+				"Redaction {} is for a soft-failed event, soft failing the redaction",
+				redact_id
+			);
+			soft_fail = true;
+		}
 	}
 
 	// 14. Check if the event passes auth based on the "current state" of the room,
