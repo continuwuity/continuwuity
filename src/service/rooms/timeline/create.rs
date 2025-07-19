@@ -165,6 +165,17 @@ pub async fn create_hash_and_sign_event(
 		return Err!(Request(Forbidden("Event is not authorized.")));
 	}
 
+	// Check with the policy server
+	if self
+		.services
+		.event_handler
+		.policyserv_check(&pdu, room_id)
+		.await
+		.is_err()
+	{
+		return Err!(Request(Forbidden(debug_warn!("Policy server marked this event as spam"))));
+	}
+
 	// Hash and sign
 	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
 		err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
