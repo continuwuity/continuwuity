@@ -1,6 +1,6 @@
 use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
 use ruma::{
-	EventId, RoomId, UserId,
+	EventId, Int, RoomId, UserId,
 	events::{
 		StateEventType, TimelineEventType,
 		room::{
@@ -166,4 +166,34 @@ pub async fn user_can_invite(
 		)
 		.await
 		.is_ok()
+}
+
+#[implement(super::Service)]
+pub async fn current_power_levels(
+	&self,
+	room_id: &RoomId,
+) -> Result<RoomPowerLevelsEventContent> {
+	// fetches the current power levels event content for a room, returning the
+	// default power levels if no power levels event is found
+	let pl_event_content = self
+		.room_state_get_content::<RoomPowerLevelsEventContent>(
+			room_id,
+			&StateEventType::RoomPowerLevels,
+			"",
+		)
+		.await;
+	if let Ok(pl_event_content) = pl_event_content {
+		Ok(pl_event_content)
+	} else {
+		let mut default_power_levels = RoomPowerLevelsEventContent::default();
+
+		// set the creator as PL100
+		let create_event = self
+			.room_state_get(room_id, &StateEventType::RoomCreate, "")
+			.await?;
+		default_power_levels
+			.users
+			.insert(create_event.sender().to_owned(), Int::from(100));
+		Ok(default_power_levels)
+	}
 }
