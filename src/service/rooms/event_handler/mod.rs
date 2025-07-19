@@ -38,6 +38,7 @@ struct Services {
 	server_keys: Dep<server_keys::Service>,
 	short: Dep<rooms::short::Service>,
 	state: Dep<rooms::state::Service>,
+	state_cache: Dep<rooms::state_cache::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_compressor: Dep<rooms::state_compressor::Service>,
 	timeline: Dep<rooms::timeline::Service>,
@@ -63,6 +64,7 @@ impl crate::Service for Service {
 				pdu_metadata: args.depend::<rooms::pdu_metadata::Service>("rooms::pdu_metadata"),
 				short: args.depend::<rooms::short::Service>("rooms::short"),
 				state: args.depend::<rooms::state::Service>("rooms::state"),
+				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_compressor: args

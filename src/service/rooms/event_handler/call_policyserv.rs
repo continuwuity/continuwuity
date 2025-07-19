@@ -11,6 +11,10 @@ use ruma::{
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
 pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result {
+	if pdu.event_type().to_owned() == StateEventType::RoomPolicy.into() {
+		debug!("Skipping spam check for policy server meta-event in room {room_id}");
+		return Ok(());
+	}
 	let Ok(policyserver) = self
 		.services
 		.state_accessor
@@ -28,6 +32,14 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 			return Ok(());
 		},
 	};
+	if via.is_empty() {
+		debug!("Policy server is empty for room {room_id}, skipping spam check");
+		return Ok(());
+	}
+	if !self.services.state_cache.server_in_room(via, room_id).await {
+		debug!("Policy server {via} is not in the room {room_id}, skipping spam check");
+		return Ok(());
+	}
 	let outgoing = self
 		.services
 		.sending
