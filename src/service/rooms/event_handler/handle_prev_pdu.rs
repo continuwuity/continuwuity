@@ -42,7 +42,6 @@ where
 		.globals
 		.bad_event_ratelimiter
 		.read()
-		.expect("locked")
 		.get(prev_id)
 	{
 		// Exponential backoff
@@ -70,13 +69,11 @@ where
 	let start_time = Instant::now();
 	self.federation_handletime
 		.write()
-		.expect("locked")
 		.insert(room_id.into(), ((*prev_id).to_owned(), start_time));
 
 	defer! {{
 		self.federation_handletime
 			.write()
-			.expect("locked")
 			.remove(room_id);
 	}};
 

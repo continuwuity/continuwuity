@@ -37,11 +37,7 @@ pub use crate::admin::AdminCommand;
 
 /// Install the admin command processor
 pub async fn init(admin_service: &service::admin::Service) {
-	_ = admin_service
-		.complete
-		.write()
-		.expect("locked for writing")
-		.insert(processor::complete);
+	_ = admin_service.complete.write().insert(processor::complete);
 	_ = admin_service
 		.handle
 		.write()
@@ -52,9 +48,5 @@ pub async fn init(admin_service: &service::admin::Service) {
 /// Uninstall the admin command handler
 pub async fn fini(admin_service: &service::admin::Service) {
 	_ = admin_service.handle.write().await.take();
-	_ = admin_service
-		.complete
-		.write()
-		.expect("locked for writing")
-		.take();
+	_ = admin_service.complete.write().take();
 }

@@ -5,11 +5,11 @@ mod grant;
 
 use std::{
 	pin::Pin,
-	sync::{Arc, RwLock as StdRwLock, Weak},
+	sync::{Arc, Weak},
 };
 
 use async_trait::async_trait;
-use conduwuit::{Err, utils};
+use conduwuit::{Err, SyncRwLock, utils};
 use conduwuit_core::{
 	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
@@ -36,7 +36,7 @@ pub struct Service {
 	services: Services,
 	channel: (Sender<CommandInput>, Receiver<CommandInput>),
 	pub handle: RwLock<Option<Processor>>,
-	pub complete: StdRwLock<Option<Completer>>,
+	pub complete: SyncRwLock<Option<Completer>>,
 	#[cfg(feature = "console")]
 	pub console: Arc<console::Console>,
 }
@@ -50,7 +50,7 @@ struct Services {
 	state_cache: Dep<rooms::state_cache::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	account_data: Dep<account_data::Service>,
-	services: StdRwLock<Option<Weak<crate::Services>>>,
+	services: SyncRwLock<Option<Weak<crate::Services>>>,
 	media: Dep<crate::media::Service>,
 }
 
@@ -105,7 +105,7 @@ impl crate::Service for Service {
 			},
 			channel: loole::bounded(COMMAND_QUEUE_LIMIT),
 			handle: RwLock::new(None),
-			complete: StdRwLock::new(None),
+			complete: SyncRwLock::new(None),
 			#[cfg(feature = "console")]
 			console: console::Console::new(&args),
 		}))
@@ -312,10 +312,7 @@ impl Service {
 	/// Invokes the tab-completer to complete the command. When unavailable,
 	/// None is returned.
 	pub fn complete_command(&self, command: &str) -> Option<String> {
-		self.complete
-			.read()
-			.expect("locked for reading")
-			.map(|complete| complete(command))
+		self.complete.read().map(|complete| complete(command))
 	}
 
 	async fn handle_signal(&self, sig: &'static str) {
@@ -338,17 +335,13 @@ impl Service {
 	}
 
 	async fn process_command(&self, command: CommandInput) -> ProcessorResult {
-		let handle = &self
-			.handle
-			.read()
-			.await
-			.expect("Admin module is not loaded");
+		let handle_guard = self.handle.read().await;
+		let handle = handle_guard.as_ref().expect("Admin module is not loaded");
 
 		let services = self
 			.services
 			.services
 			.read()
-			.expect("locked")
 			.as_ref()
 			.and_then(Weak::upgrade)
 			.expect("Services self-reference not initialized.");
@@ -523,7 +516,7 @@ impl Service {
 	/// Sets the self-reference to crate::Services which will provide context to
 	/// the admin commands.
 	pub(super) fn set_services(&self, services: Option<&Arc<crate::Services>>) {
-		let receiver = &mut *self.services.services.write().expect("locked for writing");
+		let receiver = &mut *self.services.services.write();
 		let weak = services.map(Arc::downgrade);
 		*receiver = weak;
 	}

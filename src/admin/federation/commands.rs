@@ -26,8 +26,7 @@ pub(super) async fn incoming_federation(&self) -> Result {
 			.rooms
 			.event_handler
 			.federation_handletime
-			.read()
-			.expect("locked");
+			.read();
 
 		let mut msg = format!("Handling {} incoming pdus:\n", map.len());
 		for (r, (e, i)) in map.iter() {

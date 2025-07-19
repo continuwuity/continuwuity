@@ -1,14 +1,9 @@
 mod data;
 
-use std::{
-	collections::HashMap,
-	fmt::Write,
-	sync::{Arc, RwLock},
-	time::Instant,
-};
+use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, error, utils::bytes::pretty};
+use conduwuit::{Result, Server, SyncRwLock, error, utils::bytes::pretty};
 use data::Data;
 use regex::RegexSet;
 use ruma::{OwnedEventId, OwnedRoomAliasId, OwnedServerName, OwnedUserId, ServerName, UserId};
@@ -19,7 +14,7 @@ pub struct Service {
 	pub db: Data,
 	server: Arc<Server>,
 
-	pub bad_event_ratelimiter: Arc<RwLock<HashMap<OwnedEventId, RateLimitState>>>,
+	pub bad_event_ratelimiter: Arc<SyncRwLock<HashMap<OwnedEventId, RateLimitState>>>,
 	pub server_user: OwnedUserId,
 	pub admin_alias: OwnedRoomAliasId,
 	pub turn_secret: String,
@@ -62,7 +57,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			db,
 			server: args.server.clone(),
-			bad_event_ratelimiter: Arc::new(RwLock::new(HashMap::new())),
+			bad_event_ratelimiter: Arc::new(SyncRwLock::new(HashMap::new())),
 			admin_alias: OwnedRoomAliasId::try_from(format!("#admins:{}", &args.server.name))
 				.expect("#admins:server_name is valid alias name"),
 			server_user: UserId::parse_with_server_name(
@@ -76,7 +71,7 @@ impl crate::Service for Service {
 	}
 
 	async fn memory_usage(&self, out: &mut (dyn Write + Send)) -> Result {
-		let (ber_count, ber_bytes) = self.bad_event_ratelimiter.read()?.iter().fold(
+		let (ber_count, ber_bytes) = self.bad_event_ratelimiter.read().iter().fold(
 			(0_usize, 0_usize),
 			|(mut count, mut bytes), (event_id, _)| {
 				bytes = bytes.saturating_add(event_id.capacity());
@@ -91,12 +86,7 @@ impl crate::Service for Service {
 		Ok(())
 	}
 
-	async fn clear_cache(&self) {
-		self.bad_event_ratelimiter
-			.write()
-			.expect("locked for writing")
-			.clear();
-	}
+	async fn clear_cache(&self) { self.bad_event_ratelimiter.write().clear(); }
 
 	fn name(&self) -> &str { service::make_name(std::module_path!()) }
 }

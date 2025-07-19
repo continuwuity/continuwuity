@@ -4,7 +4,6 @@ use std::{
 	cell::OnceCell,
 	ffi::{CStr, c_char, c_void},
 	fmt::Debug,
-	sync::RwLock,
 };
 
 use arrayvec::ArrayVec;
@@ -13,7 +12,7 @@ use tikv_jemalloc_sys as ffi;
 use tikv_jemallocator as jemalloc;
 
 use crate::{
-	Result, err, is_equal_to, is_nonzero,
+	Result, SyncRwLock, err, is_equal_to, is_nonzero,
 	utils::{math, math::Tried},
 };
 
@@ -40,7 +39,7 @@ const MALLOC_CONF_PROF: &str = "";
 
 #[global_allocator]
 static JEMALLOC: jemalloc::Jemalloc = jemalloc::Jemalloc;
-static CONTROL: RwLock<()> = RwLock::new(());
+static CONTROL: SyncRwLock<()> = SyncRwLock::new(());
 
 type Name = ArrayVec<u8, NAME_MAX>;
 type Key = ArrayVec<usize, KEY_SEGS>;
@@ -332,7 +331,7 @@ fn set<T>(key: &Key, val: T) -> Result<T>
 where
 	T: Copy + Debug,
 {
-	let _lock = CONTROL.write()?;
+	let _lock = CONTROL.write();
 	let res = xchg(key, val)?;
 	inc_epoch()?;
 

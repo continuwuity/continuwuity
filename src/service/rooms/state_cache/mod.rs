@@ -1,13 +1,10 @@
 mod update;
 mod via;
 
-use std::{
-	collections::HashMap,
-	sync::{Arc, RwLock},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Result, implement,
+	Result, SyncRwLock, implement,
 	result::LogErr,
 	utils::{ReadyExt, stream::TryIgnore},
 	warn,
@@ -54,14 +51,14 @@ struct Data {
 	userroomid_knockedstate: Arc<Map>,
 }
 
-type AppServiceInRoomCache = RwLock<HashMap<OwnedRoomId, HashMap<String, bool>>>;
+type AppServiceInRoomCache = SyncRwLock<HashMap<OwnedRoomId, HashMap<String, bool>>>;
 type StrippedStateEventItem = (OwnedRoomId, Vec<Raw<AnyStrippedStateEvent>>);
 type SyncStateEventItem = (OwnedRoomId, Vec<Raw<AnySyncStateEvent>>);
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			appservice_in_room_cache: RwLock::new(HashMap::new()),
+			appservice_in_room_cache: SyncRwLock::new(HashMap::new()),
 			services: Services {
 				account_data: args.depend::<account_data::Service>("account_data"),
 				config: args.depend::<config::Service>("config"),
@@ -99,7 +96,6 @@ pub async fn appservice_in_room(&self, room_id: &RoomId, appservice: &Registrati
 	if let Some(cached) = self
 		.appservice_in_room_cache
 		.read()
-		.expect("locked")
 		.get(room_id)
 		.and_then(|map| map.get(&appservice.registration.id))
 		.copied()
@@ -124,7 +120,6 @@ pub async fn appservice_in_room(&self, room_id: &RoomId, appservice: &Registrati
 
 	self.appservice_in_room_cache
 		.write()
-		.expect("locked")
 		.entry(room_id.into())
 		.or_default()
 		.insert(appservice.registration.id.clone(), in_room);
@@ -134,19 +129,14 @@ pub async fn appservice_in_room(&self, room_id: &RoomId, appservice: &Registrati
 
 #[implement(Service)]
 pub fn get_appservice_in_room_cache_usage(&self) -> (usize, usize) {
-	let cache = self.appservice_in_room_cache.read().expect("locked");
+	let cache = self.appservice_in_room_cache.read();
 
 	(cache.len(), cache.capacity())
 }
 
 #[implement(Service)]
 #[tracing::instrument(level = "debug", skip_all)]
-pub fn clear_appservice_in_room_cache(&self) {
-	self.appservice_in_room_cache
-		.write()
-		.expect("locked")
-		.clear();
-}
+pub fn clear_appservice_in_room_cache(&self) { self.appservice_in_room_cache.write().clear(); }
 
 /// Returns an iterator of all servers participating in this room.
 #[implement(Service)]

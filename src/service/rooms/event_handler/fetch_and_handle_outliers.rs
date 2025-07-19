@@ -41,7 +41,6 @@ where
 		.globals
 		.bad_event_ratelimiter
 		.write()
-		.expect("locked")
 		.entry(id)
 	{
 		| hash_map::Entry::Vacant(e) => {
@@ -76,7 +75,6 @@ where
 				.globals
 				.bad_event_ratelimiter
 				.read()
-				.expect("locked")
 				.get(&*next_id)
 			{
 				// Exponential backoff
@@ -187,7 +185,6 @@ where
 				.globals
 				.bad_event_ratelimiter
 				.read()
-				.expect("locked")
 				.get(&*next_id)
 			{
 				// Exponential backoff

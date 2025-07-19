@@ -211,10 +211,7 @@ pub async fn update_joined_count(&self, room_id: &RoomId) {
 		self.db.serverroomids.put_raw(serverroom_id, []);
 	}
 
-	self.appservice_in_room_cache
-		.write()
-		.expect("locked")
-		.remove(room_id);
+	self.appservice_in_room_cache.write().remove(room_id);
 }
 
 /// Direct DB function to directly mark a user as joined. It is not

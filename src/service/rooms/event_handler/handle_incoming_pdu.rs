@@ -160,7 +160,6 @@ pub async fn handle_incoming_pdu<'a>(
 					.globals
 					.bad_event_ratelimiter
 					.write()
-					.expect("locked")
 					.entry(prev_id.into())
 				{
 					| hash_map::Entry::Vacant(e) => {
@@ -181,13 +180,11 @@ pub async fn handle_incoming_pdu<'a>(
 	let start_time = Instant::now();
 	self.federation_handletime
 		.write()
-		.expect("locked")
 		.insert(room_id.into(), (event_id.to_owned(), start_time));
 
 	defer! {{
 		self.federation_handletime
 			.write()
-			.expect("locked")
 			.remove(room_id);
 	}};
 

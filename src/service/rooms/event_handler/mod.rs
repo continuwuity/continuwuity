@@ -10,15 +10,10 @@ mod resolve_state;
 mod state_at_incoming;
 mod upgrade_outlier_pdu;
 
-use std::{
-	collections::HashMap,
-	fmt::Write,
-	sync::{Arc, RwLock as StdRwLock},
-	time::Instant,
-};
+use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use conduwuit::{Err, Event, PduEvent, Result, RoomVersion, Server, utils::MutexMap};
+use conduwuit::{Err, Event, PduEvent, Result, RoomVersion, Server, SyncRwLock, utils::MutexMap};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
 	events::room::create::RoomCreateEventContent,
@@ -28,7 +23,7 @@ use crate::{Dep, globals, rooms, sending, server_keys};
 
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
-	pub federation_handletime: StdRwLock<HandleTimeMap>,
+	pub federation_handletime: SyncRwLock<HandleTimeMap>,
 	services: Services,
 }
 
@@ -81,11 +76,7 @@ impl crate::Service for Service {
 		let mutex_federation = self.mutex_federation.len();
 		writeln!(out, "federation_mutex: {mutex_federation}")?;
 
-		let federation_handletime = self
-			.federation_handletime
-			.read()
-			.expect("locked for reading")
-			.len();
+		let federation_handletime = self.federation_handletime.read().len();
 		writeln!(out, "federation_handletime: {federation_handletime}")?;
 
 		Ok(())
