@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Event, Result, err, info,
+	Err, Error, Event, Result, debug, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 };
 use futures::{FutureExt, StreamExt};
@@ -316,7 +316,6 @@ pub(crate) async fn upgrade_room_route(
 
 	for raw_space_id in parents {
 		let space_id = RoomId::parse(&raw_space_id)?;
-		let state_key = StateKey::from(raw_space_id.clone());
 		let Ok(child) = services
 			.rooms
 			.state_accessor
@@ -330,8 +329,13 @@ pub(crate) async fn upgrade_room_route(
 			// If the space does not have a child event for this room, we can skip it
 			continue;
 		};
+		debug!(
+			"Updating space {space_id} child event for room {} to {replacement_room}",
+			&body.room_id
+		);
 		// First, drop the space's child event
 		let state_lock = services.rooms.state.mutex.lock(space_id).await;
+		debug!("Removing space child event for room {} in space {space_id}", &body.room_id);
 		services
 			.rooms
 			.timeline
@@ -340,7 +344,7 @@ pub(crate) async fn upgrade_room_route(
 					event_type: StateEventType::SpaceChild.into(),
 					content: to_raw_value(&RedactedSpaceChildEventContent {})
 						.expect("event is valid, we just created it"),
-					state_key: Some(state_key),
+					state_key: Some(body.room_id.clone().as_str().into()),
 					..Default::default()
 				},
 				sender_user,
@@ -351,6 +355,7 @@ pub(crate) async fn upgrade_room_route(
 			.await
 			.ok();
 		// Now, add a new child event for the replacement room
+		debug!("Adding space child event for room {replacement_room} in space {space_id}");
 		services
 			.rooms
 			.timeline
@@ -358,7 +363,7 @@ pub(crate) async fn upgrade_room_route(
 				PduBuilder {
 					event_type: StateEventType::SpaceChild.into(),
 					content: to_raw_value(&child).expect("event is valid, we just created it"),
-					state_key: Some(StateKey::new()),
+					state_key: Some(replacement_room.as_str().into()),
 					..Default::default()
 				},
 				sender_user,
@@ -368,6 +373,10 @@ pub(crate) async fn upgrade_room_route(
 			.boxed()
 			.await
 			.ok();
+		debug!(
+			"Finished updating space {space_id} child event for room {} to {replacement_room}",
+			&body.room_id
+		);
 		drop(state_lock);
 	}
 
