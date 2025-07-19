@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use conduwuit::{Err, Event, PduEvent, Result, debug, implement, warn};
 use ruma::{
 	RoomId, ServerName,
@@ -32,22 +34,33 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 		.convert_to_outgoing_federation_event(pdu.to_canonical_object())
 		.await;
 	debug!("Checking pdu {outgoing:?} for spam with policy server {via} for room {room_id}");
-	let response = self
-		.services
-		.sending
-		.send_federation_request(via, PolicyRequest {
-			event_id: pdu.event_id().to_owned(),
-			pdu: Some(outgoing),
-		})
-		.await;
+	let response = tokio::time::timeout(
+		Duration::from_secs(10),
+		self.services
+			.sending
+			.send_federation_request(via, PolicyRequest {
+				event_id: pdu.event_id().to_owned(),
+				pdu: Some(outgoing),
+			}),
+	)
+	.await;
 	let response = match response {
-		| Ok(response) => response,
-		| Err(e) => {
+		| Ok(Ok(response)) => response,
+		| Ok(Err(e)) => {
 			warn!(
 				via = %via,
 				event_id = %pdu.event_id(),
 				room_id = %room_id,
 				"Failed to contact policy server: {e}"
+			);
+			return Ok(());
+		},
+		| Err(_) => {
+			warn!(
+				via = %via,
+				event_id = %pdu.event_id(),
+				room_id = %room_id,
+				"Policy server request timed out after 10 seconds"
 			);
 			return Ok(());
 		},
