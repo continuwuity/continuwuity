@@ -363,7 +363,7 @@ pub(crate) async fn upgrade_room_route(
 				PduBuilder {
 					event_type: StateEventType::SpaceChild.into(),
 					content: to_raw_value(&child).expect("event is valid, we just created it"),
-					state_key: Some(&replacement_room.as_str().into()),
+					state_key: Some(replacement_room.as_str().into()),
 					..Default::default()
 				},
 				sender_user,
