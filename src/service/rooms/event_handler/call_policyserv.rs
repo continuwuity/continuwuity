@@ -43,14 +43,21 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 	let response = match response {
 		| Ok(response) => response,
 		| Err(e) => {
-			warn!("Failed to contact policy server {via} for room {room_id}: {e}");
+			warn!(
+				via = %via,
+				event_id = %pdu.event_id(),
+				room_id = %room_id,
+				"Failed to contact policy server: {e}"
+			);
 			return Ok(());
 		},
 	};
 	if response.recommendation == "spam" {
 		warn!(
-			"Event {} in room {room_id} was marked as spam by policy server {via}",
-			pdu.event_id().to_owned()
+			via = %via,
+			event_id = %pdu.event_id(),
+			room_id = %room_id,
+			"Event was marked as spam by policy server",
 		);
 		return Err!(Request(Forbidden("Event was marked as spam by policy server")));
 	}
