@@ -11,7 +11,7 @@ use ruma::{
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
 pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result {
-	if pdu.event_type().to_owned() == StateEventType::RoomPolicy.into() {
+	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
 		debug!("Skipping spam check for policy server meta-event in room {room_id}");
 		return Ok(());
 	}
