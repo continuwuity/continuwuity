@@ -5,7 +5,7 @@ use futures::{
 	future::{OptionFuture, join3},
 };
 use ruma::{
-	EventId, Int, OwnedUserId, RoomVersionId, UserId,
+	Int, OwnedUserId, RoomVersionId, UserId,
 	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},

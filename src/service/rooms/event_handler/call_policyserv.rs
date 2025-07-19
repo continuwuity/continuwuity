@@ -1,10 +1,7 @@
-use conduwuit::{
-	Err, Event, PduEvent, Result, debug, implement, utils::to_canonical_object, warn,
-};
+use conduwuit::{Err, Event, PduEvent, Result, debug, implement, warn};
 use ruma::{
 	RoomId, ServerName,
 	api::federation::room::policy::v1::Request as PolicyRequest,
-	canonical_json::to_canonical_value,
 	events::{StateEventType, room::policy::RoomPolicyEventContent},
 };
 
@@ -65,7 +62,7 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 			pdu.event_id().to_owned()
 		);
 		return Err!(Request(Forbidden("Event was marked as spam by policy server")));
-	};
+	}
 
 	Ok(())
 }
