@@ -1,6 +1,6 @@
 use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
 use ruma::{
-	EventId, Int, RoomId, UserId,
+	EventId, RoomId, UserId,
 	events::{
 		StateEventType, TimelineEventType,
 		room::{
