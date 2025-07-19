@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement, is_equal_to,
+	Err, Result, debug, debug_info, err, implement, info, is_equal_to,
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
 	trace,
 	utils::stream::{BroadbandExt, ReadyExt},
@@ -47,7 +47,7 @@ where
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
-	debug!("Upgrading to timeline pdu");
+	debug!("Upgrading pdu {} from outlier to timeline pdu", incoming_pdu.event_id);
 	let timer = Instant::now();
 	let room_version_id = get_room_version_id(create_event)?;
 
@@ -55,7 +55,7 @@ where
 	//     backwards extremities doing all the checks in this list starting at 1.
 	//     These are not timeline events.
 
-	debug!("Resolving state at event");
+	debug!("Resolving state at event {}", incoming_pdu.event_id);
 	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
@@ -74,7 +74,7 @@ where
 
 	let room_version = to_room_version(&room_version_id);
 
-	debug!("Performing auth check");
+	debug!("Performing auth check to upgrade {}", incoming_pdu.event_id);
 	// 11. Check the auth of the event passes based on the state of the event
 	let state_fetch_state = &state_at_incoming_event;
 	let state_fetch = |k: StateEventType, s: StateKey| async move {
@@ -84,6 +84,7 @@ where
 		self.services.timeline.get_pdu(event_id).await.ok()
 	};
 
+	debug!("running auth check on {}", incoming_pdu.event_id);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -97,7 +98,7 @@ where
 		return Err!(Request(Forbidden("Event has failed auth check with state at the event.")));
 	}
 
-	debug!("Gathering auth events");
+	debug!("Gathering auth events for {}", incoming_pdu.event_id);
 	let auth_events = self
 		.services
 		.state
@@ -115,6 +116,7 @@ where
 		ready(auth_events.get(&key).map(ToOwned::to_owned))
 	};
 
+	debug!("running auth check on {} with claimed state auth", incoming_pdu.event_id);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -125,8 +127,8 @@ where
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
 
 	// Soft fail check before doing state res
-	debug!("Performing soft-fail check");
-	let soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
+	debug!("Performing soft-fail check on {}", incoming_pdu.event_id);
+	let mut soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
 		| (false, _) => true,
 		| (true, None) => false,
 		| (true, Some(redact_id)) =>
@@ -219,10 +221,26 @@ where
 			.await?;
 	}
 
+	// 14-pre. If the event is not a state event, ask the policy server about it
+	if incoming_pdu.state_key.is_none()
+		&& incoming_pdu.sender().server_name() != self.services.globals.server_name()
+	{
+		debug!("Checking policy server for event {}", incoming_pdu.event_id);
+		let policy = self.policyserv_check(&incoming_pdu, room_id);
+		if let Err(e) = policy.await {
+			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
+			if !soft_fail {
+				soft_fail = true;
+			}
+		}
+		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
+	}
+
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
 	if soft_fail {
-		debug!("Soft failing event");
+		info!("Soft failing event {}", incoming_pdu.event_id);
+		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
 
 		self.services
