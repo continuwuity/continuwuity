@@ -91,3 +91,22 @@ pub async fn room_state_get(
 		.and_then(|shortstatehash| self.state_get(shortstatehash, event_type, state_key))
 		.await
 }
+
+/// Returns all state keys for the given `room_id` and `event_type`.
+#[implement(super::Service)]
+#[tracing::instrument(skip(self), level = "debug")]
+pub async fn room_state_keys(
+	&self,
+	room_id: &RoomId,
+	event_type: &StateEventType,
+) -> Result<Vec<String>> {
+	let shortstatehash = self.services.state.get_room_shortstatehash(room_id).await?;
+
+	let state_keys: Vec<String> = self
+		.state_keys(shortstatehash, event_type)
+		.map(|state_key| state_key.to_string())
+		.collect()
+		.await;
+
+	Ok(state_keys)
+}

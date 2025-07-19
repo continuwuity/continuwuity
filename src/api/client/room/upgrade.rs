@@ -5,7 +5,7 @@ use conduwuit::{
 	Err, Error, Event, Result, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 };
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{
 	CanonicalJsonObject, RoomId, RoomVersionId,
 	api::client::{error::ErrorKind, room::upgrade_room},
@@ -16,12 +16,13 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			tombstone::RoomTombstoneEventContent,
 		},
+		space::child::{RedactedSpaceChildEventContent, SpaceChildEventContent},
 	},
 	int,
 };
 use serde_json::{json, value::to_raw_value};
 
-use crate::Ruma;
+use crate::router::Ruma;
 
 /// Recommended transferable state events list from the spec
 const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
@@ -36,7 +37,7 @@ const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
 	StateEventType::RoomTopic,
 	// Not explicitly recommended in spec, but very useful.
 	StateEventType::SpaceChild,
-	StateEventType::SpaceParent, // TODO: m.room.policy
+	StateEventType::SpaceParent, // TODO: m.room.policy?
 ];
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/upgrade`
@@ -128,7 +129,7 @@ pub(crate) async fn upgrade_room_route(
 				);
 			},
 			| _ => {
-				// "creator" key no longer exists in V11+ rooms
+				// "creator" key no longer exists in V11 rooms
 				create_event_content.remove("creator");
 			},
 		}
@@ -175,6 +176,7 @@ pub(crate) async fn upgrade_room_route(
 			&replacement_room,
 			&state_lock,
 		)
+		.boxed()
 		.await?;
 
 	// Join the new room
@@ -205,6 +207,7 @@ pub(crate) async fn upgrade_room_route(
 			&replacement_room,
 			&state_lock,
 		)
+		.boxed()
 		.await?;
 
 	// Replicate transferable state events to the new room
@@ -233,6 +236,7 @@ pub(crate) async fn upgrade_room_route(
 				&replacement_room,
 				&state_lock,
 			)
+			.boxed()
 			.await?;
 	}
 
@@ -290,9 +294,75 @@ pub(crate) async fn upgrade_room_route(
 			&body.room_id,
 			&state_lock,
 		)
+		.boxed()
 		.await?;
 
 	drop(state_lock);
+
+	// Check if the old room has a space parent, and if so, whether we should update
+	// it (m.space.parent, room_id)
+	let parents = services
+		.rooms
+		.state_accessor
+		.room_state_keys(&body.room_id, &StateEventType::SpaceParent)
+		.await?;
+
+	for raw_space_id in parents {
+		let space_id = RoomId::parse(&raw_space_id)?;
+		let state_key = StateKey::from(raw_space_id.clone());
+		let Ok(child) = services
+			.rooms
+			.state_accessor
+			.room_state_get_content::<SpaceChildEventContent>(
+				space_id,
+				&StateEventType::SpaceChild,
+				body.room_id.as_str(),
+			)
+			.await
+		else {
+			// If the space does not have a child event for this room, we can skip it
+			continue;
+		};
+		// First, drop the space's child event
+		let state_lock = services.rooms.state.mutex.lock(space_id).await;
+		services
+			.rooms
+			.timeline
+			.build_and_append_pdu(
+				PduBuilder {
+					event_type: StateEventType::SpaceChild.into(),
+					content: to_raw_value(&RedactedSpaceChildEventContent {})
+						.expect("event is valid, we just created it"),
+					state_key: Some(state_key),
+					..Default::default()
+				},
+				sender_user,
+				space_id,
+				&state_lock,
+			)
+			.boxed()
+			.await
+			.ok();
+		// Now, add a new child event for the replacement room
+		services
+			.rooms
+			.timeline
+			.build_and_append_pdu(
+				PduBuilder {
+					event_type: StateEventType::SpaceChild.into(),
+					content: to_raw_value(&child).expect("event is valid, we just created it"),
+					state_key: Some(StateKey::new()),
+					..Default::default()
+				},
+				sender_user,
+				space_id,
+				&state_lock,
+			)
+			.boxed()
+			.await
+			.ok();
+		drop(state_lock);
+	}
 
 	// Return the replacement room id
 	Ok(upgrade_room::v3::Response { replacement_room })
