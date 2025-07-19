@@ -26,20 +26,11 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 			return Ok(());
 		},
 	};
-	// TODO: dont do *this*
-	let pdu_json = self.services.timeline.get_pdu_json(pdu.event_id()).await?;
 	let outgoing = self
 		.services
 		.sending
-		.convert_to_outgoing_federation_event(pdu_json)
+		.convert_to_outgoing_federation_event(pdu.to_canonical_object())
 		.await;
-	// let s = match serde_json::to_string(outgoing.as_ref()) {
-	// 	| Ok(s) => s,
-	// 	| Err(e) => {
-	// 		warn!("Failed to convert pdu {} to outgoing federation event: {e}",
-	// pdu.event_id()); 		return Err!(Request(InvalidParam("Failed to convert PDU
-	// to outgoing event."))); 	},
-	// };
 	debug!("Checking pdu {outgoing:?} for spam with policy server {via} for room {room_id}");
 	let response = self
 		.services
