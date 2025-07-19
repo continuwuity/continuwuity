@@ -3,7 +3,7 @@ mod configure;
 use std::{
 	mem::take,
 	sync::{
-		Arc, Mutex,
+		Arc,
 		atomic::{AtomicUsize, Ordering},
 	},
 	thread,
@@ -12,7 +12,7 @@ use std::{
 
 use async_channel::{QueueStrategy, Receiver, RecvError, Sender};
 use conduwuit::{
-	Error, Result, Server, debug, err, error, implement,
+	Error, Result, Server, SyncMutex, debug, err, error, implement,
 	result::DebugInspect,
 	smallvec::SmallVec,
 	trace,
@@ -31,7 +31,7 @@ use crate::{Handle, Map, keyval::KeyBuf, stream};
 pub(crate) struct Pool {
 	server: Arc<Server>,
 	queues: Vec<Sender<Cmd>>,
-	workers: Mutex<Vec<JoinHandle<()>>>,
+	workers: SyncMutex<Vec<JoinHandle<()>>>,
 	topology: Vec<usize>,
 	busy: AtomicUsize,
 	queued_max: AtomicUsize,
@@ -115,7 +115,7 @@ impl Drop for Pool {
 #[implement(Pool)]
 #[tracing::instrument(skip_all)]
 pub(crate) fn close(&self) {
-	let workers = take(&mut *self.workers.lock().expect("locked"));
+	let workers = take(&mut *self.workers.lock());
 
 	let senders = self.queues.iter().map(Sender::sender_count).sum::<usize>();
 
@@ -154,7 +154,7 @@ pub(crate) fn close(&self) {
 
 #[implement(Pool)]
 fn spawn_until(self: &Arc<Self>, recv: &[Receiver<Cmd>], count: usize) -> Result {
-	let mut workers = self.workers.lock().expect("locked");
+	let mut workers = self.workers.lock();
 	while workers.len() < count {
 		self.clone().spawn_one(&mut workers, recv)?;
 	}

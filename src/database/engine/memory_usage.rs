@@ -9,7 +9,7 @@ use crate::or_else;
 #[implement(Engine)]
 pub fn memory_usage(&self) -> Result<String> {
 	let mut res = String::new();
-	let stats = get_memory_usage_stats(Some(&[&self.db]), Some(&[&*self.ctx.row_cache.lock()?]))
+	let stats = get_memory_usage_stats(Some(&[&self.db]), Some(&[&*self.ctx.row_cache.lock()]))
 		.or_else(or_else)?;
 	let mibs = |input| f64::from(u32::try_from(input / 1024).unwrap_or(0)) / 1024.0;
 	writeln!(
@@ -19,10 +19,10 @@ pub fn memory_usage(&self) -> Result<String> {
 		mibs(stats.mem_table_total),
 		mibs(stats.mem_table_unflushed),
 		mibs(stats.mem_table_readers_total),
-		mibs(u64::try_from(self.ctx.row_cache.lock()?.get_usage())?),
+		mibs(u64::try_from(self.ctx.row_cache.lock().get_usage())?),
 	)?;
 
-	for (name, cache) in &*self.ctx.col_cache.lock()? {
+	for (name, cache) in &*self.ctx.col_cache.lock() {
 		writeln!(res, "{name} cache: {:.2} MiB", mibs(u64::try_from(cache.get_usage())?))?;
 	}
 

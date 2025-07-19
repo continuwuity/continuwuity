@@ -248,10 +248,10 @@ pub fn cache_auth_chain_vec(&self, key: Vec<u64>, auth_chain: &[ShortEventId]) {
 
 #[implement(Service)]
 pub fn get_cache_usage(&self) -> (usize, usize) {
-	let cache = self.db.auth_chain_cache.lock().expect("locked");
+	let cache = self.db.auth_chain_cache.lock();
 
 	(cache.len(), cache.capacity())
 }
 
 #[implement(Service)]
-pub fn clear_cache(&self) { self.db.auth_chain_cache.lock().expect("locked").clear(); }
+pub fn clear_cache(&self) { self.db.auth_chain_cache.lock().clear(); }

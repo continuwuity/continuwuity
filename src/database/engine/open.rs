@@ -23,11 +23,7 @@ pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<S
 	let config = &server.config;
 	let path = &config.database_path;
 
-	let db_opts = db_options(
-		config,
-		&ctx.env.lock().expect("environment locked"),
-		&ctx.row_cache.lock().expect("row cache locked"),
-	)?;
+	let db_opts = db_options(config, &ctx.env.lock(), &ctx.row_cache.lock())?;
 
 	let cfds = Self::configure_cfds(&ctx, &db_opts, desc)?;
 	let num_cfds = cfds.len();

@@ -71,7 +71,7 @@ pub fn backup_count(&self) -> Result<usize> {
 fn backup_engine(&self) -> Result<BackupEngine> {
 	let path = self.backup_path()?;
 	let options = BackupEngineOptions::new(path).map_err(map_err)?;
-	BackupEngine::open(&options, &*self.ctx.env.lock()?).map_err(map_err)
+	BackupEngine::open(&options, &self.ctx.env.lock()).map_err(map_err)
 }
 
 #[implement(Engine)]

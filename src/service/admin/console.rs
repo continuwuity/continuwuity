@@ -1,11 +1,8 @@
 #![cfg(feature = "console")]
 
-use std::{
-	collections::VecDeque,
-	sync::{Arc, Mutex},
-};
+use std::{collections::VecDeque, sync::Arc};
 
-use conduwuit::{Server, debug, defer, error, log, log::is_systemd_mode};
+use conduwuit::{Server, SyncMutex, debug, defer, error, log, log::is_systemd_mode};
 use futures::future::{AbortHandle, Abortable};
 use ruma::events::room::message::RoomMessageEventContent;
 use rustyline_async::{Readline, ReadlineError, ReadlineEvent};
@@ -17,10 +14,10 @@ use crate::{Dep, admin};
 pub struct Console {
 	server: Arc<Server>,
 	admin: Dep<admin::Service>,
-	worker_join: Mutex<Option<JoinHandle<()>>>,
-	input_abort: Mutex<Option<AbortHandle>>,
-	command_abort: Mutex<Option<AbortHandle>>,
-	history: Mutex<VecDeque<String>>,
+	worker_join: SyncMutex<Option<JoinHandle<()>>>,
+	input_abort: SyncMutex<Option<AbortHandle>>,
+	command_abort: SyncMutex<Option<AbortHandle>>,
+	history: SyncMutex<VecDeque<String>>,
 	output: MadSkin,
 }
 
@@ -50,7 +47,7 @@ impl Console {
 	}
 
 	pub async fn start(self: &Arc<Self>) {
-		let mut worker_join = self.worker_join.lock().expect("locked");
+		let mut worker_join = self.worker_join.lock();
 		if worker_join.is_none() {
 			let self_ = Arc::clone(self);
 			_ = worker_join.insert(self.server.runtime().spawn(self_.worker()));
@@ -60,7 +57,7 @@ impl Console {
 	pub async fn close(self: &Arc<Self>) {
 		self.interrupt();
 
-		let Some(worker_join) = self.worker_join.lock().expect("locked").take() else {
+		let Some(worker_join) = self.worker_join.lock().take() else {
 			return;
 		};
 
@@ -70,22 +67,18 @@ impl Console {
 	pub fn interrupt(self: &Arc<Self>) {
 		self.interrupt_command();
 		self.interrupt_readline();
-		self.worker_join
-			.lock()
-			.expect("locked")
-			.as_ref()
-			.map(JoinHandle::abort);
+		self.worker_join.lock().as_ref().map(JoinHandle::abort);
 	}
 
 	pub fn interrupt_readline(self: &Arc<Self>) {
-		if let Some(input_abort) = self.input_abort.lock().expect("locked").take() {
+		if let Some(input_abort) = self.input_abort.lock().take() {
 			debug!("Interrupting console readline...");
 			input_abort.abort();
 		}
 	}
 
 	pub fn interrupt_command(self: &Arc<Self>) {
-		if let Some(command_abort) = self.command_abort.lock().expect("locked").take() {
+		if let Some(command_abort) = self.command_abort.lock().take() {
 			debug!("Interrupting console command...");
 			command_abort.abort();
 		}
@@ -120,7 +113,7 @@ impl Console {
 		}
 
 		debug!("session ending");
-		self.worker_join.lock().expect("locked").take();
+		self.worker_join.lock().take();
 	}
 
 	async fn readline(self: &Arc<Self>) -> Result<ReadlineEvent, ReadlineError> {
@@ -135,9 +128,9 @@ impl Console {
 
 		let (abort, abort_reg) = AbortHandle::new_pair();
 		let future = Abortable::new(future, abort_reg);
-		_ = self.input_abort.lock().expect("locked").insert(abort);
+		_ = self.input_abort.lock().insert(abort);
 		defer! {{
-			_ = self.input_abort.lock().expect("locked").take();
+			_ = self.input_abort.lock().take();
 		}}
 
 		let Ok(result) = future.await else {
@@ -158,9 +151,9 @@ impl Console {
 
 		let (abort, abort_reg) = AbortHandle::new_pair();
 		let future = Abortable::new(future, abort_reg);
-		_ = self.command_abort.lock().expect("locked").insert(abort);
+		_ = self.command_abort.lock().insert(abort);
 		defer! {{
-			_ = self.command_abort.lock().expect("locked").take();
+			_ = self.command_abort.lock().take();
 		}}
 
 		_ = future.await;
@@ -184,20 +177,15 @@ impl Console {
 	}
 
 	fn set_history(&self, readline: &mut Readline) {
-		self.history
-			.lock()
-			.expect("locked")
-			.iter()
-			.rev()
-			.for_each(|entry| {
-				readline
-					.add_history_entry(entry.clone())
-					.expect("added history entry");
-			});
+		self.history.lock().iter().rev().for_each(|entry| {
+			readline
+				.add_history_entry(entry.clone())
+				.expect("added history entry");
+		});
 	}
 
 	fn add_history(&self, line: String) {
-		let mut history = self.history.lock().expect("locked");
+		let mut history = self.history.lock();
 		history.push_front(line);
 		history.truncate(HISTORY_LIMIT);
 	}

@@ -1,9 +1,6 @@
-use std::{
-	mem::size_of,
-	sync::{Arc, Mutex},
-};
+use std::{mem::size_of, sync::Arc};
 
-use conduwuit::{Err, Result, err, utils, utils::math::usize_from_f64};
+use conduwuit::{Err, Result, SyncMutex, err, utils, utils::math::usize_from_f64};
 use database::Map;
 use lru_cache::LruCache;
 
@@ -11,7 +8,7 @@ use crate::rooms::short::ShortEventId;
 
 pub(super) struct Data {
 	shorteventid_authchain: Arc<Map>,
-	pub(super) auth_chain_cache: Mutex<LruCache<Vec<u64>, Arc<[ShortEventId]>>>,
+	pub(super) auth_chain_cache: SyncMutex<LruCache<Vec<u64>, Arc<[ShortEventId]>>>,
 }
 
 impl Data {
@@ -23,7 +20,7 @@ impl Data {
 			.expect("valid cache size");
 		Self {
 			shorteventid_authchain: db["shorteventid_authchain"].clone(),
-			auth_chain_cache: Mutex::new(LruCache::new(cache_size)),
+			auth_chain_cache: SyncMutex::new(LruCache::new(cache_size)),
 		}
 	}
 
@@ -34,12 +31,7 @@ impl Data {
 		debug_assert!(!key.is_empty(), "auth_chain key must not be empty");
 
 		// Check RAM cache
-		if let Some(result) = self
-			.auth_chain_cache
-			.lock()
-			.expect("cache locked")
-			.get_mut(key)
-		{
+		if let Some(result) = self.auth_chain_cache.lock().get_mut(key) {
 			return Ok(Arc::clone(result));
 		}
 
@@ -63,7 +55,6 @@ impl Data {
 		// Cache in RAM
 		self.auth_chain_cache
 			.lock()
-			.expect("cache locked")
 			.insert(vec![key[0]], Arc::clone(&chain));
 
 		Ok(chain)
@@ -84,9 +75,6 @@ impl Data {
 		}
 
 		// Cache in RAM
-		self.auth_chain_cache
-			.lock()
-			.expect("cache locked")
-			.insert(key, auth_chain);
+		self.auth_chain_cache.lock().insert(key, auth_chain);
 	}
 }

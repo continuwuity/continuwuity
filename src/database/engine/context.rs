@@ -1,9 +1,6 @@
-use std::{
-	collections::BTreeMap,
-	sync::{Arc, Mutex},
-};
+use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{Result, Server, debug, utils::math::usize_from_f64};
+use conduwuit::{Result, Server, SyncMutex, debug, utils::math::usize_from_f64};
 use rocksdb::{Cache, Env, LruCacheOptions};
 
 use crate::{or_else, pool::Pool};
@@ -14,9 +11,9 @@ use crate::{or_else, pool::Pool};
 /// These assets are housed in the shared Context.
 pub(crate) struct Context {
 	pub(crate) pool: Arc<Pool>,
-	pub(crate) col_cache: Mutex<BTreeMap<String, Cache>>,
-	pub(crate) row_cache: Mutex<Cache>,
-	pub(crate) env: Mutex<Env>,
+	pub(crate) col_cache: SyncMutex<BTreeMap<String, Cache>>,
+	pub(crate) row_cache: SyncMutex<Cache>,
+	pub(crate) env: SyncMutex<Env>,
 	pub(crate) server: Arc<Server>,
 }
 
@@ -68,7 +65,7 @@ impl Drop for Context {
 		debug!("Closing frontend pool");
 		self.pool.close();
 
-		let mut env = self.env.lock().expect("locked");
+		let mut env = self.env.lock();
 
 		debug!("Shutting down background threads");
 		env.set_high_priority_background_threads(0);

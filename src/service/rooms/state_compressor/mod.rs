@@ -2,12 +2,12 @@ use std::{
 	collections::{BTreeSet, HashMap},
 	fmt::{Debug, Write},
 	mem::size_of,
-	sync::{Arc, Mutex},
+	sync::Arc,
 };
 
 use async_trait::async_trait;
 use conduwuit::{
-	Result,
+	Result, SyncMutex,
 	arrayvec::ArrayVec,
 	at, checked, err, expected, implement, utils,
 	utils::{bytes, math::usize_from_f64, stream::IterStream},
@@ -23,7 +23,7 @@ use crate::{
 };
 
 pub struct Service {
-	pub stateinfo_cache: Mutex<StateInfoLruCache>,
+	pub stateinfo_cache: SyncMutex<StateInfoLruCache>,
 	db: Data,
 	services: Services,
 }
@@ -86,7 +86,7 @@ impl crate::Service for Service {
 
 	async fn memory_usage(&self, out: &mut (dyn Write + Send)) -> Result {
 		let (cache_len, ents) = {
-			let cache = self.stateinfo_cache.lock().expect("locked");
+			let cache = self.stateinfo_cache.lock();
 			let ents = cache.iter().map(at!(1)).flat_map(|vec| vec.iter()).fold(
 				HashMap::new(),
 				|mut ents, ssi| {
@@ -110,7 +110,7 @@ impl crate::Service for Service {
 		Ok(())
 	}
 
-	async fn clear_cache(&self) { self.stateinfo_cache.lock().expect("locked").clear(); }
+	async fn clear_cache(&self) { self.stateinfo_cache.lock().clear(); }
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
@@ -123,7 +123,7 @@ pub async fn load_shortstatehash_info(
 	&self,
 	shortstatehash: ShortStateHash,
 ) -> Result<ShortStateInfoVec> {
-	if let Some(r) = self.stateinfo_cache.lock()?.get_mut(&shortstatehash) {
+	if let Some(r) = self.stateinfo_cache.lock().get_mut(&shortstatehash) {
 		return Ok(r.clone());
 	}
 
@@ -152,7 +152,7 @@ async fn cache_shortstatehash_info(
 	shortstatehash: ShortStateHash,
 	stack: ShortStateInfoVec,
 ) -> Result {
-	self.stateinfo_cache.lock()?.insert(shortstatehash, stack);
+	self.stateinfo_cache.lock().insert(shortstatehash, stack);
 
 	Ok(())
 }

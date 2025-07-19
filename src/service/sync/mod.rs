@@ -2,10 +2,10 @@ mod watch;
 
 use std::{
 	collections::{BTreeMap, BTreeSet},
-	sync::{Arc, Mutex, Mutex as StdMutex},
+	sync::Arc,
 };
 
-use conduwuit::{Result, Server};
+use conduwuit::{Result, Server, SyncMutex};
 use database::Map;
 use ruma::{
 	OwnedDeviceId, OwnedRoomId, OwnedUserId,
@@ -62,11 +62,11 @@ struct SnakeSyncCache {
 	extensions: v5::request::Extensions,
 }
 
-type DbConnections<K, V> = Mutex<BTreeMap<K, V>>;
+type DbConnections<K, V> = SyncMutex<BTreeMap<K, V>>;
 type DbConnectionsKey = (OwnedUserId, OwnedDeviceId, String);
-type DbConnectionsVal = Arc<Mutex<SlidingSyncCache>>;
+type DbConnectionsVal = Arc<SyncMutex<SlidingSyncCache>>;
 type SnakeConnectionsKey = (OwnedUserId, OwnedDeviceId, Option<String>);
-type SnakeConnectionsVal = Arc<Mutex<SnakeSyncCache>>;
+type SnakeConnectionsVal = Arc<SyncMutex<SnakeSyncCache>>;
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
@@ -90,8 +90,8 @@ impl crate::Service for Service {
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 				typing: args.depend::<rooms::typing::Service>("rooms::typing"),
 			},
-			connections: StdMutex::new(BTreeMap::new()),
-			snake_connections: StdMutex::new(BTreeMap::new()),
+			connections: SyncMutex::new(BTreeMap::new()),
+			snake_connections: SyncMutex::new(BTreeMap::new()),
 		}))
 	}
 
@@ -100,22 +100,19 @@ impl crate::Service for Service {
 
 impl Service {
 	pub fn snake_connection_cached(&self, key: &SnakeConnectionsKey) -> bool {
-		self.snake_connections
-			.lock()
-			.expect("locked")
-			.contains_key(key)
+		self.snake_connections.lock().contains_key(key)
 	}
 
 	pub fn forget_snake_sync_connection(&self, key: &SnakeConnectionsKey) {
-		self.snake_connections.lock().expect("locked").remove(key);
+		self.snake_connections.lock().remove(key);
 	}
 
 	pub fn remembered(&self, key: &DbConnectionsKey) -> bool {
-		self.connections.lock().expect("locked").contains_key(key)
+		self.connections.lock().contains_key(key)
 	}
 
 	pub fn forget_sync_request_connection(&self, key: &DbConnectionsKey) {
-		self.connections.lock().expect("locked").remove(key);
+		self.connections.lock().remove(key);
 	}
 
 	pub fn update_snake_sync_request_with_cache(
@@ -123,13 +120,13 @@ impl Service {
 		snake_key: &SnakeConnectionsKey,
 		request: &mut v5::Request,
 	) -> BTreeMap<String, BTreeMap<OwnedRoomId, u64>> {
-		let mut cache = self.snake_connections.lock().expect("locked");
+		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
 			cache
 				.entry(snake_key.clone())
-				.or_insert_with(|| Arc::new(Mutex::new(SnakeSyncCache::default()))),
+				.or_insert_with(|| Arc::new(SyncMutex::new(SnakeSyncCache::default()))),
 		);
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		//v5::Request::try_from_http_request(req, path_args);
@@ -232,16 +229,16 @@ impl Service {
 		};
 
 		let key = into_db_key(key.0.clone(), key.1.clone(), conn_id);
-		let mut cache = self.connections.lock().expect("locked");
+		let mut cache = self.connections.lock();
 		let cached = Arc::clone(cache.entry(key).or_insert_with(|| {
-			Arc::new(Mutex::new(SlidingSyncCache {
+			Arc::new(SyncMutex::new(SlidingSyncCache {
 				lists: BTreeMap::new(),
 				subscriptions: BTreeMap::new(),
 				known_rooms: BTreeMap::new(),
 				extensions: ExtensionsConfig::default(),
 			}))
 		}));
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		for (list_id, list) in &mut request.lists {
@@ -328,16 +325,16 @@ impl Service {
 		key: &DbConnectionsKey,
 		subscriptions: BTreeMap<OwnedRoomId, sync_events::v4::RoomSubscription>,
 	) {
-		let mut cache = self.connections.lock().expect("locked");
+		let mut cache = self.connections.lock();
 		let cached = Arc::clone(cache.entry(key.clone()).or_insert_with(|| {
-			Arc::new(Mutex::new(SlidingSyncCache {
+			Arc::new(SyncMutex::new(SlidingSyncCache {
 				lists: BTreeMap::new(),
 				subscriptions: BTreeMap::new(),
 				known_rooms: BTreeMap::new(),
 				extensions: ExtensionsConfig::default(),
 			}))
 		}));
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		cached.subscriptions = subscriptions;
@@ -350,16 +347,16 @@ impl Service {
 		new_cached_rooms: BTreeSet<OwnedRoomId>,
 		globalsince: u64,
 	) {
-		let mut cache = self.connections.lock().expect("locked");
+		let mut cache = self.connections.lock();
 		let cached = Arc::clone(cache.entry(key.clone()).or_insert_with(|| {
-			Arc::new(Mutex::new(SlidingSyncCache {
+			Arc::new(SyncMutex::new(SlidingSyncCache {
 				lists: BTreeMap::new(),
 				subscriptions: BTreeMap::new(),
 				known_rooms: BTreeMap::new(),
 				extensions: ExtensionsConfig::default(),
 			}))
 		}));
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		for (room_id, lastsince) in cached
@@ -386,13 +383,13 @@ impl Service {
 		globalsince: u64,
 	) {
 		assert!(key.2.is_some(), "Some(conn_id) required for this call");
-		let mut cache = self.snake_connections.lock().expect("locked");
+		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
 			cache
 				.entry(key.clone())
-				.or_insert_with(|| Arc::new(Mutex::new(SnakeSyncCache::default()))),
+				.or_insert_with(|| Arc::new(SyncMutex::new(SnakeSyncCache::default()))),
 		);
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		for (room_id, lastsince) in cached
@@ -416,13 +413,13 @@ impl Service {
 		key: &SnakeConnectionsKey,
 		subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
 	) {
-		let mut cache = self.snake_connections.lock().expect("locked");
+		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
 			cache
 				.entry(key.clone())
-				.or_insert_with(|| Arc::new(Mutex::new(SnakeSyncCache::default()))),
+				.or_insert_with(|| Arc::new(SyncMutex::new(SnakeSyncCache::default()))),
 		);
-		let cached = &mut cached.lock().expect("locked");
+		let cached = &mut cached.lock();
 		drop(cache);
 
 		cached.subscriptions = subscriptions;

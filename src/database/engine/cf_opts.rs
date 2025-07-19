@@ -232,7 +232,7 @@ fn get_cache(ctx: &Context, desc: &Descriptor) -> Option<Cache> {
 	cache_opts.set_num_shard_bits(shard_bits);
 	cache_opts.set_capacity(size);
 
-	let mut caches = ctx.col_cache.lock().expect("locked");
+	let mut caches = ctx.col_cache.lock();
 	match desc.cache_disp {
 		| CacheDisp::Unique if desc.cache_size == 0 => None,
 		| CacheDisp::Unique => {
