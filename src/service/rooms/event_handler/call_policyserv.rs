@@ -1,3 +1,8 @@
+//! Policy server integration for event spam checking in Matrix rooms.
+//!
+//! This module implements a check against a room-specific policy server, as
+//! described in the relevant Matrix spec proposal (see: https://github.com/matrix-org/matrix-spec-proposals/pull/4284).
+
 use std::time::Duration;
 
 use conduwuit::{Err, Event, PduEvent, Result, debug, implement, warn};
@@ -12,7 +17,11 @@ use ruma::{
 #[tracing::instrument(skip_all, level = "debug")]
 pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result {
 	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
-		debug!("Skipping spam check for policy server meta-event in room {room_id}");
+		debug!(
+			room_id = %room_id,
+			event_type = ?pdu.event_type(),
+			"Skipping spam check for policy server meta-event"
+		);
 		return Ok(());
 	}
 	let Ok(policyserver) = self
@@ -37,7 +46,11 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 		return Ok(());
 	}
 	if !self.services.state_cache.server_in_room(via, room_id).await {
-		debug!("Policy server {via} is not in the room {room_id}, skipping spam check");
+		debug!(
+			room_id = %room_id,
+			via = %via,
+			"Policy server is not in the room, skipping spam check"
+		);
 		return Ok(());
 	}
 	let outgoing = self
@@ -45,7 +58,12 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 		.sending
 		.convert_to_outgoing_federation_event(pdu.to_canonical_object())
 		.await;
-	debug!("Checking pdu {outgoing:?} for spam with policy server {via} for room {room_id}");
+	debug!(
+		room_id = %room_id,
+		via = %via,
+		outgoing = ?outgoing,
+		"Checking event for spam with policy server"
+	);
 	let response = tokio::time::timeout(
 		Duration::from_secs(10),
 		self.services
@@ -65,6 +83,8 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 				room_id = %room_id,
 				"Failed to contact policy server: {e}"
 			);
+			// Network or policy server errors are treated as non-fatal: event is allowed by
+			// default.
 			return Ok(());
 		},
 		| Err(_) => {

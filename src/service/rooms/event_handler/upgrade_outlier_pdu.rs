@@ -47,7 +47,10 @@ where
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
-	debug!("Upgrading pdu {} from outlier to timeline pdu", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Upgrading PDU from outlier to timeline"
+	);
 	let timer = Instant::now();
 	let room_version_id = get_room_version_id(create_event)?;
 
@@ -55,7 +58,10 @@ where
 	//     backwards extremities doing all the checks in this list starting at 1.
 	//     These are not timeline events.
 
-	debug!("Resolving state at event {}", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Resolving state at event"
+	);
 	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
@@ -74,7 +80,10 @@ where
 
 	let room_version = to_room_version(&room_version_id);
 
-	debug!("Performing auth check to upgrade {}", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Performing auth check to upgrade"
+	);
 	// 11. Check the auth of the event passes based on the state of the event
 	let state_fetch_state = &state_at_incoming_event;
 	let state_fetch = |k: StateEventType, s: StateKey| async move {
@@ -84,7 +93,10 @@ where
 		self.services.timeline.get_pdu(event_id).await.ok()
 	};
 
-	debug!("running auth check on {}", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Running initial auth check"
+	);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -98,7 +110,10 @@ where
 		return Err!(Request(Forbidden("Event has failed auth check with state at the event.")));
 	}
 
-	debug!("Gathering auth events for {}", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Gathering auth events"
+	);
 	let auth_events = self
 		.services
 		.state
@@ -116,7 +131,10 @@ where
 		ready(auth_events.get(&key).map(ToOwned::to_owned))
 	};
 
-	debug!("running auth check on {} with claimed state auth", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Running auth check with claimed state auth"
+	);
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -127,7 +145,10 @@ where
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
 
 	// Soft fail check before doing state res
-	debug!("Performing soft-fail check on {}", incoming_pdu.event_id);
+	debug!(
+		event_id = %incoming_pdu.event_id,
+		"Performing soft-fail check"
+	);
 	let mut soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
 		| (false, _) => true,
 		| (true, None) => false,
@@ -142,7 +163,10 @@ where
 	// 13. Use state resolution to find new room state
 
 	// We start looking at current room state now, so lets lock the room
-	trace!("Locking the room");
+	trace!(
+		room_id = %room_id,
+		"Locking the room"
+	);
 	let state_lock = self.services.state.mutex.lock(room_id).await;
 
 	// Now we calculate the set of extremities this room has after the incoming
@@ -223,21 +247,32 @@ where
 
 	// 14-pre. If the event is not a state event, ask the policy server about it
 	if incoming_pdu.state_key.is_none() {
-		debug!("Checking policy server for event {}", incoming_pdu.event_id);
+		debug!(
+			event_id = %incoming_pdu.event_id,"Checking policy server for event");
 		let policy = self.policyserv_check(&incoming_pdu, room_id);
 		if let Err(e) = policy.await {
-			warn!("Policy server check failed for event {}: {e}", incoming_pdu.event_id);
+			warn!(
+				event_id = %incoming_pdu.event_id,
+				error = ?e,
+				"Policy server check failed for event"
+			);
 			if !soft_fail {
 				soft_fail = true;
 			}
 		}
-		debug!("Policy server check passed for event {}", incoming_pdu.event_id);
+		debug!(
+			event_id = %incoming_pdu.event_id,
+			"Policy server check passed for event"
+		);
 	}
 
 	// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
 	// also
 	if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
-		debug!("Checking if redaction {} is for a soft-failed event", redact_id);
+		debug!(
+			redact_id = %redact_id,
+			"Checking if redaction is for a soft-failed event"
+		);
 		if self
 			.services
 			.pdu_metadata
@@ -245,8 +280,8 @@ where
 			.await
 		{
 			warn!(
-				"Redaction {} is for a soft-failed event, soft failing the redaction",
-				redact_id
+				redact_id = %redact_id,
+				"Redaction is for a soft-failed event, soft failing the redaction"
 			);
 			soft_fail = true;
 		}
@@ -255,7 +290,10 @@ where
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
 	if soft_fail {
-		info!("Soft failing event {}", incoming_pdu.event_id);
+		info!(
+			event_id = %incoming_pdu.event_id,
+			"Soft failing event"
+		);
 		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
 
@@ -276,7 +314,10 @@ where
 			.pdu_metadata
 			.mark_event_soft_failed(incoming_pdu.event_id());
 
-		warn!("Event was soft failed: {:?}", incoming_pdu.event_id());
+		warn!(
+			event_id = %incoming_pdu.event_id,
+			"Event was soft failed"
+		);
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
