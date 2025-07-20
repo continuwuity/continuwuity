@@ -96,6 +96,7 @@ script = """
 direnv exec . \
 cargo clippy \
     --workspace \
+    --all-features \
     --locked \
     --profile test \
     --color=always \

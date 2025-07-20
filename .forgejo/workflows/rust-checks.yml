@@ -73,6 +73,7 @@ jobs:
         run: |
           cargo clippy \
             --workspace \
+            --all-features \
             --locked \
             --no-deps \
             --profile test \
@@ -132,6 +133,7 @@ jobs:
         run: |
           cargo test \
             --workspace \
+            --all-features \
             --locked \
             --profile test \
             --all-targets \
