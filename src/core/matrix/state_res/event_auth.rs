@@ -149,8 +149,8 @@ where
 	for<'a> &'a E: Event + Send,
 {
 	debug!(
-		event_id = format!("{}", incoming_event.event_id()),
-		event_type = format!("{}", incoming_event.event_type()),
+		event_id = %incoming_event.event_id(),
+		event_type = ?incoming_event.event_type(),
 		"auth_check beginning"
 	);
 
