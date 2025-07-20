@@ -416,7 +416,8 @@ pub struct Config {
 	/// to high values, as dead homeservers can significantly slow down
 	/// federation, specifically key retrieval, which will take roughly the
 	/// amount of time you configure here given that a homeserver doesn't
-	/// respond.
+	/// respond. This will cause most clients to time out /keys/query, causing
+	/// E2EE and device verification to fail.
 	///
 	/// default: 10
 	#[serde(default = "default_federation_conn_timeout")]
