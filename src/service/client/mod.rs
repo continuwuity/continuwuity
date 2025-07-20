@@ -66,6 +66,7 @@ impl crate::Service for Service {
 
 			federation: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
+				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout))
 				.pool_max_idle_per_host(config.federation_idle_per_host.into())
 				.pool_idle_timeout(Duration::from_secs(config.federation_idle_timeout))
@@ -74,6 +75,7 @@ impl crate::Service for Service {
 
 			synapse: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
+				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(305))
 				.pool_max_idle_per_host(0)
 				.redirect(redirect::Policy::limited(3))
@@ -81,6 +83,7 @@ impl crate::Service for Service {
 
 			sender: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
+				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.sender_timeout))
 				.timeout(Duration::from_secs(config.sender_timeout))
 				.pool_max_idle_per_host(1)

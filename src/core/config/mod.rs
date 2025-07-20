@@ -412,6 +412,16 @@ pub struct Config {
 	#[serde(default = "default_well_known_timeout")]
 	pub well_known_timeout: u64,
 
+	/// Federation client connection timeout (seconds). You should not set this
+	/// to high values, as dead homeservers can significantly slow down
+	/// federation, specifically key retrieval, which will take roughly the
+	/// amount of time you configure here given that a homeserver doesn't
+	/// respond.
+	///
+	/// default: 10
+	#[serde(default = "default_federation_conn_timeout")]
+	pub federation_conn_timeout: u64,
+
 	/// Federation client request timeout (seconds). You most definitely want
 	/// this to be high to account for extremely large room joins, slow
 	/// homeservers, your own resources etc.
@@ -2192,6 +2202,8 @@ fn default_request_idle_per_host() -> u16 { 1 }
 fn default_well_known_conn_timeout() -> u64 { 6 }
 
 fn default_well_known_timeout() -> u64 { 10 }
+
+fn default_federation_conn_timeout() -> u64 { 10 }
 
 fn default_federation_timeout() -> u64 { 25 }
 

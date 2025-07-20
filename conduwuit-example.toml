@@ -325,6 +325,14 @@
 #
 #well_known_timeout = 10
 
+# Federation client connection timeout (seconds). You should not set this
+# to high values, as dead homeservers can significantly slow down
+# federation, specifically key retrieval, which will take roughly the
+# amount of time you configure here given that a homeserver doesn't
+# respond.
+#
+#federation_conn_timeout = 10
+
 # Federation client request timeout (seconds). You most definitely want
 # this to be high to account for extremely large room joins, slow
 # homeservers, your own resources etc.
