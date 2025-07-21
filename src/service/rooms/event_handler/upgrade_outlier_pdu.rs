@@ -265,7 +265,7 @@ where
 						"Event has passed policy server check or the policy server was unavailable."
 					);
 				},
-			};
+			}
 		}
 
 		// Additionally, if this is a redaction for a soft-failed event, we soft-fail it

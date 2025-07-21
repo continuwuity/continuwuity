@@ -166,14 +166,22 @@ pub async fn create_hash_and_sign_event(
 	}
 
 	// Check with the policy server
-	if self
+	match self
 		.services
 		.event_handler
-		.policyserv_check(&pdu, room_id)
+		.ask_policy_server(&pdu, room_id)
 		.await
-		.is_err()
 	{
-		return Err!(Request(Forbidden(debug_warn!("Policy server marked this event as spam"))));
+		| Ok(true) => {},
+		| Ok(false) => {
+			return Err!(Request(Forbidden(debug_warn!(
+				"Policy server marked this event as spam"
+			))));
+		},
+		| Err(e) => {
+			// fail open
+			warn!("Failed to check event with policy server: {e}");
+		},
 	}
 
 	// Hash and sign
