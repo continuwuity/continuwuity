@@ -1,5 +1,4 @@
 mod acl_check;
-mod call_policyserv;
 mod fetch_and_handle_outliers;
 mod fetch_prev;
 mod fetch_state;
@@ -7,6 +6,7 @@ mod handle_incoming_pdu;
 mod handle_outlier_pdu;
 mod handle_prev_pdu;
 mod parse_incoming_pdu;
+mod policy_server;
 mod resolve_state;
 mod state_at_incoming;
 mod upgrade_outlier_pdu;

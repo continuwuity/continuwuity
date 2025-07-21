@@ -245,45 +245,48 @@ where
 			.await?;
 	}
 
-	// 14-pre. If the event is not a state event, ask the policy server about it
-	if incoming_pdu.state_key.is_none() {
-		debug!(
-			event_id = %incoming_pdu.event_id,"Checking policy server for event");
-		let policy = self.policyserv_check(&incoming_pdu, room_id);
-		if let Err(e) = policy.await {
-			warn!(
-				event_id = %incoming_pdu.event_id,
-				error = ?e,
-				"Policy server check failed for event"
+	if !soft_fail {
+		// Don't call the below checks on events that have already soft-failed, there's
+		// no reason to re-calculate that.
+		// 14-pre. If the event is not a state event, ask the policy server about it
+		if incoming_pdu.state_key.is_none() {
+			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+			match self.ask_policy_server(&incoming_pdu, room_id).await {
+				| Ok(false) => {
+					warn!(
+						event_id = %incoming_pdu.event_id,
+						"Event has been marked as spam by policy server"
+					);
+					soft_fail = true;
+				},
+				| _ => {
+					debug!(
+						event_id = %incoming_pdu.event_id,
+						"Event has passed policy server check or the policy server was unavailable."
+					);
+				},
+			};
+		}
+
+		// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
+		// also
+		if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
+			debug!(
+				redact_id = %redact_id,
+				"Checking if redaction is for a soft-failed event"
 			);
-			if !soft_fail {
+			if self
+				.services
+				.pdu_metadata
+				.is_event_soft_failed(&redact_id)
+				.await
+			{
+				warn!(
+					redact_id = %redact_id,
+					"Redaction is for a soft-failed event, soft failing the redaction"
+				);
 				soft_fail = true;
 			}
-		}
-		debug!(
-			event_id = %incoming_pdu.event_id,
-			"Policy server check passed for event"
-		);
-	}
-
-	// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
-	// also
-	if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
-		debug!(
-			redact_id = %redact_id,
-			"Checking if redaction is for a soft-failed event"
-		);
-		if self
-			.services
-			.pdu_metadata
-			.is_event_soft_failed(&redact_id)
-			.await
-		{
-			warn!(
-				redact_id = %redact_id,
-				"Redaction is for a soft-failed event, soft failing the redaction"
-			);
-			soft_fail = true;
 		}
 	}
 

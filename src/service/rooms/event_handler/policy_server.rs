@@ -15,14 +15,14 @@ use ruma::{
 /// Returns Ok if the policy server allows the event
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
-pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result {
+pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Result<bool> {
 	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
 		debug!(
 			room_id = %room_id,
 			event_type = ?pdu.event_type(),
 			"Skipping spam check for policy server meta-event"
 		);
-		return Ok(());
+		return Ok(true);
 	}
 	let Ok(policyserver) = self
 		.services
@@ -31,19 +31,19 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 		.await
 		.map(|c: RoomPolicyEventContent| c)
 	else {
-		return Ok(());
+		return Ok(true);
 	};
 
 	let via = match policyserver.via {
 		| Some(ref via) => ServerName::parse(via)?,
 		| None => {
 			debug!("No policy server configured for room {room_id}");
-			return Ok(());
+			return Ok(true);
 		},
 	};
 	if via.is_empty() {
 		debug!("Policy server is empty for room {room_id}, skipping spam check");
-		return Ok(());
+		return Ok(true);
 	}
 	if !self.services.state_cache.server_in_room(via, room_id).await {
 		debug!(
@@ -51,7 +51,7 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 			via = %via,
 			"Policy server is not in the room, skipping spam check"
 		);
-		return Ok(());
+		return Ok(true);
 	}
 	let outgoing = self
 		.services
@@ -85,7 +85,7 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 			);
 			// Network or policy server errors are treated as non-fatal: event is allowed by
 			// default.
-			return Ok(());
+			return Err(e);
 		},
 		| Err(_) => {
 			warn!(
@@ -94,7 +94,7 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 				room_id = %room_id,
 				"Policy server request timed out after 10 seconds"
 			);
-			return Ok(());
+			return Err!("Request to policy server timed out");
 		},
 	};
 	if response.recommendation == "spam" {
@@ -107,5 +107,5 @@ pub async fn policyserv_check(&self, pdu: &PduEvent, room_id: &RoomId) -> Result
 		return Err!(Request(Forbidden("Event was marked as spam by policy server")));
 	}
 
-	Ok(())
+	Ok(true)
 }
