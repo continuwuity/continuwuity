@@ -5,8 +5,7 @@ use conduwuit::{
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
 	trace,
 	utils::stream::{BroadbandExt, ReadyExt},
-	warn,
-    info
+	warn
 };
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
