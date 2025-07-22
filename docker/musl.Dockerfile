@@ -1,50 +1,20 @@
+# Why does this exist?
+# Debian doesn't provide prebuilt musl packages
+# rocksdb requires a prebuilt liburing, and linking fails if a gnu one is provided
+
 ARG RUST_VERSION=1
-ARG DEBIAN_VERSION=bookworm
+ARG ALPINE_VERSION=3.22
 
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx AS xx
-FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS base
-FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS toolchain
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS base
+FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS toolchain
 
-# Prevent deletion of apt cache
-RUN rm -f /etc/apt/apt.conf.d/docker-clean
+# Install repo tools and dependencies
+RUN --mount=type=cache,target=/etc/apk/cache apk add \
+    build-base pkgconfig make jq bash \
+    curl git file \
+    llvm-dev clang clang-dev lld
 
-# Match Rustc version as close as possible
-# rustc -vV
-ARG LLVM_VERSION=20
-# ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
-
-# Install repo tools
-# Line one: compiler tools
-# Line two: curl, for downloading binaries
-# Line three: for xx-verify
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && apt-get install -y \
-    pkg-config make jq \
-    curl git software-properties-common \
-    file
-
-# LLVM packages
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    curl https://apt.llvm.org/llvm.sh > llvm.sh && \
-    chmod +x llvm.sh && \
-    ./llvm.sh ${LLVM_VERSION} && \
-    rm llvm.sh
-
-# Create symlinks for LLVM tools
-RUN <<EOF
-    set -o xtrace
-    # clang
-    ln -s /usr/bin/clang-${LLVM_VERSION} /usr/bin/clang
-    ln -s "/usr/bin/clang++-${LLVM_VERSION}" "/usr/bin/clang++"
-    # lld
-    ln -s /usr/bin/ld64.lld-${LLVM_VERSION} /usr/bin/ld64.lld
-    ln -s /usr/bin/ld.lld-${LLVM_VERSION} /usr/bin/ld.lld
-    ln -s /usr/bin/lld-${LLVM_VERSION} /usr/bin/lld
-    ln -s /usr/bin/lld-link-${LLVM_VERSION} /usr/bin/lld-link
-    ln -s /usr/bin/wasm-ld-${LLVM_VERSION} /usr/bin/wasm-ld
-EOF
 
 # Developer tool versions
 # renovate: datasource=github-releases depName=cargo-bins/cargo-binstall
@@ -67,12 +37,8 @@ COPY --from=xx / /
 ARG TARGETPLATFORM
 
 # Install libraries linked by the binary
-# xx-* are xx-specific meta-packages
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    xx-apt-get install -y \
-    xx-c-essentials xx-cxx-essentials pkg-config \
-    liburing-dev
+RUN --mount=type=cache,target=/etc/apk/cache xx-apk add musl-dev liburing-dev clang-dev
+
 
 # Set up Rust toolchain
 WORKDIR /app
@@ -157,7 +123,7 @@ ARG RUST_PROFILE=release
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/app/target,id=cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-${RUST_PROFILE} \
+    --mount=type=cache,target=/app/target,id=cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-musl-${RUST_PROFILE} \
     bash <<'EOF'
     set -o allexport
     set -o xtrace
@@ -167,7 +133,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     mkdir /out/sbin
     PACKAGE=conduwuit
     xx-cargo build --locked --profile ${RUST_PROFILE} \
-        -p $PACKAGE;
+        -p $PACKAGE --features libclang_static;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
     for BINARY in "${BINARIES[@]}"; do

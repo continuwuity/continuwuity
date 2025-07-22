@@ -847,6 +847,7 @@ dependencies = [
 name = "conduwuit"
 version = "0.5.0-rc.6"
 dependencies = [
+ "bindgen 0.71.1",
  "clap",
  "conduwuit_admin",
  "conduwuit_api",

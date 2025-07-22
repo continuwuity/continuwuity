@@ -162,6 +162,15 @@ conduwuit_mods = [
     "conduwuit-core/conduwuit_mods",
 ]
 
+libclang_static = [
+    "bindgen/static"
+    # "clang-sys/static"
+]
+
+[build-dependencies]
+bindgen = {version = "0.71.1", default-features = false}
+# clang-sys = {version = "1", default-features = false}
+
 [dependencies]
 conduwuit-admin.workspace = true
 conduwuit-api.workspace = true
