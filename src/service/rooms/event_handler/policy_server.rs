@@ -65,7 +65,7 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 		"Checking event for spam with policy server"
 	);
 	let response = tokio::time::timeout(
-		Duration::from_secs(10),
+		Duration::from_secs(self.services.server.config.policy_server_request_timeout),
 		self.services
 			.sending
 			.send_federation_request(via, PolicyRequest {
