@@ -2225,7 +2225,7 @@ fn default_federation_conn_timeout() -> u64 { 10 }
 
 fn default_federation_timeout() -> u64 { 25 }
 
-fn default_policy_server_request_timeout() -> u64 { 25 }
+fn default_policy_server_request_timeout() -> u64 { 10 }
 
 fn default_federation_idle_timeout() -> u64 { 25 }
 
