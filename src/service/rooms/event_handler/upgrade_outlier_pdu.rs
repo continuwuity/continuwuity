@@ -269,7 +269,11 @@ where
 		}
 
 		// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
-		// also
+		// also.
+
+		// TODO: this is supposed to hide redactions from policy servers, however, for
+		// full efficacy it also needs to hide redactions for unknown events. This
+		// needs to be investigated at a later time.
 		if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
 			debug!(
 				redact_id = %redact_id,

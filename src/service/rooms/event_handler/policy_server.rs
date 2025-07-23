@@ -21,7 +21,8 @@ use ruma::{
 ///
 /// If the policy server marks the event as spam, Ok(false) is returned,
 /// otherwise Ok(true) allows the event. If the policy server cannot be
-/// contacted for whatever reason, Err(e) is returned.
+/// contacted for whatever reason, Err(e) is returned, which generally is a
+/// fail-open operation.
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
 pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Result<bool> {
@@ -113,7 +114,7 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 			room_id = %room_id,
 			"Event was marked as spam by policy server",
 		);
-		return Err!(Request(Forbidden("Event was marked as spam by policy server")));
+		return Ok(false);
 	}
 
 	Ok(true)
