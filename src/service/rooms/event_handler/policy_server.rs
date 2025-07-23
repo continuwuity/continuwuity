@@ -12,7 +12,16 @@ use ruma::{
 	events::{StateEventType, room::policy::RoomPolicyEventContent},
 };
 
-/// Returns Ok if the policy server allows the event
+/// Asks a remote policy server if the event is allowed.
+///
+/// If the event is the `org.matrix.msc4284.policy` configuration state event,
+/// this check is skipped. Similarly, if there is no policy server configured in
+/// the PDU's room, or the configured server is not present in the room, the
+/// check is also skipped.
+///
+/// If the policy server marks the event as spam, Ok(false) is returned,
+/// otherwise Ok(true) allows the event. If the policy server cannot be
+/// contacted for whatever reason, Err(e) is returned.
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
 pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Result<bool> {
