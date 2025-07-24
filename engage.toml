@@ -83,7 +83,7 @@ env DIRENV_DEVSHELL=all-features \
         --workspace \
         --locked \
         --profile test \
-        --all-features \
+        --features full \
         --no-deps \
         --document-private-items \
         --color always
@@ -96,7 +96,7 @@ script = """
 direnv exec . \
 cargo clippy \
     --workspace \
-    --all-features \
+    --features full \
     --locked \
     --profile test \
     --color=always \
@@ -114,7 +114,7 @@ env DIRENV_DEVSHELL=all-features \
         --workspace \
         --locked \
         --profile test \
-        --all-features \
+        --features full \
         --color=always \
         -- \
         -D warnings

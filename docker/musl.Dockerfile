@@ -133,7 +133,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     mkdir /out/sbin
     PACKAGE=conduwuit
     xx-cargo build --locked --profile ${RUST_PROFILE} \
-        -p $PACKAGE --features libclang_static;
+        -p $PACKAGE --no-default-features --features bindgen-static,release_max_log_level,standard;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
     for BINARY in "${BINARIES[@]}"; do

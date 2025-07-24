@@ -48,7 +48,7 @@ vector () {
 	VECTOR_OPTS=$@
 	element "$TOOLCHAIN" $VECTOR_OPTS --no-default-features
 	element "$TOOLCHAIN" $VECTOR_OPTS --features=default
-	element "$TOOLCHAIN" $VECTOR_OPTS --all-features
+	element "$TOOLCHAIN" $VECTOR_OPTS --features full
 }
 
 matrix () {

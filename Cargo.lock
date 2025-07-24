@@ -544,6 +544,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindgen"
+version = "0.72.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f72209734318d0b619a5e0f5129918b848c416e122a3c4ce054e03cb87b726f"
+dependencies = [
+ "bitflags 2.9.1",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.12.1",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash 2.1.1",
+ "shlex",
+ "syn",
+]
+
+[[package]]
 name = "bit_field"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -847,7 +865,6 @@ dependencies = [
 name = "conduwuit"
 version = "0.5.0-rc.6"
 dependencies = [
- "bindgen 0.71.1",
  "clap",
  "conduwuit_admin",
  "conduwuit_api",
@@ -4117,10 +4134,10 @@ dependencies = [
 
 [[package]]
 name = "rust-librocksdb-sys"
-version = "0.33.0+9.11.1"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd#fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd"
+version = "0.38.0+10.4.2"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=01e1128898fc4bbb776e7a6deec2aa3b675b0442#01e1128898fc4bbb776e7a6deec2aa3b675b0442"
 dependencies = [
- "bindgen 0.71.1",
+ "bindgen 0.72.0",
  "bzip2-sys",
  "cc",
  "glob",
@@ -4134,8 +4151,8 @@ dependencies = [
 
 [[package]]
 name = "rust-rocksdb"
-version = "0.37.0"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd#fc9a99ac54a54208f90fdcba33ae6ee8bc3531dd"
+version = "0.42.1"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=01e1128898fc4bbb776e7a6deec2aa3b675b0442#01e1128898fc4bbb776e7a6deec2aa3b675b0442"
 dependencies = [
  "libc",
  "rust-librocksdb-sys",

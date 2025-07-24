@@ -65,11 +65,11 @@ Tests, compilation, and linting can be run with standard Cargo commands:
 cargo test
 
 # Check compilation
-cargo check --workspace --all-features
+cargo check --workspace --features full
 
 # Run lints
-cargo clippy --workspace --all-features
-# Auto-fix: cargo clippy --workspace --all-features --fix --allow-staged;
+cargo clippy --workspace --features full
+# Auto-fix: cargo clippy --workspace --features full --fix --allow-staged;
 
 # Format code (must use nightly)
 cargo +nightly fmt

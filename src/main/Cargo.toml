@@ -43,6 +43,11 @@ assets = [
 
 [features]
 default = [
+    "standard",
+    "release_max_log_level",
+	"bindgen-runtime", # replace with bindgen-static on alpine
+]
+standard = [
     "blurhashing",
 	"brotli_compression",
 	"element_hacks",
@@ -52,10 +57,17 @@ default = [
 	"jemalloc_conf",
 	"journald",
 	"media_thumbnail",
-	"release_max_log_level",
 	"systemd",
 	"url_preview",
-	"zstd_compression",
+	"zstd_compression"
+]
+full = [
+    "standard",
+    "hardened_malloc",
+    "jemalloc_prof",
+    "perf_measurements",
+    "tokio_console"
+    # sentry_telemetry
 ]
 
 blurhashing = [
@@ -161,14 +173,17 @@ zstd_compression = [
 conduwuit_mods = [
     "conduwuit-core/conduwuit_mods",
 ]
-
-libclang_static = [
-    "bindgen/static"
+bindgen-static = [
+    # "bindgen/static"
     # "clang-sys/static"
+    "conduwuit-database/bindgen-static"
+]
+bindgen-runtime = [
+    "conduwuit-database/bindgen-runtime"
 ]
 
 [build-dependencies]
-bindgen = {version = "0.71.1", default-features = false}
+# bindgen = {version = "0.71.1", default-features = false}
 # clang-sys = {version = "1", default-features = false}
 
 [dependencies]

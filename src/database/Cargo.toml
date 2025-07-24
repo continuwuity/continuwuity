@@ -44,6 +44,14 @@ zstd_compression = [
 	"conduwuit-core/zstd_compression",
 	"rust-rocksdb/zstd",
 ]
+bindgen-static = [
+    # "bindgen/static"
+    # "clang-sys/static"
+    "rust-rocksdb/bindgen-static"
+]
+bindgen-runtime = [
+    "rust-rocksdb/bindgen-runtime"
+]
 
 [dependencies]
 async-channel.workspace = true

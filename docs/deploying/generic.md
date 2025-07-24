@@ -44,7 +44,7 @@ If wanting to build using standard Rust toolchains, make sure you install:
 - (On linux) `pkg-config` on the compiling machine to allow finding `liburing`
 - A C++ compiler and (on linux) `libclang` for RocksDB
 
-You can build Continuwuity using `cargo build --release --all-features`.
+You can build Continuwuity using `cargo build --release`.
 
 ### Building with Nix
 
