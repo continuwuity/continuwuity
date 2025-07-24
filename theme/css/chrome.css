@@ -605,3 +605,8 @@ ul#searchresults span.teaser em {
     margin-inline-start: -14px;
     width: 14px;
 }
+
+/* HACK: Stop the keyboard shortcuts from adding a giant space at the top */
+#mdbook-help-container {
+    display: none;
+}
