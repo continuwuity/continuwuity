@@ -196,5 +196,5 @@ The initial implementation PR is available [here][1].
 [4]: https://github.com/rust-lang/rust/issues/28794#issuecomment-368693049
 [5]: https://github.com/rust-lang/cargo/issues/12746
 [6]: https://crates.io/crates/hot-lib-reloader/
-[7]: https://matrix.to/#/#continuwuity:continuwuity.org
+[7]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [8]: https://crates.io/crates/libloading

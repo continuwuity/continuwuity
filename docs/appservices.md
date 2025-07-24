@@ -3,7 +3,7 @@
 ## Getting help
 
 If you run into any problems while setting up an Appservice: ask us in
-[#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org) or
+[#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) or
 [open an issue on Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/issues/new).
 
 ## Set up the appservice - general instructions

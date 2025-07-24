@@ -75,9 +75,9 @@ subject to enforcement action.
 ## Matrix Community
 
 These Community Guidelines apply to the entire
-[Continuwuity Matrix Space](https://matrix.to/#/#space:continuwuity.org) and its rooms, including:
+[Continuwuity Matrix Space](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) and its rooms, including:
 
-### [#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org)
+### [#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
 
 This room is for support and discussions about Continuwuity. Ask questions, share insights, and help
 each other out while adhering to these guidelines.
@@ -85,7 +85,7 @@ each other out while adhering to these guidelines.
 We ask that this room remain focused on the Continuwuity software specifically: the team are
 typically happy to engage in conversations about related subjects in the off-topic room.
 
-### [#offtopic:continuwuity.org](https://matrix.to/#/#offtopic:continuwuity.org)
+### [#offtopic:continuwuity.org](https://matrix.to/#/#offtopic:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
 
 For off-topic community conversations about any subject. While this room allows for a wide range of
 topics, the same guidelines apply. Please keep discussions respectful and inclusive, and avoid
@@ -95,7 +95,7 @@ care and respect for diverse viewpoints.
 General topics, such as world events, are welcome as long as they follow the guidelines. If a member
 of the team asks for the conversation to end, please respect their decision.
 
-### [#dev:continuwuity.org](https://matrix.to/#/#dev:continuwuity.org)
+### [#dev:continuwuity.org](https://matrix.to/#/#dev:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
 
 This room is dedicated to discussing active development of Continuwuity, including ongoing issues or
 code development. Collaboration here must follow these guidelines, and please consider raising

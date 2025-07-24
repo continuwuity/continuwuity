@@ -166,7 +166,7 @@ their contributions accepted. This includes users who have been banned from
 continuwuity Matrix rooms for Code of Conduct violations.
 
 [issues]: https://forgejo.ellis.link/continuwuation/continuwuity/issues
-[continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org
+[continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [complement]: https://github.com/matrix-org/complement/
 [sytest]: https://github.com/matrix-org/sytest/
 [mdbook]: https://rust-lang.github.io/mdBook/

@@ -115,7 +115,7 @@ When incorporating code from other forks:
 
 #### Contact
 
-Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org) and [space](https://matrix.to/#/#space:continuwuity.org) to chat with us about the project!
+Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) and [space](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) to chat with us about the project!
 
 <!-- ANCHOR_END: footer -->
 
