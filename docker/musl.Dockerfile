@@ -13,7 +13,7 @@ FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-alpine${ALPINE_VERSION} AS t
 RUN --mount=type=cache,target=/etc/apk/cache apk add \
     build-base pkgconfig make jq bash \
     curl git file \
-    llvm-dev clang clang-dev lld
+    llvm-dev clang clang-static lld
 
 
 # Developer tool versions
@@ -37,8 +37,7 @@ COPY --from=xx / /
 ARG TARGETPLATFORM
 
 # Install libraries linked by the binary
-RUN --mount=type=cache,target=/etc/apk/cache xx-apk add musl-dev liburing-dev clang-dev
-
+RUN --mount=type=cache,target=/etc/apk/cache xx-apk add musl-dev gcc g++ liburing-dev
 
 # Set up Rust toolchain
 WORKDIR /app

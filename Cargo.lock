@@ -527,24 +527,6 @@ dependencies = [
 
 [[package]]
 name = "bindgen"
-version = "0.71.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f58bf3d7db68cfbac37cfc485a8d711e87e064c3d0fe0435b92f7a407f9d6b3"
-dependencies = [
- "bitflags 2.9.1",
- "cexpr",
- "clang-sys",
- "itertools 0.13.0",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash 2.1.1",
- "shlex",
- "syn",
-]
-
-[[package]]
-name = "bindgen"
 version = "0.72.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f72209734318d0b619a5e0f5129918b848c416e122a3c4ce054e03cb87b726f"
@@ -4146,7 +4128,7 @@ dependencies = [
 [[package]]
 name = "rust-librocksdb-sys"
 version = "0.38.0+10.4.2"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=01e1128898fc4bbb776e7a6deec2aa3b675b0442#01e1128898fc4bbb776e7a6deec2aa3b675b0442"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=99b0319416b64830dd6f8943e1f65e15aeef18bc#99b0319416b64830dd6f8943e1f65e15aeef18bc"
 dependencies = [
  "bindgen 0.72.0",
  "bzip2-sys",
@@ -4163,7 +4145,7 @@ dependencies = [
 [[package]]
 name = "rust-rocksdb"
 version = "0.42.1"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=01e1128898fc4bbb776e7a6deec2aa3b675b0442#01e1128898fc4bbb776e7a6deec2aa3b675b0442"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=99b0319416b64830dd6f8943e1f65e15aeef18bc#99b0319416b64830dd6f8943e1f65e15aeef18bc"
 dependencies = [
  "libc",
  "rust-librocksdb-sys",
@@ -6347,7 +6329,6 @@ version = "2.0.15+zstd.1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb81183ddd97d0c74cedf1d50d85c8d08c1b8b68ee863bdee9e706eedba1a237"
 dependencies = [
- "bindgen 0.71.1",
  "cc",
  "pkg-config",
 ]

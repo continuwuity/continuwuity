@@ -391,7 +391,7 @@ features = [
 
 [workspace.dependencies.rust-rocksdb]
 git = "https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1"
-rev = "01e1128898fc4bbb776e7a6deec2aa3b675b0442"
+rev = "99b0319416b64830dd6f8943e1f65e15aeef18bc"
 default-features = false
 features = [
 	"multi-threaded-cf",
