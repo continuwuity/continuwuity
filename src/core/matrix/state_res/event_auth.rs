@@ -149,7 +149,6 @@ where
 	for<'a> &'a E: Event + Send,
 {
 	debug!(
-		event_id = %incoming_event.event_id(),
 		event_type = ?incoming_event.event_type(),
 		"auth_check beginning"
 	);
@@ -377,6 +376,11 @@ where
 			&user_for_join_auth_membership,
 			&room_create_event,
 		)? {
+			warn!(
+				target_user = ?target_user,
+				sender = ?sender,
+				"m.room.member event was not allowed",
+			);
 			return Ok(false);
 		}
 
@@ -412,7 +416,10 @@ where
 	let membership_state = membership_state.deserialize()?;
 
 	if !matches!(membership_state, MembershipState::Join) {
-		warn!("sender's membership is not join");
+		warn!(
+			membership = %membership_state,
+			"sender's membership is not join"
+		);
 		return Ok(false);
 	}
 
@@ -511,6 +518,7 @@ where
 		};
 
 		if !check_redaction(room_version, incoming_event, sender_power_level, redact_level)? {
+			warn!("redaction event was not allowed");
 			return Ok(false);
 		}
 	}

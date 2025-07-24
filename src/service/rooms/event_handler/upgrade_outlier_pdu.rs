@@ -17,6 +17,13 @@ use crate::rooms::{
 };
 
 #[implement(super::Service)]
+#[tracing::instrument(
+	level = "debug",
+	skip_all,
+	fields(
+		event_id = incoming_pdu.event_id().as_str(),
+	)
+)]
 pub(super) async fn upgrade_outlier_to_timeline_pdu<Pdu>(
 	&self,
 	incoming_pdu: PduEvent,
@@ -47,10 +54,7 @@ where
 		return Err!(Request(InvalidParam("Event has been soft failed")));
 	}
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Upgrading PDU from outlier to timeline"
-	);
+	trace!("Upgrading PDU from outlier to timeline");
 	let timer = Instant::now();
 	let room_version_id = get_room_version_id(create_event)?;
 
@@ -58,10 +62,7 @@ where
 	//     backwards extremities doing all the checks in this list starting at 1.
 	//     These are not timeline events.
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Resolving state at event"
-	);
+	trace!("Resolving state at event");
 	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
@@ -80,10 +81,7 @@ where
 
 	let room_version = to_room_version(&room_version_id);
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Performing auth check to upgrade"
-	);
+	trace!("Performing auth check to upgrade");
 	// 11. Check the auth of the event passes based on the state of the event
 	let state_fetch_state = &state_at_incoming_event;
 	let state_fetch = |k: StateEventType, s: StateKey| async move {
@@ -93,10 +91,7 @@ where
 		self.services.timeline.get_pdu(event_id).await.ok()
 	};
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Running initial auth check"
-	);
+	debug!("Running initial auth check");
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -110,10 +105,7 @@ where
 		return Err!(Request(Forbidden("Event has failed auth check with state at the event.")));
 	}
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Gathering auth events"
-	);
+	trace!("Gathering auth events");
 	let auth_events = self
 		.services
 		.state
@@ -131,10 +123,7 @@ where
 		ready(auth_events.get(&key).map(ToOwned::to_owned))
 	};
 
-	debug!(
-		event_id = %incoming_pdu.event_id,
-		"Running auth check with claimed state auth"
-	);
+	debug!("Running auth check with claimed state auth");
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
@@ -250,19 +239,16 @@ where
 		// no reason to re-calculate that.
 		// 14-pre. If the event is not a state event, ask the policy server about it
 		if incoming_pdu.state_key.is_none() {
-			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+			debug!("Checking policy server for event");
 			match self.ask_policy_server(&incoming_pdu, room_id).await {
 				| Ok(false) => {
-					warn!(
-						event_id = %incoming_pdu.event_id,
-						"Event has been marked as spam by policy server"
-					);
+					warn!("Event has been marked as spam by policy server");
 					soft_fail = true;
 				},
 				| _ => {
 					debug!(
-						event_id = %incoming_pdu.event_id,
-						"Event has passed policy server check or the policy server was unavailable."
+						"Event has passed policy server check or the policy server was \
+						 unavailable."
 					);
 				},
 			}
