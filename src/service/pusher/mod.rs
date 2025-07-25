@@ -287,18 +287,22 @@ impl Service {
 	{
 		let mut notify = None;
 		let mut tweaks = Vec::new();
+		if event.room_id().is_none() {
+			// TODO(hydra): does this matter?
+			return Ok(());
+		}
 
 		let power_levels: RoomPowerLevelsEventContent = self
 			.services
 			.state_accessor
-			.room_state_get(event.room_id(), &StateEventType::RoomPowerLevels, "")
+			.room_state_get(event.room_id().unwrap(), &StateEventType::RoomPowerLevels, "")
 			.await
 			.and_then(|event| event.get_content())
 			.unwrap_or_default();
 
 		let serialized = event.to_format();
 		for action in self
-			.get_actions(user, &ruleset, &power_levels, &serialized, event.room_id())
+			.get_actions(user, &ruleset, &power_levels, &serialized, event.room_id().unwrap())
 			.await
 		{
 			let n = match action {
@@ -426,7 +430,7 @@ impl Service {
 				let mut notifi = Notification::new(d);
 
 				notifi.event_id = Some(event.event_id().to_owned());
-				notifi.room_id = Some(event.room_id().to_owned());
+				notifi.room_id = Some(event.room_id().unwrap().to_owned());
 				if http
 					.data
 					.get("org.matrix.msc4076.disable_badge_count")
@@ -464,14 +468,14 @@ impl Service {
 					notifi.room_name = self
 						.services
 						.state_accessor
-						.get_name(event.room_id())
+						.get_name(event.room_id().unwrap())
 						.await
 						.ok();
 
 					notifi.room_alias = self
 						.services
 						.state_accessor
-						.get_canonical_alias(event.room_id())
+						.get_canonical_alias(event.room_id().unwrap())
 						.await
 						.ok();
 				}

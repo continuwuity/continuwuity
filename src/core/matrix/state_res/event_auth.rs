@@ -2,10 +2,10 @@ use std::{borrow::Borrow, collections::BTreeSet};
 
 use futures::{
 	Future,
-	future::{OptionFuture, join3},
+	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId,
+	Int, OwnedRoomId, OwnedUserId, RoomVersionId, UserId,
 	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
@@ -44,6 +44,15 @@ struct RoomMemberContentFields {
 	join_authorised_via_users_server: Option<Raw<OwnedUserId>>,
 }
 
+#[derive(Deserialize)]
+struct RoomCreateContentFields {
+	room_version: Option<Raw<RoomVersionId>>,
+	creator: Option<Raw<IgnoredAny>>,
+	additional_creators: Option<Vec<Raw<OwnedUserId>>>,
+	#[serde(rename = "m.federate", default = "ruma::serde::default_true")]
+	federate: bool,
+}
+
 /// For the given event `kind` what are the relevant auth events that are needed
 /// to authenticate this `content`.
 ///
@@ -56,16 +65,24 @@ pub fn auth_types_for_event(
 	sender: &UserId,
 	state_key: Option<&str>,
 	content: &RawJsonValue,
+	room_version: &RoomVersion,
 ) -> serde_json::Result<Vec<(StateEventType, StateKey)>> {
 	if kind == &TimelineEventType::RoomCreate {
 		return Ok(vec![]);
 	}
 
-	let mut auth_types = vec![
-		(StateEventType::RoomPowerLevels, StateKey::new()),
-		(StateEventType::RoomMember, sender.as_str().into()),
-		(StateEventType::RoomCreate, StateKey::new()),
-	];
+	let mut auth_types = if room_version.room_ids_as_hashes {
+		vec![
+			(StateEventType::RoomPowerLevels, StateKey::new()),
+			(StateEventType::RoomMember, sender.as_str().into()),
+		]
+	} else {
+		vec![
+			(StateEventType::RoomPowerLevels, StateKey::new()),
+			(StateEventType::RoomMember, sender.as_str().into()),
+			(StateEventType::RoomCreate, StateKey::new()),
+		]
+	};
 
 	if kind == &TimelineEventType::RoomMember {
 		#[derive(Deserialize)]
@@ -141,6 +158,7 @@ pub async fn auth_check<E, F, Fut>(
 	incoming_event: &E,
 	current_third_party_invite: Option<&E>,
 	fetch_state: F,
+	create_event: &E,
 ) -> Result<bool, Error>
 where
 	F: Fn(&StateEventType, &str) -> Fut + Send,
@@ -169,12 +187,6 @@ where
 	//
 	// 1. If type is m.room.create:
 	if *incoming_event.event_type() == TimelineEventType::RoomCreate {
-		#[derive(Deserialize)]
-		struct RoomCreateContentFields {
-			room_version: Option<Raw<RoomVersionId>>,
-			creator: Option<Raw<IgnoredAny>>,
-		}
-
 		debug!("start m.room.create check");
 
 		// If it has any previous events, reject
@@ -184,14 +196,16 @@ where
 		}
 
 		// If the domain of the room_id does not match the domain of the sender, reject
-		let Some(room_id_server_name) = incoming_event.room_id().server_name() else {
-			warn!("room ID has no servername");
-			return Ok(false);
-		};
-
-		if room_id_server_name != sender.server_name() {
-			warn!("servername of room ID does not match servername of sender");
-			return Ok(false);
+		if incoming_event.room_id().is_some() {
+			let Some(room_id_server_name) = incoming_event.room_id().unwrap().server_name()
+			else {
+				warn!("room ID has no servername");
+				return Ok(false);
+			};
+			if room_id_server_name != sender.server_name() {
+				warn!("servername of room ID does not match servername of sender");
+				return Ok(false);
+			}
 		}
 
 		// If content.room_version is present and is not a recognized version, reject
@@ -204,7 +218,15 @@ where
 			return Ok(false);
 		}
 
-		if !room_version.use_room_create_sender {
+		// TODO(hydra): If the create event has a room_id, reject
+		if room_version.room_ids_as_hashes && incoming_event.room_id().is_some() {
+			warn!("this room version does not support room IDs in m.room.create");
+			return Ok(false);
+		}
+
+		if !room_version.use_room_create_sender
+			&& !room_version.explicitly_privilege_room_creators
+		{
 			// If content has no creator field, reject
 			if content.creator.is_none() {
 				warn!("no creator field found in m.room.create content");
@@ -215,6 +237,8 @@ where
 		debug!("m.room.create event was allowed");
 		return Ok(true);
 	}
+
+	// NOTE(hydra): We must have an event ID from this point forward.
 
 	/*
 	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
@@ -242,54 +266,102 @@ where
 	}
 	*/
 
-	let (room_create_event, power_levels_event, sender_member_event) = join3(
-		fetch_state(&StateEventType::RoomCreate, ""),
+	let (power_levels_event, sender_member_event) = join(
+		// fetch_state(&StateEventType::RoomCreate, ""),
 		fetch_state(&StateEventType::RoomPowerLevels, ""),
 		fetch_state(&StateEventType::RoomMember, sender.as_str()),
 	)
 	.await;
 
-	let room_create_event = match room_create_event {
-		| None => {
-			warn!("no m.room.create event in auth chain");
-			return Ok(false);
-		},
-		| Some(e) => e,
+	// TODO(hydra): Re-enable <v12 checks
+	// let room_create_event = match room_create_event {
+	// 	| None => {
+	// 		// Room was either v11 with no create event, or v12+ room
+	// 		if incoming_event.room_id().is_some() {
+	// 			// invalid v11
+	// 			warn!("no m.room.create event found in claimed state");
+	// 			return Ok(false);
+	// 		}
+	// 		// v12 room
+	// 		debug!("no m.room.create event found, assuming v12 room");
+	// 		create_event.clone()
+	// 	},
+	// 	| Some(e) => e,
+	// };
+	let room_create_event = create_event.clone();
+
+	// Get the content of the room create event, used later.
+	let room_create_content: RoomCreateContentFields =
+		from_json_str(room_create_event.content().get())?;
+	if room_create_content
+		.room_version
+		.is_some_and(|v| v.deserialize().is_err())
+	{
+		warn!("invalid room version found in m.room.create event");
+		return Ok(false);
+	}
+	let expected_room_id = match room_version.room_ids_as_hashes {
+		// If the room version uses hashes, we replace the create event's event ID leading sigil
+		// with !
+		| true => OwnedRoomId::try_from(room_create_event.event_id().as_str().replace('$', "!"))
+			.expect("Failed to convert event ID to room ID")
+			.clone(),
+		| false => room_create_event.room_id().unwrap().to_owned(),
 	};
 
-	if incoming_event.room_id() != room_create_event.room_id() {
-		warn!("room_id of incoming event does not match room_id of m.room.create event");
+	if incoming_event.room_id().unwrap() != expected_room_id {
+		warn!(
+			expected = %expected_room_id,
+			received = %incoming_event.room_id().unwrap(),
+			"room_id of incoming event ({}) does not match room_id of m.room.create event ({})",
+			incoming_event.room_id().unwrap(),
+			expected_room_id,
+		);
+		return Ok(false);
+	}
+
+	// If the create event is referenced in the event's auth events, and this is a
+	// v12 room, reject
+	let claims_create_event = incoming_event
+		.auth_events()
+		.any(|id| id == room_create_event.event_id());
+	if room_version.room_ids_as_hashes && claims_create_event {
+		warn!("m.room.create event incorrectly found in auth events");
+		return Ok(false);
+	} else if !room_version.room_ids_as_hashes && !claims_create_event {
+		// If the create event is not referenced in the event's auth events, and this is
+		// a v11 room, reject
+		warn!("no m.room.create event found in auth events");
 		return Ok(false);
 	}
 
 	if let Some(ref pe) = power_levels_event {
-		if pe.room_id() != room_create_event.room_id() {
-			warn!("room_id of power levels event does not match room_id of m.room.create event");
+		if *pe.room_id().unwrap() != expected_room_id {
+			warn!(
+				expected = %expected_room_id,
+				received = %pe.room_id().unwrap(),
+				"room_id of power levels event does not match room_id of m.room.create event"
+			);
 			return Ok(false);
 		}
 	}
 
 	// 3. If event does not have m.room.create in auth_events reject
-	if !incoming_event
-		.auth_events()
-		.any(|id| id == room_create_event.event_id())
-	{
-		warn!("no m.room.create event in auth events");
-		return Ok(false);
-	}
+	// removed as part of Hydra.
+	// TODO: reintroduce this for <v12 lol
+	// if !incoming_event
+	// 	.auth_events()
+	// 	.any(|id| id == room_create_event.event_id())
+	// {
+	// 	warn!("no m.room.create event in auth events");
+	// 	return Ok(false);
+	// }
 
 	// If the create event content has the field m.federate set to false and the
 	// sender domain of the event does not match the sender domain of the create
 	// event, reject.
-	#[derive(Deserialize)]
-	#[allow(clippy::items_after_statements)]
-	struct RoomCreateContentFederate {
-		#[serde(rename = "m.federate", default = "ruma::serde::default_true")]
-		federate: bool,
-	}
-	let room_create_content: RoomCreateContentFederate =
-		from_json_str(room_create_event.content().get())?;
-	if !room_create_content.federate
+	if !room_version.room_ids_as_hashes
+		&& !room_create_content.federate
 		&& room_create_event.sender().server_name() != incoming_event.sender().server_name()
 	{
 		warn!(
@@ -321,7 +393,7 @@ where
 		debug!("starting m.room.member check");
 		let state_key = match incoming_event.state_key() {
 			| None => {
-				warn!("no statekey in member event");
+				warn!("no state key in member event");
 				return Ok(false);
 			},
 			| Some(s) => s,
@@ -377,6 +449,7 @@ where
 			&user_for_join_auth_membership,
 			&room_create_event,
 		)? {
+			warn!("membership change not valid for some reason");
 			return Ok(false);
 		}
 
@@ -394,8 +467,16 @@ where
 		},
 	};
 
-	if sender_member_event.room_id() != room_create_event.room_id() {
-		warn!("room_id of incoming event does not match room_id of m.room.create event");
+	if sender_member_event
+		.room_id()
+		.expect("we have a room ID for non create events")
+		!= room_create_event.room_id_or_hash()
+	{
+		warn!(
+			"room_id of incoming event ({}) does not match room_id of m.room.create event ({})",
+			sender_member_event.room_id_or_hash(),
+			room_create_event.room_id_or_hash()
+		);
 		return Ok(false);
 	}
 
@@ -417,7 +498,7 @@ where
 	}
 
 	// If type is m.room.third_party_invite
-	let sender_power_level = match &power_levels_event {
+	let mut sender_power_level = match &power_levels_event {
 		| Some(pl) => {
 			let content =
 				deserialize_power_levels_content_fields(pl.content().get(), room_version)?;
@@ -439,6 +520,24 @@ where
 			if is_creator { int!(100) } else { int!(0) }
 		},
 	};
+	if room_version.explicitly_privilege_room_creators {
+		// If the user sent the create event, or is listed in additional_creators, just
+		// give them Int::MAX
+		if sender == room_create_event.sender()
+			|| room_create_content
+				.additional_creators
+				.as_ref()
+				.is_some_and(|creators| {
+					creators
+						.iter()
+						.any(|c| c.deserialize().is_ok_and(|c| c == *sender))
+				}) {
+			trace!("privileging room creator or additional creator");
+			// This user is the room creator or an additional creator, give them max power
+			// level
+			sender_power_level = Int::MAX;
+		}
+	}
 
 	// Allow if and only if sender's current power level is greater than
 	// or equal to the invite level
@@ -554,6 +653,7 @@ where
 	struct GetThirdPartyInvite {
 		third_party_invite: Option<Raw<ThirdPartyInvite>>,
 	}
+	let create_content = from_json_str::<RoomCreateContentFields>(create_room.content().get())?;
 	let content = current_event.content();
 
 	let target_membership = from_json_str::<GetMembership>(content.get())?.membership;
@@ -576,20 +676,40 @@ where
 		| None => RoomPowerLevelsEventContent::default(),
 	};
 
-	let sender_power = power_levels
+	let mut sender_power = power_levels
 		.users
 		.get(sender)
 		.or_else(|| sender_is_joined.then_some(&power_levels.users_default));
 
-	let target_power = power_levels.users.get(target_user).or_else(|| {
+	let mut target_power = power_levels.users.get(target_user).or_else(|| {
 		(target_membership == MembershipState::Join).then_some(&power_levels.users_default)
 	});
 
-	let join_rules = if let Some(jr) = &join_rules_event {
-		from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule
-	} else {
-		JoinRule::Invite
-	};
+	let mut creators = BTreeSet::new();
+	creators.insert(create_room.sender().to_owned());
+	if room_version.explicitly_privilege_room_creators {
+		// Explicitly privilege room creators
+		// If the sender sent the create event, or in additional_creators, give them
+		// Int::MAX. Same case for target.
+		if let Some(additional_creators) = &create_content.additional_creators {
+			for c in additional_creators {
+				if let Ok(c) = c.deserialize() {
+					creators.insert(c);
+				}
+			}
+		}
+		if creators.contains(sender) {
+			sender_power = Some(&Int::MAX);
+		}
+		if creators.contains(target_user) {
+			target_power = Some(&Int::MAX);
+		}
+	}
+
+	let mut join_rules = JoinRule::Invite;
+	if let Some(jr) = &join_rules_event {
+		join_rules = from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule;
+	}
 
 	let power_levels_event_id = power_levels_event.as_ref().map(Event::event_id);
 	let sender_membership_event_id = sender_membership_event.as_ref().map(Event::event_id);
@@ -598,7 +718,7 @@ where
 
 	let user_for_join_auth_is_valid = if let Some(user_for_join_auth) = user_for_join_auth {
 		// Is the authorised user allowed to invite users into this room
-		let (auth_user_pl, invite_level) = if let Some(pl) = &power_levels_event {
+		let (mut auth_user_pl, invite_level) = if let Some(pl) = &power_levels_event {
 			// TODO Refactor all powerlevel parsing
 			let invite =
 				deserialize_power_levels_content_invite(pl.content().get(), room_version)?.invite;
@@ -614,6 +734,9 @@ where
 		} else {
 			(int!(0), int!(0))
 		};
+		if creators.contains(user_for_join_auth) {
+			auth_user_pl = Int::MAX;
+		}
 		(user_for_join_auth_membership == &MembershipState::Join)
 			&& (auth_user_pl >= invite_level)
 	} else {
@@ -623,6 +746,7 @@ where
 
 	Ok(match target_membership {
 		| MembershipState::Join => {
+			debug!("starting target_membership=join check");
 			// 1. If the only previous event is an m.room.create and the state_key is the
 			//    creator,
 			// allow
@@ -634,7 +758,10 @@ where
 			let no_more_prev_events = prev_events.next().is_none();
 
 			if prev_event_is_create_event && no_more_prev_events {
-				let is_creator = if room_version.use_room_create_sender {
+				debug!("checking if sender is a room creator for initial membership event");
+				let is_creator = if room_version.explicitly_privilege_room_creators {
+					creators.contains(target_user) && creators.contains(sender)
+				} else if room_version.use_room_create_sender {
 					let creator = create_room.sender();
 
 					creator == sender && creator == target_user
@@ -648,10 +775,15 @@ where
 				};
 
 				if is_creator {
+					debug!("sender is room creator, allowing join");
 					return Ok(true);
 				}
+				debug!("sender is not room creator, proceeding with normal auth checks");
 			}
-
+			let membership_allows_join = matches!(
+				target_user_current_membership,
+				MembershipState::Join | MembershipState::Invite
+			);
 			if sender != target_user {
 				// If the sender does not match state_key, reject.
 				warn!("Can't make other user join");
@@ -660,39 +792,48 @@ where
 				// If the sender is banned, reject.
 				warn!(?target_user_membership_event_id, "Banned user can't join");
 				false
-			} else if (join_rules == JoinRule::Invite
-                    || room_version.allow_knocking && (join_rules == JoinRule::Knock || matches!(join_rules, JoinRule::KnockRestricted(_))))
-                // If the join_rule is invite then allow if membership state is invite or join
-                    && (target_user_current_membership == MembershipState::Join
-                        || target_user_current_membership == MembershipState::Invite)
-			{
-				true
-			} else if room_version.restricted_join_rules
-				&& matches!(join_rules, JoinRule::Restricted(_))
-				|| room_version.knock_restricted_join_rule
-					&& matches!(join_rules, JoinRule::KnockRestricted(_))
-			{
-				// If the join_rule is restricted or knock_restricted
-				if matches!(
-					target_user_current_membership,
-					MembershipState::Invite | MembershipState::Join
-				) {
-					// If membership state is join or invite, allow.
-					true
-				} else {
-					// If the join_authorised_via_users_server key in content is not a user with
-					// sufficient permission to invite other users, reject.
-					// Otherwise, allow.
-					user_for_join_auth_is_valid
-				}
 			} else {
-				// If the join_rule is public, allow.
-				// Otherwise, reject.
-				join_rules == JoinRule::Public
+				match join_rules {
+					| JoinRule::Invite if !membership_allows_join => {
+						warn!("Join rule is invite but membership does not allow join");
+						false
+					},
+					| JoinRule::Knock if !room_version.allow_knocking => {
+						warn!("Join rule is knock but room version does not allow knocking");
+						false
+					},
+					| JoinRule::Knock if !membership_allows_join => {
+						warn!("Join rule is knock but membership does not allow join");
+						false
+					},
+					| JoinRule::KnockRestricted(_) if !room_version.knock_restricted_join_rule =>
+					{
+						warn!(
+							"Join rule is knock_restricted but room version does not support it"
+						);
+						false
+					},
+					| JoinRule::KnockRestricted(_) if !membership_allows_join => {
+						warn!("Join rule is knock_restricted but membership does not allow join");
+						false
+					},
+					| JoinRule::Restricted(_) | JoinRule::KnockRestricted(_) =>
+						if !user_for_join_auth_is_valid {
+							warn!(
+								"Join rule is a restricted one but no valid authorising user \
+								 was given"
+							);
+							false
+						} else {
+							true
+						},
+					| _ => true,
+				}
 			}
 		},
 		| MembershipState::Invite => {
 			// If content has third_party_invite key
+			debug!("starting target_membership=invite check");
 			match third_party_invite.and_then(|i| i.deserialize().ok()) {
 				| Some(tp_id) =>
 					if target_user_current_membership == MembershipState::Ban {
@@ -850,6 +991,7 @@ fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int)
 		required_level = i64::from(event_type_power_level),
 		user_level = i64::from(user_level),
 		state_key = ?event.state_key(),
+		power_level_event_id = ?ple.map(|e| e.event_id().as_str()),
 		"permissions factors",
 	);
 

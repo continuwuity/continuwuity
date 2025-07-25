@@ -222,7 +222,7 @@ async fn visibility_filter<Pdu: Event + Send + Sync>(
 	services
 		.rooms
 		.state_accessor
-		.user_can_see_event(sender_user, pdu.room_id(), pdu.event_id())
+		.user_can_see_event(sender_user, &pdu.room_id_or_hash(), pdu.event_id())
 		.await
 		.then_some(item)
 }
