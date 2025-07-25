@@ -54,7 +54,7 @@ pub(crate) async fn kick_user_route(
 				..event
 			}),
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

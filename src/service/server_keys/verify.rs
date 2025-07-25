@@ -1,4 +1,6 @@
-use conduwuit::{Err, Result, implement, matrix::event::gen_event_id_canonical_json};
+use conduwuit::{
+	Err, Result, debug, debug_warn, implement, matrix::event::gen_event_id_canonical_json,
+};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId, signatures::Verified,
 };
@@ -28,18 +30,25 @@ pub async fn validate_and_add_event_id_no_fetch(
 	pdu: &RawJsonValue,
 	room_version: &RoomVersionId,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
+	debug!(?pdu, "Validating PDU without fetching keys");
 	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version)?;
+	debug!(event_id = event_id.as_str(), "Generated event ID, checking required keys");
 	if !self.required_keys_exist(&value, room_version).await {
+		debug_warn!(
+			"Event {event_id} is missing required keys, cannot verify without fetching keys"
+		);
 		return Err!(BadServerResponse(debug_warn!(
 			"Event {event_id} cannot be verified: missing keys."
 		)));
 	}
-
+	debug!("All required keys exist, verifying event");
 	if let Err(e) = self.verify_event(&value, Some(room_version)).await {
+		debug_warn!("Event verification failed");
 		return Err!(BadServerResponse(debug_error!(
 			"Event {event_id} failed verification: {e:?}"
 		)));
 	}
+	debug!("Event verified successfully");
 
 	value.insert("event_id".into(), CanonicalJsonValue::String(event_id.as_str().into()));
 
@@ -52,7 +61,7 @@ pub async fn verify_event(
 	event: &CanonicalJsonObject,
 	room_version: Option<&RoomVersionId>,
 ) -> Result<Verified> {
-	let room_version = room_version.unwrap_or(&RoomVersionId::V11);
+	let room_version = room_version.unwrap_or(&RoomVersionId::V12);
 	let keys = self.get_event_keys(event, room_version).await?;
 	ruma::signatures::verify_event(&keys, event, room_version).map_err(Into::into)
 }
@@ -63,7 +72,7 @@ pub async fn verify_json(
 	event: &CanonicalJsonObject,
 	room_version: Option<&RoomVersionId>,
 ) -> Result {
-	let room_version = room_version.unwrap_or(&RoomVersionId::V11);
+	let room_version = room_version.unwrap_or(&RoomVersionId::V12);
 	let keys = self.get_event_keys(event, room_version).await?;
 	ruma::signatures::verify_json(&keys, event.clone()).map_err(Into::into)
 }

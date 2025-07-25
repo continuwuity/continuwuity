@@ -373,7 +373,7 @@ async fn knock_room_helper_local(
 		.build_and_append_pdu(
 			PduBuilder::state(sender_user.to_string(), &content),
 			sender_user,
-			room_id,
+			Some(room_id),
 			&state_lock,
 		)
 		.await
@@ -502,6 +502,7 @@ async fn knock_room_helper_local(
 			knock_event,
 			once(parsed_knock_pdu.event_id.borrow()),
 			&state_lock,
+			room_id,
 		)
 		.await?;
 
@@ -672,7 +673,7 @@ async fn knock_room_helper_remote(
 	let statehash_after_knock = services
 		.rooms
 		.state
-		.append_to_state(&parsed_knock_pdu)
+		.append_to_state(&parsed_knock_pdu, room_id)
 		.await?;
 
 	info!("Updating membership locally to knock state with provided stripped state events");
@@ -701,6 +702,7 @@ async fn knock_room_helper_remote(
 			knock_event,
 			once(parsed_knock_pdu.event_id.borrow()),
 			&state_lock,
+			room_id,
 		)
 		.await?;
 

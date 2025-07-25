@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug_info, debug_warn, err, info,
+	Err, Result, RoomVersion, debug, debug_info, debug_warn, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 	warn,
 };
@@ -68,51 +68,6 @@ pub(crate) async fn create_room_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	let room_id: OwnedRoomId = match &body.room_id {
-		| Some(custom_room_id) => custom_room_id_check(&services, custom_room_id)?,
-		| _ => RoomId::new(&services.server.name),
-	};
-
-	// check if room ID doesn't already exist instead of erroring on auth check
-	if services.rooms.short.get_shortroomid(&room_id).await.is_ok() {
-		return Err!(Request(RoomInUse("Room with that custom room ID already exists",)));
-	}
-
-	if body.visibility == room::Visibility::Public
-		&& services.server.config.lockdown_public_room_directory
-		&& !services.users.is_admin(sender_user).await
-		&& body.appservice_info.is_none()
-	{
-		warn!(
-			"Non-admin user {sender_user} tried to publish {room_id} to the room directory \
-			 while \"lockdown_public_room_directory\" is enabled"
-		);
-
-		if services.server.config.admin_room_notices {
-			services
-				.admin
-				.notice(&format!(
-					"Non-admin user {sender_user} tried to publish {room_id} to the room \
-					 directory while \"lockdown_public_room_directory\" is enabled"
-				))
-				.await;
-		}
-
-		return Err!(Request(Forbidden("Publishing rooms to the room directory is not allowed")));
-	}
-	let _short_id = services
-		.rooms
-		.short
-		.get_or_create_shortroomid(&room_id)
-		.await;
-	let state_lock = services.rooms.state.mutex.lock(&room_id).await;
-
-	let alias: Option<OwnedRoomAliasId> = match body.room_alias_name.as_ref() {
-		| Some(alias) =>
-			Some(room_alias_check(&services, alias, body.appservice_info.as_ref()).await?),
-		| _ => None,
-	};
-
 	let room_version = match body.room_version.clone() {
 		| Some(room_version) =>
 			if services.server.supported_room_version(&room_version) {
@@ -123,6 +78,51 @@ pub(crate) async fn create_room_route(
 				)));
 			},
 		| None => services.server.config.default_room_version.clone(),
+	};
+	let room_features = RoomVersion::new(&room_version)?;
+
+	let room_id: Option<OwnedRoomId> = match room_features.room_ids_as_hashes {
+		| true => None,
+		| false => match &body.room_id {
+			| Some(custom_room_id) => Some(custom_room_id_check(&services, custom_room_id)?),
+			| None => Some(RoomId::new(services.globals.server_name())),
+		},
+	};
+
+	// check if room ID doesn't already exist instead of erroring on auth check
+	if let Some(ref room_id) = room_id {
+		if services.rooms.short.get_shortroomid(&room_id).await.is_ok() {
+			return Err!(Request(RoomInUse("Room with that custom room ID already exists",)));
+		}
+	}
+
+	if body.visibility == room::Visibility::Public
+		&& services.server.config.lockdown_public_room_directory
+		&& !services.users.is_admin(sender_user).await
+		&& body.appservice_info.is_none()
+	{
+		warn!(
+			"Non-admin user {sender_user} tried to publish {room_id:?} to the room directory \
+			 while \"lockdown_public_room_directory\" is enabled"
+		);
+
+		if services.server.config.admin_room_notices {
+			services
+				.admin
+				.notice(&format!(
+					"Non-admin user {sender_user} tried to publish {room_id:?} to the room \
+					 directory while \"lockdown_public_room_directory\" is enabled"
+				))
+				.await;
+		}
+
+		return Err!(Request(Forbidden("Publishing rooms to the room directory is not allowed")));
+	}
+
+	let alias: Option<OwnedRoomAliasId> = match body.room_alias_name.as_ref() {
+		| Some(alias) =>
+			Some(room_alias_check(&services, alias, body.appservice_info.as_ref()).await?),
+		| _ => None,
 	};
 
 	let create_content = match &body.creation_content {
@@ -156,6 +156,10 @@ pub(crate) async fn create_room_route(
 					.try_into()
 					.map_err(|e| err!(Request(BadJson("Invalid creation content: {e}"))))?,
 			);
+			if room_version == V12 {
+				// TODO(hydra): v12 rooms cannot be federated until they are stable.
+				content.insert("m.federate".into(), false.into());
+			}
 			content
 		},
 		| None => {
@@ -164,18 +168,32 @@ pub(crate) async fn create_room_route(
 			let content = match room_version {
 				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
 					RoomCreateEventContent::new_v1(sender_user.to_owned()),
-				| _ => RoomCreateEventContent::new_v11(),
+				| V11 => RoomCreateEventContent::new_v11(),
+				| _ => RoomCreateEventContent::new_v12(),
 			};
 			let mut content =
-				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())
-					.unwrap();
+				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())?;
 			content.insert("room_version".into(), json!(room_version.as_str()).try_into()?);
+			if room_version == V12 {
+				// TODO(hydra): v12 rooms cannot be federated until they are stable.
+				content.insert("m.federate".into(), false.into());
+			}
 			content
 		},
 	};
 
+	let state_lock = match room_id.clone() {
+		| Some(room_id) => services.rooms.state.mutex.lock(&room_id).await,
+		| None => {
+			let temp_room_id = RoomId::new(services.globals.server_name());
+			debug_info!("Locking temporary room state mutex for {temp_room_id}");
+			services.rooms.state.mutex.lock(&temp_room_id).await
+		},
+	};
+
 	// 1. The room create event
-	services
+	debug!("Creating room create event for {sender_user} in room {room_id:?}");
+	let create_event_id = services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
@@ -186,13 +204,26 @@ pub(crate) async fn create_room_route(
 				..Default::default()
 			},
 			sender_user,
-			&room_id,
+			None,
 			&state_lock,
 		)
 		.boxed()
 		.await?;
+	debug!("Created room create event with ID {}", create_event_id);
+	let room_id = match room_id {
+		| Some(room_id) => room_id,
+		| None => {
+			let as_room_id = create_event_id.as_str().replace('$', "!");
+			debug_info!("Creating room with v12 room ID {as_room_id}");
+			RoomId::parse(&as_room_id)?.to_owned()
+		},
+	};
+	drop(state_lock);
+	debug!("Room created with ID {room_id}");
+	let state_lock = services.rooms.state.mutex.lock(&room_id).await;
 
 	// 2. Let the room creator join
+	debug_info!("Joining {sender_user} to room {room_id}");
 	services
 		.rooms
 		.timeline
@@ -205,7 +236,7 @@ pub(crate) async fn create_room_route(
 				..RoomMemberEventContent::new(MembershipState::Join)
 			}),
 			sender_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -235,10 +266,28 @@ pub(crate) async fn create_room_route(
 		}
 	}
 
+	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
+	if let Some(additional_creators) = create_content.get("additional_creators") {
+		if let Some(additional_creators) = additional_creators.as_array() {
+			for creator in additional_creators {
+				if let Some(creator) = creator.as_str() {
+					if let Ok(creator) = OwnedUserId::parse(creator) {
+						creators.push(creator.clone());
+						users.insert(creator.clone(), int!(100));
+					}
+				}
+			}
+		}
+	}
+	if !(RoomVersion::new(&room_version)?).explicitly_privilege_room_creators {
+		creators.clear();
+	}
+
 	let power_levels_content = default_power_levels_content(
 		body.power_level_content_override.as_ref(),
 		&body.visibility,
 		users,
+		creators,
 	)?;
 
 	services
@@ -252,7 +301,7 @@ pub(crate) async fn create_room_route(
 				..Default::default()
 			},
 			sender_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -269,7 +318,7 @@ pub(crate) async fn create_room_route(
 					alt_aliases: vec![],
 				}),
 				sender_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.boxed()
@@ -292,7 +341,7 @@ pub(crate) async fn create_room_route(
 				}),
 			),
 			sender_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -308,7 +357,7 @@ pub(crate) async fn create_room_route(
 				&RoomHistoryVisibilityEventContent::new(HistoryVisibility::Shared),
 			),
 			sender_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -327,7 +376,7 @@ pub(crate) async fn create_room_route(
 				}),
 			),
 			sender_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -363,7 +412,7 @@ pub(crate) async fn create_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(pdu_builder, sender_user, &room_id, &state_lock)
+			.build_and_append_pdu(pdu_builder, sender_user, Some(&room_id), &state_lock)
 			.boxed()
 			.await?;
 	}
@@ -376,7 +425,7 @@ pub(crate) async fn create_room_route(
 			.build_and_append_pdu(
 				PduBuilder::state(String::new(), &RoomNameEventContent::new(name.clone())),
 				sender_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.boxed()
@@ -390,7 +439,7 @@ pub(crate) async fn create_room_route(
 			.build_and_append_pdu(
 				PduBuilder::state(String::new(), &RoomTopicEventContent { topic: topic.clone() }),
 				sender_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.boxed()
@@ -450,6 +499,7 @@ fn default_power_levels_content(
 	power_level_content_override: Option<&Raw<RoomPowerLevelsEventContent>>,
 	visibility: &room::Visibility,
 	users: BTreeMap<OwnedUserId, Int>,
+	creators: Vec<OwnedUserId>,
 ) -> Result<serde_json::Value> {
 	let mut power_levels_content =
 		serde_json::to_value(RoomPowerLevelsEventContent { users, ..Default::default() })
@@ -496,6 +546,19 @@ fn default_power_levels_content(
 
 		for (key, value) in json {
 			power_levels_content[key] = value;
+		}
+	}
+
+	if !creators.is_empty() {
+		// Raise the default power level of tombstone to 150
+		power_levels_content["events"]["m.room.tombstone"] =
+			serde_json::to_value(150).expect("150 is valid Value");
+		for creator in creators {
+			// Omit creators from the power level list altogether
+			power_levels_content["users"]
+				.as_object_mut()
+				.expect("users is an object")
+				.remove(creator.as_str());
 		}
 	}
 
