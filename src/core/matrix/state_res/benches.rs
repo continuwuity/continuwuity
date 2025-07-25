@@ -406,7 +406,7 @@ where
 
 	Pdu {
 		event_id: id.try_into().unwrap(),
-		room_id: room_id().to_owned(),
+		room_id: Some(room_id().to_owned()),
 		sender: sender.to_owned(),
 		origin_server_ts: ts.try_into().unwrap(),
 		state_key: state_key.map(Into::into),

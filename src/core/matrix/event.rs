@@ -10,7 +10,7 @@ mod unsigned;
 use std::fmt::Debug;
 
 use ruma::{
-	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId,
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId,
 	RoomVersionId, UserId, events::TimelineEventType,
 };
 use serde::Deserialize;
@@ -168,7 +168,12 @@ pub trait Event: Clone + Debug {
 	fn redacts(&self) -> Option<&EventId>;
 
 	/// The `RoomId` of this event.
-	fn room_id(&self) -> &RoomId;
+	fn room_id(&self) -> Option<&RoomId>;
+
+	/// The `RoomId` or hash of this event.
+	/// This should only be preferred over room_id() if the event is a v12
+	/// create event.
+	fn room_id_or_hash(&self) -> OwnedRoomId;
 
 	/// The `UserId` of this event.
 	fn sender(&self) -> &UserId;

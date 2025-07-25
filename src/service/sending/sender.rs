@@ -798,7 +798,7 @@ impl Service {
 			let unread: UInt = self
 				.services
 				.user
-				.notification_count(&user_id, pdu.room_id())
+				.notification_count(&user_id, &pdu.room_id_or_hash())
 				.await
 				.try_into()
 				.expect("notification count can't go that high");

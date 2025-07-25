@@ -1,6 +1,7 @@
 use std::{collections::HashMap, fmt::Write, iter::once, sync::Arc};
 
 use async_trait::async_trait;
+use conduwuit::{RoomVersion, debug};
 use conduwuit_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
@@ -15,6 +16,7 @@ use conduwuit_database::{Deserialized, Ignore, Interfix, Map};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };
+use log::trace;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
 	events::{
@@ -148,7 +150,7 @@ impl Service {
 						.roomid_spacehierarchy_cache
 						.lock()
 						.await
-						.remove(&pdu.room_id);
+						.remove(room_id);
 				},
 				| _ => continue,
 			}
@@ -239,7 +241,7 @@ impl Service {
 	/// This adds all current state events (not including the incoming event)
 	/// to `stateid_pduid` and adds the incoming event to `eventid_statehash`.
 	#[tracing::instrument(skip(self, new_pdu), level = "debug")]
-	pub async fn append_to_state(&self, new_pdu: &PduEvent) -> Result<u64> {
+	pub async fn append_to_state(&self, new_pdu: &PduEvent, room_id: &RoomId) -> Result<u64> {
 		const BUFSIZE: usize = size_of::<u64>();
 
 		let shorteventid = self
@@ -248,7 +250,7 @@ impl Service {
 			.get_or_create_shorteventid(&new_pdu.event_id)
 			.await;
 
-		let previous_shortstatehash = self.get_room_shortstatehash(&new_pdu.room_id).await;
+		let previous_shortstatehash = self.get_room_shortstatehash(room_id).await;
 
 		if let Ok(p) = previous_shortstatehash {
 			self.db
@@ -319,7 +321,11 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip_all, level = "debug")]
-	pub async fn summary_stripped<'a, E>(&self, event: &'a E) -> Vec<Raw<AnyStrippedStateEvent>>
+	pub async fn summary_stripped<'a, E>(
+		&self,
+		event: &'a E,
+		room_id: &RoomId,
+	) -> Vec<Raw<AnyStrippedStateEvent>>
 	where
 		E: Event + Send + Sync,
 		&'a E: Event + Send,
@@ -338,7 +344,7 @@ impl Service {
 		let fetches = cells.into_iter().map(|(event_type, state_key)| {
 			self.services
 				.state_accessor
-				.room_state_get(event.room_id(), event_type, state_key)
+				.room_state_get(room_id, event_type, state_key)
 		});
 
 		join_all(fetches)
@@ -421,7 +427,7 @@ impl Service {
 	}
 
 	/// This fetches auth events from the current state.
-	#[tracing::instrument(skip(self, content), level = "debug")]
+	#[tracing::instrument(skip(self, content, room_version), level = "trace")]
 	pub async fn get_auth_events(
 		&self,
 		room_id: &RoomId,
@@ -429,13 +435,15 @@ impl Service {
 		sender: &UserId,
 		state_key: Option<&str>,
 		content: &serde_json::value::RawValue,
+		room_version: &RoomVersion,
 	) -> Result<StateMap<PduEvent>> {
 		let Ok(shortstatehash) = self.get_room_shortstatehash(room_id).await else {
 			return Ok(HashMap::new());
 		};
 
-		let auth_types = state_res::auth_types_for_event(kind, sender, state_key, content)?;
-
+		let auth_types =
+			state_res::auth_types_for_event(kind, sender, state_key, content, room_version)?;
+		debug!(?auth_types, "Auth types for event");
 		let sauthevents: HashMap<_, _> = auth_types
 			.iter()
 			.stream()
@@ -448,6 +456,7 @@ impl Service {
 			})
 			.collect()
 			.await;
+		debug!(?sauthevents, "Auth events to fetch");
 
 		let (state_keys, event_ids): (Vec<_>, Vec<_>) = self
 			.services
@@ -461,7 +470,7 @@ impl Service {
 			})
 			.unzip()
 			.await;
-
+		debug!(?state_keys, ?event_ids, "Auth events found in state");
 		self.services
 			.short
 			.multi_get_eventid_from_short(event_ids.into_iter().stream())
@@ -473,6 +482,7 @@ impl Service {
 					.get_pdu(&event_id)
 					.await
 					.map(move |pdu| (((*ty).clone(), (*sk).clone()), pdu))
+					.inspect_err(|e| warn!("Failed to get auth event {event_id}: {e:?}"))
 					.ok()
 			})
 			.collect()

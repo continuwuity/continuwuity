@@ -457,7 +457,7 @@ async fn handle_left_room(
 			state_key: Some(sender_user.as_str().into()),
 			unsigned: None,
 			// The following keys are dropped on conversion
-			room_id: room_id.clone(),
+			room_id: Some(room_id.clone()),
 			prev_events: vec![],
 			depth: uint!(1),
 			auth_events: vec![],

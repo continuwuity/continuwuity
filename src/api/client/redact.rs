@@ -36,7 +36,7 @@ pub(crate) async fn redact_event_route(
 				})
 			},
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

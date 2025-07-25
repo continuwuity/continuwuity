@@ -80,7 +80,7 @@ pub(crate) async fn send_message_event_route(
 				..Default::default()
 			},
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

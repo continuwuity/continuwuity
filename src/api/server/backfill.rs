@@ -2,7 +2,7 @@ use std::cmp;
 
 use axum::extract::State;
 use conduwuit::{
-	PduCount, Result,
+	Event, PduCount, Result,
 	utils::{IterStream, ReadyExt, stream::TryTools},
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
@@ -68,7 +68,7 @@ pub(crate) async fn get_backfill_route(
 				Ok(services
 					.rooms
 					.state_accessor
-					.server_can_see_event(body.origin(), &pdu.room_id, &pdu.event_id)
+					.server_can_see_event(body.origin(), &pdu.room_id_or_hash(), &pdu.event_id)
 					.await
 					.then_some(pdu))
 			})
