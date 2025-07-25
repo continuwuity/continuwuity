@@ -34,7 +34,7 @@ pub(crate) async fn get_room_event_route(
 	}
 
 	debug_assert!(
-		event.event_id() == event_id && event.room_id() == room_id,
+		event.event_id() == event_id && event.room_id_or_hash() == *room_id,
 		"Fetched PDU must match requested"
 	);
 

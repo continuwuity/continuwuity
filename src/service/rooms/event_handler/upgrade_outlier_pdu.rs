@@ -102,6 +102,7 @@ where
 		&incoming_pdu,
 		None, // TODO: third party invite
 		|ty, sk| state_fetch(ty.clone(), sk.into()),
+		create_event.as_pdu(),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
@@ -123,6 +124,7 @@ where
 			incoming_pdu.sender(),
 			incoming_pdu.state_key(),
 			incoming_pdu.content(),
+			&room_version,
 		)
 		.await?;
 
@@ -140,6 +142,7 @@ where
 		&incoming_pdu,
 		None, // third-party invite
 		state_fetch,
+		create_event.as_pdu(),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
@@ -156,7 +159,7 @@ where
 			!self
 				.services
 				.state_accessor
-				.user_can_redact(&redact_id, incoming_pdu.sender(), incoming_pdu.room_id(), true)
+				.user_can_redact(&redact_id, incoming_pdu.sender(), room_id, true)
 				.await?,
 	};
 
@@ -313,6 +316,7 @@ where
 				state_ids_compressed,
 				soft_fail,
 				&state_lock,
+				room_id,
 			)
 			.await?;
 
@@ -347,6 +351,7 @@ where
 			state_ids_compressed,
 			soft_fail,
 			&state_lock,
+			room_id,
 		)
 		.await?;
 

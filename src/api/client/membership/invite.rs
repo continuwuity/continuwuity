@@ -128,12 +128,12 @@ pub(crate) async fn invite_helper(
 				.create_hash_and_sign_event(
 					PduBuilder::state(user_id.to_string(), &content),
 					sender_user,
-					room_id,
+					Some(room_id),
 					&state_lock,
 				)
 				.await?;
 
-			let invite_room_state = services.rooms.state.summary_stripped(&pdu).await;
+			let invite_room_state = services.rooms.state.summary_stripped(&pdu, room_id).await;
 
 			drop(state_lock);
 
@@ -227,7 +227,7 @@ pub(crate) async fn invite_helper(
 		.build_and_append_pdu(
 			PduBuilder::state(user_id.to_string(), &content),
 			sender_user,
-			room_id,
+			Some(room_id),
 			&state_lock,
 		)
 		.await?;

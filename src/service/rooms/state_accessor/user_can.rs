@@ -161,7 +161,7 @@ pub async fn user_can_invite(
 				&RoomMemberEventContent::new(MembershipState::Invite),
 			),
 			sender,
-			room_id,
+			Some(room_id),
 			state_lock,
 		)
 		.await

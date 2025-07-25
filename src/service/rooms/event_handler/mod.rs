@@ -99,7 +99,10 @@ impl Service {
 }
 
 fn check_room_id<Pdu: Event>(room_id: &RoomId, pdu: &Pdu) -> Result {
-	if pdu.room_id() != room_id {
+	if pdu
+		.room_id()
+		.is_some_and(|claimed_room_id| claimed_room_id != room_id)
+	{
 		return Err!(Request(InvalidParam(error!(
 			pdu_event_id = ?pdu.event_id(),
 			pdu_room_id = ?pdu.room_id(),

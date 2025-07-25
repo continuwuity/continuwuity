@@ -754,7 +754,7 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &power_levels_content),
 			&user_id,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.await?;
@@ -899,7 +899,13 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 	);
 
 	let redaction_event_id = {
-		let state_lock = self.services.rooms.state.mutex.lock(event.room_id()).await;
+		let state_lock = self
+			.services
+			.rooms
+			.state
+			.mutex
+			.lock(&event.room_id_or_hash())
+			.await;
 
 		self.services
 			.rooms
@@ -913,7 +919,7 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 					})
 				},
 				event.sender(),
-				event.room_id(),
+				Some(&event.room_id_or_hash()),
 				&state_lock,
 			)
 			.await?

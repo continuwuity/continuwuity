@@ -42,6 +42,7 @@ pub async fn append_incoming_pdu<'a, Leaves>(
 	state_ids_compressed: Arc<CompressedState>,
 	soft_fail: bool,
 	state_lock: &'a RoomMutexGuard,
+	room_id: &'a ruma::RoomId,
 ) -> Result<Option<RawPduId>>
 where
 	Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -51,24 +52,24 @@ where
 	// fail.
 	self.services
 		.state
-		.set_event_state(&pdu.event_id, &pdu.room_id, state_ids_compressed)
+		.set_event_state(&pdu.event_id, room_id, state_ids_compressed)
 		.await?;
 
 	if soft_fail {
 		self.services
 			.pdu_metadata
-			.mark_as_referenced(&pdu.room_id, pdu.prev_events.iter().map(AsRef::as_ref));
+			.mark_as_referenced(room_id, pdu.prev_events.iter().map(AsRef::as_ref));
 
 		self.services
 			.state
-			.set_forward_extremities(&pdu.room_id, new_room_leaves, state_lock)
+			.set_forward_extremities(room_id, new_room_leaves, state_lock)
 			.await;
 
 		return Ok(None);
 	}
 
 	let pdu_id = self
-		.append_pdu(pdu, pdu_json, new_room_leaves, state_lock)
+		.append_pdu(pdu, pdu_json, new_room_leaves, state_lock, room_id)
 		.await?;
 
 	Ok(Some(pdu_id))
@@ -88,6 +89,7 @@ pub async fn append_pdu<'a, Leaves>(
 	mut pdu_json: CanonicalJsonObject,
 	leaves: Leaves,
 	state_lock: &'a RoomMutexGuard,
+	room_id: &'a ruma::RoomId,
 ) -> Result<RawPduId>
 where
 	Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -98,7 +100,7 @@ where
 	let shortroomid = self
 		.services
 		.short
-		.get_shortroomid(pdu.room_id())
+		.get_shortroomid(room_id)
 		.await
 		.map_err(|_| err!(Database("Room does not exist")))?;
 
@@ -151,14 +153,14 @@ where
 	// We must keep track of all events that have been referenced.
 	self.services
 		.pdu_metadata
-		.mark_as_referenced(pdu.room_id(), pdu.prev_events().map(AsRef::as_ref));
+		.mark_as_referenced(room_id, pdu.prev_events().map(AsRef::as_ref));
 
 	self.services
 		.state
-		.set_forward_extremities(pdu.room_id(), leaves, state_lock)
+		.set_forward_extremities(room_id, leaves, state_lock)
 		.await;
 
-	let insert_lock = self.mutex_insert.lock(pdu.room_id()).await;
+	let insert_lock = self.mutex_insert.lock(room_id).await;
 
 	let count1 = self.services.globals.next_count().unwrap();
 
@@ -166,11 +168,11 @@ where
 	// appending fails
 	self.services
 		.read_receipt
-		.private_read_set(pdu.room_id(), pdu.sender(), count1);
+		.private_read_set(room_id, pdu.sender(), count1);
 
 	self.services
 		.user
-		.reset_notification_counts(pdu.sender(), pdu.room_id());
+		.reset_notification_counts(pdu.sender(), room_id);
 
 	let count2 = PduCount::Normal(self.services.globals.next_count().unwrap());
 	let pdu_id: RawPduId = PduId { shortroomid, shorteventid: count2 }.into();
@@ -184,14 +186,14 @@ where
 	let power_levels: RoomPowerLevelsEventContent = self
 		.services
 		.state_accessor
-		.room_state_get_content(pdu.room_id(), &StateEventType::RoomPowerLevels, "")
+		.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
 		.await
 		.unwrap_or_default();
 
 	let mut push_target: HashSet<_> = self
 			.services
 			.state_cache
-			.active_local_users_in_room(pdu.room_id())
+			.active_local_users_in_room(room_id)
 			.map(ToOwned::to_owned)
 			// Don't notify the sender of their own events, and dont send from ignored users
 			.ready_filter(|user| *user != pdu.sender())
@@ -230,7 +232,7 @@ where
 		for action in self
 			.services
 			.pusher
-			.get_actions(user, &rules_for_user, &power_levels, &serialized, pdu.room_id())
+			.get_actions(user, &rules_for_user, &power_levels, &serialized, room_id)
 			.await
 		{
 			match action {
@@ -268,20 +270,20 @@ where
 	}
 
 	self.db
-		.increment_notification_counts(pdu.room_id(), notifies, highlights);
+		.increment_notification_counts(room_id, notifies, highlights);
 
 	match *pdu.kind() {
 		| TimelineEventType::RoomRedaction => {
 			use RoomVersionId::*;
 
-			let room_version_id = self.services.state.get_room_version(pdu.room_id()).await?;
+			let room_version_id = self.services.state.get_room_version(room_id).await?;
 			match room_version_id {
 				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
 					if let Some(redact_id) = pdu.redacts() {
 						if self
 							.services
 							.state_accessor
-							.user_can_redact(redact_id, pdu.sender(), pdu.room_id(), false)
+							.user_can_redact(redact_id, pdu.sender(), room_id, false)
 							.await?
 						{
 							self.redact_pdu(redact_id, pdu, shortroomid).await?;
@@ -294,7 +296,7 @@ where
 						if self
 							.services
 							.state_accessor
-							.user_can_redact(redact_id, pdu.sender(), pdu.room_id(), false)
+							.user_can_redact(redact_id, pdu.sender(), room_id, false)
 							.await?
 						{
 							self.redact_pdu(redact_id, pdu, shortroomid).await?;
@@ -310,7 +312,7 @@ where
 					.roomid_spacehierarchy_cache
 					.lock()
 					.await
-					.remove(pdu.room_id());
+					.remove(room_id);
 			},
 		| TimelineEventType::RoomMember => {
 			if let Some(state_key) = pdu.state_key() {
@@ -320,8 +322,12 @@ where
 
 				let content: RoomMemberEventContent = pdu.get_content()?;
 				let stripped_state = match content.membership {
-					| MembershipState::Invite | MembershipState::Knock =>
-						self.services.state.summary_stripped(pdu).await.into(),
+					| MembershipState::Invite | MembershipState::Knock => self
+						.services
+						.state
+						.summary_stripped(pdu, room_id)
+						.await
+						.into(),
 					| _ => None,
 				};
 
@@ -331,7 +337,7 @@ where
 				self.services
 					.state_cache
 					.update_membership(
-						pdu.room_id(),
+						room_id,
 						target_user_id,
 						content,
 						pdu.sender(),
@@ -392,7 +398,7 @@ where
 		if self
 			.services
 			.state_cache
-			.appservice_in_room(pdu.room_id(), appservice)
+			.appservice_in_room(room_id, appservice)
 			.await
 		{
 			self.services
@@ -430,12 +436,12 @@ where
 		let matching_aliases = |aliases: NamespaceRegex| {
 			self.services
 				.alias
-				.local_aliases_for_room(pdu.room_id())
+				.local_aliases_for_room(room_id)
 				.ready_any(move |room_alias| aliases.is_match(room_alias.as_str()))
 		};
 
 		if matching_aliases(appservice.aliases.clone()).await
-			|| appservice.rooms.is_match(pdu.room_id().as_str())
+			|| appservice.rooms.is_match(room_id.as_str())
 			|| matching_users(&appservice.users)
 		{
 			self.services

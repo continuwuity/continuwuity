@@ -58,6 +58,10 @@ pub async fn handle_incoming_pdu<'a>(
 	value: BTreeMap<String, CanonicalJsonValue>,
 	is_timeline_event: bool,
 ) -> Result<Option<RawPduId>> {
+	if room_id.is_empty() {
+		// TODO(hydra): Room IDs should be calculated before this function is called
+		panic!("room ID cannot be empty");
+	}
 	// 1. Skip the PDU if we already have it as a timeline event
 	if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
 		return Ok(Some(pdu_id));
