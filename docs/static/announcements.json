@@ -7,7 +7,7 @@
         },
         {
             "id": 3,
-            "message": "_taps microphone_ The Continuwuity 0.5.0-rc.7 release is now available, and it's better than ever! **177 commits**, **35 pull requests**, **11 contributors,** and a lot of new stuff!\n\nFor highlights, we've got:\n\n* 🕵️ Full Policy Server support to fight spam!\n* 🚀 Smarter room & space upgrades.\n* 🚫 User suspension tools for better moderation.\n* 🤖 reCaptcha support for safer open registration.\n* 🔍 Ability to disable read receipts & typing indicators.\n* ⚡ Sweeping performance improvements!\n\nGet the [full changelog and downloads on our Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.0-rc.7) - and make sure you're in the https://matrix.to/#/!releases:continuwuity.org/$hN9z6L2_dTAlPxFLAoXVfo_g8DyYXu4cpvWsSrWhmB0 to get stuff like this sooner."
+            "message": "_taps microphone_ The Continuwuity 0.5.0-rc.7 release is now available, and it's better than ever! **177 commits**, **35 pull requests**, **11 contributors,** and a lot of new stuff!\n\nFor highlights, we've got:\n\n* 🕵️ Full Policy Server support to fight spam!\n* 🚀 Smarter room & space upgrades.\n* 🚫 User suspension tools for better moderation.\n* 🤖 reCaptcha support for safer open registration.\n* 🔍 Ability to disable read receipts & typing indicators.\n* ⚡ Sweeping performance improvements!\n\nGet the [full changelog and downloads on our Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.0-rc.7) - and make sure you're in the [Announcements room](https://matrix.to/#/!releases:continuwuity.org/$hN9z6L2_dTAlPxFLAoXVfo_g8DyYXu4cpvWsSrWhmB0) to get stuff like this sooner."
         }
     ]
 }
