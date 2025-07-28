@@ -57,7 +57,7 @@ Continuwuity aims to:
 
 ### Can I try it out?
 
-Check out the [documentation](introduction) for installation instructions.
+Check out the [documentation](https://continuwuity.org) for installation instructions.
 
 There are currently no open registration Continuwuity instances available.
 
