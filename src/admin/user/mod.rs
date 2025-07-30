@@ -103,6 +103,12 @@ pub enum UserCommand {
 		room_id: OwnedRoomOrAliasId,
 	},
 
+	/// - Manually leave a remote room for a local user.
+	ForceLeaveRemoteRoom {
+		user_id: String,
+		room_id: OwnedRoomOrAliasId,
+	},
+
 	/// - Forces the specified user to drop their power levels to the room
 	///   default, if their permissions allow and the auth check permits
 	ForceDemote {
