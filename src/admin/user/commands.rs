@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, fmt::Write as _};
 
 use api::client::{
-	full_user_deactivate, join_room_by_id_helper, leave_all_rooms, leave_room, update_avatar_url,
-	update_displayname,
+	full_user_deactivate, join_room_by_id_helper, leave_all_rooms, leave_room, remote_leave_room,
+	update_avatar_url, update_displayname,
 };
 use conduwuit::{
 	Err, Result, debug, debug_warn, error, info, is_equal_to,
@@ -923,4 +923,30 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 		"Successfully redacted event. Redaction event ID: {redaction_event_id}"
 	))
 	.await
+}
+
+#[admin_command]
+pub(super) async fn force_leave_remote_room(
+	&self,
+	user_id: String,
+	room_id: OwnedRoomOrAliasId,
+) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	let (room_id, _) = self
+		.services
+		.rooms
+		.alias
+		.resolve_with_servers(&room_id, None)
+		.await?;
+
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+	remote_leave_room(self.services, &user_id, &room_id, None)
+		.boxed()
+		.await?;
+
+	self.write_str(&format!("{user_id} has been joined to {room_id}.",))
+		.await
 }
