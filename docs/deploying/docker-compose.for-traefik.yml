@@ -12,6 +12,15 @@ services:
       #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
       - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
+      - "traefik.http.routers.continuwuity.entrypoints=websecure" # your HTTPS entry point
+      - "traefik.http.routers.continuwuity.tls=true"
+      - "traefik.http.routers.continuwuity.service=continuwuity"
+      - "traefik.http.services.continuwuity.loadbalancer.server.port=6167"
+      # possibly, depending on your config:
+      # - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
     environment:
       CONTINUWUITY_SERVER_NAME: your.server.name.example # EDIT THIS
       CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
