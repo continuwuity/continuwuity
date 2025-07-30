@@ -14,12 +14,12 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.homeserver.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
-      - "traefik.http.routers.homeserver.entrypoints=websecure"
-      - "traefik.http.routers.homeserver.tls.certresolver=letsencrypt"
-      - "traefik.http.services.homeserver.loadbalancer.server.port=6167"
+      - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
+      - "traefik.http.routers.continuwuity.entrypoints=websecure"
+      - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
+      - "traefik.http.services.continuwuity.loadbalancer.server.port=6167"
       # Uncomment and adjust the following if you want to use middleware
-      # - "traefik.http.routers.homeserver.middlewares=secureHeaders@file"
+      # - "traefik.http.routers.continuwuity.middlewares=secureHeaders@file"
     environment:
       CONTINUWUITY_SERVER_NAME: your.server.name.example # EDIT THIS
       CONTINUWUITY_TRUSTED_SERVERS: '["matrix.org"]'
