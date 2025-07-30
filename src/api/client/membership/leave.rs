@@ -215,7 +215,7 @@ pub async fn leave_room(
 	Ok(())
 }
 
-async fn remote_leave_room(
+pub async fn remote_leave_room(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,
