@@ -20,7 +20,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
 	OwnedUserId, RoomId, RoomVersionId, UserId,
 	api::{
 		client::{
@@ -447,11 +447,11 @@ async fn join_room_by_id_helper_remote(
 	// It has enough fields to be called a proper event now
 	let mut join_event = join_event_stub;
 
-	info!("Asking {remote_server} for send_join in room {room_id}");
+	info!("Asking {remote_server} for send_join in room {room_id} using snazzy fast joins");
 	let send_join_request = federation::membership::create_join_event::v2::Request {
 		room_id: room_id.to_owned(),
 		event_id: event_id.clone(),
-		omit_members: false,
+		omit_members: true,
 		pdu: services
 			.sending
 			.convert_to_outgoing_federation_event(join_event.clone())
@@ -688,6 +688,18 @@ async fn join_room_by_id_helper_remote(
 		.state
 		.set_room_state(room_id, statehash_after_join, &state_lock);
 
+	info!("Fetching the rest of the room state \"in the background\"");
+	// TODO: Actually do this in the background
+	// tokio::spawn(fetch_state_in_background(
+	// 	services.clone(),
+	// 	room_id.to_owned(),
+	// 	event_id.clone(),
+	// 	servers.to_vec(),
+	// ));
+	fetch_state_in_background(services, room_id.to_owned(), event_id, servers.to_vec())
+		.boxed()
+		.await?;
+	info!("Join completed");
 	Ok(())
 }
 
@@ -990,7 +1002,6 @@ async fn join_room_by_id_helper_local(
 	// It has enough fields to be called a proper event now
 	let join_event = join_event_stub;
 
-	info!("Performing fancy snazzy new v2 fast join");
 	let send_join_response = services
 		.sending
 		.send_synapse_request(
@@ -998,7 +1009,7 @@ async fn join_room_by_id_helper_local(
 			federation::membership::create_join_event::v2::Request {
 				room_id: room_id.to_owned(),
 				event_id: event_id.clone(),
-				omit_members: true,
+				omit_members: false,
 				pdu: services
 					.sending
 					.convert_to_outgoing_federation_event(join_event.clone())
@@ -1024,17 +1035,6 @@ async fn join_room_by_id_helper_local(
 			.rooms
 			.event_handler
 			.handle_incoming_pdu(&remote_server, room_id, &signed_event_id, signed_value, true)
-			.boxed()
-			.await?;
-		// TODO: Actually do this in the background
-		// tokio::spawn(fetch_state_in_background(
-		// 	services.clone(),
-		// 	room_id.to_owned(),
-		// 	event_id.clone(),
-		// 	servers.to_vec(),
-		// ));
-		info!("Fetching state in background");
-		fetch_state_in_background(services, room_id.to_owned(), event_id, servers.to_vec())
 			.boxed()
 			.await?;
 	} else {
