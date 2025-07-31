@@ -156,31 +156,34 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 			.await?;
 
 			let mut servers = body.via.clone();
-			servers.extend(
-				services
-					.rooms
-					.state_cache
-					.servers_invite_via(&room_id)
-					.map(ToOwned::to_owned)
-					.collect::<Vec<_>>()
-					.await,
-			);
+			if servers.is_empty() {
+				debug!("No via servers provided for join, injecting some.");
+				servers.extend(
+					services
+						.rooms
+						.state_cache
+						.servers_invite_via(&room_id)
+						.map(ToOwned::to_owned)
+						.collect::<Vec<_>>()
+						.await,
+				);
 
-			servers.extend(
-				services
-					.rooms
-					.state_cache
-					.invite_state(sender_user, &room_id)
-					.await
-					.unwrap_or_default()
-					.iter()
-					.filter_map(|event| event.get_field("sender").ok().flatten())
-					.filter_map(|sender: &str| UserId::parse(sender).ok())
-					.map(|user| user.server_name().to_owned()),
-			);
+				servers.extend(
+					services
+						.rooms
+						.state_cache
+						.invite_state(sender_user, &room_id)
+						.await
+						.unwrap_or_default()
+						.iter()
+						.filter_map(|event| event.get_field("sender").ok().flatten())
+						.filter_map(|sender: &str| UserId::parse(sender).ok())
+						.map(|user| user.server_name().to_owned()),
+				);
 
-			if let Some(server) = room_id.server_name() {
-				servers.push(server.to_owned());
+				if let Some(server) = room_id.server_name() {
+					servers.push(server.to_owned());
+				}
 			}
 
 			servers.sort_unstable();
