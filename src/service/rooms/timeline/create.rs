@@ -165,25 +165,6 @@ pub async fn create_hash_and_sign_event(
 		return Err!(Request(Forbidden("Event is not authorized.")));
 	}
 
-	// Check with the policy server
-	match self
-		.services
-		.event_handler
-		.ask_policy_server(&pdu, room_id)
-		.await
-	{
-		| Ok(true) => {},
-		| Ok(false) => {
-			return Err!(Request(Forbidden(debug_warn!(
-				"Policy server marked this event as spam"
-			))));
-		},
-		| Err(e) => {
-			// fail open
-			warn!("Failed to check event with policy server: {e}");
-		},
-	}
-
 	// Hash and sign
 	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
 		err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
@@ -221,6 +202,25 @@ pub async fn create_hash_and_sign_event(
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
 
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
+
+	// Check with the policy server
+	match self
+		.services
+		.event_handler
+		.ask_policy_server(&pdu, room_id)
+		.await
+	{
+		| Ok(true) => {},
+		| Ok(false) => {
+			return Err!(Request(Forbidden(debug_warn!(
+				"Policy server marked this event as spam"
+			))));
+		},
+		| Err(e) => {
+			// fail open
+			warn!("Failed to check event with policy server: {e}");
+		},
+	}
 
 	// Generate short event id
 	let _shorteventid = self
