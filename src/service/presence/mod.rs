@@ -100,7 +100,7 @@ impl Service {
 	/// Pings the presence of the given user in the given room, setting the
 	/// specified state.
 	pub async fn ping_presence(&self, user_id: &UserId, new_state: &PresenceState) -> Result<()> {
-		const REFRESH_TIMEOUT: u64 = 60 * 1000;
+		const REFRESH_TIMEOUT: u64 = 60 * 1000 * 4;
 
 		let last_presence = self.db.get_presence(user_id).await;
 		let state_changed = match last_presence {
