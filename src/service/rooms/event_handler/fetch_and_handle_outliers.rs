@@ -80,7 +80,7 @@ where
 			{
 				// Exponential backoff
 				const MIN_DURATION: u64 = 60 * 2;
-				const MAX_DURATION: u64 = 60 * 60 * 8;
+				const MAX_DURATION: u64 = 60 * 60;
 				if continue_exponential_backoff_secs(
 					MIN_DURATION,
 					MAX_DURATION,
