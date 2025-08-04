@@ -12,7 +12,7 @@ pub struct AuthorizationQuery {
 	pub code_challenge: String,
 	pub code_challenge_method: String,
 	pub response_type: String,
-	pub response_mode: String,
+	pub response_mode: Option<String>,
 }
 
 impl From<LoginQuery> for AuthorizationQuery {
@@ -37,7 +37,7 @@ impl From<LoginQuery> for AuthorizationQuery {
 			code_challenge,
 			code_challenge_method,
 			response_type,
-			response_mode,
+			response_mode: Some(response_mode),
 		}
 	}
 }

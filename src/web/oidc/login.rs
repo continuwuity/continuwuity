@@ -58,12 +58,16 @@ impl TryFrom<OidcRequest> for LoginQuery {
 		let Some(response_type) = body.unique_value("response_type") else {
 			return Err(LoginError("missing field: response_type".to_owned()));
 		};
-		let Some(response_mode) = body.unique_value("response_mode") else {
-			return Err(LoginError("missing field: response_mode".to_owned()));
-		};
 		let Ok(redirect_uri) = Url::from_str(&redirect_uri) else {
 			return Err(LoginError("invalid field: redirect_uri".to_owned()));
 		};
+		// response_mode is not strictly needed : its value defaults to "fragment"
+		// when over https. It's required by the spec but Fractal doesn't provide it.
+		let response_mode = body.unique_value("response_mode")
+			.unwrap_or_else(|| match redirect_uri.scheme() {
+				| "https" => "fragment",
+				| _ => "query"
+			});
 
 		Ok(Self {
 			username: username.to_string(),
@@ -101,6 +105,12 @@ pub fn oidc_login_form(hostname: &str, query: &AuthorizationQuery) -> OidcRespon
 
 /// Render the html contents of the login page.
 fn login_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &str) -> String {
+	let response_mode = &query.response_mode
+		.clone()
+		.unwrap_or_else(|| match query.redirect_uri.scheme() {
+			| "https" => "fragment".to_string(),
+			| _ => "query".to_string()
+		});
 	let template = LoginPageTemplate {
 		nonce,
 		hostname,
@@ -112,7 +122,7 @@ fn login_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &s
 		code_challenge: query.code_challenge.as_str(),
 		code_challenge_method: query.code_challenge_method.as_str(),
 		response_type: query.response_type.as_str(),
-		response_mode: query.response_mode.as_str(),
+		response_mode,
 	};
 
 	template.render().expect("login template render")

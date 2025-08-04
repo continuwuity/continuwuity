@@ -26,6 +26,11 @@ pub fn oidc_consent_form(hostname: &str, query: &AuthorizationQuery) -> OidcResp
 
 /// Render the html contents of the user consent page.
 fn consent_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &str) -> String {
+	let response_mode = &query.response_mode.clone()
+		.unwrap_or_else(|| match query.redirect_uri.scheme() {
+			| "https" => "fragment",
+			| _ => "query"
+		});
 	let template = ConsentPageTemplate {
 		nonce,
 		hostname,
@@ -37,7 +42,7 @@ fn consent_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: 
 		code_challenge: &encode(query.code_challenge.as_str()),
 		code_challenge_method: &encode(query.code_challenge_method.as_str()),
 		response_type: &encode(query.response_type.as_str()),
-		response_mode: &encode(query.response_mode.as_str()),
+		response_mode: &encode(response_mode),
 	};
 
 	template.render().expect("consent page render")
