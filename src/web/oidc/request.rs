@@ -47,14 +47,20 @@ impl WebRequest for OidcRequest {
 	fn query(&mut self) -> Result<Cow<'_, dyn QueryParameter + 'static>, Self::Error> {
 		self.query
 			.as_ref()
-			.map(|q| Cow::Borrowed(q as &dyn QueryParameter))
+			.map(|q| {
+				let q: &dyn QueryParameter = q;
+				Cow::Borrowed(q)
+			})
 			.ok_or(OidcError::Query)
 	}
 
 	fn urlbody(&mut self) -> Result<Cow<'_, dyn QueryParameter + 'static>, Self::Error> {
 		self.body
 			.as_ref()
-			.map(|b| Cow::Borrowed(b as &dyn QueryParameter))
+			.map(|q| {
+				let q: &dyn QueryParameter = q;
+				Cow::Borrowed(q)
+			})
 			.ok_or(OidcError::Body)
 	}
 
