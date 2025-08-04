@@ -5,7 +5,7 @@ use reqwest::Url;
 use ruma::DeviceId;
 
 /// The required parameters to register a new client for OAuth2 application.
-#[derive(serde::Deserialize, Clone)]
+#[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct ClientQuery {
 	/// Human-readable name.
 	client_name: String,
@@ -32,7 +32,7 @@ pub(crate) struct ClientQuery {
 }
 
 /// A successful response that the client was registered.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub(crate) struct ClientResponse {
 	client_id: String,
 	client_name: String,
@@ -58,6 +58,7 @@ pub(crate) async fn register_client(
 	State(services): State<crate::State>,
 	Json(client): Json<ClientQuery>,
 ) -> Result<Json<ClientResponse>> {
+	tracing::trace!("processing OIDC device register request for client: {client:#?}");
 	let Some(redirect_uri) = client.redirect_uris.first().cloned() else {
 		return Err(err!(Request(Unknown(
 			"register request should contain at least a redirect_uri"
@@ -77,8 +78,7 @@ pub(crate) async fn register_client(
 			.parse()
 			.expect("device ID should parse in Matrix scope"),
 	))?;
-
-	Ok(Json(ClientResponse {
+	let client_response = ClientResponse {
 		client_id: device_id.to_string(),
 		client_name: client.client_name.clone(),
 		client_uri: client.client_uri.clone(),
@@ -90,5 +90,8 @@ pub(crate) async fn register_client(
 		response_types: client.response_types.clone(),
 		grant_types: client.grant_types.clone(),
 		application_type: client.application_type,
-	}))
+	};
+	tracing::debug!("OIDC device registered : {client_response:#?}");
+
+	Ok(Json(client_response))
 }

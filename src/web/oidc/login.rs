@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{borrow::Cow, str::FromStr};
 
 use askama::Template;
 use axum::http::StatusCode;
@@ -65,8 +65,8 @@ impl TryFrom<OidcRequest> for LoginQuery {
 		// when over https. It's required by the spec but Fractal doesn't provide it.
 		let response_mode = body.unique_value("response_mode")
 			.unwrap_or_else(|| match redirect_uri.scheme() {
-				| "https" => "fragment",
-				| _ => "query"
+				| "https" => Cow::Borrowed("fragment"),
+				| _ => Cow::Borrowed("query")
 			});
 
 		Ok(Self {

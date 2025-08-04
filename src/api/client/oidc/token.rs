@@ -11,6 +11,7 @@ pub(crate) async fn token(
 	State(services): State<crate::State>,
 	oauth: OidcRequest,
 ) -> Result<OidcResponse> {
+	tracing::trace!("processing OpenID token request {:#?}", oauth);
 	let Some(body) = oauth.body() else {
 		return Err(err!(Request(Unknown("OAuth request had an empty body"))));
 	};
@@ -18,6 +19,7 @@ pub(crate) async fn token(
 		.unique_value("grant_type")
 		.map(|value| value.to_string());
 	let endpoint = services.oidc.endpoint();
+	tracing::debug!("submitting OpenID token request for grant type {grant_type:?}");
 
 	match grant_type.as_deref() {
 		| Some("authorization_code") => endpoint

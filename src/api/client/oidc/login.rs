@@ -19,6 +19,7 @@ pub(crate) async fn oidc_login(
 	let query: LoginQuery = request.clone().try_into().map_err(|LoginError(err)| {
 		err!(Request(InvalidParam("Cannot process login form. {err}")))
 	})?;
+	tracing::trace!("processing login query {:#?}", query.clone());
 	// Only accept local usernames. Mostly to simplify things at first.
 	let user_id =
 		UserId::parse_with_server_name(query.username.clone(), &services.config.server_name)
@@ -35,10 +36,11 @@ pub(crate) async fn oidc_login(
 	if verify_password(&query.password, &valid_hash).is_err() {
 		return Err(err!(Request(InvalidParam("password does not match"))));
 	}
-	tracing::info!("logging in: {user_id:?}");
 
 	let hostname = services.config.server_name.host();
 	let authorization_query: AuthorizationQuery = query.into();
+	tracing::info!("logging in {user_id:?}");
+	tracing::debug!("login {user_id} authorisation query : {authorization_query:#?}");
 
 	services
 		.oidc
@@ -46,5 +48,5 @@ pub(crate) async fn oidc_login(
 		.with_solicitor(oidc_consent_form(hostname, &authorization_query))
 		.authorization_flow()
 		.execute(request)
-		.map_err(|err| err!(Request(Unknown("authorization failed: {err:?}"))))
+		.map_err(|err| err!(Request(Unknown("authorisation failed: {err:?}"))))
 }

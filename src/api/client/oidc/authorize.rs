@@ -22,7 +22,7 @@ pub(crate) async fn authorize(
 	Query(query): Query<AuthorizationQuery>,
 	oauth: OidcRequest,
 ) -> Result<OidcResponse> {
-	tracing::trace!("processing OAuth request: {query:?}");
+	tracing::trace!("processing OAuth request: {query:#?}");
 	// Enforce MSC2964's restrictions on OAuth2 flow.
 	let Ok(scope) = percent_decode_str(&query.scope).decode_utf8() else {
 		return Err(err!(Request(Unknown("the scope could not be percent-decoded"))));
@@ -50,6 +50,10 @@ pub(crate) async fn authorize(
 			},
 	}
 	// TODO register the device ID ?
+	tracing::debug!(
+		"submitting OIDC authorisation for token : {:#?}",
+		oauth.authorization_header().unwrap()
+	);
 
 	services
 		.oidc
