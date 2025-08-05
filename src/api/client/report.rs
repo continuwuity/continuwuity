@@ -25,7 +25,6 @@ struct Report {
 	user_id: Option<OwnedUserId>,
 	report_type: String,
 	reason: Option<String>,
-	score: Option<ruma::Int>,
 }
 
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report`
@@ -50,21 +49,24 @@ pub(crate) async fn report_room_route(
 
 	delay_response().await;
 
+	// We log this early in case the room ID does actually exist, in which case
+	// admins who scan their logs can see the report and choose to investigate at
+	// their discretion.
+	info!(
+		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
+		body.room_id,
+		body.reason.as_deref().unwrap_or("")
+	);
+
 	if !services
 		.rooms
 		.state_cache
 		.server_in_room(&services.server.name, &body.room_id)
 		.await
 	{
-		return Err!(Request(NotFound(
-			"Room does not exist to us, no local users have joined at all"
-		)));
+		// return 200 as to not reveal if the room exists, preventing enumeration.
+		return Ok(report_room::v3::Response {});
 	}
-	info!(
-		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
-		body.room_id,
-		body.reason.as_deref().unwrap_or("")
-	);
 
 	let report = Report {
 		sender: sender_user.to_owned(),
@@ -73,7 +75,6 @@ pub(crate) async fn report_room_route(
 		user_id: None,
 		report_type: "room".to_owned(),
 		reason: body.reason.clone(),
-		score: None,
 	};
 
 	services.admin.send_message(build_report(report)).await.ok();
@@ -100,7 +101,12 @@ pub(crate) async fn report_event_route(
 
 	// check if we know about the reported event ID or if it's invalid
 	let Ok(pdu) = services.rooms.timeline.get_pdu(&body.event_id).await else {
-		return Err!(Request(NotFound("Event ID is not known to us or Event ID is invalid")));
+		info!(
+			"Received event report by user {sender_user} for room {} and event ID {}, but the \
+			 event ID is not known to us or invalid.",
+			body.room_id, body.event_id
+		);
+		return Ok(report_content::v3::Response {});
 	};
 
 	is_event_report_valid(
@@ -109,7 +115,6 @@ pub(crate) async fn report_event_route(
 		&body.room_id,
 		sender_user,
 		body.reason.as_ref(),
-		body.score,
 		&pdu,
 	)
 	.await?;
@@ -127,7 +132,6 @@ pub(crate) async fn report_event_route(
 		user_id: None,
 		report_type: "event".to_owned(),
 		reason: body.reason.clone(),
-		score: body.score,
 	};
 	services.admin.send_message(build_report(report)).await.ok();
 
@@ -166,7 +170,6 @@ pub(crate) async fn report_user_route(
 		user_id: Some(body.user_id.clone()),
 		report_type: "user".to_owned(),
 		reason: body.reason.clone(),
-		score: None,
 	};
 
 	info!(
@@ -192,7 +195,6 @@ async fn is_event_report_valid(
 	room_id: &RoomId,
 	sender_user: &UserId,
 	reason: Option<&String>,
-	score: Option<ruma::Int>,
 	pdu: &PduEvent,
 ) -> Result<()> {
 	debug_info!(
@@ -200,12 +202,10 @@ async fn is_event_report_valid(
 		 valid"
 	);
 
+	// Followup(MSC4277): Should we return 200 regardless in this check? but just
+	// log the warning?
 	if room_id != pdu.room_id {
 		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
-	}
-
-	if score.is_some_and(|s| s > int!(0) || s < int!(-100)) {
-		return Err!(Request(InvalidParam("Invalid score, must be within 0 to -100",)));
 	}
 
 	if reason.as_ref().is_some_and(|s| s.len() > 750) {
@@ -239,9 +239,6 @@ fn build_report(report: Report) -> RoomMessageEventContent {
 	}
 	if report.event_id.is_some() {
 		let _ = writeln!(text, "- Reported Event ID: `{}`", report.event_id.unwrap());
-	}
-	if let Some(score) = report.score {
-		let _ = writeln!(text, "- User-supplied offensiveness score: {}%", score.mul(int!(-1)));
 	}
 	if let Some(reason) = report.reason {
 		let _ = writeln!(text, "- Report Reason: {reason}");
