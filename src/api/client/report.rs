@@ -1,4 +1,4 @@
-use std::{fmt::Write as _, ops::Mul, time::Duration};
+use std::{fmt::Write as _, time::Duration};
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
@@ -12,7 +12,6 @@ use ruma::{
 		room::{report_content, report_room},
 	},
 	events::{Mentions, room::message::RoomMessageEventContent},
-	int,
 };
 use tokio::time::sleep;
 
