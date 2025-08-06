@@ -64,7 +64,7 @@ StateDirectory=conduwuit
 RuntimeDirectory=conduwuit
 RuntimeDirectoryMode=0750
 
-Environment=CONTINUWUITY_CONFIG=${CREDENTIALS_DIRECTORY}/config.toml
+Environment=CONTINUWUITY_CONFIG=%d/config.toml
 LoadCredential=config.toml:/etc/conduwuit/conduwuit.toml
 BindPaths=/var/lib/private/conduwuit:/var/lib/matrix-conduit
 BindPaths=/var/lib/private/conduwuit:/var/lib/private/matrix-conduit
