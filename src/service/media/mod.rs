@@ -105,6 +105,15 @@ impl Service {
 		Ok(())
 	}
 
+	/// Creates an MXC key but no associated file.
+	/// Used for async media. Must be later overwritten with `create`
+	pub async fn create_async(&self, mxc: &Mxc<'_>, user: Option<&UserId>) -> Result {
+		// effectively just reserves the MXC ID in the database
+		self.db
+			.create_file_metadata(mxc, user, &Dim::default(), None, None)?;
+		Ok(())
+	}
+
 	/// Deletes a file in the database and from the media directory via an MXC
 	pub async fn delete(&self, mxc: &Mxc<'_>) -> Result<()> {
 		match self.db.search_mxc_metadata_prefix(mxc).await {
@@ -176,6 +185,33 @@ impl Service {
 				}))
 			},
 			| _ => Ok(None),
+		}
+	}
+
+	/// Checks that an MXC URI exists in our media database.
+	pub async fn exists(&self, mxc: &Mxc<'_>) -> bool {
+		self.db.search_mxc_metadata_prefix(mxc).await.is_ok()
+	}
+
+	/// Checks that an MXC URI exists *and* has a file associated with it in our
+	/// media database.
+	pub async fn is_populated(&self, mxc: &Mxc<'_>) -> bool {
+		match self.db.search_mxc_metadata_prefix(mxc).await {
+			| Ok(keys) => {
+				if keys.is_empty() {
+					return false;
+				}
+
+				for key in keys {
+					let path = self.get_media_file(&key);
+					if fs::metadata(path).await.is_ok() {
+						return true;
+					}
+				}
+
+				false
+			},
+			| _ => false,
 		}
 	}
 

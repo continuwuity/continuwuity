@@ -154,6 +154,8 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::turn_server_route)
 		.ruma_route(&client::send_event_to_device_route)
 		.ruma_route(&client::create_content_route)
+		.ruma_route(&client::create_async_mxc_uri_route)
+		.ruma_route(&client::upload_async_media_route)
 		.ruma_route(&client::get_content_thumbnail_route)
 		.ruma_route(&client::get_content_route)
 		.ruma_route(&client::get_content_as_filename_route)
