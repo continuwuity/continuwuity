@@ -8,8 +8,8 @@ use oxide_auth::primitives::prelude::{Client, ClientUrl};
 use oxide_auth::primitives::registrar::{Argon2, BoundClient, EncodedClient, PasswordPolicy, RegisteredClient, RegisteredUrl, Registrar, RegistrarError};
 use once_cell::sync::Lazy;
 
-/// oxide-auth can only ignore ports on localhost if it's spelled "localhost",
-/// not "127.0.0.1" or "[::1]". This function does that replacement.
+/// Substitute "127.0.0.1" and "[::1]" for "localhost" to let oxide-auth compare them
+/// ignoring their port.
 pub fn normalize_redirect_hostname(url: Url) -> Url {
 	let mut new_url = url.clone();
 	let new_host = url.host_str().map(|h|

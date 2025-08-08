@@ -6,6 +6,9 @@ use ruma::{DeviceId, identifiers_validation};
 use conduwuit_service::oidc::registrar::normalize_redirect;
 
 /// The required parameters to register a new client for OAuth2 application.
+/// See the required metadata in OAuth2 authorization grant flow in [MSC2966].
+///
+/// [MSC2966]: https://github.com/matrix-org/matrix-spec-proposals/pull/2966
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct ClientQuery {
 	/// Human-readable name.
@@ -15,12 +18,12 @@ pub(crate) struct ClientQuery {
 	client_uri: Url,
 	/// Redirect URIs declared by the client. At least one.
 	redirect_uris: Vec<Url>,
-	/// Must be `["code"]`.
+	/// Must include the literal "code".
 	response_types: Vec<String>,
-	/// Must include "authorization_type" and "refresh_token".
+	/// Must include the literals "authorization_code" and "refresh_token".
 	grant_types: Vec<String>,
-	//contacts: Vec<String>,
-	/// Can be "none".
+	/// How the client intends to authenticate its requests. Can be "none", meaning
+	/// that the client will negotiate its token with the "authorization code" flow.
 	token_endpoint_auth_method: String,
 	/// Link to the logo.
 	logo_uri: Option<Url>,
@@ -28,6 +31,7 @@ pub(crate) struct ClientQuery {
 	policy_uri: Option<Url>,
 	/// Link to the terms of service.
 	tos_uri: Option<Url>,
+	/// Can be "native", implying localhost or reserved redirect pages.
 	/// Defaults to "web" if not present.
 	application_type: Option<String>,
 }
@@ -36,13 +40,21 @@ pub(crate) struct ClientQuery {
 #[derive(serde::Serialize, Debug)]
 pub(crate) struct ClientResponse {
 	client_id: String,
+	/// If the client is private, the secret it authenticates itself with.
 	client_secret: Option<String>,
+	/// If there's a `client_secret`, its expiration date in seconds since 1970-01-01T00:00.
+	/// Some(0) means no expiration date.
 	client_secret_expires_at: Option<u32>,
 	client_name: String,
+	/// Points to the "about" page of the client.
 	client_uri: Url,
 	logo_uri: Option<Url>,
 	tos_uri: Option<Url>,
 	policy_uri: Option<Url>,
+	/// Registered redirect uris, which will be matched against when authenticating.
+	/// If a localhost address, must contain instances of oxide-auth's
+	/// `RegisteredUrl::IgnorePortOnLocalhost` to let authorization flow through any port over
+	/// localhost.
 	redirect_uris: Vec<Url>,
 	token_endpoint_auth_method: String,
 	response_types: Vec<String>,
@@ -83,7 +95,7 @@ pub(crate) async fn register_client(
 	//services.users.update_device_metadata();
 
 	// If the client cannot authenticate itself at the token endpoint, then
-	// it's a public client.
+	// it's a public client. This is usually the case in Matrix.
 	let is_private = client.token_endpoint_auth_method != "none";
 	// TODO generate a device secret.
 	let secret = "cacestdubonsecretmonlouou=--".to_string();
