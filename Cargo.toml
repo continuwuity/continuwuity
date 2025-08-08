@@ -564,6 +564,9 @@ version = "0.7.5"
 [workspace.dependencies.oxide-auth]
 version = "0.6.1"
 
+[workspace.dependencies.once_cell]
+version = "1.21.3"
+
 [workspace.dependencies.percent-encoding]
 version = "2.3.1"
 #

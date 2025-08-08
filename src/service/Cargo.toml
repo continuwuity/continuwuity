@@ -126,6 +126,7 @@ ctor.workspace = true
 sd-notify.workspace = true
 sd-notify.optional = true
 oxide-auth.workspace = true
+once_cell.workspace = true
 
 [lints]
 workspace = true

@@ -7,6 +7,8 @@
 //!
 //! [oxide-auth]: https://docs.rs/oxide-auth
 
+pub mod registrar;
+
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
@@ -15,11 +17,12 @@ use oxide_auth::{
 	frontends::simple::endpoint::{Generic, Vacant},
 	primitives::{
 		prelude::{
-			AuthMap, Authorizer, Client, ClientMap, Issuer, RandomGenerator, Registrar, TokenMap,
+			AuthMap, Authorizer, Client, Issuer, RandomGenerator, Registrar, TokenMap,
 		},
 		registrar::RegisteredUrl,
 	},
 };
+use registrar::ClientMap;
 
 pub struct Service {
 	registrar: Mutex<ClientMap>,
