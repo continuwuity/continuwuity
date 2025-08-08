@@ -3,6 +3,7 @@ use conduwuit::{Result, err};
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
 use ruma::{DeviceId, identifiers_validation};
+use conduwuit_service::oidc::registrar::normalize_redirect;
 
 /// The required parameters to register a new client for OAuth2 application.
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -61,11 +62,18 @@ pub(crate) async fn register_client(
 	Json(client): Json<ClientQuery>,
 ) -> Result<Json<ClientResponse>> {
 	tracing::trace!("processing OIDC device register request for client: {client:#?}");
-	let Some(redirect_uri) = client.redirect_uris.first().cloned() else {
-		return Err(err!(Request(Unknown(
-			"register request should contain at least a redirect_uri"
-		))));
-	};
+	if client.redirect_uris.len() == 0 {
+ 		return Err(err!(Request(Unknown(
+ 			"the client's registration request should contain at least a redirect_uri"
+ 		))));
+	}
+	let mut redirect_uris = client.redirect_uris.clone();
+	let redirect_uri = redirect_uris.pop().expect("at least one redirect_uri");
+	let redirect_uri = normalize_redirect(redirect_uri);
+	let remaining_uris = redirect_uris
+		.into_iter()
+		.map(|url| normalize_redirect(url))
+		.collect();
 	let device_id = DeviceId::new();
 	let scope = format!(
 		"urn:matrix:org.matrix.msc2967.client:api:* \

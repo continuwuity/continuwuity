@@ -20,8 +20,9 @@ pub fn normalize_redirect_hostname(url: Url) -> Url {
 	new_url
 }
 
-/// The redirect_uri has to be wrapped in an IgnorePortOnLocalhost for oxide-auth
-/// to ignore the port when comparing it with the registered ones.
+/// If `url` is a localhost (either 'localhost', '127.0.0.1' or '[::1]'), wrap it in an
+/// IgnorePortOnLocalhost, so that oxide-auth ignores the port when comparing it with the
+/// registered ones.
 pub fn normalize_redirect(url: Url) -> RegisteredUrl {
 	let new_url = normalize_redirect_hostname(url);
 
@@ -105,11 +106,13 @@ impl Registrar for ClientMap {
             Some(stored) => stored,
         };
 
-        // Perform exact matching as motivated in the rfc, just substitute "127.0.0.1" and
-		// "[::1]" for "localhost".
-		let redirect_uri = bound.redirect_uri
+        // Perform exact matching as motivated in the rfc, but substitute "127.0.0.1" and
+		// "[::1]" for "localhost" to let oxide-auth ignore their port.
+		let redirect_uri = bound.redirect_uri;
+		let normalized_uri = redirect_uri
+			.clone()
 			.map(|u| normalize_redirect(u.to_url()));
-        let registered_url = match redirect_uri {
+        let registered_url = match normalized_uri {
             None => client.redirect_uri.clone(),
             Some(url) => {
                 let original = std::iter::once(&client.redirect_uri);
@@ -118,7 +121,8 @@ impl Registrar for ClientMap {
                     .chain(alternatives)
                     .any(|registered| *registered == url)
                 {
-                    url.clone().into()
+					// If normalized_uri is Some(url), so is redirect_uri, so unwrap().
+                    redirect_uri.unwrap().into_owned().into()
                 } else {
 					tracing::debug!("the request's redirect url didn't match any registered. bound: {:?}, in client {:#?}", url, client);
                     return Err(RegistrarError::Unspecified);
@@ -153,9 +157,9 @@ impl Registrar for ClientMap {
 			.ok_or_else(|| {
 				tracing::debug!("this client is not registered yet: {client_id:?}.");
 				RegistrarError::Unspecified
-			}).and_then(|client| {
-                RegisteredClient::new(client, password_policy).check_authentication(passphrase)
-            })?;
+			}).and_then(|client|
+				RegisteredClient::new(client, password_policy).check_authentication(passphrase)
+			)?;
 
         Ok(())
     }
