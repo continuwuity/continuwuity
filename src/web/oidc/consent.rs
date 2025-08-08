@@ -37,6 +37,7 @@ fn consent_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: 
 		hostname,
 		route,
 		client_id: &encode(query.client_id.as_str()),
+		client_secret: query.client_secret.as_deref(),
 		redirect_uri: &encode(query.redirect_uri.as_str()),
 		scope: &encode(query.scope.as_str()),
 		state: &encode(query.state.as_str()),

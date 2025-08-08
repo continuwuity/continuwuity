@@ -2,7 +2,7 @@ use axum::{Json, extract::State};
 use conduwuit::{Result, err};
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
-use ruma::DeviceId;
+use ruma::{DeviceId, identifiers_validation};
 
 /// The required parameters to register a new client for OAuth2 application.
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -35,6 +35,8 @@ pub(crate) struct ClientQuery {
 #[derive(serde::Serialize, Debug)]
 pub(crate) struct ClientResponse {
 	client_id: String,
+	client_secret: Option<String>,
+	client_secret_expires_at: Option<u32>,
 	client_name: String,
 	client_uri: Url,
 	logo_uri: Option<Url>,
@@ -68,18 +70,38 @@ pub(crate) async fn register_client(
 	let scope = format!(
 		"urn:matrix:org.matrix.msc2967.client:api:* \
 		 urn:matrix:org.matrix.msc2967.client:device:{device_id}"
-	);
+	).parse().expect("parseable default Matrix scope");
 	// TODO check if the users service needs an update.
 	//services.users.update_device_metadata();
-	services.oidc.register_client(&Client::public(
-		device_id.as_ref(),
-		redirect_uri.into(),
-		scope
-			.parse()
-			.expect("device ID should parse in Matrix scope"),
-	))?;
+
+	// If the client cannot authenticate itself at the token endpoint, then
+	// it's a public client.
+	let is_private = client.token_endpoint_auth_method != "none";
+	// TODO generate a device secret.
+	let secret = "cacestdubonsecretmonlouou=--".to_string();
+	if let Err(err) = identifiers_validation::client_secret::validate(&secret) {
+		tracing::warn!("oops, we generated an invalid client_secret: {err}");
+	}
+	let registerable = match is_private {
+		| true => &Client::confidential(
+			device_id.as_ref(),
+			redirect_uri,
+			scope,
+			secret.as_bytes(),
+		).with_additional_redirect_uris(remaining_uris),
+		| _ => &Client::public(
+			device_id.as_ref(),
+			redirect_uri,
+			scope,
+		).with_additional_redirect_uris(remaining_uris)
+	};
+	tracing::trace!("registering OIDC device : {registerable:#?}");
+	services.oidc.register_client(&registerable)?;
+
 	let client_response = ClientResponse {
 		client_id: device_id.to_string(),
+		client_secret: if is_private { Some(secret) } else { None },
+		client_secret_expires_at: if is_private { Some(0) } else { None },
 		client_name: client.client_name.clone(),
 		client_uri: client.client_uri.clone(),
 		redirect_uris: client.redirect_uris.clone(),

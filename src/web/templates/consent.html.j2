@@ -6,8 +6,8 @@
         '{{ client_id }}' (at {{ redirect_uri }}) is requesting permission for '{{ scope }}'
     </p>
     <form method="post">
-        <input type="submit" value="Accept" formaction="{{ route }}?client_id={{ client_id }}&redirect_uri={{ redirect_uri }}&scope={{scope }}&state={{ state }}&code_challenge={{ code_challenge }}&code_challenge_method={{ code_challenge_method }}&response_type={{ response_type }}&response_mode={{ response_mode }}&allow=true">
-        <input type="submit" value="Deny" formaction="{{ route }}?client_id={{ client_id }}&redirect_uri={{ redirect_uri }}&scope={{scope }}&state={{ state }}&code_challenge={{ code_challenge }}&code_challenge_method={{ code_challenge_method }}&response_type={{ response_type }}&response_mode={{ response_mode }}&deny=true">
+        <input type="submit" value="Accept" formaction="{{ route }}?client_id={{ client_id }}{%- if let Some(secret) = client_secret -%}&client_secret={{ secret }}{%- endif -%}&redirect_uri={{ redirect_uri }}&scope={{ scope }}&state={{ state }}&code_challenge={{ code_challenge }}&code_challenge_method={{ code_challenge_method }}&response_type={{ response_type }}&response_mode={{ response_mode }}&allow=true">
+        <input type="submit" value="Deny" formaction="{{ route }}?client_id={{ client_id }}{%- if let Some(secret) = client_secret -%}&client_secret={{ secret }}{%- endif -%}&redirect_uri={{ redirect_uri }}&scope={{scope }}&state={{ state }}&code_challenge={{ code_challenge }}&code_challenge_method={{ code_challenge_method }}&response_type={{ response_type }}&response_mode={{ response_mode }}&deny=true">
     </form>
 </div>
 {%- endblock content -%}

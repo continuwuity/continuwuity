@@ -6,6 +6,9 @@
         <input type="text" name="username" placeholder="Username" required>
         <input type="password" name="password" placeholder="Password" required>
         <input type="hidden" name="client_id" value="{{ client_id }}">
+        {%- if let Some(secret) = client_secret -%}
+        <input type="hidden" name="client_secret" value="{{ secret }}">
+        {%- endif -%}
         <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
         <input type="hidden" name="scope" value="{{ scope }}">
         <input type="hidden" name="state" value="{{ state }}">
