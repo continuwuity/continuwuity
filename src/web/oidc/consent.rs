@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use askama::Template;
 use axum::http::StatusCode;
 use oxide_auth::frontends::simple::request::Body;
@@ -27,11 +26,7 @@ pub fn oidc_consent_form(hostname: &str, query: &AuthorizationQuery) -> OidcResp
 
 /// Render the html contents of the user consent page.
 fn consent_page(hostname: &str, query: &AuthorizationQuery, route: &str, nonce: &str) -> String {
-	let response_mode = &query.response_mode.clone()
-		.unwrap_or_else(|| match query.redirect_uri.scheme() {
-			| "https" => Cow::Borrowed("fragment"),
-			| _ => Cow::Borrowed("query")
-		});
+	let response_mode = &query.response_mode.clone().unwrap_or("fragment".to_string());
 	let template = ConsentPageTemplate {
 		nonce,
 		hostname,
