@@ -41,6 +41,11 @@ impl crate::Service for Service {
 			return Ok(());
 		}
 
+		if self.services.config.ldap.enable {
+			warn!("emergency password feature not available with LDAP enabled.");
+			return Ok(());
+		}
+
 		self.set_emergency_access().await.inspect_err(|e| {
 			error!("Could not set the configured emergency password for the server user: {e}");
 		})
@@ -57,7 +62,8 @@ impl Service {
 
 		self.services
 			.users
-			.set_password(server_user, self.services.config.emergency_password.as_deref())?;
+			.set_password(server_user, self.services.config.emergency_password.as_deref())
+			.await?;
 
 		let (ruleset, pwd_set) = match self.services.config.emergency_password {
 			| Some(_) => (Ruleset::server_default(server_user), true),

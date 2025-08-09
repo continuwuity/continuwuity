@@ -292,7 +292,7 @@ pub(crate) async fn get_timezone_key_route(
 			.await
 		{
 			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None)?;
+				services.users.create(&body.user_id, None, None).await?;
 			}
 
 			services
@@ -352,7 +352,7 @@ pub(crate) async fn get_profile_key_route(
 			.await
 		{
 			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None)?;
+				services.users.create(&body.user_id, None, None).await?;
 			}
 
 			services

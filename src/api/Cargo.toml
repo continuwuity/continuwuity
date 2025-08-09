@@ -49,6 +49,9 @@ jemalloc_stats = [
 	"conduwuit-core/jemalloc_stats",
 	"conduwuit-service/jemalloc_stats",
 ]
+ldap = [
+    "conduwuit-service/ldap"
+]
 release_max_log_level = [
 	"conduwuit-core/release_max_log_level",
 	"conduwuit-service/release_max_log_level",

@@ -68,7 +68,8 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 	// Create user
 	self.services
 		.users
-		.create(&user_id, Some(password.as_str()))?;
+		.create(&user_id, Some(password.as_str()), None)
+		.await?;
 
 	// Default to pretty displayname
 	let mut displayname = user_id.localpart().to_owned();
@@ -284,6 +285,7 @@ pub(super) async fn reset_password(&self, username: String, password: Option<Str
 		.services
 		.users
 		.set_password(&user_id, Some(new_password.as_str()))
+		.await
 	{
 		| Err(e) => return Err!("Couldn't reset the password for user {user_id}: {e}"),
 		| Ok(()) => {

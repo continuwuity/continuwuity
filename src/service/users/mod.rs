@@ -1,11 +1,19 @@
-use std::{collections::BTreeMap, mem, sync::Arc};
+use std::{
+	collections::{BTreeMap, HashMap},
+	mem,
+	sync::Arc,
+};
 
 use conduwuit::{
-	Err, Error, Result, Server, at, debug_warn, err, trace,
+	Err, Error, Result, Server, at, debug_warn, err, is_equal_to,
+	result::LogErr,
+	trace,
 	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
 };
+use conduwuit_core::{debug, error};
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
+use ldap3::{LdapConnAsync, Scope, SearchEntry};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
@@ -63,6 +71,7 @@ struct Data {
 	userid_displayname: Arc<Map>,
 	userid_lastonetimekeyupdate: Arc<Map>,
 	userid_masterkeyid: Arc<Map>,
+	userid_origin: Arc<Map>,
 	userid_password: Arc<Map>,
 	userid_suspension: Arc<Map>,
 	userid_selfsigningkeyid: Arc<Map>,
@@ -100,6 +109,7 @@ impl crate::Service for Service {
 				userid_displayname: args.db["userid_displayname"].clone(),
 				userid_lastonetimekeyupdate: args.db["userid_lastonetimekeyupdate"].clone(),
 				userid_masterkeyid: args.db["userid_masterkeyid"].clone(),
+				userid_origin: args.db["userid_origin"].clone(),
 				userid_password: args.db["userid_password"].clone(),
 				userid_suspension: args.db["userid_suspension"].clone(),
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
@@ -136,9 +146,21 @@ impl Service {
 	}
 
 	/// Create a new user account on this homeserver.
+	///
+	/// User origin is by default "password" (meaning that it will login using
+	/// its user_id/password). Users with other origins (currently only "ldap"
+	/// is available) have special login processes.
 	#[inline]
-	pub fn create(&self, user_id: &UserId, password: Option<&str>) -> Result<()> {
-		self.set_password(user_id, password)
+	pub async fn create(
+		&self,
+		user_id: &UserId,
+		password: Option<&str>,
+		origin: Option<&str>,
+	) -> Result<()> {
+		self.db
+			.userid_origin
+			.insert(user_id, origin.unwrap_or("password"));
+		self.set_password(user_id, password).await
 	}
 
 	/// Deactivate account
@@ -152,7 +174,7 @@ impl Service {
 		// result in an empty string, so the user will not be able to log in again.
 		// Systems like changing the password without logging in should check if the
 		// account is deactivated.
-		self.set_password(user_id, None)?;
+		self.set_password(user_id, None).await?;
 
 		// TODO: Unhook 3PID
 		Ok(())
@@ -253,13 +275,34 @@ impl Service {
 			.ready_filter_map(|(u, p): (&UserId, &[u8])| (!p.is_empty()).then_some(u))
 	}
 
+	/// Returns the origin of the user (password/LDAP/...).
+	pub async fn origin(&self, user_id: &UserId) -> Result<String> {
+		self.db.userid_origin.get(user_id).await.deserialized()
+	}
+
 	/// Returns the password hash for the given user.
 	pub async fn password_hash(&self, user_id: &UserId) -> Result<String> {
 		self.db.userid_password.get(user_id).await.deserialized()
 	}
 
 	/// Hash and set the user's password to the Argon2 hash
-	pub fn set_password(&self, user_id: &UserId, password: Option<&str>) -> Result<()> {
+	pub async fn set_password(&self, user_id: &UserId, password: Option<&str>) -> Result<()> {
+		// Cannot change the password of a LDAP user. There are two special cases :
+		// - a `None` password can be used to deactivate a LDAP user
+		// - a "*" password is used as the default password of an active LDAP user
+		if cfg!(feature = "ldap")
+			&& password.is_some_and(|pwd| pwd != "*")
+			&& self
+				.db
+				.userid_origin
+				.get(user_id)
+				.await
+				.deserialized::<String>()
+				.is_ok_and(is_equal_to!("ldap"))
+		{
+			return Err!(Request(InvalidParam("Cannot change password of a LDAP user")));
+		}
+
 		password
 			.map(utils::hash::password)
 			.transpose()
@@ -1131,6 +1174,154 @@ impl Service {
 		} else {
 			self.db.useridprofilekey_value.del(key);
 		}
+	}
+
+	#[cfg(not(feature = "ldap"))]
+	pub async fn search_ldap(&self, _user_id: &UserId) -> Result<Vec<(String, bool)>> {
+		Err!(FeatureDisabled("ldap"))
+	}
+
+	#[cfg(feature = "ldap")]
+	pub async fn search_ldap(&self, user_id: &UserId) -> Result<Vec<(String, bool)>> {
+		let localpart = user_id.localpart().to_owned();
+		let lowercased_localpart = localpart.to_lowercase();
+
+		let config = &self.services.server.config.ldap;
+		let uri = config
+			.uri
+			.as_ref()
+			.ok_or_else(|| err!(Ldap(error!("LDAP URI is not configured."))))?;
+
+		debug!(?uri, "LDAP creating connection...");
+		let (conn, mut ldap) = LdapConnAsync::new(uri.as_str())
+			.await
+			.map_err(|e| err!(Ldap(error!(?user_id, "LDAP connection setup error: {e}"))))?;
+
+		let driver = self.services.server.runtime().spawn(async move {
+			match conn.drive().await {
+				| Err(e) => error!("LDAP connection error: {e}"),
+				| Ok(()) => debug!("LDAP connection completed."),
+			}
+		});
+
+		match (&config.bind_dn, &config.bind_password_file) {
+			| (Some(bind_dn), Some(bind_password_file)) => {
+				let bind_pw = String::from_utf8(std::fs::read(bind_password_file)?)?;
+				ldap.simple_bind(bind_dn, bind_pw.trim())
+					.await
+					.and_then(ldap3::LdapResult::success)
+					.map_err(|e| err!(Ldap(error!("LDAP bind error: {e}"))))?;
+			},
+			| (..) => {},
+		}
+
+		let attr = [&config.uid_attribute, &config.name_attribute];
+
+		let user_filter = &config.filter.replace("{username}", &lowercased_localpart);
+
+		let (entries, _result) = ldap
+			.search(&config.base_dn, Scope::Subtree, user_filter, &attr)
+			.await
+			.and_then(ldap3::SearchResult::success)
+			.inspect(|(entries, result)| trace!(?entries, ?result, "LDAP Search"))
+			.map_err(|e| err!(Ldap(error!(?attr, ?user_filter, "LDAP search error: {e}"))))?;
+
+		let mut dns: HashMap<String, bool> = entries
+			.into_iter()
+			.filter_map(|entry| {
+				let search_entry = SearchEntry::construct(entry);
+				debug!(?search_entry, "LDAP search entry");
+				search_entry
+					.attrs
+					.get(&config.uid_attribute)
+					.into_iter()
+					.chain(search_entry.attrs.get(&config.name_attribute))
+					.any(|ids| ids.contains(&localpart) || ids.contains(&lowercased_localpart))
+					.then_some((search_entry.dn, false))
+			})
+			.collect();
+
+		if !config.admin_filter.is_empty() {
+			let admin_base_dn = if config.admin_base_dn.is_empty() {
+				&config.base_dn
+			} else {
+				&config.admin_base_dn
+			};
+
+			let admin_filter = &config
+				.admin_filter
+				.replace("{username}", &lowercased_localpart);
+
+			let (admin_entries, _result) = ldap
+				.search(admin_base_dn, Scope::Subtree, admin_filter, &attr)
+				.await
+				.and_then(ldap3::SearchResult::success)
+				.inspect(|(entries, result)| trace!(?entries, ?result, "LDAP Admin Search"))
+				.map_err(|e| {
+					err!(Ldap(error!(?attr, ?admin_filter, "Ldap admin search error: {e}")))
+				})?;
+
+			dns.extend(admin_entries.into_iter().filter_map(|entry| {
+				let search_entry = SearchEntry::construct(entry);
+				debug!(?search_entry, "LDAP search entry");
+				search_entry
+					.attrs
+					.get(&config.uid_attribute)
+					.into_iter()
+					.chain(search_entry.attrs.get(&config.name_attribute))
+					.any(|ids| ids.contains(&localpart) || ids.contains(&lowercased_localpart))
+					.then_some((search_entry.dn, true))
+			}));
+		}
+
+		ldap.unbind()
+			.await
+			.map_err(|e| err!(Ldap(error!("LDAP unbind error: {e}"))))?;
+
+		driver.await.log_err().ok();
+
+		Ok(dns.drain().collect())
+	}
+
+	#[cfg(not(feature = "ldap"))]
+	pub async fn auth_ldap(&self, _user_dn: &str, _password: &str) -> Result {
+		Err!(FeatureDisabled("ldap"))
+	}
+
+	#[cfg(feature = "ldap")]
+	pub async fn auth_ldap(&self, user_dn: &str, password: &str) -> Result {
+		let config = &self.services.server.config.ldap;
+		let uri = config
+			.uri
+			.as_ref()
+			.ok_or_else(|| err!(Ldap(error!("LDAP URI is not configured."))))?;
+
+		debug!(?uri, "LDAP creating connection...");
+		let (conn, mut ldap) = LdapConnAsync::new(uri.as_str())
+			.await
+			.map_err(|e| err!(Ldap(error!(?user_dn, "LDAP connection setup error: {e}"))))?;
+
+		let driver = self.services.server.runtime().spawn(async move {
+			match conn.drive().await {
+				| Err(e) => error!("LDAP connection error: {e}"),
+				| Ok(()) => debug!("LDAP connection completed."),
+			}
+		});
+
+		ldap.simple_bind(user_dn, password)
+			.await
+			.and_then(ldap3::LdapResult::success)
+			.map_err(|e| {
+				err!(Request(Forbidden(debug_error!("LDAP authentication error: {e}"))))
+			})?;
+
+		ldap.unbind()
+			.await
+			.map_err(|e| err!(Ldap(error!("LDAP unbind error: {e}"))))?;
+
+		driver.await.log_err().ok();
+
+		Ok(())
 	}
 }
 

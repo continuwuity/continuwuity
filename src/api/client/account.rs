@@ -373,7 +373,7 @@ pub(crate) async fn register_route(
 	let password = if is_guest { None } else { body.password.as_deref() };
 
 	// Create user
-	services.users.create(&user_id, password)?;
+	services.users.create(&user_id, password, None).await?;
 
 	// Default to pretty displayname
 	let mut displayname = user_id.localpart().to_owned();
@@ -659,7 +659,8 @@ pub(crate) async fn change_password_route(
 
 	services
 		.users
-		.set_password(sender_user, Some(&body.new_password))?;
+		.set_password(sender_user, Some(&body.new_password))
+		.await?;
 
 	if body.logout_devices {
 		// Logout all devices except the current one

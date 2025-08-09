@@ -1696,6 +1696,10 @@
 #
 #config_reload_signal = true
 
+# This item is undocumented. Please contribute documentation for it.
+#
+#ldap = false
+
 [global.tls]
 
 # Path to a valid TLS certificate file.
@@ -1774,3 +1778,90 @@
 # is 33.55MB. Setting it to 0 disables blurhashing.
 #
 #blurhash_max_raw_size = 33554432
+
+[global.ldap]
+
+# Whether to enable LDAP login.
+#
+# example: "true"
+#
+#enable = false
+
+# URI of the LDAP server.
+#
+# example: "ldap://ldap.example.com:389"
+#
+#uri =
+
+# Root of the searches.
+#
+# example: "ou=users,dc=example,dc=org"
+#
+#base_dn = false
+
+# Bind DN if anonymous search is not enabled.
+#
+# You can use the variable `{username}` that will be replaced by the
+# entered username. In such case, the password used to bind will be the
+# one provided for the login and not the one given by
+# `bind_password_file`. Beware: automatically granting admin rights will
+# not work if you use this direct bind instead of a LDAP search.
+#
+# example: "cn=ldap-reader,dc=example,dc=org" or
+# "cn={username},ou=users,dc=example,dc=org"
+#
+#bind_dn = false
+
+# Path to a file on the system that contains the password for the
+# `bind_dn`.
+#
+# The server must be able to access the file, and it must not be empty.
+#
+#bind_password_file = false
+
+# Search filter to limit user searches.
+#
+# You can use the variable `{username}` that will be replaced by the
+# entered username for more complex filters.
+#
+# example: "(&(objectClass=person)(memberOf=matrix))"
+#
+#filter = "(objectClass=*)"
+
+# Attribute to use to uniquely identify the user.
+#
+# example: "uid" or "cn"
+#
+#uid_attribute = "uid"
+
+# Attribute containing the mail of the user.
+#
+# example: "mail"
+#
+#mail_attribute = "mail"
+
+# Attribute containing the distinguished name of the user.
+#
+# example: "givenName" or "sn"
+#
+#name_attribute = "givenName"
+
+# Root of the searches for admin users.
+#
+# Defaults to `base_dn` if empty.
+#
+# example: "ou=admins,dc=example,dc=org"
+#
+#admin_base_dn = false
+
+# The LDAP search filter to find administrative users for conduwuit.
+#
+# If left blank, administrative state must be configured manually for each
+# user.
+#
+# You can use the variable `{username}` that will be replaced by the
+# entered username for more complex filters.
+#
+# example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
+#
+#admin_filter = false

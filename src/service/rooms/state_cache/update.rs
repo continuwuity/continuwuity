@@ -49,7 +49,7 @@ pub async fn update_membership(
 	#[allow(clippy::collapsible_if)]
 	if !self.services.globals.user_is_local(user_id) {
 		if !self.services.users.exists(user_id).await {
-			self.services.users.create(user_id, None)?;
+			self.services.users.create(user_id, None, None).await?;
 		}
 	}
 

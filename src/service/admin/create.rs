@@ -38,7 +38,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 
 	// Create a user for the server
 	let server_user = services.globals.server_user.as_ref();
-	services.users.create(server_user, None)?;
+	services.users.create(server_user, None, None).await?;
 
 	let create_content = {
 		use RoomVersionId::*;

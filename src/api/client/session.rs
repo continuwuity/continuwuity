@@ -6,10 +6,11 @@ use conduwuit::{
 	Err, Error, Result, debug, err, info, utils,
 	utils::{ReadyExt, hash},
 };
-use conduwuit_service::uiaa::SESSION_ID_LENGTH;
+use conduwuit_core::debug_error;
+use conduwuit_service::{Services, uiaa::SESSION_ID_LENGTH};
 use futures::StreamExt;
 use ruma::{
-	UserId,
+	OwnedUserId, UserId,
 	api::client::{
 		session::{
 			get_login_token,
@@ -49,6 +50,147 @@ pub(crate) async fn get_login_types_route(
 	]))
 }
 
+/// Authenticates the given user by its ID and its password.
+///
+/// Returns the user ID if successful, and an error otherwise.
+#[tracing::instrument(skip_all, fields(%user_id), name = "password")]
+pub(crate) async fn password_login(
+	services: &Services,
+	user_id: &UserId,
+	lowercased_user_id: &UserId,
+	password: &str,
+) -> Result<OwnedUserId> {
+	// Restrict login to accounts only of type 'password', including untyped
+	// legacy accounts which are equivalent to 'password'.
+	if services
+		.users
+		.origin(user_id)
+		.await
+		.is_ok_and(|origin| origin != "password")
+	{
+		return Err!(Request(Forbidden("Account does not permit password login.")));
+	}
+
+	let (hash, user_id) = match services.users.password_hash(user_id).await {
+		| Ok(hash) => (hash, user_id),
+		| Err(_) => services
+			.users
+			.password_hash(lowercased_user_id)
+			.await
+			.map(|hash| (hash, lowercased_user_id))
+			.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?,
+	};
+
+	if hash.is_empty() {
+		return Err!(Request(UserDeactivated("The user has been deactivated")));
+	}
+
+	hash::verify_password(password, &hash)
+		.inspect_err(|e| debug_error!("{e}"))
+		.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?;
+
+	Ok(user_id.to_owned())
+}
+
+/// Authenticates the given user through the configured LDAP server.
+///
+/// Creates the user if the user is found in the LDAP and do not already have an
+/// account.
+#[tracing::instrument(skip_all, fields(%user_id), name = "ldap")]
+pub(super) async fn ldap_login(
+	services: &Services,
+	user_id: &UserId,
+	lowercased_user_id: &UserId,
+	password: &str,
+) -> Result<OwnedUserId> {
+	let (user_dn, is_ldap_admin) = match services.config.ldap.bind_dn.as_ref() {
+		| Some(bind_dn) if bind_dn.contains("{username}") =>
+			(bind_dn.replace("{username}", lowercased_user_id.localpart()), false),
+		| _ => {
+			debug!("Searching user in LDAP");
+
+			let dns = services.users.search_ldap(user_id).await?;
+			if dns.len() >= 2 {
+				return Err!(Ldap("LDAP search returned two or more results"));
+			}
+
+			let Some((user_dn, is_admin)) = dns.first() else {
+				return password_login(services, user_id, lowercased_user_id, password).await;
+			};
+
+			(user_dn.clone(), *is_admin)
+		},
+	};
+
+	let user_id = services
+		.users
+		.auth_ldap(&user_dn, password)
+		.await
+		.map(|()| lowercased_user_id.to_owned())?;
+
+	// LDAP users are automatically created on first login attempt. This is a very
+	// common feature that can be seen on many services using a LDAP provider for
+	// their users (synapse, Nextcloud, Jellyfin, ...).
+	//
+	// LDAP users are crated with a dummy password but non empty because an empty
+	// password is reserved for deactivated accounts. The conduwuit password field
+	// will never be read to login a LDAP user so it's not an issue.
+	if !services.users.exists(lowercased_user_id).await {
+		services
+			.users
+			.create(lowercased_user_id, Some("*"), Some("ldap"))
+			.await?;
+	}
+
+	let is_conduwuit_admin = services.admin.user_is_admin(lowercased_user_id).await;
+
+	if is_ldap_admin && !is_conduwuit_admin {
+		services.admin.make_user_admin(lowercased_user_id).await?;
+	} else if !is_ldap_admin && is_conduwuit_admin {
+		services.admin.revoke_admin(lowercased_user_id).await?;
+	}
+
+	Ok(user_id)
+}
+
+pub(crate) async fn handle_login(
+	services: &Services,
+	body: &Ruma<login::v3::Request>,
+	identifier: &Option<uiaa::UserIdentifier>,
+	password: &str,
+	user: &Option<String>,
+) -> Result<OwnedUserId> {
+	debug!("Got password login type");
+	let user_id =
+				if let Some(uiaa::UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
+					UserId::parse_with_server_name(user_id, &services.config.server_name)
+				} else if let Some(user) = user {
+					UserId::parse_with_server_name(user, &services.config.server_name)
+				} else {
+					return Err!(Request(Unknown(
+						debug_warn!(?body.login_info, "Valid identifier or username was not provided (invalid or unsupported login type?)")
+					)));
+				}
+				.map_err(|e| err!(Request(InvalidUsername(warn!("Username is invalid: {e}")))))?;
+
+	let lowercased_user_id = UserId::parse_with_server_name(
+		user_id.localpart().to_lowercase(),
+		&services.config.server_name,
+	)?;
+
+	if !services.globals.user_is_local(&user_id)
+		|| !services.globals.user_is_local(&lowercased_user_id)
+	{
+		return Err!(Request(Unknown("User ID does not belong to this homeserver")));
+	}
+
+	if cfg!(feature = "ldap") && services.config.ldap.enable {
+		ldap_login(services, &user_id, &lowercased_user_id, password).await
+	} else {
+		password_login(services, &user_id, &lowercased_user_id, password).await
+	}
+}
+
 /// # `POST /_matrix/client/v3/login`
 ///
 /// Authenticates the user and returns an access token it can use in subsequent
@@ -80,70 +222,7 @@ pub(crate) async fn login_route(
 			password,
 			user,
 			..
-		}) => {
-			debug!("Got password login type");
-			let user_id =
-				if let Some(uiaa::UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
-					UserId::parse_with_server_name(user_id, &services.config.server_name)
-				} else if let Some(user) = user {
-					UserId::parse_with_server_name(user, &services.config.server_name)
-				} else {
-					return Err!(Request(Unknown(
-						debug_warn!(?body.login_info, "Valid identifier or username was not provided (invalid or unsupported login type?)")
-					)));
-				}
-				.map_err(|e| err!(Request(InvalidUsername(warn!("Username is invalid: {e}")))))?;
-
-			let lowercased_user_id = UserId::parse_with_server_name(
-				user_id.localpart().to_lowercase(),
-				&services.config.server_name,
-			)?;
-
-			if !services.globals.user_is_local(&user_id)
-				|| !services.globals.user_is_local(&lowercased_user_id)
-			{
-				return Err!(Request(Unknown("User ID does not belong to this homeserver")));
-			}
-
-			// first try the username as-is
-			let hash = services
-				.users
-				.password_hash(&user_id)
-				.await
-				.inspect_err(|e| debug!("{e}"));
-
-			match hash {
-				| Ok(hash) => {
-					if hash.is_empty() {
-						return Err!(Request(UserDeactivated("The user has been deactivated")));
-					}
-
-					hash::verify_password(password, &hash)
-						.inspect_err(|e| debug!("{e}"))
-						.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?;
-
-					user_id
-				},
-				| Err(_e) => {
-					let hash_lowercased_user_id = services
-						.users
-						.password_hash(&lowercased_user_id)
-						.await
-						.inspect_err(|e| debug!("{e}"))
-						.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?;
-
-					if hash_lowercased_user_id.is_empty() {
-						return Err!(Request(UserDeactivated("The user has been deactivated")));
-					}
-
-					hash::verify_password(password, &hash_lowercased_user_id)
-						.inspect_err(|e| debug!("{e}"))
-						.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?;
-
-					lowercased_user_id
-				},
-			}
-		},
+		}) => handle_login(&services, &body, identifier, password, user).await?,
 		| login::v3::LoginInfo::Token(login::v3::Token { token }) => {
 			debug!("Got token login type");
 			if !services.server.config.login_via_existing_session {
