@@ -19,7 +19,7 @@ use ruma::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{Dep, account_data, admin, globals, rooms};
+use crate::{Dep, account_data, admin, appservice, globals, rooms};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -40,6 +40,7 @@ struct Services {
 	server: Arc<Server>,
 	account_data: Dep<account_data::Service>,
 	admin: Dep<admin::Service>,
+	appservice: Dep<appservice::Service>,
 	globals: Dep<globals::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
@@ -76,6 +77,7 @@ impl crate::Service for Service {
 				server: args.server.clone(),
 				account_data: args.depend::<account_data::Service>("account_data"),
 				admin: args.depend::<admin::Service>("admin"),
+				appservice: args.depend::<appservice::Service>("appservice"),
 				globals: args.depend::<globals::Service>("globals"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
@@ -407,6 +409,26 @@ impl Service {
 			)));
 		}
 
+		// Prevent token collisions with appservice tokens
+		let final_token = if self
+			.services
+			.appservice
+			.find_from_token(token)
+			.await
+			.is_ok()
+		{
+			let new_token = utils::random_string(32);
+			conduwuit::debug_warn!(
+				"Token collision prevented: Generated new token for user '{}' device '{}' \
+				 (original token conflicted with an appservice)",
+				user_id.localpart(),
+				device_id
+			);
+			new_token
+		} else {
+			token.to_owned()
+		};
+
 		// Remove old token
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
 			self.db.token_userdeviceid.remove(&old_token);
@@ -414,8 +436,8 @@ impl Service {
 		}
 
 		// Assign token to user device combination
-		self.db.userdeviceid_token.put_raw(key, token);
-		self.db.token_userdeviceid.raw_put(token, key);
+		self.db.userdeviceid_token.put_raw(key, &final_token);
+		self.db.token_userdeviceid.raw_put(&final_token, key);
 
 		Ok(())
 	}

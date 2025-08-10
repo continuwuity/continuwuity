@@ -5,6 +5,14 @@ use axum_extra::{
 	typed_header::TypedHeaderRejectionReason,
 };
 use conduwuit::{Err, Error, Result, debug_error, err, warn};
+use futures::{
+	TryFutureExt,
+	future::{
+		Either::{Left, Right},
+		select_ok,
+	},
+	pin_mut,
+};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
 	api::{
@@ -54,17 +62,7 @@ pub(super) async fn auth(
 		| None => request.query.access_token.as_deref(),
 	};
 
-	let token = if let Some(token) = token {
-		match services.appservice.find_from_token(token).await {
-			| Some(reg_info) => Token::Appservice(Box::new(reg_info)),
-			| _ => match services.users.find_from_token(token).await {
-				| Ok((user_id, device_id)) => Token::User((user_id, device_id)),
-				| _ => Token::Invalid,
-			},
-		}
-	} else {
-		Token::None
-	};
+	let token = find_token(services, token).await?;
 
 	if metadata.authentication == AuthScheme::None {
 		match metadata {
@@ -341,4 +339,25 @@ async fn parse_x_matrix(request: &mut Request) -> Result<XMatrix> {
 		})?;
 
 	Ok(x_matrix)
+}
+
+async fn find_token(services: &Services, token: Option<&str>) -> Result<Token> {
+	let Some(token) = token else {
+		return Ok(Token::None);
+	};
+
+	let user_token = services.users.find_from_token(token).map_ok(Token::User);
+
+	let appservice_token = services
+		.appservice
+		.find_from_token(token)
+		.map_ok(Box::new)
+		.map_ok(Token::Appservice);
+
+	pin_mut!(user_token, appservice_token);
+	match select_ok([Left(user_token), Right(appservice_token)]).await {
+		| Err(e) if !e.is_not_found() => Err(e),
+		| Ok((token, _)) => Ok(token),
+		| _ => Ok(Token::Invalid),
+	}
 }

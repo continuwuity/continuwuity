@@ -133,10 +133,10 @@ impl Service {
 			.await
 			.is_ok()
 		{
-			return err!(Request(InvalidParam(
+			return Err(err!(Request(InvalidParam(
 				"Cannot register appservice: The provided token is already in use by a user \
 				 device. Please generate a different token for the appservice."
-			)));
+			))));
 		}
 
 		self.db
@@ -182,12 +182,13 @@ impl Service {
 			.map(|info| info.registration)
 	}
 
-	pub async fn find_from_token(&self, token: &str) -> Option<RegistrationInfo> {
+	pub async fn find_from_token(&self, token: &str) -> Result<RegistrationInfo> {
 		self.read()
 			.await
 			.values()
 			.find(|info| info.registration.as_token == token)
 			.cloned()
+			.ok_or_else(|| err!(Request(NotFound("Appservice token not found"))))
 	}
 
 	/// Checks if a given user id matches any exclusive appservice regex
