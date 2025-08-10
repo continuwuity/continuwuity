@@ -1,18 +1,18 @@
-use std::{
-	collections::{BTreeMap, HashMap},
-	mem,
-	sync::Arc,
-};
+#[cfg(feature = "ldap")]
+use std::collections::HashMap;
+use std::{collections::BTreeMap, mem, sync::Arc};
 
+#[cfg(feature = "ldap")]
+use conduwuit::result::LogErr;
 use conduwuit::{
-	Err, Error, Result, Server, at, debug_warn, err, is_equal_to,
-	result::LogErr,
-	trace,
+	Err, Error, Result, Server, at, debug_warn, err, is_equal_to, trace,
 	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
 };
+#[cfg(feature = "ldap")]
 use conduwuit_core::{debug, error};
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
+#[cfg(feature = "ldap")]
 use ldap3::{LdapConnAsync, Scope, SearchEntry};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
