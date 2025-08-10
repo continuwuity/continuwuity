@@ -1797,7 +1797,7 @@
 #
 # example: "ou=users,dc=example,dc=org"
 #
-#base_dn =
+#base_dn = ""
 
 # Bind DN if anonymous search is not enabled.
 #
@@ -1846,7 +1846,7 @@
 #
 # example: "ou=admins,dc=example,dc=org"
 #
-#admin_base_dn =
+#admin_base_dn = ""
 
 # The LDAP search filter to find administrative users for continuwuity.
 #

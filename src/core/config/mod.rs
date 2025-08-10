@@ -2063,7 +2063,9 @@ pub struct LdapConfig {
 	/// Root of the searches.
 	///
 	/// example: "ou=users,dc=example,dc=org"
-	#[serde(default = "empty_string_fn")]
+	///
+	/// default: ""
+	#[serde(default)]
 	pub base_dn: String,
 
 	/// Bind DN if anonymous search is not enabled.
@@ -2076,7 +2078,9 @@ pub struct LdapConfig {
 	///
 	/// example: "cn=ldap-reader,dc=example,dc=org" or
 	/// "cn={username},ou=users,dc=example,dc=org"
-	#[serde(default = "some_empty_string_fn")]
+	///
+	/// default:
+	#[serde(default)]
 	pub bind_dn: Option<String>,
 
 	/// Path to a file on the system that contains the password for the
@@ -2118,7 +2122,9 @@ pub struct LdapConfig {
 	/// Defaults to `base_dn` if empty.
 	///
 	/// example: "ou=admins,dc=example,dc=org"
-	#[serde(default = "empty_string_fn")]
+	///
+	/// default: ""
+	#[serde(default)]
 	pub admin_base_dn: String,
 
 	/// The LDAP search filter to find administrative users for continuwuity.
@@ -2130,7 +2136,9 @@ pub struct LdapConfig {
 	/// entered username for more complex filters.
 	///
 	/// example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
-	#[serde(default = "empty_string_fn")]
+	///
+	/// default:
+	#[serde(default)]
 	pub admin_filter: String,
 }
 
@@ -2231,10 +2239,6 @@ impl Config {
 }
 
 fn true_fn() -> bool { true }
-
-fn empty_string_fn() -> String { String::new() }
-
-fn some_empty_string_fn() -> Option<String> { Some(String::new()) }
 
 fn default_address() -> ListeningAddr {
 	ListeningAddr {
