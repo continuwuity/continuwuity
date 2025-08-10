@@ -61,9 +61,10 @@ impl Data {
 		from: PduCount,
 		dir: Direction,
 	) -> impl Stream<Item = (PduCount, impl Event)> + Send + '_ {
+		let from_unsigned = from.into_unsigned();
 		let mut current = ArrayVec::<u8, 16>::new();
 		current.extend(target.to_be_bytes());
-		current.extend(from.saturating_inc(dir).into_unsigned().to_be_bytes());
+		current.extend(from_unsigned.to_be_bytes());
 		let current = current.as_slice();
 		match dir {
 			| Direction::Forward => self.tofrom_relation.raw_keys_from(current).boxed(),
@@ -73,6 +74,17 @@ impl Data {
 		.ready_take_while(move |key| key.starts_with(&target.to_be_bytes()))
 		.map(|to_from| u64_from_u8(&to_from[8..16]))
 		.map(PduCount::from_unsigned)
+		.ready_filter(move |count| {
+			if from == PduCount::min() || from == PduCount::max() {
+				true
+			} else {
+				let count_unsigned = count.into_unsigned();
+				match dir {
+					| Direction::Forward => count_unsigned > from_unsigned,
+					| Direction::Backward => count_unsigned < from_unsigned,
+				}
+			}
+		})
 		.wide_filter_map(move |shorteventid| async move {
 			let pdu_id: RawPduId = PduId { shortroomid, shorteventid }.into();
 

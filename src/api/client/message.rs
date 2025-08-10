@@ -1,14 +1,14 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at,
+	Err, Result, at, err,
 	matrix::{
 		event::{Event, Matches},
-		pdu::PduCount,
+		pdu::{PduCount, ShortEventId},
 	},
 	ref_at,
 	utils::{
 		IterStream, ReadyExt,
-		result::{FlatOk, LogErr},
+		result::LogErr,
 		stream::{BroadbandExt, TryIgnore, WidebandExt},
 	},
 };
@@ -61,6 +61,39 @@ const IGNORED_MESSAGE_TYPES: &[TimelineEventType] = &[
 const LIMIT_MAX: usize = 100;
 const LIMIT_DEFAULT: usize = 10;
 
+/// Parse a pagination token, trying ShortEventId first, then falling back to
+/// PduCount
+async fn parse_pagination_token(
+	_services: &Services,
+	_room_id: &RoomId,
+	token: Option<&str>,
+	default: PduCount,
+) -> Result<PduCount> {
+	let Some(token) = token else {
+		return Ok(default);
+	};
+
+	// Try parsing as ShortEventId first
+	if let Ok(shorteventid) = token.parse::<ShortEventId>() {
+		// ShortEventId maps directly to a PduCount in our database
+		Ok(PduCount::Normal(shorteventid))
+	} else if let Ok(count) = token.parse::<u64>() {
+		// Fallback to PduCount for backwards compatibility
+		Ok(PduCount::Normal(count))
+	} else if let Ok(count) = token.parse::<i64>() {
+		// Also handle negative counts for backfilled events
+		Ok(PduCount::from_signed(count))
+	} else {
+		Err(err!(Request(InvalidParam("Invalid pagination token"))))
+	}
+}
+
+/// Convert a PduCount to a token string (using the underlying ShortEventId)
+fn count_to_token(count: PduCount) -> String {
+	// The PduCount's unsigned value IS the ShortEventId
+	count.into_unsigned().to_string()
+}
+
 /// # `GET /_matrix/client/r0/rooms/{roomId}/messages`
 ///
 /// Allows paginating through room history.
@@ -81,17 +114,18 @@ pub(crate) async fn get_message_events_route(
 		return Err!(Request(Forbidden("Room does not exist to this server")));
 	}
 
-	let from: PduCount = body
-		.from
-		.as_deref()
-		.map(str::parse)
-		.transpose()?
-		.unwrap_or_else(|| match body.dir {
+	let from: PduCount =
+		parse_pagination_token(&services, room_id, body.from.as_deref(), match body.dir {
 			| Direction::Forward => PduCount::min(),
 			| Direction::Backward => PduCount::max(),
-		});
+		})
+		.await?;
 
-	let to: Option<PduCount> = body.to.as_deref().map(str::parse).flat_ok();
+	let to: Option<PduCount> = if let Some(to_str) = body.to.as_deref() {
+		Some(parse_pagination_token(&services, room_id, Some(to_str), PduCount::min()).await?)
+	} else {
+		None
+	};
 
 	let limit: usize = body
 		.limit
@@ -180,8 +214,8 @@ pub(crate) async fn get_message_events_route(
 		.collect();
 
 	Ok(get_message_events::v3::Response {
-		start: from.to_string(),
-		end: next_token.as_ref().map(ToString::to_string),
+		start: count_to_token(from),
+		end: next_token.map(count_to_token),
 		chunk,
 		state,
 	})
