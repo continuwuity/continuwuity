@@ -11,7 +11,7 @@ use ruma::{RoomAliasId, RoomId, UserId, api::appservice::Registration};
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 pub use self::{namespace_regex::NamespaceRegex, registration_info::RegistrationInfo};
-use crate::{Dep, sending};
+use crate::{Dep, globals, sending, users};
 
 pub struct Service {
 	registration_info: RwLock<Registrations>,
@@ -20,7 +20,9 @@ pub struct Service {
 }
 
 struct Services {
+	globals: Dep<globals::Service>,
 	sending: Dep<sending::Service>,
+	users: Dep<users::Service>,
 }
 
 struct Data {
@@ -35,7 +37,9 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			registration_info: RwLock::new(BTreeMap::new()),
 			services: Services {
+				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
+				users: args.depend::<users::Service>("users"),
 			},
 			db: Data {
 				id_appserviceregistrations: args.db["id_appserviceregistrations"].clone(),
@@ -44,15 +48,34 @@ impl crate::Service for Service {
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		// Inserting registrations into cache
 		self.iter_db_ids()
 			.try_for_each(async |appservice| {
-				self.registration_info
-					.write()
-					.await
-					.insert(appservice.0, appservice.1.try_into()?);
+				let (id, registration) = appservice;
 
-				Ok(())
+				// During startup, resolve any token collisions in favour of appservices
+				// by logging out conflicting user devices
+				if let Ok((user_id, device_id)) = self
+					.services
+					.users
+					.find_from_token(&registration.as_token)
+					.await
+				{
+					conduwuit::warn!(
+						"Token collision detected during startup: Appservice '{}' token was \
+						 also used by user '{}' device '{}'. Logging out the user device to \
+						 resolve conflict.",
+						id,
+						user_id.localpart(),
+						device_id
+					);
+
+					self.services
+						.users
+						.remove_device(&user_id, &device_id)
+						.await;
+				}
+
+				self.start_appservice(id, registration).await
 			})
 			.await
 	}
@@ -61,6 +84,39 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Starts an appservice, ensuring its sender_localpart user exists and is
+	/// active. Creates the user if it doesn't exist, or reactivates it if it
+	/// was deactivated. Then registers the appservice in memory for request
+	/// handling.
+	async fn start_appservice(&self, id: String, registration: Registration) -> Result {
+		let appservice_user_id = UserId::parse_with_server_name(
+			registration.sender_localpart.as_str(),
+			self.services.globals.server_name(),
+		)?;
+
+		if !self.services.users.exists(&appservice_user_id).await {
+			self.services.users.create(&appservice_user_id, None)?;
+		} else if self
+			.services
+			.users
+			.is_deactivated(&appservice_user_id)
+			.await
+			.unwrap_or(false)
+		{
+			// Reactivate the appservice user if it was accidentally deactivated
+			self.services
+				.users
+				.set_password(&appservice_user_id, None)?;
+		}
+
+		self.registration_info
+			.write()
+			.await
+			.insert(id, registration.try_into()?);
+
+		Ok(())
+	}
+
 	/// Registers an appservice and returns the ID to the caller
 	pub async fn register_appservice(
 		&self,
@@ -68,14 +124,27 @@ impl Service {
 		appservice_config_body: &str,
 	) -> Result {
 		//TODO: Check for collisions between exclusive appservice namespaces
-		self.registration_info
-			.write()
+
+		// Prevent token collision with existing user tokens
+		if self
+			.services
+			.users
+			.find_from_token(&registration.as_token)
 			.await
-			.insert(registration.id.clone(), registration.clone().try_into()?);
+			.is_ok()
+		{
+			return err!(Request(InvalidParam(
+				"Cannot register appservice: The provided token is already in use by a user \
+				 device. Please generate a different token for the appservice."
+			)));
+		}
 
 		self.db
 			.id_appserviceregistrations
 			.insert(&registration.id, appservice_config_body);
+
+		self.start_appservice(registration.id.clone(), registration.clone())
+			.await?;
 
 		Ok(())
 	}
