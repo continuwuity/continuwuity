@@ -156,9 +156,9 @@ pub(super) async fn ldap_login(
 pub(crate) async fn handle_login(
 	services: &Services,
 	body: &Ruma<login::v3::Request>,
-	identifier: &Option<uiaa::UserIdentifier>,
+	identifier: Option<&uiaa::UserIdentifier>,
 	password: &str,
-	user: &Option<String>,
+	user: Option<&String>,
 ) -> Result<OwnedUserId> {
 	debug!("Got password login type");
 	let user_id =
@@ -185,7 +185,7 @@ pub(crate) async fn handle_login(
 	}
 
 	if cfg!(feature = "ldap") && services.config.ldap.enable {
-		ldap_login(services, &user_id, &lowercased_user_id, password).await
+		Box::pin(ldap_login(services, &user_id, &lowercased_user_id, password)).await
 	} else {
 		password_login(services, &user_id, &lowercased_user_id, password).await
 	}
@@ -222,7 +222,7 @@ pub(crate) async fn login_route(
 			password,
 			user,
 			..
-		}) => handle_login(&services, &body, identifier, password, user).await?,
+		}) => handle_login(&services, &body, identifier.as_ref(), password, user.as_ref()).await?,
 		| login::v3::LoginInfo::Token(login::v3::Token { token }) => {
 			debug!("Got token login type");
 			if !services.server.config.login_via_existing_session {

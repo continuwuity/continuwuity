@@ -2063,7 +2063,7 @@ pub struct LdapConfig {
 	/// Root of the searches.
 	///
 	/// example: "ou=users,dc=example,dc=org"
-	#[serde(default)]
+	#[serde(default = "empty_string_fn")]
 	pub base_dn: String,
 
 	/// Bind DN if anonymous search is not enabled.
@@ -2076,7 +2076,7 @@ pub struct LdapConfig {
 	///
 	/// example: "cn=ldap-reader,dc=example,dc=org" or
 	/// "cn={username},ou=users,dc=example,dc=org"
-	#[serde(default)]
+	#[serde(default = "some_empty_string_fn")]
 	pub bind_dn: Option<String>,
 
 	/// Path to a file on the system that contains the password for the
@@ -2105,15 +2105,7 @@ pub struct LdapConfig {
 	#[serde(default = "default_ldap_uid_attribute")]
 	pub uid_attribute: String,
 
-	/// Attribute containing the mail of the user.
-	///
-	/// example: "mail"
-	///
-	/// default: "mail"
-	#[serde(default = "default_ldap_mail_attribute")]
-	pub mail_attribute: String,
-
-	/// Attribute containing the distinguished name of the user.
+	/// Attribute containing the display name of the user.
 	///
 	/// example: "givenName" or "sn"
 	///
@@ -2126,10 +2118,10 @@ pub struct LdapConfig {
 	/// Defaults to `base_dn` if empty.
 	///
 	/// example: "ou=admins,dc=example,dc=org"
-	#[serde(default)]
+	#[serde(default = "empty_string_fn")]
 	pub admin_base_dn: String,
 
-	/// The LDAP search filter to find administrative users for conduwuit.
+	/// The LDAP search filter to find administrative users for continuwuity.
 	///
 	/// If left blank, administrative state must be configured manually for each
 	/// user.
@@ -2138,7 +2130,7 @@ pub struct LdapConfig {
 	/// entered username for more complex filters.
 	///
 	/// example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
-	#[serde(default)]
+	#[serde(default = "empty_string_fn")]
 	pub admin_filter: String,
 }
 
@@ -2239,6 +2231,10 @@ impl Config {
 }
 
 fn true_fn() -> bool { true }
+
+fn empty_string_fn() -> String { String::new() }
+
+fn some_empty_string_fn() -> Option<String> { Some(String::new()) }
 
 fn default_address() -> ListeningAddr {
 	ListeningAddr {
@@ -2535,7 +2531,5 @@ pub(super) fn default_blurhash_y_component() -> u32 { 3 }
 fn default_ldap_search_filter() -> String { "(objectClass=*)".to_owned() }
 
 fn default_ldap_uid_attribute() -> String { String::from("uid") }
-
-fn default_ldap_mail_attribute() -> String { String::from("mail") }
 
 fn default_ldap_name_attribute() -> String { String::from("givenName") }
