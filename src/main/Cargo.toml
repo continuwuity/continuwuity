@@ -56,6 +56,7 @@ standard = [
 	"jemalloc",
 	"jemalloc_conf",
 	"journald",
+	"ldap",
 	"media_thumbnail",
 	"systemd",
 	"url_preview",
@@ -113,6 +114,9 @@ jemalloc_stats = [
 ]
 jemalloc_conf = [
 	"conduwuit-core/jemalloc_conf",
+]
+ldap = [
+	"conduwuit-api/ldap",
 ]
 media_thumbnail = [
 	"conduwuit-service/media_thumbnail",
