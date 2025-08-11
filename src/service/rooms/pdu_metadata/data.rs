@@ -61,6 +61,8 @@ impl Data {
 		from: PduCount,
 		dir: Direction,
 	) -> impl Stream<Item = (PduCount, impl Event)> + Send + '_ {
+		// Query from exact position then filter excludes it (saturating_inc could skip
+		// events at min/max boundaries)
 		let from_unsigned = from.into_unsigned();
 		let mut current = ArrayVec::<u8, 16>::new();
 		current.extend(target.to_be_bytes());

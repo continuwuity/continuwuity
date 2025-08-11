@@ -36,6 +36,7 @@ pub(super) mod typing;
 pub(super) mod unstable;
 pub(super) mod unversioned;
 pub(super) mod user_directory;
+pub(super) mod utils;
 pub(super) mod voip;
 pub(super) mod well_known;
 

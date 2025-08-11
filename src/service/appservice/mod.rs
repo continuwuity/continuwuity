@@ -4,7 +4,7 @@ mod registration_info;
 use std::{collections::BTreeMap, iter::IntoIterator, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Result, err, utils::stream::IterStream};
+use conduwuit::{Err, Result, err, utils::stream::IterStream};
 use database::Map;
 use futures::{Future, FutureExt, Stream, TryStreamExt};
 use ruma::{RoomAliasId, RoomId, UserId, api::appservice::Registration};
@@ -48,36 +48,50 @@ impl crate::Service for Service {
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		self.iter_db_ids()
-			.try_for_each(async |appservice| {
-				let (id, registration) = appservice;
+		// First, collect all appservices to check for token conflicts
+		let appservices: Vec<(String, Registration)> = self.iter_db_ids().try_collect().await?;
 
-				// During startup, resolve any token collisions in favour of appservices
-				// by logging out conflicting user devices
-				if let Ok((user_id, device_id)) = self
-					.services
-					.users
-					.find_from_token(&registration.as_token)
-					.await
-				{
-					conduwuit::warn!(
-						"Token collision detected during startup: Appservice '{}' token was \
-						 also used by user '{}' device '{}'. Logging out the user device to \
-						 resolve conflict.",
-						id,
-						user_id.localpart(),
-						device_id
-					);
-
-					self.services
-						.users
-						.remove_device(&user_id, &device_id)
-						.await;
+		// Check for appservice-to-appservice token conflicts
+		for i in 0..appservices.len() {
+			for j in i.saturating_add(1)..appservices.len() {
+				if appservices[i].1.as_token == appservices[j].1.as_token {
+					return Err!(Database(error!(
+						"Token collision detected: Appservices '{}' and '{}' have the same token",
+						appservices[i].0, appservices[j].0
+					)));
 				}
+			}
+		}
 
-				self.start_appservice(id, registration).await
-			})
-			.await
+		// Process each appservice
+		for (id, registration) in appservices {
+			// During startup, resolve any token collisions in favour of appservices
+			// by logging out conflicting user devices
+			if let Ok((user_id, device_id)) = self
+				.services
+				.users
+				.find_from_token(&registration.as_token)
+				.await
+			{
+				conduwuit::warn!(
+					"Token collision detected during startup: Appservice '{}' token was also \
+					 used by user '{}' device '{}'. Logging out the user device to resolve \
+					 conflict.",
+					id,
+					user_id.localpart(),
+					device_id
+				);
+
+				self.services
+					.users
+					.remove_device(&user_id, &device_id)
+					.await;
+			}
+
+			self.start_appservice(id, registration).await?;
+		}
+
+		Ok(())
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
@@ -124,6 +138,18 @@ impl Service {
 		appservice_config_body: &str,
 	) -> Result {
 		//TODO: Check for collisions between exclusive appservice namespaces
+
+		// Check for token collision with other appservices (allow re-registration of
+		// same appservice)
+		if let Ok(existing) = self.find_from_token(&registration.as_token).await {
+			if existing.registration.id != registration.id {
+				return Err(err!(Request(InvalidParam(
+					"Cannot register appservice: Token is already used by appservice '{}'. \
+					 Please generate a different token.",
+					existing.registration.id
+				))));
+			}
+		}
 
 		// Prevent token collision with existing user tokens
 		if self
@@ -182,6 +208,7 @@ impl Service {
 			.map(|info| info.registration)
 	}
 
+	/// Returns Result to match users::find_from_token for select_ok usage
 	pub async fn find_from_token(&self, token: &str) -> Result<RegistrationInfo> {
 		self.read()
 			.await

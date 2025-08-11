@@ -1,9 +1,9 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at, err,
+	Err, Result, at,
 	matrix::{
 		event::{Event, Matches},
-		pdu::{PduCount, ShortEventId},
+		pdu::PduCount,
 	},
 	ref_at,
 	utils::{
@@ -35,6 +35,7 @@ use ruma::{
 };
 use tracing::warn;
 
+use super::utils::{count_to_token, parse_pagination_token as parse_token};
 use crate::Ruma;
 
 /// list of safe and common non-state events to ignore if the user is ignored
@@ -61,39 +62,6 @@ const IGNORED_MESSAGE_TYPES: &[TimelineEventType] = &[
 const LIMIT_MAX: usize = 100;
 const LIMIT_DEFAULT: usize = 10;
 
-/// Parse a pagination token, trying ShortEventId first, then falling back to
-/// PduCount
-async fn parse_pagination_token(
-	_services: &Services,
-	_room_id: &RoomId,
-	token: Option<&str>,
-	default: PduCount,
-) -> Result<PduCount> {
-	let Some(token) = token else {
-		return Ok(default);
-	};
-
-	// Try parsing as ShortEventId first
-	if let Ok(shorteventid) = token.parse::<ShortEventId>() {
-		// ShortEventId maps directly to a PduCount in our database
-		Ok(PduCount::Normal(shorteventid))
-	} else if let Ok(count) = token.parse::<u64>() {
-		// Fallback to PduCount for backwards compatibility
-		Ok(PduCount::Normal(count))
-	} else if let Ok(count) = token.parse::<i64>() {
-		// Also handle negative counts for backfilled events
-		Ok(PduCount::from_signed(count))
-	} else {
-		Err(err!(Request(InvalidParam("Invalid pagination token"))))
-	}
-}
-
-/// Convert a PduCount to a token string (using the underlying ShortEventId)
-fn count_to_token(count: PduCount) -> String {
-	// The PduCount's unsigned value IS the ShortEventId
-	count.into_unsigned().to_string()
-}
-
 /// # `GET /_matrix/client/r0/rooms/{roomId}/messages`
 ///
 /// Allows paginating through room history.
@@ -114,18 +82,17 @@ pub(crate) async fn get_message_events_route(
 		return Err!(Request(Forbidden("Room does not exist to this server")));
 	}
 
-	let from: PduCount =
-		parse_pagination_token(&services, room_id, body.from.as_deref(), match body.dir {
+	let from: PduCount = body
+		.from
+		.as_deref()
+		.map(parse_token)
+		.transpose()?
+		.unwrap_or_else(|| match body.dir {
 			| Direction::Forward => PduCount::min(),
 			| Direction::Backward => PduCount::max(),
-		})
-		.await?;
+		});
 
-	let to: Option<PduCount> = if let Some(to_str) = body.to.as_deref() {
-		Some(parse_pagination_token(&services, room_id, Some(to_str), PduCount::min()).await?)
-	} else {
-		None
-	};
+	let to: Option<PduCount> = body.to.as_deref().map(parse_token).transpose()?;
 
 	let limit: usize = body
 		.limit

@@ -393,6 +393,31 @@ impl Service {
 		self.db.userdeviceid_token.qry(&key).await.deserialized()
 	}
 
+	/// Generate a unique access token that doesn't collide with existing tokens
+	pub async fn generate_unique_token(&self) -> String {
+		loop {
+			let token = utils::random_string(32);
+
+			// Check for collision with appservice tokens
+			if self
+				.services
+				.appservice
+				.find_from_token(&token)
+				.await
+				.is_ok()
+			{
+				continue;
+			}
+
+			// Check for collision with user tokens
+			if self.db.token_userdeviceid.get(&token).await.is_ok() {
+				continue;
+			}
+
+			return token;
+		}
+	}
+
 	/// Replaces the access token of one device.
 	pub async fn set_token(
 		&self,
@@ -409,25 +434,18 @@ impl Service {
 			)));
 		}
 
-		// Prevent token collisions with appservice tokens
-		let final_token = if self
+		// Check for token collision with appservices
+		if self
 			.services
 			.appservice
 			.find_from_token(token)
 			.await
 			.is_ok()
 		{
-			let new_token = utils::random_string(32);
-			conduwuit::debug_warn!(
-				"Token collision prevented: Generated new token for user '{}' device '{}' \
-				 (original token conflicted with an appservice)",
-				user_id.localpart(),
-				device_id
-			);
-			new_token
-		} else {
-			token.to_owned()
-		};
+			return Err!(Request(InvalidParam(
+				"Token conflicts with an existing appservice token"
+			)));
+		}
 
 		// Remove old token
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
@@ -436,8 +454,8 @@ impl Service {
 		}
 
 		// Assign token to user device combination
-		self.db.userdeviceid_token.put_raw(key, &final_token);
-		self.db.token_userdeviceid.raw_put(&final_token, key);
+		self.db.userdeviceid_token.put_raw(key, token);
+		self.db.token_userdeviceid.raw_put(token, key);
 
 		Ok(())
 	}

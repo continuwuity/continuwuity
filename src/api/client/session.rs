@@ -198,8 +198,8 @@ pub(crate) async fn login_route(
 		.clone()
 		.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
 
-	// Generate a new token for the device
-	let token = utils::random_string(TOKEN_LENGTH);
+	// Generate a new token for the device (ensuring no collisions)
+	let token = services.users.generate_unique_token().await;
 
 	// Determine if device_id was provided and exists in the db for this user
 	let device_exists = if body.device_id.is_some() {

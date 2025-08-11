@@ -355,6 +355,7 @@ async fn find_token(services: &Services, token: Option<&str>) -> Result<Token> {
 		.map_ok(Token::Appservice);
 
 	pin_mut!(user_token, appservice_token);
+	// Returns Ok if either token type succeeds, Err only if both fail
 	match select_ok([Left(user_token), Right(appservice_token)]).await {
 		| Err(e) if !e.is_not_found() => Err(e),
 		| Ok((token, _)) => Ok(token),

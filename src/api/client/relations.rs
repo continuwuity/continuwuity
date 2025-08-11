@@ -1,11 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
-	Result, at, err,
-	matrix::{
-		Event,
-		event::RelationTypeEqual,
-		pdu::{PduCount, ShortEventId},
-	},
+	Result, at,
+	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
 use conduwuit_service::Services;
@@ -22,41 +18,8 @@ use ruma::{
 	events::{TimelineEventType, relation::RelationType},
 };
 
+use super::utils::{count_to_token, parse_pagination_token as parse_token};
 use crate::Ruma;
-
-/// Parse a pagination token, trying ShortEventId first, then falling back to
-/// PduCount
-async fn parse_pagination_token(
-	_services: &Services,
-	_room_id: &RoomId,
-	token: Option<&str>,
-	default: PduCount,
-) -> Result<PduCount> {
-	let Some(token) = token else {
-		return Ok(default);
-	};
-
-	// Try parsing as ShortEventId first
-	if let Ok(shorteventid) = token.parse::<ShortEventId>() {
-		// ShortEventId maps directly to a PduCount in our database
-		// The shorteventid IS the count value, just need to wrap it
-		Ok(PduCount::Normal(shorteventid))
-	} else if let Ok(count) = token.parse::<u64>() {
-		// Fallback to PduCount for backwards compatibility
-		Ok(PduCount::Normal(count))
-	} else if let Ok(count) = token.parse::<i64>() {
-		// Also handle negative counts for backfilled events
-		Ok(PduCount::from_signed(count))
-	} else {
-		Err(err!(Request(InvalidParam("Invalid pagination token"))))
-	}
-}
-
-/// Convert a PduCount to a token string (using the underlying ShortEventId)
-fn count_to_token(count: PduCount) -> String {
-	// The PduCount's unsigned value IS the ShortEventId
-	count.into_unsigned().to_string()
-}
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/relations/{eventId}/{relType}/{eventType}`
 pub(crate) async fn get_relating_events_with_rel_type_and_event_type_route(
@@ -147,17 +110,15 @@ async fn paginate_relations_with_filter(
 	recurse: bool,
 	dir: Direction,
 ) -> Result<get_relating_events::v1::Response> {
-	let start: PduCount = parse_pagination_token(services, room_id, from, match dir {
-		| Direction::Forward => PduCount::min(),
-		| Direction::Backward => PduCount::max(),
-	})
-	.await?;
+	let start: PduCount = from
+		.map(parse_token)
+		.transpose()?
+		.unwrap_or_else(|| match dir {
+			| Direction::Forward => PduCount::min(),
+			| Direction::Backward => PduCount::max(),
+		});
 
-	let to: Option<PduCount> = if let Some(to_str) = to {
-		Some(parse_pagination_token(services, room_id, Some(to_str), PduCount::min()).await?)
-	} else {
-		None
-	};
+	let to: Option<PduCount> = to.map(parse_token).transpose()?;
 
 	// Use limit or else 30, with maximum 100
 	let limit: usize = limit
@@ -238,18 +199,11 @@ async fn paginate_relations_with_filter(
 	};
 
 	// Build the response chunk with thread root if needed
-	let chunk: Vec<_> = if let Some(root) = root_event {
-		// Add root event at the beginning for backward pagination
-		std::iter::once(root.into_format())
-			.chain(events.into_iter().map(at!(1)).map(Event::into_format))
-			.collect()
-	} else {
-		events
-			.into_iter()
-			.map(at!(1))
-			.map(Event::into_format)
-			.collect()
-	};
+	let chunk: Vec<_> = root_event
+		.into_iter()
+		.map(Event::into_format)
+		.chain(events.into_iter().map(at!(1)).map(Event::into_format))
+		.collect();
 
 	Ok(get_relating_events::v1::Response {
 		next_batch,
