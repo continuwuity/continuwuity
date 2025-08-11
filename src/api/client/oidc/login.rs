@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Result, err, utils::hash::verify_password};
 use conduwuit_web::oidc::{
-	AuthorizationQuery, LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form,
+	LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form,
 };
 use ruma::user_id::UserId;
 
@@ -38,14 +38,12 @@ pub(crate) async fn oidc_login(
 	}
 
 	let hostname = services.config.server_name.host();
-	let authorization_query: AuthorizationQuery = query.into();
 	tracing::info!("logging in {user_id:?}");
-	tracing::debug!("login {user_id} authorisation query : {authorization_query:#?}");
 
 	services
 		.oidc
 		.endpoint()
-		.with_solicitor(oidc_consent_form(hostname, &authorization_query))
+		.with_solicitor(oidc_consent_form(hostname, &query.into()))
 		.authorization_flow()
 		.execute(request)
 		.map_err(|err| err!(Request(Unknown("authorisation failed: {err:?}"))))

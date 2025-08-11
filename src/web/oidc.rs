@@ -43,6 +43,7 @@ pub(crate) struct ConsentPageTemplate<'a> {
 	nonce: &'a str,
 	hostname: &'a str,
 	route: &'a str,
+	user_id: &'a str,
 	client_id: &'a str,
 	client_secret: Option<&'a str>,
 	redirect_uri: &'a str,

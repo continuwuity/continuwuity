@@ -1,7 +1,7 @@
 use axum::extract::{Query, State};
 use conduwuit::{Result, err};
 use conduwuit_web::oidc::{
-	AuthorizationQuery, OidcRequest, OidcResponse, oidc_consent_form, oidc_login_form,
+	oidc_consent_form, oidc_login_form, AuthorizationQuery, OidcRequest, OidcResponse,
 };
 use oxide_auth::{
 	endpoint::{OwnerConsent, Solicitation},
@@ -40,25 +40,20 @@ pub(crate) async fn authorize(
 
 	// Redirect to the login page if no token or token not known.
 	let hostname = services.config.server_name.host();
-	match oauth.authorization_header() {
-		| None => {
-			return Ok(oidc_login_form(hostname, &query));
-		},
-		| Some(token) =>
-			if services.users.find_from_token(token).await.is_err() {
-				return Ok(oidc_login_form(hostname, &query));
-			},
-	}
-	// TODO register the device ID ?
-	tracing::debug!(
-		"submitting OIDC authorisation for token : {:#?}",
-		oauth.authorization_header().unwrap()
-	);
+    let Some(token) = oauth.authorization_header() else {
+        return Ok(oidc_login_form(hostname, &query));
+    };
+
+	tracing::debug!("submitting OIDC authorisation for token : {token:#?}");
+	// Get the user id from the token and add it to the query.
+	let (owner_id, _) = services.oidc.get_user_for_token(token)?;
+    let mut query_with_user_id = query.clone();
+	query_with_user_id.username = Some(owner_id.localpart().to_string());
 
 	services
 		.oidc
 		.endpoint()
-		.with_solicitor(oidc_consent_form(hostname, &query))
+		.with_solicitor(oidc_consent_form(hostname, &query_with_user_id))
 		.authorization_flow()
 		.execute(oauth)
 		.map_err(|err| err!("authorization failed: {err:?}"))
@@ -67,10 +62,10 @@ pub(crate) async fn authorize(
 /// Whether a user allows their device to access this homeserver's resources.
 #[derive(serde::Deserialize)]
 pub(crate) struct Allowance {
-	allow: Option<bool>,
+	allow: Option<String>,
 }
 
-/// # `POST /_matrix/client/unstable/org.matrix.msc2964/authorize?allow=[Option<bool>]`
+/// # `POST /_matrix/client/unstable/org.matrix.msc2964/authorize?allow=[Option<String>]`
 ///
 /// Authorize the device based on the user's consent. If the user allows
 /// it to access their data, the client may request a token at the
@@ -80,16 +75,15 @@ pub(crate) async fn authorize_consent(
 	State(services): State<crate::State>,
 	oauth: OidcRequest,
 ) -> Result<OidcResponse> {
-	let allowed = allow.unwrap_or(false);
-	tracing::debug!("processing user's consent: {:?} - {:?}", allowed, oauth);
+	tracing::debug!("processing user's consent: {:?} - {:?}", allow, oauth);
 
 	services
 		.oidc
 		.endpoint()
 		.with_solicitor(FnSolicitor(
-			move |_: &mut _, solicitation: Solicitation<'_>| match allowed {
-				| false => OwnerConsent::Denied,
-				| true => OwnerConsent::Authorized(solicitation.pre_grant().client_id.clone()),
+			move |_: &mut _, _: Solicitation<'_>| match allow.clone() {
+				| None => OwnerConsent::Denied,
+				| Some(user_id) => OwnerConsent::Authorized(user_id),
 			},
 		))
 		.authorization_flow()
