@@ -12,10 +12,11 @@ pub mod registrar;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use conduwuit::Result;
+use conduwuit::{Result, err};
 use oxide_auth::{
 	frontends::simple::endpoint::{Generic, Vacant},
 	primitives::{
+		grant::Grant,
 		prelude::{
 			AuthMap, Authorizer, Client, Issuer, RandomGenerator, Registrar, TokenMap,
 		},
@@ -23,16 +24,24 @@ use oxide_auth::{
 	},
 };
 use registrar::ClientMap;
+use ruma::{OwnedDeviceId, OwnedUserId, UserId};
+
+use crate::{globals, Dep};
+
+struct Services {
+	globals: Dep<globals::Service>,
+}
 
 pub struct Service {
 	registrar: Mutex<ClientMap>,
 	authorizer: Mutex<AuthMap<RandomGenerator>>,
 	issuer: Mutex<TokenMap<RandomGenerator>>,
+	services: Services,
 }
 
 #[async_trait]
 impl crate::Service for Service {
-	fn build(_args: crate::Args<'_>) -> Result<Arc<Self>> { Ok(Arc::new(Self::preconfigured())) }
+	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> { Ok(Arc::new(Self::preconfigured(args))) }
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
@@ -48,7 +57,7 @@ impl Service {
 	}
 
 	#[must_use]
-	pub fn preconfigured() -> Self {
+	pub(crate) fn preconfigured(args: crate::Args<'_>) -> Self {
 		Self {
 			registrar: Mutex::new(
 				vec![Client::public(
@@ -70,7 +79,33 @@ impl Service {
 			// be read and parsed by anyone, but not maliciously created. However, they can not be
 			// revoked and thus don't offer even longer lived refresh tokens.
 			issuer: Mutex::new(TokenMap::new(RandomGenerator::new(16))),
+			services: Services {
+				globals: args.depend::<globals::Service>("globals"),
+			},
 		}
+	}
+
+	fn grant_from_token(&self, token: &str) -> Option<Grant> {
+		let issuer = self.issuer.lock().expect("lockable issuer");
+
+		issuer.recover_token(token).expect("infallible recover_token implementation")
+	}
+
+	pub fn user_and_device_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
+		let Some(Grant { owner_id, client_id, .. }) = self.grant_from_token(token) else {
+			return Err(err!(Request(MissingToken("unknown token: {token:?}"))));
+		};
+		let server_name = self.services.globals.server_name();
+		let owner_id = UserId::parse_with_server_name(owner_id.clone(), server_name)
+			.map_err(|err|
+				err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
+			)?;
+		let device_id = OwnedDeviceId::try_from(client_id.clone())
+			.map_err(|err|
+				err!(Request(InvalidParam("invalid client_id {client_id:?}: {err}")))
+			)?;
+
+		Ok((owner_id, device_id))
 	}
 
 	/// The oxide-auth carry-all endpoint.

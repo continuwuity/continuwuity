@@ -46,7 +46,7 @@ pub(crate) async fn authorize(
 
 	tracing::debug!("submitting OIDC authorisation for token : {token:#?}");
 	// Get the user id from the token and add it to the query.
-	let (owner_id, _) = services.oidc.get_user_for_token(token)?;
+	let (owner_id, _) = services.oidc.user_and_device_from_token(token)?;
     let mut query_with_user_id = query.clone();
 	query_with_user_id.username = Some(owner_id.localpart().to_string());
 

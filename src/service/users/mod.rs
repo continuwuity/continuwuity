@@ -89,6 +89,7 @@ impl crate::Service for Service {
 				account_data: args.depend::<account_data::Service>("account_data"),
 				admin: args.depend::<admin::Service>("admin"),
 				appservice: args.depend::<appservice::Service>("appservice"),
+				oidc: args.depend::<oidc::Service>("oidc"),
 				globals: args.depend::<globals::Service>("globals"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
@@ -270,7 +271,11 @@ impl Service {
 
 	/// Find out which user an access token belongs to.
 	pub async fn find_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
-		self.db.token_userdeviceid.get(token).await.deserialized()
+		if self.services.server.config.auth.as_ref().is_some_and(|auth| auth.enable_oidc_login) {
+			self.services.oidc.user_and_device_from_token(token)
+		} else {
+			self.db.token_userdeviceid.get(token).await.deserialized()
+		}
 	}
 
 	/// Returns an iterator over all users on this homeserver (offered for
