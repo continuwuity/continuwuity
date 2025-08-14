@@ -3,10 +3,10 @@ use std::time::Duration;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, err, info, utils,
-	utils::{ReadyExt, hash},
+	Err, Error, Result, debug, err, info,
+	utils::{self, ReadyExt, hash},
 };
-use conduwuit_core::debug_error;
+use conduwuit_core::{debug_error, debug_warn};
 use conduwuit_service::{Services, uiaa::SESSION_ID_LENGTH};
 use futures::StreamExt;
 use ruma::{
@@ -185,7 +185,14 @@ pub(crate) async fn handle_login(
 	}
 
 	if cfg!(feature = "ldap") && services.config.ldap.enable {
-		Box::pin(ldap_login(services, &user_id, &lowercased_user_id, password)).await
+		match Box::pin(ldap_login(services, &user_id, &lowercased_user_id, password)).await {
+			| Ok(user_id) => Ok(user_id),
+			| Err(err) if services.config.ldap.ldap_only => Err(err),
+			| Err(err) => {
+				debug_warn!("{err}");
+				password_login(services, &user_id, &lowercased_user_id, password).await
+			},
+		}
 	} else {
 		password_login(services, &user_id, &lowercased_user_id, password).await
 	}

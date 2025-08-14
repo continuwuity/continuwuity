@@ -2055,9 +2055,19 @@ pub struct LdapConfig {
 	#[serde(default)]
 	pub enable: bool,
 
+	/// Whether to force LDAP authentication or authorize classical password
+	/// login.
+	///
+	/// example: "true"
+	#[serde(default)]
+	pub ldap_only: bool,
+
 	/// URI of the LDAP server.
 	///
 	/// example: "ldap://ldap.example.com:389"
+	///
+	/// default: ""
+	#[serde(default)]
 	pub uri: Option<Url>,
 
 	/// Root of the searches.
@@ -2079,7 +2089,7 @@ pub struct LdapConfig {
 	/// example: "cn=ldap-reader,dc=example,dc=org" or
 	/// "cn={username},ou=users,dc=example,dc=org"
 	///
-	/// default:
+	/// default: ""
 	#[serde(default)]
 	pub bind_dn: Option<String>,
 
@@ -2087,6 +2097,8 @@ pub struct LdapConfig {
 	/// `bind_dn`.
 	///
 	/// The server must be able to access the file, and it must not be empty.
+	///
+	/// default: ""
 	#[serde(default)]
 	pub bind_password_file: Option<PathBuf>,
 
@@ -2137,7 +2149,7 @@ pub struct LdapConfig {
 	///
 	/// example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
 	///
-	/// default:
+	/// default: ""
 	#[serde(default)]
 	pub admin_filter: String,
 }

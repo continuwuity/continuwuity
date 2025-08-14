@@ -1787,11 +1787,17 @@
 #
 #enable = false
 
+# Whether to force LDAP authentication or authorize classical password login.
+#
+# example: "true"
+#
+#ldap_only = false
+
 # URI of the LDAP server.
 #
 # example: "ldap://ldap.example.com:389"
 #
-#uri =
+#uri = ""
 
 # Root of the searches.
 #
@@ -1810,14 +1816,14 @@
 # example: "cn=ldap-reader,dc=example,dc=org" or
 # "cn={username},ou=users,dc=example,dc=org"
 #
-#bind_dn =
+#bind_dn = ""
 
 # Path to a file on the system that contains the password for the
 # `bind_dn`.
 #
 # The server must be able to access the file, and it must not be empty.
 #
-#bind_password_file = false
+#bind_password_file = ""
 
 # Search filter to limit user searches.
 #
@@ -1858,4 +1864,4 @@
 #
 # example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
 #
-#admin_filter =
+#admin_filter = ""
