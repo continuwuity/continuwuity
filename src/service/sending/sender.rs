@@ -183,9 +183,9 @@ impl Service {
 			if let Some(status) = statuses.get(&dest.clone()) {
 				if matches!(status, TransactionStatus::Running) {
 					// If the server is in backoff, clear it
-					warn!(
+					info!(
 						?dest,
-						"Catching up destination with {} new events",
+						"Catching up previously failed destination with {}+ new events",
 						new_events_vec.len()
 					);
 					statuses.insert(dest.clone(), TransactionStatus::Running);
@@ -885,7 +885,7 @@ impl Service {
 				info!(%txn_id, %server, "Sent {} PDUs, {} EDUs", pdu_count, edu_count);
 			})
 			.inspect_err(|e| {
-				error!(%txn_id, %server, "Failed to send transaction ({} PDUs, {} EDUs): {e:?}", pdu_count, edu_count);
+				info!(%txn_id, %server, "Failed to send transaction ({} PDUs, {} EDUs): {e:?}", pdu_count, edu_count);
 			});
 
 		for (event_id, result) in result.iter().flat_map(|resp| resp.pdus.iter()) {
