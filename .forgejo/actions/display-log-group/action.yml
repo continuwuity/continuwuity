@@ -1,0 +1,81 @@
+name: display-log-group
+description: |
+  Display a log file in a collapsible group with timing and error handling.
+  Expects log files to have ELAPSED_TIME and EXIT_CODE metadata lines.
+
+inputs:
+  name:
+    description: 'Name of the task (for display)'
+    required: true
+  log-file:
+    description: 'Path to the log file'
+    required: true
+  done-file:
+    description: 'Path to the done marker file to wait for'
+    required: true
+  group-icon:
+    description: 'Icon to show in group title'
+    required: false
+    default: '📦'
+  filter-pattern:
+    description: 'Optional grep pattern to filter output'
+    required: false
+    default: ''
+  max-lines:
+    description: 'Maximum lines to show (0 for unlimited)'
+    required: false
+    default: '0'
+
+runs:
+  using: composite
+  steps:
+    - name: Display ${{ inputs.name }} results
+      shell: bash
+      run: |
+        # Wait for task completion
+        while [ ! -f "${{ inputs.done-file }}" ]; do
+          sleep 0.1
+        done
+
+        echo "::group::${{ inputs.group-icon }} ${{ inputs.name }}"
+
+        if [ -f "${{ inputs.log-file }}" ]; then
+          # Extract metadata
+          ELAPSED=$(grep "^ELAPSED_TIME=" "${{ inputs.log-file }}" | cut -d= -f2 || echo "unknown")
+          TOTAL=$(grep "^TOTAL_TIME=" "${{ inputs.log-file }}" | cut -d= -f2 || echo "")
+          EXIT_CODE=$(grep "^EXIT_CODE=" "${{ inputs.log-file }}" | cut -d= -f2 || echo "1")
+
+          # Show output (excluding metadata lines)
+          if [[ -n "${{ inputs.filter-pattern }}" ]]; then
+            # Filter output by pattern
+            grep -E "${{ inputs.filter-pattern }}" "${{ inputs.log-file }}" | grep -v "^ELAPSED_TIME=\|^EXIT_CODE=\|^TOTAL_TIME=" || true
+          else
+            # Show full output
+            if [[ "${{ inputs.max-lines }}" != "0" ]]; then
+              grep -v "^ELAPSED_TIME=\|^EXIT_CODE=\|^TOTAL_TIME=" "${{ inputs.log-file }}" | head -${{ inputs.max-lines }}
+            else
+              grep -v "^ELAPSED_TIME=\|^EXIT_CODE=\|^TOTAL_TIME=" "${{ inputs.log-file }}"
+            fi
+          fi
+
+          # Show result with timing info
+          if [ "$EXIT_CODE" = "0" ]; then
+            if [ -n "$TOTAL" ]; then
+              echo "✅ ${{ inputs.name }} completed (${ELAPSED}s task, ${TOTAL}s total)"
+            else
+              echo "✅ ${{ inputs.name }} completed (${ELAPSED}s)"
+            fi
+          else
+            if [ -n "$TOTAL" ]; then
+              echo "⚠️ ${{ inputs.name }} had issues (exit code: $EXIT_CODE) (${ELAPSED}s task, ${TOTAL}s total)"
+            else
+              echo "⚠️ ${{ inputs.name }} had issues (exit code: $EXIT_CODE) (${ELAPSED}s)"
+            fi
+            # Don't exit with failure - let the main job continue so we can see what went wrong
+            # The actual build steps will fail if packages are missing
+          fi
+        else
+          echo "⚠️ No log file found at ${{ inputs.log-file }}"
+        fi
+
+        echo "::endgroup::"

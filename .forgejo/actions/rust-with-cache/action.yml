@@ -1,0 +1,846 @@
+name: setup-rust-with-cache
+description: |
+  Complete Rust setup with comprehensive caching for Continuwuity CI.
+  Installs Rust toolchain and combines sccache, timelord, cargo registry, and system package caching.
+
+inputs:
+  cache-key-suffix:
+    description: 'Optional suffix for cache keys (e.g. platform identifier)'
+    required: false
+    default: ''
+  rust-target:
+    description: 'Rust compilation target (e.g. aarch64-unknown-linux-gnu)'
+    required: false
+    default: ''
+  toolchain:
+    description: 'Rust toolchain override (e.g. nightly, 1.87.0). Uses rust-toolchain.toml if not specified'
+    required: false
+    default: ''
+  components:
+    description: 'Additional Rust components to install (e.g. rustfmt for nightly)'
+    required: false
+    default: ''
+  dpkg-arch:
+    description: 'Debian architecture to add for cross-compilation (e.g. arm64)'
+    required: false
+    default: ''
+  gcc-package:
+    description: 'GCC package to install (e.g. gcc or gcc-aarch64-linux-gnu)'
+    required: false
+    default: 'gcc'
+  gxx-package:
+    description: 'G++ package to install (e.g. g++ or g++-aarch64-linux-gnu)'
+    required: false
+    default: 'g++'
+  liburing-package:
+    description: 'liburing package to install (e.g. liburing-dev or liburing-dev:arm64)'
+    required: false
+    default: 'liburing-dev'
+  extra-packages:
+    description: 'Additional APT packages to install (space-separated)'
+    required: false
+    default: ''
+  is-cross-compile:
+    description: 'Whether this is a cross-compilation build'
+    required: false
+    default: 'false'
+  cc:
+    description: 'C compiler to use (e.g. gcc or aarch64-linux-gnu-gcc)'
+    required: false
+    default: 'gcc'
+  cxx:
+    description: 'C++ compiler to use (e.g. g++ or aarch64-linux-gnu-g++)'
+    required: false
+    default: 'g++'
+  linker:
+    description: 'Linker to use (e.g. gcc or aarch64-linux-gnu-gcc)'
+    required: false
+    default: 'gcc'
+  march:
+    description: 'Architecture to compile for (e.g. x86-64 or armv8-a)'
+    required: false
+    default: ''
+  cargo-linker-env:
+    description: 'Cargo linker environment variable name (e.g. CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER)'
+    required: false
+    default: ''
+  pkg-config-path:
+    description: 'PKG_CONFIG_PATH for cross-compilation'
+    required: false
+    default: ''
+  pkg-config-libdir:
+    description: 'PKG_CONFIG_LIBDIR for cross-compilation'
+    required: false
+    default: ''
+  pkg-config-sysroot:
+    description: 'PKG_CONFIG_SYSROOT_DIR for cross-compilation'
+    required: false
+    default: ''
+
+outputs:
+  sccache-cache-key:
+    description: 'The cache key to use for saving sccache cache'
+    value: ${{ steps.sccache-key.outputs.cache-key }}
+
+runs:
+  using: composite
+  steps:
+    # Record action start time for timeline tracking
+    - name: Initialize timeline tracking
+      shell: bash
+      run: |
+        ACTION_START=$(date +%s)
+        echo "ACTION_START_TIME=$ACTION_START" >> $GITHUB_ENV
+        # Set non-interactive mode for all APT operations to prevent hangs
+        echo "DEBIAN_FRONTEND=noninteractive" >> $GITHUB_ENV
+        echo "::group::🎭 Rust build environment setup"
+        echo "🕐 Started at $(date '+%Y-%m-%d %H:%M:%S')"
+
+    # Export the sccache cache key early for the parent workflow to use
+    - name: Export sccache cache key
+      id: sccache-key
+      shell: bash
+      run: |
+        echo "cache-key=sccache-v1${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}" >> $GITHUB_OUTPUT
+
+    # Install uv for Python/Rust toolchain management
+    - name: Install uv
+      shell: bash
+      run: |
+        echo "::group::🔧 Phase 1: Core dependencies"
+        echo "::group::📦 Installing uv package manager"
+    - uses: https://github.com/astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        ignore-nothing-to-cache: true
+        cache-dependency-glob: ''  # Disable Python dependency tracking for Rust project
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Set up PATH for uv tools installed by this action
+    - name: Configure PATH for uv tools
+      shell: bash
+      run: |
+        echo "✓ Configuring PATH for uv tools"
+        # uv tools get installed to ~/.local/share/uv/tools/*/bin
+        # Add sccache's actual location to PATH
+        echo "$HOME/.local/share/uv/tools/sccache/bin" >> $GITHUB_PATH
+
+    # Cache uv tools to avoid redownloading sccache
+    - name: Cache uv tools
+      shell: bash
+      run: |
+        echo "::group::💾 Phase 2: Cache restoration"
+        echo "::group::├─ UV tools cache"
+    - uses: actions/cache@v4
+      with:
+        path: ~/.local/share/uv/tools
+        key: uv-tools-sccache-v1
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Cache cargo bin directory for timelord and other installed tools
+    - name: Cache cargo bin
+      shell: bash
+      run: |
+        echo "::group::├─ Cargo binaries cache"
+    - uses: actions/cache@v4
+      id: cargo-bin-cache
+      with:
+        path: ~/.cargo/bin
+        key: cargo-bin-v1-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-bin-v1-
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Configure architecture if needed (before starting parallel tasks)
+    - name: Configure architecture for cross-compilation
+      if: inputs.dpkg-arch != ''
+      shell: bash
+      run: |
+        echo "::group::🔧 Adding ${{ inputs.dpkg-arch }} architecture"
+        sudo dpkg --add-architecture ${{ inputs.dpkg-arch }}
+
+        # First, restrict default sources to amd64 only to prevent 404s for foreign architectures
+        echo "📝 Restricting default APT sources to amd64 only..."
+        sudo sed -i 's/^deb http/deb [arch=amd64] http/g' /etc/apt/sources.list
+        sudo sed -i 's/^deb https/deb [arch=amd64] https/g' /etc/apt/sources.list
+        # Also handle any existing sources in sources.list.d
+        if ls /etc/apt/sources.list.d/*.list 2>/dev/null; then
+          for file in /etc/apt/sources.list.d/*.list; do
+            # Skip our own files we're about to create
+            if [[ "$file" != *"${{ inputs.dpkg-arch }}.list" ]]; then
+              sudo sed -i 's/^deb http/deb [arch=amd64] http/g' "$file" 2>/dev/null || true
+              sudo sed -i 's/^deb https/deb [arch=amd64] https/g' "$file" 2>/dev/null || true
+            fi
+          done
+        fi
+
+        # Configure APT sources for the foreign architecture using ports.ubuntu.com
+        echo "📝 Configuring APT sources for ${{ inputs.dpkg-arch }} architecture..."
+        sudo tee /etc/apt/sources.list.d/${{ inputs.dpkg-arch }}.list > /dev/null <<EOF
+        deb [arch=${{ inputs.dpkg-arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy main restricted universe multiverse
+        deb [arch=${{ inputs.dpkg-arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-updates main restricted universe multiverse
+        deb [arch=${{ inputs.dpkg-arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-backports main restricted universe multiverse
+        deb [arch=${{ inputs.dpkg-arch }}] http://ports.ubuntu.com/ubuntu-ports/ jammy-security main restricted universe multiverse
+        EOF
+
+        echo "✅ Architecture ${{ inputs.dpkg-arch }} added with APT sources configured"
+        echo "::endgroup::"
+
+    # Setup Rust toolchain and APT in parallel
+    - name: Start parallel setup tasks
+      shell: bash
+      run: |
+        echo "::endgroup::"
+        echo "::endgroup::"
+        echo "::group::🚀 Phase 3: Parallel installations"
+        START_TIME=$(date +%s)
+        ELAPSED=$((START_TIME - $ACTION_START_TIME))
+        echo "📍 Starting parallel tasks at ${ELAPSED}s"
+
+        # Clean up any previous markers and logs
+        rm -f /tmp/*.done /tmp/*.log
+
+        # Start Rust toolchain setup in background
+        (
+          RUST_START=$(date +%s)
+          {
+            set -e  # Exit on error
+            if [[ -n "${{ inputs.toolchain }}" ]]; then
+              echo "Installing custom Rust toolchain: ${{ inputs.toolchain }}"
+              uvx rustup override set ${{ inputs.toolchain }}
+            else
+              echo "Installing Rust toolchain from rust-toolchain.toml"
+              uvx rustup show  # This will auto-install from rust-toolchain.toml
+            fi
+
+            # Add any additional components
+            if [[ -n "${{ inputs.components }}" ]]; then
+              echo "Installing additional components: ${{ inputs.components }}"
+              uvx rustup component add ${{ inputs.components }}
+            fi
+          } > /tmp/rust_setup.log 2>&1
+          EXIT_CODE=$?
+
+          RUST_END=$(date +%s)
+          echo "ELAPSED_TIME=$(($RUST_END - $RUST_START))" >> /tmp/rust_setup.log
+          echo "TOTAL_TIME=$(($RUST_END - $ACTION_START_TIME))" >> /tmp/rust_setup.log
+          echo "EXIT_CODE=$EXIT_CODE" >> /tmp/rust_setup.log
+
+          # Only create done marker if successful
+          if [ $EXIT_CODE -eq 0 ]; then
+            touch /tmp/rust_setup.done
+          else
+            echo "ERROR: Rust setup failed with exit code $EXIT_CODE" >> /tmp/rust_setup.log
+          fi
+        ) &
+        RUST_PID=$!
+        echo "  ⏳ Rust toolchain setup started (PID: $RUST_PID)"
+
+        # Start APT update in background
+        (
+          APT_START=$(date +%s)
+          {
+            set -e  # Exit on error
+            sudo apt-get update
+          } > /tmp/apt_update.log 2>&1
+          EXIT_CODE=$?
+
+          APT_END=$(date +%s)
+          echo "ELAPSED_TIME=$(($APT_END - $APT_START))" >> /tmp/apt_update.log
+          echo "TOTAL_TIME=$(($APT_END - $ACTION_START_TIME))" >> /tmp/apt_update.log
+          echo "EXIT_CODE=$EXIT_CODE" >> /tmp/apt_update.log
+
+          # Only create done marker if successful
+          if [ $EXIT_CODE -eq 0 ]; then
+            touch /tmp/apt_update.done
+          else
+            echo "ERROR: APT update failed with exit code $EXIT_CODE" >> /tmp/apt_update.log
+          fi
+        ) &
+        APT_PID=$!
+        echo "  ⏳ APT update started (PID: $APT_PID)"
+
+        echo "::endgroup::"
+
+    # Determine packages to install
+    - name: Determine packages
+      id: packages
+      shell: bash
+      run: |
+        # Base packages
+        PACKAGES="clang ${{ inputs.gcc-package }} ${{ inputs.gxx-package }} ${{ inputs.liburing-package }}"
+
+        # Add any extra packages
+        if [[ -n "${{ inputs.extra-packages }}" ]]; then
+          PACKAGES="$PACKAGES ${{ inputs.extra-packages }}"
+        fi
+
+        echo "📦 Packages to install: $PACKAGES"
+        echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+
+    # Install APT packages synchronously
+    - name: Install APT packages
+      shell: bash
+      run: |
+        echo "::group::🔨 Installing APT packages"
+
+        # Wait for APT update to complete first
+        WAIT_START=$(date +%s)
+        MAX_WAIT=120  # 2 minutes timeout for APT update
+        while [ ! -f /tmp/apt_update.done ]; do
+          sleep 0.5
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - WAIT_START))
+          if [ $ELAPSED -eq 1 ]; then
+            echo "⏳ Waiting for APT update to complete..."
+          fi
+          if [ $ELAPSED -gt $MAX_WAIT ]; then
+            echo "❌ Error: APT update timed out after 2 minutes"
+            if [ -f /tmp/apt_update.log ]; then
+              echo "📋 APT update log:"
+              cat /tmp/apt_update.log
+            fi
+            exit 1
+          fi
+        done
+
+        echo "✓ APT update completed"
+
+        PACKAGES="${{ steps.packages.outputs.packages }}"
+        echo "📦 Installing packages: $PACKAGES"
+
+        # Install packages synchronously
+        sudo DEBIAN_FRONTEND=noninteractive apt-get install -y $PACKAGES
+        EXIT_CODE=$?
+
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "⚠️ Package installation failed with code $EXIT_CODE, attempting to fix..."
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -f -y
+          EXIT_CODE=$?
+        fi
+
+        if [ $EXIT_CODE -eq 0 ]; then
+          echo "✅ APT packages installed successfully"
+        else
+          echo "❌ APT package installation failed"
+          exit $EXIT_CODE
+        fi
+
+        echo "::endgroup::"
+
+    # Configure compilation environment
+    - name: Configure compilation environment
+      shell: bash
+      run: |
+        echo "::group::🔧 Configuring compilation environment"
+
+        # Set compiler and linker
+        echo "CC=${{ inputs.cc }}" >> $GITHUB_ENV
+        echo "CXX=${{ inputs.cxx }}" >> $GITHUB_ENV
+
+        # Set architecture-specific flags if provided
+        if [[ -n "${{ inputs.march }}" ]]; then
+          echo "CFLAGS=-march=${{ inputs.march }}" >> $GITHUB_ENV
+          echo "CXXFLAGS=-march=${{ inputs.march }}" >> $GITHUB_ENV
+        fi
+
+        # Set Rust target-specific linker if provided
+        if [[ -n "${{ inputs.cargo-linker-env }}" ]]; then
+          echo "${{ inputs.cargo-linker-env }}=${{ inputs.linker }}" >> $GITHUB_ENV
+        fi
+
+        # Configure pkg-config for cross-compilation if needed
+        if [[ "${{ inputs.is-cross-compile }}" == "true" ]]; then
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          if [[ -n "${{ inputs.pkg-config-path }}" ]]; then
+            echo "PKG_CONFIG_PATH=${{ inputs.pkg-config-path }}" >> $GITHUB_ENV
+          fi
+          if [[ -n "${{ inputs.pkg-config-libdir }}" ]]; then
+            echo "PKG_CONFIG_LIBDIR=${{ inputs.pkg-config-libdir }}" >> $GITHUB_ENV
+          fi
+          if [[ -n "${{ inputs.pkg-config-sysroot }}" ]]; then
+            echo "PKG_CONFIG_SYSROOT_DIR=${{ inputs.pkg-config-sysroot }}" >> $GITHUB_ENV
+          fi
+        fi
+
+        echo "✅ Compilation environment configured"
+        echo "::endgroup::"
+
+    # Install tools in parallel
+    - name: Start tool installations in parallel
+      shell: bash
+      run: |
+        echo "::group::🛠️ Tool installation"
+
+        # Create sccache directory early at default location
+        mkdir -p /root/.cache/sccache
+
+        # Start sccache setup in background (using uv)
+        (
+          SCCACHE_START=$(date +%s)
+          uv tool install sccache > /tmp/sccache_install.log 2>&1
+          EXIT_CODE=$?
+          SCCACHE_END=$(date +%s)
+          echo "ELAPSED_TIME=$(($SCCACHE_END - $SCCACHE_START))" >> /tmp/sccache_install.log
+          echo "TOTAL_TIME=$(($SCCACHE_END - $ACTION_START_TIME))" >> /tmp/sccache_install.log
+          echo "EXIT_CODE=$EXIT_CODE" >> /tmp/sccache_install.log
+          touch /tmp/sccache_install.done
+        ) &
+        SCCACHE_PID=$!
+        echo "  ⏳ sccache installation started (PID: $SCCACHE_PID)"
+
+        # Start timelord installation in background
+        (
+          # Wait for Rust to be ready since cargo install needs it
+          while [ ! -f /tmp/rust_setup.done ]; do
+            sleep 0.5
+          done
+          TIMELORD_START=$(date +%s)
+
+          # Check if timelord is already available from cache
+          if command -v timelord &> /dev/null; then
+            echo "Timelord already available from cache" > /tmp/timelord_install.log
+            TIMELORD_VERSION=$(timelord --version 2>&1 || echo "unknown version")
+            echo "Version: $TIMELORD_VERSION" >> /tmp/timelord_install.log
+            EXIT_CODE=0
+          else
+            echo "Installing timelord-cli..." > /tmp/timelord_install.log
+            cargo install --locked timelord-cli >> /tmp/timelord_install.log 2>&1
+            EXIT_CODE=$?
+          fi
+
+          TIMELORD_END=$(date +%s)
+          echo "ELAPSED_TIME=$(($TIMELORD_END - $TIMELORD_START))" >> /tmp/timelord_install.log
+          echo "TOTAL_TIME=$(($TIMELORD_END - $ACTION_START_TIME))" >> /tmp/timelord_install.log
+          echo "EXIT_CODE=$EXIT_CODE" >> /tmp/timelord_install.log
+          touch /tmp/timelord_install.done
+        ) &
+        TIMELORD_PID=$!
+        echo "  ⏳ timelord installation started (PID: $TIMELORD_PID)"
+
+        echo "::endgroup::"
+
+    # Configure and start sccache
+    - name: Configure and start sccache
+      shell: bash
+      run: |
+        echo "::group::⚙️ Configuring sccache"
+
+        # Wait for sccache setup to complete
+        WAIT_START=$(date +%s)
+        MAX_WAIT=60  # 60 seconds timeout
+        while [ ! -f /tmp/sccache_install.done ]; do
+          sleep 0.1
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - WAIT_START))
+          if [ $ELAPSED -eq 1 ]; then
+            echo "⏳ Waiting for sccache installation..."
+          fi
+          if [ $ELAPSED -gt $MAX_WAIT ]; then
+            echo "❌ Error: sccache setup timed out after 60 seconds"
+            exit 1
+          fi
+        done
+
+        # Ensure PATH includes uv tools for this shell
+        export PATH="$HOME/.local/share/uv/tools/sccache/bin:$PATH"
+
+        # Verify sccache is available
+        if ! command -v sccache &> /dev/null; then
+          echo "❌ Error: sccache not found in PATH after installation"
+          echo "PATH=$PATH"
+          echo "Checking installation:"
+          ls -la $HOME/.local/share/uv/tools/sccache/bin/ 2>/dev/null || echo "  UV tools directory not found"
+          exit 1
+        fi
+
+        echo "✅ Found sccache at: $(command -v sccache)"
+
+        # Configure sccache environment
+        echo "📝 Configuring sccache environment variables"
+        echo "SCCACHE_DIR=/root/.cache/sccache" >> $GITHUB_ENV
+        echo "SCCACHE_CACHE_SIZE=10G" >> $GITHUB_ENV
+        echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+        echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+        echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+
+        # Start sccache daemon in background immediately
+        # It will be ready by the time we need it for compilation
+        sccache --start-server &>/dev/null &
+        SCCACHE_PID=$!
+
+        # Continue with other setup while sccache starts
+        SCCACHE_READY=$(date +%s)
+        TOTAL_ELAPSED=$(($SCCACHE_READY - $ACTION_START_TIME))
+        echo "  ✅ sccache server started (PID: $SCCACHE_PID) at ${TOTAL_ELAPSED}s total"
+        touch /tmp/sccache_ready.done
+        echo "::endgroup::"
+
+    # Load timelord cache for timestamps
+    - name: Load timelord files
+      shell: bash
+      run: |
+        echo "::group::├─ Timelord timestamp cache"
+    - uses: actions/cache/restore@v4
+      with:
+        path: /timelord/
+        key: timelord-v0${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    - name: Run timelord sync in background
+      shell: bash
+      run: |
+        # Start timelord sync in background after timelord is installed
+        (
+          # Wait for timelord installation (silently since we're already tracking it elsewhere)
+          while [ ! -f /tmp/timelord_install.done ]; do
+            sleep 0.5
+          done
+
+          # Check if timelord binary actually exists before trying to run it
+          if command -v timelord &> /dev/null; then
+            SYNC_START=$(date +%s)
+            timelord sync --source-dir . --cache-dir /timelord/ > /tmp/timelord_sync.log 2>&1
+            EXIT_CODE=$?
+            SYNC_END=$(date +%s)
+            echo "ELAPSED_TIME=$(($SYNC_END - $SYNC_START))" >> /tmp/timelord_sync.log
+            echo "TOTAL_TIME=$(($SYNC_END - $ACTION_START_TIME))" >> /tmp/timelord_sync.log
+            echo "EXIT_CODE=$EXIT_CODE" >> /tmp/timelord_sync.log
+          else
+            echo "Timelord binary not found, skipping sync" > /tmp/timelord_sync.log
+            echo "ELAPSED_TIME=0" >> /tmp/timelord_sync.log
+            echo "EXIT_CODE=0" >> /tmp/timelord_sync.log
+          fi
+          touch /tmp/timelord_sync.done
+        ) &
+        echo "⏳ Timestamp synchronisation started in background"
+
+    - name: Save timelord
+      if: always()
+      shell: bash
+      run: |
+        echo "::group::💾 Saving timestamp cache"
+        # Ensure the timelord directory exists before trying to cache it
+        if [ ! -d /timelord ]; then
+          echo "Creating /timelord directory for cache"
+          sudo mkdir -p /timelord
+          sudo chmod 777 /timelord
+        fi
+    - uses: actions/cache/save@v4
+      if: always()
+      with:
+        path: /timelord/
+        key: timelord-v0${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Cache sccache directory (auto-saves at end of job)
+    - name: Cache sccache compilation artifacts
+      shell: bash
+      run: |
+        echo "::group::├─ Build artefact cache (sccache)"
+    - uses: actions/cache@v4
+      id: sccache-cache
+      with:
+        path: /root/.cache/sccache
+        # Use a unique key with timestamp to force saving updated cache
+        key: sccache-v1${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}-${{ github.run_id }}-${{ github.run_attempt }}
+        restore-keys: |
+          sccache-v1${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}-
+          sccache-v1${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+          sccache-v1-
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Cache Rust registry
+    - name: Cache Rust registry
+      shell: bash
+      run: |
+        echo "::group::├─ Rust registry cache"
+    - uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/git
+          !~/.cargo/git/checkouts
+          ~/.cargo/registry
+          !~/.cargo/registry/src
+        key: rust-registry${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          rust-registry${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+          rust-registry-
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Cache cargo target directory (optimised for size and performance)
+    # Only caches compiled dependencies and build artefacts, not incremental compilation or binaries
+    - name: Cache cargo target
+      shell: bash
+      run: |
+        echo "::group::└─ Compiled dependencies cache"
+    - uses: actions/cache@v4
+      with:
+        path: |
+          # Include compiled dependencies, build scripts and fingerprints for all profiles
+          target/**/deps
+          target/**/build
+          target/**/.fingerprint
+          # Exclude incremental compilation cache (changes frequently, poor cache hits)
+          !target/**/incremental
+          # Exclude final binaries (rebuilt anyway when code changes)
+          !target/**/conduwuit
+          !target/**/conduwuit.exe
+          # Exclude dependency tracking files (regenerated quickly)
+          !target/**/*.d
+        key: cargo-target-v2${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}-${{ hashFiles('**/*.rs') }}
+        restore-keys: |
+          cargo-target-v2${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('**/Cargo.lock') }}-
+          cargo-target-v2${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+    - shell: bash
+      if: always()
+      run: echo "::endgroup::"
+
+    # Cache cross-compilation toolchain
+    - name: Cache cross-compilation toolchain
+      if: inputs.is-cross-compile == 'true'
+      shell: bash
+      run: |
+        echo "::endgroup::"
+        echo "::endgroup::"
+
+    # Install cross-compilation target (no caching - it's fast enough)
+    - name: Install cross-compilation target
+      if: inputs.is-cross-compile == 'true'
+      shell: bash
+      run: |
+        echo "::group::🎯 Cross-compilation target setup"
+
+        # Wait for basic Rust setup to complete first
+        WAIT_START=$(date +%s)
+        while [ ! -f /tmp/rust_setup.done ]; do
+          sleep 0.5
+          CURRENT_TIME=$(date +%s)
+          ELAPSED=$((CURRENT_TIME - WAIT_START))
+          if [ $ELAPSED -eq 2 ]; then
+            echo "⏳ Waiting for Rust toolchain to be ready..."
+          fi
+          if [ $ELAPSED -gt 300 ]; then
+            echo "❌ Error: Rust setup timed out after 5 minutes"
+            exit 1
+          fi
+        done
+
+        source /tmp/env_vars.sh 2>/dev/null || true
+        ACTION_START_TIME=${ACTION_START_TIME:-$(date +%s)}
+        TARGET_START=$(date +%s)
+
+        # Check if target is already installed
+        echo "Checking if target ${{ inputs.rust-target }} is already installed..."
+        if uvx rustup target list --installed 2>/dev/null | grep -q "^${{ inputs.rust-target }}$"; then
+          echo "✅ Target ${{ inputs.rust-target }} is already installed"
+        else
+          echo "Installing cross-compilation target: ${{ inputs.rust-target }}"
+          uvx rustup target add ${{ inputs.rust-target }}
+          if [ $? -eq 0 ]; then
+            echo "✅ Target installed successfully"
+          else
+            echo "❌ Error: Failed to install target ${{ inputs.rust-target }}"
+            exit 1
+          fi
+        fi
+
+        TARGET_END=$(date +%s)
+        TOTAL_ELAPSED=$(($TARGET_END - $ACTION_START_TIME))
+        echo "✅ Cross-compilation target ready ($(($TARGET_END - $TARGET_START))s task, ${TOTAL_ELAPSED}s total)"
+
+        # Create done marker for compatibility with sync step
+        touch /tmp/rust_target.done
+        echo "::endgroup::"
+
+    # Wait for all background tasks to complete and display results
+    - name: Ensure all setup tasks are ready
+      shell: bash
+      run: |
+        echo "::group::⏳ Phase 4: Synchronisation"
+        SYNC_START=$(date +%s)
+
+        # List of marker files to wait for (only background tasks now)
+        MARKERS=(
+          "/tmp/rust_setup.done"
+          "/tmp/apt_update.done"
+          "/tmp/sccache_ready.done"
+          "/tmp/timelord_sync.done"
+        )
+
+        # Pretty names for tasks
+        declare -A TASK_NAMES
+        TASK_NAMES["rust_setup"]="Rust toolchain"
+        TASK_NAMES["apt_update"]="APT repository update"
+        TASK_NAMES["sccache_ready"]="sccache server"
+        TASK_NAMES["timelord_sync"]="Timelord (install/sync)"
+
+        echo "📊 Awaiting parallel task completion:"
+
+        for MARKER in "${MARKERS[@]}"; do
+          WAIT_START=$(date +%s)
+          # Set timeout for tasks
+          MAX_WAIT=300  # 5 minutes timeout for background tasks
+
+          TASK_KEY=$(basename "$MARKER" .done)
+          TASK_NAME="${TASK_NAMES[$TASK_KEY]}"
+
+          while [ ! -f "$MARKER" ]; do
+            sleep 0.5
+            CURRENT_TIME=$(date +%s)
+            ELAPSED=$((CURRENT_TIME - WAIT_START))
+
+            if [ $ELAPSED -eq 2 ]; then
+              echo "  ⏳ Waiting for $TASK_NAME..."
+            fi
+
+            # Show periodic status updates for long-running tasks
+            if [ $(($ELAPSED % 60)) -eq 0 ] && [ $ELAPSED -gt 0 ]; then
+              echo "    Still waiting for $TASK_NAME (${ELAPSED}s elapsed)..."
+            fi
+
+            if [ $ELAPSED -gt $MAX_WAIT ]; then
+              TIMEOUT_MINS=$(($MAX_WAIT / 60))
+              echo "  ❌ Error: $TASK_NAME timed out after ${TIMEOUT_MINS} minutes"
+
+              # Try to show log file content for debugging
+              LOG_FILE="/tmp/${TASK_KEY}.log"
+              if [ -f "$LOG_FILE" ]; then
+                echo "  📋 Last 20 lines of $LOG_FILE:"
+                tail -20 "$LOG_FILE" | sed 's/^/    /'
+              fi
+
+              exit 1
+            fi
+          done
+
+          FINAL_TIME=$(date +%s)
+          WAIT_TIME=$((FINAL_TIME - WAIT_START))
+          TOTAL_TIME=$((FINAL_TIME - $ACTION_START_TIME))
+          echo "  ✅ $TASK_NAME ready (${WAIT_TIME}s wait, ${TOTAL_TIME}s total)"
+        done
+
+        SYNC_END=$(date +%s)
+        TOTAL_ACTION_TIME=$(($SYNC_END - $ACTION_START_TIME))
+        echo ""
+        echo "🎉 All setup tasks completed in $(($SYNC_END - $SYNC_START))s (${TOTAL_ACTION_TIME}s total)"
+        echo "::endgroup::"
+
+    # Close phase 3 group before starting task results
+    - name: Close parallel phase
+      shell: bash
+      run: |
+        echo "::endgroup::"
+        echo "::group::📋 Task results"
+
+    # Display all task results now that everything is complete
+    - name: Display Rust setup results
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '├─ Rust toolchain setup'
+        log-file: '/tmp/rust_setup.log'
+        done-file: '/tmp/rust_setup.done'
+        group-icon: '🦀'
+
+    - name: Display APT update results
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '├─ APT repository update'
+        log-file: '/tmp/apt_update.log'
+        done-file: '/tmp/apt_update.done'
+        group-icon: '📦'
+        max-lines: '20'
+
+
+    - name: Display sccache installation results
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '├─ sccache installation'
+        log-file: '/tmp/sccache_install.log'
+        done-file: '/tmp/sccache_install.done'
+        group-icon: '⚡'
+
+    - name: Display timelord installation results
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '├─ Timelord installation'
+        log-file: '/tmp/timelord_install.log'
+        done-file: '/tmp/timelord_install.done'
+        filter-pattern: 'Compiling|Finished|Installing|already available|Version|error'
+        group-icon: '⏰'
+
+    - name: Display timelord sync results
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '├─ Timelord sync'
+        log-file: '/tmp/timelord_sync.log'
+        done-file: '/tmp/timelord_sync.done'
+        group-icon: '🔄'
+
+    - name: Display cross-compilation target results
+      if: inputs.is-cross-compile == 'true'
+      uses: ./.forgejo/actions/display-log-group
+      with:
+        name: '└─ Cross-compilation target'
+        log-file: '/tmp/rust_target_install.log'
+        done-file: '/tmp/rust_target.done'
+        group-icon: '🎯'
+        max-lines: '5'
+
+    # Print summary
+    - name: Print setup summary
+      shell: bash
+      run: |
+        echo "::endgroup::"
+        echo "::group::✅ Setup summary"
+        echo "✅ Build environment ready"
+        echo "  • Rust toolchain: $(rustc --version 2>/dev/null | head -1 || echo 'installed')"
+        echo "  • sccache: $(sccache --version 2>/dev/null | head -1 || echo 'installed')"
+        echo "  • Timelord: $(timelord --version 2>/dev/null || echo 'installed')"
+        echo "  • APT packages: ${{ steps.packages.outputs.packages }}"
+        echo "  • Compiler: CC=${{ inputs.cc }}, CXX=${{ inputs.cxx }}"
+        if [[ -n "${{ inputs.march }}" ]]; then
+          echo "  • Architecture flags: -march=${{ inputs.march }}"
+        fi
+        if [[ "${{ inputs.is-cross-compile }}" == "true" ]]; then
+          echo "  • Cross-compilation target: ${{ inputs.rust-target }}"
+          echo "  • Linker: ${{ inputs.linker }}"
+        fi
+        echo "::endgroup::"
+        echo "::endgroup::"
+
+    # Save cargo bin cache
+    - name: Save cargo bin cache
+      if: always() && steps.cargo-bin-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        echo "::group::💾 Saving binary tools cache"
+    - uses: actions/cache/save@v4
+      if: always() && steps.cargo-bin-cache.outputs.cache-hit != 'true'
+      with:
+        path: ~/.cargo/bin
+        key: cargo-bin-v1-${{ hashFiles('**/Cargo.lock') }}
+    - shell: bash
+      if: always() && steps.cargo-bin-cache.outputs.cache-hit != 'true'
+      run: echo "::endgroup::"
+
+    # Close the main action group
+    - name: Close main group
+      shell: bash
+      run: |
+        echo "🎆 Build environment setup complete"
+        echo "::endgroup::"

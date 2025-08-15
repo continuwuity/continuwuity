@@ -1,0 +1,413 @@
+name: Checks / Build / Publish
+
+on:
+  push:
+    paths-ignore:
+      - "*.md"
+      - "**/*.md"
+      - ".gitlab-ci.yml"
+      - ".gitignore"
+      - "renovate.json"
+      - "debian/**"
+      - "docker/**"
+      - "docs/**"
+  pull_request:
+    paths-ignore:
+      - "*.md"
+      - "**/*.md"
+      - ".gitlab-ci.yml"
+      - ".gitignore"
+      - "renovate.json"
+      - "debian/**"
+      - "docker/**"
+      - "docs/**"
+  workflow_dispatch:
+
+# Cancel in-progress runs when a new push is made to the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}  # Cancel PRs but not main branch builds
+
+env:
+  BUILTIN_REGISTRY_ENABLED: "${{ vars.BUILTIN_REGISTRY != '' && ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
+
+jobs:
+  # Phase 1: Fast checks (formatting, linting)
+  fast-checks:
+    name: Pre-commit & Formatting
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install uv
+        uses: https://github.com/astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          ignore-nothing-to-cache: true
+          cache-dependency-glob: ''
+
+      - name: Run prek (formerly prefligit)
+        run: uvx prek run --show-diff-on-failure --color=always -v --all-files --hook-stage manual
+
+      - name: Install Rust nightly with rustfmt
+        run: |
+          uvx rustup override set nightly
+          uvx rustup component add rustfmt
+
+      - name: Check formatting
+        run: |
+          cargo +nightly fmt --all -- --check && echo "✅ Formatting check passed - all code is properly formatted" || exit 1
+
+  # Phase 2: Clippy and tests
+  clippy-and-tests:
+    name: Clippy and Cargo Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust with caching
+        uses: ./.forgejo/actions/rust-with-cache
+
+      - name: Run Clippy lints
+        run: |
+          cargo clippy \
+            --workspace \
+            --features full \
+            --locked \
+            --no-deps \
+            --profile test \
+            -- \
+            -D warnings
+
+      - name: Run Cargo tests
+        run: |
+          cargo test \
+            --workspace \
+            --features full \
+            --locked \
+            --profile test \
+            --all-targets \
+            --no-fail-fast
+
+  # Phase 3: Build binaries (depends on both test phases)
+  build:
+    name: Build ${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    needs: [fast-checks, clippy-and-tests]  # Wait for both test jobs to complete
+    env:
+      # Define image variables once for reuse
+      IMAGE_REPOSITORY: ${{ github.repository }}
+      IMAGE_REGISTRY: ${{ vars.BUILTIN_REGISTRY }}
+      IMAGE_NAME: ${{ vars.BUILTIN_REGISTRY && format('{0}/{1}', vars.BUILTIN_REGISTRY, github.repository) || '' }}
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            slug: linux-amd64
+            rust_target: x86_64-unknown-linux-gnu
+            march: haswell
+            cc: gcc
+            cxx: g++
+            linker: gcc
+            dpkg_arch: ""
+            gcc_package: gcc
+            gxx_package: g++
+            liburing_package: liburing-dev
+            is_cross_compile: false
+            cargo_linker_env: CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER
+            pkg_config_path: ""
+            pkg_config_libdir: ""
+            pkg_config_sysroot: ""
+            target_cpu: haswell
+            profile: release
+          - platform: linux/arm64
+            slug: linux-arm64
+            rust_target: aarch64-unknown-linux-gnu
+            march: armv8-a
+            cc: aarch64-linux-gnu-gcc
+            cxx: aarch64-linux-gnu-g++
+            linker: aarch64-linux-gnu-gcc
+            dpkg_arch: arm64
+            gcc_package: gcc-aarch64-linux-gnu
+            gxx_package: g++-aarch64-linux-gnu
+            liburing_package: liburing-dev:arm64
+            is_cross_compile: true
+            cargo_linker_env: CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER
+            pkg_config_path: /usr/lib/aarch64-linux-gnu/pkgconfig
+            pkg_config_libdir: /usr/lib/aarch64-linux-gnu/pkgconfig
+            pkg_config_sysroot: /usr/aarch64-linux-gnu
+            target_cpu: base
+            profile: release
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Rust with caching
+        id: rust-setup
+        uses: ./.forgejo/actions/rust-with-cache
+        with:
+          cache-key-suffix: ${{ matrix.slug }}
+          rust-target: ${{ matrix.rust_target }}
+          dpkg-arch: ${{ matrix.dpkg_arch }}
+          gcc-package: ${{ matrix.gcc_package }}
+          gxx-package: ${{ matrix.gxx_package }}
+          liburing-package: ${{ matrix.liburing_package }}
+          is-cross-compile: ${{ matrix.is_cross_compile }}
+          cc: ${{ matrix.cc }}
+          cxx: ${{ matrix.cxx }}
+          linker: ${{ matrix.linker }}
+          march: ${{ matrix.march }}
+          cargo-linker-env: ${{ matrix.cargo_linker_env }}
+          pkg-config-path: ${{ matrix.pkg_config_path }}
+          pkg-config-libdir: ${{ matrix.pkg_config_libdir }}
+          pkg-config-sysroot: ${{ matrix.pkg_config_sysroot }}
+
+      - name: Build binary
+        run: |
+          # Set up cross-language LTO for better optimization
+          export RUSTFLAGS="-C linker-plugin-lto -C link-arg=-flto=thin"
+
+          # Configure target CPU optimization if specified
+          if [[ "${{ matrix.target_cpu }}" != "base" ]]; then
+            export RUSTFLAGS="$RUSTFLAGS -C target-cpu=${{ matrix.target_cpu }}"
+            echo "Building with CPU optimizations for: ${{ matrix.target_cpu }}"
+          fi
+
+          # Build with standard features plus jemalloc (excluding hardened_malloc as it conflicts)
+          cargo build \
+            --release \
+            --locked \
+            --features "standard,jemalloc_prof,perf_measurements,tokio_console" \
+            --target ${{ matrix.rust_target }}
+
+          # Generate SBOM for the binary artifact
+          cargo cyclonedx --format json --target ${{ matrix.rust_target }} > target/${{ matrix.rust_target }}/release/conduwuit.sbom.json || echo "SBOM generation failed (cargo-cyclonedx may not be installed)"
+
+      - name: Upload binary artefact
+        uses: forgejo/upload-artifact@v4
+        with:
+          name: conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+          path: |
+            target/${{ matrix.rust_target }}/release/conduwuit
+            target/${{ matrix.rust_target }}/release/conduwuit.sbom.json
+          if-no-files-found: error
+
+      - name: Prepare Docker context
+        run: |
+          # Create Docker build context
+          mkdir -p docker-context
+
+          # Copy binary
+          cp target/${{ matrix.rust_target }}/release/conduwuit docker-context/
+
+          # Note: We rely on Rust producing mostly-static binaries with --release
+          # Core system libraries (libc, libm, etc.) will be dynamically linked but
+          # these are handled by the base image. Application libraries like jemalloc
+          # are statically linked into the binary.
+
+          # Create minimal Dockerfile inline with proper multi-stage build
+          cat > docker-context/Dockerfile << 'EOF'
+          # Stage 1: Get SSL certificates from Debian
+          FROM docker.io/library/debian:bookworm-slim AS certs
+          RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates
+
+          # Stage 2: Final scratch image
+          FROM scratch
+          ARG GIT_COMMIT_HASH
+          ARG GIT_COMMIT_HASH_SHORT
+          ARG GIT_REMOTE_COMMIT_URL
+          ARG GIT_REMOTE_URL
+          ARG SOURCE_DATE_EPOCH
+          ENV GIT_COMMIT_HASH=${GIT_COMMIT_HASH}
+          ENV GIT_COMMIT_HASH_SHORT=${GIT_COMMIT_HASH_SHORT}
+          ENV GIT_REMOTE_COMMIT_URL=${GIT_REMOTE_COMMIT_URL}
+          ENV GIT_REMOTE_URL=${GIT_REMOTE_URL}
+          ENV SOURCE_DATE_EPOCH=${SOURCE_DATE_EPOCH}
+          COPY --from=certs /etc/ssl/certs /etc/ssl/certs
+          COPY conduwuit /sbin/conduwuit
+          EXPOSE 8008
+          CMD ["/sbin/conduwuit"]
+          EOF
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to container registry
+        if: vars.BUILTIN_REGISTRY != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.BUILTIN_REGISTRY }}
+          username: ${{ vars.BUILTIN_REGISTRY_USER || gitea.actor }}
+          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.FORGEJO_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+
+      - name: Get build metadata
+        id: build-meta
+        run: |
+          echo "epoch=$(git log -1 --pretty=%ct)" >> $GITHUB_OUTPUT
+          echo "sha_short=$(git rev-parse --short ${{ github.sha }})" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: docker-context
+          platforms: ${{ matrix.platform }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          # Enable registry-based layer caching
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-${{ matrix.slug }}
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-${{ matrix.slug }},mode=max
+          sbom: true
+          outputs: type=image,"name=${{ env.IMAGE_NAME }}",push-by-digest=true,name-canonical=true,push=true
+          build-args: |
+            GIT_COMMIT_HASH=${{ github.sha }}
+            GIT_COMMIT_HASH_SHORT=${{ steps.build-meta.outputs.sha_short }}
+            GIT_REMOTE_COMMIT_URL=${{ github.event.head_commit.url }}
+            GIT_REMOTE_URL=${{ github.event.repository.html_url }}
+            SOURCE_DATE_EPOCH=${{ steps.build-meta.outputs.epoch }}
+
+      - name: Push architecture-specific tags
+        if: vars.BUILTIN_REGISTRY != ''
+        run: |
+          # Determine if we need a branch- prefix (for non-default branches)
+          DEFAULT_BRANCH="${{ github.event.repository.default_branch || 'main' }}"
+          REF_NAME="${{ github.ref_name }}"
+
+          # Add branch- prefix for non-default branches, matching multi-platform logic
+          if [[ "${{ github.ref }}" == "refs/heads/${DEFAULT_BRANCH}" ]]; then
+            # Default branch: use name as-is
+            TAG_PREFIX="${REF_NAME//\//-}"
+          elif [[ "${{ github.ref }}" == refs/heads/* ]]; then
+            # Non-default branch: add branch- prefix
+            TAG_PREFIX="branch-${REF_NAME//\//-}"
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            # Tag: use as-is
+            TAG_PREFIX="${REF_NAME}"
+          elif [[ "${{ github.ref }}" == refs/pull/* ]]; then
+            # Pull request: use pr-NUMBER format
+            TAG_PREFIX="pr-${{ github.event.pull_request.number }}"
+          else
+            # Fallback
+            TAG_PREFIX="${REF_NAME//\//-}"
+          fi
+
+          # Create architecture-specific tag
+          docker buildx imagetools create \
+            --tag "${{ env.IMAGE_NAME }}:${TAG_PREFIX}-${{ matrix.slug }}" \
+            "${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+
+          # Also create a latest-{arch} tag if this is a version tag (matching multi-platform logic)
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            docker buildx imagetools create \
+              --tag "${{ env.IMAGE_NAME }}:latest-${{ matrix.slug }}" \
+              "${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}"
+          fi
+
+      - name: Export and upload digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - uses: forgejo/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.slug }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 5
+
+  # Phase 4: Publish multi-platform manifest
+  publish:
+    name: Publish Multi-Platform
+    runs-on: ubuntu-latest
+    needs: build
+    if: vars.BUILTIN_REGISTRY != ''  # Only run if we have a registry configured
+    env:
+      # Define image variables once for reuse
+      IMAGE_REPOSITORY: ${{ github.repository }}
+      IMAGE_REGISTRY: ${{ vars.BUILTIN_REGISTRY }}
+      IMAGE_NAME: ${{ vars.BUILTIN_REGISTRY && format('{0}/{1}', vars.BUILTIN_REGISTRY, github.repository) || '' }}
+    steps:
+      - name: Download digests
+        uses: forgejo/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Log in to container registry
+        if: vars.BUILTIN_REGISTRY != ''
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ vars.BUILTIN_REGISTRY }}
+          username: ${{ vars.BUILTIN_REGISTRY_USER || gitea.actor }}
+          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.FORGEJO_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract Docker tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          tags: |
+            type=semver,pattern={{version}},prefix=v
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }},prefix=v
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }},prefix=v
+            type=ref,event=branch,prefix=${{ format('refs/heads/{0}', github.event.repository.default_branch) != github.ref && 'branch-' || '' }}
+            type=ref,event=pr
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          images: ${{ env.IMAGE_NAME }}
+          # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index
+
+      - name: Create and push manifest
+        working-directory: /tmp/digests
+        env:
+          IMAGES: ${{ env.IMAGE_NAME }}
+        shell: bash
+        run: |
+          IFS=$'\n'
+          IMAGES_LIST=($IMAGES)
+          ANNOTATIONS_LIST=($DOCKER_METADATA_OUTPUT_ANNOTATIONS)
+          TAGS_LIST=($DOCKER_METADATA_OUTPUT_TAGS)
+          for REPO in "${IMAGES_LIST[@]}"; do
+              docker buildx imagetools create \
+                $(for tag in "${TAGS_LIST[@]}"; do echo "--tag"; echo "$tag"; done) \
+                $(for annotation in "${ANNOTATIONS_LIST[@]}"; do echo "--annotation"; echo "$annotation"; done) \
+                $(for reference in *; do printf "$REPO@sha256:%s\n" $reference; done)
+          done
+
+      - name: Inspect image
+        env:
+          IMAGES: ${{ env.IMAGE_NAME }}
+        shell: bash
+        run: |
+          IMAGES_LIST=($IMAGES)
+          for REPO in "${IMAGES_LIST[@]}"; do
+            docker buildx imagetools inspect $REPO:${{ steps.meta.outputs.version }}
+          done

@@ -22,5 +22,24 @@
     "tikv-jemalloc-ctl",
     "opentelemetry-rust",
     "tracing-opentelemetry"
-  ]
+  ],
+  "github-actions": {
+    "enabled": true,
+    "fileMatch": [
+      "(^|/)\\.forgejo/workflows/[^/]+\\.ya?ml$",
+      "(^|/)\\.forgejo/actions/[^/]+/action\\.ya?ml$",
+      "(^|/)\\.github/workflows/[^/]+\\.ya?ml$",
+      "(^|/)\\.github/actions/[^/]+/action\\.ya?ml$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Group all non-major GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "github-actions-non-major"
+    }
+  ],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2
 }

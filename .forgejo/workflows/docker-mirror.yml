@@ -1,4 +1,4 @@
-name: Mirror Container Images
+name: Deploy / Mirror Images
 
 on:
   schedule:
