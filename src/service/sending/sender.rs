@@ -10,7 +10,7 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit_core::{
-	Error, Event, Result, debug, err, error,
+	Error, Event, Result, debug, err, error, info,
 	result::LogErr,
 	trace,
 	utils::{
@@ -142,7 +142,7 @@ impl Service {
 	}
 
 	fn handle_response_err(dest: Destination, statuses: &mut CurTransactionStatus, e: &Error) {
-		debug!(dest = ?dest, "{e:?}");
+		debug!(dest = ?dest, "error response: {e:?}");
 		statuses.entry(dest).and_modify(|e| {
 			*e = match e {
 				| TransactionStatus::Running => TransactionStatus::Failed(1, Instant::now()),
@@ -177,7 +177,21 @@ impl Service {
 		if !new_events.is_empty() {
 			self.db.mark_as_active(new_events.iter());
 
-			let new_events_vec = new_events.into_iter().map(|(_, event)| event).collect();
+			let new_events_vec: Vec<SendingEvent> =
+				new_events.into_iter().map(|(_, event)| event).collect();
+
+			if let Some(status) = statuses.get(&dest.clone()) {
+				if matches!(status, TransactionStatus::Running) {
+					// If the server is in backoff, clear it
+					warn!(
+						?dest,
+						"Catching up destination with {} new events",
+						new_events_vec.len()
+					);
+					statuses.insert(dest.clone(), TransactionStatus::Running);
+				}
+			}
+
 			futures.push(self.send_events(dest.clone(), new_events_vec));
 		} else {
 			statuses.remove(dest);
@@ -859,12 +873,20 @@ impl Service {
 			pdus,
 			edus,
 		};
+		let pdu_count = request.pdus.len();
+		let edu_count = request.edus.len();
 
 		let result = self
 			.services
 			.federation
 			.execute_on(&self.services.client.sender, &server, request)
-			.await;
+			.await
+			.inspect(|_| {
+				info!(%txn_id, %server, "Sent {} PDUs, {} EDUs", pdu_count, edu_count);
+			})
+			.inspect_err(|e| {
+				error!(%txn_id, %server, "Failed to send transaction ({} PDUs, {} EDUs): {e:?}", pdu_count, edu_count);
+			});
 
 		for (event_id, result) in result.iter().flat_map(|resp| resp.pdus.iter()) {
 			if let Err(e) = result {
