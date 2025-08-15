@@ -3,7 +3,7 @@ use std::{fmt::Debug, mem};
 use bytes::Bytes;
 use conduwuit::{
 	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
-	error::inspect_debug_log, implement, trace, utils::string::EMPTY,
+	error::inspect_debug_log, implement, trace, utils::string::EMPTY, warn,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
@@ -193,7 +193,7 @@ fn handle_error(
 ) -> Result {
 	if e.is_timeout() || e.is_connect() {
 		e = e.without_url();
-		debug_warn!("{e:?}");
+		debug_warn!(?url, "network error while sending request: {e:?}");
 	} else if e.is_redirect() {
 		debug_error!(
 			method = ?method,
@@ -204,7 +204,7 @@ fn handle_error(
 			e,
 		);
 	} else {
-		debug_error!("{e:?}");
+		warn!(?url, "failed to send federation request: {e:?}");
 	}
 
 	Err(e.into())
