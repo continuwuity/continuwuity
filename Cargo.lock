@@ -142,10 +142,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "arraydeque"
-version = "0.5.1"
+name = "arrayref"
+version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
+checksum = "76a2e8124351fda1ef8aaaa3bbd7ebbcb486bbcd4225aca0aa0d84bb2db8fecb"
 
 [[package]]
 name = "arrayvec"
@@ -613,6 +613,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "blake2b_simd"
+version = "1.0.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06e903a20b159e944f91ec8499fe1e55651480c541ea0a584f5d967c49ad9d99"
+dependencies = [
+ "arrayref",
+ "arrayvec",
+ "constant_time_eq",
+]
+
+[[package]]
 name = "block-buffer"
 version = "0.10.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -777,7 +788,10 @@ version = "0.4.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "145052bdd345b87320e369255277e3fb5152762ad123a901ef5c262dd38fe8d2"
 dependencies = [
+ "android-tzdata",
+ "iana-time-zone",
  "num-traits",
+ "windows-link",
 ]
 
 [[package]]
@@ -966,6 +980,7 @@ dependencies = [
  "bytes",
  "conduwuit_core",
  "conduwuit_service",
+ "conduwuit_web",
  "const-str",
  "ctor",
  "futures",
@@ -976,6 +991,8 @@ dependencies = [
  "ipaddress",
  "itertools 0.14.0",
  "log",
+ "oxide-auth",
+ "percent-encoding",
  "rand 0.8.5",
  "reqwest",
  "ruma",
@@ -1167,13 +1184,18 @@ name = "conduwuit_web"
 version = "0.5.0-rc.8"
 dependencies = [
  "askama",
- "axum 0.7.9",
+ "async-trait",
+ "axum",
  "conduwuit_build_metadata",
+ "conduwuit_core",
  "conduwuit_service",
  "futures",
+ "oxide-auth",
+ "percent-encoding",
  "rand 0.8.5",
  "thiserror 2.0.17",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1236,6 +1258,12 @@ checksum = "e262cdaac42494e3ae34c43969f9cdeb7da178bdb4b66fa6a1ea2edb4c8ae652"
 dependencies = [
  "typewit",
 ]
+
+[[package]]
+name = "constant_time_eq"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c74b8349d32d297c9134b8c88677813a227df8f779daa29bfc29c183fe3dca6"
 
 [[package]]
 name = "convert_case"
@@ -2349,6 +2377,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "iana-time-zone"
+version = "0.1.63"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c919e5debc312ad217002b8048a17b7d83f80703865bbfcfebb0458b0b27d8"
+dependencies = [
+ "android_system_properties",
+ "core-foundation-sys",
+ "iana-time-zone-haiku",
+ "js-sys",
+ "log",
+ "wasm-bindgen",
+ "windows-core",
+]
+
+[[package]]
+name = "iana-time-zone-haiku"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f31827a206f56af32e590ba56d5d2d085f558508192593743f16b2306495269f"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "icu_collections"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3302,6 +3354,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "overload"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
+
+[[package]]
+name = "oxide-auth"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c136ac668d12ba0b5b8ce159b95c7600fda826dc599a1e1916f8461c0d16a84"
+dependencies = [
+ "base64 0.21.7",
+ "chrono",
+ "hmac",
+ "once_cell",
+ "rand 0.8.5",
+ "rmp-serde",
+ "rust-argon2",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "url",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4199,6 +4278,17 @@ dependencies = [
  "sha2",
  "subslice",
  "thiserror 2.0.17",
+]
+
+[[package]]
+name = "rust-argon2"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9d9848531d60c9cbbcf9d166c885316c24bc0e2a9d3eba0956bb6cbbd79bc6e8"
+dependencies = [
+ "base64 0.21.7",
+ "blake2b_simd",
+ "constant_time_eq",
 ]
 
 [[package]]
