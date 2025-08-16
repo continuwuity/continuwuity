@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Result, err, utils::hash::verify_password};
+use conduwuit::{Result, err, utils::{hash::verify_password, ReadyExt}};
 use conduwuit_web::oidc::{
 	LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form,
 };
@@ -36,9 +36,26 @@ pub(crate) async fn oidc_login(
 	if verify_password(&query.password, &valid_hash).is_err() {
 		return Err(err!(Request(InvalidParam("password does not match"))));
 	}
+	// TODO check if user disabled, etc. See /src/api/client/session.rs
 
 	let hostname = services.config.server_name.host();
 	tracing::info!("logging in {user_id:?}");
+	let Some(mc) = services.oidc.client_from_client_id(&query.client_id) else {
+		return Err(err!(Request(Unknown("no client has registered client_id {:?}", query.client_id))));
+	};
+	let device_id = services.oidc.device_id_from_scope(mc.client.default_scope)?;
+	let device_exists = services
+		.users
+		.all_device_ids(&user_id)
+		.ready_any(|v| v == device_id)
+		.await; 
+	// TODO register the client's name at registration time.
+	//let name = services.oidc.endpoint().registrar.lock().unwrap();
+	if ! device_exists {
+		// TODO get the client's IP from the request.
+		let client_ip = None;
+		services.oidc.register_device((&user_id, &device_id), mc.name.as_deref(), client_ip)?;
+	}
 
 	services
 		.oidc

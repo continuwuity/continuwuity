@@ -3,6 +3,7 @@ use url::Url;
 use std::collections::HashMap;
 use std::iter::{Extend, FromIterator};
 
+use crate::oidc::SCOPE_PREFIX_DEVICE;
 use oxide_auth::endpoint::{PreGrant, Scope};
 use oxide_auth::primitives::prelude::{Client, ClientUrl};
 use oxide_auth::primitives::registrar::{Argon2, BoundClient, EncodedClient, PasswordPolicy, RegisteredClient, RegisteredUrl, Registrar, RegistrarError};
@@ -35,25 +36,49 @@ pub fn normalize_redirect(url: Url) -> RegisteredUrl {
 
 static DEFAULT_PASSWORD_POLICY: Lazy<Argon2> = Lazy::new(Argon2::default);
 
-/// A very simple, in-memory hash map of client ids to Client entries.
+#[derive(Clone)]
+pub struct MatrixClient {
+	pub name: Option<String>,
+	// scope option ?,
+	pub client: EncodedClient,
+}
+
+/// A very simple, in-memory hash map of client ids to MatrixClient entries.
 #[derive(Default)]
-pub struct ClientMap {
-    clients: HashMap<String, EncodedClient>,
+pub struct MatrixClientMap {
+    clients: HashMap<String, MatrixClient>,
     password_policy: Option<Box<dyn PasswordPolicy>>,
 }
 
-impl ClientMap {
+impl MatrixClientMap {
     /// Create an empty map without any clients in it.
-    pub fn new() -> ClientMap {
-        ClientMap::default()
+    pub fn new() -> MatrixClientMap {
+        MatrixClientMap::default()
     }
 
-    /// Insert or update the client record.
-    pub fn register_client(&mut self, client: Client) {
+    /// Insert or update the client record with an oxide-auth Client. It will be wrapped in a
+	/// MatrixClient.
+    pub fn register_client(&mut self, name: Option<String>, client: Client) {
         let password_policy = Self::current_policy(&self.password_policy);
 		let client = client.encode(password_policy);
-		self.clients.insert(client.client_id.clone(), client);
+		let matrix_client = MatrixClient { name, client: client.clone() };
+		self.clients.insert(client.client_id.clone(), matrix_client);
     }
+
+	/// Returns a MatrixClient, containing an oxide-auth EncodedClient, and some metadata,
+	/// like a public name.
+	pub fn get_client(&self, client_id: &str) -> Option<&MatrixClient> {
+		self.clients.get(client_id)
+	}
+
+	pub fn find_device(&self, device_id: &str) -> Option<&EncodedClient> {
+		let scope = format!("{SCOPE_PREFIX_DEVICE}:{device_id}");
+
+		self.clients
+			.values()
+			.find(|c| c.client.default_scope.iter().any(|s| s == scope))
+			.map(|c| &c.client)
+	}
 
     /// Change how passwords are encoded while stored.
     pub fn set_password_policy<P: PasswordPolicy + 'static>(&mut self, new_policy: P) {
@@ -76,34 +101,34 @@ impl ClientMap {
     }
 }
 
-impl Extend<Client> for ClientMap {
+impl Extend<Client> for MatrixClientMap {
     fn extend<I>(&mut self, iter: I)
     where
         I: IntoIterator<Item = Client>,
     {
-        iter.into_iter().for_each(|client| self.register_client(client))
+        iter.into_iter().for_each(|client| self.register_client(None, client))
     }
 }
 
-impl FromIterator<Client> for ClientMap {
+impl FromIterator<Client> for MatrixClientMap {
     fn from_iter<I>(iter: I) -> Self
     where
         I: IntoIterator<Item = Client>,
     {
-        let mut into = ClientMap::new();
+        let mut into = MatrixClientMap::new();
         into.extend(iter);
         into
     }
 }
 
-impl Registrar for ClientMap {
+impl Registrar for MatrixClientMap {
     fn bound_redirect<'a>(&self, bound: ClientUrl<'a>) -> Result<BoundClient<'a>, RegistrarError> {
         let client = match self.clients.get(bound.client_id.as_ref()) {
             None => {
 				tracing::debug!("this client was not registered: {}", bound.client_id);
 				return Err(RegistrarError::Unspecified);
 			},
-            Some(stored) => stored,
+            Some(stored) => &stored.client,
         };
 
         // Perform exact matching as motivated in the rfc, but substitute "127.0.0.1" and
@@ -112,7 +137,7 @@ impl Registrar for ClientMap {
 		let normalized_uri = redirect_uri
 			.clone()
 			.map(|u| normalize_redirect(u.to_url()));
-        let registered_url = match normalized_uri {
+        let redirect_uri = match normalized_uri {
             None => client.redirect_uri.clone(),
             Some(url) => {
                 let original = std::iter::once(&client.redirect_uri);
@@ -132,16 +157,17 @@ impl Registrar for ClientMap {
 
         Ok(BoundClient {
             client_id: bound.client_id,
-            redirect_uri: Cow::Owned(registered_url),
+            redirect_uri: Cow::Owned(redirect_uri),
         })
     }
 
-    /// Always overrides the scope with a default scope.
     fn negotiate(&self, bound: BoundClient<'_>, _scope: Option<Scope>) -> Result<PreGrant, RegistrarError> {
-        let client = self
+        let client = &self
             .clients
             .get(bound.client_id.as_ref())
-            .expect("Bound client appears to not have been constructed with this registrar");
+            .expect("Bound client appears to not have been constructed with this registrar")
+			.client;
+		// Always take the client's scope.
         Ok(PreGrant {
             client_id: bound.client_id.into_owned(),
             redirect_uri: bound.redirect_uri.into_owned(),
@@ -157,8 +183,8 @@ impl Registrar for ClientMap {
 			.ok_or_else(|| {
 				tracing::debug!("this client is not registered yet: {client_id:?}.");
 				RegistrarError::Unspecified
-			}).and_then(|client|
-				RegisteredClient::new(client, password_policy).check_authentication(passphrase)
+			}).and_then(|mc|
+				RegisteredClient::new(&mc.client, password_policy).check_authentication(passphrase)
 			)?;
 
         Ok(())

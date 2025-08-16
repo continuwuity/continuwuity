@@ -3,7 +3,7 @@ use conduwuit::{Result, err};
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
 use ruma::{DeviceId, identifiers_validation};
-use conduwuit_service::oidc::registrar::normalize_redirect;
+use conduwuit_service::oidc::{registrar::normalize_redirect, SCOPE_PREFIX_DEVICE, SCOPE_PREFIX_API};
 
 /// The required parameters to register a new client for OAuth2 application.
 /// See the required metadata in OAuth2 authorization grant flow in [MSC2966].
@@ -87,10 +87,8 @@ pub(crate) async fn register_client(
 		.map(|url| normalize_redirect(url))
 		.collect();
 	let device_id = DeviceId::new();
-	let scope = format!(
-		"urn:matrix:org.matrix.msc2967.client:api:* \
-		 urn:matrix:org.matrix.msc2967.client:device:{device_id}"
-	).parse().expect("parseable default Matrix scope");
+	// Only provide a default scope, we'll test the client's proposed scope for consent anyway.
+	let scope = format!("{SCOPE_PREFIX_DEVICE}{device_id} {SCOPE_PREFIX_API}*").parse().expect("parseable default scope");
 	// TODO check if the users service needs an update.
 	//services.users.update_device_metadata();
 
@@ -116,7 +114,7 @@ pub(crate) async fn register_client(
 		).with_additional_redirect_uris(remaining_uris)
 	};
 	tracing::trace!("registering OIDC device : {registerable:#?}");
-	services.oidc.register_client(&registerable)?;
+	services.oidc.register_client(Some(client.client_name.clone()), &registerable)?;
 
 	let client_response = ClientResponse {
 		client_id: device_id.to_string(),

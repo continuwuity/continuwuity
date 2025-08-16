@@ -541,12 +541,22 @@ impl Service {
 		// Only existing devices should be able to call this, but we shouldn't assert
 		// either...
 		let key = (user_id, device_id);
-		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
-			return Err!(Database(error!(
-				?user_id,
-				?device_id,
-				"User does not exist or device has no metadata."
-			)));
+		if self.services.server.config.auth.as_ref().is_some_and(|auth| auth.enable_oidc_login) {
+			if self.services.oidc.client_from_device_id(device_id.into()).is_none() {
+				return Err!(Database(error!(
+					?user_id,
+					?device_id,
+					"Device has no metadata."
+				)));
+			}
+		} else {
+			if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
+				return Err!(Database(error!(
+					?user_id,
+					?device_id,
+					"User does not exist or device has no metadata."
+				)));
+			}
 		}
 
 		let mut key = user_id.as_bytes().to_vec();

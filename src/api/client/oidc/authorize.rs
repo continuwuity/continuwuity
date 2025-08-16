@@ -8,6 +8,7 @@ use oxide_auth::{
 	frontends::simple::endpoint::FnSolicitor,
 };
 use percent_encoding::percent_decode_str;
+use service::oidc::{SCOPE_PREFIX_API, SCOPE_PREFIX_DEVICE};
 
 /// # `GET /_matrix/client/unstable/org.matrix.msc2964/authorize`
 ///
@@ -27,11 +28,10 @@ pub(crate) async fn authorize(
 	let Ok(scope) = percent_decode_str(&query.scope).decode_utf8() else {
 		return Err(err!(Request(Unknown("the scope could not be percent-decoded"))));
 	};
-	//if ! scope.contains("urn:matrix:api:*") {
-	if !scope.contains("urn:matrix:org.matrix.msc2967.client:api:*") {
+	if !scope.contains(&format!("{SCOPE_PREFIX_API}*")) {
 		return Err(err!(Request(Unknown("the scope does not include the client API"))));
 	}
-	if !scope.contains("urn:matrix:org.matrix.msc2967.client:device:") {
+	if !scope.contains(SCOPE_PREFIX_DEVICE) {
 		return Err(err!(Request(Unknown("the scope does not include a device ID"))));
 	}
 	if query.code_challenge_method != "S256" {
