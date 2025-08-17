@@ -1,0 +1,64 @@
+name: Maintenance / Renovate
+
+on:
+  schedule:
+    # Run at 5am UTC daily to avoid late-night dev
+    - cron: '0 5 * * *'
+
+  workflow_dispatch:
+    inputs:
+      dryRun:
+        description: 'Dry run mode'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      logLevel:
+        description: 'Log level'
+        required: false
+        default: 'info'
+        type: choice
+        options:
+          - 'debug'
+          - 'info'
+          - 'warn'
+          - 'error'
+
+  push:
+    branches:
+      - main
+    paths:
+      # Re-run when config changes
+      - '.forgejo/workflows/renovate.yml'
+      - 'renovate.json'
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@v40.1.0
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+          configurationFile: renovate.json
+        env:
+          # Platform configuration - Forgejo uses Gitea-compatible API
+          RENOVATE_PLATFORM: gitea
+          RENOVATE_ENDPOINT: ${{ github.server_url }}/api/v1
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+
+          # Target repository
+          RENOVATE_REPOSITORIES: '["${{ github.repository }}"]'
+
+          # Runtime behaviour
+          RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
+          LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
+
+          # Git author for commits - configured via repository variables
+          RENOVATE_GIT_AUTHOR: '${{ vars.RENOVATE_AUTHOR }}'

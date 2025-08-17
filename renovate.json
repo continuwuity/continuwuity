@@ -17,10 +17,48 @@
     "github_actions"
   ],
   "ignoreDeps": [
-    "tikv-jemllocator",
+    "tikv-jemallocator",
     "tikv-jemalloc-sys",
     "tikv-jemalloc-ctl",
-    "opentelemetry-rust",
+    "opentelemetry",
+    "opentelemetry_sdk",
+    "opentelemetry-jaeger",
     "tracing-opentelemetry"
-  ]
+  ],
+  "github-actions": {
+    "enabled": true,
+    "fileMatch": [
+      "(^|/)\\.forgejo/workflows/[^/]+\\.ya?ml$",
+      "(^|/)\\.forgejo/actions/[^/]+/action\\.ya?ml$",
+      "(^|/)\\.github/workflows/[^/]+\\.ya?ml$",
+      "(^|/)\\.github/actions/[^/]+/action\\.ya?ml$"
+    ]
+  },
+  "packageRules": [
+    {
+      "description": "Batch minor and patch GitHub Actions updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "github-actions-non-major"
+    },
+    {
+      "description": "Group Rust toolchain updates into a single PR",
+      "matchManagers": ["regex"],
+      "matchPackageNames": ["rust", "rustc", "cargo"],
+      "groupName": "rust-toolchain"
+    },
+    {
+      "description": "Group lockfile updates into a single PR",
+      "matchUpdateTypes": ["lockFileMaintenance"],
+      "groupName": "lockfile-maintenance"
+    },
+    {
+      "description": "Batch patch-level Rust dependency updates",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "rust-patch-updates"
+    }
+  ],
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 2
 }
