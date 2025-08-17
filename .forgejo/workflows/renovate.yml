@@ -10,21 +10,22 @@ on:
       dryRun:
         description: 'Dry run mode'
         required: false
-        default: 'false'
+        default: null
         type: choice
         options:
-          - 'true'
-          - 'false'
+          - null
+          - 'extract'
+          - 'lookup'
+          - 'full'
       logLevel:
         description: 'Log level'
         required: false
         default: 'info'
         type: choice
         options:
-          - 'debug'
           - 'info'
-          - 'warn'
-          - 'error'
+          - 'warning'
+          - 'critical'
 
   push:
     branches:
@@ -42,23 +43,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Run Renovate
+      - name: Self-hosted Renovate
         uses: https://github.com/renovatebot/github-action@v40.1.0
-        with:
-          token: ${{ secrets.RENOVATE_TOKEN }}
-          configurationFile: renovate.json
         env:
-          # Platform configuration - Forgejo uses Gitea-compatible API
-          RENOVATE_PLATFORM: gitea
-          RENOVATE_ENDPOINT: ${{ github.server_url }}/api/v1
-          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-
-          # Target repository
-          RENOVATE_REPOSITORIES: '["${{ github.repository }}"]'
-
-          # Runtime behaviour
-          RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
-
-          # Git author for commits - configured via repository variables
-          RENOVATE_GIT_AUTHOR: '${{ vars.RENOVATE_AUTHOR }}'
+          RENOVATE_AUTODISCOVER: 'false'
+          RENOVATE_BINARY_SOURCE: 'install'
+          RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
+          RENOVATE_ENDPOINT: ${{ github.server_url }}/api/v1
+          RENOVATE_GIT_TIMEOUT: 60000
+          RENOVATE_GIT_URL: 'endpoint'
+          RENOVATE_GITHUB_TOKEN_WARN: 'false'
+          RENOVATE_ONBOARDING: 'false'
+          RENOVATE_PLATFORM: 'forgejo'
+          RENOVATE_PR_COMMITS_PER_RUN_LIMIT: 3
+          RENOVATE_REPOSITORIES: '["${{ github.repository }}"]'
+          RENOVATE_REQUIRE_CONFIG: 'required'
+          RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}

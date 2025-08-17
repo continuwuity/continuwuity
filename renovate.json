@@ -58,7 +58,5 @@
       "matchUpdateTypes": ["patch"],
       "groupName": "rust-patch-updates"
     }
-  ],
-  "prConcurrentLimit": 3,
-  "prHourlyLimit": 2
+  ]
 }
