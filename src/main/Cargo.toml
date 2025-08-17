@@ -63,7 +63,7 @@ standard = [
 ]
 full = [
     "standard",
-    "hardened_malloc",
+    # "hardened_malloc", # Conflicts with jemalloc
     "jemalloc_prof",
     "perf_measurements",
     "tokio_console"
