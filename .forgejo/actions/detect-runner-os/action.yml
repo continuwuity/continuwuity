@@ -1,0 +1,39 @@
+name: detect-runner-os
+description: |
+  Detect the actual OS name and version of the runner.
+  Provides separate outputs for name, version, and a combined slug.
+
+outputs:
+  name:
+    description: 'OS name (e.g. Ubuntu, Debian)'
+    value: ${{ steps.detect.outputs.name }}
+  version:
+    description: 'OS version (e.g. 22.04, 11)'
+    value: ${{ steps.detect.outputs.version }}
+  slug:
+    description: 'Combined OS slug (e.g. Ubuntu-22.04)'
+    value: ${{ steps.detect.outputs.slug }}
+
+runs:
+  using: composite
+  steps:
+    - name: Detect runner OS
+      id: detect
+      shell: bash
+      run: |
+        # Detect OS version (try lsb_release first, fall back to /etc/os-release)
+        OS_VERSION=$(lsb_release -rs 2>/dev/null || grep VERSION_ID /etc/os-release | cut -d'"' -f2)
+
+        # Detect OS name and capitalise (try lsb_release first, fall back to /etc/os-release)
+        OS_NAME=$(lsb_release -is 2>/dev/null || grep "^ID=" /etc/os-release | cut -d'=' -f2 | tr -d '"' | sed 's/\b\(.\)/\u\1/g')
+
+        # Create combined slug
+        OS_SLUG="${OS_NAME}-${OS_VERSION}"
+
+        # Set outputs
+        echo "name=${OS_NAME}" >> $GITHUB_OUTPUT
+        echo "version=${OS_VERSION}" >> $GITHUB_OUTPUT
+        echo "slug=${OS_SLUG}" >> $GITHUB_OUTPUT
+
+        # Log detection results
+        echo "🔍 Detected Runner OS: ${OS_NAME} ${OS_VERSION}"
