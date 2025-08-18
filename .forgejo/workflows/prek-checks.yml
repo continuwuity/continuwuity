@@ -2,7 +2,6 @@ name: Checks / Prek
 
 on:
   push:
-  pull_request:
 
 permissions:
   contents: read
@@ -17,18 +16,64 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install uv
-        uses: https://github.com/astral-sh/setup-uv@v5
+      - name: Setup Rust nightly
+        uses: ./.forgejo/actions/setup-rust
         with:
-          enable-cache: true
-          ignore-nothing-to-cache: true
-          cache-dependency-glob: ''
+          rust-version: nightly
+          github-token: ${{ secrets.GH_PUBLIC_RO }}
 
       - name: Run prek
         run: |
-          uvx prek run \
+          prek run \
             --all-files \
             --hook-stage manual \
             --show-diff-on-failure \
             --color=always \
             -v
+
+      - name: Check Rust formatting
+        run: |
+          cargo +nightly fmt --all -- --check && \
+            echo "✅ Formatting check passed" || \
+            exit 1
+
+  clippy-and-tests:
+    name: Clippy and Cargo Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup LLVM
+        uses: ./.forgejo/actions/setup-llvm-with-apt
+        with:
+          extra-packages: liburing-dev liburing2
+
+      - name: Setup Rust with caching
+        uses: ./.forgejo/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Run Clippy lints
+        run: |
+          cargo clippy \
+            --workspace \
+            --features full \
+            --locked \
+            --no-deps \
+            --profile test \
+            -- \
+            -D warnings
+
+      - name: Run Cargo tests
+        run: |
+          cargo test \
+            --workspace \
+            --features full \
+            --locked \
+            --profile test \
+            --all-targets \
+            --no-fail-fast
