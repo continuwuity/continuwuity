@@ -48,7 +48,7 @@ features = ["ffi", "std", "union"]
 version = "0.6.2"
 
 [workspace.dependencies.ctor]
-version = "0.2.9"
+version = "0.5.0"
 
 [workspace.dependencies.cargo_toml]
 version = "0.21"
