@@ -1,4 +1,8 @@
-use std::{fmt::Debug, mem};
+use std::{
+	error::Error as _,
+	fmt::{Debug, Write},
+	mem,
+};
 
 use bytes::Bytes;
 use conduwuit::{
@@ -193,9 +197,9 @@ fn handle_error(
 ) -> Result {
 	if e.is_timeout() || e.is_connect() {
 		e = e.without_url();
-		debug_warn!(?url, "network error while sending request: {e:?}");
+		warn!(?url, "network error while sending federation request: {e:?}");
 	} else if e.is_redirect() {
-		debug_error!(
+		warn!(
 			method = ?method,
 			url = ?url,
 			final_url = ?e.url(),
@@ -206,6 +210,14 @@ fn handle_error(
 	} else {
 		warn!(?url, "failed to send federation request: {e:?}");
 	}
+
+	let mut nice_error = "Request failed".to_owned();
+	let mut src = e.source();
+	while let Some(source) = src {
+		write!(nice_error, ": {source:?}").expect("writing to string should not fail");
+		src = source.source();
+	}
+	warn!(nice_error, "Federation request error");
 
 	Err(e.into())
 }
