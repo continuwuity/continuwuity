@@ -30,7 +30,7 @@ use tower::{Service, ServiceExt};
 
 type MakeService = IntoMakeServiceWithConnectInfo<Router, net::SocketAddr>;
 
-const NULL_ADDR: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0);
+const NULL_ADDR: net::SocketAddr = net::SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 0);
 const FINI_POLL_INTERVAL: Duration = Duration::from_millis(750);
 
 #[tracing::instrument(skip_all, level = "debug")]

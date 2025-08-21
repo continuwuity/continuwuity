@@ -867,7 +867,7 @@ unused-qualifications = "warn"
 #unused-results = "warn"                                             # TODO
 
 ## some sadness
-elided_named_lifetimes = "allow"                                     # TODO!
+mismatched_lifetime_syntaxes = "allow"                               # TODO!
 let_underscore_drop = "allow"
 missing_docs = "allow"
 # cfgs cannot be limited to expected cfgs or their de facto non-transitive/opt-in use-case e.g.
@@ -1006,3 +1006,6 @@ literal_string_with_formatting_args = { level = "allow", priority = 1 }
 
 
 needless_raw_string_hashes = "allow"
+
+# TODO: Enable this lint & fix all instances
+collapsible_if = "allow"

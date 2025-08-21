@@ -1,3 +1,4 @@
+#![allow(clippy::doc_link_with_quotes)]
 pub mod check;
 pub mod manager;
 pub mod proxy;

@@ -100,7 +100,7 @@ pub fn trap() {
 
 #[must_use]
 pub fn panic_str(p: &Box<dyn Any + Send>) -> &'static str {
-	p.downcast_ref::<&str>().copied().unwrap_or_default()
+	(**p).downcast_ref::<&str>().copied().unwrap_or_default()
 }
 
 #[inline(always)]

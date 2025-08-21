@@ -45,6 +45,7 @@ use crate::{
 type TodoRooms = BTreeMap<OwnedRoomId, (BTreeSet<TypeStateKey>, usize, u64)>;
 const SINGLE_CONNECTION_SYNC: &str = "single_connection_sync";
 
+#[allow(clippy::cognitive_complexity)]
 /// POST `/_matrix/client/unstable/org.matrix.msc3575/sync`
 ///
 /// Sliding Sync endpoint (future endpoint: `/_matrix/client/v4/sync`)
