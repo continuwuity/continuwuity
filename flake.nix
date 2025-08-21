@@ -17,7 +17,7 @@
     nix-filter.url = "github:numtide/nix-filter?ref=main";
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixpkgs-unstable";
     rocksdb = {
-      url = "git+https://forgejo.ellis.link/continuwuation/rocksdb?ref=v9.11.1";
+      url = "git+https://forgejo.ellis.link/continuwuation/rocksdb?ref=10.4.fb";
       flake = false;
     };
   };
@@ -62,7 +62,7 @@
               }).overrideAttrs
                 (old: {
                   src = inputs.rocksdb;
-                  version = "v9.11.1";
+                  version = "v10.4.fb";
                   cmakeFlags =
                     pkgs.lib.subtractLists [
                       # No real reason to have snappy or zlib, no one uses this

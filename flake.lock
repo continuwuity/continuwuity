@@ -516,16 +516,16 @@
     "rocksdb": {
       "flake": false,
       "locked": {
-        "lastModified": 1741308171,
-        "narHash": "sha256-YdBvdQ75UJg5ffwNjxizpviCVwVDJnBkM8ZtGIduMgY=",
-        "ref": "v9.11.1",
-        "rev": "3ce04794bcfbbb0d2e6f81ae35fc4acf688b6986",
-        "revCount": 13177,
+        "lastModified": 1753385396,
+        "narHash": "sha256-/Hvy1yTH/0D5aa7bc+/uqFugCQq4InTdwlRw88vA5IY=",
+        "ref": "10.4.fb",
+        "rev": "28d4b7276c16ed3e28af1bd96162d6442ce25923",
+        "revCount": 13318,
         "type": "git",
         "url": "https://forgejo.ellis.link/continuwuation/rocksdb"
       },
       "original": {
-        "ref": "v9.11.1",
+        "ref": "10.4.fb",
         "type": "git",
         "url": "https://forgejo.ellis.link/continuwuation/rocksdb"
       }
