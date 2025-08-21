@@ -18,7 +18,7 @@ jobs:
           persist-credentials: false
 
       - name: Install uv
-        uses: https://github.com/astral-sh/setup-uv@v6
+        uses: https://github.com/astral-sh/setup-uv@v5
         with:
           enable-cache: true
           ignore-nothing-to-cache: true
