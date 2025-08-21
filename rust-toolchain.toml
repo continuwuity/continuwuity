@@ -16,6 +16,9 @@ components = [
     "rust-src",
     "rust-analyzer",
     # For CI and editors
-    "rustfmt",
     "clippy",
+    # you have to install rustfmt nightly yourself (if you're not on NixOS)
+    #
+    # The rust-toolchain.toml file doesn't provide any syntax for specifying components from different toolchains
+    # "rustfmt"
 ]
