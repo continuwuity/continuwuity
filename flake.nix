@@ -31,13 +31,17 @@
           inherit system;
         };
 
+        fnx = inputs.fenix.packages.${system};
         # The Rust toolchain to use
-        toolchain = inputs.fenix.packages.${system}.fromToolchainFile {
-          file = ./rust-toolchain.toml;
+        toolchain = fnx.combine [
+          (fnx.fromToolchainFile {
+            file = ./rust-toolchain.toml;
 
-          # See also `rust-toolchain.toml`
-          sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
-        };
+            # See also `rust-toolchain.toml`
+            sha256 = "sha256-+9FmLhAOezBZCOziO0Qct1NOrfpjNsXxc/8I0c7BdKE=";
+          })
+          fnx.complete.rustfmt
+        ];
 
         mkScope =
           pkgs:
