@@ -100,7 +100,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 		.boxed();
 
 	while let Some(ref backfill_server) = servers.next().await {
-		info!("Asking {backfill_server} for backfill");
+		info!("Asking {backfill_server} for backfill of room {room_id}");
 		let response = self
 			.services
 			.sending
