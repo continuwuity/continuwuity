@@ -1787,7 +1787,8 @@
 #
 #enable = false
 
-# Whether to force LDAP authentication or authorize classical password login.
+# Whether to force LDAP authentication or authorize classical password
+# login.
 #
 # example: "true"
 #

@@ -109,7 +109,10 @@ impl Service {
 		)?;
 
 		if !self.services.users.exists(&appservice_user_id).await {
-			self.services.users.create(&appservice_user_id, None)?;
+			self.services
+				.users
+				.create(&appservice_user_id, None, None)
+				.await?;
 		} else if self
 			.services
 			.users
@@ -120,7 +123,8 @@ impl Service {
 			// Reactivate the appservice user if it was accidentally deactivated
 			self.services
 				.users
-				.set_password(&appservice_user_id, None)?;
+				.set_password(&appservice_user_id, None)
+				.await?;
 		}
 
 		self.registration_info
