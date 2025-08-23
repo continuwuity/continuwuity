@@ -1,13 +1,13 @@
 use std::iter::once;
 
 use conduwuit_core::{
-	Result, debug, debug_warn, implement, info,
+	Result, debug, implement, info,
 	matrix::{
 		event::Event,
 		pdu::{PduCount, PduId, RawPduId},
 	},
 	utils::{IterStream, ReadyExt},
-	validated, warn,
+	validated,
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
@@ -15,9 +15,7 @@ use ruma::{
 	api::federation,
 	events::{
 		StateEventType, TimelineEventType, room::power_levels::RoomPowerLevelsEventContent,
-	},
-	uint,
-};
+	}, UInt};
 use serde_json::value::RawValue as RawJsonValue;
 
 use super::ExtractBody;
@@ -109,7 +107,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 				federation::backfill::get_backfill::v1::Request {
 					room_id: room_id.to_owned(),
 					v: vec![first_pdu.1.event_id().to_owned()],
-					limit: uint!(100),
+					limit: UInt::from(self.services.server.config.max_fetch_prev_events),
 				},
 			)
 			.await;
@@ -117,13 +115,13 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 			| Ok(response) => {
 				for pdu in response.pdus {
 					if let Err(e) = self.backfill_pdu(backfill_server, pdu).boxed().await {
-						debug_warn!("Failed to add backfilled pdu in room {room_id}: {e}");
+						info!("Failed to add backfilled pdu in room {room_id}: {e}");
 					}
 				}
 				return Ok(());
 			},
 			| Err(e) => {
-				warn!("{backfill_server} failed to provide backfill for room {room_id}: {e}");
+				info!("{backfill_server} failed to provide backfill for room {room_id}: {e}");
 			},
 		}
 	}
