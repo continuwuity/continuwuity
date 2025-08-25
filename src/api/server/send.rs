@@ -5,7 +5,7 @@ use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Error, Result, debug,
 	debug::INFO_SPAN_LEVEL,
-	debug_warn, err, error,
+	debug_warn, err, error, info,
 	result::LogErr,
 	trace,
 	utils::{
@@ -79,13 +79,11 @@ pub(crate) async fn send_transaction_message_route(
 	}
 
 	let txn_start_time = Instant::now();
-	trace!(
+	info!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
-		elapsed = ?txn_start_time.elapsed(),
 		id = ?body.transaction_id,
-		origin =?body.origin(),
-		"Starting txn",
+		"Processing transaction",
 	);
 
 	let pdus = body
@@ -104,14 +102,21 @@ pub(crate) async fn send_transaction_message_route(
 		.filter_map(Result::ok)
 		.stream();
 
-	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await?;
-
-	debug!(
+	info!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
 		id = ?body.transaction_id,
-		origin =?body.origin(),
+		"Validated transaction",
+	);
+
+	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await?;
+
+	info!(
+		pdus = body.pdus.len(),
+		edus = body.edus.len(),
+		elapsed = ?txn_start_time.elapsed(),
+		id = ?body.transaction_id,
 		"Finished txn",
 	);
 	for (id, result) in &results {
@@ -154,7 +159,8 @@ async fn handle(
 		.into_iter()
 		.try_stream()
 		.broad_and_then(|(room_id, pdus): (_, Vec<_>)| {
-			handle_room(services, client, origin, started, room_id, pdus.into_iter())
+			let count = pdus.len();
+			handle_room(services, client, origin, started, room_id, pdus.into_iter(), count)
 				.map_ok(Vec::into_iter)
 				.map_ok(IterStream::try_stream)
 		})
@@ -178,6 +184,7 @@ async fn handle_room(
 	txn_start_time: Instant,
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
+	count: usize,
 ) -> Result<Vec<(OwnedEventId, Result)>> {
 	let _room_lock = services
 		.rooms
@@ -187,10 +194,20 @@ async fn handle_room(
 		.await;
 
 	let room_id = &room_id;
+	let mut n = 0;
 	pdus.try_stream()
 		.and_then(|(_, event_id, value)| async move {
 			services.server.check_running()?;
 			let pdu_start_time = Instant::now();
+			info!(
+				%room_id,
+				%event_id,
+				pdu = n + 1,
+				total = count,
+				pdu_elapsed = ?pdu_start_time.elapsed(),
+				txn_elapsed = ?txn_start_time.elapsed(),
+				"Handling PDU",
+			);
 			let result = services
 				.rooms
 				.event_handler
@@ -198,11 +215,16 @@ async fn handle_room(
 				.await
 				.map(|_| ());
 
-			debug!(
+			info!(
+				%room_id,
+				%event_id,
+				pdu = n + 1,
+				total = count,
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
-				"Finished PDU {event_id}",
+				"Finished handling PDU {event_id}",
 			);
+			n += 1;
 
 			Ok((event_id, result))
 		})
