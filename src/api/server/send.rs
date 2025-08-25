@@ -143,6 +143,10 @@ async fn handle(
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
 ) -> Result<ResolvedMap> {
+	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
+		.boxed()
+		.await;
+
 	// group pdus by room
 	let pdus = pdus
 		.collect()
@@ -168,11 +172,6 @@ async fn handle(
 		.try_collect()
 		.boxed()
 		.await?;
-
-	// evaluate edus after pdus, at least for now.
-	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
-		.boxed()
-		.await;
 
 	Ok(results)
 }
