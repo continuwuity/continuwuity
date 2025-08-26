@@ -4,7 +4,7 @@ use std::{
 };
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_error, debug_warn, implement,
+	Event, PduEvent, debug, debug_error, implement,
 	matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs,
 	warn,
 };
