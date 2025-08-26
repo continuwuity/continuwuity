@@ -79,7 +79,7 @@ pub(crate) async fn send_transaction_message_route(
 	}
 
 	let txn_start_time = Instant::now();
-	info!(
+	trace!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		id = ?body.transaction_id,
@@ -102,7 +102,7 @@ pub(crate) async fn send_transaction_message_route(
 		.filter_map(Result::ok)
 		.stream();
 
-	info!(
+	trace!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
@@ -198,7 +198,7 @@ async fn handle_room(
 		.and_then(|(_, event_id, value)| async move {
 			services.server.check_running()?;
 			let pdu_start_time = Instant::now();
-			info!(
+			trace!(
 				%room_id,
 				%event_id,
 				pdu = n + 1,
