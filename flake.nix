@@ -16,10 +16,6 @@
     flake-utils.url = "github:numtide/flake-utils?ref=main";
     nix-filter.url = "github:numtide/nix-filter?ref=main";
     nixpkgs.url = "github:NixOS/nixpkgs?ref=nixpkgs-unstable";
-    rocksdb = {
-      url = "git+https://forgejo.ellis.link/continuwuation/rocksdb?ref=10.4.fb";
-      flake = false;
-    };
   };
 
   outputs =
@@ -65,7 +61,13 @@
                 inherit (self) liburing;
               }).overrideAttrs
                 (old: {
-                  src = inputs.rocksdb;
+                  src = pkgsHost.fetchFromGitea {
+                    domain = "forgejo.ellis.link";
+                    owner = "continuwuation";
+                    repo = "rocksdb";
+                    rev = "10.4.fb";
+                    sha256 = "sha256-/Hvy1yTH/0D5aa7bc+/uqFugCQq4InTdwlRw88vA5IY=";
+                  };
                   version = "v10.4.fb";
                   cmakeFlags =
                     pkgs.lib.subtractLists [

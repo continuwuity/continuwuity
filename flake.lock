@@ -513,23 +513,6 @@
         "type": "github"
       }
     },
-    "rocksdb": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1753385396,
-        "narHash": "sha256-/Hvy1yTH/0D5aa7bc+/uqFugCQq4InTdwlRw88vA5IY=",
-        "ref": "10.4.fb",
-        "rev": "28d4b7276c16ed3e28af1bd96162d6442ce25923",
-        "revCount": 13318,
-        "type": "git",
-        "url": "https://forgejo.ellis.link/continuwuation/rocksdb"
-      },
-      "original": {
-        "ref": "10.4.fb",
-        "type": "git",
-        "url": "https://forgejo.ellis.link/continuwuation/rocksdb"
-      }
-    },
     "root": {
       "inputs": {
         "attic": "attic",
@@ -539,8 +522,7 @@
         "flake-compat": "flake-compat_3",
         "flake-utils": "flake-utils",
         "nix-filter": "nix-filter",
-        "nixpkgs": "nixpkgs_5",
-        "rocksdb": "rocksdb"
+        "nixpkgs": "nixpkgs_5"
       }
     },
     "rust-analyzer-src": {
