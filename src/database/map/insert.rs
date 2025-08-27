@@ -227,7 +227,7 @@ where
 	let write_options = &self.write_options;
 	self.db
 		.db
-		.write_opt(batch, write_options)
+		.write_opt(&batch, write_options)
 		.or_else(or_else)
 		.expect("database insert batch error");
 
