@@ -3,11 +3,7 @@ use std::{
 	time::Instant,
 };
 
-use conduwuit::{
-	Event, PduEvent, debug, debug_error, implement,
-	matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs,
-	warn,
-};
+use conduwuit::{Event, PduEvent, debug, debug_error, implement, matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs, warn, debug_warn};
 use ruma::{
 	CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
 	api::federation::event::get_event,
