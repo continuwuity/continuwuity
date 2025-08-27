@@ -87,14 +87,6 @@ pub(crate) async fn send_transaction_message_route(
 		"Processing transaction",
 	);
 
-	let pdus = body
-		.pdus
-		.iter()
-		.stream()
-		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
-		.inspect_err(|e| debug_warn!("Could not parse PDU: {e}"))
-		.ready_filter_map(Result::ok);
-
 	let edus = body
 		.edus
 		.iter()
@@ -102,6 +94,14 @@ pub(crate) async fn send_transaction_message_route(
 		.map(serde_json::from_str)
 		.filter_map(Result::ok)
 		.stream();
+
+	let pdus = body
+		.pdus
+		.iter()
+		.stream()
+		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
+		.inspect_err(|e| debug_warn!("Could not parse PDU: {e}"))
+		.ready_filter_map(Result::ok);
 
 	trace!(
 		pdus = body.pdus.len(),
