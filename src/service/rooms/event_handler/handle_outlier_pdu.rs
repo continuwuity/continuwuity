@@ -123,7 +123,7 @@ where
 
 	// The original create event must be in the auth events
 	if !auth_events.contains_key(&(StateEventType::RoomCreate, String::new().into())) {
-		return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
+		return Err!(Request(InvalidParam("Incoming event refers to wrong create event. event_id={event_id}")));
 	}
 
 	let state_fetch = |ty: &StateEventType, sk: &str| {
