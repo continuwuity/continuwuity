@@ -5,10 +5,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use conduwuit::{
-	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, err,
-	error::inspect_debug_log, implement, trace, utils::string::EMPTY, warn,
-};
+use conduwuit::{Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, err, error::inspect_debug_log, implement, trace, utils::string::EMPTY, info};
 use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
@@ -197,9 +194,9 @@ fn handle_error(
 ) -> Result {
 	if e.is_timeout() || e.is_connect() {
 		e = e.without_url();
-		warn!(?url, "network error while sending federation request: {e:?}");
+		trace!(?url, "network error while sending federation request: {e:?}");
 	} else if e.is_redirect() {
-		warn!(
+		trace!(
 			method = ?method,
 			url = ?url,
 			final_url = ?e.url(),
@@ -208,7 +205,7 @@ fn handle_error(
 			e,
 		);
 	} else {
-		warn!(?url, "failed to send federation request: {e:?}");
+		trace!(?url, "failed to send federation request: {e:?}");
 	}
 
 	let mut nice_error = "Request failed".to_owned();
@@ -217,7 +214,7 @@ fn handle_error(
 		write!(nice_error, ": {source:?}").expect("writing to string should not fail");
 		src = source.source();
 	}
-	warn!(nice_error, "Federation request error");
+	info!(nice_error, "Federation request error");
 
 	Err(e.into())
 }

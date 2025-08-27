@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, net::IpAddr, time::Instant};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug,
+	Err, Error, Result,
 	debug::INFO_SPAN_LEVEL,
 	debug_warn, err, error, info,
 	result::LogErr,
