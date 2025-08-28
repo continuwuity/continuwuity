@@ -1,0 +1,80 @@
+# This should be run using rpkg-util: https://docs.pagure.org/rpkg-util
+# it requires Internet access and is not suitable for Fedora main repos
+# TODO: rpkg-util is no longer maintained, find a replacement
+
+Name:           continuwuity
+Version:        {{{ git_repo_version }}}
+Release:        1%{?dist}
+Summary:        Very cool Matrix chat homeserver written in Rust
+
+License:        Apache-2.0 AND MIT
+
+URL:            https://forgejo.ellis.link/continuwuation/%{name}/
+VCS:            {{{ git_repo_vcs }}}
+Source:         {{{ git_repo_pack }}}
+
+BuildRequires:  cargo-rpm-macros >= 25
+BuildRequires:  systemd-rpm-macros
+# Needed to build rust-librocksdb-sys
+BuildRequires:  clang
+BuildRequires:  liburing-devel
+
+Requires:       liburing
+Requires:       glibc
+Requires:       libstdc++
+
+%global _description %{expand:
+A very cool Matrix chat homeserver written in Rust.}
+
+%description %{_description}
+
+%prep
+{{{ git_repo_setup_macro }}}
+%cargo_prep -N
+# Perform an online build so Git dependencies can be retrieved
+sed -i 's/^offline = true$//' .cargo/config.toml
+
+%build
+%cargo_build
+
+# Here's the one legally required mystery incantation in this file.
+# Some of our dependencies have source files which are (for some reason) marked as excutable.
+# Files in .cargo/registry/ are copied into /usr/src/ by the debuginfo machinery
+# at the end of the build step, and then the BRP shebang mangling script checks
+# the entire buildroot to find executable files, and fails the build because
+# it thinks Rust's file attributes are shebangs because they start with `#!`.
+# So we have to clear the executable bit on all of them before that happens.
+find .cargo/registry/ -executable -name "*.rs" -exec chmod -x {} +
+
+# TODO: this fails currently because it's forced to run in offline mode	
+# {cargo_license -- --no-dev} > LICENSE.dependencies
+
+%install
+install -Dpm0755 target/rpm/conduwuit -t %{buildroot}%{_bindir}
+install -Dpm0644 fedora/conduwuit.service -t %{buildroot}%{_unitdir}
+install -Dpm0644 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/conduwuit.toml
+
+%files
+%license LICENSE
+%license src/core/matrix/state_res/LICENSE
+%doc CODE_OF_CONDUCT.md
+%doc CONTRIBUTING.md
+%doc README.md
+%doc SECURITY.md
+%config %{_sysconfdir}/conduwuit/conduwuit.toml
+
+%{_bindir}/conduwuit
+%{_unitdir}/conduwuit.service
+# Do not create /var/lib/conduwuit, systemd will create it if necessary
+
+%post
+%systemd_post conduwuit.service
+
+%preun
+%systemd_preun conduwuit.service
+
+%postun
+%systemd_postun_with_restart conduwuit.service
+
+%changelog
+{{{ git_repo_changelog }}}
