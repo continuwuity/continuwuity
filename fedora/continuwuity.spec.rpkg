@@ -24,7 +24,7 @@ Requires:       glibc
 Requires:       libstdc++
 
 %global _description %{expand:
-A very cool Matrix chat homeserver written in Rust.}
+A cool hard fork of Conduit, a Matrix homeserver written in Rust}
 
 %description %{_description}
 
