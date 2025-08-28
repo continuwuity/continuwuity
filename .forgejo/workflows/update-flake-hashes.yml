@@ -1,0 +1,107 @@
+name: Update flake hashes
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "rust-toolchain.toml"
+
+jobs:
+  update-flake-hashes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: https://code.forgejo.org/actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
+        with:
+          fetch-depth: 1
+          fetch-tags: false
+          fetch-single-branch: true
+          submodules: false
+          persist-credentials: false
+
+      - uses: cachix/install-nix-action@56a7bb7b56d9a92d4fd1bc05758de7eea4a370a8 # v31.1.6
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+        # We can skip getting a toolchain hash if this was ran as a dispatch with the intent
+        # to update just the rocksdb hash. If this was ran as a dispatch and the toolchain
+        # files are changed, we still update them, as well as the rocksdb import.
+      - name: Detect changed files
+        id: changes
+        run: |
+          git fetch origin ${{ forgejo.base_ref }} --depth=1 || true
+          if [ -n "${{ forgejo.event.pull_request.base.sha }}" ]; then
+            base=${{ forgejo.event.pull_request.base.sha }}
+          else
+            base=$(git rev-parse HEAD~1)
+          fi
+          echo "Base: $base"
+          echo "HEAD: $(git rev-parse HEAD)"
+          git diff --name-only $base HEAD > changed_files.txt
+          echo "files=$(cat changed_files.txt)" >> $FORGEJO_OUTPUT
+
+      - name: Get new toolchain hash
+        if: contains(steps.changes.outputs.files, 'Cargo.toml') || contains(steps.changes.outputs.files, 'Cargo.lock') || contains(steps.changes.outputs.files, 'rust-toolchain.toml')
+        run: |
+          # Set the current sha256 to an empty hash to make `nix build` calculate a new one
+          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = pkgsHost.lib.fakeSha256;"); found=0} 1' flake.nix > temp.nix && mv temp.nix flake.nix
+
+          # Build continuwuity and filter for the new hash
+          # We do `|| true` because we want this to fail without stopping the workflow
+          nix build .#default 2>&1 | tee >(grep 'got:' | awk '{print $2}' > new_toolchain_hash.txt) || true
+
+          # Place the new hash in place of the empty hash
+          new_hash=$(cat new_toolchain_hash.txt)
+          sed -i "s|pkgsHost.lib.fakeSha256|\"$new_hash\"|" flake.nix
+
+          echo "New hash:"
+          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' flake.nix
+          echo "Expected new hash:"
+          cat new_toolchain_hash.txt
+
+          rm new_toolchain_hash.txt
+
+      - name: Get new rocksdb hash
+        run: |
+          # Set the current sha256 to an empty hash to make `nix build` calculate a new one
+          awk '/repo = "rocksdb";/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = pkgsHost.lib.fakeSha256;"); found=0} 1' flake.nix > temp.nix && mv temp.nix flake.nix
+
+          # Build continuwuity and filter for the new hash
+          # We do `|| true` because we want this to fail without stopping the workflow
+          nix build .#default 2>&1 | tee >(grep 'got:' | awk '{print $2}' > new_rocksdb_hash.txt) || true
+
+          # Place the new hash in place of the empty hash
+          new_hash=$(cat new_rocksdb_hash.txt)
+          sed -i "s|pkgsHost.lib.fakeSha256|\"$new_hash\"|" flake.nix
+
+          echo "New hash:"
+          awk -F'"' '/repo = "rocksdb";/{found=1; next} found && /sha256 =/{print $2; found=0}' flake.nix
+          echo "Expected new hash:"
+          cat new_rocksdb_hash.txt
+
+          rm new_rocksdb_hash.txt
+
+      - name: Show diff
+        run: git diff flake.nix
+
+      - name: Push changes
+        run: |
+          set -euo pipefail
+
+          if git diff --quiet --exit-code; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git config user.email "renovate@mail.ellis.link"
+          git config user.name "renovate"
+
+          REF="${{ forgejo.head_ref }}"
+
+          git fetch origin "$REF"
+          git checkout "$REF"
+
+          git commit -a -m "chore(Nix): Updated flake hashes"
+
+          git push origin HEAD:refs/heads/"$REF"
