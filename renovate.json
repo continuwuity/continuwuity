@@ -13,8 +13,8 @@
     "enabled": true
   },
   "labels": [
-    "dependencies",
-    "github_actions"
+    "Dependencies",
+    "Dependencies/Renovate"
   ],
   "ignoreDeps": [
     "tikv-jemallocator",
