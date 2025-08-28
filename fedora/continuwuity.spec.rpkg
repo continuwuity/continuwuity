@@ -9,7 +9,7 @@ Summary:        Very cool Matrix chat homeserver written in Rust
 
 License:        Apache-2.0 AND MIT
 
-URL:            https://forgejo.ellis.link/continuwuation/%{name}/
+URL:            https://continuwuity.org
 VCS:            {{{ git_repo_vcs }}}
 Source:         {{{ git_repo_pack }}}
 
