@@ -119,7 +119,7 @@ default-features = false
 version = "0.7"
 
 [workspace.dependencies.axum-client-ip]
-version = "0.6.1"
+version = "0.7.0"
 
 [workspace.dependencies.tower]
 version = "0.5.2"
