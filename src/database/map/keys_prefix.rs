@@ -10,7 +10,7 @@ use crate::keyval::{Key, result_deserialize_key, serialize_key};
 pub fn keys_prefix<'a, K, P>(
 	self: &'a Arc<Self>,
 	prefix: &P,
-) -> impl Stream<Item = Result<Key<'_, K>>> + Send + use<'a, K, P>
+) -> impl Stream<Item = Result<Key<'a, K>>> + Send + use<'a, K, P>
 where
 	P: Serialize + ?Sized + Debug,
 	K: Deserialize<'a> + Send,
@@ -37,7 +37,7 @@ where
 pub fn keys_raw_prefix<'a, K, P>(
 	self: &'a Arc<Self>,
 	prefix: &'a P,
-) -> impl Stream<Item = Result<Key<'_, K>>> + Send + 'a
+) -> impl Stream<Item = Result<Key<'a, K>>> + Send + 'a
 where
 	P: AsRef<[u8]> + ?Sized + Debug + Sync + 'a,
 	K: Deserialize<'a> + Send + 'a,
@@ -50,7 +50,7 @@ where
 pub fn raw_keys_prefix<'a, P>(
 	self: &'a Arc<Self>,
 	prefix: &'a P,
-) -> impl Stream<Item = Result<Key<'_>>> + Send + 'a
+) -> impl Stream<Item = Result<Key<'a>>> + Send + 'a
 where
 	P: AsRef<[u8]> + ?Sized + Debug + Sync + 'a,
 {

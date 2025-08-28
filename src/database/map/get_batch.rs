@@ -19,7 +19,7 @@ where
 	S: Stream<Item = K> + Send + 'a,
 	K: AsRef<[u8]> + Send + Sync + 'a,
 {
-	fn get(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a;
+	fn get(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a;
 }
 
 impl<'a, K, S> Get<'a, K, S> for S
@@ -29,7 +29,7 @@ where
 	K: AsRef<[u8]> + Send + Sync + 'a,
 {
 	#[inline]
-	fn get(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a {
+	fn get(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a {
 		map.get_batch(self)
 	}
 }
@@ -39,7 +39,7 @@ where
 pub(crate) fn get_batch<'a, S, K>(
 	self: &'a Arc<Self>,
 	keys: S,
-) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a
+) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a
 where
 	S: Stream<Item = K> + Send + 'a,
 	K: AsRef<[u8]> + Send + Sync + 'a,

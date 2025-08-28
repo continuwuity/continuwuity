@@ -112,7 +112,7 @@ impl Service {
 		&'a self,
 		room_id: &'a RoomId,
 		since: u64,
-	) -> impl Stream<Item = ReceiptItem<'_>> + Send + 'a {
+	) -> impl Stream<Item = ReceiptItem<'a>> + Send + 'a {
 		self.db.readreceipts_since(room_id, since)
 	}
 

@@ -15,7 +15,7 @@ use crate::{
 pub fn rev_keys_from<'a, K, P>(
 	self: &'a Arc<Self>,
 	from: &P,
-) -> impl Stream<Item = Result<Key<'_, K>>> + Send + use<'a, K, P>
+) -> impl Stream<Item = Result<Key<'a, K>>> + Send + use<'a, K, P>
 where
 	P: Serialize + ?Sized + Debug,
 	K: Deserialize<'a> + Send,
@@ -41,7 +41,7 @@ where
 pub fn rev_keys_raw_from<'a, K, P>(
 	self: &'a Arc<Self>,
 	from: &P,
-) -> impl Stream<Item = Result<Key<'_, K>>> + Send + use<'a, K, P>
+) -> impl Stream<Item = Result<Key<'a, K>>> + Send + use<'a, K, P>
 where
 	P: AsRef<[u8]> + ?Sized + Debug + Sync,
 	K: Deserialize<'a> + Send,

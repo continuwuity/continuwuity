@@ -10,7 +10,7 @@ use super::rev_stream::is_cached;
 use crate::{keyval, keyval::Key, stream};
 
 #[implement(super::Map)]
-pub fn rev_keys<'a, K>(self: &'a Arc<Self>) -> impl Stream<Item = Result<Key<'_, K>>> + Send
+pub fn rev_keys<'a, K>(self: &'a Arc<Self>) -> impl Stream<Item = Result<Key<'a, K>>> + Send
 where
 	K: Deserialize<'a> + Send,
 {

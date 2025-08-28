@@ -81,7 +81,7 @@ pub async fn servers_route_via(&self, room_id: &RoomId) -> Result<Vec<OwnedServe
 pub fn servers_invite_via<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &ServerName> + Send + 'a {
+) -> impl Stream<Item = &'a ServerName> + Send + 'a {
 	type KeyVal<'a> = (Ignore, Vec<&'a ServerName>);
 
 	self.db

@@ -183,8 +183,8 @@ impl Service {
 			.services
 			.users
 			.list_local_users()
-			.map(UserId::to_owned)
-			.collect::<Vec<_>>()
+			.map(ToOwned::to_owned)
+			.collect::<Vec<OwnedUserId>>()
 			.await
 		{
 			let presence = self.db.get_presence(user_id).await;

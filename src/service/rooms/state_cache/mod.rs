@@ -144,7 +144,7 @@ pub fn clear_appservice_in_room_cache(&self) { self.appservice_in_room_cache.wri
 pub fn room_servers<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &ServerName> + Send + 'a {
+) -> impl Stream<Item = &'a ServerName> + Send + 'a {
 	let prefix = (room_id, Interfix);
 	self.db
 		.roomserverids
@@ -167,7 +167,7 @@ pub async fn server_in_room<'a>(&'a self, server: &'a ServerName, room_id: &'a R
 pub fn server_rooms<'a>(
 	&'a self,
 	server: &'a ServerName,
-) -> impl Stream<Item = &RoomId> + Send + 'a {
+) -> impl Stream<Item = &'a RoomId> + Send + 'a {
 	let prefix = (server, Interfix);
 	self.db
 		.serverroomids
@@ -202,7 +202,7 @@ pub fn get_shared_rooms<'a>(
 	&'a self,
 	user_a: &'a UserId,
 	user_b: &'a UserId,
-) -> impl Stream<Item = &RoomId> + Send + 'a {
+) -> impl Stream<Item = &'a RoomId> + Send + 'a {
 	use conduwuit::utils::set;
 
 	let a = self.rooms_joined(user_a);
@@ -216,7 +216,7 @@ pub fn get_shared_rooms<'a>(
 pub fn room_members<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	let prefix = (room_id, Interfix);
 	self.db
 		.roomuserid_joined
@@ -239,7 +239,7 @@ pub async fn room_joined_count(&self, room_id: &RoomId) -> Result<u64> {
 pub fn local_users_in_room<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	self.room_members(room_id)
 		.ready_filter(|user| self.services.globals.user_is_local(user))
 }
@@ -251,7 +251,7 @@ pub fn local_users_in_room<'a>(
 pub fn active_local_users_in_room<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	self.local_users_in_room(room_id)
 		.filter(|user| self.services.users.is_active(user))
 }
@@ -273,7 +273,7 @@ pub async fn room_invited_count(&self, room_id: &RoomId) -> Result<u64> {
 pub fn room_useroncejoined<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	let prefix = (room_id, Interfix);
 	self.db
 		.roomuseroncejoinedids
@@ -288,7 +288,7 @@ pub fn room_useroncejoined<'a>(
 pub fn room_members_invited<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	let prefix = (room_id, Interfix);
 	self.db
 		.roomuserid_invitecount
@@ -303,7 +303,7 @@ pub fn room_members_invited<'a>(
 pub fn room_members_knocked<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &UserId> + Send + 'a {
+) -> impl Stream<Item = &'a UserId> + Send + 'a {
 	let prefix = (room_id, Interfix);
 	self.db
 		.roomuserid_knockedcount
@@ -347,7 +347,7 @@ pub async fn get_left_count(&self, room_id: &RoomId, user_id: &UserId) -> Result
 pub fn rooms_joined<'a>(
 	&'a self,
 	user_id: &'a UserId,
-) -> impl Stream<Item = &RoomId> + Send + 'a {
+) -> impl Stream<Item = &'a RoomId> + Send + 'a {
 	self.db
 		.userroomid_joined
 		.keys_raw_prefix(user_id)

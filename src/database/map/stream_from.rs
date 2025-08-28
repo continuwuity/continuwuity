@@ -19,7 +19,7 @@ use crate::{
 pub fn stream_from<'a, K, V, P>(
 	self: &'a Arc<Self>,
 	from: &P,
-) -> impl Stream<Item = Result<KeyVal<'_, K, V>>> + Send + use<'a, K, V, P>
+) -> impl Stream<Item = Result<KeyVal<'a, K, V>>> + Send + use<'a, K, V, P>
 where
 	P: Serialize + ?Sized + Debug,
 	K: Deserialize<'a> + Send,
@@ -53,7 +53,7 @@ where
 pub fn stream_raw_from<'a, K, V, P>(
 	self: &'a Arc<Self>,
 	from: &P,
-) -> impl Stream<Item = Result<KeyVal<'_, K, V>>> + Send + use<'a, K, V, P>
+) -> impl Stream<Item = Result<KeyVal<'a, K, V>>> + Send + use<'a, K, V, P>
 where
 	P: AsRef<[u8]> + ?Sized + Debug + Sync,
 	K: Deserialize<'a> + Send,

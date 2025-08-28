@@ -65,7 +65,7 @@ impl Data {
 		&'a self,
 		room_id: &'a RoomId,
 		since: u64,
-	) -> impl Stream<Item = ReceiptItem<'_>> + Send + 'a {
+	) -> impl Stream<Item = ReceiptItem<'a>> + Send + 'a {
 		type Key<'a> = (&'a RoomId, u64, &'a UserId);
 		type KeyVal<'a> = (Key<'a>, CanonicalJsonObject);
 

@@ -17,7 +17,7 @@ where
 	S: Stream<Item = K> + Send + 'a,
 	K: Serialize + Debug,
 {
-	fn qry(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a;
+	fn qry(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a;
 }
 
 impl<'a, K, S> Qry<'a, K, S> for S
@@ -27,7 +27,7 @@ where
 	K: Serialize + Debug + 'a,
 {
 	#[inline]
-	fn qry(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a {
+	fn qry(self, map: &'a Arc<super::Map>) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a {
 		map.qry_batch(self)
 	}
 }
@@ -37,7 +37,7 @@ where
 pub(crate) fn qry_batch<'a, S, K>(
 	self: &'a Arc<Self>,
 	keys: S,
-) -> impl Stream<Item = Result<Handle<'_>>> + Send + 'a
+) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a
 where
 	S: Stream<Item = K> + Send + 'a,
 	K: Serialize + Debug + 'a,

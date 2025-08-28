@@ -178,7 +178,7 @@ impl Service {
 	pub fn local_aliases_for_room<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-	) -> impl Stream<Item = &RoomAliasId> + Send + 'a {
+	) -> impl Stream<Item = &'a RoomAliasId> + Send + 'a {
 		let prefix = (room_id, Interfix);
 		self.db
 			.aliasid_alias
@@ -188,7 +188,9 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub fn all_local_aliases<'a>(&'a self) -> impl Stream<Item = (&RoomId, &str)> + Send + 'a {
+	pub fn all_local_aliases<'a>(
+		&'a self,
+	) -> impl Stream<Item = (&'a RoomId, &'a str)> + Send + 'a {
 		self.db
 			.alias_roomid
 			.stream()

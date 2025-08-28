@@ -104,7 +104,7 @@ pub fn deindex_pdu(&self, shortroomid: ShortRoomId, pdu_id: &RawPduId, message_b
 pub async fn search_pdus<'a>(
 	&'a self,
 	query: &'a RoomQuery<'a>,
-) -> Result<(usize, impl Stream<Item = impl Event + use<>> + Send + '_)> {
+) -> Result<(usize, impl Stream<Item = impl Event + use<>> + Send + 'a)> {
 	let pdu_ids: Vec<_> = self.search_pdu_ids(query).await?.collect().await;
 
 	let filter = &query.criteria.filter;
@@ -137,10 +137,10 @@ pub async fn search_pdus<'a>(
 // result is modeled as a stream such that callers don't have to be refactored
 // though an additional async/wrap still exists for now
 #[implement(Service)]
-pub async fn search_pdu_ids(
-	&self,
-	query: &RoomQuery<'_>,
-) -> Result<impl Stream<Item = RawPduId> + Send + '_ + use<'_>> {
+pub async fn search_pdu_ids<'a>(
+	&'a self,
+	query: &'a RoomQuery<'_>,
+) -> Result<impl Stream<Item = RawPduId> + Send + 'a + use<'a>> {
 	let shortroomid = self.services.short.get_shortroomid(query.room_id).await?;
 
 	let pdu_ids = self.search_pdu_ids_query_room(query, shortroomid).await;
@@ -173,7 +173,7 @@ fn search_pdu_ids_query_words<'a>(
 	&'a self,
 	shortroomid: ShortRoomId,
 	word: &'a str,
-) -> impl Stream<Item = RawPduId> + Send + '_ {
+) -> impl Stream<Item = RawPduId> + Send + 'a {
 	self.search_pdu_ids_query_word(shortroomid, word)
 		.map(move |key| -> RawPduId {
 			let key = &key[prefix_len(word)..];
@@ -183,11 +183,11 @@ fn search_pdu_ids_query_words<'a>(
 
 /// Iterate over raw database results for a word
 #[implement(Service)]
-fn search_pdu_ids_query_word(
-	&self,
+fn search_pdu_ids_query_word<'a>(
+	&'a self,
 	shortroomid: ShortRoomId,
-	word: &str,
-) -> impl Stream<Item = Val<'_>> + Send + '_ + use<'_> {
+	word: &'a str,
+) -> impl Stream<Item = Val<'a>> + Send + 'a + use<'a> {
 	// rustc says const'ing this not yet stable
 	let end_id: RawPduId = PduId {
 		shortroomid,

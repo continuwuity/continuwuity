@@ -178,7 +178,7 @@ impl Service {
 	pub fn get_pushkeys<'a>(
 		&'a self,
 		sender: &'a UserId,
-	) -> impl Stream<Item = &str> + Send + 'a {
+	) -> impl Stream<Item = &'a str> + Send + 'a {
 		let prefix = (sender, Interfix);
 		self.db
 			.senderkey_pusher

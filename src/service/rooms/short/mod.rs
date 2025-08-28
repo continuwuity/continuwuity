@@ -62,7 +62,7 @@ pub async fn get_or_create_shorteventid(&self, event_id: &EventId) -> ShortEvent
 pub fn multi_get_or_create_shorteventid<'a, I>(
 	&'a self,
 	event_ids: I,
-) -> impl Stream<Item = ShortEventId> + Send + '_
+) -> impl Stream<Item = ShortEventId> + Send + 'a
 where
 	I: Iterator<Item = &'a EventId> + Clone + Debug + Send + 'a,
 {

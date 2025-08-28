@@ -388,7 +388,7 @@ impl Service {
 	pub fn get_forward_extremities<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-	) -> impl Stream<Item = &EventId> + Send + '_ {
+	) -> impl Stream<Item = &'a EventId> + Send + 'a {
 		let prefix = (room_id, Interfix);
 
 		self.db

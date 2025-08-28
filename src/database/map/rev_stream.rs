@@ -14,7 +14,7 @@ use crate::{keyval, keyval::KeyVal, stream};
 #[implement(super::Map)]
 pub fn rev_stream<'a, K, V>(
 	self: &'a Arc<Self>,
-) -> impl Stream<Item = Result<KeyVal<'_, K, V>>> + Send
+) -> impl Stream<Item = Result<KeyVal<'a, K, V>>> + Send
 where
 	K: Deserialize<'a> + Send,
 	V: Deserialize<'a> + Send,

@@ -422,7 +422,7 @@ impl Service {
 	pub fn all_device_ids<'a>(
 		&'a self,
 		user_id: &'a UserId,
-	) -> impl Stream<Item = &DeviceId> + Send + 'a {
+	) -> impl Stream<Item = &'a DeviceId> + Send + 'a {
 		let prefix = (user_id, Interfix);
 		self.db
 			.userdeviceid_metadata
@@ -770,7 +770,7 @@ impl Service {
 		user_id: &'a UserId,
 		from: u64,
 		to: Option<u64>,
-	) -> impl Stream<Item = &UserId> + Send + 'a {
+	) -> impl Stream<Item = &'a UserId> + Send + 'a {
 		self.keys_changed_user_or_room(user_id.as_str(), from, to)
 			.map(|(user_id, ..)| user_id)
 	}
@@ -781,7 +781,7 @@ impl Service {
 		room_id: &'a RoomId,
 		from: u64,
 		to: Option<u64>,
-	) -> impl Stream<Item = (&UserId, u64)> + Send + 'a {
+	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
 		self.keys_changed_user_or_room(room_id.as_str(), from, to)
 	}
 
@@ -790,7 +790,7 @@ impl Service {
 		user_or_room_id: &'a str,
 		from: u64,
 		to: Option<u64>,
-	) -> impl Stream<Item = (&UserId, u64)> + Send + 'a {
+	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
 		type KeyVal<'a> = ((&'a str, u64), &'a UserId);
 
 		let to = to.unwrap_or(u64::MAX);

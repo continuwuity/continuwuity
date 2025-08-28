@@ -443,7 +443,7 @@ pub(crate) fn into_send_seek(result: stream::State<'_>) -> stream::State<'static
 	unsafe { std::mem::transmute(result) }
 }
 
-fn into_recv_seek(result: stream::State<'static>) -> stream::State<'_> {
+fn into_recv_seek(result: stream::State<'static>) -> stream::State<'static> {
 	// SAFETY: This is to receive the State from the channel; see above.
 	unsafe { std::mem::transmute(result) }
 }

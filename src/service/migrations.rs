@@ -215,8 +215,8 @@ async fn db_lt_12(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.list_local_users()
-		.map(UserId::to_owned)
-		.collect::<Vec<_>>()
+		.map(ToOwned::to_owned)
+		.collect::<Vec<OwnedUserId>>()
 		.await
 	{
 		let user = match UserId::parse_with_server_name(username.as_str(), &services.server.name)
@@ -295,8 +295,8 @@ async fn db_lt_13(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.list_local_users()
-		.map(UserId::to_owned)
-		.collect::<Vec<_>>()
+		.map(ToOwned::to_owned)
+		.collect::<Vec<OwnedUserId>>()
 		.await
 	{
 		let user = match UserId::parse_with_server_name(username.as_str(), &services.server.name)
