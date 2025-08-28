@@ -51,7 +51,7 @@ version = "0.6.2"
 version = "0.2.9"
 
 [workspace.dependencies.cargo_toml]
-version = "0.21"
+version = "0.22"
 default-features = false
 features = ["features"]
 
