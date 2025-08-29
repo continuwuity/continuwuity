@@ -126,9 +126,11 @@ pub struct Config {
 	/// This is the only directory where continuwuity will save its data,
 	/// including media. Note: this was previously "/var/lib/matrix-conduit".
 	///
-	/// YOU NEED TO EDIT THIS.
+	/// YOU NEED TO EDIT THIS, UNLESS you are running continuwuity as a `systemd` service.
+	/// The service file sets it to `/var/lib/conduwuit` using an environment variable
+	/// and also grants write access.
 	///
-	/// example: "/var/lib/continuwuity"
+	/// example: "/var/lib/conduwuit"
 	pub database_path: PathBuf,
 
 	/// continuwuity supports online database backups using RocksDB's Backup

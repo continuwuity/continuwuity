@@ -16,6 +16,7 @@ Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
 
 Environment="CONTINUWUITY_LOG_TO_JOURNALD=true"
 Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
+Environment="CONTINUWUITY_DATABASE_PATH=/var/lib/conduwuit"
 
 ExecStart=/usr/sbin/conduwuit
 
