@@ -21,7 +21,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  rpm-build:
+  rpmbuild:
     name: Build RPM Package
     runs-on: fedora-latest
 

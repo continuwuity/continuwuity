@@ -1,0 +1,206 @@
+name: Test Fedora Runner
+
+concurrency:
+  group: "test-fedora-${{ github.ref }}"
+  cancel-in-progress: true
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.forgejo/workflows/test-fedora.yml'
+      - 'fedora/**'
+
+jobs:
+  test:
+    runs-on: fedora-latest
+    steps:
+      - name: Detect Fedora version
+        id: fedora
+        run: |
+          VERSION=$(rpm -E %fedora)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Fedora version: $VERSION"
+
+      # Removed - no longer needed for testing
+
+      - name: Checkout repository with full history
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      - name: Cache DNF packages
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /var/cache/yum
+          key: dnf-fedora${{ steps.fedora.outputs.version }}-${{ hashFiles('fedora/continuwuity.spec.rpkg') }}-v1
+          restore-keys: |
+            dnf-fedora${{ steps.fedora.outputs.version }}-
+
+      - name: Cache Cargo registry
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-fedora${{ steps.fedora.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-fedora${{ steps.fedora.outputs.version }}-
+
+      - name: Setup sccache
+        uses: https://github.com/mozilla-actions/sccache-action@v0.0.9
+        with:
+          token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Configure sccache environment
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y --setopt=keepcache=1 \
+            wget \
+            rpm-build \
+            rpmdevtools \
+            rpkg \
+            cargo-rpm-macros \
+            systemd-rpm-macros \
+            clang \
+            liburing-devel \
+            rust \
+            cargo \
+            gcc \
+            gcc-c++ \
+            make \
+            openssl-devel \
+            pkg-config \
+            python3-pip
+
+      - name: Setup build environment and build SRPM
+        run: |
+          # Configure git for rpkg
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.email "ci@continuwuity.org"
+          git config --global user.name "Continuwuity"
+
+          # Setup RPM build tree
+          rpmdev-setuptree
+
+          cd "$GITHUB_WORKSPACE"
+
+          # Determine release suffix based on ref type and branch
+          if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
+            # Tags get clean version numbers for stable releases
+            RELEASE_SUFFIX=""
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            # Main branch gets .dev suffix
+            RELEASE_SUFFIX=".dev"
+          else
+            # Other branches get sanitized branch name as suffix
+            SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/_/g' | cut -c1-20)
+            RELEASE_SUFFIX=".${SAFE_BRANCH}"
+          fi
+
+          # Create a temporary spec file with the release suffix
+          if [ -n "$RELEASE_SUFFIX" ]; then
+            # Replace the Release line to include our suffix
+            sed "s/^Release:.*$/Release:        1${RELEASE_SUFFIX}%{?dist}/" \
+              fedora/continuwuity.spec.rpkg > continuwuity.spec.rpkg
+          else
+            # Use the original spec file
+            ln -sf fedora/continuwuity.spec.rpkg continuwuity.spec.rpkg
+          fi
+
+          # Build the SRPM
+          rpkg srpm --outdir "$HOME/rpmbuild/SRPMS"
+
+          # Show SRPM info
+          ls -la $HOME/rpmbuild/SRPMS/
+
+      - name: Build RPM from SRPM
+        run: |
+          # Find the SRPM file
+          SRPM=$(find "$HOME/rpmbuild/SRPMS" -name "*.src.rpm" | head -1)
+
+          if [ -z "$SRPM" ]; then
+            echo "Error: No SRPM file found"
+            exit 1
+          fi
+
+          echo "Building from SRPM: $SRPM"
+
+          # Build the binary RPM
+          rpmbuild --rebuild "$SRPM" \
+            --define "_topdir $HOME/rpmbuild" \
+            --define "_sourcedir $GITHUB_WORKSPACE" \
+            --nocheck  # Skip %check section to avoid test dependencies
+
+      - name: List built packages
+        run: |
+          echo "Binary RPMs:"
+          find "$HOME/rpmbuild/RPMS" -name "*.rpm" -type f -exec ls -la {} \;
+
+          echo ""
+          echo "Source RPMs:"
+          find "$HOME/rpmbuild/SRPMS" -name "*.rpm" -type f -exec ls -la {} \;
+
+      - name: Collect artifacts
+        if: success()
+        run: |
+          mkdir -p artifacts
+
+          # Copy all RPMs to artifacts directory
+          find "$HOME/rpmbuild/RPMS" -name "*.rpm" -type f -exec cp {} artifacts/ \;
+          find "$HOME/rpmbuild/SRPMS" -name "*.rpm" -type f -exec cp {} artifacts/ \;
+
+          # Create metadata file
+          cd artifacts
+          echo "Build Information:" > BUILD_INFO.txt
+          echo "==================" >> BUILD_INFO.txt
+          echo "Git commit: ${{ github.sha }}" >> BUILD_INFO.txt
+          echo "Git branch: ${{ github.ref_name }}" >> BUILD_INFO.txt
+          echo "Build date: $(date -u +%Y-%m-%d_%H:%M:%S_UTC)" >> BUILD_INFO.txt
+          echo "" >> BUILD_INFO.txt
+          echo "Package contents:" >> BUILD_INFO.txt
+          echo "-----------------" >> BUILD_INFO.txt
+          for rpm in *.rpm; do
+            echo "" >> BUILD_INFO.txt
+            echo "File: $rpm" >> BUILD_INFO.txt
+            rpm -qpi "$rpm" 2>/dev/null | grep -E "^(Name|Version|Release|Architecture|Size)" >> BUILD_INFO.txt
+          done
+
+          ls -la
+
+      - name: Upload binary RPM artifact
+        if: success()
+        run: |
+          # Find the main binary RPM (exclude debug and source RPMs)
+          BIN_RPM=$(find artifacts -name "continuwuity-*.rpm" \
+            ! -name "*debuginfo*" \
+            ! -name "*debugsource*" \
+            ! -name "*.src.rpm" \
+            -type f)
+
+          # Create temp directory for this artifact
+          mkdir -p upload-bin
+          cp $BIN_RPM upload-bin/
+
+      - name: Upload binary RPM
+        if: success()
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity
+          path: upload-bin/
+
+      - name: Upload debug RPM artifact
+        if: success()
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity-debug
+          path: artifacts/*debuginfo*.rpm
