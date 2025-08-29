@@ -540,7 +540,7 @@ version = "0.26.3"
 features = ["std"]
 
 [workspace.dependencies.minicbor-serde]
-version = "0.4.1"
+version = "0.6.0"
 features = ["std"]
 
 [workspace.dependencies.maplit]
