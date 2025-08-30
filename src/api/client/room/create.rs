@@ -91,7 +91,7 @@ pub(crate) async fn create_room_route(
 
 	// check if room ID doesn't already exist instead of erroring on auth check
 	if let Some(ref room_id) = room_id {
-		if services.rooms.short.get_shortroomid(&room_id).await.is_ok() {
+		if services.rooms.short.get_shortroomid(room_id).await.is_ok() {
 			return Err!(Request(RoomInUse("Room with that custom room ID already exists",)));
 		}
 	}

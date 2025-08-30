@@ -197,7 +197,7 @@ async fn is_event_report_valid(
 		 valid"
 	);
 
-	if room_id != &pdu.room_id_or_hash() {
+	if room_id != pdu.room_id_or_hash() {
 		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
 	}
 
