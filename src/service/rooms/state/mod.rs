@@ -16,7 +16,6 @@ use conduwuit_database::{Deserialized, Ignore, Interfix, Map};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };
-use log::trace;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
 	events::{

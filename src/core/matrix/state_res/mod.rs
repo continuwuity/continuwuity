@@ -289,11 +289,11 @@ where
 	let mut path: Vec<OwnedEventId> = Vec::new();
 	let mut seen: HashSet<OwnedEventId> = HashSet::new();
 	let next_event = |stack: &mut Vec<Vec<_>>, path: &mut Vec<_>| {
-		while stack.last().is_some_and(|s| s.is_empty()) {
+		while stack.last().is_some_and(std::vec::Vec::is_empty) {
 			stack.pop();
 			path.pop();
 		}
-		stack.last_mut().and_then(|s| s.pop())
+		stack.last_mut().and_then(std::vec::Vec::pop)
 	};
 	while let Some(event_id) = next_event(&mut stack, &mut path) {
 		path.push(event_id.clone());
