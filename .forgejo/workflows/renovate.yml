@@ -39,24 +39,73 @@ jobs:
   renovate:
     name: Renovate
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/renovatebot/renovate:41
+      options: --tmpfs /tmp:exec
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          show-progress: false
+
+      - name: print node heap
+        run: /usr/local/renovate/node -e 'console.log(`node heap limit = ${require("v8").getHeapStatistics().heap_size_limit / (1024 * 1024)} Mb`)'
+
+      - name: Restore renovate repo cache
+        uses: https://github.com/actions/cache@v4
+        with:
+          path: |
+            /tmp/renovate/cache/renovate/repository
+          key: repo-cache-${{ github.run_id }}
+          restore-keys: |
+            repo-cache-
+
+      - name: Restore renovate package cache
+        uses: https://github.com/actions/cache@v4
+        with:
+          path: |
+            /tmp/renovate/cache/renovate/renovate-cache-sqlite
+          key: package-cache-${{ github.run_id }}
+          restore-keys: |
+            package-cache-
 
       - name: Self-hosted Renovate
-        uses: https://github.com/renovatebot/github-action@v40.1.0
+        uses: https://github.com/renovatebot/github-action@v43.0.9
         env:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
-          RENOVATE_AUTODISCOVER: 'false'
-          RENOVATE_BINARY_SOURCE: 'install'
           RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
-          RENOVATE_ENDPOINT: ${{ github.server_url }}/api/v1
-          RENOVATE_GIT_TIMEOUT: 60000
-          RENOVATE_GIT_URL: 'endpoint'
-          RENOVATE_GITHUB_TOKEN_WARN: 'false'
-          RENOVATE_ONBOARDING: 'false'
-          RENOVATE_PLATFORM: 'forgejo'
-          RENOVATE_PR_COMMITS_PER_RUN_LIMIT: 3
+
+          RENOVATE_PLATFORM: forgejo
+          RENOVATE_ENDPOINT: ${{ github.server_url }}
+          RENOVATE_AUTODISCOVER: 'false'
           RENOVATE_REPOSITORIES: '["${{ github.repository }}"]'
+
+          RENOVATE_GIT_TIMEOUT: 60000
+
           RENOVATE_REQUIRE_CONFIG: 'required'
+          RENOVATE_ONBOARDING: 'false'
+
+          RENOVATE_PR_COMMITS_PER_RUN_LIMIT: 3
+
+          RENOVATE_GITHUB_TOKEN_WARN: 'false'
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
+          GITHUB_COM_TOKEN: ${{ secrets.GH_PUBLIC_RO }}
+
+          RENOVATE_REPOSITORY_CACHE: 'enabled'
+          RENOVATE_X_SQLITE_PACKAGE_CACHE: true
+
+      - name: Save renovate repo cache
+        if: always() && env.RENOVATE_DRY_RUN != 'full'
+        uses: https://github.com/actions/cache@v4
+        with:
+          path: |
+            /tmp/renovate/cache/renovate/repository
+          key: repo-cache-${{ github.run_id }}
+
+      - name: Save renovate package cache
+        if: always() && env.RENOVATE_DRY_RUN != 'full'
+        uses: https://github.com/actions/cache@v4
+        with:
+          path: |
+            /tmp/renovate/cache/renovate/renovate-cache-sqlite
+          key: package-cache-${{ github.run_id }}
