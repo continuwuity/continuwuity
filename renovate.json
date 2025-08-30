@@ -1,62 +1,59 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ],
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": [
-      "at any time"
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended"],
+    "lockFileMaintenance": {
+        "enabled": true,
+        "schedule": ["at any time"]
+    },
+    "nix": {
+        "enabled": true
+    },
+    "labels": ["Dependencies", "Dependencies/Renovate"],
+    "ignoreDeps": [
+        "tikv-jemallocator",
+        "tikv-jemalloc-sys",
+        "tikv-jemalloc-ctl",
+        "opentelemetry",
+        "opentelemetry_sdk",
+        "opentelemetry-jaeger",
+        "tracing-opentelemetry"
+    ],
+    "github-actions": {
+        "enabled": true,
+        "managerFilePatterns": [
+            "/(^|/)\\.forgejo/workflows/[^/]+\\.ya?ml$/",
+            "/(^|/)\\.forgejo/actions/[^/]+/action\\.ya?ml$/",
+            "/(^|/)\\.github/workflows/[^/]+\\.ya?ml$/",
+            "/(^|/)\\.github/actions/[^/]+/action\\.ya?ml$/"
+        ]
+    },
+    "packageRules": [
+        {
+            "description": "Batch minor and patch GitHub Actions updates",
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["minor", "patch"],
+            "groupName": "github-actions-non-major"
+        },
+        {
+            "description": "Group Rust toolchain updates into a single PR",
+            "matchManagers": ["custom.regex"],
+            "matchPackageNames": ["rust", "rustc", "cargo"],
+            "groupName": "rust-toolchain"
+        },
+        {
+            "description": "Group lockfile updates into a single PR",
+            "matchUpdateTypes": ["lockFileMaintenance"],
+            "groupName": "lockfile-maintenance"
+        },
+        {
+            "description": "Batch patch-level Rust dependency updates",
+            "matchManagers": ["cargo"],
+            "matchUpdateTypes": ["patch"],
+            "groupName": "rust-patch-updates"
+        },
+        {
+            "matchManagers": ["cargo"],
+            "prConcurrentLimit": 5
+        }
     ]
-  },
-  "nix": {
-    "enabled": true
-  },
-  "labels": [
-    "Dependencies",
-    "Dependencies/Renovate"
-  ],
-  "ignoreDeps": [
-    "tikv-jemallocator",
-    "tikv-jemalloc-sys",
-    "tikv-jemalloc-ctl",
-    "opentelemetry",
-    "opentelemetry_sdk",
-    "opentelemetry-jaeger",
-    "tracing-opentelemetry"
-  ],
-  "github-actions": {
-    "enabled": true,
-    "fileMatch": [
-      "(^|/)\\.forgejo/workflows/[^/]+\\.ya?ml$",
-      "(^|/)\\.forgejo/actions/[^/]+/action\\.ya?ml$",
-      "(^|/)\\.github/workflows/[^/]+\\.ya?ml$",
-      "(^|/)\\.github/actions/[^/]+/action\\.ya?ml$"
-    ]
-  },
-  "packageRules": [
-    {
-      "description": "Batch minor and patch GitHub Actions updates",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "github-actions-non-major"
-    },
-    {
-      "description": "Group Rust toolchain updates into a single PR",
-      "matchManagers": ["regex"],
-      "matchPackageNames": ["rust", "rustc", "cargo"],
-      "groupName": "rust-toolchain"
-    },
-    {
-      "description": "Group lockfile updates into a single PR",
-      "matchUpdateTypes": ["lockFileMaintenance"],
-      "groupName": "lockfile-maintenance"
-    },
-    {
-      "description": "Batch patch-level Rust dependency updates",
-      "matchManagers": ["cargo"],
-      "matchUpdateTypes": ["patch"],
-      "groupName": "rust-patch-updates"
-    }
-  ]
 }
