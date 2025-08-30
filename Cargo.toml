@@ -56,7 +56,7 @@ default-features = false
 features = ["features"]
 
 [workspace.dependencies.toml]
-version = "0.8.14"
+version = "0.9.0"
 default-features = false
 features = ["parse"]
 
