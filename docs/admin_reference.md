@@ -21,6 +21,7 @@ This document contains the help content for the `admin` command-line program.
 * [`admin users list-joined-rooms`↴](#admin-users-list-joined-rooms)
 * [`admin users force-join-room`↴](#admin-users-force-join-room)
 * [`admin users force-leave-room`↴](#admin-users-force-leave-room)
+* [`admin users force-leave-remote-room`↴](#admin-users-force-leave-remote-room)
 * [`admin users force-demote`↴](#admin-users-force-demote)
 * [`admin users make-user-admin`↴](#admin-users-make-user-admin)
 * [`admin users put-room-tag`↴](#admin-users-put-room-tag)
@@ -295,6 +296,7 @@ You can find the ID using the `list-appservices` command.
 * `list-joined-rooms` — - Lists all the rooms (local and remote) that the specified user is joined in
 * `force-join-room` — - Manually join a local user to a room
 * `force-leave-room` — - Manually leave a local user from a room
+* `force-leave-remote-room` — - Manually leave a remote room for a local user
 * `force-demote` — - Forces the specified user to drop their power levels to the room default, if their permissions allow and the auth check permits
 * `make-user-admin` — - Grant server-admin privileges to a user
 * `put-room-tag` — - Puts a room tag for the specified user and room ID
@@ -441,6 +443,19 @@ Reverses the effects of the `suspend` command, allowing the user to send message
 - Manually leave a local user from a room
 
 **Usage:** `admin users force-leave-room <USER_ID> <ROOM_ID>`
+
+###### **Arguments:**
+
+* `<USER_ID>`
+* `<ROOM_ID>`
+
+
+
+## `admin users force-leave-remote-room`
+
+- Manually leave a remote room for a local user
+
+**Usage:** `admin users force-leave-remote-room <USER_ID> <ROOM_ID>`
 
 ###### **Arguments:**
 
