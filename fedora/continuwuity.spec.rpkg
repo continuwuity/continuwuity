@@ -38,7 +38,7 @@ sed -i 's/^offline = true$//' .cargo/config.toml
 %cargo_build
 
 # Here's the one legally required mystery incantation in this file.
-# Some of our dependencies have source files which are (for some reason) marked as excutable.
+# Some of our dependencies have source files which are (for some reason) marked as executable.
 # Files in .cargo/registry/ are copied into /usr/src/ by the debuginfo machinery
 # at the end of the build step, and then the BRP shebang mangling script checks
 # the entire buildroot to find executable files, and fails the build because
@@ -46,7 +46,7 @@ sed -i 's/^offline = true$//' .cargo/config.toml
 # So we have to clear the executable bit on all of them before that happens.
 find .cargo/registry/ -executable -name "*.rs" -exec chmod -x {} +
 
-# TODO: this fails currently because it's forced to run in offline mode	
+# TODO: this fails currently because it's forced to run in offline mode
 # {cargo_license -- --no-dev} > LICENSE.dependencies
 
 %install
