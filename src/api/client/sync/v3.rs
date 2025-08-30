@@ -430,7 +430,7 @@ async fn handle_left_room(
 		.ok();
 
 	// Left before last sync
-	if Some(since) >= left_count {
+	if (Some(since) >= left_count && !include_leave) || Some(next_batch) < left_count {
 		return Ok(None);
 	}
 
