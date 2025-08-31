@@ -79,10 +79,11 @@ pub(crate) async fn send_transaction_message_route(
 	}
 
 	let txn_start_time = Instant::now();
+	let transaction_id = body.transaction_id.to_string();
 	trace!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
-		id = ?body.transaction_id,
+		id = transaction_id,
 		"Processing transaction",
 	);
 
@@ -106,17 +107,17 @@ pub(crate) async fn send_transaction_message_route(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
-		id = ?body.transaction_id,
+		id = transaction_id,
 		"Validated transaction",
 	);
 
-	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await?;
+	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus, &*transaction_id).await?;
 
 	info!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
-		id = ?body.transaction_id,
+		id = transaction_id,
 		"Finished txn",
 	);
 	for (id, result) in &results {
@@ -142,11 +143,13 @@ async fn handle(
 	started: Instant,
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
+	transaction_id: &str,
 ) -> Result<ResolvedMap> {
+	let handle_start = Instant::now();
 	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
 		.boxed()
 		.await;
-
+	let pdu_start = Instant::now();
 	// group pdus by room
 	let pdus = pdus
 		.collect()
@@ -157,14 +160,14 @@ async fn handle(
 				.collect()
 		})
 		.await;
-
+	let results_start = Instant::now();
 	// we can evaluate rooms concurrently
 	let results: ResolvedMap = pdus
 		.into_iter()
 		.try_stream()
 		.broad_and_then(|(room_id, pdus): (_, Vec<_>)| {
 			let count = pdus.len();
-			handle_room(services, client, origin, started, room_id, pdus.into_iter(), count)
+			handle_room(services, client, origin, started, room_id, pdus.into_iter(), count, transaction_id)
 				.map_ok(Vec::into_iter)
 				.map_ok(IterStream::try_stream)
 		})
@@ -172,7 +175,14 @@ async fn handle(
 		.try_collect()
 		.boxed()
 		.await?;
-
+	let handle_stop = Instant::now();
+	info!(
+		edus = pdu_start.saturating_duration_since(handle_start).as_micros(),
+		pdus = results_start.saturating_duration_since(pdu_start).as_micros(),
+		handle_room = handle_stop.saturating_duration_since(results_start).as_micros(),
+		transaction_id = ?transaction_id,
+		"handled incoming transaction",
+	);
 	Ok(results)
 }
 
@@ -184,6 +194,7 @@ async fn handle_room(
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
 	count: usize,
+	transaction_id: &str,
 ) -> Result<Vec<(OwnedEventId, Result)>> {
 	let _room_lock = services
 		.rooms
@@ -201,6 +212,7 @@ async fn handle_room(
 			trace!(
 				%room_id,
 				%event_id,
+				transaction_id = ?transaction_id,
 				pdu = n + 1,
 				total = count,
 				pdu_elapsed = ?pdu_start_time.elapsed(),
@@ -217,11 +229,12 @@ async fn handle_room(
 			info!(
 				%room_id,
 				%event_id,
+				transaction_id = ?transaction_id,
 				pdu = n + 1,
 				total = count,
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
-				"Finished handling PDU {event_id}",
+				"Finished handling PDU",
 			);
 			n += 1;
 
