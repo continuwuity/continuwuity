@@ -19,14 +19,14 @@ use crate::Ruma;
 /// of this server.
 pub(crate) async fn get_capabilities_route(
 	State(services): State<crate::State>,
-	_body: Ruma<get_capabilities::v3::Request>,
+	body: Ruma<get_capabilities::v3::Request>,
 ) -> Result<get_capabilities::v3::Response> {
 	let available: BTreeMap<RoomVersionId, RoomVersionStability> =
 		Server::available_room_versions().collect();
-	let authenticated = _body.sender_user.as_ref().is_some()
+	let authenticated = body.sender_user.as_ref().is_some()
 		&& services
 			.users
-			.is_active_local(_body.sender_user.as_ref().unwrap())
+			.is_active_local(body.sender_user.as_ref().unwrap())
 			.await;
 
 	let mut capabilities = Capabilities::default();
@@ -53,7 +53,7 @@ pub(crate) async fn get_capabilities_route(
 	if authenticated
 		&& services
 			.users
-			.is_admin(_body.sender_user.as_ref().unwrap())
+			.is_admin(body.sender_user.as_ref().unwrap())
 			.await
 	{
 		// Advertise suspension API

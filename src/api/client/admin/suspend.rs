@@ -14,10 +14,10 @@ pub(crate) async fn get_suspended_status(
 	let sender_user = body.sender_user();
 	if !services.users.is_admin(sender_user).await {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	};
+	}
 	if !services.globals.user_is_local(&body.user_id) {
 		return Err!(Request(InvalidParam("Can only check the suspended status of local users")));
-	};
+	}
 	if !services.users.is_active(&body.user_id).await {
 		return Err!(Request(NotFound("Unknown user")));
 	}
@@ -36,10 +36,10 @@ pub(crate) async fn put_suspended_status(
 	let sender_user = body.sender_user();
 	if !services.users.is_admin(sender_user).await {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	};
+	}
 	if !services.globals.user_is_local(&body.user_id) {
 		return Err!(Request(InvalidParam("Can only set the suspended status of local users")));
-	};
+	}
 	if !services.users.is_active(&body.user_id).await {
 		return Err!(Request(NotFound("Unknown user")));
 	}
