@@ -920,3 +920,41 @@ pub(super) async fn trim_memory(&self) -> Result {
 
 	writeln!(self, "done").await
 }
+
+#[admin_command]
+pub(super) async fn force_append_latest_extremity(&self, room_id: OwnedRoomId) -> Result {
+	let lock = self.services.rooms.state.mutex.lock(&*room_id).await;
+	let mut extremities: Vec<&EventId> = self
+		.services
+		.rooms
+		.state
+		.get_forward_extremities(&room_id)
+		.collect()
+		.await;
+
+	let latest_pdu = self
+		.services
+		.rooms
+		.timeline
+		.latest_pdu_in_room(&room_id)
+		.await
+		.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?;
+
+	let pdu_id = latest_pdu.event_id();
+	if !extremities.contains(&pdu_id) {
+		extremities.push(pdu_id);
+	}
+
+	self.services
+		.rooms
+		.state
+		.set_forward_extremities(&room_id, extremities.iter().copied(), &lock)
+		.await;
+
+	self.write_str(&format!(
+		"Successfully retained the following {} forward extremities in room \
+		 {room_id}:\n```\n{extremities:?}\n```",
+		extremities.len()
+	))
+	.await
+}

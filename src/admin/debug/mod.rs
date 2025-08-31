@@ -237,6 +237,11 @@ pub enum DebugCommand {
 		level: Option<i32>,
 	},
 
+	ForceAppendLatestExtremity {
+		/// The room ID
+		room_id: OwnedRoomId,
+	},
+
 	/// - Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]
