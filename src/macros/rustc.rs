@@ -13,13 +13,13 @@ pub(super) fn flags_capture(args: TokenStream) -> TokenStream {
 	let ret = quote! {
 		pub static RUSTC_FLAGS: [&str; #flag_len] = [#( #flag ),*];
 
-		#[conduwuit_core::ctor]
+		#[ctor]
 		fn _set_rustc_flags() {
 			conduwuit_core::info::rustc::FLAGS.lock().insert(#crate_name, &RUSTC_FLAGS);
 		}
 
 		// static strings have to be yanked on module unload
-		#[conduwuit_core::dtor]
+		#[dtor]
 		fn _unset_rustc_flags() {
 			conduwuit_core::info::rustc::FLAGS.lock().remove(#crate_name);
 		}

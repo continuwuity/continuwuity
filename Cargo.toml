@@ -48,7 +48,7 @@ features = ["ffi", "std", "union"]
 version = "0.6.2"
 
 [workspace.dependencies.ctor]
-version = "0.2.9"
+version = "0.5.0"
 
 [workspace.dependencies.cargo_toml]
 version = "0.22"
@@ -536,11 +536,11 @@ version = "0.2"
 version = "0.2"
 
 [workspace.dependencies.minicbor]
-version = "0.26.5"
+version = "2.1.1"
 features = ["std"]
 
 [workspace.dependencies.minicbor-serde]
-version = "0.4.1"
+version = "0.6.0"
 features = ["std"]
 
 [workspace.dependencies.maplit]

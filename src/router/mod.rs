@@ -12,6 +12,7 @@ use std::{panic::AssertUnwindSafe, pin::Pin, sync::Arc};
 
 use conduwuit::{Error, Result, Server};
 use conduwuit_service::Services;
+use ctor::{ctor, dtor};
 use futures::{Future, FutureExt, TryFutureExt};
 
 conduwuit::mod_ctor! {}

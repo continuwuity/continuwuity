@@ -13,6 +13,7 @@ mod sentry;
 mod server;
 mod signal;
 
+use ctor::{ctor, dtor};
 use server::Server;
 
 rustc_flags_capture! {}

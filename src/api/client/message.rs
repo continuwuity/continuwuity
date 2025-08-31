@@ -321,7 +321,7 @@ pub(crate) fn event_filter(item: PdusIterItem, filter: &RoomEventFilter) -> Opti
 	filter.matches(pdu).then_some(item)
 }
 
-#[cfg_attr(debug_assertions, conduwuit::ctor)]
+#[cfg_attr(debug_assertions, ctor::ctor)]
 fn _is_sorted() {
 	debug_assert!(
 		IGNORED_MESSAGE_TYPES.is_sorted(),
