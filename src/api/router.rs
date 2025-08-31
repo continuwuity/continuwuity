@@ -184,6 +184,8 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			"/_matrix/client/unstable/im.nheko.summary/rooms/:room_id_or_alias/summary",
 			get(client::get_room_summary_legacy)
 		)
+		.ruma_route(&client::get_suspended_status)
+		.ruma_route(&client::put_suspended_status)
 		.ruma_route(&client::well_known_support)
 		.ruma_route(&client::well_known_client)
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
