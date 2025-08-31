@@ -196,12 +196,14 @@ async fn handle_room(
 	count: usize,
 	transaction_id: &str,
 ) -> Result<Vec<(OwnedEventId, Result)>> {
+	let room_lock_start = Instant::now();
 	let _room_lock = services
 		.rooms
 		.event_handler
 		.mutex_federation
 		.lock(&room_id)
 		.await;
+	let room_lock_end = Instant::now();
 
 	let room_id = &room_id;
 	let mut n = 0;
@@ -215,6 +217,7 @@ async fn handle_room(
 				transaction_id = ?transaction_id,
 				pdu = n + 1,
 				total = count,
+				room_lock_time = ?room_lock_end.saturating_duration_since(room_lock_start).as_micros(),
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
 				"Handling PDU",
@@ -232,6 +235,7 @@ async fn handle_room(
 				transaction_id = ?transaction_id,
 				pdu = n + 1,
 				total = count,
+				room_lock_time = ?room_lock_end.saturating_duration_since(room_lock_start).as_micros(),
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
 				"Finished handling PDU",
