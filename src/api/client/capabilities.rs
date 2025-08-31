@@ -23,6 +23,11 @@ pub(crate) async fn get_capabilities_route(
 ) -> Result<get_capabilities::v3::Response> {
 	let available: BTreeMap<RoomVersionId, RoomVersionStability> =
 		Server::available_room_versions().collect();
+	let authenticated = _body.sender_user.as_ref().is_some()
+		&& services
+			.users
+			.is_active_local(_body.sender_user.as_ref().unwrap())
+			.await;
 
 	let mut capabilities = Capabilities::default();
 	capabilities.room_versions = RoomVersionsCapability {
@@ -44,6 +49,16 @@ pub(crate) async fn get_capabilities_route(
 		"org.matrix.msc4267.forget_forced_upon_leave",
 		json!({"enabled": services.config.forget_forced_upon_leave}),
 	)?;
+
+	if authenticated
+		&& services
+			.users
+			.is_admin(_body.sender_user.as_ref().unwrap())
+			.await
+	{
+		// Advertise suspension API
+		capabilities.set("uk.timedout.msc4323", json!({"suspend":true, "lock": false}))?;
+	}
 
 	Ok(get_capabilities::v3::Response { capabilities })
 }
