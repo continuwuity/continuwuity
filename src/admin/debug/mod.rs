@@ -237,9 +237,14 @@ pub enum DebugCommand {
 		level: Option<i32>,
 	},
 
+	/// - Forcefully add the latest known event in the specified room as a
+	///   forward extremity. Use with caution.
 	ForceAppendLatestExtremity {
 		/// The room ID
 		room_id: OwnedRoomId,
+		/// If set, forcefully picks an event ID to use as an extremity. Is not
+		/// validated.
+		event_id: Option<OwnedEventId>,
 	},
 
 	/// - Developer test stubs

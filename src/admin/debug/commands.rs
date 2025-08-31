@@ -922,7 +922,11 @@ pub(super) async fn trim_memory(&self) -> Result {
 }
 
 #[admin_command]
-pub(super) async fn force_append_latest_extremity(&self, room_id: OwnedRoomId) -> Result {
+pub(super) async fn force_append_latest_extremity(
+	&self,
+	room_id: OwnedRoomId,
+	event_id: Option<OwnedEventId>,
+) -> Result {
 	let lock = self.services.rooms.state.mutex.lock(&*room_id).await;
 	let mut extremities: Vec<&EventId> = self
 		.services
@@ -932,17 +936,21 @@ pub(super) async fn force_append_latest_extremity(&self, room_id: OwnedRoomId) -
 		.collect()
 		.await;
 
-	let latest_pdu = self
-		.services
-		.rooms
-		.timeline
-		.latest_pdu_in_room(&room_id)
-		.await
-		.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?;
+	let selected_id = if let Some(event_id) = event_id {
+		event_id
+	} else {
+		self.services
+			.rooms
+			.timeline
+			.latest_pdu_in_room(&room_id)
+			.await
+			.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?
+			.event_id()
+			.to_owned()
+	};
 
-	let pdu_id = latest_pdu.event_id();
-	if !extremities.contains(&pdu_id) {
-		extremities.push(pdu_id);
+	if !extremities.contains(&selected_id.as_ref()) {
+		extremities.push(&selected_id);
 	}
 
 	self.services
