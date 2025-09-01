@@ -1,5 +1,6 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
+use futures::future::{join, join3};
 use ruma::api::client::admin::{get_suspended, set_suspended};
 
 use crate::Ruma;
@@ -12,13 +13,16 @@ pub(crate) async fn get_suspended_status(
 	body: Ruma<get_suspended::v1::Request>,
 ) -> Result<get_suspended::v1::Response> {
 	let sender_user = body.sender_user();
-	if !services.users.is_admin(sender_user).await {
+
+	let (admin, active) =
+		join(services.users.is_admin(sender_user), services.users.is_active(&body.user_id)).await;
+	if !admin {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}
 	if !services.globals.user_is_local(&body.user_id) {
 		return Err!(Request(InvalidParam("Can only check the suspended status of local users")));
 	}
-	if !services.users.is_active(&body.user_id).await {
+	if !active {
 		return Err!(Request(NotFound("Unknown user")));
 	}
 	Ok(get_suspended::v1::Response::new(
@@ -34,20 +38,28 @@ pub(crate) async fn put_suspended_status(
 	body: Ruma<set_suspended::v1::Request>,
 ) -> Result<set_suspended::v1::Response> {
 	let sender_user = body.sender_user();
-	if !services.users.is_admin(sender_user).await {
+
+	let (sender_admin, active, target_admin) = join3(
+		services.users.is_admin(sender_user),
+		services.users.is_active(&body.user_id),
+		services.users.is_admin(&body.user_id),
+	)
+	.await;
+
+	if !sender_admin {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}
 	if !services.globals.user_is_local(&body.user_id) {
 		return Err!(Request(InvalidParam("Can only set the suspended status of local users")));
 	}
-	if !services.users.is_active(&body.user_id).await {
+	if !active {
 		return Err!(Request(NotFound("Unknown user")));
 	}
 	if body.user_id == *sender_user {
 		return Err!(Request(Forbidden("You cannot suspend yourself")));
 	}
-	if services.users.is_admin(&body.user_id).await {
-		return Err!(Request(Forbidden("You cannot suspend another admin")));
+	if target_admin {
+		return Err!(Request(Forbidden("You cannot suspend another server administrator")));
 	}
 	if services.users.is_suspended(&body.user_id).await? == body.suspended {
 		// No change
