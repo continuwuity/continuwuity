@@ -183,6 +183,9 @@ where
 	// sort the remaining events using the mainline of the resolved power level.
 	let deduped_power_ev: HashSet<_> = sorted_control_levels.into_iter().collect();
 
+	debug!(count = deduped_power_ev.len(), "deduped power events");
+	trace!(set = ?deduped_power_ev, "deduped power events");
+
 	// This removes the control events that passed auth and more importantly those
 	// that failed auth
 	let events_to_resolve: Vec<_> = all_conflicted
@@ -209,7 +212,7 @@ where
 		&room_version,
 		stateres_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
-		resolved_control, // The control events are added to the final resolved state
+		resolved_control.clone(), // The control events are added to the final resolved state
 		&event_fetch,
 	)
 	.await?;
@@ -217,6 +220,8 @@ where
 	// Add unconflicted state to the resolved state
 	// We priorities the unconflicting state
 	resolved_state.extend(clean);
+	resolved_state.extend(resolved_control); // TODO(hydra): this feels disgusting and wrong but it allows
+	// the state to resolve properly?
 
 	debug!("state resolution finished");
 	trace!( map = ?resolved_state, "final resolved state" );
@@ -289,11 +294,11 @@ where
 	let mut path: Vec<OwnedEventId> = Vec::new();
 	let mut seen: HashSet<OwnedEventId> = HashSet::new();
 	let next_event = |stack: &mut Vec<Vec<_>>, path: &mut Vec<_>| {
-		while stack.last().is_some_and(std::vec::Vec::is_empty) {
+		while stack.last().is_some_and(Vec::is_empty) {
 			stack.pop();
 			path.pop();
 		}
-		stack.last_mut().and_then(std::vec::Vec::pop)
+		stack.last_mut().and_then(Vec::pop)
 	};
 	while let Some(event_id) = next_event(&mut stack, &mut path) {
 		path.push(event_id.clone());
