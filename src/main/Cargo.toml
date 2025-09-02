@@ -32,10 +32,10 @@ a cool hard fork of Conduit, a Matrix homeserver written in Rust"""
 section = "net"
 priority = "optional"
 conf-files = ["/etc/conduwuit/conduwuit.toml"]
-maintainer-scripts = "../../debian/"
+maintainer-scripts = "../../dist/debian/"
 systemd-units = { unit-name = "conduwuit", start = false }
 assets = [
-	["../../debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
+	["../../dist/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
 	["../../README.md", "usr/share/doc/conduwuit/", "644"],
 	["../../target/release/conduwuit", "usr/sbin/conduwuit", "755"],
 	["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
