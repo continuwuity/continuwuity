@@ -9,30 +9,6 @@ CONDUWUIT_CONFIG_PATH=/etc/conduwuit
 
 case "$1" in
   configure)
-    # Create the `conduwuit` user if it does not exist yet.
-    if ! getent passwd conduwuit > /dev/null ; then
-      echo 'Adding system user for the conduwuit Matrix homeserver' 1>&2
-      adduser --system --group --quiet \
-        --home "$CONDUWUIT_DATABASE_PATH" \
-        --disabled-login \
-        --shell "/usr/sbin/nologin" \
-        conduwuit
-    fi
-
-    # Create the database path if it does not exist yet and fix up ownership
-    # and permissions for the config.
-    mkdir -v -p "$CONDUWUIT_DATABASE_PATH"
-
-    # symlink the previous location for compatibility if it does not exist yet.
-    if ! test -L "/var/lib/matrix-conduit" ; then
-        ln -s -v "$CONDUWUIT_DATABASE_PATH" "/var/lib/matrix-conduit"
-    fi
-
-    chown -v conduwuit:conduwuit -R "$CONDUWUIT_DATABASE_PATH"
-    chown -v conduwuit:conduwuit -R "$CONDUWUIT_CONFIG_PATH"
-
-    chmod -v 740 "$CONDUWUIT_DATABASE_PATH"
-
     echo ''
     echo 'Make sure you edit the example config at /etc/conduwuit/conduwuit.toml before starting!'
     echo 'To start the server, run: systemctl start conduwuit.service'

@@ -20,24 +20,18 @@ case $1 in
 
     if [ -d "$CONDUWUIT_CONFIG_PATH" ]; then
       if test -L "$CONDUWUIT_CONFIG_PATH"; then
-        echo "Deleting conduwuit configuration files"
+        echo "Deleting continuwuity configuration files"
         rm -v -r "$CONDUWUIT_CONFIG_PATH"
       fi
     fi
 
     if [ -d "$CONDUWUIT_DATABASE_PATH" ]; then
       if test -L "$CONDUWUIT_DATABASE_PATH"; then
-        echo "Deleting conduwuit database directory"
+        echo "Deleting continuwuity database directory"
         rm -r "$CONDUWUIT_DATABASE_PATH"
       fi
     fi
 
-    if [ -d "$CONDUWUIT_DATABASE_PATH_SYMLINK" ]; then
-      if test -L "$CONDUWUIT_DATABASE_SYMLINK"; then
-        echo "Removing matrix-conduit symlink"
-        rm -r "$CONDUWUIT_DATABASE_PATH_SYMLINK"
-      fi
-    fi
     ;;
 esac
 
