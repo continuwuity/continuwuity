@@ -15,5 +15,5 @@
 <summary>systemd unit file</summary>
 
 ```
-{{#include ../../dist/conduwuit.service}}
+{{#include ../../pkg/conduwuit.service}}
 ```
