@@ -607,6 +607,7 @@ async fn join_room_by_id_helper_remote(
 		})
 		.ready_filter_map(Result::ok)
 		.ready_for_each(|(event_id, value)| {
+			trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 			services.rooms.outlier.add_pdu_outlier(&event_id, &value);
 		})
 		.await;
@@ -664,7 +665,7 @@ async fn join_room_by_id_helper_remote(
 		.force_state(room_id, statehash_before_join, added, removed, &state_lock)
 		.await?;
 
-	info!("Updating joined counts for new room");
+	debug!("Updating joined counts for new room");
 	services
 		.rooms
 		.state_cache
