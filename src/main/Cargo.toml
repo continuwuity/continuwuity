@@ -33,11 +33,11 @@ section = "net"
 priority = "optional"
 conf-files = ["/etc/conduwuit/conduwuit.toml"]
 maintainer-scripts = "../../dist/debian/"
-systemd-units = { unit-name = "conduwuit", start = false }
+systemd-units = { unit-name = "conduwuit", start = false, unit-scripts = "../../dist/" }
 assets = [
 	["../../dist/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
 	["../../README.md", "usr/share/doc/conduwuit/", "644"],
-	["../../target/release/conduwuit", "usr/sbin/conduwuit", "755"],
+	["../../target/release/conduwuit", "usr/bin/conduwuit", "755"],
 	["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
 ]
 
