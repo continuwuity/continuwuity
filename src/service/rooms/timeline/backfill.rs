@@ -2,7 +2,7 @@ use std::iter::once;
 
 use conduwuit::{Err, PduEvent};
 use conduwuit_core::{
-	Result, debug, debug_warn, implement, info,
+	Result, debug, debug_warn, err, implement, info,
 	matrix::{
 		event::Event,
 		pdu::{PduCount, PduId, RawPduId},
@@ -12,7 +12,7 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	EventId, RoomId, ServerName,
+	CanonicalJsonObject, EventId, RoomId, ServerName,
 	api::federation,
 	events::{
 		StateEventType, TimelineEventType, room::power_levels::RoomPowerLevelsEventContent,
@@ -210,17 +210,26 @@ pub async fn get_remote_pdu(&self, room_id: &RoomId, event_id: &EventId) -> Resu
 
 	while let Some(ref backfill_server) = servers.next().await {
 		info!("Asking {backfill_server} for event {}", event_id);
-		let response = self
+		let value = self
 			.services
 			.sending
 			.send_federation_request(backfill_server, federation::event::get_event::v1::Request {
 				event_id: event_id.to_owned(),
 				include_unredacted_content: Some(false),
 			})
-			.await;
-		let pdu = match response {
-			| Ok(response) => {
-				self.backfill_pdu(backfill_server, response.pdu)
+			.await
+			.and_then(|response| {
+				serde_json::from_str::<CanonicalJsonObject>(response.pdu.get()).map_err(|e| {
+					err!(BadServerResponse(debug_warn!(
+						"Error parsing incoming event {e:?} from {backfill_server}"
+					)))
+				})
+			});
+		let pdu = match value {
+			| Ok(value) => {
+				self.services
+					.event_handler
+					.handle_incoming_pdu(backfill_server, &room_id, &event_id, value, false)
 					.boxed()
 					.await?;
 				debug!("Successfully backfilled {event_id} from {backfill_server}");
