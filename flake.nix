@@ -48,7 +48,7 @@
           pkgs.lib.makeScope pkgs.newScope (self: {
             inherit pkgs inputs;
             craneLib = (inputs.crane.mkLib pkgs).overrideToolchain (_: toolchain);
-            main = self.callPackage ./dist/nix/pkgs/main { };
+            main = self.callPackage ./pkg/nix/pkgs/main { };
             liburing = pkgs.liburing.overrideAttrs {
               # Tests weren't building
               outputs = [
