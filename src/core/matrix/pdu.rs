@@ -117,7 +117,7 @@ impl Event for Pdu {
 		if let Some(room_id) = &self.room_id {
 			room_id.clone()
 		} else {
-			let constructed_hash = "!".to_owned() + &self.event_id.as_str()[1..];
+			let constructed_hash = self.event_id.as_str().replace('$', "!");
 			RoomId::parse(&constructed_hash)
 				.expect("event ID can be indexed")
 				.to_owned()
@@ -182,7 +182,7 @@ impl Event for &Pdu {
 		if let Some(room_id) = &self.room_id {
 			room_id.clone()
 		} else {
-			let constructed_hash = "!".to_owned() + &self.event_id.as_str()[1..];
+			let constructed_hash = self.event_id.as_str().replace('$', "!");
 			RoomId::parse(&constructed_hash)
 				.expect("event ID can be indexed")
 				.to_owned()

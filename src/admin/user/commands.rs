@@ -179,7 +179,11 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 			.await
 			.is_ok_and(is_equal_to!(1))
 		{
-			self.services.admin.make_user_admin(&user_id).await?;
+			self.services
+				.admin
+				.make_user_admin(&user_id)
+				.boxed()
+				.await?;
 			warn!("Granting {user_id} admin privileges as the first user");
 		}
 	} else {
@@ -217,7 +221,9 @@ pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> 
 			.collect()
 			.await;
 
-		full_user_deactivate(self.services, &user_id, &all_joined_rooms).await?;
+		full_user_deactivate(self.services, &user_id, &all_joined_rooms)
+			.boxed()
+			.await?;
 		update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
 		update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms).await;
 		leave_all_rooms(self.services, &user_id).await;
@@ -376,7 +382,9 @@ pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> 
 						.collect()
 						.await;
 
-					full_user_deactivate(self.services, &user_id, &all_joined_rooms).await?;
+					full_user_deactivate(self.services, &user_id, &all_joined_rooms)
+						.boxed()
+						.await?;
 					update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
 					update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms)
 						.await;
@@ -776,7 +784,11 @@ pub(super) async fn make_user_admin(&self, user_id: String) -> Result {
 		"Parsed user_id must be a local user"
 	);
 
-	self.services.admin.make_user_admin(&user_id).await?;
+	self.services
+		.admin
+		.make_user_admin(&user_id)
+		.boxed()
+		.await?;
 
 	self.write_str(&format!("{user_id} has been granted admin privileges.",))
 		.await

@@ -425,6 +425,7 @@ impl Service {
 			.await
 		{
 			self.handle_response_error(e, room_id, user_id, &state_lock)
+				.boxed()
 				.await
 				.unwrap_or_else(default_log);
 		}
