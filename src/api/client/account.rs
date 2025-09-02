@@ -500,7 +500,7 @@ pub(crate) async fn register_route(
 				.await
 				.is_ok_and(is_equal_to!(1))
 			{
-				services.admin.make_user_admin(&user_id).await?;
+				services.admin.make_user_admin(&user_id).boxed().await?;
 				warn!("Granting {user_id} admin privileges as the first user");
 			} else if services.config.suspend_on_register {
 				// This is not an admin, suspend them.

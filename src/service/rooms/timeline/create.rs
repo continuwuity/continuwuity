@@ -32,12 +32,13 @@ pub async fn create_hash_and_sign_event(
 	_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
 	                               * state mutex */
 ) -> Result<(PduEvent, CanonicalJsonObject)> {
+	#[allow(clippy::boxed_local)]
 	fn from_evt(
 		room_id: OwnedRoomId,
-		event_type: TimelineEventType,
-		content: Box<RawValue>,
+		event_type: &TimelineEventType,
+		content: &RawValue,
 	) -> Result<RoomVersionId> {
-		if event_type == TimelineEventType::RoomCreate {
+		if event_type == &TimelineEventType::RoomCreate {
 			let content: RoomCreateEventContent = serde_json::from_str(content.get())?;
 			Ok(content.room_version)
 		} else {
@@ -62,11 +63,11 @@ pub async fn create_hash_and_sign_event(
 			.state
 			.get_room_version(room_id)
 			.await
-			.or_else(|_| from_evt(room_id.to_owned(), event_type.clone(), content.clone()))?,
+			.or_else(|_| from_evt(room_id.to_owned(), &event_type.clone(), &content.clone()))?,
 		| None => from_evt(
 			RoomId::new(self.services.globals.server_name()),
-			event_type.clone(),
-			content.clone(),
+			&event_type.clone(),
+			&content.clone(),
 		)?,
 	};
 
