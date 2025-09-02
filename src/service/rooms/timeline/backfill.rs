@@ -38,6 +38,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 			.await
 	{
 		// Room is empty (1 user or none), there is no one that can backfill
+		debug_warn!("Room {room_id} is empty, skipping backfill");
 		return Ok(());
 	}
 
@@ -48,6 +49,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 
 	if first_pdu.0 < from {
 		// No backfill required, there are still events between them
+		debug!("No backfill required in room {room_id}, {:?} < {from}", first_pdu.0);
 		return Ok(());
 	}
 
