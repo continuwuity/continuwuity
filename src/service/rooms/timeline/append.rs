@@ -34,6 +34,7 @@ use crate::{appservice::NamespaceRegex, rooms::state_compressor::CompressedState
 /// the server that sent the event.
 #[implement(super::Service)]
 #[tracing::instrument(level = "debug", skip_all)]
+#[allow(clippy::too_many_arguments)]
 pub async fn append_incoming_pdu<'a, Leaves>(
 	&'a self,
 	pdu: &'a PduEvent,

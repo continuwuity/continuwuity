@@ -153,6 +153,7 @@ pub fn auth_types_for_event(
 		event_id = incoming_event.event_id().as_str(),
 	)
 )]
+#[allow(clippy::suspicious_operation_groupings)]
 pub async fn auth_check<E, F, Fut>(
 	room_version: &RoomVersion,
 	incoming_event: &E,
