@@ -9,24 +9,11 @@
 
 </details>
 
-## Debian systemd unit file
+## systemd unit file
 
 <details>
-<summary>Debian systemd unit file</summary>
+<summary>systemd unit file</summary>
 
 ```
-{{#include ../../debian/conduwuit.service}}
+{{#include ../../dist/conduwuit.service}}
 ```
-
-</details>
-
-## Arch Linux systemd unit file
-
-<details>
-<summary>Arch Linux systemd unit file</summary>
-
-```
-{{#include ../../arch/conduwuit.service}}
-```
-
-</details>

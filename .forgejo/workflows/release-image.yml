@@ -10,7 +10,7 @@ on:
       - ".gitlab-ci.yml"
       - ".gitignore"
       - "renovate.json"
-      - "debian/**"
+      - "dist/**"
       - "docker/**"
       - "docs/**"
   # Allows you to run this workflow manually from the Actions tab

@@ -1,1 +1,1 @@
-{{#include ../../debian/README.md}}
+{{#include ../../dist/debian/README.md}}

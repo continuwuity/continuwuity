@@ -51,7 +51,7 @@ find .cargo/registry/ -executable -name "*.rs" -exec chmod -x {} +
 
 %install
 install -Dpm0755 target/rpm/conduwuit -t %{buildroot}%{_bindir}
-install -Dpm0644 fedora/conduwuit.service -t %{buildroot}%{_unitdir}
+install -Dpm0644 dist/conduwuit.service -t %{buildroot}%{_unitdir}
 install -Dpm0644 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/conduwuit.toml
 
 %files

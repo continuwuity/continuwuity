@@ -1,33 +1,24 @@
 [Unit]
-
 Description=Continuwuity - Matrix homeserver
+Documentation=https://continuwuity.org/
 Wants=network-online.target
 After=network-online.target
-Documentation=https://continuwuity.org/
-RequiresMountsFor=/var/lib/private/conduwuit
 Alias=matrix-conduwuit.service
 
 [Service]
 DynamicUser=yes
+User=conduwuit
+Group=conduwuit
 Type=notify-reload
 ReloadSignal=SIGUSR1
 
-TTYPath=/dev/tty25
-DeviceAllow=char-tty
-StandardInput=tty-force
-StandardOutput=tty
-StandardError=journal+console
+Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
 
 Environment="CONTINUWUITY_LOG_TO_JOURNALD=true"
 Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
 Environment="CONTINUWUITY_DATABASE_PATH=/var/lib/conduwuit"
 
-TTYReset=yes
-# uncomment to allow buffer to be cleared every restart
-TTYVTDisallocate=no
-
-TTYColumns=120
-TTYRows=40
+ExecStart=/usr/bin/conduwuit
 
 AmbientCapabilities=
 CapabilityBoundingSet=
@@ -60,17 +51,12 @@ SystemCallArchitectures=native
 SystemCallFilter=@system-service @resources
 SystemCallFilter=~@clock @debug @module @mount @reboot @swap @cpu-emulation @obsolete @timer @chown @setuid @privileged @keyring @ipc
 SystemCallErrorNumber=EPERM
-StateDirectory=conduwuit
 
+StateDirectory=conduwuit
+ConfigurationDirectory=conduwuit
 RuntimeDirectory=conduwuit
 RuntimeDirectoryMode=0750
 
-Environment=CONTINUWUITY_CONFIG=%d/config.toml
-LoadCredential=config.toml:/etc/conduwuit/conduwuit.toml
-BindPaths=/var/lib/private/conduwuit:/var/lib/matrix-conduit
-BindPaths=/var/lib/private/conduwuit:/var/lib/private/matrix-conduit
-
-ExecStart=/usr/bin/conduwuit
 Restart=on-failure
 RestartSec=5
 
