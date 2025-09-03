@@ -452,7 +452,7 @@ async fn get_statediff(&self, shortstatehash: ShortStateHash) -> Result<StateDif
 		.ok()
 		.take_if(|parent| *parent != 0);
 
-	debug_assert!(value.len() % STRIDE == 0, "value not aligned to stride");
+	debug_assert!(value.len().is_multiple_of(STRIDE), "value not aligned to stride");
 	let _num_values = value.len() / STRIDE;
 
 	let mut add_mode = true;
