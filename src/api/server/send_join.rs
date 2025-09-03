@@ -1,6 +1,6 @@
 #![allow(deprecated)]
 
-use std::{borrow::Borrow, time::Instant};
+use std::{borrow::Borrow, time::Instant, vec};
 
 use axum::extract::State;
 use conduwuit::{
@@ -258,17 +258,17 @@ async fn create_join_event(
 		.rooms
 		.auth_chain
 		.event_ids_iter(room_id, starting_events)
-		.broad_filter_map(|event_id| async {
-			if omit_members && event_id.as_ref().is_ok_and(|e| state_ids.contains(e)) {
-				// Don't include this event if it's already in the state
-				trace!(
-					"omitting member event {event_id:?} from returned auth chain as it is \
-					 already in state"
-				);
-				return None;
-			}
-			Some(event_id)
-		})
+		// .broad_filter_map(|event_id| async {
+		// 	if omit_members && event_id.as_ref().is_ok_and(|e| state_ids.contains(e)) {
+		// 		// Don't include this event if it's already in the state
+		// 		trace!(
+		// 			"omitting member event {event_id:?} from returned auth chain as it is \
+		// 			 already in state"
+		// 		);
+		// 		return None;
+		// 	}
+		// 	Some(event_id)
+		// })
 		.broad_and_then(|event_id| async move {
 			services.rooms.timeline.get_pdu_json(&event_id).await
 		})
@@ -283,19 +283,24 @@ async fn create_join_event(
 		.await?;
 
 	services.sending.send_pdu_room(room_id, &pdu_id).await?;
-	let servers_in_room: Option<Vec<_>> = if omit_members {
+	let servers_in_room: Option<Vec<_>> = if !omit_members {
 		None
 	} else {
 		debug!("Fetching list of servers in room");
-		Some(
-			services
-				.rooms
-				.state_cache
-				.room_servers(room_id)
-				.map(|sn| sn.as_str().to_owned())
-				.collect()
-				.await,
-		)
+		let servers: Vec<String> = services
+			.rooms
+			.state_cache
+			.room_servers(room_id)
+			.map(|sn| sn.as_str().to_owned())
+			.collect()
+			.await;
+		// If there's no servers, just add us
+		let servers = if servers.is_empty() {
+			vec![services.globals.server_name().to_string()]
+		} else {
+			servers
+		};
+		Some(servers)
 	};
 	debug!("Returning send_join data");
 	Ok(create_join_event::v2::RoomState {
