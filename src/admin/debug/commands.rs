@@ -281,15 +281,8 @@ pub(super) async fn get_remote_pdu(
 				vec![(event_id, value, room_id)]
 			};
 
-			info!("Attempting to handle event ID {event_id} as backfilled PDU");
-			self.services
-				.rooms
-				.timeline
-				.backfill_pdu(&server, response.pdu)
-				.await?;
-
 			let text = serde_json::to_string_pretty(&json)?;
-			let msg = "Got PDU from specified server and handled as backfilled";
+			let msg = "Got PDU from specified server:";
 			write!(self, "{msg}. Event body:\n```json\n{text}\n```")
 		},
 	}
