@@ -9,7 +9,7 @@ use conduwuit::{
 use futures::StreamExt;
 use ruma::{api::client::threads::get_threads, uint};
 
-use crate::Ruma;
+use crate::{Ruma, client::utils::pagination_token_to_count};
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/threads`
 pub(crate) async fn get_threads_route(
@@ -27,7 +27,7 @@ pub(crate) async fn get_threads_route(
 	let from: PduCount = body
 		.from
 		.as_deref()
-		.map(str::parse)
+		.map(pagination_token_to_count)
 		.transpose()?
 		.unwrap_or_else(PduCount::max);
 

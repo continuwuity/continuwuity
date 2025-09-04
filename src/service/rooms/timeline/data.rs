@@ -3,8 +3,7 @@ use std::{borrow::Borrow, sync::Arc};
 use conduwuit::{
 	Err, PduCount, PduEvent, Result, at, err,
 	result::{LogErr, NotFound},
-	utils,
-	utils::stream::TryReadyExt,
+	utils::{self, stream::TryReadyExt},
 };
 use database::{Database, Deserialized, Json, KeyVal, Map};
 use futures::{FutureExt, Stream, TryFutureExt, TryStreamExt, future::select_ok, pin_mut};
