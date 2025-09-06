@@ -15,7 +15,7 @@ on:
       - "docs/**"
   push:
     branches:
-      - main:
+      - main
     paths-ignore:
       - "*.md"
       - "**/*.md"
