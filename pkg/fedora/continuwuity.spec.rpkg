@@ -1,6 +1,5 @@
-# This should be run using rpkg-util: https://docs.pagure.org/rpkg-util
+# This should be run using rpkg: https://docs.pagure.org/rpkg
 # it requires Internet access and is not suitable for Fedora main repos
-# TODO: rpkg-util is no longer maintained, find a replacement
 
 Name:           continuwuity
 Version:        {{{ git_repo_version }}}
