@@ -3,7 +3,19 @@ concurrency:
   group: "release-image-${{ github.ref }}"
 
 on:
+  pull_request:
+    paths-ignore:
+      - "*.md"
+      - "**/*.md"
+      - ".gitlab-ci.yml"
+      - ".gitignore"
+      - "renovate.json"
+      - "pkg/**"
+      - "docker/**"
+      - "docs/**"
   push:
+    branches:
+      - main:
     paths-ignore:
       - "*.md"
       - "**/*.md"
