@@ -1,0 +1,389 @@
+name: Build / Fedora RPM
+
+concurrency:
+  group: "build-fedora-${{ github.ref }}"
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+    paths:
+      - 'pkg/fedora/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.forgejo/workflows/build-fedora.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: fedora-latest
+    steps:
+      - name: Detect Fedora version
+        id: fedora
+        run: |
+          VERSION=$(rpm -E %fedora)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Fedora version: $VERSION"
+
+      - name: Checkout repository with full history
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+
+      - name: Cache DNF packages
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            /var/cache/dnf
+            /var/cache/yum
+          key: dnf-fedora${{ steps.fedora.outputs.version }}-${{ hashFiles('pkg/fedora/continuwuity.spec.rpkg') }}-v1
+          restore-keys: |
+            dnf-fedora${{ steps.fedora.outputs.version }}-
+
+      - name: Cache Cargo registry
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-fedora${{ steps.fedora.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-fedora${{ steps.fedora.outputs.version }}-
+
+      - name: Cache Rust build dependencies
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/rpmbuild/BUILD/*/target/release/deps
+            ~/rpmbuild/BUILD/*/target/release/build
+            ~/rpmbuild/BUILD/*/target/release/.fingerprint
+            ~/rpmbuild/BUILD/*/target/release/incremental
+          key: rust-deps-fedora${{ steps.fedora.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            rust-deps-fedora${{ steps.fedora.outputs.version }}-
+
+      - name: Setup sccache
+        uses: https://git.tomfos.tr/tom/sccache-action@v1
+
+      - name: Configure sccache environment
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=10G" >> $GITHUB_ENV
+          # Aggressive GC since cache restores don't increment counter
+          echo "CARGO_INCREMENTAL_GC_TRIGGER=5" >> $GITHUB_ENV
+
+      - name: Install base RPM tools
+        run: |
+          dnf install -y --setopt=keepcache=1 \
+            fedora-packager \
+            python3-pip \
+            rpm-sign \
+            rpkg \
+            wget
+
+      - name: Setup build environment and build SRPM
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --global user.email "ci@continuwuity.org"
+          git config --global user.name "Continuwuity"
+
+          rpmdev-setuptree
+
+          cd "$GITHUB_WORKSPACE"
+
+          # Determine release suffix and version based on ref type and branch
+          if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
+            # Tags get clean version numbers for stable releases
+            RELEASE_SUFFIX=""
+            TAG_NAME="${{ github.ref_name }}"
+            # Extract version from tag (remove v prefix if present)
+            TAG_VERSION=$(echo "$TAG_NAME" | sed 's/^v//')
+
+            # Create spec file with tag version
+            sed -e "s/^Version:.*$/Version:        $TAG_VERSION/" \
+                -e "s/^Release:.*$/Release:        1%{?dist}/" \
+                pkg/fedora/continuwuity.spec.rpkg > continuwuity.spec.rpkg
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            # Main branch gets .dev suffix
+            RELEASE_SUFFIX=".dev"
+
+            # Replace the Release line to include our suffix
+            sed "s/^Release:.*$/Release:        1${RELEASE_SUFFIX}%{?dist}/" \
+              pkg/fedora/continuwuity.spec.rpkg > continuwuity.spec.rpkg
+          else
+            # Other branches get sanitized branch name as suffix
+            SAFE_BRANCH=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/_/g' | cut -c1-20)
+            RELEASE_SUFFIX=".${SAFE_BRANCH}"
+
+            # Replace the Release line to include our suffix
+            sed "s/^Release:.*$/Release:        1${RELEASE_SUFFIX}%{?dist}/" \
+              pkg/fedora/continuwuity.spec.rpkg > continuwuity.spec.rpkg
+          fi
+
+          rpkg srpm --outdir "$HOME/rpmbuild/SRPMS"
+
+          ls -la $HOME/rpmbuild/SRPMS/
+
+
+      - name: Install build dependencies from SRPM
+        run: |
+          SRPM=$(find "$HOME/rpmbuild/SRPMS" -name "*.src.rpm" | head -1)
+
+          if [ -z "$SRPM" ]; then
+            echo "Error: No SRPM file found"
+            exit 1
+          fi
+
+          echo "Installing build dependencies from: $(basename $SRPM)"
+          dnf builddep -y "$SRPM"
+
+      - name: Build RPM from SRPM
+        run: |
+          SRPM=$(find "$HOME/rpmbuild/SRPMS" -name "*.src.rpm" | head -1)
+
+          if [ -z "$SRPM" ]; then
+            echo "Error: No SRPM file found"
+            exit 1
+          fi
+
+          echo "Building from SRPM: $SRPM"
+
+          rpmbuild --rebuild "$SRPM" \
+            --define "_topdir $HOME/rpmbuild" \
+            --define "_sourcedir $GITHUB_WORKSPACE" \
+            --nocheck  # Skip %check section to avoid test dependencies
+
+
+      - name: Test RPM installation
+        run: |
+          # Find the main binary RPM (exclude debug and source RPMs)
+          RPM=$(find "$HOME/rpmbuild/RPMS" -name "continuwuity-*.rpm" \
+            ! -name "*debuginfo*" \
+            ! -name "*debugsource*" \
+            ! -name "*.src.rpm" | head -1)
+
+          if [ -z "$RPM" ]; then
+            echo "Error: No binary RPM file found"
+            exit 1
+          fi
+
+          echo "Testing installation of: $RPM"
+
+          # Dry run first
+          rpm -qpi "$RPM"
+          echo ""
+          rpm -qpl "$RPM"
+
+          # Actually install it
+          dnf install -y "$RPM"
+
+          # Verify installation
+          rpm -qa | grep continuwuity
+
+          # Check that the binary exists
+          [ -f /usr/bin/conduwuit ] && echo "✅ Binary installed successfully"
+          [ -f /usr/lib/systemd/system/conduwuit.service ] && echo "✅ Systemd service installed"
+          [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
+
+      - name: List built packages
+        run: |
+          echo "Binary RPMs:"
+          find "$HOME/rpmbuild/RPMS" -name "*.rpm" -type f -exec ls -la {} \;
+
+          echo ""
+          echo "Source RPMs:"
+          find "$HOME/rpmbuild/SRPMS" -name "*.rpm" -type f -exec ls -la {} \;
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+
+          find "$HOME/rpmbuild/RPMS" -name "*.rpm" -type f -exec cp {} artifacts/ \;
+          find "$HOME/rpmbuild/SRPMS" -name "*.rpm" -type f -exec cp {} artifacts/ \;
+
+          cd artifacts
+          echo "Build Information:" > BUILD_INFO.txt
+          echo "==================" >> BUILD_INFO.txt
+          echo "Git commit: ${{ github.sha }}" >> BUILD_INFO.txt
+          echo "Git branch: ${{ github.ref_name }}" >> BUILD_INFO.txt
+          echo "Build date: $(date -u +%Y-%m-%d_%H:%M:%S_UTC)" >> BUILD_INFO.txt
+          echo "" >> BUILD_INFO.txt
+          echo "Package contents:" >> BUILD_INFO.txt
+          echo "-----------------" >> BUILD_INFO.txt
+          for rpm in *.rpm; do
+            echo "" >> BUILD_INFO.txt
+            echo "File: $rpm" >> BUILD_INFO.txt
+            rpm -qpi "$rpm" 2>/dev/null | grep -E "^(Name|Version|Release|Architecture|Size)" >> BUILD_INFO.txt
+          done
+
+          ls -la
+
+      - name: Upload binary RPM artifact
+        run: |
+          # Find the main binary RPM (exclude debug and source RPMs)
+          BIN_RPM=$(find artifacts -name "continuwuity-*.rpm" \
+            ! -name "*debuginfo*" \
+            ! -name "*debugsource*" \
+            ! -name "*.src.rpm" \
+            -type f)
+
+          mkdir -p upload-bin
+          cp $BIN_RPM upload-bin/
+
+      - name: Upload binary RPM
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity
+          path: upload-bin/
+
+      - name: Upload debug RPM artifact
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity-debug
+          path: artifacts/*debuginfo*.rpm
+
+      - name: Publish to RPM Package Registry
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          # Find the main binary RPM (exclude debug and source RPMs)
+          RPM=$(find artifacts -name "continuwuity-*.rpm" \
+            ! -name "*debuginfo*" \
+            ! -name "*debugsource*" \
+            ! -name "*.src.rpm" \
+            -type f | head -1)
+
+          if [ -z "$RPM" ]; then
+            echo "No binary RPM found to publish"
+            exit 0
+          fi
+
+          RPM_BASENAME=$(basename "$RPM")
+          echo "Publishing: $RPM_BASENAME"
+
+          # Determine the group based on ref type and branch
+          if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
+            GROUP="stable"
+            # For tags, extract the tag name for version info
+            TAG_NAME="${{ github.ref_name }}"
+          elif [ "${{ github.ref_name }}" = "main" ]; then
+            GROUP="dev"
+          else
+            # Use sanitized branch name as group for feature branches
+            GROUP=$(echo "${{ github.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
+          fi
+
+          PACKAGE_INFO=$(rpm -qpi "$RPM" 2>/dev/null)
+          PACKAGE_NAME=$(echo "$PACKAGE_INFO" | grep "^Name" | awk '{print $3}')
+          PACKAGE_VERSION=$(echo "$PACKAGE_INFO" | grep "^Version" | awk '{print $3}')
+          PACKAGE_RELEASE=$(echo "$PACKAGE_INFO" | grep "^Release" | awk '{print $3}')
+          PACKAGE_ARCH=$(echo "$PACKAGE_INFO" | grep "^Architecture" | awk '{print $2}')
+
+          # Full version includes release
+          FULL_VERSION="${PACKAGE_VERSION}-${PACKAGE_RELEASE}"
+
+          # Forgejo's RPM registry cannot overwrite existing packages, so we must delete first
+          # 404 is OK if package doesn't exist yet
+          echo "Removing any existing package: $PACKAGE_NAME-$FULL_VERSION.$PACKAGE_ARCH"
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+            -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+            "https://forgejo.ellis.link/api/packages/continuwuation/rpm/$GROUP/package/$PACKAGE_NAME/$FULL_VERSION/$PACKAGE_ARCH")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+          if [ "$HTTP_CODE" != "204" ] && [ "$HTTP_CODE" != "404" ]; then
+            echo "ERROR: Failed to delete package (HTTP $HTTP_CODE)"
+            echo "$RESPONSE" | head -n -1
+            exit 1
+          fi
+
+          curl --fail-with-body \
+            -X PUT \
+            -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/x-rpm" \
+            -T "$RPM" \
+            "https://forgejo.ellis.link/api/packages/continuwuation/rpm/$GROUP/upload"
+
+          echo ""
+          echo "✅ Published binary RPM to: https://forgejo.ellis.link/continuwuation/-/packages/rpm/continuwuity/"
+          echo "Group: $GROUP"
+
+          # Upload debug RPMs to separate group
+          DEBUG_RPMS=$(find artifacts -name "*debuginfo*.rpm")
+          if [ -n "$DEBUG_RPMS" ]; then
+            echo ""
+            echo "Publishing debug RPMs to group: ${GROUP}-debug"
+
+            for DEBUG_RPM in $DEBUG_RPMS; do
+              echo "Publishing: $(basename "$DEBUG_RPM")"
+
+              DEBUG_INFO=$(rpm -qpi "$DEBUG_RPM" 2>/dev/null)
+              DEBUG_NAME=$(echo "$DEBUG_INFO" | grep "^Name" | awk '{print $3}')
+              DEBUG_VERSION=$(echo "$DEBUG_INFO" | grep "^Version" | awk '{print $3}')
+              DEBUG_RELEASE=$(echo "$DEBUG_INFO" | grep "^Release" | awk '{print $3}')
+              DEBUG_ARCH=$(echo "$DEBUG_INFO" | grep "^Architecture" | awk '{print $2}')
+              DEBUG_FULL_VERSION="${DEBUG_VERSION}-${DEBUG_RELEASE}"
+
+              # Must delete existing package first (Forgejo limitation)
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+                -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+                "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-debug/package/$DEBUG_NAME/$DEBUG_FULL_VERSION/$DEBUG_ARCH")
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+              if [ "$HTTP_CODE" != "204" ] && [ "$HTTP_CODE" != "404" ]; then
+                echo "ERROR: Failed to delete debug package (HTTP $HTTP_CODE)"
+                echo "$RESPONSE" | head -n -1
+                exit 1
+              fi
+
+              curl --fail-with-body \
+                -X PUT \
+                -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+                -H "Content-Type: application/x-rpm" \
+                -T "$DEBUG_RPM" \
+                "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-debug/upload"
+            done
+
+            echo "✅ Published debug RPMs to group: ${GROUP}-debug"
+          fi
+
+          # Also upload the SRPM to separate group
+          SRPM=$(find artifacts -name "*.src.rpm" | head -1)
+          if [ -n "$SRPM" ]; then
+            echo ""
+            echo "Publishing source RPM: $(basename "$SRPM")"
+            echo "Publishing to group: ${GROUP}-src"
+
+            SRPM_INFO=$(rpm -qpi "$SRPM" 2>/dev/null)
+            SRPM_NAME=$(echo "$SRPM_INFO" | grep "^Name" | awk '{print $3}')
+            SRPM_VERSION=$(echo "$SRPM_INFO" | grep "^Version" | awk '{print $3}')
+            SRPM_RELEASE=$(echo "$SRPM_INFO" | grep "^Release" | awk '{print $3}')
+            SRPM_FULL_VERSION="${SRPM_VERSION}-${SRPM_RELEASE}"
+
+            # Must delete existing SRPM first (Forgejo limitation)
+            echo "Removing any existing SRPM: $SRPM_NAME-$SRPM_FULL_VERSION.src"
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X DELETE \
+              -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+              "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-src/package/$SRPM_NAME/$SRPM_FULL_VERSION/src")
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+
+            if [ "$HTTP_CODE" != "204" ] && [ "$HTTP_CODE" != "404" ]; then
+              echo "ERROR: Failed to delete SRPM (HTTP $HTTP_CODE)"
+              echo "$RESPONSE" | head -n -1
+              exit 1
+            fi
+
+            curl --fail-with-body \
+              -X PUT \
+              -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+              -H "Content-Type: application/x-rpm" \
+              -T "$SRPM" \
+              "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-src/upload"
+
+            echo "✅ Published source RPM to group: ${GROUP}-src"
+          fi
