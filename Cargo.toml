@@ -423,9 +423,12 @@ version = "0.31.0"
 version = "0.30.0"
 features = ["rt-tokio"]
 
-[workspace.dependencies.opentelemetry-jaeger]
-version = "0.22.0"
-features = ["rt-tokio"]
+[workspace.dependencies.opentelemetry-otlp]
+version = "0.30.0"
+features = ["http", "trace", "logs", "metrics"]
+
+[workspace.dependencies.opentelemetry-jaeger-propagator]
+version = "0.30.0"
 
 # optional sentry metrics for crash/panic reporting
 [workspace.dependencies.sentry]
@@ -763,25 +766,6 @@ incremental = true
 #]
 
 [profile.dev.package.conduwuit_core]
-inherits = "dev"
-#rustflags = [
-#	'--cfg', 'conduwuit_mods',
-#	'-Ztime-passes',
-#	'-Zmir-opt-level=0',
-#	'-Ztls-model=initial-exec',
-#	'-Cprefer-dynamic=true',
-#	'-Zstaticlib-prefer-dynamic=true',
-#	'-Zstaticlib-allow-rdylib-deps=true',
-#	'-Zpacked-bundled-libs=false',
-#	'-Zplt=true',
-#	'-Clink-arg=-Wl,--as-needed',
-#	'-Clink-arg=-Wl,--allow-shlib-undefined',
-#	'-Clink-arg=-Wl,-z,lazy',
-#	'-Clink-arg=-Wl,-z,unique',
-#	'-Clink-arg=-Wl,-z,nodlopen',
-#	'-Clink-arg=-Wl,-z,nodelete',
-#]
-[profile.dev.package.xtask-generate-commands]
 inherits = "dev"
 [profile.dev.package.conduwuit]
 inherits = "dev"

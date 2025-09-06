@@ -591,13 +591,19 @@
 #
 #default_room_version = 11
 
-# This item is undocumented. Please contribute documentation for it.
+# Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
+# Jaeger exporter. Traces will be sent via OTLP to a collector (such as
+# Jaeger) that supports the OpenTelemetry Protocol.
 #
-#allow_jaeger = false
+# Configure your OTLP endpoint using the OTEL_EXPORTER_OTLP_ENDPOINT
+# environment variable (defaults to http://localhost:4318).
+#
+#allow_otlp = false
 
-# This item is undocumented. Please contribute documentation for it.
+# Filter for OTLP tracing spans. This controls which spans are exported
+# to the OTLP collector.
 #
-#jaeger_filter = "info"
+#otlp_filter = "info"
 
 # If the 'perf_measurements' compile-time feature is enabled, enables
 # collecting folded stack trace profile of tracing spans using

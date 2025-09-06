@@ -126,7 +126,8 @@ perf_measurements = [
 	"dep:tracing-flame",
 	"dep:tracing-opentelemetry",
 	"dep:opentelemetry_sdk",
-	"dep:opentelemetry-jaeger",
+	"dep:opentelemetry-otlp",
+	"dep:opentelemetry-jaeger-propagator",
 	"conduwuit-core/perf_measurements",
 	"conduwuit-core/sentry_telemetry",
 ]
@@ -204,10 +205,12 @@ console-subscriber.workspace = true
 const-str.workspace = true
 ctor.workspace = true
 log.workspace = true
-opentelemetry-jaeger.optional = true
-opentelemetry-jaeger.workspace = true
 opentelemetry.optional = true
 opentelemetry.workspace = true
+opentelemetry-otlp.optional = true
+opentelemetry-otlp.workspace = true
+opentelemetry-jaeger-propagator.optional = true
+opentelemetry-jaeger-propagator.workspace = true
 opentelemetry_sdk.optional = true
 opentelemetry_sdk.workspace = true
 sentry-tower.optional = true
@@ -226,6 +229,7 @@ tracing-opentelemetry.workspace = true
 tracing-subscriber.workspace = true
 tracing.workspace = true
 tracing-journald = { workspace = true, optional = true }
+
 
 [target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]
 hardened_malloc-rs.workspace = true

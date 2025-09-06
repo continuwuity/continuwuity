@@ -714,12 +714,21 @@ pub struct Config {
 	#[serde(default)]
 	pub well_known: WellKnownConfig,
 
-	#[serde(default)]
-	pub allow_jaeger: bool,
+	/// Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
+	/// Jaeger exporter. Traces will be sent via OTLP to a collector (such as
+	/// Jaeger) that supports the OpenTelemetry Protocol.
+	///
+	/// Configure your OTLP endpoint using the OTEL_EXPORTER_OTLP_ENDPOINT
+	/// environment variable (defaults to http://localhost:4318).
+	#[serde(default, alias = "allow_jaeger")]
+	pub allow_otlp: bool,
 
+	/// Filter for OTLP tracing spans. This controls which spans are exported
+	/// to the OTLP collector.
+	///
 	/// default: "info"
-	#[serde(default = "default_jaeger_filter")]
-	pub jaeger_filter: String,
+	#[serde(default = "default_otlp_filter", alias = "jaeger_filter")]
+	pub otlp_filter: String,
 
 	/// If the 'perf_measurements' compile-time feature is enabled, enables
 	/// collecting folded stack trace profile of tracing spans using
@@ -2367,7 +2376,7 @@ fn default_tracing_flame_filter() -> String {
 		.to_owned()
 }
 
-fn default_jaeger_filter() -> String {
+fn default_otlp_filter() -> String {
 	cfg!(debug_assertions)
 		.then_some("trace,h2=off")
 		.unwrap_or("info")

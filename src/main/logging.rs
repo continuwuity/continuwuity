@@ -7,6 +7,8 @@ use conduwuit_core::{
 	log::{ConsoleFormat, ConsoleWriter, LogLevelReloadHandles, capture, fmt_span},
 	result::UnwrapOrErr,
 };
+#[cfg(feature = "perf_measurements")]
+use opentelemetry::trace::TracerProvider;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt, layer::SubscriberExt, reload};
 
 #[cfg(feature = "perf_measurements")]
@@ -87,30 +89,35 @@ pub(crate) fn init(
 			(None, None)
 		};
 
-		let jaeger_filter = EnvFilter::try_new(&config.jaeger_filter)
-			.map_err(|e| err!(Config("jaeger_filter", "{e}.")))?;
+		let otlp_filter = EnvFilter::try_new(&config.otlp_filter)
+			.map_err(|e| err!(Config("otlp_filter", "{e}.")))?;
 
-		let jaeger_layer = config.allow_jaeger.then(|| {
+		let otlp_layer = config.allow_otlp.then(|| {
 			opentelemetry::global::set_text_map_propagator(
-				opentelemetry_jaeger::Propagator::new(),
+				opentelemetry_jaeger_propagator::Propagator::new(),
 			);
 
-			let tracer = opentelemetry_jaeger::new_agent_pipeline()
-				.with_auto_split_batch(true)
-				.with_service_name(conduwuit_core::name())
-				.install_batch(opentelemetry_sdk::runtime::Tokio)
-				.expect("jaeger agent pipeline");
+			let exporter = opentelemetry_otlp::SpanExporter::builder()
+				.with_http()
+				.build()
+				.expect("Failed to create OTLP exporter");
+
+			let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
+				.with_batch_exporter(exporter)
+				.build();
+
+			let tracer = provider.tracer(conduwuit_core::name());
 
 			let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
-			let (jaeger_reload_filter, jaeger_reload_handle) =
-				reload::Layer::new(jaeger_filter.clone());
-			reload_handles.add("jaeger", Box::new(jaeger_reload_handle));
+			let (otlp_reload_filter, otlp_reload_handle) =
+				reload::Layer::new(otlp_filter.clone());
+			reload_handles.add("otlp", Box::new(otlp_reload_handle));
 
-			Some(telemetry.with_filter(jaeger_reload_filter))
+			Some(telemetry.with_filter(otlp_reload_filter))
 		});
 
-		let subscriber = subscriber.with(flame_layer).with(jaeger_layer);
+		let subscriber = subscriber.with(flame_layer).with(otlp_layer);
 		(subscriber, flame_guard)
 	};
 
