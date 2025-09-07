@@ -178,11 +178,6 @@ async fn create_join_event(
 		}
 	}
 
-	services
-		.server_keys
-		.hash_and_sign_event(&mut value, &room_version_id)
-		.map_err(|e| err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}")))))?;
-
 	let origin: OwnedServerName = serde_json::from_value(
 		value
 			.get("origin")
@@ -191,6 +186,12 @@ async fn create_join_event(
 			.into(),
 	)
 	.map_err(|e| err!(Request(BadJson("Event has an invalid origin server name: {e}"))))?;
+
+	trace!("Signing send_join event");
+	services
+		.server_keys
+		.hash_and_sign_event(&mut value, &room_version_id)
+		.map_err(|e| err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}")))))?;
 
 	let mutex_lock = services
 		.rooms
@@ -218,21 +219,19 @@ async fn create_join_event(
 		.collect()
 		.await;
 
-	#[allow(clippy::unnecessary_unwrap)]
+	trace!(%omit_members, "Constructing current state");
 	let state = state_ids
 		.iter()
 		.try_stream()
 		.broad_filter_map(|event_id| async move {
-			if omit_members && event_id.is_ok() {
-				let pdu = services
-					.rooms
-					.timeline
-					.get_pdu(event_id.as_ref().unwrap())
-					.await;
-				if pdu.is_ok_and(|p| p.kind().to_cow_str() == "m.room.member") {
-					trace!("omitting member event {event_id:?} from returned state");
-					// skip members
-					return None;
+			if omit_members {
+				if let Ok(e) = event_id.as_ref() {
+					let pdu = services.rooms.timeline.get_pdu(e).await;
+					if pdu.is_ok_and(|p| p.kind().to_cow_str() == "m.room.member") {
+						trace!("omitting member event {e:?} from returned state");
+						// skip members
+						return None;
+					}
 				}
 			}
 			Some(event_id)
@@ -249,6 +248,7 @@ async fn create_join_event(
 		.await?;
 
 	let starting_events = state_ids.iter().map(Borrow::borrow);
+	trace!("Constructing auth chain");
 	let auth_chain = services
 		.rooms
 		.auth_chain
@@ -265,8 +265,9 @@ async fn create_join_event(
 		.try_collect()
 		.boxed()
 		.await?;
-	info!(fast_join = %omit_members, "Sending a join for {origin} to {room_id}");
+	info!(fast_join = %omit_members, "Sending join event to other servers");
 	services.sending.send_pdu_room(room_id, &pdu_id).await?;
+	debug!("Finished sending join event");
 	let servers_in_room: Option<Vec<_>> = if !omit_members {
 		None
 	} else {
@@ -280,12 +281,10 @@ async fn create_join_event(
 			.await;
 		// If there's no servers, just add us
 		let servers = if servers.is_empty() {
-			warn!(
-				"Failed to find any servers in {room_id}, adding our own server name as a last \
-				 resort"
-			);
+			warn!("Failed to find any servers, adding our own server name as a last resort");
 			vec![services.globals.server_name().to_string()]
 		} else {
+			trace!("Found {} servers in room", servers.len());
 			servers
 		};
 		Some(servers)
