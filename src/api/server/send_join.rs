@@ -56,8 +56,10 @@ async fn create_join_event(
 
 	// We do not add the event_id field to the pdu here because of signature and
 	// hashes checks
+	trace!("Getting room version");
 	let room_version_id = services.rooms.state.get_room_version(room_id).await?;
 
+	trace!("Generating event ID and converting to canonical json");
 	let Ok((event_id, mut value)) = gen_event_id_canonical_json(pdu, &room_version_id) else {
 		// Event could not be converted to canonical json
 		return Err!(Request(BadJson("Could not convert event to canonical json.")));
@@ -106,7 +108,6 @@ async fn create_join_event(
 		)));
 	}
 
-	// ACL check sender user server name
 	let sender: OwnedUserId = serde_json::from_value(
 		value
 			.get("sender")
@@ -115,12 +116,6 @@ async fn create_join_event(
 			.into(),
 	)
 	.map_err(|e| err!(Request(BadJson(warn!("sender property is not a valid user ID: {e}")))))?;
-
-	services
-		.rooms
-		.event_handler
-		.acl_check(sender.server_name(), room_id)
-		.await?;
 
 	// check if origin server is trying to send for another server
 	if sender.server_name() != origin {
