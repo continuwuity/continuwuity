@@ -223,27 +223,23 @@ jobs:
           cache-from: type=gha
           # cache-to: type=gha,mode=max
           sbom: true
-          outputs: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || format('type=image,"name={0}",push=false', needs.define-variables.outputs.images_list) }}
+          outputs: |
+            ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || format('type=image,"name={0}",push=false', needs.define-variables.outputs.images_list) }}
+            type=local,dest=/tmp/binaries
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
 
       # For publishing multi-platform manifests
       - name: Export digest
+        if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
 
-      - name: Extract binary from container (image)
-        id: extract-binary-image
-        run: |
-          mkdir -p /tmp/binaries
-          digest="${{ steps.build.outputs.digest }}"
-          echo "container_id=$(docker create --platform ${{ matrix.platform }} ${{ needs.define-variables.outputs.images_list }}@$digest)" >> $GITHUB_OUTPUT
-      - name: Extract binary from container (copy)
-        run: docker cp ${{ steps.extract-binary-image.outputs.container_id }}:/sbin/conduwuit /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
-      - name: Extract binary from container (cleanup)
-        run: docker rm ${{ steps.extract-binary-image.outputs.container_id }}
+      # Binary extracted via local output for all builds
+      - name: Rename extracted binary
+        run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
 
       - name: Upload binary artifact
         uses: forgejo/upload-artifact@v4
