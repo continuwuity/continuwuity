@@ -63,8 +63,9 @@ pub(crate) async fn report_room_route(
 		.server_in_room(&services.server.name, &body.room_id)
 		.await
 	{
-		// return 200 as to not reveal if the room exists, preventing enumeration.
-		return Ok(report_room::v3::Response {});
+		return Err!(Request(NotFound(
+			"Room does not exist to us, no local users have joined at all"
+		)));
 	}
 
 	let report = Report {
@@ -100,12 +101,7 @@ pub(crate) async fn report_event_route(
 
 	// check if we know about the reported event ID or if it's invalid
 	let Ok(pdu) = services.rooms.timeline.get_pdu(&body.event_id).await else {
-		info!(
-			"Received event report by user {sender_user} for room {} and event ID {}, but the \
-			 event ID is not known to us or invalid.",
-			body.room_id, body.event_id
-		);
-		return Ok(report_content::v3::Response {});
+		return Err!(Request(NotFound("Event ID is not known to us or Event ID is invalid")));
 	};
 
 	is_event_report_valid(
@@ -201,8 +197,6 @@ async fn is_event_report_valid(
 		 valid"
 	);
 
-	// Followup(MSC4277): Should we return 200 regardless in this check? but just
-	// log the warning?
 	if room_id != pdu.room_id {
 		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
 	}
