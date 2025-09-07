@@ -49,10 +49,23 @@ jobs:
           cp ./docs/static/_headers ./public/_headers
           echo "Copied .well-known files and _headers to ./public"
 
+      - name: Detect runner environment
+        id: runner-env
+        uses: ./.forgejo/actions/detect-runner-os
+
       - name: Setup Node.js
+        if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'
         uses: https://github.com/actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ steps.runner-env.outputs.slug }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ steps.runner-env.outputs.slug }}-node-
 
       - name: Install dependencies
         run: npm install --save-dev wrangler@latest
