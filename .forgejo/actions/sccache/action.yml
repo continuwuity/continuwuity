@@ -2,18 +2,12 @@ name: sccache
 description: |
   Install sccache for caching builds in GitHub Actions.
 
-inputs:
-  token:
-    description: 'A Github PAT'
-    required: false
 
 runs:
   using: composite
   steps:
   - name: Install sccache
-    uses: https://github.com/mozilla-actions/sccache-action@v0.0.9
-    with:
-      token: ${{ inputs.token }}
+    uses: https://git.tomfos.tr/tom/sccache-action@v1
   - name: Configure sccache
     uses: https://github.com/actions/github-script@v7
     with:

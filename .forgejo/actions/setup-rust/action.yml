@@ -88,19 +88,9 @@ runs:
         # Shared toolchain cache across all Rust versions
         key: toolchain-${{ steps.runner-os.outputs.slug }}
 
-    - name: Debug GitHub token availability
-      shell: bash
-      run: |
-        if [ -z "${{ inputs.github-token }}" ]; then
-          echo "⚠️ No GitHub token provided - sccache will use fallback download method"
-        else
-          echo "✅ GitHub token provided for sccache"
-        fi
 
     - name: Setup sccache
-      uses: https://github.com/mozilla-actions/sccache-action@v0.0.9
-      with:
-        token: ${{ inputs.github-token }}
+      uses: https://git.tomfos.tr/tom/sccache-action@v1
 
     - name: Cache build artifacts
       id: build-cache
