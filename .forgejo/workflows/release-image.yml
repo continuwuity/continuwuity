@@ -11,7 +11,6 @@ on:
       - ".gitignore"
       - "renovate.json"
       - "pkg/**"
-      - "docker/**"
       - "docs/**"
   push:
     branches:
@@ -23,7 +22,6 @@ on:
       - ".gitignore"
       - "renovate.json"
       - "pkg/**"
-      - "docker/**"
       - "docs/**"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -199,7 +197,7 @@ jobs:
           context: .
           file: "docker/Dockerfile"
           build-args: |
-            GIT_COMMIT_HASH=${{ github.sha }})
+            GIT_COMMIT_HASH=${{ github.sha }}
             GIT_COMMIT_HASH_SHORT=${{ env.COMMIT_SHORT_SHA }}
             GIT_REMOTE_URL=${{github.event.repository.html_url }}
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}

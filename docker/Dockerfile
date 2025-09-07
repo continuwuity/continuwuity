@@ -199,32 +199,57 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
 EOF
 
 # Extract dynamically linked dependencies
-RUN <<EOF
+RUN <<'DEPS_EOF'
     set -o xtrace
-    mkdir /out/libs
-    mkdir /out/libs-root
+    mkdir /out/libs /out/libs-root
+
+    # Process each binary
     for BINARY in /out/sbin/*; do
-        lddtree "$BINARY" | awk '{print $(NF-0) " " $1}' | sort -u -k 1,1 | awk '{print "install", "-D", $1, (($2 ~ /^\//) ? "/out/libs-root" $2 : "/out/libs/" $2)}' | xargs -I {} sh -c {}
+        if lddtree_output=$(lddtree "$BINARY" 2>/dev/null) && [ -n "$lddtree_output" ]; then
+            echo "$lddtree_output" | awk '{print $(NF-0) " " $1}' | sort -u -k 1,1 | \
+                awk '{dest = ($2 ~ /^\//) ? "/out/libs-root" $2 : "/out/libs/" $2; print "install -D " $1 " " dest}' | \
+                while read cmd; do eval "$cmd"; done
+        fi
     done
-EOF
+
+    # Show what will be copied to runtime
+    echo "=== Libraries being copied to runtime image:"
+    find /out/libs* -type f 2>/dev/null | sort || echo "No libraries found"
+DEPS_EOF
+
+FROM ubuntu:latest AS prepper
+
+# Create layer structure
+RUN mkdir -p /layer1/etc/ssl/certs \
+             /layer2/usr/lib \
+             /layer3/sbin /layer3/sbom
+
+# Copy SSL certs and root-path libraries to layer1 (ultra-stable)
+COPY --from=base /etc/ssl/certs /layer1/etc/ssl/certs
+COPY --from=builder /out/libs-root/ /layer1/
+
+# Copy application libraries to layer2 (semi-stable)
+COPY --from=builder /out/libs/ /layer2/usr/lib/
+
+# Copy binaries and SBOM to layer3 (volatile)
+COPY --from=builder /out/sbin/ /layer3/sbin/
+COPY --from=builder /out/sbom/ /layer3/sbom/
+
+# Fix permissions after copying
+RUN chmod -R 755 /layer1 /layer2 /layer3
 
 FROM scratch
 
 WORKDIR /
 
-# Copy root certs for tls into image
-# You can also mount the certs from the host
-# --volume /etc/ssl/certs:/etc/ssl/certs:ro
-COPY --from=base /etc/ssl/certs /etc/ssl/certs
+# Copy ultra-stable layer (SSL certs, system libraries)
+COPY --from=prepper /layer1/ /
 
-# Copy our build
-COPY --from=builder /out/sbin/ /sbin/
-# Copy SBOM
-COPY --from=builder /out/sbom/ /sbom/
+# Copy semi-stable layer (application libraries)
+COPY --from=prepper /layer2/ /
 
-# Copy dynamic libraries to root
-COPY --from=builder /out/libs-root/ /
-COPY --from=builder /out/libs/ /usr/lib/
+# Copy volatile layer (binaries, SBOM)
+COPY --from=prepper /layer3/ /
 
 # Inform linker where to find libraries
 ENV LD_LIBRARY_PATH=/usr/lib
