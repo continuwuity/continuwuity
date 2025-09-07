@@ -204,7 +204,7 @@ async fn create_join_event(
 		.lock(room_id)
 		.await;
 
-	debug!("Acquired send_join mutex, persisting join event");
+	trace!("Acquired send_join mutex, persisting join event");
 	let pdu_id = services
 		.rooms
 		.event_handler
@@ -214,7 +214,7 @@ async fn create_join_event(
 		.ok_or_else(|| err!(Request(InvalidParam("Could not accept as timeline event."))))?;
 
 	drop(mutex_lock);
-	debug!("Fetching current state IDs");
+	trace!("Fetching current state IDs");
 	let state_ids: Vec<OwnedEventId> = services
 		.rooms
 		.state_accessor
@@ -258,17 +258,6 @@ async fn create_join_event(
 		.rooms
 		.auth_chain
 		.event_ids_iter(room_id, starting_events)
-		// .broad_filter_map(|event_id| async {
-		// 	if omit_members && event_id.as_ref().is_ok_and(|e| state_ids.contains(e)) {
-		// 		// Don't include this event if it's already in the state
-		// 		trace!(
-		// 			"omitting member event {event_id:?} from returned auth chain as it is \
-		// 			 already in state"
-		// 		);
-		// 		return None;
-		// 	}
-		// 	Some(event_id)
-		// })
 		.broad_and_then(|event_id| async move {
 			services.rooms.timeline.get_pdu_json(&event_id).await
 		})
@@ -281,12 +270,12 @@ async fn create_join_event(
 		.try_collect()
 		.boxed()
 		.await?;
-
+	info!(fast_join = %omit_members, "Sending a join for {origin} to {room_id}");
 	services.sending.send_pdu_room(room_id, &pdu_id).await?;
 	let servers_in_room: Option<Vec<_>> = if !omit_members {
 		None
 	} else {
-		debug!("Fetching list of servers in room");
+		trace!("Fetching list of servers in room");
 		let servers: Vec<String> = services
 			.rooms
 			.state_cache
@@ -296,6 +285,10 @@ async fn create_join_event(
 			.await;
 		// If there's no servers, just add us
 		let servers = if servers.is_empty() {
+			warn!(
+				"Failed to find any servers in {room_id}, adding our own server name as a last \
+				 resort"
+			);
 			vec![services.globals.server_name().to_string()]
 		} else {
 			servers
@@ -346,7 +339,6 @@ pub(crate) async fn create_join_event_v1_route(
 		}
 	}
 
-	info!("Providing send_join for {} in {}", body.origin(), &body.room_id);
 	let now = Instant::now();
 	let room_state = create_join_event(&services, body.origin(), &body.room_id, &body.pdu, false)
 		.boxed()
@@ -357,7 +349,7 @@ pub(crate) async fn create_join_event_v1_route(
 		event: room_state.event,
 	};
 	info!(
-		"Finished creating the send_join payload for {} in {} in {:?}",
+		"Finished sending a join for {} in {} in {:?}",
 		body.origin(),
 		&body.room_id,
 		now.elapsed()
@@ -394,14 +386,13 @@ pub(crate) async fn create_join_event_v2_route(
 		}
 	}
 
-	info!("Providing send_join for {} in {}", body.origin(), &body.room_id);
 	let now = Instant::now();
 	let room_state =
 		create_join_event(&services, body.origin(), &body.room_id, &body.pdu, body.omit_members)
 			.boxed()
 			.await?;
 	info!(
-		"Finished creating the send_join payload for {} in {} in {:?}",
+		"Finished sending a join for {} in {} in {:?}",
 		body.origin(),
 		&body.room_id,
 		now.elapsed()
