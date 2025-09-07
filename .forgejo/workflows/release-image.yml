@@ -249,6 +249,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload digest
+        if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
         uses: forgejo/upload-artifact@v4
         with:
           name: digests-${{ matrix.slug }}
