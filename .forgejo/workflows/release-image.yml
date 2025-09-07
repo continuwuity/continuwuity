@@ -101,6 +101,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install rust
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         id: rust-toolchain
         uses: ./.forgejo/actions/rust-toolchain
 
@@ -111,6 +112,7 @@ jobs:
           driver: ${{ env.BUILDKIT_ENDPOINT != '' && 'remote' || 'docker-container' }}
           endpoint: ${{ env.BUILDKIT_ENDPOINT || '' }}
       - name: Set up QEMU
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         uses: docker/setup-qemu-action@v3
       # Uses the `docker/login-action` action to log in to the Container registry registry using the account and password that will publish the packages. Once published, the packages are scoped to the account defined here.
       - name: Login to builtin registry
@@ -140,15 +142,21 @@ jobs:
         run: |
           calculatedSha=$(git rev-parse --short ${{ github.sha }})
           echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+          echo "Short SHA: $calculatedSha"
       - name: Get Git commit timestamps
-        run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
+        run: |
+          timestamp=$(git log -1 --pretty=%ct)
+          echo "TIMESTAMP=$timestamp" >> $GITHUB_ENV
+          echo "Commit timestamp: $timestamp"
 
       - uses: ./.forgejo/actions/timelord
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         with:
           key: timelord-v0
           path: .
 
       - name: Cache Rust registry
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         uses: actions/cache@v3
         with:
           path: |
@@ -158,6 +166,7 @@ jobs:
             .cargo/registry/src
           key: rust-registry-image-${{hashFiles('**/Cargo.lock') }}
       - name: Cache cargo target
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         id: cache-cargo-target
         uses: actions/cache@v3
         with:
@@ -165,6 +174,7 @@ jobs:
             cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
           key: cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
       - name: Cache apt cache
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         id: cache-apt
         uses: actions/cache@v3
         with:
@@ -172,6 +182,7 @@ jobs:
             var-cache-apt-${{ matrix.slug }}
           key: var-cache-apt-${{ matrix.slug }}
       - name: Cache apt lib
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         id: cache-apt-lib
         uses: actions/cache@v3
         with:
@@ -179,6 +190,7 @@ jobs:
             var-lib-apt-${{ matrix.slug }}
           key: var-lib-apt-${{ matrix.slug }}
       - name: inject cache into docker
+        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.3.0
         with:
           cache-map: |
