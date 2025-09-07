@@ -18,7 +18,6 @@ use ruma::{
 	events::{TimelineEventType, relation::RelationType},
 };
 
-use super::utils::{count_to_pagination_token, pagination_token_to_count as parse_token};
 use crate::Ruma;
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/relations/{eventId}/{relType}/{eventType}`
@@ -111,14 +110,14 @@ async fn paginate_relations_with_filter(
 	dir: Direction,
 ) -> Result<get_relating_events::v1::Response> {
 	let start: PduCount = from
-		.map(parse_token)
+		.map(str::parse)
 		.transpose()?
 		.unwrap_or_else(|| match dir {
 			| Direction::Forward => PduCount::min(),
 			| Direction::Backward => PduCount::max(),
 		});
 
-	let to: Option<PduCount> = to.map(parse_token).transpose()?;
+	let to: Option<PduCount> = to.map(str::parse).transpose()?;
 
 	// Use limit or else 30, with maximum 100
 	let limit: usize = limit
@@ -193,7 +192,7 @@ async fn paginate_relations_with_filter(
 			| Direction::Forward => events.last(),
 			| Direction::Backward => events.first(),
 		}
-		.map(|(count, _)| count_to_pagination_token(*count))
+		.map(|(count, _)| count.to_string())
 	} else {
 		None
 	};

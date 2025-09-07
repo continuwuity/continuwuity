@@ -35,7 +35,6 @@ use ruma::{
 };
 use tracing::warn;
 
-use super::utils::{count_to_pagination_token, pagination_token_to_count as parse_token};
 use crate::Ruma;
 
 /// list of safe and common non-state events to ignore if the user is ignored
@@ -85,14 +84,14 @@ pub(crate) async fn get_message_events_route(
 	let from: PduCount = body
 		.from
 		.as_deref()
-		.map(parse_token)
+		.map(str::parse)
 		.transpose()?
 		.unwrap_or_else(|| match body.dir {
 			| Direction::Forward => PduCount::min(),
 			| Direction::Backward => PduCount::max(),
 		});
 
-	let to: Option<PduCount> = body.to.as_deref().map(parse_token).transpose()?;
+	let to: Option<PduCount> = body.to.as_deref().map(str::parse).transpose()?;
 
 	let limit: usize = body
 		.limit
@@ -181,8 +180,8 @@ pub(crate) async fn get_message_events_route(
 		.collect();
 
 	Ok(get_message_events::v3::Response {
-		start: count_to_pagination_token(from),
-		end: next_token.map(count_to_pagination_token),
+		start: from.to_string(),
+		end: next_token.as_ref().map(PduCount::to_string),
 		chunk,
 		state,
 	})
