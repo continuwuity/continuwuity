@@ -211,7 +211,7 @@ jobs:
           cache-from: type=gha
           # cache-to: type=gha,mode=max
           sbom: true
-          outputs: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || 'type=docker' }}
+          outputs: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || format('type=image,"name={0}",push=false', needs.define-variables.outputs.images_list) }}
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
 
