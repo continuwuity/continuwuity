@@ -65,7 +65,7 @@ jobs:
           rust-version: nightly
           github-token: ${{ secrets.GH_PUBLIC_RO }}
 
-      - name: Get package revision and component
+      - name: Get package version and component
         id: package-meta
         run: |
           BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/~/-/g')
@@ -92,7 +92,10 @@ jobs:
 
       - name: Check cargo-deb version
         id: cargo-deb-version
-        run: echo "version=$(curl -s \"https://index.crates.io/ca/rg/cargo-deb\" | tail -n1 | jq -r .vers)" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(curl -s https://index.crates.io/ca/rg/cargo-deb | tail -n1 | jq -r .vers)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Latest cargo-deb version: $VERSION"
 
       - name: Cache cargo-deb installation
         id: cache-cargo-deb
@@ -105,17 +108,17 @@ jobs:
         if: steps.cache-cargo-deb.outputs.cache-hit != 'true'
         run: cargo binstall cargo-deb
 
-      - name: Run cargo-deb
-        id: cargo-deb
-        run: |
-          DEB_PATH=$(cargo deb --deb-version ${{ steps.package-meta.outputs.version }})
-          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
-
       - name: Install build dependencies
         run: |
           apt-get update -y
           # Build dependencies for rocksdb
           apt-get install -y clang liburing-dev
+
+      - name: Run cargo-deb
+        id: cargo-deb
+        run: |
+          DEB_PATH=$(cargo deb --deb-version ${{ steps.package-meta.outputs.version }})
+          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
 
       - name: Test deb installation
         run: |
