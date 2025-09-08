@@ -70,7 +70,7 @@ jobs:
             package-cache-
 
       - name: Self-hosted Renovate
-        uses: https://github.com/renovatebot/github-action@v43.0.9
+        uses: https://github.com/renovatebot/github-action@v43.0.11
         env:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
           RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
