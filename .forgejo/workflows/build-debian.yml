@@ -96,7 +96,7 @@ jobs:
       - name: Run cargo-deb
         id: cargo_deb
         run: |
-          DEB_PATH=$(cargo deb --deb-revision ${{ steps.package_meta.output.revision }})
+          DEB_PATH=$(cargo deb --deb-revision ${{ steps.package_meta.outputs.revision }})
           echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
 
       - name: Test deb installation
