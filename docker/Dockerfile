@@ -60,6 +60,7 @@ RUN <<EOF
     curl --retry 5 -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
     cargo binstall --no-confirm cargo-sbom --version $CARGO_SBOM_VERSION
     cargo binstall --no-confirm lddtree --version $LDDTREE_VERSION
+    cargo binstall --no-confirm timelord-cli@3.0.1
 EOF
 
 # Set up xx (cross-compilation scripts)
@@ -81,8 +82,9 @@ RUN rustc --version \
     && xx-cargo --setup-target-triple
 
 # Build binary
-# We disable incremental compilation to save disk space, as it only produces a minimal speedup for this case.
-RUN echo "CARGO_INCREMENTAL=0" >> /etc/environment
+# Configure incremental compilation based on build context
+ARG CARGO_INCREMENTAL=0
+RUN echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL}" >> /etc/environment
 
 # Configure pkg-config
 RUN <<EOF
@@ -132,6 +134,14 @@ FROM toolchain AS builder
 
 # Get source
 COPY . .
+
+# Restore timestamps from timelord cache if available
+RUN if [ -f /app/timelord/timelord.db ]; then \
+        echo "Restoring timestamps from timelord cache"; \
+        timelord sync --source-dir /app --cache-dir /app/timelord; \
+    else \
+        echo "No timelord cache found, timestamps will be build time"; \
+    fi
 
 ARG TARGETPLATFORM
 

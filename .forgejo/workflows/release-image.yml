@@ -150,10 +150,18 @@ jobs:
           echo "Commit timestamp: $timestamp"
 
       - uses: ./.forgejo/actions/timelord
-        if: ${{ env.BUILDKIT_ENDPOINT == '' }}
-        with:
-          key: timelord-v0
-          path: .
+        id: timelord
+
+      - name: Copy timelord cache to workspace
+        shell: bash
+        run: |
+          mkdir -p ./timelord
+          if [ -d "${{ steps.timelord.outputs.database-path }}" ]; then
+            cp -r "${{ steps.timelord.outputs.database-path }}"/* ./timelord/
+            echo "Copied timelord cache to workspace"
+          else
+            echo "No timelord cache to copy"
+          fi
 
       - name: Cache Rust registry
         if: ${{ env.BUILDKIT_ENDPOINT == '' }}
@@ -217,6 +225,7 @@ jobs:
             GIT_COMMIT_HASH_SHORT=${{ env.COMMIT_SHORT_SHA }}
             GIT_REMOTE_URL=${{github.event.repository.html_url }}
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
+            CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
