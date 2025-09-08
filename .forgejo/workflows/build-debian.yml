@@ -1,0 +1,111 @@
+name: Build / Debian DEB
+
+concurrency:
+  group: "build-debian-${{ github.ref }}"
+  cancel-in-progress: true
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
+    paths:
+      - 'pkg/debian/**'
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.forgejo/workflows/build-debian.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: debian-latest
+
+    steps:
+      - name: Get Debian version
+        id: debian_version
+        run: |
+          VERSION=$(cat /etc/debian_version)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Debian version: $VERSION"
+
+      - name: Checkout repository with full history
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout repository with full history
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Cargo registry
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-debian${{ steps.debian_version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-debian${{ steps.debian_version.outputs.version }}-
+
+      - name: Cache Rust build dependencies
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/rpmbuild/BUILD/*/target/release/deps
+            ~/rpmbuild/BUILD/*/target/release/build
+            ~/rpmbuild/BUILD/*/target/release/.fingerprint
+            ~/rpmbuild/BUILD/*/target/release/incremental
+          key: rust-deps-debian${{ steps.debian_version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            rust-deps-debian${{ steps.debian_version.outputs.version }}-
+
+      - name: Setup sccache
+        uses: https://git.tomfos.tr/tom/sccache-action@v1
+
+      - name: Configure sccache environment
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=10G" >> $GITHUB_ENV
+          # Aggressive GC since cache restores don't increment counter
+          echo "CARGO_INCREMENTAL_GC_TRIGGER=5" >> $GITHUB_ENV
+
+      - name: Setup Rust nightly
+        uses: ./.forgejo/actions/setup-rust
+        with:
+          rust-version: nightly
+          github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Install build dependencies
+        run: |
+          cargo install cargo-deb
+          # Build dependencies for rocksdb
+          apt install -y clang liburing-dev
+
+      - name: Run cargo-deb
+        id: cargo_deb
+        run: |
+          cargo deb >> $DEB_PATH
+          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
+
+      - name: Test deb installation
+        run: |
+          echo "Installing: ${{ steps.cargo_deb.outputs.path }}"
+
+          apt install -y ${{ steps.cargo_deb.outputs.path }}
+
+          apt info continuwuity
+
+          [ -f /usr/bin/conduwuit ] && echo "✅ Binary installed successfully"
+          [ -f /usr/lib/systemd/system/conduwuit.service ] && echo "✅ Systemd service installed"
+          [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
+
+      - name: Upload deb artifact
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity
+          path: ${{ steps.cargo_deb.outputs.path }}
