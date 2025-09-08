@@ -76,7 +76,7 @@ jobs:
             VERSION=$BASE_VERSION
           else
             SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
-            DATE=$(date +%Y%M%d)
+            DATE=$(date +%Y%m%d)
             if [ "${{ forge.ref_name }}" = "main" ]; then
               COMPONENT="dev"
             else
