@@ -33,25 +33,29 @@ jobs:
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
 
       - name: Get package revision and component
-        id: package_meta
+        id: package-meta
         run: |
-          # REVISION is appended to the package version, COMPONENT is used in
+          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/~/-/g')
+          # VERSION is the package version, COMPONENT is used in
           # apt's repository config like a git repo branch
           if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
             COMPONENT="stable"
-            REVISION="stable"
-          elif [ "${{ forge.ref_name }}" = "main" ]; then
-            COMPONENT="dev"
-            REVISION="dev"
+            VERSION=$BASE_VERSION
           else
-            # Use sanitized ref name for the component
-            COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
-            # and use SHA for the revision
-            REVISION=${{ forge.sha }}
+            SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
+            DATE=$(date +%Y%M%d)
+            if [ "${{ forge.ref_name }}" = "main" ]; then
+              COMPONENT="dev"
+            else
+              # Use sanitized ref name for the component
+              COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
+            fi
+            VERSION="$BASE_VERSION~git$DATE.$SHA-$COMPONENT"
           fi
           echo "component=$COMPONENT" >> $GITHUB_OUTPUT
-          echo "revision=$REVISION" >> $GITHUB_OUTPUT
-          echo "Target component: $COMPONENT revision $REVISION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Component: $COMPONENT"
+          echo "Version: $VERSION"
 
       - name: Checkout repository with full history
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -86,24 +90,38 @@ jobs:
           rust-version: nightly
           github-token: ${{ secrets.GH_PUBLIC_RO }}
 
+      - name: Check cargo-deb version
+        id: cargo-deb-version
+        run: echo "version=$(curl -s \"https://index.crates.io/ca/rg/cargo-deb\" | tail -n1 | jq -r .vers)" >> $GITHUB_OUTPUT
+
+      - name: Cache cargo-deb installation
+        id: cache-cargo-deb
+        uses: actions/cache@v3
+        with:
+          path: ~/.cargo/bin/cargo-deb
+          key: ${{ steps.cargo-deb-version.outputs.version }}
+
+      - name: Install cargo-deb
+        if: steps.cache-cargo-deb.outputs.cache-hit != 'true'
+        run: cargo binstall cargo-deb
+
+      - name: Run cargo-deb
+        id: cargo-deb
+        run: |
+          DEB_PATH=$(cargo deb --deb-version ${{ steps.package-meta.outputs.version }})
+          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
+
       - name: Install build dependencies
         run: |
-          cargo binstall cargo-deb
           apt-get update -y
           # Build dependencies for rocksdb
           apt-get install -y clang liburing-dev
 
-      - name: Run cargo-deb
-        id: cargo_deb
-        run: |
-          DEB_PATH=$(cargo deb --deb-revision ${{ steps.package_meta.outputs.revision }})
-          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
-
       - name: Test deb installation
         run: |
-          echo "Installing: ${{ steps.cargo_deb.outputs.path }}"
+          echo "Installing: ${{ steps.cargo-deb.outputs.path }}"
 
-          apt install -y ${{ steps.cargo_deb.outputs.path }}
+          apt install -y ${{ steps.cargo-deb.outputs.path }}
 
           apt info continuwuity
 
@@ -115,15 +133,15 @@ jobs:
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
           name: continuwuity
-          path: ${{ steps.cargo_deb.outputs.path }}
+          path: ${{ steps.cargo-deb.outputs.path }}
 
       - name: Publish to Forgejo package registry
         if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' }}
         run: |
           OWNER="continuwuation"
           DISTRIBUTION=${{ steps.debian_version.outputs.distribution }}
-          COMPONENT=${{ steps.package_meta.outputs.component }}
-          DEB=${{ steps.cargo_deb.outputs.path }}
+          COMPONENT=${{ steps.package-meta.outputs.component }}
+          DEB=${{ steps.cargo-deb.outputs.path }}
 
           echo "Publishing: $DEB in component $COMPONENT for distribution $DISTRIBUTION"
 
