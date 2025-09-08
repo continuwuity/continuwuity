@@ -30,7 +30,7 @@ jobs:
           DISTRIBUTION=$(lsb_release -sc 2>/dev/null)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
-          echo "Debian version: $VERSION $DISTRIBUTION"
+          echo "Debian distribution: $DISTRIBUTION ($VERSION)"
 
       - name: Get package revision and component
         id: package_meta
@@ -51,6 +51,7 @@ jobs:
           fi
           echo "component=$COMPONENT" >> $GITHUB_OUTPUT
           echo "revision=$REVISION" >> $GITHUB_OUTPUT
+          echo "Target component: $COMPONENT revision $REVISION"
 
       - name: Checkout repository with full history
         uses: https://code.forgejo.org/actions/checkout@v4
