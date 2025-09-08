@@ -1,7 +1,7 @@
 name: Build / Debian DEB
 
 concurrency:
-  group: "build-debian-${{ github.ref }}"
+  group: "build-debian-${{ forge.ref }}"
   cancel-in-progress: true
 
 on:
@@ -27,8 +27,30 @@ jobs:
         id: debian_version
         run: |
           VERSION=$(cat /etc/debian_version)
+          DISTRIBUTION=$(lsb_release -sc 2>/dev/null)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Debian version: $VERSION"
+          echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
+          echo "Debian version: $VERSION $DISTRIBUTION"
+
+      - name: Get package revision and component
+        id: package_meta
+        run: |
+          # REVISION is appended to the package version, COMPONENT is used in
+          # apt's repository config like a git repo branch
+          if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
+            COMPONENT="stable"
+            REVISION="stable"
+          elif [ "${{ forge.ref_name }}" = "main" ]; then
+            COMPONENT="dev"
+            REVISION="dev"
+          else
+            # Use sanitized ref name for the component
+            COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
+            # and use SHA for the revision
+            REVISION=${{ forge.sha }}
+          fi
+          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+          echo "revision=$REVISION" >> $GITHUB_OUTPUT
 
       - name: Checkout repository with full history
         uses: https://code.forgejo.org/actions/checkout@v4
@@ -73,7 +95,7 @@ jobs:
       - name: Run cargo-deb
         id: cargo_deb
         run: |
-          DEB_PATH=$(cargo deb)
+          DEB_PATH=$(cargo deb --deb-revision ${{ steps.package_meta.output.revision }})
           echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
 
       - name: Test deb installation
@@ -93,3 +115,19 @@ jobs:
         with:
           name: continuwuity
           path: ${{ steps.cargo_deb.outputs.path }}
+
+      - name: Publish to Forgejo package registry
+        if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' }}
+        run: |
+          OWNER="continuwuation"
+          DISTRIBUTION=${{ steps.debian_version.outputs.distribution }}
+          COMPONENT=${{ steps.package_meta.outputs.component }}
+          DEB=${{ steps.cargo_deb.outputs.path }}
+
+          echo "Publishing: $DEB in component $COMPONENT for distribution $DISTRIBUTION"
+
+          curl --fail-with-body \
+            -X PUT \
+            -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+            --upload-file "$DEB" \
+            "${{ forge.server_url }}/api/packages/$OWNER/debian/pool/$DISTRIBUTION/$COMPONENT/upload"
