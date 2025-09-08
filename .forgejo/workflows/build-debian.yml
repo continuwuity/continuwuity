@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: Get Debian version
-        id: debian_version
+        id: debian-version
         run: |
           VERSION=$(cat /etc/debian_version)
           DISTRIBUTION=$(lsb_release -sc 2>/dev/null)
@@ -43,9 +43,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-debian${{ steps.debian_version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-debian${{ steps.debian-version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-debian${{ steps.debian_version.outputs.version }}-
+            cargo-debian${{ steps.debian-version.outputs.version }}-
 
       - name: Setup sccache
         uses: https://git.tomfos.tr/tom/sccache-action@v1
@@ -142,7 +142,7 @@ jobs:
         if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' }}
         run: |
           OWNER="continuwuation"
-          DISTRIBUTION=${{ steps.debian_version.outputs.distribution }}
+          DISTRIBUTION=${{ steps.debian-version.outputs.distribution }}
           COMPONENT=${{ steps.package-meta.outputs.component }}
           DEB=${{ steps.cargo-deb.outputs.path }}
 
