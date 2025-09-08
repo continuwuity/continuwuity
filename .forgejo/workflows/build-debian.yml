@@ -50,18 +50,6 @@ jobs:
           restore-keys: |
             cargo-debian${{ steps.debian_version.outputs.version }}-
 
-      - name: Cache Rust build dependencies
-        uses: https://code.forgejo.org/actions/cache@v4
-        with:
-          path: |
-            ~/rpmbuild/BUILD/*/target/release/deps
-            ~/rpmbuild/BUILD/*/target/release/build
-            ~/rpmbuild/BUILD/*/target/release/.fingerprint
-            ~/rpmbuild/BUILD/*/target/release/incremental
-          key: rust-deps-debian${{ steps.debian_version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            rust-deps-debian${{ steps.debian_version.outputs.version }}-
-
       - name: Setup sccache
         uses: https://git.tomfos.tr/tom/sccache-action@v1
 
