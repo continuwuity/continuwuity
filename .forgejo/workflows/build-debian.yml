@@ -21,6 +21,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: ["debian:stable", "debian:oldstable", "ubuntu:latest"]
+    container:
+      image: ${{ matrix.container }}
 
     steps:
       - name: Get Debian version
