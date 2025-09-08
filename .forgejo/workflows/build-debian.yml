@@ -68,7 +68,7 @@ jobs:
       - name: Get package version and component
         id: package-meta
         run: |
-          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/~/-/g')
+          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/[^a-zA-Z0-9.+]/~/g')
           # VERSION is the package version, COMPONENT is used in
           # apt's repository config like a git repo branch
           if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
@@ -81,7 +81,7 @@ jobs:
               COMPONENT="dev"
             else
               # Use sanitized ref name for the component
-              COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
+              COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9.+]/~/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
             fi
             VERSION="$BASE_VERSION~git$DATE.$SHA-$COMPONENT"
           fi
