@@ -83,7 +83,7 @@ jobs:
               COMPONENT="dev"
             else
               # Use the sanitized ref name as the component for feature branches
-              COMPONENT="dev/$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9.+/]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)""
+              COMPONENT="dev/$(echo '${{ forge.ref_name }}'' | sed 's/[^a-zA-Z0-9.+/]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)"
             fi
             CLEAN_COMPONENT=$(echo $COMPONENT | sed 's/[^a-zA-Z0-9.+]/~/g')
             VERSION="$BASE_VERSION~git$DATE.$SHA-$CLEAN_COMPONENT"
