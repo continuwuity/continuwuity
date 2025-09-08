@@ -66,8 +66,9 @@ jobs:
       - name: Install build dependencies
         run: |
           cargo binstall cargo-deb
+          apt-get update -y
           # Build dependencies for rocksdb
-          apt install -y clang liburing-dev
+          apt-get install -y clang liburing-dev
 
       - name: Run cargo-deb
         id: cargo_deb
