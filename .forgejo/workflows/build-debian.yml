@@ -32,31 +32,6 @@ jobs:
           echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
 
-      - name: Get package revision and component
-        id: package-meta
-        run: |
-          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/~/-/g')
-          # VERSION is the package version, COMPONENT is used in
-          # apt's repository config like a git repo branch
-          if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
-            COMPONENT="stable"
-            VERSION=$BASE_VERSION
-          else
-            SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
-            DATE=$(date +%Y%M%d)
-            if [ "${{ forge.ref_name }}" = "main" ]; then
-              COMPONENT="dev"
-            else
-              # Use sanitized ref name for the component
-              COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
-            fi
-            VERSION="$BASE_VERSION~git$DATE.$SHA-$COMPONENT"
-          fi
-          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Component: $COMPONENT"
-          echo "Version: $VERSION"
-
       - name: Checkout repository with full history
         uses: https://code.forgejo.org/actions/checkout@v4
         with:
@@ -89,6 +64,31 @@ jobs:
         with:
           rust-version: nightly
           github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Get package revision and component
+        id: package-meta
+        run: |
+          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/~/-/g')
+          # VERSION is the package version, COMPONENT is used in
+          # apt's repository config like a git repo branch
+          if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
+            COMPONENT="stable"
+            VERSION=$BASE_VERSION
+          else
+            SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
+            DATE=$(date +%Y%M%d)
+            if [ "${{ forge.ref_name }}" = "main" ]; then
+              COMPONENT="dev"
+            else
+              # Use sanitized ref name for the component
+              COMPONENT=$(echo "${{ forge.ref_name }}" | sed 's/[^a-zA-Z0-9]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)
+            fi
+            VERSION="$BASE_VERSION~git$DATE.$SHA-$COMPONENT"
+          fi
+          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Component: $COMPONENT"
+          echo "Version: $VERSION"
 
       - name: Check cargo-deb version
         id: cargo-deb-version
