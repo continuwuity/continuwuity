@@ -35,11 +35,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Checkout repository with full history
-        uses: https://code.forgejo.org/actions/checkout@v4
-        with:
-          fetch-depth: 0
-
       - name: Cache Cargo registry
         uses: https://code.forgejo.org/actions/cache@v4
         with:
