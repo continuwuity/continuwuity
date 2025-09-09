@@ -21,6 +21,11 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: ["ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable"]
+    container:
+      image: "ghcr.io/tcpipuk/act-runner:${{ matrix.container }}"
 
     steps:
       - name: Get Debian version
