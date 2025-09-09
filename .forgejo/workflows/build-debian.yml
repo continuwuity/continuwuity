@@ -48,9 +48,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-debian${{ steps.debian-version.outputs.version }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-debian${{ steps.debian-version.outputs.version }}-
+            cargo-debian-${{ steps.debian-version.outputs.distribution }}-
 
       - name: Setup sccache
         uses: https://git.tomfos.tr/tom/sccache-action@v1
@@ -143,7 +143,7 @@ jobs:
       - name: Upload deb artifact
         uses: https://code.forgejo.org/actions/upload-artifact@v3
         with:
-          name: continuwuity
+          name: continuwuity-${{ steps.debian-version.outputs.distribution }}
           path: ${{ steps.cargo-deb.outputs.path }}
 
       - name: Publish to Forgejo package registry
