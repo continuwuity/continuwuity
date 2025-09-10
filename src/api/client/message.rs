@@ -286,11 +286,12 @@ where
 
 	if ignored_type
 		&& (ignored_server
-			|| (!services.config.send_messages_from_ignored_users_to_client
-				&& services
+			|| !(services.config.send_messages_from_ignored_users_to_client
+				|| services
 					.users
-					.user_is_ignored(event.sender(), user_id)
-					.await))
+					.user_filter_level(event.sender(), user_id)
+					.await
+					.allowed()))
 	{
 		return true;
 	}
