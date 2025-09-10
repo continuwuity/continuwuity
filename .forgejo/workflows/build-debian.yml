@@ -115,7 +115,9 @@ jobs:
 
       - name: Install cargo-deb
         if: steps.cache-cargo-deb.outputs.cache-hit != 'true'
-        run: cargo install cargo-deb
+        run: |
+          ls -alh ~/.cargo/bin
+          cargo install cargo-deb
 
       - name: Install build dependencies
         run: |
