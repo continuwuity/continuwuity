@@ -10,7 +10,10 @@ use conduwuit::{
 use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
-	events::room::member::{MembershipState, RoomMemberEventContent},
+	events::{
+		invite_permission_config::FilterLevel,
+		room::member::{MembershipState, RoomMemberEventContent},
+	},
 	serde::JsonObject,
 };
 
@@ -61,13 +64,16 @@ pub(crate) async fn create_invite_route(
 	let mut signed_event = utils::to_canonical_object(&body.event)
 		.map_err(|_| err!(Request(InvalidParam("Invite event is invalid."))))?;
 
-	let invited_user: OwnedUserId = signed_event
+	let recipient_user: OwnedUserId = signed_event
 		.get("state_key")
 		.try_into()
 		.map(UserId::to_owned)
 		.map_err(|e| err!(Request(InvalidParam("Invalid state_key property: {e}"))))?;
 
-	if !services.globals.server_is_ours(invited_user.server_name()) {
+	if !services
+		.globals
+		.server_is_ours(recipient_user.server_name())
+	{
 		return Err!(Request(InvalidParam("User does not belong to this homeserver.")));
 	}
 
@@ -75,7 +81,7 @@ pub(crate) async fn create_invite_route(
 	services
 		.rooms
 		.event_handler
-		.acl_check(invited_user.server_name(), &body.room_id)
+		.acl_check(recipient_user.server_name(), &body.room_id)
 		.await?;
 
 	services
@@ -89,19 +95,31 @@ pub(crate) async fn create_invite_route(
 	// Add event_id back
 	signed_event.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.to_string()));
 
-	let sender: &UserId = signed_event
+	let sender_user: &UserId = signed_event
 		.get("sender")
 		.try_into()
 		.map_err(|e| err!(Request(InvalidParam("Invalid sender property: {e}"))))?;
 
 	if services.rooms.metadata.is_banned(&body.room_id).await
-		&& !services.users.is_admin(&invited_user).await
+		&& !services.users.is_admin(&recipient_user).await
 	{
 		return Err!(Request(Forbidden("This room is banned on this homeserver.")));
 	}
 
-	if services.config.block_non_admin_invites && !services.users.is_admin(&invited_user).await {
+	if services.config.block_non_admin_invites && !services.users.is_admin(&recipient_user).await
+	{
 		return Err!(Request(Forbidden("This server does not allow room invites.")));
+	}
+
+	let recipient_invite_filter_level = services
+		.users
+		.invite_filter_level(sender_user, &recipient_user)
+		.await;
+
+	if matches!(recipient_invite_filter_level, FilterLevel::Block) {
+		return Err!(Request(InviteBlocked(
+			"{recipient_user} has blocked invites from {sender_user}."
+		)));
 	}
 
 	let mut invite_state = body.invite_room_state.clone();
@@ -131,9 +149,9 @@ pub(crate) async fn create_invite_route(
 			.state_cache
 			.update_membership(
 				&body.room_id,
-				&invited_user,
+				&recipient_user,
 				RoomMemberEventContent::new(MembershipState::Invite),
-				sender,
+				sender_user,
 				Some(invite_state),
 				body.via.clone(),
 				true,
@@ -141,7 +159,7 @@ pub(crate) async fn create_invite_route(
 			.await?;
 
 		for appservice in services.appservice.read().await.values() {
-			if appservice.is_user_match(&invited_user) {
+			if appservice.is_user_match(&recipient_user) {
 				services
 					.sending
 					.send_appservice_request(

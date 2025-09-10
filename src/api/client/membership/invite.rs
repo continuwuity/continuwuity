@@ -8,7 +8,10 @@ use futures::{FutureExt, join};
 use ruma::{
 	OwnedServerName, RoomId, UserId,
 	api::{client::membership::invite_user, federation::membership::create_invite},
-	events::room::member::{MembershipState, RoomMemberEventContent},
+	events::{
+		invite_permission_config::FilterLevel,
+		room::member::{MembershipState, RoomMemberEventContent},
+	},
 };
 use service::Services;
 
@@ -47,22 +50,26 @@ pub(crate) async fn invite_user_route(
 	.await?;
 
 	match &body.recipient {
-		| invite_user::v3::InvitationRecipient::UserId { user_id } => {
-			let sender_ignored_recipient = services.users.user_is_ignored(sender_user, user_id);
-			let recipient_ignored_by_sender =
-				services.users.user_is_ignored(user_id, sender_user);
+		| invite_user::v3::InvitationRecipient::UserId { user_id: recipient_user } => {
+			let sender_filter_level = services
+				.users
+				.invite_filter_level(recipient_user, sender_user);
+			let recipient_filter_level = services
+				.users
+				.invite_filter_level(sender_user, recipient_user);
 
-			let (sender_ignored_recipient, recipient_ignored_by_sender) =
-				join!(sender_ignored_recipient, recipient_ignored_by_sender);
+			let (sender_filter_level, recipient_filter_level) =
+				join!(sender_filter_level, recipient_filter_level);
 
-			if sender_ignored_recipient {
+			if !matches!(sender_filter_level, FilterLevel::Allow) {
+				// drop invites if the sender has the recipient filtered
 				return Ok(invite_user::v3::Response {});
 			}
 
 			if let Ok(target_user_membership) = services
 				.rooms
 				.state_accessor
-				.get_member(&body.room_id, user_id)
+				.get_member(&body.room_id, recipient_user)
 				.await
 			{
 				if target_user_membership.membership == MembershipState::Ban {
@@ -70,24 +77,25 @@ pub(crate) async fn invite_user_route(
 				}
 			}
 
-			if recipient_ignored_by_sender {
-				// silently drop the invite to the recipient if they've been ignored by the
-				// sender, pretend it worked
-				return Ok(invite_user::v3::Response {});
+			match recipient_filter_level {
+				| FilterLevel::Allow => {
+					invite_helper(
+						&services,
+						sender_user,
+						recipient_user,
+						&body.room_id,
+						body.reason.clone(),
+						false,
+					)
+					.boxed()
+					.await?;
+
+					Ok(invite_user::v3::Response {})
+				},
+				| FilterLevel::Ignore => Ok(invite_user::v3::Response {}),
+				| FilterLevel::Block =>
+					Err!(Request(InviteBlocked("{recipient_user} has blocked invites from you."))),
 			}
-
-			invite_helper(
-				&services,
-				sender_user,
-				user_id,
-				&body.room_id,
-				body.reason.clone(),
-				false,
-			)
-			.boxed()
-			.await?;
-
-			Ok(invite_user::v3::Response {})
 		},
 		| _ => {
 			Err!(Request(NotFound("User not found.")))
@@ -98,7 +106,7 @@ pub(crate) async fn invite_user_route(
 pub(crate) async fn invite_helper(
 	services: &Services,
 	sender_user: &UserId,
-	user_id: &UserId,
+	recipient_user: &UserId,
 	room_id: &RoomId,
 	reason: Option<String>,
 	is_direct: bool,
@@ -111,12 +119,12 @@ pub(crate) async fn invite_helper(
 		return Err!(Request(Forbidden("Invites are not allowed on this server.")));
 	}
 
-	if !services.globals.user_is_local(user_id) {
+	if !services.globals.user_is_local(recipient_user) {
 		let (pdu, pdu_json, invite_room_state) = {
 			let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
 			let content = RoomMemberEventContent {
-				avatar_url: services.users.avatar_url(user_id).await.ok(),
+				avatar_url: services.users.avatar_url(recipient_user).await.ok(),
 				is_direct: Some(is_direct),
 				reason,
 				..RoomMemberEventContent::new(MembershipState::Invite)
@@ -126,7 +134,7 @@ pub(crate) async fn invite_helper(
 				.rooms
 				.timeline
 				.create_hash_and_sign_event(
-					PduBuilder::state(user_id.to_string(), &content),
+					PduBuilder::state(recipient_user.to_string(), &content),
 					sender_user,
 					room_id,
 					&state_lock,
@@ -144,7 +152,7 @@ pub(crate) async fn invite_helper(
 
 		let response = services
 			.sending
-			.send_federation_request(user_id.server_name(), create_invite::v2::Request {
+			.send_federation_request(recipient_user.server_name(), create_invite::v2::Request {
 				room_id: room_id.to_owned(),
 				event_id: (*pdu.event_id).to_owned(),
 				room_version: room_version_id.clone(),
@@ -173,7 +181,7 @@ pub(crate) async fn invite_helper(
 			return Err!(Request(BadJson(warn!(
 				%pdu.event_id, %event_id,
 				"Server {} sent event with wrong event ID",
-				user_id.server_name()
+				recipient_user.server_name()
 			))));
 		}
 
@@ -213,9 +221,9 @@ pub(crate) async fn invite_helper(
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
 	let content = RoomMemberEventContent {
-		displayname: services.users.displayname(user_id).await.ok(),
-		avatar_url: services.users.avatar_url(user_id).await.ok(),
-		blurhash: services.users.blurhash(user_id).await.ok(),
+		displayname: services.users.displayname(recipient_user).await.ok(),
+		avatar_url: services.users.avatar_url(recipient_user).await.ok(),
+		blurhash: services.users.blurhash(recipient_user).await.ok(),
 		is_direct: Some(is_direct),
 		reason,
 		..RoomMemberEventContent::new(MembershipState::Invite)
@@ -225,7 +233,7 @@ pub(crate) async fn invite_helper(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(user_id.to_string(), &content),
+			PduBuilder::state(recipient_user.to_string(), &content),
 			sender_user,
 			room_id,
 			&state_lock,

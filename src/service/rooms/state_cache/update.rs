@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use conduwuit::{Result, implement, is_not_empty, utils::ReadyExt, warn};
+use conduwuit::{Err, Result, implement, is_not_empty, utils::ReadyExt, warn};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
@@ -9,6 +9,7 @@ use ruma::{
 		AnyStrippedStateEvent, AnySyncStateEvent, GlobalAccountDataEventType,
 		RoomAccountDataEventType, StateEventType,
 		direct::DirectEvent,
+		invite_permission_config::FilterLevel,
 		room::{
 			create::RoomCreateEventContent,
 			member::{MembershipState, RoomMemberEventContent},
@@ -121,13 +122,24 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			// We want to know if the sender is ignored by the receiver
-			if self.services.users.user_is_ignored(sender, user_id).await {
-				return Ok(());
+			match self
+				.services
+				.users
+				.invite_filter_level(sender, user_id)
+				.await
+			{
+				| FilterLevel::Allow => {
+					self.mark_as_invited(user_id, room_id, last_state, invite_via)
+						.await;
+				},
+				| FilterLevel::Ignore => {
+					// do nothing
+				},
+				| FilterLevel::Block =>
+					return Err!(Request(InviteBlocked(
+						"{user_id} has blocked invites from you."
+					))),
 			}
-
-			self.mark_as_invited(user_id, room_id, last_state, invite_via)
-				.await;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
 			self.mark_as_left(user_id, room_id);
