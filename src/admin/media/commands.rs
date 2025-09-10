@@ -360,7 +360,7 @@ pub(super) async fn get_remote_thumbnail(
 ) -> Result {
 	let mxc: Mxc<'_> = mxc.as_str().try_into()?;
 	let timeout = Duration::from_millis(timeout.into());
-	let dim = Dim::new(width, height, None);
+	let dim = Dim::new(width, height, None, None);
 	let mut result = self
 		.services
 		.media

@@ -99,7 +99,7 @@ pub(crate) async fn get_content_thumbnail_route(
 ) -> Result<get_content_thumbnail::v1::Response> {
 	let user = body.sender_user();
 
-	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
+	let dim = Dim::from_ruma(body.width, body.height, body.method.clone(), body.animated)?;
 	let mxc = Mxc {
 		server_name: &body.server_name,
 		media_id: &body.media_id,

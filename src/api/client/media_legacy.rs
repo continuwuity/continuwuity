@@ -322,7 +322,7 @@ pub(crate) async fn get_content_thumbnail_legacy_route(
 		media_id: &body.media_id,
 	};
 
-	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
+	let dim = Dim::from_ruma(body.width, body.height, body.method.clone(), body.animated)?;
 	match services.media.get_thumbnail(&mxc, &dim).await? {
 		| Some(FileMeta {
 			content,

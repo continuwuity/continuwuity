@@ -372,7 +372,7 @@ pub async fn fetch_remote_thumbnail_legacy(
 		})
 		.await?;
 
-	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
+	let dim = Dim::from_ruma(body.width, body.height, body.method.clone(), body.animated)?;
 	self.upload_thumbnail(
 		&mxc,
 		None,

@@ -16,12 +16,13 @@ use tokio::{
 
 use super::{FileMeta, data::Metadata};
 
-/// Dimension specification for a thumbnail.
+/// Dimension and format specification for a thumbnail.
 #[derive(Debug)]
 pub struct Dim {
 	pub width: u32,
 	pub height: u32,
 	pub method: Method,
+	pub animated: bool,
 }
 
 impl super::Service {
@@ -179,8 +180,14 @@ fn into_filemeta(data: Metadata, content: Vec<u8>) -> FileMeta {
 }
 
 impl Dim {
-	/// Instantiate a Dim from Ruma integers with optional method.
-	pub fn from_ruma(width: UInt, height: UInt, method: Option<Method>) -> Result<Self> {
+	/// Instantiate a Dim from Ruma integers with optional method and animation
+	/// flag.
+	pub fn from_ruma(
+		width: UInt,
+		height: UInt,
+		method: Option<Method>,
+		animated: Option<bool>,
+	) -> Result<Self> {
 		let width = width
 			.try_into()
 			.map_err(|e| err!(Request(InvalidParam("Width is invalid: {e:?}"))))?;
@@ -188,17 +195,19 @@ impl Dim {
 			.try_into()
 			.map_err(|e| err!(Request(InvalidParam("Height is invalid: {e:?}"))))?;
 
-		Ok(Self::new(width, height, method))
+		Ok(Self::new(width, height, method, animated))
 	}
 
-	/// Instantiate a Dim with optional method
+	/// Instantiate a Dim with optional method and animation flag.
 	#[inline]
 	#[must_use]
-	pub fn new(width: u32, height: u32, method: Option<Method>) -> Self {
+	pub fn new(width: u32, height: u32, method: Option<Method>, animated: Option<bool>) -> Self {
 		Self {
 			width,
 			height,
 			method: method.unwrap_or(Method::Scale),
+			// "When not provided, the server SHOULD NOT return an animated thumbnail"
+			animated: animated.unwrap_or(false),
 		}
 	}
 
@@ -229,6 +238,7 @@ impl Dim {
 			width: x,
 			height: y,
 			method: Method::Scale,
+			animated: self.animated,
 		})
 	}
 
@@ -238,11 +248,11 @@ impl Dim {
 	#[must_use]
 	pub fn normalized(&self) -> Self {
 		match (self.width, self.height) {
-			| (0..=32, 0..=32) => Self::new(32, 32, Some(Method::Crop)),
-			| (0..=96, 0..=96) => Self::new(96, 96, Some(Method::Crop)),
-			| (0..=320, 0..=240) => Self::new(320, 240, Some(Method::Scale)),
-			| (0..=640, 0..=480) => Self::new(640, 480, Some(Method::Scale)),
-			| (0..=800, 0..=600) => Self::new(800, 600, Some(Method::Scale)),
+			| (0..=32, 0..=32) => Self::new(32, 32, Some(Method::Crop), Some(self.animated)),
+			| (0..=96, 0..=96) => Self::new(96, 96, Some(Method::Crop), Some(self.animated)),
+			| (0..=320, 0..=240) => Self::new(320, 240, Some(Method::Scale), Some(self.animated)),
+			| (0..=640, 0..=480) => Self::new(640, 480, Some(Method::Scale), Some(self.animated)),
+			| (0..=800, 0..=600) => Self::new(800, 600, Some(Method::Scale), Some(self.animated)),
 			| _ => Self::default(),
 		}
 	}
@@ -260,6 +270,7 @@ impl Default for Dim {
 			width: 0,
 			height: 0,
 			method: Method::Scale,
+			animated: false,
 		}
 	}
 }
