@@ -104,6 +104,7 @@ jobs:
           VERSION=$(curl -s https://index.crates.io/ca/rg/cargo-deb | tail -n1 | jq -r .vers)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Latest cargo-deb version: $VERSION"
+          ls -alh ~/.cargo/bin
 
       - name: Cache cargo-deb installation
         id: cache-cargo-deb
