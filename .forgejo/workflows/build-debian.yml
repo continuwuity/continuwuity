@@ -123,9 +123,9 @@ jobs:
         run: |
           echo "Installing: ${{ steps.cargo-deb.outputs.path }}"
 
-          apt install -y ${{ steps.cargo-deb.outputs.path }}
+          apt-get install -y ${{ steps.cargo-deb.outputs.path }}
 
-          apt info continuwuity
+          dpkg -s continuwuity
 
           [ -f /usr/bin/conduwuit ] && echo "✅ Binary installed successfully"
           [ -f /usr/lib/systemd/system/conduwuit.service ] && echo "✅ Systemd service installed"
