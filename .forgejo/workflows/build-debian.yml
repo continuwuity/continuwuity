@@ -98,30 +98,14 @@ jobs:
           echo "Component: $COMPONENT"
           echo "Version: $VERSION"
 
-      - name: Check cargo-deb version
-        id: cargo-deb-version
-        run: |
-          VERSION=$(curl -s https://index.crates.io/ca/rg/cargo-deb | tail -n1 | jq -r .vers)
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Latest cargo-deb version: $VERSION"
-          echo ~
-          echo ${{ forge.workspace }}
-          ls -alh ~/.cargo/bin
-          ls -alh ${{ forge.workspace }}/.cargo/bin
-
-      - name: Cache cargo-deb installation
-        id: cache-cargo-deb
-        uses: actions/cache@v3
-        with:
-          path: ${{ forge.workspace }}/.cargo/bin/cargo-deb
-          key: cargo-deb-${{ steps.debian-version.outputs.distribution }}-${{ steps.cargo-deb-version.outputs.version }}
-
       - name: Install cargo-deb
-        if: steps.cache-cargo-deb.outputs.cache-hit != 'true'
         run: |
-          ls -alh ~/.cargo/bin
-          whereis cargo-deb
-          cargo install cargo-deb
+          if command -v cargo-deb &> /dev/null; then
+            echo "cargo-deb already available"
+          else
+            echo "Installing cargo-deb"
+            cargo-binstall -y --no-symlinks cargo-deb
+          fi
 
       - name: Install build dependencies
         run: |
