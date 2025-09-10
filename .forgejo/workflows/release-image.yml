@@ -152,17 +152,6 @@ jobs:
       - uses: ./.forgejo/actions/timelord
         id: timelord
 
-      - name: Copy timelord cache to workspace
-        shell: bash
-        run: |
-          mkdir -p ./timelord
-          if [ -d "${{ steps.timelord.outputs.database-path }}" ]; then
-            cp -r "${{ steps.timelord.outputs.database-path }}"/* ./timelord/
-            echo "Copied timelord cache to workspace"
-          else
-            echo "No timelord cache to copy"
-          fi
-
       - name: Cache Rust registry
         if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         uses: actions/cache@v3
@@ -210,7 +199,8 @@ jobs:
                 "id": "cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}"
               },
               "var-cache-apt-${{ matrix.slug }}": "/var/cache/apt",
-              "var-lib-apt-${{ matrix.slug }}": "/var/lib/apt"
+              "var-lib-apt-${{ matrix.slug }}": "/var/lib/apt",
+              "{{ steps.timelord.outputs.database-path }}":"/timelord"
             }
           skip-extraction: ${{ steps.cache.outputs.cache-hit }}
 
