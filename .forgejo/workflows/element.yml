@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: 📦 Setup Node.js
-        uses: https://github.com/actions/setup-node@v4
+        uses: https://github.com/actions/setup-node@v5
         with:
           node-version: "22"
 

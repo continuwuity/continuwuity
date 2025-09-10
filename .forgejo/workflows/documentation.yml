@@ -55,7 +55,7 @@ jobs:
 
       - name: Setup Node.js
         if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'
-        uses: https://github.com/actions/setup-node@v4
+        uses: https://github.com/actions/setup-node@v5
         with:
           node-version: 22
 
