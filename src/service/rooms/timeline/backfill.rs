@@ -1,7 +1,6 @@
 use std::iter::once;
 
-use conduwuit::RoomVersion;
-use conduwuit::{Err, PduEvent};
+use conduwuit::{Err, PduEvent, RoomVersion};
 use conduwuit_core::{
 	Result, debug, debug_warn, err, implement, info,
 	matrix::{
