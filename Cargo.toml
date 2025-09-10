@@ -166,8 +166,8 @@ default-features = false
 features = ["raw_value"]
 
 # Used for appservice registration files
-[workspace.dependencies.serde_yaml]
-version = "0.9.34"
+[workspace.dependencies.serde_yml]
+version = "0.0.12"
 
 # Used to load forbidden room/user regex from config
 [workspace.dependencies.serde_regex]

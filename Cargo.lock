@@ -921,7 +921,7 @@ dependencies = [
  "log",
  "ruma",
  "serde_json",
- "serde_yaml",
+ "serde_yml",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -1012,7 +1012,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_regex",
- "serde_yaml",
+ "serde_yml",
  "smallstr",
  "smallvec",
  "thiserror 2.0.16",
@@ -1123,7 +1123,7 @@ dependencies = [
  "rustyline-async",
  "serde",
  "serde_json",
- "serde_yaml",
+ "serde_yml",
  "sha2",
  "termimad",
  "tokio",
@@ -2784,6 +2784,16 @@ checksum = "07033963ba89ebaf1584d767badaa2e8fcec21aedea6b8c0346d487d49c28667"
 dependencies = [
  "cfg-if",
  "windows-targets 0.53.3",
+]
+
+[[package]]
+name = "libyml"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3302702afa434ffa30847a83305f0a69d6abd74293b6554c18ec85c7ef30c980"
+dependencies = [
+ "anyhow",
+ "version_check",
 ]
 
 [[package]]
@@ -4807,16 +4817,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
+name = "serde_yml"
+version = "0.0.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
+checksum = "59e2dd588bf1597a252c3b920e0143eb99b0f76e4e082f4c92ce34fbc9e71ddd"
 dependencies = [
  "indexmap 2.11.1",
  "itoa",
+ "libyml",
+ "memchr",
  "ryu",
  "serde",
- "unsafe-libyaml",
+ "version_check",
 ]
 
 [[package]]
@@ -5783,12 +5795,6 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
-
-[[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "untrusted"

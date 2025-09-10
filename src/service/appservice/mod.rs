@@ -271,7 +271,7 @@ impl Service {
 			.id_appserviceregistrations
 			.get(id)
 			.await
-			.and_then(|ref bytes| serde_yaml::from_slice(bytes).map_err(Into::into))
+			.and_then(|ref bytes| serde_yml::from_slice(bytes).map_err(Into::into))
 			.map_err(|e| err!(Database("Invalid appservice {id:?} registration: {e:?}")))
 	}
 
