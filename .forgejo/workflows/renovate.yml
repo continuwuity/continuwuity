@@ -1,5 +1,7 @@
 name: Maintenance / Renovate
 
+enable-email-notifications: true
+
 on:
   schedule:
     # Run at 5am UTC daily to avoid late-night dev
@@ -10,10 +12,10 @@ on:
       dryRun:
         description: 'Dry run mode'
         required: false
-        default: null
+        default: ''
         type: choice
         options:
-          - null
+          - ''
           - 'extract'
           - 'lookup'
           - 'full'
@@ -23,6 +25,7 @@ on:
         default: 'info'
         type: choice
         options:
+          - 'debug'
           - 'info'
           - 'warning'
           - 'critical'
@@ -40,11 +43,11 @@ jobs:
     name: Renovate
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/renovatebot/renovate:41
+      image: ghcr.io/renovatebot/renovate:41.97.9@sha256:cd501f1d3ce46e43f6928cc50193215a5fe44501ca5b49a6c64c3551e4409c2d
       options: --tmpfs /tmp:exec
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           show-progress: false
 
@@ -52,7 +55,7 @@ jobs:
         run: /usr/local/renovate/node -e 'console.log(`node heap limit = ${require("v8").getHeapStatistics().heap_size_limit / (1024 * 1024)} Mb`)'
 
       - name: Restore renovate repo cache
-        uses: https://github.com/actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             /tmp/renovate/cache/renovate/repository
@@ -61,7 +64,7 @@ jobs:
             repo-cache-
 
       - name: Restore renovate package cache
-        uses: https://github.com/actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
@@ -69,8 +72,17 @@ jobs:
           restore-keys: |
             package-cache-
 
+      - name: Restore renovate OSV cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            /tmp/osv
+          key: osv-cache-${{ github.run_id }}
+          restore-keys: |
+            osv-cache-
+
       - name: Self-hosted Renovate
-        uses: https://github.com/renovatebot/github-action@v43.0.11
+        run: renovate
         env:
           LOG_LEVEL: ${{ inputs.logLevel || 'info' }}
           RENOVATE_DRY_RUN: ${{ inputs.dryRun || 'false' }}
@@ -84,28 +96,37 @@ jobs:
 
           RENOVATE_REQUIRE_CONFIG: 'required'
           RENOVATE_ONBOARDING: 'false'
-
-          RENOVATE_PR_COMMITS_PER_RUN_LIMIT: 3
+          RENOVATE_INHERIT_CONFIG: 'true'
 
           RENOVATE_GITHUB_TOKEN_WARN: 'false'
           RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}
-          GITHUB_COM_TOKEN: ${{ secrets.GH_PUBLIC_RO }}
+          GITHUB_COM_TOKEN: ${{ secrets.GH_PUBLIC_RO || secrets.GH_TOKEN }}
 
           RENOVATE_REPOSITORY_CACHE: 'enabled'
-          RENOVATE_X_SQLITE_PACKAGE_CACHE: true
+          RENOVATE_X_SQLITE_PACKAGE_CACHE: 'true'
+          OSV_OFFLINE_ROOT_DIR: /tmp/osv
 
       - name: Save renovate repo cache
-        if: always() && env.RENOVATE_DRY_RUN != 'full'
-        uses: https://github.com/actions/cache@v4
+        if: always()
+        uses:
+          actions/cache/save@v4
         with:
           path: |
             /tmp/renovate/cache/renovate/repository
           key: repo-cache-${{ github.run_id }}
 
       - name: Save renovate package cache
-        if: always() && env.RENOVATE_DRY_RUN != 'full'
-        uses: https://github.com/actions/cache@v4
+        if: always()
+        uses: actions/cache/save@v4
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
           key: package-cache-${{ github.run_id }}
+
+      - name: Save renovate OSV cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            /tmp/osv
+          key: osv-cache-${{ github.run_id }}
