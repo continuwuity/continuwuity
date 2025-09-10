@@ -12,11 +12,7 @@ use ruma::{
 };
 use tokio::sync::{RwLock, broadcast};
 
-use crate::{
-	Dep, globals,
-	sending::{self, EduBuf},
-	users::{self},
-};
+use crate::{Dep, globals, sending, sending::EduBuf, users};
 
 pub struct Service {
 	server: Arc<Server>,
@@ -201,11 +197,11 @@ impl Service {
 			.into_keys()
 			.stream()
 			.filter_map(|typing_user_id| async move {
-				self.services
+				(!self
+					.services
 					.users
-					.user_filter_level(&typing_user_id, sender_user)
-					.await
-					.allowed()
+					.user_is_ignored(&typing_user_id, sender_user)
+					.await)
 					.then_some(typing_user_id)
 			})
 			.collect()

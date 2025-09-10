@@ -455,10 +455,9 @@ where
 			.filter_map(|(read_user, _ts, v)| async move {
 				services
 					.users
-					.user_filter_level(read_user, sender_user)
+					.user_is_ignored(read_user, sender_user)
 					.await
-					.allowed()
-					.then_some(v)
+					.or_some(v)
 			})
 			.collect()
 			.await;

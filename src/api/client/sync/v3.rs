@@ -624,10 +624,9 @@ async fn load_joined_room(
 		.filter_map(|(read_user, _, edu)| async move {
 			services
 				.users
-				.user_filter_level(read_user, sender_user)
+				.user_is_ignored(read_user, sender_user)
 				.await
-				.allowed()
-				.then_some((read_user.to_owned(), edu))
+				.or_some((read_user.to_owned(), edu))
 		})
 		.collect::<HashMap<OwnedUserId, Raw<AnySyncEphemeralRoomEvent>>>()
 		.map(Ok);

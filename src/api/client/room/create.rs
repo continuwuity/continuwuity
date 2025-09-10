@@ -223,20 +223,9 @@ pub(crate) async fn create_room_route(
 
 	if preset == RoomPreset::TrustedPrivateChat {
 		for invite in &body.invite {
-			if !services
-				.users
-				.user_filter_level(sender_user, invite)
-				.await
-				.allowed()
-			{
-				// don't send invites to users the sender has ignored
+			if services.users.user_is_ignored(sender_user, invite).await {
 				continue;
-			} else if !services
-				.users
-				.user_filter_level(invite, sender_user)
-				.await
-				.allowed()
-			{
+			} else if services.users.user_is_ignored(invite, sender_user).await {
 				// silently drop the invite to the recipient if they've been ignored by the
 				// sender, pretend it worked
 				continue;
@@ -411,20 +400,9 @@ pub(crate) async fn create_room_route(
 	// 8. Events implied by invite (and TODO: invite_3pid)
 	drop(state_lock);
 	for user_id in &body.invite {
-		if !services
-			.users
-			.user_filter_level(sender_user, user_id)
-			.await
-			.allowed()
-		{
-			// don't send invites to users the sender has ignored
+		if services.users.user_is_ignored(sender_user, user_id).await {
 			continue;
-		} else if !services
-			.users
-			.user_filter_level(user_id, sender_user)
-			.await
-			.allowed()
-		{
+		} else if services.users.user_is_ignored(user_id, sender_user).await {
 			// silently drop the invite to the recipient if they've been ignored by the
 			// sender, pretend it worked
 			continue;

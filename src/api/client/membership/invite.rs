@@ -48,13 +48,14 @@ pub(crate) async fn invite_user_route(
 
 	match &body.recipient {
 		| invite_user::v3::InvitationRecipient::UserId { user_id } => {
-			let sender_filter_level = services.users.user_filter_level(sender_user, user_id);
-			let recipient_filter_level = services.users.user_filter_level(user_id, sender_user);
+			let sender_ignored_recipient = services.users.user_is_ignored(sender_user, user_id);
+			let recipient_ignored_by_sender =
+				services.users.user_is_ignored(user_id, sender_user);
 
-			let (sender_filter_level, recipient_filter_level) =
-				join!(sender_filter_level, recipient_filter_level);
+			let (sender_ignored_recipient, recipient_ignored_by_sender) =
+				join!(sender_ignored_recipient, recipient_ignored_by_sender);
 
-			if !sender_filter_level.allowed() {
+			if sender_ignored_recipient {
 				return Ok(invite_user::v3::Response {});
 			}
 
@@ -69,7 +70,7 @@ pub(crate) async fn invite_user_route(
 				}
 			}
 
-			if !recipient_filter_level.allowed() {
+			if recipient_ignored_by_sender {
 				// silently drop the invite to the recipient if they've been ignored by the
 				// sender, pretend it worked
 				return Ok(invite_user::v3::Response {});

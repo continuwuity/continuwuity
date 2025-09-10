@@ -39,22 +39,6 @@ pub struct UserSuspension {
 	pub suspended_by: String,
 }
 
-/// Represents a user's level of filtering on actions from another user.
-/// "Ignore" and "block" are defined in [MSC4283].
-/// This may be moved into Ruwuma in the future.
-///
-/// MSC4283: https://github.com/matrix-org/matrix-spec-proposals/pull/4283
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum UserFilterLevel {
-	Allow,
-	Ignore,
-	Block,
-}
-
-impl UserFilterLevel {
-	pub fn allowed(&self) -> bool { return *self == UserFilterLevel::Allow; }
-}
-
 pub struct Service {
 	services: Services,
 	db: Data,
@@ -139,32 +123,20 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	/// Returns a UserActionResult based on whether the recipient/receiving user
-	/// has ignored or blocked the sender
-	pub async fn user_filter_level(
-		&self,
-		sender_user: &UserId,
-		recipient_user: &UserId,
-	) -> UserFilterLevel {
-		// can only return Allow or Ignore for now
+	/// Returns true/false based on whether the recipient/receiving user has
+	/// blocked the sender
+	pub async fn user_is_ignored(&self, sender_user: &UserId, recipient_user: &UserId) -> bool {
 		self.services
 			.account_data
 			.get_global(recipient_user, GlobalAccountDataEventType::IgnoredUserList)
 			.await
-			.map(|ignored: IgnoredUserListEvent| {
-				let sender_ignored_recipient = ignored
+			.is_ok_and(|ignored: IgnoredUserListEvent| {
+				ignored
 					.content
 					.ignored_users
 					.keys()
-					.any(|blocked_user| blocked_user == sender_user);
-
-				if sender_ignored_recipient {
-					UserFilterLevel::Ignore
-				} else {
-					UserFilterLevel::Allow
-				}
+					.any(|blocked_user| blocked_user == sender_user)
 			})
-			.unwrap_or(UserFilterLevel::Allow)
 	}
 
 	/// Check if a user is an admin

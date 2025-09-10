@@ -122,13 +122,7 @@ pub async fn update_membership(
 		},
 		| MembershipState::Invite => {
 			// We want to know if the sender is ignored by the receiver
-			if !self
-				.services
-				.users
-				.user_filter_level(sender, user_id)
-				.await
-				.allowed()
-			{
+			if self.services.users.user_is_ignored(sender, user_id).await {
 				return Ok(());
 			}
 
