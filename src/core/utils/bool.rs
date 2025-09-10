@@ -65,7 +65,7 @@ impl BoolExt for bool {
 	fn into_option(self) -> Option<()> { self.then_some(()) }
 
 	#[inline]
-	fn into_result(self) -> Result<(), ()> { self.ok_or(()) }
+	fn into_result(self) -> Result<(), ()> { BoolExt::ok_or(self, ()) }
 
 	#[inline]
 	fn map<T, F: FnOnce(Self) -> T>(self, f: F) -> T
@@ -77,7 +77,7 @@ impl BoolExt for bool {
 
 	#[inline]
 	fn map_ok_or<T, E, F: FnOnce() -> T>(self, err: E, f: F) -> Result<T, E> {
-		self.ok_or(err).map(|()| f())
+		BoolExt::ok_or(self, err).map(|()| f())
 	}
 
 	#[inline]

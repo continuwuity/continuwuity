@@ -585,10 +585,11 @@ where
 		(target_membership == MembershipState::Join).then_some(&power_levels.users_default)
 	});
 
-	let mut join_rules = JoinRule::Invite;
-	if let Some(jr) = &join_rules_event {
-		join_rules = from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule;
-	}
+	let join_rules = if let Some(jr) = &join_rules_event {
+		from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule
+	} else {
+		JoinRule::Invite
+	};
 
 	let power_levels_event_id = power_levels_event.as_ref().map(Event::event_id);
 	let sender_membership_event_id = sender_membership_event.as_ref().map(Event::event_id);

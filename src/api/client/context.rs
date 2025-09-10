@@ -130,7 +130,7 @@ pub(crate) async fn get_context_route(
 	let state_at = events_after
 		.last()
 		.map(ref_at!(1))
-		.map_or(body.event_id.as_ref(), |pdu| pdu.event_id.as_ref());
+		.map_or_else(|| body.event_id.as_ref(), |pdu| pdu.event_id.as_ref());
 
 	let state_ids = services
 		.rooms

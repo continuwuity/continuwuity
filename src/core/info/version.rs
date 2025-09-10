@@ -27,5 +27,5 @@ fn init_user_agent() -> String { format!("{}/{}", name(), version()) }
 
 fn init_version() -> String {
 	conduwuit_build_metadata::version_tag()
-		.map_or(SEMANTIC.to_owned(), |extra| format!("{SEMANTIC} ({extra})"))
+		.map_or_else(|| SEMANTIC.to_owned(), |extra| format!("{SEMANTIC} ({extra})"))
 }

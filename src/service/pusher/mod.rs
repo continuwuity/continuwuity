@@ -439,13 +439,7 @@ impl Service {
 					notifi.counts = NotificationCounts::default();
 				}
 
-				if event_id_only {
-					self.send_request(
-						&http.url,
-						send_event_notification::v1::Request::new(notifi),
-					)
-					.await?;
-				} else {
+				if !event_id_only {
 					if *event.kind() == TimelineEventType::RoomEncrypted
 						|| tweaks
 							.iter()
@@ -480,13 +474,10 @@ impl Service {
 						.get_canonical_alias(event.room_id())
 						.await
 						.ok();
-
-					self.send_request(
-						&http.url,
-						send_event_notification::v1::Request::new(notifi),
-					)
-					.await?;
 				}
+
+				self.send_request(&http.url, send_event_notification::v1::Request::new(notifi))
+					.await?;
 
 				Ok(())
 			},
