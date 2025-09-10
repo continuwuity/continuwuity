@@ -65,7 +65,7 @@ runs:
 
     - name: Cache Cargo registry and git
       id: registry-cache
-      uses: https://github.com/actions/cache@v4
+      uses: actions/cache@v4
       with:
         path: |
           .cargo/registry/index
@@ -79,7 +79,7 @@ runs:
 
     - name: Cache toolchain binaries
       id: toolchain-cache
-      uses: https://github.com/actions/cache@v4
+      uses: actions/cache@v4
       with:
         path: |
           .cargo/bin
@@ -94,7 +94,7 @@ runs:
 
     - name: Cache build artifacts
       id: build-cache
-      uses: https://github.com/actions/cache@v4
+      uses: actions/cache@v4
       with:
         path: |
           target/**/deps

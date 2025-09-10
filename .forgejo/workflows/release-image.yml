@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Setting variables
-        uses: https://github.com/actions/github-script@v7
+        uses: https://github.com/actions/github-script@v8
         id: var
         with:
           script: |
@@ -97,7 +97,7 @@ jobs:
         run: echo '${{ toJSON(matrix) }}'
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Install rust
