@@ -4051,7 +4051,7 @@ dependencies = [
 [[package]]
 name = "resolv-conf"
 version = "0.7.4"
-source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=56251316cc4127bcbf36e68ce5e2093f4d33e227#56251316cc4127bcbf36e68ce5e2093f4d33e227"
+source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=ebbbec1cb965b487a0150f5d007e96c05e3d72af#ebbbec1cb965b487a0150f5d007e96c05e3d72af"
 
 [[package]]
 name = "rgb"

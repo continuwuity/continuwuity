@@ -602,7 +602,7 @@ rev = "e4ae7628fe4fcdacef9788c4c8415317a4489941"
 # Use 1-indexed line numbers when displaying parse error messages
 [patch.crates-io.resolv-conf]
 git = "https://forgejo.ellis.link/continuwuation/resolv-conf"
-rev = "56251316cc4127bcbf36e68ce5e2093f4d33e227"
+rev = "ebbbec1cb965b487a0150f5d007e96c05e3d72af"
 
 #
 # Our crates
