@@ -305,18 +305,26 @@ where
 		return true;
 	}
 
-	if *event.kind() == RoomMember
-		&& event
+	if *event.kind() == RoomMember {
+		if event
 			.get_content::<RoomMemberEventContent>()
 			.is_ok_and(|content| content.membership == MembershipState::Invite)
-		&& services
-			.users
-			.invite_filter_level(sender_user, recipient_user)
-			.await == FilterLevel::Ignore
-	{
-		// this PDU is an invite from a sender that the recipient has ignored invites
-		// from
-		return true;
+		{
+			if event
+				.state_key()
+				.is_some_and(|key| key == recipient_user.as_str())
+			{
+				if services
+					.users
+					.invite_filter_level(sender_user, recipient_user)
+					.await == FilterLevel::Ignore
+				{
+					// this PDU is inviting the recipient to a room and is from a sender that the
+					// recipient has ignored invites from
+					return true;
+				}
+			}
+		}
 	}
 
 	false
