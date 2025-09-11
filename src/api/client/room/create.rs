@@ -177,7 +177,14 @@ pub(crate) async fn create_room_route(
 	};
 
 	let state_lock = match room_id.clone() {
-		| Some(room_id) => services.rooms.state.mutex.lock(&room_id).await,
+		| Some(room_id) => {
+			let _short_id = services
+				.rooms
+				.short
+				.get_or_create_shortroomid(&room_id)
+				.await;
+			services.rooms.state.mutex.lock(&room_id).await
+		},
 		| None => {
 			let temp_room_id = RoomId::new(services.globals.server_name());
 			trace!("Locking temporary room state mutex for {temp_room_id}");

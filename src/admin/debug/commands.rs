@@ -632,6 +632,7 @@ pub(super) async fn force_set_room_state_from_server(
 			.add_pdu_outlier(&event_id, &value);
 	}
 
+	info!("Resolving new room state");
 	let new_room_state = self
 		.services
 		.rooms
@@ -639,7 +640,7 @@ pub(super) async fn force_set_room_state_from_server(
 		.resolve_state(&room_id, &room_version, state)
 		.await?;
 
-	info!("Forcing new room state");
+	info!("Compressing new room state");
 	let HashSetCompressStateEvent {
 		shortstatehash: short_state_hash,
 		added,
@@ -653,6 +654,7 @@ pub(super) async fn force_set_room_state_from_server(
 
 	let state_lock = self.services.rooms.state.mutex.lock(&*room_id).await;
 
+	info!("Forcing new room state");
 	self.services
 		.rooms
 		.state
