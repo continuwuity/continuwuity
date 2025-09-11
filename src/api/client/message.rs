@@ -30,6 +30,8 @@ use ruma::{
 	events::{
 		AnyStateEvent, StateEventType,
 		TimelineEventType::{self, *},
+		invite_permission_config::FilterLevel,
+		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	serde::Raw,
 };
@@ -267,7 +269,7 @@ pub(crate) async fn ignored_filter(
 pub(crate) async fn is_ignored_pdu<Pdu>(
 	services: &Services,
 	event: &Pdu,
-	user_id: &UserId,
+	recipient_user: &UserId,
 ) -> bool
 where
 	Pdu: Event + Send + Sync,
@@ -278,20 +280,42 @@ where
 		return true;
 	}
 
-	let ignored_type = IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok();
+	if IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok() {
+		// this PDU is a non-state event which it is safe to ignore
+		return true;
+	}
 
-	let ignored_server = services
+	let sender_user = event.sender();
+
+	if services
 		.moderation
-		.is_remote_server_ignored(event.sender().server_name());
-
-	if ignored_type
-		&& (ignored_server
-			|| (!services.config.send_messages_from_ignored_users_to_client
-				&& services
-					.users
-					.user_is_ignored(event.sender(), user_id)
-					.await))
+		.is_remote_server_ignored(sender_user.server_name())
 	{
+		// this PDU was sent by a remote server which we are ignoring
+		return true;
+	}
+
+	if services
+		.users
+		.user_is_ignored(sender_user, recipient_user)
+		.await && !services.config.send_messages_from_ignored_users_to_client
+	{
+		// the recipient of this PDU has the sender ignored, and we're not
+		// configured to send ignored messages to clients
+		return true;
+	}
+
+	if *event.kind() == RoomMember
+		&& event
+			.get_content::<RoomMemberEventContent>()
+			.is_ok_and(|content| content.membership == MembershipState::Invite)
+		&& services
+			.users
+			.invite_filter_level(sender_user, recipient_user)
+			.await == FilterLevel::Ignore
+	{
+		// this PDU is an invite from a sender that the recipient has ignored invites
+		// from
 		return true;
 	}
 

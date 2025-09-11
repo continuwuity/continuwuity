@@ -117,6 +117,9 @@ pub(crate) async fn create_invite_route(
 		.await;
 
 	if matches!(recipient_invite_filter_level, FilterLevel::Block) {
+		// return an error for blocked invites. ignored invites aren't handled here
+		// since the recipient's membership should still be changed to `invite`.
+		// they're filtered out in api::client::message::is_ignored_pdu
 		return Err!(Request(InviteBlocked(
 			"{recipient_user} has blocked invites from {sender_user}."
 		)));
