@@ -157,10 +157,6 @@ pub(crate) async fn create_room_route(
 					.try_into()
 					.map_err(|e| err!(Request(BadJson("Invalid creation content: {e}"))))?,
 			);
-			if room_version == V12 {
-				// TODO(hydra): v12 rooms cannot be federated until they are stable.
-				content.insert("m.federate".into(), false.into());
-			}
 			content
 		},
 		| None => {
@@ -175,10 +171,6 @@ pub(crate) async fn create_room_route(
 			let mut content =
 				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())?;
 			content.insert("room_version".into(), json!(room_version.as_str()).try_into()?);
-			if room_version == V12 {
-				// TODO(hydra): v12 rooms cannot be federated until they are stable.
-				content.insert("m.federate".into(), false.into());
-			}
 			content
 		},
 	};
