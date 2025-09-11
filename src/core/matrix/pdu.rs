@@ -31,6 +31,7 @@ use crate::Result;
 pub struct Pdu {
 	pub event_id: OwnedEventId,
 
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub room_id: Option<OwnedRoomId>,
 
 	pub sender: OwnedUserId,
