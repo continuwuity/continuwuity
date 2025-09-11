@@ -387,6 +387,7 @@ features = [
     "unstable-msc4210", # remove legacy mentions
     "unstable-extensible-events",
     "unstable-pdu",
+	"unstable-msc4155"
 ]
 
 [workspace.dependencies.rust-rocksdb]
