@@ -786,7 +786,9 @@ where
 						false
 					},
 					| JoinRule::Restricted(_) | JoinRule::KnockRestricted(_) =>
-						if !user_for_join_auth_is_valid {
+						if !user_for_join_auth_is_valid
+							&& sender_membership != MembershipState::Join
+						{
 							warn!(
 								"Join rule is a restricted one but no valid authorising user \
 								 was given"
