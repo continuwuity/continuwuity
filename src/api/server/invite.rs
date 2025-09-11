@@ -10,10 +10,7 @@ use conduwuit::{
 use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
-	events::{
-		invite_permission_config::FilterLevel,
-		room::member::{MembershipState, RoomMemberEventContent},
-	},
+	events::room::member::{MembershipState, RoomMemberEventContent},
 	serde::JsonObject,
 };
 

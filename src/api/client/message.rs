@@ -22,7 +22,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	DeviceId, OwnedRoomId, RoomId, UserId,
+	DeviceId, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -31,7 +31,6 @@ use ruma::{
 		AnyStateEvent, StateEventType,
 		TimelineEventType::{self, *},
 		invite_permission_config::FilterLevel,
-		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	serde::Raw,
 };

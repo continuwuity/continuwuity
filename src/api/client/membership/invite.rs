@@ -4,7 +4,7 @@ use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
 };
-use futures::{FutureExt, join};
+use futures::FutureExt;
 use ruma::{
 	OwnedServerName, RoomId, UserId,
 	api::{client::membership::invite_user, federation::membership::create_invite},
