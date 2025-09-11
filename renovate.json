@@ -55,6 +55,12 @@
         {
             "matchManagers": ["cargo"],
             "prConcurrentLimit": 5
+        },
+        {
+            "description": "Pin upload-artifact to v3 for Forgejo compatibility",
+            "matchManagers": ["github-actions"],
+            "matchPackageNames": ["**/upload-artifact"],
+            "allowedVersions": "< 4.0.0"
         }
     ],
     "customManagers": [
