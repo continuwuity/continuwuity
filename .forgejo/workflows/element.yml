@@ -109,7 +109,7 @@ jobs:
           cat ./element-web/webapp/config.json
 
       - name: 📤 Upload Artifact
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        uses: forgejo/upload-artifact@v4
         with:
           name: element-web
           path: ./element-web/webapp/

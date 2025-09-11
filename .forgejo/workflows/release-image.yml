@@ -251,7 +251,7 @@ jobs:
         run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
 
       - name: Upload binary artifact
-        uses: forgejo/upload-artifact@v3
+        uses: forgejo/upload-artifact@v4
         with:
           name: conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
           path: /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
@@ -259,7 +259,7 @@ jobs:
 
       - name: Upload digest
         if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
-        uses: forgejo/upload-artifact@v3
+        uses: forgejo/upload-artifact@v4
         with:
           name: digests-${{ matrix.slug }}
           path: /tmp/digests/*

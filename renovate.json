@@ -57,10 +57,10 @@
             "prConcurrentLimit": 5
         },
         {
-            "description": "Pin upload-artifact to v3 for Forgejo compatibility",
+            "description": "Pin forgejo artifact actions to prevent breaking changes",
             "matchManagers": ["github-actions"],
-            "matchPackageNames": ["**/upload-artifact"],
-            "allowedVersions": "< 4.0.0"
+            "matchPackageNames": ["forgejo/upload-artifact", "forgejo/download-artifact"],
+            "enabled": false
         }
     ],
     "customManagers": [
