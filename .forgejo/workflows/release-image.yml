@@ -70,6 +70,7 @@ jobs:
             }))
 
   build-image:
+    name: "Build ${{ matrix.slug }}${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}"
     runs-on: dind
     needs: define-variables
     permissions:
@@ -79,18 +80,29 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        {
-          "target_cpu": ["base"],
-          "profile": ["release"],
-          "include":
-            [
-              { "platform": "linux/amd64", "slug": "linux-amd64" },
-              { "platform": "linux/arm64", "slug": "linux-arm64" },
-            ],
-          "platform": ["linux/amd64", "linux/arm64"],
-        }
+        include:
+          - platform: "linux/amd64"
+            slug: "linux-amd64"
+            target_cpu: ""
+            profile: "release"
+          - platform: "linux/amd64"
+            slug: "linux-amd64"
+            target_cpu: "haswell"
+            profile: "release-max-perf"
+          - platform: "linux/arm64"
+            slug: "linux-arm64"
+            target_cpu: ""
+            profile: "release"
 
     steps:
+      - name: Set CPU suffix variable
+        run: |
+          if [[ -n "${{ matrix.target_cpu }}" ]]; then
+            echo "CPU_SUFFIX=-${{ matrix.target_cpu }}" >> $GITHUB_ENV
+          else
+            echo "CPU_SUFFIX=" >> $GITHUB_ENV
+          fi
+
       - name: Echo strategy
         run: echo '${{ toJSON(fromJSON(needs.define-variables.outputs.build_matrix)) }}'
       - name: Echo matrix
@@ -168,8 +180,8 @@ jobs:
         uses: actions/cache@v3
         with:
           path: |
-            cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
-          key: cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
+            cargo-target${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}
+          key: cargo-target${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
       - name: Cache apt cache
         if: ${{ env.BUILDKIT_ENDPOINT == '' }}
         id: cache-apt
@@ -194,9 +206,9 @@ jobs:
             {
               ".cargo/registry": "/usr/local/cargo/registry",
               ".cargo/git/db": "/usr/local/cargo/git/db",
-              "cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}": {
+              "cargo-target${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}": {
                 "target": "/app/target",
-                "id": "cargo-target-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}"
+                "id": "cargo-target${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}"
               },
               "var-cache-apt-${{ matrix.slug }}": "/var/cache/apt",
               "var-lib-apt-${{ matrix.slug }}": "/var/lib/apt",
@@ -216,6 +228,8 @@ jobs:
             GIT_REMOTE_URL=${{github.event.repository.html_url }}
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
             CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
+            TARGET_CPU=${{ matrix.target_cpu }}
+            RUST_PROFILE=${{ matrix.profile }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
           annotations: ${{ steps.meta.outputs.annotations }}
@@ -248,34 +262,42 @@ jobs:
 
       # Binary extracted via local output for all builds
       - name: Rename extracted binary
-        run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+        run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}
 
       - name: Upload binary artifact
         uses: forgejo/upload-artifact@v4
         with:
-          name: conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
-          path: /tmp/binaries/conduwuit-${{ matrix.target_cpu }}-${{ matrix.slug }}-${{ matrix.profile }}
+          name: conduwuit${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}
+          path: /tmp/binaries/conduwuit${{ env.CPU_SUFFIX }}-${{ matrix.slug }}-${{ matrix.profile }}
           if-no-files-found: error
 
       - name: Upload digest
         if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
         uses: forgejo/upload-artifact@v4
         with:
-          name: digests-${{ matrix.slug }}
+          name: digests-${{ matrix.slug }}${{ env.CPU_SUFFIX }}
           path: /tmp/digests/*
           if-no-files-found: error
           retention-days: 5
 
   merge:
+    name: "Create ${{ matrix.target_cpu == '' && 'Multi-arch' || 'Haswell' }} Manifest"
     runs-on: dind
     needs: [define-variables, build-image]
+    strategy:
+      matrix:
+        include:
+          - target_cpu: ""
+            digest_pattern: "digests-linux-{amd64,arm64}"
+          - target_cpu: "haswell"
+            digest_pattern: "digests-linux-amd64-haswell"
     steps:
       - name: Download digests
         if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
         uses: forgejo/download-artifact@v4
         with:
           path: /tmp/digests
-          pattern: digests-*
+          pattern: ${{ matrix.digest_pattern }}
           merge-multiple: true
       # Uses the `docker/login-action` action to log in to the Container registry registry using the account and password that will publish the packages. Once published, the packages are scoped to the account defined here.
       - name: Login to builtin registry
@@ -300,13 +322,13 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           tags: |
-            type=semver,pattern={{version}},prefix=v
-            type=semver,pattern={{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }},prefix=v
-            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }},prefix=v
-            type=ref,event=branch,prefix=${{ format('refs/heads/{0}', github.event.repository.default_branch) != github.ref && 'branch-' || '' }}
-            type=ref,event=pr
-            type=sha,format=long
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}},prefix=v,suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=semver,pattern={{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }},prefix=v,suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=semver,pattern={{major}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }},prefix=v,suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=ref,event=branch,prefix=${{ format('refs/heads/{0}', github.event.repository.default_branch) != github.ref && 'branch-' || '' }},suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=ref,event=pr,suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=sha,format=short,suffix=${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }}
+            type=raw,value=latest${{ matrix.target_cpu != '' && format('-{0}', matrix.target_cpu) || '' }},enable=${{ startsWith(github.ref, 'refs/tags/v') }}
           images: ${{needs.define-variables.outputs.images}}
           # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
         env:
