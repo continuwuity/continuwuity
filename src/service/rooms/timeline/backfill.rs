@@ -7,7 +7,6 @@ use conduwuit_core::{
 		event::Event,
 		pdu::{PduCount, PduId, RawPduId},
 	},
-	trace,
 	utils::{IterStream, ReadyExt},
 	validated, warn,
 };
