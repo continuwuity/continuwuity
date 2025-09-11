@@ -553,20 +553,16 @@ async fn join_room_by_id_helper_remote(
 		.iter()
 		.stream()
 		.then(|pdu| {
-			debug!(?pdu, "Validating send_join response room_state event");
 			services
 				.server_keys
 				.validate_and_add_event_id_no_fetch(pdu, &room_version_id)
 				.inspect_err(|e| {
-					debug_warn!(
-						"Could not validate send_join response room_state event: {e:?}"
-					);
+					debug_warn!("Could not validate send_join response room_state event: {e:?}");
 				})
 				.inspect(|_| debug!("Completed validating send_join response room_state event"))
 		})
 		.ready_filter_map(Result::ok)
 		.fold(HashMap::new(), |mut state, (event_id, value)| async move {
-			debug!(?event_id, "Processing send_join response room_state event");
 			let pdu = match PduEvent::from_id_val(&event_id, value.clone()) {
 				| Ok(pdu) => pdu,
 				| Err(e) => {
@@ -574,10 +570,8 @@ async fn join_room_by_id_helper_remote(
 					return state;
 				},
 			};
-			debug!(event_id = ?event_id.clone(), "Adding PDU outlier for send_join response room_state event");
 			services.rooms.outlier.add_pdu_outlier(&event_id, &value);
 			if let Some(state_key) = &pdu.state_key {
-				debug!(?state_key, "Creating shortstatekey for state event in send_join response");
 				let shortstatekey = services
 					.rooms
 					.short
@@ -586,7 +580,6 @@ async fn join_room_by_id_helper_remote(
 
 				state.insert(shortstatekey, pdu.event_id.clone());
 			}
-			debug!("Completed send_join response");
 			state
 		})
 		.await;

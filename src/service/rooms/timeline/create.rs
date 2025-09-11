@@ -72,7 +72,6 @@ pub async fn create_hash_and_sign_event(
 	};
 
 	let room_version = RoomVersion::new(&room_version_id).expect("room version is supported");
-	// TODO(hydra): Only create events can lack a room ID.
 
 	let prev_events: Vec<OwnedEventId> = match room_id {
 		| Some(room_id) =>

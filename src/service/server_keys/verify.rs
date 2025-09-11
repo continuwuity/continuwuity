@@ -1,5 +1,5 @@
 use conduwuit::{
-	Err, Result, debug, debug_warn, implement, matrix::event::gen_event_id_canonical_json,
+	Err, Result, debug_warn, implement, matrix::event::gen_event_id_canonical_json, trace,
 };
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId, signatures::Verified,
@@ -30,9 +30,9 @@ pub async fn validate_and_add_event_id_no_fetch(
 	pdu: &RawJsonValue,
 	room_version: &RoomVersionId,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
-	debug!(?pdu, "Validating PDU without fetching keys");
+	trace!(?pdu, "Validating PDU without fetching keys");
 	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version)?;
-	debug!(event_id = event_id.as_str(), "Generated event ID, checking required keys");
+	trace!(event_id = event_id.as_str(), "Generated event ID, checking required keys");
 	if !self.required_keys_exist(&value, room_version).await {
 		debug_warn!(
 			"Event {event_id} is missing required keys, cannot verify without fetching keys"
@@ -41,14 +41,14 @@ pub async fn validate_and_add_event_id_no_fetch(
 			"Event {event_id} cannot be verified: missing keys."
 		)));
 	}
-	debug!("All required keys exist, verifying event");
+	trace!("All required keys exist, verifying event");
 	if let Err(e) = self.verify_event(&value, Some(room_version)).await {
 		debug_warn!("Event verification failed");
 		return Err!(BadServerResponse(debug_error!(
 			"Event {event_id} failed verification: {e:?}"
 		)));
 	}
-	debug!("Event verified successfully");
+	trace!("Event verified successfully");
 
 	value.insert("event_id".into(), CanonicalJsonValue::String(event_id.as_str().into()));
 

@@ -5,7 +5,7 @@ use futures::{
 	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedRoomId, OwnedUserId, RoomVersionId, UserId,
+	Int, OwnedUserId, RoomVersionId, UserId,
 	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
@@ -219,9 +219,8 @@ where
 			return Ok(false);
 		}
 
-		// TODO(hydra): If the create event has a room_id, reject
 		if room_version.room_ids_as_hashes && incoming_event.room_id().is_some() {
-			warn!("this room version does not support room IDs in m.room.create");
+			warn!("room create event incorrectly claims a room ID");
 			return Ok(false);
 		}
 
@@ -239,7 +238,7 @@ where
 		return Ok(true);
 	}
 
-	// NOTE(hydra): We must have an event ID from this point forward.
+	// NOTE(hydra): We always have a room ID from this point forward.
 
 	/*
 	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
@@ -274,21 +273,6 @@ where
 	)
 	.await;
 
-	// TODO(hydra): Re-enable <v12 checks
-	// let room_create_event = match room_create_event {
-	// 	| None => {
-	// 		// Room was either v11 with no create event, or v12+ room
-	// 		if incoming_event.room_id().is_some() {
-	// 			// invalid v11
-	// 			warn!("no m.room.create event found in claimed state");
-	// 			return Ok(false);
-	// 		}
-	// 		// v12 room
-	// 		debug!("no m.room.create event found, assuming v12 room");
-	// 		create_event.clone()
-	// 	},
-	// 	| Some(e) => e,
-	// };
 	let room_create_event = create_event.clone();
 
 	// Get the content of the room create event, used later.
@@ -301,14 +285,7 @@ where
 		warn!("invalid room version found in m.room.create event");
 		return Ok(false);
 	}
-	let expected_room_id = match room_version.room_ids_as_hashes {
-		// If the room version uses hashes, we replace the create event's event ID leading sigil
-		// with !
-		| true => OwnedRoomId::try_from(room_create_event.event_id().as_str().replace('$', "!"))
-			.expect("Failed to convert event ID to room ID")
-			.clone(),
-		| false => room_create_event.room_id().unwrap().to_owned(),
-	};
+	let expected_room_id = room_create_event.room_id_or_hash();
 
 	if incoming_event.room_id().unwrap() != expected_room_id {
 		warn!(
@@ -346,17 +323,6 @@ where
 			return Ok(false);
 		}
 	}
-
-	// 3. If event does not have m.room.create in auth_events reject
-	// removed as part of Hydra.
-	// TODO: reintroduce this for <v12 lol
-	// if !incoming_event
-	// 	.auth_events()
-	// 	.any(|id| id == room_create_event.event_id())
-	// {
-	// 	warn!("no m.room.create event in auth events");
-	// 	return Ok(false);
-	// }
 
 	// If the create event content has the field m.federate set to false and the
 	// sender domain of the event does not match the sender domain of the create
@@ -471,12 +437,14 @@ where
 	if sender_member_event
 		.room_id()
 		.expect("we have a room ID for non create events")
-		!= room_create_event.room_id_or_hash()
+		!= expected_room_id
 	{
 		warn!(
 			"room_id of incoming event ({}) does not match room_id of m.room.create event ({})",
-			sender_member_event.room_id_or_hash(),
-			room_create_event.room_id_or_hash()
+			sender_member_event
+				.room_id()
+				.expect("event must have a room ID"),
+			expected_room_id
 		);
 		return Ok(false);
 	}
@@ -650,6 +618,9 @@ where
 	E: Event + Send + Sync,
 	for<'a> &'a E: Event + Send,
 {
+	fn is_creator(v: &RoomVersion, c: &BTreeSet<OwnedUserId>, user_id: &UserId) -> bool {
+		c.contains(user_id) && v.explicitly_privilege_room_creators
+	}
 	#[derive(Deserialize)]
 	struct GetThirdPartyInvite {
 		third_party_invite: Option<Raw<ThirdPartyInvite>>,
@@ -719,7 +690,7 @@ where
 
 	let user_for_join_auth_is_valid = if let Some(user_for_join_auth) = user_for_join_auth {
 		// Is the authorised user allowed to invite users into this room
-		let (mut auth_user_pl, invite_level) = if let Some(pl) = &power_levels_event {
+		let (auth_user_pl, invite_level) = if let Some(pl) = &power_levels_event {
 			// TODO Refactor all powerlevel parsing
 			let invite =
 				deserialize_power_levels_content_invite(pl.content().get(), room_version)?.invite;
@@ -735,19 +706,21 @@ where
 		} else {
 			(int!(0), int!(0))
 		};
-		if creators.contains(user_for_join_auth) {
-			auth_user_pl = Int::MAX;
-		}
-		(user_for_join_auth_membership == &MembershipState::Join)
-			&& (auth_user_pl >= invite_level)
+		let user_joined = user_for_join_auth_membership == &MembershipState::Join;
+		let okay_power = is_creator(room_version, &creators, user_for_join_auth)
+			|| auth_user_pl >= invite_level;
+		user_joined && okay_power
 	} else {
 		// No auth user was given
 		false
 	};
 
+	let sender_creator = is_creator(room_version, &creators, sender);
+	let target_creator = is_creator(room_version, &creators, target_user);
+
 	Ok(match target_membership {
 		| MembershipState::Join => {
-			debug!("starting target_membership=join check");
+			trace!("starting target_membership=join check");
 			// 1. If the only previous event is an m.room.create and the state_key is the
 			//    creator,
 			// allow
@@ -759,14 +732,8 @@ where
 			let no_more_prev_events = prev_events.next().is_none();
 
 			if prev_event_is_create_event && no_more_prev_events {
-				debug!("checking if sender is a room creator for initial membership event");
-				let is_creator = if room_version.explicitly_privilege_room_creators {
-					creators.contains(target_user) && creators.contains(sender)
-				} else if room_version.use_room_create_sender {
-					let creator = create_room.sender();
-
-					creator == sender && creator == target_user
-				} else {
+				trace!("checking if sender is a room creator for initial membership event");
+				let is_creator = (sender_creator && target_creator) || {
 					#[allow(deprecated)]
 					let creator = from_json_str::<RoomCreateEventContent>(create_room.content().get())?
 						.creator
@@ -779,7 +746,7 @@ where
 					debug!("sender is room creator, allowing join");
 					return Ok(true);
 				}
-				debug!("sender is not room creator, proceeding with normal auth checks");
+				trace!("sender is not room creator, proceeding with normal auth checks");
 			}
 			let membership_allows_join = matches!(
 				target_user_current_membership,
@@ -834,7 +801,7 @@ where
 		},
 		| MembershipState::Invite => {
 			// If content has third_party_invite key
-			debug!("starting target_membership=invite check");
+			trace!("starting target_membership=invite check");
 			match third_party_invite.and_then(|i| i.deserialize().ok()) {
 				| Some(tp_id) =>
 					if target_user_current_membership == MembershipState::Ban {
@@ -865,9 +832,10 @@ where
 						);
 						false
 					} else {
-						let allow = sender_power
-							.filter(|&p| p >= &power_levels.invite)
-							.is_some();
+						let allow = sender_creator
+							|| sender_power
+								.filter(|&p| p >= &power_levels.invite)
+								.is_some();
 						if !allow {
 							warn!(
 								?target_user_membership_event_id,
@@ -895,7 +863,8 @@ where
 				allow
 			} else if !sender_is_joined
 				|| target_user_current_membership == MembershipState::Ban
-					&& sender_power.filter(|&p| p < &power_levels.ban).is_some()
+					&& (sender_creator
+						|| sender_power.filter(|&p| p < &power_levels.ban).is_some())
 			{
 				warn!(
 					?target_user_membership_event_id,
@@ -904,8 +873,9 @@ where
 				);
 				false
 			} else {
-				let allow = sender_power.filter(|&p| p >= &power_levels.kick).is_some()
-					&& target_power < sender_power;
+				let allow = sender_creator
+					|| (sender_power.filter(|&p| p >= &power_levels.kick).is_some()
+						&& target_power < sender_power);
 				if !allow {
 					warn!(
 						?target_user_membership_event_id,
@@ -920,8 +890,9 @@ where
 				warn!(?sender_membership_event_id, "Can't ban user if sender is not joined");
 				false
 			} else {
-				let allow = sender_power.filter(|&p| p >= &power_levels.ban).is_some()
-					&& target_power < sender_power;
+				let allow = sender_creator
+					|| (sender_power.filter(|&p| p >= &power_levels.ban).is_some()
+						&& target_power < sender_power);
 				if !allow {
 					warn!(
 						?target_user_membership_event_id,
@@ -986,6 +957,7 @@ where
 /// Does the event have the correct userId as its state_key if it's not the ""
 /// state_key.
 fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int) -> bool {
+	// TODO(hydra): This function does not care about creators!
 	let event_type_power_level = get_send_level(event.event_type(), event.state_key(), ple);
 
 	debug!(
@@ -1016,6 +988,7 @@ fn check_power_levels(
 	previous_power_event: Option<&impl Event>,
 	user_level: Int,
 ) -> Option<bool> {
+	// TODO(hydra): This function does not care about creators!
 	match power_event.state_key() {
 		| Some("") => {},
 		| Some(key) => {
