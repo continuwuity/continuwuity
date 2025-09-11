@@ -352,7 +352,7 @@ version = "0.1.2"
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
 #branch = "conduwuit-changes"
-rev = "3279fe5826606cd80b4187052db424554c612586"
+rev = "11d23caf2f03951148161bad46718c9c82dffc39"
 features = [
     "compat",
     "rand",
