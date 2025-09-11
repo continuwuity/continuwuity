@@ -77,25 +77,27 @@ pub(crate) async fn invite_user_route(
 				}
 			}
 
-			match recipient_filter_level {
-				| FilterLevel::Allow => {
-					invite_helper(
-						&services,
-						sender_user,
-						recipient_user,
-						&body.room_id,
-						body.reason.clone(),
-						false,
-					)
-					.boxed()
-					.await?;
-
-					Ok(invite_user::v3::Response {})
-				},
-				| FilterLevel::Ignore => Ok(invite_user::v3::Response {}),
-				| FilterLevel::Block =>
-					Err!(Request(InviteBlocked("{recipient_user} has blocked invites from you."))),
+			// return an error for blocked invites. ignored invites aren't handled here
+			// since the recipient's membership should still be changed to `invite`.
+			// they're filtered out in api::client::message::is_ignored_pdu
+			if matches!(recipient_filter_level, FilterLevel::Block) {
+				return Err!(Request(InviteBlocked(
+					"{recipient_user} has blocked invites from you."
+				)));
 			}
+
+			invite_helper(
+				&services,
+				sender_user,
+				recipient_user,
+				&body.room_id,
+				body.reason.clone(),
+				false,
+			)
+			.boxed()
+			.await?;
+
+			Ok(invite_user::v3::Response {})
 		},
 		| _ => {
 			Err!(Request(NotFound("User not found.")))

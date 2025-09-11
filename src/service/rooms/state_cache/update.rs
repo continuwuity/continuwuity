@@ -122,24 +122,20 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			match self
-				.services
-				.users
-				.invite_filter_level(sender, user_id)
-				.await
-			{
-				| FilterLevel::Allow => {
-					self.mark_as_invited(user_id, room_id, last_state, invite_via)
-						.await;
-				},
-				| FilterLevel::Ignore => {
-					// do nothing
-				},
-				| FilterLevel::Block =>
-					return Err!(Request(InviteBlocked(
-						"{user_id} has blocked invites from you."
-					))),
+			// return an error for blocked invites. ignored invites aren't handled here
+			// since the recipient's membership should still be changed to `invite`.
+			// they're filtered out in api::client::message::is_ignored_pdu
+			if matches!(
+				self.services
+					.users
+					.invite_filter_level(sender, user_id)
+					.await,
+				FilterLevel::Block
+			) {
+				return Err!(Request(InviteBlocked("{user_id} has blocked invites from you.")));
 			}
+			self.mark_as_invited(user_id, room_id, last_state, invite_via)
+				.await;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
 			self.mark_as_left(user_id, room_id);

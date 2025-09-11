@@ -115,22 +115,25 @@ pub(crate) async fn create_room_route(
 			// drop invites if the creator has them blocked
 			continue;
 		}
-		match services
-			.users
-			.invite_filter_level(sender_user, recipient_user)
-			.await
-		{
-			| FilterLevel::Allow => {
-				invitees.insert(recipient_user.clone());
-			},
-			| FilterLevel::Ignore => {
-				continue;
-			},
-			| FilterLevel::Block =>
-				return Err!(Request(InviteBlocked(
-					"{recipient_user} has blocked invites from you."
-				))),
+
+		// if the recipient of the invite is local and has the sender blocked, error
+		// out. if the recipient is remote we can't tell yet, and if they're local and
+		// have the sender _ignored_ their invite will be filtered out in
+		// api::client::message::is_ignored_pdu
+		if services.globals.user_is_local(recipient_user)
+			&& matches!(
+				services
+					.users
+					.invite_filter_level(sender_user, recipient_user)
+					.await,
+				FilterLevel::Block
+			) {
+			return Err!(Request(InviteBlocked(
+				"{recipient_user} has blocked invites from you."
+			)));
 		}
+
+		invitees.insert(recipient_user.clone());
 	}
 
 	let _short_id = services
