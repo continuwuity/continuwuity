@@ -405,41 +405,51 @@ pub(crate) async fn register_route(
 		)
 		.await?;
 
-	if (!is_guest && body.inhibit_login)
+	// if (!is_guest && body.inhibit_login)
+	// 	|| body
+	// 		.appservice_info
+	// 		.as_ref()
+	// 		.is_some_and(|appservice| appservice.registration.device_management)
+	// {
+	// 	return Ok(register::v3::Response {
+	// 		access_token: None,
+	// 		user_id,
+	// 		device_id: None,
+	// 		refresh_token: None,
+	// 		expires_in: None,
+	// 	});
+	// }
+
+	// Generate new device id if the user didn't specify one
+	let no_device = body.inhibit_login
 		|| body
 			.appservice_info
 			.as_ref()
-			.is_some_and(|appservice| appservice.registration.device_management)
-	{
-		return Ok(register::v3::Response {
-			access_token: None,
-			user_id,
-			device_id: None,
-			refresh_token: None,
-			expires_in: None,
-		});
-	}
+			.is_some_and(|aps| aps.registration.device_management);
+	let (token, device) = if !no_device {
+		// Don't create a device for inhibited logins
+		let device_id = if is_guest { None } else { body.device_id.clone() }
+			.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
 
-	// Generate new device id if the user didn't specify one
-	let device_id = if is_guest { None } else { body.device_id.clone() }
-		.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
+		// Generate new token for the device
+		let new_token = utils::random_string(TOKEN_LENGTH);
 
-	// Generate new token for the device
-	let token = utils::random_string(TOKEN_LENGTH);
-
-	// Create device for this account
-	services
-		.users
-		.create_device(
-			&user_id,
-			&device_id,
-			&token,
-			body.initial_device_display_name.clone(),
-			Some(client.to_string()),
-		)
-		.await?;
-
-	debug_info!(%user_id, %device_id, "User account was created");
+		// Create device for this account
+		services
+			.users
+			.create_device(
+				&user_id,
+				&device_id,
+				&new_token,
+				body.initial_device_display_name.clone(),
+				Some(client.to_string()),
+			)
+			.await?;
+		debug_info!(%user_id, %device_id, "User account was created");
+		(Some(new_token), Some(device_id))
+	} else {
+		(None, None)
+	};
 
 	let device_display_name = body.initial_device_display_name.as_deref().unwrap_or("");
 
@@ -583,9 +593,9 @@ pub(crate) async fn register_route(
 	}
 
 	Ok(register::v3::Response {
-		access_token: Some(token),
+		access_token: token,
 		user_id,
-		device_id: Some(device_id),
+		device_id: device,
 		refresh_token: None,
 		expires_in: None,
 	})
