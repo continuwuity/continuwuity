@@ -119,7 +119,7 @@ pub(crate) async fn create_room_route(
 		// if the recipient of the invite is local and has the sender blocked, error
 		// out. if the recipient is remote we can't tell yet, and if they're local and
 		// have the sender _ignored_ their invite will be filtered out in
-		// api::client::message::is_ignored_pdu
+		// the handlers for the individual /sync endpoints
 		if services.globals.user_is_local(recipient_user)
 			&& matches!(
 				services

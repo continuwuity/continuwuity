@@ -53,13 +53,8 @@ pub(crate) async fn invite_user_route(
 		| invite_user::v3::InvitationRecipient::UserId { user_id: recipient_user } => {
 			let sender_filter_level = services
 				.users
-				.invite_filter_level(recipient_user, sender_user);
-			let recipient_filter_level = services
-				.users
-				.invite_filter_level(sender_user, recipient_user);
-
-			let (sender_filter_level, recipient_filter_level) =
-				join!(sender_filter_level, recipient_filter_level);
+				.invite_filter_level(recipient_user, sender_user)
+				.await;
 
 			if !matches!(sender_filter_level, FilterLevel::Allow) {
 				// drop invites if the sender has the recipient filtered
@@ -77,13 +72,21 @@ pub(crate) async fn invite_user_route(
 				}
 			}
 
-			// return an error for blocked invites. ignored invites aren't handled here
-			// since the recipient's membership should still be changed to `invite`.
-			// they're filtered out in api::client::message::is_ignored_pdu
-			if matches!(recipient_filter_level, FilterLevel::Block) {
-				return Err!(Request(InviteBlocked(
-					"{recipient_user} has blocked invites from you."
-				)));
+			// check for blocked invites if the recipient is a local user.
+			if services.globals.user_is_local(&recipient_user) {
+				let recipient_filter_level = services
+					.users
+					.invite_filter_level(sender_user, recipient_user)
+					.await;
+
+				// ignored invites aren't handled here
+				// since the recipient's membership should still be changed to `invite`.
+				// they're filtered out in the individual /sync handlers.
+				if matches!(recipient_filter_level, FilterLevel::Block) {
+					return Err!(Request(InviteBlocked(
+						"{recipient_user} has blocked invites from you."
+					)));
+				}
 			}
 
 			invite_helper(

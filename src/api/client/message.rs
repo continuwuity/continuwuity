@@ -7,7 +7,7 @@ use conduwuit::{
 	},
 	ref_at,
 	utils::{
-		IterStream, ReadyExt,
+		IterStream, ReadyExt, TryFutureExtExt,
 		result::LogErr,
 		stream::{BroadbandExt, TryIgnore, WidebandExt},
 	},
@@ -22,7 +22,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	DeviceId, RoomId, UserId,
+	DeviceId, OwnedRoomId, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -305,28 +305,6 @@ where
 		return true;
 	}
 
-	if *event.kind() == RoomMember {
-		if event
-			.get_content::<RoomMemberEventContent>()
-			.is_ok_and(|content| content.membership == MembershipState::Invite)
-		{
-			if event
-				.state_key()
-				.is_some_and(|key| key == recipient_user.as_str())
-			{
-				if services
-					.users
-					.invite_filter_level(sender_user, recipient_user)
-					.await == FilterLevel::Ignore
-				{
-					// this PDU is inviting the recipient to a room and is from a sender that the
-					// recipient has ignored invites from
-					return true;
-				}
-			}
-		}
-	}
-
 	false
 }
 
@@ -350,6 +328,29 @@ pub(crate) async fn visibility_filter(
 pub(crate) fn event_filter(item: PdusIterItem, filter: &RoomEventFilter) -> Option<PdusIterItem> {
 	let (_, pdu) = &item;
 	filter.matches(pdu).then_some(item)
+}
+
+#[inline]
+pub(crate) async fn is_ignored_invite(
+	services: &Services,
+	recipient_user: &UserId,
+	room_id: &RoomId,
+) -> bool {
+	let Ok(sender_user) = services
+		.rooms
+		.state_cache
+		.invite_sender(recipient_user, room_id)
+		.await
+	else {
+		// the invite may have been sent before the invite_sender table existed.
+		// assume it's not ignored
+		return false;
+	};
+
+	services
+		.users
+		.invite_filter_level(&sender_user, recipient_user)
+		.await == FilterLevel::Ignore
 }
 
 #[cfg_attr(debug_assertions, ctor::ctor)]

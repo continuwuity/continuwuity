@@ -116,15 +116,6 @@ pub(crate) async fn create_invite_route(
 		.invite_filter_level(sender_user, &recipient_user)
 		.await;
 
-	if matches!(recipient_invite_filter_level, FilterLevel::Block) {
-		// return an error for blocked invites. ignored invites aren't handled here
-		// since the recipient's membership should still be changed to `invite`.
-		// they're filtered out in api::client::message::is_ignored_pdu
-		return Err!(Request(InviteBlocked(
-			"{recipient_user} has blocked invites from {sender_user}."
-		)));
-	}
-
 	let mut invite_state = body.invite_room_state.clone();
 
 	let mut event: JsonObject = serde_json::from_str(body.event.get())

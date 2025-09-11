@@ -124,7 +124,7 @@ pub async fn update_membership(
 		| MembershipState::Invite => {
 			// return an error for blocked invites. ignored invites aren't handled here
 			// since the recipient's membership should still be changed to `invite`.
-			// they're filtered out in api::client::message::is_ignored_pdu
+			// they're filtered out in the individual /sync handlers
 			if matches!(
 				self.services
 					.users
@@ -132,9 +132,11 @@ pub async fn update_membership(
 					.await,
 				FilterLevel::Block
 			) {
-				return Err!(Request(InviteBlocked("{user_id} has blocked invites from you.")));
+				return Err!(Request(InviteBlocked(
+					"{user_id} has blocked invites from {sender}."
+				)));
 			}
-			self.mark_as_invited(user_id, room_id, last_state, invite_via)
+			self.mark_as_invited(user_id, room_id, sender, last_state, invite_via)
 				.await;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
@@ -239,6 +241,7 @@ pub fn mark_as_joined(&self, user_id: &UserId, room_id: &RoomId) {
 
 	self.db.userroomid_invitestate.remove(&userroom_id);
 	self.db.roomuserid_invitecount.remove(&roomuser_id);
+	self.db.userroomid_invitesender.remove(&userroom_id);
 
 	self.db.userroomid_leftstate.remove(&userroom_id);
 	self.db.roomuserid_leftcount.remove(&roomuser_id);
@@ -276,6 +279,7 @@ pub fn mark_as_left(&self, user_id: &UserId, room_id: &RoomId) {
 
 	self.db.userroomid_invitestate.remove(&userroom_id);
 	self.db.roomuserid_invitecount.remove(&roomuser_id);
+	self.db.userroomid_invitesender.remove(&userroom_id);
 
 	self.db.userroomid_knockedstate.remove(&userroom_id);
 	self.db.roomuserid_knockedcount.remove(&roomuser_id);
@@ -312,6 +316,7 @@ pub fn mark_as_knocked(
 
 	self.db.userroomid_invitestate.remove(&userroom_id);
 	self.db.roomuserid_invitecount.remove(&roomuser_id);
+	self.db.userroomid_invitesender.remove(&userroom_id);
 
 	self.db.userroomid_leftstate.remove(&userroom_id);
 	self.db.roomuserid_leftcount.remove(&roomuser_id);
@@ -343,6 +348,7 @@ pub async fn mark_as_invited(
 	&self,
 	user_id: &UserId,
 	room_id: &RoomId,
+	sender_user: &UserId,
 	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
 	invite_via: Option<Vec<OwnedServerName>>,
 ) {
@@ -358,6 +364,9 @@ pub async fn mark_as_invited(
 	self.db
 		.roomuserid_invitecount
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
+	self.db
+		.userroomid_invitesender
+		.raw_put(&userroom_id, sender_user);
 
 	self.db.userroomid_joined.remove(&userroom_id);
 	self.db.roomuserid_joined.remove(&roomuser_id);
