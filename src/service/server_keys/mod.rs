@@ -8,7 +8,7 @@ mod verify;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use conduwuit::{
-	Result, Server, debug, debug_error, debug_warn, implement,
+	Result, Server, debug_error, debug_warn, implement, trace,
 	utils::{IterStream, timepoint_from_now},
 };
 use database::{Deserialized, Json, Map};
@@ -120,12 +120,12 @@ pub async fn required_keys_exist(
 ) -> bool {
 	use ruma::signatures::required_keys;
 
-	debug!(?object, "Checking required keys exist");
+	trace!(?object, "Checking required keys exist");
 	let Ok(required_keys) = required_keys(object, version) else {
 		debug_error!("Failed to determine required keys");
 		return false;
 	};
-	debug!(?required_keys, "Required keys to verify event");
+	trace!(?required_keys, "Required keys to verify event");
 	required_keys
 		.iter()
 		.flat_map(|(server, key_ids)| key_ids.iter().map(move |key_id| (server, key_id)))

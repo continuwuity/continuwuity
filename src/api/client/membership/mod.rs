@@ -69,12 +69,11 @@ pub(crate) async fn banned_room_check(
 	}
 
 	if let Some(room_id) = room_id {
-		if services.rooms.metadata.is_banned(room_id).await
-			|| (room_id.server_name().is_some()
-				&& services
-					.moderation
-					.is_remote_server_forbidden(room_id.server_name().expect("legacy room mxid")))
-		{
+		let room_banned = services.rooms.metadata.is_banned(room_id).await;
+		let server_banned = room_id.server_name().is_some_and(|server_name| {
+			services.moderation.is_remote_server_forbidden(server_name)
+		});
+		if room_banned || server_banned {
 			warn!(
 				"User {user_id} who is not an admin attempted to send an invite for or \
 				 attempted to join a banned room or banned room server name: {room_id}"
@@ -107,7 +106,6 @@ pub(crate) async fn banned_room_check(
 					.boxed()
 					.await?;
 			}
-
 			return Err!(Request(Forbidden("This room is banned on this homeserver.")));
 		}
 	} else if let Some(server_name) = server_name {

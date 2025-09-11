@@ -138,7 +138,6 @@ async fn handle(
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
 ) -> Result<ResolvedMap> {
-	// TODO(hydra): Does having no room ID break this?
 	// group pdus by room
 	let pdus = pdus
 		.collect()
@@ -187,7 +186,6 @@ async fn handle_room(
 		.lock(&room_id)
 		.await;
 
-	// TODO(hydra): We might be missing a room ID
 	let room_id = &room_id;
 	pdus.try_stream()
 		.and_then(|(_, event_id, value)| async move {

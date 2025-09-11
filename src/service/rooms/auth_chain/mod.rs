@@ -195,7 +195,7 @@ async fn get_auth_chain_inner(
 				debug_error!(?event_id, ?e, "Could not find pdu mentioned in auth events");
 			},
 			| Ok(pdu) => {
-				if pdu.room_id.is_some() && pdu.room_id != Some(room_id.to_owned()) {
+				if pdu.room_id.as_ref().is_some_and(|r| r == room_id) {
 					return Err!(Request(Forbidden(error!(
 						?event_id,
 						?room_id,

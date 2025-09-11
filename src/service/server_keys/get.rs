@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use conduwuit::{Err, Result, debug, debug_error, implement};
+use conduwuit::{Err, Result, debug_error, implement, trace};
 use ruma::{
 	CanonicalJsonObject, RoomVersionId, ServerName, ServerSigningKeyId,
 	api::federation::discovery::VerifyKey,
@@ -23,7 +23,7 @@ pub async fn get_event_keys(
 			return Err!(BadServerResponse("Failed to determine keys required to verify: {e}"));
 		},
 	};
-	debug!(?required, "Keys required to verify event");
+	trace!(?required, "Keys required to verify event");
 
 	let batch = required
 		.iter()
@@ -73,7 +73,7 @@ pub async fn get_verify_key(
 	let notary_only = self.services.server.config.only_query_trusted_key_servers;
 
 	if let Some(result) = self.verify_keys_for(origin).await.remove(key_id) {
-		debug!("Found key in cache");
+		trace!("Found key in cache");
 		return Ok(result);
 	}
 

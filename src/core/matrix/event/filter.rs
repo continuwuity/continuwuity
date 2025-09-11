@@ -35,13 +35,16 @@ fn matches_room<E: Event>(event: &E, filter: &RoomEventFilter) -> bool {
 	if filter
 		.not_rooms
 		.iter()
-		.any(is_equal_to!(event.room_id().unwrap()))
+		.any(is_equal_to!(event.room_id().expect("event has a room ID")))
 	{
 		return false;
 	}
 
 	if let Some(rooms) = filter.rooms.as_ref() {
-		if !rooms.iter().any(is_equal_to!(event.room_id().unwrap())) {
+		if !rooms
+			.iter()
+			.any(is_equal_to!(event.room_id().expect("event has a room ID")))
+		{
 			return false;
 		}
 	}

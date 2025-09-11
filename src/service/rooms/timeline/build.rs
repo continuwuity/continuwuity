@@ -1,6 +1,6 @@
 use std::{collections::HashSet, iter::once};
 
-use conduwuit::{RoomVersion, debug_warn, trace};
+use conduwuit::{RoomVersion, trace};
 use conduwuit_core::{
 	Err, Result, implement,
 	matrix::{event::Event, pdu::PduBuilder},
@@ -38,9 +38,7 @@ pub async fn build_and_append_pdu(
 		.await?;
 
 	let room_id = pdu.room_id_or_hash();
-	trace!("Checking if room {room_id} is an admin room");
 	if self.services.admin.is_admin_room(&room_id).await {
-		trace!("Room {room_id} is an admin room, checking PDU for admin room restrictions");
 		self.check_pdu_for_admin_room(&pdu, sender).boxed().await?;
 	}
 
@@ -106,7 +104,6 @@ pub async fn build_and_append_pdu(
 		let room_features = RoomVersion::new(&content.room_version)?;
 		if room_features.room_ids_as_hashes {
 			// bootstrap shortid for room
-			debug_warn!(%room_id, "Bootstrapping shortid for room");
 			self.services
 				.short
 				.get_or_create_shortroomid(&room_id)

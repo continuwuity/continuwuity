@@ -115,12 +115,20 @@ impl Event for Pdu {
 
 	#[inline]
 	fn room_id_or_hash(&self) -> OwnedRoomId {
+		if *self.event_type() != TimelineEventType::RoomCreate {
+			return self
+				.room_id()
+				.expect("Event must have a room ID")
+				.to_owned();
+		}
 		if let Some(room_id) = &self.room_id {
+			// v1-v11
 			room_id.clone()
 		} else {
+			// v12+
 			let constructed_hash = self.event_id.as_str().replace('$', "!");
 			RoomId::parse(&constructed_hash)
-				.expect("event ID can be indexed")
+				.expect("event ID can be parsed")
 				.to_owned()
 		}
 	}
@@ -180,12 +188,20 @@ impl Event for &Pdu {
 
 	#[inline]
 	fn room_id_or_hash(&self) -> OwnedRoomId {
+		if *self.event_type() != TimelineEventType::RoomCreate {
+			return self
+				.room_id()
+				.expect("Event must have a room ID")
+				.to_owned();
+		}
 		if let Some(room_id) = &self.room_id {
+			// v1-v11
 			room_id.clone()
 		} else {
+			// v12+
 			let constructed_hash = self.event_id.as_str().replace('$', "!");
 			RoomId::parse(&constructed_hash)
-				.expect("event ID can be indexed")
+				.expect("event ID can be parsed")
 				.to_owned()
 		}
 	}

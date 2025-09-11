@@ -4,7 +4,7 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Result, RoomVersion, debug, debug_info, debug_warn, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
-	warn,
+	trace, warn,
 };
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
@@ -82,12 +82,13 @@ pub(crate) async fn create_room_route(
 	};
 	let room_features = RoomVersion::new(&room_version)?;
 
-	let room_id: Option<OwnedRoomId> = match room_features.room_ids_as_hashes {
-		| true => None,
-		| false => match &body.room_id {
+	let room_id: Option<OwnedRoomId> = if !room_features.room_ids_as_hashes {
+		match &body.room_id {
 			| Some(custom_room_id) => Some(custom_room_id_check(&services, custom_room_id)?),
 			| None => Some(RoomId::new(services.globals.server_name())),
-		},
+		}
+	} else {
+		None
 	};
 
 	// check if room ID doesn't already exist instead of erroring on auth check
@@ -179,7 +180,7 @@ pub(crate) async fn create_room_route(
 		| Some(room_id) => services.rooms.state.mutex.lock(&room_id).await,
 		| None => {
 			let temp_room_id = RoomId::new(services.globals.server_name());
-			debug_info!("Locking temporary room state mutex for {temp_room_id}");
+			trace!("Locking temporary room state mutex for {temp_room_id}");
 			services.rooms.state.mutex.lock(&temp_room_id).await
 		},
 	};
@@ -202,12 +203,12 @@ pub(crate) async fn create_room_route(
 		)
 		.boxed()
 		.await?;
-	debug!("Created room create event with ID {}", create_event_id);
+	trace!("Created room create event with ID {}", create_event_id);
 	let room_id = match room_id {
 		| Some(room_id) => room_id,
 		| None => {
 			let as_room_id = create_event_id.as_str().replace('$', "!");
-			debug_info!("Creating room with v12 room ID {as_room_id}");
+			trace!("Creating room with v12 room ID {as_room_id}");
 			RoomId::parse(&as_room_id)?.to_owned()
 		},
 	};
@@ -260,20 +261,25 @@ pub(crate) async fn create_room_route(
 	}
 
 	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
-	if let Some(additional_creators) = create_content.get("additional_creators") {
-		if let Some(additional_creators) = additional_creators.as_array() {
-			for creator in additional_creators {
-				if let Some(creator) = creator.as_str() {
-					if let Ok(creator) = OwnedUserId::parse(creator) {
-						creators.push(creator.clone());
-						users.insert(creator.clone(), int!(100));
+	// Do we care about additional_creators?
+	if room_features.explicitly_privilege_room_creators {
+		// Have they been specified?
+		if let Some(additional_creators) = create_content.get("additional_creators") {
+			// Are they a real array?
+			if let Some(additional_creators) = additional_creators.as_array() {
+				// Iterate through them
+				for creator in additional_creators {
+					// Are they a string?
+					if let Some(creator) = creator.as_str() {
+						// Do they parse into a real user ID?
+						if let Ok(creator) = OwnedUserId::parse(creator) {
+							// Add them to the power levels and creators
+							creators.push(creator.clone());
+						}
 					}
 				}
 			}
 		}
-	}
-	if !(RoomVersion::new(&room_version)?).explicitly_privilege_room_creators {
-		creators.clear();
 	}
 
 	let power_levels_content = default_power_levels_content(
