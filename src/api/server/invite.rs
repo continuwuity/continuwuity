@@ -108,11 +108,6 @@ pub(crate) async fn create_invite_route(
 		return Err!(Request(Forbidden("This server does not allow room invites.")));
 	}
 
-	let recipient_invite_filter_level = services
-		.users
-		.invite_filter_level(sender_user, &recipient_user)
-		.await;
-
 	let mut invite_state = body.invite_room_state.clone();
 
 	let mut event: JsonObject = serde_json::from_str(body.event.get())

@@ -7,7 +7,7 @@ use conduwuit::{
 	},
 	ref_at,
 	utils::{
-		IterStream, ReadyExt, TryFutureExtExt,
+		IterStream, ReadyExt,
 		result::LogErr,
 		stream::{BroadbandExt, TryIgnore, WidebandExt},
 	},

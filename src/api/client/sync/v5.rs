@@ -108,7 +108,7 @@ pub(crate) async fn sync_events_v5_route(
 		.state_cache
 		.rooms_invited(sender_user)
 		.wide_filter_map(async |(room_id, invite_state)| {
-			if is_ignored_invite(&services, sender_user, &room_id).await {
+			if is_ignored_invite(services, sender_user, &room_id).await {
 				None
 			} else {
 				Some((room_id, invite_state))

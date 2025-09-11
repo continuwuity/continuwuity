@@ -73,7 +73,7 @@ pub(crate) async fn invite_user_route(
 			}
 
 			// check for blocked invites if the recipient is a local user.
-			if services.globals.user_is_local(&recipient_user) {
+			if services.globals.user_is_local(recipient_user) {
 				let recipient_filter_level = services
 					.users
 					.invite_filter_level(sender_user, recipient_user)
