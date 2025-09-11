@@ -405,21 +405,6 @@ pub(crate) async fn register_route(
 		)
 		.await?;
 
-	// if (!is_guest && body.inhibit_login)
-	// 	|| body
-	// 		.appservice_info
-	// 		.as_ref()
-	// 		.is_some_and(|appservice| appservice.registration.device_management)
-	// {
-	// 	return Ok(register::v3::Response {
-	// 		access_token: None,
-	// 		user_id,
-	// 		device_id: None,
-	// 		refresh_token: None,
-	// 		expires_in: None,
-	// 	});
-	// }
-
 	// Generate new device id if the user didn't specify one
 	let no_device = body.inhibit_login
 		|| body
