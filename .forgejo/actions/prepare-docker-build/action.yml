@@ -1,0 +1,169 @@
+name: prepare-docker-build
+description: |
+  Prepare the Docker build environment for Continuwuity builds.
+  Sets up Rust toolchain, Docker Buildx, caching, and extracts metadata for Docker builds.
+
+inputs:
+  platform:
+    description: Target platform (e.g. linux/amd64, linux/arm64)
+    required: true
+  slug:
+    description: Platform slug for artifact naming (e.g. linux-amd64, linux-arm64)
+    required: true
+  target_cpu:
+    description: Target CPU architecture (e.g. haswell, empty for base)
+    required: false
+    default: ""
+  profile:
+    description: Cargo build profile (release or release-max-perf)
+    required: true
+  images:
+    description: Container registry images (newline-separated)
+    required: true
+  registry_user:
+    description: Registry username for authentication
+    required: false
+  registry_password:
+    description: Registry password for authentication
+    required: false
+
+outputs:
+  cpu_suffix:
+    description: CPU suffix for artifact naming
+    value: ${{ steps.cpu-suffix.outputs.suffix }}
+  metadata_labels:
+    description: Docker labels for the image
+    value: ${{ steps.meta.outputs.labels }}
+  metadata_annotations:
+    description: Docker annotations for the image
+    value: ${{ steps.meta.outputs.annotations }}
+
+runs:
+  using: composite
+  steps:
+    - name: Set CPU suffix variable
+      id: cpu-suffix
+      shell: bash
+      run: |
+        if [[ -n "${{ inputs.target_cpu }}" ]]; then
+          echo "suffix=-${{ inputs.target_cpu }}" >> $GITHUB_OUTPUT
+          echo "CPU_SUFFIX=-${{ inputs.target_cpu }}" >> $GITHUB_ENV
+        else
+          echo "suffix=" >> $GITHUB_OUTPUT
+          echo "CPU_SUFFIX=" >> $GITHUB_ENV
+        fi
+
+    - name: Echo matrix configuration
+      shell: bash
+      run: |
+        echo "Platform: ${{ inputs.platform }}"
+        echo "Slug: ${{ inputs.slug }}"
+        echo "Target CPU: ${{ inputs.target_cpu }}"
+        echo "Profile: ${{ inputs.profile }}"
+
+    - name: Install rust
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      id: rust-toolchain
+      uses: ./.forgejo/actions/rust-toolchain
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      with:
+        # Use persistent BuildKit if BUILDKIT_ENDPOINT is set (e.g. tcp://buildkit:8125)
+        driver: ${{ env.BUILDKIT_ENDPOINT != '' && 'remote' || 'docker-container' }}
+        endpoint: ${{ env.BUILDKIT_ENDPOINT || '' }}
+
+    - name: Set up QEMU
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      uses: docker/setup-qemu-action@v3
+
+    - name: Login to builtin registry
+      if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.BUILTIN_REGISTRY }}
+        username: ${{ inputs.registry_user }}
+        password: ${{ inputs.registry_password }}
+
+    - name: Extract metadata (labels, annotations) for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ inputs.images }}
+        # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
+      env:
+        DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+
+    - name: Get short git commit SHA
+      id: sha
+      shell: bash
+      run: |
+        calculatedSha=$(git rev-parse --short ${{ github.sha }})
+        echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+        echo "Short SHA: $calculatedSha"
+
+    - name: Get Git commit timestamps
+      shell: bash
+      run: |
+        timestamp=$(git log -1 --pretty=%ct)
+        echo "TIMESTAMP=$timestamp" >> $GITHUB_ENV
+        echo "Commit timestamp: $timestamp"
+
+    - uses: ./.forgejo/actions/timelord
+      id: timelord
+
+    - name: Cache Rust registry
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      uses: actions/cache@v3
+      with:
+        path: |
+          .cargo/git
+          .cargo/git/checkouts
+          .cargo/registry
+          .cargo/registry/src
+        key: rust-registry-image-${{hashFiles('**/Cargo.lock') }}
+
+    - name: Cache cargo target
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      id: cache-cargo-target
+      uses: actions/cache@v3
+      with:
+        path: |
+          cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}
+        key: cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
+
+    - name: Cache apt cache
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      id: cache-apt
+      uses: actions/cache@v3
+      with:
+        path: |
+          var-cache-apt-${{ inputs.slug }}
+        key: var-cache-apt-${{ inputs.slug }}
+
+    - name: Cache apt lib
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      id: cache-apt-lib
+      uses: actions/cache@v3
+      with:
+        path: |
+          var-lib-apt-${{ inputs.slug }}
+        key: var-lib-apt-${{ inputs.slug }}
+
+    - name: inject cache into docker
+      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.3.0
+      with:
+        cache-map: |
+          {
+            ".cargo/registry": "/usr/local/cargo/registry",
+            ".cargo/git/db": "/usr/local/cargo/git/db",
+            "cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}": {
+              "target": "/app/target",
+              "id": "cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}"
+            },
+            "var-cache-apt-${{ inputs.slug }}": "/var/cache/apt",
+            "var-lib-apt-${{ inputs.slug }}": "/var/lib/apt",
+            "${{ steps.timelord.outputs.database-path }}":"/timelord"
+          }
+        skip-extraction: ${{ steps.cache.outputs.cache-hit }}
