@@ -194,6 +194,7 @@ pub(crate) async fn create_room_route(
 
 	// 1. The room create event
 	debug!("Creating room create event for {sender_user} in room {room_id:?}");
+	let tmp_id = room_id.as_deref();
 	let create_event_id = services
 		.rooms
 		.timeline
@@ -205,13 +206,13 @@ pub(crate) async fn create_room_route(
 				..Default::default()
 			},
 			sender_user,
-			None,
+			tmp_id,
 			&state_lock,
 		)
 		.boxed()
 		.await?;
-	trace!("Created room create event with ID {}", create_event_id);
-	let room_id = match room_id {
+	trace!("Created room create event with ID {}", &create_event_id);
+	let room_id = match room_id.clone() {
 		| Some(room_id) => room_id,
 		| None => {
 			let as_room_id = create_event_id.as_str().replace('$', "!");
@@ -287,6 +288,10 @@ pub(crate) async fn create_room_route(
 				}
 			}
 		}
+	} else {
+		users.insert(sender_user.to_owned(), int!(100));
+		creators.clear(); // If this vec is not empty, default_power_levels_content will
+		// treat this as a v12 room
 	}
 
 	let power_levels_content = default_power_levels_content(

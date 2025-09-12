@@ -140,7 +140,7 @@ async fn migrate(services: &Services) -> Result<()> {
 
 	if services.globals.db.database_version().await < 18 {
 		services.globals.db.bump_database_version(18);
-		info!("Migration: Bumped database version to 18")
+		info!("Migration: Bumped database version to 18");
 	}
 
 	assert_eq!(

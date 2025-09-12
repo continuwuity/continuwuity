@@ -1,6 +1,6 @@
 use std::{collections::HashSet, iter::once};
 
-use conduwuit::{RoomVersion, trace};
+use conduwuit::trace;
 use conduwuit_core::{
 	Err, Result, implement,
 	matrix::{event::Event, pdu::PduBuilder},
@@ -12,7 +12,6 @@ use ruma::{
 	events::{
 		TimelineEventType,
 		room::{
-			create::RoomCreateEventContent,
 			member::{MembershipState, RoomMemberEventContent},
 			redaction::RoomRedactionEventContent,
 		},
@@ -25,7 +24,7 @@ use super::RoomMutexGuard;
 /// takes a roomid_mutex_state, meaning that only this function is able to
 /// mutate the room state.
 #[implement(super::Service)]
-#[tracing::instrument(skip(self, state_lock), level = "trace")]
+#[tracing::instrument(skip(self, state_lock, pdu_builder), level = "trace")]
 pub async fn build_and_append_pdu(
 	&self,
 	pdu_builder: PduBuilder,
@@ -99,16 +98,11 @@ pub async fn build_and_append_pdu(
 		}
 	}
 	if *pdu.kind() == TimelineEventType::RoomCreate {
-		trace!("Running room create checks for room {room_id}");
-		let content: RoomCreateEventContent = pdu.get_content()?;
-		let room_features = RoomVersion::new(&content.room_version)?;
-		if room_features.room_ids_as_hashes {
-			// bootstrap shortid for room
-			self.services
-				.short
-				.get_or_create_shortroomid(&room_id)
-				.await;
-		}
+		trace!("Creating shortroomid for {room_id}");
+		self.services
+			.short
+			.get_or_create_shortroomid(&room_id)
+			.await;
 	}
 
 	// We append to state before appending the pdu, so we don't have a moment in
@@ -116,6 +110,7 @@ pub async fn build_and_append_pdu(
 	// fail.
 	trace!("Appending {} state for room {room_id}", pdu.event_id());
 	let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
+	trace!("State hash ID for {room_id}: {statehashid:?}");
 
 	trace!("Generating raw ID for PDU {}", pdu.event_id());
 	let pdu_id = self

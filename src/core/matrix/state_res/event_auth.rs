@@ -587,6 +587,26 @@ where
 	Ok(true)
 }
 
+fn is_creator<EV>(v: &RoomVersion, c: &BTreeSet<OwnedUserId>, ce: &EV, user_id: &UserId) -> bool
+where
+	EV: Event + Send + Sync,
+{
+	if v.explicitly_privilege_room_creators {
+		c.contains(user_id)
+	} else if v.use_room_create_sender {
+		ce.sender() == user_id
+	} else {
+		#[allow(deprecated)]
+		let creator = from_json_str::<RoomCreateEventContent>(ce.content().get())
+			.unwrap()
+			.creator
+			.ok_or_else(|| serde_json::Error::missing_field("creator"))
+			.unwrap();
+
+		creator == user_id
+	}
+}
+
 // TODO deserializing the member, power, join_rules event contents is done in
 // conduit just before this is called. Could they be passed in?
 /// Does the user who sent this member event have required power levels to do
@@ -618,9 +638,6 @@ where
 	E: Event + Send + Sync,
 	for<'a> &'a E: Event + Send,
 {
-	fn is_creator(v: &RoomVersion, c: &BTreeSet<OwnedUserId>, user_id: &UserId) -> bool {
-		c.contains(user_id) && v.explicitly_privilege_room_creators
-	}
 	#[derive(Deserialize)]
 	struct GetThirdPartyInvite {
 		third_party_invite: Option<Raw<ThirdPartyInvite>>,
@@ -677,6 +694,7 @@ where
 			target_power = Some(&Int::MAX);
 		}
 	}
+	trace!(?creators, "creators for room");
 
 	let mut join_rules = JoinRule::Invite;
 	if let Some(jr) = &join_rules_event {
@@ -707,7 +725,7 @@ where
 			(int!(0), int!(0))
 		};
 		let user_joined = user_for_join_auth_membership == &MembershipState::Join;
-		let okay_power = is_creator(room_version, &creators, user_for_join_auth)
+		let okay_power = is_creator(room_version, &creators, create_room, user_for_join_auth)
 			|| auth_user_pl >= invite_level;
 		user_joined && okay_power
 	} else {
@@ -715,8 +733,8 @@ where
 		false
 	};
 
-	let sender_creator = is_creator(room_version, &creators, sender);
-	let target_creator = is_creator(room_version, &creators, target_user);
+	let sender_creator = is_creator(room_version, &creators, create_room, sender);
+	let target_creator = is_creator(room_version, &creators, create_room, target_user);
 
 	Ok(match target_membership {
 		| MembershipState::Join => {
@@ -732,15 +750,14 @@ where
 			let no_more_prev_events = prev_events.next().is_none();
 
 			if prev_event_is_create_event && no_more_prev_events {
-				trace!("checking if sender is a room creator for initial membership event");
-				let is_creator = (sender_creator && target_creator) || {
-					#[allow(deprecated)]
-					let creator = from_json_str::<RoomCreateEventContent>(create_room.content().get())?
-						.creator
-						.ok_or_else(|| serde_json::Error::missing_field("creator"))?;
-
-					creator == sender && creator == target_user
-				};
+				trace!(
+					sender = %sender,
+					target_user = %target_user,
+					?sender_creator,
+					?target_creator,
+					"checking if sender is a room creator for initial membership event"
+				);
+				let is_creator = sender_creator && target_creator;
 
 				if is_creator {
 					debug!("sender is room creator, allowing join");

@@ -57,18 +57,30 @@ pub async fn create_hash_and_sign_event(
 		timestamp,
 	} = pdu_builder;
 	// If there was no create event yet, assume we are creating a room
+	trace!(
+		"Creating event of type {} in room {}",
+		event_type,
+		room_id.as_ref().map_or("None", |id| id.as_str())
+	);
 	let room_version_id = match room_id {
-		| Some(room_id) => self
-			.services
-			.state
-			.get_room_version(room_id)
-			.await
-			.or_else(|_| from_evt(room_id.to_owned(), &event_type.clone(), &content.clone()))?,
-		| None => from_evt(
-			RoomId::new(self.services.globals.server_name()),
-			&event_type.clone(),
-			&content.clone(),
-		)?,
+		| Some(room_id) => {
+			trace!(%room_id, "Looking up existing room ID");
+			self.services
+				.state
+				.get_room_version(room_id)
+				.await
+				.or_else(|_| {
+					from_evt(room_id.to_owned(), &event_type.clone(), &content.clone())
+				})?
+		},
+		| None => {
+			trace!("No room ID, assuming room creation");
+			from_evt(
+				RoomId::new(self.services.globals.server_name()),
+				&event_type.clone(),
+				&content.clone(),
+			)?
+		},
 	};
 
 	let room_version = RoomVersion::new(&room_version_id).expect("room version is supported");
