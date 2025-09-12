@@ -30,10 +30,15 @@
     },
     "packageRules": [
         {
-            "description": "Batch minor and patch GitHub Actions updates",
-            "matchManagers": ["github-actions"],
-            "matchUpdateTypes": ["minor", "patch"],
-            "groupName": "github-actions-non-major"
+            "description": "Batch patch-level Rust dependency updates",
+            "matchManagers": ["cargo"],
+            "matchUpdateTypes": ["patch"],
+            "groupName": "rust-patch-updates"
+        },
+        {
+            "description": "Limit concurrent Cargo PRs",
+            "matchManagers": ["cargo"],
+            "prConcurrentLimit": 5
         },
         {
             "description": "Group Rust toolchain updates into a single PR",
@@ -42,25 +47,27 @@
             "groupName": "rust-toolchain"
         },
         {
-            "description": "Group lockfile updates into a single PR",
-            "matchUpdateTypes": ["lockFileMaintenance"],
-            "groupName": "lockfile-maintenance"
-        },
-        {
-            "description": "Batch patch-level Rust dependency updates",
-            "matchManagers": ["cargo"],
-            "matchUpdateTypes": ["patch"],
-            "groupName": "rust-patch-updates"
-        },
-        {
-            "matchManagers": ["cargo"],
-            "prConcurrentLimit": 5
+            "description": "Batch minor and patch GitHub Actions updates",
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["minor", "patch"],
+            "groupName": "github-actions-non-major"
         },
         {
             "description": "Pin forgejo artifact actions to prevent breaking changes",
             "matchManagers": ["github-actions"],
             "matchPackageNames": ["forgejo/upload-artifact", "forgejo/download-artifact"],
             "enabled": false
+        },
+        {
+            "description": "Auto-merge renovatebot docker image updates",
+            "matchDatasources": ["docker"],
+            "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
+            "automerge": true
+        },
+        {
+            "description": "Group lockfile updates into a single PR",
+            "matchUpdateTypes": ["lockFileMaintenance"],
+            "groupName": "lockfile-maintenance"
         }
     ],
     "customManagers": [
