@@ -163,6 +163,9 @@ pub(crate) async fn set_profile_key_route(
 	}
 
 	if body.key_name == "displayname" {
+		let Some(display_name) = profile_key_value.as_str() else {
+			return Err!(Request(BadJson("displayname must be a string")));
+		};
 		let all_joined_rooms: Vec<OwnedRoomId> = services
 			.rooms
 			.state_cache
@@ -174,12 +177,15 @@ pub(crate) async fn set_profile_key_route(
 		update_displayname(
 			&services,
 			&body.user_id,
-			Some(profile_key_value.to_string()),
+			Some(display_name.to_owned()),
 			&all_joined_rooms,
 		)
 		.await;
 	} else if body.key_name == "avatar_url" {
-		let mxc = ruma::OwnedMxcUri::from(profile_key_value.to_string());
+		let Some(avatar_url) = profile_key_value.as_str() else {
+			return Err!(Request(BadJson("avatar_url must be a string")));
+		};
+		let mxc = ruma::OwnedMxcUri::from(avatar_url);
 
 		let all_joined_rooms: Vec<OwnedRoomId> = services
 			.rooms
