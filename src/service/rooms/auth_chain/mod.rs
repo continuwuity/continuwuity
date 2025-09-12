@@ -196,7 +196,7 @@ async fn get_auth_chain_inner(
 			},
 			| Ok(pdu) => {
 				if let Some(claimed_room_id) = pdu.room_id.clone() {
-					if claimed_room_id != room_id.to_owned() {
+					if claimed_room_id != *room_id {
 						return Err!(Request(Forbidden(error!(
 							?event_id,
 							?room_id,
