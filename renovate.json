@@ -6,6 +6,7 @@
         "enabled": true,
         "schedule": ["at any time"]
     },
+    "platformAutomerge": true,
     "nix": {
         "enabled": true
     },
@@ -62,7 +63,8 @@
             "description": "Auto-merge renovatebot docker image updates",
             "matchDatasources": ["docker"],
             "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
-            "automerge": true
+            "automerge": true,
+            "automergeStrategy": "fast-forward"
         },
         {
             "description": "Group lockfile updates into a single PR",
