@@ -11,10 +11,10 @@ OCI images for Continuwuity are available in the registries listed below.
 
 | Registry        | Image                                                           | Notes                  |
 | --------------- | --------------------------------------------------------------- | -----------------------|
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:latest][fj]     | Latest tagged image.   |
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:main][fj]       | Main branch image.     |
-
-[fj]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity
+| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:latest](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest)     | Latest tagged image.   |
+| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:main](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main)       | Main branch image.     |
+| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf) | Performance optimised version. |
+| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:main-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf)   | Performance optimised version. |
 
 Use
 
@@ -49,7 +49,7 @@ If you just want to test Continuwuity for a short time, you can use the `--rm`
 flag, which cleans up everything related to your container after you stop
 it.
 
-### Docker-compose
+### Docker Compose
 
 If the `docker run` command is not suitable for you or your setup, you can also use one
 of the provided `docker-compose` files.
@@ -158,8 +158,19 @@ docker buildx build --load --tag continuwuity:latest -f docker/Dockerfile .
 # Example: Build for specific platforms and push to a registry.
 # docker buildx build --platform linux/amd64,linux/arm64 --tag registry.io/org/continuwuity:latest -f docker/Dockerfile . --push
 
-# Example: Build binary optimized for the current CPU
-# docker buildx build --load --tag continuwuity:latest --build-arg TARGET_CPU=native -f docker/Dockerfile .
+# Example: Build binary optimised for the current CPU (standard release profile)
+# docker buildx build --load \
+#   --tag continuwuity:latest \
+#   --build-arg TARGET_CPU=native \
+#   -f docker/Dockerfile .
+
+# Example: Build maxperf variant (release-max-perf profile with LTO)
+# Optimised for runtime performance and smaller binary size, but requires longer build time
+# docker buildx build --load \
+#   --tag continuwuity:latest-maxperf \
+#   --build-arg TARGET_CPU=native \
+#   --build-arg RUST_PROFILE=release-max-perf \
+#   -f docker/Dockerfile .
 ```
 
 Refer to the Docker Buildx documentation for more advanced build options.
@@ -198,5 +209,3 @@ Alternatively, you can use Continuwuity's built-in delegation file capability. S
 ## Voice communication
 
 See the [TURN](../turn.md) page.
-
-[nix-buildlayeredimage]: https://ryantm.github.io/nixpkgs/builders/images/dockertools/#ssec-pkgs-dockerTools-buildLayeredImage
