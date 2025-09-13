@@ -83,7 +83,6 @@ pub(crate) async fn get_profile_information_route(
 	let mut displayname = None;
 	let mut avatar_url = None;
 	let mut blurhash = None;
-	let mut tz = None;
 	let mut custom_profile_fields = BTreeMap::new();
 
 	match &body.field {
@@ -107,7 +106,6 @@ pub(crate) async fn get_profile_information_route(
 			displayname = services.users.displayname(&body.user_id).await.ok();
 			avatar_url = services.users.avatar_url(&body.user_id).await.ok();
 			blurhash = services.users.blurhash(&body.user_id).await.ok();
-			tz = services.users.timezone(&body.user_id).await.ok();
 			custom_profile_fields = services
 				.users
 				.all_profile_keys(&body.user_id)
@@ -116,15 +114,10 @@ pub(crate) async fn get_profile_information_route(
 		},
 	}
 
-	// services.users.timezone will collect the MSC4175 timezone key if it exists
-	custom_profile_fields.remove("us.cloke.msc4175.tz");
-	custom_profile_fields.remove("m.tz");
-
 	Ok(get_profile_information::v1::Response {
 		displayname,
 		avatar_url,
 		blurhash,
-		tz,
 		custom_profile_fields,
 	})
 }
