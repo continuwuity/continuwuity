@@ -10,7 +10,7 @@ use conduwuit::{
 use conduwuit_service::Services;
 use futures::{
 	StreamExt, TryStreamExt,
-	future::{join, join3, join4},
+	future::{join, join3},
 };
 use ruma::{
 	OwnedMxcUri, OwnedRoomId, UserId,
@@ -226,7 +226,8 @@ pub(crate) async fn get_avatar_url_route(
 
 /// # `GET /_matrix/client/v3/profile/{userId}`
 ///
-/// Returns the displayname, avatar_url, blurhash, and tz of the user.
+/// Returns the displayname, avatar_url, blurhash, and custom profile fields of
+/// the user.
 ///
 /// - If user is on another server and we do not have a local copy already,
 ///   fetch profile over federation.
@@ -260,9 +261,6 @@ pub(crate) async fn get_profile_route(
 			services
 				.users
 				.set_blurhash(&body.user_id, response.blurhash.clone());
-			services
-				.users
-				.set_timezone(&body.user_id, response.tz.clone());
 
 			for (profile_key, profile_key_value) in &response.custom_profile_fields {
 				services.users.set_profile_key(
@@ -276,7 +274,6 @@ pub(crate) async fn get_profile_route(
 				displayname: response.displayname,
 				avatar_url: response.avatar_url,
 				blurhash: response.blurhash,
-				tz: response.tz,
 				custom_profile_fields: response.custom_profile_fields,
 			});
 		}
@@ -294,15 +291,10 @@ pub(crate) async fn get_profile_route(
 		.collect()
 		.await;
 
-	// services.users.timezone will collect the MSC4175 timezone key if it exists
-	custom_profile_fields.remove("us.cloke.msc4175.tz");
-	custom_profile_fields.remove("m.tz");
-
-	let (avatar_url, blurhash, displayname, tz) = join4(
+	let (avatar_url, blurhash, displayname) = join3(
 		services.users.avatar_url(&body.user_id).ok(),
 		services.users.blurhash(&body.user_id).ok(),
 		services.users.displayname(&body.user_id).ok(),
-		services.users.timezone(&body.user_id).ok(),
 	)
 	.await;
 
@@ -310,7 +302,6 @@ pub(crate) async fn get_profile_route(
 		avatar_url,
 		blurhash,
 		displayname,
-		tz,
 		custom_profile_fields,
 	})
 }
