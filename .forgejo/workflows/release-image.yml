@@ -29,41 +29,12 @@ on:
 env:
   BUILTIN_REGISTRY: forgejo.ellis.link
   BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
+  IMAGE_PATH: forgejo.ellis.link/continuwuation/continuwuity
 
 jobs:
-  define-variables:
-    name: "Setup Variables"
-    runs-on: ubuntu-latest
-
-    outputs:
-      images: ${{ steps.var.outputs.images }}
-      images_list: ${{ steps.var.outputs.images_list }}
-
-    steps:
-      - name: Setting variables
-        uses: https://github.com/actions/github-script@v8
-        id: var
-        with:
-          script: |
-            const githubRepo = '${{ github.repository }}'.toLowerCase()
-            const repoId = githubRepo.split('/')[1]
-
-            core.setOutput('github_repository', githubRepo)
-            const builtinImage = '${{ env.BUILTIN_REGISTRY }}/' + githubRepo
-            let images = []
-            if (process.env.BUILTIN_REGISTRY_ENABLED === "true") {
-              images.push(builtinImage)
-            } else {
-              // Fallback to official registry for forks/PRs without credentials
-              images.push('forgejo.ellis.link/continuwuation/continuwuity')
-            }
-            core.setOutput('images', images.join("\n"))
-            core.setOutput('images_list', images.join(","))
-
   build-release:
     name: "Build ${{ matrix.slug }} (release)"
     runs-on: dind
-    needs: define-variables
     permissions:
       contents: read
       packages: write
@@ -90,7 +61,7 @@ jobs:
           slug: ${{ matrix.slug }}
           target_cpu: ""
           profile: "release"
-          images: ${{ needs.define-variables.outputs.images }}
+          images: ${{ env.IMAGE_PATH }}
           registry_user: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image by digest
@@ -114,7 +85,7 @@ jobs:
           # cache-to: type=gha,mode=max
           sbom: true
           outputs: |
-            ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || format('type=image,"name={0}",push=false', needs.define-variables.outputs.images_list) }}
+            ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', env.IMAGE_PATH) || format('type=image,"name={0}",push=false', env.IMAGE_PATH) }}
             type=local,dest=/tmp/binaries
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
@@ -130,7 +101,7 @@ jobs:
   merge-release:
     name: "Create Multi-arch Release Manifest"
     runs-on: dind
-    needs: [define-variables, build-release]
+    needs: build-release
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -141,14 +112,14 @@ jobs:
         with:
           digest_pattern: "digests-linux-{amd64,arm64}"
           tag_suffix: ""
-          images: ${{ needs.define-variables.outputs.images }}
+          images: ${{ env.IMAGE_PATH }}
           registry_user: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
 
   build-maxperf:
     name: "Build ${{ matrix.slug }} (max-perf)"
     runs-on: dind
-    needs: [define-variables, build-release]
+    needs: build-release
     permissions:
       contents: read
       packages: write
@@ -177,7 +148,7 @@ jobs:
           slug: ${{ matrix.slug }}
           target_cpu: ${{ matrix.target_cpu }}
           profile: "release-max-perf"
-          images: ${{ needs.define-variables.outputs.images }}
+          images: ${{ env.IMAGE_PATH }}
           registry_user: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build and push max-perf Docker image by digest
@@ -201,7 +172,7 @@ jobs:
           # cache-to: type=gha,mode=max
           sbom: true
           outputs: |
-            ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', needs.define-variables.outputs.images_list) || format('type=image,"name={0}",push=false', needs.define-variables.outputs.images_list) }}
+            ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', env.IMAGE_PATH) || format('type=image,"name={0}",push=false', env.IMAGE_PATH) }}
             type=local,dest=/tmp/binaries
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
@@ -217,7 +188,7 @@ jobs:
   merge-maxperf:
     name: "Create Max-Perf Manifest"
     runs-on: dind
-    needs: [define-variables, build-maxperf]
+    needs: build-maxperf
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -228,6 +199,6 @@ jobs:
         with:
           digest_pattern: "digests-maxperf-linux-{amd64-haswell,arm64}"
           tag_suffix: "-maxperf"
-          images: ${{ needs.define-variables.outputs.images }}
+          images: ${{ env.IMAGE_PATH }}
           registry_user: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}

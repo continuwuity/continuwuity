@@ -27,25 +27,28 @@ runs:
         echo "TIMELORD_KEY=${{ inputs.key || format('timelord-v1-{0}-{1}', github.repository, hashFiles('**/*.rs', '**/Cargo.toml', '**/Cargo.lock')) }}" >> $GITHUB_ENV
         echo "TIMELORD_PATH=${{ inputs.path || '.' }}" >> $GITHUB_ENV
         echo "TIMELORD_CACHE_PATH=$HOME/.cache/timelord" >> $GITHUB_ENV
+        echo "PATH=/usr/share/rust/.cargo/bin:$HOME/.cargo/bin:$PATH" >> $GITHUB_ENV
 
     - name: Restore binary cache
       id: binary-cache
       uses: actions/cache/restore@v4
       with:
-        path: /usr/share/rust/.cargo/bin
-        key: timelord-binaries-v1
+        path: |
+          /usr/share/rust/.cargo/bin
+          ~/.cargo/bin
+        key: timelord-binaries-v2
 
     - name: Check if binaries need installation
       shell: bash
       id: check-binaries
       run: |
         NEED_INSTALL=false
-        if [ ! -e /usr/share/rust/.cargo/bin/timelord ]; then
-          echo "timelord-cli not found at /usr/share/rust/.cargo/bin/timelord, needs installation"
+        if [ ! -e /usr/share/rust/.cargo/bin/timelord ] && [ ! -e ~/.cargo/bin/timelord ]; then
+          echo "timelord-cli not found in /usr/share/rust/.cargo/bin or ~/.cargo/bin, needs installation"
           NEED_INSTALL=true
         fi
-        if [ ! -e /usr/share/rust/.cargo/bin/git-warp-time ]; then
-          echo "git-warp-time not found at /usr/share/rust/.cargo/bin/git-warp-time, needs installation"
+        if [ ! -e /usr/share/rust/.cargo/bin/git-warp-time ] && [ ! -e ~/.cargo/bin/git-warp-time ]; then
+          echo "git-warp-time not found in /usr/share/rust/.cargo/bin or ~/.cargo/bin, needs installation"
           NEED_INSTALL=true
         fi
         echo "need-install=$NEED_INSTALL" >> $GITHUB_OUTPUT
@@ -60,8 +63,10 @@ runs:
       if: steps.check-binaries.outputs.need-install == 'true'
       uses: actions/cache/save@v4
       with:
-        path: /usr/share/rust/.cargo/bin
-        key: timelord-binaries-v1
+        path: |
+          /usr/share/rust/.cargo/bin
+          ~/.cargo/bin
+        key: timelord-binaries-v2
 
 
     - name: Restore timelord cache with fallbacks
@@ -80,9 +85,9 @@ runs:
         echo "Complete timelord cache miss - running git-warp-time"
         git fetch --unshallow
         if [ "${{ env.TIMELORD_PATH }}" = "." ]; then
-          /usr/share/rust/.cargo/bin/git-warp-time --quiet
+          git-warp-time --quiet
         else
-          /usr/share/rust/.cargo/bin/git-warp-time --quiet ${{ env.TIMELORD_PATH }}
+          git-warp-time --quiet ${{ env.TIMELORD_PATH }}
         fi
         echo "Git timestamps restored"
 
@@ -90,7 +95,7 @@ runs:
       shell: bash
       run: |
         mkdir -p ${{ env.TIMELORD_CACHE_PATH }}
-        /usr/share/rust/.cargo/bin/timelord sync --source-dir ${{ env.TIMELORD_PATH }} --cache-dir ${{ env.TIMELORD_CACHE_PATH }}
+        timelord sync --source-dir ${{ env.TIMELORD_PATH }} --cache-dir ${{ env.TIMELORD_CACHE_PATH }}
 
     - name: Save updated timelord cache immediately
       uses: actions/cache/save@v4
