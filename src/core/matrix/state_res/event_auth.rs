@@ -814,7 +814,11 @@ where
 						} else {
 							true
 						},
-					| _ => true,
+					| JoinRule::Public => true,
+					| _ => {
+						warn!("Unknown join rule doesn't allow joining");
+						false
+					},
 				}
 			}
 		},
