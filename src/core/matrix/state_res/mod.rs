@@ -97,7 +97,7 @@ where
 		| V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11 => 2.0,
 		| _ => 2.1,
 	};
-	debug!("State resolution starting");
+	debug!(version = ?stateres_version, "State resolution starting");
 
 	// Split non-conflicting and conflicting state
 	let (clean, conflicting) = separate(state_sets.into_iter());
@@ -220,8 +220,11 @@ where
 	// Add unconflicted state to the resolved state
 	// We priorities the unconflicting state
 	resolved_state.extend(clean);
-	resolved_state.extend(resolved_control); // TODO(hydra): this feels disgusting and wrong but it allows
-	// the state to resolve properly?
+	if stateres_version == 2.1 {
+		resolved_state.extend(resolved_control);
+		// TODO(hydra): this feels disgusting and wrong but it allows
+		// the state to resolve properly?
+	}
 
 	debug!("state resolution finished");
 	trace!( map = ?resolved_state, "final resolved state" );

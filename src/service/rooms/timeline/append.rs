@@ -3,6 +3,7 @@ use std::{
 	sync::Arc,
 };
 
+use conduwuit::trace;
 use conduwuit_core::{
 	Result, err, error, implement,
 	matrix::{
@@ -61,10 +62,10 @@ where
 			.pdu_metadata
 			.mark_as_referenced(room_id, pdu.prev_events.iter().map(AsRef::as_ref));
 
-		self.services
-			.state
-			.set_forward_extremities(room_id, new_room_leaves, state_lock)
-			.await;
+		// self.services
+		// 	.state
+		// 	.set_forward_extremities(room_id, new_room_leaves, state_lock)
+		// 	.await;
 
 		return Ok(None);
 	}
@@ -156,6 +157,7 @@ where
 		.pdu_metadata
 		.mark_as_referenced(room_id, pdu.prev_events().map(AsRef::as_ref));
 
+	trace!("setting forward extremities");
 	self.services
 		.state
 		.set_forward_extremities(room_id, leaves, state_lock)

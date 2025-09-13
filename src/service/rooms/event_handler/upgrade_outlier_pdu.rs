@@ -306,6 +306,7 @@ where
 		);
 		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
+		assert!(extremities.clone().count() > 0, "extremities not empty");
 
 		self.services
 			.timeline
@@ -340,6 +341,7 @@ where
 		.iter()
 		.map(Borrow::borrow)
 		.chain(once(incoming_pdu.event_id()));
+	assert!(extremities.clone().count() > 0, "extremities not empty");
 
 	let pdu_id = self
 		.services
