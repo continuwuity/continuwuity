@@ -10,27 +10,21 @@
 
 ### Static prebuilt binary
 
-You may simply download the binary that fits your machine architecture (x86_64
-or aarch64). Run `uname -m` to see what you need.
+Download the binary for your architecture (x86_64 or aarch64) - run `uname -m` to check which you need.
 
-You can download prebuilt fully static musl binaries from the latest tagged
-release [here](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest) or
-from the `main` CI branch workflow artifact output. These also include Debian/Ubuntu
-packages.
+Prebuilt static binaries are available from:
+- **Tagged releases**: [Latest release page](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest)
+- **Development builds**: CI artifacts from the `main` branch (includes Debian/Ubuntu packages)
 
-You can download these directly using curl. The `ci-bins` are CI workflow binaries organized by commit
-hash/revision, and `releases` are tagged releases. Sort by descending last
-modified date to find the latest.
+When browsing CI artifacts, `ci-bins` contains binaries organised by commit hash, while `releases` contains tagged versions. Sort by last modified date to find the most recent builds.
 
-These binaries have jemalloc and io_uring statically linked and included with
-them, so no additional dynamic dependencies need to be installed.
+The binaries include jemalloc and io_uring statically linked, so you won't need to install any additional dependencies.
 
-For the **best** performance: if you are using an `x86_64` CPU made in the last ~15 years,
-we recommend using the `-haswell-` optimized binaries. These set
-`-march=haswell`, which provides the most compatible and highest performance with
-optimized binaries. The database backend, RocksDB, benefits most from this as it
-uses hardware-accelerated CRC32 hashing/checksumming, which is critical
-for performance.
+#### Performance-optimised builds
+
+For x86_64 systems with CPUs from the last ~15 years, use the `-haswell-` optimised binaries for best performance. These binaries enable hardware-accelerated CRC32 checksumming in RocksDB, which significantly improves database performance. The haswell instruction set provides an excellent balance of compatibility and speed.
+
+If you're using Docker instead, equivalent performance-optimised images are available with the `-maxperf` suffix (e.g. `forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf`). These images use the `release-max-perf` build profile with [link-time optimisation (LTO)](https://doc.rust-lang.org/cargo/reference/profiles.html#lto) and, for amd64, target the haswell CPU architecture.
 
 ### Compiling
 
