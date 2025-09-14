@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use axum::extract::State;
 use conduwuit::{
 	Err, Result,
@@ -10,7 +8,7 @@ use conduwuit::{
 use conduwuit_service::Services;
 use futures::{
 	StreamExt, TryStreamExt,
-	future::{join, join3},
+	future::{join, join3, join4},
 };
 use ruma::{
 	OwnedMxcUri, OwnedRoomId, UserId,
@@ -285,16 +283,11 @@ pub(crate) async fn get_profile_route(
 		return Err!(Request(NotFound("Profile was not found.")));
 	}
 
-	let custom_profile_fields: BTreeMap<String, serde_json::Value> = services
-		.users
-		.all_profile_keys(&body.user_id)
-		.collect()
-		.await;
-
-	let (avatar_url, blurhash, displayname) = join3(
+	let (avatar_url, blurhash, displayname, custom_profile_fields) = join4(
 		services.users.avatar_url(&body.user_id).ok(),
 		services.users.blurhash(&body.user_id).ok(),
 		services.users.displayname(&body.user_id).ok(),
+		services.users.all_profile_keys(&body.user_id).collect(),
 	)
 	.await;
 
