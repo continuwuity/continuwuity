@@ -2,13 +2,12 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use conduwuit::{Err, Error, Result};
+use conduwuit::{Err, Result};
 use futures::StreamExt;
 use ruma::{
 	OwnedRoomId,
 	api::{
 		client::{
-			error::ErrorKind,
 			membership::mutual_rooms,
 			profile::{delete_profile_key, get_profile_key, set_profile_key},
 		},

@@ -285,7 +285,7 @@ pub(crate) async fn get_profile_route(
 		return Err!(Request(NotFound("Profile was not found.")));
 	}
 
-	let mut custom_profile_fields: BTreeMap<String, serde_json::Value> = services
+	let custom_profile_fields: BTreeMap<String, serde_json::Value> = services
 		.users
 		.all_profile_keys(&body.user_id)
 		.collect()
