@@ -1103,7 +1103,7 @@ impl Service {
 	}
 
 	#[inline]
-	async fn parse_profile_kv(
+	fn parse_profile_kv(
 		&self,
 		user_id: &UserId,
 		key: &str,
@@ -1140,8 +1140,8 @@ impl Service {
 		self.db
 			.useridprofilekey_value
 			.qry(&key)
-			.and_then(|handle| self.parse_profile_kv(user_id, profile_key, handle.to_vec()))
 			.await
+			.and_then(|handle| self.parse_profile_kv(user_id, profile_key, handle.to_vec()))
 	}
 
 	/// Gets all the user's profile keys and values in an iterator
@@ -1156,8 +1156,8 @@ impl Service {
 			.useridprofilekey_value
 			.stream_prefix(&prefix)
 			.ignore_err()
-			.then(async |((_, key), value): KeyVal<'_>| {
-				let value = self.parse_profile_kv(user_id, &key, value.to_vec()).await?;
+			.map(|((_, key), value): KeyVal<'_>| {
+				let value = self.parse_profile_kv(user_id, &key, value.to_vec())?;
 				Ok((key, value))
 			})
 			.ignore_err()
