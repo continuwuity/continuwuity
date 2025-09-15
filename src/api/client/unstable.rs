@@ -90,14 +90,6 @@ pub(crate) async fn set_profile_key_route(
 		)));
 	};
 
-	if body
-		.kv_pair
-		.keys()
-		.any(|key| key.starts_with("u.") && !profile_key_value.is_string())
-	{
-		return Err!(Request(BadJson("u.* profile key fields must be strings")));
-	}
-
 	if body.kv_pair.keys().any(|key| key.len() > 128) {
 		return Err!(Request(BadJson("Key names cannot be longer than 128 bytes")));
 	}
