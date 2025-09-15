@@ -27,7 +27,7 @@ runs:
         echo "TIMELORD_KEY=${{ inputs.key || format('timelord-v1-{0}-{1}', github.repository, hashFiles('**/*.rs', '**/Cargo.toml', '**/Cargo.lock')) }}" >> $GITHUB_ENV
         echo "TIMELORD_PATH=${{ inputs.path || '.' }}" >> $GITHUB_ENV
         echo "TIMELORD_CACHE_PATH=$HOME/.cache/timelord" >> $GITHUB_ENV
-        echo "PATH=/usr/share/rust/.cargo/bin:$HOME/.cargo/bin:$PATH" >> $GITHUB_ENV
+        echo "PATH=$HOME/.cargo/bin:/usr/share/rust/.cargo/bin:$PATH" >> $GITHUB_ENV
 
     - name: Restore binary cache
       id: binary-cache
@@ -36,21 +36,37 @@ runs:
         path: |
           /usr/share/rust/.cargo/bin
           ~/.cargo/bin
-        key: timelord-binaries-v2
+        key: timelord-binaries-v3
 
     - name: Check if binaries need installation
       shell: bash
       id: check-binaries
       run: |
         NEED_INSTALL=false
-        if [ ! -e /usr/share/rust/.cargo/bin/timelord ] && [ ! -e ~/.cargo/bin/timelord ]; then
-          echo "timelord-cli not found in /usr/share/rust/.cargo/bin or ~/.cargo/bin, needs installation"
+
+        # Ensure ~/.cargo/bin exists
+        mkdir -p ~/.cargo/bin
+
+        # Check and move timelord if needed
+        if [ -f /usr/share/rust/.cargo/bin/timelord ] && [ ! -f ~/.cargo/bin/timelord ]; then
+          echo "Moving timelord from /usr/share/rust/.cargo/bin to ~/.cargo/bin"
+          mv /usr/share/rust/.cargo/bin/timelord ~/.cargo/bin/
+        fi
+        if [ ! -f ~/.cargo/bin/timelord ]; then
+          echo "timelord-cli not found, needs installation"
           NEED_INSTALL=true
         fi
-        if [ ! -e /usr/share/rust/.cargo/bin/git-warp-time ] && [ ! -e ~/.cargo/bin/git-warp-time ]; then
-          echo "git-warp-time not found in /usr/share/rust/.cargo/bin or ~/.cargo/bin, needs installation"
+
+        # Check and move git-warp-time if needed
+        if [ -f /usr/share/rust/.cargo/bin/git-warp-time ] && [ ! -f ~/.cargo/bin/git-warp-time ]; then
+          echo "Moving git-warp-time from /usr/share/rust/.cargo/bin to ~/.cargo/bin"
+          mv /usr/share/rust/.cargo/bin/git-warp-time ~/.cargo/bin/
+        fi
+        if [ ! -f ~/.cargo/bin/git-warp-time ]; then
+          echo "git-warp-time not found, needs installation"
           NEED_INSTALL=true
         fi
+
         echo "need-install=$NEED_INSTALL" >> $GITHUB_OUTPUT
 
     - name: Install timelord-cli and git-warp-time
@@ -66,7 +82,7 @@ runs:
         path: |
           /usr/share/rust/.cargo/bin
           ~/.cargo/bin
-        key: timelord-binaries-v2
+        key: timelord-binaries-v3
 
 
     - name: Restore timelord cache with fallbacks
