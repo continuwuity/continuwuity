@@ -307,7 +307,7 @@ jobs:
             -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
             -H "Content-Type: application/x-rpm" \
             -T "$RPM" \
-            "https://forgejo.ellis.link/api/packages/continuwuation/rpm/$GROUP/upload"
+            "https://forgejo.ellis.link/api/packages/continuwuation/rpm/$GROUP/upload?sign=true"
 
           echo ""
           echo "✅ Published binary RPM to: https://forgejo.ellis.link/continuwuation/-/packages/rpm/continuwuity/"
@@ -346,7 +346,7 @@ jobs:
                 -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
                 -H "Content-Type: application/x-rpm" \
                 -T "$DEBUG_RPM" \
-                "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-debug/upload"
+                "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-debug/upload?sign=true"
             done
 
             echo "✅ Published debug RPMs to group: ${GROUP}-debug"
@@ -383,7 +383,7 @@ jobs:
               -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
               -H "Content-Type: application/x-rpm" \
               -T "$SRPM" \
-              "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-src/upload"
+              "https://forgejo.ellis.link/api/packages/continuwuation/rpm/${GROUP}-src/upload?sign=true"
 
             echo "✅ Published source RPM to group: ${GROUP}-src"
           fi
