@@ -1124,6 +1124,34 @@ impl Service {
 		Ok(user_id)
 	}
 
+	#[inline]
+	fn parse_profile_kv(
+		&self,
+		user_id: &UserId,
+		key: &str,
+		value: Vec<u8>,
+	) -> Result<serde_json::Value> {
+		match serde_json::from_slice(&value) {
+			| Ok(value) => Ok(value),
+			| Err(error) => {
+				// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
+				// profile fields with raw strings instead of quoted JSON ones.
+				if key == "us.cloke.msc4175.tz" {
+					// TODO insert a hint about this being a cold path
+					debug_warn!(
+						"Fixing corrupt `us.cloke.msc4175.tz` field in the profile of {}",
+						user_id
+					);
+					let raw_tz = serde_json::Value::String(String::from_utf8(value)?);
+					self.set_profile_key(user_id, "us.cloke.msc4175.tz", Some(raw_tz.clone()));
+					Ok(raw_tz)
+				} else {
+					Err(error.into())
+				}
+			},
+		}
+	}
+
 	/// Gets a specific user profile key
 	pub async fn profile_key(
 		&self,
@@ -1135,7 +1163,7 @@ impl Service {
 			.useridprofilekey_value
 			.qry(&key)
 			.await
-			.deserialized()
+			.and_then(|handle| self.parse_profile_kv(user_id, profile_key, handle.to_vec()))
 	}
 
 	/// Gets all the user's profile keys and values in an iterator
@@ -1143,14 +1171,18 @@ impl Service {
 		&'a self,
 		user_id: &'a UserId,
 	) -> impl Stream<Item = (String, serde_json::Value)> + 'a + Send {
-		type KeyVal = ((Ignore, String), serde_json::Value);
+		type KeyVal<'a> = ((Ignore, String), &'a [u8]);
 
 		let prefix = (user_id, Interfix);
 		self.db
 			.useridprofilekey_value
 			.stream_prefix(&prefix)
 			.ignore_err()
-			.map(|((_, key), val): KeyVal| (key, val))
+			.map(|((_, key), value): KeyVal<'_>| {
+				let value = self.parse_profile_kv(user_id, &key, value.to_vec())?;
+				Ok((key, value))
+			})
+			.ignore_err()
 	}
 
 	/// Sets a new profile key value, removes the key if value is None
@@ -1165,34 +1197,6 @@ impl Service {
 
 		if let Some(value) = profile_key_value {
 			self.db.useridprofilekey_value.put(key, Json(value));
-		} else {
-			self.db.useridprofilekey_value.del(key);
-		}
-	}
-
-	/// Get the timezone of a user.
-	pub async fn timezone(&self, user_id: &UserId) -> Result<String> {
-		// TODO: transparently migrate unstable key usage to the stable key once MSC4133
-		// and MSC4175 are stable, likely a remove/insert in this block.
-
-		// first check the unstable prefix then check the stable prefix
-		let unstable_key = (user_id, "us.cloke.msc4175.tz");
-		let stable_key = (user_id, "m.tz");
-		self.db
-			.useridprofilekey_value
-			.qry(&unstable_key)
-			.or_else(|_| self.db.useridprofilekey_value.qry(&stable_key))
-			.await
-			.deserialized()
-	}
-
-	/// Sets a new timezone or removes it if timezone is None.
-	pub fn set_timezone(&self, user_id: &UserId, timezone: Option<String>) {
-		// TODO: insert to the stable MSC4175 key when it's stable
-		let key = (user_id, "us.cloke.msc4175.tz");
-
-		if let Some(timezone) = timezone {
-			self.db.useridprofilekey_value.put_raw(key, &timezone);
 		} else {
 			self.db.useridprofilekey_value.del(key);
 		}

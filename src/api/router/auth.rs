@@ -20,9 +20,7 @@ use ruma::{
 		client::{
 			directory::get_public_rooms,
 			error::ErrorKind,
-			profile::{
-				get_avatar_url, get_display_name, get_profile, get_profile_key, get_timezone_key,
-			},
+			profile::{get_avatar_url, get_display_name, get_profile, get_profile_key},
 			voip::get_turn_server_info,
 		},
 		federation::{authentication::XMatrix, openid::get_openid_userinfo},
@@ -89,8 +87,7 @@ pub(super) async fn auth(
 			| &get_profile::v3::Request::METADATA
 			| &get_profile_key::unstable::Request::METADATA
 			| &get_display_name::v3::Request::METADATA
-			| &get_avatar_url::v3::Request::METADATA
-			| &get_timezone_key::unstable::Request::METADATA => {
+			| &get_avatar_url::v3::Request::METADATA => {
 				if services.server.config.require_auth_for_profile_requests {
 					match token {
 						| Token::Appservice(_) | Token::User(_) => {

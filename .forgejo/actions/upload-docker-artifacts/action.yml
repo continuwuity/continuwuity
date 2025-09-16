@@ -1,0 +1,70 @@
+name: upload-docker-artifacts
+description: |
+  Upload Docker build artifacts including binary and digest files.
+  Handles artifact naming and conditional digest uploads for registry publishing.
+
+inputs:
+  slug:
+    description: Platform slug for artifact naming (e.g. linux-amd64, linux-arm64)
+    required: true
+  cpu_suffix:
+    description: CPU suffix for artifact naming (e.g. -haswell)
+    required: false
+    default: ""
+  artifact_suffix:
+    description: Suffix for binary artifacts (e.g. -maxperf)
+    required: false
+    default: ""
+  digest_suffix:
+    description: Suffix for digest artifacts (e.g. -maxperf)
+    required: false
+    default: ""
+  digest:
+    description: The digest of the built Docker image
+    required: true
+
+outputs:
+  binary_artifact_name:
+    description: The name of the uploaded binary artifact
+    value: conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+
+runs:
+  using: composite
+  steps:
+    - name: Export digest
+      if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
+      shell: bash
+      run: |
+        mkdir -p /tmp/digests
+        digest="${{ inputs.digest }}"
+        echo "🔍 Build step digest output: '$digest'"
+        if [[ -z "$digest" ]]; then
+          echo "❌ ERROR: No digest found from build step"
+          exit 1
+        fi
+        digest_file="/tmp/digests/${digest#sha256:}"
+        echo "📁 Creating digest file: $digest_file"
+        touch "$digest_file"
+        echo "✅ Digest file created successfully"
+        echo "📋 Contents of /tmp/digests:"
+        ls -la /tmp/digests/
+
+    - name: Rename extracted binary
+      shell: bash
+      run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+
+    - name: Upload binary artifact
+      uses: forgejo/upload-artifact@v4
+      with:
+        name: conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+        path: /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+        if-no-files-found: error
+
+    - name: Upload digest
+      if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
+      uses: forgejo/upload-artifact@v4
+      with:
+        name: digests${{ inputs.digest_suffix }}-${{ inputs.slug }}${{ inputs.cpu_suffix }}
+        path: /tmp/digests/*
+        if-no-files-found: error
+        retention-days: 5
