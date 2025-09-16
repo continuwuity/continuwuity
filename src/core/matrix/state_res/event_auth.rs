@@ -779,18 +779,30 @@ where
 				false
 			} else {
 				match join_rules {
-					| JoinRule::Invite if !membership_allows_join => {
-						warn!("Join rule is invite but membership does not allow join");
-						false
-					},
+					| JoinRule::Invite =>
+						if !membership_allows_join {
+							warn!(
+								membership=?target_user_current_membership,
+								"Join rule is invite but membership does not allow join"
+							);
+							false
+						} else {
+							true
+						},
 					| JoinRule::Knock if !room_version.allow_knocking => {
 						warn!("Join rule is knock but room version does not allow knocking");
 						false
 					},
-					| JoinRule::Knock if !membership_allows_join => {
-						warn!("Join rule is knock but membership does not allow join");
-						false
-					},
+					| JoinRule::Knock =>
+						if !membership_allows_join {
+							warn!(
+								membership=?target_user_current_membership,
+								"Join rule is knock but membership does not allow join"
+							);
+							false
+						} else {
+							true
+						},
 					| JoinRule::KnockRestricted(_) if !room_version.knock_restricted_join_rule =>
 					{
 						warn!(
@@ -798,11 +810,22 @@ where
 						);
 						false
 					},
-					| JoinRule::KnockRestricted(_) if !membership_allows_join => {
-						warn!("Join rule is knock_restricted but membership does not allow join");
-						false
+					| JoinRule::KnockRestricted(_) => {
+						let valid_join = user_for_join_auth_is_valid
+							|| sender_membership == MembershipState::Join;
+						if membership_allows_join || valid_join {
+							true
+						} else {
+							warn!(
+								membership=?target_user_current_membership,
+								"Join rule is a restricted one, but no valid authorising user \
+								 was given and the sender's current membership does not permit \
+								 a join transition"
+							);
+							false
+						}
 					},
-					| JoinRule::Restricted(_) | JoinRule::KnockRestricted(_) =>
+					| JoinRule::Restricted(_) =>
 						if !user_for_join_auth_is_valid
 							&& sender_membership != MembershipState::Join
 						{
@@ -816,7 +839,11 @@ where
 						},
 					| JoinRule::Public => true,
 					| _ => {
-						warn!("Unknown join rule doesn't allow joining");
+						warn!(
+							join_rule=?join_rules,
+							membership=?target_user_current_membership,
+							"Unknown join rule doesn't allow joining, or the rule's conditions were not met"
+						);
 						false
 					},
 				}
