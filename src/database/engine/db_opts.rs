@@ -38,7 +38,6 @@ pub(crate) fn db_options(config: &Config, env: &Env, row_cache: &Cache) -> Resul
 	}
 	if config.rocksdb_optimize_for_spinning_disks {
 		// speeds up opening DB on hard drives
-		opts.set_skip_checking_sst_file_sizes_on_db_open(true);
 		opts.set_skip_stats_update_on_db_open(true);
 		//opts.set_max_file_opening_threads(threads.try_into().unwrap());
 	} else {
