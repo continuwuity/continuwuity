@@ -1102,34 +1102,6 @@ impl Service {
 		Ok(user_id)
 	}
 
-	#[inline]
-	fn parse_profile_kv(
-		&self,
-		user_id: &UserId,
-		key: &str,
-		value: Vec<u8>,
-	) -> Result<serde_json::Value> {
-		match serde_json::from_slice(&value) {
-			| Ok(value) => Ok(value),
-			| Err(error) => {
-				// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
-				// profile fields with raw strings instead of quoted JSON ones.
-				if key == "us.cloke.msc4175.tz" {
-					// TODO insert a hint about this being a cold path
-					debug_warn!(
-						"Fixing corrupt `us.cloke.msc4175.tz` field in the profile of {}",
-						user_id
-					);
-					let raw_tz = serde_json::Value::String(String::from_utf8(value)?);
-					self.set_profile_key(user_id, "us.cloke.msc4175.tz", Some(raw_tz.clone()));
-					Ok(raw_tz)
-				} else {
-					Err(error.into())
-				}
-			},
-		}
-	}
-
 	/// Gets a specific user profile key
 	pub async fn profile_key(
 		&self,
@@ -1141,7 +1113,7 @@ impl Service {
 			.useridprofilekey_value
 			.qry(&key)
 			.await
-			.and_then(|handle| self.parse_profile_kv(user_id, profile_key, handle.to_vec()))
+			.and_then(|handle| serde_json::from_slice(&handle).map_err(|err| err.into()))
 	}
 
 	/// Gets all the user's profile keys and values in an iterator
@@ -1156,10 +1128,7 @@ impl Service {
 			.useridprofilekey_value
 			.stream_prefix(&prefix)
 			.ignore_err()
-			.map(|((_, key), value): KeyVal<'_>| {
-				let value = self.parse_profile_kv(user_id, &key, value.to_vec())?;
-				Ok((key, value))
-			})
+			.map(|((_, key), value): KeyVal<'_>| Ok((key, serde_json::from_slice(value)?)))
 			.ignore_err()
 	}
 

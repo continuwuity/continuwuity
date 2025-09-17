@@ -9,7 +9,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
 	OwnedUserId, RoomId, UserId,
@@ -136,6 +136,14 @@ async fn migrate(services: &Services) -> Result<()> {
 	if services.globals.db.database_version().await < 17 {
 		services.globals.db.bump_database_version(17);
 		info!("Migration: Bumped database version to 17");
+	}
+
+	if db["global"]
+		.get(FIXED_CORRUPT_MSC4133_FIELDS_MARKER)
+		.await
+		.is_not_found()
+	{
+		fix_corrupt_msc4133_fields(services).await?;
 	}
 
 	if services.globals.db.database_version().await < 18 {
@@ -563,4 +571,55 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 
 	db["global"].insert(b"fix_readreceiptid_readreceipt_duplicates", []);
 	db.db.sort()
+}
+
+const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &'static [u8] = b"fix_corrupt_msc4133_fields";
+async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
+	use serde_json::{Value, from_slice};
+	type KeyVal<'a> = ((OwnedUserId, String), &'a [u8]);
+
+	warn!("Fixing corrupted `us.cloke.msc4175.tz` fields...");
+
+	let db = &services.db;
+	let cork = db.cork_and_sync();
+	let useridprofilekey_value = db["useridprofilekey_value"].clone();
+
+	let (total, fixed) = useridprofilekey_value
+		.stream()
+		.try_fold(
+			(0_usize, 0_usize),
+			async |(mut total, mut fixed),
+			       ((user, key), value): KeyVal<'_>|
+			       -> Result<(usize, usize)> {
+				if let Err(error) = from_slice::<Value>(value) {
+					// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
+					// profile fields with raw strings instead of quoted JSON ones.
+					// This migration fixes that.
+					let new_value = if key == "us.cloke.msc4175.tz" {
+						Value::String(String::from_utf8(value.to_vec())?)
+					} else {
+						return Err!(
+							"failed to deserialize msc4133 key {} of user {}: {}",
+							key,
+							user,
+							error
+						);
+					};
+
+					useridprofilekey_value.put((user, key), new_value);
+					fixed += 1;
+				}
+				total += 1;
+
+				Ok((total, fixed))
+			},
+		)
+		.await?;
+
+	drop(cork);
+	info!(?total, ?fixed, "Fixed corrupted `us.cloke.msc4175.tz` fields.");
+
+	db["global"].insert(FIXED_CORRUPT_MSC4133_FIELDS_MARKER, []);
+	db.db.sort()?;
+	Ok(())
 }
