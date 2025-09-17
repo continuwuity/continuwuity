@@ -22,13 +22,15 @@ pub enum EventFormatVersion {
 	V3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(not(feature = "unstable-exhaustive-types"), non_exhaustive)]
 pub enum StateResolutionVersion {
 	/// State resolution for rooms at version 1.
 	V1,
 	/// State resolution for room at version 2 or later.
 	V2,
+	/// State resolution for room at version 12 or later.
+	V2_1,
 }
 
 #[cfg_attr(not(feature = "unstable-exhaustive-types"), non_exhaustive)]
@@ -61,25 +63,34 @@ pub struct RoomVersion {
 	pub extra_redaction_checks: bool,
 	/// Allow knocking in event authentication.
 	///
-	/// See [room v7 specification](https://spec.matrix.org/latest/rooms/v7/) for more information.
+	/// See [room v7 specification](https://spec.matrix.org/latest/rooms/v7/)
 	pub allow_knocking: bool,
 	/// Adds support for the restricted join rule.
 	///
-	/// See: [MSC3289](https://github.com/matrix-org/matrix-spec-proposals/pull/3289) for more information.
+	/// See: [MSC3289](https://github.com/matrix-org/matrix-spec-proposals/pull/3289)
 	pub restricted_join_rules: bool,
 	/// Adds support for the knock_restricted join rule.
 	///
-	/// See: [MSC3787](https://github.com/matrix-org/matrix-spec-proposals/pull/3787) for more information.
+	/// See: [MSC3787](https://github.com/matrix-org/matrix-spec-proposals/pull/3787)
 	pub knock_restricted_join_rule: bool,
 	/// Enforces integer power levels.
 	///
-	/// See: [MSC3667](https://github.com/matrix-org/matrix-spec-proposals/pull/3667) for more information.
+	/// See: [MSC3667](https://github.com/matrix-org/matrix-spec-proposals/pull/3667)
 	pub integer_power_levels: bool,
 	/// Determine the room creator using the `m.room.create` event's `sender`,
 	/// instead of the event content's `creator` field.
 	///
-	/// See: [MSC2175](https://github.com/matrix-org/matrix-spec-proposals/pull/2175) for more information.
+	/// See: [MSC2175](https://github.com/matrix-org/matrix-spec-proposals/pull/2175)
 	pub use_room_create_sender: bool,
+	/// Whether the room creators are considered superusers.
+	/// A superuser will always have infinite power levels in the room.
+	///
+	/// See: [MSC4289](https://github.com/matrix-org/matrix-spec-proposals/pull/4289)
+	pub explicitly_privilege_room_creators: bool,
+	/// Whether the room's m.room.create event ID is itself the room ID.
+	///
+	/// See: [MSC4291](https://github.com/matrix-org/matrix-spec-proposals/pull/4291)
+	pub room_ids_as_hashes: bool,
 }
 
 impl RoomVersion {
@@ -97,6 +108,8 @@ impl RoomVersion {
 		knock_restricted_join_rule: false,
 		integer_power_levels: false,
 		use_room_create_sender: false,
+		explicitly_privilege_room_creators: false,
+		room_ids_as_hashes: false,
 	};
 	pub const V10: Self = Self {
 		knock_restricted_join_rule: true,
@@ -106,6 +119,11 @@ impl RoomVersion {
 	pub const V11: Self = Self {
 		use_room_create_sender: true,
 		..Self::V10
+	};
+	pub const V12: Self = Self {
+		explicitly_privilege_room_creators: true,
+		room_ids_as_hashes: true,
+		..Self::V11
 	};
 	pub const V2: Self = Self {
 		state_res: StateResolutionVersion::V2,
@@ -144,6 +162,7 @@ impl RoomVersion {
 			| RoomVersionId::V9 => Self::V9,
 			| RoomVersionId::V10 => Self::V10,
 			| RoomVersionId::V11 => Self::V11,
+			| RoomVersionId::V12 => Self::V12,
 			| ver => return Err(Error::Unsupported(format!("found version `{ver}`"))),
 		})
 	}

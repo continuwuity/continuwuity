@@ -195,13 +195,15 @@ async fn get_auth_chain_inner(
 				debug_error!(?event_id, ?e, "Could not find pdu mentioned in auth events");
 			},
 			| Ok(pdu) => {
-				if pdu.room_id != room_id {
-					return Err!(Request(Forbidden(error!(
-						?event_id,
-						?room_id,
-						wrong_room_id = ?pdu.room_id,
-						"auth event for incorrect room"
-					))));
+				if let Some(claimed_room_id) = pdu.room_id.clone() {
+					if claimed_room_id != *room_id {
+						return Err!(Request(Forbidden(error!(
+							?event_id,
+							?room_id,
+							wrong_room_id = ?pdu.room_id.unwrap(),
+							"auth event for incorrect room"
+						))));
+					}
 				}
 
 				for auth_event in &pdu.auth_events {

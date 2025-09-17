@@ -27,7 +27,7 @@ use crate::{Services, media};
 /// - If database is opened at lesser version we apply migrations up to this.
 ///   Note that named-feature migrations may also be performed when opening at
 ///   equal or lesser version. These are expected to be backward-compatible.
-pub(crate) const DATABASE_VERSION: u64 = 17;
+pub(crate) const DATABASE_VERSION: u64 = 18;
 
 pub(crate) async fn migrations(services: &Services) -> Result<()> {
 	let users_count = services.users.count().await;
@@ -136,6 +136,11 @@ async fn migrate(services: &Services) -> Result<()> {
 	if services.globals.db.database_version().await < 17 {
 		services.globals.db.bump_database_version(17);
 		info!("Migration: Bumped database version to 17");
+	}
+
+	if services.globals.db.database_version().await < 18 {
+		services.globals.db.bump_database_version(18);
+		info!("Migration: Bumped database version to 18");
 	}
 
 	assert_eq!(

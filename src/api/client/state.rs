@@ -201,7 +201,7 @@ async fn send_state_event_for_key_helper(
 				..Default::default()
 			},
 			sender,
-			room_id,
+			Some(room_id),
 			&state_lock,
 		)
 		.await?;

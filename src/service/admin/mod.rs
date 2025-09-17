@@ -393,13 +393,13 @@ impl Service {
 			return Ok(());
 		};
 
-		let response_sender = if self.is_admin_room(pdu.room_id()).await {
+		let response_sender = if self.is_admin_room(pdu.room_id().unwrap()).await {
 			&self.services.globals.server_user
 		} else {
 			pdu.sender()
 		};
 
-		self.respond_to_room(content, pdu.room_id(), response_sender)
+		self.respond_to_room(content, pdu.room_id().unwrap(), response_sender)
 			.boxed()
 			.await
 	}
@@ -419,12 +419,13 @@ impl Service {
 			.build_and_append_pdu(
 				PduBuilder::timeline(&self.text_or_file(content).await),
 				user_id,
-				room_id,
+				Some(room_id),
 				&state_lock,
 			)
 			.await
 		{
 			self.handle_response_error(e, room_id, user_id, &state_lock)
+				.boxed()
 				.await
 				.unwrap_or_else(default_log);
 		}
@@ -447,7 +448,12 @@ impl Service {
 
 		self.services
 			.timeline
-			.build_and_append_pdu(PduBuilder::timeline(&content), user_id, room_id, state_lock)
+			.build_and_append_pdu(
+				PduBuilder::timeline(&content),
+				user_id,
+				Some(room_id),
+				state_lock,
+			)
 			.await?;
 
 		Ok(())
@@ -484,7 +490,10 @@ impl Service {
 		}
 
 		// Prevent unescaped !admin from being used outside of the admin room
-		if is_public_prefix && !self.is_admin_room(event.room_id()).await {
+		if event.room_id().is_some()
+			&& is_public_prefix
+			&& !self.is_admin_room(event.room_id().unwrap()).await
+		{
 			return false;
 		}
 
@@ -497,7 +506,7 @@ impl Service {
 		// the administrator can execute commands as the server user
 		let emergency_password_set = self.services.server.config.emergency_password.is_some();
 		let from_server = event.sender() == server_user && !emergency_password_set;
-		if from_server && self.is_admin_room(event.room_id()).await {
+		if from_server && self.is_admin_room(event.room_id().unwrap()).await {
 			return false;
 		}
 

@@ -38,6 +38,7 @@ pub use self::{
 use crate::{
 	debug, debug_error,
 	matrix::{Event, StateKey},
+	state_res::room_version::StateResolutionVersion,
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
 	warn,
@@ -92,7 +93,12 @@ where
 	Pdu: Event + Clone + Send + Sync,
 	for<'b> &'b Pdu: Event + Send,
 {
-	debug!("State resolution starting");
+	use RoomVersionId::*;
+	let stateres_version = match room_version {
+		| V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11 => StateResolutionVersion::V2,
+		| _ => StateResolutionVersion::V2_1,
+	};
+	debug!(version = ?stateres_version, "State resolution starting");
 
 	// Split non-conflicting and conflicting state
 	let (clean, conflicting) = separate(state_sets.into_iter());
@@ -107,14 +113,27 @@ where
 
 	debug!(count = conflicting.len(), "conflicting events");
 	trace!(map = ?conflicting, "conflicting events");
+	let conflicted_state_subgraph: HashSet<_> = match stateres_version {
+		| StateResolutionVersion::V2_1 =>
+			calculate_conflicted_subgraph(&conflicting, event_fetch)
+				.await
+				.ok_or_else(|| {
+					Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
+				})?,
+		| _ => HashSet::new(),
+	};
+	debug!(count = conflicted_state_subgraph.len(), "conflicted subgraph");
+	trace!(set = ?conflicted_state_subgraph, "conflicted subgraph");
 
 	let conflicting_values = conflicting.into_values().flatten().stream();
 
 	// `all_conflicted` contains unique items
 	// synapse says `full_set = {eid for eid in full_conflicted_set if eid in
 	// event_map}`
+	// Hydra: Also consider the conflicted state subgraph
 	let all_conflicted: HashSet<_> = get_auth_chain_diff(auth_chain_sets)
 		.chain(conflicting_values)
+		.chain(conflicted_state_subgraph.into_iter().stream())
 		.broad_filter_map(async |id| event_exists(id.clone()).await.then_some(id))
 		.collect()
 		.await;
@@ -150,6 +169,7 @@ where
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
 		&room_version,
+		&stateres_version,
 		sorted_control_levels.iter().stream().map(AsRef::as_ref),
 		clean.clone(),
 		&event_fetch,
@@ -162,6 +182,9 @@ where
 	// At this point the control_events have been resolved we now have to
 	// sort the remaining events using the mainline of the resolved power level.
 	let deduped_power_ev: HashSet<_> = sorted_control_levels.into_iter().collect();
+
+	debug!(count = deduped_power_ev.len(), "deduped power events");
+	trace!(set = ?deduped_power_ev, "deduped power events");
 
 	// This removes the control events that passed auth and more importantly those
 	// that failed auth
@@ -183,12 +206,13 @@ where
 	let sorted_left_events =
 		mainline_sort(&events_to_resolve, power_event.cloned(), &event_fetch).await?;
 
-	trace!(list = ?sorted_left_events, "events left, sorted");
+	trace!(list = ?sorted_left_events, "events left, sorted, running iterative auth check");
 
 	let mut resolved_state = iterative_auth_check(
 		&room_version,
+		&stateres_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
-		resolved_control, // The control events are added to the final resolved state
+		resolved_control.clone(), // The control events are added to the final resolved state
 		&event_fetch,
 	)
 	.await?;
@@ -196,8 +220,14 @@ where
 	// Add unconflicted state to the resolved state
 	// We priorities the unconflicting state
 	resolved_state.extend(clean);
+	if stateres_version == StateResolutionVersion::V2_1 {
+		resolved_state.extend(resolved_control);
+		// TODO(hydra): this feels disgusting and wrong but it allows
+		// the state to resolve properly?
+	}
 
 	debug!("state resolution finished");
+	trace!( map = ?resolved_state, "final resolved state" );
 
 	Ok(resolved_state)
 }
@@ -248,6 +278,52 @@ where
 	}
 
 	(unconflicted_state, conflicted_state)
+}
+
+/// Calculate the conflicted subgraph
+async fn calculate_conflicted_subgraph<F, Fut, E>(
+	conflicted: &StateMap<Vec<OwnedEventId>>,
+	fetch_event: &F,
+) -> Option<HashSet<OwnedEventId>>
+where
+	F: Fn(OwnedEventId) -> Fut + Sync,
+	Fut: Future<Output = Option<E>> + Send,
+	E: Event + Send + Sync,
+{
+	let conflicted_events: HashSet<_> = conflicted.values().flatten().cloned().collect();
+	let mut subgraph: HashSet<OwnedEventId> = HashSet::new();
+	let mut stack: Vec<Vec<OwnedEventId>> =
+		vec![conflicted_events.iter().cloned().collect::<Vec<_>>()];
+	let mut path: Vec<OwnedEventId> = Vec::new();
+	let mut seen: HashSet<OwnedEventId> = HashSet::new();
+	let next_event = |stack: &mut Vec<Vec<_>>, path: &mut Vec<_>| {
+		while stack.last().is_some_and(Vec::is_empty) {
+			stack.pop();
+			path.pop();
+		}
+		stack.last_mut().and_then(Vec::pop)
+	};
+	while let Some(event_id) = next_event(&mut stack, &mut path) {
+		path.push(event_id.clone());
+		if subgraph.contains(&event_id) {
+			if path.len() > 1 {
+				subgraph.extend(path.iter().cloned());
+			}
+			path.pop();
+			continue;
+		}
+		if conflicted_events.contains(&event_id) && path.len() > 1 {
+			subgraph.extend(path.iter().cloned());
+		}
+		if seen.contains(&event_id) {
+			path.pop();
+			continue;
+		}
+		let evt = fetch_event(event_id.clone()).await?;
+		stack.push(evt.auth_events().map(ToOwned::to_owned).collect());
+		seen.insert(event_id);
+	}
+	Some(subgraph)
 }
 
 /// Returns a Vec of deduped EventIds that appear in some chains but not others.
@@ -513,8 +589,10 @@ where
 /// For each `events_to_check` event we gather the events needed to auth it from
 /// the the `fetch_event` closure and verify each event using the
 /// `event_auth::auth_check` function.
+#[tracing::instrument(level = "trace", skip_all)]
 async fn iterative_auth_check<'a, E, F, Fut, S>(
 	room_version: &RoomVersion,
+	stateres_version: &StateResolutionVersion,
 	events_to_check: S,
 	unconflicted_state: StateMap<OwnedEventId>,
 	fetch_event: &F,
@@ -538,11 +616,14 @@ where
 		.try_collect()
 		.boxed()
 		.await?;
+	trace!(list = ?events_to_check, "events to check");
 
 	let auth_event_ids: HashSet<OwnedEventId> = events_to_check
 		.iter()
 		.flat_map(|event: &E| event.auth_events().map(ToOwned::to_owned))
 		.collect();
+
+	trace!(set = ?auth_event_ids, "auth event IDs to fetch");
 
 	let auth_events: HashMap<OwnedEventId, E> = auth_event_ids
 		.into_iter()
@@ -553,9 +634,15 @@ where
 		.boxed()
 		.await;
 
+	trace!(map = ?auth_events.keys().collect::<Vec<_>>(), "fetched auth events");
+
 	let auth_events = &auth_events;
-	let mut resolved_state = unconflicted_state;
+	let mut resolved_state = match stateres_version {
+		| StateResolutionVersion::V2_1 => StateMap::new(),
+		| _ => unconflicted_state,
+	};
 	for event in events_to_check {
+		trace!(event_id = event.event_id().as_str(), "checking event");
 		let state_key = event
 			.state_key()
 			.ok_or_else(|| Error::InvalidPdu("State event had no state key".to_owned()))?;
@@ -565,13 +652,29 @@ where
 			event.sender(),
 			Some(state_key),
 			event.content(),
+			room_version,
 		)?;
+		trace!(list = ?auth_types, event_id = event.event_id().as_str(), "auth types for event");
 
 		let mut auth_state = StateMap::new();
+		if room_version.room_ids_as_hashes {
+			trace!("room version uses hashed IDs, manually fetching create event");
+			let create_event_id_raw = event.room_id_or_hash().as_str().replace('!', "$");
+			let create_event_id = EventId::parse(&create_event_id_raw).map_err(|e| {
+				Error::InvalidPdu(format!(
+					"Failed to parse create event ID from room ID/hash: {e}"
+				))
+			})?;
+			let create_event = fetch_event(create_event_id.into())
+				.await
+				.ok_or_else(|| Error::NotFound("Failed to find create event".into()))?;
+			auth_state.insert(create_event.event_type().with_state_key(""), create_event);
+		}
 		for aid in event.auth_events() {
 			if let Some(ev) = auth_events.get(aid) {
 				//TODO: synapse checks "rejected_reason" which is most likely related to
 				// soft-failing
+				trace!(event_id = aid.as_str(), "found auth event");
 				auth_state.insert(
 					ev.event_type()
 						.with_state_key(ev.state_key().ok_or_else(|| {
@@ -600,8 +703,9 @@ where
 				auth_state.insert(key.to_owned(), event);
 			})
 			.await;
+		trace!(map = ?auth_state.keys().collect::<Vec<_>>(), event_id = event.event_id().as_str(), "auth state for event");
 
-		debug!("event to check {:?}", event.event_id());
+		debug!(event_id = event.event_id().as_str(), "Running auth checks");
 
 		// The key for this is (eventType + a state_key of the signed token not sender)
 		// so search for it
@@ -617,16 +721,29 @@ where
 			)
 		};
 
-		let auth_result =
-			auth_check(room_version, &event, current_third_party, fetch_state).await;
+		let auth_result = auth_check(
+			room_version,
+			&event,
+			current_third_party,
+			fetch_state,
+			&fetch_state(&StateEventType::RoomCreate, "")
+				.await
+				.expect("create event must exist"),
+		)
+		.await;
 
 		match auth_result {
 			| Ok(true) => {
 				// add event to resolved state map
+				trace!(
+					event_id = event.event_id().as_str(),
+					"event passed the authentication check, adding to resolved state"
+				);
 				resolved_state.insert(
 					event.event_type().with_state_key(state_key),
 					event.event_id().to_owned(),
 				);
+				trace!(map = ?resolved_state, "new resolved state");
 			},
 			| Ok(false) => {
 				// synapse passes here on AuthError. We do not add this event to resolved_state.
@@ -638,7 +755,8 @@ where
 			},
 		}
 	}
-
+	trace!(map = ?resolved_state, "final resolved state from iterative auth check");
+	debug!("iterative auth check finished");
 	Ok(resolved_state)
 }
 
@@ -877,6 +995,7 @@ mod tests {
 	use crate::{
 		debug,
 		matrix::{Event, EventTypeExt, Pdu as PduEvent},
+		state_res::room_version::StateResolutionVersion,
 		utils::stream::IterStream,
 	};
 
@@ -909,6 +1028,7 @@ mod tests {
 
 		let resolved_power = super::iterative_auth_check(
 			&RoomVersion::V6,
+			&StateResolutionVersion::V2,
 			sorted_power_events.iter().map(AsRef::as_ref).stream(),
 			HashMap::new(), // unconflicted events
 			&fetcher,

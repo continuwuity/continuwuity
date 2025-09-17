@@ -102,6 +102,7 @@ where
 		&incoming_pdu,
 		None, // TODO: third party invite
 		|ty, sk| state_fetch(ty.clone(), sk.into()),
+		create_event.as_pdu(),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
@@ -123,6 +124,7 @@ where
 			incoming_pdu.sender(),
 			incoming_pdu.state_key(),
 			incoming_pdu.content(),
+			&room_version,
 		)
 		.await?;
 
@@ -140,6 +142,7 @@ where
 		&incoming_pdu,
 		None, // third-party invite
 		state_fetch,
+		create_event.as_pdu(),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
@@ -156,7 +159,7 @@ where
 			!self
 				.services
 				.state_accessor
-				.user_can_redact(&redact_id, incoming_pdu.sender(), incoming_pdu.room_id(), true)
+				.user_can_redact(&redact_id, incoming_pdu.sender(), room_id, true)
 				.await?,
 	};
 
@@ -172,7 +175,7 @@ where
 	// Now we calculate the set of extremities this room has after the incoming
 	// event has been applied. We start with the previous extremities (aka leaves)
 	trace!("Calculating extremities");
-	let extremities: Vec<_> = self
+	let mut extremities: Vec<_> = self
 		.services
 		.state
 		.get_forward_extremities(room_id)
@@ -192,6 +195,7 @@ where
 		})
 		.collect()
 		.await;
+	extremities.push(incoming_pdu.event_id().to_owned());
 
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
@@ -303,6 +307,7 @@ where
 		);
 		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
+		debug_assert!(extremities.clone().count() > 0, "extremities not empty");
 
 		self.services
 			.timeline
@@ -313,6 +318,7 @@ where
 				state_ids_compressed,
 				soft_fail,
 				&state_lock,
+				room_id,
 			)
 			.await?;
 
@@ -336,6 +342,7 @@ where
 		.iter()
 		.map(Borrow::borrow)
 		.chain(once(incoming_pdu.event_id()));
+	debug_assert!(extremities.clone().count() > 0, "extremities not empty");
 
 	let pdu_id = self
 		.services
@@ -347,6 +354,7 @@ where
 			state_ids_compressed,
 			soft_fail,
 			&state_lock,
+			room_id,
 		)
 		.await?;
 

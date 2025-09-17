@@ -8,7 +8,7 @@ mod verify;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use conduwuit::{
-	Result, Server, implement,
+	Result, Server, debug_error, debug_warn, implement, trace,
 	utils::{IterStream, timepoint_from_now},
 };
 use database::{Deserialized, Json, Map};
@@ -112,6 +112,7 @@ async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
 }
 
 #[implement(Service)]
+#[tracing::instrument(skip(self, object))]
 pub async fn required_keys_exist(
 	&self,
 	object: &CanonicalJsonObject,
@@ -119,10 +120,12 @@ pub async fn required_keys_exist(
 ) -> bool {
 	use ruma::signatures::required_keys;
 
+	trace!(?object, "Checking required keys exist");
 	let Ok(required_keys) = required_keys(object, version) else {
+		debug_error!("Failed to determine required keys");
 		return false;
 	};
-
+	trace!(?required_keys, "Required keys to verify event");
 	required_keys
 		.iter()
 		.flat_map(|(server, key_ids)| key_ids.iter().map(move |key_id| (server, key_id)))
@@ -132,6 +135,7 @@ pub async fn required_keys_exist(
 }
 
 #[implement(Service)]
+#[tracing::instrument(skip(self))]
 pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSigningKeyId) -> bool {
 	type KeysMap<'a> = BTreeMap<&'a ServerSigningKeyId, &'a RawJsonValue>;
 
@@ -142,6 +146,7 @@ pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSignin
 		.await
 		.deserialized::<Raw<ServerSigningKeys>>()
 	else {
+		debug_warn!("No known signing keys found for {origin}");
 		return false;
 	};
 
@@ -157,6 +162,7 @@ pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSignin
 		}
 	}
 
+	debug_warn!("Key {key_id} not found for {origin}");
 	false
 }
 

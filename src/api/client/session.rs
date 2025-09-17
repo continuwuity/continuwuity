@@ -145,9 +145,9 @@ pub(super) async fn ldap_login(
 	let is_conduwuit_admin = services.admin.user_is_admin(lowercased_user_id).await;
 
 	if is_ldap_admin && !is_conduwuit_admin {
-		services.admin.make_user_admin(lowercased_user_id).await?;
+		Box::pin(services.admin.make_user_admin(lowercased_user_id)).await?;
 	} else if !is_ldap_admin && is_conduwuit_admin {
-		services.admin.revoke_admin(lowercased_user_id).await?;
+		Box::pin(services.admin.revoke_admin(lowercased_user_id)).await?;
 	}
 
 	Ok(user_id)

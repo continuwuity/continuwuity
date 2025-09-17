@@ -351,8 +351,7 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-#branch = "conduwuit-changes"
-rev = "78135227dceb9ce5eb9515b4ae85d452cdcabac8"
+rev = "d18823471ab3c09e77ff03eea346d4c07e572654"
 features = [
     "compat",
     "rand",
@@ -392,7 +391,7 @@ features = [
 
 [workspace.dependencies.rust-rocksdb]
 git = "https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1"
-rev = "99b0319416b64830dd6f8943e1f65e15aeef18bc"
+rev = "61d9d23872197e9ace4a477f2617d5c9f50ecb23"
 default-features = false
 features = [
 	"multi-threaded-cf",

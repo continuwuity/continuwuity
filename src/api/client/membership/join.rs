@@ -18,7 +18,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use futures::{FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
 	RoomVersionId, UserId,
@@ -556,6 +556,10 @@ async fn join_room_by_id_helper_remote(
 			services
 				.server_keys
 				.validate_and_add_event_id_no_fetch(pdu, &room_version_id)
+				.inspect_err(|e| {
+					debug_warn!("Could not validate send_join response room_state event: {e:?}");
+				})
+				.inspect(|_| debug!("Completed validating send_join response room_state event"))
 		})
 		.ready_filter_map(Result::ok)
 		.fold(HashMap::new(), |mut state, (event_id, value)| async move {
@@ -566,7 +570,6 @@ async fn join_room_by_id_helper_remote(
 					return state;
 				},
 			};
-
 			services.rooms.outlier.add_pdu_outlier(&event_id, &value);
 			if let Some(state_key) = &pdu.state_key {
 				let shortstatekey = services
@@ -577,7 +580,6 @@ async fn join_room_by_id_helper_remote(
 
 				state.insert(shortstatekey, pdu.event_id.clone());
 			}
-
 			state
 		})
 		.await;
@@ -598,6 +600,7 @@ async fn join_room_by_id_helper_remote(
 		})
 		.ready_filter_map(Result::ok)
 		.ready_for_each(|(event_id, value)| {
+			trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 			services.rooms.outlier.add_pdu_outlier(&event_id, &value);
 		})
 		.await;
@@ -618,6 +621,9 @@ async fn join_room_by_id_helper_remote(
 		&parsed_join_pdu,
 		None, // TODO: third party invite
 		|k, s| state_fetch(k.clone(), s.into()),
+		&state_fetch(StateEventType::RoomCreate, "".into())
+			.await
+			.expect("create event is missing from send_join auth"),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
@@ -652,7 +658,7 @@ async fn join_room_by_id_helper_remote(
 		.force_state(room_id, statehash_before_join, added, removed, &state_lock)
 		.await?;
 
-	info!("Updating joined counts for new room");
+	debug!("Updating joined counts for new room");
 	services
 		.rooms
 		.state_cache
@@ -665,7 +671,7 @@ async fn join_room_by_id_helper_remote(
 	let statehash_after_join = services
 		.rooms
 		.state
-		.append_to_state(&parsed_join_pdu)
+		.append_to_state(&parsed_join_pdu, room_id)
 		.await?;
 
 	info!("Appending new room join event");
@@ -677,6 +683,7 @@ async fn join_room_by_id_helper_remote(
 			join_event,
 			once(parsed_join_pdu.event_id.borrow()),
 			&state_lock,
+			room_id,
 		)
 		.await?;
 
@@ -776,7 +783,7 @@ async fn join_room_by_id_helper_local(
 		.build_and_append_pdu(
 			PduBuilder::state(sender_user.to_string(), &content),
 			sender_user,
-			room_id,
+			Some(room_id),
 			&state_lock,
 		)
 		.await
