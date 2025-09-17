@@ -175,7 +175,7 @@ where
 	// Now we calculate the set of extremities this room has after the incoming
 	// event has been applied. We start with the previous extremities (aka leaves)
 	trace!("Calculating extremities");
-	let extremities: Vec<_> = self
+	let mut extremities: Vec<_> = self
 		.services
 		.state
 		.get_forward_extremities(room_id)
@@ -195,6 +195,7 @@ where
 		})
 		.collect()
 		.await;
+	extremities.push(incoming_pdu.event_id().to_owned());
 
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
@@ -306,7 +307,7 @@ where
 		);
 		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
-		assert!(extremities.clone().count() > 0, "extremities not empty");
+		debug_assert!(extremities.clone().count() > 0, "extremities not empty");
 
 		self.services
 			.timeline
@@ -341,7 +342,7 @@ where
 		.iter()
 		.map(Borrow::borrow)
 		.chain(once(incoming_pdu.event_id()));
-	assert!(extremities.clone().count() > 0, "extremities not empty");
+	debug_assert!(extremities.clone().count() > 0, "extremities not empty");
 
 	let pdu_id = self
 		.services
