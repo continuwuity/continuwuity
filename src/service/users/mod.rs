@@ -1113,7 +1113,7 @@ impl Service {
 			.useridprofilekey_value
 			.qry(&key)
 			.await
-			.and_then(|handle| serde_json::from_slice(&handle).map_err(|err| err.into()))
+			.and_then(|handle| serde_json::from_slice(&handle).map_err(Into::into))
 	}
 
 	/// Gets all the user's profile keys and values in an iterator

@@ -573,7 +573,7 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 	db.db.sort()
 }
 
-const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &'static [u8] = b"fix_corrupt_msc4133_fields";
+const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &[u8] = b"fix_corrupt_msc4133_fields";
 async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	use serde_json::{Value, from_slice};
 	type KeyVal<'a> = ((OwnedUserId, String), &'a [u8]);
@@ -588,7 +588,7 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 		.stream()
 		.try_fold(
 			(0_usize, 0_usize),
-			async |(mut total, mut fixed),
+			async |(total, mut fixed),
 			       ((user, key), value): KeyVal<'_>|
 			       -> Result<(usize, usize)> {
 				if let Err(error) = from_slice::<Value>(value) {
@@ -607,9 +607,8 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 					};
 
 					useridprofilekey_value.put((user, key), new_value);
-					fixed += 1;
 				}
-				total += 1;
+				fixed = total.saturating_add(1);
 
 				Ok((total, fixed))
 			},
