@@ -91,7 +91,7 @@ pub(crate) async fn upgrade_room_route(
 				replacement_room: replacement_room.clone(),
 			}),
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;
@@ -173,7 +173,7 @@ pub(crate) async fn upgrade_room_route(
 				timestamp: None,
 			},
 			sender_user,
-			&replacement_room,
+			Some(&replacement_room),
 			&state_lock,
 		)
 		.boxed()
@@ -204,7 +204,7 @@ pub(crate) async fn upgrade_room_route(
 				timestamp: None,
 			},
 			sender_user,
-			&replacement_room,
+			Some(&replacement_room),
 			&state_lock,
 		)
 		.boxed()
@@ -243,7 +243,7 @@ pub(crate) async fn upgrade_room_route(
 						..Default::default()
 					},
 					sender_user,
-					&replacement_room,
+					Some(&replacement_room),
 					&state_lock,
 				)
 				.boxed()
@@ -302,7 +302,7 @@ pub(crate) async fn upgrade_room_route(
 				..power_levels_event_content
 			}),
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -352,7 +352,7 @@ pub(crate) async fn upgrade_room_route(
 					..Default::default()
 				},
 				sender_user,
-				space_id,
+				Some(space_id),
 				&state_lock,
 			)
 			.boxed()
@@ -376,7 +376,7 @@ pub(crate) async fn upgrade_room_route(
 					..Default::default()
 				},
 				sender_user,
-				space_id,
+				Some(space_id),
 				&state_lock,
 			)
 			.boxed()

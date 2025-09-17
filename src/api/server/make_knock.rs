@@ -95,7 +95,7 @@ pub(crate) async fn create_knock_event_template_route(
 				&RoomMemberEventContent::new(MembershipState::Knock),
 			),
 			&body.user_id,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

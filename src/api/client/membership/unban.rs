@@ -47,7 +47,7 @@ pub(crate) async fn unban_user_route(
 				..current_member_content
 			}),
 			sender_user,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

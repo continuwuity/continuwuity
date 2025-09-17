@@ -1,5 +1,6 @@
 use std::{collections::HashSet, iter::once};
 
+use conduwuit::trace;
 use conduwuit_core::{
 	Err, Result, implement,
 	matrix::{event::Event, pdu::PduBuilder},
@@ -23,32 +24,34 @@ use super::RoomMutexGuard;
 /// takes a roomid_mutex_state, meaning that only this function is able to
 /// mutate the room state.
 #[implement(super::Service)]
-#[tracing::instrument(skip(self, state_lock), level = "debug")]
+#[tracing::instrument(skip(self, state_lock, pdu_builder), level = "trace")]
 pub async fn build_and_append_pdu(
 	&self,
 	pdu_builder: PduBuilder,
 	sender: &UserId,
-	room_id: &RoomId,
+	room_id: Option<&RoomId>,
 	state_lock: &RoomMutexGuard,
 ) -> Result<OwnedEventId> {
 	let (pdu, pdu_json) = self
 		.create_hash_and_sign_event(pdu_builder, sender, room_id, state_lock)
 		.await?;
 
-	if self.services.admin.is_admin_room(pdu.room_id()).await {
+	let room_id = pdu.room_id_or_hash();
+	if self.services.admin.is_admin_room(&room_id).await {
 		self.check_pdu_for_admin_room(&pdu, sender).boxed().await?;
 	}
 
 	// If redaction event is not authorized, do not append it to the timeline
 	if *pdu.kind() == TimelineEventType::RoomRedaction {
 		use RoomVersionId::*;
-		match self.services.state.get_room_version(pdu.room_id()).await? {
+		trace!("Running redaction checks for room {room_id}");
+		match self.services.state.get_room_version(&room_id).await? {
 			| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
 				if let Some(redact_id) = pdu.redacts() {
 					if !self
 						.services
 						.state_accessor
-						.user_can_redact(redact_id, pdu.sender(), pdu.room_id(), false)
+						.user_can_redact(redact_id, pdu.sender(), &room_id, false)
 						.await?
 					{
 						return Err!(Request(Forbidden("User cannot redact this event.")));
@@ -61,7 +64,7 @@ pub async fn build_and_append_pdu(
 					if !self
 						.services
 						.state_accessor
-						.user_can_redact(redact_id, pdu.sender(), pdu.room_id(), false)
+						.user_can_redact(redact_id, pdu.sender(), &room_id, false)
 						.await?
 					{
 						return Err!(Request(Forbidden("User cannot redact this event.")));
@@ -72,6 +75,7 @@ pub async fn build_and_append_pdu(
 	}
 
 	if *pdu.kind() == TimelineEventType::RoomMember {
+		trace!("Running room member checks for room {room_id}");
 		let content: RoomMemberEventContent = pdu.get_content()?;
 
 		if content.join_authorized_via_users_server.is_some()
@@ -93,12 +97,22 @@ pub async fn build_and_append_pdu(
 			)));
 		}
 	}
+	if *pdu.kind() == TimelineEventType::RoomCreate {
+		trace!("Creating shortroomid for {room_id}");
+		self.services
+			.short
+			.get_or_create_shortroomid(&room_id)
+			.await;
+	}
 
 	// We append to state before appending the pdu, so we don't have a moment in
 	// time with the pdu without it's state. This is okay because append_pdu can't
 	// fail.
-	let statehashid = self.services.state.append_to_state(&pdu).await?;
+	trace!("Appending {} state for room {room_id}", pdu.event_id());
+	let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
+	trace!("State hash ID for {room_id}: {statehashid:?}");
 
+	trace!("Generating raw ID for PDU {}", pdu.event_id());
 	let pdu_id = self
 		.append_pdu(
 			&pdu,
@@ -107,20 +121,22 @@ pub async fn build_and_append_pdu(
 			// of the room
 			once(pdu.event_id()),
 			state_lock,
+			&room_id,
 		)
 		.boxed()
 		.await?;
 
 	// We set the room state after inserting the pdu, so that we never have a moment
 	// in time where events in the current room state do not exist
+	trace!("Setting room state for room {room_id}");
 	self.services
 		.state
-		.set_room_state(pdu.room_id(), statehashid, state_lock);
+		.set_room_state(&room_id, statehashid, state_lock);
 
 	let mut servers: HashSet<OwnedServerName> = self
 		.services
 		.state_cache
-		.room_servers(pdu.room_id())
+		.room_servers(&room_id)
 		.map(ToOwned::to_owned)
 		.collect()
 		.await;
@@ -141,11 +157,13 @@ pub async fn build_and_append_pdu(
 	// room_servers() and/or the if statement above
 	servers.remove(self.services.globals.server_name());
 
+	trace!("Sending PDU {} to {} servers", pdu.event_id(), servers.len());
 	self.services
 		.sending
 		.send_pdu_servers(servers.iter().map(AsRef::as_ref).stream(), &pdu_id)
 		.await?;
 
+	trace!("Event {} in room {:?} has been appended", pdu.event_id(), room_id);
 	Ok(pdu.event_id().to_owned())
 }
 
@@ -179,7 +197,7 @@ where
 					let count = self
 						.services
 						.state_cache
-						.room_members(pdu.room_id())
+						.room_members(&pdu.room_id_or_hash())
 						.ready_filter(|user| self.services.globals.user_is_local(user))
 						.ready_filter(|user| *user != target)
 						.boxed()
@@ -203,7 +221,7 @@ where
 					let count = self
 						.services
 						.state_cache
-						.room_members(pdu.room_id())
+						.room_members(&pdu.room_id_or_hash())
 						.ready_filter(|user| self.services.globals.user_is_local(user))
 						.ready_filter(|user| *user != target)
 						.boxed()

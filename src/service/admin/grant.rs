@@ -55,7 +55,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
 				server_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.await?;
@@ -69,7 +69,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 					&RoomMemberEventContent::new(MembershipState::Join),
 				),
 				user_id,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.await?;
@@ -83,7 +83,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
 				server_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.await?;
@@ -111,7 +111,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &room_power_levels),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.await?;
@@ -135,7 +135,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 			.build_and_append_pdu(
 				PduBuilder::timeline(&RoomMessageEventContent::text_markdown(welcome_message)),
 				server_user,
-				&room_id,
+				Some(&room_id),
 				&state_lock,
 			)
 			.await?;
@@ -218,7 +218,7 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 				..event
 			}),
 			self.services.globals.server_user.as_ref(),
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.await

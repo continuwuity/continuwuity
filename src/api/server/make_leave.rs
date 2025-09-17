@@ -45,7 +45,7 @@ pub(crate) async fn create_leave_event_template_route(
 				&RoomMemberEventContent::new(MembershipState::Leave),
 			),
 			&body.user_id,
-			&body.room_id,
+			Some(&body.room_id),
 			&state_lock,
 		)
 		.await?;

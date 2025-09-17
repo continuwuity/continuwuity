@@ -139,6 +139,7 @@ where
 		&pdu_event,
 		None, // TODO: third party invite
 		state_fetch,
+		create_event.as_pdu(),
 	)
 	.await
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;

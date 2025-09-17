@@ -39,7 +39,11 @@ pub async fn redact_pdu<Pdu: Event + Send + Sync>(
 		}
 	}
 
-	let room_version_id = self.services.state.get_room_version(pdu.room_id()).await?;
+	let room_version_id = self
+		.services
+		.state
+		.get_room_version(&pdu.room_id_or_hash())
+		.await?;
 
 	pdu.redact(&room_version_id, reason.to_value())?;
 

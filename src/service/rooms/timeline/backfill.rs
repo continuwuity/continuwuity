@@ -1,6 +1,6 @@
 use std::iter::once;
 
-use conduwuit::{Err, PduEvent};
+use conduwuit::{Err, PduEvent, RoomVersion};
 use conduwuit_core::{
 	Result, debug, debug_warn, err, implement, info,
 	matrix::{
@@ -12,10 +12,11 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, EventId, RoomId, ServerName,
+	CanonicalJsonObject, EventId, Int, RoomId, ServerName,
 	api::federation,
 	events::{
-		StateEventType, TimelineEventType, room::power_levels::RoomPowerLevelsEventContent,
+		StateEventType, TimelineEventType,
+		room::{create::RoomCreateEventContent, power_levels::RoomPowerLevelsEventContent},
 	},
 	uint,
 };
@@ -24,7 +25,7 @@ use serde_json::value::RawValue as RawJsonValue;
 use super::ExtractBody;
 
 #[implement(super::Service)]
-#[tracing::instrument(name = "backfill", level = "debug", skip(self))]
+#[tracing::instrument(name = "backfill", level = "trace", skip(self))]
 pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Result<()> {
 	if self
 		.services
@@ -39,6 +40,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 			.await
 	{
 		// Room is empty (1 user or none), there is no one that can backfill
+		debug_warn!("Room {room_id} is empty, skipping backfill");
 		return Ok(());
 	}
 
@@ -49,6 +51,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 
 	if first_pdu.0 < from {
 		// No backfill required, there are still events between them
+		debug!("No backfill required in room {room_id}, {:?} < {from}", first_pdu.0);
 		return Ok(());
 	}
 
@@ -58,11 +61,47 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 		.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
 		.await
 		.unwrap_or_default();
+	let create_event_content: RoomCreateEventContent = self
+		.services
+		.state_accessor
+		.room_state_get_content(room_id, &StateEventType::RoomCreate, "")
+		.await?;
+	let create_event = self
+		.services
+		.state_accessor
+		.room_state_get(room_id, &StateEventType::RoomCreate, "")
+		.await?;
 
-	let room_mods = power_levels.users.iter().filter_map(|(user_id, level)| {
-		if level > &power_levels.users_default && !self.services.globals.user_is_local(user_id) {
+	let room_version =
+		RoomVersion::new(&create_event_content.room_version).expect("supported room version");
+	let mut users = power_levels.users.clone();
+	if room_version.explicitly_privilege_room_creators {
+		users.insert(create_event.sender().to_owned(), Int::MAX);
+		if let Some(additional_creators) = &create_event_content.additional_creators {
+			for user_id in additional_creators {
+				users.insert(user_id.to_owned(), Int::MAX);
+			}
+		}
+	}
+
+	let room_mods = users.iter().filter_map(|(user_id, level)| {
+		let remote_powered =
+			level > &power_levels.users_default && !self.services.globals.user_is_local(user_id);
+		let creator = if room_version.explicitly_privilege_room_creators {
+			create_event.sender() == user_id
+				|| create_event_content
+					.additional_creators
+					.as_ref()
+					.is_some_and(|c| c.contains(user_id))
+		} else {
+			false
+		};
+
+		if remote_powered || creator {
+			debug!(%remote_powered, %creator, "User {user_id} can backfill in room {room_id}");
 			Some(user_id.server_name())
 		} else {
+			debug!(%remote_powered, %creator, "User {user_id} cannot backfill in room {room_id}");
 			None
 		}
 	});

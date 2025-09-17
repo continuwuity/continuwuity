@@ -179,7 +179,11 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 			.await
 			.is_ok_and(is_equal_to!(1))
 		{
-			self.services.admin.make_user_admin(&user_id).await?;
+			self.services
+				.admin
+				.make_user_admin(&user_id)
+				.boxed()
+				.await?;
 			warn!("Granting {user_id} admin privileges as the first user");
 		}
 	} else {
@@ -217,7 +221,9 @@ pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> 
 			.collect()
 			.await;
 
-		full_user_deactivate(self.services, &user_id, &all_joined_rooms).await?;
+		full_user_deactivate(self.services, &user_id, &all_joined_rooms)
+			.boxed()
+			.await?;
 		update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
 		update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms).await;
 		leave_all_rooms(self.services, &user_id).await;
@@ -376,7 +382,9 @@ pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> 
 						.collect()
 						.await;
 
-					full_user_deactivate(self.services, &user_id, &all_joined_rooms).await?;
+					full_user_deactivate(self.services, &user_id, &all_joined_rooms)
+						.boxed()
+						.await?;
 					update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
 					update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms)
 						.await;
@@ -756,7 +764,7 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &power_levels_content),
 			&user_id,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.await?;
@@ -776,7 +784,11 @@ pub(super) async fn make_user_admin(&self, user_id: String) -> Result {
 		"Parsed user_id must be a local user"
 	);
 
-	self.services.admin.make_user_admin(&user_id).await?;
+	self.services
+		.admin
+		.make_user_admin(&user_id)
+		.boxed()
+		.await?;
 
 	self.write_str(&format!("{user_id} has been granted admin privileges.",))
 		.await
@@ -901,7 +913,13 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 	);
 
 	let redaction_event_id = {
-		let state_lock = self.services.rooms.state.mutex.lock(event.room_id()).await;
+		let state_lock = self
+			.services
+			.rooms
+			.state
+			.mutex
+			.lock(&event.room_id_or_hash())
+			.await;
 
 		self.services
 			.rooms
@@ -915,7 +933,7 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 					})
 				},
 				event.sender(),
-				event.room_id(),
+				Some(&event.room_id_or_hash()),
 				&state_lock,
 			)
 			.await?

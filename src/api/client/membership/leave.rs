@@ -206,7 +206,7 @@ pub async fn leave_room(
 					..event
 				}),
 				user_id,
-				room_id,
+				Some(room_id),
 				&state_lock,
 			)
 			.await?;

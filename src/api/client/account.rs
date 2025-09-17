@@ -500,7 +500,7 @@ pub(crate) async fn register_route(
 				.await
 				.is_ok_and(is_equal_to!(1))
 			{
-				services.admin.make_user_admin(&user_id).await?;
+				services.admin.make_user_admin(&user_id).boxed().await?;
 				warn!("Granting {user_id} admin privileges as the first user");
 			} else if services.config.suspend_on_register {
 				// This is not an admin, suspend them.
@@ -924,7 +924,7 @@ pub async fn full_user_deactivate(
 				.build_and_append_pdu(
 					PduBuilder::state(String::new(), &power_levels_content),
 					user_id,
-					room_id,
+					Some(room_id),
 					&state_lock,
 				)
 				.await

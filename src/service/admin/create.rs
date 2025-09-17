@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{Result, pdu::PduBuilder};
+use conduwuit::{Result, info, pdu::PduBuilder};
 use futures::FutureExt;
 use ruma::{
 	RoomId, RoomVersionId,
@@ -26,7 +26,7 @@ use crate::Services;
 /// used to issue admin commands by talking to the server user inside it.
 pub async fn create_admin_room(services: &Services) -> Result {
 	let room_id = RoomId::new(services.globals.server_name());
-	let room_version = &services.config.default_room_version;
+	let room_version = &RoomVersionId::V11;
 
 	let _short_id = services
 		.rooms
@@ -45,9 +45,12 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		match room_version {
 			| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
 				RoomCreateEventContent::new_v1(server_user.into()),
-			| _ => RoomCreateEventContent::new_v11(),
+			| V11 => RoomCreateEventContent::new_v11(),
+			| _ => RoomCreateEventContent::new_v12(),
 		}
 	};
+
+	info!("Creating admin room {} with version {}", room_id, room_version);
 
 	// 1. The room create event
 	services
@@ -61,7 +64,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				..create_content
 			}),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -77,7 +80,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				&RoomMemberEventContent::new(MembershipState::Join),
 			),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -95,7 +98,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				..Default::default()
 			}),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -108,7 +111,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &RoomJoinRulesEventContent::new(JoinRule::Invite)),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -124,7 +127,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				&RoomHistoryVisibilityEventContent::new(HistoryVisibility::Shared),
 			),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -140,7 +143,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				&RoomGuestAccessEventContent::new(GuestAccess::Forbidden),
 			),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -154,7 +157,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &RoomNameEventContent::new(room_name)),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -168,7 +171,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				topic: format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/", services.config.server_name),
 			}),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -186,7 +189,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 				alt_aliases: Vec::new(),
 			}),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()
@@ -204,7 +207,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.build_and_append_pdu(
 			PduBuilder::state(String::new(), &RoomPreviewUrlsEventContent { disabled: true }),
 			server_user,
-			&room_id,
+			Some(&room_id),
 			&state_lock,
 		)
 		.boxed()

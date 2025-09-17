@@ -24,7 +24,7 @@ use serde_json::{
 
 use super::auth_types_for_event;
 use crate::{
-	Result, info,
+	Result, RoomVersion, info,
 	matrix::{Event, EventTypeExt, Pdu, StateMap, pdu::EventHash},
 };
 
@@ -154,6 +154,7 @@ pub(crate) async fn do_check(
 			fake_event.sender(),
 			fake_event.state_key(),
 			fake_event.content(),
+			&RoomVersion::V6,
 		)
 		.unwrap();
 
@@ -398,7 +399,7 @@ pub(crate) fn to_init_pdu_event(
 
 	Pdu {
 		event_id: id.try_into().unwrap(),
-		room_id: room_id().to_owned(),
+		room_id: Some(room_id().to_owned()),
 		sender: sender.to_owned(),
 		origin_server_ts: ts.try_into().unwrap(),
 		state_key: state_key.map(Into::into),
@@ -446,7 +447,7 @@ where
 
 	Pdu {
 		event_id: id.try_into().unwrap(),
-		room_id: room_id().to_owned(),
+		room_id: Some(room_id().to_owned()),
 		sender: sender.to_owned(),
 		origin_server_ts: ts.try_into().unwrap(),
 		state_key: state_key.map(Into::into),

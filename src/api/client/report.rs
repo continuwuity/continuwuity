@@ -2,7 +2,7 @@ use std::{fmt::Write as _, time::Duration};
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use conduwuit::{Err, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
+use conduwuit::{Err, Event, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
 use conduwuit_service::Services;
 use rand::Rng;
 use ruma::{
@@ -197,7 +197,7 @@ async fn is_event_report_valid(
 		 valid"
 	);
 
-	if room_id != pdu.room_id {
+	if room_id != pdu.room_id_or_hash() {
 		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
 	}
 
