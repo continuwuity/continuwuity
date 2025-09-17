@@ -22,13 +22,15 @@ pub enum EventFormatVersion {
 	V3,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(not(feature = "unstable-exhaustive-types"), non_exhaustive)]
 pub enum StateResolutionVersion {
 	/// State resolution for rooms at version 1.
 	V1,
 	/// State resolution for room at version 2 or later.
 	V2,
+	/// State resolution for room at version 12 or later.
+	V2_1,
 }
 
 #[cfg_attr(not(feature = "unstable-exhaustive-types"), non_exhaustive)]

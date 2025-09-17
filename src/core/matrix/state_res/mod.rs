@@ -38,6 +38,7 @@ pub use self::{
 use crate::{
 	debug, debug_error,
 	matrix::{Event, StateKey},
+	state_res::room_version::StateResolutionVersion,
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
 	warn,
@@ -94,8 +95,8 @@ where
 {
 	use RoomVersionId::*;
 	let stateres_version = match room_version {
-		| V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11 => 2.0,
-		| _ => 2.1,
+		| V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11 => StateResolutionVersion::V2,
+		| _ => StateResolutionVersion::V2_1,
 	};
 	debug!(version = ?stateres_version, "State resolution starting");
 
@@ -112,15 +113,14 @@ where
 
 	debug!(count = conflicting.len(), "conflicting events");
 	trace!(map = ?conflicting, "conflicting events");
-
-	let conflicted_state_subgraph: HashSet<_> = if stateres_version >= 2.1 {
-		calculate_conflicted_subgraph(&conflicting, event_fetch)
-			.await
-			.ok_or_else(|| {
-				Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
-			})?
-	} else {
-		HashSet::new()
+	let conflicted_state_subgraph: HashSet<_> = match stateres_version {
+		| StateResolutionVersion::V2_1 =>
+			calculate_conflicted_subgraph(&conflicting, event_fetch)
+				.await
+				.ok_or_else(|| {
+					Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
+				})?,
+		| _ => HashSet::new(),
 	};
 	debug!(count = conflicted_state_subgraph.len(), "conflicted subgraph");
 	trace!(set = ?conflicted_state_subgraph, "conflicted subgraph");
@@ -169,7 +169,7 @@ where
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
 		&room_version,
-		stateres_version,
+		&stateres_version,
 		sorted_control_levels.iter().stream().map(AsRef::as_ref),
 		clean.clone(),
 		&event_fetch,
@@ -210,7 +210,7 @@ where
 
 	let mut resolved_state = iterative_auth_check(
 		&room_version,
-		stateres_version,
+		&stateres_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
 		resolved_control.clone(), // The control events are added to the final resolved state
 		&event_fetch,
@@ -220,7 +220,7 @@ where
 	// Add unconflicted state to the resolved state
 	// We priorities the unconflicting state
 	resolved_state.extend(clean);
-	if stateres_version == 2.1 {
+	if stateres_version == StateResolutionVersion::V2_1 {
 		resolved_state.extend(resolved_control);
 		// TODO(hydra): this feels disgusting and wrong but it allows
 		// the state to resolve properly?
@@ -592,7 +592,7 @@ where
 #[tracing::instrument(level = "trace", skip_all)]
 async fn iterative_auth_check<'a, E, F, Fut, S>(
 	room_version: &RoomVersion,
-	stateres_version: f32,
+	stateres_version: &StateResolutionVersion,
 	events_to_check: S,
 	unconflicted_state: StateMap<OwnedEventId>,
 	fetch_event: &F,
@@ -638,7 +638,7 @@ where
 
 	let auth_events = &auth_events;
 	let mut resolved_state = match stateres_version {
-		| 2.1 => StateMap::new(),
+		| StateResolutionVersion::V2_1 => StateMap::new(),
 		| _ => unconflicted_state,
 	};
 	for event in events_to_check {
@@ -995,6 +995,7 @@ mod tests {
 	use crate::{
 		debug,
 		matrix::{Event, EventTypeExt, Pdu as PduEvent},
+		state_res::room_version::StateResolutionVersion,
 		utils::stream::IterStream,
 	};
 
@@ -1027,7 +1028,7 @@ mod tests {
 
 		let resolved_power = super::iterative_auth_check(
 			&RoomVersion::V6,
-			2.0,
+			&StateResolutionVersion::V2,
 			sorted_power_events.iter().map(AsRef::as_ref).stream(),
 			HashMap::new(), // unconflicted events
 			&fetcher,
