@@ -6,7 +6,7 @@ use std::{
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
+	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, err,
 	error::inspect_debug_log, implement, trace, utils::string::EMPTY, warn,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
