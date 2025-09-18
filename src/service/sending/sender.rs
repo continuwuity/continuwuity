@@ -880,7 +880,7 @@ impl Service {
 			.execute_on(&self.services.client.sender, &server, request)
 			.await
 			.inspect(|_| {
-				info!(%txn_id, %server, "Sent {} PDUs, {} EDUs", pdu_count, edu_count);
+				trace!(%txn_id, %server, "Sent {} PDUs, {} EDUs", pdu_count, edu_count);
 			})
 			.inspect_err(|e| {
 				info!(%txn_id, %server, "Failed to send transaction ({} PDUs, {} EDUs): {e:?}", pdu_count, edu_count);
@@ -888,7 +888,7 @@ impl Service {
 
 		for (event_id, result) in result.iter().flat_map(|resp| resp.pdus.iter()) {
 			if let Err(e) = result {
-				warn!(
+				trace!(
 					%txn_id, %server,
 					"error sending PDU {event_id} to remote server: {e:?}"
 				);
