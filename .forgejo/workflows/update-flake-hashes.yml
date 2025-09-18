@@ -30,9 +30,9 @@ jobs:
       - name: Detect changed files
         id: changes
         run: |
-          git fetch origin ${{ forgejo.base_ref }} --depth=1 || true
-          if [ -n "${{ forgejo.event.pull_request.base.sha }}" ]; then
-            base=${{ forgejo.event.pull_request.base.sha }}
+          git fetch origin ${{ github.base_ref }} --depth=1 || true
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            base=${{ github.event.pull_request.base.sha }}
           else
             base=$(git rev-parse HEAD~1)
           fi
@@ -97,7 +97,7 @@ jobs:
           git config user.email "renovate@mail.ellis.link"
           git config user.name "renovate"
 
-          REF="${{ forgejo.head_ref }}"
+          REF="${{ github.head_ref }}"
 
           git fetch origin "$REF"
           git checkout "$REF"
