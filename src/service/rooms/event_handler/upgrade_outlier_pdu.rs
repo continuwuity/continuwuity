@@ -197,6 +197,8 @@ where
 		.await;
 	extremities.push(incoming_pdu.event_id().to_owned());
 
+	if extremities.len() == 0 { info!("Retained zero extremities when upgrading outlier PDU to timeline PDU with {} previous events, event id: {}", incoming_pdu.prev_events.len(), incoming_pdu.event_id) }
+	
 	debug!(
 		"Retained {} extremities checked against {} prev_events",
 		extremities.len(),
