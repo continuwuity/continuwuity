@@ -588,7 +588,7 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 		.stream()
 		.try_fold(
 			(0_usize, 0_usize),
-			async |(total, mut fixed),
+			async |(mut total, mut fixed),
 			       ((user, key), value): KeyVal<'_>|
 			       -> Result<(usize, usize)> {
 				if let Err(error) = from_slice::<Value>(value) {
@@ -607,8 +607,9 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 					};
 
 					useridprofilekey_value.put((user, key), new_value);
+					fixed = fixed.saturating_add(1);
 				}
-				fixed = total.saturating_add(1);
+				total = total.saturating_add(1);
 
 				Ok((total, fixed))
 			},
