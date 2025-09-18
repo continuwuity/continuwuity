@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, net::IpAddr, time::Instant};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug,
+	Err, Error, Result,
 	debug::INFO_SPAN_LEVEL,
 	debug_warn, err, error, info,
 	result::LogErr,
@@ -206,16 +206,17 @@ async fn handle_room(
 	let room_lock_end = Instant::now();
 
 	let room_id = &room_id;
-	let mut n = 0;
+	let mut n: i32 = 0;
 	pdus.try_stream()
 		.and_then(|(_, event_id, value)| async move {
 			services.server.check_running()?;
+			n += 1;
 			let pdu_start_time = Instant::now();
 			trace!(
 				%room_id,
 				%event_id,
 				transaction_id = ?transaction_id,
-				pdu = n + 1,
+				pdu = n,
 				total = count,
 				room_lock_time = ?room_lock_end.saturating_duration_since(room_lock_start).as_micros(),
 				pdu_elapsed = ?pdu_start_time.elapsed(),
@@ -233,14 +234,13 @@ async fn handle_room(
 				%room_id,
 				%event_id,
 				transaction_id = ?transaction_id,
-				pdu = n + 1,
+				pdu = n,
 				total = count,
 				room_lock_time = ?room_lock_end.saturating_duration_since(room_lock_start).as_micros(),
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
 				"Finished handling PDU",
 			);
-			n += 1;
 
 			Ok((event_id, result))
 		})
