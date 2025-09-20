@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, debug, debug_info, debug_warn, err, error, info,
+	Err, Error, Result, debug, debug_info, debug_warn, err, error, info,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -313,11 +313,14 @@ pub async fn join_room_by_id_helper(
 		}
 	}
 
-	let local_join = server_in_room
-		|| servers.is_empty()
-		|| (servers.len() == 1 && services.globals.server_is_ours(&servers[0]));
+	if !server_in_room && servers.is_empty() {
+		return Err!(Request(NotFound(
+			"No servers were provided to assist in joining the room remotely, and we are not \
+			 already participating in the room."
+		)));
+	}
 
-	if local_join {
+	if server_in_room {
 		join_room_by_id_helper_local(
 			services,
 			sender_user,
