@@ -417,7 +417,7 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 	fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
 		debug_assert_eq!(
 			conduwuit::debug::type_name::<V>(),
-			"serde_json::value::de::<impl serde::de::Deserialize for \
+			"serde_json::value::de::<impl serde_core::de::Deserialize for \
 			 serde_json::value::Value>::deserialize::ValueVisitor",
 			"deserialize_any: type not expected"
 		);
