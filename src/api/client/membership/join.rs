@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, debug_info, debug_warn, err, error, info,
+	Err, Result, debug, debug_info, debug_warn, err, error, info,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
