@@ -727,12 +727,20 @@ where
 		let user_joined = user_for_join_auth_membership == &MembershipState::Join;
 		let okay_power = is_creator(room_version, &creators, create_room, user_for_join_auth)
 			|| auth_user_pl >= invite_level;
+		trace!(
+			auth_user_pl=?auth_user_pl,
+			invite_level=?invite_level,
+			user_joined=?user_joined,
+			okay_power=?okay_power,
+			passing=?(user_joined && okay_power),
+			"user for join auth is valid check details"
+		);
 		user_joined && okay_power
 	} else {
 		// No auth user was given
+		trace!("No auth user given for join auth");
 		false
 	};
-
 	let sender_creator = is_creator(room_version, &creators, create_room, sender);
 	let target_creator = is_creator(room_version, &creators, create_room, target_user);
 
@@ -811,9 +819,7 @@ where
 						false
 					},
 					| JoinRule::KnockRestricted(_) => {
-						let valid_join = user_for_join_auth_is_valid
-							|| sender_membership == MembershipState::Join;
-						if membership_allows_join || valid_join {
+						if membership_allows_join || user_for_join_auth_is_valid {
 							true
 						} else {
 							warn!(
@@ -826,16 +832,14 @@ where
 						}
 					},
 					| JoinRule::Restricted(_) =>
-						if !user_for_join_auth_is_valid
-							&& sender_membership != MembershipState::Join
-						{
+						if membership_allows_join || user_for_join_auth_is_valid {
+							true
+						} else {
 							warn!(
 								"Join rule is a restricted one but no valid authorising user \
 								 was given"
 							);
 							false
-						} else {
-							true
 						},
 					| JoinRule::Public => true,
 					| _ => {

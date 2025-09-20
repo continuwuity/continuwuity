@@ -742,6 +742,7 @@ async fn join_room_by_id_helper_local(
 			.iter()
 			.stream()
 			.any(|restriction_room_id| {
+				trace!("Checking if {sender_user} is joined to {restriction_room_id}");
 				services
 					.rooms
 					.state_cache
@@ -754,6 +755,7 @@ async fn join_room_by_id_helper_local(
 				.state_cache
 				.local_users_in_room(room_id)
 				.filter(|user| {
+					trace!("Checking if {user} can invite {sender_user} to {room_id}");
 					services.rooms.state_accessor.user_can_invite(
 						room_id,
 						user,
@@ -766,6 +768,7 @@ async fn join_room_by_id_helper_local(
 				.await
 				.map(ToOwned::to_owned)
 		} else {
+			trace!("No restriction rooms are joined by {sender_user}");
 			None
 		}
 	};
