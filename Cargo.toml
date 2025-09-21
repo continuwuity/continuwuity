@@ -381,6 +381,7 @@ features = [
     "unstable-msc4095",
     "unstable-msc4121",
     "unstable-msc4125",
+	"unstable-msc4155",
     "unstable-msc4186",
     "unstable-msc4203", # sending to-device events to appservices
     "unstable-msc4210", # remove legacy mentions

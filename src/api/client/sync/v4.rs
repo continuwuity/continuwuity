@@ -11,6 +11,7 @@ use conduwuit::{
 	utils::{
 		BoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		math::{ruma_from_usize, usize_from_ruma, usize_from_u64_truncated},
+		stream::WidebandExt,
 	},
 	warn,
 };
@@ -39,7 +40,7 @@ use ruma::{
 use super::{load_timeline, share_encrypted_room};
 use crate::{
 	Ruma,
-	client::{DEFAULT_BUMP_TYPES, ignored_filter},
+	client::{DEFAULT_BUMP_TYPES, ignored_filter, is_ignored_invite},
 };
 
 type TodoRooms = BTreeMap<OwnedRoomId, (BTreeSet<TypeStateKey>, usize, u64)>;
@@ -102,6 +103,13 @@ pub(crate) async fn sync_events_v4_route(
 		.rooms
 		.state_cache
 		.rooms_invited(sender_user)
+		.wide_filter_map(async |(room_id, invite_state)| {
+			if is_ignored_invite(&services, sender_user, &room_id).await {
+				None
+			} else {
+				Some((room_id, invite_state))
+			}
+		})
 		.map(|r| r.0)
 		.collect()
 		.await;

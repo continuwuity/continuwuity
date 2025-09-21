@@ -60,7 +60,10 @@ use ruma::{
 use service::rooms::short::{ShortEventId, ShortStateKey};
 
 use super::{load_timeline, share_encrypted_room};
-use crate::{Ruma, RumaResponse, client::ignored_filter};
+use crate::{
+	Ruma, RumaResponse,
+	client::{ignored_filter, is_ignored_invite},
+};
 
 #[derive(Default)]
 struct StateChanges {
@@ -238,6 +241,13 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_invited(sender_user)
+		.wide_filter_map(async |(room_id, invite_state)| {
+			if is_ignored_invite(services, sender_user, &room_id).await {
+				None
+			} else {
+				Some((room_id, invite_state))
+			}
+		})
 		.fold_default(|mut invited_rooms: BTreeMap<_, _>, (room_id, invite_state)| async move {
 			let invite_count = services
 				.rooms

@@ -12,7 +12,7 @@ use conduwuit::{
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, future::join5, pin_mut};
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UserId,
+	OwnedRoomId, OwnedUserId, RoomId, ServerName, UserId,
 	events::{AnyStrippedStateEvent, AnySyncStateEvent, room::member::MembershipState},
 	serde::Raw,
 };
@@ -49,6 +49,7 @@ struct Data {
 	userroomid_joined: Arc<Map>,
 	userroomid_leftstate: Arc<Map>,
 	userroomid_knockedstate: Arc<Map>,
+	userroomid_invitesender: Arc<Map>,
 }
 
 type AppServiceInRoomCache = SyncRwLock<HashMap<OwnedRoomId, HashMap<String, bool>>>;
@@ -83,6 +84,7 @@ impl crate::Service for Service {
 				userroomid_joined: args.db["userroomid_joined"].clone(),
 				userroomid_leftstate: args.db["userroomid_leftstate"].clone(),
 				userroomid_knockedstate: args.db["userroomid_knockedstate"].clone(),
+				userroomid_invitesender: args.db["userroomid_invitesender"].clone(),
 			},
 		}))
 	}
@@ -522,4 +524,15 @@ pub async fn is_invited(&self, user_id: &UserId, room_id: &RoomId) -> bool {
 pub async fn is_left(&self, user_id: &UserId, room_id: &RoomId) -> bool {
 	let key = (user_id, room_id);
 	self.db.userroomid_leftstate.qry(&key).await.is_ok()
+}
+
+#[implement(Service)]
+#[tracing::instrument(skip(self), level = "trace")]
+pub async fn invite_sender(&self, user_id: &UserId, room_id: &RoomId) -> Result<OwnedUserId> {
+	let key = (user_id, room_id);
+	self.db
+		.userroomid_invitesender
+		.qry(&key)
+		.await
+		.deserialized()
 }

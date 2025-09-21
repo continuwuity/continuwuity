@@ -20,7 +20,9 @@ use ruma::{
 	api::client::{device::Device, error::ErrorKind, filter::FilterDefinition},
 	encryption::{CrossSigningKey, DeviceKeys, OneTimeKey},
 	events::{
-		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
+		AnyToDeviceEvent, GlobalAccountDataEventType,
+		ignored_user_list::IgnoredUserListEvent,
+		invite_permission_config::{FilterLevel, InvitePermissionConfigEvent},
 	},
 	serde::Raw,
 };
@@ -137,6 +139,26 @@ impl Service {
 					.keys()
 					.any(|blocked_user| blocked_user == sender_user)
 			})
+	}
+
+	/// Returns the recipient's filter level for an invite from the sender.
+	pub async fn invite_filter_level(
+		&self,
+		sender_user: &UserId,
+		recipient_user: &UserId,
+	) -> FilterLevel {
+		if self.user_is_ignored(sender_user, recipient_user).await {
+			FilterLevel::Ignore
+		} else {
+			self.services
+				.account_data
+				.get_global(recipient_user, GlobalAccountDataEventType::InvitePermissionConfig)
+				.await
+				.map(|config: InvitePermissionConfigEvent| {
+					config.content.user_filter_level(sender_user)
+				})
+				.unwrap_or(FilterLevel::Allow)
+		}
 	}
 
 	/// Check if a user is an admin

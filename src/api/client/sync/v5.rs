@@ -14,6 +14,7 @@ use conduwuit::{
 		BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		future::ReadyEqExt,
 		math::{ruma_from_usize, usize_from_ruma},
+		stream::WidebandExt,
 	},
 	warn,
 };
@@ -38,7 +39,7 @@ use ruma::{
 use super::share_encrypted_room;
 use crate::{
 	Ruma,
-	client::{DEFAULT_BUMP_TYPES, ignored_filter, sync::load_timeline},
+	client::{DEFAULT_BUMP_TYPES, ignored_filter, is_ignored_invite, sync::load_timeline},
 };
 
 type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request);
@@ -106,6 +107,13 @@ pub(crate) async fn sync_events_v5_route(
 		.rooms
 		.state_cache
 		.rooms_invited(sender_user)
+		.wide_filter_map(async |(room_id, invite_state)| {
+			if is_ignored_invite(services, sender_user, &room_id).await {
+				None
+			} else {
+				Some((room_id, invite_state))
+			}
+		})
 		.map(|r| r.0)
 		.collect::<Vec<OwnedRoomId>>();
 

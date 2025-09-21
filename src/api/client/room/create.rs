@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
@@ -13,6 +13,7 @@ use ruma::{
 	api::client::room::{self, create_room},
 	events::{
 		TimelineEventType,
+		invite_permission_config::FilterLevel,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			create::RoomCreateEventContent,
@@ -119,6 +120,40 @@ pub(crate) async fn create_room_route(
 		}
 
 		return Err!(Request(Forbidden("Publishing rooms to the room directory is not allowed")));
+	}
+
+	let mut invitees = BTreeSet::new();
+
+	for recipient_user in &body.invite {
+		if !matches!(
+			services
+				.users
+				.invite_filter_level(recipient_user, sender_user)
+				.await,
+			FilterLevel::Allow
+		) {
+			// drop invites if the creator has them blocked
+			continue;
+		}
+
+		// if the recipient of the invite is local and has the sender blocked, error
+		// out. if the recipient is remote we can't tell yet, and if they're local and
+		// have the sender _ignored_ their invite will be filtered out in
+		// the handlers for the individual /sync endpoints
+		if services.globals.user_is_local(recipient_user)
+			&& matches!(
+				services
+					.users
+					.invite_filter_level(sender_user, recipient_user)
+					.await,
+				FilterLevel::Block
+			) {
+			return Err!(Request(InviteBlocked(
+				"{recipient_user} has blocked invites from you."
+			)));
+		}
+
+		invitees.insert(recipient_user.clone());
 	}
 
 	let alias: Option<OwnedRoomAliasId> = match body.room_alias_name.as_ref() {
@@ -252,19 +287,11 @@ pub(crate) async fn create_room_route(
 		| _ => RoomPreset::PrivateChat, // Room visibility should not be custom
 	});
 
-	let mut users = BTreeMap::from_iter([(sender_user.to_owned(), int!(100))]);
+	let mut power_levels_to_grant = BTreeMap::from_iter([(sender_user.to_owned(), int!(100))]);
 
 	if preset == RoomPreset::TrustedPrivateChat {
-		for invite in &body.invite {
-			if services.users.user_is_ignored(sender_user, invite).await {
-				continue;
-			} else if services.users.user_is_ignored(invite, sender_user).await {
-				// silently drop the invite to the recipient if they've been ignored by the
-				// sender, pretend it worked
-				continue;
-			}
-
-			users.insert(invite.clone(), int!(100));
+		for recipient_user in &invitees {
+			power_levels_to_grant.insert(recipient_user.clone(), int!(100));
 		}
 	}
 
@@ -289,7 +316,7 @@ pub(crate) async fn create_room_route(
 			}
 		}
 	} else {
-		users.insert(sender_user.to_owned(), int!(100));
+		power_levels_to_grant.insert(sender_user.to_owned(), int!(100));
 		creators.clear(); // If this vec is not empty, default_power_levels_content will
 		// treat this as a v12 room
 	}
@@ -297,7 +324,7 @@ pub(crate) async fn create_room_route(
 	let power_levels_content = default_power_levels_content(
 		body.power_level_content_override.as_ref(),
 		&body.visibility,
-		users,
+		power_levels_to_grant,
 		creators,
 	)?;
 
@@ -459,17 +486,9 @@ pub(crate) async fn create_room_route(
 
 	// 8. Events implied by invite (and TODO: invite_3pid)
 	drop(state_lock);
-	for user_id in &body.invite {
-		if services.users.user_is_ignored(sender_user, user_id).await {
-			continue;
-		} else if services.users.user_is_ignored(user_id, sender_user).await {
-			// silently drop the invite to the recipient if they've been ignored by the
-			// sender, pretend it worked
-			continue;
-		}
-
+	for recipient_user in &invitees {
 		if let Err(e) =
-			invite_helper(&services, sender_user, user_id, &room_id, None, body.is_direct)
+			invite_helper(&services, sender_user, recipient_user, &room_id, None, body.is_direct)
 				.boxed()
 				.await
 		{

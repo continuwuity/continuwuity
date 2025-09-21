@@ -30,6 +30,7 @@ use ruma::{
 	events::{
 		AnyStateEvent, StateEventType,
 		TimelineEventType::{self, *},
+		invite_permission_config::FilterLevel,
 	},
 	serde::Raw,
 };
@@ -267,7 +268,7 @@ pub(crate) async fn ignored_filter(
 pub(crate) async fn is_ignored_pdu<Pdu>(
 	services: &Services,
 	event: &Pdu,
-	user_id: &UserId,
+	recipient_user: &UserId,
 ) -> bool
 where
 	Pdu: Event + Send + Sync,
@@ -278,20 +279,28 @@ where
 		return true;
 	}
 
-	let ignored_type = IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok();
+	if IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok() {
+		// this PDU is a non-state event which it is safe to ignore
+		return true;
+	}
 
-	let ignored_server = services
+	let sender_user = event.sender();
+
+	if services
 		.moderation
-		.is_remote_server_ignored(event.sender().server_name());
-
-	if ignored_type
-		&& (ignored_server
-			|| (!services.config.send_messages_from_ignored_users_to_client
-				&& services
-					.users
-					.user_is_ignored(event.sender(), user_id)
-					.await))
+		.is_remote_server_ignored(sender_user.server_name())
 	{
+		// this PDU was sent by a remote server which we are ignoring
+		return true;
+	}
+
+	if services
+		.users
+		.user_is_ignored(sender_user, recipient_user)
+		.await && !services.config.send_messages_from_ignored_users_to_client
+	{
+		// the recipient of this PDU has the sender ignored, and we're not
+		// configured to send ignored messages to clients
 		return true;
 	}
 
@@ -318,6 +327,29 @@ pub(crate) async fn visibility_filter(
 pub(crate) fn event_filter(item: PdusIterItem, filter: &RoomEventFilter) -> Option<PdusIterItem> {
 	let (_, pdu) = &item;
 	filter.matches(pdu).then_some(item)
+}
+
+#[inline]
+pub(crate) async fn is_ignored_invite(
+	services: &Services,
+	recipient_user: &UserId,
+	room_id: &RoomId,
+) -> bool {
+	let Ok(sender_user) = services
+		.rooms
+		.state_cache
+		.invite_sender(recipient_user, room_id)
+		.await
+	else {
+		// the invite may have been sent before the invite_sender table existed.
+		// assume it's not ignored
+		return false;
+	};
+
+	services
+		.users
+		.invite_filter_level(&sender_user, recipient_user)
+		.await == FilterLevel::Ignore
 }
 
 #[cfg_attr(debug_assertions, ctor::ctor)]
