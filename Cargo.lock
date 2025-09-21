@@ -4061,8 +4061,9 @@ dependencies = [
 
 [[package]]
 name = "resolv-conf"
-version = "0.7.4"
-source = "git+https://forgejo.ellis.link/continuwuation/resolv-conf?rev=ebbbec1cb965b487a0150f5d007e96c05e3d72af#ebbbec1cb965b487a0150f5d007e96c05e3d72af"
+version = "0.7.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b3789b30bd25ba102de4beabd95d21ac45b69b1be7d14522bab988c526d6799"
 
 [[package]]
 name = "rgb"

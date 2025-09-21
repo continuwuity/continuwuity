@@ -555,6 +555,9 @@ version = "0.11.5"
 default-features = false
 features = ["sync", "tls-rustls"]
 
+[workspace.dependencies.resolv-conf]
+version = "0.7.5"
+
 #
 # Patches
 #
@@ -598,12 +601,6 @@ rev = "9c8e51510c35077df888ee72a36b4b05637147da"
 [patch.crates-io.hyper-util]
 git = "https://forgejo.ellis.link/continuwuation/hyper-util"
 rev = "e4ae7628fe4fcdacef9788c4c8415317a4489941"
-
-# Allows no-aaaa option in resolv.conf
-# Use 1-indexed line numbers when displaying parse error messages
-[patch.crates-io.resolv-conf]
-git = "https://forgejo.ellis.link/continuwuation/resolv-conf"
-rev = "ebbbec1cb965b487a0150f5d007e96c05e3d72af"
 
 #
 # Our crates
