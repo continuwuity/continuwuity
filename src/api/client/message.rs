@@ -279,26 +279,27 @@ where
 		return true;
 	}
 
-	if IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok() {
-		// this PDU is a non-state event which it is safe to ignore
-		return true;
-	}
-
 	let sender_user = event.sender();
-
-	if services
+	let type_ignored = IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok();
+	let server_ignored = services
 		.moderation
-		.is_remote_server_ignored(sender_user.server_name())
-	{
-		// this PDU was sent by a remote server which we are ignoring
-		return true;
-	}
-
-	if services
+		.is_remote_server_ignored(sender_user.server_name());
+	let user_ignored = services
 		.users
 		.user_is_ignored(sender_user, recipient_user)
-		.await && !services.config.send_messages_from_ignored_users_to_client
-	{
+		.await;
+
+	if !type_ignored {
+		// We cannot safely ignore this type
+		return false;
+	}
+
+	if server_ignored {
+		// the sender's server is ignored, so ignore this event
+		return true;
+	}
+
+	if user_ignored && !services.config.send_messages_from_ignored_users_to_client {
 		// the recipient of this PDU has the sender ignored, and we're not
 		// configured to send ignored messages to clients
 		return true;
