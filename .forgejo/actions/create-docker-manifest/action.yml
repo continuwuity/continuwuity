@@ -83,6 +83,7 @@ runs:
       env:
         IMAGES: ${{ inputs.images }}
       run: |
+        set -o xtrace
         IFS=$'\n'
         IMAGES_LIST=($IMAGES)
         ANNOTATIONS_LIST=($DOCKER_METADATA_OUTPUT_ANNOTATIONS)
@@ -100,6 +101,7 @@ runs:
       env:
         IMAGES: ${{ inputs.images }}
       run: |
+        set -o xtrace
         IMAGES_LIST=($IMAGES)
         for REPO in "${IMAGES_LIST[@]}"; do
           docker buildx imagetools inspect $REPO:${{ steps.meta.outputs.version }}
