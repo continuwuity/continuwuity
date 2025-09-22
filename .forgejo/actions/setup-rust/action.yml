@@ -92,23 +92,36 @@ runs:
     - name: Setup sccache
       uses: https://git.tomfos.tr/tom/sccache-action@v1
 
-    - name: Cache build artifacts
-      id: build-cache
+    - name: Cache dependencies
+      id: deps-cache
       uses: actions/cache@v4
       with:
         path: |
-          target/**/deps
-          !target/**/deps/*.rlib
-          target/**/build
           target/**/.fingerprint
-          target/**/incremental
+          target/**/deps
           target/**/*.d
+          target/**/.cargo-lock
+          target/**/CACHEDIR.TAG
+          target/**/.rustc_info.json
           /timelord/
-        # Build artifacts - cache per code change, restore from deps when code changes
+        # Dependencies cache - based on Cargo.lock, survives source code changes
         key: >-
-          continuwuity-build-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
+          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
         restore-keys: |
-          continuwuity-build-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
+          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+
+    - name: Cache incremental compilation
+      id: incremental-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          target/**/incremental
+        # Incremental cache - based on source code changes
+        key: >-
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
+        restore-keys: |
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
 
     - name: End cache restore group
       shell: bash
