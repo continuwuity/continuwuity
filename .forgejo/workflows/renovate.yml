@@ -59,27 +59,27 @@ jobs:
         with:
           path: |
             /tmp/renovate/cache/renovate/repository
-          key: repo-cache-${{ github.run_id }}
+          key: renovate-repo-cache-${{ github.run_id }}
           restore-keys: |
-            repo-cache-
+            renovate-repo-cache-
 
       - name: Restore renovate package cache
         uses: actions/cache/restore@v4
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
-          key: package-cache-${{ github.run_id }}
+          key: renovate-package-cache-${{ github.run_id }}
           restore-keys: |
-            package-cache-
+            renovate-package-cache-
 
       - name: Restore renovate OSV cache
         uses: actions/cache/restore@v4
         with:
           path: |
             /tmp/osv
-          key: osv-cache-${{ github.run_id }}
+          key: renovate-osv-cache-${{ github.run_id }}
           restore-keys: |
-            osv-cache-
+            renovate-osv-cache-
 
       - name: Self-hosted Renovate
         run: renovate
@@ -113,7 +113,7 @@ jobs:
         with:
           path: |
             /tmp/renovate/cache/renovate/repository
-          key: repo-cache-${{ github.run_id }}
+          key: renovate-repo-cache-${{ github.run_id }}
 
       - name: Save renovate package cache
         if: always()
@@ -121,7 +121,7 @@ jobs:
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
-          key: package-cache-${{ github.run_id }}
+          key: renovate-package-cache-${{ github.run_id }}
 
       - name: Save renovate OSV cache
         if: always()
@@ -129,4 +129,4 @@ jobs:
         with:
           path: |
             /tmp/osv
-          key: osv-cache-${{ github.run_id }}
+          key: renovate-osv-cache-${{ github.run_id }}

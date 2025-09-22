@@ -166,7 +166,7 @@ ARG RUST_PROFILE=release
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git/db \
-    --mount=type=cache,target=/app/target,id=cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-${RUST_PROFILE} \
+    --mount=type=cache,target=/app/target,id=continuwuity-cargo-target-${TARGET_CPU}-${TARGETPLATFORM}-${RUST_PROFILE} \
     bash <<'EOF'
     set -o allexport
     set -o xtrace

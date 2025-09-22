@@ -29,7 +29,7 @@ runs:
   steps:
     - name: Detect runner OS
       id: runner-os
-      uses: ./.forgejo/actions/detect-runner-os
+      uses: https://git.tomfos.tr/actions/detect-versions@v1
 
     - name: Configure cross-compilation architecture
       if: inputs.dpkg-arch != ''
@@ -69,7 +69,7 @@ runs:
           /usr/lib/x86_64-linux-gnu/libclang*.so*
           /etc/apt/sources.list.d/archive_uri-*
           /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-        key: llvm-${{ steps.runner-os.outputs.slug }}-v${{ inputs.llvm-version }}-v3-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+        key: continuwuity-llvm-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-v${{ inputs.llvm-version }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
 
     - name: End LLVM cache group
       shell: bash

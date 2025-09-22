@@ -51,7 +51,7 @@ jobs:
 
       - name: Detect runner environment
         id: runner-env
-        uses: ./.forgejo/actions/detect-runner-os
+        uses: https://git.tomfos.tr/actions/detect-versions@v1
 
       - name: Setup Node.js
         if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'
@@ -63,9 +63,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.npm
-          key: ${{ steps.runner-env.outputs.slug }}-node-${{ hashFiles('**/package-lock.json') }}
+          key: continuwuity-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ steps.runner-env.outputs.slug }}-node-
+            continuwuity-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-
 
       - name: Install dependencies
         run: npm install --save-dev wrangler@latest

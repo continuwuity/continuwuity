@@ -40,7 +40,7 @@ runs:
           !~/.rustup/tmp
           !~/.rustup/downloads
         # Requires repo to be cloned if toolchain is not specified
-        key: ${{ runner.os }}-rustup-${{ inputs.toolchain || hashFiles('**/rust-toolchain.toml') }}
+        key: continuwuity-${{ runner.os }}-rustup-${{ inputs.toolchain || hashFiles('**/rust-toolchain.toml') }}
     - name: Install Rust toolchain
       if: steps.rustup-version.outputs.version == ''
       shell: bash

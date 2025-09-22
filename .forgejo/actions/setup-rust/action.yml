@@ -39,7 +39,7 @@ runs:
   steps:
     - name: Detect runner OS
       id: runner-os
-      uses: ./.forgejo/actions/detect-runner-os
+      uses: https://git.tomfos.tr/actions/detect-versions@v1
 
     - name: Configure Cargo environment
       shell: bash
@@ -73,9 +73,9 @@ runs:
           .cargo/git/db
         # Registry cache saved per workflow, restored from any workflow's cache
         # Each workflow maintains its own registry that accumulates its needed crates
-        key: cargo-registry-${{ steps.runner-os.outputs.slug }}-${{ github.workflow }}
+        key: continuwuity-cargo-registry-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ github.workflow }}
         restore-keys: |
-          cargo-registry-${{ steps.runner-os.outputs.slug }}-
+          continuwuity-cargo-registry-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-
 
     - name: Cache toolchain binaries
       id: toolchain-cache
@@ -86,7 +86,7 @@ runs:
           .rustup/toolchains
           .rustup/update-hashes
         # Shared toolchain cache across all Rust versions
-        key: toolchain-${{ steps.runner-os.outputs.slug }}
+        key: continuwuity-toolchain-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}
 
 
     - name: Setup sccache
@@ -106,9 +106,9 @@ runs:
           /timelord/
         # Build artifacts - cache per code change, restore from deps when code changes
         key: >-
-          build-${{ steps.runner-os.outputs.slug }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
+          continuwuity-build-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
         restore-keys: |
-          build-${{ steps.runner-os.outputs.slug }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
+          continuwuity-build-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
 
     - name: End cache restore group
       shell: bash

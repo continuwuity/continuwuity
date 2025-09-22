@@ -121,7 +121,7 @@ runs:
           .cargo/git/checkouts
           .cargo/registry
           .cargo/registry/src
-        key: rust-registry-image-${{hashFiles('**/Cargo.lock') }}
+        key: continuwuity-rust-registry-image-${{hashFiles('**/Cargo.lock') }}
 
     - name: Cache cargo target
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
@@ -130,7 +130,7 @@ runs:
       with:
         path: |
           cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}
-        key: cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
+        key: continuwuity-cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
 
     - name: Cache apt cache
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
@@ -139,7 +139,7 @@ runs:
       with:
         path: |
           var-cache-apt-${{ inputs.slug }}
-        key: var-cache-apt-${{ inputs.slug }}
+        key: continuwuity-var-cache-apt-${{ inputs.slug }}
 
     - name: Cache apt lib
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
@@ -148,7 +148,7 @@ runs:
       with:
         path: |
           var-lib-apt-${{ inputs.slug }}
-        key: var-lib-apt-${{ inputs.slug }}
+        key: continuwuity-var-lib-apt-${{ inputs.slug }}
 
     - name: inject cache into docker
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}

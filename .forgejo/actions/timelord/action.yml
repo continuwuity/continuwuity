@@ -36,7 +36,7 @@ runs:
         path: |
           /usr/share/rust/.cargo/bin
           ~/.cargo/bin
-        key: timelord-binaries-v3
+        key: continuwuity-timelord-binaries
 
     - name: Check if binaries need installation
       shell: bash
@@ -82,7 +82,7 @@ runs:
         path: |
           /usr/share/rust/.cargo/bin
           ~/.cargo/bin
-        key: timelord-binaries-v3
+        key: continuwuity-timelord-binaries
 
 
     - name: Restore timelord cache with fallbacks
@@ -92,7 +92,7 @@ runs:
         path: ${{ env.TIMELORD_CACHE_PATH }}
         key: ${{ env.TIMELORD_KEY }}
         restore-keys: |
-          timelord-v1-${{ github.repository }}-
+          continuwuity-timelord-${{ github.repository }}-
 
     - name: Initialize timestamps on complete cache miss
       if: steps.timelord-restore.outputs.cache-hit != 'true'
