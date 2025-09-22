@@ -12,13 +12,14 @@ Group=conduwuit
 Type=notify-reload
 ReloadSignal=SIGUSR1
 
-Environment="CONTINUWUITY_CONFIG=/etc/conduwuit/conduwuit.toml"
-
 Environment="CONTINUWUITY_LOG_TO_JOURNALD=true"
 Environment="CONTINUWUITY_JOURNALD_IDENTIFIER=%N"
-Environment="CONTINUWUITY_DATABASE_PATH=/var/lib/conduwuit"
+Environment="CONTINUWUITY_DATABASE_PATH=%S/conduwuit"
+Environment="CONTINUWUITY_CONFIG_RELOAD_SIGNAL=true"
 
-ExecStart=/usr/bin/conduwuit
+LoadCredential=conduwuit.toml:/etc/conduwuit/conduwuit.toml
+
+ExecStart=/usr/bin/conduwuit --config ${CREDENTIALS_DIRECTORY}/conduwuit.toml
 
 AmbientCapabilities=
 CapabilityBoundingSet=
@@ -52,8 +53,9 @@ SystemCallFilter=@system-service @resources
 SystemCallFilter=~@clock @debug @module @mount @reboot @swap @cpu-emulation @obsolete @timer @chown @setuid @privileged @keyring @ipc
 SystemCallErrorNumber=EPERM
 
+# ConfigurationDirectory isn't specified here because it's created by
+# the distro's package manager.
 StateDirectory=conduwuit
-ConfigurationDirectory=conduwuit
 RuntimeDirectory=conduwuit
 RuntimeDirectoryMode=0750
 
