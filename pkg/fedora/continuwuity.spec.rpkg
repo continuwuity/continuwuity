@@ -51,7 +51,7 @@ find .cargo/registry/ -executable -name "*.rs" -exec chmod -x {} +
 %install
 install -Dpm0755 target/rpm/conduwuit -t %{buildroot}%{_bindir}
 install -Dpm0644 pkg/conduwuit.service -t %{buildroot}%{_unitdir}
-install -Dpm0644 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/conduwuit.toml
+install -Dpm0600 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/conduwuit.toml
 
 %files
 %license LICENSE
@@ -60,7 +60,7 @@ install -Dpm0644 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/con
 %doc CONTRIBUTING.md
 %doc README.md
 %doc SECURITY.md
-%config %{_sysconfdir}/conduwuit/conduwuit.toml
+%config(noreplace) %{_sysconfdir}/conduwuit/conduwuit.toml
 
 %{_bindir}/conduwuit
 %{_unitdir}/conduwuit.service
