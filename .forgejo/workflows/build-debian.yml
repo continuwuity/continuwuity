@@ -1,0 +1,148 @@
+name: Build / Debian DEB
+
+concurrency:
+  group: "build-debian-${{ forge.ref }}"
+  cancel-in-progress: true
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+  schedule:
+    - cron: '30 0 * * *'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        container: ["ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable"]
+    container:
+      image: "ghcr.io/tcpipuk/act-runner:${{ matrix.container }}"
+
+    steps:
+      - name: Get Debian version
+        id: debian-version
+        run: |
+          VERSION=$(cat /etc/debian_version)
+          DISTRIBUTION=$(lsb_release -sc 2>/dev/null)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
+          echo "Debian distribution: $DISTRIBUTION ($VERSION)"
+
+      - name: Checkout repository with full history
+        uses: https://code.forgejo.org/actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Cargo registry
+        uses: https://code.forgejo.org/actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            cargo-debian-${{ steps.debian-version.outputs.distribution }}-
+
+      - name: Setup sccache
+        uses: https://git.tomfos.tr/tom/sccache-action@v1
+
+      - name: Configure sccache environment
+        run: |
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_C_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "CMAKE_CXX_COMPILER_LAUNCHER=sccache" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=10G" >> $GITHUB_ENV
+          # Aggressive GC since cache restores don't increment counter
+          echo "CARGO_INCREMENTAL_GC_TRIGGER=5" >> $GITHUB_ENV
+
+      - name: Setup Rust nightly
+        uses: ./.forgejo/actions/setup-rust
+        with:
+          rust-version: nightly
+          github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Get package version and component
+        id: package-meta
+        run: |
+          BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/[^a-zA-Z0-9.+]/~/g')
+          # VERSION is the package version, COMPONENT is used in
+          # apt's repository config like a git repo branch
+          if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
+            # Use the "stable" component for tagged releases
+            COMPONENT="stable"
+            VERSION=$BASE_VERSION
+          else
+            # Use the "dev" component for development builds
+            SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
+            DATE=$(date +%Y%m%d)
+            if [ "${{ forge.ref_name }}" = "main" ]; then
+              COMPONENT="dev"
+            else
+              # Use the sanitized ref name as the component for feature branches
+              COMPONENT="dev-$(echo '${{ forge.ref_name }}' | sed 's/[^a-zA-Z0-9.+]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)"
+            fi
+            CLEAN_COMPONENT=$(echo $COMPONENT | sed 's/[^a-zA-Z0-9.+]/~/g')
+            VERSION="$BASE_VERSION~git$DATE.$SHA-$CLEAN_COMPONENT"
+          fi
+          echo "component=$COMPONENT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Component: $COMPONENT"
+          echo "Version: $VERSION"
+
+      - name: Install cargo-deb
+        run: |
+          if command -v cargo-deb &> /dev/null; then
+            echo "cargo-deb already available"
+          else
+            echo "Installing cargo-deb"
+            cargo-binstall -y --no-symlinks cargo-deb
+          fi
+
+      - name: Install build dependencies
+        run: |
+          apt-get update -y
+          # Build dependencies for rocksdb
+          apt-get install -y clang liburing-dev
+
+      - name: Run cargo-deb
+        id: cargo-deb
+        run: |
+          DEB_PATH=$(cargo deb --deb-version ${{ steps.package-meta.outputs.version }})
+          echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
+
+      - name: Test deb installation
+        run: |
+          echo "Installing: ${{ steps.cargo-deb.outputs.path }}"
+
+          apt-get install -y ${{ steps.cargo-deb.outputs.path }}
+
+          dpkg -s continuwuity
+
+          [ -f /usr/bin/conduwuit ] && echo "✅ Binary installed successfully"
+          [ -f /usr/lib/systemd/system/conduwuit.service ] && echo "✅ Systemd service installed"
+          [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
+
+      - name: Upload deb artifact
+        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        with:
+          name: continuwuity-${{ steps.debian-version.outputs.distribution }}
+          path: ${{ steps.cargo-deb.outputs.path }}
+
+      - name: Publish to Forgejo package registry
+        if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' }}
+        run: |
+          OWNER="continuwuation"
+          DISTRIBUTION=${{ steps.debian-version.outputs.distribution }}
+          COMPONENT=${{ steps.package-meta.outputs.component }}
+          DEB=${{ steps.cargo-deb.outputs.path }}
+
+          echo "Publishing: $DEB in component $COMPONENT for distribution $DISTRIBUTION"
+
+          curl --fail-with-body \
+            -X PUT \
+            -H "Authorization: token ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}" \
+            --upload-file "$DEB" \
+            "${{ forge.server_url }}/api/packages/$OWNER/debian/pool/$DISTRIBUTION/$COMPONENT/upload"

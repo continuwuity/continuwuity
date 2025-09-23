@@ -22,11 +22,13 @@ crate-type = [
 ]
 
 [package.metadata.deb]
-name = "conduwuit"
-maintainer = "strawberry <strawberry@puppygock.gay>"
-copyright = "2024, strawberry <strawberry@puppygock.gay>"
+name = "continuwuity"
+maintainer = "continuwuity developers <contact@continuwuity.org>"
+copyright = "2024, continuwuity developers"
 license-file = ["../../LICENSE", "3"]
 depends = "$auto, ca-certificates"
+breaks = ["conduwuit (<<0.5.0)"]
+replaces = ["conduwuit (<<0.5.0)"]
 extended-description = """\
 a cool hard fork of Conduit, a Matrix homeserver written in Rust"""
 section = "net"
