@@ -6,17 +6,17 @@ concurrency:
 
 on:
   push:
-    branches:
-      - '**'
     tags:
-      - 'v*'
-    paths:
-      - 'pkg/fedora/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.forgejo/workflows/build-fedora.yml'
+      - "v*.*.*"
+    # paths:
+    #   - 'pkg/fedora/**'
+    #   - 'src/**'
+    #   - 'Cargo.toml'
+    #   - 'Cargo.lock'
+    #   - '.forgejo/workflows/build-fedora.yml'
   workflow_dispatch:
+  schedule:
+    - cron: '30 0 * * *'
 
 jobs:
   build:
