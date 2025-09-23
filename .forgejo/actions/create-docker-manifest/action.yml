@@ -61,8 +61,8 @@ runs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        flavour: |
-          suffix=${{ inputs.tag_suffix }}
+        flavor: |
+          suffix=${{ inputs.tag_suffix }},onlatest=true
         tags: |
           type=semver,pattern={{version}},prefix=v
           type=semver,pattern={{major}}.{{minor}},enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }},prefix=v
