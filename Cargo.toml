@@ -551,7 +551,7 @@ features = ["std"]
 version = "1.0.2"
 
 [workspace.dependencies.ldap3]
-version = "0.11.5"
+version = "0.12.0"
 default-features = false
 features = ["sync", "tls-rustls"]
 
