@@ -6,17 +6,11 @@ concurrency:
 
 on:
   push:
-    branches:
-      - '**'
     tags:
-      - 'v*'
-    paths:
-      - 'pkg/debian/**'
-      - 'src/**'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.forgejo/workflows/build-debian.yml'
+      - "v*.*.*"
   workflow_dispatch:
+  schedule:
+    - cron: '30 0 * * *'
 
 jobs:
   build:
