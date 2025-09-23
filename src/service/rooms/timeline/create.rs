@@ -274,8 +274,6 @@ pub async fn create_hash_and_sign_event(
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 
 	// Check with the policy server
-	// TODO(hydra): Skip this check for create events (why didnt we do this
-	// already?)
 	if room_id.is_some() {
 		trace!(
 			"Checking event {} in room {} with policy server",

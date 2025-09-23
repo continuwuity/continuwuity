@@ -68,6 +68,33 @@ pub(crate) async fn upgrade_room_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
+	// First, check if the user has permission to upgrade the room (send tombstone
+	// event)
+	let old_room_state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+
+	// Check tombstone permission by attempting to create (but not send) the event
+	// Note that this does internally call the policy server with a fake room ID,
+	// which may not be good?
+	let tombstone_test_result = services
+		.rooms
+		.timeline
+		.create_hash_and_sign_event(
+			PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
+				body: "This room has been replaced".to_owned(),
+				replacement_room: RoomId::new(services.globals.server_name()),
+			}),
+			sender_user,
+			Some(&body.room_id),
+			&old_room_state_lock,
+		)
+		.await;
+
+	if let Err(_e) = tombstone_test_result {
+		return Err!(Request(Forbidden("User does not have permission to upgrade this room.")));
+	}
+
+	drop(old_room_state_lock);
+
 	// Create a replacement room
 	let room_features = RoomVersion::new(&body.new_version)?;
 	let replacement_room: Option<&RoomId> = if room_features.room_ids_as_hashes {
@@ -86,20 +113,18 @@ pub(crate) async fn upgrade_room_route(
 		.get_or_create_shortroomid(replacement_room_tmp)
 		.await;
 
-	let tombstone_event_id = if room_features.room_ids_as_hashes {
-		None
-	} else {
+	// For pre-v12 rooms, send tombstone before creating replacement room
+	let tombstone_event_id = if !room_features.room_ids_as_hashes {
 		let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
 		// Send a m.room.tombstone event to the old room to indicate that it is not
-		// intended to be used any further Fail if the sender does not have the required
-		// permissions
+		// intended to be used any further
 		let tombstone_event_id = services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
 				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
 					body: "This room has been replaced".to_owned(),
-					replacement_room: replacement_room.clone().unwrap().to_owned(),
+					replacement_room: replacement_room.unwrap().to_owned(),
 				}),
 				sender_user,
 				Some(&body.room_id),
@@ -109,6 +134,8 @@ pub(crate) async fn upgrade_room_route(
 		// Change lock to replacement room
 		drop(state_lock);
 		Some(tombstone_event_id)
+	} else {
+		None
 	};
 	let state_lock = services.rooms.state.mutex.lock(replacement_room_tmp).await;
 
@@ -329,6 +356,27 @@ pub(crate) async fn upgrade_room_route(
 		.await?;
 
 	drop(state_lock);
+
+	// For v12 rooms, send tombstone AFTER creating replacement room
+	if room_features.room_ids_as_hashes {
+		let old_room_state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+		// For v12 rooms, no event reference in predecessor due to cyclic dependency -
+		// could best effort one maybe?
+		services
+			.rooms
+			.timeline
+			.build_and_append_pdu(
+				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
+					body: "This room has been replaced".to_owned(),
+					replacement_room: replacement_room.unwrap().to_owned(),
+				}),
+				sender_user,
+				Some(&body.room_id),
+				&old_room_state_lock,
+			)
+			.await?;
+		drop(old_room_state_lock);
+	}
 
 	// Check if the old room has a space parent, and if so, whether we should update
 	// it (m.space.parent, room_id)
