@@ -65,10 +65,10 @@
                     domain = "forgejo.ellis.link";
                     owner = "continuwuation";
                     repo = "rocksdb";
-                    rev = "10.4.fb";
-                    sha256 = "sha256-/Hvy1yTH/0D5aa7bc+/uqFugCQq4InTdwlRw88vA5IY=";
+                    rev = "10.5.fb";
+                    sha256 = "sha256-X4ApGLkHF9ceBtBg77dimEpu720I79ffLoyPa8JMHaU=";
                   };
-                  version = "v10.4.fb";
+                  version = "v10.5.fb";
                   cmakeFlags =
                     pkgs.lib.subtractLists [
                       # No real reason to have snappy or zlib, no one uses this
