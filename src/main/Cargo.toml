@@ -156,6 +156,7 @@ sentry_telemetry = [
 ]
 systemd = [
 	"conduwuit-router/systemd",
+	"conduwuit-service/systemd"
 ]
 journald = [ # This is a stub on non-unix platforms
 	"dep:tracing-journald",

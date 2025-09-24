@@ -67,6 +67,9 @@ release_max_log_level = [
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 ]
+systemd = [
+	"dep:sd-notify",
+]
 url_preview = [
 	"dep:image",
 	"dep:webpage",
@@ -118,6 +121,10 @@ blurhash.workspace = true
 blurhash.optional = true
 recaptcha-verify = { version = "0.1.5", default-features = false }
 ctor.workspace = true
+
+[target.'cfg(all(unix, target_os = "linux"))'.dependencies]
+sd-notify.workspace = true
+sd-notify.optional = true
 
 [lints]
 workspace = true
