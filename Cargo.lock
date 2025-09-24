@@ -1121,6 +1121,7 @@ dependencies = [
  "reqwest",
  "ruma",
  "rustyline-async",
+ "sd-notify",
  "serde",
  "serde_json",
  "serde_yml",

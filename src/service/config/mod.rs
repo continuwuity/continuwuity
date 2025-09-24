@@ -45,13 +45,16 @@ impl Deref for Service {
 fn handle_reload(&self) -> Result {
 	if self.server.config.config_reload_signal {
 		#[cfg(all(feature = "systemd", target_os = "linux"))]
-		sd_notify::notify(true, &[sd_notify::NotifyState::Reloading])
-			.expect("failed to notify systemd of reloading state");
+		sd_notify::notify(false, &[
+			sd_notify::NotifyState::Reloading,
+			sd_notify::NotifyState::monotonic_usec_now().expect("Failed to read monotonic time"),
+		])
+		.expect("failed to notify systemd of reloading state");
 
 		self.reload(iter::empty())?;
 
 		#[cfg(all(feature = "systemd", target_os = "linux"))]
-		sd_notify::notify(true, &[sd_notify::NotifyState::Ready])
+		sd_notify::notify(false, &[sd_notify::NotifyState::Ready])
 			.expect("failed to notify systemd of ready state");
 	}
 

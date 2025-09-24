@@ -40,7 +40,6 @@ io_uring = [
 	"conduwuit-admin/io_uring",
 	"conduwuit-api/io_uring",
 	"conduwuit-service/io_uring",
-	"conduwuit-api/io_uring",
 ]
 jemalloc = [
 	"conduwuit-admin/jemalloc",

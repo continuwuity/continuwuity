@@ -65,7 +65,7 @@ pub(crate) async fn start(server: Arc<Server>) -> Result<Arc<Services>> {
 	let services = Services::build(server).await?.start().await?;
 
 	#[cfg(all(feature = "systemd", target_os = "linux"))]
-	sd_notify::notify(true, &[sd_notify::NotifyState::Ready])
+	sd_notify::notify(false, &[sd_notify::NotifyState::Ready])
 		.expect("failed to notify systemd of ready state");
 
 	debug!("Started");
@@ -78,7 +78,7 @@ pub(crate) async fn stop(services: Arc<Services>) -> Result<()> {
 	debug!("Shutting down...");
 
 	#[cfg(all(feature = "systemd", target_os = "linux"))]
-	sd_notify::notify(true, &[sd_notify::NotifyState::Stopping])
+	sd_notify::notify(false, &[sd_notify::NotifyState::Stopping])
 		.expect("failed to notify systemd of stopping state");
 
 	// Wait for all completions before dropping or we'll lose them to the module
