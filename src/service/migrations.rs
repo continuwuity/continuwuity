@@ -9,6 +9,7 @@ use conduwuit::{
 	},
 	warn,
 };
+use database::Json;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
@@ -606,7 +607,7 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 						);
 					};
 
-					useridprofilekey_value.put((user, key), new_value);
+					useridprofilekey_value.put((user, key), Json(new_value));
 					fixed = fixed.saturating_add(1);
 				}
 				total = total.saturating_add(1);
