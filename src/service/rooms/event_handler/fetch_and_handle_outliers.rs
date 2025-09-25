@@ -4,9 +4,8 @@ use std::{
 };
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_error, debug_warn, implement,
-	matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs,
-	warn,
+	Event, PduEvent, debug, debug_warn, implement, matrix::event::gen_event_id_canonical_json,
+	trace, utils::continue_exponential_backoff_secs, warn,
 };
 use ruma::{
 	CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
@@ -52,12 +51,14 @@ where
 	};
 
 	let mut events_with_auth_events = Vec::with_capacity(events.clone().count());
+	trace!("Fetching {} outlier pdus", events.clone().count());
 
 	for id in events {
 		// a. Look in the main timeline (pduid_pdu tree)
 		// b. Look at outlier pdu tree
 		// (get_pdu_json checks both)
 		if let Ok(local_pdu) = self.services.timeline.get_pdu(id).await {
+			trace!("Found {id} in main timeline or outlier tree");
 			events_with_auth_events.push((id.to_owned(), Some(local_pdu), vec![]));
 			continue;
 		}
@@ -104,7 +105,7 @@ where
 				continue;
 			}
 
-			debug!("Fetching {next_id} over federation.");
+			debug!("Fetching {next_id} over federation from {origin}.");
 			match self
 				.services
 				.sending
@@ -115,7 +116,7 @@ where
 				.await
 			{
 				| Ok(res) => {
-					debug!("Got {next_id} over federation");
+					debug!("Got {next_id} over federation from {origin}");
 					let Ok(room_version_id) = get_room_version_id(create_event) else {
 						back_off((*next_id).to_owned());
 						continue;
@@ -145,6 +146,9 @@ where
 								auth_event.clone().into(),
 							) {
 								| Ok(auth_event) => {
+									trace!(
+										"Found auth event id {auth_event} for event {next_id}"
+									);
 									todo_auth_events.push_back(auth_event);
 								},
 								| _ => {
@@ -160,7 +164,7 @@ where
 					events_all.insert(next_id);
 				},
 				| Err(e) => {
-					debug_error!("Failed to fetch event {next_id}: {e}");
+					warn!("Failed to fetch auth event {next_id} from {origin}: {e}");
 					back_off((*next_id).to_owned());
 				},
 			}
@@ -175,7 +179,7 @@ where
 		// b. Look at outlier pdu tree
 		// (get_pdu_json checks both)
 		if let Some(local_pdu) = local_pdu {
-			trace!("Found {id} in db");
+			trace!("Found {id} in main timeline or outlier tree");
 			pdus.push((local_pdu.clone(), None));
 		}
 
@@ -201,6 +205,7 @@ where
 				}
 			}
 
+			trace!("Handling outlier {next_id}");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
 				create_event,
@@ -213,6 +218,7 @@ where
 			{
 				| Ok((pdu, json)) =>
 					if next_id == *id {
+						trace!("Handled outlier {next_id} (original request)");
 						pdus.push((pdu, Some(json)));
 					},
 				| Err(e) => {
@@ -222,6 +228,6 @@ where
 			}
 		}
 	}
-
+	trace!("Fetched and handled {} outlier pdus", pdus.len());
 	pdus
 }
