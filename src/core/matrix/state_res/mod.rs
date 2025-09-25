@@ -36,7 +36,7 @@ pub use self::{
 	room_version::RoomVersion,
 };
 use crate::{
-	debug, debug_error,
+	debug, debug_error, err,
 	matrix::{Event, StateKey},
 	state_res::room_version::StateResolutionVersion,
 	trace,
@@ -319,8 +319,19 @@ where
 			path.pop();
 			continue;
 		}
-		let evt = fetch_event(event_id.clone()).await?;
-		stack.push(evt.auth_events().map(ToOwned::to_owned).collect());
+		trace!(event_id = event_id.as_str(), "fetching event for its auth events");
+		let evt = fetch_event(event_id.clone()).await;
+		if evt.is_none() {
+			err!("could not fetch event {} to calculate conflicted subgraph", event_id);
+			path.pop();
+			continue;
+		}
+		stack.push(
+			evt.expect("checked")
+				.auth_events()
+				.map(ToOwned::to_owned)
+				.collect(),
+		);
 		seen.insert(event_id);
 	}
 	Some(subgraph)

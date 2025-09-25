@@ -1,11 +1,12 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, err, implement, state_res, trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res, trace,
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomId, ServerName, events::StateEventType,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
+	events::StateEventType,
 };
 
 use super::{check_room_id, get_room_version_id, to_room_version};
@@ -74,36 +75,73 @@ where
 
 	check_room_id(room_id, &pdu_event)?;
 
-	if !auth_events_known {
-		// 4. fetch any missing auth events doing all checks listed here starting at 1.
-		//    These are not timeline events
-		// 5. Reject "due to auth events" if can't get all the auth events or some of
-		//    the auth events are also rejected "due to auth events"
-		// NOTE: Step 5 is not applied anymore because it failed too often
-		debug!("Fetching auth events");
-		Box::pin(self.fetch_and_handle_outliers(
-			origin,
-			pdu_event.auth_events(),
-			create_event,
-			room_id,
-		))
-		.await;
+	// Fetch all auth events
+	let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
+
+	for aid in pdu_event.auth_events() {
+		if let Ok(auth_event) = self.services.timeline.get_pdu(aid).await {
+			check_room_id(room_id, &auth_event)?;
+			trace!("Found auth event {aid} for outlier event {event_id} locally");
+			auth_events.insert(aid.to_owned(), auth_event);
+		} else {
+			debug_warn!("Could not find auth event {aid} for outlier event {event_id} locally");
+		}
+	}
+
+	// Fetch any missing ones & reject invalid ones
+	let missing_auth_events = if auth_events_known {
+		pdu_event
+			.auth_events()
+			.filter(|id| !auth_events.contains_key(*id))
+			.collect::<Vec<_>>()
+	} else {
+		pdu_event.auth_events().collect::<Vec<_>>()
+	};
+	if !missing_auth_events.is_empty() || !auth_events_known {
+		debug_info!(
+			"Fetching {} missing auth events for outlier event {event_id}",
+			missing_auth_events.len()
+		);
+		for (pdu, _) in self
+			.fetch_and_handle_outliers(
+				origin,
+				missing_auth_events.iter().copied(),
+				create_event,
+				room_id,
+			)
+			.await
+		{
+			auth_events.insert(pdu.event_id().to_owned(), pdu);
+		}
+	} else {
+		debug!("No missing auth events for outlier event {event_id}");
+	}
+	// reject if we are still missing some
+	let still_missing = pdu_event
+		.auth_events()
+		.filter(|id| !auth_events.contains_key(*id))
+		.collect::<Vec<_>>();
+	if !still_missing.is_empty() {
+		return Err!(Request(InvalidParam(
+			"Could not fetch all auth events for outlier event {event_id}, still missing: \
+			 {still_missing:?}"
+		)));
 	}
 
 	// 6. Reject "due to auth events" if the event doesn't pass auth based on the
 	//    auth events
 	debug!("Checking based on auth events");
+	let mut auth_events_by_key: HashMap<_, _> = HashMap::with_capacity(auth_events.len());
 	// Build map of auth events
-	let mut auth_events = HashMap::with_capacity(pdu_event.auth_events().count());
 	for id in pdu_event.auth_events() {
-		let Ok(auth_event) = self.services.timeline.get_pdu(id).await else {
-			warn!("Could not find auth event {id}");
-			continue;
-		};
+		let auth_event = auth_events
+			.get(id)
+			.expect("we just checked that we have all auth events")
+			.to_owned();
 
 		check_room_id(room_id, &auth_event)?;
 
-		match auth_events.entry((
+		match auth_events_by_key.entry((
 			auth_event.kind.to_string().into(),
 			auth_event
 				.state_key
@@ -123,7 +161,7 @@ where
 
 	// The original create event must be in the auth events
 	if !matches!(
-		auth_events.get(&(StateEventType::RoomCreate, String::new().into())),
+		auth_events_by_key.get(&(StateEventType::RoomCreate, String::new().into())),
 		Some(_) | None
 	) {
 		return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
@@ -131,7 +169,7 @@ where
 
 	let state_fetch = |ty: &StateEventType, sk: &str| {
 		let key = (ty.to_owned(), sk.into());
-		ready(auth_events.get(&key).map(ToOwned::to_owned))
+		ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
 	};
 
 	let auth_check = state_res::event_auth::auth_check(
