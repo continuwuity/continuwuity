@@ -250,7 +250,7 @@ jobs:
           path: artifacts/*debuginfo*.rpm
 
       - name: Publish to RPM Package Registry
-        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+        if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
         run: |
           # Find the main binary RPM (exclude debug and source RPMs)
           RPM=$(find artifacts -name "continuwuity-*.rpm" \
