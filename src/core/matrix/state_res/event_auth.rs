@@ -200,11 +200,15 @@ where
 		if incoming_event.room_id().is_some() {
 			let Some(room_id_server_name) = incoming_event.room_id().unwrap().server_name()
 			else {
-				warn!("room ID has no servername");
+				warn!("legacy room ID has no server name");
 				return Ok(false);
 			};
 			if room_id_server_name != sender.server_name() {
-				warn!("servername of room ID does not match servername of sender");
+				warn!(
+					expected = %sender.server_name(),
+					received = %room_id_server_name,
+					"server name of legacy room ID does not match server name of sender"
+				);
 				return Ok(false);
 			}
 		}
@@ -215,12 +219,12 @@ where
 			.room_version
 			.is_some_and(|v| v.deserialize().is_err())
 		{
-			warn!("invalid room version found in m.room.create event");
+			warn!("unsupported room version found in m.room.create event");
 			return Ok(false);
 		}
 
 		if room_version.room_ids_as_hashes && incoming_event.room_id().is_some() {
-			warn!("room create event incorrectly claims a room ID");
+			warn!("room create event incorrectly claims to have a room ID when it should not");
 			return Ok(false);
 		}
 
@@ -229,7 +233,7 @@ where
 		{
 			// If content has no creator field, reject
 			if content.creator.is_none() {
-				warn!("no creator field found in m.room.create content");
+				warn!("m.room.create event incorrectly omits 'creator' field");
 				return Ok(false);
 			}
 		}
@@ -282,16 +286,19 @@ where
 		.room_version
 		.is_some_and(|v| v.deserialize().is_err())
 	{
-		warn!("invalid room version found in m.room.create event");
+		warn!(
+			create_event_id = %room_create_event.event_id(),
+			"unsupported room version found in m.room.create event"
+		);
 		return Ok(false);
 	}
 	let expected_room_id = room_create_event.room_id_or_hash();
 
-	if incoming_event.room_id().unwrap() != expected_room_id {
+	if incoming_event.room_id().expect("event must have a room ID") != expected_room_id {
 		warn!(
 			expected = %expected_room_id,
 			received = %incoming_event.room_id().unwrap(),
-			"room_id of incoming event ({}) does not match room_id of m.room.create event ({})",
+			"room_id of incoming event ({}) does not match that of the m.room.create event ({})",
 			incoming_event.room_id().unwrap(),
 			expected_room_id,
 		);
@@ -304,12 +311,15 @@ where
 		.auth_events()
 		.any(|id| id == room_create_event.event_id());
 	if room_version.room_ids_as_hashes && claims_create_event {
-		warn!("m.room.create event incorrectly found in auth events");
+		warn!("event incorrectly references m.room.create event in auth events");
 		return Ok(false);
 	} else if !room_version.room_ids_as_hashes && !claims_create_event {
 		// If the create event is not referenced in the event's auth events, and this is
 		// a v11 room, reject
-		warn!("no m.room.create event found in auth events");
+		warn!(
+			missing = %room_create_event.event_id(),
+			"event incorrectly did not reference an m.room.create in its auth events"
+		);
 		return Ok(false);
 	}
 
@@ -318,7 +328,7 @@ where
 			warn!(
 				expected = %expected_room_id,
 				received = %pe.room_id().unwrap(),
-				"room_id of power levels event does not match room_id of m.room.create event"
+				"room_id of referenced power levels event does not match that of the m.room.create event"
 			);
 			return Ok(false);
 		}
@@ -332,8 +342,9 @@ where
 		&& room_create_event.sender().server_name() != incoming_event.sender().server_name()
 	{
 		warn!(
-			"room is not federated and event's sender domain does not match create event's \
-			 sender domain"
+			sender = %incoming_event.sender(),
+			create_sender = %room_create_event.sender(),
+			"room is not federated and event's sender domain does not match create event's sender domain"
 		);
 		return Ok(false);
 	}
@@ -416,7 +427,6 @@ where
 			&user_for_join_auth_membership,
 			&room_create_event,
 		)? {
-			warn!("membership change not valid for some reason");
 			return Ok(false);
 		}
 
@@ -429,7 +439,7 @@ where
 	let sender_member_event = match sender_member_event {
 		| Some(mem) => mem,
 		| None => {
-			warn!("sender not found in room");
+			warn!("sender has no membership event");
 			return Ok(false);
 		},
 	};
@@ -440,7 +450,7 @@ where
 		!= expected_room_id
 	{
 		warn!(
-			"room_id of incoming event ({}) does not match room_id of m.room.create event ({})",
+			"room_id of incoming event ({}) does not match that of the m.room.create event ({})",
 			sender_member_event
 				.room_id()
 				.expect("event must have a room ID"),
@@ -453,8 +463,7 @@ where
 		from_json_str(sender_member_event.content().get())?;
 	let Some(membership_state) = sender_membership_event_content.membership else {
 		warn!(
-			sender_membership_event_content = format!("{sender_membership_event_content:?}"),
-			event_id = format!("{}", incoming_event.event_id()),
+			?sender_membership_event_content,
 			"Sender membership event content missing membership field"
 		);
 		return Err(Error::InvalidPdu("Missing membership field".to_owned()));
@@ -462,7 +471,11 @@ where
 	let membership_state = membership_state.deserialize()?;
 
 	if !matches!(membership_state, MembershipState::Join) {
-		warn!("sender's membership is not join");
+		warn!(
+			%sender,
+			?membership_state,
+			"sender cannot send events without being joined to the room"
+		);
 		return Ok(false);
 	}
 
@@ -522,7 +535,12 @@ where
 		};
 
 		if sender_power_level < invite_level {
-			warn!("sender's cannot send invites in this room");
+			warn!(
+				%sender,
+				has=?sender_power_level,
+				required=?invite_level,
+				"sender cannot send invites in this room"
+			);
 			return Ok(false);
 		}
 
@@ -534,7 +552,11 @@ where
 	// level, reject If the event has a state_key that starts with an @ and does
 	// not match the sender, reject.
 	if !can_send_event(incoming_event, power_levels_event.as_ref(), sender_power_level) {
-		warn!("user cannot send event");
+		warn!(
+			%sender,
+			event_type=?incoming_event.kind(),
+			"sender cannot send event"
+		);
 		return Ok(false);
 	}
 
@@ -579,6 +601,12 @@ where
 		};
 
 		if !check_redaction(room_version, incoming_event, sender_power_level, redact_level)? {
+			warn!(
+				%sender,
+				?sender_power_level,
+				?redact_level,
+				"redaction event was not allowed"
+			);
 			return Ok(false);
 		}
 	}
@@ -759,7 +787,7 @@ where
 
 			if prev_event_is_create_event && no_more_prev_events {
 				trace!(
-					sender = %sender,
+					%sender,
 					target_user = %target_user,
 					?sender_creator,
 					?target_creator,
@@ -779,22 +807,33 @@ where
 			);
 			if sender != target_user {
 				// If the sender does not match state_key, reject.
-				warn!("Can't make other user join");
+				warn!(
+					%sender,
+					target_user = %target_user,
+					"sender cannot join on behalf of another user"
+				);
 				false
 			} else if target_user_current_membership == MembershipState::Ban {
 				// If the sender is banned, reject.
-				warn!(?target_user_membership_event_id, "Banned user can't join");
+				warn!(
+					%sender,
+					membership_event_id = ?target_user_membership_event_id,
+					"sender cannot join as they are banned from the room"
+				);
 				false
 			} else {
 				match join_rules {
 					| JoinRule::Invite =>
 						if !membership_allows_join {
 							warn!(
-								membership=?target_user_current_membership,
-								"Join rule is invite but membership does not allow join"
+								%sender,
+								membership_event_id = ?target_user_membership_event_id,
+								membership = ?target_user_current_membership,
+								"sender cannot join as they are not invited to the invite-only room"
 							);
 							false
 						} else {
+							trace!(sender=%sender, "sender is invited to room, allowing join");
 							true
 						},
 					| JoinRule::Knock if !room_version.allow_knocking => {
@@ -804,11 +843,14 @@ where
 					| JoinRule::Knock =>
 						if !membership_allows_join {
 							warn!(
+								%sender,
+								membership_event_id = ?target_user_membership_event_id,
 								membership=?target_user_current_membership,
-								"Join rule is knock but membership does not allow join"
+								"sender cannot join a knock room without being invited or already joined"
 							);
 							false
 						} else {
+							trace!(sender=%sender, "sender is invited or already joined to room, allowing join");
 							true
 						},
 					| JoinRule::KnockRestricted(_) if !room_version.knock_restricted_join_rule =>
@@ -820,33 +862,55 @@ where
 					},
 					| JoinRule::KnockRestricted(_) => {
 						if membership_allows_join || user_for_join_auth_is_valid {
+							trace!(
+								%sender,
+								%membership_allows_join,
+								%user_for_join_auth_is_valid,
+								"sender is invited, already joined to, or authorised to join the room, allowing join"
+							);
 							true
 						} else {
 							warn!(
+								%sender,
+								membership_event_id = ?target_user_membership_event_id,
 								membership=?target_user_current_membership,
-								"Join rule is a restricted one, but no valid authorising user \
-								 was given and the sender's current membership does not permit \
-								 a join transition"
+								%user_for_join_auth_is_valid,
+								?user_for_join_auth,
+								"sender cannot join as they are not invited nor already joined to the room, nor was a \
+								 valid authorising user given to permit the join"
 							);
 							false
 						}
 					},
 					| JoinRule::Restricted(_) =>
 						if membership_allows_join || user_for_join_auth_is_valid {
+							trace!(
+								%sender,
+								%membership_allows_join,
+								%user_for_join_auth_is_valid,
+								"sender is invited, already joined to, or authorised to join the room, allowing join"
+							);
 							true
 						} else {
 							warn!(
-								"Join rule is a restricted one but no valid authorising user \
-								 was given"
+								%sender,
+								membership_event_id = ?target_user_membership_event_id,
+								membership=?target_user_current_membership,
+								%user_for_join_auth_is_valid,
+								?user_for_join_auth,
+								"sender cannot join as they are not invited nor already joined to the room, nor was a \
+								 valid authorising user given to permit the join"
 							);
 							false
 						},
-					| JoinRule::Public => true,
+					| JoinRule::Public => {
+						trace!(%sender, "join rule is public, allowing join");
+						true
+					},
 					| _ => {
 						warn!(
 							join_rule=?join_rules,
-							membership=?target_user_current_membership,
-							"Unknown join rule doesn't allow joining, or the rule's conditions were not met"
+							"Join rule is unknown, or the rule's conditions were not met"
 						);
 						false
 					},
@@ -873,16 +937,23 @@ where
 						}
 						allow
 					},
-				| _ => {
-					if !sender_is_joined
-						|| target_user_current_membership == MembershipState::Join
-						|| target_user_current_membership == MembershipState::Ban
-					{
+				| _ =>
+					if !sender_is_joined {
+						warn!(
+							%sender,
+							?sender_membership_event_id,
+							?sender_membership,
+							"sender cannot produce an invite without being joined to the room",
+						);
+						false
+					} else if matches!(
+						target_user_current_membership,
+						MembershipState::Join | MembershipState::Ban
+					) {
 						warn!(
 							?target_user_membership_event_id,
-							?sender_membership_event_id,
-							"Can't invite user if sender not joined or the user is currently \
-							 joined or banned",
+							?target_user_current_membership,
+							"cannot invite a user who is banned or already joined",
 						);
 						false
 					} else {
@@ -892,56 +963,107 @@ where
 								.is_some();
 						if !allow {
 							warn!(
-								?target_user_membership_event_id,
-								?power_levels_event_id,
-								"User does not have enough power to invite",
+								%sender,
+								has=?sender_power,
+								required=?power_levels.invite,
+								"sender does not have enough power to produce invites",
 							);
 						}
+						trace!(
+							%sender,
+							?sender_membership_event_id,
+							?sender_membership,
+							?target_user_membership_event_id,
+							?target_user_current_membership,
+							sender_pl=?sender_power,
+							required_pl=?power_levels.invite,
+							"allowing invite"
+						);
 						allow
-					}
-				},
+					},
 			}
 		},
-		| MembershipState::Leave =>
+		| MembershipState::Leave => {
+			let can_unban = if target_user_current_membership == MembershipState::Ban {
+				sender_creator || sender_power.filter(|&p| p < &power_levels.ban).is_some()
+			} else {
+				true
+			};
+			let can_kick = if !matches!(
+				target_user_current_membership,
+				MembershipState::Ban | MembershipState::Leave
+			) {
+				sender_creator || sender_power.filter(|&p| p < &power_levels.kick).is_some()
+			} else {
+				true
+			};
 			if sender == target_user {
-				let allow = target_user_current_membership == MembershipState::Join
-					|| target_user_current_membership == MembershipState::Invite
-					|| target_user_current_membership == MembershipState::Knock;
+				// self-leave
+				// let allow = target_user_current_membership == MembershipState::Join
+				// 	|| target_user_current_membership == MembershipState::Invite
+				// 	|| target_user_current_membership == MembershipState::Knock;
+				let allow = matches!(
+					target_user_current_membership,
+					MembershipState::Join | MembershipState::Invite | MembershipState::Knock
+				);
 				if !allow {
 					warn!(
-						?target_user_membership_event_id,
-						?target_user_current_membership,
-						"Can't leave if sender is not already invited, knocked, or joined"
+						%sender,
+						current_membership_event_id=?target_user_membership_event_id,
+						current_membership=?target_user_current_membership,
+						"sender cannot leave as they are not already knocking on, invited to, or joined to the room"
 					);
 				}
+				trace!(sender=%sender, "allowing leave");
 				allow
-			} else if !sender_is_joined
-				|| target_user_current_membership == MembershipState::Ban
-					&& (sender_creator
-						|| sender_power.filter(|&p| p < &power_levels.ban).is_some())
-			{
+			} else if !sender_is_joined {
 				warn!(
-					?target_user_membership_event_id,
+					%sender,
 					?sender_membership_event_id,
-					"Can't kick if sender not joined or user is already banned",
+					"sender cannot kick another user as they are not joined to the room",
+				);
+				false
+			} else if !can_unban {
+				// If the target is banned, only a room creator or someone with ban power
+				// level can unban them
+				warn!(
+					%sender,
+					?target_user_membership_event_id,
+					?power_levels_event_id,
+					"sender lacks the power level required to unban users",
+				);
+				false
+			} else if !can_kick {
+				warn!(
+					%sender,
+					%target_user,
+					?target_user_membership_event_id,
+					?target_user_current_membership,
+					?power_levels_event_id,
+					"sender does not have enough power to kick the target",
 				);
 				false
 			} else {
-				let allow = sender_creator
-					|| (sender_power.filter(|&p| p >= &power_levels.kick).is_some()
-						&& target_power < sender_power);
-				if !allow {
-					warn!(
-						?target_user_membership_event_id,
-						?power_levels_event_id,
-						"User does not have enough power to kick",
-					);
-				}
-				allow
-			},
+				trace!(
+					%sender,
+					%target_user,
+					?target_user_membership_event_id,
+					?target_user_current_membership,
+					sender_pl=?sender_power,
+					target_pl=?target_power,
+					required_pl=?power_levels.kick,
+					"allowing kick/unban",
+				);
+				true
+			}
+		},
 		| MembershipState::Ban =>
 			if !sender_is_joined {
-				warn!(?sender_membership_event_id, "Can't ban user if sender is not joined");
+				warn!(
+					%sender,
+					?sender_membership_event_id,
+					"sender cannot ban another user as they are not joined to the room",
+				);
 				false
 			} else {
 				let allow = sender_creator
@@ -949,9 +1071,11 @@ where
 						&& target_power < sender_power);
 				if !allow {
 					warn!(
+						%sender,
+						%target_user,
 						?target_user_membership_event_id,
 						?power_levels_event_id,
-						"User does not have enough power to ban",
+						"sender does not have enough power to ban the target",
 					);
 				}
 				allow
@@ -977,9 +1101,9 @@ where
 			} else if sender != target_user {
 				// 3. If `sender` does not match `state_key`, reject.
 				warn!(
-					?sender,
-					?target_user,
-					"Can't make another user knock, sender did not match target"
+					%sender,
+					%target_user,
+					"sender cannot knock on behalf of another user",
 				);
 				false
 			} else if matches!(
@@ -991,15 +1115,25 @@ where
 				// 5. Otherwise, reject.
 				warn!(
 					?target_user_membership_event_id,
+					?sender_membership,
 					"Knocking with a membership state of ban, invite or join is invalid",
 				);
 				false
 			} else {
+				trace!(%sender, "allowing knock");
 				true
 			}
 		},
 		| _ => {
-			warn!("Unknown membership transition");
+			warn!(
+				%sender,
+				?target_membership,
+				%target_user,
+				%target_user_current_membership,
+				"Unknown or invalid membership transition {} -> {}",
+				target_user_current_membership,
+				target_membership
+			);
 			false
 		},
 	})
@@ -1029,6 +1163,13 @@ fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int)
 	if event.state_key().is_some_and(|k| k.starts_with('@'))
 		&& event.state_key() != Some(event.sender().as_str())
 	{
+		warn!(
+			%user_level,
+			required=?event_type_power_level,
+			state_key=?event.state_key(),
+			sender=%event.sender(),
+			"state_key starts with @ but does not match sender",
+		);
 		return false; // permission required to post in this room
 	}
 
@@ -1113,7 +1254,14 @@ fn check_power_levels(
 
 		// If the current value is equal to the sender's current power level, reject
 		if user != power_event.sender() && old_level == Some(&user_level) {
-			warn!("m.room.power_level cannot remove ops == to own");
+			warn!(
+				?old_level,
+				?new_level,
+				?user,
+				%user_level,
+				sender=%power_event.sender(),
+				"cannot alter the power level of a user with the same power level as sender's own"
+			);
 			return Some(false); // cannot remove ops level == to own
 		}
 
@@ -1121,8 +1269,26 @@ fn check_power_levels(
 		// If the new value is higher than the sender's current power level, reject
 		let old_level_too_big = old_level > Some(&user_level);
 		let new_level_too_big = new_level > Some(&user_level);
-		if old_level_too_big || new_level_too_big {
-			warn!("m.room.power_level failed to add ops > than own");
+		if old_level_too_big {
+			warn!(
+				?old_level,
+				?new_level,
+				?user,
+				%user_level,
+				sender=%power_event.sender(),
+				"cannot alter the power level of a user with a higher power level than sender's own"
+			);
+			return Some(false); // cannot add ops greater than own
+		}
+		if new_level_too_big {
+			warn!(
+				?old_level,
+				?new_level,
+				?user,
+				%user_level,
+				sender=%power_event.sender(),
+				"cannot set the power level of a user to a level higher than sender's own"
+			);
 			return Some(false); // cannot add ops greater than own
 		}
 	}
@@ -1139,8 +1305,26 @@ fn check_power_levels(
 		// If the new value is higher than the sender's current power level, reject
 		let old_level_too_big = old_level > Some(&user_level);
 		let new_level_too_big = new_level > Some(&user_level);
-		if old_level_too_big || new_level_too_big {
-			warn!("m.room.power_level failed to add ops > than own");
+		if old_level_too_big {
+			warn!(
+				?old_level,
+				?new_level,
+				?ev_type,
+				%user_level,
+				sender=%power_event.sender(),
+				"cannot alter the power level of an event with a higher power level than sender's own"
+			);
+			return Some(false); // cannot add ops greater than own
+		}
+		if new_level_too_big {
+			warn!(
+				?old_level,
+				?new_level,
+				?ev_type,
+				%user_level,
+				sender=%power_event.sender(),
+				"cannot set the power level of an event to a level higher than sender's own"
+			);
 			return Some(false); // cannot add ops greater than own
 		}
 	}
@@ -1155,7 +1339,13 @@ fn check_power_levels(
 			let old_level_too_big = old_level > user_level;
 			let new_level_too_big = new_level > user_level;
 			if old_level_too_big || new_level_too_big {
-				warn!("m.room.power_level failed to add ops > than own");
+				warn!(
+					?old_level,
+					?new_level,
+					%user_level,
+					sender=%power_event.sender(),
+					"cannot alter the power level of notifications greater than sender's own"
+				);
 				return Some(false); // cannot add ops greater than own
 			}
 		}
@@ -1179,7 +1369,14 @@ fn check_power_levels(
 			let new_level_too_big = new_lvl > user_level;
 
 			if old_level_too_big || new_level_too_big {
-				warn!("cannot add ops > than own");
+				warn!(
+					?old_lvl,
+					?new_lvl,
+					%user_level,
+					sender=%power_event.sender(),
+					action=%lvl_name,
+					"cannot alter the power level of action greater than sender's own",
+				);
 				return Some(false);
 			}
 		}
