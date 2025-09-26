@@ -97,11 +97,12 @@ pub(crate) async fn upgrade_room_route(
 
 	// Create a replacement room
 	let room_features = RoomVersion::new(&body.new_version)?;
-	let replacement_room: Option<&RoomId> = if room_features.room_ids_as_hashes {
-		None
+	let replacement_room_owned = if !room_features.room_ids_as_hashes {
+		Some(RoomId::new(services.globals.server_name()))
 	} else {
-		Some(&RoomId::new(services.globals.server_name()))
+		None
 	};
+	let replacement_room: Option<&RoomId> = replacement_room_owned.as_ref().map(AsRef::as_ref);
 	let replacement_room_tmp = match replacement_room {
 		| Some(v) => v,
 		| None => &RoomId::new(services.globals.server_name()),
