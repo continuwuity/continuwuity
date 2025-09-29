@@ -132,7 +132,7 @@ jobs:
           path: ${{ steps.cargo-deb.outputs.path }}
 
       - name: Publish to Forgejo package registry
-        if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' }}
+        if: ${{ forge.event_name == 'push' || forge.event_name == 'workflow_dispatch' || forge.event_name == 'schedule' }}
         run: |
           OWNER="continuwuation"
           DISTRIBUTION=${{ steps.debian-version.outputs.distribution }}
