@@ -615,15 +615,21 @@ where
 	Ok(true)
 }
 
-fn is_creator<EV>(v: &RoomVersion, c: &BTreeSet<OwnedUserId>, ce: &EV, user_id: &UserId) -> bool
+fn is_creator<EV>(
+	v: &RoomVersion,
+	c: &BTreeSet<OwnedUserId>,
+	ce: &EV,
+	user_id: &UserId,
+	have_pls: bool,
+) -> bool
 where
 	EV: Event + Send + Sync,
 {
 	if v.explicitly_privilege_room_creators {
 		c.contains(user_id)
-	} else if v.use_room_create_sender {
+	} else if v.use_room_create_sender && have_pls {
 		ce.sender() == user_id
-	} else {
+	} else if have_pls {
 		#[allow(deprecated)]
 		let creator = from_json_str::<RoomCreateEventContent>(ce.content().get())
 			.unwrap()
@@ -632,6 +638,8 @@ where
 			.unwrap();
 
 		creator == user_id
+	} else {
+		false
 	}
 }
 
@@ -724,10 +732,11 @@ where
 	}
 	trace!(?creators, "creators for room");
 
-	let mut join_rules = JoinRule::Invite;
-	if let Some(jr) = &join_rules_event {
-		join_rules = from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule;
-	}
+	let join_rules = if let Some(jr) = &join_rules_event {
+		from_json_str::<RoomJoinRulesEventContent>(jr.content().get())?.join_rule
+	} else {
+		JoinRule::Invite
+	};
 
 	let power_levels_event_id = power_levels_event.as_ref().map(Event::event_id);
 	let sender_membership_event_id = sender_membership_event.as_ref().map(Event::event_id);
@@ -753,8 +762,13 @@ where
 			(int!(0), int!(0))
 		};
 		let user_joined = user_for_join_auth_membership == &MembershipState::Join;
-		let okay_power = is_creator(room_version, &creators, create_room, user_for_join_auth)
-			|| auth_user_pl >= invite_level;
+		let okay_power = is_creator(
+			room_version,
+			&creators,
+			create_room,
+			user_for_join_auth,
+			power_levels_event.as_ref().is_some(),
+		) || auth_user_pl >= invite_level;
 		trace!(
 			auth_user_pl=?auth_user_pl,
 			invite_level=?invite_level,
@@ -769,8 +783,20 @@ where
 		trace!("No auth user given for join auth");
 		false
 	};
-	let sender_creator = is_creator(room_version, &creators, create_room, sender);
-	let target_creator = is_creator(room_version, &creators, create_room, target_user);
+	let sender_creator = is_creator(
+		room_version,
+		&creators,
+		create_room,
+		sender,
+		power_levels_event.as_ref().is_some(),
+	);
+	let target_creator = is_creator(
+		room_version,
+		&creators,
+		create_room,
+		target_user,
+		power_levels_event.as_ref().is_some(),
+	);
 
 	Ok(match target_membership {
 		| MembershipState::Join => {
