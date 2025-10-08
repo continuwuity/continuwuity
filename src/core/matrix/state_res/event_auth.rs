@@ -1011,7 +1011,7 @@ where
 		},
 		| MembershipState::Leave => {
 			let can_unban = if target_user_current_membership == MembershipState::Ban {
-				sender_creator || sender_power.filter(|&p| p < &power_levels.ban).is_some()
+				sender_creator || sender_power.filter(|&p| p >= &power_levels.ban).is_some()
 			} else {
 				true
 			};
@@ -1019,7 +1019,11 @@ where
 				target_user_current_membership,
 				MembershipState::Ban | MembershipState::Leave
 			) {
-				sender_creator || sender_power.filter(|&p| p < &power_levels.kick).is_some()
+				sender_creator
+					|| (sender_power.filter(|&p| p < &power_levels.kick).is_some()
+						&& sender_power
+							.filter(|&p| p > target_power.unwrap_or(&int!(0)))
+							.is_some())
 			} else {
 				true
 			};
@@ -1049,7 +1053,7 @@ where
 					"sender cannot kick another user as they are not joined to the room",
 				);
 				false
-			} else if !can_unban {
+			} else if !(can_unban && can_kick) {
 				// If the target is banned, only a room creator or someone with ban power
 				// level can unban them
 				warn!(
