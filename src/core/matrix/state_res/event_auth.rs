@@ -627,9 +627,9 @@ where
 {
 	if v.explicitly_privilege_room_creators {
 		c.contains(user_id)
-	} else if v.use_room_create_sender && have_pls {
+	} else if v.use_room_create_sender && !have_pls {
 		ce.sender() == user_id
-	} else if have_pls {
+	} else if !have_pls {
 		#[allow(deprecated)]
 		let creator = from_json_str::<RoomCreateEventContent>(ce.content().get())
 			.unwrap()
