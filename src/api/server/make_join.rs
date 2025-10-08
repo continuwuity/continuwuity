@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug_info, matrix::pdu::PduBuilder, utils::IterStream, warn,
+	Err, Error, Result, debug_info, info, matrix::pdu::PduBuilder, utils::IterStream, warn,
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
@@ -22,6 +22,7 @@ use crate::Ruma;
 /// # `GET /_matrix/federation/v1/make_join/{roomId}/{userId}`
 ///
 /// Creates a join template.
+#[tracing::instrument(skip_all, fields(room_id = %body.room_id, user_id = %body.user_id, origin = %body.origin()))]
 pub(crate) async fn create_join_event_template_route(
 	State(services): State<crate::State>,
 	body: Ruma<prepare_join_event::v1::Request>,
@@ -72,11 +73,16 @@ pub(crate) async fn create_join_event_template_route(
 	}
 
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
-
+	let is_invited = services
+		.rooms
+		.state_cache
+		.is_invited(&body.user_id, &body.room_id)
+		.await;
 	let join_authorized_via_users_server: Option<OwnedUserId> = {
 		use RoomVersionId::*;
-		if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
-			// room version does not support restricted join rules
+		if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) || is_invited {
+			// room version does not support restricted join rules, or the user is currently
+			// already invited
 			None
 		} else if user_can_perform_restricted_join(
 			&services,
@@ -103,6 +109,10 @@ pub(crate) async fn create_join_event_template_route(
 				.await
 				.map(ToOwned::to_owned)
 			else {
+				info!(
+					"No local user is able to authorize the join of {} into {}",
+					&body.user_id, &body.room_id
+				);
 				return Err!(Request(UnableToGrantJoin(
 					"No user on this server is able to assist in joining."
 				)));
@@ -167,6 +177,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 		)
 		.await
 	else {
+		// No join rules means there's nothing to authorise (defaults to invite)
 		return Ok(false);
 	};
 
