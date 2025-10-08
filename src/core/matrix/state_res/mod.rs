@@ -217,14 +217,8 @@ where
 	)
 	.await?;
 
-	// Add unconflicted state to the resolved state
-	// We priorities the unconflicting state
+	// Ensure unconflicting state is in the final state
 	resolved_state.extend(clean);
-	if stateres_version == StateResolutionVersion::V2_1 {
-		resolved_state.extend(resolved_control);
-		// TODO(hydra): this feels disgusting and wrong but it allows
-		// the state to resolve properly?
-	}
 
 	debug!("state resolution finished");
 	trace!( map = ?resolved_state, "final resolved state" );
