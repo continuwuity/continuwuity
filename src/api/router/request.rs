@@ -34,6 +34,19 @@ pub(super) async fn from(
 
 	let max_body_size = services.server.config.max_request_size;
 
+	// Check if the Content-Length header is present and valid, saves us streaming
+	// the response into memory
+	if let Some(content_length) = parts.headers.get(http::header::CONTENT_LENGTH) {
+		if let Ok(content_length) = content_length
+			.to_str()
+			.map(|s| s.parse::<usize>().unwrap_or_default())
+		{
+			if content_length > max_body_size {
+				return Err(err!(Request(TooLarge("Request body too large"))));
+			}
+		}
+	}
+
 	let body = axum::body::to_bytes(body, max_body_size)
 		.await
 		.map_err(|e| err!(Request(TooLarge("Request body too large: {e}"))))?;
