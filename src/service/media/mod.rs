@@ -90,17 +90,22 @@ impl Service {
 		file: &[u8],
 	) -> Result<()> {
 		// Width, Height = 0 if it's not a thumbnail
-		let key = self.db.create_file_metadata(
-			mxc,
-			user,
-			&Dim::default(),
-			content_disposition,
-			content_type,
-		)?;
+		let key = self
+			.db
+			.create_file_metadata(mxc, user, &Dim::default(), content_disposition, content_type)
+			.map_err(|e| {
+				err!(Database(error!("Failed to create media metadata for MXC {mxc}: {e}")))
+			})?;
 
 		//TODO: Dangling metadata in database if creation fails
-		let mut f = self.create_media_file(&key).await?;
-		f.write_all(file).await?;
+		let mut f = self.create_media_file(&key).await.map_err(|e| {
+			err!(Database(error!(
+				"Failed to create media file for MXC {mxc} at key {key:?}: {e}"
+			)))
+		})?;
+		f.write_all(file).await.map_err(|e| {
+			err!(Database(error!("Failed to write media file for MXC {mxc} at key {key:?}: {e}")))
+		})?;
 
 		Ok(())
 	}
