@@ -64,10 +64,14 @@ pub(crate) async fn create_content_route(
 		media_id: &utils::random_string(MXC_LENGTH),
 	};
 
-	services
+	if let Err(e) = services
 		.media
 		.create(mxc, Some(user), Some(&content_disposition), content_type, &body.file)
-		.await?;
+		.await
+	{
+		err!("Failed to save uploaded media: {e}");
+		return Err!(Request(Unknown("Failed to save uploaded media")));
+	}
 
 	let blurhash = body.generate_blurhash.then(|| {
 		services
