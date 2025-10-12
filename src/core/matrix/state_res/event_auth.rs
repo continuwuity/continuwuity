@@ -1019,11 +1019,24 @@ where
 				target_user_current_membership,
 				MembershipState::Ban | MembershipState::Leave
 			) {
-				sender_creator
-					|| (sender_power.filter(|&p| p < &power_levels.kick).is_some()
-						&& sender_power
-							.filter(|&p| p > target_power.unwrap_or(&int!(0)))
-							.is_some())
+				if sender_creator {
+					// sender is a creator
+					true
+				} else if sender_power.filter(|&p| p >= &power_levels.kick).is_none() {
+					// sender lacks kick power level
+					false
+				} else if let Some(sp) = sender_power {
+					if let Some(tp) = target_power {
+						// sender must have more power than target
+						sp > tp
+					} else {
+						// target has default power level
+						true
+					}
+				} else {
+					// sender has default power level
+					false
+				}
 			} else {
 				true
 			};
