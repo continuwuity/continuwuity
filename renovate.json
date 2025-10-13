@@ -64,12 +64,8 @@
             "matchDatasources": ["docker"],
             "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
             "automerge": true,
-            "automergeStrategy": "fast-forward"
-        },
-        {
-            "description": "Group lockfile updates into a single PR",
-            "matchUpdateTypes": ["lockFileMaintenance"],
-            "groupName": "lockfile-maintenance"
+            "automergeStrategy": "fast-forward",
+            "extends": ["schedule:earlyMondays"]
         }
     ],
     "customManagers": [
@@ -81,7 +77,7 @@
            "/(^|/|\\.)([Dd]ocker|[Cc]ontainer)file$/"
          ],
          "matchStrings": [
-           "# renovate: datasource=(?<datasource>[a-z-.]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+(?:ENV|ARG)\\s+[A-Za-z0-9_]+?_VERSION[ =][\"']?(?<currentValue>.+?)[\"']?\\s"
+           "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_VERSION[ =][\"']?(?<currentValue>.+?)[\"']?\\s+(?:(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_CHECKSUM[ =][\"']?(?<currentDigest>.+?)[\"']?\\s)?"
          ]
        }
     ]
