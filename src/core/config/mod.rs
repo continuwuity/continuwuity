@@ -2036,9 +2036,9 @@ pub struct Config {
 	pub stream_amplification: usize,
 
 	/// Number of sender task workers; determines sender parallelism. Default is
-	/// '4'. Override by setting a different value. Values clamped 1 to core count.
+	/// core count. Override by setting a different value.
 	///
-	/// default: 4
+	/// default: core count
 	#[serde(default = "default_sender_workers")]
 	pub sender_workers: usize,
 
@@ -2780,7 +2780,7 @@ fn default_stream_width_scale() -> f32 { 1.0 }
 
 fn default_stream_amplification() -> usize { 1024 }
 
-fn default_sender_workers() -> usize { 4 }
+fn default_sender_workers() -> usize { parallelism_scaled(1) }
 
 fn default_client_receive_timeout() -> u64 { 75 }
 
