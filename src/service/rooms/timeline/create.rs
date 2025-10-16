@@ -9,6 +9,7 @@ use conduwuit_core::{
 		state_res::{self, RoomVersion},
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
+	warn,
 };
 use futures::{StreamExt, TryStreamExt, future, future::ready};
 use ruma::{
@@ -19,7 +20,6 @@ use ruma::{
 	uint,
 };
 use serde_json::value::{RawValue, to_raw_value};
-use tracing::warn;
 
 use super::RoomMutexGuard;
 
@@ -267,11 +267,33 @@ pub async fn create_hash_and_sign_event(
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
 		};
 	}
-
+	// Check with the policy server
 	// Generate event id
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
-
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
+	if room_id.is_some() {
+		trace!(
+			"Checking event in room {} with policy server",
+			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
+		);
+		match self
+			.services
+			.event_handler
+			.ask_policy_server(&pdu, &pdu_json, pdu.room_id().expect("has room ID"))
+			.await
+		{
+			| Ok(true) => {},
+			| Ok(false) => {
+				return Err!(Request(Forbidden(debug_warn!(
+					"Policy server marked this event as spam"
+				))));
+			},
+			| Err(e) => {
+				// fail open
+				warn!("Failed to check event with policy server: {e}");
+			},
+		}
+	}
 
 	// Check with the policy server
 	if room_id.is_some() {
@@ -283,7 +305,7 @@ pub async fn create_hash_and_sign_event(
 		match self
 			.services
 			.event_handler
-			.ask_policy_server(&pdu, &pdu.room_id_or_hash())
+			.ask_policy_server(&pdu, &pdu_json, &pdu.room_id_or_hash())
 			.await
 		{
 			| Ok(true) => {},
