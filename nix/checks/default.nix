@@ -77,7 +77,7 @@
         continuwuity-all-features-toml-fmt = uwulib.build.craneLibForChecks.taploFmt {
           src = pkgs.lib.sources.sourceFilesBySuffices uwulib.build.src [ ".toml" ];
           # taplo arguments can be further customized below as needed
-          # taploExtraArgs = "--config ./taplo.toml";
+          taploExtraArgs = "--config ${inputs.self}/taplo.toml";
         };
 
         # Audit dependencies
