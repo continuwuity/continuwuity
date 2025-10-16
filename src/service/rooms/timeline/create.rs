@@ -267,9 +267,9 @@ pub async fn create_hash_and_sign_event(
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
 		};
 	}
-	// Check with the policy server
 	// Generate event id
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
+	// Check with the policy server
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	if room_id.is_some() {
 		trace!(
@@ -280,32 +280,6 @@ pub async fn create_hash_and_sign_event(
 			.services
 			.event_handler
 			.ask_policy_server(&pdu, &pdu_json, pdu.room_id().expect("has room ID"))
-			.await
-		{
-			| Ok(true) => {},
-			| Ok(false) => {
-				return Err!(Request(Forbidden(debug_warn!(
-					"Policy server marked this event as spam"
-				))));
-			},
-			| Err(e) => {
-				// fail open
-				warn!("Failed to check event with policy server: {e}");
-			},
-		}
-	}
-
-	// Check with the policy server
-	if room_id.is_some() {
-		trace!(
-			"Checking event {} in room {} with policy server",
-			pdu.event_id,
-			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
-		);
-		match self
-			.services
-			.event_handler
-			.ask_policy_server(&pdu, &pdu_json, &pdu.room_id_or_hash())
 			.await
 		{
 			| Ok(true) => {},
