@@ -9,6 +9,10 @@
     }:
     let
       uwulib = inputs.self.uwulib.init pkgs;
+      rocksdbAllFeatures = self'.packages.rocksdb.override {
+        enableJemalloc = true;
+        enableLiburing = true;
+      };
     in
     {
       # basic nix shell containing all things necessary to build continuwuity in all flavors manually (on x86_64-linux)
@@ -17,7 +21,7 @@
           pkgs.pkg-config
           pkgs.liburing
           self'.packages.rust-jemalloc-sys-unprefixed'
-          self'.packages.rocksdbAllFeatures
+          rocksdbAllFeatures
         ];
         env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
       };
