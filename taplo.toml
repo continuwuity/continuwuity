@@ -1,0 +1,6 @@
+[formatting]
+align_entries = true # Align entries vertically. Entries that have table headers, comments, or blank lines between them are not aligned.
+
+reorder_arrays        = true # Alphabetically reorder array values that are not separated by blank lines.
+reorder_inline_tables = true # Alphabetically reorder inline tables.
+reorder_keys          = true # Alphabetically reorder keys that are not separated by blank lines.

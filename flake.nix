@@ -19,6 +19,11 @@
       flake = false;
     };
 
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     # for default.nix
     flake-compat = {
       url = "github:edolstra/flake-compat?ref=master";

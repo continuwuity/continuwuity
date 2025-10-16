@@ -6,5 +6,6 @@
     ./tests
 
     ./hydra.nix
+    ./fmt.nix
   ];
 }
