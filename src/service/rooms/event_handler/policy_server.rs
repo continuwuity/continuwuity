@@ -5,9 +5,9 @@
 
 use std::time::Duration;
 
-use conduwuit::{Err, Event, PduEvent, Result, debug, implement, warn};
+use conduwuit::{Err, Event, PduEvent, Result, debug, debug_info, implement, trace, warn};
 use ruma::{
-	RoomId, ServerName,
+	CanonicalJsonObject, RoomId, ServerName,
 	api::federation::room::policy::v1::Request as PolicyRequest,
 	events::{StateEventType, room::policy::RoomPolicyEventContent},
 };
@@ -25,7 +25,12 @@ use ruma::{
 /// fail-open operation.
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
-pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Result<bool> {
+pub async fn ask_policy_server(
+	&self,
+	pdu: &PduEvent,
+	pdu_json: &CanonicalJsonObject,
+	room_id: &RoomId,
+) -> Result<bool> {
 	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
 		debug!(
 			room_id = %room_id,
@@ -47,12 +52,12 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 	let via = match policyserver.via {
 		| Some(ref via) => ServerName::parse(via)?,
 		| None => {
-			debug!("No policy server configured for room {room_id}");
+			trace!("No policy server configured for room {room_id}");
 			return Ok(true);
 		},
 	};
 	if via.is_empty() {
-		debug!("Policy server is empty for room {room_id}, skipping spam check");
+		trace!("Policy server is empty for room {room_id}, skipping spam check");
 		return Ok(true);
 	}
 	if !self.services.state_cache.server_in_room(via, room_id).await {
@@ -66,12 +71,12 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 	let outgoing = self
 		.services
 		.sending
-		.convert_to_outgoing_federation_event(pdu.to_canonical_object())
+		.convert_to_outgoing_federation_event(pdu_json.clone())
 		.await;
-	debug!(
+	debug_info!(
 		room_id = %room_id,
 		via = %via,
-		outgoing = ?outgoing,
+		outgoing = ?pdu_json,
 		"Checking event for spam with policy server"
 	);
 	let response = tokio::time::timeout(
@@ -85,7 +90,10 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 	)
 	.await;
 	let response = match response {
-		| Ok(Ok(response)) => response,
+		| Ok(Ok(response)) => {
+			debug!("Response from policy server: {:?}", response);
+			response
+		},
 		| Ok(Err(e)) => {
 			warn!(
 				via = %via,
@@ -97,16 +105,18 @@ pub async fn ask_policy_server(&self, pdu: &PduEvent, room_id: &RoomId) -> Resul
 			// default.
 			return Err(e);
 		},
-		| Err(_) => {
+		| Err(elapsed) => {
 			warn!(
-				via = %via,
+				%via,
 				event_id = %pdu.event_id(),
-				room_id = %room_id,
+				%room_id,
+				%elapsed,
 				"Policy server request timed out after 10 seconds"
 			);
 			return Err!("Request to policy server timed out");
 		},
 	};
+	trace!("Recommendation from policy server was {}", response.recommendation);
 	if response.recommendation == "spam" {
 		warn!(
 			via = %via,

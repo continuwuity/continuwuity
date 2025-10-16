@@ -255,7 +255,10 @@ where
 		// 14-pre. If the event is not a state event, ask the policy server about it
 		if incoming_pdu.state_key.is_none() {
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
-			match self.ask_policy_server(&incoming_pdu, room_id).await {
+			match self
+				.ask_policy_server(&incoming_pdu, &incoming_pdu.to_canonical_object(), room_id)
+				.await
+			{
 				| Ok(false) => {
 					warn!(
 						event_id = %incoming_pdu.event_id,
