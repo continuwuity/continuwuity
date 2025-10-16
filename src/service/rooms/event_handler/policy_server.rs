@@ -31,6 +31,19 @@ pub async fn ask_policy_server(
 	pdu_json: &CanonicalJsonObject,
 	room_id: &RoomId,
 ) -> Result<bool> {
+	if !self.services.server.config.enable_msc4284_policy_servers {
+		return Ok(true); // don't ever contact policy servers
+	}
+	if self.services.server.config.policy_server_check_own_events
+		&& pdu.origin.is_some()
+		&& self
+			.services
+			.server
+			.is_ours(pdu.origin.as_ref().unwrap().as_str())
+	{
+		return Ok(true); // don't contact policy servers for locally generated events
+	}
+
 	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
 		debug!(
 			room_id = %room_id,
