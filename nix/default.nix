@@ -4,5 +4,7 @@
     ./packages
     ./shells
     ./tests
+
+    ./hydra.nix
   ];
 }
