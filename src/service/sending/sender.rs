@@ -423,7 +423,7 @@ impl Service {
 			let keys_changed = self
 				.services
 				.users
-				.room_keys_changed(room_id, since.0, None)
+				.room_keys_changed(room_id, Some(since.0), None)
 				.ready_filter(|(user_id, _)| self.services.globals.user_is_local(user_id));
 
 			pin_mut!(keys_changed);
@@ -520,7 +520,7 @@ impl Service {
 		let receipts = self
 			.services
 			.read_receipt
-			.readreceipts_since(room_id, since.0);
+			.readreceipts_since(room_id, Some(since.0));
 
 		pin_mut!(receipts);
 		let mut read = BTreeMap::<OwnedUserId, ReceiptData>::new();

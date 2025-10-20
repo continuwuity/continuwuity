@@ -39,7 +39,9 @@ use ruma::{
 use super::share_encrypted_room;
 use crate::{
 	Ruma,
-	client::{DEFAULT_BUMP_TYPES, ignored_filter, is_ignored_invite, sync::load_timeline},
+	client::{
+		DEFAULT_BUMP_TYPES, TimelinePdus, ignored_filter, is_ignored_invite, sync::load_timeline,
+	},
 };
 
 type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request);
@@ -411,11 +413,11 @@ where
 
 			(timeline_pdus, limited) = (Vec::new(), true);
 		} else {
-			(timeline_pdus, limited) = match load_timeline(
+			TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
 				services,
 				sender_user,
 				room_id,
-				roomsincecount,
+				Some(roomsincecount),
 				Some(PduCount::from(next_batch)),
 				*timeline_limit,
 			)
@@ -434,7 +436,7 @@ where
 				room_id.to_owned(),
 				services
 					.account_data
-					.changes_since(Some(room_id), sender_user, *roomsince, Some(next_batch))
+					.changes_since(Some(room_id), sender_user, Some(*roomsince), Some(next_batch))
 					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 					.collect()
 					.await,
@@ -460,7 +462,7 @@ where
 		let mut receipts: Vec<Raw<AnySyncEphemeralRoomEvent>> = services
 			.rooms
 			.read_receipt
-			.readreceipts_since(room_id, *roomsince)
+			.readreceipts_since(room_id, Some(*roomsince))
 			.filter_map(|(read_user, _ts, v)| async move {
 				services
 					.users
@@ -687,7 +689,7 @@ async fn collect_account_data(
 
 	account_data.global = services
 		.account_data
-		.changes_since(None, sender_user, globalsince, None)
+		.changes_since(None, sender_user, Some(globalsince), None)
 		.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Global))
 		.collect()
 		.await;
@@ -698,7 +700,7 @@ async fn collect_account_data(
 				room.clone(),
 				services
 					.account_data
-					.changes_since(Some(room), sender_user, globalsince, None)
+					.changes_since(Some(room), sender_user, Some(globalsince), None)
 					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 					.collect()
 					.await,
@@ -732,7 +734,7 @@ where
 	device_list_changes.extend(
 		services
 			.users
-			.keys_changed(sender_user, globalsince, None)
+			.keys_changed(sender_user, Some(globalsince), None)
 			.map(ToOwned::to_owned)
 			.collect::<Vec<_>>()
 			.await,
@@ -868,7 +870,7 @@ where
 		device_list_changes.extend(
 			services
 				.users
-				.room_keys_changed(room_id, globalsince, None)
+				.room_keys_changed(room_id, Some(globalsince), None)
 				.map(|(user_id, _)| user_id)
 				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
