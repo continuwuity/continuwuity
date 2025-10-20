@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, ops::Deref, sync::Arc};
 
 use conduwuit::{
-	Result, at, err, implement,
+	Pdu, Result, at, err, implement,
 	matrix::{Event, StateKey},
 	pair_of,
 	utils::{
@@ -125,7 +125,7 @@ pub async fn state_get(
 	shortstatehash: ShortStateHash,
 	event_type: &StateEventType,
 	state_key: &str,
-) -> Result<impl Event> {
+) -> Result<Pdu> {
 	self.state_get_id(shortstatehash, event_type, state_key)
 		.and_then(async |event_id: OwnedEventId| self.services.timeline.get_pdu(&event_id).await)
 		.await

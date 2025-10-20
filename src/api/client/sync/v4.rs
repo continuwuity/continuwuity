@@ -40,7 +40,7 @@ use ruma::{
 use super::{load_timeline, share_encrypted_room};
 use crate::{
 	Ruma,
-	client::{DEFAULT_BUMP_TYPES, ignored_filter, is_ignored_invite},
+	client::{DEFAULT_BUMP_TYPES, TimelinePdus, ignored_filter, is_ignored_invite},
 };
 
 type TodoRooms = BTreeMap<OwnedRoomId, (BTreeSet<TypeStateKey>, usize, u64)>;
@@ -155,7 +155,7 @@ pub(crate) async fn sync_events_v4_route(
 	if body.extensions.account_data.enabled.unwrap_or(false) {
 		account_data.global = services
 			.account_data
-			.changes_since(None, sender_user, globalsince, Some(next_batch))
+			.changes_since(None, sender_user, Some(globalsince), Some(next_batch))
 			.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Global))
 			.collect()
 			.await;
@@ -166,7 +166,12 @@ pub(crate) async fn sync_events_v4_route(
 					room.clone(),
 					services
 						.account_data
-						.changes_since(Some(&room), sender_user, globalsince, Some(next_batch))
+						.changes_since(
+							Some(&room),
+							sender_user,
+							Some(globalsince),
+							Some(next_batch),
+						)
 						.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 						.collect()
 						.await,
@@ -180,7 +185,7 @@ pub(crate) async fn sync_events_v4_route(
 		device_list_changes.extend(
 			services
 				.users
-				.keys_changed(sender_user, globalsince, None)
+				.keys_changed(sender_user, Some(globalsince), None)
 				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
 				.await,
@@ -318,7 +323,7 @@ pub(crate) async fn sync_events_v4_route(
 			device_list_changes.extend(
 				services
 					.users
-					.room_keys_changed(room_id, globalsince, None)
+					.room_keys_changed(room_id, Some(globalsince), None)
 					.map(|(user_id, _)| user_id)
 					.map(ToOwned::to_owned)
 					.collect::<Vec<_>>()
@@ -514,11 +519,11 @@ pub(crate) async fn sync_events_v4_route(
 
 			(timeline_pdus, limited) = (Vec::new(), true);
 		} else {
-			(timeline_pdus, limited) = match load_timeline(
+			TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
 				&services,
 				sender_user,
 				room_id,
-				roomsincecount,
+				Some(roomsincecount),
 				None,
 				*timeline_limit,
 			)
@@ -536,7 +541,7 @@ pub(crate) async fn sync_events_v4_route(
 			room_id.to_owned(),
 			services
 				.account_data
-				.changes_since(Some(room_id), sender_user, *roomsince, Some(next_batch))
+				.changes_since(Some(room_id), sender_user, Some(*roomsince), Some(next_batch))
 				.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 				.collect()
 				.await,
@@ -562,7 +567,7 @@ pub(crate) async fn sync_events_v4_route(
 		let mut vector: Vec<Raw<AnySyncEphemeralRoomEvent>> = services
 			.rooms
 			.read_receipt
-			.readreceipts_since(room_id, *roomsince)
+			.readreceipts_since(room_id, Some(*roomsince))
 			.filter_map(|(read_user, _ts, v)| async move {
 				services
 					.users

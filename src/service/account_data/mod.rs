@@ -129,13 +129,15 @@ pub fn changes_since<'a>(
 	&'a self,
 	room_id: Option<&'a RoomId>,
 	user_id: &'a UserId,
-	since: u64,
+	since: Option<u64>,
 	to: Option<u64>,
 ) -> impl Stream<Item = AnyRawAccountDataEvent> + Send + 'a {
 	type Key<'a> = (Option<&'a RoomId>, &'a UserId, u64, Ignore);
 
 	// Skip the data that's exactly at since, because we sent that last time
-	let first_possible = (room_id, user_id, since.saturating_add(1));
+	// ...unless this is an initial sync, in which case send everything
+	let first_possible =
+		(room_id, user_id, since.map(|since| since.saturating_add(1)).unwrap_or(0));
 
 	self.db
 		.roomuserdataid_accountdata
