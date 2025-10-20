@@ -104,16 +104,16 @@ impl Service {
 		Ok(Raw::from_json(event))
 	}
 
-	/// Returns an iterator over the most recent read_receipts in a room that
-	/// happened after the event with id `since`.
+	/// Returns an iterator over the most recent read_receipts in a room,
+	/// optionally after the event with id `since`.
 	#[inline]
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn readreceipts_since<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-		since: u64,
+		since: Option<u64>,
 	) -> impl Stream<Item = ReceiptItem<'a>> + Send + 'a {
-		self.db.readreceipts_since(room_id, since)
+		self.db.readreceipts_since(room_id, since.unwrap_or(0))
 	}
 
 	/// Sets a private read marker at PDU `count`.

@@ -36,7 +36,7 @@ where
 	) -> MapOkOrElse<Self, impl FnOnce(Self::Ok) -> U, impl FnOnce(Self::Error) -> U>
 	where
 		F: FnOnce(Self::Ok) -> U,
-		Self: Send + Sized;
+		Self: Sized;
 
 	fn ok(
 		self,
@@ -100,7 +100,7 @@ where
 	) -> MapOkOrElse<Self, impl FnOnce(Self::Ok) -> U, impl FnOnce(Self::Error) -> U>
 	where
 		F: FnOnce(Self::Ok) -> U,
-		Self: Send + Sized,
+		Self: Sized,
 	{
 		self.map_ok_or_else(|_| default, f)
 	}
