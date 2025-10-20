@@ -790,7 +790,7 @@ impl Service {
 	pub fn keys_changed<'a>(
 		&'a self,
 		user_id: &'a UserId,
-		from: u64,
+		from: Option<u64>,
 		to: Option<u64>,
 	) -> impl Stream<Item = &'a UserId> + Send + 'a {
 		self.keys_changed_user_or_room(user_id.as_str(), from, to)
@@ -801,7 +801,7 @@ impl Service {
 	pub fn room_keys_changed<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-		from: u64,
+		from: Option<u64>,
 		to: Option<u64>,
 	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
 		self.keys_changed_user_or_room(room_id.as_str(), from, to)
@@ -810,11 +810,12 @@ impl Service {
 	fn keys_changed_user_or_room<'a>(
 		&'a self,
 		user_or_room_id: &'a str,
-		from: u64,
+		from: Option<u64>,
 		to: Option<u64>,
 	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
 		type KeyVal<'a> = ((&'a str, u64), &'a UserId);
 
+		let from = from.unwrap_or(0);
 		let to = to.unwrap_or(u64::MAX);
 		let start = (user_or_room_id, from.saturating_add(1));
 		self.db
