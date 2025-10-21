@@ -3,6 +3,7 @@
   perSystem =
     {
       system,
+      lib,
       ...
     }:
     {

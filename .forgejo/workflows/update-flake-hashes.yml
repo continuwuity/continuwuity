@@ -7,6 +7,7 @@ on:
       - "Cargo.lock"
       - "Cargo.toml"
       - "rust-toolchain.toml"
+      - "nix/**/*"
       - ".forgejo/workflows/update-flake-hashes.yml"
 
 jobs:
@@ -40,13 +41,22 @@ jobs:
           echo "Base: $base"
           echo "HEAD: $(git rev-parse HEAD)"
           git diff --name-only $base HEAD > changed_files.txt
-          echo "files=$(cat changed_files.txt)" >> $FORGEJO_OUTPUT
+          echo "detected changes in $(cat changed_files.txt)"
+          # Join files with commas
+          files=$(paste -sd, changed_files.txt)
+          echo "files=$files" >> $FORGEJO_OUTPUT
+
+      - name: Debug output
+        run: |
+          echo "State of output"
+          echo "Changed files: ${{ steps.changes.outputs.files }}"
 
       - name: Get new toolchain hash
         if: contains(steps.changes.outputs.files, 'Cargo.toml') || contains(steps.changes.outputs.files, 'Cargo.lock') || contains(steps.changes.outputs.files, 'rust-toolchain.toml')
         run: |
           # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = pkgsHost.lib.fakeSha256;"); found=0} 1' flake.nix > temp.nix && mv temp.nix flake.nix
+          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/packages/rust.nix > temp.nix
+          mv temp.nix nix/packages/rust.nix
 
           # Build continuwuity and filter for the new hash
           # We do `|| true` because we want this to fail without stopping the workflow
@@ -54,19 +64,21 @@ jobs:
 
           # Place the new hash in place of the empty hash
           new_hash=$(cat new_toolchain_hash.txt)
-          sed -i "s|pkgsHost.lib.fakeSha256|\"$new_hash\"|" flake.nix
+          sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/packages/rust.nix
 
           echo "New hash:"
-          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' flake.nix
+          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/packages/rust.nix
           echo "Expected new hash:"
           cat new_toolchain_hash.txt
 
           rm new_toolchain_hash.txt
 
       - name: Get new rocksdb hash
+        if: contains(steps.changes.outputs.files, '.nix') || contains(steps.changes.outputs.files, 'flake.lock')
         run: |
           # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/repo = "rocksdb";/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = pkgsHost.lib.fakeSha256;"); found=0} 1' flake.nix > temp.nix && mv temp.nix flake.nix
+          awk '/repo = "rocksdb";/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/packages/rocksdb/package.nix > temp.nix
+          mv temp.nix nix/packages/rocksdb/package.nix
 
           # Build continuwuity and filter for the new hash
           # We do `|| true` because we want this to fail without stopping the workflow
@@ -74,17 +86,17 @@ jobs:
 
           # Place the new hash in place of the empty hash
           new_hash=$(cat new_rocksdb_hash.txt)
-          sed -i "s|pkgsHost.lib.fakeSha256|\"$new_hash\"|" flake.nix
+          sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/packages/rocksdb/package.nix
 
           echo "New hash:"
-          awk -F'"' '/repo = "rocksdb";/{found=1; next} found && /sha256 =/{print $2; found=0}' flake.nix
+          awk -F'"' '/repo = "rocksdb";/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/packages/rocksdb/package.nix
           echo "Expected new hash:"
           cat new_rocksdb_hash.txt
 
           rm new_rocksdb_hash.txt
 
       - name: Show diff
-        run: git diff flake.nix
+        run: git diff flake.nix nix
 
       - name: Push changes
         run: |
