@@ -136,8 +136,7 @@ pub fn changes_since<'a>(
 
 	// Skip the data that's exactly at since, because we sent that last time
 	// ...unless this is an initial sync, in which case send everything
-	let first_possible =
-		(room_id, user_id, since.map(|since| since.saturating_add(1)).unwrap_or(0));
+	let first_possible = (room_id, user_id, since.map_or(0, |since| since.saturating_add(1)));
 
 	self.db
 		.roomuserdataid_accountdata
