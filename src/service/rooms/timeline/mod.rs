@@ -243,7 +243,7 @@ impl Service {
 		self.pdus(Some(user_id), room_id, None).ignore_err()
 	}
 
-	/// Reverse iteration starting at from.
+	/// Reverse iteration starting after `until`.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus_rev<'a>(
 		&'a self,
@@ -255,7 +255,7 @@ impl Service {
 			.pdus_rev(user_id, room_id, until.unwrap_or_else(PduCount::max))
 	}
 
-	/// Forward iteration starting at from.
+	/// Forward iteration starting after `from`.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus<'a>(
 		&'a self,
