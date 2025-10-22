@@ -73,23 +73,23 @@ struct DeviceListUpdates {
 
 impl DeviceListUpdates {
 	fn new() -> Self {
-		DeviceListUpdates {
+		Self {
 			changed: HashSet::new(),
 			left: HashSet::new(),
 		}
 	}
 
-	fn merge(&mut self, other: DeviceListUpdates) {
+	fn merge(&mut self, other: Self) {
 		self.changed.extend(other.changed);
 		self.left.extend(other.left);
 	}
 }
 
-impl Into<DeviceLists> for DeviceListUpdates {
-	fn into(self) -> DeviceLists {
-		DeviceLists {
-			changed: self.changed.into_iter().collect(),
-			left: self.left.into_iter().collect(),
+impl From<DeviceListUpdates> for DeviceLists {
+	fn from(val: DeviceListUpdates) -> Self {
+		Self {
+			changed: val.changed.into_iter().collect(),
+			left: val.left.into_iter().collect(),
 		}
 	}
 }
@@ -101,7 +101,7 @@ struct SyncContext<'a> {
 	since: Option<u64>,
 	next_batch: u64,
 	full_state: bool,
-	filter: &'a Box<FilterDefinition>,
+	filter: &'a FilterDefinition,
 }
 
 type PresenceUpdates = HashMap<OwnedUserId, PresenceEventContent>;
@@ -607,7 +607,6 @@ async fn load_joined_room(
 		next_batch,
 		full_state,
 		filter,
-		..
 	}: SyncContext<'_>,
 	ref room_id: OwnedRoomId,
 ) -> Result<(JoinedRoom, DeviceListUpdates)> {
@@ -676,7 +675,7 @@ async fn load_joined_room(
 			}
 		}
 
-		return current_shortstatehash;
+		current_shortstatehash
 	};
 
 	let last_notification_read: OptionFuture<_> = timeline_pdus
@@ -779,18 +778,16 @@ async fn load_joined_room(
 				.lazy_loading
 				.reset(lazy_loading_context)
 				.await;
-		};
+		}
 
-		let state_initial = calculate_state_initial(
+		calculate_state_initial(
 			services,
 			sender_user,
 			timeline_start_shortstatehash,
 			lazy_loading_witness.as_ref(),
 		)
 		.boxed()
-		.await?;
-
-		state_initial
+		.await?
 	} else if limited {
 		let state_incremental = calculate_state_incremental(
 			services,
@@ -833,21 +830,27 @@ async fn load_joined_room(
 						continue;
 					};
 
-					use MembershipState::*;
+					{
+						use MembershipState::*;
 
-					if matches!(content.membership, Leave | Join) {
-						let shares_encrypted_room =
-							share_encrypted_room(services, sender_user, &user_id, Some(room_id))
-								.await;
-						match content.membership {
-							| Leave if !shares_encrypted_room => {
-								device_list_updates.left.insert(user_id);
-							},
-							| Join if joined_since_last_sync || shares_encrypted_room => {
-								device_list_updates.changed.insert(user_id);
-							},
-							| _ => (),
-						};
+						if matches!(content.membership, Leave | Join) {
+							let shares_encrypted_room = share_encrypted_room(
+								services,
+								sender_user,
+								&user_id,
+								Some(room_id),
+							)
+							.await;
+							match content.membership {
+								| Leave if !shares_encrypted_room => {
+									device_list_updates.left.insert(user_id);
+								},
+								| Join if joined_since_last_sync || shares_encrypted_room => {
+									device_list_updates.changed.insert(user_id);
+								},
+								| _ => (),
+							}
+						}
 					}
 				}
 			}
@@ -884,12 +887,10 @@ async fn load_joined_room(
 		})
 		.flatten();
 
-	let prev_batch = timeline_pdus.first().map(at!(0)).or_else(|| {
-		joined_sender_member
-			.is_some()
-			.and_then(|| since)
-			.map(Into::into)
-	});
+	let prev_batch = timeline_pdus
+		.first()
+		.map(at!(0))
+		.or_else(|| joined_sender_member.is_some().and(since).map(Into::into));
 
 	let timeline_pdus = timeline_pdus
 		.into_iter()
