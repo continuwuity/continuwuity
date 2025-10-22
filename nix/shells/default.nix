@@ -20,7 +20,7 @@
         packages = [
           pkgs.pkg-config
           pkgs.liburing
-          self'.packages.rust-jemalloc-sys-unprefixed'
+          pkgs.rust-jemalloc-sys-unprefixed
           rocksdbAllFeatures
         ];
         env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];

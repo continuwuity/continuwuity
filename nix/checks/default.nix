@@ -18,7 +18,7 @@
       commonAttrs = (uwulib.build.commonAttrs { }) // {
         buildInputs = [
           pkgs.liburing
-          self'.packages.rust-jemalloc-sys-unprefixed'
+          pkgs.rust-jemalloc-sys-unprefixed
           rocksdbAllFeatures
         ];
         nativeBuildInputs = [
@@ -32,7 +32,7 @@
           LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
           LD_LIBRARY_PATH = lib.makeLibraryPath [
             pkgs.liburing
-            self'.packages.rust-jemalloc-sys-unprefixed'
+            pkgs.rust-jemalloc-sys-unprefixed
             rocksdbAllFeatures
           ];
         }
