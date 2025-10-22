@@ -125,7 +125,7 @@ pub(super) async fn load_joined_room(
 	let is_initial_sync = since_shortstatehash.is_none();
 
 	let timeline_start_shortstatehash = async {
-		if let Some((_, pdu)) = timeline_pdus.first() {
+		if let Some((_, pdu)) = timeline_pdus.front() {
 			if let Ok(shortstatehash) = services
 				.rooms
 				.state_accessor
@@ -349,7 +349,7 @@ pub(super) async fn load_joined_room(
 		.flatten();
 
 	let prev_batch = timeline_pdus
-		.first()
+		.front()
 		.map(at!(0))
 		.or_else(|| joined_sender_member.is_some().and(since).map(Into::into));
 

@@ -1,6 +1,6 @@
 use std::{
 	cmp::{self, Ordering},
-	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+	collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
 	ops::Deref,
 	time::Duration,
 };
@@ -411,7 +411,7 @@ where
 				.await
 				.ok();
 
-			(timeline_pdus, limited) = (Vec::new(), true);
+			(timeline_pdus, limited) = (VecDeque::new(), true);
 		} else {
 			TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
 				services,
@@ -501,7 +501,7 @@ where
 		}
 
 		let prev_batch = timeline_pdus
-			.first()
+			.front()
 			.map_or(Ok::<_, Error>(None), |(pdu_count, _)| {
 				Ok(Some(match pdu_count {
 					| PduCount::Backfilled(_) => {
