@@ -1,5 +1,4 @@
 mod v3;
-mod v4;
 mod v5;
 
 use conduwuit::{
@@ -17,9 +16,7 @@ use ruma::{
 	},
 };
 
-pub(crate) use self::{
-	v3::sync_events_route, v4::sync_events_v4_route, v5::sync_events_v5_route,
-};
+pub(crate) use self::{v3::sync_events_route, v5::sync_events_v5_route};
 
 pub(crate) const DEFAULT_BUMP_TYPES: &[TimelineEventType; 6] =
 	&[CallInvite, PollStart, Beacon, RoomEncrypted, RoomMessage, Sticker];
