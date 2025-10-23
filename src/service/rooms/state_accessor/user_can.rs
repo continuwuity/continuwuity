@@ -1,9 +1,10 @@
-use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
+use conduwuit::{Err, Result, RoomVersion, implement, matrix::Event, pdu::PduBuilder};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{
 		StateEventType, TimelineEventType,
 		room::{
+			create::RoomCreateEventContent,
 			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
 			member::{MembershipState, RoomMemberEventContent},
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
@@ -44,6 +45,23 @@ pub async fn user_can_redact(
 		)));
 	}
 
+	let room_create = self
+		.room_state_get(room_id, &StateEventType::RoomCreate, "")
+		.await?;
+	let create_content: RoomCreateEventContent =
+		serde_json::from_str(room_create.content().get())?;
+	let room_features = RoomVersion::new(&create_content.room_version)?;
+	if room_features.explicitly_privilege_room_creators {
+		let sender_owned = sender.to_owned();
+		if sender == room_create.sender()
+			|| create_content
+				.additional_creators
+				.is_some_and(|cs| cs.contains(&sender_owned))
+		{
+			return Ok(true);
+		}
+	}
+
 	match self
 		.room_state_get_content::<RoomPowerLevelsEventContent>(
 			room_id,
@@ -68,18 +86,10 @@ pub async fn user_can_redact(
 		},
 		| _ => {
 			// Falling back on m.room.create to judge power level
-			match self
-				.room_state_get(room_id, &StateEventType::RoomCreate, "")
-				.await
-			{
-				| Ok(room_create) => Ok(room_create.sender() == sender
-					|| redacting_event
-						.as_ref()
-						.is_ok_and(|redacting_event| redacting_event.sender() == sender)),
-				| _ => Err!(Database(
-					"No m.room.power_levels or m.room.create events in database for room"
-				)),
-			}
+			Ok(room_create.sender() == sender
+				|| redacting_event
+					.as_ref()
+					.is_ok_and(|redacting_event| redacting_event.sender() == sender))
 		},
 	}
 }
