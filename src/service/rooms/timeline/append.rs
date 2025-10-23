@@ -43,6 +43,7 @@ pub async fn append_incoming_pdu<'a, Leaves>(
 	soft_fail: bool,
 	state_lock: &'a RoomMutexGuard,
 	room_id: &'a ruma::RoomId,
+	ps_failed: bool,
 ) -> Result<Option<RawPduId>>
 where
 	Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -55,7 +56,7 @@ where
 		.set_event_state(&pdu.event_id, room_id, state_ids_compressed)
 		.await?;
 
-	if soft_fail {
+	if soft_fail || ps_failed {
 		self.services
 			.pdu_metadata
 			.mark_as_referenced(room_id, pdu.prev_events.iter().map(AsRef::as_ref));
@@ -65,11 +66,11 @@ where
 		// 	.set_forward_extremities(room_id, new_room_leaves, state_lock)
 		// 	.await;
 
-		return Ok(None);
+		// return Ok(None);
 	}
 
 	let pdu_id = self
-		.append_pdu(pdu, pdu_json, new_room_leaves, state_lock, room_id)
+		.append_pdu(pdu, pdu_json, new_room_leaves, state_lock, room_id, soft_fail, ps_failed)
 		.await?;
 
 	Ok(Some(pdu_id))
@@ -90,6 +91,8 @@ pub async fn append_pdu<'a, Leaves>(
 	leaves: Leaves,
 	state_lock: &'a RoomMutexGuard,
 	room_id: &'a ruma::RoomId,
+	soft_fail: bool,
+	ps_failed: bool,
 ) -> Result<RawPduId>
 where
 	Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -147,6 +150,30 @@ where
 			}
 		} else {
 			error!("Invalid unsigned type in pdu.");
+		}
+	}
+
+	// Flag soft-failed events as such, allowing them to be sent to clients
+	if soft_fail {
+		if let CanonicalJsonValue::Object(unsigned) = pdu_json
+			.entry("unsigned".to_owned())
+			.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()))
+		{
+			unsigned.insert(
+				String::from("io.element.synapse.soft_failed"),
+				CanonicalJsonValue::Bool(true),
+			);
+		}
+	}
+	if ps_failed {
+		if let CanonicalJsonValue::Object(unsigned) = pdu_json
+			.entry("unsigned".to_owned())
+			.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()))
+		{
+			unsigned.insert(
+				String::from("io.element.synapse.policy_server_spammy"),
+				CanonicalJsonValue::Bool(true),
+			);
 		}
 	}
 

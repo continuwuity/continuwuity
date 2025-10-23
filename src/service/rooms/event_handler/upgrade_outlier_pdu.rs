@@ -249,6 +249,7 @@ where
 			.await?;
 	}
 
+	let mut ps_fail = false;
 	if !soft_fail {
 		// Don't call the below checks on events that have already soft-failed, there's
 		// no reason to re-calculate that.
@@ -264,7 +265,7 @@ where
 						event_id = %incoming_pdu.event_id,
 						"Event has been marked as spam by policy server"
 					);
-					soft_fail = true;
+					ps_fail = true;
 				},
 				| _ => {
 					debug!(
@@ -303,7 +304,7 @@ where
 
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
-	if soft_fail {
+	if soft_fail || ps_fail {
 		info!(
 			event_id = %incoming_pdu.event_id,
 			"Soft failing event"
@@ -322,6 +323,7 @@ where
 				soft_fail,
 				&state_lock,
 				room_id,
+				ps_fail,
 			)
 			.await?;
 
@@ -358,6 +360,7 @@ where
 			soft_fail,
 			&state_lock,
 			room_id,
+			ps_fail,
 		)
 		.await?;
 
