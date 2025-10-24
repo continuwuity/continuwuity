@@ -1,5 +1,6 @@
-use conduwuit::{Config, Result};
-use ruma::{api::federation::edutypes::get_edutypes};
+use axum::extract::State;
+use conduwuit::Result;
+use ruma::api::federation::edutypes::get_edutypes;
 
 use crate::Ruma;
 
@@ -7,12 +8,12 @@ use crate::Ruma;
 ///
 /// Lists EDU types we wish to receive
 pub(crate) async fn get_edutypes_route(
-	body: Ruma<get_edutypes::v1::Request>,
-	config: &Config,
-) -> Result<get_edutypes::v1::Response> {
-	Ok(get_edutypes::v1::Response {
-		typing: config.allow_incoming_typing,
-		presence: config.allow_incoming_presence,
-		receipt: config.allow_incoming_read_receipts,
+	State(services): State<crate::State>,
+	_body: Ruma<get_edutypes::unstable::Request>,
+) -> Result<get_edutypes::unstable::Response> {
+	Ok(get_edutypes::unstable::Response {
+		typing: services.config.allow_incoming_typing,
+		presence: services.config.allow_incoming_presence,
+		receipt: services.config.allow_incoming_read_receipts,
 	})
 }

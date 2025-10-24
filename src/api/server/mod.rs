@@ -1,4 +1,5 @@
 pub(super) mod backfill;
+pub(super) mod edutypes;
 pub(super) mod event;
 pub(super) mod event_auth;
 pub(super) mod get_missing_events;
