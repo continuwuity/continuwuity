@@ -226,6 +226,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 			.ruma_route(&server::well_known_server)
 			.ruma_route(&server::get_content_route)
 			.ruma_route(&server::get_content_thumbnail_route)
+			.ruma_route(&server::get_edutypes_route)
 			.route("/_conduwuit/local_user_count", get(client::conduwuit_local_user_count))
 			.route("/_continuwuity/local_user_count", get(client::conduwuit_local_user_count));
 	} else {
