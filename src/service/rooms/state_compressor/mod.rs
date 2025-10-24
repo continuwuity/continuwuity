@@ -526,7 +526,7 @@ pub(crate) fn compress_state_event(
 
 #[inline]
 #[must_use]
-pub(crate) fn parse_compressed_state_event(
+pub fn parse_compressed_state_event(
 	compressed_event: CompressedStateEvent,
 ) -> (ShortStateKey, ShortEventId) {
 	use utils::u64_from_u8;

@@ -49,7 +49,6 @@ async fn load_timeline(
 				// no messages have been sent in this room since `starting_count`
 				return Ok(TimelinePdus::default());
 			}
-			trace!(?last_timeline_count, ?starting_count, ?ending_count);
 
 			// for incremental sync, stream from the DB all PDUs which were sent after
 			// `starting_count` but before `ending_count`, including `ending_count` but
@@ -64,10 +63,7 @@ async fn load_timeline(
 					ending_count.map(|count| count.saturating_add(1)),
 				)
 				.ignore_err()
-				.ready_take_while(move |&(pducount, ref pdu)| {
-					trace!(?pducount, ?pdu, "glubbins");
-					pducount > starting_count
-				})
+				.ready_take_while(move |&(pducount, _)| pducount > starting_count)
 				.boxed()
 		},
 		| None => {

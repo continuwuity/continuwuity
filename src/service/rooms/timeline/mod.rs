@@ -186,10 +186,8 @@ impl Service {
 	}
 
 	/// Returns the pdu.
-	///
-	/// Checks the `eventid_outlierpdu` Tree if not found in the timeline.
 	#[inline]
-	pub async fn get_non_outlier_pdu(&self, event_id: &EventId) -> Result<impl Event> {
+	pub async fn get_non_outlier_pdu(&self, event_id: &EventId) -> Result<PduEvent> {
 		self.db.get_non_outlier_pdu(event_id).await
 	}
 
