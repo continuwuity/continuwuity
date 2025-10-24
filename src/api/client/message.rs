@@ -16,7 +16,7 @@ use conduwuit_service::{
 	Services,
 	rooms::{
 		lazy_loading,
-		lazy_loading::{Options, Witness},
+		lazy_loading::{MemberSet, Options},
 		timeline::PdusIterItem,
 	},
 };
@@ -162,7 +162,7 @@ pub(crate) async fn get_message_events_route(
 
 	let state = witness
 		.map(Option::into_iter)
-		.map(|option| option.flat_map(Witness::into_iter))
+		.map(|option| option.flat_map(MemberSet::into_iter))
 		.map(IterStream::stream)
 		.into_stream()
 		.flatten()
@@ -192,7 +192,7 @@ pub(crate) async fn lazy_loading_witness<'a, I>(
 	services: &Services,
 	lazy_loading_context: &lazy_loading::Context<'_>,
 	events: I,
-) -> Witness
+) -> MemberSet
 where
 	I: Iterator<Item = &'a PdusIterItem> + Clone + Send,
 {
@@ -216,7 +216,7 @@ where
 		.readreceipts_since(lazy_loading_context.room_id, Some(oldest.into_unsigned()));
 
 	pin_mut!(receipts);
-	let witness: Witness = events
+	let witness: MemberSet = events
 		.stream()
 		.map(ref_at!(1))
 		.map(Event::sender)
@@ -232,7 +232,7 @@ where
 	services
 		.rooms
 		.lazy_loading
-		.witness_retain(witness, lazy_loading_context)
+		.retain_lazy_members(witness, lazy_loading_context)
 		.await
 }
 

@@ -39,7 +39,7 @@ pub enum Status {
 	Seen(u64),
 }
 
-pub type Witness = HashSet<OwnedUserId>;
+pub type MemberSet = HashSet<OwnedUserId>;
 type Key<'a> = (&'a UserId, Option<&'a DeviceId>, &'a RoomId, &'a UserId);
 
 impl crate::Service for Service {
@@ -67,9 +67,11 @@ pub async fn reset(&self, ctx: &Context<'_>) {
 		.await;
 }
 
+/// Returns only the subset of `senders` which should be sent to the client
+/// according to the provided lazy loading context.
 #[implement(Service)]
 #[tracing::instrument(name = "retain", level = "debug", skip_all)]
-pub async fn witness_retain(&self, senders: Witness, ctx: &Context<'_>) -> Witness {
+pub async fn retain_lazy_members(&self, senders: MemberSet, ctx: &Context<'_>) -> MemberSet {
 	debug_assert!(
 		ctx.options.is_none_or(Options::is_enabled),
 		"lazy loading should be enabled by your options"
@@ -84,7 +86,7 @@ pub async fn witness_retain(&self, senders: Witness, ctx: &Context<'_>) -> Witne
 
 	pin_mut!(witness);
 	let _cork = self.db.db.cork();
-	let mut senders = Witness::with_capacity(senders.len());
+	let mut senders = MemberSet::with_capacity(senders.len());
 	while let Some((status, sender)) = witness.next().await {
 		if include_redundant || status == Status::Unseen {
 			senders.insert(sender.into());

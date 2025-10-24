@@ -1,10 +1,18 @@
 use std::{borrow::Borrow, fmt::Debug, mem::size_of_val, sync::Arc};
 
 pub use conduwuit::matrix::pdu::{ShortEventId, ShortId, ShortRoomId, ShortStateKey};
-use conduwuit::{Result, err, implement, matrix::StateKey, utils, utils::IterStream};
+use conduwuit::{
+	Result, err, implement,
+	matrix::StateKey,
+	pair_of,
+	utils::{self, IterStream, ReadyExt},
+};
 use database::{Deserialized, Get, Map, Qry};
-use futures::{Stream, StreamExt};
-use ruma::{EventId, RoomId, events::StateEventType};
+use futures::{
+	Stream, StreamExt,
+	stream::{self},
+};
+use ruma::{EventId, OwnedEventId, RoomId, events::StateEventType};
 use serde::Deserialize;
 
 use crate::{Dep, globals};
@@ -257,4 +265,25 @@ pub async fn get_or_create_shortroomid(&self, room_id: &RoomId) -> ShortRoomId {
 
 			short
 		})
+}
+
+#[implement(Service)]
+pub async fn multi_get_state_from_short<'a, S>(
+	&'a self,
+	short_state: S,
+) -> impl Stream<Item = Result<((StateEventType, StateKey), OwnedEventId)>> + Send + 'a
+where
+	S: Stream<Item = (ShortStateKey, ShortEventId)> + Send + 'a,
+{
+	let (short_state_keys, short_event_ids): pair_of!(Vec<_>) = short_state.unzip().await;
+
+	StreamExt::zip(
+		self.multi_get_statekey_from_short(stream::iter(short_state_keys.into_iter())),
+		self.multi_get_eventid_from_short(stream::iter(short_event_ids.into_iter())),
+	)
+	.ready_filter_map(|state_event| match state_event {
+		| (Ok(state_key), Ok(event_id)) => Some(Ok((state_key, event_id))),
+		| (Err(e), _) => Some(Err(e)),
+		| (_, Err(e)) => Some(Err(e)),
+	})
 }
