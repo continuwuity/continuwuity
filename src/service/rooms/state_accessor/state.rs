@@ -10,7 +10,7 @@ use conduwuit::{
 	},
 };
 use database::Deserialized;
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt, future::try_join, pin_mut};
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt, pin_mut};
 use ruma::{
 	EventId, OwnedEventId, UserId,
 	events::{
@@ -286,28 +286,28 @@ pub fn state_keys<'a>(
 /// not in .1)
 #[implement(super::Service)]
 #[inline]
-pub fn state_removed(
+pub async fn state_removed(
 	&self,
 	shortstatehash: pair_of!(ShortStateHash),
-) -> impl Stream<Item = (ShortStateKey, ShortEventId)> + Send + '_ {
-	self.state_added((shortstatehash.1, shortstatehash.0))
+) -> Result<Vec<(ShortStateKey, ShortEventId)>> {
+	self.state_added((shortstatehash.1, shortstatehash.0)).await
 }
 
 /// Returns the state events added between the interval (present in .1 but
 /// not in .0)
 #[implement(super::Service)]
-pub fn state_added(
+pub async fn state_added(
 	&self,
 	shortstatehash: pair_of!(ShortStateHash),
-) -> impl Stream<Item = (ShortStateKey, ShortEventId)> + Send + '_ {
-	let a = self.load_full_state(shortstatehash.0);
-	let b = self.load_full_state(shortstatehash.1);
-	try_join(a, b)
-		.map_ok(|(a, b)| b.difference(&a).copied().collect::<Vec<_>>())
-		.map_ok(IterStream::try_stream)
-		.try_flatten_stream()
-		.ignore_err()
+) -> Result<Vec<(ShortStateKey, ShortEventId)>> {
+	let full_state_a = self.load_full_state(shortstatehash.0).await?;
+	let full_state_b = self.load_full_state(shortstatehash.1).await?;
+
+	Ok(full_state_b
+		.difference(&full_state_a)
+		.copied()
 		.map(parse_compressed_state_event)
+		.collect())
 }
 
 #[implement(super::Service)]
