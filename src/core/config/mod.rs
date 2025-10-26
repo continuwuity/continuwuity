@@ -1128,6 +1128,23 @@ pub struct Config {
 	#[serde(default = "true_fn")]
 	pub rocksdb_bottommost_compression: bool,
 
+	/// Compression algorithm for RocksDB's Write-Ahead-Log (WAL).
+	///
+	/// At present, only ZSTD compression is supported by RocksDB for WAL
+	/// compression. Enabling this can reduce WAL size at the expense of some
+	/// CPU usage during writes.
+	///
+	/// The options are:
+	/// - "none" = No compression
+	/// - "zstd" = ZSTD compression
+	///
+	/// For more information on WAL compression, see:
+	/// https://github.com/facebook/rocksdb/wiki/WAL-Compression
+	///
+	/// default: "zstd"
+	#[serde(default = "default_rocksdb_wal_compression")]
+	pub rocksdb_wal_compression: String,
+
 	/// Database recovery mode (for RocksDB WAL corruption).
 	///
 	/// Use this option when the server reports corruption and refuses to start.
@@ -2453,6 +2470,8 @@ fn default_rocksdb_compression_algo() -> String {
 		.unwrap_or("none")
 		.to_owned()
 }
+
+fn default_rocksdb_wal_compression() -> String { "zstd".to_owned() }
 
 /// Default RocksDB compression level is 32767, which is internally read by
 /// RocksDB as the default magic number and translated to the library's default

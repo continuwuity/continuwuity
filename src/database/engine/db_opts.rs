@@ -1,7 +1,9 @@
 use std::{cmp, convert::TryFrom};
 
-use conduwuit::{Config, Result, utils};
-use rocksdb::{Cache, DBRecoveryMode, Env, LogLevel, Options, statistics::StatsLevel};
+use conduwuit::{Config, Result, utils, warn};
+use rocksdb::{
+	Cache, DBCompressionType, DBRecoveryMode, Env, LogLevel, Options, statistics::StatsLevel,
+};
 
 use super::{cf_opts::cache_size_f64, logger::handle as handle_log};
 
@@ -57,6 +59,20 @@ pub(crate) fn db_options(config: &Config, env: &Env, row_cache: &Cache) -> Resul
 	opts.set_wal_size_limit_mb(1024);
 	opts.set_max_total_wal_size(1024 * 1024 * 512);
 	opts.set_writable_file_max_buffer_size(1024 * 1024 * 2);
+
+	// WAL compression
+	let wal_compression = match config.rocksdb_wal_compression.as_ref() {
+		| "zstd" => DBCompressionType::Zstd,
+		| "none" => DBCompressionType::None,
+		| value => {
+			warn!(
+				"Invalid rocksdb_wal_compression value '{value}'. Supported values are 'none' \
+				 or 'zstd'. Defaulting to 'none'."
+			);
+			DBCompressionType::None
+		},
+	};
+	opts.set_wal_compression_type(wal_compression);
 
 	// Misc
 	opts.set_disable_auto_compactions(!config.rocksdb_compaction);

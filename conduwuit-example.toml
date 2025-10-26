@@ -957,6 +957,21 @@
 #
 #rocksdb_bottommost_compression = true
 
+# Compression algorithm for RocksDB's Write-Ahead-Log (WAL).
+#
+# At present, only ZSTD compression is supported by RocksDB for WAL
+# compression. Enabling this can reduce WAL size at the expense of some
+# CPU usage during writes.
+#
+# The options are:
+# - "none" = No compression
+# - "zstd" = ZSTD compression
+#
+# For more information on WAL compression, see:
+# https://github.com/facebook/rocksdb/wiki/WAL-Compression
+#
+#rocksdb_wal_compression = "zstd"
+
 # Database recovery mode (for RocksDB WAL corruption).
 #
 # Use this option when the server reports corruption and refuses to start.
