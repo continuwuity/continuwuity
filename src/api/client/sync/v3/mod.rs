@@ -11,7 +11,7 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Result, extract_variant,
+	Result, at, extract_variant,
 	utils::{
 		ReadyExt, TryFutureExtExt,
 		stream::{BroadbandExt, Tools, WidebandExt},
@@ -385,6 +385,7 @@ pub(crate) async fn build_sync_events(
 			last_sync_end_count,
 			Some(current_count),
 		)
+		.map(at!(1))
 		.collect::<Vec<_>>();
 
 	let device_one_time_keys_count = services

@@ -1027,6 +1027,7 @@ async fn collect_to_device(
 		events: services
 			.users
 			.get_to_device_events(sender_user, sender_device, None, Some(next_batch))
+			.map(at!(1))
 			.collect()
 			.await,
 	})

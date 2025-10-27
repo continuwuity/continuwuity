@@ -10,7 +10,7 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit_core::{
-	Error, Event, Result, debug, err, error,
+	Error, Event, Result, at, debug, err, error,
 	result::LogErr,
 	trace,
 	utils::{
@@ -175,7 +175,7 @@ impl Service {
 		if !new_events.is_empty() {
 			self.db.mark_as_active(new_events.iter());
 
-			let new_events_vec = new_events.into_iter().map(|(_, event)| event).collect();
+			let new_events_vec = new_events.into_iter().map(at!(1)).collect();
 			futures.push(self.send_events(dest.clone(), new_events_vec));
 		} else {
 			statuses.remove(dest);
