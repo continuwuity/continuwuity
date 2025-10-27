@@ -2,12 +2,12 @@ use std::collections::HashSet;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug_info, debug_warn, err,
+	Err, Pdu, Result, debug_info, debug_warn, err,
 	matrix::{event::gen_event_id, pdu::PduBuilder},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},
 	warn,
 };
-use futures::{FutureExt, StreamExt, TryFutureExt, pin_mut};
+use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, RoomVersionId, UserId,
 	api::{
@@ -81,41 +81,8 @@ pub async fn leave_room(
 	room_id: &RoomId,
 	reason: Option<String>,
 ) -> Result {
-	let default_member_content = RoomMemberEventContent {
-		membership: MembershipState::Leave,
-		reason: reason.clone(),
-		join_authorized_via_users_server: None,
-		is_direct: None,
-		avatar_url: None,
-		displayname: None,
-		third_party_invite: None,
-		blurhash: None,
-		redact_events: None,
-	};
-
 	let is_banned = services.rooms.metadata.is_banned(room_id);
 	let is_disabled = services.rooms.metadata.is_disabled(room_id);
-
-	pin_mut!(is_banned, is_disabled);
-	if is_banned.or(is_disabled).await {
-		// the room is banned/disabled, the room must be rejected locally since we
-		// cant/dont want to federate with this server
-		services
-			.rooms
-			.state_cache
-			.update_membership(
-				room_id,
-				user_id,
-				default_member_content,
-				user_id,
-				None,
-				None,
-				true,
-			)
-			.await?;
-
-		return Ok(());
-	}
 
 	let dont_have_room = services
 		.rooms
@@ -129,44 +96,41 @@ pub async fn leave_room(
 		.is_knocked(user_id, room_id)
 		.eq(&false);
 
-	// Ask a remote server if we don't have this room and are not knocking on it
-	if dont_have_room.and(not_knocked).await {
-		if let Err(e) =
-			remote_leave_room(services, user_id, room_id, reason.clone(), HashSet::new())
-				.boxed()
-				.await
-		{
-			warn!(%user_id, "Failed to leave room {room_id} remotely: {e}");
-			// Don't tell the client about this error
-		}
+	pin_mut!(is_banned, is_disabled);
 
-		let last_state = services
-			.rooms
-			.state_cache
-			.invite_state(user_id, room_id)
-			.or_else(|_| services.rooms.state_cache.knock_state(user_id, room_id))
-			.or_else(|_| services.rooms.state_cache.left_state(user_id, room_id))
+	/*
+	there are three possible cases when leaving a room:
+	1. the room is banned or disabled, so we're not federating with it.
+	2. nobody on the homeserver is in the room, which can happen if the user is rejecting an invite
+	   to a room that we don't have any members in.
+	3. someone else on the homeserver is in the room. in this case we can leave like normal by sending a PDU over federation.
+
+	in cases 1 and 2, we have to update the state cache using `mark_as_left` directly.
+	otherwise `build_and_append_pdu` will take care of updating the state cache for us.
+	*/
+
+	// `leave_pdu` is the outlier `m.room.member` event which will be synced to the
+	// user. if it's None the sync handler will create a dummy PDU.
+	let leave_pdu = if is_banned.or(is_disabled).await {
+		// case 1: the room is banned/disabled. we don't want to federate with another
+		// server to leave, so we can't create an outlier PDU.
+		None
+	} else if dont_have_room.and(not_knocked).await {
+		// case 2: ask a remote server to assist us with leaving
+		// we always mark the room as left locally, regardless of if the federated leave
+		// failed
+
+		remote_leave_room(services, user_id, room_id, reason.clone(), HashSet::new())
 			.await
-			.ok();
-
-		// We always drop the invite, we can't rely on other servers
-		services
-			.rooms
-			.state_cache
-			.update_membership(
-				room_id,
-				user_id,
-				default_member_content,
-				user_id,
-				last_state,
-				None,
-				true,
-			)
-			.await?;
+			.inspect_err(|err| {
+				warn!(%user_id, "Failed to leave room {room_id} remotely: {err}");
+			})
+			.ok()
 	} else {
+		// case 3: we can leave by sending a PDU.
 		let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-		let Ok(event) = services
+		let user_member_event_content = services
 			.rooms
 			.state_accessor
 			.room_state_get_content::<RoomMemberEventContent>(
@@ -174,44 +138,61 @@ pub async fn leave_room(
 				&StateEventType::RoomMember,
 				user_id.as_str(),
 			)
-			.await
-		else {
-			debug_warn!(
-				"Trying to leave a room you are not a member of, marking room as left locally."
-			);
+			.await;
 
-			return services
-				.rooms
-				.state_cache
-				.update_membership(
-					room_id,
-					user_id,
-					default_member_content,
-					user_id,
-					None,
-					None,
-					true,
-				)
-				.await;
-		};
+		match user_member_event_content {
+			| Ok(content) => {
+				services
+					.rooms
+					.timeline
+					.build_and_append_pdu(
+						PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
+							membership: MembershipState::Leave,
+							reason,
+							join_authorized_via_users_server: None,
+							is_direct: None,
+							..content
+						}),
+						user_id,
+						Some(room_id),
+						&state_lock,
+					)
+					.await?;
 
-		services
-			.rooms
-			.timeline
-			.build_and_append_pdu(
-				PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
-					membership: MembershipState::Leave,
-					reason,
-					join_authorized_via_users_server: None,
-					is_direct: None,
-					..event
-				}),
-				user_id,
-				Some(room_id),
-				&state_lock,
-			)
-			.await?;
-	}
+				// `build_and_append_pdu` calls `mark_as_left` internally, so we return early.
+				return Ok(());
+			},
+			| Err(_) => {
+				// an exception to case 3 is if the user isn't even in the room they're trying
+				// to leave. this can happen if the client's caching is wrong.
+				debug_warn!(
+					"Trying to leave a room you are not a member of, marking room as left \
+					 locally."
+				);
+
+				// return the existing leave state, if one exists. `mark_as_left` will then
+				// update the `roomuserid_leftcount` table, making the leave come down sync
+				// again.
+				services
+					.rooms
+					.state_cache
+					.left_state(user_id, room_id)
+					.await
+			},
+		}
+	};
+
+	services
+		.rooms
+		.state_cache
+		.mark_as_left(user_id, room_id, leave_pdu)
+		.await;
+
+	services
+		.rooms
+		.state_cache
+		.update_joined_count(room_id)
+		.await;
 
 	Ok(())
 }
@@ -222,7 +203,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 	room_id: &RoomId,
 	reason: Option<String>,
 	mut servers: HashSet<OwnedServerName, S>,
-) -> Result<()> {
+) -> Result<Pdu> {
 	let mut make_leave_response_and_server =
 		Err!(BadServerResponse("No remote server available to assist in leaving {room_id}."));
 
@@ -393,7 +374,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			&remote_server,
 			federation::membership::create_leave_event::v2::Request {
 				room_id: room_id.to_owned(),
-				event_id,
+				event_id: event_id.clone(),
 				pdu: services
 					.sending
 					.convert_to_outgoing_federation_event(leave_event.clone())
@@ -402,5 +383,13 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		)
 		.await?;
 
-	Ok(())
+	services
+		.rooms
+		.outlier
+		.add_pdu_outlier(&event_id, &leave_event);
+
+	let leave_pdu = Pdu::from_id_val(&event_id, leave_event)
+		.map_err(|e| err!(BadServerResponse("Invalid join event PDU: {e:?}")))?;
+
+	Ok(leave_pdu)
 }

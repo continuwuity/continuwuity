@@ -5,7 +5,7 @@ use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, err, info,
 	matrix::{
-		event::{Event, gen_event_id},
+		event::gen_event_id,
 		pdu::{PduBuilder, PduEvent},
 	},
 	result::FlatOk,
@@ -458,7 +458,7 @@ async fn knock_room_helper_local(
 			.await,
 	};
 
-	let send_knock_response = services
+	services
 		.sending
 		.send_federation_request(&remote_server, send_knock_request)
 		.await?;
@@ -477,20 +477,14 @@ async fn knock_room_helper_local(
 		.map_err(|e| err!(BadServerResponse("Invalid knock event PDU: {e:?}")))?;
 
 	info!("Updating membership locally to knock state with provided stripped state events");
+	// TODO: this call does not appear to do anything because `update_membership`
+	// doesn't call `mark_as_knock`. investigate further, ideally with the aim of
+	// removing this call entirely -- Ginger thinks `update_membership` should only
+	// be called from `force_state` and `append_pdu`.
 	services
 		.rooms
 		.state_cache
-		.update_membership(
-			room_id,
-			sender_user,
-			parsed_knock_pdu
-				.get_content::<RoomMemberEventContent>()
-				.expect("we just created this"),
-			sender_user,
-			Some(send_knock_response.knock_room_state),
-			None,
-			false,
-		)
+		.update_membership(room_id, sender_user, &parsed_knock_pdu, false)
 		.await?;
 
 	info!("Appending room knock event locally");
@@ -677,20 +671,11 @@ async fn knock_room_helper_remote(
 		.await?;
 
 	info!("Updating membership locally to knock state with provided stripped state events");
+	// TODO: see TODO on the other call to `update_membership`
 	services
 		.rooms
 		.state_cache
-		.update_membership(
-			room_id,
-			sender_user,
-			parsed_knock_pdu
-				.get_content::<RoomMemberEventContent>()
-				.expect("we just created this"),
-			sender_user,
-			Some(send_knock_response.knock_room_state),
-			None,
-			false,
-		)
+		.update_membership(room_id, sender_user, &parsed_knock_pdu, false)
 		.await?;
 
 	info!("Appending room knock event locally");
