@@ -276,3 +276,22 @@ async fn set_intersection_sorted_stream2() {
 		.await;
 	assert!(r.eq(&["ccc", "ggg", "iii"]));
 }
+
+#[test]
+fn is_within_bounds() {
+	use std::time::{Duration, SystemTime};
+
+	use utils::time::{TimeDirection, is_within_bounds};
+
+	let now = SystemTime::now();
+	let yesterday = now - Duration::from_secs(86400);
+	assert!(is_within_bounds(yesterday, now, TimeDirection::Before));
+	assert!(!is_within_bounds(yesterday, now, TimeDirection::After));
+
+	let tomorrow = now + Duration::from_secs(86400);
+	assert!(is_within_bounds(tomorrow, now, TimeDirection::After));
+	assert!(!is_within_bounds(tomorrow, now, TimeDirection::Before));
+
+	assert!(is_within_bounds(now, now, TimeDirection::Before));
+	assert!(is_within_bounds(now, now, TimeDirection::After));
+}

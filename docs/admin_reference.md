@@ -1078,7 +1078,10 @@ Respecting homeservers put this file here for listing administration, moderation
 
 * `delete` — - Deletes a single media file from our database and on the filesystem via a single MXC URL or event ID (not redacted)
 * `delete-list` — - Deletes a codeblock list of MXC URLs from our database and on the filesystem. This will always ignore errors
-* `delete-past-remote-media` — - Deletes all remote (and optionally local) media created before or after [duration] time using filesystem metadata first created at date, or fallback to last modified date. This will always ignore errors by default
+* `delete-past-remote-media` — Deletes all remote (and optionally local) media created before/after
+[duration] ago, using filesystem metadata first created at date, or
+fallback to last modified date. This will always ignore errors by
+default.
 * `delete-all-from-user` — - Deletes all the local media from a local user on our server. This will always ignore errors by default
 * `delete-all-from-server` — - Deletes all remote media from the specified remote server. This will always ignore errors by default
 * `get-file-info` —
@@ -1110,13 +1113,25 @@ Respecting homeservers put this file here for listing administration, moderation
 
 ## `admin media delete-past-remote-media`
 
-- Deletes all remote (and optionally local) media created before or after [duration] time using filesystem metadata first created at date, or fallback to last modified date. This will always ignore errors by default
+Deletes all remote (and optionally local) media created before/after
+[duration] ago, using filesystem metadata first created at date, or
+fallback to last modified date. This will always ignore errors by
+default.
+
+* Examples:
+  * Delete all remote media older than a year:
+
+    `!admin media delete-past-remote-media -b 1y`
+
+  * Delete all remote and local media from 3 days ago, up until now:
+
+    `!admin media delete-past-remote-media -a 3d --yes-i-want-to-delete-local-media`
 
 **Usage:** `admin media delete-past-remote-media [OPTIONS] <DURATION>`
 
 ###### **Arguments:**
 
-* `<DURATION>` — - The relative time (e.g. 30s, 5m, 7d) within which to search
+* `<DURATION>` — - The relative time (e.g. 30s, 5m, 7d) from now within which to search
 
 ###### **Options:**
 

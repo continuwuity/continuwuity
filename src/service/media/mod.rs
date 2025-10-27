@@ -11,7 +11,10 @@ use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Result, Server, debug, debug_error, debug_info, debug_warn, err, error, trace,
-	utils::{self, MutexMap},
+	utils::{
+		self, MutexMap,
+		time::{self, TimeDirection},
+	},
 	warn,
 };
 use ruma::{Mxc, OwnedMxcUri, UserId, http_headers::ContentDisposition};
@@ -226,13 +229,12 @@ impl Service {
 		Ok(mxcs)
 	}
 
-	/// Deletes all remote only media files in the given at or after
-	/// time/duration. Returns a usize with the amount of media files deleted.
-	pub async fn delete_all_remote_media_at_after_time(
+	/// Deletes all media files in the given time frame.
+	/// Returns a usize with the amount of media files deleted.
+	pub async fn delete_all_media_within_timeframe(
 		&self,
-		time: SystemTime,
-		before: bool,
-		after: bool,
+		time_boundary: SystemTime,
+		direction: TimeDirection,
 		yes_i_want_to_delete_local_media: bool,
 	) -> Result<usize> {
 		let all_keys = self.db.get_all_media_keys().await;
@@ -299,18 +301,14 @@ impl Service {
 
 			debug!("File created at: {file_created_at:?}");
 
-			if file_created_at >= time && before {
+			if time::is_within_bounds(file_created_at, time_boundary, direction) {
 				debug!(
-					"File is within (before) user duration, pushing to list of file paths and \
-					 keys to delete."
+					"File is within bounds ({direction:?} {time_boundary:?}), pushing to list \
+					 of file paths and keys to delete.",
 				);
 				remote_mxcs.push(mxc.to_string());
-			} else if file_created_at <= time && after {
-				debug!(
-					"File is not within (after) user duration, pushing to list of file paths \
-					 and keys to delete."
-				);
-				remote_mxcs.push(mxc.to_string());
+			} else {
+				debug!("File is outside bounds ({direction:?} {time_boundary:?}), ignoring.");
 			}
 		}
 
@@ -318,7 +316,7 @@ impl Service {
 			return Err!(Database("Did not found any eligible MXCs to delete."));
 		}
 
-		debug_info!("Deleting media now in the past {time:?}");
+		debug_info!("Deleting media now {direction:?} {time_boundary:?}");
 
 		let mut deletion_count: usize = 0;
 

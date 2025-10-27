@@ -2,7 +2,8 @@ use std::time::Duration;
 
 use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, error, info, trace,
-	utils::time::parse_timepoint_ago, warn,
+	utils::time::{TimeDirection, parse_timepoint_ago},
+	warn,
 };
 use conduwuit_service::media::Dim;
 use ruma::{Mxc, OwnedEventId, OwnedMxcUri, OwnedServerName};
@@ -235,14 +236,19 @@ pub(super) async fn delete_past_remote_media(
 	}
 	assert!(!(before && after), "--before and --after should not be specified together");
 
-	let duration = parse_timepoint_ago(&duration)?;
+	let direction = if after {
+		TimeDirection::After
+	} else {
+		TimeDirection::Before
+	};
+
+	let time_boundary = parse_timepoint_ago(&duration)?;
 	let deleted_count = self
 		.services
 		.media
-		.delete_all_remote_media_at_after_time(
-			duration,
-			before,
-			after,
+		.delete_all_media_within_timeframe(
+			time_boundary,
+			direction,
 			yes_i_want_to_delete_local_media,
 		)
 		.await?;

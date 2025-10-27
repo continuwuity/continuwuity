@@ -126,3 +126,24 @@ pub enum Unit {
 	Micros(u128),
 	Nanos(u128),
 }
+
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub enum TimeDirection {
+	Before,
+	After,
+}
+
+/// Checks if `item_time` is before or after `time_boundary`.
+/// If both times are the same, it will return true for both directions, as the
+/// matching is inclusive.
+#[must_use]
+pub fn is_within_bounds(
+	item_time: SystemTime,
+	time_boundary: SystemTime,
+	direction: TimeDirection,
+) -> bool {
+	match direction {
+		| TimeDirection::Before => item_time <= time_boundary,
+		| TimeDirection::After => item_time >= time_boundary,
+	}
+}
