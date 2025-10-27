@@ -4,15 +4,15 @@ mod v5;
 use std::collections::VecDeque;
 
 use conduwuit::{
-	PduCount, Result,
+	Event, PduCount, Result,
 	matrix::pdu::PduEvent,
-	trace,
+	ref_at, trace,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
-	RoomId, UserId,
+	OwnedUserId, RoomId, UserId,
 	events::TimelineEventType::{
 		self, Beacon, CallInvite, PollStart, RoomEncrypted, RoomMessage, Sticker,
 	},
@@ -27,6 +27,16 @@ pub(crate) const DEFAULT_BUMP_TYPES: &[TimelineEventType; 6] =
 pub(crate) struct TimelinePdus {
 	pub pdus: VecDeque<(PduCount, PduEvent)>,
 	pub limited: bool,
+}
+
+impl TimelinePdus {
+	fn senders(&self) -> impl Iterator<Item = OwnedUserId> {
+		self.pdus
+			.iter()
+			.map(ref_at!(1))
+			.map(Event::sender)
+			.map(Into::into)
+	}
 }
 
 async fn load_timeline(

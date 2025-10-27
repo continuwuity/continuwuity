@@ -10,7 +10,6 @@ use conduwuit::{
 use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
-	events::room::member::{MembershipState, RoomMemberEventContent},
 	serde::JsonObject,
 };
 
@@ -133,16 +132,20 @@ pub(crate) async fn create_invite_route(
 		services
 			.rooms
 			.state_cache
-			.update_membership(
-				&body.room_id,
+			.mark_as_invited(
 				&recipient_user,
-				RoomMemberEventContent::new(MembershipState::Invite),
-				sender_user,
+				&body.room_id,
+				&sender_user,
 				Some(invite_state),
 				body.via.clone(),
-				true,
 			)
-			.await?;
+			.await;
+
+		services
+			.rooms
+			.state_cache
+			.update_joined_count(&body.room_id)
+			.await;
 
 		for appservice in services.appservice.read().await.values() {
 			if appservice.is_user_match(&recipient_user) {

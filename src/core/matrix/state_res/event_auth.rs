@@ -908,7 +908,7 @@ where
 							false
 						}
 					},
-					| JoinRule::Restricted(_) =>
+					| JoinRule::Restricted(_) => {
 						if membership_allows_join || user_for_join_auth_is_valid {
 							trace!(
 								%sender,
@@ -928,7 +928,8 @@ where
 								 valid authorising user given to permit the join"
 							);
 							false
-						},
+						}
+					},
 					| JoinRule::Public => {
 						trace!(%sender, "join rule is public, allowing join");
 						true

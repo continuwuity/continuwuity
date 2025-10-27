@@ -20,7 +20,7 @@ use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
 	events::{
 		AnyStrippedStateEvent, StateEventType, TimelineEventType,
-		room::{create::RoomCreateEventContent, member::RoomMemberEventContent},
+		room::create::RoomCreateEventContent,
 	},
 	serde::Raw,
 };
@@ -126,21 +126,9 @@ impl Service {
 						continue;
 					};
 
-					let Ok(membership_event) = pdu.get_content::<RoomMemberEventContent>() else {
-						continue;
-					};
-
 					self.services
 						.state_cache
-						.update_membership(
-							room_id,
-							user_id,
-							membership_event,
-							&pdu.sender,
-							None,
-							None,
-							false,
-						)
+						.update_membership(room_id, user_id, &pdu, false)
 						.await?;
 				},
 				| TimelineEventType::SpaceChild => {

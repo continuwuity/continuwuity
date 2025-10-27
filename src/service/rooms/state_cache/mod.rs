@@ -4,7 +4,7 @@ mod via;
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Result, SyncRwLock, implement,
+	Pdu, Result, SyncRwLock, implement,
 	result::LogErr,
 	utils::{ReadyExt, stream::TryIgnore},
 	warn,
@@ -13,7 +13,7 @@ use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, future::join5, pin_mut};
 use ruma::{
 	OwnedRoomId, OwnedUserId, RoomId, ServerName, UserId,
-	events::{AnyStrippedStateEvent, AnySyncStateEvent, room::member::MembershipState},
+	events::{AnyStrippedStateEvent, room::member::MembershipState},
 	serde::Raw,
 };
 
@@ -54,7 +54,6 @@ struct Data {
 
 type AppServiceInRoomCache = SyncRwLock<HashMap<OwnedRoomId, HashMap<String, bool>>>;
 type StrippedStateEventItem = (OwnedRoomId, Vec<Raw<AnyStrippedStateEvent>>);
-type SyncStateEventItem = (OwnedRoomId, Vec<Raw<AnySyncStateEvent>>);
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
@@ -431,18 +430,16 @@ pub async fn knock_state(
 
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "trace")]
-pub async fn left_state(
-	&self,
-	user_id: &UserId,
-	room_id: &RoomId,
-) -> Result<Vec<Raw<AnyStrippedStateEvent>>> {
+pub async fn left_state(&self, user_id: &UserId, room_id: &RoomId) -> Option<Pdu> {
 	let key = (user_id, room_id);
 	self.db
 		.userroomid_leftstate
 		.qry(&key)
 		.await
 		.deserialized()
-		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| val.deserialize_as().map_err(Into::into))
+		// old databases may have garbage data as values in the `userroomid_leftstate` table from before
+		// the leave event was stored there. they still need to be included, so we return Ok(None) for deserialization failures.
+		.unwrap_or(None)
 }
 
 /// Returns an iterator over all rooms a user left.
@@ -451,8 +448,8 @@ pub async fn left_state(
 pub fn rooms_left<'a>(
 	&'a self,
 	user_id: &'a UserId,
-) -> impl Stream<Item = SyncStateEventItem> + Send + 'a {
-	type KeyVal<'a> = (Key<'a>, Raw<Vec<Raw<AnySyncStateEvent>>>);
+) -> impl Stream<Item = (OwnedRoomId, Option<Pdu>)> + Send + 'a {
+	type KeyVal<'a> = (Key<'a>, Raw<Option<Pdu>>);
 	type Key<'a> = (&'a UserId, &'a RoomId);
 
 	let prefix = (user_id, Interfix);
@@ -461,8 +458,13 @@ pub fn rooms_left<'a>(
 		.stream_prefix(&prefix)
 		.ignore_err()
 		.map(|((_, room_id), state): KeyVal<'_>| (room_id.to_owned(), state))
-		.map(|(room_id, state)| Ok((room_id, state.deserialize_as()?)))
-		.ignore_err()
+		.ready_filter_map(|(room_id, state)| {
+			// deserialization errors need to be ignored. see comment in `left_state`
+			match state.deserialize() {
+				| Ok(state) => Some((room_id, state)),
+				| Err(_) => Some((room_id, None)),
+			}
+		})
 }
 
 #[implement(Service)]
