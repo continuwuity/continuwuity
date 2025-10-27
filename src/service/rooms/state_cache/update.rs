@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use conduwuit::{Err, Result, implement, is_not_empty, utils::ReadyExt, warn};
+use conduwuit::{Err, Event, Pdu, Result, implement, is_not_empty, utils::ReadyExt, warn};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
 	OwnedServerName, RoomId, UserId,
 	events::{
-		AnyStrippedStateEvent, AnySyncStateEvent, GlobalAccountDataEventType,
-		RoomAccountDataEventType, StateEventType,
+		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
+		StateEventType,
 		direct::DirectEvent,
 		invite_permission_config::FilterLevel,
 		room::{
@@ -26,8 +26,7 @@ use ruma::{
 		fields(
 			%room_id,
 			%user_id,
-			%sender,
-			?membership_event,
+			?pdu,
 		),
 	)]
 #[allow(clippy::too_many_arguments)]
@@ -35,13 +34,10 @@ pub async fn update_membership(
 	&self,
 	room_id: &RoomId,
 	user_id: &UserId,
-	membership_event: RoomMemberEventContent,
-	sender: &UserId,
-	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
-	invite_via: Option<Vec<OwnedServerName>>,
+	pdu: &Pdu,
 	update_joined_count: bool,
 ) -> Result {
-	let membership = membership_event.membership;
+	let membership = pdu.get_content::<RoomMemberEventContent>()?;
 
 	// Keep track what remote users exist by adding them as "deactivated" users
 	//
@@ -54,7 +50,7 @@ pub async fn update_membership(
 		}
 	}
 
-	match &membership {
+	match &membership.membership {
 		| MembershipState::Join => {
 			// Check if the user never joined this room
 			if !self.once_joined(user_id, room_id).await {
@@ -125,6 +121,7 @@ pub async fn update_membership(
 			// return an error for blocked invites. ignored invites aren't handled here
 			// since the recipient's membership should still be changed to `invite`.
 			// they're filtered out in the individual /sync handlers
+			let sender = pdu.sender();
 			if matches!(
 				self.services
 					.users
@@ -136,19 +133,15 @@ pub async fn update_membership(
 					"{user_id} has blocked invites from {sender}."
 				)));
 			}
-			self.mark_as_invited(user_id, room_id, sender, last_state, invite_via)
+
+			// TODO: make sure that passing None for `last_state` is correct behavior.
+			// the call from `append_pdu` used to use `services.state.summary_stripped`
+			// to fill that parameter.
+			self.mark_as_invited(user_id, room_id, sender, None, None)
 				.await;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
-			self.mark_as_left(user_id, room_id);
-
-			if self.services.globals.user_is_local(user_id)
-				&& (self.services.config.forget_forced_upon_leave
-					|| self.services.metadata.is_banned(room_id).await
-					|| self.services.metadata.is_disabled(room_id).await)
-			{
-				self.forget(room_id, user_id);
-			}
+			self.mark_as_left(user_id, room_id, Some(pdu.clone())).await;
 		},
 		| _ => {},
 	}
@@ -252,24 +245,24 @@ pub fn mark_as_joined(&self, user_id: &UserId, room_id: &RoomId) {
 	self.db.roomid_inviteviaservers.remove(room_id);
 }
 
-/// Direct DB function to directly mark a user as left. It is not
-/// recommended to use this directly. You most likely should use
-/// `update_membership` instead
+/// Mark a user as having left a room.
+///
+/// `leave_pdu` represents the m.room.member event which the user sent to leave
+/// the room. If this is None, no event was actually sent, but we must still
+/// behave as if the user is no longer in the room. This may occur, for example,
+/// if the room being left has been server-banned by an administrator.
 #[implement(super::Service)]
 #[tracing::instrument(skip(self), level = "debug")]
-pub fn mark_as_left(&self, user_id: &UserId, room_id: &RoomId) {
+pub async fn mark_as_left(&self, user_id: &UserId, room_id: &RoomId, leave_pdu: Option<Pdu>) {
 	let userroom_id = (user_id, room_id);
 	let userroom_id = serialize_key(userroom_id).expect("failed to serialize userroom_id");
 
 	let roomuser_id = (room_id, user_id);
 	let roomuser_id = serialize_key(roomuser_id).expect("failed to serialize roomuser_id");
 
-	// (timo) TODO
-	let leftstate = Vec::<Raw<AnySyncStateEvent>>::new();
-
 	self.db
 		.userroomid_leftstate
-		.raw_put(&userroom_id, Json(leftstate));
+		.raw_put(&userroom_id, Json(leave_pdu));
 	self.db
 		.roomuserid_leftcount
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
@@ -285,6 +278,14 @@ pub fn mark_as_left(&self, user_id: &UserId, room_id: &RoomId) {
 	self.db.roomuserid_knockedcount.remove(&roomuser_id);
 
 	self.db.roomid_inviteviaservers.remove(room_id);
+
+	if self.services.globals.user_is_local(user_id)
+		&& (self.services.config.forget_forced_upon_leave
+			|| self.services.metadata.is_banned(room_id).await
+			|| self.services.metadata.is_disabled(room_id).await)
+	{
+		self.forget(room_id, user_id);
+	}
 }
 
 /// Direct DB function to directly mark a user as knocked. It is not
@@ -366,7 +367,7 @@ pub async fn mark_as_invited(
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
 	self.db
 		.userroomid_invitesender
-		.raw_put(&userroom_id, sender_user);
+		.insert(&userroom_id, sender_user);
 
 	self.db.userroomid_joined.remove(&userroom_id);
 	self.db.roomuserid_joined.remove(&roomuser_id);

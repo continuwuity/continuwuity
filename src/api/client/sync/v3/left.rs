@@ -1,21 +1,29 @@
-use std::collections::HashMap;
-
 use conduwuit::{
-	Event, PduEvent, Result, error,
+	Event, PduCount, PduEvent, Result, at, debug_warn,
 	pdu::EventHash,
-	utils::{self, FutureBoolExt, TryFutureExtExt, future::ReadyEqExt},
-	warn,
+	trace,
+	utils::{self, IterStream, future::ReadyEqExt, stream::WidebandExt as _},
 };
-use futures::{FutureExt, StreamExt, pin_mut};
+use futures::{StreamExt, future::join};
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId, UserId,
+	EventId, OwnedRoomId, RoomId,
 	api::client::sync::sync_events::v3::{LeftRoom, RoomAccountData, State, Timeline},
-	events::{StateEventType, TimelineEventType::*},
+	events::{
+		StateEventType, TimelineEventType,
+		room::member::{MembershipChange, RoomMemberEventContent},
+	},
 	uint,
 };
-use service::{Services, rooms::lazy_loading::Options};
+use serde_json::value::RawValue;
+use service::Services;
 
-use crate::client::sync::v3::SyncContext;
+use crate::client::{
+	TimelinePdus, ignored_filter,
+	sync::{
+		load_timeline,
+		v3::{SyncContext, prepare_lazily_loaded_members, state::calculate_state_initial},
+	},
+};
 
 #[tracing::instrument(
 	name = "left",
@@ -23,174 +31,248 @@ use crate::client::sync::v3::SyncContext;
 	skip_all,
 	fields(
 		room_id = %room_id,
-		full = %full_state,
 	),
 )]
 #[allow(clippy::too_many_arguments)]
 pub(super) async fn load_left_room(
 	services: &Services,
-	SyncContext {
-		sender_user,
-		since,
-		next_batch,
-		full_state,
-		filter,
-		..
-	}: SyncContext<'_>,
+	sync_context: SyncContext<'_>,
 	ref room_id: OwnedRoomId,
+	leave_pdu: Option<PduEvent>,
 ) -> Result<Option<LeftRoom>> {
-	let left_count = services
+	let SyncContext {
+		sender_user, since, next_batch, filter, ..
+	} = sync_context;
+
+	// the global count as of the moment the user left the room
+	let Some(left_count) = services
 		.rooms
 		.state_cache
 		.get_left_count(room_id, sender_user)
 		.await
-		.ok();
+		.ok()
+	else {
+		// if we get here, the membership cache is incorrect, likely due to a state
+		// reset
+		debug_warn!("attempting to sync left room but no left count exists");
+		return Ok(None);
+	};
 
-	// Left before last sync
 	let include_leave = filter.room.include_leave;
-	if (since >= left_count && !include_leave) || Some(next_batch) < left_count {
+
+	// return early if we haven't gotten to this leave yet.
+	// this can happen if the user leaves while a sync response is being generated
+	if next_batch < left_count {
 		return Ok(None);
 	}
 
-	let is_not_found = services.rooms.metadata.exists(room_id).eq(&false);
-
-	let is_disabled = services.rooms.metadata.is_disabled(room_id);
-
-	let is_banned = services.rooms.metadata.is_banned(room_id);
-
-	pin_mut!(is_not_found, is_disabled, is_banned);
-	if is_not_found.or(is_disabled).or(is_banned).await {
-		// This is just a rejected invite, not a room we know
-		// Insert a leave event anyways for the client
-		let event = PduEvent {
-			event_id: EventId::new(services.globals.server_name()),
-			sender: sender_user.to_owned(),
-			origin: None,
-			origin_server_ts: utils::millis_since_unix_epoch()
-				.try_into()
-				.expect("Timestamp is valid js_int value"),
-			kind: RoomMember,
-			content: serde_json::from_str(r#"{"membership":"leave"}"#)
-				.expect("this is valid JSON"),
-			state_key: Some(sender_user.as_str().into()),
-			unsigned: None,
-			// The following keys are dropped on conversion
-			room_id: Some(room_id.clone()),
-			prev_events: vec![],
-			depth: uint!(1),
-			auth_events: vec![],
-			redacts: None,
-			hashes: EventHash { sha256: String::new() },
-			signatures: None,
-		};
-
-		return Ok(Some(LeftRoom {
-			account_data: RoomAccountData { events: Vec::new() },
-			timeline: Timeline {
-				limited: false,
-				prev_batch: Some(next_batch.to_string()),
-				events: Vec::new(),
-			},
-			state: State { events: vec![event.into_format()] },
-		}));
+	// return early if this is an incremental sync, and we've already synced this
+	// leave to the user, and `include_leave` isn't set on the filter.
+	if !include_leave && since.is_some_and(|since| since >= left_count) {
+		return Ok(None);
 	}
 
-	let mut left_state_events = Vec::new();
-
-	let since_state_ids = async {
-		let since_shortstatehash = services
-			.rooms
-			.user
-			.get_token_shortstatehash(room_id, since?)
-			.ok()
-			.await?;
-
-		services
-			.rooms
-			.state_accessor
-			.state_full_ids(since_shortstatehash)
-			.collect::<HashMap<_, OwnedEventId>>()
-			.map(Some)
-			.await
+	if let Some(ref leave_pdu) = leave_pdu {
+		debug_assert_eq!(leave_pdu.kind, TimelineEventType::RoomMember);
 	}
-	.await
-	.unwrap_or_default();
 
-	let Ok(left_event_id): Result<OwnedEventId> = services
-		.rooms
-		.state_accessor
-		.room_state_get_id(room_id, &StateEventType::RoomMember, sender_user.as_str())
-		.await
-	else {
-		warn!("Left {room_id} but no left state event");
-		return Ok(None);
-	};
+	let does_not_exist = services.rooms.metadata.exists(room_id).eq(&false).await;
 
-	let Ok(left_shortstatehash) = services
-		.rooms
-		.state_accessor
-		.pdu_shortstatehash(&left_event_id)
-		.await
-	else {
-		warn!(event_id = %left_event_id, "Leave event has no state in {room_id}");
-		return Ok(None);
-	};
+	let (timeline, state_events) = match leave_pdu {
+		| Some(leave_pdu) if does_not_exist => {
+			/*
+			we have none PDUs with left beef for this room, likely because it was a rejected invite to a room
+			which nobody on this homeserver is in. `leave_pdu` is the remote-assisted outlier leave event for the room,
+			which is all we can send to the client.
+			*/
+			trace!("syncing remote-assisted leave PDU");
+			(TimelinePdus::default(), vec![leave_pdu])
+		},
+		| Some(leave_pdu) => {
+			// we have this room in our DB, and can fetch the state and timeline from when
+			// the user left if they're allowed to see it.
 
-	let mut left_state_ids: HashMap<_, _> = services
-		.rooms
-		.state_accessor
-		.state_full_ids(left_shortstatehash)
-		.collect()
-		.await;
+			let leave_state_key = sender_user;
+			debug_assert_eq!(Some(leave_state_key.as_str()), leave_pdu.state_key());
 
-	let leave_shortstatekey = services
-		.rooms
-		.short
-		.get_or_create_shortstatekey(&StateEventType::RoomMember, sender_user.as_str())
-		.await;
-
-	left_state_ids.insert(leave_shortstatekey, left_event_id);
-
-	for (shortstatekey, event_id) in left_state_ids {
-		if full_state || since_state_ids.get(&shortstatekey) != Some(&event_id) {
-			let (event_type, state_key) = services
+			let leave_shortstatehash = services
 				.rooms
-				.short
-				.get_statekey_from_short(shortstatekey)
+				.state_accessor
+				.pdu_shortstatehash(&leave_pdu.event_id)
 				.await?;
 
-			if filter.room.state.lazy_load_options.is_enabled()
-				&& event_type == StateEventType::RoomMember
-				&& !full_state
-				&& state_key
-					.as_str()
-					.try_into()
-					.is_ok_and(|user_id: &UserId| sender_user != user_id)
-			{
-				continue;
+			let prev_member_event = services
+				.rooms
+				.state_accessor
+				.state_get(
+					leave_shortstatehash,
+					&StateEventType::RoomMember,
+					leave_state_key.as_str(),
+				)
+				.await?;
+			let current_membership: RoomMemberEventContent = leave_pdu.get_content()?;
+			let prev_membership: RoomMemberEventContent = prev_member_event.get_content()?;
+
+			match current_membership.membership_change(
+				Some(prev_membership.details()),
+				&leave_pdu.sender,
+				leave_state_key,
+			) {
+				| MembershipChange::Left => {
+					// if the user went from `join` to `leave`, they should be able to view the
+					// timeline.
+
+					let timeline_start_count = if let Some(since) = since {
+						// for incremental syncs, start the timeline after `since`
+						PduCount::Normal(since)
+					} else {
+						// for initial syncs, start the timeline at the previous membership event
+						services
+							.rooms
+							.timeline
+							.get_pdu_count(&prev_member_event.event_id)
+							.await?
+							.saturating_sub(1)
+					};
+					let timeline_end_count = services
+						.rooms
+						.timeline
+						.get_pdu_count(leave_pdu.event_id())
+						.await?;
+
+					let timeline = load_timeline(
+						services,
+						sender_user,
+						room_id,
+						Some(timeline_start_count),
+						Some(timeline_end_count),
+						10_usize,
+					)
+					.await?;
+
+					let timeline_start_shortstatehash = async {
+						if let Some((_, pdu)) = timeline.pdus.front() {
+							if let Ok(shortstatehash) = services
+								.rooms
+								.state_accessor
+								.pdu_shortstatehash(&pdu.event_id)
+								.await
+							{
+								return shortstatehash;
+							}
+						}
+
+						leave_shortstatehash
+					};
+
+					let lazily_loaded_members = prepare_lazily_loaded_members(
+						services,
+						sync_context,
+						room_id,
+						timeline.senders(),
+					);
+
+					let (timeline_start_shortstatehash, lazily_loaded_members) =
+						join(timeline_start_shortstatehash, lazily_loaded_members).await;
+
+					// TODO: calculate incremental state for incremental syncs.
+					// always calculating initial state _works_ but returns more data and does
+					// more processing than strictly necessary.
+					let state = calculate_state_initial(
+						services,
+						sender_user,
+						timeline_start_shortstatehash,
+						lazily_loaded_members.as_ref(),
+					)
+					.await?;
+
+					trace!(
+						?timeline_start_count,
+						?timeline_end_count,
+						"syncing {} timeline events (limited = {}) and {} state events",
+						timeline.pdus.len(),
+						timeline.limited,
+						state.len()
+					);
+
+					(timeline, state)
+				},
+				| other_membership => {
+					// otherwise, the user should not be able to view the timeline.
+					// only return their leave event.
+					trace!(
+						?other_membership,
+						"user did not leave happily, only syncing leave event"
+					);
+					(TimelinePdus::default(), vec![leave_pdu])
+				},
 			}
+		},
+		| None => {
+			/*
+			no leave event was actually sent in this room, but we still need to pretend
+			like the user left it. this is usually because the room was banned by a server admin.
+			generate a fake leave event to placate the client.
+			*/
+			trace!("syncing dummy leave event");
+			(TimelinePdus::default(), vec![create_dummy_leave_event(
+				services,
+				sync_context,
+				room_id,
+			)])
+		},
+	};
 
-			let Ok(pdu) = services.rooms.timeline.get_pdu(&event_id).await else {
-				error!("Pdu in state not found: {event_id}");
-				continue;
-			};
-
-			if !include_leave && pdu.sender == sender_user {
-				continue;
-			}
-
-			left_state_events.push(pdu.into_format());
-		}
-	}
+	let raw_timeline_pdus = timeline
+		.pdus
+		.into_iter()
+		.stream()
+		// filter out ignored events from the timeline
+		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
+		.map(at!(1))
+		.map(Event::into_format)
+		.collect::<Vec<_>>()
+		.await;
 
 	Ok(Some(LeftRoom {
 		account_data: RoomAccountData { events: Vec::new() },
 		timeline: Timeline {
-			// TODO: support left timeline events so we dont need to set limited to true
-			limited: true,
+			limited: timeline.limited,
 			prev_batch: Some(next_batch.to_string()),
-			events: Vec::new(), // and so we dont need to set this to empty vec
+			events: raw_timeline_pdus,
 		},
-		state: State { events: left_state_events },
+		state: State {
+			events: state_events.into_iter().map(Event::into_format).collect(),
+		},
 	}))
+}
+
+fn create_dummy_leave_event(
+	services: &Services,
+	SyncContext { sender_user, .. }: SyncContext<'_>,
+	room_id: &RoomId,
+) -> PduEvent {
+	// TODO: because this event ID is random, it could cause caching issues with
+	// clients. perhaps a database table could be created to hold these dummy
+	// events, or they could be stored as outliers?
+	PduEvent {
+		event_id: EventId::new(services.globals.server_name()),
+		sender: sender_user.to_owned(),
+		origin: None,
+		origin_server_ts: utils::millis_since_unix_epoch()
+			.try_into()
+			.expect("Timestamp is valid js_int value"),
+		kind: TimelineEventType::RoomMember,
+		content: RawValue::from_string(r#"{"membership": "leave"}"#.to_owned()).unwrap(),
+		state_key: Some(sender_user.as_str().into()),
+		unsigned: None,
+		// The following keys are dropped on conversion
+		room_id: Some(room_id.to_owned()),
+		prev_events: vec![],
+		depth: uint!(1),
+		auth_events: vec![],
+		redacts: None,
+		hashes: EventHash { sha256: String::new() },
+		signatures: None,
+	}
 }
