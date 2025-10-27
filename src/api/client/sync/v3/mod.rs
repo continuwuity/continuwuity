@@ -1,5 +1,6 @@
 mod joined;
 mod left;
+mod state;
 
 use std::{
 	cmp::{self},
@@ -22,7 +23,7 @@ use futures::{
 	future::{OptionFuture, join3, join4, join5},
 };
 use ruma::{
-	DeviceId, OwnedUserId, UserId,
+	DeviceId, OwnedUserId, RoomId, UserId,
 	api::client::{
 		filter::FilterDefinition,
 		sync::sync_events::{
@@ -40,6 +41,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use service::rooms::lazy_loading::{self, MemberSet, Options as _};
 
 use super::{load_timeline, share_encrypted_room};
 use crate::{
@@ -86,6 +88,25 @@ struct SyncContext<'a> {
 	next_batch: u64,
 	full_state: bool,
 	filter: &'a FilterDefinition,
+}
+
+impl<'a> SyncContext<'a> {
+	fn lazy_loading_context(&self, room_id: &'a RoomId) -> lazy_loading::Context<'a> {
+		lazy_loading::Context {
+			user_id: self.sender_user,
+			device_id: Some(self.sender_device),
+			room_id,
+			token: self.since,
+			options: Some(&self.filter.room.state.lazy_load_options),
+		}
+	}
+
+	#[inline]
+	fn lazy_loading_enabled(&self) -> bool {
+		(self.filter.room.state.lazy_load_options.is_enabled()
+			|| self.filter.room.timeline.lazy_load_options.is_enabled())
+			&& !self.full_state
+	}
 }
 
 type PresenceUpdates = HashMap<OwnedUserId, PresenceEventContent>;
@@ -239,8 +260,8 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_left(sender_user)
-		.broad_filter_map(|(room_id, _)| {
-			load_left_room(services, context, room_id.clone())
+		.broad_filter_map(|(room_id, leave_pdu)| {
+			load_left_room(services, context, room_id.clone(), leave_pdu)
 				.map_ok(move |left_room| (room_id, left_room))
 				.ok()
 		})
@@ -399,4 +420,35 @@ async fn process_presence_updates(
 		.map(|(user_id, event)| (user_id.to_owned(), event.content))
 		.collect()
 		.await
+}
+
+async fn prepare_lazily_loaded_members(
+	services: &Services,
+	sync_context: SyncContext<'_>,
+	room_id: &RoomId,
+	timeline_members: impl Iterator<Item = OwnedUserId>,
+) -> Option<MemberSet> {
+	let lazy_loading_context = &sync_context.lazy_loading_context(room_id);
+
+	// the user IDs of members whose membership needs to be sent to the client, if
+	// lazy-loading is enabled.
+	let lazily_loaded_members =
+		OptionFuture::from(sync_context.lazy_loading_enabled().then(|| {
+			services
+				.rooms
+				.lazy_loading
+				.retain_lazy_members(timeline_members.collect(), lazy_loading_context)
+		}))
+		.await;
+
+	// reset lazy loading state on initial sync
+	if sync_context.since.is_none() {
+		services
+			.rooms
+			.lazy_loading
+			.reset(lazy_loading_context)
+			.await;
+	}
+
+	lazily_loaded_members
 }
