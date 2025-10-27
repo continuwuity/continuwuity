@@ -19,9 +19,7 @@ use ruma::{
 		GlobalAccountDataEventType, StateEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
 		room::{
-			encrypted::Relation,
-			member::{MembershipState, RoomMemberEventContent},
-			power_levels::RoomPowerLevelsEventContent,
+			encrypted::Relation, power_levels::RoomPowerLevelsEventContent,
 			redaction::RoomRedactionEventContent,
 		},
 	},
@@ -323,31 +321,12 @@ where
 				let target_user_id =
 					UserId::parse(state_key).expect("This state_key was previously validated");
 
-				let content: RoomMemberEventContent = pdu.get_content()?;
-				let stripped_state = match content.membership {
-					| MembershipState::Invite | MembershipState::Knock => self
-						.services
-						.state
-						.summary_stripped(pdu, room_id)
-						.await
-						.into(),
-					| _ => None,
-				};
-
 				// Update our membership info, we do this here incase a user is invited or
 				// knocked and immediately leaves we need the DB to record the invite or
 				// knock event for auth
 				self.services
 					.state_cache
-					.update_membership(
-						room_id,
-						target_user_id,
-						content,
-						pdu.sender(),
-						stripped_state,
-						None,
-						true,
-					)
+					.update_membership(room_id, target_user_id, &pdu, true)
 					.await?;
 			}
 		},
