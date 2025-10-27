@@ -432,7 +432,8 @@ pub(super) async fn load_joined_room(
 		},
 		unread_notifications: UnreadNotificationsCount { highlight_count, notification_count },
 		timeline: Timeline {
-			limited: timeline.limited,
+			// mirror Synapse behavior by setting `limited` if the user joined since the last sync
+			limited: timeline.limited || joined_since_last_sync,
 			prev_batch: prev_batch.as_ref().map(ToString::to_string),
 			events: room_events,
 		},
