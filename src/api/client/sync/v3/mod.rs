@@ -14,6 +14,7 @@ use conduwuit::{
 		ReadyExt, TryFutureExtExt,
 		stream::{BroadbandExt, Tools, WidebandExt},
 	},
+	warn,
 };
 use conduwuit_service::Services;
 use futures::{
@@ -210,10 +211,16 @@ pub(crate) async fn build_sync_events(
 		.state_cache
 		.rooms_joined(sender_user)
 		.map(ToOwned::to_owned)
-		.broad_filter_map(|room_id| {
-			load_joined_room(services, context, room_id.clone())
-				.map_ok(move |(joined_room, updates)| (room_id, joined_room, updates))
-				.ok()
+		.broad_filter_map(|room_id| async {
+			let joined_room = load_joined_room(services, context, room_id.clone()).await;
+
+			match joined_room {
+				| Ok((room, updates)) => Some((room_id, room, updates)),
+				| Err(err) => {
+					warn!(?err, ?room_id, "error loading joined room {}", room_id);
+					None
+				},
+			}
 		})
 		.ready_fold(
 			(BTreeMap::new(), DeviceListUpdates::new()),
