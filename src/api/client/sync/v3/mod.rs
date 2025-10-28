@@ -430,8 +430,19 @@ async fn prepare_lazily_loaded_members(
 ) -> Option<MemberSet> {
 	let lazy_loading_context = &sync_context.lazy_loading_context(room_id);
 
-	// the user IDs of members whose membership needs to be sent to the client, if
-	// lazy-loading is enabled.
+	// reset lazy loading state on initial sync.
+	// do this even if lazy loading is disabled so future lazy loads
+	// will have the correct members.
+	if sync_context.since.is_none() {
+		services
+			.rooms
+			.lazy_loading
+			.reset(lazy_loading_context)
+			.await;
+	}
+
+	// filter the input members through `retain_lazy_members`, which
+	// contains the actual lazy loading logic.
 	let lazily_loaded_members =
 		OptionFuture::from(sync_context.lazy_loading_enabled().then(|| {
 			services
@@ -440,15 +451,6 @@ async fn prepare_lazily_loaded_members(
 				.retain_lazy_members(timeline_members.collect(), lazy_loading_context)
 		}))
 		.await;
-
-	// reset lazy loading state on initial sync
-	if sync_context.since.is_none() {
-		services
-			.rooms
-			.lazy_loading
-			.reset(lazy_loading_context)
-			.await;
-	}
 
 	lazily_loaded_members
 }
