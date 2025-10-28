@@ -13,7 +13,7 @@ use conduwuit::{
 		stream::{Tools, WidebandExt},
 	},
 };
-use conduwuit_service::{Services, rooms::lazy_loading::MemberSet};
+use conduwuit_service::Services;
 use futures::{
 	FutureExt, StreamExt, TryFutureExt,
 	future::{OptionFuture, join, join3, join4, try_join},
@@ -37,7 +37,7 @@ use super::{load_timeline, share_encrypted_room};
 use crate::client::{
 	ignored_filter,
 	sync::v3::{
-		DeviceListUpdates, SyncContext,
+		DeviceListUpdates, SyncContext, prepare_lazily_loaded_members,
 		state::{calculate_state_incremental, calculate_state_initial},
 	},
 };
@@ -199,32 +199,10 @@ pub(super) async fn load_joined_room(
 		|content: RoomMemberEventContent| content.membership != MembershipState::Join,
 	);
 
-	let lazy_loading_context = &sync_context.lazy_loading_context(room_id);
-
 	// the user IDs of members whose membership needs to be sent to the client, if
 	// lazy-loading is enabled.
 	let lazily_loaded_members =
-		OptionFuture::from(sync_context.lazy_loading_enabled().then(|| {
-			let timeline_and_receipt_members: MemberSet = timeline
-				.senders()
-				.chain(receipt_events.keys().map(Into::into))
-				.collect();
-
-			services
-				.rooms
-				.lazy_loading
-				.retain_lazy_members(timeline_and_receipt_members, lazy_loading_context)
-		}))
-		.await;
-
-	// reset lazy loading state on initial sync
-	if previous_sync_end_count.is_none() {
-		services
-			.rooms
-			.lazy_loading
-			.reset(lazy_loading_context)
-			.await;
-	}
+		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders()).await;
 
 	/*
 	compute the state delta between the previous sync and this sync. if this is an initial sync
