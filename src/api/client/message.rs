@@ -59,7 +59,7 @@ const IGNORED_MESSAGE_TYPES: &[TimelineEventType] = &[
 	CallNotify,
 ];
 
-const LIMIT_MAX: usize = 100;
+const LIMIT_MAX: usize = 1000;
 const LIMIT_DEFAULT: usize = 10;
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/messages`
@@ -115,14 +115,14 @@ pub(crate) async fn get_message_events_route(
 		| Direction::Forward => services
 			.rooms
 			.timeline
-			.pdus(Some(sender_user), room_id, Some(from))
+			.pdus(None, room_id, Some(from))
 			.ignore_err()
 			.boxed(),
 
 		| Direction::Backward => services
 			.rooms
 			.timeline
-			.pdus_rev(Some(sender_user), room_id, Some(from))
+			.pdus_rev(None, room_id, Some(from))
 			.ignore_err()
 			.boxed(),
 	};
