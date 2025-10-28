@@ -57,16 +57,6 @@ pub(super) async fn load_joined_room(
 	sync_context: SyncContext<'_>,
 	ref room_id: OwnedRoomId,
 ) -> Result<(JoinedRoom, DeviceListUpdates)> {
-	/*
-	this is a large function with a lot of logic. we try to parallelize as much as possible
-	by fetching data concurrently, so the code is roughly split into stages separated by calls to `join<n>`.
-
-	1.  `current_shortstatehash` and `since_shortstatehash` are fetched from the DB. a shortstatehash is
-		a token which identifies the state of the room at a point in time.
-	2.  `load_timeline` is called to fetch timeline events that happened since `since`.
-	3.
-	*/
-
 	let SyncContext {
 		sender_user,
 		since,
