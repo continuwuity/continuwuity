@@ -708,7 +708,7 @@ async fn collect_typing_events(
 	}
 
 	let mut typing_response = sync_events::v5::response::Typing::default();
-	for (room_id, (required_state_request, timeline_limit, roomsince)) in todo_rooms {
+	for (room_id, (_, _, roomsince)) in todo_rooms {
 		if services.rooms.typing.last_typing_update(room_id).await? <= *roomsince {
 			continue;
 		}
