@@ -326,7 +326,7 @@ where
 				// knock event for auth
 				self.services
 					.state_cache
-					.update_membership(room_id, target_user_id, &pdu, true)
+					.update_membership(room_id, target_user_id, pdu, true)
 					.await?;
 			}
 		},
