@@ -146,7 +146,7 @@ pub(super) async fn load_left_room(
 						room_id,
 						Some(timeline_start_count),
 						Some(timeline_end_count),
-						10_usize,
+						services.config.incremental_sync_max_timeline_size,
 					)
 					.await?;
 
