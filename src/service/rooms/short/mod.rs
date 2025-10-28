@@ -283,7 +283,6 @@ where
 	)
 	.ready_filter_map(|state_event| match state_event {
 		| (Ok(state_key), Ok(event_id)) => Some(Ok((state_key, event_id))),
-		| (Err(e), _) => Some(Err(e)),
-		| (_, Err(e)) => Some(Err(e)),
+		| (Err(e), _) | (_, Err(e)) => Some(Err(e)),
 	})
 }
