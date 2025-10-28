@@ -110,7 +110,7 @@ pub(super) async fn load_joined_room(
 		room_id,
 		previous_sync_end_count,
 		Some(next_batchcount),
-		10_usize,
+		services.config.incremental_sync_max_timeline_size,
 	);
 
 	let receipt_events = services
