@@ -135,7 +135,7 @@ pub(crate) async fn create_invite_route(
 			.mark_as_invited(
 				&recipient_user,
 				&body.room_id,
-				&sender_user,
+				sender_user,
 				Some(invite_state),
 				body.via.clone(),
 			)
