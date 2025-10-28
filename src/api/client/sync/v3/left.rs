@@ -73,7 +73,11 @@ pub(super) async fn load_left_room(
 	}
 
 	if let Some(ref leave_pdu) = leave_pdu {
-		debug_assert_eq!(leave_pdu.kind, TimelineEventType::RoomMember);
+		debug_assert_eq!(
+			leave_pdu.kind,
+			TimelineEventType::RoomMember,
+			"leave PDU should be m.room.member"
+		);
 	}
 
 	let does_not_exist = services.rooms.metadata.exists(room_id).eq(&false).await;
@@ -93,7 +97,11 @@ pub(super) async fn load_left_room(
 			// the user left if they're allowed to see it.
 
 			let leave_state_key = sender_user;
-			debug_assert_eq!(Some(leave_state_key.as_str()), leave_pdu.state_key());
+			debug_assert_eq!(
+				Some(leave_state_key.as_str()),
+				leave_pdu.state_key(),
+				"leave PDU should be for the user requesting the sync"
+			);
 
 			let leave_shortstatehash = services
 				.rooms
