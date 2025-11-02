@@ -2,8 +2,8 @@ use axum::{Json, extract::State};
 use conduwuit::{Result, err};
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
-use ruma::{DeviceId, identifiers_validation};
-use conduwuit_service::oidc::{registrar::normalize_redirect, SCOPE_PREFIX_DEVICE, SCOPE_PREFIX_API};
+use ruma::{DeviceId, ClientSecret, identifiers_validation};
+use conduwuit_service::oidc::registrar::normalize_redirect;
 
 /// The required parameters to register a new client for OAuth2 application.
 /// See the required metadata in OAuth2 authorization grant flow in [MSC2966].
@@ -88,24 +88,27 @@ pub(crate) async fn register_client(
 		.collect();
 	let device_id = DeviceId::new();
 	// Only provide a default scope, we'll test the client's proposed scope for consent anyway.
-	let scope = format!("{SCOPE_PREFIX_DEVICE}{device_id} {SCOPE_PREFIX_API}*").parse().expect("parseable default scope");
+	let scope = "default".parse().unwrap();
 	// TODO check if the users service needs an update.
 	//services.users.update_device_metadata();
 
 	// If the client cannot authenticate itself at the token endpoint, then
 	// it's a public client. This is usually the case in Matrix.
 	let is_private = client.token_endpoint_auth_method != "none";
-	// TODO generate a device secret.
-	let secret = "cacestdubonsecretmonlouou=--".to_string();
-	if let Err(err) = identifiers_validation::client_secret::validate(&secret) {
-		tracing::warn!("oops, we generated an invalid client_secret: {err}");
-	}
+	let client_secret = match is_private {
+		true => {
+			let secret = ClientSecret::new();
+			identifiers_validation::client_secret::validate(secret.as_str())?;
+			Some(secret.to_string())
+		},
+		false => None
+	};
 	let registerable = match is_private {
 		| true => &Client::confidential(
 			device_id.as_ref(),
 			redirect_uri,
 			scope,
-			secret.as_bytes(),
+			client_secret.as_ref().unwrap().as_bytes(),
 		).with_additional_redirect_uris(remaining_uris),
 		| _ => &Client::public(
 			device_id.as_ref(),
@@ -118,7 +121,7 @@ pub(crate) async fn register_client(
 
 	let client_response = ClientResponse {
 		client_id: device_id.to_string(),
-		client_secret: if is_private { Some(secret) } else { None },
+		client_secret,
 		client_secret_expires_at: if is_private { Some(0) } else { None },
 		client_name: client.client_name.clone(),
 		client_uri: client.client_uri.clone(),
