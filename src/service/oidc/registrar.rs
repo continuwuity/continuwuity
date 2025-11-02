@@ -3,7 +3,7 @@ use url::Url;
 use std::collections::HashMap;
 use std::iter::{Extend, FromIterator};
 
-use crate::oidc::SCOPE_PREFIX_DEVICE;
+use conduwuit::{Result, err};
 use oxide_auth::endpoint::{PreGrant, Scope};
 use oxide_auth::primitives::prelude::{Client, ClientUrl};
 use oxide_auth::primitives::registrar::{Argon2, BoundClient, EncodedClient, PasswordPolicy, RegisteredClient, RegisteredUrl, Registrar, RegistrarError};
@@ -39,7 +39,7 @@ static DEFAULT_PASSWORD_POLICY: Lazy<Argon2> = Lazy::new(Argon2::default);
 #[derive(Clone)]
 pub struct MatrixClient {
 	pub name: Option<String>,
-	// scope option ?,
+	pub device_id: Option<String>,
 	pub client: EncodedClient,
 }
 
@@ -56,14 +56,24 @@ impl MatrixClientMap {
         MatrixClientMap::default()
     }
 
-    /// Insert or update the client record with an oxide-auth Client. It will be wrapped in a
-	/// MatrixClient.
+    /// Insert or update the client record with an oxide-auth OIDC Client.
+	/// This should only be called from the OIDC register endpoint.
     pub fn register_client(&mut self, name: Option<String>, client: Client) {
         let password_policy = Self::current_policy(&self.password_policy);
 		let client = client.encode(password_policy);
-		let matrix_client = MatrixClient { name, client: client.clone() };
+		// Matrix clients have no device_id at registration time.
+		let matrix_client = MatrixClient { name, device_id: None, client: client.clone() };
 		self.clients.insert(client.client_id.clone(), matrix_client);
     }
+
+	/// Add `device_id` to client stored at `client_id`.
+	pub fn set_client_device_id(&mut self, client_id: &str, device_id: &str) -> Result<()> {
+		let client = self.clients.get_mut(client_id).ok_or_else(||
+			err!(Request(Unknown("a client under client_id"))))?;
+		client.device_id = Some(device_id.to_string());
+
+		Ok(())
+	}
 
 	/// Returns a MatrixClient, containing an oxide-auth EncodedClient, and some metadata,
 	/// like a public name.
@@ -72,11 +82,9 @@ impl MatrixClientMap {
 	}
 
 	pub fn find_device(&self, device_id: &str) -> Option<&EncodedClient> {
-		let scope = format!("{SCOPE_PREFIX_DEVICE}:{device_id}");
-
 		self.clients
 			.values()
-			.find(|c| c.client.default_scope.iter().any(|s| s == scope))
+			.find(|c| c.device_id.as_deref().is_some_and(|d| d == device_id))
 			.map(|c| &c.client)
 	}
 

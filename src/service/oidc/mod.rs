@@ -78,10 +78,11 @@ impl Service {
 		Ok(())
 	}
 
-	/// Register a device in the main continuwuity database. Should only be called once the client
-	/// and the user both have authenticated.
+	/// Register a device in the main continuwuity database. This should only happen on successful
+	/// authentication and consent, and will register the client's device_id.
 	pub fn register_device(
 		&self,
+		client_id: &str,
 		(user_id, device_id): (&OwnedUserId, &OwnedDeviceId),
 		display_name: Option<&str>,
 		client_ip: Option<String>,
@@ -95,6 +96,11 @@ impl Service {
 		};
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.db.userdeviceid_metadata.put(key, Json(val));
+		self
+			.registrar
+			.lock()
+			.expect("lockable registrar")
+			.set_client_device_id(client_id, &device_id.to_string())?;
 
 		Ok(())
 	}
@@ -167,7 +173,7 @@ impl Service {
 	}
 
 	pub fn user_and_device_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
-		let Some(Grant { owner_id, scope, .. }) = self.grant_from_token(token) else {
+		let Some(Grant { owner_id, client_id, .. }) = self.grant_from_token(token) else {
 			return Err(err!(Request(MissingToken("unknown token: {token:?}"))));
 		};
 		let server_name = self.services.globals.server_name();
@@ -175,7 +181,11 @@ impl Service {
 			.map_err(|err|
 				err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
 			)?;
-		let device_id = self.device_id_from_scope(scope)?;
+		let client = self.client_from_client_id(&client_id).expect("validated client_id");
+		let Some(device_id) = client.device_id else {
+			return Err(err!(Request(Unknown("this client has no device_id yet"))));
+		};
+		let device_id = OwnedDeviceId::from(device_id.to_string());
 
 		Ok((owner_id, device_id))
 	}

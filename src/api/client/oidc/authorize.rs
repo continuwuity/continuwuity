@@ -1,5 +1,5 @@
 use axum::extract::{Query, State};
-use conduwuit::{Result, err};
+use conduwuit::{Result, err, utils::ReadyExt};
 use conduwuit_web::oidc::{
 	oidc_consent_form, oidc_login_form, AuthorizationQuery, OidcRequest, OidcResponse,
 };
@@ -8,6 +8,7 @@ use oxide_auth::{
 	frontends::simple::endpoint::FnSolicitor,
 };
 use percent_encoding::percent_decode_str;
+use ruma::UserId;
 use service::oidc::{SCOPE_PREFIX_API, SCOPE_PREFIX_DEVICE};
 
 /// # `GET /_matrix/client/unstable/org.matrix.msc2964/authorize`
@@ -67,15 +68,52 @@ pub(crate) struct Allowance {
 
 /// # `POST /_matrix/client/unstable/org.matrix.msc2964/authorize?allow=[Option<String>]`
 ///
-/// Authorize the device based on the user's consent. If the user allows
+/// Authorize the device based on the owner's consent. If the owner allows
 /// it to access their data, the client may request a token at the
 /// [super::token::token] endpoint.
+///
+/// On the owner's consent, if their specific device is unregistered it will be
+/// registered in their device list (not to be confused with the OIDC client
+/// registration).
 pub(crate) async fn authorize_consent(
 	Query(Allowance { allow }): Query<Allowance>,
 	State(services): State<crate::State>,
+	Query(query): Query<AuthorizationQuery>,
 	oauth: OidcRequest,
 ) -> Result<OidcResponse> {
-	tracing::debug!("processing user's consent: {:?} - {:?}", allow, oauth);
+	tracing::debug!("processing owner's consent: {:?}", allow);
+	tracing::trace!("owner's consent request: {:#?}", query);
+	let Some(owner_id) = allow.clone() else {
+		return Err(err!(Request(Unknown("the owner did not consent to the client's access"))));
+	};
+	let server_name = services.globals.server_name();
+	let owner_id = UserId::parse_with_server_name(owner_id.clone(), server_name)
+		.map_err(|err|
+			err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
+		)?;
+	let Some(mc) = services.oidc.client_from_client_id(&query.client_id) else {
+		return Err(err!(Request(Unknown("no client has registered client_id {:?}", query.client_id))));
+	};
+	let scope = query.scope.parse().map_err(|err|
+		err!(Request(Unknown("could not parse scope {:?}: {}", query.scope, err))))?;
+	let device_id = services.oidc.device_id_from_scope(scope)?;
+	// Check that the device is registered in the owner devices list.
+	// Note that this is _not_ the OIDC client registration.
+	let device_is_registered_with_owner = services
+		.users
+		.all_device_ids(&owner_id)
+		.ready_any(|v| v == device_id)
+		.await; 
+	if ! device_is_registered_with_owner {
+		// TODO get the client's IP from the request.
+		let client_ip = None;
+		services.oidc.register_device(
+			&query.client_id,
+			(&owner_id, &device_id),
+			mc.name.as_deref(),
+			client_ip,
+		)?;
+	}
 
 	services
 		.oidc
