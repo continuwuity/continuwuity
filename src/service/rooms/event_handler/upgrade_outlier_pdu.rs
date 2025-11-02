@@ -256,7 +256,12 @@ where
 		if incoming_pdu.state_key.is_none() {
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
 			match self
-				.ask_policy_server(&incoming_pdu, &incoming_pdu.to_canonical_object(), room_id)
+				.ask_policy_server(
+					&incoming_pdu,
+					&mut incoming_pdu.to_canonical_object(),
+					room_id,
+					true,
+				)
 				.await
 			{
 				| Ok(false) => {
