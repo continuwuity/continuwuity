@@ -308,7 +308,7 @@ pub async fn create_hash_and_sign_event(
 		match self
 			.services
 			.event_handler
-			.ask_policy_server(&pdu, &pdu_json, pdu.room_id().expect("has room ID"))
+			.ask_policy_server(&pdu, &mut pdu_json, pdu.room_id().expect("has room ID"), false)
 			.await
 		{
 			| Ok(true) => {},
