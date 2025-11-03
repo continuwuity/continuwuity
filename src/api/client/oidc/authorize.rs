@@ -47,7 +47,7 @@ pub(crate) async fn authorize(
 
 	tracing::debug!("submitting OIDC authorisation for token : {token:#?}");
 	// Get the user id from the token and add it to the query.
-	let (owner_id, _) = services.oidc.user_and_device_from_token(token)?;
+	let (owner_id, _) = services.oidc.user_and_device_from_token(token).await?;
     let mut query_with_user_id = query.clone();
 	query_with_user_id.username = Some(owner_id.localpart().to_string());
 
@@ -91,11 +91,16 @@ pub(crate) async fn authorize_consent(
 		.map_err(|err|
 			err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
 		)?;
-	let Some(mc) = services.oidc.client_from_client_id(&query.client_id) else {
+	let Some(matrix_client) = services.oidc
+		.client_from_client_id(&query.client_id)
+		.await? else {
 		return Err(err!(Request(Unknown("no client has registered client_id {:?}", query.client_id))));
 	};
-	let scope = query.scope.parse().map_err(|err|
-		err!(Request(Unknown("could not parse scope {:?}: {}", query.scope, err))))?;
+	let scope = query.scope
+		.parse()
+		.map_err(|err|
+			err!(Request(Unknown("could not parse scope {:?}: {}", query.scope, err)))
+		)?;
 	let device_id = services.oidc.device_id_from_scope(scope)?;
 	// Check that the device is registered in the owner devices list.
 	// Note that this is _not_ the OIDC client registration.
@@ -110,9 +115,9 @@ pub(crate) async fn authorize_consent(
 		services.oidc.register_device(
 			&query.client_id,
 			(&owner_id, &device_id),
-			mc.name.as_deref(),
+			matrix_client.name.as_deref(),
 			client_ip,
-		)?;
+		).await?;
 	}
 
 	services

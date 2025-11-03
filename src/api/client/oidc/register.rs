@@ -3,7 +3,7 @@ use conduwuit::{Result, err};
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
 use ruma::{DeviceId, ClientSecret, identifiers_validation};
-use conduwuit_service::oidc::registrar::normalize_redirect;
+use conduwuit_service::oidc::normalize_redirect;
 
 /// The required parameters to register a new client for OAuth2 application.
 /// See the required metadata in OAuth2 authorization grant flow in [MSC2966].
@@ -103,7 +103,7 @@ pub(crate) async fn register_client(
 		},
 		false => None
 	};
-	let registerable = match is_private {
+	let registration = match is_private {
 		| true => &Client::confidential(
 			device_id.as_ref(),
 			redirect_uri,
@@ -116,8 +116,8 @@ pub(crate) async fn register_client(
 			scope,
 		).with_additional_redirect_uris(remaining_uris)
 	};
-	tracing::trace!("registering OIDC device : {registerable:#?}");
-	services.oidc.register_client(Some(client.client_name.clone()), &registerable)?;
+	tracing::trace!("registering OIDC device : {registration:#?}");
+	services.oidc.register_client(Some(client.client_name.clone()), &registration);
 
 	let client_response = ClientResponse {
 		client_id: device_id.to_string(),

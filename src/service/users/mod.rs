@@ -272,7 +272,7 @@ impl Service {
 	/// Find out which user an access token belongs to.
 	pub async fn find_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
 		if self.services.server.config.auth.as_ref().is_some_and(|auth| auth.enable_oidc_login) {
-			self.services.oidc.user_and_device_from_token(token)
+			self.services.oidc.user_and_device_from_token(token).await
 		} else {
 			self.db.token_userdeviceid.get(token).await.deserialized()
 		}
@@ -542,7 +542,7 @@ impl Service {
 		// either...
 		let key = (user_id, device_id);
 		if self.services.server.config.auth.as_ref().is_some_and(|auth| auth.enable_oidc_login) {
-			if self.services.oidc.client_from_device_id(device_id.into()).is_none() {
+			if self.services.oidc.client_from_device_id(device_id.into()).await?.is_none() {
 				return Err!(Database(error!(
 					?user_id,
 					?device_id,
