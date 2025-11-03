@@ -29,7 +29,7 @@ use ruma::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{Dep, account_data, admin, appservice, globals, rooms};
+use crate::{Dep, account_data, admin, appservice, globals, oidc, rooms};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -52,6 +52,7 @@ struct Services {
 	admin: Dep<admin::Service>,
 	appservice: Dep<appservice::Service>,
 	globals: Dep<globals::Service>,
+	oidc: Dep<oidc::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 }
