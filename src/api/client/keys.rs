@@ -91,8 +91,11 @@ pub(crate) async fn upload_keys_route(
 			.users
 			.get_device_keys(sender_user, sender_device)
 			.await
+			.and_then(|keys| keys.deserialize().map_err(Into::into))
 		{
-			if existing_keys.json().get() == device_keys.json().get() {
+			// NOTE: also serves as a workaround for a nheko bug which omits cross-signing
+			// NOTE: signatures when re-uploading the same DeviceKeys.
+			if existing_keys.keys == deser_device_keys.keys {
 				debug!(
 					%sender_user,
 					%sender_device,
