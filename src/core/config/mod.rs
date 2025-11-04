@@ -108,7 +108,7 @@ pub struct Config {
 	// external structure; separate section
 	pub auth: Option<AuthConfig>,
 
-	/// The UNIX socket conduwuit will listen on.
+	/// The UNIX socket continuwuity will listen on.
 	///
 	/// continuwuity cannot listen on both an IP address and a UNIX socket. If
 	/// listening on a UNIX socket, you MUST remove/comment the `address` key.
