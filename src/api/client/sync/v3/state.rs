@@ -35,7 +35,7 @@ use crate::client::TimelinePdus;
 	fields(current_shortstatehash)
 )]
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn calculate_state_initial(
+pub(super) async fn build_state_initial(
 	services: &Services,
 	sender_user: &UserId,
 	timeline_start_shortstatehash: ShortStateHash,
@@ -89,7 +89,7 @@ pub(super) async fn calculate_state_initial(
 /// `lazily_loaded_members`.
 #[tracing::instrument(name = "incremental", level = "trace", skip_all)]
 #[allow(clippy::too_many_arguments)]
-pub(super) async fn calculate_state_incremental<'a>(
+pub(super) async fn build_state_incremental<'a>(
 	services: &Services,
 	sender_user: &'a UserId,
 	room_id: &RoomId,
