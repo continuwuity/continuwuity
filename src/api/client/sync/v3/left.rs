@@ -21,7 +21,10 @@ use crate::client::{
 	TimelinePdus, ignored_filter,
 	sync::{
 		load_timeline,
-		v3::{SyncContext, prepare_lazily_loaded_members, state::build_state_initial},
+		v3::{
+			DEFAULT_TIMELINE_LIMIT, SyncContext, prepare_lazily_loaded_members,
+			state::build_state_initial,
+		},
 	},
 };
 
@@ -148,11 +151,21 @@ pub(super) async fn load_left_room(
 							.await?
 							.saturating_sub(1)
 					};
+
+					// end the timeline at the user's leave event
 					let timeline_end_count = services
 						.rooms
 						.timeline
 						.get_pdu_count(leave_pdu.event_id())
 						.await?;
+
+					// limit the timeline using the same logic as for joined rooms
+					let timeline_limit = filter
+						.room
+						.timeline
+						.limit
+						.and_then(|limit| limit.try_into().ok())
+						.unwrap_or(DEFAULT_TIMELINE_LIMIT);
 
 					let timeline = load_timeline(
 						services,
@@ -160,7 +173,7 @@ pub(super) async fn load_left_room(
 						room_id,
 						Some(timeline_start_count),
 						Some(timeline_end_count),
-						services.config.incremental_sync_max_timeline_size,
+						timeline_limit,
 					)
 					.await?;
 
