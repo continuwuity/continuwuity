@@ -449,6 +449,10 @@ async fn process_presence_updates(
 		.await
 }
 
+/// Using the provided sync context and an iterator of user IDs in the
+/// `timeline`, return a HashSet of user IDs whose membership events should be
+/// sent to the client if lazy-loading is enabled.
+#[allow(clippy::let_and_return)]
 async fn prepare_lazily_loaded_members(
 	services: &Services,
 	sync_context: SyncContext<'_>,
