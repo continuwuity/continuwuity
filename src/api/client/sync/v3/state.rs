@@ -93,8 +93,8 @@ pub(super) async fn calculate_state_incremental<'a>(
 	services: &Services,
 	sender_user: &'a UserId,
 	room_id: &RoomId,
-	previous_sync_end_count: PduCount,
-	previous_sync_end_shortstatehash: ShortStateHash,
+	last_sync_end_count: PduCount,
+	last_sync_end_shortstatehash: ShortStateHash,
 	timeline_start_shortstatehash: ShortStateHash,
 	timeline_end_shortstatehash: ShortStateHash,
 	timeline: &TimelinePdus,
@@ -117,7 +117,7 @@ pub(super) async fn calculate_state_incremental<'a>(
 		let last_pdu_of_last_sync = services
 			.rooms
 			.timeline
-			.pdus_rev(Some(sender_user), room_id, Some(previous_sync_end_count.saturating_add(1)))
+			.pdus_rev(Some(sender_user), room_id, Some(last_sync_end_count.saturating_add(1)))
 			.boxed()
 			.next()
 			.await
@@ -237,7 +237,7 @@ pub(super) async fn calculate_state_incremental<'a>(
 			services
 				.rooms
 				.state_accessor
-				.state_added((previous_sync_end_shortstatehash, timeline_end_shortstatehash))
+				.state_added((last_sync_end_shortstatehash, timeline_end_shortstatehash))
 				.await?
 				.stream()
 				.ready_filter_map(|(_, shorteventid)| {
