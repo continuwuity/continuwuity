@@ -200,37 +200,41 @@ pub(super) async fn load_joined_room(
 	let lazily_loaded_members =
 		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders()).await;
 
-	/*
-	compute the state delta between the previous sync and this sync. if this is an initial sync
-	*or* we just joined this room, `build_state_initial` will be used, otherwise `build_state_incremental`
-	will be used.
-	*/
-	let state_events = if let Some(last_sync_end_count) = last_sync_end_count
-		&& let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash
-		&& !full_state
-	{
-		build_state_incremental(
-			services,
-			syncing_user,
-			room_id,
-			PduCount::Normal(last_sync_end_count),
-			last_sync_end_shortstatehash,
-			timeline_start_shortstatehash,
-			current_shortstatehash,
-			&timeline,
-			lazily_loaded_members.as_ref(),
-		)
-		.boxed()
-		.await?
-	} else {
-		build_state_initial(
-			services,
-			syncing_user,
-			timeline_start_shortstatehash,
-			lazily_loaded_members.as_ref(),
-		)
-		.boxed()
-		.await?
+	// compute the state delta between the previous sync and this sync.
+	let state_events = match (last_sync_end_count, last_sync_end_shortstatehash) {
+		/*
+		if `last_sync_end_count` is Some (meaning this is an incremental sync), and `last_sync_end_shortstatehash`
+		is Some (meaning the syncing user didn't just join this room for the first time ever), and `full_state` is false,
+		then use `build_state_incremental`.
+		*/
+		| (Some(last_sync_end_count), Some(last_sync_end_shortstatehash)) if !full_state =>
+			build_state_incremental(
+				services,
+				syncing_user,
+				room_id,
+				PduCount::Normal(last_sync_end_count),
+				last_sync_end_shortstatehash,
+				timeline_start_shortstatehash,
+				current_shortstatehash,
+				&timeline,
+				lazily_loaded_members.as_ref(),
+			)
+			.boxed()
+			.await?,
+		/*
+		otherwise use `build_state_initial`. note that this branch will be taken if the user joined this room since the last sync
+		for the first time ever, because in that case we have no `last_sync_end_shortstatehash` and can't correctly calculate
+		the state using the incremental sync algorithm.
+		*/
+		| _ =>
+			build_state_initial(
+				services,
+				syncing_user,
+				timeline_start_shortstatehash,
+				lazily_loaded_members.as_ref(),
+			)
+			.boxed()
+			.await?,
 	};
 
 	// for incremental syncs, calculate updates to E2EE device lists
