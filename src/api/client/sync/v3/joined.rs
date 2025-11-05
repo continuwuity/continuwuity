@@ -58,20 +58,15 @@ pub(super) async fn load_joined_room(
 	ref room_id: OwnedRoomId,
 ) -> Result<(JoinedRoom, DeviceListUpdates)> {
 	let SyncContext {
-		sender_user,
-		since,
-		next_batch,
+		syncing_user,
+		last_sync_end_count,
+		current_count,
 		full_state,
 		..
 	} = sync_context;
-
-	// the global count as of the end of the last sync.
-	// this will be None if we are doing an initial sync.
-	let previous_sync_end_count = since.map(PduCount::Normal);
-	let next_batchcount = PduCount::Normal(next_batch);
 	let mut device_list_updates = DeviceListUpdates::new();
 
-	// the room state right now
+	// the room state as of `next_batch`.
 	let current_shortstatehash = services
 		.rooms
 		.state
@@ -81,36 +76,39 @@ pub(super) async fn load_joined_room(
 	// the room state as of the end of the last sync.
 	// this will be None if we are doing an initial sync or if we just joined this
 	// room.
-	let previous_sync_end_shortstatehash = OptionFuture::from(since.map(|since| {
-		services
-			.rooms
-			.user
-			.get_token_shortstatehash(room_id, since)
-			.ok()
-	}))
-	.map(Option::flatten)
-	.map(Ok);
+	let last_sync_end_shortstatehash =
+		OptionFuture::from(last_sync_end_count.map(|last_sync_end_count| {
+			services
+				.rooms
+				.user
+				.get_token_shortstatehash(room_id, last_sync_end_count)
+				.ok()
+		}))
+		.map(Option::flatten)
+		.map(Ok);
 
-	let (current_shortstatehash, previous_sync_end_shortstatehash) =
-		try_join(current_shortstatehash, previous_sync_end_shortstatehash).await?;
+	let (current_shortstatehash, last_sync_end_shortstatehash) =
+		try_join(current_shortstatehash, last_sync_end_shortstatehash).await?;
+
+	// load recent timeline events.
 
 	let timeline = load_timeline(
 		services,
-		sender_user,
+		syncing_user,
 		room_id,
-		previous_sync_end_count,
-		Some(next_batchcount),
+		last_sync_end_count.map(PduCount::Normal),
+		Some(PduCount::Normal(current_count)),
 		services.config.incremental_sync_max_timeline_size,
 	);
 
 	let receipt_events = services
 		.rooms
 		.read_receipt
-		.readreceipts_since(room_id, since)
+		.readreceipts_since(room_id, last_sync_end_count)
 		.filter_map(|(read_user, _, edu)| async move {
 			services
 				.users
-				.user_is_ignored(read_user, sender_user)
+				.user_is_ignored(read_user, syncing_user)
 				.await
 				.or_some((read_user.to_owned(), edu))
 		})
@@ -142,13 +140,13 @@ pub(super) async fn load_joined_room(
 			services
 				.rooms
 				.user
-				.last_notification_read(sender_user, room_id)
+				.last_notification_read(syncing_user, room_id)
 		})
 		.into();
 
 	// the syncing user's membership event during the last sync.
 	// this will be None if `previous_sync_end_shortstatehash` is None.
-	let membership_during_previous_sync: OptionFuture<_> = previous_sync_end_shortstatehash
+	let membership_during_previous_sync: OptionFuture<_> = last_sync_end_shortstatehash
 		.map(|shortstatehash| {
 			services
 				.rooms
@@ -156,7 +154,7 @@ pub(super) async fn load_joined_room(
 				.state_get_content(
 					shortstatehash,
 					&StateEventType::RoomMember,
-					sender_user.as_str(),
+					syncing_user.as_str(),
 				)
 				.ok()
 		})
@@ -199,16 +197,16 @@ pub(super) async fn load_joined_room(
 	*or* we just joined this room, `calculate_state_initial` will be used, otherwise `calculate_state_incremental`
 	will be used.
 	*/
-	let mut state_events = if let Some(previous_sync_end_count) = previous_sync_end_count
-		&& let Some(previous_sync_end_shortstatehash) = previous_sync_end_shortstatehash
+	let mut state_events = if let Some(last_sync_end_count) = last_sync_end_count
+		&& let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash
 		&& !full_state
 	{
 		calculate_state_incremental(
 			services,
-			sender_user,
+			syncing_user,
 			room_id,
-			previous_sync_end_count,
-			previous_sync_end_shortstatehash,
+			PduCount::Normal(last_sync_end_count),
+			last_sync_end_shortstatehash,
 			timeline_start_shortstatehash,
 			current_shortstatehash,
 			&timeline,
@@ -219,7 +217,7 @@ pub(super) async fn load_joined_room(
 	} else {
 		calculate_state_initial(
 			services,
-			sender_user,
+			syncing_user,
 			timeline_start_shortstatehash,
 			lazily_loaded_members.as_ref(),
 		)
@@ -228,7 +226,7 @@ pub(super) async fn load_joined_room(
 	};
 
 	// for incremental syncs, calculate updates to E2EE device lists
-	if previous_sync_end_count.is_some() && is_encrypted_room {
+	if last_sync_end_count.is_some() && is_encrypted_room {
 		calculate_device_list_updates(
 			services,
 			sync_context,
@@ -243,8 +241,9 @@ pub(super) async fn load_joined_room(
 	// only compute room counts and heroes (aka the summary) if the room's members
 	// changed since the last sync
 	let (joined_member_count, invited_member_count, heroes) =
+		// calculate counts if any of the state events we're syncing are of type `m.room.member`
 		if state_events.iter().any(|event| event.kind == RoomMember) {
-			calculate_counts(services, room_id, sender_user).await?
+			calculate_counts(services, room_id, syncing_user).await?
 		} else {
 			(None, None, None)
 		};
@@ -254,7 +253,7 @@ pub(super) async fn load_joined_room(
 			&& pdu
 				.state_key
 				.as_deref()
-				.is_some_and(is_equal_to!(sender_user.as_str()))
+				.is_some_and(is_equal_to!(syncing_user.as_str()))
 	};
 
 	// the membership event of the syncing user, if they joined since the last sync
@@ -272,7 +271,7 @@ pub(super) async fn load_joined_room(
 	let prev_batch = timeline.pdus.front().map(at!(0)).or_else(|| {
 		sender_join_membership_event
 			.is_some()
-			.and(since)
+			.and(last_sync_end_count)
 			.map(Into::into)
 	});
 
@@ -281,7 +280,7 @@ pub(super) async fn load_joined_room(
 		.into_iter()
 		.stream()
 		// filter out ignored events from the timeline
-		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
+		.wide_filter_map(|item| ignored_filter(services, item, syncing_user))
 		.map(at!(1))
 		// if the syncing user just joined, add their membership event to the timeline
 		.chain(sender_join_membership_event.into_iter().stream())
@@ -290,7 +289,7 @@ pub(super) async fn load_joined_room(
 
 	let account_data_events = services
 		.account_data
-		.changes_since(Some(room_id), sender_user, since, Some(next_batch))
+		.changes_since(Some(room_id), syncing_user, last_sync_end_count, Some(current_count))
 		.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 		.collect();
 
@@ -301,7 +300,8 @@ pub(super) async fn load_joined_room(
 	3. the last notification the user saw has changed since the last sync
 	*/
 	let send_notification_counts = last_notification_read.is_none_or(|last_notification_read| {
-		since.is_none_or(|since| last_notification_read > since)
+		last_sync_end_count
+			.is_none_or(|last_sync_end_count| last_notification_read > last_sync_end_count)
 	});
 
 	let notification_count: OptionFuture<_> = send_notification_counts
@@ -309,7 +309,7 @@ pub(super) async fn load_joined_room(
 			services
 				.rooms
 				.user
-				.notification_count(sender_user, room_id)
+				.notification_count(syncing_user, room_id)
 				.map(TryInto::try_into)
 				.unwrap_or(uint!(0))
 		})
@@ -320,7 +320,7 @@ pub(super) async fn load_joined_room(
 			services
 				.rooms
 				.user
-				.highlight_count(sender_user, room_id)
+				.highlight_count(syncing_user, room_id)
 				.map(TryInto::try_into)
 				.unwrap_or(uint!(0))
 		})
@@ -331,14 +331,15 @@ pub(super) async fn load_joined_room(
 		.typing
 		.last_typing_update(room_id)
 		.and_then(|count| async move {
-			if since.is_some_and(|since| count <= since) {
+			if last_sync_end_count.is_some_and(|last_sync_end_count| count <= last_sync_end_count)
+			{
 				return Ok(Vec::<Raw<AnySyncEphemeralRoomEvent>>::new());
 			}
 
 			let typings = services
 				.rooms
 				.typing
-				.typings_event_for_user(room_id, sender_user)
+				.typings_event_for_user(room_id, syncing_user)
 				.await?;
 
 			Ok(vec![serde_json::from_str(&serde_json::to_string(&typings)?)?])
@@ -352,12 +353,12 @@ pub(super) async fn load_joined_room(
 	let (room_events, account_data_events, typing_events) = events;
 	let (notification_count, highlight_count) = unread_notifications;
 
-	let last_privateread_update = if let Some(since) = since {
+	let last_privateread_update = if let Some(last_sync_end_count) = last_sync_end_count {
 		services
 			.rooms
 			.read_receipt
-			.last_privateread_update(sender_user, room_id)
-			.await > since
+			.last_privateread_update(syncing_user, room_id)
+			.await > last_sync_end_count
 	} else {
 		true
 	};
@@ -366,7 +367,7 @@ pub(super) async fn load_joined_room(
 		services
 			.rooms
 			.read_receipt
-			.private_read_get(room_id, sender_user)
+			.private_read_get(room_id, syncing_user)
 			.await
 			.ok()
 	} else {
@@ -383,7 +384,7 @@ pub(super) async fn load_joined_room(
 	services
 		.rooms
 		.user
-		.associate_token_shortstatehash(room_id, next_batch, current_shortstatehash)
+		.associate_token_shortstatehash(room_id, current_count, current_shortstatehash)
 		.await;
 
 	let joined_room = JoinedRoom {
@@ -417,7 +418,12 @@ pub(super) async fn load_joined_room(
 
 async fn calculate_device_list_updates(
 	services: &Services,
-	SyncContext { sender_user, since, next_batch, .. }: SyncContext<'_>,
+	SyncContext {
+		syncing_user,
+		last_sync_end_count: since,
+		current_count,
+		..
+	}: SyncContext<'_>,
 	room_id: &RoomId,
 	device_list_updates: &mut DeviceListUpdates,
 	state_events: &Vec<PduEvent>,
@@ -426,7 +432,7 @@ async fn calculate_device_list_updates(
 	// add users with changed keys to the `changed` list
 	services
 		.users
-		.room_keys_changed(room_id, since, Some(next_batch))
+		.room_keys_changed(room_id, since, Some(current_count))
 		.map(at!(0))
 		.map(ToOwned::to_owned)
 		.ready_for_each(|user_id| {
@@ -456,7 +462,7 @@ async fn calculate_device_list_updates(
 
 				if matches!(content.membership, Leave | Join) {
 					let shares_encrypted_room =
-						share_encrypted_room(services, sender_user, &user_id, Some(room_id))
+						share_encrypted_room(services, syncing_user, &user_id, Some(room_id))
 							.await;
 					match content.membership {
 						| Leave if !shares_encrypted_room => {
@@ -476,7 +482,7 @@ async fn calculate_device_list_updates(
 async fn calculate_counts(
 	services: &Services,
 	room_id: &RoomId,
-	sender_user: &UserId,
+	syncing_user: &UserId,
 ) -> Result<(Option<u64>, Option<u64>, Option<Vec<OwnedUserId>>)> {
 	let joined_member_count = services
 		.rooms
@@ -496,7 +502,7 @@ async fn calculate_counts(
 	let small_room = joined_member_count.saturating_add(invited_member_count) <= 5;
 
 	let heroes: OptionFuture<_> = small_room
-		.then(|| calculate_heroes(services, room_id, sender_user))
+		.then(|| calculate_heroes(services, room_id, syncing_user))
 		.into();
 
 	Ok((Some(joined_member_count), Some(invited_member_count), heroes.await))
@@ -505,15 +511,15 @@ async fn calculate_counts(
 async fn calculate_heroes(
 	services: &Services,
 	room_id: &RoomId,
-	sender_user: &UserId,
+	syncing_user: &UserId,
 ) -> Vec<OwnedUserId> {
 	services
 		.rooms
 		.timeline
-		.all_pdus(sender_user, room_id)
+		.all_pdus(syncing_user, room_id)
 		.ready_filter(|(_, pdu)| pdu.kind == RoomMember)
 		.fold_default(|heroes: Vec<_>, (_, pdu)| {
-			fold_hero(heroes, services, room_id, sender_user, pdu)
+			fold_hero(heroes, services, room_id, syncing_user, pdu)
 		})
 		.await
 }
@@ -522,7 +528,7 @@ async fn fold_hero(
 	mut heroes: Vec<OwnedUserId>,
 	services: &Services,
 	room_id: &RoomId,
-	sender_user: &UserId,
+	syncing_user: &UserId,
 	pdu: PduEvent,
 ) -> Vec<OwnedUserId> {
 	let Some(user_id): Option<&UserId> =
@@ -531,7 +537,7 @@ async fn fold_hero(
 		return heroes;
 	};
 
-	if user_id == sender_user {
+	if user_id == syncing_user {
 		return heroes;
 	}
 
