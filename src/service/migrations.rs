@@ -639,8 +639,7 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	Ok(())
 }
 
-const POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER: &'static str =
-	"populate_userroomid_leftstate_table";
+const POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER: &str = "populate_userroomid_leftstate_table";
 async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 	type KeyVal<'a> = (Key<'a>, Raw<Option<Pdu>>);
 	type Key<'a> = (&'a UserId, &'a RoomId);
@@ -660,7 +659,7 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 			),
 			       ((user_id, room_id), state): KeyVal<'_>|
 			       -> Result<(usize, usize, HashMap<_, _>)> {
-				if matches!(state.deserialize(), Err(_)) {
+				if state.deserialize().is_err() {
 					let latest_shortstatehash =
 						if let Some(shortstatehash) = shortstatehash_cache.get(room_id) {
 							*shortstatehash
