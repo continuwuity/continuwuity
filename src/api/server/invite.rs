@@ -139,7 +139,7 @@ pub(crate) async fn create_invite_route(
 				Some(invite_state),
 				body.via.clone(),
 			)
-			.await;
+			.await?;
 
 		services
 			.rooms
