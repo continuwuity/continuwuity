@@ -1,7 +1,7 @@
 use std::cmp;
 
 use conduwuit::{
-	Err, Result, debug, debug_info, debug_warn, error, info,
+	Err, Pdu, Result, debug, debug_info, debug_warn, error, info, pair_of,
 	result::NotFound,
 	utils::{
 		IterStream, ReadyExt,
@@ -15,9 +15,11 @@ use itertools::Itertools;
 use ruma::{
 	OwnedUserId, RoomId, UserId,
 	events::{
-		GlobalAccountDataEventType, push_rules::PushRulesEvent, room::member::MembershipState,
+		GlobalAccountDataEventType, StateEventType, push_rules::PushRulesEvent,
+		room::member::MembershipState,
 	},
 	push::Ruleset,
+	serde::Raw,
 };
 
 use crate::{Services, media};
@@ -150,6 +152,14 @@ async fn migrate(services: &Services) -> Result<()> {
 	if services.globals.db.database_version().await < 18 {
 		services.globals.db.bump_database_version(18);
 		info!("Migration: Bumped database version to 18");
+	}
+
+	if db["global"]
+		.get(POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER)
+		.await
+		.is_not_found()
+	{
+		populate_userroomid_leftstate_table(services).await?;
 	}
 
 	assert_eq!(
@@ -625,6 +635,72 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	info!(?total, ?fixed, "Fixed corrupted `us.cloke.msc4175.tz` fields.");
 
 	db["global"].insert(FIXED_CORRUPT_MSC4133_FIELDS_MARKER, []);
+	db.db.sort()?;
+	Ok(())
+}
+
+const POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER: &'static str =
+	"populate_userroomid_leftstate_table";
+async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
+	type KeyVal<'a> = (Key<'a>, Raw<Option<Pdu>>);
+	type Key<'a> = (&'a UserId, &'a RoomId);
+
+	let db = &services.db;
+	let cork = db.cork_and_sync();
+	let userroomid_leftstate = db["userroomid_leftstate"].clone();
+
+	let (total, fixed) = userroomid_leftstate
+		.stream()
+		.try_fold(
+			(0_usize, 0_usize),
+			async |(mut total, mut fixed): pair_of!(usize),
+			       ((user_id, room_id), state): KeyVal<'_>|
+			       -> Result<pair_of!(usize)> {
+				if matches!(state.deserialize(), Err(_)) {
+					let Ok(latest_shortstatehash) =
+						services.rooms.state.get_room_shortstatehash(room_id).await
+					else {
+						warn!(?room_id, ?user_id, "room has no shortstatehash");
+						return Ok((total, fixed));
+					};
+
+					let leave_state_event = services
+						.rooms
+						.state_accessor
+						.state_get(
+							latest_shortstatehash,
+							&StateEventType::RoomMember,
+							user_id.as_str(),
+						)
+						.await;
+
+					match leave_state_event {
+						| Ok(leave_state_event) => {
+							userroomid_leftstate.put((user_id, room_id), Json(leave_state_event));
+							fixed = fixed.saturating_add(1);
+						},
+						| Err(_) => {
+							warn!(
+								?room_id,
+								?user_id,
+								"room cached as left has no leave event for user, removing \
+								 cache entry"
+							);
+							userroomid_leftstate.del((user_id, room_id));
+						},
+					}
+				}
+
+				total = total.saturating_add(1);
+				Ok((total, fixed))
+			},
+		)
+		.await?;
+
+	drop(cork);
+	info!(?total, ?fixed, "Fixed entries in `userroomid_leftstate`.");
+
+	db["global"].insert(POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER, []);
 	db.db.sort()?;
 	Ok(())
 }
