@@ -1384,16 +1384,6 @@ pub struct Config {
 	#[serde(default = "default_typing_client_timeout_max_s")]
 	pub typing_client_timeout_max_s: u64,
 
-	/// The maximum number of events to send at once for non-limited legacy
-	/// syncs. Has no effect on sliding sync. This parameter also affects how
-	/// many messages from each room are sent to the client on initial syncs;
-	/// larger values will make initial syncs slower. The default of 10 is
-	/// reasonable for most use cases.
-	///
-	/// default: 10
-	#[serde(default = "default_incremental_sync_max_timeline_size")]
-	pub incremental_sync_max_timeline_size: usize,
-
 	/// Set this to true for continuwuity to compress HTTP response bodies using
 	/// zstd. This option does nothing if continuwuity was not built with
 	/// `zstd_compression` feature. Please be aware that enabling HTTP
@@ -2458,8 +2448,6 @@ fn default_typing_federation_timeout_s() -> u64 { 30 }
 fn default_typing_client_timeout_min_s() -> u64 { 15 }
 
 fn default_typing_client_timeout_max_s() -> u64 { 45 }
-
-fn default_incremental_sync_max_timeline_size() -> usize { 10 }
 
 fn default_rocksdb_recovery_mode() -> u8 { 1 }
 
