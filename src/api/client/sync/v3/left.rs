@@ -137,20 +137,21 @@ pub(super) async fn load_left_room(
 					// if the user went from `join` to `leave`, they should be able to view the
 					// timeline.
 
-					let timeline_start_count = if let Some(last_sync_end_count) =
-						last_sync_end_count
-					{
-						// for incremental syncs, start the timeline after `since`
-						PduCount::Normal(last_sync_end_count)
-					} else {
-						// for initial syncs, start the timeline at the previous membership event
-						services
-							.rooms
-							.timeline
-							.get_pdu_count(&prev_member_event.event_id)
-							.await?
-							.saturating_sub(1)
-					};
+					let timeline_start_count =
+						if let Some(last_sync_end_count) = last_sync_end_count {
+							// for incremental syncs, start the timeline after `since`
+							PduCount::Normal(last_sync_end_count)
+						} else {
+							// for initial syncs, start the timeline after the previous membership
+							// event. we don't want to include the membership event itself
+							// because clients get confused when they see a `join`
+							// membership event in a `leave` room.
+							services
+								.rooms
+								.timeline
+								.get_pdu_count(&prev_member_event.event_id)
+								.await?
+						};
 
 					// end the timeline at the user's leave event
 					let timeline_end_count = services
