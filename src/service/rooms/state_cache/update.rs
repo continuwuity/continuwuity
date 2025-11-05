@@ -118,27 +118,11 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			// return an error for blocked invites. ignored invites aren't handled here
-			// since the recipient's membership should still be changed to `invite`.
-			// they're filtered out in the individual /sync handlers
-			let sender = pdu.sender();
-			if matches!(
-				self.services
-					.users
-					.invite_filter_level(sender, user_id)
-					.await,
-				FilterLevel::Block
-			) {
-				return Err!(Request(InviteBlocked(
-					"{user_id} has blocked invites from {sender}."
-				)));
-			}
-
 			// TODO: make sure that passing None for `last_state` is correct behavior.
 			// the call from `append_pdu` used to use `services.state.summary_stripped`
 			// to fill that parameter.
-			self.mark_as_invited(user_id, room_id, sender, None, None)
-				.await;
+			self.mark_as_invited(user_id, room_id, pdu.sender(), None, None)
+				.await?;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
 			self.mark_as_left(user_id, room_id, Some(pdu.clone())).await;
@@ -352,7 +336,20 @@ pub async fn mark_as_invited(
 	sender_user: &UserId,
 	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
 	invite_via: Option<Vec<OwnedServerName>>,
-) {
+) -> Result<()> {
+	// return an error for blocked invites. ignored invites aren't handled here
+	// since the recipient's membership should still be changed to `invite`.
+	// they're filtered out in the individual /sync handlers
+	if matches!(
+		self.services
+			.users
+			.invite_filter_level(sender_user, user_id)
+			.await,
+		FilterLevel::Block
+	) {
+		return Err!(Request(InviteBlocked("{user_id} has blocked invites from {sender_user}.")));
+	}
+
 	let roomuser_id = (room_id, user_id);
 	let roomuser_id = serialize_key(roomuser_id).expect("failed to serialize roomuser_id");
 
@@ -381,4 +378,6 @@ pub async fn mark_as_invited(
 	if let Some(servers) = invite_via.filter(is_not_empty!()) {
 		self.add_servers_invite_via(room_id, servers).await;
 	}
+
+	Ok(())
 }
