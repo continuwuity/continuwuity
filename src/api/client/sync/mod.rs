@@ -39,6 +39,7 @@ impl TimelinePdus {
 	}
 }
 
+/// Load up to `limit` PDUs in the range (starting_count, ending_count].
 async fn load_timeline(
 	services: &Services,
 	sender_user: &UserId,
