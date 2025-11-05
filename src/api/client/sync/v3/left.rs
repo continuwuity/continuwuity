@@ -21,7 +21,7 @@ use crate::client::{
 	TimelinePdus, ignored_filter,
 	sync::{
 		load_timeline,
-		v3::{SyncContext, prepare_lazily_loaded_members, state::calculate_state_initial},
+		v3::{SyncContext, prepare_lazily_loaded_members, state::build_state_initial},
 	},
 };
 
@@ -192,7 +192,7 @@ pub(super) async fn load_left_room(
 					// TODO: calculate incremental state for incremental syncs.
 					// always calculating initial state _works_ but returns more data and does
 					// more processing than strictly necessary.
-					let state = calculate_state_initial(
+					let state = build_state_initial(
 						services,
 						syncing_user,
 						timeline_start_shortstatehash,
