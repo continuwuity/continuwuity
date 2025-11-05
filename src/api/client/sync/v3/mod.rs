@@ -52,6 +52,11 @@ use crate::{
 	},
 };
 
+/// The default maximum number of events to return in the `timeline` key of
+/// joined and left rooms. If the number of events sent since the last sync
+/// exceeds this number, the `timeline` will be `limited`.
+const DEFAULT_TIMELINE_LIMIT: usize = 30;
+
 /// A collection of updates to users' device lists, used for E2EE.
 struct DeviceListUpdates {
 	changed: HashSet<OwnedUserId>,
