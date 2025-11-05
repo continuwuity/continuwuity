@@ -41,14 +41,18 @@ pub(super) async fn load_left_room(
 	leave_pdu: Option<PduEvent>,
 ) -> Result<Option<LeftRoom>> {
 	let SyncContext {
-		sender_user, since, next_batch, filter, ..
+		syncing_user,
+		last_sync_end_count,
+		current_count,
+		filter,
+		..
 	} = sync_context;
 
 	// the global count as of the moment the user left the room
 	let Some(left_count) = services
 		.rooms
 		.state_cache
-		.get_left_count(room_id, sender_user)
+		.get_left_count(room_id, syncing_user)
 		.await
 		.ok()
 	else {
@@ -62,13 +66,13 @@ pub(super) async fn load_left_room(
 
 	// return early if we haven't gotten to this leave yet.
 	// this can happen if the user leaves while a sync response is being generated
-	if next_batch < left_count {
+	if current_count < left_count {
 		return Ok(None);
 	}
 
 	// return early if this is an incremental sync, and we've already synced this
 	// leave to the user, and `include_leave` isn't set on the filter.
-	if !include_leave && since.is_some_and(|since| since >= left_count) {
+	if !include_leave && last_sync_end_count >= Some(left_count) {
 		return Ok(None);
 	}
 
@@ -96,7 +100,7 @@ pub(super) async fn load_left_room(
 			// we have this room in our DB, and can fetch the state and timeline from when
 			// the user left if they're allowed to see it.
 
-			let leave_state_key = sender_user;
+			let leave_state_key = syncing_user;
 			debug_assert_eq!(
 				Some(leave_state_key.as_str()),
 				leave_pdu.state_key(),
@@ -130,9 +134,11 @@ pub(super) async fn load_left_room(
 					// if the user went from `join` to `leave`, they should be able to view the
 					// timeline.
 
-					let timeline_start_count = if let Some(since) = since {
+					let timeline_start_count = if let Some(last_sync_end_count) =
+						last_sync_end_count
+					{
 						// for incremental syncs, start the timeline after `since`
-						PduCount::Normal(since)
+						PduCount::Normal(last_sync_end_count)
 					} else {
 						// for initial syncs, start the timeline at the previous membership event
 						services
@@ -150,7 +156,7 @@ pub(super) async fn load_left_room(
 
 					let timeline = load_timeline(
 						services,
-						sender_user,
+						syncing_user,
 						room_id,
 						Some(timeline_start_count),
 						Some(timeline_end_count),
@@ -188,7 +194,7 @@ pub(super) async fn load_left_room(
 					// more processing than strictly necessary.
 					let state = calculate_state_initial(
 						services,
-						sender_user,
+						syncing_user,
 						timeline_start_shortstatehash,
 						lazily_loaded_members.as_ref(),
 					)
@@ -236,7 +242,7 @@ pub(super) async fn load_left_room(
 		.into_iter()
 		.stream()
 		// filter out ignored events from the timeline
-		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
+		.wide_filter_map(|item| ignored_filter(services, item, syncing_user))
 		.map(at!(1))
 		.map(Event::into_format)
 		.collect::<Vec<_>>()
@@ -246,7 +252,7 @@ pub(super) async fn load_left_room(
 		account_data: RoomAccountData { events: Vec::new() },
 		timeline: Timeline {
 			limited: timeline.limited,
-			prev_batch: Some(next_batch.to_string()),
+			prev_batch: Some(current_count.to_string()),
 			events: raw_timeline_pdus,
 		},
 		state: State {
@@ -257,7 +263,7 @@ pub(super) async fn load_left_room(
 
 fn create_dummy_leave_event(
 	services: &Services,
-	SyncContext { sender_user, .. }: SyncContext<'_>,
+	SyncContext { syncing_user, .. }: SyncContext<'_>,
 	room_id: &RoomId,
 ) -> PduEvent {
 	// TODO: because this event ID is random, it could cause caching issues with
@@ -265,14 +271,14 @@ fn create_dummy_leave_event(
 	// events, or they could be stored as outliers?
 	PduEvent {
 		event_id: EventId::new(services.globals.server_name()),
-		sender: sender_user.to_owned(),
+		sender: syncing_user.to_owned(),
 		origin: None,
 		origin_server_ts: utils::millis_since_unix_epoch()
 			.try_into()
 			.expect("Timestamp is valid js_int value"),
 		kind: TimelineEventType::RoomMember,
 		content: RawValue::from_string(r#"{"membership": "leave"}"#.to_owned()).unwrap(),
-		state_key: Some(sender_user.as_str().into()),
+		state_key: Some(syncing_user.as_str().into()),
 		unsigned: None,
 		// The following keys are dropped on conversion
 		room_id: Some(room_id.to_owned()),
