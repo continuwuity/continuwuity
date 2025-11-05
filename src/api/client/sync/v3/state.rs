@@ -100,11 +100,17 @@ pub(super) async fn build_state_incremental<'a>(
 	timeline: &TimelinePdus,
 	lazily_loaded_members: Option<&'a MemberSet>,
 ) -> Result<Vec<PduEvent>> {
-	// NB: a limited sync is one where `timeline.limited == true`. Synapse calls
-	// this a "gappy" sync internally.
+	/*
+	NB: a limited sync is one where `timeline.limited == true`. Synapse calls this a "gappy" sync internally.
+
+	The algorithm implemented in this function is, currently, quite different from the algorithm vaguely described
+	by the Matrix specification. This is because the specification's description of the `state` property does not accurately
+	reflect how Synapse behaves, and therefore how client SDKs behave.
+	*/
 
 	/*
-	the state events returned from an incremental sync which isn't limited are usually empty.
+	the `state` property of an incremental sync which isn't limited are _usually_ empty.
+	(note: the specification says that the `state` property is _always_ empty for limited syncs, which is incorrect.)
 	however, if an event in the timeline (`timeline.pdus`) merges a split in the room's DAG (i.e. has multiple `prev_events`),
 	the state at the _end_ of the timeline may include state events which were merged in and don't exist in the state
 	at the _start_ of the timeline. because this is uncommon, we check here to see if any events in the timeline
@@ -153,43 +159,43 @@ pub(super) async fn build_state_incremental<'a>(
 		// if there are no splits in the DAG and the timeline isn't limited, then
 		// `state` will always be empty unless lazy loading is enabled.
 
-		if let Some(lazily_loaded_members) = lazily_loaded_members
-			&& !timeline.pdus.is_empty()
-		{
-			// lazy loading is enabled, so we return the membership events which were
-			// requested by the caller.
-			let lazy_membership_events: Vec<_> = lazily_loaded_members
-				.iter()
-				.stream()
-				.broad_filter_map(|user_id| async move {
-					if user_id == sender_user {
-						return None;
-					}
+		if let Some(lazily_loaded_members) = lazily_loaded_members {
+			if !timeline.pdus.is_empty() {
+				// lazy loading is enabled, so we return the membership events which were
+				// requested by the caller.
+				let lazy_membership_events: Vec<_> = lazily_loaded_members
+					.iter()
+					.stream()
+					.broad_filter_map(|user_id| async move {
+						if user_id == sender_user {
+							return None;
+						}
 
-					services
-						.rooms
-						.state_accessor
-						.state_get(
-							timeline_start_shortstatehash,
-							&StateEventType::RoomMember,
-							user_id.as_str(),
-						)
-						.ok()
-						.await
-				})
-				.collect()
-				.await;
+						services
+							.rooms
+							.state_accessor
+							.state_get(
+								timeline_start_shortstatehash,
+								&StateEventType::RoomMember,
+								user_id.as_str(),
+							)
+							.ok()
+							.await
+					})
+					.collect()
+					.await;
 
-			if !lazy_membership_events.is_empty() {
-				trace!(
-					"syncing lazy membership events for members: {:?}",
-					lazy_membership_events
-						.iter()
-						.map(|pdu| pdu.state_key().unwrap())
-						.collect::<Vec<_>>()
-				);
+				if !lazy_membership_events.is_empty() {
+					trace!(
+						"syncing lazy membership events for members: {:?}",
+						lazy_membership_events
+							.iter()
+							.map(|pdu| pdu.state_key().unwrap())
+							.collect::<Vec<_>>()
+					);
+				}
+				return Ok(lazy_membership_events);
 			}
-			return Ok(lazy_membership_events);
 		}
 
 		// lazy loading is disabled, `state` is empty.
