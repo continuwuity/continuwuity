@@ -38,7 +38,7 @@ use super::{load_timeline, share_encrypted_room};
 use crate::client::{
 	ignored_filter,
 	sync::v3::{
-		DeviceListUpdates, SyncContext, prepare_lazily_loaded_members,
+		DEFAULT_TIMELINE_LIMIT, DeviceListUpdates, SyncContext, prepare_lazily_loaded_members,
 		state::{build_state_incremental, build_state_initial},
 	},
 };
@@ -63,6 +63,7 @@ pub(super) async fn load_joined_room(
 		last_sync_end_count,
 		current_count,
 		full_state,
+		filter,
 		..
 	} = sync_context;
 	let mut device_list_updates = DeviceListUpdates::new();
@@ -92,6 +93,16 @@ pub(super) async fn load_joined_room(
 		try_join(current_shortstatehash, last_sync_end_shortstatehash).await?;
 
 	// load recent timeline events.
+	// if the filter specifies a limit, that will be used, otherwise
+	// `DEFAULT_TIMELINE_LIMIT` will be used. `DEFAULT_TIMELINE_LIMIT` will also be
+	// used if the limit is somehow greater than usize::MAX.
+
+	let timeline_limit = filter
+		.room
+		.timeline
+		.limit
+		.and_then(|limit| limit.try_into().ok())
+		.unwrap_or(DEFAULT_TIMELINE_LIMIT);
 
 	let timeline = load_timeline(
 		services,
@@ -99,7 +110,7 @@ pub(super) async fn load_joined_room(
 		room_id,
 		last_sync_end_count.map(PduCount::Normal),
 		Some(PduCount::Normal(current_count)),
-		services.config.incremental_sync_max_timeline_size,
+		timeline_limit,
 	);
 
 	let receipt_events = services
