@@ -1196,14 +1196,6 @@
 #
 #typing_client_timeout_max_s = 45
 
-# The maximum number of events to send at once for non-limited legacy
-# syncs. Has no effect on sliding sync. This parameter also affects how
-# many messages from each room are sent to the client on initial syncs;
-# larger values will make initial syncs slower. The default of 10 is
-# reasonable for most use cases.
-#
-#incremental_sync_max_timeline_size = 10
-
 # Set this to true for continuwuity to compress HTTP response bodies using
 # zstd. This option does nothing if continuwuity was not built with
 # `zstd_compression` feature. Please be aware that enabling HTTP
