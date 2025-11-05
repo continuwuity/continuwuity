@@ -38,7 +38,7 @@ use crate::client::{
 	ignored_filter,
 	sync::v3::{
 		DeviceListUpdates, SyncContext, prepare_lazily_loaded_members,
-		state::{calculate_state_incremental, calculate_state_initial},
+		state::{build_state_incremental, build_state_initial},
 	},
 };
 
@@ -194,14 +194,14 @@ pub(super) async fn load_joined_room(
 
 	/*
 	compute the state delta between the previous sync and this sync. if this is an initial sync
-	*or* we just joined this room, `calculate_state_initial` will be used, otherwise `calculate_state_incremental`
+	*or* we just joined this room, `build_state_initial` will be used, otherwise `build_state_incremental`
 	will be used.
 	*/
 	let mut state_events = if let Some(last_sync_end_count) = last_sync_end_count
 		&& let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash
 		&& !full_state
 	{
-		calculate_state_incremental(
+		build_state_incremental(
 			services,
 			syncing_user,
 			room_id,
@@ -215,7 +215,7 @@ pub(super) async fn load_joined_room(
 		.boxed()
 		.await?
 	} else {
-		calculate_state_initial(
+		build_state_initial(
 			services,
 			syncing_user,
 			timeline_start_shortstatehash,
@@ -227,7 +227,7 @@ pub(super) async fn load_joined_room(
 
 	// for incremental syncs, calculate updates to E2EE device lists
 	if last_sync_end_count.is_some() && is_encrypted_room {
-		calculate_device_list_updates(
+		extend_device_list_updates(
 			services,
 			sync_context,
 			room_id,
@@ -243,7 +243,7 @@ pub(super) async fn load_joined_room(
 	let (joined_member_count, invited_member_count, heroes) =
 		// calculate counts if any of the state events we're syncing are of type `m.room.member`
 		if state_events.iter().any(|event| event.kind == RoomMember) {
-			calculate_counts(services, room_id, syncing_user).await?
+			build_room_summary(services, room_id, syncing_user).await?
 		} else {
 			(None, None, None)
 		};
@@ -416,7 +416,7 @@ pub(super) async fn load_joined_room(
 	Ok((joined_room, device_list_updates))
 }
 
-async fn calculate_device_list_updates(
+async fn extend_device_list_updates(
 	services: &Services,
 	SyncContext {
 		syncing_user,
@@ -479,7 +479,7 @@ async fn calculate_device_list_updates(
 	}
 }
 
-async fn calculate_counts(
+async fn build_room_summary(
 	services: &Services,
 	room_id: &RoomId,
 	syncing_user: &UserId,
@@ -502,13 +502,13 @@ async fn calculate_counts(
 	let small_room = joined_member_count.saturating_add(invited_member_count) <= 5;
 
 	let heroes: OptionFuture<_> = small_room
-		.then(|| calculate_heroes(services, room_id, syncing_user))
+		.then(|| build_heroes(services, room_id, syncing_user))
 		.into();
 
 	Ok((Some(joined_member_count), Some(invited_member_count), heroes.await))
 }
 
-async fn calculate_heroes(
+async fn build_heroes(
 	services: &Services,
 	room_id: &RoomId,
 	syncing_user: &UserId,
