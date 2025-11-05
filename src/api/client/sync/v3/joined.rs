@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use conduwuit::{
-	Result, at, err, extract_variant, is_equal_to,
+	Result, at, err, extract_variant,
 	matrix::{
 		Event,
 		pdu::{PduCount, PduEvent},
@@ -11,6 +11,7 @@ use conduwuit::{
 		math::ruma_from_u64,
 		stream::{TryIgnore, WidebandExt},
 	},
+	warn,
 };
 use conduwuit_service::Services;
 use futures::{
@@ -187,6 +188,13 @@ pub(super) async fn load_joined_room(
 		|content: RoomMemberEventContent| content.membership != MembershipState::Join,
 	);
 
+	// the timeline should always include at least one PDU if the syncing user
+	// joined since the last sync, that being the syncing user's join event. if
+	// it's empty something is wrong.
+	if joined_since_last_sync && timeline.pdus.is_empty() {
+		warn!("timeline for newly joined room is empty");
+	}
+
 	// the user IDs of members whose membership needs to be sent to the client, if
 	// lazy-loading is enabled.
 	let lazily_loaded_members =
@@ -197,7 +205,7 @@ pub(super) async fn load_joined_room(
 	*or* we just joined this room, `build_state_initial` will be used, otherwise `build_state_incremental`
 	will be used.
 	*/
-	let mut state_events = if let Some(last_sync_end_count) = last_sync_end_count
+	let state_events = if let Some(last_sync_end_count) = last_sync_end_count
 		&& let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash
 		&& !full_state
 	{
@@ -257,42 +265,16 @@ pub(super) async fn load_joined_room(
 		RoomSummary::default()
 	};
 
-	let is_sender_membership = |pdu: &PduEvent| {
-		pdu.kind == StateEventType::RoomMember.into()
-			&& pdu
-				.state_key
-				.as_deref()
-				.is_some_and(is_equal_to!(syncing_user.as_str()))
-	};
-
-	// the membership event of the syncing user, if they joined since the last sync
-	let sender_join_membership_event: Option<_> = (joined_since_last_sync
-		&& timeline.pdus.is_empty())
-	.then(|| {
-		state_events
-			.iter()
-			.position(is_sender_membership)
-			.map(|pos| state_events.swap_remove(pos))
-	})
-	.flatten();
-
 	// the prev_batch token for the response
-	let prev_batch = timeline.pdus.front().map(at!(0)).or_else(|| {
-		sender_join_membership_event
-			.is_some()
-			.and(last_sync_end_count)
-			.map(Into::into)
-	});
+	let prev_batch = timeline.pdus.front().map(at!(0));
 
-	let timeline_pdus = timeline
+	let filtered_timeline = timeline
 		.pdus
 		.into_iter()
 		.stream()
 		// filter out ignored events from the timeline
 		.wide_filter_map(|item| ignored_filter(services, item, syncing_user))
 		.map(at!(1))
-		// if the syncing user just joined, add their membership event to the timeline
-		.chain(sender_join_membership_event.into_iter().stream())
 		.map(Event::into_format)
 		.collect::<Vec<_>>();
 
@@ -356,7 +338,7 @@ pub(super) async fn load_joined_room(
 		.unwrap_or(Vec::new());
 
 	let unread_notifications = join(notification_count, highlight_count);
-	let events = join3(timeline_pdus, account_data_events, typing_events);
+	let events = join3(filtered_timeline, account_data_events, typing_events);
 	let (unread_notifications, events) = join(unread_notifications, events).boxed().await;
 
 	let (timeline_events, account_data_events, typing_events) = events;
