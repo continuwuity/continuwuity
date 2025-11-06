@@ -1,9 +1,9 @@
 use askama::Template;
+use conduwuit_build_metadata::version_tag;
 use percent_encoding::{NON_ALPHANUMERIC, utf8_percent_encode};
 
 // Imports needed by askama templates.
 use crate::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL};
-use conduwuit_build_metadata::version_tag;
 
 mod authorize;
 mod consent;

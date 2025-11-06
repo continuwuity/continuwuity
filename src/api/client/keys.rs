@@ -76,7 +76,8 @@ pub(crate) async fn upload_keys_route(
 		if deser_device_keys.device_id != sender_device {
 			return Err!(Request(Unknown(
 				"Device ID in keys uploaded ({}) does not match your own device ID ({})",
-				deser_device_keys.device_id, sender_device,
+				deser_device_keys.device_id,
+				sender_device,
 			)));
 		}
 

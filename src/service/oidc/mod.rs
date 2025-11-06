@@ -5,11 +5,15 @@
 //!
 //! [oxide-auth]: https://docs.rs/oxide-auth
 
-use std::{borrow::Cow, sync::{Arc, Mutex}};
+use std::{
+	borrow::Cow,
+	sync::{Arc, Mutex},
+};
 
 use async_trait::async_trait;
-use conduwuit::{err, Result};
+use conduwuit::{Result, err};
 use conduwuit_core::utils;
+use database::{Deserialized, Json, Map};
 use oxide_auth::{
 	endpoint::{PreGrant, Scope},
 	frontends::simple::endpoint::{Generic, Vacant},
@@ -24,25 +28,17 @@ use oxide_auth::{
 	},
 };
 use ruma::{
-	api::client::device::Device,
-    MilliSecondsSinceUnixEpoch,
-    OwnedDeviceId,
-    OwnedUserId,
-    UserId,
+	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device,
 };
-use database::{Deserialized, Json, Map};
 use serde::{Deserialize, Serialize};
 use url::Url;
-use once_cell::sync::Lazy;
 
-use crate::{globals, Dep};
-
+use crate::{Dep, globals};
 
 pub const SCOPE_PREFIX_DEVICE: &str = "urn:matrix:org.matrix.msc2967.client:device:";
-pub const SCOPE_PREFIX_API   : &str = "urn:matrix:org.matrix.msc2967.client:api:";
+pub const SCOPE_PREFIX_API: &str = "urn:matrix:org.matrix.msc2967.client:api:";
 
-static PASSWORD_POLICY: Lazy<Argon2> = Lazy::new(Argon2::default);
-
+static PASSWORD_POLICY: std::sync::LazyLock<Argon2> = std::sync::LazyLock::new(Argon2::default);
 
 /// A client app that connects to continuwuity via OIDC, as recorded in the
 /// database.
@@ -116,14 +112,12 @@ impl Service {
 		let client = client.clone().encode(&*PASSWORD_POLICY);
 		let client_id = client.client_id.clone();
 		let oidc_client = OidcClient {
-			name: display_name.clone(),
+			name: display_name,
 			// Matrix clients have no device_id at registration time.
 			device_id: None,
 			client,
 		};
-		self.db
-			.client_registrar
-			.put(client_id, Json(oidc_client));
+		self.db.client_registrar.put(client_id, Json(oidc_client));
 	}
 
 	/// Register a device in the main continuwuity database. This should only
@@ -139,17 +133,15 @@ impl Service {
 		let device_key = (user_id, device_id);
 		let device = Device {
 			device_id: device_id.into(),
-			display_name: display_name.map(|n| n.to_string()),
+			display_name: display_name.map(ToOwned::to_owned),
 			last_seen_ip: client_ip,
 			last_seen_ts: Some(MilliSecondsSinceUnixEpoch::now()),
 		};
-		increment(&self.db.userid_devicelistversion, user_id.as_bytes())
-			.await;
-		self.db
-			.userdeviceid_metadata
-			.put(device_key, Json(device));
+		increment(&self.db.userid_devicelistversion, user_id.as_bytes()).await;
+		self.db.userdeviceid_metadata.put(device_key, Json(device));
 
-		let mut client : OidcClient = self.db
+		let mut client: OidcClient = self
+			.db
 			.client_registrar
 			.get(client_id)
 			.await?
@@ -157,11 +149,11 @@ impl Service {
 		client.device_id = Some(device_id.to_string());
 		self.db
 			.client_registrar
-			.put(client_id.to_string(), Json(client));
+			.put(client_id.to_owned(), Json(client));
 
 		self.db
 			.deviceid_clientidmap
-			.put(device_id, client_id.to_string());
+			.put(device_id, client_id.to_owned());
 
 		Ok(())
 	}
@@ -169,14 +161,12 @@ impl Service {
 	fn grant_from_token(&self, token: &str) -> Option<Grant> {
 		let issuer = self.issuer.lock().expect("lockable issuer");
 
-		issuer.recover_token(token)
+		issuer
+			.recover_token(token)
 			.expect("infallible recover_token implementation")
 	}
 
-	pub async fn client_from_client_id(
-		&self,
-		client_id: &str,
-	) -> Result<Option<OidcClient>> {
+	pub async fn client_from_client_id(&self, client_id: &str) -> Result<Option<OidcClient>> {
 		self.db
 			.client_registrar
 			.get(client_id)
@@ -188,7 +178,8 @@ impl Service {
 		&self,
 		device_id: OwnedDeviceId,
 	) -> Result<Option<OidcClient>> {
-		let client_id: String = self.db
+		let client_id: String = self
+			.db
 			.deviceid_clientidmap
 			.get(&device_id)
 			.await?
@@ -201,19 +192,14 @@ impl Service {
 			.deserialized()
 	}
 
-	pub fn device_id_from_scope(&self, scope: Scope) -> Result<OwnedDeviceId> {
-		let Some(device_id) = scope
-			.iter()
-			.find(|s| s.starts_with(SCOPE_PREFIX_DEVICE)) else {
-				tracing::warn!("device_id not found in scope {scope:?}");
-				return Err(err!(Request(InvalidParam("something went wrong with the scope"))));
-			};
+	pub fn device_id_from_scope(&self, scope: &Scope) -> Result<OwnedDeviceId> {
+		let Some(device_id) = scope.iter().find(|s| s.starts_with(SCOPE_PREFIX_DEVICE)) else {
+			tracing::warn!("device_id not found in scope {scope:?}");
+			return Err(err!(Request(InvalidParam("something went wrong with the scope"))));
+		};
 		let device_id = device_id.replace(SCOPE_PREFIX_DEVICE, "");
 
-		OwnedDeviceId::try_from(device_id.clone())
-			.map_err(|err|
-				err!(Request(InvalidParam("invalid device_id {device_id:?}: {err}")))
-			)
+		Ok(device_id.into())
 	}
 
 	pub async fn user_and_device_from_token(
@@ -224,17 +210,18 @@ impl Service {
 			return Err(err!(Request(MissingToken("unknown token: {token:?}"))));
 		};
 		let server_name = self.services.globals.server_name();
-		let owner_id = UserId::parse_with_server_name(owner_id.clone(), server_name)
-			.map_err(|err|
+		let owner_id =
+			UserId::parse_with_server_name(owner_id.clone(), server_name).map_err(|err| {
 				err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
-			)?;
-		let client = self.client_from_client_id(&client_id)
+			})?;
+		let client = self
+			.client_from_client_id(&client_id)
 			.await?
 			.expect("validated client_id");
 		let Some(device_id) = client.device_id else {
 			return Err(err!(Request(Unknown("this client has no device_id yet"))));
 		};
-		let device_id = OwnedDeviceId::from(device_id.to_string());
+		let device_id = OwnedDeviceId::from(device_id);
 
 		Ok((owner_id, device_id))
 	}
@@ -264,95 +251,111 @@ async fn increment(db: &Arc<Map>, key: &[u8]) {
 
 /// Substitute "127.0.0.1" and "[::1]" for "localhost" to let oxide-auth compare
 /// them ignoring their port.
-pub fn normalize_redirect_hostname(url: Url) -> Url {
-	let mut new_url = url.clone();
-	let new_host = url.host_str().map(|h|
-		h.replace("127.0.0.1", "localhost").replace("[::1]", "localhost")
-	);
-	new_url.set_host(new_host.as_deref()).expect("replaceable redirect hostname");
+pub fn normalize_redirect_hostname(url: &mut Url) {
+	let new_host = url.host_str().map(|h| {
+		h.replace("127.0.0.1", "localhost")
+			.replace("[::1]", "localhost")
+	});
 
-	new_url
+	url.set_host(new_host.as_deref())
+		.expect("replaceable redirect hostname");
 }
 
 /// If `url` is a localhost (either 'localhost', '127.0.0.1' or '[::1]'), wrap
 /// it in an `IgnorePortOnLocalhost`, so that oxide-auth ignores the port when
 /// comparing it with the registered ones.
-pub fn normalize_redirect(url: Url) -> RegisteredUrl {
-	let new_url = normalize_redirect_hostname(url);
+#[must_use]
+pub fn normalize_redirect(mut url: Url) -> RegisteredUrl {
+	normalize_redirect_hostname(&mut url);
 
-	match new_url.host_str() {
-		Some("localhost") => RegisteredUrl::IgnorePortOnLocalhost(new_url.into()),
-		_ => RegisteredUrl::Semantic(new_url)
+	match url.host_str() {
+		| Some("localhost") => RegisteredUrl::IgnorePortOnLocalhost(url.into()),
+		| _ => RegisteredUrl::Semantic(url),
 	}
 }
 
 /// Let this service act as an oxide-auth `Registrar`.
 impl Registrar for Service {
-    fn bound_redirect<'a>(&self, bound: ClientUrl<'a>) -> Result<BoundClient<'a>, RegistrarError> {
-		let client_handle = self.db
+	fn bound_redirect<'a>(
+		&self,
+		bound: ClientUrl<'a>,
+	) -> Result<BoundClient<'a>, RegistrarError> {
+		let client_handle = self
+			.db
 			.client_registrar
 			.get_blocking(bound.client_id.as_ref())
 			.map_err(|_| RegistrarError::Unspecified)?;
-		let oidc_client: OidcClient = client_handle.deserialized()
+		let oidc_client: OidcClient = client_handle
+			.deserialized()
 			.map_err(|_| RegistrarError::Unspecified)?;
 		let client = oidc_client.client;
-        // Perform exact matching as motivated in the rfc, but substitute
+		// Perform exact matching as motivated in the rfc, but substitute
 		// "127.0.0.1" and "[::1]" for "localhost" to let oxide-auth ignore
 		// their port.
 		let redirect_uri = bound.redirect_uri;
-		let normalized_uri = redirect_uri
-			.clone()
-			.map(|u| normalize_redirect(u.to_url()));
-        let redirect_uri = match normalized_uri {
-            None => client.redirect_uri.clone(),
-            Some(url) => {
-                let original = std::iter::once(&client.redirect_uri);
-                let alternatives = client.additional_redirect_uris.iter();
-                if original
-                    .chain(alternatives)
-                    .any(|registered| *registered == url)
-                {
+		let normalized_uri = redirect_uri.clone().map(|u| normalize_redirect(u.to_url()));
+		let redirect_uri = match normalized_uri {
+			| None => client.redirect_uri,
+			| Some(url) => {
+				let original = std::iter::once(&client.redirect_uri);
+				let alternatives = client.additional_redirect_uris.iter();
+				if original
+					.chain(alternatives)
+					.any(|registered| *registered == url)
+				{
 					// If normalized_uri is Some(url), so is redirect_uri, so unwrap().
-                    redirect_uri.unwrap().into_owned().into()
-                } else {
-					tracing::debug!("the request's redirect url didn't match any registered. bound: {:?}, in client {:#?}", url, client);
-                    return Err(RegistrarError::Unspecified);
-                }
-            }
-        };
+					redirect_uri.unwrap().into_owned().into()
+				} else {
+					tracing::debug!(
+						"the request's redirect url didn't match any registered. bound: {:?}, \
+						 in client {:#?}",
+						url,
+						client
+					);
+					return Err(RegistrarError::Unspecified);
+				}
+			},
+		};
 
-        Ok(BoundClient {
-            client_id: bound.client_id,
-            redirect_uri: Cow::Owned(redirect_uri),
-        })
+		Ok(BoundClient {
+			client_id: bound.client_id,
+			redirect_uri: Cow::Owned(redirect_uri),
+		})
 	}
 
-    fn negotiate(&self, bound: BoundClient<'_>, _scope: Option<Scope>) -> Result<PreGrant, RegistrarError> {
-		let client_handle = self.db
+	fn negotiate(
+		&self,
+		bound: BoundClient<'_>,
+		_scope: Option<Scope>,
+	) -> Result<PreGrant, RegistrarError> {
+		let client_handle = self
+			.db
 			.client_registrar
 			.get_blocking(bound.client_id.as_ref())
 			.map_err(|_| RegistrarError::Unspecified)?;
-		let oidc_client: OidcClient = client_handle.deserialized()
+		let oidc_client: OidcClient = client_handle
+			.deserialized()
 			.map_err(|_| RegistrarError::Unspecified)?;
 
-        Ok(PreGrant {
-            client_id: bound.client_id.into_owned(),
-            redirect_uri: bound.redirect_uri.into_owned(),
+		Ok(PreGrant {
+			client_id: bound.client_id.into_owned(),
+			redirect_uri: bound.redirect_uri.into_owned(),
 			// Always use the client's scope.
-            scope: oidc_client.client.default_scope.clone(),
-        })
-    }
+			scope: oidc_client.client.default_scope,
+		})
+	}
 
-    fn check(&self, client_id: &str, passphrase: Option<&[u8]>) -> Result<(), RegistrarError> {
-		let client_handle = self.db
+	fn check(&self, client_id: &str, passphrase: Option<&[u8]>) -> Result<(), RegistrarError> {
+		let client_handle = self
+			.db
 			.client_registrar
 			.get_blocking(client_id)
 			.map_err(|_| RegistrarError::Unspecified)?;
-		let oidc_client: OidcClient = client_handle.deserialized()
+		let oidc_client: OidcClient = client_handle
+			.deserialized()
 			.map_err(|_| RegistrarError::Unspecified)?;
 		let client = oidc_client.client;
 
-		RegisteredClient::new(&client, &*PASSWORD_POLICY)
-			.check_authentication(passphrase)
-    }
+		RegisteredClient::new(&client, &*PASSWORD_POLICY).check_authentication(passphrase)
+	}
 }

@@ -1,9 +1,9 @@
 use axum::{Json, extract::State};
 use conduwuit::{Result, err};
+use conduwuit_service::oidc::normalize_redirect;
 use oxide_auth::primitives::prelude::Client;
 use reqwest::Url;
-use ruma::{DeviceId, ClientSecret, identifiers_validation};
-use conduwuit_service::oidc::normalize_redirect;
+use ruma::{ClientSecret, DeviceId, identifiers_validation};
 
 /// The required parameters to register a new client for OAuth2 application.
 /// See the required metadata in OAuth2 authorization grant flow in [MSC2966].
@@ -22,8 +22,9 @@ pub(crate) struct ClientQuery {
 	response_types: Vec<String>,
 	/// Must include the literals "authorization_code" and "refresh_token".
 	grant_types: Vec<String>,
-	/// How the client intends to authenticate its requests. Can be "none", meaning
-	/// that the client will negotiate its token with the "authorization code" flow.
+	/// How the client intends to authenticate its requests. Can be "none",
+	/// meaning that the client will negotiate its token with the
+	/// "authorization code" flow.
 	token_endpoint_auth_method: String,
 	/// Link to the logo.
 	logo_uri: Option<Url>,
@@ -42,8 +43,8 @@ pub(crate) struct ClientResponse {
 	client_id: String,
 	/// If the client is private, the secret it authenticates itself with.
 	client_secret: Option<String>,
-	/// If there's a `client_secret`, its expiration date in seconds since 1970-01-01T00:00.
-	/// Some(0) means no expiration date.
+	/// If there's a `client_secret`, its expiration date in seconds since
+	/// 1970-01-01T00:00. Some(0) means no expiration date.
 	client_secret_expires_at: Option<u32>,
 	client_name: String,
 	/// Points to the "about" page of the client.
@@ -51,10 +52,10 @@ pub(crate) struct ClientResponse {
 	logo_uri: Option<Url>,
 	tos_uri: Option<Url>,
 	policy_uri: Option<Url>,
-	/// Registered redirect uris, which will be matched against when authenticating.
-	/// If a localhost address, must contain instances of oxide-auth's
-	/// `RegisteredUrl::IgnorePortOnLocalhost` to let authorization flow through any port over
-	/// localhost.
+	/// Registered redirect uris, which will be matched against when
+	/// authenticating. If a localhost address, must contain instances of
+	/// oxide-auth's `RegisteredUrl::IgnorePortOnLocalhost` to let
+	/// authorization flow through any port over localhost.
 	redirect_uris: Vec<Url>,
 	token_endpoint_auth_method: String,
 	response_types: Vec<String>,
@@ -74,20 +75,18 @@ pub(crate) async fn register_client(
 	Json(client): Json<ClientQuery>,
 ) -> Result<Json<ClientResponse>> {
 	tracing::trace!("processing OIDC device register request for client: {client:#?}");
-	if client.redirect_uris.len() == 0 {
- 		return Err(err!(Request(Unknown(
- 			"the client's registration request should contain at least a redirect_uri"
- 		))));
+	if client.redirect_uris.is_empty() {
+		return Err(err!(Request(Unknown(
+			"the client's registration request should contain at least a redirect_uri"
+		))));
 	}
 	let mut redirect_uris = client.redirect_uris.clone();
 	let redirect_uri = redirect_uris.pop().expect("at least one redirect_uri");
 	let redirect_uri = normalize_redirect(redirect_uri);
-	let remaining_uris = redirect_uris
-		.into_iter()
-		.map(|url| normalize_redirect(url))
-		.collect();
+	let remaining_uris = redirect_uris.into_iter().map(normalize_redirect).collect();
 	let device_id = DeviceId::new();
-	// Only provide a default scope, we'll test the client's proposed scope for consent anyway.
+	// Only provide a default scope, we'll test the client's proposed scope for
+	// consent anyway.
 	let scope = "default".parse().unwrap();
 	// TODO check if the users service needs an update.
 	//services.users.update_device_metadata();
@@ -96,12 +95,12 @@ pub(crate) async fn register_client(
 	// it's a public client. This is usually the case in Matrix.
 	let is_private = client.token_endpoint_auth_method != "none";
 	let client_secret = match is_private {
-		true => {
+		| true => {
 			let secret = ClientSecret::new();
 			identifiers_validation::client_secret::validate(secret.as_str())?;
 			Some(secret.to_string())
 		},
-		false => None
+		| false => None,
 	};
 	let registration = match is_private {
 		| true => &Client::confidential(
@@ -109,15 +108,15 @@ pub(crate) async fn register_client(
 			redirect_uri,
 			scope,
 			client_secret.as_ref().unwrap().as_bytes(),
-		).with_additional_redirect_uris(remaining_uris),
-		| _ => &Client::public(
-			device_id.as_ref(),
-			redirect_uri,
-			scope,
-		).with_additional_redirect_uris(remaining_uris)
+		)
+		.with_additional_redirect_uris(remaining_uris),
+		| _ => &Client::public(device_id.as_ref(), redirect_uri, scope)
+			.with_additional_redirect_uris(remaining_uris),
 	};
 	tracing::trace!("registering OIDC device : {registration:#?}");
-	services.oidc.register_client(Some(client.client_name.clone()), &registration);
+	services
+		.oidc
+		.register_client(Some(client.client_name.clone()), registration);
 
 	let client_response = ClientResponse {
 		client_id: device_id.to_string(),

@@ -28,7 +28,8 @@ impl IntoResponse for OidcResponse {
 			| Some(nonce) => &format!("default-src 'nonce-{nonce}';"),
 			| None => "default-src 'none';",
 		};
-		let csp_form_action = "form-action 'self' http://localhost http://127.0.0.1 http://[::1];";
+		let csp_form_action =
+			"form-action 'self' http://localhost http://127.0.0.1 http://[::1];";
 		let content_csp = format!("{csp_src} {csp_form_action}");
 		let content_type = match self.body {
 			| Some(OAuthRequestBody::Json(_)) => "application/json",

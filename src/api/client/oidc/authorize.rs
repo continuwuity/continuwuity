@@ -1,7 +1,7 @@
 use axum::extract::{Query, State};
 use conduwuit::{Result, err, utils::ReadyExt};
 use conduwuit_web::oidc::{
-	oidc_consent_form, oidc_login_form, AuthorizationQuery, OidcRequest, OidcResponse,
+	AuthorizationQuery, OidcRequest, OidcResponse, oidc_consent_form, oidc_login_form,
 };
 use oxide_auth::{
 	endpoint::{OwnerConsent, Solicitation},
@@ -41,15 +41,15 @@ pub(crate) async fn authorize(
 
 	// Redirect to the login page if no token or token not known.
 	let hostname = services.config.server_name.host();
-    let Some(token) = oauth.authorization_header() else {
-        return Ok(oidc_login_form(hostname, &query));
-    };
+	let Some(token) = oauth.authorization_header() else {
+		return Ok(oidc_login_form(hostname, &query));
+	};
 
 	tracing::debug!("submitting OIDC authorisation for token : {token:#?}");
 	// Get the user id from the token and add it to the query.
 	let (owner_id, _) = services.oidc.user_and_device_from_token(token).await?;
-    let mut query_with_user_id = query.clone();
-	query_with_user_id.username = Some(owner_id.localpart().to_string());
+	let mut query_with_user_id = query.clone();
+	query_with_user_id.username = Some(owner_id.localpart().to_owned());
 
 	services
 		.oidc
@@ -88,47 +88,49 @@ pub(crate) async fn authorize_consent(
 	};
 	let server_name = services.globals.server_name();
 	let owner_id = UserId::parse_with_server_name(owner_id.clone(), server_name)
-		.map_err(|err|
-			err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}")))
-		)?;
-	let Some(matrix_client) = services.oidc
+		.map_err(|err| err!(Request(InvalidUsername("invalid username {owner_id:?}: {err}"))))?;
+	let Some(matrix_client) = services
+		.oidc
 		.client_from_client_id(&query.client_id)
-		.await? else {
-		return Err(err!(Request(Unknown("no client has registered client_id {:?}", query.client_id))));
+		.await?
+	else {
+		return Err(err!(Request(Unknown(
+			"no client has registered client_id {:?}",
+			query.client_id
+		))));
 	};
-	let scope = query.scope
-		.parse()
-		.map_err(|err|
-			err!(Request(Unknown("could not parse scope {:?}: {}", query.scope, err)))
-		)?;
-	let device_id = services.oidc.device_id_from_scope(scope)?;
+	let scope = query.scope.parse().map_err(|err| {
+		err!(Request(Unknown("could not parse scope {:?}: {}", query.scope, err)))
+	})?;
+	let device_id = services.oidc.device_id_from_scope(&scope)?;
 	// Check that the device is registered in the owner devices list.
 	// Note that this is _not_ the OIDC client registration.
 	let device_is_registered_with_owner = services
 		.users
 		.all_device_ids(&owner_id)
 		.ready_any(|v| v == device_id)
-		.await; 
-	if ! device_is_registered_with_owner {
+		.await;
+	if !device_is_registered_with_owner {
 		// TODO get the client's IP from the request.
 		let client_ip = None;
-		services.oidc.register_device(
-			&query.client_id,
-			(&owner_id, &device_id),
-			matrix_client.name.as_deref(),
-			client_ip,
-		).await?;
+		services
+			.oidc
+			.register_device(
+				&query.client_id,
+				(&owner_id, &device_id),
+				matrix_client.name.as_deref(),
+				client_ip,
+			)
+			.await?;
 	}
 
 	services
 		.oidc
 		.endpoint()
-		.with_solicitor(FnSolicitor(
-			move |_: &mut _, _: Solicitation<'_>| match allow.clone() {
-				| None => OwnerConsent::Denied,
-				| Some(user_id) => OwnerConsent::Authorized(user_id),
-			},
-		))
+		.with_solicitor(FnSolicitor(move |_: &mut _, _: Solicitation<'_>| match allow.clone() {
+			| None => OwnerConsent::Denied,
+			| Some(user_id) => OwnerConsent::Authorized(user_id),
+		}))
 		.authorization_flow()
 		.execute(oauth)
 		.map_err(|err| err!(Request(Unknown("consent request failed: {err:?}"))))

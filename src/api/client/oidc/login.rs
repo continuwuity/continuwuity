@@ -1,8 +1,6 @@
 use axum::extract::State;
 use conduwuit::{Result, err, utils::hash::verify_password};
-use conduwuit_web::oidc::{
-	LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form,
-};
+use conduwuit_web::oidc::{LoginError, LoginQuery, OidcRequest, OidcResponse, oidc_consent_form};
 use ruma::user_id::UserId;
 
 //#[axum::debug_handler]

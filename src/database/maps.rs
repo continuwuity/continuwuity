@@ -434,14 +434,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 		name: "userroomid_notificationcount",
 		..descriptor::RANDOM
 	},
-    Descriptor {
-        name: "client_registrar",
-        ..descriptor::RANDOM
-    },
-    Descriptor {
-        name: "deviceid_clientidmap",
-        ..descriptor::RANDOM_SMALL
-    },
+	Descriptor {
+		name: "client_registrar",
+		..descriptor::RANDOM
+	},
+	Descriptor {
+		name: "deviceid_clientidmap",
+		..descriptor::RANDOM_SMALL
+	},
 	Descriptor {
 		name: "userroomid_invitesender",
 		..descriptor::RANDOM_SMALL
