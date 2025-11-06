@@ -177,7 +177,7 @@ pub async fn leave_room(
 					.rooms
 					.state_cache
 					.left_state(user_id, room_id)
-					.await
+					.await?
 			},
 		}
 	};
