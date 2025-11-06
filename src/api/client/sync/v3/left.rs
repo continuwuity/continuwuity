@@ -65,8 +65,6 @@ pub(super) async fn load_left_room(
 		return Ok(None);
 	};
 
-	let include_leave = filter.room.include_leave;
-
 	// return early if we haven't gotten to this leave yet.
 	// this can happen if the user leaves while a sync response is being generated
 	if current_count < left_count {
@@ -75,7 +73,7 @@ pub(super) async fn load_left_room(
 
 	// return early if this is an incremental sync, and we've already synced this
 	// leave to the user, and `include_leave` isn't set on the filter.
-	if !include_leave && last_sync_end_count >= Some(left_count) {
+	if !filter.room.include_leave && last_sync_end_count >= Some(left_count) {
 		return Ok(None);
 	}
 
@@ -110,6 +108,8 @@ pub(super) async fn load_left_room(
 				"leave PDU should be for the user requesting the sync"
 			);
 
+			// the shortstatehash of the state _immediately before_ the syncing user left
+			// this room. the state represented here _does not_ include `leave_pdu`.
 			let leave_shortstatehash = services
 				.rooms
 				.state_accessor
@@ -190,6 +190,9 @@ pub(super) async fn load_left_room(
 							}
 						}
 
+						// the timeline generally should not be empty (see the TODO further down),
+						// but in case it is we use `leave_shortstatehash` as the state to
+						// send
 						leave_shortstatehash
 					};
 
@@ -206,13 +209,42 @@ pub(super) async fn load_left_room(
 					// TODO: calculate incremental state for incremental syncs.
 					// always calculating initial state _works_ but returns more data and does
 					// more processing than strictly necessary.
-					let state = build_state_initial(
+					let mut state = build_state_initial(
 						services,
 						syncing_user,
 						timeline_start_shortstatehash,
 						lazily_loaded_members.as_ref(),
 					)
 					.await?;
+
+					/*
+					remove membership events for the syncing user from state.
+					usually, `state` should include a `join` membership event and `timeline` should include a `leave` one.
+					however, the matrix-js-sdk gets confused when this happens (see [1]) and doesn't process the room leave,
+					so we have to filter out the membership from `state`.
+
+					NOTE: we are sending more information than synapse does in this scenario, because we always
+					calculate `state` for initial syncs, even when the sync being performed is incremental.
+					however, the specification does not forbid sending extraneous events in `state`.
+
+					TODO: there is an additional bug at play here. sometimes `load_joined_room` syncs the `leave` event
+					before `load_left_room` does, which means the `timeline` we sync immediately after a leave is empty.
+					this shouldn't happen -- `timeline` should always include the `leave` event. this is probably
+					a race condition with the membership state cache.
+
+					[1]: https://github.com/matrix-org/matrix-js-sdk/issues/5071
+					*/
+
+					// `state` should only ever include one membership event for the syncing user
+					let membership_event_index = state.iter().position(|pdu| {
+						*pdu.event_type() == TimelineEventType::RoomMember
+							&& pdu.state_key() == Some(syncing_user.as_str())
+					});
+
+					if let Some(index) = membership_event_index {
+						// the ordering of events in `state` does not matter
+						state.swap_remove(index);
+					}
 
 					trace!(
 						?timeline_start_count,
