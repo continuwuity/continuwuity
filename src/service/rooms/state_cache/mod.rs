@@ -430,16 +430,9 @@ pub async fn knock_state(
 
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "trace")]
-pub async fn left_state(&self, user_id: &UserId, room_id: &RoomId) -> Option<Pdu> {
+pub async fn left_state(&self, user_id: &UserId, room_id: &RoomId) -> Result<Option<Pdu>> {
 	let key = (user_id, room_id);
-	self.db
-		.userroomid_leftstate
-		.qry(&key)
-		.await
-		.deserialized()
-		// old databases may have garbage data as values in the `userroomid_leftstate` table from before
-		// the leave event was stored there. they still need to be included, so we return Ok(None) for deserialization failures.
-		.unwrap_or(None)
+	self.db.userroomid_leftstate.qry(&key).await.deserialized()
 }
 
 /// Returns an iterator over all rooms a user left.
@@ -458,13 +451,8 @@ pub fn rooms_left<'a>(
 		.stream_prefix(&prefix)
 		.ignore_err()
 		.map(|((_, room_id), state): KeyVal<'_>| (room_id.to_owned(), state))
-		.ready_filter_map(|(room_id, state)| {
-			// deserialization errors need to be ignored. see comment in `left_state`
-			match state.deserialize() {
-				| Ok(state) => Some((room_id, state)),
-				| Err(_) => Some((room_id, None)),
-			}
-		})
+		.map(|(room_id, state)| Ok((room_id, state.deserialize()?)))
+		.ignore_err()
 }
 
 #[implement(Service)]
