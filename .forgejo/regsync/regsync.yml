@@ -40,6 +40,9 @@ creds:
   - registry: registry.gitlab.com
     user: "{{env \"GITLAB_USERNAME\"}}"
     pass: "{{env \"GITLAB_TOKEN\"}}"
+  - registry: git.nexy7574.co.uk
+    user: "{{env \"N7574_GIT_USERNAME\"}}"
+    pass: "{{env \"N7574_GIT_TOKEN\"}}"
 
 # Global defaults
 defaults:
@@ -51,5 +54,9 @@ defaults:
 sync:
   - source: *source
     target: registry.gitlab.com/continuwuity/continuwuity
+    type: repository
+    <<: *tags-main
+  - source: *source
+    target: git.nexy7574.co.uk/mirrored/continuwuity
     type: repository
     <<: *tags-main

@@ -24,6 +24,8 @@ jobs:
       BUILTIN_REGISTRY_PASSWORD: ${{ secrets.BUILTIN_REGISTRY_PASSWORD }}
       GITLAB_USERNAME: ${{ vars.GITLAB_USERNAME }}
       GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      N7574_GIT_USERNAME: ${{ vars.N7574_GIT_USERNAME }}
+      N7574_GIT_TOKEN: ${{ secrets.N7574_GIT_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
