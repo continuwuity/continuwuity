@@ -10,6 +10,9 @@
     "nix": {
         "enabled": true
     },
+    "pre-commit": {
+        "enabled": true
+    },
     "labels": ["Dependencies", "Dependencies/Renovate"],
     "ignoreDeps": [
         "tikv-jemallocator",
