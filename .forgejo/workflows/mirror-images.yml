@@ -11,7 +11,13 @@ on:
         required: false
         default: false
         type: boolean
-
+  push:
+    branches:
+      - main
+    paths:
+      # Re-run when config changes
+      - '.forgejo/regsync/regsync.yml'
+      - '.forgejo/workflows/mirror-images.yml'
 concurrency:
   group: "mirror-images"
   cancel-in-progress: true
