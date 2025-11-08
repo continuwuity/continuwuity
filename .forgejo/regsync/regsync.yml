@@ -43,6 +43,9 @@ creds:
   - registry: git.nexy7574.co.uk
     user: "{{env \"N7574_GIT_USERNAME\"}}"
     pass: "{{env \"N7574_GIT_TOKEN\"}}"
+  - registry: ghcr.io
+    user: "{{env \"GITHUB_USERNAME\"}}"
+    pass: "{{env \"GITHUB_TOKEN\"}}"
 
 # Global defaults
 defaults:
@@ -58,5 +61,6 @@ sync:
     <<: *tags-main
   - source: *source
     target: git.nexy7574.co.uk/mirrored/continuwuity
+    target: ghcr.io/continuwuity/continuwuity
     type: repository
     <<: *tags-main
