@@ -1,0 +1,71 @@
+name: Cleanup Registry Images
+
+on:
+  schedule:
+    # Run daily at midnight UTC
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (check only, no actual deletion)'
+        required: false
+        default: true
+        type: boolean
+      grace_period:
+        description: 'Grace period (e.g., 24h, 48h, 168h)'
+        required: false
+        default: '24h'
+        type: string
+      keep_count:
+        description: 'Number of images to keep per tag pattern'
+        required: false
+        default: '30'
+        type: string
+
+concurrency:
+  group: "cleanup-registry"
+  cancel-in-progress: false
+
+env:
+  BUILTIN_REGISTRY: forgejo.ellis.link
+  IMAGE_PATH: forgejo.ellis.link/continuwuation/continuwuity
+
+jobs:
+  cleanup-registry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set cleanup parameters
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dry_run=${{ inputs.dry_run }}" >> $GITHUB_OUTPUT
+            echo "grace_period=${{ inputs.grace_period }}" >> $GITHUB_OUTPUT
+            echo "keep_count=${{ inputs.keep_count }}" >> $GITHUB_OUTPUT
+          else
+            # Scheduled runs are not dry-run by default
+            echo "dry_run=false" >> $GITHUB_OUTPUT
+            echo "grace_period=24h" >> $GITHUB_OUTPUT
+            echo "keep_count=30" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Login to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.BUILTIN_REGISTRY }}
+          username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
+          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+      - name: Clean up old SHA commit images
+        uses: docker://us-docker.pkg.dev/gcr-cleaner/gcr-cleaner/gcr-cleaner-cli
+        with:
+          args: >-
+            -repo=${{ env.IMAGE_PATH }}
+            -tag-filter-all="sha-[0-9a-f]+"
+            -keep=${{ steps.params.outputs.keep_count }}
+            -grace=${{ steps.params.outputs.grace_period }}
+            ${{ steps.params.outputs.dry_run == 'true' && '-dry-run' || '' }}
