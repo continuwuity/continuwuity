@@ -241,7 +241,7 @@ lock_b.with_lock(|data_b| {
 ### Code Comments
 
 - Reference related documentation or parts of the specification
-- When a task has multiple ways of being acheved, explain your reasoning for your decision
+- When a task has multiple ways of being achieved, explain your reasoning for your decision
 - Update comments when code changes
 
 ```rs
