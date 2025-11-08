@@ -2,25 +2,19 @@ name: Cleanup Registry Images
 
 on:
   schedule:
-    # Run daily at midnight UTC
-    - cron: '0 0 * * *'
+    # Run daily at 01:30 UTC
+    - cron: '30 1 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
         description: 'Dry run (check only, no actual deletion)'
         required: false
-        default: true
+        default: false
         type: boolean
-      grace_period:
-        description: 'Grace period (e.g., 24h, 48h, 168h)'
-        required: false
-        default: '24h'
-        type: string
-      keep_count:
-        description: 'Number of images to keep per tag pattern'
-        required: false
-        default: '30'
-        type: string
+  pull_request:
+    types: [closed]
+  delete:
+    # Triggered when branches are deleted
 
 concurrency:
   group: "cleanup-registry"
@@ -31,41 +25,86 @@ env:
   IMAGE_PATH: forgejo.ellis.link/continuwuation/continuwuity
 
 jobs:
-  cleanup-registry:
+  cleanup-pr-images:
+    name: Cleanup PR Images
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    permissions:
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           persist-credentials: false
 
-      - name: Set cleanup parameters
+      - name: Delete PR image
+        uses: https://github.com/dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          owner: continuwuation
+          repository: continuwuity
+          package: continuwuity
+          registry-url: https://${{ env.BUILTIN_REGISTRY }}
+          delete-tags: pr-${{ github.event.pull_request.number }}
+          dry-run: false
+
+  cleanup-old-commits:
+    name: Cleanup Old Commit Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Set dry-run mode
         id: params
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "dry_run=${{ inputs.dry_run }}" >> $GITHUB_OUTPUT
-            echo "grace_period=${{ inputs.grace_period }}" >> $GITHUB_OUTPUT
-            echo "keep_count=${{ inputs.keep_count }}" >> $GITHUB_OUTPUT
           else
-            # Scheduled runs are not dry-run by default
+            # Scheduled runs perform actual cleanup
             echo "dry_run=false" >> $GITHUB_OUTPUT
-            echo "grace_period=24h" >> $GITHUB_OUTPUT
-            echo "keep_count=30" >> $GITHUB_OUTPUT
           fi
 
-      - name: Login to registry
-        uses: docker/login-action@v3
+      - name: Cleanup old SHA commit images
+        uses: https://github.com/dataaxiom/ghcr-cleanup-action@v1
         with:
-          registry: ${{ env.BUILTIN_REGISTRY }}
-          username: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
-          password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          owner: continuwuation
+          repository: continuwuity
+          package: continuwuity
+          registry-url: https://${{ env.BUILTIN_REGISTRY }}
+          delete-tags: sha-*
+          exclude-tags: latest,main,v*.*.*,*.*.*,*-maxperf
+          older-than: 30 days
+          dry-run: ${{ steps.params.outputs.dry_run }}
+          delete-ghost-images: true
+          delete-partial-images: true
+          delete-orphaned-images: true
 
-      - name: Clean up old SHA commit images
-        uses: docker://us-docker.pkg.dev/gcr-cleaner/gcr-cleaner/gcr-cleaner-cli
+  cleanup-branch-images:
+    name: Cleanup Deleted Branch Images
+    runs-on: ubuntu-latest
+    if: github.event_name == 'delete' && github.event.ref_type == 'branch'
+    permissions:
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
         with:
-          args: >-
-            -repo=${{ env.IMAGE_PATH }}
-            -tag-filter-all="sha-[0-9a-f]+"
-            -keep=${{ steps.params.outputs.keep_count }}
-            -grace=${{ steps.params.outputs.grace_period }}
-            ${{ steps.params.outputs.dry_run == 'true' && '-dry-run' || '' }}
+          persist-credentials: false
+
+      - name: Delete branch image
+        uses: https://github.com/dataaxiom/ghcr-cleanup-action@v1
+        with:
+          token: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+          owner: continuwuation
+          repository: continuwuity
+          package: continuwuity
+          registry-url: https://${{ env.BUILTIN_REGISTRY }}
+          delete-tags: branch-${{ github.event.ref }}
+          dry-run: false
