@@ -44,8 +44,8 @@ creds:
     user: "{{env \"N7574_GIT_USERNAME\"}}"
     pass: "{{env \"N7574_GIT_TOKEN\"}}"
   - registry: ghcr.io
-    user: "{{env \"GITHUB_USERNAME\"}}"
-    pass: "{{env \"GITHUB_TOKEN\"}}"
+    user: "{{env \"GH_PACKAGES_USER\"}}"
+    pass: "{{env \"GH_PACKAGES_TOKEN\"}}"
 
 # Global defaults
 defaults:

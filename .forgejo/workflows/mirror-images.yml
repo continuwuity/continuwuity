@@ -26,20 +26,22 @@ jobs:
       GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
       N7574_GIT_USERNAME: ${{ vars.N7574_GIT_USERNAME }}
       N7574_GIT_TOKEN: ${{ secrets.N7574_GIT_TOKEN }}
+      GH_PACKAGES_USER: ${{ vars.GH_PACKAGES_USER }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           persist-credentials: false
 
-      - uses: https://github.com/actions/create-github-app-token@v2
-        id: app-token
-        with:
-          app-id: ${{ vars.GH_APP_ID }}
-          private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
-          github-api-url: https://api.github.com
-          owner: continuwuity
-          repositories: continuwuity
+      # - uses: https://github.com/actions/create-github-app-token@v2
+      #   id: app-token
+      #   with:
+      #     app-id: ${{ vars.GH_APP_ID }}
+      #     private-key: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      #     github-api-url: https://api.github.com
+      #     owner: continuwuity
+      #     repositories: continuwuity
 
       - name: Install regctl
         uses: https://forgejo.ellis.link/continuwuation/regclient-actions/regctl-installer@main
@@ -53,10 +55,6 @@ jobs:
 
       - name: Mirror images
         if: ${{ !inputs.dry_run }}
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_USERNAME: ${{ vars.GH_APP_ID }}
-
         run: |
           echo "Starting image mirroring..."
           regsync once -c .forgejo/regsync/regsync.yml -v info
