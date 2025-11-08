@@ -61,6 +61,9 @@ sync:
     <<: *tags-main
   - source: *source
     target: git.nexy7574.co.uk/mirrored/continuwuity
+    type: repository
+    <<: *tags-releases
+  - source: *source
     target: ghcr.io/continuwuity/continuwuity
     type: repository
     <<: *tags-main
