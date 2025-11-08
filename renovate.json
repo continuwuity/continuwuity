@@ -21,7 +21,16 @@
         "opentelemetry",
         "opentelemetry_sdk",
         "opentelemetry-jaeger",
-        "tracing-opentelemetry"
+        "tracing-opentelemetry",
+        "tracing-subscriber",
+        "tracing",
+        "tracing-core",
+        "tracing-log",
+        "rustyline-async",
+        "event-listener",
+        "async-channel",
+        "core_affinity",
+        "hyper-util"
     ],
     "github-actions": {
         "enabled": true,
