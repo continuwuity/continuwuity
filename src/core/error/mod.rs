@@ -83,7 +83,9 @@ pub enum Error {
 	#[error(transparent)]
 	TypedHeader(#[from] axum_extra::typed_header::TypedHeaderRejection),
 	#[error(transparent)]
-	Yaml(#[from] serde_yml::Error),
+	YamlDe(#[from] serde_saphyr::Error),
+	#[error(transparent)]
+	YamlSer(#[from] serde_saphyr::ser_error::Error),
 
 	// ruma/conduwuit
 	#[error("Arithmetic operation failed: {0}")]
