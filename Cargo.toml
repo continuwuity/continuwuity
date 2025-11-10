@@ -947,7 +947,7 @@ semicolon_outside_block = "warn"
 str_to_string = "warn"
 string_lit_chars_any = "warn"
 string_slice = "warn"
-string_to_string = "warn"
+
 suspicious_xor_used_as_pow = "warn"
 tests_outside_test_module = "warn"
 try_err = "warn"
