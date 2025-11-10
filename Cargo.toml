@@ -286,7 +286,7 @@ features = [
 ]
 
 [workspace.dependencies.hyper-util]
-version = "0.1.11"
+version = "=0.1.17"
 default-features = false
 features = [
 	"server-auto",
@@ -600,7 +600,7 @@ rev = "9c8e51510c35077df888ee72a36b4b05637147da"
 # reverts hyperium#148 conflicting with our delicate federation resolver hooks
 [patch.crates-io.hyper-util]
 git = "https://forgejo.ellis.link/continuwuation/hyper-util"
-rev = "e4ae7628fe4fcdacef9788c4c8415317a4489941"
+rev = "5886d5292bf704c246206ad72d010d674a7b77d0"
 
 #
 # Our crates

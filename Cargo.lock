@@ -2310,8 +2310,7 @@ dependencies = [
 [[package]]
 name = "hyper-util"
 version = "0.1.17"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c6995591a8f1380fcb4ba966a252a4b29188d51d2b89e3a252f5305be65aea8"
+source = "git+https://forgejo.ellis.link/continuwuation/hyper-util?rev=5886d5292bf704c246206ad72d010d674a7b77d0#5886d5292bf704c246206ad72d010d674a7b77d0"
 dependencies = [
  "base64 0.22.1",
  "bytes",
@@ -2325,7 +2324,7 @@ dependencies = [
  "libc",
  "percent-encoding",
  "pin-project-lite",
- "socket2 0.6.1",
+ "socket2 0.5.10",
  "tokio",
  "tower-service",
  "tracing",
@@ -6453,8 +6452,3 @@ checksum = "29ce2c8a9384ad323cf564b67da86e21d3cfdff87908bc1223ed5c99bc792713"
 dependencies = [
  "zune-core",
 ]
-
-[[patch.unused]]
-name = "hyper-util"
-version = "0.1.11"
-source = "git+https://forgejo.ellis.link/continuwuation/hyper-util?rev=e4ae7628fe4fcdacef9788c4c8415317a4489941#e4ae7628fe4fcdacef9788c4c8415317a4489941"
