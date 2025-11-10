@@ -907,6 +907,7 @@ dependencies = [
  "clap",
  "conduwuit_admin",
  "conduwuit_api",
+ "conduwuit_build_metadata",
  "conduwuit_core",
  "conduwuit_database",
  "conduwuit_router",

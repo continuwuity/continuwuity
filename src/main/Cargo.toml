@@ -201,6 +201,7 @@ conduwuit-core.workspace = true
 conduwuit-database.workspace = true
 conduwuit-router.workspace = true
 conduwuit-service.workspace = true
+conduwuit-build-metadata.workspace = true
 
 clap.workspace = true
 console-subscriber.optional = true

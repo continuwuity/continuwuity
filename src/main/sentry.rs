@@ -1,10 +1,12 @@
 #![cfg(feature = "sentry_telemetry")]
 
 use std::{
+	borrow::Cow,
 	str::FromStr,
 	sync::{Arc, OnceLock},
 };
 
+use conduwuit_build_metadata as build;
 use conduwuit_core::{config::Config, debug, trace};
 use sentry::{
 	Breadcrumb, ClientOptions, Level,
@@ -44,7 +46,7 @@ fn options(config: &Config) -> ClientOptions {
 		server_name,
 		traces_sample_rate: config.sentry_traces_sample_rate,
 		debug: cfg!(debug_assertions),
-		release: sentry::release_name!(),
+		release: release_name(),
 		user_agent: conduwuit_core::version::user_agent().into(),
 		attach_stacktrace: config.sentry_attach_stacktrace,
 		before_send: Some(Arc::new(before_send)),
@@ -90,4 +92,22 @@ fn before_breadcrumb(crumb: Breadcrumb) -> Option<Breadcrumb> {
 
 	trace!("Sentry breadcrumb: {crumb:?}");
 	Some(crumb)
+}
+
+fn release_name() -> Option<Cow<'static, str>> {
+	static RELEASE: OnceLock<Option<String>> = OnceLock::new();
+
+	RELEASE
+		.get_or_init(|| {
+			let pkg_name = env!("CARGO_PKG_NAME");
+			let pkg_version = env!("CARGO_PKG_VERSION");
+
+			if let Some(commit_short) = build::GIT_COMMIT_HASH_SHORT {
+				Some(format!("{pkg_name}@{pkg_version}+{commit_short}"))
+			} else {
+				Some(format!("{pkg_name}@{pkg_version}"))
+			}
+		})
+		.as_ref()
+		.map(|s| Cow::Borrowed(s.as_str()))
 }
