@@ -63,7 +63,7 @@ Restart=on-failure
 RestartSec=5
 
 TimeoutStopSec=4m
-TimeoutStartSec=4m
+TimeoutStartSec=10m
 
 StartLimitInterval=1m
 StartLimitBurst=5
