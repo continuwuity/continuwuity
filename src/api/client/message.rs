@@ -224,7 +224,7 @@ where
 		.chain(
 			receipts
 				.ready_take_while(|(_, c, _)| *c <= newest.into_unsigned())
-				.map(|(user_id, ..)| user_id.to_owned()),
+				.map(|(user_id, ..)| user_id),
 		)
 		.collect()
 		.await;
