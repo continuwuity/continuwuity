@@ -25,13 +25,13 @@ pub(super) fn refutable(mut item: ItemFn, _args: &[Meta]) -> Result<TokenStream>
 		};
 
 		let name = format!("_args_{i}");
-		*pat = Box::new(Pat::Ident(PatIdent {
+		**pat = Pat::Ident(PatIdent {
 			ident: Ident::new(&name, Span::call_site().into()),
 			attrs: Vec::new(),
 			by_ref: None,
 			mutability: None,
 			subpat: None,
-		}));
+		});
 
 		let field = fields.iter();
 		let refute = quote! {
