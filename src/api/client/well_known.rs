@@ -78,7 +78,7 @@ pub(crate) async fn well_known_support(
 			while let Some(user_id) = stream.next().await {
 				// Skip server user
 				if *user_id == services.globals.server_user {
-					break;
+					continue;
 				}
 				contacts.push(Contact {
 					role: role_value.clone(),
