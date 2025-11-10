@@ -10,7 +10,7 @@ use conduwuit::{
 use futures::{Stream, StreamExt, TryStreamExt};
 use rocksdb::{DBPinnableSlice, ReadOptions};
 
-use super::get::{cached_handle_from, handle_from};
+use super::get::handle_from;
 use crate::Handle;
 
 pub trait Get<'a, K, S>
@@ -56,20 +56,6 @@ where
 		})
 		.map_ok(|results| results.into_iter().stream())
 		.try_flatten()
-}
-
-#[implement(super::Map)]
-#[tracing::instrument(name = "batch_cached", level = "trace", skip_all)]
-pub(crate) fn get_batch_cached<'a, I, K>(
-	&self,
-	keys: I,
-) -> impl Iterator<Item = Result<Option<Handle<'_>>>> + Send + use<'_, I, K>
-where
-	I: Iterator<Item = &'a K> + ExactSizeIterator + Send,
-	K: AsRef<[u8]> + Send + ?Sized + Sync + 'a,
-{
-	self.get_batch_blocking_opts(keys, &self.cache_read_options)
-		.map(cached_handle_from)
 }
 
 #[implement(super::Map)]
