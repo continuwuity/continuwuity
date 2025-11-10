@@ -184,7 +184,7 @@ fn spawn_one(
 	let handle = thread::Builder::new()
 		.name(WORKER_NAME.into())
 		.stack_size(WORKER_STACK_SIZE)
-		.spawn(move || self.worker(id, recv))?;
+		.spawn(move || self.worker(id, &recv))?;
 
 	workers.push(handle);
 
@@ -260,9 +260,9 @@ async fn execute(&self, queue: &Sender<Cmd>, cmd: Cmd) -> Result {
 		tid = ?thread::current().id(),
 	),
 )]
-fn worker(self: Arc<Self>, id: usize, recv: Receiver<Cmd>) {
+fn worker(self: Arc<Self>, id: usize, recv: &Receiver<Cmd>) {
 	self.worker_init(id);
-	self.worker_loop(&recv);
+	self.worker_loop(recv);
 }
 
 #[implement(Pool)]
@@ -375,6 +375,7 @@ fn handle_iter(&self, mut cmd: Seek) {
 		keys = %cmd.key.len(),
 	),
 )]
+
 fn handle_batch(self: &Arc<Self>, mut cmd: Get) {
 	debug_assert!(cmd.key.len() > 1, "should have more than one key");
 	debug_assert!(!cmd.key.iter().any(SmallVec::is_empty), "querying for empty key");
