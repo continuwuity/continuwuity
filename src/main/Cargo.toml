@@ -62,7 +62,8 @@ standard = [
 	"media_thumbnail",
 	"systemd",
 	"url_preview",
-	"zstd_compression"
+	"zstd_compression",
+    "sentry_telemetry"
 ]
 full = [
     "standard",
