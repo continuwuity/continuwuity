@@ -4,7 +4,7 @@ mod v5;
 use std::collections::VecDeque;
 
 use conduwuit::{
-	Event, PduCount, Result,
+	Event, PduCount, Result, err,
 	matrix::pdu::PduEvent,
 	ref_at, trace,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
@@ -54,7 +54,10 @@ async fn load_timeline(
 				.rooms
 				.timeline
 				.last_timeline_count(Some(sender_user), room_id)
-				.await?;
+				.await
+				.map_err(|err| {
+					err!(Database(warn!("Failed to fetch end of room timeline: {}", err)))
+				})?;
 
 			if last_timeline_count <= starting_count {
 				// no messages have been sent in this room since `starting_count`

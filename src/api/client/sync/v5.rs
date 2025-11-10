@@ -472,7 +472,7 @@ where
 			.filter_map(|(read_user, _ts, v)| async move {
 				services
 					.users
-					.user_is_ignored(read_user, sender_user)
+					.user_is_ignored(&read_user, sender_user)
 					.await
 					.or_some(v)
 			})
