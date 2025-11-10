@@ -80,6 +80,7 @@ pub(super) async fn load_joined_room(
 		build_ephemeral(services, sync_context, room_id),
 		build_state_and_timeline(services, sync_context, room_id),
 	)
+	.boxed()
 	.await?;
 
 	if !timeline.is_empty() || !state_events.is_empty() {
@@ -193,7 +194,7 @@ async fn build_ephemeral(
 			}
 		}
 
-		return None;
+		None
 	};
 
 	// collect the syncing user's private-read marker, if it's changed
@@ -367,7 +368,7 @@ async fn fetch_shortstatehashes(
 					debug_warn!(
 						token = last_sync_end_count,
 						"Room has no shortstatehash for this token"
-					)
+					);
 				})
 				.ok()
 		}))
@@ -499,7 +500,7 @@ async fn build_state_events(
 				last_sync_end_shortstatehash,
 				timeline_start_shortstatehash,
 				current_shortstatehash,
-				&timeline,
+				timeline,
 				lazily_loaded_members.as_ref(),
 			)
 			.boxed()
@@ -556,7 +557,7 @@ async fn build_notification_counts(
 		}
 
 		// otherwise, nothing's changed.
-		return false;
+		false
 	};
 
 	if should_send_notification_counts.await {
@@ -636,7 +637,7 @@ async fn build_room_summary(
 	room_id: &RoomId,
 	ShortStateHashes { current_shortstatehash, .. }: ShortStateHashes,
 	timeline: &TimelinePdus,
-	state_events: &Vec<PduEvent>,
+	state_events: &[PduEvent],
 	joined_since_last_sync: bool,
 ) -> Result<Option<RoomSummary>> {
 	// determine whether any events in the state or timeline are membership events.
@@ -692,7 +693,7 @@ async fn build_room_summary(
 	trace!(
 		?joined_member_count,
 		?invited_member_count,
-		heroes_length = heroes.as_ref().map(|h| h.len()),
+		heroes_length = heroes.as_ref().map(HashSet::len),
 		"syncing updated summary"
 	);
 
