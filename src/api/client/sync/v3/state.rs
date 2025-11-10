@@ -105,7 +105,11 @@ pub(super) async fn build_state_incremental<'a>(
 
 	The algorithm implemented in this function is, currently, quite different from the algorithm vaguely described
 	by the Matrix specification. This is because the specification's description of the `state` property does not accurately
-	reflect how Synapse behaves, and therefore how client SDKs behave.
+	reflect how Synapse behaves, and therefore how client SDKs behave. Notable differences include:
+	1. We do not compute the delta using the naive approach of "every state event from the end of the last sync
+	   up to the start of this sync's timeline". see below for details.
+	2. If lazy-loading is enabled, we include lazily-loaded membership events. The specific users to include are determined
+	   elsewhere and supplied to this function in the `lazily_loaded_members` parameter.
 	*/
 
 	/*
@@ -206,9 +210,11 @@ pub(super) async fn build_state_incremental<'a>(
 	at this point, either the timeline is `limited` or the DAG has a split in it. this necessitates
 	computing the incremental state (which may be empty).
 
-	NOTE: this code path does not apply lazy-load filtering to membership state events. the spec forbids lazy-load filtering
-	if the timeline is `limited`, and DAG splits which require sending extra membership state events are (probably) uncommon
-	enough that the performance penalty is acceptable.
+	NOTE: this code path does not use the `lazy_membership_events` parameter. any changes to membership will be included
+	in the incremental state. therefore, the incremental state may include "redundant" membership events,
+	which we do not filter out because A. the spec forbids lazy-load filtering if the timeline is `limited`,
+	and B. DAG splits which require sending extra membership state events are (probably) uncommon enough that
+	the performance penalty is acceptable.
 	*/
 
 	trace!(?timeline_is_linear, ?timeline.limited, "computing state for incremental sync");
