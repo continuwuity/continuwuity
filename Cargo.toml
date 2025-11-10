@@ -425,11 +425,11 @@ version = "0.30.0"
 features = ["rt-tokio"]
 
 [workspace.dependencies.opentelemetry-otlp]
-version = "0.30.0"
+version = "0.31.0"
 features = ["http", "trace", "logs", "metrics"]
 
 [workspace.dependencies.opentelemetry-jaeger-propagator]
-version = "0.30.0"
+version = "0.31.0"
 
 # optional sentry metrics for crash/panic reporting
 [workspace.dependencies.sentry]
