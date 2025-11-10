@@ -46,6 +46,9 @@ creds:
   - registry: ghcr.io
     user: "{{env \"GH_PACKAGES_USER\"}}"
     pass: "{{env \"GH_PACKAGES_TOKEN\"}}"
+  - registry: docker.io
+    user: "{{env \"DOCKER_MIRROR_USER\"}}"
+    pass: "{{env \"DOCKER_MIRROR_TOKEN\"}}"
 
 # Global defaults
 defaults:
@@ -65,5 +68,9 @@ sync:
     <<: *tags-releases
   - source: *source
     target: ghcr.io/continuwuity/continuwuity
+    type: repository
+    <<: *tags-main
+  - source: *source
+    target: docker.io/jadedblueeyes/continuwuity
     type: repository
     <<: *tags-main

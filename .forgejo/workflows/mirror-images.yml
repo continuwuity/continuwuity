@@ -34,6 +34,8 @@ jobs:
       N7574_GIT_TOKEN: ${{ secrets.N7574_GIT_TOKEN }}
       GH_PACKAGES_USER: ${{ vars.GH_PACKAGES_USER }}
       GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      DOCKER_MIRROR_USER: ${{ vars.DOCKER_MIRROR_USER }}
+      DOCKER_MIRROR_TOKEN: ${{ secrets.DOCKER_MIRROR_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
