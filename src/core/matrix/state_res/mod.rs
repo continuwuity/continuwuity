@@ -421,8 +421,8 @@ where
 /// `key_fn` is used as to obtain the power level and age of an event for
 /// breaking ties (together with the event ID).
 #[tracing::instrument(level = "debug", skip_all)]
-pub async fn lexicographical_topological_sort<Id, F, Fut, Hasher>(
-	graph: &HashMap<Id, HashSet<Id, Hasher>>,
+pub async fn lexicographical_topological_sort<Id, F, Fut, Hasher, S>(
+	graph: &HashMap<Id, HashSet<Id, Hasher>, S>,
 	key_fn: &F,
 ) -> Result<Vec<Id>>
 where
@@ -430,6 +430,7 @@ where
 	Fut: Future<Output = Result<(Int, MilliSecondsSinceUnixEpoch)>> + Send,
 	Id: Borrow<EventId> + Clone + Eq + Hash + Ord + Send + Sync,
 	Hasher: BuildHasher + Default + Clone + Send + Sync,
+	S: BuildHasher + Clone + Send + Sync,
 {
 	#[derive(PartialEq, Eq)]
 	struct TieBreaker<'a, Id> {
