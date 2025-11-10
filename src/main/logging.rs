@@ -94,7 +94,7 @@ pub(crate) fn init(
 
 		let otlp_layer = config.allow_otlp.then(|| {
 			opentelemetry::global::set_text_map_propagator(
-				opentelemetry_jaeger_propagator::Propagator::new(),
+				opentelemetry_sdk::propagation::TraceContextPropagator::new(),
 			);
 
 			let exporter = opentelemetry_otlp::SpanExporter::builder()

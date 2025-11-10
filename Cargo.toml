@@ -210,13 +210,13 @@ default-features = false
 version = "0.1.41"
 default-features = false
 [workspace.dependencies.tracing-subscriber]
-version = "0.3.19"
+version = "0.3.20"
 default-features = false
 features = ["env-filter", "std", "tracing", "tracing-log", "ansi", "fmt"]
 [workspace.dependencies.tracing-journald]
 version = "0.3.1"
 [workspace.dependencies.tracing-core]
-version = "0.1.33"
+version = "0.1.34"
 default-features = false
 
 # for URL previews
@@ -412,28 +412,27 @@ default-features = false
 
 # optional opentelemetry, performance measurements, flamegraphs, etc for performance measurements and monitoring
 [workspace.dependencies.opentelemetry]
-version = "0.30.0"
+version = "0.31.0"
 
 [workspace.dependencies.tracing-flame]
 version = "0.2.0"
 
 [workspace.dependencies.tracing-opentelemetry]
-version = "0.31.0"
+version = "0.32.0"
 
 [workspace.dependencies.opentelemetry_sdk]
-version = "0.30.0"
+version = "0.31.0"
 features = ["rt-tokio"]
 
 [workspace.dependencies.opentelemetry-otlp]
 version = "0.31.0"
 features = ["http", "trace", "logs", "metrics"]
 
-[workspace.dependencies.opentelemetry-jaeger-propagator]
-version = "0.31.0"
+
 
 # optional sentry metrics for crash/panic reporting
 [workspace.dependencies.sentry]
-version = "0.42.0"
+version = "0.45.0"
 default-features = false
 features = [
     "backtrace",
@@ -449,9 +448,9 @@ features = [
 ]
 
 [workspace.dependencies.sentry-tracing]
-version = "0.42.0"
+version = "0.45.0"
 [workspace.dependencies.sentry-tower]
-version = "0.42.0"
+version = "0.45.0"
 
 # jemalloc usage
 [workspace.dependencies.tikv-jemalloc-sys]
@@ -477,7 +476,7 @@ default-features = false
 features = ["use_std"]
 
 [workspace.dependencies.console-subscriber]
-version = "0.4"
+version = "0.5"
 
 [workspace.dependencies.nix]
 version = "0.30.1"
@@ -564,19 +563,7 @@ version = "0.7.5"
 
 # backport of [https://github.com/tokio-rs/tracing/pull/2956] to the 0.1.x branch of tracing.
 # we can switch back to upstream if #2956 is merged and backported in the upstream repo.
-# https://forgejo.ellis.link/continuwuation/tracing/commit/b348dca742af641c47bc390261f60711c2af573c
-[patch.crates-io.tracing-subscriber]
-git = "https://forgejo.ellis.link/continuwuation/tracing"
-rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
-[patch.crates-io.tracing]
-git = "https://forgejo.ellis.link/continuwuation/tracing"
-rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
-[patch.crates-io.tracing-core]
-git = "https://forgejo.ellis.link/continuwuation/tracing"
-rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
-[patch.crates-io.tracing-log]
-git = "https://forgejo.ellis.link/continuwuation/tracing"
-rev = "1e64095a8051a1adf0d1faa307f9f030889ec2aa"
+
 
 # adds a tab completion callback: https://forgejo.ellis.link/continuwuation/rustyline-async/src/branch/main/.patchy/0002-add-tab-completion-callback.patch
 # adds event for CTRL+\: https://forgejo.ellis.link/continuwuation/rustyline-async/src/branch/main/.patchy/0001-add-event-for-ctrl.patch
