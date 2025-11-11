@@ -19,7 +19,7 @@ inputs:
   rust-version:
     description: 'Rust version to install (e.g. nightly). Defaults to 1.87.0'
     required: false
-    default: '1.87.0'
+    default: ''
   sccache-cache-limit:
     description: 'Maximum size limit for sccache local cache (e.g. 2G, 500M)'
     required: false
