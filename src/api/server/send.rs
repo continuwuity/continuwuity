@@ -3,9 +3,9 @@ use std::{collections::BTreeMap, net::IpAddr, time::Instant};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug,
+	Err, Error, Result,
 	debug::INFO_SPAN_LEVEL,
-	debug_warn, err, error,
+	debug_warn, err, error, info,
 	result::LogErr,
 	trace,
 	utils::{
@@ -21,7 +21,8 @@ use conduwuit_service::{
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName, UserId,
+	CanonicalJsonObject, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName,
+	TransactionId, UserId,
 	api::{
 		client::error::ErrorKind,
 		federation::transactions::{
@@ -37,6 +38,7 @@ use ruma::{
 	serde::Raw,
 	to_device::DeviceIdOrAllDevices,
 };
+use tokio::time::{Duration, timeout};
 
 use crate::Ruma;
 
@@ -79,14 +81,16 @@ pub(crate) async fn send_transaction_message_route(
 	}
 
 	let txn_start_time = Instant::now();
-	trace!(
-		pdus = body.pdus.len(),
-		edus = body.edus.len(),
-		elapsed = ?txn_start_time.elapsed(),
-		id = ?body.transaction_id,
-		origin =?body.origin(),
-		"Starting txn",
-	);
+	if !body.pdus.is_empty() {
+		info!(
+			pdus = body.pdus.len(),
+			edus = body.edus.len(),
+			elapsed = ?txn_start_time.elapsed(),
+			id = ?body.transaction_id,
+			origin =?body.origin(),
+			"Processing incoming transaction",
+		);
+	}
 
 	let pdus = body
 		.pdus
@@ -104,15 +108,24 @@ pub(crate) async fn send_transaction_message_route(
 		.filter_map(Result::ok)
 		.stream();
 
-	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await?;
+	let results = handle(
+		&services,
+		&client,
+		body.origin(),
+		txn_start_time,
+		pdus,
+		edus,
+		&body.transaction_id,
+	)
+	.await?;
 
-	debug!(
+	info!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
 		id = ?body.transaction_id,
 		origin =?body.origin(),
-		"Finished txn",
+		"Finished transaction",
 	);
 	for (id, result) in &results {
 		if let Err(e) = result {
@@ -130,6 +143,7 @@ pub(crate) async fn send_transaction_message_route(
 	})
 }
 
+#[tracing::instrument(skip_all, fields(%txn_id))]
 async fn handle(
 	services: &Services,
 	client: &IpAddr,
@@ -137,6 +151,7 @@ async fn handle(
 	started: Instant,
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
+	txn_id: &TransactionId,
 ) -> Result<ResolvedMap> {
 	// group pdus by room
 	let pdus = pdus
@@ -148,20 +163,29 @@ async fn handle(
 				.collect()
 		})
 		.await;
-
+	info!("Processing PDUs in {} rooms", pdus.len());
 	// we can evaluate rooms concurrently
 	let results: ResolvedMap = pdus
 		.into_iter()
 		.try_stream()
 		.broad_and_then(|(room_id, pdus): (_, Vec<_>)| {
-			handle_room(services, client, origin, started, room_id, pdus.into_iter())
-				.map_ok(Vec::into_iter)
-				.map_ok(IterStream::try_stream)
+			timeout(
+				Duration::from_secs(50),
+				handle_room(services, client, origin, started, room_id, pdus.into_iter(), txn_id)
+					.map_ok(Vec::into_iter)
+					.map_ok(IterStream::try_stream),
+			)
+			.map_ok(|result| result.unwrap())
+			.map_err(|e| Error::Database(format!("Timed out trying to handle room: {e}").into()))
 		})
 		.try_flatten()
 		.try_collect()
 		.boxed()
-		.await?;
+		.await
+		.inspect_err(|e| {
+			error!("oh no: {e}");
+		})
+		.unwrap_or_default();
 
 	// evaluate edus after pdus, at least for now.
 	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
@@ -171,6 +195,7 @@ async fn handle(
 	Ok(results)
 }
 
+#[tracing::instrument(skip_all, fields(%room_id, %txn_id))]
 async fn handle_room(
 	services: &Services,
 	_client: &IpAddr,
@@ -178,16 +203,20 @@ async fn handle_room(
 	txn_start_time: Instant,
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
+	txn_id: &TransactionId,
 ) -> Result<Vec<(OwnedEventId, Result)>> {
+	info!(%room_id, elapsed = ?txn_start_time.elapsed(), "Acquiring lock for room");
 	let _room_lock = services
 		.rooms
 		.event_handler
 		.mutex_federation
 		.lock(&room_id)
 		.await;
+	info!(%room_id, elapsed = ?txn_start_time.elapsed(), "Acquired room lock");
 
 	let room_id = &room_id;
-	pdus.try_stream()
+	let r = pdus
+		.try_stream()
 		.and_then(|(_, event_id, value)| async move {
 			services.server.check_running()?;
 			let pdu_start_time = Instant::now();
@@ -198,7 +227,7 @@ async fn handle_room(
 				.await
 				.map(|_| ());
 
-			debug!(
+			info!(
 				pdu_elapsed = ?pdu_start_time.elapsed(),
 				txn_elapsed = ?txn_start_time.elapsed(),
 				"Finished PDU {event_id}",
@@ -207,7 +236,9 @@ async fn handle_room(
 			Ok((event_id, result))
 		})
 		.try_collect()
-		.await
+		.await;
+	info!(%room_id, elapsed = ?txn_start_time.elapsed(), "Finished handling room");
+	return r;
 }
 
 async fn handle_edu(services: &Services, client: &IpAddr, origin: &ServerName, edu: Edu) {
