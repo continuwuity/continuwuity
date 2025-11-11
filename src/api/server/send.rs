@@ -163,7 +163,9 @@ async fn handle(
 				.collect()
 		})
 		.await;
-	info!("Processing PDUs in {} rooms", pdus.len());
+	if !pdus.is_empty() {
+		info!("Processing PDUs in {} rooms", pdus.len());
+	}
 	// we can evaluate rooms concurrently
 	let results: ResolvedMap = pdus
 		.into_iter()
@@ -171,12 +173,22 @@ async fn handle(
 		.broad_and_then(|(room_id, pdus): (_, Vec<_>)| {
 			timeout(
 				Duration::from_secs(50),
-				handle_room(services, client, origin, started, room_id, pdus.into_iter(), txn_id)
-					.map_ok(Vec::into_iter)
-					.map_ok(IterStream::try_stream),
+				handle_room(
+					services,
+					client,
+					origin,
+					started,
+					room_id.clone(),
+					pdus.into_iter(),
+					txn_id,
+				)
+				.map_ok(Vec::into_iter)
+				.map_ok(IterStream::try_stream),
 			)
 			.map_ok(|result| result.unwrap())
-			.map_err(|e| Error::Database(format!("Timed out trying to handle room: {e}").into()))
+			.map_err(move |e| {
+				Error::Database(format!("Timed out trying to handle {room_id}: {e}").into())
+			})
 		})
 		.try_flatten()
 		.try_collect()
@@ -213,6 +225,11 @@ async fn handle_room(
 		.lock(&room_id)
 		.await;
 	info!(%room_id, elapsed = ?txn_start_time.elapsed(), "Acquired room lock");
+	if txn_start_time.elapsed() > Duration::from_secs(30) {
+		warn!(elapsed = ?txn_start_time.elapsed(), "Took a REALLY long time to acquire room lock");
+	} else if txn_start_time.elapsed() > Duration::from_secs(5) {
+		warn!(elapsed = ?txn_start_time.elapsed(), "Took a long time to acquire room lock");
+	}
 
 	let room_id = &room_id;
 	let r = pdus
