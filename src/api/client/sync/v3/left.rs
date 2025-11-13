@@ -15,7 +15,7 @@ use ruma::{
 	uint,
 };
 use serde_json::value::RawValue;
-use service::Services;
+use service::{Services, rooms::short::ShortStateHash};
 
 use crate::client::{
 	TimelinePdus, ignored_filter,
@@ -41,7 +41,7 @@ pub(super) async fn load_left_room(
 	services: &Services,
 	sync_context: SyncContext<'_>,
 	ref room_id: OwnedRoomId,
-	leave_pdu: Option<PduEvent>,
+	leave_membership_event: Option<PduEvent>,
 ) -> Result<Option<LeftRoom>> {
 	let SyncContext {
 		syncing_user,
@@ -77,9 +77,9 @@ pub(super) async fn load_left_room(
 		return Ok(None);
 	}
 
-	if let Some(ref leave_pdu) = leave_pdu {
+	if let Some(ref leave_membership_event) = leave_membership_event {
 		debug_assert_eq!(
-			leave_pdu.kind,
+			leave_membership_event.kind,
 			TimelineEventType::RoomMember,
 			"leave PDU should be m.room.member"
 		);
@@ -87,36 +87,37 @@ pub(super) async fn load_left_room(
 
 	let does_not_exist = services.rooms.metadata.exists(room_id).eq(&false).await;
 
-	let (timeline, state_events) = match leave_pdu {
-		| Some(leave_pdu) if does_not_exist => {
+	let (timeline, state_events) = match leave_membership_event {
+		| Some(leave_membership_event) if does_not_exist => {
 			/*
 			we have none PDUs with left beef for this room, likely because it was a rejected invite to a room
 			which nobody on this homeserver is in. `leave_pdu` is the remote-assisted outlier leave event for the room,
 			which is all we can send to the client.
 			*/
 			trace!("syncing remote-assisted leave PDU");
-			(TimelinePdus::default(), vec![leave_pdu])
+			(TimelinePdus::default(), vec![leave_membership_event])
 		},
-		| Some(leave_pdu) => {
+		| Some(leave_membership_event) => {
 			// we have this room in our DB, and can fetch the state and timeline from when
 			// the user left if they're allowed to see it.
 
 			let leave_state_key = syncing_user;
 			debug_assert_eq!(
 				Some(leave_state_key.as_str()),
-				leave_pdu.state_key(),
+				leave_membership_event.state_key(),
 				"leave PDU should be for the user requesting the sync"
 			);
 
 			// the shortstatehash of the state _immediately before_ the syncing user left
-			// this room. the state represented here _does not_ include `leave_pdu`.
+			// this room. the state represented here _does not_ include
+			// `leave_membership_event`.
 			let leave_shortstatehash = services
 				.rooms
 				.state_accessor
-				.pdu_shortstatehash(&leave_pdu.event_id)
+				.pdu_shortstatehash(&leave_membership_event.event_id)
 				.await?;
 
-			let prev_member_event = services
+			let prev_membership_event = services
 				.rooms
 				.state_accessor
 				.state_get(
@@ -125,137 +126,28 @@ pub(super) async fn load_left_room(
 					leave_state_key.as_str(),
 				)
 				.await?;
-			let current_membership: RoomMemberEventContent = leave_pdu.get_content()?;
-			let prev_membership: RoomMemberEventContent = prev_member_event.get_content()?;
+			let current_membership: RoomMemberEventContent =
+				leave_membership_event.get_content()?;
+			let prev_membership: RoomMemberEventContent = prev_membership_event.get_content()?;
 
 			match current_membership.membership_change(
 				Some(prev_membership.details()),
-				&leave_pdu.sender,
+				&leave_membership_event.sender,
 				leave_state_key,
 			) {
 				| MembershipChange::Left => {
 					// if the user went from `join` to `leave`, they should be able to view the
 					// timeline.
 
-					let timeline_start_count =
-						if let Some(last_sync_end_count) = last_sync_end_count {
-							// for incremental syncs, start the timeline after `since`
-							PduCount::Normal(last_sync_end_count)
-						} else {
-							// for initial syncs, start the timeline after the previous membership
-							// event. we don't want to include the membership event itself
-							// because clients get confused when they see a `join`
-							// membership event in a `leave` room.
-							services
-								.rooms
-								.timeline
-								.get_pdu_count(&prev_member_event.event_id)
-								.await?
-						};
-
-					// end the timeline at the user's leave event
-					let timeline_end_count = services
-						.rooms
-						.timeline
-						.get_pdu_count(leave_pdu.event_id())
-						.await?;
-
-					// limit the timeline using the same logic as for joined rooms
-					let timeline_limit = filter
-						.room
-						.timeline
-						.limit
-						.and_then(|limit| limit.try_into().ok())
-						.unwrap_or(DEFAULT_TIMELINE_LIMIT);
-
-					let timeline = load_timeline(
-						services,
-						syncing_user,
-						room_id,
-						Some(timeline_start_count),
-						Some(timeline_end_count),
-						timeline_limit,
-					)
-					.await?;
-
-					let timeline_start_shortstatehash = async {
-						if let Some((_, pdu)) = timeline.pdus.front() {
-							if let Ok(shortstatehash) = services
-								.rooms
-								.state_accessor
-								.pdu_shortstatehash(&pdu.event_id)
-								.await
-							{
-								return shortstatehash;
-							}
-						}
-
-						// the timeline generally should not be empty (see the TODO further down),
-						// but in case it is we use `leave_shortstatehash` as the state to
-						// send
-						leave_shortstatehash
-					};
-
-					let lazily_loaded_members = prepare_lazily_loaded_members(
+					build_left_state_and_timeline(
 						services,
 						sync_context,
 						room_id,
-						timeline.senders(),
-					);
-
-					let (timeline_start_shortstatehash, lazily_loaded_members) =
-						join(timeline_start_shortstatehash, lazily_loaded_members).await;
-
-					// TODO: calculate incremental state for incremental syncs.
-					// always calculating initial state _works_ but returns more data and does
-					// more processing than strictly necessary.
-					let mut state = build_state_initial(
-						services,
-						syncing_user,
-						timeline_start_shortstatehash,
-						lazily_loaded_members.as_ref(),
+						leave_membership_event,
+						leave_shortstatehash,
+						prev_membership_event,
 					)
-					.await?;
-
-					/*
-					remove membership events for the syncing user from state.
-					usually, `state` should include a `join` membership event and `timeline` should include a `leave` one.
-					however, the matrix-js-sdk gets confused when this happens (see [1]) and doesn't process the room leave,
-					so we have to filter out the membership from `state`.
-
-					NOTE: we are sending more information than synapse does in this scenario, because we always
-					calculate `state` for initial syncs, even when the sync being performed is incremental.
-					however, the specification does not forbid sending extraneous events in `state`.
-
-					TODO: there is an additional bug at play here. sometimes `load_joined_room` syncs the `leave` event
-					before `load_left_room` does, which means the `timeline` we sync immediately after a leave is empty.
-					this shouldn't happen -- `timeline` should always include the `leave` event. this is probably
-					a race condition with the membership state cache.
-
-					[1]: https://github.com/matrix-org/matrix-js-sdk/issues/5071
-					*/
-
-					// `state` should only ever include one membership event for the syncing user
-					let membership_event_index = state.iter().position(|pdu| {
-						*pdu.event_type() == TimelineEventType::RoomMember
-							&& pdu.state_key() == Some(syncing_user.as_str())
-					});
-
-					if let Some(index) = membership_event_index {
-						// the ordering of events in `state` does not matter
-						state.swap_remove(index);
-					}
-
-					trace!(
-						?timeline_start_count,
-						?timeline_end_count,
-						"syncing {} timeline events (limited = {}) and {} state events",
-						timeline.pdus.len(),
-						timeline.limited,
-						state.len()
-					);
-
-					(timeline, state)
+					.await?
 				},
 				| other_membership => {
 					// otherwise, the user should not be able to view the timeline.
@@ -264,7 +156,7 @@ pub(super) async fn load_left_room(
 						?other_membership,
 						"user did not leave happily, only syncing leave event"
 					);
-					(TimelinePdus::default(), vec![leave_pdu])
+					(TimelinePdus::default(), vec![leave_membership_event])
 				},
 			}
 		},
@@ -310,6 +202,137 @@ pub(super) async fn load_left_room(
 			events: state_events.into_iter().map(Event::into_format).collect(),
 		},
 	}))
+}
+
+async fn build_left_state_and_timeline(
+	services: &Services,
+	sync_context: SyncContext<'_>,
+	room_id: &RoomId,
+	leave_membership_event: PduEvent,
+	leave_shortstatehash: ShortStateHash,
+	prev_membership_event: PduEvent,
+) -> Result<(TimelinePdus, Vec<PduEvent>)> {
+	let SyncContext {
+		syncing_user,
+		last_sync_end_count,
+		filter,
+		..
+	} = sync_context;
+
+	let timeline_start_count = if let Some(last_sync_end_count) = last_sync_end_count {
+		// for incremental syncs, start the timeline after `since`
+		PduCount::Normal(last_sync_end_count)
+	} else {
+		// for initial syncs, start the timeline after the previous membership
+		// event. we don't want to include the membership event itself
+		// because clients get confused when they see a `join`
+		// membership event in a `leave` room.
+		services
+			.rooms
+			.timeline
+			.get_pdu_count(&prev_membership_event.event_id)
+			.await?
+	};
+
+	// end the timeline at the user's leave event
+	let timeline_end_count = services
+		.rooms
+		.timeline
+		.get_pdu_count(leave_membership_event.event_id())
+		.await?;
+
+	// limit the timeline using the same logic as for joined rooms
+	let timeline_limit = filter
+		.room
+		.timeline
+		.limit
+		.and_then(|limit| limit.try_into().ok())
+		.unwrap_or(DEFAULT_TIMELINE_LIMIT);
+
+	let timeline = load_timeline(
+		services,
+		syncing_user,
+		room_id,
+		Some(timeline_start_count),
+		Some(timeline_end_count),
+		timeline_limit,
+	)
+	.await?;
+
+	let timeline_start_shortstatehash = async {
+		if let Some((_, pdu)) = timeline.pdus.front() {
+			if let Ok(shortstatehash) = services
+				.rooms
+				.state_accessor
+				.pdu_shortstatehash(&pdu.event_id)
+				.await
+			{
+				return shortstatehash;
+			}
+		}
+
+		// the timeline generally should not be empty (see the TODO further down),
+		// but in case it is we use `leave_shortstatehash` as the state to
+		// send
+		leave_shortstatehash
+	};
+
+	let lazily_loaded_members =
+		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders());
+
+	let (timeline_start_shortstatehash, lazily_loaded_members) =
+		join(timeline_start_shortstatehash, lazily_loaded_members).await;
+
+	// TODO: calculate incremental state for incremental syncs.
+	// always calculating initial state _works_ but returns more data and does
+	// more processing than strictly necessary.
+	let mut state = build_state_initial(
+		services,
+		syncing_user,
+		timeline_start_shortstatehash,
+		lazily_loaded_members.as_ref(),
+	)
+	.await?;
+
+	/*
+	remove membership events for the syncing user from state.
+	usually, `state` should include a `join` membership event and `timeline` should include a `leave` one.
+	however, the matrix-js-sdk gets confused when this happens (see [1]) and doesn't process the room leave,
+	so we have to filter out the membership from `state`.
+
+	NOTE: we are sending more information than synapse does in this scenario, because we always
+	calculate `state` for initial syncs, even when the sync being performed is incremental.
+	however, the specification does not forbid sending extraneous events in `state`.
+
+	TODO: there is an additional bug at play here. sometimes `load_joined_room` syncs the `leave` event
+	before `load_left_room` does, which means the `timeline` we sync immediately after a leave is empty.
+	this shouldn't happen -- `timeline` should always include the `leave` event. this is probably
+	a race condition with the membership state cache.
+
+	[1]: https://github.com/matrix-org/matrix-js-sdk/issues/5071
+	*/
+
+	// `state` should only ever include one membership event for the syncing user
+	let membership_event_index = state.iter().position(|pdu| {
+		*pdu.event_type() == TimelineEventType::RoomMember
+			&& pdu.state_key() == Some(syncing_user.as_str())
+	});
+
+	if let Some(index) = membership_event_index {
+		// the ordering of events in `state` does not matter
+		state.swap_remove(index);
+	}
+
+	trace!(
+		?timeline_start_count,
+		?timeline_end_count,
+		"syncing {} timeline events (limited = {}) and {} state events",
+		timeline.pdus.len(),
+		timeline.limited,
+		state.len()
+	);
+
+	Ok((timeline, state))
 }
 
 fn create_dummy_leave_event(
