@@ -93,13 +93,21 @@ pub(super) async fn load_left_room(
 			we have none PDUs with left beef for this room, likely because it was a rejected invite to a room
 			which nobody on this homeserver is in. `leave_pdu` is the remote-assisted outlier leave event for the room,
 			which is all we can send to the client.
+
+			if this is an initial sync, don't include this room at all to keep the client from asking for
+			state that we don't have.
 			*/
+
+			if last_sync_end_count.is_none() {
+				return Ok(None);
+			}
+
 			trace!("syncing remote-assisted leave PDU");
 			(TimelinePdus::default(), vec![leave_membership_event])
 		},
 		| Some(leave_membership_event) => {
 			// we have this room in our DB, and can fetch the state and timeline from when
-			// the user left if they're allowed to see it.
+			// the user left.
 
 			let leave_state_key = syncing_user;
 			debug_assert_eq!(
@@ -126,44 +134,22 @@ pub(super) async fn load_left_room(
 					leave_state_key.as_str(),
 				)
 				.await?;
-			let current_membership: RoomMemberEventContent =
-				leave_membership_event.get_content()?;
-			let prev_membership: RoomMemberEventContent = prev_membership_event.get_content()?;
 
-			match current_membership.membership_change(
-				Some(prev_membership.details()),
-				&leave_membership_event.sender,
-				leave_state_key,
-			) {
-				| MembershipChange::Left => {
-					// if the user went from `join` to `leave`, they should be able to view the
-					// timeline.
-
-					build_left_state_and_timeline(
-						services,
-						sync_context,
-						room_id,
-						leave_membership_event,
-						leave_shortstatehash,
-						prev_membership_event,
-					)
-					.await?
-				},
-				| other_membership => {
-					// otherwise, the user should not be able to view the timeline.
-					// only return their leave event.
-					trace!(
-						?other_membership,
-						"user did not leave happily, only syncing leave event"
-					);
-					(TimelinePdus::default(), vec![leave_membership_event])
-				},
-			}
+			build_left_state_and_timeline(
+				services,
+				sync_context,
+				room_id,
+				leave_membership_event,
+				leave_shortstatehash,
+				prev_membership_event,
+			)
+			.await?
 		},
 		| None => {
 			/*
 			no leave event was actually sent in this room, but we still need to pretend
 			like the user left it. this is usually because the room was banned by a server admin.
+
 			if this is an incremental sync, generate a fake leave event to make the room vanish from clients.
 			otherwise we don't tell the client about this room at all.
 			*/
