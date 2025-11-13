@@ -272,8 +272,13 @@ pub(super) async fn load_left_room(
 			/*
 			no leave event was actually sent in this room, but we still need to pretend
 			like the user left it. this is usually because the room was banned by a server admin.
-			generate a fake leave event to placate the client.
+			if this is an incremental sync, generate a fake leave event to make the room vanish from clients.
+			otherwise we don't tell the client about this room at all.
 			*/
+			if last_sync_end_count.is_none() {
+				return Ok(None);
+			}
+
 			trace!("syncing dummy leave event");
 			(TimelinePdus::default(), vec![create_dummy_leave_event(
 				services,
