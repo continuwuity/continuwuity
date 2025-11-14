@@ -623,6 +623,10 @@ where
 		.boxed()
 		.await?;
 	trace!(list = ?events_to_check, "events to check");
+	if events_to_check.is_empty() {
+		debug!("no events to check, returning unconflicted state");
+		return Ok(unconflicted_state);
+	}
 
 	let auth_event_ids: HashSet<OwnedEventId> = events_to_check
 		.iter()
@@ -643,10 +647,11 @@ where
 	trace!(map = ?auth_events.keys().collect::<Vec<_>>(), "fetched auth events");
 
 	let auth_events = &auth_events;
-	let mut resolved_state = match stateres_version {
-		| StateResolutionVersion::V2_1 => StateMap::new(),
-		| _ => unconflicted_state,
-	};
+	// NOTE: in state resolution v2.1, auth checks should start with an empty state
+	// map. It is the caller's job to do this. Previously, this function would
+	// force an empty state map in this case, and this resulted in power events
+	// going missing from the resolved state as they'd be discarded here.
+	let mut resolved_state = unconflicted_state;
 	for event in events_to_check {
 		trace!(event_id = event.event_id().as_str(), "checking event");
 		let state_key = event
