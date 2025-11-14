@@ -8,10 +8,7 @@ use futures::{StreamExt, future::join};
 use ruma::{
 	EventId, OwnedRoomId, RoomId,
 	api::client::sync::sync_events::v3::{LeftRoom, RoomAccountData, State, Timeline},
-	events::{
-		StateEventType, TimelineEventType,
-		room::member::{MembershipChange, RoomMemberEventContent},
-	},
+	events::{StateEventType, TimelineEventType},
 	uint,
 };
 use serde_json::value::RawValue;
