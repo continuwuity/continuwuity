@@ -1,1 +1,1 @@
-docs/development.md
+docs/development/index.mdx
