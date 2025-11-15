@@ -24,6 +24,7 @@
   "devDependencies": {
     "@rspress/core": "^2.0.0-beta.35",
     "@rspress/plugin-preview": "^2.0.0-beta.35",
+    "@rspress/plugin-sitemap": "^2.0.0-beta.23",
     "typescript": "^5.9.3"
   }
 }
