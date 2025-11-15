@@ -4,8 +4,8 @@ import { pluginSitemap } from '@rspress/plugin-sitemap';
 
 export default defineConfig({
   root: 'docs',
-  title: 'continuwuity',
-  description: 'A community-driven Matrix homeserver in Rust',
+  title: 'Continuwuity',
+  description: 'A community-driven Matrix homeserver',
   icon: '/assets/logo.svg',
   logo: {
     light: '/assets/logo.svg',
