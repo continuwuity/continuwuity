@@ -11,9 +11,6 @@ export default defineConfig({
     light: '/assets/logo.svg',
     dark: '/assets/logo.svg',
   },
-  route: {
-    exclude: ['**/CONTRIBUTING.md', '**/README.md', '**/pkg/**', '**/target/**', '**/src/**', '**/tests/**'],
-  },
   themeConfig: {
     socialLinks: [
       {
