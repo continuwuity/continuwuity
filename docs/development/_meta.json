@@ -1,0 +1,27 @@
+[
+    {
+        "type": "file",
+        "name": "index",
+        "label": "Development Guide"
+    },
+    {
+        "type": "file",
+        "name": "contributing",
+        "label": "Contributing"
+    },
+    {
+        "type": "file",
+        "name": "code_style",
+        "label": "Code Style Guide"
+    },
+    {
+        "type": "file",
+        "name": "testing",
+        "label": "Testing"
+    },
+    {
+        "type": "file",
+        "name": "hot_reload",
+        "label": "Hot Reloading"
+    }
+]

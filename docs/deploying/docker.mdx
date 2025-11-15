@@ -40,10 +40,10 @@ or you can use [Docker Compose](#docker-compose).
 
 The `-d` flag lets the container run in detached mode. You may supply an
 optional `continuwuity.toml` config file, the example config can be found
-[here](../configuration/examples.md). You can pass in different env vars to
+[here](../reference/config.mdx). You can pass in different env vars to
 change config values on the fly. You can even configure Continuwuity completely by
 using env vars. For an overview of possible values, please take a look at the
-[`docker-compose.yml`](docker-compose.yml) file.
+<a href="/examples/docker-compose.yml" target="_blank">`docker-compose.yml`</a> file.
 
 If you just want to test Continuwuity for a short time, you can use the `--rm`
 flag, which cleans up everything related to your container after you stop
@@ -56,14 +56,62 @@ of the provided `docker-compose` files.
 
 Depending on your proxy setup, you can use one of the following files:
 
-- If you already have a `traefik` instance set up, use
-[`docker-compose.for-traefik.yml`](docker-compose.for-traefik.yml)
-- If you don't have a `traefik` instance set up and would like to use it, use
-[`docker-compose.with-traefik.yml`](docker-compose.with-traefik.yml)
-- If you want a setup that works out of the box with `caddy-docker-proxy`, use
-[`docker-compose.with-caddy.yml`](docker-compose.with-caddy.yml) and replace all
-`example.com` placeholders with your own domain
-- For any other reverse proxy, use [`docker-compose.yml`](docker-compose.yml)
+### For existing Traefik setup
+
+<details>
+<summary>docker-compose.for-traefik.yml</summary>
+
+```yaml file="./docker-compose.for-traefik.yml"
+
+```
+
+</details>
+
+### With Traefik included
+
+<details>
+<summary>docker-compose.with-traefik.yml</summary>
+
+```yaml file="./docker-compose.with-traefik.yml"
+
+```
+
+</details>
+
+### With Caddy Docker Proxy
+
+<details>
+<summary>docker-compose.with-caddy.yml</summary>
+
+Replace all `example.com` placeholders with your own domain.
+
+```yaml file="./docker-compose.with-caddy.yml"
+
+```
+
+</details>
+
+### For other reverse proxies
+
+<details>
+<summary>docker-compose.yml</summary>
+
+```yaml file="./docker-compose.yml"
+
+```
+
+</details>
+
+### Override file
+
+<details>
+<summary>docker-compose.override.yml</summary>
+
+```yaml file="./docker-compose.override.yml"
+
+```
+
+</details>
 
 When picking the Traefik-related compose file, rename it to
 `docker-compose.yml`, and rename the override file to
@@ -80,7 +128,7 @@ docker network create caddy
 After that, you can rename it to `docker-compose.yml` and spin up the
 containers!
 
-Additional info about deploying Continuwuity can be found [here](generic.md).
+Additional info about deploying Continuwuity can be found [here](generic.mdx).
 
 ### Build
 
@@ -88,7 +136,18 @@ Official Continuwuity images are built using **Docker Buildx** and the Dockerfil
 
 The resulting images are widely compatible with Docker and other container runtimes like Podman or containerd.
 
-The images *do not contain a shell*. They contain only the Continuwuity binary, required libraries, TLS certificates, and metadata. Please refer to the [`docker/Dockerfile`][dockerfile-path] for the specific details of the image composition.
+The images *do not contain a shell*. They contain only the Continuwuity binary, required libraries, TLS certificates, and metadata.
+
+<details>
+<summary>Click to view the Dockerfile</summary>
+
+You can also <a href="https://forgejo.ellis.link/continuwuation/continuwuation/src/branch/main/docker/Dockerfile" target="_blank">view the Dockerfile on Forgejo</a>.
+
+```dockerfile file="../../docker/Dockerfile"
+
+```
+
+</details>
 
 To build an image locally using Docker Buildx, you can typically run a command like:
 
@@ -105,7 +164,7 @@ docker buildx build --load --tag continuwuity:latest -f docker/Dockerfile .
 
 Refer to the Docker Buildx documentation for more advanced build options.
 
-[dockerfile-path]: ../../docker/Dockerfile
+[dockerfile-path]: https://forgejo.ellis.link/continuwuation/continuwuation/src/branch/main/docker/Dockerfile
 
 ### Run
 
@@ -123,10 +182,7 @@ docker compose up -d
 
 As a container user, you probably know about Traefik. It is an easy-to-use
 reverse proxy for making containerized apps and services available through the
-web. With the two provided files,
-[`docker-compose.for-traefik.yml`](docker-compose.for-traefik.yml) (or
-[`docker-compose.with-traefik.yml`](docker-compose.with-traefik.yml)) and
-[`docker-compose.override.yml`](docker-compose.override.yml), it is equally easy
+web. With the Traefik-related docker-compose files provided above, it is equally easy
 to deploy and use Continuwuity, with a small caveat. If you have already looked at
 the files, you should have seen the `well-known` service, which is the
 small caveat. Traefik is simply a proxy and load balancer and cannot

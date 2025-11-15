@@ -97,8 +97,7 @@ on the network level, consider something like NextDNS or Pi-Hole.
 
 ## Setting up a systemd service
 
-You can find two example systemd units for Continuwuity
-[on the configuration page](../configuration/examples.md#debian-systemd-unit-file).
+You can find an example unit for continuwuity below.
 You may need to change the `ExecStart=` path to match where you placed the Continuwuity
 binary if it is not in `/usr/bin/conduwuit`.
 
@@ -117,11 +116,26 @@ and entering the following:
 ReadWritePaths=/path/to/custom/database/path
 ```
 
+
+### Example systemd Unit File
+
+<details>
+<summary>Click to expand systemd unit file (conduwuit.service)</summary>
+
+
+```ini file="../../pkg/conduwuit.service"
+
+```
+
+</details>
+
+You can also [view the file on Foregejo](https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/pkg/conduwuit.service).
+
 ## Creating the Continuwuity configuration file
 
 Now you need to create the Continuwuity configuration file in
 `/etc/continuwuity/continuwuity.toml`. You can find an example configuration at
-[conduwuit-example.toml](../configuration/examples.md).
+[conduwuit-example.toml](../reference/config.mdx).
 
 **Please take a moment to read the config. You need to change at least the
 server name.**
@@ -156,7 +170,7 @@ For other software, please refer to their respective documentation or online gui
 After installing Caddy via your preferred method, create `/etc/caddy/conf.d/conduwuit_caddyfile`
 and enter the following (substitute your actual server name):
 
-```caddyfile
+```
 your.server.name, your.server.name:8448 {
     # TCP reverse_proxy
     reverse_proxy 127.0.0.1:6167
@@ -193,8 +207,10 @@ See the following spec pages for more details on these files:
 - [`/.well-known/matrix/support`](https://spec.matrix.org/latest/client-server-api/#getwell-knownmatrixsupport)
 
 Examples of delegation:
-- <https://puppygock.gay/.well-known/matrix/server>
-- <https://puppygock.gay/.well-known/matrix/client>
+- https://continuwuity.org/.well-known/matrix/server
+- https://continuwuity.org/.well-known/matrix/client
+- https://ellis.link/.well-known/matrix/server
+- https://ellis.link/.well-known/matrix/client
 
 For Apache and Nginx there are many examples available online.
 

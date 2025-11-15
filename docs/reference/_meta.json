@@ -1,0 +1,17 @@
+[
+    {
+        "type": "file",
+        "name": "config",
+        "label": "Configuration"
+    },
+    {
+        "type": "file",
+        "name": "admin",
+        "label": "Admin Commands"
+    },
+    {
+        "type": "file",
+        "name": "server",
+        "label": "Server command"
+    }
+]

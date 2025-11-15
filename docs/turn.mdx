@@ -8,7 +8,7 @@ available as a Docker image.
 
 Create a configuration file called `coturn.conf` containing:
 
-```conf
+```
 use-auth-secret
 static-auth-secret=<a secret key>
 realm=<your server domain>
@@ -18,7 +18,7 @@ A common way to generate a suitable alphanumeric secret key is by using `pwgen
 -s 64 1`.
 
 These same values need to be set in Continuwuity. See the [example
-config](configuration/examples.md) in the TURN section for configuring these and
+config](./reference/config.mdx) in the TURN section for configuring these and
 restart Continuwuity after.
 
 `turn_secret` or a path to `turn_secret_file` must have a value of your

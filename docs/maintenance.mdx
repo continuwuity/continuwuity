@@ -47,7 +47,7 @@ RocksDB troubleshooting can be found [in the RocksDB section of troubleshooting]
 ### Compression
 
 Some RocksDB settings can be adjusted such as the compression method chosen. See
-the RocksDB section in the [example config](configuration/examples.md).
+the RocksDB section in the [example config](./reference/config.mdx).
 
 btrfs users have reported that database compression does not need to be disabled
 on Continuwuity as the filesystem already does not attempt to compress. This can be
@@ -55,7 +55,7 @@ validated by using `filefrag -v` on a `.SST` file in your database, and ensure
 the `physical_offset` matches (no filesystem compression). It is very important
 to ensure no additional filesystem compression takes place as this can render
 unbuffered Direct IO inoperable, significantly slowing down read and write
-performance. See <https://btrfs.readthedocs.io/en/latest/Compression.html#compatibility>
+performance. See [the Btrfs docs](https://btrfs.readthedocs.io/en/latest/Compression.html#compatibility).
 
 > Compression is done using the COW mechanism so it’s incompatible with
 > nodatacow. Direct IO read works on compressed files but will fall back to

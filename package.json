@@ -1,0 +1,29 @@
+{
+  "name": "continuwuation",
+  "version": "1.0.0",
+  "description": "<!-- ANCHOR: catchphrase -->",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "docs:dev": "rspress dev docs",
+    "docs:build": "rspress build docs",
+    "docs:preview": "rspress preview docs",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "ssh://git@forgejo.ellis.link/continuwuation/continuwuity.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@rspress/core": "^2.0.0-beta.35",
+    "@rspress/plugin-preview": "^2.0.0-beta.35",
+    "typescript": "^5.9.3"
+  }
+}

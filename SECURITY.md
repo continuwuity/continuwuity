@@ -22,7 +22,7 @@ We appreciate the efforts of security researchers and the community in identifyi
 
 1. **Contact members of the team directly** over E2EE private message.
    - [@jade:ellis.link](https://matrix.to/#/@jade:ellis.link)
-   - [@nex:nexy7574.co.uk](https://matrix.to/#/@nex:nexy7574.co.uk) <!-- ? -->
+   - [@nex:nexy7574.co.uk](https://matrix.to/#/@nex:nexy7574.co.uk)
 2. **Email the security team** at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so don't include sensitive details.
 3. **Do not disclose the vulnerability publicly** until it has been addressed
 4. **Provide detailed information** about the vulnerability, including:
