@@ -1,5 +1,6 @@
 import { defineConfig } from '@rspress/core';
 import { pluginPreview } from '@rspress/plugin-preview';
+import { pluginSitemap } from '@rspress/plugin-sitemap';
 
 export default defineConfig({
   root: 'docs',
@@ -36,5 +37,7 @@ export default defineConfig({
     },
   },
 
-  plugins: [pluginPreview()],
+  plugins: [pluginPreview(), pluginSitemap({
+        siteUrl: 'https://continuwuity.org', // TODO: Set automatically in build pipeline
+      })],
 });
