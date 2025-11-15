@@ -1,0 +1,37 @@
+[
+    {
+        "text": "Guide",
+        "link": "/introduction",
+        "activeMatch": "^/(introduction|configuration|deploying|turn|appservices|maintenance|troubleshooting)"
+    },
+    {
+        "text": "Development",
+        "link": "/development/index",
+        "activeMatch": "^/development/"
+    },
+    {
+        "text": "Reference",
+        "items": [
+            {
+                "text": "Configuration Reference",
+                "link": "/reference/config"
+            },
+            {
+                "text": "Admin Command Reference",
+                "link": "/reference/admin"
+            },
+            {
+                "text": "Server Reference",
+                "link": "/reference/server"
+            }
+        ]
+    },
+    {
+        "text": "Community",
+        "link": "/community"
+    },
+    {
+        "text": "Security",
+        "link": "/security"
+    }
+]

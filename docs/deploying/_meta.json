@@ -1,0 +1,42 @@
+[
+    {
+        "type": "file",
+        "name": "generic",
+        "label": "Generic"
+    },
+    {
+        "type": "file",
+        "name": "docker",
+        "label": "Docker"
+    },
+    {
+        "type": "file",
+        "name": "debian",
+        "label": "Debian"
+    },
+    {
+        "type": "file",
+        "name": "fedora",
+        "label": "Fedora"
+    },
+    {
+        "type": "file",
+        "name": "nixos",
+        "label": "NixOS"
+    },
+    {
+        "type": "file",
+        "name": "arch-linux",
+        "label": "Arch Linux"
+    },
+    {
+        "type": "file",
+        "name": "kubernetes",
+        "label": "Kubernetes"
+    },
+    {
+        "type": "file",
+        "name": "freebsd",
+        "label": "FreeBSD"
+    }
+]

@@ -137,7 +137,7 @@ acyclic graph. The primary rule is simple and illustrated in the figure below:
 it.**
 
 ![Continuwuity's dynamic library setup diagram - created by Jason
-Volk](assets/libraries.png)
+Volk](./assets/libraries.png)
 
 When a symbol is referenced between crates they become bound: **crates cannot be
 unloaded until their calling crates are first unloaded.** Thus we start the
@@ -148,7 +148,7 @@ and the first crate, freeing the executable from all modules as no global
 binding ever occurs between them.
 
 ![Continuwuity's reload and load order diagram - created by Jason
-Volk](assets/reload_order.png)
+Volk](./assets/reload_order.png)
 
 Proper resource management is essential for reliable reloading to occur. This is
 a very basic ask in RAII-idiomatic Rust and the exposure to reloading hazards is

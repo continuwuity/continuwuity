@@ -79,7 +79,7 @@ test-conduit.toml
 /.gitlab-ci.d
 
 # mdbook output
-public/
+/public/
 
 # macOS
 .DS_Store
@@ -95,3 +95,10 @@ rustc-ice-*
 
 # complement test logs are huge
 tests/test_results/complement/test_logs.jsonl
+
+# Node
+node_modules/
+
+# Rspress
+doc_build/
+.rspress/

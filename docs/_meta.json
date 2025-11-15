@@ -1,0 +1,74 @@
+[
+    {
+        "type": "file",
+        "name": "introduction",
+        "label": "Continuwuity"
+    },
+    {
+        "type": "file",
+        "name": "configuration",
+        "label": "Configuration"
+    },
+    {
+        "type": "dir",
+        "name": "deploying",
+        "label": "Deploying"
+    },
+    {
+        "type": "file",
+        "name": "turn",
+        "label": "TURN"
+    },
+    {
+        "type": "file",
+        "name": "appservices",
+        "label": "Appservices"
+    },
+    {
+        "type": "file",
+        "name": "maintenance",
+        "label": "Maintenance"
+    },
+    {
+        "type": "file",
+        "name": "troubleshooting",
+        "label": "Troubleshooting"
+    },
+    {
+        "type": "divider"
+    },
+    {
+        "type": "dir-section-header",
+        "name": "development",
+        "label": "Development",
+        "collapsible": true,
+        "collapsed": false
+    },
+    {
+        "type": "divider"
+    },
+    {
+        "type": "section-header",
+        "label": "Reference"
+    },
+    {
+        "type": "file",
+        "label": "Configuration Reference",
+        "name": "/reference/config"
+    },
+    {
+        "type": "file",
+        "label": "Admin Command Reference",
+        "name": "/reference/admin"
+    },
+    {
+        "type": "file",
+        "label": "Server Reference",
+        "name": "/reference/server"
+    },
+    {
+        "type": "divider"
+    },
+    "community",
+    "security"
+]

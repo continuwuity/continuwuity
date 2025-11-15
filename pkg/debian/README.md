@@ -22,7 +22,7 @@ sudo apt install continuwuity
 ```
 The `continuwuity` package conflicts with the old `conduwuit` package and will remove it automatically when installed.
 
-See the [generic deployment guide](../deploying/generic.md) for additional information about using the Debian package.
+See the [generic deployment guide](/deploying/generic.mdx) for additional information about using the Debian package.
 
 ### Configuration
 
@@ -32,8 +32,8 @@ You can customize additional settings by uncommenting and modifying the configur
 
 ### Running
 
-The package uses the [`conduwuit.service`](../configuration/examples.md#example-systemd-unit-file) systemd unit file to start and stop Continuwuity. The binary installs at `/usr/bin/conduwuit`.
+The package uses the `conduwuit.service` systemd unit file to start and stop Continuwuity. The binary installs at `/usr/bin/conduwuit`.
 
 By default, this package assumes that Continuwuity runs behind a reverse proxy. The default configuration options apply (listening on `localhost` and TCP port `6167`). Matrix federation requires a valid domain name and TLS. To federate properly, you must set up TLS certificates and certificate renewal.
 
-For information about setting up a reverse proxy and TLS, consult online documentation and guides. The [generic deployment guide](../deploying/generic.md#setting-up-the-reverse-proxy) documents Caddy, which is the most user-friendly option for reverse proxy configuration.
+For information about setting up a reverse proxy and TLS, consult online documentation and guides. The [generic deployment guide](/deploying/generic.md#setting-up-the-reverse-proxy) documents Caddy, which is the most user-friendly option for reverse proxy configuration.
