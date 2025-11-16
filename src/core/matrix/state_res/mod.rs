@@ -169,7 +169,6 @@ where
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
 		&room_version,
-		&stateres_version,
 		sorted_control_levels.iter().stream().map(AsRef::as_ref),
 		initial_state,
 		&event_fetch,
@@ -210,7 +209,6 @@ where
 
 	let mut resolved_state = iterative_auth_check(
 		&room_version,
-		&stateres_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
 		resolved_control, // The control events are added to the final resolved state
 		&event_fetch,
@@ -598,7 +596,6 @@ where
 #[tracing::instrument(level = "trace", skip_all)]
 async fn iterative_auth_check<'a, E, F, Fut, S>(
 	room_version: &RoomVersion,
-	stateres_version: &StateResolutionVersion,
 	events_to_check: S,
 	unconflicted_state: StateMap<OwnedEventId>,
 	fetch_event: &F,
@@ -1039,7 +1036,6 @@ mod tests {
 
 		let resolved_power = super::iterative_auth_check(
 			&RoomVersion::V6,
-			&StateResolutionVersion::V2,
 			sorted_power_events.iter().map(AsRef::as_ref).stream(),
 			HashMap::new(), // unconflicted events
 			&fetcher,
