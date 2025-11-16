@@ -1,6 +1,6 @@
 use std::{
 	cmp::{self, Ordering},
-	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
+	collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
 	ops::Deref,
 	time::Duration,
 };
@@ -31,6 +31,7 @@ use ruma::{
 	events::{
 		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
+		typing::TypingEventContent,
 	},
 	serde::Raw,
 	uint,
@@ -39,7 +40,9 @@ use ruma::{
 use super::share_encrypted_room;
 use crate::{
 	Ruma,
-	client::{DEFAULT_BUMP_TYPES, ignored_filter, is_ignored_invite, sync::load_timeline},
+	client::{
+		DEFAULT_BUMP_TYPES, TimelinePdus, ignored_filter, is_ignored_invite, sync::load_timeline,
+	},
 };
 
 type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request);
@@ -210,6 +213,9 @@ pub(crate) async fn sync_events_v5_route(
 		_ = tokio::time::timeout(duration, watcher).await;
 	}
 
+	let typing = collect_typing_events(services, sender_user, &body, &todo_rooms).await?;
+	response.extensions.typing = typing;
+
 	trace!(
 		rooms = ?response.rooms.len(),
 		account_data = ?response.extensions.account_data.rooms.len(),
@@ -293,6 +299,8 @@ where
 	Rooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 	AllRooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 {
+	// TODO MSC4186: Implement remaining list filters: is_dm, is_encrypted,
+	// room_types.
 	for (list_id, list) in &body.lists {
 		let active_rooms: Vec<_> = match list.filters.as_ref().and_then(|f| f.is_invite) {
 			| None => all_rooms.clone().collect(),
@@ -409,13 +417,13 @@ where
 				.await
 				.ok();
 
-			(timeline_pdus, limited) = (Vec::new(), true);
+			(timeline_pdus, limited) = (VecDeque::new(), true);
 		} else {
-			(timeline_pdus, limited) = match load_timeline(
+			TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
 				services,
 				sender_user,
 				room_id,
-				roomsincecount,
+				Some(roomsincecount),
 				Some(PduCount::from(next_batch)),
 				*timeline_limit,
 			)
@@ -434,7 +442,7 @@ where
 				room_id.to_owned(),
 				services
 					.account_data
-					.changes_since(Some(room_id), sender_user, *roomsince, Some(next_batch))
+					.changes_since(Some(room_id), sender_user, Some(*roomsince), Some(next_batch))
 					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 					.collect()
 					.await,
@@ -460,11 +468,11 @@ where
 		let mut receipts: Vec<Raw<AnySyncEphemeralRoomEvent>> = services
 			.rooms
 			.read_receipt
-			.readreceipts_since(room_id, *roomsince)
+			.readreceipts_since(room_id, Some(*roomsince))
 			.filter_map(|(read_user, _ts, v)| async move {
 				services
 					.users
-					.user_is_ignored(read_user, sender_user)
+					.user_is_ignored(&read_user, sender_user)
 					.await
 					.or_some(v)
 			})
@@ -499,7 +507,7 @@ where
 		}
 
 		let prev_batch = timeline_pdus
-			.first()
+			.front()
 			.map_or(Ok::<_, Error>(None), |(pdu_count, _)| {
 				Ok(Some(match pdu_count {
 					| PduCount::Backfilled(_) => {
@@ -672,6 +680,62 @@ where
 	}
 	Ok(rooms)
 }
+
+async fn collect_typing_events(
+	services: &Services,
+	sender_user: &UserId,
+	body: &sync_events::v5::Request,
+	todo_rooms: &TodoRooms,
+) -> Result<sync_events::v5::response::Typing> {
+	if !body.extensions.typing.enabled.unwrap_or(false) {
+		return Ok(sync_events::v5::response::Typing::default());
+	}
+	let rooms: Vec<_> = body.extensions.typing.rooms.clone().unwrap_or_else(|| {
+		body.room_subscriptions
+			.keys()
+			.map(ToOwned::to_owned)
+			.collect()
+	});
+	let lists: Vec<_> = body
+		.extensions
+		.typing
+		.lists
+		.clone()
+		.unwrap_or_else(|| body.lists.keys().map(ToOwned::to_owned).collect::<Vec<_>>());
+
+	if rooms.is_empty() && lists.is_empty() {
+		return Ok(sync_events::v5::response::Typing::default());
+	}
+
+	let mut typing_response = sync_events::v5::response::Typing::default();
+	for (room_id, (_, _, roomsince)) in todo_rooms {
+		if services.rooms.typing.last_typing_update(room_id).await? <= *roomsince {
+			continue;
+		}
+
+		match services
+			.rooms
+			.typing
+			.typing_users_for_user(room_id, sender_user)
+			.await
+		{
+			| Ok(typing_users) => {
+				typing_response.rooms.insert(
+					room_id.to_owned(), // Already OwnedRoomId
+					Raw::new(&sync_events::v5::response::SyncTypingEvent {
+						content: TypingEventContent::new(typing_users),
+					})?,
+				);
+			},
+			| Err(e) => {
+				warn!(%room_id, "Failed to get typing events for room: {}", e);
+			},
+		}
+	}
+
+	Ok(typing_response)
+}
+
 async fn collect_account_data(
 	services: &Services,
 	(sender_user, _, globalsince, body): (&UserId, &DeviceId, u64, &sync_events::v5::Request),
@@ -687,7 +751,7 @@ async fn collect_account_data(
 
 	account_data.global = services
 		.account_data
-		.changes_since(None, sender_user, globalsince, None)
+		.changes_since(None, sender_user, Some(globalsince), None)
 		.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Global))
 		.collect()
 		.await;
@@ -698,7 +762,7 @@ async fn collect_account_data(
 				room.clone(),
 				services
 					.account_data
-					.changes_since(Some(room), sender_user, globalsince, None)
+					.changes_since(Some(room), sender_user, Some(globalsince), None)
 					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
 					.collect()
 					.await,
@@ -732,7 +796,7 @@ where
 	device_list_changes.extend(
 		services
 			.users
-			.keys_changed(sender_user, globalsince, None)
+			.keys_changed(sender_user, Some(globalsince), None)
 			.map(ToOwned::to_owned)
 			.collect::<Vec<_>>()
 			.await,
@@ -868,7 +932,7 @@ where
 		device_list_changes.extend(
 			services
 				.users
-				.room_keys_changed(room_id, globalsince, None)
+				.room_keys_changed(room_id, Some(globalsince), None)
 				.map(|(user_id, _)| user_id)
 				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
