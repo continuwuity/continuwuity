@@ -28,7 +28,7 @@ impl<T: fmt::Debug> fmt::Debug for TruncatedSlice<'_, T> {
 /// use conduwuit_core::utils::debug::slice_truncated;
 ///
 /// #[tracing::instrument(fields(foos = slice_truncated(foos, 42)))]
-/// fn bar(foos: &[&str]);
+/// fn bar(foos: &[&str]) {};
 /// ```
 pub fn slice_truncated<T: fmt::Debug>(
 	slice: &[T],
