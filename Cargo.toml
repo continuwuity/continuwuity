@@ -670,24 +670,6 @@ panic = "abort"
 inherits = "release"
 strip = "symbols"
 lto = "fat"
-#rustflags = [
-#	'-Ctarget-cpu=native',
-#	'-Ztune-cpu=native',
-#	'-Ctarget-feature=+crt-static',
-#	'-Crelocation-model=static',
-#	'-Ztls-model=local-exec',
-#	'-Zinline-in-all-cgus=true',
-#	'-Zinline-mir=true',
-#	'-Zmir-opt-level=3',
-#	'-Clink-arg=-fuse-ld=gold',
-#	'-Clink-arg=-Wl,--threads',
-#	'-Clink-arg=-Wl,--gc-sections',
-#	'-Clink-arg=-luring',
-#	'-Clink-arg=-lstdc++',
-#	'-Clink-arg=-lc',
-#	'-Ztime-passes',
-#	'-Ztime-llvm-passes',
-#]
 
 [profile.release-max-perf.build-override]
 inherits = "release-max-perf"
