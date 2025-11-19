@@ -20,6 +20,7 @@ use conduwuit_core::{
 	},
 	warn,
 };
+use dashmap::DashMap;
 use futures::{
 	FutureExt, StreamExt,
 	future::{BoxFuture, OptionFuture},
@@ -55,7 +56,7 @@ use super::{
 };
 
 #[derive(Debug)]
-enum TransactionStatus {
+pub(crate) enum TransactionStatus {
 	Running,
 	Failed(u32, Instant), // number of times failed, time of last failure
 	Retrying(u32),        // number of times failed
@@ -65,7 +66,7 @@ type SendingError = (Destination, Error);
 type SendingResult = Result<Destination, SendingError>;
 type SendingFuture<'a> = BoxFuture<'a, SendingResult>;
 type SendingFutures<'a> = FuturesUnordered<SendingFuture<'a>>;
-type CurTransactionStatus = HashMap<Destination, TransactionStatus>;
+pub(crate) type CurTransactionStatus = DashMap<Destination, TransactionStatus>;
 
 const SELECT_PRESENCE_LIMIT: usize = 256;
 const SELECT_RECEIPT_LIMIT: usize = 256;
@@ -78,8 +79,12 @@ pub const EDU_LIMIT: usize = 100;
 impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub(super) async fn sender(self: Arc<Self>, id: usize) -> Result {
-		let mut statuses: CurTransactionStatus = CurTransactionStatus::new();
 		let mut futures: SendingFutures<'_> = FuturesUnordered::new();
+
+		let mut statuses = self
+			.statuses
+			.get_mut(id)
+			.expect("missing status for worker");
 
 		self.startup_netburst(id, &mut futures, &mut statuses)
 			.boxed()

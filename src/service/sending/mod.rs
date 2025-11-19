@@ -4,10 +4,11 @@ mod dest;
 mod sender;
 
 use std::{
+	collections::HashMap,
 	fmt::Debug,
 	hash::{DefaultHasher, Hash, Hasher},
 	iter::once,
-	sync::Arc,
+	sync::{Arc, Mutex},
 };
 
 use async_trait::async_trait;
@@ -39,6 +40,7 @@ pub struct Service {
 	server: Arc<Server>,
 	services: Services,
 	channels: Vec<(loole::Sender<Msg>, loole::Receiver<Msg>)>,
+	statuses: Vec<sender::CurTransactionStatus>,
 }
 
 struct Services {
@@ -101,6 +103,7 @@ impl crate::Service for Service {
 				federation: args.depend::<federation::Service>("federation"),
 			},
 			channels: (0..num_senders).map(|_| loole::unbounded()).collect(),
+			statuses: vec![sender::CurTransactionStatus::new(); num_senders],
 		}))
 	}
 

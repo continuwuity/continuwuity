@@ -121,6 +121,7 @@ blurhash.workspace = true
 blurhash.optional = true
 recaptcha-verify = { version = "0.1.5", default-features = false }
 ctor.workspace = true
+dashmap = "6.1.0"
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true
