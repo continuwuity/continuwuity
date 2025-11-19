@@ -97,6 +97,9 @@ rec {
     craneLib.buildPackage (
       (commonAttrs commonAttrsArgs)
       // {
+        postFixup = ''
+          patchelf --set-rpath "$(${pkgs.patchelf}/bin/patchelf --print-rpath $out/bin/${crateInfo.pname}):${rocksdb}/lib" $out/bin/${crateInfo.pname}
+        '';
         cargoArtifacts = deps;
         doCheck = true;
         env = uwuenv.buildPackageEnv // rocksdbEnv;
