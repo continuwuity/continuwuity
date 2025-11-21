@@ -4,7 +4,6 @@ description = "continuwuity is a community continuation of the conduwuit Matrix 
 language = "en"
 authors = ["The continuwuity Community"]
 text-direction = "ltr"
-multilingual = false
 src = "docs"
 
 [build]
