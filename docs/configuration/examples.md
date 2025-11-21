@@ -17,3 +17,5 @@
 ```
 {{#include ../../pkg/conduwuit.service}}
 ```
+
+</details>
