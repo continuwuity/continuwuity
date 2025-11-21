@@ -17,7 +17,7 @@ inputs:
     required: false
     default: ''
   rust-version:
-    description: 'Rust version to install (e.g. nightly). Defaults to 1.87.0'
+    description: 'Rust version to install (e.g. nightly). Defaults to the version specified in rust-toolchain.toml'
     required: false
     default: ''
   sccache-cache-limit:
@@ -59,9 +59,20 @@ runs:
         mkdir -p "${{ github.workspace }}/target"
         mkdir -p "${{ github.workspace }}/.rustup"
 
-    - name: Start cache restore group
+    - name: Start registry/toolchain restore group
       shell: bash
-      run: echo "::group::📦 Restoring caches (registry, toolchain, build artifacts)"
+      run: echo "::group::📦 Restoring registry and toolchain caches"
+
+    - name: Cache toolchain binaries
+      id: toolchain-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          .cargo/bin
+          .rustup/toolchains
+          .rustup/update-hashes
+        # Shared toolchain cache across all Rust versions
+        key: continuwuity-toolchain-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}
 
     - name: Cache Cargo registry and git
       id: registry-cache
@@ -77,58 +88,13 @@ runs:
         restore-keys: |
           continuwuity-cargo-registry-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-
 
-    - name: Cache toolchain binaries
-      id: toolchain-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          .cargo/bin
-          .rustup/toolchains
-          .rustup/update-hashes
-        # Shared toolchain cache across all Rust versions
-        key: continuwuity-toolchain-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}
-
-
-    - name: Setup sccache
-      uses: https://git.tomfos.tr/tom/sccache-action@v1
-
-    - name: Cache dependencies
-      id: deps-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/**/.fingerprint
-          target/**/deps
-          target/**/*.d
-          target/**/.cargo-lock
-          target/**/CACHEDIR.TAG
-          target/**/.rustc_info.json
-          /timelord/
-        # Dependencies cache - based on Cargo.lock, survives source code changes
-        key: >-
-          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
-        restore-keys: |
-          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
-
-    - name: Cache incremental compilation
-      id: incremental-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/**/incremental
-        # Incremental cache - based on source code changes
-        key: >-
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
-        restore-keys: |
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ inputs.rust-version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
-
-    - name: End cache restore group
+    - name: End registry/toolchain restore group
       shell: bash
       run: echo "::endgroup::"
 
     - name: Setup Rust toolchain
       shell: bash
+      id: rust-setup
       run: |
         # Install rustup if not already cached
         if ! command -v rustup &> /dev/null; then
@@ -156,7 +122,67 @@ runs:
           echo "::group::📦 Setting up Rust from rust-toolchain.toml"
           rustup show
         fi
+
+        RUST_VERSION=$(rustc --version | cut -d' ' -f2)
+        echo "version=$RUST_VERSION" >> $GITHUB_OUTPUT
+
         echo "::endgroup::"
+
+    - name: Install Rust components
+      if: inputs.rust-components != ''
+      shell: bash
+      run: |
+        echo "📦 Installing components: ${{ inputs.rust-components }}"
+        rustup component add ${{ inputs.rust-components }}
+
+    - name: Install Rust target
+      if: inputs.rust-target != ''
+      shell: bash
+      run: |
+        echo "📦 Installing target: ${{ inputs.rust-target }}"
+        rustup target add ${{ inputs.rust-target }}
+
+    - name: Start build cache restore group
+      shell: bash
+      run: echo "::group::📦 Restoring build cache"
+
+    - name: Setup sccache
+      uses: https://git.tomfos.tr/tom/sccache-action@v1
+
+    - name: Cache dependencies
+      id: deps-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          target/**/.fingerprint
+          target/**/deps
+          target/**/*.d
+          target/**/.cargo-lock
+          target/**/CACHEDIR.TAG
+          target/**/.rustc_info.json
+          /timelord/
+        # Dependencies cache - based on Cargo.lock, survives source code changes
+        key: >-
+          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
+        restore-keys: |
+          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+
+    - name: Cache incremental compilation
+      id: incremental-cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          target/**/incremental
+        # Incremental cache - based on source code changes
+        key: >-
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
+        restore-keys: |
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
+          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
+
+    - name: End build cache restore group
+      shell: bash
+      run: echo "::endgroup::"
 
     - name: Configure PATH and install tools
       shell: bash
@@ -211,27 +237,9 @@ runs:
           echo "CARGO_INCREMENTAL_GC_THRESHOLD=5" >> $GITHUB_ENV
         fi
 
-    - name: Install Rust components
-      if: inputs.rust-components != ''
-      shell: bash
-      run: |
-        echo "📦 Installing components: ${{ inputs.rust-components }}"
-        rustup component add ${{ inputs.rust-components }}
-
-    - name: Install Rust target
-      if: inputs.rust-target != ''
-      shell: bash
-      run: |
-        echo "📦 Installing target: ${{ inputs.rust-target }}"
-        rustup target add ${{ inputs.rust-target }}
-
     - name: Output version and summary
-      id: rust-setup
       shell: bash
       run: |
-        RUST_VERSION=$(rustc --version | cut -d' ' -f2)
-        echo "version=$RUST_VERSION" >> $GITHUB_OUTPUT
-
         echo "📋 Setup complete:"
         echo "  Rust: $(rustc --version)"
         echo "  Cargo: $(cargo --version)"
