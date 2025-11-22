@@ -17,7 +17,7 @@ edition = "2024"
 [output.html]
 edit-url-template = "https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/{path}"
 git-repository-url = "https://forgejo.ellis.link/continuwuation/continuwuity"
-git-repository-icon = "fab-git-alt"
+git-repository-icon = "fa-git-alt"
 
 [output.html.search]
 limit-results = 15
