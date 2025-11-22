@@ -5,7 +5,7 @@
     --rp-c-brand-lighter: oklch(from var(--rp-c-brand) 0.7818 c h);
     --rp-c-brand-dark: oklch(from var(--rp-c-brand) 0.5967 c h);
     --rp-c-brand-darker: oklch(from var(--rp-c-brand) 0.5069 c h);
-    --rp-c-brand-tint: oklch(from var(--rp-c-brand) 0.4 c h);
+    --rp-c-brand-tint: oklch(from var(--rp-c-brand) 0.4 c h / 0.16);
 
     --name-lightness: 0.45;
     --c1: oklch(0.44 0.177 353.06);
@@ -63,4 +63,9 @@
 
 img {
     display: inline-block
+}
+
+/* Override silly colours on code links */
+.rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code), .rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code), .rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a:hover > code) {
+    color: var(--rp-c-link);
 }
