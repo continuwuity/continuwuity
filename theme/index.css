@@ -1,4 +1,3 @@
-
 :root {
     --rp-c-brand: #8a5cd0;
     --rp-c-brand-light: oklch(from var(--rp-c-brand) 0.7197 c h);
@@ -7,21 +6,21 @@
     --rp-c-brand-darker: oklch(from var(--rp-c-brand) 0.5069 c h);
     --rp-c-brand-tint: oklch(from var(--rp-c-brand) 0.4 c h / 0.16);
 
-    --name-lightness: 0.45;
+    --name-lightness: 0.5;
+    --background-lightness: 0.9;
+
     --c1: oklch(0.44 0.177 353.06);
     --c2: oklch(0.59 0.158 150.88);
+    .rp-home-hero__title-brand {
+        --rp-home-hero-title-bg: linear-gradient(
+            130deg,
+            oklch(from var(--c1) var(--name-lightness) c h),
+            oklch(from var(--c2) var(--name-lightness) c h)
+        );
+    }
 
-    --rp-home-hero-name-background: linear-gradient(
-        130deg,
-        oklch(from var(--c1) var(--name-lightness) c h),
-        oklch(from var(--c2) var(--name-lightness) c h)
-    );
-    --rp-home-mask-background-image: conic-gradient(from 180deg at 50% 50%, var(--c1) 0deg, 180deg, var(--c2) 1turn);
 
-    /*--rp-c-bg: #ffffff;
-    --rp-c-bg-soft: oklch(0.91 0.042 317.27);
-    --rp-c-bg-mute: oklch(0.88 0.035 317.27);
-    --rp-c-bg-alt: #fff;*/
+    --rp-home-background-bg: radial-gradient(42.12% 56.13% at 100% 0%, oklch(from var(--c2) var(--background-lightness) c h) 0%, #fff0 100%), radial-gradient(42.01% 79.63% at 52.86% 0%, #d9ff5333 0%, #fff0 100%), radial-gradient(79.67% 58.09% at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #fff0 100%), var(--rp-c-bg);
 
     --rp-c-divider: rgba(0, 0, 0, 0.2);
     --rp-c-divider-light: rgba(0, 0, 0, 0.1);
@@ -40,11 +39,15 @@
 
 .dark {
     --name-lightness: 0.8;
+    --background-lightness: 0.2;
 
     --rp-c-bg: oklch(0.15 0.042 317.27);
     --rp-c-bg-soft: oklch(0.24 0.03 317.27);
     --rp-c-bg-mute: oklch(0.28 0.035 317.27);
     --rp-c-bg-alt: #000;
+
+    --rp-home-background-bg: radial-gradient(42.12% 56.13% at 100% 0%, oklch(from var(--c2) var(--background-lightness) c h) 0%, #12121200 100%), radial-gradient(55.81% 87.78% at 48.37% 0%, #000 0%, #12121200 89.55%), radial-gradient(122.65% 88.24% at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #12121200 100%), var(--rp-c-bg);
+
 
     --rp-c-divider: rgba(84, 84, 84, 0.65);
     --rp-c-divider-light: rgba(84, 84, 84, 0.48);
@@ -62,10 +65,34 @@
 }
 
 img {
-    display: inline-block
+    display: inline-block;
 }
 
 /* Override silly colours on code links */
-.rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code), .rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code), .rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a:hover > code) {
+.rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code),
+.rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a > code),
+.rp-doc :not(:where(.rp-not-doc, .rp-not-doc *)):where(a:hover > code) {
     color: var(--rp-c-link);
+}
+
+.rp-button--big {
+    padding-inline: 1.25em;
+}
+
+/* Vertical layout */
+
+.rp-home-hero {
+    flex-direction: column-reverse;
+    align-items: center;
+    margin: 0 auto;
+}
+
+.rp-home-hero .rp-home-hero__container {
+    text-align: center;
+    align-items: center;
+}
+
+.rp-home-hero__image {
+    max-height: 35vh;
+    max-width: none; /* Having this set causes slight aspect ratio breakage */
 }
