@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, fmt::Write as _};
+use std::{
+	collections::{BTreeMap, HashSet},
+	fmt::Write as _,
+};
 
 use api::client::{
 	full_user_deactivate, join_room_by_id_helper, leave_all_rooms, leave_room, remote_leave_room,
@@ -12,7 +15,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId,
+	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, UserId,
 	events::{
 		RoomAccountDataEventType, StateEventType,
 		room::{
@@ -950,23 +953,38 @@ pub(super) async fn force_leave_remote_room(
 	&self,
 	user_id: String,
 	room_id: OwnedRoomOrAliasId,
+	via: Option<String>,
 ) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
-	let (room_id, _) = self
+	let (room_id, vias_raw) = self
 		.services
 		.rooms
 		.alias
-		.resolve_with_servers(&room_id, None)
+		.resolve_with_servers(
+			&room_id,
+			if let Some(v) = via.clone() {
+				Some(vec![OwnedServerName::parse(v)?])
+			} else {
+				None
+			},
+		)
 		.await?;
 
 	assert!(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
-	remote_leave_room(self.services, &user_id, &room_id, None)
+	let mut vias: HashSet<OwnedServerName> = HashSet::new();
+	if let Some(via) = via {
+		vias.insert(OwnedServerName::parse(via)?);
+	}
+	for server in vias_raw {
+		vias.insert(server);
+	}
+	remote_leave_room(self.services, &user_id, &room_id, None, vias)
 		.boxed()
 		.await?;
 
-	self.write_str(&format!("{user_id} has been joined to {room_id}.",))
+	self.write_str(&format!("{user_id} successfully left {room_id} via remote server."))
 		.await
 }

@@ -107,6 +107,7 @@ pub enum UserCommand {
 	ForceLeaveRemoteRoom {
 		user_id: String,
 		room_id: OwnedRoomOrAliasId,
+		via: Option<String>,
 	},
 
 	/// - Forces the specified user to drop their power levels to the room

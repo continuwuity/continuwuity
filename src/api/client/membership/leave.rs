@@ -131,9 +131,10 @@ pub async fn leave_room(
 
 	// Ask a remote server if we don't have this room and are not knocking on it
 	if dont_have_room.and(not_knocked).await {
-		if let Err(e) = remote_leave_room(services, user_id, room_id, reason.clone())
-			.boxed()
-			.await
+		if let Err(e) =
+			remote_leave_room(services, user_id, room_id, reason.clone(), HashSet::new())
+				.boxed()
+				.await
 		{
 			warn!(%user_id, "Failed to leave room {room_id} remotely: {e}");
 			// Don't tell the client about this error
@@ -215,22 +216,25 @@ pub async fn leave_room(
 	Ok(())
 }
 
-pub async fn remote_leave_room(
+pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,
 	reason: Option<String>,
+	mut servers: HashSet<OwnedServerName, S>,
 ) -> Result<()> {
 	let mut make_leave_response_and_server =
 		Err!(BadServerResponse("No remote server available to assist in leaving {room_id}."));
 
-	let mut servers: HashSet<OwnedServerName> = services
-		.rooms
-		.state_cache
-		.servers_invite_via(room_id)
-		.map(ToOwned::to_owned)
-		.collect()
-		.await;
+	servers.extend(
+		services
+			.rooms
+			.state_cache
+			.servers_invite_via(room_id)
+			.map(ToOwned::to_owned)
+			.collect::<HashSet<OwnedServerName>>()
+			.await,
+	);
 
 	match services
 		.rooms
@@ -277,6 +281,11 @@ pub async fn remote_leave_room(
 	if let Some(room_id_server_name) = room_id.server_name() {
 		servers.insert(room_id_server_name.to_owned());
 	}
+	if servers.is_empty() {
+		return Err!(BadServerResponse(warn!(
+			"No remote servers found to assist in leaving {room_id}."
+		)));
+	}
 
 	debug_info!("servers in remote_leave_room: {servers:?}");
 
@@ -284,7 +293,7 @@ pub async fn remote_leave_room(
 		let make_leave_response = services
 			.sending
 			.send_federation_request(
-				&remote_server,
+				remote_server.as_ref(),
 				federation::membership::prepare_leave_event::v1::Request {
 					room_id: room_id.to_owned(),
 					user_id: user_id.to_owned(),
@@ -292,11 +301,21 @@ pub async fn remote_leave_room(
 			)
 			.await;
 
-		make_leave_response_and_server = make_leave_response.map(|r| (r, remote_server));
+		let error = make_leave_response.as_ref().err().map(|e| e.to_string());
+		make_leave_response_and_server = make_leave_response.map(|r| (r, remote_server.clone()));
 
 		if make_leave_response_and_server.is_ok() {
+			debug_info!(
+				"Received make_leave_response from {} for leaving {room_id}",
+				remote_server
+			);
 			break;
 		}
+		debug_warn!(
+			"Failed to get make_leave_response from {} for leaving {room_id}: {}",
+			remote_server,
+			error.unwrap()
+		);
 	}
 
 	let (make_leave_response, remote_server) = make_leave_response_and_server?;
@@ -304,13 +323,14 @@ pub async fn remote_leave_room(
 	let Some(room_version_id) = make_leave_response.room_version else {
 		return Err!(BadServerResponse(warn!(
 			"No room version was returned by {remote_server} for {room_id}, room version is \
-			 likely not supported by conduwuit"
+			 likely not supported by continuwuity"
 		)));
 	};
 
 	if !services.server.supported_room_version(&room_version_id) {
 		return Err!(BadServerResponse(warn!(
-			"Remote room version {room_version_id} for {room_id} is not supported by conduwuit",
+			"Remote room version {room_version_id} for {room_id} is not supported by \
+			 continuwuity",
 		)));
 	}
 
