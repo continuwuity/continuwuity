@@ -301,7 +301,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			)
 			.await;
 
-		let error = make_leave_response.as_ref().err().map(|e| e.to_string());
+		let error = make_leave_response.as_ref().err().map(ToString::to_string);
 		make_leave_response_and_server = make_leave_response.map(|r| (r, remote_server.clone()));
 
 		if make_leave_response_and_server.is_ok() {
