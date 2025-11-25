@@ -30,13 +30,13 @@ jobs:
           echo "Fedora version: $VERSION"
 
       - name: Checkout repository with full history
-        uses: https://code.forgejo.org/actions/checkout@v5
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
 
       - name: Cache DNF packages
-        uses: https://code.forgejo.org/actions/cache@v4
+        uses: actions/cache@v4
         with:
           path: |
             /var/cache/dnf
@@ -46,7 +46,7 @@ jobs:
             dnf-fedora${{ steps.fedora.outputs.version }}-
 
       - name: Cache Cargo registry
-        uses: https://code.forgejo.org/actions/cache@v4
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -56,7 +56,7 @@ jobs:
             cargo-fedora${{ steps.fedora.outputs.version }}-
 
       - name: Cache Rust build dependencies
-        uses: https://code.forgejo.org/actions/cache@v4
+        uses: actions/cache@v4
         with:
           path: |
             ~/rpmbuild/BUILD/*/target/release/deps
@@ -238,13 +238,13 @@ jobs:
           cp $BIN_RPM upload-bin/
 
       - name: Upload binary RPM
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           name: continuwuity
           path: upload-bin/
 
       - name: Upload debug RPM artifact
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           name: continuwuity-debug
           path: artifacts/*debuginfo*.rpm

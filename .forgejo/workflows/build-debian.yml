@@ -32,12 +32,12 @@ jobs:
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
 
       - name: Checkout repository with full history
-        uses: https://code.forgejo.org/actions/checkout@v5
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Cache Cargo registry
-        uses: https://code.forgejo.org/actions/cache@v4
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -126,7 +126,7 @@ jobs:
           [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
 
       - name: Upload deb artifact
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3
         with:
           name: continuwuity-${{ steps.debian-version.outputs.distribution }}
           path: ${{ steps.cargo-deb.outputs.path }}
