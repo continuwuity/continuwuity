@@ -32,7 +32,7 @@ jobs:
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
 
       - name: Checkout repository with full history
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
