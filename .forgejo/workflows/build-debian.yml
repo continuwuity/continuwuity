@@ -126,7 +126,7 @@ jobs:
           [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
 
       - name: Upload deb artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v5
         with:
           name: continuwuity-${{ steps.debian-version.outputs.distribution }}
           path: ${{ steps.cargo-deb.outputs.path }}
