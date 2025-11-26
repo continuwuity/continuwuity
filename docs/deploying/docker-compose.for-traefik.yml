@@ -2,7 +2,7 @@
 
 services:
   homeserver:
-    ### If you already built the conduduwit image with 'docker build' or want to use the Docker Hub image,
+    ### If you already built the continuwuity image with 'docker build' or want to use the Docker Hub image,
     ### then you are ready to go.
     image: forgejo.ellis.link/continuwuation/continuwuity:latest
     restart: unless-stopped
