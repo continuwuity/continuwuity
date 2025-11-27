@@ -7,7 +7,7 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
-	CanonicalJsonObject, RoomId, UserId,
+	CanonicalJsonObject, OwnedUserId, RoomId, UserId,
 	events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent},
 	serde::Raw,
 };
@@ -25,7 +25,7 @@ struct Services {
 	globals: Dep<globals::Service>,
 }
 
-pub(super) type ReceiptItem<'a> = (&'a UserId, u64, Raw<AnySyncEphemeralRoomEvent>);
+pub(super) type ReceiptItem = (OwnedUserId, u64, Raw<AnySyncEphemeralRoomEvent>);
 
 impl Data {
 	pub(super) fn new(args: &crate::Args<'_>) -> Self {
@@ -65,7 +65,7 @@ impl Data {
 		&'a self,
 		room_id: &'a RoomId,
 		since: u64,
-	) -> impl Stream<Item = ReceiptItem<'a>> + Send + 'a {
+	) -> impl Stream<Item = ReceiptItem> + Send + 'a {
 		type Key<'a> = (&'a RoomId, u64, &'a UserId);
 		type KeyVal<'a> = (Key<'a>, CanonicalJsonObject);
 
@@ -81,7 +81,7 @@ impl Data {
 
 				let event = serde_json::value::to_raw_value(&json)?;
 
-				Ok((user_id, count, Raw::from_json(event)))
+				Ok((user_id.to_owned(), count, Raw::from_json(event)))
 			})
 			.ignore_err()
 	}
