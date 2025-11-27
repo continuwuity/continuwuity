@@ -167,7 +167,7 @@ features = ["raw_value"]
 
 # Used for appservice registration files
 [workspace.dependencies.serde-saphyr]
-version = "0.0.8"
+version = "0.0.10"
 
 # Used to load forbidden room/user regex from config
 [workspace.dependencies.serde_regex]
