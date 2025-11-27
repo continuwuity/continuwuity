@@ -96,3 +96,12 @@ img {
     max-height: 35vh;
     max-width: none; /* Having this set causes slight aspect ratio breakage */
 }
+
+/* fix navigation bar resizing when scrolling */
+body:not(.notTopArrived) header.rp-nav {
+    border-bottom: 1px solid transparent !important;
+}
+/* fix the small logo on the top left looking blurry */
+.rspress-logo {
+    height: 32px;
+}
