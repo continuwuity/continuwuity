@@ -1,7 +1,8 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, err, matrix::pdu::PduBuilder};
 use ruma::{
-	api::client::redact::redact_event, events::room::redaction::RoomRedactionEventContent,
+	MilliSecondsSinceUnixEpoch, api::client::redact::redact_event,
+	events::room::redaction::RoomRedactionEventContent,
 };
 
 use crate::Ruma;
@@ -16,6 +17,20 @@ pub(crate) async fn redact_event_route(
 	body: Ruma<redact_event::v3::Request>,
 ) -> Result<redact_event::v3::Response> {
 	let sender_user = body.sender_user();
+	if body.sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = body.sender_device();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
+	}
 	let body = &body.body;
 	if services.users.is_suspended(sender_user).await? {
 		// TODO: Users can redact their own messages while suspended

@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at,
+	Err, Result, at, err,
 	matrix::{
 		event::{Event, Matches},
 		pdu::PduCount,
@@ -22,7 +22,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	DeviceId, RoomId, UserId,
+	DeviceId, MilliSecondsSinceUnixEpoch, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -77,6 +77,21 @@ pub(crate) async fn get_message_events_route(
 	let sender_device = body.sender_device.as_deref();
 	let room_id = &body.room_id;
 	let filter = &body.filter;
+
+	if sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = body.sender_device();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
+	}
 
 	if !services.rooms.metadata.exists(room_id).await {
 		return Err!(Request(Forbidden("Room does not exist to this server")));

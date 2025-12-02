@@ -7,7 +7,7 @@ use conduwuit::{
 use conduwuit_service::Services;
 use futures::{FutureExt, TryStreamExt};
 use ruma::{
-	OwnedEventId, RoomId, UserId,
+	MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
 	api::client::state::{get_state_events, get_state_events_for_key, send_state_event},
 	events::{
 		AnyStateEventContent, StateEventType,
@@ -33,6 +33,20 @@ pub(crate) async fn send_state_event_for_key_route(
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<send_state_event::v3::Response> {
 	let sender_user = body.sender_user();
+	if body.sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = body.sender_device();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
+	}
 
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));

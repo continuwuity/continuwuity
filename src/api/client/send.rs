@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{Err, Result, err, matrix::pdu::PduBuilder, utils};
-use ruma::{api::client::message::send_message_event, events::MessageLikeEventType};
+use ruma::{
+	MilliSecondsSinceUnixEpoch, api::client::message::send_message_event,
+	events::MessageLikeEventType,
+};
 use serde_json::from_str;
 
 use crate::Ruma;
@@ -25,6 +28,21 @@ pub(crate) async fn send_message_event_route(
 	let appservice_info = body.appservice_info.as_ref();
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
+	}
+
+	if sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = sender_device.clone().unwrap();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
 	}
 
 	// Forbid m.room.encrypted if encryption is disabled

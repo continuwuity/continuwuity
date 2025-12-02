@@ -121,6 +121,20 @@ pub(crate) async fn create_receipt_route(
 	body: Ruma<create_receipt::v3::Request>,
 ) -> Result<create_receipt::v3::Response> {
 	let sender_user = body.sender_user();
+	if body.sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = body.sender_device();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
+	}
 
 	if matches!(
 		&body.receipt_type,
