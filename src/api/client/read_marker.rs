@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{Err, PduCount, Result, err};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
@@ -118,23 +119,14 @@ pub(crate) async fn set_read_marker_route(
 /// Sets private read marker and public read receipt EDU.
 pub(crate) async fn create_receipt_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<create_receipt::v3::Request>,
 ) -> Result<create_receipt::v3::Response> {
 	let sender_user = body.sender_user();
-	if body.sender_device.is_some() {
-		// Increment the "device last active" metadata
-		let device_id = body.sender_device();
-		let mut device = services
-			.users
-			.get_device_metadata(sender_user, device_id)
-			.await
-			.expect("Device metadata should exist for authenticated device");
-		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
-		services
-			.users
-			.update_device_last_seen(sender_user, device_id, &device)
-			.await?;
-	}
+	services
+		.users
+		.update_device_last_seen(sender_user, body.sender_device.as_deref(), client_ip)
+		.await;
 
 	if matches!(
 		&body.receipt_type,

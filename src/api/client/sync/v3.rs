@@ -5,6 +5,7 @@ use std::{
 };
 
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Result, at, err, error, extract_variant, is_equal_to,
 	matrix::{
@@ -35,8 +36,7 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	DeviceId, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
-	RoomId, UserId,
+	DeviceId, EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{
 		filter::FilterDefinition,
 		sync::sync_events::{
@@ -123,6 +123,7 @@ type PresenceUpdates = HashMap<OwnedUserId, PresenceEventContent>;
 )]
 pub(crate) async fn sync_events_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<sync_events::v3::Request>,
 ) -> Result<sync_events::v3::Response, RumaResponse<UiaaResponse>> {
 	let (sender_user, sender_device) = body.sender();
@@ -135,16 +136,10 @@ pub(crate) async fn sync_events_route(
 			.await?;
 	}
 	// Increment the "device last active" metadata
-	let mut device = services
-		.users
-		.get_device_metadata(sender_user, sender_device)
-		.await
-		.expect("Device metadata should exist for authenticated device");
-	device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 	services
 		.users
-		.update_device_last_seen(sender_user, sender_device, &device)
-		.await?;
+		.update_device_last_seen(sender_user, Some(sender_device), client_ip)
+		.await;
 
 	// Setup watchers, so if there's no response, we can wait for them
 	let watcher = services.sync.watch(sender_user, sender_device);
