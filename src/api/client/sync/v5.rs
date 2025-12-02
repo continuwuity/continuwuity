@@ -6,6 +6,7 @@ use std::{
 };
 
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Error, Result, at, error, extract_variant, is_equal_to,
 	matrix::{Event, TypeStateKey, pdu::PduCount},
@@ -25,7 +26,7 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	DeviceId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
+	DeviceId, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
 	api::client::sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
 	directory::RoomTypeFilter,
 	events::{
@@ -61,23 +62,17 @@ type KnownRooms = BTreeMap<String, BTreeMap<OwnedRoomId, u64>>;
 /// [MSC4186]: https://github.com/matrix-org/matrix-spec-proposals/pull/4186
 pub(crate) async fn sync_events_v5_route(
 	State(ref services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<sync_events::v5::Request>,
 ) -> Result<sync_events::v5::Response> {
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
 
-	// Increment the "device last active" metadata
-	let mut device = services
-		.users
-		.get_device_metadata(sender_user, sender_device)
-		.await
-		.expect("Device metadata should exist for authenticated device");
-	device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 	services
 		.users
-		.update_device_last_seen(sender_user, sender_device, &device)
-		.await?;
+		.update_device_last_seen(sender_user, Some(sender_device), client_ip)
+		.await;
 
 	let mut body = body.body;
 

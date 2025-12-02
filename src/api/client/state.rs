@@ -1,4 +1,5 @@
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, err,
 	matrix::{Event, pdu::PduBuilder},
@@ -30,23 +31,14 @@ use crate::{Ruma, RumaResponse};
 /// Sends a state event into the room.
 pub(crate) async fn send_state_event_for_key_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(ip): InsecureClientIp,
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<send_state_event::v3::Response> {
 	let sender_user = body.sender_user();
-	if body.sender_device.is_some() {
-		// Increment the "device last active" metadata
-		let device_id = body.sender_device();
-		let mut device = services
-			.users
-			.get_device_metadata(sender_user, device_id)
-			.await
-			.expect("Device metadata should exist for authenticated device");
-		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
-		services
-			.users
-			.update_device_last_seen(sender_user, device_id, &device)
-			.await?;
-	}
+	services
+		.users
+		.update_device_last_seen(sender_user, body.sender_device.as_deref(), ip)
+		.await;
 
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
@@ -75,9 +67,10 @@ pub(crate) async fn send_state_event_for_key_route(
 /// Sends a state event into the room.
 pub(crate) async fn send_state_event_for_empty_key_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(ip): InsecureClientIp,
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<RumaResponse<send_state_event::v3::Response>> {
-	send_state_event_for_key_route(State(services), body)
+	send_state_event_for_key_route(State(services), InsecureClientIp(ip), body)
 		.boxed()
 		.await
 		.map(RumaResponse)
