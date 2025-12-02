@@ -7,7 +7,7 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, at, error, extract_variant, is_equal_to,
+	Err, Error, Result, at, err, error, extract_variant, is_equal_to,
 	matrix::{Event, TypeStateKey, pdu::PduCount},
 	trace,
 	utils::{
@@ -25,7 +25,7 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	DeviceId, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
+	DeviceId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
 	api::client::sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
 	directory::RoomTypeFilter,
 	events::{
@@ -66,6 +66,19 @@ pub(crate) async fn sync_events_v5_route(
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
+
+	// Increment the "device last active" metadata
+	let mut device = services
+		.users
+		.get_device_metadata(sender_user, sender_device)
+		.await
+		.or_else(|_| err!(Request(NotFound("device {sender_device} not found?"))))?;
+	device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+	services
+		.users
+		.update_device_metadata(sender_user, sender_device, &device)
+		.await?;
+
 	let mut body = body.body;
 
 	// Setup watchers, so if there's no response, we can wait for them
