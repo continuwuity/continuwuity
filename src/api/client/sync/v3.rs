@@ -12,7 +12,7 @@ use conduwuit::{
 		pdu::{EventHash, PduCount, PduEvent},
 	},
 	pair_of, ref_at,
-	result::FlatOk,
+	result::{FlatOk, NotFound},
 	utils::{
 		self, BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		future::{OptionStream, ReadyEqExt},
@@ -35,7 +35,8 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	DeviceId, EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
+	DeviceId, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
+	RoomId, UserId,
 	api::client::{
 		filter::FilterDefinition,
 		sync::sync_events::{
@@ -133,6 +134,17 @@ pub(crate) async fn sync_events_route(
 			.ping_presence(sender_user, &body.body.set_presence)
 			.await?;
 	}
+	// Increment the "device last active" metadata
+	let mut device = services
+		.users
+		.get_device_metadata(sender_user, sender_device)
+		.await
+		.or_else(|_| err!(Request(NotFound("device {sender_device} not found?"))))?;
+	device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+	services
+		.users
+		.update_device_metadata(sender_user, sender_device, &device)
+		.await?;
 
 	// Setup watchers, so if there's no response, we can wait for them
 	let watcher = services.sync.watch(sender_user, sender_device);

@@ -1,6 +1,6 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, utils, utils::math::Tried};
-use ruma::api::client::typing::create_typing_event;
+use conduwuit::{Err, Result, err, utils, utils::math::Tried};
+use ruma::{MilliSecondsSinceUnixEpoch, api::client::typing::create_typing_event};
 
 use crate::Ruma;
 
@@ -13,6 +13,20 @@ pub(crate) async fn create_typing_event_route(
 ) -> Result<create_typing_event::v3::Response> {
 	use create_typing_event::v3::Typing;
 	let sender_user = body.sender_user();
+	if body.sender_device.is_some() {
+		// Increment the "device last active" metadata
+		let device_id = body.sender_device();
+		let mut device = services
+			.users
+			.get_device_metadata(sender_user, device_id)
+			.await
+			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+		services
+			.users
+			.update_device_metadata(sender_user, device_id, &device)
+			.await?;
+	}
 
 	if sender_user != body.user_id && body.appservice_info.is_none() {
 		return Err!(Request(Forbidden("You cannot update typing status of other users.")));
