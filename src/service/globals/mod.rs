@@ -31,12 +31,13 @@ impl crate::Service for Service {
 
 		let turn_secret = config.turn_secret_file.as_ref().map_or_else(
 			|| config.turn_secret.clone(),
-			|path| {
-				std::fs::read_to_string(path).unwrap_or_else(|e| {
+			|path| match std::fs::read_to_string(path) {
+				| Ok(secret) => secret.trim().to_owned(),
+				| Err(e) => {
 					error!("Failed to read the TURN secret file: {e}");
 
 					config.turn_secret.clone()
-				})
+				},
 			},
 		);
 
@@ -49,7 +50,7 @@ impl crate::Service for Service {
 					return config.registration_token.clone();
 				};
 
-				Some(token)
+				Some(token.trim().to_owned())
 			},
 		);
 
