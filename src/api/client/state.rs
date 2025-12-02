@@ -40,11 +40,11 @@ pub(crate) async fn send_state_event_for_key_route(
 			.users
 			.get_device_metadata(sender_user, device_id)
 			.await
-			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+			.expect("Device metadata should exist for authenticated device");
 		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 		services
 			.users
-			.update_device_metadata(sender_user, device_id, &device)
+			.update_device_last_seen(sender_user, device_id, &device)
 			.await?;
 	}
 
@@ -199,7 +199,7 @@ async fn send_state_event_for_key_helper(
 	event_type: &StateEventType,
 	json: &Raw<AnyStateEventContent>,
 	state_key: &str,
-	timestamp: Option<ruma::MilliSecondsSinceUnixEpoch>,
+	timestamp: Option<MilliSecondsSinceUnixEpoch>,
 ) -> Result<OwnedEventId> {
 	allowed_to_send_state_event(services, room_id, event_type, state_key, json).await?;
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;

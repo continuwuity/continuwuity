@@ -12,7 +12,7 @@ use conduwuit::{
 		pdu::{EventHash, PduCount, PduEvent},
 	},
 	pair_of, ref_at,
-	result::{FlatOk, NotFound},
+	result::FlatOk,
 	utils::{
 		self, BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		future::{OptionStream, ReadyEqExt},
@@ -139,11 +139,11 @@ pub(crate) async fn sync_events_route(
 		.users
 		.get_device_metadata(sender_user, sender_device)
 		.await
-		.or_else(|_| err!(Request(NotFound("device {sender_device} not found?"))))?;
+		.expect("Device metadata should exist for authenticated device");
 	device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 	services
 		.users
-		.update_device_metadata(sender_user, sender_device, &device)
+		.update_device_last_seen(sender_user, sender_device, &device)
 		.await?;
 
 	// Setup watchers, so if there's no response, we can wait for them

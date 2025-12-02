@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, err, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, api::client::redact::redact_event,
 	events::room::redaction::RoomRedactionEventContent,
@@ -24,11 +24,11 @@ pub(crate) async fn redact_event_route(
 			.users
 			.get_device_metadata(sender_user, device_id)
 			.await
-			.or_else(|_| err!(Request(NotFound("device {device_id} not found?"))))?;
+			.expect("Device metadata should exist for authenticated device");
 		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 		services
 			.users
-			.update_device_metadata(sender_user, device_id, &device)
+			.update_device_last_seen(sender_user, device_id, &device)
 			.await?;
 	}
 	let body = &body.body;
