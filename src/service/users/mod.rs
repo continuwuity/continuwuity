@@ -1,6 +1,6 @@
 #[cfg(feature = "ldap")]
 use std::collections::HashMap;
-use std::{collections::BTreeMap, mem, sync::Arc};
+use std::{collections::BTreeMap, mem, net::IpAddr, sync::Arc};
 
 #[cfg(feature = "ldap")]
 use conduwuit::result::LogErr;
@@ -25,6 +25,7 @@ use ruma::{
 		invite_permission_config::{FilterLevel, InvitePermissionConfigEvent},
 	},
 	serde::Raw,
+	uint,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -988,7 +989,7 @@ impl Service {
 		device: &Device,
 	) -> Result<()> {
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
-		self.update_device_last_seen(user_id, device_id, device)
+		self.update_device_metadata_no_increment(user_id, device_id, device)
 			.await
 	}
 
@@ -996,7 +997,7 @@ impl Service {
 	// This is namely used for updating the last_seen_ip and last_seen_ts values,
 	// as those do not need a device list version bump due to them not being
 	// relevant to other consumers.
-	pub async fn update_device_last_seen(
+	pub async fn update_device_metadata_no_increment(
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
@@ -1006,6 +1007,31 @@ impl Service {
 		self.db.userdeviceid_metadata.put(key, Json(device));
 
 		Ok(())
+	}
+
+	pub async fn update_device_last_seen(
+		&self,
+		user_id: &UserId,
+		device_id: Option<&DeviceId>,
+		ip: IpAddr,
+	) {
+		let now = MilliSecondsSinceUnixEpoch::now();
+		if let Some(device_id) = device_id {
+			if let Ok(mut device) = self.get_device_metadata(user_id, device_id).await {
+				device.last_seen_ip = Some(ip.to_string());
+				// If the last update was less than 10 seconds ago, don't update the timestamp
+				if let Some(prev) = device.last_seen_ts {
+					if now.get().saturating_sub(prev.get()) < uint!(10_000) {
+						return;
+					}
+				}
+				device.last_seen_ts = Some(now);
+
+				self.update_device_metadata_no_increment(user_id, device_id, &device)
+					.await
+					.ok();
+			}
+		}
 	}
 
 	/// Get device metadata.

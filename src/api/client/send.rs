@@ -1,11 +1,9 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{Err, Result, err, matrix::pdu::PduBuilder, utils};
-use ruma::{
-	MilliSecondsSinceUnixEpoch, api::client::message::send_message_event,
-	events::MessageLikeEventType,
-};
+use ruma::{api::client::message::send_message_event, events::MessageLikeEventType};
 use serde_json::from_str;
 
 use crate::Ruma;
@@ -21,6 +19,7 @@ use crate::Ruma;
 ///   allowed
 pub(crate) async fn send_message_event_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<send_message_event::v3::Request>,
 ) -> Result<send_message_event::v3::Response> {
 	let sender_user = body.sender_user();
@@ -30,20 +29,10 @@ pub(crate) async fn send_message_event_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	if sender_device.is_some() {
-		// Increment the "device last active" metadata
-		let device_id = sender_device.unwrap();
-		let mut device = services
-			.users
-			.get_device_metadata(sender_user, device_id)
-			.await
-			.expect("Device metadata should exist for authenticated device");
-		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
-		services
-			.users
-			.update_device_last_seen(sender_user, device_id, &device)
-			.await?;
-	}
+	services
+		.users
+		.update_device_last_seen(sender_user, body.sender_device.as_deref(), client_ip)
+		.await;
 
 	// Forbid m.room.encrypted if encryption is disabled
 	if MessageLikeEventType::RoomEncrypted == body.event_type && !services.config.allow_encryption

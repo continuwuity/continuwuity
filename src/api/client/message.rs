@@ -1,4 +1,5 @@
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, at,
 	matrix::{
@@ -22,7 +23,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	DeviceId, MilliSecondsSinceUnixEpoch, RoomId, UserId,
+	DeviceId, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -70,6 +71,7 @@ const LIMIT_DEFAULT: usize = 10;
 ///   where the user was joined, depending on `history_visibility`)
 pub(crate) async fn get_message_events_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
 	debug_assert!(IGNORED_MESSAGE_TYPES.is_sorted(), "IGNORED_MESSAGE_TYPES is not sorted");
@@ -78,20 +80,10 @@ pub(crate) async fn get_message_events_route(
 	let room_id = &body.room_id;
 	let filter = &body.filter;
 
-	if sender_device.is_some() {
-		// Increment the "device last active" metadata
-		let device_id = body.sender_device();
-		let mut device = services
-			.users
-			.get_device_metadata(sender_user, device_id)
-			.await
-			.expect("Device metadata should exist for authenticated device");
-		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
-		services
-			.users
-			.update_device_last_seen(sender_user, device_id, &device)
-			.await?;
-	}
+	services
+		.users
+		.update_device_last_seen(sender_user, sender_device, client_ip)
+		.await;
 
 	if !services.rooms.metadata.exists(room_id).await {
 		return Err!(Request(Forbidden("Room does not exist to this server")));
