@@ -980,6 +980,7 @@ impl Service {
 			.await;
 	}
 
+	/// Updates device metadata and increments the device list version.
 	pub async fn update_device_metadata(
 		&self,
 		user_id: &UserId,
@@ -987,7 +988,20 @@ impl Service {
 		device: &Device,
 	) -> Result<()> {
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
+		self.update_device_last_seen(user_id, device_id, device)
+			.await
+	}
 
+	// Updates device metadata without incrementing the device list version.
+	// This is namely used for updating the last_seen_ip and last_seen_ts values,
+	// as those do not need a device list version bump due to them not being
+	// relevant to other consumers.
+	pub async fn update_device_last_seen(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		device: &Device,
+	) -> Result<()> {
 		let key = (user_id, device_id);
 		self.db.userdeviceid_metadata.put(key, Json(device));
 
