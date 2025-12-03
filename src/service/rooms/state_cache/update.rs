@@ -366,7 +366,7 @@ pub async fn mark_as_invited(
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
 	self.db
 		.userroomid_invitesender
-		.raw_put(&userroom_id, sender_user);
+		.insert(&userroom_id, sender_user);
 
 	self.db.userroomid_joined.remove(&userroom_id);
 	self.db.roomuserid_joined.remove(&roomuser_id);
