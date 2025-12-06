@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::sync::Arc;
 
 use conduwuit_core::{
 	Error, Result,
@@ -38,14 +38,9 @@ impl Server {
 	) -> Result<Arc<Self>, Error> {
 		let _runtime_guard = runtime.map(runtime::Handle::enter);
 
-		let config_paths = args
-			.config
-			.as_deref()
-			.into_iter()
-			.flat_map(<[_]>::iter)
-			.map(PathBuf::as_path);
+		let config_paths = args.config.clone().unwrap_or_default();
 
-		let config = Config::load(config_paths)
+		let config = Config::load(&config_paths)
 			.and_then(|raw| update(raw, args))
 			.and_then(|raw| Config::new(&raw))?;
 

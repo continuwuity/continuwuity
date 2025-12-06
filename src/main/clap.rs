@@ -19,7 +19,13 @@ use conduwuit_core::{
 	version = conduwuit_core::version(),
 )]
 pub struct Args {
-	#[arg(short, long)]
+	#[arg(
+		short,
+		long,
+		env = "CONDUIT_CONFIG",
+		env = "CONDUWUIT_CONFIG",
+		env = "CONTINUWUITY_CONFIG"
+	)]
 	/// Path to the config TOML file (optional)
 	pub config: Option<Vec<PathBuf>>,
 

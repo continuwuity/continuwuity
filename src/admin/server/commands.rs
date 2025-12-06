@@ -30,8 +30,11 @@ pub(super) async fn show_config(&self) -> Result {
 
 #[admin_command]
 pub(super) async fn reload_config(&self, path: Option<PathBuf>) -> Result {
-	let path = path.as_deref().into_iter();
-	self.services.config.reload(path)?;
+	let mut paths = Vec::new();
+	if let Some(p) = path {
+		paths.push(p);
+	}
+	self.services.config.reload(&paths)?;
 
 	self.write_str("Successfully reconfigured.").await
 }
