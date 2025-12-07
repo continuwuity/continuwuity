@@ -9,6 +9,7 @@ use std::{
 };
 
 use axum::extract::State;
+use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Result, extract_variant,
 	utils::{
@@ -180,6 +181,7 @@ type PresenceUpdates = HashMap<OwnedUserId, PresenceEventContent>;
 )]
 pub(crate) async fn sync_events_route(
 	State(services): State<crate::State>,
+	InsecureClientIp(client_ip): InsecureClientIp,
 	body: Ruma<sync_events::v3::Request>,
 ) -> Result<sync_events::v3::Response, RumaResponse<UiaaResponse>> {
 	let (sender_user, sender_device) = body.sender();
@@ -191,6 +193,12 @@ pub(crate) async fn sync_events_route(
 			.ping_presence(sender_user, &body.body.set_presence)
 			.await?;
 	}
+
+	// Increment the "device last active" metadata
+	services
+		.users
+		.update_device_last_seen(sender_user, Some(sender_device), client_ip)
+		.await;
 
 	// Setup watchers, so if there's no response, we can wait for them
 	let watcher = services.sync.watch(sender_user, sender_device);
