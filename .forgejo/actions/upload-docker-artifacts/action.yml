@@ -54,7 +54,7 @@ runs:
       run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
 
     - name: Upload binary artifact
-      uses: forgejo/upload-artifact@v4
+      uses: forgejo/upload-artifact@v3
       with:
         name: conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
         path: /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
@@ -62,7 +62,7 @@ runs:
 
     - name: Upload digest
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
-      uses: forgejo/upload-artifact@v4
+      uses: forgejo/upload-artifact@v3
       with:
         name: digests${{ inputs.digest_suffix }}-${{ inputs.slug }}${{ inputs.cpu_suffix }}
         path: /tmp/digests/*

@@ -238,13 +238,13 @@ jobs:
           cp $BIN_RPM upload-bin/
 
       - name: Upload binary RPM
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: continuwuity
           path: upload-bin/
 
       - name: Upload debug RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: continuwuity-debug
           path: artifacts/*debuginfo*.rpm
