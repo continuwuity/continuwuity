@@ -587,9 +587,13 @@
 
 # Default room version continuwuity will create rooms with.
 #
-# Per spec, room version 11 is the default.
+# Note that this has to be a string since the room version is a string
+# rather than an integer. Using an integer without the quotes will make
+# the server fail on startup!
 #
-#default_room_version = 11
+# Per spec, room version "11" is the default.
+#
+#default_room_version = "11"
 
 # Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
 # Jaeger exporter. Traces will be sent via OTLP to a collector (such as
