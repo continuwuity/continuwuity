@@ -590,6 +590,10 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 
 const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &[u8] = b"fix_corrupt_msc4133_fields";
 async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
+	// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
+	// profile fields with raw strings instead of quoted JSON ones.
+	// This migration fixes that.
+
 	use serde_json::{Value, from_slice};
 	type KeyVal<'a> = ((OwnedUserId, String), &'a [u8]);
 
@@ -606,24 +610,28 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 			async |(mut total, mut fixed),
 			       ((user, key), value): KeyVal<'_>|
 			       -> Result<(usize, usize)> {
-				if let Err(error) = from_slice::<Value>(value) {
-					// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
-					// profile fields with raw strings instead of quoted JSON ones.
-					// This migration fixes that.
-					let new_value = if key == "us.cloke.msc4175.tz" {
-						Value::String(String::from_utf8(value.to_vec())?)
-					} else {
-						return Err!(
-							"failed to deserialize msc4133 key {} of user {}: {}",
-							key,
-							user,
-							error
+				match from_slice::<Value>(value) {
+					// corrupted timezone field
+					| Err(_) if key == "us.cloke.msc4175.tz" => {
+						let new_value = Value::String(String::from_utf8(value.to_vec())?);
+						useridprofilekey_value.put((user, key), Json(new_value));
+						fixed = fixed.saturating_add(1);
+					},
+					// corrupted value for some other key
+					| Err(error) => {
+						warn!(
+							"deleting MSC4133 key {} for user {} due to deserialization \
+							 failure: {}",
+							key, user, error
 						);
-					};
-
-					useridprofilekey_value.put((user, key), Json(new_value));
-					fixed = fixed.saturating_add(1);
+						useridprofilekey_value.del((user, key));
+					},
+					// other key with no issues
+					| Ok(_) => {
+						// do nothing
+					},
 				}
+
 				total = total.saturating_add(1);
 
 				Ok((total, fixed))
