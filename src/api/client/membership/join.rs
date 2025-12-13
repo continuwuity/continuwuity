@@ -44,6 +44,7 @@ use service::{
 	rooms::{
 		state::RoomMutexGuard,
 		state_compressor::{CompressedState, HashSetCompressStateEvent},
+		timeline::pdu_fits,
 	},
 };
 
@@ -573,6 +574,13 @@ async fn join_room_by_id_helper_remote(
 					return state;
 				},
 			};
+			if !pdu_fits(&mut value.clone()) {
+				warn!(
+					"dropping incoming PDU {event_id} in room {room_id} from room join because \
+					 it exceeds 65535 bytes or is otherwise too large."
+				);
+				return state;
+			}
 			services.rooms.outlier.add_pdu_outlier(&event_id, &value);
 			if let Some(state_key) = &pdu.state_key {
 				let shortstatekey = services
