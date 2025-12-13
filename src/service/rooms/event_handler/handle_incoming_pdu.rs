@@ -14,7 +14,7 @@ use futures::{
 use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId, events::StateEventType};
 use tracing::debug;
 
-use crate::rooms::timeline::RawPduId;
+use crate::rooms::timeline::{RawPduId, pdu_fits};
 
 /// When receiving an event one needs to:
 /// 0. Check the server is in the room
@@ -61,6 +61,13 @@ pub async fn handle_incoming_pdu<'a>(
 	// 1. Skip the PDU if we already have it as a timeline event
 	if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
 		return Ok(Some(pdu_id));
+	}
+	if !pdu_fits(&mut value.clone()) {
+		warn!(
+			"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
+			 exceeds 65535 bytes or is otherwise too large."
+		);
+		return Err!(Request(TooLarge("PDU is too large")));
 	}
 
 	// 1.1 Check the server is in the room

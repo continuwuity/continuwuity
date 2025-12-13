@@ -177,11 +177,6 @@ where
 
 	// [synapse] do_sig_check check the event has valid signatures for member events
 
-	// TODO do_size_check is false when called by `iterative_auth_check`
-	// do_size_check is also mostly accomplished by ruma with the exception of
-	// checking event_type, state_key, and json are below a certain size (255 and
-	// 65_536 respectively)
-
 	let sender = incoming_event.sender();
 
 	// Implementation of https://spec.matrix.org/latest/rooms/v1/#authorization-rules

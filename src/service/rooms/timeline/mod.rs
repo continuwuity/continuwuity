@@ -26,7 +26,7 @@ use ruma::{
 use serde::Deserialize;
 
 use self::data::Data;
-pub use self::data::PdusIterItem;
+pub use self::{create::pdu_fits, data::PdusIterItem};
 use crate::{
 	Dep, account_data, admin, appservice, globals, pusher, rooms, sending, server_keys, users,
 };

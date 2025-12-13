@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res, trace,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res,
+	trace, warn,
 };
 use futures::future::ready;
 use ruma::{
@@ -10,6 +11,7 @@ use ruma::{
 };
 
 use super::{check_room_id, get_room_version_id, to_room_version};
+use crate::rooms::timeline::pdu_fits;
 
 #[implement(super::Service)]
 #[allow(clippy::too_many_arguments)]
@@ -25,6 +27,13 @@ pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 where
 	Pdu: Event + Send + Sync,
 {
+	if !pdu_fits(&mut value.clone()) {
+		warn!(
+			"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
+			 exceeds 65535 bytes or is otherwise too large."
+		);
+		return Err!(Request(TooLarge("PDU is too large")));
+	}
 	// 1. Remove unsigned field
 	value.remove("unsigned");
 

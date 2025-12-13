@@ -23,6 +23,40 @@ use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
 
+pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
+	// room IDs, event IDs, senders, types, and state keys must all be <= 255 bytes
+	if let Some(CanonicalJsonValue::String(room_id)) = owned_obj.get("room_id") {
+		if room_id.len() > 255 {
+			return false;
+		}
+	}
+	if let Some(CanonicalJsonValue::String(event_id)) = owned_obj.get("event_id") {
+		if event_id.len() > 255 {
+			return false;
+		}
+	}
+	if let Some(CanonicalJsonValue::String(sender)) = owned_obj.get("sender") {
+		if sender.len() > 255 {
+			return false;
+		}
+	}
+	if let Some(CanonicalJsonValue::String(kind)) = owned_obj.get("type") {
+		if kind.len() > 255 {
+			return false;
+		}
+	}
+	if let Some(CanonicalJsonValue::String(state_key)) = owned_obj.get("state_key") {
+		if state_key.len() > 255 {
+			return false;
+		}
+	}
+	// Now check the full PDU size
+	match serde_json::to_string(owned_obj) {
+		| Ok(s) => s.len() <= 65535,
+		| Err(_) => false,
+	}
+}
+
 #[implement(super::Service)]
 pub async fn create_hash_and_sign_event(
 	&self,
@@ -148,19 +182,6 @@ pub async fn create_hash_and_sign_event(
 		}
 	}
 
-	// if event_type != TimelineEventType::RoomCreate && prev_events.is_empty() {
-	// 	return Err!(Request(Unknown("Event incorrectly had zero prev_events.")));
-	// }
-	// if state_key.is_none() && depth.lt(&uint!(2)) {
-	// 	// The first two events in a room are always m.room.create and
-	// m.room.member, 	// so any other events with that same depth are illegal.
-	// 	warn!(
-	// 		"Had unsafe depth {depth} when creating non-state event in {}. Cowardly
-	// aborting", 		room_id.expect("room_id is Some here").as_str()
-	// 	);
-	// 	return Err!(Request(Unknown("Unsafe depth for non-state event.")));
-	// }
-
 	let mut pdu = PduEvent {
 		event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
 		room_id: room_id.map(ToOwned::to_owned),
@@ -269,8 +290,16 @@ pub async fn create_hash_and_sign_event(
 	}
 	// Generate event id
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
-	// Check with the policy server
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
+	// Verify that the *full* PDU isn't over 64KiB.
+	// Ruma only validates that it's under 64KiB before signing and hashing.
+	// Has to be cloned to prevent mutating pdu_json itself :(
+	if !pdu_fits(&mut pdu_json.clone()) {
+		// feckin huge PDU mate
+		return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
+	}
+
+	// Check with the policy server
 	if room_id.is_some() {
 		trace!(
 			"Checking event in room {} with policy server",
