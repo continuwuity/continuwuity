@@ -1,4 +1,4 @@
-use std::{iter, ops::Deref, path::Path, sync::Arc};
+use std::{ops::Deref, path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
 use conduwuit::{
@@ -51,7 +51,8 @@ fn handle_reload(&self) -> Result {
 		])
 		.expect("failed to notify systemd of reloading state");
 
-		self.reload(iter::empty())?;
+		let config_paths = self.server.config.config_paths.clone().unwrap_or_default();
+		self.reload(&config_paths)?;
 
 		#[cfg(all(feature = "systemd", target_os = "linux"))]
 		sd_notify::notify(false, &[sd_notify::NotifyState::Ready])
@@ -62,10 +63,7 @@ fn handle_reload(&self) -> Result {
 }
 
 #[implement(Service)]
-pub fn reload<'a, I>(&self, paths: I) -> Result<Arc<Config>>
-where
-	I: Iterator<Item = &'a Path>,
-{
+pub fn reload(&self, paths: &[PathBuf]) -> Result<Arc<Config>> {
 	let old = self.server.config.clone();
 	let new = Config::load(paths).and_then(|raw| Config::new(&raw))?;
 

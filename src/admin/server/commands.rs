@@ -30,10 +30,31 @@ pub(super) async fn show_config(&self) -> Result {
 
 #[admin_command]
 pub(super) async fn reload_config(&self, path: Option<PathBuf>) -> Result {
-	let path = path.as_deref().into_iter();
-	self.services.config.reload(path)?;
+	// The path argument is only what's optionally passed via the admin command,
+	// so we need to merge it with the existing paths if any were given at startup.
+	let mut paths = Vec::new();
 
-	self.write_str("Successfully reconfigured.").await
+	// Add previously saved paths to the argument list
+	self.services
+		.config
+		.config_paths
+		.clone()
+		.unwrap_or_default()
+		.iter()
+		.for_each(|p| paths.push(p.to_owned()));
+
+	// If a path is given, and it's not already in the list,
+	// add it last, so that it overrides earlier files
+	if let Some(p) = path {
+		if !paths.contains(&p) {
+			paths.push(p);
+		}
+	}
+
+	self.services.config.reload(&paths)?;
+
+	self.write_str(&format!("Successfully reconfigured from paths: {paths:?}"))
+		.await
 }
 
 #[admin_command]

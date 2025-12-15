@@ -6,7 +6,7 @@ pub mod proxy;
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
-	path::{Path, PathBuf},
+	path::PathBuf,
 };
 
 use conduwuit_macros::config_example_generator;
@@ -53,9 +53,13 @@ use crate::{Result, err, error::Error, utils::sys};
 ### For more information, see:
 ### https://continuwuity.org/configuration.html
 "#,
-	ignore = "catchall well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
+	ignore = "config_paths catchall well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
 )]
 pub struct Config {
+	// Paths to config file(s). Not supposed to be set manually in the config file,
+	// only updated dynamically from the --config option given at runtime.
+	pub config_paths: Option<Vec<PathBuf>>,
+
 	/// The server_name is the pretty name of this server. It is used as a
 	/// suffix for user and room IDs/aliases.
 	///
@@ -2226,25 +2230,23 @@ const DEPRECATED_KEYS: &[&str; 9] = &[
 
 impl Config {
 	/// Pre-initialize config
-	pub fn load<'a, I>(paths: I) -> Result<Figment>
-	where
-		I: Iterator<Item = &'a Path>,
-	{
+	pub fn load(paths: &[PathBuf]) -> Result<Figment> {
 		let envs = [
 			Env::var("CONDUIT_CONFIG"),
 			Env::var("CONDUWUIT_CONFIG"),
 			Env::var("CONTINUWUITY_CONFIG"),
 		];
-
-		let config = envs
+		let mut config = envs
 			.into_iter()
 			.flatten()
 			.map(Toml::file)
-			.chain(paths.map(Toml::file))
+			.chain(paths.iter().cloned().map(Toml::file))
 			.fold(Figment::new(), |config, file| config.merge(file.nested()))
 			.merge(Env::prefixed("CONDUIT_").global().split("__"))
 			.merge(Env::prefixed("CONDUWUIT_").global().split("__"))
 			.merge(Env::prefixed("CONTINUWUITY_").global().split("__"));
+
+		config = config.join(("config_paths", paths));
 
 		Ok(config)
 	}
