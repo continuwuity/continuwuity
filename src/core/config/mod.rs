@@ -703,10 +703,13 @@ pub struct Config {
 	pub allow_unstable_room_versions: bool,
 
 	/// Default room version continuwuity will create rooms with.
+	/// Note that this has to be a string since the room version is a string
+	/// rather than an integer. Forgetting the quotes will make the server fail
+	/// to start!
 	///
-	/// Per spec, room version 11 is the default.
+	/// Per spec, room version "11" is the default.
 	///
-	/// default: 11
+	/// default: "11"
 	#[serde(default = "default_default_room_version")]
 	pub default_room_version: RoomVersionId,
 
