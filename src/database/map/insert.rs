@@ -219,7 +219,7 @@ where
 	K: AsRef<[u8]> + Sized + Debug + 'a,
 	V: AsRef<[u8]> + Sized + 'a,
 {
-	let mut batch = WriteBatchWithTransaction::<false>::default();
+	let mut batch = WriteBatchWithTransaction::<true>::default();
 	for (key, val) in iter {
 		batch.put_cf(&self.cf(), key.as_ref(), val.as_ref());
 	}

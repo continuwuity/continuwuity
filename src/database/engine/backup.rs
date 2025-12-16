@@ -12,9 +12,8 @@ pub fn backup(&self) -> Result {
 	let mut engine = self.backup_engine()?;
 	let config = &self.ctx.server.config;
 	if config.database_backups_to_keep > 0 {
-		let flush = !self.is_read_only();
 		engine
-			.create_new_backup_flush(&self.db, flush)
+			.create_new_backup_flush(&self.db, true)
 			.map_err(map_err)?;
 
 		let engine_info = engine.get_backup_info();

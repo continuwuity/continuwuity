@@ -35,14 +35,7 @@ pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<S
 	}
 
 	debug!("Opening database...");
-	let db = if config.rocksdb_read_only {
-		Db::open_cf_descriptors_read_only(&db_opts, path, cfds, false)
-	} else if config.rocksdb_secondary {
-		Db::open_cf_descriptors_as_secondary(&db_opts, path, path, cfds)
-	} else {
-		Db::open_cf_descriptors(&db_opts, path, cfds)
-	}
-	.or_else(or_else)?;
+	let db = Db::open_cf_descriptors(&db_opts, path, cfds).or_else(or_else)?;
 
 	info!(
 		columns = num_cfds,
@@ -55,8 +48,6 @@ pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<S
 		db,
 		pool: ctx.pool.clone(),
 		ctx: ctx.clone(),
-		read_only: config.rocksdb_read_only,
-		secondary: config.rocksdb_secondary,
 		checksums: config.rocksdb_checksums,
 		corks: AtomicU32::new(0),
 	}))
