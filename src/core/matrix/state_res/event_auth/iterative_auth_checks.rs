@@ -5,7 +5,7 @@ use futures::{
 	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId,
+	EventId, Int, OwnedUserId, RoomVersionId, UserId,
 	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
@@ -22,7 +22,7 @@ use serde::{
 };
 use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
 
-use super::{
+use super::super::{
 	Error, Event, Result, StateEventType, StateKey, TimelineEventType,
 	power_levels::{
 		deserialize_power_levels, deserialize_power_levels_content_fields,
@@ -30,7 +30,11 @@ use super::{
 	},
 	room_version::RoomVersion,
 };
-use crate::{debug, error, trace, warn};
+use crate::{
+	Pdu, debug, error,
+	state_res::event_auth::{auth_events::check_auth_events, create_event::check_room_create},
+	trace, warn,
+};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -147,218 +151,104 @@ pub fn auth_types_for_event(
 /// to know if the event passes auth against some state not a recursive
 /// collection of auth_events fields.
 #[tracing::instrument(
-	level = "debug",
 	skip_all,
 	fields(
 		event_id = incoming_event.event_id().as_str(),
+		event_type = ?incoming_event.event_type().to_string()
 	)
 )]
 #[allow(clippy::suspicious_operation_groupings)]
-pub async fn auth_check<E, F, Fut>(
+pub async fn iterative_auth_check<E, F, Fut>(
 	room_version: &RoomVersion,
-	incoming_event: &E,
-	current_third_party_invite: Option<&E>,
-	fetch_state: F,
-	create_event: &E,
+	incoming_event: &Pdu,
+	current_third_party_invite: Option<&Pdu>,
+	fetch_event: impl Fn(&EventId) -> Fut + Send,
+	create_event: &Pdu,
 ) -> Result<bool, Error>
 where
-	F: Fn(&StateEventType, &str) -> Fut + Send,
-	Fut: Future<Output = Option<E>> + Send,
+	Fut: Future<Output = Result<Option<E>, Error>> + Send,
 	E: Event + Send + Sync,
 	for<'a> &'a E: Event + Send,
 {
-	debug!(
-		event_id = %incoming_event.event_id(),
-		event_type = ?incoming_event.event_type(),
-		"auth_check beginning"
-	);
-
-	// [synapse] check that all the events are in the same room as `incoming_event`
-
-	// [synapse] do_sig_check check the event has valid signatures for member events
-
+	debug!("auth_check beginning");
 	let sender = incoming_event.sender();
 
-	// Implementation of https://spec.matrix.org/latest/rooms/v1/#authorization-rules
-	//
-	// 1. If type is m.room.create:
+	// If type is m.room.create:
 	if *incoming_event.event_type() == TimelineEventType::RoomCreate {
 		debug!("start m.room.create check");
-
-		// If it has any previous events, reject
-		if incoming_event.prev_events().next().is_some() {
-			warn!("the room creation event had previous events");
+		if let Err(e) = check_room_create(incoming_event) {
+			warn!("m.room.create event has been rejected: {}", e);
 			return Ok(false);
-		}
-
-		// If the domain of the room_id does not match the domain of the sender, reject
-		if incoming_event.room_id().is_some() {
-			let Some(room_id_server_name) = incoming_event.room_id().unwrap().server_name()
-			else {
-				warn!("legacy room ID has no server name");
-				return Ok(false);
-			};
-			if room_id_server_name != sender.server_name() {
-				warn!(
-					expected = %sender.server_name(),
-					received = %room_id_server_name,
-					"server name of legacy room ID does not match server name of sender"
-				);
-				return Ok(false);
-			}
-		}
-
-		// If content.room_version is present and is not a recognized version, reject
-		let content: RoomCreateContentFields = from_json_str(incoming_event.content().get())?;
-		if content
-			.room_version
-			.is_some_and(|v| v.deserialize().is_err())
-		{
-			warn!("unsupported room version found in m.room.create event");
-			return Ok(false);
-		}
-
-		if room_version.room_ids_as_hashes && incoming_event.room_id().is_some() {
-			warn!("room create event incorrectly claims to have a room ID when it should not");
-			return Ok(false);
-		}
-
-		if !room_version.use_room_create_sender
-			&& !room_version.explicitly_privilege_room_creators
-		{
-			// If content has no creator field, reject
-			if content.creator.is_none() {
-				warn!("m.room.create event incorrectly omits 'creator' field");
-				return Ok(false);
-			}
 		}
 
 		debug!("m.room.create event was allowed");
 		return Ok(true);
 	}
 
-	// NOTE(hydra): We always have a room ID from this point forward.
+	// TODO: we need to know if events have previously been rejected or soft failed
+	// For now, we'll just assume the create_event is valid.
+	let create_content = from_json_str::<RoomCreateEventContent>(create_event.content().get())
+		.expect("provided create event must be valid");
+	let room_version = RoomVersion::new(&create_content.room_version)
+		.expect("valid create event must have a valid room version");
 
-	/*
-	// TODO: In the past this code was commented as it caused problems with Synapse. This is no
-	// longer the case. This needs to be implemented.
-	// See also: https://github.com/ruma/ruma/pull/2064
-	//
-	// 2. Reject if auth_events
-	// a. auth_events cannot have duplicate keys since it's a BTree
-	// b. All entries are valid auth events according to spec
-	let expected_auth = auth_types_for_event(
-		incoming_event.kind,
-		sender,
-		incoming_event.state_key,
-		incoming_event.content().clone(),
-	);
-
-	dbg!(&expected_auth);
-
-	for ev_key in auth_events.keys() {
-		// (b)
-		if !expected_auth.contains(ev_key) {
-			warn!("auth_events contained invalid auth event");
+	// Since v12, If the event’s room_id is not an event ID for an accepted (not
+	// rejected) m.room.create event, with the sigil ! instead of $, reject.
+	if room_version.room_ids_as_hashes {
+		let calculated_room_id = create_event.event_id().as_str().replace('$', "!");
+		if let Some(claimed_room_id) = create_event.room_id() {
+			if claimed_room_id.as_str() != calculated_room_id {
+				warn!(
+					expected = %calculated_room_id,
+					received = %claimed_room_id,
+					"event's room ID does not match the hash of the m.room.create event ID"
+				);
+				return Ok(false);
+			}
+		} else {
+			warn!("event is missing a room ID");
 			return Ok(false);
 		}
 	}
-	*/
 
-	let (power_levels_event, sender_member_event) = join(
-		// fetch_state(&StateEventType::RoomCreate, ""),
-		fetch_state(&StateEventType::RoomPowerLevels, ""),
-		fetch_state(&StateEventType::RoomMember, sender.as_str()),
-	)
-	.await;
+	let room_id = incoming_event.room_id().expect("event must have a room ID");
 
-	let room_create_event = create_event.clone();
-
-	// Get the content of the room create event, used later.
-	let room_create_content: RoomCreateContentFields =
-		from_json_str(room_create_event.content().get())?;
-	if room_create_content
-		.room_version
-		.is_some_and(|v| v.deserialize().is_err())
-	{
-		warn!(
-			create_event_id = %room_create_event.event_id(),
-			"unsupported room version found in m.room.create event"
-		);
-		return Ok(false);
-	}
-	let expected_room_id = room_create_event.room_id_or_hash();
-
-	if incoming_event.room_id().expect("event must have a room ID") != expected_room_id {
-		warn!(
-			expected = %expected_room_id,
-			received = %incoming_event.room_id().unwrap(),
-			"room_id of incoming event ({}) does not match that of the m.room.create event ({})",
-			incoming_event.room_id().unwrap(),
-			expected_room_id,
-		);
+	// Considering the event's auth_events
+	let auth_map = check_auth_events(incoming_event, room_id, &room_version, fetch_event).await;
+	if let Err(e) = auth_map {
+		warn!("event's auth events are invalid: {}", e);
 		return Ok(false);
 	}
 
-	// If the create event is referenced in the event's auth events, and this is a
-	// v12 room, reject
-	let claims_create_event = incoming_event
-		.auth_events()
-		.any(|id| id == room_create_event.event_id());
-	if room_version.room_ids_as_hashes && claims_create_event {
-		warn!("event incorrectly references m.room.create event in auth events");
-		return Ok(false);
-	} else if !room_version.room_ids_as_hashes && !claims_create_event {
-		// If the create event is not referenced in the event's auth events, and this is
-		// a v11 room, reject
-		warn!(
-			missing = %room_create_event.event_id(),
-			"event incorrectly did not reference an m.room.create in its auth events"
-		);
-		return Ok(false);
-	}
-
-	if let Some(ref pe) = power_levels_event {
-		if *pe.room_id().unwrap() != expected_room_id {
+	// If the content of the m.room.create event in the room state has the property
+	// m.federate set to false, and the sender domain of the event does not match
+	// the sender domain of the create event, reject.
+	if !create_content.federate {
+		if create_event.sender().server_name() != incoming_event.sender().server_name() {
 			warn!(
-				expected = %expected_room_id,
-				received = %pe.room_id().unwrap(),
-				"room_id of referenced power levels event does not match that of the m.room.create event"
+				sender = %incoming_event.sender(),
+				create_sender = %create_event.sender(),
+				"room is not federated and event's sender domain does not match create event's sender domain"
 			);
 			return Ok(false);
 		}
 	}
 
-	// If the create event content has the field m.federate set to false and the
-	// sender domain of the event does not match the sender domain of the create
-	// event, reject.
-	if !room_version.room_ids_as_hashes
-		&& !room_create_content.federate
-		&& room_create_event.sender().server_name() != incoming_event.sender().server_name()
+	// Only in room versions 5 and below
+	if room_version.special_case_aliases_auth
+		&& *incoming_event.event_type() == TimelineEventType::RoomAliases
 	{
-		warn!(
-			sender = %incoming_event.sender(),
-			create_sender = %room_create_event.sender(),
-			"room is not federated and event's sender domain does not match create event's sender domain"
-		);
-		return Ok(false);
-	}
-
-	// Only in some room versions 6 and below
-	if room_version.special_case_aliases_auth {
-		// 4. If type is m.room.aliases
-		if *incoming_event.event_type() == TimelineEventType::RoomAliases {
-			debug!("starting m.room.aliases check");
-
+		if let Some(state_key) = incoming_event.state_key() {
 			// If sender's domain doesn't matches state_key, reject
-			if incoming_event.state_key() != Some(sender.server_name().as_str()) {
+			if state_key != sender.server_name().as_str() {
 				warn!("state_key does not match sender");
 				return Ok(false);
 			}
-
-			debug!("m.room.aliases event was allowed");
+			// Otherwise, allow
 			return Ok(true);
 		}
+		warn!("m.room.alias event has no state key");
+		return Ok(false);
 	}
 
 	// If type is m.room.member

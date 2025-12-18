@@ -8,9 +8,6 @@ mod room_version;
 #[cfg(test)]
 mod test_utils;
 
-#[cfg(test)]
-mod benches;
-
 use std::{
 	borrow::Borrow,
 	cmp::{Ordering, Reverse},
@@ -32,7 +29,7 @@ use serde_json::from_str as from_json_str;
 pub(crate) use self::error::Error;
 use self::power_levels::PowerLevelsContentFields;
 pub use self::{
-	event_auth::{auth_check, auth_types_for_event},
+	event_auth::iterative_auth_checks::{auth_types_for_event, iterative_auth_check},
 	room_version::RoomVersion,
 };
 use crate::{
@@ -729,7 +726,7 @@ where
 			)
 		};
 
-		let auth_result = auth_check(
+		let auth_result = iterative_auth_check(
 			room_version,
 			&event,
 			current_third_party,
