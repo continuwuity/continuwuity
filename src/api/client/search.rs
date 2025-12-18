@@ -110,7 +110,12 @@ async fn category_room_events(
 				limit,
 			};
 
-			let (count, results) = services.rooms.search.search_pdus(&query).await.ok()?;
+			let (count, results) = services
+				.rooms
+				.search
+				.search_pdus(&query, sender_user)
+				.await
+				.ok()?;
 
 			results
 				.collect::<Vec<_>>()

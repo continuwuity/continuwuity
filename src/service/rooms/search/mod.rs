@@ -3,7 +3,7 @@ use std::sync::Arc;
 use conduwuit::{
 	PduCount, PduEvent, Result,
 	arrayvec::ArrayVec,
-	implement,
+	debug_warn, implement,
 	matrix::event::{Event, Matches},
 	utils::{
 		ArrayVecExt, IterStream, ReadyExt, set,
@@ -35,6 +35,7 @@ struct Services {
 	short: Dep<rooms::short::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	timeline: Dep<rooms::timeline::Service>,
+	pdu_metadata: Dep<rooms::pdu_metadata::Service>,
 }
 
 #[derive(Clone, Debug)]
@@ -61,6 +62,7 @@ impl crate::Service for Service {
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
+				pdu_metadata: args.depend::<rooms::pdu_metadata::Service>("rooms::pdu_metadata"),
 			},
 		}))
 	}
@@ -104,6 +106,7 @@ pub fn deindex_pdu(&self, shortroomid: ShortRoomId, pdu_id: &RawPduId, message_b
 pub async fn search_pdus<'a>(
 	&'a self,
 	query: &'a RoomQuery<'a>,
+	sender_user: &'a UserId,
 ) -> Result<(usize, impl Stream<Item = PduEvent> + Send + 'a)> {
 	let pdu_ids: Vec<_> = self.search_pdu_ids(query).await?.collect().await;
 
@@ -132,7 +135,18 @@ pub async fn search_pdus<'a>(
 		.take(query.limit)
 		.map(move |mut pdu| {
 			pdu.set_unsigned(query.user_id);
-			// TODO: bundled aggregation
+
+			pdu
+		})
+		.then(async move |mut pdu| {
+			if let Err(e) = self
+				.services
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
 			pdu
 		});
 
