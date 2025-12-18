@@ -121,7 +121,7 @@ pub async fn ask_policy_server(
 					// TODO: verify signature
 				}
 			}
-		};
+		}
 		debug!(
 			"Event is not local and has no policy server signature, performing legacy spam check"
 		);
