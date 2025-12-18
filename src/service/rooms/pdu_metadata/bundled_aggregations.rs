@@ -1,6 +1,6 @@
 use conduwuit::{Event, PduEvent, Result, err};
 use ruma::{
-	EventId, RoomId, UserId,
+	UserId,
 	api::Direction,
 	events::relation::{BundledMessageLikeRelations, BundledReference, ReferenceChunk},
 };
@@ -19,14 +19,18 @@ impl super::Service {
 	pub async fn get_bundled_aggregations(
 		&self,
 		user_id: &UserId,
-		room_id: &RoomId,
-		event_id: &EventId,
+		pdu: &PduEvent,
 	) -> Result<Option<BundledMessageLikeRelations<Box<serde_json::value::RawValue>>>> {
+		// Events that can never get bundled aggregations
+		if pdu.state_key().is_some() || Self::is_replacement_event(pdu) {
+			return Ok(None);
+		}
+
 		let relations = self
 			.get_relations(
 				user_id,
-				room_id,
-				event_id,
+				&pdu.room_id_or_hash(),
+				pdu.event_id(),
 				conduwuit::PduCount::max(),
 				MAX_BUNDLED_RELATIONS,
 				0,
@@ -80,10 +84,8 @@ impl super::Service {
 		// Handle m.replace relations - find the most recent valid one (lazy load
 		// original event)
 		if !replace_events.is_empty() {
-			let original_event = self.services.timeline.get_pdu(event_id).await?;
-
 			if let Some(replacement) =
-				Self::find_most_recent_valid_replacement(&original_event, &replace_events).await?
+				Self::find_most_recent_valid_replacement(pdu, &replace_events).await?
 			{
 				bundled.replace = Some(Self::serialize_replacement(replacement)?);
 			}
@@ -161,9 +163,7 @@ impl super::Service {
 			return Ok(());
 		}
 
-		let bundled_aggregations = self
-			.get_bundled_aggregations(user_id, &pdu.room_id_or_hash(), pdu.event_id())
-			.await?;
+		let bundled_aggregations = self.get_bundled_aggregations(user_id, pdu).await?;
 
 		if let Some(aggregations) = bundled_aggregations {
 			let aggregations_json = serde_json::to_value(aggregations)
