@@ -158,7 +158,7 @@ pub(crate) async fn get_state_events_for_key_route(
 				"content": event.content(),
 				"event_id": event.event_id(),
 				"origin_server_ts": event.origin_server_ts(),
-				"room_id": event.room_id(),
+				"room_id": event.room_id_or_hash(),
 				"sender": event.sender(),
 				"state_key": event.state_key(),
 				"type": event.kind(),
