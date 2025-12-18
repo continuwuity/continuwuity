@@ -10,7 +10,7 @@ use conduwuit::{
 	warn,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName,
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyId,
 	api::federation::room::{
 		policy_check::unstable::Request as PolicyCheckRequest,
 		policy_sign::unstable::Request as PolicySignRequest,
@@ -31,7 +31,7 @@ use serde_json::value::RawValue;
 /// contacted for whatever reason, Err(e) is returned, which generally is a
 /// fail-open operation.
 #[implement(super::Service)]
-#[tracing::instrument(skip(self, pdu, pdu_json))]
+#[tracing::instrument(skip(self, pdu, pdu_json, room_id))]
 pub async fn ask_policy_server(
 	&self,
 	pdu: &PduEvent,
@@ -109,9 +109,22 @@ pub async fn ask_policy_server(
 				.fetch_policy_server_signature(pdu, pdu_json, via, outgoing, room_id)
 				.await;
 		}
-		debug!("Event is not local, performing legacy spam check");
-		// TODO: this should probably be marking it as failed, but for now fall
-		// thru
+		// for incoming events, is it signed by <via> with the key
+		// "ed25519:policy_server"?
+		if let Some(CanonicalJsonValue::Object(sigs)) = pdu_json.get("signatures") {
+			if let Some(CanonicalJsonValue::Object(server_sigs)) = sigs.get(via.as_str()) {
+				let wanted_key_id: &KeyId<ruma::SigningKeyAlgorithm, ruma::Base64PublicKey> =
+					SigningKeyId::parse("ed25519:policy_server")?;
+				if let Some(CanonicalJsonValue::String(_sig_value)) =
+					server_sigs.get(wanted_key_id.as_str())
+				{
+					// TODO: verify signature
+				}
+			}
+		};
+		debug!(
+			"Event is not local and has no policy server signature, performing legacy spam check"
+		);
 	}
 	debug_info!(
 		via = %via,
@@ -171,7 +184,7 @@ pub async fn ask_policy_server(
 /// Asks a remote policy server for a signature on this event.
 /// If the policy server signs this event, the original data is mutated.
 #[implement(super::Service)]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, fields(event_id=%pdu.event_id(), via=%via))]
 pub async fn fetch_policy_server_signature(
 	&self,
 	pdu: &PduEvent,
