@@ -168,35 +168,8 @@ async fn paginate_relations_with_filter(
 		.collect()
 		.await;
 
-	// For threads, check if we should include the root event
-	let mut root_event = None;
-	if is_thread && dir == Direction::Backward {
-		// Check if we've reached the beginning of the thread
-		// (fewer events than requested means we've exhausted the thread)
-		if events.len() < limit {
-			// Try to get the thread root event
-			if let Ok(root_pdu) = services.rooms.timeline.get_pdu(target).await {
-				// Check visibility
-				if services
-					.rooms
-					.state_accessor
-					.user_can_see_event(sender_user, room_id, target)
-					.await
-				{
-					// Store the root event to add to the response
-					root_event = Some(root_pdu);
-				}
-			}
-		}
-	}
-
 	// Determine if there are more events to fetch
-	let has_more = if root_event.is_some() {
-		false // We've included the root, no more events
-	} else {
-		// Check if we got a full page of results (might be more)
-		events.len() >= limit
-	};
+	let has_more = events.len() >= limit;
 
 	let next_batch = if has_more {
 		match dir {
@@ -208,11 +181,10 @@ async fn paginate_relations_with_filter(
 		None
 	};
 
-	// Build the response chunk with thread root if needed
-	let chunk: Vec<_> = root_event
+	let chunk: Vec<_> = events
 		.into_iter()
+		.map(at!(1))
 		.map(Event::into_format)
-		.chain(events.into_iter().map(at!(1)).map(Event::into_format))
 		.collect();
 
 	Ok(get_relating_events::v1::Response {
