@@ -264,6 +264,8 @@ fn get_space_child_events<'a>(
 				if content.via.is_empty() {
 					return None;
 				}
+			} else {
+				return None;
 			}
 
 			if RoomId::parse(&state_key).is_err() {
