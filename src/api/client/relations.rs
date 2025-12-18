@@ -152,8 +152,8 @@ async fn paginate_relations_with_filter(
 		})
 		.stream()
 		.ready_take_while(|(count, _)| Some(*count) != to)
-		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
 		.take(limit)
+		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
 		.then(async |mut pdu| {
 			if let Err(e) = services
 				.rooms
@@ -223,10 +223,6 @@ async fn paginate_relations_with_filter(
 	})
 }
 
-// TODO: Can we move the visibility filter lower down, to avoid checking events
-// that won't be sent? At the moment this also results in getting events that
-// appear to have no relation because intermediaries are not visible to the
-// user.
 async fn visibility_filter<Pdu: Event + Send + Sync>(
 	services: &Services,
 	sender_user: &UserId,
