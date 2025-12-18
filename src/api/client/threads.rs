@@ -31,8 +31,6 @@ pub(crate) async fn get_threads_route(
 		.transpose()?
 		.unwrap_or_else(PduCount::max);
 
-	// TODO: user_can_see_event and set_unsigned should be at the same level /
-	// function, so unsigned is only set for seen events.
 	let threads: Vec<(PduCount, PduEvent)> = services
 		.rooms
 		.threads

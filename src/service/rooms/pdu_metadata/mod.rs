@@ -20,6 +20,7 @@ pub struct Service {
 struct Services {
 	short: Dep<rooms::short::Service>,
 	timeline: Dep<rooms::timeline::Service>,
+	state_accessor: Dep<rooms::state_accessor::Service>,
 }
 
 impl crate::Service for Service {
@@ -28,6 +29,8 @@ impl crate::Service for Service {
 			services: Services {
 				short: args.depend::<rooms::short::Service>("rooms::short"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
+				state_accessor: args
+					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 			},
 			db: Data::new(&args),
 		}))

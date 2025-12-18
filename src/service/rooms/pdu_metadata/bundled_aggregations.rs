@@ -41,9 +41,6 @@ impl super::Service {
 		// The relations database code still handles the basic unsigned data
 		// We don't want to recursively fetch relations
 
-		// TODO: Event visibility check
-		// TODO: ignored users?
-
 		if relations.is_empty() {
 			return Ok(None);
 		}
@@ -84,8 +81,17 @@ impl super::Service {
 		// Handle m.replace relations - find the most recent valid one (lazy load
 		// original event)
 		if !replace_events.is_empty() {
-			if let Some(replacement) =
-				Self::find_most_recent_valid_replacement(pdu, &replace_events).await?
+			if let Some(replacement) = Self::find_most_recent_valid_replacement(
+				pdu,
+				&replace_events,
+				async |pdu: &PduEvent| {
+					self.services
+						.state_accessor
+						.user_can_see_event(user_id, &pdu.room_id_or_hash(), &pdu.event_id())
+						.await
+				},
+			)
+			.await?
 			{
 				bundled.replace = Some(Self::serialize_replacement(replacement)?);
 			}
@@ -124,6 +130,7 @@ impl super::Service {
 	async fn find_most_recent_valid_replacement<'a>(
 		original_event: &PduEvent,
 		replacement_events: &[&'a PdusIterItem],
+		visible: impl AsyncFn(&PduEvent) -> bool,
 	) -> Result<Option<&'a PduEvent>> {
 		// Filter valid replacements and find the maximum in a single pass
 		let mut result: Option<&PduEvent> = None;
@@ -136,17 +143,23 @@ impl super::Service {
 				continue;
 			}
 
-			result = Some(match result {
-				| None => pdu,
+			let next = match result {
+				| None => Some(pdu),
 				| Some(current) => {
 					// Compare by origin_server_ts first, then event_id lexicographically
 					match pdu.origin_server_ts().cmp(&current.origin_server_ts()) {
-						| std::cmp::Ordering::Greater => pdu,
-						| std::cmp::Ordering::Equal if pdu.event_id() > current.event_id() => pdu,
-						| _ => current,
+						| std::cmp::Ordering::Greater => Some(pdu),
+						| std::cmp::Ordering::Equal if pdu.event_id() > current.event_id() =>
+							Some(pdu),
+						| _ => None,
 					}
 				},
-			});
+			};
+			if let Some(pdu) = next
+				&& visible(pdu).await
+			{
+				result = Some(pdu);
+			}
 		}
 
 		Ok(result)
