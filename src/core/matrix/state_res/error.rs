@@ -14,10 +14,19 @@ pub enum Error {
 	Unsupported(String),
 
 	/// The given event was not found.
-	#[error("Not found error: {0}")]
+	#[error("Event not found: {0}")]
 	NotFound(String),
 
 	/// Invalid fields in the given PDU.
 	#[error("Invalid PDU: {0}")]
 	InvalidPdu(String),
+
+	/// This event contained multiple auth events of the same type and state
+	/// key.
+	#[error("Duplicate auth events: {0}")]
+	DuplicateAuthEvents(String),
+
+	/// This event contains unnecessary auth events.
+	#[error("Unknown or unnecessary auth events present: {0}")]
+	UnselectedAuthEvents(String),
 }
