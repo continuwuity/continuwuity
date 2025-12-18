@@ -110,9 +110,6 @@ pub async fn ask_policy_server(
 				.await;
 		}
 		debug!("Event is not local, performing legacy spam check");
-		// If we got this far, that means that there was likely no policy server
-		// signature on the given event. Fall through to asking the PS if it's
-		// spam.
 		// TODO: this should probably be marking it as failed, but for now fall
 		// thru
 	}
