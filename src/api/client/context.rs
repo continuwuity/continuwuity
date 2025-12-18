@@ -59,7 +59,7 @@ pub(crate) async fn get_context_route(
 		.rooms
 		.timeline
 		.get_pdu(event_id)
-		.map_err(|_| err!(Request(NotFound("Base event not found."))));
+		.map_err(|_| err!(Request(NotFound("Event not found."))));
 
 	let visible = services
 		.rooms
@@ -70,7 +70,7 @@ pub(crate) async fn get_context_route(
 	let (base_id, base_pdu, visible) = try_join3(base_id, base_pdu, visible).await?;
 
 	if base_pdu.room_id_or_hash() != *room_id || base_pdu.event_id != *event_id {
-		return Err!(Request(NotFound("Base event not found.")));
+		return Err!(Request(NotFound("Event not found.")));
 	}
 
 	if !visible {
