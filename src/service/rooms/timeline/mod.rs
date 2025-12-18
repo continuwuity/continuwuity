@@ -4,6 +4,7 @@ mod build;
 mod create;
 mod data;
 mod redact;
+mod stitcher;
 
 use std::{fmt::Write, sync::Arc};
 
