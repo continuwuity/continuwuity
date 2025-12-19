@@ -50,7 +50,7 @@ pub(crate) async fn search_events_route(
 
 	Ok(Response {
 		search_categories: ResultCategories {
-			room_events: room_events_result
+			room_events: Box::pin(room_events_result)
 				.await
 				.unwrap_or_else(|| Ok(ResultRoomEvents::default()))?,
 		},

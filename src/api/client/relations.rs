@@ -1,11 +1,11 @@
 use axum::extract::State;
 use conduwuit::{
-	Result, at, debug_warn, err,
+	Err, Result, at, debug_warn,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
 use conduwuit_service::Services;
-use futures::{StreamExt, TryFutureExt};
+use futures::StreamExt;
 use ruma::{
 	EventId, RoomId, UInt, UserId,
 	api::{
@@ -113,9 +113,10 @@ async fn paginate_relations_with_filter(
 		.rooms
 		.state_accessor
 		.user_can_see_event(sender_user, room_id, target)
+		.await
 	{
 		debug_warn!(req_evt = ?target, ?room_id, "Event relations requested by {sender_user} but is not allowed to see it, returning 404");
-		return err!(Request(NotFound("Event not found.")));
+		return Err!(Request(NotFound("Event not found.")));
 	}
 
 	let start: PduCount = from
@@ -137,11 +138,6 @@ async fn paginate_relations_with_filter(
 
 	// Spec (v1.10) recommends depth of at least 3
 	let depth: u8 = if recurse { 3 } else { 1 };
-
-	// Check if this is a thread request
-	let is_thread = filter_rel_type
-		.as_ref()
-		.is_some_and(|rel| *rel == RelationType::Thread);
 
 	let events: Vec<_> = services
 		.rooms
