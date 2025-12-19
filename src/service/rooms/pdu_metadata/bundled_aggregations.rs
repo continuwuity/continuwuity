@@ -81,17 +81,9 @@ impl super::Service {
 		// Handle m.replace relations - find the most recent valid one (lazy load
 		// original event)
 		if !replace_events.is_empty() {
-			if let Some(replacement) = Self::find_most_recent_valid_replacement(
-				pdu,
-				&replace_events,
-				async |pdu: &PduEvent| {
-					self.services
-						.state_accessor
-						.user_can_see_event(user_id, &pdu.room_id_or_hash(), &pdu.event_id())
-						.await
-				},
-			)
-			.await?
+			if let Some(replacement) = self
+				.find_most_recent_valid_replacement(user_id, pdu, &replace_events)
+				.await?
 			{
 				bundled.replace = Some(Self::serialize_replacement(replacement)?);
 			}
@@ -128,9 +120,10 @@ impl super::Service {
 	/// Find the most recent valid replacement event based on origin_server_ts
 	/// and lexicographic event_id ordering
 	async fn find_most_recent_valid_replacement<'a>(
+		&self,
+		user_id: &UserId,
 		original_event: &PduEvent,
 		replacement_events: &[&'a PdusIterItem],
-		visible: impl AsyncFn(&PduEvent) -> bool,
 	) -> Result<Option<&'a PduEvent>> {
 		// Filter valid replacements and find the maximum in a single pass
 		let mut result: Option<&PduEvent> = None;
@@ -156,7 +149,11 @@ impl super::Service {
 				},
 			};
 			if let Some(pdu) = next
-				&& visible(pdu).await
+				&& self
+					.services
+					.state_accessor
+					.user_can_see_event(user_id, &pdu.room_id_or_hash(), pdu.event_id())
+					.await
 			{
 				result = Some(pdu);
 			}
