@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, at,
+	Err, Result, at, debug_warn,
 	matrix::{
 		event::{Event, Matches},
 		pdu::PduCount,
@@ -122,14 +122,14 @@ pub(crate) async fn get_message_events_route(
 		| Direction::Forward => services
 			.rooms
 			.timeline
-			.pdus(Some(sender_user), room_id, Some(from))
+			.pdus(room_id, Some(from))
 			.ignore_err()
 			.boxed(),
 
 		| Direction::Backward => services
 			.rooms
 			.timeline
-			.pdus_rev(Some(sender_user), room_id, Some(from))
+			.pdus_rev(room_id, Some(from))
 			.ignore_err()
 			.boxed(),
 	};
@@ -140,6 +140,18 @@ pub(crate) async fn get_message_events_route(
 		.wide_filter_map(|item| ignored_filter(&services, item, sender_user))
 		.wide_filter_map(|item| visibility_filter(&services, item, sender_user))
 		.take(limit)
+		.then(async |mut pdu| {
+			pdu.1.set_unsigned(Some(sender_user));
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations: {e}");
+			}
+			pdu
+		})
 		.collect()
 		.await;
 

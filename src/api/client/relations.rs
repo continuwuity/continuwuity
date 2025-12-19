@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Result, at,
+	Err, Result, at, debug_warn,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
@@ -109,6 +109,16 @@ async fn paginate_relations_with_filter(
 	recurse: bool,
 	dir: Direction,
 ) -> Result<get_relating_events::v1::Response> {
+	if !services
+		.rooms
+		.state_accessor
+		.user_can_see_event(sender_user, room_id, target)
+		.await
+	{
+		debug_warn!(req_evt = ?target, ?room_id, "Event relations requested by {sender_user} but is not allowed to see it, returning 404");
+		return Err!(Request(NotFound("Event not found.")));
+	}
+
 	let start: PduCount = from
 		.map(str::parse)
 		.transpose()?
@@ -129,11 +139,6 @@ async fn paginate_relations_with_filter(
 	// Spec (v1.10) recommends depth of at least 3
 	let depth: u8 = if recurse { 3 } else { 1 };
 
-	// Check if this is a thread request
-	let is_thread = filter_rel_type
-		.as_ref()
-		.is_some_and(|rel| *rel == RelationType::Thread);
-
 	let events: Vec<_> = services
 		.rooms
 		.pdu_metadata
@@ -152,40 +157,24 @@ async fn paginate_relations_with_filter(
 		})
 		.stream()
 		.ready_take_while(|(count, _)| Some(*count) != to)
-		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
 		.take(limit)
+		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
+		.then(async |mut pdu| {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations to relation: {e}");
+			}
+			pdu
+		})
 		.collect()
 		.await;
 
-	// For threads, check if we should include the root event
-	let mut root_event = None;
-	if is_thread && dir == Direction::Backward {
-		// Check if we've reached the beginning of the thread
-		// (fewer events than requested means we've exhausted the thread)
-		if events.len() < limit {
-			// Try to get the thread root event
-			if let Ok(root_pdu) = services.rooms.timeline.get_pdu(target).await {
-				// Check visibility
-				if services
-					.rooms
-					.state_accessor
-					.user_can_see_event(sender_user, room_id, target)
-					.await
-				{
-					// Store the root event to add to the response
-					root_event = Some(root_pdu);
-				}
-			}
-		}
-	}
-
 	// Determine if there are more events to fetch
-	let has_more = if root_event.is_some() {
-		false // We've included the root, no more events
-	} else {
-		// Check if we got a full page of results (might be more)
-		events.len() >= limit
-	};
+	let has_more = events.len() >= limit;
 
 	let next_batch = if has_more {
 		match dir {
@@ -197,11 +186,10 @@ async fn paginate_relations_with_filter(
 		None
 	};
 
-	// Build the response chunk with thread root if needed
-	let chunk: Vec<_> = root_event
+	let chunk: Vec<_> = events
 		.into_iter()
+		.map(at!(1))
 		.map(Event::into_format)
-		.chain(events.into_iter().map(at!(1)).map(Event::into_format))
 		.collect();
 
 	Ok(get_relating_events::v1::Response {

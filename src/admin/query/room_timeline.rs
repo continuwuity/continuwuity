@@ -31,7 +31,7 @@ pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result {
 		.services
 		.rooms
 		.timeline
-		.last_timeline_count(None, &room_id)
+		.last_timeline_count(&room_id)
 		.await?;
 
 	self.write_str(&format!("{result:#?}")).await
@@ -52,7 +52,7 @@ pub(super) async fn pdus(
 		.services
 		.rooms
 		.timeline
-		.pdus_rev(None, &room_id, from)
+		.pdus_rev(&room_id, from)
 		.try_take(limit.unwrap_or(3))
 		.try_collect()
 		.await?;

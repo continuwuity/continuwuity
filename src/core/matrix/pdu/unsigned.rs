@@ -1,10 +1,23 @@
-use std::collections::BTreeMap;
+use std::{borrow::Borrow, collections::BTreeMap};
 
 use ruma::MilliSecondsSinceUnixEpoch;
 use serde_json::value::{RawValue as RawJsonValue, Value as JsonValue, to_raw_value};
 
 use super::Pdu;
-use crate::{Result, err, implement};
+use crate::{Result, err, implement, result::LogErr};
+
+/// Set the `unsigned` field of the PDU using only information in the PDU.
+/// Some unsigned data is already set within the database (eg. prev events,
+/// threads). Once this is done, other data must be calculated from the database
+/// (eg. relations) This is for server-to-client events.
+/// Backfill handles this itself.
+#[implement(Pdu)]
+pub fn set_unsigned(&mut self, user_id: Option<&ruma::UserId>) {
+	if Some(self.sender.borrow()) != user_id {
+		self.remove_transaction_id().log_err().ok();
+	}
+	self.add_age().log_err().ok();
+}
 
 #[implement(Pdu)]
 pub fn remove_transaction_id(&mut self) -> Result {

@@ -3,7 +3,6 @@ use std::{mem::size_of, sync::Arc};
 use conduwuit::{
 	arrayvec::ArrayVec,
 	matrix::{Event, PduCount},
-	result::LogErr,
 	utils::{
 		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
@@ -15,10 +14,11 @@ use futures::{Stream, StreamExt};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use crate::{
-	Dep, rooms,
+	Dep,
 	rooms::{
+		self,
 		short::{ShortEventId, ShortRoomId},
-		timeline::{PduId, RawPduId},
+		timeline::{PduId, PdusIterItem, RawPduId},
 	},
 };
 
@@ -60,7 +60,7 @@ impl Data {
 		target: ShortEventId,
 		from: PduCount,
 		dir: Direction,
-	) -> impl Stream<Item = (PduCount, impl Event)> + Send + 'a {
+	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
 		// Query from exact position then filter excludes it (saturating_inc could skip
 		// events at min/max boundaries)
 		let from_unsigned = from.into_unsigned();
@@ -92,9 +92,7 @@ impl Data {
 
 			let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
-			if pdu.sender() != user_id {
-				pdu.as_mut_pdu().remove_transaction_id().log_err().ok();
-			}
+			pdu.as_mut_pdu().set_unsigned(Some(user_id));
 
 			Some((shorteventid, pdu))
 		})

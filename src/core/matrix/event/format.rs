@@ -56,7 +56,7 @@ impl<'a, E: Event> From<Ref<'a, E>> for Raw<AnyTimelineEvent> {
 			"content": content,
 			"event_id": event.event_id(),
 			"origin_server_ts": event.origin_server_ts(),
-			"room_id": event.room_id(),
+			"room_id": event.room_id_or_hash(),
 			"sender": event.sender(),
 			"type": event.kind(),
 		});
@@ -117,7 +117,7 @@ impl<'a, E: Event> From<Ref<'a, E>> for Raw<AnyStateEvent> {
 			"content": event.content(),
 			"event_id": event.event_id(),
 			"origin_server_ts": event.origin_server_ts(),
-			"room_id": event.room_id(),
+			"room_id": event.room_id_or_hash(),
 			"sender": event.sender(),
 			"state_key": event.state_key(),
 			"type": event.kind(),

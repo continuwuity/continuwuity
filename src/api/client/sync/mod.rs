@@ -4,7 +4,7 @@ mod v5;
 use std::collections::VecDeque;
 
 use conduwuit::{
-	Event, PduCount, Result, err,
+	Event, PduCount, Result, debug_warn, err,
 	matrix::pdu::PduEvent,
 	ref_at, trace,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
@@ -53,7 +53,7 @@ async fn load_timeline(
 			let last_timeline_count = services
 				.rooms
 				.timeline
-				.last_timeline_count(Some(sender_user), room_id)
+				.last_timeline_count(room_id)
 				.await
 				.map_err(|err| {
 					err!(Database(warn!("Failed to fetch end of room timeline: {}", err)))
@@ -71,13 +71,24 @@ async fn load_timeline(
 			services
 				.rooms
 				.timeline
-				.pdus_rev(
-					Some(sender_user),
-					room_id,
-					ending_count.map(|count| count.saturating_add(1)),
-				)
+				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
 				.ready_take_while(move |&(pducount, _)| pducount > starting_count)
+				.map(move |mut pdu| {
+					pdu.1.set_unsigned(Some(sender_user));
+					pdu
+				})
+				.then(async move |mut pdu| {
+					if let Err(e) = services
+						.rooms
+						.pdu_metadata
+						.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+						.await
+					{
+						debug_warn!("Failed to add bundled aggregations: {e}");
+					}
+					pdu
+				})
 				.boxed()
 		},
 		| None => {
@@ -86,12 +97,23 @@ async fn load_timeline(
 			services
 				.rooms
 				.timeline
-				.pdus_rev(
-					Some(sender_user),
-					room_id,
-					ending_count.map(|count| count.saturating_add(1)),
-				)
+				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
+				.map(move |mut pdu| {
+					pdu.1.set_unsigned(Some(sender_user));
+					pdu
+				})
+				.then(async move |mut pdu| {
+					if let Err(e) = services
+						.rooms
+						.pdu_metadata
+						.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
+						.await
+					{
+						debug_warn!("Failed to add bundled aggregations: {e}");
+					}
+					pdu
+				})
 				.boxed()
 		},
 	};

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at, is_true,
+	Err, Result, at, debug_warn, is_true,
 	matrix::Event,
 	result::FlatOk,
 	utils::{IterStream, stream::ReadyExt},
@@ -50,7 +50,7 @@ pub(crate) async fn search_events_route(
 
 	Ok(Response {
 		search_categories: ResultCategories {
-			room_events: room_events_result
+			room_events: Box::pin(room_events_result)
 				.await
 				.unwrap_or_else(|| Ok(ResultRoomEvents::default()))?,
 		},
@@ -110,7 +110,12 @@ async fn category_room_events(
 				limit,
 			};
 
-			let (count, results) = services.rooms.search.search_pdus(&query).await.ok()?;
+			let (count, results) = services
+				.rooms
+				.search
+				.search_pdus(&query, sender_user)
+				.await
+				.ok()?;
 
 			results
 				.collect::<Vec<_>>()
@@ -144,6 +149,17 @@ async fn category_room_events(
 		.map(at!(2))
 		.flatten()
 		.stream()
+		.then(|mut pdu| async {
+			if let Err(e) = services
+				.rooms
+				.pdu_metadata
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu)
+				.await
+			{
+				debug_warn!("Failed to add bundled aggregations to search result: {e}");
+			}
+			pdu
+		})
 		.map(Event::into_format)
 		.map(|result| SearchResult {
 			rank: None,

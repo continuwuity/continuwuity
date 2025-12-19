@@ -1,15 +1,16 @@
+mod bundled_aggregations;
 mod data;
 use std::sync::Arc;
 
-use conduwuit::{
-	Result,
-	matrix::{Event, PduCount},
-};
+use conduwuit::{Result, matrix::PduCount};
 use futures::{StreamExt, future::try_join};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use self::data::Data;
-use crate::{Dep, rooms};
+use crate::{
+	Dep,
+	rooms::{self, timeline::PdusIterItem},
+};
 
 pub struct Service {
 	services: Services,
@@ -19,6 +20,7 @@ pub struct Service {
 struct Services {
 	short: Dep<rooms::short::Service>,
 	timeline: Dep<rooms::timeline::Service>,
+	state_accessor: Dep<rooms::state_accessor::Service>,
 }
 
 impl crate::Service for Service {
@@ -27,6 +29,8 @@ impl crate::Service for Service {
 			services: Services {
 				short: args.depend::<rooms::short::Service>("rooms::short"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
+				state_accessor: args
+					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 			},
 			db: Data::new(&args),
 		}))
@@ -56,7 +60,7 @@ impl Service {
 		limit: usize,
 		max_depth: u8,
 		dir: Direction,
-	) -> Vec<(PduCount, impl Event)> {
+	) -> Vec<PdusIterItem> {
 		let room_id = self.services.short.get_shortroomid(room_id);
 
 		let target = self.services.timeline.get_pdu_count(target);

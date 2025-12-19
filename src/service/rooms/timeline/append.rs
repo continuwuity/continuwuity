@@ -347,6 +347,10 @@ where
 		| _ => {},
 	}
 
+	// CONCERN: If we receive events with a relation out-of-order, we never write
+	// their relation / thread. We need some kind of way to trigger when we receive
+	// this event, and potentially a way to rebuild the table entirely.
+
 	if let Ok(content) = pdu.get_content::<ExtractRelatesToEventId>() {
 		if let Ok(related_pducount) = self.get_pdu_count(&content.relates_to.event_id).await {
 			self.services

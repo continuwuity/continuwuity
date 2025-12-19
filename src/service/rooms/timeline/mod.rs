@@ -20,7 +20,7 @@ use conduwuit_core::{
 };
 use futures::{Future, Stream, TryStreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId, UserId,
+	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId,
 	events::room::encrypted::Relation,
 };
 use serde::Deserialize;
@@ -138,7 +138,7 @@ impl Service {
 
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub async fn first_item_in_room(&self, room_id: &RoomId) -> Result<(PduCount, impl Event)> {
-		let pdus = self.pdus(None, room_id, None);
+		let pdus = self.pdus(room_id, None);
 
 		pin_mut!(pdus);
 		pdus.try_next()
@@ -148,16 +148,12 @@ impl Service {
 
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub async fn latest_pdu_in_room(&self, room_id: &RoomId) -> Result<impl Event> {
-		self.db.latest_pdu_in_room(None, room_id).await
+		self.db.latest_pdu_in_room(room_id).await
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn last_timeline_count(
-		&self,
-		sender_user: Option<&UserId>,
-		room_id: &RoomId,
-	) -> Result<PduCount> {
-		self.db.last_timeline_count(sender_user, room_id).await
+	pub async fn last_timeline_count(&self, room_id: &RoomId) -> Result<PduCount> {
+		self.db.last_timeline_count(room_id).await
 	}
 
 	/// Returns the `count` of this pdu's id.
@@ -235,33 +231,29 @@ impl Service {
 	#[inline]
 	pub fn all_pdus<'a>(
 		&'a self,
-		user_id: &'a UserId,
 		room_id: &'a RoomId,
 	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
-		self.pdus(Some(user_id), room_id, None).ignore_err()
+		self.pdus(room_id, None).ignore_err()
 	}
 
 	/// Reverse iteration starting after `until`.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus_rev<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		until: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
 		self.db
-			.pdus_rev(user_id, room_id, until.unwrap_or_else(PduCount::max))
+			.pdus_rev(room_id, until.unwrap_or_else(PduCount::max))
 	}
 
 	/// Forward iteration starting after `from`.
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn pdus<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		from: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
-		self.db
-			.pdus(user_id, room_id, from.unwrap_or_else(PduCount::min))
+		self.db.pdus(room_id, from.unwrap_or_else(PduCount::min))
 	}
 }

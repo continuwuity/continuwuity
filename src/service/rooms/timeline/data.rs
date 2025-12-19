@@ -1,13 +1,13 @@
-use std::{borrow::Borrow, sync::Arc};
+use std::sync::Arc;
 
 use conduwuit::{
 	Err, PduCount, PduEvent, Result, at, err,
-	result::{LogErr, NotFound},
+	result::NotFound,
 	utils::{self, stream::TryReadyExt},
 };
 use database::{Database, Deserialized, Json, KeyVal, Map};
 use futures::{FutureExt, Stream, TryFutureExt, TryStreamExt, future::select_ok, pin_mut};
-use ruma::{CanonicalJsonObject, EventId, OwnedUserId, RoomId, UserId, api::Direction};
+use ruma::{CanonicalJsonObject, EventId, OwnedUserId, RoomId, api::Direction};
 
 use super::{PduId, RawPduId};
 use crate::{Dep, rooms, rooms::short::ShortRoomId};
@@ -45,12 +45,8 @@ impl Data {
 	}
 
 	#[inline]
-	pub(super) async fn last_timeline_count(
-		&self,
-		sender_user: Option<&UserId>,
-		room_id: &RoomId,
-	) -> Result<PduCount> {
-		let pdus_rev = self.pdus_rev(sender_user, room_id, PduCount::max());
+	pub(super) async fn last_timeline_count(&self, room_id: &RoomId) -> Result<PduCount> {
+		let pdus_rev = self.pdus_rev(room_id, PduCount::max());
 
 		pin_mut!(pdus_rev);
 		let last_count = pdus_rev
@@ -64,12 +60,8 @@ impl Data {
 	}
 
 	#[inline]
-	pub(super) async fn latest_pdu_in_room(
-		&self,
-		sender_user: Option<&UserId>,
-		room_id: &RoomId,
-	) -> Result<PduEvent> {
-		let pdus_rev = self.pdus_rev(sender_user, room_id, PduCount::max());
+	pub(super) async fn latest_pdu_in_room(&self, room_id: &RoomId) -> Result<PduEvent> {
+		let pdus_rev = self.pdus_rev(room_id, PduCount::max());
 
 		pin_mut!(pdus_rev);
 		pdus_rev
@@ -221,7 +213,6 @@ impl Data {
 	/// order.
 	pub(super) fn pdus_rev<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		until: PduCount,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
@@ -231,14 +222,13 @@ impl Data {
 				self.pduid_pdu
 					.rev_raw_stream_from(&current)
 					.ready_try_take_while(move |(key, _)| Ok(key.starts_with(&prefix)))
-					.ready_and_then(move |item| Self::each_pdu(item, user_id))
+					.ready_and_then(Self::from_json_slice)
 			})
 			.try_flatten_stream()
 	}
 
 	pub(super) fn pdus<'a>(
 		&'a self,
-		user_id: Option<&'a UserId>,
 		room_id: &'a RoomId,
 		from: PduCount,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
@@ -248,21 +238,15 @@ impl Data {
 				self.pduid_pdu
 					.raw_stream_from(&current)
 					.ready_try_take_while(move |(key, _)| Ok(key.starts_with(&prefix)))
-					.ready_and_then(move |item| Self::each_pdu(item, user_id))
+					.ready_and_then(Self::from_json_slice)
 			})
 			.try_flatten_stream()
 	}
 
-	fn each_pdu((pdu_id, pdu): KeyVal<'_>, user_id: Option<&UserId>) -> Result<PdusIterItem> {
+	fn from_json_slice((pdu_id, pdu): KeyVal<'_>) -> Result<PdusIterItem> {
 		let pdu_id: RawPduId = pdu_id.into();
 
-		let mut pdu = serde_json::from_slice::<PduEvent>(pdu)?;
-
-		if Some(pdu.sender.borrow()) != user_id {
-			pdu.remove_transaction_id().log_err().ok();
-		}
-
-		pdu.add_age().log_err().ok();
+		let pdu = serde_json::from_slice::<PduEvent>(pdu)?;
 
 		Ok((pdu_id.pdu_count(), pdu))
 	}
