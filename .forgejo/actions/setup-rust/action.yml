@@ -65,7 +65,7 @@ runs:
 
     - name: Cache toolchain binaries
       id: toolchain-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           .cargo/bin
@@ -76,7 +76,7 @@ runs:
 
     - name: Cache Cargo registry and git
       id: registry-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           .cargo/registry/index
@@ -151,7 +151,7 @@ runs:
 
     - name: Cache dependencies
       id: deps-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           target/**/.fingerprint
@@ -169,7 +169,7 @@ runs:
 
     - name: Cache incremental compilation
       id: incremental-cache
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       with:
         path: |
           target/**/incremental

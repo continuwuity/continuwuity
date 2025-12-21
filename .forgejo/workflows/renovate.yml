@@ -55,7 +55,7 @@ jobs:
         run: /usr/local/renovate/node -e 'console.log(`node heap limit = ${require("v8").getHeapStatistics().heap_size_limit / (1024 * 1024)} Mb`)'
 
       - name: Restore renovate repo cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             /tmp/renovate/cache/renovate/repository
@@ -64,7 +64,7 @@ jobs:
             renovate-repo-cache-
 
       - name: Restore renovate package cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
@@ -73,7 +73,7 @@ jobs:
             renovate-package-cache-
 
       - name: Restore renovate OSV cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: |
             /tmp/osv
@@ -117,7 +117,7 @@ jobs:
 
       - name: Save renovate package cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             /tmp/renovate/cache/renovate/renovate-cache-sqlite
@@ -125,7 +125,7 @@ jobs:
 
       - name: Save renovate OSV cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: |
             /tmp/osv

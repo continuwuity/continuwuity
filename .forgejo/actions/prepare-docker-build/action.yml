@@ -114,7 +114,7 @@ runs:
 
     - name: Cache Rust registry
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           .cargo/git
@@ -126,7 +126,7 @@ runs:
     - name: Cache cargo target
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
       id: cache-cargo-target
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}
@@ -135,7 +135,7 @@ runs:
     - name: Cache apt cache
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
       id: cache-apt
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           var-cache-apt-${{ inputs.slug }}
@@ -144,7 +144,7 @@ runs:
     - name: Cache apt lib
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
       id: cache-apt-lib
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           var-lib-apt-${{ inputs.slug }}
