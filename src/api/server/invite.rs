@@ -90,6 +90,16 @@ pub(crate) async fn create_invite_route(
 		)));
 	}
 
+	// Ensure the sending user isn't a lying bozo
+	let sender_server = signed_event
+		.get("sender")
+		.try_into()
+		.map(UserId::server_name)
+		.map_err(|e| err!(Request(InvalidParam("Invalid sender property: {e}"))))?;
+	if sender_server != body.origin() {
+		return Err!(Request(Forbidden("Sender's server does not match the origin server.",)));
+	}
+
 	// Ensure the target user belongs to this server
 	let recipient_user: OwnedUserId = signed_event
 		.get("state_key")
