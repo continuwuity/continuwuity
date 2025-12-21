@@ -32,11 +32,13 @@ outputs:
 runs:
   using: composite
   steps:
+    - run: mkdir -p digests
+      shell: bash
     - name: Download digests
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
       uses: forgejo/download-artifact@v4
       with:
-        path: /tmp/digests
+        path: digests
         pattern: ${{ inputs.digest_pattern }}
         merge-multiple: true
 
@@ -78,7 +80,7 @@ runs:
 
     - name: Create manifest list and push
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
-      working-directory: /tmp/digests
+      working-directory: digests
       shell: bash
       env:
         IMAGES: ${{ inputs.images }}
