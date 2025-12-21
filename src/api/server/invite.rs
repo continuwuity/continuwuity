@@ -10,6 +10,7 @@ use conduwuit::{
 use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
+	events::room::member::{MembershipState, RoomMemberEventContent},
 	serde::JsonObject,
 };
 
@@ -60,6 +61,36 @@ pub(crate) async fn create_invite_route(
 	let mut signed_event = utils::to_canonical_object(&body.event)
 		.map_err(|_| err!(Request(InvalidParam("Invite event is invalid."))))?;
 
+	// Ensure this is a membership event
+	if signed_event
+		.get("type")
+		.expect("event must have a type")
+		.as_str()
+		.expect("type must be a string")
+		!= "m.room.member"
+	{
+		return Err!(Request(BadJson(
+			"Not allowed to send non-membership event to invite endpoint."
+		)));
+	}
+
+	let content: RoomMemberEventContent = serde_json::from_value(
+		signed_event
+			.get("content")
+			.ok_or_else(|| err!(Request(BadJson("Event missing content property"))))?
+			.clone()
+			.into(),
+	)
+	.map_err(|e| err!(Request(BadJson(warn!("Event content is empty or invalid: {e}")))))?;
+
+	// Ensure this is an invite membership event
+	if content.membership != MembershipState::Invite {
+		return Err!(Request(BadJson(
+			"Not allowed to send a non-invite membership event to invite endpoint."
+		)));
+	}
+
+	// Ensure the target user belongs to this server
 	let recipient_user: OwnedUserId = signed_event
 		.get("state_key")
 		.try_into()
