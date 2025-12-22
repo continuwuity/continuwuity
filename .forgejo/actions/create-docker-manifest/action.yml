@@ -64,6 +64,7 @@ runs:
       uses: docker/metadata-action@v5
       with:
         flavor: |
+          latest=auto
           suffix=${{ inputs.tag_suffix }},onlatest=true
         tags: |
           type=semver,pattern={{version}},prefix=v
