@@ -2,11 +2,7 @@
 
 set -euo pipefail
 
-# Path to Complement's source code
-#
-# The `COMPLEMENT_SRC` environment variable is set in the Nix dev shell, which
-# points to a store path containing the Complement source code. It's likely you
-# want to just pass that as the first argument to use it here.
+# The root path where complement is available.
 COMPLEMENT_SRC="${COMPLEMENT_SRC:-$1}"
 
 # A `.jsonl` file to write test logs to
@@ -15,7 +11,10 @@ LOG_FILE="${2:-complement_test_logs.jsonl}"
 # A `.jsonl` file to write test results to
 RESULTS_FILE="${3:-complement_test_results.jsonl}"
 
-COMPLEMENT_BASE_IMAGE="${COMPLEMENT_BASE_IMAGE:-complement-conduwuit:main}"
+# The base docker image to use for complement tests
+# You can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`
+# after running `cargo build`. Only the debug binary is used.
+COMPLEMENT_BASE_IMAGE="${COMPLEMENT_BASE_IMAGE:-continuwuity:complement}"
 
 # Complement tests that are skipped due to flakiness/reliability issues or we don't implement such features and won't for a long time
 SKIPPED_COMPLEMENT_TESTS='TestPartialStateJoin.*|TestRoomDeleteAlias/Parallel/Regular_users_can_add_and_delete_aliases_when_m.*|TestRoomDeleteAlias/Parallel/Can_delete_canonical_alias|TestUnbanViaInvite.*|TestRoomState/Parallel/GET_/publicRooms_lists.*"|TestRoomDeleteAlias/Parallel/Users_with_sufficient_power-level_can_delete_other.*'
@@ -34,25 +33,6 @@ toplevel="$(git rev-parse --show-toplevel)"
 
 pushd "$toplevel" > /dev/null
 
-if [ ! -f "complement_oci_image.tar.gz" ]; then
-    echo "building complement conduwuit image"
-
-    # if using macOS, use linux-complement
-    #bin/nix-build-and-cache just .#linux-complement
-    bin/nix-build-and-cache just .#complement
-    #nix build -L .#complement
-
-    echo "complement conduwuit image tar.gz built at \"result\""
-
-    echo "loading into docker"
-    docker load < result
-    popd > /dev/null
-else
-    echo "skipping building a complement conduwuit image as complement_oci_image.tar.gz was already found, loading this"
-
-    docker load < complement_oci_image.tar.gz
-    popd > /dev/null
-fi
 
 echo ""
 echo "running go test with:"
@@ -72,24 +52,16 @@ env \
 set -o pipefail
 
 # Post-process the results into an easy-to-compare format, sorted by Test name for reproducible results
-cat "$LOG_FILE" | jq -s -c 'sort_by(.Test)[]' | jq -c '
+jq -s -c 'sort_by(.Test)[]' < "$LOG_FILE" | jq -c '
     select(
         (.Action == "pass" or .Action == "fail" or .Action == "skip")
         and .Test != null
     ) | {Action: .Action, Test: .Test}
     ' > "$RESULTS_FILE"
 
-#if command -v gotestfmt &> /dev/null; then
-#    echo "using gotestfmt on $LOG_FILE"
-#    grep '{"Time":' "$LOG_FILE" | gotestfmt > "complement_test_logs_gotestfmt.log"
-#fi
-
 echo ""
 echo ""
 echo "complement logs saved at $LOG_FILE"
 echo "complement results saved at $RESULTS_FILE"
-#if command -v gotestfmt &> /dev/null; then
-#    echo "complement logs in gotestfmt pretty format outputted at complement_test_logs_gotestfmt.log (use an editor/terminal/pager that interprets ANSI colours and UTF-8 emojis)"
-#fi
 echo ""
 echo ""

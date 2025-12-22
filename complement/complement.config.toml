@@ -1,0 +1,53 @@
+# ============================================= #
+# Complement pre-filled configuration file      #
+#
+# DANGER: THIS FILE FORCES INSECURE VALUES.     #
+# DO NOT USE OUTSIDE THE TEST SUITE ENV!        #
+# ============================================= #
+[global]
+address = "0.0.0.0"
+allow_device_name_federation = true
+allow_guest_registration = true
+allow_public_room_directory_over_federation = true
+allow_public_room_directory_without_auth = true
+allow_registration = true
+database_path = "/database"
+log = "trace,h2=debug,hyper=debug"
+port = [8008, 8448]
+trusted_servers = []
+only_query_trusted_key_servers = false
+query_trusted_key_servers_first = false
+query_trusted_key_servers_first_on_join = false
+yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = true
+ip_range_denylist = []
+url_preview_domain_contains_allowlist = ["*"]
+url_preview_domain_explicit_denylist = ["*"]
+media_compat_file_link = false
+media_startup_check = true
+prune_missing_media = true
+log_colors = true
+admin_room_notices = false
+allow_check_for_updates = false
+intentionally_unknown_config_option_for_testing = true
+rocksdb_log_level = "info"
+rocksdb_max_log_files = 1
+rocksdb_recovery_mode = 0
+rocksdb_paranoid_file_checks = true
+log_guest_registrations = false
+allow_legacy_media = true
+startup_netburst = true
+startup_netburst_keep = -1
+allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure = true
+dns_timeout = 60
+dns_attempts = 20
+request_conn_timeout = 60
+request_timeout = 120
+well_known_conn_timeout = 60
+well_known_timeout = 60
+federation_idle_timeout = 300
+sender_timeout = 300
+sender_idle_timeout = 300
+sender_retry_backoff_limit = 300
+
+[global.tls]
+dual_protocol = true
