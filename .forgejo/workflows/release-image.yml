@@ -18,6 +18,12 @@ on:
       - "v*.*.*"
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
+    inputs:
+      commit:
+        description: 'Commit SHA to build (default: latest commit on the branch)'
+        required: false
+        default: ""
+        type: string
 
 env:
   BUILTIN_REGISTRY: forgejo.ellis.link
@@ -42,10 +48,14 @@ jobs:
             slug: "linux-arm64"
 
     steps:
+      - name: Pick checkout ref
+        run:
+          echo "COMMIT_REF=${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.commit != '' && github.event.inputs.commit || github.sha) || github.sha }}" >> $GITHUB_ENV
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           persist-credentials: false
+          ref: ${{ env.COMMIT_REF }}
       - name: Prepare Docker build environment
         id: prepare
         uses: ./.forgejo/actions/prepare-docker-build
