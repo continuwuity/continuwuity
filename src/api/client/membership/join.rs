@@ -366,7 +366,7 @@ async fn join_room_by_id_helper_remote(
 	let (make_join_response, remote_server) =
 		make_join_request(services, sender_user, room_id, servers).await?;
 
-	info!("make_join finished");
+	info!(via=%remote_server, "make_join finished");
 
 	let Some(room_version_id) = make_join_response.room_version else {
 		return Err!(BadServerResponse("Remote room version is not supported by conduwuit"));
@@ -1000,11 +1000,13 @@ async fn make_join_request(
 
 				return make_join_response_and_server;
 			}
+			info!("{remote_server} could not make_join: {e}");
 		}
 
 		make_join_response_and_server = make_join_response.map(|r| (r, remote_server.clone()));
 
 		if make_join_response_and_server.is_ok() {
+			debug!("make_join succeeded via {remote_server}");
 			break;
 		}
 	}
