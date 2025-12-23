@@ -19,8 +19,7 @@ use futures::{
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
 	events::{
-		AnyStrippedStateEvent, StateEventType, TimelineEventType,
-		room::create::RoomCreateEventContent,
+		AnyStateEvent, StateEventType, TimelineEventType, room::create::RoomCreateEventContent,
 	},
 	serde::Raw,
 };
@@ -307,12 +306,22 @@ impl Service {
 		}
 	}
 
+	/// Get a summary of the room state for invites and knock responses.
+	///
+	/// This used to return stripped state, but now returns complete events.
+	///
+	/// Returns:
+	///
+	/// - m.room.create
+	/// - m.room.join_rules
+	/// - m.room.canonical_alias
+	/// - m.room.name
+	/// - m.room.avatar
+	/// - m.room.member (of the event sender)
+	/// - m.room.encryption
+	/// - m.room.topic
 	#[tracing::instrument(skip_all, level = "debug")]
-	pub async fn summary_stripped<'a, E>(
-		&self,
-		event: &'a E,
-		room_id: &RoomId,
-	) -> Vec<Raw<AnyStrippedStateEvent>>
+	pub async fn summary<'a, E>(&self, event: &'a E, room_id: &RoomId) -> Vec<Raw<AnyStateEvent>>
 	where
 		E: Event + Send + Sync,
 		&'a E: Event + Send,

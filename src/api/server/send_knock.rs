@@ -175,11 +175,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		.send_pdu_room(&body.room_id, &pdu_id)
 		.await?;
 
-	let knock_room_state = services
-		.rooms
-		.state
-		.summary_stripped(&pdu, &body.room_id)
-		.await;
+	let knock_room_state = services.rooms.state.summary(&pdu, &body.room_id).await;
 
 	Ok(send_knock::v1::Response { knock_room_state })
 }

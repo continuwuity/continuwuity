@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 
-use conduwuit::{Err, Event, Pdu, Result, implement, is_not_empty, utils::ReadyExt, warn};
+use conduwuit::{Err, Event, Pdu, Result, implement, is_not_empty, utils::ReadyExt};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
 	OwnedServerName, RoomId, UserId,
 	events::{
-		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
-		StateEventType,
+		AnyStateEvent, AnyStrippedStateEvent, GlobalAccountDataEventType,
+		RoomAccountDataEventType, StateEventType,
 		direct::DirectEvent,
 		invite_permission_config::FilterLevel,
 		room::{
@@ -334,7 +334,7 @@ pub async fn mark_as_invited(
 	user_id: &UserId,
 	room_id: &RoomId,
 	sender_user: &UserId,
-	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
+	last_state: Option<Vec<Raw<AnyStateEvent>>>,
 	invite_via: Option<Vec<OwnedServerName>>,
 ) -> Result<()> {
 	// return an error for blocked invites. ignored invites aren't handled here
