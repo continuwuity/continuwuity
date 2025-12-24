@@ -228,6 +228,10 @@ async fn legacy_check_invite(
 	let mut has_create = false;
 	for raw_event in stripped_state {
 		let canonical = utils::to_canonical_object(raw_event)?;
+		if canonical.get("room_id").is_none() {
+			// This is a stripped event, skip
+			continue;
+		}
 		if let Some(event_type) = canonical.get("type") {
 			if event_type.as_str().unwrap_or_default() == "m.room.create" {
 				has_create = true;
@@ -278,7 +282,7 @@ async fn check_invite(
 ) -> Result<OwnedUserId> {
 	if services.config.experiments.enforce_msc4311 {
 		debug!("Checking invite event validity");
-		let user = check_invite_event(services, invite_event, origin, room_id, room_version_id)
+		let user = legacy_check_invite(services, invite_event, origin, room_id, room_version_id)
 			.await
 			.inspect_err(|e| {
 				debug_warn!("Invite event validity check failed: {e}");
