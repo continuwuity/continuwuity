@@ -282,7 +282,7 @@ async fn check_invite(
 ) -> Result<OwnedUserId> {
 	if services.config.experiments.enforce_msc4311 {
 		debug!("Checking invite event validity");
-		let user = legacy_check_invite(services, invite_event, origin, room_id, room_version_id)
+		let user = check_invite_event(services, invite_event, origin, room_id, room_version_id)
 			.await
 			.inspect_err(|e| {
 				debug_warn!("Invite event validity check failed: {e}");
