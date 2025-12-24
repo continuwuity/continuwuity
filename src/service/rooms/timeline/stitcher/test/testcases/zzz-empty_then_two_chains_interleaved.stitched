@@ -1,0 +1,18 @@
+=== when we receive these events ===
+# Same as empty_then_two_chains except for received order
+# A chain ABC, and a separate chain XYZ, but interleaved
+A
+X --> W
+B --> A
+Y --> X
+C --> B
+Z --> Y
+=== then we arrange into this order ===
+# Should produce them in order with a gap
+A*
+-W*
+X*
+B*
+Y*
+C*
+Z*

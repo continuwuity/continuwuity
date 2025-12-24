@@ -1,0 +1,26 @@
+=== when we receive these events ===
+# Given a gap before all the Bs
+B1 --> C2
+B2 --> B1
+=== then we arrange into this order ===
+-C2*
+B1*
+B2*
+
+=== when we receive these events ===
+# When a batch arrives with a not-last event matching the gap, and the last
+# event linked to a recent event
+C1
+C2 --> C1
+C3 --> C2
+C3 --> B2
+=== then we arrange into this order ===
+# Then we slot the entire batch into the gap
+C1
+C2
+B1
+B2
+C3*
+=== and we notify about these gaps ===
+# And we notify about the gap being filled in
+C2

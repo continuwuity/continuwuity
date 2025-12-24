@@ -1,0 +1,29 @@
+=== when we receive these events ===
+# Given a couple of gaps
+B --> X2
+D --> X4
+=== then we arrange into this order ===
+-X2*
+B*
+-X4*
+D*
+
+=== when we receive these events ===
+# And linked events that fill those in and are newer
+X1
+X2 --> X1
+X3 --> X2
+X4 --> X3
+X5 --> X4
+=== then we arrange into this order ===
+# Then the gaps are filled and new events appear at the front
+X1
+X2
+B
+X3
+X4
+D
+X5*
+=== and we notify about these gaps ===
+X2
+X4

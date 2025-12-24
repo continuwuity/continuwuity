@@ -1,0 +1,16 @@
+=== when we receive these events ===
+# We preserve the received order where it does not conflict with the prev_events
+A
+X --> W
+Y --> X
+Z --> Y
+B --> A
+C --> B
+=== then we arrange into this order ===
+A*
+-W*
+X*
+Y*
+Z*
+B*
+C*

@@ -1,0 +1,28 @@
+=== when we receive these events ===
+# Several events refer to the same missing event, but one refers to others too
+A --> X
+B --> X
+B --> Y
+B --> Z
+C --> X
+=== then we arrange into this order ===
+# We end up with multiple gaps
+-X*
+A*
+-X,Y,Z*
+B*
+-X*
+C*
+
+=== when we receive these events ===
+# When we receive the missing item
+X
+=== then we arrange into this order ===
+# It goes into the earliest slot, and the non-empty gap remains
+X
+A
+-Y,Z
+B
+C
+=== and we notify about these gaps ===
+X

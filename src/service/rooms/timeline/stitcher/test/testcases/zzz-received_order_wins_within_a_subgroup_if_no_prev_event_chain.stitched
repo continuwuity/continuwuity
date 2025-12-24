@@ -1,0 +1,16 @@
+=== when we receive these events ===
+# Everything is after A, but there is no prev_event chain between the others, so
+# we use received order.
+A
+F --> A
+C --> A
+D --> A
+E --> A
+B --> A
+=== then we arrange into this order ===
+A*
+F*
+C*
+D*
+E*
+B*

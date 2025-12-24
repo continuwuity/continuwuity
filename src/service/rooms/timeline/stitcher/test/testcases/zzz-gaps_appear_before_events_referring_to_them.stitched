@@ -1,0 +1,13 @@
+=== when we receive these events ===
+# Several events refer to missing events and the events are unrelated
+C --> Y
+C --> Z
+A --> X
+B
+=== then we arrange into this order ===
+# The gaps appear immediately before the events referring to them
+-Y,Z*
+C*
+-X*
+A*
+B*

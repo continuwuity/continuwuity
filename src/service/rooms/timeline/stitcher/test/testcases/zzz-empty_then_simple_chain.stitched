@@ -1,0 +1,8 @@
+=== when we receive these events ===
+A
+B --> A
+C --> B
+=== then we arrange into this order ===
+A*
+B*
+C*

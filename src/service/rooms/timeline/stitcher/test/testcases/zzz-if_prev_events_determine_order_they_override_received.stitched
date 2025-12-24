@@ -1,0 +1,15 @@
+=== when we receive these events ===
+# The relationships determine the order here, so they override received order
+F --> E
+C --> B
+D --> C
+E --> D
+B --> A
+A
+=== then we arrange into this order ===
+A*
+B*
+C*
+D*
+E*
+F*

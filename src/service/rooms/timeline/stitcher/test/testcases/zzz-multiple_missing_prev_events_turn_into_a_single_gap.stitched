@@ -1,0 +1,9 @@
+=== when we receive these events ===
+# A refers to multiple missing things
+A --> X
+A --> Y
+A --> Z
+=== then we arrange into this order ===
+# But we only make one gap, with multiple IDs in it
+-X,Y,Z*
+A*

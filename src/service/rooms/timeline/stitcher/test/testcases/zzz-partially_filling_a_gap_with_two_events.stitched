@@ -1,0 +1,27 @@
+=== when we receive these events ===
+# Given an event references multiple missing events
+A
+F --> B
+F --> C
+F --> D
+F --> E
+=== then we arrange into this order ===
+A*
+-B,C,D,E*
+F
+
+=== when we receive these events ===
+# When we provide some of the missing events
+C
+E
+=== then we arrange into this order ===
+# Then we insert them after the gap and shrink the list of events in the gap
+A
+-B,D
+C
+E
+F
+=== and we notify about these gaps ===
+# And we notify about the gap that was updated
+C
+E

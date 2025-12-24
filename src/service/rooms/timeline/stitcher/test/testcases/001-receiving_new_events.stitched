@@ -1,0 +1,22 @@
+=== when we receive these events ===
+A
+B --> A
+C --> B
+=== then we arrange into this order ===
+# Given the server has some existing events in this order:
+A*
+B*
+C*
+
+=== when we receive these events ===
+# When it receives new ones:
+D --> C
+E --> D
+
+=== then we arrange into this order ===
+# Then it simply appends them at the end of the order:
+A
+B
+C
+D*
+E*

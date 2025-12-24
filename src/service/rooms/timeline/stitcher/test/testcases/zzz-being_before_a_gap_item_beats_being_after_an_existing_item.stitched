@@ -1,0 +1,30 @@
+=== when we receive these events ===
+D --> C
+=== then we arrange into this order ===
+# We may see situations that are ambiguous about whether an event is new or
+# belongs in a gap, because it is a predecessor of a gap event and also has a
+# new event as its predecessor. This a rare case where either outcome could be
+# valid. If the initial order is this:
+-C*
+D*
+=== when we receive these events ===
+# And then we receive B
+B --> A
+=== then we arrange into this order ===
+# Which is new because it's unrelated to everything else
+-C
+D
+-A*
+B*
+=== when we receive these events ===
+# And later it turns out that C refers back to B
+C --> B
+=== then we arrange into this order ===
+# Then we place C into the early gap even though it is after B, so arguably
+# should be the newest
+C
+D
+-A
+B
+=== and we notify about these gaps ===
+C

@@ -1,0 +1,31 @@
+=== when we receive these events ===
+# Given a couple of gaps
+B --> X2a
+D --> X3
+=== then we arrange into this order ===
+-X2a*
+B*
+-X3*
+D*
+
+=== when we receive these events ===
+# When we receive a diamond that touches gaps and some new events
+X1
+X2a --> X1
+X2b --> X1
+X3 --> X2a
+X3 --> X2b
+X4 --> X3
+=== then we arrange into this order ===
+# Then matching events and direct predecessors fit into the gaps
+# and other stuff is new
+X1
+X2a
+B
+X2b
+X3
+D
+X4*
+=== and we notify about these gaps ===
+X2a
+X3

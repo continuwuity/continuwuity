@@ -1,14 +1,15 @@
 use std::collections::{BTreeMap, HashSet};
 
-use ruma::{EventId, OwnedEventId};
-
 pub(super) mod algorithm;
+#[cfg(test)]
+mod test;
 
 /// A gap in the stitched order.
-pub(super) type Gap = HashSet<OwnedEventId>;
+pub(super) type Gap = HashSet<String>;
 
+#[derive(Debug)]
 pub(super) enum StitchedItem<'id> {
-	Event(&'id EventId),
+	Event(&'id str),
 	Gap(Gap),
 }
 
@@ -16,40 +17,44 @@ pub(super) enum StitchedItem<'id> {
 /// order.
 pub(super) trait OrderKey: Eq + Clone {}
 
+impl<T: Eq + Clone> OrderKey for T {}
+
 pub(super) trait StitcherBackend {
 	type Key: OrderKey;
 
+	/// Returns all gaps containing an event listed in `events`.
 	fn find_matching_gaps<'a>(
 		&'a self,
-		events: impl Iterator<Item = &'a EventId>,
+		events: impl Iterator<Item = &'a str>,
 	) -> impl Iterator<Item = (Self::Key, Gap)>;
 
-	fn event_exists<'a>(&'a self, event: &'a EventId) -> bool;
+	/// Returns whether an event exists in the stitched order.
+	fn event_exists<'a>(&'a self, event: &'a str) -> bool;
 }
 
 /// An ordered map from an event ID to its `prev_events`.
-pub(super) type EventEdges<'id> = BTreeMap<&'id EventId, HashSet<&'id EventId>>;
+pub(super) type EventEdges<'id> = BTreeMap<&'id str, HashSet<&'id str>>;
 
 /// Information about the `prev_events` of an event.
 /// This struct does not store the ID of the event itself.
 struct EventPredecessors<'id> {
 	/// The `prev_events` of the event.
-	pub prev_events: HashSet<&'id EventId>,
+	pub prev_events: HashSet<&'id str>,
 	/// The predecessor set of the event. This is a superset of
 	/// [`EventPredecessors::prev_events`]. See [`Batch::find_predecessor_set`]
 	/// for details.
-	pub predecessor_set: HashSet<&'id EventId>,
+	pub predecessor_set: HashSet<&'id str>,
 }
 
 pub(super) struct Batch<'id> {
-	events: BTreeMap<&'id EventId, EventPredecessors<'id>>,
+	events: BTreeMap<&'id str, EventPredecessors<'id>>,
 }
 
 impl<'id> Batch<'id> {
-	pub(super) fn from_edges<'a>(edges: EventEdges<'a>) -> Batch<'a> {
+	pub(super) fn from_edges(edges: EventEdges<'_>) -> Batch<'_> {
 		let mut events = BTreeMap::new();
 
-		for (event, prev_events) in edges.iter() {
+		for (event, prev_events) in &edges {
 			let predecessor_set = Self::find_predecessor_set(event, &edges);
 
 			events.insert(*event, EventPredecessors {
@@ -66,10 +71,7 @@ impl<'id> Batch<'id> {
 	/// rooted at `event` containing _only_ events which are included in
 	/// `edges`. It is represented as a set and not a proper tree structure for
 	/// efficiency.
-	fn find_predecessor_set<'a>(
-		event: &'a EventId,
-		edges: &EventEdges<'a>,
-	) -> HashSet<&'a EventId> {
+	fn find_predecessor_set<'a>(event: &'a str, edges: &EventEdges<'a>) -> HashSet<&'a str> {
 		// The predecessor set which we are building.
 		let mut predecessor_set = HashSet::new();
 
@@ -100,11 +102,11 @@ impl<'id> Batch<'id> {
 		predecessor_set
 	}
 
-	fn events(&self) -> impl Iterator<Item = &'id EventId> { self.events.keys().copied() }
+	fn events(&self) -> impl Iterator<Item = &'id str> { self.events.keys().copied() }
 
-	fn contains(&self, event: &'id EventId) -> bool { self.events.contains_key(event) }
+	fn contains(&self, event: &'id str) -> bool { self.events.contains_key(event) }
 
-	fn predecessors(&self, event: &EventId) -> Option<&EventPredecessors<'id>> {
+	fn predecessors(&self, event: &str) -> Option<&EventPredecessors<'id>> {
 		self.events.get(event)
 	}
 }

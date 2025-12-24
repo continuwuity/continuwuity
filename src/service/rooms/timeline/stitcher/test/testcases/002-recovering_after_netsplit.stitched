@@ -1,0 +1,46 @@
+=== when we receive these events ===
+A1
+A2 --> A1
+A3 --> A2
+=== then we arrange into this order ===
+# Given the server has some existing events in this order:
+A1*
+A2*
+A3*
+
+=== when we receive these events ===
+# And after a netsplit the server receives some unrelated events, which refer to
+# some unknown event, because the server didn't receive all of them:
+B7 --> B6
+B8 --> B7
+B9 --> B8
+
+=== then we arrange into this order ===
+# Then these events are new, and we add a gap to show something is missing:
+A1
+A2
+A3
+-B6*
+B7*
+B8*
+B9*
+=== when we receive these events ===
+# Then if we backfill and receive more of those events later:
+B4 --> B3
+B5 --> B4
+B6 --> B5
+=== then we arrange into this order ===
+# They are slotted into the gap, and a new gap is created to represent the
+# still-missing events:
+A1
+A2
+A3
+-B3
+B4
+B5
+B6
+B7
+B8
+B9
+=== and we notify about these gaps ===
+B6

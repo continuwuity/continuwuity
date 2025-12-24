@@ -1,0 +1,10 @@
+=== when we receive these events ===
+# Even though we see C first, it is re-ordered because we must obey prev_events
+# so A comes first.
+C --> A
+A
+B --> A
+=== then we arrange into this order ===
+A*
+C*
+B*

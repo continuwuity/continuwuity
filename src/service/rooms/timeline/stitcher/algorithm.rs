@@ -4,11 +4,11 @@ use std::{
 };
 
 use itertools::Itertools;
-use ruma::{EventId, OwnedEventId};
 
 use super::{Batch, Gap, OrderKey, StitchedItem, StitcherBackend};
 
 /// Updates to a gap in the stitched order.
+#[derive(Debug)]
 pub(super) struct GapUpdate<'id, K: OrderKey> {
 	/// The opaque key of the gap to update.
 	pub key: K,
@@ -21,6 +21,7 @@ pub(super) struct GapUpdate<'id, K: OrderKey> {
 }
 
 /// Updates to the stitched order.
+#[derive(Debug)]
 pub(super) struct OrderUpdates<'id, K: OrderKey> {
 	/// Updates to individual gaps. The items inserted by these updates _should
 	/// not_ be synchronized to clients.
@@ -35,14 +36,12 @@ pub(super) struct Stitcher<'backend, B: StitcherBackend> {
 }
 
 impl<B: StitcherBackend> Stitcher<'_, B> {
-	pub(super) fn new<'backend>(backend: &'backend B) -> Stitcher<'backend, B> {
-		Stitcher { backend }
-	}
+	pub(super) fn new(backend: &B) -> Stitcher<'_, B> { Stitcher { backend } }
 
 	pub(super) fn stitch<'id>(&self, batch: Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
 
-		let mut remaining_events: BTreeSet<&EventId> = batch.events().collect();
+		let mut remaining_events: BTreeSet<_> = batch.events().collect();
 
 		// 1: Find existing gaps which include IDs of events in `batch`
 		let matching_gaps = self.backend.find_matching_gaps(batch.events());
@@ -53,7 +52,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 			let matching_events = remaining_events.iter().filter(|id| gap.contains(**id));
 
 			// 3. Create the to-insert list from the predecessor sets of each matching event
-			let events_to_insert: Vec<&'id EventId> = matching_events
+			let events_to_insert: Vec<_> = matching_events
 				.filter_map(|event| batch.predecessors(event))
 				.flat_map(|predecessors| predecessors.predecessor_set.iter())
 				.filter(|event| remaining_events.contains(*event))
@@ -84,7 +83,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 	fn sort_events_and_create_gaps<'id>(
 		&self,
 		batch: &Batch<'id>,
-		events_to_insert: impl IntoIterator<Item = &'id EventId>,
+		events_to_insert: impl IntoIterator<Item = &'id str>,
 	) -> Vec<StitchedItem<'id>> {
 		// 5. Sort the to-insert list with DAG;received order
 		let events_to_insert = events_to_insert
@@ -96,8 +95,8 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 			events_to_insert.capacity() + events_to_insert.capacity().div_euclid(2),
 		);
 
-		for event in events_to_insert.into_iter() {
-			let missing_prev_events: HashSet<OwnedEventId> = batch
+		for event in events_to_insert {
+			let missing_prev_events: HashSet<String> = batch
 				.predecessors(event)
 				.expect("events in to_insert should be in batch")
 				.prev_events
@@ -105,14 +104,14 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 				.filter(|prev_event| {
 					!(batch.contains(prev_event) || self.backend.event_exists(prev_event))
 				})
-				.map(|id| OwnedEventId::from(*id))
+				.map(|id| String::from(*id))
 				.collect();
 
 			if !missing_prev_events.is_empty() {
 				items.push(StitchedItem::Gap(missing_prev_events));
 			}
 
-			items.push(StitchedItem::Event(event))
+			items.push(StitchedItem::Event(event));
 		}
 
 		items
@@ -124,7 +123,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 	/// otherwise they are sorted by which comes first in the batch.
 	fn compare_by_dag_received<'id>(
 		batch: &Batch<'id>,
-	) -> impl FnMut(&&'id EventId, &&'id EventId) -> Ordering {
+	) -> impl FnMut(&&'id str, &&'id str) -> Ordering {
 		|a, b| {
 			if batch
 				.predecessors(a)
@@ -145,7 +144,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 					}
 				}
 
-				panic!("neither {} nor {} in batch", a, b);
+				panic!("neither {a} nor {b} in batch");
 			}
 		}
 	}

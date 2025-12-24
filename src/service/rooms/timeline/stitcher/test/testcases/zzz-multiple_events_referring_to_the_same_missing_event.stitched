@@ -1,0 +1,26 @@
+=== when we receive these events ===
+# If multiple events all refer to the same missing event:
+A --> X
+B --> X
+C --> X
+=== then we arrange into this order ===
+# Then we insert gaps before all of them. This avoids the need to search the
+# entire existing order whenever we create a new gap.
+-X*
+A*
+-X*
+B*
+-X*
+C*
+=== when we receive these events ===
+# The ambiguity is resolved when the missing event arrives:
+X
+=== then we arrange into this order ===
+# We choose the earliest gap, and all the relevant gaps are removed (which does
+# mean we need to search the existing order).
+X
+A
+B
+C
+=== and we notify about these gaps ===
+X

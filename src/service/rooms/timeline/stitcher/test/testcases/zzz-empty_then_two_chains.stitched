@@ -1,0 +1,18 @@
+=== when we receive these events ===
+# A chain ABC
+A
+B --> A
+C --> B
+# And a separate chain XYZ
+X --> W
+Y --> X
+Z --> Y
+=== then we arrange into this order ===
+# Should produce them in order with a gap
+A*
+B*
+C*
+-W*
+X*
+Y*
+Z*

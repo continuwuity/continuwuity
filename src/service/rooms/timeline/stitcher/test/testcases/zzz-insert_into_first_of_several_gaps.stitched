@@ -1,0 +1,27 @@
+=== when we receive these events ===
+# Given 3 gaps exist
+B --> A
+D --> C
+F --> E
+=== then we arrange into this order ===
+-A*
+B*
+-C*
+D*
+-E*
+F*
+
+=== when we receive these events ===
+# When the first of them is filled in
+A
+=== then we arrange into this order ===
+# Then we slot it into the gap, not at the end
+A
+B
+-C
+D
+-E
+F
+=== and we notify about these gaps ===
+# And we notify about the gap being filled in
+A

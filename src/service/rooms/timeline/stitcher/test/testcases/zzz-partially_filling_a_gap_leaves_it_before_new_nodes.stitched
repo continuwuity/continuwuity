@@ -1,0 +1,23 @@
+=== when we receive these events ===
+A
+F --> B
+F --> C
+F --> D
+F --> E
+=== then we arrange into this order ===
+# Given a gap that lists several nodes:
+A*
+-B,C,D,E*
+F*
+=== when we receive these events ===
+# When we provide one of the missing events:
+C
+=== then we arrange into this order ===
+# Then it is inserted after the gap, and the gap is shrunk:
+A
+-B,D,E
+C
+F
+=== and we notify about these gaps ===
+# And we notify about the gap that was updated
+C
