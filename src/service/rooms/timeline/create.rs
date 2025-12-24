@@ -23,7 +23,7 @@ use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
 
-pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
+pub fn pdu_fits(owned_obj: &CanonicalJsonObject) -> bool {
 	// room IDs, event IDs, senders, types, and state keys must all be <= 255 bytes
 	if let Some(CanonicalJsonValue::String(room_id)) = owned_obj.get("room_id") {
 		if room_id.len() > 255 {

@@ -4,10 +4,10 @@ use conduwuit::{Err, Event, Pdu, Result, implement, is_not_empty, utils::ReadyEx
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
-	OwnedServerName, RoomId, UserId,
+	CanonicalJsonValue, OwnedServerName, RoomId, UserId,
 	events::{
-		AnyStateEvent, AnyStrippedStateEvent, GlobalAccountDataEventType,
-		RoomAccountDataEventType, StateEventType,
+		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
+		StateEventType,
 		direct::DirectEvent,
 		invite_permission_config::FilterLevel,
 		room::{
@@ -334,7 +334,7 @@ pub async fn mark_as_invited(
 	user_id: &UserId,
 	room_id: &RoomId,
 	sender_user: &UserId,
-	last_state: Option<Vec<Raw<AnyStateEvent>>>,
+	last_state: Option<Vec<CanonicalJsonValue>>,
 	invite_via: Option<Vec<OwnedServerName>>,
 ) -> Result<()> {
 	// return an error for blocked invites. ignored invites aren't handled here

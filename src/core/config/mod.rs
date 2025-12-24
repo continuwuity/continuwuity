@@ -1,5 +1,6 @@
 #![allow(clippy::doc_link_with_quotes)]
 pub mod check;
+pub mod experiments;
 pub mod manager;
 pub mod proxy;
 
@@ -1734,16 +1735,9 @@ pub struct Config {
 	#[serde(default)]
 	pub block_non_admin_invites: bool,
 
-	/// Enable or disable making requests to MSC4284 Policy Servers.
-	/// It is recommended you keep this enabled unless you experience frequent
-	/// connectivity issues, such as in a restricted networking environment.
 	#[serde(default = "true_fn")]
 	pub enable_msc4284_policy_servers: bool,
 
-	/// Enable running locally generated events through configured MSC4284
-	/// policy servers. You may wish to disable this if your server is
-	/// single-user for a slight speed benefit in some rooms, but otherwise
-	/// should leave it enabled.
 	#[serde(default = "true_fn")]
 	pub policy_server_check_own_events: bool,
 
@@ -2003,6 +1997,13 @@ pub struct Config {
 	// external structure; separate section
 	#[serde(default)]
 	pub blurhashing: BlurhashConfig,
+
+	/// Configuration for protocol experiments that enable experimental
+	/// features. Each one is associated with a matrix spec proposal, a list of
+	/// which are published at https://spec.matrix.org/proposals/
+	#[serde(default)]
+	pub experiments: experiments::Experiments,
+
 	#[serde(flatten)]
 	#[allow(clippy::zero_sized_map_values)]
 	// this is a catchall, the map shouldn't be zero at runtime
@@ -2216,7 +2217,7 @@ struct ListeningAddr {
 	addrs: Either<IpAddr, Vec<IpAddr>>,
 }
 
-const DEPRECATED_KEYS: &[&str; 9] = &[
+const DEPRECATED_KEYS: &[&str; 11] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
@@ -2226,6 +2227,8 @@ const DEPRECATED_KEYS: &[&str; 9] = &[
 	"well_known_support_role",
 	"well_known_support_email",
 	"well_known_support_mxid",
+	"enable_msc4284_policy_servers",
+	"policy_server_check_own_events",
 ];
 
 impl Config {

@@ -1515,16 +1515,11 @@
 #
 #block_non_admin_invites = false
 
-# Enable or disable making requests to MSC4284 Policy Servers.
-# It is recommended you keep this enabled unless you experience frequent
-# connectivity issues, such as in a restricted networking environment.
+# This item is undocumented. Please contribute documentation for it.
 #
 #enable_msc4284_policy_servers = true
 
-# Enable running locally generated events through configured MSC4284
-# policy servers. You may wish to disable this if your server is
-# single-user for a slight speed benefit in some rooms, but otherwise
-# should leave it enabled.
+# This item is undocumented. Please contribute documentation for it.
 #
 #policy_server_check_own_events = true
 
@@ -1738,6 +1733,12 @@
 # This item is undocumented. Please contribute documentation for it.
 #
 #ldap = false
+
+# Configuration for protocol experiments that enable experimental
+# features. Each one is associated with a matrix spec proposal, a list of
+# which are published at https://spec.matrix.org/proposals/
+#
+#experiments = false
 
 [global.tls]
 

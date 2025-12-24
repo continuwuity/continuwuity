@@ -13,6 +13,7 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
+use serde_json::value::RawValue;
 use service::Services;
 
 use super::banned_room_check;
@@ -146,7 +147,17 @@ pub(crate) async fn invite_helper(
 				)
 				.await?;
 
-			let invite_room_state = services.rooms.state.summary(&pdu, room_id).await;
+			let invite_room_state = services
+				.rooms
+				.state
+				.summary(&pdu, room_id)
+				.await
+				.into_iter()
+				.map(|evt| RawValue::from_string(evt.json().get().to_owned()))
+				.collect::<std::result::Result<Vec<_>, _>>()
+				.map_err(|e| {
+					err!(Request(BadJson(warn!("Could not clone invite state event: {e}"))))
+				})?;
 
 			drop(state_lock);
 
