@@ -68,6 +68,12 @@ pub(crate) async fn upgrade_room_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
+	// Make sure this isn't the admin room
+	// Admin room upgrades are hacky and should be done manually instead.
+	if services.admin.is_admin_room(&body.room_id).await {
+		return Err!(Request(Forbidden("Upgrading the admin room this way is not allowed.")));
+	}
+
 	// First, check if the user has permission to upgrade the room (send tombstone
 	// event)
 	let old_room_state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
@@ -266,7 +272,7 @@ pub(crate) async fn upgrade_room_route(
 			.room_state_keys(&body.room_id, event_type)
 			.await?;
 		for state_key in state_keys {
-			let event_content = match services
+			let mut event_content = match services
 				.rooms
 				.state_accessor
 				.room_state_get(&body.room_id, event_type, &state_key)
@@ -278,6 +284,21 @@ pub(crate) async fn upgrade_room_route(
 			if event_content.get() == "{}" {
 				// If the event content is empty, we skip it
 				continue;
+			}
+			// If this is a power levels event, and the new room version has creators,
+			// we need to make sure they dont appear in the users block of power levels.
+			if *event_type == StateEventType::RoomPowerLevels {
+				// TODO(v12): additional creators
+				let creators = vec![sender_user];
+				let mut power_levels_event_content: RoomPowerLevelsEventContent =
+					serde_json::from_str(event_content.get()).map_err(|_| {
+						err!(Request(BadJson("Power levels event content is not valid")))
+					})?;
+				for creator in creators {
+					power_levels_event_content.users.remove(creator);
+				}
+				event_content = to_raw_value(&power_levels_event_content)
+					.expect("event is valid, we just deserialized and modified it");
 			}
 
 			services
