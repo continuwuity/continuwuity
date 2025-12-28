@@ -1,0 +1,4 @@
+[tool.towncrier]
+name = "Continuwuity"
+directory = "changelog.d"
+filename = "CHANGELOG.md"
