@@ -149,11 +149,12 @@ of it, especially when the CI completed successfully and everything so it
 *looks* done.
 
 Before submitting a pull request, please ensure:
-1. Your code passes all CI checks (formatting, linting, typo detection, etc.)
+1. Your code passes all CI checks (formatting, linting, typo detection, etc.). Run pre-commit for this.
 2. Your code follows the [code style guide](./code_style)
 3. Your commit messages follow the conventional commits format
 4. Tests are added for new functionality
 5. Documentation is updated if needed
+6. You have written a [news fragment](#writing-news-fragments) for your changes
 
 Direct all PRs/MRs to the `main` branch.
 
@@ -171,3 +172,32 @@ continuwuity Matrix rooms for Code of Conduct violations.
 [sytest]: https://github.com/matrix-org/sytest/
 [mdbook]: https://rust-lang.github.io/mdBook/
 [documentation.yml]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/.forgejo/workflows/documentation.yml
+
+#### Writing news fragments
+
+In order to make writing our changelogs easier, we make use of [Towncrier]. Towncrier builds changelogs based on
+"news fragments", which are little markdown files in the `changelog.d/` directory that describe individual changes.
+
+When you make a pull request that changes functionality, fixes a bug, or adds documentation, please add a news fragment
+describing your change. The file name *MUST* be in the format of `{pull_request_number}.{type}`, where `{type}` is one
+of the following:
+
+- `feature` - for new features
+- `bugfix` - for bug fixes
+- `doc` - for documentation changes
+- `misc` - for other changes that don't fit the above categories
+
+For example:
+
+```bash
+$ echo "Fixed the quantum flux stabiliser. Contributed by @alice." > changelog.d/42.bugfix
+```
+
+(Note: If you want to credit yourself, you should reference your forgejo handle, however links to other platforms are also acceptable.)
+
+When the next release is made, Towncrier will automatically include your news fragment in the changelog.
+
+You can read more about writing news fragments in the [Towncrier tutorial][tt].
+
+[Towncrier]: https://towncrier.readthedocs.io/
+[tt]: https://towncrier.readthedocs.io/en/stable/tutorial.html#creating-news-fragments
