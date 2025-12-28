@@ -45,7 +45,7 @@ If you aren't sure about some, feel free to ask for clarification in #dev:contin
   - [ ] I have [tested my contribution][c1t] (or proof-read it for documentation-only changes)
         myself, if applicable. This includes ensuring code compiles.
   - [ ] My commit messages follow the [commit message format][c1cm] and are descriptive.
-  - [ ] I have written a [news fragment][n1] for this PR <!--(can be done after hitting open!)-->.
+  - [ ] I have written a [news fragment][n1] for this PR<!--(can be done after hitting open!)-->.
 
 <!--
 Notes on these requirements:
