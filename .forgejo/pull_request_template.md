@@ -38,14 +38,14 @@ If you aren't sure about some, feel free to ask for clarification in #dev:contin
 - [ ] This pull request targets the `main` branch, and the branch is named something other than
       `main`.
 - [ ] I have written an appropriate pull request title and my description is clear.
-- [ ] This pull request has had a human hand in it and is not entirely LLM-generated.
+- [ ] I understand I am responsible for the contents of this pull request.
 - I have followed the [contributing guidelines][c1]:
   - [ ] My contribution follows the [code style][c2], if applicable.
   - [ ] I ran [pre-commit checks][c1pc] before opening/drafting this pull request.
   - [ ] I have [tested my contribution][c1t] (or proof-read it for documentation-only changes)
         myself, if applicable. This includes ensuring code compiles.
   - [ ] My commit messages follow the [commit message format][c1cm] and are descriptive.
-  - [ ] I have written a [news fragment][n1] for this PR<!--(can be done after hitting open!)-->.
+  - [ ] I have written a [news fragment][n1] for this PR, if applicable<!--(can be done after hitting open!)-->.
 
 <!--
 Notes on these requirements:
