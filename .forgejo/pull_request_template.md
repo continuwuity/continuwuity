@@ -13,7 +13,7 @@ In order to help reviewers know what your pull request does at a glance, you sho
 
 If you have made any potentially strange/questionable design choices, but didn't feel they'd benefit
 from code comments, please don't mention them here - after opening your pull request,
-go to "files changed", and click on the "+" symbol in the file number gutter,
+go to "files changed", and click on the "+" symbol in the line number gutter,
 and attach comments to the lines that you think would benefit from some clarification.
 -->
 
