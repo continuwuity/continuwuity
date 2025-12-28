@@ -37,7 +37,7 @@ by superseding it. Replace `#...` with the issue/pr number, such as `#123`. -->
 If you aren't sure about some, feel free to ask for clarification in #dev:continuwuity.org. -->
 - [ ] This pull request targets the `main` branch, and the branch is named something other than
       `main`.
-- [ ] I have written an appropriate issue title and my description is clear.
+- [ ] I have written an appropriate pull request title and my description is clear.
 - [ ] This pull request has had a human hand in it and is not entirely LLM-generated.
 - I have followed the [contributing guidelines][c1]:
   - [ ] My contribution follows the [code style][c2], if applicable.
@@ -70,7 +70,8 @@ Notes on these requirements:
 - Pull requests have to be based on the latest `main` commit before being merged. If the main branch
   changes while you're making your changes, you should make sure you rebase on main before
   opening a PR. Your branch will be rebased on main before it is merged if it has fallen behind.
-- We typically only do fast-forward merges, so your entire commit log will be included.
+- We typically only do fast-forward merges, so your entire commit log will be included. Once in
+  main, it's difficult to get out cleanly, so put on your best dress, smile for the cameras!
 -->
 
 [c1]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md
