@@ -75,7 +75,7 @@ Notes on these requirements:
 -->
 
 [c1]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md
-[c2]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/docs/development/code_style.md
+[c2]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/docs/development/code_style.mdx
 [c1pc]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#pre-commit-checks
 [c1t]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#running-tests-locally
 [c1cm]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#commit-messages
