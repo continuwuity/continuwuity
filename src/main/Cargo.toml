@@ -63,7 +63,8 @@ standard = [
 	"systemd",
 	"url_preview",
 	"zstd_compression",
-    "sentry_telemetry"
+    "sentry_telemetry",
+    "otlp_telemetry"
 ]
 full = [
     "standard",
@@ -124,12 +125,15 @@ ldap = [
 media_thumbnail = [
 	"conduwuit-service/media_thumbnail",
 ]
-perf_measurements = [
+otlp_telemetry = [
 	"dep:opentelemetry",
-	"dep:tracing-flame",
 	"dep:tracing-opentelemetry",
 	"dep:opentelemetry_sdk",
 	"dep:opentelemetry-otlp",
+]
+perf_measurements = [
+	"dep:tracing-flame",
+	"otlp_telemetry",
 	"conduwuit-core/perf_measurements",
 	"conduwuit-core/sentry_telemetry",
 ]

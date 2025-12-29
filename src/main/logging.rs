@@ -7,7 +7,7 @@ use conduwuit_core::{
 	log::{ConsoleFormat, ConsoleWriter, LogLevelReloadHandles, capture, fmt_span},
 	result::UnwrapOrErr,
 };
-#[cfg(feature = "perf_measurements")]
+#[cfg(feature = "otlp_telemetry")]
 use opentelemetry::trace::TracerProvider;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt, layer::SubscriberExt, reload};
 
@@ -70,25 +70,8 @@ pub(crate) fn init(
 		subscriber.with(sentry_layer.with_filter(sentry_reload_filter))
 	};
 
-	#[cfg(feature = "perf_measurements")]
-	let (subscriber, flame_guard) = {
-		let (flame_layer, flame_guard) = if config.tracing_flame {
-			let flame_filter = EnvFilter::try_new(&config.tracing_flame_filter)
-				.map_err(|e| err!(Config("tracing_flame_filter", "{e}.")))?;
-
-			let (flame_layer, flame_guard) =
-				tracing_flame::FlameLayer::with_file(&config.tracing_flame_output_path)
-					.map_err(|e| err!(Config("tracing_flame_output_path", "{e}.")))?;
-
-			let flame_layer = flame_layer
-				.with_empty_samples(false)
-				.with_filter(flame_filter);
-
-			(Some(flame_layer), Some(flame_guard))
-		} else {
-			(None, None)
-		};
-
+	#[cfg(feature = "otlp_telemetry")]
+	let subscriber = {
 		let otlp_filter = EnvFilter::try_new(&config.otlp_filter)
 			.map_err(|e| err!(Config("otlp_filter", "{e}.")))?;
 
@@ -117,7 +100,29 @@ pub(crate) fn init(
 			Some(telemetry.with_filter(otlp_reload_filter))
 		});
 
-		let subscriber = subscriber.with(flame_layer).with(otlp_layer);
+		subscriber.with(otlp_layer)
+	};
+
+	#[cfg(feature = "perf_measurements")]
+	let (subscriber, flame_guard) = {
+		let (flame_layer, flame_guard) = if config.tracing_flame {
+			let flame_filter = EnvFilter::try_new(&config.tracing_flame_filter)
+				.map_err(|e| err!(Config("tracing_flame_filter", "{e}.")))?;
+
+			let (flame_layer, flame_guard) =
+				tracing_flame::FlameLayer::with_file(&config.tracing_flame_output_path)
+					.map_err(|e| err!(Config("tracing_flame_output_path", "{e}.")))?;
+
+			let flame_layer = flame_layer
+				.with_empty_samples(false)
+				.with_filter(flame_filter);
+
+			(Some(flame_layer), Some(flame_guard))
+		} else {
+			(None, None)
+		};
+
+		let subscriber = subscriber.with(flame_layer);
 		(subscriber, flame_guard)
 	};
 
