@@ -69,8 +69,8 @@ pub struct Config {
 	/// Also see the `[global.well_known]` config section at the very bottom.
 	///
 	/// Examples of delegation:
-	/// - https://puppygock.gay/.well-known/matrix/server
-	/// - https://puppygock.gay/.well-known/matrix/client
+	/// - https://continuwuity.org/.well-known/matrix/server
+	/// - https://continuwuity.org/.well-known/matrix/client
 	///
 	/// YOU NEED TO EDIT THIS. THIS CANNOT BE CHANGED AFTER WITHOUT A DATABASE
 	/// WIPE.
@@ -1752,7 +1752,7 @@ pub struct Config {
 	/// a normal continuwuity admin command. The reply will be publicly visible
 	/// to the room, originating from the sender.
 	///
-	/// example: \\!admin debug ping puppygock.gay
+	/// example: \\!admin debug ping continuwuity.org
 	#[serde(default = "true_fn")]
 	pub admin_escape_commands: bool,
 
@@ -1770,7 +1770,8 @@ pub struct Config {
 	/// For example: `./continuwuity --execute "server admin-notice continuwuity
 	/// has started up at $(date)"`
 	///
-	/// example: admin_execute = ["debug ping puppygock.gay", "debug echo hi"]`
+	/// example: admin_execute = ["debug ping continuwuity.org", "debug echo
+	/// hi"]`
 	///
 	/// default: []
 	#[serde(default)]
