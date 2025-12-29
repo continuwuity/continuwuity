@@ -608,6 +608,11 @@
 #
 #otlp_filter = "info"
 
+# Protocol to use for OTLP tracing export. Options are "http" or "grpc".
+# The HTTP protocol uses port 4318 by default, while gRPC uses port 4317.
+#
+#otlp_protocol = "http"
+
 # If the 'perf_measurements' compile-time feature is enabled, enables
 # collecting folded stack trace profile of tracing spans using
 # tracing_flame. The resulting profile can be visualized with inferno[1],

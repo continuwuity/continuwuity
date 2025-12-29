@@ -737,6 +737,13 @@ pub struct Config {
 	#[serde(default = "default_otlp_filter", alias = "jaeger_filter")]
 	pub otlp_filter: String,
 
+	/// Protocol to use for OTLP tracing export. Options are "http" or "grpc".
+	/// The HTTP protocol uses port 4318 by default, while gRPC uses port 4317.
+	///
+	/// default: "http"
+	#[serde(default = "default_otlp_protocol")]
+	pub otlp_protocol: String,
+
 	/// If the 'perf_measurements' compile-time feature is enabled, enables
 	/// collecting folded stack trace profile of tracing spans using
 	/// tracing_flame. The resulting profile can be visualized with inferno[1],
@@ -2418,6 +2425,8 @@ fn default_otlp_filter() -> String {
 		.unwrap_or("info")
 		.to_owned()
 }
+
+fn default_otlp_protocol() -> String { "http".to_owned() }
 
 fn default_tracing_flame_output_path() -> String { "./tracing.folded".to_owned() }
 

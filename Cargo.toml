@@ -426,7 +426,7 @@ features = ["rt-tokio"]
 
 [workspace.dependencies.opentelemetry-otlp]
 version = "0.31.0"
-features = ["http", "trace", "logs", "metrics"]
+features = ["http", "grpc-tonic", "trace", "logs", "metrics"]
 
 
 
