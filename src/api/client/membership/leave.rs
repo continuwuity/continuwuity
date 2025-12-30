@@ -21,6 +21,7 @@ use ruma::{
 };
 use service::Services;
 
+use super::validate_remote_member_event_stub;
 use crate::Ruma;
 
 /// # `POST /_matrix/client/v3/rooms/{roomId}/leave`
@@ -323,6 +324,13 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			"Invalid make_leave event json received from {remote_server} for {room_id}: {e:?}"
 		)))
 	})?;
+
+	validate_remote_member_event_stub(
+		&MembershipState::Leave,
+		user_id,
+		room_id,
+		&leave_event_stub,
+	)?;
 
 	// TODO: Is origin needed?
 	leave_event_stub.insert(

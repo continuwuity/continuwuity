@@ -48,7 +48,7 @@ use service::{
 	},
 };
 
-use super::banned_room_check;
+use super::{banned_room_check, validate_remote_member_event_stub};
 use crate::Ruma;
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/join`
@@ -836,6 +836,13 @@ async fn join_room_by_id_helper_local(
 		serde_json::from_str(make_join_response.event.get()).map_err(|e| {
 			err!(BadServerResponse("Invalid make_join event json received from server: {e:?}"))
 		})?;
+
+	validate_remote_member_event_stub(
+		&MembershipState::Join,
+		sender_user,
+		room_id,
+		&join_event_stub,
+	)?;
 
 	let join_authorized_via_users_server = join_event_stub
 		.get("content")

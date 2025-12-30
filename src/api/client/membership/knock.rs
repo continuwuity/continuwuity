@@ -38,7 +38,7 @@ use service::{
 	},
 };
 
-use super::{banned_room_check, join::join_room_by_id_helper};
+use super::{banned_room_check, join::join_room_by_id_helper, validate_remote_member_event_stub};
 use crate::Ruma;
 
 /// # `POST /_matrix/client/*/knock/{roomIdOrAlias}`
@@ -407,6 +407,13 @@ async fn knock_room_helper_local(
 	.map_err(|e| {
 		err!(BadServerResponse("Invalid make_knock event json received from server: {e:?}"))
 	})?;
+
+	validate_remote_member_event_stub(
+		&MembershipState::Knock,
+		sender_user,
+		room_id,
+		&knock_event_stub,
+	)?;
 
 	knock_event_stub.insert(
 		"origin".to_owned(),
