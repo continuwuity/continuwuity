@@ -558,12 +558,19 @@ where
 	// If type is m.room.power_levels
 	if *incoming_event.event_type() == TimelineEventType::RoomPowerLevels {
 		debug!("starting m.room.power_levels check");
-
+		let mut creators = BTreeSet::new();
+		if room_version.explicitly_privilege_room_creators {
+			creators.insert(create_event.sender().to_owned());
+			for creator in room_create_content.additional_creators.iter().flatten() {
+				creators.insert(creator.deserialize()?);
+			}
+		}
 		match check_power_levels(
 			room_version,
 			incoming_event,
 			power_levels_event.as_ref(),
 			sender_power_level,
+			&creators,
 		) {
 			| Some(required_pwr_lvl) =>
 				if !required_pwr_lvl {
@@ -1221,8 +1228,8 @@ fn check_power_levels(
 	power_event: &impl Event,
 	previous_power_event: Option<&impl Event>,
 	user_level: Int,
+	creators: &BTreeSet<OwnedUserId>,
 ) -> Option<bool> {
-	// TODO(hydra): This function does not care about creators!
 	match power_event.state_key() {
 		| Some("") => {},
 		| Some(key) => {
@@ -1287,6 +1294,10 @@ fn check_power_levels(
 	for user in user_levels_to_check {
 		let old_level = old_state.users.get(user);
 		let new_level = new_state.users.get(user);
+		if new_level.is_some() && creators.contains(user) {
+			warn!("creators cannot appear in the users list of m.room.power_levels");
+			return Some(false); // cannot alter creator power level
+		}
 		if old_level.is_some() && new_level.is_some() && old_level == new_level {
 			continue;
 		}
