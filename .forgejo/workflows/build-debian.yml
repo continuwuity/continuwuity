@@ -59,10 +59,9 @@ jobs:
           # Aggressive GC since cache restores don't increment counter
           echo "CARGO_INCREMENTAL_GC_TRIGGER=5" >> $GITHUB_ENV
 
-      - name: Setup Rust nightly
+      - name: Setup Rust
         uses: ./.forgejo/actions/setup-rust
         with:
-          rust-version: nightly
           github-token: ${{ secrets.GH_PUBLIC_RO }}
 
       - name: Get package version and component
