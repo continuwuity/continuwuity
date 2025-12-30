@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 6,
+            "id": 7,
             "mention_room": true,
-            "date": "2025-12-22",
-            "message": "Continuwuity v0.5.0 has been released. **The release contains a fix for the critical vulnerability [GHSA-22fw-4jq7-g8r8](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-22fw-4jq7-g8r8). Update as soon as possible.**\n\nThis has been *actively exploited* to create fake leave events in the Continuwuity rooms. Please leave and rejoin the rooms to fix any issues this may have caused. \n\n - [Continuwuity (space)](https://matrix.to/#/!PxtzompFuodlyzdCDtV5lzjXs10XIHeOOaq_FYodHyk?via=ellis.link&via=gingershaped.computer&via=continuwuity.org)\n - [Continuwuity](https://matrix.to/#/!kn3VQSLcgWGUFm0FFRid4MinJ_aeZPjHQ0irXbHa3bU?via=ellis.link&via=gingershaped.computer&via=continuwuity.org)\n - [Continuwuity Announcements](https://matrix.to/#/!d7zDZg1Vu5nhkCi50jNfOIObD5fpfGhfl48SZWZek7k?via=ellis.link)\n - [Continuwuity Offtopic](https://matrix.to/#/!QlOomq-suHC9rJHfDFVdbcGg4HS2ojSQ0bo4W2JOGMM?via=ellis.link&via=gingershaped.computer&via=continuwuity.org)\n - [Continuwuity Development](https://matrix.to/#/!aAvealFbgiKTJGzumNbjuwDgt1tOkBKwiyfYqE3ouk0?via=ellis.link&via=explodie.org&via=continuwuity.org)\n"
+            "date": "2025-12-30",
+            "message": "Continuwuity v0.5.1 has been released. **The release contains a fix for the critical vulnerability [GHSA-m5p2-vccg-8c9v](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-m5p2-vccg-8c9v) (embargoed) affecting all Conduit-derived servers. Update as soon as possible.**\n\nThis has been *actively exploited* to attempt account takeover and forge events bricking the Continuwuity rooms. The new space is accessible at [Continuwuity (room list)](https://matrix.to/#/!8cR4g-i9ucof69E4JHNg9LbPVkGprHb3SzcrGBDDJgk?via=continuwuity.org&via=starstruck.systems&via=gingershaped.computer)\n"
         }
     ]
 }
