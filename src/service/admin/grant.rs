@@ -1,6 +1,8 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PduBuilder};
+use conduwuit::{
+	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PduBuilder, warn,
+};
 use ruma::{
 	RoomId, UserId,
 	events::{
@@ -175,6 +177,19 @@ async fn set_room_tag(&self, room_id: &RoomId, user_id: &UserId, tag: &str) -> R
 #[implement(super::Service)]
 pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 	use MembershipState::{Invite, Join, Knock, Leave};
+
+	if self
+		.services
+		.server
+		.config
+		.admins_list
+		.contains(&user_id.to_owned())
+	{
+		warn!(
+			"Revoking the admin status of {user_id} will not be persistent as they are within \
+			 the admins_list."
+		)
+	}
 
 	let Ok(room_id) = self.get_admin_room().await else {
 		return Err!(error!("No admin room available or created."));

@@ -14,10 +14,10 @@ use conduwuit_core::{
 	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
 };
 pub use create::create_admin_room;
-use futures::{Future, FutureExt, TryFutureExt};
+use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
-	Mxc, OwnedEventId, OwnedMxcUri, OwnedRoomId, RoomId, UInt, UserId,
+	Mxc, OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
 	events::{
 		Mentions,
 		room::{
@@ -349,16 +349,30 @@ impl Service {
 		handle(services, command).await
 	}
 
+	/// Returns the list of admins for this server. First loads
+	/// the admin_list from the configuration, then adds users from
+	/// the admin room if applicable.
+	pub async fn get_admins(&self) -> Vec<OwnedUserId> {
+		let mut generated_admin_list: Vec<OwnedUserId> =
+			self.services.server.config.admins_list.clone();
+
+		if self.services.server.config.admins_from_room {
+			if let Ok(admin_room) = self.get_admin_room().await {
+				let admin_users = self.services.state_cache.room_members(&admin_room);
+				let mut stream = admin_users;
+
+				while let Some(user_id) = stream.next().await {
+					generated_admin_list.push(user_id.to_owned());
+				}
+			}
+		}
+
+		generated_admin_list
+	}
+
 	/// Checks whether a given user is an admin of this server
 	pub async fn user_is_admin(&self, user_id: &UserId) -> bool {
-		let Ok(admin_room) = self.get_admin_room().await else {
-			return false;
-		};
-
-		self.services
-			.state_cache
-			.is_joined(user_id, &admin_room)
-			.await
+		self.get_admins().await.contains(&user_id.to_owned())
 	}
 
 	/// Gets the room ID of the admin room

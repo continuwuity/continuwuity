@@ -1819,6 +1819,22 @@ pub struct Config {
 	#[serde(default = "default_admin_room_tag")]
 	pub admin_room_tag: String,
 
+	/// A list of Matrix IDs that are qualified as server admins.
+	///
+	/// Any Matrix IDs within this list are regarded as an admin
+	/// regardless of whether they are in the admin room or not
+	///
+	/// default: []
+	#[serde(default)]
+	pub admins_list: Vec<OwnedUserId>,
+
+	/// Defines whether those within the admin room are added to the
+	/// admins_list.
+	///
+	/// default: true
+	#[serde(default = "true_fn")]
+	pub admins_from_room: bool,
+
 	/// Sentry.io crash/panic reporting, performance monitoring/metrics, etc.
 	/// This is NOT enabled by default.
 	#[serde(default)]

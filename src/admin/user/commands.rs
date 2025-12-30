@@ -461,8 +461,10 @@ pub(super) async fn force_join_list_of_local_users(
 		);
 	}
 
-	let Ok(admin_room) = self.services.admin.get_admin_room().await else {
-		return Err!("There is not an admin room to check for server admins.",);
+	let server_admins = self.services.admin.get_admins().await;
+
+	if server_admins.is_empty() {
+		return Err!("There are no admins set for this server.");
 	};
 
 	let (room_id, servers) = self
@@ -481,15 +483,6 @@ pub(super) async fn force_join_list_of_local_users(
 	{
 		return Err!("We are not joined in this room.");
 	}
-
-	let server_admins: Vec<_> = self
-		.services
-		.rooms
-		.state_cache
-		.active_local_users_in_room(&admin_room)
-		.map(ToOwned::to_owned)
-		.collect()
-		.await;
 
 	if !self
 		.services
@@ -583,8 +576,10 @@ pub(super) async fn force_join_all_local_users(
 		);
 	}
 
-	let Ok(admin_room) = self.services.admin.get_admin_room().await else {
-		return Err!("There is not an admin room to check for server admins.",);
+	let server_admins = self.services.admin.get_admins().await;
+
+	if server_admins.is_empty() {
+		return Err!("There are no admins set for this server.");
 	};
 
 	let (room_id, servers) = self
@@ -603,15 +598,6 @@ pub(super) async fn force_join_all_local_users(
 	{
 		return Err!("We are not joined in this room.");
 	}
-
-	let server_admins: Vec<_> = self
-		.services
-		.rooms
-		.state_cache
-		.active_local_users_in_room(&admin_room)
-		.map(ToOwned::to_owned)
-		.collect()
-		.await;
 
 	if !self
 		.services

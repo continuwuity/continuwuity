@@ -1590,6 +1590,18 @@
 #
 #admin_room_tag = "m.server_notice"
 
+# A list of Matrix IDs that are qualified as server admins.
+#
+# Any Matrix IDs within this list are regarded as an admin
+# regardless of whether they are in the admin room or not
+#
+#admins_list = []
+
+# Defines whether those within the admin room are added to the
+# admins_list.
+#
+#admins_from_room = true
+
 # Sentry.io crash/panic reporting, performance monitoring/metrics, etc.
 # This is NOT enabled by default.
 #

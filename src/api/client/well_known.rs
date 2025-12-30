@@ -1,6 +1,5 @@
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{Error, Result};
-use futures::StreamExt;
 use ruma::api::client::{
 	discovery::{
 		discover_homeserver::{self, HomeserverInfo, SlidingSyncProxyInfo},
@@ -71,21 +70,18 @@ pub(crate) async fn well_known_support(
 
 	// Try to add admin users as contacts if no contacts are configured
 	if contacts.is_empty() {
-		if let Ok(admin_room) = services.admin.get_admin_room().await {
-			let admin_users = services.rooms.state_cache.room_members(&admin_room);
-			let mut stream = admin_users;
+		let admin_users = services.admin.get_admins().await;
 
-			while let Some(user_id) = stream.next().await {
-				// Skip server user
-				if *user_id == services.globals.server_user {
-					continue;
-				}
-				contacts.push(Contact {
-					role: role_value.clone(),
-					email_address: None,
-					matrix_id: Some(user_id.to_owned()),
-				});
+		for user_id in admin_users.iter() {
+			if *user_id == services.globals.server_user {
+				continue;
 			}
+
+			contacts.push(Contact {
+				role: role_value.clone(),
+				email_address: None,
+				matrix_id: Some(user_id.to_owned()),
+			});
 		}
 	}
 
