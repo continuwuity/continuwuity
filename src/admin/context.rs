@@ -50,7 +50,9 @@ impl Context<'_> {
 	/// restricted commands to be executed.
 	///
 	/// This is intended to be placed at the start of restricted commands'
-	/// implementations, like so: ```ignore
+	/// implementations, like so:
+	///
+	/// ```ignore
 	/// self.bail_restricted()?;
 	/// // actual command impl
 	/// ```
