@@ -186,8 +186,8 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 		.contains(&user_id.to_owned())
 	{
 		warn!(
-			"Revoking the admin status of {user_id} will not be persistent as they are within \
-			 the admins_list."
+			"Revoking the admin status of {user_id} will not work correctly as they are within \
+			 the admins_list config."
 		)
 	}
 
