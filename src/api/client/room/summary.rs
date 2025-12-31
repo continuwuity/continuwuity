@@ -7,7 +7,7 @@ use conduwuit::{
 };
 use futures::{
 	FutureExt, StreamExt, TryFutureExt,
-	future::{OptionFuture, join, join3},
+	future::{OptionFuture, join, join3, ok},
 	stream::FuturesUnordered,
 };
 use ruma::{
@@ -80,9 +80,15 @@ async fn room_summary_response(
 		.server_in_room(services.globals.server_name(), room_id)
 		.await
 	{
-		return local_room_summary_response(services, room_id, sender_user)
+		match local_room_summary_response(services, room_id, sender_user)
 			.boxed()
-			.await;
+			.await
+		{
+			| Ok(response) => return Ok(response),
+			| Err(e) => {
+				debug_warn!("Failed to get local room summary: {e:?}, falling back to remote");
+			},
+		}
 	}
 
 	let room =
