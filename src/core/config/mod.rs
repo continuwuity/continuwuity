@@ -1760,7 +1760,7 @@ pub struct Config {
 	/// to the room, originating from the sender.
 	///
 	/// example: \\!admin debug ping continuwuity.org
-	#[serde(default = "true_fn")]
+	#[serde(default = "false_fn")]
 	pub admin_escape_commands: bool,
 
 	/// Automatically activate the continuwuity admin room console / CLI on
@@ -2319,6 +2319,8 @@ impl Config {
 }
 
 fn true_fn() -> bool { true }
+
+fn false_fn() -> bool { false }
 
 fn default_address() -> ListeningAddr {
 	ListeningAddr {
