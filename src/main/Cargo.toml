@@ -64,15 +64,15 @@ standard = [
 	"url_preview",
 	"zstd_compression",
     "sentry_telemetry",
-    "otlp_telemetry"
+    "otlp_telemetry",
+	"console",
 ]
 full = [
     "standard",
     # "hardened_malloc", # Conflicts with jemalloc
     "jemalloc_prof",
     "perf_measurements",
-    "tokio_console"
-    # sentry_telemetry
+    "tokio_console",
 ]
 
 blurhashing = [
