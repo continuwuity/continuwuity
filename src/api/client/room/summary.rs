@@ -1,12 +1,13 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, debug_warn, trace,
+	Err, Result, debug, debug_warn, info, trace,
 	utils::{IterStream, future::TryExtExt},
+	warn,
 };
 use futures::{
-	FutureExt, StreamExt,
-	future::{OptionFuture, join3},
+	FutureExt, StreamExt, TryFutureExt,
+	future::{OptionFuture, join, join3},
 	stream::FuturesUnordered,
 };
 use ruma::{
@@ -111,26 +112,26 @@ async fn local_room_summary_response(
 	sender_user: Option<&UserId>,
 ) -> Result<get_summary::msc3266::Response> {
 	trace!(?sender_user, "Sending local room summary response for {room_id:?}");
-	let join_rule = services.rooms.state_accessor.get_join_rules(room_id);
+	let join_rule = services.rooms.state_accessor.get_join_rules(room_id).await;
+	// Synapse allows server admins to bypass visibility checks.
+	// That seems neat so we'll copy that behaviour.
+	if sender_user.is_none() || !services.users.is_admin(sender_user.unwrap()).await {
+		let world_readable = services.rooms.state_accessor.is_world_readable(room_id);
+		let guest_can_join = services.rooms.state_accessor.guest_can_join(room_id);
+		let (world_readable, guest_can_join) = join(world_readable, guest_can_join).await;
 
-	let world_readable = services.rooms.state_accessor.is_world_readable(room_id);
-
-	let guest_can_join = services.rooms.state_accessor.guest_can_join(room_id);
-
-	let (join_rule, world_readable, guest_can_join) =
-		join3(join_rule, world_readable, guest_can_join).await;
-
-	trace!("{join_rule:?}, {world_readable:?}, {guest_can_join:?}");
-	user_can_see_summary(
-		services,
-		room_id,
-		&join_rule.clone().into(),
-		guest_can_join,
-		world_readable,
-		join_rule.allowed_rooms(),
-		sender_user,
-	)
-	.await?;
+		trace!("{join_rule:?}, {world_readable:?}, {guest_can_join:?}");
+		user_can_see_summary(
+			services,
+			room_id,
+			&join_rule.clone().into(),
+			guest_can_join,
+			world_readable,
+			join_rule.allowed_rooms(),
+			sender_user,
+		)
+		.await?;
+	}
 
 	let canonical_alias = services
 		.rooms
@@ -231,15 +232,27 @@ async fn remote_room_summary_hierarchy_response(
 			"Federaton of room {room_id} is currently disabled on this server."
 		)));
 	}
+	if servers.is_empty() {
+		return Err!(Request(MissingParam(
+			"No servers were provided to fetch the room over federation"
+		)));
+	}
 
 	let request = get_hierarchy::v1::Request::new(room_id.to_owned());
 
 	let mut requests: FuturesUnordered<_> = servers
 		.iter()
 		.map(|server| {
+			info!("Fetching room summary for {room_id} from server {server}");
 			services
 				.sending
 				.send_federation_request(server, request.clone())
+				.inspect_ok(|v| {
+					debug!("Fetched room summary for {room_id} from server {server}: {v:?}");
+				})
+				.inspect_err(|e| {
+					info!("Failed to fetch room summary for {room_id} from server {server}: {e}");
+				})
 		})
 		.collect();
 
@@ -255,23 +268,23 @@ async fn remote_room_summary_hierarchy_response(
 			continue;
 		}
 
-		return user_can_see_summary(
-			services,
-			room_id,
-			&room.join_rule,
-			room.guest_can_join,
-			room.world_readable,
-			room.allowed_room_ids.iter().map(AsRef::as_ref),
-			sender_user,
-		)
-		.await
-		.map(|()| room);
+		if sender_user.is_none() || !services.users.is_admin(sender_user.unwrap()).await {
+			return user_can_see_summary(
+				services,
+				room_id,
+				&room.join_rule,
+				room.guest_can_join,
+				room.world_readable,
+				room.allowed_room_ids.iter().map(AsRef::as_ref),
+				sender_user,
+			)
+			.await
+			.map(|()| room);
+		}
+		return Ok(room);
 	}
 
-	Err!(Request(NotFound(
-		"Room is unknown to this server and was unable to fetch over federation with the \
-		 provided servers available"
-	)))
+	Err!(Request(NotFound("Room not found or is not accessible")))
 }
 
 async fn user_can_see_summary<'a, I>(
@@ -311,21 +324,14 @@ where
 				return Ok(());
 			}
 
-			Err!(Request(Forbidden(
-				"Room is not world readable, not publicly accessible/joinable, restricted room \
-				 conditions not met, and guest access is forbidden. Not allowed to see details \
-				 of this room."
-			)))
+			Err!(Request(Forbidden("Room is not accessible")))
 		},
 		| None => {
 			if is_public_room || world_readable {
 				return Ok(());
 			}
 
-			Err!(Request(Forbidden(
-				"Room is not world readable or publicly accessible/joinable, authentication is \
-				 required"
-			)))
+			Err!(Request(Forbidden("Room is not accessible")))
 		},
 	}
 }
