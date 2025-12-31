@@ -2,15 +2,12 @@
 name = "conduwuit"
 default-run = "conduwuit"
 authors.workspace = true
-categories.workspace = true
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
-keywords.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
-rust-version.workspace = true
 version.workspace = true
 metadata.crane.workspace = true
 
@@ -23,14 +20,13 @@ crate-type = [
 
 [package.metadata.deb]
 name = "continuwuity"
-maintainer = "continuwuity developers <contact@continuwuity.org>"
-copyright = "2024, continuwuity developers"
+maintainer = "Continuwuity Team and contributors <team@continuwuity.org>"
 license-file = ["../../LICENSE", "3"]
 depends = "$auto, ca-certificates"
 breaks = ["conduwuit (<<0.5.0)"]
 replaces = ["conduwuit (<<0.5.0)"]
 extended-description = """\
-a cool hard fork of Conduit, a Matrix homeserver written in Rust"""
+A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver."""
 section = "net"
 priority = "optional"
 conf-files = ["/etc/conduwuit/conduwuit.toml"]

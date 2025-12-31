@@ -1,26 +1,17 @@
-#cargo-features = ["profile-rustflags"]
-
 [workspace]
 resolver = "2"
 members = ["src/*", "xtask/*"]
 default-members = ["src/*"]
 
 [workspace.package]
-authors = [
-    "June Clementine Strawberry <june@girlboss.ceo>",
-    "strawberry <strawberry@puppygock.gay>", # woof
-    "Jason Volk <jason@zemos.net>",
-]
-categories = ["network-programming"]
-description = "a very cool Matrix chat homeserver written in Rust"
+authors = ["Continuwuity Team and contributors <team@continuwuity.org>"]
+description = "A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver."
 edition = "2024"
 homepage = "https://continuwuity.org/"
-keywords = ["chat", "matrix", "networking", "server", "uwu"]
 license = "Apache-2.0"
 # See also `rust-toolchain.toml`
 readme = "README.md"
 repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
-rust-version = "1.86.0"
 version = "0.5.1"
 
 [workspace.metadata.crane]
