@@ -22,7 +22,7 @@ ENV BINSTALL_VERSION=1.16.6
 # renovate: datasource=github-releases depName=psastras/sbom-rs
 ENV CARGO_SBOM_VERSION=0.9.1
 # renovate: datasource=crate depName=lddtree
-ENV LDDTREE_VERSION=0.3.7
+ENV LDDTREE_VERSION=0.4.0
 
 # Install unpackaged tools
 RUN <<EOF
