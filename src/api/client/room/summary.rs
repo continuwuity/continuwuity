@@ -3,11 +3,10 @@ use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, debug, debug_warn, info, trace,
 	utils::{IterStream, future::TryExtExt},
-	warn,
 };
 use futures::{
 	FutureExt, StreamExt, TryFutureExt,
-	future::{OptionFuture, join, join3, ok},
+	future::{OptionFuture, join3},
 	stream::FuturesUnordered,
 };
 use ruma::{
@@ -118,15 +117,16 @@ async fn local_room_summary_response(
 	sender_user: Option<&UserId>,
 ) -> Result<get_summary::msc3266::Response> {
 	trace!(?sender_user, "Sending local room summary response for {room_id:?}");
-	let join_rule = services.rooms.state_accessor.get_join_rules(room_id).await;
+	let (join_rule, world_readable, guest_can_join) = join3(
+		services.rooms.state_accessor.get_join_rules(room_id),
+		services.rooms.state_accessor.is_world_readable(room_id),
+		services.rooms.state_accessor.guest_can_join(room_id),
+	)
+	.await;
+
 	// Synapse allows server admins to bypass visibility checks.
 	// That seems neat so we'll copy that behaviour.
 	if sender_user.is_none() || !services.users.is_admin(sender_user.unwrap()).await {
-		let world_readable = services.rooms.state_accessor.is_world_readable(room_id);
-		let guest_can_join = services.rooms.state_accessor.guest_can_join(room_id);
-		let (world_readable, guest_can_join) = join(world_readable, guest_can_join).await;
-
-		trace!("{join_rule:?}, {world_readable:?}, {guest_can_join:?}");
 		user_can_see_summary(
 			services,
 			room_id,
@@ -253,10 +253,10 @@ async fn remote_room_summary_hierarchy_response(
 			services
 				.sending
 				.send_federation_request(server, request.clone())
-				.inspect_ok(|v| {
+				.inspect_ok(move |v| {
 					debug!("Fetched room summary for {room_id} from server {server}: {v:?}");
 				})
-				.inspect_err(|e| {
+				.inspect_err(move |e| {
 					info!("Failed to fetch room summary for {room_id} from server {server}: {e}");
 				})
 		})
