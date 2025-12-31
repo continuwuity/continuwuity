@@ -9,7 +9,10 @@ use rustyline_async::{Readline, ReadlineError, ReadlineEvent};
 use termimad::MadSkin;
 use tokio::task::JoinHandle;
 
-use crate::{Dep, admin};
+use crate::{
+	Dep,
+	admin::{self, InvocationSource},
+};
 
 pub struct Console {
 	server: Arc<Server>,
@@ -160,7 +163,11 @@ impl Console {
 	}
 
 	async fn process(self: Arc<Self>, line: String) {
-		match self.admin.command_in_place(line, None).await {
+		match self
+			.admin
+			.command_in_place(line, None, InvocationSource::Console)
+			.await
+		{
 			| Ok(Some(ref content)) => self.output(content),
 			| Err(ref content) => self.output_err(content),
 			| _ => unreachable!(),

@@ -66,7 +66,10 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 		.layer(RequestBodyTimeoutLayer::new(Duration::from_secs(
 			server.config.client_receive_timeout,
 		)))
-		.layer(TimeoutLayer::with_status_code(StatusCode::REQUEST_TIMEOUT, Duration::from_secs(server.config.client_request_timeout)))
+		.layer(TimeoutLayer::with_status_code(
+			StatusCode::REQUEST_TIMEOUT,
+			Duration::from_secs(server.config.client_request_timeout),
+		))
 		.layer(SetResponseHeaderLayer::if_not_present(
 			HeaderName::from_static("origin-agent-cluster"), // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Origin-Agent-Cluster
 			HeaderValue::from_static("?1"),

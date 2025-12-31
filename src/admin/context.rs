@@ -1,6 +1,6 @@
 use std::{fmt, time::SystemTime};
 
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use conduwuit_service::Services;
 use futures::{
 	Future, FutureExt, TryFutureExt,
@@ -8,6 +8,7 @@ use futures::{
 	lock::Mutex,
 };
 use ruma::{EventId, UserId};
+use service::admin::InvocationSource;
 
 pub(crate) struct Context<'a> {
 	pub(crate) services: &'a Services,
@@ -16,6 +17,7 @@ pub(crate) struct Context<'a> {
 	pub(crate) reply_id: Option<&'a EventId>,
 	pub(crate) sender: Option<&'a UserId>,
 	pub(crate) output: Mutex<BufWriter<Vec<u8>>>,
+	pub(crate) source: InvocationSource,
 }
 
 impl Context<'_> {
@@ -42,5 +44,22 @@ impl Context<'_> {
 	pub(crate) fn sender_or_service_user(&self) -> &UserId {
 		self.sender
 			.unwrap_or_else(|| self.services.globals.server_user.as_ref())
+	}
+
+	/// Returns an Err if the [`Self::source`] of this context does not allow
+	/// restricted commands to be executed.
+	///
+	/// This is intended to be placed at the start of restricted commands'
+	/// implementations, like so: ```ignore
+	/// self.bail_restricted()?;
+	/// // actual command impl
+	/// ```
+	#[must_use]
+	pub(crate) fn bail_restricted(&self) -> Result {
+		if self.source.allows_restricted() {
+			Ok(())
+		} else {
+			Err!("This command can only be used in the admin room.")
+		}
 	}
 }

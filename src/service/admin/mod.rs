@@ -54,13 +54,34 @@ struct Services {
 	media: Dep<crate::media::Service>,
 }
 
-/// Inputs to a command are a multi-line string, optional reply_id, and optional
-/// sender.
+/// Inputs to a command are a multi-line string, invocation source, optional
+/// reply_id, and optional sender.
 #[derive(Debug)]
 pub struct CommandInput {
 	pub command: String,
 	pub reply_id: Option<OwnedEventId>,
+	pub source: InvocationSource,
 	pub sender: Option<Box<UserId>>,
+}
+
+/// Where a command is being invoked from.
+#[derive(Debug, Clone, Copy)]
+pub enum InvocationSource {
+	/// The server's private admin room
+	AdminRoom,
+	/// An escaped `\!admin` command in a public room
+	EscapedCommand,
+	/// The server's admin console
+	Console,
+	/// Some other trusted internal source
+	Internal,
+}
+
+impl InvocationSource {
+	/// Returns whether this invocation source allows "restricted"
+	/// commands, i.e. ones that could be potentially dangerous if executed by
+	/// an attacker or in a public room.
+	pub fn allows_restricted(&self) -> bool { !matches!(self, Self::EscapedCommand) }
 }
 
 /// Prototype of the tab-completer. The input is buffered text when tab
@@ -276,10 +297,15 @@ impl Service {
 	/// Posts a command to the command processor queue and returns. Processing
 	/// will take place on the service worker's task asynchronously. Errors if
 	/// the queue is full.
-	pub fn command(&self, command: String, reply_id: Option<OwnedEventId>) -> Result<()> {
+	pub fn command(
+		&self,
+		command: String,
+		reply_id: Option<OwnedEventId>,
+		source: InvocationSource,
+	) -> Result<()> {
 		self.channel
 			.0
-			.send(CommandInput { command, reply_id, sender: None })
+			.send(CommandInput { command, reply_id, source, sender: None })
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
@@ -290,11 +316,17 @@ impl Service {
 		&self,
 		command: String,
 		reply_id: Option<OwnedEventId>,
+		source: InvocationSource,
 		sender: Box<UserId>,
 	) -> Result<()> {
 		self.channel
 			.0
-			.send(CommandInput { command, reply_id, sender: Some(sender) })
+			.send(CommandInput {
+				command,
+				reply_id,
+				source,
+				sender: Some(sender),
+			})
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
@@ -304,8 +336,9 @@ impl Service {
 		&self,
 		command: String,
 		reply_id: Option<OwnedEventId>,
+		source: InvocationSource,
 	) -> ProcessorResult {
-		self.process_command(CommandInput { command, reply_id, sender: None })
+		self.process_command(CommandInput { command, reply_id, source, sender: None })
 			.await
 	}
 
@@ -372,7 +405,20 @@ impl Service {
 
 	/// Checks whether a given user is an admin of this server
 	pub async fn user_is_admin(&self, user_id: &UserId) -> bool {
-		self.get_admins().await.contains(&user_id.to_owned())
+		if self.services.server.config.admins_list.contains(user_id) {
+			return true;
+		}
+
+		if self.services.server.config.admins_from_room {
+			if let Ok(admin_room) = self.get_admin_room().await {
+				self.services
+					.state_cache
+					.is_joined(user_id, &admin_room)
+					.await
+			}
+		}
+
+		false
 	}
 
 	/// Gets the room ID of the admin room
@@ -473,59 +519,59 @@ impl Service {
 		Ok(())
 	}
 
-	pub async fn is_admin_command<E>(&self, event: &E, body: &str) -> bool
+	pub async fn is_admin_command<E>(&self, event: &E, body: &str) -> Option<InvocationSource>
 	where
 		E: Event + Send + Sync,
 	{
-		// Server-side command-escape with public echo
-		let is_escape = body.starts_with('\\');
-		let is_public_escape = is_escape && body.trim_start_matches('\\').starts_with("!admin");
-
-		// Admin command with public echo (in admin room)
-		let server_user = &self.services.globals.server_user;
-		let is_public_prefix =
-			body.starts_with("!admin") || body.starts_with(server_user.as_str());
-
-		// Expected backward branch
-		if !is_public_escape && !is_public_prefix {
-			return false;
-		}
-
-		let user_is_local = self.services.globals.user_is_local(event.sender());
-
-		// only allow public escaped commands by local admins
-		if is_public_escape && !user_is_local {
-			return false;
-		}
-
-		// Check if server-side command-escape is disabled by configuration
-		if is_public_escape && !self.services.server.config.admin_escape_commands {
-			return false;
-		}
-
-		// Prevent unescaped !admin from being used outside of the admin room
-		if event.room_id().is_some()
-			&& is_public_prefix
-			&& !self.is_admin_room(event.room_id().unwrap()).await
-		{
-			return false;
-		}
-
-		// Only senders who are admin can proceed
+		// If the user isn't an admin they definitely can't run admin commands
 		if !self.user_is_admin(event.sender()).await {
-			return false;
+			return None;
 		}
 
-		// This will evaluate to false if the emergency password is set up so that
-		// the administrator can execute commands as the server user
-		let emergency_password_set = self.services.server.config.emergency_password.is_some();
-		let from_server = event.sender() == server_user && !emergency_password_set;
-		if from_server && self.is_admin_room(event.room_id().unwrap()).await {
-			return false;
-		}
+		if let Some(room_id) = event.room_id()
+			&& self.is_admin_room(room_id).await
+		{
+			// This is a message in the admin room
 
-		// Authentic admin command
-		true
+			// Ignore messages which aren't admin commands
+			let server_user = &self.services.globals.server_user;
+			if !(body.starts_with("!admin") || body.starts_with(server_user.as_str())) {
+				return None;
+			}
+
+			// Ignore messages from the server user _unless_ the emergency password is set
+			let emergency_password_set = self.services.server.config.emergency_password.is_some();
+			if event.sender() == server_user && !emergency_password_set {
+				return None;
+			}
+
+			// Looks good
+			return Some(InvocationSource::AdminRoom);
+		} else {
+			// This is a message outside the admin room
+
+			// Is it an escaped admin command? i.e. `\!admin --help`
+			let is_public_escape =
+				body.starts_with('\\') && body.trim_start_matches('\\').starts_with("!admin");
+
+			// Ignore the message if it's not
+			if !is_public_escape {
+				return None;
+			}
+
+			// Only admin users belonging to this server can use escaped commands
+			if !self.services.globals.user_is_local(event.sender()) {
+				return None;
+			}
+
+			// Check if escaped commands are disabled in the config
+			if !self.services.server.config.admin_escape_commands {
+				return None;
+			}
+
+			// Looks good
+			return Some(InvocationSource::EscapedCommand);
+		}
 	}
 
 	#[must_use]

@@ -59,6 +59,7 @@ async fn process_command(services: Arc<Services>, input: &CommandInput) -> Proce
 		reply_id: input.reply_id.as_deref(),
 		sender: input.sender.as_deref(),
 		output: BufWriter::new(Vec::new()).into(),
+		source: input.source,
 	};
 
 	let (result, mut logs) = process(&context, command, &args).await;

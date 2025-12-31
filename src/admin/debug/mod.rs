@@ -47,9 +47,9 @@ pub enum DebugCommand {
 		shorteventid: ShortEventId,
 	},
 
-	/// - Attempts to retrieve a PDU from a remote server. Inserts it into our
-	///   database/timeline if found and we do not have this PDU already
-	///   (following normal event auth rules, handles it as an incoming PDU).
+	/// - Attempts to retrieve a PDU from a remote server. **Does not** insert
+	///   it into the database
+	/// or persist it anywhere.
 	GetRemotePdu {
 		/// An event ID (a $ followed by the base64 reference hash)
 		event_id: OwnedEventId,
@@ -124,12 +124,6 @@ pub enum DebugCommand {
 		#[arg(short, long)]
 		reset: bool,
 	},
-
-	/// - Sign JSON blob
-	///
-	/// This command needs a JSON blob provided in a Markdown code block below
-	/// the command.
-	SignJson,
 
 	/// - Verify JSON signatures
 	///

@@ -53,14 +53,26 @@ pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Res
 	use AdminCommand::*;
 
 	match command {
-		| Appservices(command) => appservice::process(command, context).await,
+		| Appservices(command) => {
+			// appservice commands are all restricted
+			context.bail_restricted()?;
+			appservice::process(command, context).await
+		},
 		| Media(command) => media::process(command, context).await,
-		| Users(command) => user::process(command, context).await,
+		| Users(command) => {
+			// user commands are all restricted
+			context.bail_restricted()?;
+			user::process(command, context).await
+		},
 		| Rooms(command) => room::process(command, context).await,
 		| Federation(command) => federation::process(command, context).await,
 		| Server(command) => server::process(command, context).await,
 		| Debug(command) => debug::process(command, context).await,
-		| Query(command) => query::process(command, context).await,
+		| Query(command) => {
+			// query commands are all restricted
+			context.bail_restricted()?;
+			query::process(command, context).await
+		},
 		| Check(command) => check::process(command, context).await,
 	}
 }

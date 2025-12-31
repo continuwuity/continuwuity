@@ -8,12 +8,14 @@ use crate::{admin_command, get_room_info};
 
 #[admin_command]
 pub(super) async fn disable_room(&self, room_id: OwnedRoomId) -> Result {
+	self.bail_restricted()?;
 	self.services.rooms.metadata.disable_room(&room_id, true);
 	self.write_str("Room disabled.").await
 }
 
 #[admin_command]
 pub(super) async fn enable_room(&self, room_id: OwnedRoomId) -> Result {
+	self.bail_restricted()?;
 	self.services.rooms.metadata.disable_room(&room_id, false);
 	self.write_str("Room enabled.").await
 }

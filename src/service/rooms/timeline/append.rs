@@ -335,10 +335,11 @@ where
 			if let Some(body) = content.body {
 				self.services.search.index_pdu(shortroomid, &pdu_id, &body);
 
-				if self.services.admin.is_admin_command(pdu, &body).await {
+				if let Some(source) = self.services.admin.is_admin_command(pdu, &body).await {
 					self.services.admin.command_with_sender(
 						body,
 						Some((pdu.event_id()).into()),
+						source,
 						pdu.sender.clone().into(),
 					)?;
 				}

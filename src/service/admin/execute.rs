@@ -2,6 +2,8 @@ use conduwuit::{Err, Result, debug, debug_info, error, implement, info};
 use ruma::events::room::message::RoomMessageEventContent;
 use tokio::time::{Duration, sleep};
 
+use crate::admin::InvocationSource;
+
 pub(super) const SIGNAL: &str = "SIGUSR2";
 
 /// Possibly spawn the terminal console at startup if configured.
@@ -88,7 +90,10 @@ pub(super) async fn signal_execute(&self) -> Result {
 async fn execute_command(&self, i: usize, command: String) -> Result {
 	debug!("Execute command #{i}: executing {command:?}");
 
-	match self.command_in_place(command, None).await {
+	match self
+		.command_in_place(command, None, InvocationSource::Console)
+		.await
+	{
 		| Ok(Some(output)) => Self::execute_command_output(i, &output),
 		| Err(output) => Self::execute_command_error(i, &output),
 		| Ok(None) => {

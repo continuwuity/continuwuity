@@ -24,6 +24,8 @@ pub(super) async fn uptime(&self) -> Result {
 
 #[admin_command]
 pub(super) async fn show_config(&self) -> Result {
+	self.bail_restricted()?;
+
 	self.write_str(&format!("{}", *self.services.server.config))
 		.await
 }
@@ -118,6 +120,8 @@ pub(super) async fn list_backups(&self) -> Result {
 
 #[admin_command]
 pub(super) async fn backup_database(&self) -> Result {
+	self.bail_restricted()?;
+
 	let db = Arc::clone(&self.services.db);
 	let result = self
 		.services
@@ -144,6 +148,8 @@ pub(super) async fn admin_notice(&self, message: Vec<String>) -> Result {
 
 #[admin_command]
 pub(super) async fn reload_mods(&self) -> Result {
+	self.bail_restricted()?;
+
 	self.services.server.reload()?;
 
 	self.write_str("Reloading server...").await
@@ -168,6 +174,8 @@ pub(super) async fn restart(&self, force: bool) -> Result {
 
 #[admin_command]
 pub(super) async fn shutdown(&self) -> Result {
+	self.bail_restricted()?;
+
 	warn!("shutdown command");
 	self.services.server.shutdown()?;
 

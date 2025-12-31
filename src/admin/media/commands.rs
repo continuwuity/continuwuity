@@ -16,6 +16,8 @@ pub(super) async fn delete(
 	mxc: Option<OwnedMxcUri>,
 	event_id: Option<OwnedEventId>,
 ) -> Result {
+	self.bail_restricted()?;
+
 	if event_id.is_some() && mxc.is_some() {
 		return Err!("Please specify either an MXC or an event ID, not both.",);
 	}
@@ -176,6 +178,8 @@ pub(super) async fn delete(
 
 #[admin_command]
 pub(super) async fn delete_list(&self) -> Result {
+	self.bail_restricted()?;
+
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
 		|| self.body.last().unwrap_or(&"").trim() != "```"
@@ -231,6 +235,8 @@ pub(super) async fn delete_past_remote_media(
 	after: bool,
 	yes_i_want_to_delete_local_media: bool,
 ) -> Result {
+	self.bail_restricted()?;
+
 	if before && after {
 		return Err!("Please only pick one argument, --before or --after.",);
 	}
@@ -273,6 +279,8 @@ pub(super) async fn delete_all_from_server(
 	server_name: OwnedServerName,
 	yes_i_want_to_delete_local_media: bool,
 ) -> Result {
+	self.bail_restricted()?;
+
 	if server_name == self.services.globals.server_name() && !yes_i_want_to_delete_local_media {
 		return Err!("This command only works for remote media by default.",);
 	}

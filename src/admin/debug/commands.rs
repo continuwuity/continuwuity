@@ -291,6 +291,8 @@ pub(super) async fn get_remote_pdu(
 
 #[admin_command]
 pub(super) async fn get_room_state(&self, room: OwnedRoomOrAliasId) -> Result {
+	self.bail_restricted()?;
+
 	let room_id = self.services.rooms.alias.resolve(&room).await?;
 	let room_state: Vec<Raw<AnyStateEvent>> = self
 		.services
@@ -418,27 +420,6 @@ pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool)
 }
 
 #[admin_command]
-pub(super) async fn sign_json(&self) -> Result {
-	if self.body.len() < 2
-		|| !self.body[0].trim().starts_with("```")
-		|| self.body.last().unwrap_or(&"").trim() != "```"
-	{
-		return Err!("Expected code block in command body. Add --help for details.");
-	}
-
-	let string = self.body[1..self.body.len().checked_sub(1).unwrap()].join("\n");
-	match serde_json::from_str(&string) {
-		| Err(e) => return Err!("Invalid json: {e}"),
-		| Ok(mut value) => {
-			self.services.server_keys.sign_json(&mut value)?;
-			let json_text = serde_json::to_string_pretty(&value)?;
-			write!(self, "{json_text}")
-		},
-	}
-	.await
-}
-
-#[admin_command]
 pub(super) async fn verify_json(&self) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")
@@ -477,6 +458,8 @@ pub(super) async fn verify_pdu(&self, event_id: OwnedEventId) -> Result {
 #[admin_command]
 #[tracing::instrument(skip(self))]
 pub(super) async fn first_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
+	self.bail_restricted()?;
+
 	if !self
 		.services
 		.rooms
@@ -502,6 +485,8 @@ pub(super) async fn first_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
 #[admin_command]
 #[tracing::instrument(skip(self))]
 pub(super) async fn latest_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
+	self.bail_restricted()?;
+
 	if !self
 		.services
 		.rooms
@@ -532,6 +517,8 @@ pub(super) async fn force_set_room_state_from_server(
 	server_name: OwnedServerName,
 	at_event: Option<OwnedEventId>,
 ) -> Result {
+	self.bail_restricted()?;
+
 	if !self
 		.services
 		.rooms
