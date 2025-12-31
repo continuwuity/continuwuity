@@ -406,7 +406,7 @@ impl Service {
 
 	/// Checks whether a given user is an admin of this server
 	pub async fn user_is_admin(&self, user_id: &UserId) -> bool {
-		if self.services.server.config.admins_list.contains(user_id) {
+		if self.services.server.config.admins_list.contains(&user_id.to_owned()) {
 			return true;
 		}
 
