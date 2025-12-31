@@ -24,3 +24,4 @@ extend-ignore-re = [
 "continuwuity" = "continuwuity"
 "continuwity" = "continuwuity"
 "execuse" = "execuse"
+"oltp" = "OTLP"

@@ -4,7 +4,7 @@
 
 ## Features
 
-- Enabled the OLTP exporter in default builds, and allow configuring the exporter protocol. (@Jade). (#1251)
+- Enabled the OTLP exporter in default builds, and allow configuring the exporter protocol. (@Jade). (#1251)
 
 ## Bug Fixes
 
