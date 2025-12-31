@@ -4,7 +4,7 @@
 Name:           continuwuity
 Version:        {{{ git_repo_version }}}
 Release:        1%{?dist}
-Summary:        Very cool Matrix chat homeserver written in Rust
+Summary:        A Matrix homeserver written in Rust.
 
 License:        Apache-2.0 AND MIT
 
@@ -23,7 +23,7 @@ Requires:       glibc
 Requires:       libstdc++
 
 %global _description %{expand:
-A cool hard fork of Conduit, a Matrix homeserver written in Rust}
+A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver.}
 
 %description %{_description}
 
