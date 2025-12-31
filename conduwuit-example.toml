@@ -1570,7 +1570,7 @@
 #
 # example: \\!admin debug ping continuwuity.org
 #
-#admin_escape_commands = true
+#admin_escape_commands = false
 
 # Automatically activate the continuwuity admin room console / CLI on
 # startup. This option can also be enabled with `--console` continuwuity
