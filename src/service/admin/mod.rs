@@ -412,10 +412,10 @@ impl Service {
 
 		if self.services.server.config.admins_from_room {
 			if let Ok(admin_room) = self.get_admin_room().await {
-				self.services
+				return self.services
 					.state_cache
 					.is_joined(user_id, &admin_room)
-					.await
+					.await;
 			}
 		}
 
