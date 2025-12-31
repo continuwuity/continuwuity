@@ -56,7 +56,6 @@ impl Context<'_> {
 	/// self.bail_restricted()?;
 	/// // actual command impl
 	/// ```
-	#[must_use]
 	pub(crate) fn bail_restricted(&self) -> Result {
 		if self.source.allows_restricted() {
 			Ok(())

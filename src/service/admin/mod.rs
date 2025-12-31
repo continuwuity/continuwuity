@@ -81,6 +81,7 @@ impl InvocationSource {
 	/// Returns whether this invocation source allows "restricted"
 	/// commands, i.e. ones that could be potentially dangerous if executed by
 	/// an attacker or in a public room.
+	#[must_use]
 	pub fn allows_restricted(&self) -> bool { !matches!(self, Self::EscapedCommand) }
 }
 
@@ -546,7 +547,7 @@ impl Service {
 			}
 
 			// Looks good
-			return Some(InvocationSource::AdminRoom);
+			Some(InvocationSource::AdminRoom)
 		} else {
 			// This is a message outside the admin room
 
@@ -570,7 +571,7 @@ impl Service {
 			}
 
 			// Looks good
-			return Some(InvocationSource::EscapedCommand);
+			Some(InvocationSource::EscapedCommand)
 		}
 	}
 
