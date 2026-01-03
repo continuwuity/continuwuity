@@ -551,7 +551,6 @@ where
 
 			Some((server, response))
 		})
-		.then(async |v| v)
 		.collect::<FuturesUnordered<_>>()
 		.await
 		.into_iter();
@@ -686,7 +685,6 @@ pub(crate) async fn claim_keys_helper(
 			.and_then(|res| res);
 			Some((server, response))
 		})
-		.then(async |v| v)
 		.collect::<FuturesUnordered<_>>()
 		.await
 		.into_iter();
