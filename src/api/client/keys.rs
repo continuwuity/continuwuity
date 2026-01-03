@@ -589,7 +589,6 @@ where
 				device_keys.extend(response.device_keys);
 			},
 			| Err(e) => {
-				// Extra branch is needed because Elapsed != Error (types)
 				failures.insert(server.to_string(), json!({ "error": e.to_string() }));
 			},
 		}
@@ -697,8 +696,8 @@ pub(crate) async fn claim_keys_helper(
 			| Ok(keys) => {
 				one_time_keys.extend(keys.one_time_keys);
 			},
-			| Err(_e) => {
-				failures.insert(server.to_string(), json!({}));
+			| Err(e) => {
+				failures.insert(server.to_string(), json!({"error": e.to_string()}));
 			},
 		}
 	}
