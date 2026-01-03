@@ -1,6 +1,5 @@
 use std::{
 	collections::{BTreeMap, HashMap, HashSet},
-	ops::Add,
 	time::Duration,
 };
 
@@ -441,7 +440,6 @@ pub(crate) async fn get_keys_helper<F>(
 where
 	F: Fn(&UserId) -> bool + Send + Sync,
 {
-	let deadline = tokio::time::Instant::now().add(timeout);
 	let mut master_keys = BTreeMap::new();
 	let mut self_signing_keys = BTreeMap::new();
 	let mut user_signing_keys = BTreeMap::new();
@@ -529,7 +527,7 @@ where
 
 	let mut failures = BTreeMap::new();
 
-	let mut futures = get_over_federation
+	let futures = get_over_federation
 		.into_iter()
 		.stream()
 		.wide_filter_map(|(server, vec)| async move {
@@ -540,8 +538,8 @@ where
 
 			let request =
 				federation::keys::get_keys::v1::Request { device_keys: device_keys_input_fed };
-			let response = tokio::time::timeout_at(
-				deadline,
+			let response = tokio::time::timeout(
+				timeout,
 				services.sending.send_federation_request(server, request),
 			)
 			.await
@@ -555,7 +553,7 @@ where
 		.await
 		.into_iter();
 
-	while let Some((server, response)) = futures.next() {
+	for (server, response) in futures {
 		match response {
 			| Ok(response) => {
 				for (user, master_key) in response.master_keys {
@@ -633,7 +631,6 @@ pub(crate) async fn claim_keys_helper(
 	one_time_keys_input: &BTreeMap<OwnedUserId, BTreeMap<OwnedDeviceId, OneTimeKeyAlgorithm>>,
 	timeout: Duration,
 ) -> Result<claim_keys::v3::Response> {
-	let deadline = tokio::time::Instant::now().add(timeout);
 	let mut one_time_keys = BTreeMap::new();
 
 	let mut get_over_federation = BTreeMap::new();
@@ -663,7 +660,7 @@ pub(crate) async fn claim_keys_helper(
 
 	let mut failures = BTreeMap::new();
 
-	let mut futures = get_over_federation
+	let futures = get_over_federation
 		.into_iter()
 		.stream()
 		.wide_filter_map(|(server, vec)| async move {
@@ -671,8 +668,8 @@ pub(crate) async fn claim_keys_helper(
 			for (user_id, keys) in vec {
 				one_time_keys_input_fed.insert(user_id.clone(), keys.clone());
 			}
-			let response = tokio::time::timeout_at(
-				deadline,
+			let response = tokio::time::timeout(
+				timeout,
 				services.sending.send_federation_request(
 					server,
 					federation::keys::claim_keys::v1::Request {
@@ -689,7 +686,7 @@ pub(crate) async fn claim_keys_helper(
 		.await
 		.into_iter();
 
-	while let Some((server, response)) = futures.next() {
+	for (server, response) in futures {
 		match response {
 			| Ok(keys) => {
 				one_time_keys.extend(keys.one_time_keys);
