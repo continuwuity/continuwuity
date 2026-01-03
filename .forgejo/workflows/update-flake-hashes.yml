@@ -23,7 +23,7 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.FORGEJO_TOKEN }}
 
-      - uses: https://github.com/cachix/install-nix-action@7ab6e7fd29da88e74b1e314a4ae9ac6b5cda3801 # v31.8.0
+      - uses: https://github.com/cachix/install-nix-action@4e002c8ec80594ecd40e759629461e26c8abed15 # v31.9.0
         with:
           nix_path: nixpkgs=channel:nixos-unstable
 
