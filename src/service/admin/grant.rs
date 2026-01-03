@@ -188,7 +188,7 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 		warn!(
 			"Revoking the admin status of {user_id} will not work correctly as they are within \
 			 the admins_list config."
-		)
+		);
 	}
 
 	let Ok(room_id) = self.get_admin_room().await else {

@@ -406,13 +406,20 @@ impl Service {
 
 	/// Checks whether a given user is an admin of this server
 	pub async fn user_is_admin(&self, user_id: &UserId) -> bool {
-		if self.services.server.config.admins_list.contains(&user_id.to_owned()) {
+		if self
+			.services
+			.server
+			.config
+			.admins_list
+			.contains(&user_id.to_owned())
+		{
 			return true;
 		}
 
 		if self.services.server.config.admins_from_room {
 			if let Ok(admin_room) = self.get_admin_room().await {
-				return self.services
+				return self
+					.services
 					.state_cache
 					.is_joined(user_id, &admin_room)
 					.await;

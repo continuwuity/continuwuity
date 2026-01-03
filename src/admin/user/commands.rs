@@ -465,7 +465,7 @@ pub(super) async fn force_join_list_of_local_users(
 
 	if server_admins.is_empty() {
 		return Err!("There are no admins set for this server.");
-	};
+	}
 
 	let (room_id, servers) = self
 		.services
@@ -580,7 +580,7 @@ pub(super) async fn force_join_all_local_users(
 
 	if server_admins.is_empty() {
 		return Err!("There are no admins set for this server.");
-	};
+	}
 
 	let (room_id, servers) = self
 		.services

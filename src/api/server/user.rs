@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::extract::State;
 use conduwuit::{Error, Result};
 use futures::{FutureExt, StreamExt, TryFutureExt};
@@ -96,6 +98,7 @@ pub(crate) async fn get_keys_route(
 		&body.device_keys,
 		|u| Some(u.server_name()) == body.origin.as_deref(),
 		services.globals.allow_device_name_federation(),
+		Duration::from_secs(0),
 	)
 	.await?;
 
@@ -124,7 +127,8 @@ pub(crate) async fn claim_keys_route(
 		));
 	}
 
-	let result = claim_keys_helper(&services, &body.one_time_keys).await?;
+	let result =
+		claim_keys_helper(&services, &body.one_time_keys, Duration::from_secs(0)).await?;
 
 	Ok(claim_keys::v1::Response { one_time_keys: result.one_time_keys })
 }

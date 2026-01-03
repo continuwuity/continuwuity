@@ -72,7 +72,7 @@ pub(crate) async fn well_known_support(
 	if contacts.is_empty() {
 		let admin_users = services.admin.get_admins().await;
 
-		for user_id in admin_users.iter() {
+		for user_id in &admin_users {
 			if *user_id == services.globals.server_user {
 				continue;
 			}

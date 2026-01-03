@@ -1,7 +1,16 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+	collections::{BTreeMap, HashMap, HashSet},
+	ops::Add,
+	time::Duration,
+};
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug, debug_warn, err, result::NotFound, utils};
+use conduwuit::{
+	Err, Error, Result, debug, debug_warn, err,
+	result::NotFound,
+	utils,
+	utils::{IterStream, stream::WidebandExt},
+};
 use conduwuit_service::{Services, users::parse_master_key};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
@@ -134,6 +143,7 @@ pub(crate) async fn get_keys_route(
 		&body.device_keys,
 		|u| u == sender_user,
 		true, // Always allow local users to see device names of other local users
+		body.timeout.unwrap_or(Duration::from_secs(10)),
 	)
 	.await
 }
@@ -145,7 +155,12 @@ pub(crate) async fn claim_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<claim_keys::v3::Request>,
 ) -> Result<claim_keys::v3::Response> {
-	claim_keys_helper(&services, &body.one_time_keys).await
+	claim_keys_helper(
+		&services,
+		&body.one_time_keys,
+		body.timeout.unwrap_or(Duration::from_secs(10)),
+	)
+	.await
 }
 
 /// # `POST /_matrix/client/r0/keys/device_signing/upload`
@@ -421,10 +436,12 @@ pub(crate) async fn get_keys_helper<F>(
 	device_keys_input: &BTreeMap<OwnedUserId, Vec<OwnedDeviceId>>,
 	allowed_signatures: F,
 	include_display_names: bool,
+	timeout: Duration,
 ) -> Result<get_keys::v3::Response>
 where
 	F: Fn(&UserId) -> bool + Send + Sync,
 {
+	let deadline = tokio::time::Instant::now().add(timeout);
 	let mut master_keys = BTreeMap::new();
 	let mut self_signing_keys = BTreeMap::new();
 	let mut user_signing_keys = BTreeMap::new();
@@ -512,9 +529,10 @@ where
 
 	let mut failures = BTreeMap::new();
 
-	let mut futures: FuturesUnordered<_> = get_over_federation
+	let mut futures = get_over_federation
 		.into_iter()
-		.map(|(server, vec)| async move {
+		.stream()
+		.wide_filter_map(|(server, vec)| async move {
 			let mut device_keys_input_fed = BTreeMap::new();
 			for (user_id, keys) in vec {
 				device_keys_input_fed.insert(user_id.to_owned(), keys.clone());
@@ -522,17 +540,23 @@ where
 
 			let request =
 				federation::keys::get_keys::v1::Request { device_keys: device_keys_input_fed };
+			let response = tokio::time::timeout_at(
+				deadline,
+				services.sending.send_federation_request(server, request),
+			)
+			.await
+			// Need to flatten the Result<Result<V, E>, E> into Result<V, E>
+			.map_err(|_| err!(Request(Unknown("Timeout when getting keys over federation."))))
+			.and_then(|res| res);
 
-			let response = services
-				.sending
-				.send_federation_request(server, request)
-				.await;
-
-			(server, response)
+			Some((server, response))
 		})
-		.collect();
+		.then(async |v| v)
+		.collect::<FuturesUnordered<_>>()
+		.await
+		.into_iter();
 
-	while let Some((server, response)) = futures.next().await {
+	while let Some((server, response)) = futures.next() {
 		match response {
 			| Ok(response) => {
 				for (user, master_key) in response.master_keys {
@@ -564,8 +588,9 @@ where
 				self_signing_keys.extend(response.self_signing_keys);
 				device_keys.extend(response.device_keys);
 			},
-			| _ => {
-				failures.insert(server.to_string(), json!({}));
+			| Err(e) => {
+				// Extra branch is needed because Elapsed != Error (types)
+				failures.insert(server.to_string(), json!({ "error": e.to_string() }));
 			},
 		}
 	}
@@ -608,7 +633,9 @@ fn add_unsigned_device_display_name(
 pub(crate) async fn claim_keys_helper(
 	services: &Services,
 	one_time_keys_input: &BTreeMap<OwnedUserId, BTreeMap<OwnedDeviceId, OneTimeKeyAlgorithm>>,
+	timeout: Duration,
 ) -> Result<claim_keys::v3::Response> {
+	let deadline = tokio::time::Instant::now().add(timeout);
 	let mut one_time_keys = BTreeMap::new();
 
 	let mut get_over_federation = BTreeMap::new();
@@ -638,26 +665,34 @@ pub(crate) async fn claim_keys_helper(
 
 	let mut failures = BTreeMap::new();
 
-	let mut futures: FuturesUnordered<_> = get_over_federation
+	let mut futures = get_over_federation
 		.into_iter()
-		.map(|(server, vec)| async move {
+		.stream()
+		.wide_filter_map(|(server, vec)| async move {
 			let mut one_time_keys_input_fed = BTreeMap::new();
 			for (user_id, keys) in vec {
 				one_time_keys_input_fed.insert(user_id.clone(), keys.clone());
 			}
-			(
-				server,
-				services
-					.sending
-					.send_federation_request(server, federation::keys::claim_keys::v1::Request {
+			let response = tokio::time::timeout_at(
+				deadline,
+				services.sending.send_federation_request(
+					server,
+					federation::keys::claim_keys::v1::Request {
 						one_time_keys: one_time_keys_input_fed,
-					})
-					.await,
+					},
+				),
 			)
+			.await
+			.map_err(|_| err!(Request(Unknown("Timeout when claiming keys over federation."))))
+			.and_then(|res| res);
+			Some((server, response))
 		})
-		.collect();
+		.then(async |v| v)
+		.collect::<FuturesUnordered<_>>()
+		.await
+		.into_iter();
 
-	while let Some((server, response)) = futures.next().await {
+	while let Some((server, response)) = futures.next() {
 		match response {
 			| Ok(keys) => {
 				one_time_keys.extend(keys.one_time_keys);
