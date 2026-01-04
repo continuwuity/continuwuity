@@ -96,7 +96,7 @@ impl crate::Service for Service {
 			}
 
 			if let Err(e) = self.check().await {
-				warn!(%e, "Failed to check for announcements");
+				warn!(?e, "Failed to check for announcements");
 			}
 		}
 

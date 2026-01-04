@@ -40,7 +40,7 @@ pub(crate) async fn get_missing_events_route(
 	while i < queued_events.len() && events.len() < limit {
 		let Ok(pdu) = services.rooms.timeline.get_pdu(&queued_events[i]).await else {
 			debug!(
-				?body.origin,
+				body.origin = body.origin.as_ref().map(tracing::field::display),
 				"Event {} does not exist locally, skipping", &queued_events[i]
 			);
 			i = i.saturating_add(1);
@@ -59,7 +59,7 @@ pub(crate) async fn get_missing_events_route(
 			.await
 		{
 			debug!(
-				?body.origin,
+				body.origin = body.origin.as_ref().map(tracing::field::display),
 				"Server cannot see {:?} in {:?}, skipping", pdu.event_id, pdu.room_id
 			);
 			i = i.saturating_add(1);
@@ -68,7 +68,7 @@ pub(crate) async fn get_missing_events_route(
 
 		let Ok(event) = to_canonical_object(&pdu) else {
 			debug_error!(
-				?body.origin,
+				body.origin = body.origin.as_ref().map(tracing::field::display),
 				"Failed to convert PDU in database to canonical JSON: {pdu:?}"
 			);
 			i = i.saturating_add(1);

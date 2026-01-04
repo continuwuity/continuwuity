@@ -71,10 +71,10 @@ async fn request_url_preview(&self, url: &Url) -> Result<UrlPreviewData> {
 	let client = &self.services.client.url_preview;
 	let response = client.head(url.as_str()).send().await?;
 
-	debug!(?url, "URL preview response headers: {:?}", response.headers());
+	debug!(%url, "URL preview response headers: {:?}", response.headers());
 
 	if let Some(remote_addr) = response.remote_addr() {
-		debug!(?url, "URL preview response remote address: {:?}", remote_addr);
+		debug!(%url, "URL preview response remote address: {:?}", remote_addr);
 
 		if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
 			if !self.services.client.valid_cidr_range(&ip) {

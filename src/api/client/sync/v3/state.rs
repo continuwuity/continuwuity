@@ -217,7 +217,7 @@ pub(super) async fn build_state_incremental<'a>(
 	the performance penalty is acceptable.
 	*/
 
-	trace!(?timeline_is_linear, ?timeline.limited, "computing state for incremental sync");
+	trace!(%timeline_is_linear, %timeline.limited, "computing state for incremental sync");
 
 	// fetch the shorteventids of state events in the timeline
 	let state_events_in_timeline: BTreeSet<ShortEventId> = services

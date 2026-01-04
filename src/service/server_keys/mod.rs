@@ -112,7 +112,7 @@ async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
 }
 
 #[implement(Service)]
-#[tracing::instrument(skip(self, object))]
+#[tracing::instrument(skip(self, object), level = "debug")]
 pub async fn required_keys_exist(
 	&self,
 	object: &CanonicalJsonObject,
@@ -135,7 +135,7 @@ pub async fn required_keys_exist(
 }
 
 #[implement(Service)]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "debug")]
 pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSigningKeyId) -> bool {
 	type KeysMap<'a> = BTreeMap<&'a ServerSigningKeyId, &'a RawJsonValue>;
 

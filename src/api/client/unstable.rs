@@ -26,7 +26,7 @@ use crate::Ruma;
 /// TODO: Implement pagination, currently this just returns everything
 ///
 /// An implementation of [MSC2666](https://github.com/matrix-org/matrix-spec-proposals/pull/2666)
-#[tracing::instrument(skip_all, fields(%client), name = "mutual_rooms")]
+#[tracing::instrument(skip_all, fields(%client), name = "mutual_rooms", level = "info")]
 pub(crate) async fn get_mutual_rooms_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

@@ -105,8 +105,8 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 			.unwrap_or("None"),
 		?worker_counts,
 		?queue_sizes,
-		?total_workers,
-		stream_width = ?stream::automatic_width(),
+		%total_workers,
+		stream_width = %stream::automatic_width(),
 		"Frontend topology",
 	);
 
@@ -139,13 +139,13 @@ fn update_stream_width(server: &Arc<Server>, num_queues: usize, total_workers: u
 	let (old_width, new_width) = stream::set_width(req_width);
 	let (old_amp, new_amp) = stream::set_amplification(req_amp);
 	debug!(
-		scale = ?config.stream_width_scale,
-		?num_queues,
-		?req_width,
-		?old_width,
-		?new_width,
-		?old_amp,
-		?new_amp,
+		scale = %config.stream_width_scale,
+		%num_queues,
+		%req_width,
+		%old_width,
+		%new_width,
+		%old_amp,
+		%new_amp,
 		"Updated global stream width"
 	);
 }

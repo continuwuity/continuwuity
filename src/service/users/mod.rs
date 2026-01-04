@@ -494,8 +494,8 @@ impl Service {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
 			return Err!(Database(error!(
-				?user_id,
-				?device_id,
+				%user_id,
+				%device_id,
 				"User does not exist or device has no metadata."
 			)));
 		}
@@ -539,8 +539,8 @@ impl Service {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
 			return Err!(Database(error!(
-				?user_id,
-				?device_id,
+				%user_id,
+				%device_id,
 				"User does not exist or device has no metadata."
 			)));
 		}
@@ -1153,7 +1153,7 @@ impl Service {
 		let (expires_at, user_id): (u64, OwnedUserId) = value.deserialized()?;
 
 		if expires_at < utils::millis_since_unix_epoch() {
-			trace!(?user_id, ?token, "Removing expired login token");
+			trace!(%user_id, ?token, "Removing expired login token");
 
 			self.db.logintoken_expiresatuserid.remove(token);
 
@@ -1231,7 +1231,7 @@ impl Service {
 		debug!(?uri, "LDAP creating connection...");
 		let (conn, mut ldap) = LdapConnAsync::new(uri.as_str())
 			.await
-			.map_err(|e| err!(Ldap(error!(?user_id, "LDAP connection setup error: {e}"))))?;
+			.map_err(|e| err!(Ldap(error!(%user_id, "LDAP connection setup error: {e}"))))?;
 
 		let driver = self.services.server.runtime().spawn(async move {
 			match conn.drive().await {

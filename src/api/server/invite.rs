@@ -19,7 +19,7 @@ use crate::Ruma;
 /// # `PUT /_matrix/federation/v2/invite/{roomId}/{eventId}`
 ///
 /// Invites a remote user to a room.
-#[tracing::instrument(skip_all, fields(%client), name = "invite")]
+#[tracing::instrument(skip_all, fields(%client), name = "invite", level = "info")]
 pub(crate) async fn create_invite_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

@@ -37,7 +37,7 @@ pub(super) fn dispatch(services: Arc<Services>, command: CommandInput) -> Proces
 	Box::pin(handle_command(services, command))
 }
 
-#[tracing::instrument(skip_all, name = "admin")]
+#[tracing::instrument(skip_all, name = "admin", level = "info")]
 async fn handle_command(services: Arc<Services>, command: CommandInput) -> ProcessorResult {
 	AssertUnwindSafe(Box::pin(process_command(services, &command)))
 		.catch_unwind()

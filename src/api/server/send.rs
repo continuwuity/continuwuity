@@ -3,9 +3,7 @@ use std::{collections::BTreeMap, net::IpAddr, time::Instant};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug,
-	debug::INFO_SPAN_LEVEL,
-	debug_warn, err, error,
+	Err, Error, Result, debug, debug_warn, err, error,
 	result::LogErr,
 	trace,
 	utils::{
@@ -48,7 +46,7 @@ type Pdu = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
 /// Push EDUs and PDUs to this server.
 #[tracing::instrument(
 	name = "txn",
-	level = INFO_SPAN_LEVEL,
+	level = "debug",
 	skip_all,
 	fields(
 		%client,
@@ -83,8 +81,8 @@ pub(crate) async fn send_transaction_message_route(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
-		id = ?body.transaction_id,
-		origin =?body.origin(),
+		id = %body.transaction_id,
+		origin = %body.origin(),
 		"Starting txn",
 	);
 
@@ -110,8 +108,8 @@ pub(crate) async fn send_transaction_message_route(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
-		id = ?body.transaction_id,
-		origin =?body.origin(),
+		id = %body.transaction_id,
+		origin = %body.origin(),
 		"Finished txn",
 	);
 	for (id, result) in &results {

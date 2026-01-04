@@ -59,7 +59,7 @@ impl Deref for Manager {
 
 /// Update the active configuration, returning prior configuration.
 #[implement(Manager)]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "info")]
 pub fn update(&self, config: Config) -> Result<Arc<Config>> {
 	let config = Arc::new(config);
 	let new = Arc::into_raw(config);

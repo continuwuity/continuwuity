@@ -677,7 +677,7 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 							shortstatehash_cache.insert(room_id.to_owned(), shortstatehash);
 							shortstatehash
 						} else {
-							warn!(?room_id, ?user_id, "room has no shortstatehash");
+							warn!(%room_id, %user_id, "room has no shortstatehash");
 							return Ok((total, fixed, shortstatehash_cache));
 						};
 
@@ -698,8 +698,8 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 						},
 						| Err(_) => {
 							warn!(
-								?room_id,
-								?user_id,
+								%room_id,
+								%user_id,
 								"room cached as left has no leave event for user, removing \
 								 cache entry"
 							);

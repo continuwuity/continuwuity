@@ -275,7 +275,7 @@ pub(crate) async fn build_sync_events(
 			match joined_room {
 				| Ok((room, updates)) => Some((room_id, room, updates)),
 				| Err(err) => {
-					warn!(?err, ?room_id, "error loading joined room {}", room_id);
+					warn!(?err, %room_id, "error loading joined room");
 					None
 				},
 			}

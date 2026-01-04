@@ -128,7 +128,7 @@ Keep in mind the frequency that the log will be reached, and the relevancy to a 
 ```rs
 // Good
 error!(
-    error = %err,
+    error = ?err,
     room_id = %room_id,
     "Failed to send event to room"
 );
@@ -264,7 +264,7 @@ pub async fn send_federation_request(
                 warn!(
                     destination = %destination,
                     attempt = attempt,
-                    error = %err,
+                    error = ?err,
                     retry_delay_ms = retry_delay.as_millis(),
                     "Federation request failed, retrying"
                 );

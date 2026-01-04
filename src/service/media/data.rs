@@ -124,16 +124,16 @@ impl Data {
 			.next()
 			.map(string_from_bytes)
 			.transpose()
-			.map_err(|e| err!(Database(error!(?mxc, "Content-type is invalid: {e}"))))?;
+			.map_err(|e| err!(Database(error!(%mxc, "Content-type is invalid: {e}"))))?;
 
 		let content_disposition = parts
 			.next()
 			.map(Some)
-			.ok_or_else(|| err!(Database(error!(?mxc, "Media ID in db is invalid."))))?
+			.ok_or_else(|| err!(Database(error!(%mxc, "Media ID in db is invalid."))))?
 			.filter(|bytes| !bytes.is_empty())
 			.map(string_from_bytes)
 			.transpose()
-			.map_err(|e| err!(Database(error!(?mxc, "Content-type is invalid: {e}"))))?
+			.map_err(|e| err!(Database(error!(%mxc, "Content-type is invalid: {e}"))))?
 			.as_deref()
 			.map(str::parse)
 			.transpose()?;

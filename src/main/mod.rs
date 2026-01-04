@@ -50,7 +50,8 @@ pub fn run_with_args(args: &Args) -> Result<()> {
 #[tracing::instrument(
 	name = "main",
 	parent = None,
-	skip_all
+	skip_all,
+	level = "info"
 )]
 async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
 	extern crate conduwuit_router as router;

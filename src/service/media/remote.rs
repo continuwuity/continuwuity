@@ -247,7 +247,7 @@ async fn handle_location(
 ) -> Result<FileMeta> {
 	self.location_request(location).await.map_err(|error| {
 		err!(Request(NotFound(
-			debug_warn!(%mxc, ?user, ?location, ?error, "Fetching media from location failed")
+			debug_warn!(%mxc, user = user.map(tracing::field::display), ?location, ?error, "Fetching media from location failed")
 		)))
 	})
 }
@@ -320,7 +320,7 @@ fn handle_federation_error(
 ) -> Error {
 	let fallback = || {
 		err!(Request(NotFound(
-			debug_error!(%mxc, ?user, ?server, ?error, "Remote media not found")
+			debug_error!(%mxc, user = user.map(tracing::field::display), server = server.map(tracing::field::display), ?error, "Remote media not found")
 		)))
 	};
 

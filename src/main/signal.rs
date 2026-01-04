@@ -6,7 +6,7 @@ use tokio::signal;
 use super::server::Server;
 
 #[cfg(unix)]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "info")]
 pub(super) async fn signal(server: Arc<Server>) {
 	use signal::unix;
 	use unix::SignalKind;
@@ -39,13 +39,13 @@ pub(super) async fn signal(server: Arc<Server>) {
 		};
 
 		if let Err(e) = result {
-			debug_error!(?sig, "signal: {e}");
+			debug_error!(%sig, "signal: {e}");
 		}
 	}
 }
 
 #[cfg(not(unix))]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "info")]
 pub(super) async fn signal(server: Arc<Server>) {
 	loop {
 		tokio::select! {

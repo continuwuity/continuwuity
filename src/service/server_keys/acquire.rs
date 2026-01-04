@@ -118,7 +118,7 @@ where
 	}
 
 	for (server, key_ids) in missing {
-		debug_warn!(?server, ?key_ids, "missing");
+		debug_warn!(%server, ?key_ids, "missing");
 	}
 }
 
@@ -174,8 +174,8 @@ async fn acquire_origin(
 	timeout: Instant,
 ) -> (OwnedServerName, Vec<OwnedServerSigningKeyId>) {
 	match timeout_at(timeout, self.server_request(&origin)).await {
-		| Err(e) => debug_warn!(?origin, "timed out: {e}"),
-		| Ok(Err(e)) => debug_error!(?origin, "{e}"),
+		| Err(e) => debug_warn!(%origin, "timed out: {e}"),
+		| Ok(Err(e)) => debug_error!(%origin, "{e}"),
 		| Ok(Ok(server_keys)) => {
 			trace!(
 				%origin,

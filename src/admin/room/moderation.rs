@@ -98,7 +98,7 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		{
 			| Ok((room_id, servers)) => {
 				debug!(
-					?room_id,
+					%room_id,
 					?servers,
 					"Got federation response fetching room ID for room {room}"
 				);
@@ -240,7 +240,7 @@ async fn ban_list_of_rooms(&self) -> Result {
 									{
 										| Ok((room_id, servers)) => {
 											debug!(
-												?room_id,
+												%room_id,
 												?servers,
 												"Got federation response fetching room ID for \
 												 {room}",
@@ -397,7 +397,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 				{
 					| Ok((room_id, servers)) => {
 						debug!(
-							?room_id,
+							%room_id,
 							?servers,
 							"Got federation response fetching room ID for room {room}"
 						);

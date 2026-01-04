@@ -49,7 +49,7 @@ const RANDOM_USER_ID_LENGTH: usize = 10;
 ///
 /// Note: This will not reserve the username, so the username might become
 /// invalid when trying to register
-#[tracing::instrument(skip_all, fields(%client), name = "register_available")]
+#[tracing::instrument(skip_all, fields(%client), name = "register_available", level = "info")]
 pub(crate) async fn get_register_available_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -138,7 +138,7 @@ pub(crate) async fn get_register_available_route(
 /// - If `inhibit_login` is false: Creates a device and returns device id and
 ///   access_token
 #[allow(clippy::doc_markdown)]
-#[tracing::instrument(skip_all, fields(%client), name = "register")]
+#[tracing::instrument(skip_all, fields(%client), name = "register", level = "info")]
 pub(crate) async fn register_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -603,7 +603,7 @@ pub(crate) async fn register_route(
 ///   last seen ts)
 /// - Forgets to-device events
 /// - Triggers device list updates
-#[tracing::instrument(skip_all, fields(%client), name = "change_password")]
+#[tracing::instrument(skip_all, fields(%client), name = "change_password", level = "info")]
 pub(crate) async fn change_password_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -727,7 +727,7 @@ pub(crate) async fn whoami_route(
 /// - Forgets all to-device events
 /// - Triggers device list updates
 /// - Removes ability to log in again
-#[tracing::instrument(skip_all, fields(%client), name = "deactivate")]
+#[tracing::instrument(skip_all, fields(%client), name = "deactivate", level = "info")]
 pub(crate) async fn deactivate_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

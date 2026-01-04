@@ -49,7 +49,7 @@ pub(crate) async fn get_device_route(
 /// # `PUT /_matrix/client/r0/devices/{deviceId}`
 ///
 /// Updates the metadata on a given device of the sender user.
-#[tracing::instrument(skip_all, fields(%client), name = "update_device")]
+#[tracing::instrument(skip_all, fields(%client), name = "update_device", level = "debug")]
 pub(crate) async fn update_device_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

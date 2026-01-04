@@ -7,7 +7,7 @@ use super::Engine;
 use crate::util::map_err;
 
 #[implement(Engine)]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "info")]
 pub fn backup(&self) -> Result {
 	let mut engine = self.backup_engine()?;
 	let config = &self.ctx.server.config;

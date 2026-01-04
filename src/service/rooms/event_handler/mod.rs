@@ -104,9 +104,9 @@ fn check_room_id<Pdu: Event>(room_id: &RoomId, pdu: &Pdu) -> Result {
 		.is_some_and(|claimed_room_id| claimed_room_id != room_id)
 	{
 		return Err!(Request(InvalidParam(error!(
-			pdu_event_id = ?pdu.event_id(),
-			pdu_room_id = ?pdu.room_id(),
-			?room_id,
+			pdu_event_id = %pdu.event_id(),
+			pdu_room_id = pdu.room_id().map(tracing::field::display),
+			%room_id,
 			"Found event from room in room",
 		))));
 	}

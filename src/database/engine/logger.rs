@@ -4,7 +4,7 @@ use rocksdb::LogLevel;
 #[tracing::instrument(
 	parent = None,
 	name = "rocksdb",
-	level = "trace"
+	level = "trace",
 	skip(msg),
 )]
 pub(crate) fn handle(level: LogLevel, msg: &str) {

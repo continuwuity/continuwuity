@@ -50,8 +50,8 @@ use crate::client::{
 	level = "debug",
 	skip_all,
 	fields(
-		room_id = ?room_id,
-		syncing_user = ?sync_context.syncing_user,
+		room_id = %room_id,
+		syncing_user = %sync_context.syncing_user,
 	),
 )]
 pub(super) async fn load_joined_room(
@@ -578,7 +578,7 @@ async fn build_notification_counts(
 		)
 		.await;
 
-		trace!(?notification_count, ?highlight_count, "syncing new notification counts");
+		trace!(%notification_count, %highlight_count, "syncing new notification counts");
 
 		Ok(Some(UnreadNotificationsCount {
 			notification_count: Some(notification_count),
@@ -692,8 +692,8 @@ async fn build_room_summary(
 	};
 
 	trace!(
-		?joined_member_count,
-		?invited_member_count,
+		%joined_member_count,
+		%invited_member_count,
 		heroes_length = heroes.as_ref().map(HashSet::len),
 		"syncing updated summary"
 	);
