@@ -21,7 +21,7 @@ use crate::Ruma;
 /// # `POST /_matrix/client/r0/rooms/{roomId}/invite`
 ///
 /// Tries to send an invite event into the room.
-#[tracing::instrument(skip_all, fields(%client), name = "invite")]
+#[tracing::instrument(skip_all, fields(%client), name = "invite", level = "info")]
 pub(crate) async fn invite_user_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

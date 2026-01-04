@@ -63,7 +63,7 @@ where
 }
 
 #[implement(super::Service)]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "debug")]
 pub async fn get_verify_key(
 	&self,
 	origin: &ServerName,
@@ -96,8 +96,8 @@ pub async fn get_verify_key(
 	}
 
 	Err!(BadServerResponse(debug_error!(
-		?key_id,
-		?origin,
+		%key_id,
+		%origin,
 		"Failed to fetch federation signing-key"
 	)))
 }

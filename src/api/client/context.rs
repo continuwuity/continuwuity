@@ -74,7 +74,7 @@ pub(crate) async fn get_context_route(
 	}
 
 	if !visible {
-		debug_warn!(req_evt = ?event_id, ?base_id, ?room_id, "Event requested by {sender_user} but is not allowed to see it, returning 404");
+		debug_warn!(req_evt = %event_id, ?base_id, %room_id, "Event requested by {sender_user} but is not allowed to see it, returning 404");
 		return Err!(Request(NotFound("Event not found.")));
 	}
 

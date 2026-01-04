@@ -48,7 +48,7 @@ pub enum AdminCommand {
 	Query(QueryCommand),
 }
 
-#[tracing::instrument(skip_all, name = "command")]
+#[tracing::instrument(skip_all, name = "command", level = "info")]
 pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Result {
 	use AdminCommand::*;
 

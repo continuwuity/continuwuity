@@ -307,8 +307,8 @@ async fn build_left_state_and_timeline(
 	}
 
 	trace!(
-		?timeline_start_count,
-		?timeline_end_count,
+		%timeline_start_count,
+		%timeline_end_count,
 		"syncing {} timeline events (limited = {}) and {} state events",
 		timeline.pdus.len(),
 		timeline.limited,

@@ -140,8 +140,8 @@ pub(crate) async fn get_state_events_for_key_route(
 		.await
 		.map_err(|_| {
 			err!(Request(NotFound(debug_warn!(
-					room_id = ?body.room_id,
-					event_type = ?body.event_type,
+					room_id = %body.room_id,
+					event_type = %body.event_type,
 					"State event not found in room.",
 			))))
 		})?;
@@ -226,7 +226,7 @@ async fn allowed_to_send_state_event(
 	match event_type {
 		| StateEventType::RoomCreate => {
 			return Err!(Request(BadJson(debug_warn!(
-				?room_id,
+				%room_id,
 				"You cannot update m.room.create after a room has been created."
 			))));
 		},
@@ -237,7 +237,7 @@ async fn allowed_to_send_state_event(
 				| Ok(acl_content) => {
 					if acl_content.allow_is_empty() {
 						return Err!(Request(BadJson(debug_warn!(
-							?room_id,
+							%room_id,
 							"Sending an ACL event with an empty allow key will permanently \
 							 brick the room for non-conduwuit's as this equates to no servers \
 							 being allowed to participate in this room."
@@ -246,7 +246,7 @@ async fn allowed_to_send_state_event(
 
 					if acl_content.deny_contains("*") && acl_content.allow_contains("*") {
 						return Err!(Request(BadJson(debug_warn!(
-							?room_id,
+							%room_id,
 							"Sending an ACL event with a deny and allow key value of \"*\" will \
 							 permanently brick the room for non-conduwuit's as this equates to \
 							 no servers being allowed to participate in this room."
@@ -258,7 +258,7 @@ async fn allowed_to_send_state_event(
 						&& !acl_content.allow_contains(services.globals.server_name().as_str())
 					{
 						return Err!(Request(BadJson(debug_warn!(
-							?room_id,
+							%room_id,
 							"Sending an ACL event with a deny key value of \"*\" and without \
 							 your own server name in the allow key will result in you being \
 							 unable to participate in this room."
@@ -270,7 +270,7 @@ async fn allowed_to_send_state_event(
 						&& !acl_content.allow_contains(services.globals.server_name().as_str())
 					{
 						return Err!(Request(BadJson(debug_warn!(
-							?room_id,
+							%room_id,
 							"Sending an ACL event for an allow key without \"*\" and without \
 							 your own server name in the allow key will result in you being \
 							 unable to participate in this room."

@@ -492,7 +492,7 @@ pub(crate) async fn create_room_route(
 				.boxed()
 				.await
 		{
-			warn!(%e, "Failed to send invite");
+			warn!(?e, "Failed to send invite");
 		}
 	}
 
@@ -627,7 +627,7 @@ async fn room_alias_check(
 		.map_err(|e| {
 			err!(Request(InvalidParam(debug_error!(
 				?e,
-				?room_alias_name,
+				%room_alias_name,
 				"Failed to parse room alias.",
 			))))
 		})?;
@@ -711,7 +711,7 @@ fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<Own
 			}
 		})
 		.inspect(|full_room_id| {
-			debug_info!(?full_room_id, "Full custom room ID");
+			debug_info!(%full_room_id, "Full custom room ID");
 		})
-		.inspect_err(|e| warn!(?e, ?custom_room_id, "Failed to create room with custom room ID",))
+		.inspect_err(|e| warn!(?e, %custom_room_id, "Failed to create room with custom room ID",))
 }

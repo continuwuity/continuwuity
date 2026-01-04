@@ -31,7 +31,7 @@ use serde_json::value::RawValue;
 /// contacted for whatever reason, Err(e) is returned, which generally is a
 /// fail-open operation.
 #[implement(super::Service)]
-#[tracing::instrument(skip(self, pdu, pdu_json, room_id))]
+#[tracing::instrument(skip(self, pdu, pdu_json, room_id), level = "info")]
 pub async fn ask_policy_server(
 	&self,
 	pdu: &PduEvent,
@@ -184,7 +184,7 @@ pub async fn ask_policy_server(
 /// Asks a remote policy server for a signature on this event.
 /// If the policy server signs this event, the original data is mutated.
 #[implement(super::Service)]
-#[tracing::instrument(skip_all, fields(event_id=%pdu.event_id(), via=%via))]
+#[tracing::instrument(skip_all, fields(event_id=%pdu.event_id(), via=%via), level = "info")]
 pub async fn fetch_policy_server_signature(
 	&self,
 	pdu: &PduEvent,

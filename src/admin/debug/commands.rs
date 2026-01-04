@@ -456,7 +456,7 @@ pub(super) async fn verify_pdu(&self, event_id: OwnedEventId) -> Result {
 }
 
 #[admin_command]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "info")]
 pub(super) async fn first_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
 	self.bail_restricted()?;
 
@@ -483,7 +483,7 @@ pub(super) async fn first_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
 }
 
 #[admin_command]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "info")]
 pub(super) async fn latest_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
 	self.bail_restricted()?;
 
@@ -510,7 +510,7 @@ pub(super) async fn latest_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
 }
 
 #[admin_command]
-#[tracing::instrument(skip(self))]
+#[tracing::instrument(skip(self), level = "info")]
 pub(super) async fn force_set_room_state_from_server(
 	&self,
 	room_id: OwnedRoomId,

@@ -340,7 +340,7 @@ where
 
 #[tracing::instrument(
 	name = "get",
-	level = "trace"
+	level = "trace",
 	skip_all,
 	fields(?key)
 )]
@@ -357,7 +357,7 @@ where
 
 #[tracing::instrument(
 	name = "xchg",
-	level = "trace"
+	level = "trace",
 	skip_all,
 	fields(?key, ?val)
 )]

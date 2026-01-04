@@ -102,7 +102,7 @@ pub(crate) async fn get_alias_route(
 	};
 
 	let servers = room_available_servers(&services, &room_id, &room_alias, servers).await;
-	debug!(?room_alias, ?room_id, "available servers: {servers:?}");
+	debug!(%room_alias, %room_id, "available servers: {servers:?}");
 
 	Ok(get_alias::v3::Response::new(room_id, servers))
 }

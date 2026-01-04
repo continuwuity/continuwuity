@@ -26,7 +26,7 @@ use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
 use crate::Ruma;
 
 /// helper method for /send_join v1 and v2
-#[tracing::instrument(skip(services, pdu, omit_members), fields(room_id = room_id.as_str(), origin = origin.as_str()))]
+#[tracing::instrument(skip(services, pdu, omit_members), fields(room_id = room_id.as_str(), origin = origin.as_str()), level = "info")]
 async fn create_join_event(
 	services: &Services,
 	origin: &ServerName,

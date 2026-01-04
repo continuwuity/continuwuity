@@ -44,7 +44,7 @@ use crate::Ruma;
 /// # `POST /_matrix/client/*/knock/{roomIdOrAlias}`
 ///
 /// Tries to knock the room to ask permission to join for the sender user.
-#[tracing::instrument(skip_all, fields(%client), name = "knock")]
+#[tracing::instrument(skip_all, fields(%client), name = "knock", level = "info")]
 pub(crate) async fn knock_room_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

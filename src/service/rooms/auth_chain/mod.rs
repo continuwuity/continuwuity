@@ -151,7 +151,7 @@ async fn get_auth_chain_outer(
 			let auth_chain = self.get_auth_chain_inner(room_id, event_id).await?;
 			self.cache_auth_chain_vec(vec![shortid], auth_chain.as_slice());
 			debug!(
-				?event_id,
+				%event_id,
 				elapsed = ?started.elapsed(),
 				"Cache missed event"
 			);
@@ -188,18 +188,18 @@ async fn get_auth_chain_inner(
 	let mut found = HashSet::new();
 
 	while let Some(event_id) = todo.pop_front() {
-		trace!(?event_id, "processing auth event");
+		trace!(%event_id, "processing auth event");
 
 		match self.services.timeline.get_pdu(&event_id).await {
 			| Err(e) => {
-				debug_error!(?event_id, ?e, "Could not find pdu mentioned in auth events");
+				debug_error!(%event_id, ?e, "Could not find pdu mentioned in auth events");
 			},
 			| Ok(pdu) => {
 				if let Some(claimed_room_id) = pdu.room_id.clone() {
 					if claimed_room_id != *room_id {
 						return Err!(Request(Forbidden(error!(
-							?event_id,
-							?room_id,
+							%event_id,
+							%room_id,
 							wrong_room_id = ?pdu.room_id.unwrap(),
 							"auth event for incorrect room"
 						))));
@@ -214,7 +214,7 @@ async fn get_auth_chain_inner(
 						.await;
 
 					if found.insert(sauthevent) {
-						trace!(?event_id, ?auth_event, "adding auth event to processing queue");
+						trace!(%event_id, ?auth_event, "adding auth event to processing queue");
 
 						todo.push_back(auth_event.clone());
 					}

@@ -52,7 +52,7 @@ pub(crate) async fn upload_keys_route(
 			.deserialize()
 			.inspect_err(|e| {
 				debug_warn!(
-					?key_id,
+					%key_id,
 					?one_time_key,
 					"Invalid one time key JSON submitted by client, skipping: {e}"
 				);
@@ -94,8 +94,8 @@ pub(crate) async fn upload_keys_route(
 		{
 			if existing_keys.json().get() == device_keys.json().get() {
 				debug!(
-					?sender_user,
-					?sender_device,
+					%sender_user,
+					%sender_device,
 					?device_keys,
 					"Ignoring user uploaded keys as they are an exact copy already in the \
 					 database"
@@ -338,7 +338,7 @@ pub(crate) async fn upload_signatures_route(
 	for (user_id, keys) in &body.signed_keys {
 		for (key_id, key) in keys {
 			let Ok(key) = serde_json::to_value(key)
-				.inspect_err(|e| debug_warn!(?key_id, "Invalid \"key\" JSON: {e}"))
+				.inspect_err(|e| debug_warn!(%key_id, "Invalid \"key\" JSON: {e}"))
 			else {
 				continue;
 			};

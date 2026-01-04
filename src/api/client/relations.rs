@@ -115,7 +115,7 @@ async fn paginate_relations_with_filter(
 		.user_can_see_event(sender_user, room_id, target)
 		.await
 	{
-		debug_warn!(req_evt = ?target, ?room_id, "Event relations requested by {sender_user} but is not allowed to see it, returning 404");
+		debug_warn!(req_evt = %target, %room_id, "Event relations requested by {sender_user} but is not allowed to see it, returning 404");
 		return Err!(Request(NotFound("Event not found.")));
 	}
 

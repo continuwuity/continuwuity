@@ -113,7 +113,7 @@ impl Drop for Pool {
 }
 
 #[implement(Pool)]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "debug")]
 pub(crate) fn close(&self) {
 	let workers = take(&mut *self.workers.lock());
 
@@ -147,8 +147,8 @@ pub(crate) fn close(&self) {
 		.map(|result| result.map_err(Error::from_panic))
 		.enumerate()
 		.for_each(|(id, result)| match result {
-			| Ok(()) => trace!(?id, "worker joined"),
-			| Err(error) => error!(?id, "worker joined with error: {error}"),
+			| Ok(()) => trace!(%id, "worker joined"),
+			| Err(error) => error!(%id, "worker joined with error: {error}"),
 		});
 }
 
@@ -297,7 +297,7 @@ fn worker_init(&self, id: usize) {
 	}
 
 	debug!(
-		?group,
+		%group,
 		affinity = ?affinity.collect::<Vec<_>>(),
 		"worker ready"
 	);

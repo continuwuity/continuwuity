@@ -532,8 +532,8 @@ where
 		if sender_power_level < invite_level {
 			warn!(
 				%sender,
-				has=?sender_power_level,
-				required=?invite_level,
+				has=%sender_power_level,
+				required=%invite_level,
 				"sender cannot send invites in this room"
 			);
 			return Ok(false);
@@ -605,8 +605,8 @@ where
 		if !check_redaction(room_version, incoming_event, sender_power_level, redact_level)? {
 			warn!(
 				%sender,
-				?sender_power_level,
-				?redact_level,
+				%sender_power_level,
+				%redact_level,
 				"redaction event was not allowed"
 			);
 			return Ok(false);
@@ -772,11 +772,12 @@ where
 			power_levels_event.as_ref().is_some(),
 		) || auth_user_pl >= invite_level;
 		trace!(
-			auth_user_pl=?auth_user_pl,
-			invite_level=?invite_level,
-			user_joined=?user_joined,
-			okay_power=?okay_power,
-			passing=?(user_joined && okay_power),
+			%auth_user_pl,
+			%auth_user_pl,
+			%invite_level,
+			%user_joined,
+			%okay_power,
+			passing=%(user_joined && okay_power),
 			"user for join auth is valid check details"
 		);
 		user_joined && okay_power
@@ -1211,7 +1212,7 @@ fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int)
 	{
 		warn!(
 			%user_level,
-			required=?event_type_power_level,
+			required=%event_type_power_level,
 			state_key=?event.state_key(),
 			sender=%event.sender(),
 			"state_key starts with @ but does not match sender",

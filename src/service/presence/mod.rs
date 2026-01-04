@@ -198,11 +198,11 @@ impl Service {
 				presence.presence,
 				PresenceState::Unavailable | PresenceState::Online | PresenceState::Busy
 			) {
-				trace!(?user_id, ?presence, "Skipping user");
+				trace!(%user_id, ?presence, "Skipping user");
 				continue;
 			}
 
-			trace!(?user_id, ?presence, "Resetting presence to offline");
+			trace!(%user_id, ?presence, "Resetting presence to offline");
 
 			_ = self
 				.set_presence(

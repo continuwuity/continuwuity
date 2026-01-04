@@ -26,7 +26,7 @@ pub struct Options {
 #[implement(super::Map)]
 #[tracing::instrument(
 	name = "compact",
-	level = "info"
+	level = "info",
 	skip(self),
 	fields(%self),
 )]

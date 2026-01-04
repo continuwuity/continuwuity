@@ -28,7 +28,7 @@ pub async fn redact_pdu<Pdu: Event + Send + Sync>(
 		.await
 		.map(Event::into_pdu)
 		.map_err(|e| {
-			err!(Database(error!(?pdu_id, ?event_id, ?e, "PDU ID points to invalid PDU.")))
+			err!(Database(error!(?pdu_id, %event_id, ?e, "PDU ID points to invalid PDU.")))
 		})?;
 
 	if let Ok(content) = pdu.get_content::<ExtractBody>() {
@@ -48,7 +48,7 @@ pub async fn redact_pdu<Pdu: Event + Send + Sync>(
 	pdu.redact(&room_version_id, reason.to_value())?;
 
 	let obj = utils::to_canonical_object(&pdu).map_err(|e| {
-		err!(Database(error!(?event_id, ?e, "Failed to convert PDU to canonical JSON")))
+		err!(Database(error!(%event_id, ?e, "Failed to convert PDU to canonical JSON")))
 	})?;
 
 	self.replace_pdu(&pdu_id, &obj).await

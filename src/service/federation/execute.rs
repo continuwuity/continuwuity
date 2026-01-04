@@ -88,7 +88,7 @@ where
 	let url = request.url().clone();
 	let method = request.method().clone();
 
-	debug!(?method, ?url, "Sending request");
+	debug!(%method, %url, "Sending request");
 	match client.execute(request).await {
 		| Ok(response) => handle_response::<T>(dest, actual, &method, &url, response).await,
 		| Err(error) =>
@@ -144,9 +144,9 @@ async fn into_http_response(
 ) -> Result<http::Response<Bytes>> {
 	let status = response.status();
 	trace!(
-		?status, ?method,
-		request_url = ?url,
-		response_url = ?response.url(),
+		%status, %method,
+		request_url = %url,
+		response_url = %response.url(),
 		"Received response from {}",
 		actual.string(),
 	);
@@ -196,9 +196,9 @@ fn handle_error(
 		debug_warn!("{e:?}");
 	} else if e.is_redirect() {
 		debug_error!(
-			method = ?method,
-			url = ?url,
-			final_url = ?e.url(),
+			%method,
+			%url,
+			final_url = e.url().map(tracing::field::display),
 			"Redirect loop {}: {}",
 			actual.host,
 			e,

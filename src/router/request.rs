@@ -102,13 +102,13 @@ fn handle_result(method: &Method, uri: &Uri, result: Response) -> Result<Respons
 	let reason = status.canonical_reason().unwrap_or("Unknown Reason");
 
 	if status.is_server_error() {
-		error!(method = ?method, uri = ?uri, "{code} {reason}");
+		error!(%method, %uri, "{code} {reason}");
 	} else if status.is_client_error() {
-		debug_error!(method = ?method, uri = ?uri, "{code} {reason}");
+		debug_error!(%method, %uri, "{code} {reason}");
 	} else if status.is_redirection() {
-		debug!(method = ?method, uri = ?uri, "{code} {reason}");
+		debug!(%method, %uri, "{code} {reason}");
 	} else {
-		trace!(method = ?method, uri = ?uri, "{code} {reason}");
+		trace!(%method, %uri, "{code} {reason}");
 	}
 
 	if status == StatusCode::METHOD_NOT_ALLOWED {

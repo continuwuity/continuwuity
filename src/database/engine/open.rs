@@ -17,7 +17,7 @@ use super::{
 use crate::{Context, or_else};
 
 #[implement(Engine)]
-#[tracing::instrument(skip_all)]
+#[tracing::instrument(skip_all, level = "info")]
 pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<Self>> {
 	let server = &ctx.server;
 	let config = &server.config;
@@ -63,7 +63,7 @@ pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<S
 }
 
 #[implement(Engine)]
-#[tracing::instrument(name = "configure", skip_all)]
+#[tracing::instrument(name = "configure", skip_all, level = "debug")]
 fn configure_cfds(
 	ctx: &Arc<Context>,
 	db_opts: &Options,
@@ -119,7 +119,7 @@ fn configure_cfds(
 }
 
 #[implement(Engine)]
-#[tracing::instrument(name = "discover", skip_all)]
+#[tracing::instrument(name = "discover", skip_all, level = "debug")]
 fn discover_cfs(path: &Path, opts: &Options) -> BTreeSet<String> {
 	Db::list_cf(opts, path)
 		.unwrap_or_default()

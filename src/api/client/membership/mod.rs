@@ -63,7 +63,7 @@ pub(crate) async fn joined_rooms_route(
 ///
 /// Performs automatic deactivation if `auto_deactivate_banned_room_attempts` is
 /// enabled
-#[tracing::instrument(skip(services))]
+#[tracing::instrument(skip(services), level = "info")]
 pub(crate) async fn banned_room_check(
 	services: &Services,
 	user_id: &UserId,

@@ -22,7 +22,7 @@ use crate::Ruma;
 /// # `GET /_matrix/federation/v1/make_join/{roomId}/{userId}`
 ///
 /// Creates a join template.
-#[tracing::instrument(skip_all, fields(room_id = %body.room_id, user_id = %body.user_id, origin = %body.origin()))]
+#[tracing::instrument(skip_all, fields(room_id = %body.room_id, user_id = %body.user_id, origin = %body.origin()), level = "info")]
 pub(crate) async fn create_join_event_template_route(
 	State(services): State<crate::State>,
 	body: Ruma<prepare_join_event::v1::Request>,

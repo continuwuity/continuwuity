@@ -535,12 +535,12 @@ impl Service {
 			}
 
 			let Ok(event) = serde_json::from_str(read_receipt.json().get()) else {
-				error!(?user_id, ?count, ?read_receipt, "Invalid edu event in read_receipts.");
+				error!(%user_id, %count, ?read_receipt, "Invalid edu event in read_receipts.");
 				continue;
 			};
 
 			let AnySyncEphemeralRoomEvent::Receipt(r) = event else {
-				error!(?user_id, ?count, ?event, "Invalid event type in read_receipts");
+				error!(%user_id, %count, ?event, "Invalid event type in read_receipts");
 				continue;
 			};
 
@@ -755,7 +755,7 @@ impl Service {
 		let Ok(pusher) = self.services.pusher.get_pusher(&user_id, &pushkey).await else {
 			return Err((
 				Destination::Push(user_id.clone(), pushkey.clone()),
-				err!(Database(error!(?user_id, ?pushkey, "Missing pusher"))),
+				err!(Database(error!(%user_id, ?pushkey, "Missing pusher"))),
 			));
 		};
 

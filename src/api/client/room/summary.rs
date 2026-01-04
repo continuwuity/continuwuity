@@ -46,7 +46,7 @@ pub(crate) async fn get_room_summary_legacy(
 /// # `GET /_matrix/client/v1/room_summary/{roomIdOrAlias}`
 ///
 /// Returns a short description of the state of a room.
-#[tracing::instrument(skip_all, fields(%client), name = "room_summary")]
+#[tracing::instrument(skip_all, fields(%client), name = "room_summary", level = "info")]
 pub(crate) async fn get_room_summary(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -116,7 +116,10 @@ async fn local_room_summary_response(
 	room_id: &RoomId,
 	sender_user: Option<&UserId>,
 ) -> Result<get_summary::msc3266::Response> {
-	trace!(?sender_user, "Sending local room summary response for {room_id:?}");
+	trace!(
+		sender_user = sender_user.map(tracing::field::display),
+		"Sending local room summary response for {room_id:?}"
+	);
 	let (join_rule, world_readable, guest_can_join) = join3(
 		services.rooms.state_accessor.get_join_rules(room_id),
 		services.rooms.state_accessor.is_world_readable(room_id),
@@ -228,7 +231,7 @@ async fn remote_room_summary_hierarchy_response(
 	servers: &[OwnedServerName],
 	sender_user: Option<&UserId>,
 ) -> Result<SpaceHierarchyParentSummary> {
-	trace!(?sender_user, ?servers, "Sending remote room summary response for {room_id:?}");
+	trace!(sender_user = ?sender_user.map(tracing::field::display), ?servers, "Sending remote room summary response for {room_id:?}");
 	if !services.config.allow_federation {
 		return Err!(Request(Forbidden("Federation is disabled.")));
 	}

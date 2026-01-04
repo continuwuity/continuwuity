@@ -29,7 +29,7 @@ struct Report {
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report`
 ///
 /// Reports an abusive room to homeserver admins
-#[tracing::instrument(skip_all, fields(%client), name = "report_room")]
+#[tracing::instrument(skip_all, fields(%client), name = "report_room", level = "info")]
 pub(crate) async fn report_room_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -85,7 +85,7 @@ pub(crate) async fn report_room_route(
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report/{eventId}`
 ///
 /// Reports an inappropriate event to homeserver admins
-#[tracing::instrument(skip_all, fields(%client), name = "report_event")]
+#[tracing::instrument(skip_all, fields(%client), name = "report_event", level = "info")]
 pub(crate) async fn report_event_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,
@@ -133,7 +133,7 @@ pub(crate) async fn report_event_route(
 	Ok(report_content::v3::Response {})
 }
 
-#[tracing::instrument(skip_all, fields(%client), name = "report_user")]
+#[tracing::instrument(skip_all, fields(%client), name = "report_user", level = "info")]
 pub(crate) async fn report_user_route(
 	State(services): State<crate::State>,
 	InsecureClientIp(client): InsecureClientIp,

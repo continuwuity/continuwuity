@@ -118,14 +118,14 @@ impl Service {
 		match self.db.search_mxc_metadata_prefix(mxc).await {
 			| Ok(keys) => {
 				for key in keys {
-					trace!(?mxc, "MXC Key: {key:?}");
-					debug_info!(?mxc, "Deleting from filesystem");
+					trace!(%mxc, "MXC Key: {key:?}");
+					debug_info!(%mxc, "Deleting from filesystem");
 
 					if let Err(e) = self.remove_media_file(&key).await {
-						debug_error!(?mxc, "Failed to remove media file: {e}");
+						debug_error!(%mxc, "Failed to remove media file: {e}");
 					}
 
-					debug_info!(?mxc, "Deleting from database");
+					debug_info!(%mxc, "Deleting from database");
 					self.db.delete_file_mxc(mxc).await;
 				}
 
@@ -148,7 +148,7 @@ impl Service {
 
 		for mxc in mxcs {
 			let Ok(mxc) = mxc.as_str().try_into().inspect_err(|e| {
-				debug_error!(?mxc, "Failed to parse MXC URI from database: {e}");
+				debug_error!(%mxc, "Failed to parse MXC URI from database: {e}");
 			}) else {
 				continue;
 			};
@@ -210,7 +210,7 @@ impl Service {
 
 			let Some(mxc_s) = mxc else {
 				debug_warn!(
-					?mxc,
+					mxc,
 					"Parsed MXC URL unicode bytes from database but is still invalid"
 				);
 				continue;
@@ -256,7 +256,7 @@ impl Service {
 
 			let Some(mxc_s) = mxc else {
 				debug_warn!(
-					?mxc,
+					mxc,
 					"Parsed MXC URL unicode bytes from database but is still invalid"
 				);
 				continue;
