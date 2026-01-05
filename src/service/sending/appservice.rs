@@ -35,7 +35,7 @@ where
 	let mut http_request = request
 		.try_into_http_request::<BytesMut>(
 			&dest,
-			SendAccessToken::IfRequired(hs_token),
+			SendAccessToken::Appservice(hs_token),
 			&VERSIONS,
 		)
 		.map_err(|e| {

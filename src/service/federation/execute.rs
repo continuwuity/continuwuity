@@ -3,7 +3,7 @@ use std::{fmt::Debug, mem};
 use bytes::Bytes;
 use conduwuit::{
 	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
-	error::inspect_debug_log, implement, trace, utils::string::EMPTY,
+	error::inspect_debug_log, implement, trace,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
@@ -289,10 +289,13 @@ where
 	T: OutgoingRequest + Send,
 {
 	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_11];
-	const SATIR: SendAccessToken<'_> = SendAccessToken::IfRequired(EMPTY);
 
 	let http_request = request
-		.try_into_http_request::<Vec<u8>>(actual.string().as_str(), SATIR, &VERSIONS)
+		.try_into_http_request::<Vec<u8>>(
+			actual.string().as_str(),
+			SendAccessToken::None,
+			&VERSIONS,
+		)
 		.map_err(|e| err!(BadServerResponse("Invalid destination: {e:?}")))?;
 
 	Ok(http_request)
