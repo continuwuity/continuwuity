@@ -346,7 +346,7 @@ pub async fn join_room_by_id_helper(
 		{
 			warn!("Antispam prevented user {} from joining room {}: {}", sender_user, room_id, e);
 			return Err!(Request(Forbidden("Antispam rejected join request.")));
-		};
+		}
 	}
 
 	if server_in_room {
@@ -786,7 +786,7 @@ async fn join_room_by_id_helper_local(
 			}
 		},
 		| _ => {},
-	};
+	}
 	let join_authorized_via_users_server = if restricted_join_authorized.is_none() {
 		None
 	} else {
@@ -848,7 +848,7 @@ async fn join_room_by_id_helper_local(
 
 	warn!(
 		?error,
-		remote_servers = %servers.len()-1,
+		servers = %servers.len(),
 		"Could not join restricted room locally, attempting remote join",
 	);
 	let Ok((make_join_response, remote_server)) =

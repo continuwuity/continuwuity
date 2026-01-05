@@ -123,10 +123,11 @@ pub(crate) async fn create_join_event_template_route(
 		}
 	};
 	if services.antispam.check_all_joins() && join_authorized_via_users_server.is_none() {
-		if let Err(_) = services
+		if services
 			.antispam
 			.meowlnir_accept_make_join(body.room_id.clone(), body.user_id.clone())
 			.await
+			.is_err()
 		{
 			return Err!(Request(Forbidden("Antispam rejected join request.")));
 		}
