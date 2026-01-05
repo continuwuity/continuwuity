@@ -500,7 +500,19 @@ pub struct Config {
 	#[serde(default = "default_appservice_idle_timeout")]
 	pub appservice_idle_timeout: u64,
 
-	/// Notification gateway pusher idle connection pool timeout.
+	/// Notification gateway pusher request connection timeout (seconds).
+	///
+	/// default: 15
+	#[serde(default = "default_pusher_conn_timeout")]
+	pub pusher_conn_timeout: u64,
+
+	/// Notification gateway pusher total request timeout (seconds).
+	///
+	/// default: 60
+	#[serde(default = "default_pusher_timeout")]
+	pub pusher_timeout: u64,
+
+	/// Notification gateway pusher idle connection pool timeout (seconds).
 	///
 	/// default: 15
 	#[serde(default = "default_pusher_idle_timeout")]
@@ -1670,6 +1682,13 @@ pub struct Config {
 	#[serde(default = "default_url_preview_max_spider_size")]
 	pub url_preview_max_spider_size: usize,
 
+	/// Total request timeout for URL previews (seconds). This includes
+	/// connection, request, and response body reading time.
+	///
+	/// default: 120
+	#[serde(default = "default_url_preview_timeout")]
+	pub url_preview_timeout: u64,
+
 	/// Option to decide whether you would like to run the domain allowlist
 	/// checks (contains and explicit) on the root domain or not. Does not apply
 	/// to URL contains allowlist. Defaults to false.
@@ -2424,6 +2443,10 @@ fn default_appservice_timeout() -> u64 { 35 }
 
 fn default_appservice_idle_timeout() -> u64 { 300 }
 
+fn default_pusher_conn_timeout() -> u64 { 15 }
+
+fn default_pusher_timeout() -> u64 { 60 }
+
 fn default_pusher_idle_timeout() -> u64 { 15 }
 
 fn default_max_fetch_prev_events() -> u16 { 192_u16 }
@@ -2550,6 +2573,8 @@ fn default_ip_range_denylist() -> Vec<String> {
 fn default_url_preview_max_spider_size() -> usize {
 	256_000 // 256KB
 }
+
+fn default_url_preview_timeout() -> u64 { 120 }
 
 fn default_new_user_displayname_suffix() -> String { "🏳️‍⚧️".to_owned() }
 
