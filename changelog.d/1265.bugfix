@@ -1,0 +1,1 @@
+Fixed corrupted appservice registrations causing the server to enter a crash loop. Contributed by @nex.
