@@ -1,7 +1,4 @@
-use std::{
-	collections::{BTreeMap, HashSet},
-	sync::Arc,
-};
+use std::{collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
 	Err, Error, Result, SyncRwLock, err, error, implement, utils,
@@ -16,7 +13,7 @@ use ruma::{
 	},
 };
 
-use crate::{Dep, config, globals, users};
+use crate::{Dep, config, globals, registration_tokens, users};
 
 pub struct Service {
 	userdevicesessionid_uiaarequest: SyncRwLock<RequestMap>,
@@ -28,6 +25,7 @@ struct Services {
 	globals: Dep<globals::Service>,
 	users: Dep<users::Service>,
 	config: Dep<config::Service>,
+	registration_tokens: Dep<registration_tokens::Service>,
 }
 
 struct Data {
@@ -50,31 +48,13 @@ impl crate::Service for Service {
 				globals: args.depend::<globals::Service>("globals"),
 				users: args.depend::<users::Service>("users"),
 				config: args.depend::<config::Service>("config"),
+				registration_tokens: args
+					.depend::<registration_tokens::Service>("registration_tokens"),
 			},
 		}))
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
-}
-
-#[implement(Service)]
-pub async fn read_tokens(&self) -> Result<HashSet<String>> {
-	let mut tokens = HashSet::new();
-	if let Some(file) = &self.services.config.registration_token_file.as_ref() {
-		match std::fs::read_to_string(file) {
-			| Ok(text) => {
-				text.split_ascii_whitespace().for_each(|token| {
-					tokens.insert(token.to_owned());
-				});
-			},
-			| Err(e) => error!("Failed to read the registration token file: {e}"),
-		}
-	}
-	if let Some(token) = &self.services.config.registration_token {
-		tokens.insert(token.to_owned());
-	}
-
-	Ok(tokens)
 }
 
 /// Creates a new Uiaa session. Make sure the session token is unique.
@@ -229,8 +209,18 @@ pub async fn try_auth(
 			}
 		},
 		| AuthData::RegistrationToken(t) => {
-			let tokens = self.read_tokens().await?;
-			if tokens.contains(t.token.trim()) {
+			let token = t.token.trim();
+
+			if let Some(valid_token) = self
+				.services
+				.registration_tokens
+				.validate_token(token)
+				.await
+			{
+				self.services
+					.registration_tokens
+					.mark_token_as_used(valid_token);
+
 				uiaainfo.completed.push(AuthType::RegistrationToken);
 			} else {
 				uiaainfo.auth_error = Some(StandardErrorBody {

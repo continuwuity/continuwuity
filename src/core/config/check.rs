@@ -146,22 +146,6 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	// check if we can read the token file path, and check if the file is empty
-	if config.registration_token_file.as_ref().is_some_and(|path| {
-		let Ok(token) = std::fs::read_to_string(path).inspect_err(|e| {
-			error!("Failed to read the registration token file: {e}");
-		}) else {
-			return true;
-		};
-
-		token == String::new()
-	}) {
-		return Err!(Config(
-			"registration_token_file",
-			"Registration token file was specified but is empty or failed to be read"
-		));
-	}
-
 	if config.max_request_size < 10_000_000 {
 		return Err!(Config(
 			"max_request_size",
@@ -190,7 +174,6 @@ pub fn check(config: &Config) -> Result {
 	if config.allow_registration
 		&& !config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
 		&& config.registration_token.is_none()
-		&& config.registration_token_file.is_none()
 		&& config.recaptcha_site_key.is_none()
 	{
 		return Err!(Config(
@@ -209,7 +192,6 @@ pub fn check(config: &Config) -> Result {
 	if config.allow_registration
 		&& config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
 		&& config.registration_token.is_none()
-		&& config.registration_token_file.is_none()
 	{
 		warn!(
 			"Open registration is enabled via setting \

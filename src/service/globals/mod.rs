@@ -18,7 +18,6 @@ pub struct Service {
 	pub server_user: OwnedUserId,
 	pub admin_alias: OwnedRoomAliasId,
 	pub turn_secret: String,
-	pub registration_token: Option<String>,
 }
 
 type RateLimitState = (Instant, u32); // Time if last failed try, number of failed tries
@@ -41,19 +40,6 @@ impl crate::Service for Service {
 			},
 		);
 
-		let registration_token = config.registration_token_file.as_ref().map_or_else(
-			|| config.registration_token.clone(),
-			|path| {
-				let Ok(token) = std::fs::read_to_string(path).inspect_err(|e| {
-					error!("Failed to read the registration token file: {e}");
-				}) else {
-					return config.registration_token.clone();
-				};
-
-				Some(token.trim().to_owned())
-			},
-		);
-
 		Ok(Arc::new(Self {
 			db,
 			server: args.server.clone(),
@@ -66,7 +52,6 @@ impl crate::Service for Service {
 			)
 			.expect("@conduit:server_name is valid"),
 			turn_secret,
-			registration_token,
 		}))
 	}
 

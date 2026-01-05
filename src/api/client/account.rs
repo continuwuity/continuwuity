@@ -185,7 +185,10 @@ pub(crate) async fn register_route(
 	if is_guest
 		&& (!services.config.allow_guest_registration
 			|| (services.config.allow_registration
-				&& services.globals.registration_token.is_some()))
+				&& services
+					.registration_tokens
+					.get_config_file_token()
+					.is_some()))
 	{
 		info!(
 			"Guest registration disabled / registration enabled with token configured, \
@@ -301,7 +304,13 @@ pub(crate) async fn register_route(
 	let skip_auth = body.appservice_info.is_some() || is_guest;
 
 	// Populate required UIAA flows
-	if services.globals.registration_token.is_some() {
+	if services
+		.registration_tokens
+		.iterate_tokens()
+		.next()
+		.await
+		.is_some()
+	{
 		// Registration token required
 		uiaainfo.flows.push(AuthFlow {
 			stages: vec![AuthType::RegistrationToken],
@@ -846,19 +855,20 @@ pub(crate) async fn request_3pid_management_token_via_msisdn_route(
 
 /// # `GET /_matrix/client/v1/register/m.login.registration_token/validity`
 ///
-/// Checks if the provided registration token is valid at the time of checking
-///
-/// Currently does not have any ratelimiting, and this isn't very practical as
-/// there is only one registration token allowed.
+/// Checks if the provided registration token is valid at the time of checking.
 pub(crate) async fn check_registration_token_validity(
 	State(services): State<crate::State>,
 	body: Ruma<check_registration_token_validity::v1::Request>,
 ) -> Result<check_registration_token_validity::v1::Response> {
-	let Some(reg_token) = services.globals.registration_token.clone() else {
-		return Err!(Request(Forbidden("Server does not allow token registration")));
-	};
+	// TODO: ratelimit this pretty heavily
 
-	Ok(check_registration_token_validity::v1::Response { valid: reg_token == body.token })
+	let valid = services
+		.registration_tokens
+		.validate_token(&body.token)
+		.await
+		.is_some();
+
+	Ok(check_registration_token_validity::v1::Response { valid })
 }
 
 /// Runs through all the deactivation steps:

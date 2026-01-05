@@ -545,7 +545,7 @@ pub struct Config {
 	/// `yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse`
 	///
 	/// If you would like registration only via token reg, please configure
-	/// `registration_token` or `registration_token_file`.
+	/// `registration_token`.
 	#[serde(default)]
 	pub allow_registration: bool,
 
@@ -582,15 +582,6 @@ pub struct Config {
 	///
 	/// display: sensitive
 	pub registration_token: Option<String>,
-
-	/// Path to a file on the system that gets read for additional registration
-	/// tokens. Multiple tokens can be added if you separate them with
-	/// whitespace
-	///
-	/// continuwuity must be able to access the file, and it must not be empty
-	///
-	/// example: "/etc/continuwuity/.reg_token"
-	pub registration_token_file: Option<PathBuf>,
 
 	/// The public site key for reCaptcha. If this is provided, reCaptcha
 	/// becomes required during registration. If both captcha *and*
