@@ -19,10 +19,7 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, Stream, StreamExt};
-use ruma::{
-	RoomId, ServerName, UserId,
-	api::{OutgoingRequest, appservice::Registration},
-};
+use ruma::{RoomId, ServerName, UserId, api::OutgoingRequest};
 use tokio::{task, task::JoinSet};
 
 use self::data::Data;
@@ -317,22 +314,6 @@ impl Service {
 			.federation
 			.execute_synapse(dest, request)
 			.await
-	}
-
-	/// Sends a request to an appservice
-	///
-	/// Only returns None if there is no url specified in the appservice
-	/// registration file
-	pub async fn send_appservice_request<T>(
-		&self,
-		registration: Registration,
-		request: T,
-	) -> Result<Option<T::IncomingResponse>>
-	where
-		T: OutgoingRequest + Debug + Send,
-	{
-		let client = &self.services.client.appservice;
-		appservice::send_request(client, registration, request).await
 	}
 
 	/// Clean up queued sending event data

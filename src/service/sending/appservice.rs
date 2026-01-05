@@ -1,8 +1,7 @@
 use std::{fmt::Debug, mem};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, debug_error, err, trace, utils, warn};
-use reqwest::Client;
+use conduwuit::{Err, Result, debug_error, err, implement, trace, utils, warn};
 use ruma::api::{
 	IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken, appservice::Registration,
 };
@@ -11,8 +10,9 @@ use ruma::api::{
 ///
 /// Only returns Ok(None) if there is no url specified in the appservice
 /// registration file
-pub(crate) async fn send_request<T>(
-	client: &Client,
+#[implement(super::Service)]
+pub async fn send_appservice_request<T>(
+	&self,
 	registration: Registration,
 	request: T,
 ) -> Result<Option<T::IncomingResponse>>
@@ -58,6 +58,8 @@ where
 
 	let reqwest_request = reqwest::Request::try_from(http_request)?;
 
+	let client = &self.services.client.appservice;
+
 	let mut response = client.execute(reqwest_request).await.map_err(|e| {
 		warn!("Could not send request to appservice \"{}\" at {dest}: {e:?}", registration.id);
 		e
@@ -75,7 +77,7 @@ where
 			.expect("http::response::Builder is usable"),
 	);
 
-	let body = response.bytes().await?; // TODO: handle timeout
+	let body = response.bytes().await?;
 
 	if !status.is_success() {
 		debug_error!("Appservice response bytes: {:?}", utils::string_from_bytes(&body));

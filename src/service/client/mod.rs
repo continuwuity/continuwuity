@@ -47,6 +47,7 @@ impl crate::Service for Service {
 				})?
 				.local_address(url_preview_bind_addr)
 				.dns_resolver(resolver.resolver.clone())
+				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
@@ -68,6 +69,11 @@ impl crate::Service for Service {
 				.dns_resolver(resolver.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout))
+				.timeout(Duration::from_secs(
+					config
+						.federation_timeout
+						.saturating_add(config.federation_conn_timeout),
+				))
 				.pool_max_idle_per_host(config.federation_idle_per_host.into())
 				.pool_idle_timeout(Duration::from_secs(config.federation_idle_timeout))
 				.redirect(redirect::Policy::limited(3))
@@ -77,6 +83,7 @@ impl crate::Service for Service {
 				.dns_resolver(resolver.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(305))
+				.timeout(Duration::from_secs(120))
 				.pool_max_idle_per_host(0)
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
@@ -103,6 +110,8 @@ impl crate::Service for Service {
 
 			pusher: base(config)?
 				.dns_resolver(resolver.resolver.clone())
+				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
+				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)
 				.pool_idle_timeout(Duration::from_secs(config.pusher_idle_timeout))
 				.redirect(redirect::Policy::limited(2))

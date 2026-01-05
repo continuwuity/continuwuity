@@ -90,7 +90,9 @@ where
 
 	debug!(%method, %url, "Sending request");
 	match client.execute(request).await {
-		| Ok(response) => handle_response::<T>(dest, actual, &method, &url, response).await,
+		| Ok(response) =>
+			self.handle_response::<T>(dest, actual, &method, &url, response)
+				.await,
 		| Err(error) =>
 			Err(handle_error(actual, &method, &url, error).expect_err("always returns error")),
 	}
@@ -119,7 +121,9 @@ fn validate_url(&self, url: &Url) -> Result<()> {
 	Ok(())
 }
 
+#[implement(super::Service)]
 async fn handle_response<T>(
+	&self,
 	dest: &ServerName,
 	actual: &ActualDest,
 	method: &Method,
@@ -162,7 +166,6 @@ async fn into_http_response(
 			.expect("http::response::Builder is usable"),
 	);
 
-	// TODO: handle timeout
 	trace!("Waiting for response body...");
 	let body = response
 		.bytes()

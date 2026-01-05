@@ -245,7 +245,7 @@ impl Service {
 						.expect("http::response::Builder is usable"),
 				);
 
-				let body = response.bytes().await?; // TODO: handle timeout
+				let body = response.bytes().await?;
 
 				if !status.is_success() {
 					debug_warn!("Push gateway response body: {:?}", string_from_bytes(&body));
@@ -288,7 +288,7 @@ impl Service {
 		let mut notify = None;
 		let mut tweaks = Vec::new();
 		if event.room_id().is_none() {
-			// TODO(hydra): does this matter?
+			// This only affects v12+ create events
 			return Ok(());
 		}
 
