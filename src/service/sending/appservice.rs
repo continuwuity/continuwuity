@@ -32,7 +32,7 @@ where
 	trace!("Appservice URL \"{dest}\", Appservice ID: {}", registration.id);
 
 	let hs_token = registration.hs_token.as_str();
-	let mut http_request = request
+	let http_request = request
 		.try_into_http_request::<BytesMut>(
 			&dest,
 			SendAccessToken::Appservice(hs_token),
@@ -44,17 +44,6 @@ where
 			))
 		})?
 		.map(BytesMut::freeze);
-
-	let mut parts = http_request.uri().clone().into_parts();
-	let old_path_and_query = parts.path_and_query.unwrap().as_str().to_owned();
-	let symbol = if old_path_and_query.contains('?') { "&" } else { "?" };
-
-	parts.path_and_query = Some(
-		(old_path_and_query + symbol + "access_token=" + hs_token)
-			.parse()
-			.unwrap(),
-	);
-	*http_request.uri_mut() = parts.try_into().expect("our manipulation is always valid");
 
 	let reqwest_request = reqwest::Request::try_from(http_request)?;
 
