@@ -207,23 +207,15 @@ pub(crate) async fn user_can_perform_restricted_join(
 					return Ok(true);
 				}
 			},
-			| AllowRule::UnstableSpamChecker => {
-				match services
+			| AllowRule::UnstableSpamChecker =>
+				return match services
 					.antispam
 					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
 					.await
 				{
-					| Ok(()) => {
-						return Ok(true);
-					},
-					| Err(e) => {
-						info!(
-							"meowlnir rejected restricted join for user {} into room {}: {e:?}",
-							user_id, room_id
-						);
-					},
-				}
-			},
+					| Ok(()) => Ok(true),
+					| Err(e) => Err!(Request(Forbidden("Antispam rejected join request."))),
+				},
 			| _ => {
 				debug_info!(
 					"Unsupported allow rule in restricted join for room {}: {:?}",

@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 use conduwuit::{Result, config::Antispam, debug};
@@ -37,7 +37,7 @@ impl Service {
 		request: T,
 	) -> Result<T::IncomingResponse>
 	where
-		T: ruma::api::OutgoingRequest + std::fmt::Debug + Send,
+		T: ruma::api::OutgoingRequest + Debug + Send,
 	{
 		sending::antispam::send_antispam_request(
 			&self.services.client.appservice,
@@ -62,7 +62,7 @@ impl Service {
 	) -> Result<()> {
 		if let Some(config) = &self.services.config.antispam {
 			let result = if let Some(meowlnir) = &config.meowlnir {
-				debug!("Asking meowlnir for user_may_invite");
+				debug!(?room_id, ?inviter, ?invitee, "Asking meowlnir for user_may_invite");
 				self.send_antispam_request(
 					meowlnir.base_url.as_str(),
 					&meowlnir.secret,
@@ -78,7 +78,7 @@ impl Service {
 				.inspect_err(|e| debug!("meowlnir denied the invite: {e:?}"))
 				.map(|_| ())
 			} else if let Some(draupnir) = &config.draupnir {
-				debug!("Asking draupnir for user_may_invite");
+				debug!(?room_id, ?inviter, ?invitee, "Asking draupnir for user_may_invite");
 				self.send_antispam_request(
 					draupnir.base_url.as_str(),
 					&draupnir.secret,
@@ -107,7 +107,7 @@ impl Service {
 	) -> Result<()> {
 		if let Some(config) = &self.services.config.antispam {
 			let result = if let Some(meowlnir) = &config.meowlnir {
-				debug!("Asking meowlnir for user_may_join_room");
+				debug!(?room_id, ?user_id, ?is_invited, "Asking meowlnir for user_may_join_room");
 				self.send_antispam_request(
 					meowlnir.base_url.as_str(),
 					&meowlnir.secret,
@@ -123,7 +123,7 @@ impl Service {
 				.inspect_err(|e| debug!("meowlnir denied the join: {e:?}"))
 				.map(|_| ())
 			} else if let Some(draupnir) = &config.draupnir {
-				debug!("Asking draupnir for user_may_join_room");
+				debug!(?room_id, ?user_id, ?is_invited, "Asking draupnir for user_may_join_room");
 				self.send_antispam_request(
 					draupnir.base_url.as_str(),
 					&draupnir.secret,
@@ -151,7 +151,7 @@ impl Service {
 		user_id: OwnedUserId,
 	) -> Result<()> {
 		if let Some(Antispam { meowlnir: Some(meowlnir), .. }) = &self.services.config.antispam {
-			debug!("Asking meowlnir for meowlnir_accept_make_join");
+			debug!(?room_id, ?user_id, "Asking meowlnir for accept_make_join");
 			self.send_antispam_request(
 				meowlnir.base_url.as_str(),
 				&meowlnir.secret,

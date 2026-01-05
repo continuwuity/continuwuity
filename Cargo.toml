@@ -351,7 +351,7 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-rev = "46e31bd6439eccbd3a1762f710c17fc15168c15e"
+rev = "42f13b1e806f3b6b04fb4d2247c73c7a565d3de1"
 features = [
     "compat",
     "rand",
