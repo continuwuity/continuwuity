@@ -122,6 +122,15 @@ pub(crate) async fn create_join_event_template_route(
 			None
 		}
 	};
+	if services.antispam.check_all_joins() {
+		if let Err(_) = services
+			.antispam
+			.meowlnir_accept_make_join(body.room_id.clone(), body.user_id.clone())
+			.await
+		{
+			return Err!(Request(Forbidden("Antispam rejected join request.")));
+		}
+	}
 
 	let (_pdu, mut pdu_json) = services
 		.rooms
