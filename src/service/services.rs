@@ -11,8 +11,9 @@ use crate::{
 	account_data, admin, announcements, antispam, appservice, client, config, emergency,
 	federation, globals, key_backups,
 	manager::Manager,
-	media, moderation, presence, pusher, resolver, rooms, sending, server_keys, service,
-	service::{Args, Map, Service},
+	media, moderation, presence, pusher, registration_tokens, resolver, rooms, sending,
+	server_keys,
+	service::{self, Args, Map, Service},
 	sync, transaction_ids, uiaa, users,
 };
 
@@ -28,6 +29,7 @@ pub struct Services {
 	pub media: Arc<media::Service>,
 	pub presence: Arc<presence::Service>,
 	pub pusher: Arc<pusher::Service>,
+	pub registration_tokens: Arc<registration_tokens::Service>,
 	pub resolver: Arc<resolver::Service>,
 	pub rooms: rooms::Service,
 	pub federation: Arc<federation::Service>,
@@ -77,6 +79,7 @@ impl Services {
 			media: build!(media::Service),
 			presence: build!(presence::Service),
 			pusher: build!(pusher::Service),
+			registration_tokens: build!(registration_tokens::Service),
 			rooms: rooms::Service {
 				alias: build!(rooms::alias::Service),
 				auth_chain: build!(rooms::auth_chain::Service),
