@@ -79,26 +79,6 @@ pub(crate) async fn join_room_by_id_route(
 	)
 	.await?;
 
-	if let Err(e) = services
-		.antispam
-		.user_may_join_room(
-			sender_user.to_owned(),
-			body.room_id.clone(),
-			services
-				.rooms
-				.state_cache
-				.is_invited(sender_user, &body.room_id)
-				.await,
-		)
-		.await
-	{
-		warn!(
-			"Antispam prevented user {} from joining room {}: {}",
-			sender_user, body.room_id, e
-		);
-		return Err!(Request(Forbidden("You are not allowed to join this room.")));
-	}
-
 	// There is no body.server_name for /roomId/join
 	let mut servers: Vec<_> = services
 		.rooms
@@ -306,6 +286,23 @@ pub async fn join_room_by_id_helper(
 	{
 		debug_warn!("{sender_user} is already joined in {room_id}");
 		return Ok(join_room_by_id::v3::Response { room_id: room_id.into() });
+	}
+
+	if let Err(e) = services
+		.antispam
+		.user_may_join_room(
+			sender_user.to_owned(),
+			room_id.to_owned(),
+			services
+				.rooms
+				.state_cache
+				.is_invited(sender_user, room_id)
+				.await,
+		)
+		.await
+	{
+		warn!("Antispam prevented user {} from joining room {}: {}", sender_user, room_id, e);
+		return Err!(Request(Forbidden("You are not allowed to join this room.")));
 	}
 
 	let server_in_room = services
