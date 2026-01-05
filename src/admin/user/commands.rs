@@ -1017,3 +1017,29 @@ pub(super) async fn unlock(&self, user_id: String) -> Result {
 	self.write_str(&format!("User {user_id} has been unlocked."))
 		.await
 }
+
+#[admin_command]
+pub(super) async fn logout(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+	if user_id == self.services.globals.server_user {
+		return Err!("Not allowed to log out the server service account.",);
+	}
+
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	if self.services.users.is_admin(&user_id).await {
+		return Err!("You cannot forcefully log out admin users.");
+	}
+	self.services
+		.users
+		.all_device_ids(&user_id)
+		.for_each(|device_id| self.services.users.remove_device(&user_id, device_id))
+		.await;
+	self.write_str(&format!("User {user_id} has been logged out from all devices."))
+}

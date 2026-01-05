@@ -59,6 +59,18 @@ pub enum UserCommand {
 		force: bool,
 	},
 
+	/// - Forcefully log a user out of all of their devices.
+	///
+	/// This will invalidate all access tokens for the specified user,
+	/// effectively logging them out from all sessions.
+	/// Note that this is destructive and may result in data loss for the user,
+	/// such as encryption keys. Use with caution. Can only be used in the admin
+	/// room.
+	Logout {
+		/// Username of the user to log out
+		user_id: String,
+	},
+
 	/// - Suspend a user
 	///
 	/// Suspended users are able to log in, sync, and read messages, but are not
