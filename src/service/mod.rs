@@ -1,6 +1,8 @@
 #![type_length_limit = "8192"]
 #![allow(refining_impl_trait)]
 
+extern crate conduwuit_core as conduwuit;
+extern crate conduwuit_database as database;
 mod manager;
 mod migrations;
 mod service;
@@ -10,6 +12,7 @@ pub mod state;
 pub mod account_data;
 pub mod admin;
 pub mod announcements;
+pub mod antispam;
 pub mod appservice;
 pub mod client;
 pub mod config;
@@ -29,9 +32,6 @@ pub mod sync;
 pub mod transaction_ids;
 pub mod uiaa;
 pub mod users;
-
-extern crate conduwuit_core as conduwuit;
-extern crate conduwuit_database as database;
 
 use ctor::{ctor, dtor};
 pub(crate) use service::{Args, Dep, Service};

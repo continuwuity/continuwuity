@@ -1,7 +1,7 @@
+use std::borrow::ToOwned;
+
 use axum::extract::State;
-use conduwuit::{
-	Err, Error, Result, debug_info, info, matrix::pdu::PduBuilder, utils::IterStream, warn,
-};
+use conduwuit::{Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, warn};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
@@ -136,7 +136,6 @@ pub(crate) async fn create_join_event_template_route(
 			&state_lock,
 		)
 		.await?;
-
 	drop(state_lock);
 
 	// room v3 and above removed the "event_id" field from remote PDU format
@@ -192,25 +191,52 @@ pub(crate) async fn user_can_perform_restricted_join(
 		return Ok(false);
 	}
 
-	if r.allow
-		.iter()
-		.filter_map(|rule| {
-			if let AllowRule::RoomMembership(membership) = rule {
-				Some(membership)
-			} else {
-				None
-			}
-		})
-		.stream()
-		.any(|m| services.rooms.state_cache.is_joined(user_id, &m.room_id))
-		.await
-	{
-		Ok(true)
-	} else {
-		Err!(Request(UnableToAuthorizeJoin(
-			"Joining user is not known to be in any required room."
-		)))
+	for allow_rule in &r.allow {
+		match allow_rule {
+			| AllowRule::RoomMembership(membership) => {
+				if services
+					.rooms
+					.state_cache
+					.is_joined(user_id, &membership.room_id)
+					.await
+				{
+					debug!(
+						"User {} is allowed to join room {} via membership in room {}",
+						user_id, room_id, membership.room_id
+					);
+					return Ok(true);
+				}
+			},
+			| AllowRule::UnstableSpamChecker => {
+				match services
+					.antispam
+					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
+					.await
+				{
+					| Ok(()) => {
+						return Ok(true);
+					},
+					| Err(e) => {
+						info!(
+							"meowlnir rejected restricted join for user {} into room {}: {e:?}",
+							user_id, room_id
+						);
+					},
+				}
+			},
+			| _ => {
+				debug_info!(
+					"Unsupported allow rule in restricted join for room {}: {:?}",
+					room_id,
+					allow_rule
+				);
+			},
+		}
 	}
+
+	Err!(Request(UnableToAuthorizeJoin(
+		"Joining user is not known to be in any required room."
+	)))
 }
 
 pub(crate) fn maybe_strip_event_id(

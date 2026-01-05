@@ -1647,7 +1647,7 @@
 
 # Enable the tokio-console. This option is only relevant to developers.
 #
-#	For more information, see:
+#    For more information, see:
 # https://continuwuity.org/development.html#debugging-with-tokio-console
 #
 #tokio_console = false
@@ -1756,10 +1756,6 @@
 # This item is undocumented. Please contribute documentation for it.
 #
 #ldap = false
-
-# Configuration for antispam support
-#
-#antispam = false
 
 [global.tls]
 
@@ -1930,7 +1926,7 @@
 
 [global.antispam.meowlnir]
 
-# The base URL on which to contact meowlnir (before /_meowlnir/antispam).
+# The base URL on which to contact Meowlnir (before /_meowlnir/antispam).
 #
 # Example: "http://127.0.0.1:29339"
 #
@@ -1944,3 +1940,24 @@
 # The management room for which to send requests
 #
 #management_room =
+
+# If enabled run all federated join attempts (both federated and local)
+# through the Meowlnir anti-spam checks.
+#
+# By default, only join attempts for rooms with the `fi.mau.spam_checker`
+# restricted join rule are checked.
+#
+#check_all_joins = false
+
+[global.antispam.draupnir]
+
+# The base URL on which to contact Draupnir (before /api/).
+#
+# Example: "http://127.0.0.1:29339"
+#
+#base_url =
+
+# The authentication secret defined in
+# web->synapseHTTPAntispam->authorization
+#
+#secret =

@@ -53,7 +53,8 @@ use crate::{Result, err, error::Error, utils::sys};
 ### For more information, see:
 ### https://continuwuity.org/configuration.html
 "#,
-	ignore = "config_paths catchall well_known tls blurhashing allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure"
+	ignore = "config_paths catchall well_known tls blurhashing \
+	allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure antispam"
 )]
 pub struct Config {
 	// Paths to config file(s). Not supposed to be set manually in the config file,
@@ -1887,7 +1888,7 @@ pub struct Config {
 
 	/// Enable the tokio-console. This option is only relevant to developers.
 	///
-	///	For more information, see:
+	///    For more information, see:
 	/// https://continuwuity.org/development.html#debugging-with-tokio-console
 	#[serde(default)]
 	pub tokio_console: bool,
@@ -2247,6 +2248,7 @@ struct ListeningAddr {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Antispam {
 	pub meowlnir: Option<MeowlnirConfig>,
+	pub draupnir: Option<DraupnirConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2255,7 +2257,7 @@ pub struct Antispam {
 	section = "global.antispam.meowlnir"
 )]
 pub struct MeowlnirConfig {
-	/// The base URL on which to contact meowlnir (before /_meowlnir/antispam).
+	/// The base URL on which to contact Meowlnir (before /_meowlnir/antispam).
 	///
 	/// Example: "http://127.0.0.1:29339"
 	pub base_url: Url,
@@ -2266,6 +2268,32 @@ pub struct MeowlnirConfig {
 
 	/// The management room for which to send requests
 	pub management_room: OwnedRoomId,
+
+	/// If enabled run all federated join attempts (both federated and local)
+	/// through the Meowlnir anti-spam checks.
+	///
+	/// By default, only join attempts for rooms with the `fi.mau.spam_checker`
+	/// restricted join rule are checked.
+	#[serde(default)]
+	pub check_all_joins: bool,
+}
+
+// TODO: the DraupnirConfig and MeowlnirConfig are basically identical.
+// Maybe management_room could just become an Option<> and these structs merged?
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.antispam.draupnir"
+)]
+pub struct DraupnirConfig {
+	/// The base URL on which to contact Draupnir (before /api/).
+	///
+	/// Example: "http://127.0.0.1:29339"
+	pub base_url: Url,
+
+	/// The authentication secret defined in
+	/// web->synapseHTTPAntispam->authorization
+	pub secret: String,
 }
 
 const DEPRECATED_KEYS: &[&str; 9] = &[

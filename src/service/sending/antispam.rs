@@ -1,30 +1,23 @@
 use std::{fmt::Debug, mem};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, config::MeowlnirConfig, debug_error, err, utils, warn};
+use conduwuit::{Err, Result, debug_error, err, utils, warn};
 use reqwest::Client;
 use ruma::api::{IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken};
 
 /// Sends a request to an antispam service
-pub(crate) async fn send_meowlnir_request<T>(
+pub(crate) async fn send_antispam_request<T>(
 	client: &Client,
-	config: &MeowlnirConfig,
+	base_url: &str,
+	secret: &str,
 	request: T,
-) -> Result<Option<T::IncomingResponse>>
+) -> Result<T::IncomingResponse>
 where
 	T: OutgoingRequest + Debug + Send,
 {
 	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_15];
-	if config.secret.is_empty() {
-		return Ok(None);
-	}
-	let secret = config.secret.as_str();
 	let http_request = request
-		.try_into_http_request::<BytesMut>(
-			config.base_url.as_str(),
-			SendAccessToken::Always(secret),
-			&VERSIONS,
-		)?
+		.try_into_http_request::<BytesMut>(base_url, SendAccessToken::Always(secret), &VERSIONS)?
 		.map(BytesMut::freeze);
 	let reqwest_request = reqwest::Request::try_from(http_request)?;
 
@@ -64,7 +57,7 @@ where
 			.expect("reqwest body is valid http body"),
 	);
 
-	response.map(Some).map_err(|e| {
+	response.map_err(|e| {
 		err!(BadServerResponse(warn!(
 			"Antispam returned invalid/malformed response bytes: {e}",
 		)))

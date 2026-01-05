@@ -2,9 +2,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result,
-	config::Antispam,
-	err,
+	Err, Error, PduEvent, Result, err,
 	matrix::{Event, event::gen_event_id},
 	utils::{self, hash::sha256},
 	warn,
@@ -13,7 +11,6 @@ use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
 	events::room::member::{MembershipState, RoomMemberEventContent},
-	meowlnir_antispam::user_may_invite,
 	serde::JsonObject,
 };
 
@@ -151,18 +148,13 @@ pub(crate) async fn create_invite_route(
 		return Err!(Request(Forbidden("This server does not allow room invites.")));
 	}
 
-	if let Some(Antispam { meowlnir: Some(cfg) }) = &services.config.antispam {
-		services
-			.sending
-			.send_meowlnir_antispam_request(
-				cfg,
-				user_may_invite::v1::Request::new(
-					cfg.management_room.clone(),
-					sender_user.to_owned(),
-					recipient_user.clone(),
-				),
-			)
-			.await?;
+	if let Err(e) = services
+		.antispam
+		.user_may_invite(sender_user.to_owned(), recipient_user.clone(), body.room_id.clone())
+		.await
+	{
+		warn!("Antispam rejected invite: {e:?}");
+		return Err!(Request(Forbidden("Invite rejected by antispam service.")));
 	}
 
 	let mut invite_state = body.invite_room_state.clone();

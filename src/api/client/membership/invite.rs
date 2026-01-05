@@ -1,11 +1,9 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result,
-	config::Antispam,
-	debug_error, err, info,
+	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
-	trace,
+	warn,
 };
 use futures::FutureExt;
 use ruma::{
@@ -15,7 +13,6 @@ use ruma::{
 		invite_permission_config::FilterLevel,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
-	meowlnir_antispam::user_may_invite,
 };
 use service::Services;
 
@@ -128,24 +125,16 @@ pub(crate) async fn invite_helper(
 		return Err!(Request(Forbidden("Invites are not allowed on this server.")));
 	}
 
-	trace!("maybe ask meowlnir");
-	if let Some(Antispam { meowlnir: Some(cfg) }) = &services.config.antispam {
-		trace!("asking meowlnir");
-		services
-			.sending
-			.send_meowlnir_antispam_request(
-				cfg,
-				user_may_invite::v1::Request::new(
-					cfg.management_room.clone(),
-					sender_user.to_owned(),
-					recipient_user.to_owned(),
-				),
-			)
-			.await
-			.inspect(|_| trace!("meowlnir :D"))
-			.inspect_err(|e| debug_error!("meowlnir sad: {e}"))?;
-	} else {
-		trace!("no meowlnir configured");
+	if let Err(e) = services
+		.antispam
+		.user_may_invite(sender_user.to_owned(), recipient_user.to_owned(), room_id.to_owned())
+		.await
+	{
+		warn!(
+			"Invite from {} to {} in room {} blocked by antispam: {e:?}",
+			sender_user, recipient_user, room_id
+		);
+		return Err!(Request(Forbidden("Invite blocked by antispam service.")));
 	}
 
 	if !services.globals.user_is_local(recipient_user) {
