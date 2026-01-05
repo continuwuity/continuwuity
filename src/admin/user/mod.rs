@@ -81,6 +81,26 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
+	/// - Lock a user
+	///
+	/// Locked users are unable to use their accounts beyond logging out. This
+	/// is akin to a temporary deactivation that does not change the user's
+	/// password. This can be used to quickly prevent a user from accessing
+	/// their account.
+	Lock {
+		/// Username of the user to lock
+		user_id: String,
+	},
+
+	/// - Unlock a user
+	///
+	/// Reverses the effects of the `lock` command, allowing the user to use
+	/// their account again.
+	Unlock {
+		/// Username of the user to unlock
+		user_id: String,
+	},
+
 	/// - List local users in the database
 	#[clap(alias = "list")]
 	ListUsers,

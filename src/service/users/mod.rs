@@ -77,6 +77,7 @@ struct Data {
 	userid_origin: Arc<Map>,
 	userid_password: Arc<Map>,
 	userid_suspension: Arc<Map>,
+	userid_lock: Arc<Map>,
 	userid_selfsigningkeyid: Arc<Map>,
 	userid_usersigningkeyid: Arc<Map>,
 	useridprofilekey_value: Arc<Map>,
@@ -115,6 +116,7 @@ impl crate::Service for Service {
 				userid_origin: args.db["userid_origin"].clone(),
 				userid_password: args.db["userid_password"].clone(),
 				userid_suspension: args.db["userid_suspension"].clone(),
+				userid_lock: args.db["userid_lock"].clone(),
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
@@ -220,6 +222,26 @@ impl Service {
 		self.db.userid_suspension.remove(user_id);
 	}
 
+	pub async fn lock_account(&self, user_id: &UserId, locking_user: &UserId) {
+		// NOTE: Locking is basically just suspension with a more severe effect,
+		// so we'll just re-use the suspension data structure to store the lock state.
+		let suspension = self
+			.db
+			.userid_lock
+			.get(user_id)
+			.await
+			.deserialized::<UserSuspension>()
+			.unwrap_or_else(|_| UserSuspension {
+				suspended: true,
+				suspended_at: MilliSecondsSinceUnixEpoch::now().get().into(),
+				suspended_by: locking_user.to_string(),
+			});
+
+		self.db.userid_lock.raw_put(user_id, Json(suspension));
+	}
+
+	pub async fn unlock_account(&self, user_id: &UserId) { self.db.userid_lock.remove(user_id); }
+
 	/// Check if a user has an account on this homeserver.
 	#[inline]
 	pub async fn exists(&self, user_id: &UserId) -> bool {
@@ -241,6 +263,24 @@ impl Service {
 		match self
 			.db
 			.userid_suspension
+			.get(user_id)
+			.await
+			.deserialized::<UserSuspension>()
+		{
+			| Ok(s) => Ok(s.suspended),
+			| Err(e) =>
+				if e.is_not_found() {
+					Ok(false)
+				} else {
+					Err(e)
+				},
+		}
+	}
+
+	pub async fn is_locked(&self, user_id: &UserId) -> Result<bool> {
+		match self
+			.db
+			.userid_lock
 			.get(user_id)
 			.await
 			.deserialized::<UserSuspension>()

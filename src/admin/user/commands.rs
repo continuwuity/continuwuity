@@ -974,3 +974,34 @@ pub(super) async fn force_leave_remote_room(
 	self.write_str(&format!("{user_id} successfully left {room_id} via remote server."))
 		.await
 }
+
+#[admin_command]
+pub(super) async fn lock(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+
+	self.services
+		.users
+		.lock_account(&user_id, self.sender_or_service_user())
+		.await;
+
+	self.write_str(&format!("User {user_id} has been locked."))
+		.await
+}
+
+#[admin_command]
+pub(super) async fn unlock(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+
+	self.services.users.unlock_account(&user_id).await;
+
+	self.write_str(&format!("User {user_id} has been unlocked."))
+		.await
+}

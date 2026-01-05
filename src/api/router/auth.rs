@@ -137,12 +137,30 @@ pub(super) async fn auth(
 		| (
 			AuthScheme::AccessToken | AuthScheme::AccessTokenOptional | AuthScheme::None,
 			Token::User((user_id, device_id)),
-		) => Ok(Auth {
-			origin: None,
-			sender_user: Some(user_id),
-			sender_device: Some(device_id),
-			appservice_info: None,
-		}),
+		) => {
+			let is_locked = services.users.is_locked(&user_id).await.map_err(|e| {
+				err!(Request(Forbidden(warn!("Failed to check user lock status: {e}"))))
+			})?;
+			if is_locked {
+				// Only /logout and /logout/all are allowed for locked users
+				if !matches!(
+					metadata,
+					&ruma::api::client::session::logout::v3::Request::METADATA
+						| &ruma::api::client::session::logout_all::v3::Request::METADATA
+				) {
+					return Err(Error::BadRequest(
+						ErrorKind::UserLocked,
+						"This account has been locked.",
+					));
+				}
+			}
+			Ok(Auth {
+				origin: None,
+				sender_user: Some(user_id),
+				sender_device: Some(device_id),
+				appservice_info: None,
+			})
+		},
 		| (AuthScheme::ServerSignatures, Token::None) =>
 			Ok(auth_server(services, request, json_body).await?),
 		| (

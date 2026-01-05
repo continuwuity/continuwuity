@@ -75,10 +75,12 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		| ThreepidDenied
 		| InviteBlocked
 		| WrongRoomKeysVersion { .. }
+		| UserSuspended
 		| Forbidden { .. } => StatusCode::FORBIDDEN,
 
 		// 401
-		| UnknownToken { .. } | MissingToken | Unauthorized => StatusCode::UNAUTHORIZED,
+		| UnknownToken { .. } | MissingToken | Unauthorized | UserLocked =>
+			StatusCode::UNAUTHORIZED,
 
 		// 400
 		| _ => StatusCode::BAD_REQUEST,
