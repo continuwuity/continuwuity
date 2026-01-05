@@ -272,7 +272,10 @@ impl Service {
 			.get(id)
 			.await
 			.and_then(|ref bytes| serde_saphyr::from_slice(bytes).map_err(Into::into))
-			.map_err(|e| err!(Database("Invalid appservice {id:?} registration: {e:?}")))
+			.map_err(|e| {
+				self.db.id_appserviceregistrations.remove(id);
+				err!(Database("Invalid appservice {id:?} registration: {e:?}. Removed."))
+			})
 	}
 
 	pub fn read(&self) -> impl Future<Output = RwLockReadGuard<'_, Registrations>> + Send {
