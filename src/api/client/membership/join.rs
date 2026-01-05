@@ -3,7 +3,9 @@ use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, debug, debug_info, debug_warn, err, error, info,
+	Err, Result,
+	config::Antispam,
+	debug, debug_info, debug_warn, err, error, info,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -37,6 +39,7 @@ use ruma::{
 			member::{MembershipState, RoomMemberEventContent},
 		},
 	},
+	meowlnir_antispam::user_may_join_room,
 };
 use service::{
 	Services,
@@ -348,6 +351,19 @@ pub async fn join_room_by_id_helper(
 		.await?;
 	}
 
+	if let Some(Antispam { meowlnir: Some(cfg) }) = &services.config.antispam {
+		services
+			.sending
+			.send_meowlnir_antispam_request(
+				cfg,
+				user_may_join_room::v1::Request::new(
+					cfg.management_room.clone(),
+					sender_user.to_owned(),
+					room_id.to_owned(),
+				),
+			)
+			.await?;
+	}
 	Ok(join_room_by_id::v3::Response::new(room_id.to_owned()))
 }
 
