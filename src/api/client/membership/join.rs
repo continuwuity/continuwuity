@@ -33,7 +33,7 @@ use ruma::{
 	events::{
 		StateEventType,
 		room::{
-			join_rules::{AllowRule, JoinRule, RoomJoinRulesEventContent},
+			join_rules::{AllowRule, JoinRule},
 			member::{MembershipState, RoomMemberEventContent},
 		},
 	},
@@ -336,6 +336,17 @@ pub async fn join_room_by_id_helper(
 			"No servers were provided to assist in joining the room remotely, and we are not \
 			 already participating in the room."
 		)));
+	}
+
+	if services.antispam.check_all_joins() {
+		if let Err(e) = services
+			.antispam
+			.meowlnir_accept_make_join(room_id.to_owned(), sender_user.to_owned())
+			.await
+		{
+			warn!("Antispam prevented user {} from joining room {}: {}", sender_user, room_id, e);
+			return Err!(Request(Forbidden("Antispam rejected join request.")));
+		};
 	}
 
 	if server_in_room {
@@ -736,45 +747,51 @@ async fn join_room_by_id_helper_local(
 	state_lock: RoomMutexGuard,
 ) -> Result {
 	debug_info!("We can join locally");
+	let join_rules = services.rooms.state_accessor.get_join_rules(room_id).await;
 
-	let join_rules_event_content = services
-		.rooms
-		.state_accessor
-		.room_state_get_content::<RoomJoinRulesEventContent>(
-			room_id,
-			&StateEventType::RoomJoinRules,
-			"",
-		)
-		.await;
-
-	let restriction_rooms = match join_rules_event_content {
-		| Ok(RoomJoinRulesEventContent {
-			join_rule: JoinRule::Restricted(restricted) | JoinRule::KnockRestricted(restricted),
-		}) => restricted
-			.allow
-			.into_iter()
-			.filter_map(|a| match a {
-				| AllowRule::RoomMembership(r) => Some(r.room_id),
-				| _ => None,
-			})
-			.collect(),
-		| _ => Vec::new(),
+	let mut restricted_join_authorized = None;
+	match join_rules {
+		| JoinRule::Restricted(restricted) | JoinRule::KnockRestricted(restricted) => {
+			for restriction in restricted.allow {
+				match restriction {
+					| AllowRule::RoomMembership(membership) => {
+						if services
+							.rooms
+							.state_cache
+							.is_joined(sender_user, &membership.room_id)
+							.await
+						{
+							restricted_join_authorized = Some(true);
+							break;
+						}
+					},
+					| AllowRule::UnstableSpamChecker => {
+						match services
+							.antispam
+							.meowlnir_accept_make_join(room_id.to_owned(), sender_user.to_owned())
+							.await
+						{
+							| Ok(()) => {
+								restricted_join_authorized = Some(true);
+								break;
+							},
+							| Err(_) =>
+								return Err!(Request(Forbidden(
+									"Antispam rejected join request."
+								))),
+						}
+					},
+					| _ => {},
+				}
+			}
+		},
+		| _ => {},
 	};
-
-	let join_authorized_via_users_server: Option<OwnedUserId> = {
-		if restriction_rooms
-			.iter()
-			.stream()
-			.any(|restriction_room_id| {
-				trace!("Checking if {sender_user} is joined to {restriction_room_id}");
-				services
-					.rooms
-					.state_cache
-					.is_joined(sender_user, restriction_room_id)
-			})
-			.await
-		{
-			services
+	let join_authorized_via_users_server = if restricted_join_authorized.is_none() {
+		None
+	} else {
+		match restricted_join_authorized.unwrap() {
+			| true => services
 				.rooms
 				.state_cache
 				.local_users_in_room(room_id)
@@ -790,10 +807,14 @@ async fn join_room_by_id_helper_local(
 				.boxed()
 				.next()
 				.await
-				.map(ToOwned::to_owned)
-		} else {
-			trace!("No restriction rooms are joined by {sender_user}");
-			None
+				.map(ToOwned::to_owned),
+			| false => {
+				warn!(
+					"Join authorization failed for restricted join in room {room_id} for user \
+					 {sender_user}"
+				);
+				return Err!(Request(Forbidden("You are not authorized to join this room.")));
+			},
 		}
 	};
 
@@ -821,16 +842,14 @@ async fn join_room_by_id_helper_local(
 		return Ok(());
 	};
 
-	if restriction_rooms.is_empty()
-		&& (servers.is_empty()
-			|| servers.len() == 1 && services.globals.server_is_ours(&servers[0]))
-	{
+	if servers.is_empty() || servers.len() == 1 && services.globals.server_is_ours(&servers[0]) {
 		return Err(error);
 	}
 
 	warn!(
-		"We couldn't do the join locally, maybe federation can help to satisfy the restricted \
-		 join requirements"
+		?error,
+		remote_servers = %servers.len()-1,
+		"Could not join restricted room locally, attempting remote join",
 	);
 	let Ok((make_join_response, remote_server)) =
 		make_join_request(services, sender_user, room_id, servers).await

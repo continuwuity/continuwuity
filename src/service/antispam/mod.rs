@@ -169,4 +169,14 @@ impl Service {
 			Ok(())
 		}
 	}
+
+	/// Returns whether all joins should be checked with Meowlnir.
+	/// Is always false if Meowlnir is not configured.
+	pub fn check_all_joins(&self) -> bool {
+		if let Some(Antispam { meowlnir: Some(cfg), .. }) = &self.services.config.antispam {
+			cfg.check_all_joins
+		} else {
+			false
+		}
+	}
 }

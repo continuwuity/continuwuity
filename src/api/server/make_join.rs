@@ -214,7 +214,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 					.await
 				{
 					| Ok(()) => Ok(true),
-					| Err(e) => Err!(Request(Forbidden("Antispam rejected join request."))),
+					| Err(_) => Err!(Request(Forbidden("Antispam rejected join request."))),
 				},
 			| _ => {
 				debug_info!(
