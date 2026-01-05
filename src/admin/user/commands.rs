@@ -238,6 +238,7 @@ pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> 
 
 #[admin_command]
 pub(super) async fn suspend(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 
 	if user_id == self.services.globals.server_user {
@@ -262,6 +263,7 @@ pub(super) async fn suspend(&self, user_id: String) -> Result {
 
 #[admin_command]
 pub(super) async fn unsuspend(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 
 	if user_id == self.services.globals.server_user {
@@ -977,12 +979,22 @@ pub(super) async fn force_leave_remote_room(
 
 #[admin_command]
 pub(super) async fn lock(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	assert!(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
+	if user_id == self.services.globals.server_user {
+		return Err!("Not allowed to lock the server service account.",);
+	}
 
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	if self.services.users.is_admin(&user_id).await {
+		return Err!("Admin users cannot be locked.");
+	}
 	self.services
 		.users
 		.lock_account(&user_id, self.sender_or_service_user())
@@ -994,12 +1006,12 @@ pub(super) async fn lock(&self, user_id: String) -> Result {
 
 #[admin_command]
 pub(super) async fn unlock(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	assert!(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
-
 	self.services.users.unlock_account(&user_id).await;
 
 	self.write_str(&format!("User {user_id} has been unlocked."))
