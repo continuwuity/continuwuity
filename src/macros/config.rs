@@ -78,6 +78,8 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 	}
 
 	let mut summary: Vec<TokenStream2> = Vec::new();
+	let mut nested_displays: Vec<TokenStream2> = Vec::new();
+
 	if let Fields::Named(FieldsNamed { named, .. }) = &input.fields {
 		for field in named {
 			let Some(ident) = &field.ident else {
@@ -92,35 +94,6 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 				continue;
 			};
 
-			let doc = get_doc_comment(field)
-				.unwrap_or_else(|| undocumented.into())
-				.trim_end()
-				.to_owned();
-
-			let doc = if doc.ends_with('#') {
-				format!("{doc}\n")
-			} else {
-				format!("{doc}\n#\n")
-			};
-
-			let default = get_doc_comment_line(field, "default")
-				.or_else(|| get_default(field))
-				.unwrap_or_default();
-
-			let default = if !default.is_empty() {
-				format!(" {default}")
-			} else {
-				default
-			};
-
-			if let Some(file) = file.as_mut() {
-				file.write_fmt(format_args!("\n{doc}"))
-					.expect("written to config file");
-
-				file.write_fmt(format_args!("#{ident} ={default}\n"))
-					.expect("written to config file");
-			}
-
 			let display = get_doc_comment_line(field, "display");
 			let display_directive = |key| {
 				display
@@ -129,17 +102,77 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 					.flat_map(|display| display.split(' '))
 					.any(|directive| directive == key)
 			};
+			let is_nested = display_directive("nested");
+			let is_hidden = display_directive("hidden");
 
-			if !display_directive("hidden") {
-				let value = if display_directive("sensitive") {
-					quote! { "***********" }
+			// Only generate config file entries for non-nested, visible types
+			if !is_nested && !is_hidden {
+				let doc = get_doc_comment(field)
+					.unwrap_or_else(|| undocumented.into())
+					.trim_end()
+					.to_owned();
+
+				let doc = if doc.ends_with('#') {
+					format!("{doc}\n")
 				} else {
-					quote! { format_args!("{:?}", self.#ident) }
+					format!("{doc}\n#\n")
 				};
 
-				let name = ident.to_string();
+				let default = get_doc_comment_line(field, "default")
+					.or_else(|| get_default(field))
+					.unwrap_or_default();
+
+				let default = if !default.is_empty() {
+					format!(" {default}")
+				} else {
+					default
+				};
+
+				if let Some(file) = file.as_mut() {
+					file.write_fmt(format_args!("\n{doc}"))
+						.expect("written to config file");
+
+					file.write_fmt(format_args!("#{ident} ={default}\n"))
+						.expect("written to config file");
+				}
+			}
+
+			// Generate Display implementation for all fields
+			let name = ident.to_string();
+
+			if display_directive("sensitive") {
 				summary.push(quote! {
-					writeln!(out, "| {} | {} |", #name, #value)?;
+					writeln!(out, "| {} | {} |", #name, "***********")?;
+				});
+			} else if is_nested {
+				let is_option = matches!(type_name.as_str(), "Option");
+				if is_option {
+					summary.push(quote! {
+						writeln!(out, "| {} | {} |", #name,
+							if self.#ident.is_some() { "[configured]" } else { "None" })?;
+					});
+
+					nested_displays.push(quote! {
+						if let Some(nested) = &self.#ident {
+							writeln!(out)?;
+							writeln!(out, "## {}", #name)?;
+							write!(out, "{}", nested)?;
+						}
+					});
+				} else {
+					summary.push(quote! {
+						writeln!(out, "| {} | [configured] |", #name)?;
+					});
+
+					nested_displays.push(quote! {
+						writeln!(out)?;
+						writeln!(out, "## {}", #name)?;
+						write!(out, "{}", &self.#ident)?;
+					});
+				}
+			} else {
+				summary.push(quote! {
+					writeln!(out, "| {} | {:?} |", #name, self.#ident)?;
 				});
 			}
 		}
@@ -159,6 +192,7 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 				writeln!(out, "| name | value |")?;
 				writeln!(out, "| :--- | :---  |")?;
 				#( #summary )*
+				#( #nested_displays )*
 				Ok(())
 			}
 		}

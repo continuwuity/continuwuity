@@ -1759,10 +1759,6 @@
 #
 #config_reload_signal = true
 
-# This item is undocumented. Please contribute documentation for it.
-#
-#ldap = false
-
 [global.tls]
 
 # Path to a valid TLS certificate file.
@@ -1929,6 +1925,8 @@
 # example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
 #
 #admin_filter = ""
+
+[global.antispam]
 
 [global.antispam.meowlnir]
 
