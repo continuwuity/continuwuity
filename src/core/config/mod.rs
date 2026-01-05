@@ -53,8 +53,7 @@ use crate::{Result, err, error::Error, utils::sys};
 ### For more information, see:
 ### https://continuwuity.org/configuration.html
 "#,
-	ignore = "config_paths catchall well_known tls blurhashing \
-	allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure antispam"
+	ignore = "config_paths catchall"
 )]
 pub struct Config {
 	// Paths to config file(s). Not supposed to be set manually in the config file,
@@ -105,7 +104,7 @@ pub struct Config {
 	#[serde(default = "default_port")]
 	port: ListeningPort,
 
-	// external structure; separate section
+	/// display: nested
 	#[serde(default)]
 	pub tls: TlsConfig,
 
@@ -724,7 +723,7 @@ pub struct Config {
 	#[serde(default = "default_default_room_version")]
 	pub default_room_version: RoomVersionId,
 
-	// external structure; separate section
+	/// display: nested
 	#[serde(default)]
 	pub well_known: WellKnownConfig,
 
@@ -2030,19 +2029,22 @@ pub struct Config {
 	/// etc. This is a hidden argument that should NOT be used in production as
 	/// it is highly insecure and I will personally yell at you if I catch you
 	/// using this.
+	///
+	/// display: hidden
 	#[serde(default)]
 	pub allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure:
 		bool,
 
-	// external structure; separate section
+	/// display: nested
 	#[serde(default)]
 	pub ldap: LdapConfig,
 
 	/// Configuration for antispam support
+	/// display: nested
 	#[serde(default)]
 	pub antispam: Option<Antispam>,
 
-	// external structure; separate section
+	/// display: nested
 	#[serde(default)]
 	pub blurhashing: BlurhashConfig,
 	#[serde(flatten)]
@@ -2259,8 +2261,11 @@ struct ListeningAddr {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(filename = "conduwuit-example.toml", section = "global.antispam")]
 pub struct Antispam {
+	/// display: nested
 	pub meowlnir: Option<MeowlnirConfig>,
+	/// display: nested
 	pub draupnir: Option<DraupnirConfig>,
 }
 
