@@ -1757,6 +1757,10 @@
 #
 #ldap = false
 
+# Configuration for antispam support
+#
+#antispam = false
+
 [global.tls]
 
 # Path to a valid TLS certificate file.
@@ -1923,3 +1927,20 @@
 # example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
 #
 #admin_filter = ""
+
+[global.antispam.meowlnir]
+
+# The base URL on which to contact meowlnir (before /_meowlnir/antispam).
+#
+# Example: "http://127.0.0.1:29339"
+#
+#base_url =
+
+# The authentication secret defined in antispam->secret. Required for
+# continuwuity to talk to Meowlnir.
+#
+#secret =
+
+# The management room for which to send requests
+#
+#management_room =

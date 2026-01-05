@@ -1,3 +1,4 @@
+mod antispam;
 mod appservice;
 mod data;
 mod dest;
@@ -12,7 +13,9 @@ use std::{
 
 use async_trait::async_trait;
 use conduwuit::{
-	Result, Server, debug, debug_warn, err, error,
+	Result, Server,
+	config::MeowlnirConfig,
+	debug, debug_warn, err, error,
 	smallvec::SmallVec,
 	utils::{ReadyExt, TryReadyExt, available_parallelism, math::usize_from_u64_truncated},
 	warn,
@@ -332,6 +335,18 @@ impl Service {
 	{
 		let client = &self.services.client.appservice;
 		appservice::send_request(client, registration, request).await
+	}
+
+	/// Sends a request to the chosen antispam configuration
+	pub async fn send_meowlnir_antispam_request<T>(
+		&self,
+		config: &MeowlnirConfig,
+		request: T,
+	) -> Result<Option<T::IncomingResponse>>
+	where
+		T: OutgoingRequest + Debug + Send,
+	{
+		antispam::send_meowlnir_request(&self.services.client.appservice, config, request).await
 	}
 
 	/// Clean up queued sending event data

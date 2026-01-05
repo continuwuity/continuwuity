@@ -33,11 +33,11 @@ features = ["serde"]
 [workspace.dependencies.smallvec]
 version = "1.14.0"
 features = [
-	"const_generics",
-	"const_new",
-	"serde",
-	"union",
-	"write",
+    "const_generics",
+    "const_new",
+    "serde",
+    "union",
+    "write",
 ]
 
 [workspace.dependencies.smallstr]
@@ -96,13 +96,13 @@ version = "1.11.1"
 version = "0.7.9"
 default-features = false
 features = [
-	"form",
-	"http1",
-	"http2",
-	"json",
-	"matched-path",
-	"tokio",
-	"tracing",
+    "form",
+    "http1",
+    "http2",
+    "json",
+    "matched-path",
+    "tokio",
+    "tracing",
 ]
 
 [workspace.dependencies.axum-extra]
@@ -149,10 +149,10 @@ features = ["aws_lc_rs"]
 version = "0.12.15"
 default-features = false
 features = [
-	"rustls-tls-native-roots",
-	"socks",
-	"hickory-dns",
-	"http2",
+    "rustls-tls-native-roots",
+    "socks",
+    "hickory-dns",
+    "http2",
 ]
 
 [workspace.dependencies.serde]
@@ -188,18 +188,18 @@ default-features = false
 version = "0.25.5"
 default-features = false
 features = [
-	"jpeg",
-	"png",
-	"gif",
-	"webp",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
 ]
 
 [workspace.dependencies.blurhash]
 version = "0.2.3"
 default-features = false
 features = [
-	"fast-linear-to-srgb",
-	"image",
+    "fast-linear-to-srgb",
+    "image",
 ]
 
 # logging
@@ -229,13 +229,13 @@ default-features = false
 version = "4.5.35"
 default-features = false
 features = [
-	"derive",
-	"env",
-	"error-context",
-	"help",
-	"std",
-	"string",
-	"usage",
+    "derive",
+    "env",
+    "error-context",
+    "help",
+    "std",
+    "string",
+    "usage",
 ]
 
 [workspace.dependencies.futures]
@@ -247,15 +247,15 @@ features = ["std", "async-await"]
 version = "1.44.2"
 default-features = false
 features = [
-	"fs",
-	"net",
-	"macros",
-	"sync",
-	"signal",
-	"time",
-	"rt-multi-thread",
-	"io-util",
-	"tracing",
+    "fs",
+    "net",
+    "macros",
+    "sync",
+    "signal",
+    "time",
+    "rt-multi-thread",
+    "io-util",
+    "tracing",
 ]
 
 [workspace.dependencies.tokio-metrics]
@@ -280,18 +280,18 @@ default-features = false
 version = "1.6.0"
 default-features = false
 features = [
-	"server",
-	"http1",
-	"http2",
+    "server",
+    "http1",
+    "http2",
 ]
 
 [workspace.dependencies.hyper-util]
 version = "=0.1.17"
 default-features = false
 features = [
-	"server-auto",
-	"server-graceful",
-	"tokio",
+    "server-auto",
+    "server-graceful",
+    "tokio",
 ]
 
 # to support multiple variations of setting a config option
@@ -310,9 +310,9 @@ features = ["env", "toml"]
 version = "0.25.1"
 default-features = false
 features = [
-	"serde",
-	"system-config",
-	"tokio",
+    "serde",
+    "system-config",
+    "tokio",
 ]
 
 # Used for conduwuit::Error type
@@ -351,7 +351,7 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-rev = "27abe0dcd33fd4056efc94bab3582646b31b6ce9"
+rev = "377d801fa035480b772c640b430097c1ec0ddb16"
 features = [
     "compat",
     "rand",
@@ -381,13 +381,13 @@ features = [
     "unstable-msc4095",
     "unstable-msc4121",
     "unstable-msc4125",
-	"unstable-msc4155",
+    "unstable-msc4155",
     "unstable-msc4186",
     "unstable-msc4203", # sending to-device events to appservices
     "unstable-msc4210", # remove legacy mentions
     "unstable-extensible-events",
     "unstable-pdu",
-	"unstable-msc4155"
+    "unstable-msc4155"
 ]
 
 [workspace.dependencies.rust-rocksdb]
@@ -395,11 +395,11 @@ git = "https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1"
 rev = "61d9d23872197e9ace4a477f2617d5c9f50ecb23"
 default-features = false
 features = [
-	"multi-threaded-cf",
-	"mt_static",
-	"lz4",
-	"zstd",
-	"bzip2",
+    "multi-threaded-cf",
+    "mt_static",
+    "lz4",
+    "zstd",
+    "bzip2",
 ]
 
 [workspace.dependencies.sha2]
@@ -458,16 +458,16 @@ git = "https://forgejo.ellis.link/continuwuation/jemallocator"
 rev = "82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 default-features = false
 features = [
-	"background_threads_runtime_support",
-	"unprefixed_malloc_on_supported_platforms",
+    "background_threads_runtime_support",
+    "unprefixed_malloc_on_supported_platforms",
 ]
 [workspace.dependencies.tikv-jemallocator]
 git = "https://forgejo.ellis.link/continuwuation/jemallocator"
 rev = "82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
 default-features = false
 features = [
-	"background_threads_runtime_support",
-	"unprefixed_malloc_on_supported_platforms",
+    "background_threads_runtime_support",
+    "unprefixed_malloc_on_supported_platforms",
 ]
 [workspace.dependencies.tikv-jemalloc-ctl]
 git = "https://forgejo.ellis.link/continuwuation/jemallocator"
@@ -491,9 +491,9 @@ default-features = false
 version = "0.1.2"
 default-features = false
 features = [
-	"static",
-	"gcc",
-	"light",
+    "static",
+    "gcc",
+    "light",
 ]
 
 [workspace.dependencies.rustyline-async]

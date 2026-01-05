@@ -18,7 +18,7 @@ use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use regex::RegexSet;
 use ruma::{
-	OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
+	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
 	api::client::discovery::discover_support::ContactRole,
 };
 use serde::{Deserialize, de::IgnoredAny};
@@ -2024,6 +2024,10 @@ pub struct Config {
 	#[serde(default)]
 	pub ldap: LdapConfig,
 
+	/// Configuration for antispam support
+	#[serde(default)]
+	pub antispam: Option<Antispam>,
+
 	// external structure; separate section
 	#[serde(default)]
 	pub blurhashing: BlurhashConfig,
@@ -2238,6 +2242,30 @@ struct ListeningPort {
 struct ListeningAddr {
 	#[serde(with = "either::serde_untagged")]
 	addrs: Either<IpAddr, Vec<IpAddr>>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Antispam {
+	pub meowlnir: Option<MeowlnirConfig>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.antispam.meowlnir"
+)]
+pub struct MeowlnirConfig {
+	/// The base URL on which to contact meowlnir (before /_meowlnir/antispam).
+	///
+	/// Example: "http://127.0.0.1:29339"
+	pub base_url: Url,
+
+	/// The authentication secret defined in antispam->secret. Required for
+	/// continuwuity to talk to Meowlnir.
+	pub secret: String,
+
+	/// The management room for which to send requests
+	pub management_room: OwnedRoomId,
 }
 
 const DEPRECATED_KEYS: &[&str; 9] = &[

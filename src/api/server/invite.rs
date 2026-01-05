@@ -2,7 +2,9 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result, err,
+	Err, Error, PduEvent, Result,
+	config::Antispam,
+	err,
 	matrix::{Event, event::gen_event_id},
 	utils::{self, hash::sha256},
 	warn,
@@ -11,6 +13,7 @@ use ruma::{
 	CanonicalJsonValue, OwnedUserId, UserId,
 	api::{client::error::ErrorKind, federation::membership::create_invite},
 	events::room::member::{MembershipState, RoomMemberEventContent},
+	meowlnir_antispam::user_may_invite,
 	serde::JsonObject,
 };
 
@@ -146,6 +149,20 @@ pub(crate) async fn create_invite_route(
 	if services.config.block_non_admin_invites && !services.users.is_admin(&recipient_user).await
 	{
 		return Err!(Request(Forbidden("This server does not allow room invites.")));
+	}
+
+	if let Some(Antispam { meowlnir: Some(cfg) }) = &services.config.antispam {
+		services
+			.sending
+			.send_meowlnir_antispam_request(
+				cfg,
+				user_may_invite::v1::Request::new(
+					cfg.management_room.clone(),
+					sender_user.to_owned(),
+					recipient_user.clone(),
+				),
+			)
+			.await?;
 	}
 
 	let mut invite_state = body.invite_room_state.clone();
