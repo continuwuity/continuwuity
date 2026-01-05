@@ -389,7 +389,15 @@
 #
 #appservice_idle_timeout = 300
 
-# Notification gateway pusher idle connection pool timeout.
+# Notification gateway pusher request connection timeout (seconds).
+#
+#pusher_conn_timeout = 15
+
+# Notification gateway pusher total request timeout (seconds).
+#
+#pusher_timeout = 60
+
+# Notification gateway pusher idle connection pool timeout (seconds).
 #
 #pusher_idle_timeout = 15
 
@@ -1445,6 +1453,11 @@
 # spidering. Defaults to 256KB in bytes.
 #
 #url_preview_max_spider_size = 256000
+
+# Total request timeout for URL previews (seconds). This includes
+# connection, request, and response body reading time.
+#
+#url_preview_timeout = 120
 
 # Option to decide whether you would like to run the domain allowlist
 # checks (contains and explicit) on the root domain or not. Does not apply

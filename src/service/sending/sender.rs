@@ -50,9 +50,7 @@ use ruma::{
 };
 use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
 
-use super::{
-	Destination, EduBuf, EduVec, Msg, SendingEvent, Service, appservice, data::QueueItem,
-};
+use super::{Destination, EduBuf, EduVec, Msg, SendingEvent, Service, data::QueueItem};
 
 #[derive(Debug)]
 enum TransactionStatus {
@@ -720,18 +718,18 @@ impl Service {
 
 		//debug_assert!(pdu_jsons.len() + edu_jsons.len() > 0, "sending empty
 		// transaction");
-		let client = &self.services.client.appservice;
-		match appservice::send_request(
-			client,
-			appservice,
-			ruma::api::appservice::event::push_events::v1::Request {
-				events: pdu_jsons,
-				txn_id: txn_id.into(),
-				ephemeral: edu_jsons,
-				to_device: Vec::new(), // TODO
-			},
-		)
-		.await
+
+		match self
+			.send_appservice_request(
+				appservice,
+				ruma::api::appservice::event::push_events::v1::Request {
+					events: pdu_jsons,
+					txn_id: txn_id.into(),
+					ephemeral: edu_jsons,
+					to_device: Vec::new(), // TODO
+				},
+			)
+			.await
 		{
 			| Ok(_) => Ok(Destination::Appservice(id)),
 			| Err(e) => Err((Destination::Appservice(id), e)),
