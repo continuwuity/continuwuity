@@ -3,7 +3,7 @@ use std::{fmt::Debug, mem};
 use bytes::Bytes;
 use conduwuit::{
 	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
-	error::inspect_debug_log, implement, trace, utils::string::EMPTY, warn,
+	error::inspect_debug_log, implement, trace,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
@@ -196,7 +196,7 @@ fn handle_error(
 ) -> Result {
 	if e.is_timeout() || e.is_connect() {
 		e = e.without_url();
-		debug_warn!(?url, "network error while sending request: {e:?}");
+		debug_warn!("{e:?}");
 	} else if e.is_redirect() {
 		debug_error!(
 			%method,
@@ -207,7 +207,7 @@ fn handle_error(
 			e,
 		);
 	} else {
-		warn!(?url, "failed to send federation request: {e:?}");
+		debug_error!("{e:?}");
 	}
 
 	Err(e.into())
@@ -289,10 +289,13 @@ where
 	T: OutgoingRequest + Send,
 {
 	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_11];
-	const SATIR: SendAccessToken<'_> = SendAccessToken::IfRequired(EMPTY);
 
 	let http_request = request
-		.try_into_http_request::<Vec<u8>>(actual.string().as_str(), SATIR, &VERSIONS)
+		.try_into_http_request::<Vec<u8>>(
+			actual.string().as_str(),
+			SendAccessToken::None,
+			&VERSIONS,
+		)
 		.map_err(|e| err!(BadServerResponse("Invalid destination: {e:?}")))?;
 
 	Ok(http_request)

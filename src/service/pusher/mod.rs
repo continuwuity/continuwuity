@@ -198,7 +198,7 @@ impl Service {
 		trace!("Push gateway destination: {dest}");
 
 		let http_request = request
-			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::IfRequired(""), &VERSIONS)
+			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::None, &VERSIONS)
 			.map_err(|e| {
 				err!(BadServerResponse(warn!(
 					"Failed to find destination {dest} for push gateway: {e}"
