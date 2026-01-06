@@ -576,7 +576,8 @@ pub struct Config {
 	/// `yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse`
 	/// to true to allow open registration without any conditions.
 	///
-	/// YOU NEED TO EDIT THIS OR USE registration_token_file.
+	/// If you do not want to set a static token, the `!admin token` commands
+	/// may also be used to manage registration tokens.
 	///
 	/// example: "o&^uCtes4HPf0Vu@F20jQeeWE7"
 	///
@@ -2287,7 +2288,7 @@ pub struct DraupnirConfig {
 	pub secret: String,
 }
 
-const DEPRECATED_KEYS: &[&str; 9] = &[
+const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
@@ -2297,6 +2298,7 @@ const DEPRECATED_KEYS: &[&str; 9] = &[
 	"well_known_support_role",
 	"well_known_support_email",
 	"well_known_support_mxid",
+	"registration_token_file",
 ];
 
 impl Config {

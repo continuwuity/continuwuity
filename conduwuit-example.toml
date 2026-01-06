@@ -452,7 +452,8 @@
 # `yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse`
 # to true to allow open registration without any conditions.
 #
-# YOU NEED TO EDIT THIS OR USE registration_token_file.
+# If you do not want to set a static token, the `!admin token` commands may also be used
+# to manage registration tokens.
 #
 # example: "o&^uCtes4HPf0Vu@F20jQeeWE7"
 #
