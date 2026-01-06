@@ -186,6 +186,7 @@ pub async fn leave_room(
 						// we save a `None` to the `roomuserid_leftcount` table, which generates
 						// and sends a dummy leave to the client.
 						warn!(
+							?err,
 							"Trying to leave room not cached as leave, sending dummy leave \
 							 event to client"
 						);
