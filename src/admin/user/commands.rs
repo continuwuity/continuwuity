@@ -280,7 +280,12 @@ pub(super) async fn unsuspend(&self, user_id: String) -> Result {
 }
 
 #[admin_command]
-pub(super) async fn reset_password(&self, username: String, password: Option<String>) -> Result {
+pub(super) async fn reset_password(
+	&self,
+	logout: bool,
+	username: String,
+	password: Option<String>,
+) -> Result {
 	let user_id = parse_local_user_id(self.services, &username)?;
 
 	if user_id == self.services.globals.server_user {
@@ -303,7 +308,18 @@ pub(super) async fn reset_password(&self, username: String, password: Option<Str
 			write!(self, "Successfully reset the password for user {user_id}: `{new_password}`")
 		},
 	}
-	.await
+	.await?;
+
+	if logout {
+		self.services
+			.users
+			.all_device_ids(&user_id)
+			.for_each(|device_id| self.services.users.remove_device(&user_id, device_id))
+			.await;
+		write!(self, "\nAll existing sessions have been logged out.").await?;
+	}
+
+	Ok(())
 }
 
 #[admin_command]
@@ -1043,4 +1059,46 @@ pub(super) async fn logout(&self, user_id: String) -> Result {
 		.await;
 	self.write_str(&format!("User {user_id} has been logged out from all devices."))
 		.await
+}
+
+#[admin_command]
+pub(super) async fn disable_login(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+	if user_id == self.services.globals.server_user {
+		return Err!("Not allowed to disable login for the server service account.",);
+	}
+
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	if self.services.users.is_admin(&user_id).await {
+		return Err!("Admin users cannot have their login disallowed.");
+	}
+	self.services.users.disable_login(&user_id);
+
+	self.write_str(&format!(
+		"{user_id} can no longer log in. Their existing sessions remain unaffected."
+	))
+	.await
+}
+
+#[admin_command]
+pub(super) async fn enable_login(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+	if !self.services.users.exists(&user_id).await {
+		return Err!("User {user_id} does not exist.");
+	}
+	self.services.users.enable_login(&user_id);
+
+	self.write_str(&format!("{user_id} can now log in.")).await
 }
