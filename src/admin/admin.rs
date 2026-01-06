@@ -28,7 +28,7 @@ pub enum AdminCommand {
 
 	#[command(subcommand)]
 	/// - Commands for managing registration tokens
-	Tokens(TokenCommand),
+	Token(TokenCommand),
 
 	#[command(subcommand)]
 	/// - Commands for managing rooms
@@ -75,7 +75,7 @@ pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Res
 			context.bail_restricted()?;
 			user::process(command, context).await
 		},
-		| Tokens(command) => {
+		| Token(command) => {
 			// token commands are all restricted
 			context.bail_restricted()?;
 			token::process(command, context).await
