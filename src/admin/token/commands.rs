@@ -10,6 +10,8 @@ pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 			None
 		} else if let Some(max_uses) = expires.max_uses {
 			Some(TokenExpires::AfterUses(max_uses))
+		} else if expires.once {
+			Some(TokenExpires::AfterUses(1))
 		} else if let Some(max_age) = expires
 			.max_age
 			.as_deref()

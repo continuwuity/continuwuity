@@ -48,7 +48,7 @@ impl DatabaseTokenInfo {
 
 impl std::fmt::Display for DatabaseTokenInfo {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "Token created by {} and used {} time. ", &self.creator, self.uses)?;
+		write!(f, "Token created by {} and used {} times. ", &self.creator, self.uses)?;
 		if let Some(expires) = &self.expires {
 			write!(f, "{expires}.")?;
 		} else {
