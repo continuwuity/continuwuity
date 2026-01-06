@@ -2,10 +2,17 @@ use clap::Parser;
 use conduwuit::Result;
 
 use crate::{
-	appservice, appservice::AppserviceCommand, check, check::CheckCommand, context::Context,
-	debug, debug::DebugCommand, federation, federation::FederationCommand, media,
-	media::MediaCommand, query, query::QueryCommand, room, room::RoomCommand, server,
-	server::ServerCommand, user, user::UserCommand,
+	appservice::{self, AppserviceCommand},
+	check::{self, CheckCommand},
+	context::Context,
+	debug::{self, DebugCommand},
+	federation::{self, FederationCommand},
+	media::{self, MediaCommand},
+	query::{self, QueryCommand},
+	room::{self, RoomCommand},
+	server::{self, ServerCommand},
+	token::{self, TokenCommand},
+	user::{self, UserCommand},
 };
 
 #[derive(Debug, Parser)]
@@ -18,6 +25,10 @@ pub enum AdminCommand {
 	#[command(subcommand)]
 	/// - Commands for managing local users
 	Users(UserCommand),
+
+	#[command(subcommand)]
+	/// - Commands for managing registration tokens
+	Tokens(TokenCommand),
 
 	#[command(subcommand)]
 	/// - Commands for managing rooms
@@ -63,6 +74,11 @@ pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Res
 			// user commands are all restricted
 			context.bail_restricted()?;
 			user::process(command, context).await
+		},
+		| Tokens(command) => {
+			// token commands are all restricted
+			context.bail_restricted()?;
+			token::process(command, context).await
 		},
 		| Rooms(command) => room::process(command, context).await,
 		| Federation(command) => federation::process(command, context).await,

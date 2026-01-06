@@ -1,6 +1,9 @@
 use std::{sync::Arc, time::SystemTime};
 
-use conduwuit::utils::stream::{ReadyExt, TryIgnore};
+use conduwuit::utils::{
+	self,
+	stream::{ReadyExt, TryIgnore},
+};
 use database::{Database, Deserialized, Json, Map};
 use futures::Stream;
 use ruma::OwnedUserId;
@@ -32,7 +35,7 @@ impl DatabaseTokenInfo {
 	#[must_use]
 	pub fn is_valid(&self) -> bool {
 		match self.expires {
-			| Some(TokenExpires::AfterUses(max_uses)) => self.uses <= max_uses,
+			| Some(TokenExpires::AfterUses(max_uses)) => self.uses < max_uses,
 			| Some(TokenExpires::AfterTime(expiry_time)) => {
 				let now = SystemTime::now();
 
@@ -43,10 +46,44 @@ impl DatabaseTokenInfo {
 	}
 }
 
+impl std::fmt::Display for DatabaseTokenInfo {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "Token created by {} and used {} time. ", &self.creator, self.uses)?;
+		if let Some(expires) = &self.expires {
+			write!(f, "{expires}.")?;
+		} else {
+			write!(f, "Never expires.")?;
+		}
+
+		Ok(())
+	}
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum TokenExpires {
 	AfterUses(u64),
 	AfterTime(SystemTime),
+}
+
+impl std::fmt::Display for TokenExpires {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			| Self::AfterUses(max_uses) => write!(f, "Expires after {max_uses} uses"),
+			| Self::AfterTime(max_age) => {
+				let now = SystemTime::now();
+				let formatted_expiry = utils::time::format(*max_age, "%+");
+
+				match max_age.duration_since(now) {
+					| Ok(duration) => write!(
+						f,
+						"Expires in {} ({formatted_expiry})",
+						utils::time::pretty(duration)
+					),
+					| Err(_) => write!(f, "Expired at {formatted_expiry}"),
+				}
+			},
+		}
+	}
 }
 
 impl Data {
@@ -58,16 +95,16 @@ impl Data {
 
 	/// Associate a registration token with its metadata in the database.
 	pub(super) fn save_token(&self, token: &str, info: &DatabaseTokenInfo) {
-		self.registrationtoken_info.put(token, Json(info));
+		self.registrationtoken_info.raw_put(token, Json(info));
 	}
 
 	/// Delete a registration token.
-	pub(super) fn revoke_token(&self, token: &str) { self.registrationtoken_info.del(token); }
+	pub(super) fn revoke_token(&self, token: &str) { self.registrationtoken_info.remove(token); }
 
 	/// Look up a registration token's metadata.
 	pub(super) async fn lookup_token_info(&self, token: &str) -> Option<DatabaseTokenInfo> {
 		self.registrationtoken_info
-			.qry(token)
+			.get(token)
 			.await
 			.deserialized()
 			.ok()
@@ -80,12 +117,12 @@ impl Data {
 		self.registrationtoken_info
 			.stream()
 			.ignore_err()
-			.ready_filter(|item: &(&str, DatabaseTokenInfo)| {
+			.ready_filter_map(|item: (&str, DatabaseTokenInfo)| {
 				if item.1.is_valid() {
-					true
+					Some(item)
 				} else {
-					self.registrationtoken_info.del(item.0);
-					false
+					self.registrationtoken_info.remove(item.0);
+					None
 				}
 			})
 	}

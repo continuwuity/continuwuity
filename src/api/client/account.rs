@@ -864,7 +864,7 @@ pub(crate) async fn check_registration_token_validity(
 
 	let valid = services
 		.registration_tokens
-		.validate_token(&body.token)
+		.validate_token(body.token.clone())
 		.await
 		.is_some();
 
