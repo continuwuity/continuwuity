@@ -186,7 +186,7 @@ pub(crate) async fn handle_login(
 		return Err!(Request(Unknown("User ID does not belong to this homeserver")));
 	}
 
-	if services.users.is_locked(&user_id)? {
+	if services.users.is_locked(&user_id).await? {
 		return Err(Error::BadRequest(ErrorKind::UserLocked, "This account has been locked."));
 	}
 
