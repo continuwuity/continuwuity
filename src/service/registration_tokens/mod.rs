@@ -10,7 +10,7 @@ use ruma::OwnedUserId;
 
 use crate::{Dep, config};
 
-const RANDOM_TOKEN_LENGTH: usize = 64;
+const RANDOM_TOKEN_LENGTH: usize = 16;
 
 pub struct Service {
 	db: Data,
@@ -22,22 +22,39 @@ struct Services {
 }
 
 /// A validated registration token which may be used to create an account.
-pub struct ValidToken<'token> {
-	pub token: &'token str,
+#[derive(Debug)]
+pub struct ValidToken {
+	pub token: String,
 	pub source: ValidTokenSource,
 }
 
-impl PartialEq<str> for ValidToken<'_> {
+impl std::fmt::Display for ValidToken {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "`{}` --- {}", self.token, &self.source)
+	}
+}
+
+impl PartialEq<str> for ValidToken {
 	fn eq(&self, other: &str) -> bool { self.token == other }
 }
 
 /// The source of a valid database token.
+#[derive(Debug)]
 pub enum ValidTokenSource {
 	/// The static token set in the homeserver's config file, which is
 	/// always valid.
 	ConfigFile,
 	/// A database token which has been checked to be valid.
 	Database(DatabaseTokenInfo),
+}
+
+impl std::fmt::Display for ValidTokenSource {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			| Self::ConfigFile => write!(f, "Token defined in config."),
+			| Self::Database(info) => info.fmt(f),
+		}
+	}
 }
 
 impl crate::Service for Service {
@@ -68,11 +85,11 @@ impl Service {
 	}
 
 	/// Get the registration token set in the config file, if it exists.
-	pub fn get_config_file_token(&self) -> Option<ValidToken<'_>> {
+	pub fn get_config_file_token(&self) -> Option<ValidToken> {
 		self.services
 			.config
 			.registration_token
-			.as_deref()
+			.clone()
 			.map(|token| ValidToken {
 				token,
 				source: ValidTokenSource::ConfigFile,
@@ -80,7 +97,7 @@ impl Service {
 	}
 
 	/// Validate a registration token.
-	pub async fn validate_token<'token>(&self, token: &'token str) -> Option<ValidToken<'token>> {
+	pub async fn validate_token(&self, token: String) -> Option<ValidToken> {
 		// Check the registration token in the config first
 		if self
 			.get_config_file_token()
@@ -93,7 +110,7 @@ impl Service {
 		}
 
 		// Now check the database
-		if let Some(token_info) = self.db.lookup_token_info(token).await
+		if let Some(token_info) = self.db.lookup_token_info(&token).await
 			&& token_info.is_valid()
 		{
 			return Some(ValidToken {
@@ -107,7 +124,7 @@ impl Service {
 	}
 
 	/// Mark a valid token as having been used to create a new account.
-	pub fn mark_token_as_used(&self, ValidToken { token, source }: ValidToken<'_>) {
+	pub fn mark_token_as_used(&self, ValidToken { token, source }: ValidToken) {
 		match source {
 			| ValidTokenSource::ConfigFile => {
 				// we don't track uses of the config file token, do nothing
@@ -115,7 +132,7 @@ impl Service {
 			| ValidTokenSource::Database(mut info) => {
 				info.uses = info.uses.saturating_add(1);
 
-				self.db.save_token(token, &info);
+				self.db.save_token(&token, &info);
 			},
 		}
 	}
@@ -124,7 +141,7 @@ impl Service {
 	///
 	/// Note that some tokens (like the one set in the config file) cannot be
 	/// revoked.
-	pub fn revoke_token(&self, ValidToken { token, source }: ValidToken<'_>) -> Result {
+	pub fn revoke_token(&self, ValidToken { token, source }: ValidToken) -> Result {
 		match source {
 			| ValidTokenSource::ConfigFile => {
 				// the config file token cannot be revoked
@@ -134,19 +151,22 @@ impl Service {
 				)
 			},
 			| ValidTokenSource::Database(_) => {
-				self.db.revoke_token(token);
+				self.db.revoke_token(&token);
 				Ok(())
 			},
 		}
 	}
 
 	/// Iterate over all valid registration tokens.
-	pub fn iterate_tokens(&self) -> impl Stream<Item = ValidToken<'_>> + Send + '_ {
-		stream::iter(self.get_config_file_token()).chain(self.db.iterate_and_clean_tokens().map(
-			|(token, info)| ValidToken {
-				token,
+	pub fn iterate_tokens(&self) -> impl Stream<Item = ValidToken> + Send + '_ {
+		let db_tokens = self
+			.db
+			.iterate_and_clean_tokens()
+			.map(|(token, info)| ValidToken {
+				token: token.to_owned(),
 				source: ValidTokenSource::Database(info),
-			},
-		))
+			});
+
+		stream::iter(self.get_config_file_token()).chain(db_tokens)
 	}
 }
