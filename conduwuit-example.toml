@@ -340,7 +340,9 @@
 # this to be high to account for extremely large room joins, slow
 # homeservers, your own resources etc.
 #
-#federation_timeout = 300
+# Joins have 6x the timeout.
+#
+#federation_timeout = 60
 
 # MSC4284 Policy server request timeout (seconds). Generally policy
 # servers should respond near instantly, however may slow down under

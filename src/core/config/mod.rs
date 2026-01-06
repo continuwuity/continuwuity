@@ -435,7 +435,9 @@ pub struct Config {
 	/// this to be high to account for extremely large room joins, slow
 	/// homeservers, your own resources etc.
 	///
-	/// default: 300
+	/// Joins have 6x the timeout.
+	///
+	/// default: 60
 	#[serde(default = "default_federation_timeout")]
 	pub federation_timeout: u64,
 
@@ -2474,7 +2476,7 @@ fn default_well_known_timeout() -> u64 { 10 }
 
 fn default_federation_conn_timeout() -> u64 { 10 }
 
-fn default_federation_timeout() -> u64 { 25 }
+fn default_federation_timeout() -> u64 { 60 }
 
 fn default_policy_server_request_timeout() -> u64 { 10 }
 
