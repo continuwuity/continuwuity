@@ -179,7 +179,9 @@ pub(crate) async fn register_route(
 			},
 		}
 
-		return Err!(Request(Forbidden("Registration has been disabled.")));
+		return Err!(Request(Forbidden(
+			"This server is not accepting registrations at this time."
+		)));
 	}
 
 	if is_guest
@@ -206,7 +208,9 @@ pub(crate) async fn register_route(
 			 rejecting registration. Guest's initial device name: \"{}\"",
 			body.initial_device_display_name.as_deref().unwrap_or("")
 		);
-		return Err!(Request(Forbidden("Registration is temporarily disabled.")));
+		return Err!(Request(Forbidden(
+			"This server is not accepting registrations at this time."
+		)));
 	}
 
 	let user_id = match (body.username.as_ref(), is_guest) {
@@ -332,7 +336,19 @@ pub(crate) async fn register_route(
 	}
 
 	if uiaainfo.flows.is_empty() && !skip_auth {
-		// No registration token necessary, but clients must still go through the flow
+		// Registration isn't _disabled_, but there's no captcha configured and no
+		// registration tokens currently set. Bail out by default unless open
+		// registration was explicitly enabled.
+		if !services
+			.config
+			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+		{
+			return Err!(Request(Forbidden(
+				"This server is not accepting registrations at this time."
+			)));
+		}
+
+		// We have open registration enabled (😧), provide a dummy stage
 		uiaainfo = UiaaInfo {
 			flows: vec![AuthFlow { stages: vec![AuthType::Dummy] }],
 			completed: Vec::new(),
