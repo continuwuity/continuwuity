@@ -8,23 +8,39 @@
 
 ## Installing Continuwuity
 
-### Static prebuilt binary
+### Prebuilt binary
 
-Download the binary for your architecture (x86_64 or aarch64) - run `uname -m` to check which you need.
+Download the binary for your architecture (x86_64 or aarch64) -
+run the `uname -m` to check which you need.
 
-Prebuilt static binaries are available from:
+Prebuilt binaries are available from:
 - **Tagged releases**: [Latest release page](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest)
-- **Development builds**: CI artifacts from the `main` branch (includes Debian/Ubuntu packages)
+- **Development builds**: CI artifacts from the `main` branch
+  (includes Debian/Ubuntu packages)
 
-When browsing CI artifacts, `ci-bins` contains binaries organised by commit hash, while `releases` contains tagged versions. Sort by last modified date to find the most recent builds.
+When browsing CI artifacts, `ci-bins` contains binaries organised
+by commit hash, while `releases` contains tagged versions. Sort
+by last modified date to find the most recent builds.
 
-The binaries include jemalloc and io_uring statically linked, so you won't need to install any additional dependencies.
+The binaries require jemalloc and io_uring on the host system. Currently
+we can't cross-build static binaries - contributions are welcome here.
 
 #### Performance-optimised builds
 
-For x86_64 systems with CPUs from the last ~15 years, use the `-haswell-` optimised binaries for best performance. These binaries enable hardware-accelerated CRC32 checksumming in RocksDB, which significantly improves database performance. The haswell instruction set provides an excellent balance of compatibility and speed.
+For x86_64 systems with CPUs from the last ~15 years, use the
+`-haswell-` optimised binaries for best performance. These
+binaries enable hardware-accelerated CRC32 checksumming in
+RocksDB, which significantly improves database performance.
+The haswell instruction set provides an excellent balance of
+compatibility and speed.
 
-If you're using Docker instead, equivalent performance-optimised images are available with the `-maxperf` suffix (e.g. `forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf`). These images use the `release-max-perf` build profile with [link-time optimisation (LTO)](https://doc.rust-lang.org/cargo/reference/profiles.html#lto) and, for amd64, target the haswell CPU architecture.
+If you're using Docker instead, equivalent performance-optimised
+images are available with the `-maxperf` suffix (e.g.
+`forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf`).
+These images use the `release-max-perf`
+build profile with
+[link-time optimisation (LTO)](https://doc.rust-lang.org/cargo/reference/profiles.html#lto)
+and, for amd64, target the haswell CPU architecture.
 
 ### Compiling
 
