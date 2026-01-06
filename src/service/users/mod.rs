@@ -78,6 +78,7 @@ struct Data {
 	userid_password: Arc<Map>,
 	userid_suspension: Arc<Map>,
 	userid_lock: Arc<Map>,
+	userid_login_disabled: Arc<Map>,
 	userid_selfsigningkeyid: Arc<Map>,
 	userid_usersigningkeyid: Arc<Map>,
 	useridprofilekey_value: Arc<Map>,
@@ -117,6 +118,7 @@ impl crate::Service for Service {
 				userid_password: args.db["userid_password"].clone(),
 				userid_suspension: args.db["userid_suspension"].clone(),
 				userid_lock: args.db["userid_lock"].clone(),
+				userid_login_disabled: args.db["userid_login_disabled"].clone(),
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
@@ -293,6 +295,18 @@ impl Service {
 					Err(e)
 				},
 		}
+	}
+
+	pub fn disable_login(&self, user_id: &UserId) {
+		self.db.userid_login_disabled.insert(user_id, "1");
+	}
+
+	pub fn enable_login(&self, user_id: &UserId) {
+		self.db.userid_login_disabled.remove(user_id);
+	}
+
+	pub async fn is_login_disabled(&self, user_id: &UserId) -> bool {
+		self.db.userid_login_disabled.get(user_id).await.is_ok()
 	}
 
 	/// Check if account is active, infallible

@@ -20,6 +20,9 @@ pub enum UserCommand {
 
 	/// - Reset user password
 	ResetPassword {
+		/// Log out existing sessions
+		#[arg(short, long)]
+		logout: bool,
 		/// Username of the user for whom the password should be reset
 		username: String,
 		/// New password for the user, if unspecified one is generated
@@ -110,6 +113,22 @@ pub enum UserCommand {
 	/// their account again.
 	Unlock {
 		/// Username of the user to unlock
+		user_id: String,
+	},
+
+	/// - Enable login for a user
+	EnableLogin {
+		/// Username of the user to enable login for
+		user_id: String,
+	},
+
+	/// - Disable login for a user
+	///
+	/// Disables login for the specified user without deactivating or locking
+	/// their account. This prevents the user from obtaining new access tokens,
+	/// but does not invalidate existing sessions.
+	DisableLogin {
+		/// Username of the user to disable login for
 		user_id: String,
 	},
 

@@ -5,6 +5,7 @@ use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, err, info,
 	utils::{self, ReadyExt, hash},
+	warn,
 };
 use conduwuit_core::{debug_error, debug_warn};
 use conduwuit_service::{Services, uiaa::SESSION_ID_LENGTH};
@@ -182,6 +183,11 @@ pub(crate) async fn handle_login(
 		|| !services.globals.user_is_local(&lowercased_user_id)
 	{
 		return Err!(Request(Unknown("User ID does not belong to this homeserver")));
+	}
+
+	if services.users.is_login_disabled(&user_id).await {
+		warn!(%user_id, "user attempted to log in with a login-disabled account");
+		return Err!(Request(Forbidden("This account is not permitted to log in.")));
 	}
 
 	if cfg!(feature = "ldap") && services.config.ldap.enable {
