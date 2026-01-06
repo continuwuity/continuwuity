@@ -82,8 +82,13 @@ impl crate::Service for Service {
 			synapse: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
-				.read_timeout(Duration::from_secs(305))
-				.timeout(Duration::from_secs(120))
+				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))
+				.timeout(Duration::from_secs(
+					config
+						.federation_timeout
+						.saturating_mul(6)
+						.saturating_add(config.federation_conn_timeout),
+				))
 				.pool_max_idle_per_host(0)
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
