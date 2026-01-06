@@ -44,4 +44,8 @@ pub struct TokenExpires {
 	/// This token will never expire.
 	#[arg(long)]
 	immortal: bool,
+
+	/// A shortcut for `--max-uses 1`.
+	#[arg(long)]
+	once: bool,
 }
