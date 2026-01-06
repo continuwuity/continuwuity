@@ -13,6 +13,7 @@ use futures::StreamExt;
 use ruma::{
 	OwnedUserId, UserId,
 	api::client::{
+		error::ErrorKind,
 		session::{
 			get_login_token,
 			get_login_types::{
@@ -183,6 +184,10 @@ pub(crate) async fn handle_login(
 		|| !services.globals.user_is_local(&lowercased_user_id)
 	{
 		return Err!(Request(Unknown("User ID does not belong to this homeserver")));
+	}
+
+	if services.users.is_locked(&user_id)? {
+		return Err(Error::BadRequest(ErrorKind::UserLocked, "This account has been locked."));
 	}
 
 	if services.users.is_login_disabled(&user_id).await {
