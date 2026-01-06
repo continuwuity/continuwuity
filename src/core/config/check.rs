@@ -172,24 +172,6 @@ pub fn check(config: &Config) -> Result {
 	}
 
 	if config.allow_registration
-		&& !config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-		&& config.registration_token.is_none()
-		&& config.recaptcha_site_key.is_none()
-	{
-		return Err!(Config(
-			"registration_token",
-			"!! You have `allow_registration` enabled without a token or captcha configured \
-			 which means you are allowing ANYONE to register on your continuwuity instance \
-			 without any 2nd-step (e.g. registration token, captcha), which is FREQUENTLY \
-			 abused by malicious actors. If this is not the intended behaviour, please set a \
-			 registration token. For security and safety reasons, continuwuity will shut down. \
-			 If you are extra sure this is the desired behaviour you want, please set the \
-			 following config option to true:
-`yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse`"
-		));
-	}
-
-	if config.allow_registration
 		&& config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
 		&& config.registration_token.is_none()
 	{
