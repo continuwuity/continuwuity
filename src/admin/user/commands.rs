@@ -1042,4 +1042,5 @@ pub(super) async fn logout(&self, user_id: String) -> Result {
 		.for_each(|device_id| self.services.users.remove_device(&user_id, device_id))
 		.await;
 	self.write_str(&format!("User {user_id} has been logged out from all devices."))
+		.await
 }
