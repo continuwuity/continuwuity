@@ -23,18 +23,18 @@ struct Services {
 
 /// A validated registration token which may be used to create an account.
 #[derive(Debug)]
-pub struct ValidToken {
-	pub token: String,
+pub struct ValidToken<'token> {
+	pub token: &'token str,
 	pub source: ValidTokenSource,
 }
 
-impl std::fmt::Display for ValidToken {
+impl std::fmt::Display for ValidToken<'_> {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		write!(f, "`{}` --- {}", self.token, &self.source)
 	}
 }
 
-impl PartialEq<str> for ValidToken {
+impl PartialEq<str> for ValidToken<'_> {
 	fn eq(&self, other: &str) -> bool { self.token == other }
 }
 
@@ -85,11 +85,11 @@ impl Service {
 	}
 
 	/// Get the registration token set in the config file, if it exists.
-	pub fn get_config_file_token(&self) -> Option<ValidToken> {
+	pub fn get_config_file_token(&self) -> Option<ValidToken<'_>> {
 		self.services
 			.config
 			.registration_token
-			.clone()
+			.as_deref()
 			.map(|token| ValidToken {
 				token,
 				source: ValidTokenSource::ConfigFile,
@@ -97,7 +97,7 @@ impl Service {
 	}
 
 	/// Validate a registration token.
-	pub async fn validate_token(&self, token: String) -> Option<ValidToken> {
+	pub async fn validate_token<'token>(&self, token: &'token str) -> Option<ValidToken<'token>> {
 		// Check the registration token in the config first
 		if self
 			.get_config_file_token()
@@ -110,7 +110,7 @@ impl Service {
 		}
 
 		// Now check the database
-		if let Some(token_info) = self.db.lookup_token_info(&token).await
+		if let Some(token_info) = self.db.lookup_token_info(token).await
 			&& token_info.is_valid()
 		{
 			return Some(ValidToken {
@@ -124,7 +124,7 @@ impl Service {
 	}
 
 	/// Mark a valid token as having been used to create a new account.
-	pub fn mark_token_as_used(&self, ValidToken { token, source }: ValidToken) {
+	pub fn mark_token_as_used(&self, ValidToken { token, source }: ValidToken<'_>) {
 		match source {
 			| ValidTokenSource::ConfigFile => {
 				// we don't track uses of the config file token, do nothing
@@ -132,7 +132,7 @@ impl Service {
 			| ValidTokenSource::Database(mut info) => {
 				info.uses = info.uses.saturating_add(1);
 
-				self.db.save_token(&token, &info);
+				self.db.save_token(token, &info);
 			},
 		}
 	}
@@ -141,7 +141,7 @@ impl Service {
 	///
 	/// Note that some tokens (like the one set in the config file) cannot be
 	/// revoked.
-	pub fn revoke_token(&self, ValidToken { token, source }: ValidToken) -> Result {
+	pub fn revoke_token(&self, ValidToken { token, source }: ValidToken<'_>) -> Result {
 		match source {
 			| ValidTokenSource::ConfigFile => {
 				// the config file token cannot be revoked
@@ -151,19 +151,19 @@ impl Service {
 				)
 			},
 			| ValidTokenSource::Database(_) => {
-				self.db.revoke_token(&token);
+				self.db.revoke_token(token);
 				Ok(())
 			},
 		}
 	}
 
 	/// Iterate over all valid registration tokens.
-	pub fn iterate_tokens(&self) -> impl Stream<Item = ValidToken> + Send + '_ {
+	pub fn iterate_tokens(&self) -> impl Stream<Item = ValidToken<'_>> + Send + '_ {
 		let db_tokens = self
 			.db
 			.iterate_and_clean_tokens()
 			.map(|(token, info)| ValidToken {
-				token: token.to_owned(),
+				token,
 				source: ValidTokenSource::Database(info),
 			});
 

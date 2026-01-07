@@ -45,7 +45,7 @@ pub(super) async fn revoke_token(&self, token: String) -> Result {
 	let Some(token) = self
 		.services
 		.registration_tokens
-		.validate_token(token)
+		.validate_token(&token)
 		.await
 	else {
 		return Err!("This token does not exist or has already expired.");

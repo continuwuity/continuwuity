@@ -209,7 +209,7 @@ pub async fn try_auth(
 			}
 		},
 		| AuthData::RegistrationToken(t) => {
-			let token = t.token.trim().to_owned();
+			let token = t.token.trim();
 
 			if let Some(valid_token) = self
 				.services
