@@ -839,6 +839,8 @@ unknown_lints = "allow"
 
 ###################
 cargo = { level = "warn", priority = -1 }
+# Nobody except for us should be consuming these crates, they don't need metadata
+cargo_common_metadata = { level = "allow"}
 
 ## some sadness
 multiple_crate_versions = { level = "allow", priority = 1 }
