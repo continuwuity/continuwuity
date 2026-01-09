@@ -1,2 +1,0 @@
-Client requested timeout parameter is now applied to e2ee key lookups and claims. Related federation requests are now
-also concurrent. Contributed by @nex.

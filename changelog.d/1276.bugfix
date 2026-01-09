@@ -1,1 +1,0 @@
-Fixed the whoami endpoint returning HTTP 404 instead of HTTP 403, which confused some appservices. Contributed by @nex.
