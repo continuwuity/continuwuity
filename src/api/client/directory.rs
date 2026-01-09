@@ -354,14 +354,21 @@ async fn user_can_publish_room(
 		.await?;
 	let create_content = create_event.get_content::<RoomCreateEventContent>()?;
 	let room_version = &RoomVersion::new(&create_content.room_version)?;
+
+	// for >=v12, check for room creators instead
 	if room_version.explicitly_privilege_room_creators {
-		return Ok([
-			vec![create_event.sender().to_owned()],
-			create_content.additional_creators.unwrap_or_default(),
-		]
-		.concat()
-		.contains(&user_id.to_owned()));
+		let user_is_creator = create_content
+			.additional_creators
+			.unwrap_or_default()
+			.iter()
+			.map(|id| id.as_ref())
+			.chain(std::iter::once(create_event.sender()))
+			.any(|creator| creator == user_id);
+
+		return Ok(user_is_creator);
 	}
+
+	// otherwise check if they can send a room history visibility state event
 	let power_levels_event = services
 		.rooms
 		.state_accessor
