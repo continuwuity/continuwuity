@@ -7,6 +7,5 @@
         "continuwuity",
         "homeserver",
         "homeservers"
-    ],
-    "rust-analyzer.cargo.features": ["full"]
+    ]
 }

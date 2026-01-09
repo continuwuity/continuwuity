@@ -1,5 +1,5 @@
 [package]
-name = "xtask-generate-commands"
+name = "xtask"
 authors.workspace = true
 description.workspace = true
 edition.workspace = true
@@ -10,14 +10,12 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-clap-markdown = "0.1.5"
-clap_builder = { version = "4.5.38", default-features = false }
-clap_mangen = "0.2"
-
 conduwuit-admin.workspace = true
-
-# Hack to prevent rebuilds
 conduwuit.workspace = true
+clap.workspace = true
+
+askama = "0.15.1"
+cargo_metadata = "0.23.1"
 
 [lints]
 workspace = true

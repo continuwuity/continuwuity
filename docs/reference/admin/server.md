@@ -1,0 +1,52 @@
+# `!admin server`
+
+- Commands for managing the server
+
+
+## `!admin server uptime`
+
+- Time elapsed since startup
+
+## `!admin server show-config`
+
+- Show configuration values
+
+## `!admin server reload-config`
+
+- Reload configuration values
+
+## `!admin server list-features`
+
+- List the features built into the server
+
+## `!admin server memory-usage`
+
+- Print database memory usage statistics
+
+## `!admin server clear-caches`
+
+- Clears all of Continuwuity's caches
+
+## `!admin server backup-database`
+
+- Performs an online backup of the database (only available for RocksDB at the moment)
+
+## `!admin server list-backups`
+
+- List database backups
+
+## `!admin server admin-notice`
+
+- Send a message to the admin room
+
+## `!admin server reload-mods`
+
+- Hot-reload the server
+
+## `!admin server restart`
+
+- Restart the server
+
+## `!admin server shutdown`
+
+- Shutdown the server
