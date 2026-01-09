@@ -15,7 +15,6 @@ use futures::{StreamExt, TryStreamExt, future, future::ready};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
 	UserId,
-	canonical_json::to_canonical_value,
 	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
 	uint,
 };
@@ -210,7 +209,7 @@ pub async fn create_hash_and_sign_event(
 		} else {
 			Some(to_raw_value(&unsigned)?)
 		},
-		hashes: EventHash { sha256: "aaa".to_owned() },
+		hashes: EventHash { sha256: String::new() },
 		signatures: None,
 	};
 
@@ -268,12 +267,6 @@ pub async fn create_hash_and_sign_event(
 			pdu_json.remove("event_id");
 		},
 	}
-
-	pdu_json.insert(
-		"origin".to_owned(),
-		to_canonical_value(self.services.globals.server_name())
-			.expect("server name is a valid CanonicalJsonValue"),
-	);
 
 	trace!("hashing and signing event {}", pdu.event_id);
 	if let Err(e) = self

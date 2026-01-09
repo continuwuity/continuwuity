@@ -238,6 +238,7 @@ pub(crate) async fn create_room_route(
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_content)?,
 				state_key: Some(StateKey::new()),
+				timestamp: body.origin_server_ts,
 				..Default::default()
 			},
 			sender_user,
@@ -256,6 +257,14 @@ pub(crate) async fn create_room_route(
 		},
 	};
 	drop(state_lock);
+	if let Some(expected_room_id) = body.room_id.as_ref() {
+		if expected_room_id.as_str() != room_id.as_str() {
+			return Err!(Request(InvalidParam(
+				"Custom room ID {expected_room_id} does not match the generated room ID \
+				 {room_id}.",
+			)));
+		}
+	}
 	debug!("Room created with ID {room_id}");
 	let state_lock = services.rooms.state.mutex.lock(&room_id).await;
 

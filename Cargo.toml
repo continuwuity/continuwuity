@@ -342,7 +342,7 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-rev = "79abd5d331bca596b7f37e367a9f2cebccd9f64d"
+rev = "f9e74cb206cfa45cf5f17d39282253b43a15fcd5"
 features = [
     "compat",
     "rand",
@@ -840,7 +840,7 @@ unknown_lints = "allow"
 ###################
 cargo = { level = "warn", priority = -1 }
 # Nobody except for us should be consuming these crates, they don't need metadata
-cargo_common_metadata = { level = "allow"}
+cargo_common_metadata = { level = "allow" }
 
 ## some sadness
 multiple_crate_versions = { level = "allow", priority = 1 }
