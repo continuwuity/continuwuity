@@ -6,6 +6,7 @@ license.workspace = true
 readme.workspace = true
 repository.workspace = true
 version.workspace = true
+publish.workspace = true
 
 [lib]
 name = "conduwuit_macros"

@@ -13,6 +13,8 @@ license = "Apache-2.0"
 readme = "README.md"
 repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
 version = "0.5.2"
+# Do not allow publishing, we handle that ourselves
+publish = false
 
 [workspace.metadata.crane]
 name = "conduwuit"
