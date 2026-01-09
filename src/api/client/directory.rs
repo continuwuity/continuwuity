@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Event, Result, err, info,
+	Err, Event, Result, RoomVersion, err, info,
 	utils::{
 		TryFutureExtExt,
 		math::Expected,
@@ -30,6 +30,7 @@ use ruma::{
 	events::{
 		StateEventType,
 		room::{
+			create::RoomCreateEventContent,
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
@@ -346,28 +347,37 @@ async fn user_can_publish_room(
 	user_id: &UserId,
 	room_id: &RoomId,
 ) -> Result<bool> {
-	match services
+	let create_event = services
+		.rooms
+		.state_accessor
+		.room_state_get(room_id, &StateEventType::RoomCreate, "")
+		.await?;
+	let create_content = create_event.get_content::<RoomCreateEventContent>()?;
+	let room_version = &RoomVersion::new(&create_content.room_version)?;
+	if room_version.explicitly_privilege_room_creators {
+		return Ok([
+			vec![create_event.sender().to_owned()],
+			create_content.additional_creators.unwrap_or_default(),
+		]
+		.concat()
+		.contains(&user_id.to_owned()));
+	}
+	let power_levels_event = services
 		.rooms
 		.state_accessor
 		.room_state_get(room_id, &StateEventType::RoomPowerLevels, "")
-		.await
-	{
-		| Ok(event) => serde_json::from_str(event.content().get())
-			.map_err(|_| err!(Database("Invalid event content for m.room.power_levels")))
-			.map(|content: RoomPowerLevelsEventContent| {
-				RoomPowerLevels::from(content)
-					.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility)
-			}),
-		| _ => {
-			match services
-				.rooms
-				.state_accessor
-				.room_state_get(room_id, &StateEventType::RoomCreate, "")
-				.await
-			{
-				| Ok(event) => Ok(event.sender() == user_id),
-				| _ => Err!(Request(Forbidden("User is not allowed to publish this room"))),
-			}
+		.await;
+
+	match power_levels_event {
+		| Ok(event) => {
+			let content = event.get_content::<RoomPowerLevelsEventContent>()?;
+			let power_levels = RoomPowerLevels::from(content);
+			Ok(power_levels.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility))
+		},
+		| Err(_) => {
+			// If there is no power levels event, fall back to checking if the user is the
+			// room creator
+			Ok(create_event.sender() == user_id)
 		},
 	}
 }
