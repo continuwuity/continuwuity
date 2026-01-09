@@ -1,1 +1,8 @@
 tag-message = "chore: Release v{{version}}"
+tag-prefix = ""
+shared-version = true
+
+publish = false
+
+sign-commit = true
+sign-tag = true
