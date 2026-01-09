@@ -733,16 +733,17 @@ pub(crate) async fn whoami_route(
 	State(services): State<crate::State>,
 	body: Ruma<whoami::v3::Request>,
 ) -> Result<whoami::v3::Response> {
+	let is_guest = services
+		.users
+		.is_deactivated(body.sender_user())
+		.await
+		.map_err(|_| {
+			err!(Request(Forbidden("Application service has not registered this user.")))
+		})? && body.appservice_info.is_none();
 	Ok(whoami::v3::Response {
 		user_id: body.sender_user().to_owned(),
 		device_id: body.sender_device.clone(),
-		is_guest: services
-			.users
-			.is_deactivated(body.sender_user())
-			.await
-			.map_err(|_| {
-				err!(Request(Forbidden("Application service has not registered this user.")))
-			})? && body.appservice_info.is_none(),
+		is_guest,
 	})
 }
 
