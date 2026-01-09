@@ -131,10 +131,6 @@ pub async fn handle_incoming_pdu<'a>(
 		.await?
 		.origin_server_ts();
 
-	if incoming_pdu.origin_server_ts() < first_ts_in_room {
-		return Ok(None);
-	}
-
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
 	let (sorted_prev_events, mut eventid_info) = self
