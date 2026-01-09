@@ -1,0 +1,82 @@
+# `!admin rooms`
+
+- Commands for managing rooms
+
+
+## `!admin rooms list-rooms`
+
+- List all rooms the server knows about
+
+## `!admin rooms info`
+
+- View information about a room we know about
+
+### `!admin rooms info list-joined-members`
+
+- List joined members in a room
+
+### `!admin rooms info view-room-topic`
+
+- Displays room topic
+
+Room topics can be huge, so this is in its own separate command
+
+## `!admin rooms moderation`
+
+- Manage moderation of remote or local rooms
+
+### `!admin rooms moderation ban-room`
+
+- Bans a room from local users joining and evicts all our local users (including server admins) from the room. Also blocks any invites (local and remote) for the banned room, and disables federation entirely with it
+
+### `!admin rooms moderation ban-list-of-rooms`
+
+- Bans a list of rooms (room IDs and room aliases) from a newline delimited codeblock similar to `user deactivate-all`. Applies the same steps as ban-room
+
+### `!admin rooms moderation unban-room`
+
+- Unbans a room to allow local users to join again
+
+### `!admin rooms moderation list-banned-rooms`
+
+- List of all rooms we have banned
+
+## `!admin rooms alias`
+
+- Manage rooms' aliases
+
+### `!admin rooms alias set`
+
+- Make an alias point to a room
+
+### `!admin rooms alias remove`
+
+- Remove a local alias
+
+### `!admin rooms alias which`
+
+- Show which room is using an alias
+
+### `!admin rooms alias list`
+
+- List aliases currently being used
+
+## `!admin rooms directory`
+
+- Manage the room directory
+
+### `!admin rooms directory publish`
+
+- Publish a room to the room directory
+
+### `!admin rooms directory unpublish`
+
+- Unpublish a room to the room directory
+
+### `!admin rooms directory list`
+
+- List rooms that are published
+
+## `!admin rooms exists`
+
+- Check if we know about a room

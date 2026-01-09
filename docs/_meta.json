@@ -57,9 +57,9 @@
         "name": "/reference/config"
     },
     {
-        "type": "file",
+        "type": "dir",
         "label": "Admin Command Reference",
-        "name": "/reference/admin"
+        "name": "/reference/admin/"
     },
     {
         "type": "file",

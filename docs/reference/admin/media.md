@@ -1,0 +1,49 @@
+# `!admin media`
+
+- Commands for managing media
+
+
+## `!admin media delete`
+
+- Deletes a single media file from our database and on the filesystem via a single MXC URL or event ID (not redacted)
+
+## `!admin media delete-list`
+
+- Deletes a codeblock list of MXC URLs from our database and on the filesystem. This will always ignore errors
+
+## `!admin media delete-past-remote-media`
+
+Deletes all remote (and optionally local) media created before/after
+[duration] ago, using filesystem metadata first created at date, or
+fallback to last modified date. This will always ignore errors by
+default.
+
+* Examples:
+  * Delete all remote media older than a year:
+
+    `!admin media delete-past-remote-media -b 1y`
+
+  * Delete all remote and local media from 3 days ago, up until now:
+
+    `!admin media delete-past-remote-media -a 3d
+--yes-i-want-to-delete-local-media`
+
+## `!admin media delete-all-from-user`
+
+- Deletes all the local media from a local user on our server. This will always ignore errors by default
+
+## `!admin media delete-all-from-server`
+
+- Deletes all remote media from the specified remote server. This will always ignore errors by default
+
+## `!admin media get-file-info`
+
+_(no description)_
+
+## `!admin media get-remote-file`
+
+_(no description)_
+
+## `!admin media get-remote-thumbnail`
+
+_(no description)_
