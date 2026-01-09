@@ -724,7 +724,7 @@ pub(crate) async fn change_password_route(
 	Ok(change_password::v3::Response {})
 }
 
-/// # `GET _matrix/client/r0/account/whoami`
+/// # `GET /_matrix/client/v3/account/whoami`
 ///
 /// Get `user_id` of the sender user.
 ///
@@ -736,8 +736,13 @@ pub(crate) async fn whoami_route(
 	Ok(whoami::v3::Response {
 		user_id: body.sender_user().to_owned(),
 		device_id: body.sender_device.clone(),
-		is_guest: services.users.is_deactivated(body.sender_user()).await?
-			&& body.appservice_info.is_none(),
+		is_guest: services
+			.users
+			.is_deactivated(body.sender_user())
+			.await
+			.map_err(|_| {
+				err!(Request(Forbidden("Application service has not registered this user.")))
+			})? && body.appservice_info.is_none(),
 	})
 }
 
