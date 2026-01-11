@@ -203,19 +203,10 @@ pub(crate) async fn invite_helper(
 			))));
 		}
 
-		let origin: OwnedServerName = serde_json::from_value(serde_json::to_value(
-			value
-				.get("origin")
-				.ok_or_else(|| err!(Request(BadJson("Event missing origin field."))))?,
-		)?)
-		.map_err(|e| {
-			err!(Request(BadJson(warn!("Origin field in event is not a valid server name: {e}"))))
-		})?;
-
 		let pdu_id = services
 			.rooms
 			.event_handler
-			.handle_incoming_pdu(&origin, room_id, &event_id, value, true)
+			.handle_incoming_pdu(recipient_user.server_name(), room_id, &event_id, value, true)
 			.boxed()
 			.await?
 			.ok_or_else(|| {
