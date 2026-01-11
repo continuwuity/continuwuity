@@ -36,7 +36,7 @@ pub use self::{
 	room_version::RoomVersion,
 };
 use crate::{
-	debug, debug_error, err,
+	debug, err, error as log_error,
 	matrix::{Event, StateKey},
 	state_res::room_version::StateResolutionVersion,
 	trace,
@@ -173,7 +173,8 @@ where
 		initial_state,
 		&event_fetch,
 	)
-	.await?;
+	.await
+	.inspect_err(|_| log_error!("failed to calculate control events"))?;
 
 	debug!(count = resolved_control.len(), "resolved power events");
 	trace!(map = ?resolved_control, "resolved power events");
@@ -213,7 +214,8 @@ where
 		resolved_control, // The control events are added to the final resolved state
 		&event_fetch,
 	)
-	.await?;
+	.await
+	.inspect_err(|_| log_error!("failed to resolve left over state"))?;
 
 	// Ensure unconflicting state is in the final state
 	resolved_state.extend(unconflicted);
@@ -400,13 +402,17 @@ where
 		.await;
 
 	let fetcher = async |event_id: OwnedEventId| {
-		let pl = *event_to_pl
-			.get(&event_id)
-			.ok_or_else(|| Error::NotFound(String::new()))?;
+		let pl = *event_to_pl.get(&event_id).ok_or_else(|| {
+			Error::NotFound(format!(
+				"event unexpectedly missing from power level map: {event_id}",
+			))
+		})?;
 
-		let ev = fetch_event(event_id)
-			.await
-			.ok_or_else(|| Error::NotFound(String::new()))?;
+		let ev = fetch_event(event_id.clone()).await.ok_or_else(|| {
+			Error::NotFound(format!(
+				"event found in power level map but not in room graph: {event_id}",
+			))
+		})?;
 
 		Ok((pl, ev.origin_server_ts()))
 	};
@@ -758,7 +764,10 @@ where
 				warn!("event {} failed the authentication check", event.event_id());
 			},
 			| Err(e) => {
-				debug_error!("event {} failed the authentication check: {e}", event.event_id());
+				log_error!(
+					"failed to run authentication check on event {}: {e}",
+					event.event_id()
+				);
 				return Err(e);
 			},
 		}
