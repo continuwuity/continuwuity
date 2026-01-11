@@ -7,7 +7,7 @@ use conduwuit::{
 };
 use futures::FutureExt;
 use ruma::{
-	OwnedServerName, RoomId, UserId,
+	RoomId, UserId,
 	api::{client::membership::invite_user, federation::membership::create_invite},
 	events::{
 		invite_permission_config::FilterLevel,
