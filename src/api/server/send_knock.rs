@@ -136,15 +136,6 @@ pub(crate) async fn create_knock_event_v1_route(
 		return Err!(Request(InvalidParam("state_key does not match sender user of event.")));
 	}
 
-	let origin: OwnedServerName = serde_json::from_value(
-		value
-			.get("origin")
-			.ok_or_else(|| err!(Request(BadJson("Event does not have an origin server name."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson("Event has an invalid origin server name: {e}"))))?;
-
 	let mut event: JsonObject = serde_json::from_str(body.pdu.get())
 		.map_err(|e| err!(Request(InvalidParam("Invalid knock event PDU: {e}"))))?;
 
@@ -163,7 +154,7 @@ pub(crate) async fn create_knock_event_v1_route(
 	let pdu_id = services
 		.rooms
 		.event_handler
-		.handle_incoming_pdu(&origin, &body.room_id, &event_id, value.clone(), true)
+		.handle_incoming_pdu(sender.server_name(), &body.room_id, &event_id, value.clone(), true)
 		.boxed()
 		.await?
 		.ok_or_else(|| err!(Request(InvalidParam("Could not accept as timeline event."))))?;
