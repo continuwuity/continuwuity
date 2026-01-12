@@ -6,4 +6,4 @@ Commands for checking integrity
 
 ## `!admin check check-all-users`
 
-_(no description)_
+Uses the iterator in `src/database/key_value/users.rs` to iterator over every user in our database (remote and local). Reports total count, any errors if there were any, etc

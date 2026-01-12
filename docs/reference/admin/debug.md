@@ -137,19 +137,3 @@ List database files
 ## `!admin debug tester`
 
 Developer test stubs
-
-### `!admin debug tester panic`
-
-_(no description)_
-
-### `!admin debug tester failure`
-
-_(no description)_
-
-### `!admin debug tester tester`
-
-_(no description)_
-
-### `!admin debug tester timer`
-
-_(no description)_

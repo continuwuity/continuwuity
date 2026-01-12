@@ -36,15 +36,3 @@ Deletes all the local media from a local user on our server. This will always ig
 ## `!admin media delete-all-from-server`
 
 Deletes all remote media from the specified remote server. This will always ignore errors by default
-
-## `!admin media get-file-info`
-
-_(no description)_
-
-## `!admin media get-remote-file`
-
-_(no description)_
-
-## `!admin media get-remote-thumbnail`
-
-_(no description)_

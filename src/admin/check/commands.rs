@@ -4,9 +4,6 @@ use futures::StreamExt;
 
 use crate::Context;
 
-/// Uses the iterator in `src/database/key_value/users.rs` to iterator over
-/// every user in our database (remote and local). Reports total count, any
-/// errors if there were any, etc
 #[implement(Context, params = "<'_>")]
 pub(super) async fn check_all_users(&self) -> Result {
 	let timer = tokio::time::Instant::now();

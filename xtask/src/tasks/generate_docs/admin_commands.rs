@@ -54,15 +54,17 @@ fn flatten_subcommands(command: &Command) -> Vec<Subcommand> {
             let description = command
                 .get_long_about()
                 .or_else(|| command.get_about())
-                .map_or_else(|| "_(no description)_".to_owned(), ToString::to_string);
+                .map(ToString::to_string);
 
-            subcommands.push(
-                Subcommand {
-                    name,
-                    description,
-                    depth,
-                }
-            );
+            if let Some(description) = description {
+                subcommands.push(
+                    Subcommand {
+                        name,
+                        description,
+                        depth,
+                    }
+                );
+            }
         }
 
         for command in command.get_subcommands() {
