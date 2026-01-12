@@ -1,5 +1,6 @@
 mod tasks;
 
+use cargo_metadata::MetadataCommand;
 use clap::Parser;
 
 use crate::tasks::Task;
@@ -22,5 +23,10 @@ struct Args {
 fn main() -> impl std::process::Termination {
 	let BaseArgs { task, args } = BaseArgs::parse();
 
-	task.invoke(args)
+	let metadata = MetadataCommand::new()
+		.no_deps()
+		.exec()
+		.expect("should have been able to run cargo");
+
+	task.invoke(metadata, args)
 }

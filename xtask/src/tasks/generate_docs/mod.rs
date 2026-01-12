@@ -2,8 +2,6 @@ mod admin_commands;
 
 use std::{collections::HashMap, fs::File, io::Write, path::{Path, PathBuf}};
 
-use cargo_metadata::MetadataCommand;
-
 use crate::tasks::TaskResult;
 
 trait FileOutput {
@@ -68,13 +66,8 @@ pub(crate) struct Args {
 }
 
 #[expect(clippy::needless_pass_by_value)]
-pub(super) fn run(common_args: crate::Args, task_args: Args) -> TaskResult<()> {
+pub(super) fn run(metadata: cargo_metadata::Metadata, common_args: crate::Args, task_args: Args) -> TaskResult<()> {
     let mut queue = FileQueue::default();
-
-    let metadata = MetadataCommand::new()
-        .no_deps()
-        .exec()
-        .expect("should have been able to run cargo");
 
     let root = task_args.root.unwrap_or_else(|| metadata.workspace_root.join_os("docs/"));
 

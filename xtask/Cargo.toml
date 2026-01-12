@@ -9,13 +9,18 @@ readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
+[features]
+default = ["generate-docs"]
+generate-docs = ["dep:conduwuit", "dep:conduwuit-admin"]
+
 [dependencies]
-conduwuit-admin.workspace = true
-conduwuit.workspace = true
 clap.workspace = true
+conduwuit = { workspace = true, optional = true }
+conduwuit-admin = { workspace = true, optional = true }
 
 askama = "0.15.1"
 cargo_metadata = "0.23.1"
+duct = "1.1.1"
 
 [lints]
 workspace = true

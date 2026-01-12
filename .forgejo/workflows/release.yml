@@ -1,0 +1,45 @@
+name: Create release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Rust nightly
+        uses: ./.forgejo/actions/setup-rust
+        with:
+          rust-version: nightly
+
+      - name: Setup towncrier
+        run: uv tool install towncrier
+
+      - name: Generate release notes
+        run: cargo run --package xtask --no-default-features -- generate-release-notes > /tmp/RELEASE.md
+
+      - name: Create release
+        run: |
+          set -euo pipefail
+
+          RELEASE_BODY='{"body": $body, "tag_name": "${{ forgejo.ref_name }}", "name": "${{ forgejo.ref_name }}"}'
+
+          jq -n --rawfile body RELEASE.md $RELEASE_BODY \
+          | curl --fail-with-body \
+            --json @- \
+            -X POST \
+            https://webhook.site/933d73fa-9c2a-48db-b201-0391f6d7f9eb
+
+      - name: Remove news fragments
+        run: git rm -r changelog.d/
+
+      - name: Commit changes
+        run: |
+          git commit -am "chore: Post-release cleanup"
+
+          git push origin HEAD:refs/heads/main
