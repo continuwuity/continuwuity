@@ -8,7 +8,7 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum TokenCommand {
-	/// - Issue a new registration token
+	/// Issue a new registration token
 	#[clap(name = "issue")]
 	IssueToken {
 		/// When this token will expire.
@@ -16,14 +16,14 @@ pub enum TokenCommand {
 		expires: TokenExpires,
 	},
 
-	/// - Revoke a registration token
+	/// Revoke a registration token
 	#[clap(name = "revoke")]
 	RevokeToken {
 		/// The token to revoke.
 		token: String,
 	},
 
-	/// - List all registration tokens
+	/// List all registration tokens
 	#[clap(name = "list")]
 	ListTokens,
 }

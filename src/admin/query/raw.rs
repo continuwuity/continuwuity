@@ -20,10 +20,10 @@ use crate::{admin_command, admin_command_dispatch};
 #[allow(clippy::enum_variant_names)]
 /// Query tables from database
 pub enum RawCommand {
-	/// - List database maps
+	/// List database maps
 	RawMaps,
 
-	/// - Raw database query
+	/// Raw database query
 	RawGet {
 		/// Map name
 		map: String,
@@ -32,7 +32,7 @@ pub enum RawCommand {
 		key: String,
 	},
 
-	/// - Raw database delete (for string keys)
+	/// Raw database delete (for string keys)
 	RawDel {
 		/// Map name
 		map: String,
@@ -41,7 +41,7 @@ pub enum RawCommand {
 		key: String,
 	},
 
-	/// - Raw database keys iteration
+	/// Raw database keys iteration
 	RawKeys {
 		/// Map name
 		map: String,
@@ -50,7 +50,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database key size breakdown
+	/// Raw database key size breakdown
 	RawKeysSizes {
 		/// Map name
 		map: Option<String>,
@@ -59,7 +59,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database keys total bytes
+	/// Raw database keys total bytes
 	RawKeysTotal {
 		/// Map name
 		map: Option<String>,
@@ -68,7 +68,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database values size breakdown
+	/// Raw database values size breakdown
 	RawValsSizes {
 		/// Map name
 		map: Option<String>,
@@ -77,7 +77,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database values total bytes
+	/// Raw database values total bytes
 	RawValsTotal {
 		/// Map name
 		map: Option<String>,
@@ -86,7 +86,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database items iteration
+	/// Raw database items iteration
 	RawIter {
 		/// Map name
 		map: String,
@@ -95,7 +95,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Raw database keys iteration
+	/// Raw database keys iteration
 	RawKeysFrom {
 		/// Map name
 		map: String,
@@ -108,7 +108,7 @@ pub enum RawCommand {
 		limit: Option<usize>,
 	},
 
-	/// - Raw database items iteration
+	/// Raw database items iteration
 	RawIterFrom {
 		/// Map name
 		map: String,
@@ -121,7 +121,7 @@ pub enum RawCommand {
 		limit: Option<usize>,
 	},
 
-	/// - Raw database record count
+	/// Raw database record count
 	RawCount {
 		/// Map name
 		map: Option<String>,
@@ -130,7 +130,7 @@ pub enum RawCommand {
 		prefix: Option<String>,
 	},
 
-	/// - Compact database
+	/// Compact database
 	Compact {
 		#[arg(short, long, alias("column"))]
 		map: Option<Vec<String>>,

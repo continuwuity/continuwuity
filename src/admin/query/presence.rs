@@ -8,13 +8,13 @@ use crate::Context;
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/presence.rs
 pub enum PresenceCommand {
-	/// - Returns the latest presence event for the given user.
+	/// Returns the latest presence event for the given user.
 	GetPresence {
 		/// Full user ID
 		user_id: OwnedUserId,
 	},
 
-	/// - Iterator of the most recent presence updates that happened after the
+	/// Iterator of the most recent presence updates that happened after the
 	///   event with id `since`.
 	PresenceSince {
 		/// UNIX timestamp since (u64)

@@ -13,7 +13,7 @@ pub enum GlobalsCommand {
 
 	LastCheckForAnnouncementsId,
 
-	/// - This returns an empty `Ok(BTreeMap<..>)` when there are no keys found
+	/// This returns an empty `Ok(BTreeMap<..>)` when there are no keys found
 	///   for the server.
 	SigningKeysFor {
 		origin: OwnedServerName,

@@ -9,7 +9,7 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum UserCommand {
-	/// - Create a new user
+	/// Create a new user
 	#[clap(alias = "create")]
 	CreateUser {
 		/// Username of the new user
@@ -18,7 +18,7 @@ pub enum UserCommand {
 		password: Option<String>,
 	},
 
-	/// - Reset user password
+	/// Reset user password
 	ResetPassword {
 		/// Log out existing sessions
 		#[arg(short, long)]
@@ -29,7 +29,7 @@ pub enum UserCommand {
 		password: Option<String>,
 	},
 
-	/// - Deactivate a user
+	/// Deactivate a user
 	///
 	/// User will be removed from all rooms by default.
 	/// Use --no-leave-rooms to not leave all rooms by default.
@@ -39,7 +39,7 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Deactivate a list of users
+	/// Deactivate a list of users
 	///
 	/// Recommended to use in conjunction with list-local-users.
 	///
@@ -62,7 +62,7 @@ pub enum UserCommand {
 		force: bool,
 	},
 
-	/// - Forcefully log a user out of all of their devices.
+	/// Forcefully log a user out of all of their devices.
 	///
 	/// This will invalidate all access tokens for the specified user,
 	/// effectively logging them out from all sessions.
@@ -74,7 +74,7 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Suspend a user
+	/// Suspend a user
 	///
 	/// Suspended users are able to log in, sync, and read messages, but are not
 	/// able to send events nor redact them, cannot change their profile, and
@@ -87,7 +87,7 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Unsuspend a user
+	/// Unsuspend a user
 	///
 	/// Reverses the effects of the `suspend` command, allowing the user to send
 	/// messages, change their profile, create room invites, etc.
@@ -96,7 +96,7 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Lock a user
+	/// Lock a user
 	///
 	/// Locked users are unable to use their accounts beyond logging out. This
 	/// is akin to a temporary deactivation that does not change the user's
@@ -107,7 +107,7 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Unlock a user
+	/// Unlock a user
 	///
 	/// Reverses the effects of the `lock` command, allowing the user to use
 	/// their account again.
@@ -116,13 +116,13 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - Enable login for a user
+	/// Enable login for a user
 	EnableLogin {
 		/// Username of the user to enable login for
 		user_id: String,
 	},
 
-	/// - Disable login for a user
+	/// Disable login for a user
 	///
 	/// Disables login for the specified user without deactivating or locking
 	/// their account. This prevents the user from obtaining new access tokens,
@@ -132,48 +132,48 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// - List local users in the database
+	/// List local users in the database
 	#[clap(alias = "list")]
 	ListUsers,
 
-	/// - Lists all the rooms (local and remote) that the specified user is
+	/// Lists all the rooms (local and remote) that the specified user is
 	///   joined in
 	ListJoinedRooms {
 		user_id: String,
 	},
 
-	/// - Manually join a local user to a room.
+	/// Manually join a local user to a room.
 	ForceJoinRoom {
 		user_id: String,
 		room_id: OwnedRoomOrAliasId,
 	},
 
-	/// - Manually leave a local user from a room.
+	/// Manually leave a local user from a room.
 	ForceLeaveRoom {
 		user_id: String,
 		room_id: OwnedRoomOrAliasId,
 	},
 
-	/// - Manually leave a remote room for a local user.
+	/// Manually leave a remote room for a local user.
 	ForceLeaveRemoteRoom {
 		user_id: String,
 		room_id: OwnedRoomOrAliasId,
 		via: Option<String>,
 	},
 
-	/// - Forces the specified user to drop their power levels to the room
+	/// Forces the specified user to drop their power levels to the room
 	///   default, if their permissions allow and the auth check permits
 	ForceDemote {
 		user_id: String,
 		room_id: OwnedRoomOrAliasId,
 	},
 
-	/// - Grant server-admin privileges to a user.
+	/// Grant server-admin privileges to a user.
 	MakeUserAdmin {
 		user_id: String,
 	},
 
-	/// - Puts a room tag for the specified user and room ID.
+	/// Puts a room tag for the specified user and room ID.
 	///
 	/// This is primarily useful if you'd like to set your admin room
 	/// to the special "System Alerts" section in Element as a way to
@@ -186,20 +186,20 @@ pub enum UserCommand {
 		tag: String,
 	},
 
-	/// - Deletes the room tag for the specified user and room ID
+	/// Deletes the room tag for the specified user and room ID
 	DeleteRoomTag {
 		user_id: String,
 		room_id: OwnedRoomId,
 		tag: String,
 	},
 
-	/// - Gets all the room tags for the specified user and room ID
+	/// Gets all the room tags for the specified user and room ID
 	GetRoomTags {
 		user_id: String,
 		room_id: OwnedRoomId,
 	},
 
-	/// - Attempts to forcefully redact the specified event ID from the sender
+	/// Attempts to forcefully redact the specified event ID from the sender
 	///   user
 	///
 	/// This is only valid for local users
@@ -207,7 +207,7 @@ pub enum UserCommand {
 		event_id: OwnedEventId,
 	},
 
-	/// - Force joins a specified list of local users to join the specified
+	/// Force joins a specified list of local users to join the specified
 	///   room.
 	///
 	/// Specify a codeblock of usernames.
@@ -222,7 +222,7 @@ pub enum UserCommand {
 		yes_i_want_to_do_this: bool,
 	},
 
-	/// - Force joins all local users to the specified room.
+	/// Force joins all local users to the specified room.
 	///
 	/// At least 1 server admin must be in the room to reduce abuse.
 	///

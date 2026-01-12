@@ -9,7 +9,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/account_data.rs
 pub enum AccountDataCommand {
-	/// - Returns all changes to the account data that happened after `since`.
+	/// Returns all changes to the account data that happened after `since`.
 	ChangesSince {
 		/// Full user ID
 		user_id: OwnedUserId,
@@ -19,7 +19,7 @@ pub enum AccountDataCommand {
 		room_id: Option<OwnedRoomId>,
 	},
 
-	/// - Searches the account data for a specific kind.
+	/// Searches the account data for a specific kind.
 	AccountDataGet {
 		/// Full user ID
 		user_id: OwnedUserId,

@@ -17,7 +17,7 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum RoomCommand {
-	/// - List all rooms the server knows about
+	/// List all rooms the server knows about
 	#[clap(alias = "list")]
 	ListRooms {
 		page: Option<usize>,
@@ -37,22 +37,22 @@ pub enum RoomCommand {
 	},
 
 	#[command(subcommand)]
-	/// - View information about a room we know about
+	/// View information about a room we know about
 	Info(RoomInfoCommand),
 
 	#[command(subcommand)]
-	/// - Manage moderation of remote or local rooms
+	/// Manage moderation of remote or local rooms
 	Moderation(RoomModerationCommand),
 
 	#[command(subcommand)]
-	/// - Manage rooms' aliases
+	/// Manage rooms' aliases
 	Alias(RoomAliasCommand),
 
 	#[command(subcommand)]
-	/// - Manage the room directory
+	/// Manage the room directory
 	Directory(RoomDirectoryCommand),
 
-	/// - Check if we know about a room
+	/// Check if we know about a room
 	Exists {
 		room_id: OwnedRoomId,
 	},

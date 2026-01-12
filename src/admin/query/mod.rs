@@ -28,55 +28,55 @@ use crate::admin_command_dispatch;
 #[derive(Debug, Subcommand)]
 /// Query tables from database
 pub enum QueryCommand {
-	/// - account_data.rs iterators and getters
+	/// account_data.rs iterators and getters
 	#[command(subcommand)]
 	AccountData(AccountDataCommand),
 
-	/// - appservice.rs iterators and getters
+	/// appservice.rs iterators and getters
 	#[command(subcommand)]
 	Appservice(AppserviceCommand),
 
-	/// - presence.rs iterators and getters
+	/// presence.rs iterators and getters
 	#[command(subcommand)]
 	Presence(PresenceCommand),
 
-	/// - rooms/alias.rs iterators and getters
+	/// rooms/alias.rs iterators and getters
 	#[command(subcommand)]
 	RoomAlias(RoomAliasCommand),
 
-	/// - rooms/state_cache iterators and getters
+	/// rooms/state_cache iterators and getters
 	#[command(subcommand)]
 	RoomStateCache(RoomStateCacheCommand),
 
-	/// - rooms/timeline iterators and getters
+	/// rooms/timeline iterators and getters
 	#[command(subcommand)]
 	RoomTimeline(RoomTimelineCommand),
 
-	/// - globals.rs iterators and getters
+	/// globals.rs iterators and getters
 	#[command(subcommand)]
 	Globals(GlobalsCommand),
 
-	/// - sending.rs iterators and getters
+	/// sending.rs iterators and getters
 	#[command(subcommand)]
 	Sending(SendingCommand),
 
-	/// - users.rs iterators and getters
+	/// users.rs iterators and getters
 	#[command(subcommand)]
 	Users(UsersCommand),
 
-	/// - resolver service
+	/// resolver service
 	#[command(subcommand)]
 	Resolver(ResolverCommand),
 
-	/// - pusher service
+	/// pusher service
 	#[command(subcommand)]
 	Pusher(PusherCommand),
 
-	/// - short service
+	/// short service
 	#[command(subcommand)]
 	Short(ShortCommand),
 
-	/// - raw service
+	/// raw service
 	#[command(subcommand)]
 	Raw(RawCommand),
 }

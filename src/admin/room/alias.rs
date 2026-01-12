@@ -9,7 +9,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 pub enum RoomAliasCommand {
-	/// - Make an alias point to a room.
+	/// Make an alias point to a room.
 	Set {
 		#[arg(short, long)]
 		/// Set the alias even if a room is already using it
@@ -22,20 +22,20 @@ pub enum RoomAliasCommand {
 		room_alias_localpart: String,
 	},
 
-	/// - Remove a local alias
+	/// Remove a local alias
 	Remove {
 		/// The alias localpart to remove (`alias`, not `#alias:servername.tld`)
 		room_alias_localpart: String,
 	},
 
-	/// - Show which room is using an alias
+	/// Show which room is using an alias
 	Which {
 		/// The alias localpart to look up (`alias`, not
 		/// `#alias:servername.tld`)
 		room_alias_localpart: String,
 	},
 
-	/// - List aliases currently being used
+	/// List aliases currently being used
 	List {
 		/// If set, only list the aliases for this room
 		room_id: Option<OwnedRoomId>,

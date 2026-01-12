@@ -12,18 +12,18 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum DebugCommand {
-	/// - Echo input of admin command
+	/// Echo input of admin command
 	Echo {
 		message: Vec<String>,
 	},
 
-	/// - Get the auth_chain of a PDU
+	/// Get the auth_chain of a PDU
 	GetAuthChain {
 		/// An event ID (the $ character followed by the base64 reference hash)
 		event_id: OwnedEventId,
 	},
 
-	/// - Parse and print a PDU from a JSON
+	/// Parse and print a PDU from a JSON
 	///
 	/// The PDU event is only checked for validity and is not added to the
 	/// database.
@@ -32,13 +32,13 @@ pub enum DebugCommand {
 	/// the command.
 	ParsePdu,
 
-	/// - Retrieve and print a PDU by EventID from the Continuwuity database
+	/// Retrieve and print a PDU by EventID from the Continuwuity database
 	GetPdu {
 		/// An event ID (a $ followed by the base64 reference hash)
 		event_id: OwnedEventId,
 	},
 
-	/// - Retrieve and print a PDU by PduId from the Continuwuity database
+	/// Retrieve and print a PDU by PduId from the Continuwuity database
 	GetShortPdu {
 		/// Shortroomid integer
 		shortroomid: ShortRoomId,
@@ -47,7 +47,7 @@ pub enum DebugCommand {
 		shorteventid: ShortEventId,
 	},
 
-	/// - Attempts to retrieve a PDU from a remote server. **Does not** insert
+	/// Attempts to retrieve a PDU from a remote server. **Does not** insert
 	///   it into the database
 	/// or persist it anywhere.
 	GetRemotePdu {
@@ -59,7 +59,7 @@ pub enum DebugCommand {
 		server: OwnedServerName,
 	},
 
-	/// - Same as `get-remote-pdu` but accepts a codeblock newline delimited
+	/// Same as `get-remote-pdu` but accepts a codeblock newline delimited
 	///   list of PDUs and a single server to fetch from
 	GetRemotePduList {
 		/// Argument for us to attempt to fetch all the events from the
@@ -71,7 +71,7 @@ pub enum DebugCommand {
 		force: bool,
 	},
 
-	/// - Gets all the room state events for the specified room.
+	/// Gets all the room state events for the specified room.
 	///
 	/// This is functionally equivalent to `GET
 	/// /_matrix/client/v3/rooms/{roomid}/state`, except the admin command does
@@ -86,7 +86,7 @@ pub enum DebugCommand {
 		room_id: OwnedRoomOrAliasId,
 	},
 
-	/// - Get and display signing keys from local cache or remote server.
+	/// Get and display signing keys from local cache or remote server.
 	GetSigningKeys {
 		server_name: Option<OwnedServerName>,
 
@@ -97,23 +97,23 @@ pub enum DebugCommand {
 		query: bool,
 	},
 
-	/// - Get and display signing keys from local cache or remote server.
+	/// Get and display signing keys from local cache or remote server.
 	GetVerifyKeys {
 		server_name: Option<OwnedServerName>,
 	},
 
-	/// - Sends a federation request to the remote server's
+	/// Sends a federation request to the remote server's
 	///   `/_matrix/federation/v1/version` endpoint and measures the latency it
 	///   took for the server to respond
 	Ping {
 		server: OwnedServerName,
 	},
 
-	/// - Forces device lists for all local and remote users to be updated (as
+	/// Forces device lists for all local and remote users to be updated (as
 	///   having new keys available)
 	ForceDeviceListUpdates,
 
-	/// - Change tracing log level/filter on the fly
+	/// Change tracing log level/filter on the fly
 	///
 	/// This accepts the same format as the `log` config option.
 	ChangeLogLevel {
@@ -125,34 +125,34 @@ pub enum DebugCommand {
 		reset: bool,
 	},
 
-	/// - Verify JSON signatures
+	/// Verify JSON signatures
 	///
 	/// This command needs a JSON blob provided in a Markdown code block below
 	/// the command.
 	VerifyJson,
 
-	/// - Verify PDU
+	/// Verify PDU
 	///
 	/// This re-verifies a PDU existing in the database found by ID.
 	VerifyPdu {
 		event_id: OwnedEventId,
 	},
 
-	/// - Prints the very first PDU in the specified room (typically
+	/// Prints the very first PDU in the specified room (typically
 	///   m.room.create)
 	FirstPduInRoom {
 		/// The room ID
 		room_id: OwnedRoomId,
 	},
 
-	/// - Prints the latest ("last") PDU in the specified room (typically a
+	/// Prints the latest ("last") PDU in the specified room (typically a
 	///   message)
 	LatestPduInRoom {
 		/// The room ID
 		room_id: OwnedRoomId,
 	},
 
-	/// - Forcefully replaces the room state of our local copy of the specified
+	/// Forcefully replaces the room state of our local copy of the specified
 	///   room, with the copy (auth chain and room state events) the specified
 	///   remote server says.
 	///
@@ -176,7 +176,7 @@ pub enum DebugCommand {
 		event_id: Option<OwnedEventId>,
 	},
 
-	/// - Runs a server name through Continuwuity's true destination resolution
+	/// Runs a server name through Continuwuity's true destination resolution
 	///   process
 	///
 	/// Useful for debugging well-known issues
@@ -187,7 +187,7 @@ pub enum DebugCommand {
 		no_cache: bool,
 	},
 
-	/// - Print extended memory usage
+	/// Print extended memory usage
 	///
 	/// Optional argument is a character mask (a sequence of characters in any
 	/// order) which enable additional extended statistics. Known characters are
@@ -196,23 +196,23 @@ pub enum DebugCommand {
 		opts: Option<String>,
 	},
 
-	/// - Print general tokio runtime metric totals.
+	/// Print general tokio runtime metric totals.
 	RuntimeMetrics,
 
-	/// - Print detailed tokio runtime metrics accumulated since last command
+	/// Print detailed tokio runtime metrics accumulated since last command
 	///   invocation.
 	RuntimeInterval,
 
-	/// - Print the current time
+	/// Print the current time
 	Time,
 
-	/// - List dependencies
+	/// List dependencies
 	ListDependencies {
 		#[arg(short, long)]
 		names: bool,
 	},
 
-	/// - Get database statistics
+	/// Get database statistics
 	DatabaseStats {
 		property: Option<String>,
 
@@ -220,10 +220,10 @@ pub enum DebugCommand {
 		map: Option<String>,
 	},
 
-	/// - Trim memory usage
+	/// Trim memory usage
 	TrimMemory,
 
-	/// - List database files
+	/// List database files
 	DatabaseFiles {
 		map: Option<String>,
 
@@ -231,7 +231,7 @@ pub enum DebugCommand {
 		level: Option<i32>,
 	},
 
-	/// - Developer test stubs
+	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]
 	#[clap(hide(true))]

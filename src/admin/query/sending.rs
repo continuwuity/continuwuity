@@ -9,10 +9,10 @@ use crate::Context;
 #[derive(Debug, Subcommand)]
 /// All the getters and iterators from src/database/key_value/sending.rs
 pub enum SendingCommand {
-	/// - Queries database for all `servercurrentevent_data`
+	/// Queries database for all `servercurrentevent_data`
 	ActiveRequests,
 
-	/// - Queries database for `servercurrentevent_data` but for a specific
+	/// Queries database for `servercurrentevent_data` but for a specific
 	///   destination
 	///
 	/// This command takes only *one* format of these arguments:
@@ -34,7 +34,7 @@ pub enum SendingCommand {
 		push_key: Option<String>,
 	},
 
-	/// - Queries database for `servernameevent_data` which are the queued up
+	/// Queries database for `servernameevent_data` which are the queued up
 	///   requests that will eventually be sent
 	///
 	/// This command takes only *one* format of these arguments:

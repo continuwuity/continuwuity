@@ -10,18 +10,18 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum ServerCommand {
-	/// - Time elapsed since startup
+	/// Time elapsed since startup
 	Uptime,
 
-	/// - Show configuration values
+	/// Show configuration values
 	ShowConfig,
 
-	/// - Reload configuration values
+	/// Reload configuration values
 	ReloadConfig {
 		path: Option<PathBuf>,
 	},
 
-	/// - List the features built into the server
+	/// List the features built into the server
 	ListFeatures {
 		#[arg(short, long)]
 		available: bool,
@@ -33,35 +33,35 @@ pub enum ServerCommand {
 		comma: bool,
 	},
 
-	/// - Print database memory usage statistics
+	/// Print database memory usage statistics
 	MemoryUsage,
 
-	/// - Clears all of Continuwuity's caches
+	/// Clears all of Continuwuity's caches
 	ClearCaches,
 
-	/// - Performs an online backup of the database (only available for RocksDB
+	/// Performs an online backup of the database (only available for RocksDB
 	///   at the moment)
 	BackupDatabase,
 
-	/// - List database backups
+	/// List database backups
 	ListBackups,
 
-	/// - Send a message to the admin room.
+	/// Send a message to the admin room.
 	AdminNotice {
 		message: Vec<String>,
 	},
 
-	/// - Hot-reload the server
+	/// Hot-reload the server
 	#[clap(alias = "reload")]
 	ReloadMods,
 
 	#[cfg(unix)]
-	/// - Restart the server
+	/// Restart the server
 	Restart {
 		#[arg(short, long)]
 		force: bool,
 	},
 
-	/// - Shutdown the server
+	/// Shutdown the server
 	Shutdown,
 }

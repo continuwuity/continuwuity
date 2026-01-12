@@ -7,19 +7,19 @@ use crate::{Context, PAGE_SIZE, get_room_info};
 
 #[derive(Debug, Subcommand)]
 pub enum RoomDirectoryCommand {
-	/// - Publish a room to the room directory
+	/// Publish a room to the room directory
 	Publish {
 		/// The room id of the room to publish
 		room_id: OwnedRoomId,
 	},
 
-	/// - Unpublish a room to the room directory
+	/// Unpublish a room to the room directory
 	Unpublish {
 		/// The room id of the room to unpublish
 		room_id: OwnedRoomId,
 	},
 
-	/// - List rooms that are published
+	/// List rooms that are published
 	List {
 		page: Option<usize>,
 	},

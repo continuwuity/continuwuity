@@ -9,20 +9,20 @@ use crate::admin_command_dispatch;
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum FederationCommand {
-	/// - List all rooms we are currently handling an incoming pdu from
+	/// List all rooms we are currently handling an incoming pdu from
 	IncomingFederation,
 
-	/// - Disables incoming federation handling for a room.
+	/// Disables incoming federation handling for a room.
 	DisableRoom {
 		room_id: OwnedRoomId,
 	},
 
-	/// - Enables incoming federation handling for a room again.
+	/// Enables incoming federation handling for a room again.
 	EnableRoom {
 		room_id: OwnedRoomId,
 	},
 
-	/// - Fetch `/.well-known/matrix/support` from the specified server
+	/// Fetch `/.well-known/matrix/support` from the specified server
 	///
 	/// Despite the name, this is not a federation endpoint and does not go
 	/// through the federation / server resolution process as per-spec this is
@@ -35,7 +35,7 @@ pub enum FederationCommand {
 		server_name: OwnedServerName,
 	},
 
-	/// - Lists all the rooms we share/track with the specified *remote* user
+	/// Lists all the rooms we share/track with the specified *remote* user
 	RemoteUserInRooms {
 		user_id: OwnedUserId,
 	},

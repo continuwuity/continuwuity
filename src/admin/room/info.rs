@@ -8,7 +8,7 @@ use crate::{admin_command, admin_command_dispatch};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum RoomInfoCommand {
-	/// - List joined members in a room
+	/// List joined members in a room
 	ListJoinedMembers {
 		room_id: OwnedRoomId,
 
@@ -17,7 +17,7 @@ pub enum RoomInfoCommand {
 		local_only: bool,
 	},
 
-	/// - Displays room topic
+	/// Displays room topic
 	///
 	/// Room topics can be huge, so this is in its
 	/// own separate command

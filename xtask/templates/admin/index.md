@@ -11,5 +11,5 @@ Admin commands allow server administrators to manage the server from within thei
 ## Categories
 
 {%~ for category in categories %}
-- [`!admin {{ category.name }}`]({{ category.name }}/) {{ category.description }}
+- [`!admin {{ category.name }}`]({{ category.name }}/): {{ category.description }}
 {%- endfor %}

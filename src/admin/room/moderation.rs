@@ -13,7 +13,7 @@ use crate::{admin_command, admin_command_dispatch, get_room_info};
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
 pub enum RoomModerationCommand {
-	/// - Bans a room from local users joining and evicts all our local users
+	/// Bans a room from local users joining and evicts all our local users
 	///   (including server
 	/// admins)
 	///   from the room. Also blocks any invites (local and remote) for the
@@ -24,19 +24,19 @@ pub enum RoomModerationCommand {
 		room: OwnedRoomOrAliasId,
 	},
 
-	/// - Bans a list of rooms (room IDs and room aliases) from a newline
+	/// Bans a list of rooms (room IDs and room aliases) from a newline
 	///   delimited codeblock similar to `user deactivate-all`. Applies the same
 	///   steps as ban-room
 	BanListOfRooms,
 
-	/// - Unbans a room to allow local users to join again
+	/// Unbans a room to allow local users to join again
 	UnbanRoom {
 		/// The room in the format of `!roomid:example.com` or a room alias in
 		/// the format of `#roomalias:example.com`
 		room: OwnedRoomOrAliasId,
 	},
 
-	/// - List of all rooms we have banned
+	/// List of all rooms we have banned
 	ListBannedRooms {
 		#[arg(long)]
 		/// Whether to only output room IDs without supplementary room

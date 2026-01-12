@@ -6,7 +6,7 @@ use crate::Context;
 
 #[derive(Debug, Subcommand)]
 pub enum PusherCommand {
-	/// - Returns all the pushers for the user.
+	/// Returns all the pushers for the user.
 	GetPushers {
 		/// Full user ID
 		user_id: OwnedUserId,
