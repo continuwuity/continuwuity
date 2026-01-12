@@ -11,6 +11,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          ref: "main"
+          fetch-depth: 0
 
       - name: Setup Rust nightly
         uses: ./.forgejo/actions/setup-rust
@@ -27,19 +30,23 @@ jobs:
         run: |
           set -euo pipefail
 
-          RELEASE_BODY='{"body": $body, "tag_name": "${{ forgejo.ref_name }}", "name": "${{ forgejo.ref_name }}"}'
-
-          jq -n --rawfile body RELEASE.md $RELEASE_BODY \
+          jq -n --rawfile body /tmp/RELEASE.md '{"body": $body, "tag_name": "${{ forgejo.ref_name }}", "name": "${{ forgejo.ref_name }}"}' \
           | curl --fail-with-body \
-            --json @- \
+            --data-binary @- \
+            --header "Content-Type: application/json" \
+            --header "Accept: application/json" \
+            --header "Authorization: token ${{ forgejo.token }}" \
             -X POST \
-            https://webhook.site/933d73fa-9c2a-48db-b201-0391f6d7f9eb
+            "${{ forgejo.server_url }}/api/v1/repos/${{ forgejo.repository }}/releases"
 
       - name: Remove news fragments
         run: git rm -r changelog.d/
 
       - name: Commit changes
         run: |
+          git config user.email "forgejo@mail.ellis.link"
+          git config user.name "Ellis Git"
+
           git commit -am "chore: Post-release cleanup"
 
           git push origin HEAD:refs/heads/main
