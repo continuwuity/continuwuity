@@ -178,15 +178,6 @@ async fn create_join_event(
 		}
 	}
 
-	let origin: OwnedServerName = serde_json::from_value(
-		value
-			.get("origin")
-			.ok_or_else(|| err!(Request(BadJson("Event does not have an origin server name."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson("Event has an invalid origin server name: {e}"))))?;
-
 	trace!("Signing send_join event");
 	services
 		.server_keys
@@ -204,7 +195,7 @@ async fn create_join_event(
 	let pdu_id = services
 		.rooms
 		.event_handler
-		.handle_incoming_pdu(&origin, room_id, &event_id, value.clone(), true)
+		.handle_incoming_pdu(sender.server_name(), room_id, &event_id, value.clone(), true)
 		.boxed()
 		.await?
 		.ok_or_else(|| err!(Request(InvalidParam("Could not accept as timeline event."))))?;
