@@ -17,7 +17,7 @@ struct FileQueue {
 
 impl FileQueue {
     fn write(self, root: &Path, dry_run: bool) -> std::io::Result<()> {
-        for (path, contents) in self.queue.into_iter() {
+        for (path, contents) in self.queue {
             let path = root.join(&path);
 
             eprintln!("Writing {}", path.display());
@@ -35,9 +35,7 @@ impl FileOutput for FileQueue {
         assert!(path.is_relative(), "path must be relative");
         assert!(path.extension().is_some(), "path must not point to a directory");
 
-        if self.queue.contains_key(&path) {
-            panic!("attempted to create an already created file {}", path.display());
-        }
+        assert!(!self.queue.contains_key(&path), "attempted to create an already created file {}", path.display());
 
         self.queue.insert(path, contents);
     }
@@ -49,6 +47,7 @@ pub(crate) struct Args {
     root: Option<PathBuf>,
 }
 
+#[expect(clippy::needless_pass_by_value)]
 pub(super) fn run(common_args: crate::Args, task_args: Args) -> TaskResult<()> {
     let mut queue = FileQueue::default();
 

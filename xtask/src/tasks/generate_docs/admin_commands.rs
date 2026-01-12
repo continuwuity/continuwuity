@@ -38,26 +38,23 @@ struct Subcommand {
 
 
 fn flatten_subcommands(command: &Command) -> Vec<Subcommand> {
-    let mut subcommands = Vec::new();
-    let mut name_stack = Vec::new();
 
     fn flatten(
         subcommands: &mut Vec<Subcommand>,
-        stack: &mut Vec<String>,
+        name_stack: &mut Vec<String>,
         command: &Command
     ) {
-        let depth = stack.len();
-        stack.push(command.get_name().to_owned());
+        let depth = name_stack.len();
+        name_stack.push(command.get_name().to_owned());
 
         // do not include the root command
         if depth > 0 {
-            let name = stack.join(" ");
+            let name = name_stack.join(" ");
 
             let description = command
                 .get_long_about()
                 .or_else(|| command.get_about())
-                .map(|about| about.to_string())
-                .unwrap_or("_(no description)_".to_owned());
+                .map_or_else(|| "_(no description)_".to_owned(), ToString::to_string);
 
             subcommands.push(
                 Subcommand {
@@ -69,11 +66,14 @@ fn flatten_subcommands(command: &Command) -> Vec<Subcommand> {
         }
 
         for command in command.get_subcommands() {
-            flatten(subcommands, stack, command);
+            flatten(subcommands, name_stack, command);
         }
 
-        stack.pop();
+        name_stack.pop();
     }
+
+    let mut subcommands = Vec::new();
+    let mut name_stack = Vec::new();
 
     flatten(&mut subcommands, &mut name_stack, command);
 
