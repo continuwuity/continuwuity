@@ -42,7 +42,7 @@ on:
 
 jobs:
   test:
-    runs-on: docker
+    runs-on: ubuntu-latest
     container:
       image: code.forgejo.org/oci/debian:trixie
       options: "--volume /srv/example:/srv/example"
