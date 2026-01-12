@@ -62,11 +62,6 @@
         "name": "/reference/admin/"
     },
     {
-        "type": "file",
-        "label": "Server Reference",
-        "name": "/reference/server"
-    },
-    {
         "type": "divider"
     },
     "community",
