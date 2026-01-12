@@ -12,7 +12,7 @@ license = "Apache-2.0"
 # See also `rust-toolchain.toml`
 readme = "README.md"
 repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
-version = "0.5.2"
+version = "0.5.3"
 
 [workspace.metadata.crane]
 name = "conduwuit"
