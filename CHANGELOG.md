@@ -1,3 +1,24 @@
+# Continuwuity 0.5.3 (2026-01-12)
+
+## Features
+
+- Improve the display of nested configuration with the `!admin server show-config` command. Contributed by @Jade (#1279)
+
+## Bugfixes
+
+- Fixed `M_BAD_JSON` error when sending invites to other servers or when providing joins. Contributed by @nex (#1286)
+
+
+## Docs
+
+- Improve admin command documentation generation. Contributed by @ginger (#1280)
+
+
+## Misc
+
+- Improve timeout-related code for federation and URL previews. Contributed by @Jade
+
+
 # Continuwuity 0.5.2 (2026-01-09)
 
 ## Features
