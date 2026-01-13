@@ -16,7 +16,7 @@
 
 ## Misc
 
-- Improve timeout-related code for federation and URL previews. Contributed by @Jade
+- Improve timeout-related code for federation and URL previews. Contributed by @Jade (#1278)
 
 
 # Continuwuity 0.5.2 (2026-01-09)
