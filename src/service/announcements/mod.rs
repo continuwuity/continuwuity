@@ -18,8 +18,9 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, debug, info, warn};
+use conduwuit::{Result, Server, debug, error, info, warn};
 use database::{Deserialized, Map};
+use rand::Rng;
 use ruma::events::{Mentions, room::message::RoomMessageEventContent};
 use serde::Deserialize;
 use tokio::{
@@ -86,9 +87,27 @@ impl crate::Service for Service {
 			return Ok(());
 		}
 
+		// Run the first check immediately and send errors to admin room
+		if let Err(e) = self.check().await {
+			error!(?e, "Failed to check for announcements on startup");
+			self.services
+				.admin
+				.send_message(RoomMessageEventContent::text_plain(format!(
+					"Failed to check for announcements on startup: {e}"
+				)))
+				.await
+				.ok();
+		}
+
+		let first_check_jitter = {
+			let mut rng = rand::thread_rng();
+			let jitter_percent = rng.gen_range(-50.0..=10.0);
+			self.interval.mul_f64(1.0 + jitter_percent / 100.0)
+		};
+
 		let mut i = interval(self.interval);
 		i.set_missed_tick_behavior(MissedTickBehavior::Delay);
-		i.reset_after(self.interval);
+		i.reset_after(first_check_jitter);
 		loop {
 			tokio::select! {
 				() = self.interrupt.notified() => break,
