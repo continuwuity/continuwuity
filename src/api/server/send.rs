@@ -111,7 +111,7 @@ pub(crate) async fn send_transaction_message_route(
 		"Validated transaction",
 	);
 
-	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus, &*transaction_id).await?;
+	let results = handle(&services, &client, body.origin(), txn_start_time, pdus, edus, &transaction_id).await?;
 
 	info!(
 		pdus = body.pdus.len(),
