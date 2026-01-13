@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 7,
-            "mention_room": true,
-            "date": "2025-12-30",
-            "message": "Continuwuity v0.5.1 has been released. **The release contains a fix for the critical vulnerability [GHSA-m5p2-vccg-8c9v](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-m5p2-vccg-8c9v) (embargoed) affecting all Conduit-derived servers. Update as soon as possible.**\n\nThis has been *actively exploited* to attempt account takeover and forge events bricking the Continuwuity rooms. The new space is accessible at [Continuwuity (room list)](https://matrix.to/#/!8cR4g-i9ucof69E4JHNg9LbPVkGprHb3SzcrGBDDJgk?via=continuwuity.org&via=starstruck.systems&via=gingershaped.computer)\n"
+            "id": 8,
+            "mention_room": false,
+            "date": "2026-01-12",
+            "message": "Hey everyone!\n\nJust letting you know we've released [v0.5.3](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.3) - this one is a bit of a hotfix for an issue with inviting and allowing others to join rooms.\n\nIf you appreceate the round-the-clock work we've been doing to keep your servers secure over this holiday period, we'd really appreciate your support - you can sponsor individuals on our team using the 'sponsor' button at the top of [our GitHub repository](https://github.com/continuwuity/continuwuity). If you can't do that, even a star helps - spreading the word and advocating for our project helps keep it going.\n\nHave a lovely rest of your year \\\n[Jade \\(she/her\\)](https://matrix.to/#/%40jade%3Aellis.link) \n🩵"
         }
     ]
 }
