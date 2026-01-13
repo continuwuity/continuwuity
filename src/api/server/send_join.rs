@@ -13,8 +13,7 @@ use conduwuit::{
 use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{
-	CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
-	ServerName,
+	CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName,
 	api::federation::membership::create_join_event,
 	events::{
 		StateEventType,
