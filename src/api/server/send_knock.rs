@@ -6,7 +6,7 @@ use conduwuit::{
 };
 use futures::FutureExt;
 use ruma::{
-	OwnedServerName, OwnedUserId,
+	OwnedUserId,
 	RoomVersionId::*,
 	api::federation::knock::send_knock,
 	events::{
