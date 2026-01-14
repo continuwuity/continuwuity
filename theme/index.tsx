@@ -1,4 +1,5 @@
-import { HomeLayout as BasicHomeLayout, DocContent } from "@rspress/core/theme";
+import "./index.css";
+import { HomeLayout as BasicHomeLayout, DocContent } from "@rspress/core/theme-original";
 
 import { useFrontmatter } from '@rspress/core/runtime';
 interface HomeLayoutProps {
@@ -6,8 +7,6 @@ interface HomeLayoutProps {
 }
 
 function HomeLayout(props: HomeLayoutProps) {
-    console.log(props)
-
     const { frontmatter } = useFrontmatter();
 
     return (
@@ -25,5 +24,4 @@ function HomeLayout(props: HomeLayoutProps) {
     );
 }
 export { HomeLayout };
-export * from "@rspress/core/theme";
-import "./index.css";
+export * from "@rspress/core/theme-original";

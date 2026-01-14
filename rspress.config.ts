@@ -1,5 +1,4 @@
 import { defineConfig } from '@rspress/core';
-import { pluginPreview } from '@rspress/plugin-preview';
 import { pluginSitemap } from '@rspress/plugin-sitemap';
 import { pluginClientRedirects } from '@rspress/plugin-client-redirects';
 
@@ -41,20 +40,22 @@ export default defineConfig({
         },
     },
 
-    plugins: [pluginPreview(), pluginSitemap({
-        siteUrl: 'https://continuwuity.org', // TODO: Set automatically in build pipeline
-    }),
-    pluginClientRedirects({
-        redirects: [{
-            from: '/configuration/examples',
-            to: '/reference/config'
-        }, {
-            from: '/admin_reference',
-            to: '/reference/admin'
-        }, {
-            from: '/server_reference',
-            to: '/reference/server'
-        }
-        ]
-    })],
+    plugins: [
+        pluginSitemap({
+            siteUrl: 'https://continuwuity.org', // TODO: Set automatically in build pipeline
+        }),
+        pluginClientRedirects({
+            redirects: [{
+                from: '/configuration/examples',
+                to: '/reference/config'
+            }, {
+                from: '/admin_reference',
+                to: '/reference/admin'
+            }, {
+                from: '/server_reference',
+                to: '/reference/server'
+            }
+            ]
+        })
+    ],
 });
