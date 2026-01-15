@@ -25,10 +25,8 @@ pub async fn acl_check(&self, server_name: &ServerName, room_id: &RoomId) -> Res
 		return Ok(());
 	}
 
-	if acl_event_content.deny.contains(&String::from("*"))
-		&& acl_event_content.allow.contains(&String::from("*"))
-	{
-		warn!(%room_id, "Ignoring broken ACL event (allow key and deny key both contain wildcard \"*\"");
+	if acl_event_content.deny.contains(&String::from("*")) || acl_event_content.deny.is_empty() {
+		warn!(%room_id, "Ignoring broken ACL event (everyone is banned)");
 		return Ok(());
 	}
 
@@ -36,12 +34,6 @@ pub async fn acl_check(&self, server_name: &ServerName, room_id: &RoomId) -> Res
 		trace!("server {server_name} is allowed by ACL");
 		Ok(())
 	} else {
-		if acl_event_content.deny.contains(&String::from("*"))
-			&& server_name == self.services.globals.server_name()
-		{
-			warn!(%room_id, "Ignoring broken ACL event that denies everyone");
-			return Ok(());
-		}
 		debug!("Server {server_name} was denied by room ACL in {room_id}");
 		Err!(Request(Forbidden("Server was denied by room ACL")))
 	}
