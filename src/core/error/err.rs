@@ -115,7 +115,7 @@ macro_rules! err {
 macro_rules! err_log {
 	($out:ident, $level:ident, $($fields:tt)+) => {{
 		use $crate::tracing::{
-			callsite, callsite2, metadata, valueset, Callsite,
+			callsite, callsite2, metadata, valueset_all, Callsite,
 			Level,
 		};
 
@@ -133,7 +133,7 @@ macro_rules! err_log {
 			fields: $($fields)+,
 		};
 
-		($crate::error::visit)(&mut $out, LEVEL, &__CALLSITE, &mut valueset!(__CALLSITE.metadata().fields(), $($fields)+));
+		($crate::error::visit)(&mut $out, LEVEL, &__CALLSITE, &mut valueset_all!(__CALLSITE.metadata().fields(), $($fields)+));
 		($out).into()
 	}}
 }
