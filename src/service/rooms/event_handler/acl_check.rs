@@ -36,6 +36,12 @@ pub async fn acl_check(&self, server_name: &ServerName, room_id: &RoomId) -> Res
 		trace!("server {server_name} is allowed by ACL");
 		Ok(())
 	} else {
+		if acl_event_content.deny.contains(&String::from("*"))
+			&& server_name == self.services.globals.server_name()
+		{
+			warn!(%room_id, "Ignoring broken ACL event that denies everyone");
+			return Ok(());
+		}
 		debug!("Server {server_name} was denied by room ACL in {room_id}");
 		Err!(Request(Forbidden("Server was denied by room ACL")))
 	}
