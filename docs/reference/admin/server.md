@@ -16,10 +16,6 @@ Show configuration values
 
 Reload configuration values
 
-## `!admin server list-features`
-
-List the features built into the server
-
 ## `!admin server memory-usage`
 
 Print database memory usage statistics

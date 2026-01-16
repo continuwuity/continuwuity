@@ -22,7 +22,6 @@ pub mod time;
 pub mod with_lock;
 
 pub use ::conduwuit_macros::implement;
-pub use ::ctor::{ctor, dtor};
 
 pub use self::{
 	arrayvec::ArrayVecExt,

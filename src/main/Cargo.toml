@@ -207,7 +207,6 @@ clap.workspace = true
 console-subscriber.optional = true
 console-subscriber.workspace = true
 const-str.workspace = true
-ctor.workspace = true
 log.workspace = true
 opentelemetry.optional = true
 opentelemetry.workspace = true

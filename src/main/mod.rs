@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, atomic::Ordering};
 
-use conduwuit_core::{debug_info, error, rustc_flags_capture};
+use conduwuit_core::{debug_info, error};
 
 mod clap;
 mod logging;
@@ -13,10 +13,7 @@ mod sentry;
 mod server;
 mod signal;
 
-use ctor::{ctor, dtor};
 use server::Server;
-
-rustc_flags_capture! {}
 
 pub use conduwuit_core::{Error, Result};
 

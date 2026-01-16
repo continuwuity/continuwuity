@@ -118,10 +118,6 @@ Print detailed tokio runtime metrics accumulated since last command invocation
 
 Print the current time
 
-## `!admin debug list-dependencies`
-
-List dependencies
-
 ## `!admin debug database-stats`
 
 Get database statistics

@@ -3,11 +3,8 @@
 extern crate conduwuit_core as conduwuit;
 extern crate rust_rocksdb as rocksdb;
 
-use ctor::{ctor, dtor};
-
 conduwuit::mod_ctor! {}
 conduwuit::mod_dtor! {}
-conduwuit::rustc_flags_capture! {}
 
 #[cfg(test)]
 mod benches;

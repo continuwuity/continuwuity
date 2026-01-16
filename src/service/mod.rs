@@ -34,11 +34,9 @@ pub mod transaction_ids;
 pub mod uiaa;
 pub mod users;
 
-use ctor::{ctor, dtor};
 pub(crate) use service::{Args, Dep, Service};
 
 pub use crate::services::Services;
 
 conduwuit::mod_ctor! {}
 conduwuit::mod_dtor! {}
-conduwuit::rustc_flags_capture! {}

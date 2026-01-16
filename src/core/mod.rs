@@ -22,7 +22,7 @@ pub use ::tracing;
 pub use config::Config;
 pub use error::Error;
 pub use info::{
-	rustc_flags_capture, version,
+	version,
 	version::{name, version},
 };
 pub use matrix::{
@@ -30,11 +30,9 @@ pub use matrix::{
 };
 pub use parking_lot::{Mutex as SyncMutex, RwLock as SyncRwLock};
 pub use server::Server;
-pub use utils::{ctor, dtor, implement, result, result::Result};
+pub use utils::{implement, result, result::Result};
 
 pub use crate as conduwuit_core;
-
-rustc_flags_capture! {}
 
 #[cfg(any(not(conduwuit_mods), not(feature = "conduwuit_mods")))]
 pub mod mods {

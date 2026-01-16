@@ -21,18 +21,6 @@ pub enum ServerCommand {
 		path: Option<PathBuf>,
 	},
 
-	/// List the features built into the server
-	ListFeatures {
-		#[arg(short, long)]
-		available: bool,
-
-		#[arg(short, long)]
-		enabled: bool,
-
-		#[arg(short, long)]
-		comma: bool,
-	},
-
 	/// Print database memory usage statistics
 	MemoryUsage,
 

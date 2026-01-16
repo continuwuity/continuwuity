@@ -206,12 +206,6 @@ pub enum DebugCommand {
 	/// Print the current time
 	Time,
 
-	/// List dependencies
-	ListDependencies {
-		#[arg(short, long)]
-		names: bool,
-	},
-
 	/// Get database statistics
 	DatabaseStats {
 		property: Option<String>,

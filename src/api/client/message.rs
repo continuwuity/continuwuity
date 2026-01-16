@@ -371,11 +371,3 @@ pub(crate) async fn is_ignored_invite(
 		.invite_filter_level(&sender_user, recipient_user)
 		.await == FilterLevel::Ignore
 }
-
-#[cfg_attr(debug_assertions, ctor::ctor)]
-fn _is_sorted() {
-	debug_assert!(
-		IGNORED_MESSAGE_TYPES.is_sorted(),
-		"IGNORED_MESSAGE_TYPES must be sorted by the developer"
-	);
-}

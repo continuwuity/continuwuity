@@ -47,7 +47,7 @@ type Key = ArrayVec<usize, KEY_SEGS>;
 const NAME_MAX: usize = 128;
 const KEY_SEGS: usize = 8;
 
-#[crate::ctor]
+#[ctor::ctor]
 fn _static_initialization() {
 	acq_epoch().expect("pre-initialization of jemalloc failed");
 	acq_epoch().expect("pre-initialization of jemalloc failed");

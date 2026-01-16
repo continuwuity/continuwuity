@@ -30,11 +30,8 @@ pub(crate) use crate::{context::Context, utils::get_room_info};
 
 pub(crate) const PAGE_SIZE: usize = 100;
 
-use ctor::{ctor, dtor};
-
 conduwuit::mod_ctor! {}
 conduwuit::mod_dtor! {}
-conduwuit::rustc_flags_capture! {}
 
 pub use crate::admin::AdminCommand;
 

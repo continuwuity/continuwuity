@@ -1,15 +1,13 @@
 mod admin;
-mod cargo;
 mod config;
 mod debug;
 mod implement;
 mod refutable;
-mod rustc;
 mod utils;
 
 use proc_macro::TokenStream;
 use syn::{
-	Error, Item, ItemConst, ItemEnum, ItemFn, ItemStruct, Meta,
+	Error, Item, ItemEnum, ItemFn, ItemStruct, Meta,
 	parse::{Parse, Parser},
 	parse_macro_input,
 };
@@ -27,17 +25,9 @@ pub fn admin_command_dispatch(args: TokenStream, input: TokenStream) -> TokenStr
 }
 
 #[proc_macro_attribute]
-pub fn cargo_manifest(args: TokenStream, input: TokenStream) -> TokenStream {
-	attribute_macro::<ItemConst, _>(args, input, cargo::manifest)
-}
-
-#[proc_macro_attribute]
 pub fn recursion_depth(args: TokenStream, input: TokenStream) -> TokenStream {
 	attribute_macro::<Item, _>(args, input, debug::recursion_depth)
 }
-
-#[proc_macro]
-pub fn rustc_flags_capture(args: TokenStream) -> TokenStream { rustc::flags_capture(args) }
 
 #[proc_macro_attribute]
 pub fn refutable(args: TokenStream, input: TokenStream) -> TokenStream {
