@@ -70,9 +70,13 @@ where
 }
 
 /// Rank fetches the creatorship and power level of the target user
+///
+/// Returns (UserPower, power_level, Option<RoomPowerLevelsEventContent>)
+/// If UserPower::Creator is returned, the power_level and
+/// RoomPowerLevelsEventContent will be meaningless and can be ignored.
 pub async fn get_rank<FS>(
 	room_version: &RoomVersion,
-	fetch_state: FS,
+	fetch_state: &FS,
 	user_id: &UserId,
 ) -> Result<(UserPower, Int, Option<RoomPowerLevelsEventContent>), Error>
 where
