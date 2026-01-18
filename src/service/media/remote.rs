@@ -2,7 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use conduwuit::{
 	Err, Error, Result, debug_warn, err, implement,
-	utils::content_disposition::make_content_disposition, warn,
+	utils::content_disposition::make_content_disposition,
 };
 use http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderValue};
 use ruma::{
@@ -67,7 +67,7 @@ pub async fn fetch_remote_content(
 			);
 		});
 
-	if let Err(Error::Request(NotFound, ..)) = &result {
+	if let Err(Error::Request(Unrecognized, ..)) = &result {
 		return self
 			.fetch_content_unauthenticated(mxc, user, server, timeout_ms)
 			.await;
@@ -96,7 +96,7 @@ async fn fetch_thumbnail_authenticated(
 		timeout_ms,
 	};
 
-	let Response { content, .. } = self.federation_request(mxc, user, server, request).await?;
+	let Response { content, .. } = self.federation_request(mxc, server, request).await?;
 
 	match content {
 		| FileOrLocation::File(content) =>
@@ -120,7 +120,7 @@ async fn fetch_content_authenticated(
 		timeout_ms,
 	};
 
-	let Response { content, .. } = self.federation_request(mxc, user, server, request).await?;
+	let Response { content, .. } = self.federation_request(mxc, server, request).await?;
 
 	match content {
 		| FileOrLocation::File(content) => self.handle_content_file(mxc, user, content).await,
@@ -154,7 +154,7 @@ async fn fetch_thumbnail_unauthenticated(
 
 	let Response {
 		file, content_type, content_disposition, ..
-	} = self.federation_request(mxc, user, server, request).await?;
+	} = self.federation_request(mxc, server, request).await?;
 
 	let content = Content { file, content_type, content_disposition };
 
@@ -182,7 +182,7 @@ async fn fetch_content_unauthenticated(
 
 	let Response {
 		file, content_type, content_disposition, ..
-	} = self.federation_request(mxc, user, server, request).await?;
+	} = self.federation_request(mxc, server, request).await?;
 
 	let content = Content { file, content_type, content_disposition };
 
@@ -305,7 +305,6 @@ async fn location_request(&self, location: &str) -> Result<FileMeta> {
 async fn federation_request<Request>(
 	&self,
 	mxc: &Mxc<'_>,
-	user: Option<&UserId>,
 	server: Option<&ServerName>,
 	request: Request,
 ) -> Result<Request::IncomingResponse>
@@ -316,32 +315,6 @@ where
 		.sending
 		.send_federation_request(server.unwrap_or(mxc.server_name), request)
 		.await
-		.map_err(|error| handle_federation_error(mxc, user, server, error))
-}
-
-// Handles and adjusts the error for the caller to determine if they should
-// request the fallback endpoint or give up.
-fn handle_federation_error(
-	mxc: &Mxc<'_>,
-	user: Option<&UserId>,
-	server: Option<&ServerName>,
-	error: Error,
-) -> Error {
-	let fallback = || {
-		err!(Request(NotFound(
-			debug_error!(%mxc, ?user, ?server, ?error, "Remote media not found")
-		)))
-	};
-
-	// Matrix server responses for fallback always taken.
-	if error.kind() == Unrecognized {
-		return fallback();
-	}
-
-	warn!(%mxc, ?user, ?server, ?error, "Remote media fetch failed");
-	// Reached for 5xx errors. This is where we don't fallback given the likelihood
-	// the other endpoint will also be a 5xx and we're wasting time.
-	error
 }
 
 #[implement(super::Service)]
