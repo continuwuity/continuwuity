@@ -2,7 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use conduwuit::{
 	Err, Error, Result, debug_warn, err, implement,
-	utils::content_disposition::make_content_disposition,
+	utils::content_disposition::make_content_disposition, warn,
 };
 use http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderValue};
 use ruma::{
@@ -56,7 +56,16 @@ pub async fn fetch_remote_content(
 
 	let result = self
 		.fetch_content_authenticated(mxc, user, server, timeout_ms)
-		.await;
+		.await
+		.inspect_err(|error| {
+			debug_warn!(
+				%mxc,
+				?user,
+				?server,
+				?error,
+				"Authenticated fetch of remote content failed"
+			);
+		});
 
 	if let Err(Error::Request(NotFound, ..)) = &result {
 		return self
@@ -320,24 +329,16 @@ fn handle_federation_error(
 ) -> Error {
 	let fallback = || {
 		err!(Request(NotFound(
-			debug_error!(%mxc, user = user.map(tracing::field::display), server = server.map(tracing::field::display), ?error, "Remote media not found")
+			debug_error!(%mxc, ?user, ?server, ?error, "Remote media not found")
 		)))
 	};
 
 	// Matrix server responses for fallback always taken.
-	if error.kind() == NotFound || error.kind() == Unrecognized {
+	if error.kind() == Unrecognized {
 		return fallback();
 	}
 
-	// If we get these from any middleware we'll try the other endpoint rather than
-	// giving up too early.
-	if error.status_code().is_redirection()
-		|| error.status_code().is_client_error()
-		|| error.status_code().is_server_error()
-	{
-		return fallback();
-	}
-
+	warn!(%mxc, ?user, ?server, ?error, "Remote media fetch failed");
 	// Reached for 5xx errors. This is where we don't fallback given the likelihood
 	// the other endpoint will also be a 5xx and we're wasting time.
 	error
