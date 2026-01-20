@@ -15,7 +15,8 @@ use std::{
 	hash::{BuildHasher, Hash},
 };
 
-use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future};
+use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use itertools::Itertools;
 use ruma::{
 	EventId, Int, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomVersionId,
 	events::{
@@ -28,14 +29,13 @@ use serde_json::from_str as from_json_str;
 
 pub(crate) use self::error::Error;
 use self::power_levels::PowerLevelsContentFields;
-pub use self::{
-	event_auth::iterative_auth_checks::{auth_types_for_event, iterative_auth_check},
-	room_version::RoomVersion,
-};
+pub use self::{event_auth::iterative_auth_checks::auth_check, room_version::RoomVersion};
 use crate::{
-	debug, debug_error, err,
+	Pdu, debug, err, error as log_error,
 	matrix::{Event, StateKey},
-	state_res::room_version::StateResolutionVersion,
+	state_res::{
+		event_auth::auth_events::auth_types_for_event, room_version::StateResolutionVersion,
+	},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
 	warn,
@@ -72,23 +72,19 @@ type Result<T, E = Error> = crate::Result<T, E>;
 /// event is part of the same room.
 //#[tracing::instrument(level = "debug", skip(state_sets, auth_chain_sets,
 //#[tracing::instrument(level event_fetch))]
-pub async fn resolve<'a, Pdu, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, ExistsFut>(
+pub async fn resolve<'a, Sets, SetIter, Hasher, FE, Exists>(
 	room_version: &RoomVersionId,
 	state_sets: Sets,
 	auth_chain_sets: &'a [HashSet<OwnedEventId, Hasher>],
-	event_fetch: &Fetch,
+	event_fetch: &FE,
 	event_exists: &Exists,
 ) -> Result<StateMap<OwnedEventId>>
 where
-	Fetch: Fn(OwnedEventId) -> FetchFut + Sync,
-	FetchFut: Future<Output = Option<Pdu>> + Send,
-	Exists: Fn(OwnedEventId) -> ExistsFut + Sync,
-	ExistsFut: Future<Output = bool> + Send,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
+	Exists: AsyncFn(OwnedEventId) -> bool + Sync,
 	Sets: IntoIterator<IntoIter = SetIter> + Send,
 	SetIter: Iterator<Item = &'a StateMap<OwnedEventId>> + Clone + Send,
 	Hasher: BuildHasher + Send + Sync,
-	Pdu: Event + Clone + Send + Sync,
-	for<'b> &'b Pdu: Event + Send,
 {
 	use RoomVersionId::*;
 	let stateres_version = match room_version {
@@ -166,7 +162,7 @@ where
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
 		&room_version,
-		sorted_control_levels.iter().stream().map(AsRef::as_ref),
+		sorted_control_levels.iter().stream().map(ToOwned::to_owned),
 		initial_state,
 		&event_fetch,
 	)
@@ -206,7 +202,7 @@ where
 
 	let mut resolved_state = iterative_auth_check(
 		&room_version,
-		sorted_left_events.iter().stream().map(AsRef::as_ref),
+		sorted_left_events.iter().stream(),
 		resolved_control, // The control events are added to the final resolved state
 		&event_fetch,
 	)
@@ -270,14 +266,12 @@ where
 }
 
 /// Calculate the conflicted subgraph
-async fn calculate_conflicted_subgraph<F, Fut, E>(
+async fn calculate_conflicted_subgraph<FE>(
 	conflicted: &StateMap<Vec<OwnedEventId>>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) -> Option<HashSet<OwnedEventId>>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send + Sync,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	let conflicted_events: HashSet<_> = conflicted.values().flatten().cloned().collect();
 	let mut subgraph: HashSet<OwnedEventId> = HashSet::new();
@@ -309,7 +303,17 @@ where
 			continue;
 		}
 		trace!(event_id = event_id.as_str(), "fetching event for its auth events");
-		let evt = fetch_event(event_id.clone()).await;
+		let evt = fetch_event(event_id.clone())
+			.await
+			.inspect_err(|e| {
+				log_error!(
+					"error fetching event {} for conflicted state subgraph: {}",
+					event_id,
+					e
+				)
+			})
+			.ok()
+			.flatten();
 		if evt.is_none() {
 			err!("could not fetch event {} to calculate conflicted subgraph", event_id);
 			path.pop();
@@ -356,15 +360,13 @@ where
 /// The power level is negative because a higher power level is equated to an
 /// earlier (further back in time) origin server timestamp.
 #[tracing::instrument(level = "debug", skip_all)]
-async fn reverse_topological_power_sort<E, F, Fut>(
+async fn reverse_topological_power_sort<FE>(
 	events_to_sort: Vec<OwnedEventId>,
 	auth_diff: &HashSet<OwnedEventId>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) -> Result<Vec<OwnedEventId>>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send + Sync,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	debug!("reverse topological sort of power events");
 
@@ -402,7 +404,7 @@ where
 			.ok_or_else(|| Error::NotFound(String::new()))?;
 
 		let ev = fetch_event(event_id)
-			.await
+			.await?
 			.ok_or_else(|| Error::NotFound(String::new()))?;
 
 		Ok((pl, ev.origin_server_ts()))
@@ -541,18 +543,13 @@ where
 /// Do NOT use this any where but topological sort, we find the power level for
 /// the eventId at the eventId's generation (we walk backwards to `EventId`s
 /// most recent previous power level event).
-async fn get_power_level_for_sender<E, F, Fut>(
-	event_id: &EventId,
-	fetch_event: &F,
-) -> serde_json::Result<Int>
+async fn get_power_level_for_sender<FE>(event_id: &EventId, fetch_event: &FE) -> Result<Int>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	debug!("fetch event ({event_id}) senders power level");
 
-	let event = fetch_event(event_id.to_owned()).await;
+	let event = fetch_event(event_id.to_owned()).await?;
 
 	let auth_events = event.as_ref().map(Event::auth_events);
 
@@ -591,27 +588,23 @@ where
 /// the the `fetch_event` closure and verify each event using the
 /// `event_auth::auth_check` function.
 #[tracing::instrument(level = "trace", skip_all)]
-async fn iterative_auth_check<'a, E, F, Fut, S>(
+async fn iterative_auth_check<FE, S>(
 	room_version: &RoomVersion,
 	events_to_check: S,
 	unconflicted_state: StateMap<OwnedEventId>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) -> Result<StateMap<OwnedEventId>>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	S: Stream<Item = &'a EventId> + Send + 'a,
-	E: Event + Clone + Send + Sync,
-	for<'b> &'b E: Event + Send,
+	FE: AsyncFn(&EventId) -> Result<Option<Pdu>, Error> + Sync + Send,
+	S: Stream<Item = OwnedEventId> + Send,
 {
 	debug!("starting iterative auth check");
 
 	let events_to_check: Vec<_> = events_to_check
-		.map(Result::Ok)
-		.broad_and_then(async |event_id| {
-			fetch_event(event_id.to_owned())
-				.await
-				.ok_or_else(|| Error::NotFound(format!("Failed to find {event_id}")))
+		.map(Ok::<OwnedEventId, Error>)
+		.broad_and_then(async |event_id| match fetch_event(&event_id).await {
+			| Ok(Some(e)) => Ok(e),
+			| _ => Err(Error::NotFound(format!("could not find {event_id}")))?,
 		})
 		.try_collect()
 		.boxed()
@@ -624,16 +617,20 @@ where
 
 	let auth_event_ids: HashSet<OwnedEventId> = events_to_check
 		.iter()
-		.flat_map(|event: &E| event.auth_events().map(ToOwned::to_owned))
+		.flat_map(|event: &Pdu| event.auth_events().map(ToOwned::to_owned))
 		.collect();
 
 	trace!(set = ?auth_event_ids, "auth event IDs to fetch");
 
-	let auth_events: HashMap<OwnedEventId, E> = auth_event_ids
+	let auth_events: HashMap<OwnedEventId, Pdu> = auth_event_ids
 		.into_iter()
 		.stream()
-		.broad_filter_map(fetch_event)
-		.map(|auth_event| (auth_event.event_id().to_owned(), auth_event))
+		.broad_filter_map(async |event_id| {
+			fetch_event(&event_id)
+				.await
+				.map(|ev_opt| ev_opt.map(|ev| (event_id.clone(), ev)))
+				.unwrap_or_default()
+		})
 		.collect()
 		.boxed()
 		.await;
@@ -652,29 +649,23 @@ where
 			.state_key()
 			.ok_or_else(|| Error::InvalidPdu("State event had no state key".to_owned()))?;
 
+		let member_event_content = match event.kind() {
+			| TimelineEventType::RoomMember =>
+				Some(event.get_content::<RoomMemberEventContent>().map_err(|e| {
+					Error::InvalidPdu(format!("Failed to parse m.room.member content: {}", e))
+				})?),
+			| _ => None,
+		};
 		let auth_types = auth_types_for_event(
-			event.event_type(),
-			event.sender(),
-			Some(state_key),
-			event.content(),
 			room_version,
+			event.kind(),
+			event.state_key().map(StateKey::from_str).as_ref(),
+			event.sender(),
+			member_event_content,
 		)?;
 		trace!(list = ?auth_types, event_id = event.event_id().as_str(), "auth types for event");
 
-		let mut auth_state = StateMap::new();
-		if room_version.room_ids_as_hashes {
-			trace!("room version uses hashed IDs, manually fetching create event");
-			let create_event_id_raw = event.room_id_or_hash().as_str().replace('!', "$");
-			let create_event_id = EventId::parse(&create_event_id_raw).map_err(|e| {
-				Error::InvalidPdu(format!(
-					"Failed to parse create event ID from room ID/hash: {e}"
-				))
-			})?;
-			let create_event = fetch_event(create_event_id.into())
-				.await
-				.ok_or_else(|| Error::NotFound("Failed to find create event".into()))?;
-			auth_state.insert(create_event.event_type().with_state_key(""), create_event);
-		}
+		let mut auth_state = StateMap::with_capacity(event.auth_events.len());
 		for aid in event.auth_events() {
 			if let Some(ev) = auth_events.get(aid) {
 				//TODO: synapse checks "rejected_reason" which is most likely related to
@@ -700,7 +691,13 @@ where
 				if let Some(event) = auth_events.get(ev_id) {
 					Some((key, event.clone()))
 				} else {
-					Some((key, fetch_event(ev_id.clone()).await?))
+					match fetch_event(ev_id).await {
+						| Ok(Some(event)) => Some((key, event)),
+						| _ => {
+							warn!(event_id = ev_id.as_str(), "unable to fetch auth event");
+							None
+						},
+					}
 				}
 			})
 			.ready_for_each(|(key, event)| {
@@ -712,30 +709,16 @@ where
 
 		debug!(event_id = event.event_id().as_str(), "Running auth checks");
 
-		// The key for this is (eventType + a state_key of the signed token not sender)
-		// so search for it
-		let current_third_party = auth_state.iter().find_map(|(_, pdu)| {
-			(*pdu.event_type() == TimelineEventType::RoomThirdPartyInvite).then_some(pdu)
-		});
-
-		let fetch_state = |ty: &StateEventType, key: &str| {
-			future::ready(
-				auth_state
-					.get(&ty.with_state_key(key))
-					.map(ToOwned::to_owned),
-			)
+		let fetch_state = async |t: (StateEventType, StateKey)| {
+			Ok(auth_state
+				.get(&t.0.with_state_key(t.1.as_str()))
+				.map(ToOwned::to_owned))
 		};
 
-		let auth_result = iterative_auth_check(
-			room_version,
-			&event,
-			current_third_party,
-			fetch_state,
-			&fetch_state(&StateEventType::RoomCreate, "")
-				.await
-				.expect("create event must exist"),
-		)
-		.await;
+		let create_event = fetch_state((StateEventType::RoomCreate, StateKey::new())).await?;
+		let auth_result =
+			auth_check(room_version, &event, fetch_event, &fetch_state, create_event.as_ref())
+				.await;
 
 		match auth_result {
 			| Ok(true) => {
@@ -755,7 +738,7 @@ where
 				warn!("event {} failed the authentication check", event.event_id());
 			},
 			| Err(e) => {
-				debug_error!("event {} failed the authentication check: {e}", event.event_id());
+				log_error!("event {} failed the authentication check: {e}", event.event_id());
 				return Err(e);
 			},
 		}
@@ -774,15 +757,13 @@ where
 /// after the most recent are depth 0, the events before (with the first power
 /// level as a parent) will be marked as depth 1. depth 1 is "older" than depth
 /// 0.
-async fn mainline_sort<E, F, Fut>(
+async fn mainline_sort<FE>(
 	to_sort: &[OwnedEventId],
 	resolved_power_level: Option<OwnedEventId>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) -> Result<Vec<OwnedEventId>>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Clone + Send + Sync,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	debug!("mainline sort of events");
 
@@ -797,13 +778,13 @@ where
 		mainline.push(p.clone());
 
 		let event = fetch_event(p.clone())
-			.await
+			.await?
 			.ok_or_else(|| Error::NotFound(format!("Failed to find {p}")))?;
 
 		pl = None;
 		for aid in event.auth_events() {
 			let ev = fetch_event(aid.to_owned())
-				.await
+				.await?
 				.ok_or_else(|| Error::NotFound(format!("Failed to find {aid}")))?;
 
 			if is_type_and_key(&ev, &TimelineEventType::RoomPowerLevels, "") {
@@ -824,7 +805,11 @@ where
 		.iter()
 		.stream()
 		.broad_filter_map(async |ev_id| {
-			fetch_event(ev_id.clone()).await.map(|event| (event, ev_id))
+			fetch_event(ev_id.clone())
+				.await
+				.ok()
+				.flatten()
+				.map(|event| (event, ev_id))
 		})
 		.broad_filter_map(|(event, ev_id)| {
 			get_mainline_depth(Some(event.clone()), &mainline_map, fetch_event)
@@ -846,15 +831,13 @@ where
 
 /// Get the mainline depth from the `mainline_map` or finds a power_level event
 /// that has an associated mainline depth.
-async fn get_mainline_depth<E, F, Fut>(
-	mut event: Option<E>,
+async fn get_mainline_depth<FE>(
+	mut event: Option<Pdu>,
 	mainline_map: &HashMap<OwnedEventId, usize>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) -> Result<usize>
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send + Sync,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	while let Some(sort_ev) = event {
 		debug!(event_id = sort_ev.event_id().as_str(), "mainline");
@@ -867,7 +850,7 @@ where
 		event = None;
 		for aid in sort_ev.auth_events() {
 			let aev = fetch_event(aid.to_owned())
-				.await
+				.await?
 				.ok_or_else(|| Error::NotFound(format!("Failed to find {aid}")))?;
 
 			if is_type_and_key(&aev, &TimelineEventType::RoomPowerLevels, "") {
@@ -880,20 +863,18 @@ where
 	Ok(0)
 }
 
-async fn add_event_and_auth_chain_to_graph<E, F, Fut>(
+async fn add_event_and_auth_chain_to_graph<FE>(
 	graph: &mut HashMap<OwnedEventId, HashSet<OwnedEventId>>,
 	event_id: OwnedEventId,
 	auth_diff: &HashSet<OwnedEventId>,
-	fetch_event: &F,
+	fetch_event: &FE,
 ) where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send + Sync,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	let mut state = vec![event_id];
 	while let Some(eid) = state.pop() {
 		graph.entry(eid.clone()).or_default();
-		let event = fetch_event(eid.clone()).await;
+		let event = fetch_event(eid.clone()).await.ok().flatten();
 		let auth_events = event.as_ref().map(Event::auth_events).into_iter().flatten();
 
 		// Prefer the store to event as the store filters dedups the events
@@ -912,14 +893,12 @@ async fn add_event_and_auth_chain_to_graph<E, F, Fut>(
 	}
 }
 
-async fn is_power_event_id<E, F, Fut>(event_id: &EventId, fetch: &F) -> bool
+async fn is_power_event_id<FE>(event_id: &EventId, fetch: &FE) -> bool
 where
-	F: Fn(OwnedEventId) -> Fut + Sync,
-	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send,
+	FE: AsyncFn(OwnedEventId) -> Result<Option<Pdu>> + Sync,
 {
 	match fetch(event_id.to_owned()).await.as_ref() {
-		| Some(state) => is_power_event(state),
+		| Ok(Some(state)) => is_power_event(state),
 		| _ => false,
 	}
 }
@@ -976,6 +955,7 @@ where
 mod tests {
 	use std::collections::{HashMap, HashSet};
 
+	use itertools::Itertools;
 	use maplit::{hashmap, hashset};
 	use rand::seq::SliceRandom;
 	use ruma::{
@@ -1031,7 +1011,7 @@ mod tests {
 				.await
 				.unwrap();
 
-		let resolved_power = super::iterative_auth_check(
+		let resolved_power = super::auth_check(
 			&RoomVersion::V6,
 			sorted_power_events.iter().map(AsRef::as_ref).stream(),
 			HashMap::new(), // unconflicted events
