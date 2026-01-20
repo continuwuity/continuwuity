@@ -1,3 +1,4 @@
+pub mod introspection;
 pub mod room_version;
 pub mod version;
 

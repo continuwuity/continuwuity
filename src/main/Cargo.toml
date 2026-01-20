@@ -202,8 +202,10 @@ conduwuit-database.workspace = true
 conduwuit-router.workspace = true
 conduwuit-service.workspace = true
 conduwuit-build-metadata.workspace = true
+conduwuit-macros.workspace = true
 
 clap.workspace = true
+ctor.workspace = true
 console-subscriber.optional = true
 console-subscriber.workspace = true
 const-str.workspace = true

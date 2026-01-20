@@ -2,6 +2,10 @@ pub mod built {
 	include!(concat!(env!("OUT_DIR"), "/built.rs"));
 }
 
+// Include generated available features
+// This provides: pub const WORKSPACE_FEATURES: &[(&str, &[&str])]
+include!(concat!(env!("OUT_DIR"), "/available_features.rs"));
+
 pub static GIT_COMMIT_HASH: Option<&str> = option_env!("GIT_COMMIT_HASH");
 
 pub static GIT_COMMIT_HASH_SHORT: Option<&str> = option_env!("GIT_COMMIT_HASH_SHORT");

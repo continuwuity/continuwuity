@@ -4,6 +4,8 @@ use std::sync::{Arc, atomic::Ordering};
 
 use conduwuit_core::{debug_info, error};
 
+conduwuit_macros::introspect_crate! {}
+
 mod clap;
 mod logging;
 mod mods;

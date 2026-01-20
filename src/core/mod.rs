@@ -19,6 +19,7 @@ pub use ::smallstr;
 pub use ::smallvec;
 pub use ::toml;
 pub use ::tracing;
+pub use conduwuit_build_metadata as build_metadata;
 pub use config::Config;
 pub use error::Error;
 pub use info::{
@@ -33,6 +34,8 @@ pub use server::Server;
 pub use utils::{implement, result, result::Result};
 
 pub use crate as conduwuit_core;
+
+conduwuit_macros::introspect_crate! {}
 
 #[cfg(any(not(conduwuit_mods), not(feature = "conduwuit_mods")))]
 pub mod mods {

@@ -2,6 +2,7 @@
 name = "conduwuit_macros"
 description.workspace = true
 edition.workspace = true
+homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
@@ -17,6 +18,7 @@ syn.workspace = true
 quote.workspace = true
 proc-macro2.workspace = true
 itertools.workspace = true
+cargo_toml.workspace = true
 
 [lints]
 workspace = true

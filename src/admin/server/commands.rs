@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{fmt::Write, path::PathBuf, sync::Arc};
 
 use conduwuit::{
 	Err, Result,
@@ -152,4 +152,98 @@ pub(super) async fn shutdown(&self) -> Result {
 	self.services.server.shutdown()?;
 
 	self.write_str("Shutting down server...").await
+}
+
+#[admin_command]
+pub(super) async fn list_features(&self) -> Result {
+	let mut enabled_features = conduwuit::info::introspection::ENABLED_FEATURES
+		.lock()
+		.expect("locked")
+		.iter()
+		.flat_map(|(_, f)| f.iter())
+		.collect::<Vec<_>>();
+
+	enabled_features.sort_unstable();
+	enabled_features.dedup();
+
+	let mut available_features = conduwuit::build_metadata::WORKSPACE_FEATURES
+		.iter()
+		.flat_map(|(_, f)| f.iter())
+		.collect::<Vec<_>>();
+
+	available_features.sort_unstable();
+	available_features.dedup();
+
+	let mut features = String::new();
+
+	for feature in available_features {
+		let active = enabled_features.contains(&feature);
+		let emoji = if active { "✅" } else { "❌" };
+		let remark = if active { "[enabled]" } else { "" };
+		writeln!(features, "{emoji} {feature} {remark}")?;
+	}
+
+	self.write_str(&features).await
+}
+
+#[admin_command]
+pub(super) async fn build_info(&self) -> Result {
+	use conduwuit::build_metadata::built;
+
+	let mut info = String::new();
+
+	// Version information
+	writeln!(info, "# Build Information\n")?;
+	writeln!(info, "**Version:** {}", built::PKG_VERSION)?;
+	writeln!(info, "**Package:** {}", built::PKG_NAME)?;
+	writeln!(info, "**Description:** {}", built::PKG_DESCRIPTION)?;
+
+	// Git information
+	writeln!(info, "\n## Git Information\n")?;
+	if let Some(hash) = conduwuit::build_metadata::GIT_COMMIT_HASH {
+		writeln!(info, "**Commit Hash:** {hash}")?;
+	}
+	if let Some(hash) = conduwuit::build_metadata::GIT_COMMIT_HASH_SHORT {
+		writeln!(info, "**Commit Hash (short):** {hash}")?;
+	}
+	if let Some(url) = conduwuit::build_metadata::GIT_REMOTE_WEB_URL {
+		writeln!(info, "**Repository:** {url}")?;
+	}
+	if let Some(url) = conduwuit::build_metadata::GIT_REMOTE_COMMIT_URL {
+		writeln!(info, "**Commit URL:** {url}")?;
+	}
+
+	// Build environment
+	writeln!(info, "\n## Build Environment\n")?;
+	writeln!(info, "**Profile:** {}", built::PROFILE)?;
+	writeln!(info, "**Optimization Level:** {}", built::OPT_LEVEL)?;
+	writeln!(info, "**Debug:** {}", built::DEBUG)?;
+	writeln!(info, "**Target:** {}", built::TARGET)?;
+	writeln!(info, "**Host:** {}", built::HOST)?;
+
+	// Rust compiler information
+	writeln!(info, "\n## Compiler Information\n")?;
+	writeln!(info, "**Rustc Version:** {}", built::RUSTC_VERSION)?;
+	if !built::RUSTDOC_VERSION.is_empty() {
+		writeln!(info, "**Rustdoc Version:** {}", built::RUSTDOC_VERSION)?;
+	}
+
+	// Target configuration
+	writeln!(info, "\n## Target Configuration\n")?;
+	writeln!(info, "**Architecture:** {}", built::CFG_TARGET_ARCH)?;
+	writeln!(info, "**OS:** {}", built::CFG_OS)?;
+	writeln!(info, "**Family:** {}", built::CFG_FAMILY)?;
+	writeln!(info, "**Endianness:** {}", built::CFG_ENDIAN)?;
+	writeln!(info, "**Pointer Width:** {} bits", built::CFG_POINTER_WIDTH)?;
+	if !built::CFG_ENV.is_empty() {
+		writeln!(info, "**Environment:** {}", built::CFG_ENV)?;
+	}
+
+	// CI information
+	if let Some(ci) = built::CI_PLATFORM {
+		writeln!(info, "\n## CI Platform\n")?;
+		writeln!(info, "**Platform:** {ci}")?;
+	}
+
+	self.write_str(&info).await
 }

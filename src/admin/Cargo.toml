@@ -2,6 +2,7 @@
 name = "conduwuit_admin"
 description.workspace = true
 edition.workspace = true
+homepage.workspace = true
 license.workspace = true
 readme.workspace = true
 repository.workspace = true
@@ -79,6 +80,7 @@ conduwuit-database.workspace = true
 conduwuit-macros.workspace = true
 conduwuit-service.workspace = true
 const-str.workspace = true
+ctor.workspace = true
 futures.workspace = true
 log.workspace = true
 ruma.workspace = true

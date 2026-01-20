@@ -1,4 +1,5 @@
 mod admin;
+mod build_info;
 mod config;
 mod debug;
 mod implement;
@@ -42,6 +43,13 @@ pub fn implement(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn config_example_generator(args: TokenStream, input: TokenStream) -> TokenStream {
 	attribute_macro::<ItemStruct, _>(args, input, config::example_generator)
+}
+
+#[proc_macro]
+pub fn introspect_crate(input: TokenStream) -> TokenStream {
+	build_info::introspect(input.into())
+		.unwrap_or_else(|e| e.to_compile_error())
+		.into()
 }
 
 fn attribute_macro<I, F>(args: TokenStream, input: TokenStream, func: F) -> TokenStream
