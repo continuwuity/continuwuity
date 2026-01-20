@@ -1926,9 +1926,9 @@
 #
 #admin_filter = ""
 
-[global.antispam]
+#[global.antispam]
 
-[global.antispam.meowlnir]
+#[global.antispam.meowlnir]
 
 # The base URL on which to contact Meowlnir (before /_meowlnir/antispam).
 #
@@ -1953,7 +1953,7 @@
 #
 #check_all_joins = false
 
-[global.antispam.draupnir]
+#[global.antispam.draupnir]
 
 # The base URL on which to contact Draupnir (before /api/).
 #

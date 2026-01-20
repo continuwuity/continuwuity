@@ -73,7 +73,13 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 				.expect("written to config file");
 		}
 
-		file.write_fmt(format_args!("\n[{section}]\n"))
+		let optional = settings.get("optional").is_some_and(|v| v == "true");
+		let section_header = if optional {
+			format!("\n#[{section}]\n")
+		} else {
+			format!("\n[{section}]\n")
+		};
+		file.write_fmt(format_args!("{section_header}"))
 			.expect("written to config file");
 	}
 

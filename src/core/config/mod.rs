@@ -2261,7 +2261,11 @@ struct ListeningAddr {
 }
 
 #[derive(Clone, Debug, Deserialize)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.antispam")]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.antispam",
+	optional = "true"
+)]
 pub struct Antispam {
 	/// display: nested
 	pub meowlnir: Option<MeowlnirConfig>,
@@ -2272,7 +2276,8 @@ pub struct Antispam {
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
 	filename = "conduwuit-example.toml",
-	section = "global.antispam.meowlnir"
+	section = "global.antispam.meowlnir",
+	optional = "true"
 )]
 pub struct MeowlnirConfig {
 	/// The base URL on which to contact Meowlnir (before /_meowlnir/antispam).
@@ -2301,7 +2306,8 @@ pub struct MeowlnirConfig {
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
 	filename = "conduwuit-example.toml",
-	section = "global.antispam.draupnir"
+	section = "global.antispam.draupnir",
+	optional = "true"
 )]
 pub struct DraupnirConfig {
 	/// The base URL on which to contact Draupnir (before /api/).
