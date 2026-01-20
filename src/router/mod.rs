@@ -8,6 +8,8 @@ mod serve;
 
 extern crate conduwuit_core as conduwuit;
 
+conduwuit_macros::introspect_crate! {}
+
 use std::{panic::AssertUnwindSafe, pin::Pin, sync::Arc};
 
 use conduwuit::{Error, Result, Server};
