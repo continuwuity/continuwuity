@@ -236,7 +236,7 @@ pub async fn create_hash_and_sign_event(
 		| _ => create_pdu.as_ref().unwrap().as_pdu(),
 	};
 
-	let auth_check = state_res::iterative_auth_check(
+	let auth_check = state_res::auth_check(
 		&room_version,
 		&pdu,
 		None, // TODO: third_party_invite

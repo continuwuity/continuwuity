@@ -14,7 +14,6 @@ use ruma::{
 	serde::Base64,
 	signatures::{PublicKeyMap, PublicKeySet, verify_json},
 };
-use serde::Deserializer;
 
 use crate::{
 	Event, EventTypeExt, Pdu, RoomVersion,
@@ -200,7 +199,123 @@ where
 	}
 }
 
-async fn check_invite_event<FE, FS>(
+/// Checks a third-party invite is valid.
+async fn check_third_party_invite(
+	target_current_membership: PartialMembershipObject,
+	raw_third_party_invite: &serde_json::Value,
+	target: &UserId,
+	event: &Pdu,
+	fetch_state: impl AsyncFn((StateEventType, StateKey)) -> Result<Option<Pdu>, Error>,
+) -> Result<(), Error> {
+	// 4.1.1: If target user is banned, reject.
+	if target_current_membership
+		.membership
+		.is_some_and(|m| m == "ban")
+	{
+		return Err(Error::AuthConditionFailed("invite target is banned".to_owned()));
+	}
+	// 4.1.2: If content.third_party_invite does not have a signed property, reject.
+	let signed = raw_third_party_invite.get("signed").ok_or_else(|| {
+		Error::AuthConditionFailed(
+			"invite event third_party_invite missing signed property".to_owned(),
+		)
+	})?;
+	// 4.2.3: If signed does not have mxid and token properties, reject.
+	let mxid = signed.get("mxid").and_then(|v| v.as_str()).ok_or_else(|| {
+		Error::AuthConditionFailed(
+			"invite event third_party_invite signed missing/invalid mxid property".to_owned(),
+		)
+	})?;
+	let token = signed
+		.get("token")
+		.and_then(|v| v.as_str())
+		.ok_or_else(|| {
+			Error::AuthConditionFailed(
+				"invite event third_party_invite signed missing token property".to_owned(),
+			)
+		})?;
+	// 4.2.4: If mxid does not match state_key, reject.
+	if mxid != target.as_str() {
+		return Err(Error::AuthConditionFailed(
+			"invite event third_party_invite signed mxid does not match state_key".to_owned(),
+		));
+	}
+	// 4.2.5: If there is no m.room.third_party_invite event in the room
+	// state matching the token, reject.
+	let Some(third_party_invite_event) =
+		fetch_state(StateEventType::RoomThirdPartyInvite.with_state_key(token)).await?
+	else {
+		return Err(Error::AuthConditionFailed(
+			"invite event third_party_invite token has no matching m.room.third_party_invite"
+				.to_owned(),
+		));
+	};
+	// 4.2.6: If sender does not match sender of the m.room.third_party_invite,
+	// reject.
+	if third_party_invite_event.sender() != event.sender() {
+		return Err(Error::AuthConditionFailed(
+			"invite event sender does not match m.room.third_party_invite sender".to_owned(),
+		));
+	}
+	// 4.2.7: If any signature in signed matches any public key in the
+	// m.room.third_party_invite event, allow. The public keys are in
+	// content of m.room.third_party_invite as:
+	//   1. A single public key in the public_key property.
+	//   2. A list of public keys in the public_keys property.
+	let tpi_content = third_party_invite_event
+		.get_content::<RoomThirdPartyInviteEventContent>()
+		.or_else(|_| {
+			Err(Error::InvalidPdu(
+				"m.room.third_party_invite event has invalid content".to_owned(),
+			))
+		})?;
+	let mut public_keys = tpi_content.public_keys.unwrap_or_default();
+	public_keys.push(PublicKey {
+		public_key: tpi_content.public_key,
+		key_validity_url: None,
+	});
+
+	let signatures = signed
+		.get("signatures")
+		.and_then(|v| v.as_object())
+		.ok_or_else(|| {
+			Error::InvalidPdu(
+				"invite event third_party_invite signed missing/invalid signatures".to_owned(),
+			)
+		})?;
+	let mut public_key_map = PublicKeyMap::new();
+	for (server_name, sig_map) in signatures {
+		let mut pk_set = PublicKeySet::new();
+		if let Some(sig_map) = sig_map.as_object() {
+			for (key_id, sig) in sig_map {
+				let sig_b64 = Base64::parse(sig.as_str().ok_or(Error::InvalidPdu(
+					"invite event third_party_invite signature is not a string".to_owned(),
+				))?)
+				.map_err(|_| {
+					Error::InvalidPdu(
+						"invite event third_party_invite signature is not valid Base64"
+							.to_owned(),
+					)
+				})?;
+				pk_set.insert(key_id.clone(), sig_b64);
+			}
+		}
+		public_key_map.insert(server_name.clone(), pk_set);
+	}
+	verify_json(
+		&public_key_map,
+		to_canonical_object(signed).expect("signed was already validated"),
+	)
+	.map_err(|e| {
+		Error::AuthConditionFailed(format!(
+			"invite event third_party_invite signature verification failed: {e}"
+		))
+	})?;
+	// If there was no error, there was a valid signature, so allow.
+	Ok(())
+}
+
+async fn check_invite_event<FS>(
 	room_version: &RoomVersion,
 	event: &Pdu,
 	membership: &PartialMembershipObject,
@@ -208,120 +323,20 @@ async fn check_invite_event<FE, FS>(
 	fetch_state: &FS,
 ) -> Result<(), Error>
 where
-	FE: AsyncFn(&EventId) -> Result<Option<Pdu>, Error>,
 	FS: AsyncFn((StateEventType, StateKey)) -> Result<Option<Pdu>, Error>,
 {
 	let target_current_membership = fetch_membership(fetch_state, target).await?;
 
 	// 4.1: If content has a third_party_invite property:
 	if let Some(raw_third_party_invite) = &membership.third_party_invite {
-		// 4.1.1: If target user is banned, reject.
-		if target_current_membership
-			.membership
-			.is_some_and(|m| m == "ban")
-		{
-			return Err(Error::AuthConditionFailed("invite target is banned".to_owned()));
-		}
-		// 4.1.2: If content.third_party_invite does not have a signed property, reject.
-		let signed = raw_third_party_invite.get("signed").ok_or_else(|| {
-			Error::AuthConditionFailed(
-				"invite event third_party_invite missing signed property".to_owned(),
-			)
-		})?;
-		// 4.2.3: If signed does not have mxid and token properties, reject.
-		let mxid = signed.get("mxid").and_then(|v| v.as_str()).ok_or_else(|| {
-			Error::AuthConditionFailed(
-				"invite event third_party_invite signed missing/invalid mxid property".to_owned(),
-			)
-		})?;
-		let token = signed
-			.get("token")
-			.and_then(|v| v.as_str())
-			.ok_or_else(|| {
-				Error::AuthConditionFailed(
-					"invite event third_party_invite signed missing token property".to_owned(),
-				)
-			})?;
-		// 4.2.4: If mxid does not match state_key, reject.
-		if mxid != target.as_str() {
-			return Err(Error::AuthConditionFailed(
-				"invite event third_party_invite signed mxid does not match state_key".to_owned(),
-			));
-		}
-		// 4.2.5: If there is no m.room.third_party_invite event in the room
-		// state matching the token, reject.
-		let Some(third_party_invite_event) =
-			fetch_state(StateEventType::RoomThirdPartyInvite.with_state_key(token)).await?
-		else {
-			return Err(Error::AuthConditionFailed(
-				"invite event third_party_invite token has no matching m.room.third_party_invite"
-					.to_owned(),
-			));
-		};
-		// 4.2.6: If sender does not match sender of the m.room.third_party_invite,
-		// reject.
-		if third_party_invite_event.sender() != event.sender() {
-			return Err(Error::AuthConditionFailed(
-				"invite event sender does not match m.room.third_party_invite sender".to_owned(),
-			));
-		}
-		// 4.2.7: If any signature in signed matches any public key in the
-		// m.room.third_party_invite event, allow. The public keys are in
-		// content of m.room.third_party_invite as:
-		//   1. A single public key in the public_key property.
-		//   2. A list of public keys in the public_keys property.
-		let tpi_content = third_party_invite_event
-			.get_content::<RoomThirdPartyInviteEventContent>()
-			.or_else(|_| {
-				Err(Error::InvalidPdu(
-					"m.room.third_party_invite event has invalid content".to_owned(),
-				))
-			})?;
-		let mut public_keys = tpi_content.public_keys.unwrap_or_default();
-		public_keys.push(PublicKey {
-			public_key: tpi_content.public_key,
-			key_validity_url: None,
-		});
-
-		let signatures = signed
-			.get("signatures")
-			.and_then(|v| v.as_object())
-			.ok_or_else(|| {
-				Error::InvalidPdu(
-					"invite event third_party_invite signed missing/invalid signatures"
-						.to_owned(),
-				)
-			})?;
-		let mut public_key_map = PublicKeyMap::new();
-		for (server_name, sig_map) in signatures {
-			let mut pk_set = PublicKeySet::new();
-			if let Some(sig_map) = sig_map.as_object() {
-				for (key_id, sig) in sig_map {
-					let sig_b64 = Base64::parse(sig.as_str().ok_or(Error::InvalidPdu(
-						"invite event third_party_invite signature is not a string".to_owned(),
-					))?)
-					.map_err(|_| {
-						Error::InvalidPdu(
-							"invite event third_party_invite signature is not valid Base64"
-								.to_owned(),
-						)
-					})?;
-					pk_set.insert(key_id.clone(), sig_b64);
-				}
-			}
-			public_key_map.insert(server_name.clone(), pk_set);
-		}
-		verify_json(
-			&public_key_map,
-			to_canonical_object(signed).expect("signed was already validated"),
+		return check_third_party_invite(
+			target_current_membership,
+			raw_third_party_invite,
+			target,
+			event,
+			fetch_state,
 		)
-		.map_err(|e| {
-			Error::AuthConditionFailed(format!(
-				"invite event third_party_invite signature verification failed: {e}"
-			))
-		})?;
-		// If there was no error, there was a valid signature, so allow.
-		return Ok(());
+		.await;
 	}
 
 	// 4.2: If the sender’s current membership state is not join, reject.
@@ -354,7 +369,7 @@ where
 }
 
 pub async fn check_member_event<FE, FS>(
-	room_version: RoomVersion,
+	room_version: &RoomVersion,
 	event: &Pdu,
 	fetch_event: FE,
 	fetch_state: FS,
@@ -395,10 +410,10 @@ where
 
 	match content.membership.as_deref().unwrap() {
 		| "join" =>
-			check_join_event(&room_version, event, &content, &target, &fetch_event, &fetch_state)
+			check_join_event(room_version, event, &content, &target, &fetch_event, &fetch_state)
 				.await?,
 		| "invite" =>
-			check_invite_event(&room_version, event, &content, &target, &fetch_state).await?,
+			check_invite_event(room_version, event, &content, &target, &fetch_state).await?,
 		| _ => {
 			todo!()
 		},

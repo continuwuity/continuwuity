@@ -61,6 +61,7 @@ where
 		Ok(vec![create_event.sender().to_owned()])
 	} else {
 		// Have to check the event content
+		#[allow(deprecated)]
 		if let Some(creator) = content.creator {
 			Ok(vec![creator])
 		} else {
