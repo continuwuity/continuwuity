@@ -13,9 +13,8 @@ mod sentry;
 mod server;
 mod signal;
 
-use server::Server;
-
 pub use conduwuit_core::{Error, Result};
+use server::Server;
 
 pub use crate::clap::Args;
 
