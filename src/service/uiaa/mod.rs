@@ -233,6 +233,16 @@ pub async fn try_auth(
 		| AuthData::Dummy(_) => {
 			uiaainfo.completed.push(AuthType::Dummy);
 		},
+		| AuthData::FallbackAcknowledgement(_) => {
+			// The client is checking if authentication has succeeded out-of-band. This is
+			// possible if the client is using "fallback auth" (see spec section
+			// 4.9.1.4), which we don't support (and probably never will, because it's a
+			// disgusting hack).
+
+			// Return early to tell the client that no, authentication did not succeed while
+			// it wasn't looking.
+			return Ok((false, uiaainfo));
+		},
 		| k => error!("type not supported: {:?}", k),
 	}
 
