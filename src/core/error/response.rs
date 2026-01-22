@@ -85,7 +85,8 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		| Unrecognized => StatusCode::METHOD_NOT_ALLOWED,
 
 		// 404
-		| NotFound | NotImplemented | FeatureDisabled => StatusCode::NOT_FOUND,
+		| NotFound | NotImplemented | FeatureDisabled | SenderIgnored { .. } =>
+			StatusCode::NOT_FOUND,
 
 		// 403
 		| GuestAccessForbidden
