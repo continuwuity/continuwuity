@@ -6,7 +6,8 @@ use stitcher::{Batch, EventEdges, Stitcher, memory_backend::MemoryStitcherBacken
 const BANNER: &str = "
 stitched ordering test repl
 - append an event by typing its name: `A`
-- to add prev events type an arrow and then space-separated event names: `A --> B C D`
+- to add prev events, type an arrow and then space-separated event names: `A --> B C D`
+- to add multiple events at once, separate them with commas
 - use `/reset` to clear the ordering
 Ctrl-D to exit, Ctrl-C to clear input
 "
@@ -23,13 +24,10 @@ peg::parser! {
 		/// Parse whitespace.
 		rule _ -> () = quiet! { $([' '])* {} }
 
-		/// Parse empty lines and comments.
-		rule newline() -> () = quiet! { (("#" [^'\n']*)? "\n")+ {} }
-
 		/// Parse an event ID.
 		rule event_id() -> &'input str
 			= quiet! { id:$([char if char.is_ascii_alphanumeric() || ['_', '-'].contains(&char)]+) { id } }
-			  / expected!("event id")
+			  / expected!("an event ID containing only [a-zA-Z0-9_-]")
 
 		/// Parse an event and its prev events.
 		rule event() -> (&'input str, HashSet<&'input str>)
@@ -39,7 +37,7 @@ peg::parser! {
 
 		pub rule command() -> Command<'input> =
 			"/reset" { Command::ResetOrder }
-			/ events:event() ++ newline() { Command::AppendEvents(events.into_iter().collect()) }
+			/ events:event() ++ (_ "," _) { Command::AppendEvents(events.into_iter().collect()) }
 	}
 }
 
@@ -63,11 +61,11 @@ fn main() -> Result<()> {
 						println!("    inserted items: {:?}", update.inserted_items);
 					}
 
-					println!("new items: {:?}", &updates.new_items);
 					println!("events added to gaps: {:?}", &updates.events_added_to_gaps);
-
+					println!();
+					println!("items to sync: {:?}", &updates.new_items);
 					backend.extend(updates);
-					println!("\norder: {backend:?}");
+					println!("order: {backend:?}");
 				},
 				| Ok(Command::ResetOrder) => {
 					backend.clear();
