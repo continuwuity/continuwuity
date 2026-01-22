@@ -104,14 +104,14 @@ fn run_testcase(testcase: parser::TestCase<'_>) {
 
 		println!();
 		println!("===== phase {index}");
-		println!("expected new items: {:?}", &phase.order.new_items);
-		println!("  actual new items: {:?}", &updates.new_items);
 		for update in &updates.gap_updates {
 			println!("update to gap {}:", update.key);
 			println!("    new gap contents: {:?}", update.gap);
 			println!("    new items: {:?}", update.inserted_items);
 		}
 
+		println!("expected new items: {:?}", &phase.order.new_items);
+		println!("  actual new items: {:?}", &updates.new_items);
 		for (expected, actual) in phase
 			.order
 			.new_items
@@ -124,8 +124,17 @@ fn run_testcase(testcase: parser::TestCase<'_>) {
 			);
 		}
 
-		println!("ordering: {:?}", backend.items);
+		if let Some(updated_gaps) = phase.updated_gaps {
+			println!("expected events added to gaps: {updated_gaps:?}");
+			println!("  actual events added to gaps: {:?}", updates.events_added_to_gaps);
+			assert_eq!(
+				updated_gaps, updates.events_added_to_gaps,
+				"incorrect events added to gaps"
+			);
+		}
+
 		backend.extend(updates);
+		println!("extended ordering: {:?}", backend.items);
 
 		for (expected, actual) in phase.order.iter().zip_eq(backend.iter()) {
 			assert_eq!(
@@ -133,8 +142,6 @@ fn run_testcase(testcase: parser::TestCase<'_>) {
 				"bad item in order, expected {expected:?} but got {actual:?}",
 			);
 		}
-
-		// TODO gap notification
 	}
 }
 

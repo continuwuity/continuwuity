@@ -27,6 +27,9 @@ pub(super) struct OrderUpdates<'id, K: OrderKey> {
 	/// New items to append to the end of the order. These items _should_ be
 	/// synchronized to clients.
 	pub new_items: Vec<StitchedItem<'id>>,
+	// The subset of events in the batch which got slotted into an existing gap. This is tracked
+	// for unit testing and may eventually be sent to clients.
+	pub events_added_to_gaps: HashSet<&'id str>,
 }
 
 pub(super) struct Stitcher<'backend, B: StitcherBackend> {
@@ -38,6 +41,10 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 
 	pub(super) fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
+		let mut events_added_to_gaps: HashSet<&'id str> = HashSet::new();
+
+		// Events in the batch which haven't been fitted into a gap or appended to the
+		// end yet.
 		let mut remaining_events: IndexSet<_> = batch.events().collect();
 
 		// 1: Find existing gaps which include IDs of events in `batch`
@@ -47,6 +54,10 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 		for (key, mut gap) in matching_gaps {
 			// 2. Find events in `batch` which are mentioned in `gap`
 			let matching_events = remaining_events.iter().filter(|id| gap.contains(**id));
+
+			// Extend `events_added_to_gaps` with the matching events, which are destined to
+			// be slotted into gaps.
+			events_added_to_gaps.extend(matching_events.clone());
 
 			// 3. Create the to-insert list from the predecessor sets of each matching event
 			let events_to_insert: Vec<_> = matching_events
@@ -67,15 +78,19 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 			gap.retain(|id| !batch.contains(id));
 
 			// 7 and 9. Append to-insert list and delete gap if empty
-			// (the actual work of doing this is handled by the callee)
+			// The actual work of mutating the order is handled by the callee,
+			// we just record an update to make.
 			gap_updates.push(GapUpdate { key: key.clone(), gap, inserted_items });
 		}
 
 		// 10. Append remaining events and gaps
-
 		let new_items = self.sort_events_and_create_gaps(batch, remaining_events);
 
-		OrderUpdates { gap_updates, new_items }
+		OrderUpdates {
+			gap_updates,
+			new_items,
+			events_added_to_gaps,
+		}
 	}
 
 	fn sort_events_and_create_gaps<'id>(
