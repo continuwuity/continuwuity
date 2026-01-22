@@ -1,8 +1,8 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 
 use indexmap::IndexMap;
 
-use crate::rooms::timeline::stitcher::{StitchedItem, test};
+use crate::rooms::timeline::stitcher::StitchedItem;
 
 pub(super) type TestEventId<'id> = &'id str;
 

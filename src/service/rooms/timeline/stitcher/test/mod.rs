@@ -36,7 +36,9 @@ impl<'id> TestStitcherBackend<'id> {
 					},
 					| None => unreachable!("we just checked that this index is valid"),
 				}
-				gap_index + 1
+				gap_index.checked_add(1).expect(
+					"should never allocate usize::MAX ids. what kind of test are you running",
+				)
 			};
 
 			let to_insert: Vec<_> = update
@@ -97,8 +99,8 @@ fn run_testcase(testcase: parser::TestCase<'_>) {
 
 	for (index, phase) in testcase.into_iter().enumerate() {
 		let stitcher = Stitcher::new(&backend);
-		let batch = Batch::from_edges(phase.batch);
-		let updates = stitcher.stitch(batch);
+		let batch = Batch::from_edges(&phase.batch);
+		let updates = stitcher.stitch(&batch);
 
 		println!();
 		println!("===== phase {index}");

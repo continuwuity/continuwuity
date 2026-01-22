@@ -1,7 +1,4 @@
-use std::{
-	cmp::Ordering,
-	collections::{BTreeMap, HashSet},
-};
+use std::{cmp::Ordering, collections::HashSet};
 
 use indexmap::IndexMap;
 
@@ -58,10 +55,10 @@ pub(super) struct Batch<'id> {
 }
 
 impl<'id> Batch<'id> {
-	pub(super) fn from_edges(edges: EventEdges<'_>) -> Batch<'_> {
+	pub(super) fn from_edges<'edges>(edges: &EventEdges<'edges>) -> Batch<'edges> {
 		let mut events = IndexMap::new();
 
-		for (event, prev_events) in &edges {
+		for (event, prev_events) in edges {
 			let predecessor_set = Self::find_predecessor_set(event, &edges);
 
 			events.insert(*event, EventPredecessors {

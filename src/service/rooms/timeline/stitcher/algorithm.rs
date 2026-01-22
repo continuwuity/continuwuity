@@ -1,7 +1,4 @@
-use std::{
-	cmp::Ordering,
-	collections::{BTreeSet, HashMap, HashSet},
-};
+use std::collections::HashSet;
 
 use indexmap::IndexSet;
 use itertools::Itertools;
@@ -39,7 +36,7 @@ pub(super) struct Stitcher<'backend, B: StitcherBackend> {
 impl<B: StitcherBackend> Stitcher<'_, B> {
 	pub(super) fn new(backend: &B) -> Stitcher<'_, B> { Stitcher { backend } }
 
-	pub(super) fn stitch<'id>(&self, batch: Batch<'id>) -> OrderUpdates<'id, B::Key> {
+	pub(super) fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
 		let mut all_new_events: HashSet<&'id str> = HashSet::new();
 
@@ -100,9 +97,12 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 			.sorted_by(batch.compare_by_dag_received())
 			.collect_vec();
 
-		let mut items = Vec::with_capacity(
-			events_to_insert.capacity() + events_to_insert.capacity().div_euclid(2),
-		);
+		// allocate 1.5x the size of the to-insert list
+		let items_capacity = events_to_insert
+			.capacity()
+			.saturating_add(events_to_insert.capacity().div_euclid(2));
+
+		let mut items = Vec::with_capacity(items_capacity);
 
 		for event in events_to_insert {
 			let missing_prev_events: HashSet<String> = batch
