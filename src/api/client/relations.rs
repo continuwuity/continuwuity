@@ -167,6 +167,7 @@ async fn paginate_relations_with_filter(
 		.ready_take_while(|(count, _)| Some(*count) != to)
 		.take(limit)
 		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
+		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
 		.then(async |mut pdu| {
 			if let Err(e) = services
 				.rooms
@@ -221,4 +222,18 @@ async fn visibility_filter<Pdu: Event + Send + Sync>(
 		.user_can_see_event(sender_user, &pdu.room_id_or_hash(), pdu.event_id())
 		.await
 		.then_some(item)
+}
+
+async fn ignored_filter<Pdu: Event + Send + Sync>(
+	services: &Services,
+	item: (PduCount, Pdu),
+	sender_user: &UserId,
+) -> Option<(PduCount, Pdu)> {
+	let (_, pdu) = &item;
+
+	if is_ignored_pdu(services, pdu, sender_user).await.ok()? {
+		None
+	} else {
+		Some(item)
+	}
 }

@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Event, Result, at, debug_warn, err, ref_at,
+	Err, Event, Result, at, debug_warn, err, ref_at,
 	utils::{
 		IterStream,
 		future::TryExtExt,
@@ -12,11 +12,7 @@ use futures::{
 	FutureExt, StreamExt, TryFutureExt, TryStreamExt,
 	future::{OptionFuture, join, join3, try_join3},
 };
-use ruma::{
-	OwnedEventId, UserId,
-	api::client::{context::get_context, error::ErrorKind},
-	events::StateEventType,
-};
+use ruma::{OwnedEventId, UserId, api::client::context::get_context, events::StateEventType};
 
 use crate::{
 	Ruma,
