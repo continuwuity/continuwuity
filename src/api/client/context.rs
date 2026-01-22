@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Event, Result, at, debug_warn, err, ref_at,
+	Err, Error, Event, Result, at, debug_warn, err, ref_at,
 	utils::{
 		IterStream,
 		future::TryExtExt,
@@ -12,11 +12,18 @@ use futures::{
 	FutureExt, StreamExt, TryFutureExt, TryStreamExt,
 	future::{OptionFuture, join, join3, try_join3},
 };
-use ruma::{OwnedEventId, UserId, api::client::context::get_context, events::StateEventType};
+use ruma::{
+	OwnedEventId, UserId,
+	api::client::{context::get_context, error::ErrorKind},
+	events::StateEventType,
+};
 
 use crate::{
 	Ruma,
-	client::message::{event_filter, ignored_filter, lazy_loading_witness, visibility_filter},
+	client::{
+		is_ignored_pdu,
+		message::{event_filter, ignored_filter, lazy_loading_witness, visibility_filter},
+	},
 };
 
 const LIMIT_MAX: usize = 100;
@@ -77,6 +84,9 @@ pub(crate) async fn get_context_route(
 		debug_warn!(req_evt = %event_id, ?base_id, %room_id, "Event requested by {sender_user} but is not allowed to see it, returning 404");
 		return Err!(Request(NotFound("Event not found.")));
 	}
+
+	// Return M_SENDER_IGNORED if the sender of base_event is ignored (MSC4406)
+	is_ignored_pdu(&services, &base_pdu, sender_user).await?;
 
 	let base_count = base_id.pdu_count();
 

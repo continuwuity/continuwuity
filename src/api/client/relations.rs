@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, at, debug_warn,
+	Err, Result, at, debug_warn, err,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
@@ -18,7 +18,7 @@ use ruma::{
 	events::{TimelineEventType, relation::RelationType},
 };
 
-use crate::Ruma;
+use crate::{Ruma, client::is_ignored_pdu};
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/relations/{eventId}/{relType}/{eventType}`
 pub(crate) async fn get_relating_events_with_rel_type_and_event_type_route(
@@ -118,6 +118,14 @@ async fn paginate_relations_with_filter(
 		debug_warn!(req_evt = %target, %room_id, "Event relations requested by {sender_user} but is not allowed to see it, returning 404");
 		return Err!(Request(NotFound("Event not found.")));
 	}
+	let target_pdu = services
+		.rooms
+		.timeline
+		.get_pdu(target)
+		.await
+		.map_err(|_| err!(Request(NotFound("Event not found."))))?;
+	// Return M_SENDER_IGNORED if the sender of base_event is ignored (MSC4406)
+	is_ignored_pdu(services, &target_pdu, sender_user).await?;
 
 	let start: PduCount = from
 		.map(str::parse)
