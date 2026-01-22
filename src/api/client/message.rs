@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, at, debug_warn,
+	Err, Error, Result, at, debug_warn,
 	matrix::{
 		event::{Event, Matches},
 		pdu::PduCount,
@@ -26,7 +26,7 @@ use ruma::{
 	DeviceId, RoomId, UserId,
 	api::{
 		Direction,
-		client::{filter::RoomEventFilter, message::get_message_events},
+		client::{error::ErrorKind, filter::RoomEventFilter, message::get_message_events},
 	},
 	events::{
 		AnyStateEvent, StateEventType,
@@ -279,23 +279,30 @@ pub(crate) async fn ignored_filter(
 
 	is_ignored_pdu(services, pdu, user_id)
 		.await
+		.unwrap_or(true)
 		.eq(&false)
 		.then_some(item)
 }
 
+/// Determine whether a PDU should be ignored for a given recipient user.
+/// Returns True if this PDU should be ignored, returns False otherwise.
+///
+/// The error SenderIgnored is returned if the sender or the sender's server is
+/// ignored by the relevant user. If the error cannot be returned to the user,
+/// it should equate to a true value (i.e. ignored).
 #[inline]
 pub(crate) async fn is_ignored_pdu<Pdu>(
 	services: &Services,
 	event: &Pdu,
 	recipient_user: &UserId,
-) -> bool
+) -> Result<bool>
 where
 	Pdu: Event + Send + Sync,
 {
 	// exclude Synapse's dummy events from bloating up response bodies. clients
 	// don't need to see this.
 	if event.kind().to_cow_str() == "org.matrix.dummy_event" {
-		return true;
+		return Ok(true);
 	}
 
 	let sender_user = event.sender();
@@ -310,21 +317,27 @@ where
 
 	if !type_ignored {
 		// We cannot safely ignore this type
-		return false;
+		return Ok(false);
 	}
 
 	if server_ignored {
 		// the sender's server is ignored, so ignore this event
-		return true;
+		return Err(Error::BadRequest(
+			ErrorKind::SenderIgnored { sender: None },
+			"The sender's server is ignored by this server.",
+		));
 	}
 
 	if user_ignored && !services.config.send_messages_from_ignored_users_to_client {
 		// the recipient of this PDU has the sender ignored, and we're not
 		// configured to send ignored messages to clients
-		return true;
+		return Err(Error::BadRequest(
+			ErrorKind::SenderIgnored { sender: Some(event.sender().to_owned()) },
+			"You have ignored this sender.",
+		));
 	}
 
-	false
+	Ok(false)
 }
 
 #[inline]
