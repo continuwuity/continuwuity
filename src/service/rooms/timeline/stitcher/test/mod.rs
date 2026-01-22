@@ -7,6 +7,7 @@ use crate::rooms::timeline::stitcher::algorithm::Stitcher;
 
 mod parser;
 
+/// A stitcher backend which holds a stitched ordering in RAM.
 #[derive(Default)]
 struct TestStitcherBackend<'id> {
 	items: Vec<(u64, StitchedItem<'id>)>,

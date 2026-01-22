@@ -32,13 +32,19 @@ pub(super) struct OrderUpdates<'id, K: OrderKey> {
 	pub events_added_to_gaps: HashSet<&'id str>,
 }
 
+/// The stitcher, which implements the stitched ordering algorithm.
+/// Its primary method is [`Stitcher::stitch`].
 pub(super) struct Stitcher<'backend, B: StitcherBackend> {
 	backend: &'backend B,
 }
 
 impl<B: StitcherBackend> Stitcher<'_, B> {
+	/// Create a new [`Stitcher`] given a [`StitcherBackend`].
 	pub(super) fn new(backend: &B) -> Stitcher<'_, B> { Stitcher { backend } }
 
+	/// Given a [`Batch`], compute the [`OrderUpdates`] which should be made to
+	/// the stitched order to incorporate that batch. It is the responsibility
+	/// of the caller to apply the updates.
 	pub(super) fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
 		let mut events_added_to_gaps: HashSet<&'id str> = HashSet::new();

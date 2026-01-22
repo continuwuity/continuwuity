@@ -9,9 +9,12 @@ mod test;
 /// A gap in the stitched order.
 pub(super) type Gap = HashSet<String>;
 
+/// An item in the stitched order.
 #[derive(Debug)]
 pub(super) enum StitchedItem<'id> {
+	/// A single event.
 	Event(&'id str),
+	/// A gap representing one or more missing events.
 	Gap(Gap),
 }
 
@@ -21,16 +24,17 @@ pub(super) trait OrderKey: Eq + Clone {}
 
 impl<T: Eq + Clone> OrderKey for T {}
 
+/// A trait providing read-only access to an existing stitched order.
 pub(super) trait StitcherBackend {
 	type Key: OrderKey;
 
-	/// Returns all gaps containing an event listed in `events`.
+	/// Return all gaps containing one or more events listed in `events`.
 	fn find_matching_gaps<'a>(
 		&'a self,
 		events: impl Iterator<Item = &'a str>,
 	) -> impl Iterator<Item = (Self::Key, Gap)>;
 
-	/// Returns whether an event exists in the stitched order.
+	/// Return whether an event exists in the stitched order.
 	fn event_exists<'a>(&'a self, event: &'a str) -> bool;
 }
 
@@ -43,18 +47,21 @@ pub(super) type EventEdges<'id> = IndexMap<&'id str, HashSet<&'id str>>;
 struct EventPredecessors<'id> {
 	/// The `prev_events` of the event.
 	pub prev_events: HashSet<&'id str>,
-	/// The predecessor set of the event. This is a superset of
-	/// [`EventPredecessors::prev_events`]. See [`Batch::find_predecessor_set`]
-	/// for details.
+	/// The predecessor set of the event. This is derived from, and a superset
+	/// of, [`EventPredecessors::prev_events`]. See
+	/// [`Batch::find_predecessor_set`] for details. It is cached in this
+	/// struct for performance.
 	pub predecessor_set: HashSet<&'id str>,
 }
 
+/// A batch of events to be inserted into the stitched order.
 #[derive(Debug)]
 pub(super) struct Batch<'id> {
 	events: IndexMap<&'id str, EventPredecessors<'id>>,
 }
 
 impl<'id> Batch<'id> {
+	/// Create a new [`Batch`] from an [`EventEdges`].
 	pub(super) fn from_edges<'edges>(edges: &EventEdges<'edges>) -> Batch<'edges> {
 		let mut events = IndexMap::new();
 
@@ -106,10 +113,13 @@ impl<'id> Batch<'id> {
 		predecessor_set
 	}
 
+	/// Iterate over all the events contained in this batch.
 	fn events(&self) -> impl Iterator<Item = &'id str> { self.events.keys().copied() }
 
+	/// Check whether an event exists in this batch.
 	fn contains(&self, event: &'id str) -> bool { self.events.contains_key(event) }
 
+	/// Return the predecessors of an event, if it exists in this batch.
 	fn predecessors(&self, event: &str) -> Option<&EventPredecessors<'id>> {
 		self.events.get(event)
 	}
@@ -131,8 +141,14 @@ impl<'id> Batch<'id> {
 			{
 				Ordering::Less
 			} else {
-				let a_index = self.events.get_index_of(a).expect("a should be in events");
-				let b_index = self.events.get_index_of(b).expect("b should be in events");
+				let a_index = self
+					.events
+					.get_index_of(a)
+					.expect("a should be in this batch");
+				let b_index = self
+					.events
+					.get_index_of(b)
+					.expect("b should be in this batch");
 
 				a_index.cmp(&b_index)
 			}
