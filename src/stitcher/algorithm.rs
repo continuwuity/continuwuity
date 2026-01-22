@@ -7,7 +7,7 @@ use super::{Batch, Gap, OrderKey, StitchedItem, StitcherBackend};
 
 /// Updates to a gap in the stitched order.
 #[derive(Debug)]
-pub(super) struct GapUpdate<'id, K: OrderKey> {
+pub struct GapUpdate<'id, K: OrderKey> {
 	/// The opaque key of the gap to update.
 	pub key: K,
 	/// The new contents of the gap. If this is empty, the gap should be
@@ -20,7 +20,7 @@ pub(super) struct GapUpdate<'id, K: OrderKey> {
 
 /// Updates to the stitched order.
 #[derive(Debug)]
-pub(super) struct OrderUpdates<'id, K: OrderKey> {
+pub struct OrderUpdates<'id, K: OrderKey> {
 	/// Updates to individual gaps. The items inserted by these updates _should
 	/// not_ be synchronized to clients.
 	pub gap_updates: Vec<GapUpdate<'id, K>>,
@@ -34,18 +34,18 @@ pub(super) struct OrderUpdates<'id, K: OrderKey> {
 
 /// The stitcher, which implements the stitched ordering algorithm.
 /// Its primary method is [`Stitcher::stitch`].
-pub(super) struct Stitcher<'backend, B: StitcherBackend> {
+pub struct Stitcher<'backend, B: StitcherBackend> {
 	backend: &'backend B,
 }
 
 impl<B: StitcherBackend> Stitcher<'_, B> {
 	/// Create a new [`Stitcher`] given a [`StitcherBackend`].
-	pub(super) fn new(backend: &B) -> Stitcher<'_, B> { Stitcher { backend } }
+	pub fn new(backend: &B) -> Stitcher<'_, B> { Stitcher { backend } }
 
 	/// Given a [`Batch`], compute the [`OrderUpdates`] which should be made to
 	/// the stitched order to incorporate that batch. It is the responsibility
 	/// of the caller to apply the updates.
-	pub(super) fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
+	pub fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
 		let mut events_added_to_gaps: HashSet<&'id str> = HashSet::new();
 

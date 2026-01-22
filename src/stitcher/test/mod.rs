@@ -3,7 +3,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use itertools::Itertools;
 
 use super::{algorithm::*, *};
-use crate::rooms::timeline::stitcher::algorithm::Stitcher;
 
 mod parser;
 

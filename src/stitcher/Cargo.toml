@@ -1,0 +1,18 @@
+[package]
+name = "stitcher"
+description = "An implementation of stitched ordering (https://codeberg.org/andybalaam/stitched-order)"
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lib]
+path = "mod.rs"
+
+[dependencies]
+indexmap.workspace = true
+itertools.workspace = true
+
+[dev-dependencies]
+peg = "0.8.5"

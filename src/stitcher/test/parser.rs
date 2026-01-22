@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use indexmap::IndexMap;
 
-use crate::rooms::timeline::stitcher::StitchedItem;
+use super::StitchedItem;
 
 pub(super) type TestEventId<'id> = &'id str;
 

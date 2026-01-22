@@ -2,16 +2,17 @@ use std::{cmp::Ordering, collections::HashSet};
 
 use indexmap::IndexMap;
 
-pub(super) mod algorithm;
+pub mod algorithm;
 #[cfg(test)]
 mod test;
+pub use algorithm::*;
 
 /// A gap in the stitched order.
-pub(super) type Gap = HashSet<String>;
+pub type Gap = HashSet<String>;
 
 /// An item in the stitched order.
 #[derive(Debug)]
-pub(super) enum StitchedItem<'id> {
+pub enum StitchedItem<'id> {
 	/// A single event.
 	Event(&'id str),
 	/// A gap representing one or more missing events.
@@ -20,12 +21,12 @@ pub(super) enum StitchedItem<'id> {
 
 /// An opaque key returned by a [`StitcherBackend`] to identify an item in its
 /// order.
-pub(super) trait OrderKey: Eq + Clone {}
+pub trait OrderKey: Eq + Clone {}
 
 impl<T: Eq + Clone> OrderKey for T {}
 
 /// A trait providing read-only access to an existing stitched order.
-pub(super) trait StitcherBackend {
+pub trait StitcherBackend {
 	type Key: OrderKey;
 
 	/// Return all gaps containing one or more events listed in `events`.
@@ -39,7 +40,7 @@ pub(super) trait StitcherBackend {
 }
 
 /// An ordered map from an event ID to its `prev_events`.
-pub(super) type EventEdges<'id> = IndexMap<&'id str, HashSet<&'id str>>;
+pub type EventEdges<'id> = IndexMap<&'id str, HashSet<&'id str>>;
 
 /// Information about the `prev_events` of an event.
 /// This struct does not store the ID of the event itself.
@@ -56,17 +57,17 @@ struct EventPredecessors<'id> {
 
 /// A batch of events to be inserted into the stitched order.
 #[derive(Debug)]
-pub(super) struct Batch<'id> {
+pub struct Batch<'id> {
 	events: IndexMap<&'id str, EventPredecessors<'id>>,
 }
 
 impl<'id> Batch<'id> {
 	/// Create a new [`Batch`] from an [`EventEdges`].
-	pub(super) fn from_edges<'edges>(edges: &EventEdges<'edges>) -> Batch<'edges> {
+	pub fn from_edges<'edges>(edges: &EventEdges<'edges>) -> Batch<'edges> {
 		let mut events = IndexMap::new();
 
 		for (event, prev_events) in edges {
-			let predecessor_set = Self::find_predecessor_set(event, &edges);
+			let predecessor_set = Self::find_predecessor_set(event, edges);
 
 			events.insert(*event, EventPredecessors {
 				prev_events: prev_events.clone(),

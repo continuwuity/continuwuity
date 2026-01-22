@@ -126,6 +126,3 @@ sd-notify.optional = true
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-peg = "0.8.5"
