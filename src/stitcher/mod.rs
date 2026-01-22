@@ -3,8 +3,10 @@ use std::{cmp::Ordering, collections::HashSet};
 use indexmap::IndexMap;
 
 pub mod algorithm;
+pub mod memory_backend;
 #[cfg(test)]
 mod test;
+
 pub use algorithm::*;
 
 /// A gap in the stitched order.

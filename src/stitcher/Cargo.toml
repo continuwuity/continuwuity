@@ -16,3 +16,4 @@ itertools.workspace = true
 
 [dev-dependencies]
 peg = "0.8.5"
+rustyline = { version = "17.0.2", default-features = false }
