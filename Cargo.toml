@@ -548,6 +548,10 @@ features = ["sync", "tls-rustls", "rustls-provider"]
 [workspace.dependencies.resolv-conf]
 version = "0.7.5"
 
+# Used by stitched ordering
+[workspace.dependencies.indexmap]
+version = "2.13.0"
+
 #
 # Patches
 #

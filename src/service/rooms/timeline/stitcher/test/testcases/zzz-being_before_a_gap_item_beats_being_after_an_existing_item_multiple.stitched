@@ -6,10 +6,10 @@ B --> A
 C --> G2
 === then we arrange into this order ===
 -G1*
-A
-B
+A*
+B*
 -G2*
-C
+C*
 === when we receive these events ===
 # When we receive F, which is a predecessor of both G1 and G2
 F

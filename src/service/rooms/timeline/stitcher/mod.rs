@@ -1,4 +1,9 @@
-use std::collections::{BTreeMap, HashSet};
+use std::{
+	cmp::Ordering,
+	collections::{BTreeMap, HashSet},
+};
+
+use indexmap::IndexMap;
 
 pub(super) mod algorithm;
 #[cfg(test)]
@@ -33,10 +38,11 @@ pub(super) trait StitcherBackend {
 }
 
 /// An ordered map from an event ID to its `prev_events`.
-pub(super) type EventEdges<'id> = BTreeMap<&'id str, HashSet<&'id str>>;
+pub(super) type EventEdges<'id> = IndexMap<&'id str, HashSet<&'id str>>;
 
 /// Information about the `prev_events` of an event.
 /// This struct does not store the ID of the event itself.
+#[derive(Debug)]
 struct EventPredecessors<'id> {
 	/// The `prev_events` of the event.
 	pub prev_events: HashSet<&'id str>,
@@ -46,13 +52,14 @@ struct EventPredecessors<'id> {
 	pub predecessor_set: HashSet<&'id str>,
 }
 
+#[derive(Debug)]
 pub(super) struct Batch<'id> {
-	events: BTreeMap<&'id str, EventPredecessors<'id>>,
+	events: IndexMap<&'id str, EventPredecessors<'id>>,
 }
 
 impl<'id> Batch<'id> {
 	pub(super) fn from_edges(edges: EventEdges<'_>) -> Batch<'_> {
-		let mut events = BTreeMap::new();
+		let mut events = IndexMap::new();
 
 		for (event, prev_events) in &edges {
 			let predecessor_set = Self::find_predecessor_set(event, &edges);
@@ -108,5 +115,30 @@ impl<'id> Batch<'id> {
 
 	fn predecessors(&self, event: &str) -> Option<&EventPredecessors<'id>> {
 		self.events.get(event)
+	}
+
+	/// Compare two events by DAG;received order.
+	///
+	/// If either event is in the other's predecessor set it comes first,
+	/// otherwise they are sorted by which comes first in the batch.
+	fn compare_by_dag_received(&self) -> impl FnMut(&&'id str, &&'id str) -> Ordering {
+		|a, b| {
+			if self
+				.predecessors(a)
+				.is_some_and(|it| it.predecessor_set.contains(b))
+			{
+				Ordering::Greater
+			} else if self
+				.predecessors(b)
+				.is_some_and(|it| it.predecessor_set.contains(a))
+			{
+				Ordering::Less
+			} else {
+				let a_index = self.events.get_index_of(a).expect("a should be in events");
+				let b_index = self.events.get_index_of(b).expect("b should be in events");
+
+				a_index.cmp(&b_index)
+			}
+		}
 	}
 }

@@ -8,7 +8,7 @@ F --> E
 === then we arrange into this order ===
 A*
 -B,C,D,E*
-F
+F*
 
 === when we receive these events ===
 # When we provide some of the missing events

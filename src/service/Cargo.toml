@@ -118,6 +118,7 @@ webpage.optional = true
 blurhash.workspace = true
 blurhash.optional = true
 recaptcha-verify = { version = "0.1.5", default-features = false }
+indexmap.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true

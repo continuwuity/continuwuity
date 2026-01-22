@@ -23,14 +23,21 @@ impl<'id> TestStitcherBackend<'id> {
 				panic!("bad update key {}", update.key);
 			};
 
-			let insertion_index;
-			if update.gap.is_empty() {
+			let insertion_index = if update.gap.is_empty() {
 				self.items.remove(gap_index);
-				insertion_index = gap_index;
+				gap_index
 			} else {
-				self.items[gap_index] = (self.next_id(), StitchedItem::Gap(update.gap));
-				insertion_index = gap_index + 1;
-			}
+				match self.items.get_mut(gap_index) {
+					| Some((_, StitchedItem::Gap(gap))) => {
+						*gap = update.gap;
+					},
+					| Some((key, other)) => {
+						panic!("expected item with key {key} to be a gap, it was {other:?}");
+					},
+					| None => unreachable!("we just checked that this index is valid"),
+				}
+				gap_index + 1
+			};
 
 			let to_insert: Vec<_> = update
 				.inserted_items
@@ -88,12 +95,20 @@ impl StitcherBackend for TestStitcherBackend<'_> {
 fn run_testcase(testcase: parser::TestCase<'_>) {
 	let mut backend = TestStitcherBackend::default();
 
-	for phase in testcase {
+	for (index, phase) in testcase.into_iter().enumerate() {
 		let stitcher = Stitcher::new(&backend);
 		let batch = Batch::from_edges(phase.batch);
 		let updates = stitcher.stitch(batch);
 
-		println!("updates to make: {:?}", updates);
+		println!();
+		println!("===== phase {index}");
+		println!("expected new items: {:?}", &phase.order.new_items);
+		println!("  actual new items: {:?}", &updates.new_items);
+		for update in &updates.gap_updates {
+			println!("update to gap {}:", update.key);
+			println!("    new gap contents: {:?}", update.gap);
+			println!("    new items: {:?}", update.inserted_items);
+		}
 
 		for (expected, actual) in phase
 			.order
@@ -103,20 +118,17 @@ fn run_testcase(testcase: parser::TestCase<'_>) {
 		{
 			assert_eq!(
 				expected, actual,
-				"bad new item, expected {:?} but got {:?}",
-				expected, actual
+				"bad new item, expected {expected:?} but got {actual:?}"
 			);
 		}
 
-		backend.extend(updates);
-
 		println!("ordering: {:?}", backend.items);
+		backend.extend(updates);
 
 		for (expected, actual) in phase.order.iter().zip_eq(backend.iter()) {
 			assert_eq!(
 				expected, actual,
-				"bad item in order, expected {:?} but got {:?}",
-				expected, actual
+				"bad item in order, expected {expected:?} but got {actual:?}",
 			);
 		}
 

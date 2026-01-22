@@ -1,5 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 
+use indexmap::IndexMap;
+
 use crate::rooms::timeline::stitcher::{StitchedItem, test};
 
 pub(super) type TestEventId<'id> = &'id str;
@@ -31,7 +33,7 @@ pub(super) struct Phase<'id> {
 	pub updated_gaps: Option<HashSet<TestEventId<'id>>>,
 }
 
-pub(super) type Batch<'id> = BTreeMap<TestEventId<'id>, HashSet<TestEventId<'id>>>;
+pub(super) type Batch<'id> = IndexMap<TestEventId<'id>, HashSet<TestEventId<'id>>>;
 
 pub(super) struct Order<'id> {
 	pub inserted_items: Vec<TestStitchedItem<'id>>,
@@ -83,7 +85,7 @@ peg::parser! {
 				represents a _single_ event `A` with two prev events, `B` and `C`.
 				*/
 				events.into_iter()
-					.fold(BTreeMap::new(), |mut batch: Batch<'_>, (id, prev_event)| {
+					.fold(IndexMap::new(), |mut batch: Batch<'_>, (id, prev_event)| {
 						// Find the prev events set of this event in the batch.
 						// If it doesn't exist, make a new empty one.
 						let mut prev_events = batch.entry(id).or_default();
