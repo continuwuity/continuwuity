@@ -38,8 +38,6 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 
 	pub(super) fn stitch<'id>(&self, batch: &Batch<'id>) -> OrderUpdates<'id, B::Key> {
 		let mut gap_updates = Vec::new();
-		let mut all_new_events: HashSet<&'id str> = HashSet::new();
-
 		let mut remaining_events: IndexSet<_> = batch.events().collect();
 
 		// 1: Find existing gaps which include IDs of events in `batch`
@@ -58,15 +56,12 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 				.copied()
 				.collect();
 
-			all_new_events.extend(events_to_insert.iter());
-
 			// 4. Remove the events in the to-insert list from `remaining_events` so they
 			//    aren't processed again
 			remaining_events.retain(|event| !events_to_insert.contains(event));
 
 			// 5 and 6
-			let inserted_items =
-				self.sort_events_and_create_gaps(&batch, &all_new_events, events_to_insert);
+			let inserted_items = self.sort_events_and_create_gaps(batch, events_to_insert);
 
 			// 8. Update gap
 			gap.retain(|id| !batch.contains(id));
@@ -78,9 +73,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 
 		// 10. Append remaining events and gaps
 
-		all_new_events.extend(remaining_events.iter());
-		let new_items =
-			self.sort_events_and_create_gaps(&batch, &all_new_events, remaining_events);
+		let new_items = self.sort_events_and_create_gaps(batch, remaining_events);
 
 		OrderUpdates { gap_updates, new_items }
 	}
@@ -88,7 +81,6 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 	fn sort_events_and_create_gaps<'id>(
 		&self,
 		batch: &Batch<'id>,
-		all_new_events: &HashSet<&'id str>,
 		events_to_insert: impl IntoIterator<Item = &'id str>,
 	) -> Vec<StitchedItem<'id>> {
 		// 5. Sort the to-insert list with DAG;received order
@@ -111,9 +103,7 @@ impl<B: StitcherBackend> Stitcher<'_, B> {
 				.prev_events
 				.iter()
 				.filter(|prev_event| {
-					!(batch.contains(prev_event)
-						|| all_new_events.contains(*prev_event)
-						|| self.backend.event_exists(prev_event))
+					!(batch.contains(prev_event) || self.backend.event_exists(prev_event))
 				})
 				.map(|id| String::from(*id))
 				.collect();
