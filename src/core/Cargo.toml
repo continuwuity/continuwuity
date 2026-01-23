@@ -71,6 +71,7 @@ core_affinity.workspace = true
 ctor.workspace = true
 cyborgtime.workspace = true
 either.workspace = true
+fastrand.workspace = true
 figment.workspace = true
 futures.workspace = true
 http-body-util.workspace = true

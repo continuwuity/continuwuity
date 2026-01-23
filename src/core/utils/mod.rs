@@ -1,3 +1,4 @@
+pub mod arbit;
 pub mod arrayvec;
 pub mod bool;
 pub mod bytes;
