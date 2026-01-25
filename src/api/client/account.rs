@@ -961,7 +961,7 @@ pub async fn full_user_deactivate(
 
 	super::update_all_rooms(services, pdu_queue, user_id).await;
 	for room_id in all_joined_rooms {
-		services.rooms.state_cache.forget(&room_id, user_id);
+		services.rooms.state_cache.forget(room_id, user_id);
 	}
 
 	Ok(())
