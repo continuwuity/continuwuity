@@ -46,6 +46,7 @@ pub(crate) async fn get_content_route(
 		content_type: content_type.map(Into::into),
 		content_disposition: Some(content_disposition),
 	};
+	services.media.mark_server_interested(&mxc, body.origin());
 
 	Ok(get_content::v1::Response {
 		content: FileOrLocation::File(content),
@@ -89,6 +90,7 @@ pub(crate) async fn get_content_thumbnail_route(
 		content_type: content_type.map(Into::into),
 		content_disposition: Some(content_disposition),
 	};
+	services.media.mark_server_interested(&mxc, body.origin());
 
 	Ok(get_content_thumbnail::v1::Response {
 		content: FileOrLocation::File(content),
