@@ -260,7 +260,7 @@ async fn dispatch_redaction(
 		}
 
 		debug_info!("Asking {server} to redact media mxc://{server_name}/{media_id}");
-		let _ = services
+		services
 			.federation
 			.execute(&server, authenticated_media::redact::unstable::Request {
 				server_name: server_name.clone(),
@@ -305,7 +305,7 @@ pub(crate) async fn redact_media_route(
 
 	// TODO: This should be a persistent background task
 	let servers = services.media.get_interested_servers(&mxc).await;
-	tokio::spawn(dispatch_redaction(
+	services.server.runtime().spawn(dispatch_redaction(
 		mxc.server_name.to_owned(),
 		mxc.media_id.to_owned(),
 		servers,
