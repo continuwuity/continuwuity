@@ -14,6 +14,7 @@ use reqwest::Url;
 use ruma::{
 	Mxc, UserId,
 	api::client::{
+		authenticated_media,
 		authenticated_media::{
 			get_content, get_content_as_filename, get_content_thumbnail, get_media_config,
 			get_media_preview,
@@ -242,6 +243,33 @@ pub(crate) async fn get_media_preview_route(
 				debug_error!(%sender_user, %url, "Failed to parse URL preview: {error}")
 			)))
 		})
+}
+
+#[tracing::instrument(
+	name = "media_redact",
+	level = "debug",
+	skip_all,
+	fields(%_client),
+)]
+pub(crate) async fn redact_media_route(
+	State(services): State<crate::State>,
+	InsecureClientIp(_client): InsecureClientIp,
+	body: Ruma<authenticated_media::redact::unstable::Request>,
+) -> Result<authenticated_media::redact::unstable::Response> {
+	let user = body.sender_user();
+
+	let mxc = Mxc {
+		server_name: &body.server_name,
+		media_id: &body.media_id,
+	};
+
+	if !services.media.user_owns(&user, &mxc).await {
+		return Err!(Request(Forbidden("You do not have permission to redact this attachment.")));
+	}
+
+	services.media.delete(&mxc).await?; // TODO: Only delete file and mark as redacted
+
+	Ok(authenticated_media::redact::unstable::Response {})
 }
 
 async fn fetch_thumbnail(

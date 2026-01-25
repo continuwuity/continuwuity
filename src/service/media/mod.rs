@@ -229,6 +229,18 @@ impl Service {
 		Ok(mxcs)
 	}
 
+	/// Checks if a user owns a given MXC URI
+	pub async fn user_owns(&self, user: &UserId, mxc: &Mxc<'_>) -> bool {
+		self
+			.db
+			.get_all_user_mxcs(user)  // TODO: this can be more efficient.
+			.await
+			.iter()
+			.any(|v| {
+				v.parts().map(|x|(x.server_name, x.media_id)) == Ok((mxc.server_name, mxc.media_id))
+			})
+	}
+
 	/// Deletes all media files in the given time frame.
 	/// Returns a usize with the amount of media files deleted.
 	pub async fn delete_all_media_within_timeframe(
