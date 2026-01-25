@@ -3,8 +3,11 @@ use std::time::Duration;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, err,
+	Err, Result,
+	debug::DebugInspect,
+	debug_info, err, info,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
+	warn,
 };
 use conduwuit_service::{
 	Services,
@@ -12,7 +15,7 @@ use conduwuit_service::{
 };
 use reqwest::Url;
 use ruma::{
-	Mxc, UserId,
+	Mxc, OwnedServerName, UserId,
 	api::client::{
 		authenticated_media,
 		authenticated_media::{
@@ -245,6 +248,37 @@ pub(crate) async fn get_media_preview_route(
 		})
 }
 
+async fn dispatch_redaction(
+	server_name: OwnedServerName,
+	media_id: String,
+	servers: Vec<OwnedServerName>,
+	services: crate::State,
+) {
+	for server in servers {
+		if services.globals.server_is_ours(&server) {
+			continue;
+		}
+
+		debug_info!("Asking {server} to redact media mxc://{server_name}/{media_id}");
+		let _ = services
+			.federation
+			.execute(&server, authenticated_media::redact::unstable::Request {
+				server_name: server_name.clone(),
+				media_id: media_id.clone(),
+			})
+			.await
+			.debug_inspect(|_| {
+				debug_info!("Asked {server} to redact media mxc://{server_name}/{media_id}");
+			})
+			.inspect_err(|e| {
+				warn!(
+					"Failed to ask {server} to redact media mxc://{server_name}/{media_id}: {e}"
+				);
+			})
+			.ok();
+	}
+}
+
 #[tracing::instrument(
 	name = "media_redact",
 	level = "debug",
@@ -267,7 +301,16 @@ pub(crate) async fn redact_media_route(
 		return Err!(Request(Forbidden("You do not have permission to redact this attachment.")));
 	}
 
-	services.media.delete(&mxc).await?; // TODO: Only delete file and mark as redacted
+	services.media.redact(&mxc).await?;
+
+	// TODO: This should be a persistent background task
+	let servers = services.media.get_interested_servers(&mxc).await;
+	tokio::spawn(dispatch_redaction(
+		mxc.server_name.to_owned(),
+		mxc.media_id.to_owned(),
+		servers,
+		services,
+	));
 
 	Ok(authenticated_media::redact::unstable::Response {})
 }

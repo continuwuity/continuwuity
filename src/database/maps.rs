@@ -109,6 +109,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "mediaid_redacted",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "mediaid_interestedservername",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "onetimekeyid_onetimekeys",
 		..descriptor::RANDOM_SMALL
 	},

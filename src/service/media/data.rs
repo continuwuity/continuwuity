@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use conduwuit::{
 	Err, Result, debug, debug_info, err,
@@ -6,13 +6,15 @@ use conduwuit::{
 };
 use database::{Database, Interfix, Map};
 use futures::StreamExt;
-use ruma::{Mxc, OwnedMxcUri, UserId, http_headers::ContentDisposition};
+use ruma::{Mxc, OwnedMxcUri, OwnedServerName, UserId, http_headers::ContentDisposition};
 
 use super::{preview::UrlPreviewData, thumbnail::Dim};
 
 pub(crate) struct Data {
 	mediaid_file: Arc<Map>,
 	mediaid_user: Arc<Map>,
+	mediaid_redacted: Arc<Map>,
+	mediaid_interestedservername: Arc<Map>,
 	url_previews: Arc<Map>,
 }
 
@@ -28,6 +30,8 @@ impl Data {
 		Self {
 			mediaid_file: db["mediaid_file"].clone(),
 			mediaid_user: db["mediaid_user"].clone(),
+			mediaid_redacted: db["mediaid_redacted"].clone(),
+			mediaid_interestedservername: db["mediaid_interestedservername"].clone(),
 			url_previews: db["url_previews"].clone(),
 		}
 	}
@@ -77,6 +81,22 @@ impl Data {
 				self.mediaid_user.remove(key);
 			})
 			.await;
+
+		self.mediaid_interestedservername
+			.stream_prefix_raw(&prefix)
+			.ignore_err()
+			.ready_for_each(|(key, _)| {
+				debug_assert!(
+					key.starts_with(mxc.to_string().as_bytes()),
+					"key should start with the mxc"
+				);
+
+				debug_info!("Deleting interested server name key {key:?}");
+
+				self.mediaid_interestedservername.remove(key);
+			})
+			.await;
+		// NOTE: Redaction status is kept even after deletion
 	}
 
 	/// Searches for all files with the given MXC
@@ -274,5 +294,36 @@ impl Data {
 			image_width,
 			image_height,
 		})
+	}
+
+	/// Marks a media item as redacted, preventing it from being served or
+	/// re-used.
+	pub(super) fn mark_redacted(&self, media_id: &str) {
+		self.mediaid_redacted.insert(media_id, []);
+	}
+
+	/// Checks if a media item is redacted.
+	pub(super) async fn is_redacted(&self, media_id: &str) -> bool {
+		self.mediaid_redacted.contains(media_id).await
+	}
+
+	pub(super) fn add_interested_server_name(&self, media_id: &str, server_name: &str) {
+		let key = (media_id, server_name);
+		self.mediaid_interestedservername
+			.insert(&database::serialize_key(&key).expect("key must be serializable"), []);
+	}
+
+	pub(super) async fn interested_server_names(&self, media_id: &str) -> Vec<OwnedServerName> {
+		let prefix = (media_id, Interfix);
+		self.mediaid_interestedservername
+			.stream_prefix_raw(&prefix)
+			.ignore_err()
+			.map(|(key, _)| {
+				let parts: Vec<&[u8]> = key.rsplit(|&b| b == 0xFF).collect();
+				OwnedServerName::parse(string_from_bytes(parts[0]).unwrap_or_default())
+					.unwrap_or_else(|_| OwnedServerName::from_str("invalid.server").unwrap())
+			})
+			.collect()
+			.await
 	}
 }

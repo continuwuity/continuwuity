@@ -17,7 +17,9 @@ use conduwuit::{
 	},
 	warn,
 };
-use ruma::{Mxc, OwnedMxcUri, UserId, http_headers::ContentDisposition};
+use ruma::{
+	Mxc, OwnedMxcUri, OwnedServerName, ServerName, UserId, http_headers::ContentDisposition,
+};
 use tokio::{
 	fs,
 	io::{AsyncReadExt, AsyncWriteExt, BufReader},
@@ -137,6 +139,28 @@ impl Service {
 				)))
 			},
 		}
+	}
+
+	/// Marks a media ID as redacted, and deletes the associated file.
+	pub async fn redact(&self, mxc: &Mxc<'_>) -> Result<()> {
+		self.db.mark_redacted(mxc.media_id);
+		self.delete(mxc).await
+	}
+
+	/// Checks if a media ID is redacted.
+	pub async fn is_redacted(&self, mxc: &Mxc<'_>) -> bool {
+		self.db.is_redacted(mxc.media_id).await
+	}
+
+	/// Marks a server as "interested" (i.e. has downloaded this media from us).
+	pub fn mark_server_interested(&self, mxc: &Mxc<'_>, server_name: &ServerName) {
+		self.db
+			.add_interested_server_name(mxc.media_id, server_name.as_str());
+	}
+
+	/// Gets all servers interested in this media ID.
+	pub async fn get_interested_servers(&self, mxc: &Mxc<'_>) -> Vec<OwnedServerName> {
+		self.db.interested_server_names(mxc.media_id).await
 	}
 
 	/// Deletes all media by the specified user
