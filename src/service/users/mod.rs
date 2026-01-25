@@ -304,7 +304,7 @@ impl Service {
 	pub fn enable_login(&self, user_id: &UserId) { self.db.userid_logindisabled.remove(user_id); }
 
 	pub async fn is_login_disabled(&self, user_id: &UserId) -> bool {
-		self.db.userid_logindisabled.contains(user_id).await
+		self.db.userid_logindisabled.exists(user_id).await.is_ok()
 	}
 
 	/// Check if account is active, infallible

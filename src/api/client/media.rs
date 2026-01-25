@@ -5,7 +5,7 @@ use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result,
 	debug::DebugInspect,
-	debug_info, err, info,
+	debug_info, err,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 	warn,
 };
@@ -297,7 +297,7 @@ pub(crate) async fn redact_media_route(
 		media_id: &body.media_id,
 	};
 
-	if !services.media.user_owns(&user, &mxc).await {
+	if !services.media.user_owns(user, &mxc).await {
 		return Err!(Request(Forbidden("You do not have permission to redact this attachment.")));
 	}
 

@@ -310,7 +310,7 @@ impl Data {
 	pub(super) fn add_interested_server_name(&self, media_id: &str, server_name: &str) {
 		let key = (media_id, server_name);
 		self.mediaid_interestedservername
-			.insert(&database::serialize_key(&key).expect("key must be serializable"), []);
+			.insert(&database::serialize_key(key).expect("key must be serializable"), []);
 	}
 
 	pub(super) async fn interested_server_names(&self, media_id: &str) -> Vec<OwnedServerName> {
