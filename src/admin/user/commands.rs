@@ -3,10 +3,7 @@ use std::{
 	fmt::Write as _,
 };
 
-use api::client::{
-	full_user_deactivate, join_room_by_id_helper, leave_all_rooms, leave_room, remote_leave_room,
-	update_avatar_url, update_displayname,
-};
+use api::client::{full_user_deactivate, join_room_by_id_helper, leave_room, remote_leave_room};
 use conduwuit::{
 	Err, Result, debug, debug_warn, error, info, is_equal_to,
 	matrix::{Event, pdu::PduBuilder},
@@ -227,9 +224,6 @@ pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> 
 		full_user_deactivate(self.services, &user_id, &all_joined_rooms)
 			.boxed()
 			.await?;
-		update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
-		update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms).await;
-		leave_all_rooms(self.services, &user_id).await;
 	}
 
 	self.write_str(&format!("User {user_id} has been deactivated"))
@@ -406,10 +400,6 @@ pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> 
 					full_user_deactivate(self.services, &user_id, &all_joined_rooms)
 						.boxed()
 						.await?;
-					update_displayname(self.services, &user_id, None, &all_joined_rooms).await;
-					update_avatar_url(self.services, &user_id, None, None, &all_joined_rooms)
-						.await;
-					leave_all_rooms(self.services, &user_id).await;
 				}
 			},
 		}
