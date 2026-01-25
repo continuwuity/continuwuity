@@ -26,6 +26,7 @@ use ruma::{
 	events::{
 		GlobalAccountDataEventType, StateEventType,
 		room::{
+			member::{MembershipState, RoomMemberEventContent},
 			message::RoomMessageEventContent,
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
@@ -815,21 +816,9 @@ pub(crate) async fn deactivate_route(
 		.collect()
 		.await;
 
-	super::update_displayname(&services, sender_user, None, &all_joined_rooms).await;
-	super::update_avatar_url(&services, sender_user, None, None, &all_joined_rooms).await;
-
 	full_user_deactivate(&services, sender_user, &all_joined_rooms)
 		.boxed()
 		.await?;
-
-	info!("User {sender_user} deactivated their account.");
-
-	if services.server.config.admin_room_notices {
-		services
-			.admin
-			.notice(&format!("User {sender_user} deactivated their account."))
-			.await;
-	}
 
 	Ok(deactivate::v3::Response {
 		id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
@@ -907,9 +896,6 @@ pub async fn full_user_deactivate(
 ) -> Result<()> {
 	services.users.deactivate_account(user_id).await.ok();
 
-	super::update_displayname(services, user_id, None, all_joined_rooms).await;
-	super::update_avatar_url(services, user_id, None, None, all_joined_rooms).await;
-
 	services
 		.users
 		.all_profile_keys(user_id)
@@ -918,9 +904,11 @@ pub async fn full_user_deactivate(
 		})
 		.await;
 
-	for room_id in all_joined_rooms {
-		let state_lock = services.rooms.state.mutex.lock(room_id).await;
+	// TODO: Rescind all user invites
 
+	let mut pdu_queue: Vec<(PduBuilder, &OwnedRoomId)> = Vec::new();
+
+	for room_id in all_joined_rooms {
 		let room_power_levels = services
 			.rooms
 			.state_accessor
@@ -948,30 +936,33 @@ pub async fn full_user_deactivate(
 		if user_can_demote_self {
 			let mut power_levels_content = room_power_levels.unwrap_or_default();
 			power_levels_content.users.remove(user_id);
-
-			// ignore errors so deactivation doesn't fail
-			match services
-				.rooms
-				.timeline
-				.build_and_append_pdu(
-					PduBuilder::state(String::new(), &power_levels_content),
-					user_id,
-					Some(room_id),
-					&state_lock,
-				)
-				.await
-			{
-				| Err(e) => {
-					warn!(%room_id, %user_id, "Failed to demote user's own power level: {e}");
-				},
-				| _ => {
-					info!("Demoted {user_id} in {room_id} as part of account deactivation");
-				},
-			}
+			let pl_evt = PduBuilder::state(String::new(), &power_levels_content);
+			pdu_queue.push((pl_evt, room_id));
 		}
+
+		// Leave the room
+		pdu_queue.push((
+			PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
+				avatar_url: None,
+				blurhash: None,
+				membership: MembershipState::Leave,
+				displayname: None,
+				join_authorized_via_users_server: None,
+				reason: None,
+				is_direct: None,
+				third_party_invite: None,
+				redact_events: None,
+			}),
+			room_id,
+		));
+
+		// TODO: Redact all messages sent by the user in the room
 	}
 
-	super::leave_all_rooms(services, user_id).boxed().await;
+	super::update_all_rooms(services, pdu_queue, user_id).await;
+	for room_id in all_joined_rooms {
+		services.rooms.state_cache.forget(&room_id, user_id);
+	}
 
 	Ok(())
 }
