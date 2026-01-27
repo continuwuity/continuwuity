@@ -820,6 +820,15 @@ pub(crate) async fn deactivate_route(
 		.boxed()
 		.await?;
 
+	info!("User {sender_user} deactivated their account.");
+
+	if services.server.config.admin_room_notices {
+		services
+			.admin
+			.notice(&format!("User {sender_user} deactivated their account."))
+			.await;
+	}
+
 	Ok(deactivate::v3::Response {
 		id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
 	})
