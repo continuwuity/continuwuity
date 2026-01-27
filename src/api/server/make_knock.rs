@@ -20,6 +20,18 @@ pub(crate) async fn create_knock_event_template_route(
 	if !services.rooms.metadata.exists(&body.room_id).await {
 		return Err!(Request(NotFound("Room is unknown to this server.")));
 	}
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await
+	{
+		debug_warn!(
+			origin = body.origin().as_str(),
+			"Refusing to serve make_knock for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
+	}
 
 	if body.user_id.server_name() != body.origin() {
 		return Err!(Request(BadJson("Not allowed to knock on behalf of another server/user.")));

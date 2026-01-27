@@ -2,7 +2,7 @@ use std::cmp;
 
 use axum::extract::State;
 use conduwuit::{
-	Event, PduCount, Result,
+	Err, Event, PduCount, Result, debug_warn,
 	result::LogErr,
 	utils::{IterStream, ReadyExt, stream::TryTools},
 };
@@ -34,6 +34,18 @@ pub(crate) async fn get_backfill_route(
 	}
 	.check()
 	.await?;
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await
+	{
+		debug_warn!(
+			origin = body.origin().as_str(),
+			"Refusing to serve backfill for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
+	}
 
 	let limit = body
 		.limit
