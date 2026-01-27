@@ -54,6 +54,9 @@ export default defineConfig({
         }, {
             from: '/server_reference',
             to: '/reference/server'
+        }, {
+            from: '/community$',
+            to: '/community/guidelines'
         }
         ]
     })],
