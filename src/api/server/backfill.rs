@@ -2,7 +2,7 @@ use std::cmp;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Event, PduCount, Result, debug_warn,
+	Err, Event, PduCount, Result, info,
 	result::LogErr,
 	utils::{IterStream, ReadyExt, stream::TryTools},
 };
@@ -40,7 +40,7 @@ pub(crate) async fn get_backfill_route(
 		.server_in_room(services.globals.server_name(), &body.room_id)
 		.await
 	{
-		debug_warn!(
+		info!(
 			origin = body.origin().as_str(),
 			"Refusing to serve backfill for room we aren't participating in"
 		);
