@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug_warn, err,
+	Err, Result, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PduEvent},
 	warn,
 };
@@ -60,7 +60,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		.server_in_room(services.globals.server_name(), &body.room_id)
 		.await
 	{
-		debug_warn!(
+		info!(
 			origin = body.origin().as_str(),
 			"Refusing to serve send_knock for room we aren't participating in"
 		);

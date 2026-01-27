@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
 use axum::extract::State;
-use conduwuit::{Err, Result, debug_warn, err, matrix::event::gen_event_id_canonical_json};
+use conduwuit::{Err, Result, err, info, matrix::event::gen_event_id_canonical_json};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use ruma::{
@@ -56,7 +56,7 @@ async fn create_leave_event(
 		.server_in_room(services.globals.server_name(), room_id)
 		.await
 	{
-		debug_warn!(
+		info!(
 			origin = origin.as_str(),
 			"Refusing to serve backfill for room we aren't participating in"
 		);

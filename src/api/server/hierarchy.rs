@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result,
+	Err, Result, info,
 	utils::stream::{BroadbandExt, IterStream},
 };
 use conduwuit_service::rooms::spaces::{
@@ -21,6 +21,19 @@ pub(crate) async fn get_hierarchy_route(
 ) -> Result<get_hierarchy::v1::Response> {
 	if !services.rooms.metadata.exists(&body.room_id).await {
 		return Err!(Request(NotFound("Room does not exist.")));
+	}
+
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await
+	{
+		info!(
+			origin = body.origin().as_str(),
+			"Refusing to serve state for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
 	let room_id = &body.room_id;

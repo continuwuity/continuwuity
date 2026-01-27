@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, debug_warn, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, info, matrix::pdu::PduBuilder};
 use ruma::{
 	api::federation::membership::prepare_leave_event,
 	events::room::member::{MembershipState, RoomMemberEventContent},
@@ -26,7 +26,7 @@ pub(crate) async fn create_leave_event_template_route(
 		.server_in_room(services.globals.server_name(), &body.room_id)
 		.await
 	{
-		debug_warn!(
+		info!(
 			origin = body.origin().as_str(),
 			"Refusing to serve make_leave for room we aren't participating in"
 		);

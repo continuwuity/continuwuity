@@ -4,7 +4,7 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Event, Result, debug::INFO_SPAN_LEVEL, debug_warn, defer, err, implement,
+	Err, Event, Result, debug::INFO_SPAN_LEVEL, defer, err, implement, info,
 	utils::stream::IterStream, warn,
 };
 use futures::{
@@ -120,7 +120,7 @@ pub async fn handle_incoming_pdu<'a>(
 		.server_in_room(self.services.globals.server_name(), room_id)
 		.await
 	{
-		debug_warn!(
+		info!(
 			%origin,
 			"Dropping inbound PDU for room we aren't participating in"
 		);

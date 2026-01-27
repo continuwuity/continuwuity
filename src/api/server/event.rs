@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Result, err};
+use conduwuit::{Err, Result, err, info};
 use ruma::{MilliSecondsSinceUnixEpoch, RoomId, api::federation::event::get_event};
 
 use super::AccessCheck;
@@ -37,6 +37,19 @@ pub(crate) async fn get_event_route(
 	}
 	.check()
 	.await?;
+
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), room_id)
+		.await
+	{
+		info!(
+			origin = body.origin().as_str(),
+			"Refusing to serve state for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
+	}
 
 	Ok(get_event::v1::Response {
 		origin: services.globals.server_name().to_owned(),
