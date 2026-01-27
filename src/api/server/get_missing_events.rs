@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Result, debug, debug_error, utils::to_canonical_object};
+use conduwuit::{Err, Result, debug, debug_error, info, utils::to_canonical_object};
 use ruma::api::federation::event::get_missing_events;
 
 use super::AccessCheck;
@@ -25,6 +25,19 @@ pub(crate) async fn get_missing_events_route(
 	}
 	.check()
 	.await?;
+
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await
+	{
+		info!(
+			origin = body.origin().as_str(),
+			"Refusing to serve state for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
+	}
 
 	let limit = body
 		.limit
