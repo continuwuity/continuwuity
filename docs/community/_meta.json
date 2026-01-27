@@ -1,0 +1,12 @@
+[
+    {
+        "type": "file",
+        "name": "guidelines",
+        "label": "Community Guidelines"
+    },
+    {
+        "type": "file",
+        "name": "ops-guidelines",
+        "label": "Partnered Homeserver Guidelines"
+    }
+]

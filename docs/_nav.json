@@ -24,7 +24,16 @@
     },
     {
         "text": "Community",
-        "link": "/community"
+        "items": [
+            {
+                "text": "Community Guidelines",
+                "link": "/community/guidelines"
+            },
+            {
+                "text": "Become a Partnered Homeserver!",
+                "link": "/community/ops-guidelines"
+            }
+        ]
     },
     {
         "text": "Security",

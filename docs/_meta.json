@@ -34,6 +34,14 @@
         "name": "troubleshooting",
         "label": "Troubleshooting"
     },
+    "security",
+    {
+        "type": "dir-section-header",
+        "name": "community",
+        "label": "Community",
+        "collapsible": true,
+        "collapsed": false
+    },
     {
         "type": "divider"
     },
@@ -63,7 +71,5 @@
     },
     {
         "type": "divider"
-    },
-    "community",
-    "security"
+    }
 ]
