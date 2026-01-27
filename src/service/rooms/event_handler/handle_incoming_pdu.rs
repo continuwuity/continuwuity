@@ -4,8 +4,8 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Event, Result, debug::INFO_SPAN_LEVEL, defer, err, implement, utils::stream::IterStream,
-	warn,
+	Err, Event, Result, debug::INFO_SPAN_LEVEL, debug_warn, defer, err, implement,
+	utils::stream::IterStream, warn,
 };
 use futures::{
 	FutureExt, TryFutureExt, TryStreamExt,
@@ -70,7 +70,7 @@ pub async fn handle_incoming_pdu<'a>(
 		return Err!(Request(TooLarge("PDU is too large")));
 	}
 
-	// 1.1 Check the server is in the room
+	// 1.1 Check we even know about the room
 	let meta_exists = self.services.metadata.exists(room_id).map(Ok);
 
 	// 1.2 Check if the room is disabled
@@ -112,6 +112,19 @@ pub async fn handle_incoming_pdu<'a>(
 
 	if is_disabled {
 		return Err!(Request(Forbidden("Federation of this room is disabled by this server.")));
+	}
+
+	if !self
+		.services
+		.state_cache
+		.server_in_room(self.services.globals.server_name(), room_id)
+		.await
+	{
+		debug_warn!(
+			%origin,
+			"Dropping inbound PDU for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
 	let (incoming_pdu, val) = self
