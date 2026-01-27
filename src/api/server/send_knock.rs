@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, err,
+	Err, Result, debug_warn, err,
 	matrix::{event::gen_event_id_canonical_json, pdu::PduEvent},
 	warn,
 };
@@ -52,6 +52,19 @@ pub(crate) async fn create_knock_event_v1_route(
 
 	if !services.rooms.metadata.exists(&body.room_id).await {
 		return Err!(Request(NotFound("Room is unknown to this server.")));
+	}
+
+	if !services
+		.rooms
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await
+	{
+		debug_warn!(
+			origin = body.origin().as_str(),
+			"Refusing to serve send_knock for room we aren't participating in"
+		);
+		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
 	// ACL check origin server
