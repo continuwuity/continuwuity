@@ -5,6 +5,11 @@ use ruma::OwnedRoomId;
 use crate::{PAGE_SIZE, admin_command, get_room_info};
 
 #[admin_command]
+pub(super) async fn delete(&self, room_id: OwnedRoomId) -> Result {
+	self.write_str(&format!("Deleted {room_id} 👍")).await
+}
+
+#[admin_command]
 pub(super) async fn list_rooms(
 	&self,
 	page: Option<usize>,

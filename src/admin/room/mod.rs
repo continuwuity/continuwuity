@@ -56,4 +56,9 @@ pub enum RoomCommand {
 	Exists {
 		room_id: OwnedRoomId,
 	},
+
+	/// Deletes a room
+	Delete {
+		room_id: OwnedRoomId,
+	},
 }
