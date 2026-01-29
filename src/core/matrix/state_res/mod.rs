@@ -717,9 +717,6 @@ where
 
 		// The key for this is (eventType + a state_key of the signed token not sender)
 		// so search for it
-		let current_third_party = auth_state.iter().find_map(|(_, pdu)| {
-			(*pdu.event_type() == TimelineEventType::RoomThirdPartyInvite).then_some(pdu)
-		});
 
 		let fetch_state = |ty: &StateEventType, key: &str| {
 			future::ready(
@@ -732,7 +729,6 @@ where
 		let auth_result = auth_check(
 			room_version,
 			&event,
-			current_third_party,
 			fetch_state,
 			&fetch_state(&StateEventType::RoomCreate, "")
 				.await

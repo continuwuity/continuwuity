@@ -657,7 +657,6 @@ async fn join_room_by_id_helper_remote(
 	let auth_check = state_res::event_auth::auth_check(
 		&state_res::RoomVersion::new(&room_version_id)?,
 		&parsed_join_pdu,
-		None, // TODO: third party invite
 		|k, s| state_fetch(k.clone(), s.into()),
 		&state_fetch(StateEventType::RoomCreate, "".into())
 			.await

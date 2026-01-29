@@ -100,7 +100,6 @@ where
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
-		None, // TODO: third party invite
 		|ty, sk| state_fetch(ty.clone(), sk.into()),
 		create_event.as_pdu(),
 	)
@@ -140,7 +139,6 @@ where
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version,
 		&incoming_pdu,
-		None, // third-party invite
 		state_fetch,
 		create_event.as_pdu(),
 	)

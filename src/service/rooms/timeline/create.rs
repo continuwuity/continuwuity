@@ -236,15 +236,9 @@ pub async fn create_hash_and_sign_event(
 		| _ => create_pdu.as_ref().unwrap().as_pdu(),
 	};
 
-	let auth_check = state_res::auth_check(
-		&room_version,
-		&pdu,
-		None, // TODO: third_party_invite
-		auth_fetch,
-		create_event,
-	)
-	.await
-	.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
+	let auth_check = state_res::auth_check(&room_version, &pdu, auth_fetch, create_event)
+		.await
+		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
 
 	if !auth_check {
 		return Err!(Request(Forbidden("Event is not authorized.")));

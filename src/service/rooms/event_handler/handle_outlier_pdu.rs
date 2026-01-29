@@ -184,7 +184,6 @@ where
 	let auth_check = state_res::event_auth::auth_check(
 		&to_room_version(&room_version_id),
 		&pdu_event,
-		None, // TODO: third party invite
 		state_fetch,
 		create_event.as_pdu(),
 	)
