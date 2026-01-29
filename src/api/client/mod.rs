@@ -39,6 +39,7 @@ pub(super) mod unversioned;
 pub(super) mod user_directory;
 pub(super) mod voip;
 pub(super) mod well_known;
+pub(super) mod rtc;
 
 pub use account::full_user_deactivate;
 pub(super) use account::*;

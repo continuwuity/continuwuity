@@ -980,6 +980,22 @@ pub struct Config {
 	/// example: "/etc/continuwuity/.turn_secret"
 	pub turn_secret_file: Option<PathBuf>,
 
+	/// The LiveKit URL to use for MSC4143.
+	///
+	/// example: "wss://livekit.example.com"
+	pub livekit_url: Option<String>,
+
+	/// The LiveKit secret key to use for MSC4143.
+	/// Used to sign the JWT tokens.
+	///
+	/// display: sensitive
+	pub livekit_secret: Option<String>,
+
+	/// The LiveKit API key to use for MSC4143.
+	///
+	/// display: sensitive
+	pub livekit_key: Option<String>,
+
 	/// TURN TTL, in seconds.
 	///
 	/// default: 86400

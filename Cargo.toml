@@ -63,6 +63,11 @@ default-features = false
 version = "0.12.1"
 default-features = false
 
+# used for MSC4143 LiveKit token generation
+[workspace.dependencies.jsonwebtoken]
+version = "9.2.0"
+
+
 # used for checking if an IP is in specific subnets / CIDR ranges easier
 [workspace.dependencies.ipaddress]
 version = "0.1.3"
