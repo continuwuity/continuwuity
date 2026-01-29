@@ -57,9 +57,10 @@ Continuwuity aims to:
 
 ### Can I try it out?
 
-Check out the [documentation](https://continuwuity.org) for installation instructions.
+Check out the [documentation](https://continuwuity.org) for installation instructions, or join one of these vetted public homeservers running Continuwuity to get a feel for things!
 
-There are currently no open registration Continuwuity instances available.
+- https://continuwuity.rocks -- A public demo server operated by the Continuwuity Team.
+- https://federated.nexus -- Federated Nexus is a community resource hosting multiple FOSS (especially federated) services, including Matrix and Forgejo.
 
 ### What are we working on?
 
