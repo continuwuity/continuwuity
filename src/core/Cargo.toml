@@ -10,31 +10,31 @@ version.workspace = true
 [lib]
 path = "mod.rs"
 crate-type = [
-	"rlib",
-#	"dylib",
+    "rlib",
+    #	"dylib",
 ]
 
 [features]
 brotli_compression = [
-	"reqwest/brotli",
+    "reqwest/brotli",
 ]
 conduwuit_mods = [
     "dep:libloading"
 ]
 gzip_compression = [
-	"reqwest/gzip",
+    "reqwest/gzip",
 ]
 hardened_malloc = [
-	"dep:hardened_malloc-rs"
+    "dep:hardened_malloc-rs"
 ]
 jemalloc = [
-	"dep:tikv-jemalloc-sys",
-	"dep:tikv-jemalloc-ctl",
-	"dep:tikv-jemallocator",
+    "dep:tikv-jemalloc-sys",
+    "dep:tikv-jemalloc-ctl",
+    "dep:tikv-jemallocator",
 ]
 jemalloc_conf = []
 jemalloc_prof = [
-	"tikv-jemalloc-sys/profiling",
+    "tikv-jemalloc-sys/profiling",
 ]
 jemalloc_stats = [
     "tikv-jemalloc-sys/stats",
@@ -43,10 +43,10 @@ jemalloc_stats = [
 ]
 perf_measurements = []
 release_max_log_level = [
-	"tracing/max_level_trace",
-	"tracing/release_max_level_info",
-	"log/max_level_trace",
-	"log/release_max_level_info",
+    "tracing/max_level_trace",
+    "tracing/release_max_level_info",
+    "log/max_level_trace",
+    "log/release_max_level_info",
 ]
 sentry_telemetry = []
 zstd_compression = [
@@ -110,6 +110,7 @@ tracing.workspace = true
 url.workspace = true
 parking_lot.workspace = true
 lock_api.workspace = true
+ed25519-dalek = "~2"
 
 [target.'cfg(unix)'.dependencies]
 nix.workspace = true

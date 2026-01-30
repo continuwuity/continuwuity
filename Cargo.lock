@@ -1090,6 +1090,7 @@ dependencies = [
  "core_affinity",
  "ctor",
  "cyborgtime",
+ "ed25519-dalek",
  "either",
  "figment",
  "futures",

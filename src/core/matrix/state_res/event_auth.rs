@@ -1,5 +1,6 @@
 use std::{borrow::Borrow, collections::BTreeSet};
 
+use ed25519_dalek::{Verifier, VerifyingKey};
 use futures::{
 	Future,
 	future::{OptionFuture, join, join3},
@@ -11,17 +12,20 @@ use ruma::{
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
 		member::{MembershipState, ThirdPartyInvite},
 		power_levels::RoomPowerLevelsEventContent,
-		third_party_invite::RoomThirdPartyInviteEventContent,
+		third_party_invite::{PublicKey, RoomThirdPartyInviteEventContent},
 	},
 	int,
-	serde::{Base64, Raw},
-	signatures::{PublicKeyMap, PublicKeySet, verify_json},
+	serde::{Base64, Raw, base64::Standard},
+	signatures::{ParseError, VerificationError},
 };
 use serde::{
 	Deserialize,
 	de::{Error as _, IgnoredAny},
 };
-use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
+use serde_json::{
+	from_str as from_json_str,
+	value::{RawValue as RawJsonValue, to_raw_value},
+};
 
 use super::{
 	Error, Event, Result, StateEventType, StateKey, TimelineEventType,
@@ -31,7 +35,7 @@ use super::{
 	},
 	room_version::RoomVersion,
 };
-use crate::{debug, error, trace, utils::to_canonical_object, warn};
+use crate::{debug, error, trace, warn};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -1497,6 +1501,17 @@ fn get_send_level(
 		.unwrap_or_else(|| if state_key.is_some() { int!(50) } else { int!(0) })
 }
 
+fn verify_payload(pk: &[u8], sig: &[u8], c: &[u8]) -> Result<(), ruma::signatures::Error> {
+	VerifyingKey::from_bytes(
+		pk.try_into()
+			.map_err(|_| ParseError::PublicKey(ed25519_dalek::SignatureError::new()))?,
+	)
+	.map_err(ParseError::PublicKey)?
+	.verify(c, &sig.try_into().map_err(ParseError::Signature)?)
+	.map_err(VerificationError::Signature)
+	.map_err(ruma::signatures::Error::from)
+}
+
 /// Checks a third-party invite is valid.
 async fn verify_third_party_invite<F, Fut, E>(
 	target_current_membership: MembershipState,
@@ -1554,45 +1569,61 @@ where
 	// content of m.room.third_party_invite as:
 	//   1. A single public key in the public_key property.
 	//   2. A list of public keys in the public_keys property.
-	if third_party_invite_event
-		.get_content::<RoomThirdPartyInviteEventContent>()
-		.is_err()
-	{
+	let Ok(tpi_content) =
+		third_party_invite_event.get_content::<RoomThirdPartyInviteEventContent>()
+	else {
 		warn!("m.room.third_party_invite event has invalid content");
 		return false;
-	}
+	};
 
 	let Some(signatures) = signed.get("signatures").and_then(|v| v.as_object()) else {
 		warn!("invite event third_party_invite signed missing/invalid signatures");
 		return false;
 	};
-	let mut public_key_map = PublicKeyMap::new();
-	for (server_name, sig_map) in signatures {
-		let mut pk_set = PublicKeySet::new();
-		if let Some(sig_map) = sig_map.as_object() {
-			for (key_id, sig) in sig_map {
-				let Some(sig_str) = sig.as_str() else {
-					warn!(
-						"invite event third_party_invite signature is not a string or is missing"
-					);
-					return false;
-				};
-				let Ok(sig_b64) = Base64::parse(sig_str) else {
-					warn!("invite event third_party_invite signature is not valid Base64");
-					return false;
-				};
-				pk_set.insert(key_id.clone(), sig_b64);
+	let mut public_keys = tpi_content.public_keys.unwrap_or_default();
+	public_keys.push(PublicKey {
+		public_key: tpi_content.public_key,
+		key_validity_url: Some(tpi_content.key_validity_url),
+	});
+
+	for pk in public_keys {
+		// signatures -> { server_name: { ed25519:N: signature } }
+		for (server_name, server_sigs) in signatures {
+			if let Some(server_sigs) = server_sigs.as_object() {
+				for (key_id, signature_value) in server_sigs {
+					if let Some(signature_str) = signature_value.as_str() {
+						if let Ok(signature) = Base64::<Standard>::parse(signature_str) {
+							debug!(
+								?pk,
+								%server_name,
+								%key_id,
+								"verifying third-party invite signature",
+							);
+							match verify_payload(
+								pk.public_key.as_bytes(),
+								signature.as_bytes(),
+								to_raw_value(signed).unwrap().get().as_bytes(),
+							) {
+								| Ok(()) => {
+									debug!("valid third-party invite signature found");
+									return true;
+								},
+								| Err(e) => {
+									warn!(
+										?pk,
+										%server_name,
+										%key_id,
+										"invalid third-party invite signature: {e}",
+									);
+								},
+							}
+						}
+					}
+				}
 			}
 		}
-		public_key_map.insert(server_name.clone(), pk_set);
 	}
-	if let Err(e) = verify_json(
-		&public_key_map,
-		to_canonical_object(signed).expect("signed was already validated"),
-	) {
-		warn!("invite event third_party_invite signature verification failed: {e}");
-		return false;
-	}
-	// If there was no error, there was a valid signature, so allow.
-	true
+
+	warn!("no valid signature found for third-party invite");
+	false
 }
