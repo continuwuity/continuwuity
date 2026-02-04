@@ -8,7 +8,7 @@ use axum::{
 	extract::State,
 	response::{IntoResponse, Response},
 };
-use conduwuit::{Result, debug, debug_error, debug_warn, err, error, trace};
+use conduwuit::{Result, debug_warn, err, error, trace, info};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};
@@ -102,13 +102,13 @@ fn handle_result(method: &Method, uri: &Uri, result: Response) -> Result<Respons
 	let reason = status.canonical_reason().unwrap_or("Unknown Reason");
 
 	if status.is_server_error() {
-		error!(%method, %uri, "{code} {reason}");
+		info!(%method, %uri, "{code} {reason}");
 	} else if status.is_client_error() {
-		debug_error!(%method, %uri, "{code} {reason}");
+		info!(%method, %uri, "{code} {reason}");
 	} else if status.is_redirection() {
-		debug!(%method, %uri, "{code} {reason}");
-	} else {
 		trace!(%method, %uri, "{code} {reason}");
+	} else {
+		info!(%method, %uri, "{code} {reason}");
 	}
 
 	if status == StatusCode::METHOD_NOT_ALLOWED {
