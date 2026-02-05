@@ -79,12 +79,12 @@ pub(crate) async fn get_missing_events_route(
 			continue;
 		}
 
+		i = i.saturating_add(1);
 		let Ok(event) = to_canonical_object(&pdu) else {
 			debug_error!(
 				body.origin = body.origin.as_ref().map(tracing::field::display),
 				"Failed to convert PDU in database to canonical JSON: {pdu:?}"
 			);
-			i = i.saturating_add(1);
 			continue;
 		};
 
