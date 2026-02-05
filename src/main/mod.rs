@@ -7,6 +7,7 @@ use conduwuit_core::{debug_info, error};
 mod clap;
 mod logging;
 mod mods;
+mod panic;
 mod restart;
 mod runtime;
 mod sentry;
@@ -19,6 +20,8 @@ use server::Server;
 pub use crate::clap::Args;
 
 pub fn run() -> Result<()> {
+	panic::init();
+
 	let args = clap::parse();
 	run_with_args(&args)
 }
