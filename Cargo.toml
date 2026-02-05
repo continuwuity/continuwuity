@@ -102,7 +102,7 @@ default-features = false
 features = ["typed-header", "tracing"]
 
 [workspace.dependencies.axum-server]
-version = "0.7.2"
+version = "0.8.0"
 default-features = false
 
 # to listen on both HTTP and HTTPS if listening on TLS dierctly from conduwuit for complement or sytest
