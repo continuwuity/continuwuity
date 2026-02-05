@@ -139,7 +139,7 @@ much possible corruption is restored
 
 ## Debugging
 
-Note that users should not really be debugging things. If you find yourself
+Note that users should not really need to debug things. If you find yourself
 debugging and find the issue, please let us know and/or how we can fix it.
 Various debug commands can be found in `!admin debug`.
 
@@ -177,6 +177,31 @@ While it does measure the latency of the request, it is not indicative of
 server performance on either side as that endpoint is completely unauthenticated
 and simply fetches a string on a static JSON endpoint. It is very low cost both
 bandwidth and computationally.
+
+### Enabling backtraces for errors
+
+Continuwuity can capture backtraces (stack traces) for errors to help diagnose
+issues. Backtraces show the exact sequence of function calls that led to an
+error, which is invaluable for debugging.
+
+To enable backtraces, set the `RUST_BACKTRACE` environment variable before starting Continuwuity:
+
+```bash
+# For both panics and errors
+RUST_BACKTRACE=1 ./conduwuit
+
+```
+
+For systemd deployments, add this to your service file:
+
+```ini
+[Service]
+Environment="RUST_BACKTRACE=1"
+```
+
+Backtrace capture has a performance cost. Avoid leaving it on.
+You can also enable it only for panics by setting
+`RUST_BACKTRACE=1` and `RUST_LIB_BACKTRACE=0`.
 
 ### Allocator memory stats
 
