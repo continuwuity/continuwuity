@@ -14,6 +14,25 @@ use crate::error;
 
 impl axum::response::IntoResponse for Error {
 	fn into_response(self) -> axum::response::Response {
+		let status = self.status_code();
+		if status.is_server_error() {
+			error!(
+				error = %self,
+				error_debug = ?self,
+				kind = ?self.kind(),
+				status = %status,
+				"Server error"
+			);
+		} else if status.is_client_error() {
+			use crate::debug_error;
+			debug_error!(
+				error = %self,
+				kind = ?self.kind(),
+				status = %status,
+				"Client error"
+			);
+		}
+
 		let response: UiaaResponse = self.into();
 		response
 			.try_into_http_response::<BytesMut>()
