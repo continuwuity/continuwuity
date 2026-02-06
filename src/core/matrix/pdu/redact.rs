@@ -1,7 +1,7 @@
 use ruma::{RoomVersionId, canonical_json::redact_content_in_place};
 use serde_json::{Value as JsonValue, json, value::to_raw_value};
 
-use crate::{Error, Result, err, implement};
+use crate::{Result, err, implement};
 
 #[implement(super::Pdu)]
 pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> Result {
@@ -10,8 +10,15 @@ pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> 
 	let mut content = serde_json::from_str(self.content.get())
 		.map_err(|e| err!(Request(BadJson("Failed to deserialize content into type: {e}"))))?;
 
-	redact_content_in_place(&mut content, room_version_id, self.kind.to_string())
-		.map_err(|e| Error::Redaction(self.sender.server_name().to_owned(), e))?;
+	redact_content_in_place(&mut content, room_version_id, self.kind.to_string()).map_err(
+		|error| {
+			crate::error::RedactionSnafu {
+				server: self.sender.server_name().to_owned(),
+				error,
+			}
+			.build()
+		},
+	)?;
 
 	let reason = serde_json::to_value(reason).expect("Failed to preserialize reason");
 

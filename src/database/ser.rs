@@ -199,7 +199,10 @@ impl<W: Write> ser::Serializer for &mut Serializer<'_, W> {
 
 				value
 					.serialize(&mut Serializer::new(&mut Writer::new(&mut self.out)))
-					.map_err(|e| Self::Error::SerdeSer(e.to_string().into()))
+					.map_err(|e| {
+						let message: std::borrow::Cow<'static, str> = e.to_string().into();
+						conduwuit_core::error::SerdeSerSnafu { message }.build()
+					})
 			},
 			| _ => unhandled!("Unrecognized serialization Newtype {name:?}"),
 		}

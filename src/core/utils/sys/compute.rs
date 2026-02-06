@@ -2,6 +2,8 @@
 
 use std::{cell::Cell, fmt::Debug, path::PathBuf, sync::LazyLock};
 
+use snafu::IntoError;
+
 use crate::{Result, is_equal_to};
 
 type Id = usize;
@@ -142,7 +144,9 @@ pub fn getcpu() -> Result<usize> {
 
 #[cfg(not(target_os = "linux"))]
 #[inline]
-pub fn getcpu() -> Result<usize> { Err(crate::Error::Io(std::io::ErrorKind::Unsupported.into())) }
+pub fn getcpu() -> Result<usize> {
+	Err(crate::error::IoSnafu.into_error(std::io::ErrorKind::Unsupported.into()))
+}
 
 fn query_cores_available() -> impl Iterator<Item = Id> {
 	core_affinity::get_core_ids()

@@ -1,6 +1,6 @@
 use RoomVersionId::*;
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{Err, Result, debug_warn, info, matrix::pdu::PduBuilder, warn};
 use ruma::{
 	RoomVersionId,
 	api::{client::error::ErrorKind, federation::knock::create_knock_event_template},
@@ -67,14 +67,14 @@ pub(crate) async fn create_knock_event_template_route(
 	let room_version_id = services.rooms.state.get_room_version(&body.room_id).await?;
 
 	if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::IncompatibleRoomVersion { room_version: room_version_id },
 			"Room version does not support knocking.",
 		));
 	}
 
 	if !body.ver.contains(&room_version_id) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::IncompatibleRoomVersion { room_version: room_version_id },
 			"Your homeserver does not support the features required to knock on this room.",
 		));

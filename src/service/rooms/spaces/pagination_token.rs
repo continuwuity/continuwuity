@@ -3,7 +3,7 @@ use std::{
 	str::FromStr,
 };
 
-use conduwuit::{Error, Result};
+use conduwuit::{Err, Error, Result};
 use ruma::{UInt, api::client::error::ErrorKind};
 
 use crate::rooms::short::ShortRoomId;
@@ -57,7 +57,7 @@ impl FromStr for PaginationToken {
 		if let Some(token) = pag_tok() {
 			Ok(token)
 		} else {
-			Err(Error::BadRequest(ErrorKind::InvalidParam, "invalid token"))
+			Err!(BadRequest(ErrorKind::InvalidParam, "invalid token"))
 		}
 	}
 }

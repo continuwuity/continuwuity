@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Error, Result};
+use conduwuit::{Result, err};
 use conduwuit_service::sending::EduBuf;
 use futures::StreamExt;
 use ruma::{
@@ -66,7 +66,7 @@ pub(crate) async fn send_event_to_device_route(
 
 			let event = event
 				.deserialize_as()
-				.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Event is invalid"))?;
+				.map_err(|_| err!(BadRequest(ErrorKind::InvalidParam, "Event is invalid")))?;
 
 			match target_device_id_maybe {
 				| DeviceIdOrAllDevices::DeviceId(target_device_id) => {

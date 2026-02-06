@@ -24,6 +24,7 @@ use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
 
 use super::{
 	Error, Event, Result, StateEventType, StateKey, TimelineEventType,
+	error::InvalidPduSnafu,
 	power_levels::{
 		deserialize_power_levels, deserialize_power_levels_content_fields,
 		deserialize_power_levels_content_invite, deserialize_power_levels_content_redact,
@@ -383,8 +384,8 @@ where
 			return Ok(false);
 		}
 
-		let target_user =
-			<&UserId>::try_from(state_key).map_err(|e| Error::InvalidPdu(format!("{e}")))?;
+		let target_user = <&UserId>::try_from(state_key)
+			.map_err(|e| InvalidPduSnafu { message: format!("{e}") }.build())?;
 
 		let user_for_join_auth = content
 			.join_authorised_via_users_server
@@ -461,7 +462,7 @@ where
 			?sender_membership_event_content,
 			"Sender membership event content missing membership field"
 		);
-		return Err(Error::InvalidPdu("Missing membership field".to_owned()));
+		return Err(InvalidPduSnafu { message: "Missing membership field" }.build());
 	};
 	let membership_state = membership_state.deserialize()?;
 

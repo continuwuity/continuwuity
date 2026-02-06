@@ -1,6 +1,6 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use conduwuit::{Error, Result};
+use conduwuit::{Err, Result, err};
 use ruma::{
 	api::{
 		client::error::ErrorKind,
@@ -25,7 +25,7 @@ pub(crate) async fn get_public_rooms_filtered_route(
 		.config
 		.allow_public_room_directory_over_federation
 	{
-		return Err(Error::BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
+		return Err!(BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
 	}
 
 	let response = crate::client::get_public_rooms_filtered_helper(
@@ -38,7 +38,10 @@ pub(crate) async fn get_public_rooms_filtered_route(
 	)
 	.await
 	.map_err(|_| {
-		Error::BadRequest(ErrorKind::Unknown, "Failed to return this server's public room list.")
+		err!(BadRequest(
+			ErrorKind::Unknown,
+			"Failed to return this server's public room list."
+		))
 	})?;
 
 	Ok(get_public_rooms_filtered::v1::Response {
@@ -62,7 +65,7 @@ pub(crate) async fn get_public_rooms_route(
 		.globals
 		.allow_public_room_directory_over_federation()
 	{
-		return Err(Error::BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
+		return Err!(BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
 	}
 
 	let response = crate::client::get_public_rooms_filtered_helper(
@@ -75,7 +78,10 @@ pub(crate) async fn get_public_rooms_route(
 	)
 	.await
 	.map_err(|_| {
-		Error::BadRequest(ErrorKind::Unknown, "Failed to return this server's public room list.")
+		err!(BadRequest(
+			ErrorKind::Unknown,
+			"Failed to return this server's public room list."
+		))
 	})?;
 
 	Ok(get_public_rooms::v1::Response {

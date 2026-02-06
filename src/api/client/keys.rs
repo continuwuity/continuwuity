@@ -5,7 +5,7 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug, debug_warn, err,
+	Err, Result, debug, debug_warn, err,
 	result::NotFound,
 	utils,
 	utils::{IterStream, stream::WidebandExt},
@@ -215,7 +215,7 @@ pub(crate) async fn upload_signing_keys_route(
 						.await?;
 
 					if !worked {
-						return Err(Error::Uiaa(uiaainfo));
+						return Err!(Uiaa(uiaainfo));
 					}
 					// Success!
 				},
@@ -226,10 +226,10 @@ pub(crate) async fn upload_signing_keys_route(
 							.uiaa
 							.create(sender_user, sender_device, &uiaainfo, json);
 
-						return Err(Error::Uiaa(uiaainfo));
+						return Err!(Uiaa(uiaainfo));
 					},
 					| _ => {
-						return Err(Error::BadRequest(ErrorKind::NotJson, "Not json."));
+						return Err!(BadRequest(ErrorKind::NotJson, "Not json."));
 					},
 				},
 			}
@@ -396,12 +396,12 @@ pub(crate) async fn get_key_changes_route(
 	let from = body
 		.from
 		.parse()
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invalid `from`."))?;
+		.map_err(|_| err!(BadRequest(ErrorKind::InvalidParam, "Invalid `from`.")))?;
 
 	let to = body
 		.to
 		.parse()
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invalid `to`."))?;
+		.map_err(|_| err!(BadRequest(ErrorKind::InvalidParam, "Invalid `to`.")))?;
 
 	device_list_updates.extend(
 		services

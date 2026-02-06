@@ -147,11 +147,11 @@ impl Service {
 		// same appservice)
 		if let Ok(existing) = self.find_from_token(&registration.as_token).await {
 			if existing.registration.id != registration.id {
-				return Err(err!(Request(InvalidParam(
+				return Err!(Request(InvalidParam(
 					"Cannot register appservice: Token is already used by appservice '{}'. \
 					 Please generate a different token.",
 					existing.registration.id
-				))));
+				)));
 			}
 		}
 
@@ -163,10 +163,10 @@ impl Service {
 			.await
 			.is_ok()
 		{
-			return Err(err!(Request(InvalidParam(
+			return Err!(Request(InvalidParam(
 				"Cannot register appservice: The provided token is already in use by a user \
 				 device. Please generate a different token for the appservice."
-			))));
+			)));
 		}
 
 		self.db
