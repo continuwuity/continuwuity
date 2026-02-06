@@ -3,7 +3,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, err, info,
+	Err, Result, debug, err, info,
 	utils::{self, ReadyExt, hash},
 	warn,
 };
@@ -191,7 +191,7 @@ pub(crate) async fn handle_login(
 	}
 
 	if services.users.is_locked(&user_id).await? {
-		return Err(Error::BadRequest(ErrorKind::UserLocked, "This account has been locked."));
+		return Err!(BadRequest(ErrorKind::UserLocked, "This account has been locked."));
 	}
 
 	if services.users.is_login_disabled(&user_id).await {
@@ -390,7 +390,7 @@ pub(crate) async fn login_token_route(
 				.await?;
 
 			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			}
 
 			// Success!
@@ -402,7 +402,7 @@ pub(crate) async fn login_token_route(
 					.uiaa
 					.create(sender_user, sender_device, &uiaainfo, json);
 
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			},
 			| _ => {
 				return Err!(Request(NotJson("No JSON body was sent when required.")));

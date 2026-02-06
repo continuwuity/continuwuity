@@ -8,6 +8,7 @@ use axum::{
 };
 use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, version_tag};
 use conduwuit_service::state;
+use snafu::{IntoError, prelude::*};
 
 pub fn build() -> Router<state::State> {
 	Router::<state::State>::new()
@@ -48,10 +49,17 @@ async fn logo_handler() -> impl IntoResponse {
 	)
 }
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Snafu)]
 enum WebError {
-	#[error("Failed to render template: {0}")]
-	Render(#[from] askama::Error),
+	#[snafu(display("Failed to render template: {source}"))]
+	Render {
+		source: askama::Error,
+		backtrace: snafu::Backtrace,
+	},
+}
+
+impl From<askama::Error> for WebError {
+	fn from(source: askama::Error) -> Self { RenderSnafu.into_error(source) }
 }
 
 impl IntoResponse for WebError {
@@ -66,7 +74,7 @@ impl IntoResponse for WebError {
 		let nonce = rand::random::<u64>().to_string();
 
 		let status = match &self {
-			| Self::Render(_) => StatusCode::INTERNAL_SERVER_ERROR,
+			| Self::Render { .. } => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 		let tmpl = Error { nonce: &nonce, err: self };
 		if let Ok(body) = tmpl.render() {

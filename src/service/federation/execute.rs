@@ -2,7 +2,7 @@ use std::{fmt::Debug, mem};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
+	Err, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
 	error::inspect_debug_log, implement, trace,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
@@ -179,10 +179,7 @@ async fn into_http_response(
 
 	debug!("Got {status:?} for {method} {url}");
 	if !status.is_success() {
-		return Err(Error::Federation(
-			dest.to_owned(),
-			RumaError::from_http_response(http_response),
-		));
+		return Err!(Federation(dest.to_owned(), RumaError::from_http_response(http_response),));
 	}
 
 	Ok(http_response)

@@ -1,12 +1,9 @@
 use std::{borrow::Borrow, iter::once};
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, info, utils::stream::ReadyExt};
+use conduwuit::{Err, Error, Result, err, info, utils::stream::ReadyExt};
 use futures::StreamExt;
-use ruma::{
-	RoomId,
-	api::{client::error::ErrorKind, federation::authorization::get_event_authorization},
-};
+use ruma::{RoomId, api::federation::authorization::get_event_authorization};
 
 use super::AccessCheck;
 use crate::Ruma;
@@ -47,7 +44,7 @@ pub(crate) async fn get_event_authorization_route(
 		.timeline
 		.get_pdu_json(&body.event_id)
 		.await
-		.map_err(|_| Error::BadRequest(ErrorKind::NotFound, "Event not found."))?;
+		.map_err(|_| err!(BadRequest(ErrorKind::NotFound, "Event not found.")))?;
 
 	let room_id_str = event
 		.get("room_id")

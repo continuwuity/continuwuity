@@ -114,7 +114,7 @@ pub(crate) async fn send_transaction_message_route(
 	);
 	for (id, result) in &results {
 		if let Err(e) = result {
-			if matches!(e, Error::BadRequest(ErrorKind::NotFound, _)) {
+			if matches!(e, Error::BadRequest { kind: ErrorKind::NotFound, .. }) {
 				warn!("Incoming PDU failed {id}: {e:?}");
 			}
 		}

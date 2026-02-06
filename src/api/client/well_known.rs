@@ -1,11 +1,8 @@
 use axum::{Json, extract::State, response::IntoResponse};
-use conduwuit::{Error, Result};
-use ruma::api::client::{
-	discovery::{
-		discover_homeserver::{self, HomeserverInfo, SlidingSyncProxyInfo},
-		discover_support::{self, Contact},
-	},
-	error::ErrorKind,
+use conduwuit::{Err, Result};
+use ruma::api::client::discovery::{
+	discover_homeserver::{self, HomeserverInfo, SlidingSyncProxyInfo},
+	discover_support::{self, Contact},
 };
 
 use crate::Ruma;
@@ -19,7 +16,7 @@ pub(crate) async fn well_known_client(
 ) -> Result<discover_homeserver::Response> {
 	let client_url = match services.config.well_known.client.as_ref() {
 		| Some(url) => url.to_string(),
-		| None => return Err(Error::BadRequest(ErrorKind::NotFound, "Not found.")),
+		| None => return Err!(BadRequest(ErrorKind::NotFound, "Not found.")),
 	};
 
 	Ok(discover_homeserver::Response {
@@ -88,7 +85,7 @@ pub(crate) async fn well_known_support(
 
 	if contacts.is_empty() && support_page.is_none() {
 		// No admin room, no configured contacts, and no support page
-		return Err(Error::BadRequest(ErrorKind::NotFound, "Not found."));
+		return Err!(BadRequest(ErrorKind::NotFound, "Not found."));
 	}
 
 	Ok(discover_support::Response { contacts, support_page })
@@ -105,7 +102,7 @@ pub(crate) async fn syncv3_client_server_json(
 		| Some(url) => url.to_string(),
 		| None => match services.config.well_known.server.as_ref() {
 			| Some(url) => url.to_string(),
-			| None => return Err(Error::BadRequest(ErrorKind::NotFound, "Not found.")),
+			| None => return Err!(BadRequest(ErrorKind::NotFound, "Not found.")),
 		},
 	};
 

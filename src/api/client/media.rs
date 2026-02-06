@@ -3,7 +3,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Result, err,
+	Err, Result, err, error,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 };
 use conduwuit_service::{
@@ -69,7 +69,7 @@ pub(crate) async fn create_content_route(
 		.create(mxc, Some(user), Some(&content_disposition), content_type, &body.file)
 		.await
 	{
-		err!("Failed to save uploaded media: {e}");
+		error!("Failed to save uploaded media: {e}");
 		return Err!(Request(Unknown("Failed to save uploaded media")));
 	}
 

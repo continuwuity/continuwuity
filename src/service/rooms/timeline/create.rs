@@ -75,10 +75,7 @@ pub async fn create_hash_and_sign_event(
 			let content: RoomCreateEventContent = serde_json::from_str(content.get())?;
 			Ok(content.room_version)
 		} else {
-			Err(Error::InconsistentRoomState(
-				"non-create event for room of unknown version",
-				room_id,
-			))
+			Err!(InconsistentRoomState("non-create event for room of unknown version", room_id))
 		}
 	}
 	let PduBuilder {
@@ -275,7 +272,9 @@ pub async fn create_hash_and_sign_event(
 		.hash_and_sign_event(&mut pdu_json, &room_version_id)
 	{
 		return match e {
-			| Error::Signatures(ruma::signatures::Error::PduSize) => {
+			| Error::Signatures { source, .. }
+				if matches!(source, ruma::signatures::Error::PduSize) =>
+			{
 				Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
 			},
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),

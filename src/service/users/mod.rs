@@ -761,13 +761,13 @@ impl Service {
 				.keys
 				.into_values();
 
-			let self_signing_key_id = self_signing_key_ids.next().ok_or(Error::BadRequest(
+			let self_signing_key_id = self_signing_key_ids.next().ok_or(err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"Self signing key contained no key.",
-			))?;
+			)))?;
 
 			if self_signing_key_ids.next().is_some() {
-				return Err(Error::BadRequest(
+				return Err!(BadRequest(
 					ErrorKind::InvalidParam,
 					"Self signing key contained more than one key.",
 				));
@@ -1439,13 +1439,13 @@ pub fn parse_master_key(
 
 	let master_key = master_key
 		.deserialize()
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invalid master key"))?;
+		.map_err(|_| err!(BadRequest(ErrorKind::InvalidParam, "Invalid master key")))?;
 	let mut master_key_ids = master_key.keys.values();
 	let master_key_id = master_key_ids
 		.next()
-		.ok_or(Error::BadRequest(ErrorKind::InvalidParam, "Master key contained no key."))?;
+		.ok_or(err!(BadRequest(ErrorKind::InvalidParam, "Master key contained no key.")))?;
 	if master_key_ids.next().is_some() {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::InvalidParam,
 			"Master key contained more than one key.",
 		));

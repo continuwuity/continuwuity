@@ -4,7 +4,7 @@ use axum_extra::{
 	headers::{Authorization, authorization::Bearer},
 	typed_header::TypedHeaderRejectionReason,
 };
-use conduwuit::{Err, Error, Result, debug_error, err, warn};
+use conduwuit::{Err, Result, debug_error, err, warn};
 use futures::{
 	TryFutureExt,
 	future::{
@@ -77,7 +77,7 @@ pub(super) async fn auth(
 							// already
 						},
 						| Token::None | Token::Invalid => {
-							return Err(Error::BadRequest(
+							return Err!(BadRequest(
 								ErrorKind::MissingToken,
 								"Missing or invalid access token.",
 							));
@@ -96,7 +96,7 @@ pub(super) async fn auth(
 							// already
 						},
 						| Token::None | Token::Invalid => {
-							return Err(Error::BadRequest(
+							return Err!(BadRequest(
 								ErrorKind::MissingToken,
 								"Missing or invalid access token.",
 							));
@@ -130,10 +130,10 @@ pub(super) async fn auth(
 						appservice_info: None,
 					})
 				} else {
-					Err(Error::BadRequest(ErrorKind::MissingToken, "Missing access token."))
+					Err!(BadRequest(ErrorKind::MissingToken, "Missing access token."))
 				}
 			},
-			| _ => Err(Error::BadRequest(ErrorKind::MissingToken, "Missing access token.")),
+			| _ => Err!(BadRequest(ErrorKind::MissingToken, "Missing access token.")),
 		},
 		| (
 			AuthScheme::AccessToken | AuthScheme::AccessTokenOptional | AuthScheme::None,
@@ -149,7 +149,7 @@ pub(super) async fn auth(
 					&ruma::api::client::session::logout::v3::Request::METADATA
 						| &ruma::api::client::session::logout_all::v3::Request::METADATA
 				) {
-					return Err(Error::BadRequest(
+					return Err!(BadRequest(
 						ErrorKind::UserLocked,
 						"This account has been locked.",
 					));
@@ -174,11 +174,11 @@ pub(super) async fn auth(
 			appservice_info: None,
 		}),
 		| (AuthScheme::ServerSignatures, Token::Appservice(_) | Token::User(_)) =>
-			Err(Error::BadRequest(
+			Err!(BadRequest(
 				ErrorKind::Unauthorized,
 				"Only server signatures should be used on this endpoint.",
 			)),
-		| (AuthScheme::AppserviceToken, Token::User(_)) => Err(Error::BadRequest(
+		| (AuthScheme::AppserviceToken, Token::User(_)) => Err!(BadRequest(
 			ErrorKind::Unauthorized,
 			"Only appservice access tokens should be used on this endpoint.",
 		)),
@@ -196,13 +196,13 @@ pub(super) async fn auth(
 					appservice_info: None,
 				})
 			} else {
-				Err(Error::BadRequest(
+				Err!(BadRequest(
 					ErrorKind::UnknownToken { soft_logout: false },
 					"Unknown access token.",
 				))
 			}
 		},
-		| (_, Token::Invalid) => Err(Error::BadRequest(
+		| (_, Token::Invalid) => Err!(BadRequest(
 			ErrorKind::UnknownToken { soft_logout: false },
 			"Unknown access token.",
 		)),

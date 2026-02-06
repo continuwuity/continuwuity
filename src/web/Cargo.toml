@@ -25,7 +25,7 @@ axum.workspace = true
 futures.workspace = true
 tracing.workspace = true
 rand.workspace = true
-thiserror.workspace = true
+snafu.workspace = true
 
 [lints]
 workspace = true

@@ -22,7 +22,7 @@ use serde_json::{
 	value::{RawValue as RawJsonValue, to_raw_value as to_raw_json_value},
 };
 
-use super::auth_types_for_event;
+use super::{auth_types_for_event, error::NotFoundSnafu};
 use crate::{
 	Result, RoomVersion, info,
 	matrix::{Event, EventTypeExt, Pdu, StateMap, pdu::EventHash},
@@ -232,7 +232,7 @@ impl<E: Event + Clone> TestStore<E> {
 		self.0
 			.get(event_id)
 			.cloned()
-			.ok_or_else(|| super::Error::NotFound(format!("{event_id} not found")))
+			.ok_or_else(|| NotFoundSnafu { message: format!("{event_id} not found") }.build())
 			.map_err(Into::into)
 	}
 

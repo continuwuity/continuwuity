@@ -29,18 +29,18 @@ use ruma::{
 };
 use serde_json::from_str as from_json_str;
 
-pub(crate) use self::error::Error;
+pub(crate) use self::error::{Error, InvalidPduSnafu, NotFoundSnafu};
 use self::power_levels::PowerLevelsContentFields;
 pub use self::{
 	event_auth::{auth_check, auth_types_for_event},
 	room_version::RoomVersion,
 };
+use super::{Event, StateKey};
 use crate::{
-	debug, debug_error, err,
-	matrix::{Event, StateKey},
+	debug, debug_error,
 	state_res::room_version::StateResolutionVersion,
 	trace,
-	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
+	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt},
 	warn,
 };
 
@@ -118,7 +118,10 @@ where
 			let csg = calculate_conflicted_subgraph(&conflicting, event_fetch)
 				.await
 				.ok_or_else(|| {
-					Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
+					InvalidPduSnafu {
+						message: "Failed to calculate conflicted subgraph",
+					}
+					.build()
 				})?;
 			debug!(count = csg.len(), "conflicted subgraph");
 			trace!(set = ?csg, "conflicted subgraph");
@@ -149,10 +152,11 @@ where
 	let control_events: Vec<_> = all_conflicted
 		.iter()
 		.stream()
-		.wide_filter_map(async |id| {
-			is_power_event_id(id, &event_fetch)
+		.broad_filter_map(async |id| {
+			event_fetch(id.clone())
 				.await
-				.then_some(id.clone())
+				.filter(|event| is_power_event(&event))
+				.map(|_| id.clone())
 		})
 		.collect()
 		.await;
@@ -314,7 +318,10 @@ where
 		trace!(event_id = event_id.as_str(), "fetching event for its auth events");
 		let evt = fetch_event(event_id.clone()).await;
 		if evt.is_none() {
-			err!("could not fetch event {} to calculate conflicted subgraph", event_id);
+			tracing::error!(
+				"could not fetch event {} to calculate conflicted subgraph",
+				event_id
+			);
 			path.pop();
 			continue;
 		}
@@ -402,11 +409,11 @@ where
 	let fetcher = async |event_id: OwnedEventId| {
 		let pl = *event_to_pl
 			.get(&event_id)
-			.ok_or_else(|| Error::NotFound(String::new()))?;
+			.ok_or_else(|| NotFoundSnafu { message: "" }.build())?;
 
 		let ev = fetch_event(event_id)
 			.await
-			.ok_or_else(|| Error::NotFound(String::new()))?;
+			.ok_or_else(|| NotFoundSnafu { message: "" }.build())?;
 
 		Ok((pl, ev.origin_server_ts()))
 	};
@@ -612,9 +619,12 @@ where
 	let events_to_check: Vec<_> = events_to_check
 		.map(Result::Ok)
 		.broad_and_then(async |event_id| {
-			fetch_event(event_id.to_owned())
-				.await
-				.ok_or_else(|| Error::NotFound(format!("Failed to find {event_id}")))
+			fetch_event(event_id.to_owned()).await.ok_or_else(|| {
+				NotFoundSnafu {
+					message: format!("Failed to find {event_id}"),
+				}
+				.build()
+			})
 		})
 		.try_collect()
 		.boxed()
@@ -653,7 +663,7 @@ where
 		trace!(event_id = event.event_id().as_str(), "checking event");
 		let state_key = event
 			.state_key()
-			.ok_or_else(|| Error::InvalidPdu("State event had no state key".to_owned()))?;
+			.ok_or_else(|| InvalidPduSnafu { message: "State event had no state key" }.build())?;
 
 		let auth_types = auth_types_for_event(
 			event.event_type(),
@@ -669,13 +679,14 @@ where
 			trace!("room version uses hashed IDs, manually fetching create event");
 			let create_event_id_raw = event.room_id_or_hash().as_str().replace('!', "$");
 			let create_event_id = EventId::parse(&create_event_id_raw).map_err(|e| {
-				Error::InvalidPdu(format!(
-					"Failed to parse create event ID from room ID/hash: {e}"
-				))
+				InvalidPduSnafu {
+					message: format!("Failed to parse create event ID from room ID/hash: {e}"),
+				}
+				.build()
 			})?;
-			let create_event = fetch_event(create_event_id.into())
-				.await
-				.ok_or_else(|| Error::NotFound("Failed to find create event".into()))?;
+			let create_event = fetch_event(create_event_id.into()).await.ok_or_else(|| {
+				NotFoundSnafu { message: "Failed to find create event" }.build()
+			})?;
 			auth_state.insert(create_event.event_type().with_state_key(""), create_event);
 		}
 		for aid in event.auth_events() {
@@ -686,7 +697,7 @@ where
 				auth_state.insert(
 					ev.event_type()
 						.with_state_key(ev.state_key().ok_or_else(|| {
-							Error::InvalidPdu("State event had no state key".to_owned())
+							InvalidPduSnafu { message: "State event had no state key" }.build()
 						})?),
 					ev.clone(),
 				);
@@ -801,13 +812,13 @@ where
 
 		let event = fetch_event(p.clone())
 			.await
-			.ok_or_else(|| Error::NotFound(format!("Failed to find {p}")))?;
+			.ok_or_else(|| NotFoundSnafu { message: format!("Failed to find {p}") }.build())?;
 
 		pl = None;
 		for aid in event.auth_events() {
-			let ev = fetch_event(aid.to_owned())
-				.await
-				.ok_or_else(|| Error::NotFound(format!("Failed to find {aid}")))?;
+			let ev = fetch_event(aid.to_owned()).await.ok_or_else(|| {
+				NotFoundSnafu { message: format!("Failed to find {aid}") }.build()
+			})?;
 
 			if is_type_and_key(&ev, &TimelineEventType::RoomPowerLevels, "") {
 				pl = Some(aid.to_owned());
@@ -869,9 +880,9 @@ where
 
 		event = None;
 		for aid in sort_ev.auth_events() {
-			let aev = fetch_event(aid.to_owned())
-				.await
-				.ok_or_else(|| Error::NotFound(format!("Failed to find {aid}")))?;
+			let aev = fetch_event(aid.to_owned()).await.ok_or_else(|| {
+				NotFoundSnafu { message: format!("Failed to find {aid}") }.build()
+			})?;
 
 			if is_type_and_key(&aev, &TimelineEventType::RoomPowerLevels, "") {
 				event = Some(aev);
@@ -915,6 +926,7 @@ async fn add_event_and_auth_chain_to_graph<E, F, Fut>(
 	}
 }
 
+#[allow(dead_code)]
 async fn is_power_event_id<E, F, Fut>(event_id: &EventId, fetch: &F) -> bool
 where
 	F: Fn(OwnedEventId) -> Fut + Sync,

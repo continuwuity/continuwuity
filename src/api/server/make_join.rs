@@ -1,7 +1,7 @@
 use std::borrow::ToOwned;
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{Err, Result, debug, debug_info, info, matrix::pdu::PduBuilder, warn};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
@@ -80,7 +80,7 @@ pub(crate) async fn create_join_event_template_route(
 
 	let room_version_id = services.rooms.state.get_room_version(&body.room_id).await?;
 	if !body.ver.contains(&room_version_id) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::IncompatibleRoomVersion { room_version: room_version_id },
 			"Room version not supported.",
 		));

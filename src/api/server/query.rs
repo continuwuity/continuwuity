@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Error, Result, err};
+use conduwuit::{Err, Result, err};
 use futures::StreamExt;
 use get_profile_information::v1::ProfileField;
 use rand::seq::SliceRandom;
@@ -67,17 +67,16 @@ pub(crate) async fn get_profile_information_route(
 		.config
 		.allow_inbound_profile_lookup_federation_requests
 	{
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::forbidden(),
 			"Profile lookup over federation is not allowed on this homeserver.",
 		));
 	}
 
 	if !services.globals.server_is_ours(body.user_id.server_name()) {
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"User does not belong to this server.",
-		));
+		return Err!(
+			BadRequest(ErrorKind::InvalidParam, "User does not belong to this server.",)
+		);
 	}
 
 	let mut displayname = None;

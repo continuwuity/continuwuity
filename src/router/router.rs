@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{borrow::Cow, sync::Arc};
 
 use axum::{Router, response::IntoResponse};
 use conduwuit::Error;
@@ -18,5 +18,10 @@ pub(crate) fn build(services: &Arc<Services>) -> (Router, Guard) {
 }
 
 async fn not_found(_uri: Uri) -> impl IntoResponse {
-	Error::Request(ErrorKind::Unrecognized, "Not Found".into(), StatusCode::NOT_FOUND)
+	Error::Request {
+		kind: ErrorKind::Unrecognized,
+		message: Cow::Borrowed("Not Found"),
+		code: StatusCode::NOT_FOUND,
+		backtrace: None,
+	}
 }

@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result, err, error,
+	Err, PduEvent, Result, err, error,
 	matrix::{Event, event::gen_event_id},
 	utils::{self, hash::sha256},
 	warn,
@@ -33,7 +33,7 @@ pub(crate) async fn create_invite_route(
 		.await?;
 
 	if !services.server.supported_room_version(&body.room_version) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::IncompatibleRoomVersion { room_version: body.room_version.clone() },
 			"Server does not support this room version.",
 		));

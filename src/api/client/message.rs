@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, at, debug_warn,
+	Err, Result, at, debug_warn,
 	matrix::{
 		event::{Event, Matches},
 		pdu::PduCount,
@@ -322,7 +322,7 @@ where
 
 	if server_ignored {
 		// the sender's server is ignored, so ignore this event
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::SenderIgnored { sender: None },
 			"The sender's server is ignored by this server.",
 		));
@@ -331,7 +331,7 @@ where
 	if user_ignored && !services.config.send_messages_from_ignored_users_to_client {
 		// the recipient of this PDU has the sender ignored, and we're not
 		// configured to send ignored messages to clients
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::SenderIgnored { sender: Some(event.sender().to_owned()) },
 			"You have ignored this sender.",
 		));

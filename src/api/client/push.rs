@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, err};
+use conduwuit::{Err, Result, err};
 use conduwuit_service::Services;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue,
@@ -243,27 +243,27 @@ pub(crate) async fn set_pushrule_route(
 		body.before.as_deref(),
 	) {
 		let err = match error {
-			| InsertPushRuleError::ServerDefaultRuleId => Error::BadRequest(
+			| InsertPushRuleError::ServerDefaultRuleId => err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"Rule IDs starting with a dot are reserved for server-default rules.",
-			),
-			| InsertPushRuleError::InvalidRuleId => Error::BadRequest(
+			)),
+			| InsertPushRuleError::InvalidRuleId => err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"Rule ID containing invalid characters.",
-			),
-			| InsertPushRuleError::RelativeToServerDefaultRule => Error::BadRequest(
+			)),
+			| InsertPushRuleError::RelativeToServerDefaultRule => err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"Can't place a push rule relatively to a server-default rule.",
-			),
-			| InsertPushRuleError::UnknownRuleId => Error::BadRequest(
+			)),
+			| InsertPushRuleError::UnknownRuleId => err!(BadRequest(
 				ErrorKind::NotFound,
 				"The before or after rule could not be found.",
-			),
-			| InsertPushRuleError::BeforeHigherThanAfter => Error::BadRequest(
+			)),
+			| InsertPushRuleError::BeforeHigherThanAfter => err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"The before rule has a higher priority than the after rule.",
-			),
-			| _ => Error::BadRequest(ErrorKind::InvalidParam, "Invalid data."),
+			)),
+			| _ => err!(BadRequest(ErrorKind::InvalidParam, "Invalid data.")),
 		};
 
 		return Err(err);
@@ -433,13 +433,13 @@ pub(crate) async fn delete_pushrule_route(
 		.remove(body.kind.clone(), &body.rule_id)
 	{
 		let err = match error {
-			| RemovePushRuleError::ServerDefault => Error::BadRequest(
+			| RemovePushRuleError::ServerDefault => err!(BadRequest(
 				ErrorKind::InvalidParam,
 				"Cannot delete a server-default pushrule.",
-			),
+			)),
 			| RemovePushRuleError::NotFound =>
-				Error::BadRequest(ErrorKind::NotFound, "Push rule not found."),
-			| _ => Error::BadRequest(ErrorKind::InvalidParam, "Invalid data."),
+				err!(BadRequest(ErrorKind::NotFound, "Push rule not found.")),
+			| _ => err!(BadRequest(ErrorKind::InvalidParam, "Invalid data.")),
 		};
 
 		return Err(err);

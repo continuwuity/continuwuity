@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Event, Result, RoomVersion, debug, err, info,
+	Err, Event, Result, RoomVersion, debug, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 };
 use futures::{FutureExt, StreamExt};
@@ -58,7 +58,7 @@ pub(crate) async fn upgrade_room_route(
 	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
 
 	if !services.server.supported_room_version(&body.new_version) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::UnsupportedRoomVersion,
 			"This server does not support that room version.",
 		));
@@ -170,7 +170,7 @@ pub(crate) async fn upgrade_room_route(
 					"creator".into(),
 					json!(&sender_user).try_into().map_err(|e| {
 						info!("Error forming creation event: {e}");
-						Error::BadRequest(ErrorKind::BadJson, "Error forming creation event")
+						err!(BadRequest(ErrorKind::BadJson, "Error forming creation event"))
 					})?,
 				);
 			},
@@ -186,13 +186,13 @@ pub(crate) async fn upgrade_room_route(
 		"room_version".into(),
 		json!(&body.new_version)
 			.try_into()
-			.map_err(|_| Error::BadRequest(ErrorKind::BadJson, "Error forming creation event"))?,
+			.map_err(|_| err!(BadRequest(ErrorKind::BadJson, "Error forming creation event")))?,
 	);
 	create_event_content.insert(
 		"predecessor".into(),
 		json!(predecessor)
 			.try_into()
-			.map_err(|_| Error::BadRequest(ErrorKind::BadJson, "Error forming creation event"))?,
+			.map_err(|_| err!(BadRequest(ErrorKind::BadJson, "Error forming creation event")))?,
 	);
 
 	// Validate creation event content
@@ -203,7 +203,7 @@ pub(crate) async fn upgrade_room_route(
 	)
 	.is_err()
 	{
-		return Err(Error::BadRequest(ErrorKind::BadJson, "Error forming creation event"));
+		return Err!(BadRequest(ErrorKind::BadJson, "Error forming creation event"));
 	}
 
 	let create_event_id = services

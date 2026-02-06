@@ -1,6 +1,6 @@
 use axum::extract::State;
-use conduwuit::{Error, Result};
-use ruma::api::{client::error::ErrorKind, federation::discovery::discover_homeserver};
+use conduwuit::{Err, Result};
+use ruma::api::federation::discovery::discover_homeserver;
 
 use crate::Ruma;
 
@@ -14,7 +14,7 @@ pub(crate) async fn well_known_server(
 	Ok(discover_homeserver::Response {
 		server: match services.server.config.well_known.server.as_ref() {
 			| Some(server_name) => server_name.to_owned(),
-			| None => return Err(Error::BadRequest(ErrorKind::NotFound, "Not found.")),
+			| None => return Err!(BadRequest(ErrorKind::NotFound, "Not found.")),
 		},
 	})
 }
