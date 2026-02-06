@@ -15,13 +15,16 @@ impl Error {
 
 	#[must_use]
 	#[inline]
-	pub fn from_panic(e: Box<dyn Any + Send>) -> Self { Self::Panic(debug::panic_str(&e), e) }
+	pub fn from_panic(e: Box<dyn Any + Send>) -> Self {
+		use super::PanicSnafu;
+		PanicSnafu { message: debug::panic_str(&e), panic: e }.build()
+	}
 
 	#[inline]
 	pub fn into_panic(self) -> Box<dyn Any + Send + 'static> {
 		match self {
-			| Self::Panic(_, e) | Self::PanicAny(e) => e,
-			| Self::JoinError(e) => e.into_panic(),
+			| Self::Panic { panic, .. } | Self::PanicAny { panic, .. } => panic,
+			| Self::JoinError { source, .. } => source.into_panic(),
 			| _ => Box::new(self),
 		}
 	}
@@ -37,8 +40,8 @@ impl Error {
 	#[inline]
 	pub fn is_panic(&self) -> bool {
 		match &self {
-			| Self::Panic(..) | Self::PanicAny(..) => true,
-			| Self::JoinError(e) => e.is_panic(),
+			| Self::Panic { .. } | Self::PanicAny { .. } => true,
+			| Self::JoinError { source, .. } => source.is_panic(),
 			| _ => false,
 		}
 	}

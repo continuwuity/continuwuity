@@ -12,8 +12,8 @@ Server Error
 </h1>
 
 {%- match err -%}
-    {% when WebError::Render(err) -%}
-        <pre>{{ err }}</pre>
+    {% when WebError::Render { source, .. } -%}
+        <pre>{{ source }}</pre>
     {% else -%} <p>An error occurred</p>
 {%- endmatch -%}
 

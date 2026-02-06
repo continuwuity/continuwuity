@@ -255,7 +255,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 			| "$serde_json::private::RawValue" => visitor.visit_map(self),
 			| "Cbor" => visitor
 				.visit_newtype_struct(&mut minicbor_serde::Deserializer::new(self.record_trail()))
-				.map_err(|e| Self::Error::SerdeDe(e.to_string().into())),
+				.map_err(|e| {
+					let message: std::borrow::Cow<'static, str> = e.to_string().into();
+					conduwuit_core::error::SerdeDeSnafu { message }.build()
+				}),
 
 			| _ => visitor.visit_newtype_struct(self),
 		}
@@ -313,9 +316,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 		let end = self.pos.saturating_add(BYTES).min(self.buf.len());
 		let bytes: ArrayVec<u8, BYTES> = self.buf[self.pos..end].try_into()?;
-		let bytes = bytes
-			.into_inner()
-			.map_err(|_| Self::Error::SerdeDe("i64 buffer underflow".into()))?;
+		let bytes = bytes.into_inner().map_err(|_| {
+			let message: std::borrow::Cow<'static, str> = "i64 buffer underflow".into();
+			conduwuit_core::error::SerdeDeSnafu { message }.build()
+		})?;
 
 		self.inc_pos(BYTES);
 		visitor.visit_i64(i64::from_be_bytes(bytes))
@@ -345,9 +349,10 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 
 		let end = self.pos.saturating_add(BYTES).min(self.buf.len());
 		let bytes: ArrayVec<u8, BYTES> = self.buf[self.pos..end].try_into()?;
-		let bytes = bytes
-			.into_inner()
-			.map_err(|_| Self::Error::SerdeDe("u64 buffer underflow".into()))?;
+		let bytes = bytes.into_inner().map_err(|_| {
+			let message: std::borrow::Cow<'static, str> = "u64 buffer underflow".into();
+			conduwuit_core::error::SerdeDeSnafu { message }.build()
+		})?;
 
 		self.inc_pos(BYTES);
 		visitor.visit_u64(u64::from_be_bytes(bytes))

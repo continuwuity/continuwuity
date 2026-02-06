@@ -45,63 +45,162 @@ macro_rules! Err {
 macro_rules! err {
 	(Request(Forbidden($level:ident!($($args:tt)+)))) => {{
 		let mut buf = String::new();
-		$crate::error::Error::Request(
-			$crate::ruma::api::client::error::ErrorKind::forbidden(),
-			$crate::err_log!(buf, $level, $($args)+),
-			$crate::http::StatusCode::BAD_REQUEST
-		)
+		$crate::error::Error::Request {
+			kind: $crate::ruma::api::client::error::ErrorKind::forbidden(),
+			message: $crate::err_log!(buf, $level, $($args)+),
+			code: $crate::http::StatusCode::BAD_REQUEST,
+			backtrace: Some($crate::snafu::Backtrace::capture()),
+		}
 	}};
 
 	(Request(Forbidden($($args:tt)+))) => {
-		$crate::error::Error::Request(
-			$crate::ruma::api::client::error::ErrorKind::forbidden(),
-			$crate::format_maybe!($($args)+),
-			$crate::http::StatusCode::BAD_REQUEST
-		)
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::Error::Request {
+				kind: $crate::ruma::api::client::error::ErrorKind::forbidden(),
+				message,
+				code: $crate::http::StatusCode::BAD_REQUEST,
+				backtrace: Some($crate::snafu::Backtrace::capture()),
+			}
+		}
+	};
+
+	(Request(NotFound($level:ident!($($args:tt)+)))) => {{
+		let mut buf = String::new();
+		$crate::error::Error::Request {
+			kind: $crate::ruma::api::client::error::ErrorKind::NotFound,
+			message: $crate::err_log!(buf, $level, $($args)+),
+			code: $crate::http::StatusCode::BAD_REQUEST,
+			backtrace: None,
+		}
+	}};
+
+	(Request(NotFound($($args:tt)+))) => {
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::Error::Request {
+				kind: $crate::ruma::api::client::error::ErrorKind::NotFound,
+				message,
+				code: $crate::http::StatusCode::BAD_REQUEST,
+				backtrace: None,
+			}
+		}
 	};
 
 	(Request($variant:ident($level:ident!($($args:tt)+)))) => {{
 		let mut buf = String::new();
-		$crate::error::Error::Request(
-			$crate::ruma::api::client::error::ErrorKind::$variant,
-			$crate::err_log!(buf, $level, $($args)+),
-			$crate::http::StatusCode::BAD_REQUEST
-		)
+		$crate::error::Error::Request {
+			kind: $crate::ruma::api::client::error::ErrorKind::$variant,
+			message: $crate::err_log!(buf, $level, $($args)+),
+			code: $crate::http::StatusCode::BAD_REQUEST,
+			backtrace: Some($crate::snafu::Backtrace::capture()),
+		}
 	}};
 
 	(Request($variant:ident($($args:tt)+))) => {
-		$crate::error::Error::Request(
-			$crate::ruma::api::client::error::ErrorKind::$variant,
-			$crate::format_maybe!($($args)+),
-			$crate::http::StatusCode::BAD_REQUEST
-		)
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::Error::Request {
+				kind: $crate::ruma::api::client::error::ErrorKind::$variant,
+				message,
+				code: $crate::http::StatusCode::BAD_REQUEST,
+				backtrace: Some($crate::snafu::Backtrace::capture()),
+			}
+		}
 	};
 
 	(Config($item:literal, $($args:tt)+)) => {{
 		let mut buf = String::new();
-		$crate::error::Error::Config($item, $crate::err_log!(buf, error, config = %$item, $($args)+))
+		$crate::error::ConfigSnafu {
+			directive: $item,
+			message: $crate::err_log!(buf, error, config = %$item, $($args)+),
+		}.build()
 	}};
+
+	(BadRequest(ErrorKind::NotFound, $($args:tt)+)) => {
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::Error::Request {
+				kind: $crate::ruma::api::client::error::ErrorKind::NotFound,
+				message,
+				code: $crate::http::StatusCode::BAD_REQUEST,
+				backtrace: None,
+			}
+		}
+	};
+
+	(BadRequest($kind:expr, $($args:tt)+)) => {
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::BadRequestSnafu {
+				kind: $kind,
+				message,
+			}.build()
+		}
+	};
+
+	(FeatureDisabled($($args:tt)+)) => {
+		{
+			let feature: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::FeatureDisabledSnafu { feature }.build()
+		}
+	};
+
+	(Federation($server:expr, $error:expr $(,)?)) => {
+		{
+			$crate::error::FederationSnafu {
+				server: $server,
+				error: $error,
+			}.build()
+		}
+	};
+
+	(InconsistentRoomState($message:expr, $room_id:expr $(,)?)) => {
+		{
+			$crate::error::InconsistentRoomStateSnafu {
+				message: $message,
+				room_id: $room_id,
+			}.build()
+		}
+	};
+
+	(Uiaa($info:expr $(,)?)) => {
+		{
+			$crate::error::UiaaSnafu {
+				info: $info,
+			}.build()
+		}
+	};
 
 	($variant:ident($level:ident!($($args:tt)+))) => {{
 		let mut buf = String::new();
-		$crate::error::Error::$variant($crate::err_log!(buf, $level, $($args)+))
+		$crate::paste::paste! {
+			$crate::error::[<$variant Snafu>] {
+				message: $crate::err_log!(buf, $level, $($args)+),
+			}.build()
+		}
 	}};
 
-	($variant:ident($($args:ident),+)) => {
-		$crate::error::Error::$variant($($args),+)
-	};
-
 	($variant:ident($($args:tt)+)) => {
-		$crate::error::Error::$variant($crate::format_maybe!($($args)+))
+		$crate::paste::paste! {
+			{
+				let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+				$crate::error::[<$variant Snafu>] { message }.build()
+			}
+		}
 	};
 
 	($level:ident!($($args:tt)+)) => {{
 		let mut buf = String::new();
-		$crate::error::Error::Err($crate::err_log!(buf, $level, $($args)+))
+		let message: std::borrow::Cow<'static, str> = $crate::err_log!(buf, $level, $($args)+);
+		$crate::error::ErrSnafu { message }.build()
 	}};
 
 	($($args:tt)+) => {
-		$crate::error::Error::Err($crate::format_maybe!($($args)+))
+		{
+			let message: std::borrow::Cow<'static, str> = $crate::format_maybe!($($args)+);
+			$crate::error::ErrSnafu { message }.build()
+		}
 	};
 }
 
@@ -134,7 +233,7 @@ macro_rules! err_log {
 		};
 
 		($crate::error::visit)(&mut $out, LEVEL, &__CALLSITE, &mut valueset_all!(__CALLSITE.metadata().fields(), $($fields)+));
-		($out).into()
+		std::borrow::Cow::<'static, str>::from($out)
 	}}
 }
 

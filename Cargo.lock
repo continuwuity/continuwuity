@@ -1138,6 +1138,7 @@ dependencies = [
  "nix",
  "num-traits",
  "parking_lot",
+ "paste",
  "rand 0.8.5",
  "regex",
  "reqwest",
@@ -1150,7 +1151,7 @@ dependencies = [
  "serde_regex",
  "smallstr",
  "smallvec 1.15.1",
- "thiserror 2.0.18",
+ "snafu",
  "tikv-jemalloc-ctl",
  "tikv-jemalloc-sys",
  "tikv-jemallocator",
@@ -1275,7 +1276,7 @@ dependencies = [
  "conduwuit_service",
  "futures",
  "rand 0.8.5",
- "thiserror 2.0.18",
+ "snafu",
  "tracing",
 ]
 
@@ -5212,6 +5213,27 @@ name = "smallvec"
 version = "2.0.0-alpha.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ef784004ca8777809dcdad6ac37629f0a97caee4c685fcea805278d81dd8b857"
+
+[[package]]
+name = "snafu"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e84b3f4eacbf3a1ce05eac6763b4d629d60cbc94d632e4092c54ade71f1e1a2"
+dependencies = [
+ "snafu-derive",
+]
+
+[[package]]
+name = "snafu-derive"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1c97747dbf44bb1ca44a561ece23508e99cb592e862f22222dcf42f51d1e451"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "socket2"

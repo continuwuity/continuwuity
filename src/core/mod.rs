@@ -14,9 +14,11 @@ pub mod utils;
 
 pub use ::arrayvec;
 pub use ::http;
+pub use ::paste;
 pub use ::ruma;
 pub use ::smallstr;
 pub use ::smallvec;
+pub use ::snafu;
 pub use ::toml;
 pub use ::tracing;
 pub use config::Config;

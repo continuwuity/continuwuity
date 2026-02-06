@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use conduwuit::{Error, Result};
+use conduwuit::{Err, Result};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::api::{
 	client::error::ErrorKind,
@@ -24,7 +24,7 @@ pub(crate) async fn get_devices_route(
 	body: Ruma<get_devices::v1::Request>,
 ) -> Result<get_devices::v1::Response> {
 	if !services.globals.user_is_local(&body.user_id) {
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::InvalidParam,
 			"Tried to access user from other server.",
 		));
@@ -86,10 +86,9 @@ pub(crate) async fn get_keys_route(
 		.iter()
 		.any(|(u, _)| !services.globals.user_is_local(u))
 	{
-		return Err(Error::BadRequest(
-			ErrorKind::InvalidParam,
-			"User does not belong to this server.",
-		));
+		return Err!(
+			BadRequest(ErrorKind::InvalidParam, "User does not belong to this server.",)
+		);
 	}
 
 	let result = get_keys_helper(
@@ -121,7 +120,7 @@ pub(crate) async fn claim_keys_route(
 		.iter()
 		.any(|(u, _)| !services.globals.user_is_local(u))
 	{
-		return Err(Error::BadRequest(
+		return Err!(BadRequest(
 			ErrorKind::InvalidParam,
 			"Tried to access user from other server.",
 		));

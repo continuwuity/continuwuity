@@ -3,7 +3,7 @@ use std::fmt::Write;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Event, Result, debug_info, err, error, info, is_equal_to,
+	Err, Event, Result, debug_info, err, error, info, is_equal_to,
 	matrix::pdu::PduBuilder,
 	utils::{self, ReadyExt, stream::BroadbandExt},
 	warn,
@@ -373,7 +373,7 @@ pub(crate) async fn register_route(
 					)
 					.await?;
 				if !worked {
-					return Err(Error::Uiaa(uiaainfo));
+					return Err!(Uiaa(uiaainfo));
 				}
 				// Success!
 			},
@@ -387,7 +387,7 @@ pub(crate) async fn register_route(
 						&uiaainfo,
 						json,
 					);
-					return Err(Error::Uiaa(uiaainfo));
+					return Err!(Uiaa(uiaainfo));
 				},
 				| _ => {
 					return Err!(Request(NotJson("JSON body is not valid")));
@@ -658,7 +658,7 @@ pub(crate) async fn change_password_route(
 				.await?;
 
 			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			}
 
 			// Success!
@@ -670,7 +670,7 @@ pub(crate) async fn change_password_route(
 					.uiaa
 					.create(sender_user, body.sender_device(), &uiaainfo, json);
 
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			},
 			| _ => {
 				return Err!(Request(NotJson("JSON body is not valid")));
@@ -788,7 +788,7 @@ pub(crate) async fn deactivate_route(
 				.await?;
 
 			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			}
 			// Success!
 		},
@@ -799,7 +799,7 @@ pub(crate) async fn deactivate_route(
 					.uiaa
 					.create(sender_user, body.sender_device(), &uiaainfo, json);
 
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			},
 			| _ => {
 				return Err!(Request(NotJson("JSON body is not valid")));

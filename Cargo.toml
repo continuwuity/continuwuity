@@ -307,9 +307,14 @@ features = [
 ]
 
 # Used for conduwuit::Error type
-[workspace.dependencies.thiserror]
-version = "2.0.12"
+[workspace.dependencies.snafu]
+version = "0.8"
 default-features = false
+features = ["std", "rust_1_81"]
+
+# Used for macro name generation
+[workspace.dependencies.paste]
+version = "1.0"
 
 # Used when hashing the state
 [workspace.dependencies.ring]

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
-	Err, Error, Result, SyncRwLock, err, error, implement, utils,
+	Err, Result, SyncRwLock, err, error, implement, utils,
 	utils::{hash, string::EMPTY},
 };
 use database::{Deserialized, Json, Map};
@@ -117,7 +117,7 @@ pub async fn try_auth(
 			} else if let Some(username) = user {
 				username
 			} else {
-				return Err(Error::BadRequest(
+				return Err!(BadRequest(
 					ErrorKind::Unrecognized,
 					"Identifier type not recognized.",
 				));
@@ -125,7 +125,7 @@ pub async fn try_auth(
 
 			#[cfg(not(feature = "element_hacks"))]
 			let Some(UserIdentifier::UserIdOrLocalpart(username)) = identifier else {
-				return Err(Error::BadRequest(
+				return Err!(BadRequest(
 					ErrorKind::Unrecognized,
 					"Identifier type not recognized.",
 				));
@@ -135,7 +135,7 @@ pub async fn try_auth(
 				username.clone(),
 				self.services.globals.server_name(),
 			)
-			.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "User ID is invalid."))?;
+			.map_err(|_| err!(BadRequest(ErrorKind::InvalidParam, "User ID is invalid.")))?;
 
 			// Check if the access token being used matches the credentials used for UIAA
 			if user_id.localpart() != user_id_from_username.localpart() {

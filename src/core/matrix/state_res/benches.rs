@@ -27,7 +27,7 @@ use serde_json::{
 
 use crate::{
 	matrix::{Event, Pdu, pdu::EventHash},
-	state_res::{self as state_res, Error, Result, StateMap},
+	state_res::{self as state_res, Error, Result, StateMap, error::NotFoundSnafu},
 };
 
 static SERVER_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
@@ -170,10 +170,12 @@ struct TestStore<E: Event>(HashMap<OwnedEventId, E>);
 #[allow(unused)]
 impl<E: Event + Clone> TestStore<E> {
 	fn get_event(&self, room_id: &RoomId, event_id: &EventId) -> Result<E> {
-		self.0
-			.get(event_id)
-			.cloned()
-			.ok_or_else(|| Error::NotFound(format!("{} not found", event_id)))
+		self.0.get(event_id).cloned().ok_or_else(|| {
+			NotFoundSnafu {
+				message: format!("{} not found", event_id),
+			}
+			.build()
+		})
 	}
 
 	/// Returns the events that correspond to the `event_ids` sorted in the same

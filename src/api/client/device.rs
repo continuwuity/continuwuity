@@ -1,6 +1,6 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use conduwuit::{Err, Error, Result, debug, err, utils};
+use conduwuit::{Err, Result, debug, err, utils};
 use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedDeviceId,
@@ -232,7 +232,7 @@ pub(crate) async fn delete_devices_route(
 				.await?;
 
 			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			}
 			// Success!
 		},
@@ -243,10 +243,10 @@ pub(crate) async fn delete_devices_route(
 					.uiaa
 					.create(sender_user, sender_device, &uiaainfo, json);
 
-				return Err(Error::Uiaa(uiaainfo));
+				return Err!(Uiaa(uiaainfo));
 			},
 			| _ => {
-				return Err(Error::BadRequest(ErrorKind::NotJson, "Not json."));
+				return Err!(BadRequest(ErrorKind::NotJson, "Not json."));
 			},
 		},
 	}

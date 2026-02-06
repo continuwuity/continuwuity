@@ -1,6 +1,6 @@
 use ruma::RoomVersionId;
 
-use super::{Error, Result};
+use super::{Result, error::UnsupportedSnafu};
 
 #[derive(Debug)]
 #[allow(clippy::exhaustive_enums)]
@@ -163,7 +163,11 @@ impl RoomVersion {
 			| RoomVersionId::V10 => Self::V10,
 			| RoomVersionId::V11 => Self::V11,
 			| RoomVersionId::V12 => Self::V12,
-			| ver => return Err(Error::Unsupported(format!("found version `{ver}`"))),
+			| ver =>
+				return Err(UnsupportedSnafu {
+					version: format!("found version `{ver}`"),
+				}
+				.build()),
 		})
 	}
 }
