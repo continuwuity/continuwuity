@@ -1,0 +1,1 @@
+Use exists instead of contains to save writing to a buffer in src/service/users/mod.rs: is_login_disabled. Contributed by @aprilgrimoire.
