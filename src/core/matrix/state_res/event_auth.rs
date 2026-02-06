@@ -5,8 +5,10 @@ use futures::{
 	Future,
 	future::{OptionFuture, join, join3},
 };
+use itertools::Itertools;
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId,
+	CanonicalJsonObject, Int, OwnedUserId, RoomVersionId, UserId,
+	canonical_json::to_canonical_value,
 	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
@@ -15,7 +17,10 @@ use ruma::{
 		third_party_invite::{PublicKey, RoomThirdPartyInviteEventContent},
 	},
 	int,
-	serde::{Base64, Raw, base64::Standard},
+	serde::{
+		Base64, Base64DecodeError, Raw,
+		base64::{Standard, UrlSafe},
+	},
 	signatures::{ParseError, VerificationError},
 };
 use serde::{
@@ -23,7 +28,7 @@ use serde::{
 	de::{Error as _, IgnoredAny},
 };
 use serde_json::{
-	from_str as from_json_str,
+	from_str as from_json_str, to_value,
 	value::{RawValue as RawJsonValue, to_raw_value},
 };
 
@@ -35,7 +40,7 @@ use super::{
 	},
 	room_version::RoomVersion,
 };
-use crate::{debug, error, trace, warn};
+use crate::{debug, error, trace, utils::to_canonical_object, warn};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -1512,6 +1517,65 @@ fn verify_payload(pk: &[u8], sig: &[u8], c: &[u8]) -> Result<(), ruma::signature
 	.map_err(ruma::signatures::Error::from)
 }
 
+/// Decodes a base64 string as either URL-safe or standard base64, as per the
+/// spec. It attempts to decode urlsafe first.
+fn decode_base64(content: &str) -> Result<Vec<u8>, Base64DecodeError> {
+	if let Ok(decoded) = Base64::<UrlSafe>::parse(content) {
+		Ok(decoded.as_bytes().to_vec())
+	} else {
+		Base64::<Standard>::parse(content).map(|v| v.as_bytes().to_vec())
+	}
+}
+
+fn get_public_keys(event: &CanonicalJsonObject) -> Vec<Vec<u8>> {
+	let mut public_keys = Vec::new();
+	if let Some(public_key) = event.get("public_key").and_then(|v| v.as_str()) {
+		if let Ok(v) = decode_base64(public_key) {
+			trace!(
+				encoded = public_key,
+				decoded = ?v,
+				"found public key in public_key property of m.room.third_party_invite event",
+			);
+			public_keys.push(v);
+		} else {
+			warn!("m.room.third_party_invite event has invalid public_key");
+		}
+	}
+	if let Some(keys) = event.get("public_keys").and_then(|v| v.as_array()) {
+		for key in keys {
+			if let Some(key_obj) = key.as_object() {
+				if let Some(public_key) = key_obj.get("public_key").and_then(|v| v.as_str()) {
+					if let Ok(v) = decode_base64(public_key) {
+						trace!(
+							encoded = public_key,
+							decoded = ?v,
+							"found public key in public_keys list of m.room.third_party_invite \
+							 event",
+						);
+						public_keys.push(v);
+					} else {
+						warn!(
+							"m.room.third_party_invite event has invalid public_key in \
+							 public_keys list"
+						);
+					}
+				} else {
+					warn!(
+						"m.room.third_party_invite event has entry in public_keys list missing \
+						 public_key property"
+					);
+				}
+			} else {
+				warn!(
+					"m.room.third_party_invite event has invalid entry in public_keys list, \
+					 expected object"
+				);
+			}
+		}
+	}
+	public_keys
+}
+
 /// Checks a third-party invite is valid.
 async fn verify_third_party_invite<F, Fut, E>(
 	target_current_membership: MembershipState,
@@ -1569,40 +1633,40 @@ where
 	// content of m.room.third_party_invite as:
 	//   1. A single public key in the public_key property.
 	//   2. A list of public keys in the public_keys property.
-	let Ok(tpi_content) =
-		third_party_invite_event.get_content::<RoomThirdPartyInviteEventContent>()
-	else {
-		warn!("m.room.third_party_invite event has invalid content");
-		return false;
-	};
+	debug!(
+		"Fetching signatures in third-party-invite event {}",
+		third_party_invite_event.event_id()
+	);
+	trace!("third-party-invite event content: {}", third_party_invite_event.content().get());
 
 	let Some(signatures) = signed.get("signatures").and_then(|v| v.as_object()) else {
 		warn!("invite event third_party_invite signed missing/invalid signatures");
 		return false;
 	};
-	let mut public_keys = tpi_content.public_keys.unwrap_or_default();
-	public_keys.push(PublicKey {
-		public_key: tpi_content.public_key,
-		key_validity_url: Some(tpi_content.key_validity_url),
-	});
 
-	for pk in public_keys {
+	for pk in get_public_keys(
+		&to_canonical_object(third_party_invite_event.content())
+			.expect("m.room.third_party_invite event content is not a JSON object"),
+	) {
 		// signatures -> { server_name: { ed25519:N: signature } }
 		for (server_name, server_sigs) in signatures {
+			trace!("Searching for signatures from {}", server_name);
 			if let Some(server_sigs) = server_sigs.as_object() {
 				for (key_id, signature_value) in server_sigs {
+					trace!("Checking signature with key id {}", key_id);
 					if let Some(signature_str) = signature_value.as_str() {
-						if let Ok(signature) = Base64::<Standard>::parse(signature_str) {
+						if let Ok(signature) = decode_base64(signature_str) {
 							debug!(
-								?pk,
 								%server_name,
 								%key_id,
 								"verifying third-party invite signature",
 							);
 							match verify_payload(
-								pk.public_key.as_bytes(),
-								signature.as_bytes(),
-								to_raw_value(signed).unwrap().get().as_bytes(),
+								&pk,
+								&signature,
+								serde_json::to_string(&to_canonical_value(signed).unwrap())
+									.unwrap()
+									.as_bytes(),
 							) {
 								| Ok(()) => {
 									debug!("valid third-party invite signature found");
@@ -1610,7 +1674,6 @@ where
 								},
 								| Err(e) => {
 									warn!(
-										?pk,
 										%server_name,
 										%key_id,
 										"invalid third-party invite signature: {e}",
