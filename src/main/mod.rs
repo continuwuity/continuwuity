@@ -5,6 +5,7 @@ use std::sync::{Arc, atomic::Ordering};
 use conduwuit_core::{debug_info, error};
 
 mod clap;
+mod deadlock;
 mod logging;
 mod mods;
 mod panic;
@@ -27,6 +28,9 @@ pub fn run() -> Result<()> {
 }
 
 pub fn run_with_args(args: &Args) -> Result<()> {
+	// Spawn deadlock detection thread
+	deadlock::spawn();
+
 	let runtime = runtime::new(args)?;
 	let server = Server::new(args, Some(runtime.handle()))?;
 
