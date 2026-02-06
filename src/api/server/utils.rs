@@ -1,6 +1,6 @@
 use conduwuit::{Err, Result, implement, is_false};
 use conduwuit_service::Services;
-use futures::{FutureExt, StreamExt, future::OptionFuture, join};
+use futures::{FutureExt, future::OptionFuture, join};
 use ruma::{EventId, RoomId, ServerName};
 
 pub(super) struct AccessCheck<'a> {
@@ -31,15 +31,6 @@ pub(super) async fn check(&self) -> Result {
 		.state_cache
 		.server_in_room(self.origin, self.room_id);
 
-	// if any user on our homeserver is trying to knock this room, we'll need to
-	// acknowledge bans or leaves
-	let user_is_knocking = self
-		.services
-		.rooms
-		.state_cache
-		.room_members_knocked(self.room_id)
-		.count();
-
 	let server_can_see: OptionFuture<_> = self
 		.event_id
 		.map(|event_id| {
@@ -51,14 +42,14 @@ pub(super) async fn check(&self) -> Result {
 		})
 		.into();
 
-	let (world_readable, server_in_room, server_can_see, acl_check, user_is_knocking) =
-		join!(world_readable, server_in_room, server_can_see, acl_check, user_is_knocking);
+	let (world_readable, server_in_room, server_can_see, acl_check) =
+		join!(world_readable, server_in_room, server_can_see, acl_check);
 
 	if !acl_check {
 		return Err!(Request(Forbidden("Server access denied.")));
 	}
 
-	if !world_readable && !server_in_room && user_is_knocking == 0 {
+	if !world_readable && !server_in_room {
 		return Err!(Request(Forbidden("Server is not in room.")));
 	}
 
