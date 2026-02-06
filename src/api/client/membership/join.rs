@@ -15,6 +15,7 @@ use conduwuit::{
 	utils::{
 		self, shuffle,
 		stream::{IterStream, ReadyExt},
+		to_canonical_object,
 	},
 	warn,
 };
@@ -1012,39 +1013,54 @@ async fn make_join_request(
 		trace!("make_join response: {:?}", make_join_response);
 		make_join_counter = make_join_counter.saturating_add(1);
 
-		if let Err(ref e) = make_join_response {
-			if matches!(
-				e.kind(),
-				ErrorKind::IncompatibleRoomVersion { .. } | ErrorKind::UnsupportedRoomVersion
-			) {
-				incompatible_room_version_count =
-					incompatible_room_version_count.saturating_add(1);
-			}
+		match make_join_response {
+			| Ok(response) => {
+				info!("Received make_join response from {remote_server}");
+				if let Err(e) = validate_remote_member_event_stub(
+					&MembershipState::Join,
+					sender_user,
+					room_id,
+					&to_canonical_object(&response.event)?,
+				) {
+					warn!("make_join response from {remote_server} failed validation: {e}");
+					continue;
+				}
+				make_join_response_and_server = Ok((response, remote_server.clone()));
+				break;
+			},
+			| Err(e) => {
+				info!("make_join request to {remote_server} failed: {e}");
+				if matches!(
+					e.kind(),
+					ErrorKind::IncompatibleRoomVersion { .. } | ErrorKind::UnsupportedRoomVersion
+				) {
+					incompatible_room_version_count =
+						incompatible_room_version_count.saturating_add(1);
+				}
 
-			if incompatible_room_version_count > 15 {
-				info!(
-					"15 servers have responded with M_INCOMPATIBLE_ROOM_VERSION or \
-					 M_UNSUPPORTED_ROOM_VERSION, assuming that conduwuit does not support the \
-					 room version {room_id}: {e}"
-				);
-				make_join_response_and_server =
-					Err!(BadServerResponse("Room version is not supported by Conduwuit"));
-				return make_join_response_and_server;
-			}
+				if incompatible_room_version_count > 15 {
+					info!(
+						"15 servers have responded with M_INCOMPATIBLE_ROOM_VERSION or \
+						 M_UNSUPPORTED_ROOM_VERSION, assuming that conduwuit does not support \
+						 the room version {room_id}: {e}"
+					);
+					make_join_response_and_server =
+						Err!(BadServerResponse("Room version is not supported by Conduwuit"));
+					return make_join_response_and_server;
+				}
 
-			if make_join_counter > 40 {
-				warn!(
-					"40 servers failed to provide valid make_join response, assuming no server \
-					 can assist in joining."
-				);
-				make_join_response_and_server =
-					Err!(BadServerResponse("No server available to assist in joining."));
+				if make_join_counter > 40 {
+					warn!(
+						"40 servers failed to provide valid make_join response, assuming no \
+						 server can assist in joining."
+					);
+					make_join_response_and_server =
+						Err!(BadServerResponse("No server available to assist in joining."));
 
-				return make_join_response_and_server;
-			}
+					return make_join_response_and_server;
+				}
+			},
 		}
-
-		make_join_response_and_server = make_join_response.map(|r| (r, remote_server.clone()));
 
 		if make_join_response_and_server.is_ok() {
 			break;
