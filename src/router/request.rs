@@ -8,7 +8,7 @@ use axum::{
 	extract::State,
 	response::{IntoResponse, Response},
 };
-use conduwuit::{Result, debug_warn, err, error, trace, info};
+use conduwuit::{Result, debug_warn, err, error, trace, info, debug_info};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};
@@ -108,7 +108,7 @@ fn handle_result(method: &Method, uri: &Uri, result: Response) -> Result<Respons
 	} else if status.is_redirection() {
 		trace!(%method, %uri, "{code} {reason}");
 	} else {
-		info!(%method, %uri, "{code} {reason}");
+		debug_info!(%method, %uri, "{code} {reason}");
 	}
 
 	if status == StatusCode::METHOD_NOT_ALLOWED {
