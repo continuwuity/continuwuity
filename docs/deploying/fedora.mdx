@@ -1,17 +1,18 @@
 # RPM Installation Guide
 
-Continuwuity is available as RPM packages for Fedora, RHEL, and compatible distributions.
+Continuwuity is available as RPM packages for Fedora and compatible distributions.
+We do not currently have infrastructure to build RPMs for RHEL and compatible distributions, but this is a work in progress.
 
 The RPM packaging files are maintained in the `fedora/` directory:
 - `continuwuity.spec.rpkg` - RPM spec file using rpkg macros for building from git
 - `continuwuity.service` - Systemd service file for the server
 - `RPM-GPG-KEY-continuwuity.asc` - GPG public key for verifying signed packages
 
-RPM packages built by CI are signed with our GPG key (Ed25519, ID: `5E0FF73F411AAFCA`).
+RPM packages built by CI are signed with our GPG key (RSA, ID: `6595 E8DB 9191 D39A 46D6 A514 4BA7 F590 DF0B AA1D`). # spellchecker:disable-line
 
 ```bash
 # Import the signing key
-sudo rpm --import https://forgejo.ellis.link/continuwuation/continuwuity/raw/branch/main/fedora/RPM-GPG-KEY-continuwuity.asc
+sudo rpm --import https://forgejo.ellis.link/api/packages/continuwuation/rpm/repository.key
 
 # Verify a downloaded package
 rpm --checksig continuwuity-*.rpm
@@ -23,7 +24,7 @@ rpm --checksig continuwuity-*.rpm
 
 ```bash
 # Add the repository and install
-sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/stable/continuwuation.repo
+sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/stable.repo
 sudo dnf install continuwuity
 ```
 
@@ -31,7 +32,7 @@ sudo dnf install continuwuity
 
 ```bash
 # Add the dev repository and install
-sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/dev/continuwuation.repo
+sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/dev.repo
 sudo dnf install continuwuity
 ```
 
@@ -39,7 +40,7 @@ sudo dnf install continuwuity
 
 ```bash
 # Branch names are sanitized (slashes become hyphens, lowercase only)
-sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/tom-new-feature/continuwuation.repo
+sudo dnf config-manager addrepo --from-repofile=https://forgejo.ellis.link/api/packages/continuwuation/rpm/tom-new-feature.repo
 sudo dnf install continuwuity
 ```
 
@@ -65,7 +66,7 @@ name=Continuwuity - Matrix homeserver
 baseurl=https://forgejo.ellis.link/api/packages/continuwuation/rpm/stable
 enabled=1
 gpgcheck=1
-gpgkey=https://forgejo.ellis.link/continuwuation/continuwuity/raw/branch/main/fedora/RPM-GPG-KEY-continuwuity.asc
+gpgkey=https://forgejo.ellis.link/api/packages/continuwuation/rpm/repository.key
 EOF
 
 sudo dnf install continuwuity
