@@ -231,7 +231,7 @@ pub(crate) fn validate_remote_member_event_stub(
 	};
 	if event_membership != &membership.as_str() {
 		return Err!(BadServerResponse(
-			"Remote server returned member event with incorrect room_id"
+			"Remote server returned member event with incorrect membership type"
 		));
 	}
 
