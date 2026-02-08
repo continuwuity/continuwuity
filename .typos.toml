@@ -6,14 +6,13 @@ extend-exclude = ["*.csr", "*.lock", "pnpm-lock.yaml"]
 extend-ignore-re = [
     "(?Rm)^.*(#|//|<!--)\\s*spellchecker:disable-line(\\s*-->)$", # Ignore a line by making it trail with a `spellchecker:disable-line` comment
     "^[0-9a-f]{7,}$", # Commit hashes
-
+    "4BA7",
     # some heuristics for base64 strings
     "[A-Za-z0-9+=]{72,}",
     "([A-Za-z0-9+=]|\\\\\\s\\*){72,}",
     "[0-9+][A-Za-z0-9+]{30,}[a-z0-9+]",
     "\\$[A-Z0-9+][A-Za-z0-9+]{6,}[a-z0-9+]",
     "\\b[a-z0-9+/=][A-Za-z0-9+/=]{7,}[a-z0-9+/=][A-Z]\\b",
-
     # In the renovate config
     ".ontainer"
 ]
