@@ -10,7 +10,7 @@ use conduwuit::{
 	},
 	result::FlatOk,
 	trace,
-	utils::{self, shuffle, stream::IterStream},
+	utils::{self, shuffle, stream::IterStream, to_canonical_object},
 	warn,
 };
 use futures::{FutureExt, StreamExt};
@@ -741,6 +741,17 @@ async fn make_knock_request(
 
 		trace!("make_knock response: {make_knock_response:?}");
 		make_knock_counter = make_knock_counter.saturating_add(1);
+		if let Ok(r) = &make_knock_response {
+			if let Err(e) = validate_remote_member_event_stub(
+				&MembershipState::Knock,
+				sender_user,
+				room_id,
+				&to_canonical_object(&r.event)?,
+			) {
+				warn!("make_knock response from {remote_server} failed validation: {e}");
+				continue;
+			}
+		}
 
 		make_knock_response_and_server = make_knock_response.map(|r| (r, remote_server.clone()));
 
