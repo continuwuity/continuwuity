@@ -118,10 +118,8 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			// TODO: make sure that passing None for `last_state` is correct behavior.
-			// the call from `append_pdu` used to use `services.state.summary_stripped`
-			// to fill that parameter.
-			self.mark_as_invited(user_id, room_id, pdu.sender(), None, None)
+			let last_state = self.services.state.summary_stripped(pdu, room_id).await;
+			self.mark_as_invited(user_id, room_id, pdu.sender(), Some(last_state), None)
 				.await?;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
