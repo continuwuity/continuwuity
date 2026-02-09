@@ -30,6 +30,7 @@ struct Services {
 	config: Dep<config::Service>,
 	globals: Dep<globals::Service>,
 	metadata: Dep<rooms::metadata::Service>,
+	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	users: Dep<users::Service>,
 }
@@ -64,6 +65,7 @@ impl crate::Service for Service {
 				config: args.depend::<config::Service>("config"),
 				globals: args.depend::<globals::Service>("globals"),
 				metadata: args.depend::<rooms::metadata::Service>("rooms::metadata"),
+				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				users: args.depend::<users::Service>("users"),
