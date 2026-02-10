@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::{Result, utils::time};
+use conduwuit::{Err, Result, utils::time};
 use futures::StreamExt;
 use ruma::OwnedServerName;
 
@@ -7,6 +7,7 @@ use crate::{admin_command, admin_command_dispatch};
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
+#[allow(clippy::enum_variant_names)]
 /// Resolver service and caches
 pub enum ResolverCommand {
 	/// Query the destinations cache
@@ -17,6 +18,14 @@ pub enum ResolverCommand {
 	/// Query the overrides cache
 	OverridesCache {
 		name: Option<String>,
+	},
+
+	/// Flush a specific server from the resolver caches or everything
+	FlushCache {
+		name: Option<OwnedServerName>,
+
+		#[arg(short, long)]
+		all: bool,
 	},
 }
 
@@ -68,4 +77,19 @@ async fn overrides_cache(&self, server_name: Option<String>) -> Result {
 	}
 
 	Ok(())
+}
+
+#[admin_command]
+async fn flush_cache(&self, name: Option<OwnedServerName>, all: bool) -> Result {
+	if all {
+		self.services.resolver.cache.clear().await;
+		writeln!(self, "Resolver caches cleared!").await
+	} else if let Some(name) = name {
+		self.services.resolver.cache.del_destination(&name);
+		self.services.resolver.cache.del_override(&name);
+		self.write_str(&format!("Cleared {name} from resolver caches!"))
+			.await
+	} else {
+		Err!("Missing name. Supply a name or use --all to flush the whole cache.")
+	}
 }

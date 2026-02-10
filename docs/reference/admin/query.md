@@ -112,6 +112,19 @@ Query the destinations cache
 
 Query the overrides cache
 
+### `!admin query resolver flush-cache`
+
+Flush a given server from the resolver caches or flush them completely
+
+* Examples:
+  * Flush a specific server:
+
+    `!admin query resolver flush-cache matrix.example.com`
+
+  * Flush all resolver caches completely:
+
+    `!admin query resolver flush-cache --all`
+
 ## `!admin query pusher`
 
 pusher service
