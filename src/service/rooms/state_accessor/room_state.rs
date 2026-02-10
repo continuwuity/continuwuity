@@ -1,7 +1,7 @@
 use std::borrow::Borrow;
 
 use conduwuit::{
-	Result, err, implement,
+	Pdu, Result, err, implement,
 	matrix::{Event, StateKey},
 };
 use futures::{Stream, StreamExt, TryFutureExt};
@@ -84,7 +84,7 @@ pub async fn room_state_get(
 	room_id: &RoomId,
 	event_type: &StateEventType,
 	state_key: &str,
-) -> Result<impl Event> {
+) -> Result<Pdu> {
 	self.services
 		.state
 		.get_room_shortstatehash(room_id)
