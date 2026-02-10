@@ -1,7 +1,7 @@
-use std::{cmp, collections::HashMap};
+use std::{cmp, collections::HashMap, future::ready};
 
 use conduwuit::{
-	Err, Pdu, Result, debug, debug_info, debug_warn, error, info,
+	Err, Event, Pdu, Result, debug, debug_info, debug_warn, error, info,
 	result::NotFound,
 	utils::{
 		IterStream, ReadyExt,
@@ -15,8 +15,9 @@ use itertools::Itertools;
 use ruma::{
 	OwnedRoomId, OwnedUserId, RoomId, UserId,
 	events::{
-		GlobalAccountDataEventType, StateEventType, push_rules::PushRulesEvent,
-		room::member::MembershipState,
+		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
+		push_rules::PushRulesEvent,
+		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	push::Ruleset,
 	serde::Raw,
@@ -160,6 +161,14 @@ async fn migrate(services: &Services) -> Result<()> {
 		.is_not_found()
 	{
 		populate_userroomid_leftstate_table(services).await?;
+	}
+
+	if db["global"]
+		.get(FIXED_LOCAL_INVITE_STATE_MARKER)
+		.await
+		.is_not_found()
+	{
+		fix_local_invite_state(services).await?;
 	}
 
 	assert_eq!(
@@ -718,6 +727,49 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 	info!(?total, ?fixed, "Fixed entries in `userroomid_leftstate`.");
 
 	db["global"].insert(POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER, []);
+	db.db.sort()?;
+	Ok(())
+}
+
+const FIXED_LOCAL_INVITE_STATE_MARKER: &str = "fix_local_invite_state";
+async fn fix_local_invite_state(services: &Services) -> Result {
+	// Clean up the effects of !1249 by caching stripped state for invites
+
+	type KeyVal<'a> = (Key<'a>, Raw<Vec<AnyStrippedStateEvent>>);
+	type Key<'a> = (&'a UserId, &'a RoomId);
+
+	let db = &services.db;
+	let cork = db.cork_and_sync();
+	let userroomid_invitestate = services.db["userroomid_invitestate"].clone();
+
+	// for each user invited to a room
+	let fixed =  userroomid_invitestate.stream()
+		// if they're a local user on this homeserver
+		.try_filter(|((user_id, _), _): &KeyVal<'_>| ready(services.globals.user_is_local(user_id)))
+		.and_then(async |((user_id, room_id), stripped_state): KeyVal<'_>| Ok::<_, conduwuit::Error>((user_id.to_owned(), room_id.to_owned(), stripped_state.deserialize()?)))
+		.try_fold(0_usize, async |mut fixed, (user_id, room_id, stripped_state)| {
+			// and their invite state is None
+			if stripped_state.is_empty()
+				// and they are actually invited to the room
+				&& let Ok(membership_event) = services.rooms.state_accessor.room_state_get(&room_id, &StateEventType::RoomMember, user_id.as_str()).await
+				&& membership_event.get_content::<RoomMemberEventContent>().is_ok_and(|content| content.membership == MembershipState::Invite)
+				// and the invite was sent by a local user
+				&& services.globals.user_is_local(&membership_event.sender) {
+
+				// build and save stripped state for their invite in the database
+				let stripped_state = services.rooms.state.summary_stripped(&membership_event, &room_id).await;
+				userroomid_invitestate.put((&user_id, &room_id), Json(stripped_state));
+				fixed = fixed.saturating_add(1);
+			}
+
+			Ok((fixed))
+		})
+		.await?;
+
+	drop(cork);
+	info!(?fixed, "Fixed local invite state cache entries.");
+
+	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
 	db.db.sort()?;
 	Ok(())
 }
