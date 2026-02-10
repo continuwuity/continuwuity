@@ -762,7 +762,7 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 				fixed = fixed.saturating_add(1);
 			}
 
-			Ok((fixed))
+			Ok(fixed)
 		})
 		.await?;
 
