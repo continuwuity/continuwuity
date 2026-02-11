@@ -10,7 +10,7 @@ This guide assumes that you are using docker compose for deployment. LiveKit onl
 
 LiveKit should live on its own domain or subdomain. In this guide we use `livekit.example.com` - this should be replaced with a domain you control.
 
-Make sure the DNS record for the (dub)domain you plan to use is pointed to your server.
+Make sure the DNS record for the (sub)domain you plan to use is pointed to your server.
 
 ### 2. Services
 
@@ -112,7 +112,6 @@ By default, all routes should be forwarded to Livekit with the exception of the 
 - `/sfu/get`
 - `/healthz`
 - `/get_token`
-
 
 ### 6. Start Everything
 
