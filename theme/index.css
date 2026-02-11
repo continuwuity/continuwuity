@@ -105,3 +105,68 @@ body:not(.notTopArrived) header.rp-nav {
 .rspress-logo {
     height: 32px;
 }
+
+/* pre-hero */
+.custom-section {
+    padding: 4rem 1.5rem;
+    background: var(--rp-c-bg);
+}
+
+.custom-cards {
+    display: flex;
+    gap: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.custom-card {
+    padding: 2rem;
+    border: 1px solid var(--rp-c-divider-light);
+    border-radius: 12px;
+    background: var(--rp-c-bg-soft);
+    text-decoration: none;
+    color: var(--rp-c-text-1);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 280px;
+    max-width: 350px;
+}
+
+.custom-card:hover {
+    border-color: var(--rp-c-brand);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.custom-card h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--rp-c-text-0);
+}
+
+.custom-card p {
+    margin: 0 0 1.5rem 0;
+    color: var(--rp-c-text-2);
+    line-height: 1.6;
+    flex: 1;
+}
+
+.custom-card-button {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    background: var(--rp-c-brand);
+    color: white;
+    border-radius: 6px;
+    font-weight: 500;
+    text-align: center;
+    transition: background 0.2s ease;
+}
+
+.custom-card:hover .custom-card-button {
+    background: var(--rp-c-brand-light);
+}
