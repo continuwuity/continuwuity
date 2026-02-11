@@ -1,11 +1,8 @@
 # Matrix RTC/Element Call Setup
 
 :::info
-
 This guide assumes that you are using docker compose for deployment. LiveKit only provides Docker images.
-
 :::
-
 
 ## Instructions
 
@@ -52,7 +49,7 @@ services:
 #      - "50100-50200:50100-50200/udp"
 ```
 
-Next, we need to configure LiveKit. In the same directory, create `livekit.yaml` with the following content - rememvering to replace `LK_MATRIX_KEY` and `LK_MATRIX_SECRET` with the values you generated!
+Next, we need to configure LiveKit. In the same directory, create `livekit.yaml` with the following content - remembering to replace `LK_MATRIX_KEY` and `LK_MATRIX_SECRET` with the values you generated:
 
 ```yaml
 port: 7880
@@ -72,14 +69,13 @@ keys:
 
 You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firewall. If you use UFW, the commands are: `ufw allow 7881/tcp` and `ufw allow 50100:50200/udp`.
 
-
 ### 3. Telling clients where to find LiveKit
 
 To tell clients where to find LiveKit, we need to modify the file served at `https://example.com/.well-known/matrix/client` (for example https://continuwuity.org/.well-known/matrix/client).
 
 Unfortunately Continuwuity doesn't yet provide an easy way to do this (We're working on it). You'll need to serve this file using your web server.
 
-Check the existing contents, and add the following (remembering to replace the URL with your one!)
+Check the existing content and add the following lines, remembering to replace the URL with your own matrix-rtc-jwt deployment:
 
 ```json
   "org.matrix.msc4143.rtc_foci": [
@@ -106,7 +102,6 @@ The final file should look something like this:
 }
 
 ```
-
 
 ### 4. Configure your Reverse Proxy
 
@@ -157,6 +152,5 @@ rtc:
       protocol: udp
       secret: "COTURN_SECRET"
 ```
-
 
 Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling - or anything else.
