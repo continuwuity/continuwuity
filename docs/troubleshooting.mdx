@@ -20,6 +20,16 @@ log into the server account (`@conduit`) from a web client
 
 ## General potential issues
 
+### Configuration not working as expected
+
+Sometimes you can make a mistake in your configuration that
+means things don't get passed to Continuwuity correctly.
+This is particularly easy to do with environment variables.
+To check what configuration Continuwuity actually sees, you can
+use the `!admin server show-config` command in your admin room.
+Beware that this prints out any secrets in your configuration,
+so you might want to delete the result afterwards!
+
 ### Potential DNS issues when using Docker
 
 Docker's DNS setup for containers in a non-default network intercepts queries to
