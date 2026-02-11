@@ -12,6 +12,23 @@ function HomeLayout(props: HomeLayoutProps) {
 
     return (
         <BasicHomeLayout
+            beforeFeatures={
+                frontmatter.beforeFeatures ? (
+                    <section className="custom-section">
+                        <div className="rp-container">
+                            <div className="custom-cards">
+                                {frontmatter.beforeFeatures.map((item: any, index: number) => (
+                                    <a key={index} href={item.link} className="custom-card" target="_blank" rel="noopener noreferrer">
+                                        <h3>{item.title}</h3>
+                                        <p>{item.details}</p>
+                                        <span className="custom-card-button">{item.buttonText || 'Learn More'} →</span>
+                                    </a>
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                ) : <></>
+            }
             afterFeatures={
                 (frontmatter.doc) ?
                 <main className="rp-doc-layout__doc-container">
