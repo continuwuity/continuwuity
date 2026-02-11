@@ -2,7 +2,7 @@
     {
         "text": "Guide",
         "link": "/introduction",
-        "activeMatch": "^/(introduction|configuration|deploying|turn|appservices|maintenance|troubleshooting)"
+        "activeMatch": "^/(introduction|configuration|deploying|calls|appservices|maintenance|troubleshooting)"
     },
     {
         "text": "Development",

@@ -56,6 +56,9 @@ export default defineConfig({
         }, {
             from: '/community$',
             to: '/community/guidelines'
+        }, {
+            from: "/turn",
+            to: "/calls/turn",
         }
         ]
     })],
