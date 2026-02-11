@@ -14,9 +14,16 @@ Make sure the DNS record for the (sub)domain you plan to use is pointed to your 
 
 ### 2. Services
 
-Using LiveKit with matrix requires two services - Livekit itself, and a service that grants Matrix users permission to connect to it.
+Using LiveKit with matrix requires two services - Livekit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
 
 You must generate a key and secret to allow the Matrix service to authenticate with LiveKit. `LK_MATRIX_KEY` should be around 20 random characters, and `LK_MATRIX_SECRET` should be around 64. Remember to replace these with the actual values!
+
+:::tip Generating the secrets
+LiveKit provides a utility to generate secure random keys
+```bash
+docker run --rm livekit/livekit-server:latest generate-keys
+```
+:::
 
 ```yaml
 services:
@@ -152,8 +159,27 @@ rtc:
       secret: "COTURN_SECRET"
 ```
 
+## LiveKit's built in TURN server
+
 Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling - or anything else.
 
+If you don't want to set up a separate TURN server, you can enable this with the following changes:
+
+```yaml
+### add this to livekit.yaml ###
+turn:
+  enabled: true
+  udp_port: 3478
+  relay_range_start: 50300
+  relay_range_end: 50400
+  domain: matrix-rtc.example.com
+```
+
+```yaml
+### Add these to docker-compose ###
+- "3478:3478/udp"
+- "50300-50400:50300-50400/udp"
+```
 
 ### Related Documentation
 
