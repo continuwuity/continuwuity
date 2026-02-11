@@ -1,0 +1,162 @@
+# Matrix RTC/Element Call Setup
+
+:::info
+
+This guide assumes that you are using docker compose for deployment. LiveKit only provides Docker images.
+
+:::
+
+
+## Instructions
+
+### 1. Domain
+
+LiveKit should live on its own domain or subdomain. In this guide we use `livekit.example.com` - this should be replaced with a domain you control.
+
+Make sure the DNS record for the (dub)domain you plan to use is pointed to your server.
+
+### 2. Services
+
+Using LiveKit with matrix requires two services - Livekit itself, and a service that grants Matrix users permission to connect to it.
+
+You must generate a key and secret to allow the Matrix service to authenticate with LiveKit. `LK_MATRIX_KEY` should be around 20 random characters, and `LK_MATRIX_SECRET` should be around 64. Remember to replace these with the actual values!
+
+```yaml
+services:
+  matrix-rtc-jwt:
+    image: ghcr.io/element-hq/lk-jwt-service:latest
+    container_name: matrix-rtc-jwt
+    environment:
+      - LIVEKIT_JWT_BIND=:8081
+      - LIVEKIT_URL=wss://livekit.example.com
+      - LIVEKIT_KEY=LK_MATRIX_KEY
+      - LIVEKIT_SECRET=LK_MATRIX_SECRET
+      - LIVEKIT_FULL_ACCESS_HOMESERVERS=yourdomain.com
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+
+  matrix-rtc-livekit:
+    image: livekit/livekit-server:latest
+    container_name: matrix-rtc-livekit
+    command: --config /etc/livekit.yaml
+    restart: unless-stopped
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    network_mode: "host" # /!\ LiveKit binds to all addresses by default.
+    # Make sure port 7880 is blocked by your firewall to prevent access bypassing your reverse proxy
+    # Alternatively, uncomment the lines below and comment `network_mode: "host"` above to specify port mappings.
+#    ports:
+#      - "127.0.0.1:7880:7880/tcp"
+#      - "7881:7881/tcp"
+#      - "50100-50200:50100-50200/udp"
+```
+
+Next, we need to configure LiveKit. In the same directory, create `livekit.yaml` with the following content - rememvering to replace `LK_MATRIX_KEY` and `LK_MATRIX_SECRET` with the values you generated!
+
+```yaml
+port: 7880
+bind_addresses:
+  - ""
+rtc:
+  tcp_port: 7881
+  port_range_start: 50100
+  port_range_end: 50200
+  use_external_ip: true
+  enable_loopback_candidate: false
+keys:
+  LK_MATRIX_KEY: LK_MATRIX_SECRET
+```
+
+#### Firewall hints
+
+You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firewall. If you use UFW, the commands are: `ufw allow 7881/tcp` and `ufw allow 50100:50200/udp`.
+
+
+### 3. Telling clients where to find LiveKit
+
+To tell clients where to find LiveKit, we need to modify the file served at `https://example.com/.well-known/matrix/client` (for example https://continuwuity.org/.well-known/matrix/client).
+
+Unfortunately Continuwuity doesn't yet provide an easy way to do this (We're working on it). You'll need to serve this file using your web server.
+
+Check the existing contents, and add the following (remembering to replace the URL with your one!)
+
+```json
+  "org.matrix.msc4143.rtc_foci": [
+    {
+      "type": "livekit",
+      "livekit_service_url": "https://livekit.example.com"
+    }
+  ]
+```
+
+The final file should look something like this:
+
+```json
+{
+  "m.homeserver": {
+    "base_url":"https://matrix.example.com"
+  },
+  "org.matrix.msc4143.rtc_foci": [
+    {
+      "type": "livekit",
+      "livekit_service_url": "https://livekit.example.com"
+    }
+  ]
+}
+
+```
+
+
+### 4. Configure your Reverse Proxy
+
+Reverse proxies can be configured in many different ways - so we can't provide a step by step for this.
+
+By default, all routes should be forwarded to Livekit with the exception of the following path prefixes, which should be forwarded to the JWT/Authentication service:
+
+- `/sfu/get`
+- `/healthz`
+- `/get_token`
+
+
+### 6. Start Everything
+
+Start up the services using your usual method - for example `docker compose up -d`.
+
+## Additional Configuration
+
+### TURN Integration
+
+If you've already set up coturn, there may be a port clash between the two services. To fix this, make sure the `min-port` and `max-port` for coturn so it doesn't overlap with LiveKit's range:
+
+```
+min-port=50201
+max-port=65535
+```
+
+To improve LiveKit's reliability, you can configure it to use your coturn server.
+
+Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want - so set a different one for each thing using your TURN server.
+
+Then configure livekit, making sure to replace `COTURN_SECRET`:
+
+```yaml
+# livekit.yaml
+rtc:
+  turn_servers:
+    - host: coturn.ellis.link
+      port: 3478
+      protocol: tcp
+      secret: "COTURN_SECRET"
+    - host: coturn.ellis.link
+      port: 5349
+      protocol: tls # Only if you've set up TLS in your coturn
+      secret: "COTURN_SECRET"
+    - host: coturn.ellis.link
+      port: 3478
+      protocol: udp
+      secret: "COTURN_SECRET"
+```
+
+
+Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling - or anything else.

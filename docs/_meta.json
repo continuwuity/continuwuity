@@ -15,9 +15,9 @@
         "label": "Deploying"
     },
     {
-        "type": "file",
-        "name": "turn",
-        "label": "TURN"
+        "type": "dir",
+        "name": "calls",
+        "label": "Calls"
     },
     {
         "type": "file",
