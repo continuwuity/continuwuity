@@ -530,7 +530,12 @@ impl Service {
 		Ok(())
 	}
 
-	pub async fn is_admin_command<E>(&self, event: &E, body: &str) -> Option<InvocationSource>
+	pub async fn is_admin_command<E>(
+		&self,
+		event: &E,
+		body: &str,
+		sent_locally: bool,
+	) -> Option<InvocationSource>
 	where
 		E: Event + Send + Sync,
 	{
@@ -577,6 +582,15 @@ impl Service {
 
 			// Check if escaped commands are disabled in the config
 			if !self.services.server.config.admin_escape_commands {
+				return None;
+			}
+
+			// Escaped commands must be sent locally (via client API), not via federation
+			if !sent_locally {
+				conduwuit::warn!(
+					"Ignoring escaped admin command from {} that arrived via federation",
+					event.sender()
+				);
 				return None;
 			}
 

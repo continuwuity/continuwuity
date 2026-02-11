@@ -72,6 +72,26 @@ where
 		.append_pdu(pdu, pdu_json, new_room_leaves, state_lock, room_id)
 		.await?;
 
+	// Process admin commands for federation events
+	if *pdu.kind() == TimelineEventType::RoomMessage {
+		let content: ExtractBody = pdu.get_content()?;
+		if let Some(body) = content.body {
+			if let Some(source) = self
+				.services
+				.admin
+				.is_admin_command(pdu, &body, false)
+				.await
+			{
+				self.services.admin.command_with_sender(
+					body,
+					Some(pdu.event_id().into()),
+					source,
+					pdu.sender.clone().into(),
+				)?;
+			}
+		}
+	}
+
 	Ok(Some(pdu_id))
 }
 
@@ -334,15 +354,6 @@ where
 			let content: ExtractBody = pdu.get_content()?;
 			if let Some(body) = content.body {
 				self.services.search.index_pdu(shortroomid, &pdu_id, &body);
-
-				if let Some(source) = self.services.admin.is_admin_command(pdu, &body).await {
-					self.services.admin.command_with_sender(
-						body,
-						Some((pdu.event_id()).into()),
-						source,
-						pdu.sender.clone().into(),
-					)?;
-				}
 			}
 		},
 		| _ => {},

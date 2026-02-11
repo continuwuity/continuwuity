@@ -18,7 +18,7 @@ use ruma::{
 	},
 };
 
-use super::RoomMutexGuard;
+use super::{ExtractBody, RoomMutexGuard};
 
 /// Creates a new persisted data unit and adds it to a room. This function
 /// takes a roomid_mutex_state, meaning that only this function is able to
@@ -126,6 +126,26 @@ pub async fn build_and_append_pdu(
 		.boxed()
 		.await?;
 
+	// Process admin commands for locally sent events
+	if *pdu.kind() == TimelineEventType::RoomMessage {
+		let content: ExtractBody = pdu.get_content()?;
+		if let Some(body) = content.body {
+			if let Some(source) = self
+				.services
+				.admin
+				.is_admin_command(&pdu, &body, true)
+				.await
+			{
+				self.services.admin.command_with_sender(
+					body,
+					Some(pdu.event_id().into()),
+					source,
+					pdu.sender.clone().into(),
+				)?;
+			}
+		}
+	}
+
 	// We set the room state after inserting the pdu, so that we never have a moment
 	// in time where events in the current room state do not exist
 	trace!("Setting room state for room {room_id}");
@@ -167,6 +187,8 @@ pub async fn build_and_append_pdu(
 	Ok(pdu.event_id().to_owned())
 }
 
+/// Assert invariants about the admin room, to prevent (for example) all admins
+/// from leaving or being banned from the room
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, level = "debug")]
 async fn check_pdu_for_admin_room<Pdu>(&self, pdu: &Pdu, sender: &UserId) -> Result
