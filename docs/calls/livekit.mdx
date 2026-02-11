@@ -124,7 +124,7 @@ Start up the services using your usual method - for example `docker compose up -
 
 If you've already set up coturn, there may be a port clash between the two services. To fix this, make sure the `min-port` and `max-port` for coturn so it doesn't overlap with LiveKit's range:
 
-```
+```ini
 min-port=50201
 max-port=65535
 ```
@@ -154,3 +154,9 @@ rtc:
 ```
 
 Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling - or anything else.
+
+
+### Related Documentation
+
+- [LiveKit GitHub](https://github.com/livekit/livekit)
+- [LiveKit Connection Tester](https://livekit.io/connection-test) - use with the token returned by `/sfu/get` or `/get_token`
