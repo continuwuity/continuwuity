@@ -24,6 +24,9 @@ conduwuit_mods = [
 gzip_compression = [
 	"reqwest/gzip",
 ]
+http3 = [
+	"reqwest/http3",
+]
 hardened_malloc = [
 	"dep:hardened_malloc-rs"
 ]

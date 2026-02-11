@@ -32,6 +32,9 @@ gzip_compression = [
 	"conduwuit-core/gzip_compression",
 	"reqwest/gzip",
 ]
+http3 = [
+	"conduwuit-core/http3",
+]
 io_uring = [
 	"conduwuit-database/io_uring",
 ]

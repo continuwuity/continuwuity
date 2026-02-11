@@ -99,6 +99,11 @@ gzip_compression = [
 hardened_malloc = [
 	"conduwuit-core/hardened_malloc",
 ]
+http3 = [
+	"conduwuit-api/http3",
+	"conduwuit-core/http3",
+	"conduwuit-service/http3",
+]
 io_uring = [
 	"conduwuit-database/io_uring",
 ]

@@ -162,6 +162,7 @@ ENV CONDUWUIT_VERSION_EXTRA=$CONDUWUIT_VERSION_EXTRA
 ENV CONTINUWUITY_VERSION_EXTRA=$CONTINUWUITY_VERSION_EXTRA
 
 ARG RUST_PROFILE=release
+ARG CARGO_FEATURES="default,http3"
 
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -171,11 +172,20 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     set -o allexport
     set -o xtrace
     . /etc/environment
+
+    # Check if http3 feature is enabled and set appropriate RUSTFLAGS
+    if echo "${CARGO_FEATURES}" | grep -q "http3"; then
+        export RUSTFLAGS="${RUSTFLAGS} --cfg reqwest_unstable"
+    else
+        export RUSTFLAGS="${RUSTFLAGS}"
+    fi
+
     TARGET_DIR=($(cargo metadata --no-deps --format-version 1 | \
             jq -r ".target_directory"))
     mkdir /out/sbin
     PACKAGE=conduwuit
     xx-cargo build --locked --profile ${RUST_PROFILE} \
+        --no-default-features --features ${CARGO_FEATURES} \
         -p $PACKAGE;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
