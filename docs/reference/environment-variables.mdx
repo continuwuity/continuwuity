@@ -1,0 +1,281 @@
+# Environment Variables
+
+Continuwuity can be configured entirely through environment variables, making it
+ideal for containerised deployments and infrastructure-as-code scenarios.
+
+This is a convenience reference and may not be exhaustive. The
+[Configuration Reference](./config.mdx) is the primary source for all
+configuration options.
+
+## Prefix System
+
+Continuwuity supports three environment variable prefixes for backwards
+compatibility:
+
+- `CONTINUWUITY_*` (current, recommended)
+- `CONDUWUIT_*` (compatibility)
+- `CONDUIT_*` (legacy)
+
+All three prefixes work identically. Use double underscores (`__`) to represent
+nested configuration sections from the TOML config.
+
+**Examples:**
+
+```bash
+# Simple top-level config
+CONTINUWUITY_SERVER_NAME="matrix.example.com"
+CONTINUWUITY_PORT="8008"
+
+# Nested config sections use double underscores
+# This maps to [database] section in TOML
+CONTINUWUITY_DATABASE__PATH="/var/lib/continuwuity"
+
+# This maps to [tls] section in TOML
+CONTINUWUITY_TLS__CERTS="/path/to/cert.pem"
+```
+
+## Configuration File Override
+
+You can specify a custom configuration file path:
+
+- `CONTINUWUITY_CONFIG` - Path to continuwuity.toml (current)
+- `CONDUWUIT_CONFIG` - Path to config file (compatibility)
+- `CONDUIT_CONFIG` - Path to config file (legacy)
+
+## Essential Variables
+
+These are the minimum variables needed for a working deployment:
+
+| Variable                     | Description                        | Default                |
+| ---------------------------- | ---------------------------------- | ---------------------- |
+| `CONTINUWUITY_SERVER_NAME`   | Your Matrix server's domain name   | Required               |
+| `CONTINUWUITY_DATABASE_PATH` | Path to RocksDB database directory | `/var/lib/conduwuit`   |
+| `CONTINUWUITY_ADDRESS`       | IP address to bind to              | `["127.0.0.1", "::1"]` |
+| `CONTINUWUITY_PORT`          | Port to listen on                  | `8008`                 |
+
+## Network Configuration
+
+| Variable                         | Description                                     | Default                |
+| -------------------------------- | ----------------------------------------------- | ---------------------- |
+| `CONTINUWUITY_ADDRESS`           | Bind address (use `0.0.0.0` for all interfaces) | `["127.0.0.1", "::1"]` |
+| `CONTINUWUITY_PORT`              | HTTP port                                       | `8008`                 |
+| `CONTINUWUITY_UNIX_SOCKET_PATH`  | UNIX socket path (alternative to TCP)           | -                      |
+| `CONTINUWUITY_UNIX_SOCKET_PERMS` | Socket permissions (octal)                      | `660`                  |
+
+## Database Configuration
+
+| Variable                                   | Description                 | Default              |
+| ------------------------------------------ | --------------------------- | -------------------- |
+| `CONTINUWUITY_DATABASE_PATH`               | RocksDB data directory      | `/var/lib/conduwuit` |
+| `CONTINUWUITY_DATABASE_BACKUP_PATH`        | Backup directory            | -                    |
+| `CONTINUWUITY_DATABASE_BACKUPS_TO_KEEP`    | Number of backups to retain | `1`                  |
+| `CONTINUWUITY_DB_CACHE_CAPACITY_MB`        | Database read cache (MB)    | -                    |
+| `CONTINUWUITY_DB_WRITE_BUFFER_CAPACITY_MB` | Write cache (MB)            | -                    |
+
+## Cache Configuration
+
+| Variable                                 | Description              |
+| ---------------------------------------- | ------------------------ |
+| `CONTINUWUITY_CACHE_CAPACITY_MODIFIER`   | LRU cache multiplier     |
+| `CONTINUWUITY_PDU_CACHE_CAPACITY`        | PDU cache entries        |
+| `CONTINUWUITY_AUTH_CHAIN_CACHE_CAPACITY` | Auth chain cache entries |
+
+## DNS Configuration
+
+Configure DNS resolution behaviour for federation and external requests.
+
+| Variable                             | Description                  | Default  |
+| ------------------------------------ | ---------------------------- | -------- |
+| `CONTINUWUITY_DNS_CACHE_ENTRIES`     | Max DNS cache entries        | `32768`  |
+| `CONTINUWUITY_DNS_MIN_TTL`           | Minimum cache TTL (seconds)  | `10800`  |
+| `CONTINUWUITY_DNS_MIN_TTL_NXDOMAIN`  | NXDOMAIN cache TTL (seconds) | `259200` |
+| `CONTINUWUITY_DNS_ATTEMPTS`          | Retry attempts               | -        |
+| `CONTINUWUITY_DNS_TIMEOUT`           | Query timeout (seconds)      | -        |
+| `CONTINUWUITY_DNS_TCP_FALLBACK`      | Allow TCP fallback           | -        |
+| `CONTINUWUITY_QUERY_ALL_NAMESERVERS` | Query all nameservers        | -        |
+| `CONTINUWUITY_QUERY_OVER_TCP_ONLY`   | TCP-only queries             | -        |
+
+## Request Configuration
+
+| Variable                             | Description                   |
+| ------------------------------------ | ----------------------------- |
+| `CONTINUWUITY_MAX_REQUEST_SIZE`      | Max HTTP request size (bytes) |
+| `CONTINUWUITY_REQUEST_CONN_TIMEOUT`  | Connection timeout (seconds)  |
+| `CONTINUWUITY_REQUEST_TIMEOUT`       | Overall request timeout       |
+| `CONTINUWUITY_REQUEST_TOTAL_TIMEOUT` | Total timeout                 |
+| `CONTINUWUITY_REQUEST_IDLE_TIMEOUT`  | Idle timeout                  |
+| `CONTINUWUITY_REQUEST_IDLE_PER_HOST` | Idle connections per host     |
+
+## Federation Configuration
+
+Control how your server federates with other Matrix servers.
+
+| Variable                                       | Description                   | Default |
+| ---------------------------------------------- | ----------------------------- | ------- |
+| `CONTINUWUITY_ALLOW_FEDERATION`                | Enable federation             | `true`  |
+| `CONTINUWUITY_FEDERATION_LOOPBACK`             | Allow loopback federation     | -       |
+| `CONTINUWUITY_FEDERATION_CONN_TIMEOUT`         | Connection timeout            | -       |
+| `CONTINUWUITY_FEDERATION_TIMEOUT`              | Request timeout               | -       |
+| `CONTINUWUITY_FEDERATION_IDLE_TIMEOUT`         | Idle timeout                  | -       |
+| `CONTINUWUITY_FEDERATION_IDLE_PER_HOST`        | Idle connections per host     | -       |
+| `CONTINUWUITY_TRUSTED_SERVERS`                 | JSON array of trusted servers | -       |
+| `CONTINUWUITY_QUERY_TRUSTED_KEY_SERVERS_FIRST` | Query trusted first           | -       |
+| `CONTINUWUITY_ONLY_QUERY_TRUSTED_KEY_SERVERS`  | Only query trusted            | -       |
+
+**Example:**
+
+```bash
+# Trust matrix.org for key verification
+CONTINUWUITY_TRUSTED_SERVERS='["matrix.org"]'
+```
+
+## Registration & User Configuration
+
+Control user registration and account creation behaviour.
+
+| Variable                                   | Description           | Default |
+| ------------------------------------------ | --------------------- | ------- |
+| `CONTINUWUITY_ALLOW_REGISTRATION`          | Enable registration   | `true`  |
+| `CONTINUWUITY_REGISTRATION_TOKEN`          | Token requirement     | -       |
+| `CONTINUWUITY_SUSPEND_ON_REGISTER`         | Suspend new accounts  | -       |
+| `CONTINUWUITY_NEW_USER_DISPLAYNAME_SUFFIX` | Display name suffix   | 🏳️‍⚧️      |
+| `CONTINUWUITY_RECAPTCHA_SITE_KEY`          | reCAPTCHA site key    | -       |
+| `CONTINUWUITY_RECAPTCHA_PRIVATE_SITE_KEY`  | reCAPTCHA private key | -       |
+
+**Example:**
+
+```bash
+# Disable open registration
+CONTINUWUITY_ALLOW_REGISTRATION="false"
+
+# Require a registration token
+CONTINUWUITY_REGISTRATION_TOKEN="your_secret_token_here"
+```
+
+## Feature Configuration
+
+| Variable                                                   | Description                | Default |
+| ---------------------------------------------------------- | -------------------------- | ------- |
+| `CONTINUWUITY_ALLOW_ENCRYPTION`                            | Enable E2EE                | `true`  |
+| `CONTINUWUITY_ALLOW_ROOM_CREATION`                         | Enable room creation       | -       |
+| `CONTINUWUITY_ALLOW_UNSTABLE_ROOM_VERSIONS`                | Allow unstable versions    | -       |
+| `CONTINUWUITY_DEFAULT_ROOM_VERSION`                        | Default room version       | `v11`   |
+| `CONTINUWUITY_REQUIRE_AUTH_FOR_PROFILE_REQUESTS`           | Auth for profiles          | -       |
+| `CONTINUWUITY_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION` | Federate directory         | -       |
+| `CONTINUWUITY_ALLOW_PUBLIC_ROOM_DIRECTORY_WITHOUT_AUTH`    | Unauth directory           | -       |
+| `CONTINUWUITY_ALLOW_DEVICE_NAME_FEDERATION`                | Device names in federation | -       |
+
+## TLS Configuration
+
+Built-in TLS support is primarily for testing. **For production deployments,
+especially when federating on the internet, use a reverse proxy** (Traefik,
+Caddy, nginx) to handle TLS termination.
+
+| Variable                          | Description               |
+| --------------------------------- | ------------------------- |
+| `CONTINUWUITY_TLS__CERTS`         | TLS certificate file path |
+| `CONTINUWUITY_TLS__KEY`           | TLS private key path      |
+| `CONTINUWUITY_TLS__DUAL_PROTOCOL` | Support TLS 1.2 + 1.3     |
+
+**Example (testing only):**
+
+```bash
+CONTINUWUITY_TLS__CERTS="/etc/letsencrypt/live/matrix.example.com/fullchain.pem"
+CONTINUWUITY_TLS__KEY="/etc/letsencrypt/live/matrix.example.com/privkey.pem"
+```
+
+## Logging Configuration
+
+Control log output format and verbosity.
+
+| Variable                       | Description        | Default |
+| ------------------------------ | ------------------ | ------- |
+| `CONTINUWUITY_LOG`             | Log filter level   | -       |
+| `CONTINUWUITY_LOG_COLORS`      | ANSI colours       | `true`  |
+| `CONTINUWUITY_LOG_SPAN_EVENTS` | Log span events    | `none`  |
+| `CONTINUWUITY_LOG_THREAD_IDS`  | Include thread IDs | -       |
+
+**Examples:**
+
+```bash
+# Set log level to info
+CONTINUWUITY_LOG="info"
+
+# Enable debug logging for specific modules
+CONTINUWUITY_LOG="warn,continuwuity::api=debug"
+
+# Disable colours for log aggregation
+CONTINUWUITY_LOG_COLORS="false"
+```
+
+## Observability Configuration
+
+| Variable                                 | Description           |
+| ---------------------------------------- | --------------------- |
+| `CONTINUWUITY_ALLOW_OTLP`                | Enable OpenTelemetry  |
+| `CONTINUWUITY_OTLP_FILTER`               | OTLP filter level     |
+| `CONTINUWUITY_OTLP_PROTOCOL`             | Protocol (http/grpc)  |
+| `CONTINUWUITY_TRACING_FLAME`             | Enable flame graphs   |
+| `CONTINUWUITY_TRACING_FLAME_FILTER`      | Flame graph filter    |
+| `CONTINUWUITY_TRACING_FLAME_OUTPUT_PATH` | Output directory      |
+| `CONTINUWUITY_SENTRY`                    | Enable Sentry         |
+| `CONTINUWUITY_SENTRY_ENDPOINT`           | Sentry DSN            |
+| `CONTINUWUITY_SENTRY_SEND_SERVER_NAME`   | Include server name   |
+| `CONTINUWUITY_SENTRY_TRACES_SAMPLE_RATE` | Sample rate (0.0-1.0) |
+
+## Admin Configuration
+
+Configure admin users and automated command execution.
+
+| Variable                                   | Description                      | Default           |
+| ------------------------------------------ | -------------------------------- | ----------------- |
+| `CONTINUWUITY_ADMINS_LIST`                 | JSON array of admin user IDs     | -                 |
+| `CONTINUWUITY_ADMINS_FROM_ROOM`            | Derive admins from room          | -                 |
+| `CONTINUWUITY_ADMIN_ESCAPE_COMMANDS`       | Allow `\` prefix in public rooms | -                 |
+| `CONTINUWUITY_ADMIN_CONSOLE_AUTOMATIC`     | Auto-activate console            | -                 |
+| `CONTINUWUITY_ADMIN_EXECUTE`               | JSON array of startup commands   | -                 |
+| `CONTINUWUITY_ADMIN_EXECUTE_ERRORS_IGNORE` | Ignore command errors            | -                 |
+| `CONTINUWUITY_ADMIN_SIGNAL_EXECUTE`        | Commands on SIGUSR2              | -                 |
+| `CONTINUWUITY_ADMIN_ROOM_TAG`              | Admin room tag                   | `m.server_notice` |
+
+**Examples:**
+
+```bash
+# Create admin user on startup
+CONTINUWUITY_ADMIN_EXECUTE='["users create-user admin", "users make-user-admin admin"]'
+
+# Specify admin users directly
+CONTINUWUITY_ADMINS_LIST='["@alice:example.com", "@bob:example.com"]'
+```
+
+## Media & URL Preview Configuration
+
+| Variable                                             | Description        |
+| ---------------------------------------------------- | ------------------ |
+| `CONTINUWUITY_URL_PREVIEW_BOUND_INTERFACE`           | Bind interface     |
+| `CONTINUWUITY_URL_PREVIEW_DOMAIN_CONTAINS_ALLOWLIST` | Domain allowlist   |
+| `CONTINUWUITY_URL_PREVIEW_DOMAIN_EXPLICIT_ALLOWLIST` | Explicit allowlist |
+| `CONTINUWUITY_URL_PREVIEW_DOMAIN_EXPLICIT_DENYLIST`  | Explicit denylist  |
+| `CONTINUWUITY_URL_PREVIEW_MAX_SPIDER_SIZE`           | Max fetch size     |
+| `CONTINUWUITY_URL_PREVIEW_TIMEOUT`                   | Fetch timeout      |
+| `CONTINUWUITY_IP_RANGE_DENYLIST`                     | IP range denylist  |
+
+## Tokio Runtime Configuration
+
+These can be set as environment variables or CLI arguments:
+
+| Variable                                  | Description                |
+| ----------------------------------------- | -------------------------- |
+| `TOKIO_WORKER_THREADS`                    | Worker thread count        |
+| `TOKIO_GLOBAL_QUEUE_INTERVAL`             | Global queue interval      |
+| `TOKIO_EVENT_INTERVAL`                    | Event interval             |
+| `TOKIO_MAX_IO_EVENTS_PER_TICK`            | Max I/O events per tick    |
+| `CONTINUWUITY_RUNTIME_HISTOGRAM_INTERVAL` | Histogram bucket size (μs) |
+| `CONTINUWUITY_RUNTIME_HISTOGRAM_BUCKETS`  | Bucket count               |
+| `CONTINUWUITY_RUNTIME_WORKER_AFFINITY`    | Enable worker affinity     |
+
+## See Also
+
+- [Configuration Reference](./config.mdx) - Complete TOML configuration
+  documentation
+- [Admin Commands](./admin/) - Admin command reference
