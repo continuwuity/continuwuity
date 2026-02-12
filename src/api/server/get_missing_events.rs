@@ -86,7 +86,7 @@ pub(crate) async fn get_missing_events_route(
 			.await
 		{
 			debug!(%next_event_id, origin = %body.origin(), "redacting event origin cannot see");
-			pdu.redact(&room_version, json!({}))?
+			pdu.redact(&room_version, json!({}))?;
 		}
 
 		trace!(
@@ -112,7 +112,7 @@ pub(crate) async fn get_missing_events_route(
 			seen_len = seen.len(),
 			results_len = results.len(),
 			"event added to results"
-		)
+		);
 	}
 
 	if !queue.is_empty() {
