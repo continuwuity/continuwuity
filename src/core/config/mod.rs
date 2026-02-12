@@ -19,7 +19,7 @@ pub use figment::{Figment, value::Value as FigmentValue};
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
-	api::client::discovery::discover_support::ContactRole,
+	api::client::discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
 };
 use serde::{Deserialize, de::IgnoredAny};
 use url::Url;
@@ -2111,6 +2111,19 @@ pub struct WellKnownConfig {
 	/// If no email or mxid is specified, all of the server's admins will be
 	/// listed.
 	pub support_mxid: Option<OwnedUserId>,
+
+	/// A list of MatrixRTC foci URLs which will be served as part of the
+	/// MSC4143 client endpoint at /.well-known/matrix/client.  If you're
+	/// setting up livekit, you'd want something like:
+	/// rtc_focus_server_urls = [
+	///     { type = "livekit", server_url = "https://livekit.example.com" },
+	/// ]
+	///
+	/// To disable, set this to be an empty vector (`[]`).
+	///
+	/// Defaults to: []
+	#[serde(default = "default_rtc_focus_urls")]
+	pub rtc_focus_server_urls: Vec<RtcFocusInfo>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Default)]
@@ -2607,6 +2620,9 @@ fn default_rocksdb_stats_level() -> u8 { 1 }
 #[must_use]
 #[inline]
 pub fn default_default_room_version() -> RoomVersionId { RoomVersionId::V11 }
+
+#[must_use]
+pub fn default_rtc_focus_urls() -> Vec<RtcFocusInfo> { vec![] }
 
 fn default_ip_range_denylist() -> Vec<String> {
 	vec![

@@ -1820,6 +1820,19 @@
 #
 #support_mxid =
 
+# A list of MatrixRTC foci URLs which will be served as part of the
+# MSC4143 client endpoint at /.well-known/matrix/client.  If you're
+# setting up livekit, you'd want something like:
+# rtc_focus_server_urls = [
+#     { type = "livekit", server_url = "https://livekit.example.com" },
+# ]
+#
+# To disable, set this to be an empty vector (`[]`).
+#
+# Defaults to: []
+#
+#rtc_focus_server_urls =
+
 [global.blurhashing]
 
 # blurhashing x component, 4 is recommended by https://blurha.sh/

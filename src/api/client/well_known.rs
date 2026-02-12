@@ -27,6 +27,7 @@ pub(crate) async fn well_known_client(
 		identity_server: None,
 		sliding_sync_proxy: Some(SlidingSyncProxyInfo { url: client_url }),
 		tile_server: None,
+		rtc_foci: services.config.well_known.rtc_focus_server_urls.clone(),
 	})
 }
 
