@@ -148,7 +148,12 @@ pub(crate) async fn register_route(
 	let is_guest = body.kind == RegistrationKind::Guest;
 	let emergency_mode_enabled = services.config.emergency_password.is_some();
 
-	if !services.config.allow_registration && body.appservice_info.is_none() {
+	// Allow registration if it's enabled in the config file or if this is the first
+	// run (so the first user account can be created)
+	let allow_registration =
+		services.config.allow_registration || services.firstrun.is_first_run();
+
+	if !allow_registration && body.appservice_info.is_none() {
 		match (body.username.as_ref(), body.initial_device_display_name.as_ref()) {
 			| (Some(username), Some(device_display_name)) => {
 				info!(
@@ -302,54 +307,63 @@ pub(crate) async fn register_route(
 	let skip_auth = body.appservice_info.is_some() || is_guest;
 
 	// Populate required UIAA flows
-	if services
-		.registration_tokens
-		.iterate_tokens()
-		.next()
-		.await
-		.is_some()
-	{
-		// Registration token required
+
+	if services.firstrun.is_first_run() {
+		// Registration token forced while in first-run mode
 		uiaainfo.flows.push(AuthFlow {
 			stages: vec![AuthType::RegistrationToken],
 		});
-	}
-	if services.config.recaptcha_private_site_key.is_some() {
-		if let Some(pubkey) = &services.config.recaptcha_site_key {
-			// ReCaptcha required
-			uiaainfo
-				.flows
-				.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
-			uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
-				"m.login.recaptcha": {
-					"public_key": pubkey,
-				},
-			}))
-			.expect("Failed to serialize recaptcha params");
-		}
-	}
-
-	if uiaainfo.flows.is_empty() && !skip_auth {
-		// Registration isn't _disabled_, but there's no captcha configured and no
-		// registration tokens currently set. Bail out by default unless open
-		// registration was explicitly enabled.
-		if !services
-			.config
-			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+	} else {
+		if services
+			.registration_tokens
+			.iterate_tokens()
+			.next()
+			.await
+			.is_some()
 		{
-			return Err!(Request(Forbidden(
-				"This server is not accepting registrations at this time."
-			)));
+			// Registration token required
+			uiaainfo.flows.push(AuthFlow {
+				stages: vec![AuthType::RegistrationToken],
+			});
 		}
 
-		// We have open registration enabled (😧), provide a dummy stage
-		uiaainfo = UiaaInfo {
-			flows: vec![AuthFlow { stages: vec![AuthType::Dummy] }],
-			completed: Vec::new(),
-			params: Box::default(),
-			session: None,
-			auth_error: None,
-		};
+		if services.config.recaptcha_private_site_key.is_some() {
+			if let Some(pubkey) = &services.config.recaptcha_site_key {
+				// ReCaptcha required
+				uiaainfo
+					.flows
+					.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
+				uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
+					"m.login.recaptcha": {
+						"public_key": pubkey,
+					},
+				}))
+				.expect("Failed to serialize recaptcha params");
+			}
+		}
+
+		if uiaainfo.flows.is_empty() && !skip_auth {
+			// Registration isn't _disabled_, but there's no captcha configured and no
+			// registration tokens currently set. Bail out by default unless open
+			// registration was explicitly enabled.
+			if !services
+				.config
+				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+			{
+				return Err!(Request(Forbidden(
+					"This server is not accepting registrations at this time."
+				)));
+			}
+
+			// We have open registration enabled (😧), provide a dummy stage
+			uiaainfo = UiaaInfo {
+				flows: vec![AuthFlow { stages: vec![AuthType::Dummy] }],
+				completed: Vec::new(),
+				params: Box::default(),
+				session: None,
+				auth_error: None,
+			};
+		}
 	}
 
 	if !skip_auth {
@@ -507,39 +521,29 @@ pub(crate) async fn register_route(
 		}
 	}
 
-	// If this is the first real user, grant them admin privileges except for guest
-	// users
-	// Note: the server user is generated first
 	if !is_guest {
-		if let Ok(admin_room) = services.admin.get_admin_room().await {
-			if services
-				.rooms
-				.state_cache
-				.room_joined_count(&admin_room)
-				.await
-				.is_ok_and(is_equal_to!(1))
-			{
-				services.admin.make_user_admin(&user_id).boxed().await?;
-				warn!("Granting {user_id} admin privileges as the first user");
-			} else if services.config.suspend_on_register {
-				// This is not an admin, suspend them.
-				// Note that we can still do auto joins for suspended users
+		// Make the first user to register an administrator and disable first-run mode.
+		let was_first_user = services.firstrun.empower_first_user(&user_id).await?;
+
+		// If the registering user was not the first and we're suspending users on
+		// register, suspend them.
+		if !was_first_user && services.config.suspend_on_register {
+			// Note that we can still do auto joins for suspended users
+			services
+				.users
+				.suspend_account(&user_id, &services.globals.server_user)
+				.await;
+			// And send an @room notice to the admin room, to prompt admins to review the
+			// new user and ideally unsuspend them if deemed appropriate.
+			if services.server.config.admin_room_notices {
 				services
-					.users
-					.suspend_account(&user_id, &services.globals.server_user)
-					.await;
-				// And send an @room notice to the admin room, to prompt admins to review the
-				// new user and ideally unsuspend them if deemed appropriate.
-				if services.server.config.admin_room_notices {
-					services
-						.admin
-						.send_loud_message(RoomMessageEventContent::text_plain(format!(
-							"User {user_id} has been suspended as they are not the first user \
-							 on this server. Please review and unsuspend them if appropriate."
-						)))
-						.await
-						.ok();
-				}
+					.admin
+					.send_loud_message(RoomMessageEventContent::text_plain(format!(
+						"User {user_id} has been suspended as they are not the first user on \
+						 this server. Please review and unsuspend them if appropriate."
+					)))
+					.await
+					.ok();
 			}
 		}
 	}

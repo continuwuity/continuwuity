@@ -20,9 +20,7 @@ crate-type = [
 [dependencies]
 conduwuit-build-metadata.workspace = true
 conduwuit-service.workspace = true
-
-askama = "0.14.0"
-
+askama.workspace = true
 axum.workspace = true
 futures.workspace = true
 tracing.workspace = true

@@ -126,23 +126,6 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		}
 	}
 
-	if self.services.server.config.admin_room_notices {
-		let welcome_message = String::from(
-			"## Thank you for trying out Continuwuity!\n\nContinuwuity is a hard fork of conduwuit, which is also a hard fork of Conduit, currently in Beta. The Beta status initially was inherited from Conduit, however overtime this Beta status is rapidly becoming less and less relevant as our codebase significantly diverges more and more. Continuwuity is quite stable and very usable as a daily driver and for a low-medium sized homeserver. There is still a lot of more work to be done, but it is in a far better place than the project was in early 2024.\n\nHelpful links:\n> Source code: https://forgejo.ellis.link/continuwuation/continuwuity\n> Documentation: https://continuwuity.org/\n> Report issues: https://forgejo.ellis.link/continuwuation/continuwuity/issues\n\nFor a list of available commands, send the following message in this room: `!admin --help`\n\nHere are some rooms you can join (by typing the command into your client) -\n\nContinuwuity space: `/join #space:continuwuity.org`\nContinuwuity main room (Ask questions and get notified on updates): `/join #continuwuity:continuwuity.org`\nContinuwuity offtopic room: `/join #offtopic:continuwuity.org`",
-		);
-
-		// Send welcome message
-		self.services
-			.timeline
-			.build_and_append_pdu(
-				PduBuilder::timeline(&RoomMessageEventContent::text_markdown(welcome_message)),
-				server_user,
-				Some(&room_id),
-				&state_lock,
-			)
-			.await?;
-	}
-
 	Ok(())
 }
 

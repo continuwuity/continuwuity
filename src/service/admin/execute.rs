@@ -26,7 +26,7 @@ pub(super) async fn console_auto_stop(&self) {
 
 /// Execute admin commands after startup
 #[implement(super::Service)]
-pub(super) async fn startup_execute(&self) -> Result {
+pub(crate) async fn startup_execute(&self) -> Result {
 	// List of commands to execute
 	let commands = &self.services.server.config.admin_execute;
 

@@ -137,7 +137,6 @@ impl crate::Service for Service {
 		let mut signals = self.services.server.signal.subscribe();
 		let receiver = self.channel.1.clone();
 
-		self.startup_execute().await?;
 		self.console_auto_start().await;
 
 		loop {

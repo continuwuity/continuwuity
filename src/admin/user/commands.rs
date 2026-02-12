@@ -167,27 +167,8 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 
 	// we dont add a device since we're not the user, just the creator
 
-	// if this account creation is from the CLI / --execute, invite the first user
-	// to admin room
-	if let Ok(admin_room) = self.services.admin.get_admin_room().await {
-		if self
-			.services
-			.rooms
-			.state_cache
-			.room_joined_count(&admin_room)
-			.await
-			.is_ok_and(is_equal_to!(1))
-		{
-			self.services
-				.admin
-				.make_user_admin(&user_id)
-				.boxed()
-				.await?;
-			warn!("Granting {user_id} admin privileges as the first user");
-		}
-	} else {
-		debug!("create_user admin command called without an admin room being available");
-	}
+	// Make the first user to register an administrator and disable first-run mode.
+	self.services.firstrun.empower_first_user(&user_id).await?;
 
 	self.write_str(&format!("Created user with user_id: {user_id} and password: `{password}`"))
 		.await

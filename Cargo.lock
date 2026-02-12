@@ -1230,6 +1230,7 @@ dependencies = [
 name = "conduwuit_service"
 version = "0.5.4"
 dependencies = [
+ "askama 0.14.0",
  "async-trait",
  "base64 0.22.1",
  "blurhash",
@@ -1264,6 +1265,7 @@ dependencies = [
  "tracing",
  "url",
  "webpage",
+ "yansi",
 ]
 
 [[package]]

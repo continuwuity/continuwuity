@@ -149,8 +149,12 @@ impl Services {
 
 		debug_info!("Services startup complete.");
 
-		// print first-run banner if necessary
-		self.firstrun.print_banner();
+		// Run startup admin commands
+		self.admin.startup_execute().await?;
+
+		// Prin first-run banner if necessary. This needs to be done after the startup
+		// admin commands are run in case one of them created the first user.
+		self.firstrun.print_first_run_banner();
 
 		Ok(Arc::clone(self))
 	}
