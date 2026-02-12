@@ -7,11 +7,24 @@ use conduwuit::{
 	error, implement,
 };
 
+use crate::registration_tokens::{ValidToken, ValidTokenSource};
+
 pub struct Service {
 	server: Arc<Server>,
 }
 
 const SIGNAL: &str = "SIGUSR1";
+
+impl Service {
+	/// Get the registration token set in the config file, if it exists.
+	#[must_use]
+	pub fn get_config_file_token(&self) -> Option<ValidToken> {
+		self.registration_token.clone().map(|token| ValidToken {
+			token,
+			source: ValidTokenSource::ConfigFile,
+		})
+	}
+}
 
 #[async_trait]
 impl crate::Service for Service {

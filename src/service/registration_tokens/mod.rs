@@ -5,7 +5,7 @@ use std::sync::Arc;
 use conduwuit::{Err, Result, utils};
 use data::Data;
 pub use data::{DatabaseTokenInfo, TokenExpires};
-use futures::{Stream, StreamExt, stream};
+use futures::{Stream, StreamExt};
 use ruma::OwnedUserId;
 
 use crate::{Dep, config};
@@ -84,29 +84,20 @@ impl Service {
 		(token, info)
 	}
 
-	/// Get the registration token set in the config file, if it exists.
-	pub fn get_config_file_token(&self) -> Option<ValidToken> {
-		self.services
-			.config
-			.registration_token
-			.clone()
-			.map(|token| ValidToken {
-				token,
-				source: ValidTokenSource::ConfigFile,
-			})
+	/// Get all the "special" registration tokens that aren't defined in the
+	/// database.
+	fn iterate_static_tokens(&self) -> impl Iterator<Item = ValidToken> {
+		// right now this is just the config file token
+		self.services.config.get_config_file_token().into_iter()
 	}
 
 	/// Validate a registration token.
 	pub async fn validate_token(&self, token: String) -> Option<ValidToken> {
-		// Check the registration token in the config first
-		if self
-			.get_config_file_token()
-			.is_some_and(|valid_token| valid_token == *token)
-		{
-			return Some(ValidToken {
-				token,
-				source: ValidTokenSource::ConfigFile,
-			});
+		// Check static registration tokens first
+		for static_token in self.iterate_static_tokens() {
+			if static_token == *token {
+				return Some(static_token);
+			}
 		}
 
 		// Now check the database
@@ -167,6 +158,6 @@ impl Service {
 				source: ValidTokenSource::Database(info),
 			});
 
-		stream::iter(self.get_config_file_token()).chain(db_tokens)
+		futures::stream::iter(self.iterate_static_tokens()).chain(db_tokens)
 	}
 }

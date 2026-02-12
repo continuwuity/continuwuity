@@ -185,17 +185,10 @@ pub(crate) async fn register_route(
 		)));
 	}
 
-	if is_guest
-		&& (!services.config.allow_guest_registration
-			|| (services.config.allow_registration
-				&& services
-					.registration_tokens
-					.get_config_file_token()
-					.is_some()))
-	{
+	if is_guest && !services.config.allow_guest_registration {
 		info!(
-			"Guest registration disabled / registration enabled with token configured, \
-			 rejecting guest registration attempt, initial device name: \"{}\"",
+			"Guest registration disabled, rejecting guest registration attempt, initial device \
+			 name: \"{}\"",
 			body.initial_device_display_name.as_deref().unwrap_or("")
 		);
 		return Err!(Request(GuestAccessForbidden("Guest registration is disabled.")));
