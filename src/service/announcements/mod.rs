@@ -18,7 +18,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, debug, error, info, warn};
+use conduwuit::{Result, Server, debug, error, warn};
 use database::{Deserialized, Map};
 use rand::Rng;
 use ruma::events::{Mentions, room::message::RoomMessageEventContent};
@@ -155,11 +155,6 @@ impl Service {
 
 	#[tracing::instrument(skip_all)]
 	async fn handle(&self, announcement: &CheckForAnnouncementsResponseEntry) {
-		if let Some(date) = &announcement.date {
-			info!("[announcements] {date} {:#}", announcement.message);
-		} else {
-			info!("[announcements] {:#}", announcement.message);
-		}
 		let mut message = RoomMessageEventContent::text_markdown(format!(
 			"### New announcement{}\n\n{}",
 			announcement
