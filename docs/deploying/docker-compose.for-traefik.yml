@@ -8,7 +8,6 @@ services:
     restart: unless-stopped
     volumes:
       - db:/var/lib/continuwuity
-      - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
       #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
       - proxy

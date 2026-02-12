@@ -6,6 +6,11 @@
     },
     {
         "type": "file",
+        "name": "environment-variables",
+        "label": "Environment Variables"
+    },
+    {
+        "type": "file",
         "name": "admin",
         "label": "Admin Commands"
     }

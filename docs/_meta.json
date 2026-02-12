@@ -65,6 +65,11 @@
         "name": "/reference/config"
     },
     {
+        "type": "file",
+        "label": "Environment Variables",
+        "name": "/reference/environment-variables"
+    },
+    {
         "type": "dir",
         "label": "Admin Command Reference",
         "name": "/reference/admin/"

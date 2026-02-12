@@ -2,27 +2,25 @@
 
 ## Docker
 
-To run Continuwuity with Docker, you can either build the image yourself or pull it
-from a registry.
+To run Continuwuity with Docker, you can either build the image yourself or pull
+it from a registry.
 
 ### Use a registry
 
-OCI images for Continuwuity are available in the registries listed below.
+Available OCI images:
 
-| Registry        | Image                                                           | Notes                  |
-| --------------- | --------------------------------------------------------------- | -----------------------|
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:latest](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest)     | Latest tagged image.   |
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:main](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main)       | Main branch image.     |
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf) | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
-| Forgejo Registry| [forgejo.ellis.link/continuwuation/continuwuity:main-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf)   | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
+| Registry         | Image                                                                                                                                                       | Notes                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:latest](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest)                 | Latest tagged image.                                                         |
+| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:main](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main)                     | Main branch image.                                                           |
+| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf) | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
+| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:main-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf)     | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
 
-Use
+**Example:**
 
 ```bash
-docker image pull $LINK
+docker image pull forgejo.ellis.link/continuwuation/continuwuity:main-maxperf
 ```
-
-to pull it to your machine.
 
 #### Mirrors
 
@@ -33,39 +31,146 @@ Images are mirrored to multiple locations automatically, on a schedule:
 - `registry.gitlab.com/continuwuity/continuwuity`
 - `git.nexy7574.co.uk/mirrored/continuwuity` (releases only, no `main`)
 
-### Run
+### Quick Run
 
-When you have the image, you can simply run it with
+Get a working Continuwuity server with an admin user in four steps:
+
+#### Prerequisites
+
+Continuwuity requires HTTPS for Matrix federation. You'll need:
+
+- A domain name pointing to your server
+- A reverse proxy with SSL/TLS certificates (Traefik, Caddy, nginx, etc.)
+
+See [Docker Compose](#docker-compose) for complete examples.
+
+#### Environment Variables
+
+- `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name
+- `CONTINUWUITY_DATABASE_PATH` - Where to store your database (must match the
+  volume mount)
+- `CONTINUWUITY_ADDRESS` - Bind address (use `0.0.0.0` to listen on all
+  interfaces)
+- `CONTINUWUITY_ALLOW_REGISTRATION` - Set to `false` to disable registration, or
+  use with `CONTINUWUITY_REGISTRATION_TOKEN` to require a token (see
+  [reference](../reference/environment-variables.mdx#registration--user-configuration)
+  for details)
+
+See the
+[Environment Variables Reference](../reference/environment-variables.mdx) for
+more configuration options.
+
+#### 1. Pull the image
 
 ```bash
-docker run -d -p 8448:6167 \
-    -v db:/var/lib/continuwuity/ \
-    -e CONTINUWUITY_SERVER_NAME="your.server.name" \
-    -e CONTINUWUITY_ALLOW_REGISTRATION=false \
-    --name continuwuity $LINK
+docker pull forgejo.ellis.link/continuwuation/continuwuity:latest
 ```
 
-or you can use [Docker Compose](#docker-compose).
+#### 2. Start the server with initial admin user
 
-The `-d` flag lets the container run in detached mode. You may supply an
-optional `continuwuity.toml` config file, the example config can be found
-[here](../reference/config.mdx). You can pass in different env vars to
-change config values on the fly. You can even configure Continuwuity completely by
-using env vars. For an overview of possible values, please take a look at the
-<a href="/examples/docker-compose.yml" target="_blank">`docker-compose.yml`</a> file.
+```bash
+docker run -d \
+  -p 6167:6167 \
+  -v continuwuity_db:/var/lib/continuwuity \
+  -e CONTINUWUITY_SERVER_NAME="matrix.example.com" \
+  -e CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity" \
+  -e CONTINUWUITY_ADDRESS="0.0.0.0" \
+  -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
+  --name continuwuity \
+  forgejo.ellis.link/continuwuation/continuwuity:latest \
+  --execute "users create-user admin"
+```
 
-If you just want to test Continuwuity for a short time, you can use the `--rm`
-flag, which cleans up everything related to your container after you stop
-it.
+Replace `matrix.example.com` with your actual server name and `admin` with
+your preferred username.
+
+#### 3. Get your admin password
+
+```bash
+docker logs continuwuity 2>&1 | grep "Created user"
+```
+
+You'll see output like:
+
+```
+Created user with user_id: @admin:matrix.example.com and password: `[auto-generated-password]`
+```
+
+#### 4. Configure your reverse proxy
+
+Configure your reverse proxy to forward HTTPS traffic to Continuwuity. See
+[Docker Compose](#docker-compose) for examples.
+
+Once configured, log in with any Matrix client using `@admin:matrix.example.com`
+and the generated password. You'll automatically be invited to the admin room
+where you can manage your server.
 
 ### Docker Compose
 
-If the `docker run` command is not suitable for you or your setup, you can also use one
-of the provided `docker-compose` files.
+Docker Compose is the recommended deployment method. These examples include
+reverse proxy configurations for Matrix federation.
 
-Depending on your proxy setup, you can use one of the following files:
+#### Matrix Federation Requirements
 
-### For existing Traefik setup
+For Matrix federation to work, you need to serve `.well-known/matrix/client` and
+`.well-known/matrix/server` endpoints. You can achieve this either by:
+
+1. **Using a well-known service** - The compose files below include an nginx
+   container to serve these files
+2. **Using Continuwuity's built-in delegation** (easier for Traefik) - Configure
+   delegation files in your config, then proxy `/.well-known/matrix/*` to
+   Continuwuity
+
+**Traefik example using built-in delegation:**
+
+```yaml
+labels:
+  traefik.http.routers.continuwuity.rule: >-
+    (Host(`matrix.example.com`) ||
+     (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))
+```
+
+This routes your Matrix domain and well-known paths to Continuwuity.
+
+#### Creating Your First Admin User
+
+Add the `--execute` command to create an admin user on first startup. In your
+compose file, add under the `continuwuity` service:
+
+```yaml
+services:
+    continuwuity:
+        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        command: --execute "users create-user admin"
+        # ... rest of configuration
+```
+
+Then retrieve the auto-generated password:
+
+```bash
+docker compose logs continuwuity | grep "Created user"
+```
+
+#### Choose Your Reverse Proxy
+
+Select the compose file that matches your setup:
+
+:::note DNS Performance
+Docker's default DNS resolver can cause performance issues with Matrix
+federation. If you experience slow federation or DNS timeouts, you may need to
+use your host's DNS resolver instead. Add this volume mount to the
+`continuwuity` service:
+
+```yaml
+volumes:
+  - /etc/resolv.conf:/etc/resolv.conf:ro
+```
+
+See [Troubleshooting - DNS Issues](../troubleshooting.mdx#potential-dns-issues-when-using-docker)
+for more details and alternative solutions.
+:::
+
+##### For existing Traefik setup
 
 <details>
 <summary>docker-compose.for-traefik.yml</summary>
@@ -76,7 +181,7 @@ Depending on your proxy setup, you can use one of the following files:
 
 </details>
 
-### With Traefik included
+##### With Traefik included
 
 <details>
 <summary>docker-compose.with-traefik.yml</summary>
@@ -87,7 +192,7 @@ Depending on your proxy setup, you can use one of the following files:
 
 </details>
 
-### With Caddy Docker Proxy
+##### With Caddy Docker Proxy
 
 <details>
 <summary>docker-compose.with-caddy.yml</summary>
@@ -98,9 +203,15 @@ Replace all `example.com` placeholders with your own domain.
 
 ```
 
+If you don't already have a network for Caddy to monitor, create one first:
+
+```bash
+docker network create caddy
+```
+
 </details>
 
-### For other reverse proxies
+##### For other reverse proxies
 
 <details>
 <summary>docker-compose.yml</summary>
@@ -111,7 +222,7 @@ Replace all `example.com` placeholders with your own domain.
 
 </details>
 
-### Override file
+##### Override file for customisation
 
 <details>
 <summary>docker-compose.override.yml</summary>
@@ -122,98 +233,24 @@ Replace all `example.com` placeholders with your own domain.
 
 </details>
 
-When picking the Traefik-related compose file, rename it to
-`docker-compose.yml`, and rename the override file to
-`docker-compose.override.yml`. Edit the latter with the values you want for your
-server.
+#### Starting Your Server
 
-When picking the `caddy-docker-proxy` compose file, it's important to first
-create the `caddy` network before spinning up the containers:
-
-```bash
-docker network create caddy
-```
-
-After that, you can rename it to `docker-compose.yml` and spin up the
-containers!
-
-Additional info about deploying Continuwuity can be found [here](generic.mdx).
-
-### Build
-
-Official Continuwuity images are built using **Docker Buildx** and the Dockerfile found at [`docker/Dockerfile`][dockerfile-path]. This approach uses common Docker tooling and enables efficient multi-platform builds.
-
-The resulting images are widely compatible with Docker and other container runtimes like Podman or containerd.
-
-The images *do not contain a shell*. They contain only the Continuwuity binary, required libraries, TLS certificates, and metadata.
-
-<details>
-<summary>Click to view the Dockerfile</summary>
-
-You can also <a href="https://forgejo.ellis.link/continuwuation/continuwuation/src/branch/main/docker/Dockerfile" target="_blank">view the Dockerfile on Forgejo</a>.
-
-```dockerfile file="../../docker/Dockerfile"
-
-```
-
-</details>
-
-To build an image locally using Docker Buildx, you can typically run a command like:
-
-```bash
-# Build for the current platform and load into the local Docker daemon
-docker buildx build --load --tag continuwuity:latest -f docker/Dockerfile .
-
-# Example: Build for specific platforms and push to a registry.
-# docker buildx build --platform linux/amd64,linux/arm64 --tag registry.io/org/continuwuity:latest -f docker/Dockerfile . --push
-
-# Example: Build binary optimised for the current CPU (standard release profile)
-# docker buildx build --load \
-#   --tag continuwuity:latest \
-#   --build-arg TARGET_CPU=native \
-#   -f docker/Dockerfile .
-
-# Example: Build maxperf variant (release-max-perf profile with LTO)
-# Optimised for runtime performance and smaller binary size, but requires longer build time
-# docker buildx build --load \
-#   --tag continuwuity:latest-maxperf \
-#   --build-arg TARGET_CPU=native \
-#   --build-arg RUST_PROFILE=release-max-perf \
-#   -f docker/Dockerfile .
-```
-
-Refer to the Docker Buildx documentation for more advanced build options.
-
-[dockerfile-path]: https://forgejo.ellis.link/continuwuation/continuwuation/src/branch/main/docker/Dockerfile
-
-### Run
-
-If you have already built the image or want to use one from the registries, you
-can start the container and everything else in the compose file in detached
-mode with:
+1. Choose your compose file and rename it to `docker-compose.yml`
+2. If using the override file, rename it to `docker-compose.override.yml` and
+   edit your values
+3. Start the server:
 
 ```bash
 docker compose up -d
 ```
 
-> **Note:** Don't forget to modify and adjust the compose file to your needs.
+See the [generic deployment guide](generic.mdx) for more deployment options.
 
-### Use Traefik as Proxy
+### Building Custom Images
 
-As a container user, you probably know about Traefik. It is an easy-to-use
-reverse proxy for making containerized apps and services available through the
-web. With the Traefik-related docker-compose files provided above, it is equally easy
-to deploy and use Continuwuity, with a small caveat. If you have already looked at
-the files, you should have seen the `well-known` service, which is the
-small caveat. Traefik is simply a proxy and load balancer and cannot
-serve any kind of content. For Continuwuity to federate, we need to either
-expose ports `443` and `8448` or serve two endpoints: `.well-known/matrix/client`
-and `.well-known/matrix/server`.
-
-With the service `well-known`, we use a single `nginx` container that serves
-those two files.
-
-Alternatively, you can use Continuwuity's built-in delegation file capability. Set up the delegation files in the configuration file, and then proxy paths under `/.well-known/matrix` to continuwuity. For example, the label ``traefik.http.routers.continuwuity.rule=(Host(`matrix.ellis.link`) || (Host(`ellis.link`) && PathPrefix(`/.well-known/matrix`)))`` does this for the domain `ellis.link`.
+For information on building your own Continuwuity Docker images, see the
+[Building Docker Images](../development/index.mdx#building-docker-images)
+section in the development documentation.
 
 ## Voice communication
 
