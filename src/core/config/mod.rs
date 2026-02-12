@@ -2116,12 +2116,12 @@ pub struct WellKnownConfig {
 	/// MSC4143 client endpoint at /.well-known/matrix/client.  If you're
 	/// setting up livekit, you'd want something like:
 	/// rtc_focus_server_urls = [
-	///     { type = "livekit", server_url = "https://livekit.example.com" },
+	///     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
 	/// ]
 	///
 	/// To disable, set this to be an empty vector (`[]`).
 	///
-	/// Defaults to: []
+	/// default: []
 	#[serde(default = "default_rtc_focus_urls")]
 	pub rtc_focus_server_urls: Vec<RtcFocusInfo>,
 }
