@@ -1,0 +1,79 @@
+# A Quick-Start Guide to Matrix
+
+### What is Matrix?
+
+[Matrix](https://matrix.org) is an open, federated, and extensible network for decentralized communication. Think of it like email, but for instant messaging:
+
+- You create an account with a provider (called a **homeserver**)
+- You can talk to anyone on Matrix, regardless of which homeserver they use
+- You can use different apps (called **clients**) to access your account
+- Your direct messages are end-to-end encrypted by default
+
+### What's Continuwuity?
+
+Continuwuity is a homeserver implementation. It's the software you use to set up your own provider, that you control! It's designed to run on few resources, and be easy to set up and maintain compared to similar software.
+
+### Join a Continuwuity-Powered Homeserver
+
+The easiest way to try Matrix is to create an account on an existing homeserver.
+
+:::tip Continuwuity Partnered Homeservers
+These homeservers are vetted by the Continuwuity team and follow our [partnered server guidelines](./community/ops-guidelines.mdx).
+:::
+
+- **[continuwuity.rocks](https://continuwuity.rocks)** - A public demo server operated by the Continuwuity Team
+- **[federated.nexus](https://federated.nexus)** - A community resource hosting multiple FOSS services, including Matrix
+
+### Join a Friend
+
+If you have a friend who runs their own Matrix homeserver, ask them if you can create an account there! If you don't know anybody, consider partnering up to run a server for your community.
+
+### Join Another Public Homeserver
+
+There are many public Matrix homeservers you can join, which of then run other software. Here are some resources:
+
+- [Join Matrix Homeserver List](https://joinmatrix.org/servers/) - A curated list of public homeservers
+- [matrix.org](https://matrix.org) - The flagship homeserver (note: very large and sometimes slower due to high usage)
+
+:::info About choosing a homeserver
+
+Your choice of homeserver is important but not permanent. While your Matrix ID (like `@username:homeserver.org`) will include your homeserver's name, you can communicate with anyone on Matrix regardless of their homeserver. Think of it like choosing an email provider - you can still email anyone, no matter which provider you use!
+:::
+
+## Registering an Account
+
+To interact with a Matrix server, you use a client. There are many matrix clients to choose from - [here's a list of some of them](https://matrix.org/ecosystem/clients/) - but to keep things simple we'll use [Element](https://app.element.io/#/register) or [Cinny](https://app.cinny.in/register/continuwuity.rocks) for this guide - pick what you prefer. Cinny looks closer to Discord, while Element looks like Teams or Slack.
+
+Once you've opened the client, click on Register / Create an Account, and edit the Homeserver to match the one you decided on. On Element, you might have to click the Edit button to do that.
+
+Fill out the username and password that you'd like to set. If your server is invite-only you might get asked to enter an invite code - this should have been given to you by the person that invited you.
+
+After registration, you'll have a Matrix ID that looks like `@username:homeserver.org`. This is your unique identifier across the entire Matrix network.
+
+:::warning Important: Save your Security Key!
+Matrix uses end-to-end encryption to keep your messages private. During setup, you'll be asked to save a **Security Key** or **Security Phrase**. Store this somewhere safe (like a password manager) - you'll need it to access your encrypted messages on new devices!
+:::
+
+## What's Next?
+
+Now that you have a Matrix account, you can:
+
+- **Join public rooms** - Explore communities and conversations. Try [#continuwuity:continuwuity.org](https://matrix.to/#/#continuwuity:continuwuity.org) to chat with us!
+- **Start private chats** - Message friends directly or create group chats
+- **Explore Spaces** - Spaces are collections of rooms, similar to Discord servers or Slack workspaces
+- **Try different clients** - Check out [this list](https://matrix.org/ecosystem/clients/), or ask a friend what they prefer!
+
+
+
+### Other guides
+
+- [Matrix vs Discord Guide](https://joinmatrix.org/guide/matrix-vs-discord/) - Coming from Discord?
+- [Matrix Chat Basics](https://matrix.org/docs/chat_basics/) - Official Matrix.org documentation
+- [Join Matrix Guide](https://joinmatrix.org/guide/)
+- [Matrix Features Guide](https://joinmatrix.org/guide/features/) - Deep dive into Matrix features
+
+---
+
+## Ready to Run Your Own Homeserver?
+
+If you want to run your own Matrix homeserver and have some technical knowledge, Continuwuity is an excellent choice. [Check out our guide for getting started with Continuwuity.](./introduction.mdx)
