@@ -18,6 +18,7 @@ pub mod client;
 pub mod config;
 pub mod emergency;
 pub mod federation;
+pub mod firstrun;
 pub mod globals;
 pub mod key_backups;
 pub mod media;

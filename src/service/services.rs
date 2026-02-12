@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 use crate::{
 	account_data, admin, announcements, antispam, appservice, client, config, emergency,
-	federation, globals, key_backups,
+	federation, firstrun, globals, key_backups,
 	manager::Manager,
 	media, moderation, presence, pusher, registration_tokens, resolver, rooms, sending,
 	server_keys,
@@ -33,6 +33,7 @@ pub struct Services {
 	pub resolver: Arc<resolver::Service>,
 	pub rooms: rooms::Service,
 	pub federation: Arc<federation::Service>,
+	pub firstrun: Arc<firstrun::Service>,
 	pub sending: Arc<sending::Service>,
 	pub server_keys: Arc<server_keys::Service>,
 	pub sync: Arc<sync::Service>,
@@ -67,6 +68,9 @@ impl Services {
 		}
 
 		Ok(Arc::new(Self {
+			// firstrun service should be built first so other services
+			// can check first-run state
+			firstrun: build!(firstrun::Service),
 			account_data: build!(account_data::Service),
 			admin: build!(admin::Service),
 			appservice: build!(appservice::Service),
@@ -144,6 +148,10 @@ impl Services {
 		}
 
 		debug_info!("Services startup complete.");
+
+		// print first-run banner if necessary
+		self.firstrun.print_banner();
+
 		Ok(Arc::clone(self))
 	}
 
