@@ -18,6 +18,7 @@ jobs:
     strategy:
       matrix:
         container: [ "ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable" ]
+        arch: ["amd64", "arm64"]
     container:
       image: "ghcr.io/tcpipuk/act-runner:${{ matrix.container }}"
 
@@ -54,9 +55,9 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ hashFiles('**/Cargo.lock') }}
+          key: cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            cargo-debian-${{ steps.debian-version.outputs.distribution }}-
+            cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ matrix.arch }}-
 
       - name: Setup sccache
         uses: https://git.tomfos.tr/tom/sccache-action@v1
@@ -70,10 +71,32 @@ jobs:
           # Aggressive GC since cache restores don't increment counter
           echo "CARGO_INCREMENTAL_GC_TRIGGER=5" >> $GITHUB_ENV
 
+      - name: Install cross-compilation tools for arm64
+        if: matrix.arch == 'arm64'
+        run: |
+          dpkg --add-architecture arm64
+          apt-get update
+          apt-get install -y \
+            gcc-aarch64-linux-gnu \
+            g++-aarch64-linux-gnu \
+            libc6-dev-arm64-cross
+
       - name: Setup Rust
         uses: ./.forgejo/actions/setup-rust
         with:
           github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Add Rust target
+        run: |
+          TARGET=${{ matrix.arch == 'arm64' && 'aarch64-unknown-linux-gnu' || 'x86_64-unknown-linux-gnu' }}
+          rustup target add $TARGET
+
+      - name: Configure cross-compilation for arm64
+        if: matrix.arch == 'arm64'
+        run: |
+          echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
 
       - name: Get package version and component
         id: package-meta
@@ -124,17 +147,16 @@ jobs:
       - name: Run cargo-deb
         id: cargo-deb
         run: |
-          DEB_PATH=$(cargo deb --deb-version ${{ steps.package-meta.outputs.version }})
+          TARGET=${{ matrix.arch == 'arm64' && 'aarch64-unknown-linux-gnu' || 'x86_64-unknown-linux-gnu' }}
+          DEB_PATH=$(cargo deb --target $TARGET --deb-version ${{ steps.package-meta.outputs.version }})
           echo "path=$DEB_PATH" >> $GITHUB_OUTPUT
 
       - name: Test deb installation
+        if: matrix.arch == 'amd64'
         run: |
           echo "Installing: ${{ steps.cargo-deb.outputs.path }}"
-
           apt-get install -y ${{ steps.cargo-deb.outputs.path }}
-
           dpkg -s continuwuity
-
           [ -f /usr/bin/conduwuit ] && echo "✅ Binary installed successfully"
           [ -f /usr/lib/systemd/system/conduwuit.service ] && echo "✅ Systemd service installed"
           [ -f /etc/conduwuit/conduwuit.toml ] && echo "✅ Config file installed"
@@ -142,7 +164,7 @@ jobs:
       - name: Upload deb artifact
         uses: forgejo/upload-artifact@v4
         with:
-          name: continuwuity-${{ steps.debian-version.outputs.distribution }}
+          name: continuwuity-${{ steps.debian-version.outputs.distribution }}-${{ matrix.arch }}
           path: ${{ steps.cargo-deb.outputs.path }}
 
       - name: Publish to Forgejo package registry
