@@ -58,7 +58,11 @@ pub async fn ask_policy_server(
 		.state_accessor
 		.room_state_get_content(room_id, &StateEventType::RoomPolicy, "")
 		.await
-		.inspect_err(|e| debug_error!("failed to load room policy server state event: {e}"))
+		.inspect_err(|e| {
+			if !e.is_not_found() {
+				debug_error!("failed to load room policy server state event: {e}");
+			}
+		})
 		.map(|c: RoomPolicyEventContent| c)
 	else {
 		debug!("room has no policy server configured");
