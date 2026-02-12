@@ -342,7 +342,7 @@ version = "0.1.2"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-rev = "458d52bdc7f9a07c497be94a1420ebd3d87d7b2b"
+rev = "b496b7f38d517149361a882e75d3fd4faf210441"
 features = [
     "compat",
     "rand",
@@ -378,7 +378,8 @@ features = [
     "unstable-msc4210", # remove legacy mentions
     "unstable-extensible-events",
     "unstable-pdu",
-    "unstable-msc4155"
+    "unstable-msc4155",
+    "unstable-msc4143", # livekit well_known response
 ]
 
 [workspace.dependencies.rust-rocksdb]
