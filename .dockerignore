@@ -1,9 +1,9 @@
 # Local build and dev artifacts
 target/
+!target/debug/conduwuit
 
 # Docker files
 Dockerfile*
-docker/
 
 # IDE files
 .vscode
