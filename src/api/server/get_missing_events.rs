@@ -96,6 +96,10 @@ pub(crate) async fn get_missing_events_route(
 		);
 		queue.extend(pdu.prev_events.clone());
 		seen.insert(next_event_id.clone());
+		if body.latest_events.contains(&next_event_id) {
+			continue; // Don't include latest_events in results,
+			// but do include their prev_events in the queue
+		}
 		results.push(
 			services
 				.sending
