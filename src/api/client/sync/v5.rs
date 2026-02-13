@@ -30,7 +30,8 @@ use ruma::{
 	api::client::sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
 	directory::RoomTypeFilter,
 	events::{
-		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, StateEventType, TimelineEventType,
+		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, AnySyncStateEvent, StateEventType,
+		TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 		typing::TypingEventContent,
 	},
@@ -533,6 +534,9 @@ where
 				}
 			});
 
+		let required_state =
+			collect_required_state(services, room_id, required_state_request).await;
+
 		let room_events: Vec<_> = timeline_pdus
 			.iter()
 			.stream()
@@ -550,21 +554,6 @@ where
 				timestamp = Some(ts);
 			}
 		}
-
-		let required_state = required_state_request
-			.iter()
-			.stream()
-			.filter_map(|state| async move {
-				services
-					.rooms
-					.state_accessor
-					.room_state_get(room_id, &state.0, &state.1)
-					.await
-					.map(Event::into_format)
-					.ok()
-			})
-			.collect()
-			.await;
 
 		// Heroes
 		let heroes: Vec<_> = services
@@ -687,6 +676,46 @@ where
 		});
 	}
 	Ok(rooms)
+}
+
+/// Collect the required state events for a room
+async fn collect_required_state(
+	services: &Services,
+	room_id: &RoomId,
+	required_state_request: &BTreeSet<TypeStateKey>,
+) -> Vec<Raw<AnySyncStateEvent>> {
+	let mut required_state = Vec::new();
+	for (event_type, state_key) in required_state_request {
+		// Resolve wild-card sentinel issue
+		// Addresses: https://forgejo.ellis.link/continuwuation/continuwuity/issues/1306
+		if state_key.as_str() == "*" {
+			if let Ok(keys) = services
+				.rooms
+				.state_accessor
+				.room_state_keys(room_id, event_type)
+				.await
+			{
+				for key in keys {
+					if let Ok(event) = services
+						.rooms
+						.state_accessor
+						.room_state_get(room_id, event_type, &key)
+						.await
+					{
+						required_state.push(Event::into_format(event));
+					}
+				}
+			}
+		} else if let Ok(event) = services
+			.rooms
+			.state_accessor
+			.room_state_get(room_id, event_type, state_key)
+			.await
+		{
+			required_state.push(Event::into_format(event));
+		}
+	}
+	required_state
 }
 
 async fn collect_typing_events(
