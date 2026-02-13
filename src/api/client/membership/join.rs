@@ -862,7 +862,7 @@ async fn make_join_request(
 				| ErrorKind::IncompatibleRoomVersion { room_version } => {
 					warn!(
 						"{remote_server} reports the room we are trying to join is \
-						 version{room_version}, which we do not support: {e}."
+						 v{room_version}, which we do not support."
 					);
 					return Err(e);
 				},
