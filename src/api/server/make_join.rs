@@ -16,6 +16,7 @@ use ruma::{
 	},
 };
 use serde_json::value::to_raw_value;
+use service::rooms::state::RoomMutexGuard;
 use tokio::join;
 
 use crate::Ruma;
@@ -113,32 +114,10 @@ pub(crate) async fn create_join_event_template_route(
 		)
 		.await?
 		{
-			let Some(auth_user) = services
-				.rooms
-				.state_cache
-				.local_users_in_room(&body.room_id)
-				.filter(|user| {
-					services.rooms.state_accessor.user_can_invite(
-						&body.room_id,
-						user,
-						&body.user_id,
-						&state_lock,
-					)
-				})
-				.boxed()
-				.next()
-				.await
-				.map(ToOwned::to_owned)
-			else {
-				info!(
-					"No local user is able to authorize the join of {} into {}",
-					&body.user_id, &body.room_id
-				);
-				return Err!(Request(UnableToGrantJoin(
-					"No user on this server is able to assist in joining."
-				)));
-			};
-			Some(auth_user)
+			Some(
+				select_authorising_user(&services, &body.room_id, &body.user_id, &state_lock)
+					.await?,
+			)
 		} else {
 			None
 		}
@@ -174,6 +153,38 @@ pub(crate) async fn create_join_event_template_route(
 		room_version: Some(room_version_id),
 		event: to_raw_value(&pdu_json).expect("CanonicalJson can be serialized to JSON"),
 	})
+}
+
+/// Attempts to find a user who is able to issue an invite in the target room.
+pub(crate) async fn select_authorising_user(
+	services: &Services,
+	room_id: &RoomId,
+	user_id: &UserId,
+	state_lock: &RoomMutexGuard,
+) -> Result<OwnedUserId> {
+	let auth_user = services
+		.rooms
+		.state_cache
+		.local_users_in_room(room_id)
+		.filter(|user| {
+			services
+				.rooms
+				.state_accessor
+				.user_can_invite(room_id, user, user_id, state_lock)
+		})
+		.boxed()
+		.next()
+		.await
+		.map(ToOwned::to_owned);
+
+	match auth_user {
+		| Some(auth_user) => Ok(auth_user),
+		| None => {
+			Err!(Request(UnableToGrantJoin(
+				"No user on this server is able to assist in joining."
+			)))
+		},
+	}
 }
 
 /// Checks whether the given user can join the given room via a restricted join.

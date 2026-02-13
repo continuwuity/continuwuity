@@ -583,7 +583,6 @@ pub(crate) async fn register_route(
 					&room_id,
 					Some("Automatically joining this room upon registration".to_owned()),
 					&[services.globals.server_name().to_owned(), room_server_name.to_owned()],
-					None,
 					&body.appservice_info,
 				)
 				.boxed()

@@ -140,7 +140,6 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 						self.services.globals.server_name().to_owned(),
 						room_server_name.to_owned(),
 					],
-					None,
 					&None,
 				)
 				.await
@@ -549,7 +548,6 @@ pub(super) async fn force_join_list_of_local_users(
 			&room_id,
 			Some(String::from(BULK_JOIN_REASON)),
 			&servers,
-			None,
 			&None,
 		)
 		.await
@@ -635,7 +633,6 @@ pub(super) async fn force_join_all_local_users(
 			&room_id,
 			Some(String::from(BULK_JOIN_REASON)),
 			&servers,
-			None,
 			&None,
 		)
 		.await
@@ -675,8 +672,7 @@ pub(super) async fn force_join_room(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
-	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers, None, &None)
-		.await?;
+	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers, &None).await?;
 
 	self.write_str(&format!("{user_id} has been joined to {room_id}.",))
 		.await
