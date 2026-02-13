@@ -16,6 +16,7 @@ use ruma::{
 	},
 };
 use serde_json::value::to_raw_value;
+use tokio::join;
 
 use crate::Ruma;
 
@@ -85,16 +86,24 @@ pub(crate) async fn create_join_event_template_route(
 	}
 
 	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
-	let is_invited = services
-		.rooms
-		.state_cache
-		.is_invited(&body.user_id, &body.room_id)
-		.await;
+	let (is_invited, is_joined) = join!(
+		services
+			.rooms
+			.state_cache
+			.is_invited(&body.user_id, &body.room_id),
+		services
+			.rooms
+			.state_cache
+			.is_joined(&body.user_id, &body.room_id)
+	);
 	let join_authorized_via_users_server: Option<OwnedUserId> = {
 		use RoomVersionId::*;
-		if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) || is_invited {
-			// room version does not support restricted join rules, or the user is currently
-			// already invited
+		if is_joined || is_invited {
+			// User is already joined or invited and consequently does not need an
+			// authorising user
+			None
+		} else if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
+			// room version does not support restricted join rules
 			None
 		} else if user_can_perform_restricted_join(
 			&services,
@@ -159,9 +168,7 @@ pub(crate) async fn create_join_event_template_route(
 		)
 		.await?;
 	drop(state_lock);
-
-	// room v3 and above removed the "event_id" field from remote PDU format
-	maybe_strip_event_id(&mut pdu_json, &room_version_id)?;
+	pdu_json.remove("event_id");
 
 	Ok(prepare_join_event::v1::Response {
 		room_version: Some(room_version_id),
@@ -180,12 +187,9 @@ pub(crate) async fn user_can_perform_restricted_join(
 
 	// restricted rooms are not supported on <=v7
 	if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
-		return Ok(false);
-	}
-
-	if services.rooms.state_cache.is_joined(user_id, room_id).await {
-		// joining user is already joined, there is nothing we need to do
-		return Ok(false);
+		// This should be impossible as it was checked earlier on, but retain this check
+		// for safety.
+		unreachable!("user_can_perform_restricted_join got incompatible room version");
 	}
 
 	let Ok(join_rules_event_content) = services
@@ -205,17 +209,31 @@ pub(crate) async fn user_can_perform_restricted_join(
 	let (JoinRule::Restricted(r) | JoinRule::KnockRestricted(r)) =
 		join_rules_event_content.join_rule
 	else {
+		// This is not a restricted room
 		return Ok(false);
 	};
 
 	if r.allow.is_empty() {
-		debug_info!("{room_id} is restricted but the allow key is empty");
-		return Ok(false);
+		// This will never be authorisable, return forbidden.
+		return Err!(Request(Forbidden("You are not invited to this room.")));
 	}
 
+	let mut could_satisfy = true;
 	for allow_rule in &r.allow {
 		match allow_rule {
 			| AllowRule::RoomMembership(membership) => {
+				if !services
+					.rooms
+					.state_cache
+					.server_in_room(services.globals.server_name(), &membership.room_id)
+					.await
+				{
+					// Since we can't check this room, mark could_satisfy as false
+					// so that we can return M_UNABLE_TO_AUTHORIZE_JOIN later.
+					could_satisfy = false;
+					continue;
+				}
+
 				if services
 					.rooms
 					.state_cache
@@ -239,6 +257,8 @@ pub(crate) async fn user_can_perform_restricted_join(
 					| Err(_) => Err!(Request(Forbidden("Antispam rejected join request."))),
 				},
 			| _ => {
+				// We don't recognise this join rule, so we cannot satisfy the request.
+				could_satisfy = false;
 				debug_info!(
 					"Unsupported allow rule in restricted join for room {}: {:?}",
 					room_id,
@@ -248,9 +268,21 @@ pub(crate) async fn user_can_perform_restricted_join(
 		}
 	}
 
-	Err!(Request(UnableToAuthorizeJoin(
-		"Joining user is not known to be in any required room."
-	)))
+	if could_satisfy {
+		// We were able to check all the restrictions and can be certain that the
+		// prospective member is not permitted to join.
+		Err!(Request(Forbidden(
+			"You do not belong to any of the required rooms to join this one."
+		)))
+	} else {
+		// We were unable to check all the restrictions. This usually means we aren't in
+		// one of the rooms this one is restricted to, ergo can't check its state for
+		// the user's membership, and consequently the user *might* be able to join if
+		// they ask another server.
+		Err!(Request(UnableToAuthorizeJoin(
+			"Joining user is not known to be in any required room."
+		)))
+	}
 }
 
 pub(crate) fn maybe_strip_event_id(
