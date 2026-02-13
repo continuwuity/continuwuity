@@ -396,11 +396,10 @@ async fn join_room_by_id_helper_remote(
 
 	info!("make_join finished");
 
-	let Some(room_version_id) = make_join_response.room_version else {
-		return Err!(BadServerResponse("Remote room version is not supported by conduwuit"));
-	};
+	let room_version_id = make_join_response.room_version.unwrap_or(RoomVersionId::V1);
 
 	if !services.server.supported_room_version(&room_version_id) {
+		// How did we get here?
 		return Err!(BadServerResponse(
 			"Remote room version {room_version_id} is not supported by conduwuit"
 		));
@@ -429,10 +428,6 @@ async fn join_room_by_id_helper_remote(
 		}
 	};
 
-	join_event_stub.insert(
-		"origin".to_owned(),
-		CanonicalJsonValue::String(services.globals.server_name().as_str().to_owned()),
-	);
 	join_event_stub.insert(
 		"origin_server_ts".to_owned(),
 		CanonicalJsonValue::Integer(
@@ -987,17 +982,16 @@ async fn make_join_request(
 	room_id: &RoomId,
 	servers: &[OwnedServerName],
 ) -> Result<(federation::membership::prepare_join_event::v1::Response, OwnedServerName)> {
-	let mut make_join_response_and_server =
-		Err!(BadServerResponse("No server available to assist in joining."));
-
-	let mut make_join_counter: usize = 0;
-	let mut incompatible_room_version_count: usize = 0;
+	let mut make_join_counter: usize = 1;
 
 	for remote_server in servers {
 		if services.globals.server_is_ours(remote_server) {
 			continue;
 		}
-		info!("Asking {remote_server} for make_join ({make_join_counter})");
+		info!(
+			"Asking {remote_server} for make_join (attempt {make_join_counter}/{})",
+			servers.len()
+		);
 		let make_join_response = services
 			.sending
 			.send_federation_request(
@@ -1025,47 +1019,44 @@ async fn make_join_request(
 					warn!("make_join response from {remote_server} failed validation: {e}");
 					continue;
 				}
-				make_join_response_and_server = Ok((response, remote_server.clone()));
-				break;
+				return Ok((response, remote_server.clone()));
 			},
-			| Err(e) => {
-				info!("make_join request to {remote_server} failed: {e}");
-				if matches!(
-					e.kind(),
-					ErrorKind::IncompatibleRoomVersion { .. } | ErrorKind::UnsupportedRoomVersion
-				) {
-					incompatible_room_version_count =
-						incompatible_room_version_count.saturating_add(1);
-				}
-
-				if incompatible_room_version_count > 15 {
+			| Err(e) => match e.kind() {
+				| ErrorKind::UnableToAuthorizeJoin => {
 					info!(
-						"15 servers have responded with M_INCOMPATIBLE_ROOM_VERSION or \
-						 M_UNSUPPORTED_ROOM_VERSION, assuming that conduwuit does not support \
-						 the room version {room_id}: {e}"
+						"{remote_server} was unable to verify the joining user satisfied \
+						 restricted join requirements: {e}. Will continue trying."
 					);
-					make_join_response_and_server =
-						Err!(BadServerResponse("Room version is not supported by Conduwuit"));
-					return make_join_response_and_server;
-				}
-
-				if make_join_counter > 40 {
+				},
+				| ErrorKind::UnableToGrantJoin => {
+					info!(
+						"{remote_server} believes the joining user satisfies restricted join \
+						 rules, but is unable to authorise a join for us. Will continue trying."
+					);
+				},
+				| ErrorKind::IncompatibleRoomVersion { room_version } => {
 					warn!(
-						"40 servers failed to provide valid make_join response, assuming no \
-						 server can assist in joining."
+						"{remote_server} reports the room we are trying to join is \
+						 version{room_version}, which we do not support: {e}."
 					);
-					make_join_response_and_server =
-						Err!(BadServerResponse("No server available to assist in joining."));
-
-					return make_join_response_and_server;
-				}
+					return Err(e);
+				},
+				| ErrorKind::Forbidden { .. } => {
+					warn!("{remote_server} refuses to let us join: {e}.");
+					return Err(e);
+				},
+				| ErrorKind::NotFound => {
+					info!(
+						"{remote_server} does not know about {room_id}: {e}. Will continue \
+						 trying."
+					);
+				},
+				| _ => {
+					info!("{remote_server} failed to make_join: {e}. Will continue trying.");
+				},
 			},
-		}
-
-		if make_join_response_and_server.is_ok() {
-			break;
 		}
 	}
-
-	make_join_response_and_server
+	info!("All {} servers were unable to assist in joining {room_id} :(", servers.len());
+	Err!(BadServerResponse("No server available to assist in joining."))
 }
