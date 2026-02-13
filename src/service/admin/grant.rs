@@ -9,7 +9,6 @@ use ruma::{
 		RoomAccountDataEventType, StateEventType,
 		room::{
 			member::{MembershipState, RoomMemberEventContent},
-			message::RoomMessageEventContent,
 			power_levels::RoomPowerLevelsEventContent,
 		},
 		tag::{TagEvent, TagEventContent, TagInfo},

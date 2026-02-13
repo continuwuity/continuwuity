@@ -5,7 +5,7 @@ use std::{
 
 use api::client::{full_user_deactivate, join_room_by_id_helper, leave_room, remote_leave_room};
 use conduwuit::{
-	Err, Result, debug, debug_warn, error, info, is_equal_to,
+	Err, Result, debug_warn, error, info,
 	matrix::{Event, pdu::PduBuilder},
 	utils::{self, ReadyExt},
 	warn,

@@ -30,7 +30,7 @@ use ruma::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{Dep, account_data, admin, appservice, firstrun, globals, rooms};
+use crate::{Dep, account_data, admin, appservice, globals, rooms};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -55,7 +55,6 @@ struct Services {
 	globals: Dep<globals::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
-	firstrun: Dep<firstrun::Service>,
 }
 
 struct Data {
@@ -97,7 +96,6 @@ impl crate::Service for Service {
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
-				firstrun: args.depend::<firstrun::Service>("firstrun"),
 			},
 			db: Data {
 				keychangeid_userid: args.db["keychangeid_userid"].clone(),

@@ -3,7 +3,7 @@ use std::fmt::Write;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Event, Result, debug_info, err, error, info, is_equal_to,
+	Err, Error, Event, Result, debug_info, err, error, info,
 	matrix::pdu::PduBuilder,
 	utils::{self, ReadyExt, stream::BroadbandExt},
 	warn,
