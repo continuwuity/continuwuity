@@ -83,3 +83,12 @@ footer {
     color: transparent;
     filter: brightness(1.2);
 }
+
+b {
+    color: oklch(from var(--c2) var(--name-lightness) c h);
+}
+
+.logo {
+    width: 100%;
+    height: 64px;
+}

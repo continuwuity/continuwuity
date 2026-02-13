@@ -10,8 +10,9 @@ use conduwuit_build_metadata::{GIT_REMOTE_COMMIT_URL, GIT_REMOTE_WEB_URL, versio
 use conduwuit_service::state;
 
 pub fn build() -> Router<state::State> {
-	let router = Router::<state::State>::new();
-	router.route("/", get(index_handler))
+	Router::<state::State>::new()
+		.route("/", get(index_handler))
+		.route("/_continuwuity/logo.svg", get(logo_handler))
 }
 
 async fn index_handler(
@@ -19,20 +20,32 @@ async fn index_handler(
 ) -> Result<impl IntoResponse, WebError> {
 	#[derive(Debug, Template)]
 	#[template(path = "index.html.j2")]
-	struct Tmpl<'a> {
+	struct Index<'a> {
 		nonce: &'a str,
 		server_name: &'a str,
+		first_run: bool,
 	}
 	let nonce = rand::random::<u64>().to_string();
 
-	let template = Tmpl {
+	let template = Index {
 		nonce: &nonce,
 		server_name: services.config.server_name.as_str(),
+		first_run: services.firstrun.is_first_run(),
 	};
 	Ok((
-		[(header::CONTENT_SECURITY_POLICY, format!("default-src 'none' 'nonce-{nonce}';"))],
+		[(
+			header::CONTENT_SECURITY_POLICY,
+			format!("default-src 'nonce-{nonce}'; img-src 'self';"),
+		)],
 		Html(template.render()?),
 	))
+}
+
+async fn logo_handler() -> impl IntoResponse {
+	(
+		[(header::CONTENT_TYPE, "image/svg+xml")],
+		include_str!("templates/logo.svg").to_owned(),
+	)
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -45,7 +58,7 @@ impl IntoResponse for WebError {
 	fn into_response(self) -> Response {
 		#[derive(Debug, Template)]
 		#[template(path = "error.html.j2")]
-		struct Tmpl<'a> {
+		struct Error<'a> {
 			nonce: &'a str,
 			err: WebError,
 		}
@@ -55,7 +68,7 @@ impl IntoResponse for WebError {
 		let status = match &self {
 			| Self::Render(_) => StatusCode::INTERNAL_SERVER_ERROR,
 		};
-		let tmpl = Tmpl { nonce: &nonce, err: self };
+		let tmpl = Error { nonce: &nonce, err: self };
 		if let Ok(body) = tmpl.render() {
 			(
 				status,

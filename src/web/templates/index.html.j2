@@ -1,16 +1,16 @@
 {% extends "_layout.html.j2" %}
 {%- block content -%}
-<div class="orb"></div>
 <div class="panel">
-    <h1>Welcome to <a class="project-name" href="https://continuwuity.org">Continuwuity</a>!</h1>
-    <p>Continuwuity is successfully installed and working. </p>
-    <p>To get started, you can:</p>
-    <ul>
-        <li>Read the <a href="https://continuwuity.org/introduction">documentation</a></li>
-        <li>Join the <a href="https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org">Continuwuity Matrix room</a> or <a href="https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org">space</a></li>
-        <li>Log in with a <a href="https://matrix.org/ecosystem/clients/">client</a></li>
-        <li>Ensure <a href="https://federationtester.mtrnord.blog/?serverName={{ server_name }}">federation</a> works</li>
-    </ul>
+    <h1>
+        Welcome to <a class="project-name" href="https://continuwuity.org">Continuwuity</a>!
+    </h1>
+    <p>Continuwuity is successfully installed and working.</p>
+    {%- if first_run %}
+    <p>To get started, <b>check the server logs</b> for instructions on how to create the first account.</p>
+    <p>For support, take a look at the <a href="https://continuwuity.org/introduction">documentation</a> or join the <a href="https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org">Continuwuity Matrix room</a>.</p>
+    {%- else %}
+    <p>To get started, <a href="https://matrix.org/ecosystem/clients">choose a client</a> and connect to <code>{{ server_name }}</code>.</p>
+    {%- endif %}
 </div>
 
 {%- endblock content -%}

@@ -6,6 +6,7 @@
     <title>{% block title %}Continuwuity{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <link rel="icon" href="/_continuwuity/logo.svg">
     <style type="text/css" nonce="{{ nonce }}">
         /*<![CDATA[*/
             {{ include_str !("css/index.css") | safe }}
@@ -17,7 +18,8 @@
     <main>{%~ block content %}{% endblock ~%}</main>
     {%~ block footer ~%}
         <footer>
-            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a>
+            <img class="logo" src="/_continuwuity/logo.svg">
+            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }}
                 {%~ if let Some(version_info) = self::version_tag() ~%}
                     {%~ if let Some(url) = GIT_REMOTE_COMMIT_URL.or(GIT_REMOTE_WEB_URL) ~%}
                         (<a href="{{ url }}">{{ version_info }}</a>)
