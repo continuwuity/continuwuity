@@ -36,6 +36,11 @@ impl crate::Service for Service {
 			.clone()
 			.and_then(Either::right);
 
+		let url_preview_user_agent = config
+			.url_preview_user_agent
+			.clone()
+			.unwrap_or_else(|| conduwuit::version::user_agent().to_string());
+
 		Ok(Arc::new(Self {
 			default: base(config)?
 				.dns_resolver(resolver.resolver.clone())
@@ -49,6 +54,7 @@ impl crate::Service for Service {
 				.dns_resolver(resolver.resolver.clone())
 				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
+				.user_agent(url_preview_user_agent)
 				.build()?,
 
 			extern_media: base(config)?

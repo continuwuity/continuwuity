@@ -1696,6 +1696,13 @@ pub struct Config {
 	#[serde(default)]
 	pub url_preview_check_root_domain: bool,
 
+	/// User agent that is used specifically when downloading url previews.
+	///
+	/// example: "continuwuity (bot; +https://forgejo.ellis.link/continuwuation/continuwuity)"
+	///
+	/// default: "continuwuity/$VERSION ($VERSION_TAG)"
+	pub url_preview_user_agent: Option<String>,
+
 	/// List of forbidden room aliases and room IDs as strings of regex
 	/// patterns.
 	///
