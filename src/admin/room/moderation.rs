@@ -85,7 +85,7 @@ pub enum RoomModerationCommand {
 	/// Finally, it will send a room tombstone event, which will effectively
 	/// make the room unusable on most clients even if the room state resets.
 	///
-	/// This effectively will make the room unusable, unusable, and remove
+	/// This effectively will make the room unusable, unjoinable, and removes
 	/// everyone from it. This is as close to a "shutdown" as you can get with
 	/// federation.
 	ShutdownRoom {
@@ -103,6 +103,12 @@ pub enum RoomModerationCommand {
 		/// in the event users manage to rejoin.
 		#[arg(long)]
 		redact: bool,
+
+		///
+		#[arg(long)]
+		yes_i_am_sure_i_want_to_irreversibly_shutdown_this_room_destroying_it_in_the_process:
+			bool,
+
 		/// The room in the format of `!roomid:example.com` or a room alias in
 		/// the format of `#roomalias:example.com`
 		room: OwnedRoomOrAliasId,
@@ -726,7 +732,13 @@ async fn takeover(&self, force: bool, room: OwnedRoomOrAliasId) -> Result {
 }
 
 #[admin_command]
-async fn shutdown_room(&self, force: bool, redact: bool, room: OwnedRoomOrAliasId) -> Result {
+async fn shutdown_room(
+	&self,
+	force: bool,
+	redact: bool,
+	yes_i_am_sure_i_want_to_irreversibly_shutdown_this_room_destroying_it_in_the_process: bool,
+	room: OwnedRoomOrAliasId,
+) -> Result {
 	let room_id = if room.is_room_id() {
 		let room_id = match RoomId::parse(&room) {
 			| Ok(room_id) => room_id,
@@ -778,6 +790,15 @@ async fn shutdown_room(&self, force: bool, redact: bool, room: OwnedRoomOrAliasI
 			 (`#roomalias:example.com`)",
 		);
 	};
+
+	if !yes_i_am_sure_i_want_to_irreversibly_shutdown_this_room_destroying_it_in_the_process {
+		return Err!(
+			"This command is irreversible and will immediately shutdown the room, making it \
+			 completely unusable if successful. If you are sure you want to do this, add the \
+			 flag --yes-i-am-sure-i-want-to-irreversibly-shutdown-this-room-destroying-it-in-the-process \
+			 to your command."
+		);
+	}
 
 	let mut power_levels: RoomPowerLevelsEventContent = match self
 		.services
