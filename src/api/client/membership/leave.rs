@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Pdu, Result, debug, debug_info, debug_warn, err, error,
+	Err, Pdu, Result, debug_info, debug_warn, err,
 	matrix::{event::gen_event_id, pdu::PduBuilder},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},
 	warn,
@@ -33,43 +33,7 @@ pub(crate) async fn leave_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<leave_room::v3::Request>,
 ) -> Result<leave_room::v3::Response> {
-	let user = body.sender_user();
-	if services.users.is_suspended(user).await? {
-		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
-	}
-	let room_id = body.room_id.clone();
-	if services
-		.rooms
-		.state_cache
-		.server_in_room(services.globals.server_name(), &room_id)
-		.await && !services.config.auto_join_rooms.is_empty()
-	{
-		debug!(room_id = %room_id, user_id = %user, "checking if user can leave local room");
-		for room in &services.config.auto_join_rooms {
-			let sn = room.server_name();
-			if sn.is_none_or(|_| sn.is_some_and(|n| n == services.globals.server_name())) {
-				// Only resolve the ID or aliases of local rooms, since federated lookups are
-				// slow
-				match services.rooms.alias.resolve(room).await {
-					| Err(e) => {
-						error!("Failed to resolve auto-join room {room}: {e}");
-					},
-					| Ok(resolved_room_id) =>
-						if resolved_room_id == room_id {
-							warn!(
-								room_id = %room_id,
-								user_id = %user,
-								"Refusing to let user leave auto-join room"
-							);
-							return Err!(Request(Forbidden(
-								"You cannot leave rooms you were automatically joined to"
-							)));
-						},
-				}
-			}
-		}
-	}
-	leave_room(&services, user, &room_id, body.reason.clone())
+	leave_room(&services, body.sender_user(), &body.room_id, body.reason.clone())
 		.boxed()
 		.await
 		.map(|()| leave_room::v3::Response::new())
