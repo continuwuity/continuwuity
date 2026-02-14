@@ -283,7 +283,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 		// We were able to check all the restrictions and can be certain that the
 		// prospective member is not permitted to join.
 		Err!(Request(Forbidden(
-			"You do not belong to any of the required rooms to join this one."
+			"You do not belong to any of the rooms or spaces required to join this room."
 		)))
 	} else {
 		// We were unable to check all the restrictions. This usually means we aren't in
@@ -291,7 +291,9 @@ pub(crate) async fn user_can_perform_restricted_join(
 		// the user's membership, and consequently the user *might* be able to join if
 		// they ask another server.
 		Err!(Request(UnableToAuthorizeJoin(
-			"Joining user is not known to be in any required room."
+			"You do not belong to any of the recognised rooms or spaces required to join this \
+			 room, but this server is unable to verify every requirement. You may be able to \
+			 join via another server."
 		)))
 	}
 }
