@@ -650,6 +650,7 @@ async fn takeover(&self, force: bool, room: OwnedRoomOrAliasId) -> Result {
 		.unwrap_or(power_levels.state_default);
 	let mut ordered_users = local_users
 		.iter()
+		.chain(local_creators.iter().map(|user_id| (user_id, &Int::MAX)))
 		.map(|(user_id, level)| {
 			if local_creators.contains(user_id) {
 				(user_id, Int::MAX)
@@ -856,16 +857,10 @@ async fn shutdown_room(
 		.filter(|(user_id, _)| self.services.globals.user_is_local(user_id))
 		.map(|(user_id, level)| (user_id.clone(), *level))
 		.collect::<BTreeMap<_, _>>();
-	let join_rules_pl = power_levels
-		.events
-		.get(&StateEventType::RoomJoinRules.into())
-		.copied()
-		.unwrap_or(power_levels.state_default);
-	let kick_pl = power_levels.kick;
-	let ban_pl = power_levels.ban;
-	let min_pl = join_rules_pl.min(kick_pl).min(ban_pl);
+
 	let mut ordered_users = local_users
 		.iter()
+		.chain(local_creators.iter().map(|user_id| (user_id, &Int::MAX)))
 		.map(|(user_id, level)| {
 			if local_creators.contains(user_id) {
 				(user_id, Int::MAX)
@@ -873,7 +868,6 @@ async fn shutdown_room(
 				(user_id, *level)
 			}
 		})
-		.filter(|(user_id, level)| *level >= min_pl || local_creators.contains(*user_id))
 		.collect::<Vec<_>>();
 	ordered_users.sort_by_key(|(_, level)| level.saturating_mul(Int::from(-1)));
 
@@ -884,11 +878,6 @@ async fn shutdown_room(
 	let mut removed_ok: u32 = 0;
 
 	for (user_id, powerlevel) in ordered_users {
-		let new_membership = if powerlevel >= ban_pl {
-			MembershipState::Ban
-		} else {
-			MembershipState::Leave
-		};
 		if !self
 			.services
 			.rooms
@@ -1025,6 +1014,16 @@ async fn shutdown_room(
 			if remove_user == user_id || self.services.admin.user_is_admin(user_id).await {
 				continue;
 			}
+			let user_pl = power_levels
+				.users
+				.get(remove_user)
+				.copied()
+				.unwrap_or(power_levels.users_default);
+			let new_membership = if power_levels.ban <= powerlevel && user_pl < powerlevel {
+				MembershipState::Ban
+			} else {
+				MembershipState::Leave
+			};
 			debug!("Removing {remove_user} via {user_id}");
 			if let Err(e) = self
 				.services
