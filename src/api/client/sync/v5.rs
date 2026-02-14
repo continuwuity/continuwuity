@@ -686,8 +686,6 @@ async fn collect_required_state(
 ) -> Vec<Raw<AnySyncStateEvent>> {
 	let mut required_state = Vec::new();
 	for (event_type, state_key) in required_state_request {
-		// Resolve wild-card sentinel issue
-		// Addresses: https://forgejo.ellis.link/continuwuation/continuwuity/issues/1306
 		if state_key.as_str() == "*" {
 			if let Ok(keys) = services
 				.rooms
@@ -705,6 +703,7 @@ async fn collect_required_state(
 						required_state.push(Event::into_format(event));
 					}
 				}
+				break;
 			}
 		} else if let Ok(event) = services
 			.rooms
