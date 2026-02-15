@@ -46,10 +46,10 @@ jobs:
         run: |
           # both latest need to use clang-23, but oldstable and previous can just use clang
           if [[ "${{ matrix.container }}" == "ubuntu-latest" || "${{ matrix.container }}" == "debian-latest" ]]; then
-            echo "Using clang-23 package for ${matrix.container}"
+            echo "Using clang-23 package for ${{ matrix.container }}"
             echo "version=clang-23" >> $GITHUB_OUTPUT
           else
-            echo "Using default clang package for ${matrix.container}"
+            echo "Using default clang package for ${{ matrix.container }}"
             echo "version=clang" >> $GITHUB_OUTPUT
           fi
 
