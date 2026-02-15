@@ -4,6 +4,7 @@ use ruma::OwnedRoomId;
 
 use crate::{PAGE_SIZE, admin_command, get_room_info};
 
+#[allow(clippy::fn_params_excessive_bools)]
 #[admin_command]
 pub(super) async fn list_rooms(
 	&self,
@@ -30,15 +31,15 @@ pub(super) async fn list_rooms(
 		})
 		.then(|room_id| get_room_info(self.services, room_id))
 		.then(|(room_id, total_members, name)| async move {
-			let room_id2 = room_id.clone(); // this is so dumb
 			let local_members: Vec<_> = self
 				.services
 				.rooms
 				.state_cache
-				.active_local_users_in_room(&room_id2)
+				.active_local_users_in_room(&room_id)
 				.collect()
 				.await;
-			(room_id, total_members, local_members.len(), name)
+			let local_members = local_members.len();
+			(room_id, total_members, local_members, name)
 		})
 		.filter_map(|(room_id, total_members, local_members, name)| async move {
 			(include_empty || local_members > 0).then_some((room_id, total_members, name))
