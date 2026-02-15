@@ -36,9 +36,9 @@ async fn should_rescind_invite(
 	.map_err(|e| err!("invalid PDU: {e}"))?;
 
 	if pdu_event.room_id().is_none_or(|r| r != room_id)
-		|| pdu_event.sender() != sender
-		|| pdu_event.event_type() != &TimelineEventType::RoomMember
-		|| pdu_event.state_key().is_none_or(|v| v == sender.as_str())
+		&& pdu_event.sender() != sender
+		&& pdu_event.event_type() != &TimelineEventType::RoomMember
+		&& pdu_event.state_key().is_none_or(|v| v == sender.as_str())
 	{
 		return Ok(None);
 	}
