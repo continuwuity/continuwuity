@@ -20,7 +20,7 @@ rec {
       # we need to keep the `web` directory which would be filtered out by the regular source filtering function
       #
       # https://crane.dev/API.html#cranelibcleancargosource
-      isWebTemplate = path: _type: builtins.match ".*src/web.*" path != null;
+      isWebTemplate = path: _type: builtins.match ".*(src/(web|service)|docs).*" path != null;
       isRust = craneLib.filterCargoSources;
       isNix = path: _type: builtins.match ".+/nix.*" path != null;
       webOrRustNotNix = p: t: !(isNix p t) && (isWebTemplate p t || isRust p t);
