@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        container: ["ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable"]
+        container: [ "ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable" ]
     container:
       image: "ghcr.io/tcpipuk/act-runner:${{ matrix.container }}"
 
@@ -30,6 +30,11 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
+      - name: Work around llvm-project#153385
+        run: |
+          mkdir -p /etc/crypto-policies/back-ends/
+          cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
+          sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
 
       - name: Checkout repository with full history
         uses: actions/checkout@v6
