@@ -30,6 +30,10 @@ pub enum RoomCommand {
 		#[arg(long)]
 		exclude_banned: bool,
 
+		/// Includes disconnected/empty rooms (rooms with zero members)
+		#[arg(long)]
+		include_empty: bool,
+
 		#[arg(long)]
 		/// Whether to only output room IDs without supplementary room
 		/// information

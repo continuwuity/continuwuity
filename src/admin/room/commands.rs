@@ -10,6 +10,7 @@ pub(super) async fn list_rooms(
 	page: Option<usize>,
 	exclude_disabled: bool,
 	exclude_banned: bool,
+	include_empty: bool,
 	no_details: bool,
 ) -> Result {
 	// TODO: i know there's a way to do this with clap, but i can't seem to find it
@@ -28,6 +29,20 @@ pub(super) async fn list_rooms(
 				.then_some(room_id)
 		})
 		.then(|room_id| get_room_info(self.services, room_id))
+		.then(|(room_id, total_members, name)| async move {
+			let room_id2 = room_id.clone(); // this is so dumb
+			let local_members: Vec<_> = self
+				.services
+				.rooms
+				.state_cache
+				.active_local_users_in_room(&room_id2)
+				.collect()
+				.await;
+			(room_id, total_members, local_members.len(), name)
+		})
+		.filter_map(|(room_id, total_members, local_members, name)| async move {
+			(include_empty || local_members > 0).then_some((room_id, total_members, name))
+		})
 		.collect::<Vec<_>>()
 		.await;
 
