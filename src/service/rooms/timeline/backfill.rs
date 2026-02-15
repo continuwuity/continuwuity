@@ -139,7 +139,12 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 		})
 		.boxed();
 
+	let mut federated_room = false;
+
 	while let Some(ref backfill_server) = servers.next().await {
+		if !self.services.globals.server_is_ours(backfill_server) {
+			federated_room = true;
+		}
 		info!("Asking {backfill_server} for backfill in {room_id}");
 		let response = self
 			.services
@@ -168,7 +173,9 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 		}
 	}
 
-	warn!("No servers could backfill, but backfill was needed in room {room_id}");
+	if federated_room {
+		warn!("No servers could backfill, but backfill was needed in room {room_id}");
+	}
 	Ok(())
 }
 
