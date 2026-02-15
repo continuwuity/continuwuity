@@ -63,20 +63,19 @@ async fn should_rescind_invite(
 	for event in pending_invite_state {
 		if event
 			.get_field::<String>("type")?
-			.is_none_or(|t| t != "m.room.member")
+			.is_some_and(|t| t == "m.room.member")
 			|| event
 				.get_field::<OwnedUserId>("state_key")?
-				.is_none_or(|s| s != *target_user_id)
+				.is_some_and(|s| s == *target_user_id)
 			|| event
 				.get_field::<OwnedUserId>("sender")?
-				.is_none_or(|s| s != *sender)
+				.is_some_and(|s| s == *sender)
 			|| event
 				.get_field::<RoomMemberEventContent>("content")?
-				.is_none_or(|c| c.membership != MembershipState::Invite)
+				.is_some_and(|c| c.membership == MembershipState::Invite)
 		{
-			continue;
+			return Ok(Some(pdu_event));
 		}
-		return Ok(Some(pdu_event)); // Found a pending invite, so this is a rescind
 	}
 
 	Ok(None)
