@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result, err,
+	Err, Error, PduEvent, Result, err, error,
 	matrix::{Event, event::gen_event_id},
 	utils::{self, hash::sha256},
 	warn,
@@ -199,20 +199,27 @@ pub(crate) async fn create_invite_route(
 
 		for appservice in services.appservice.read().await.values() {
 			if appservice.is_user_match(&recipient_user) {
+				let request = ruma::api::appservice::event::push_events::v1::Request {
+					events: vec![pdu.to_format()],
+					txn_id: general_purpose::URL_SAFE_NO_PAD
+						.encode(sha256::hash(pdu.event_id.as_bytes()))
+						.into(),
+					ephemeral: Vec::new(),
+					to_device: Vec::new(),
+				};
 				services
 					.sending
-					.send_appservice_request(
-						appservice.registration.clone(),
-						ruma::api::appservice::event::push_events::v1::Request {
-							events: vec![pdu.to_format()],
-							txn_id: general_purpose::URL_SAFE_NO_PAD
-								.encode(sha256::hash(pdu.event_id.as_bytes()))
-								.into(),
-							ephemeral: Vec::new(),
-							to_device: Vec::new(),
-						},
-					)
-					.await?;
+					.send_appservice_request(appservice.registration.clone(), request)
+					.await
+					.map_err(|e| {
+						error!(
+							"failed to notify appservice {} about incoming invite: {e}",
+							appservice.registration.id
+						);
+						err!(BadServerResponse(
+							"Failed to notify appservice about incoming invite."
+						))
+					})?;
 			}
 		}
 	}
