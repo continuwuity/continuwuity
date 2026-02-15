@@ -8,6 +8,7 @@
 use std::sync::OnceLock;
 
 static BRANDING: &str = "continuwuity";
+static WEBSITE: &str = "https://continuwuity.com";
 static SEMANTIC: &str = env!("CARGO_PKG_VERSION");
 
 static VERSION: OnceLock<String> = OnceLock::new();
@@ -23,7 +24,14 @@ pub fn version() -> &'static str { VERSION.get_or_init(init_version) }
 #[inline]
 pub fn user_agent() -> &'static str { USER_AGENT.get_or_init(init_user_agent) }
 
-fn init_user_agent() -> String { format!("{}/{}", name(), version()) }
+fn init_user_agent() -> String {
+	format!(
+		"{}/{SEMANTIC}{} (embedbot; +{WEBSITE})",
+		name(),
+		conduwuit_build_metadata::version_tag()
+			.map_or_else(String::new, |extra| format!("+{extra}"))
+	)
+}
 
 fn init_version() -> String {
 	conduwuit_build_metadata::version_tag()
