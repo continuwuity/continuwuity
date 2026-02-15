@@ -35,29 +35,23 @@ async fn should_rescind_invite(
 	)
 	.map_err(|e| err!("invalid PDU: {e}"))?;
 
-	if pdu_event.room_id().is_none_or(|r| r != room_id) {
+	if pdu_event.room_id().is_none_or(|r| r != room_id)
+		|| pdu_event.sender() != sender
+		|| pdu_event.event_type() != &TimelineEventType::RoomMember
+		|| pdu_event.state_key().is_none_or(|v| v == sender.as_str())
+	{
 		return Ok(None);
 	}
-	if pdu_event.sender() != sender {
-		return Ok(None);
-	}
-	if pdu_event.event_type() != &TimelineEventType::RoomMember {
-		return Ok(None); // Not a membership event
-	}
-	if pdu_event.state_key().is_none() {
-		return Ok(None);
-	} else if pdu_event.state_key().unwrap() == sender.as_str() {
-		return Ok(None); // Can't rescind an invite to yourself
-	}
-	let target_user_id = match pdu_event.state_key() {
-		| None => return Err!(Request(InvalidParam("PDU is missing state_key"))),
-		| Some(sk) => UserId::parse(sk)
-			.map_err(|e| err!("invalid state_key for m.room.member event: {e}"))?,
-	};
-	let membership_content = pdu_event.get_content::<RoomMemberEventContent>()?;
-	if membership_content.membership != MembershipState::Leave {
+
+	let target_user_id = UserId::parse(pdu_event.state_key().unwrap())?;
+	if pdu_event
+		.get_content::<RoomMemberEventContent>()?
+		.membership
+		!= MembershipState::Leave
+	{
 		return Ok(None); // Not a leave event
 	}
+
 	// Does the target user have a pending invite?
 	let Ok(pending_invite_state) = services
 		.state_cache
@@ -67,30 +61,22 @@ async fn should_rescind_invite(
 		return Ok(None); // No pending invite, so nothing to rescind
 	};
 	for event in pending_invite_state {
-		let Some(evt_type) = event.get_field::<String>("type")? else {
-			continue;
-		};
-		if evt_type != "m.room.member" {
-			continue;
-		}
-		let Some(state_key) = event.get_field::<OwnedUserId>("state_key")? else {
-			continue;
-		};
-		if state_key != target_user_id {
-			continue;
-		}
-		let Some(evt_sender) = event.get_field::<OwnedUserId>("sender")? else {
-			continue;
-		};
-		if sender != evt_sender {
+		if event
+			.get_field::<String>("type")?
+			.is_none_or(|t| t != "m.room.member")
+			|| event
+				.get_field::<OwnedUserId>("state_key")?
+				.is_none_or(|s| s != *target_user_id)
+			|| event
+				.get_field::<OwnedUserId>("sender")?
+				.is_none_or(|s| s != *sender)
+			|| event
+				.get_field::<RoomMemberEventContent>("content")?
+				.is_none_or(|c| c.membership != MembershipState::Invite)
+		{
 			continue;
 		}
-		let Some(content) = event.get_field::<RoomMemberEventContent>("content")? else {
-			continue;
-		};
-		if content.membership == MembershipState::Invite {
-			return Ok(Some(pdu_event)); // Found a pending invite, so this is a rescind
-		}
+		return Ok(Some(pdu_event)); // Found a pending invite, so this is a rescind
 	}
 
 	Ok(None)
