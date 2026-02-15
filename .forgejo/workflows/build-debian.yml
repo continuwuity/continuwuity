@@ -31,10 +31,27 @@ jobs:
           echo "distribution=$DISTRIBUTION" >> $GITHUB_OUTPUT
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
       - name: Work around llvm-project#153385
+        id: llvm-workaround
         run: |
-          mkdir -p /etc/crypto-policies/back-ends/
-          cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
-          sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
+          if [ -f /usr/share/apt/default-sequoia.config ]; then
+            echo "Applying workaround for llvm-project#153385"
+            mkdir -p /etc/crypto-policies/back-ends/
+            cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
+            sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
+          else
+            echo "No workaround needed for llvm-project#153385"
+          fi
+      - name: Pick compatible clang version
+        id: clang-version
+        run: |
+          # both latest need to use clang-23, but oldstable and previous can just use clang
+          if [[ "${{ matrix.container }}" == "ubuntu-latest" || "${{ matrix.container }}" == "debian-latest" ]]; then
+            echo "Using clang-23 package for ${{ matrix.container }}"
+            echo "version=clang-23" >> $GITHUB_OUTPUT
+          else
+            echo "Using default clang package for ${{ matrix.container }}"
+            echo "version=clang" >> $GITHUB_OUTPUT
+          fi
 
       - name: Checkout repository with full history
         uses: actions/checkout@v6
@@ -110,7 +127,7 @@ jobs:
         run: |
           apt-get update -y
           # Build dependencies for rocksdb
-          apt-get install -y clang-23 liburing-dev
+          apt-get install -y liburing-dev ${{ steps.clang-version.outputs.version }}
 
       - name: Run cargo-deb
         id: cargo-deb
