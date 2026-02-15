@@ -107,7 +107,7 @@ pub(super) async fn ldap_login(
 ) -> Result<OwnedUserId> {
 	let (user_dn, is_ldap_admin) = match services.config.ldap.bind_dn.as_ref() {
 		| Some(bind_dn) if bind_dn.contains("{username}") =>
-			(bind_dn.replace("{username}", lowercased_user_id.localpart()), false),
+			(bind_dn.replace("{username}", lowercased_user_id.localpart()), None),
 		| _ => {
 			debug!("Searching user in LDAP");
 
@@ -144,12 +144,16 @@ pub(super) async fn ldap_login(
 			.await?;
 	}
 
-	let is_conduwuit_admin = services.admin.user_is_admin(lowercased_user_id).await;
+	// Only sync admin status if LDAP can actually determine it.
+	// None means LDAP cannot determine admin status (manual config required).
+	if let Some(is_ldap_admin) = is_ldap_admin {
+		let is_conduwuit_admin = services.admin.user_is_admin(lowercased_user_id).await;
 
-	if is_ldap_admin && !is_conduwuit_admin {
-		Box::pin(services.admin.make_user_admin(lowercased_user_id)).await?;
-	} else if !is_ldap_admin && is_conduwuit_admin {
-		Box::pin(services.admin.revoke_admin(lowercased_user_id)).await?;
+		if is_ldap_admin && !is_conduwuit_admin {
+			Box::pin(services.admin.make_user_admin(lowercased_user_id)).await?;
+		} else if !is_ldap_admin && is_conduwuit_admin {
+			Box::pin(services.admin.revoke_admin(lowercased_user_id)).await?;
+		}
 	}
 
 	Ok(user_id)

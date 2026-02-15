@@ -1269,12 +1269,12 @@ impl Service {
 	}
 
 	#[cfg(not(feature = "ldap"))]
-	pub async fn search_ldap(&self, _user_id: &UserId) -> Result<Vec<(String, bool)>> {
+	pub async fn search_ldap(&self, _user_id: &UserId) -> Result<Vec<(String, Option<bool>)>> {
 		Err!(FeatureDisabled("ldap"))
 	}
 
 	#[cfg(feature = "ldap")]
-	pub async fn search_ldap(&self, user_id: &UserId) -> Result<Vec<(String, bool)>> {
+	pub async fn search_ldap(&self, user_id: &UserId) -> Result<Vec<(String, Option<bool>)>> {
 		let localpart = user_id.localpart().to_owned();
 		let lowercased_localpart = localpart.to_lowercase();
 
@@ -1318,7 +1318,7 @@ impl Service {
 			.inspect(|(entries, result)| trace!(?entries, ?result, "LDAP Search"))
 			.map_err(|e| err!(Ldap(error!(?attr, ?user_filter, "LDAP search error: {e}"))))?;
 
-		let mut dns: HashMap<String, bool> = entries
+		let mut dns: HashMap<String, Option<bool>> = entries
 			.into_iter()
 			.filter_map(|entry| {
 				let search_entry = SearchEntry::construct(entry);
@@ -1329,11 +1329,16 @@ impl Service {
 					.into_iter()
 					.chain(search_entry.attrs.get(&config.name_attribute))
 					.any(|ids| ids.contains(&localpart) || ids.contains(&lowercased_localpart))
-					.then_some((search_entry.dn, false))
+					.then_some((search_entry.dn, None))
 			})
 			.collect();
 
 		if !config.admin_filter.is_empty() {
+			// Update all existing entries to Some(false) since we can now determine admin
+			// status
+			for admin_status in dns.values_mut() {
+				*admin_status = Some(false);
+			}
 			let admin_base_dn = if config.admin_base_dn.is_empty() {
 				&config.base_dn
 			} else {
@@ -1362,7 +1367,7 @@ impl Service {
 					.into_iter()
 					.chain(search_entry.attrs.get(&config.name_attribute))
 					.any(|ids| ids.contains(&localpart) || ids.contains(&lowercased_localpart))
-					.then_some((search_entry.dn, true))
+					.then_some((search_entry.dn, Some(true)))
 			}));
 		}
 
