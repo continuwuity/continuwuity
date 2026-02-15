@@ -685,8 +685,15 @@ async fn collect_required_state(
 	required_state_request: &BTreeSet<TypeStateKey>,
 ) -> Vec<Raw<AnySyncStateEvent>> {
 	let mut required_state = Vec::new();
+	let mut wildcard_types: BTreeSet<&StateEventType> = BTreeSet::new();
+
 	for (event_type, state_key) in required_state_request {
+		if wildcard_types.contains(event_type) {
+			continue;
+		}
+
 		if state_key.as_str() == "*" {
+			wildcard_types.insert(event_type);
 			if let Ok(keys) = services
 				.rooms
 				.state_accessor
@@ -703,7 +710,6 @@ async fn collect_required_state(
 						required_state.push(Event::into_format(event));
 					}
 				}
-				break;
 			}
 		} else if let Ok(event) = services
 			.rooms
