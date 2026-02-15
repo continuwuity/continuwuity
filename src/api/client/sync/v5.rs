@@ -685,7 +685,7 @@ async fn collect_required_state(
 	required_state_request: &BTreeSet<TypeStateKey>,
 ) -> Vec<Raw<AnySyncStateEvent>> {
 	let mut required_state = Vec::new();
-	let mut wildcard_types: BTreeSet<&StateEventType> = BTreeSet::new();
+	let mut wildcard_types: HashSet<&StateEventType> = HashSet::new();
 
 	for (event_type, state_key) in required_state_request {
 		if wildcard_types.contains(event_type) {
