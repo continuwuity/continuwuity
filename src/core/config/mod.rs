@@ -559,7 +559,7 @@ pub struct Config {
 	///
 	/// If you would like registration only via token reg, please configure
 	/// `registration_token`.
-	#[serde(default)]
+	#[serde(default = "true_fn")]
 	pub allow_registration: bool,
 
 	/// If registration is enabled, and this setting is true, new users

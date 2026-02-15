@@ -433,7 +433,7 @@
 # If you would like registration only via token reg, please configure
 # `registration_token`.
 #
-#allow_registration = false
+#allow_registration = true
 
 # If registration is enabled, and this setting is true, new users
 # registered after the first admin user will be automatically suspended
