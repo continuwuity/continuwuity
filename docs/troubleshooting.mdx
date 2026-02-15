@@ -1,12 +1,24 @@
 # Troubleshooting Continuwuity
 
-> **Docker users ⚠️**
->
-> Docker can be difficult to use and debug. It's common for Docker
-> misconfigurations to cause issues, particularly with networking and permissions.
-> Please check that your issues are not due to problems with your Docker setup.
+:::warning{title="Docker users:"}
+Docker can be difficult to use and debug. It's common for Docker
+misconfigurations to cause issues, particularly with networking and permissions.
+Please check that your issues are not due to problems with your Docker setup.
+:::
 
 ## Continuwuity and Matrix issues
+
+### Slow joins to rooms
+
+Some slowness is to be expected if you're the first person on your homserver to join a room (which will
+always be the case for single-user homeservers). In this situation, your homeserver has to download and verify
+the message history and current state of the remote room, which involves contacting a lot of other servers.
+
+However, _very_ slow joins, especially to rooms with only a few users in them or rooms created by another user
+on your homeserver, may be caused by [issue !779](https://forgejo.ellis.link/continuwuation/continuwuity/issues/779),
+a longstanding bug with synchronizing room joins to clients. In this situation, you did succeed in joining the room, but
+the bug caused your homeserver to fail to tell your client. **To fix this, clear your client's cache.** Both Element and Cinny
+have a button to clear their cache in the "About" section of their settings.
 
 ### Lost access to admin room
 
