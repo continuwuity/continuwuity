@@ -4,17 +4,97 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Event, Result, debug::INFO_SPAN_LEVEL, defer, err, implement, info,
-	utils::stream::IterStream, warn,
+	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
+	implement, info, trace, utils::stream::IterStream, warn,
 };
 use futures::{
 	FutureExt, TryFutureExt, TryStreamExt,
-	future::{OptionFuture, try_join5},
+	future::{OptionFuture, try_join4},
 };
-use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId, events::StateEventType};
+use ruma::{
+	CanonicalJsonValue, EventId, OwnedUserId, RoomId, ServerName, UserId,
+	events::{
+		StateEventType, TimelineEventType,
+		room::member::{MembershipState, RoomMemberEventContent},
+	},
+};
 use tracing::debug;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
+
+async fn should_rescind_invite(
+	services: &crate::rooms::event_handler::Services,
+	content: &mut BTreeMap<String, CanonicalJsonValue>,
+	sender: &UserId,
+	room_id: &RoomId,
+) -> Result<Option<PduEvent>> {
+	// We insert a bogus event ID since we can't actually calculate the right one
+	content.insert("event_id".to_owned(), CanonicalJsonValue::String("$rescind".to_owned()));
+	let pdu_event = serde_json::from_value::<PduEvent>(
+		serde_json::to_value(&content).expect("CanonicalJsonObj is a valid JsonValue"),
+	)
+	.map_err(|e| err!("invalid PDU: {e}"))?;
+
+	if pdu_event.room_id().is_none_or(|r| r != room_id) {
+		return Ok(None);
+	}
+	if pdu_event.sender() != sender {
+		return Ok(None);
+	}
+	if pdu_event.event_type() != &TimelineEventType::RoomMember {
+		return Ok(None); // Not a membership event
+	}
+	if pdu_event.state_key().is_none() {
+		return Ok(None);
+	} else if pdu_event.state_key().unwrap() == sender.as_str() {
+		return Ok(None); // Can't rescind an invite to yourself
+	}
+	let target_user_id = match pdu_event.state_key() {
+		| None => return Err!(Request(InvalidParam("PDU is missing state_key"))),
+		| Some(sk) => UserId::parse(sk)
+			.map_err(|e| err!("invalid state_key for m.room.member event: {e}"))?,
+	};
+	let membership_content = pdu_event.get_content::<RoomMemberEventContent>()?;
+	if membership_content.membership != MembershipState::Leave {
+		return Ok(None); // Not a leave event
+	}
+	// Does the target user have a pending invite?
+	let Ok(pending_invite_state) = services
+		.state_cache
+		.invite_state(target_user_id, room_id)
+		.await
+	else {
+		return Ok(None); // No pending invite, so nothing to rescind
+	};
+	for event in pending_invite_state {
+		let Some(evt_type) = event.get_field::<String>("type")? else {
+			continue;
+		};
+		if evt_type != "m.room.member" {
+			continue;
+		}
+		let Some(state_key) = event.get_field::<OwnedUserId>("state_key")? else {
+			continue;
+		};
+		if state_key != target_user_id {
+			continue;
+		}
+		let Some(evt_sender) = event.get_field::<OwnedUserId>("sender")? else {
+			continue;
+		};
+		if sender != evt_sender {
+			continue;
+		}
+		let Some(content) = event.get_field::<RoomMemberEventContent>("content")? else {
+			continue;
+		};
+		if content.membership == MembershipState::Invite {
+			return Ok(Some(pdu_event)); // Found a pending invite, so this is a rescind
+		}
+	}
+
+	Ok(None)
+}
 
 /// When receiving an event one needs to:
 /// 0. Check the server is in the room
@@ -69,6 +149,7 @@ pub async fn handle_incoming_pdu<'a>(
 		);
 		return Err!(Request(TooLarge("PDU is too large")));
 	}
+	trace!("processing incoming pdu from {origin} for room {room_id} with event id {event_id}");
 
 	// 1.1 Check we even know about the room
 	let meta_exists = self.services.metadata.exists(room_id).map(Ok);
@@ -91,24 +172,14 @@ pub async fn handle_incoming_pdu<'a>(
 		.then(|| self.acl_check(sender.server_name(), room_id))
 		.into();
 
-	// Fetch create event
-	let create_event =
-		self.services
-			.state_accessor
-			.room_state_get(room_id, &StateEventType::RoomCreate, "");
-
-	let (meta_exists, is_disabled, (), (), ref create_event) = try_join5(
+	let (meta_exists, is_disabled, (), ()) = try_join4(
 		meta_exists,
 		is_disabled,
 		origin_acl_check,
 		sender_acl_check.map(|o| o.unwrap_or(Ok(()))),
-		create_event,
 	)
-	.await?;
-
-	if !meta_exists {
-		return Err!(Request(NotFound("Room is unknown to this server")));
-	}
+	.await
+	.inspect_err(|e| debug_error!("failed to handle incoming PDU: {e}"))?;
 
 	if is_disabled {
 		return Err!(Request(Forbidden("Federation of this room is disabled by this server.")));
@@ -120,12 +191,40 @@ pub async fn handle_incoming_pdu<'a>(
 		.server_in_room(self.services.globals.server_name(), room_id)
 		.await
 	{
+		// Is this a federated invite rescind?
+		// copied from https://github.com/element-hq/synapse/blob/7e4588a/synapse/handlers/federation_event.py#L255-L300
+		if value.get("type").and_then(|t| t.as_str()) == Some("m.room.member") {
+			if let Some(pdu) =
+				should_rescind_invite(&self.services, &mut value.clone(), sender, room_id).await?
+			{
+				debug_info!(
+					"Invite to {room_id} appears to have been rescinded by {sender}, marking as \
+					 left"
+				);
+				self.services
+					.state_cache
+					.mark_as_left(sender, room_id, Some(pdu))
+					.await;
+				return Ok(None);
+			}
+		}
 		info!(
 			%origin,
 			"Dropping inbound PDU for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
+
+	if !meta_exists {
+		return Err!(Request(NotFound("Room is unknown to this server")));
+	}
+
+	// Fetch create event
+	let create_event = &(self
+		.services
+		.state_accessor
+		.room_state_get(room_id, &StateEventType::RoomCreate, "")
+		.await?);
 
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
