@@ -5,7 +5,7 @@ use std::{
 
 use askama::Template;
 use async_trait::async_trait;
-use conduwuit::{Result, utils::ReadyExt};
+use conduwuit::{Result, info, utils::ReadyExt};
 use futures::StreamExt;
 use ruma::{UserId, events::room::message::RoomMessageEventContent};
 
@@ -146,6 +146,8 @@ impl Service {
 			.send_loud_message(RoomMessageEventContent::text_markdown(welcome_message))
 			.await?;
 
+		info!("{user} has been invited to the admin room as the first user.");
+
 		Ok(true)
 	}
 
@@ -162,7 +164,7 @@ impl Service {
 		}
 	}
 
-	pub(crate) fn print_first_run_banner(&self) {
+	pub fn print_first_run_banner(&self) {
 		use yansi::Paint;
 		// This function is specially called by the core after all other
 		// services have started. It runs last to ensure that the banner it

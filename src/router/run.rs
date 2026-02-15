@@ -39,7 +39,15 @@ pub(crate) async fn run(services: Arc<Services>) -> Result<()> {
 			.runtime()
 			.spawn(serve::serve(services.clone(), handle.clone(), tx.subscribe()));
 
-	// Focal point
+	// Run startup admin commands.
+	// This has to be done after the admin service is initialized otherwise it
+	// panics.
+	services.admin.startup_execute().await?;
+
+	// Print first-run banner if necessary. This needs to be done after the startup
+	// admin commands are run in case one of them created the first user.
+	services.firstrun.print_first_run_banner();
+
 	debug!("Running");
 	let res = tokio::select! {
 		res = &mut listener => res.map_err(Error::from).unwrap_or_else(Err),
