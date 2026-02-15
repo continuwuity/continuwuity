@@ -32,9 +32,14 @@ jobs:
           echo "Debian distribution: $DISTRIBUTION ($VERSION)"
       - name: Work around llvm-project#153385
         run: |
-          mkdir -p /etc/crypto-policies/back-ends/
-          cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
-          sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
+          if [ -f /usr/share/apt/default-sequoia.config ]; then
+            echo "Applying workaround for llvm-project#153385"
+            mkdir -p /etc/crypto-policies/back-ends/
+            cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
+            sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
+          else
+            echo "No workaround needed for llvm-project#153385"
+          fi
 
       - name: Checkout repository with full history
         uses: actions/checkout@v6
