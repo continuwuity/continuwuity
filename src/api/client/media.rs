@@ -145,13 +145,32 @@ pub(crate) async fn get_content_route(
 		media_id: &body.media_id,
 	};
 
-	let Ok(FileMeta {
+	let FileMeta {
 		content,
 		content_type,
 		content_disposition,
-	}) = fetch_file(&services, &mxc, user, body.timeout_ms, None).await
-	else {
-		return Err!(Request(NotFound("Media not found.")));
+	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
+		| Ok(meta) => meta,
+		| Err(e) => {
+			match e {
+				| conduwuit::Error::Io(e) => {
+					match e.kind() {
+						| std::io::ErrorKind::PermissionDenied =>
+						// to not leak that a file exists
+						{
+							return Err!(Request(NotFound("Media not found.")));
+						},
+						| std::io::ErrorKind::NotFound => {
+							return Err!(Request(NotFound("Media not found.")));
+						},
+						| _ => {
+							return Err!(Request(Unknown("Unknown error when fetching file.")));
+						},
+					}
+				},
+				| _ => return Err!(Request(Unknown("Unknown error when fetching file."))),
+			}
+		},
 	};
 
 	Ok(get_content::v1::Response {
