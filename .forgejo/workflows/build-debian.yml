@@ -38,10 +38,8 @@ jobs:
             mkdir -p /etc/crypto-policies/back-ends/
             cp /usr/share/apt/default-sequoia.config /etc/crypto-policies/back-ends/apt-sequoia.config
             sed -i 's/\(sha1\.second_preimage_resistance = \)2026-02-01/\12026-06-01/' /etc/crypto-policies/back-ends/apt-sequoia.config
-            echo 'clang_pkg=clang-23' >> $GITHUB_OUTPUT
           else
             echo "No workaround needed for llvm-project#153385"
-            echo 'clang_pkg=clang' >> $GITHUB_OUTPUT
           fi
 
       - name: Checkout repository with full history
@@ -118,7 +116,7 @@ jobs:
         run: |
           apt-get update -y
           # Build dependencies for rocksdb
-          apt-get install -y ${{ steps.llvm-workaround.outputs.clang_pkg }} liburing-dev
+          apt-get install -y clang-19 liburing-dev
 
       - name: Run cargo-deb
         id: cargo-deb
