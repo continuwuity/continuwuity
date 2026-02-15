@@ -110,7 +110,7 @@ jobs:
         run: |
           apt-get update -y
           # Build dependencies for rocksdb
-          apt-get install -y clang liburing-dev
+          apt-get install -y clang-23 liburing-dev
 
       - name: Run cargo-deb
         id: cargo-deb
