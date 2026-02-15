@@ -224,6 +224,10 @@ impl Service {
 				);
 			},
 		}
+		eprintln!(
+			"{} https://matrix.org/ecosystem/clients/",
+			"Find a list of Matrix clients here:".bold()
+		);
 
 		if self.services.config.suspend_on_register {
 			eprintln!(
