@@ -6,6 +6,7 @@ use conduwuit::{
 	Err, Result, err,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 };
+use conduwuit_core::error;
 use conduwuit_service::{
 	Services,
 	media::{CACHE_CONTROL_IMMUTABLE, CORP_CROSS_ORIGIN, Dim, FileMeta, MXC_LENGTH},
@@ -144,22 +145,19 @@ pub(crate) async fn get_content_route(
 		server_name: &body.server_name,
 		media_id: &body.media_id,
 	};
-
 	let FileMeta {
 		content,
 		content_type,
 		content_disposition,
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
-		| Err(conduwuit::Error::Io(e)) => {
-			if matches!(
-				e.kind(),
-				std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
-			) {
-				return Err!(Request(NotFound("Media not found.")));
-			}
-
-			return Err!(Request(Unknown("Unknown error when fetching file.")));
+		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+			| std::io::ErrorKind::NotFound => return Err!(Request(NotFound("Media not found."))),
+			| std::io::ErrorKind::PermissionDenied => {
+				error!("Permission denied when trying to read file: {e:?}");
+				return Err!(Request(Unknown("Unknown error when fetching file.")));
+			},
+			| _ => return Err!(Request(Unknown("Unknown error when fetching file."))),
 		},
 		| Err(_) => return Err!(Request(Unknown("Unknown error when fetching file."))),
 	};
@@ -200,15 +198,13 @@ pub(crate) async fn get_content_as_filename_route(
 		content_disposition,
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
-		| Err(conduwuit::Error::Io(e)) => {
-			if matches!(
-				e.kind(),
-				std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
-			) {
-				return Err!(Request(NotFound("Media not found.")));
-			}
-
-			return Err!(Request(Unknown("Unknown error when fetching file.")));
+		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+			| std::io::ErrorKind::NotFound => return Err!(Request(NotFound("Media not found."))),
+			| std::io::ErrorKind::PermissionDenied => {
+				error!("Permission denied when trying to read file: {e:?}");
+				return Err!(Request(Unknown("Unknown error when fetching file.")));
+			},
+			| _ => return Err!(Request(Unknown("Unknown error when fetching file."))),
 		},
 		| Err(_) => return Err!(Request(Unknown("Unknown error when fetching file."))),
 	};
