@@ -176,6 +176,14 @@ By default, all routes should be forwarded to Livekit with the exception of the 
         }
     }
     ```
+
+    Note that for websockets to work, you need to have this somewhere outside your server block:
+    ```
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+    ```
 </details>
 
 <details>
