@@ -158,7 +158,7 @@ By default, all routes should be forwarded to Livekit with the exception of the 
             proxy_set_header X-Forwarded-For $remote_addr;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header Host $http_host;
-            proxy_buffering off;  
+            proxy_buffering off;
         }
 
         # for livekit
