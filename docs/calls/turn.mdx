@@ -120,7 +120,7 @@ turn_password = "your_password"
 ```
 
 :::warning
-Static credentials are less secure than shared secrets because they don't expire and must be configured in coturn separately. Use shared secret authentication.
+Static credentials are less secure than shared secrets because they don't expire and must be configured in coturn separately. It is strongly advised you use shared secret authentication.
 :::
 
 ### Guest Access
@@ -132,7 +132,7 @@ turn_allow_guests = true
 ```
 
 :::caution
-This is not recommended as it allows unauthenticated users to access your TURN server, potentially enabling abuse by bots. All major Matrix clients support authenticated TURN access.
+This is not recommended as it allows unauthenticated users to access your TURN server, potentially enabling abuse by bots. All major Matrix clients that support legacy calls *also* support authenticated TURN access.
 :::
 
 ### Important Notes

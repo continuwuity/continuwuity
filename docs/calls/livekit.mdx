@@ -14,7 +14,7 @@ Make sure the DNS record for the (sub)domain you plan to use is pointed to your 
 
 ### 2. Services
 
-Using LiveKit with matrix requires two services - Livekit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
+Using LiveKit with Matrix requires two services - Livekit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
 
 You must generate a key and secret to allow the Matrix service to authenticate with LiveKit. `LK_MATRIX_KEY` should be around 20 random characters, and `LK_MATRIX_SECRET` should be around 64. Remember to replace these with the actual values!
 
@@ -27,22 +27,22 @@ docker run --rm livekit/livekit-server:latest generate-keys
 
 ```yaml
 services:
-  matrix-rtc-jwt:
+  lk-jwt-service:
     image: ghcr.io/element-hq/lk-jwt-service:latest
-    container_name: matrix-rtc-jwt
+    container_name: lk-jwt-service
     environment:
       - LIVEKIT_JWT_BIND=:8081
       - LIVEKIT_URL=wss://livekit.example.com
       - LIVEKIT_KEY=LK_MATRIX_KEY
       - LIVEKIT_SECRET=LK_MATRIX_SECRET
-      - LIVEKIT_FULL_ACCESS_HOMESERVERS=yourdomain.com
+      - LIVEKIT_FULL_ACCESS_HOMESERVERS=example.com
     restart: unless-stopped
     ports:
       - "8081:8081"
 
-  matrix-rtc-livekit:
+  livekit:
     image: livekit/livekit-server:latest
-    container_name: matrix-rtc-livekit
+    container_name: livekit
     command: --config /etc/livekit.yaml
     restart: unless-stopped
     volumes:
@@ -78,15 +78,9 @@ You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firew
 
 ### 3. Telling clients where to find LiveKit
 
-To tell clients where to find LiveKit, you need to add the domain address of the LiveKit server to the continuwuity.toml config file. To do so, in the config section `global.well-known`, add (or modify) the option `rtc_focus_server_urls`.
+To tell clients where to find LiveKit, you need to add the address of your `lk-jwt-service` to your client .well-known file. To do so, in the config section `global.well-known`, add (or modify) the option `rtc_focus_server_urls`.
 
-The variable should be a vector (i.e. list) of servers serving as MatrixRTC endpoints to serve in the well-known file to the client.
-
-To add your own matrix-rtc-jwt deployment, add
-```toml
-    { type = "livekit", livekit_service_url = "https://livekit.example.com" },
-```
-to the vector. If it's the only endpoint, the final configuration option will look something like this:
+The variable should be a list of servers serving as MatrixRTC endpoints to serve in the well-known file to the client.
 
 ```toml
 rtc_focus_server_urls = [
@@ -94,11 +88,11 @@ rtc_focus_server_urls = [
 ]
 ```
 
-Remember to replace the URL with the address you are deploying your instance of matrix-rtc-jwt to.
+Remember to replace the URL with the address you are deploying your instance of lk-jwt-service to.
 
 #### Serving .well-known manually
 
-If you don't let Continuwuity serve your .well-known files, you need to add the following lines to your .well-known/matrix/client file, remembering to replace the URL with your own matrix-rtc-jwt deployment:
+If you don't let Continuwuity serve your `.well-known` files, you need to add the following lines to your `.well-known/matrix/client` file, remembering to replace the URL with your own `lk-jwt-service` deployment:
 
 ```json
   "org.matrix.msc4143.rtc_foci": [
@@ -134,6 +128,34 @@ By default, all routes should be forwarded to Livekit with the exception of the 
 - `/sfu/get`
 - `/healthz`
 - `/get_token`
+
+<details>
+    <summary>Example caddy config</summary>
+    ```
+    matrix-rtc.example.com {
+
+        # for lk-jwt-service
+        @lk-jwt-service path /sfu/get* /healthz* /get_token*
+        route @lk-jwt-service {
+            reverse_proxy 127.0.0.1:8080
+        }
+
+        # for livekit
+        reverse_proxy 127.0.0.1:7880
+    }
+    ```
+</details>
+
+<details>
+    <summary>Example traefik router</summary>
+    ```
+    # on LiveKit itself
+    traefik.http.routers.livekit.rule=Host(`livekit.example.com`)
+    # on the JWT service
+    traefik.http.routers.livekit-jwt.rule=Host(`livekit.example.com`) && (PathPrefix(`/sfu/get`) || PathPrefix(`/healthz`) || PathPrefix(`/get_token`))
+    ```
+</details>
+
 
 ### 6. Start Everything
 
@@ -200,3 +222,8 @@ turn:
 
 - [LiveKit GitHub](https://github.com/livekit/livekit)
 - [LiveKit Connection Tester](https://livekit.io/connection-test) - use with the token returned by `/sfu/get` or `/get_token`
+- [MatrixRTC proposal](https://half-shot.github.io/msc-crafter/#msc/4143)
+- [Synapse documentation](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
+- [Community guide](https://tomfos.tr/matrix/livekit/)
+- [Community guide](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
+-
