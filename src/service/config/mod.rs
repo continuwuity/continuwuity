@@ -19,10 +19,9 @@ impl Service {
 	/// Get the registration token set in the config file, if it exists.
 	#[must_use]
 	pub fn get_config_file_token(&self) -> Option<ValidToken> {
-		self.registration_token.clone().map(|token| ValidToken {
-			token,
-			source: ValidTokenSource::ConfigFile,
-		})
+		self.registration_token
+			.clone()
+			.map(|token| ValidToken { token, source: ValidTokenSource::Config })
 	}
 }
 
