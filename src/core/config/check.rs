@@ -174,6 +174,7 @@ pub fn check(config: &Config) -> Result {
 	if config.allow_registration
 		&& config.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
 		&& config.registration_token.is_none()
+		&& config.registration_token_file.is_none()
 	{
 		warn!(
 			"Open registration is enabled via setting \

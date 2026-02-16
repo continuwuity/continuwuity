@@ -609,18 +609,24 @@ pub struct Config {
 	pub yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse: bool,
 
 	/// A static registration token that new users will have to provide when
-	/// creating an account. If unset and `allow_registration` is true,
-	/// you must set
-	/// `yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse`
-	/// to true to allow open registration without any conditions.
-	///
-	/// If you do not want to set a static token, the `!admin token` commands
-	/// may also be used to manage registration tokens.
+	/// creating an account. This token does not supersede tokens from other
+	/// sources, such as the `!admin token` command or the
+	/// `registration_token_file` configuration option.
 	///
 	/// example: "o&^uCtes4HPf0Vu@F20jQeeWE7"
 	///
 	/// display: sensitive
 	pub registration_token: Option<String>,
+
+	/// A path to a file containing static registration tokens, one per line.
+	/// Tokens in this file do not supersede tokens from other sources, such as
+	/// the `!admin token` command or the `registration_token` configuration
+	/// option.
+	///
+	/// The file will be read once, when Continuwuity starts. It is not
+	/// currently reread when the server configuration is reloaded. If the file
+	/// cannot be read, Continuwuity will fail to start.
+	pub registration_token_file: Option<PathBuf>,
 
 	/// The public site key for reCaptcha. If this is provided, reCaptcha
 	/// becomes required during registration. If both captcha *and*
