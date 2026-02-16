@@ -152,7 +152,10 @@ pub(crate) async fn get_content_route(
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
 		| Err(conduwuit::Error::Io(e)) => {
-			if matches!(e.kind(), std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound) {
+			if matches!(
+				e.kind(),
+				std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+			) {
 				return Err!(Request(NotFound("Media not found.")));
 			}
 
@@ -198,7 +201,10 @@ pub(crate) async fn get_content_as_filename_route(
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
 		| Err(conduwuit::Error::Io(e)) => {
-			if matches!(e.kind(), std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound) {
+			if matches!(
+				e.kind(),
+				std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound
+			) {
 				return Err!(Request(NotFound("Media not found.")));
 			}
 
