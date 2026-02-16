@@ -3,7 +3,7 @@ mod remote;
 use std::sync::Arc;
 
 use conduwuit::{
-	Err, Event, Result, Server, err,
+	Err, Event, Result, err,
 	utils::{ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Map};
@@ -30,12 +30,12 @@ struct Data {
 }
 
 struct Services {
-	server: Arc<Server>,
 	admin: Dep<admin::Service>,
 	appservice: Dep<appservice::Service>,
 	globals: Dep<globals::Service>,
 	sending: Dep<sending::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
+	state_cache: Dep<rooms::state_cache::Service>,
 }
 
 impl crate::Service for Service {
@@ -47,13 +47,13 @@ impl crate::Service for Service {
 				aliasid_alias: args.db["aliasid_alias"].clone(),
 			},
 			services: Services {
-				server: args.server.clone(),
 				admin: args.depend::<admin::Service>("admin"),
 				appservice: args.depend::<appservice::Service>("appservice"),
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
+				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 			},
 		}))
 	}
@@ -117,6 +117,9 @@ impl Service {
 		Ok(())
 	}
 
+	/// Resolves the given room ID or alias, returning the resolved room ID.
+	/// Unlike resolve_with_servers (the underlying call), potential resident
+	/// servers are not returned
 	#[inline]
 	pub async fn resolve(&self, room: &RoomOrAliasId) -> Result<OwnedRoomId> {
 		self.resolve_with_servers(room, None)
@@ -124,6 +127,14 @@ impl Service {
 			.map(|(room_id, _)| room_id)
 	}
 
+	/// Resolves the given room ID or alias, returning the resolved room ID, and
+	/// any servers that might be able to assist in fetching room data.
+	///
+	/// If the input is a room ID, this simply returns it and <servers>.
+	/// If the input is an alias, this attempts to resolve it locally, then via
+	/// appservices, and finally remotely if the alias is not local.
+	/// If the alias is successfully resolved, the room ID and an empty list of
+	/// servers is returned.
 	pub async fn resolve_with_servers(
 		&self,
 		room: &RoomOrAliasId,
@@ -134,28 +145,26 @@ impl Service {
 			Ok((room_id.to_owned(), servers.unwrap_or_default()))
 		} else {
 			let alias: &RoomAliasId = room.try_into().expect("valid RoomAliasId");
-			self.resolve_alias(alias, servers).await
+			self.resolve_alias(alias).await
 		}
 	}
 
+	/// Resolves the given room alias, returning the resolved room ID and any
+	/// servers that might be in the room.
 	#[tracing::instrument(skip(self), name = "resolve")]
 	pub async fn resolve_alias(
 		&self,
 		room_alias: &RoomAliasId,
-		servers: Option<Vec<OwnedServerName>>,
 	) -> Result<(OwnedRoomId, Vec<OwnedServerName>)> {
-		let server_name = room_alias.server_name();
-		let server_is_ours = self.services.globals.server_is_ours(server_name);
-		let servers_contains_ours = || {
-			servers
-				.as_ref()
-				.is_some_and(|servers| servers.contains(&self.services.server.name))
-		};
+		let server_is_ours = self
+			.services
+			.globals
+			.server_is_ours(room_alias.server_name());
 
-		if !server_is_ours && !servers_contains_ours() {
-			return self
-				.remote_resolve(room_alias, servers.unwrap_or_default())
-				.await;
+		if !server_is_ours {
+			// TODO: The spec advises servers may cache remote room aliases temporarily.
+			// We might want to look at doing that.
+			return self.remote_resolve(room_alias).await;
 		}
 
 		let room_id = match self.resolve_local_alias(room_alias).await {
@@ -163,10 +172,18 @@ impl Service {
 			| Err(_) => self.resolve_appservice_alias(room_alias).await?,
 		};
 
-		room_id.map_or_else(
-			|| Err!(Request(NotFound("Room with alias not found."))),
-			|room_id| Ok((room_id, Vec::new())),
-		)
+		if let Some(room_id) = room_id {
+			let servers: Vec<OwnedServerName> = self
+				.services
+				.state_cache
+				.room_servers(&room_id)
+				.map(ToOwned::to_owned)
+				.collect()
+				.await;
+			return Ok((room_id, servers));
+		}
+
+		Err!(Request(NotFound("Alias does not exist.")))
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
@@ -206,12 +223,12 @@ impl Service {
 
 		// The creator of an alias can remove it
 		if self
-            .who_created_alias(alias).await
-            .is_ok_and(|user| user == user_id)
-            // Server admins can remove any local alias
-            || self.services.admin.user_is_admin(user_id).await
-            // Always allow the server service account to remove the alias, since there may not be an admin room
-            || server_user == user_id
+			.who_created_alias(alias).await
+			.is_ok_and(|user| user == user_id)
+			// Server admins can remove any local alias
+			|| self.services.admin.user_is_admin(user_id).await
+			// Always allow the server service account to remove the alias, since there may not be an admin room
+			|| server_user == user_id
 		{
 			return Ok(true);
 		}

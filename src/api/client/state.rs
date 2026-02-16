@@ -342,10 +342,10 @@ async fn allowed_to_send_state_event(
 					}
 
 					for alias in aliases {
-						let (alias_room_id, _servers) = services
+						let (alias_room_id, _) = services
 							.rooms
 							.alias
-							.resolve_alias(&alias, None)
+							.resolve_alias(&alias)
 							.await
 							.map_err(|e| {
 								err!(Request(Unknown("Failed resolving alias \"{alias}\": {e}")))

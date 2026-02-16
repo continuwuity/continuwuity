@@ -35,8 +35,7 @@ pub(crate) async fn open(ctx: Arc<Context>, desc: &[Descriptor]) -> Result<Arc<S
 	}
 
 	debug!("Opening database...");
-	let db = Db::open_cf_descriptors(&db_opts, path, cfds)
-	.or_else(or_else)?;
+	let db = Db::open_cf_descriptors(&db_opts, path, cfds).or_else(or_else)?;
 
 	info!(
 		columns = num_cfds,

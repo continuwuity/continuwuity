@@ -198,11 +198,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 			(servers, room_id)
 		},
 		| Err(room_alias) => {
-			let (room_id, mut servers) = services
-				.rooms
-				.alias
-				.resolve_alias(&room_alias, Some(body.via.clone()))
-				.await?;
+			let (room_id, mut servers) = services.rooms.alias.resolve_alias(&room_alias).await?;
 
 			banned_room_check(
 				&services,
