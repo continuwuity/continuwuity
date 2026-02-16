@@ -145,11 +145,13 @@ pub(crate) async fn get_content_route(
 		media_id: &body.media_id,
 	};
 
-	let FileMeta {
+	let Ok(FileMeta {
 		content,
 		content_type,
 		content_disposition,
-	} = fetch_file(&services, &mxc, user, body.timeout_ms, None).await?;
+	}) = fetch_file(&services, &mxc, user, body.timeout_ms, None).await else {
+		return Err!(Request(NotFound("Media not found.")));
+	};
 
 	Ok(get_content::v1::Response {
 		file: content.expect("entire file contents"),
@@ -181,11 +183,13 @@ pub(crate) async fn get_content_as_filename_route(
 		media_id: &body.media_id,
 	};
 
-	let FileMeta {
+	let Ok(FileMeta {
 		content,
 		content_type,
 		content_disposition,
-	} = fetch_file(&services, &mxc, user, body.timeout_ms, Some(&body.filename)).await?;
+	}) = fetch_file(&services, &mxc, user, body.timeout_ms, None).await else {
+		return Err!(Request(NotFound("Media not found.")));
+	};
 
 	Ok(get_content_as_filename::v1::Response {
 		file: content.expect("entire file contents"),
