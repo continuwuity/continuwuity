@@ -151,26 +151,14 @@ pub(crate) async fn get_content_route(
 		content_disposition,
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
-		| Err(e) => {
-			match e {
-				| conduwuit::Error::Io(e) => {
-					match e.kind() {
-						| std::io::ErrorKind::PermissionDenied =>
-						// to not leak that a file exists
-						{
-							return Err!(Request(NotFound("Media not found.")));
-						},
-						| std::io::ErrorKind::NotFound => {
-							return Err!(Request(NotFound("Media not found.")));
-						},
-						| _ => {
-							return Err!(Request(Unknown("Unknown error when fetching file.")));
-						},
-					}
-				},
-				| _ => return Err!(Request(Unknown("Unknown error when fetching file."))),
+		| Err(conduwuit::Error::Io(e)) => {
+			if matches!(e.kind(), std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound) {
+				return Err!(Request(NotFound("Media not found.")));
 			}
+
+			return Err!(Request(Unknown("Unknown error when fetching file.")));
 		},
+		| Err(_) => return Err!(Request(Unknown("Unknown error when fetching file."))),
 	};
 
 	Ok(get_content::v1::Response {
@@ -209,26 +197,14 @@ pub(crate) async fn get_content_as_filename_route(
 		content_disposition,
 	} = match fetch_file(&services, &mxc, user, body.timeout_ms, None).await {
 		| Ok(meta) => meta,
-		| Err(e) => {
-			match e {
-				| conduwuit::Error::Io(e) => {
-					match e.kind() {
-						| std::io::ErrorKind::PermissionDenied =>
-						// to not leak that a file exists
-						{
-							return Err!(Request(NotFound("Media not found.")));
-						},
-						| std::io::ErrorKind::NotFound => {
-							return Err!(Request(NotFound("Media not found.")));
-						},
-						| _ => {
-							return Err!(Request(Unknown("Unknown error when fetching file.")));
-						},
-					}
-				},
-				| _ => return Err!(Request(Unknown("Unknown error when fetching file."))),
+		| Err(conduwuit::Error::Io(e)) => {
+			if matches!(e.kind(), std::io::ErrorKind::PermissionDenied | std::io::ErrorKind::NotFound) {
+				return Err!(Request(NotFound("Media not found.")));
 			}
+
+			return Err!(Request(Unknown("Unknown error when fetching file.")));
 		},
+		| Err(_) => return Err!(Request(Unknown("Unknown error when fetching file."))),
 	};
 
 	Ok(get_content_as_filename::v1::Response {
