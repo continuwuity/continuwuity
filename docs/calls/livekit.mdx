@@ -137,7 +137,7 @@ By default, all routes should be forwarded to Livekit with the exception of the 
         # for lk-jwt-service
         @lk-jwt-service path /sfu/get* /healthz* /get_token*
         route @lk-jwt-service {
-            reverse_proxy 127.0.0.1:8080
+            reverse_proxy 127.0.0.1:8081
         }
 
         # for livekit
