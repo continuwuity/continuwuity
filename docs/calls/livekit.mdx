@@ -78,11 +78,27 @@ You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firew
 
 ### 3. Telling clients where to find LiveKit
 
-To tell clients where to find LiveKit, we need to modify the file served at `https://example.com/.well-known/matrix/client` (for example https://continuwuity.org/.well-known/matrix/client).
+To tell clients where to find LiveKit, you need to add the domain address of the LiveKit server to the continuwuity.toml config file. To do so, in the config section `global.well-known`, add (or modify) the option `rtc_focus_server_urls`.
 
-Unfortunately Continuwuity doesn't yet provide an easy way to do this (We're working on it). You'll need to serve this file using your web server.
+The variable should be a vector (i.e. list) of servers serving as MatrixRTC endpoints to serve in the well-known file to the client.
 
-Check the existing content and add the following lines, remembering to replace the URL with your own matrix-rtc-jwt deployment:
+To add your own matrix-rtc-jwt deployment, add
+```toml
+    { type = "livekit", livekit_service_url = "https://livekit.example.com" },
+```
+to the vector. If it's the only endpoint, the final configuration option will look something like this:
+
+```toml
+rtc_focus_server_urls = [
+    { type = "livekit", livekit_service_url = "https://livekit.example.com" },
+]
+```
+
+Remember to replace the URL with the address you are deploying your instance of matrix-rtc-jwt to.
+
+#### Serving .well-known manually
+
+If you don't let Continuwuity serve your .well-known files, you need to add the following lines to your .well-known/matrix/client file, remembering to replace the URL with your own matrix-rtc-jwt deployment:
 
 ```json
   "org.matrix.msc4143.rtc_foci": [
@@ -107,7 +123,6 @@ The final file should look something like this:
     }
   ]
 }
-
 ```
 
 ### 4. Configure your Reverse Proxy
