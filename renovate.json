@@ -70,6 +70,13 @@
             "enabled": false
         },
         {
+            "description": "Auto-merge crate-ci/typos minor updates",
+            "matchPackageNames": ["crate-ci/typos"],
+            "matchUpdateTypes": ["minor", "patch"],
+            "automerge": true,
+            "automergeStrategy": "fast-forward"
+        },
+        {
             "description": "Auto-merge renovatebot docker image updates",
             "matchDatasources": ["docker"],
             "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
