@@ -55,6 +55,6 @@ repos:
         entry: cargo +nightly clippy -- -D warnings
         language: system
         pass_filenames: false
-        always-run: true
+        always_run: true
         stages:
           - pre-push
