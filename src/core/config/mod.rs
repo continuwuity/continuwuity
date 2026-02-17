@@ -1375,7 +1375,7 @@ pub struct Config {
 	/// Allow sending read receipts to remote servers.
 	///
 	/// Note that sending read receipts to remote servers in large rooms with
-	/// lots of other homeservers may cause undue strain on the CPU and
+	/// lots of other homeservers may cause additional strain on the CPU and
 	/// network.
 	#[serde(default = "true_fn")]
 	pub allow_outgoing_read_receipts: bool,
@@ -1390,8 +1390,8 @@ pub struct Config {
 	/// Allow outgoing typing updates to federation.
 	///
 	/// Note that sending typing indicators to remote servers in large rooms
-	/// with lots of other homeservers may cause undue strain on the CPU and
-	/// network.
+	/// with lots of other homeservers may cause additional strain on the CPU
+	/// and network.
 	#[serde(default = "true_fn")]
 	pub allow_outgoing_typing: bool,
 
