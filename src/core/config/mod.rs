@@ -1309,26 +1309,33 @@ pub struct Config {
 
 	/// Allow local (your server only) presence updates/requests.
 	///
-	/// Note that presence on continuwuity is very fast unlike Synapse's. If
-	/// using outgoing presence, this MUST be enabled.
+	/// Local presence must be enabled for outgoing presence to function.
+	///
+	/// Note that local presence is not as heavy on the CPU as federated
+	/// presence, but will still become more expensive the more local users you
+	/// have.
 	#[serde(default = "true_fn")]
 	pub allow_local_presence: bool,
 
-	/// Allow incoming federated presence updates/requests.
+	/// Allow incoming federated presence updates.
 	///
-	/// This option receives presence updates from other servers, but does not
-	/// send any unless `allow_outgoing_presence` is true. Note that presence on
-	/// continuwuity is very fast unlike Synapse's.
+	/// This option enables processing inbound presence updates from other
+	/// servers. Without it, remote users will appear as if they are always
+	/// offline to your local users. This does not affect typing indicators or
+	/// read receipts.
 	#[serde(default = "true_fn")]
 	pub allow_incoming_presence: bool,
 
 	/// Allow outgoing presence updates/requests.
 	///
-	/// This option sends presence updates to other servers, but does not
-	/// receive any unless `allow_incoming_presence` is true. Note that presence
-	/// on continuwuity is very fast unlike Synapse's. If using outgoing
-	/// presence, you MUST enable `allow_local_presence` as well.
-	#[serde(default = "true_fn")]
+	/// This option sends presence updates to other servers, and requires that
+	/// `allow_local_presence` is also enabled.
+	///
+	/// Note that outgoing presence is very heavy on the CPU and network, and
+	/// will typically cause extreme strain and slowdowns for no real benefit.
+	/// There are only a few clients that even implement presence, so you
+	/// probably don't want to enable this.
+	#[serde(default)]
 	pub allow_outgoing_presence: bool,
 
 	/// How many seconds without presence updates before you become idle.
@@ -1366,6 +1373,10 @@ pub struct Config {
 	pub allow_incoming_read_receipts: bool,
 
 	/// Allow sending read receipts to remote servers.
+	///
+	/// Note that sending read receipts to remote servers in large rooms with
+	/// lots of other homeservers may cause undue strain on the CPU and
+	/// network.
 	#[serde(default = "true_fn")]
 	pub allow_outgoing_read_receipts: bool,
 
@@ -1377,6 +1388,10 @@ pub struct Config {
 	pub allow_local_typing: bool,
 
 	/// Allow outgoing typing updates to federation.
+	///
+	/// Note that sending typing indicators to remote servers in large rooms
+	/// with lots of other homeservers may cause undue strain on the CPU and
+	/// network.
 	#[serde(default = "true_fn")]
 	pub allow_outgoing_typing: bool,
 
