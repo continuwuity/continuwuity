@@ -58,6 +58,12 @@
             "groupName": "github-actions-non-major"
         },
         {
+            "description": "Batch patch-level Node.js dependency updates",
+            "matchManagers": ["npm"],
+            "matchUpdateTypes": ["patch"],
+            "groupName": "node-patch-updates"
+        },
+        {
             "description": "Pin forgejo artifact actions to prevent breaking changes",
             "matchManagers": ["github-actions"],
             "matchPackageNames": ["forgejo/upload-artifact", "forgejo/download-artifact"],
