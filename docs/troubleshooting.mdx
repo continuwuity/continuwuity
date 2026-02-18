@@ -11,13 +11,16 @@ Please check that your issues are not due to problems with your Docker setup.
 ### Slow joins to rooms
 
 Some slowness is to be expected if you're the first person on your homserver to join a room (which will
-always be the case for single-user homeservers). In this situation, your homeserver has to download and verify
-the message history and current state of the remote room, which involves contacting a lot of other servers.
+always be the case for single-user homeservers). In this situation, your homeserver has to verify the signatures of
+all of the state events sent by other servers before your join. To make this process as fast as possible, make sure you have
+multiple fast, trusted servers listed in `trusted_servers` in your configuration, and ensure
+`query_trusted_key_servers_first_on_join` is set to true (the default).
+If you need suggestions for trusted servers, ask in the Continuwuity main room.
 
 However, _very_ slow joins, especially to rooms with only a few users in them or rooms created by another user
 on your homeserver, may be caused by [issue !779](https://forgejo.ellis.link/continuwuation/continuwuity/issues/779),
-a longstanding bug with synchronizing room joins to clients. In this situation, you did succeed in joining the room, but
-the bug caused your homeserver to fail to tell your client. **To fix this, clear your client's cache.** Both Element and Cinny
+which is a longstanding bug with synchronizing room joins to clients. In this situation, you did succeed in joining the room, but
+the bug caused your homeserver to forget to tell your client. **To fix this, clear your client's cache.** Both Element and Cinny
 have a button to clear their cache in the "About" section of their settings.
 
 ### Lost access to admin room
