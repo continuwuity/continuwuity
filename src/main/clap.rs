@@ -27,10 +27,6 @@ pub struct Args {
 	#[arg(long, short('O'))]
 	pub option: Vec<String>,
 
-	/// Run in a stricter read-only --maintenance mode.
-	#[arg(long)]
-	pub read_only: bool,
-
 	/// Run in maintenance mode while refusing connections.
 	#[arg(long)]
 	pub maintenance: bool,
@@ -143,11 +139,7 @@ pub(crate) fn parse() -> Args { Args::parse() }
 
 /// Synthesize any command line options with configuration file options.
 pub(crate) fn update(mut config: Figment, args: &Args) -> Result<Figment> {
-	if args.read_only {
-		config = config.join(("rocksdb_read_only", true));
-	}
-
-	if args.maintenance || args.read_only {
+	if args.maintenance {
 		config = config.join(("startup_netburst", false));
 		config = config.join(("listening", false));
 	}

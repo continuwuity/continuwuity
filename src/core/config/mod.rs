@@ -1245,9 +1245,6 @@ pub struct Config {
 	pub rocksdb_repair: bool,
 
 	#[serde(default)]
-	pub rocksdb_read_only: bool,
-
-	#[serde(default)]
 	pub rocksdb_secondary: bool,
 
 	/// Enables idle CPU priority for compaction thread. This is not enabled by
