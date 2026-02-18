@@ -173,19 +173,6 @@ checksum = "9dbc3a507a82b17ba0d98f6ce8fd6954ea0c8152e98009d36a40d8dcc8ce078a"
 
 [[package]]
 name = "askama"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f75363874b771be265f4ffe307ca705ef6f3baa19011c149da8674a87f1b75c4"
-dependencies = [
- "askama_derive 0.14.0",
- "itoa",
- "percent-encoding",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "askama"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "08e1676b346cadfec169374f949d7490fd80a24193d37d2afce0c047cf695e57"
@@ -199,28 +186,11 @@ dependencies = [
 
 [[package]]
 name = "askama_derive"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "129397200fe83088e8a68407a8e2b1f826cf0086b21ccdb866a722c8bcd3a94f"
-dependencies = [
- "askama_parser 0.14.0",
- "basic-toml",
- "memchr",
- "proc-macro2",
- "quote",
- "rustc-hash",
- "serde",
- "serde_derive",
- "syn",
-]
-
-[[package]]
-name = "askama_derive"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7661ff56517787343f376f75db037426facd7c8d3049cef8911f1e75016f3a37"
 dependencies = [
- "askama_parser 0.15.4",
+ "askama_parser",
  "basic-toml",
  "memchr",
  "proc-macro2",
@@ -237,19 +207,7 @@ version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "713ee4dbfd1eb719c2dab859465b01fa1d21cb566684614a713a6b7a99a4e47b"
 dependencies = [
- "askama_derive 0.15.4",
-]
-
-[[package]]
-name = "askama_parser"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6ab5630b3d5eaf232620167977f95eb51f3432fc76852328774afbd242d4358"
-dependencies = [
- "memchr",
- "serde",
- "serde_derive",
- "winnow",
+ "askama_derive",
 ]
 
 [[package]]
@@ -1198,7 +1156,7 @@ dependencies = [
 name = "conduwuit_service"
 version = "0.5.5"
 dependencies = [
- "askama 0.14.0",
+ "askama",
  "async-trait",
  "base64 0.22.1",
  "blurhash",
@@ -1240,7 +1198,7 @@ dependencies = [
 name = "conduwuit_web"
 version = "0.5.5"
 dependencies = [
- "askama 0.14.0",
+ "askama",
  "axum 0.7.9",
  "conduwuit_build_metadata",
  "conduwuit_service",
@@ -6375,7 +6333,7 @@ dependencies = [
 name = "xtask"
 version = "0.5.5"
 dependencies = [
- "askama 0.15.4",
+ "askama",
  "cargo_metadata",
  "clap",
  "conduwuit",
