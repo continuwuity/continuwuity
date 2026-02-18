@@ -51,7 +51,13 @@ repos:
     hooks:
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo +nightly clippy -- -D warnings
+        entry: >
+          sh -c '
+            if [ "$(git diff HEAD @{u} | grep -G -- "^--- a/.*\.rs\$")" != "" ];
+            then
+              cargo +nightly clippy -- -D warnings;
+            fi
+          '
         language: system
         pass_filenames: false
         always_run: true
