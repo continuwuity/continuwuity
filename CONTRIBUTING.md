@@ -85,24 +85,31 @@ If your changes are done to fix Matrix tests, please note that in your pull requ
 
 ### Writing documentation
 
-Continuwuity's website uses [`mdbook`][mdbook] and is deployed via CI using Cloudflare Pages
+Continuwuity's website uses [`rspress`][rspress] and is deployed via CI using Cloudflare Pages
 in the [`documentation.yml`][documentation.yml] workflow file. All documentation is in the `docs/`
 directory at the top level.
 
-To build the documentation locally:
+To load the documentation locally:
 
-1. Install mdbook if you don't have it already:
+1. Install NodeJS and npm from their [official website][nodejs-download] or via your package manager of choice
+
+2. From the project's root directory, install the relevant npm modules
+
    ```bash
-   cargo install mdbook # or cargo binstall, or another method
+   npm ci
    ```
 
-2. Build the documentation:
+3. Make changes to the document pages as you see fit
+
+4. Generate a live preview of the documentation
+
    ```bash
-   mdbook build
+   npm run docs:dev
    ```
 
-The output of the mdbook generation is in `public/`. You can open the HTML files directly in your browser without needing a web server.
+   A webserver for the docs will be spun up for you (e.g. at `http://localhost:3000`). Any changes you make to the documentation will be live-reloaded on the webpage.
 
+Alternatively, you can build the documentation using `npm run docs:build` - the output of this will be in the `/doc_build` directory. Once you're happy with your documentation updates, you can commit the changes.
 
 ### Commit Messages
 
@@ -169,5 +176,5 @@ continuwuity Matrix rooms for Code of Conduct violations.
 [continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [complement]: https://github.com/matrix-org/complement/
 [sytest]: https://github.com/matrix-org/sytest/
-[mdbook]: https://rust-lang.github.io/mdBook/
+[rspress]: https://rspress.rs/
 [documentation.yml]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/.forgejo/workflows/documentation.yml
