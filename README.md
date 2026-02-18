@@ -57,10 +57,15 @@ Continuwuity aims to:
 
 ### Can I try it out?
 
-Check out the [documentation](https://continuwuity.org) for installation instructions, or join one of these vetted public homeservers running Continuwuity to get a feel for things!
+Check out the [documentation](https://continuwuity.org) for installation instructions.
 
-- https://continuwuity.rocks -- A public demo server operated by the Continuwuity Team.
-- https://federated.nexus -- Federated Nexus is a community resource hosting multiple FOSS (especially federated) services, including Matrix and Forgejo.
+If you want to try it out as a user, we have some partnered homeservers you can use:
+* You can head over to [https://federated.nexus](https://federated.nexus/) in your browser.
+  * Hit the `Apply to Join` button. Once your request has been accepted, you will receive an email with your username and password.
+  * Head over to [https://app.federated.nexus](https://app.federated.nexus/) and you can sign in there, or use any other matrix chat client you wish elsewhere.
+  * Your username for matrix will be in the form of `@username:federated.nexus`, however you can simply use the `username` part to log in. Your password is your password.
+
+* There's also [https://continuwuity.rocks/](https://continuwuity.rocks/). You can register a new account using Cinny via [this convenient link](https://app.cinny.in/register/continuwuity.rocks), or you can use Element or another matrix client *that supports registration*.
 
 ### What are we working on?
 
