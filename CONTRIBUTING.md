@@ -176,5 +176,6 @@ continuwuity Matrix rooms for Code of Conduct violations.
 [continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [complement]: https://github.com/matrix-org/complement/
 [sytest]: https://github.com/matrix-org/sytest/
+[nodejs-download]: https://nodejs.org/en/download
 [rspress]: https://rspress.rs/
 [documentation.yml]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/.forgejo/workflows/documentation.yml
