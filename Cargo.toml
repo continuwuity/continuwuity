@@ -97,7 +97,7 @@ features = [
 ]
 
 [workspace.dependencies.axum-extra]
-version = "0.10.1"
+version = "0.12.0"
 default-features = false
 features = ["typed-header", "tracing"]
 
