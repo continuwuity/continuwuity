@@ -253,7 +253,7 @@ features = [
 version = "0.4.0"
 
 [workspace.dependencies.libloading]
-version = "0.8.6"
+version = "0.9.0"
 
 # Validating urls in config, was already a transitive dependency
 [workspace.dependencies.url]
