@@ -425,7 +425,7 @@ features = ["http", "grpc-tonic", "trace", "logs", "metrics"]
 
 # optional sentry metrics for crash/panic reporting
 [workspace.dependencies.sentry]
-version = "0.45.0"
+version = "0.46.0"
 default-features = false
 features = [
     "backtrace",
@@ -441,9 +441,9 @@ features = [
 ]
 
 [workspace.dependencies.sentry-tracing]
-version = "0.45.0"
+version = "0.46.0"
 [workspace.dependencies.sentry-tower]
-version = "0.45.0"
+version = "0.46.0"
 
 # jemalloc usage
 [workspace.dependencies.tikv-jemalloc-sys]
