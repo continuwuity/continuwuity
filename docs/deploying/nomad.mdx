@@ -1,0 +1,138 @@
+# Continuwuity for Nomad
+
+You can either pass the configuration as environment variables or mount a file containing the configuration from consul.
+This given configuration assumes that you have a traefik reverse proxy running and that you use Cloudflare reverse proxy.
+
+## Persistence
+The database being a RockDB file, it is recommended to use a volume to persist the data.
+The example below uses a volume, you need to configure the CSI driver on your cluster.
+## Configuration
+### Using environment variables
+```hcl
+job "continuwuity" {
+  datacenters = ["dc1"]
+  type      = "service"
+  node_pool = "default"
+
+  group "continuwuity" {
+    count = 1
+
+    network {
+      port "http" {
+        static = 6167
+      }
+    }
+
+    service {
+      name = "continuwuity"
+      port = "http"
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
+        "traefik.http.routers.continuwuity.entrypoints=http",
+      ]
+    }
+
+    volume "continuwuity-db-volume" {
+      type            = "csi"
+      read_only       = false
+      source          = "continuwuity-db-vol"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = false
+    }
+
+    task "continuwuity" {
+      driver = "docker"
+
+      env {
+        CONTINUWUITY_SERVER_NAME        = "matrix.example.com"
+        CONTINUWUITY_TRUSTED_SERVERS    = "[\"matrix.org\", \"mozilla.org\"]"
+        CONTINUWUITY_ALLOW_REGISTRATION = false
+        CONTINUWUITY_ADDRESS            = "0.0.0.0"
+        CONTINUWUITY_PORT               = 6167
+        CONTINUWUITY_DATABASE_PATH      = "/var/lib/continuwuity"
+        CONTINUWUITY_WELL_KNOWN         = <<EOF
+{
+client=https://matrix.example.com,
+server=matrix.example.com:443
+}
+EOF
+      }
+
+      config {
+        image = "forgejo.ellis.link/continuwuation/continuwuity:latest"
+        ports = ["http"]
+      }
+
+      volume_mount {
+        volume      = "continuwuity-db-volume"
+        destination = "/var/lib/continuwuity"
+      }
+    }
+  }
+}
+```
+
+### Using consul
+```hcl
+job "continuwuity" {
+  datacenters = ["dc1"]
+  type      = "service"
+  node_pool = "default"
+
+  group "continuwuity" {
+    count = 1
+
+    network {
+      port "http" {
+        static = 6167
+      }
+    }
+
+    service {
+      name = "continuwuity"
+      port = "http"
+      tags = [
+        "traefik.enable=true",
+        "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
+        "traefik.http.routers.continuwuity.entrypoints=http",
+      ]
+    }
+
+    volume "continuwuity-db-volume" {
+      type            = "csi"
+      read_only       = false
+      source          = "continuwuity-db-vol"
+      attachment_mode = "file-system"
+      access_mode     = "single-node-writer"
+      per_alloc       = false
+    }
+
+    task "continuwuity" {
+      driver = "docker"
+
+      config {
+        image = "forgejo.ellis.link/continuwuation/continuwuity:latest"
+        ports = ["http"]
+
+        volumes = [
+          "local/conduwuit.toml:/etc/conduwuit/conduwuit.toml"
+        ]
+      }
+
+      template {
+        data = <<EOF
+{{key "config/continuwuity"}}
+EOF
+        destination = "local/conduwuit.toml"
+      }
+
+      volume_mount {
+        volume      = "continuwuity-db-volume"
+        destination = "/var/lib/continuwuity"
+      }
+    }
+  }
+}
+```

@@ -36,6 +36,11 @@
     },
     {
         "type": "file",
+        "name": "nomad",
+        "label": "Nomad"
+    },
+    {
+        "type": "file",
         "name": "freebsd",
         "label": "FreeBSD"
     }
