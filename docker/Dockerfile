@@ -52,7 +52,7 @@ ENV BINSTALL_VERSION=1.17.5
 # renovate: datasource=github-releases depName=psastras/sbom-rs
 ENV CARGO_SBOM_VERSION=0.9.1
 # renovate: datasource=crate depName=lddtree
-ENV LDDTREE_VERSION=0.4.0
+ENV LDDTREE_VERSION=0.5.0
 # renovate: datasource=crate depName=timelord-cli
 ENV TIMELORD_VERSION=3.0.1
 
