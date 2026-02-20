@@ -472,7 +472,7 @@ features = ["use_std"]
 version = "0.5"
 
 [workspace.dependencies.nix]
-version = "0.30.1"
+version = "0.31.0"
 default-features = false
 features = ["resource"]
 
