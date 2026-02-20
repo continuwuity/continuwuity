@@ -102,7 +102,13 @@ rec {
         '';
         cargoArtifacts = deps;
         doCheck = true;
-        env = uwuenv.buildPackageEnv // rocksdbEnv;
+        env =
+          uwuenv.buildPackageEnv
+          // rocksdbEnv
+          // {
+            # required since we started using unstable reqwest apparently ... otherwise the all-features build will fail
+            RUSTFLAGS = "--cfg reqwest_unstable";
+          };
         passthru.env = uwuenv.buildPackageEnv // rocksdbEnv;
         meta.mainProgram = crateInfo.pname;
         inherit (features) cargoExtraArgs;
