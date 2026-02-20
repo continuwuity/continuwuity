@@ -11,7 +11,6 @@
       uwulib = inputs.self.uwulib.init pkgs;
       rocksdbAllFeatures = self'.packages.rocksdb.override {
         enableJemalloc = true;
-        enableLiburing = true;
       };
     in
     {

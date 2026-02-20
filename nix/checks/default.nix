@@ -12,7 +12,6 @@
 
       rocksdbAllFeatures = self'.packages.rocksdb.override {
         enableJemalloc = true;
-        enableLiburing = true;
       };
 
       commonAttrs = (uwulib.build.commonAttrs { }) // {

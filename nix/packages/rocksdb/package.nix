@@ -7,7 +7,6 @@
   rust-jemalloc-sys-unprefixed,
 
   enableJemalloc ? false,
-  enableLiburing ? false,
 
   fetchFromGitea,
 
@@ -32,7 +31,7 @@ in
 
   # for some reason enableLiburing in nixpkgs rocksdb is default true
   # which breaks Darwin entirely
-  enableLiburing = enableLiburing && notDarwin;
+  enableLiburing = notDarwin;
 }).overrideAttrs
   (old: {
     src = fetchFromGitea {
@@ -74,7 +73,7 @@ in
         "USE_RTTI"
       ]);
 
-    enableLiburing = enableLiburing && notDarwin;
+    enableLiburing = notDarwin;
 
     # outputs has "tools" which we don't need or use
     outputs = [ "out" ];

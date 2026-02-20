@@ -27,7 +27,6 @@
               commonAttrsArgs.profile = "release";
               rocksdb = self'.packages.rocksdb.override {
                 enableJemalloc = true;
-                enableLiburing = true;
               };
               features = {
                 enabledFeatures = "all";
