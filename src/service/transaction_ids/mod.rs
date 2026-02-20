@@ -38,7 +38,7 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub fn add_txnid(
+	pub fn add_client_txnid(
 		&self,
 		user_id: &UserId,
 		device_id: Option<&DeviceId>,
@@ -54,7 +54,7 @@ impl Service {
 		self.db.userdevicetxnid_response.insert(&key, data);
 	}
 
-	pub async fn existing_txnid(
+	pub async fn get_client_txn(
 		&self,
 		user_id: &UserId,
 		device_id: Option<&DeviceId>,
