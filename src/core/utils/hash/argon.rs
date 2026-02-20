@@ -28,7 +28,7 @@ fn init_argon() -> Argon2<'static> {
 }
 
 pub(super) fn password(password: &str) -> Result<String> {
-	let salt = SaltString::generate(rand::thread_rng());
+	let salt = SaltString::generate(rand_core::OsRng);
 	ARGON
 		.get_or_init(init_argon)
 		.hash_password(password.as_bytes(), &salt)

@@ -86,6 +86,7 @@ libloading.optional = true
 log.workspace = true
 num-traits.workspace = true
 rand.workspace = true
+rand_core = { version = "0.6.4", features = ["getrandom"] }
 regex.workspace = true
 reqwest.workspace = true
 ring.workspace = true

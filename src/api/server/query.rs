@@ -40,7 +40,7 @@ pub(crate) async fn get_room_information_route(
 	servers.sort_unstable();
 	servers.dedup();
 
-	servers.shuffle(&mut rand::thread_rng());
+	servers.shuffle(&mut rand::rng());
 
 	// insert our server as the very first choice if in list
 	if let Some(server_index) = servers

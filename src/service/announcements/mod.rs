@@ -100,8 +100,7 @@ impl crate::Service for Service {
 		}
 
 		let first_check_jitter = {
-			let mut rng = rand::thread_rng();
-			let jitter_percent = rng.gen_range(-50.0..=10.0);
+			let jitter_percent = rand::random_range(-50.0..=10.0);
 			self.interval.mul_f64(1.0 + jitter_percent / 100.0)
 		};
 

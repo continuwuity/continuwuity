@@ -4,16 +4,16 @@ use std::{
 };
 
 use arrayvec::ArrayString;
-use rand::{Rng, seq::SliceRandom, thread_rng};
+use rand::{Rng, RngExt, seq::SliceRandom};
 
 pub fn shuffle<T>(vec: &mut [T]) {
-	let mut rng = thread_rng();
+	let mut rng = rand::rng();
 	vec.shuffle(&mut rng);
 }
 
 pub fn string(length: usize) -> String {
-	thread_rng()
-		.sample_iter(&rand::distributions::Alphanumeric)
+	rand::rng()
+		.sample_iter(&rand::distr::Alphanumeric)
 		.take(length)
 		.map(char::from)
 		.collect()
@@ -22,8 +22,8 @@ pub fn string(length: usize) -> String {
 #[inline]
 pub fn string_array<const LENGTH: usize>() -> ArrayString<LENGTH> {
 	let mut ret = ArrayString::<LENGTH>::new();
-	thread_rng()
-		.sample_iter(&rand::distributions::Alphanumeric)
+	rand::rng()
+		.sample_iter(&rand::distr::Alphanumeric)
 		.take(LENGTH)
 		.map(char::from)
 		.for_each(|c| ret.push(c));
@@ -40,7 +40,4 @@ pub fn time_from_now_secs(range: Range<u64>) -> SystemTime {
 }
 
 #[must_use]
-pub fn secs(range: Range<u64>) -> Duration {
-	let mut rng = thread_rng();
-	Duration::from_secs(rng.gen_range(range))
-}
+pub fn secs(range: Range<u64>) -> Duration { Duration::from_secs(rand::random_range(range)) }

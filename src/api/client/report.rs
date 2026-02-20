@@ -244,7 +244,7 @@ fn build_report(report: Report) -> RoomMessageEventContent {
 /// random delay sending a response per spec suggestion regarding
 /// enumerating for potential events existing in our server.
 async fn delay_response() {
-	let time_to_wait = rand::thread_rng().gen_range(2..5);
+	let time_to_wait = rand::random_range(2..5);
 	debug_info!(
 		"Got successful /report request, waiting {time_to_wait} seconds before sending \
 		 successful response."
