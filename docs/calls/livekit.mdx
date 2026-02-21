@@ -14,7 +14,7 @@ Make sure the DNS record for the (sub)domain you plan to use is pointed to your 
 
 ### 2. Services
 
-Using LiveKit with Matrix requires two services - Livekit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
+Using LiveKit with Matrix requires two services - LiveKit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
 
 You must generate a key and secret to allow the Matrix service to authenticate with LiveKit. `LK_MATRIX_KEY` should be around 20 random characters, and `LK_MATRIX_SECRET` should be around 64. Remember to replace these with the actual values!
 
@@ -95,7 +95,7 @@ Remember to replace the URL with the address you are deploying your instance of 
 
 Reverse proxies can be configured in many different ways - so we can't provide a step by step for this.
 
-By default, all routes should be forwarded to Livekit with the exception of the following path prefixes, which should be forwarded to the JWT/Authentication service:
+By default, all routes should be forwarded to LiveKit with the exception of the following path prefixes, which should be forwarded to the JWT/Authentication service:
 
 - `/sfu/get`
 - `/healthz`
@@ -133,7 +133,7 @@ By default, all routes should be forwarded to Livekit with the exception of the 
             proxy_buffering off;
         }
 
-        # for livekit
+        # for LiveKit
         location / {
             proxy_pass http://127.0.0.1:7880$request_uri;
             proxy_set_header X-Forwarded-For $remote_addr;
@@ -177,7 +177,7 @@ Start up the services using your usual method - for example `docker compose up -
 
 ### Using LiveKit's built in TURN server
 
-Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling or anything else.
+LiveKit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with LiveKit, so you can't use it for legacy Matrix calling or anything else.
 
 If you don't want to set up a separate TURN server, you can enable this with the following changes:
 
@@ -209,9 +209,9 @@ max-port=65535
 
 To improve LiveKit's reliability, you can configure it to use your coturn server.
 
-Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want - so set a different one for each thing using your TURN server.
+Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for each thing using your TURN server.
 
-Then configure livekit, making sure to replace `COTURN_SECRET` with the ones you generated:
+Then configure LiveKit, making sure to replace `COTURN_SECRET` with the ones you generated:
 
 ```yaml
 # livekit.yaml
@@ -233,14 +233,14 @@ rtc:
 
 ## Testing
 
-To test that Livekit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service?tab=readme-ov-file#%EF%B8%8F-how-it-works--token-exchange-flow). First, request an OpenID token from your Matrix server:
+To test that LiveKit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service?tab=readme-ov-file#%EF%B8%8F-how-it-works--token-exchange-flow). First, request an OpenID token from your Matrix server:
 
 ```bash
 curl -X POST -H "Authorization: Bearer <session-access-token>" \
   https://matrix.example.com/_matrix/client/v3/user/@user:example.com/openid/request_token
 ```
 
-Your `<session-access-token>` can be found in your client device, or via [this website](https://timedout.uk/mxtoken.html). The step above will respond with an `access_token` for use with the lk-jwt-service.
+Your `<session-access-token>` can be found in your client's settings, or via [this website](https://timedout.uk/mxtoken.html). The step above will respond with an `access_token` for use with the lk-jwt-service.
 
 Next, create a `payload.json` file with the following content:
 
@@ -275,20 +275,20 @@ You can then send this payload to the lk-jwt-service with:
 curl -X POST -d @payload.json https://livekit.example.com/get_token
 ```
 
-The JWT service will respond with a `jwt` token. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test) - if everything works there, then you have set up Livekit successfully!
+The JWT service will respond with a `jwt` token. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test) - if everything works there, then you have set up LiveKit successfully!
 
 ## Related Documentation
 
 Guides:
 
 - [Element Call self-hosting documentation](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
-- [Community guide with overview of Livekit's mechanisms](https://tomfos.tr/matrix/livekit/)
+- [Community guide with overview of LiveKit's mechanisms](https://tomfos.tr/matrix/livekit/)
 - [Community guide using systemd](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
 
 Specifications:
 
 - [MatrixRTC proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
-- [Livekit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
+- [LiveKit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
 
 Source codes:
 
