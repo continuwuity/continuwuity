@@ -166,7 +166,7 @@ version = "1.1.0"
 
 # Used for ruma wrapper
 [workspace.dependencies.serde_html_form]
-version = "0.2.6"
+version = "0.4.0"
 
 # Used for password hashing
 [workspace.dependencies.argon2]
