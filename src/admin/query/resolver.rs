@@ -20,7 +20,17 @@ pub enum ResolverCommand {
 		name: Option<String>,
 	},
 
-	/// Flush a specific server from the resolver caches or everything
+	/// Flush a given server from the resolver caches or flush them completely
+	///
+	/// * Examples:
+	///   * Flush a specific server:
+	///
+	///     `!admin query resolver flush-cache matrix.example.com`
+	///
+	///   * Flush all resolver caches completely:
+	///
+	///     `!admin query resolver flush-cache --all`
+	#[command(verbatim_doc_comment)]
 	FlushCache {
 		name: Option<OwnedServerName>,
 

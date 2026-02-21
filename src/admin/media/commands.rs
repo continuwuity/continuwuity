@@ -388,3 +388,19 @@ pub(super) async fn get_remote_thumbnail(
 	self.write_str(&format!("```\n{result:#?}\nreceived {len} bytes for file content.\n```"))
 		.await
 }
+
+#[admin_command]
+pub(super) async fn delete_url_preview(&self, url: Option<String>, all: bool) -> Result {
+	if all {
+		self.services.media.clear_url_previews().await;
+
+		return self.write_str("Deleted all cached URL previews.").await;
+	}
+
+	let url = url.expect("clap enforces url is required unless --all");
+
+	self.services.media.remove_url_preview(&url).await?;
+
+	self.write_str(&format!("Deleted cached URL preview for: {url}"))
+		.await
+}

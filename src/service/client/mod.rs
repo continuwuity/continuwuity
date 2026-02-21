@@ -39,7 +39,7 @@ impl crate::Service for Service {
 		let url_preview_user_agent = config
 			.url_preview_user_agent
 			.clone()
-			.unwrap_or_else(|| conduwuit::version::user_agent().to_owned());
+			.unwrap_or_else(|| conduwuit::version::user_agent_media().to_owned());
 
 		Ok(Arc::new(Self {
 			default: base(config)?

@@ -36,3 +36,7 @@ Deletes all the local media from a local user on our server. This will always ig
 ## `!admin media delete-all-from-server`
 
 Deletes all remote media from the specified remote server. This will always ignore errors by default
+
+## `!admin media delete-url-preview`
+
+Deletes a cached URL preview, forcing it to be re-fetched. Use --all to purge all cached URL previews

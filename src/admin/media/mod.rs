@@ -108,4 +108,16 @@ pub enum MediaCommand {
 		#[arg(long, default_value("800"))]
 		height: u32,
 	},
+
+	/// Deletes a cached URL preview, forcing it to be re-fetched.
+	/// Use --all to purge all cached URL previews.
+	DeleteUrlPreview {
+		/// The URL to clear from the saved preview data
+		#[arg(required_unless_present = "all")]
+		url: Option<String>,
+
+		/// Purge all cached URL previews
+		#[arg(long, conflicts_with = "url")]
+		all: bool,
+	},
 }

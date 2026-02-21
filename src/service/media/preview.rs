@@ -38,6 +38,9 @@ pub async fn remove_url_preview(&self, url: &str) -> Result<()> {
 }
 
 #[implement(Service)]
+pub async fn clear_url_previews(&self) { self.db.clear_url_previews().await; }
+
+#[implement(Service)]
 pub async fn set_url_preview(&self, url: &str, data: &UrlPreviewData) -> Result<()> {
 	let now = SystemTime::now()
 		.duration_since(SystemTime::UNIX_EPOCH)
