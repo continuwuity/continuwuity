@@ -175,7 +175,30 @@ Start up the services using your usual method - for example `docker compose up -
 
 ## Additional Configuration
 
-### TURN Integration
+### Using LiveKit's built in TURN server
+
+Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling or anything else.
+
+If you don't want to set up a separate TURN server, you can enable this with the following changes:
+
+```yaml
+### add this to livekit.yaml ###
+turn:
+  enabled: true
+  udp_port: 3478
+  relay_range_start: 50300
+  relay_range_end: 50400
+  domain: livekit.example.com
+```
+
+```yaml
+### Add these to docker-compose ###
+ports:
+  - "3478:3478/udp"
+  - "50300-50400:50300-50400/udp"
+```
+
+### Integration with an external TURN server
 
 If you've already set up coturn, there may be a port clash between the two services. To fix this, make sure the `min-port` and `max-port` for coturn so it doesn't overlap with LiveKit's range:
 
@@ -206,28 +229,6 @@ rtc:
       port: 3478
       protocol: udp
       secret: "COTURN_SECRET"
-```
-
-## LiveKit's built in TURN server
-
-Livekit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with Livekit, so you can't use it for legacy Matrix calling - or anything else.
-
-If you don't want to set up a separate TURN server, you can enable this with the following changes:
-
-```yaml
-### add this to livekit.yaml ###
-turn:
-  enabled: true
-  udp_port: 3478
-  relay_range_start: 50300
-  relay_range_end: 50400
-  domain: livekit.example.com
-```
-
-```yaml
-### Add these to docker-compose ###
-- "3478:3478/udp"
-- "50300-50400:50300-50400/udp"
 ```
 
 ### Related Documentation
