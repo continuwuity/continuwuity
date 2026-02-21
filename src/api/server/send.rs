@@ -152,8 +152,6 @@ async fn process_inbound_transaction(
 		.stream();
 
 	info!(
-		id = ?txn_key.1,
-		origin = ?txn_key.0,
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		"Processing transaction",
@@ -176,8 +174,6 @@ async fn process_inbound_transaction(
 	}
 
 	info!(
-		id = ?txn_key.1,
-		origin = ?txn_key.0,
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
