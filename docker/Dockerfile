@@ -276,4 +276,5 @@ ENV LD_LIBRARY_PATH=/usr/lib
 # Continuwuity default port
 EXPOSE 8008
 
+ENTRYPOINT [ "/sbin/conduwuit" ]
 CMD ["/sbin/conduwuit"]
