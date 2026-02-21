@@ -200,7 +200,7 @@ ports:
 
 ### Integration with an external TURN server
 
-If you've already set up coturn, there may be a port clash between the two services. To fix this, make sure the `min-port` and `max-port` for coturn so it doesn't overlap with LiveKit's range:
+If you've already set up coturn, there may be a port clash between the two services. To fix this, make sure coturn's `min-port` and `max-port` do not overlap with LiveKit's range:
 
 ```ini
 min-port=50201
@@ -211,21 +211,21 @@ To improve LiveKit's reliability, you can configure it to use your coturn server
 
 Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want - so set a different one for each thing using your TURN server.
 
-Then configure livekit, making sure to replace `COTURN_SECRET`:
+Then configure livekit, making sure to replace `COTURN_SECRET` with the ones you generated:
 
 ```yaml
 # livekit.yaml
 rtc:
   turn_servers:
-    - host: coturn.ellis.link
+    - host: coturn.example.com
       port: 3478
       protocol: tcp
       secret: "COTURN_SECRET"
-    - host: coturn.ellis.link
+    - host: coturn.example.com
       port: 5349
       protocol: tls # Only if you've set up TLS in your coturn
       secret: "COTURN_SECRET"
-    - host: coturn.ellis.link
+    - host: coturn.example.com
       port: 3478
       protocol: udp
       secret: "COTURN_SECRET"
