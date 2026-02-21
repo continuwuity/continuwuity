@@ -104,7 +104,7 @@ By default, all routes should be forwarded to Livekit with the exception of the 
 <details>
     <summary>Example caddy config</summary>
     ```
-    matrix-rtc.example.com {
+    livekit.example.com {
 
         # for lk-jwt-service
         @lk-jwt-service path /sfu/get* /healthz* /get_token*
@@ -122,7 +122,7 @@ By default, all routes should be forwarded to Livekit with the exception of the 
     <summary>Example nginx config</summary>
     ```
     server {
-        server_name matrix-rtc.example.com;
+        server_name livekit.example.com;
 
         # for lk-jwt-service
         location ~ ^/(sfu/get|healthz|get_token) {
@@ -221,7 +221,7 @@ turn:
   udp_port: 3478
   relay_range_start: 50300
   relay_range_end: 50400
-  domain: matrix-rtc.example.com
+  domain: livekit.example.com
 ```
 
 ```yaml
