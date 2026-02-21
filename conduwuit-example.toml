@@ -299,6 +299,16 @@
 #
 #max_concurrent_inbound_transactions = 150
 
+# Maximum age (in seconds) for cached federation transaction responses.
+# Entries older than this will be removed during cleanup.
+#
+#transaction_id_cache_max_age_secs = 7200 (2 hours)
+
+# Maximum number of cached federation transaction responses.
+# When the cache exceeds this limit, older entries will be removed.
+#
+#transaction_id_cache_max_entries = 8192
+
 # Default/base connection timeout (seconds). This is used only by URL
 # previews and update/news endpoint checks.
 #

@@ -42,7 +42,7 @@ use ruma::{
 	to_device::DeviceIdOrAllDevices,
 	uint,
 };
-use service::transaction_ids::{TxnKey, WrappedTransactionResponse};
+use service::transaction_ids::{FederationTxnState, TxnKey, WrappedTransactionResponse};
 use tokio::sync::watch::{Receiver, Sender};
 use tracing::instrument;
 
@@ -65,18 +65,6 @@ pub(crate) async fn send_transaction_message_route(
 		)));
 	}
 
-	let txn_key = (body.origin().to_owned(), body.transaction_id.clone());
-
-	// Did we already process this transaction
-	if let Some(response) = services.transaction_ids.get_cached_txn(&txn_key) {
-		return Ok(response);
-	}
-	// Or are currently processing it
-	if let Some(receiver) = services.transaction_ids.get_active_federation_txn(&txn_key) {
-		// Wait up to 50 seconds for a result
-		return wait_for_result(receiver).await;
-	}
-
 	if body.pdus.len() > PDU_LIMIT {
 		return Err!(Request(Forbidden(
 			"Not allowed to send more than {PDU_LIMIT} PDUs in one transaction"
@@ -89,21 +77,31 @@ pub(crate) async fn send_transaction_message_route(
 		)));
 	}
 
-	let sender = services
+	let txn_key = (body.origin().to_owned(), body.transaction_id.clone());
+
+	// Atomically check cache, join active, or start new transaction
+	match services
 		.transaction_ids
-		.start_federation_txn(txn_key.clone())?;
-	services.server.runtime().spawn(process_inbound_transaction(
-		services,
-		body,
-		client,
-		txn_key.clone(),
-		sender,
-	));
-	let receiver = services
-		.transaction_ids
-		.get_active_federation_txn(&txn_key)
-		.expect("just-created transaction was missing");
-	wait_for_result(receiver).await
+		.get_or_start_federation_txn(txn_key.clone())?
+	{
+		| FederationTxnState::Cached(response) => {
+			// Already responded
+			Ok(response)
+		},
+		| FederationTxnState::Active(receiver) => {
+			// Another thread is processing
+			wait_for_result(receiver).await
+		},
+		| FederationTxnState::Started { receiver, sender } => {
+			// We're the first, spawn the processing task
+			services
+				.server
+				.runtime()
+				.spawn(process_inbound_transaction(services, body, client, txn_key, sender));
+			// and wait for it
+			wait_for_result(receiver).await
+		},
+	}
 }
 
 async fn wait_for_result(
@@ -161,7 +159,7 @@ async fn process_inbound_transaction(
 		// think we processed it properly (and lose events), but we also can't return
 		// an actual error.
 		drop(sender);
-		services.transaction_ids.finish_federation_txn(&txn_key);
+		services.transaction_ids.remove_federation_txn(&txn_key);
 		panic!("failed to handle incoming transaction");
 	};
 
@@ -186,14 +184,10 @@ async fn process_inbound_transaction(
 			.map(|(e, r)| (e, r.map_err(error::sanitized_message)))
 			.collect(),
 	};
+
 	services
 		.transaction_ids
-		.set_cached_txn(txn_key.clone(), response.clone());
-	sender
-		.send(Some(response))
-		.expect("couldn't send response to channel");
-	services.transaction_ids.finish_federation_txn(&txn_key);
-	drop(sender);
+		.finish_federation_txn(txn_key, sender, response);
 }
 
 async fn handle(

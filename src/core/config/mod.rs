@@ -379,6 +379,20 @@ pub struct Config {
 	#[serde(default = "default_max_concurrent_inbound_transactions")]
 	pub max_concurrent_inbound_transactions: usize,
 
+	/// Maximum age (in seconds) for cached federation transaction responses.
+	/// Entries older than this will be removed during cleanup.
+	///
+	/// default: 7200 (2 hours)
+	#[serde(default = "default_transaction_id_cache_max_age_secs")]
+	pub transaction_id_cache_max_age_secs: u64,
+
+	/// Maximum number of cached federation transaction responses.
+	/// When the cache exceeds this limit, older entries will be removed.
+	///
+	/// default: 8192
+	#[serde(default = "default_transaction_id_cache_max_entries")]
+	pub transaction_id_cache_max_entries: usize,
+
 	/// Default/base connection timeout (seconds). This is used only by URL
 	/// previews and update/news endpoint checks.
 	///
@@ -2552,6 +2566,10 @@ fn default_pusher_idle_timeout() -> u64 { 15 }
 fn default_max_fetch_prev_events() -> u16 { 192_u16 }
 
 fn default_max_concurrent_inbound_transactions() -> usize { 150 }
+
+fn default_transaction_id_cache_max_age_secs() -> u64 { 60 * 60 * 2 }
+
+fn default_transaction_id_cache_max_entries() -> usize { 8192 }
 
 fn default_tracing_flame_filter() -> String {
 	cfg!(debug_assertions)
