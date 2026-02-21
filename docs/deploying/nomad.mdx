@@ -1,7 +1,7 @@
 # Continuwuity for Nomad
 
 You can either pass the configuration as environment variables or mount a file containing the configuration from consul.
-This given configuration assumes that you have a traefik reverse proxy running and that you use Cloudflare reverse proxy.
+This given configuration assumes that you have a traefik reverse proxy running.
 
 ## Persistence
 The database being a RockDB file, it is recommended to use a volume to persist the data.
@@ -29,7 +29,14 @@ job "continuwuity" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
-        "traefik.http.routers.continuwuity.entrypoints=http",
+        "traefik.http.routers.continuwuity.entrypoints=https",
+        "traefik.http.routers.continuwuity.tls=true",
+        "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt",
+        "traefik.http.routers.continuwuity-http.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
+        "traefik.http.routers.continuwuity-http.entrypoints=http",
+        "traefik.http.routers.continuwuity-http.middlewares=continuwuity-redirect",
+        "traefik.http.middlewares.continuwuity-redirect.redirectscheme.scheme=https",
+        "traefik.http.middlewares.continuwuity-redirect.redirectscheme.permanent=true",
       ]
     }
 
@@ -96,7 +103,14 @@ job "continuwuity" {
       tags = [
         "traefik.enable=true",
         "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
-        "traefik.http.routers.continuwuity.entrypoints=http",
+        "traefik.http.routers.continuwuity.entrypoints=https",
+        "traefik.http.routers.continuwuity.tls=true",
+        "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt",
+        "traefik.http.routers.continuwuity-http.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))",
+        "traefik.http.routers.continuwuity-http.entrypoints=http",
+        "traefik.http.routers.continuwuity-http.middlewares=continuwuity-redirect",
+        "traefik.http.middlewares.continuwuity-redirect.redirectscheme.scheme=https",
+        "traefik.http.middlewares.continuwuity-redirect.redirectscheme.permanent=true",
       ]
     }
 
