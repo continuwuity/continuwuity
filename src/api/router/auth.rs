@@ -14,7 +14,8 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, DeviceId, OwnedDeviceId, OwnedServerName,
+	OwnedUserId, UserId,
 	api::{
 		AuthScheme, IncomingRequest, Metadata,
 		client::{
@@ -234,10 +235,33 @@ async fn auth_appservice(
 		return Err!(Request(Exclusive("User is not in namespace.")));
 	}
 
+	// MSC3202/MSC4190: Handle device_id masquerading for appservices.
+	// The device_id can be provided via `device_id` or
+	// `org.matrix.msc3202.device_id` query parameter.
+	let sender_device = if let Some(ref device_id_str) = request.query.device_id {
+		let device_id: &DeviceId = device_id_str.as_str().into();
+
+		// Verify the device exists for this user
+		if services
+			.users
+			.get_device_metadata(&user_id, device_id)
+			.await
+			.is_err()
+		{
+			return Err!(Request(Forbidden(
+				"Device does not exist for user or appservice cannot masquerade as this device."
+			)));
+		}
+
+		Some(device_id.to_owned())
+	} else {
+		None
+	};
+
 	Ok(Auth {
 		origin: None,
 		sender_user: Some(user_id),
-		sender_device: None,
+		sender_device,
 		appservice_info: Some(*info),
 	})
 }

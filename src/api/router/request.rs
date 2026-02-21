@@ -11,6 +11,10 @@ use service::Services;
 pub(super) struct QueryParams {
 	pub(super) access_token: Option<String>,
 	pub(super) user_id: Option<String>,
+	/// Device ID for appservice device masquerading (MSC3202/MSC4190).
+	/// Can be provided as `device_id` or `org.matrix.msc3202.device_id`.
+	#[serde(alias = "org.matrix.msc3202.device_id")]
+	pub(super) device_id: Option<String>,
 }
 
 pub(super) struct Request {
