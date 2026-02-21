@@ -52,6 +52,13 @@ impl crate::Service for Service {
 }
 
 impl Service {
+
+	#[must_use]
+	pub fn txn_active_handle_count(&self) -> usize {
+		let state = self.servername_txnid_active.read();
+		state.len()
+	}
+
 	pub fn add_client_txnid(
 		&self,
 		user_id: &UserId,

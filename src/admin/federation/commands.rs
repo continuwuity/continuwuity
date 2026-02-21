@@ -30,12 +30,15 @@ pub(super) async fn incoming_federation(&self) -> Result {
 			.federation_handletime
 			.read();
 
-		let mut msg = format!("Handling {} incoming pdus:\n", map.len());
+		let mut msg = format!(
+			"Handling {} incoming PDUs across {} active transactions:\n",
+			map.len(),
+			self.services.transaction_ids.txn_active_handle_count()
+		);
 		for (r, (e, i)) in map.iter() {
 			let elapsed = i.elapsed();
 			writeln!(msg, "{} {}: {}m{}s", r, e, elapsed.as_secs() / 60, elapsed.as_secs() % 60)?;
 		}
-
 		msg
 	};
 

@@ -158,6 +158,8 @@ async fn process_inbound_transaction(
 		// value, returning an empty response may lie to the remote and make them
 		// think we processed it properly (and lose events), but we also can't return
 		// an actual error.
+		drop(sender);
+		services.transaction_ids.finish_federation_txn(&txn_key);
 		panic!("failed to handle incoming transaction");
 	};
 
