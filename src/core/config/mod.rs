@@ -1525,7 +1525,7 @@ pub struct Config {
 	/// sender user's server name, inbound federation X-Matrix origin, and
 	/// outbound federation handler.
 	///
-	/// You can set this to ["*"] to block all servers by default, and then
+	/// You can set this to [".*"] to block all servers by default, and then
 	/// use `allowed_remote_server_names` to allow only specific servers.
 	///
 	/// example: ["badserver\\.tld$", "badphrase", "19dollarfortnitecards"]
