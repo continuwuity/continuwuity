@@ -276,13 +276,10 @@ curl -X POST -d @payload.json https://livekit.example.com/get_token
 ```
 
 The JWT service will respond with a `jwt` token. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test) - if everything works there, then you have set up LiveKit successfully!
-<<<<<<< HEAD
 
 ## Caveats
 
 When deploying on servers with disabled federation (`enable_registration = false`), Livekit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths. You can find a workaround for this limitation [here](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440).
-=======
->>>>>>> 5244c55 (docs: apply changes from feedback)
 
 ## Caveats
 
@@ -293,13 +290,8 @@ When deploying on servers with disabled federation (`enable_registration = false
 Guides:
 
 - [Element Call self-hosting documentation](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
-<<<<<<< HEAD
 - [Community guide with overview of Livekit's mechanisms](https://tomfos.tr/matrix/livekit/)
 - [Community guide (using systemd)](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
-=======
-- [Community guide with overview of LiveKit's mechanisms](https://tomfos.tr/matrix/livekit/)
-- [Community guide using systemd](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
->>>>>>> 5244c55 (docs: apply changes from feedback)
 
 Specifications:
 
