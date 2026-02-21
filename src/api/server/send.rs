@@ -7,7 +7,7 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, debug_warn, err, error, info,
+	Err, Error, Result, debug, debug_warn, err, error,
 	result::LogErr,
 	trace,
 	utils::{

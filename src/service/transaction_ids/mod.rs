@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Error, Result, SyncRwLock};
+use conduwuit::{Error, Result, SyncRwLock, debug, debug_warn, warn};
 use database::{Handle, Map};
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
@@ -52,7 +52,6 @@ impl crate::Service for Service {
 }
 
 impl Service {
-
 	#[must_use]
 	pub fn txn_active_handle_count(&self) -> usize {
 		let state = self.servername_txnid_active.read();
@@ -106,16 +105,30 @@ impl Service {
 	) -> Result<Sender<WrappedTransactionResponse>> {
 		let mut state = self.servername_txnid_active.write();
 		if state.get(&key).is_some() {
+			debug!(
+				origin = ?key.0,
+				id = ?key.1,
+				"Origin re-sent already running transaction"
+			);
 			Err(Error::BadRequest(
 				LimitExceeded { retry_after: None },
 				"Transaction is already being handled",
 			))
 		} else if state.keys().any(|k| k.0 == key.0) {
+			debug_warn!(
+				origin = ?key.0,
+				"Got concurrent transaction request from an origin with an active transaction"
+			);
 			Err(Error::BadRequest(
 				LimitExceeded { retry_after: None },
 				"Still processing another transaction from this origin",
 			))
 		} else if state.len() >= self.max_active_txns {
+			warn!(
+				active = state.len(),
+				max = self.max_active_txns,
+				"Server is overloaded, dropping incoming transaction"
+			);
 			Err(Error::BadRequest(
 				LimitExceeded { retry_after: None },
 				"Server is overloaded, try again later",
