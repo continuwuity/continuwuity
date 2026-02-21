@@ -120,7 +120,6 @@ async fn wait_for_result(
 }
 
 #[instrument(
-	level = "info",
 	skip_all,
 	fields(
 		id = ?body.transaction_id.as_str(),
@@ -151,7 +150,7 @@ async fn process_inbound_transaction(
 		.filter_map(Result::ok)
 		.stream();
 
-	info!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
+	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
 	let Ok(results) = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await
 	else {
 		// TODO: handle this properly. The channel doesn't like being closed with no
@@ -171,7 +170,7 @@ async fn process_inbound_transaction(
 		}
 	}
 
-	info!(
+	debug!(
 		pdus = body.pdus.len(),
 		edus = body.edus.len(),
 		elapsed = ?txn_start_time.elapsed(),
