@@ -231,15 +231,59 @@ rtc:
       secret: "COTURN_SECRET"
 ```
 
-### Related Documentation
+## Testing
 
-For testing, use the [LiveKit Connection Tester](https://livekit.io/connection-test) with the token returned by `/sfu/get` or `/get_token`
+To test that Livekit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service?tab=readme-ov-file#%EF%B8%8F-how-it-works--token-exchange-flow). First, request an OpenID token from your Matrix server:
+
+```bash
+curl -X POST -H "Authorization: Bearer <session-access-token>" \
+  https://matrix.example.com/_matrix/client/v3/user/@user:example.com/openid/request_token
+```
+
+Your `<session-access-token>` can be found in your client device, or via [this website](https://timedout.uk/mxtoken.html). The step above will respond with an `access_token` for use with the lk-jwt-service.
+
+Next, create a `payload.json` file with the following content:
+
+<details>
+
+<summary>`payload.json`</summary>
+
+```json
+{
+    "room_id": "abc",
+    "slot_id": "xyz",
+    "openid_token": {
+        "matrix_server_name": "example.com",
+        "access_token": "<access_token>",
+        "token_type": "Bearer"
+    },
+    "member": {
+        "id": "xyz",
+        "claimed_device_id": "DEVICEID",
+        "claimed_user_id": "@user:example.com"
+    }
+}
+```
+
+Replace `matrix_server_name` and `claimed_user_id` with your information, and `<access_token>` with the one you got from the previous step. Other values can be left as-is.
+
+</details>
+
+You can then send this payload to the lk-jwt-service with:
+
+```bash
+curl -X POST -d @payload.json https://livekit.example.com/get_token
+```
+
+The JWT service will respond with a `jwt` token. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test) - if everything works there, then you have set up Livekit successfully!
+
+## Related Documentation
 
 Guides:
 
 - [Element Call self-hosting documentation](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
 - [Community guide with overview of Livekit's mechanisms](https://tomfos.tr/matrix/livekit/)
-- [Community guide (using systemd)](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
+- [Community guide using systemd](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
 
 Specifications:
 
