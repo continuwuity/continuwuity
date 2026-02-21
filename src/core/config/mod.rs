@@ -368,6 +368,17 @@ pub struct Config {
 	#[serde(default = "default_max_fetch_prev_events")]
 	pub max_fetch_prev_events: u16,
 
+	/// How many incoming federation transactions the server is willing to be
+	/// processing at any given time before it becomes overloaded and starts
+	/// rejecting further transactions until some slots become available.
+	///
+	/// Setting this value too low or too high may result in unstable
+	/// federation, and setting it too high may cause runaway resource usage.
+	///
+	/// default: 150
+	#[serde(default = "default_max_concurrent_inbound_transactions")]
+	pub max_concurrent_inbound_transactions: usize,
+
 	/// Default/base connection timeout (seconds). This is used only by URL
 	/// previews and update/news endpoint checks.
 	///
@@ -2539,6 +2550,8 @@ fn default_pusher_timeout() -> u64 { 60 }
 fn default_pusher_idle_timeout() -> u64 { 15 }
 
 fn default_max_fetch_prev_events() -> u16 { 192_u16 }
+
+fn default_max_concurrent_inbound_transactions() -> usize { 150 }
 
 fn default_tracing_flame_filter() -> String {
 	cfg!(debug_assertions)

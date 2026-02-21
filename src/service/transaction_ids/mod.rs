@@ -37,7 +37,7 @@ impl crate::Service for Service {
 			},
 			servername_txnid_response_cache: Arc::new(SyncRwLock::new(HashMap::new())),
 			servername_txnid_active: Arc::new(SyncRwLock::new(HashMap::new())),
-			max_active_txns: 50, // TODO: fetch from config
+			max_active_txns: args.depend::<crate::config::Service>("config").max_concurrent_inbound_transactions
 		}))
 	}
 

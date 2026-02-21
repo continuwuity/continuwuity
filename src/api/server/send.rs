@@ -151,11 +151,7 @@ async fn process_inbound_transaction(
 		.filter_map(Result::ok)
 		.stream();
 
-	info!(
-		pdus = body.pdus.len(),
-		edus = body.edus.len(),
-		"Processing transaction",
-	);
+	info!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
 	let Ok(results) = handle(&services, &client, body.origin(), txn_start_time, pdus, edus).await
 	else {
 		// TODO: handle this properly. The channel doesn't like being closed with no

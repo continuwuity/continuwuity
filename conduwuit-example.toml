@@ -290,6 +290,15 @@
 #
 #max_fetch_prev_events = 192
 
+# How many incoming federation transactions the server is willing to be
+# processing at any given time before it becomes overloaded and starts
+# rejecting further transactions until some slots become available.
+#
+# Setting this value too low or too high may result in unstable
+# federation, and setting it too high may cause runaway resource usage.
+#
+#max_concurrent_inbound_transactions = 150
+
 # Default/base connection timeout (seconds). This is used only by URL
 # previews and update/news endpoint checks.
 #
