@@ -40,6 +40,7 @@ use ruma::{
 };
 use service::transaction_ids::{TxnKey, WrappedTransactionResponse};
 use tokio::sync::watch::{Receiver, Sender};
+use tracing::instrument;
 
 use crate::Ruma;
 
@@ -118,6 +119,14 @@ async fn wait_for_result(
 	Ok(value.clone().expect("channel returned with no value?"))
 }
 
+#[instrument(
+	level = "info",
+	skip_all,
+	fields(
+		id = ?body.transaction_id.as_str(),
+		origin = ?body.origin()
+	)
+)]
 async fn process_inbound_transaction(
 	services: crate::State,
 	body: Ruma<send_transaction_message::v1::Request>,
