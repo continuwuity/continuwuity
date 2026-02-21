@@ -77,7 +77,7 @@ rec {
     craneLib.buildDepsOnly (
       (commonAttrs commonAttrsArgs)
       // {
-        env = uwuenv.buildDepsOnlyEnv 
+        env = uwuenv.buildDepsOnlyEnv
               // (makeRocksDBEnv { inherit rocksdb; })
               // {
                 # required since we started using unstable reqwest apparently ... otherwise the all-features build will fail

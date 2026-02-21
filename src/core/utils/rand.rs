@@ -4,7 +4,7 @@ use std::{
 };
 
 use arrayvec::ArrayString;
-use rand::{Rng, RngExt, seq::SliceRandom};
+use rand::{RngExt, seq::SliceRandom};
 
 pub fn shuffle<T>(vec: &mut [T]) {
 	let mut rng = rand::rng();

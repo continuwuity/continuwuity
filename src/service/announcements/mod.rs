@@ -20,7 +20,6 @@ use std::{sync::Arc, time::Duration};
 use async_trait::async_trait;
 use conduwuit::{Result, Server, debug, error, warn};
 use database::{Deserialized, Map};
-use rand::Rng;
 use ruma::events::{Mentions, room::message::RoomMessageEventContent};
 use serde::Deserialize;
 use tokio::{

@@ -4,7 +4,6 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{Err, Event, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
 use conduwuit_service::Services;
-use rand::Rng;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{
