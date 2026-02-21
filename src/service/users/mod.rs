@@ -184,6 +184,12 @@ impl Service {
 		password: Option<&str>,
 		origin: Option<&str>,
 	) -> Result<()> {
+		if !self.services.globals.user_is_local(user_id)
+			&& (password.is_some() || origin.is_some())
+		{
+			return Err!("Cannot create a nonlocal user with a set password or origin");
+		}
+
 		self.db
 			.userid_origin
 			.insert(user_id, origin.unwrap_or("password"));

@@ -252,6 +252,13 @@ pub(crate) async fn register_route(
 						}
 					}
 
+					// Don't allow registration with user IDs that aren't local
+					if !services.globals.user_is_local(&user_id) {
+						return Err!(Request(InvalidUsername(
+							"Username {body_username} is not local to this server"
+						)));
+					}
+
 					user_id
 				},
 				| Err(e) => {
