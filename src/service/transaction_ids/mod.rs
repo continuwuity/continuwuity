@@ -1,5 +1,6 @@
 use std::{
 	collections::HashMap,
+	fmt,
 	sync::{
 		Arc,
 		atomic::{AtomicU64, Ordering},
@@ -22,7 +23,26 @@ use tokio::sync::watch::{Receiver, Sender};
 use crate::{Dep, config};
 
 pub type TxnKey = (OwnedServerName, OwnedTransactionId);
-pub type WrappedTransactionResponse = Option<send_transaction_message::v1::Response>;
+pub type WrappedTransactionResponse =
+	Option<Result<send_transaction_message::v1::Response, TransactionError>>;
+
+/// Errors that can occur during federation transaction processing.
+#[derive(Debug, Clone)]
+pub enum TransactionError {
+	/// Server is shutting down - the sender should retry the entire
+	/// transaction.
+	ShuttingDown,
+}
+
+impl fmt::Display for TransactionError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			| Self::ShuttingDown => write!(f, "Server is shutting down"),
+		}
+	}
+}
+
+impl std::error::Error for TransactionError {}
 
 /// Minimum interval between cache cleanup runs.
 /// Exists to prevent thrashing when the cache is full of things that can't be
@@ -201,7 +221,7 @@ impl Service {
 	pub fn finish_federation_txn(
 		&self,
 		key: TxnKey,
-		sender: Sender<Option<send_transaction_message::v1::Response>>,
+		sender: Sender<WrappedTransactionResponse>,
 		response: send_transaction_message::v1::Response,
 	) {
 		// Check if cleanup might be needed before acquiring the lock
@@ -220,7 +240,7 @@ impl Service {
 		);
 
 		sender
-			.send(Some(response))
+			.send(Some(Ok(response)))
 			.expect("couldn't send response to channel");
 
 		// explicitly close

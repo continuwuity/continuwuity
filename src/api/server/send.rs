@@ -21,6 +21,7 @@ use conduwuit_service::{
 	sending::{EDU_LIMIT, PDU_LIMIT},
 };
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use http::StatusCode;
 use itertools::Itertools;
 use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
@@ -42,7 +43,9 @@ use ruma::{
 	to_device::DeviceIdOrAllDevices,
 	uint,
 };
-use service::transaction_ids::{FederationTxnState, TxnKey, WrappedTransactionResponse};
+use service::transaction_ids::{
+	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
+};
 use tokio::sync::watch::{Receiver, Sender};
 use tracing::instrument;
 
@@ -118,7 +121,15 @@ async fn wait_for_result(
 		));
 	}
 	let value = recv.borrow_and_update();
-	Ok(value.clone().expect("channel returned with no value?"))
+	match value.clone() {
+		| Some(Ok(response)) => Ok(response),
+		| Some(Err(err)) => Err(transaction_error_to_response(&err)),
+		| None => Err(Error::Request(
+			ErrorKind::Unknown,
+			"Transaction processing failed unexpectedly".into(),
+			StatusCode::INTERNAL_SERVER_ERROR,
+		)),
+	}
 }
 
 #[instrument(
@@ -133,7 +144,7 @@ async fn process_inbound_transaction(
 	body: Ruma<send_transaction_message::v1::Request>,
 	client: IpAddr,
 	txn_key: TxnKey,
-	sender: Sender<Option<send_transaction_message::v1::Response>>,
+	sender: Sender<WrappedTransactionResponse>,
 ) {
 	let txn_start_time = Instant::now();
 	let pdus = body
@@ -153,14 +164,12 @@ async fn process_inbound_transaction(
 		.stream();
 
 	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
-	let Ok(results) = handle(&services, &client, body.origin(), pdus, edus).await else {
-		// TODO: handle this properly. The channel doesn't like being closed with no
-		// value, returning an empty response may lie to the remote and make them
-		// think we processed it properly (and lose events), but we also can't return
-		// an actual error.
-		drop(sender);
-		services.transaction_ids.remove_federation_txn(&txn_key);
-		panic!("failed to handle incoming transaction");
+	let results = match handle(&services, &client, body.origin(), pdus, edus).await {
+		| Ok(results) => results,
+		| Err(err) => {
+			fail_federation_txn(services, &txn_key, &sender, err);
+			return;
+		},
 	};
 
 	for (id, result) in &results {
@@ -190,13 +199,43 @@ async fn process_inbound_transaction(
 		.finish_federation_txn(txn_key, sender, response);
 }
 
+/// Handles a failed federation transaction by sending the error through
+/// the channel and cleaning up the transaction state. This allows waiters to
+/// receive an appropriate error response.
+fn fail_federation_txn(
+	services: crate::State,
+	txn_key: &TxnKey,
+	sender: &Sender<WrappedTransactionResponse>,
+	err: TransactionError,
+) {
+	debug!("Transaction failed: {err}");
+
+	// Remove from active state so the transaction can be retried
+	services.transaction_ids.remove_federation_txn(txn_key);
+
+	// Send the error to any waiters
+	sender
+		.send(Some(Err(err)))
+		.expect("couldn't send error to channel");
+}
+
+/// Converts a TransactionError into an appropriate HTTP error response.
+fn transaction_error_to_response(err: &TransactionError) -> Error {
+	match err {
+		| TransactionError::ShuttingDown => Error::Request(
+			ErrorKind::Unknown,
+			"Server is shutting down, please retry later".into(),
+			StatusCode::SERVICE_UNAVAILABLE,
+		),
+	}
+}
 async fn handle(
 	services: &Services,
 	client: &IpAddr,
 	origin: &ServerName,
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
-) -> Result<ResolvedMap> {
+) -> std::result::Result<ResolvedMap, TransactionError> {
 	// group pdus by room
 	let pdus = pdus
 		.collect()
@@ -274,7 +313,7 @@ async fn handle_room(
 	origin: &ServerName,
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
-) -> Result<Vec<(OwnedEventId, Result)>> {
+) -> std::result::Result<Vec<(OwnedEventId, Result)>, TransactionError> {
 	let _room_lock = services
 		.rooms
 		.event_handler
@@ -287,8 +326,14 @@ async fn handle_room(
 		.into_iter()
 		.map(|(_, event_id, value)| (event_id, value))
 		.collect();
+	// Try to sort PDUs by their dependencies, but fall back to arbitrary order on
+	// failure (e.g., cycles). This is best-effort; proper ordering is the sender's
+	// responsibility.
 	let sorted_event_ids = if pdu_map.len() >= 2 {
-		build_local_dag(&pdu_map).await?
+		build_local_dag(&pdu_map).await.unwrap_or_else(|e| {
+			debug_warn!("Failed to build local DAG for room {room_id}: {e}");
+			pdu_map.keys().cloned().collect()
+		})
 	} else {
 		pdu_map.keys().cloned().collect()
 	};
@@ -298,7 +343,10 @@ async fn handle_room(
 			.get(&event_id)
 			.expect("sorted event IDs must be from the original map")
 			.clone();
-		services.server.check_running()?;
+		services
+			.server
+			.check_running()
+			.map_err(|_| TransactionError::ShuttingDown)?;
 		let result = services
 			.rooms
 			.event_handler
