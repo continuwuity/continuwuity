@@ -53,7 +53,7 @@ repos:
         name: cargo clippy
         entry: >
           sh -c '
-            if [ "$(git diff HEAD @{u} | grep -G -- "^--- a/.*\.rs\$")" != "" ];
+            if git diff --name-only HEAD @{u} | grep -qE "\.rs\$";
             then
               cargo +nightly clippy -- -D warnings;
             fi
