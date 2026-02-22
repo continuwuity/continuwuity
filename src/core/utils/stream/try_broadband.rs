@@ -1,9 +1,10 @@
 //! Synchronous combinator extensions to futures::TryStream
 
+use std::result::Result;
+
 use futures::{TryFuture, TryStream, TryStreamExt};
 
 use super::automatic_width;
-use crate::Result;
 
 /// Concurrency extensions to augment futures::TryStreamExt. broad_ combinators
 /// produce out-of-order

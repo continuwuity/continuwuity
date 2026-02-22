@@ -142,7 +142,7 @@ async fn get_auth_chain_outer(
 
 	let chunk_cache: Vec<_> = chunk
 		.into_iter()
-		.try_stream()
+		.try_stream::<conduwuit::Error>()
 		.broad_and_then(|(shortid, event_id)| async move {
 			if let Ok(cached) = self.get_cached_eventid_authchain(&[shortid]).await {
 				return Ok(cached.to_vec());

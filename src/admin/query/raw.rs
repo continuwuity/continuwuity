@@ -209,7 +209,7 @@ pub(super) async fn compact(
 	let parallelism = parallelism.unwrap_or(1);
 	let results = maps
 		.into_iter()
-		.try_stream()
+		.try_stream::<conduwuit::Error>()
 		.paralleln_and_then(runtime, parallelism, move |map| {
 			map.compact_blocking(options.clone())?;
 			Ok(map.name().to_owned())
