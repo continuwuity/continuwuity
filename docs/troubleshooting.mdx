@@ -6,7 +6,7 @@ misconfigurations to cause issues, particularly with networking and permissions.
 Please check that your issues are not due to problems with your Docker setup.
 :::
 
-## Continuwuity and Matrix issues
+## Continuwuity issues
 
 ### Slow joins to rooms
 
@@ -23,6 +23,16 @@ which is a longstanding bug with synchronizing room joins to clients. In this si
 the bug caused your homeserver to forget to tell your client. **To fix this, clear your client's cache.** Both Element and Cinny
 have a button to clear their cache in the "About" section of their settings.
 
+### Configuration not working as expected
+
+Sometimes you can make a mistake in your configuration that
+means things don't get passed to Continuwuity correctly.
+This is particularly easy to do with environment variables.
+To check what configuration Continuwuity actually sees, you can
+use the `!admin server show-config` command in your admin room.
+Beware that this prints out any secrets in your configuration,
+so you might want to delete the result afterwards!
+
 ### Lost access to admin room
 
 You can reinvite yourself to the admin room through the following methods:
@@ -33,17 +43,7 @@ argument once to invite yourslf to the admin room on startup
 - Or specify the `emergency_password` config option to allow you to temporarily
 log into the server account (`@conduit`) from a web client
 
-## General potential issues
-
-### Configuration not working as expected
-
-Sometimes you can make a mistake in your configuration that
-means things don't get passed to Continuwuity correctly.
-This is particularly easy to do with environment variables.
-To check what configuration Continuwuity actually sees, you can
-use the `!admin server show-config` command in your admin room.
-Beware that this prints out any secrets in your configuration,
-so you might want to delete the result afterwards!
+## DNS issues
 
 ### Potential DNS issues when using Docker
 
