@@ -11,6 +11,7 @@ use std::{
 use async_trait::async_trait;
 use conduwuit::{Error, Result, SyncRwLock, debug_warn, warn};
 use database::{Handle, Map};
+use futures::SinkExt;
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
 	api::{
@@ -239,9 +240,9 @@ impl Service {
 			}),
 		);
 
-		sender
-			.send(Some(Ok(response)))
-			.expect("couldn't send response to channel");
+		if let Err(e) = sender.send(Some(Ok(response))) {
+			debug_warn!("Failed to send transaction response to waiting receivers: {e}");
+		}
 
 		// explicitly close
 		drop(sender);

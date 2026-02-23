@@ -214,9 +214,9 @@ fn fail_federation_txn(
 	services.transaction_ids.remove_federation_txn(txn_key);
 
 	// Send the error to any waiters
-	sender
-		.send(Some(Err(err)))
-		.expect("couldn't send error to channel");
+	if let Err(e) = sender.send(Some(Err(err))) {
+		debug_warn!("Failed to send transaction error to receivers: {e}");
+	}
 }
 
 /// Converts a TransactionError into an appropriate HTTP error response.
