@@ -1,0 +1,1 @@
+Implement MSC4143 MatrixRTC transport discovery endpoints (`GET /_matrix/client/v1/rtc/transports` and the unstable prefix equivalent). Move RTC foci configuration from `[global.well_known]` to a new `[global.matrix_rtc]` section with a `foci` field. Contributed by @0xnim
