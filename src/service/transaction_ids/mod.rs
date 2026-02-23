@@ -244,7 +244,7 @@ impl Service {
 			debug_warn!("Failed to send transaction response to waiting receivers: {e}");
 		}
 
-		// explicitly close
+		// Explicitly close
 		drop(sender);
 
 		// This task is dangling, we can try clean caches now
