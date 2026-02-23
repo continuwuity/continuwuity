@@ -678,12 +678,6 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_public_room_directory_over_federation: bool,
 
-	/// Set this to true to allow your server's public room directory to be
-	/// queried without client authentication (access token) through the Client
-	/// APIs. Set this to false to protect against /publicRooms spiders.
-	#[serde(default)]
-	pub allow_public_room_directory_without_auth: bool,
-
 	/// Allow guests/unauthenticated users to access TURN credentials.
 	///
 	/// This is the equivalent of Synapse's `turn_allow_guests` config option.

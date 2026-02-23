@@ -67,23 +67,17 @@ pub(super) async fn auth(
 	if metadata.authentication == AuthScheme::None {
 		match metadata {
 			| &get_public_rooms::v3::Request::METADATA => {
-				if !services
-					.server
-					.config
-					.allow_public_room_directory_without_auth
-				{
-					match token {
-						| Token::Appservice(_) | Token::User(_) => {
-							// we should have validated the token above
-							// already
-						},
-						| Token::None | Token::Invalid => {
-							return Err(Error::BadRequest(
-								ErrorKind::MissingToken,
-								"Missing or invalid access token.",
-							));
-						},
-					}
+				match token {
+					| Token::Appservice(_) | Token::User(_) => {
+						// we should have validated the token above
+						// already
+					},
+					| Token::None | Token::Invalid => {
+						return Err(Error::BadRequest(
+							ErrorKind::MissingToken,
+							"Missing or invalid access token.",
+						));
+					},
 				}
 			},
 			| &get_profile::v3::Request::METADATA

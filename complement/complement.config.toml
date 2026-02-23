@@ -9,7 +9,6 @@ address = "0.0.0.0"
 allow_device_name_federation = true
 allow_guest_registration = true
 allow_public_room_directory_over_federation = true
-allow_public_room_directory_without_auth = true
 allow_registration = true
 database_path = "/database"
 log = "trace,h2=debug,hyper=debug"
