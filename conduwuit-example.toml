@@ -1844,17 +1844,6 @@
 #
 #support_mxid =
 
-# A list of MatrixRTC foci URLs which will be served as part of the
-# MSC4143 client endpoint at /.well-known/matrix/client.  If you're
-# setting up livekit, you'd want something like:
-# rtc_focus_server_urls = [
-#     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
-# ]
-#
-# To disable, set this to be an empty vector (`[]`).
-#
-#rtc_focus_server_urls = []
-
 [global.blurhashing]
 
 # blurhashing x component, 4 is recommended by https://blurha.sh/
@@ -1872,6 +1861,23 @@
 # is 33.55MB. Setting it to 0 disables blurhashing.
 #
 #blurhash_max_raw_size = 33554432
+
+[global.matrix_rtc]
+
+# A list of MatrixRTC foci (transports) which will be served via the
+# MSC4143 RTC transports endpoint at
+# `/_matrix/client/v1/rtc/transports`. If you're setting up livekit,
+# you'd want something like:
+# ```toml
+# [global.matrix_rtc]
+# foci = [
+#     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
+# ]
+# ```
+#
+# To disable, set this to an empty list (`[]`).
+#
+#foci = []
 
 [global.ldap]
 

@@ -2080,6 +2080,12 @@ pub struct Config {
 	/// display: nested
 	#[serde(default)]
 	pub blurhashing: BlurhashConfig,
+
+	/// Configuration for MatrixRTC (MSC4143) transport discovery.
+	/// display: nested
+	#[serde(default)]
+	pub matrix_rtc: MatrixRtcConfig,
+
 	#[serde(flatten)]
 	#[allow(clippy::zero_sized_map_values)]
 	// this is a catchall, the map shouldn't be zero at runtime
@@ -2144,19 +2150,6 @@ pub struct WellKnownConfig {
 	/// If no email or mxid is specified, all of the server's admins will be
 	/// listed.
 	pub support_mxid: Option<OwnedUserId>,
-
-	/// A list of MatrixRTC foci URLs which will be served as part of the
-	/// MSC4143 client endpoint at /.well-known/matrix/client.  If you're
-	/// setting up livekit, you'd want something like:
-	/// rtc_focus_server_urls = [
-	///     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
-	/// ]
-	///
-	/// To disable, set this to be an empty vector (`[]`).
-	///
-	/// default: []
-	#[serde(default = "default_rtc_focus_urls")]
-	pub rtc_focus_server_urls: Vec<RtcFocusInfo>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Default)]
@@ -2182,6 +2175,27 @@ pub struct BlurhashConfig {
 	/// default: 33554432
 	#[serde(default = "default_blurhash_max_raw_size")]
 	pub blurhash_max_raw_size: u64,
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
+#[config_example_generator(filename = "conduwuit-example.toml", section = "global.matrix_rtc")]
+pub struct MatrixRtcConfig {
+	/// A list of MatrixRTC foci (transports) which will be served via the
+	/// MSC4143 RTC transports endpoint at
+	/// `/_matrix/client/v1/rtc/transports`. If you're setting up livekit,
+	/// you'd want something like:
+	/// ```toml
+	/// [global.matrix_rtc]
+	/// foci = [
+	///     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
+	/// ]
+	/// ```
+	///
+	/// To disable, set this to an empty list (`[]`).
+	///
+	/// default: []
+	#[serde(default)]
+	pub foci: Vec<RtcFocusInfo>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -2659,9 +2673,6 @@ fn default_rocksdb_stats_level() -> u8 { 1 }
 #[must_use]
 #[inline]
 pub fn default_default_room_version() -> RoomVersionId { RoomVersionId::V11 }
-
-#[must_use]
-pub fn default_rtc_focus_urls() -> Vec<RtcFocusInfo> { vec![] }
 
 fn default_ip_range_denylist() -> Vec<String> {
 	vec![
