@@ -336,7 +336,9 @@ where
 		let ranges = list.ranges.clone();
 
 		for mut range in ranges {
-			range.0 = uint!(0);
+			range.0 = range
+				.0
+				.min(UInt::try_from(active_rooms.len()).unwrap_or(UInt::MAX));
 			range.1 = range.1.checked_add(uint!(1)).unwrap_or(range.1);
 			range.1 = range
 				.1
