@@ -66,6 +66,8 @@ pub(super) async fn load_joined_room(
 	*/
 
 	let insert_lock = services.rooms.timeline.mutex_insert.lock(room_id).await;
+	#[cfg(feature = "sync-drop-instant")]
+	drop(insert_lock);
 	let (
 		account_data,
 		ephemeral,
@@ -83,6 +85,7 @@ pub(super) async fn load_joined_room(
 	)
 	.boxed()
 	.await?;
+	#[cfg(not(feature = "sync-drop-instant"))]
 	drop(insert_lock);
 
 	if !timeline.is_empty() || !state_events.is_empty() {
