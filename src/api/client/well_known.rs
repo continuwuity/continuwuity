@@ -27,7 +27,11 @@ pub(crate) async fn well_known_client(
 		identity_server: None,
 		sliding_sync_proxy: Some(SlidingSyncProxyInfo { url: client_url }),
 		tile_server: None,
-		rtc_foci: vec![],
+		rtc_foci: services
+			.config
+			.matrix_rtc
+			.effective_foci(&services.config.well_known.rtc_focus_server_urls)
+			.to_vec(),
 	})
 }
 
@@ -38,10 +42,15 @@ pub(crate) async fn well_known_client(
 /// homeserver, implementing MSC4143.
 pub(crate) async fn get_rtc_transports(
 	State(services): State<crate::State>,
-) -> Result<impl IntoResponse> {
-	Ok(Json(serde_json::json!({
-		"rtc_foci": services.config.matrix_rtc.foci,
-	})))
+	_body: Ruma<ruma::api::client::discovery::get_rtc_transports::Request>,
+) -> Result<ruma::api::client::discovery::get_rtc_transports::Response> {
+	Ok(ruma::api::client::discovery::get_rtc_transports::Response::new(
+		services
+			.config
+			.matrix_rtc
+			.effective_foci(&services.config.well_known.rtc_focus_server_urls)
+			.to_vec(),
+	))
 }
 
 /// # `GET /.well-known/matrix/support`

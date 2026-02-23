@@ -2150,6 +2150,18 @@ pub struct WellKnownConfig {
 	/// If no email or mxid is specified, all of the server's admins will be
 	/// listed.
 	pub support_mxid: Option<OwnedUserId>,
+
+	/// **DEPRECATED**: Use `[global.matrix_rtc].foci` instead.
+	///
+	/// A list of MatrixRTC foci URLs which will be served as part of the
+	/// MSC4143 client endpoint at /.well-known/matrix/client.
+	///
+	/// This option is deprecated and will be removed in a future release.
+	/// Please migrate to the new `[global.matrix_rtc]` config section.
+	///
+	/// default: []
+	#[serde(default)]
+	pub rtc_focus_server_urls: Vec<RtcFocusInfo>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Default)]
@@ -2196,6 +2208,22 @@ pub struct MatrixRtcConfig {
 	/// default: []
 	#[serde(default)]
 	pub foci: Vec<RtcFocusInfo>,
+}
+
+impl MatrixRtcConfig {
+	/// Returns the effective foci, falling back to the deprecated
+	/// `rtc_focus_server_urls` if the new config is empty.
+	#[must_use]
+	pub fn effective_foci<'a>(
+		&'a self,
+		deprecated_foci: &'a [RtcFocusInfo],
+	) -> &'a [RtcFocusInfo] {
+		if !self.foci.is_empty() {
+			&self.foci
+		} else {
+			deprecated_foci
+		}
+	}
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -2391,6 +2419,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"well_known_support_email",
 	"well_known_support_mxid",
 	"registration_token_file",
+	"well_known.rtc_focus_server_urls",
 ];
 
 impl Config {
