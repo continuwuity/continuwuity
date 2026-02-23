@@ -26,7 +26,7 @@ pub(crate) async fn send_event_to_device_route(
 
 	// Check if this is a new transaction id
 	if services
-		.transaction_ids
+		.transactions
 		.get_client_txn(sender_user, sender_device, &body.txn_id)
 		.await
 		.is_ok()
@@ -104,7 +104,7 @@ pub(crate) async fn send_event_to_device_route(
 
 	// Save transaction id with empty data
 	services
-		.transaction_ids
+		.transactions
 		.add_client_txnid(sender_user, sender_device, &body.txn_id, &[]);
 
 	Ok(send_event_to_device::v3::Response {})

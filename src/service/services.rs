@@ -14,7 +14,7 @@ use crate::{
 	media, moderation, presence, pusher, registration_tokens, resolver, rooms, sending,
 	server_keys,
 	service::{self, Args, Map, Service},
-	sync, transaction_ids, uiaa, users,
+	sync, transactions, uiaa, users,
 };
 
 pub struct Services {
@@ -37,7 +37,7 @@ pub struct Services {
 	pub sending: Arc<sending::Service>,
 	pub server_keys: Arc<server_keys::Service>,
 	pub sync: Arc<sync::Service>,
-	pub transaction_ids: Arc<transaction_ids::Service>,
+	pub transactions: Arc<transactions::Service>,
 	pub uiaa: Arc<uiaa::Service>,
 	pub users: Arc<users::Service>,
 	pub moderation: Arc<moderation::Service>,
@@ -110,7 +110,7 @@ impl Services {
 			sending: build!(sending::Service),
 			server_keys: build!(server_keys::Service),
 			sync: build!(sync::Service),
-			transaction_ids: build!(transaction_ids::Service),
+			transactions: build!(transactions::Service),
 			uiaa: build!(uiaa::Service),
 			users: build!(users::Service),
 			moderation: build!(moderation::Service),

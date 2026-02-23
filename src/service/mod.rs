@@ -31,7 +31,7 @@ pub mod rooms;
 pub mod sending;
 pub mod server_keys;
 pub mod sync;
-pub mod transaction_ids;
+pub mod transactions;
 pub mod uiaa;
 pub mod users;
 

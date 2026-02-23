@@ -11,7 +11,6 @@ use std::{
 use async_trait::async_trait;
 use conduwuit::{Error, Result, SyncRwLock, debug_warn, warn};
 use database::{Handle, Map};
-use futures::SinkExt;
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
 	api::{

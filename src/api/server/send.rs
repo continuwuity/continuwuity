@@ -43,7 +43,7 @@ use ruma::{
 	to_device::DeviceIdOrAllDevices,
 	uint,
 };
-use service::transaction_ids::{
+use service::transactions::{
 	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
 };
 use tokio::sync::watch::{Receiver, Sender};
@@ -84,7 +84,7 @@ pub(crate) async fn send_transaction_message_route(
 
 	// Atomically check cache, join active, or start new transaction
 	match services
-		.transaction_ids
+		.transactions
 		.get_or_start_federation_txn(txn_key.clone())?
 	{
 		| FederationTxnState::Cached(response) => {
@@ -195,7 +195,7 @@ async fn process_inbound_transaction(
 	};
 
 	services
-		.transaction_ids
+		.transactions
 		.finish_federation_txn(txn_key, sender, response);
 }
 
@@ -211,7 +211,7 @@ fn fail_federation_txn(
 	debug!("Transaction failed: {err}");
 
 	// Remove from active state so the transaction can be retried
-	services.transaction_ids.remove_federation_txn(txn_key);
+	services.transactions.remove_federation_txn(txn_key);
 
 	// Send the error to any waiters
 	if let Err(e) = sender.send(Some(Err(err))) {
@@ -628,7 +628,7 @@ async fn handle_edu_direct_to_device(
 
 	// Check if this is a new transaction id
 	if services
-		.transaction_ids
+		.transactions
 		.get_client_txn(sender, None, message_id)
 		.await
 		.is_ok()
@@ -648,7 +648,7 @@ async fn handle_edu_direct_to_device(
 
 	// Save transaction id with empty data
 	services
-		.transaction_ids
+		.transactions
 		.add_client_txnid(sender, None, message_id, &[]);
 }
 

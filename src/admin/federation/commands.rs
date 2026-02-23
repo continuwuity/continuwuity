@@ -33,7 +33,7 @@ pub(super) async fn incoming_federation(&self) -> Result {
 		let mut msg = format!(
 			"Handling {} incoming PDUs across {} active transactions:\n",
 			map.len(),
-			self.services.transaction_ids.txn_active_handle_count()
+			self.services.transactions.txn_active_handle_count()
 		);
 		for (r, (e, i)) in map.iter() {
 			let elapsed = i.elapsed();
