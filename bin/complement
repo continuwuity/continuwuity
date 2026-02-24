@@ -6,10 +6,10 @@ set -euo pipefail
 COMPLEMENT_SRC="${COMPLEMENT_SRC:-$1}"
 
 # A `.jsonl` file to write test logs to
-LOG_FILE="${2:-complement_test_logs.jsonl}"
+LOG_FILE="${2:-tests/test_results/complement/test_logs.jsonl}"
 
 # A `.jsonl` file to write test results to
-RESULTS_FILE="${3:-complement_test_results.jsonl}"
+RESULTS_FILE="${3:-tests/test_results/complement/test_results.jsonl}"
 
 # The base docker image to use for complement tests
 # You can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`

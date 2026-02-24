@@ -67,15 +67,17 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 
 	async fn worker(self: Arc<Self>) -> Result {
-		// first run mode will be enabled if there are no local users
-		let is_first_run = self
-			.services
-			.users
-			.list_local_users()
-			.ready_filter(|user| *user != self.services.globals.server_user)
-			.next()
-			.await
-			.is_none();
+		// first run mode will be enabled if there are no local users, provided it's not
+		// forcibly disabled for Complement tests
+		let is_first_run = !self.services.config.force_disable_first_run_mode
+			&& self
+				.services
+				.users
+				.list_local_users()
+				.ready_filter(|user| *user != self.services.globals.server_user)
+				.next()
+				.await
+				.is_none();
 
 		self.first_run_marker
 			.set(if is_first_run {
