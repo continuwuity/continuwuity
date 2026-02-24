@@ -11,7 +11,7 @@ allow_guest_registration = true
 allow_public_room_directory_over_federation = true
 allow_registration = true
 database_path = "/database"
-log = "trace,h2=debug,hyper=debug"
+log = "trace,h2=debug,hyper=debug,conduwuit_database=warn,conduwuit_service::manager=info,conduwuit_api::router=error,conduwuit_router=error,tower_http=error"
 port = [8008, 8448]
 trusted_servers = []
 only_query_trusted_key_servers = false
@@ -24,7 +24,7 @@ url_preview_domain_explicit_denylist = ["*"]
 media_compat_file_link = false
 media_startup_check = true
 prune_missing_media = true
-log_colors = true
+log_colors = false
 admin_room_notices = false
 allow_check_for_updates = false
 intentionally_unknown_config_option_for_testing = true
@@ -47,6 +47,7 @@ federation_idle_timeout = 300
 sender_timeout = 300
 sender_idle_timeout = 300
 sender_retry_backoff_limit = 300
+force_disable_first_run_mode = true
 
 [global.tls]
 dual_protocol = true
