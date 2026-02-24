@@ -95,6 +95,10 @@
 # engine API. To use this, set a database backup path that continuwuity
 # can write to.
 #
+# If you are using systemd, you will need to add the path to
+# ReadWritePaths in the service file, preferably via a drop-in file
+# through `systemctl edit`.
+#
 # For more information, see:
 # https://continuwuity.org/maintenance.html#backups
 #
