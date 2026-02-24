@@ -102,7 +102,7 @@ pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result
 
 /// Target options for room purging
 #[derive(Default, Debug, clap::ValueEnum, Clone)]
-pub(crate) enum RoomTargetOption {
+pub enum RoomTargetOption {
 	#[default]
 	/// Target all rooms
 	All,
