@@ -29,7 +29,9 @@ pub(super) async fn delete(
 			.delete(&mxc.as_str().try_into()?)
 			.await?;
 
-		return Err!("Deleted the MXC from our database and on our filesystem.",);
+		return self
+			.write_str("Deleted the MXC from our database and on our filesystem.")
+			.await;
 	}
 
 	if let Some(event_id) = event_id {
