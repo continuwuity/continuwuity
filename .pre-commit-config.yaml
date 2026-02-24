@@ -51,15 +51,9 @@ repos:
     hooks:
       - id: cargo-clippy
         name: cargo clippy
-        entry: >
-          sh -c '
-            if git diff --name-only HEAD @{u} | grep -qE "\.rs\$";
-            then
-              cargo +nightly clippy -- -D warnings;
-            fi
-          '
+        entry: cargo +nightly clippy -- -D warnings
         language: system
         pass_filenames: false
-        always_run: true
+        types: [rust]
         stages:
           - pre-push
