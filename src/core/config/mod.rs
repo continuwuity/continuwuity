@@ -2068,6 +2068,16 @@ pub struct Config {
 	pub allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure:
 		bool,
 
+	/// Forcibly disables first-run mode.
+	///
+	/// This is intended to be used for Complement testing to allow the test
+	/// suite to register users, because first-run mode interferes with open
+	/// registration.
+	///
+	/// display: hidden
+	#[serde(default)]
+	pub force_disable_first_run_mode: bool,
+
 	/// display: nested
 	#[serde(default)]
 	pub ldap: LdapConfig,
