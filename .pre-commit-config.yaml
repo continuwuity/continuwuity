@@ -51,7 +51,7 @@ repos:
     hooks:
       - id: cargo-clippy
         name: cargo clippy
-        entry: cargo +nightly clippy -- -D warnings
+        entry: cargo clippy -- -D warnings
         language: system
         pass_filenames: false
         types: [rust]
