@@ -134,7 +134,7 @@ pub async fn handle_incoming_pdu<'a>(
 		);
 		return Err!(Request(TooLarge("PDU is too large")));
 	}
-	trace!("processing incoming pdu from {origin} for room {room_id} with event id {event_id}");
+	trace!("processing incoming PDU from {origin} for room {room_id} with event id {event_id}");
 
 	// 1.1 Check we even know about the room
 	let meta_exists = self.services.metadata.exists(room_id).map(Ok);
@@ -164,7 +164,7 @@ pub async fn handle_incoming_pdu<'a>(
 		sender_acl_check.map(|o| o.unwrap_or(Ok(()))),
 	)
 	.await
-	.inspect_err(|e| debug_error!("failed to handle incoming PDU: {e}"))?;
+	.inspect_err(|e| debug_error!(%origin, "failed to handle incoming PDU {event_id}: {e}"))?;
 
 	if is_disabled {
 		return Err!(Request(Forbidden("Federation of this room is disabled by this server.")));
@@ -195,6 +195,7 @@ pub async fn handle_incoming_pdu<'a>(
 		}
 		info!(
 			%origin,
+			%room_id,
 			"Dropping inbound PDU for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
