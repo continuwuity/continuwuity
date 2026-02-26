@@ -5,6 +5,7 @@ mod dest;
 mod sender;
 
 use std::{
+	collections::HashSet,
 	fmt::Debug,
 	hash::{DefaultHasher, Hash, Hasher},
 	iter::once,
@@ -19,8 +20,8 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, Stream, StreamExt};
-use ruma::{RoomId, ServerName, UserId, api::OutgoingRequest};
-use tokio::{task, task::JoinSet};
+use ruma::{OwnedServerName, RoomId, ServerName, UserId, api::OutgoingRequest};
+use tokio::{sync::RwLock, task, task::JoinSet};
 
 use self::data::Data;
 pub use self::{
@@ -37,6 +38,7 @@ pub struct Service {
 	server: Arc<Server>,
 	services: Services,
 	channels: Vec<(loole::Sender<Msg>, loole::Receiver<Msg>)>,
+	pub offline_servers: RwLock<HashSet<OwnedServerName>>,
 }
 
 struct Services {
@@ -52,6 +54,7 @@ struct Services {
 	account_data: Dep<account_data::Service>,
 	appservice: Dep<crate::appservice::Service>,
 	pusher: Dep<pusher::Service>,
+	resolver: Dep<crate::resolver::Service>,
 	federation: Dep<federation::Service>,
 }
 
@@ -96,9 +99,11 @@ impl crate::Service for Service {
 				account_data: args.depend::<account_data::Service>("account_data"),
 				appservice: args.depend::<crate::appservice::Service>("appservice"),
 				pusher: args.depend::<pusher::Service>("pusher"),
+				resolver: args.depend::<crate::resolver::Service>("resolver"),
 				federation: args.depend::<federation::Service>("federation"),
 			},
 			channels: (0..num_senders).map(|_| loole::unbounded()).collect(),
+			offline_servers: RwLock::new(HashSet::new()),
 		}))
 	}
 
@@ -146,6 +151,8 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 
 	fn unconstrained(&self) -> bool { true }
+
+	async fn clear_cache(&self) { self.offline_servers.write().await.clear(); }
 }
 
 impl Service {
@@ -378,6 +385,39 @@ impl Service {
 
 		let chans = self.channels.len().max(1);
 		hash.overflowing_rem(chans).0
+	}
+
+	/// Marks a server as offline
+	pub async fn mark_server_offline(&self, server: OwnedServerName) {
+		self.offline_servers.write().await.insert(server);
+	}
+
+	/// Marks a server as online again and flushes the senders if it was
+	/// previously marked as offline
+	pub async fn mark_server_online(&self, server: &ServerName, skip_flush: bool) {
+		if self.offline_servers.write().await.remove(server) && !skip_flush {
+			// Flush the senders if this server was previously offline
+			self.services.resolver.cache.del_destination(server);
+			self.services.resolver.cache.del_override(server);
+			self.dispatch(Msg {
+				dest: Destination::Federation(server.to_owned()),
+				event: SendingEvent::Flush,
+				queue_id: Vec::<u8>::new(),
+			})
+			.inspect_err(|e| {
+				error!(
+					?server,
+					?e,
+					"failed to dispatch flush message for server coming back online"
+				);
+			})
+			.ok();
+		}
+	}
+
+	/// Checks if a server is currently marked as offline
+	pub async fn server_is_offline(&self, server: &ServerName) -> bool {
+		self.offline_servers.read().await.contains(server)
 	}
 }
 

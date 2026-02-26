@@ -4,7 +4,7 @@ use axum_extra::{
 	headers::{Authorization, authorization::Bearer},
 	typed_header::TypedHeaderRejectionReason,
 };
-use conduwuit::{Err, Error, Result, debug_error, err, warn};
+use conduwuit::{Err, Error, Result, debug_error, debug_info, err, warn};
 use futures::{
 	TryFutureExt,
 	future::{
@@ -327,6 +327,14 @@ async fn auth_server(
 		}
 
 		return Err!(Request(Forbidden("Failed to verify X-Matrix signatures.")));
+	}
+
+	if services.sending.server_is_offline(destination).await {
+		debug_info!(?destination, "server returned from being offline");
+		services
+			.sending
+			.mark_server_online(destination, false)
+			.await;
 	}
 
 	Ok(Auth {

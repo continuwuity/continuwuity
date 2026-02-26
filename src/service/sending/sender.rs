@@ -9,6 +9,7 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use conduwuit::debug_warn;
 use conduwuit_core::{
 	Error, Event, Result, debug, err, error,
 	result::LogErr,
@@ -135,7 +136,13 @@ impl Service {
 	) {
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
-			| Err((dest, e)) => Self::handle_response_err(dest, statuses, &e),
+			| Err((dest, e)) => {
+				Self::handle_response_err(dest.clone(), statuses, &e);
+				if let Destination::Federation(server_name) = dest {
+					debug_warn!(?server_name, "marking server offline due to error: {e:?}");
+					self.mark_server_offline(server_name).await;
+				}
+			},
 		}
 	}
 
@@ -179,6 +186,12 @@ impl Service {
 			futures.push(self.send_events(dest.clone(), new_events_vec));
 		} else {
 			statuses.remove(dest);
+		}
+		if let Destination::Federation(server_name) = dest {
+			self.mark_server_online(server_name, true).await;
+			// We skip the flush here because we were already able to contact
+			// the server, and have queued any pending events, and the
+			// resolver cache will be fine.
 		}
 	}
 
