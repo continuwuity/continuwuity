@@ -16,8 +16,7 @@ services:
         restart: unless-stopped
         labels:
             caddy: example.com
-            caddy.0_respond: /.well-known/matrix/server {"m.server":"matrix.example.com:443"}
-            caddy.1_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc3575.proxy":{"url":"https://matrix.example.com"}}
+            caddy.reverse_proxy: /.well-known/matrix/* homeserver:6167
 
     homeserver:
         ### If you already built the Continuwuity image with 'docker build' or want to use a registry image,
@@ -42,6 +41,10 @@ services:
             #CONTINUWUITY_LOG: warn,state_res=warn
             CONTINUWUITY_ADDRESS: 0.0.0.0
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+
+            # Required for .well-known delegation - edit these according to your chosen domain
+            CONTINUWUITY_WELL_KNOWN__CLIENT: https://matrix.example.com
+            CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
         networks:
             - caddy
         labels:
