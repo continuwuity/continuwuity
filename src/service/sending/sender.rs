@@ -203,6 +203,9 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		if msg.event == SendingEvent::Flush {
+			statuses.remove(&msg.dest);
+		}
 		let iv = vec![(msg.queue_id, msg.event)];
 		if let Ok(Some(events)) = self.select_events(&msg.dest, iv, statuses).await {
 			if !events.is_empty() {
