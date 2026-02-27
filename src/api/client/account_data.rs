@@ -126,12 +126,6 @@ async fn set_account_data(
 		)));
 	}
 
-	if event_type_s == GlobalAccountDataEventType::PushRules.to_cow_str() {
-		return Err!(Request(BadJson(
-			"This endpoint cannot be used for setting/configuring push rules."
-		)));
-	}
-
 	let data: serde_json::Value = serde_json::from_str(data.get())
 		.map_err(|e| err!(Request(BadJson(warn!("Invalid JSON provided: {e}")))))?;
 
