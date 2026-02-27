@@ -180,6 +180,11 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         export RUSTFLAGS="${RUSTFLAGS}"
     fi
 
+    RUST_PROFILE_DIR="${RUST_PROFILE}"
+    if [[ "${RUST_PROFILE}" == "dev" ]]; then
+        RUST_PROFILE_DIR="debug"
+    fi
+
     TARGET_DIR=($(cargo metadata --no-deps --format-version 1 | \
             jq -r ".target_directory"))
     mkdir /out/sbin
@@ -191,8 +196,8 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
     for BINARY in "${BINARIES[@]}"; do
         echo $BINARY
-        xx-verify $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE}/$BINARY
-        cp $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE}/$BINARY /out/sbin/$BINARY
+        xx-verify $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE_DIR}/$BINARY
+        cp $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE_DIR}/$BINARY /out/sbin/$BINARY
     done
 EOF
 
