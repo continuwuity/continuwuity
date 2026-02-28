@@ -29,6 +29,18 @@ pub struct UrlPreviewData {
 	pub image_width: Option<u32>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:height"))]
 	pub image_height: Option<u32>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video"))]
+	pub video: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:video:size"))]
+	pub video_size: Option<usize>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:width"))]
+	pub video_width: Option<u32>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:height"))]
+	pub video_height: Option<u32>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:audio"))]
+	pub audio: Option<String>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:audio:size"))]
+	pub audio_size: Option<usize>,
 }
 
 #[implement(Service)]
@@ -96,7 +108,9 @@ async fn request_url_preview(&self, url: &Url) -> Result<UrlPreviewData> {
 
 	let data = match content_type {
 		| html if html.starts_with("text/html") => self.download_html(url.as_str()).await?,
-		| img if img.starts_with("image/") => self.download_image(url.as_str()).await?,
+		| img if img.starts_with("image/") => self.download_image(url.as_str(), None).await?,
+		| video if video.starts_with("video/") => self.download_video(url.as_str(), None).await?,
+		| audio if audio.starts_with("audio/") => self.download_audio(url.as_str(), None).await?,
 		| _ => return Err!(Request(Unknown("Unsupported Content-Type"))),
 	};
 
@@ -107,10 +121,16 @@ async fn request_url_preview(&self, url: &Url) -> Result<UrlPreviewData> {
 
 #[cfg(feature = "url_preview")]
 #[implement(Service)]
-pub async fn download_image(&self, url: &str) -> Result<UrlPreviewData> {
+pub async fn download_image(
+	&self,
+	url: &str,
+	preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
 	use conduwuit::utils::random_string;
 	use image::ImageReader;
 	use ruma::Mxc;
+
+	let mut preview_data = preview_data.unwrap_or_default();
 
 	let image = self
 		.services
@@ -128,6 +148,7 @@ pub async fn download_image(&self, url: &str) -> Result<UrlPreviewData> {
 				.expect("u64 should fit in usize"),
 		)
 		.await?;
+	
 	let mxc = Mxc {
 		server_name: self.services.globals.server_name(),
 		media_id: &random_string(super::MXC_LENGTH),
@@ -135,27 +156,107 @@ pub async fn download_image(&self, url: &str) -> Result<UrlPreviewData> {
 
 	self.create(&mxc, None, None, None, &image).await?;
 
-	let cursor = std::io::Cursor::new(&image);
-	let (width, height) = match ImageReader::new(cursor).with_guessed_format() {
-		| Err(_) => (None, None),
-		| Ok(reader) => match reader.into_dimensions() {
+	preview_data.image = Some(mxc.to_string());
+	if preview_data.image_height.is_none() || preview_data.image_width.is_none() {
+		let cursor = std::io::Cursor::new(&image);
+		let (width, height) = match ImageReader::new(cursor).with_guessed_format() {
 			| Err(_) => (None, None),
-			| Ok((width, height)) => (Some(width), Some(height)),
-		},
-	};
+			| Ok(reader) => match reader.into_dimensions() {
+				| Err(_) => (None, None),
+				| Ok((width, height)) => (Some(width), Some(height)),
+			},
+		};
 
-	Ok(UrlPreviewData {
-		image: Some(mxc.to_string()),
-		image_size: Some(image.len()),
-		image_width: width,
-		image_height: height,
-		..Default::default()
-	})
+		preview_data.image_width = width;
+		preview_data.image_height = height;
+	}
+
+	Ok(preview_data)
+}
+
+#[cfg(feature = "url_preview")]
+#[implement(Service)]
+pub async fn download_video(
+	&self,
+	url: &str,
+	preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
+	use conduwuit::utils::random_string;
+	use ruma::Mxc;
+
+	let mut preview_data = preview_data.unwrap_or_default();
+
+	if self.services.globals.url_preview_allow_audio_video() {
+		let video = self.services.client.url_preview.get(url).send().await?;
+		let video = video.bytes().await?;
+		let mxc = Mxc {
+			server_name: self.services.globals.server_name(),
+			media_id: &random_string(super::MXC_LENGTH),
+		};
+
+		self.create(&mxc, None, None, None, &video).await?;
+
+		preview_data.video = Some(mxc.to_string());
+	}
+
+	Ok(preview_data)
+}
+
+#[cfg(feature = "url_preview")]
+#[implement(Service)]
+pub async fn download_audio(
+	&self,
+	url: &str,
+	preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
+	use conduwuit::utils::random_string;
+	use ruma::Mxc;
+
+	let mut preview_data = preview_data.unwrap_or_default();
+
+	if self.services.globals.url_preview_allow_audio_video() {
+		let audio = self.services.client.url_preview.get(url).send().await?;
+		let audio = audio.bytes().await?;
+		let mxc = Mxc {
+			server_name: self.services.globals.server_name(),
+			media_id: &random_string(super::MXC_LENGTH),
+		};
+
+		self.create(&mxc, None, None, None, &audio).await?;
+
+		preview_data.video = Some(mxc.to_string());
+	}
+
+	Ok(preview_data)
 }
 
 #[cfg(not(feature = "url_preview"))]
 #[implement(Service)]
-pub async fn download_image(&self, _url: &str) -> Result<UrlPreviewData> {
+pub async fn download_image(
+	&self,
+	_url: &str,
+	_preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
+	Err!(FeatureDisabled("url_preview"))
+}
+
+#[cfg(not(feature = "url_preview"))]
+#[implement(Service)]
+pub async fn download_video(
+	&self,
+	_url: &str,
+	_preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
+	Err!(FeatureDisabled("url_preview"))
+}
+
+#[cfg(not(feature = "url_preview"))]
+#[implement(Service)]
+pub async fn download_audio(
+	&self,
+	_url: &str,
+	_preview_data: Option<UrlPreviewData>,
+) -> Result<UrlPreviewData> {
 	Err!(FeatureDisabled("url_preview"))
 }
 
@@ -182,18 +283,27 @@ async fn download_html(&self, url: &str) -> Result<UrlPreviewData> {
 		return Err!(Request(Unknown("Failed to parse HTML")));
 	};
 
-	let mut data = match html.opengraph.images.first() {
-		| None => UrlPreviewData::default(),
-		| Some(obj) => self.download_image(&obj.url).await?,
-	};
+	let mut preview_data = UrlPreviewData::default();
+
+	if let Some(obj) = html.opengraph.images.first() {
+		preview_data = self.download_image(&obj.url, Some(preview_data)).await?;
+	}
+
+	if let Some(obj) = html.opengraph.videos.first() {
+		preview_data = self.download_video(&obj.url, Some(preview_data)).await?;
+	}
+
+	if let Some(obj) = html.opengraph.audios.first() {
+		preview_data = self.download_audio(&obj.url, Some(preview_data)).await?;
+	}
 
 	let props = html.opengraph.properties;
 
 	/* use OpenGraph title/description, but fall back to HTML if not available */
-	data.title = props.get("title").cloned().or(html.title);
-	data.description = props.get("description").cloned().or(html.description);
+	preview_data.title = props.get("title").cloned().or(html.title);
+	preview_data.description = props.get("description").cloned().or(html.description);
 
-	Ok(data)
+	Ok(preview_data)
 }
 
 #[cfg(not(feature = "url_preview"))]

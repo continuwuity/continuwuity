@@ -1735,6 +1735,11 @@ pub struct Config {
 	/// default: "continuwuity/<version> (bot; +https://continuwuity.org)"
 	pub url_preview_user_agent: Option<String>,
 
+	/// Determines whether audio and video files will be downloaded for URL
+	/// previews.
+	#[serde(default)]
+	pub url_preview_allow_audio_video: bool,
+
 	/// List of forbidden room aliases and room IDs as strings of regex
 	/// patterns.
 	///
