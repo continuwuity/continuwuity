@@ -142,6 +142,10 @@ impl Service {
 		self.server.config.url_preview_check_root_domain
 	}
 
+	pub fn url_preview_allow_audio_video(&self) -> bool {
+		self.server.config.url_preview_allow_audio_video
+	}
+
 	pub fn forbidden_alias_names(&self) -> &RegexSet { &self.server.config.forbidden_alias_names }
 
 	pub fn forbidden_usernames(&self) -> &RegexSet { &self.server.config.forbidden_usernames }
