@@ -1505,6 +1505,11 @@
 #
 #url_preview_user_agent = "continuwuity/<version> (bot; +https://continuwuity.org)"
 
+# Determines whether audio and video files will be downloaded for URL
+# previews.
+#
+#url_preview_allow_audio_video = false
+
 # List of forbidden room aliases and room IDs as strings of regex
 # patterns.
 #
