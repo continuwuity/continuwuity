@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/etc/apk/cache apk add \
 
 # Developer tool versions
 # renovate: datasource=github-releases depName=cargo-bins/cargo-binstall
-ENV BINSTALL_VERSION=1.17.5
+ENV BINSTALL_VERSION=1.17.6
 # renovate: datasource=github-releases depName=psastras/sbom-rs
 ENV CARGO_SBOM_VERSION=0.9.1
 # renovate: datasource=crate depName=lddtree
