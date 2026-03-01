@@ -216,12 +216,13 @@ pub async fn download_audio(
 #[implement(Service)]
 pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 	use conduwuit::utils::random_string;
+	use http::header::CONTENT_TYPE;
 	use ruma::Mxc;
 
 	let max_request_size = self.services.server.config.max_request_size.try_into()?;
 
-	let media = self.services.client.url_preview.get(url).send().await?;
-	if media
+	let response = self.services.client.url_preview.get(url).send().await?;
+	if response
 		.content_length()
 		.is_none_or(|len| len > max_request_size)
 	{
@@ -230,13 +231,16 @@ pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 		)));
 	}
 
-	let media = media.bytes().await?;
+	let content_type = response.headers().get(CONTENT_TYPE).cloned();
+	let media = response.bytes().await?;
 	let mxc = Mxc {
 		server_name: self.services.globals.server_name(),
 		media_id: &random_string(super::MXC_LENGTH),
 	};
 
-	self.create(&mxc, None, None, None, &media).await?;
+	let content_type = content_type.and_then(|v| v.to_str().map(ToOwned::to_owned).ok());
+	self.create(&mxc, None, None, content_type.as_deref(), &media)
+		.await?;
 
 	Ok((OwnedMxcUri::from(mxc.to_string()), media.len()))
 }
@@ -308,6 +312,8 @@ async fn download_html(&self, url: &str) -> Result<UrlPreviewData> {
 
 	if let Some(obj) = html.opengraph.videos.first() {
 		preview_data = self.download_video(&obj.url, Some(preview_data)).await?;
+		preview_data.video_width = obj.properties.get("width").and_then(|v| v.parse().ok());
+		preview_data.video_height = obj.properties.get("height").and_then(|v| v.parse().ok());
 	}
 
 	if let Some(obj) = html.opengraph.audios.first() {
