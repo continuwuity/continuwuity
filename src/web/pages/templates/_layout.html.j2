@@ -6,22 +6,18 @@
     <title>{% block title %}Continuwuity{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <link rel="icon" href="/_continuwuity/logo.svg">
-    <style type="text/css" nonce="{{ nonce }}">
-        /*<![CDATA[*/
-            {{ include_str !("css/index.css") | safe }}
-        /*]]>*/
-    </style>
+    <link rel="icon" href="/_continuwuity/resources/logo.svg">
+    <link rel="stylesheet" href="/_continuwuity/resources/style.css">
 </head>
 
 <body>
     <main>{%~ block content %}{% endblock ~%}</main>
     {%~ block footer ~%}
         <footer>
-            <img class="logo" src="/_continuwuity/logo.svg">
+            <img class="logo" src="/_continuwuity/resources/logo.svg">
             <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }}
-                {%~ if let Some(version_info) = self::version_tag() ~%}
-                    {%~ if let Some(url) = GIT_REMOTE_COMMIT_URL.or(GIT_REMOTE_WEB_URL) ~%}
+                {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
+                    {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
                         (<a href="{{ url }}">{{ version_info }}</a>)
                     {%~ else ~%}
                         ({{ version_info }})
