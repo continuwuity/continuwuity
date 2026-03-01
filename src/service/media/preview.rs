@@ -238,7 +238,7 @@ pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 
 	self.create(&mxc, None, None, None, &media).await?;
 
-	return Ok((OwnedMxcUri::from(mxc.to_string()), media.len()));
+	Ok((OwnedMxcUri::from(mxc.to_string()), media.len()))
 }
 
 #[cfg(not(feature = "url_preview"))]
