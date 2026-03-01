@@ -10,6 +10,8 @@ use std::time::SystemTime;
 use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
 use conduwuit_core::implement;
 use ipaddress::IPAddress;
+#[cfg(feature = "url_preview")]
+use ruma::OwnedMxcUri;
 use serde::Serialize;
 use url::Url;
 
@@ -181,22 +183,12 @@ pub async fn download_video(
 	url: &str,
 	preview_data: Option<UrlPreviewData>,
 ) -> Result<UrlPreviewData> {
-	use conduwuit::utils::random_string;
-	use ruma::Mxc;
-
 	let mut preview_data = preview_data.unwrap_or_default();
 
 	if self.services.globals.url_preview_allow_audio_video() {
-		let video = self.services.client.url_preview.get(url).send().await?;
-		let video = video.bytes().await?;
-		let mxc = Mxc {
-			server_name: self.services.globals.server_name(),
-			media_id: &random_string(super::MXC_LENGTH),
-		};
-
-		self.create(&mxc, None, None, None, &video).await?;
-
-		preview_data.video = Some(mxc.to_string());
+		let (url, size) = self.download_media(url).await?;
+		preview_data.video = Some(url.to_string());
+		preview_data.video_size = Some(size);
 	}
 
 	Ok(preview_data)
@@ -209,25 +201,44 @@ pub async fn download_audio(
 	url: &str,
 	preview_data: Option<UrlPreviewData>,
 ) -> Result<UrlPreviewData> {
-	use conduwuit::utils::random_string;
-	use ruma::Mxc;
-
 	let mut preview_data = preview_data.unwrap_or_default();
 
 	if self.services.globals.url_preview_allow_audio_video() {
-		let audio = self.services.client.url_preview.get(url).send().await?;
-		let audio = audio.bytes().await?;
-		let mxc = Mxc {
-			server_name: self.services.globals.server_name(),
-			media_id: &random_string(super::MXC_LENGTH),
-		};
-
-		self.create(&mxc, None, None, None, &audio).await?;
-
-		preview_data.video = Some(mxc.to_string());
+		let (url, size) = self.download_media(url).await?;
+		preview_data.audio = Some(url.to_string());
+		preview_data.audio_size = Some(size);
 	}
 
 	Ok(preview_data)
+}
+
+#[cfg(feature = "url_preview")]
+#[implement(Service)]
+pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
+	use conduwuit::utils::random_string;
+	use ruma::Mxc;
+
+	let max_request_size = self.services.server.config.max_request_size.try_into()?;
+
+	let media = self.services.client.url_preview.get(url).send().await?;
+	if media
+		.content_length()
+		.is_none_or(|len| len > max_request_size)
+	{
+		return Err!(Request(TooLarge(
+			"Content length not given or greater than max_request_size"
+		)));
+	}
+
+	let media = media.bytes().await?;
+	let mxc = Mxc {
+		server_name: self.services.globals.server_name(),
+		media_id: &random_string(super::MXC_LENGTH),
+	};
+
+	self.create(&mxc, None, None, None, &media).await?;
+
+	return Ok((OwnedMxcUri::from(mxc.to_string()), media.len()));
 }
 
 #[cfg(not(feature = "url_preview"))]
@@ -257,6 +268,12 @@ pub async fn download_audio(
 	_url: &str,
 	_preview_data: Option<UrlPreviewData>,
 ) -> Result<UrlPreviewData> {
+	Err!(FeatureDisabled("url_preview"))
+}
+
+#[cfg(not(feature = "url_preview"))]
+#[implement(Service)]
+pub async fn download_media(&self, _url: &str) -> Result<UrlPreviewData> {
 	Err!(FeatureDisabled("url_preview"))
 }
 
