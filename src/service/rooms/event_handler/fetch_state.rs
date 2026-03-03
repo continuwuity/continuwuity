@@ -63,7 +63,9 @@ where
 			},
 			| hash_map::Entry::Occupied(_) => {
 				return Err!(Database(
-					"State event's type and state_key combination exists multiple times.",
+					"State event's type and state_key combination exists multiple times: {}, {}",
+					pdu.kind(),
+					state_key
 				));
 			},
 		}

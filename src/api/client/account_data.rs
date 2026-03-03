@@ -8,7 +8,8 @@ use ruma::{
 		set_room_account_data,
 	},
 	events::{
-		AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent, RoomAccountDataEventType,
+		AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent,
+		RoomAccountDataEventType,
 	},
 	serde::Raw,
 };

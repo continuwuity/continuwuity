@@ -162,7 +162,9 @@ where
 			},
 			| hash_map::Entry::Occupied(_) => {
 				return Err!(Request(InvalidParam(
-					"Auth event's type and state_key combination exists multiple times.",
+					"Auth event's type and state_key combination exists multiple times: {}, {}",
+					auth_event.kind,
+					auth_event.state_key().unwrap_or("")
 				)));
 			},
 		}
