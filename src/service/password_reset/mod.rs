@@ -8,7 +8,7 @@ use ruma::OwnedUserId;
 
 use crate::{Dep, globals, users};
 
-pub const PASSWORD_RESET_PATH: &str = "/_continuwuity/password_reset";
+pub const PASSWORD_RESET_PATH: &str = "/_continuwuity/account/reset_password";
 pub const RESET_TOKEN_QUERY_PARAM: &str = "token";
 const RESET_TOKEN_LENGTH: usize = 32;
 
