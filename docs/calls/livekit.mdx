@@ -4,6 +4,10 @@
 This guide assumes that you are using docker compose for deployment. LiveKit only provides Docker images.
 :::
 
+:::tip
+You can find help setting up Matrix RTC in our dedicated room - [#matrixrtc:continuwuity.org](https://matrix.to/#/%23matrixrtc%3Acontinuwuity.org)
+:::
+
 ## Instructions
 
 ### 1. Domain
@@ -21,7 +25,10 @@ You must generate a key and secret to allow the Matrix service to authenticate w
 :::tip Generating the secrets
 LiveKit provides a utility to generate secure random keys
 ```bash
-docker run --rm livekit/livekit-server:latest generate-keys
+~$ docker run --rm livekit/livekit-server:latest generate-keys
+API Key:  APIUxUnMnSkuFWV
+API Secret:  t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
+
 ```
 :::
 
@@ -70,6 +77,8 @@ rtc:
   enable_loopback_candidate: false
 keys:
   LK_MATRIX_KEY: LK_MATRIX_SECRET
+  # replace these with your key-secret pair. Example:
+  # APIUxUnMnSkuFWV: t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
 ```
 
 #### Firewall hints
@@ -277,7 +286,43 @@ curl -X POST -d @payload.json https://livekit.example.com/get_token
 
 The JWT service will respond with a `jwt` token. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test) - if everything works there, then you have set up LiveKit successfully!
 
-## Caveats
+## Troubleshooting
+
+To debug any issues, initiate a call and check the container logs for any specific errors. You can also enable Element Call's developer mode to check for further details such as your SFU's URL in there.
+
+### Common errors in Element Call
+
+- `MISSING_MATRIX_RTC_FOCUS`: Livekit is missing from Continuwuity's config file
+- "Waiting for media" popup: Livekit is configured in Continuwuity, but your client cannot connect to it for some reason
+
+### Docker networking issues
+
+Some distros do not allow Docker containers to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail while reaching out to `livekit` or `continuwuity` on the same host. To alleviate this, you can try one of the following workarounds:
+
+- Add an `extra_hosts` file mapping livekit's (and continuwuity's) domain name to a localhost address:
+
+    ```yaml
+    # in docker-compose.yaml
+    services:
+      lk-jwt-service:
+        ...
+        extra_hosts:
+          - "livekit.example.com:127.0.0.1"
+          - "matrix.example.com:127.0.0.1"
+    ```
+
+- Also use `network_mode: host` for `lk-jwt-service`
+
+- (**untested, use as your own risk**) Implement an iptables firewall workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
+
+After implementing the changes and restarting your compose, you can test whether the connection works by cURLing from a sidecar container:
+
+```console
+~$ docker exec --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
+OK
+```
+
+### Workaround for non-federating servers
 
 When deploying on servers with disabled federation (`enable_registration = false`), Livekit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths. You can find a workaround for this limitation [here](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440).
 
