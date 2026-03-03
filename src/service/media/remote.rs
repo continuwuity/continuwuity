@@ -2,7 +2,7 @@ use std::{fmt::Debug, time::Duration};
 
 use conduwuit::{
 	Err, Error, Result, debug_warn, err, implement,
-	utils::content_disposition::make_content_disposition,
+	utils::{content_disposition::make_content_disposition, response::LimitReadExt},
 };
 use http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderValue};
 use ruma::{
@@ -286,10 +286,15 @@ async fn location_request(&self, location: &str) -> Result<FileMeta> {
 		.and_then(Result::ok);
 
 	response
-		.bytes()
+		.limit_read(
+			self.services
+				.server
+				.config
+				.max_request_size
+				.try_into()
+				.expect("u64 should fit in usize"),
+		)
 		.await
-		.map(Vec::from)
-		.map_err(Into::into)
 		.map(|content| FileMeta {
 			content: Some(content),
 			content_type: content_type.clone(),

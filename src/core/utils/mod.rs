@@ -11,6 +11,7 @@ pub mod json;
 pub mod math;
 pub mod mutex_map;
 pub mod rand;
+pub mod response;
 pub mod result;
 pub mod set;
 pub mod stream;

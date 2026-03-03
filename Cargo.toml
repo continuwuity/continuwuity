@@ -144,6 +144,7 @@ features = [
     "socks",
     "hickory-dns",
     "http2",
+    "stream",
 ]
 
 [workspace.dependencies.serde]

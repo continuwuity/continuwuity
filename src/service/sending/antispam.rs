@@ -1,7 +1,7 @@
 use std::{fmt::Debug, mem};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, debug_error, err, utils, warn};
+use conduwuit::{Err, Result, debug_error, err, utils, utils::response::LimitReadExt, warn};
 use reqwest::Client;
 use ruma::api::{IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken};
 
@@ -38,7 +38,7 @@ where
 			.expect("http::response::Builder is usable"),
 	);
 
-	let body = response.bytes().await?; // TODO: handle timeout
+	let body = response.limit_read(65535).await?; // TODO: handle timeout
 
 	if !status.is_success() {
 		debug_error!("Antispam response bytes: {:?}", utils::string_from_bytes(&body));

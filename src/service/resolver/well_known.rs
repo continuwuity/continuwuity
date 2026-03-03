@@ -1,4 +1,6 @@
-use conduwuit::{Result, debug, debug_error, debug_info, debug_warn, implement, trace};
+use conduwuit::{
+	Result, debug, debug_error, debug_info, implement, trace, utils::response::LimitReadExt,
+};
 
 #[implement(super::Service)]
 #[tracing::instrument(name = "well-known", level = "debug", skip(self, dest))]
@@ -24,12 +26,8 @@ pub(super) async fn request_well_known(&self, dest: &str) -> Result<Option<Strin
 		return Ok(None);
 	}
 
-	let text = response.text().await?;
+	let text = response.limit_read_text(8192).await?;
 	trace!("response text: {text:?}");
-	if text.len() >= 12288 {
-		debug_warn!("response contains junk");
-		return Ok(None);
-	}
 
 	let body: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
 

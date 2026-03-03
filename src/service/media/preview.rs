@@ -7,7 +7,7 @@
 
 use std::time::SystemTime;
 
-use conduwuit::{Err, Result, debug, err};
+use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
 use conduwuit_core::implement;
 use ipaddress::IPAddress;
 use serde::Serialize;
@@ -112,8 +112,22 @@ pub async fn download_image(&self, url: &str) -> Result<UrlPreviewData> {
 	use image::ImageReader;
 	use ruma::Mxc;
 
-	let image = self.services.client.url_preview.get(url).send().await?;
-	let image = image.bytes().await?;
+	let image = self
+		.services
+		.client
+		.url_preview
+		.get(url)
+		.send()
+		.await?
+		.limit_read(
+			self.services
+				.server
+				.config
+				.max_request_size
+				.try_into()
+				.expect("u64 should fit in usize"),
+		)
+		.await?;
 	let mxc = Mxc {
 		server_name: self.services.globals.server_name(),
 		media_id: &random_string(super::MXC_LENGTH),
@@ -151,24 +165,20 @@ async fn download_html(&self, url: &str) -> Result<UrlPreviewData> {
 	use webpage::HTML;
 
 	let client = &self.services.client.url_preview;
-	let mut response = client.get(url).send().await?;
-
-	let mut bytes: Vec<u8> = Vec::new();
-	while let Some(chunk) = response.chunk().await? {
-		bytes.extend_from_slice(&chunk);
-		if bytes.len() > self.services.globals.url_preview_max_spider_size() {
-			debug!(
-				"Response body from URL {} exceeds url_preview_max_spider_size ({}), not \
-				 processing the rest of the response body and assuming our necessary data is in \
-				 this range.",
-				url,
-				self.services.globals.url_preview_max_spider_size()
-			);
-			break;
-		}
-	}
-	let body = String::from_utf8_lossy(&bytes);
-	let Ok(html) = HTML::from_string(body.to_string(), Some(url.to_owned())) else {
+	let body = client
+		.get(url)
+		.send()
+		.await?
+		.limit_read_text(
+			self.services
+				.server
+				.config
+				.max_request_size
+				.try_into()
+				.expect("u64 should fit in usize"),
+		)
+		.await?;
+	let Ok(html) = HTML::from_string(body.clone(), Some(url.to_owned())) else {
 		return Err!(Request(Unknown("Failed to parse HTML")));
 	};
 

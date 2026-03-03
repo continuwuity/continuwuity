@@ -1,6 +1,7 @@
 use std::{fmt::Debug, mem, sync::Arc};
 
 use bytes::BytesMut;
+use conduwuit::utils::response::LimitReadExt;
 use conduwuit_core::{
 	Err, Event, Result, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
@@ -30,7 +31,7 @@ use ruma::{
 	uint,
 };
 
-use crate::{Dep, client, globals, rooms, sending, users};
+use crate::{Dep, client, config, globals, rooms, sending, users};
 
 pub struct Service {
 	db: Data,
@@ -39,6 +40,7 @@ pub struct Service {
 
 struct Services {
 	globals: Dep<globals::Service>,
+	config: Dep<config::Service>,
 	client: Dep<client::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
@@ -61,6 +63,7 @@ impl crate::Service for Service {
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				client: args.depend::<client::Service>("client"),
+				config: args.depend::<config::Service>("config"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -245,7 +248,15 @@ impl Service {
 						.expect("http::response::Builder is usable"),
 				);
 
-				let body = response.bytes().await?;
+				let body = response
+					.limit_read(
+						self.services
+							.config
+							.max_request_size
+							.try_into()
+							.expect("usize fits into u64"),
+					)
+					.await?;
 
 				if !status.is_success() {
 					debug_warn!("Push gateway response body: {:?}", string_from_bytes(&body));

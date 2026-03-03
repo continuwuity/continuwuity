@@ -2,8 +2,8 @@ use std::{fmt::Debug, mem};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err,
-	error::inspect_debug_log, implement, trace,
+	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err, implement,
+	trace, utils::response::LimitReadExt,
 };
 use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
@@ -133,7 +133,22 @@ async fn handle_response<T>(
 where
 	T: OutgoingRequest + Send,
 {
-	let response = into_http_response(dest, actual, method, url, response).await?;
+	const HUGE_ENDPOINTS: [&str; 2] =
+		["/_matrix/federation/v2/send_join/", "/_matrix/federation/v2/state/"];
+	let size_limit: u64 = if HUGE_ENDPOINTS.iter().any(|e| url.path().starts_with(e)) {
+		// Some federation endpoints can return huge response bodies, so we'll bump the
+		// limit for those endpoints specifically.
+		self.services
+			.server
+			.config
+			.max_request_size
+			.saturating_mul(10)
+	} else {
+		self.services.server.config.max_request_size
+	}
+	.try_into()
+	.expect("size_limit (usize) should fit within a u64");
+	let response = into_http_response(dest, actual, method, url, response, size_limit).await?;
 
 	T::IncomingResponse::try_from_http_response(response)
 		.map_err(|e| err!(BadServerResponse("Server returned bad 200 response: {e:?}")))
@@ -145,6 +160,7 @@ async fn into_http_response(
 	method: &Method,
 	url: &Url,
 	mut response: Response,
+	max_size: u64,
 ) -> Result<http::Response<Bytes>> {
 	let status = response.status();
 	trace!(
@@ -167,14 +183,14 @@ async fn into_http_response(
 	);
 
 	trace!("Waiting for response body...");
-	let body = response
-		.bytes()
-		.await
-		.inspect_err(inspect_debug_log)
-		.unwrap_or_else(|_| Vec::new().into());
-
 	let http_response = http_response_builder
-		.body(body)
+		.body(
+			response
+				.limit_read(max_size)
+				.await
+				.unwrap_or_default()
+				.into(),
+		)
 		.expect("reqwest body is valid http body");
 
 	debug!("Got {status:?} for {method} {url}");

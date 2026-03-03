@@ -15,6 +15,18 @@ disallowed-macros = [
 	{ path = "log::trace", reason = "use conduwuit_core::trace" },
 ]
 
-disallowed-methods = [
-    { path = "tokio::spawn", reason = "use and pass conduuwit_core::server::Server::runtime() to spawn from" },
-]
+[[disallowed-methods]]
+path = "tokio::spawn"
+reason = "use and pass conduwuit_core::server::Server::runtime() to spawn from"
+
+[[disallowed-methods]]
+path = "reqwest::Response::bytes"
+reason = "bytes is unsafe, use limit_read via the conduwuit_core::utils::LimitReadExt trait instead"
+
+[[disallowed-methods]]
+path = "reqwest::Response::text"
+reason = "text is unsafe, use limit_read_text via the conduwuit_core::utils::LimitReadExt trait instead"
+
+[[disallowed-methods]]
+path = "reqwest::Response::json"
+reason = "json is unsafe, use limit_read_text via the conduwuit_core::utils::LimitReadExt trait instead"

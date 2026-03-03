@@ -18,7 +18,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, debug, error, warn};
+use conduwuit::{Result, Server, debug, error, utils::response::LimitReadExt, warn};
 use database::{Deserialized, Map};
 use ruma::events::{Mentions, room::message::RoomMessageEventContent};
 use serde::Deserialize;
@@ -137,7 +137,7 @@ impl Service {
 			.get(CHECK_FOR_ANNOUNCEMENTS_URL)
 			.send()
 			.await?
-			.text()
+			.limit_read_text(1024 * 1024)
 			.await?;
 
 		let response = serde_json::from_str::<CheckForAnnouncementsResponse>(&response)?;

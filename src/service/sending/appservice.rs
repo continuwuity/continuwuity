@@ -1,7 +1,9 @@
 use std::{fmt::Debug, mem};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, debug_error, err, implement, trace, utils, warn};
+use conduwuit::{
+	Err, Result, debug_error, err, implement, trace, utils, utils::response::LimitReadExt, warn,
+};
 use ruma::api::{
 	IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken, appservice::Registration,
 };
@@ -77,7 +79,15 @@ where
 			.expect("http::response::Builder is usable"),
 	);
 
-	let body = response.bytes().await?;
+	let body = response
+		.limit_read(
+			self.server
+				.config
+				.max_request_size
+				.try_into()
+				.expect("usize fits into u64"),
+		)
+		.await?;
 
 	if !status.is_success() {
 		debug_error!("Appservice response bytes: {:?}", utils::string_from_bytes(&body));
