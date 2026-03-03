@@ -23,6 +23,7 @@ pub mod globals;
 pub mod key_backups;
 pub mod media;
 pub mod moderation;
+pub mod password_reset;
 pub mod presence;
 pub mod pusher;
 pub mod registration_tokens;
