@@ -19,7 +19,7 @@
             <input
                 type="{{ input.input_type }}"
                 id="{{ input.id }}"
-                autocomplete="{{ input.autocomplete }}
+                autocomplete="{{ input.autocomplete }}"
                 {% if input.type_name.is_some() %}name="{{ input.id }}"{% endif %}
                 {% if input.required %}required{% endif %}
             >
