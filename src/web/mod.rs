@@ -6,6 +6,7 @@ use axum::{
 };
 use conduwuit_service::state;
 use tower_http::set_header::SetResponseHeaderLayer;
+use tower_sec_fetch::SecFetchLayer;
 
 mod pages;
 
@@ -60,4 +61,7 @@ pub fn build() -> Router<state::State> {
 			header::CONTENT_SECURITY_POLICY,
 			HeaderValue::from_static("default-src 'self'; img-src 'self' data:;"),
 		))
+		.layer(SecFetchLayer::new(|policy| {
+			policy.allow_safe_methods().reject_missing_metadata();
+		}))
 }
