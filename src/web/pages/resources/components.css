@@ -1,0 +1,44 @@
+.avatar {
+    --avatar-size: 56px;
+
+    display: inline-block;
+    aspect-ratio: 1 / 1;
+    inline-size: var(--avatar-size);
+    border-radius: 50%;
+
+    text-align: center;
+    text-transform: uppercase;
+    font-size: calc(var(--avatar-size) * 0.5);
+    font-weight: 700;
+    line-height: calc(var(--avatar-size) - 2px);
+
+    color: oklch(from var(--c1) var(--name-lightness) c h);
+    background-color: var(--c1);
+}
+
+.user-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+
+    background-color: oklch(from var(--panel-bg) calc(l - 0.05) c h);
+    border-radius: var(--border-radius-lg);
+    padding: 16px;
+
+    .info {
+        flex: 1 1;
+
+        p {
+            margin: 0;
+
+            &.display-name {
+                font-weight: 700;
+            }
+
+            &:nth-of-type(2) {
+                color: var(--secondary);
+            }
+        }
+    }
+}

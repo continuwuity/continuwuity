@@ -1,4 +1,9 @@
 {% extends "_layout.html.j2" %}
+
+{%- block head -%}
+<link rel="stylesheet" href="/_continuwuity/resources/index.css">
+{%- endblock -%}
+
 {%- block content -%}
 <div class="panel">
     <h1>
@@ -6,10 +11,10 @@
     </h1>
     <p>Continuwuity is successfully installed and working.</p>
     {%- if first_run %}
-    <p>To get started, <b>check the server logs</b> for instructions on how to create the first account.</p>
+    <p>To get started, <em>check the server logs</em> for instructions on how to create the first account.</p>
     <p>For support, take a look at the <a href="https://continuwuity.org/introduction">documentation</a> or join the <a href="https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org">Continuwuity Matrix room</a>.</p>
     {%- else %}
-    <p>To get started, <a href="https://matrix.org/ecosystem/clients">choose a client</a> and connect to <code>{{ server_name }}</code>.</p>
+    <p>To get started, <a href="https://matrix.org/ecosystem/clients">choose a client</a> and connect to <code>{{ client_domain }}</code>.</p>
     {%- endif %}
 </div>
 
