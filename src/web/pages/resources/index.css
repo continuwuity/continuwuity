@@ -1,0 +1,11 @@
+.project-name {
+    text-decoration: none;
+    background: linear-gradient(
+        130deg,
+        oklch(from var(--c1) var(--name-lightness) c h),
+        oklch(from var(--c2) var(--name-lightness) c h)
+    );
+    background-clip: text;
+    color: transparent;
+    filter: brightness(1.2);
+}
