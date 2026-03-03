@@ -113,7 +113,7 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
-		name: "passwordresettoken_userid",
+		name: "passwordresettoken_info",
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {

@@ -6,6 +6,7 @@ use conduwuit::{
 	config::{Config, check},
 	error, implement,
 };
+use url::Url;
 
 use crate::registration_tokens::{ValidToken, ValidTokenSource};
 
@@ -22,6 +23,18 @@ impl Service {
 		self.registration_token
 			.clone()
 			.map(|token| ValidToken { token, source: ValidTokenSource::Config })
+	}
+
+	/// Get the base domain to use for user-facing URLs.
+	#[must_use]
+	pub fn get_client_domain(&self) -> Url {
+		self.well_known.client.clone().unwrap_or_else(|| {
+			let host = self.server_name.host();
+			format!("https://{host}")
+				.as_str()
+				.try_into()
+				.expect("server name should be a valid host")
+		})
 	}
 }
 
