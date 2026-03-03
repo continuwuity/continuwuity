@@ -16,22 +16,12 @@ async fn index_handler(
 	#[derive(Debug, Template)]
 	#[template(path = "index.html.j2")]
 	struct Index<'a> {
-		client_domain: &'a str,
+		server_name: &'a str,
 		first_run: bool,
 	}
 
-	let client_domain = services.config.get_client_domain();
-	let host = client_domain
-		.host_str()
-		.expect("client domain should have a host");
-	let client_domain = if let Some(port) = client_domain.port() {
-		&format!("{host}:{port}")
-	} else {
-		host
-	};
-
 	let template = Index {
-		client_domain,
+		server_name: services.globals.server_name().as_str(),
 		first_run: services.firstrun.is_first_run(),
 	};
 	Ok(Html(template.render()?))
