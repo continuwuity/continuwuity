@@ -1,20 +1,29 @@
 {% extends "_layout.html.j2" %}
 
+{%- block head -%}
+<link rel="stylesheet" href="/_continuwuity/resources/error.css">
+{%- endblock -%}
+
 {%- block title -%}
-Server Error
+🐈 Request Error
 {%- endblock -%}
 
 {%- block content -%}
-<h1>
-    {%- match err -%}
-    {% else -%} 500: Internal Server Error
-    {%- endmatch -%}
-</h1>
+<pre class="k10y" aria-hidden>
+　　　 　  ／＞　　 フ
+　　　 　  | 　_　 _|
+　 　　  ／` ミ＿xノ
+　　 　 /　　　 　 |
+　　　 /　 ヽ　　 ﾉ
+　 　 │　　|　|　|
+　／￣|　　 |　|　|
+　| (￣ヽ＿_ヽ_)__)
+　＼二つ
+</pre>
+<div class="panel">
+    <h1>Request error<small aria-hidden>（︶^︶）</small></h1>
 
-{%- match err -%}
-    {% when WebError::Render(err) -%}
-        <pre>{{ err }}</pre>
-    {% else -%} <p>An error occurred</p>
-{%- endmatch -%}
+    <pre><code>{{ error }}</code></pre>
+</div>
 
 {%- endblock -%}

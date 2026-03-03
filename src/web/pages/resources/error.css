@@ -1,0 +1,7 @@
+.k10y {
+    font-family: monospace;
+    font-size: x-small;
+    font-weight: 700;
+    transform: translate(1rem, 1.6rem);
+    color: var(--secondary);
+}
