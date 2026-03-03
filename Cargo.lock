@@ -887,7 +887,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "clap",
  "conduwuit_admin",
@@ -919,7 +919,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_admin"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "clap",
  "conduwuit_api",
@@ -940,7 +940,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_api"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "async-trait",
  "axum",
@@ -972,14 +972,14 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_build_metadata"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "built",
 ]
 
 [[package]]
 name = "conduwuit_core"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "argon2",
  "arrayvec",
@@ -1041,7 +1041,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_database"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "async-channel",
  "conduwuit_core",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_macros"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "itertools 0.14.0",
  "proc-macro2",
@@ -1069,7 +1069,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_router"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "axum",
  "axum-client-ip",
@@ -1103,7 +1103,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_service"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "askama",
  "async-trait",
@@ -1145,7 +1145,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_web"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "askama",
  "axum",
@@ -6347,7 +6347,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.5.5"
+version = "0.5.6-alpha"
 dependencies = [
  "askama",
  "cargo_metadata",
