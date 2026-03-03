@@ -1,8 +1,7 @@
 use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
-use conduwuit_core::{Result, result::FlatOk, utils::TryFutureExtExt};
+use conduwuit_core::result::FlatOk;
 use conduwuit_service::Services;
-use futures::TryFutureExt;
 use ruma::UserId;
 
 pub(super) mod form;
@@ -32,7 +31,7 @@ pub(super) struct UserCard<'a> {
 impl HtmlSafe for UserCard<'_> {}
 
 impl<'a> UserCard<'a> {
-	pub async fn for_local_user(services: &Services, user_id: &'a UserId) -> Self {
+	pub(super) async fn for_local_user(services: &Services, user_id: &'a UserId) -> Self {
 		let display_name = services.users.displayname(user_id).await.ok();
 
 		let avatar_src = async {

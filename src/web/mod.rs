@@ -34,12 +34,11 @@ impl IntoResponse for WebError {
 		}
 
 		let status = match &self {
-			| Self::ValidationError(_) => StatusCode::BAD_REQUEST,
-			| Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+			| Self::ValidationError(_) | Self::BadRequest(_) => StatusCode::BAD_REQUEST,
 			| _ => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
-		let template = Error { error: self, status: status.clone() };
+		let template = Error { error: self, status };
 
 		if let Ok(body) = template.render() {
 			(status, Html(body)).into_response()
