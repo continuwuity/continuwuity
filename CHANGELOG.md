@@ -1,3 +1,32 @@
+# Continuwuity 0.5.6 (2026-03-03)
+
+## Security
+
+- Admin escape commands received over federation will never be executed, as this is never valid in a genuine situation. Contributed by @Jade.
+- Fixed data amplification vulnerability (CWE-409) that affected configurations with server-side compression enabled (non-default). Contributed by @nex.
+
+## Features
+
+- Outgoing presence is now disabled by default, and the config option documentation has been adjusted to more accurately represent the weight of presence, typing indicators, and read receipts. Contributed by @nex. ([#1399](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1399))
+- Improved the concurrency handling of federation transactions, vastly improving performance and reliability by more accurately handling inbound transactions and reducing the amount of repeated wasted work. Contributed by @nex and @Jade. ([#1428](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1428))
+- Added [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202) Device masquerading (not all of MSC3202). This should fix issues with enabling [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) for some Mautrix bridges. Contributed by @Jade ([#1435](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1435))
+- Added [MSC3814](https://github.com/matrix-org/matrix-spec-proposals/pull/3814) Dehydrated Devices - you can now decrypt messages sent while all devices were logged out. ([#1436](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1436))
+- Implement [MSC4143](https://github.com/matrix-org/matrix-spec-proposals/pull/4143) MatrixRTC transport discovery endpoint. Move RTC foci configuration from `[global.well_known]` to a new `[global.matrix_rtc]` section with a `foci` field. Contributed by @0xnim ([#1442](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1442))
+- Updated `list-backups` admin command to output one backup per line. ([#1394](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1394))
+- Improved URL preview fetching with a more compatible user agent for sites like YouTube Music. Added `!admin media delete-url-preview <url>` command to clear cached URL previews that were stuck and broken. ([#1434](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1434))
+
+## Bugfixes
+
+- Removed non-compliant nor functional room alias lookups over federation. Contributed by @nex ([#1393](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1393))
+- Removed ability to set rocksdb as read only. Doing so would cause unintentional and buggy behaviour. Contributed by @Terryiscool160. ([#1418](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1418))
+- Fixed a startup crash in the sender service if we can't detect the number of CPU cores, even if the `sender_workers` config option is set correctly. Contributed by @katie. ([#1421](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1421))
+- Removed the `allow_public_room_directory_without_auth` config option. Contributed by @0xnim. ([#1441](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1441))
+- Fixed sliding sync v5 list ranges always starting from 0, causing extra rooms to be unnecessarily processed and returned. Contributed by @0xnim ([#1445](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1445))
+- Fixed a bug that (repairably) caused a room split between continuwuity and non-continuwuity servers when the room had both `m.room.policy` and `org.matrix.msc4284.policy` in its room state. Contributed by @nex ([#1481](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1481))
+- Fixed `!admin media delete --mxc <url>` responding with an error message when the media was deleted successfully. Contributed by @lynxize
+- Fixed spurious 404 media errors in the logs. Contributed by @benbot.
+- Fixed spurious warn about needed backfill via federation for non-federated rooms. Contributed by @kraem.
+
 # Continuwuity v0.5.5 (2026-02-15)
 
 ## Features
