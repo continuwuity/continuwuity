@@ -15,23 +15,33 @@ type State = state::State;
 enum WebError {
 	#[error("Failed to render template: {0}")]
 	Render(#[from] askama::Error),
+	#[error("Failed to validate form body: {0}")]
+	ValidationError(#[from] validator::ValidationErrors),
+	#[error("Bad request: {0}")]
+	BadRequest(String),
+	#[error("Internal server error: {0}")]
+	InternalError(#[from] conduwuit_core::Error),
 }
 
 impl IntoResponse for WebError {
 	fn into_response(self) -> Response {
 		#[derive(Debug, Template)]
 		#[template(path = "error.html.j2")]
+		#[allow(unused)]
 		struct Error {
-			err: WebError,
+			error: WebError,
+			status: StatusCode,
 		}
 
 		let status = match &self {
-			| Self::Render(_) => StatusCode::INTERNAL_SERVER_ERROR,
+			| Self::ValidationError(_) => StatusCode::BAD_REQUEST,
+			| Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+			| _ => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
-		let tmpl = Error { err: self };
+		let template = Error { error: self, status: status.clone() };
 
-		if let Ok(body) = tmpl.render() {
+		if let Ok(body) = template.render() {
 			(status, Html(body)).into_response()
 		} else {
 			(status, "Something went wrong").into_response()
@@ -46,8 +56,9 @@ pub fn build() -> Router<state::State> {
 	Router::new()
 		.merge(index::build())
 		.merge(resources::build())
+		.merge(password_reset::build())
 		.layer(SetResponseHeaderLayer::if_not_present(
 			header::CONTENT_SECURITY_POLICY,
-			HeaderValue::from_static("default-src 'self'"),
+			HeaderValue::from_static("default-src 'self'; img-src 'self' data:;"),
 		))
 }

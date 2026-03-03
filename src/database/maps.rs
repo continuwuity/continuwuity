@@ -458,4 +458,8 @@ pub(super) static MAPS: &[Descriptor] = &[
 		name: "userroomid_invitesender",
 		..descriptor::RANDOM_SMALL
 	},
+	Descriptor {
+		name: "websessionid_session",
+		..descriptor::RANDOM
+	},
 ];

@@ -1,0 +1,6 @@
+{% match avatar_type %}
+    {% when AvatarType::Initial with (initial) %}
+    <span class="avatar" role="img">{{ initial }}</span>
+    {% when AvatarType::Image with (src) %}
+    <img class="avatar" src="{{ src }}">
+{% endmatch %}
