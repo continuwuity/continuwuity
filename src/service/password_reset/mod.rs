@@ -49,25 +49,32 @@ impl Service {
 
 	/// Issue a password reset token for `user`, who must be a local user with
 	/// the `password` origin.
-	pub async fn issue_token(&self, user: OwnedUserId) -> Result<ValidResetToken> {
-		if !self.services.globals.user_is_local(&user) {
-			return Err!("Cannot issue a password reset token for remote user {user}");
+	pub async fn issue_token(&self, user_id: OwnedUserId) -> Result<ValidResetToken> {
+		if !self.services.globals.user_is_local(&user_id) {
+			return Err!("Cannot issue a password reset token for remote user {user_id}");
 		}
 
-		if user == self.services.globals.server_user {
+		if user_id == self.services.globals.server_user {
 			return Err!("Cannot issue a password reset token for the server user");
 		}
 
-		if self.services.users.origin(&user).await? != "password" {
-			return Err!("Cannot issue a password reset token for non-internal user {user}");
+		if self.services.users.origin(&user_id).await? != "password" {
+			return Err!("Cannot issue a password reset token for non-internal user {user_id}");
 		}
 
-		if let Some((existing_token, _)) = self.db.find_token_for_user(&user).await {
+		if self.services.users.is_deactivated(&user_id).await? {
+			return Err!("Cannot issue a password reset token for deactivated user {user_id}");
+		}
+
+		if let Some((existing_token, _)) = self.db.find_token_for_user(&user_id).await {
 			self.db.remove_token(&existing_token);
 		}
 
 		let token = Self::generate_token_string();
-		let info = ResetTokenInfo { user, issued_at: SystemTime::now() };
+		let info = ResetTokenInfo {
+			user: user_id,
+			issued_at: SystemTime::now(),
+		};
 
 		self.db.save_token(&token, &info);
 
