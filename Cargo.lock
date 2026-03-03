@@ -1163,6 +1163,7 @@ dependencies = [
  "serde",
  "thiserror 2.0.18",
  "tower-http",
+ "tower-sec-fetch",
  "tracing",
  "validator",
 ]
@@ -5607,6 +5608,18 @@ name = "tower-layer"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
+
+[[package]]
+name = "tower-sec-fetch"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff1e78d241de2527d3ef67e49d65d8cb08468c644c3aafac7a988c4accd76547"
+dependencies = [
+ "futures",
+ "http",
+ "tower",
+ "tracing",
+]
 
 [[package]]
 name = "tower-service"
