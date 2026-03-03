@@ -8,6 +8,8 @@ use ruma::OwnedUserId;
 
 use crate::{Dep, globals, users};
 
+pub const PASSWORD_RESET_PATH: &str = "/_continuwuity/password_reset";
+pub const RESET_TOKEN_QUERY_PARAM: &str = "token";
 const RESET_TOKEN_LENGTH: usize = 32;
 
 pub struct Service {
@@ -50,6 +52,10 @@ impl Service {
 	pub async fn issue_token(&self, user: OwnedUserId) -> Result<ValidResetToken> {
 		if !self.services.globals.user_is_local(&user) {
 			return Err!("Cannot issue a password reset token for remote user {user}");
+		}
+
+		if user == self.services.globals.server_user {
+			return Err!("Cannot issue a password reset token for the server user");
 		}
 
 		if self.services.users.origin(&user).await? != "password" {

@@ -29,6 +29,12 @@ pub enum UserCommand {
 		password: Option<String>,
 	},
 
+	/// Issue a self-service password reset link for a user.
+	IssuePasswordResetLink {
+		/// Username of the user who may use the link
+		username: String,
+	},
+
 	/// Deactivate a user
 	///
 	/// User will be removed from all rooms by default.
