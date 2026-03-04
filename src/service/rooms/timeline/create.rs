@@ -9,7 +9,6 @@ use conduwuit_core::{
 		state_res::{self, RoomVersion},
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
-	warn,
 };
 use futures::{StreamExt, TryStreamExt, future, future::ready};
 use ruma::{
@@ -298,23 +297,15 @@ pub async fn create_hash_and_sign_event(
 			"Checking event in room {} with policy server",
 			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 		);
-		match self
-			.services
+		self.services
 			.event_handler
-			.ask_policy_server(&pdu, &mut pdu_json, pdu.room_id().expect("has room ID"), false)
-			.await
-		{
-			| Ok(true) => {},
-			| Ok(false) => {
-				return Err!(Request(Forbidden(debug_warn!(
-					"Policy server marked this event as spam"
-				))));
-			},
-			| Err(e) => {
-				// fail open
-				warn!("Failed to check event with policy server: {e}");
-			},
-		}
+			.policy_server_allows_event(
+				&pdu,
+				&mut pdu_json,
+				pdu.room_id().expect("has room ID"),
+				false,
+			)
+			.await?;
 	}
 
 	// Generate short event id
