@@ -6,7 +6,6 @@ use axum::{
 	response::{Html, IntoResponse, Response},
 	routing::get,
 };
-use conduwuit_service::password_reset::PASSWORD_RESET_PATH;
 use serde::Deserialize;
 use validator::Validate;
 
@@ -54,7 +53,8 @@ form! {
 }
 
 pub(crate) fn build() -> Router<crate::State> {
-	Router::new().route(PASSWORD_RESET_PATH, get(get_password_reset).post(post_password_reset))
+	Router::new()
+		.route("/account/reset_password", get(get_password_reset).post(post_password_reset))
 }
 
 async fn password_reset_form(
