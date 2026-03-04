@@ -1,6 +1,7 @@
 use askama::Template;
 use axum::{
 	Router,
+	extract::rejection::{FormRejection, QueryRejection},
 	http::{HeaderValue, StatusCode, header},
 	response::{Html, IntoResponse, Response},
 };
@@ -18,6 +19,12 @@ enum WebError {
 	Render(#[from] askama::Error),
 	#[error("Failed to validate form body: {0}")]
 	ValidationError(#[from] validator::ValidationErrors),
+
+	#[error("{0}")]
+	QueryRejection(#[from] QueryRejection),
+	#[error("{0}")]
+	FormRejection(#[from] FormRejection),
+
 	#[error("Bad request: {0}")]
 	BadRequest(String),
 	#[error("This page does not exist.")]
@@ -35,7 +42,10 @@ impl IntoResponse for WebError {
 			status: StatusCode,
 		}
 		let status = match &self {
-			| Self::ValidationError(_) | Self::BadRequest(_) => StatusCode::BAD_REQUEST,
+			| Self::ValidationError(_)
+			| Self::BadRequest(_)
+			| Self::QueryRejection(_)
+			| Self::FormRejection(_) => StatusCode::BAD_REQUEST,
 			| Self::NotFound => StatusCode::NOT_FOUND,
 			| _ => StatusCode::INTERNAL_SERVER_ERROR,
 		};
