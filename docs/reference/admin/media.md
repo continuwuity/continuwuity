@@ -27,7 +27,7 @@ default.
   * Delete all remote and local media from 3 days ago, up until now:
 
     `!admin media delete-past-remote-media -a 3d
--yes-i-want-to-delete-local-media`
+--yes-i-want-to-delete-local-media`
 
 ## `!admin media delete-all-from-user`
 
