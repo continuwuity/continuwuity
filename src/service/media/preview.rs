@@ -150,7 +150,7 @@ pub async fn download_image(
 				.expect("u64 should fit in usize"),
 		)
 		.await?;
-	
+
 	let mxc = Mxc {
 		server_name: self.services.globals.server_name(),
 		media_id: &random_string(super::MXC_LENGTH),
@@ -219,20 +219,19 @@ pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 	use http::header::CONTENT_TYPE;
 	use ruma::Mxc;
 
-	let max_request_size = self.services.server.config.max_request_size.try_into()?;
-
 	let response = self.services.client.url_preview.get(url).send().await?;
-	if response
-		.content_length()
-		.is_none_or(|len| len > max_request_size)
-	{
-		return Err!(Request(TooLarge(
-			"Content length not given or greater than max_request_size"
-		)));
-	}
-
 	let content_type = response.headers().get(CONTENT_TYPE).cloned();
-	let media = response.bytes().await?;
+	let media = response
+		.limit_read(
+			self.services
+				.server
+				.config
+				.max_request_size
+				.try_into()
+				.expect("u64 should fit in usize"),
+		)
+		.await?;
+
 	let mxc = Mxc {
 		server_name: self.services.globals.server_name(),
 		media_id: &random_string(super::MXC_LENGTH),
