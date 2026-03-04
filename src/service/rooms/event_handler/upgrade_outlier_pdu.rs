@@ -256,7 +256,7 @@ where
 		if incoming_pdu.state_key.is_none() {
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
 			match self
-				.ask_policy_server(
+				.policy_server_allows_event(
 					&incoming_pdu,
 					&mut incoming_pdu.to_canonical_object(),
 					room_id,
@@ -264,9 +264,10 @@ where
 				)
 				.await
 			{
-				| Ok(false) => {
+				| Err(e) => {
 					warn!(
 						event_id = %incoming_pdu.event_id,
+						error = %e,
 						"Event has been marked as spam by policy server"
 					);
 					soft_fail = true;

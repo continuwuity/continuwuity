@@ -4,7 +4,9 @@ mod panic;
 mod response;
 mod serde;
 
-use std::{any::Any, borrow::Cow, convert::Infallible, sync::PoisonError};
+use std::{any::Any, borrow::Cow, convert::Infallible, sync::PoisonError, time::Duration};
+
+use ruma::api::client::error::{ErrorKind, RetryAfter::Delay};
 
 pub use self::{err::visit, log::*};
 
@@ -91,7 +93,7 @@ pub enum Error {
 	#[error("Arithmetic operation failed: {0}")]
 	Arithmetic(Cow<'static, str>),
 	#[error("{0}: {1}")]
-	BadRequest(ruma::api::client::error::ErrorKind, &'static str), //TODO: remove
+	BadRequest(ErrorKind, &'static str), //TODO: remove
 	#[error("{0}")]
 	BadServerResponse(Cow<'static, str>),
 	#[error(transparent)]
@@ -121,7 +123,7 @@ pub enum Error {
 	#[error("from {0}: {1}")]
 	Redaction(ruma::OwnedServerName, ruma::canonical_json::RedactionError),
 	#[error("{0}: {1}")]
-	Request(ruma::api::client::error::ErrorKind, Cow<'static, str>, http::StatusCode),
+	Request(ErrorKind, Cow<'static, str>, http::StatusCode),
 	#[error(transparent)]
 	Ruma(#[from] ruma::api::client::error::Error),
 	#[error(transparent)]
@@ -166,7 +168,7 @@ impl Error {
 
 	/// Returns the Matrix error code / error kind
 	#[inline]
-	pub fn kind(&self) -> ruma::api::client::error::ErrorKind {
+	pub fn kind(&self) -> ErrorKind {
 		use ruma::api::client::error::ErrorKind::{FeatureDisabled, Unknown};
 
 		match self {
@@ -201,6 +203,16 @@ impl Error {
 	/// Result where Ok(None) is instead Err(e) if e.is_not_found().
 	#[inline]
 	pub fn is_not_found(&self) -> bool { self.status_code() == http::StatusCode::NOT_FOUND }
+
+	pub fn retry_after(&self) -> Option<Duration> {
+		match self {
+			| Self::BadRequest(
+				ErrorKind::LimitExceeded { retry_after: Some(Delay(retry_after)) },
+				..,
+			) => Some(*retry_after),
+			| _ => None,
+		}
+	}
 }
 
 impl std::fmt::Debug for Error {
