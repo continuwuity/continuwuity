@@ -4,4 +4,5 @@
     font-weight: 700;
     transform: translate(1rem, 1.6rem);
     color: var(--secondary);
+    user-select: none;
 }
