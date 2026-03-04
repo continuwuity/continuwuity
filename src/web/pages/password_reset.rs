@@ -1,7 +1,10 @@
 use askama::Template;
 use axum::{
 	Router,
-	extract::{Query, State},
+	extract::{
+		Query, State,
+		rejection::{FormRejection, QueryRejection},
+	},
 	http::StatusCode,
 	response::{Html, IntoResponse, Response},
 	routing::get,
@@ -78,16 +81,21 @@ async fn password_reset_form(
 
 async fn get_password_reset(
 	State(services): State<crate::State>,
-	Query(query): Query<PasswordResetQuery>,
+	query: Result<Query<PasswordResetQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
+	let Query(query) = query?;
+
 	password_reset_form(services, query, PasswordResetForm::build(None)).await
 }
 
 async fn post_password_reset(
 	State(services): State<crate::State>,
-	Query(query): Query<PasswordResetQuery>,
-	axum::Form(form): axum::Form<PasswordResetForm>,
+	query: Result<Query<PasswordResetQuery>, QueryRejection>,
+	form: Result<axum::Form<PasswordResetForm>, FormRejection>,
 ) -> Result<Response, WebError> {
+	let Query(query) = query?;
+	let axum::Form(form) = form?;
+
 	match form.validate() {
 		| Ok(()) => {
 			let Some(token) = services.password_reset.check_token(&query.token).await else {
