@@ -2,13 +2,17 @@ use askama::Template;
 use axum::{
 	Router,
 	extract::State,
-	response::{Html, IntoResponse},
+	response::{Html, IntoResponse, Redirect},
 	routing::get,
 };
 
 use crate::WebError;
 
-pub(crate) fn build() -> Router<crate::State> { Router::new().route("/", get(index_handler)) }
+pub(crate) fn build() -> Router<crate::State> {
+	Router::new()
+		.route("/", get(async || Redirect::permanent("/_continuwuity/")))
+		.route("/_continuwuity/", get(index_handler))
+}
 
 async fn index_handler(
 	State(services): State<crate::State>,
