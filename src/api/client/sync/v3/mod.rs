@@ -297,12 +297,18 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_left(syncing_user)
-		.broad_filter_map(|(room_id, leave_pdu)| {
-			load_left_room(services, context, room_id.clone(), leave_pdu)
-				.map_ok(move |left_room| (room_id, left_room))
-				.ok()
+		.broad_filter_map(|(room_id, leave_pdu)| async {
+			let left_room = load_left_room(services, context, room_id.clone(), leave_pdu).await;
+
+			match left_room {
+				| Ok(Some(left_room)) => Some((room_id, left_room)),
+				| Ok(None) => None,
+				| Err(err) => {
+					warn!(?err, %room_id, "error loading joined room");
+					None
+				},
+			}
 		})
-		.ready_filter_map(|(room_id, left_room)| left_room.map(|left_room| (room_id, left_room)))
 		.collect();
 
 	let invited_rooms = services

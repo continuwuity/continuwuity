@@ -1,5 +1,5 @@
 use conduwuit::{
-	Event, PduCount, PduEvent, Result, at, debug_warn,
+	Event, PduEvent, Result, at, debug_warn,
 	pdu::EventHash,
 	trace,
 	utils::{self, IterStream, future::ReadyEqExt, stream::WidebandExt as _},
@@ -68,9 +68,13 @@ pub(super) async fn load_left_room(
 		return Ok(None);
 	}
 
-	// return early if this is an incremental sync, and we've already synced this
-	// leave to the user, and `include_leave` isn't set on the filter.
-	if !filter.room.include_leave && last_sync_end_count >= Some(left_count) {
+	// return early if:
+	// - this is an initial sync and the room filter doesn't include leaves, or
+	// - this is an incremental sync, and we've already synced the leave, and the
+	//   room filter doesn't include leaves
+	if last_sync_end_count.is_none_or(|last_sync_end_count| last_sync_end_count >= left_count)
+		&& !filter.room.include_leave
+	{
 		return Ok(None);
 	}
 
@@ -195,27 +199,13 @@ async fn build_left_state_and_timeline(
 	leave_shortstatehash: ShortStateHash,
 	prev_membership_event: PduEvent,
 ) -> Result<(TimelinePdus, Vec<PduEvent>)> {
-	let SyncContext {
-		syncing_user,
-		last_sync_end_count,
-		filter,
-		..
-	} = sync_context;
+	let SyncContext { syncing_user, filter, .. } = sync_context;
 
-	let timeline_start_count = if let Some(last_sync_end_count) = last_sync_end_count {
-		// for incremental syncs, start the timeline after `since`
-		PduCount::Normal(last_sync_end_count)
-	} else {
-		// for initial syncs, start the timeline after the previous membership
-		// event. we don't want to include the membership event itself
-		// because clients get confused when they see a `join`
-		// membership event in a `leave` room.
-		services
-			.rooms
-			.timeline
-			.get_pdu_count(&prev_membership_event.event_id)
-			.await?
-	};
+	let timeline_start_count = services
+		.rooms
+		.timeline
+		.get_pdu_count(&prev_membership_event.event_id)
+		.await?;
 
 	// end the timeline at the user's leave event
 	let timeline_end_count = services
