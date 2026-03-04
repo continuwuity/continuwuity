@@ -296,8 +296,8 @@ To debug any issues, initiate a call and check the container logs for any specif
 
 ### Common errors in Element Call
 
-- `MISSING_MATRIX_RTC_FOCUS`: Livekit is missing from Continuwuity's config file
-- "Waiting for media" popup always showing: Livekit is configured in Continuwuity, but your client cannot connect to it for some reason
+- `MISSING_MATRIX_RTC_FOCUS`: LiveKit is missing from Continuwuity's config file
+- "Waiting for media" popup always showing: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
 
 ### Docker networking issues
 
@@ -328,7 +328,7 @@ OK
 
 ### Workaround for non-federating servers
 
-When deploying on servers with disabled federation (`enable_registration = false`), Livekit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths. You can find a workaround for this limitation [here](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440).
+When deploying on servers with disabled federation (`enable_registration = false`), LiveKit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths. You can find a workaround for this limitation [here](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440).
 
 ## Related Documentation
 
