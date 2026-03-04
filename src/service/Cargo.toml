@@ -123,6 +123,7 @@ blurhash.workspace = true
 blurhash.optional = true
 recaptcha-verify = { version = "0.2.0", default-features = false }
 yansi.workspace = true
+ed25519-dalek = "2.2.0"
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true
