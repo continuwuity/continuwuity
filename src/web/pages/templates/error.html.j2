@@ -21,7 +21,14 @@
 　＼二つ
 </pre>
 <div class="panel">
-    <h1>Request error<small aria-hidden>（︶^︶）</small></h1>
+    <h1>
+        {% if status == StatusCode::NOT_FOUND %}
+        Not found
+        {% else %}
+        Request error
+        {% endif %}
+        <small aria-hidden>（︶^︶）</small>
+    </h1>
 
     <pre><code>{{ error }}</code></pre>
 </div>
