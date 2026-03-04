@@ -34,6 +34,11 @@
         "name": "troubleshooting",
         "label": "Troubleshooting"
     },
+    {
+        "type": "dir",
+        "name": "advanced",
+        "label": "Advanced"
+    },
     "security",
     {
         "type": "dir-section-header",

@@ -1,0 +1,209 @@
+# Delegation/split-domain deployment
+
+Matrix allows clients and servers to discover a homeserver's "true" destination via **`.well-known` delegation**. This is especially useful if you would like to:
+
+- Serve Continuwuity on a subdomain while having only the base domain for your usernames
+- Use a port other than `:8448` for server-to-server connections
+
+This guide will show you how to have `@user:example.com` usernames while serving Continuwuity on `https://matrix.example.com`. It assumes you are using port 443 for both client-to-server connections and server-to-server federation.
+
+## Configuration
+
+First, ensure you have set up A/AAAA records for `matrix.example.com` and `example.com` pointing to your IP.
+
+Then, ensure that the `server_name` field matches your intended username suffix. If this is not the case, you **MUST** wipe the database directory and reinstall Continuwuity with your desired `server_name`.
+
+Then, in the `[global.well_known]` section of your config file, add the following fields:
+
+```toml
+[global.well_known]
+
+client = "https://matrix.example.com"
+
+# port number MUST be specified
+server = "matrix.example.com:443"
+
+# (optional) customize your support contacts
+#support_page =
+#support_role = "m.role.admin"
+#support_email =
+#support_mxid = "@user:example.com"
+```
+
+Alternatively if you are using Docker, you can set the `CONTINUWUITY_WELL_KNOWN` environment variable as below:
+
+```yaml
+services:
+  continuwuity:
+    ...
+    environment:
+      CONTINUWUITY_WELL_KNOWN: |
+        {
+        client=https://matrix.example.com,
+        server=matrix.example.com:443
+        }
+```
+
+## Serving with a reverse proxy
+
+After doing the steps above, Continuwuity will serve these 3 JSON files:
+
+- `/.well-known/matrix/client`: for Client-Server discovery
+- `/.well-known/matrix/server`: for Server-Server (federation) discovery
+- `/.well-known/matrix/support`: admin contact details (strongly recommended to have)
+
+To enable full discovery, you will need to reverse proxy these paths from the base domain back to Continuwuity.
+
+<details>
+
+<summary>For Caddy</summary>
+
+```
+matrix.example.com:443 {
+  reverse_proxy 127.0.0.1:8008
+}
+
+example.com:443 {
+  reverse_proxy /.well-known/matrix* 127.0.0.1:8008
+}
+```
+
+</details>
+
+<details>
+
+<summary>For Traefik (via Docker labels)</summary>
+
+```
+services:
+  continuwuity:
+    ...
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
+      - "traefik.http.routers.continuwuity.service=continuwuity"
+      - "traefik.http.services.continuwuity.loadbalancer.server.port=8008"
+```
+
+</details>
+
+Restart Continuwuity and your reverse proxy. Once that's done, visit these routes and check that the responses match the examples below:
+
+<details open>
+
+<summary>`https://example.com/.well-known/matrix/server`</summary>
+
+```json
+{
+  "m.server": "matrix.example.com:443"
+}
+```
+
+</details>
+
+<details open>
+
+<summary>`https://example.com/.well-known/matrix/client`</summary>
+
+```json
+{
+  "m.homeserver": {
+    "base_url": "https://matrix.example.com/"
+  },
+  "org.matrix.msc3575.proxy": {
+    "url": "https://matrix.example.com/"
+  }
+}
+```
+
+</details>
+
+## Troubleshooting
+
+### Cannot log in with web clients
+
+Make sure there is an `Access-Control-Allow-Origin: *` header in your `/.well-known/matrix/client` path. While Continuwuity serves this header by default, it may be dropped by reverse proxies or other middlewares.
+
+---
+
+## Using SRV records (not recommended)
+
+:::warning
+The following methods are **not recommended** due to increased complexity with little benefits. If you have already set up `.well-known` delegation as above, you can safely skip this part.
+:::
+
+The following methods uses SRV DNS records and only work with federation traffic. They are only included for completeness.
+
+<details>
+
+<summary>Using only SRV records</summary>
+
+If you can't set up `/.well-known/matrix/server` on :443 for some reason, you can set up a SRV record (via your DNS provider) as below:
+
+- Service and name: `_matrix-fed._tcp.example.com.`
+- Priority: `10` (can be any number)
+- Weight: `10` (can be any number)
+- Port: `443`
+- Target: `matrix.example.com.`
+
+On the target's IP at port 443, you must configure a valid route and cert for your server name, `example.com`. Therefore, this method only works to redirect traffic into the right IP/port combo, and can not delegate your federation to a different domain.
+
+</details>
+
+<details>
+
+<summary>Using SRV records + .well-known</summary>
+
+You can also set up `/.well-known/matrix/server` with a delegated domain but no ports:
+
+```toml
+[global.well_known]
+server = "matrix.example.com"
+```
+
+Then, set up a SRV record (via your DNS provider) to announce the port number as below:
+
+- Service and name: `_matrix-fed._tcp.matrix.example.com.`
+- Priority: `10` (can be any number)
+- Weight: `10` (can be any number)
+- Port: `443`
+- Target: `matrix.example.com.`
+
+On the target's IP at port 443, you'll need to provide a valid route and cert for `matrix.example.com`. It provides the same feature as pure `.well-known` delegation, albeit with more parts to handle.
+
+</details>
+
+<details>
+
+<summary>Using SRV records as a fallback for .well-known delegation</summary>
+
+Assume your delegation is as below:
+
+```toml
+[global.well_known]
+server = "example.com:443"
+```
+
+If your Continuwuity instance becomes temporarily unreachable, other servers will not be able to find your `/.well-known/matrix/server` file, and defaults to using `server_name:8448`. This incorrect cache can persist for a long time, and would hinder re-federation when your server eventually comes back online.
+
+If you want other servers to default to using port :443 even when it is offline, you could set up a SRV record (via your DNS provider) as follows:
+
+- Service and name: `_matrix-fed._tcp.example.com.`
+- Priority: `10` (can be any number)
+- Weight: `10` (can be any number)
+- Port: `443`
+- Target: `example.com.`
+
+On the target's IP at port 443, you'll need to provide a valid route and cert for `example.com`.
+
+</details>
+
+---
+
+## Related Documentation
+
+See the following Matrix Specs for full details on client/server resolution mechanisms:
+
+- [Server-to-Server resolution](https://spec.matrix.org/v1.17/server-server-api/#resolving-server-names) (see this for more information on SRV records)
+- [Client-to-Server resolution](https://spec.matrix.org/v1.17/client-server-api/#server-discovery)
+- [MSC1929: Homeserver Admin Contact and Support page](https://github.com/matrix-org/matrix-spec-proposals/pull/1929)
