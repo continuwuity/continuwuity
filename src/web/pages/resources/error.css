@@ -6,3 +6,8 @@
     color: var(--secondary);
     user-select: none;
 }
+
+h1 {
+    display: flex;
+    align-items: center;
+}
