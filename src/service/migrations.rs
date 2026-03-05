@@ -67,6 +67,9 @@ async fn fresh(services: &Services) -> Result<()> {
 	db["global"].insert(b"retroactively_fix_bad_data_from_roomuserid_joined", []);
 	db["global"].insert(b"fix_referencedevents_missing_sep", []);
 	db["global"].insert(b"fix_readreceiptid_readreceipt_duplicates", []);
+	db["global"].insert(b"fix_corrupt_msc4133_fields", []);
+	db["global"].insert(b"populate_userroomid_leftstate_table", []);
+	db["global"].insert(b"fix_local_invite_state", []);
 
 	// Create the admin room and server user on first run
 	info!("Creating admin room and server user");
