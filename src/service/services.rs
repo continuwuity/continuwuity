@@ -1,7 +1,7 @@
 use std::{any::Any, collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
-	Result, Server, SyncRwLock, debug, debug_info, info, trace, utils::stream::IterStream,
+	Result, Server, SyncRwLock, debug, debug_info, error, info, trace, utils::stream::IterStream,
 };
 use database::Database;
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -125,10 +125,12 @@ impl Services {
 	}
 
 	pub async fn start(self: &Arc<Self>) -> Result<Arc<Self>> {
-		debug_info!("Starting services...");
+		info!("Starting services...");
 
 		self.admin.set_services(Some(Arc::clone(self)).as_ref());
-		super::migrations::migrations(self).await?;
+		super::migrations::migrations(self)
+			.await
+			.inspect_err(|e| error!("Migrations failed: {e}"))?;
 		self.manager
 			.lock()
 			.await
@@ -147,7 +149,7 @@ impl Services {
 				.await;
 		}
 
-		debug_info!("Services startup complete.");
+		info!("Services startup complete.");
 
 		Ok(Arc::clone(self))
 	}
