@@ -322,7 +322,7 @@ Some distros do not allow Docker containers to connect to its host's public IP b
 After implementing the changes and restarting your compose, you can test whether the connection works by cURLing from a sidecar container:
 
 ```console
-~$ docker exec --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
+~$ docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
 OK
 ```
 
