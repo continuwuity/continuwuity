@@ -1,7 +1,7 @@
 use std::{cmp, collections::HashMap, future::ready};
 
 use conduwuit::{
-	Err, Event, Pdu, Result, debug, debug_info, debug_warn, error, info,
+	Err, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
 	result::NotFound,
 	utils::{
 		IterStream, ReadyExt,
@@ -57,6 +57,7 @@ pub(crate) async fn migrations(services: &Services) -> Result<()> {
 }
 
 async fn fresh(services: &Services) -> Result<()> {
+	info!("Creating new fresh database");
 	let db = &services.db;
 
 	services.globals.db.bump_database_version(DATABASE_VERSION);
@@ -68,9 +69,13 @@ async fn fresh(services: &Services) -> Result<()> {
 	db["global"].insert(b"fix_readreceiptid_readreceipt_duplicates", []);
 
 	// Create the admin room and server user on first run
-	crate::admin::create_admin_room(services).boxed().await?;
+	info!("Creating admin room and server user");
+	crate::admin::create_admin_room(services)
+		.boxed()
+		.await
+		.inspect_err(|e| error!("Failed to create admin room during db init: {e}"))?;
 
-	warn!("Created new RocksDB database with version {DATABASE_VERSION}");
+	info!("Created new database with version {DATABASE_VERSION}");
 
 	Ok(())
 }
@@ -88,19 +93,33 @@ async fn migrate(services: &Services) -> Result<()> {
 	}
 
 	if services.globals.db.database_version().await < 12 {
-		db_lt_12(services).await?;
+		db_lt_12(services)
+			.await
+			.map_err(|e| err!("Failed to run v12 migrations: {e}"))?;
 	}
 
 	// This migration can be reused as-is anytime the server-default rules are
 	// updated.
 	if services.globals.db.database_version().await < 13 {
-		db_lt_13(services).await?;
+		db_lt_13(services)
+			.await
+			.map_err(|e| err!("Failed to run v13 migrations: {e}"))?;
 	}
 
 	if db["global"].get(b"feat_sha256_media").await.is_not_found() {
-		media::migrations::migrate_sha256_media(services).await?;
+		media::migrations::migrate_sha256_media(services)
+			.await
+			.map_err(|e| err!("Failed to run SHA256 media migration: {e}"))?;
 	} else if config.media_startup_check {
-		media::migrations::checkup_sha256_media(services).await?;
+		info!("Starting media startup integrity check.");
+		let now = std::time::Instant::now();
+		media::migrations::checkup_sha256_media(services)
+			.await
+			.map_err(|e| err!("Failed to verify media integrity: {e}"))?;
+		info!(
+			"Finished media startup integrity check in {} seconds.",
+			now.elapsed().as_secs_f32()
+		);
 	}
 
 	if db["global"]
@@ -108,7 +127,12 @@ async fn migrate(services: &Services) -> Result<()> {
 		.await
 		.is_not_found()
 	{
-		fix_bad_double_separator_in_state_cache(services).await?;
+		info!("Running migration 'fix_bad_double_separator_in_state_cache'");
+		fix_bad_double_separator_in_state_cache(services)
+			.await
+			.map_err(|e| {
+				err!("Failed to run 'fix_bad_double_separator_in_state_cache' migration: {e}")
+			})?;
 	}
 
 	if db["global"]
@@ -116,7 +140,15 @@ async fn migrate(services: &Services) -> Result<()> {
 		.await
 		.is_not_found()
 	{
-		retroactively_fix_bad_data_from_roomuserid_joined(services).await?;
+		info!("Running migration 'retroactively_fix_bad_data_from_roomuserid_joined'");
+		retroactively_fix_bad_data_from_roomuserid_joined(services)
+			.await
+			.map_err(|e| {
+				err!(
+					"Failed to run 'retroactively_fix_bad_data_from_roomuserid_joined' \
+					 migration: {e}"
+				)
+			})?;
 	}
 
 	if db["global"]
@@ -125,7 +157,12 @@ async fn migrate(services: &Services) -> Result<()> {
 		.is_not_found()
 		|| services.globals.db.database_version().await < 17
 	{
-		fix_referencedevents_missing_sep(services).await?;
+		info!("Running migration 'fix_referencedevents_missing_sep'");
+		fix_referencedevents_missing_sep(services)
+			.await
+			.map_err(|e| {
+				err!("Failed to run 'fix_referencedevents_missing_sep' migration': {e}")
+			})?;
 	}
 
 	if db["global"]
@@ -134,7 +171,12 @@ async fn migrate(services: &Services) -> Result<()> {
 		.is_not_found()
 		|| services.globals.db.database_version().await < 17
 	{
-		fix_readreceiptid_readreceipt_duplicates(services).await?;
+		info!("Running migration 'fix_readreceiptid_readreceipt_duplicates'");
+		fix_readreceiptid_readreceipt_duplicates(services)
+			.await
+			.map_err(|e| {
+				err!("Failed to run 'fix_readreceiptid_readreceipt_duplicates' migration': {e}")
+			})?;
 	}
 
 	if services.globals.db.database_version().await < 17 {
@@ -147,7 +189,10 @@ async fn migrate(services: &Services) -> Result<()> {
 		.await
 		.is_not_found()
 	{
-		fix_corrupt_msc4133_fields(services).await?;
+		info!("Running migration 'fix_corrupt_msc4133_fields'");
+		fix_corrupt_msc4133_fields(services)
+			.await
+			.map_err(|e| err!("Failed to run 'fix_corrupt_msc4133_fields' migration': {e}"))?;
 	}
 
 	if services.globals.db.database_version().await < 18 {
@@ -160,7 +205,12 @@ async fn migrate(services: &Services) -> Result<()> {
 		.await
 		.is_not_found()
 	{
-		populate_userroomid_leftstate_table(services).await?;
+		info!("Running migration 'populate_userroomid_leftstate_table'");
+		populate_userroomid_leftstate_table(services)
+			.await
+			.map_err(|e| {
+				err!("Failed to run 'populate_userroomid_leftstate_table' migration': {e}")
+			})?;
 	}
 
 	if db["global"]
@@ -168,14 +218,17 @@ async fn migrate(services: &Services) -> Result<()> {
 		.await
 		.is_not_found()
 	{
-		fix_local_invite_state(services).await?;
+		info!("Running migration 'fix_local_invite_state'");
+		fix_local_invite_state(services)
+			.await
+			.map_err(|e| err!("Failed to run 'fix_local_invite_state' migration': {e}"))?;
 	}
 
 	assert_eq!(
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
-		"Failed asserting local database version {} is equal to known latest conduwuit database \
-		 version {}",
+		"Failed asserting local database version {} is equal to known latest continuwuity \
+		 database version {}",
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
 	);
