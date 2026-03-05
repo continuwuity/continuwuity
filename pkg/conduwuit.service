@@ -18,6 +18,7 @@ Environment="CONTINUWUITY_DATABASE_PATH=%S/conduwuit"
 Environment="CONTINUWUITY_CONFIG_RELOAD_SIGNAL=true"
 
 LoadCredential=conduwuit.toml:/etc/conduwuit/conduwuit.toml
+RefreshOnReload=yes
 
 ExecStart=/usr/bin/conduwuit --config ${CREDENTIALS_DIRECTORY}/conduwuit.toml
 
