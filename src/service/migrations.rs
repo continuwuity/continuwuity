@@ -663,7 +663,7 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	use serde_json::{Value, from_slice};
 	type KeyVal<'a> = ((OwnedUserId, String), &'a [u8]);
 
-	warn!("Fixing corrupted `us.cloke.msc4175.tz` fields...");
+	info!("Fixing corrupted `us.cloke.msc4175.tz` fields...");
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
