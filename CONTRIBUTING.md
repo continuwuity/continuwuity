@@ -22,22 +22,18 @@ Continuwuity uses pre-commit hooks to enforce various coding standards and catch
 - Validating YAML, JSON, and TOML files
 - Checking for merge conflicts
 
-You can run these checks locally by installing [prefligit](https://github.com/j178/prefligit):
+You can run these checks locally by installing [prek](https://github.com/j178/prek):
 
 
 ```bash
-# Requires UV: https://docs.astral.sh/uv/getting-started/installation/
-# Mac/linux: curl -LsSf https://astral.sh/uv/install.sh | sh
-# Windows: powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Install prefligit using cargo-binstall
-cargo binstall prefligit
+# Install prek using cargo-binstall
+cargo binstall prek
 
 # Install git hooks to run checks automatically
-prefligit install
+prek install
 
 # Run all checks
-prefligit --all-files
+prek --all-files
 ```
 
 Alternatively, you can use [pre-commit](https://pre-commit.com/):
@@ -54,7 +50,7 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-These same checks are run in CI via the prefligit-checks workflow to ensure consistency. These must pass before the PR is merged.
+These same checks are run in CI via the prek-checks workflow to ensure consistency. These must pass before the PR is merged.
 
 ### Running tests locally
 
