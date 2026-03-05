@@ -28,9 +28,9 @@ LiveKit provides a utility to generate secure random keys
 ~$ docker run --rm livekit/livekit-server:latest generate-keys
 API Key:  APIUxUnMnSkuFWV
 API Secret:  t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
-
 ```
 :::
+
 
 ```yaml
 services:
@@ -251,7 +251,7 @@ Then, using that token, request another OpenID token for use with the lk-jwt-ser
 ```console
 ~$ curl -X POST -H "Authorization: Bearer <session-access-token>" \
   https://matrix.example.com/_matrix/client/v3/user/@user:example.com/openid/request_token
-{"access_token":"<access-token>","token_type":"Bearer","matrix_server_name":"example.com","expires_in":3600}
+{"access_token":"<openid_access_token>","token_type":"Bearer","matrix_server_name":"example.com","expires_in":3600}
 ```
 
 Next, create a `payload.json` file with the following content:
@@ -266,7 +266,7 @@ Next, create a `payload.json` file with the following content:
     "slot_id": "xyz",
     "openid_token": {
         "matrix_server_name": "example.com",
-        "access_token": "<access_token>",
+        "access_token": "<openid_access_token>",
         "token_type": "Bearer"
     },
     "member": {
@@ -277,7 +277,7 @@ Next, create a `payload.json` file with the following content:
 }
 ```
 
-Replace `matrix_server_name` and `claimed_user_id` with your information, and `<access_token>` with the one you got from the previous step. Other values can be left as-is.
+Replace `matrix_server_name` and `claimed_user_id` with your information, and `<openid_access_token>` with the one you got from the previous step. Other values can be left as-is.
 
 </details>
 
@@ -288,7 +288,7 @@ You can then send this payload to the lk-jwt-service:
 {"url":"wss://livekit.example.com","jwt":"a_really_really_long_string"}
 ```
 
-The lk-jwt-service will, after checking against Continuwuity, answer you with a `jwt` token to create a LiveKit media room. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test). If everything works there, then you have set up LiveKit successfully!
+The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt` token to create a LiveKit media room. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test). If everything works there, then you have set up LiveKit successfully!
 
 ## Troubleshooting
 
@@ -317,7 +317,7 @@ Some distros do not allow Docker containers to connect to its host's public IP b
 
 - Also use `network_mode: host` for `lk-jwt-service`
 
-- (**untested, use as your own risk**) Implement an iptables firewall workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
+- (**untested, use at your own risk**) Implement an iptables firewall workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
 
 After implementing the changes and restarting your compose, you can test whether the connection works by cURLing from a sidecar container:
 
@@ -343,7 +343,7 @@ Specifications:
 - [MatrixRTC proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
 - [LiveKit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
 
-Source codes:
+Source code:
 
 - [Element Call](https://github.com/element-hq/element-call)
 - [lk-jwt-service](https://github.com/element-hq/lk-jwt-service)
