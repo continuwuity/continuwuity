@@ -3,6 +3,7 @@ use std::{cmp, collections::HashMap, future::ready};
 use conduwuit::{
 	Err, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
 	result::NotFound,
+	trace,
 	utils::{
 		IterStream, ReadyExt,
 		stream::{TryExpect, TryIgnore},
@@ -802,7 +803,18 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 	let fixed =  userroomid_invitestate.stream()
 		// if they're a local user on this homeserver
 		.try_filter(|((user_id, _), _): &KeyVal<'_>| ready(services.globals.user_is_local(user_id)))
-		.and_then(async |((user_id, room_id), stripped_state): KeyVal<'_>| Ok::<_, conduwuit::Error>((user_id.to_owned(), room_id.to_owned(), stripped_state.deserialize()?)))
+		.and_then(async |((user_id, room_id), stripped_state): KeyVal<'_>| Ok::<_,
+			conduwuit::Error>((user_id.to_owned(), room_id.to_owned(), stripped_state.deserialize
+		().unwrap_or_else(|e| {
+			trace!("Failed to deserialize: {:?}", stripped_state.json());
+			warn!(
+				%user_id,
+				%room_id,
+				"Failed to deserialize stripped state for invite, removing from db: {e}"
+			);
+			userroomid_invitestate.del((user_id, room_id));
+			vec![]
+		}))))
 		.try_fold(0_usize, async |mut fixed, (user_id, room_id, stripped_state)| {
 			// and their invite state is None
 			if stripped_state.is_empty()
