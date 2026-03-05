@@ -427,7 +427,7 @@ async fn db_lt_13(services: &Services) -> Result<()> {
 }
 
 async fn fix_bad_double_separator_in_state_cache(services: &Services) -> Result<()> {
-	warn!("Fixing bad double separator in state_cache roomuserid_joined");
+	info!("Fixing bad double separator in state_cache roomuserid_joined");
 
 	let db = &services.db;
 	let roomuserid_joined = &db["roomuserid_joined"];
@@ -471,7 +471,7 @@ async fn fix_bad_double_separator_in_state_cache(services: &Services) -> Result<
 }
 
 async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) -> Result<()> {
-	warn!("Retroactively fixing bad data from broken roomuserid_joined");
+	info!("Retroactively fixing bad data from broken roomuserid_joined");
 
 	let db = &services.db;
 	let _cork = db.cork_and_sync();
@@ -561,7 +561,7 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 }
 
 async fn fix_referencedevents_missing_sep(services: &Services) -> Result {
-	warn!("Fixing missing record separator between room_id and event_id in referencedevents");
+	info!("Fixing missing record separator between room_id and event_id in referencedevents");
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
@@ -609,7 +609,7 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 	type ArrayId = ArrayString<MAX_BYTES>;
 	type Key<'a> = (&'a RoomId, u64, &'a UserId);
 
-	warn!("Fixing undeleted entries in readreceiptid_readreceipt...");
+	info!("Fixing undeleted entries in readreceiptid_readreceipt...");
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
