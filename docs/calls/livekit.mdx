@@ -182,7 +182,7 @@ By default, all routes should be forwarded to LiveKit with the exception of the 
 
 Start up the services using your usual method - for example `docker compose up -d`.
 
-## Additional Configuration
+## Additional TURN configuration
 
 ### Using LiveKit's built in TURN server
 
@@ -201,11 +201,14 @@ turn:
 ```
 
 ```yaml
-### Add these to docker-compose ###
+### add these to livekit's docker-compose ###
 ports:
   - "3478:3478/udp"
   - "50300-50400:50300-50400/udp"
+### if you're using `network_mode: host`, you can skip this part
 ```
+
+Remember to allow the new `3478/udp` and `50100:50200/udp` ports through your firewall.
 
 ### Integration with an external TURN server
 
@@ -248,7 +251,7 @@ First, you will need an access token for your current login session. These can b
 
 Then, using that token, request another OpenID token for use with the lk-jwt-service:
 
-```console
+```bash
 ~$ curl -X POST -H "Authorization: Bearer <session-access-token>" \
   https://matrix.example.com/_matrix/client/v3/user/@user:example.com/openid/request_token
 {"access_token":"<openid_access_token>","token_type":"Bearer","matrix_server_name":"example.com","expires_in":3600}
@@ -283,7 +286,7 @@ Replace `matrix_server_name` and `claimed_user_id` with your information, and `<
 
 You can then send this payload to the lk-jwt-service:
 
-```console
+```bash
 ~$ curl -X POST -d @payload.json https://livekit.example.com/get_token
 {"url":"wss://livekit.example.com","jwt":"a_really_really_long_string"}
 ```
@@ -292,36 +295,38 @@ The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt
 
 ## Troubleshooting
 
-To debug any issues, initiate a call and check the container logs for any specific errors. You can also enable Element Call's developer mode to check for further details, such as your SFU's URL.
+To debug any issues, you can place a call or redo the Testing instructions, and check the container logs for any specific errors. Use `docker-compose logs --follow` to follow them in real-time.
 
-### Common errors in Element Call
+### Common errors in Element Call UI
 
 - `MISSING_MATRIX_RTC_FOCUS`: LiveKit is missing from Continuwuity's config file
 - "Waiting for media" popup always showing: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
 
-### Docker networking issues
+### Docker loopback networking issues
 
-Some distros do not allow Docker containers to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail while reaching out to `livekit` or `continuwuity` on the same host. To alleviate this, you can try one of the following workarounds:
+Some distros do not allow Docker containers to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail connecting to `livekit` or `continuwuity` on the same host. As a result, you would see connection refused/connection timeouts log entries in the JWT service, even when `LIVEKIT_URL` has been configured correctly.
+
+To alleviate this, you can try one of the following workarounds:
+
+- Use `network_mode: host` for the `lk-jwt-service` container (instead of the default bridge networking).
 
 - Add an `extra_hosts` file mapping livekit's (and continuwuity's) domain name to a localhost address:
 
-    ```yaml
+    ```diff
     # in docker-compose.yaml
     services:
       lk-jwt-service:
         ...
-        extra_hosts:
-          - "livekit.example.com:127.0.0.1"
-          - "matrix.example.com:127.0.0.1"
+    +    extra_hosts:
+    +     - "livekit.example.com:127.0.0.1" 
+    +     - "matrix.example.com:127.0.0.1"
     ```
 
-- Also use `network_mode: host` for `lk-jwt-service`
-
-- (**untested, use at your own risk**) Implement an iptables firewall workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
+- (**untested, use at your own risk**) Implement an iptables workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
 
 After implementing the changes and restarting your compose, you can test whether the connection works by cURLing from a sidecar container:
 
-```console
+```bash
 ~$ docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
 OK
 ```
