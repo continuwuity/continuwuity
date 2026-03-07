@@ -1519,6 +1519,23 @@
 #
 #forbidden_alias_names = []
 
+# Allow joining rooms that are known to be broken or have a history of
+# causing issues.
+#
+# The rooms that are banned in this way are hardcoded and set by the
+# maintainers, and cannot be configured. This method is a last-resort to
+# prevent people who are just setting up Matrix from joining these huge,
+# old rooms that have been recommended to them, only to watch their
+# server turn into a space heater and have horrific performance issues
+# that are unresolvable due to the completely broken state of the rooms.
+#
+# If you enable this option, you acknowledge that joining rooms banned by
+# this feature will likely cause you severe performance issues, and you
+# forgo your right to complain about any slowdowns or inflated resource
+# usage you encounter.
+#
+#allow_joining_broken_rooms = false
+
 # List of forbidden username patterns/strings.
 #
 # Regex can be used or explicit contains matches can be done by just

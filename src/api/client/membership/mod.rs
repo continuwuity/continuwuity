@@ -58,6 +58,18 @@ pub(crate) async fn joined_rooms_route(
 	})
 }
 
+const BROKEN_ROOM_IDS: [&str; 9] = [
+	"!iMZEhwCvbfeAYUxAjZ:t2l.io", // Matrix community space - insanely broken state
+	"!OGEhHVWSdvArJzumhm:matrix.org", // Old Matrix HQ - huge room, very broken
+	"!IemiTbwVankHTFiEoh:matrix.org", // Old Element Web - huge room, very broken
+	"!brXHJeAtqliwNGqHQx:lossy.network", // NixOS space - frequent bug reports, huge state
+	"!04iUOXvKl6GxOztTbP230xhKR-hu4kPzrzfjiv9dc_8", // GrapheneOS space - frequent bug reports
+	"!MBrxZRUoApYYjmyion:t2bot.io", // Old t2bot room - insane auth chain depths
+	"izahlpcyIDeymNjiOd:matrix.debian.social", // #debian-next:matrix.debian.social
+	"!mefQhZzgTaxNCNzAeK:kde.org", // KDE user help
+	"!OTxETzuhBDbnPqBqbP:kde.org", // KDE space
+];
+
 /// Checks if the room is banned in any way possible and the sender user is not
 /// an admin.
 ///
@@ -71,11 +83,15 @@ pub(crate) async fn banned_room_check(
 	server_name: Option<&ServerName>,
 	client_ip: IpAddr,
 ) -> Result {
-	if services.users.is_admin(user_id).await {
-		return Ok(());
-	}
-
 	if let Some(room_id) = room_id {
+		if !services.config.allow_joining_broken_rooms
+			&& BROKEN_ROOM_IDS.contains(&room_id.as_str())
+		{
+			return Err!(Request(Forbidden("This room is too complex.")));
+		}
+		if services.users.is_admin(user_id).await {
+			return Ok(());
+		}
 		let room_banned = services.rooms.metadata.is_banned(room_id).await;
 		let server_banned = room_id.server_name().is_some_and(|server_name| {
 			services.moderation.is_remote_server_forbidden(server_name)
@@ -116,6 +132,9 @@ pub(crate) async fn banned_room_check(
 			return Err!(Request(Forbidden("This room is banned on this homeserver.")));
 		}
 	} else if let Some(server_name) = server_name {
+		if services.users.is_admin(user_id).await {
+			return Ok(());
+		}
 		if services
 			.config
 			.forbidden_remote_server_names
