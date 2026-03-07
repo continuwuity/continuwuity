@@ -300,6 +300,8 @@ pub(super) async fn reset_password(
 pub(super) async fn issue_password_reset_link(&self, username: String) -> Result {
 	use conduwuit_service::password_reset::{PASSWORD_RESET_PATH, RESET_TOKEN_QUERY_PARAM};
 
+	self.bail_restricted()?;
+
 	let mut reset_url = self
 		.services
 		.config
