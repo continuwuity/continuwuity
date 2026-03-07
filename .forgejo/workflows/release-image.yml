@@ -59,7 +59,7 @@ jobs:
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build and push Docker image by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: "docker/Dockerfile"
@@ -146,7 +146,7 @@ jobs:
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
       - name: Build and push max-perf Docker image by digest
         id: build
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: "docker/Dockerfile"
