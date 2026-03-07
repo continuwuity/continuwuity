@@ -44,7 +44,7 @@ runs:
 
     - name: Login to builtin registry
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
-      uses: docker/login-action@v3
+      uses: docker/login-action@v4
       with:
         registry: ${{ env.BUILTIN_REGISTRY }}
         username: ${{ inputs.registry_user }}
