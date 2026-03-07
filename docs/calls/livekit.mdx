@@ -104,7 +104,7 @@ Remember to replace the URL with the address you are deploying your instance of 
 
 Reverse proxies can be configured in many different ways - so we can't provide a step by step for this.
 
-By default, all routes should be forwarded to LiveKit with the exception of the following path prefixes, which should be forwarded to the JWT/Authentication service:
+All paths should be forwarded to LiveKit by default, with the exception of the following path prefixes, which should be forwarded to the JWT/Authentication service:
 
 - `/sfu/get`
 - `/healthz`
@@ -184,9 +184,9 @@ Start up the services using your usual method - for example `docker compose up -
 
 ## Additional TURN configuration
 
-### Using LiveKit's built in TURN server
+### Using LiveKit's built-in TURN server
 
-LiveKit includes a built in TURN server which can be used in place of an external option. This TURN server will only work with LiveKit, so you can't use it for legacy Matrix calling or anything else.
+LiveKit includes a built-in TURN server which can be used in place of an external option. This TURN server will only work with LiveKit, so you can't use it for legacy Matrix calling or anything else.
 
 If you don't want to set up a separate TURN server, you can enable this with the following changes:
 
@@ -221,9 +221,9 @@ max-port=65535
 
 To improve LiveKit's reliability, you can configure it to use your coturn server.
 
-Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for each thing using your TURN server.
+Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for LiveKit to use.
 
-Then configure LiveKit, making sure to replace `COTURN_SECRET` with the ones you generated:
+Then configure LiveKit, making sure to replace `COTURN_SECRET` with the one you generated:
 
 ```yaml
 # livekit.yaml
@@ -231,15 +231,15 @@ rtc:
   turn_servers:
     - host: coturn.example.com
       port: 3478
+      protocol: udp
+      secret: "COTURN_SECRET"
+    - host: coturn.example.com
+      port: 3478
       protocol: tcp
       secret: "COTURN_SECRET"
     - host: coturn.example.com
       port: 5349
-      protocol: tls # Only if you've set up TLS in your coturn
-      secret: "COTURN_SECRET"
-    - host: coturn.example.com
-      port: 3478
-      protocol: udp
+      protocol: tls # Only if you have already set up TLS in your coturn
       secret: "COTURN_SECRET"
 ```
 
