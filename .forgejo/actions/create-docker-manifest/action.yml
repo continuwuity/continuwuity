@@ -61,7 +61,7 @@ runs:
     - name: Extract metadata (tags) for Docker
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         flavor: |
           latest=auto

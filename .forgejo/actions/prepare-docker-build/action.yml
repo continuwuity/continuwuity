@@ -87,7 +87,7 @@ runs:
 
     - name: Extract metadata (labels, annotations) for Docker
       id: meta
-      uses: docker/metadata-action@v5
+      uses: docker/metadata-action@v6
       with:
         images: ${{ inputs.images }}
         # default labels & annotations: https://github.com/docker/metadata-action/blob/master/src/meta.ts#L509
