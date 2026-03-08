@@ -1,46 +1,10 @@
 # Environment Variables
 
-Continuwuity can be configured entirely through environment variables, making it
-ideal for containerised deployments and infrastructure-as-code scenarios.
-
 This is a convenience reference and may not be exhaustive. The
 [Configuration Reference](./config.mdx) is the primary source for all
 configuration options.
 
-## Prefix System
-
-Continuwuity supports three environment variable prefixes for backwards
-compatibility:
-
-- `CONTINUWUITY_*` (current, recommended)
-- `CONDUWUIT_*` (compatibility)
-- `CONDUIT_*` (legacy)
-
-All three prefixes work identically. Use double underscores (`__`) to represent
-nested configuration sections from the TOML config.
-
-**Examples:**
-
-```bash
-# Simple top-level config
-CONTINUWUITY_SERVER_NAME="matrix.example.com"
-CONTINUWUITY_PORT="8008"
-
-# Nested config sections use double underscores
-# This maps to [database] section in TOML
-CONTINUWUITY_DATABASE__PATH="/var/lib/continuwuity"
-
-# This maps to [tls] section in TOML
-CONTINUWUITY_TLS__CERTS="/path/to/cert.pem"
-```
-
-## Configuration File Override
-
-You can specify a custom configuration file path:
-
-- `CONTINUWUITY_CONFIG` - Path to continuwuity.toml (current)
-- `CONDUWUIT_CONFIG` - Path to config file (compatibility)
-- `CONDUIT_CONFIG` - Path to config file (legacy)
+To see how these variables can be used, head over to the [Configuration](../configuration#environment-variables) documentation
 
 ## Essential Variables
 

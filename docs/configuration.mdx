@@ -2,20 +2,53 @@
 
 This chapter describes various ways to configure Continuwuity.
 
-## Basics
+## Configuration file
 
-Continuwuity uses a config file for the majority of the settings, but also supports
-setting individual config options via commandline.
+Continuwuity uses a config file for the majority of the settings. This is the recommended way to configure Continuwuity. Please refer to the [example config file](./reference/config.mdx) for all of those settings.
 
-Please refer to the [example config
-file](./reference/config.mdx) for all of those
-settings.
+The config file to use can be specified on the commandline when running Continuwuity by specifying the `-c`/ `--config` flag.
 
-The config file to use can be specified on the commandline when running
-Continuwuity by specifying the `-c`, `--config` flag. Alternatively, you can use
-the environment variable `CONTINUWUITY_CONFIG` to specify the config file to be
-used; see [the section on environment variables](#environment-variables) for
-more information.
+```bash
+~$ ./conduwuit -c /path/to/continuwuity.toml
+```
+
+Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to specify the config file to be used; see [the section on environment variables](#environment-variables) for more information.
+
+## Environment variables
+
+All of the settings that are found in the config file can also be specified by using environment variables. This makes it ideal for containerised deployments and infrastructure-as-code scenarios.
+
+The environment variable names should be all caps and prefixed with `CONTINUWUITY_`. They are mapped to the configuration file with the syntaxes as demonstrated below:
+
+```bash
+# Top-level configs (those inside the [global] section) are simply capitalized
+CONTINUWUITY_SERVER_NAME="matrix.example.com"
+CONTINUWUITY_PORT="8008"
+CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity"
+
+# Nested config sections use double underscores `__`
+
+# This maps to the `server` field of the [global.well_known] section in TOML
+CONTINUWUITY_WELL_KNOWN__SERVER="example.com:443"
+
+# This maps to the `base_url` field of the `[global.antispam.draupnir]` section in TOML
+CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL="https://draupnir.example.com"
+
+# Alternatively, you can pass a JSON object to define the entire section
+# This maps to the [global.well_known] section
+CONTINUWUITY_WELL_KNOWN={ client=https://example.com,server=example.com:443 }
+```
+
+Please refer to the [Env Var Reference page](./reference/environment-variables.mdx) for a more detailed list of environment variables.
+
+### Alternative prefixes
+
+For backwards compatibility, Continuwuity also supports the following environment variable prefixes, in order of descending priority:
+
+- `CONDUWUIT_*` (compatibility)
+- `CONDUIT_*` (legacy)
+
+So, for example, the config file environment variable `CONTINUWUITY_CONFIG` can also be expressed as `CONDUWUIT_CONFIG`, or `CONDUIT_CONFIG`.
 
 ## Option commandline flag
 
@@ -48,20 +81,3 @@ Created user with user_id: @june:girlboss.ceo and password: `<redacted>`
 ```
 
 This commandline argument can be paired with the `--option` flag.
-
-## Environment variables
-
-All of the settings that are found in the config file can be specified by using
-environment variables. The environment variable names should be all caps and
-prefixed with `CONTINUWUITY_`.
-
-For example, if the setting you are changing is `max_request_size`, then the
-environment variable to set is `CONTINUWUITY_MAX_REQUEST_SIZE`.
-
-To modify config options not in the `[global]` context such as
-`[global.well_known]`, use the `__` suffix split:
-`CONTINUWUITY_WELL_KNOWN__SERVER`
-
-Conduit and conduwuit's environment variables are also supported for backwards
-compatibility, via the `CONDUIT_` and `CONDUWUIT_` prefixes respectively (e.g.
-`CONDUIT_SERVER_NAME`).
