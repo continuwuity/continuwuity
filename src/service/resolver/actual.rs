@@ -109,9 +109,8 @@ impl super::Service {
 
 		// 2. If `dest` is a hostname and has a provided port (format of `host:port`),
 		//    resolve the hostname to an IP address and connect it and the provided port
-		if let Some(colon_position) = dest.as_str().find(':') {
-			self.resolve_2_host_port(dest, cache, colon_position)
-				.await?;
+		if dest.as_str().contains(':') {
+			return self.resolve_2_host_port(dest, cache).await;
 		}
 
 		// Pre-resolve IP? Unsure what overrides exactly do, system is due to be removed
@@ -126,12 +125,12 @@ impl super::Service {
 		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated`
 		// as `<hostname>[:<port>]` and...
 		if let Some(delegated) = self.request_well_known(dest.as_str()).await? {
-			self.resolve_3_well_known(host, cache, delegated).await?;
+			return self.resolve_3_well_known(host, cache, delegated).await;
 		}
 
 		// 4. if .well-known errored, perform SRV (see 3.3)
 		if let Some(overrider) = self.query_srv_record(dest.as_str()).await? {
-			self.resolve_4_srv_lookup(host, cache, overrider).await?;
+			return self.resolve_4_srv_lookup(host, cache, overrider).await;
 		}
 
 		// 5. if .well-known errored and no SRV exists, resolve IP and connect on
@@ -141,14 +140,9 @@ impl super::Service {
 
 	/// Parse a host:port socket pair into separate parts, and resolve the
 	/// hostname into an IP address
-	async fn resolve_2_host_port(
-		&self,
-		dest: &ServerName,
-		cache: bool,
-		pos: usize,
-	) -> Result<FedDest> {
+	async fn resolve_2_host_port(&self, dest: &ServerName, cache: bool) -> Result<FedDest> {
 		debug!("2: Hostname with included port");
-		let (host, port) = dest.as_str().split_at(pos);
+		let (host, port) = dest.as_str().split_once(':').unwrap();
 
 		self.conditional_query_and_cache(
 			host,
