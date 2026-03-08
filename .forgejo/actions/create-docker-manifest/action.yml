@@ -52,7 +52,7 @@ runs:
 
     - name: Set up Docker Buildx
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
-      uses: docker/setup-buildx-action@v3
+      uses: docker/setup-buildx-action@v4
       with:
         # Use persistent BuildKit if BUILDKIT_ENDPOINT is set (e.g. tcp://buildkit:8125)
         driver: ${{ env.BUILDKIT_ENDPOINT != '' && 'remote' || 'docker-container' }}
