@@ -1,8 +1,9 @@
-use std::{
-	fmt::Debug,
-	net::{IpAddr, SocketAddr},
-};
+use std::fmt::Debug;
 
+use super::{
+	cache::{CachedDest, CachedOverride, MAX_IPS},
+	fed::{FedDest, PortString, add_port_to_hostname, ensure_host_has_port, get_ip_with_port},
+};
 use conduwuit::{Err, Result, debug, debug_info, err, error, trace};
 use futures::{FutureExt, TryFutureExt};
 use hickory_resolver::{
@@ -25,7 +26,9 @@ pub(crate) struct ActualDest {
 
 impl ActualDest {
 	#[inline]
-	pub(crate) fn string(&self) -> String { self.dest.https_string() }
+	pub(crate) fn string(&self) -> String {
+		self.dest.https_string()
+	}
 }
 
 impl super::Service {
@@ -57,71 +60,103 @@ impl super::Service {
 			.await
 	}
 
-	/// Returns: `actual_destination`, host header
-	/// Implemented according to the specification at <https://matrix.org/docs/spec/server_server/r0.1.4#resolving-server-names>
-	/// Numbers in comments below refer to bullet points in linked section of
-	/// specification
+	/// Returns: `actual_destination` + `host` variable used for logging
 	#[tracing::instrument(name = "actual", level = "debug", skip(self, cache))]
 	pub async fn resolve_actual_dest(
 		&self,
 		dest: &ServerName,
 		cache: bool,
 	) -> Result<CachedDest> {
+		debug!(
+			dest = %dest,
+			cache = %cache,
+			"Resolving server name and port"
+		);
+		// Ensure dest is a valid connection endpoint
 		self.validate_dest(dest)?;
-		let mut host = dest.as_str().to_owned();
-		let actual_dest = match get_ip_with_port(dest.as_str()) {
-			| Some(host_port) => Self::actual_dest_1(host_port)?,
-			| None =>
-				if let Some(pos) = dest.as_str().find(':') {
-					self.actual_dest_2(dest, cache, pos).await?
-				} else {
-					self.services.server.check_running()?;
-					match self.request_well_known(dest.as_str()).await? {
-						| Some(delegated) =>
-							self.actual_dest_3(&mut host, cache, delegated).await?,
-						| _ => match self.query_srv_record(dest.as_str()).await? {
-							| Some(overrider) =>
-								self.actual_dest_4(&host, cache, overrider).await?,
-							| _ => self.actual_dest_5(dest, cache).await?,
-						},
-					}
-				},
-		};
 
-		// Can't use get_ip_with_port here because we don't want to add a port
-		// to an IP address if it wasn't specified
-		let host = if let Ok(addr) = host.parse::<SocketAddr>() {
-			FedDest::Literal(addr)
-		} else if let Ok(addr) = host.parse::<IpAddr>() {
-			FedDest::Named(addr.to_string(), FedDest::default_port())
-		} else if let Some(pos) = host.find(':') {
-			let (host, port) = host.split_at(pos);
-			FedDest::Named(
-				host.to_owned(),
-				port.try_into().unwrap_or_else(|_| FedDest::default_port()),
-			)
-		} else {
-			FedDest::Named(host, FedDest::default_port())
-		};
+		// Clippy believes this can be a clone, however we are actually converting ServerName to String
+		#[allow(clippy::implicit_clone)]
+		let mut host = dest.to_string().to_owned();
+		let actual_dest = self.resolve_server_name(dest, cache, &mut host).await?;
 
-		debug!("Actual destination: {actual_dest:?} hostname: {host:?}");
+		host = ensure_host_has_port(&host).to_string();
+
+		debug!(
+			dest = %dest, // matrix.org
+			actual_dest = %actual_dest, // FedDest::Named(server.matrix.org, 443)
+			host = %host, // matrix.org
+			"Finished resolving server name"
+		);
 		Ok(CachedDest {
 			dest: actual_dest,
-			host: host.uri_string(),
+			host,
 			expire: CachedDest::default_expire(),
 		})
 	}
 
-	fn actual_dest_1(host_port: FedDest) -> Result<FedDest> {
-		debug!("1: IP literal with provided or default port");
-		Ok(host_port)
+	/// Performs the server resolution steps as per the specification:
+	/// <https://matrix.org/docs/spec/server_server/r0.1.4#resolving-server-names>
+	async fn resolve_server_name(
+		&self,
+		dest: &ServerName,
+		cache: bool,
+		host: &mut String,
+	) -> Result<FedDest> {
+		// 1. If `dest` is an IP, use it directly. If a port is provided as well (IP:port socket pair)
+		//    use that, otherwise default to port 8448
+		if let Some(fed_dest) = get_ip_with_port(dest.as_str()) {
+			debug!("1: IP literal with provided or default port");
+			return Ok(fed_dest);
+		}
+
+		// 2. If `dest` is a hostname and has a provided port (format of `host:port`),
+		//    resolve the hostname to an IP address and connect it and the provided port
+		if let Some(colon_position) = dest.as_str().find(':') {
+			self.resolve_2_host_port(dest, cache, colon_position)
+				.await?;
+		}
+
+		// Pre-resolve IP? Unsure what overrides exactly do, system is due to be removed either way
+		// https://matrix.to/#/!da26JtAjE6APGLnX8ncWsvc-skF2KQZ9Nw_MbNpYD2k/%24_hq6JP0JXANbMTMPdV64iZbgbsZdhy92M5ndDYGy6No
+		self.conditional_query_and_cache(dest.as_str(), DEFAULT_PORT, true)
+			.await?;
+
+		// Ensure server is running (not shutting down) before continuing resolution
+		self.services.server.check_running()?;
+
+		// 3. If `dest` is a hostname with no port, send GET to `https://<dest>/.well-known/matrix/server`.
+		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated` as `<hostname>[:<port>]` and...
+		if let Some(delegated) = self.request_well_known(dest.as_str()).await? {
+			// delegated=matrix-federation.matrix.org:443 // host=matrix.org
+			self.resolve_3_well_known(host, cache, delegated).await?;
+		}
+
+		// 4. if .well-known errored, perform SRV (see 3.3)
+		if let Some(overrider) = self.query_srv_record(dest.as_str()).await? {
+			self.resolve_4_srv_lookup(host, cache, overrider).await?;
+		}
+
+		// 5. if .well-known errored and no SRV exists, resolve IP and connect on default port (8448)
+		self.resolve_5_direct(dest, cache).await
 	}
 
-	async fn actual_dest_2(&self, dest: &ServerName, cache: bool, pos: usize) -> Result<FedDest> {
+	/// Parse a host:port socket pair into separate parts, and resolve the hostname into an IP address
+	async fn resolve_2_host_port(
+		&self,
+		dest: &ServerName,
+		cache: bool,
+		pos: usize,
+	) -> Result<FedDest> {
 		debug!("2: Hostname with included port");
 		let (host, port) = dest.as_str().split_at(pos);
-		self.conditional_query_and_cache(host, port.parse::<u16>().unwrap_or(8448), cache)
-			.await?;
+
+		self.conditional_query_and_cache(
+			host,
+			port.parse::<u16>().unwrap_or(DEFAULT_PORT),
+			cache,
+		)
+		.await?;
 
 		Ok(FedDest::Named(
 			host.to_owned(),
@@ -129,7 +164,7 @@ impl super::Service {
 		))
 	}
 
-	async fn actual_dest_3(
+	async fn resolve_3_well_known(
 		&self,
 		host: &mut String,
 		cache: bool,
@@ -137,63 +172,75 @@ impl super::Service {
 	) -> Result<FedDest> {
 		debug!("3: A .well-known file is available");
 		*host = add_port_to_hostname(&delegated).uri_string();
-		match get_ip_with_port(&delegated) {
-			| Some(host_and_port) => Self::actual_dest_3_1(host_and_port),
-			| None =>
-				if let Some(pos) = delegated.find(':') {
-					self.actual_dest_3_2(cache, delegated, pos).await
-				} else {
-					trace!("Delegated hostname has no port in this branch");
-					match self.query_srv_record(&delegated).await? {
-						| Some(overrider) =>
-							self.actual_dest_3_3(cache, delegated, overrider).await,
-						| _ => self.actual_dest_3_4(cache, delegated).await,
-					}
-				},
+
+		// 3.1 - If <delegated> is of IP:port format, connect to that,
+		//       or IP with default port if no port provided (8448)
+		if let Some(host_and_port) = get_ip_with_port(&delegated) {
+			debug!("3.1: IP with port in .well-known file");
+			return Ok(host_and_port);
 		}
+
+		// 3.2 - If <delegated> is not an IP and a port is present, lookup IP for hostname and connect
+		if let Some(pos) = &delegated.find(':') {
+			self.resolve_3_2_hostname_port(cache, &delegated, *pos)
+				.await?;
+		}
+
+		// 3.3 - If <delegated> is not an IP and there is no port, lookup SRV `_matrix._tcp.<delegated>`
+		// (which may provide a new hostname + port to use, see steps 3.1 and 3.2)
+		trace!("Delegated hostname has no port, querying SRV");
+		if let Some(overrider) = self.query_srv_record(&delegated).await? {
+			self.resolve_3_3_use_srv(cache, &delegated, overrider)
+				.await?;
+		}
+
+		self.resolve_3_4_use_default_port(cache, delegated).await
 	}
 
-	fn actual_dest_3_1(host_and_port: FedDest) -> Result<FedDest> {
-		debug!("3.1: IP literal in .well-known file");
-		Ok(host_and_port)
-	}
-
-	async fn actual_dest_3_2(
+	async fn resolve_3_2_hostname_port(
 		&self,
 		cache: bool,
-		delegated: String,
+		delegated: &str,
 		pos: usize,
 	) -> Result<FedDest> {
 		debug!("3.2: Hostname with port in .well-known file");
-		let (host, port) = delegated.split_at(pos);
-		self.conditional_query_and_cache(host, port.parse::<u16>().unwrap_or(8448), cache)
-			.await?;
+		let (host, port) = &delegated.split_at(pos);
+		self.conditional_query_and_cache(
+			host,
+			port.parse::<u16>().unwrap_or(DEFAULT_PORT),
+			cache,
+		)
+		.await?;
 
+		trace!("Successfully resolved IP for {delegated}");
 		Ok(FedDest::Named(
-			host.to_owned(),
-			port.try_into().unwrap_or_else(|_| FedDest::default_port()),
+			host.to_owned().to_owned(),
+			port.to_owned()
+				.try_into()
+				.unwrap_or_else(|_| FedDest::default_port()),
 		))
 	}
 
-	async fn actual_dest_3_3(
+	async fn resolve_3_3_use_srv(
 		&self,
 		cache: bool,
-		delegated: String,
+		delegated: &String,
 		overrider: FedDest,
 	) -> Result<FedDest> {
 		debug!("3.3: SRV lookup successful");
+
 		let force_port = overrider.port();
 		self.conditional_query_and_cache_override(
-			&delegated,
+			delegated,
 			&overrider.hostname(),
-			force_port.unwrap_or(8448),
+			force_port.unwrap_or(DEFAULT_PORT),
 			cache,
 		)
 		.await?;
 
 		if let Some(port) = force_port {
 			return Ok(FedDest::Named(
-				delegated,
+				delegated.to_owned(),
 				format!(":{port}")
 					.as_str()
 					.try_into()
@@ -201,17 +248,21 @@ impl super::Service {
 			));
 		}
 
-		Ok(add_port_to_hostname(&delegated))
+		Ok(add_port_to_hostname(delegated))
 	}
 
-	async fn actual_dest_3_4(&self, cache: bool, delegated: String) -> Result<FedDest> {
-		debug!("3.4: No SRV records, just use the hostname from .well-known");
-		self.conditional_query_and_cache(&delegated, 8448, cache)
+	async fn resolve_3_4_use_default_port(
+		&self,
+		cache: bool,
+		delegated: String,
+	) -> Result<FedDest> {
+		debug!("3.4: No SRV records found, use the hostname from .well-known with default port");
+		self.conditional_query_and_cache(&delegated, DEFAULT_PORT, cache)
 			.await?;
 		Ok(add_port_to_hostname(&delegated))
 	}
 
-	async fn actual_dest_4(
+	async fn resolve_4_srv_lookup(
 		&self,
 		host: &str,
 		cache: bool,
@@ -222,7 +273,7 @@ impl super::Service {
 		self.conditional_query_and_cache_override(
 			host,
 			&overrider.hostname(),
-			force_port.unwrap_or(8448),
+			force_port.unwrap_or(DEFAULT_PORT),
 			cache,
 		)
 		.await?;
@@ -239,9 +290,9 @@ impl super::Service {
 		Ok(add_port_to_hostname(host))
 	}
 
-	async fn actual_dest_5(&self, dest: &ServerName, cache: bool) -> Result<FedDest> {
-		debug!("5: No SRV record found");
-		self.conditional_query_and_cache(dest.as_str(), 8448, cache)
+	async fn resolve_5_direct(&self, dest: &ServerName, cache: bool) -> Result<FedDest> {
+		debug!("5: No port provided and no SRV record found");
+		self.conditional_query_and_cache(dest.as_str(), DEFAULT_PORT, cache)
 			.await?;
 
 		Ok(add_port_to_hostname(dest.as_str()))
@@ -261,9 +312,9 @@ impl super::Service {
 	#[inline]
 	async fn conditional_query_and_cache_override(
 		&self,
-		untername: &str,
-		hostname: &str,
-		port: u16,
+		untername: &str, // matrix.org
+		hostname: &str,  // server.matrix.org
+		port: u16,       // 443
 		cache: bool,
 	) -> Result {
 		if !cache {
@@ -281,9 +332,9 @@ impl super::Service {
 	#[tracing::instrument(name = "ip", level = "debug", skip(self))]
 	async fn query_and_cache_override(
 		&self,
-		untername: &'_ str,
-		hostname: &'_ str,
-		port: u16,
+		untername: &'_ str, // matrix.org
+		hostname: &'_ str,  // server.matrix.org
+		port: u16,          // 443
 	) -> Result {
 		self.services.server.check_running()?;
 
@@ -291,14 +342,17 @@ impl super::Service {
 		match self.resolver.resolver.lookup_ip(hostname.to_owned()).await {
 			| Err(e) => Self::handle_resolve_error(&e, hostname),
 			| Ok(override_ip) => {
-				self.cache.set_override(untername, &CachedOverride {
-					ips: override_ip.iter().take(MAX_IPS).collect(),
-					port,
-					expire: CachedOverride::default_expire(),
-					overriding: (hostname != untername)
-						.then_some(hostname.into())
-						.inspect(|_| debug_info!("{untername:?} overridden by {hostname:?}")),
-				});
+				self.cache.set_override(
+					untername,
+					&CachedOverride {
+						ips: override_ip.iter().take(MAX_IPS).collect(),
+						port,
+						expire: CachedOverride::default_expire(),
+						overriding: (hostname != untername)
+							.then_some(hostname.into())
+							.inspect(|_| debug_info!("{untername:?} overridden by {hostname:?}")),
+					},
+				);
 
 				Ok(())
 			},
@@ -361,6 +415,7 @@ impl super::Service {
 		}
 	}
 
+	/// Ensure `dest` is a valid destination (valid ip if it is an IP), and not ourselves (unless in config)
 	fn validate_dest(&self, dest: &ServerName) -> Result<()> {
 		if dest == self.services.server.name && !self.services.server.config.federation_loopback {
 			return Err!("Won't send federation request to ourselves");
@@ -370,6 +425,7 @@ impl super::Service {
 			self.validate_dest_ip_literal(dest)?;
 		}
 
+		debug!(dest = %dest, "Valid destination for resolution");
 		Ok(())
 	}
 

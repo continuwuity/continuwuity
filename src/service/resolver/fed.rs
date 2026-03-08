@@ -40,6 +40,15 @@ pub(crate) fn add_port_to_hostname(dest: &str) -> FedDest {
 	)
 }
 
+/// Ensure `host` always has a port
+///
+/// `get_ip_with_port` returns `None` if `host` isn't an IP:port string or plain IP,
+/// in which case `add_port_to_hostname` adds it instead
+#[inline]
+pub(crate) fn ensure_host_has_port(host: &str) -> FedDest {
+	get_ip_with_port(host).unwrap_or_else(|| add_port_to_hostname(host))
+}
+
 impl FedDest {
 	pub(crate) fn https_string(&self) -> String {
 		match self {
