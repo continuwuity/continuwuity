@@ -2679,12 +2679,11 @@ fn default_servernameevent_data_cache_capacity() -> u32 {
 	parallelism_scaled_u32(100_000).saturating_add(100_000)
 }
 
-fn default_stateinfo_cache_capacity() -> u32 {
-	parallelism_scaled_u32(500).clamp(100, 12000)
-}
+fn default_stateinfo_cache_capacity() -> u32 { parallelism_scaled_u32(500).clamp(100, 12000) }
 
 fn default_roomid_spacehierarchy_cache_capacity() -> u32 {
-	parallelism_scaled_u32(500).clamp(100, 12000) }
+	parallelism_scaled_u32(500).clamp(100, 12000)
+}
 
 fn default_dns_cache_entries() -> u32 { 327680 }
 
@@ -2897,11 +2896,17 @@ fn default_admin_room_tag() -> String { "m.server_notice".to_owned() }
 #[allow(clippy::as_conversions, clippy::cast_precision_loss)]
 pub fn parallelism_scaled_f64(val: f64) -> f64 { val * (sys::available_parallelism() as f64) }
 
-pub fn parallelism_scaled_u32(val: u32) -> u32 { val.saturating_mul(sys::available_parallelism() as u32) }
+pub fn parallelism_scaled_u32(val: u32) -> u32 {
+	val.saturating_mul(sys::available_parallelism() as u32)
+}
 
-pub fn parallelism_scaled_i32(val: i32) -> i32 { val.saturating_mul(sys::available_parallelism() as i32) }
+pub fn parallelism_scaled_i32(val: i32) -> i32 {
+	val.saturating_mul(sys::available_parallelism() as i32)
+}
 
-pub fn parallelism_scaled(val: usize) -> usize { val.saturating_mul(sys::available_parallelism()) }
+pub fn parallelism_scaled(val: usize) -> usize {
+	val.saturating_mul(sys::available_parallelism())
+}
 
 fn default_trusted_server_batch_size() -> usize { 256 }
 

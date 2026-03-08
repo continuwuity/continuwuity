@@ -8,7 +8,7 @@ use axum::{
 	extract::State,
 	response::{IntoResponse, Response},
 };
-use conduwuit::{Result, debug_warn, err, error, trace, info};
+use conduwuit::{Result, debug_warn, err, error, info, trace};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};

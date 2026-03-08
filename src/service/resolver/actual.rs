@@ -117,8 +117,12 @@ impl super::Service {
 	async fn actual_dest_2(&self, dest: &ServerName, cache: bool, pos: usize) -> Result<FedDest> {
 		debug!("2: Hostname with included port");
 		let (host, port) = dest.as_str().split_at(pos);
-		self.conditional_query_and_cache(host, port.trim_start_matches(':').parse::<u16>().unwrap_or(8448), cache)
-			.await?;
+		self.conditional_query_and_cache(
+			host,
+			port.trim_start_matches(':').parse::<u16>().unwrap_or(8448),
+			cache,
+		)
+		.await?;
 
 		Ok(FedDest::Named(
 			host.to_owned(),
@@ -163,8 +167,12 @@ impl super::Service {
 	) -> Result<FedDest> {
 		debug!("3.2: Hostname with port in .well-known file");
 		let (host, port) = delegated.split_at(pos);
-		self.conditional_query_and_cache(host, port.trim_start_matches(':').parse::<u16>().unwrap_or(8448), cache)
-			.await?;
+		self.conditional_query_and_cache(
+			host,
+			port.trim_start_matches(':').parse::<u16>().unwrap_or(8448),
+			cache,
+		)
+		.await?;
 
 		Ok(FedDest::Named(
 			host.to_owned(),
