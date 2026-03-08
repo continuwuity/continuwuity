@@ -17,6 +17,10 @@
                 "link": "/reference/config"
             },
             {
+                "text": "Environment Variables Reference",
+                "link": "/reference/environment-variables"
+            },
+            {
                 "text": "Admin Command Reference",
                 "link": "/reference/admin/"
             }
