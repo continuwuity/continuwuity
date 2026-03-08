@@ -333,7 +333,17 @@ OK
 
 ### Workaround for non-federating servers
 
-When deploying on servers with federation disabled (`allow_federation = false`), LiveKit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths. You can find a workaround for this limitation [here](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440).
+When deploying on servers with federation disabled (`allow_federation = false`), LiveKit will fail as it can't fetch the required [OpenID endpoint](https://spec.matrix.org/v1.17/server-server-api/#get_matrixfederationv1openiduserinfo) via federation paths.
+
+As a workaround, you can enable federation, but forbid all remote servers via the following config parameters:
+
+```toml
+### in your continuwuity.toml file ###
+allow_federation = true
+forbidden_remote_server_names = [".*"]
+```
+
+Subscribe to issue [!1440](https://forgejo.ellis.link/continuwuation/continuwuity/issues/1440) for future updates on this matter.
 
 ## Related Documentation
 
