@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub enum FedDest {
-	Literal(SocketAddr),
-	Named(String, PortString),
+	Literal(SocketAddr),       // "ip:port"
+	Named(String, PortString), // ("hostname", ":port")
 }
 
 /// numeric or service-name
@@ -18,6 +18,9 @@ pub type PortString = ArrayString<16>;
 
 const DEFAULT_PORT: &str = ":8448";
 
+/// Attempt to parse `dest_str` as either an IP:port socket pair or as a plain
+/// IP (adding the default port), returning `None` if dest_str is neither a
+/// socket pair nor a plain IP.
 pub(crate) fn get_ip_with_port(dest_str: &str) -> Option<FedDest> {
 	if let Ok(dest) = dest_str.parse::<SocketAddr>() {
 		Some(FedDest::Literal(dest))
@@ -28,6 +31,8 @@ pub(crate) fn get_ip_with_port(dest_str: &str) -> Option<FedDest> {
 	}
 }
 
+/// Convert a `dest` string with or without port into a FedDest with either
+/// the provided port (if host:port format) or the default port (8448)
 pub(crate) fn add_port_to_hostname(dest: &str) -> FedDest {
 	let (host, port) = match dest.find(':') {
 		| None => (dest, DEFAULT_PORT),
@@ -42,8 +47,8 @@ pub(crate) fn add_port_to_hostname(dest: &str) -> FedDest {
 
 /// Ensure `host` always has a port
 ///
-/// `get_ip_with_port` returns `None` if `host` isn't an IP:port string or plain IP,
-/// in which case `add_port_to_hostname` adds it instead
+/// `get_ip_with_port` returns `None` if `host` isn't an IP:port string or plain
+/// IP, in which case `add_port_to_hostname` adds it instead
 #[inline]
 pub(crate) fn ensure_host_has_port(host: &str) -> FedDest {
 	get_ip_with_port(host).unwrap_or_else(|| add_port_to_hostname(host))

@@ -1,9 +1,5 @@
 use std::fmt::Debug;
 
-use super::{
-	cache::{CachedDest, CachedOverride, MAX_IPS},
-	fed::{FedDest, PortString, add_port_to_hostname, ensure_host_has_port, get_ip_with_port},
-};
 use conduwuit::{Err, Result, debug, debug_info, err, error, trace};
 use futures::{FutureExt, TryFutureExt};
 use hickory_resolver::{
@@ -15,8 +11,10 @@ use ruma::ServerName;
 
 use super::{
 	cache::{CachedDest, CachedOverride, MAX_IPS},
-	fed::{FedDest, PortString, add_port_to_hostname, get_ip_with_port},
+	fed::{FedDest, PortString, add_port_to_hostname, ensure_host_has_port, get_ip_with_port},
 };
+
+const DEFAULT_PORT: u16 = 8448;
 
 #[derive(Clone, Debug)]
 pub(crate) struct ActualDest {
@@ -26,9 +24,7 @@ pub(crate) struct ActualDest {
 
 impl ActualDest {
 	#[inline]
-	pub(crate) fn string(&self) -> String {
-		self.dest.https_string()
-	}
+	pub(crate) fn string(&self) -> String { self.dest.https_string() }
 }
 
 impl super::Service {
@@ -75,7 +71,8 @@ impl super::Service {
 		// Ensure dest is a valid connection endpoint
 		self.validate_dest(dest)?;
 
-		// Clippy believes this can be a clone, however we are actually converting ServerName to String
+		// Clippy believes this can be a clone, however we are actually converting
+		// ServerName to String
 		#[allow(clippy::implicit_clone)]
 		let mut host = dest.to_string().to_owned();
 		let actual_dest = self.resolve_server_name(dest, cache, &mut host).await?;
@@ -103,8 +100,8 @@ impl super::Service {
 		cache: bool,
 		host: &mut String,
 	) -> Result<FedDest> {
-		// 1. If `dest` is an IP, use it directly. If a port is provided as well (IP:port socket pair)
-		//    use that, otherwise default to port 8448
+		// 1. If `dest` is an IP, use it directly. If a port is provided as well
+		//    (IP:port socket pair) use that, otherwise default to port 8448
 		if let Some(fed_dest) = get_ip_with_port(dest.as_str()) {
 			debug!("1: IP literal with provided or default port");
 			return Ok(fed_dest);
@@ -117,8 +114,8 @@ impl super::Service {
 				.await?;
 		}
 
-		// Pre-resolve IP? Unsure what overrides exactly do, system is due to be removed either way
-		// https://matrix.to/#/!da26JtAjE6APGLnX8ncWsvc-skF2KQZ9Nw_MbNpYD2k/%24_hq6JP0JXANbMTMPdV64iZbgbsZdhy92M5ndDYGy6No
+		// Pre-resolve IP? Unsure what overrides exactly do, system is due to be removed
+		// either way https://matrix.to/#/!da26JtAjE6APGLnX8ncWsvc-skF2KQZ9Nw_MbNpYD2k/%24_hq6JP0JXANbMTMPdV64iZbgbsZdhy92M5ndDYGy6No
 		self.conditional_query_and_cache(dest.as_str(), DEFAULT_PORT, true)
 			.await?;
 
@@ -126,7 +123,8 @@ impl super::Service {
 		self.services.server.check_running()?;
 
 		// 3. If `dest` is a hostname with no port, send GET to `https://<dest>/.well-known/matrix/server`.
-		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated` as `<hostname>[:<port>]` and...
+		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated`
+		// as `<hostname>[:<port>]` and...
 		if let Some(delegated) = self.request_well_known(dest.as_str()).await? {
 			// delegated=matrix-federation.matrix.org:443 // host=matrix.org
 			self.resolve_3_well_known(host, cache, delegated).await?;
@@ -137,11 +135,13 @@ impl super::Service {
 			self.resolve_4_srv_lookup(host, cache, overrider).await?;
 		}
 
-		// 5. if .well-known errored and no SRV exists, resolve IP and connect on default port (8448)
+		// 5. if .well-known errored and no SRV exists, resolve IP and connect on
+		//    default port (8448)
 		self.resolve_5_direct(dest, cache).await
 	}
 
-	/// Parse a host:port socket pair into separate parts, and resolve the hostname into an IP address
+	/// Parse a host:port socket pair into separate parts, and resolve the
+	/// hostname into an IP address
 	async fn resolve_2_host_port(
 		&self,
 		dest: &ServerName,
@@ -180,14 +180,16 @@ impl super::Service {
 			return Ok(host_and_port);
 		}
 
-		// 3.2 - If <delegated> is not an IP and a port is present, lookup IP for hostname and connect
+		// 3.2 - If <delegated> is not an IP and a port is present, lookup IP for
+		// hostname and connect
 		if let Some(pos) = &delegated.find(':') {
 			self.resolve_3_2_hostname_port(cache, &delegated, *pos)
 				.await?;
 		}
 
-		// 3.3 - If <delegated> is not an IP and there is no port, lookup SRV `_matrix._tcp.<delegated>`
-		// (which may provide a new hostname + port to use, see steps 3.1 and 3.2)
+		// 3.3 - If <delegated> is not an IP and there is no port, lookup SRV
+		// `_matrix._tcp.<delegated>` (which may provide a new hostname + port to use,
+		// see steps 3.1 and 3.2)
 		trace!("Delegated hostname has no port, querying SRV");
 		if let Some(overrider) = self.query_srv_record(&delegated).await? {
 			self.resolve_3_3_use_srv(cache, &delegated, overrider)
@@ -342,17 +344,14 @@ impl super::Service {
 		match self.resolver.resolver.lookup_ip(hostname.to_owned()).await {
 			| Err(e) => Self::handle_resolve_error(&e, hostname),
 			| Ok(override_ip) => {
-				self.cache.set_override(
-					untername,
-					&CachedOverride {
-						ips: override_ip.iter().take(MAX_IPS).collect(),
-						port,
-						expire: CachedOverride::default_expire(),
-						overriding: (hostname != untername)
-							.then_some(hostname.into())
-							.inspect(|_| debug_info!("{untername:?} overridden by {hostname:?}")),
-					},
-				);
+				self.cache.set_override(untername, &CachedOverride {
+					ips: override_ip.into_iter().take(MAX_IPS).collect(),
+					port,
+					expire: CachedOverride::default_expire(),
+					overriding: (hostname != untername)
+						.then_some(hostname.into())
+						.inspect(|_| debug_info!("{untername:?} overridden by {hostname:?}")),
+				});
 
 				Ok(())
 			},
@@ -415,7 +414,8 @@ impl super::Service {
 		}
 	}
 
-	/// Ensure `dest` is a valid destination (valid ip if it is an IP), and not ourselves (unless in config)
+	/// Ensure `dest` is a valid destination (valid ip if it is an IP), and not
+	/// ourselves (unless in config)
 	fn validate_dest(&self, dest: &ServerName) -> Result<()> {
 		if dest == self.services.server.name && !self.services.server.config.federation_loopback {
 			return Err!("Won't send federation request to ourselves");
