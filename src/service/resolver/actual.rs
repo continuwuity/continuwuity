@@ -172,18 +172,18 @@ impl super::Service {
 		debug!("3: A .well-known file is available");
 		*host = add_port_to_hostname(&delegated).uri_string();
 
-		// 3.1 - If <delegated> is of IP:port format, connect to that,
+		// 3.1 - If <delegated> is IP:port, connect to that,
 		//       or IP with default port if no port provided (8448)
 		if let Some(host_and_port) = get_ip_with_port(&delegated) {
 			debug!("3.1: IP with port in .well-known file");
 			return Ok(host_and_port);
 		}
 
-		// 3.2 - If <delegated> is not an IP and a port is present, lookup IP for
-		// hostname and connect
+		// 3.2 - If <delegated> is hostname:port, lookup IP for hostname and connect
 		if let Some(pos) = &delegated.find(':') {
-			self.resolve_3_2_hostname_port(cache, &delegated, *pos)
-				.await?;
+			return self
+				.resolve_3_2_hostname_port(cache, &delegated, *pos)
+				.await;
 		}
 
 		// 3.3 - If <delegated> is not an IP and there is no port, lookup SRV
@@ -191,8 +191,7 @@ impl super::Service {
 		// see steps 3.1 and 3.2)
 		trace!("Delegated hostname has no port, querying SRV");
 		if let Some(overrider) = self.query_srv_record(&delegated).await? {
-			self.resolve_3_3_use_srv(cache, &delegated, overrider)
-				.await?;
+			return self.resolve_3_3_use_srv(cache, &delegated, overrider).await;
 		}
 
 		self.resolve_3_4_use_default_port(cache, delegated).await
