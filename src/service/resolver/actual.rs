@@ -80,9 +80,9 @@ impl super::Service {
 		host = ensure_host_has_port(&host).to_string();
 
 		debug!(
-			dest = %dest, // matrix.org
-			actual_dest = %actual_dest, // FedDest::Named(server.matrix.org, 443)
-			host = %host, // matrix.org
+			dest = %dest,
+			actual_dest = %actual_dest,
+			host = %host,
 			"Finished resolving server name"
 		);
 		Ok(CachedDest {
@@ -126,7 +126,6 @@ impl super::Service {
 		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated`
 		// as `<hostname>[:<port>]` and...
 		if let Some(delegated) = self.request_well_known(dest.as_str()).await? {
-			// delegated=matrix-federation.matrix.org:443 // host=matrix.org
 			self.resolve_3_well_known(host, cache, delegated).await?;
 		}
 
@@ -314,9 +313,9 @@ impl super::Service {
 	#[inline]
 	async fn conditional_query_and_cache_override(
 		&self,
-		untername: &str, // matrix.org
-		hostname: &str,  // server.matrix.org
-		port: u16,       // 443
+		untername: &str,
+		hostname: &str,
+		port: u16,
 		cache: bool,
 	) -> Result {
 		if !cache {
@@ -334,9 +333,9 @@ impl super::Service {
 	#[tracing::instrument(name = "ip", level = "debug", skip(self))]
 	async fn query_and_cache_override(
 		&self,
-		untername: &'_ str, // matrix.org
-		hostname: &'_ str,  // server.matrix.org
-		port: u16,          // 443
+		untername: &'_ str,
+		hostname: &'_ str,
+		port: u16,
 	) -> Result {
 		self.services.server.check_running()?;
 
