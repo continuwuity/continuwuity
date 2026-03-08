@@ -58,14 +58,15 @@ pub(crate) async fn joined_rooms_route(
 	})
 }
 
-const BROKEN_ROOM_IDS: [&str; 9] = [
+const BROKEN_ROOM_IDS: [&str; 10] = [
 	"!iMZEhwCvbfeAYUxAjZ:t2l.io", // Matrix community space - insanely broken state
 	"!OGEhHVWSdvArJzumhm:matrix.org", // Old Matrix HQ - huge room, very broken
 	"!IemiTbwVankHTFiEoh:matrix.org", // Old Element Web - huge room, very broken
 	"!brXHJeAtqliwNGqHQx:lossy.network", // NixOS space - frequent bug reports, huge state
 	"!04iUOXvKl6GxOztTbP230xhKR-hu4kPzrzfjiv9dc_8", // GrapheneOS space - frequent bug reports
 	"!MBrxZRUoApYYjmyion:t2bot.io", // Old t2bot room - insane auth chain depths
-	"izahlpcyIDeymNjiOd:matrix.debian.social", // #debian-next:matrix.debian.social
+	"!izahlpcyIDeymNjiOd:matrix.debian.social", // #debian-next:matrix.debian.social
+	"!vMLhvOKUhgmYGpkwjX:matrix.debian.social", // debian main room
 	"!mefQhZzgTaxNCNzAeK:kde.org", // KDE user help
 	"!OTxETzuhBDbnPqBqbP:kde.org", // KDE space
 ];
