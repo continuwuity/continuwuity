@@ -220,7 +220,6 @@ impl Service {
 			}
 		}
 
-		debug!("Sending request to push gateway {dest}: {request:?}");
 		let response = self
 			.services
 			.client
@@ -499,18 +498,25 @@ impl Service {
 				}
 				debug_info!(
 					%url,
-					?device,
 					?notify,
 					?event,
-					"Sending notification to push gateway for {event_id} in {room_id}",
+					"Sending notification to push gateway for {} in {}",
+					event.event_id(),
+					event.room_id_or_hash(),
 				);
 				self.send_request(&http.url, send_event_notification::v1::Request::new(notify))
 					.await
 					.inspect(|_| {
-						debug_info!("Successfully sent push notification for {event_id}")
+						debug_info!(
+							"Successfully sent push notification for {}",
+							event.event_id()
+						)
 					})
 					.inspect_err(|e| {
-						debug_warn!("Failed to send push notification for {event_id}: {e}")
+						debug_warn!(
+							"Failed to send push notification for {}: {e}",
+							event.event_id()
+						)
 					})?;
 
 				Ok(())
