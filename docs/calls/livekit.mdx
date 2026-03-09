@@ -31,6 +31,7 @@ API Secret:  t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
 ```
 :::
 
+Create a `docker-compose.yml` file as following:
 
 ```yaml
 services:
@@ -39,10 +40,11 @@ services:
     container_name: lk-jwt-service
     environment:
       - LIVEKIT_JWT_BIND=:8081
-      - LIVEKIT_URL=wss://livekit.example.com
-      - LIVEKIT_KEY=LK_MATRIX_KEY
-      - LIVEKIT_SECRET=LK_MATRIX_SECRET
-      - LIVEKIT_FULL_ACCESS_HOMESERVERS=example.com
+      - LIVEKIT_URL=wss://livekit.example.com # your LiveKit domain
+      - LIVEKIT_FULL_ACCESS_HOMESERVERS=example.com # your server_name
+      # Replace these with the generated values as above
+      - LIVEKIT_KEY=LK_MATRIX_KEY # APIUxUnMnSkuFWV
+      - LIVEKIT_SECRET=LK_MATRIX_SECRET # t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
     restart: unless-stopped
     ports:
       - "8081:8081"
