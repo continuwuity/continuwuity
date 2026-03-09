@@ -53,7 +53,6 @@ pre-commit run --all-files
 These same checks are run in CI via the prek-checks workflow to ensure consistency. These must pass before the PR is merged.
 
 [pre-commit]: https://pre-commit.com/
-[prefligit]: https://github.com/j178/prefligit
 
 ### Running tests locally
 
