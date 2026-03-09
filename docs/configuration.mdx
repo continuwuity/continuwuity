@@ -6,7 +6,7 @@ This chapter describes various ways to configure Continuwuity.
 
 Continuwuity uses a config file for the majority of the settings. This is the recommended way to configure Continuwuity. Please refer to the [example config file](./reference/config.mdx) for all of those settings.
 
-The config file to use can be specified on the commandline when running Continuwuity by specifying the `-c`/ `--config` flag.
+The config file to use can be specified on the commandline when running Continuwuity by specifying the `-c`/ `--config` flag:
 
 ```bash
 ~$ ./conduwuit -c /path/to/continuwuity.toml
@@ -16,7 +16,7 @@ Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to spe
 
 ## Environment variables
 
-All of the settings that are found in the config file can also be specified by using environment variables. This makes it ideal for containerised deployments and infrastructure-as-code scenarios.
+All of the config file settings can also be specified by using environment variables. This makes it ideal for containerised deployments and infrastructure-as-code scenarios.
 
 The environment variable names should be all caps and prefixed with `CONTINUWUITY_`. They are mapped to the configuration file with the syntaxes as demonstrated below:
 
@@ -48,36 +48,50 @@ For backwards compatibility, Continuwuity also supports the following environmen
 - `CONDUWUIT_*` (compatibility)
 - `CONDUIT_*` (legacy)
 
-So, for example, the config file environment variable `CONTINUWUITY_CONFIG` can also be expressed as `CONDUWUIT_CONFIG`, or `CONDUIT_CONFIG`.
+So, for example, the environment variable `CONTINUWUITY_CONFIG` can also be expressed as `CONDUWUIT_CONFIG` or `CONDUIT_CONFIG`.
 
-## Option commandline flag
+## Option command-line flag
 
-Continuwuity supports setting individual config options in TOML format from the
-`-O` / `--option` flag. For example, you can set your server name via `-O
-server_name=\"example.com\"`.
+Continuwuity also supports setting individual config options in TOML format from the `-O` / `--option` flag. For example, you can set your server name via `-O server_name=\"example.com\"`.
 
-Note that the config is parsed as TOML, and shells like bash will remove quotes.
-So unfortunately it is required to escape quotes if the config option takes a
-string. This does not apply to options that take booleans or numbers:
+Note that the config is parsed as TOML, and shells like `bash` will remove quotes. Therefore, if the config option is a string, quote escapes must be properly handled. If the config option is a number or a boolean, this does not apply.
+
 - `--option allow_registration=true` works ✅
 - `-O max_request_size=99999999` works ✅
 - `-O server_name=example.com` does not work ❌
 - `--option log=\"debug\"` works ✅
 - `--option server_name='"example.com'"` works ✅
 
-## Execute commandline flag
+## Order of priority
 
-Continuwuity supports running admin commands on startup using the commandline
-argument `--execute`. The most notable use for this is to create an admin user
-on first startup.
+The above configuration methods are prioritized, in descending order, as below:
 
-The syntax of this is a standard admin command without the prefix such as
-`./conduwuit --execute "users create_user june"`
+- Command-line `-o`/`--option` flags
+- Environment variables
+    - `CONTINUWUITY_*` variables
+    - `CONDUWUIT_*` variables
+    - `CONDUIT_*` variables
+- Config file
+
+Therefore, you can use environment variables or the options flags to override values in the config file.
+
+---
+
+## Execute startup commands
+
+Continuwuity supports running admin commands on startup using the commandline argument `--execute`. The syntax of this is a standard admin command without the `!admin` prefix. For example, to create a new user:
+
+```
+./conduwuit --execute "users create_user june"
+```
 
 An example output of a success is:
+
 ```
 INFO conduwuit_service::admin::startup: Startup command #0 completed:
 Created user with user_id: @june:girlboss.ceo and password: `<redacted>`
 ```
 
 This commandline argument can be paired with the `--option` flag.
+
+Alternatively, you can configure `CONTINUWUITY_ADMIN_EXECUTE` or the config file value `admin_execute` with a list of commands.
