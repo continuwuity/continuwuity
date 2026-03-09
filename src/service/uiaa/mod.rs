@@ -181,20 +181,11 @@ pub async fn try_auth(
 			uiaainfo.completed.push(AuthType::Password);
 		},
 		| AuthData::ReCaptcha(r) => {
-			if self.services.config.recaptcha_private_site_key.is_none() {
+			let Some(ref private_site_key) = self.services.config.recaptcha_private_site_key
+			else {
 				return Err!(Request(Forbidden("ReCaptcha is not configured.")));
-			}
-			match recaptcha_verify::verify(
-				self.services
-					.config
-					.recaptcha_private_site_key
-					.as_ref()
-					.unwrap(),
-				r.response.as_str(),
-				None,
-			)
-			.await
-			{
+			};
+			match recaptcha_verify::verify_v3(private_site_key, r.response.as_str(), None).await {
 				| Ok(()) => {
 					uiaainfo.completed.push(AuthType::ReCaptcha);
 				},

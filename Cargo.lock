@@ -4156,9 +4156,9 @@ dependencies = [
 
 [[package]]
 name = "recaptcha-verify"
-version = "0.1.6"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d694033c2b0abdbb8893edfb367f16270e790be4a67e618206d811dbe4efee4"
+checksum = "409bf11a93fe93093f3c0254aab67576524f1e0524692615b5b63091dbc88a79"
 dependencies = [
  "reqwest",
  "serde",
