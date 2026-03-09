@@ -75,7 +75,7 @@ runs:
 
     - name: Set up QEMU
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
-      uses: docker/setup-qemu-action@v3
+      uses: docker/setup-qemu-action@v4
 
     - name: Login to builtin registry
       if: ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' }}
