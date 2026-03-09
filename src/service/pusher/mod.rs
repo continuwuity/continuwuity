@@ -1,7 +1,7 @@
 use std::{fmt::Debug, mem, sync::Arc};
 
 use bytes::BytesMut;
-use conduwuit::utils::response::LimitReadExt;
+use conduwuit::{debug, debug_info, utils::response::LimitReadExt};
 use conduwuit_core::{
 	Err, Event, Result, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
@@ -220,7 +220,14 @@ impl Service {
 			}
 		}
 
-		let response = self.services.client.pusher.execute(reqwest_request).await;
+		debug!("Sending request to push gateway {dest}: {request:?}");
+		let response = self
+			.services
+			.client
+			.pusher
+			.execute(reqwest_request)
+			.await
+			.inspect(|r| debug!("Received response from push gateway {dest}: {r:?}"));
 
 		match response {
 			| Ok(mut response) => {
@@ -490,9 +497,21 @@ impl Service {
 						.await
 						.ok();
 				}
-
+				debug_info!(
+					%url,
+					?device,
+					?notify,
+					?event,
+					"Sending notification to push gateway for {event_id} in {room_id}",
+				);
 				self.send_request(&http.url, send_event_notification::v1::Request::new(notify))
-					.await?;
+					.await
+					.inspect(|_| {
+						debug_info!("Successfully sent push notification for {event_id}")
+					})
+					.inspect_err(|e| {
+						debug_warn!("Failed to send push notification for {event_id}: {e}")
+					})?;
 
 				Ok(())
 			},

@@ -1,4 +1,5 @@
 use std::{
+	env::args,
 	iter::once,
 	sync::{
 		Arc, OnceLock,
@@ -18,7 +19,7 @@ use tokio::runtime::Builder;
 
 use crate::{clap::Args, server::Server};
 
-const WORKER_NAME: &str = "conduwuit:worker";
+const WORKER_NAME: &str = "c10y:worker";
 const WORKER_MIN: usize = 2;
 const WORKER_KEEPALIVE: u64 = 36;
 const MAX_BLOCKING_THREADS: usize = 1024;
