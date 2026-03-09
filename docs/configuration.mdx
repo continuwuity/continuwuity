@@ -18,7 +18,7 @@ Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to spe
 
 All of the config file settings can also be specified by using environment variables. This makes it ideal for containerised deployments and infrastructure-as-code scenarios.
 
-The environment variable names should be all caps and prefixed with `CONTINUWUITY_`. They are mapped to the configuration file with the syntaxes as demonstrated below:
+The environment variable names is represented in all caps and prefixed with `CONTINUWUITY_`. They are mapped to the configuration file with the syntaxes as demonstrated below:
 
 ```bash
 # Top-level configs (those inside the [global] section) are simply capitalized
@@ -38,8 +38,6 @@ CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL="https://draupnir.example.com"
 # This maps to the [global.well_known] section
 CONTINUWUITY_WELL_KNOWN={ client=https://example.com,server=example.com:443 }
 ```
-
-Please refer to the [Env Var Reference page](./reference/environment-variables.mdx) for a more detailed list of environment variables.
 
 ### Alternative prefixes
 
