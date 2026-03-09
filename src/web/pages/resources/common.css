@@ -135,7 +135,7 @@ input, button {
 
     font-size: inherit;
     font-family: inherit;
-    color: var(--text-color);
+    color: white;
     background-color: transparent;
 
     border: none;
