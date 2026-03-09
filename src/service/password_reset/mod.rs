@@ -2,7 +2,7 @@ mod data;
 
 use std::{sync::Arc, time::SystemTime};
 
-use conduwuit::{Err, Result, info, utils};
+use conduwuit::{Err, Result, utils};
 use data::{Data, ResetTokenInfo};
 use ruma::OwnedUserId;
 
@@ -85,7 +85,6 @@ impl Service {
 
 		self.db.save_token(&token, &info);
 
-		info!(?info.user, "Issued a password reset token");
 		Ok(ValidResetToken { token, info })
 	}
 

@@ -12,7 +12,7 @@
     font-weight: 700;
     line-height: calc(var(--avatar-size) - 2px);
 
-    color: oklch(from var(--c1) var(--name-lightness) c h);
+    color: oklch(from var(--c1) calc(l + 0.2) c h);
     background-color: var(--c1);
 }
 
