@@ -43,7 +43,7 @@ jobs:
     name: Renovate
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/renovatebot/renovate:43.59.3@sha256:c1706ec9c9fc334b0a2c048e0336d1c3f7f109184df55e2453e48348326438a8
+      image: ghcr.io/renovatebot/renovate:43.59.4@sha256:f951508dea1e7d71cbe6deca298ab0a05488e7631229304813f630cc06010892
       options: --tmpfs /tmp:exec
     steps:
       - name: Checkout

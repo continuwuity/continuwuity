@@ -152,7 +152,7 @@ runs:
 
     - name: inject cache into docker
       if: ${{ env.BUILDKIT_ENDPOINT == '' }}
-      uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.3.0
+      uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.3.2
       with:
         cache-map: |
           {
