@@ -56,7 +56,7 @@ impl super::Service {
 			.await
 	}
 
-	/// Returns: `actual_destination` + `host` variable used for logging
+	/// Returns: `actual_destination` + `Host` http header
 	#[tracing::instrument(name = "actual", level = "debug", skip(self, cache))]
 	pub async fn resolve_actual_dest(
 		&self,
@@ -74,20 +74,22 @@ impl super::Service {
 		// Clippy believes this can be a clone, however we are actually converting
 		// ServerName to String
 		#[allow(clippy::implicit_clone)]
-		let mut host = dest.to_string().to_owned();
-		let actual_dest = self.resolve_server_name(dest, cache, &mut host).await?;
+		let mut host_header = dest.to_string().to_owned();
+		let actual_dest = self
+			.resolve_server_name(dest, cache, &mut host_header)
+			.await?;
 
-		host = ensure_host_has_port(&host).to_string();
+		host_header = ensure_host_has_port(&host_header).to_string();
 
 		debug!(
 			dest = %dest,
 			actual_dest = %actual_dest,
-			host = %host,
+			host = %host_header,
 			"Finished resolving server name"
 		);
 		Ok(CachedDest {
 			dest: actual_dest,
-			host,
+			host: host_header,
 			expire: CachedDest::default_expire(),
 		})
 	}
@@ -122,8 +124,8 @@ impl super::Service {
 		self.services.server.check_running()?;
 
 		// 3. If `dest` is a hostname with no port, send GET to `https://<dest>/.well-known/matrix/server`.
-		// If invalid JSON (throws error), skip to step 4. Otherwise, parse `delegated`
-		// as `<hostname>[:<port>]` and...
+		//    If invalid JSON (throws error), skip to step 4. Otherwise, parse
+		//    `delegated` as `<hostname>[:<port>]` and...
 		if let Some(delegated) = self.request_well_known(dest.as_str()).await? {
 			return self.resolve_3_well_known(host, cache, delegated).await;
 		}
@@ -174,10 +176,8 @@ impl super::Service {
 		}
 
 		// 3.2 - If <delegated> is hostname:port, lookup IP for hostname and connect
-		if let Some(pos) = &delegated.find(':') {
-			return self
-				.resolve_3_2_hostname_port(cache, &delegated, *pos)
-				.await;
+		if delegated.contains(':') {
+			return self.resolve_3_2_hostname_port(cache, &delegated).await;
 		}
 
 		// 3.3 - If <delegated> is not an IP and there is no port, lookup SRV
@@ -191,14 +191,9 @@ impl super::Service {
 		self.resolve_3_4_use_default_port(cache, delegated).await
 	}
 
-	async fn resolve_3_2_hostname_port(
-		&self,
-		cache: bool,
-		delegated: &str,
-		pos: usize,
-	) -> Result<FedDest> {
+	async fn resolve_3_2_hostname_port(&self, cache: bool, delegated: &str) -> Result<FedDest> {
 		debug!("3.2: Hostname with port in .well-known file");
-		let (host, port) = &delegated.split_at(pos);
+		let (host, port) = &delegated.split_once(':').unwrap();
 		self.conditional_query_and_cache(
 			host,
 			port.parse::<u16>().unwrap_or(DEFAULT_PORT),
