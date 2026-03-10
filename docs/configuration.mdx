@@ -4,9 +4,9 @@ This chapter describes various ways to configure Continuwuity.
 
 ## Configuration file
 
-Continuwuity uses a config file for the majority of the settings. This is the recommended way to configure Continuwuity. Please refer to the [example config file](./reference/config.mdx) for all of those settings.
+Continuwuity uses a TOML config file for all of its settings. This is the recommended way to configure Continuwuity. Please refer to the [example config file](./reference/config.mdx) for all of these settings.
 
-The config file to use can be specified on the commandline when running Continuwuity by specifying the `-c`/ `--config` flag:
+You can specify the config file to be used by Continuwuity with the command-line flag `-c` or `--config`:
 
 ```bash
 ~$ ./conduwuit -c /path/to/continuwuity.toml
@@ -16,12 +16,12 @@ Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to spe
 
 ## Environment variables
 
-All of the config file settings can also be specified by using environment variables. This makes it ideal for containerised deployments and infrastructure-as-code scenarios.
+All of the options in the config file can also be specified by using environment variables. This is ideal for containerised deployments and infrastructure-as-code scenarios.
 
-The environment variable names is represented in all caps and prefixed with `CONTINUWUITY_`. They are mapped to the configuration file with the syntaxes as demonstrated below:
+The environment variable names is represented in all caps and prefixed with `CONTINUWUITY_`. They are mapped to config options in the ways demonstrated below:
 
 ```bash
-# Top-level configs (those inside the [global] section) are simply capitalized
+# Top-level options (those inside the [global] section) are simply capitalized
 CONTINUWUITY_SERVER_NAME="matrix.example.com"
 CONTINUWUITY_PORT="8008"
 CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity"
@@ -34,9 +34,9 @@ CONTINUWUITY_WELL_KNOWN__SERVER="example.com:443"
 # This maps to the `base_url` field of the `[global.antispam.draupnir]` section in TOML
 CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL="https://draupnir.example.com"
 
-# Alternatively, you can pass a JSON object to define the entire section
+# Alternatively, you can pass a quoted JSON object to define an entire section
 # This maps to the [global.well_known] section
-CONTINUWUITY_WELL_KNOWN={ client=https://example.com,server=example.com:443 }
+CONTINUWUITY_WELL_KNOWN="{ client=https://example.com,server=example.com:443 }"
 ```
 
 ### Alternative prefixes
@@ -46,7 +46,7 @@ For backwards compatibility, Continuwuity also supports the following environmen
 - `CONDUWUIT_*` (compatibility)
 - `CONDUIT_*` (legacy)
 
-So, for example, the environment variable `CONTINUWUITY_CONFIG` can also be expressed as `CONDUWUIT_CONFIG` or `CONDUIT_CONFIG`.
+As an example, the environment variable `CONTINUWUITY_CONFIG` can also be expressed as `CONDUWUIT_CONFIG` or `CONDUIT_CONFIG`.
 
 ## Option command-line flag
 
@@ -75,21 +75,17 @@ Therefore, you can use environment variables or the options flags to override va
 
 ---
 
-## Execute startup commands
+## Executing startup commands
 
-Continuwuity supports running admin commands on startup using the commandline argument `--execute`. The syntax of this is a standard admin command without the `!admin` prefix. For example, to create a new user:
+Continuwuity supports running admin commands on startup using the command-line flag `--execute`. This is treated as a standard admin command, without the need for the `!admin` prefix. For example, to create a new user:
 
-```
-./conduwuit --execute "users create_user june"
-```
-
-An example output of a success is:
-
-```
+```bash
+# Equivalent to `!admin users create_user june`
+~$ ./conduwuit --execute "users create_user june"
 INFO conduwuit_service::admin::startup: Startup command #0 completed:
 Created user with user_id: @june:girlboss.ceo and password: `<redacted>`
 ```
 
-This commandline argument can be paired with the `--option` flag.
-
 Alternatively, you can configure `CONTINUWUITY_ADMIN_EXECUTE` or the config file value `admin_execute` with a list of commands.
+
+This command-line argument can be paired with the `--option` flag.
