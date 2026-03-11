@@ -2093,6 +2093,13 @@ pub struct Config {
 	#[serde(default)]
 	pub force_disable_first_run_mode: bool,
 
+	/// Allow or disallow search engine crawling by adding
+	/// `<meta name="robots" content="noindex" />` to the index page.
+	///
+	/// default: false
+	#[serde(default)]
+	pub index_page_allow_indexing: bool,
+
 	/// display: nested
 	#[serde(default)]
 	pub ldap: LdapConfig,
