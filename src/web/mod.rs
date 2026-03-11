@@ -40,6 +40,7 @@ impl IntoResponse for WebError {
 		struct Error {
 			error: WebError,
 			status: StatusCode,
+			allow_indexing: bool,
 		}
 		let status = match &self {
 			| Self::ValidationError(_)
@@ -50,7 +51,13 @@ impl IntoResponse for WebError {
 			| _ => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
-		let template = Error { error: self, status };
+		let template = Error {
+			error: self,
+			status,
+			// Statically set false to prevent error pages from being indexed and to prevent
+			// further errors if services.config is having issues.
+			allow_indexing: false,
+		};
 
 		if let Ok(body) = template.render() {
 			(status, Html(body)).into_response()

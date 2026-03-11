@@ -5,6 +5,9 @@
     <meta charset="UTF-8" />
     <title>{% block title %}Continuwuity{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    {%- if allow_indexing %}
+    <meta name="robots" content="noindex" />
+    {%- endif %}
 
     <link rel="icon" href="/_continuwuity/resources/logo.svg">
     <link rel="stylesheet" href="/_continuwuity/resources/common.css">

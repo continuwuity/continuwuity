@@ -27,6 +27,7 @@ struct PasswordResetQuery {
 struct PasswordReset<'a> {
 	user_card: UserCard<'a>,
 	body: PasswordResetBody,
+	allow_indexing: bool,
 }
 
 #[derive(Debug)]
@@ -74,6 +75,7 @@ async fn password_reset_form(
 	let template = PasswordReset {
 		user_card,
 		body: PasswordResetBody::Form(reset_form),
+		allow_indexing: services.config.index_page_allow_indexing,
 	};
 
 	Ok(Html(template.render()?))
@@ -112,6 +114,7 @@ async fn post_password_reset(
 			let template = PasswordReset {
 				user_card,
 				body: PasswordResetBody::Success,
+				allow_indexing: services.config.index_page_allow_indexing,
 			};
 
 			Ok(Html(template.render()?).into_response())
