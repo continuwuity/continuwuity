@@ -9,7 +9,7 @@ Continuwuity uses a TOML config file for all of its settings. This is the recomm
 You can specify the config file to be used by Continuwuity with the command-line flag `-c` or `--config`:
 
 ```bash
-~$ ./conduwuit -c /path/to/continuwuity.toml
+./conduwuit -c /path/to/continuwuity.toml
 ```
 
 Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to specify the config file to be used; see [the section on environment variables](#environment-variables) for more information.
@@ -81,7 +81,7 @@ Continuwuity supports running admin commands on startup using the command-line f
 
 ```bash
 # Equivalent to `!admin users create_user june`
-~$ ./conduwuit --execute "users create_user june"
+./conduwuit --execute "users create_user june"
 INFO conduwuit_service::admin::startup: Startup command #0 completed:
 Created user with user_id: @june:girlboss.ceo and password: `<redacted>`
 ```
