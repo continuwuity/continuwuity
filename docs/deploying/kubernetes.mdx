@@ -39,6 +39,7 @@ spec:
         - name: continuwuity
           # use a sha hash <3
           image: forgejo.ellis.link/continuwuation/continuwuity:latest
+          command: ["/sbin/conduwuit"]
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
