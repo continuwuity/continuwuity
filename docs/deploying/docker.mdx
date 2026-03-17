@@ -33,11 +33,11 @@ Images are also mirrored to these locations automatically, on a schedule:
 [gitlab-registry]: https://gitlab.com/continuwuity/continuwuity/container_registry/8871720
 [nexy-forge]: https://git.nexy7574.co.uk/mirrored/-/packages/container/continuwuity/versions
 
-### Quick Run
+## Docker - Quick Run
 
 Get a working Continuwuity server with an admin user in four steps:
 
-#### Prerequisites
+### Prerequisites
 
 Continuwuity requires HTTPS for Matrix federation. You'll need:
 
@@ -46,7 +46,7 @@ Continuwuity requires HTTPS for Matrix federation. You'll need:
 
 See [Docker Compose](#docker-compose) for complete examples.
 
-#### Environment Variables
+### Environment Variables
 
 - `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name
 - `CONTINUWUITY_DATABASE_PATH` - Where to store your database (must match the
@@ -62,13 +62,13 @@ See the
 [Environment Variables Reference](../reference/environment-variables.mdx) for
 more configuration options.
 
-#### 1. Pull the image
+### 1. Pull the image
 
 ```bash
 docker pull forgejo.ellis.link/continuwuation/continuwuity:latest
 ```
 
-#### 2. Start the server with initial admin user
+### 2. Start the server with initial admin user
 
 ```bash
 docker run -d \
@@ -86,7 +86,7 @@ docker run -d \
 Replace `matrix.example.com` with your actual server name and `admin` with
 your preferred username.
 
-#### 3. Get your admin password
+### 3. Get your admin password
 
 ```bash
 docker logs continuwuity 2>&1 | grep "Created user"
@@ -98,7 +98,7 @@ You'll see output like:
 Created user with user_id: @admin:matrix.example.com and password: `[auto-generated-password]`
 ```
 
-#### 4. Configure your reverse proxy
+### 4. Configure your reverse proxy
 
 Configure your reverse proxy to forward HTTPS traffic to Continuwuity. See
 [Docker Compose](#docker-compose) for examples.
@@ -107,12 +107,12 @@ Once configured, log in with any Matrix client using `@admin:matrix.example.com`
 and the generated password. You'll automatically be invited to the admin room
 where you can manage your server.
 
-### Docker Compose
+## Docker Compose
 
 Docker Compose is the recommended deployment method. These examples include
 reverse proxy configurations for Matrix federation.
 
-#### Matrix Federation Requirements
+### Matrix Federation Requirements
 
 For Matrix federation to work, you need to serve `.well-known/matrix/client` and
 `.well-known/matrix/server` endpoints. You can achieve this either by:
@@ -134,7 +134,7 @@ labels:
 
 This routes your Matrix domain and well-known paths to Continuwuity.
 
-#### Creating Your First Admin User
+### Creating Your First Admin User
 
 Add the `--execute` command to create an admin user on first startup. In your
 compose file, add under the `continuwuity` service:
@@ -153,7 +153,7 @@ Then retrieve the auto-generated password:
 docker compose logs continuwuity | grep "Created user"
 ```
 
-#### Choose Your Reverse Proxy
+### Choose Your Reverse Proxy
 
 Select the compose file that matches your setup:
 
@@ -172,7 +172,7 @@ See [Troubleshooting - DNS Issues](../troubleshooting.mdx#potential-dns-issues-w
 for more details and alternative solutions.
 :::
 
-##### For existing Traefik setup
+#### For existing Traefik setup
 
 <details>
 <summary>docker-compose.for-traefik.yml</summary>
@@ -183,7 +183,7 @@ for more details and alternative solutions.
 
 </details>
 
-##### With Traefik included
+#### With Traefik included
 
 <details>
 <summary>docker-compose.with-traefik.yml</summary>
@@ -194,7 +194,7 @@ for more details and alternative solutions.
 
 </details>
 
-##### With Caddy Docker Proxy
+#### With Caddy Docker Proxy
 
 <details>
 <summary>docker-compose.with-caddy.yml</summary>
@@ -213,7 +213,7 @@ docker network create caddy
 
 </details>
 
-##### For other reverse proxies
+#### For other reverse proxies
 
 <details>
 <summary>docker-compose.yml</summary>
@@ -224,7 +224,7 @@ docker network create caddy
 
 </details>
 
-##### Override file for customisation
+#### Override file for customisation
 
 <details>
 <summary>docker-compose.override.yml</summary>
@@ -235,7 +235,7 @@ docker network create caddy
 
 </details>
 
-#### Starting Your Server
+### Starting Your Server
 
 1. Choose your compose file and rename it to `docker-compose.yml`
 2. If using the override file, rename it to `docker-compose.override.yml` and
@@ -248,12 +248,12 @@ docker compose up -d
 
 See the [generic deployment guide](generic.mdx) for more deployment options.
 
-### Building Custom Images
+## (Optional) Building Custom Images
 
 For information on building your own Continuwuity Docker images, see the
 [Building Docker Images](../development/index.mdx#building-docker-images)
 section in the development documentation.
 
-## Voice communication
+## Next steps
 
-See the [Calls](../calls.mdx) page.
+- To set up Audio/Video communication, see the [Calls](../calls.mdx) page.
