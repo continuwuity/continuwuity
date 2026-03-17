@@ -18,10 +18,10 @@ Alternatively, you can use the environment variable `CONTINUWUITY_CONFIG` to spe
 
 All of the options in the config file can also be specified by using environment variables. This is ideal for containerised deployments and infrastructure-as-code scenarios.
 
-The environment variable names is represented in all caps and prefixed with `CONTINUWUITY_`. They are mapped to config options in the ways demonstrated below:
+The environment variable names are represented in all caps and prefixed with `CONTINUWUITY_`. They are mapped to config options in the ways demonstrated below:
 
 ```bash
-# Top-level options (those inside the [global] section) are simply capitalized
+# Top-level options (those inside the [global] section) are simply capitalised
 CONTINUWUITY_SERVER_NAME="matrix.example.com"
 CONTINUWUITY_PORT="8008"
 CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity"
@@ -34,7 +34,7 @@ CONTINUWUITY_WELL_KNOWN__SERVER="example.com:443"
 # This maps to the `base_url` field of the `[global.antispam.draupnir]` section in TOML
 CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL="https://draupnir.example.com"
 
-# Alternatively, you can pass a quoted JSON object to define an entire section
+# Alternatively, you can pass a (quoted) struct to define an entire section
 # This maps to the [global.well_known] section
 CONTINUWUITY_WELL_KNOWN="{ client=https://example.com,server=example.com:443 }"
 ```
@@ -62,7 +62,7 @@ Note that the config is parsed as TOML, and shells like `bash` will remove quote
 
 ## Order of priority
 
-The above configuration methods are prioritized, in descending order, as below:
+The above configuration methods are prioritised, in descending order, as below:
 
 - Command-line `-o`/`--option` flags
 - Environment variables
