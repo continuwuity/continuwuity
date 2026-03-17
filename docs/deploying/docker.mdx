@@ -1,35 +1,37 @@
 # Continuwuity for Docker
 
-## Docker
+## Available Images
 
-To run Continuwuity with Docker, you can either build the image yourself or pull
-it from a registry.
+The following OCI images are available for Continuwuity:
 
-### Use a registry
+| Registry         | Image                                                                                        | Notes                                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Forgejo Registry | [https://forgejo.ellis.link/continuwuation/continuwuity:**latest**][latest]                 | Latest tagged release. (recommended)                                                                      |
+| Forgejo Registry | [https://forgejo.ellis.link/continuwuation/continuwuity:**main**][main]                     | Latest `main` branch commit.                                                                              |
+| Forgejo Registry | [https://forgejo.ellis.link/continuwuation/continuwuity:**latest-maxperf**][latest-maxperf] | Latest tagged release, [performance optimised version](./generic.mdx#performance-optimised-builds).       |
+| Forgejo Registry | [https://forgejo.ellis.link/continuwuation/continuwuity:**main-maxperf**][main-maxperf]     | Latest `main` branch commit, [performance optimised version](./generic.mdx#performance-optimised-builds). |
 
-Available OCI images:
+[latest]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest
+[main]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main
+[latest-maxperf]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf
+[main-maxperf]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf
 
-| Registry         | Image                                                                                                                                                       | Notes                                                                        |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:latest](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest)                 | Latest tagged image.                                                         |
-| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:main](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main)                     | Main branch image.                                                           |
-| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf) | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
-| Forgejo Registry | [forgejo.ellis.link/continuwuation/continuwuity:main-maxperf](https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf)     | [Performance optimised version.](./generic.mdx#performance-optimised-builds) |
+If you want a specific version or commit hash, you can browse for them [here][oci-all-versions].
 
-**Example:**
+### Mirrors
 
-```bash
-docker image pull forgejo.ellis.link/continuwuation/continuwuity:main-maxperf
-```
+Images are also mirrored to these locations automatically, on a schedule:
 
-#### Mirrors
+- `ghcr.io/continuwuity/continuwuity` ([Github Registry][ghcr-io])
+- `docker.io/jadedblueeyes/continuwuity` ([Docker Hub][docker-hub])
+- `registry.gitlab.com/continuwuity/continuwuity` ([Gitlab Registry][gitlab-registry])
+- `git.nexy7574.co.uk/mirrored/continuwuity` ([Nexy's forge][nexy-forge]. Releases only, no `main` tags)
 
-Images are mirrored to multiple locations automatically, on a schedule:
-
-- `ghcr.io/continuwuity/continuwuity`
-- `docker.io/jadedblueeyes/continuwuity`
-- `registry.gitlab.com/continuwuity/continuwuity`
-- `git.nexy7574.co.uk/mirrored/continuwuity` (releases only, no `main`)
+[oci-all-versions]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/versions
+[ghcr-io]: https://github.com/continuwuity/continuwuity/pkgs/container/continuwuity/versions?filters%5Bversion_type%5D=tagged
+[docker-hub]: https://hub.docker.com/r/jadedblueeyes/continuwuity/
+[gitlab-registry]: https://gitlab.com/continuwuity/continuwuity/container_registry/8871720
+[nexy-forge]: https://git.nexy7574.co.uk/mirrored/-/packages/container/continuwuity/versions
 
 ### Quick Run
 
