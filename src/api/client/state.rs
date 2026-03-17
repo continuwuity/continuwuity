@@ -366,30 +366,28 @@ async fn allowed_to_send_state_event(
 			}
 		},
 		| StateEventType::RoomMember => match json.deserialize_as::<RoomMemberEventContent>() {
-			| Ok(membership_content) => {
+			| Ok(mut membership_content) => {
 				let Ok(state_key) = UserId::parse(state_key) else {
 					return Err!(Request(BadJson(
 						"Membership event has invalid or non-existent state key"
 					)));
 				};
 
-				if let Some(authorising_user) =
+				// Moved the check for if user is already joined and then stripped the Option
+				// Unsure if this actually fixes it
+				if services
+					.rooms
+					.state_cache
+					.is_joined(state_key, room_id)
+					.await
+				{
+					membership_content.join_authorized_via_users_server.take();
+				} else if let Some(authorising_user) =
 					membership_content.join_authorized_via_users_server
 				{
 					if membership_content.membership != MembershipState::Join {
 						return Err!(Request(BadJson(
 							"join_authorised_via_users_server is only for member joins"
-						)));
-					}
-
-					if services
-						.rooms
-						.state_cache
-						.is_joined(state_key, room_id)
-						.await
-					{
-						return Err!(Request(InvalidParam(
-							"{state_key} is already joined, an authorising user is not required."
 						)));
 					}
 
