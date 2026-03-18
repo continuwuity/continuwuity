@@ -3,7 +3,11 @@ use axum::{Router, extract::State, response::IntoResponse, routing::get};
 
 use crate::{WebError, template};
 
-pub(crate) fn build() -> Router<crate::State> { Router::new().route("/", get(index_handler)) }
+pub(crate) fn build() -> Router<crate::State> {
+	Router::new()
+		.route("/", get(index_handler))
+		.route("/_continuwuity/", get(index_handler))
+}
 
 async fn index_handler(
 	State(services): State<crate::State>,

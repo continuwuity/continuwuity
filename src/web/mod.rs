@@ -76,11 +76,14 @@ pub fn build() -> Router<state::State> {
 	#[allow(clippy::wildcard_imports)]
 	use pages::*;
 
-	Router::new()
-		.merge(index::build())
+	let sub_router = Router::new()
 		.merge(resources::build())
 		.merge(password_reset::build())
-		.fallback(async || WebError::NotFound)
+		.fallback(async || WebError::NotFound);
+
+	Router::new()
+		.merge(index::build())
+		.nest("/_continuwuity/", sub_router)
 		.layer(SetResponseHeaderLayer::if_not_present(
 			header::CONTENT_SECURITY_POLICY,
 			HeaderValue::from_static("default-src 'self'; img-src 'self' data:;"),
