@@ -194,6 +194,7 @@ async fn send_state_event_for_key_helper(
 	state_key: &str,
 	timestamp: Option<MilliSecondsSinceUnixEpoch>,
 ) -> Result<OwnedEventId> {
+	let json: &mut Raw<AnyStateEventContent> = &mut json.clone();
 	allowed_to_send_state_event(services, room_id, event_type, state_key, json).await?;
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 	let event_id = services
@@ -221,7 +222,7 @@ async fn allowed_to_send_state_event(
 	room_id: &RoomId,
 	event_type: &StateEventType,
 	state_key: &str,
-	json: &Raw<AnyStateEventContent>,
+	json: &mut Raw<AnyStateEventContent>,
 ) -> Result {
 	match event_type {
 		| StateEventType::RoomCreate => {
@@ -366,22 +367,26 @@ async fn allowed_to_send_state_event(
 			}
 		},
 		| StateEventType::RoomMember => match json.deserialize_as::<RoomMemberEventContent>() {
-			| Ok(mut membership_content) => {
+			| Ok(membership_content) => {
 				let Ok(state_key) = UserId::parse(state_key) else {
 					return Err!(Request(BadJson(
 						"Membership event has invalid or non-existent state key"
 					)));
 				};
 
-				// Moved the check for if user is already joined and then stripped the Option
-				// Unsure if this actually fixes it
+				// join_authorized_via_users_server must be thrown away, if user is already a
+				// member of the room.
 				if services
 					.rooms
 					.state_cache
 					.is_joined(state_key, room_id)
 					.await
 				{
-					membership_content.join_authorized_via_users_server.take();
+					let mut content: RoomMemberEventContent = membership_content.clone();
+					content.join_authorized_via_users_server = None;
+					*json = Raw::<AnyStateEventContent>::from_json_string(
+						serde_json::to_string(&content)?,
+					)?;
 				} else if let Some(authorising_user) =
 					membership_content.join_authorized_via_users_server
 				{
