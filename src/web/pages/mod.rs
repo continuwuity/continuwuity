@@ -11,7 +11,7 @@ pub(crate) struct TemplateContext {
 impl From<&crate::State> for TemplateContext {
 	fn from(state: &crate::State) -> Self {
 		Self {
-			allow_indexing: state.config.index_page_allow_indexing,
+			allow_indexing: state.config.allow_web_indexing,
 		}
 	}
 }
