@@ -24,11 +24,16 @@
     <h1>
         {% if status == StatusCode::NOT_FOUND %}
         Not found
+        {% else if status == StatusCode::INTERNAL_SERVER_ERROR %}
+        Internal server error
         {% else %}
-        Request error
+        Bad request
         {% endif %}
-        <small aria-hidden>（︶^︶）</small>
     </h1>
+
+    {% if status == StatusCode::INTERNAL_SERVER_ERROR %}
+    <p>Please <a href="https://forgejo.ellis.link/continuwuation/continuwuity/issues/new">submit a bug report</a> 🥺</p>
+    {% endif %}
 
     <pre><code>{{ error }}</code></pre>
 </div>

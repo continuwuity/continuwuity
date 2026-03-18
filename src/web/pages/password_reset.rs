@@ -18,6 +18,8 @@ use crate::{
 	template,
 };
 
+const INVALID_TOKEN_ERROR: &str = "Invalid reset token. Your reset link may have expired.";
+
 #[derive(Deserialize)]
 struct PasswordResetQuery {
 	token: String,
@@ -67,7 +69,7 @@ async fn password_reset_form(
 	reset_form: Form<'static>,
 ) -> Result<impl IntoResponse, WebError> {
 	let Some(token) = services.password_reset.check_token(&query.token).await else {
-		return Err(WebError::BadRequest("Invalid reset token".to_owned()));
+		return Err(WebError::BadRequest(INVALID_TOKEN_ERROR.to_owned()));
 	};
 
 	let user_card = UserCard::for_local_user(&services, &token.info.user).await;
@@ -96,7 +98,7 @@ async fn post_password_reset(
 	match form.validate() {
 		| Ok(()) => {
 			let Some(token) = services.password_reset.check_token(&query.token).await else {
-				return Err(WebError::BadRequest("Invalid reset token".to_owned()));
+				return Err(WebError::BadRequest(INVALID_TOKEN_ERROR.to_owned()));
 			};
 			let user_id = token.info.user.clone();
 

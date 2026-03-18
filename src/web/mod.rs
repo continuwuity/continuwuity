@@ -1,3 +1,5 @@
+use std::any::Any;
+
 use askama::Template;
 use axum::{
 	Router,
@@ -6,7 +8,7 @@ use axum::{
 	response::{Html, IntoResponse, Response},
 };
 use conduwuit_service::state;
-use tower_http::set_header::SetResponseHeaderLayer;
+use tower_http::{catch_panic::CatchPanicLayer, set_header::SetResponseHeaderLayer};
 use tower_sec_fetch::SecFetchLayer;
 
 use crate::pages::TemplateContext;
@@ -26,7 +28,7 @@ enum WebError {
 	QueryRejection(#[from] QueryRejection),
 	#[error("{0}")]
 	FormRejection(#[from] FormRejection),
-	#[error("Bad request: {0}")]
+	#[error("{0}")]
 	BadRequest(String),
 
 	#[error("This page does not exist.")]
@@ -34,8 +36,10 @@ enum WebError {
 
 	#[error("Failed to render template: {0}")]
 	Render(#[from] askama::Error),
-	#[error("Internal server error: {0}")]
+	#[error("{0}")]
 	InternalError(#[from] conduwuit_core::Error),
+	#[error("Request handler panicked! {0}")]
+	Panic(String),
 }
 
 impl IntoResponse for WebError {
@@ -85,8 +89,20 @@ pub fn build() -> Router<state::State> {
 			Router::new()
 				.merge(resources::build())
 				.merge(password_reset::build())
+				.merge(debug::build())
 				.fallback(async || WebError::NotFound),
 		)
+		.layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send + 'static>| {
+			let details = if let Some(s) = panic.downcast_ref::<String>() {
+				s.clone()
+			} else if let Some(s) = panic.downcast_ref::<&str>() {
+				(*s).to_owned()
+			} else {
+				"(opaque panic payload)".to_owned()
+			};
+
+			WebError::Panic(details).into_response()
+		}))
 		.layer(SetResponseHeaderLayer::if_not_present(
 			header::CONTENT_SECURITY_POLICY,
 			HeaderValue::from_static("default-src 'self'; img-src 'self' data:;"),
