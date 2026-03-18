@@ -2093,8 +2093,8 @@ pub struct Config {
 	#[serde(default)]
 	pub force_disable_first_run_mode: bool,
 
-	/// Allow or disallow search engine crawling by adding
-	/// `<meta name="robots" content="noindex" />` to the index page.
+	/// Allow search engines and crawlers to index Continuwuity's built-in
+	/// webpages served under the `/_continuwuity/` prefix.
 	///
 	/// default: false
 	#[serde(default)]
