@@ -2098,7 +2098,7 @@ pub struct Config {
 	///
 	/// default: false
 	#[serde(default)]
-	pub index_page_allow_indexing: bool,
+	pub allow_web_indexing: bool,
 
 	/// display: nested
 	#[serde(default)]

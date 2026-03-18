@@ -1802,7 +1802,7 @@
 # Allow or disallow search engine crawling by adding
 # `<meta name="robots" content="noindex" />` to the index page.
 #
-#index_page_allow_indexing = false
+#allow_web_indexing = false
 
 [global.tls]
 
