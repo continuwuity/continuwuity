@@ -6,6 +6,7 @@ services:
         ### then you are ready to go.
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
+        command: /sbin/conduwuit
         ports:
             - 8448:6167
         volumes:

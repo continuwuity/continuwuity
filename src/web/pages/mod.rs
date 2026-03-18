@@ -2,12 +2,10 @@ mod components;
 pub(super) mod index;
 pub(super) mod password_reset;
 pub(super) mod resources;
-
 #[derive(Debug)]
 pub(crate) struct TemplateContext {
 	pub allow_indexing: bool,
 }
-
 impl From<&crate::State> for TemplateContext {
 	fn from(state: &crate::State) -> Self {
 		Self {
@@ -15,7 +13,6 @@ impl From<&crate::State> for TemplateContext {
 		}
 	}
 }
-
 #[macro_export]
 macro_rules! template {
     (

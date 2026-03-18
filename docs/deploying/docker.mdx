@@ -78,7 +78,7 @@ docker run -d \
   -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
   --name continuwuity \
   forgejo.ellis.link/continuwuation/continuwuity:latest \
-  --execute "users create-user admin"
+  /sbin/conduwuit --execute "users create-user admin"
 ```
 
 Replace `matrix.example.com` with your actual server name and `admin` with
@@ -141,7 +141,7 @@ compose file, add under the `continuwuity` service:
 services:
     continuwuity:
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
-        command: --execute "users create-user admin"
+        command: /sbin/conduwuit --execute "users create-user admin"
         # ... rest of configuration
 ```
 

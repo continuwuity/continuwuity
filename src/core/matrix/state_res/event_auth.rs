@@ -1224,6 +1224,7 @@ fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int)
 }
 
 /// Confirm that the event sender has the required power levels.
+#[allow(clippy::cognitive_complexity)]
 fn check_power_levels(
 	room_version: &RoomVersion,
 	power_event: &impl Event,

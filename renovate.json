@@ -1,6 +1,6 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:recommended", "replacements:all"],
+    "extends": ["config:recommended", "replacements:all", ":semanticCommitTypeAll(chore)"],
     "dependencyDashboard": true,
     "osvVulnerabilityAlerts": true,
     "lockFileMaintenance": {
@@ -36,10 +36,18 @@
     },
     "packageRules": [
         {
-            "description": "Batch patch-level Rust dependency updates",
+            "description": "Batch minor and patch Rust dependency updates",
+            "matchManagers": ["cargo"],
+            "matchUpdateTypes": ["minor", "patch"],
+            "matchCurrentVersion": ">=1.0.0",
+            "groupName": "rust-non-major"
+        },
+        {
+            "description": "Batch patch-level zerover Rust dependency updates",
             "matchManagers": ["cargo"],
             "matchUpdateTypes": ["patch"],
-            "groupName": "rust-patch-updates"
+            "matchCurrentVersion": ">=0.1.0,<1.0.0",
+            "groupName": "rust-zerover-patch-updates"
         },
         {
             "description": "Limit concurrent Cargo PRs",

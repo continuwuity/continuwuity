@@ -75,6 +75,7 @@ type Result<T, E = Error> = crate::Result<T, E>;
 /// event is part of the same room.
 //#[tracing::instrument(level = "debug", skip(state_sets, auth_chain_sets,
 //#[tracing::instrument(level event_fetch))]
+#[allow(clippy::cognitive_complexity)]
 pub async fn resolve<'a, Pdu, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, ExistsFut>(
 	room_version: &RoomVersionId,
 	state_sets: Sets,
