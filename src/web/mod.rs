@@ -9,6 +9,8 @@ use conduwuit_service::state;
 use tower_http::set_header::SetResponseHeaderLayer;
 use tower_sec_fetch::SecFetchLayer;
 
+use crate::pages::TemplateContext;
+
 mod pages;
 
 type State = state::State;
@@ -40,8 +42,9 @@ impl IntoResponse for WebError {
 		struct Error {
 			error: WebError,
 			status: StatusCode,
-			allow_indexing: bool,
+			context: TemplateContext,
 		}
+
 		let status = match &self {
 			| Self::ValidationError(_)
 			| Self::BadRequest(_)
@@ -54,9 +57,11 @@ impl IntoResponse for WebError {
 		let template = Error {
 			error: self,
 			status,
-			// Statically set false to prevent error pages from being indexed and to prevent
-			// further errors if services.config is having issues.
-			allow_indexing: false,
+			context: TemplateContext {
+				// Statically set false to prevent error pages from being indexed and to prevent
+				// further errors if services.config is having issues.
+				allow_indexing: false,
+			},
 		};
 
 		if let Ok(body) = template.render() {

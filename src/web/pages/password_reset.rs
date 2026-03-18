@@ -6,7 +6,7 @@ use axum::{
 		rejection::{FormRejection, QueryRejection},
 	},
 	http::StatusCode,
-	response::{Html, IntoResponse, Response},
+	response::{IntoResponse, Response},
 	routing::get,
 };
 use serde::Deserialize;
@@ -15,6 +15,7 @@ use validator::Validate;
 use crate::{
 	WebError, form,
 	pages::components::{UserCard, form::Form},
+	template,
 };
 
 #[derive(Deserialize)]
@@ -22,12 +23,11 @@ struct PasswordResetQuery {
 	token: String,
 }
 
-#[derive(Debug, Template)]
-#[template(path = "password_reset.html.j2")]
-struct PasswordReset<'a> {
-	user_card: UserCard<'a>,
-	body: PasswordResetBody,
-	allow_indexing: bool,
+template! {
+	struct PasswordReset<'a> use "password_reset.html.j2" {
+		user_card: UserCard<'a>,
+		body: PasswordResetBody
+	}
 }
 
 #[derive(Debug)]
@@ -72,13 +72,8 @@ async fn password_reset_form(
 
 	let user_card = UserCard::for_local_user(&services, &token.info.user).await;
 
-	let template = PasswordReset {
-		user_card,
-		body: PasswordResetBody::Form(reset_form),
-		allow_indexing: services.config.index_page_allow_indexing,
-	};
-
-	Ok(Html(template.render()?))
+	Ok(PasswordReset::new(&services, user_card, PasswordResetBody::Form(reset_form))
+		.into_response())
 }
 
 async fn get_password_reset(
@@ -111,13 +106,8 @@ async fn post_password_reset(
 				.await?;
 
 			let user_card = UserCard::for_local_user(&services, &user_id).await;
-			let template = PasswordReset {
-				user_card,
-				body: PasswordResetBody::Success,
-				allow_indexing: services.config.index_page_allow_indexing,
-			};
-
-			Ok(Html(template.render()?).into_response())
+			Ok(PasswordReset::new(&services, user_card, PasswordResetBody::Success)
+				.into_response())
 		},
 		| Err(err) => Ok((
 			StatusCode::BAD_REQUEST,
