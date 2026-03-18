@@ -969,3 +969,6 @@ needless_raw_string_hashes = "allow"
 
 # TODO: Enable this lint & fix all instances
 collapsible_if = "allow"
+
+# TODO: break these apart
+cognitive_complexity = "allow"
