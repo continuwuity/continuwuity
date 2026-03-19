@@ -7,7 +7,7 @@ Admin commands allow server administrators to manage the server from within thei
 
 * All commands listed here may be used by server administrators in the admin room by sending them as messages.
 * If the `admin_escape_commands` configuration option is enabled, server administrators may run certain commands in public rooms by prefixing them with a single backslash. These commands will only run on _their_ homeserver, even if they are a member of another homeserver's admin room. Some sensitive commands cannot be used outside the admin room and will return an error.
-* All commands listed here may be used in the server's console, if it is enabled. Commands entered in the console do not require the `!admin` prefix.
+* All commands listed here may be used in the server's console, if it is enabled. Commands entered in the console do not require the `!admin` prefix. To enable this functionality when deployed via docker ensure the container was started with the interactive (`-i`/`--interactive`) and tty (`-t`/`--tty`) options for `docker run`, or add `std_open: true` and `tty: true` to the container's decleration within the `docker-compose.yml` file for docker-compose deployments. Commands can then be sent to the console through `docker attach`.
 
 ## Categories
 
