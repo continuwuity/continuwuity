@@ -84,6 +84,7 @@ libc.workspace = true
 libloading.workspace = true
 libloading.optional = true
 log.workspace = true
+lettre.workspace = true
 num-traits.workspace = true
 rand.workspace = true
 rand_core = { version = "0.6.4", features = ["getrandom"] }

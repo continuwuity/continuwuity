@@ -1,0 +1,10 @@
+{% extends "_base.txt.j2" %}
+
+{% block content -%}
+Hello!
+
+Somebody, probably you, tried to associate this email address with the Matrix account {{ user_id }}.
+If that's your account, and this is your email address, click this link to proceed:
+    {{ verification_link }}
+Otherwise, you can ignore this email. The above link will expire in one hour.
+{%- endblock %}
