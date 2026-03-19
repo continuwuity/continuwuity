@@ -16,6 +16,7 @@ use either::{
 };
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
+use lettre::message::Mailbox;
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
@@ -759,6 +760,9 @@ pub struct Config {
 	/// display: nested
 	#[serde(default)]
 	pub well_known: WellKnownConfig,
+
+	/// display: nested
+	pub smtp: Option<SmtpConfig>,
 
 	/// Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
 	/// Jaeger exporter. Traces will be sent via OTLP to a collector (such as
@@ -2442,6 +2446,34 @@ pub struct DraupnirConfig {
 	/// The authentication secret defined in
 	/// web->synapseHTTPAntispam->authorization
 	pub secret: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.smtp",
+	optional = "true"
+)]
+pub struct SmtpConfig {
+	/// A `smtp://`` URI which will be used to connect to a mail server. Setting
+	/// this option enables features which depend on the ability to send email,
+	/// such as self-service password resets.
+	///
+	/// For most modern mail servers, format the URI like this:
+	/// 	`smtps://username:password@hostname:port`
+	///
+	/// For a guide on the accepted URI syntax, consult Lettre's documentation:
+	/// https://docs.rs/lettre/latest/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url
+	pub connection_uri: String,
+
+	/// The outgoing address which will be used for sending emails.
+	///
+	/// For a syntax guide, see https://datatracker.ietf.org/doc/html/rfc2822#section-3.4
+	///
+	/// ...or if you don't want to read the RFC, for some reason:
+	/// - `Name <address@domain.org>` to specify a sender name
+	/// - `address@domain.org` to not use a name
+	pub sender: Mailbox,
 }
 
 const DEPRECATED_KEYS: &[&str] = &[

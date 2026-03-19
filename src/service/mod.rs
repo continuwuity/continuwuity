@@ -21,6 +21,7 @@ pub mod federation;
 pub mod firstrun;
 pub mod globals;
 pub mod key_backups;
+pub mod mailer;
 pub mod media;
 pub mod moderation;
 pub mod password_reset;
