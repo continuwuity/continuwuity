@@ -243,7 +243,25 @@ For information on building your own Continuwuity Docker images, see the
 [Building Docker Images](../development/index.mdx#building-docker-images)
 section in the development documentation.
 
+### Accessing the Server's Console
+
+In order to enable access the server's console to [send admin commands](../reference/admin/index.md) from the CLI, the docker deployment will need to be made interactive and allocate a psuedo-tty. For deployments via Docker Compose, this means adding `stdin_open: true` and `tty: true` to the containers decleration:
+
+```yaml
+services:
+    homserver:
+        stdin_open: true
+        tty: true
+        <snip>
+```
+
+If you choose to deploy via `docker run`, then add the flags `-i`/`--interactive` and `-t`/`--tty` to the command.
+
+From there you can access the server's console by running `docker attach <container-name>`, which will show the server's prompt `uwu> `. To exit `docker attach` press ctrl+p then ctrl+q.
+
 ## Next steps
+
+## Voice communication
 
 - For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
 - To set up Audio/Video communication, see the [**Calls**](../calls.mdx) page.
