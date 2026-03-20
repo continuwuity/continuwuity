@@ -10,7 +10,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 # Match Rustc version as close as possible
 # rustc -vV
-ARG LLVM_VERSION=20
+ARG LLVM_VERSION=21
 # ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
 
 # Install repo tools
