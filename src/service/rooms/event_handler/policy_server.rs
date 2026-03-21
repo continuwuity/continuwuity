@@ -6,14 +6,16 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, error, implement, info,
-	trace, warn,
+	Err, Error, Event, PduEvent, Result, debug, debug_info, error, implement, info, trace, warn,
 };
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
+use http::StatusCode;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName,
-	api::federation::room::policy_sign::unstable::Request as PolicySignRequest,
-	events::{StateEventType, room::policy::RoomPolicyEventContent},
+	api::{
+		client::error::ErrorKind, federation::room::policy_sign::v1::Request as PolicySignRequest,
+	},
+	events::{StateEventType, room::policy::UnstableRoomPolicyEventContent},
 	serde::{Base64, base64::UrlSafe},
 	signatures::canonical_json,
 };
@@ -84,28 +86,27 @@ pub async fn policy_server_allows_event(
 	room_id: &RoomId,
 	incoming: bool,
 ) -> Result<()> {
-	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
-		debug!(
-			room_id = %room_id,
-			event_type = ?pdu.event_type(),
-			"Skipping spam check for policy server meta-event"
-		);
-		return Ok(());
+	let Ok(ps) = match StateEventType::from(pdu.event_type().clone()) {
+		| StateEventType::RoomPolicy => self
+			.services
+			.state_accessor
+			.room_state_get_content::<UnstableRoomPolicyEventContent>(
+			room_id,
+			&StateEventType::RoomPolicy,
+			"",
+		),
+		| StateEventType::UnstableRoomPolicy => self
+			.services
+			.state_accessor
+			.room_state_get_content::<UnstableRoomPolicyEventContent>(
+			room_id,
+			&StateEventType::UnstableRoomPolicy,
+			"",
+		),
+		| _ => return Ok(()),
 	}
-
-	let Ok(ps) = self
-		.services
-		.state_accessor
-		.room_state_get_content(room_id, &StateEventType::RoomPolicy, "")
-		.await
-		.inspect_err(|e| {
-			if !e.is_not_found() {
-				debug_error!("failed to load room policy server state event: {e}");
-			}
-		})
-		.map(|c: RoomPolicyEventContent| c)
+	.await
 	else {
-		debug!("room has no policy server configured, skipping spam check");
 		return Ok(());
 	};
 
@@ -185,59 +186,97 @@ async fn handle_policy_server_error(
 	retries: u8,
 	timeout: Duration,
 ) -> Result<()> {
-	if let Some(retry_after) = error.retry_after() {
-		if retries >= 3 {
+	match error.status_code() {
+		| StatusCode::OK => unreachable!("ok response passed to handle_policy_server_error"),
+		| StatusCode::BAD_REQUEST => {
+			if matches!(error.kind(), ErrorKind::Forbidden { .. }) {
+				warn!(
+					via = %via,
+					event_id = %pdu.event_id(),
+					room_id = %room_id,
+					error = ?error,
+					"Policy server marked the event as spam"
+				);
+				return Err(error);
+			}
+			error!(
+				via = %via,
+				event_id = %pdu.event_id(),
+				room_id = %room_id,
+				error = ?error,
+				"Policy server could not understand our request: {}",
+				error.kind(),
+			);
+			Err!(BadServerResponse("Error communicating with policy server"))
+		},
+		| StatusCode::FORBIDDEN => {
+			Err!(Request(Forbidden(
+				"Policy server refused to sign the event due to the room ACL"
+			)))
+		},
+		| StatusCode::NOT_FOUND => {
+			debug_info!(
+				via = %via,
+				event_id = %pdu.event_id(),
+				room_id = %room_id,
+				"Policy server is not actually a policy server or is not protecting this room: {}",
+				error.message()
+			);
+			Ok(())
+		},
+		| StatusCode::TOO_MANY_REQUESTS => {
+			if let Some(retry_after) = error.retry_after() {
+				if retries >= 5 {
+					warn!(
+						via = %via,
+						event_id = %pdu.event_id(),
+						room_id = %room_id,
+						retries,
+						"Policy server rate-limited us too many times; giving up"
+					);
+					return Err(error); // Error should be passed to c2s
+				}
+				let saturated = retry_after.min(timeout);
+				// ^ don't wait more than 60 seconds
+				info!(
+					via = %via,
+					event_id = %pdu.event_id(),
+					room_id = %room_id,
+					retry_after = %saturated.as_secs(),
+					retries,
+					"Policy server rate-limited us; retrying after {retry_after:?}"
+				);
+				// TODO: select between this sleep and shutdown signal
+				sleep(saturated).await;
+				if !self.services.server.running() {
+					return Err(error);
+				}
+				return Box::pin(self.fetch_policy_server_signature(
+					pdu,
+					pdu_json,
+					via,
+					outgoing,
+					room_id,
+					policy_server_key,
+					retries.saturating_add(1),
+				))
+				.await;
+			}
 			warn!(
 				via = %via,
 				event_id = %pdu.event_id(),
 				room_id = %room_id,
 				retries,
-				"Policy server rate-limited us too many times; giving up"
+				"Policy server rate-limited us without giving a retry window; giving up"
 			);
-			return Err(error); // Error should be passed to c2s
-		}
-		let saturated = retry_after.min(timeout);
-		// ^ don't wait more than 60 seconds
-		warn!(
-			via = %via,
-			event_id = %pdu.event_id(),
-			room_id = %room_id,
-			retry_after = %saturated.as_secs(),
-			retries,
-			"Policy server rate-limited us; retrying after {retry_after:?}"
-		);
-		// TODO: select between this sleep and shutdown signal
-		sleep(saturated).await;
-		return Box::pin(self.fetch_policy_server_signature(
-			pdu,
-			pdu_json,
-			via,
-			outgoing,
-			room_id,
-			policy_server_key,
-			retries.saturating_add(1),
-		))
-		.await;
+			Err(error)
+		},
+		| _ => Err!(BadServerResponse(
+			"Unexpected response from policy server: {}/{}",
+			error.status_code(),
+			error.kind().to_string()
+		)),
 	}
-	if error.status_code().is_client_error() {
-		warn!(
-			via = %via,
-			event_id = %pdu.event_id(),
-			room_id = %room_id,
-			error = ?error,
-			"Policy server marked the event as spam"
-		);
-	} else {
-		info!(
-			via = %via,
-			event_id = %pdu.event_id(),
-			room_id = %room_id,
-			error = ?error,
-			"Failed to contact policy server"
-		);
-	}
-
-	Err(error)
 }
 
 /// Asks a remote policy server for a signature on this event.
@@ -297,23 +336,30 @@ pub async fn fetch_policy_server_signature(
 		},
 	};
 
-	if !response.signatures.contains_key(via) {
+	if response
+		.signatures
+		.as_ref()
+		.is_none_or(|sigs| !sigs.contains_key(via))
+	{
 		error!(
-			"Policy server returned signatures, but did not include the expected server name \
-			 '{}': {:?}",
-			via, response.signatures
+			%via,
+			"Policy server did not sign event: {:?}",
+			response.signatures
 		);
 		return Err!(BadServerResponse(
 			"Policy server did not include expected server name in signatures"
 		));
 	}
-	let keypairs = response.signatures.get(via).unwrap();
+	// Unwraps are safe here because we checked both in the above if statement
+	let signatures = response.signatures.unwrap();
+	let keypairs = signatures.get(via).unwrap();
+
 	// TODO: need to be able to verify other algorithms
 	let wanted_key_id = KeyId::parse("ed25519:policy_server")?;
 	if !keypairs.contains_key(wanted_key_id) {
 		error!(
-			signatures = ?response.signatures,
-			"Policy server returned signature, but did not use the key ID \
+			signatures = ?signatures,
+			"Policy server returned signatures, but did not use the key ID \
 			 'ed25519:policy_server'."
 		);
 		return Err!(BadServerResponse(
