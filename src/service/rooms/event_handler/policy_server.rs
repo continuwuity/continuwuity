@@ -20,7 +20,7 @@ use ruma::{
 	signatures::canonical_json,
 };
 use serde_json::value::RawValue;
-use tokio::time::sleep;
+use tokio::{join, time::sleep};
 
 pub(super) fn verify_policy_signature(
 	via: &ServerName,
@@ -86,28 +86,36 @@ pub async fn policy_server_allows_event(
 	room_id: &RoomId,
 	incoming: bool,
 ) -> Result<()> {
-	let Ok(ps) = match StateEventType::from(pdu.event_type().clone()) {
-		| StateEventType::RoomPolicy => self
-			.services
-			.state_accessor
-			.room_state_get_content::<UnstableRoomPolicyEventContent>(
-			room_id,
-			&StateEventType::RoomPolicy,
-			"",
-		),
-		| StateEventType::UnstableRoomPolicy => self
-			.services
-			.state_accessor
-			.room_state_get_content::<UnstableRoomPolicyEventContent>(
-			room_id,
-			&StateEventType::UnstableRoomPolicy,
-			"",
-		),
-		| _ => return Ok(()),
-	}
-	.await
-	else {
-		return Ok(());
+	let ps = match StateEventType::from(pdu.event_type().clone()) {
+		| StateEventType::RoomPolicy | StateEventType::UnstableRoomPolicy => return Ok(()),
+		| _ => {
+			let (stable, unstable) = join!(
+				self.services
+					.state_accessor
+					.room_state_get_content::<UnstableRoomPolicyEventContent>(
+						room_id,
+						&StateEventType::RoomPolicy,
+						"",
+					),
+				self.services
+					.state_accessor
+					.room_state_get_content::<UnstableRoomPolicyEventContent>(
+						room_id,
+						&StateEventType::UnstableRoomPolicy,
+						"",
+					)
+			);
+			if stable.is_ok() { stable } else { unstable }
+		},
+	};
+	let ps = match ps {
+		| Ok(ps) => ps,
+		| Err(e) => {
+			if e.is_not_found() {
+				return Ok(()); // no policy server configured
+			}
+			return Err(e);
+		},
 	};
 
 	let ps_key = match ps.effective_key() {
