@@ -134,6 +134,16 @@ pub async fn policy_server_allows_event(
 		trace!("Policy server is empty for room {room_id}, skipping spam check");
 		return Ok(());
 	}
+	if via == self.services.globals.server_name()
+		&& !self.services.server.config.federation_loopback
+	{
+		warn!(
+			%via,
+			%room_id,
+			"Cannot ask ourselves for a policy signature if `federation_loopback=false`",
+		);
+		return Ok(());
+	}
 
 	if !self.services.state_cache.server_in_room(via, room_id).await {
 		debug!(
