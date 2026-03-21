@@ -367,7 +367,7 @@ async fn allowed_to_send_state_event(
 			}
 		},
 		| StateEventType::RoomMember => match json.deserialize_as::<RoomMemberEventContent>() {
-			| Ok(membership_content) => {
+			| Ok(mut membership_content) => {
 				let Ok(state_key) = UserId::parse(state_key) else {
 					return Err!(Request(BadJson(
 						"Membership event has invalid or non-existent state key"
@@ -382,10 +382,9 @@ async fn allowed_to_send_state_event(
 					.is_joined(state_key, room_id)
 					.await
 				{
-					let mut content: RoomMemberEventContent = membership_content.clone();
-					content.join_authorized_via_users_server = None;
+					membership_content.join_authorized_via_users_server = None;
 					*json = Raw::<AnyStateEventContent>::from_json_string(
-						serde_json::to_string(&content)?,
+						serde_json::to_string(&membership_content)?,
 					)?;
 				} else if let Some(authorising_user) =
 					membership_content.join_authorized_via_users_server
