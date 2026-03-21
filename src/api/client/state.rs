@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod tests;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
