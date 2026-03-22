@@ -1,4 +1,3 @@
-use askama::Template;
 use axum::{
 	Router,
 	extract::{
@@ -19,11 +18,6 @@ use crate::{
 };
 
 const INVALID_TOKEN_ERROR: &str = "Invalid reset token. Your reset link may have expired.";
-
-#[derive(Deserialize)]
-struct PasswordResetQuery {
-	token: String,
-}
 
 template! {
 	struct PasswordReset<'a> use "password_reset.html.j2" {
@@ -61,6 +55,11 @@ form! {
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
 		.route("/account/reset_password", get(get_password_reset).post(post_password_reset))
+}
+
+#[derive(Deserialize)]
+struct PasswordResetQuery {
+	token: String,
 }
 
 async fn password_reset_form(

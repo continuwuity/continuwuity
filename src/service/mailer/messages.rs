@@ -6,7 +6,7 @@ pub trait MessageTemplate: Template {
 }
 
 #[derive(Template)]
-#[template(path = "mail/change_email.txt.j2")]
+#[template(path = "mail/change_email.txt")]
 pub struct ChangeEmail<'a> {
 	pub user_id: &'a UserId,
 	pub verification_link: String,
@@ -17,7 +17,7 @@ impl MessageTemplate for ChangeEmail<'_> {
 }
 
 #[derive(Template)]
-#[template(path = "mail/new_account.txt.j2")]
+#[template(path = "mail/new_account.txt")]
 pub struct NewAccount<'a> {
 	pub server_name: &'a str,
 	pub verification_link: String,
@@ -28,7 +28,7 @@ impl MessageTemplate for NewAccount<'_> {
 }
 
 #[derive(Template)]
-#[template(path = "mail/password_reset.txt.j2")]
+#[template(path = "mail/password_reset.txt")]
 pub struct PasswordReset<'a> {
 	pub display_name: Option<&'a str>,
 	pub user_id: &'a UserId,
@@ -40,7 +40,7 @@ impl MessageTemplate for PasswordReset<'_> {
 }
 
 #[derive(Template)]
-#[template(path = "mail/test.txt.j2")]
+#[template(path = "mail/test.txt")]
 pub struct Test;
 
 impl MessageTemplate for Test {

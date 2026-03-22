@@ -122,7 +122,7 @@ impl Service {
 	/// if they were not.
 	pub async fn empower_first_user(&self, user: &UserId) -> Result<bool> {
 		#[derive(Template)]
-		#[template(path = "welcome.md.j2")]
+		#[template(path = "welcome.md")]
 		struct WelcomeMessage<'a> {
 			config: &'a Dep<config::Service>,
 			domain: &'a str,

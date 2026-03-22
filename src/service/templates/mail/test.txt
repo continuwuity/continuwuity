@@ -1,4 +1,4 @@
-{% extends "_base.txt.j2" %}
+{% extends "_base.txt" %}
 
 {% block content -%}
 If you're seeing this, SMTP is configured correctly. :3
