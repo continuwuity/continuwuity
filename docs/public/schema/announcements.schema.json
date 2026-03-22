@@ -1,6 +1,6 @@
 {
     "$schema": "http://json-schema.org/draft-04/schema#",
-    "$id": "https://continwuity.org/schema/announcements.schema.json",
+    "$id": "https://continuwuity.org/schema/announcements.schema.json",
     "type": "object",
     "properties": {
       "announcements": {
