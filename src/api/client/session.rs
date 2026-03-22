@@ -10,6 +10,7 @@ use conduwuit::{
 use conduwuit_core::{debug_error, debug_warn};
 use conduwuit_service::Services;
 use futures::StreamExt;
+use lettre::Address;
 use ruma::{
 	OwnedUserId, UserId,
 	api::client::{
@@ -26,7 +27,7 @@ use ruma::{
 			},
 			logout, logout_all,
 		},
-		uiaa,
+		uiaa::UserIdentifier,
 	},
 };
 use service::uiaa::Identity;
@@ -81,7 +82,7 @@ pub(crate) async fn password_login(
 			.password_hash(lowercased_user_id)
 			.await
 			.map(|hash| (hash, lowercased_user_id))
-			.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?,
+			.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?,
 	};
 
 	if hash.is_empty() {
@@ -90,7 +91,7 @@ pub(crate) async fn password_login(
 
 	hash::verify_password(password, &hash)
 		.inspect_err(|e| debug_error!("{e}"))
-		.map_err(|_| err!(Request(Forbidden("Wrong username or password."))))?;
+		.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?;
 
 	Ok(user_id.to_owned())
 }
@@ -162,28 +163,38 @@ pub(super) async fn ldap_login(
 
 pub(crate) async fn handle_login(
 	services: &Services,
-	body: &Ruma<login::v3::Request>,
-	identifier: Option<&uiaa::UserIdentifier>,
+	identifier: Option<&UserIdentifier>,
 	password: &str,
 	user: Option<&String>,
 ) -> Result<OwnedUserId> {
 	debug!("Got password login type");
+	let user_id_or_localpart = match (identifier, user) {
+		| (Some(UserIdentifier::UserIdOrLocalpart(localpart)), _) => localpart,
+		| (Some(UserIdentifier::Email { address }), _) => {
+			let email = Address::try_from(address.to_owned())
+				.map_err(|_| err!(Request(InvalidParam("Email is malformed"))))?;
+
+			&services
+				.threepid
+				.get_localpart_for_email(&email)
+				.await
+				.ok_or_else(|| err!(Request(Forbidden("Invalid identifier or password"))))?
+		},
+		| (None, Some(user)) => user,
+		| _ => {
+			return Err!(Request(InvalidParam("Identifier type not recognized")));
+		},
+	};
+
 	let user_id =
-				if let Some(uiaa::UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
-					UserId::parse_with_server_name(user_id, &services.config.server_name)
-				} else if let Some(user) = user {
-					UserId::parse_with_server_name(user, &services.config.server_name)
-				} else {
-					return Err!(Request(Unknown(
-						debug_warn!(?body.login_info, "Valid identifier or username was not provided (invalid or unsupported login type?)")
-					)));
-				}
-				.map_err(|e| err!(Request(InvalidUsername(warn!("Username is invalid: {e}")))))?;
+		UserId::parse_with_server_name(user_id_or_localpart, &services.config.server_name)
+			.map_err(|_| err!(Request(InvalidUsername("User ID is malformed"))))?;
 
 	let lowercased_user_id = UserId::parse_with_server_name(
 		user_id.localpart().to_lowercase(),
 		&services.config.server_name,
-	)?;
+	)
+	.unwrap();
 
 	if !services.globals.user_is_local(&user_id)
 		|| !services.globals.user_is_local(&lowercased_user_id)
@@ -245,7 +256,7 @@ pub(crate) async fn login_route(
 			password,
 			user,
 			..
-		}) => handle_login(&services, &body, identifier.as_ref(), password, user.as_ref()).await?,
+		}) => handle_login(&services, identifier.as_ref(), password, user.as_ref()).await?,
 		| login::v3::LoginInfo::Token(login::v3::Token { token }) => {
 			debug!("Got token login type");
 			if !services.server.config.login_via_existing_session {
@@ -265,7 +276,7 @@ pub(crate) async fn login_route(
 			};
 
 			let user_id =
-				if let Some(uiaa::UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
+				if let Some(UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
 					UserId::parse_with_server_name(user_id, &services.config.server_name)
 				} else if let Some(user) = user {
 					UserId::parse_with_server_name(user, &services.config.server_name)
@@ -274,7 +285,7 @@ pub(crate) async fn login_route(
 						debug_warn!(?body.login_info, "Valid identifier or username was not provided (invalid or unsupported login type?)")
 					)));
 				}
-				.map_err(|e| err!(Request(InvalidUsername(warn!("Username is invalid: {e}")))))?;
+				.map_err(|_| err!(Request(InvalidUsername(warn!("User ID is malformed")))))?;
 
 			if !services.globals.user_is_local(&user_id) {
 				return Err!(Request(Unknown("User ID does not belong to this homeserver")));

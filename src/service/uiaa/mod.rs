@@ -341,7 +341,7 @@ impl Service {
 						let Ok(email) = Address::try_from(address.to_owned()) else {
 							return Err(StandardErrorBody {
 								kind: ErrorKind::InvalidParam,
-								message: "Email is invalid".to_owned(),
+								message: "Email is malformed".to_owned(),
 							});
 						};
 
@@ -371,7 +371,7 @@ impl Service {
 				) else {
 					return Err(StandardErrorBody {
 						kind: ErrorKind::InvalidParam,
-						message: "User ID is invalid".to_owned(),
+						message: "User ID is malformed".to_owned(),
 					});
 				};
 
