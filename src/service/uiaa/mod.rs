@@ -127,112 +127,6 @@ impl Identity {
 impl Service {
 	const SESSION_ID_LENGTH: usize = 32;
 
-	/// Create a new UIAA session with a random session ID.
-	///
-	/// If information about the user's identity is already known, it may be
-	/// supplied with the `identity` parameter. Authentication will fail if
-	/// flows provide different values for known identity information.
-	///
-	/// Returns the info of the newly created session.
-	async fn create_session(
-		&self,
-		flows: Vec<AuthFlow>,
-		params: Box<RawValue>,
-		identity: Option<Identity>,
-	) -> UiaaInfo {
-		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
-
-		let session_id = utils::random_string(Self::SESSION_ID_LENGTH);
-		let mut info = UiaaInfo::new(flows, params);
-		info.session = Some(session_id.clone());
-
-		uiaa_sessions.insert(session_id, UiaaSession {
-			info: info.clone(),
-			identity: identity.unwrap_or_default(),
-		});
-
-		info
-	}
-
-	/// Proceed with UIAA authentication given a client's authorization data.
-	async fn continue_session(&self, auth: &AuthData, session: &str) -> Result<UiaaStatus> {
-		// Hold this lock for the entire function to make sure that, if try_auth()
-		// is called concurrently with the same session, only one call will succeed
-		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
-
-		let Entry::Occupied(mut session) = uiaa_sessions.entry(session.to_owned()) else {
-			return Err!(Request(InvalidParam("Invalid session")));
-		};
-
-		if let &AuthData::FallbackAcknowledgement(_) = auth {
-			// The client is checking if authentication has succeeded out-of-band. This is
-			// possible if the client is using "fallback auth" (see spec section
-			// 4.9.1.4), which we don't support (and probably never will, because it's a
-			// disgusting hack).
-
-			// Return early to tell the client that no, authentication did not succeed while
-			// it wasn't looking.
-			return Ok(UiaaStatus::Retry(session.get().info.clone()));
-		}
-
-		let completed = 'completed: {
-			let UiaaSession { info, identity } = session.get_mut();
-
-			let completed_stages: HashSet<_> = info
-				.completed
-				.iter()
-				.map(AuthType::as_str)
-				.map(ToOwned::to_owned)
-				.collect();
-
-			// If the provided stage has already been completed, return early
-			if completed_stages
-				.contains(auth.auth_type().expect("auth type should be set").as_str())
-			{
-				return Ok(UiaaStatus::Retry(session.get().info.clone()));
-			}
-
-			match self.check_stage(auth, identity.clone()).await {
-				| Ok((completed_stage, updated_identity)) => {
-					info.completed.push(completed_stage);
-					*identity = updated_identity;
-				},
-				| Err(error) => {
-					info.auth_error = Some(error);
-				},
-			}
-
-			// Check all flows to see if any of them succeeded
-
-			for flow in &info.flows {
-				let flow_stages = flow
-					.stages
-					.iter()
-					.map(AuthType::as_str)
-					.map(ToOwned::to_owned)
-					.collect();
-
-				if completed_stages.is_superset(&flow_stages) {
-					// All stages in this flow are completed
-					break 'completed true;
-				}
-			}
-
-			// No flows had all their stages completed
-			break 'completed false;
-		};
-
-		if completed {
-			// This session is complete, remove it and return success
-			let (_, UiaaSession { identity, .. }) = session.remove_entry();
-
-			Ok(UiaaStatus::Success(identity))
-		} else {
-			// The client needs to try again, return the updated session
-			Ok(UiaaStatus::Retry(session.get().info.clone()))
-		}
-	}
-
 	/// Perform the full UIAA authentication sequence for a route given its
 	/// authentication data.
 	pub async fn authenticate(
@@ -286,6 +180,111 @@ impl Service {
 			identity,
 		)
 		.await
+	}
+
+	/// Create a new UIAA session with a random session ID.
+	///
+	/// If information about the user's identity is already known, it may be
+	/// supplied with the `identity` parameter. Authentication will fail if
+	/// flows provide different values for known identity information.
+	///
+	/// Returns the info of the newly created session.
+	async fn create_session(
+		&self,
+		flows: Vec<AuthFlow>,
+		params: Box<RawValue>,
+		identity: Option<Identity>,
+	) -> UiaaInfo {
+		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
+
+		let session_id = utils::random_string(Self::SESSION_ID_LENGTH);
+		let mut info = UiaaInfo::new(flows, params);
+		info.session = Some(session_id.clone());
+
+		uiaa_sessions.insert(session_id, UiaaSession {
+			info: info.clone(),
+			identity: identity.unwrap_or_default(),
+		});
+
+		info
+	}
+
+	/// Proceed with UIAA authentication given a client's authorization data.
+	async fn continue_session(&self, auth: &AuthData, session: &str) -> Result<UiaaStatus> {
+		// Hold this lock for the entire function to make sure that, if try_auth()
+		// is called concurrently with the same session, only one call will succeed
+		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
+
+		let Entry::Occupied(mut session) = uiaa_sessions.entry(session.to_owned()) else {
+			return Err!(Request(InvalidParam("Invalid session")));
+		};
+
+		if let &AuthData::FallbackAcknowledgement(_) = auth {
+			// The client is checking if authentication has succeeded out-of-band. This is
+			// possible if the client is using "fallback auth" (see spec section
+			// 4.9.1.4), which we don't support (and probably never will, because it's a
+			// disgusting hack).
+
+			// Return early to tell the client that no, authentication did not succeed while
+			// it wasn't looking.
+			return Ok(UiaaStatus::Retry(session.get().info.clone()));
+		}
+
+		let completed = 'completed: {
+			let UiaaSession { info, identity } = session.get_mut();
+
+			let mut completed_stages: HashSet<_> = info
+				.completed
+				.iter()
+				.map(AuthType::as_str)
+				.map(ToOwned::to_owned)
+				.collect();
+
+			// If the provided stage hasn't already been completed, check it for completion
+			if !completed_stages
+				.contains(auth.auth_type().expect("auth type should be set").as_str())
+			{
+				match self.check_stage(auth, identity.clone()).await {
+					| Ok((completed_stage, updated_identity)) => {
+						info.auth_error = None;
+						completed_stages.insert(completed_stage.to_string());
+						info.completed.push(completed_stage);
+						*identity = updated_identity;
+					},
+					| Err(error) => {
+						info.auth_error = Some(error);
+					},
+				}
+			}
+
+			// Check all flows to see if any of them succeeded
+			for flow in &info.flows {
+				let flow_stages = flow
+					.stages
+					.iter()
+					.map(AuthType::as_str)
+					.map(ToOwned::to_owned)
+					.collect();
+
+				if completed_stages.is_superset(&flow_stages) {
+					// All stages in this flow are completed
+					break 'completed true;
+				}
+			}
+
+			// No flows had all their stages completed
+			break 'completed false;
+		};
+
+		if completed {
+			// This session is complete, remove it and return success
+			let (_, UiaaSession { identity, .. }) = session.remove_entry();
+
+			Ok(UiaaStatus::Success(identity))
+		} else {
+			// The client needs to try again, return the updated session
+			Ok(UiaaStatus::Retry(session.get().info.clone()))
+		}
 	}
 
 	/// Check if the provided authentication data is valid.

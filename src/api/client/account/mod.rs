@@ -7,6 +7,7 @@ use conduwuit::{
 };
 use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt};
+use lettre::{Address, message::Mailbox};
 use ruma::{
 	OwnedRoomId, OwnedUserId, UserId,
 	api::client::{
@@ -14,7 +15,7 @@ use ruma::{
 			ThirdPartyIdRemovalStatus, change_password, check_registration_token_validity,
 			deactivate, get_3pids, get_username_availability,
 			request_3pid_management_token_via_email, request_3pid_management_token_via_msisdn,
-			whoami,
+			request_password_change_token_via_email, whoami,
 		},
 		uiaa::{AuthFlow, AuthType},
 	},
@@ -26,7 +27,7 @@ use ruma::{
 		},
 	},
 };
-use service::uiaa::Identity;
+use service::{mailer::messages, uiaa::Identity};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
@@ -220,6 +221,44 @@ pub(crate) async fn change_password_route(
 	}
 
 	Ok(change_password::v3::Response {})
+}
+
+/// # `POST /_matrix/client/v3/account/password/email/requestToken`
+///
+/// Requests a validation email for the purpose of resetting a user's password.
+pub(crate) async fn password_request_token_route(
+	State(services): State<crate::State>,
+	body: Ruma<request_password_change_token_via_email::v3::Request>,
+) -> Result<request_password_change_token_via_email::v3::Response> {
+	let Ok(email) = Address::try_from(body.email.clone()) else {
+		return Err!(Request(InvalidParam("Invalid email address")));
+	};
+
+	let Some(localpart) = services.threepid.get_localpart_for_email(&email).await else {
+		return Err!(Request(ThreepidNotFound(
+			"No account is associated with this email address"
+		)));
+	};
+
+	let user_id =
+		OwnedUserId::parse(format!("@{localpart}:{}", services.globals.server_name())).unwrap();
+	let display_name = services.users.displayname(&user_id).await.ok();
+
+	let session = services
+		.threepid
+		.send_validation_email(
+			Mailbox::new(display_name.clone(), email),
+			|verification_link| messages::PasswordReset {
+				display_name: display_name.as_deref(),
+				user_id: &user_id,
+				verification_link,
+			},
+			&body.client_secret,
+			body.send_attempt.try_into().unwrap(),
+		)
+		.await?;
+
+	Ok(request_password_change_token_via_email::v3::Response::new(session))
 }
 
 /// # `GET /_matrix/client/v3/account/whoami`
