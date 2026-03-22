@@ -376,21 +376,24 @@ async fn allowed_to_send_state_event(
 					)));
 				};
 
-				// join_authorized_via_users_server must be thrown away, if user is already a
-				// member of the room.
-				if services
-					.rooms
-					.state_cache
-					.is_joined(state_key, room_id)
-					.await
-				{
-					membership_content.join_authorized_via_users_server = None;
-					*json = Raw::<AnyStateEventContent>::from_json_string(
-						serde_json::to_string(&membership_content)?,
-					)?;
-				} else if let Some(authorising_user) =
+				if let Some(authorising_user) =
 					membership_content.join_authorized_via_users_server
 				{
+					// join_authorized_via_users_server must be thrown away, if user is already a
+					// member of the room.
+					if services
+						.rooms
+						.state_cache
+						.is_joined(state_key, room_id)
+						.await
+					{
+						membership_content.join_authorized_via_users_server = None;
+						*json = Raw::<AnyStateEventContent>::from_json_string(
+							serde_json::to_string(&membership_content)?,
+						)?;
+						return Ok(());
+					}
+
 					if membership_content.membership != MembershipState::Join {
 						return Err!(Request(BadJson(
 							"join_authorised_via_users_server is only for member joins"
