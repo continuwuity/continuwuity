@@ -36,6 +36,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::logout_route)
 		.ruma_route(&client::logout_all_route)
 		.ruma_route(&client::change_password_route)
+		.ruma_route(&client::password_request_token_route)
 		.ruma_route(&client::deactivate_route)
 		.ruma_route(&client::third_party_route)
 		.ruma_route(&client::request_3pid_management_token_via_email_route)

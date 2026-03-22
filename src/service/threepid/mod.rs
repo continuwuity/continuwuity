@@ -125,7 +125,7 @@ impl Service {
 
 		validation_url
 			.query_pairs_mut()
-			.append_pair("session_id", session.session_id.as_ref())
+			.append_pair("session", session.session_id.as_ref())
 			.append_pair("token", &token.token);
 
 		let message = prepare_body(validation_url.to_string());
