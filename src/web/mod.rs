@@ -90,6 +90,7 @@ pub fn build() -> Router<state::State> {
 				.merge(resources::build())
 				.merge(password_reset::build())
 				.merge(debug::build())
+				.merge(threepid::build())
 				.fallback(async || WebError::NotFound),
 		)
 		.layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send + 'static>| {

@@ -3,6 +3,7 @@ pub(super) mod debug;
 pub(super) mod index;
 pub(super) mod password_reset;
 pub(super) mod resources;
+pub(super) mod threepid;
 
 #[derive(Debug)]
 pub(crate) struct TemplateContext {
@@ -43,6 +44,8 @@ macro_rules! template {
         #[allow(single_use_lifetimes)]
         impl$(<$lifetime>)? axum::response::IntoResponse for $name$(<$lifetime>)? {
             fn into_response(self) -> axum::response::Response {
+                use askama::Template;
+
                 match self.render() {
                     Ok(rendered) => axum::response::Html(rendered).into_response(),
                     Err(err) => $crate::WebError::from(err).into_response()
