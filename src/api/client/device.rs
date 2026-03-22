@@ -1,17 +1,15 @@
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
-use conduwuit::{Err, Error, Result, debug, err, utils};
+use conduwuit::{Err, Result, debug, err, utils};
 use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedDeviceId,
-	api::client::{
-		device::{self, delete_device, delete_devices, get_device, get_devices, update_device},
-		error::ErrorKind,
-		uiaa::{AuthFlow, AuthType, UiaaInfo},
+	api::client::device::{
+		self, delete_device, delete_devices, get_device, get_devices, update_device,
 	},
 };
+use service::uiaa::Identity;
 
-use super::SESSION_ID_LENGTH;
 use crate::{Ruma, client::DEVICE_ID_LENGTH};
 
 /// # `GET /_matrix/client/r0/devices`
@@ -123,7 +121,7 @@ pub(crate) async fn delete_device_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_device::v3::Request>,
 ) -> Result<delete_device::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.sender_user();
 	let appservice = body.appservice_info.as_ref();
 
 	if appservice.is_some_and(|appservice| appservice.registration.device_management) {
@@ -139,41 +137,11 @@ pub(crate) async fn delete_device_route(
 		return Ok(delete_device::v3::Response {});
 	}
 
-	// UIAA
-	let mut uiaainfo = UiaaInfo {
-		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
-
-	match &body.auth {
-		| Some(auth) => {
-			let (worked, uiaainfo) = services
-				.uiaa
-				.try_auth(sender_user, sender_device, auth, &uiaainfo)
-				.await?;
-
-			if !worked {
-				return Err!(Uiaa(uiaainfo));
-			}
-			// Success!
-		},
-		| _ => match body.json_body {
-			| Some(ref json) => {
-				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-				services
-					.uiaa
-					.create(sender_user, sender_device, &uiaainfo, json);
-
-				return Err!(Uiaa(uiaainfo));
-			},
-			| _ => {
-				return Err!(Request(NotJson("Not json.")));
-			},
-		},
-	}
+	// Prompt the user to confirm with their password using UIAA
+	let _ = services
+		.uiaa
+		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.await?;
 
 	services
 		.users
@@ -200,7 +168,7 @@ pub(crate) async fn delete_devices_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_devices::v3::Request>,
 ) -> Result<delete_devices::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.sender_user();
 	let appservice = body.appservice_info.as_ref();
 
 	if appservice.is_some_and(|appservice| appservice.registration.device_management) {
@@ -215,41 +183,11 @@ pub(crate) async fn delete_devices_route(
 		return Ok(delete_devices::v3::Response {});
 	}
 
-	// UIAA
-	let mut uiaainfo = UiaaInfo {
-		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
-
-	match &body.auth {
-		| Some(auth) => {
-			let (worked, uiaainfo) = services
-				.uiaa
-				.try_auth(sender_user, sender_device, auth, &uiaainfo)
-				.await?;
-
-			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
-			}
-			// Success!
-		},
-		| _ => match body.json_body {
-			| Some(ref json) => {
-				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-				services
-					.uiaa
-					.create(sender_user, sender_device, &uiaainfo, json);
-
-				return Err(Error::Uiaa(uiaainfo));
-			},
-			| _ => {
-				return Err(Error::BadRequest(ErrorKind::NotJson, "Not json."));
-			},
-		},
-	}
+	// Prompt the user to confirm with their password using UIAA
+	let _ = services
+		.uiaa
+		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.await?;
 
 	for device_id in &body.devices {
 		services.users.remove_device(sender_user, device_id).await;

@@ -8,7 +8,7 @@ use conduwuit::{
 	warn,
 };
 use conduwuit_core::{debug_error, debug_warn};
-use conduwuit_service::{Services, uiaa::SESSION_ID_LENGTH};
+use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
 	OwnedUserId, UserId,
@@ -29,6 +29,7 @@ use ruma::{
 		uiaa,
 	},
 };
+use service::uiaa::Identity;
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::Ruma;
@@ -370,45 +371,13 @@ pub(crate) async fn login_token_route(
 		return Err!(Request(Forbidden("Login via an existing session is not enabled")));
 	}
 
-	// This route SHOULD have UIA
-	// TODO: How do we make only UIA sessions that have not been used before valid?
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.sender_user();
 
-	let mut uiaainfo = uiaa::UiaaInfo {
-		flows: vec![uiaa::AuthFlow { stages: vec![uiaa::AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
-
-	match &body.auth {
-		| Some(auth) => {
-			let (worked, uiaainfo) = services
-				.uiaa
-				.try_auth(sender_user, sender_device, auth, &uiaainfo)
-				.await?;
-
-			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
-			}
-
-			// Success!
-		},
-		| _ => match body.json_body.as_ref() {
-			| Some(json) => {
-				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-				services
-					.uiaa
-					.create(sender_user, sender_device, &uiaainfo, json);
-
-				return Err(Error::Uiaa(uiaainfo));
-			},
-			| _ => {
-				return Err!(Request(NotJson("No JSON body was sent when required.")));
-			},
-		},
-	}
+	// Prompt the user to confirm with their password using UIAA
+	let _ = services
+		.uiaa
+		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.await?;
 
 	let login_token = utils::random_string(TOKEN_LENGTH);
 	let expires_in = services.users.create_login_token(sender_user, &login_token);

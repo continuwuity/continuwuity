@@ -1,9 +1,9 @@
-use std::fmt::Write;
+use std::{collections::HashMap, fmt::Write};
 
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Error, Event, Result, debug_info, err, error, info,
+	Err, Event, Result, debug_info, err, error, info,
 	matrix::pdu::PduBuilder,
 	utils::{self, ReadyExt, stream::BroadbandExt},
 	warn,
@@ -12,7 +12,7 @@ use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt};
 use register::RegistrationKind;
 use ruma::{
-	OwnedRoomId, UserId,
+	OwnedRoomId, OwnedUserId, UserId,
 	api::client::{
 		account::{
 			ThirdPartyIdRemovalStatus, change_password, check_registration_token_validity,
@@ -21,7 +21,7 @@ use ruma::{
 			request_3pid_management_token_via_email, request_3pid_management_token_via_msisdn,
 			whoami,
 		},
-		uiaa::{AuthFlow, AuthType, UiaaInfo},
+		uiaa::{AuthFlow, AuthType},
 	},
 	events::{
 		GlobalAccountDataEventType, StateEventType,
@@ -33,8 +33,10 @@ use ruma::{
 	},
 	push,
 };
+use serde_json::value::RawValue;
+use service::uiaa::Identity;
 
-use super::{DEVICE_ID_LENGTH, SESSION_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
+use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
 
 const RANDOM_USER_ID_LENGTH: usize = 10;
@@ -201,7 +203,7 @@ pub(crate) async fn register_route(
 
 	// forbid guests from registering if there is not a real admin user yet. give
 	// generic user error.
-	if is_guest && services.users.count().await < 2 {
+	if is_guest && services.firstrun.is_first_run() {
 		warn!(
 			"Guest account attempted to register before a real admin user has been registered, \
 			 rejecting registration. Guest's initial device name: \"{}\"",
@@ -212,81 +214,19 @@ pub(crate) async fn register_route(
 		)));
 	}
 
-	let user_id = match (body.username.as_ref(), is_guest) {
-		| (Some(username), false) => {
-			// workaround for https://github.com/matrix-org/matrix-appservice-irc/issues/1780 due to inactivity of fixing the issue
-			let is_matrix_appservice_irc =
-				body.appservice_info.as_ref().is_some_and(|appservice| {
-					appservice.registration.id == "irc"
-						|| appservice.registration.id.contains("matrix-appservice-irc")
-						|| appservice.registration.id.contains("matrix_appservice_irc")
-				});
-
-			if services.globals.forbidden_usernames().is_match(username)
-				&& !emergency_mode_enabled
-			{
-				return Err!(Request(Forbidden("Username is forbidden")));
-			}
-
-			// don't force the username lowercase if it's from matrix-appservice-irc
-			let body_username = if is_matrix_appservice_irc {
-				username.clone()
-			} else {
-				username.to_lowercase()
-			};
-
-			let proposed_user_id = match UserId::parse_with_server_name(
-				&body_username,
-				services.globals.server_name(),
-			) {
-				| Ok(user_id) => {
-					if let Err(e) = user_id.validate_strict() {
-						// unless the username is from the broken matrix appservice IRC bridge, or
-						// we are in emergency mode, we should follow synapse's behaviour on
-						// not allowing things like spaces and UTF-8 characters in usernames
-						if !is_matrix_appservice_irc && !emergency_mode_enabled {
-							return Err!(Request(InvalidUsername(debug_warn!(
-								"Username {body_username} contains disallowed characters or \
-								 spaces: {e}"
-							))));
-						}
-					}
-
-					// Don't allow registration with user IDs that aren't local
-					if !services.globals.user_is_local(&user_id) {
-						return Err!(Request(InvalidUsername(
-							"Username {body_username} is not local to this server"
-						)));
-					}
-
-					user_id
-				},
-				| Err(e) => {
-					return Err!(Request(InvalidUsername(debug_warn!(
-						"Username {body_username} is not valid: {e}"
-					))));
-				},
-			};
-
-			if services.users.exists(&proposed_user_id).await {
-				return Err!(Request(UserInUse("User ID is not available.")));
-			}
-
-			proposed_user_id
-		},
-		| _ => loop {
-			let proposed_user_id = UserId::parse_with_server_name(
-				utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
-				services.globals.server_name(),
-			)
-			.unwrap();
-			if !services.users.exists(&proposed_user_id).await {
-				break proposed_user_id;
-			}
-		},
-	};
+	let user_id = determine_registration_user_id(
+		&services,
+		body.username.clone(),
+		body.appservice_info.as_ref(),
+		is_guest,
+		emergency_mode_enabled,
+	)
+	.await?;
 
 	if body.body.login_type == Some(LoginType::ApplicationService) {
+		// For appservice logins, make sure that the user ID is in the appservice's
+		// namespace
+
 		match body.appservice_info {
 			| Some(ref info) =>
 				if !info.is_user_match(&user_id) && !emergency_mode_enabled {
@@ -300,126 +240,48 @@ pub(crate) async fn register_route(
 		}
 	} else if services.appservice.is_exclusive_user_id(&user_id).await && !emergency_mode_enabled
 	{
+		// For non-appservice logins, ban user IDs which are in an appservice's
+		// namespace (unless emergency mode is enabled)
 		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
 	}
 
-	// UIAA
-	let mut uiaainfo = UiaaInfo {
-		flows: Vec::new(),
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
+	// Appeservices and guests get to skip auth
 	let skip_auth = body.appservice_info.is_some() || is_guest;
 
-	// Populate required UIAA flows
-
-	if services.firstrun.is_first_run() {
-		// Registration token forced while in first-run mode
-		uiaainfo.flows.push(AuthFlow {
-			stages: vec![AuthType::RegistrationToken],
-		});
+	let identity = if skip_auth {
+		// Appservices and guests have no identity
+		None
 	} else {
-		if services
-			.registration_tokens
-			.iterate_tokens()
-			.next()
-			.await
-			.is_some()
-		{
-			// Registration token required
-			uiaainfo.flows.push(AuthFlow {
-				stages: vec![AuthType::RegistrationToken],
-			});
-		}
+		// Perform UIAA to determine the user's identity
+		let (flows, params) = create_registration_uiaa_session(&services).await?;
 
-		if services.config.recaptcha_private_site_key.is_some() {
-			if let Some(pubkey) = &services.config.recaptcha_site_key {
-				// ReCaptcha required
-				uiaainfo
-					.flows
-					.push(AuthFlow { stages: vec![AuthType::ReCaptcha] });
-				uiaainfo.params = serde_json::value::to_raw_value(&serde_json::json!({
-					"m.login.recaptcha": {
-						"public_key": pubkey,
-					},
-				}))
-				.expect("Failed to serialize recaptcha params");
-			}
-		}
-
-		if uiaainfo.flows.is_empty() && !skip_auth {
-			// Registration isn't _disabled_, but there's no captcha configured and no
-			// registration tokens currently set. Bail out by default unless open
-			// registration was explicitly enabled.
-			if !services
-				.config
-				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-			{
-				return Err!(Request(Forbidden(
-					"This server is not accepting registrations at this time."
-				)));
-			}
-
-			// We have open registration enabled (😧), provide a dummy stage
-			uiaainfo = UiaaInfo {
-				flows: vec![AuthFlow { stages: vec![AuthType::Dummy] }],
-				completed: Vec::new(),
-				params: Box::default(),
-				session: None,
-				auth_error: None,
-			};
-		}
-	}
-
-	if !skip_auth {
-		match &body.auth {
-			| Some(auth) => {
-				let (worked, uiaainfo) = services
-					.uiaa
-					.try_auth(
-						&UserId::parse_with_server_name("", services.globals.server_name())
-							.unwrap(),
-						"".into(),
-						auth,
-						&uiaainfo,
-					)
-					.await?;
-				if !worked {
-					return Err(Error::Uiaa(uiaainfo));
-				}
-				// Success!
-			},
-			| _ => match body.json_body {
-				| Some(ref json) => {
-					uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-					services.uiaa.create(
-						&UserId::parse_with_server_name("", services.globals.server_name())
-							.unwrap(),
-						"".into(),
-						&uiaainfo,
-						json,
-					);
-					return Err(Error::Uiaa(uiaainfo));
-				},
-				| _ => {
-					return Err!(Request(NotJson("JSON body is not valid")));
-				},
-			},
-		}
-	}
+		Some(
+			services
+				.uiaa
+				.authenticate(&body.auth, flows, params, None)
+				.await?,
+		)
+	};
 
 	let password = if is_guest { None } else { body.password.as_deref() };
 
 	// Create user
 	services.users.create(&user_id, password, None).await?;
 
-	// Default to pretty displayname
+	// If the user registered with an email, associate it with their account
+	#[allow(clippy::collapsible_if)]
+	if let Some(identity) = identity {
+		if let Some(email) = identity.email {
+			services
+				.threepid
+				.associate_localpart_email(user_id.localpart(), email);
+		}
+	}
+
+	// Set an initial display name
 	let mut displayname = user_id.localpart().to_owned();
 
-	// If `new_user_displayname_suffix` is set, registration will push whatever
-	// content is set to the user's display name with a space before it
+	// Apply the new user displayname suffix, if it's set
 	if !services.globals.new_user_displayname_suffix().is_empty()
 		&& body.appservice_info.is_none()
 	{
@@ -615,6 +477,157 @@ pub(crate) async fn register_route(
 	})
 }
 
+/// Determine which flows and parameters should be presented when
+/// registering a new account.
+async fn create_registration_uiaa_session(
+	services: &Services,
+) -> Result<(Vec<AuthFlow>, Box<RawValue>)> {
+	let mut flows = vec![];
+	let mut params = HashMap::<String, serde_json::Value>::new();
+
+	if services.firstrun.is_first_run() {
+		// Registration token forced while in first-run mode
+		flows.push(AuthFlow::new(vec![AuthType::RegistrationToken]));
+	} else {
+		if services
+			.registration_tokens
+			.iterate_tokens()
+			.next()
+			.await
+			.is_some()
+		{
+			// Registration token flow is available
+			flows.push(AuthFlow::new(vec![AuthType::RegistrationToken]));
+		}
+
+		if services.config.recaptcha_private_site_key.is_some() {
+			if let Some(pubkey) = &services.config.recaptcha_site_key {
+				// ReCaptcha flow is available
+				flows.push(AuthFlow::new(vec![AuthType::ReCaptcha]));
+
+				params.insert(
+					AuthType::ReCaptcha.as_str().to_owned(),
+					serde_json::json!({
+						"public_key": pubkey,
+					}),
+				);
+			}
+		}
+	}
+
+	if flows.is_empty() {
+		// Registration is enabled, but no flows are configured. Bail out by default
+		// unless open registration was explicitly enabled.
+		if !services
+			.config
+			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+		{
+			return Err!(Request(Forbidden(
+				"This server is not accepting registrations at this time."
+			)));
+		}
+
+		// We have open registration enabled (😧), provide a dummy flow
+		flows.push(AuthFlow { stages: vec![AuthType::Dummy] });
+	}
+
+	let params = serde_json::value::to_raw_value(&params).expect("params should be valid JSON");
+
+	Ok((flows, params))
+}
+
+async fn determine_registration_user_id(
+	services: &Services,
+	supplied_username: Option<String>,
+	appservice_info: Option<&service::appservice::RegistrationInfo>,
+	is_guest: bool,
+	emergency_mode_enabled: bool,
+) -> Result<OwnedUserId> {
+	if let Some(mut supplied_username) = supplied_username
+		&& !is_guest
+	{
+		// The user gets to pick their username. Do some validation to make sure it's
+		// acceptable.
+
+		// Don't allow registration with forbidden usernames.
+		if services
+			.globals
+			.forbidden_usernames()
+			.is_match(&supplied_username)
+			&& !emergency_mode_enabled
+		{
+			return Err!(Request(Forbidden("Username is forbidden")));
+		}
+
+		// Workaround for https://github.com/matrix-org/matrix-appservice-irc/issues/1780 due to inactivity of fixing the issue
+		let is_matrix_appservice_irc = appservice_info.is_some_and(|appservice| {
+			appservice.registration.id == "irc"
+				|| appservice.registration.id.contains("matrix-appservice-irc")
+				|| appservice.registration.id.contains("matrix_appservice_irc")
+		});
+
+		// Don't force the username lowercase if it's from matrix-appservice-irc.
+		if !is_matrix_appservice_irc {
+			supplied_username = supplied_username.to_lowercase();
+		}
+
+		// Create and validate the user ID
+		let user_id = match UserId::parse_with_server_name(
+			&supplied_username,
+			services.globals.server_name(),
+		) {
+			| Ok(user_id) => {
+				if let Err(e) = user_id.validate_strict() {
+					// unless the username is from the broken matrix appservice IRC bridge, or
+					// we are in emergency mode, we should follow synapse's behaviour on
+					// not allowing things like spaces and UTF-8 characters in usernames
+					if !is_matrix_appservice_irc && !emergency_mode_enabled {
+						return Err!(Request(InvalidUsername(debug_warn!(
+							"Username {supplied_username} contains disallowed characters or \
+							 spaces: {e}"
+						))));
+					}
+				}
+
+				// Don't allow registration with user IDs that aren't local
+				if !services.globals.user_is_local(&user_id) {
+					return Err!(Request(InvalidUsername(
+						"Username {supplied_username} is not local to this server"
+					)));
+				}
+
+				user_id
+			},
+			| Err(e) => {
+				return Err!(Request(InvalidUsername(debug_warn!(
+					"Username {supplied_username} is not valid: {e}"
+				))));
+			},
+		};
+
+		if services.users.exists(&user_id).await {
+			return Err!(Request(UserInUse("User ID is not available.")));
+		}
+
+		Ok(user_id)
+	} else {
+		// The user is a guest or is lacking in creativity. Generate a username for
+		// them.
+
+		loop {
+			let user_id = UserId::parse_with_server_name(
+				utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
+				services.globals.server_name(),
+			)
+			.unwrap();
+
+			if !services.users.exists(&user_id).await {
+				break Ok(user_id);
+			}
+		}
+	}
+}
+
 /// # `POST /_matrix/client/r0/account/password`
 ///
 /// Changes the password of this account.
@@ -638,67 +651,61 @@ pub(crate) async fn change_password_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	// Authentication for this endpoint was made optional, but we need
-	// authentication currently
-	let sender_user = body
-		.sender_user
-		.as_ref()
-		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
+	let identity = if let Some(ref user_id) = body.sender_user {
+		// A signed-in user is trying to change their password, prompt them for their
+		// existing one
 
-	let mut uiaainfo = UiaaInfo {
-		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
+		services
+			.uiaa
+			.authenticate(
+				&body.auth,
+				vec![AuthFlow::new(vec![AuthType::Password])],
+				Box::default(),
+				Some(Identity::from_user_id(user_id)),
+			)
+			.await?
+	} else {
+		// A signed-out user is trying to reset their password, prompt them for email
+		// confirmation Note that we do not _send_ an email here, their client should
+		// have already hit `/account/password/requestToken` to send the email. We
+		// just validate it.
+
+		services
+			.uiaa
+			.authenticate(
+				&body.auth,
+				vec![AuthFlow::new(vec![AuthType::EmailIdentity])],
+				Box::default(),
+				None,
+			)
+			.await?
 	};
 
-	match &body.auth {
-		| Some(auth) => {
-			let (worked, uiaainfo) = services
-				.uiaa
-				.try_auth(sender_user, body.sender_device(), auth, &uiaainfo)
-				.await?;
-
-			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
-			}
-
-			// Success!
-		},
-		| _ => match body.json_body {
-			| Some(ref json) => {
-				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-				services
-					.uiaa
-					.create(sender_user, body.sender_device(), &uiaainfo, json);
-
-				return Err(Error::Uiaa(uiaainfo));
-			},
-			| _ => {
-				return Err!(Request(NotJson("JSON body is not valid")));
-			},
-		},
-	}
+	let sender_user = OwnedUserId::parse(format!(
+		"@{}:{}",
+		identity.localpart.expect("localpart should be known"),
+		services.globals.server_name()
+	))
+	.expect("user ID should be valid");
 
 	services
 		.users
-		.set_password(sender_user, Some(&body.new_password))
+		.set_password(&sender_user, Some(&body.new_password))
 		.await?;
 
 	if body.logout_devices {
 		// Logout all devices except the current one
 		services
 			.users
-			.all_device_ids(sender_user)
+			.all_device_ids(&sender_user)
 			.ready_filter(|id| *id != body.sender_device())
-			.for_each(|id| services.users.remove_device(sender_user, id))
+			.for_each(|id| services.users.remove_device(&sender_user, id))
 			.await;
 
 		// Remove all pushers except the ones associated with this session
 		services
 			.pusher
-			.get_pushkeys(sender_user)
+			.get_pushkeys(&sender_user)
 			.map(ToOwned::to_owned)
 			.broad_filter_map(async |pushkey| {
 				services
@@ -711,17 +718,17 @@ pub(crate) async fn change_password_route(
 					.then_some(pushkey)
 			})
 			.for_each(async |pushkey| {
-				services.pusher.delete_pusher(sender_user, &pushkey).await;
+				services.pusher.delete_pusher(&sender_user, &pushkey).await;
 			})
 			.await;
 	}
 
-	info!("User {sender_user} changed their password.");
+	info!("User {} changed their password.", &sender_user);
 
 	if services.server.config.admin_room_notices {
 		services
 			.admin
-			.notice(&format!("User {sender_user} changed their password."))
+			.notice(&format!("User {} changed their password.", &sender_user))
 			.await;
 	}
 
@@ -768,47 +775,18 @@ pub(crate) async fn deactivate_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<deactivate::v3::Request>,
 ) -> Result<deactivate::v3::Response> {
-	// Authentication for this endpoint was made optional, but we need
-	// authentication currently
+	// Authentication for this endpoint is technically optional,
+	// but we require the user to be logged in
 	let sender_user = body
 		.sender_user
 		.as_ref()
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
 
-	let mut uiaainfo = UiaaInfo {
-		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
-
-	match &body.auth {
-		| Some(auth) => {
-			let (worked, uiaainfo) = services
-				.uiaa
-				.try_auth(sender_user, body.sender_device(), auth, &uiaainfo)
-				.await?;
-
-			if !worked {
-				return Err(Error::Uiaa(uiaainfo));
-			}
-			// Success!
-		},
-		| _ => match body.json_body {
-			| Some(ref json) => {
-				uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-				services
-					.uiaa
-					.create(sender_user, body.sender_device(), &uiaainfo, json);
-
-				return Err(Error::Uiaa(uiaainfo));
-			},
-			| _ => {
-				return Err!(Request(NotJson("JSON body is not valid")));
-			},
-		},
-	}
+	// Prompt the user to confirm with their password using UIAA
+	let _ = services
+		.uiaa
+		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.await?;
 
 	// Remove profile pictures and display name
 	let all_joined_rooms: Vec<OwnedRoomId> = services

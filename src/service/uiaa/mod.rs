@@ -1,24 +1,28 @@
-use std::{collections::BTreeMap, sync::Arc};
-
-use conduwuit::{
-	Err, Error, Result, SyncRwLock, err, error, implement, utils,
-	utils::{hash, string::EMPTY},
+use std::{
+	collections::{HashMap, HashSet, hash_map::Entry},
+	sync::Arc,
 };
-use database::{Deserialized, Json, Map};
+
+use conduwuit::{Err, Error, Result, error, utils, utils::hash};
+use lettre::Address;
 use ruma::{
-	CanonicalJsonValue, DeviceId, OwnedDeviceId, OwnedUserId, UserId,
+	UserId,
 	api::client::{
 		error::{ErrorKind, StandardErrorBody},
-		uiaa::{AuthData, AuthType, Password, UiaaInfo, UserIdentifier},
+		uiaa::{
+			AuthData, AuthFlow, AuthType, EmailIdentity, Password, ReCaptcha, RegistrationToken,
+			ThirdpartyIdCredentials, UiaaInfo, UserIdentifier,
+		},
 	},
 };
+use serde_json::value::RawValue;
+use tokio::sync::Mutex;
 
-use crate::{Dep, config, globals, registration_tokens, users};
+use crate::{Dep, config, globals, registration_tokens, threepid, users};
 
 pub struct Service {
-	userdevicesessionid_uiaarequest: SyncRwLock<RequestMap>,
-	db: Data,
 	services: Services,
+	uiaa_sessions: Mutex<HashMap<String, UiaaSession>>,
 }
 
 struct Services {
@@ -26,205 +30,144 @@ struct Services {
 	users: Dep<users::Service>,
 	config: Dep<config::Service>,
 	registration_tokens: Dep<registration_tokens::Service>,
+	threepid: Dep<threepid::Service>,
 }
-
-struct Data {
-	userdevicesessionid_uiaainfo: Arc<Map>,
-}
-
-type RequestMap = BTreeMap<RequestKey, CanonicalJsonValue>;
-type RequestKey = (OwnedUserId, OwnedDeviceId, String);
-
-pub const SESSION_ID_LENGTH: usize = 32;
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			userdevicesessionid_uiaarequest: SyncRwLock::new(RequestMap::new()),
-			db: Data {
-				userdevicesessionid_uiaainfo: args.db["userdevicesessionid_uiaainfo"].clone(),
-			},
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				users: args.depend::<users::Service>("users"),
 				config: args.depend::<config::Service>("config"),
 				registration_tokens: args
 					.depend::<registration_tokens::Service>("registration_tokens"),
+				threepid: args.depend::<threepid::Service>("threepid"),
 			},
+			uiaa_sessions: Mutex::new(HashMap::new()),
 		}))
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-/// Creates a new Uiaa session. Make sure the session token is unique.
-#[implement(Service)]
-pub fn create(
-	&self,
-	user_id: &UserId,
-	device_id: &DeviceId,
-	uiaainfo: &UiaaInfo,
-	json_body: &CanonicalJsonValue,
-) {
-	// TODO: better session error handling (why is uiaainfo.session optional in
-	// ruma?)
-	self.set_uiaa_request(
-		user_id,
-		device_id,
-		uiaainfo.session.as_ref().expect("session should be set"),
-		json_body,
-	);
-
-	self.update_uiaa_session(
-		user_id,
-		device_id,
-		uiaainfo.session.as_ref().expect("session should be set"),
-		Some(uiaainfo),
-	);
+struct UiaaSession {
+	info: UiaaInfo,
+	identity: Identity,
 }
 
-#[implement(Service)]
-#[allow(clippy::useless_let_if_seq)]
-pub async fn try_auth(
-	&self,
-	user_id: &UserId,
-	device_id: &DeviceId,
-	auth: &AuthData,
-	uiaainfo: &UiaaInfo,
-) -> Result<(bool, UiaaInfo)> {
-	let mut uiaainfo = if let Some(session) = auth.session() {
-		self.get_uiaa_session(user_id, device_id, session).await?
-	} else {
-		uiaainfo.clone()
-	};
+pub enum UiaaStatus {
+	/// The UIAA session succeeded and the request should be completed as
+	/// normal.
+	Success(Identity),
+	/// More UIAA stages need to be completed, or the current stage failed.
+	Retry(UiaaInfo),
+}
 
-	if uiaainfo.session.is_none() {
-		uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
+/// Information about the authenticated user's identity.
+///
+/// A field of this struct will only be Some if the user completed
+/// a stage which provided that information. If multiple stages provide
+/// the same field, authentication will fail if they do not all provide
+/// _identical_ values for that field.
+#[derive(Default, Clone)]
+pub struct Identity {
+	/// The authenticated user's user ID, if it could be determined.
+	///
+	/// This will be Some if:
+	/// - The user completed a m.login.password stage
+	/// - The user completed a m.login.email.identity stage, and their email has
+	///   an associated user ID
+	pub localpart: Option<String>,
+
+	/// The authenticated user's email address, if it could be determined.
+	///
+	/// This will be Some if:
+	/// - The user completed a m.login.email.identity stage
+	/// - The user completed a m.login.password stage, and their user ID has an
+	///   associated email
+	pub email: Option<Address>,
+}
+
+macro_rules! identity_update_fn {
+	(fn $method:ident($field:ident : $type:ty)else $error:literal) => {
+		fn $method(&mut self, $field: $type) -> Result<(), StandardErrorBody> {
+			if self.$field.is_none() {
+				self.$field = Some($field);
+				Ok(())
+			} else if self.$field == Some($field) {
+				Ok(())
+			} else {
+				Err(StandardErrorBody {
+					kind: ErrorKind::InvalidParam,
+					message: $error.to_owned(),
+				})
+			}
+		}
+	};
+}
+
+impl Identity {
+	identity_update_fn!(fn try_set_localpart(localpart: String) else "User ID mismatch");
+
+	identity_update_fn!(fn try_set_email(email: Address) else "Email mismatch");
+
+	/// Create an Identity with the localpart of the provided user ID
+	/// and all other fields set to None.
+	#[must_use]
+	pub fn from_user_id(user_id: &UserId) -> Self {
+		Self {
+			localpart: Some(user_id.localpart().to_owned()),
+			..Default::default()
+		}
+	}
+}
+
+impl Service {
+	const SESSION_ID_LENGTH: usize = 32;
+
+	/// Create a new UIAA session with a random session ID.
+	///
+	/// If information about the user's identity is already known, it may be
+	/// supplied with the `identity` parameter. Authentication will fail if
+	/// flows provide different values for known identity information.
+	///
+	/// Returns the info of the newly created session.
+	pub async fn create_session(
+		&self,
+		flows: Vec<AuthFlow>,
+		params: Box<RawValue>,
+		identity: Option<Identity>,
+	) -> UiaaInfo {
+		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
+
+		let session_id = utils::random_string(Self::SESSION_ID_LENGTH);
+		let mut info = UiaaInfo::new(flows, params);
+		info.session = Some(session_id.clone());
+
+		uiaa_sessions.insert(session_id, UiaaSession {
+			info: info.clone(),
+			identity: identity.unwrap_or_default(),
+		});
+
+		info
 	}
 
-	match auth {
-		// Find out what the user completed
-		| AuthData::Password(Password {
-			identifier,
-			password,
-			#[cfg(feature = "element_hacks")]
-			user,
-			..
-		}) => {
-			#[cfg(feature = "element_hacks")]
-			let username = if let Some(UserIdentifier::UserIdOrLocalpart(username)) = identifier {
-				username
-			} else if let Some(username) = user {
-				username
-			} else {
-				return Err(Error::BadRequest(
-					ErrorKind::Unrecognized,
-					"Identifier type not recognized.",
-				));
-			};
+	/// Proceed with UIAA authentication given a client's authorization data.
+	pub async fn continue_session(&self, auth: &AuthData) -> Result<UiaaStatus> {
+		let Some(session) = auth.session() else {
+			return Err!(Request(MissingParam("No session provided")));
+		};
 
-			#[cfg(not(feature = "element_hacks"))]
-			let Some(UserIdentifier::UserIdOrLocalpart(username)) = identifier else {
-				return Err(Error::BadRequest(
-					ErrorKind::Unrecognized,
-					"Identifier type not recognized.",
-				));
-			};
+		// Hold this lock for the entire function to make sure that, if try_auth()
+		// is called concurrently with the same session, only one call will succeed
+		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
 
-			let user_id_from_username = UserId::parse_with_server_name(
-				username.clone(),
-				self.services.globals.server_name(),
-			)
-			.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "User ID is invalid."))?;
+		let Entry::Occupied(mut session) = uiaa_sessions.entry(session.to_owned()) else {
+			return Err!(Request(InvalidParam("Invalid session")));
+		};
 
-			// Check if the access token being used matches the credentials used for UIAA
-			if user_id.localpart() != user_id_from_username.localpart() {
-				return Err!(Request(Forbidden("User ID and access token mismatch.")));
-			}
-			let user_id = user_id_from_username;
-
-			// Check if password is correct
-			let mut password_verified = false;
-
-			// First try local password hash verification
-			if let Ok(hash) = self.services.users.password_hash(&user_id).await {
-				password_verified = hash::verify_password(password, &hash).is_ok();
-			}
-
-			// If local password verification failed, try LDAP authentication
-			#[cfg(feature = "ldap")]
-			if !password_verified && self.services.config.ldap.enable {
-				// Search for user in LDAP to get their DN
-				if let Ok(dns) = self.services.users.search_ldap(&user_id).await {
-					if let Some((user_dn, _is_admin)) = dns.first() {
-						// Try to authenticate with LDAP
-						password_verified = self
-							.services
-							.users
-							.auth_ldap(user_dn, password)
-							.await
-							.is_ok();
-					}
-				}
-			}
-
-			if !password_verified {
-				uiaainfo.auth_error = Some(StandardErrorBody {
-					kind: ErrorKind::forbidden(),
-					message: "Invalid username or password.".to_owned(),
-				});
-
-				return Ok((false, uiaainfo));
-			}
-
-			// Password was correct! Let's add it to `completed`
-			uiaainfo.completed.push(AuthType::Password);
-		},
-		| AuthData::ReCaptcha(r) => {
-			let Some(ref private_site_key) = self.services.config.recaptcha_private_site_key
-			else {
-				return Err!(Request(Forbidden("ReCaptcha is not configured.")));
-			};
-			match recaptcha_verify::verify_v3(private_site_key, r.response.as_str(), None).await {
-				| Ok(()) => {
-					uiaainfo.completed.push(AuthType::ReCaptcha);
-				},
-				| Err(e) => {
-					error!("ReCaptcha verification failed: {e:?}");
-					uiaainfo.auth_error = Some(StandardErrorBody {
-						kind: ErrorKind::forbidden(),
-						message: "ReCaptcha verification failed.".to_owned(),
-					});
-					return Ok((false, uiaainfo));
-				},
-			}
-		},
-		| AuthData::RegistrationToken(t) => {
-			let token = t.token.trim().to_owned();
-
-			if let Some(valid_token) = self
-				.services
-				.registration_tokens
-				.validate_token(token)
-				.await
-			{
-				self.services
-					.registration_tokens
-					.mark_token_as_used(valid_token);
-
-				uiaainfo.completed.push(AuthType::RegistrationToken);
-			} else {
-				uiaainfo.auth_error = Some(StandardErrorBody {
-					kind: ErrorKind::forbidden(),
-					message: "Invalid registration token.".to_owned(),
-				});
-				return Ok((false, uiaainfo));
-			}
-		},
-		| AuthData::Dummy(_) => {
-			uiaainfo.completed.push(AuthType::Dummy);
-		},
-		| AuthData::FallbackAcknowledgement(_) => {
+		if let &AuthData::FallbackAcknowledgement(_) = auth {
 			// The client is checking if authentication has succeeded out-of-band. This is
 			// possible if the client is using "fallback auth" (see spec section
 			// 4.9.1.4), which we don't support (and probably never will, because it's a
@@ -232,109 +175,276 @@ pub async fn try_auth(
 
 			// Return early to tell the client that no, authentication did not succeed while
 			// it wasn't looking.
-			return Ok((false, uiaainfo));
-		},
-		| k => error!("type not supported: {:?}", k),
-	}
-
-	// Check if a flow now succeeds
-	let mut completed = false;
-	'flows: for flow in &mut uiaainfo.flows {
-		for stage in &flow.stages {
-			if !uiaainfo.completed.contains(stage) {
-				continue 'flows;
-			}
+			return Ok(UiaaStatus::Retry(session.get().info.clone()));
 		}
-		// We didn't break, so this flow succeeded!
-		completed = true;
+
+		let completed = 'completed: {
+			let UiaaSession { info, identity } = session.get_mut();
+
+			let completed_stages: HashSet<_> = info
+				.completed
+				.iter()
+				.map(AuthType::as_str)
+				.map(ToOwned::to_owned)
+				.collect();
+
+			// If the provided stage has already been completed, return early
+			if completed_stages
+				.contains(auth.auth_type().expect("auth type should be set").as_str())
+			{
+				return Ok(UiaaStatus::Retry(session.get().info.clone()));
+			}
+
+			match self.check_stage(auth, identity.clone()).await {
+				| Ok((completed_stage, updated_identity)) => {
+					info.completed.push(completed_stage);
+					*identity = updated_identity;
+				},
+				| Err(error) => {
+					info.auth_error = Some(error);
+				},
+			}
+
+			// Check all flows to see if any of them succeeded
+
+			for flow in &info.flows {
+				let flow_stages = flow
+					.stages
+					.iter()
+					.map(AuthType::as_str)
+					.map(ToOwned::to_owned)
+					.collect();
+
+				if completed_stages.is_superset(&flow_stages) {
+					// All stages in this flow are completed
+					break 'completed true;
+				}
+			}
+
+			// No flows had all their stages completed
+			break 'completed false;
+		};
+
+		if completed {
+			// This session is complete, remove it and return success
+			let (_, UiaaSession { identity, .. }) = session.remove_entry();
+
+			Ok(UiaaStatus::Success(identity))
+		} else {
+			// The client needs to try again, return the updated session
+			Ok(UiaaStatus::Retry(session.get().info.clone()))
+		}
 	}
 
-	if !completed {
-		self.update_uiaa_session(
-			user_id,
-			device_id,
-			uiaainfo.session.as_ref().expect("session is always set"),
-			Some(&uiaainfo),
-		);
+	/// Perform the full UIAA authentication sequence for a route given its
+	/// authentication data.
+	#[inline]
+	pub async fn authenticate(
+		&self,
+		auth: &Option<AuthData>,
+		flows: Vec<AuthFlow>,
+		params: Box<RawValue>,
+		identity: Option<Identity>,
+	) -> Result<Identity> {
+		match auth.as_ref() {
+			| None => {
+				let info = self.create_session(flows, params, identity).await;
 
-		return Ok((false, uiaainfo));
+				Err(Error::Uiaa(info))
+			},
+			| Some(auth) => match self.continue_session(auth).await? {
+				| UiaaStatus::Retry(info) => Err(Error::Uiaa(info)),
+				| UiaaStatus::Success(identity) => Ok(identity),
+			},
+		}
 	}
 
-	// UIAA was successful! Remove this session and return true
-	self.update_uiaa_session(
-		user_id,
-		device_id,
-		uiaainfo.session.as_ref().expect("session is always set"),
-		None,
-	);
-
-	Ok((true, uiaainfo))
-}
-
-#[implement(Service)]
-fn set_uiaa_request(
-	&self,
-	user_id: &UserId,
-	device_id: &DeviceId,
-	session: &str,
-	request: &CanonicalJsonValue,
-) {
-	let key = (user_id.to_owned(), device_id.to_owned(), session.to_owned());
-	self.userdevicesessionid_uiaarequest
-		.write()
-		.insert(key, request.to_owned());
-}
-
-#[implement(Service)]
-pub fn get_uiaa_request(
-	&self,
-	user_id: &UserId,
-	device_id: Option<&DeviceId>,
-	session: &str,
-) -> Option<CanonicalJsonValue> {
-	let key = (
-		user_id.to_owned(),
-		device_id.unwrap_or_else(|| EMPTY.into()).to_owned(),
-		session.to_owned(),
-	);
-
-	self.userdevicesessionid_uiaarequest
-		.read()
-		.get(&key)
-		.cloned()
-}
-
-#[implement(Service)]
-fn update_uiaa_session(
-	&self,
-	user_id: &UserId,
-	device_id: &DeviceId,
-	session: &str,
-	uiaainfo: Option<&UiaaInfo>,
-) {
-	let key = (user_id, device_id, session);
-
-	if let Some(uiaainfo) = uiaainfo {
-		self.db
-			.userdevicesessionid_uiaainfo
-			.put(key, Json(uiaainfo));
-	} else {
-		self.db.userdevicesessionid_uiaainfo.del(key);
-	}
-}
-
-#[implement(Service)]
-async fn get_uiaa_session(
-	&self,
-	user_id: &UserId,
-	device_id: &DeviceId,
-	session: &str,
-) -> Result<UiaaInfo> {
-	let key = (user_id, device_id, session);
-	self.db
-		.userdevicesessionid_uiaainfo
-		.qry(&key)
+	/// A helper to perform UIAA authentication with just a password stage.
+	#[inline]
+	pub async fn authenticate_password(
+		&self,
+		auth: &Option<AuthData>,
+		identity: Option<Identity>,
+	) -> Result<Identity> {
+		self.authenticate(
+			auth,
+			vec![AuthFlow::new(vec![AuthType::Password])],
+			Box::default(),
+			identity,
+		)
 		.await
-		.deserialized()
-		.map_err(|_| err!(Request(Forbidden("UIAA session does not exist."))))
+	}
+
+	/// Check if the provided authentication data is valid.
+	///
+	/// Returns the completed stage's type on success and error information on
+	/// failure.
+	async fn check_stage(
+		&self,
+		auth: &AuthData,
+		mut identity: Identity,
+	) -> Result<(AuthType, Identity), StandardErrorBody> {
+		// Note: This function takes ownership of `identity` because mutations to the
+		// identity must not be applied unless checking the stage succeeds. The
+		// updated identity is returned as part of the Ok value, and
+		// `continue_session` handles saving it to `uiaa_sessions`.
+		//
+		// This also means it's fine to mutate `identity` at any point in this function,
+		// because those mutations won't be saved unless the function returns Ok.
+
+		match auth {
+			| AuthData::Dummy(_) => Ok(AuthType::Dummy),
+			| AuthData::EmailIdentity(EmailIdentity {
+				thirdparty_id_creds: ThirdpartyIdCredentials { client_secret, sid, .. },
+				..
+			}) => {
+				match self
+					.services
+					.threepid
+					.consume_valid_session(sid.as_str(), client_secret.as_str())
+					.await
+				{
+					| Ok(email) => {
+						if let Some(localpart) =
+							self.services.threepid.get_localpart_for_email(&email).await
+						{
+							identity.try_set_localpart(localpart)?;
+						}
+
+						identity.try_set_email(email)?;
+
+						Ok(AuthType::EmailIdentity)
+					},
+					| Err(message) => Err(StandardErrorBody {
+						kind: ErrorKind::ThreepidAuthFailed,
+						message: message.into_owned(),
+					}),
+				}
+			},
+			#[allow(clippy::useless_let_if_seq)]
+			| AuthData::Password(Password { identifier, password, .. }) => {
+				let user_id_or_localpart = match identifier {
+					| Some(UserIdentifier::UserIdOrLocalpart(username)) => username.to_owned(),
+					| Some(UserIdentifier::Email { address }) => {
+						let Ok(email) = Address::try_from(address.to_owned()) else {
+							return Err(StandardErrorBody {
+								kind: ErrorKind::InvalidParam,
+								message: "Email is invalid".to_owned(),
+							});
+						};
+
+						if let Some(localpart) =
+							self.services.threepid.get_localpart_for_email(&email).await
+						{
+							identity.try_set_email(email)?;
+
+							localpart
+						} else {
+							return Err(StandardErrorBody {
+								kind: ErrorKind::forbidden(),
+								message: "Invalid identifier or password".to_owned(),
+							});
+						}
+					},
+					| _ =>
+						return Err(StandardErrorBody {
+							kind: ErrorKind::Unrecognized,
+							message: "Identifier type not recognized".to_owned(),
+						}),
+				};
+
+				let Ok(user_id) = UserId::parse_with_server_name(
+					user_id_or_localpart,
+					self.services.globals.server_name(),
+				) else {
+					return Err(StandardErrorBody {
+						kind: ErrorKind::InvalidParam,
+						message: "User ID is invalid".to_owned(),
+					});
+				};
+
+				// Check if password is correct
+				let mut password_verified = false;
+
+				// First try local password hash verification
+				if let Ok(hash) = self.services.users.password_hash(&user_id).await {
+					password_verified = hash::verify_password(password, &hash).is_ok();
+				}
+
+				// If local password verification failed, try LDAP authentication
+				#[cfg(feature = "ldap")]
+				if !password_verified && self.services.config.ldap.enable {
+					// Search for user in LDAP to get their DN
+					if let Ok(dns) = self.services.users.search_ldap(&user_id).await {
+						if let Some((user_dn, _is_admin)) = dns.first() {
+							// Try to authenticate with LDAP
+							password_verified = self
+								.services
+								.users
+								.auth_ldap(user_dn, password)
+								.await
+								.is_ok();
+						}
+					}
+				}
+
+				if password_verified {
+					identity.try_set_localpart(user_id.localpart().to_owned())?;
+
+					Ok(AuthType::Password)
+				} else {
+					Err(StandardErrorBody {
+						kind: ErrorKind::forbidden(),
+						message: "Invalid identifier or password".to_owned(),
+					})
+				}
+			},
+			| AuthData::ReCaptcha(ReCaptcha { response, .. }) => {
+				let Some(ref private_site_key) = self.services.config.recaptcha_private_site_key
+				else {
+					return Err(StandardErrorBody {
+						kind: ErrorKind::forbidden(),
+						message: "ReCaptcha is not configured".to_owned(),
+					});
+				};
+
+				match recaptcha_verify::verify_v3(private_site_key, response, None).await {
+					| Ok(()) => Ok(AuthType::ReCaptcha),
+					| Err(e) => {
+						error!("ReCaptcha verification failed: {e:?}");
+						Err(StandardErrorBody {
+							kind: ErrorKind::forbidden(),
+							message: "ReCaptcha verification failed".to_owned(),
+						})
+					},
+				}
+			},
+			| AuthData::RegistrationToken(RegistrationToken { token, .. }) => {
+				let token = token.trim().to_owned();
+
+				if let Some(valid_token) = self
+					.services
+					.registration_tokens
+					.validate_token(token)
+					.await
+				{
+					self.services
+						.registration_tokens
+						.mark_token_as_used(valid_token);
+
+					Ok(AuthType::RegistrationToken)
+				} else {
+					Err(StandardErrorBody {
+						kind: ErrorKind::forbidden(),
+						message: "Invalid registration token".to_owned(),
+					})
+				}
+			},
+			| _ => Err(StandardErrorBody {
+				kind: ErrorKind::Unrecognized,
+				message: "Unsupported stage type".into(),
+			}),
+		}
+		.map(|auth_type| (auth_type, identity))
+	}
 }
