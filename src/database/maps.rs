@@ -50,10 +50,6 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
-		name: "clientsecret_validationsessionid",
-		..descriptor::RANDOM_SMALL
-	},
-	Descriptor {
 		name: "disabledroomids",
 		..descriptor::RANDOM_SMALL
 	},
@@ -468,14 +464,6 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "userroomid_invitesender",
-		..descriptor::RANDOM_SMALL
-	},
-	Descriptor {
-		name: "validationsessionid_session",
-		..descriptor::RANDOM_SMALL
-	},
-	Descriptor {
-		name: "validationsessionid_token",
 		..descriptor::RANDOM_SMALL
 	},
 ];

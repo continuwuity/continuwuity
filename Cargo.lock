@@ -1012,7 +1012,6 @@ dependencies = [
  "hyper",
  "ipaddress",
  "itertools 0.14.0",
- "lettre",
  "log",
  "rand 0.10.0",
  "reqwest",

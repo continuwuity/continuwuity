@@ -1,25 +1,28 @@
-use std::{
-	borrow::Cow,
-	collections::HashMap,
-	sync::{Arc, Mutex},
-};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
+
+use conduwuit::{Err, Result, result::FlatOk};
+use database::{Deserialized, Map};
+use lettre::{Address, message::Mailbox};
+use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId};
+
+mod session;
 
 use crate::{
 	Args, Dep, config,
 	mailer::{self, messages::MessageTemplate},
+	threepid::session::{ValidationSessions, ValidationState, ValidationToken},
 };
-
-mod data;
-use conduwuit::{Err, Result, result::FlatOk, utils};
-use data::{Data, ValidationToken};
-use database::Deserialized;
-use lettre::{Address, message::Mailbox};
-use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId};
 
 pub struct Service {
 	db: Data,
 	services: Services,
-	send_attempts: Mutex<HashMap<(OwnedClientSecret, Address), usize>>,
+	sessions: tokio::sync::Mutex<ValidationSessions>,
+	send_attempts: std::sync::Mutex<HashMap<(OwnedClientSecret, Address), usize>>,
+}
+
+struct Data {
+	localpart_email: Arc<Map>,
+	email_localpart: Arc<Map>,
 }
 
 struct Services {
@@ -30,12 +33,16 @@ struct Services {
 impl crate::Service for Service {
 	fn build(args: Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			db: Data::new(args.db),
+			db: Data {
+				email_localpart: args.db["email_localpart"].clone(),
+				localpart_email: args.db["localpart_email"].clone(),
+			},
 			services: Services {
 				config: args.depend("config"),
 				mailer: args.depend("mailer"),
 			},
-			send_attempts: Mutex::new(HashMap::new()),
+			sessions: tokio::sync::Mutex::default(),
+			send_attempts: std::sync::Mutex::default(),
 		}))
 	}
 
@@ -43,13 +50,7 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	const RANDOM_SID_LENGTH: usize = 16;
 	const VALIDATION_URL_PATH: &str = "/_continuwuity/3pid/email/validate";
-
-	#[must_use]
-	pub fn generate_session_id() -> OwnedSessionId {
-		OwnedSessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
-	}
 
 	/// Send a validation message to an email address.
 	///
@@ -63,62 +64,57 @@ impl Service {
 		send_attempt: usize,
 	) -> Result<OwnedSessionId> {
 		let mailer = self.services.mailer.expect_mailer()?;
+		let mut sessions = self.sessions.lock().await;
 
-		let (session_id, ValidationToken { token, .. }) =
-			match self.db.get_session_by_secret(client_secret).await {
-				// If a validation session already exists for this client secret, we can either
-				// reuse it with a new token or return early because it's already valid.
-				| Some(session) => {
-					// If the existing session is already valid, don't send an email.
-					if session.has_been_validated {
-						return Ok(session.session_id);
-					}
+		let session = match sessions.get_session_by_client_secret(client_secret) {
+			// If a validation session already exists for this client secret, we can either
+			// reuse it with a new token or return early because it's already valid.
+			| Some(session) => {
+				match session.validation_state {
+					| ValidationState::Validated => {
+						// If the existing session is already valid, don't send an email.
+						return Ok(session.session_id.clone());
+					},
+					| ValidationState::Pending(ref mut token) => {
+						// Check the send attempt for this session
+						let mut send_attempts = self.send_attempts.lock().unwrap();
 
-					let mut send_attempts = self.send_attempts.lock().unwrap();
-					match send_attempts
-						.get_mut(&(session.client_secret.clone(), session.email.clone()))
-					{
-						| Some(last_send_attempt) => {
-							if send_attempt <= *last_send_attempt {
-								// If the supplied send attempt isn't higher than the last one,
-								// don't send an email.
-								return Ok(session.session_id);
-							}
+						match send_attempts
+							.get_mut(&(session.client_secret.clone(), session.email.clone()))
+						{
+							| Some(last_send_attempt) => {
+								if send_attempt <= *last_send_attempt {
+									// If the supplied send attempt isn't higher than the last
+									// one, don't send an email.
+									return Ok(session.session_id.clone());
+								}
 
-							// Otherwise save the supplied send attempt.
-							*last_send_attempt = send_attempt;
-						},
-						| None => {
-							// Default to sending an email if no previous
-							// attempt could be found. This can happen if
-							// the server was restarted, which clears the send
-							// attempt tracker.
-						},
-					}
-					drop(send_attempts);
+								// Otherwise save the supplied send attempt.
+								*last_send_attempt = send_attempt;
+							},
+							| None => {
+								// Default to sending an email if no previous
+								// attempt could be found. This can happen if
+								// the server was restarted, which clears the
+								// send attempt tracker.
+							},
+						}
+						drop(send_attempts);
 
-					// Create a new token for the existing session.
-					let token = ValidationToken::new_random();
-					self.db
-						.update_session_validation_token(&session, token.clone());
+						// Create a new token for the existing session.
+						*token = ValidationToken::new_random();
 
-					(session.session_id, token)
-				},
-				// If no session exists, create a new one.
-				| None => {
-					let session_id = Self::generate_session_id();
-					let token = ValidationToken::new_random();
+						session
+					},
+				}
+			},
+			// If no session exists, create a new one.
+			| None => sessions.create_session(recipient.email.clone(), client_secret.to_owned()),
+		};
 
-					self.db.create_session(
-						recipient.email.clone(),
-						session_id.clone(),
-						client_secret.to_owned(),
-						token.clone(),
-					);
-
-					(session_id, token)
-				},
-			};
+		let ValidationState::Pending(token) = &session.validation_state else {
+			unreachable!("session should be pending")
+		};
 
 		let mut validation_url = self
 			.services
@@ -129,41 +125,46 @@ impl Service {
 
 		validation_url
 			.query_pairs_mut()
-			.append_pair("session_id", session_id.as_ref())
-			.append_pair("token", &token);
+			.append_pair("session_id", session.session_id.as_ref())
+			.append_pair("token", &token.token);
 
 		let message = prepare_body(validation_url.to_string());
 
 		mailer.send(recipient, message).await?;
 
-		Ok(session_id)
+		Ok(session.session_id.clone())
 	}
 
 	/// Attempt to mark a validation session as valid using a validation token.
 	pub async fn try_validate_session(
 		&self,
-		session_id: &str,
+		session_id: &SessionId,
 		supplied_token: &str,
 	) -> Result<(), Cow<'static, str>> {
-		let Some(session) = self.db.get_session(session_id).await else {
+		let mut sessions = self.sessions.lock().await;
+
+		let Some(session) = sessions.get_session(session_id) else {
 			return Err("Validation session does not exist".into());
 		};
 
-		if session.has_been_validated {
-			return Ok(());
-		}
+		session.validation_state = match &session.validation_state {
+			| ValidationState::Validated => {
+				// If the session is already validated, do nothing.
 
-		let token = self
-			.db
-			.get_session_validation_token(&session)
-			.await
-			.expect("valid session should have a token");
+				return Ok(());
+			},
+			| ValidationState::Pending(token) => {
+				// Otherwise check the token and mark the session as valid.
 
-		if token != *supplied_token || !token.is_valid() {
-			return Err("Validation token is invalid or expired, please request a new one".into());
-		}
+				if *token != *supplied_token || !token.is_valid() {
+					return Err("Validation token is invalid or expired, please request a new \
+					            one"
+					.into());
+				}
 
-		self.db.mark_session_as_valid(session).await;
+				ValidationState::Validated
+			},
+		};
 
 		Ok(())
 	}
@@ -172,17 +173,21 @@ impl Service {
 	/// and returning the newly validated email address.
 	pub async fn consume_valid_session(
 		&self,
-		session_id: &str,
+		session_id: &SessionId,
 		client_secret: &ClientSecret,
 	) -> Result<Address, Cow<'static, str>> {
-		let Some(session) = self.db.get_session(session_id).await else {
+		let mut sessions = self.sessions.lock().await;
+
+		let Some(session) = sessions.get_session(session_id) else {
 			return Err("Validation session does not exist".into());
 		};
 
-		if session.client_secret == client_secret && session.has_been_validated {
-			let email = session.email.clone();
-			self.db.remove_session(session).await;
-			Ok(email)
+		if session.client_secret == client_secret
+			&& matches!(session.validation_state, ValidationState::Validated)
+		{
+			let session = sessions.remove_session(session_id);
+
+			Ok(session.email)
 		} else {
 			Err("This email address has not been validated. Did you use the link that was sent \
 			     to you?"
@@ -198,17 +203,17 @@ impl Service {
 	) -> Result<()> {
 		match self.get_localpart_for_email(email).await {
 			| Some(existing_localpart) if existing_localpart != localpart => {
-				// Another account is already using the supplied email
+				// Another account is already using the supplied email.
 
 				Err!(Request(ThreepidInUse("This email address is already in use.")))
 			},
 			| Some(_) => {
 				// The supplied localpart is already associated with the supplied email,
-				// no changes are necessary
+				// no changes are necessary.
 				Ok(())
 			},
 			| None => {
-				// The supplied email is not already in use
+				// The supplied email is not already in use.
 
 				let email: &str = email.as_ref();
 				self.db.localpart_email.insert(localpart, email);

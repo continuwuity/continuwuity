@@ -1,4 +1,5 @@
 use std::{
+	borrow::Cow,
 	collections::{HashMap, HashSet, hash_map::Entry},
 	sync::Arc,
 };
@@ -133,7 +134,7 @@ impl Service {
 	/// flows provide different values for known identity information.
 	///
 	/// Returns the info of the newly created session.
-	pub async fn create_session(
+	async fn create_session(
 		&self,
 		flows: Vec<AuthFlow>,
 		params: Box<RawValue>,
@@ -154,11 +155,7 @@ impl Service {
 	}
 
 	/// Proceed with UIAA authentication given a client's authorization data.
-	pub async fn continue_session(&self, auth: &AuthData) -> Result<UiaaStatus> {
-		let Some(session) = auth.session() else {
-			return Err!(Request(MissingParam("No session provided")));
-		};
-
+	async fn continue_session(&self, auth: &AuthData, session: &str) -> Result<UiaaStatus> {
 		// Hold this lock for the entire function to make sure that, if try_auth()
 		// is called concurrently with the same session, only one call will succeed
 		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
@@ -238,7 +235,6 @@ impl Service {
 
 	/// Perform the full UIAA authentication sequence for a route given its
 	/// authentication data.
-	#[inline]
 	pub async fn authenticate(
 		&self,
 		auth: &Option<AuthData>,
@@ -252,9 +248,26 @@ impl Service {
 
 				Err(Error::Uiaa(info))
 			},
-			| Some(auth) => match self.continue_session(auth).await? {
-				| UiaaStatus::Retry(info) => Err(Error::Uiaa(info)),
-				| UiaaStatus::Success(identity) => Ok(identity),
+			| Some(auth) => {
+				let session: Cow<'_, str> = match auth.session() {
+					| Some(session) => session.into(),
+					| None => {
+						// Clients are allowed to send UIAA requests with an auth dict and no
+						// session if they want to start the UIAA exchange with existing
+						// authentication data. If that happens, we create a new session
+						// here.
+						self.create_session(flows, params, identity)
+							.await
+							.session
+							.unwrap()
+							.into()
+					},
+				};
+
+				match self.continue_session(auth, &session).await? {
+					| UiaaStatus::Retry(info) => Err(Error::Uiaa(info)),
+					| UiaaStatus::Success(identity) => Ok(identity),
+				}
 			},
 		}
 	}
@@ -301,7 +314,7 @@ impl Service {
 				match self
 					.services
 					.threepid
-					.consume_valid_session(sid.as_str(), client_secret)
+					.consume_valid_session(sid, client_secret)
 					.await
 				{
 					| Ok(email) => {
