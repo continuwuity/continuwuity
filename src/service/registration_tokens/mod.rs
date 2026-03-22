@@ -13,8 +13,6 @@ use ruma::OwnedUserId;
 
 use crate::{Dep, config, firstrun};
 
-const RANDOM_TOKEN_LENGTH: usize = 16;
-
 pub struct Service {
 	db: Data,
 	services: Services,
@@ -103,9 +101,11 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	const RANDOM_TOKEN_LENGTH: usize = 16;
+
 	/// Generate a random string suitable to be used as a registration token.
 	#[must_use]
-	pub fn generate_token_string() -> String { utils::random_string(RANDOM_TOKEN_LENGTH) }
+	pub fn generate_token_string() -> String { utils::random_string(Self::RANDOM_TOKEN_LENGTH) }
 
 	/// Issue a new registration token and save it in the database.
 	pub fn issue_token(
