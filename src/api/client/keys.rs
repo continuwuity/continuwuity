@@ -7,7 +7,6 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Error, Result, debug, debug_warn, err,
 	result::NotFound,
-	utils,
 	utils::{IterStream, stream::WidebandExt},
 };
 use conduwuit_service::{Services, users::parse_master_key};
@@ -22,7 +21,6 @@ use ruma::{
 				upload_signatures::{self},
 				upload_signing_keys,
 			},
-			uiaa::{AuthFlow, AuthType, UiaaInfo},
 		},
 		federation,
 	},
@@ -30,8 +28,8 @@ use ruma::{
 	serde::Raw,
 };
 use serde_json::json;
+use service::uiaa::Identity;
 
-use super::SESSION_ID_LENGTH;
 use crate::Ruma;
 
 /// # `POST /_matrix/client/r0/keys/upload`
@@ -174,16 +172,7 @@ pub(crate) async fn upload_signing_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<upload_signing_keys::v3::Request>,
 ) -> Result<upload_signing_keys::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
-
-	// UIAA
-	let mut uiaainfo = UiaaInfo {
-		flows: vec![AuthFlow { stages: vec![AuthType::Password] }],
-		completed: Vec::new(),
-		params: Box::default(),
-		session: None,
-		auth_error: None,
-	};
+	let sender_user = body.sender_user();
 
 	match check_for_new_keys(
 		services,
@@ -207,32 +196,10 @@ pub(crate) async fn upload_signing_keys_route(
 			// Some of the keys weren't found, so we let them upload
 		},
 		| _ => {
-			match &body.auth {
-				| Some(auth) => {
-					let (worked, uiaainfo) = services
-						.uiaa
-						.try_auth(sender_user, sender_device, auth, &uiaainfo)
-						.await?;
-
-					if !worked {
-						return Err(Error::Uiaa(uiaainfo));
-					}
-					// Success!
-				},
-				| _ => match body.json_body.as_ref() {
-					| Some(json) => {
-						uiaainfo.session = Some(utils::random_string(SESSION_ID_LENGTH));
-						services
-							.uiaa
-							.create(sender_user, sender_device, &uiaainfo, json);
-
-						return Err(Error::Uiaa(uiaainfo));
-					},
-					| _ => {
-						return Err(Error::BadRequest(ErrorKind::NotJson, "Not json."));
-					},
-				},
-			}
+			let _ = services
+				.uiaa
+				.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+				.await?;
 		},
 	}
 

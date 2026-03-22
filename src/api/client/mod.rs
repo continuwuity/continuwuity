@@ -92,6 +92,3 @@ const DEVICE_ID_LENGTH: usize = 10;
 
 /// generated user access token length
 const TOKEN_LENGTH: usize = 32;
-
-/// generated user session ID length
-const SESSION_ID_LENGTH: usize = service::uiaa::SESSION_ID_LENGTH;
