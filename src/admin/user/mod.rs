@@ -35,6 +35,24 @@ pub enum UserCommand {
 		username: String,
 	},
 
+	/// Get a user's associated email address.
+	GetEmail {
+		user_id: String,
+	},
+
+	/// Get the user with the given email address.
+	GetUserByEmail {
+		email: String,
+	},
+
+	/// Update or remove a user's email address.
+	///
+	/// If `email` is not supplied, the user's existing address wil be removed.
+	ChangeEmail {
+		user_id: String,
+		email: Option<String>,
+	},
+
 	/// Deactivate a user
 	///
 	/// User will be removed from all rooms by default.

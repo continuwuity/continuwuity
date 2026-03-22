@@ -8,8 +8,8 @@ pub trait MessageTemplate: Template {
 #[derive(Template)]
 #[template(path = "mail/change_email.txt.j2")]
 pub struct ChangeEmail<'a> {
-	user_id: &'a UserId,
-	verification_link: &'a str,
+	pub user_id: &'a UserId,
+	pub verification_link: String,
 }
 
 impl MessageTemplate for ChangeEmail<'_> {
@@ -19,8 +19,8 @@ impl MessageTemplate for ChangeEmail<'_> {
 #[derive(Template)]
 #[template(path = "mail/new_account.txt.j2")]
 pub struct NewAccount<'a> {
-	server_name: &'a str,
-	verification_link: &'a str,
+	pub server_name: &'a str,
+	pub verification_link: String,
 }
 
 impl MessageTemplate for NewAccount<'_> {
@@ -30,9 +30,9 @@ impl MessageTemplate for NewAccount<'_> {
 #[derive(Template)]
 #[template(path = "mail/password_reset.txt.j2")]
 pub struct PasswordReset<'a> {
-	display_name: &'a str,
-	user_id: &'a UserId,
-	verification_link: &'a str,
+	pub display_name: Option<&'a str>,
+	pub user_id: &'a UserId,
+	pub verification_link: String,
 }
 
 impl MessageTemplate for PasswordReset<'_> {

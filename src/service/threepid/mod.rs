@@ -10,15 +10,16 @@ use crate::{
 };
 
 mod data;
-use conduwuit::{Err, Result, utils};
+use conduwuit::{Err, Result, result::FlatOk, utils};
 use data::{Data, ValidationToken};
 use database::Deserialized;
 use lettre::{Address, message::Mailbox};
+use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId};
 
 pub struct Service {
 	db: Data,
 	services: Services,
-	send_attempts: Mutex<HashMap<(String, Address), usize>>,
+	send_attempts: Mutex<HashMap<(OwnedClientSecret, Address), usize>>,
 }
 
 struct Services {
@@ -45,20 +46,23 @@ impl Service {
 	const RANDOM_SID_LENGTH: usize = 16;
 	const VALIDATION_URL_PATH: &str = "/_continuwuity/3pid/email/validate";
 
+	#[must_use]
+	pub fn generate_session_id() -> OwnedSessionId {
+		OwnedSessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
+	}
+
 	/// Send a validation message to an email address.
 	///
 	/// Returns the validation session ID on success.
 	#[allow(clippy::impl_trait_in_params)]
 	pub async fn send_validation_email<Template: MessageTemplate>(
 		&self,
-		recipient: Address,
+		recipient: Mailbox,
 		prepare_body: impl FnOnce(String) -> Template,
-		client_secret: &str,
+		client_secret: &ClientSecret,
 		send_attempt: usize,
-	) -> Result<String> {
-		let Some(mailer) = self.services.mailer.mailer() else {
-			return Err!("SMTP is not configured");
-		};
+	) -> Result<OwnedSessionId> {
+		let mailer = self.services.mailer.expect_mailer()?;
 
 		let (session_id, ValidationToken { token, .. }) =
 			match self.db.get_session_by_secret(client_secret).await {
@@ -102,11 +106,11 @@ impl Service {
 				},
 				// If no session exists, create a new one.
 				| None => {
-					let session_id = utils::random_string(Self::RANDOM_SID_LENGTH);
+					let session_id = Self::generate_session_id();
 					let token = ValidationToken::new_random();
 
 					self.db.create_session(
-						recipient.clone(),
+						recipient.email.clone(),
 						session_id.clone(),
 						client_secret.to_owned(),
 						token.clone(),
@@ -125,11 +129,9 @@ impl Service {
 
 		validation_url
 			.query_pairs_mut()
-			.append_pair("session_id", &session_id)
-			.append_pair("client_secret", client_secret)
+			.append_pair("session_id", session_id.as_ref())
 			.append_pair("token", &token);
 
-		let recipient = Mailbox::new(None, recipient);
 		let message = prepare_body(validation_url.to_string());
 
 		mailer.send(recipient, message).await?;
@@ -137,10 +139,10 @@ impl Service {
 		Ok(session_id)
 	}
 
+	/// Attempt to mark a validation session as valid using a validation token.
 	pub async fn try_validate_session(
 		&self,
 		session_id: &str,
-		client_secret: &str,
 		supplied_token: &str,
 	) -> Result<(), Cow<'static, str>> {
 		let Some(session) = self.db.get_session(session_id).await else {
@@ -151,15 +153,12 @@ impl Service {
 			return Ok(());
 		}
 
-		if session.client_secret != client_secret {
-			return Err("Invalid client secret for session".into());
-		}
-
 		let token = self
 			.db
 			.get_session_validation_token(&session)
 			.await
 			.expect("valid session should have a token");
+
 		if token != *supplied_token || !token.is_valid() {
 			return Err("Validation token is invalid or expired, please request a new one".into());
 		}
@@ -169,10 +168,12 @@ impl Service {
 		Ok(())
 	}
 
+	/// Consume a validated validation session, removing it from the database
+	/// and returning the newly validated email address.
 	pub async fn consume_valid_session(
 		&self,
 		session_id: &str,
-		client_secret: &str,
+		client_secret: &ClientSecret,
 	) -> Result<Address, Cow<'static, str>> {
 		let Some(session) = self.db.get_session(session_id).await else {
 			return Err("Validation session does not exist".into());
@@ -183,14 +184,38 @@ impl Service {
 			self.db.remove_session(session).await;
 			Ok(email)
 		} else {
-			Err("Validation failed. Did you use the link that was sent to you?".into())
+			Err("This email address has not been validated. Did you use the link that was sent \
+			     to you?"
+				.into())
 		}
 	}
 
 	/// Associate a localpart with an email address.
-	pub fn associate_localpart_email(&self, localpart: &str, email: Address) {
-		self.db.localpart_email.raw_put(localpart, &email);
-		self.db.email_localpart.put_raw(email, localpart);
+	pub async fn associate_localpart_email(
+		&self,
+		localpart: &str,
+		email: &Address,
+	) -> Result<()> {
+		match self.get_localpart_for_email(email).await {
+			| Some(existing_localpart) if existing_localpart != localpart => {
+				// Another account is already using the supplied email
+
+				Err!(Request(ThreepidInUse("This email address is already in use.")))
+			},
+			| Some(_) => {
+				// The supplied localpart is already associated with the supplied email,
+				// no changes are necessary
+				Ok(())
+			},
+			| None => {
+				// The supplied email is not already in use
+
+				let email: &str = email.as_ref();
+				self.db.localpart_email.insert(localpart, email);
+				self.db.email_localpart.insert(email, localpart);
+				Ok(())
+			},
+		}
 	}
 
 	/// Given a localpart, remove its corresponding email address.
@@ -203,7 +228,9 @@ impl Service {
 			.await
 			.expect("localpart has no email associated");
 		self.db.localpart_email.remove(localpart);
-		self.db.email_localpart.del(&email);
+		self.db
+			.email_localpart
+			.remove(<Address as AsRef<str>>::as_ref(&email));
 	}
 
 	/// Get the email associated with a localpart, if one exists.
@@ -212,12 +239,19 @@ impl Service {
 			.localpart_email
 			.get(localpart)
 			.await
-			.deserialized()
+			.deserialized::<String>()
 			.ok()
+			.map(TryInto::try_into)
+			.flat_ok()
 	}
 
 	/// Get the localpart associated with an email, if one exists.
 	pub async fn get_localpart_for_email(&self, email: &Address) -> Option<String> {
-		self.db.email_localpart.qry(email).await.deserialized().ok()
+		self.db
+			.email_localpart
+			.get(<Address as AsRef<str>>::as_ref(email))
+			.await
+			.deserialized()
+			.ok()
 	}
 }

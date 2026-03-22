@@ -168,18 +168,24 @@ pub(crate) async fn register_route(
 
 	let password = if is_guest { None } else { body.password.as_deref() };
 
-	// Create user
-	services.users.create(&user_id, password, None).await?;
-
-	// If the user registered with an email, associate it with their account
+	// If the user registered with an email, associate it with their account.
+	// Do this _before_ creating the user to make sure that, if their email is
+	// already in use, we don't make them an account.
+	//
+	// Note that this should only rarely cause a bailout because email uniqueness is
+	// also checked by /requestToken.
 	#[allow(clippy::collapsible_if)]
 	if let Some(identity) = identity {
 		if let Some(email) = identity.email {
 			services
 				.threepid
-				.associate_localpart_email(user_id.localpart(), email);
+				.associate_localpart_email(user_id.localpart(), &email)
+				.await?;
 		}
 	}
+
+	// Create user
+	services.users.create(&user_id, password, None).await?;
 
 	// Set an initial display name
 	let mut displayname = user_id.localpart().to_owned();

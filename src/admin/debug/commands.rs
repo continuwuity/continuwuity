@@ -19,6 +19,7 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
+use lettre::message::Mailbox;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
 	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId,
@@ -875,4 +876,32 @@ pub(super) async fn trim_memory(&self) -> Result {
 	conduwuit::alloc::trim(None)?;
 
 	writeln!(self, "done").await
+}
+
+#[admin_command]
+pub(super) async fn send_test_email(&self) -> Result {
+	self.bail_restricted()?;
+
+	let mailer = self.services.mailer.expect_mailer()?;
+	let Some(sender) = self.sender else {
+		return Err!("No sender user provided in context");
+	};
+
+	let Some(email) = self
+		.services
+		.threepid
+		.get_email_for_localpart(sender.localpart())
+		.await
+	else {
+		return Err!("{} has no associated email address", sender);
+	};
+
+	mailer
+		.send(Mailbox::new(None, email.clone()), service::mailer::messages::Test)
+		.await?;
+
+	self.write_str(&format!("Test email successfully sent to {email}"))
+		.await?;
+
+	Ok(())
 }

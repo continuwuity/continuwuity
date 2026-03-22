@@ -2050,6 +2050,8 @@
 #
 # For most modern mail servers, format the URI like this:
 # 	`smtps://username:password@hostname:port`
+# Note that you will need to URL-encode the username and password. If your username _is_
+# your email address, you will need to replace the `@` with `%40`.
 #
 # For a guide on the accepted URI syntax, consult Lettre's documentation:
 # https://docs.rs/lettre/latest/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url

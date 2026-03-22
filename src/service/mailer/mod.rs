@@ -3,7 +3,7 @@ use std::sync::Arc;
 use conduwuit::{Err, Result, err, info};
 use lettre::{
 	AsyncSmtpTransport, AsyncTransport, Tokio1Executor,
-	message::{Mailbox, MessageBuilder},
+	message::{Mailbox, MessageBuilder, header::ContentType},
 };
 
 use crate::{Args, mailer::messages::MessageTemplate};
@@ -65,6 +65,11 @@ impl Service {
 			.as_ref()
 			.map(|(sender, transport)| Mailer { sender, transport })
 	}
+
+	pub fn expect_mailer(&self) -> Result<Mailer<'_>> {
+		self.mailer()
+			.ok_or_else(|| err!("SMTP is not configured on this server"))
+	}
 }
 
 pub struct Mailer<'a> {
@@ -89,6 +94,7 @@ impl Mailer<'_> {
 			.to(recipient)
 			.subject(subject)
 			.date_now()
+			.header(ContentType::TEXT_PLAIN)
 			.body(body)
 			.expect("should have been able to construct message");
 
