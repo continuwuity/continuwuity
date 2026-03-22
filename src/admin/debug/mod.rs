@@ -225,6 +225,9 @@ pub enum DebugCommand {
 		level: Option<i32>,
 	},
 
+	/// Send a test email to the invoking admin's email address
+	SendTestEmail,
+
 	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]

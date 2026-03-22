@@ -11,6 +11,7 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, StreamExt};
+use lettre::Address;
 use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, UserId,
 	events::{
@@ -1093,4 +1094,107 @@ pub(super) async fn enable_login(&self, user_id: String) -> Result {
 	self.services.users.enable_login(&user_id);
 
 	self.write_str(&format!("{user_id} can now log in.")).await
+}
+
+#[admin_command]
+pub(super) async fn get_email(&self, user_id: String) -> Result {
+	self.bail_restricted()?;
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+
+	match self
+		.services
+		.threepid
+		.get_email_for_localpart(user_id.localpart())
+		.await
+	{
+		| Some(email) =>
+			self.write_str(&format!("{user_id} has the associated email address {email}."))
+				.await,
+		| None =>
+			self.write_str(&format!("{user_id} has no associated email address."))
+				.await,
+	}
+}
+
+#[admin_command]
+pub(super) async fn get_user_by_email(&self, email: String) -> Result {
+	self.bail_restricted()?;
+
+	let Ok(email) = Address::try_from(email) else {
+		return Err!("Invalid email address");
+	};
+
+	match self.services.threepid.get_localpart_for_email(&email).await {
+		| Some(localpart) => {
+			let user_id = OwnedUserId::parse(format!(
+				"@{localpart}:{}",
+				self.services.globals.server_name()
+			))
+			.unwrap();
+
+			self.write_str(&format!("{email} belongs to {user_id}."))
+				.await
+		},
+		| None =>
+			self.write_str(&format!("No user has {email} as their email address."))
+				.await,
+	}
+}
+
+#[admin_command]
+pub(super) async fn change_email(&self, user_id: String, email: Option<String>) -> Result {
+	self.bail_restricted()?;
+
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	let Ok(new_email) = email.map(Address::try_from).transpose() else {
+		return Err!("Invalid email address");
+	};
+
+	if self.services.mailer.mailer().is_none() {
+		warn!("SMTP has not been configured on this server, emails cannot be sent.");
+	}
+
+	let current_email = self
+		.services
+		.threepid
+		.get_email_for_localpart(user_id.localpart())
+		.await;
+
+	match (current_email, new_email) {
+		| (None, None) =>
+			self.write_str(&format!(
+				"{user_id} already had no associated email. No changes have been made."
+			))
+			.await,
+		| (current_email, Some(new_email)) => {
+			self.services
+				.threepid
+				.associate_localpart_email(user_id.localpart(), &new_email)
+				.await?;
+
+			if let Some(current_email) = current_email {
+				self.write_str(&format!(
+					"The associated email of {user_id} has been changed from {current_email} to \
+					 {new_email}."
+				))
+				.await
+			} else {
+				self.write_str(&format!(
+					"{user_id} has been associated with the email {new_email}."
+				))
+				.await
+			}
+		},
+		| (Some(current_email), None) => {
+			self.services
+				.threepid
+				.disassociate_localpart_email(user_id.localpart())
+				.await;
+
+			self.write_str(&format!(
+				"The associated email of {user_id} has been removed (it was {current_email})."
+			))
+			.await
+		},
+	}
 }

@@ -301,7 +301,7 @@ impl Service {
 				match self
 					.services
 					.threepid
-					.consume_valid_session(sid.as_str(), client_secret.as_str())
+					.consume_valid_session(sid.as_str(), client_secret)
 					.await
 				{
 					| Ok(email) => {

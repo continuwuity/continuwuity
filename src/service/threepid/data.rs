@@ -6,6 +6,7 @@ use std::{
 use conduwuit::utils;
 use database::{Database, Deserialized, Map};
 use lettre::Address;
+use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId};
 use serde::{Deserialize, Serialize};
 
 pub(super) struct Data {
@@ -20,11 +21,11 @@ pub(super) struct Data {
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct ValidationSession {
 	/// The session's ID
-	pub session_id: String,
+	pub session_id: OwnedSessionId,
 	/// The email address which is being validated
 	pub email: Address,
 	/// The client's supplied client secret
-	pub client_secret: String,
+	pub client_secret: OwnedClientSecret,
 	/// Whether the email address has been validated successfully yet
 	pub(super) has_been_validated: bool,
 }
@@ -62,9 +63,9 @@ impl PartialEq<str> for ValidationToken {
 impl Data {
 	pub(super) fn new(db: &Arc<Database>) -> Self {
 		Self {
-			clientsecret_sessionid: db["clientsecret_sessionid"].clone(),
-			sessionid_session: db["sessionid_session"].clone(),
-			sessionid_token: db["sessionid_token"].clone(),
+			clientsecret_sessionid: db["clientsecret_validationsessionid"].clone(),
+			sessionid_session: db["validationsessionid_session"].clone(),
+			sessionid_token: db["validationsessionid_token"].clone(),
 			localpart_email: db["localpart_email"].clone(),
 			email_localpart: db["email_localpart"].clone(),
 		}
@@ -74,8 +75,8 @@ impl Data {
 	pub(super) fn create_session(
 		&self,
 		email: Address,
-		session_id: String,
-		client_secret: String,
+		session_id: OwnedSessionId,
+		client_secret: OwnedClientSecret,
 		token: ValidationToken,
 	) {
 		let session = ValidationSession {
@@ -103,7 +104,7 @@ impl Data {
 	/// Get a validation session by client secret.
 	pub(super) async fn get_session_by_secret(
 		&self,
-		client_secret: &str,
+		client_secret: &ClientSecret,
 	) -> Option<ValidationSession> {
 		let session_id: String = self
 			.clientsecret_sessionid
