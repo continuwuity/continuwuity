@@ -242,15 +242,12 @@ pub struct FormattedReqwestError(reqwest::Error);
 
 impl std::ops::Deref for FormattedReqwestError {
 	type Target = reqwest::Error;
-	fn deref(&self) -> &Self::Target {
-		&self.0
-	}
+
+	fn deref(&self) -> &Self::Target { &self.0 }
 }
 
 impl std::error::Error for FormattedReqwestError {
-	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-		self.0.source()
-	}
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { self.0.source() }
 }
 
 impl std::fmt::Display for FormattedReqwestError {
@@ -260,9 +257,9 @@ impl std::fmt::Display for FormattedReqwestError {
 			&& let Some(real_error) = hyper_error.source()
 		{
 			if let Some(real_reason) = real_error.source() {
-				write!(f, "{}: {}", real_error, real_reason)
+				write!(f, "{real_error}: {real_reason}")
 			} else {
-				write!(f, "{}", real_error)
+				write!(f, "{real_error}")
 			}
 		} else {
 			write!(f, "Request error: {}", &self.0)
@@ -271,13 +268,9 @@ impl std::fmt::Display for FormattedReqwestError {
 }
 
 impl From<reqwest::Error> for FormattedReqwestError {
-	fn from(err: reqwest::Error) -> Self {
-		FormattedReqwestError(err)
-	}
+	fn from(err: reqwest::Error) -> Self { Self(err) }
 }
 
 impl From<reqwest::Error> for Error {
-	fn from(err: reqwest::Error) -> Self {
-		Error::Reqwest(err.into())
-	}
+	fn from(err: reqwest::Error) -> Self { Self::Reqwest(err.into()) }
 }
