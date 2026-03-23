@@ -415,13 +415,6 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 		tracing::instrument(level = "trace", skip_all, fields(?self.buf))
 	)]
 	fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
-		debug_assert_eq!(
-			conduwuit::debug::type_name::<V>(),
-			"serde_json::value::de::<impl serde_core::de::Deserialize for \
-			 serde_json::value::Value>::deserialize::ValueVisitor",
-			"deserialize_any: type not expected"
-		);
-
 		match self.record_peek_byte() {
 			| Some(b'{') => self.deserialize_map(visitor),
 			| Some(b'[') => serde_json::Deserializer::from_slice(self.record_next())

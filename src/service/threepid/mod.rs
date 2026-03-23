@@ -227,15 +227,15 @@ impl Service {
 	///
 	/// [`Self::get_localpart_for_email`] may be used if only the email is
 	/// known.
-	pub async fn disassociate_localpart_email(&self, localpart: &str) {
-		let email = self
-			.get_email_for_localpart(localpart)
-			.await
-			.expect("localpart has no email associated");
+	pub async fn disassociate_localpart_email(&self, localpart: &str) -> Option<Address> {
+		let email = self.get_email_for_localpart(localpart).await?;
+
 		self.db.localpart_email.remove(localpart);
 		self.db
 			.email_localpart
 			.remove(<Address as AsRef<str>>::as_ref(&email));
+
+		Some(email)
 	}
 
 	/// Get the email associated with a localpart, if one exists.

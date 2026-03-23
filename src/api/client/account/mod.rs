@@ -13,9 +13,8 @@ use ruma::{
 	api::client::{
 		account::{
 			ThirdPartyIdRemovalStatus, change_password, check_registration_token_validity,
-			deactivate, get_3pids, get_username_availability,
-			request_3pid_management_token_via_email, request_3pid_management_token_via_msisdn,
-			request_password_change_token_via_email, whoami,
+			deactivate, get_username_availability, request_password_change_token_via_email,
+			whoami,
 		},
 		uiaa::{AuthFlow, AuthType},
 	},
@@ -33,6 +32,7 @@ use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
 
 pub(crate) mod register;
+pub(crate) mod threepid;
 
 /// # `GET /_matrix/client/v3/register/available`
 ///
@@ -226,12 +226,12 @@ pub(crate) async fn change_password_route(
 /// # `POST /_matrix/client/v3/account/password/email/requestToken`
 ///
 /// Requests a validation email for the purpose of resetting a user's password.
-pub(crate) async fn password_request_token_route(
+pub(crate) async fn request_password_change_token_via_email_route(
 	State(services): State<crate::State>,
 	body: Ruma<request_password_change_token_via_email::v3::Request>,
 ) -> Result<request_password_change_token_via_email::v3::Response> {
 	let Ok(email) = Address::try_from(body.email.clone()) else {
-		return Err!(Request(InvalidParam("Invalid email address")));
+		return Err!(Request(InvalidParam("Invalid email address.")));
 	};
 
 	let Some(localpart) = services.threepid.get_localpart_for_email(&email).await else {
@@ -339,45 +339,6 @@ pub(crate) async fn deactivate_route(
 	Ok(deactivate::v3::Response {
 		id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
 	})
-}
-
-/// # `GET _matrix/client/v3/account/3pid`
-///
-/// Get a list of third party identifiers associated with this account.
-///
-/// - Currently always returns empty list
-pub(crate) async fn third_party_route(
-	body: Ruma<get_3pids::v3::Request>,
-) -> Result<get_3pids::v3::Response> {
-	let _sender_user = body.sender_user.as_ref().expect("user is authenticated");
-
-	Ok(get_3pids::v3::Response::new(Vec::new()))
-}
-
-/// # `POST /_matrix/client/v3/account/3pid/email/requestToken`
-///
-/// "This API should be used to request validation tokens when adding an email
-/// address to an account"
-///
-/// - 403 signals that The homeserver does not allow the third party identifier
-///   as a contact option.
-pub(crate) async fn request_3pid_management_token_via_email_route(
-	_body: Ruma<request_3pid_management_token_via_email::v3::Request>,
-) -> Result<request_3pid_management_token_via_email::v3::Response> {
-	Err!(Request(ThreepidDenied("Third party identifiers are not implemented")))
-}
-
-/// # `POST /_matrix/client/v3/account/3pid/msisdn/requestToken`
-///
-/// "This API should be used to request validation tokens when adding an phone
-/// number to an account"
-///
-/// - 403 signals that The homeserver does not allow the third party identifier
-///   as a contact option.
-pub(crate) async fn request_3pid_management_token_via_msisdn_route(
-	_body: Ruma<request_3pid_management_token_via_msisdn::v3::Request>,
-) -> Result<request_3pid_management_token_via_msisdn::v3::Response> {
-	Err!(Request(ThreepidDenied("Third party identifiers are not implemented")))
 }
 
 /// # `GET /_matrix/client/v1/register/m.login.registration_token/validity`

@@ -569,13 +569,13 @@ async fn determine_registration_user_id(
 
 /// # `POST /_matrix/client/v3/register/email/requestToken`
 ///
-/// Requests a validation email for the purpose of registering a new account
-pub(crate) async fn register_request_token_route(
+/// Requests a validation email for the purpose of registering a new account.
+pub(crate) async fn request_registration_token_via_email_route(
 	State(services): State<crate::State>,
 	body: Ruma<request_registration_token_via_email::v3::Request>,
 ) -> Result<request_registration_token_via_email::v3::Response> {
 	let Ok(email) = Address::try_from(body.email.clone()) else {
-		return Err!(Request(InvalidParam("Invalid email address")));
+		return Err!(Request(InvalidParam("Invalid email address.")));
 	};
 
 	if services
@@ -584,7 +584,7 @@ pub(crate) async fn register_request_token_route(
 		.await
 		.is_some()
 	{
-		return Err!(Request(ThreepidInUse("This email address is already in use")));
+		return Err!(Request(ThreepidInUse("This email address is already in use.")));
 	}
 
 	let session = services
