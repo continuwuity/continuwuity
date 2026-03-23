@@ -4,7 +4,7 @@ mod panic;
 mod response;
 mod serde;
 
-use std::{any::Any, borrow::Cow, convert::Infallible, sync::PoisonError};
+use std::{any::Any, borrow::Cow, convert::Infallible, error::Error as _, sync::PoisonError};
 
 pub use self::{err::visit, log::*};
 
@@ -66,8 +66,8 @@ pub enum Error {
 	Poison(Cow<'static, str>),
 	#[error("Regex error: {0}")]
 	Regex(#[from] regex::Error),
-	#[error("Request error: {0}")]
-	Reqwest(#[from] reqwest::Error),
+	#[error("{0}")]
+	Reqwest(FormattedReqwestError),
 	#[error("{0}")]
 	SerdeDe(Cow<'static, str>),
 	#[error("{0}")]
@@ -236,3 +236,48 @@ pub fn infallible(_e: &Infallible) {
 #[must_use]
 #[allow(clippy::needless_pass_by_value)]
 pub fn sanitized_message(e: Error) -> String { e.sanitized_message() }
+
+#[derive(Debug)]
+pub struct FormattedReqwestError(reqwest::Error);
+
+impl std::ops::Deref for FormattedReqwestError {
+	type Target = reqwest::Error;
+	fn deref(&self) -> &Self::Target {
+		&self.0
+	}
+}
+
+impl std::error::Error for FormattedReqwestError {
+	fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+		self.0.source()
+	}
+}
+
+impl std::fmt::Display for FormattedReqwestError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		if let Some(hyper_error) = self.0.source()
+			&& hyper_error.is::<hyper_util::client::legacy::Error>()
+			&& let Some(real_error) = hyper_error.source()
+		{
+			if let Some(real_reason) = real_error.source() {
+				write!(f, "{}: {}", real_error, real_reason)
+			} else {
+				write!(f, "{}", real_error)
+			}
+		} else {
+			write!(f, "Request error: {}", &self.0)
+		}
+	}
+}
+
+impl From<reqwest::Error> for FormattedReqwestError {
+	fn from(err: reqwest::Error) -> Self {
+		FormattedReqwestError(err)
+	}
+}
+
+impl From<reqwest::Error> for Error {
+	fn from(err: reqwest::Error) -> Self {
+		Error::Reqwest(err.into())
+	}
+}
