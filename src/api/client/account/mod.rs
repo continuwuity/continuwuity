@@ -154,7 +154,7 @@ pub(crate) async fn change_password_route(
 			.await?
 	} else {
 		// A signed-out user is trying to reset their password, prompt them for email
-		// confirmation Note that we do not _send_ an email here, their client should
+		// confirmation. Note that we do not _send_ an email here, their client should
 		// have already hit `/account/password/requestToken` to send the email. We
 		// just validate it.
 
@@ -337,7 +337,7 @@ pub(crate) async fn deactivate_route(
 	}
 
 	Ok(deactivate::v3::Response {
-		id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
+		id_server_unbind_result: ThirdPartyIdRemovalStatus::Success,
 	})
 }
 
@@ -372,6 +372,13 @@ pub async fn full_user_deactivate(
 	all_joined_rooms: &[OwnedRoomId],
 ) -> Result<()> {
 	services.users.deactivate_account(user_id).await.ok();
+
+	if services.globals.user_is_local(user_id) {
+		let _ = services
+			.threepid
+			.disassociate_localpart_email(user_id.localpart())
+			.await;
+	}
 
 	services
 		.users
