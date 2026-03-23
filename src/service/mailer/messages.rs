@@ -8,7 +8,8 @@ pub trait MessageTemplate: Template {
 #[derive(Template)]
 #[template(path = "mail/change_email.txt")]
 pub struct ChangeEmail<'a> {
-	pub user_id: &'a UserId,
+	pub server_name: &'a str,
+	pub user_id: Option<&'a UserId>,
 	pub verification_link: String,
 }
 

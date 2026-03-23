@@ -2,9 +2,12 @@
 
 {% block content -%}
 Hello!
-
+{% if let Some(user_id) = user_id -%}
 Somebody, probably you, tried to associate this email address with the Matrix account {{ user_id }}.
-If that's your account, and this is your email address, click this link to proceed:
+{%- else -%}
+Somebody, probably you, tried to associate this email address with a Matrix account on {{ server_name }}.
+{%- endif %}
+If that was you, and this is your email address, click this link to proceed:
     {{ verification_link }}
 Otherwise, you can ignore this email. The above link will expire in one hour.
 {%- endblock %}

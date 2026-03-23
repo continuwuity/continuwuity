@@ -30,8 +30,10 @@ pub(crate) async fn get_capabilities_route(
 		default: services.server.config.default_room_version.clone(),
 	};
 
-	// we do not implement 3PID stuff
-	capabilities.thirdparty_id_changes = ThirdPartyIdChangesCapability { enabled: false };
+	// Only allow 3pid changes if SMTP is configured
+	capabilities.thirdparty_id_changes = ThirdPartyIdChangesCapability {
+		enabled: services.mailer.mailer().is_some(),
+	};
 
 	capabilities.get_login_token = GetLoginTokenCapability {
 		enabled: services.server.config.login_via_existing_session,
@@ -51,7 +53,7 @@ pub(crate) async fn get_capabilities_route(
 		.await
 	{
 		// Advertise suspension API
-		capabilities.set("uk.timedout.msc4323", json!({"suspend":true, "lock": false}))?;
+		capabilities.set("uk.timedout.msc4323", json!({"suspend": true, "lock": false}))?;
 	}
 
 	Ok(get_capabilities::v3::Response { capabilities })

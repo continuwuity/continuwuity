@@ -1121,7 +1121,7 @@ pub(super) async fn get_user_by_email(&self, email: String) -> Result {
 	self.bail_restricted()?;
 
 	let Ok(email) = Address::try_from(email) else {
-		return Err!("Invalid email address");
+		return Err!("Invalid email address.");
 	};
 
 	match self.services.threepid.get_localpart_for_email(&email).await {
@@ -1147,7 +1147,7 @@ pub(super) async fn change_email(&self, user_id: String, email: Option<String>) 
 
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 	let Ok(new_email) = email.map(Address::try_from).transpose() else {
-		return Err!("Invalid email address");
+		return Err!("Invalid email address.");
 	};
 
 	if self.services.mailer.mailer().is_none() {
