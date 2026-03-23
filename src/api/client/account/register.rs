@@ -9,17 +9,22 @@ use conduwuit::{
 };
 use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt};
+use lettre::{Address, message::Mailbox};
 use register::RegistrationKind;
 use ruma::{
 	OwnedUserId, UserId,
 	api::client::{
-		account::register::{self, LoginType},
+		account::{
+			register::{self, LoginType},
+			request_registration_token_via_email,
+		},
 		uiaa::{AuthFlow, AuthType},
 	},
 	events::{GlobalAccountDataEventType, room::message::RoomMessageEventContent},
 	push,
 };
 use serde_json::value::RawValue;
+use service::mailer::messages;
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
@@ -391,13 +396,14 @@ pub(crate) async fn register_route(
 async fn create_registration_uiaa_session(
 	services: &Services,
 ) -> Result<(Vec<AuthFlow>, Box<RawValue>)> {
-	let mut flows = vec![];
 	let mut params = HashMap::<String, serde_json::Value>::new();
 
-	if services.firstrun.is_first_run() {
+	let flows = if services.firstrun.is_first_run() {
 		// Registration token forced while in first-run mode
-		flows.push(AuthFlow::new(vec![AuthType::RegistrationToken]));
+		vec![AuthFlow::new(vec![AuthType::RegistrationToken])]
 	} else {
+		let mut flows = vec![];
+
 		if services
 			.registration_tokens
 			.iterate_tokens()
@@ -405,14 +411,25 @@ async fn create_registration_uiaa_session(
 			.await
 			.is_some()
 		{
-			// Registration token flow is available
-			flows.push(AuthFlow::new(vec![AuthType::RegistrationToken]));
+			// Trusted registration flow with a token is available
+			let mut token_flow = AuthFlow::new(vec![AuthType::RegistrationToken]);
+
+			if let Some(smtp) = &services.config.smtp
+				&& smtp.require_email_for_token_registration
+			{
+				// Email is required for token registrations
+				token_flow.stages.push(AuthType::EmailIdentity);
+			}
+
+			flows.push(token_flow);
 		}
+
+		let mut untrusted_flow = AuthFlow::default();
 
 		if services.config.recaptcha_private_site_key.is_some() {
 			if let Some(pubkey) = &services.config.recaptcha_site_key {
-				// ReCaptcha flow is available
-				flows.push(AuthFlow::new(vec![AuthType::ReCaptcha]));
+				// ReCaptcha is configured for untrusted registrations
+				untrusted_flow.stages.push(AuthType::ReCaptcha);
 
 				params.insert(
 					AuthType::ReCaptcha.as_str().to_owned(),
@@ -422,23 +439,36 @@ async fn create_registration_uiaa_session(
 				);
 			}
 		}
-	}
 
-	if flows.is_empty() {
-		// Registration is enabled, but no flows are configured. Bail out by default
-		// unless open registration was explicitly enabled.
-		if !services
-			.config
-			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+		if let Some(smtp) = &services.config.smtp
+			&& smtp.require_email_for_registration
 		{
-			return Err!(Request(Forbidden(
-				"This server is not accepting registrations at this time."
-			)));
+			// Email is required for untrusted registrations
+			untrusted_flow.stages.push(AuthType::EmailIdentity);
 		}
 
-		// We have open registration enabled (😧), provide a dummy flow
-		flows.push(AuthFlow { stages: vec![AuthType::Dummy] });
-	}
+		if !untrusted_flow.stages.is_empty() {
+			flows.push(untrusted_flow);
+		}
+
+		if flows.is_empty() {
+			// No flows are configured. Bail out by default
+			// unless open registration was explicitly enabled.
+			if !services
+				.config
+				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+			{
+				return Err!(Request(Forbidden(
+					"This server is not accepting registrations at this time."
+				)));
+			}
+
+			// We have open registration enabled (😧), provide a dummy flow
+			flows.push(AuthFlow::new(vec![AuthType::Dummy]));
+		}
+
+		flows
+	};
 
 	let params = serde_json::value::to_raw_value(&params).expect("params should be valid JSON");
 
@@ -535,4 +565,40 @@ async fn determine_registration_user_id(
 			}
 		}
 	}
+}
+
+/// # `POST /_matrix/client/v3/register/email/requestToken`
+///
+/// Requests a validation email for the purpose of registering a new account
+pub(crate) async fn register_request_token_route(
+	State(services): State<crate::State>,
+	body: Ruma<request_registration_token_via_email::v3::Request>,
+) -> Result<request_registration_token_via_email::v3::Response> {
+	let Ok(email) = Address::try_from(body.email.clone()) else {
+		return Err!(Request(InvalidParam("Invalid email address")));
+	};
+
+	if services
+		.threepid
+		.get_localpart_for_email(&email)
+		.await
+		.is_some()
+	{
+		return Err!(Request(ThreepidInUse("This email address is already in use")));
+	}
+
+	let session = services
+		.threepid
+		.send_validation_email(
+			Mailbox::new(None, email),
+			|verification_link| messages::NewAccount {
+				server_name: services.config.server_name.as_ref(),
+				verification_link,
+			},
+			&body.client_secret,
+			body.send_attempt.try_into().unwrap(),
+		)
+		.await?;
+
+	Ok(request_registration_token_via_email::v3::Response::new(session))
 }

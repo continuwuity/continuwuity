@@ -2477,6 +2477,20 @@ pub struct SmtpConfig {
 	/// - `Name <address@domain.org>` to specify a sender name
 	/// - `address@domain.org` to not use a name
 	pub sender: Mailbox,
+
+	/// Whether to require that users provide an email address when they
+	/// register.
+	///
+	/// default: false
+	#[serde(default)]
+	pub require_email_for_registration: bool,
+
+	/// Whether to require that users who register with a registration token
+	/// provide an email address.
+	///
+	/// default: false
+	#[serde(default)]
+	pub require_email_for_token_registration: bool,
 }
 
 const DEPRECATED_KEYS: &[&str] = &[
