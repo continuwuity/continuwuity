@@ -2064,3 +2064,11 @@
 # - `address@domain.org` to not use a name
 #
 #sender =
+
+# Whether to require that users provide an email address when they register.
+#
+#require_email_for_registration = false
+
+# Whether to require that users who register with a registration token provide an email address.
+#
+#require_email_for_token_registration = false
