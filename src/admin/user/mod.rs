@@ -47,7 +47,7 @@ pub enum UserCommand {
 
 	/// Update or remove a user's email address.
 	///
-	/// If `email` is not supplied, the user's existing address wil be removed.
+	/// If `email` is not supplied, the user's existing address will be removed.
 	ChangeEmail {
 		user_id: String,
 		email: Option<String>,
