@@ -104,17 +104,13 @@ impl Service {
 			return Err!(Request(Forbidden("User is not permitted to remove this alias.")));
 		}
 
+		let alias_full = alias.as_bytes().to_vec();
 		let alias = alias.alias();
 		let Ok(room_id) = self.db.alias_roomid.get(&alias).await else {
 			return Err!(Request(NotFound("Alias does not exist or is invalid.")));
 		};
 
-		let prefix = (&room_id, Interfix);
-		self.db
-			.aliasid_alias
-			.keys_prefix_raw(&prefix)
-			.ignore_err()
-			.ready_for_each(|key| self.db.aliasid_alias.remove(key))
+		self.remove_aliasid_alias_entries(&room_id, &alias_full)
 			.await;
 
 		self.db.alias_roomid.remove(alias.as_bytes());
@@ -272,6 +268,22 @@ impl Service {
 
 	async fn who_created_alias(&self, alias: &RoomAliasId) -> Result<OwnedUserId> {
 		self.db.alias_userid.get(alias.alias()).await.deserialized()
+	}
+
+	async fn remove_aliasid_alias_entries(&self, room_id: &[u8], alias_full: &[u8]) {
+		let prefix = (room_id, Interfix);
+		let keys: Vec<Vec<u8>> = self
+			.db
+			.aliasid_alias
+			.stream_prefix_raw(&prefix)
+			.ignore_err()
+			.ready_filter_map(|(key, value)| (value == alias_full).then_some(key.to_vec()))
+			.collect()
+			.await;
+
+		for key in keys {
+			self.db.aliasid_alias.remove(&key);
+		}
 	}
 
 	async fn resolve_appservice_alias(
