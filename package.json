@@ -25,6 +25,6 @@
     "@rspress/core": "^2.0.0",
     "@rspress/plugin-client-redirects": "^2.0.0",
     "@rspress/plugin-sitemap": "^2.0.0",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.0"
   }
 }
