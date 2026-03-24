@@ -4,6 +4,11 @@ on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
 
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: write
@@ -11,6 +16,7 @@ permissions:
 
 jobs:
   check-changelog:
+    name: Check for changelog
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -24,12 +30,12 @@ jobs:
       - name: Check for changelog entry
         id: check_files
         run: |
-          git fetch origin ${{ github.base_ref }}
+          git fetch origin ${GITHUB_BASE_REF}
 
           # Check for Added (A) or Modified (M) files in changelog.d
-          CHANGELOG_CHANGES=$(git diff --name-status origin/${{ github.base_ref }} HEAD -- changelog.d/)
+          CHANGELOG_CHANGES=$(git diff --name-status origin/${GITHUB_BASE_REF} HEAD -- changelog.d/)
 
-          SRC_CHANGES=$(git diff --name-status origin/${{ github.base_ref }} HEAD -- src/)
+          SRC_CHANGES=$(git diff --name-status origin/${GITHUB_BASE_REF} HEAD -- src/)
 
           echo "Changes in changelog.d/:"
           echo "$CHANGELOG_CHANGES"
