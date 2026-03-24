@@ -1,0 +1,97 @@
+name: Check Changelog
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          sparse-checkout: .
+
+      - name: Check for changelog entry
+        id: check_files
+        run: |
+          git fetch origin ${{ github.base_ref }}
+
+          # Check for Added (A) or Modified (M) files in changelog.d
+          CHANGELOG_CHANGES=$(git diff --name-status origin/${{ github.base_ref }} HEAD -- changelog.d/)
+
+          SRC_CHANGES=$(git diff --name-status origin/${{ github.base_ref }} HEAD -- src/)
+
+          echo "Changes in changelog.d/:"
+          echo "$CHANGELOG_CHANGES"
+          echo "Changes in src/:"
+          echo "$SRC_CHANGES"
+
+          if echo "$CHANGELOG_CHANGES" | grep -q "^[AM]"; then
+            echo "has_changelog=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_changelog=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ -n "$SRC_CHANGES" ]; then
+            echo "src_changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "src_changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Manage PR Comment
+        uses: https://github.com/actions/github-script@v8
+        env:
+          HAS_CHANGELOG: ${{ steps.check_files.outputs.has_changelog }}
+          SRC_CHANGED: ${{ steps.check_files.outputs.src_changed }}
+        with:
+          script: |
+            const hasChangelog = process.env.HAS_CHANGELOG === 'true';
+            const srcChanged = process.env.SRC_CHANGED === 'true';
+            const commentSignature = '<!-- changelog-check-action -->';
+            const commentBody = `${commentSignature}\nPlease add a changelog fragment to \`changelog.d/\` describing your changes.`;
+
+            const { data: currentUser } = await github.rest.users.getAuthenticated();
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.id === currentUser.id &&
+              comment.body.includes(commentSignature)
+            );
+
+            const shouldWarn = srcChanged && !hasChangelog;
+
+            if (!shouldWarn) {
+              if (botComment) {
+                console.log('Changelog found or not required. Deleting existing warning comment.');
+                await github.rest.issues.deleteComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: botComment.id,
+                });
+              }
+            } else {
+              if (!botComment) {
+                console.log('Changelog missing and required. Creating warning comment.');
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: commentBody,
+                });
+              }
+            }
