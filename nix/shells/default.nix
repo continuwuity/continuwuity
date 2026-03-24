@@ -17,6 +17,7 @@
       # basic nix shell containing all things necessary to build continuwuity in all flavors manually (on x86_64-linux)
       devShells.default = uwulib.build.craneLib.devShell {
         packages = [
+          pkgs.nodejs
           pkgs.pkg-config
           pkgs.liburing
           pkgs.rust-jemalloc-sys-unprefixed
