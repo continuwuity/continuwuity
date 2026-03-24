@@ -114,7 +114,19 @@ pub(crate) async fn get_content_thumbnail_route(
 		content,
 		content_type,
 		content_disposition,
-	} = fetch_thumbnail(&services, &mxc, user, body.timeout_ms, &dim).await?;
+	} = match fetch_thumbnail(&services, &mxc, user, body.timeout_ms, &dim).await {
+		| Ok(meta) => meta,
+		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+			| std::io::ErrorKind::NotFound =>
+				return Err!(Request(NotFound("Thumbnail not found."))),
+			| std::io::ErrorKind::PermissionDenied => {
+				error!("Permission denied when trying to read file: {e:?}");
+				return Err!(Request(Unknown("Unknown error when fetching thumbnail.")));
+			},
+			| _ => return Err!(Request(Unknown("Unknown error when fetching thumbnail."))),
+		},
+		| Err(_) => return Err!(Request(Unknown("Unknown error when fetching thumbnail."))),
+	};
 
 	Ok(get_content_thumbnail::v1::Response {
 		file: content.expect("entire file contents"),
