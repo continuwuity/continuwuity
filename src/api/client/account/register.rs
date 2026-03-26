@@ -172,22 +172,6 @@ pub(crate) async fn register_route(
 
 	let password = if is_guest { None } else { body.password.as_deref() };
 
-	// If the user registered with an email, associate it with their account.
-	// Do this _before_ creating the user to make sure that, if their email is
-	// already in use, we don't make them an account.
-	//
-	// Note that this should only rarely cause a bailout because email uniqueness is
-	// also checked by /requestToken.
-	#[allow(clippy::collapsible_if)]
-	if let Some(identity) = identity {
-		if let Some(email) = identity.email {
-			services
-				.threepid
-				.associate_localpart_email(user_id.localpart(), &email)
-				.await?;
-		}
-	}
-
 	// Create user
 	services.users.create(&user_id, password, None).await?;
 
@@ -226,6 +210,7 @@ pub(crate) async fn register_route(
 			.appservice_info
 			.as_ref()
 			.is_some_and(|aps| aps.registration.device_management);
+
 	let (token, device) = if !no_device {
 		// Don't create a device for inhibited logins
 		let device_id = if is_guest { None } else { body.device_id.clone() }
@@ -250,6 +235,20 @@ pub(crate) async fn register_route(
 	} else {
 		(None, None)
 	};
+
+	// If the user registered with an email, associate it with their account.
+	if let Some(identity) = identity
+		&& let Some(email) = identity.email
+	{
+		// This may fail if the email is already in use, but we already check for that
+		// in `/requestToken`, so ignoring the error is acceptable here in the rare case
+		// that an email is sniped by another user between the `/requestToken` request
+		// and the `/register` request.
+		let _ = services
+			.threepid
+			.associate_localpart_email(user_id.localpart(), &email)
+			.await;
+	}
 
 	let device_display_name = body.initial_device_display_name.as_deref().unwrap_or("");
 
