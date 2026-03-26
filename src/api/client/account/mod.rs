@@ -51,49 +51,23 @@ pub(crate) async fn get_register_available_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<get_username_availability::v3::Request>,
 ) -> Result<get_username_availability::v3::Response> {
-	// workaround for https://github.com/matrix-org/matrix-appservice-irc/issues/1780 due to inactivity of fixing the issue
-	let is_matrix_appservice_irc = body.appservice_info.as_ref().is_some_and(|appservice| {
-		appservice.registration.id == "irc"
-			|| appservice.registration.id.contains("matrix-appservice-irc")
-			|| appservice.registration.id.contains("matrix_appservice_irc")
-	});
-
-	if services
-		.globals
-		.forbidden_usernames()
-		.is_match(&body.username)
-	{
-		return Err!(Request(Forbidden("Username is forbidden")));
-	}
-
-	// don't force the username lowercase if it's from matrix-appservice-irc
-	let body_username = if is_matrix_appservice_irc {
-		body.username.clone()
-	} else {
-		body.username.to_lowercase()
-	};
-
 	// Validate user id
 	let user_id =
-		match UserId::parse_with_server_name(&body_username, services.globals.server_name()) {
+		match UserId::parse_with_server_name(&body.username, services.globals.server_name()) {
 			| Ok(user_id) => {
 				if let Err(e) = user_id.validate_strict() {
-					// unless the username is from the broken matrix appservice IRC bridge, we
-					// should follow synapse's behaviour on not allowing things like spaces
-					// and UTF-8 characters in usernames
-					if !is_matrix_appservice_irc {
-						return Err!(Request(InvalidUsername(debug_warn!(
-							"Username {body_username} contains disallowed characters or spaces: \
-							 {e}"
-						))));
-					}
+					return Err!(Request(InvalidUsername(debug_warn!(
+						"Username {} contains disallowed characters or spaces: {e}",
+						body.username
+					))));
 				}
 
 				user_id
 			},
 			| Err(e) => {
 				return Err!(Request(InvalidUsername(debug_warn!(
-					"Username {body_username} is not valid: {e}"
+					"Username {} is not valid: {e}",
+					body.username
 				))));
 			},
 		};
