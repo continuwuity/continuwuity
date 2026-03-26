@@ -122,9 +122,40 @@ pub(crate) async fn register_route(
 		)));
 	}
 
+	// Appeservices and guests get to skip auth
+	let skip_auth = body.appservice_info.is_some() || is_guest;
+
+	let identity = if skip_auth {
+		// Appservices and guests have no identity
+		None
+	} else {
+		// Perform UIAA to determine the user's identity
+		let (flows, params) = create_registration_uiaa_session(&services).await?;
+
+		Some(
+			services
+				.uiaa
+				.authenticate(&body.auth, flows, params, None)
+				.await?,
+		)
+	};
+
+	// If the user didn't supply a username but did supply an email, use
+	// the email's user as their initial localpart to avoid falling back to
+	// a randomly generated localpart
+	let supplied_username = body.username.clone().or_else(|| {
+		if let Some(identity) = &identity
+			&& let Some(email) = &identity.email
+		{
+			Some(email.user().to_owned())
+		} else {
+			None
+		}
+	});
+
 	let user_id = determine_registration_user_id(
 		&services,
-		body.username.clone(),
+		supplied_username,
 		is_guest,
 		emergency_mode_enabled,
 	)
@@ -151,24 +182,6 @@ pub(crate) async fn register_route(
 		// namespace (unless emergency mode is enabled)
 		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
 	}
-
-	// Appeservices and guests get to skip auth
-	let skip_auth = body.appservice_info.is_some() || is_guest;
-
-	let identity = if skip_auth {
-		// Appservices and guests have no identity
-		None
-	} else {
-		// Perform UIAA to determine the user's identity
-		let (flows, params) = create_registration_uiaa_session(&services).await?;
-
-		Some(
-			services
-				.uiaa
-				.authenticate(&body.auth, flows, params, None)
-				.await?,
-		)
-	};
 
 	let password = if is_guest { None } else { body.password.as_deref() };
 
