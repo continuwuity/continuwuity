@@ -125,7 +125,6 @@ pub(crate) async fn register_route(
 	let user_id = determine_registration_user_id(
 		&services,
 		body.username.clone(),
-		body.appservice_info.as_ref(),
 		is_guest,
 		emergency_mode_enabled,
 	)
@@ -478,11 +477,10 @@ async fn create_registration_uiaa_session(
 async fn determine_registration_user_id(
 	services: &Services,
 	supplied_username: Option<String>,
-	appservice_info: Option<&service::appservice::RegistrationInfo>,
 	is_guest: bool,
 	emergency_mode_enabled: bool,
 ) -> Result<OwnedUserId> {
-	if let Some(mut supplied_username) = supplied_username
+	if let Some(supplied_username) = supplied_username
 		&& !is_guest
 	{
 		// The user gets to pick their username. Do some validation to make sure it's
@@ -498,18 +496,6 @@ async fn determine_registration_user_id(
 			return Err!(Request(Forbidden("Username is forbidden")));
 		}
 
-		// Workaround for https://github.com/matrix-org/matrix-appservice-irc/issues/1780 due to inactivity of fixing the issue
-		let is_matrix_appservice_irc = appservice_info.is_some_and(|appservice| {
-			appservice.registration.id == "irc"
-				|| appservice.registration.id.contains("matrix-appservice-irc")
-				|| appservice.registration.id.contains("matrix_appservice_irc")
-		});
-
-		// Don't force the username lowercase if it's from matrix-appservice-irc.
-		if !is_matrix_appservice_irc {
-			supplied_username = supplied_username.to_lowercase();
-		}
-
 		// Create and validate the user ID
 		let user_id = match UserId::parse_with_server_name(
 			&supplied_username,
@@ -517,10 +503,9 @@ async fn determine_registration_user_id(
 		) {
 			| Ok(user_id) => {
 				if let Err(e) = user_id.validate_strict() {
-					// unless the username is from the broken matrix appservice IRC bridge, or
-					// we are in emergency mode, we should follow synapse's behaviour on
+					// Unless we are in emergency mode, we should follow synapse's behaviour on
 					// not allowing things like spaces and UTF-8 characters in usernames
-					if !is_matrix_appservice_irc && !emergency_mode_enabled {
+					if !emergency_mode_enabled {
 						return Err!(Request(InvalidUsername(debug_warn!(
 							"Username {supplied_username} contains disallowed characters or \
 							 spaces: {e}"
@@ -550,7 +535,7 @@ async fn determine_registration_user_id(
 
 		Ok(user_id)
 	} else {
-		// The user is a guest or is lacking in creativity. Generate a username for
+		// The user is a guest or didn't specify a username. Generate a username for
 		// them.
 
 		loop {
