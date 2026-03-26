@@ -77,6 +77,14 @@ macro_rules! err {
 		)
 	};
 
+	(Request($variant:ident($($args:tt)+), $status_code:ident)) => {
+		$crate::error::Error::Request(
+			$crate::ruma::api::client::error::ErrorKind::$variant,
+			$crate::format_maybe!($($args)+),
+			$crate::http::StatusCode::$status_code,
+		)
+	};
+
 	(Config($item:literal, $($args:tt)+)) => {{
 		let mut buf = String::new();
 		$crate::error::Error::Config($item, $crate::err_log!(buf, error, config = %$item, $($args)+))

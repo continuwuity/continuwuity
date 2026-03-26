@@ -785,6 +785,15 @@ async fn join_room_by_id_helper_local(
 	};
 
 	if servers.is_empty() || servers.len() == 1 && services.globals.server_is_ours(&servers[0]) {
+		if !services.rooms.metadata.exists(room_id).await {
+			return Err!(Request(
+				Unknown(
+					"Room was not found locally and no servers were found to help us discover it"
+				),
+				NOT_FOUND
+			));
+		}
+
 		return Err(error);
 	}
 
