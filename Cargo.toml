@@ -564,6 +564,14 @@ version = "0.11.19"
 default-features = false
 features = ["smtp-transport", "pool", "hostname", "builder", "rustls", "aws-lc-rs", "rustls-native-certs", "tokio1", "tokio1-rustls", "tracing", "serde"]
 
+[workspace.dependencies.governor]
+version = "0.10.4"
+default-features = false
+features = ["std"]
+
+[workspace.dependencies.nonzero_ext]
+version = "0.3.0"
+
 #
 # Patches
 #
