@@ -73,6 +73,12 @@ const DEQUEUE_LIMIT: usize = 48;
 pub const PDU_LIMIT: usize = 50;
 pub const EDU_LIMIT: usize = 100;
 
+fn is_create_event(data: &CanonicalJsonObject) -> bool {
+	let event_type = data.get("type").and_then(|v| v.as_str());
+	let state_key = data.get("state_key").and_then(|v| v.as_str());
+	event_type.is_some_and(|t| t == "m.room.create") && state_key.is_some_and(|s| s.is_empty())
+}
+
 impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub(super) async fn sender(self: Arc<Self>, id: usize) -> Result {
@@ -879,40 +885,57 @@ impl Service {
 		}
 	}
 
-	/// This does not return a full `Pdu` it is only to satisfy ruma's types.
+	/// Filters through a PDU JSON blob, retaining only keys that are expected
+	/// over federation.
 	pub async fn convert_to_outgoing_federation_event(
 		&self,
 		mut pdu_json: CanonicalJsonObject,
 	) -> Box<RawJsonValue> {
-		if let Some(unsigned) = pdu_json
-			.get_mut("unsigned")
-			.and_then(|val| val.as_object_mut())
-		{
-			unsigned.remove("transaction_id");
-		}
-
-		// room v3 and above removed the "event_id" field from remote PDU format
+		// NOTE: We do not support event format v1 (for rooms v1 and v2) - we only
+		// support rooms version 3 and newer (event format v2), so we do not need to
+		// worry about keys that would've been retained in v1 and v2. Only v3 onward.
+		let mut top_level_keys = vec![
+			"auth_events",
+			"content",
+			"depth",
+			"hashes",
+			"origin_server_ts",
+			"prev_events",
+			"room_id",
+			"sender",
+			"signatures",
+			"state_key",
+			"type",
+		];
 		if let Some(room_id) = pdu_json
 			.get("room_id")
-			.and_then(|val| RoomId::parse(val.as_str()?).ok())
+			.and_then(|v| RoomId::parse(v.as_str()?).ok())
 		{
-			match self.services.state.get_room_version(room_id).await {
-				| Ok(room_version_id) => match room_version_id {
-					| RoomVersionId::V1 | RoomVersionId::V2 => {},
-					| _ => _ = pdu_json.remove("event_id"),
-				},
-				| Err(_) => _ = pdu_json.remove("event_id"),
-			}
-		} else {
-			pdu_json.remove("event_id");
-		}
+			if let Ok(room_version) = self.services.state.get_room_version(room_id).await {
+				use RoomVersionId::*;
 
-		// TODO: another option would be to convert it to a canonical string to validate
-		// size and return a Result<Raw<...>>
-		// serde_json::from_str::<Raw<_>>(
-		//     ruma::serde::to_canonical_json_string(pdu_json).expect("CanonicalJson is
-		// valid serde_json::Value"), )
-		// .expect("Raw::from_value always works")
+				if !matches!(room_version, V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10) {
+					// Redacts is no longer top-level after V10
+					top_level_keys.retain(|e| *e != "redacts");
+				}
+
+				if matches!(room_version, V12) {
+					if is_create_event(&pdu_json) {
+						// room_id is removed from m.room.create events in v12, but we need it
+						// for all other events.
+						top_level_keys.retain(|e| *e != "room_id");
+					}
+				}
+			}
+		}
+		let to_remove = pdu_json
+			.keys()
+			.filter(|k| !top_level_keys.contains(&k.as_str()))
+			.cloned()
+			.collect::<Vec<_>>();
+		for key in to_remove {
+			pdu_json.remove(key.as_str());
+		}
 
 		to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value")
 	}
