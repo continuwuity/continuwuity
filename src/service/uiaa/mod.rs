@@ -57,14 +57,6 @@ struct UiaaSession {
 	identity: Identity,
 }
 
-pub enum UiaaStatus {
-	/// The UIAA session succeeded and the request should be completed as
-	/// normal.
-	Success(Identity),
-	/// More UIAA stages need to be completed, or the current stage failed.
-	Retry(UiaaInfo),
-}
-
 /// Information about the authenticated user's identity.
 ///
 /// A field of this struct will only be Some if the user completed
@@ -159,8 +151,8 @@ impl Service {
 				};
 
 				match self.continue_session(auth, &session).await? {
-					| UiaaStatus::Retry(info) => Err(Error::Uiaa(info)),
-					| UiaaStatus::Success(identity) => Ok(identity),
+					| Ok(identity) => Ok(identity),
+					| Err(info) => Err(Error::Uiaa(info)),
 				}
 			},
 		}
@@ -210,7 +202,11 @@ impl Service {
 	}
 
 	/// Proceed with UIAA authentication given a client's authorization data.
-	async fn continue_session(&self, auth: &AuthData, session: &str) -> Result<UiaaStatus> {
+	async fn continue_session(
+		&self,
+		auth: &AuthData,
+		session: &str,
+	) -> Result<Result<Identity, UiaaInfo>> {
 		// Hold this lock for the entire function to make sure that, if try_auth()
 		// is called concurrently with the same session, only one call will succeed
 		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
@@ -227,7 +223,7 @@ impl Service {
 
 			// Return early to tell the client that no, authentication did not succeed while
 			// it wasn't looking.
-			return Ok(UiaaStatus::Retry(session.get().info.clone()));
+			return Ok(Err(session.get().info.clone()));
 		}
 
 		let completed = 'completed: {
@@ -280,10 +276,10 @@ impl Service {
 			// This session is complete, remove it and return success
 			let (_, UiaaSession { identity, .. }) = session.remove_entry();
 
-			Ok(UiaaStatus::Success(identity))
+			Ok(Ok(identity))
 		} else {
 			// The client needs to try again, return the updated session
-			Ok(UiaaStatus::Retry(session.get().info.clone()))
+			Ok(Err(session.get().info.clone()))
 		}
 	}
 
