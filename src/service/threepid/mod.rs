@@ -112,6 +112,9 @@ impl Service {
 			| None => sessions.create_session(recipient.email.clone(), client_secret.to_owned()),
 		};
 
+		// Clone this so it can outlive the lock we're holding on `sessions`
+		let session_id = session.session_id.clone();
+
 		let ValidationState::Pending(token) = &session.validation_state else {
 			unreachable!("session should be pending")
 		};
@@ -125,14 +128,18 @@ impl Service {
 
 		validation_url
 			.query_pairs_mut()
-			.append_pair("session", session.session_id.as_ref())
+			.append_pair("session", session_id.as_str())
 			.append_pair("token", &token.token);
+
+		// Once the validation URL is built, we don't need any data borrowed from
+		// `sessions` anymore and can release our lock
+		drop(sessions);
 
 		let message = prepare_body(validation_url.to_string());
 
 		mailer.send(recipient, message).await?;
 
-		Ok(session.session_id.clone())
+		Ok(session_id)
 	}
 
 	/// Attempt to mark a validation session as valid using a validation token.
