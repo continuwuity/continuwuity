@@ -4591,8 +4591,8 @@ dependencies = [
 
 [[package]]
 name = "rust-librocksdb-sys"
-version = "0.39.0+10.5.1"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=61d9d23872197e9ace4a477f2617d5c9f50ecb23#61d9d23872197e9ace4a477f2617d5c9f50ecb23"
+version = "0.42.0+10.10.1"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9#31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9"
 dependencies = [
  "bindgen",
  "bzip2-sys",
@@ -4608,8 +4608,8 @@ dependencies = [
 
 [[package]]
 name = "rust-rocksdb"
-version = "0.43.0"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=61d9d23872197e9ace4a477f2617d5c9f50ecb23#61d9d23872197e9ace4a477f2617d5c9f50ecb23"
+version = "0.46.0"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9#31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9"
 dependencies = [
  "libc",
  "parking_lot",
@@ -5455,8 +5455,8 @@ dependencies = [
 
 [[package]]
 name = "tikv-jemalloc-ctl"
-version = "0.6.0"
-source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+version = "0.6.1"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554#df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554"
 dependencies = [
  "libc",
  "paste",
@@ -5465,8 +5465,8 @@ dependencies = [
 
 [[package]]
 name = "tikv-jemalloc-sys"
-version = "0.6.0+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7"
-source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+version = "0.6.1+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554#df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554"
 dependencies = [
  "cc",
  "libc",
@@ -5474,8 +5474,8 @@ dependencies = [
 
 [[package]]
 name = "tikv-jemallocator"
-version = "0.6.0"
-source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=82af58d6a13ddd5dcdc7d4e91eae3b63292995b8#82af58d6a13ddd5dcdc7d4e91eae3b63292995b8"
+version = "0.6.1"
+source = "git+https://forgejo.ellis.link/continuwuation/jemallocator?rev=df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554#df86ff89d4b1e223b9f7d2dd2fbb7f202da7f554"
 dependencies = [
  "libc",
  "tikv-jemalloc-sys",

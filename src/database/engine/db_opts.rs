@@ -138,7 +138,7 @@ fn set_logging_defaults(opts: &mut Options, config: &Config) {
 	if config.rocksdb_log_stderr {
 		opts.set_stderr_logger(rocksdb_log_level, "rocksdb");
 	} else {
-		opts.set_callback_logger(rocksdb_log_level, &handle_log);
+		opts.set_callback_logger(rocksdb_log_level, handle_log);
 	}
 }
 
