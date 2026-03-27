@@ -93,6 +93,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ansi-width"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "219e3ce6f2611d83b51ec2098a12702112c29e57203a6b0a0929b2cddb486608"
+dependencies = [
+ "unicode-width 0.1.14",
+]
+
+[[package]]
 name = "anstyle"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -271,8 +280,8 @@ checksum = "5f093eed78becd229346bf859eec0aa4dd7ddde0757287b2b4107a1f09c80002"
 
 [[package]]
 name = "async-channel"
-version = "2.3.1"
-source = "git+https://forgejo.ellis.link/continuwuation/async-channel?rev=92e5e74063bf2a3b10414bcc8a0d68b235644280#92e5e74063bf2a3b10414bcc8a0d68b235644280"
+version = "2.5.0"
+source = "git+https://forgejo.ellis.link/continuwuation/async-channel?rev=e990f0006b68dc9bace7a3c95fc90b5c4e44948d#e990f0006b68dc9bace7a3c95fc90b5c4e44948d"
 dependencies = [
  "concurrent-queue",
  "event-listener-strategy",
@@ -1314,8 +1323,8 @@ dependencies = [
 
 [[package]]
 name = "core_affinity"
-version = "0.8.1"
-source = "git+https://forgejo.ellis.link/continuwuation/core_affinity_rs?rev=9c8e51510c35077df888ee72a36b4b05637147da#9c8e51510c35077df888ee72a36b4b05637147da"
+version = "0.8.3"
+source = "git+https://forgejo.ellis.link/continuwuation/core_affinity_rs?rev=7c7a9dea35382743a63837cdd1d977efdb8f1b8a#7c7a9dea35382743a63837cdd1d977efdb8f1b8a"
 dependencies = [
  "libc",
  "num_cpus",
@@ -1816,10 +1825,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "5.3.1"
-source = "git+https://forgejo.ellis.link/continuwuation/event-listener?rev=fe4aebeeaae435af60087ddd56b573a2e0be671d#fe4aebeeaae435af60087ddd56b573a2e0be671d"
+version = "5.4.1"
+source = "git+https://forgejo.ellis.link/continuwuation/event-listener?rev=b2c19bcaf5a0a69c38c034e417bda04a9b991529#b2c19bcaf5a0a69c38c034e417bda04a9b991529"
 dependencies = [
- "concurrent-queue",
  "parking",
  "pin-project-lite",
 ]
@@ -2488,13 +2496,12 @@ dependencies = [
 
 [[package]]
 name = "hyper-util"
-version = "0.1.17"
-source = "git+https://forgejo.ellis.link/continuwuation/hyper-util?rev=5886d5292bf704c246206ad72d010d674a7b77d0#5886d5292bf704c246206ad72d010d674a7b77d0"
+version = "0.1.20"
+source = "git+https://forgejo.ellis.link/continuwuation/hyper-util?rev=09fcd3bf4656c81a8ad573bee410ab2b57f60b86#09fcd3bf4656c81a8ad573bee410ab2b57f60b86"
 dependencies = [
  "base64 0.22.1",
  "bytes",
  "futures-channel",
- "futures-core",
  "futures-util",
  "http",
  "http-body",
@@ -4726,16 +4733,16 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
 name = "rustyline-async"
-version = "0.4.6"
-source = "git+https://forgejo.ellis.link/continuwuation/rustyline-async?rev=e9f01cf8c6605483cb80b3b0309b400940493d7f#e9f01cf8c6605483cb80b3b0309b400940493d7f"
+version = "0.4.9"
+source = "git+https://forgejo.ellis.link/continuwuation/rustyline-async?rev=b13aca2cc08d5f78303746cd192d9a03d73e768e#b13aca2cc08d5f78303746cd192d9a03d73e768e"
 dependencies = [
+ "ansi-width",
  "crossterm",
  "futures-util",
  "pin-project",
  "thingbuf",
  "thiserror 2.0.18",
  "unicode-segmentation",
- "unicode-width 0.2.2",
 ]
 
 [[package]]

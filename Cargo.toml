@@ -278,7 +278,7 @@ features = [
 ]
 
 [workspace.dependencies.hyper-util]
-version = "=0.1.17"
+version = "=0.1.20"
 default-features = false
 features = [
     "server-auto",
@@ -332,7 +332,7 @@ version = "0.4.0"
 
 # used for MPMC channels
 [workspace.dependencies.async-channel]
-version = "2.3.1"
+version = "2.5.0"
 
 [workspace.dependencies.async-trait]
 version = "0.1.88"
@@ -493,7 +493,7 @@ features = [
 ]
 
 [workspace.dependencies.rustyline-async]
-version = "0.4.3"
+version = "0.4.9"
 default-features = false
 
 [workspace.dependencies.termimad]
@@ -526,7 +526,7 @@ version = "0.4.13"
 version = "2.0"
 
 [workspace.dependencies.core_affinity]
-version = "0.8.1"
+version = "0.8.3"
 
 [workspace.dependencies.libc]
 version = "0.2"
@@ -568,25 +568,25 @@ version = "0.15.0"
 # adds event for CTRL+\: https://forgejo.ellis.link/continuwuation/rustyline-async/src/branch/main/.patchy/0001-add-event-for-ctrl.patch
 [patch.crates-io.rustyline-async]
 git = "https://forgejo.ellis.link/continuwuation/rustyline-async"
-rev = "e9f01cf8c6605483cb80b3b0309b400940493d7f"
+rev = "b13aca2cc08d5f78303746cd192d9a03d73e768e"
 
 # adds LIFO queue scheduling; this should be updated with PR progress.
 [patch.crates-io.event-listener]
 git = "https://forgejo.ellis.link/continuwuation/event-listener"
-rev = "fe4aebeeaae435af60087ddd56b573a2e0be671d"
+rev = "b2c19bcaf5a0a69c38c034e417bda04a9b991529"
 [patch.crates-io.async-channel]
 git = "https://forgejo.ellis.link/continuwuation/async-channel"
-rev = "92e5e74063bf2a3b10414bcc8a0d68b235644280"
+rev = "e990f0006b68dc9bace7a3c95fc90b5c4e44948d"
 
 # adds affinity masks for selecting more than one core at a time
 [patch.crates-io.core_affinity]
 git = "https://forgejo.ellis.link/continuwuation/core_affinity_rs"
-rev = "9c8e51510c35077df888ee72a36b4b05637147da"
+rev = "7c7a9dea35382743a63837cdd1d977efdb8f1b8a"
 
 # reverts hyperium#148 conflicting with our delicate federation resolver hooks
 [patch.crates-io.hyper-util]
 git = "https://forgejo.ellis.link/continuwuation/hyper-util"
-rev = "5886d5292bf704c246206ad72d010d674a7b77d0"
+rev = "09fcd3bf4656c81a8ad573bee410ab2b57f60b86"
 
 #
 # Our crates
