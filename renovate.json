@@ -1,6 +1,6 @@
 {
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-    "extends": ["config:recommended", "replacements:all", ":semanticCommitTypeAll(chore)", "pinGitHubActionDigests"],
+    "extends": ["config:recommended", "replacements:all", ":semanticCommitTypeAll(chore)", "helpers:pinGitHubActionDigests"],
     "dependencyDashboard": true,
     "osvVulnerabilityAlerts": true,
     "lockFileMaintenance": {
@@ -95,16 +95,16 @@
         }
     ],
     "customManagers": [
-       {
-         "customType": "regex",
-         "description": "Update _VERSION variables in Dockerfiles",
-         "managerFilePatterns": [
-           "/(^|/)([Dd]ocker|[Cc]ontainer)file[^/]*$/",
-           "/(^|/|\\.)([Dd]ocker|[Cc]ontainer)file$/"
-         ],
-         "matchStrings": [
-           "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_VERSION[ =][\"']?(?<currentValue>.+?)[\"']?\\s+(?:(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_CHECKSUM[ =][\"']?(?<currentDigest>.+?)[\"']?\\s)?"
-         ]
-       }
+        {
+            "customType": "regex",
+            "description": "Update _VERSION variables in Dockerfiles",
+            "managerFilePatterns": [
+                "/(^|/)([Dd]ocker|[Cc]ontainer)file[^/]*$/",
+                "/(^|/|\\.)([Dd]ocker|[Cc]ontainer)file$/"
+            ],
+            "matchStrings": [
+                "# renovate: datasource=(?<datasource>[a-zA-Z0-9-._]+?) depName=(?<depName>[^\\s]+?)(?: (lookupName|packageName)=(?<packageName>[^\\s]+?))?(?: versioning=(?<versioning>[^\\s]+?))?(?: extractVersion=(?<extractVersion>[^\\s]+?))?(?: registryUrl=(?<registryUrl>[^\\s]+?))?\\s+(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_VERSION[ =][\"']?(?<currentValue>.+?)[\"']?\\s+(?:(?:ENV\\s+|ARG\\s+)?[A-Za-z0-9_]+?_CHECKSUM[ =][\"']?(?<currentDigest>.+?)[\"']?\\s)?"
+            ]
+        }
     ]
 }
