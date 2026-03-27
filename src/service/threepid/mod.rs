@@ -1,9 +1,13 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use conduwuit::{Err, Result, result::FlatOk};
+use conduwuit::{Err, Error, Result, result::FlatOk};
 use database::{Deserialized, Map};
+use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{Address, message::Mailbox};
-use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId};
+use nonzero_ext::nonzero;
+use ruma::{
+	ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId, api::client::error::ErrorKind,
+};
 
 mod session;
 
@@ -18,6 +22,7 @@ pub struct Service {
 	services: Services,
 	sessions: tokio::sync::Mutex<ValidationSessions>,
 	send_attempts: std::sync::Mutex<HashMap<(OwnedClientSecret, Address), usize>>,
+	ratelimiter: DefaultKeyedRateLimiter<Address>,
 }
 
 struct Data {
@@ -43,6 +48,7 @@ impl crate::Service for Service {
 			},
 			sessions: tokio::sync::Mutex::default(),
 			send_attempts: std::sync::Mutex::default(),
+			ratelimiter: RateLimiter::keyed(Self::EMAIL_RATELIMIT),
 		}))
 	}
 
@@ -50,6 +56,12 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	// Each address gets two tickets to send an email, which refill at a rate of one
+	// per ten minutes. This allows two emails to be sent at once without waiting
+	// (in case the first one gets eaten), but requires a wait of at least ten
+	// minutes before sending another.
+	const EMAIL_RATELIMIT: Quota =
+		Quota::per_minute(nonzero!(10_u32)).allow_burst(nonzero!(2_u32));
 	const VALIDATION_URL_PATH: &str = "/_continuwuity/3pid/email/validate";
 
 	/// Send a validation message to an email address.
@@ -76,29 +88,29 @@ impl Service {
 						return Ok(session.session_id.clone());
 					},
 					| ValidationState::Pending(ref mut token) => {
-						// Check the send attempt for this session
+						// Check ratelimiting for the target address.
+						if self.ratelimiter.check_key(&recipient.email).is_err() {
+							return Err(Error::BadRequest(
+								ErrorKind::LimitExceeded { retry_after: None },
+								"You're sending emails too fast, try again in a few minutes.",
+							));
+						}
+
+						// Check the send attempt for this session.
 						let mut send_attempts = self.send_attempts.lock().unwrap();
 
-						match send_attempts
-							.get_mut(&(session.client_secret.clone(), session.email.clone()))
-						{
-							| Some(last_send_attempt) => {
-								if send_attempt <= *last_send_attempt {
-									// If the supplied send attempt isn't higher than the last
-									// one, don't send an email.
-									return Ok(session.session_id.clone());
-								}
+						let last_send_attempt = send_attempts
+							.entry((session.client_secret.clone(), session.email.clone()))
+							.or_default();
 
-								// Otherwise save the supplied send attempt.
-								*last_send_attempt = send_attempt;
-							},
-							| None => {
-								// Default to sending an email if no previous
-								// attempt could be found. This can happen if
-								// the server was restarted, which clears the
-								// send attempt tracker.
-							},
+						if send_attempt <= *last_send_attempt {
+							// If the supplied send attempt isn't higher than the last
+							// one, don't send an email.
+							return Ok(session.session_id.clone());
 						}
+
+						// Save this send attempt.
+						*last_send_attempt = send_attempt;
 						drop(send_attempts);
 
 						// Create a new token for the existing session.
