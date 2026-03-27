@@ -76,7 +76,7 @@ pub const EDU_LIMIT: usize = 100;
 fn is_create_event(data: &CanonicalJsonObject) -> bool {
 	let event_type = data.get("type").and_then(|v| v.as_str());
 	let state_key = data.get("state_key").and_then(|v| v.as_str());
-	event_type.is_some_and(|t| t == "m.room.create") && state_key.is_some_and(|s| s.is_empty())
+	event_type.is_some_and(|t| t == "m.room.create") && state_key.is_some_and(str::is_empty)
 }
 
 impl Service {
