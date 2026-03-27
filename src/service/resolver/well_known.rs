@@ -26,7 +26,10 @@ pub(super) async fn request_well_known(&self, dest: &str) -> Result<Option<Strin
 		return Ok(None);
 	}
 
-	let text = response.limit_read_text(8192).await?;
+	let Ok(text) = response.limit_read_text(8192).await else {
+		debug!("failed to read well-known response (too large or non-text content)");
+		return Ok(None);
+	};
 	trace!("response text: {text:?}");
 
 	let body: serde_json::Value = serde_json::from_str(&text).unwrap_or_default();
