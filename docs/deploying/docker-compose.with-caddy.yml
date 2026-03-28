@@ -19,8 +19,6 @@ services:
             caddy.reverse_proxy: /.well-known/matrix/* homeserver:6167
 
     homeserver:
-        ### If you already built the Continuwuity image with 'docker build' or want to use a registry image,
-        ### then you are ready to go.
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
         command: /sbin/conduwuit
@@ -31,16 +29,8 @@ services:
         environment:
             CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
             CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
-            CONTINUWUITY_PORT: 6167
-            CONTINUWUITY_MAX_REQUEST_SIZE: 20000000 # in bytes, ~20 MB
-            CONTINUWUITY_ALLOW_REGISTRATION: 'true'
-            CONTINUWUITY_REGISTRATION_TOKEN: 'YOUR_TOKEN' # A registration token is required when registration is allowed.
-            #CONTINUWUITY_YES_I_AM_VERY_VERY_SURE_I_WANT_AN_OPEN_REGISTRATION_SERVER_PRONE_TO_ABUSE: 'true'
-            CONTINUWUITY_ALLOW_FEDERATION: 'true'
-            CONTINUWUITY_ALLOW_CHECK_FOR_UPDATES: 'true'
-            CONTINUWUITY_TRUSTED_SERVERS: '["matrix.org"]'
-            #CONTINUWUITY_LOG: warn,state_res=warn
             CONTINUWUITY_ADDRESS: 0.0.0.0
+            CONTINUWUITY_PORT: 6167
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
             # Required for .well-known delegation - edit these according to your chosen domain
