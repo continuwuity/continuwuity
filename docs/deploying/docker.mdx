@@ -1,6 +1,8 @@
 # Continuwuity for Docker
 
-## Available Images
+## Preparation
+
+### Choose an image
 
 The following OCI images are available for Continuwuity:
 
@@ -18,8 +20,6 @@ The following OCI images are available for Continuwuity:
 
 If you want a specific version or commit hash, you can browse for them [here][oci-all-versions].
 
-### Mirrors
-
 Images are also mirrored to these locations automatically, on a schedule:
 
 - `ghcr.io/continuwuity/continuwuity` ([Github Registry][ghcr-io])
@@ -33,34 +33,29 @@ Images are also mirrored to these locations automatically, on a schedule:
 [gitlab-registry]: https://gitlab.com/continuwuity/continuwuity/container_registry/8871720
 [nexy-forge]: https://git.nexy7574.co.uk/mirrored/-/packages/container/continuwuity/versions
 
-## Docker - Quick Run
-
-Get a working Continuwuity server with an admin user in four steps:
-
 ### Prerequisites
 
 Continuwuity requires HTTPS for Matrix federation. You'll need:
 
-- A domain name pointing to your server
-- A reverse proxy with SSL/TLS certificates (Traefik, Caddy, nginx, etc.)
+- A domain name pointing to your server's IP address - we will be using `example.com` in this guide.
+- A reverse proxy with SSL/TLS certificates (Traefik, Caddy, nginx, etc.) - see [Docker Compose](#docker-compose) for complete examples.
+- Port `:443` and `:8448` opened on your server's firewall.
 
-See [Docker Compose](#docker-compose) for complete examples.
+:::tip Alternative setups
+For other deployment options such as serving `.well-known` files, consult the [Delegation/Split-domain](../advanced/delegation) page.
+:::
+
+## Docker - Quick Run
+
+Get a working Continuwuity server with an admin user in four steps:
 
 ### Environment Variables
 
 - `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name
-- `CONTINUWUITY_DATABASE_PATH` - Where to store your database (must match the
-  volume mount)
-- `CONTINUWUITY_ADDRESS` - Bind address (use `0.0.0.0` to listen on all
-  interfaces)
-- `CONTINUWUITY_ALLOW_REGISTRATION` - Set to `false` to disable registration, or
-  use with `CONTINUWUITY_REGISTRATION_TOKEN` to require a token (see
-  [reference](../reference/environment-variables.mdx#registration--user-configuration)
-  for details)
+- `CONTINUWUITY_DATABASE_PATH` - Where to store your database (must match the volume mount)
+- `CONTINUWUITY_ADDRESS` - Bind address (use `0.0.0.0` to listen on all interfaces)
 
-See the
-[Environment Variables Reference](../reference/environment-variables.mdx) for
-more configuration options.
+For a list of all config options, see the [reference configuration](../reference/config) page
 
 ### 1. Pull the image
 
@@ -111,26 +106,6 @@ where you can manage your server.
 
 Docker Compose is the recommended deployment method. These examples include
 reverse proxy configurations for Matrix federation.
-
-### Matrix Federation Requirements
-
-For Matrix federation to work, you need to serve `.well-known/matrix/client` and
-`.well-known/matrix/server` endpoints. You can achieve this either by:
-
-1. **Using a well-known service** - The compose files below include an nginx
-   container to serve these files
-2. **Using Continuwuity's built-in delegation** (easier for Traefik) - Configure
-   delegation files in your config, then proxy `/.well-known/matrix/*` to
-   Continuwuity
-
-**Traefik example using built-in delegation:**
-
-```yaml
-labels:
-  traefik.http.routers.continuwuity.rule: >-
-    (Host(`matrix.example.com`) ||
-     (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))
-```
 
 This routes your Matrix domain and well-known paths to Continuwuity.
 
