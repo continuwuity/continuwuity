@@ -17,8 +17,6 @@ services:
       - "traefik.http.routers.continuwuity.entrypoints=websecure"
       - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
       - "traefik.http.services.continuwuity.loadbalancer.server.port=8008"
-      # Uncomment and adjust the following if you want to use middleware
-      # - "traefik.http.routers.continuwuity.middlewares=secureHeaders@file"
     environment:
       CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
       CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
@@ -61,10 +59,6 @@ services:
       - "traefik.http.routers.redirs.entrypoints=web"
       - "traefik.http.routers.redirs.middlewares=redirect-to-https"
 
-    configs:
-      - source: dynamic.yml
-        target: /etc/traefik/dynamic.yml
-
     environment:
       TRAEFIK_LOG_LEVEL: DEBUG
       TRAEFIK_ENTRYPOINTS_WEB: true
@@ -76,8 +70,8 @@ services:
       TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_TLS_CERTRESOLVER: letsencrypt
 
       TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT: true
-      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: # Set this to the email you want to receive certificate expiration emails for
-      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_KEYTYPE: EC384
+      # CHANGE THIS to desired email for ACME
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: user@example.com
       TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE: true
       TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: web
       TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE: "/etc/traefik/acme/acme.json"
@@ -89,33 +83,6 @@ services:
       TRAEFIK_PROVIDERS_DOCKER: true
       TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: "unix:///var/run/docker.sock"
       TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: false
-
-      TRAEFIK_PROVIDERS_FILE: true
-      TRAEFIK_PROVIDERS_FILE_FILENAME: "/etc/traefik/dynamic.yml"
-
-configs:
-  dynamic.yml:
-    content: |
-      # Optionally set STS headers, like in https://hstspreload.org
-      # http:
-      #   middlewares:
-      #     secureHeaders:
-      #       headers:
-      #         forceSTSHeader: true
-      #         stsIncludeSubdomains: true
-      #         stsPreload: true
-      #         stsSeconds: 31536000
-      tls:
-        options:
-          default:
-            cipherSuites:
-              - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-              - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-              - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-              - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-              - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305
-              - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
-            minVersion: VersionTLS12
 
 volumes:
     db:
