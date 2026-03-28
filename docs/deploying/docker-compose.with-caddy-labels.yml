@@ -1,0 +1,49 @@
+services:
+    caddy:
+    # This compose file uses caddy-docker-proxy as the reverse proxy for Continuwuity!
+    # For more info, visit https://github.com/lucaslorentz/caddy-docker-proxy
+        image: lucaslorentz/caddy-docker-proxy:ci-alpine
+        ports:
+            - 80:80
+            - 443:443
+        environment:
+            - CADDY_INGRESS_NETWORKS=caddy
+        networks:
+            - caddy
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+            - ./data:/data
+        restart: unless-stopped
+        labels:
+            caddy: example.com
+            caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
+
+    homeserver:
+        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        restart: unless-stopped
+        command: /sbin/conduwuit
+        volumes:
+            - db:/var/lib/continuwuity
+            - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
+            #- ./continuwuity.toml:/etc/continuwuity.toml
+        environment:
+            CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
+            CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
+            CONTINUWUITY_ADDRESS: 0.0.0.0
+            CONTINUWUITY_PORT: 8008
+            #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+
+            # Required for .well-known delegation - edit these according to your chosen domain
+            CONTINUWUITY_WELL_KNOWN__CLIENT: https://matrix.example.com
+            CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
+        networks:
+            - caddy
+        labels:
+            caddy: matrix.example.com
+            caddy.reverse_proxy: "{{upstreams 8008}}"
+
+volumes:
+    db:
+
+networks:
+    caddy:

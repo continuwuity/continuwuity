@@ -147,6 +147,28 @@ See [Troubleshooting - DNS Issues](../troubleshooting.mdx#potential-dns-issues-w
 for more details and alternative solutions.
 :::
 
+#### With Caddy (using Caddyfile)
+
+<details>
+<summary>docker-compose.with-caddy.yml</summary>
+
+```yaml file="./docker-compose.with-caddy.yml"
+
+```
+
+</details>
+
+#### With Caddy (using labels)
+
+<details>
+<summary>docker-compose.with-caddy-labels.yml</summary>
+
+```yaml file="./docker-compose.with-caddy-labels.yml"
+
+```
+
+</details>
+
 #### For existing Traefik setup
 
 <details>
@@ -165,25 +187,6 @@ for more details and alternative solutions.
 
 ```yaml file="./docker-compose.with-traefik.yml"
 
-```
-
-</details>
-
-#### With Caddy Docker Proxy
-
-<details>
-<summary>docker-compose.with-caddy.yml</summary>
-
-Replace all `example.com` placeholders with your own domain.
-
-```yaml file="./docker-compose.with-caddy.yml"
-
-```
-
-If you don't already have a network for Caddy to monitor, create one first:
-
-```bash
-docker network create caddy
 ```
 
 </details>
