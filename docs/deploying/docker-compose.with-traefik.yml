@@ -16,14 +16,14 @@ services:
       - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
       - "traefik.http.routers.continuwuity.entrypoints=websecure"
       - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
-      - "traefik.http.services.continuwuity.loadbalancer.server.port=6167"
+      - "traefik.http.services.continuwuity.loadbalancer.server.port=8008"
       # Uncomment and adjust the following if you want to use middleware
       # - "traefik.http.routers.continuwuity.middlewares=secureHeaders@file"
     environment:
-      CONTINUWUITY_SERVER_NAME: your.server.name.example # EDIT THIS
+      CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
       CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
       CONTINUWUITY_ADDRESS: 0.0.0.0
-      CONTINUWUITY_PORT: 6167 # you need to match this with the traefik load balancer label if you're want to change it
+      CONTINUWUITY_PORT: 8008 # This must match with traefik's loadbalancer label
       #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
       # We need some way to serve the client and server .well-known json. The simplest way is via the CONTINUWUITY_WELL_KNOWN
@@ -31,8 +31,8 @@ services:
       # reverse proxy, but since you do not have a reverse proxy and following this guide, this example is included
       CONTINUWUITY_WELL_KNOWN: |
         {
-          client=https://your.server.name.example,
-          server=your.server.name.example:443
+          client=https://matrix.example.com,
+          server=matrix.example.com:443
         }
     #cpuset: "0-4" # Uncomment to limit to specific CPU cores
     ulimits: # Continuwuity uses quite a few file descriptors, and on some systems it defaults to 1024, so you can tell docker to increase it

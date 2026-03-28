@@ -6,15 +6,15 @@ services:
         restart: unless-stopped
         command: /sbin/conduwuit
         ports:
-            - 8448:6167
+            - 127.0.0.1:8008:8008
         volumes:
             - db:/var/lib/continuwuity
             #- ./continuwuity.toml:/etc/continuwuity.toml
         environment:
-            CONTINUWUITY_SERVER_NAME: your.server.name # EDIT THIS
+            CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
             CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
             CONTINUWUITY_ADDRESS: 0.0.0.0
-            CONTINUWUITY_PORT: 6167
+            CONTINUWUITY_PORT: 8008 
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
 volumes:

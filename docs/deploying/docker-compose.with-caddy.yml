@@ -16,7 +16,7 @@ services:
         restart: unless-stopped
         labels:
             caddy: example.com
-            caddy.reverse_proxy: /.well-known/matrix/* homeserver:6167
+            caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
 
     homeserver:
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
@@ -30,7 +30,7 @@ services:
             CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
             CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
             CONTINUWUITY_ADDRESS: 0.0.0.0
-            CONTINUWUITY_PORT: 6167
+            CONTINUWUITY_PORT: 8008
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
             # Required for .well-known delegation - edit these according to your chosen domain
@@ -40,7 +40,7 @@ services:
             - caddy
         labels:
             caddy: matrix.example.com
-            caddy.reverse_proxy: "{{upstreams 6167}}"
+            caddy.reverse_proxy: "{{upstreams 8008}}"
 
 volumes:
     db:
