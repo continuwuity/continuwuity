@@ -584,7 +584,7 @@ async fn join_room_by_id_helper_remote(
 					return state;
 				},
 			};
-			if !pdu_fits(&mut value.clone()) {
+			if !pdu_fits(&value) {
 				warn!(
 					"dropping incoming PDU {event_id} in room {room_id} from room join because \
 					 it exceeds 65535 bytes or is otherwise too large."

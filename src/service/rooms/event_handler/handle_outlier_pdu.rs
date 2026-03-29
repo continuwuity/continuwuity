@@ -1,8 +1,7 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res,
-	trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res, trace,
 };
 use futures::future::ready;
 use ruma::{
@@ -11,7 +10,6 @@ use ruma::{
 };
 
 use super::{check_room_id, get_room_version_id, to_room_version};
-use crate::rooms::timeline::pdu_fits;
 
 #[implement(super::Service)]
 #[allow(clippy::too_many_arguments)]
@@ -27,17 +25,8 @@ pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 where
 	Pdu: Event + Send + Sync,
 {
-	if !pdu_fits(&mut value.clone()) {
-		warn!(
-			"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
-			 exceeds 65535 bytes or is otherwise too large."
-		);
-		return Err!(Request(TooLarge("PDU is too large")));
-	}
 	// 1. Remove unsigned field
 	value.remove("unsigned");
-
-	// TODO: For RoomVersion6 we must check that Raw<..> is canonical do we anywhere?: https://matrix.org/docs/spec/rooms/v6#canonical-json
 
 	// 2. Check signatures, otherwise drop
 	// 3. check content hash, redact if doesn't match

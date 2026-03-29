@@ -22,33 +22,18 @@ use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
 
-pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
+#[must_use]
+pub fn pdu_fits(owned_obj: &CanonicalJsonObject) -> bool {
 	// room IDs, event IDs, senders, types, and state keys must all be <= 255 bytes
-	if let Some(CanonicalJsonValue::String(room_id)) = owned_obj.get("room_id") {
-		if room_id.len() > 255 {
-			return false;
+	const STANDARD_KEYS: [&str; 5] = ["room_id", "event_id", "sender", "type", "state_key"];
+	for key in STANDARD_KEYS {
+		if let Some(CanonicalJsonValue::String(v)) = owned_obj.get(key) {
+			if v.len() > 255 {
+				return false;
+			}
 		}
 	}
-	if let Some(CanonicalJsonValue::String(event_id)) = owned_obj.get("event_id") {
-		if event_id.len() > 255 {
-			return false;
-		}
-	}
-	if let Some(CanonicalJsonValue::String(sender)) = owned_obj.get("sender") {
-		if sender.len() > 255 {
-			return false;
-		}
-	}
-	if let Some(CanonicalJsonValue::String(kind)) = owned_obj.get("type") {
-		if kind.len() > 255 {
-			return false;
-		}
-	}
-	if let Some(CanonicalJsonValue::String(state_key)) = owned_obj.get("state_key") {
-		if state_key.len() > 255 {
-			return false;
-		}
-	}
+
 	// Now check the full PDU size
 	match serde_json::to_string(owned_obj) {
 		| Ok(s) => s.len() <= 65535,
@@ -259,14 +244,9 @@ pub async fn create_hash_and_sign_event(
 	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
 		err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
 	})?;
-
-	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version_id {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			pdu_json.remove("event_id");
-		},
-	}
+	pdu_json.remove("event_id");
+	// We need to pop unsigned temporarily for the size check
+	let unsigned_tmp = pdu_json.remove_entry("unsigned");
 
 	trace!("hashing and signing event {}", pdu.event_id);
 	if let Err(e) = self
@@ -276,24 +256,28 @@ pub async fn create_hash_and_sign_event(
 	{
 		return match e {
 			| Error::Signatures(ruma::signatures::Error::PduSize) => {
-				Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
+				// Ruma does do a PDU size check when generating the content hash, but it
+				// doesn't do it very correctly.
+				Err!(Request(TooLarge("PDU is too long large (exceeds 65535 bytes)")))
 			},
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
 		};
 	}
+	// Verify that the *full* PDU isn't over 64KiB.
+	if !pdu_fits(&pdu_json) {
+		return Err!(Request(TooLarge("PDU is too long large (exceeds 65535 bytes)")));
+	}
+	// Re-insert unsigned data
+	if let Some((key, value)) = unsigned_tmp {
+		pdu_json.insert(key, value);
+	}
+
 	// Generate event id
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
-	// Verify that the *full* PDU isn't over 64KiB.
-	// Ruma only validates that it's under 64KiB before signing and hashing.
-	// Has to be cloned to prevent mutating pdu_json itself :(
-	if !pdu_fits(&mut pdu_json.clone()) {
-		// feckin huge PDU mate
-		return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
-	}
 
 	// Check with the policy server
-	if room_id.is_some() {
+	if let Some(room_id) = pdu.room_id() {
 		trace!(
 			"Checking event in room {} with policy server",
 			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
@@ -301,7 +285,7 @@ pub async fn create_hash_and_sign_event(
 		match self
 			.services
 			.event_handler
-			.ask_policy_server(&pdu, &mut pdu_json, pdu.room_id().expect("has room ID"), false)
+			.ask_policy_server(&pdu, &mut pdu_json, room_id, false)
 			.await
 		{
 			| Ok(true) => {},

@@ -127,12 +127,12 @@ pub async fn handle_incoming_pdu<'a>(
 	if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
 		return Ok(Some(pdu_id));
 	}
-	if !pdu_fits(&mut value.clone()) {
+	if !pdu_fits(&value) {
 		warn!(
 			"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
 			 exceeds 65535 bytes or is otherwise too large."
 		);
-		return Err!(Request(TooLarge("PDU is too large")));
+		return Err!(Request(TooLarge("PDU {event_id} is too large")));
 	}
 	trace!("processing incoming PDU from {origin} for room {room_id} with event id {event_id}");
 
