@@ -11,24 +11,17 @@ use conduwuit_database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
 use ipaddress::IPAddress;
 use ruma::{
-	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
-	api::{
-		IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken,
-		client::push::{Pusher, PusherKind, set_pusher},
-		push_gateway::send_event_notification::{
+	DeviceId, OwnedDeviceId, RoomId, UInt, UserId, api::{
+		IncomingResponse, MatrixVersion, OutgoingRequest, auth_scheme::{NoAuthentication, SendAccessToken}, client::push::{Pusher, PusherKind, set_pusher}, path_builder::SinglePath, push_gateway::send_event_notification::{
 			self,
 			v1::{Device, Notification, NotificationCounts, NotificationPriority},
-		},
-	},
-	events::{
+		}
+	}, events::{
 		AnySyncTimelineEvent, StateEventType, TimelineEventType,
-		room::power_levels::RoomPowerLevelsEventContent,
-	},
-	push::{
+		room::{create::RoomCreateEventContent, power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent}},
+	}, push::{
 		Action, PushConditionPowerLevelsCtx, PushConditionRoomCtx, PushFormat, Ruleset, Tweak,
-	},
-	serde::Raw,
-	uint,
+	}, room_version_rules::{AuthorizationRules, RoomPowerLevelsRules, RoomVersionRules}, serde::Raw, uint
 };
 
 use crate::{Dep, client, config, globals, rooms, sending, users};
@@ -42,6 +35,7 @@ struct Services {
 	globals: Dep<globals::Service>,
 	config: Dep<config::Service>,
 	client: Dep<client::Service>,
+	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 	users: Dep<users::Service>,
@@ -64,6 +58,7 @@ impl crate::Service for Service {
 				globals: args.depend::<globals::Service>("globals"),
 				client: args.depend::<client::Service>("client"),
 				config: args.depend::<config::Service>("config"),
+				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -137,6 +132,7 @@ impl Service {
 			| set_pusher::v3::PusherAction::Delete(ids) => {
 				self.delete_pusher(sender, ids.pushkey.as_str()).await;
 			},
+			| _ => return Err!(Request(InvalidParam("Unknown pusher action"))),
 		}
 
 		Ok(())
@@ -193,7 +189,7 @@ impl Service {
 	#[tracing::instrument(skip(self, dest, request))]
 	pub async fn send_request<T>(&self, dest: &str, request: T) -> Result<T::IncomingResponse>
 	where
-		T: OutgoingRequest + Debug + Send,
+		T: OutgoingRequest<Authentication = NoAuthentication, PathBuilder = SinglePath> + Debug + Send,
 	{
 		const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_0];
 
@@ -201,7 +197,7 @@ impl Service {
 		trace!("Push gateway destination: {dest}");
 
 		let http_request = request
-			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::None, &VERSIONS)
+			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::None, ())
 			.map_err(|e| {
 				err!(BadServerResponse(warn!(
 					"Failed to find destination {dest} for push gateway: {e}"
@@ -298,22 +294,20 @@ impl Service {
 	{
 		let mut notify = None;
 		let mut tweaks = Vec::new();
-		if event.room_id().is_none() {
-			// This only affects v12+ create events
+		let Some(room_id) = event.room_id() else {
+			// Only v12+ create events have no room ID
 			return Ok(());
-		}
+		};
 
-		let power_levels: RoomPowerLevelsEventContent = self
+		let power_levels = self
 			.services
 			.state_accessor
-			.room_state_get(event.room_id().unwrap(), &StateEventType::RoomPowerLevels, "")
-			.await
-			.and_then(|event| event.get_content())
-			.unwrap_or_default();
+			.get_room_power_levels(room_id)
+			.await;
 
 		let serialized = event.to_format();
 		for action in self
-			.get_actions(user, &ruleset, &power_levels, &serialized, event.room_id().unwrap())
+			.get_actions(user, &ruleset, power_levels.clone(), &serialized, event.room_id().unwrap())
 			.await
 		{
 			let n = match action {
@@ -347,15 +341,11 @@ impl Service {
 		&self,
 		user: &UserId,
 		ruleset: &'a Ruleset,
-		power_levels: &RoomPowerLevelsEventContent,
+		power_levels: RoomPowerLevels,
 		pdu: &Raw<AnySyncTimelineEvent>,
 		room_id: &RoomId,
 	) -> &'a [Action] {
-		let power_levels = PushConditionPowerLevelsCtx {
-			users: power_levels.users.clone(),
-			users_default: power_levels.users_default,
-			notifications: power_levels.notifications.clone(),
-		};
+		let power_levels = PushConditionPowerLevelsCtx::from(power_levels);
 
 		let room_joined_count = self
 			.services
@@ -373,15 +363,9 @@ impl Service {
 			.await
 			.unwrap_or_else(|_| user.localpart().to_owned());
 
-		let ctx = PushConditionRoomCtx {
-			room_id: room_id.to_owned(),
-			member_count: room_joined_count,
-			user_id: user.to_owned(),
-			user_display_name,
-			power_levels: Some(power_levels),
-		};
+		let ctx = PushConditionRoomCtx::new(room_id.to_owned(), room_joined_count, user.to_owned(), user_display_name).with_power_levels(power_levels);
 
-		ruleset.get_actions(pdu, &ctx)
+		ruleset.get_actions(pdu, &ctx).await
 	}
 
 	#[tracing::instrument(skip(self, unread, pusher, tweaks, event))]

@@ -10,7 +10,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 
-use super::{get_room_version_id, to_room_version};
+use super::get_room_version;
 use crate::rooms::{
 	state_compressor::{CompressedState, HashSetCompressStateEvent},
 	timeline::RawPduId,
@@ -52,7 +52,8 @@ where
 		"Upgrading PDU from outlier to timeline"
 	);
 	let timer = Instant::now();
-	let room_version_id = get_room_version_id(create_event)?;
+	let room_version_id = get_room_version(create_event)?;
+	let room_version_rules = room_version_id.rules().expect("room version should have defined rules");
 
 	// 10. Fetch missing state and auth chain events by calling /state_ids at
 	//     backwards extremities doing all the checks in this list starting at 1.
@@ -65,7 +66,7 @@ where
 	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
-		self.state_at_incoming_resolved(&incoming_pdu, room_id, &room_version_id)
+		self.state_at_incoming_resolved(&incoming_pdu, room_id, &room_version_rules)
 			.await?
 	};
 
@@ -77,8 +78,6 @@ where
 
 	let state_at_incoming_event =
 		state_at_incoming_event.expect("we always set this to some above");
-
-	let room_version = to_room_version(&room_version_id);
 
 	debug!(
 		event_id = %incoming_pdu.event_id,
@@ -98,7 +97,7 @@ where
 		"Running initial auth check"
 	);
 	let auth_check = state_res::event_auth::auth_check(
-		&room_version,
+		&room_version_rules,
 		&incoming_pdu,
 		None, // TODO: third party invite
 		|ty, sk| state_fetch(ty.clone(), sk.into()),
@@ -124,7 +123,7 @@ where
 			incoming_pdu.sender(),
 			incoming_pdu.state_key(),
 			incoming_pdu.content(),
-			&room_version,
+			&room_version_rules,
 		)
 		.await?;
 
@@ -138,7 +137,7 @@ where
 		"Running auth check with claimed state auth"
 	);
 	let auth_check = state_res::event_auth::auth_check(
-		&room_version,
+		&room_version_rules,
 		&incoming_pdu,
 		None, // third-party invite
 		state_fetch,
@@ -179,7 +178,6 @@ where
 		.services
 		.state
 		.get_forward_extremities(room_id)
-		.map(ToOwned::to_owned)
 		.ready_filter(|event_id| {
 			// Remove any that are referenced by this incoming event's prev_events
 			!incoming_pdu.prev_events().any(is_equal_to!(event_id))
@@ -232,7 +230,7 @@ where
 		}
 
 		let new_room_state = self
-			.resolve_state(room_id, &room_version_id, state_after)
+			.resolve_state(room_id, &room_version_rules, state_after)
 			.await?;
 
 		// Set the new room state to the resolved state

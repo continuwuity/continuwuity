@@ -89,7 +89,6 @@ pub(crate) async fn join_room_by_id_route(
 		.rooms
 		.state_cache
 		.servers_invite_via(&body.room_id)
-		.map(ToOwned::to_owned)
 		.collect()
 		.await;
 
@@ -169,7 +168,6 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 						.rooms
 						.state_cache
 						.servers_invite_via(&room_id)
-						.map(ToOwned::to_owned)
 						.collect::<Vec<_>>()
 						.await,
 				);
@@ -213,8 +211,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 			let addl_via_servers = services
 				.rooms
 				.state_cache
-				.servers_invite_via(&room_id)
-				.map(ToOwned::to_owned);
+				.servers_invite_via(&room_id);
 
 			let addl_state_servers = services
 				.rooms
@@ -227,7 +224,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 				.iter()
 				.map(|event| event.get_field("sender"))
 				.filter_map(FlatOk::flat_ok)
-				.map(|user: &UserId| user.server_name().to_owned())
+				.map(|user: OwnedUserId| user.server_name().to_owned())
 				.stream()
 				.chain(addl_via_servers)
 				.collect()
@@ -254,7 +251,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	.boxed()
 	.await?;
 
-	Ok(join_room_by_id_or_alias::v3::Response { room_id: join_room_response.room_id })
+	Ok(join_room_by_id_or_alias::v3::Response::new(join_room_response.room_id))
 }
 
 pub async fn join_room_by_id_helper(
@@ -285,7 +282,7 @@ pub async fn join_room_by_id_helper(
 		.await
 	{
 		debug_warn!("{sender_user} is already joined in {room_id}");
-		return Ok(join_room_by_id::v3::Response { room_id: room_id.into() });
+		return Ok(join_room_by_id::v3::Response::new(room_id.to_owned()));
 	}
 
 	if let Err(e) = services
@@ -425,16 +422,17 @@ async fn join_room_by_id_helper_remote(
 				.expect("Timestamp is valid js_int value"),
 		),
 	);
+
+	let mut join_content = RoomMemberEventContent::new(MembershipState::Join);
+	join_content.displayname = services.users.displayname(sender_user).await.ok();
+	join_content.avatar_url = services.users.avatar_url(sender_user).await.ok();
+	join_content.blurhash = services.users.blurhash(sender_user).await.ok();
+	join_content.reason = reason;
+	join_content.join_authorized_via_users_server = join_authorized_via_users_server.clone();
+
 	join_event_stub.insert(
 		"content".to_owned(),
-		to_canonical_value(RoomMemberEventContent {
-			displayname: services.users.displayname(sender_user).await.ok(),
-			avatar_url: services.users.avatar_url(sender_user).await.ok(),
-			blurhash: services.users.blurhash(sender_user).await.ok(),
-			reason,
-			join_authorized_via_users_server: join_authorized_via_users_server.clone(),
-			..RoomMemberEventContent::new(MembershipState::Join)
-		})
+		to_canonical_value(join_content)
 		.expect("event is valid, we just created it"),
 	);
 
@@ -464,15 +462,10 @@ async fn join_room_by_id_helper_remote(
 	let mut join_event = join_event_stub;
 
 	info!("Asking {remote_server} for send_join in room {room_id}");
-	let send_join_request = federation::membership::create_join_event::v2::Request {
-		room_id: room_id.to_owned(),
-		event_id: event_id.clone(),
-		omit_members: false,
-		pdu: services
+	let send_join_request = federation::membership::create_join_event::v2::Request::new(room_id.to_owned(), event_id.clone(), services
 			.sending
 			.convert_to_outgoing_federation_event(join_event.clone())
-			.await,
-	};
+			.await);
 
 	let send_join_response = match services
 		.sending
@@ -640,7 +633,7 @@ async fn join_room_by_id_helper_remote(
 	};
 
 	let auth_check = state_res::event_auth::auth_check(
-		&state_res::RoomVersion::new(&room_version_id)?,
+		&room_version_id.rules().unwrap(),
 		&parsed_join_pdu,
 		None, // TODO: third party invite
 		|k, s| state_fetch(k.clone(), s.into()),
@@ -761,14 +754,12 @@ async fn join_room_by_id_helper_local(
 		}
 	}
 
-	let content = RoomMemberEventContent {
-		displayname: services.users.displayname(sender_user).await.ok(),
-		avatar_url: services.users.avatar_url(sender_user).await.ok(),
-		blurhash: services.users.blurhash(sender_user).await.ok(),
-		reason: reason.clone(),
-		join_authorized_via_users_server: auth_user,
-		..RoomMemberEventContent::new(MembershipState::Join)
-	};
+	let mut content = RoomMemberEventContent::new(MembershipState::Join);
+	content.displayname = services.users.displayname(sender_user).await.ok();
+	content.avatar_url = services.users.avatar_url(sender_user).await.ok();
+	content.blurhash = services.users.blurhash(sender_user).await.ok();
+	content.reason = reason.clone();
+	content.join_authorized_via_users_server = auth_user;
 
 	// Try normal join first
 	let Err(error) = services
@@ -824,15 +815,15 @@ async fn make_join_request(
 			"Asking {remote_server} for make_join (attempt {make_join_counter}/{})",
 			servers.len()
 		);
+
+		let mut request = federation::membership::prepare_join_event::v1::Request::new(room_id.to_owned(), sender_user.to_owned());
+		request.ver = services.server.supported_room_versions().collect();
+
 		let make_join_response = services
 			.sending
 			.send_federation_request(
 				remote_server,
-				federation::membership::prepare_join_event::v1::Request {
-					room_id: room_id.to_owned(),
-					user_id: sender_user.to_owned(),
-					ver: services.server.supported_room_versions().collect(),
-				},
+				request
 			)
 			.await;
 

@@ -38,7 +38,7 @@ pub async fn watch(&self, user_id: &UserId, device_id: &DeviceId) -> Result {
 
 	pin_mut!(rooms_joined);
 	while let Some(room_id) = rooms_joined.next().await {
-		let Ok(short_roomid) = self.services.short.get_shortroomid(room_id).await else {
+		let Ok(short_roomid) = self.services.short.get_shortroomid(&room_id).await else {
 			continue;
 		};
 

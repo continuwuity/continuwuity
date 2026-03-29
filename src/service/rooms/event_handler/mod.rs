@@ -14,7 +14,7 @@ mod upgrade_outlier_pdu;
 use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use conduwuit::{Err, Event, PduEvent, Result, RoomVersion, Server, SyncRwLock, utils::MutexMap};
+use conduwuit::{Err, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
 	events::room::create::RoomCreateEventContent,
@@ -114,14 +114,9 @@ fn check_room_id<Pdu: Event>(room_id: &RoomId, pdu: &Pdu) -> Result {
 	Ok(())
 }
 
-fn get_room_version_id<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionId> {
+fn get_room_version<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionId> {
 	let content: RoomCreateEventContent = create_event.get_content()?;
 	let room_version = content.room_version;
 
 	Ok(room_version)
-}
-
-#[inline]
-fn to_room_version(room_version_id: &RoomVersionId) -> RoomVersion {
-	RoomVersion::new(room_version_id).expect("room version is supported")
 }

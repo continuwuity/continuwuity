@@ -9,7 +9,6 @@ use ruma::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
 		StateEventType,
 		direct::DirectEvent,
-		invite_permission_config::FilterLevel,
 		room::{
 			create::RoomCreateEventContent,
 			member::{MembershipState, RoomMemberEventContent},
@@ -17,6 +16,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 
 /// Update current membership data.
 #[implement(super::Service)]
@@ -174,12 +174,12 @@ pub async fn update_joined_count(&self, room_id: &RoomId) {
 
 	self.room_servers(room_id)
 		.ready_for_each(|old_joined_server| {
-			if joined_servers.remove(old_joined_server) {
+			if joined_servers.remove(&old_joined_server) {
 				return;
 			}
 
 			// Server not in room anymore
-			let roomserver_id = (room_id, old_joined_server);
+			let roomserver_id = (room_id, old_joined_server.clone());
 			let serverroom_id = (old_joined_server, room_id);
 
 			self.db.roomserverids.del(roomserver_id);

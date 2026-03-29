@@ -47,15 +47,14 @@ pub(crate) async fn joined_rooms_route(
 	State(services): State<crate::State>,
 	body: Ruma<joined_rooms::v3::Request>,
 ) -> Result<joined_rooms::v3::Response> {
-	Ok(joined_rooms::v3::Response {
-		joined_rooms: services
+	let joined_rooms = services
 			.rooms
 			.state_cache
 			.rooms_joined(body.sender_user())
-			.map(ToOwned::to_owned)
 			.collect()
-			.await,
-	})
+			.await;
+
+	Ok(joined_rooms::v3::Response::new(joined_rooms))
 }
 
 /// Checks if the room is banned in any way possible and the sender user is not

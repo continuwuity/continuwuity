@@ -87,7 +87,7 @@ pub(crate) async fn get_register_available_route(
 		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
 	}
 
-	Ok(get_username_availability::v3::Response { available: true })
+	Ok(get_username_availability::v3::Response::new(true))
 }
 
 /// # `POST /_matrix/client/r0/account/password`
@@ -194,7 +194,7 @@ pub(crate) async fn change_password_route(
 			.await;
 	}
 
-	Ok(change_password::v3::Response {})
+	Ok(change_password::v3::Response::new())
 }
 
 /// # `POST /_matrix/client/v3/account/password/email/requestToken`

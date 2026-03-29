@@ -18,9 +18,9 @@ pub(crate) async fn unban_user_route(
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
-	let current_member_content = services
+	let mut current_member_content = services
 		.rooms
 		.state_accessor
 		.get_member(&body.room_id, &body.user_id)
@@ -34,18 +34,17 @@ pub(crate) async fn unban_user_route(
 		)));
 	}
 
+	current_member_content.membership = MembershipState::Leave;
+	current_member_content.reason = body.reason.clone();
+	current_member_content.join_authorized_via_users_server = None;
+	current_member_content.third_party_invite = None;
+	current_member_content.is_direct = None;
+
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(body.user_id.to_string(), &RoomMemberEventContent {
-				membership: MembershipState::Leave,
-				reason: body.reason.clone(),
-				join_authorized_via_users_server: None,
-				third_party_invite: None,
-				is_direct: None,
-				..current_member_content
-			}),
+			PduBuilder::state(body.user_id.to_string(), &current_member_content),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,

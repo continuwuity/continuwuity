@@ -47,5 +47,5 @@ pub(crate) async fn appservice_ping(
 		.await?
 		.expect("We already validated if an appservice URL exists above");
 
-	Ok(request_ping::v1::Response { duration: timer.elapsed() })
+	Ok(request_ping::v1::Response::new(timer.elapsed()))
 }

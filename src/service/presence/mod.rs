@@ -183,7 +183,6 @@ impl Service {
 			.services
 			.users
 			.list_local_users()
-			.map(ToOwned::to_owned)
 			.collect::<Vec<OwnedUserId>>()
 			.await
 		{
@@ -194,9 +193,9 @@ impl Service {
 				| _ => continue,
 			};
 
-			if !matches!(
+			if matches!(
 				presence.presence,
-				PresenceState::Unavailable | PresenceState::Online | PresenceState::Busy
+				PresenceState::Offline
 			) {
 				trace!(%user_id, ?presence, "Skipping user");
 				continue;

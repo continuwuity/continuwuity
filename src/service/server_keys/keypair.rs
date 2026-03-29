@@ -12,9 +12,7 @@ pub(super) fn init(db: &Arc<Database>) -> Result<(Box<Ed25519KeyPair>, VerifyKey
 		remove(db);
 	})?;
 
-	let verify_key = VerifyKey {
-		key: Base64::new(keypair.public_key().to_vec()),
-	};
+	let verify_key = VerifyKey::new(Base64::new(keypair.public_key().to_vec()));
 
 	let id = format!("ed25519:{}", keypair.version());
 	let verify_keys: VerifyKeys = [(id.try_into()?, verify_key)].into();

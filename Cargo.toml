@@ -344,49 +344,40 @@ version = "0.1.2"
 
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
-git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-#branch = "conduwuit-changes"
-rev = "d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+# version = "0.14.1"
+git = "https://github.com/ruma/ruma.git"
+rev = "e2e5fece57800a2559ab028fd775a7978f3725e9"
 features = [
-    "compat",
-    "rand",
     "appservice-api-c",
     "client-api",
     "federation-api",
-    "markdown",
     "push-gateway-api-c",
-    "unstable-exhaustive-types",
+    "state-res",
+    "rand",
+    "markdown",
     "ring-compat",
     "compat-upload-signatures",
-    "identifiers-validation",
-    "unstable-unspecified",
     "unstable-msc2448",
     "unstable-msc2666",
     "unstable-msc2867",
     "unstable-msc2870",
-    "unstable-msc3026",
     "unstable-msc3061",
     "unstable-msc3814",
     "unstable-msc3245",
-    "unstable-msc3266",
     "unstable-msc3381", # polls
     "unstable-msc3489", # beacon / live location
-    "unstable-msc3575",
     "unstable-msc3930", # polls push rules
     "unstable-msc4075",
     "unstable-msc4095",
     "unstable-msc4121",
     "unstable-msc4125",
-    "unstable-msc4155",
     "unstable-msc4186",
     "unstable-msc4203", # sending to-device events to appservices
-    "unstable-msc4210", # remove legacy mentions
-    "unstable-extensible-events",
-    "unstable-pdu",
-    "unstable-msc4155",
+    "unstable-msc4310",
+    "unstable-msc4380",
     "unstable-msc4143", # livekit well_known response
-    "unstable-msc4284",
     "unstable-msc4439", # pgp_key in .well_known/matrix/support
+    "unstable-extensible-events",
 ]
 
 [workspace.dependencies.rust-rocksdb]
@@ -657,6 +648,10 @@ default-features = false
 [workspace.dependencies.conduwuit]
 package = "conduwuit"
 path = "src/main"
+
+[workspace.dependencies.ruminuwuity]
+package = "ruminuwuity"
+path = "src/ruminuwuity"
 
 ###############################################################################
 #

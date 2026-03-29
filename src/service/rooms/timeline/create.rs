@@ -6,7 +6,7 @@ use conduwuit_core::{
 	matrix::{
 		event::{Event, gen_event_id},
 		pdu::{EventHash, PduBuilder, PduEvent},
-		state_res::{self, RoomVersion},
+		state_res,
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
 	warn,
@@ -90,7 +90,7 @@ pub async fn create_event(
 		redacts,
 		timestamp,
 	} = pdu_builder;
-	// If there was no create event yet, assume we are creating a room
+
 	trace!(
 		"Creating event of type {} in room {}",
 		event_type,
@@ -121,7 +121,9 @@ pub async fn create_event(
 		},
 	};
 
-	let room_version = RoomVersion::new(&room_version_id).expect("room version is supported");
+	let Some(room_version_rules) = room_version.rules() else {
+		return Err!(Request(UnsupportedRoomVersion("Unsupported room version")));
+	};
 
 	let prev_events: Vec<OwnedEventId> = match room_id {
 		| Some(room_id) =>
@@ -145,7 +147,7 @@ pub async fn create_event(
 					sender,
 					state_key.as_deref(),
 					&content,
-					&room_version,
+					&room_version_rules,
 				)
 				.await?,
 		| None => HashMap::new(),
@@ -242,7 +244,7 @@ pub async fn create_event(
 	};
 
 	let auth_check = state_res::auth_check(
-		&room_version,
+		&room_version_rules,
 		&pdu,
 		None, // TODO: third_party_invite
 		auth_fetch,
@@ -287,7 +289,7 @@ pub async fn create_hash_and_sign_event(
 	if let Err(e) = self
 		.services
 		.server_keys
-		.hash_and_sign_event(&mut pdu_json, &room_version_id)
+		.hash_and_sign_event(&mut pdu_json, &room_version)
 	{
 		return match e {
 			| Error::Signatures(ruma::signatures::Error::PduSize) => {
@@ -297,7 +299,7 @@ pub async fn create_hash_and_sign_event(
 		};
 	}
 	// Generate event id
-	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
+	pdu.event_id = gen_event_id(&pdu_json, &room_version)?;
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	// Verify that the *full* PDU isn't over 64KiB.
 	// Ruma only validates that it's under 64KiB before signing and hashing.

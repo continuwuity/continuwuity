@@ -4,6 +4,7 @@ mod keypair;
 mod request;
 mod sign;
 mod verify;
+mod util;
 
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
@@ -22,7 +23,7 @@ use ruma::{
 };
 use serde_json::value::RawValue as RawJsonValue;
 
-use crate::{Dep, globals, sending};
+use crate::{Dep, globals, sending, server_keys::util::required_keys};
 
 pub struct Service {
 	keypair: Box<Ed25519KeyPair>,
@@ -118,8 +119,6 @@ pub async fn required_keys_exist(
 	object: &CanonicalJsonObject,
 	version: &RoomVersionId,
 ) -> bool {
-	use ruma::signatures::required_keys;
-
 	trace!(?object, "Checking required keys exist");
 	let Ok(required_keys) = required_keys(object, version) else {
 		debug_error!("Failed to determine required keys");
@@ -137,7 +136,7 @@ pub async fn required_keys_exist(
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "debug")]
 pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSigningKeyId) -> bool {
-	type KeysMap<'a> = BTreeMap<&'a ServerSigningKeyId, &'a RawJsonValue>;
+	type KeysMap = BTreeMap<OwnedServerSigningKeyId, Box<RawJsonValue>>;
 
 	let Ok(keys) = self
 		.db
@@ -150,13 +149,13 @@ pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSignin
 		return false;
 	};
 
-	if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap<'_>>("verify_keys") {
+	if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap>("verify_keys") {
 		if verify_keys.contains_key(key_id) {
 			return true;
 		}
 	}
 
-	if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap<'_>>("old_verify_keys") {
+	if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap>("old_verify_keys") {
 		if old_verify_keys.contains_key(key_id) {
 			return true;
 		}

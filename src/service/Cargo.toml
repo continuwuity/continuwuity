@@ -108,6 +108,7 @@ rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 ruma.workspace = true
+ruminuwuity.workspace = true
 rustyline-async.workspace = true
 rustyline-async.optional = true
 serde_json.workspace = true

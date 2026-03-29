@@ -13,7 +13,7 @@ use conduwuit_service::{
 };
 use reqwest::Url;
 use ruma::{
-	Mxc, UserId,
+	UserId,
 	api::client::{
 		authenticated_media::{
 			get_content, get_content_as_filename, get_content_thumbnail, get_media_config,

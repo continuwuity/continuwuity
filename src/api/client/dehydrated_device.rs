@@ -33,7 +33,7 @@ pub(crate) async fn put_dehydrated_device_route(
 		.set_dehydrated_device(sender_user, body.body)
 		.await?;
 
-	Ok(put_dehydrated_device::Response { device_id })
+	Ok(put_dehydrated_device::Response::new(device_id))
 }
 
 /// # `DELETE /_matrix/client/../dehydrated_device`
@@ -51,7 +51,7 @@ pub(crate) async fn delete_dehydrated_device_route(
 
 	services.users.remove_device(sender_user, &device_id).await;
 
-	Ok(delete_dehydrated_device::Response { device_id })
+	Ok(delete_dehydrated_device::Response::new(device_id))
 }
 
 /// # `GET /_matrix/client/../dehydrated_device`
@@ -67,10 +67,7 @@ pub(crate) async fn get_dehydrated_device_route(
 
 	let device = services.users.get_dehydrated_device(sender_user).await?;
 
-	Ok(get_dehydrated_device::Response {
-		device_id: device.device_id,
-		device_data: device.device_data,
-	})
+	Ok(get_dehydrated_device::Response::new(device.device_id, device.device_data))
 }
 
 /// # `GET /_matrix/client/../dehydrated_device/{device_id}/events`

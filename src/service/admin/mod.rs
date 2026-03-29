@@ -17,7 +17,7 @@ pub use create::create_admin_room;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
-	Mxc, OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
+	OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
 	events::{
 		Mentions,
 		room::{
@@ -30,7 +30,7 @@ use ruma::{
 };
 use tokio::sync::RwLock;
 
-use crate::{Dep, account_data, globals, media::MXC_LENGTH, rooms, rooms::state::RoomMutexGuard};
+use crate::{Dep, account_data, globals, media::{MXC_LENGTH, mxc::Mxc}, rooms::{self, state::RoomMutexGuard}};
 
 pub struct Service {
 	services: Services,
@@ -200,19 +200,15 @@ impl Service {
 				.await
 				.expect("failed to create text file");
 			let size_u64: u64 = message_content.body().len().try_into().map_or(0, |n| n);
-			let metadata = FileInfo {
-				mimetype: Some("text/markdown".to_owned()),
-				size: Some(UInt::new_saturating(size_u64)),
-				thumbnail_info: None,
-				thumbnail_source: None,
-			};
-			let content = FileMessageEventContent {
-				body: "Output was too large to send as text.".to_owned(),
-				formatted: None,
-				filename: Some("output.md".to_owned()),
-				source: MediaSource::Plain(file),
-				info: Some(Box::new(metadata)),
-			};
+
+			let mut metadata = FileInfo::new();
+			metadata.mimetype = Some("text/markdown".to_owned());
+			metadata.size = Some(UInt::new_saturating(size_u64));
+
+			let mut content = FileMessageEventContent::plain("Output was too large to send as text.".to_owned(), file);
+			content.filename = Some("output.md".to_owned());
+			content.info = Some(Box::new(metadata));
+
 			RoomMessageEventContent::new(MessageType::File(content))
 		} else {
 			message_content

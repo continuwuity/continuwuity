@@ -67,7 +67,7 @@ fn matches_sender<E: Event>(event: &E, filter: &RoomEventFilter) -> bool {
 }
 
 fn matches_type<E: Event>(event: &E, filter: &RoomEventFilter) -> bool {
-	let kind = event.kind().to_cow_str();
+	let kind = event.kind().to_string();
 
 	if filter.not_types.iter().any(is_equal_to!(&kind)) {
 		return false;
