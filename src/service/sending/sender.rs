@@ -891,52 +891,12 @@ impl Service {
 		&self,
 		mut pdu_json: CanonicalJsonObject,
 	) -> Box<RawJsonValue> {
-		// NOTE: We do not support event format v1 (for rooms v1 and v2) - we only
-		// support rooms version 3 and newer (event format v2), so we do not need to
-		// worry about keys that would've been retained in v1 and v2. Only v3 onward.
-		let mut top_level_keys = vec![
-			"auth_events",
-			"content",
-			"depth",
-			"hashes",
-			"origin_server_ts",
-			"prev_events",
-			"room_id",
-			"sender",
-			"signatures",
-			"state_key",
-			"type",
-		];
-		if let Some(room_id) = pdu_json
-			.get("room_id")
-			.and_then(|v| RoomId::parse(v.as_str()?).ok())
-		{
-			if let Ok(room_version) = self.services.state.get_room_version(room_id).await {
-				use RoomVersionId::*;
-
-				if !matches!(room_version, V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10) {
-					// Redacts is no longer top-level after V10
-					top_level_keys.retain(|e| *e != "redacts");
-				}
-
-				if matches!(room_version, V12) {
-					if is_create_event(&pdu_json) {
-						// room_id is removed from m.room.create events in v12, but we need it
-						// for all other events.
-						top_level_keys.retain(|e| *e != "room_id");
-					}
-				}
-			}
-		}
-		let to_remove = pdu_json
-			.keys()
-			.filter(|k| !top_level_keys.contains(&k.as_str()))
-			.cloned()
-			.collect::<Vec<_>>();
-		for key in to_remove {
-			pdu_json.remove(key.as_str());
-		}
-
+		pdu_json.remove("unsigned");
+		// NOTE: Historically there have been attempts to further reduce the amount of
+		// data sent over the wire to remote servers. However, so far, the only key
+		// that is safe to drop entirely is `unsigned` - the rest of the keys are
+		// actually included as part of the content hash, and will cause issues if
+		// removed, even if they're irrelevant.
 		to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value")
 	}
 }
