@@ -9,6 +9,7 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use conduwuit::info;
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	result::LogErr,
@@ -866,9 +867,12 @@ impl Service {
 
 		for (event_id, result) in result.iter().flat_map(|resp| resp.pdus.iter()) {
 			if let Err(e) = result {
-				warn!(
-					%txn_id, %server,
-					"error sending PDU {event_id} to remote server: {e:?}"
+				info!(
+					%txn_id,
+					%server,
+					%event_id,
+					remote_error=?e,
+					"remote server encountered an error while processing an event"
 				);
 			}
 		}
