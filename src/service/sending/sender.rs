@@ -29,7 +29,7 @@ use futures::{
 };
 use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId,
-	RoomId, RoomVersionId, ServerName, UInt,
+	RoomId, ServerName, UInt,
 	api::{
 		appservice::event::push_events::v1::EphemeralData,
 		federation::transactions::{
@@ -73,12 +73,6 @@ const DEQUEUE_LIMIT: usize = 48;
 
 pub const PDU_LIMIT: usize = 50;
 pub const EDU_LIMIT: usize = 100;
-
-fn is_create_event(data: &CanonicalJsonObject) -> bool {
-	let event_type = data.get("type").and_then(|v| v.as_str());
-	let state_key = data.get("state_key").and_then(|v| v.as_str());
-	event_type.is_some_and(|t| t == "m.room.create") && state_key.is_some_and(str::is_empty)
-}
 
 impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
