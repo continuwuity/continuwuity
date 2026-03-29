@@ -25,7 +25,7 @@ pub(crate) async fn get_devices_route(
 		.collect()
 		.await;
 
-	Ok(get_devices::v3::Response { devices })
+	Ok(get_devices::v3::Response::new(devices))
 }
 
 /// # `GET /_matrix/client/r0/devices/{deviceId}`
@@ -41,7 +41,7 @@ pub(crate) async fn get_device_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Device not found."))))?;
 
-	Ok(get_device::v3::Response { device })
+	Ok(get_device::v3::Response::new(device))
 }
 
 /// # `PUT /_matrix/client/r0/devices/{deviceId}`
@@ -73,19 +73,15 @@ pub(crate) async fn update_device_route(
 				.update_device_metadata(sender_user, &body.device_id, &device)
 				.await?;
 
-			Ok(update_device::v3::Response {})
+			Ok(update_device::v3::Response::new())
 		},
 		| Err(_) => {
 			let Some(appservice) = appservice else {
 				return Err!(Request(NotFound("Device not found.")));
 			};
-			if !appservice.registration.device_management {
-				return Err!(Request(NotFound("Device not found.")));
-			}
 
 			debug!(
-				"Creating new device for {sender_user} from appservice {} as MSC4190 is enabled \
-				 and device ID does not exist",
+				"Creating new device for {sender_user} from appservice {} as device ID does not exist",
 				appservice.registration.id
 			);
 
@@ -102,7 +98,7 @@ pub(crate) async fn update_device_route(
 				)
 				.await?;
 
-			return Ok(update_device::v3::Response {});
+			return Ok(update_device::v3::Response::new());
 		},
 	}
 }
@@ -124,17 +120,16 @@ pub(crate) async fn delete_device_route(
 	let sender_user = body.sender_user();
 	let appservice = body.appservice_info.as_ref();
 
-	if appservice.is_some_and(|appservice| appservice.registration.device_management) {
+	if appservice.is_some() {
 		debug!(
-			"Skipping UIAA for {sender_user} as this is from an appservice and MSC4190 is \
-			 enabled"
+			"Skipping UIAA for {sender_user} as this is from an appservice"
 		);
 		services
 			.users
 			.remove_device(sender_user, &body.device_id)
 			.await;
 
-		return Ok(delete_device::v3::Response {});
+		return Ok(delete_device::v3::Response::new());
 	}
 
 	// Prompt the user to confirm with their password using UIAA

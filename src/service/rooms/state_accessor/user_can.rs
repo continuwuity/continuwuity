@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, RoomVersion, implement, matrix::Event, pdu::PduBuilder};
+use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{
@@ -7,7 +7,6 @@ use ruma::{
 			create::RoomCreateEventContent,
 			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
 			member::{MembershipState, RoomMemberEventContent},
-			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
 	},
 };
@@ -45,53 +44,45 @@ pub async fn user_can_redact(
 		)));
 	}
 
-	let room_create = self
-		.room_state_get(room_id, &StateEventType::RoomCreate, "")
-		.await?;
-	let create_content: RoomCreateEventContent =
-		serde_json::from_str(room_create.content().get())?;
-	let room_features = RoomVersion::new(&create_content.room_version)?;
-	if room_features.explicitly_privilege_room_creators {
+	let create_event = self.room_state_get(room_id, &StateEventType::RoomCreate, "").await?;
+	let create_event_content: RoomCreateEventContent = create_event.get_content().unwrap();
+	let room_version_rules = create_event_content.room_version.rules().expect("room version should have defined rules");
+	if room_version_rules.authorization.explicitly_privilege_room_creators {
 		let sender_owned = sender.to_owned();
-		if sender == room_create.sender()
-			|| create_content
+		// NOTE: we don't check the pre-v11 `creator` field because no room version has
+		// `explicitly_privilege_room_creators` and `use_room_create_sender` set at the same time
+		if sender == create_event.sender()
+			|| create_event_content
 				.additional_creators
-				.is_some_and(|cs| cs.contains(&sender_owned))
+				.contains(&sender_owned)
 		{
 			return Ok(true);
 		}
 	}
 
-	match self
-		.room_state_get_content::<RoomPowerLevelsEventContent>(
-			room_id,
-			&StateEventType::RoomPowerLevels,
-			"",
-		)
-		.await
-	{
-		| Ok(pl_event_content) => {
-			let pl_event: RoomPowerLevels = pl_event_content.into();
-			Ok(pl_event.user_can_redact_event_of_other(sender)
-				|| pl_event.user_can_redact_own_event(sender)
-					&& match redacting_event {
-						| Ok(redacting_event) =>
-							if federation {
-								redacting_event.sender().server_name() == sender.server_name()
-							} else {
-								redacting_event.sender() == sender
-							},
-						| _ => false,
-					})
-		},
-		| _ => {
-			// Falling back on m.room.create to judge power level
-			Ok(room_create.sender() == sender
-				|| redacting_event
-					.as_ref()
-					.is_ok_and(|redacting_event| redacting_event.sender() == sender))
-		},
+
+	let power_levels = self.get_room_power_levels(room_id).await;
+
+	if power_levels.user_can_redact_event_of_other(sender) {
+		return Ok(true);
 	}
+
+	if power_levels.user_can_redact_own_event(sender) {
+		let is_own_event = match redacting_event {
+			Ok(redacting_event) => {
+				if federation {
+					redacting_event.sender().server_name() == sender.server_name()
+				} else {
+					redacting_event.sender() == sender
+				}
+			},
+			_ => false
+		};
+
+		return Ok(is_own_event);
+	}
+
+	return Ok(false);
 }
 
 /// Whether a user is allowed to see an event, based on

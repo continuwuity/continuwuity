@@ -28,7 +28,7 @@ pub(crate) async fn create_backup_version_route(
 		.key_backups
 		.create_backup(body.sender_user(), &body.algorithm)?;
 
-	Ok(create_backup_version::v3::Response { version })
+	Ok(create_backup_version::v3::Response::new(version))
 }
 
 /// # `PUT /_matrix/client/r0/room_keys/version/{version}`
@@ -44,7 +44,7 @@ pub(crate) async fn update_backup_version_route(
 		.update_backup(body.sender_user(), &body.version, &body.algorithm)
 		.await?;
 
-	Ok(update_backup_version::v3::Response {})
+	Ok(update_backup_version::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/room_keys/version`
@@ -105,7 +105,7 @@ pub(crate) async fn delete_backup_version_route(
 		.delete_backup(body.sender_user(), &body.version)
 		.await;
 
-	Ok(delete_backup_version::v3::Response {})
+	Ok(delete_backup_version::v3::Response::new())
 }
 
 /// # `PUT /_matrix/client/r0/room_keys/keys`
@@ -292,7 +292,7 @@ pub(crate) async fn get_backup_keys_route(
 		.get_all(body.sender_user(), &body.version)
 		.await;
 
-	Ok(get_backup_keys::v3::Response { rooms })
+	Ok(get_backup_keys::v3::Response::new(rooms))
 }
 
 /// # `GET /_matrix/client/r0/room_keys/keys/{roomId}`
@@ -307,7 +307,7 @@ pub(crate) async fn get_backup_keys_for_room_route(
 		.get_room(body.sender_user(), &body.version, &body.room_id)
 		.await;
 
-	Ok(get_backup_keys_for_room::v3::Response { sessions })
+	Ok(get_backup_keys_for_room::v3::Response::new(sessions))
 }
 
 /// # `GET /_matrix/client/r0/room_keys/keys/{roomId}/{sessionId}`
@@ -325,7 +325,7 @@ pub(crate) async fn get_backup_keys_for_session_route(
 			err!(Request(NotFound(debug_error!("Backup key not found for this user's session."))))
 		})?;
 
-	Ok(get_backup_keys_for_session::v3::Response { key_data })
+	Ok(get_backup_keys_for_session::v3::Response::new(key_data))
 }
 
 /// # `DELETE /_matrix/client/r0/room_keys/keys`
@@ -342,7 +342,7 @@ pub(crate) async fn delete_backup_keys_route(
 
 	let (count, etag) = get_count_etag(&services, body.sender_user(), &body.version).await?;
 
-	Ok(delete_backup_keys::v3::Response { count, etag })
+	Ok(delete_backup_keys::v3::Response::new(etag, count))
 }
 
 /// # `DELETE /_matrix/client/r0/room_keys/keys/{roomId}`
@@ -359,7 +359,7 @@ pub(crate) async fn delete_backup_keys_for_room_route(
 
 	let (count, etag) = get_count_etag(&services, body.sender_user(), &body.version).await?;
 
-	Ok(delete_backup_keys_for_room::v3::Response { count, etag })
+	Ok(delete_backup_keys_for_room::v3::Response::new(etag, count))
 }
 
 /// # `DELETE /_matrix/client/r0/room_keys/keys/{roomId}/{sessionId}`
@@ -376,7 +376,7 @@ pub(crate) async fn delete_backup_keys_for_session_route(
 
 	let (count, etag) = get_count_etag(&services, body.sender_user(), &body.version).await?;
 
-	Ok(delete_backup_keys_for_session::v3::Response { count, etag })
+	Ok(delete_backup_keys_for_session::v3::Response::new(etag, count))
 }
 
 async fn get_count_etag(

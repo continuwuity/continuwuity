@@ -1,18 +1,13 @@
 use std::collections::BTreeMap;
 
 use ruma::{
-	Int, OwnedUserId, UserId,
-	events::{TimelineEventType, room::power_levels::RoomPowerLevelsEventContent},
-	power_levels::{NotificationPowerLevels, default_power_level},
-	serde::{
-		deserialize_v1_powerlevel, vec_deserialize_int_powerlevel_values,
-		vec_deserialize_v1_powerlevel_values,
-	},
+	Int, OwnedUserId, UserId, events::{TimelineEventType, room::power_levels::RoomPowerLevelsEventContent}, power_levels::{NotificationPowerLevels, default_power_level}, room_version_rules::{AuthorizationRules, RoomVersionRules}, serde::deserialize_v1_powerlevel
 };
+use super::serde_backports::*;
 use serde::Deserialize;
 use serde_json::{Error, from_str as from_json_str};
 
-use super::{Result, RoomVersion};
+use super::Result;
 use crate::error;
 
 #[derive(Deserialize)]
@@ -48,8 +43,8 @@ struct IntRoomPowerLevelsEventContent {
 	notifications: IntNotificationPowerLevels,
 }
 
-impl From<IntRoomPowerLevelsEventContent> for RoomPowerLevelsEventContent {
-	fn from(int_pl: IntRoomPowerLevelsEventContent) -> Self {
+impl IntRoomPowerLevelsEventContent {
+	fn to_room_power_levels_content(self, auth_rules: &AuthorizationRules) -> RoomPowerLevelsEventContent {
 		let IntRoomPowerLevelsEventContent {
 			ban,
 			events,
@@ -61,9 +56,9 @@ impl From<IntRoomPowerLevelsEventContent> for RoomPowerLevelsEventContent {
 			users,
 			users_default,
 			notifications,
-		} = int_pl;
+		} = self;
 
-		let mut pl = Self::new();
+		let mut pl = RoomPowerLevelsEventContent::new(auth_rules);
 		pl.ban = ban;
 		pl.events = events;
 		pl.events_default = events_default;
@@ -101,18 +96,18 @@ impl From<IntNotificationPowerLevels> for NotificationPowerLevels {
 #[inline]
 pub(crate) fn deserialize_power_levels(
 	content: &str,
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 ) -> Option<RoomPowerLevelsEventContent> {
-	if room_version.integer_power_levels {
-		deserialize_integer_power_levels(content)
+	if room_version.authorization.integer_power_levels {
+		deserialize_integer_power_levels(content, &room_version.authorization)
 	} else {
 		deserialize_legacy_power_levels(content)
 	}
 }
 
-fn deserialize_integer_power_levels(content: &str) -> Option<RoomPowerLevelsEventContent> {
+fn deserialize_integer_power_levels(content: &str, auth_rules: &AuthorizationRules) -> Option<RoomPowerLevelsEventContent> {
 	match from_json_str::<IntRoomPowerLevelsEventContent>(content) {
-		| Ok(content) => Some(content.into()),
+		| Ok(content) => Some(content.to_room_power_levels_content(auth_rules)),
 		| Err(_) => {
 			error!("m.room.power_levels event is not valid with integer values");
 			None
@@ -174,9 +169,9 @@ impl From<IntPowerLevelsContentFields> for PowerLevelsContentFields {
 #[inline]
 pub(crate) fn deserialize_power_levels_content_fields(
 	content: &str,
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 ) -> Result<PowerLevelsContentFields, Error> {
-	if room_version.integer_power_levels {
+	if room_version.authorization.integer_power_levels {
 		deserialize_integer_power_levels_content_fields(content)
 	} else {
 		deserialize_legacy_power_levels_content_fields(content)
@@ -216,9 +211,9 @@ impl From<IntPowerLevelsContentInvite> for PowerLevelsContentInvite {
 
 pub(crate) fn deserialize_power_levels_content_invite(
 	content: &str,
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 ) -> Result<PowerLevelsContentInvite, Error> {
-	if room_version.integer_power_levels {
+	if room_version.authorization.integer_power_levels {
 		from_json_str::<IntPowerLevelsContentInvite>(content).map(Into::into)
 	} else {
 		from_json_str(content)
@@ -246,9 +241,9 @@ impl From<IntPowerLevelsContentRedact> for PowerLevelsContentRedact {
 
 pub(crate) fn deserialize_power_levels_content_redact(
 	content: &str,
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 ) -> Result<PowerLevelsContentRedact, Error> {
-	if room_version.integer_power_levels {
+	if room_version.authorization.integer_power_levels {
 		from_json_str::<IntPowerLevelsContentRedact>(content).map(Into::into)
 	} else {
 		from_json_str(content)

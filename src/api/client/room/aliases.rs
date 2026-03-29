@@ -26,13 +26,12 @@ pub(crate) async fn get_room_aliases_route(
 		return Err!(Request(Forbidden("You don't have permission to view this room.",)));
 	}
 
-	Ok(aliases::v3::Response {
-		aliases: services
+	let aliases = services
 			.rooms
 			.alias
 			.local_aliases_for_room(&body.room_id)
-			.map(ToOwned::to_owned)
 			.collect()
-			.await,
-	})
+			.await;
+
+	Ok(aliases::v3::Response::new(aliases))
 }

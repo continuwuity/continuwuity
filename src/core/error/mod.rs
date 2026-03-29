@@ -57,10 +57,6 @@ pub enum Error {
 	#[error(transparent)]
 	Json(#[from] serde_json::Error),
 	#[error(transparent)]
-	JsParseInt(#[from] ruma::JsParseIntError), // js_int re-export
-	#[error(transparent)]
-	JsTryFromInt(#[from] ruma::JsTryFromIntError), // js_int re-export
-	#[error(transparent)]
 	Path(#[from] axum::extract::rejection::PathRejection),
 	#[error("Mutex poisoned: {0}")]
 	Poison(Cow<'static, str>),
@@ -90,7 +86,7 @@ pub enum Error {
 	// ruma/conduwuit
 	#[error("Arithmetic operation failed: {0}")]
 	Arithmetic(Cow<'static, str>),
-	#[error("{0}: {1}")]
+	#[error("{0:?}: {1}")]
 	BadRequest(ruma::api::client::error::ErrorKind, &'static str), //TODO: remove
 	#[error("{0}")]
 	BadServerResponse(Cow<'static, str>),
@@ -120,7 +116,7 @@ pub enum Error {
 	Mxid(#[from] ruma::IdParseError),
 	#[error("from {0}: {1}")]
 	Redaction(ruma::OwnedServerName, ruma::canonical_json::RedactionError),
-	#[error("{0}: {1}")]
+	#[error("{0:?}: {1}")]
 	Request(ruma::api::client::error::ErrorKind, Cow<'static, str>, http::StatusCode),
 	#[error(transparent)]
 	Ruma(#[from] ruma::api::client::error::Error),
@@ -167,13 +163,13 @@ impl Error {
 	/// Returns the Matrix error code / error kind
 	#[inline]
 	pub fn kind(&self) -> ruma::api::client::error::ErrorKind {
-		use ruma::api::client::error::ErrorKind::{FeatureDisabled, Unknown};
+		use ruma::api::client::error::ErrorKind::{Unknown, Unrecognized};
 
 		match self {
 			| Self::Federation(_, error) | Self::Ruma(error) =>
 				response::ruma_error_kind(error).clone(),
 			| Self::BadRequest(kind, ..) | Self::Request(kind, ..) => kind.clone(),
-			| Self::FeatureDisabled(..) => FeatureDisabled,
+			| Self::FeatureDisabled(..) => Unrecognized,
 			| _ => Unknown,
 		}
 	}

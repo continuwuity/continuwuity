@@ -13,7 +13,6 @@ use ruma::{
 		member::{MembershipState, RoomMemberEventContent},
 		name::RoomNameEventContent,
 		power_levels::RoomPowerLevelsEventContent,
-		preview_url::RoomPreviewUrlsEventContent,
 		topic::RoomTopicEventContent,
 	},
 };
@@ -25,7 +24,7 @@ use crate::Services;
 /// Users in this room are considered admins by conduwuit, and the room can be
 /// used to issue admin commands by talking to the server user inside it.
 pub async fn create_admin_room(services: &Services) -> Result {
-	let room_id = RoomId::new(services.globals.server_name());
+	let room_id = RoomId::new_v1(services.globals.server_name());
 	let room_version = &RoomVersionId::V11;
 
 	let _short_id = services
@@ -34,21 +33,23 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.get_or_create_shortroomid(&room_id)
 		.await;
 
-	let state_lock = services.rooms.state.mutex.lock(&room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
 	// Create a user for the server
 	let server_user = services.globals.server_user.as_ref();
 	services.users.create(server_user, None, None).await?;
 
-	let create_content = {
+	let mut create_content = {
 		use RoomVersionId::*;
 		match room_version {
 			| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
 				RoomCreateEventContent::new_v1(server_user.into()),
-			| V11 => RoomCreateEventContent::new_v11(),
-			| _ => RoomCreateEventContent::new_v12(),
+			| _ => RoomCreateEventContent::new_v11(),
 		}
 	};
+
+	create_content.federate = true;
+	create_content.room_version = room_version.clone();
 
 	info!("Creating admin room {} with version {}", room_id, room_version);
 
@@ -57,12 +58,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomCreateEventContent {
-				federate: true,
-				predecessor: None,
-				room_version: room_version.clone(),
-				..create_content
-			}),
+			PduBuilder::state(String::new(), &create_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -89,14 +85,14 @@ pub async fn create_admin_room(services: &Services) -> Result {
 	// 3. Power levels
 	let users = BTreeMap::from_iter([(server_user.into(), 69420.into())]);
 
+	let mut power_levels_content = RoomPowerLevelsEventContent::new(&room_version.rules().unwrap().authorization);
+	power_levels_content.users = users;
+
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomPowerLevelsEventContent {
-				users,
-				..Default::default()
-			}),
+			PduBuilder::state(String::new(), &power_levels_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -163,13 +159,12 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.boxed()
 		.await?;
 
+	let room_topic = format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/", services.config.server_name);
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomTopicEventContent {
-				topic: format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/", services.config.server_name),
-			}),
+			PduBuilder::state(String::new(), &RoomTopicEventContent::markdown(room_topic)),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -178,16 +173,14 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.await?;
 
 	// 6. Room alias
-	let alias = &services.globals.admin_alias;
+	let mut alias_content = RoomCanonicalAliasEventContent::new();
+	alias_content.alias = Some(services.globals.admin_alias.clone());
 
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomCanonicalAliasEventContent {
-				alias: Some(alias.clone()),
-				alt_aliases: Vec::new(),
-			}),
+			PduBuilder::state(String::new(), &alias_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -198,20 +191,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 	services
 		.rooms
 		.alias
-		.set_alias(alias, &room_id, server_user)?;
-
-	// 7. (ad-hoc) Disable room URL previews for everyone by default
-	services
-		.rooms
-		.timeline
-		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomPreviewUrlsEventContent { disabled: true }),
-			server_user,
-			Some(&room_id),
-			&state_lock,
-		)
-		.boxed()
-		.await?;
+		.set_alias(&services.globals.admin_alias, &room_id, server_user)?;
 
 	Ok(())
 }

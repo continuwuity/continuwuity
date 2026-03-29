@@ -1,4 +1,5 @@
 pub mod blurhash;
+pub mod mxc;
 mod data;
 pub(super) mod migrations;
 mod preview;
@@ -17,7 +18,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use ruma::{Mxc, OwnedMxcUri, UserId, http_headers::ContentDisposition};
+use ruma::{OwnedMxcUri, UserId, http_headers::ContentDisposition};
 use tokio::{
 	fs,
 	io::{AsyncReadExt, AsyncWriteExt, BufReader},
@@ -25,7 +26,7 @@ use tokio::{
 
 use self::data::{Data, Metadata};
 pub use self::thumbnail::Dim;
-use crate::{Dep, client, globals, moderation, sending};
+use crate::{Dep, client, globals, media::mxc::Mxc, moderation, sending};
 
 #[derive(Debug)]
 pub struct FileMeta {

@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Write, iter::once, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{RoomVersion, debug};
+use conduwuit::debug;
 use conduwuit_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
@@ -17,12 +17,10 @@ use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
-	events::{
+	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId, events::{
 		AnyStrippedStateEvent, StateEventType, TimelineEventType,
 		room::create::RoomCreateEventContent,
-	},
-	serde::Raw,
+	}, room_version_rules::RoomVersionRules, serde::Raw
 };
 
 use crate::{
@@ -128,7 +126,7 @@ impl Service {
 
 					self.services
 						.state_cache
-						.update_membership(room_id, user_id, &pdu, false)
+						.update_membership(room_id, &user_id, &pdu, false)
 						.await?;
 				},
 				| TimelineEventType::SpaceChild => {
@@ -381,13 +379,13 @@ impl Service {
 	pub fn get_forward_extremities<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-	) -> impl Stream<Item = &'a EventId> + Send + 'a {
+	) -> impl Stream<Item = OwnedEventId> + Send + 'a {
 		let prefix = (room_id, Interfix);
 
 		self.db
 			.roomid_pduleaves
 			.keys_prefix(&prefix)
-			.map_ok(|(_, event_id): (Ignore, &EventId)| event_id)
+			.map_ok(|(_, event_id): (Ignore, OwnedEventId)| event_id)
 			.ignore_err()
 	}
 
@@ -414,7 +412,7 @@ impl Service {
 	}
 
 	/// This fetches auth events from the current state.
-	#[tracing::instrument(skip(self, content, room_version), level = "trace")]
+	#[tracing::instrument(skip(self, content, room_version_rules), level = "trace")]
 	pub async fn get_auth_events(
 		&self,
 		room_id: &RoomId,
@@ -422,14 +420,14 @@ impl Service {
 		sender: &UserId,
 		state_key: Option<&str>,
 		content: &serde_json::value::RawValue,
-		room_version: &RoomVersion,
+		room_version_rules: &RoomVersionRules,
 	) -> Result<StateMap<PduEvent>> {
 		let Ok(shortstatehash) = self.get_room_shortstatehash(room_id).await else {
 			return Ok(HashMap::new());
 		};
 
 		let auth_types =
-			state_res::auth_types_for_event(kind, sender, state_key, content, room_version)?;
+			state_res::auth_types_for_event(kind, sender, state_key, content, room_version_rules)?;
 		debug!(?auth_types, "Auth types for event");
 		let sauthevents: HashMap<_, _> = auth_types
 			.iter()

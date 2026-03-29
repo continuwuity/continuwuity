@@ -2,18 +2,15 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, RoomVersion, debug, debug_info, debug_warn, err, info,
+	Err, Result, debug, debug_info, debug_warn, err, info,
 	matrix::{StateKey, pdu::PduBuilder},
 	trace, warn,
 };
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId,
-	api::client::room::{self, create_room},
-	events::{
+	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId, api::client::room::{self, create_room}, events::{
 		TimelineEventType,
-		invite_permission_config::FilterLevel,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			create::RoomCreateEventContent,
@@ -25,10 +22,9 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			topic::RoomTopicEventContent,
 		},
-	},
-	int,
-	serde::{JsonObject, Raw},
+	}, int, room_version_rules::RoomIdFormatVersion, serde::{JsonObject, Raw}
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 use serde_json::{json, value::to_raw_value};
 
 use crate::{Ruma, client::invite_helper};
@@ -81,15 +77,11 @@ pub(crate) async fn create_room_route(
 			},
 		| None => services.server.config.default_room_version.clone(),
 	};
-	let room_features = RoomVersion::new(&room_version)?;
+	let room_version_rules = room_version.rules().unwrap();
 
-	let room_id: Option<OwnedRoomId> = if !room_features.room_ids_as_hashes {
-		match &body.room_id {
-			| Some(custom_room_id) => Some(custom_room_id_check(&services, custom_room_id)?),
-			| None => Some(RoomId::new(services.globals.server_name())),
-		}
-	} else {
-		None
+	let room_id: Option<OwnedRoomId> = match room_version_rules.room_id_format {
+		RoomIdFormatVersion::V1 => Some(RoomId::new_v1(services.globals.server_name())),
+		_ => None,
 	};
 
 	// check if room ID doesn't already exist instead of erroring on auth check
@@ -167,7 +159,7 @@ pub(crate) async fn create_room_route(
 			use RoomVersionId::*;
 
 			let mut content = content
-				.deserialize_as::<CanonicalJsonObject>()
+				.deserialize_as_unchecked::<CanonicalJsonObject>()
 				.map_err(|e| {
 					err!(Request(BadJson(error!(
 						"Failed to deserialise content as canonical JSON: {e}"
@@ -201,8 +193,7 @@ pub(crate) async fn create_room_route(
 			let content = match room_version {
 				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
 					RoomCreateEventContent::new_v1(sender_user.to_owned()),
-				| V11 => RoomCreateEventContent::new_v11(),
-				| _ => RoomCreateEventContent::new_v12(),
+				| _ => RoomCreateEventContent::new_v11(),
 			};
 			let mut content =
 				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())?;
@@ -257,30 +248,23 @@ pub(crate) async fn create_room_route(
 		},
 	};
 	drop(state_lock);
-	if let Some(expected_room_id) = body.room_id.as_ref() {
-		if expected_room_id.as_str() != room_id.as_str() {
-			return Err!(Request(InvalidParam(
-				"Custom room ID {expected_room_id} does not match the generated room ID \
-				 {room_id}.",
-			)));
-		}
-	}
 	debug!("Room created with ID {room_id}");
-	let state_lock = services.rooms.state.mutex.lock(&room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
 	// 2. Let the room creator join
+
+	let mut join_event = RoomMemberEventContent::new(MembershipState::Join);
+	join_event.displayname = services.users.displayname(sender_user).await.ok();
+	join_event.avatar_url = services.users.avatar_url(sender_user).await.ok();
+	join_event.blurhash = services.users.blurhash(sender_user).await.ok();
+	join_event.is_direct = Some(body.is_direct);
+
 	debug_info!("Joining {sender_user} to room {room_id}");
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(sender_user.to_string(), &RoomMemberEventContent {
-				displayname: services.users.displayname(sender_user).await.ok(),
-				avatar_url: services.users.avatar_url(sender_user).await.ok(),
-				blurhash: services.users.blurhash(sender_user).await.ok(),
-				is_direct: Some(body.is_direct),
-				..RoomMemberEventContent::new(MembershipState::Join)
-			}),
+			PduBuilder::state(sender_user.to_string(), &join_event),
 			sender_user,
 			Some(&room_id),
 			&state_lock,
@@ -306,7 +290,7 @@ pub(crate) async fn create_room_route(
 
 	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
 	// Do we care about additional_creators?
-	if room_features.explicitly_privilege_room_creators {
+	if room_version_rules.explicitly_privilege_room_creators {
 		// Have they been specified?
 		if let Some(additional_creators) = create_content.get("additional_creators") {
 			// Are they a real array?
@@ -666,61 +650,4 @@ async fn room_alias_check(
 	debug_info!("Full room alias: {full_room_alias}");
 
 	Ok(full_room_alias)
-}
-
-/// if a room is being created with a custom room ID, run our checks against it
-fn custom_room_id_check(services: &Services, custom_room_id: &str) -> Result<OwnedRoomId> {
-	// apply forbidden room alias checks to custom room IDs too
-	if services
-		.globals
-		.forbidden_alias_names()
-		.is_match(custom_room_id)
-	{
-		return Err!(Request(Unknown("Custom room ID is forbidden.")));
-	}
-
-	if custom_room_id.contains(':') {
-		return Err!(Request(InvalidParam(
-			"Custom room ID contained `:` which is not allowed. Please note that this expects a \
-			 localpart, not the full room ID.",
-		)));
-	} else if custom_room_id.contains(char::is_whitespace) {
-		return Err!(Request(InvalidParam(
-			"Custom room ID contained spaces which is not valid."
-		)));
-	}
-
-	let server_name = services.globals.server_name();
-	let mut room_id = custom_room_id.to_owned();
-	if custom_room_id.contains(':') {
-		if !custom_room_id.starts_with('!') {
-			return Err!(Request(InvalidParam(
-				"Custom room ID contains an unexpected `:` which is not allowed.",
-			)));
-		}
-	} else if custom_room_id.starts_with('!') {
-		return Err!(Request(InvalidParam(
-			"Room ID is prefixed with !, but is not fully qualified. You likely did not want \
-			 this.",
-		)));
-	} else {
-		room_id = format!("!{custom_room_id}:{server_name}");
-	}
-	OwnedRoomId::parse(room_id)
-		.map_err(Into::into)
-		.and_then(|full_room_id| {
-			if full_room_id
-				.server_name()
-				.expect("failed to extract server name from room ID")
-				!= server_name
-			{
-				Err!(Request(InvalidParam("Custom room ID must be on this server.",)))
-			} else {
-				Ok(full_room_id)
-			}
-		})
-		.inspect(|full_room_id| {
-			debug_info!(%full_room_id, "Full custom room ID");
-		})
-		.inspect_err(|e| warn!(?e, %custom_room_id, "Failed to create room with custom room ID",))
 }
