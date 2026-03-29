@@ -1,23 +1,16 @@
 use std::str::FromStr;
 
 use ruma::{
-	UInt,
-	api::federation::space::{SpaceHierarchyParentSummary, SpaceHierarchyParentSummaryInit},
-	owned_room_id, owned_server_name,
-	space::SpaceRoomJoinRule,
+	UInt, api::federation::space::SpaceHierarchyParentSummary, owned_room_id, owned_server_name, room::{JoinRuleSummary, RoomSummary},
 };
 
 use crate::rooms::spaces::{PaginationToken, get_parent_children_via};
 
 #[test]
 fn get_summary_children() {
-	let summary: SpaceHierarchyParentSummary = SpaceHierarchyParentSummaryInit {
-		num_joined_members: UInt::from(1_u32),
-		room_id: owned_room_id!("!root:example.org"),
-		world_readable: true,
-		guest_can_join: true,
-		join_rule: SpaceRoomJoinRule::Public,
-		children_state: vec![
+	let summary = SpaceHierarchyParentSummary::new(
+		RoomSummary::new(owned_room_id!("!root:example.org"), JoinRuleSummary::Public, true, UInt::from(1_u32), true),
+		vec![
 			serde_json::from_str(
 				r#"{
                       "content": {
@@ -62,10 +55,8 @@ fn get_summary_children() {
                     }"#,
 			)
 			.unwrap(),
-		],
-		allowed_room_ids: vec![],
-	}
-	.into();
+		]
+	);
 
 	assert_eq!(
 		get_parent_children_via(&summary, false)

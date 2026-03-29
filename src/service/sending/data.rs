@@ -245,7 +245,7 @@ fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, Se
 		})?;
 
 		(
-			Destination::Federation(OwnedServerName::parse(&server).map_err(|_| {
+			Destination::Federation(ServerName::parse(&server).map_err(|_| {
 				Error::bad_database("Invalid server string in server_currenttransaction")
 			})?),
 			if value.is_empty() {

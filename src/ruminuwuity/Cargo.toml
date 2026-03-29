@@ -1,0 +1,31 @@
+[package]
+name = "ruminuwuity"
+description.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
+
+[lib]
+path = "mod.rs"
+
+[features]
+default = ["client", "server"]
+client = []
+server = []
+
+unstable-exhaustive-types = []
+unstable-msc3202 = []
+unstable-msc4203 = []
+
+[dependencies]
+ruma.workspace = true
+serde = { workspace = true }
+serde_json = { workspace = true }
+wildmatch = "2.6.1"
+
+[dev-dependencies]
+
+[lints]
+workspace = true

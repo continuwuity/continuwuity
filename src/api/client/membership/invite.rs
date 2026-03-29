@@ -8,12 +8,10 @@ use conduwuit::{
 use futures::FutureExt;
 use ruma::{
 	RoomId, UserId,
-	api::{client::membership::invite_user, federation::membership::create_invite},
-	events::{
-		invite_permission_config::FilterLevel,
-		room::member::{MembershipState, RoomMemberEventContent},
-	},
+	api::{client::membership::invite_user, federation::membership::{RawStrippedState, create_invite}},
+	events::room::member::{MembershipState, RoomMemberEventContent},
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 use service::Services;
 
 use super::banned_room_check;
@@ -59,7 +57,7 @@ pub(crate) async fn invite_user_route(
 
 			if !matches!(sender_filter_level, FilterLevel::Allow) {
 				// drop invites if the sender has the recipient filtered
-				return Ok(invite_user::v3::Response {});
+				return Ok(invite_user::v3::Response::new());
 			}
 
 			if let Ok(target_user_membership) = services
@@ -101,7 +99,7 @@ pub(crate) async fn invite_user_route(
 			.boxed()
 			.await?;
 
-			Ok(invite_user::v3::Response {})
+			Ok(invite_user::v3::Response::new())
 		},
 		| _ => {
 			Err!(Request(NotFound("User not found.")))
@@ -141,12 +139,11 @@ pub(crate) async fn invite_helper(
 		let (pdu, pdu_json, invite_room_state) = {
 			let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-			let content = RoomMemberEventContent {
-				avatar_url: services.users.avatar_url(recipient_user).await.ok(),
-				is_direct: Some(is_direct),
-				reason,
-				..RoomMemberEventContent::new(MembershipState::Invite)
-			};
+			let mut content = RoomMemberEventContent::new(MembershipState::Invite);
+			content.displayname = services.users.displayname(recipient_user).await.ok();
+			content.avatar_url = services.users.avatar_url(recipient_user).await.ok();
+			content.is_direct = Some(is_direct);
+			content.reason = reason;
 
 			let (pdu, pdu_json) = services
 				.rooms
@@ -159,7 +156,15 @@ pub(crate) async fn invite_helper(
 				)
 				.await?;
 
-			let invite_room_state = services.rooms.state.summary_stripped(&pdu, room_id).await;
+			#[allow(deprecated)]
+			let invite_room_state = services
+				.rooms
+				.state
+				.summary_stripped(&pdu, room_id)
+				.await
+				.into_iter()
+				.map(|event| RawStrippedState::Stripped(event))
+				.collect();
 
 			drop(state_lock);
 
@@ -168,24 +173,26 @@ pub(crate) async fn invite_helper(
 
 		let room_version_id = services.rooms.state.get_room_version(room_id).await?;
 
+		let mut request = create_invite::v2::Request::new(
+			room_id.to_owned(),
+			(*pdu.event_id).to_owned(),
+			room_version_id.clone(),
+			services
+				.sending
+				.convert_to_outgoing_federation_event(pdu_json.clone())
+				.await,
+			invite_room_state,
+		);
+		request.via = services
+			.rooms
+			.state_cache
+			.servers_route_via(room_id)
+			.await
+			.ok();
+
 		let response = services
 			.sending
-			.send_federation_request(recipient_user.server_name(), create_invite::v2::Request {
-				room_id: room_id.to_owned(),
-				event_id: (*pdu.event_id).to_owned(),
-				room_version: room_version_id.clone(),
-				event: services
-					.sending
-					.convert_to_outgoing_federation_event(pdu_json.clone())
-					.await,
-				invite_room_state,
-				via: services
-					.rooms
-					.state_cache
-					.servers_route_via(room_id)
-					.await
-					.ok(),
-			})
+			.send_federation_request(recipient_user.server_name(), request)
 			.await?;
 
 		// We do not add the event_id field to the pdu here because of signature and
@@ -229,14 +236,12 @@ pub(crate) async fn invite_helper(
 
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-	let content = RoomMemberEventContent {
-		displayname: services.users.displayname(recipient_user).await.ok(),
-		avatar_url: services.users.avatar_url(recipient_user).await.ok(),
-		blurhash: services.users.blurhash(recipient_user).await.ok(),
-		is_direct: Some(is_direct),
-		reason,
-		..RoomMemberEventContent::new(MembershipState::Invite)
-	};
+	let mut content = RoomMemberEventContent::new(MembershipState::Invite);
+	content.displayname = services.users.displayname(recipient_user).await.ok();
+	content.avatar_url = services.users.avatar_url(recipient_user).await.ok();
+	content.blurhash = services.users.blurhash(recipient_user).await.ok();
+	content.is_direct = Some(is_direct);
+	content.reason = reason;
 
 	services
 		.rooms

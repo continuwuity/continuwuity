@@ -7,7 +7,7 @@ use conduwuit_service::Services;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{
-		report_user,
+		reporting::report_user,
 		room::{report_content, report_room},
 	},
 	events::{Mentions, room::message::RoomMessageEventContent},

@@ -218,14 +218,7 @@ pub(crate) async fn register_route(
 		.await?;
 
 	// Generate new device id if the user didn't specify one
-	let no_device = body.inhibit_login
-		|| body
-			.appservice_info
-			.as_ref()
-			.is_some_and(|aps| aps.registration.device_management);
-
-	let (token, device) = if !no_device {
-		// Don't create a device for inhibited logins
+	let (token, device) = if !body.inhibit_login {
 		let device_id = if is_guest { None } else { body.device_id.clone() }
 			.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
 
@@ -243,11 +236,12 @@ pub(crate) async fn register_route(
 				Some(client.to_string()),
 			)
 			.await?;
-		debug_info!(%user_id, %device_id, "User account was created");
 		(Some(new_token), Some(device_id))
 	} else {
+		// Don't create a device for inhibited logins
 		(None, None)
 	};
+	debug_info!(%user_id, %device_id, "User account was created");
 
 	// If the user registered with an email, associate it with their account.
 	if let Some(identity) = identity

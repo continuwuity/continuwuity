@@ -47,17 +47,16 @@ impl Presence {
 	) -> PresenceEvent {
 		let now = utils::millis_since_unix_epoch();
 		let last_active_ago = Some(UInt::new_saturating(now.saturating_sub(self.last_active_ts)));
+		let mut content = PresenceEventContent::new(self.state.clone());
+		content.status_msg = self.status_msg.clone();
+		content.currently_active = Some(self.currently_active);
+		content.last_active_ago = last_active_ago;
+		content.displayname = users.displayname(user_id).await.ok();
+		content.avatar_url = users.avatar_url(user_id).await.ok();
 
 		PresenceEvent {
 			sender: user_id.to_owned(),
-			content: PresenceEventContent {
-				presence: self.state.clone(),
-				status_msg: self.status_msg.clone(),
-				currently_active: Some(self.currently_active),
-				last_active_ago,
-				displayname: users.displayname(user_id).await.ok(),
-				avatar_url: users.avatar_url(user_id).await.ok(),
-			},
+			content,
 		}
 	}
 }

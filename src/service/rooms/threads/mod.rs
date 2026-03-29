@@ -11,8 +11,7 @@ use conduwuit_core::{
 use conduwuit_database::{Deserialized, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
-	CanonicalJsonValue, EventId, OwnedUserId, RoomId, UserId,
-	api::client::threads::get_threads::v1::IncludeThreads, events::relation::BundledThread, uint,
+	CanonicalJsonValue, EventId, OwnedUserId, RoomId, UserId, api::client::threads::get_threads::v1::IncludeThreads, events::relation::BundledThread, serde::Raw, uint
 };
 use serde_json::json;
 
@@ -89,7 +88,7 @@ impl Service {
 				}) {
 				// Thread already existed
 				relations.count = relations.count.saturating_add(uint!(1));
-				relations.latest_event = event.to_format();
+				relations.latest_event = Raw::from_json(event.content().to_owned());
 
 				let content = serde_json::to_value(relations).expect("to_value always works");
 
@@ -101,11 +100,7 @@ impl Service {
 				);
 			} else {
 				// New thread
-				let relations = BundledThread {
-					latest_event: event.to_format(),
-					count: uint!(1),
-					current_user_participated: true,
-				};
+				let relations = BundledThread::new(Raw::from_json(event.content().to_owned()), uint!(1), true);
 
 				let content = serde_json::to_value(relations).expect("to_value always works");
 

@@ -2,7 +2,8 @@ use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
 use conduwuit::{Result, config::Antispam, debug};
-use ruma::{OwnedRoomId, OwnedUserId, draupnir_antispam, meowlnir_antispam};
+use ruma::{OwnedRoomId, OwnedUserId, api::{auth_scheme::AppserviceToken, path_builder::VersionHistory}};
+use ruminuwuity::{draupnir_antispam, meowlnir_antispam};
 
 use crate::{client, config, sending, service::Dep};
 
@@ -37,7 +38,7 @@ impl Service {
 		request: T,
 	) -> Result<T::IncomingResponse>
 	where
-		T: ruma::api::OutgoingRequest + Debug + Send,
+		T: ruma::api::OutgoingRequest<Authentication = AppserviceToken, PathBuilder = VersionHistory> + Debug + Send,
 	{
 		sending::antispam::send_antispam_request(
 			&self.services.client.appservice,

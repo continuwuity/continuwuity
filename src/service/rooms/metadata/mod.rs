@@ -3,7 +3,7 @@ use std::sync::Arc;
 use conduwuit::{Result, implement, utils::stream::TryIgnore};
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::RoomId;
+use ruma::{OwnedRoomId, RoomId};
 
 use crate::{Dep, rooms};
 
@@ -58,7 +58,7 @@ pub async fn exists(&self, room_id: &RoomId) -> bool {
 }
 
 #[implement(Service)]
-pub fn iter_ids(&self) -> impl Stream<Item = &RoomId> + Send + '_ {
+pub fn iter_ids(&self) -> impl Stream<Item = OwnedRoomId> + Send + '_ {
 	self.db.roomid_shortroomid.keys().ignore_err()
 }
 
@@ -83,7 +83,7 @@ pub fn ban_room(&self, room_id: &RoomId, banned: bool) {
 }
 
 #[implement(Service)]
-pub fn list_banned_rooms(&self) -> impl Stream<Item = &RoomId> + Send + '_ {
+pub fn list_banned_rooms(&self) -> impl Stream<Item = OwnedRoomId> + Send + '_ {
 	self.db.bannedroomids.keys().ignore_err()
 }
 

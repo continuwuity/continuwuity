@@ -89,13 +89,13 @@ pub async fn retain_lazy_members(&self, senders: MemberSet, ctx: &Context<'_>) -
 	let mut senders = MemberSet::with_capacity(senders.len());
 	while let Some((status, sender)) = witness.next().await {
 		if include_redundant || status == Status::Unseen {
-			senders.insert(sender.into());
+			senders.insert(sender.clone());
 			continue;
 		}
 
 		if let Status::Seen(seen) = status {
 			if seen == 0 || ctx.token == Some(seen) {
-				senders.insert(sender.into());
+				senders.insert(sender.clone());
 				continue;
 			}
 		}

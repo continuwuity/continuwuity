@@ -6,7 +6,7 @@ use conduwuit_core::{
 	matrix::{
 		event::{Event, gen_event_id},
 		pdu::{EventHash, PduBuilder, PduEvent},
-		state_res::{self, RoomVersion},
+		state_res,
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
 	warn,
@@ -65,22 +65,6 @@ pub async fn create_hash_and_sign_event(
 	_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
 	                               * state mutex */
 ) -> Result<(PduEvent, CanonicalJsonObject)> {
-	#[allow(clippy::boxed_local)]
-	fn from_evt(
-		room_id: OwnedRoomId,
-		event_type: &TimelineEventType,
-		content: &RawValue,
-	) -> Result<RoomVersionId> {
-		if event_type == &TimelineEventType::RoomCreate {
-			let content: RoomCreateEventContent = serde_json::from_str(content.get())?;
-			Ok(content.room_version)
-		} else {
-			Err(Error::InconsistentRoomState(
-				"non-create event for room of unknown version",
-				room_id,
-			))
-		}
-	}
 
 	if !self.services.globals.user_is_local(sender) {
 		return Err!(Request(Forbidden("Sender must be a local user")));
@@ -94,34 +78,29 @@ pub async fn create_hash_and_sign_event(
 		redacts,
 		timestamp,
 	} = pdu_builder;
-	// If there was no create event yet, assume we are creating a room
+
 	trace!(
 		"Creating event of type {} in room {}",
 		event_type,
 		room_id.as_ref().map_or("None", |id| id.as_str())
 	);
-	let room_version_id = match room_id {
-		| Some(room_id) => {
-			trace!(%room_id, "Looking up existing room ID");
-			self.services
-				.state
-				.get_room_version(room_id)
-				.await
-				.or_else(|_| {
-					from_evt(room_id.to_owned(), &event_type.clone(), &content.clone())
-				})?
+
+	let room_version = match (room_id, &event_type) {
+		(Some(room_id), _) => {
+			self.services.state.get_room_version(room_id).await?
 		},
-		| None => {
-			trace!("No room ID, assuming room creation");
-			from_evt(
-				RoomId::new(self.services.globals.server_name()),
-				&event_type.clone(),
-				&content.clone(),
-			)?
+		(None, &TimelineEventType::RoomCreate) => {
+			let content: RoomCreateEventContent = serde_json::from_str(content.get()).expect("create event should be well-formed");
+			content.room_version
 		},
+		(None, _) => {
+			return Err!(Request(NotFound("Non-create event provided for unknown room")));
+		}
 	};
 
-	let room_version = RoomVersion::new(&room_version_id).expect("room version is supported");
+	let Some(room_version_rules) = room_version.rules() else {
+		return Err!(Request(UnsupportedRoomVersion("Unsupported room version")));
+	};
 
 	let prev_events: Vec<OwnedEventId> = match room_id {
 		| Some(room_id) =>
@@ -145,7 +124,7 @@ pub async fn create_hash_and_sign_event(
 					sender,
 					state_key.as_deref(),
 					&content,
-					&room_version,
+					&room_version_rules,
 				)
 				.await?,
 		| None => HashMap::new(),
@@ -242,7 +221,7 @@ pub async fn create_hash_and_sign_event(
 	};
 
 	let auth_check = state_res::auth_check(
-		&room_version,
+		&room_version_rules,
 		&pdu,
 		None, // TODO: third_party_invite
 		auth_fetch,
@@ -266,7 +245,7 @@ pub async fn create_hash_and_sign_event(
 	})?;
 
 	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version_id {
+	match room_version {
 		| RoomVersionId::V1 | RoomVersionId::V2 => {},
 		| _ => {
 			pdu_json.remove("event_id");
@@ -277,7 +256,7 @@ pub async fn create_hash_and_sign_event(
 	if let Err(e) = self
 		.services
 		.server_keys
-		.hash_and_sign_event(&mut pdu_json, &room_version_id)
+		.hash_and_sign_event(&mut pdu_json, &room_version)
 	{
 		return match e {
 			| Error::Signatures(ruma::signatures::Error::PduSize) => {
@@ -287,7 +266,7 @@ pub async fn create_hash_and_sign_event(
 		};
 	}
 	// Generate event id
-	pdu.event_id = gen_event_id(&pdu_json, &room_version_id)?;
+	pdu.event_id = gen_event_id(&pdu_json, &room_version)?;
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	// Verify that the *full* PDU isn't over 64KiB.
 	// Ruma only validates that it's under 64KiB before signing and hashing.

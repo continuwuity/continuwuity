@@ -44,13 +44,17 @@ pub async fn server_can_see_event(
 		| HistoryVisibility::Invited => {
 			// Allow if any member on requesting server was AT LEAST invited, else deny
 			current_server_members
-				.any(|member| self.user_was_invited(shortstatehash, member))
+				.any(async |member| {
+					self.user_was_invited(shortstatehash, &member).await
+				})
 				.await
 		},
 		| HistoryVisibility::Joined => {
 			// Allow if any member on requested server was joined, else deny
 			current_server_members
-				.any(|member| self.user_was_joined(shortstatehash, member))
+				.any(async |member| {
+					self.user_was_joined(shortstatehash, &member).await
+				})
 				.await
 		},
 		| HistoryVisibility::WorldReadable | HistoryVisibility::Shared | _ => true,

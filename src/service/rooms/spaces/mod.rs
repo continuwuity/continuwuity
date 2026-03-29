@@ -17,20 +17,16 @@ use conduwuit_core::{
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, pin_mut, stream::FuturesUnordered};
 use lru_cache::LruCache;
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName, UserId,
-	api::{
+	OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName, UserId, api::{
 		client::space::SpaceHierarchyRoomsChunk,
 		federation::{
 			self,
-			space::{SpaceHierarchyChildSummary, SpaceHierarchyParentSummary},
+			space::SpaceHierarchyParentSummary,
 		},
-	},
-	events::{
+	}, events::{
 		StateEventType,
 		space::child::{HierarchySpaceChildEvent, SpaceChildEventContent},
-	},
-	serde::Raw,
-	space::SpaceRoomJoinRule,
+	}, room::{JoinRuleSummary, RoomSummary}, serde::Raw,
 };
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -121,13 +117,10 @@ pub async fn get_summary_and_children_local(
 		| None => (), // cache miss
 		| Some(None) => return Ok(None),
 		| Some(Some(cached)) => {
-			let allowed_rooms = cached.summary.allowed_room_ids.iter().map(AsRef::as_ref);
-
 			let is_accessible_child = self.is_accessible_child(
 				current_room,
-				&cached.summary.join_rule,
+				&cached.summary.summary.join_rule,
 				identifier,
-				allowed_rooms,
 			);
 
 			let accessibility = if is_accessible_child.await {
@@ -172,10 +165,8 @@ async fn get_summary_and_children_federation(
 	user_id: &UserId,
 	via: &[OwnedServerName],
 ) -> Result<Option<SummaryAccessibility>> {
-	let request = federation::space::get_hierarchy::v1::Request {
-		room_id: current_room.to_owned(),
-		suggested_only,
-	};
+	let mut request = federation::space::get_hierarchy::v1::Request::new(current_room.to_owned());
+	request.suggested_only = suggested_only;
 
 	let mut requests: FuturesUnordered<_> = via
 		.iter()
@@ -213,14 +204,13 @@ async fn get_summary_and_children_federation(
 		.ready_filter_map(|(child, mut cache)| {
 			(!cache.contains_key(current_room)).then_some((child, cache))
 		})
-		.for_each(|(child, cache)| self.cache_insert(cache, current_room, child))
+		.for_each(|(summary, cache)| self.cache_insert(cache, current_room, summary))
 		.await;
 
 	let identifier = Identifier::UserId(user_id);
-	let allowed_room_ids = summary.allowed_room_ids.iter().map(AsRef::as_ref);
 
 	let is_accessible_child = self
-		.is_accessible_child(current_room, &summary.join_rule, &identifier, allowed_room_ids)
+		.is_accessible_child(current_room, &summary.summary.join_rule, &identifier)
 		.await;
 
 	let accessibility = if is_accessible_child {
@@ -313,7 +303,6 @@ async fn get_room_summary(
 			room_id,
 			&join_rule.clone().into(),
 			identifier,
-			join_rule.allowed_rooms(),
 		)
 		.await;
 
@@ -381,38 +370,34 @@ async fn get_room_summary(
 		encryption,
 	);
 
-	let summary = SpaceHierarchyParentSummary {
-		canonical_alias,
-		name,
-		topic,
-		world_readable,
+	let mut summary = RoomSummary::new(
+		room_id.to_owned(),
+		join_rule.clone().into(),
 		guest_can_join,
-		avatar_url,
-		room_type,
-		children_state,
-		encryption,
-		room_version,
-		room_id: room_id.to_owned(),
-		num_joined_members: num_joined_members.try_into().unwrap_or_default(),
-		allowed_room_ids: join_rule.allowed_rooms().map(Into::into).collect(),
-		join_rule: join_rule.clone().into(),
-	};
+		num_joined_members.try_into().unwrap_or_default(),
+		world_readable
+	);
+	summary.canonical_alias = canonical_alias;
+	summary.name = name;
+	summary.topic = topic;
+	summary.avatar_url = avatar_url;
+	summary.encryption = encryption;
+	summary.room_type = room_type;
+	summary.room_version = room_version;
+
+	let summary = SpaceHierarchyParentSummary::new(summary, children_state);
 
 	Ok(summary)
 }
 
 /// With the given identifier, checks if a room is accessible
 #[implement(Service)]
-async fn is_accessible_child<'a, I>(
+async fn is_accessible_child(
 	&self,
 	current_room: &RoomId,
-	join_rule: &SpaceRoomJoinRule,
+	join_rule: &JoinRuleSummary,
 	identifier: &Identifier<'_>,
-	allowed_rooms: I,
-) -> bool
-where
-	I: Iterator<Item = &'a RoomId> + Send,
-{
+) -> bool {
 	if let Identifier::ServerName(server_name) = identifier {
 		// Checks if ACLs allow for the server to participate
 		if self
@@ -437,23 +422,17 @@ where
 		}
 	}
 
-	match *join_rule {
-		| SpaceRoomJoinRule::Public
-		| SpaceRoomJoinRule::Knock
-		| SpaceRoomJoinRule::KnockRestricted => true,
-		| SpaceRoomJoinRule::Restricted =>
-			allowed_rooms
-				.stream()
-				.any(async |room| match identifier {
-					| Identifier::UserId(user) =>
-						self.services.state_cache.is_joined(user, room).await,
-					| Identifier::ServerName(server) =>
-						self.services.state_cache.server_in_room(server, room).await,
-				})
-				.await,
-
-		// Invite only, Private, or Custom join rule
-		| _ => false,
+	match join_rule {
+		| JoinRuleSummary::Public
+		| JoinRuleSummary::Knock
+		| JoinRuleSummary::KnockRestricted(_) => true,
+		| JoinRuleSummary::Restricted(restricted_summary) => {
+			(&restricted_summary.allowed_room_ids).stream().any(async |room| match identifier {
+				| Identifier::UserId(user) => self.services.state_cache.is_joined(user, room).await,
+				| Identifier::ServerName(server) => self.services.state_cache.server_in_room(server, room).await,
+			}).await
+		},
+		_ => false
 	}
 }
 
@@ -481,44 +460,14 @@ async fn cache_insert(
 	&self,
 	mut cache: MutexGuard<'_, Cache>,
 	current_room: &RoomId,
-	child: SpaceHierarchyChildSummary,
+	summary: RoomSummary,
 ) {
-	let SpaceHierarchyChildSummary {
-		canonical_alias,
-		name,
-		num_joined_members,
-		room_id,
-		topic,
-		world_readable,
-		guest_can_join,
-		avatar_url,
-		join_rule,
-		room_type,
-		allowed_room_ids,
-		encryption,
-		room_version,
-	} = child;
-
-	let summary = SpaceHierarchyParentSummary {
-		canonical_alias,
-		name,
-		num_joined_members,
-		topic,
-		world_readable,
-		guest_can_join,
-		avatar_url,
-		join_rule,
-		room_type,
-		allowed_room_ids,
-		room_id: room_id.clone(),
-		children_state: self
-			.get_space_child_events(&room_id)
+	let children_state = self
+			.get_space_child_events(&summary.room_id)
 			.map(Event::into_format)
 			.collect()
-			.await,
-		encryption,
-		room_version,
-	};
+			.await;
+	let summary = SpaceHierarchyParentSummary::new(summary, children_state);
 
 	cache.insert(current_room.to_owned(), Some(CachedSpaceHierarchySummary { summary }));
 }
@@ -527,39 +476,7 @@ async fn cache_insert(
 // ruma-client-api types
 impl From<CachedSpaceHierarchySummary> for SpaceHierarchyRoomsChunk {
 	fn from(value: CachedSpaceHierarchySummary) -> Self {
-		let SpaceHierarchyParentSummary {
-			canonical_alias,
-			name,
-			num_joined_members,
-			room_id,
-			topic,
-			world_readable,
-			guest_can_join,
-			avatar_url,
-			join_rule,
-			room_type,
-			children_state,
-			allowed_room_ids,
-			encryption,
-			room_version,
-		} = value.summary;
-
-		Self {
-			canonical_alias,
-			name,
-			num_joined_members,
-			room_id,
-			topic,
-			world_readable,
-			guest_can_join,
-			avatar_url,
-			join_rule,
-			room_type,
-			children_state,
-			encryption,
-			room_version,
-			allowed_room_ids,
-		}
+		Self::new(value.summary.summary, value.summary.children_state)
 	}
 }
 
@@ -567,37 +484,5 @@ impl From<CachedSpaceHierarchySummary> for SpaceHierarchyRoomsChunk {
 /// ruma-client-api types
 #[must_use]
 pub fn summary_to_chunk(summary: SpaceHierarchyParentSummary) -> SpaceHierarchyRoomsChunk {
-	let SpaceHierarchyParentSummary {
-		canonical_alias,
-		name,
-		num_joined_members,
-		room_id,
-		topic,
-		world_readable,
-		guest_can_join,
-		avatar_url,
-		join_rule,
-		room_type,
-		children_state,
-		allowed_room_ids,
-		encryption,
-		room_version,
-	} = summary;
-
-	SpaceHierarchyRoomsChunk {
-		canonical_alias,
-		name,
-		num_joined_members,
-		room_id,
-		topic,
-		world_readable,
-		guest_can_join,
-		avatar_url,
-		join_rule,
-		room_type,
-		children_state,
-		encryption,
-		room_version,
-		allowed_room_ids,
-	}
+	SpaceHierarchyRoomsChunk::new(summary.summary, summary.children_state)
 }
