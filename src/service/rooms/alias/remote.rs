@@ -16,7 +16,7 @@ pub(super) async fn remote_resolve(
 			error!("Unable to resolve remote room alias {}: {e}", room_alias);
 			Err(e)
 		},
-		| Ok(Response { room_id, servers }) => {
+		| Ok(Response { room_id, servers, .. }) => {
 			debug!("Remote resolved {room_alias:?} to {room_id:?} with servers {servers:?}");
 			Ok((room_id, servers))
 		},
@@ -31,7 +31,7 @@ async fn remote_request(
 ) -> Result<Response> {
 	use federation::query::get_room_information::v1::Request;
 
-	let request = Request { room_alias: room_alias.to_owned() };
+	let request = Request::new(room_alias.to_owned());
 
 	self.services
 		.sending

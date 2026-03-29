@@ -243,7 +243,13 @@ async fn migrate(services: &Services) -> Result<()> {
 			services
 				.users
 				.stream()
-				.filter(|user_id| services.users.is_active_local(user_id))
+				.filter_map(async |user_id| {
+					if services.users.is_active_local(&user_id).await {
+						Some(user_id)
+					} else {
+						None
+					}
+				})
 				.ready_for_each(|user_id| {
 					let matches = patterns.matches(user_id.localpart());
 					if matches.matched_any() {
@@ -268,7 +274,6 @@ async fn migrate(services: &Services) -> Result<()> {
 				.rooms
 				.metadata
 				.iter_ids()
-				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
 				.await
 			{
@@ -305,7 +310,6 @@ async fn db_lt_12(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.list_local_users()
-		.map(ToOwned::to_owned)
 		.collect::<Vec<OwnedUserId>>()
 		.await
 	{
@@ -385,7 +389,6 @@ async fn db_lt_13(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.list_local_users()
-		.map(ToOwned::to_owned)
 		.collect::<Vec<OwnedUserId>>()
 		.await
 	{
@@ -480,7 +483,6 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 		.rooms
 		.metadata
 		.iter_ids()
-		.map(ToOwned::to_owned)
 		.collect::<Vec<_>>()
 		.await;
 
@@ -491,7 +493,6 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 			.rooms
 			.state_cache
 			.room_members(room_id)
-			.map(ToOwned::to_owned)
 			.collect()
 			.await;
 
@@ -603,11 +604,8 @@ async fn fix_referencedevents_missing_sep(services: &Services) -> Result {
 }
 
 async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result {
-	use conduwuit::arrayvec::ArrayString;
-	use ruma::identifiers_validation::MAX_BYTES;
-
-	type ArrayId = ArrayString<MAX_BYTES>;
-	type Key<'a> = (&'a RoomId, u64, &'a UserId);
+	type ArrayId = String;
+	type Key = (OwnedRoomId, u64, OwnedUserId);
 
 	info!("Fixing undeleted entries in readreceiptid_readreceipt...");
 
@@ -621,8 +619,8 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 	readreceiptid_readreceipt
 		.keys()
 		.expect_ok()
-		.ready_for_each(|key: Key<'_>| {
-			let (room_id, _, user_id) = key;
+		.ready_for_each(|key: Key| {
+			let (ref room_id, _, ref user_id) = key;
 			let last_room = cur_room.replace(
 				room_id
 					.as_str()
@@ -715,8 +713,8 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 
 const POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER: &str = "populate_userroomid_leftstate_table";
 async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
-	type KeyVal<'a> = (Key<'a>, Raw<Option<Pdu>>);
-	type Key<'a> = (&'a UserId, &'a RoomId);
+	type KeyVal = (Key, Raw<Option<Pdu>>);
+	type Key = (OwnedUserId, OwnedRoomId);
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
@@ -731,16 +729,16 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 				usize,
 				HashMap<_, _>,
 			),
-			       ((user_id, room_id), state): KeyVal<'_>|
+			       ((user_id, room_id), state): KeyVal|
 			       -> Result<(usize, usize, HashMap<_, _>)> {
 				if state.deserialize().is_err() {
 					let latest_shortstatehash =
-						if let Some(shortstatehash) = shortstatehash_cache.get(room_id) {
+						if let Some(shortstatehash) = shortstatehash_cache.get(&room_id) {
 							*shortstatehash
 						} else if let Ok(shortstatehash) =
-							services.rooms.state.get_room_shortstatehash(room_id).await
+							services.rooms.state.get_room_shortstatehash(&room_id).await
 						{
-							shortstatehash_cache.insert(room_id.to_owned(), shortstatehash);
+							shortstatehash_cache.insert(room_id.clone(), shortstatehash);
 							shortstatehash
 						} else {
 							warn!(%room_id, %user_id, "room has no shortstatehash");
@@ -792,8 +790,8 @@ const FIXED_LOCAL_INVITE_STATE_MARKER: &str = "fix_local_invite_state";
 async fn fix_local_invite_state(services: &Services) -> Result {
 	// Clean up the effects of !1249 by caching stripped state for invites
 
-	type KeyVal<'a> = (Key<'a>, Raw<Vec<AnyStrippedStateEvent>>);
-	type Key<'a> = (&'a UserId, &'a RoomId);
+	type KeyVal = (Key, Raw<Vec<AnyStrippedStateEvent>>);
+	type Key = (OwnedUserId, OwnedRoomId);
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
@@ -802,9 +800,9 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 	// for each user invited to a room
 	let fixed =  userroomid_invitestate.stream()
 		// if they're a local user on this homeserver
-		.try_filter(|((user_id, _), _): &KeyVal<'_>| ready(services.globals.user_is_local(user_id)))
-		.and_then(async |((user_id, room_id), stripped_state): KeyVal<'_>| Ok::<_,
-			conduwuit::Error>((user_id.to_owned(), room_id.to_owned(), stripped_state.deserialize
+		.try_filter(|((user_id, _), _): &KeyVal| ready(services.globals.user_is_local(user_id)))
+		.and_then(async |((user_id, room_id), stripped_state): KeyVal| Ok::<_,
+			conduwuit::Error>((user_id.clone(), room_id.clone(), stripped_state.deserialize
 		().unwrap_or_else(|e| {
 			trace!("Failed to deserialize: {:?}", stripped_state.json());
 			warn!(
@@ -812,7 +810,7 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 				%room_id,
 				"Failed to deserialize stripped state for invite, removing from db: {e}"
 			);
-			userroomid_invitestate.del((user_id, room_id));
+			userroomid_invitestate.del((&user_id, &room_id));
 			vec![]
 		}))))
 		.try_fold(0_usize, async |mut fixed, (user_id, room_id, stripped_state)| {

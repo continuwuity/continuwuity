@@ -1045,6 +1045,7 @@ dependencies = [
  "rand 0.10.1",
  "reqwest 0.13.2",
  "ruma",
+ "ruminuwuity",
  "serde",
  "serde_html_form 0.4.0",
  "serde_json",
@@ -1225,6 +1226,7 @@ dependencies = [
  "regex",
  "reqwest 0.13.2",
  "ruma",
+ "ruminuwuity",
  "rustyline-async",
  "sd-notify",
  "serde",
@@ -1322,16 +1324,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e262cdaac42494e3ae34c43969f9cdeb7da178bdb4b66fa6a1ea2edb4c8ae652"
 dependencies = [
  "typewit",
-]
-
-[[package]]
-name = "continuwuity-admin-api"
-version = "0.1.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
-dependencies = [
- "ruma-common",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1778,16 +1770,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
-]
-
-[[package]]
-name = "draupnir-antispam"
-version = "0.1.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
-dependencies = [
- "ruma-common",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -2985,30 +2967,20 @@ dependencies = [
 
 [[package]]
 name = "js_option"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68421373957a1593a767013698dbf206e2b221eefe97a44d98d18672ff38423c"
+checksum = "c7dd3e281add16813cf673bf74a32249b0aa0d1c8117519a17b3ada5e8552b3c"
 dependencies = [
- "serde",
+ "serde_core",
 ]
 
 [[package]]
 name = "konst"
-version = "0.3.17"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97feab15b395d1860944abe6a8dd8ed9f8eadfae01750fada8427abda531d887"
+checksum = "f660d5f887e3562f9ab6f4a14988795b694099d66b4f5dedc02d197ba9becb1d"
 dependencies = [
  "const_panic",
- "konst_kernel",
- "typewit",
-]
-
-[[package]]
-name = "konst_kernel"
-version = "0.3.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4b1eb7788f3824c629b1116a7a9060d6e898c358ebff59070093d51103dcc3c"
-dependencies = [
  "typewit",
 ]
 
@@ -3337,16 +3309,6 @@ dependencies = [
  "tracing",
  "urlencoding",
  "walkdir",
-]
-
-[[package]]
-name = "meowlnir-antispam"
-version = "0.1.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
-dependencies = [
- "ruma-common",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -4380,6 +4342,8 @@ version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ca0ecfa931c29007047d1bc58e623ab12e5590e8c7cc53200d5202b69266d8a"
 dependencies = [
+ "libc",
+ "rand_chacha 0.3.1",
  "rand_core 0.6.4",
 ]
 
@@ -4389,7 +4353,7 @@ version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44c5af06bb1b7d3216d91932aed5265164bf384dc89cd6ba05cf59a35f5f76ea"
 dependencies = [
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "rand_core 0.9.5",
 ]
 
@@ -4402,6 +4366,16 @@ dependencies = [
  "chacha20",
  "getrandom 0.4.2",
  "rand_core 0.10.1",
+]
+
+[[package]]
+name = "rand_chacha"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
+dependencies = [
+ "ppv-lite86",
+ "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -4466,7 +4440,7 @@ dependencies = [
  "paste",
  "profiling",
  "rand 0.9.4",
- "rand_chacha",
+ "rand_chacha 0.9.0",
  "simd_helpers",
  "thiserror 2.0.18",
  "v_frame",
@@ -4665,31 +4639,27 @@ dependencies = [
 
 [[package]]
 name = "ruma"
-version = "0.10.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.14.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "assign",
- "continuwuity-admin-api",
- "draupnir-antispam",
  "js_int",
  "js_option",
- "meowlnir-antispam",
  "ruma-appservice-api",
  "ruma-client-api",
  "ruma-common",
  "ruma-events",
  "ruma-federation-api",
- "ruma-identifiers-validation",
- "ruma-identity-service-api",
  "ruma-push-gateway-api",
  "ruma-signatures",
+ "ruma-state-res",
  "web-time",
 ]
 
 [[package]]
 name = "ruma-appservice-api"
-version = "0.10.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.14.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4700,13 +4670,12 @@ dependencies = [
 
 [[package]]
 name = "ruma-client-api"
-version = "0.18.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.22.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "as_variant",
  "assign",
  "bytes",
- "date_header",
  "http",
  "js_int",
  "js_option",
@@ -4723,12 +4692,13 @@ dependencies = [
 
 [[package]]
 name = "ruma-common"
-version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.17.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
  "bytes",
+ "date_header",
  "form_urlencoded",
  "getrandom 0.2.17",
  "http",
@@ -4736,14 +4706,13 @@ dependencies = [
  "js_int",
  "konst",
  "percent-encoding",
- "rand 0.10.1",
+ "rand 0.8.6",
  "regex",
  "ruma-identifiers-validation",
  "ruma-macros",
  "serde",
  "serde_html_form 0.2.8",
  "serde_json",
- "smallvec",
  "thiserror 2.0.18",
  "time",
  "tracing",
@@ -4751,37 +4720,34 @@ dependencies = [
  "uuid",
  "web-time",
  "wildmatch",
+ "zeroize",
 ]
 
 [[package]]
 name = "ruma-events"
-version = "0.28.1"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.32.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "as_variant",
  "indexmap",
  "js_int",
  "js_option",
- "percent-encoding",
  "pulldown-cmark",
- "regex",
  "ruma-common",
- "ruma-identifiers-validation",
  "ruma-macros",
  "serde",
  "serde_json",
- "smallvec",
  "thiserror 2.0.18",
  "tracing",
- "url",
  "web-time",
  "wildmatch",
+ "zeroize",
 ]
 
 [[package]]
 name = "ruma-federation-api"
-version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.13.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "bytes",
  "headers",
@@ -4791,9 +4757,10 @@ dependencies = [
  "js_int",
  "memchr",
  "mime",
- "rand 0.10.1",
+ "rand 0.8.6",
  "ruma-common",
  "ruma-events",
+ "ruma-signatures",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
@@ -4802,28 +4769,19 @@ dependencies = [
 
 [[package]]
 name = "ruma-identifiers-validation"
-version = "0.9.5"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.12.0"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "js_int",
  "thiserror 2.0.18",
 ]
 
 [[package]]
-name = "ruma-identity-service-api"
-version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
-dependencies = [
- "js_int",
- "ruma-common",
- "serde",
-]
-
-[[package]]
 name = "ruma-macros"
-version = "0.13.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.17.1"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
+ "as_variant",
  "cfg-if",
  "proc-macro-crate",
  "proc-macro2",
@@ -4831,13 +4789,13 @@ dependencies = [
  "ruma-identifiers-validation",
  "serde",
  "syn",
- "toml 0.8.23",
+ "toml 1.1.2+spec-1.1.0",
 ]
 
 [[package]]
 name = "ruma-push-gateway-api"
-version = "0.9.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.13.0"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4848,19 +4806,43 @@ dependencies = [
 
 [[package]]
 name = "ruma-signatures"
-version = "0.15.0"
-source = "git+https://forgejo.ellis.link/continuwuation/ruwuma?rev=d00b51a8669b21689c4eb47fb81f3a8b27c3e371#d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+version = "0.19.0"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
+ "memchr",
  "pkcs8",
- "rand 0.10.1",
- "rand_core 0.6.4",
+ "rand 0.8.6",
  "ruma-common",
  "serde_json",
  "sha2 0.10.9",
- "subslice",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "ruma-state-res"
+version = "0.15.0"
+source = "git+https://github.com/ruma/ruma.git?rev=e2e5fece57800a2559ab028fd775a7978f3725e9#e2e5fece57800a2559ab028fd775a7978f3725e9"
+dependencies = [
+ "js_int",
+ "ruma-common",
+ "ruma-events",
+ "ruma-signatures",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "ruminuwuity"
+version = "0.5.7"
+dependencies = [
+ "ruma",
+ "serde",
+ "serde_json",
+ "wildmatch",
 ]
 
 [[package]]
@@ -5625,15 +5607,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
-name = "subslice"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0a8e4809a3bb02de01f1f7faf1ba01a83af9e8eabcd4d31dd6e413d14d56aae"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6272,15 +6245,6 @@ name = "typewit"
 version = "1.15.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "214ca0b2191785cbc06209b9ca1861e048e39b5ba33574b3cedd58363d5bb5f6"
-dependencies = [
- "typewit_proc_macros",
-]
-
-[[package]]
-name = "typewit_proc_macros"
-version = "1.8.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e36a83ea2b3c704935a01b4642946aadd445cea40b10935e3f8bd8052b8193d6"
 
 [[package]]
 name = "uname"

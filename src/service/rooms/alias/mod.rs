@@ -9,11 +9,10 @@ use conduwuit::{
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
-	OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId, RoomOrAliasId, UserId,
-	events::{
+	OwnedRoomAliasId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId, RoomOrAliasId, UserId, events::{
 		StateEventType,
 		room::power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-	},
+	}
 };
 
 use crate::{Dep, admin, appservice, appservice::RegistrationInfo, globals, rooms, sending};
@@ -179,7 +178,6 @@ impl Service {
 				.services
 				.state_cache
 				.room_servers(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			return Ok((room_id, servers));
@@ -197,22 +195,22 @@ impl Service {
 	pub fn local_aliases_for_room<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-	) -> impl Stream<Item = &'a RoomAliasId> + Send + 'a {
+	) -> impl Stream<Item = OwnedRoomAliasId> + Send + 'a {
 		let prefix = (room_id, Interfix);
 		self.db
 			.aliasid_alias
 			.stream_prefix(&prefix)
 			.ignore_err()
-			.map(|(_, alias): (Ignore, &RoomAliasId)| alias)
+			.map(|(_, alias): (Ignore, OwnedRoomAliasId)| alias)
 	}
 
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub fn all_local_aliases(&self) -> impl Stream<Item = (&RoomId, &str)> + Send + '_ {
+	pub fn all_local_aliases(&self) -> impl Stream<Item = (OwnedRoomId, &str)> + Send + '_ {
 		self.db
 			.alias_roomid
 			.stream()
 			.ignore_err()
-			.map(|(alias_localpart, room_id): (&str, &RoomId)| (room_id, alias_localpart))
+			.map(|(alias_localpart, room_id): (&str, OwnedRoomId)| (room_id, alias_localpart))
 	}
 
 	async fn user_can_remove_alias(&self, alias: &RoomAliasId, user_id: &UserId) -> Result<bool> {
@@ -236,34 +234,14 @@ impl Service {
 		}
 
 		// Checking whether the user is able to change canonical aliases of the room
-		if let Ok(power_levels) = self
+		let can_change_canonical_alias = self
 			.services
 			.state_accessor
-			.room_state_get_content::<RoomPowerLevelsEventContent>(
-				&room_id,
-				&StateEventType::RoomPowerLevels,
-				"",
-			)
-			.map_ok(RoomPowerLevels::from)
+			.get_room_power_levels(&room_id)
 			.await
-		{
-			return Ok(
-				power_levels.user_can_send_state(user_id, StateEventType::RoomCanonicalAlias)
-			);
-		}
+			.user_can_send_state(user_id, StateEventType::RoomCanonicalAlias);
 
-		// If there is no power levels event, only the room creator can change
-		// canonical aliases
-		if let Ok(event) = self
-			.services
-			.state_accessor
-			.room_state_get(&room_id, &StateEventType::RoomCreate, "")
-			.await
-		{
-			return Ok(event.sender() == user_id);
-		}
-
-		Err!(Database("Room has no m.room.create event"))
+		Ok(can_change_canonical_alias)
 	}
 
 	async fn who_created_alias(&self, alias: &RoomAliasId) -> Result<OwnedUserId> {
@@ -299,7 +277,7 @@ impl Service {
 						.sending
 						.send_appservice_request(
 							appservice.registration.clone(),
-							query_room_alias::v1::Request { room_alias: room_alias.to_owned() },
+							query_room_alias::v1::Request::new(room_alias.to_owned()),
 						)
 						.await,
 					Ok(Some(_opt_result))

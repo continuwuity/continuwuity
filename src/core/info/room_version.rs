@@ -2,7 +2,7 @@
 
 use std::iter::once;
 
-use ruma::{RoomVersionId, api::client::discovery::get_capabilities::RoomVersionStability};
+use ruma::{RoomVersionId, api::client::discovery::get_capabilities::v3::RoomVersionStability};
 
 use crate::{at, is_equal_to};
 

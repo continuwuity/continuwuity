@@ -157,7 +157,6 @@ pub async fn build_and_append_pdu(
 		.services
 		.state_cache
 		.room_servers(&room_id)
-		.map(ToOwned::to_owned)
 		.collect()
 		.await;
 
@@ -180,7 +179,7 @@ pub async fn build_and_append_pdu(
 	trace!("Sending PDU {} to {} servers", pdu.event_id(), servers.len());
 	self.services
 		.sending
-		.send_pdu_servers(servers.iter().map(AsRef::as_ref).stream(), &pdu_id)
+		.send_pdu_servers(servers.stream(), &pdu_id)
 		.await?;
 
 	trace!("Event {} in room {:?} has been appended", pdu.event_id(), room_id);

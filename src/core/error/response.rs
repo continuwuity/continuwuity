@@ -4,7 +4,7 @@ use http_body_util::Full;
 use ruma::api::{
 	OutgoingResponse,
 	client::{
-		error::{ErrorBody, ErrorKind},
+		error::{ErrorBody, ErrorKind, StandardErrorBody},
 		uiaa::UiaaResponse,
 	},
 };
@@ -51,15 +51,9 @@ impl From<Error> for UiaaResponse {
 			return Self::AuthResponse(uiaainfo);
 		}
 
-		let body = ErrorBody::Standard {
-			kind: error.kind(),
-			message: error.message(),
-		};
+		let body = ErrorBody::Standard(StandardErrorBody::new(error.kind(), error.message()));
 
-		Self::MatrixError(ruma::api::client::error::Error {
-			status_code: error.status_code(),
-			body,
-		})
+		Self::MatrixError(ruma::api::client::error::Error::new(error.status_code(), body))
 	}
 }
 
@@ -85,7 +79,7 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		| Unrecognized => StatusCode::METHOD_NOT_ALLOWED,
 
 		// 404
-		| NotFound | NotImplemented | FeatureDisabled | SenderIgnored { .. } =>
+		| NotFound =>
 			StatusCode::NOT_FOUND,
 
 		// 403
@@ -93,7 +87,6 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		| ThreepidAuthFailed
 		| UserDeactivated
 		| ThreepidDenied
-		| InviteBlocked
 		| WrongRoomKeysVersion { .. }
 		| UserSuspended
 		| Forbidden { .. } => StatusCode::FORBIDDEN,
@@ -108,7 +101,7 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 }
 
 pub(super) fn ruma_error_message(error: &ruma::api::client::error::Error) -> String {
-	if let ErrorBody::Standard { message, .. } = &error.body {
+	if let ErrorBody::Standard(StandardErrorBody { message, .. }) = &error.body {
 		return message.clone();
 	}
 

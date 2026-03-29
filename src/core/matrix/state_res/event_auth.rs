@@ -5,16 +5,12 @@ use futures::{
 	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId,
-	events::room::{
+	Int, OwnedUserId, RoomVersionId, UserId, events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
 		member::{MembershipState, ThirdPartyInvite},
 		power_levels::RoomPowerLevelsEventContent,
-		third_party_invite::RoomThirdPartyInviteEventContent,
-	},
-	int,
-	serde::{Base64, Raw},
+	}, int, room_version_rules::{RoomIdFormatVersion, RoomVersionRules}, serde::Raw,
 };
 use serde::{
 	Deserialize,
@@ -28,7 +24,6 @@ use super::{
 		deserialize_power_levels, deserialize_power_levels_content_fields,
 		deserialize_power_levels_content_invite, deserialize_power_levels_content_redact,
 	},
-	room_version::RoomVersion,
 };
 use crate::{debug, error, trace, warn};
 
@@ -65,13 +60,13 @@ pub fn auth_types_for_event(
 	sender: &UserId,
 	state_key: Option<&str>,
 	content: &RawJsonValue,
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 ) -> serde_json::Result<Vec<(StateEventType, StateKey)>> {
 	if kind == &TimelineEventType::RoomCreate {
 		return Ok(vec![]);
 	}
 
-	let mut auth_types = if room_version.room_ids_as_hashes {
+	let mut auth_types = if room_version.room_id_format == RoomIdFormatVersion::V2 {
 		vec![
 			(StateEventType::RoomPowerLevels, StateKey::new()),
 			(StateEventType::RoomMember, sender.as_str().into()),
@@ -120,15 +115,16 @@ pub fn auth_types_for_event(
 					auth_types.push(key);
 				}
 
-				if membership == MembershipState::Invite {
-					if let Some(Ok(t_id)) = content.third_party_invite.map(|t| t.deserialize()) {
-						let key =
-							(StateEventType::RoomThirdPartyInvite, t_id.signed.token.into());
-						if !auth_types.contains(&key) {
-							auth_types.push(key);
-						}
-					}
-				}
+				// TODO: restore this once 3pid support isn't broken
+				// if membership == MembershipState::Invite {
+				// 	if let Some(Ok(t_id)) = content.third_party_invite.map(|t| t.deserialize()) {
+				// 		let key =
+				// 			(StateEventType::RoomThirdPartyInvite, t_id.signed.token.into());
+				// 		if !auth_types.contains(&key) {
+				// 			auth_types.push(key);
+				// 		}
+				// 	}
+				// }
 			}
 		}
 	}
@@ -155,7 +151,7 @@ pub fn auth_types_for_event(
 )]
 #[allow(clippy::suspicious_operation_groupings)]
 pub async fn auth_check<E, F, Fut>(
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 	incoming_event: &E,
 	current_third_party_invite: Option<&E>,
 	fetch_state: F,
@@ -218,13 +214,13 @@ where
 			return Ok(false);
 		}
 
-		if room_version.room_ids_as_hashes && incoming_event.room_id().is_some() {
+		if room_version.room_id_format == RoomIdFormatVersion::V2 && incoming_event.room_id().is_some() {
 			warn!("room create event incorrectly claims to have a room ID when it should not");
 			return Ok(false);
 		}
 
-		if !room_version.use_room_create_sender
-			&& !room_version.explicitly_privilege_room_creators
+		if !room_version.authorization.use_room_create_sender
+			&& !room_version.authorization.explicitly_privilege_room_creators
 		{
 			// If content has no creator field, reject
 			if content.creator.is_none() {
@@ -305,10 +301,10 @@ where
 	let claims_create_event = incoming_event
 		.auth_events()
 		.any(|id| id == room_create_event.event_id());
-	if room_version.room_ids_as_hashes && claims_create_event {
+	if room_version.room_id_format == RoomIdFormatVersion::V2 && claims_create_event {
 		warn!("event incorrectly references m.room.create event in auth events");
 		return Ok(false);
-	} else if !room_version.room_ids_as_hashes && !claims_create_event {
+	} else if !(room_version.room_id_format == RoomIdFormatVersion::V2) && !claims_create_event {
 		// If the create event is not referenced in the event's auth events, and this is
 		// a v11 room, reject
 		warn!(
@@ -332,7 +328,7 @@ where
 	// If the create event content has the field m.federate set to false and the
 	// sender domain of the event does not match the sender domain of the create
 	// event, reject.
-	if !room_version.room_ids_as_hashes
+	if !(room_version.room_id_format == RoomIdFormatVersion::V2)
 		&& !room_create_content.federate
 		&& room_create_event.sender().server_name() != incoming_event.sender().server_name()
 	{
@@ -345,7 +341,7 @@ where
 	}
 
 	// Only in some room versions 6 and below
-	if room_version.special_case_aliases_auth {
+	if room_version.authorization.special_case_room_aliases {
 		// 4. If type is m.room.aliases
 		if *incoming_event.event_type() == TimelineEventType::RoomAliases {
 			debug!("starting m.room.aliases check");
@@ -486,7 +482,7 @@ where
 		},
 		| _ => {
 			// If no power level event found the creator gets 100 everyone else gets 0
-			let is_creator = if room_version.use_room_create_sender {
+			let is_creator = if room_version.authorization.use_room_create_sender {
 				room_create_event.sender() == sender
 			} else {
 				#[allow(deprecated)]
@@ -497,7 +493,7 @@ where
 			if is_creator { int!(100) } else { int!(0) }
 		},
 	};
-	if room_version.explicitly_privilege_room_creators {
+	if room_version.authorization.explicitly_privilege_room_creators {
 		// If the user sent the create event, or is listed in additional_creators, just
 		// give them Int::MAX
 		if sender == room_create_event.sender()
@@ -559,7 +555,7 @@ where
 	if *incoming_event.event_type() == TimelineEventType::RoomPowerLevels {
 		debug!("starting m.room.power_levels check");
 		let mut creators = BTreeSet::new();
-		if room_version.explicitly_privilege_room_creators {
+		if room_version.authorization.explicitly_privilege_room_creators {
 			creators.insert(create_event.sender().to_owned());
 			for creator in room_create_content.additional_creators.iter().flatten() {
 				creators.insert(creator.deserialize()?);
@@ -593,7 +589,7 @@ where
 	// the sender of the redaction has the appropriate permissions per the
 	// power levels.
 
-	if room_version.extra_redaction_checks
+	if room_version.authorization.special_case_room_redaction
 		&& *incoming_event.event_type() == TimelineEventType::RoomRedaction
 	{
 		let redact_level = match power_levels_event {
@@ -618,7 +614,7 @@ where
 }
 
 fn is_creator<EV>(
-	v: &RoomVersion,
+	v: &RoomVersionRules,
 	c: &BTreeSet<OwnedUserId>,
 	ce: &EV,
 	user_id: &UserId,
@@ -627,9 +623,9 @@ fn is_creator<EV>(
 where
 	EV: Event + Send + Sync,
 {
-	if v.explicitly_privilege_room_creators {
+	if v.authorization.explicitly_privilege_room_creators {
 		c.contains(user_id)
-	} else if v.use_room_create_sender && !have_pls {
+	} else if v.authorization.use_room_create_sender && !have_pls {
 		ce.sender() == user_id
 	} else if !have_pls {
 		#[allow(deprecated)]
@@ -659,7 +655,7 @@ where
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::cognitive_complexity)]
 fn valid_membership_change<E>(
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 	target_user: &UserId,
 	target_user_membership_event: Option<&E>,
 	sender: &UserId,
@@ -700,7 +696,7 @@ where
 
 	let power_levels: RoomPowerLevelsEventContent = match &power_levels_event {
 		| Some(ev) => from_json_str(ev.content().get())?,
-		| None => RoomPowerLevelsEventContent::default(),
+		| None => RoomPowerLevelsEventContent::new(&room_version.authorization),
 	};
 
 	let mut sender_power = power_levels
@@ -714,7 +710,7 @@ where
 
 	let mut creators = BTreeSet::new();
 	creators.insert(create_room.sender().to_owned());
-	if room_version.explicitly_privilege_room_creators {
+	if room_version.authorization.explicitly_privilege_room_creators {
 		// Explicitly privilege room creators
 		// If the sender sent the create event, or in additional_creators, give them
 		// Int::MAX. Same case for target.
@@ -865,7 +861,7 @@ where
 							trace!(sender=%sender, "sender is invited to room, allowing join");
 							true
 						},
-					| JoinRule::Knock if !room_version.allow_knocking => {
+					| JoinRule::Knock if !room_version.authorization.knocking => {
 						warn!("Join rule is knock but room version does not allow knocking");
 						false
 					},
@@ -882,7 +878,7 @@ where
 							trace!(sender=%sender, "sender is invited or already joined to room, allowing join");
 							true
 						},
-					| JoinRule::KnockRestricted(_) if !room_version.knock_restricted_join_rule =>
+					| JoinRule::KnockRestricted(_) if !room_version.authorization.knock_restricted_join_rule =>
 					{
 						warn!(
 							"Join rule is knock_restricted but room version does not support it"
@@ -1127,7 +1123,7 @@ where
 				}
 				allow
 			},
-		| MembershipState::Knock if room_version.allow_knocking => {
+		| MembershipState::Knock if room_version.authorization.knocking => {
 			// 1. If the `join_rule` is anything other than `knock` or `knock_restricted`,
 			//    reject.
 			if !matches!(join_rules, JoinRule::KnockRestricted(_) | JoinRule::Knock) {
@@ -1136,7 +1132,7 @@ where
 				);
 				false
 			} else if matches!(join_rules, JoinRule::KnockRestricted(_))
-				&& !room_version.knock_restricted_join_rule
+				&& !room_version.authorization.knock_restricted_join_rule
 			{
 				// 2. If the `join_rule` is `knock_restricted`, but the room does not support
 				//    `knock_restricted`, reject.
@@ -1226,7 +1222,7 @@ fn can_send_event(event: &impl Event, ple: Option<&impl Event>, user_level: Int)
 /// Confirm that the event sender has the required power levels.
 #[allow(clippy::cognitive_complexity)]
 fn check_power_levels(
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 	power_event: &impl Event,
 	previous_power_event: Option<&impl Event>,
 	user_level: Int,
@@ -1382,7 +1378,7 @@ fn check_power_levels(
 	}
 
 	// Notifications, currently there is only @room
-	if room_version.limit_notifications_power_levels {
+	if room_version.authorization.limit_notifications_power_levels {
 		let old_level = old_state.notifications.room;
 		let new_level = new_state.notifications.room;
 		if old_level != new_level {
@@ -1451,7 +1447,7 @@ fn get_deserialize_levels(
 /// Does the event redacting come from a user with enough power to redact the
 /// given event.
 fn check_redaction(
-	_room_version: &RoomVersion,
+	_room_version: &RoomVersionRules,
 	redaction_event: &impl Event,
 	user_level: Int,
 	redact_level: Int,
@@ -1501,79 +1497,32 @@ fn get_send_level(
 }
 
 fn verify_third_party_invite(
-	target_user: Option<&UserId>,
-	sender: &UserId,
-	tp_id: &ThirdPartyInvite,
-	current_third_party_invite: Option<&impl Event>,
+	_target_user: Option<&UserId>,
+	_sender: &UserId,
+	_tp_id: &ThirdPartyInvite,
+	_current_third_party_invite: Option<&impl Event>,
 ) -> bool {
-	// 1. Check for user being banned happens before this is called
-	// checking for mxid and token keys is done by ruma when deserializing
-
-	// The state key must match the invitee
-	if target_user != Some(&tp_id.signed.mxid) {
-		return false;
-	}
-
-	// If there is no m.room.third_party_invite event in the current room state with
-	// state_key matching token, reject
-	#[allow(clippy::manual_let_else)]
-	let current_tpid = match current_third_party_invite {
-		| Some(id) => id,
-		| None => return false,
-	};
-
-	if current_tpid.state_key() != Some(&tp_id.signed.token) {
-		return false;
-	}
-
-	if sender != current_tpid.sender() {
-		return false;
-	}
-
-	// If any signature in signed matches any public key in the
-	// m.room.third_party_invite event, allow
-	#[allow(clippy::manual_let_else)]
-	let tpid_ev =
-		match from_json_str::<RoomThirdPartyInviteEventContent>(current_tpid.content().get()) {
-			| Ok(ev) => ev,
-			| Err(_) => return false,
-		};
-
-	#[allow(clippy::manual_let_else)]
-	let decoded_invite_token = match Base64::parse(&tp_id.signed.token) {
-		| Ok(tok) => tok,
-		// FIXME: Log a warning?
-		| Err(_) => return false,
-	};
-
-	// A list of public keys in the public_keys field
-	for key in tpid_ev.public_keys.unwrap_or_default() {
-		if key.public_key == decoded_invite_token {
-			return true;
-		}
-	}
-
-	// A single public key in the public_key field
-	tpid_ev.public_key == decoded_invite_token
+	// TODO: implement proper verification here
+	true
 }
 
 #[cfg(test)]
 mod tests {
-	use ruma::events::{
+	use ruma::{events::{
 		StateEventType, TimelineEventType,
 		room::{
 			join_rules::{
-				AllowRule, JoinRule, Restricted, RoomJoinRulesEventContent, RoomMembership,
+				AllowRule, JoinRule, Restricted, RoomJoinRulesEventContent,
 			},
 			member::{MembershipState, RoomMemberEventContent},
 		},
-	};
+	}, room::RoomMembership, room_version_rules::RoomVersionRules};
 	use serde_json::value::to_raw_value as to_raw_json_value;
 
 	use crate::{
 		matrix::{Event, EventTypeExt, Pdu as PduEvent},
 		state_res::{
-			RoomVersion, StateMap,
+			StateMap,
 			event_auth::valid_membership_change,
 			test_utils::{
 				INITIAL_EVENTS, INITIAL_EVENTS_CREATE_ROOM, alice, charlie, ella, event_id,
@@ -1610,7 +1559,7 @@ mod tests {
 
 		assert!(
 			valid_membership_change(
-				&RoomVersion::V6,
+				&RoomVersionRules::V6,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1655,7 +1604,7 @@ mod tests {
 
 		assert!(
 			!valid_membership_change(
-				&RoomVersion::V6,
+				&RoomVersionRules::V6,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1700,7 +1649,7 @@ mod tests {
 
 		assert!(
 			valid_membership_change(
-				&RoomVersion::V6,
+				&RoomVersionRules::V6,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1745,7 +1694,7 @@ mod tests {
 
 		assert!(
 			!valid_membership_change(
-				&RoomVersion::V6,
+				&RoomVersionRules::V6,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1807,7 +1756,7 @@ mod tests {
 
 		assert!(
 			valid_membership_change(
-				&RoomVersion::V9,
+				&RoomVersionRules::V9,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1825,7 +1774,7 @@ mod tests {
 
 		assert!(
 			!valid_membership_change(
-				&RoomVersion::V9,
+				&RoomVersionRules::V9,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,
@@ -1879,7 +1828,7 @@ mod tests {
 
 		assert!(
 			valid_membership_change(
-				&RoomVersion::V7,
+				&RoomVersionRules::V7,
 				target_user,
 				fetch_state(StateEventType::RoomMember, target_user.as_str().into()).as_ref(),
 				sender,

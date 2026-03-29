@@ -1,9 +1,11 @@
-use std::{fmt::Debug, mem};
+use std::{borrow::Cow, fmt::Debug, mem};
 
 use bytes::BytesMut;
 use conduwuit::{Err, Result, debug_error, err, utils, utils::response::LimitReadExt, warn};
 use reqwest::Client;
-use ruma::api::{IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken};
+use ruma::api::{IncomingResponse, MatrixVersion, OutgoingRequest, auth_scheme::{AppserviceToken, SendAccessToken}, path_builder::VersionHistory};
+
+use crate::SUPPORTED_VERSIONS;
 
 /// Sends a request to an antispam service
 pub(crate) async fn send_antispam_request<T>(
@@ -13,11 +15,15 @@ pub(crate) async fn send_antispam_request<T>(
 	request: T,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest + Debug + Send,
+	T: OutgoingRequest::<Authentication = AppserviceToken, PathBuilder = VersionHistory> + Debug + Send,
 {
 	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_15];
 	let http_request = request
-		.try_into_http_request::<BytesMut>(base_url, SendAccessToken::Always(secret), &VERSIONS)?
+		.try_into_http_request::<BytesMut>(
+			base_url,
+			SendAccessToken::Always(secret),
+			Cow::Borrowed(&SUPPORTED_VERSIONS),
+		)?
 		.map(BytesMut::freeze);
 	let reqwest_request = reqwest::Request::try_from(http_request)?;
 

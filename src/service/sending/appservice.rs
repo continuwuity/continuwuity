@@ -5,7 +5,7 @@ use conduwuit::{
 	Err, Result, debug_error, err, implement, trace, utils, utils::response::LimitReadExt, warn,
 };
 use ruma::api::{
-	IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken, appservice::Registration,
+	IncomingResponse, MatrixVersion, OutgoingRequest, appservice::Registration, auth_scheme::{AccessToken, SendAccessToken}, path_builder::SinglePath,
 };
 
 /// Sends a request to an appservice
@@ -19,10 +19,8 @@ pub async fn send_appservice_request<T>(
 	request: T,
 ) -> Result<Option<T::IncomingResponse>>
 where
-	T: OutgoingRequest + Debug + Send,
+	T: OutgoingRequest<Authentication = AccessToken, PathBuilder = SinglePath> + Debug + Send,
 {
-	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_7];
-
 	let Some(dest) = registration.url else {
 		return Ok(None);
 	};
@@ -38,7 +36,7 @@ where
 		.try_into_http_request::<BytesMut>(
 			&dest,
 			SendAccessToken::Appservice(hs_token),
-			&VERSIONS,
+			(),
 		)
 		.map_err(|e| {
 			err!(BadServerResponse(

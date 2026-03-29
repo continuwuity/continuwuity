@@ -17,8 +17,7 @@ use futures::{
 	future::{join, join4, join5},
 };
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UInt, UserId,
-	api::{
+	OwnedRoomId, RoomId, ServerName, UInt, UserId, api::{
 		client::{
 			directory::{
 				get_public_rooms, get_public_rooms_filtered, get_room_visibility,
@@ -27,17 +26,14 @@ use ruma::{
 			room,
 		},
 		federation,
-	},
-	directory::{Filter, PublicRoomJoinRule, PublicRoomsChunk, RoomNetwork, RoomTypeFilter},
-	events::{
+	}, directory::{Filter, PublicRoomsChunk, RoomNetwork, RoomTypeFilter}, events::{
 		StateEventType,
 		room::{
 			create::RoomCreateEventContent,
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
-	},
-	uint,
+	}, room::JoinRuleKind, uint
 };
 use tokio::join;
 
@@ -425,7 +421,7 @@ async fn public_rooms_chunk(services: &Services, room_id: OwnedRoomId) -> Public
 		.state_accessor
 		.room_state_get_content(&room_id, &StateEventType::RoomJoinRules, "")
 		.map_ok(|c: RoomJoinRulesEventContent| match c.join_rule {
-			| JoinRule::Public => PublicRoomJoinRule::Public,
+			| JoinRule::Public => JoinRuleKind::Public,
 			| JoinRule::Knock => "knock".into(),
 			| JoinRule::KnockRestricted(_) => "knock_restricted".into(),
 			| _ => "invite".into(),

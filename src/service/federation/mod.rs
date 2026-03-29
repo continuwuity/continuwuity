@@ -1,4 +1,5 @@
 mod execute;
+pub(crate) use execute::FederationPathBuilderInput;
 
 use std::sync::Arc;
 

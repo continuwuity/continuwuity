@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedEventId,
-	events::{EventContent, MessageLikeEventType, StateEventType, TimelineEventType},
+	events::{MessageLikeEventContent, StateEventContent, TimelineEventType},
 };
 use serde::Deserialize;
 use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
@@ -33,7 +33,7 @@ type Unsigned = BTreeMap<String, serde_json::Value>;
 impl Builder {
 	pub fn state<S, T>(state_key: S, content: &T) -> Self
 	where
-		T: EventContent<EventType = StateEventType>,
+		T: StateEventContent,
 		S: Into<StateKey>,
 	{
 		Self {
@@ -47,7 +47,7 @@ impl Builder {
 
 	pub fn timeline<T>(content: &T) -> Self
 	where
-		T: EventContent<EventType = MessageLikeEventType>,
+		T: MessageLikeEventContent,
 	{
 		Self {
 			event_type: content.event_type().into(),
