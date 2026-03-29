@@ -8,7 +8,7 @@ use conduwuit::{
 };
 use database::{Cbor, Deserialized, Map};
 use futures::{Stream, StreamExt, future::join};
-use ruma::ServerName;
+use ruma::{OwnedServerName, ServerName};
 use serde::{Deserialize, Serialize};
 
 use super::fed::FedDest;
@@ -107,19 +107,19 @@ pub async fn get_override(&self, name: &str) -> Result<CachedOverride> {
 }
 
 #[implement(Cache)]
-pub fn destinations(&self) -> impl Stream<Item = (&ServerName, CachedDest)> + Send + '_ {
+pub fn destinations(&self) -> impl Stream<Item = (OwnedServerName, CachedDest)> + Send + '_ {
 	self.destinations
 		.stream()
 		.ignore_err()
-		.map(|item: (&ServerName, Cbor<_>)| (item.0, item.1.0))
+		.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
 }
 
 #[implement(Cache)]
-pub fn overrides(&self) -> impl Stream<Item = (&ServerName, CachedOverride)> + Send + '_ {
+pub fn overrides(&self) -> impl Stream<Item = (OwnedServerName, CachedOverride)> + Send + '_ {
 	self.overrides
 		.stream()
 		.ignore_err()
-		.map(|item: (&ServerName, Cbor<_>)| (item.0, item.1.0))
+		.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
 }
 
 impl CachedDest {

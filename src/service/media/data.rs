@@ -6,7 +6,9 @@ use conduwuit::{
 };
 use database::{Database, Interfix, Map};
 use futures::StreamExt;
-use ruma::{Mxc, OwnedMxcUri, UserId, http_headers::ContentDisposition};
+use ruma::{OwnedMxcUri, OwnedUserId, UserId, http_headers::ContentDisposition};
+
+use crate::media::mxc::Mxc;
 
 use super::{preview::UrlPreviewData, thumbnail::Dim};
 
@@ -41,7 +43,7 @@ impl Data {
 		content_type: Option<&str>,
 	) -> Result<Vec<u8>> {
 		let dim: &[u32] = &[dim.width, dim.height];
-		let key = (mxc, dim, content_disposition, content_type);
+		let key = (mxc, dim, content_disposition.map(ToString::to_string), content_type);
 		let key = database::serialize_key(key)?;
 		self.mediaid_file.insert(&key, []);
 		if let Some(user) = user {
@@ -146,7 +148,7 @@ impl Data {
 		self.mediaid_user
 			.stream()
 			.ignore_err()
-			.ready_filter_map(|(key, user): (&str, &UserId)| {
+			.ready_filter_map(|(key, user): (&str, OwnedUserId)| {
 				(user == user_id).then(|| key.into())
 			})
 			.collect()

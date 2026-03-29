@@ -45,8 +45,7 @@ pub async fn leave_all_rooms(services: &Services, user_id: &UserId) {
 	let rooms_joined = services
 		.rooms
 		.state_cache
-		.rooms_joined(user_id)
-		.map(ToOwned::to_owned);
+		.rooms_joined(user_id);
 
 	let rooms_invited = services
 		.rooms
@@ -142,18 +141,17 @@ pub async fn leave_room(
 			.await;
 
 		match user_member_event_content {
-			| Ok(content) => {
+			| Ok(mut content) => {
+				content.membership = MembershipState::Leave;
+				content.reason = reason;
+				content.join_authorized_via_users_server = None;
+				content.is_direct = None;
+
 				services
 					.rooms
 					.timeline
 					.build_and_append_pdu(
-						PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
-							membership: MembershipState::Leave,
-							reason,
-							join_authorized_via_users_server: None,
-							is_direct: None,
-							..content
-						}),
+						PduBuilder::state(user_id.to_string(), &content),
 						user_id,
 						Some(room_id),
 						&state_lock,
@@ -226,7 +224,6 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			.rooms
 			.state_cache
 			.servers_invite_via(room_id)
-			.map(ToOwned::to_owned)
 			.collect::<HashSet<OwnedServerName>>()
 			.await,
 	);
@@ -260,7 +257,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 							.filter_map(|event| event.get_field("sender").ok().flatten())
 							.filter_map(|sender: &str| UserId::parse(sender).ok())
 							.filter_map(|sender| {
-								if !services.globals.user_is_local(sender) {
+								if !services.globals.user_is_local(&sender) {
 									Some(sender.server_name().to_owned())
 								} else {
 									None
@@ -289,10 +286,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			.sending
 			.send_federation_request(
 				remote_server.as_ref(),
-				federation::membership::prepare_leave_event::v1::Request {
-					room_id: room_id.to_owned(),
-					user_id: user_id.to_owned(),
-				},
+				federation::membership::prepare_leave_event::v1::Request::new(room_id.to_owned(), user_id.to_owned())
 			)
 			.await;
 
@@ -393,14 +387,10 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		.sending
 		.send_federation_request(
 			&remote_server,
-			federation::membership::create_leave_event::v2::Request {
-				room_id: room_id.to_owned(),
-				event_id: event_id.clone(),
-				pdu: services
+			federation::membership::create_leave_event::v2::Request::new(room_id.to_owned(), event_id.clone(), services
 					.sending
 					.convert_to_outgoing_federation_event(leave_event.clone())
-					.await,
-			},
+					.await),
 		)
 		.await?;
 

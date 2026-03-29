@@ -9,7 +9,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt, future::join};
 use ruma::{
 	api::client::membership::{
-		get_member_events::{self, v3::MembershipEventFilter},
+		get_member_events::{self},
 		joined_members::{self, v3::RoomMember},
 	},
 	events::{
@@ -43,8 +43,7 @@ pub(crate) async fn get_member_events_route(
 		return Err!(Request(Forbidden("You don't have permission to view this room.")));
 	}
 
-	Ok(get_member_events::v3::Response {
-		chunk: services
+	let chunk = services
 			.rooms
 			.state_accessor
 			.room_state_full(&body.room_id)
@@ -55,8 +54,9 @@ pub(crate) async fn get_member_events_route(
 			.map(Event::into_format)
 			.collect()
 			.boxed()
-			.await,
-	})
+			.await;
+
+	Ok(get_member_events::v3::Response::new(chunk))
 }
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/joined_members`
@@ -78,70 +78,44 @@ pub(crate) async fn joined_members_route(
 		return Err!(Request(Forbidden("You don't have permission to view this room.")));
 	}
 
-	Ok(joined_members::v3::Response {
-		joined: services
+	let joined = services
 			.rooms
 			.state_cache
 			.room_members(&body.room_id)
-			.map(ToOwned::to_owned)
 			.broad_then(|user_id| async move {
+				let mut member = RoomMember::new();
 				let (display_name, avatar_url) = join(
 					services.users.displayname(&user_id).ok(),
 					services.users.avatar_url(&user_id).ok(),
 				)
 				.await;
+				member.display_name = display_name;
+				member.avatar_url = avatar_url;
 
-				(user_id, RoomMember { display_name, avatar_url })
+				(user_id, member)
 			})
 			.collect()
-			.await,
-	})
+			.await;
+
+	Ok(joined_members::v3::Response::new(joined))
 }
 
 fn membership_filter<Pdu: Event>(
 	pdu: Pdu,
-	for_membership: Option<&MembershipEventFilter>,
-	not_membership: Option<&MembershipEventFilter>,
+	membership_state_filter: Option<&MembershipState>,
+	not_membership_state_filter: Option<&MembershipState>,
 ) -> Option<impl Event> {
-	let membership_state_filter = match for_membership {
-		| Some(MembershipEventFilter::Ban) => MembershipState::Ban,
-		| Some(MembershipEventFilter::Invite) => MembershipState::Invite,
-		| Some(MembershipEventFilter::Knock) => MembershipState::Knock,
-		| Some(MembershipEventFilter::Leave) => MembershipState::Leave,
-		| Some(_) | None => MembershipState::Join,
-	};
-
-	let not_membership_state_filter = match not_membership {
-		| Some(MembershipEventFilter::Ban) => MembershipState::Ban,
-		| Some(MembershipEventFilter::Invite) => MembershipState::Invite,
-		| Some(MembershipEventFilter::Join) => MembershipState::Join,
-		| Some(MembershipEventFilter::Knock) => MembershipState::Knock,
-		| Some(_) | None => MembershipState::Leave,
-	};
-
 	let evt_membership = pdu.get_content::<RoomMemberEventContent>().ok()?.membership;
 
-	if for_membership.is_some() && not_membership.is_some() {
-		if membership_state_filter != evt_membership
-			|| not_membership_state_filter == evt_membership
-		{
-			None
-		} else {
-			Some(pdu)
-		}
-	} else if for_membership.is_some() && not_membership.is_none() {
-		if membership_state_filter != evt_membership {
-			None
-		} else {
-			Some(pdu)
-		}
-	} else if not_membership.is_some() && for_membership.is_none() {
-		if not_membership_state_filter == evt_membership {
-			None
-		} else {
-			Some(pdu)
-		}
-	} else {
-		Some(pdu)
+	if let Some(membership_state_filter) = membership_state_filter
+		&& *membership_state_filter != evt_membership {
+		return None;
 	}
+
+	if let Some(not_membership_state_filter) = not_membership_state_filter
+		&& *not_membership_state_filter == evt_membership {
+		return None;
+	}
+
+	return Some(pdu);
 }

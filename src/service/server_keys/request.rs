@@ -23,9 +23,8 @@ where
 	use get_remote_server_keys_batch::v2::Request;
 	type RumaBatch = BTreeMap<OwnedServerName, BTreeMap<OwnedServerSigningKeyId, QueryCriteria>>;
 
-	let criteria = QueryCriteria {
-		minimum_valid_until_ts: Some(self.minimum_valid_ts()),
-	};
+	let mut criteria = QueryCriteria::new();
+	criteria.minimum_valid_until_ts = Some(self.minimum_valid_ts());
 
 	let mut server_keys = batch.fold(RumaBatch::new(), |mut batch, (server, key_ids)| {
 		batch
@@ -46,9 +45,7 @@ where
 		.next_back()
 		.cloned()
 	{
-		let request = Request {
-			server_keys: server_keys.split_off(&batch),
-		};
+		let request = Request::new(server_keys.split_off(&batch));
 
 		debug!(
 			?notary,
@@ -61,7 +58,7 @@ where
 		let response = self
 			.services
 			.sending
-			.send_synapse_request(notary, request)
+			.send_unauthenticated_request(notary, request)
 			.await?
 			.server_keys
 			.into_iter()
@@ -82,15 +79,12 @@ pub async fn notary_request(
 ) -> Result<impl Iterator<Item = ServerSigningKeys> + Clone + Debug + Send + use<>> {
 	use get_remote_server_keys::v2::Request;
 
-	let request = Request {
-		server_name: target.into(),
-		minimum_valid_until_ts: self.minimum_valid_ts(),
-	};
+	let request = Request::new(target.into(), self.minimum_valid_ts());
 
 	let response = self
 		.services
 		.sending
-		.send_federation_request(notary, request)
+		.send_unauthenticated_request(notary, request)
 		.await?
 		.server_keys
 		.into_iter()
@@ -107,7 +101,7 @@ pub async fn server_request(&self, target: &ServerName) -> Result<ServerSigningK
 	let server_signing_key = self
 		.services
 		.sending
-		.send_federation_request(target, Request::new())
+		.send_unauthenticated_request(target, Request::new())
 		.await
 		.map(|response| response.server_key)
 		.and_then(|key| key.deserialize().map_err(Into::into))?;

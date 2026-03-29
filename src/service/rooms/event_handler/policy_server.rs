@@ -3,21 +3,23 @@
 //! This module implements a check against a room-specific policy server, as
 //! described in the relevant Matrix spec proposal (see: https://github.com/matrix-org/matrix-spec-proposals/pull/4284).
 
-use std::{collections::BTreeMap, time::Duration};
+use std::{collections::BTreeMap, sync::LazyLock, time::Duration};
 
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, implement, trace,
 	warn,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyId,
-	api::federation::room::{
-		policy_check::unstable::Request as PolicyCheckRequest,
-		policy_sign::unstable::Request as PolicySignRequest,
-	},
-	events::{StateEventType, room::policy::RoomPolicyEventContent},
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, OwnedKeyId, RoomId, ServerName, SigningKeyId, events::StateEventType
+};
+use ruminuwuity::policy::{
+	policy_check::unstable::Request as PolicyCheckRequest,
+	policy_sign::unstable::Request as PolicySignRequest,
+	event::RoomPolicyEventContent
 };
 use serde_json::value::RawValue;
+
+static POLICY_EVENT_TYPE_UNSTABLE: LazyLock<StateEventType> = LazyLock::new(|| StateEventType::from("org.matrix.msc4284.policy"));
 
 /// Asks a remote policy server if the event is allowed.
 ///
@@ -44,7 +46,7 @@ pub async fn ask_policy_server(
 		return Ok(true); // don't ever contact policy servers
 	}
 
-	if *pdu.event_type() == StateEventType::RoomPolicy.into() {
+	if *pdu.event_type() == POLICY_EVENT_TYPE_UNSTABLE.clone().into() {
 		debug!(
 			room_id = %room_id,
 			event_type = ?pdu.event_type(),
@@ -56,7 +58,7 @@ pub async fn ask_policy_server(
 	let Ok(policyserver) = self
 		.services
 		.state_accessor
-		.room_state_get_content(room_id, &StateEventType::RoomPolicy, "")
+		.room_state_get_content(room_id, &POLICY_EVENT_TYPE_UNSTABLE, "")
 		.await
 		.inspect_err(|e| {
 			if !e.is_not_found() {
@@ -86,11 +88,7 @@ pub async fn ask_policy_server(
 			return Ok(true);
 		},
 	};
-	if via.is_empty() {
-		trace!("Policy server is empty for room {room_id}, skipping spam check");
-		return Ok(true);
-	}
-	if !self.services.state_cache.server_in_room(via, room_id).await {
+	if !self.services.state_cache.server_in_room(&via, room_id).await {
 		debug!(
 			via = %via,
 			"Policy server is not in the room, skipping spam check"
@@ -110,14 +108,14 @@ pub async fn ask_policy_server(
 				"Getting policy server signature on event"
 			);
 			return self
-				.fetch_policy_server_signature(pdu, pdu_json, via, outgoing, room_id)
+				.fetch_policy_server_signature(pdu, pdu_json, &via, outgoing, room_id)
 				.await;
 		}
 		// for incoming events, is it signed by <via> with the key
 		// "ed25519:policy_server"?
 		if let Some(CanonicalJsonValue::Object(sigs)) = pdu_json.get("signatures") {
 			if let Some(CanonicalJsonValue::Object(server_sigs)) = sigs.get(via.as_str()) {
-				let wanted_key_id: &KeyId<ruma::SigningKeyAlgorithm, ruma::Base64PublicKey> =
+				let wanted_key_id: OwnedKeyId<ruma::SigningKeyAlgorithm, ruma::Base64PublicKey> =
 					SigningKeyId::parse("ed25519:policy_server")?;
 				if let Some(CanonicalJsonValue::String(_sig_value)) =
 					server_sigs.get(wanted_key_id.as_str())
@@ -134,14 +132,15 @@ pub async fn ask_policy_server(
 		via = %via,
 		"Checking event for spam with policy server via legacy check"
 	);
+	
+	let mut request = PolicyCheckRequest::new(pdu.event_id().to_owned());
+	request.pdu = Some(outgoing);
+	
 	let response = tokio::time::timeout(
 		Duration::from_secs(self.services.server.config.policy_server_request_timeout),
 		self.services
 			.sending
-			.send_federation_request(via, PolicyCheckRequest {
-				event_id: pdu.event_id().to_owned(),
-				pdu: Some(outgoing),
-			}),
+			.send_federation_request(&via, request),
 	)
 	.await;
 	let response = match response {
@@ -202,7 +201,7 @@ pub async fn fetch_policy_server_signature(
 		Duration::from_secs(self.services.server.config.policy_server_request_timeout),
 		self.services
 			.sending
-			.send_federation_request(via, PolicySignRequest { pdu: outgoing }),
+			.send_federation_request(via, PolicySignRequest::new(outgoing)),
 	)
 	.await;
 
@@ -250,7 +249,7 @@ pub async fn fetch_policy_server_signature(
 	}
 	let keypairs = sigs.get(via).unwrap();
 	let wanted_key_id = KeyId::parse("ed25519:policy_server")?;
-	if !keypairs.contains_key(wanted_key_id) {
+	if !keypairs.contains_key(&wanted_key_id) {
 		debug_warn!(
 			"Policy server returned signature, but did not use the key ID \
 			 'ed25519:policy_server'."
@@ -262,7 +261,7 @@ pub async fn fetch_policy_server_signature(
 		.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()));
 
 	if let CanonicalJsonValue::Object(signatures_map) = signatures_entry {
-		let sig_value = keypairs.get(wanted_key_id).unwrap().to_owned();
+		let sig_value = keypairs.get(&wanted_key_id).unwrap().to_owned();
 
 		match signatures_map.get_mut(via.as_str()) {
 			| Some(CanonicalJsonValue::Object(inner_map)) => {

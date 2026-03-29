@@ -7,16 +7,20 @@ use conduwuit::{
 use database::{Deserialized, Handle, Ignore, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
-	RoomId, UserId,
-	events::{
-		AnyGlobalAccountDataEvent, AnyRawAccountDataEvent, AnyRoomAccountDataEvent,
+	OwnedRoomId, OwnedUserId, RoomId, UserId, events::{
+		AnyGlobalAccountDataEvent, AnyRoomAccountDataEvent,
 		GlobalAccountDataEventType, RoomAccountDataEventType,
-	},
-	serde::Raw,
+	}, serde::Raw
 };
 use serde::Deserialize;
 
 use crate::{Dep, globals};
+
+#[derive(Debug)]
+pub enum AnyRawAccountDataEvent {
+	Room(Raw<AnyRoomAccountDataEvent>),
+	Global(Raw<AnyGlobalAccountDataEvent>),
+}
 
 pub struct Service {
 	services: Services,
@@ -132,7 +136,7 @@ pub fn changes_since<'a>(
 	since: Option<u64>,
 	to: Option<u64>,
 ) -> impl Stream<Item = AnyRawAccountDataEvent> + Send + 'a {
-	type Key<'a> = (Option<&'a RoomId>, &'a UserId, u64, Ignore);
+	type Key = (Option<OwnedRoomId>, OwnedUserId, u64, Ignore);
 
 	// Skip the data that's exactly at since, because we sent that last time
 	// ...unless this is an initial sync, in which case send everything
@@ -142,8 +146,8 @@ pub fn changes_since<'a>(
 		.roomuserdataid_accountdata
 		.stream_from(&first_possible)
 		.ignore_err()
-		.ready_take_while(move |((room_id_, user_id_, count, _), _): &(Key<'_>, _)| {
-			room_id == *room_id_ && user_id == *user_id_ && to.is_none_or(|to| *count <= to)
+		.ready_take_while(move |((room_id_, user_id_, count, _), _): &(Key, _)| {
+			room_id == room_id_.as_deref() && user_id == user_id_ && to.is_none_or(|to| *count <= to)
 		})
 		.map(move |(_, v)| {
 			match room_id {

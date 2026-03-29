@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use futures::future::{join, join3};
-use ruma::api::client::admin::{get_suspended, set_suspended};
+use ruminuwuity::admin::{get_suspended, set_suspended};
 
 use crate::Ruma;
 

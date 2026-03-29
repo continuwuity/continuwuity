@@ -6,6 +6,8 @@ use ruma::{
 	api::federation::discovery::VerifyKey,
 };
 
+use crate::server_keys::util::required_keys;
+
 use super::{PubKeyMap, PubKeys, extract_key};
 
 #[implement(super::Service)]
@@ -14,8 +16,6 @@ pub async fn get_event_keys(
 	object: &CanonicalJsonObject,
 	version: &RoomVersionId,
 ) -> Result<PubKeyMap> {
-	use ruma::signatures::required_keys;
-
 	let required = match required_keys(object, version) {
 		| Ok(required) => required,
 		| Err(e) => {

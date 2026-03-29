@@ -56,5 +56,5 @@ pub(crate) async fn get_capabilities_route(
 		capabilities.set("uk.timedout.msc4323", json!({"suspend": true, "lock": false}))?;
 	}
 
-	Ok(get_capabilities::v3::Response { capabilities })
+	Ok(get_capabilities::v3::Response::new(capabilities))
 }

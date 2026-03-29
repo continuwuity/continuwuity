@@ -2,9 +2,10 @@ use axum::extract::State;
 use conduwuit::{Err, Result, info, utils::ReadyExt, warn};
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	OwnedRoomAliasId, continuwuity_admin_api::rooms,
+	OwnedRoomAliasId,
 	events::room::message::RoomMessageEventContent,
 };
+use ruminuwuity::admin::continuwuity::rooms;
 
 use crate::{Ruma, client::leave_room};
 
@@ -36,7 +37,6 @@ pub(crate) async fn ban_room(
 			.rooms
 			.state_cache
 			.room_members(&body.room_id)
-			.map(ToOwned::to_owned)
 			.ready_filter(|user| services.globals.user_is_local(user))
 			.boxed();
 		let mut evicted = Vec::new();

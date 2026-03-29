@@ -7,9 +7,7 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
-	CanonicalJsonObject, OwnedUserId, RoomId, UserId,
-	events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent},
-	serde::Raw,
+	CanonicalJsonObject, OwnedRoomId, OwnedUserId, RoomId, UserId, events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent}, serde::Raw
 };
 
 use crate::{Dep, globals};
@@ -66,8 +64,8 @@ impl Data {
 		room_id: &'a RoomId,
 		since: u64,
 	) -> impl Stream<Item = ReceiptItem> + Send + 'a {
-		type Key<'a> = (&'a RoomId, u64, &'a UserId);
-		type KeyVal<'a> = (Key<'a>, CanonicalJsonObject);
+		type Key = (OwnedRoomId, u64, OwnedUserId);
+		type KeyVal = (Key, CanonicalJsonObject);
 
 		let after_since = since.saturating_add(1); // +1 so we don't send the event at since
 		let first_possible_edu = (room_id, after_since);
@@ -75,13 +73,13 @@ impl Data {
 		self.readreceiptid_readreceipt
 			.stream_from(&first_possible_edu)
 			.ignore_err()
-			.ready_take_while(move |((r, ..), _): &KeyVal<'_>| *r == room_id)
-			.map(move |((_, count, user_id), mut json): KeyVal<'_>| {
+			.ready_take_while(move |((r, ..), _): &KeyVal| *r == room_id)
+			.map(move |((_, count, user_id), mut json): KeyVal| {
 				json.remove("room_id");
 
 				let event = serde_json::value::to_raw_value(&json)?;
 
-				Ok((user_id.to_owned(), count, Raw::from_json(event)))
+				Ok((user_id, count, Raw::from_json(event)))
 			})
 			.ignore_err()
 	}

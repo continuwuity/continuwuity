@@ -318,7 +318,7 @@ impl TestStore<Pdu> {
 			.iter()
 			.map(|ev| {
 				(
-					(ev.event_type().clone().into(), ev.state_key().unwrap().into()),
+					(ev.event_type().to_string().into(), ev.state_key().unwrap().into()),
 					ev.event_id().to_owned(),
 				)
 			})
@@ -328,7 +328,7 @@ impl TestStore<Pdu> {
 			.iter()
 			.map(|ev| {
 				(
-					(ev.event_type().clone().into(), ev.state_key().unwrap().into()),
+					(ev.event_type().to_string().into(), ev.state_key().unwrap().into()),
 					ev.event_id().to_owned(),
 				)
 			})
@@ -338,7 +338,7 @@ impl TestStore<Pdu> {
 			.iter()
 			.map(|ev| {
 				(
-					(ev.event_type().clone().into(), ev.state_key().unwrap().into()),
+					(ev.event_type().to_string().into(), ev.state_key().unwrap().into()),
 					ev.event_id().to_owned(),
 				)
 			})
