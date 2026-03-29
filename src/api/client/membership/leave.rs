@@ -9,7 +9,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, UserId,
 	api::{
 		client::membership::leave_room,
 		federation::{self},
@@ -337,6 +337,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			"Invalid make_leave event json received from {remote_server} for {room_id}: {e:?}"
 		)))
 	})?;
+	leave_event_stub.remove("event_id");
 
 	validate_remote_member_event_stub(
 		&MembershipState::Leave,
@@ -345,11 +346,6 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		&leave_event_stub,
 	)?;
 
-	// TODO: Is origin needed?
-	leave_event_stub.insert(
-		"origin".to_owned(),
-		CanonicalJsonValue::String(services.globals.server_name().as_str().to_owned()),
-	);
 	leave_event_stub.insert(
 		"origin_server_ts".to_owned(),
 		CanonicalJsonValue::Integer(
@@ -363,14 +359,6 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		if let Some(CanonicalJsonValue::Object(content)) = leave_event_stub.get_mut("content") {
 			content.insert("reason".to_owned(), CanonicalJsonValue::String(reason));
 		}
-	}
-
-	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version_id {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			leave_event_stub.remove("event_id");
-		},
 	}
 
 	// In order to create a compatible ref hash (EventID) the `hashes` field needs

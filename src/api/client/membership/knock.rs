@@ -409,11 +409,6 @@ async fn knock_room_helper_local(
 		room_id,
 		&knock_event_stub,
 	)?;
-
-	knock_event_stub.insert(
-		"origin".to_owned(),
-		CanonicalJsonValue::String(services.globals.server_name().as_str().to_owned()),
-	);
 	knock_event_stub.insert(
 		"origin_server_ts".to_owned(),
 		CanonicalJsonValue::Integer(
