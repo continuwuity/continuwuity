@@ -7,7 +7,6 @@ services:
     command: /sbin/conduwuit
     volumes:
       - db:/var/lib/continuwuity
-      - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
       #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
       - proxy
@@ -37,6 +36,9 @@ services:
       nofile:
         soft: 1048567
         hard: 1048567
+    configs: # using custom resolver instead of Docker's
+      - source: continuwuity-resolv.conf
+        target: /etc/resolv.conf
 
   traefik:
     image: "traefik:latest"
@@ -48,7 +50,6 @@ services:
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:z"
       - "acme:/etc/traefik/acme"
-      #- "./traefik_config:/etc/traefik:z"
     labels:
       - "traefik.enable=true"
 
@@ -90,3 +91,9 @@ volumes:
 
 networks:
     proxy:
+
+configs:
+  continuwuity-resolv.conf:
+    content: |
+      nameserver 1.0.0.1
+      nameserver 1.1.1.1

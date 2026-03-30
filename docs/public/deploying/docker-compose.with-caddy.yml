@@ -1,16 +1,3 @@
-networks:
-    caddy:
-
-volumes:
-    db:
-
-configs:
-    dynamic.yml:
-        content: |
-            https://example.com, https://example.com:8448 {
-                reverse_proxy http://homeserver:8008
-            }
-
 services:
     caddy:
         image: docker.io/caddy:latest
@@ -33,7 +20,6 @@ services:
         command: /sbin/conduwuit
         volumes:
             - db:/var/lib/continuwuity
-            - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
             #- ./continuwuity.toml:/etc/continuwuity.toml
         environment:
             CONTINUWUITY_SERVER_NAME: example.com
@@ -43,3 +29,24 @@ services:
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
         networks:
             - caddy
+        configs: # using custom resolvers instead of Docker's
+            - source: continuwuity-resolv.conf
+              target: /etc/resolv.conf
+
+networks:
+    caddy:
+
+volumes:
+    db:
+
+configs:
+    dynamic.yml:
+        content: |
+            https://example.com, https://example.com:8448 {
+                reverse_proxy http://homeserver:8008
+            }
+
+    continuwuity-resolv.conf:
+        content: |
+            nameserver 1.0.0.1
+            nameserver 1.1.1.1

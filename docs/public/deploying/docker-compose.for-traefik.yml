@@ -39,6 +39,9 @@ services:
       nofile:
         soft: 1048567
         hard: 1048567
+    configs: # using custom resolver instead of Docker's
+      - source: continuwuity-resolv.conf
+        target: /etc/resolv.conf
 
 volumes:
   db:
@@ -48,3 +51,9 @@ networks:
   # name, don't forget to change it here and in the docker-compose.override.yml
   proxy:
     external: true
+
+configs:
+  continuwuity-resolv.conf:
+    content: |
+      nameserver 1.0.0.1
+      nameserver 1.1.1.1

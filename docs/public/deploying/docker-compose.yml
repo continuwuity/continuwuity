@@ -16,6 +16,16 @@ services:
             CONTINUWUITY_ADDRESS: 0.0.0.0
             CONTINUWUITY_PORT: 8008 
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+        configs: # using custom resolver instead of Docker's
+            - source: continuwuity-resolv.conf
+              target: /etc/resolv.conf
+
 
 volumes:
     db:
+
+configs:
+    continuwuity-resolv.conf:
+        content: |
+            nameserver 1.0.0.1
+            nameserver 1.1.1.1

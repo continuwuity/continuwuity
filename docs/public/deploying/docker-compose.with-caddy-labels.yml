@@ -24,7 +24,6 @@ services:
         command: /sbin/conduwuit
         volumes:
             - db:/var/lib/continuwuity
-            - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
             #- ./continuwuity.toml:/etc/continuwuity.toml
         environment:
             CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
@@ -41,9 +40,18 @@ services:
         labels:
             caddy: matrix.example.com
             caddy.reverse_proxy: "{{upstreams 8008}}"
-
+        configs: # using custom resolver instead of Docker's
+            - source: continuwuity-resolv.conf
+              target: /etc/resolv.conf
 volumes:
     db:
 
 networks:
     caddy:
+
+configs:
+    continuwuity-resolv.conf:
+        content: |
+            nameserver 1.0.0.1
+            nameserver 1.1.1.1
+

@@ -112,19 +112,25 @@ See the [reference configuration](../reference/config) page for all config optio
 
 These examples include reverse proxy configurations for Matrix federation, which will route your Matrix domain (and optionally .well-known paths) to Continuwuity.
 
-:::note DNS Performance
-Docker's default DNS resolver can cause performance issues with Matrix
-federation. If you experience slow federation or DNS timeouts, you may need to
-use your host's DNS resolver instead. Add this volume mount to the
-`continuwuity` service:
+:::note Docker DNS Performance
+Docker's default DNS resolver are known to cause issues for Matrix federation, such as very slow federation or DNS timeout. As a workaround, we will mount a custom `/etc/resolv.conf` config file into the Continuwuity service, in order to bypass Docker and use a more performant resolver.
 
-```yaml
-volumes:
-  - /etc/resolv.conf:/etc/resolv.conf:ro
+```yaml title='docker-compose.yml'
+services:
+  homeserver:
+    # ...
+    configs:
+      - source: continuwuity-resolv.conf
+        target: /etc/resolv.conf
+
+configs:
+  continuwuity-resolv.conf:
+    content: |
+      nameserver 1.0.0.1
+      nameserver 1.1.1.1
 ```
 
-See [Troubleshooting - DNS Issues](../troubleshooting.mdx#potential-dns-issues-when-using-docker)
-for more details and alternative solutions.
+See [**Troubleshooting - DNS Issues**](../troubleshooting.mdx#potential-dns-issues-when-using-docker) for more details and alternative solutions.
 :::
 
 #### Caddy (using Caddyfile)
@@ -197,9 +203,9 @@ You will then need to point your reverse proxy towards Continuwuity at `127.0.0.
 
 ### Starting Your Server
 
-1. Choose your compose file and rename it to `docker-compose.yml`
+1. Choose your compose file from the above, and rename it to `docker-compose.yml`. Edit values as you see fit.
 2. If using the override file, rename it to `docker-compose.override.yml` and
-   edit your values
+   edit your values.
 3. Start the server:
 
     ```bash
