@@ -45,7 +45,13 @@ Continuwuity requires HTTPS for Matrix federation. You'll need:
 For setups with `.well-known` delegation, different ports, and/or split-domain deployments, consult the [Delegation/Split-domain](../advanced/delegation) page.
 :::
 
+
 ## Docker - Quick Run
+
+:::note For testing only
+The instructions below are only meant for a quick demo of Continuwuity.
+For production deployment, we recommend using [Docker Compose](#docker-compose)
+:::
 
 Get a working Continuwuity server with an admin user in four steps:
 
@@ -55,40 +61,40 @@ Get a working Continuwuity server with an admin user in four steps:
     docker pull forgejo.ellis.link/continuwuation/continuwuity:latest
     ```
 
-2. Start the server with initial admin user
+2. Start the server for the first time. Replace `example.com` with your actual server name.
 
     ```bash
     docker run -d \
-      -p 6167:6167 \
+      -p 8008:8008 \
       -v continuwuity_db:/var/lib/continuwuity \
-      -e CONTINUWUITY_SERVER_NAME="matrix.example.com" \
+      -e CONTINUWUITY_SERVER_NAME="example.com" \
       -e CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity" \
       -e CONTINUWUITY_ADDRESS="0.0.0.0" \
       -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
       --name continuwuity \
       forgejo.ellis.link/continuwuation/continuwuity:latest \
-      /sbin/conduwuit --execute "users create-user admin"
+      /sbin/conduwuit
     ```
 
-    Replace `matrix.example.com` with your actual server name and `admin` with your preferred username.
-
-3. Get your admin password
+3. Fetch the one-time initial registration token
 
     ```bash
-    docker logs continuwuity 2>&1 | grep "Created user"
+    docker logs continuwuity 2>&1
     ```
 
-    You'll see output like:
+    You'll see output as below.
 
     ```
-    Created user with user_id: @admin:matrix.example.com and password: `[auto-generated-password]`
+    In order to use your new homeserver, you need to create its
+    first user account.
+    Open your Matrix client of choice and register an account
+    on example.com using registration token x5keUZ811RqvLsNa . 
+    Pick your own username and password!
     ```
 
-4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity. See [Docker Compose](#docker-compose) for examples.
+4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity at port 8008. See [Docker Compose](#docker-compose) for examples.
 
-Once configured, log in with any Matrix client using `@admin:matrix.example.com`
-and the generated password. You'll automatically be invited to the admin room
-where you can manage your server.
+Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
 
 ## Docker Compose
 
@@ -101,25 +107,6 @@ Docker Compose is the recommended deployment method for Continuwuity containers.
 Alternatively, you can specify a path to mount the configuration file using the `CONTINUWUITY_CONFIG` environment variable.
 
 See the [reference configuration](../reference/config) page for all config options, and the [Configuration page](../configuration#environment-variables) on how to convert them into Environment Variables.
-
-### Creating Your First Admin User
-
-Add the `--execute` command to create an admin user on first startup. In your
-compose file, add under the `continuwuity` service:
-
-```yaml
-services:
-    continuwuity:
-        image: forgejo.ellis.link/continuwuation/continuwuity:latest
-        command: /sbin/conduwuit --execute "users create-user admin"
-        # ... rest of configuration
-```
-
-Then retrieve the auto-generated password:
-
-```bash
-docker compose logs continuwuity | grep "Created user"
-```
 
 ### Choose Your Reverse Proxy
 
@@ -215,9 +202,27 @@ You will then need to point your reverse proxy towards Continuwuity at `127.0.0.
    edit your values
 3. Start the server:
 
-```bash
-docker compose up -d
-```
+    ```bash
+    docker compose up -d
+    ```
+
+4. Check your server logs for a registration token:
+
+    ```bash
+    docker-compose logs continuwuity 2>&1
+    ```
+
+    You'll see output as below.
+
+    ```
+    In order to use your new homeserver, you need to create its
+    first user account.
+    Open your Matrix client of choice and register an account
+    on example.com using registration token x5keUZ811RqvLsNa . 
+    Pick your own username and password!
+    ```
+
+5. Log in to your server with any Matrix client, and register for an account with the registration token from step 4. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
 
 See the [generic deployment guide](generic.mdx) for more deployment options.
 
