@@ -130,6 +130,10 @@ Trim memory usage
 
 List database files
 
+## `!admin debug send-test-email`
+
+Send a test email to the invoking admin's email address
+
 ## `!admin debug tester`
 
 Developer test stubs
