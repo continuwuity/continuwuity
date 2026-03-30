@@ -2451,8 +2451,9 @@ pub struct DraupnirConfig {
 	optional = "true"
 )]
 pub struct SmtpConfig {
-	/// A `smtp://`` URI which will be used to connect to a mail server. Setting
-	/// this option enables features which depend on the ability to send email,
+	/// A `smtp://`` URI which will be used to connect to a mail server.
+	/// Uncommenting the [global.smtp] group and setting this option enables
+	/// features which depend on the ability to send email,
 	/// such as self-service password resets.
 	///
 	/// For most modern mail servers, format the URI like this:
