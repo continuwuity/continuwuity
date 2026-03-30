@@ -245,7 +245,7 @@ section in the development documentation.
 
 ### Accessing the Server's Console
 
-Before you can access the server's console and [send admin commands](../reference/admin/index.md) from the CLI, you will need to make the container interactive and allocate a pseudo-tty.
+Before you can access the server's console and [send admin commands](../reference/admin/index.md) from the CLI, you will need to make the container interactive and allocate a pseudo-tty. Make sure you set `admin_console_automatic` to `true` in [the config](../reference/config.mdx) as well for Continuwuity to activate the CLI on startup.
 
 For Docker Compose deployments this means adding `stdin_open: true` and `tty: true` to the container's declaration:
 
