@@ -231,7 +231,8 @@ impl Service {
 
 		if self.services.config.suspend_on_register {
 			eprintln!(
-				"{} Accounts created after yours will be suspended, as set in your configuration.",
+				"{} Accounts created after yours will be suspended, as set in your \
+				 configuration.",
 				"Your account will not be suspended when you register.".green()
 			);
 		}
@@ -239,11 +240,15 @@ impl Service {
 		if let Some(smtp) = &self.services.config.smtp {
 			if smtp.require_email_for_registration || smtp.require_email_for_token_registration {
 				eprintln!(
-					"{} Accounts created after yours may be required to provide an email address, as set in your configuration.",
+					"{} Accounts created after yours may be required to provide an email \
+					 address, as set in your configuration.",
 					"You will not be asked for your email address when you register.".yellow(),
 				);
 			}
-			eprintln!("If you wish to associate an email address with your account, you may do so after registration in your client's settings (if supported).");
+			eprintln!(
+				"If you wish to associate an email address with your account, you may do so \
+				 after registration in your client's settings (if supported)."
+			);
 		}
 
 		eprintln!(
