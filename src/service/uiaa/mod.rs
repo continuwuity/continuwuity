@@ -226,8 +226,22 @@ impl Service {
 			return Ok(Err(session.get().info.clone()));
 		}
 
-		let completed = 'completed: {
+		let completed = {
 			let UiaaSession { info, identity } = session.get_mut();
+
+			let auth_type = auth.auth_type().expect("auth type should be set");
+
+			let flow_stages: Vec<HashSet<_>> = info
+				.flows
+				.iter()
+				.map(|flow| {
+					flow.stages
+						.iter()
+						.map(AuthType::as_str)
+						.map(ToOwned::to_owned)
+						.collect()
+				})
+				.collect();
 
 			let mut completed_stages: HashSet<_> = info
 				.completed
@@ -236,10 +250,16 @@ impl Service {
 				.map(ToOwned::to_owned)
 				.collect();
 
-			// If the provided stage hasn't already been completed, check it for completion
-			if !completed_stages
-				.contains(auth.auth_type().expect("auth type should be set").as_str())
+			// Don't allow stages which aren't in any flows
+			if !flow_stages
+				.iter()
+				.any(|stages| stages.contains(auth_type.as_str()))
 			{
+				return Err!(Request(InvalidParam("No flows include the supplied stage")));
+			}
+
+			// If the provided stage hasn't already been completed, check it for completion
+			if !completed_stages.contains(auth_type.as_str()) {
 				match self.check_stage(auth, identity.clone()).await {
 					| Ok((completed_stage, updated_identity)) => {
 						info.auth_error = None;
@@ -253,23 +273,10 @@ impl Service {
 				}
 			}
 
-			// Check all flows to see if any of them succeeded
-			for flow in &info.flows {
-				let flow_stages = flow
-					.stages
-					.iter()
-					.map(AuthType::as_str)
-					.map(ToOwned::to_owned)
-					.collect();
-
-				if completed_stages.is_superset(&flow_stages) {
-					// All stages in this flow are completed
-					break 'completed true;
-				}
-			}
-
-			// No flows had all their stages completed
-			break 'completed false;
+			// UIAA is completed if all stages in any flow are completed
+			flow_stages
+				.iter()
+				.any(|stages| completed_stages.is_superset(stages))
 		};
 
 		if completed {
