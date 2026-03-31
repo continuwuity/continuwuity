@@ -28,4 +28,7 @@
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
     # Unsetting `patches` so we don't have to revert it and make this nix exclusive
     patches = [ ];
+
+    # Unset postPatch, as our version override breaks version-specific sed calls in the original package
+    postPatch = "";
   })
