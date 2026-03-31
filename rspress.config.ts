@@ -11,6 +11,20 @@ export default defineConfig({
         light: '/assets/logo.svg',
         dark: '/assets/logo.svg',
     },
+    markdown: {
+        link: {
+            checkDeadLinks: {
+                excludes: [
+                    '/deploying/docker-compose.with-caddy.yml',
+                    '/deploying/docker-compose.with-caddy-labels.yml',
+                    '/deploying/docker-compose.for-traefik.yml',
+                    '/deploying/docker-compose.with-traefik.yml',
+                    `/deploying/docker-compose.override.yml`,
+                    `/deploying/docker-compose.yml`
+                ]
+            },
+        },
+    },
     themeConfig: {
         socialLinks: [
             {
