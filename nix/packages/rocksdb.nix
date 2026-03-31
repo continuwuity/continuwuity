@@ -14,9 +14,6 @@
   # [1]: https://github.com/tikv/jemallocator/blob/ab0676d77e81268cd09b059260c75b38dbef2d51/jemalloc-sys/src/env.rs#L17
   jemalloc = rust-jemalloc-sys-unprefixed;
   enableJemalloc = stdenv.hostPlatform.isLinux;
-
-  # for some reason enableLiburing in nixpkgs rocksdb is default true
-  # which breaks Darwin entirely
 }).overrideAttrs
   (rec {
     version = "10.10.fb";
