@@ -36,18 +36,22 @@
 
           cargoArtifacts = crane.buildDepsOnly common;
 
+          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+
           continuwuity = crane.buildPackage (
             common
             // {
               inherit cargoArtifacts;
-              doCheck = false;
-              env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
+              env = {
+                ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
+                ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+              };
             }
           );
         in
         {
           default = continuwuity;
-          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+          inherit rocksdb;
         };
     };
 }

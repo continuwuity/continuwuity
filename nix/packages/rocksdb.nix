@@ -25,7 +25,7 @@
       owner = "continuwuation";
       repo = "rocksdb";
       rev = version;
-      sha256 = "";
+      sha256 = "sha256-X4ApGLkHF9ceBtBg77dimEpu720I79ffLoyPa8JMHaU=";
     };
 
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155

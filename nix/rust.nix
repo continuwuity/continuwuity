@@ -4,6 +4,7 @@
     {
       system,
       lib,
+      pkgs,
       ...
     }:
     {
@@ -11,7 +12,7 @@
         let
           fnx = inputs.fenix.packages.${system};
 
-          stable = fnx.fromToolchainFile {
+          stable-toolchain = fnx.fromToolchainFile {
             file = inputs.self + "/rust-toolchain.toml";
 
             # See also `rust-toolchain.toml`
@@ -19,11 +20,10 @@
           };
         in
         {
-          # used for building nix stuff (doesn't include rustfmt overhead)
-          build-toolchain = stable;
-          # used for dev shells
+          inherit stable-toolchain;
+
           dev-toolchain = fnx.combine [
-            stable
+            stable-toolchain
             # use the nightly rustfmt because we use nightly features
             fnx.complete.rustfmt
           ];
