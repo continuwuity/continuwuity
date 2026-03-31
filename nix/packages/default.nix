@@ -27,28 +27,41 @@
               name = "source";
             };
 
-          common = {
+          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+
+          attrs = {
             inherit src;
             nativeBuildInputs = with pkgs; [
               pkg-config
               rustPlatform.bindgenHook
             ];
-            buildInputs = [ pkgs.liburing ];
-            env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
+            buildInputs = [
+              pkgs.liburing
+            ];
+            env = {
+              ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
+              ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+            };
           };
 
-          cargoArtifacts = craneLib.buildDepsOnly common;
-
-          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+          cargoArtifacts = craneLib.buildDepsOnly attrs;
         in
         {
           default = craneLib.buildPackage (
-            lib.recursiveUpdate common {
+            lib.recursiveUpdate attrs {
               inherit cargoArtifacts;
-              env = {
-                ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
-                ROCKSDB_LIB_DIR = "${rocksdb}/lib";
-              };
+
+              # Needed to make continuwuity link to rocksdb
+              postFixup = ''
+                old_rpath="$(patchelf --print-rpath $out/bin/conduwuit)"
+                extra_rpath="${
+                  pkgs.lib.makeLibraryPath [
+                    pkgs.rocksdb
+                  ]
+                }"
+
+                patchelf  --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
+              '';
 
               meta = {
                 description = "A community-driven Matrix homeserver in Rust";
