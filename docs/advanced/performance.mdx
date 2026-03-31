@@ -1,12 +1,12 @@
 # Performance tuning
 
-While Continuwuity's default config parameters are generally optimized, additional modifications can be made to better utilize your server resources. This is especially helpful for homeservers with many users and/or are joined in many large federated rooms, and will increasingly be the case as the Matrix network expands.
+While Continuwuity's default config parameters are generally optimised, additional modifications can be made to better utilise your server resources. This is especially helpful for homeservers with many users and/or are joined in many large federated rooms, and will increasingly be the case as the Matrix network expands.
 
 This page aims to outline various performance tweaks for Continuwuity and their effects. As always, your mileage may vary according to your setup's specifics. If you have further discussions or recommendations, please share them in the community rooms.
 
 ## DNS tuning (recommended)
 
-Please see the dedicated DNS tuning guide.
+Please see the dedicated [DNS tuning guide](./dns.mdx).
 
 ## Cache capacities
 
@@ -22,7 +22,7 @@ You can disable outgoing **typing notifications** and **read markers** to reduce
 # disables sending read receipts
 allow_outgoing_read_receipts = false
 # disables sending typing notifications
-allow_incoming_typing = false
+allow_outgoing_typing = false
 ```
 
 Outgoing presence updates is also considered expensive and has been disabled by default(`allow_outgoing_presence = false`).
@@ -55,7 +55,7 @@ allow_outgoing_presence = false
 ## Tuning database compression
 
 :::warning
-These steps MUST be done **before** starting Continuwuity for the first time, as database compressions are irreversible
+These steps MUST be done **before** starting Continuwuity for the first time, as database compressions are irreversible.
 :::
 
 ### Changing the compression algorithm
@@ -100,7 +100,7 @@ Consult these documentations for more information on compression tuning and leve
 
 ## Other tweaks
 
-### UNIX sockets
+### Using UNIX sockets
 
 If your homeserver and the reverse proxy lives on the same machine, you may consider exposing Continuwuity on a UNIX socket instead of a port. This would reduce TCP overhead between the two programs.
 
@@ -118,7 +118,7 @@ unix_socket_path = "/run/continuwuity/continuwuity.sock"
 ```
 
 ```
-### in your (example) Caddyfile ###
+### in your Caddyfile ###
 https://matrix.example.com {
     reverse_proxy unix//run/continuwuity/continuwuity.sock
 
@@ -131,4 +131,129 @@ https://matrix.example.com {
 
 ### Increased batch size for notary queries
 
-To speed up initial room joins, consider increasing `trusted_server_batch_size` to something higher than `1024`. Start with doubling to `2048` until you find a suitable value.
+To speed up initial joins for large rooms, consider increasing `trusted_server_batch_size` to something higher than the default `1024`. Start with doubling to `2048` until you find a suitable value.
+
+### Serving .well-knowns manually
+
+Instead of [reverse proxying .well-knowns](./delegation#serving-with-a-reverse-proxy), you can serve them directly as manual files at the reverse proxy. This could decrease _some_ network request handling for Continuwuity.
+
+<details>
+
+<summary>Example config with Caddy</summary>
+
+```
+### in your Caddyfile ###
+
+https://example.com {
+
+    respond /.well-known/matrix/server 200 {
+        body `{"m.server":"matrix.example.com:443"}`
+    }    
+
+    respond /.well-known/matrix/client 200 {
+        body <<JSON
+        {
+            "m.homeserver": {
+                "base_url": "https://matrix.example.com/"
+            }
+        }
+        JSON
+    }
+}
+
+https://matrix.example.com {
+    reverse_proxy 127.0.0.1:6167
+}
+```
+
+</details>
+
+### Increasing file descriptors
+
+On many Linux systems, file descriptors are capped to `1024`, which may not be enough for Continuwuity's heavy use of network and disk resources. Consider increasing this number by editing your `limits.conf` file:
+
+```txt title=/etc/security/limits.conf
+*           soft        nofile          32768
+*           hard        nofile          65536
+```
+
+You may also need to increase your global file descriptor limit, by adding a sysctl parameter like `fs.file-max=1048576` (see [sysctl tuning section](#sysctl-tunings) for more).
+
+Restart your system and run `ulimit -Sn` and `ulimit -Hn`. Your soft and hard limits should now be updated.
+
+For Docker, these tweaks correspond to the following `ulimits`:
+
+```yaml title=docker-compose.yml
+services:
+    homeserver:
+        # ...
+        ulimits:
+            nofile:
+                soft: 32768
+                hard: 65536
+```
+
+### Sysctl tunings
+
+Lastly, consider tuning kernel parameters in your `/etc/sysctl.conf` file (or for systemd distros, `/etc/sysctl.d/99-sysctl.conf`). Refer to external guides such as the [Arch Linux entry on Sysctl][arch-linux-sysctl] and the [sysctl documentation][sysctl-docs] for all possible values.
+
+<details>
+
+<summary>Example sysctl.conf</summary>
+
+This example `/etc/sysctl.conf` is used for a singleuser Continuwuity instance, hosted on an 8GB RAM machine with 4 cores. The goal here is to encourage RAM usage and increase adequate buffer for network activities, as the machine runs on a high-latency network environment.
+
+DO NOT copy-paste this directly, please consult this only as a reference example and only apply gradual changes to your system after you've understood their effects.
+
+```toml title=/etc/sysctl.conf
+# DISK & RAM
+
+## disables slow SWAP entirely
+vm.swappiness = 0
+
+## increase pages cache ratio before writing to disk
+## can help with reducing Disk I/O
+vm.dirty_background_ratio=25
+vm.dirty_ratio=50
+
+## decrease kernel tendency to reclaim directory/inode caches
+vm.vfs_cache_pressure = 50
+
+## increase max file descriptors allowed
+fs.file-max=1048576
+## increase max kernel threads, can help with performance
+kernel.threads-max=100000
+
+# NETWORKING
+
+## increase all network read/write buffers to 8MB
+## helps increase backlogs
+net.core.rmem_max=8388608
+net.core.wmem_max=8388608
+net.core.rmem_default=8388608
+net.core.wmem_default=8388608
+
+## increase TCP-related memories to match with above, too
+net.ipv4.tcp_rmem=4096 131072 8388608
+net.ipv4.tcp_wmem=4096 131072 8388608
+
+# applies TCP window scaling
+net.ipv4.tcp_window_scaling=1 
+# applies SYN cookie for protection against SYN flood
+net.ipv4.tcp_syncookies=1
+
+# increase range of ports assigned to outbound requests
+# can help when there are plenty of outbound connections
+net.ipv4.ip_local_port_range = 20000 65535
+
+# enable the modern BBR congestion control algorithm, with fq
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+```
+
+Once you're happy, run `sysctl -p` to apply the changes.
+
+</details>
+
+[arch-linux-sysctl]: https://wiki.archlinux.org/title/Sysctl
+[sysctl-docs]: https://www.kernel.org/doc/html/latest/admin-guide/sysctl/
