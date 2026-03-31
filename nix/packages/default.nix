@@ -1,14 +1,16 @@
 {
   imports = [
     ./continuwuity
-    ./rocksdb
     ./rust.nix
     ./uwulib
   ];
 
   perSystem =
-    { self', ... }:
+    { self', pkgs, ... }:
     {
-      packages.default = self'.packages.continuwuity-default-bin;
+      packages = {
+        default = self'.packages.continuwuity-default-bin;
+        rocksdb = pkgs.callPackage ./rocksdb.nix { };
+      };
     };
 }

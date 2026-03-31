@@ -1,11 +1,10 @@
 {
   imports = [
-    ./checks
     ./packages
-    ./shells
-    ./tests
-
-    ./hydra.nix
+    ./checks.nix
+    ./devshell.nix
+    ./tests.nix
     ./fmt.nix
+    ./rust.nix
   ];
 }

@@ -10,15 +10,13 @@
     let
       uwulib = inputs.self.uwulib.init pkgs;
 
-      rocksdbAllFeatures = self'.packages.rocksdb.override {
-        enableJemalloc = true;
-      };
+      rocksdb = self'.packages.rocksdb;
 
       commonAttrs = (uwulib.build.commonAttrs { }) // {
         buildInputs = [
           pkgs.liburing
           pkgs.rust-jemalloc-sys-unprefixed
-          rocksdbAllFeatures
+          rocksdb
         ];
         nativeBuildInputs = [
           pkgs.pkg-config
@@ -32,13 +30,13 @@
           LD_LIBRARY_PATH = lib.makeLibraryPath [
             pkgs.liburing
             pkgs.rust-jemalloc-sys-unprefixed
-            rocksdbAllFeatures
+            rocksdb
           ];
         }
         // uwulib.environment.buildPackageEnv
         // {
-          ROCKSDB_INCLUDE_DIR = "${rocksdbAllFeatures}/include";
-          ROCKSDB_LIB_DIR = "${rocksdbAllFeatures}/lib";
+          ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
+          ROCKSDB_LIB_DIR = "${rocksdb}/lib";
         };
       };
       cargoArtifacts = self'.packages.continuwuity-all-features-deps;

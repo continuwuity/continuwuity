@@ -29,7 +29,6 @@
       url = "github:edolstra/flake-compat?ref=master";
       flake = false;
     };
-
   };
 
   outputs =
