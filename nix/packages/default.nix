@@ -40,19 +40,24 @@
           cargoArtifacts = craneLib.buildDepsOnly common;
 
           rocksdb = pkgs.callPackage ./rocksdb.nix { };
-
-          continuwuity = craneLib.buildPackage (
+        in
+        {
+          default = craneLib.buildPackage (
             lib.recursiveUpdate common {
               inherit cargoArtifacts;
               env = {
                 ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
                 ROCKSDB_LIB_DIR = "${rocksdb}/lib";
               };
+
+              meta = {
+                description = "A community-driven Matrix homeserver in Rust";
+                mainProgram = "conduwuit";
+                platforms = lib.platforms.linux;
+                maintainers = with lib.maintainers; [ quadradical ];
+              };
             }
           );
-        in
-        {
-          default = continuwuity;
           inherit rocksdb;
         };
     };
