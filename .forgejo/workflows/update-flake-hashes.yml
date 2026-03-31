@@ -19,8 +19,8 @@ jobs:
           persist-credentials: true
           token: ${{ secrets.FORGEJO_TOKEN }}
 
-      - name: Lix GHA Installer Action
-        uses: https://github.com/samueldr/lix-gha-installer-action@v2026-02-22
+      - name: Install Lix
+        uses: https://github.com/samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c
         with:
           extra_nix_config: experimental-features = nix-command flakes flake-self-attrs
 
