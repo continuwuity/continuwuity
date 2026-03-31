@@ -5,5 +5,6 @@
     ./packages
     ./devshell.nix
     ./fmt.nix
+    ./rocksdb-updater.nix
   ];
 }
