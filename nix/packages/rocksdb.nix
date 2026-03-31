@@ -15,14 +15,14 @@
   jemalloc = rust-jemalloc-sys-unprefixed;
   enableJemalloc = stdenv.hostPlatform.isLinux;
 }).overrideAttrs
-  (rec {
-    version = "10.10.fb";
+  ({
+    version = "continuwuity-v0.5.0-unstable-2026-03-27";
     src = fetchFromGitea {
       domain = "forgejo.ellis.link";
       owner = "continuwuation";
       repo = "rocksdb";
-      rev = version;
-      sha256 = "sha256-1ef75IDMs5Hba4VWEyXPJb02JyShy5k4gJfzGDhopRk=";
+      rev = "463f47afceebfe088f6922420265546bd237f249";
+      hash = "sha256-1ef75IDMs5Hba4VWEyXPJb02JyShy5k4gJfzGDhopRk=";
     };
 
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
