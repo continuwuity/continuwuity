@@ -24,7 +24,7 @@
         };
 
         settings.formatter.rustfmt = {
-          command = "${lib.getExe' self'.packages.stable-toolchain "rustfmt"}";
+          command = "${lib.getExe' self'.packages.dev-toolchain "rustfmt"}";
           includes = [ "**/*.rs" ];
           options = [
             "--unstable-features"
