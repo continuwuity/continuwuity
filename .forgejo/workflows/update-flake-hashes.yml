@@ -16,48 +16,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
-          fetch-tags: false
-          fetch-single-branch: true
-          submodules: false
           persist-credentials: true
           token: ${{ secrets.FORGEJO_TOKEN }}
 
-      - uses: https://github.com/cachix/install-nix-action@19effe9fe722874e6d46dd7182e4b8b7a43c4a99 # v31.10.0
+      - name: Lix GHA Installer Action
+        uses: https://github.com/samueldr/lix-gha-installer-action@v2026-02-22
         with:
-          nix_path: nixpkgs=channel:nixos-unstable
-
-        # We can skip getting a toolchain hash if this was ran as a dispatch with the intent
-        # to update just the rocksdb hash. If this was ran as a dispatch and the toolchain
-        # files are changed, we still update them, as well as the rocksdb import.
-      - name: Detect changed files
-        id: changes
-        run: |
-          git fetch origin ${{ github.base_ref }} --depth=1 || true
-          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
-            base=${{ github.event.pull_request.base.sha }}
-          else
-            base=$(git rev-parse HEAD~1)
-          fi
-          echo "Base: $base"
-          echo "HEAD: $(git rev-parse HEAD)"
-          git diff --name-only $base HEAD > changed_files.txt
-          echo "detected changes in $(cat changed_files.txt)"
-          # Join files with commas
-          files=$(paste -sd, changed_files.txt)
-          echo "files=$files" >> $FORGEJO_OUTPUT
-
-      - name: Debug output
-        run: |
-          echo "State of output"
-          echo "Changed files: ${{ steps.changes.outputs.files }}"
+          extra_nix_config: experimental-features = nix-command flakes flake-self-attrs
 
       - name: Get new toolchain hash
-        if: contains(steps.changes.outputs.files, 'Cargo.toml') || contains(steps.changes.outputs.files, 'Cargo.lock') || contains(steps.changes.outputs.files, 'rust-toolchain.toml')
         run: |
           # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/packages/rust.nix > temp.nix
-          mv temp.nix nix/packages/rust.nix
+          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/rust.nix > temp.nix
+          mv temp.nix nix/rust.nix
 
           # Build continuwuity and filter for the new hash
           # We do `|| true` because we want this to fail without stopping the workflow
@@ -65,36 +36,17 @@ jobs:
 
           # Place the new hash in place of the empty hash
           new_hash=$(cat new_toolchain_hash.txt)
-          sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/packages/rust.nix
+          sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/rust.nix
 
           echo "New hash:"
-          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/packages/rust.nix
+          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/rust.nix
           echo "Expected new hash:"
           cat new_toolchain_hash.txt
 
           rm new_toolchain_hash.txt
 
-      - name: Get new rocksdb hash
-        if: contains(steps.changes.outputs.files, '.nix') || contains(steps.changes.outputs.files, 'flake.lock')
-        run: |
-          # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/repo = "rocksdb";/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/packages/rocksdb/package.nix > temp.nix
-          mv temp.nix nix/packages/rocksdb/package.nix
-
-          # Build continuwuity and filter for the new hash
-          # We do `|| true` because we want this to fail without stopping the workflow
-          nix build .#default 2>&1 | tee >(grep 'got:' | awk '{print $2}' > new_rocksdb_hash.txt) || true
-
-          # Place the new hash in place of the empty hash
-          new_hash=$(cat new_rocksdb_hash.txt)
-          sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/packages/rocksdb/package.nix
-
-          echo "New hash:"
-          awk -F'"' '/repo = "rocksdb";/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/packages/rocksdb/package.nix
-          echo "Expected new hash:"
-          cat new_rocksdb_hash.txt
-
-          rm new_rocksdb_hash.txt
+      - name: Update rocksdb
+        run: nix run .#update-rocksdb
 
       - name: Show diff
         run: git diff flake.nix nix
