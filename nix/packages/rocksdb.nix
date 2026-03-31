@@ -19,13 +19,13 @@
   # which breaks Darwin entirely
 }).overrideAttrs
   (rec {
-    version = "10.5.fb";
+    version = "10.10.fb";
     src = fetchFromGitea {
       domain = "forgejo.ellis.link";
       owner = "continuwuation";
       repo = "rocksdb";
       rev = version;
-      sha256 = "sha256-X4ApGLkHF9ceBtBg77dimEpu720I79ffLoyPa8JMHaU=";
+      sha256 = "sha256-1ef75IDMs5Hba4VWEyXPJb02JyShy5k4gJfzGDhopRk=";
     };
 
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
