@@ -1,0 +1,27 @@
+# DNS Tuning (recommended)
+
+For federation, Matrix homeservers conduct an enormous amount of DNS requests, sometimes up to thousands of queries per minute. Normal DNS resolvers are simply not designed for this load, and running Continuwuity with them will likely result in DNS timeouts and/or non-functional outbound federation. This can be seen in the logs as "DNS No connections available", "mismatching responding nameservers" and other federation-relevant errors.
+
+To solve this issue, it is strongly recommended to self-host a high-quality, external caching DNS resolver for Continuwuity. This guide will use [Unbound][unbound] as the recommended example for this role, but the principle applies in general to any DNS software you use.
+
+[unbound]: https://wiki.archlinux.org/title/Unbound
+
+## Overview
+
+## Unbound
+
+## Other resolvers
+
+### dnsproxy
+
+### dnsmasq
+
+`dnsmasq` can possibly work, but it does not support TCP fallback which can be problematic when receiving large DNS responses such as from large SRV records. If you still want to use dnsmasq, make sure you disable dns_tcp_fallback in Continuwuity config.
+
+### Technitium
+
+### None
+
+## Testing
+
+## Further steps
