@@ -2,6 +2,7 @@
 {
   perSystem =
     {
+      craneLib,
       self',
       pkgs,
       lib,
@@ -10,14 +11,13 @@
     {
       packages =
         let
-          crane = self'.packages.crane;
           src =
             let
               # see https://crane.dev/API.html#cranelibfiltercargosources
               # we need to keep the `web` directory which would be filtered out by the regular source filtering function
               # https://crane.dev/API.html#cranelibcleancargosource
               isWebTemplate = path: _type: builtins.match ".*(src/(web|service)|docs).*" path != null;
-              isRust = crane.filterCargoSources;
+              isRust = craneLib.filterCargoSources;
               isNix = path: _type: builtins.match ".+/nix.*" path != null;
               webOrRustNotNix = p: t: !(isNix p t) && (isWebTemplate p t || isRust p t);
             in
@@ -34,11 +34,11 @@
             env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
           };
 
-          cargoArtifacts = crane.buildDepsOnly common;
+          cargoArtifacts = craneLib.buildDepsOnly common;
 
           rocksdb = pkgs.callPackage ./rocksdb.nix { };
 
-          continuwuity = crane.buildPackage (
+          continuwuity = craneLib.buildPackage (
             common
             // {
               inherit cargoArtifacts;
