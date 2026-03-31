@@ -29,7 +29,10 @@
 
           common = {
             inherit src;
-            nativeBuildInputs = [ pkgs.pkg-config ];
+            nativeBuildInputs = with pkgs; [
+              pkg-config
+              rustPlatform.bindgenHook
+            ];
             buildInputs = [ pkgs.liburing ];
             env.LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
           };
