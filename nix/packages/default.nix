@@ -39,8 +39,7 @@
           rocksdb = pkgs.callPackage ./rocksdb.nix { };
 
           continuwuity = craneLib.buildPackage (
-            common
-            // {
+            lib.recursiveUpdate common {
               inherit cargoArtifacts;
               env = {
                 ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
