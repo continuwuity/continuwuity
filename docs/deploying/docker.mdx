@@ -113,7 +113,7 @@ See the [reference configuration](../reference/config) page for all config optio
 These examples include reverse proxy configurations for Matrix federation, which will route your Matrix domain (and optionally .well-known paths) to Continuwuity.
 
 :::note Docker DNS Performance
-Docker's default DNS resolver are known to cause issues for Matrix federation, such as very slow federation or DNS timeout. As a workaround, we will mount a custom `/etc/resolv.conf` config file into the Continuwuity service, in order to bypass Docker and use a more performant resolver.
+Docker's default DNS resolver are [known to cause issues](../troubleshooting#dns-issues) for Matrix federation such as very slow federation or DNS timeouts. As a workaround, we will mount a custom `/etc/resolv.conf` config file into the Continuwuity service, in order to bypass Docker and use a more performant resolver.
 
 ```yaml title='docker-compose.yml'
 services:
@@ -130,7 +130,7 @@ configs:
       nameserver 1.1.1.1
 ```
 
-See [**Troubleshooting - DNS Issues**](../troubleshooting.mdx#potential-dns-issues-when-using-docker) for more details and alternative solutions.
+It is strongly recommended to consult the [**DNS tuning guide**](../advanced/dns) for full solutions to this issue.
 :::
 
 #### Caddy (using Caddyfile)
@@ -240,4 +240,5 @@ section in the development documentation.
 
 ## Next steps
 
+- For smooth federation, set up a caching resolver according to the [DNS tuning guide](../advanced/dns)
 - To set up Audio/Video communication, see the [Calls](../calls.mdx) page.
