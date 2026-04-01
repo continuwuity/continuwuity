@@ -45,75 +45,21 @@ log into the server account (`@conduit`) from a web client
 
 ## DNS issues
 
-### Potential DNS issues when using Docker
+If your server experience any of the following symptoms:
 
-Docker's DNS setup for containers in a non-default network intercepts queries to
-enable resolving of container hostnames to IP addresses. However, due to
-performance issues with Docker's built-in resolver, this can cause DNS queries
-to take a long time to resolve, resulting in federation issues.
+- Spurious amounts of logs saying "DNS No connections available" or "mismatching responding nameservers"
+- Federation errors in log entries, such as "error sending request"
+- Excessively long room joins (30+ minutes)
+- Partial or non-functional outbound federation
 
-This is particularly common with Docker Compose, as custom networks are easily
-created and configured.
+This is likely due to your DNS server being overloaded. Most likely, these problems are encountered in the following scenarios:
 
-Symptoms of this include excessively long room joins (30+ minutes) from very
-long DNS timeouts, log entries of "mismatching responding nameservers",
-and/or partial or non-functional inbound/outbound federation.
+- Homeservers hosted on a systemd-based distro, and are using `systemd-resolved`.
+- Docker deployments which use the bridge's network forwarding resolver to intercept queries.
 
-This is not a bug in continuwuity. Docker's default DNS resolver is not suitable
-for heavy DNS activity, which is normal for federated protocols like Matrix.
+Matrix federation is extremely heavy and sends wild amounts of DNS requests. This makes normal resolvers like the ones above unsuitable for its activity. Unfortunately, this is by design and has only gotten worse with more server/destination resolution steps.
 
-Workarounds:
-
-- Use DNS over TCP via the config option `query_over_tcp_only = true`
-- Bypass Docker's default DNS setup and instead allow the container to use and communicate with your host's DNS servers. Typically, this can be done by mounting the host's `/etc/resolv.conf`.
-
-### DNS No connections available error message
-
-If you receive spurious amounts of error logs saying "DNS No connections
-available", this is due to your DNS server (servers from `/etc/resolv.conf`)
-being overloaded and unable to handle typical Matrix federation volume. Some
-users have reported that the upstream servers are rate-limiting them as well
-when they get this error (e.g. popular upstreams like Google DNS).
-
-Matrix federation is extremely heavy and sends wild amounts of DNS requests.
-Unfortunately this is by design and has only gotten worse with more
-server/destination resolution steps. Synapse also expects a very perfect DNS
-setup.
-
-There are some ways you can reduce the amount of DNS queries, but ultimately
-the best solution/fix is selfhosting a high quality caching DNS server like
-[Unbound][unbound-arch] without any upstream resolvers, and without DNSSEC
-validation enabled.
-
-DNSSEC validation is highly recommended to be **disabled** due to DNSSEC being
-very computationally expensive, and is extremely susceptible to denial of
-service, especially on Matrix. Many servers also strangely have broken DNSSEC
-setups and will result in non-functional federation.
-
-Continuwuity cannot provide a "works-for-everyone" Unbound DNS setup guide, but
-the [official Unbound tuning guide][unbound-tuning] and the [Unbound Arch Linux wiki page][unbound-arch]
-may be of interest. Disabling DNSSEC on Unbound is commenting out trust-anchors
-config options and removing the `validator` module.
-
-**Avoid** using `systemd-resolved` as it does **not** perform very well under
-high load, and we have identified its DNS caching to not be very effective.
-
-dnsmasq can possibly work, but it does **not** support TCP fallback which can be
-problematic when receiving large DNS responses such as from large SRV records.
-If you still want to use dnsmasq, make sure you **disable** `dns_tcp_fallback`
-in Continuwuity config.
-
-Raising `dns_cache_entries` in Continuwuity config from the default can also assist
-in DNS caching, but a full-fledged external caching resolver is better and more
-reliable.
-
-If you don't have IPv6 connectivity, changing `ip_lookup_strategy` to match
-your setup can help reduce unnecessary AAAA queries
-(`1 - Ipv4Only (Only query for A records, no AAAA/IPv6)`).
-
-If your DNS server supports it, some users have reported enabling
-`query_over_tcp_only` to force only TCP querying by default has improved DNS
-reliability at a slight performance cost due to TCP overhead.
+Ultimately, the best solution/fix for this is to selfhost a high quality caching DNS resolver such as Unbound, and configure Continuwuity to use it. Follow the [**DNS tuning guide**](./advanced/dns) for details on setting it up.
 
 ## RocksDB / database issues
 
