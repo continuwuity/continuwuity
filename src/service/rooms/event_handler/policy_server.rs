@@ -17,7 +17,7 @@ use ruma::{
 		client::error::ErrorKind, federation::room::policy_sign::v1::Request as PolicySignRequest,
 	},
 	events::{StateEventType, room::policy::UnstableRoomPolicyEventContent},
-	serde::{Base64, base64::UrlSafe},
+	serde::{Base64, base64::Standard},
 	signatures::canonical_json,
 };
 use serde_json::value::RawValue;
@@ -25,7 +25,7 @@ use tokio::{join, time::sleep};
 
 pub(super) fn verify_policy_signature(
 	via: &ServerName,
-	ps_key: &Base64<UrlSafe, Vec<u8>>,
+	ps_key: &Base64<Standard, Vec<u8>>,
 	pdu_json: &CanonicalJsonObject,
 ) -> bool {
 	let signature = pdu_json
@@ -35,7 +35,7 @@ pub(super) fn verify_policy_signature(
 		.and_then(|sigs_for_server| sigs_for_server.as_object())
 		.and_then(|sigs_for_server_map| sigs_for_server_map.get("ed25519:policy_server"))
 		.and_then(|sig| sig.as_str())
-		.and_then(|sig_str| Base64::<UrlSafe, Vec<u8>>::parse(sig_str).ok())
+		.and_then(|sig_str| Base64::<Standard, Vec<u8>>::parse(sig_str).ok())
 		.and_then(|sig_b64| Signature::from_slice(sig_b64.as_bytes()).ok());
 	let vk = match VerifyingKey::try_from(ps_key.as_bytes()) {
 		| Ok(vk) => vk,
@@ -195,7 +195,7 @@ async fn handle_policy_server_error(
 	via: &ServerName,
 	outgoing: Box<RawValue>,
 	room_id: &RoomId,
-	policy_server_key: Base64<UrlSafe, Vec<u8>>,
+	policy_server_key: Base64<Standard, Vec<u8>>,
 	retries: u8,
 	timeout: Duration,
 ) -> Result<()> {
@@ -304,7 +304,7 @@ pub async fn fetch_policy_server_signature(
 	via: &ServerName,
 	outgoing: Box<RawValue>,
 	room_id: &RoomId,
-	policy_server_key: Base64<UrlSafe, Vec<u8>>,
+	policy_server_key: Base64<Standard, Vec<u8>>,
 	retries: u8,
 ) -> Result<()> {
 	let timeout = Duration::from_secs(self.services.server.config.policy_server_request_timeout);
