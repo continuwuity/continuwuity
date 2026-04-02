@@ -178,7 +178,7 @@ pub async fn policy_server_allows_event(
 		.convert_to_outgoing_federation_event(pdu_json.clone())
 		.await;
 
-	info!(
+	debug_info!(
 		via = %via,
 		"Asking policy server to sign event"
 	);
@@ -422,5 +422,6 @@ pub async fn fetch_policy_server_signature(
 			"Existing `signatures` field is not an object; cannot insert policy signature"
 		);
 	}
+	debug_info!("Policy server allowed event");
 	Ok(())
 }
