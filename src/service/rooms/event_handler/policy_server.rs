@@ -125,11 +125,7 @@ pub async fn policy_server_allows_event(
 		},
 	};
 
-	let Some(via) = ps
-		.via
-		.as_ref()
-		.and_then(|via| ServerName::parse(via).map(Some).unwrap_or(None))
-	else {
+	let Some(via) = ps.via.as_ref().and_then(|via| ServerName::parse(via).ok()) else {
 		trace!("No via configured for room policy server, skipping spam check");
 		return Ok(());
 	};
