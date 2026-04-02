@@ -262,6 +262,7 @@ where
 					&incoming_pdu,
 					&mut incoming_pdu.to_canonical_object(),
 					room_id,
+					&room_version_id,
 					true,
 				)
 				.await

@@ -6,19 +6,19 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_info, err, error, implement, info, trace,
-	warn,
+	Err, Error, Event, PduEvent, Result, debug, debug_info, debug_warn, err, error, implement,
+	info, trace, warn,
 };
-use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use http::StatusCode;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName,
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, RoomVersionId, ServerName,
 	api::{
 		client::error::ErrorKind, federation::room::policy_sign::v1::Request as PolicySignRequest,
 	},
+	canonical_json::redact,
 	events::{StateEventType, room::policy::UnstableRoomPolicyEventContent},
 	serde::{Base64, base64::Standard},
-	signatures::canonical_json,
+	signatures::{Ed25519Verifier, canonical_json},
 };
 use serde_json::value::RawValue;
 use tokio::{join, time::sleep};
@@ -27,40 +27,32 @@ pub(super) fn verify_policy_signature(
 	via: &ServerName,
 	ps_key: &Base64<Standard, Vec<u8>>,
 	pdu_json: &CanonicalJsonObject,
+	room_version: &RoomVersionId,
 ) -> bool {
-	let signature = pdu_json
-		.get("signatures")
-		.and_then(|sigs| sigs.as_object())
-		.and_then(|sigs_map| sigs_map.get(via.as_str()))
-		.and_then(|sigs_for_server| sigs_for_server.as_object())
-		.and_then(|sigs_for_server_map| sigs_for_server_map.get("ed25519:policy_server"))
-		.and_then(|sig| sig.as_str())
-		.and_then(|sig_str| Base64::<Standard, Vec<u8>>::parse(sig_str).ok())
-		.and_then(|sig_b64| Signature::from_slice(sig_b64.as_bytes()).ok());
-	let vk = match VerifyingKey::try_from(ps_key.as_bytes()) {
-		| Ok(vk) => vk,
-		| Err(e) => {
-			debug!(
-				error=%e,
-				"Failed to parse policy server public key; cannot verify signature"
-			);
-			return false;
-		},
+	let Some(canonical_json) = redact(pdu_json.clone(), room_version, None)
+		.ok()
+		.and_then(|r| canonical_json(r).ok())
+	else {
+		return false;
 	};
-	let cj = match canonical_json(pdu_json.clone()) {
-		| Ok(cj) => cj,
-		| Err(e) => {
-			debug!(
-				error=%e,
-				"Failed to convert event JSON to canonical form; cannot verify policy server signature"
-			);
-			return false;
-		},
+	let Some(CanonicalJsonValue::Object(signature_map)) = pdu_json.get("signatures") else {
+		return false;
 	};
-	match signature {
-		| Some(ref sig) => vk.verify(cj.as_bytes(), sig).is_ok(),
-		| None => false,
-	}
+	let Some(CanonicalJsonValue::Object(signature_set)) = signature_map.get(via.as_str()) else {
+		return false;
+	};
+	let Some(signature) = signature_set
+		.get("ed25519:policy_server")
+		.and_then(|s| s.as_str())
+		.and_then(|s| Base64::parse(s).ok())
+	else {
+		return false;
+	};
+
+	trace!(%signature, "Verifying policy server signature");
+	ruma::signatures::verify_json_with(&Ed25519Verifier, ps_key, &signature, &canonical_json)
+		.inspect_err(|error| debug_warn!(%error, "Policy server signature verification failed"))
+		.is_ok()
 }
 
 /// Asks a remote policy server if the event is allowed.
@@ -81,6 +73,7 @@ pub async fn policy_server_allows_event(
 	pdu: &PduEvent,
 	pdu_json: &mut CanonicalJsonObject,
 	room_id: &RoomId,
+	room_version: &RoomVersionId,
 	incoming: bool,
 ) -> Result<()> {
 	let ps = match StateEventType::from(pdu.event_type().clone()) {
@@ -158,7 +151,7 @@ pub async fn policy_server_allows_event(
 
 	if incoming {
 		// Verify the signature instead of calling a check
-		if verify_policy_signature(via, &ps_key, pdu_json) {
+		if verify_policy_signature(via, &ps_key, pdu_json, room_version) {
 			debug!(
 				via = %via,
 				"Event is incoming and has a valid policy server signature"

@@ -303,6 +303,7 @@ pub async fn create_hash_and_sign_event(
 				&pdu,
 				&mut pdu_json,
 				pdu.room_id().expect("has room ID"),
+				&room_version_id,
 				false,
 			)
 			.await?;
