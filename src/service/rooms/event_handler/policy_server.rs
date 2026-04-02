@@ -35,11 +35,7 @@ pub(super) fn verify_policy_signature(
 		.and_then(|sigs_for_server_map| sigs_for_server_map.get("ed25519:policy_server"))
 		.and_then(|sig| sig.as_str())
 		.and_then(|sig_str| Base64::<UrlSafe, Vec<u8>>::parse(sig_str).ok())
-		.and_then(|sig_b64| {
-			Signature::from_slice(sig_b64.as_bytes())
-				.map(Some)
-				.unwrap_or(None)
-		});
+		.and_then(|sig_b64| Signature::from_slice(sig_b64.as_bytes()).ok());
 	let vk = match VerifyingKey::try_from(ps_key.as_bytes()) {
 		| Ok(vk) => vk,
 		| Err(e) => {
