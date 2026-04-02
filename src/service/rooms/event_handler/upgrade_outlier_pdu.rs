@@ -8,7 +8,9 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, StreamExt, future::ready};
-use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
+use ruma::{
+	CanonicalJsonValue, RoomId, ServerName, api::client::error::ErrorKind, events::StateEventType,
+};
 
 use super::{get_room_version_id, to_room_version};
 use crate::rooms::{
@@ -255,7 +257,7 @@ where
 		// 14-pre. If the event is not a state event, ask the policy server about it
 		if incoming_pdu.state_key.is_none() {
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
-			match self
+			if let Err(e) = self
 				.policy_server_allows_event(
 					&incoming_pdu,
 					&mut incoming_pdu.to_canonical_object(),
@@ -264,20 +266,22 @@ where
 				)
 				.await
 			{
-				| Err(e) => {
+				if matches!(e.kind(), ErrorKind::Forbidden { .. }) {
 					warn!(
 						event_id = %incoming_pdu.event_id,
 						error = %e,
-						"Event has been marked as spam by policy server"
+						"Event has been marked as spam by policy server: {}",
+						e.message(),
 					);
 					soft_fail = true;
-				},
-				| _ => {
-					debug!(
-						event_id = %incoming_pdu.event_id,
-						"Event has passed policy server check or the policy server was unavailable."
-					);
-				},
+				} else {
+					return Err(e);
+				}
+			} else {
+				debug!(
+					event_id = %incoming_pdu.event_id,
+					"Event has passed policy server check."
+				);
 			}
 		}
 

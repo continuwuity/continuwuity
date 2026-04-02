@@ -6,7 +6,8 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_info, error, implement, info, trace, warn,
+	Err, Error, Event, PduEvent, Result, debug, debug_info, err, error, implement, info, trace,
+	warn,
 };
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use http::StatusCode;
@@ -108,8 +109,10 @@ pub async fn policy_server_allows_event(
 		| Ok(ps) => ps,
 		| Err(e) => {
 			if e.is_not_found() {
+				trace!("no policy server configured");
 				return Ok(()); // no policy server configured
 			}
+			err!("failed to load policy server event");
 			return Err(e);
 		},
 	};
