@@ -4,7 +4,10 @@ mod panic;
 mod response;
 mod serde;
 
-use std::{any::Any, borrow::Cow, convert::Infallible, error::Error as _, sync::PoisonError, time::Duration};
+use std::{
+	any::Any, borrow::Cow, convert::Infallible, error::Error as _, sync::PoisonError,
+	time::Duration,
+};
 
 use ruma::api::client::error::{ErrorKind, RetryAfter::Delay};
 

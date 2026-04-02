@@ -474,20 +474,18 @@ pub struct Config {
 	#[serde(default = "default_federation_timeout")]
 	pub federation_timeout: u64,
 
-	/// MSC4284 Policy server request timeout (seconds). Generally policy
+	/// Policy server request timeout (seconds). Generally policy
 	/// servers should respond near instantly, however may slow down under
 	/// load. If a policy server doesn't respond in a short amount of time, the
 	/// room it is configured in may become unusable if this limit is set too
-	/// high. 10 seconds is a good default, however dropping this to 3-5 seconds
-	/// can be acceptable.
+	/// high. 30 seconds is a good default, however lower values may be
+	/// acceptable if temporary send failures are an okay trade-off.
 	///
-	/// Please be aware that policy requests are *NOT* currently re-tried, so if
-	/// a spam check request fails, the event will be assumed to be not spam,
-	/// which in some cases may result in spam being sent to or received from
-	/// the room that would typically be prevented.
 	///
 	/// About policy servers: https://matrix.org/blog/2025/04/introducing-policy-servers/
-	/// default: 10
+	/// (Stabilized in Matrix v1.18)
+	///
+	/// default: 30
 	#[serde(default = "default_policy_server_request_timeout")]
 	pub policy_server_request_timeout: u64,
 
@@ -1810,19 +1808,6 @@ pub struct Config {
 	#[serde(default)]
 	pub block_non_admin_invites: bool,
 
-	/// Enable or disable making requests to MSC4284 Policy Servers.
-	/// It is recommended you keep this enabled unless you experience frequent
-	/// connectivity issues, such as in a restricted networking environment.
-	#[serde(default = "true_fn")]
-	pub enable_msc4284_policy_servers: bool,
-
-	/// Enable running locally generated events through configured MSC4284
-	/// policy servers. You may wish to disable this if your server is
-	/// single-user for a slight speed benefit in some rooms, but otherwise
-	/// should leave it enabled.
-	#[serde(default = "true_fn")]
-	pub policy_server_check_own_events: bool,
-
 	/// Allow admins to enter commands in rooms other than "#admins" (admin
 	/// room) by prefixing your message with "\!admin" or "\\!admin" followed up
 	/// a normal continuwuity admin command. The reply will be publicly visible
@@ -2664,7 +2649,7 @@ fn default_federation_conn_timeout() -> u64 { 10 }
 
 fn default_federation_timeout() -> u64 { 60 }
 
-fn default_policy_server_request_timeout() -> u64 { 10 }
+fn default_policy_server_request_timeout() -> u64 { 30 }
 
 fn default_federation_idle_timeout() -> u64 { 25 }
 

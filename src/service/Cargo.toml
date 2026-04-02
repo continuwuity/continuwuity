@@ -89,6 +89,7 @@ bytes.workspace = true
 conduwuit-core.workspace = true
 conduwuit-database.workspace = true
 const-str.workspace = true
+ed25519-dalek = { version = "2.2.0"}
 either.workspace = true
 futures.workspace = true
 governor.workspace = true
