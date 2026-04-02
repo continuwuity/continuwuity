@@ -375,8 +375,8 @@
 # servers should respond near instantly, however may slow down under
 # load. If a policy server doesn't respond in a short amount of time, the
 # room it is configured in may become unusable if this limit is set too
-# high. 30 seconds is a good default, however lower values may be acceptable
-# if temporary send failures are an okay trade-off.
+# high. 30 seconds is a good default, however lower values may be
+# acceptable if temporary send failures are an okay trade-off.
 #
 #
 # About policy servers: https://matrix.org/blog/2025/04/introducing-policy-servers/
