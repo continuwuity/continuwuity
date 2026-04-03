@@ -1,13 +1,14 @@
 {
   lib,
   self,
-  craneLib,
-  callPackage,
-  pkg-config,
-  rustPlatform,
-  liburing,
   stdenv,
+  liburing,
+  craneLib,
+  pkg-config,
+  callPackage,
+  rustPlatform,
   cargoExtraArgs ? "",
+  rocksdb ? callPackage ./rocksdb.nix { },
 }:
 let
   # see https://crane.dev/API.html#cranelibfiltercargosources
@@ -24,8 +25,6 @@ let
     name = "source";
   };
 
-  rocksdb = callPackage ./rocksdb.nix { };
-
   attrs = {
     inherit src;
     nativeBuildInputs = [
@@ -38,13 +37,11 @@ let
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
     };
   };
-
-  cargoArtifacts = craneLib.buildDepsOnly attrs;
-
 in
 craneLib.buildPackage (
   lib.recursiveUpdate attrs {
-    inherit cargoArtifacts cargoExtraArgs;
+    inherit cargoExtraArgs;
+    cargoArtifacts = craneLib.buildDepsOnly attrs;
 
     # Needed to make continuwuity link to rocksdb
     postFixup = ''
