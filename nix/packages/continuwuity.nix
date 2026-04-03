@@ -7,7 +7,7 @@
   rustPlatform,
   liburing,
   stdenv,
-  cargoExtraArgs ? [ ],
+  cargoExtraArgs ? "",
 }:
 let
   # see https://crane.dev/API.html#cranelibfiltercargosources
@@ -32,7 +32,7 @@ let
       pkg-config
       rustPlatform.bindgenHook
     ];
-    buildInputs = lib.optionals stdenv.hostPlatform.isLinux liburing;
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux [ liburing ];
     env = {
       ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
