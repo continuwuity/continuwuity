@@ -36,9 +36,7 @@
     flake-parts.lib.mkFlake { inherit inputs; } {
       imports = [ ./nix ];
       systems = [
-        # good support
         "x86_64-linux"
-        # support untested but theoretically there
         "aarch64-linux"
       ];
     };
