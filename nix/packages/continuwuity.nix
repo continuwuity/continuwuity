@@ -32,7 +32,7 @@ let
       pkg-config
       rustPlatform.bindgenHook
     ];
-    buildInputs = lib.optional stdenv.hostPlatform.isLinux liburing;
+    buildInputs = lib.optionals stdenv.hostPlatform.isLinux liburing;
     env = {
       ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
