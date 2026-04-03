@@ -2191,6 +2191,13 @@ pub struct WellKnownConfig {
 	/// listed.
 	pub support_mxid: Option<OwnedUserId>,
 
+	/// PGP key URI for server support contacts, to be served as part of the
+	/// MSC1929 server support endpoint. This uses the unstable prefix from
+	/// [MSC4439].
+	/// 
+	/// [MSC4439]: https://github.com/matrix-org/matrix-spec-proposals/pull/4439
+	pub support_pgp_key: Option<String>,
+
 	/// **DEPRECATED**: Use `[global.matrix_rtc].foci` instead.
 	///
 	/// A list of MatrixRTC foci URLs which will be served as part of the

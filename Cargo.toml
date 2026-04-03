@@ -344,7 +344,7 @@ version = "0.1.2"
 [workspace.dependencies.ruma]
 git = "https://forgejo.ellis.link/continuwuation/ruwuma"
 #branch = "conduwuit-changes"
-rev = "a97b91adcc012ef04991d823b8b5a79c6686ae48"
+rev = "1415caf8a32af4d943580c5ea4e12be1974593c2"
 features = [
     "compat",
     "rand",
@@ -383,7 +383,8 @@ features = [
     "unstable-pdu",
     "unstable-msc4155",
     "unstable-msc4143", # livekit well_known response
-    "unstable-msc4284"
+    "unstable-msc4284",
+    "unstable-msc4439", # pgp_key in .well_known/matrix/support
 ]
 
 [workspace.dependencies.rust-rocksdb]

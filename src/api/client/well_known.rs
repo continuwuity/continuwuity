@@ -71,6 +71,7 @@ pub(crate) async fn well_known_support(
 
 	let email_address = services.config.well_known.support_email.clone();
 	let matrix_id = services.config.well_known.support_mxid.clone();
+	let pgp_key = services.config.well_known.support_pgp_key.clone();
 
 	// TODO: support defining multiple contacts in the config
 	let mut contacts: Vec<Contact> = vec![];
@@ -88,6 +89,7 @@ pub(crate) async fn well_known_support(
 			role: role_value.clone(),
 			email_address: email_address.clone(),
 			matrix_id: matrix_id.clone(),
+			pgp_key: pgp_key.clone(),
 		});
 	}
 
@@ -104,6 +106,7 @@ pub(crate) async fn well_known_support(
 				role: role_value.clone(),
 				email_address: None,
 				matrix_id: Some(user_id.to_owned()),
+				pgp_key: None,
 			});
 		}
 	}
