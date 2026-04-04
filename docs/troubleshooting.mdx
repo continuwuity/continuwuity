@@ -47,19 +47,24 @@ log into the server account (`@conduit`) from a web client
 
 If your server experience any of the following symptoms:
 
-- Spurious amounts of logs saying "DNS No connections available" or "mismatching responding nameservers"
-- Federation errors in log entries, such as "error sending request"
+- Spurious log entries with "DNS No connections available", "mismatching responding nameservers", or "error sending request"
 - Excessively long room joins (30+ minutes)
 - Partial or non-functional outbound federation
 
 This is likely due to your DNS server being overloaded. Most likely, these problems are encountered in the following scenarios:
 
-- Homeservers hosted on a systemd-based distro, and are using `systemd-resolved`.
-- Docker deployments which use the bridge's network forwarding resolver to intercept queries.
+- Homeservers hosted on a machine that uses `systemd-resolved`.
+- Docker deployments which use the bridge network's forwarding resolver.
 
-Matrix federation is extremely heavy and sends wild amounts of DNS requests. This makes normal resolvers like the ones above unsuitable for its activity. Unfortunately, this is by design and has only gotten worse with more server/destination resolution steps.
+Matrix federation is extremely heavy and sends wild amounts of DNS requests. This makes normal resolvers like the ones above unsuitable for its activity. Ultimately, the best solution/fix for this is to selfhost a high quality caching DNS resolver such as Unbound, and configure Continuwuity to use it.
 
-Ultimately, the best solution/fix for this is to selfhost a high quality caching DNS resolver such as Unbound, and configure Continuwuity to use it. Follow the [**DNS tuning guide**](./advanced/dns) for details on setting it up.
+Follow the [**DNS tuning guide**](./advanced/dns) for details on setting it up.
+
+### Intermittent federation failures to a specific server
+
+There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors, and `!admin debug resolve-true-destination <SERVER_NAME>` would likely return a wrong destination. To fix this, you can run `!admin query resolver flush-cache <SERVER_NAME>` to clear the bad cache for that domain, and outbound requests would work again.
+
+You may also use `!admin server clear-caches` or `!admin query resolver flush-cache -a` to clear all server/resolver caches, in case of failures with many domains. However, note this would significantly increase your server load for a short period.
 
 ## RocksDB / database issues
 

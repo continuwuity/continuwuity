@@ -40,7 +40,7 @@ services:
             - ./continuwuity-resolv.conf:/etc/resolv.conf:ro
 
     unbound:
-        # ...    
+        # ...
         networks:
             matrix_net:
                 ipv4_address: 10.10.10.20
@@ -68,7 +68,7 @@ ip_lookup_strategy = 1
 
 After installation, you can tune `/etc/unbound/unbound.conf` values according to your needs. While Continuwuity cannot recommend a "works-for-everyone" Unbound DNS setup guide, the official [Unbound tuning guide][unbound-tuning-guide] and the [Unbound Arch Linux wiki page][unbound-arch-linux] may be of interest.
 
-The following values should anyhow be tuned:
+Some values that should be tuned include:
 
 - Increase `rrset-cache-size` and `msg-cache-size` to something much higher than the default `4M`, such as `64M`.
 
@@ -77,8 +77,8 @@ The following values should anyhow be tuned:
 - If you want to use forwarders instead of Unbound's default recursion module, configure them as following:
 
     ```
-    # forward to public resolvers, as they are
-    # generally faster than recursive resolution
+    # use public resolvers as upstreams, since
+    # they're usually faster than recursion
     forward-zone:
         name: "."
         forward-addr: 1.0.0.1@53
@@ -95,8 +95,8 @@ The following values should anyhow be tuned:
         # forward-tls-upstream: yes
         # forward-addr: 1.0.0.1@853#cloudflare-dns.com
         # forward-addr: 1.1.1.1@853#cloudflare-dns.com
-        forward-addr: 2606:4700:4700::1001@853#cloudflare-dns.com
-        forward-addr: 2606:4700:4700::1111@853#cloudflare-dns.com
+        # forward-addr: 2606:4700:4700::1001@853#cloudflare-dns.com
+        # forward-addr: 2606:4700:4700::1111@853#cloudflare-dns.com
     ```
 
 [madnuttah-unbound-repo]: https://github.com/madnuttah/unbound-docker/
@@ -107,7 +107,7 @@ The following values should anyhow be tuned:
 
 ### dnsproxy
 
-[Dnsproxy][dnsproxy] and its sister product [AdGuard Home][adguard-home] are known to work with Continuwuity, has support for DNS-over-HTTPS as well as DNS-over-QUIC, and is Docker-friendly. However, they do not support recursion.
+[Dnsproxy][dnsproxy] and its sister product [AdGuard Home][adguard-home] are known to work with Continuwuity and has an official Docker image. They have support for DNS-over-HTTPS as well as DNS-over-QUIC, but not recursion.
 
 To best utilise dnsproxy, you should enable proper caching with `--cache` and set `--cache-size` to something bigger, like `64M`.
 
@@ -116,11 +116,11 @@ To best utilise dnsproxy, you should enable proper caching with `--cache` and se
 
 ### dnsmasq
 
-[`dnsmasq`][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only support forwarding rather than recursion. Increase the `cache-size` to something like `10000` for better caching performance.
+[dnsmasq][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only support forwarding rather than recursion. Increase the `cache-size` to something like `10000` for better caching performance.
 
 However, `dnsmasq` does not support TCP fallback which can be problematic when receiving large DNS responses such as from large SRV records. If you still want to use dnsmasq, make sure you disable `dns_tcp_fallback` in Continuwuity config.
 
-[arch-linux-dnsmasq]: https://wiki.archlinux.org/title/Dnsmasq  
+[arch-linux-dnsmasq]: https://wiki.archlinux.org/title/Dnsmasq
 
 ### Technitium
 
@@ -131,7 +131,7 @@ However, `dnsmasq` does not support TCP fallback which can be problematic when r
 
 ### None
 
-If you can't install a local DNS caching resolver for some reason, you may still configure it to talk directly to public resolvers:
+If you can't install a local DNS caching resolver for some reason, you may still configure your machine to talk directly to public resolvers:
 
 ```txt title="/etc/resolv.conf"
 nameserver 1.0.0.1
@@ -159,9 +159,9 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 - Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. For Unbound, this can be done by pairing it with a Redis database using the [Cache DB module][unbound-cachedb].
 
-- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs, as Matrix homeservers are generally static IPs that doesn't change.
+- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs, as Matrix homeservers are generally static IPs that doesn't change. Also consider [enabling **prefetching**][unbound-prefetching] to always update DNS hot cache.
 
-- Consider [enabling **prefetching**][unbound-prefetching] to always update DNS hot cache.
+- If you still experience DNS performance issues, another step could be to **disable DNSSEC** (which is computationally expensive) at a cost of slightly decreased security. On Unbound this is done by commenting out `trust-anchors` config options and removing the `validator` module.
 
 - For all resolvers except dnsmasq, some users have reported that setting `query_over_tcp_only = true` in Continuwuity has improved DNS reliability at a slight performance cost due to TCP overhead. Generally this is not needed if your resolver and homeserver is on the same machine.
 
