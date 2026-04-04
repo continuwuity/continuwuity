@@ -129,9 +129,17 @@ https://matrix.example.com {
 
 </details>
 
-### Increased batch size for notary queries
+### Tuning your trusted servers
 
-To speed up initial joins for large rooms, consider increasing `trusted_server_batch_size` to something higher than the default `1024`. Start with doubling to `2048` until you find a suitable value.
+Trusted servers are queried sequentially starting from the first entry of `trusted_servers`. If you have multiple notaries configured, put the faster ones first:
+
+```toml
+trusted_servers = ["fastest.example.com","faster.example.com","matrix.org"]
+```
+
+Avoid using `matrix.org` as your primary notary, as it tends to be quite slow. If you need suggestions for trusted servers, ask in the Continuwuity main room.
+
+Furthermore, consider increasing `trusted_server_batch_size` to something higher than the default `1024`, as this could help with faster joins for huge rooms. Start with doubling to `2048` until you find a suitable value.
 
 ### Serving .well-knowns manually
 
@@ -148,7 +156,7 @@ https://example.com {
 
     respond /.well-known/matrix/server 200 {
         body `{"m.server":"matrix.example.com:443"}`
-    }    
+    }
 
     respond /.well-known/matrix/client 200 {
         body <<JSON
@@ -168,6 +176,12 @@ https://matrix.example.com {
 
 </details>
 
+### Enable HTTP/3 on your reverse proxy
+
+Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy this is allowed by default, and you'd need to expose port :443/**udp** on your firewall.
+
+HTTP/3 support is mostly beneficial for faster Client-Server connections, especially in browser-based applications like Element or Cinny. Continuwuity includes experimental _outbound_ HTTP/3 support in its Docker images, so connections between Continuwuity servers can benefit from this too.
+
 ### Increasing file descriptors
 
 On many Linux systems, file descriptors are capped to `1024`, which may not be enough for Continuwuity's heavy use of network and disk resources. Consider increasing this number by editing your `limits.conf` file:
@@ -181,7 +195,7 @@ You may also need to increase your global file descriptor limit, by adding a sys
 
 Restart your system and run `ulimit -Sn` and `ulimit -Hn`. Your soft and hard limits should now be updated.
 
-For Docker, these tweaks correspond to the following `ulimits`:
+For Docker, these tweaks correspond to the following `ulimits` parameters:
 
 ```yaml title=docker-compose.yml
 services:
@@ -211,15 +225,11 @@ DO NOT copy-paste this directly, please consult this only as a reference example
 ## disables slow SWAP entirely
 vm.swappiness = 0
 
-## increase pages cache ratio before writing to disk
-## can help with reducing Disk I/O
-vm.dirty_background_ratio=25
-vm.dirty_ratio=50
-
 ## decrease kernel tendency to reclaim directory/inode caches
 vm.vfs_cache_pressure = 50
 
 ## increase max file descriptors allowed
+## do this with the `nofile` increases in limits.conf
 fs.file-max=1048576
 ## increase max kernel threads, can help with performance
 kernel.threads-max=100000
@@ -227,26 +237,27 @@ kernel.threads-max=100000
 # NETWORKING
 
 ## increase all network read/write buffers to 8MB
-## helps increase backlogs
+## helps increase network backlogs for busy connections
 net.core.rmem_max=8388608
 net.core.wmem_max=8388608
 net.core.rmem_default=8388608
 net.core.wmem_default=8388608
 
-## increase TCP-related memories to match with above, too
+## increase TCP-specific memories to match with above
 net.ipv4.tcp_rmem=4096 131072 8388608
 net.ipv4.tcp_wmem=4096 131072 8388608
 
 # applies TCP window scaling
-net.ipv4.tcp_window_scaling=1 
-# applies SYN cookie for protection against SYN flood
+net.ipv4.tcp_window_scaling=1
+# applies SYN cookie for protection against SYN floods
 net.ipv4.tcp_syncookies=1
 
 # increase range of ports assigned to outbound requests
 # can help when there are plenty of outbound connections
-net.ipv4.ip_local_port_range = 20000 65535
+net.ipv4.ip_local_port_range = 10000 65535
 
-# enable the modern BBR congestion control algorithm, with fq
+# enable the modern BBR congestion control algorithm
+# with fq qdisc
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 ```
