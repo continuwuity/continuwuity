@@ -159,7 +159,7 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 - Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. For Unbound, this can be done by pairing it with a Redis database using the [Cache DB module][unbound-cachedb].
 
-- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs, as Matrix homeservers are generally static IPs that doesn't change. Also consider [enabling **prefetching**][unbound-prefetching] to always update DNS hot cache.
+- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs, especially when upstream resolvers are congested or timed out. Since Matrix homeservers are generally static IPs that doesn't change, this would likely help improve federation with them. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
 
 - If you still experience DNS performance issues, another step could be to **disable DNSSEC** (which is computationally expensive) at a cost of slightly decreased security. On Unbound this is done by commenting out `trust-anchors` config options and removing the `validator` module.
 
@@ -167,4 +167,4 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 [unbound-cachedb]: https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#cache-db-module-options
 [unbound-serve-stale]: https://wiki.archlinux.org/title/Unbound#Serving_expired_records
-[unbound-prefetching]: https://wiki.archlinux.org/title/Unbound#Keeping_DNS_cache_always_up_to_date
+[dnsproxy-usage]: https://github.com/AdguardTeam/dnsproxy#usage
