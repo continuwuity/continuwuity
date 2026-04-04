@@ -88,7 +88,7 @@ Get a working Continuwuity server with an admin user in four steps:
     In order to use your new homeserver, you need to create its
     first user account.
     Open your Matrix client of choice and register an account
-    on example.com using registration token x5keUZ811RqvLsNa . 
+    on example.com using registration token x5keUZ811RqvLsNa .
     Pick your own username and password!
     ```
 
@@ -113,24 +113,22 @@ See the [reference configuration](../reference/config) page for all config optio
 These examples include reverse proxy configurations for Matrix federation, which will route your Matrix domain (and optionally .well-known paths) to Continuwuity.
 
 :::note Docker DNS Performance
-Docker's default DNS resolver are [known to cause issues](../troubleshooting#dns-issues) for Matrix federation such as very slow federation or DNS timeouts. As a workaround, we will mount a custom `/etc/resolv.conf` config file into the Continuwuity service, in order to bypass Docker and use a more performant resolver.
+Docker's default DNS resolver are known to [cause timeout issues](../troubleshooting#dns-issues) for Matrix federation. To bypass it and use a more performant resolver, mount a custom `/etc/resolv.conf` config file into the Continuwuity container.
 
 ```yaml title='docker-compose.yml'
 services:
   homeserver:
     # ...
-    configs:
-      - source: continuwuity-resolv.conf
-        target: /etc/resolv.conf
-
-configs:
-  continuwuity-resolv.conf:
-    content: |
-      nameserver 1.0.0.1
-      nameserver 1.1.1.1
+    volumes:
+      - ./continuwuity-resolv.conf:/etc/resolv.conf
 ```
 
-It is strongly recommended to consult the [**DNS tuning guide**](../advanced/dns) for full solutions to this issue.
+```txt title='continuwuity-resolv.conf'
+nameserver 1.0.0.1
+nameserver 1.1.1.1
+```
+
+Consult the [**DNS tuning guide (recommended)**](../advanced/dns) for full solutions to this issue.
 :::
 
 #### Caddy (using Caddyfile)
@@ -224,7 +222,7 @@ You will then need to point your reverse proxy towards Continuwuity at `127.0.0.
     In order to use your new homeserver, you need to create its
     first user account.
     Open your Matrix client of choice and register an account
-    on example.com using registration token x5keUZ811RqvLsNa . 
+    on example.com using registration token x5keUZ811RqvLsNa .
     Pick your own username and password!
     ```
 

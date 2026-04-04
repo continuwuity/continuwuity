@@ -13,13 +13,14 @@ services:
         configs:
             - source: Caddyfile
               target: /etc/caddy/Caddyfile
-        
+
     homeserver:
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
         command: /sbin/conduwuit
         volumes:
             - db:/var/lib/continuwuity
+            - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
             #- ./continuwuity.toml:/etc/continuwuity.toml
         environment:
             CONTINUWUITY_SERVER_NAME: example.com
@@ -29,9 +30,6 @@ services:
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
         networks:
             - caddy
-        configs: # using custom resolvers instead of Docker's
-            - source: continuwuity-resolv.conf
-              target: /etc/resolv.conf
 
 networks:
     caddy:
@@ -45,8 +43,3 @@ configs:
             https://example.com, https://example.com:8448 {
                 reverse_proxy http://homeserver:8008
             }
-
-    continuwuity-resolv.conf:
-        content: |
-            nameserver 1.0.0.1
-            nameserver 1.1.1.1
