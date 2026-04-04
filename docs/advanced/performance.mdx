@@ -10,7 +10,7 @@ Please see the dedicated [DNS tuning guide](./dns.mdx).
 
 ## Cache capacities
 
-If you have unused memory to spare, consider increasing the `cache_capacity_modifier` value to a larger number, as to allow more data to be stored in hot memory. This would _**significantly**_ speed up many intensive operations such as state resolutions, and also results in decreased CPU usage and disk I/O. Start with a baseline of `cache_capacity_modifier = 2.0` and tune up until you find a satisfactory RAM usage.
+If you have unused memory to spare, consider increasing the `cache_capacity_modifier` value to a larger number, as to allow more data to be stored in hot memory. This *significantly* speed up many intensive operations such as state resolutions, and also results in decreased CPU usage and disk I/O. Start with a baseline of `cache_capacity_modifier = 2.0` and tune up until you find a satisfactory RAM usage.
 
 On the other hand, if your system doesn't have a lot of RAM, consider decreasing the cache capacity modifier to something smaller than `1.0` to avoid low-memory issues (at the cost of higher load on disk/CPU). The recommendation also works if your system has very little RAM compared to the number of CPU cores, as cache capacities tend to scale according to number of cores.
 
@@ -25,7 +25,7 @@ allow_outgoing_read_receipts = false
 allow_outgoing_typing = false
 ```
 
-Outgoing presence updates is also considered expensive and has been disabled by default(`allow_outgoing_presence = false`).
+Outgoing presence updates are also considered expensive and have been disabled by default (`allow_outgoing_presence = false`).
 
 For even more savings, you may wish to disable _all_ processing of typing notifications, read markers, and presence entirely. This can be done by also disabling the local and incoming events for these features.
 
@@ -102,7 +102,7 @@ Consult these documentations for more information on compression tuning and leve
 
 ### Using UNIX sockets
 
-If your homeserver and the reverse proxy lives on the same machine, you may consider exposing Continuwuity on a UNIX socket instead of a port. This would reduce TCP overhead between the two programs.
+If your homeserver and reverse proxy lives on the same machine, you may wish to expose Continuwuity on a UNIX socket instead of a port. This reduces TCP overhead between the two programs.
 
 <details>
 
