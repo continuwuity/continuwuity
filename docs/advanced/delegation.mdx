@@ -24,6 +24,7 @@ client = "https://matrix.example.com"
 server = "matrix.example.com:443"
 
 # (optional) customize your support contacts
+# Defaults to members of #admin room if unset
 #support_page =
 #support_role = "m.role.admin"
 #support_email =
@@ -42,6 +43,10 @@ services:
         client=https://matrix.example.com,
         server=matrix.example.com:443
         }
+
+      # You can also configure individual .well-knowns as below
+      # CONTINUWUITY_WELL_KNOWN__CLIENT: https://matrix.example.com
+      # CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
 ```
 
 ## Serving with a reverse proxy

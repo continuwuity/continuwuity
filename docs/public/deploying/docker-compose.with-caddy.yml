@@ -28,6 +28,16 @@ services:
             CONTINUWUITY_ADDRESS: 0.0.0.0
             CONTINUWUITY_PORT: 8008
             #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+
+            ## (Optional) Serve .well-known files to tell others to reach Continuwuity on port :443
+            ## If you do this, remove all routes to port :8448 from the compose and Caddyfile
+            # CONTINUWUITY_WELL_KNOWN: |
+            #     {
+            #     client=https://example.com,
+            #     server=example.com:443
+            #     }
+
+
         networks:
             - caddy
 

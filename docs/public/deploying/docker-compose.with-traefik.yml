@@ -24,13 +24,11 @@ services:
       CONTINUWUITY_PORT: 8008 # This must match with traefik's loadbalancer label
       #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
-      # We need some way to serve the client and server .well-known json. The simplest way is via the CONTINUWUITY_WELL_KNOWN
-      # variable / config option, there are multiple ways to do this, e.g. in the continuwuity.toml file, and in a separate
-      # reverse proxy, but since you do not have a reverse proxy and following this guide, this example is included
+      # Serve .well-known files to tell others to reach Continuwuity on port :443
       CONTINUWUITY_WELL_KNOWN: |
         {
-          client=https://matrix.example.com,
-          server=matrix.example.com:443
+          client=https://example.com,
+          server=example.com:443
         }
 
   traefik:
