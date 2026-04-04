@@ -8,6 +8,11 @@
         "type": "file",
         "name": "dns",
         "label": "DNS tuning (recommended)"
+    },
+    {
+        "type": "file",
+        "name": "performance",
+        "label": "Performance tuning"
     }
 
 ]
