@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, err, info,
-	utils::{self, ReadyExt, hash},
+	utils::{self, ReadyExt, hash, stream::BroadbandExt},
 	warn,
 };
 use conduwuit_core::{debug_error, debug_warn};
@@ -414,9 +414,28 @@ pub(crate) async fn logout_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<logout::v3::Request>,
 ) -> Result<logout::v3::Response> {
+	let (sender_user, sender_device) = body.sender();
 	services
 		.users
-		.remove_device(body.sender_user(), body.sender_device())
+		.remove_device(sender_user, sender_device)
+		.await;
+	services
+		.pusher
+		.get_pushkeys(sender_user)
+		.map(ToOwned::to_owned)
+		.broad_filter_map(async |pushkey| {
+			services
+				.pusher
+				.get_pusher_device(&pushkey)
+				.await
+				.ok()
+				.as_ref()
+				.is_some_and(|pusher_device| pusher_device == sender_device)
+				.then_some(pushkey)
+		})
+		.for_each(async |pushkey| {
+			services.pusher.delete_pusher(sender_user, &pushkey).await;
+		})
 		.await;
 
 	Ok(logout::v3::Response::new())
@@ -441,10 +460,18 @@ pub(crate) async fn logout_all_route(
 	InsecureClientIp(client): InsecureClientIp,
 	body: Ruma<logout_all::v3::Request>,
 ) -> Result<logout_all::v3::Response> {
+	let sender_user = body.sender_user();
 	services
 		.users
-		.all_device_ids(body.sender_user())
-		.for_each(|device_id| services.users.remove_device(body.sender_user(), device_id))
+		.all_device_ids(sender_user)
+		.for_each(|device_id| services.users.remove_device(sender_user, device_id))
+		.await;
+	services
+		.pusher
+		.get_pushkeys(sender_user)
+		.for_each(async |pushkey| {
+			services.pusher.delete_pusher(sender_user, pushkey).await;
+		})
 		.await;
 
 	Ok(logout_all::v3::Response::new())
