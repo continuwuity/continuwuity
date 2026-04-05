@@ -362,6 +362,14 @@ pub async fn full_user_deactivate(
 		})
 		.await;
 
+	services
+		.pusher
+		.get_pushkeys(user_id)
+		.for_each(async |pushkey| {
+			services.pusher.delete_pusher(user_id, pushkey).await;
+		})
+		.await;
+
 	// TODO: Rescind all user invites
 
 	let mut pdu_queue: Vec<(PduBuilder, &OwnedRoomId)> = Vec::new();
