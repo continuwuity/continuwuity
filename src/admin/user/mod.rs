@@ -257,4 +257,10 @@ pub enum UserCommand {
 		#[arg(long)]
 		yes_i_want_to_do_this: bool,
 	},
+
+	/// Resets the push-rules (notification settings) of the target user to the
+	/// server defaults.
+	ResetPushRules {
+		user_id: String,
+	},
 }

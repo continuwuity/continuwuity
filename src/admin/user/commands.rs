@@ -3,7 +3,10 @@ use std::{
 	fmt::Write as _,
 };
 
-use api::client::{full_user_deactivate, join_room_by_id_helper, leave_room, remote_leave_room};
+use api::client::{
+	full_user_deactivate, join_room_by_id_helper, leave_room, recreate_push_rules_and_return,
+	remote_leave_room,
+};
 use conduwuit::{
 	Err, Result, debug_warn, error, info,
 	matrix::{Event, pdu::PduBuilder},
@@ -1197,4 +1200,15 @@ pub(super) async fn change_email(&self, user_id: String, email: Option<String>) 
 			.await
 		},
 	}
+}
+
+#[admin_command]
+pub(super) async fn reset_push_rules(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+	if !self.services.users.is_active(&user_id).await {
+		return Err!("User is not active.");
+	}
+	recreate_push_rules_and_return(self.services, &user_id).await?;
+	self.write_str("Reset user's push rules to the server default.")
+		.await
 }

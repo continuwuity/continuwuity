@@ -489,7 +489,7 @@ pub(crate) async fn set_pushers_route(
 
 /// user somehow has bad push rules, these must always exist per spec.
 /// so recreate it and return server default silently
-async fn recreate_push_rules_and_return(
+pub async fn recreate_push_rules_and_return(
 	services: &Services,
 	sender_user: &ruma::UserId,
 ) -> Result<get_pushrules_all::v3::Response> {
