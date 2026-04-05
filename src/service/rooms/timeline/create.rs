@@ -81,6 +81,11 @@ pub async fn create_hash_and_sign_event(
 			))
 		}
 	}
+
+	if !self.services.globals.user_is_local(sender) {
+		return Err!(Request(Forbidden("Sender must be a local user")));
+	}
+
 	let PduBuilder {
 		event_type,
 		content,
