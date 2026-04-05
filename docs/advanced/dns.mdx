@@ -68,36 +68,47 @@ ip_lookup_strategy = 1
 
 After installation, you can tune `/etc/unbound/unbound.conf` values according to your needs. While Continuwuity cannot recommend a "works-for-everyone" Unbound DNS setup guide, the official [Unbound tuning guide][unbound-tuning-guide] and the [Unbound Arch Linux wiki page][unbound-arch-linux] may be of interest.
 
-Some values that should be tuned include:
+Some values that are commonly tuned include:
 
 - Increase `rrset-cache-size` and `msg-cache-size` to something much higher than the default `4M`, such as `64M`.
 
-- Increase `discard-timeout` to something like `8000` to wait longer for upstream resolvers, as recursion can take a long time to respond to some domains. Continuwuity default to `dns_timeout = 10` seconds, so dropping requests sooner would lead to unnecessary retries and/or failures.
+- Increase `discard-timeout` to something like `4800` to wait longer for upstream resolvers, as recursion can take a long time to respond to some domains. Continuwuity default to `dns_timeout = 10` seconds, so dropping requests early would lead to unnecessary retries and/or failures.
 
-- If you want to use forwarders instead of Unbound's default recursion module, configure them as following:
+### Using a forwarder (optional)
 
-    ```
-    # use public resolvers as upstreams, since
-    # they're usually faster than recursion
-    forward-zone:
-        name: "."
-        forward-addr: 1.0.0.1@53
-        forward-addr: 1.1.1.1@53
-        # Also use IPv6 ones if you're dual-stack
-        forward-addr: 2606:4700:4700::1001@53
-        forward-addr: 2606:4700:4700::1111@53
+Unbound by default employs recursive resolution and contact many servers around the world. If this is not performant enough, consider forwarding your queries to public resolvers to benefit from their CDNs and get faster responses.
 
-    # alternatively, use DNS-over-TLS for forwarders.
-    # this generally takes as much time as recursion
-    # due to TLS overhead, but allows on-wire encryption
-    # forward-zone:
-        # name: "."
-        # forward-tls-upstream: yes
-        # forward-addr: 1.0.0.1@853#cloudflare-dns.com
-        # forward-addr: 1.1.1.1@853#cloudflare-dns.com
-        # forward-addr: 2606:4700:4700::1001@853#cloudflare-dns.com
-        # forward-addr: 2606:4700:4700::1111@853#cloudflare-dns.com
-    ```
+However, most popular upstreams (such as Google DNS or Quad9) employ IP ratelimiting, so a generous cache is still needed to avoid making too many queries.
+
+DNS-over-TLS forwarders may also be used should you need on-the-wire encryption, but TLS overhead would incur some speed penalties.
+
+If you want to use forwarders, configure it as follows:
+
+<details>
+
+<summary>unbound.conf</summary>
+
+```
+# Use cloudflare public resolvers as an example
+forward-zone:
+    name: "."
+    forward-addr: 1.0.0.1@53
+    forward-addr: 1.1.1.1@53
+    # Also use IPv6 ones if you're dual-stack
+    # forward-addr: 2606:4700:4700::1001@53
+    # forward-addr: 2606:4700:4700::1111@53
+
+# alternatively, use DNS-over-TLS for forwarders.
+# forward-zone:
+    # name: "."
+    # forward-tls-upstream: yes
+    # forward-addr: 1.0.0.1@853#cloudflare-dns.com
+    # forward-addr: 1.1.1.1@853#cloudflare-dns.com
+    # forward-addr: 2606:4700:4700::1001@853#cloudflare-dns.com
+    # forward-addr: 2606:4700:4700::1111@853#cloudflare-dns.com
+```
+
+</details>
 
 [madnuttah-unbound-repo]: https://github.com/madnuttah/unbound-docker/
 [unbound-tuning-guide]: https://unbound.docs.nlnetlabs.nl/en/latest/topics/core/performance.html
@@ -116,7 +127,7 @@ To best utilise dnsproxy, you should enable proper caching with `--cache` and se
 
 ### dnsmasq
 
-[dnsmasq][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only support forwarding rather than recursion. Increase the `cache-size` to something like `10000` for better caching performance.
+[dnsmasq][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only support forwarding rather than recursion. Increase the `cache-size` to something like `20000` for better caching performance.
 
 However, `dnsmasq` does not support TCP fallback which can be problematic when receiving large DNS responses such as from large SRV records. If you still want to use dnsmasq, make sure you disable `dns_tcp_fallback` in Continuwuity config.
 
@@ -129,22 +140,6 @@ However, `dnsmasq` does not support TCP fallback which can be problematic when r
 [technitium]: https://github.com/TechnitiumSoftware/DnsServer
 [technitium-continuwuity]: https://muoi.me/~stratself/articles/technitium-continuwuity/
 
-### None
-
-If you can't install a local DNS caching resolver for some reason, you may still configure your machine to talk directly to public resolvers:
-
-```txt title="/etc/resolv.conf"
-nameserver 1.0.0.1
-nameserver 1.1.1.1
-
-# (optional) use DNS-over-TCP
-# options use-vc
-```
-
-Cloudflare DNS are recommended over Quad9 and Google, as they don't tend to ratelimit queries.
-
-In this case, you may want to increase `dns_cache_entries` to a higher value. However, this is an imperfect solution, as the internal cache isn't as robust and reliable as an external one.
-
 ## Testing
 
 As a rough stress test, you can issue `!admin query resolver flush-cache -a` or `!admin server clear-caches` to trigger a netburst of DNS queries. If your resolver can handle these loads without problem, then it should be ready for regular Continuwuity activity.
@@ -155,15 +150,15 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 ## Further steps
 
-- (Recommended) Consider setting **`dns_cache_entries = 0`**, as to fully rely on the more performant external resolver.
+- (Recommended) Set **`dns_cache_entries = 0`** inside Continuwuity and fully rely on the more performant external resolver.
 
-- Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. For Unbound, this can be done by pairing it with a Redis database using the [Cache DB module][unbound-cachedb].
+- Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. Unbound, via [Cache DB module][unbound-cachedb], can use Redis as a storage backend for this use case.
 
-- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs, especially when upstream resolvers are congested or timed out. Since Matrix homeservers are generally static IPs that doesn't change, this would likely help improve federation with them. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
+- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs. Since most Matrix homeservers have static IPs, this should help improve federation with them especially when upstream resolvers have timed out. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
 
 - If you still experience DNS performance issues, another step could be to **disable DNSSEC** (which is computationally expensive) at a cost of slightly decreased security. On Unbound this is done by commenting out `trust-anchors` config options and removing the `validator` module.
 
-- For all resolvers except dnsmasq, some users have reported that setting `query_over_tcp_only = true` in Continuwuity has improved DNS reliability at a slight performance cost due to TCP overhead. Generally this is not needed if your resolver and homeserver is on the same machine.
+- Some users have reported that setting `query_over_tcp_only = true` in Continuwuity has improved DNS reliability at a slight performance cost due to TCP overhead. Generally this is not needed if your resolver and homeserver is on the same machine.
 
 [unbound-cachedb]: https://unbound.docs.nlnetlabs.nl/en/latest/manpages/unbound.conf.html#cache-db-module-options
 [unbound-serve-stale]: https://wiki.archlinux.org/title/Unbound#Serving_expired_records

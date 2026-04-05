@@ -62,7 +62,9 @@ Follow the [**DNS tuning guide**](./advanced/dns) for details on setting it up.
 
 ### Intermittent federation failures to a specific server
 
-There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors, and `!admin debug resolve-true-destination <SERVER_NAME>` would likely return a wrong destination. To fix this, you can run `!admin query resolver flush-cache <SERVER_NAME>` to clear the bad cache for that domain, and outbound requests would work again.
+There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors.
+
+To fix this, you can run `!admin query resolver flush-cache <SERVER_NAME>` to clear the bad cache for that domain, and outbound requests should work again.
 
 You may also use `!admin server clear-caches` or `!admin query resolver flush-cache -a` to clear all server/resolver caches, in case of failures with many domains. However, note this would significantly increase your server load for a short period.
 
