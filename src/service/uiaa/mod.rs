@@ -309,6 +309,7 @@ impl Service {
 
 		match auth {
 			| AuthData::Dummy(_) => Ok(AuthType::Dummy),
+			| AuthData::Terms(_) => Ok(AuthType::Terms),
 			| AuthData::EmailIdentity(EmailIdentity {
 				thirdparty_id_creds: ThirdpartyIdCredentials { client_secret, sid, .. },
 				..
