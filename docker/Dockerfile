@@ -15,13 +15,13 @@ ARG LLVM_VERSION=21
 
 # Install repo tools
 # Line one: compiler tools
-# Line two: curl, for downloading binaries
+# Line two: curl, for downloading binaries and wget because llvm.sh is broken with curl
 # Line three: for xx-verify
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y \
     pkg-config make jq \
-    curl git software-properties-common \
+    wget curl git software-properties-common \
     file
 
 # LLVM packages
