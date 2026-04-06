@@ -664,6 +664,8 @@ pub struct Config {
 	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
 	/// ```
+	///
+	/// default: {}
 	#[serde(default)]
 	pub registration_terms: HashMap<String, HashMap<String, TermsDocument>>,
 
