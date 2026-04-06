@@ -2,7 +2,7 @@ use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{Error, Result};
 use ruma::api::client::{
 	discovery::{
-		discover_homeserver::{self, HomeserverInfo, SlidingSyncProxyInfo},
+		discover_homeserver::{self, HomeserverInfo},
 		discover_support::{self, Contact},
 	},
 	error::ErrorKind,
@@ -23,9 +23,9 @@ pub(crate) async fn well_known_client(
 	};
 
 	Ok(discover_homeserver::Response {
-		homeserver: HomeserverInfo { base_url: client_url.clone() },
+		homeserver: HomeserverInfo { base_url: client_url },
 		identity_server: None,
-		sliding_sync_proxy: Some(SlidingSyncProxyInfo { url: client_url }),
+		sliding_sync_proxy: None,
 		tile_server: None,
 		rtc_foci: services
 			.config
