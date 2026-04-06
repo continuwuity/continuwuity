@@ -462,6 +462,31 @@ async fn create_registration_uiaa_session(
 			flows.push(untrusted_flow);
 		}
 
+		// Require all users to agree to the terms and conditions, if configured
+		let terms = &services.config.registration_terms;
+		if !terms.is_empty() {
+			let mut terms =
+				serde_json::to_value(terms.clone()).expect("failed to serialize terms");
+
+			// Insert a dummy `version` field
+			for (_, documents) in terms.as_object_mut().unwrap() {
+				let documents = documents.as_object_mut().unwrap();
+
+				documents.insert("version".to_owned(), "latest".into());
+			}
+
+			params.insert(
+				AuthType::Terms.as_str().to_owned(),
+				serde_json::json!({
+					"policies": terms,
+				}),
+			);
+
+			for flow in &mut flows {
+				flow.stages.insert(0, AuthType::Terms);
+			}
+		}
+
 		if flows.is_empty() {
 			// No flows are configured. Bail out by default
 			// unless open registration was explicitly enabled.
