@@ -10,11 +10,11 @@ Please see the dedicated [DNS tuning guide](./dns.mdx).
 
 If you have unused memory to spare, consider increasing the `cache_capacity_modifier` value to a larger number to allow more data to be stored in hot memory. This *significantly* speed up many intensive operations (such as state resolutions) and decreases CPU usage and disk I/O. Start with a baseline of `cache_capacity_modifier = 2.0` and tune up until you are satisfied with RAM usage.
 
-On the other hand, if your system doesn't have a lot of RAM, consider decreasing the cache capacity modifier to something smaller than `1.0` to avoid low-memory issues (at the cost of higher load on disk/CPU). This recommendation also works if your system has very little RAM compared to the number of CPU cores, as cache capacities tend to scale according to number of cores.
+On the other hand, if your system doesn't have a lot of RAM, consider decreasing the cache capacity modifier to something smaller than `1.0` to avoid low-memory issues (at the cost of higher load on disk/CPU). This recommendation also works if your system has abnormally little RAM compared to the number of CPU cores (for example, 2GB RAM for 12 cores), as cache capacities scale according to number of available cores.
 
 ## Disabling some features
 
-You can disable outgoing **typing notifications** and **read markers** to reduce strain on the CPU and network.
+You can disable outgoing **typing notifications** and **read markers** to reduce strain on the CPU and network when actively participating in rooms.
 
 ```toml
 # disables sending read receipts
@@ -23,32 +23,14 @@ allow_outgoing_read_receipts = false
 allow_outgoing_typing = false
 ```
 
-Outgoing presence updates are also considered expensive and have been disabled by default (`allow_outgoing_presence = false`).
+Outgoing presence updates are also considered very expensive and have been disabled by default (`allow_outgoing_presence = false`). For more savings, you may wish to disable _all_ processing of presence entirely.
 
-For even more savings, you may wish to disable _all_ processing of typing notifications, read markers, and presence entirely. This can be done by also disabling the local and incoming events for these features.
-
-<details>
-
-<summary> `continuwuity.toml` </summary>
-
-```toml
-# disabling read receipts entirely
-allow_local_read_receipts = false
-allow_incoming_read_receipts = false
-allow_outgoing_read_receipts = false
-
-# disabling typing notifications entirely
-allow_local_typing = false
-allow_outgoing_typing = false
-allow_incoming_typing = false
-
+```toml title=continuwuity.toml
 # disabling presence updates entirely
 allow_local_presence = false
 allow_incoming_presence = false
 allow_outgoing_presence = false
 ```
-
-</details>
 
 ## Tuning database compression
 
@@ -100,7 +82,7 @@ Consult these documents for more information on compression tuning and levels:
 
 ### Using UNIX sockets
 
-If your homeserver and reverse proxy live on the same machine, you may wish to expose Continuwuity on a UNIX socket instead of a port. This reduces TCP overhead between the two programs.
+If your homeserver and reverse proxy live on the same machine, you may wish to expose Continuwuity on a UNIX socket instead of a port. This removes TCP overhead between the two programs.
 
 <details>
 
@@ -129,13 +111,15 @@ https://matrix.example.com {
 
 ### Tuning your trusted servers
 
-Trusted servers are queried sequentially in the order they are listed. If you have multiple notaries configured, put the faster ones first:
+Trusted servers are queried sequentially in the order they are listed. If you have multiple trusted servers configured, put the faster ones first:
 
 ```toml
-trusted_servers = ["fastest.example.com","faster.example.com","matrix.org"]
+# Example config, using maintainers' recommended homeservers
+trusted_servers = ["codestorm.net","starstruck.systems","unredacted.org","matrix.org"]
+# Avoid prioritising `matrix.org`, as it tends to be quite slow.
 ```
 
-Avoid using `matrix.org` as your primary notary, as it tends to be quite slow. If you need suggestions for trusted servers, ask in the Continuwuity main room.
+Please vet any servers for trustworthiness before using them, as they are your first point of contact when obtaining public keys from other servers.
 
 Some users have also reported that increasing `trusted_server_batch_size` has helped with faster joins for huge rooms. Start with doubling the default to `2048` until you find a suitable value.
 
@@ -176,6 +160,6 @@ https://matrix.example.com {
 
 ### Enable HTTP/3 on your reverse proxy
 
-Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy this is allowed by default, and you'd need to expose port :443/**udp** on your firewall.
+Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy HTTP/3 is allowed by default, and you'd need to expose port :443/**udp** on your firewall.
 
-HTTP/3 support is mostly beneficial for faster Client-Server connections, especially in browser-based applications like Element or Cinny. Continuwuity includes experimental _outbound_ HTTP/3 support in its Docker images, so connections between Continuwuity servers can benefit from this too.
+HTTP/3 can vastly improve Client-Server connections especially on unstable networks, as it reduces packet losses and latency from TCP head-of-line blocking, includes workarounds for network switching, and reduces connection establishment handshakes. Continuwuity also includes experimental _outbound_ HTTP/3 support in its Docker images, so connections between Continuwuity servers can benefit from this too.
