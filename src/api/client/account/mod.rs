@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Event, Result, err, info,
+	Err, Result, err, info,
 	pdu::PduBuilder,
 	utils::{ReadyExt, stream::BroadbandExt},
 };
@@ -9,7 +9,7 @@ use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt};
 use lettre::{Address, message::Mailbox};
 use ruma::{
-	OwnedRoomId, OwnedUserId, UserId,
+	OwnedRoomId, UserId,
 	api::client::{
 		account::{
 			ThirdPartyIdRemovalStatus, change_password, check_registration_token_validity,
@@ -18,12 +18,10 @@ use ruma::{
 		},
 		uiaa::{AuthFlow, AuthType},
 	},
-	events::{
-		StateEventType,
-		room::{
-			member::{MembershipState, RoomMemberEventContent},
-			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-		},
+	assign,
+	events::room::{
+		member::{MembershipState, RoomMemberEventContent},
+		power_levels::RoomPowerLevelsEventContent,
 	},
 };
 use service::{mailer::messages, uiaa::Identity};
@@ -143,7 +141,7 @@ pub(crate) async fn change_password_route(
 			.await?
 	};
 
-	let sender_user = OwnedUserId::parse(format!(
+	let sender_user = UserId::parse(format!(
 		"@{}:{}",
 		identity.localpart.expect("localpart should be known"),
 		services.globals.server_name()
@@ -161,7 +159,7 @@ pub(crate) async fn change_password_route(
 			.users
 			.all_device_ids(&sender_user)
 			.ready_filter(|id| *id != body.sender_device())
-			.for_each(|id| services.users.remove_device(&sender_user, id))
+			.for_each(async |id| services.users.remove_device(&sender_user, &id).await)
 			.await;
 
 		// Remove all pushers except the ones associated with this session
@@ -215,7 +213,7 @@ pub(crate) async fn request_password_change_token_via_email_route(
 	};
 
 	let user_id =
-		OwnedUserId::parse(format!("@{localpart}:{}", services.globals.server_name())).unwrap();
+		UserId::parse(format!("@{localpart}:{}", services.globals.server_name())).unwrap();
 	let display_name = services.users.displayname(&user_id).await.ok();
 
 	let session = services
@@ -251,11 +249,10 @@ pub(crate) async fn whoami_route(
 		.map_err(|_| {
 			err!(Request(Forbidden("Application service has not registered this user.")))
 		})? && body.appservice_info.is_none();
-	Ok(whoami::v3::Response {
-		user_id: body.sender_user().to_owned(),
+
+	Ok(assign!(whoami::v3::Response::new(body.sender_user().to_owned(), is_guest), {
 		device_id: body.sender_device.clone(),
-		is_guest,
-	})
+	}))
 }
 
 /// # `POST /_matrix/client/r0/account/deactivate`
@@ -310,9 +307,7 @@ pub(crate) async fn deactivate_route(
 			.await;
 	}
 
-	Ok(deactivate::v3::Response {
-		id_server_unbind_result: ThirdPartyIdRemovalStatus::Success,
-	})
+	Ok(deactivate::v3::Response::new(ThirdPartyIdRemovalStatus::Success))
 }
 
 /// # `GET /_matrix/client/v1/register/m.login.registration_token/validity`
@@ -330,7 +325,7 @@ pub(crate) async fn check_registration_token_validity(
 		.await
 		.is_some();
 
-	Ok(check_registration_token_validity::v1::Response { valid })
+	Ok(check_registration_token_validity::v1::Response::new(valid))
 }
 
 /// Runs through all the deactivation steps:
@@ -378,29 +373,16 @@ pub async fn full_user_deactivate(
 		let room_power_levels = services
 			.rooms
 			.state_accessor
-			.room_state_get_content::<RoomPowerLevelsEventContent>(
-				room_id,
-				&StateEventType::RoomPowerLevels,
-				"",
-			)
-			.await
-			.ok();
+			.get_room_power_levels(&room_id)
+			.await;
 
 		let user_can_demote_self =
-			room_power_levels
-				.as_ref()
-				.is_some_and(|power_levels_content| {
-					RoomPowerLevels::from(power_levels_content.clone())
-						.user_can_change_user_power_level(user_id, user_id)
-				}) || services
-				.rooms
-				.state_accessor
-				.room_state_get(room_id, &StateEventType::RoomCreate, "")
-				.await
-				.is_ok_and(|event| event.sender() == user_id);
+			room_power_levels.user_can_change_user_power_level(user_id, user_id);
 
-		if user_can_demote_self {
-			let mut power_levels_content = room_power_levels.unwrap_or_default();
+		if user_can_demote_self
+			&& let Ok(mut power_levels_content) =
+				RoomPowerLevelsEventContent::try_from(room_power_levels)
+		{
 			power_levels_content.users.remove(user_id);
 			let pl_evt = PduBuilder::state(String::new(), &power_levels_content);
 			pdu_queue.push((pl_evt, room_id));
@@ -408,17 +390,10 @@ pub async fn full_user_deactivate(
 
 		// Leave the room
 		pdu_queue.push((
-			PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
-				avatar_url: None,
-				blurhash: None,
-				membership: MembershipState::Leave,
-				displayname: None,
-				join_authorized_via_users_server: None,
-				reason: None,
-				is_direct: None,
-				third_party_invite: None,
-				redact_events: None,
-			}),
+			PduBuilder::state(
+				user_id.to_string(),
+				&RoomMemberEventContent::new(MembershipState::Leave),
+			),
 			room_id,
 		));
 
