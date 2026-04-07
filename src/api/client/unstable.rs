@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{Err, Result};
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{
 	OwnedRoomId,
 	api::{
@@ -112,6 +112,7 @@ pub(crate) async fn set_profile_key_route(
 			Some(display_name.to_owned()),
 			&all_joined_rooms,
 		)
+		.boxed()
 		.await;
 	} else if body.key_name == "avatar_url" {
 		let Some(avatar_url) = profile_key_value.as_str() else {
@@ -127,7 +128,9 @@ pub(crate) async fn set_profile_key_route(
 			.collect()
 			.await;
 
-		update_avatar_url(&services, &body.user_id, Some(mxc), None, &all_joined_rooms).await;
+		update_avatar_url(&services, &body.user_id, Some(mxc), None, &all_joined_rooms)
+			.boxed()
+			.await;
 	} else {
 		services.users.set_profile_key(
 			&body.user_id,
@@ -178,7 +181,9 @@ pub(crate) async fn delete_profile_key_route(
 			.collect()
 			.await;
 
-		update_displayname(&services, &body.user_id, None, &all_joined_rooms).await;
+		update_displayname(&services, &body.user_id, None, &all_joined_rooms)
+			.boxed()
+			.await;
 	} else if body.key_name == "avatar_url" {
 		let all_joined_rooms: Vec<OwnedRoomId> = services
 			.rooms
@@ -188,7 +193,9 @@ pub(crate) async fn delete_profile_key_route(
 			.collect()
 			.await;
 
-		update_avatar_url(&services, &body.user_id, None, None, &all_joined_rooms).await;
+		update_avatar_url(&services, &body.user_id, None, None, &all_joined_rooms)
+			.boxed()
+			.await;
 	} else {
 		services
 			.users

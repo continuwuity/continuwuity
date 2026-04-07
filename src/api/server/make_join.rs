@@ -2,12 +2,12 @@ use std::borrow::ToOwned;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug, debug_info, err, info, matrix::pdu::PduBuilder, utils, warn,
+	Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, utils, warn,
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
-	CanonicalJsonObject, OwnedUserId, RoomId, RoomVersionId, UserId,
+	OwnedUserId, RoomId, RoomVersionId, UserId,
 	api::{client::error::ErrorKind, federation::membership::prepare_join_event},
 	events::{
 		StateEventType,
@@ -300,20 +300,5 @@ pub(crate) async fn user_can_perform_restricted_join(
 			 room, but this server is unable to verify every requirement. You may be able to \
 			 join via another server."
 		)))
-	}
-}
-
-pub(crate) fn maybe_strip_event_id(
-	pdu_json: &mut CanonicalJsonObject,
-	room_version_id: &RoomVersionId,
-) -> Result {
-	use RoomVersionId::*;
-
-	match room_version_id {
-		| V1 | V2 => Ok(()),
-		| _ => {
-			pdu_json.remove("event_id");
-			Ok(())
-		},
 	}
 }

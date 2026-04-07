@@ -425,7 +425,9 @@ pub async fn full_user_deactivate(
 		// TODO: Redact all messages sent by the user in the room
 	}
 
-	super::update_all_rooms(services, pdu_queue, user_id).await;
+	super::update_all_rooms(services, pdu_queue, user_id)
+		.boxed()
+		.await;
 	for room_id in all_joined_rooms {
 		services.rooms.state_cache.forget(room_id, user_id);
 	}

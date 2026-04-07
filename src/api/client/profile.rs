@@ -7,7 +7,7 @@ use conduwuit::{
 };
 use conduwuit_service::Services;
 use futures::{
-	StreamExt, TryStreamExt,
+	FutureExt, StreamExt, TryStreamExt,
 	future::{join, join3, join4},
 };
 use ruma::{
@@ -51,6 +51,7 @@ pub(crate) async fn set_displayname_route(
 		.await;
 
 	update_displayname(&services, &body.user_id, body.displayname.clone(), &all_joined_rooms)
+		.boxed()
 		.await;
 
 	if services.config.allow_local_presence {
@@ -149,6 +150,7 @@ pub(crate) async fn set_avatar_url_route(
 		body.blurhash.clone(),
 		&all_joined_rooms,
 	)
+	.boxed()
 	.await;
 
 	if services.config.allow_local_presence {
@@ -344,7 +346,9 @@ pub async fn update_displayname(
 		.collect()
 		.await;
 
-	update_all_rooms(services, all_joined_rooms, user_id).await;
+	update_all_rooms(services, all_joined_rooms, user_id)
+		.boxed()
+		.await;
 }
 
 pub async fn update_avatar_url(
@@ -394,7 +398,9 @@ pub async fn update_avatar_url(
 		.collect()
 		.await;
 
-	update_all_rooms(services, all_joined_rooms, user_id).await;
+	update_all_rooms(services, all_joined_rooms, user_id)
+		.boxed()
+		.await;
 }
 
 pub async fn update_all_rooms(

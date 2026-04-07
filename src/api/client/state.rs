@@ -60,6 +60,7 @@ pub(crate) async fn send_state_event_for_key_route(
 				None
 			},
 		)
+		.boxed()
 		.await?,
 	})
 }

@@ -6,7 +6,6 @@ use ruma::{
 };
 use serde_json::value::to_raw_value;
 
-use super::make_join::maybe_strip_event_id;
 use crate::Ruma;
 
 /// # `GET /_matrix/federation/v1/make_leave/{roomId}/{eventId}`

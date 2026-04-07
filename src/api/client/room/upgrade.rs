@@ -137,6 +137,7 @@ pub(crate) async fn upgrade_room_route(
 				Some(&body.room_id),
 				&state_lock,
 			)
+			.boxed()
 			.await?;
 		// Change lock to replacement room
 		drop(state_lock);
