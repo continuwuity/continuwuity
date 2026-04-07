@@ -13,7 +13,10 @@ use conduwuit::{Error, Result, SyncRwLock, debug_warn, warn};
 use database::{Handle, Map};
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
-	api::{error::ErrorKind::LimitExceeded, federation::transactions::send_transaction_message},
+	api::{
+		error::{ErrorKind::LimitExceeded, LimitExceededErrorData},
+		federation::transactions::send_transaction_message,
+	},
 };
 use tokio::sync::watch::{Receiver, Sender};
 
@@ -181,7 +184,7 @@ impl Service {
 				"Got concurrent transaction request from an origin with an active transaction"
 			);
 			return Err(Error::BadRequest(
-				LimitExceeded { retry_after: None },
+				LimitExceeded(LimitExceededErrorData::default()),
 				"Still processing another transaction from this origin",
 			));
 		}
@@ -201,7 +204,7 @@ impl Service {
 				"Server is overloaded, dropping incoming transaction"
 			);
 			return Err(Error::BadRequest(
-				LimitExceeded { retry_after: None },
+				LimitExceeded(LimitExceededErrorData::default()),
 				"Server is overloaded, try again later",
 			));
 		}
