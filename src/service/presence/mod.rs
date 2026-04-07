@@ -193,10 +193,7 @@ impl Service {
 				| _ => continue,
 			};
 
-			if matches!(
-				presence.presence,
-				PresenceState::Offline
-			) {
+			if matches!(presence.presence, PresenceState::Offline) {
 				trace!(%user_id, ?presence, "Skipping user");
 				continue;
 			}

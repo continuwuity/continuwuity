@@ -19,7 +19,13 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, Stream, StreamExt};
-use ruma::{OwnedServerName, RoomId, ServerName, UserId, api::{OutgoingRequest, auth_scheme::NoAuthentication, federation::authentication::ServerSignatures, path_builder::PathBuilder}};
+use ruma::{
+	OwnedServerName, RoomId, ServerName, UserId,
+	api::{
+		OutgoingRequest, auth_scheme::{NoAuthentication, NoAccessToken, SendAccessToken},
+		federation::authentication::ServerSignatures, path_builder::PathBuilder,
+	},
+};
 use tokio::{task, task::JoinSet};
 
 use self::data::Data;
@@ -28,7 +34,10 @@ pub use self::{
 	sender::{EDU_LIMIT, PDU_LIMIT},
 };
 use crate::{
-	Dep, account_data, client, federation::{self, FederationPathBuilderInput}, globals, presence, pusher, rooms::{self, timeline::RawPduId},
+	Dep, account_data, client,
+	federation::{self, FederationPathBuilderInput},
+	globals, presence, pusher,
+	rooms::{self, timeline::RawPduId},
 	users,
 };
 
@@ -239,10 +248,7 @@ impl Service {
 	{
 		let requests = servers
 			.map(|server| {
-				(
-					Destination::Federation(server),
-					SendingEvent::Edu(serialized.clone()),
-				)
+				(Destination::Federation(server), SendingEvent::Edu(serialized.clone()))
 			})
 			.collect::<Vec<_>>()
 			.await;
@@ -294,7 +300,11 @@ impl Service {
 		request: T,
 	) -> Result<T::IncomingResponse>
 	where
-		T: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+		T: OutgoingRequest<
+				Authentication = ServerSignatures,
+				PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+			> + Debug
+			+ Send,
 	{
 		self.services.federation.execute(dest, request).await
 	}
@@ -307,7 +317,11 @@ impl Service {
 		request: T,
 	) -> Result<T::IncomingResponse>
 	where
-		T: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+		T: OutgoingRequest<
+				Authentication = ServerSignatures,
+				PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+			> + Debug
+			+ Send,
 	{
 		self.services
 			.federation
@@ -323,11 +337,35 @@ impl Service {
 		request: T,
 	) -> Result<T::IncomingResponse>
 	where
-		T: OutgoingRequest::<Authentication = NoAuthentication, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+		T: OutgoingRequest<
+				Authentication = NoAuthentication,
+				PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+			> + Debug
+			+ Send,
 	{
 		self.services
 			.federation
 			.execute_unauthenticated(dest, request)
+			.await
+	}
+	/// Send an unauthenticated federation request with no X-Matrix header.
+	#[inline]
+	pub async fn send_legacy_media_request<'i, T>(
+		&self,
+		dest: &ServerName,
+		request: T,
+	) -> Result<T::IncomingResponse>
+	where
+		T: OutgoingRequest<
+				Authentication = NoAccessToken,
+				PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+			> + Debug
+			+ Send,
+	{
+
+		self.services
+			.federation
+			.execute_on(&self.services.client.federation, dest, request, SendAccessToken::None)
 			.await
 	}
 

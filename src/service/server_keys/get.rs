@@ -6,9 +6,8 @@ use ruma::{
 	api::federation::discovery::VerifyKey,
 };
 
-use crate::server_keys::util::required_keys;
-
 use super::{PubKeyMap, PubKeys, extract_key};
+use crate::server_keys::util::required_keys;
 
 #[implement(super::Service)]
 pub async fn get_event_keys(

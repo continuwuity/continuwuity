@@ -19,11 +19,13 @@ use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
-	api::client::{device::Device, error::ErrorKind, filter::FilterDefinition},
+	api::{
+		client::{device::Device, filter::FilterDefinition},
+		error::ErrorKind,
+	},
 	encryption::{CrossSigningKey, DeviceKeys, OneTimeKey},
 	events::{
-		AnyToDeviceEvent, GlobalAccountDataEventType,
-		ignored_user_list::IgnoredUserListEvent,
+		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
 	},
 	serde::Raw,
 	uint,

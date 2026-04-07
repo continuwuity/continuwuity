@@ -1,9 +1,8 @@
 mod execute;
-pub(crate) use execute::FederationPathBuilderInput;
-
 use std::sync::Arc;
 
 use conduwuit::{Result, Server};
+pub(crate) use execute::FederationPathBuilderInput;
 
 use crate::{Dep, client, moderation, resolver, server_keys};
 

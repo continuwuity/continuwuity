@@ -25,7 +25,7 @@ pub fn gen_event_id(
 	room_version_id: &RoomVersionId,
 ) -> Result<OwnedEventId> {
 	let Some(rules) = room_version_id.rules() else {
-		return Err!("Cannot generate event ID for unknown room version {room_version_id}")
+		return Err!("Cannot generate event ID for unknown room version {room_version_id}");
 	};
 	let reference_hash = ruma::signatures::reference_hash(value, &rules)?;
 	let event_id: OwnedEventId = format!("${reference_hash}").try_into()?;

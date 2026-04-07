@@ -7,7 +7,9 @@ use conduwuit::{
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::StreamExt;
 use ruma::{
-	OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::backup::{BackupAlgorithm, KeyBackupData, RoomKeyBackup}, serde::Raw
+	OwnedRoomId, OwnedUserId, RoomId, UserId,
+	api::client::backup::{BackupAlgorithm, KeyBackupData, RoomKeyBackup},
+	serde::Raw,
 };
 
 use crate::{Dep, globals};

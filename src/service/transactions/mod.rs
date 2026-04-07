@@ -13,10 +13,7 @@ use conduwuit::{Error, Result, SyncRwLock, debug_warn, warn};
 use database::{Handle, Map};
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
-	api::{
-		client::error::ErrorKind::LimitExceeded,
-		federation::transactions::send_transaction_message,
-	},
+	api::{error::ErrorKind::LimitExceeded, federation::transactions::send_transaction_message},
 };
 use tokio::sync::watch::{Receiver, Sender};
 

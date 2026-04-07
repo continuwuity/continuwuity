@@ -25,13 +25,14 @@ use ruma::{
 		StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
-	int, room_version_rules::{RoomIdFormatVersion, RoomVersionRules, StateResolutionVersion},
+	int,
+	room_version_rules::{RoomIdFormatVersion, RoomVersionRules, StateResolutionVersion},
 };
 use serde_json::from_str as from_json_str;
 
 pub(crate) use self::error::Error;
-use self::power_levels::PowerLevelsContentFields;
 pub use self::event_auth::{auth_check, auth_types_for_event};
+use self::power_levels::PowerLevelsContentFields;
 use crate::{
 	debug, debug_error, err,
 	matrix::{Event, StateKey},
@@ -106,19 +107,21 @@ where
 
 	debug!(count = conflicting.len(), "conflicting events");
 	trace!(map = ?conflicting, "conflicting events");
-	let (conflicted_state_subgraph, initial_state) =
-		if let StateResolutionVersion::V2(v2_rules) = stateres_version && v2_rules.consider_conflicted_state_subgraph {
-			let csg = calculate_conflicted_subgraph(&conflicting, event_fetch)
-				.await
-				.ok_or_else(|| {
-					Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
-				})?;
-			debug!(count = csg.len(), "conflicted subgraph");
-			trace!(set = ?csg, "conflicted subgraph");
-			(csg, HashMap::new())
-		} else {
-			(HashSet::new(), unconflicted.clone())
-		};
+	let (conflicted_state_subgraph, initial_state) = if let StateResolutionVersion::V2(v2_rules) =
+		stateres_version
+		&& v2_rules.consider_conflicted_state_subgraph
+	{
+		let csg = calculate_conflicted_subgraph(&conflicting, event_fetch)
+			.await
+			.ok_or_else(|| {
+				Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
+			})?;
+		debug!(count = csg.len(), "conflicted subgraph");
+		trace!(set = ?csg, "conflicted subgraph");
+		(csg, HashMap::new())
+	} else {
+		(HashSet::new(), unconflicted.clone())
+	};
 
 	// `all_conflicted` contains unique items
 	// synapse says `full_set = {eid for eid in full_conflicted_set if eid in
@@ -974,10 +977,14 @@ mod tests {
 	use maplit::{hashmap, hashset};
 	use rand::seq::SliceRandom;
 	use ruma::{
-		MilliSecondsSinceUnixEpoch, OwnedEventId, RoomVersionId, events::{
+		MilliSecondsSinceUnixEpoch, OwnedEventId, RoomVersionId,
+		events::{
 			StateEventType, TimelineEventType,
 			room::join_rules::{JoinRule, RoomJoinRulesEventContent},
-		}, int, room_version_rules::RoomVersionRules, uint
+		},
+		int,
+		room_version_rules::RoomVersionRules,
+		uint,
 	};
 	use serde_json::{json, value::to_raw_value as to_raw_json_value};
 
@@ -1423,13 +1430,18 @@ mod tests {
 			})
 			.collect();
 
-		let resolved =
-			match super::resolve(&RoomVersionRules::V2, &state_sets, &auth_chain, &fetcher, &exists)
-				.await
-			{
-				| Ok(state) => state,
-				| Err(e) => panic!("{e}"),
-			};
+		let resolved = match super::resolve(
+			&RoomVersionRules::V2,
+			&state_sets,
+			&auth_chain,
+			&fetcher,
+			&exists,
+		)
+		.await
+		{
+			| Ok(state) => state,
+			| Err(e) => panic!("{e}"),
+		};
 
 		assert_eq!(expected, resolved);
 	}
@@ -1536,13 +1548,18 @@ mod tests {
 
 		let fetcher = |id: OwnedEventId| ready(ev_map.get(&id).cloned());
 		let exists = |id: OwnedEventId| ready(ev_map.get(&id).is_some());
-		let resolved =
-			match super::resolve(&RoomVersionRules::V6, &state_sets, &auth_chain, &fetcher, &exists)
-				.await
-			{
-				| Ok(state) => state,
-				| Err(e) => panic!("{e}"),
-			};
+		let resolved = match super::resolve(
+			&RoomVersionRules::V6,
+			&state_sets,
+			&auth_chain,
+			&fetcher,
+			&exists,
+		)
+		.await
+		{
+			| Ok(state) => state,
+			| Err(e) => panic!("{e}"),
+		};
 
 		debug!(
 			resolved = ?resolved

@@ -17,10 +17,13 @@ use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId, events::{
+	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
+	events::{
 		AnyStrippedStateEvent, StateEventType, TimelineEventType,
 		room::create::RoomCreateEventContent,
-	}, room_version_rules::RoomVersionRules, serde::Raw
+	},
+	room_version_rules::RoomVersionRules,
+	serde::Raw,
 };
 
 use crate::{
@@ -107,7 +110,7 @@ impl Service {
 			.then(|shorteventid| {
 				self.services
 					.short
-					.get_eventid_from_short::<Box<_>>(shorteventid)
+					.get_eventid_from_short::<OwnedEventId>(shorteventid)
 			})
 			.ignore_err();
 
@@ -426,8 +429,13 @@ impl Service {
 			return Ok(HashMap::new());
 		};
 
-		let auth_types =
-			state_res::auth_types_for_event(kind, sender, state_key, content, room_version_rules)?;
+		let auth_types = state_res::auth_types_for_event(
+			kind,
+			sender,
+			state_key,
+			content,
+			room_version_rules,
+		)?;
 		debug!(?auth_types, "Auth types for event");
 		let sauthevents: HashMap<_, _> = auth_types
 			.iter()

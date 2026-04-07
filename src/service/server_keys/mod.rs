@@ -3,8 +3,8 @@ mod get;
 mod keypair;
 mod request;
 mod sign;
-mod verify;
 mod util;
+mod verify;
 
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 

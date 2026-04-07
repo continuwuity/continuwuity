@@ -9,10 +9,12 @@ use conduwuit::{
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
-	OwnedRoomAliasId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId, RoomOrAliasId, UserId, events::{
+	OwnedRoomAliasId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId,
+	RoomOrAliasId, UserId,
+	events::{
 		StateEventType,
 		room::power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-	}
+	},
 };
 
 use crate::{Dep, admin, appservice, appservice::RegistrationInfo, globals, rooms, sending};

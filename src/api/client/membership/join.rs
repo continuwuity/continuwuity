@@ -208,10 +208,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 			)
 			.await?;
 
-			let addl_via_servers = services
-				.rooms
-				.state_cache
-				.servers_invite_via(&room_id);
+			let addl_via_servers = services.rooms.state_cache.servers_invite_via(&room_id);
 
 			let addl_state_servers = services
 				.rooms
@@ -432,8 +429,7 @@ async fn join_room_by_id_helper_remote(
 
 	join_event_stub.insert(
 		"content".to_owned(),
-		to_canonical_value(join_content)
-		.expect("event is valid, we just created it"),
+		to_canonical_value(join_content).expect("event is valid, we just created it"),
 	);
 
 	// We keep the "event_id" in the pdu only in v1 or
@@ -462,10 +458,14 @@ async fn join_room_by_id_helper_remote(
 	let mut join_event = join_event_stub;
 
 	info!("Asking {remote_server} for send_join in room {room_id}");
-	let send_join_request = federation::membership::create_join_event::v2::Request::new(room_id.to_owned(), event_id.clone(), services
+	let send_join_request = federation::membership::create_join_event::v2::Request::new(
+		room_id.to_owned(),
+		event_id.clone(),
+		services
 			.sending
 			.convert_to_outgoing_federation_event(join_event.clone())
-			.await);
+			.await,
+	);
 
 	let send_join_response = match services
 		.sending
@@ -816,15 +816,15 @@ async fn make_join_request(
 			servers.len()
 		);
 
-		let mut request = federation::membership::prepare_join_event::v1::Request::new(room_id.to_owned(), sender_user.to_owned());
+		let mut request = federation::membership::prepare_join_event::v1::Request::new(
+			room_id.to_owned(),
+			sender_user.to_owned(),
+		);
 		request.ver = services.server.supported_room_versions().collect();
 
 		let make_join_response = services
 			.sending
-			.send_federation_request(
-				remote_server,
-				request
-			)
+			.send_federation_request(remote_server, request)
 			.await;
 
 		trace!("make_join response: {:?}", make_join_response);

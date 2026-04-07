@@ -9,7 +9,9 @@ use conduwuit::{
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId, api::client::room::{self, create_room}, events::{
+	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId,
+	api::client::room::{self, create_room},
+	events::{
 		TimelineEventType,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
@@ -22,7 +24,10 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			topic::RoomTopicEventContent,
 		},
-	}, int, room_version_rules::RoomIdFormatVersion, serde::{JsonObject, Raw}
+	},
+	int,
+	room_version_rules::RoomIdFormatVersion,
+	serde::{JsonObject, Raw},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 use serde_json::{json, value::to_raw_value};
@@ -80,8 +85,8 @@ pub(crate) async fn create_room_route(
 	let room_version_rules = room_version.rules().unwrap();
 
 	let room_id: Option<OwnedRoomId> = match room_version_rules.room_id_format {
-		RoomIdFormatVersion::V1 => Some(RoomId::new_v1(services.globals.server_name())),
-		_ => None,
+		| RoomIdFormatVersion::V1 => Some(RoomId::new_v1(services.globals.server_name())),
+		| _ => None,
 	};
 
 	// check if room ID doesn't already exist instead of erroring on auth check

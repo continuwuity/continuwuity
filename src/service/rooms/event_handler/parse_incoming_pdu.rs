@@ -5,7 +5,8 @@ use conduwuit::{
 	matrix::event::{gen_event_id, gen_event_id_canonical_json},
 };
 use itertools::Itertools;
-use ruma::{CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomVersionId};
+use ruma::{
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomVersionId, };
 use serde_json::value::RawValue as RawJsonValue;
 
 type Parsed = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);

@@ -8,7 +8,10 @@ use conduwuit::{
 use futures::FutureExt;
 use ruma::{
 	RoomId, UserId,
-	api::{client::membership::invite_user, federation::membership::{RawStrippedState, create_invite}},
+	api::{
+		client::membership::invite_user,
+		federation::membership::{RawStrippedState, create_invite},
+	},
 	events::room::member::{MembershipState, RoomMemberEventContent},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;

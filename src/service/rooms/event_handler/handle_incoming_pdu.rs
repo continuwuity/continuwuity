@@ -182,7 +182,8 @@ pub async fn handle_incoming_pdu<'a>(
 		// copied from https://github.com/element-hq/synapse/blob/7e4588a/synapse/handlers/federation_event.py#L255-L300
 		if value.get("type").and_then(|t| t.as_str()) == Some("m.room.member") {
 			if let Some(pdu) =
-				should_rescind_invite(&self.services, &mut value.clone(), &sender, room_id).await?
+				should_rescind_invite(&self.services, &mut value.clone(), &sender, room_id)
+					.await?
 			{
 				debug_info!(
 					"Invite to {room_id} appears to have been rescinded by {sender}, marking as \

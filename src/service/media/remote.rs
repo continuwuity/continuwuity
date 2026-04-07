@@ -6,17 +6,23 @@ use conduwuit::{
 };
 use http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderValue};
 use ruma::{
-	ServerName, UserId, api::{
-		Metadata, OutgoingRequest, auth_scheme::NoAuthentication, client::{
-			error::ErrorKind::{NotFound, Unrecognized},
-			media,
-		}, federation::{self, authenticated_media::{Content, FileOrLocation}, authentication::ServerSignatures}, path_builder::PathBuilder
-	}
+	ServerName, UserId,
+	api::{
+		Metadata, OutgoingRequest,
+		auth_scheme::{NoAccessToken, NoAuthentication},
+		client::media,
+		error::ErrorKind::{NotFound, Unrecognized},
+		federation::{
+			self,
+			authenticated_media::{Content, FileOrLocation},
+			authentication::ServerSignatures,
+		},
+		path_builder::PathBuilder,
+	},
 };
 
-use crate::{federation::FederationPathBuilderInput, media::mxc::Mxc};
-
 use super::{Dim, FileMeta};
+use crate::{federation::FederationPathBuilderInput, media::mxc::Mxc};
 
 #[implement(super::Service)]
 pub async fn fetch_remote_thumbnail(
@@ -134,7 +140,12 @@ async fn fetch_thumbnail_unauthenticated(
 ) -> Result<FileMeta> {
 	use media::get_content_thumbnail::v3::{Request, Response};
 
-	let mut request = Request::new(mxc.media_id.into(), mxc.server_name.into(), dim.width.into(), dim.height.into());
+	let mut request = Request::new(
+		mxc.media_id.into(),
+		mxc.server_name.into(),
+		dim.width.into(),
+		dim.height.into(),
+	);
 	request.allow_redirect = true;
 	request.allow_remote = true;
 	request.animated = Some(true);
@@ -143,7 +154,9 @@ async fn fetch_thumbnail_unauthenticated(
 
 	let Response {
 		file, content_type, content_disposition, ..
-	} = self.federation_request_unauthenticated(mxc, server, request).await?;
+	} = self
+		.federation_request_legacy_media(mxc, server, request)
+		.await?;
 
 	let content = Content::new(file, content_type.unwrap(), content_disposition.unwrap());
 
@@ -168,7 +181,9 @@ async fn fetch_content_unauthenticated(
 
 	let Response {
 		file, content_type, content_disposition, ..
-	} = self.federation_request_unauthenticated(mxc, server, request).await?;
+	} = self
+		.federation_request_legacy_media(mxc, server, request)
+		.await?;
 
 	let content = Content::new(file, content_type.unwrap(), content_disposition.unwrap());
 
@@ -300,7 +315,11 @@ async fn federation_request<'i, Request>(
 	request: Request,
 ) -> Result<Request::IncomingResponse>
 where
-	Request: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+	Request: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	self.services
 		.sending
@@ -309,18 +328,22 @@ where
 }
 
 #[implement(super::Service)]
-async fn federation_request_unauthenticated<'i, Request>(
+async fn federation_request_legacy_media<'i, Request>(
 	&self,
 	mxc: &Mxc<'_>,
 	server: Option<&ServerName>,
 	request: Request,
 ) -> Result<Request::IncomingResponse>
 where
-	Request: OutgoingRequest::<Authentication = NoAuthentication, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+	Request: OutgoingRequest<
+			Authentication = NoAccessToken,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	self.services
 		.sending
-		.send_unauthenticated_request(server.unwrap_or(mxc.server_name), request)
+		.send_legacy_media_request(server.unwrap_or(mxc.server_name), request)
 		.await
 }
 
@@ -335,7 +358,12 @@ pub async fn fetch_remote_thumbnail_legacy(
 		media_id: &body.media_id,
 	};
 
-	let mut request = media::get_content_thumbnail::v3::Request::new(body.media_id.clone(), body.server_name.clone(), body.width, body.height);
+	let mut request = media::get_content_thumbnail::v3::Request::new(
+		body.media_id.clone(),
+		body.server_name.clone(),
+		body.width,
+		body.height,
+	);
 	request.method = body.method.clone();
 	request.allow_remote = body.allow_remote;
 	request.allow_redirect = body.allow_redirect;
@@ -347,7 +375,7 @@ pub async fn fetch_remote_thumbnail_legacy(
 	let response = self
 		.services
 		.sending
-		.send_unauthenticated_request(mxc.server_name, request)
+		.send_legacy_media_request(mxc.server_name, request)
 		.await?;
 
 	let dim = Dim::from_ruma(body.width, body.height, body.method.clone())?;
@@ -372,7 +400,8 @@ pub async fn fetch_remote_content_legacy(
 	allow_redirect: bool,
 	timeout_ms: Duration,
 ) -> Result<media::get_content::v3::Response, Error> {
-	let mut request = media::get_content::v3::Request::new(mxc.media_id.into(), mxc.server_name.into());
+	let mut request =
+		media::get_content::v3::Request::new(mxc.media_id.into(), mxc.server_name.into());
 	request.allow_remote = true;
 	request.allow_redirect = allow_redirect;
 	request.timeout_ms = timeout_ms;
@@ -382,7 +411,7 @@ pub async fn fetch_remote_content_legacy(
 	let response = self
 		.services
 		.sending
-		.send_unauthenticated_request(mxc.server_name, request)
+		.send_legacy_media_request(mxc.server_name, request)
 		.await?;
 
 	let content_disposition = make_content_disposition(

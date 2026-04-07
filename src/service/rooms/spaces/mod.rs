@@ -17,16 +17,17 @@ use conduwuit_core::{
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, pin_mut, stream::FuturesUnordered};
 use lru_cache::LruCache;
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName, UserId, api::{
+	OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName, UserId,
+	api::{
 		client::space::SpaceHierarchyRoomsChunk,
-		federation::{
-			self,
-			space::SpaceHierarchyParentSummary,
-		},
-	}, events::{
+		federation::{self, space::SpaceHierarchyParentSummary},
+	},
+	events::{
 		StateEventType,
 		space::child::{HierarchySpaceChildEvent, SpaceChildEventContent},
-	}, room::{JoinRuleSummary, RoomSummary}, serde::Raw,
+	},
+	room::{JoinRuleSummary, RoomSummary},
+	serde::Raw,
 };
 use tokio::sync::{Mutex, MutexGuard};
 
@@ -299,11 +300,7 @@ async fn get_room_summary(
 	let join_rule = self.services.state_accessor.get_join_rules(room_id).await;
 
 	let is_accessible_child = self
-		.is_accessible_child(
-			room_id,
-			&join_rule.clone().into(),
-			identifier,
-		)
+		.is_accessible_child(room_id, &join_rule.clone().into(), identifier)
 		.await;
 
 	if !is_accessible_child {
@@ -375,7 +372,7 @@ async fn get_room_summary(
 		join_rule.clone().into(),
 		guest_can_join,
 		num_joined_members.try_into().unwrap_or_default(),
-		world_readable
+		world_readable,
 	);
 	summary.canonical_alias = canonical_alias;
 	summary.name = name;
@@ -426,13 +423,17 @@ async fn is_accessible_child(
 		| JoinRuleSummary::Public
 		| JoinRuleSummary::Knock
 		| JoinRuleSummary::KnockRestricted(_) => true,
-		| JoinRuleSummary::Restricted(restricted_summary) => {
-			(&restricted_summary.allowed_room_ids).stream().any(async |room| match identifier {
-				| Identifier::UserId(user) => self.services.state_cache.is_joined(user, room).await,
-				| Identifier::ServerName(server) => self.services.state_cache.server_in_room(server, room).await,
-			}).await
-		},
-		_ => false
+		| JoinRuleSummary::Restricted(restricted_summary) =>
+			(&restricted_summary.allowed_room_ids)
+				.stream()
+				.any(async |room| match identifier {
+					| Identifier::UserId(user) =>
+						self.services.state_cache.is_joined(user, room).await,
+					| Identifier::ServerName(server) =>
+						self.services.state_cache.server_in_room(server, room).await,
+				})
+				.await,
+		| _ => false,
 	}
 }
 
@@ -463,10 +464,10 @@ async fn cache_insert(
 	summary: RoomSummary,
 ) {
 	let children_state = self
-			.get_space_child_events(&summary.room_id)
-			.map(Event::into_format)
-			.collect()
-			.await;
+		.get_space_child_events(&summary.room_id)
+		.map(Event::into_format)
+		.collect()
+		.await;
 	let summary = SpaceHierarchyParentSummary::new(summary, children_state);
 
 	cache.insert(current_room.to_owned(), Some(CachedSpaceHierarchySummary { summary }));
