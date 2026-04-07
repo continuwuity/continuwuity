@@ -113,6 +113,7 @@ pub(crate) async fn join_room_by_id_route(
 	servers.sort_unstable();
 	servers.dedup();
 	shuffle(&mut servers);
+	let servers = deprioritize(servers, &services.config.deprioritize_joins_through_servers);
 
 	join_room_by_id_helper(
 		&services,
@@ -241,6 +242,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 		},
 	};
 
+	let servers = deprioritize(servers, &services.config.deprioritize_joins_through_servers);
 	let join_room_response = join_room_by_id_helper(
 		&services,
 		sender_user,
@@ -889,4 +891,60 @@ async fn make_join_request(
 	}
 	info!("All {} servers were unable to assist in joining {room_id} :(", servers.len());
 	Err!(BadServerResponse("No server available to assist in joining."))
+}
+
+/// Moves deprioritized servers (if any) to the back of the list.
+///
+/// No-op if we aren't given any servers to deprioritize.
+fn deprioritize(
+	servers: Vec<OwnedServerName>,
+	deprioritized: &[OwnedServerName],
+) -> Vec<OwnedServerName> {
+	if deprioritized.is_empty() {
+		return servers;
+	}
+
+	let (mut depr, mut servers): (Vec<_>, Vec<_>) =
+		servers.into_iter().partition(|s| deprioritized.contains(s));
+	servers.append(&mut depr);
+	servers
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::OwnedServerName;
+
+	use super::*;
+
+	#[test]
+	fn deprioritizing_servers_works() -> Result<(), Box<dyn std::error::Error>> {
+		let servers = vec![
+			"example.com".try_into()?,
+			"slow.invalid".try_into()?,
+			"example.org".try_into()?,
+		];
+		let depr = vec!["slow.invalid".try_into()?];
+		let expected: Vec<OwnedServerName> = vec![
+			"example.com".try_into()?,
+			"example.org".try_into()?,
+			"slow.invalid".try_into()?,
+		];
+
+		let servers = deprioritize(servers, &depr);
+		assert_eq!(servers, expected);
+		Ok(())
+	}
+
+	#[test]
+	fn empty_deprioritized_is_noop() -> Result<(), Box<dyn std::error::Error>> {
+		let servers = vec![
+			"example.com".try_into()?,
+			"slow.invalid".try_into()?,
+			"example.org".try_into()?,
+		];
+
+		let depr_servers = deprioritize(servers.clone(), &[]);
+		assert_eq!(depr_servers, servers);
+		Ok(())
+	}
 }

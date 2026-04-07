@@ -1630,6 +1630,22 @@ pub struct Config {
 	#[serde(default, with = "serde_regex")]
 	pub ignore_messages_from_server_names: RegexSet,
 
+	/// List of server names that continuwuity will deprioritize (try last) when
+	/// a client requests to join a room.
+	///
+	/// This can be used to potentially speed up room join requests, by
+	/// deprioritizing sending join requests through servers that are known to
+	/// be large or slow.
+	///
+	/// continuwuity will still send join requests to servers in this list if
+	/// the room couldn't be joined via other servers it federates with.
+	///
+	/// example: ["example.com"]
+	///
+	/// default: []
+	#[serde(default = "Vec::new")]
+	pub deprioritize_joins_through_servers: Vec<OwnedServerName>,
+
 	/// Send messages from users that the user has ignored to the client.
 	///
 	/// There is no way for clients to receive messages sent while a user was
