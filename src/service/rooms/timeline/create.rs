@@ -56,36 +56,32 @@ pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
 	}
 }
 
+/// Pulls the room version ID out of the given (create) event.
+fn room_version_from_event(
+	room_id: OwnedRoomId,
+	event_type: &TimelineEventType,
+	content: &RawValue,
+) -> Result<RoomVersionId> {
+	if event_type == &TimelineEventType::RoomCreate {
+		let content: RoomCreateEventContent = serde_json::from_str(content.get())?;
+		Ok(content.room_version)
+	} else {
+		Err(Error::InconsistentRoomState(
+			"non-create event for room of unknown version",
+			room_id,
+		))
+	}
+}
+
+// Creates an event, but does not hash or sign it.
 #[implement(super::Service)]
-pub async fn create_hash_and_sign_event(
+pub async fn create_event(
 	&self,
 	pdu_builder: PduBuilder,
 	sender: &UserId,
 	room_id: Option<&RoomId>,
-	_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
-	                               * state mutex */
-) -> Result<(PduEvent, CanonicalJsonObject)> {
-	#[allow(clippy::boxed_local)]
-	fn from_evt(
-		room_id: OwnedRoomId,
-		event_type: &TimelineEventType,
-		content: &RawValue,
-	) -> Result<RoomVersionId> {
-		if event_type == &TimelineEventType::RoomCreate {
-			let content: RoomCreateEventContent = serde_json::from_str(content.get())?;
-			Ok(content.room_version)
-		} else {
-			Err(Error::InconsistentRoomState(
-				"non-create event for room of unknown version",
-				room_id,
-			))
-		}
-	}
-
-	if !self.services.globals.user_is_local(sender) {
-		return Err!(Request(Forbidden("Sender must be a local user")));
-	}
-
+	_mutex_lock: &RoomMutexGuard,
+) -> Result<(PduEvent, RoomVersionId)> {
 	let PduBuilder {
 		event_type,
 		content,
@@ -108,12 +104,16 @@ pub async fn create_hash_and_sign_event(
 				.get_room_version(room_id)
 				.await
 				.or_else(|_| {
-					from_evt(room_id.to_owned(), &event_type.clone(), &content.clone())
+					room_version_from_event(
+						room_id.to_owned(),
+						&event_type.clone(),
+						&content.clone(),
+					)
 				})?
 		},
 		| None => {
 			trace!("No room ID, assuming room creation");
-			from_evt(
+			room_version_from_event(
 				RoomId::new(self.services.globals.server_name()),
 				&event_type.clone(),
 				&content.clone(),
@@ -186,7 +186,7 @@ pub async fn create_hash_and_sign_event(
 		}
 	}
 
-	let mut pdu = PduEvent {
+	let pdu = PduEvent {
 		event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
 		room_id: room_id.map(ToOwned::to_owned),
 		sender: sender.to_owned(),
@@ -259,19 +259,29 @@ pub async fn create_hash_and_sign_event(
 		pdu.event_id,
 		pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 	);
+	Ok((pdu, room_version_id))
+}
 
+#[implement(super::Service)]
+pub async fn create_hash_and_sign_event(
+	&self,
+	pdu_builder: PduBuilder,
+	sender: &UserId,
+	room_id: Option<&RoomId>,
+	mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
+	                              * state mutex */
+) -> Result<(PduEvent, CanonicalJsonObject)> {
+	if !self.services.globals.user_is_local(sender) {
+		return Err!(Request(Forbidden("Sender must be a local user")));
+	}
+	let (mut pdu, room_version_id) = self
+		.create_event(pdu_builder, sender, room_id, mutex_lock)
+		.await?;
 	// Hash and sign
 	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
 		err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
 	})?;
-
-	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version_id {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			pdu_json.remove("event_id");
-		},
-	}
+	pdu_json.remove("event_id");
 
 	trace!("hashing and signing event {}", pdu.event_id);
 	if let Err(e) = self

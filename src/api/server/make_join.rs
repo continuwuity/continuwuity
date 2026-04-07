@@ -1,7 +1,9 @@
 use std::borrow::ToOwned;
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{
+	Err, Error, Result, debug, debug_info, err, info, matrix::pdu::PduBuilder, utils, warn,
+};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
@@ -40,6 +42,7 @@ pub(crate) async fn create_join_event_template_route(
 	{
 		info!(
 			origin = body.origin().as_str(),
+			room_id = %body.room_id,
 			"Refusing to serve make_join for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -133,10 +136,10 @@ pub(crate) async fn create_join_event_template_route(
 		}
 	}
 
-	let (_pdu, mut pdu_json) = services
+	let (pdu, _) = services
 		.rooms
 		.timeline
-		.create_hash_and_sign_event(
+		.create_event(
 			PduBuilder::state(body.user_id.to_string(), &RoomMemberEventContent {
 				join_authorized_via_users_server,
 				..RoomMemberEventContent::new(MembershipState::Join)
@@ -147,6 +150,8 @@ pub(crate) async fn create_join_event_template_route(
 		)
 		.await?;
 	drop(state_lock);
+	let mut pdu_json = utils::to_canonical_object(&pdu)
+		.expect("Barebones PDU should be convertible to canonical JSON");
 	pdu_json.remove("event_id");
 
 	Ok(prepare_join_event::v1::Response {

@@ -1,6 +1,6 @@
 use RoomVersionId::*;
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PduBuilder, utils, warn};
 use ruma::{
 	RoomVersionId,
 	api::{client::error::ErrorKind, federation::knock::create_knock_event_template},
@@ -28,6 +28,7 @@ pub(crate) async fn create_knock_event_template_route(
 	{
 		info!(
 			origin = body.origin().as_str(),
+			room_id = %body.room_id,
 			"Refusing to serve make_knock for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -98,10 +99,10 @@ pub(crate) async fn create_knock_event_template_route(
 		}
 	}
 
-	let (_pdu, mut pdu_json) = services
+	let (pdu, _) = services
 		.rooms
 		.timeline
-		.create_hash_and_sign_event(
+		.create_event(
 			PduBuilder::state(
 				body.user_id.to_string(),
 				&RoomMemberEventContent::new(MembershipState::Knock),
@@ -113,9 +114,9 @@ pub(crate) async fn create_knock_event_template_route(
 		.await?;
 
 	drop(state_lock);
-
-	// room v3 and above removed the "event_id" field from remote PDU format
-	super::maybe_strip_event_id(&mut pdu_json, &room_version_id)?;
+	let mut pdu_json = utils::to_canonical_object(&pdu)
+		.expect("Barebones PDU should be convertible to canonical JSON");
+	pdu_json.remove("event_id");
 
 	Ok(create_knock_event_template::v1::Response {
 		room_version: room_version_id,
