@@ -2,8 +2,8 @@ use std::borrow::Borrow;
 
 use conduwuit::{Err, Result, debug_error, implement, trace};
 use ruma::{
-	CanonicalJsonObject, RoomVersionId, ServerName, ServerSigningKeyId,
-	api::federation::discovery::VerifyKey, room_version_rules::RoomVersionRules,
+	CanonicalJsonObject, ServerName, ServerSigningKeyId, api::federation::discovery::VerifyKey,
+	room_version_rules::RoomVersionRules,
 };
 
 use super::{PubKeyMap, PubKeys, extract_key};

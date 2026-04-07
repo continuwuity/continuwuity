@@ -14,7 +14,7 @@ use database::Json;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	OwnedRoomId, OwnedUserId, RoomId, UserId,
+	OwnedRoomId, OwnedUserId, UserId,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
 		push_rules::PushRulesEvent,

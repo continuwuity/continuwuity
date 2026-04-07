@@ -20,11 +20,8 @@ use ruma::{
 	OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
 	events::{
 		Mentions,
-		room::{
-			MediaSource,
-			message::{
-				FileInfo, FileMessageEventContent, MessageType, Relation, RoomMessageEventContent,
-			},
+		room::message::{
+			FileInfo, FileMessageEventContent, MessageType, Relation, RoomMessageEventContent,
 		},
 	},
 };
