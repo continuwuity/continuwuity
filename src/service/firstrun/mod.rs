@@ -6,7 +6,7 @@ use std::{
 use askama::Template;
 use async_trait::async_trait;
 use conduwuit::{Result, info, utils::ReadyExt};
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use ruma::{UserId, events::room::message::RoomMessageEventContent};
 
 use crate::{
@@ -133,7 +133,7 @@ impl Service {
 			return Ok(false);
 		}
 
-		self.services.admin.make_user_admin(user).await?;
+		self.services.admin.make_user_admin(user).boxed().await?;
 
 		// Send the welcome message
 		let welcome_message = WelcomeMessage {
