@@ -10,16 +10,17 @@ use conduwuit::{
 	warn,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, OwnedKeyId, RoomId, ServerName, SigningKeyId, events::StateEventType
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, OwnedKeyId, RoomId, ServerName, SigningKeyId,
+	events::StateEventType,
 };
 use ruminuwuity::policy::{
-	policy_check::unstable::Request as PolicyCheckRequest,
+	event::RoomPolicyEventContent, policy_check::unstable::Request as PolicyCheckRequest,
 	policy_sign::unstable::Request as PolicySignRequest,
-	event::RoomPolicyEventContent
 };
 use serde_json::value::RawValue;
 
-static POLICY_EVENT_TYPE_UNSTABLE: LazyLock<StateEventType> = LazyLock::new(|| StateEventType::from("org.matrix.msc4284.policy"));
+static POLICY_EVENT_TYPE_UNSTABLE: LazyLock<StateEventType> =
+	LazyLock::new(|| StateEventType::from("org.matrix.msc4284.policy"));
 
 /// Asks a remote policy server if the event is allowed.
 ///
@@ -88,7 +89,12 @@ pub async fn ask_policy_server(
 			return Ok(true);
 		},
 	};
-	if !self.services.state_cache.server_in_room(&via, room_id).await {
+	if !self
+		.services
+		.state_cache
+		.server_in_room(&via, room_id)
+		.await
+	{
 		debug!(
 			via = %via,
 			"Policy server is not in the room, skipping spam check"
@@ -132,15 +138,13 @@ pub async fn ask_policy_server(
 		via = %via,
 		"Checking event for spam with policy server via legacy check"
 	);
-	
+
 	let mut request = PolicyCheckRequest::new(pdu.event_id().to_owned());
 	request.pdu = Some(outgoing);
-	
+
 	let response = tokio::time::timeout(
 		Duration::from_secs(self.services.server.config.policy_server_request_timeout),
-		self.services
-			.sending
-			.send_federation_request(&via, request),
+		self.services.sending.send_federation_request(&via, request),
 	)
 	.await;
 	let response = match response {

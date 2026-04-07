@@ -54,9 +54,6 @@ impl Presence {
 		content.displayname = users.displayname(user_id).await.ok();
 		content.avatar_url = users.avatar_url(user_id).await.ok();
 
-		PresenceEvent {
-			sender: user_id.to_owned(),
-			content,
-		}
+		PresenceEvent { sender: user_id.to_owned(), content }
 	}
 }

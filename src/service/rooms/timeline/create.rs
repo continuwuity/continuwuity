@@ -96,7 +96,7 @@ pub async fn create_event(
 		event_type,
 		room_id.as_ref().map_or("None", |id| id.as_str())
 	);
-	let room_version_id = match room_id {
+	let room_version = match room_id {
 		| Some(room_id) => {
 			trace!(%room_id, "Looking up existing room ID");
 			self.services
@@ -114,7 +114,7 @@ pub async fn create_event(
 		| None => {
 			trace!("No room ID, assuming room creation");
 			room_version_from_event(
-				RoomId::new(self.services.globals.server_name()),
+				RoomId::new_v1(self.services.globals.server_name()),
 				&event_type.clone(),
 				&content.clone(),
 			)?
@@ -261,7 +261,7 @@ pub async fn create_event(
 		pdu.event_id,
 		pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 	);
-	Ok((pdu, room_version_id))
+	Ok((pdu, room_version))
 }
 
 #[implement(super::Service)]
@@ -276,7 +276,7 @@ pub async fn create_hash_and_sign_event(
 	if !self.services.globals.user_is_local(sender) {
 		return Err!(Request(Forbidden("Sender must be a local user")));
 	}
-	let (mut pdu, room_version_id) = self
+	let (mut pdu, room_version) = self
 		.create_event(pdu_builder, sender, room_id, mutex_lock)
 		.await?;
 	// Hash and sign
@@ -292,7 +292,7 @@ pub async fn create_hash_and_sign_event(
 		.hash_and_sign_event(&mut pdu_json, &room_version)
 	{
 		return match e {
-			| Error::Signatures(ruma::signatures::Error::PduSize) => {
+			| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
 				Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
 			},
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),

@@ -6,7 +6,7 @@ use crate::{Err, Error, Result, err, implement};
 #[implement(super::Pdu)]
 pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> Result {
 	let Some(rules) = room_version_id.rules() else {
-		return Err!("Cannot redact event for unknown room version {room_version_id}")
+		return Err!("Cannot redact event for unknown room version {room_version_id}");
 	};
 
 	self.unsigned = None;
@@ -14,8 +14,7 @@ pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> 
 	let mut content = serde_json::from_str(self.content.get())
 		.map_err(|e| err!(Request(BadJson("Failed to deserialize content into type: {e}"))))?;
 
-	redact_content_in_place(&mut content, &rules.redaction, self.kind.to_string())
-		.map_err(|e| Error::Redaction(self.sender.server_name().to_owned(), e))?;
+	redact_content_in_place(&mut content, &rules.redaction, self.kind.to_string());
 
 	let reason = serde_json::to_value(reason).expect("Failed to preserialize reason");
 

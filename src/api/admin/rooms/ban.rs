@@ -1,10 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Err, Result, info, utils::ReadyExt, warn};
 use futures::{FutureExt, StreamExt};
-use ruma::{
-	OwnedRoomAliasId,
-	events::room::message::RoomMessageEventContent,
-};
+use ruma::{OwnedRoomAliasId, events::room::message::RoomMessageEventContent};
 use ruminuwuity::admin::continuwuity::rooms;
 
 use crate::{Ruma, client::leave_room};

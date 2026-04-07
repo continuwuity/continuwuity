@@ -87,7 +87,7 @@ pub enum Error {
 	#[error("Arithmetic operation failed: {0}")]
 	Arithmetic(Cow<'static, str>),
 	#[error("{0:?}: {1}")]
-	BadRequest(ruma::api::client::error::ErrorKind, &'static str), //TODO: remove
+	BadRequest(ruma::api::error::ErrorKind, &'static str), //TODO: remove
 	#[error("{0}")]
 	BadServerResponse(Cow<'static, str>),
 	#[error(transparent)]
@@ -103,7 +103,7 @@ pub enum Error {
 	#[error("Feature '{0}' is not available on this server.")]
 	FeatureDisabled(Cow<'static, str>),
 	#[error("Remote server {0} responded with: {1}")]
-	Federation(ruma::OwnedServerName, ruma::api::client::error::Error),
+	Federation(ruma::OwnedServerName, ruma::api::error::Error),
 	#[error("{0} in {1}")]
 	InconsistentRoomState(&'static str, ruma::OwnedRoomId),
 	#[error(transparent)]
@@ -117,11 +117,13 @@ pub enum Error {
 	#[error("from {0}: {1}")]
 	Redaction(ruma::OwnedServerName, ruma::canonical_json::RedactionError),
 	#[error("{0:?}: {1}")]
-	Request(ruma::api::client::error::ErrorKind, Cow<'static, str>, http::StatusCode),
+	Request(ruma::api::error::ErrorKind, Cow<'static, str>, http::StatusCode),
 	#[error(transparent)]
-	Ruma(#[from] ruma::api::client::error::Error),
+	Ruma(#[from] ruma::api::error::Error),
 	#[error(transparent)]
-	Signatures(#[from] ruma::signatures::Error),
+	SignatureJson(#[from] ruma::signatures::JsonError),
+	#[error(transparent)]
+	SignatureVerification(#[from] ruma::signatures::VerificationError),
 	#[error(transparent)]
 	StateRes(#[from] crate::state_res::Error),
 	#[error("uiaa")]
@@ -162,8 +164,8 @@ impl Error {
 
 	/// Returns the Matrix error code / error kind
 	#[inline]
-	pub fn kind(&self) -> ruma::api::client::error::ErrorKind {
-		use ruma::api::client::error::ErrorKind::{Unknown, Unrecognized};
+	pub fn kind(&self) -> ruma::api::error::ErrorKind {
+		use ruma::api::error::ErrorKind::{Unknown, Unrecognized};
 
 		match self {
 			| Self::Federation(_, error) | Self::Ruma(error) =>

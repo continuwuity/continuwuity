@@ -18,10 +18,7 @@ use ruma::{
 	events::{
 		GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
-		room::{
-			encrypted::Relation,
-			redaction::RoomRedactionEventContent,
-		},
+		room::{encrypted::Relation, redaction::RoomRedactionEventContent},
 	},
 	push::{Action, Ruleset, Tweak},
 };
@@ -204,7 +201,11 @@ where
 	drop(insert_lock);
 
 	// See if the event matches any known pushers via power level
-	let power_levels = self.services.state_accessor.get_room_power_levels(room_id).await;
+	let power_levels = self
+		.services
+		.state_accessor
+		.get_room_power_levels(room_id)
+		.await;
 	let mut push_target: HashSet<_> = self
 			.services
 			.state_cache
@@ -251,7 +252,7 @@ where
 		{
 			match action {
 				| Action::Notify => notify = true,
-				| Action::SetTweak(Tweak::Highlight(true)) => {
+				| Action::SetTweak(Tweak::Highlight(ruma::push::HighlightTweakValue::Yes)) => {
 					highlight = true;
 				},
 				| _ => {},
@@ -366,10 +367,12 @@ where
 
 	if let Ok(content) = pdu.get_content::<ExtractRelatesTo>() {
 		match content.relates_to {
-			| Relation::Reply { in_reply_to } => {
+			| Relation::Reply(in_reply_to) => {
 				// We need to do it again here, because replies don't have
 				// event_id as a top level field
-				if let Ok(related_pducount) = self.get_pdu_count(&in_reply_to.event_id).await {
+				if let Ok(related_pducount) =
+					self.get_pdu_count(&in_reply_to.in_reply_to.event_id).await
+				{
 					self.services
 						.pdu_metadata
 						.add_relation(count2, related_pducount);

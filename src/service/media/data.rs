@@ -8,9 +8,8 @@ use database::{Database, Interfix, Map};
 use futures::StreamExt;
 use ruma::{OwnedMxcUri, OwnedUserId, UserId, http_headers::ContentDisposition};
 
-use crate::media::mxc::Mxc;
-
 use super::{preview::UrlPreviewData, thumbnail::Dim};
+use crate::media::mxc::Mxc;
 
 pub(crate) struct Data {
 	mediaid_file: Arc<Map>,

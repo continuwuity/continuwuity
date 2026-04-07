@@ -38,9 +38,7 @@ pub use info::{
 	version,
 	version::{name, version},
 };
-pub use matrix::{
-	Event, EventTypeExt, Pdu, PduCount, PduEvent, PduId, pdu, state_res,
-};
+pub use matrix::{Event, EventTypeExt, Pdu, PduCount, PduEvent, PduId, pdu, state_res};
 pub use parking_lot::{Mutex as SyncMutex, RwLock as SyncRwLock};
 pub use server::Server;
 pub use utils::{implement, result, result::Result};
