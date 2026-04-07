@@ -5,7 +5,10 @@ use database::{Deserialized, Map};
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{Address, message::Mailbox};
 use nonzero_ext::nonzero;
-use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId, api::error::ErrorKind};
+use ruma::{
+	ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId,
+	api::error::{ErrorKind, LimitExceededErrorData},
+};
 
 mod session;
 
@@ -119,7 +122,7 @@ impl Service {
 						// Check ratelimiting for the target address.
 						if self.ratelimiter.check_key(&recipient.email).is_err() {
 							return Err(Error::BadRequest(
-								ErrorKind::LimitExceeded { retry_after: None },
+								ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
 								"You're sending emails too fast, try again in a few minutes.",
 							));
 						}

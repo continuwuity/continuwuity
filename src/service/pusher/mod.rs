@@ -30,7 +30,8 @@ use ruma::{
 		},
 	},
 	push::{
-		Action, HighlightTweakValue, PushConditionPowerLevelsCtx, PushConditionRoomCtx, PushFormat, Ruleset, Tweak
+		Action, HighlightTweakValue, PushConditionPowerLevelsCtx, PushConditionRoomCtx,
+		PushFormat, Ruleset, Tweak,
 	},
 	room_version_rules::{AuthorizationRules, RoomPowerLevelsRules, RoomVersionRules},
 	serde::Raw,
@@ -467,10 +468,12 @@ impl Service {
 
 				if !event_id_only {
 					if *event.kind() == TimelineEventType::RoomEncrypted
-						|| tweaks
-							.iter()
-							.any(|t| matches!(t, Tweak::Highlight(HighlightTweakValue::Yes) | Tweak::Sound(_)))
-					{
+						|| tweaks.iter().any(|t| {
+							matches!(
+								t,
+								Tweak::Highlight(HighlightTweakValue::Yes) | Tweak::Sound(_)
+							)
+						}) {
 						notify.prio = NotificationPriority::High;
 					} else {
 						notify.prio = NotificationPriority::Low;

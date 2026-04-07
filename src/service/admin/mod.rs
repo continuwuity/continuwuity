@@ -455,11 +455,16 @@ impl Service {
 	}
 
 	async fn handle_response(&self, content: RoomMessageEventContent) -> Result<()> {
-		let Some(Relation::Reply(reply )) = content.relates_to.as_ref() else {
+		let Some(Relation::Reply(reply)) = content.relates_to.as_ref() else {
 			return Ok(());
 		};
 
-		let Ok(pdu) = self.services.timeline.get_pdu(&reply.in_reply_to.event_id).await else {
+		let Ok(pdu) = self
+			.services
+			.timeline
+			.get_pdu(&reply.in_reply_to.event_id)
+			.await
+		else {
 			error!(
 				event_id = ?reply.in_reply_to.event_id,
 				"Missing admin command in_reply_to event"
