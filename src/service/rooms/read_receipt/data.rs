@@ -7,7 +7,9 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
-	CanonicalJsonObject, OwnedRoomId, OwnedUserId, RoomId, UserId, events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent}, serde::Raw
+	CanonicalJsonObject, OwnedRoomId, OwnedUserId, RoomId, UserId,
+	events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent},
+	serde::Raw,
 };
 
 use crate::{Dep, globals};

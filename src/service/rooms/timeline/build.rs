@@ -140,7 +140,7 @@ pub async fn build_and_append_pdu(
 					body,
 					Some(pdu.event_id().into()),
 					source,
-					pdu.sender.clone().into(),
+					pdu.sender.clone(),
 				)?;
 			}
 		}

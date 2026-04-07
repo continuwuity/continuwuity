@@ -3,7 +3,11 @@ use std::{borrow::Cow, fmt::Debug, mem};
 use bytes::BytesMut;
 use conduwuit::{Err, Result, debug_error, err, utils, utils::response::LimitReadExt, warn};
 use reqwest::Client;
-use ruma::api::{IncomingResponse, MatrixVersion, OutgoingRequest, auth_scheme::{AppserviceToken, SendAccessToken}, path_builder::VersionHistory};
+use ruma::api::{
+	IncomingResponse, MatrixVersion, OutgoingRequest,
+	auth_scheme::{AppserviceToken, SendAccessToken},
+	path_builder::VersionHistory,
+};
 
 use crate::SUPPORTED_VERSIONS;
 
@@ -15,7 +19,9 @@ pub(crate) async fn send_antispam_request<T>(
 	request: T,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest::<Authentication = AppserviceToken, PathBuilder = VersionHistory> + Debug + Send,
+	T: OutgoingRequest<Authentication = AppserviceToken, PathBuilder = VersionHistory>
+		+ Debug
+		+ Send,
 {
 	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_15];
 	let http_request = request

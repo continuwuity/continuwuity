@@ -42,7 +42,9 @@ where
 	// 2. Check signatures, otherwise drop
 	// 3. check content hash, redact if doesn't match
 	let room_version = get_room_version(create_event)?;
-	let room_rules = room_version.rules().expect("room version should have defined rules");
+	let room_rules = room_version
+		.rules()
+		.expect("room version should have defined rules");
 	let mut incoming_pdu = match self
 		.services
 		.server_keys

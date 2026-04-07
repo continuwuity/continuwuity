@@ -438,7 +438,11 @@ impl Service {
 
 				// Empty prev id forces synapse to resync; because synapse resyncs,
 				// we can just insert placeholder data
-				let edu = Edu::DeviceListUpdate(DeviceListUpdateContent::new(user_id, device_id!("placeholder").to_owned(), uint!(1)));
+				let edu = Edu::DeviceListUpdate(DeviceListUpdateContent::new(
+					user_id,
+					device_id!("placeholder").to_owned(),
+					uint!(1),
+				));
 
 				let mut buf = EduBuf::new();
 				serde_json::to_writer(&mut buf, &edu)
@@ -605,7 +609,14 @@ impl Service {
 				continue;
 			};
 
-			let mut update = PresenceUpdate::new(user_id.to_owned(), presence_event.content.presence, presence_event.content.last_active_ago.unwrap_or_else(|| uint!(0)));
+			let mut update = PresenceUpdate::new(
+				user_id.to_owned(),
+				presence_event.content.presence,
+				presence_event
+					.content
+					.last_active_ago
+					.unwrap_or_else(|| uint!(0)),
+			);
 			update.currently_active = presence_event.content.currently_active.unwrap_or_default();
 			update.status_msg = presence_event.content.status_msg;
 
@@ -619,7 +630,8 @@ impl Service {
 			return None;
 		}
 
-		let presence_content = Edu::Presence(PresenceContent::new(presence_updates.into_values().collect()));
+		let presence_content =
+			Edu::Presence(PresenceContent::new(presence_updates.into_values().collect()));
 
 		let mut buf = EduBuf::new();
 		serde_json::to_writer(&mut buf, &presence_content)
@@ -699,17 +711,12 @@ impl Service {
 		//debug_assert!(pdu_jsons.len() + edu_jsons.len() > 0, "sending empty
 		// transaction");
 
-		let mut request = ruma::api::appservice::event::push_events::v1::Request::new(txn_id.into(), pdu_jsons);
+		let mut request =
+			ruma::api::appservice::event::push_events::v1::Request::new(txn_id.into(), pdu_jsons);
 		request.ephemeral = edu_jsons;
 		request.to_device = Vec::new(); // TODO
 
-		match self
-			.send_appservice_request(
-				appservice,
-				request,
-			)
-			.await
-		{
+		match self.send_appservice_request(appservice, request).await {
 			| Ok(_) => Ok(Destination::Appservice(id)),
 			| Err(e) => Err((Destination::Appservice(id), e)),
 		}
@@ -829,7 +836,11 @@ impl Service {
 
 		let txn_hash = calculate_hash(preimage);
 		let txn_id = &*URL_SAFE_NO_PAD.encode(txn_hash);
-		let mut request = send_transaction_message::v1::Request::new(txn_id.into(), self.server.name.clone(), MilliSecondsSinceUnixEpoch::now());
+		let mut request = send_transaction_message::v1::Request::new(
+			txn_id.into(),
+			self.server.name.clone(),
+			MilliSecondsSinceUnixEpoch::now(),
+		);
 		request.pdus = pdus;
 		request.edus = edus;
 

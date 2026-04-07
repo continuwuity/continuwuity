@@ -4,7 +4,10 @@ use std::{borrow::Cow, fmt::Debug};
 
 use conduwuit::{
 	arrayvec::ArrayVec,
-	ruma::{EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId, room_id, serde::Raw, user_id},
+	ruma::{
+		EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId, room_id, serde::Raw,
+		user_id,
+	},
 };
 use serde::Serialize;
 
@@ -439,7 +442,8 @@ fn serde_tuple_option_some_some() {
 	aa.push(0xFF);
 	aa.extend_from_slice(user_id.as_bytes());
 
-	let bb: (Option<OwnedRoomId>, Option<OwnedUserId>) = (Some(room_id.to_owned()), Some(user_id.to_owned()));
+	let bb: (Option<OwnedRoomId>, Option<OwnedUserId>) =
+		(Some(room_id.to_owned()), Some(user_id.to_owned()));
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 

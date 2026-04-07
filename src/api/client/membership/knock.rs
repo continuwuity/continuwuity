@@ -15,16 +15,20 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, RoomVersionId, UserId, api::{
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
+	OwnedUserId, RoomId, RoomVersionId, UserId,
+	api::{
 		client::knock::knock_room,
 		federation::{self},
-	}, canonical_json::to_canonical_value, events::{
+	},
+	canonical_json::to_canonical_value,
+	events::{
 		StateEventType,
 		room::{
 			join_rules::{AllowRule, JoinRule},
 			member::{MembershipState, RoomMemberEventContent},
 		},
-	}
+	},
 };
 use service::{
 	Services,
@@ -108,10 +112,7 @@ pub(crate) async fn knock_room_route(
 			)
 			.await?;
 
-			let addl_via_servers = services
-				.rooms
-				.state_cache
-				.servers_invite_via(&room_id);
+			let addl_via_servers = services.rooms.state_cache.servers_invite_via(&room_id);
 
 			let addl_state_servers = services
 				.rooms
@@ -416,8 +417,7 @@ async fn knock_room_helper_local(
 	);
 	knock_event_stub.insert(
 		"content".to_owned(),
-		to_canonical_value(content)
-		.expect("event is valid, we just created it"),
+		to_canonical_value(content).expect("event is valid, we just created it"),
 	);
 
 	// In order to create a compatible ref hash (EventID) the `hashes` field needs
@@ -540,8 +540,7 @@ async fn knock_room_helper_remote(
 
 	knock_event_stub.insert(
 		"content".to_owned(),
-		to_canonical_value(knock_content)
-		.expect("event is valid, we just created it"),
+		to_canonical_value(knock_content).expect("event is valid, we just created it"),
 	);
 
 	// In order to create a compatible ref hash (EventID) the `hashes` field needs
@@ -567,7 +566,7 @@ async fn knock_room_helper_remote(
 		services
 			.sending
 			.convert_to_outgoing_federation_event(knock_event.clone())
-			.await
+			.await,
 	);
 
 	let send_knock_response = services
@@ -594,13 +593,10 @@ async fn knock_room_helper_remote(
 		.map(|event| {
 			#[allow(deprecated)]
 			let raw_value = match event {
-				federation::membership::RawStrippedState::Stripped(raw_state) => {
-					&raw_state.clone().into_json()
-				},
-				federation::membership::RawStrippedState::Pdu(raw_value) => {
-					raw_value
-				},
-				_ => panic!("unknown raw stripped state type"),
+				| federation::membership::RawStrippedState::Stripped(raw_state) =>
+					&raw_state.clone().into_json(),
+				| federation::membership::RawStrippedState::Pdu(raw_value) => raw_value,
+				| _ => panic!("unknown raw stripped state type"),
 			};
 
 			serde_json::from_str::<CanonicalJsonObject>(raw_value.get())
@@ -722,15 +718,15 @@ async fn make_knock_request(
 
 		info!("Asking {remote_server} for make_knock ({make_knock_counter})");
 
-		let mut request = federation::membership::prepare_knock_event::v1::Request::new(room_id.to_owned(), sender_user.to_owned());
+		let mut request = federation::membership::prepare_knock_event::v1::Request::new(
+			room_id.to_owned(),
+			sender_user.to_owned(),
+		);
 		request.ver = services.server.supported_room_versions().collect();
 
 		let make_knock_response = services
 			.sending
-			.send_federation_request(
-				remote_server,
-				request,
-			)
+			.send_federation_request(remote_server, request)
 			.await;
 
 		trace!("make_knock response: {make_knock_response:?}");

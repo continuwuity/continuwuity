@@ -81,7 +81,8 @@ pub(crate) async fn update_device_route(
 			};
 
 			debug!(
-				"Creating new device for {sender_user} from appservice {} as device ID does not exist",
+				"Creating new device for {sender_user} from appservice {} as device ID does not \
+				 exist",
 				appservice.registration.id
 			);
 
@@ -121,9 +122,7 @@ pub(crate) async fn delete_device_route(
 	let appservice = body.appservice_info.as_ref();
 
 	if appservice.is_some() {
-		debug!(
-			"Skipping UIAA for {sender_user} as this is from an appservice"
-		);
+		debug!("Skipping UIAA for {sender_user} as this is from an appservice");
 		services
 			.users
 			.remove_device(sender_user, &body.device_id)

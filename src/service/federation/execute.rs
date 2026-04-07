@@ -2,13 +2,23 @@ use std::{any::Any, borrow::Cow, fmt::Debug, mem, sync::LazyLock};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug_error, debug_warn, err, implement, trace, utils::response::LimitReadExt, matrix::versions::{unstable_features, versions}, };
+	Err, Error, Result, debug, debug_error, debug_warn, err, implement,
+	matrix::versions::{unstable_features, versions},
+	trace,
+	utils::response::LimitReadExt,
+};
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, ServerName, ServerSigningKeyId, api::{
-		EndpointError, IncomingResponse, Metadata, OutgoingRequest, SupportedVersions, auth_scheme::{AuthScheme, NoAuthentication, SendAccessToken}, client::error::Error as RumaError, federation::authentication::{ServerSignatures, ServerSignaturesInput, XMatrix}, path_builder::{PathBuilder, SinglePath, VersionHistory}
-	}, serde::Base64
+	CanonicalJsonObject, CanonicalJsonValue, ServerName, ServerSigningKeyId,
+	api::{
+		EndpointError, IncomingResponse, Metadata, OutgoingRequest, SupportedVersions,
+		auth_scheme::{AuthScheme, NoAuthentication, SendAccessToken},
+		error::Error as RumaError,
+		federation::authentication::{ServerSignatures, ServerSignaturesInput, XMatrix},
+		path_builder::{PathBuilder, SinglePath, VersionHistory},
+	},
+	serde::Base64,
 };
 
 use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};
@@ -18,7 +28,11 @@ use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};
 #[tracing::instrument(skip_all, name = "request", level = "debug")]
 pub async fn execute<'i, T>(&self, dest: &ServerName, request: T) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	let client = &self.services.client.federation;
 	self.execute_signed(client, dest, request).await
@@ -33,27 +47,46 @@ pub async fn execute_synapse<'i, T>(
 	request: T,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	let client = &self.services.client.synapse;
 	self.execute_signed(client, dest, request).await
 }
 
 #[implement(super::Service)]
-pub async fn execute_unauthenticated<'i, T>(&self, dest: &ServerName, request: T) -> Result<T::IncomingResponse>
-where 
-	T: OutgoingRequest::<Authentication = NoAuthentication, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Debug + Send,
+pub async fn execute_unauthenticated<'i, T>(
+	&self,
+	dest: &ServerName,
+	request: T,
+) -> Result<T::IncomingResponse>
+where
+	T: OutgoingRequest<
+			Authentication = NoAuthentication,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	let client = &self.services.client.federation;
-	let authentication = SendAccessToken::None;
-	
-	self.execute_on(client, dest, request, authentication).await
+
+	self.execute_on(client, dest, request, ()).await
 }
 
 #[implement(super::Service)]
-pub async fn execute_signed<'i, T>(&self, client: &Client, dest: &ServerName, request: T) -> Result<T::IncomingResponse>
+pub async fn execute_signed<'i, T>(
+	&self,
+	client: &Client,
+	dest: &ServerName,
+	request: T,
+) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest::<Authentication = ServerSignatures, PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>> + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Send,
 {
 	let authentication = ServerSignaturesInput::new(
 		self.services.server.name.clone(),
@@ -65,11 +98,7 @@ where
 }
 
 #[implement(super::Service)]
-#[tracing::instrument(
-		name = "fed",
-		level = "info",
-		skip(self, client, request, authentication),
-	)]
+#[tracing::instrument(name = "fed", level = "info", skip(self, client, request, authentication))]
 pub async fn execute_on<'i, T, PathBuilderInput>(
 	&self,
 	client: &Client,
@@ -78,8 +107,8 @@ pub async fn execute_on<'i, T, PathBuilderInput>(
 	authentication: <T::Authentication as AuthScheme>::Input<'_>,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest::<PathBuilder: PathBuilder<Input<'i> = PathBuilderInput>> + Send,
-	PathBuilderInput: FederationPathBuilderInput
+	T: OutgoingRequest<PathBuilder: PathBuilder<Input<'i> = PathBuilderInput>> + Send,
+	PathBuilderInput: FederationPathBuilderInput,
 {
 	if !self.services.server.config.allow_federation {
 		return Err!(Config("allow_federation", "Federation is disabled."));
@@ -90,14 +119,12 @@ where
 	}
 
 	let actual = self.services.resolver.get_actual_dest(dest).await?;
-	
-	let request = Request::try_from(
-		request.try_into_http_request::<Vec<u8>>(
-			actual.string().as_str(),
-			authentication,
-			PathBuilderInput::create(),
-		)?
-	)?;
+
+	let request = Request::try_from(request.try_into_http_request::<Vec<u8>>(
+		actual.string().as_str(),
+		authentication,
+		PathBuilderInput::create(),
+	)?)?;
 	self.validate_url(request.url())?;
 	self.services.server.check_running()?;
 
@@ -248,17 +275,23 @@ fn handle_error(
 	Err(e.into())
 }
 
-/// A trait for the input types of acceptable path builders for outgoing federation requests.
-/// 
-/// Ruma uses Rust's type system to encode the versioning scheme of endpoints in the Matrix spec.
-/// Every endpoint has a `PathBuilder` associated type, which has an `Input` associated type.
-/// Endpoints with multiple versions have `VersionHistory` as their `PathBuilder`, which has `SupportedVersions`
-/// as its `Input` type. Endpoints with no version have `SinglePath` as their `PathBuilder`, which has `()` as its `Input` type.
-/// Both `SupportedVersions` and `()` can be created out of thin air using static data (or no data at all). This property
-/// is what the `FederationPathBuilderInput` trait represents.
-/// 
-/// This trait allows the federation sender service's functions to accept requests for either versioned or unversioned endpoints,
-/// by requiring that the `Input` of the `PathBuilder` of the endpoint implements `FederationPathBuilderInput`.
+/// A trait for the input types of acceptable path builders for outgoing
+/// federation requests.
+///
+/// Ruma uses Rust's type system to encode the versioning scheme of endpoints in
+/// the Matrix spec. Every endpoint has a `PathBuilder` associated type, which
+/// has an `Input` associated type. Endpoints with multiple versions have
+/// `VersionHistory` as their `PathBuilder`, which has `SupportedVersions`
+/// as its `Input` type. Endpoints with no version have `SinglePath` as their
+/// `PathBuilder`, which has `()` as its `Input` type. Both `SupportedVersions`
+/// and `()` can be created out of thin air using static data (or no data at
+/// all). This property is what the `FederationPathBuilderInput` trait
+/// represents.
+///
+/// This trait allows the federation sender service's functions to accept
+/// requests for either versioned or unversioned endpoints, by requiring that
+/// the `Input` of the `PathBuilder` of the endpoint implements
+/// `FederationPathBuilderInput`.
 pub(crate) trait FederationPathBuilderInput {
 	fn create() -> Self;
 }
@@ -268,7 +301,5 @@ impl FederationPathBuilderInput for () {
 }
 
 impl FederationPathBuilderInput for Cow<'_, SupportedVersions> {
-	fn create() -> Self {
-		Cow::Borrowed(&SUPPORTED_VERSIONS)
-	}
+	fn create() -> Self { Cow::Borrowed(&SUPPORTED_VERSIONS) }
 }

@@ -45,7 +45,7 @@ macro_rules! ruma_handler {
 		{
 			fn add_routes(&'static self, router: Router<State>) -> Router<State> {
 				use ruma::api::path_builder::PathBuilder;
-				
+
 				Req::PATH_BUILDER
 					.all_paths()
 					.fold(router, |router, path| self.add_route(router, path))

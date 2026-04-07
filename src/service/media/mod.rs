@@ -1,7 +1,7 @@
 pub mod blurhash;
-pub mod mxc;
 mod data;
 pub(super) mod migrations;
+pub mod mxc;
 mod preview;
 mod remote;
 mod tests;

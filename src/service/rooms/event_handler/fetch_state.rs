@@ -31,7 +31,10 @@ where
 	let res = self
 		.services
 		.sending
-		.send_federation_request(origin, get_room_state_ids::v1::Request::new(event_id.to_owned(), room_id.to_owned()))
+		.send_federation_request(
+			origin,
+			get_room_state_ids::v1::Request::new(event_id.to_owned(), room_id.to_owned()),
+		)
 		.await
 		.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))?;
 

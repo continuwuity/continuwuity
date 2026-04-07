@@ -44,17 +44,17 @@ pub(crate) async fn get_member_events_route(
 	}
 
 	let chunk = services
-			.rooms
-			.state_accessor
-			.room_state_full(&body.room_id)
-			.ready_filter_map(Result::ok)
-			.ready_filter(|((ty, _), _)| *ty == StateEventType::RoomMember)
-			.map(at!(1))
-			.ready_filter_map(|pdu| membership_filter(pdu, membership, not_membership))
-			.map(Event::into_format)
-			.collect()
-			.boxed()
-			.await;
+		.rooms
+		.state_accessor
+		.room_state_full(&body.room_id)
+		.ready_filter_map(Result::ok)
+		.ready_filter(|((ty, _), _)| *ty == StateEventType::RoomMember)
+		.map(at!(1))
+		.ready_filter_map(|pdu| membership_filter(pdu, membership, not_membership))
+		.map(Event::into_format)
+		.collect()
+		.boxed()
+		.await;
 
 	Ok(get_member_events::v3::Response::new(chunk))
 }
@@ -79,23 +79,23 @@ pub(crate) async fn joined_members_route(
 	}
 
 	let joined = services
-			.rooms
-			.state_cache
-			.room_members(&body.room_id)
-			.broad_then(|user_id| async move {
-				let mut member = RoomMember::new();
-				let (display_name, avatar_url) = join(
-					services.users.displayname(&user_id).ok(),
-					services.users.avatar_url(&user_id).ok(),
-				)
-				.await;
-				member.display_name = display_name;
-				member.avatar_url = avatar_url;
-
-				(user_id, member)
-			})
-			.collect()
+		.rooms
+		.state_cache
+		.room_members(&body.room_id)
+		.broad_then(|user_id| async move {
+			let mut member = RoomMember::new();
+			let (display_name, avatar_url) = join(
+				services.users.displayname(&user_id).ok(),
+				services.users.avatar_url(&user_id).ok(),
+			)
 			.await;
+			member.display_name = display_name;
+			member.avatar_url = avatar_url;
+
+			(user_id, member)
+		})
+		.collect()
+		.await;
 
 	Ok(joined_members::v3::Response::new(joined))
 }
@@ -108,12 +108,14 @@ fn membership_filter<Pdu: Event>(
 	let evt_membership = pdu.get_content::<RoomMemberEventContent>().ok()?.membership;
 
 	if let Some(membership_state_filter) = membership_state_filter
-		&& *membership_state_filter != evt_membership {
+		&& *membership_state_filter != evt_membership
+	{
 		return None;
 	}
 
 	if let Some(not_membership_state_filter) = not_membership_state_filter
-		&& *not_membership_state_filter == evt_membership {
+		&& *not_membership_state_filter == evt_membership
+	{
 		return None;
 	}
 

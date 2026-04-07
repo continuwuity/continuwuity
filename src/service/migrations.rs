@@ -270,13 +270,7 @@ async fn migrate(services: &Services) -> Result<()> {
 	{
 		let patterns = services.globals.forbidden_alias_names();
 		if !patterns.is_empty() {
-			for room_id in services
-				.rooms
-				.metadata
-				.iter_ids()
-				.collect::<Vec<_>>()
-				.await
-			{
+			for room_id in services.rooms.metadata.iter_ids().collect::<Vec<_>>().await {
 				services
 					.rooms
 					.alias
@@ -479,12 +473,7 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 	let db = &services.db;
 	let _cork = db.cork_and_sync();
 
-	let room_ids = services
-		.rooms
-		.metadata
-		.iter_ids()
-		.collect::<Vec<_>>()
-		.await;
+	let room_ids = services.rooms.metadata.iter_ids().collect::<Vec<_>>().await;
 
 	for room_id in &room_ids {
 		debug_info!("Fixing room {room_id}");

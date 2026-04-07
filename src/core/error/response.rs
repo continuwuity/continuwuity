@@ -3,10 +3,8 @@ use http::StatusCode;
 use http_body_util::Full;
 use ruma::api::{
 	OutgoingResponse,
-	client::{
-		error::{ErrorBody, ErrorKind, StandardErrorBody},
-		uiaa::UiaaResponse,
-	},
+	client::uiaa::UiaaResponse,
+	error::{ErrorBody, ErrorKind, StandardErrorBody},
 };
 
 use super::Error;
@@ -53,7 +51,7 @@ impl From<Error> for UiaaResponse {
 
 		let body = ErrorBody::Standard(StandardErrorBody::new(error.kind(), error.message()));
 
-		Self::MatrixError(ruma::api::client::error::Error::new(error.status_code(), body))
+		Self::MatrixError(ruma::api::error::Error::new(error.status_code(), body))
 	}
 }
 
@@ -70,7 +68,7 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 
 	match kind {
 		// 429
-		| LimitExceeded { .. } => StatusCode::TOO_MANY_REQUESTS,
+		| LimitExceeded(_) => StatusCode::TOO_MANY_REQUESTS,
 
 		// 413
 		| TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
@@ -79,28 +77,26 @@ pub(super) fn bad_request_code(kind: &ErrorKind) -> StatusCode {
 		| Unrecognized => StatusCode::METHOD_NOT_ALLOWED,
 
 		// 404
-		| NotFound =>
-			StatusCode::NOT_FOUND,
+		| NotFound => StatusCode::NOT_FOUND,
 
 		// 403
 		| GuestAccessForbidden
 		| ThreepidAuthFailed
 		| UserDeactivated
 		| ThreepidDenied
-		| WrongRoomKeysVersion { .. }
+		| WrongRoomKeysVersion(_)
 		| UserSuspended
-		| Forbidden { .. } => StatusCode::FORBIDDEN,
+		| Forbidden => StatusCode::FORBIDDEN,
 
 		// 401
-		| UnknownToken { .. } | MissingToken | Unauthorized | UserLocked =>
-			StatusCode::UNAUTHORIZED,
+		| UnknownToken(_) | MissingToken | Unauthorized | UserLocked => StatusCode::UNAUTHORIZED,
 
 		// 400
 		| _ => StatusCode::BAD_REQUEST,
 	}
 }
 
-pub(super) fn ruma_error_message(error: &ruma::api::client::error::Error) -> String {
+pub(super) fn ruma_error_message(error: &ruma::api::error::Error) -> String {
 	if let ErrorBody::Standard(StandardErrorBody { message, .. }) = &error.body {
 		return message.clone();
 	}
@@ -108,7 +104,7 @@ pub(super) fn ruma_error_message(error: &ruma::api::client::error::Error) -> Str
 	format!("{error}")
 }
 
-pub(super) fn ruma_error_kind(e: &ruma::api::client::error::Error) -> &ErrorKind {
+pub(super) fn ruma_error_kind(e: &ruma::api::error::Error) -> &ErrorKind {
 	e.error_kind().unwrap_or(&ErrorKind::Unknown)
 }
 

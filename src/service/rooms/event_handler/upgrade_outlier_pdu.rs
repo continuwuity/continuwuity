@@ -53,7 +53,9 @@ where
 	);
 	let timer = Instant::now();
 	let room_version_id = get_room_version(create_event)?;
-	let room_version_rules = room_version_id.rules().expect("room version should have defined rules");
+	let room_version_rules = room_version_id
+		.rules()
+		.expect("room version should have defined rules");
 
 	// 10. Fetch missing state and auth chain events by calling /state_ids at
 	//     backwards extremities doing all the checks in this list starting at 1.

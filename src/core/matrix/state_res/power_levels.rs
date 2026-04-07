@@ -1,13 +1,16 @@
 use std::collections::BTreeMap;
 
 use ruma::{
-	Int, OwnedUserId, UserId, events::{TimelineEventType, room::power_levels::RoomPowerLevelsEventContent}, power_levels::{NotificationPowerLevels, default_power_level}, room_version_rules::{AuthorizationRules, RoomVersionRules}, serde::deserialize_v1_powerlevel
+	Int, OwnedUserId, UserId,
+	events::{TimelineEventType, room::power_levels::RoomPowerLevelsEventContent},
+	power_levels::{NotificationPowerLevels, default_power_level},
+	room_version_rules::{AuthorizationRules, RoomVersionRules},
+	serde::deserialize_v1_powerlevel,
 };
-use super::serde_backports::*;
 use serde::Deserialize;
 use serde_json::{Error, from_str as from_json_str};
 
-use super::Result;
+use super::{Result, serde_backports::*};
 use crate::error;
 
 #[derive(Deserialize)]
@@ -44,7 +47,10 @@ struct IntRoomPowerLevelsEventContent {
 }
 
 impl IntRoomPowerLevelsEventContent {
-	fn to_room_power_levels_content(self, auth_rules: &AuthorizationRules) -> RoomPowerLevelsEventContent {
+	fn to_room_power_levels_content(
+		self,
+		auth_rules: &AuthorizationRules,
+	) -> RoomPowerLevelsEventContent {
 		let IntRoomPowerLevelsEventContent {
 			ban,
 			events,
@@ -105,7 +111,10 @@ pub(crate) fn deserialize_power_levels(
 	}
 }
 
-fn deserialize_integer_power_levels(content: &str, auth_rules: &AuthorizationRules) -> Option<RoomPowerLevelsEventContent> {
+fn deserialize_integer_power_levels(
+	content: &str,
+	auth_rules: &AuthorizationRules,
+) -> Option<RoomPowerLevelsEventContent> {
 	match from_json_str::<IntRoomPowerLevelsEventContent>(content) {
 		| Ok(content) => Some(content.to_room_power_levels_content(auth_rules)),
 		| Err(_) => {

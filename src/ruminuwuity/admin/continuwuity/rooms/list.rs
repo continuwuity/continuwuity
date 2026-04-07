@@ -1,6 +1,8 @@
 pub mod v1 {
 	use ruma::{
-		OwnedRoomId, api::{auth_scheme::AccessToken, request, response}, metadata
+		OwnedRoomId,
+		api::{auth_scheme::AccessToken, request, response},
+		metadata,
 	};
 
 	metadata! {
@@ -22,16 +24,12 @@ pub mod v1 {
 	}
 
 	impl Request {
-        #[must_use]
-		pub fn new() -> Self {
-			Self::default()
-		}
+		#[must_use]
+		pub fn new() -> Self { Self::default() }
 	}
 
 	impl Response {
-        #[must_use]
-		pub fn new(rooms: Vec<OwnedRoomId>) -> Self {
-			Self { rooms }
-		}
+		#[must_use]
+		pub fn new(rooms: Vec<OwnedRoomId>) -> Self { Self { rooms } }
 	}
 }

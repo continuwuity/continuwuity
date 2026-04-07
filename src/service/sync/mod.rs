@@ -7,12 +7,7 @@ use std::{
 
 use conduwuit::{Result, Server, SyncMutex};
 use database::Map;
-use ruma::{
-	OwnedDeviceId, OwnedRoomId, OwnedUserId,
-	api::client::sync::sync_events::{
-		v5,
-	},
-};
+use ruma::{OwnedDeviceId, OwnedRoomId, OwnedUserId, api::client::sync::sync_events::v5};
 
 use crate::{Dep, rooms};
 

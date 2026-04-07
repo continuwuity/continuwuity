@@ -48,11 +48,11 @@ pub(crate) async fn joined_rooms_route(
 	body: Ruma<joined_rooms::v3::Request>,
 ) -> Result<joined_rooms::v3::Response> {
 	let joined_rooms = services
-			.rooms
-			.state_cache
-			.rooms_joined(body.sender_user())
-			.collect()
-			.await;
+		.rooms
+		.state_cache
+		.rooms_joined(body.sender_user())
+		.collect()
+		.await;
 
 	Ok(joined_rooms::v3::Response::new(joined_rooms))
 }
