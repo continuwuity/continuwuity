@@ -619,7 +619,7 @@
 # Set to false to disable users from joining or creating room versions
 # that aren't officially supported by continuwuity.
 #
-# continuwuity officially supports room versions 6 - 11.
+# continuwuity officially supports room versions 6 - 12.
 #
 # continuwuity has slightly experimental (though works fine in practice)
 # support for versions 3 - 5.
@@ -631,9 +631,9 @@
 # rather than an integer. Forgetting the quotes will make the server fail
 # to start!
 #
-# Per spec, room version "11" is the default.
+# Per spec, room version "12" is the default.
 #
-#default_room_version = "11"
+#default_room_version = "12"
 
 # Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
 # Jaeger exporter. Traces will be sent via OTLP to a collector (such as
