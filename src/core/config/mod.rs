@@ -659,7 +659,7 @@ pub struct Config {
 	/// which users must agree to when registering an account.
 	///
 	/// Example:
-	/// ```
+	/// ```ignore
 	/// [global.registration_terms.privacy_policy]
 	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
