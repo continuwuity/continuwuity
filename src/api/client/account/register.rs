@@ -20,7 +20,11 @@ use ruma::{
 		},
 		uiaa::{AuthFlow, AuthType},
 	},
-	events::{GlobalAccountDataEventType, room::message::RoomMessageEventContent},
+	assign,
+	events::{
+		GlobalAccountDataEventType, push_rules::PushRulesEvent,
+		room::message::RoomMessageEventContent,
+	},
 	push,
 };
 use serde_json::value::RawValue;
@@ -209,11 +213,10 @@ pub(crate) async fn register_route(
 			None,
 			&user_id,
 			GlobalAccountDataEventType::PushRules.to_string().into(),
-			&serde_json::to_value(ruma::events::push_rules::PushRulesEvent {
-				content: ruma::events::push_rules::PushRulesEventContent {
-					global: push::Ruleset::server_default(&user_id),
-				},
-			})?,
+			&serde_json::to_value(PushRulesEvent::new(
+				push::Ruleset::server_default(&user_id).into(),
+			))
+			.expect("should be able to serialize push rules"),
 		)
 		.await?;
 
@@ -241,7 +244,8 @@ pub(crate) async fn register_route(
 		// Don't create a device for inhibited logins
 		(None, None)
 	};
-	debug_info!(%user_id, %device_id, "User account was created");
+
+	debug_info!(%user_id, ?device, "User account was created");
 
 	// If the user registered with an email, associate it with their account.
 	if let Some(identity) = identity
@@ -387,13 +391,12 @@ pub(crate) async fn register_route(
 		}
 	}
 
-	Ok(register::v3::Response {
+	Ok(assign!(register::v3::Response::new(user_id), {
 		access_token: token,
-		user_id,
 		device_id: device,
 		refresh_token: None,
 		expires_in: None,
-	})
+	}))
 }
 
 /// Determine which flows and parameters should be presented when
