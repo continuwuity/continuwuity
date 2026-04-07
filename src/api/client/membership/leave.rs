@@ -9,7 +9,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, UserId,
 	api::{
 		client::membership::leave_room,
 		federation::{self},
@@ -323,6 +323,10 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		)));
 	}
 
+	let room_version_rules = room_version_id
+		.rules()
+		.expect("room version should have defined rules");
+
 	let mut leave_event_stub = serde_json::from_str::<CanonicalJsonObject>(
 		make_leave_response.event.get(),
 	)
@@ -360,21 +364,16 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 	}
 
 	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version_id {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			leave_event_stub.remove("event_id");
-		},
-	}
+	leave_event_stub.remove("event_id");
 
 	// In order to create a compatible ref hash (EventID) the `hashes` field needs
 	// to be present
 	services
 		.server_keys
-		.hash_and_sign_event(&mut leave_event_stub, &room_version_id)?;
+		.hash_and_sign_event(&mut leave_event_stub, &room_version_rules)?;
 
 	// Generate event id
-	let event_id = gen_event_id(&leave_event_stub, &room_version_id)?;
+	let event_id = gen_event_id(&leave_event_stub, &room_version_rules)?;
 
 	// Add event_id back
 	leave_event_stub

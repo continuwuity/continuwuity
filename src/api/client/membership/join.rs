@@ -24,10 +24,8 @@ use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
 	RoomVersionId, UserId,
 	api::{
-		client::{
-			error::ErrorKind,
-			membership::{join_room_by_id, join_room_by_id_or_alias},
-		},
+		client::membership::{join_room_by_id, join_room_by_id_or_alias},
+		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation::{self},
 	},
 	canonical_json::to_canonical_value,
@@ -379,12 +377,15 @@ async fn join_room_by_id_helper_remote(
 
 	info!("make_join finished");
 
-	let room_version_id = make_join_response.room_version.unwrap_or(RoomVersionId::V1);
+	let room_version = make_join_response.room_version.unwrap_or(RoomVersionId::V1);
+	let room_version_rules = room_version
+		.rules()
+		.expect("room version should have defined rules");
 
-	if !services.server.supported_room_version(&room_version_id) {
+	if !services.server.supported_room_version(&room_version) {
 		// How did we get here?
 		return Err!(BadServerResponse(
-			"Remote room version {room_version_id} is not supported by conduwuit"
+			"Remote room version {room_version} is not supported by conduwuit"
 		));
 	}
 
@@ -397,7 +398,7 @@ async fn join_room_by_id_helper_remote(
 
 	let join_authorized_via_users_server = {
 		use RoomVersionId::*;
-		if !matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
+		if !matches!(room_version, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
 			join_event_stub
 				.get("content")
 				.map(|s| {
@@ -432,23 +433,17 @@ async fn join_room_by_id_helper_remote(
 		to_canonical_value(join_content).expect("event is valid, we just created it"),
 	);
 
-	// We keep the "event_id" in the pdu only in v1 or
-	// v2 rooms
-	match room_version_id {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			join_event_stub.remove("event_id");
-		},
-	}
+	// Remove event id if it exists
+	join_event_stub.remove("event_id");
 
 	// In order to create a compatible ref hash (EventID) the `hashes` field needs
 	// to be present
 	services
 		.server_keys
-		.hash_and_sign_event(&mut join_event_stub, &room_version_id)?;
+		.hash_and_sign_event(&mut join_event_stub, &room_version_rules)?;
 
 	// Generate event id
-	let event_id = gen_event_id(&join_event_stub, &room_version_id)?;
+	let event_id = gen_event_id(&join_event_stub, &room_version_rules)?;
 
 	// Add event_id back
 	join_event_stub
@@ -489,7 +484,7 @@ async fn join_room_by_id_helper_remote(
 			);
 
 			let (signed_event_id, signed_value) =
-				gen_event_id_canonical_json(signed_raw, &room_version_id).map_err(|e| {
+				gen_event_id_canonical_json(signed_raw, &room_version_rules).map_err(|e| {
 					err!(Request(BadJson(warn!(
 						"Could not convert event to canonical JSON: {e}"
 					))))
@@ -564,7 +559,7 @@ async fn join_room_by_id_helper_remote(
 		.then(|pdu| {
 			services
 				.server_keys
-				.validate_and_add_event_id_no_fetch(pdu, &room_version_id)
+				.validate_and_add_event_id_no_fetch(pdu, &room_version_rules)
 				.inspect_err(|e| {
 					debug_warn!("Could not validate send_join response room_state event: {e:?}");
 				})
@@ -612,7 +607,7 @@ async fn join_room_by_id_helper_remote(
 		.then(|pdu| {
 			services
 				.server_keys
-				.validate_and_add_event_id_no_fetch(pdu, &room_version_id)
+				.validate_and_add_event_id_no_fetch(pdu, &room_version_rules)
 		})
 		.ready_filter_map(Result::ok)
 		.ready_for_each(|(event_id, value)| {
@@ -633,7 +628,7 @@ async fn join_room_by_id_helper_remote(
 	};
 
 	let auth_check = state_res::event_auth::auth_check(
-		&room_version_id.rules().unwrap(),
+		&room_version.rules().unwrap(),
 		&parsed_join_pdu,
 		None, // TODO: third party invite
 		|k, s| state_fetch(k.clone(), s.into()),
@@ -857,7 +852,10 @@ async fn make_join_request(
 						 rules, but is unable to authorise a join for us. Will continue trying."
 					);
 				},
-				| ErrorKind::IncompatibleRoomVersion { room_version } => {
+				| ErrorKind::IncompatibleRoomVersion(IncompatibleRoomVersionErrorData {
+					room_version,
+					..
+				}) => {
 					warn!(
 						"{remote_server} reports the room we are trying to join is \
 						 v{room_version}, which we do not support."

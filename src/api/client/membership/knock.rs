@@ -16,7 +16,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
-	OwnedUserId, RoomId, RoomVersionId, UserId,
+	OwnedUserId, RoomId, UserId,
 	api::{
 		client::knock::knock_room,
 		federation::{self},
@@ -334,17 +334,12 @@ async fn knock_room_helper_local(
 ) -> Result {
 	debug_info!("We can knock locally");
 
-	let room_version_id = services.rooms.state.get_room_version(room_id).await?;
+	let room_version = services.rooms.state.get_room_version(room_id).await?;
+	let room_version_rules = room_version
+		.rules()
+		.expect("room version should have defined rules");
 
-	if matches!(
-		room_version_id,
-		RoomVersionId::V1
-			| RoomVersionId::V2
-			| RoomVersionId::V3
-			| RoomVersionId::V4
-			| RoomVersionId::V5
-			| RoomVersionId::V6
-	) {
+	if !room_version_rules.authorization.knocking {
 		return Err!(Request(Forbidden("This room does not support knocking.")));
 	}
 
@@ -374,19 +369,18 @@ async fn knock_room_helper_local(
 		return Err(error);
 	}
 
-	warn!("We couldn't do the knock locally, maybe federation can help to satisfy the knock");
-
 	let (make_knock_response, remote_server) =
 		make_knock_request(services, sender_user, room_id, servers).await?;
 
 	info!("make_knock finished");
 
-	let room_version_id = make_knock_response.room_version;
+	let room_version = make_knock_response.room_version;
+	let room_version_rules = room_version
+		.rules()
+		.expect("room version should have defined rules");
 
-	if !services.server.supported_room_version(&room_version_id) {
-		return Err!(BadServerResponse(
-			"Remote room version {room_version_id} is not supported by conduwuit"
-		));
+	if !services.server.supported_room_version(&room_version) {
+		return Err!(BadServerResponse("Remote room version {room_version} is not supported"));
 	}
 
 	let mut knock_event_stub = serde_json::from_str::<CanonicalJsonObject>(
@@ -424,10 +418,10 @@ async fn knock_room_helper_local(
 	// to be present
 	services
 		.server_keys
-		.hash_and_sign_event(&mut knock_event_stub, &room_version_id)?;
+		.hash_and_sign_event(&mut knock_event_stub, &room_version_rules)?;
 
 	// Generate event id
-	let event_id = gen_event_id(&knock_event_stub, &room_version_id)?;
+	let event_id = gen_event_id(&knock_event_stub, &room_version_rules)?;
 
 	// Add event_id
 	knock_event_stub
@@ -506,11 +500,14 @@ async fn knock_room_helper_remote(
 
 	info!("make_knock finished");
 
-	let room_version_id = make_knock_response.room_version;
+	let room_version = make_knock_response.room_version;
+	let room_version_rules = room_version
+		.rules()
+		.expect("room version should have defined rules");
 
-	if !services.server.supported_room_version(&room_version_id) {
+	if !services.server.supported_room_version(&room_version) {
 		return Err!(BadServerResponse(
-			"Remote room version {room_version_id} is not supported by conduwuit"
+			"Remote room version {room_version} is not supported by conduwuit"
 		));
 	}
 
@@ -547,10 +544,10 @@ async fn knock_room_helper_remote(
 	// to be present
 	services
 		.server_keys
-		.hash_and_sign_event(&mut knock_event_stub, &room_version_id)?;
+		.hash_and_sign_event(&mut knock_event_stub, &room_version_rules)?;
 
 	// Generate event id
-	let event_id = gen_event_id(&knock_event_stub, &room_version_id)?;
+	let event_id = gen_event_id(&knock_event_stub, &room_version_rules)?;
 
 	// Add event_id
 	knock_event_stub
@@ -625,7 +622,7 @@ async fn knock_room_helper_remote(
 			continue;
 		};
 
-		let event_id = gen_event_id(&event, &room_version_id)?;
+		let event_id = gen_event_id(&event, &room_version_rules)?;
 		let shortstatekey = services
 			.rooms
 			.short
