@@ -30,7 +30,11 @@ use ruma::{
 };
 use tokio::sync::RwLock;
 
-use crate::{Dep, account_data, globals, media::{MXC_LENGTH, mxc::Mxc}, rooms::{self, state::RoomMutexGuard}};
+use crate::{
+	Dep, account_data, globals,
+	media::{MXC_LENGTH, mxc::Mxc},
+	rooms::{self, state::RoomMutexGuard},
+};
 
 pub struct Service {
 	services: Services,
@@ -61,7 +65,7 @@ pub struct CommandInput {
 	pub command: String,
 	pub reply_id: Option<OwnedEventId>,
 	pub source: InvocationSource,
-	pub sender: Option<Box<UserId>>,
+	pub sender: Option<OwnedUserId>,
 }
 
 /// Where a command is being invoked from.
@@ -205,7 +209,10 @@ impl Service {
 			metadata.mimetype = Some("text/markdown".to_owned());
 			metadata.size = Some(UInt::new_saturating(size_u64));
 
-			let mut content = FileMessageEventContent::plain("Output was too large to send as text.".to_owned(), file);
+			let mut content = FileMessageEventContent::plain(
+				"Output was too large to send as text.".to_owned(),
+				file,
+			);
 			content.filename = Some("output.md".to_owned());
 			content.info = Some(Box::new(metadata));
 
@@ -313,7 +320,7 @@ impl Service {
 		command: String,
 		reply_id: Option<OwnedEventId>,
 		source: InvocationSource,
-		sender: Box<UserId>,
+		sender: OwnedUserId,
 	) -> Result<()> {
 		self.channel
 			.0
@@ -448,13 +455,13 @@ impl Service {
 	}
 
 	async fn handle_response(&self, content: RoomMessageEventContent) -> Result<()> {
-		let Some(Relation::Reply { in_reply_to }) = content.relates_to.as_ref() else {
+		let Some(Relation::Reply(reply )) = content.relates_to.as_ref() else {
 			return Ok(());
 		};
 
-		let Ok(pdu) = self.services.timeline.get_pdu(&in_reply_to.event_id).await else {
+		let Ok(pdu) = self.services.timeline.get_pdu(&reply.in_reply_to.event_id).await else {
 			error!(
-				event_id = ?in_reply_to.event_id,
+				event_id = ?reply.in_reply_to.event_id,
 				"Missing admin command in_reply_to event"
 			);
 			return Ok(());

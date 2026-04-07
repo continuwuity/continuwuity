@@ -85,7 +85,8 @@ pub async fn create_admin_room(services: &Services) -> Result {
 	// 3. Power levels
 	let users = BTreeMap::from_iter([(server_user.into(), 69420.into())]);
 
-	let mut power_levels_content = RoomPowerLevelsEventContent::new(&room_version.rules().unwrap().authorization);
+	let mut power_levels_content =
+		RoomPowerLevelsEventContent::new(&room_version.rules().unwrap().authorization);
 	power_levels_content.users = users;
 
 	services

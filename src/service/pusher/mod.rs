@@ -11,17 +11,30 @@ use conduwuit_database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
 use ipaddress::IPAddress;
 use ruma::{
-	DeviceId, OwnedDeviceId, RoomId, UInt, UserId, api::{
-		IncomingResponse, MatrixVersion, OutgoingRequest, auth_scheme::{NoAuthentication, SendAccessToken}, client::push::{Pusher, PusherKind, set_pusher}, path_builder::SinglePath, push_gateway::send_event_notification::{
+	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
+	api::{
+		IncomingResponse, MatrixVersion, OutgoingRequest,
+		auth_scheme::{NoAccessToken, NoAuthentication, SendAccessToken},
+		client::push::{Pusher, PusherKind, set_pusher},
+		path_builder::SinglePath,
+		push_gateway::send_event_notification::{
 			self,
 			v1::{Device, Notification, NotificationCounts, NotificationPriority},
-		}
-	}, events::{
+		},
+	},
+	events::{
 		AnySyncTimelineEvent, StateEventType, TimelineEventType,
-		room::{create::RoomCreateEventContent, power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent}},
-	}, push::{
-		Action, PushConditionPowerLevelsCtx, PushConditionRoomCtx, PushFormat, Ruleset, Tweak,
-	}, room_version_rules::{AuthorizationRules, RoomPowerLevelsRules, RoomVersionRules}, serde::Raw, uint
+		room::{
+			create::RoomCreateEventContent,
+			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
+		},
+	},
+	push::{
+		Action, HighlightTweakValue, PushConditionPowerLevelsCtx, PushConditionRoomCtx, PushFormat, Ruleset, Tweak
+	},
+	room_version_rules::{AuthorizationRules, RoomPowerLevelsRules, RoomVersionRules},
+	serde::Raw,
+	uint,
 };
 
 use crate::{Dep, client, config, globals, rooms, sending, users};
@@ -189,7 +202,9 @@ impl Service {
 	#[tracing::instrument(skip(self, dest, request))]
 	pub async fn send_request<T>(&self, dest: &str, request: T) -> Result<T::IncomingResponse>
 	where
-		T: OutgoingRequest<Authentication = NoAuthentication, PathBuilder = SinglePath> + Debug + Send,
+		T: OutgoingRequest<Authentication = NoAuthentication, PathBuilder = SinglePath>
+			+ Debug
+			+ Send,
 	{
 		const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_0];
 
@@ -197,7 +212,7 @@ impl Service {
 		trace!("Push gateway destination: {dest}");
 
 		let http_request = request
-			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::None, ())
+			.try_into_http_request::<BytesMut>(&dest, (), ())
 			.map_err(|e| {
 				err!(BadServerResponse(warn!(
 					"Failed to find destination {dest} for push gateway: {e}"
@@ -307,7 +322,13 @@ impl Service {
 
 		let serialized = event.to_format();
 		for action in self
-			.get_actions(user, &ruleset, power_levels.clone(), &serialized, event.room_id().unwrap())
+			.get_actions(
+				user,
+				&ruleset,
+				power_levels.clone(),
+				&serialized,
+				event.room_id().unwrap(),
+			)
 			.await
 		{
 			let n = match action {
@@ -363,7 +384,13 @@ impl Service {
 			.await
 			.unwrap_or_else(|_| user.localpart().to_owned());
 
-		let ctx = PushConditionRoomCtx::new(room_id.to_owned(), room_joined_count, user.to_owned(), user_display_name).with_power_levels(power_levels);
+		let ctx = PushConditionRoomCtx::new(
+			room_id.to_owned(),
+			room_joined_count,
+			user.to_owned(),
+			user_display_name,
+		)
+		.with_power_levels(power_levels);
 
 		ruleset.get_actions(pdu, &ctx).await
 	}
@@ -442,7 +469,7 @@ impl Service {
 					if *event.kind() == TimelineEventType::RoomEncrypted
 						|| tweaks
 							.iter()
-							.any(|t| matches!(t, Tweak::Highlight(true) | Tweak::Sound(_)))
+							.any(|t| matches!(t, Tweak::Highlight(HighlightTweakValue::Yes) | Tweak::Sound(_)))
 					{
 						notify.prio = NotificationPriority::High;
 					} else {

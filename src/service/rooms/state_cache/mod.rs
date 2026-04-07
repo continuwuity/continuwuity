@@ -12,7 +12,9 @@ use conduwuit::{
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, future::join5, pin_mut};
 use ruma::{
-	OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, ServerName, UserId, events::{AnyStrippedStateEvent, room::member::MembershipState}, serde::Raw
+	OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, ServerName, UserId,
+	events::{AnyStrippedStateEvent, room::member::MembershipState},
+	serde::Raw,
 };
 
 use crate::{Dep, account_data, appservice::RegistrationInfo, config, globals, rooms, users};
@@ -415,7 +417,9 @@ pub async fn invite_state(
 		.qry(&key)
 		.await
 		.deserialized()
-		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| val.deserialize_as_unchecked().map_err(Into::into))
+		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
+			val.deserialize_as_unchecked().map_err(Into::into)
+		})
 }
 
 #[implement(Service)]
@@ -431,7 +435,9 @@ pub async fn knock_state(
 		.qry(&key)
 		.await
 		.deserialized()
-		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| val.deserialize_as_unchecked().map_err(Into::into))
+		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
+			val.deserialize_as_unchecked().map_err(Into::into)
+		})
 }
 
 #[implement(Service)]

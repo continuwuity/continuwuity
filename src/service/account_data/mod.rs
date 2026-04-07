@@ -7,10 +7,12 @@ use conduwuit::{
 use database::{Deserialized, Handle, Ignore, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
-	OwnedRoomId, OwnedUserId, RoomId, UserId, events::{
-		AnyGlobalAccountDataEvent, AnyRoomAccountDataEvent,
-		GlobalAccountDataEventType, RoomAccountDataEventType,
-	}, serde::Raw
+	OwnedRoomId, OwnedUserId, RoomId, UserId,
+	events::{
+		AnyGlobalAccountDataEvent, AnyRoomAccountDataEvent, GlobalAccountDataEventType,
+		RoomAccountDataEventType,
+	},
+	serde::Raw,
 };
 use serde::Deserialize;
 
@@ -147,7 +149,9 @@ pub fn changes_since<'a>(
 		.stream_from(&first_possible)
 		.ignore_err()
 		.ready_take_while(move |((room_id_, user_id_, count, _), _): &(Key, _)| {
-			room_id == room_id_.as_deref() && user_id == user_id_ && to.is_none_or(|to| *count <= to)
+			room_id == room_id_.as_deref()
+				&& user_id == user_id_
+				&& to.is_none_or(|to| *count <= to)
 		})
 		.map(move |(_, v)| {
 			match room_id {

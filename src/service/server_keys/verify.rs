@@ -63,7 +63,8 @@ pub async fn verify_event(
 ) -> Result<Verified> {
 	let room_version = room_version.unwrap_or(&RoomVersionId::V12);
 	let keys = self.get_event_keys(event, room_version).await?;
-	ruma::signatures::verify_event(&keys, event, &room_version.rules().unwrap()).map_err(Into::into)
+	ruma::signatures::verify_event(&keys, event, &room_version.rules().unwrap())
+		.map_err(Into::into)
 }
 
 #[implement(super::Service)]

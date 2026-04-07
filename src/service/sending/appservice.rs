@@ -5,7 +5,10 @@ use conduwuit::{
 	Err, Result, debug_error, err, implement, trace, utils, utils::response::LimitReadExt, warn,
 };
 use ruma::api::{
-	IncomingResponse, MatrixVersion, OutgoingRequest, appservice::Registration, auth_scheme::{AccessToken, SendAccessToken}, path_builder::SinglePath,
+	IncomingResponse, MatrixVersion, OutgoingRequest,
+	appservice::Registration,
+	auth_scheme::{AccessToken, SendAccessToken},
+	path_builder::SinglePath,
 };
 
 /// Sends a request to an appservice
@@ -33,11 +36,7 @@ where
 
 	let hs_token = registration.hs_token.as_str();
 	let mut http_request = request
-		.try_into_http_request::<BytesMut>(
-			&dest,
-			SendAccessToken::Appservice(hs_token),
-			(),
-		)
+		.try_into_http_request::<BytesMut>(&dest, SendAccessToken::Appservice(hs_token), ())
 		.map_err(|e| {
 			err!(BadServerResponse(
 				warn!(appservice = %registration.id, "Failed to find destination {dest}: {e:?}")

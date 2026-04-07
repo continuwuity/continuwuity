@@ -18,5 +18,11 @@ pub fn hash_and_sign_event(
 	use ruma::signatures::hash_and_sign_event;
 
 	let server_name = self.services.globals.server_name().as_str();
-	hash_and_sign_event(server_name, self.keypair(), object, &room_version.rules().unwrap().redaction).map_err(Into::into)
+	hash_and_sign_event(
+		server_name,
+		self.keypair(),
+		object,
+		&room_version.rules().unwrap().redaction,
+	)
+	.map_err(Into::into)
 }

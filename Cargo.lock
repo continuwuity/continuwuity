@@ -957,6 +957,7 @@ dependencies = [
 name = "conduwuit_admin"
 version = "0.5.7-alpha.1"
 dependencies = [
+ "assign",
  "clap",
  "conduwuit_api",
  "conduwuit_core",
@@ -980,6 +981,7 @@ dependencies = [
 name = "conduwuit_api"
 version = "0.5.7-alpha.1"
 dependencies = [
+ "assign",
  "async-trait",
  "axum",
  "axum-client-ip",
@@ -1026,6 +1028,7 @@ version = "0.5.7-alpha.1"
 dependencies = [
  "argon2",
  "arrayvec",
+ "assign",
  "axum",
  "axum-extra",
  "bytes",
@@ -1119,6 +1122,7 @@ dependencies = [
 name = "conduwuit_router"
 version = "0.5.7-alpha.1"
 dependencies = [
+ "assign",
  "axum",
  "axum-client-ip",
  "axum-server",
@@ -1156,6 +1160,7 @@ name = "conduwuit_service"
 version = "0.5.7-alpha.1"
 dependencies = [
  "askama",
+ "assign",
  "async-trait",
  "base64 0.22.1",
  "blurhash",
@@ -1204,6 +1209,7 @@ name = "conduwuit_web"
 version = "0.5.7-alpha.1"
 dependencies = [
  "askama",
+ "assign",
  "async-trait",
  "axum",
  "axum-extra",
@@ -4701,6 +4707,7 @@ dependencies = [
 name = "ruminuwuity"
 version = "0.5.7-alpha.1"
 dependencies = [
+ "assign",
  "ruma",
  "serde",
  "serde_json",

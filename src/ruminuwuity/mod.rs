@@ -2,6 +2,6 @@
 
 pub mod admin;
 pub mod draupnir_antispam;
+pub mod invite_permission_config;
 pub mod meowlnir_antispam;
 pub mod policy;
-pub mod invite_permission_config;

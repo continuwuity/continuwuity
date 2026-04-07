@@ -6,13 +6,18 @@ use std::{
 
 use futures::future::ready;
 use ruma::{
-	EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, RoomVersionId, ServerSignatures, UserId, event_id, events::{
+	EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, RoomVersionId, ServerSignatures,
+	UserId, event_id,
+	events::{
 		TimelineEventType,
 		room::{
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			member::{MembershipState, RoomMemberEventContent},
 		},
-	}, int, room_id, room_version_rules::RoomVersionRules, uint, user_id
+	},
+	int, room_id,
+	room_version_rules::RoomVersionRules,
+	uint, user_id,
 };
 use serde_json::{
 	json,
@@ -130,9 +135,14 @@ pub(crate) async fn do_check(
 			let event_map = &event_map;
 			let fetch = |id: OwnedEventId| ready(event_map.get(&id).cloned());
 			let exists = |id: OwnedEventId| ready(event_map.get(&id).is_some());
-			let resolved =
-				super::resolve(&RoomVersionRules::V6, state_sets, &auth_chain_sets, &fetch, &exists)
-					.await;
+			let resolved = super::resolve(
+				&RoomVersionRules::V6,
+				state_sets,
+				&auth_chain_sets,
+				&fetch,
+				&exists,
+			)
+			.await;
 
 			match resolved {
 				| Ok(state) => state,

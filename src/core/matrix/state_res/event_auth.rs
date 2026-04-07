@@ -5,12 +5,16 @@ use futures::{
 	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId, events::room::{
+	Int, OwnedUserId, RoomVersionId, UserId,
+	events::room::{
 		create::RoomCreateEventContent,
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
 		member::{MembershipState, ThirdPartyInvite},
 		power_levels::RoomPowerLevelsEventContent,
-	}, int, room_version_rules::{RoomIdFormatVersion, RoomVersionRules}, serde::Raw,
+	},
+	int,
+	room_version_rules::{RoomIdFormatVersion, RoomVersionRules},
+	serde::Raw,
 };
 use serde::{
 	Deserialize,
@@ -117,11 +121,11 @@ pub fn auth_types_for_event(
 
 				// TODO: restore this once 3pid support isn't broken
 				// if membership == MembershipState::Invite {
-				// 	if let Some(Ok(t_id)) = content.third_party_invite.map(|t| t.deserialize()) {
-				// 		let key =
-				// 			(StateEventType::RoomThirdPartyInvite, t_id.signed.token.into());
-				// 		if !auth_types.contains(&key) {
-				// 			auth_types.push(key);
+				// 	if let Some(Ok(t_id)) = content.third_party_invite.map(|t|
+				// t.deserialize()) { 		let key =
+				// 			(StateEventType::RoomThirdPartyInvite,
+				// t_id.signed.token.into()); 		if !auth_types.contains(&
+				// key) { 			auth_types.push(key);
 				// 		}
 				// 	}
 				// }
@@ -214,13 +218,17 @@ where
 			return Ok(false);
 		}
 
-		if room_version.room_id_format == RoomIdFormatVersion::V2 && incoming_event.room_id().is_some() {
+		if room_version.room_id_format == RoomIdFormatVersion::V2
+			&& incoming_event.room_id().is_some()
+		{
 			warn!("room create event incorrectly claims to have a room ID when it should not");
 			return Ok(false);
 		}
 
 		if !room_version.authorization.use_room_create_sender
-			&& !room_version.authorization.explicitly_privilege_room_creators
+			&& !room_version
+				.authorization
+				.explicitly_privilege_room_creators
 		{
 			// If content has no creator field, reject
 			if content.creator.is_none() {
@@ -343,7 +351,7 @@ where
 	// Only in some room versions 6 and below
 	if room_version.authorization.special_case_room_aliases {
 		// 4. If type is m.room.aliases
-		if *incoming_event.event_type() == TimelineEventType::RoomAliases {
+		if *incoming_event.event_type() == TimelineEventType::from("m.room.aliases") {
 			debug!("starting m.room.aliases check");
 
 			// If sender's domain doesn't matches state_key, reject
@@ -493,7 +501,10 @@ where
 			if is_creator { int!(100) } else { int!(0) }
 		},
 	};
-	if room_version.authorization.explicitly_privilege_room_creators {
+	if room_version
+		.authorization
+		.explicitly_privilege_room_creators
+	{
 		// If the user sent the create event, or is listed in additional_creators, just
 		// give them Int::MAX
 		if sender == room_create_event.sender()
@@ -555,7 +566,10 @@ where
 	if *incoming_event.event_type() == TimelineEventType::RoomPowerLevels {
 		debug!("starting m.room.power_levels check");
 		let mut creators = BTreeSet::new();
-		if room_version.authorization.explicitly_privilege_room_creators {
+		if room_version
+			.authorization
+			.explicitly_privilege_room_creators
+		{
 			creators.insert(create_event.sender().to_owned());
 			for creator in room_create_content.additional_creators.iter().flatten() {
 				creators.insert(creator.deserialize()?);
@@ -710,7 +724,10 @@ where
 
 	let mut creators = BTreeSet::new();
 	creators.insert(create_room.sender().to_owned());
-	if room_version.authorization.explicitly_privilege_room_creators {
+	if room_version
+		.authorization
+		.explicitly_privilege_room_creators
+	{
 		// Explicitly privilege room creators
 		// If the sender sent the create event, or in additional_creators, give them
 		// Int::MAX. Same case for target.
@@ -878,7 +895,8 @@ where
 							trace!(sender=%sender, "sender is invited or already joined to room, allowing join");
 							true
 						},
-					| JoinRule::KnockRestricted(_) if !room_version.authorization.knock_restricted_join_rule =>
+					| JoinRule::KnockRestricted(_)
+						if !room_version.authorization.knock_restricted_join_rule =>
 					{
 						warn!(
 							"Join rule is knock_restricted but room version does not support it"
@@ -1508,15 +1526,17 @@ fn verify_third_party_invite(
 
 #[cfg(test)]
 mod tests {
-	use ruma::{events::{
-		StateEventType, TimelineEventType,
-		room::{
-			join_rules::{
-				AllowRule, JoinRule, Restricted, RoomJoinRulesEventContent,
+	use ruma::{
+		events::{
+			StateEventType, TimelineEventType,
+			room::{
+				join_rules::{AllowRule, JoinRule, Restricted, RoomJoinRulesEventContent},
+				member::{MembershipState, RoomMemberEventContent},
 			},
-			member::{MembershipState, RoomMemberEventContent},
 		},
-	}, room::RoomMembership, room_version_rules::RoomVersionRules};
+		room::RoomMembership,
+		room_version_rules::RoomVersionRules,
+	};
 	use serde_json::value::to_raw_value as to_raw_json_value;
 
 	use crate::{
