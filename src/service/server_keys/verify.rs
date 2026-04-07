@@ -2,7 +2,8 @@ use conduwuit::{
 	Err, Result, debug_warn, implement, matrix::event::gen_event_id_canonical_json, trace,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId, signatures::Verified,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId,
+	room_version_rules::RoomVersionRules, signatures::Verified,
 };
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -10,10 +11,10 @@ use serde_json::value::RawValue as RawJsonValue;
 pub async fn validate_and_add_event_id(
 	&self,
 	pdu: &RawJsonValue,
-	room_version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
-	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version)?;
-	if let Err(e) = self.verify_event(&value, Some(room_version)).await {
+	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version_rules)?;
+	if let Err(e) = self.verify_event(&value, room_version_rules).await {
 		return Err!(BadServerResponse(debug_error!(
 			"Event {event_id} failed verification: {e:?}"
 		)));
@@ -28,12 +29,12 @@ pub async fn validate_and_add_event_id(
 pub async fn validate_and_add_event_id_no_fetch(
 	&self,
 	pdu: &RawJsonValue,
-	room_version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 	trace!(?pdu, "Validating PDU without fetching keys");
-	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version)?;
+	let (event_id, mut value) = gen_event_id_canonical_json(pdu, room_version_rules)?;
 	trace!(event_id = event_id.as_str(), "Generated event ID, checking required keys");
-	if !self.required_keys_exist(&value, room_version).await {
+	if !self.required_keys_exist(&value, room_version_rules).await {
 		debug_warn!(
 			"Event {event_id} is missing required keys, cannot verify without fetching keys"
 		);
@@ -42,7 +43,7 @@ pub async fn validate_and_add_event_id_no_fetch(
 		)));
 	}
 	trace!("All required keys exist, verifying event");
-	if let Err(e) = self.verify_event(&value, Some(room_version)).await {
+	if let Err(e) = self.verify_event(&value, room_version_rules).await {
 		debug_warn!("Event verification failed");
 		return Err!(BadServerResponse(debug_error!(
 			"Event {event_id} failed verification: {e:?}"
@@ -59,21 +60,18 @@ pub async fn validate_and_add_event_id_no_fetch(
 pub async fn verify_event(
 	&self,
 	event: &CanonicalJsonObject,
-	room_version: Option<&RoomVersionId>,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<Verified> {
-	let room_version = room_version.unwrap_or(&RoomVersionId::V12);
-	let keys = self.get_event_keys(event, room_version).await?;
-	ruma::signatures::verify_event(&keys, event, &room_version.rules().unwrap())
-		.map_err(Into::into)
+	let keys = self.get_event_keys(event, room_version_rules).await?;
+	ruma::signatures::verify_event(&keys, event, room_version_rules).map_err(Into::into)
 }
 
 #[implement(super::Service)]
 pub async fn verify_json(
 	&self,
 	event: &CanonicalJsonObject,
-	room_version: Option<&RoomVersionId>,
+	room_version_rules: &RoomVersionRules,
 ) -> Result {
-	let room_version = room_version.unwrap_or(&RoomVersionId::V12);
-	let keys = self.get_event_keys(event, room_version).await?;
+	let keys = self.get_event_keys(event, room_version_rules).await?;
 	ruma::signatures::verify_json(&keys, event).map_err(Into::into)
 }

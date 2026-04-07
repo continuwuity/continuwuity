@@ -18,6 +18,7 @@ use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, RoomVersionId,
 	ServerName, ServerSigningKeyId,
 	api::federation::discovery::{ServerSigningKeys, VerifyKey},
+	room_version_rules::RoomVersionRules,
 	serde::Raw,
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
 };
@@ -117,10 +118,10 @@ async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
 pub async fn required_keys_exist(
 	&self,
 	object: &CanonicalJsonObject,
-	version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> bool {
 	trace!(?object, "Checking required keys exist");
-	let Ok(required_keys) = required_keys(object, version) else {
+	let Ok(required_keys) = required_keys(object, &room_version_rules.signatures) else {
 		debug_error!("Failed to determine required keys");
 		return false;
 	};
