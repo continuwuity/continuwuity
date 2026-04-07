@@ -9,12 +9,25 @@ use async_trait::async_trait;
 use conduwuit::{Event, Result, err};
 use database::Map;
 use ruma::{
-	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, OwnedUserId, RoomId, UserId, events::{
+	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, OwnedUserId, RoomId, UserId,
+	events::{
 		StateEventType,
 		room::{
-			avatar::RoomAvatarEventContent, canonical_alias::RoomCanonicalAliasEventContent, create::{RoomCreateEvent, RoomCreateEventContent}, encryption::RoomEncryptionEventContent, guest_access::{GuestAccess, RoomGuestAccessEventContent}, history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent}, join_rules::{JoinRule, RoomJoinRulesEventContent}, member::RoomMemberEventContent, name::RoomNameEventContent, pinned_events::RoomPinnedEventsEventContent, power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent}, topic::RoomTopicEventContent
+			avatar::RoomAvatarEventContent,
+			canonical_alias::RoomCanonicalAliasEventContent,
+			create::{RoomCreateEvent, RoomCreateEventContent},
+			encryption::RoomEncryptionEventContent,
+			guest_access::{GuestAccess, RoomGuestAccessEventContent},
+			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
+			join_rules::{JoinRule, RoomJoinRulesEventContent},
+			member::RoomMemberEventContent,
+			name::RoomNameEventContent,
+			pinned_events::RoomPinnedEventsEventContent,
+			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
+			topic::RoomTopicEventContent,
 		},
-	}, room::RoomType
+	},
+	room::RoomType,
 };
 
 use crate::{Dep, rooms};
@@ -152,12 +165,25 @@ impl Service {
 			.is_ok()
 	}
 
-	/// Get a set of the room's creators. This will always contain a single user for room versions 11 and earlier.
+	/// Get a set of the room's creators. This will always contain a single user
+	/// for room versions 11 and earlier.
 	pub async fn get_room_creators(&self, room_id: &RoomId) -> HashSet<OwnedUserId> {
-		let room_version_rules = self.services.state.get_room_version(room_id).await.expect("room should have a version").rules().expect("room version should be known");
+		let room_version_rules = self
+			.services
+			.state
+			.get_room_version(room_id)
+			.await
+			.expect("room should have a version")
+			.rules()
+			.expect("room version should be known");
 
-		let create_event = self.room_state_get(room_id, &StateEventType::RoomCreate, "").await.expect("room should have a create event");
-		let create_content: RoomCreateEventContent = create_event.get_content().expect("create event content should be valid");
+		let create_event = self
+			.room_state_get(room_id, &StateEventType::RoomCreate, "")
+			.await
+			.expect("room should have a create event");
+		let create_content: RoomCreateEventContent = create_event
+			.get_content()
+			.expect("create event content should be valid");
 
 		let mut creators = HashSet::new();
 		if room_version_rules.authorization.use_room_create_sender {
@@ -174,15 +200,30 @@ impl Service {
 		creators
 	}
 
-	/// Get the room's power levels. This will never fail -- if the room has no power level state event,
-	/// the default power levels for the room's version will be returned.
+	/// Get the room's power levels. This will never fail -- if the room has no
+	/// power level state event, the default power levels for the room's
+	/// version will be returned.
 	pub async fn get_room_power_levels(&self, room_id: &RoomId) -> RoomPowerLevels {
-		let room_version_rules = self.services.state.get_room_version(room_id).await.expect("room should have a version").rules().expect("room version should be known");
-		let creators = self.get_room_creators(room_id).await;
-		let power_levels_event: RoomPowerLevelsEventContent = self.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
+		let room_version_rules = self
+			.services
+			.state
+			.get_room_version(room_id)
 			.await
-			.unwrap_or_else(|_| RoomPowerLevelsEventContent::new(&room_version_rules.authorization));
+			.expect("room should have a version")
+			.rules()
+			.expect("room version should be known");
+		let creators = self.get_room_creators(room_id).await;
+		let power_levels_event: RoomPowerLevelsEventContent = self
+			.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
+			.await
+			.unwrap_or_else(|_| {
+				RoomPowerLevelsEventContent::new(&room_version_rules.authorization)
+			});
 
-		RoomPowerLevels::new(power_levels_event.into(), &room_version_rules.authorization, creators)
+		RoomPowerLevels::new(
+			power_levels_event.into(),
+			&room_version_rules.authorization,
+			creators,
+		)
 	}
 }

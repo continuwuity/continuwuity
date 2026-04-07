@@ -1,2 +1,2 @@
-pub mod list;
 pub mod ban;
+pub mod list;

@@ -20,6 +20,7 @@ unstable-msc3202 = []
 unstable-msc4203 = []
 
 [dependencies]
+assign.workspace = true
 ruma.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }

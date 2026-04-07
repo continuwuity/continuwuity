@@ -107,6 +107,7 @@ nonzero_ext.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+assign.workspace = true
 ruma.workspace = true
 ruminuwuity.workspace = true
 rustyline-async.workspace = true

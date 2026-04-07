@@ -65,7 +65,6 @@ pub async fn create_hash_and_sign_event(
 	_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
 	                               * state mutex */
 ) -> Result<(PduEvent, CanonicalJsonObject)> {
-
 	if !self.services.globals.user_is_local(sender) {
 		return Err!(Request(Forbidden("Sender must be a local user")));
 	}
@@ -86,16 +85,15 @@ pub async fn create_hash_and_sign_event(
 	);
 
 	let room_version = match (room_id, &event_type) {
-		(Some(room_id), _) => {
-			self.services.state.get_room_version(room_id).await?
-		},
-		(None, &TimelineEventType::RoomCreate) => {
-			let content: RoomCreateEventContent = serde_json::from_str(content.get()).expect("create event should be well-formed");
+		| (Some(room_id), _) => self.services.state.get_room_version(room_id).await?,
+		| (None, &TimelineEventType::RoomCreate) => {
+			let content: RoomCreateEventContent =
+				serde_json::from_str(content.get()).expect("create event should be well-formed");
 			content.room_version
 		},
-		(None, _) => {
+		| (None, _) => {
 			return Err!(Request(NotFound("Non-create event provided for unknown room")));
-		}
+		},
 	};
 
 	let Some(room_version_rules) = room_version.rules() else {
@@ -259,7 +257,7 @@ pub async fn create_hash_and_sign_event(
 		.hash_and_sign_event(&mut pdu_json, &room_version)
 	{
 		return match e {
-			| Error::Signatures(ruma::signatures::Error::PduSize) => {
+			| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
 				Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
 			},
 			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),

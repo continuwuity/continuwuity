@@ -15,7 +15,8 @@ use futures::{
 	future::{join, join4, join5},
 };
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UInt, UserId, api::{
+	OwnedRoomId, RoomId, ServerName, UInt, UserId,
+	api::{
 		client::{
 			directory::{
 				get_public_rooms, get_public_rooms_filtered, get_room_visibility,
@@ -24,13 +25,17 @@ use ruma::{
 			room,
 		},
 		federation,
-	}, directory::{Filter, PublicRoomsChunk, RoomNetwork, RoomTypeFilter}, events::{
+	},
+	directory::{Filter, PublicRoomsChunk, RoomNetwork, RoomTypeFilter},
+	events::{
 		StateEventType,
 		room::{
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
-	}, room::JoinRuleKind, uint
+	},
+	room::JoinRuleKind,
+	uint,
 };
 
 use crate::Ruma;

@@ -27,11 +27,11 @@ pub(crate) async fn get_room_aliases_route(
 	}
 
 	let aliases = services
-			.rooms
-			.alias
-			.local_aliases_for_room(&body.room_id)
-			.collect()
-			.await;
+		.rooms
+		.alias
+		.local_aliases_for_room(&body.room_id)
+		.collect()
+		.await;
 
 	Ok(aliases::v3::Response::new(aliases))
 }

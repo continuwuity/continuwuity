@@ -109,7 +109,10 @@ where
 			match self
 				.services
 				.sending
-				.send_federation_request(origin, get_event::v1::Request::new((*next_id).to_owned()))
+				.send_federation_request(
+					origin,
+					get_event::v1::Request::new((*next_id).to_owned()),
+				)
 				.await
 			{
 				| Ok(res) => {

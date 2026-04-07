@@ -1,8 +1,10 @@
 use conduwuit::{
-	Result, err, implement, matrix::event::gen_event_id_canonical_json,
-	result::FlatOk,
+	Result, err, implement, matrix::event::gen_event_id_canonical_json, result::FlatOk,
 };
-use ruma::{CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, room_version_rules::RoomIdFormatVersion};
+use ruma::{
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
+	room_version_rules::RoomIdFormatVersion,
+};
 use serde_json::value::RawValue as RawJsonValue;
 
 type Parsed = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
@@ -35,7 +37,12 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 			.and_then(CanonicalJsonValue::as_str)
 			.unwrap_or("1");
 		let vi = RoomVersionId::try_from(room_version).unwrap_or(RoomVersionId::V1);
-		if vi.rules().expect("room version should have defined rules").room_id_format == RoomIdFormatVersion::V2 {
+		if vi
+			.rules()
+			.expect("room version should have defined rules")
+			.room_id_format
+			== RoomIdFormatVersion::V2
+		{
 			let (event_id, _) = gen_event_id_canonical_json(pdu, &vi).map_err(|e| {
 				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
 			})?;

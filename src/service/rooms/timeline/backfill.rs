@@ -12,10 +12,16 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, Stream, StreamExt};
 use ruma::{
-	CanonicalJsonObject, EventId, Int, OwnedServerName, RoomId, ServerName, api::federation, events::{
+	CanonicalJsonObject, EventId, Int, OwnedServerName, RoomId, ServerName,
+	api::federation,
+	events::{
 		StateEventType, TimelineEventType,
-		room::{create::RoomCreateEventContent, power_levels::{RoomPowerLevelsEventContent, UserPowerLevel}},
-	}, uint
+		room::{
+			create::RoomCreateEventContent,
+			power_levels::{RoomPowerLevelsEventContent, UserPowerLevel},
+		},
+	},
+	uint,
 };
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -66,7 +72,11 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 			.sending
 			.send_federation_request(
 				&backfill_server,
-				federation::backfill::get_backfill::v1::Request::new(room_id.to_owned(), vec![first_pdu.1.event_id().to_owned()], uint!(100))
+				federation::backfill::get_backfill::v1::Request::new(
+					room_id.to_owned(),
+					vec![first_pdu.1.event_id().to_owned()],
+					uint!(100),
+				),
 			)
 			.await;
 		match response {
@@ -125,7 +135,10 @@ pub async fn get_remote_pdu(&self, room_id: &RoomId, event_id: &EventId) -> Resu
 		let value = self
 			.services
 			.sending
-			.send_federation_request(&backfill_server, federation::event::get_event::v1::Request::new(event_id.to_owned()))
+			.send_federation_request(
+				&backfill_server,
+				federation::event::get_event::v1::Request::new(event_id.to_owned()),
+			)
 			.await
 			.and_then(|response| {
 				serde_json::from_str::<CanonicalJsonObject>(response.pdu.get()).map_err(|e| {
@@ -220,7 +233,11 @@ pub async fn backfill_pdu(&self, origin: &ServerName, pdu: Box<RawJsonValue>) ->
 async fn candidate_backfill_servers(&self, room_id: &RoomId) -> HashSet<OwnedServerName> {
 	let mut candidate_backfill_servers = HashSet::new();
 
-	let power_levels = self.services.state_accessor.get_room_power_levels(room_id).await;
+	let power_levels = self
+		.services
+		.state_accessor
+		.get_room_power_levels(room_id)
+		.await;
 
 	// Insert servers of room creators
 	if let Some(creators) = &power_levels.rules.privileged_creators {
@@ -237,19 +254,30 @@ async fn candidate_backfill_servers(&self, room_id: &RoomId) -> HashSet<OwnedSer
 	}
 
 	// Insert the canonical room alias server
-	if let Ok(canonical_alias) = self.services.state_accessor.get_canonical_alias(room_id).await {
+	if let Ok(canonical_alias) = self
+		.services
+		.state_accessor
+		.get_canonical_alias(room_id)
+		.await
+	{
 		candidate_backfill_servers.insert(canonical_alias.server_name().to_owned());
 	}
 
 	// Insert all trusted servers in the config
-	candidate_backfill_servers.extend(self.services.server.config.trusted_servers.iter().cloned());
+	candidate_backfill_servers
+		.extend(self.services.server.config.trusted_servers.iter().cloned());
 
 	// Remove our own name, we can't request backfill from ourselves
 	candidate_backfill_servers.remove(self.services.globals.server_name());
 
 	// Remove all servers that aren't in the room
 	for server in candidate_backfill_servers.clone() {
-		if !self.services.state_cache.server_in_room(&server, room_id).await {
+		if !self
+			.services
+			.state_cache
+			.server_in_room(&server, room_id)
+			.await
+		{
 			candidate_backfill_servers.remove(&server);
 		}
 	}

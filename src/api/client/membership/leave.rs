@@ -42,10 +42,7 @@ pub(crate) async fn leave_room_route(
 // Make a user leave all their joined rooms, rescinds knocks, forgets all rooms,
 // and ignores errors
 pub async fn leave_all_rooms(services: &Services, user_id: &UserId) {
-	let rooms_joined = services
-		.rooms
-		.state_cache
-		.rooms_joined(user_id);
+	let rooms_joined = services.rooms.state_cache.rooms_joined(user_id);
 
 	let rooms_invited = services
 		.rooms
@@ -286,7 +283,10 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 			.sending
 			.send_federation_request(
 				remote_server.as_ref(),
-				federation::membership::prepare_leave_event::v1::Request::new(room_id.to_owned(), user_id.to_owned())
+				federation::membership::prepare_leave_event::v1::Request::new(
+					room_id.to_owned(),
+					user_id.to_owned(),
+				),
 			)
 			.await;
 
@@ -387,10 +387,14 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		.sending
 		.send_federation_request(
 			&remote_server,
-			federation::membership::create_leave_event::v2::Request::new(room_id.to_owned(), event_id.clone(), services
+			federation::membership::create_leave_event::v2::Request::new(
+				room_id.to_owned(),
+				event_id.clone(),
+				services
 					.sending
 					.convert_to_outgoing_federation_event(leave_event.clone())
-					.await),
+					.await,
+			),
 		)
 		.await?;
 

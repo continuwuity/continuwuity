@@ -14,9 +14,8 @@ use tokio::{
 	io::{AsyncReadExt, AsyncWriteExt},
 };
 
-use crate::media::mxc::Mxc;
-
 use super::{FileMeta, data::Metadata};
+use crate::media::mxc::Mxc;
 
 /// Dimension specification for a thumbnail.
 #[derive(Debug)]
