@@ -3,18 +3,14 @@ mod remote;
 use std::sync::Arc;
 
 use conduwuit::{
-	Err, Event, Result, err,
+	Err, Result, err,
 	utils::{ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 use ruma::{
 	OwnedRoomAliasId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId,
-	RoomOrAliasId, UserId,
-	events::{
-		StateEventType,
-		room::power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-	},
+	RoomOrAliasId, UserId, events::StateEventType,
 };
 
 use crate::{Dep, admin, appservice, appservice::RegistrationInfo, globals, rooms, sending};

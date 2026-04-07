@@ -2,8 +2,8 @@ use conduwuit::{
 	Err, Result, debug_warn, implement, matrix::event::gen_event_id_canonical_json, trace,
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomVersionId,
-	room_version_rules::RoomVersionRules, signatures::Verified,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, room_version_rules::RoomVersionRules,
+	signatures::Verified,
 };
 use serde_json::value::RawValue as RawJsonValue;
 

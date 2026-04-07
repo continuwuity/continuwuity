@@ -1,24 +1,21 @@
-use std::{any::Any, borrow::Cow, fmt::Debug, mem, sync::LazyLock};
+use std::{borrow::Cow, fmt::Debug, mem};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug_error, debug_warn, err, implement,
-	matrix::versions::{unstable_features, versions},
-	trace,
+	Err, Error, Result, debug, debug_error, debug_warn, err, implement, trace,
 	utils::response::LimitReadExt,
 };
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, ServerName, ServerSigningKeyId,
+	ServerName,
 	api::{
-		EndpointError, IncomingResponse, Metadata, OutgoingRequest, SupportedVersions,
-		auth_scheme::{AuthScheme, NoAuthentication, SendAccessToken},
+		EndpointError, IncomingResponse, OutgoingRequest, SupportedVersions,
+		auth_scheme::{AuthScheme, NoAuthentication},
 		error::Error as RumaError,
-		federation::authentication::{ServerSignatures, ServerSignaturesInput, XMatrix},
-		path_builder::{PathBuilder, SinglePath, VersionHistory},
+		federation::authentication::{ServerSignatures, ServerSignaturesInput},
+		path_builder::PathBuilder,
 	},
-	serde::Base64,
 };
 
 use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};

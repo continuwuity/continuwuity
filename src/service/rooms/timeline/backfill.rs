@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter::once};
+use std::collections::HashSet;
 
 use conduwuit::{Err, PduEvent};
 use conduwuit_core::{
@@ -7,21 +7,12 @@ use conduwuit_core::{
 		event::Event,
 		pdu::{PduCount, PduId, RawPduId},
 	},
-	utils::{IterStream, ReadyExt},
 	validated, warn,
 };
-use futures::{FutureExt, Stream, StreamExt};
+use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, EventId, Int, OwnedServerName, RoomId, ServerName,
-	api::federation,
-	events::{
-		StateEventType, TimelineEventType,
-		room::{
-			create::RoomCreateEventContent,
-			power_levels::{RoomPowerLevelsEventContent, UserPowerLevel},
-		},
-	},
-	uint,
+	CanonicalJsonObject, EventId, OwnedServerName, RoomId, ServerName, api::federation,
+	events::TimelineEventType, uint,
 };
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -58,7 +49,7 @@ pub async fn backfill_if_required(&self, room_id: &RoomId, from: PduCount) -> Re
 		return Ok(());
 	}
 
-	let mut servers = self.candidate_backfill_servers(room_id).await;
+	let servers = self.candidate_backfill_servers(room_id).await;
 
 	let mut federated_room = false;
 
@@ -128,7 +119,7 @@ pub async fn get_remote_pdu(&self, room_id: &RoomId, event_id: &EventId) -> Resu
 		return Err!(Request(NotFound("No one can backfill this PDU, room is empty.")));
 	}
 
-	let mut servers = self.candidate_backfill_servers(room_id).await;
+	let servers = self.candidate_backfill_servers(room_id).await;
 
 	for backfill_server in servers {
 		info!("Asking {backfill_server} for event {}", event_id);

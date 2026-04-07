@@ -5,7 +5,7 @@ use conduwuit::{
 	Err, Result, debug_error, err, implement, trace, utils, utils::response::LimitReadExt, warn,
 };
 use ruma::api::{
-	IncomingResponse, MatrixVersion, OutgoingRequest,
+	IncomingResponse, OutgoingRequest,
 	appservice::Registration,
 	auth_scheme::{AccessToken, SendAccessToken},
 	path_builder::SinglePath,
