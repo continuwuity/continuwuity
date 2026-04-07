@@ -1,4 +1,4 @@
-use ruma::{CanonicalJsonObject, OwnedEventId, RoomVersionId};
+use ruma::{CanonicalJsonObject, OwnedEventId, room_version_rules::RoomVersionRules};
 use serde_json::value::RawValue as RawJsonValue;
 
 use crate::{Err, Result, err};
@@ -9,12 +9,12 @@ use crate::{Err, Result, err};
 /// CanonicalJsonValue>`.
 pub fn gen_event_id_canonical_json(
 	pdu: &RawJsonValue,
-	room_version_id: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 	let value: CanonicalJsonObject = serde_json::from_str(pdu.get())
 		.map_err(|e| err!(BadServerResponse(warn!("Error parsing incoming event: {e:?}"))))?;
 
-	let event_id = gen_event_id(&value, room_version_id)?;
+	let event_id = gen_event_id(&value, room_version_rules)?;
 
 	Ok((event_id, value))
 }
@@ -22,12 +22,9 @@ pub fn gen_event_id_canonical_json(
 /// Generates a correct eventId for the incoming pdu.
 pub fn gen_event_id(
 	value: &CanonicalJsonObject,
-	room_version_id: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<OwnedEventId> {
-	let Some(rules) = room_version_id.rules() else {
-		return Err!("Cannot generate event ID for unknown room version {room_version_id}");
-	};
-	let reference_hash = ruma::signatures::reference_hash(value, &rules)?;
+	let reference_hash = ruma::signatures::reference_hash(value, room_version_rules)?;
 	let event_id: OwnedEventId = format!("${reference_hash}").try_into()?;
 
 	Ok(event_id)
