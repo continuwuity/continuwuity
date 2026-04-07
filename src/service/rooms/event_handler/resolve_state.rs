@@ -11,7 +11,7 @@ use conduwuit::{
 	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt},
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future::try_join};
-use ruma::{OwnedEventId, RoomId, RoomVersionId, room_version_rules::RoomVersionRules};
+use ruma::{OwnedEventId, RoomId, room_version_rules::RoomVersionRules};
 
 use crate::rooms::state_compressor::CompressedState;
 

@@ -8,8 +8,8 @@ use http::header::{CONTENT_DISPOSITION, CONTENT_TYPE, HeaderValue};
 use ruma::{
 	ServerName, UserId,
 	api::{
-		Metadata, OutgoingRequest,
-		auth_scheme::{NoAccessToken, NoAuthentication},
+		OutgoingRequest,
+		auth_scheme::NoAccessToken,
 		client::media,
 		error::ErrorKind::{NotFound, Unrecognized},
 		federation::{
