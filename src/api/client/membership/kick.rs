@@ -1,9 +1,6 @@
 use axum::extract::State;
 use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
-use ruma::{
-	api::client::membership::kick_user,
-	events::room::member::{MembershipState, RoomMemberEventContent},
-};
+use ruma::{api::client::membership::kick_user, events::room::member::MembershipState};
 
 use crate::Ruma;
 
