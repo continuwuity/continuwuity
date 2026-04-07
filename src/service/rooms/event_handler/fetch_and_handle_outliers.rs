@@ -12,7 +12,7 @@ use ruma::{
 	api::federation::event::get_event,
 };
 
-use super::get_room_version;
+use super::get_room_version_rules;
 
 /// Find the event and auth it. Once the event is validated (steps 1 - 8)
 /// it is appended to the outliers Tree.
@@ -117,13 +117,13 @@ where
 			{
 				| Ok(res) => {
 					debug!("Got {next_id} over federation from {origin}");
-					let Ok(room_version_id) = get_room_version(create_event) else {
+					let Ok(room_version_rules) = get_room_version_rules(create_event) else {
 						back_off((*next_id).to_owned());
 						continue;
 					};
 
 					let Ok((calculated_event_id, value)) =
-						gen_event_id_canonical_json(&res.pdu, &room_version_id)
+						gen_event_id_canonical_json(&res.pdu, &room_version_rules)
 					else {
 						back_off((*next_id).to_owned());
 						continue;
