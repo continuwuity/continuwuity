@@ -70,7 +70,7 @@ impl ValidationSessions {
 
 	#[must_use]
 	pub(super) fn generate_session_id() -> OwnedSessionId {
-		OwnedSessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
+		SessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
 	}
 
 	pub(super) fn create_session(
