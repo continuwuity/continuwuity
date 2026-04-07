@@ -71,7 +71,7 @@ async fn create_join_event(
 	let room_version_id = services.rooms.state.get_room_version(room_id).await?;
 
 	trace!("Generating event ID and converting to canonical json");
-	let Ok((event_id, mut value)) = gen_event_id_canonical_json(pdu, &room_version_id) else {
+	let Ok((event_id, value)) = gen_event_id_canonical_json(pdu, &room_version_id) else {
 		// Event could not be converted to canonical json
 		return Err!(Request(BadJson("Could not convert event to canonical json.")));
 	};
@@ -188,12 +188,6 @@ async fn create_join_event(
 			)));
 		}
 	}
-
-	trace!("Signing send_join event");
-	services
-		.server_keys
-		.hash_and_sign_event(&mut value, &room_version_id)
-		.map_err(|e| err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}")))))?;
 
 	let mutex_lock = services
 		.rooms

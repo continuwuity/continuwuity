@@ -1,0 +1,1 @@
+Fixed "Sender must be a local user" error for make_join, make_knock, and make_leave federation routes. Contributed by @nex.
