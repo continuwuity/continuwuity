@@ -22,8 +22,10 @@ use futures::{FutureExt, Stream, StreamExt};
 use ruma::{
 	OwnedServerName, RoomId, ServerName, UserId,
 	api::{
-		OutgoingRequest, auth_scheme::{NoAuthentication, NoAccessToken, SendAccessToken},
-		federation::authentication::ServerSignatures, path_builder::PathBuilder,
+		OutgoingRequest,
+		auth_scheme::{NoAccessToken, NoAuthentication, SendAccessToken},
+		federation::authentication::ServerSignatures,
+		path_builder::PathBuilder,
 	},
 };
 use tokio::{task, task::JoinSet};
@@ -348,6 +350,7 @@ impl Service {
 			.execute_unauthenticated(dest, request)
 			.await
 	}
+
 	/// Send an unauthenticated federation request with no X-Matrix header.
 	#[inline]
 	pub async fn send_legacy_media_request<'i, T>(
@@ -362,7 +365,6 @@ impl Service {
 			> + Debug
 			+ Send,
 	{
-
 		self.services
 			.federation
 			.execute_on(&self.services.client.federation, dest, request, SendAccessToken::None)

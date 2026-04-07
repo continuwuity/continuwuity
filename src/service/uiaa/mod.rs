@@ -10,8 +10,9 @@ use ruma::{
 	UserId,
 	api::{
 		client::uiaa::{
-			AuthData, AuthFlow, AuthType, EmailIdentity, Password, ReCaptcha, RegistrationToken,
-			ThirdpartyIdCredentials, UiaaInfo, UserIdentifier, MatrixUserIdentifier
+			AuthData, AuthFlow, AuthType, EmailIdentity, EmailUserIdentifier,
+			MatrixUserIdentifier, Password, ReCaptcha, RegistrationToken,
+			ThirdpartyIdCredentials, UiaaInfo, UserIdentifier,
 		},
 		error::{ErrorKind, StandardErrorBody},
 	},
@@ -19,7 +20,7 @@ use ruma::{
 use serde_json::value::RawValue;
 use tokio::sync::Mutex;
 
-use crate::{Dep, config, globals, registration_tokens, rooms::user, threepid, users};
+use crate::{Dep, config, globals, registration_tokens, threepid, users};
 
 pub struct Service {
 	services: Services,
@@ -91,10 +92,7 @@ macro_rules! identity_update_fn {
 			} else if self.$field == Some($field) {
 				Ok(())
 			} else {
-				Err(StandardErrorBody {
-					kind: ErrorKind::InvalidParam,
-					message: $error.to_owned(),
-				})
+				Err(StandardErrorBody::new(ErrorKind::InvalidParam, $error.to_owned()))
 			}
 		}
 	};
@@ -330,19 +328,23 @@ impl Service {
 
 						Ok(AuthType::EmailIdentity)
 					},
-					| Err(message) => Err(StandardErrorBody {
-						kind: ErrorKind::ThreepidAuthFailed,
-						message: message.into_owned(),
-					}),
+					| Err(message) => Err(StandardErrorBody::new(
+						ErrorKind::ThreepidAuthFailed,
+						message.into_owned(),
+					)),
 				}
 			},
 			#[allow(clippy::useless_let_if_seq)]
 			| AuthData::Password(Password { identifier, password, .. }) => {
 				let user_id_or_localpart = match identifier {
-					| Some(UserIdentifier::Matrix(MatrixUserIdentifier{user})) => user.to_owned(),
-					| Some(UserIdentifier::Email(address)) => {
+					| UserIdentifier::Matrix(MatrixUserIdentifier { user, .. }) =>
+						user.to_owned(),
+					| UserIdentifier::Email(EmailUserIdentifier { address, .. }) => {
 						let Ok(email) = Address::try_from(address.to_owned()) else {
-							return Err(StandardErrorBody::new(ErrorKind::InvalidParam, "Email is malformed".to_owned()));
+							return Err(StandardErrorBody::new(
+								ErrorKind::InvalidParam,
+								"Email is malformed".to_owned(),
+							));
 						};
 
 						if let Some(localpart) =
@@ -352,18 +354,27 @@ impl Service {
 
 							localpart
 						} else {
-							return Err(StandardErrorBody::new(ErrorKind::Forbidden, "Invalid identifier or password".to_owned()));
+							return Err(StandardErrorBody::new(
+								ErrorKind::Forbidden,
+								"Invalid identifier or password".to_owned(),
+							));
 						}
 					},
 					| _ =>
-						return Err(StandardErrorBody::new(ErrorKind::Unrecognized, "Identifier type not recognized".to_owned())),
+						return Err(StandardErrorBody::new(
+							ErrorKind::Unrecognized,
+							"Identifier type not recognized".to_owned(),
+						)),
 				};
 
 				let Ok(user_id) = UserId::parse_with_server_name(
 					user_id_or_localpart,
 					self.services.globals.server_name(),
 				) else {
-					return Err(StandardErrorBody::new(ErrorKind::InvalidParam, "User ID is malformed".to_owned()));
+					return Err(StandardErrorBody::new(
+						ErrorKind::InvalidParam,
+						"User ID is malformed".to_owned(),
+					));
 				};
 
 				// Check if password is correct
@@ -396,20 +407,29 @@ impl Service {
 
 					Ok(AuthType::Password)
 				} else {
-					Err(StandardErrorBody::new(ErrorKind::Forbidden, "Invalid identifier or password".to_owned()))
+					Err(StandardErrorBody::new(
+						ErrorKind::Forbidden,
+						"Invalid identifier or password".to_owned(),
+					))
 				}
 			},
 			| AuthData::ReCaptcha(ReCaptcha { response, .. }) => {
 				let Some(ref private_site_key) = self.services.config.recaptcha_private_site_key
 				else {
-					return Err(StandardErrorBody::new(ErrorKind::Forbidden, "ReCaptcha is not configured".to_owned()));
+					return Err(StandardErrorBody::new(
+						ErrorKind::Forbidden,
+						"ReCaptcha is not configured".to_owned(),
+					));
 				};
 
 				match recaptcha_verify::verify_v3(private_site_key, response, None).await {
 					| Ok(()) => Ok(AuthType::ReCaptcha),
 					| Err(e) => {
 						error!("ReCaptcha verification failed: {e:?}");
-						Err(StandardErrorBody::new(ErrorKind::Forbidden, "ReCaptcha verification failed".to_owned()))
+						Err(StandardErrorBody::new(
+							ErrorKind::Forbidden,
+							"ReCaptcha verification failed".to_owned(),
+						))
 					},
 				}
 			},
@@ -428,11 +448,17 @@ impl Service {
 
 					Ok(AuthType::RegistrationToken)
 				} else {
-					Err(StandardErrorBody::new(ErrorKind::Forbidden, "Invalid registration token".to_owned()))
+					Err(StandardErrorBody::new(
+						ErrorKind::Forbidden,
+						"Invalid registration token".to_owned(),
+					))
 				}
 			},
 			| AuthData::Terms(_) => Ok(AuthType::Terms),
-			| _ => Err(StandardErrorBody::new(ErrorKind::Unrecognized, "Unsupported stage type".into())),
+			| _ => Err(StandardErrorBody::new(
+				ErrorKind::Unrecognized,
+				"Unsupported stage type".into(),
+			)),
 		}
 		.map(|auth_type| (auth_type, identity))
 	}
