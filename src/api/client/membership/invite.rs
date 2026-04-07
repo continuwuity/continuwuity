@@ -9,7 +9,7 @@ use futures::FutureExt;
 use ruma::{
 	RoomId, UserId,
 	api::{
-		client::membership::invite_user,
+		client::membership::invite_user::{self, v3::InviteUserId},
 		federation::membership::{RawStrippedState, create_invite},
 	},
 	events::room::member::{MembershipState, RoomMemberEventContent},
@@ -52,7 +52,11 @@ pub(crate) async fn invite_user_route(
 	.await?;
 
 	match &body.recipient {
-		| invite_user::v3::InvitationRecipient::UserId { user_id: recipient_user } => {
+		| invite_user::v3::InvitationRecipient::UserId(InviteUserId {
+			user_id: recipient_user,
+			reason,
+			..
+		}) => {
 			let sender_filter_level = services
 				.users
 				.invite_filter_level(recipient_user, sender_user)
@@ -96,7 +100,7 @@ pub(crate) async fn invite_user_route(
 				sender_user,
 				recipient_user,
 				&body.room_id,
-				body.reason.clone(),
+				reason.clone(),
 				false,
 			)
 			.boxed()
@@ -200,10 +204,15 @@ pub(crate) async fn invite_helper(
 
 		// We do not add the event_id field to the pdu here because of signature and
 		// hashes checks
-		let (event_id, value) = gen_event_id_canonical_json(&response.event, &room_version_id)
-			.map_err(|e| {
-				err!(Request(BadJson(warn!("Could not convert event to canonical JSON: {e}"))))
-			})?;
+		let (event_id, value) = gen_event_id_canonical_json(
+			&response.event,
+			&room_version_id
+				.rules()
+				.expect("room version should have defined rules"),
+		)
+		.map_err(|e| {
+			err!(Request(BadJson(warn!("Could not convert event to canonical JSON: {e}"))))
+		})?;
 
 		if pdu.event_id != event_id {
 			return Err!(Request(BadJson(warn!(
