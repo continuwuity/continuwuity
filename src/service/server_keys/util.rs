@@ -1,15 +1,13 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, IdParseError, OwnedEventId, OwnedServerName,
-	OwnedServerSigningKeyId, RoomVersionId, UserId,
-	canonical_json::JsonType,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, OwnedServerSigningKeyId,
 	room_version_rules::SignaturesRules,
-	signatures::{JsonError, VerificationError, required_server_signatures_to_verify_event},
+	signatures::{VerificationError, required_server_signatures_to_verify_event},
 };
 
 /// Extracts the server names and key ids to check signatures for given event.
-pub fn required_keys(
+pub(super) fn required_keys(
 	object: &CanonicalJsonObject,
 	rules: &SignaturesRules,
 ) -> Result<BTreeMap<OwnedServerName, Vec<OwnedServerSigningKeyId>>, VerificationError> {

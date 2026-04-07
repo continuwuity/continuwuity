@@ -7,7 +7,7 @@ use database::Ignore;
 use futures::{Stream, StreamExt, stream::iter};
 use itertools::Itertools;
 use ruma::{
-	OwnedServerName, RoomId, ServerName,
+	OwnedServerName, RoomId,
 	events::{StateEventType, room::power_levels::RoomPowerLevelsEventContent},
 	int,
 };

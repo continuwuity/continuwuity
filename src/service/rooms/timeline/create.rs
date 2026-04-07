@@ -13,12 +13,11 @@ use conduwuit_core::{
 };
 use futures::{StreamExt, TryStreamExt, future, future::ready};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
-	UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomId, UserId,
 	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
 	uint,
 };
-use serde_json::value::{RawValue, to_raw_value};
+use serde_json::value::to_raw_value;
 
 use super::RoomMutexGuard;
 
