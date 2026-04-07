@@ -32,20 +32,22 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 			.get("content")
 			.and_then(CanonicalJsonValue::as_object)
 			.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid content in pdu"))))?;
+
 		let room_version = content
 			.get("room_version")
 			.and_then(CanonicalJsonValue::as_str)
 			.unwrap_or("1");
-		let vi = RoomVersionId::try_from(room_version).unwrap_or(RoomVersionId::V1);
-		if vi
+
+		let room_version_rules = RoomVersionId::try_from(room_version)
+			.unwrap_or(RoomVersionId::V1)
 			.rules()
-			.expect("room version should have defined rules")
-			.room_id_format
-			== RoomIdFormatVersion::V2
-		{
-			let (event_id, _) = gen_event_id_canonical_json(pdu, &vi).map_err(|e| {
-				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-			})?;
+			.expect("room version should have defined rules");
+
+		if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
+			let (event_id, _) =
+				gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
+					err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+				})?;
 			RoomId::parse(event_id.as_str().replace('$', "!")).expect("valid room ID")
 		} else {
 			// V11 or below room, room_id must be present
@@ -57,14 +59,18 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 		}
 	};
 
-	let room_version_id = self
+	let room_version_rules = self
 		.services
 		.state
 		.get_room_version(&room_id)
 		.await
-		.unwrap_or(RoomVersionId::V1);
-	let (event_id, value) = gen_event_id_canonical_json(pdu, &room_version_id).map_err(|e| {
-		err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-	})?;
+		.unwrap_or(RoomVersionId::V1)
+		.rules()
+		.expect("room version should have defined rules");
+
+	let (event_id, value) =
+		gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
+			err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+		})?;
 	Ok((room_id, event_id, value))
 }

@@ -243,18 +243,13 @@ pub async fn create_hash_and_sign_event(
 	})?;
 
 	// room v3 and above removed the "event_id" field from remote PDU format
-	match room_version {
-		| RoomVersionId::V1 | RoomVersionId::V2 => {},
-		| _ => {
-			pdu_json.remove("event_id");
-		},
-	}
+	pdu_json.remove("event_id");
 
 	trace!("hashing and signing event {}", pdu.event_id);
 	if let Err(e) = self
 		.services
 		.server_keys
-		.hash_and_sign_event(&mut pdu_json, &room_version)
+		.hash_and_sign_event(&mut pdu_json, &room_version_rules)
 	{
 		return match e {
 			| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
@@ -264,7 +259,7 @@ pub async fn create_hash_and_sign_event(
 		};
 	}
 	// Generate event id
-	pdu.event_id = gen_event_id(&pdu_json, &room_version)?;
+	pdu.event_id = gen_event_id(&pdu_json, &room_version_rules)?;
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	// Verify that the *full* PDU isn't over 64KiB.
 	// Ruma only validates that it's under 64KiB before signing and hashing.

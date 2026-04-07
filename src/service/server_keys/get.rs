@@ -3,7 +3,7 @@ use std::borrow::Borrow;
 use conduwuit::{Err, Result, debug_error, implement, trace};
 use ruma::{
 	CanonicalJsonObject, RoomVersionId, ServerName, ServerSigningKeyId,
-	api::federation::discovery::VerifyKey,
+	api::federation::discovery::VerifyKey, room_version_rules::RoomVersionRules,
 };
 
 use super::{PubKeyMap, PubKeys, extract_key};
@@ -13,9 +13,9 @@ use crate::server_keys::util::required_keys;
 pub async fn get_event_keys(
 	&self,
 	object: &CanonicalJsonObject,
-	version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Result<PubKeyMap> {
-	let required = match required_keys(object, version) {
+	let required = match required_keys(object, &room_version_rules.signatures) {
 		| Ok(required) => required,
 		| Err(e) => {
 			debug_error!("Failed to determine keys required to verify: {e}");
