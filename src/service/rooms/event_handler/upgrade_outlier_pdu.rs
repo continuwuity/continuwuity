@@ -10,7 +10,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 
-use super::get_room_version;
+use super::get_room_version_rules;
 use crate::rooms::{
 	state_compressor::{CompressedState, HashSetCompressStateEvent},
 	timeline::RawPduId,
@@ -52,10 +52,7 @@ where
 		"Upgrading PDU from outlier to timeline"
 	);
 	let timer = Instant::now();
-	let room_version_id = get_room_version(create_event)?;
-	let room_version_rules = room_version_id
-		.rules()
-		.expect("room version should have defined rules");
+	let room_version_rules = get_room_version_rules(create_event)?;
 
 	// 10. Fetch missing state and auth chain events by calling /state_ids at
 	//     backwards extremities doing all the checks in this list starting at 1.
@@ -153,7 +150,7 @@ where
 		event_id = %incoming_pdu.event_id,
 		"Performing soft-fail check"
 	);
-	let mut soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_id)) {
+	let mut soft_fail = match (auth_check, incoming_pdu.redacts_id(&room_version_rules)) {
 		| (false, _) => true,
 		| (true, None) => false,
 		| (true, Some(redact_id)) =>
@@ -286,7 +283,7 @@ where
 		// TODO: this is supposed to hide redactions from policy servers, however, for
 		// full efficacy it also needs to hide redactions for unknown events. This
 		// needs to be investigated at a later time.
-		if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_id) {
+		if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_rules) {
 			debug!(
 				redact_id = %redact_id,
 				"Checking if redaction is for a soft-failed event"
