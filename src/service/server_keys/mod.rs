@@ -15,8 +15,8 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use futures::StreamExt;
 use ruma::{
-	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, RoomVersionId,
-	ServerName, ServerSigningKeyId,
+	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, ServerName,
+	ServerSigningKeyId,
 	api::federation::discovery::{ServerSigningKeys, VerifyKey},
 	room_version_rules::RoomVersionRules,
 	serde::Raw,

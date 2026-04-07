@@ -11,7 +11,7 @@ use conduwuit::{
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, TryWidebandExt},
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future::try_join};
-use ruma::{OwnedEventId, RoomId, RoomVersionId, room_version_rules::RoomVersionRules};
+use ruma::{OwnedEventId, RoomId, room_version_rules::RoomVersionRules};
 
 use crate::rooms::short::ShortStateHash;
 

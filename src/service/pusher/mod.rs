@@ -14,7 +14,7 @@ use ruma::{
 	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
 	api::{
 		IncomingResponse, MatrixVersion, OutgoingRequest,
-		auth_scheme::{NoAccessToken, NoAuthentication, SendAccessToken},
+		auth_scheme::NoAuthentication,
 		client::push::{Pusher, PusherKind, set_pusher},
 		path_builder::SinglePath,
 		push_gateway::send_event_notification::{
@@ -22,18 +22,11 @@ use ruma::{
 			v1::{Device, Notification, NotificationCounts, NotificationPriority},
 		},
 	},
-	events::{
-		AnySyncTimelineEvent, StateEventType, TimelineEventType,
-		room::{
-			create::RoomCreateEventContent,
-			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-		},
-	},
+	events::{AnySyncTimelineEvent, TimelineEventType, room::power_levels::RoomPowerLevels},
 	push::{
 		Action, HighlightTweakValue, PushConditionPowerLevelsCtx, PushConditionRoomCtx,
 		PushFormat, Ruleset, Tweak,
 	},
-	room_version_rules::{AuthorizationRules, RoomPowerLevelsRules, RoomVersionRules},
 	serde::Raw,
 	uint,
 };

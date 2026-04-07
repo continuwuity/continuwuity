@@ -1,5 +1,5 @@
 use conduwuit::{Result, implement};
-use ruma::{CanonicalJsonObject, RoomVersionId, room_version_rules::RoomVersionRules};
+use ruma::{CanonicalJsonObject, room_version_rules::RoomVersionRules};
 
 #[implement(super::Service)]
 pub fn sign_json(&self, object: &mut CanonicalJsonObject) -> Result {

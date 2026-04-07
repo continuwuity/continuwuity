@@ -1,9 +1,7 @@
-use std::str::FromStr;
-
 use conduwuit::{
 	Result, debug, debug_error, debug_info, implement, trace, utils::response::LimitReadExt,
 };
-use ruma::{OwnedServerName, ServerName};
+use ruma::ServerName;
 
 #[implement(super::Service)]
 #[tracing::instrument(name = "well-known", level = "debug", skip(self, dest))]
