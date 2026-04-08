@@ -6,9 +6,10 @@ NixOS packages Continuwuity as `matrix-continuwuity`. This package includes both
 
 You can acquire Continuwuity with Nix (or [Lix][lix]) from these sources:
 
-* Directly from Nixpkgs using the official package (`pkgs.matrix-continuwuity`)
-* The `flake.nix` at the root of the Continuwuity repo
-* The `default.nix` at the root of the Continuwuity repo
+- Directly from Nixpkgs using the official package (`pkgs.matrix-continuwuity`)
+- Or, using `continuwuity.packages.${system}.default` from:
+    - The `flake.nix` at the root of the Continuwuity repo
+    - The `default.nix` at the root of the Continuwuity repo
 
 ## NixOS module
 
@@ -22,6 +23,8 @@ Here's a basic example of how to use the module:
 {
   services.matrix-continuwuity = {
     enable = true;
+	# Optionally, override the package to be from our flake, for faster updates or unstable versions.
+	# package = inputs.continuwuity.packages.${pkgs.stdenv.hostPlatform.system}.default;
     settings = {
       global = {
         server_name = "example.com";
