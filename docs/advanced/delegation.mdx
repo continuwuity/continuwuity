@@ -24,6 +24,7 @@ client = "https://matrix.example.com"
 server = "matrix.example.com:443"
 
 # (optional) customize your support contacts
+# Defaults to members of the admin room if unset
 #support_page =
 #support_role = "m.role.admin"
 #support_email =
@@ -42,9 +43,13 @@ services:
         client=https://matrix.example.com,
         server=matrix.example.com:443
         }
+
+      # You can also configure individual .well-knowns as below
+      # CONTINUWUITY_WELL_KNOWN__CLIENT: https://matrix.example.com
+      # CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
 ```
 
-## Serving with a reverse proxy
+## Reverse proxying .well-knowns to Continuwuity
 
 After doing the steps above, Continuwuity will serve these 3 JSON files:
 
@@ -94,9 +99,7 @@ Restart Continuwuity and your reverse proxy. Once that's done, visit these route
 <summary>`https://example.com/.well-known/matrix/server`</summary>
 
 ```json
-{
-  "m.server": "matrix.example.com:443"
-}
+{ "m.server": "matrix.example.com:443" }
 ```
 
 </details>
@@ -115,7 +118,43 @@ Restart Continuwuity and your reverse proxy. Once that's done, visit these route
 
 </details>
 
+### Serving .well-knowns manually
+
+Instead of reverse proxying .well-knowns, you can serve them directly as static JSON files that matches the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't available.
+
+<details>
+
+<summary>Example Caddyfile **for the base domain**</summary>
+
+```
+https://example.com {
+
+    respond /.well-known/matrix/server 200 {
+        body `{"m.server":"matrix.example.com:443"}`
+    }
+
+    handle /.well-known/matrix/client {
+    header Access-Control-Allow-Origin *
+    respond <<JSON
+    {
+        "m.homeserver": {
+            "base_url": "https://matrix.example.com/"
+        }
+    }
+    JSON
+    }
+}
+```
+
+</details>
+
+When doing this, the `[global.well_known]` configurations can be safely removed. Remember to set the `Access-Control-Allow-Origin: *` header in your `/.well-known/matrix/client` path for web clients to work.
+
 ## Troubleshooting
+
+Check with the [Matrix Connectivity Tester][federation-tester] to see that it's working.
+
+[federation-tester]: https://federationtester.mtrnord.blog/
 
 ### Cannot log in with web clients
 
