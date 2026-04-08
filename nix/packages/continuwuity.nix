@@ -58,7 +58,7 @@ craneLib.buildPackage (
     meta = {
       description = "A community-driven Matrix homeserver in Rust";
       mainProgram = "conduwuit";
-      platforms = lib.platforms.linux;
+      platforms = lib.platforms.all;
       maintainers = with lib.maintainers; [ quadradical ];
     };
   }
