@@ -157,3 +157,7 @@ Force joins all local users to the specified room.
 At least 1 server admin must be in the room to reduce abuse.
 
 Requires the `--yes-i-want-to-do-this` flag.
+
+## `!admin users reset-push-rules`
+
+Resets the push-rules (notification settings) of the target user to the server defaults

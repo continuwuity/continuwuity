@@ -47,3 +47,11 @@ Restart the server
 ## `!admin server shutdown`
 
 Shutdown the server
+
+## `!admin server list-features`
+
+List features built into the server
+
+## `!admin server build-info`
+
+Build information

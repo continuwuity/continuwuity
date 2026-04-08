@@ -133,6 +133,18 @@ pusher service
 
 Returns all the pushers for the user
 
+### `!admin query pusher delete-pusher`
+
+Deletes a specific pusher by ID
+
+### `!admin query pusher delete-all-user`
+
+Deletes all pushers for a user
+
+### `!admin query pusher delete-all-device`
+
+Deletes all pushers associated with a device ID
+
 ## `!admin query short`
 
 short service
