@@ -44,7 +44,7 @@ craneLib.buildPackage (
     cargoArtifacts = craneLib.buildDepsOnly attrs;
 
     # Needed to make continuwuity link to rocksdb
-    postFixup = ''
+    postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
       old_rpath="$(patchelf --print-rpath $out/bin/conduwuit)"
       extra_rpath="${
         lib.makeLibraryPath [
