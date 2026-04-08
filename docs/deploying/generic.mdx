@@ -1,10 +1,12 @@
 # Generic deployment documentation
 
-> ### Getting help
->
-> If you run into any problems while setting up Continuwuity, ask us in
-> `#continuwuity:continuwuity.org` or [open an issue on
-> Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/issues/new).
+:::tip Getting help
+If you run into any problems while setting up Continuwuity, ask us in
+`#continuwuity:continuwuity.org` or [open an issue on
+Forgejo][forgejo-new-issue].
+:::
+
+[forgejo-new-issue]: https://forgejo.ellis.link/continuwuation/continuwuity/issues/new
 
 ## Installing Continuwuity
 
@@ -15,9 +17,9 @@ run the `uname -m` to check which you need.
 
 Prebuilt binaries are available from:
 
-- **Tagged releases**: [Latest release page](https://forgejo.ellis.link/continuwuation/continuwuity/releases/latest)
+- **Tagged releases**: [see Release page][release-page]
 - **Development builds**: CI artifacts from the `main` branch
-  (includes Debian/Ubuntu packages)
+  (includes Debian/Ubuntu packages), [see Actions page for details][actions-page]
 
 When browsing CI artifacts, `ci-bins` contains binaries organised
 by commit hash, while `releases` contains tagged versions. Sort
@@ -25,6 +27,9 @@ by last modified date to find the most recent builds.
 
 The binaries require jemalloc and io_uring on the host system. Currently
 we can't cross-build static binaries - contributions are welcome here.
+
+[release-page]: https://forgejo.ellis.link/continuwuation/continuwuity/releases/
+[actions-page]: https://forgejo.ellis.link/continuwuation/continuwuity/actions/
 
 #### Performance-optimised builds
 
@@ -38,10 +43,11 @@ compatibility and speed.
 If you're using Docker instead, equivalent performance-optimised
 images are available with the `-maxperf` suffix (e.g.
 `forgejo.ellis.link/continuwuation/continuwuity:latest-maxperf`).
-These images use the `release-max-perf`
-build profile with
-[link-time optimisation (LTO)](https://doc.rust-lang.org/cargo/reference/profiles.html#lto)
+These images use the `release-max-perf` build profile with
+[link-time optimisation (LTO)][lto-rust-docs]
 and, for amd64, target the haswell CPU architecture.
+
+[lto-rust-docs]: https://doc.rust-lang.org/cargo/reference/profiles.html#lto
 
 ### Nix
 
@@ -72,6 +78,16 @@ If you would like to build using docker, you can run the command `docker build -
 You can build Continuwuity using `cargo build --release`.
 
 Continuwuity supports various optional features that can be enabled during compilation. Please see the Cargo.toml file for a comprehensive list, or ask in our rooms.
+
+#### Building with Nix
+
+If you prefer, you can use Nix (or [Lix](https://lix.systems)) to build Continuwuity. This provides improved reproducibility and makes it easy to set up a build environment and generate output. This approach also allows for easy cross-compilation.
+
+You can run the `nix build -L .#static-x86_64-linux-musl-all-features` or
+`nix build -L .#static-aarch64-linux-musl-all-features` commands based
+on architecture to cross-compile the necessary static binary located at
+`result/bin/conduwuit`. This is reproducible with the static binaries produced
+in our CI.
 
 ## Adding a Continuwuity user
 
@@ -144,7 +160,9 @@ ReadWritePaths=/path/to/custom/database/path
 
 </details>
 
-You can also [view the file on Foregejo](https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/pkg/conduwuit.service).
+You can also [view the file on Foregejo][systemd-file].
+
+[systemd-file]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/pkg/conduwuit.service
 
 ## Creating the Continuwuity configuration file
 
@@ -186,7 +204,7 @@ After installing Caddy via your preferred method, create `/etc/caddy/conf.d/cond
 and enter the following (substitute your actual server name):
 
 ```
-your.server.name, your.server.name:8448 {
+example.com, example.com:8448 {
     # TCP reverse_proxy
     reverse_proxy 127.0.0.1:6167
     # UNIX socket
@@ -201,8 +219,6 @@ sudo systemctl enable --now caddy
 ```
 
 ### Other Reverse Proxies
-
-As we prefer our users to use Caddy, we do not provide configuration files for other proxies.
 
 You will need to reverse proxy everything under the following routes:
 
@@ -266,16 +282,16 @@ You can open [a Matrix client](https://matrix.org/ecosystem/clients), enter your
 homeserver address, and try to register.
 
 You can also use these commands as a quick health check (replace
-`your.server.name`).
+`example.com`).
 
 ```bash
-curl https://your.server.name/_conduwuit/server_version
+curl https://example.com/_conduwuit/server_version
 
 # If using port 8448
-curl https://your.server.name:8448/_conduwuit/server_version
+curl https://example.com:8448/_conduwuit/server_version
 
 # If federation is enabled
-curl https://your.server.name:8448/_matrix/federation/v1/version
+curl https://example.com:8448/_matrix/federation/v1/version
 ```
 
 - To check if your server can communicate with other homeservers, use the
@@ -285,11 +301,7 @@ curl https://your.server.name:8448/_matrix/federation/v1/version
 
 ## What's next?
 
-### Audio/Video calls
-
-For Audio/Video call functionality see the [Calls](../calls.md) page.
-
-### Appservices
-
-If you want to set up an appservice, take a look at the [Appservice
+- For smooth federation, set up a caching resolver according to the [DNS tuning guide](../advanced/dns.mdx)
+- For Audio/Video call functionality see the [Calls](../calls.md) page.
+- If you want to set up an appservice, take a look at the [Appservice
 Guide](../appservices.md).
