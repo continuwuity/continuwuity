@@ -560,6 +560,9 @@ features = ["std"]
 [workspace.dependencies.nonzero_ext]
 version = "0.3.0"
 
+[workspace.dependencies.resolvematrix]
+version = "0.1.0"
+
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"
 

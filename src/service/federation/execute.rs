@@ -7,6 +7,7 @@ use conduwuit::{
 };
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
+use resolvematrix::resolution::Resolution;
 use ruma::{
 	ServerName,
 	api::{
@@ -150,7 +151,7 @@ impl super::Service {
 	async fn perform<T>(
 		&self,
 		dest: &ServerName,
-		actual: &ActualDest,
+		actual: &Resolution,
 		request: Request,
 		client: &Client,
 	) -> Result<T::IncomingResponse>
@@ -198,7 +199,7 @@ impl super::Service {
 	async fn handle_response<T>(
 		&self,
 		dest: &ServerName,
-		actual: &ActualDest,
+		actual: &Resolution,
 		method: &Method,
 		url: &Url,
 		response: Response,
@@ -231,7 +232,7 @@ impl super::Service {
 
 async fn into_http_response(
 	dest: &ServerName,
-	actual: &ActualDest,
+	actual: &Resolution,
 	method: &Method,
 	url: &Url,
 	mut response: Response,
@@ -243,7 +244,7 @@ async fn into_http_response(
 		request_url = %url,
 		response_url = %response.url(),
 		"Received response from {}",
-		actual.string(),
+		actual.base_url(),
 	);
 
 	let mut http_response_builder = http::Response::builder()
@@ -280,7 +281,7 @@ async fn into_http_response(
 }
 
 fn handle_error(
-	actual: &ActualDest,
+	actual: &Resolution,
 	method: &Method,
 	url: &Url,
 	mut e: reqwest::Error,

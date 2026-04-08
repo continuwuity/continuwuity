@@ -46,7 +46,7 @@ impl crate::Context<'_> {
 		writeln!(self, "| Server Name | Destination | Hostname | Expires |").await?;
 		writeln!(self, "| ----------- | ----------- | -------- | ------- |").await?;
 
-		let mut destinations = self.services.resolver.cache.destinations().boxed();
+	    let mut destinations = self.services.resolver.dns.cache.destinations().boxed();
 
 		while let Some((name, CachedDest { dest, host, expire })) = destinations.next().await {
 			if let Some(server_name) = server_name.as_ref() {
@@ -69,7 +69,7 @@ impl crate::Context<'_> {
 		writeln!(self, "| Server Name | IP  | Port | Expires | Overriding |").await?;
 		writeln!(self, "| ----------- | --- | ----:| ------- | ---------- |").await?;
 
-		let mut overrides = self.services.resolver.cache.overrides().boxed();
+		let mut overrides = self.services.resolver.dns.cache.overrides().boxed();
 
 		while let Some((name, CachedOverride { ips, port, expire, overriding })) =
 			overrides.next().await
@@ -92,11 +92,11 @@ impl crate::Context<'_> {
 
 	async fn flush_cache(&self, name: Option<OwnedServerName>, all: bool) -> Result {
 		if all {
-			self.services.resolver.cache.clear().await;
+			self.services.resolver.dns.cache.clear().await;
 			writeln!(self, "Resolver caches cleared!").await
 		} else if let Some(name) = name {
-			self.services.resolver.cache.del_destination(&name);
-			self.services.resolver.cache.del_override(&name);
+			self.services.resolver.dns.cache.del_destination(&name);
+			self.services.resolver.dns.cache.del_override(&name);
 			self.write_str(&format!("Cleared {name} from resolver caches!"))
 				.await
 		} else {

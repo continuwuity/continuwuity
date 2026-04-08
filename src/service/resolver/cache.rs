@@ -4,7 +4,7 @@ use conduwuit::{
 	Result,
 	arrayvec::ArrayVec,
 	at, err,
-	utils::{math::Expected, rand, stream::TryIgnore},
+	utils::{math::Expected, stream::TryIgnore},
 };
 use database::{Cbor, Deserialized, Map};
 use futures::{Stream, StreamExt, future::join};
@@ -114,11 +114,6 @@ impl CachedDest {
 	#[must_use]
 	pub fn valid(&self) -> bool { self.expire > SystemTime::now() }
 
-	#[must_use]
-	pub(crate) fn default_expire() -> SystemTime {
-		rand::time_from_now_secs(60 * 60 * 18..60 * 60 * 36)
-	}
-
 	#[inline]
 	#[must_use]
 	pub fn size(&self) -> usize {
@@ -133,11 +128,6 @@ impl CachedOverride {
 	#[inline]
 	#[must_use]
 	pub fn valid(&self) -> bool { self.expire > SystemTime::now() }
-
-	#[must_use]
-	pub(crate) fn default_expire() -> SystemTime {
-		rand::time_from_now_secs(60 * 60 * 6..60 * 60 * 12)
-	}
 
 	#[inline]
 	#[must_use]

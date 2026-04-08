@@ -20,6 +20,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
+use resolvematrix::server::{MatrixResolver, ResolvedDestination};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
 	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
@@ -1007,15 +1008,22 @@ impl crate::Context<'_> {
 			);
 		}
 
-		let actual = self
-			.services
-			.resolver
-			.resolve_actual_dest(&server_name, !no_cache)
-			.await?;
+	let resolver: &MatrixResolver = if no_cache {
+		&MatrixResolver::new()?
+	} else {
+		&self.services.resolver.resolver
+	};
 
-		let msg = format!("Destination: {}\nHostname URI: {}", actual.dest, actual.host);
-		self.write_str(&msg).await
-	}
+	let actual = resolver.resolve_server(&server_name.as_str()).await?;
+
+	let destination = match actual.destination {
+		| ResolvedDestination::Literal(addr) => addr.to_string(),
+		| ResolvedDestination::Named(host, port) => format!("{host}:{port}"),
+	};
+
+	let msg = format!("Destination: {}\nHostname URI (SNI): {}", destination, actual.host);
+	self.write_str(&msg).await
+}
 
 	pub(super) async fn memory_stats(&self, opts: Option<String>) -> Result {
 		const OPTS: &str = "abcdefghijklmnopqrstuvwxyz";

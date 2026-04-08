@@ -1,33 +1,31 @@
-pub mod actual;
 pub mod cache;
 mod dns;
 pub mod fed;
-#[cfg(test)]
-mod tests;
-mod well_known;
 
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, arrayvec::ArrayString, utils::MutexMap};
+use conduwuit::{Err, Result, implement};
+use ipaddress::IPAddress;
+use resolvematrix::server::MatrixResolver;
 
 use self::{cache::Cache, dns::Resolver};
 use crate::{Dep, client};
 
 pub struct Service {
-	pub cache: Arc<Cache>,
-	pub resolver: Arc<Resolver>,
-	resolving: Resolving,
+	pub resolver: MatrixResolver,
+	pub dns: Dns,
 	services: Services,
 }
 
 struct Services {
-	server: Arc<Server>,
 	client: Dep<client::Service>,
 }
 
-type Resolving = MutexMap<NameBuf, ()>;
-type NameBuf = ArrayString<256>;
+pub struct Dns {
+	pub cache: Arc<Cache>,
+	pub resolver: Arc<Resolver>,
+}
 
 #[async_trait]
 impl crate::Service for Service {
@@ -35,20 +33,31 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let cache = Cache::new(&args);
 		Ok(Arc::new(Self {
-			cache: cache.clone(),
-			resolver: Resolver::build(args.server, cache)?,
-			resolving: MutexMap::new(),
+			resolver: MatrixResolver::new()?,
+			dns: Dns {
+				cache: cache.clone(),
+				resolver: Resolver::build(args.server, cache)?,
+			},
 			services: Services {
-				server: args.server.clone(),
 				client: args.depend::<client::Service>("client"),
 			},
 		}))
 	}
 
 	async fn clear_cache(&self) {
-		self.resolver.clear_cache();
-		self.cache.clear().await;
+		// No ability to clean resolvematrix cache at the moment
+		self.dns.resolver.clear_cache();
+		self.dns.cache.clear().await;
 	}
 
-	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
+	fn name(&self) -> &str { crate::service::make_name(module_path!()) }
+}
+
+#[implement(Service)]
+pub fn validate_ip(&self, ip: &IPAddress) -> Result<()> {
+	if !self.services.client.valid_cidr_range(ip) {
+		return Err!(BadServerResponse("Not allowed to send requests to this IP"));
+	}
+
+	Ok(())
 }

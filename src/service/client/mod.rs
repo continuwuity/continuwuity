@@ -43,7 +43,7 @@ impl crate::Service for Service {
 
 		Ok(Arc::new(Self {
 			default: base(config)?
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.build()?,
 
 			url_preview: base(config)
@@ -51,19 +51,19 @@ impl crate::Service for Service {
 					builder_interface(builder, url_preview_bind_iface.as_deref())
 				})?
 				.local_address(url_preview_bind_addr)
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
 				.user_agent(url_preview_user_agent)
 				.build()?,
 
 			extern_media: base(config)?
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
 			well_known: base(config)?
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.connect_timeout(Duration::from_secs(config.well_known_conn_timeout))
 				.read_timeout(Duration::from_secs(config.well_known_timeout))
 				.timeout(Duration::from_secs(config.well_known_timeout))
@@ -72,7 +72,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			federation: base(config)?
-				.dns_resolver(resolver.resolver.hooked.clone())
+				.dns_resolver(resolver.dns.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout))
 				.timeout(Duration::from_secs(
@@ -86,7 +86,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			federation_slow: base(config)?
-				.dns_resolver(resolver.resolver.hooked.clone())
+				.dns_resolver(resolver.dns.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))
 				.timeout(Duration::from_secs(
@@ -100,7 +100,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			sender: base(config)?
-				.dns_resolver(resolver.resolver.hooked.clone())
+				.dns_resolver(resolver.dns.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.sender_timeout))
 				.timeout(Duration::from_secs(config.sender_timeout))
@@ -110,7 +110,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			appservice: base(config)?
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.connect_timeout(Duration::from_secs(5))
 				.read_timeout(Duration::from_secs(config.appservice_timeout))
 				.timeout(Duration::from_secs(config.appservice_timeout))
@@ -120,7 +120,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			pusher: base(config)?
-				.dns_resolver(resolver.resolver.clone())
+				.dns_resolver(resolver.dns.resolver.clone())
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)
