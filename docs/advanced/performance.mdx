@@ -123,41 +123,6 @@ Please vet any servers for trustworthiness before using them, as they are your f
 
 Some users have also reported that increasing `trusted_server_batch_size` has helped with faster joins for huge rooms. Start with doubling the default to `2048` until you find a suitable value.
 
-### Serving .well-knowns manually
-
-Instead of [reverse proxying .well-knowns](./delegation#serving-with-a-reverse-proxy), you can serve them directly as manual files at the reverse proxy. This could decrease _some_ network request handling for Continuwuity.
-
-<details>
-
-<summary>Example config with Caddy</summary>
-
-```
-### in your Caddyfile ###
-
-https://example.com {
-
-    respond /.well-known/matrix/server 200 {
-        body `{"m.server":"matrix.example.com:443"}`
-    }
-
-    respond /.well-known/matrix/client 200 {
-        body <<JSON
-        {
-            "m.homeserver": {
-                "base_url": "https://matrix.example.com/"
-            }
-        }
-        JSON
-    }
-}
-
-https://matrix.example.com {
-    reverse_proxy 127.0.0.1:6167
-}
-```
-
-</details>
-
 ### Enable HTTP/3 on your reverse proxy
 
 Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy HTTP/3 is allowed by default, and you'd need to expose port :443/**udp** on your firewall.
