@@ -80,20 +80,6 @@ Continuwuity exclusively uses RocksDB as its database backend. The system config
 
 If you're migrating from Conduit with SQLite, use this [tool to migrate a Conduit SQLite database to RocksDB](https://github.com/ShadowJonathan/conduit_toolbox/).
 
-### jemalloc and hardened profile
-
-Continuwuity uses jemalloc by default. This may interfere with the [`hardened.nix` profile][hardened.nix] because it uses `scudo` by default. Either disable/hide `scudo` from Continuwuity or disable jemalloc like this:
-
-```nix
-services.matrix-continuwuity = {
-  enable = true;
-  package = pkgs.matrix-continuwuity.override {
-    enableJemalloc = false;
-  };
-  # ...
-};
-```
-
 ## Upgrading from Conduit
 
 If you previously used Conduit with the `services.matrix-conduit` module:
@@ -130,4 +116,3 @@ server {
 ```
 
 [lix]: https://lix.systems/
-[hardened.nix]: https://github.com/NixOS/nixpkgs/blob/master/nixos/modules/profiles/hardened.nix
