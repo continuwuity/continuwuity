@@ -1014,7 +1014,7 @@ impl crate::Context<'_> {
 		&self.services.resolver.resolver
 	};
 
-	let actual = resolver.resolve_server(&server_name.as_str()).await?;
+	let actual = resolver.resolve_server(server_name.as_str()).await?;
 
 	let destination = match actual.destination {
 		| ResolvedDestination::Literal(addr) => addr.to_string(),
