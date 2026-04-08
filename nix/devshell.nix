@@ -12,19 +12,27 @@
       devShells.default = craneLib.devShell {
         packages = [
           self'.packages.rocksdb
-          pkgs.rust-jemalloc-sys-unprefixed
           pkgs.nodejs
-          pkgs.liburing
           pkgs.pkg-config
+        ]
+        ++ lib.optionals pkgs.stdenv.isLinux [
+          pkgs.liburing
+          pkgs.rust-jemalloc-sys-unprefixed
         ];
 
         env = {
           LIBCLANG_PATH = lib.makeLibraryPath [ pkgs.llvmPackages.libclang.lib ];
-          LD_LIBRARY_PATH = lib.makeLibraryPath [
-            pkgs.liburing
-            pkgs.jemalloc
-            pkgs.stdenv.cc.cc.lib
-          ];
+          LD_LIBRARY_PATH = lib.makeLibraryPath (
+            [
+              pkgs.stdenv.cc.cc.lib
+            ]
+            ++ lib.optionals pkgs.stdenv.isLinux [
+              pkgs.liburing
+              pkgs.jemalloc
+            ]
+          );
+        }
+        // lib.optionalAttrs pkgs.stdenv.isLinux {
           PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" [
             pkgs.liburing.dev
           ];
