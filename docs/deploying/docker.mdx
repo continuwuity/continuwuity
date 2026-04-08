@@ -41,12 +41,11 @@ Continuwuity requires HTTPS for Matrix federation. You'll need:
 - A reverse proxy with SSL/TLS certificates (Traefik, Caddy, nginx, etc.) - see [Docker Compose](#docker-compose) for complete examples.
 - Port `:443` (for Client-Server traffic) and `:8448` (for federation traffic) opened on your server's firewall.
 
-    - Alternatively, if you want both client and federation traffic on `:443`, you can configure `CONTINUWUITY_WELL_KNOWN` following some of the examples below.
+    - Alternatively, if you want both client and federation traffic on `:443`, you can configure `CONTINUWUITY_WELL_KNOWN` following some of the [examples](#choose-your-reverse-proxy) below.
 
-:::tip Alternative setups
+:::tip Split-domain setups
 For more setups with `.well-known` delegation and split-domain deployments, consult the [Delegation/Split-domain](../advanced/delegation) page.
 :::
-
 
 ## Docker - Quick Run
 
@@ -232,6 +231,10 @@ You will then need to point your reverse proxy towards Continuwuity at `127.0.0.
 
 See the [generic deployment guide](generic.mdx) for more deployment options.
 
+## Testing
+
+Test that your setup works by following these [instructions](./generic.mdx#how-do-i-know-it-works)
+
 ## (Optional) Building Custom Images
 
 For information on building your own Continuwuity Docker images, see the
@@ -240,7 +243,6 @@ section in the development documentation.
 
 ## Next steps
 
-- Test that your setup works by following these [instructions](./generic.mdx#how-do-i-know-it-works)
 - For smooth federation, set up a caching resolver according to the [DNS tuning guide](../advanced/dns.mdx)
 - To set up Audio/Video communication, see the [Calls](../calls.mdx) page.
 If you want to set up an appservice, take a look at the [Appservice
