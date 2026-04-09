@@ -147,7 +147,13 @@ pub(crate) async fn set_room_visibility_route(
 		return Err!(Request(Forbidden("Guests cannot publish to room directories")));
 	}
 
-	if !user_can_publish_room(&services, sender_user, &body.room_id).await? {
+	let room_power_levels = services
+		.rooms
+		.state_accessor
+		.get_room_power_levels(&body.room_id)
+		.await;
+
+	if !room_power_levels.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility) {
 		return Err!(Request(Forbidden("User is not allowed to publish this room")));
 	}
 
