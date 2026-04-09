@@ -143,7 +143,13 @@ pub(crate) async fn set_room_visibility_route(
 		return Err!(Request(Forbidden("Guests cannot publish to room directories")));
 	}
 
-	if !user_can_publish_room(&services, sender_user, &body.room_id).await? {
+	let room_power_levels = services
+		.rooms
+		.state_accessor
+		.get_room_power_levels(&body.room_id)
+		.await;
+
+	if !room_power_levels.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility) {
 		return Err!(Request(Forbidden("User is not allowed to publish this room")));
 	}
 
@@ -338,39 +344,6 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 		next_batch,
 		total_room_count_estimate,
 	})
-}
-
-/// Check whether the user can publish to the room directory via power levels of
-/// room history visibility event or room creator
-async fn user_can_publish_room(
-	services: &Services,
-	user_id: &UserId,
-	room_id: &RoomId,
-) -> Result<bool> {
-	match services
-		.rooms
-		.state_accessor
-		.room_state_get(room_id, &StateEventType::RoomPowerLevels, "")
-		.await
-	{
-		| Ok(event) => serde_json::from_str(event.content().get())
-			.map_err(|_| err!(Database("Invalid event content for m.room.power_levels")))
-			.map(|content: RoomPowerLevelsEventContent| {
-				RoomPowerLevels::from(content)
-					.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility)
-			}),
-		| _ => {
-			match services
-				.rooms
-				.state_accessor
-				.room_state_get(room_id, &StateEventType::RoomCreate, "")
-				.await
-			{
-				| Ok(event) => Ok(event.sender() == user_id),
-				| _ => Err!(Request(Forbidden("User is not allowed to publish this room"))),
-			}
-		},
-	}
 }
 
 async fn public_rooms_chunk(services: &Services, room_id: OwnedRoomId) -> PublicRoomsChunk {

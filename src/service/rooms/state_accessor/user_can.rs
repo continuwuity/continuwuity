@@ -44,31 +44,6 @@ pub async fn user_can_redact(
 		)));
 	}
 
-	let create_event = self
-		.room_state_get(room_id, &StateEventType::RoomCreate, "")
-		.await?;
-	let create_event_content: RoomCreateEventContent = create_event.get_content().unwrap();
-	let room_version_rules = create_event_content
-		.room_version
-		.rules()
-		.expect("room version should have defined rules");
-	if room_version_rules
-		.authorization
-		.explicitly_privilege_room_creators
-	{
-		let sender_owned = sender.to_owned();
-		// NOTE: we don't check the pre-v11 `creator` field because no room version has
-		// `explicitly_privilege_room_creators` and `use_room_create_sender` set at the
-		// same time
-		if sender == create_event.sender()
-			|| create_event_content
-				.additional_creators
-				.contains(&sender_owned)
-		{
-			return Ok(true);
-		}
-	}
-
 	let power_levels = self.get_room_power_levels(room_id).await;
 
 	if power_levels.user_can_redact_event_of_other(sender) {

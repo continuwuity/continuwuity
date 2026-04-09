@@ -732,40 +732,33 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 
 	let state_lock = self.services.rooms.state.mutex.lock(&room_id).await;
 
-	let room_power_levels: Option<RoomPowerLevelsEventContent> = self
+	let mut room_power_levels = self
 		.services
 		.rooms
 		.state_accessor
-		.room_state_get_content(&room_id, &StateEventType::RoomPowerLevels, "")
-		.await
-		.ok();
+		.get_room_power_levels(&room_id)
+		.await;
 
-	let user_can_demote_self = room_power_levels
-		.as_ref()
-		.is_some_and(|power_levels_content| {
-			RoomPowerLevels::from(power_levels_content.clone())
-				.user_can_change_user_power_level(&user_id, &user_id)
-		}) || self
-		.services
-		.rooms
-		.state_accessor
-		.room_state_get(&room_id, &StateEventType::RoomCreate, "")
-		.await
-		.is_ok_and(|event| event.sender() == user_id);
+	let user_can_demote_self =
+		room_power_levels.user_can_change_user_power_level(&user_id, &user_id);
 
 	if !user_can_demote_self {
 		return Err!("User is not allowed to modify their own power levels in the room.",);
 	}
 
-	let mut power_levels_content = room_power_levels.unwrap_or_default();
-	power_levels_content.users.remove(&user_id);
+	room_power_levels.users.remove(&user_id);
 
 	let event_id = self
 		.services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &power_levels_content),
+			PduBuilder::state(
+				String::new(),
+				room_power_levels
+					.try_into()
+					.expect("PLs should be valid for room version"),
+			),
 			&user_id,
 			Some(&room_id),
 			&state_lock,

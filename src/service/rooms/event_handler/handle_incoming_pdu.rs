@@ -209,11 +209,11 @@ pub async fn handle_incoming_pdu<'a>(
 	}
 
 	// Fetch create event
-	let create_event = &(self
+	let ref create_event = self
 		.services
 		.state_accessor
-		.room_state_get(room_id, &StateEventType::RoomCreate, "")
-		.await?);
+		.get_room_create_event(room_id)
+		.await;
 
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
