@@ -1,7 +1,9 @@
+use std::iter::once;
+
 use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
-	Err, Event, Result, err, info,
+	Err, Event, Result, RoomVersion, err, info,
 	utils::{
 		TryFutureExtExt,
 		math::Expected,
@@ -30,12 +32,14 @@ use ruma::{
 	events::{
 		StateEventType,
 		room::{
+			create::RoomCreateEventContent,
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 		},
 	},
 	uint,
 };
+use tokio::join;
 
 use crate::Ruma;
 
@@ -339,36 +343,63 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 	})
 }
 
-/// Check whether the user can publish to the room directory via power levels of
-/// room history visibility event or room creator
+/// Checks whether the given user ID is allowed to publish the target room to
+/// the server's public room directory. Users are allowed to publish rooms if
+/// they are server admins, room creators (in v12), or have the power level to
+/// send `m.room.canonical_alias`.
 async fn user_can_publish_room(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,
 ) -> Result<bool> {
-	match services
-		.rooms
-		.state_accessor
-		.room_state_get(room_id, &StateEventType::RoomPowerLevels, "")
-		.await
+	if services.users.is_admin(user_id).await {
+		// Server admins can always publish to their own room directory.
+		return Ok(true);
+	}
+	let (create_event, room_version, power_levels_content) = join!(
+		services
+			.rooms
+			.state_accessor
+			.room_state_get(room_id, &StateEventType::RoomCreate, ""),
+		services.rooms.state.get_room_version(room_id),
+		services
+			.rooms
+			.state_accessor
+			.room_state_get_content::<RoomPowerLevelsEventContent>(
+				room_id,
+				&StateEventType::RoomPowerLevels,
+				""
+			)
+	);
+	let room_version = room_version
+		.as_ref()
+		.map_err(|_| err!(Request(NotFound("Unknown room"))))?;
+	let create_event = create_event.map_err(|_| err!(Request(NotFound("Unknown room"))))?;
+	if RoomVersion::new(room_version)
+		.expect("room version must be supported")
+		.explicitly_privilege_room_creators
 	{
-		| Ok(event) => serde_json::from_str(event.content().get())
-			.map_err(|_| err!(Database("Invalid event content for m.room.power_levels")))
-			.map(|content: RoomPowerLevelsEventContent| {
-				RoomPowerLevels::from(content)
-					.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility)
-			}),
-		| _ => {
-			match services
-				.rooms
-				.state_accessor
-				.room_state_get(room_id, &StateEventType::RoomCreate, "")
-				.await
-			{
-				| Ok(event) => Ok(event.sender() == user_id),
-				| _ => Err!(Request(Forbidden("User is not allowed to publish this room"))),
-			}
-		},
+		let create_content: RoomCreateEventContent =
+			serde_json::from_str(create_event.content().get())
+				.map_err(|_| err!(Database("Invalid event content for m.room.create")))?;
+		let is_creator = create_content
+			.additional_creators
+			.unwrap_or_default()
+			.into_iter()
+			.chain(once(create_event.sender().to_owned()))
+			.any(|sender| sender == user_id);
+		if is_creator {
+			return Ok(true);
+		}
+	}
+	match power_levels_content.map(RoomPowerLevels::from) {
+		| Ok(pl) => Ok(pl.user_can_send_state(user_id, StateEventType::RoomCanonicalAlias)),
+		| Err(e) =>
+			if e.is_not_found() {
+				Ok(create_event.sender() == user_id)
+			} else {
+				Err!(Database("Invalid event content for m.room.power_levels: {e}"))
+			},
 	}
 }
 
