@@ -83,7 +83,7 @@ where
 					body,
 					Some(pdu.event_id().into()),
 					source,
-					pdu.sender.clone().into(),
+					pdu.sender.clone(),
 				)?;
 			}
 		}
@@ -224,7 +224,7 @@ where
 			let target_user_id = UserId::parse(state_key)?;
 
 			if self.services.users.is_active_local(&target_user_id).await {
-				push_target.insert(target_user_id.to_owned());
+				push_target.insert(target_user_id.clone());
 			}
 		}
 	}
@@ -320,15 +320,6 @@ where
 				},
 			}
 		},
-		| TimelineEventType::SpaceChild =>
-			if let Some(_state_key) = pdu.state_key() {
-				self.services
-					.spaces
-					.roomid_spacehierarchy_cache
-					.lock()
-					.await
-					.remove(room_id);
-			},
 		| TimelineEventType::RoomMember => {
 			if let Some(state_key) = pdu.state_key() {
 				// if the state_key fails
@@ -410,7 +401,7 @@ where
 				.and_then(|state_key| UserId::parse(state_key.as_str()).ok())
 			{
 				let appservice_uid = appservice.registration.sender_localpart.as_str();
-				if state_key_uid == &appservice_uid {
+				if state_key_uid == appservice_uid {
 					self.services
 						.sending
 						.send_pdu_appservice(appservice.registration.id.clone(), pdu_id)?;
