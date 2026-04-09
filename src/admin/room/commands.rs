@@ -102,7 +102,7 @@ pub(super) async fn purge_sync_tokens(&self, room: OwnedRoomOrAliasId) -> Result
 
 /// Target options for room purging
 #[derive(Default, Debug, clap::ValueEnum, Clone)]
-pub(crate) enum RoomTargetOption {
+pub enum RoomTargetOption {
 	#[default]
 	/// Target all rooms
 	All,
@@ -180,7 +180,7 @@ pub(super) async fn purge_all_sync_tokens(
 		total_rooms_checked = total_rooms_checked.saturating_add(1);
 
 		// Log progress periodically
-		if total_rooms_checked % 100 == 0 || total_rooms_checked == total_rooms {
+		if total_rooms_checked.is_multiple_of(100) || total_rooms_checked == total_rooms {
 			info!(
 				"Progress: {}/{} rooms checked, {} tokens {}",
 				total_rooms_checked,
