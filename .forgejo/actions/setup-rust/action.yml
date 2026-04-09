@@ -149,37 +149,6 @@ runs:
     - name: Setup sccache
       uses: https://git.tomfos.tr/tom/sccache-action@v1
 
-    - name: Cache dependencies
-      id: deps-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/**/.fingerprint
-          target/**/deps
-          target/**/*.d
-          target/**/.cargo-lock
-          target/**/CACHEDIR.TAG
-          target/**/.rustc_info.json
-          /timelord/
-        # Dependencies cache - based on Cargo.lock, survives source code changes
-        key: >-
-          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}
-        restore-keys: |
-          continuwuity-deps-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
-
-    - name: Cache incremental compilation
-      id: incremental-cache
-      uses: actions/cache@v4
-      with:
-        path: |
-          target/**/incremental
-        # Incremental cache - based on source code changes
-        key: >-
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-${{ hashFiles('**/*.rs', '**/Cargo.toml') }}
-        restore-keys: |
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-${{ hashFiles('rust-toolchain.toml', '**/Cargo.lock') }}-
-          continuwuity-incremental-${{ steps.runner-os.outputs.slug }}-${{ steps.runner-os.outputs.arch }}-${{ steps.rust-setup.outputs.version }}${{ inputs.cache-key-suffix && format('-{0}', inputs.cache-key-suffix) || '' }}-
-
     - name: End build cache restore group
       shell: bash
       run: echo "::endgroup::"
