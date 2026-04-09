@@ -20,7 +20,7 @@ jobs:
           token: ${{ secrets.FORGEJO_TOKEN }}
 
       - name: Install Lix
-        uses: https://github.com/samueldr/lix-gha-installer-action@7b7f14d320d6aacfb65bd1ef761566b3b69e474c
+        uses: https://github.com/samueldr/lix-gha-installer-action@f5e94192f565f53d84f41a056956dc0d3183b343
         with:
           extra_nix_config: experimental-features = nix-command flakes flake-self-attrs
 
