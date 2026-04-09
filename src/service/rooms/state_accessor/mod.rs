@@ -6,7 +6,7 @@ mod user_can;
 use std::{collections::HashSet, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Event, Result, err};
+use conduwuit::{Event, Pdu, Result, err};
 use database::Map;
 use ruma::{
 	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, OwnedUserId, RoomId, UserId,
@@ -164,6 +164,13 @@ impl Service {
 			.is_ok()
 	}
 
+	/// Get a room's create event.
+	pub async fn get_room_create_event(&self, room_id: &RoomId) -> Pdu {
+		self.room_state_get(room_id, &StateEventType::RoomCreate, "")
+			.await
+			.expect("room should have a create event")
+	}
+
 	/// Get a set of the room's creators. This will always contain a single user
 	/// for room versions 11 and earlier.
 	pub async fn get_room_creators(&self, room_id: &RoomId) -> HashSet<OwnedUserId> {
@@ -176,10 +183,8 @@ impl Service {
 			.rules()
 			.expect("room version should be known");
 
-		let create_event = self
-			.room_state_get(room_id, &StateEventType::RoomCreate, "")
-			.await
-			.expect("room should have a create event");
+		let create_event = self.get_room_create_event(room_id).await;
+
 		let create_content: RoomCreateEventContent = create_event
 			.get_content()
 			.expect("create event content should be valid");
