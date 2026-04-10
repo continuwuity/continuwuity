@@ -55,7 +55,7 @@ jobs:
           fi
 
       - name: Manage PR Comment
-        uses: https://github.com/actions/github-script@v8
+        uses: https://github.com/actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           HAS_CHANGELOG: ${{ steps.check_files.outputs.has_changelog }}
           SRC_CHANGED: ${{ steps.check_files.outputs.src_changed }}

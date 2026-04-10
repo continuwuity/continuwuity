@@ -9,7 +9,7 @@ runs:
   - name: Install sccache
     uses: https://git.tomfos.tr/tom/sccache-action@v1
   - name: Configure sccache
-    uses: https://github.com/actions/github-script@v8
+    uses: https://github.com/actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
     with:
       script: |
         core.exportVariable('ACTIONS_RESULTS_URL', process.env.ACTIONS_RESULTS_URL || '');
