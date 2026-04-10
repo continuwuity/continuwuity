@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use conduwuit::{
-	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PduBuilder, warn,
+	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PartialPdu, warn,
 };
 use ruma::{
 	RoomId, UserId,
@@ -51,7 +51,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					String::from(user_id),
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
@@ -65,7 +65,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					String::from(user_id),
 					&RoomMemberEventContent::new(MembershipState::Join),
 				),
@@ -79,7 +79,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					user_id.to_string(),
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
@@ -110,7 +110,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 	self.services
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &room_power_levels),
+			PartialPdu::state(String::new(), &room_power_levels),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -207,7 +207,7 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 	self.services
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(user_id.to_string(), &member_content),
+			PartialPdu::state(user_id.to_string(), &member_content),
 			self.services.globals.server_user.as_ref(),
 			Some(&room_id),
 			&state_lock,

@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, err, info,
-	matrix::{StateKey, pdu::PduBuilder},
+	matrix::{StateKey, pdu::PartialPdu},
 	trace, warn,
 };
 use conduwuit_service::{Services, appservice::RegistrationInfo};
@@ -230,7 +230,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_content)?,
 				state_key: Some(StateKey::new()),
@@ -269,7 +269,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(sender_user.to_string(), &join_event),
+			PartialPdu::state(sender_user.to_string(), &join_event),
 			sender_user,
 			Some(&room_id),
 			&state_lock,
@@ -330,7 +330,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: TimelineEventType::RoomPowerLevels,
 				content: to_raw_value(&power_levels_content)?,
 				state_key: Some(StateKey::new()),
@@ -349,7 +349,7 @@ pub(crate) async fn create_room_route(
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(String::new(), &RoomCanonicalAliasEventContent {
+				PartialPdu::state(String::new(), &RoomCanonicalAliasEventContent {
 					alias: Some(room_alias_id.to_owned()),
 					alt_aliases: vec![],
 				}),
@@ -368,7 +368,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				&RoomJoinRulesEventContent::new(match preset {
 					| RoomPreset::PublicChat => JoinRule::Public,
@@ -388,7 +388,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				&RoomHistoryVisibilityEventContent::new(HistoryVisibility::Shared),
 			),
@@ -404,7 +404,7 @@ pub(crate) async fn create_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				&RoomGuestAccessEventContent::new(match preset {
 					| RoomPreset::PublicChat => GuestAccess::Forbidden,
@@ -420,7 +420,7 @@ pub(crate) async fn create_room_route(
 
 	// 6. Events listed in initial_state
 	for event in &body.initial_state {
-		let mut pdu_builder = event.deserialize_as::<PduBuilder>().map_err(|e| {
+		let mut partial_pdu = event.deserialize_as::<PartialPdu>().map_err(|e| {
 			err!(Request(InvalidParam(warn!("Invalid initial state event: {e:?}"))))
 		})?;
 
@@ -429,17 +429,17 @@ pub(crate) async fn create_room_route(
 		// client/appservice workaround: if a user sends an initial_state event with a
 		// state event in there with the content of literally `{}` (not null or empty
 		// string), let's just skip it over and warn.
-		if pdu_builder.content.get().eq("{}") {
+		if partial_pdu.content.get().eq("{}") {
 			debug_warn!("skipping empty initial state event with content of `{{}}`: {event:?}");
-			debug_warn!("content: {}", pdu_builder.content.get());
+			debug_warn!("content: {}", partial_pdu.content.get());
 			continue;
 		}
 
 		// Implicit state key defaults to ""
-		pdu_builder.state_key.get_or_insert_with(StateKey::new);
+		partial_pdu.state_key.get_or_insert_with(StateKey::new);
 
 		// Silently skip encryption events if they are not allowed
-		if pdu_builder.event_type == TimelineEventType::RoomEncryption
+		if partial_pdu.event_type == TimelineEventType::RoomEncryption
 			&& !services.config.allow_encryption
 		{
 			continue;
@@ -448,7 +448,7 @@ pub(crate) async fn create_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(pdu_builder, sender_user, Some(&room_id), &state_lock)
+			.build_and_append_pdu(partial_pdu, sender_user, Some(&room_id), &state_lock)
 			.boxed()
 			.await?;
 	}
@@ -459,7 +459,7 @@ pub(crate) async fn create_room_route(
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(String::new(), &RoomNameEventContent::new(name.clone())),
+				PartialPdu::state(String::new(), &RoomNameEventContent::new(name.clone())),
 				sender_user,
 				Some(&room_id),
 				&state_lock,
@@ -473,7 +473,7 @@ pub(crate) async fn create_room_route(
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(String::new(), &RoomTopicEventContent { topic: topic.clone() }),
+				PartialPdu::state(String::new(), &RoomTopicEventContent { topic: topic.clone() }),
 				sender_user,
 				Some(&room_id),
 				&state_lock,

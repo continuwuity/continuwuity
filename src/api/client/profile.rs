@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
 	Err, Result,
-	matrix::pdu::PduBuilder,
+	matrix::pdu::PartialPdu,
 	utils::{IterStream, future::TryExtExt, stream::TryIgnore},
 	warn,
 };
@@ -328,7 +328,7 @@ pub async fn update_displayname(
 		.iter()
 		.try_stream()
 		.and_then(|room_id: &OwnedRoomId| async move {
-			let pdu = PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
+			let pdu = PartialPdu::state(user_id.to_string(), &RoomMemberEventContent {
 				displayname: displayname.clone(),
 				membership: MembershipState::Join,
 				avatar_url: avatar_url.clone(),
@@ -380,7 +380,7 @@ pub async fn update_avatar_url(
 		.iter()
 		.try_stream()
 		.and_then(|room_id: &OwnedRoomId| async move {
-			let pdu = PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
+			let pdu = PartialPdu::state(user_id.to_string(), &RoomMemberEventContent {
 				avatar_url: avatar_url.clone(),
 				blurhash: blurhash.clone(),
 				membership: MembershipState::Join,
@@ -405,15 +405,15 @@ pub async fn update_avatar_url(
 
 pub async fn update_all_rooms(
 	services: &Services,
-	all_joined_rooms: Vec<(PduBuilder, &OwnedRoomId)>,
+	all_joined_rooms: Vec<(PartialPdu, &OwnedRoomId)>,
 	user_id: &UserId,
 ) {
-	for (pdu_builder, room_id) in all_joined_rooms {
+	for (partial_pdu, room_id) in all_joined_rooms {
 		let state_lock = services.rooms.state.mutex.lock(room_id).await;
 		if let Err(e) = services
 			.rooms
 			.timeline
-			.build_and_append_pdu(pdu_builder, user_id, Some(room_id), &state_lock)
+			.build_and_append_pdu(partial_pdu, user_id, Some(room_id), &state_lock)
 			.await
 		{
 			warn!(%user_id, %room_id, "Failed to update/send new profile join membership update in room: {e}");
