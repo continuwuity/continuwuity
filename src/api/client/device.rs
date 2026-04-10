@@ -121,36 +121,28 @@ pub(crate) async fn delete_device_route(
 	let sender_user = body.sender_user();
 	let appservice = body.appservice_info.as_ref();
 
-	if appservice.is_some() {
-		debug!("Skipping UIAA for {sender_user} as this is from an appservice");
-		services
-			.users
-			.remove_device(sender_user, &body.device_id)
-			.await;
-
-		return Ok(delete_device::v3::Response::new());
+	// Appservices get to skip UIAA for this endpoint
+	if appservice.is_none() {
+		// Prompt the user to confirm with their password using UIAA
+		let _ = services
+			.uiaa
+			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.await?;
 	}
-
-	// Prompt the user to confirm with their password using UIAA
-	let _ = services
-		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
-		.await?;
 
 	services
 		.users
 		.remove_device(sender_user, &body.device_id)
 		.await;
 
-	Ok(delete_device::v3::Response {})
+	Ok(delete_device::v3::Response::new())
 }
 
 /// # `POST /_matrix/client/v3/delete_devices`
 ///
 /// Deletes the given list of devices.
 ///
-/// - Requires UIAA to verify user password unless from an appservice with
-///   MSC4190 enabled.
+/// - Requires UIAA to verify user password.
 ///
 /// For each device:
 /// - Invalidates access token
@@ -165,27 +157,18 @@ pub(crate) async fn delete_devices_route(
 	let sender_user = body.sender_user();
 	let appservice = body.appservice_info.as_ref();
 
-	if appservice.is_some_and(|appservice| appservice.registration.device_management) {
-		debug!(
-			"Skipping UIAA for {sender_user} as this is from an appservice and MSC4190 is \
-			 enabled"
-		);
-		for device_id in &body.devices {
-			services.users.remove_device(sender_user, device_id).await;
-		}
-
-		return Ok(delete_devices::v3::Response {});
+	// Appservices get to skip UIAA for this endpoint
+	if appservice.is_none() {
+		// Prompt the user to confirm with their password using UIAA
+		let _ = services
+			.uiaa
+			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.await?;
 	}
-
-	// Prompt the user to confirm with their password using UIAA
-	let _ = services
-		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
-		.await?;
 
 	for device_id in &body.devices {
 		services.users.remove_device(sender_user, device_id).await;
 	}
 
-	Ok(delete_devices::v3::Response {})
+	Ok(delete_devices::v3::Response::new())
 }
