@@ -12,7 +12,9 @@ use futures::{
 	FutureExt, StreamExt, TryFutureExt, TryStreamExt,
 	future::{OptionFuture, join, join3, try_join3},
 };
-use ruma::{OwnedEventId, UserId, api::client::context::get_context, events::StateEventType};
+use ruma::{
+	OwnedEventId, UserId, api::client::context::get_context, assign, events::StateEventType,
+};
 
 use crate::{
 	Ruma,
@@ -213,7 +215,7 @@ pub(crate) async fn get_context_route(
 		.collect()
 		.await;
 
-	Ok(get_context::v3::Response {
+	Ok(assign!(get_context::v3::Response::new(), {
 		event: base_event.map(at!(1)).map(Event::into_format),
 
 		start: events_before
@@ -243,5 +245,5 @@ pub(crate) async fn get_context_route(
 			.collect(),
 
 		state,
-	})
+	}))
 }
