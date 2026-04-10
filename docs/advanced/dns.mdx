@@ -120,7 +120,7 @@ forward-zone:
 
 [Dnsproxy][dnsproxy] and its sister product [AdGuard Home][adguard-home] are known to work with Continuwuity and has an official Docker image. They have support for DNS-over-HTTPS as well as DNS-over-QUIC, but not recursion.
 
-To best utilise dnsproxy, you should enable proper caching with `--cache` and set `--cache-size` to something bigger, like `64M`.
+To best utilise dnsproxy, you should enable proper caching with `--cache` and set `--cache-size` to something bigger, like `64000000`.
 
 [dnsproxy]: https://github.com/AdguardTeam/dnsproxy
 [adguard-home]: https://github.com/AdguardTeam/AdGuardHome
@@ -152,7 +152,7 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 - (Recommended) Set **`dns_cache_entries = 0`** inside Continuwuity and fully rely on the more performant external resolver.
 
-- Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. Unbound, via [Cache DB module][unbound-cachedb], can use Redis as a storage backend for this use case.
+- Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. Unbound, via [Cache DB module][unbound-cachedb], can use Redis as a storage backend for this feature.
 
 - Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs. Since most Matrix homeservers have static IPs, this should help improve federation with them especially when upstream resolvers have timed out. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
 
