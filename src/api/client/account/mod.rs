@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err, info,
-	pdu::PduBuilder,
+	pdu::PartialPdu,
 	utils::{ReadyExt, stream::BroadbandExt},
 };
 use conduwuit_service::Services;
@@ -367,7 +367,7 @@ pub async fn full_user_deactivate(
 
 	// TODO: Rescind all user invites
 
-	let mut pdu_queue: Vec<(PduBuilder, &OwnedRoomId)> = Vec::new();
+	let mut pdu_queue: Vec<(PartialPdu, &OwnedRoomId)> = Vec::new();
 
 	for room_id in all_joined_rooms {
 		let room_power_levels = services
@@ -384,13 +384,13 @@ pub async fn full_user_deactivate(
 				RoomPowerLevelsEventContent::try_from(room_power_levels)
 		{
 			power_levels_content.users.remove(user_id);
-			let pl_evt = PduBuilder::state(String::new(), &power_levels_content);
+			let pl_evt = PartialPdu::state(String::new(), &power_levels_content);
 			pdu_queue.push((pl_evt, room_id));
 		}
 
 		// Leave the room
 		pdu_queue.push((
-			PduBuilder::state(
+			PartialPdu::state(
 				user_id.to_string(),
 				&RoomMemberEventContent::new(MembershipState::Leave),
 			),

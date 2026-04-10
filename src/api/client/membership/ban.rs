@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::membership::ban_user,
 	events::room::member::{MembershipState, RoomMemberEventContent},
@@ -46,7 +46,7 @@ pub(crate) async fn ban_user_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(body.user_id.to_string(), &content),
+			PartialPdu::state(body.user_id.to_string(), &content),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,

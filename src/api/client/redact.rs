@@ -1,6 +1,6 @@
 use axum::extract::State;
 use axum_client_ip::ClientIp;
-use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::redact::redact_event, events::room::redaction::RoomRedactionEventContent,
 };
@@ -34,9 +34,9 @@ pub(crate) async fn redact_event_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				redacts: Some(body.event_id.clone()),
-				..PduBuilder::timeline(&RoomRedactionEventContent {
+				..PartialPdu::timeline(&RoomRedactionEventContent {
 					redacts: Some(body.event_id.clone()),
 					reason: body.reason.clone(),
 				})

@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use axum::extract::State;
 use conduwuit::{
 	Err, Pdu, Result, debug_info, debug_warn, err,
-	matrix::{event::gen_event_id, pdu::PduBuilder},
+	matrix::{event::gen_event_id, pdu::PartialPdu},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},
 	warn,
 };
@@ -148,7 +148,7 @@ pub async fn leave_room(
 					.rooms
 					.timeline
 					.build_and_append_pdu(
-						PduBuilder::state(user_id.to_string(), &content),
+						PartialPdu::state(user_id.to_string(), &content),
 						user_id,
 						Some(room_id),
 						&state_lock,

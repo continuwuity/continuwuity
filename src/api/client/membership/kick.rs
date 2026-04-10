@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{api::client::membership::kick_user, events::room::member::MembershipState};
 
 use crate::Ruma;
@@ -48,7 +48,7 @@ pub(crate) async fn kick_user_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(body.user_id.to_string(), &event),
+			PartialPdu::state(body.user_id.to_string(), &event),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,

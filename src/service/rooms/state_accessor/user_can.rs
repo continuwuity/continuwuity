@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, implement, matrix::Event, pdu::PduBuilder};
+use conduwuit::{Err, Result, implement, matrix::Event, pdu::PartialPdu};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{

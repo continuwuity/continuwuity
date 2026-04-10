@@ -4,7 +4,7 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err,
-	matrix::{Event, pdu::PduBuilder},
+	matrix::{Event, pdu::PartialPdu},
 	utils::BoolExt,
 };
 use conduwuit_service::Services;
@@ -204,7 +204,7 @@ async fn send_state_event_for_key_helper(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: event_type.to_string().into(),
 				content: serde_json::from_str(json.json().get())?,
 				state_key: Some(state_key.into()),

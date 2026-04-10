@@ -5,7 +5,7 @@ use conduwuit_core::{
 	Err, Error, Result, err, implement,
 	matrix::{
 		event::{Event, gen_event_id},
-		pdu::{EventHash, PduBuilder, PduEvent},
+		pdu::{EventHash, PartialPdu, PduEvent},
 		state_res,
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
@@ -76,19 +76,19 @@ fn room_version_from_event(
 #[implement(super::Service)]
 pub async fn create_event(
 	&self,
-	pdu_builder: PduBuilder,
+	partial_pdu: PartialPdu,
 	sender: &UserId,
 	room_id: Option<&RoomId>,
 	_mutex_lock: &RoomMutexGuard,
 ) -> Result<(PduEvent, RoomVersionId)> {
-	let PduBuilder {
+	let PartialPdu {
 		event_type,
 		content,
 		unsigned,
 		state_key,
 		redacts,
 		timestamp,
-	} = pdu_builder;
+	} = partial_pdu;
 
 	trace!(
 		"Creating event of type {} in room {}",
