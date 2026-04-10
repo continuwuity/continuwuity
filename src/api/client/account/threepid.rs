@@ -133,9 +133,7 @@ pub(crate) async fn delete_3pid_route(
 	let sender_user = body.sender_user();
 
 	if body.medium != Medium::Email {
-		return Ok(delete_3pid::v3::Response {
-			id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
-		});
+		return Ok(delete_3pid::v3::Response::new(ThirdPartyIdRemovalStatus::NoSupport));
 	}
 
 	if services
@@ -147,7 +145,5 @@ pub(crate) async fn delete_3pid_route(
 		return Err!(Request(ThreepidNotFound("Your account has no associated email.")));
 	}
 
-	Ok(delete_3pid::v3::Response {
-		id_server_unbind_result: ThirdPartyIdRemovalStatus::Success,
-	})
+	Ok(delete_3pid::v3::Response::new(ThirdPartyIdRemovalStatus::Success))
 }
