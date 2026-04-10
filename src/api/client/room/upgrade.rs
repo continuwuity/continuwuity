@@ -2,16 +2,18 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Event, Result, RoomVersion, debug, err, info,
+	Err, Error, Event, Result, debug, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
 	CanonicalJsonObject, RoomId, RoomVersionId,
-	api::client::{error::ErrorKind, room::upgrade_room},
+	api::{client::room::upgrade_room, error::ErrorKind},
+	assign,
 	events::{
 		StateEventType, TimelineEventType,
 		room::{
+			create::PreviousRoom,
 			member::{MembershipState, RoomMemberEventContent},
 			power_levels::RoomPowerLevelsEventContent,
 			tombstone::RoomTombstoneEventContent,
@@ -19,6 +21,7 @@ use ruma::{
 		space::child::{RedactedSpaceChildEventContent, SpaceChildEventContent},
 	},
 	int,
+	room_version_rules::RoomIdFormatVersion,
 };
 use serde_json::{json, value::to_raw_value};
 
@@ -76,7 +79,7 @@ pub(crate) async fn upgrade_room_route(
 
 	// First, check if the user has permission to upgrade the room (send tombstone
 	// event)
-	let old_room_state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let old_room_state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	// Check tombstone permission by attempting to create (but not send) the event
 	// Note that this does internally call the policy server with a fake room ID,
@@ -85,10 +88,13 @@ pub(crate) async fn upgrade_room_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PartialPdu::state(StateKey::new(), &RoomTombstoneEventContent {
-				body: "This room has been replaced".to_owned(),
-				replacement_room: RoomId::new(services.globals.server_name()),
-			}),
+			PartialPdu::state(
+				StateKey::new(),
+				&RoomTombstoneEventContent::new(
+					String::new(),
+					RoomId::new_v1(services.globals.server_name()),
+				),
+			),
 			sender_user,
 			Some(&body.room_id),
 			&old_room_state_lock,
@@ -102,16 +108,19 @@ pub(crate) async fn upgrade_room_route(
 	drop(old_room_state_lock);
 
 	// Create a replacement room
-	let room_features = RoomVersion::new(&body.new_version)?;
-	let replacement_room_owned = if !room_features.room_ids_as_hashes {
-		Some(RoomId::new(services.globals.server_name()))
+	let room_version_rules = body
+		.new_version
+		.rules()
+		.expect("new room version should have defined rules");
+	let replacement_room_owned = if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
+		Some(RoomId::new_v1(services.globals.server_name()))
 	} else {
 		None
 	};
 	let replacement_room: Option<&RoomId> = replacement_room_owned.as_ref().map(AsRef::as_ref);
 	let replacement_room_tmp = match replacement_room {
 		| Some(v) => v,
-		| None => &RoomId::new(services.globals.server_name()),
+		| None => &RoomId::new_v1(services.globals.server_name()),
 	};
 
 	let _short_id = services
@@ -121,18 +130,21 @@ pub(crate) async fn upgrade_room_route(
 		.await;
 
 	// For pre-v12 rooms, send tombstone before creating replacement room
-	let tombstone_event_id = if !room_features.room_ids_as_hashes {
-		let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let tombstone_event_id = if room_version_rules.room_id_format != RoomIdFormatVersion::V2 {
+		let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 		// Send a m.room.tombstone event to the old room to indicate that it is not
 		// intended to be used any further
 		let tombstone_event_id = services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
-					body: "This room has been replaced".to_owned(),
-					replacement_room: replacement_room.unwrap().to_owned(),
-				}),
+				PartialPdu::state(
+					StateKey::new(),
+					&RoomTombstoneEventContent::new(
+						"This room has been replaced".to_owned(),
+						replacement_room.unwrap().to_owned(),
+					),
+				),
 				sender_user,
 				Some(&body.room_id),
 				&state_lock,
@@ -145,7 +157,12 @@ pub(crate) async fn upgrade_room_route(
 	} else {
 		None
 	};
-	let state_lock = services.rooms.state.mutex.lock(replacement_room_tmp).await;
+	let state_lock = services
+		.rooms
+		.state
+		.mutex
+		.lock(replacement_room_tmp.as_str())
+		.await;
 
 	// Get the old room creation event
 	let mut create_event_content: CanonicalJsonObject = services
@@ -156,10 +173,13 @@ pub(crate) async fn upgrade_room_route(
 		.map_err(|_| err!(Database("Found room without m.room.create event.")))?;
 
 	// Use the m.room.tombstone event as the predecessor
-	let predecessor = Some(ruma::events::room::create::PreviousRoom::new(
-		body.room_id.clone(),
-		tombstone_event_id,
-	));
+
+	let predecessor = {
+		#[allow(deprecated, reason = "Clients still use event_id even though it's deprecated")]
+		Some(assign!(PreviousRoom::new(body.room_id.clone()), {
+			event_id: tombstone_event_id,
+		}))
+	};
 
 	// Send a m.room.create event containing a predecessor field and the applicable
 	// room_version
@@ -211,7 +231,7 @@ pub(crate) async fn upgrade_room_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_event_content)
 					.expect("event is valid, we just created it"),
@@ -227,39 +247,35 @@ pub(crate) async fn upgrade_room_route(
 		.boxed()
 		.await?;
 	let create_id = create_event_id.as_str().replace('$', "!");
-	let (replacement_room, state_lock) = if room_features.room_ids_as_hashes {
-		let parsed_room_id = RoomId::parse(&create_id)?;
-		(Some(parsed_room_id), services.rooms.state.mutex.lock(parsed_room_id).await)
-	} else {
-		(replacement_room, state_lock)
-	};
+	let (replacement_room, state_lock) =
+		if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
+			let parsed_room_id = RoomId::parse(&create_id)?;
+			let lock = services
+				.rooms
+				.state
+				.mutex
+				.lock(parsed_room_id.as_str())
+				.await;
+			(Some(parsed_room_id), lock)
+		} else {
+			(replacement_room.map(ToOwned::to_owned), state_lock)
+		};
 
 	// Join the new room
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
-				event_type: TimelineEventType::RoomMember,
-				content: to_raw_value(&RoomMemberEventContent {
-					membership: MembershipState::Join,
+			PartialPdu::state(
+				sender_user.as_str(),
+				&assign!(RoomMemberEventContent::new(MembershipState::Join), {
 					displayname: services.users.displayname(sender_user).await.ok(),
 					avatar_url: services.users.avatar_url(sender_user).await.ok(),
-					is_direct: None,
-					third_party_invite: None,
 					blurhash: services.users.blurhash(sender_user).await.ok(),
-					reason: None,
-					join_authorized_via_users_server: None,
-					redact_events: None,
-				})
-				.expect("event is valid, we just created it"),
-				unsigned: None,
-				state_key: Some(sender_user.as_str().into()),
-				redacts: None,
-				timestamp: None,
-			},
+				}),
+			),
 			sender_user,
-			replacement_room,
+			replacement_room.as_deref(),
 			&state_lock,
 		)
 		.boxed()
@@ -306,14 +322,14 @@ pub(crate) async fn upgrade_room_route(
 				.rooms
 				.timeline
 				.build_and_append_pdu(
-					PduBuilder {
+					PartialPdu {
 						event_type: event_type.to_string().into(),
 						content: event_content,
 						state_key: Some(StateKey::from(state_key)),
 						..Default::default()
 					},
 					sender_user,
-					replacement_room,
+					replacement_room.as_deref(),
 					&state_lock,
 				)
 				.boxed()
@@ -332,27 +348,27 @@ pub(crate) async fn upgrade_room_route(
 		services
 			.rooms
 			.alias
-			.remove_alias(alias, sender_user)
+			.remove_alias(&alias, sender_user)
 			.await?;
 
-		services
-			.rooms
-			.alias
-			.set_alias(alias, replacement_room.unwrap(), sender_user)?;
+		services.rooms.alias.set_alias(
+			&alias,
+			replacement_room.as_ref().unwrap(),
+			sender_user,
+		)?;
 	}
 
 	// Get the old room power levels
-	let power_levels_event_content: RoomPowerLevelsEventContent = services
+	let mut power_levels = services
 		.rooms
 		.state_accessor
-		.room_state_get_content(&body.room_id, &StateEventType::RoomPowerLevels, "")
-		.await
-		.map_err(|_| err!(Database("Found room without m.room.power_levels event.")))?;
+		.get_room_power_levels(&body.room_id)
+		.await;
 
 	// Setting events_default and invite to the greater of 50 and users_default + 1
 	let new_level = max(
 		int!(50),
-		power_levels_event_content
+		power_levels
 			.users_default
 			.checked_add(int!(1))
 			.ok_or_else(|| {
@@ -360,17 +376,19 @@ pub(crate) async fn upgrade_room_route(
 			})?,
 	);
 
+	power_levels.events_default = new_level;
+	power_levels.invite = new_level;
+
 	// Modify the power levels in the old room to prevent sending of events and
 	// inviting new users
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(StateKey::new(), &RoomPowerLevelsEventContent {
-				events_default: new_level,
-				invite: new_level,
-				..power_levels_event_content
-			}),
+			PartialPdu::state(
+				StateKey::new(),
+				&RoomPowerLevelsEventContent::try_from(power_levels).unwrap(),
+			),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,
@@ -381,18 +399,21 @@ pub(crate) async fn upgrade_room_route(
 	drop(state_lock);
 
 	// For v12 rooms, send tombstone AFTER creating replacement room
-	if room_features.room_ids_as_hashes {
-		let old_room_state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
+		let old_room_state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 		// For v12 rooms, no event reference in predecessor due to cyclic dependency -
 		// could best effort one maybe?
 		services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
-					body: "This room has been replaced".to_owned(),
-					replacement_room: replacement_room.unwrap().to_owned(),
-				}),
+				PartialPdu::state(
+					StateKey::new(),
+					&RoomTombstoneEventContent::new(
+						"This room has been replaced".to_owned(),
+						replacement_room.as_ref().unwrap().to_owned(),
+					),
+				),
 				sender_user,
 				Some(&body.room_id),
 				&old_room_state_lock,
@@ -415,7 +436,7 @@ pub(crate) async fn upgrade_room_route(
 			.rooms
 			.state_accessor
 			.room_state_get_content::<SpaceChildEventContent>(
-				space_id,
+				&space_id,
 				&StateEventType::SpaceChild,
 				body.room_id.as_str(),
 			)
@@ -427,24 +448,24 @@ pub(crate) async fn upgrade_room_route(
 		debug!(
 			"Updating space {space_id} child event for room {} to {}",
 			&body.room_id,
-			replacement_room.unwrap()
+			replacement_room.as_ref().unwrap()
 		);
 		// First, drop the space's child event
-		let state_lock = services.rooms.state.mutex.lock(space_id).await;
+		let state_lock = services.rooms.state.mutex.lock(space_id.as_str()).await;
 		debug!("Removing space child event for room {} in space {space_id}", &body.room_id);
 		services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder {
+				PartialPdu {
 					event_type: StateEventType::SpaceChild.into(),
-					content: to_raw_value(&RedactedSpaceChildEventContent {})
+					content: to_raw_value(&RedactedSpaceChildEventContent::new())
 						.expect("event is valid, we just created it"),
 					state_key: Some(body.room_id.clone().as_str().into()),
 					..Default::default()
 				},
 				sender_user,
-				Some(space_id),
+				Some(&space_id),
 				&state_lock,
 			)
 			.boxed()
@@ -453,25 +474,21 @@ pub(crate) async fn upgrade_room_route(
 		// Now, add a new child event for the replacement room
 		debug!(
 			"Adding space child event for room {} in space {space_id}",
-			replacement_room.unwrap()
+			replacement_room.as_ref().unwrap()
 		);
 		services
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder {
-					event_type: StateEventType::SpaceChild.into(),
-					content: to_raw_value(&SpaceChildEventContent {
-						via: vec![sender_user.server_name().to_owned()],
+				PartialPdu::state(
+					replacement_room.as_ref().unwrap().as_str(),
+					&assign!(SpaceChildEventContent::new(vec![sender_user.server_name().to_owned()]), {
 						order: child.order,
 						suggested: child.suggested,
-					})
-					.expect("event is valid, we just created it"),
-					state_key: Some(replacement_room.unwrap().as_str().into()),
-					..Default::default()
-				},
+					}),
+				),
 				sender_user,
-				Some(space_id),
+				Some(&space_id),
 				&state_lock,
 			)
 			.boxed()
@@ -480,13 +497,11 @@ pub(crate) async fn upgrade_room_route(
 		debug!(
 			"Finished updating space {space_id} child event for room {} to {}",
 			&body.room_id,
-			replacement_room.unwrap()
+			replacement_room.as_ref().unwrap()
 		);
 		drop(state_lock);
 	}
 
 	// Return the replacement room id
-	Ok(upgrade_room::v3::Response {
-		replacement_room: replacement_room.unwrap().to_owned(),
-	})
+	Ok(upgrade_room::v3::Response::new(replacement_room.as_ref().unwrap().to_owned()))
 }
