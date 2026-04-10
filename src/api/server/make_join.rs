@@ -1,7 +1,7 @@
 use std::borrow::ToOwned;
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{Err, Error, Result, debug, debug_info, info, matrix::pdu::PartialPdu, warn};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
@@ -137,7 +137,7 @@ pub(crate) async fn create_join_event_template_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(body.user_id.to_string(), &RoomMemberEventContent {
+			PartialPdu::state(body.user_id.to_string(), &RoomMemberEventContent {
 				join_authorized_via_users_server,
 				..RoomMemberEventContent::new(MembershipState::Join)
 			}),
@@ -172,7 +172,7 @@ pub(crate) async fn select_authorising_user(
 				.state_accessor
 				.user_can_invite(room_id, user, user_id, state_lock)
 		})
-		.boxed()
+		.boPartialPdu
 		.next()
 		.await
 		.map(ToOwned::to_owned);

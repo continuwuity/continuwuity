@@ -3,7 +3,7 @@ use std::cmp::max;
 use axum::extract::State;
 use conduwuit::{
 	Err, Error, Event, Result, RoomVersion, debug, err, info,
-	matrix::{StateKey, pdu::PduBuilder},
+	matrix::{StateKey, pdu::PartialPdu},
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
@@ -85,7 +85,7 @@ pub(crate) async fn upgrade_room_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
+			PartialPdu::state(StateKey::new(), &RoomTombstoneEventContent {
 				body: "This room has been replaced".to_owned(),
 				replacement_room: RoomId::new(services.globals.server_name()),
 			}),
@@ -128,7 +128,7 @@ pub(crate) async fn upgrade_room_route(
 		let tombstone_event_id = services
 			.rooms
 			.timeline
-			.build_and_append_pdu(
+			.PartialPduappend_pdu(
 				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
 					body: "This room has been replaced".to_owned(),
 					replacement_room: replacement_room.unwrap().to_owned(),
@@ -209,7 +209,7 @@ pub(crate) async fn upgrade_room_route(
 	let create_event_id = services
 		.rooms
 		.timeline
-		.build_and_append_pdu(
+		.PartialPduappend_pdu(
 			PduBuilder {
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_event_content)
@@ -237,7 +237,7 @@ pub(crate) async fn upgrade_room_route(
 	services
 		.rooms
 		.timeline
-		.build_and_append_pdu(
+		.PartialPduappend_pdu(
 			PduBuilder {
 				event_type: TimelineEventType::RoomMember,
 				content: to_raw_value(&RoomMemberEventContent {
@@ -304,7 +304,7 @@ pub(crate) async fn upgrade_room_route(
 			services
 				.rooms
 				.timeline
-				.build_and_append_pdu(
+				.PartialPduappend_pdu(
 					PduBuilder {
 						event_type: event_type.to_string().into(),
 						content: event_content,
@@ -364,7 +364,7 @@ pub(crate) async fn upgrade_room_route(
 	services
 		.rooms
 		.timeline
-		.build_and_append_pdu(
+		.PartialPduappend_pdu(
 			PduBuilder::state(StateKey::new(), &RoomPowerLevelsEventContent {
 				events_default: new_level,
 				invite: new_level,
@@ -387,7 +387,7 @@ pub(crate) async fn upgrade_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(
+			.PartialPduappend_pdu(
 				PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
 					body: "This room has been replaced".to_owned(),
 					replacement_room: replacement_room.unwrap().to_owned(),
@@ -434,7 +434,7 @@ pub(crate) async fn upgrade_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(
+			.PartialPduappend_pdu(
 				PduBuilder {
 					event_type: StateEventType::SpaceChild.into(),
 					content: to_raw_value(&RedactedSpaceChildEventContent {})
@@ -457,7 +457,7 @@ pub(crate) async fn upgrade_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(
+			.PartialPduappend_pdu(
 				PduBuilder {
 					event_type: StateEventType::SpaceChild.into(),
 					content: to_raw_value(&SpaceChildEventContent {

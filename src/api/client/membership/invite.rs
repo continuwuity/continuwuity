@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::InsecureClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
-	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
+	matrix::{event::gen_event_id_canonical_json, pdu::PartialPdu},
 	warn,
 };
 use futures::FutureExt;
@@ -156,7 +156,7 @@ pub(crate) async fn invite_helper(
 				.rooms
 				.timeline
 				.create_hash_and_sign_event(
-					PduBuilder::state(recipient_user.to_string(), &content),
+					PartialPdu::state(recipient_user.to_string(), &content),
 					sender_user,
 					Some(room_id),
 					&state_lock,
@@ -258,7 +258,7 @@ pub(crate) async fn invite_helper(
 	services
 		.rooms
 		.timeline
-		.build_and_append_pdu(
+		.PartialPduappend_pdu(
 			PduBuilder::state(recipient_user.to_string(), &content),
 			sender_user,
 			Some(room_id),

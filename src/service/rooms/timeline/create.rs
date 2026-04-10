@@ -5,7 +5,7 @@ use conduwuit_core::{
 	Err, Error, Result, err, implement,
 	matrix::{
 		event::{Event, gen_event_id},
-		pdu::{EventHash, PduBuilder, PduEvent},
+		pdu::{EventHash, PartialPdu, PduEvent},
 		state_res,
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
@@ -58,7 +58,7 @@ pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
 #[implement(super::Service)]
 pub async fn create_hash_and_sign_event(
 	&self,
-	pdu_builder: PduBuilder,
+	partial_pdu: PartialPdu,
 	sender: &UserId,
 	room_id: Option<&RoomId>,
 	_mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
@@ -68,14 +68,14 @@ pub async fn create_hash_and_sign_event(
 		return Err!(Request(Forbidden("Sender must be a local user")));
 	}
 
-	let PduBuilder {
+	let PartialPdu {
 		event_type,
 		content,
 		unsigned,
 		state_key,
 		redacts,
 		timestamp,
-	} = pdu_builder;
+	} = partial_pdu;
 
 	trace!(
 		"Creating event of type {} in room {}",

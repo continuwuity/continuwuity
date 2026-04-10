@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, info, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, info, matrix::pdu::PartialPdu};
 use ruma::{
 	api::federation::membership::prepare_leave_event,
 	events::room::member::{MembershipState, RoomMemberEventContent},
@@ -53,7 +53,7 @@ pub(crate) async fn create_leave_event_template_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(
+			PartialPdu::state(
 				body.user_id.to_string(),
 				&RoomMemberEventContent::new(MembershipState::Leave),
 			),

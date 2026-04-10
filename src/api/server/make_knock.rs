@@ -1,6 +1,6 @@
 use RoomVersionId::*;
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PduBuilder, warn};
+use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PartialPdu, warn};
 use ruma::{
 	RoomVersionId,
 	api::{client::error::ErrorKind, federation::knock::create_knock_event_template},
@@ -102,7 +102,7 @@ pub(crate) async fn create_knock_event_template_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(
+			PartialPdu::state(
 				body.user_id.to_string(),
 				&RoomMemberEventContent::new(MembershipState::Knock),
 			),
