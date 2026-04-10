@@ -1,43 +1,40 @@
 # Continuwuity for NixOS
 
-NixOS packages Continuwuity as `matrix-continuwuity`. This package includes both the Continuwuity software and a dedicated NixOS module for configuration and deployment.
+## Nix package
 
-## Installation methods
+You can get a Nix package for Continuwuity from the following sources:
 
-You can acquire Continuwuity with Nix (or [Lix][lix]) from these sources:
-
-- Directly from Nixpkgs using the official package (`pkgs.matrix-continuwuity`)
+- Directly from Nixpkgs: `pkgs.matrix-continuwuity`
 - Or, using `continuwuity.packages.${system}.default` from:
-  - The `flake.nix` at the root of the Continuwuity repo
-  - The `default.nix` at the root of the Continuwuity repo
+    - The `flake.nix` at the root of the Continuwuity repo, by adding Continuwuity to your flake inputs:
+
+    ```nix
+    inputs.continuwuity.url = "git+https://forgejo.ellis.link/continuwuation/continuwuity";
+    ```
+
+    - The `default.nix` at the root of the Continuwuity repo
 
 ## NixOS module
 
-Continuwuity now has an official NixOS module that simplifies configuration and deployment. The module is available in Nixpkgs as `services.matrix-continuwuity` from NixOS 25.05.
+Continuwuity has an official NixOS module that simplifies configuration and deployment. The module is available in Nixpkgs as `services.matrix-continuwuity`.
 
 Here's a basic example of how to use the module:
 
 ```nix
-{ config, pkgs, ... }:
+services.matrix-continuwuity = {
+  enable = true;
+  settings = {
+    global = {
+      server_name = "example.com";
 
-{
-  services.matrix-continuwuity = {
-    enable = true;
-    # Optionally, override the package to be from our flake, for faster updates or unstable versions.
-    # package = inputs.continuwuity.packages.${pkgs.stdenv.hostPlatform.system}.default;
-    settings = {
-      global = {
-        server_name = "example.com";
-        # Listening on localhost by default
-        # address and port are handled automatically
-        allow_registration = false;
-        allow_encryption = true;
-        allow_federation = true;
-        trusted_servers = [ "matrix.org" ];
-      };
+      # Continuwuity listens on localhost by default,
+      # address and port are handled automatically
+
+      # You can add any further configuration here, e.g.
+	  # trusted_servers = [ "matrix.org" ];
     };
   };
-}
+};
 ```
 
 ### Available options
@@ -48,71 +45,30 @@ The NixOS module provides these configuration options:
 - `user`: The user to run Continuwuity as (defaults to "continuwuity")
 - `group`: The group to run Continuwuity as (defaults to "continuwuity")
 - `extraEnvironment`: Extra environment variables to pass to the Continuwuity server
-- `package`: The Continuwuity package to use
-- `settings`: The Continuwuity configuration (in TOML format)
+- `package`: The Continuwuity package to use, defaults to `pkgs.matrix-continuwuity`
+    - You may want to override this to be from our flake, for faster updates and unstable versions:
+    ```nix
+    package = inputs.continuwuity.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    ```
+- `admin.enable`: Whether to add the `conduwuit` binary to `PATH` for administration (enabled by default)
+- `settings`: The Continuwuity configuration
 
 Use the `settings` option to configure Continuwuity itself. See the [example configuration file](../reference/config.mdx) for all available options.
 
-### UNIX sockets
-
-The NixOS module natively supports UNIX sockets through the `global.unix_socket_path` option. When using UNIX sockets, set `global.address` to `null`:
+Settings are automatically translated from Nix to TOML. For example, the following line of Nix:
 
 ```nix
-services.matrix-continuwuity = {
-  enable = true;
-  settings = {
-    global = {
-      server_name = "example.com";
-      address = null; # Must be null when using unix_socket_path
-      unix_socket_path = "/run/continuwuity/continuwuity.sock";
-      unix_socket_perms = 660; # Default permissions for the socket
-      # ...
-    };
-  };
-};
+settings.global.well_known.client = "https://matrix.example.com";
 ```
 
-The module automatically sets the correct `RestrictAddressFamilies` in the systemd service configuration to allow access to UNIX sockets.
+Would become this equivalent TOML configuration:
 
-### RocksDB database
-
-Continuwuity exclusively uses RocksDB as its database backend. The system configures the database path automatically to `/var/lib/continuwuity/` and you cannot change it due to the service's reliance on systemd's StateDir.
-
-If you're migrating from Conduit with SQLite, use this [tool to migrate a Conduit SQLite database to RocksDB](https://github.com/ShadowJonathan/conduit_toolbox/).
-
-## Upgrading from Conduit
-
-If you previously used Conduit with the `services.matrix-conduit` module:
-
-1. Ensure your Conduit uses the RocksDB backend, or migrate from SQLite using the [migration tool](https://github.com/ShadowJonathan/conduit_toolbox/)
-2. Switch to the new module by changing `services.matrix-conduit` to `services.matrix-continuwuity` in your configuration
-3. Update any custom configuration to match the new module's structure
+```toml
+[global.well_known]
+client = "https://matrix.example.com"
+```
 
 ## Reverse proxy configuration
 
-You'll need to set up a reverse proxy (like nginx or caddy) to expose Continuwuity to the internet. Configure your reverse proxy to forward requests to `/_matrix` on port 443 and 8448 to your Continuwuity instance.
-
-Here's an example nginx configuration:
-
-```nginx
-server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    listen 8448 ssl;
-    listen [::]:8448 ssl;
-
-    server_name example.com;
-
-    # SSL configuration here...
-
-    location /_matrix/ {
-        proxy_pass http://127.0.0.1:6167$request_uri;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-[lix]: https://lix.systems/
+You'll need to set up a reverse proxy (like NGINX or Caddy) to expose Continuwuity to the internet. You can configure your reverse proxy using NixOS options (e.g. `services.caddy`).
+See the [reverse proxy setup guide](./generic.mdx#setting-up-the-reverse-proxy) for information on correct reverse proxy configuration.
