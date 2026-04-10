@@ -7,7 +7,7 @@ use conduwuit::{
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
-		pdu::{PduBuilder, PduEvent},
+		pdu::{PartialPdu, PduEvent},
 		state_res,
 	},
 	result::FlatOk,
@@ -761,7 +761,7 @@ async fn join_room_by_id_helper_local(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(sender_user.to_string(), &content),
+			PartialPdu::state(sender_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
 			&state_lock,

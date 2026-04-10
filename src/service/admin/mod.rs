@@ -11,7 +11,7 @@ use std::{
 use async_trait::async_trait;
 use conduwuit::{Err, SyncRwLock, utils};
 use conduwuit_core::{
-	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
+	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PartialPdu,
 };
 pub use create::create_admin_room;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
@@ -493,7 +493,7 @@ impl Service {
 			.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::timeline(&self.text_or_file(content).await),
+				PartialPdu::timeline(&self.text_or_file(content).await),
 				user_id,
 				Some(room_id),
 				&state_lock,
@@ -525,7 +525,7 @@ impl Service {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::timeline(&content),
+				PartialPdu::timeline(&content),
 				user_id,
 				Some(room_id),
 				state_lock,
