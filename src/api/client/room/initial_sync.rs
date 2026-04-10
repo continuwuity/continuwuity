@@ -4,7 +4,10 @@ use conduwuit::{
 	utils::{BoolExt, stream::TryTools},
 };
 use futures::{FutureExt, TryStreamExt, future::try_join4};
-use ruma::api::client::room::initial_sync::v3::{PaginationChunk, Request, Response};
+use ruma::{
+	api::client::peeking::get_current_state::v3::{PaginationChunk, Request, Response},
+	assign,
+};
 
 use crate::Ruma;
 
@@ -69,29 +72,27 @@ pub(crate) async fn room_initial_sync_route(
 			.boxed()
 			.await?;
 
-	let messages = PaginationChunk {
-		start: events.last().map(at!(0)).as_ref().map(ToString::to_string),
+	let end = events
+		.first()
+		.map(at!(0))
+		.as_ref()
+		.map(ToString::to_string)
+		.unwrap_or_default();
+	let start = events.last().map(at!(0)).as_ref().map(ToString::to_string);
 
-		end: events
-			.first()
-			.map(at!(0))
-			.as_ref()
-			.map(ToString::to_string)
-			.unwrap_or_default(),
+	let chunk = events
+		.into_iter()
+		.map(at!(1))
+		.map(Event::into_format)
+		.collect();
 
-		chunk: events
-			.into_iter()
-			.map(at!(1))
-			.map(Event::into_format)
-			.collect(),
-	};
+	let messages = assign!(PaginationChunk::new(chunk, end), { start });
 
-	Ok(Response {
-		room_id: room_id.to_owned(),
-		account_data: None,
+	Ok(assign!(Response::new(room_id.to_owned()), {
+		account_data: vec![],
 		state: state.into(),
 		messages: messages.chunk.is_empty().or_some(messages),
 		visibility: visibility.into(),
 		membership,
-	})
+	}))
 }
