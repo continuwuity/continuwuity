@@ -3,21 +3,16 @@ use std::iter::once;
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Event, Result, RoomVersion, err, info,
+	Err, Result, err, info,
 	utils::{
-		TryFutureExtExt,
 		math::Expected,
-		result::FlatOk,
 		stream::{ReadyExt, WidebandExt},
 	},
 };
 use conduwuit_service::Services;
-use futures::{
-	FutureExt, StreamExt, TryFutureExt,
-	future::{join, join4, join5},
-};
+use futures::StreamExt;
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UInt, UserId,
+	ServerName, UInt,
 	api::{
 		client::{
 			directory::{
@@ -28,6 +23,7 @@ use ruma::{
 		},
 		federation,
 	},
+	assign,
 	directory::{Filter, PublicRoomsChunk, RoomNetwork, RoomTypeFilter},
 	events::{
 		StateEventType,
@@ -110,12 +106,11 @@ pub(crate) async fn get_public_rooms_route(
 		err!(Request(Unknown(warn!(?body.server, "Failed to return /publicRooms: {e}"))))
 	})?;
 
-	Ok(get_public_rooms::v3::Response {
-		chunk: response.chunk,
+	Ok(assign!(get_public_rooms::v3::Response::new(response.chunk), {
 		prev_batch: response.prev_batch,
 		next_batch: response.next_batch,
 		total_room_count_estimate: response.total_room_count_estimate,
-	})
+	}))
 }
 
 /// # `PUT /_matrix/client/r0/directory/list/room/{roomId}`
@@ -147,13 +142,7 @@ pub(crate) async fn set_room_visibility_route(
 		return Err!(Request(Forbidden("Guests cannot publish to room directories")));
 	}
 
-	let room_power_levels = services
-		.rooms
-		.state_accessor
-		.get_room_power_levels(&body.room_id)
-		.await;
-
-	if !room_power_levels.user_can_send_state(user_id, StateEventType::RoomHistoryVisibility) {
+	if !user_can_publish_room(&services, sender_user, &body.room_id).await? {
 		return Err!(Request(Forbidden("User is not allowed to publish this room")));
 	}
 
@@ -204,7 +193,7 @@ pub(crate) async fn set_room_visibility_route(
 		},
 	}
 
-	Ok(set_room_visibility::v3::Response {})
+	Ok(set_room_visibility::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/directory/list/room/{roomId}`
@@ -219,13 +208,13 @@ pub(crate) async fn get_room_visibility_route(
 		return Err!(Request(NotFound("Room not found")));
 	}
 
-	Ok(get_room_visibility::v3::Response {
-		visibility: if services.rooms.directory.is_public_room(&body.room_id).await {
-			room::Visibility::Public
-		} else {
-			room::Visibility::Private
-		},
-	})
+	let visibility = if services.rooms.directory.is_public_room(&body.room_id).await {
+		room::Visibility::Public
+	} else {
+		room::Visibility::Private
+	};
+
+	Ok(get_room_visibility::v3::Response::new(visibility))
 }
 
 pub(crate) async fn get_public_rooms_filtered_helper(
@@ -243,24 +232,24 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 			.sending
 			.send_federation_request(
 				other_server,
-				federation::directory::get_public_rooms_filtered::v1::Request {
+				assign!(federation::directory::get_public_rooms_filtered::v1::Request::new(), {
 					limit,
 					since: since.map(ToOwned::to_owned),
-					filter: Filter {
+					filter: assign!(Filter::new(), {
 						generic_search_term: filter.generic_search_term.clone(),
 						room_types: filter.room_types.clone(),
-					},
+					}),
 					room_network: RoomNetwork::Matrix,
-				},
+				}),
 			)
 			.await?;
 
-		return Ok(get_public_rooms_filtered::v3::Response {
+		return Ok(assign!(get_public_rooms_filtered::v3::Response::new(), {
 			chunk: response.chunk,
 			prev_batch: response.prev_batch,
 			next_batch: response.next_batch,
 			total_room_count_estimate: response.total_room_count_estimate,
-		});
+		}));
 	}
 
 	// Use limit or else 10, with maximum 100
@@ -291,16 +280,24 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 		.rooms
 		.directory
 		.public_rooms()
-		.map(ToOwned::to_owned)
-		.wide_then(|room_id| public_rooms_chunk(services, room_id))
-		.ready_filter_map(|chunk| {
+		.wide_then(async |room_id| {
+			let summary = services
+				.rooms
+				.summary
+				.build_local_room_summary(&room_id)
+				.await
+				.expect("room in public room directory should exist");
+
+			summary.into()
+		})
+		.ready_filter_map(|chunk: PublicRoomsChunk| {
 			if !filter.room_types.is_empty() && !filter.room_types.contains(&RoomTypeFilter::from(chunk.room_type.clone())) {
 				return None;
 			}
 
 			if let Some(query) = filter.generic_search_term.as_ref().map(|q| q.to_lowercase()) {
 				if let Some(name) = &chunk.name {
-					if name.as_str().to_lowercase().contains(&query) {
+					if name.to_lowercase().contains(&query) {
 						return Some(chunk);
 					}
 				}
