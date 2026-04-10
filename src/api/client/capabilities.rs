@@ -5,8 +5,11 @@ use conduwuit::{Result, Server};
 use ruma::{
 	RoomVersionId,
 	api::client::discovery::get_capabilities::{
-		self, Capabilities, GetLoginTokenCapability, RoomVersionStability,
-		RoomVersionsCapability, ThirdPartyIdChangesCapability,
+		self,
+		v3::{
+			Capabilities, GetLoginTokenCapability, RoomVersionStability, RoomVersionsCapability,
+			ThirdPartyIdChangesCapability,
+		},
 	},
 };
 use serde_json::json;
@@ -25,19 +28,17 @@ pub(crate) async fn get_capabilities_route(
 		Server::available_room_versions().collect();
 
 	let mut capabilities = Capabilities::default();
-	capabilities.room_versions = RoomVersionsCapability {
+	capabilities.room_versions = RoomVersionsCapability::new(
+		services.server.config.default_room_version.clone(),
 		available,
-		default: services.server.config.default_room_version.clone(),
-	};
+	);
 
 	// Only allow 3pid changes if SMTP is configured
-	capabilities.thirdparty_id_changes = ThirdPartyIdChangesCapability {
-		enabled: services.threepid.email_requirement().may_change(),
-	};
+	capabilities.thirdparty_id_changes =
+		ThirdPartyIdChangesCapability::new(services.threepid.email_requirement().may_change());
 
-	capabilities.get_login_token = GetLoginTokenCapability {
-		enabled: services.server.config.login_via_existing_session,
-	};
+	capabilities.get_login_token =
+		GetLoginTokenCapability::new(services.server.config.login_via_existing_session);
 
 	// MSC4133 capability
 	capabilities.set("uk.tcpip.msc4133.profile_fields", json!({"enabled": true}))?;
