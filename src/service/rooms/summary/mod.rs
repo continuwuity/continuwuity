@@ -342,7 +342,7 @@ impl Service {
 	}
 
 	/// Prepare a summary of a room known to this server.
-	async fn build_local_room_summary(&self, room_id: &RoomId) -> Option<RoomSummary> {
+	pub async fn build_local_room_summary(&self, room_id: &RoomId) -> Option<RoomSummary> {
 		// If we can't find a version for this room, it doesn't exist.
 		let room_version = self.services.state.get_room_version(room_id).await.ok()?;
 
