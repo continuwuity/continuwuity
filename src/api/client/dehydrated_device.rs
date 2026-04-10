@@ -2,10 +2,14 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, at};
 use futures::StreamExt;
-use ruma::api::client::dehydrated_device::{
-	delete_dehydrated_device::unstable as delete_dehydrated_device,
-	get_dehydrated_device::unstable as get_dehydrated_device, get_events::unstable as get_events,
-	put_dehydrated_device::unstable as put_dehydrated_device,
+use ruma::{
+	api::client::dehydrated_device::{
+		delete_dehydrated_device::unstable as delete_dehydrated_device,
+		get_dehydrated_device::unstable as get_dehydrated_device,
+		get_events::unstable as get_events,
+		put_dehydrated_device::unstable as put_dehydrated_device,
+	},
+	assign,
 };
 
 use crate::Ruma;
@@ -111,8 +115,7 @@ pub(crate) async fn get_dehydrated_events_route(
 		.collect()
 		.await;
 
-	Ok(get_events::Response {
-		events,
+	Ok(assign!(get_events::Response::new(events), {
 		next_batch: next_batch.as_ref().map(ToString::to_string),
-	})
+	}))
 }
