@@ -9,8 +9,10 @@ use conduwuit::{
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, Int, OwnedRoomAliasId, OwnedRoomId, OwnedUserId, RoomId, RoomVersionId,
+	CanonicalJsonObject, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId, OwnedRoomId,
+	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
 	api::client::room::{self, create_room},
+	assign,
 	events::{
 		TimelineEventType,
 		room::{
@@ -26,7 +28,7 @@ use ruma::{
 		},
 	},
 	int,
-	room_version_rules::RoomIdFormatVersion,
+	room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
 	serde::{JsonObject, Raw},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
@@ -214,18 +216,33 @@ pub(crate) async fn create_room_route(
 				.short
 				.get_or_create_shortroomid(&room_id)
 				.await;
-			services.rooms.state.mutex.lock(&room_id).await
+			services.rooms.state.mutex.lock(room_id.as_str()).await
 		},
 		| None => {
-			let temp_room_id = RoomId::new(services.globals.server_name());
+			let temp_room_id = RoomId::new_v1(services.globals.server_name());
 			trace!("Locking temporary room state mutex for {temp_room_id}");
-			services.rooms.state.mutex.lock(&temp_room_id).await
+			services.rooms.state.mutex.lock(temp_room_id.as_str()).await
 		},
 	};
 
 	// 1. The room create event
 	debug!("Creating room create event for {sender_user} in room {room_id:?}");
 	let tmp_id = room_id.as_deref();
+
+	// Allow requesters to override the `origin_server_ts` to customize room ids
+	// from v12 onwards
+	let custom_origin_server_ts = body
+		.json_body
+		.as_ref()
+		.unwrap()
+		.as_object()
+		.unwrap()
+		.get("origin_server_ts")
+		.and_then(|value| value.as_integer())
+		.map(|value| value.into())
+		.and_then(|value: i64| value.try_into().ok())
+		.map(MilliSecondsSinceUnixEpoch);
+
 	let create_event_id = services
 		.rooms
 		.timeline
@@ -234,7 +251,7 @@ pub(crate) async fn create_room_route(
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_content)?,
 				state_key: Some(StateKey::new()),
-				timestamp: body.origin_server_ts,
+				timestamp: custom_origin_server_ts,
 				..Default::default()
 			},
 			sender_user,
@@ -295,7 +312,10 @@ pub(crate) async fn create_room_route(
 
 	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
 	// Do we care about additional_creators?
-	if room_version_rules.explicitly_privilege_room_creators {
+	if room_version_rules
+		.authorization
+		.explicitly_privilege_room_creators
+	{
 		// Have they been specified?
 		if let Some(additional_creators) = create_content.get("additional_creators") {
 			// Are they a real array?
@@ -305,9 +325,9 @@ pub(crate) async fn create_room_route(
 					// Are they a string?
 					if let Some(creator) = creator.as_str() {
 						// Do they parse into a real user ID?
-						if let Ok(creator) = OwnedUserId::parse(creator) {
+						if let Ok(creator) = UserId::parse(creator) {
 							// Add them to the power levels and creators
-							creators.push(creator.clone());
+							creators.push(creator);
 						}
 					}
 				}
@@ -320,10 +340,13 @@ pub(crate) async fn create_room_route(
 	}
 
 	let power_levels_content = default_power_levels_content(
-		body.power_level_content_override.as_ref(),
+		body.power_level_content_override
+			.as_ref()
+			.map(|power_levels| power_levels.cast_ref()),
 		&body.visibility,
 		power_levels_to_grant,
 		creators,
+		&room_version_rules.authorization,
 	)?;
 
 	services
@@ -349,10 +372,13 @@ pub(crate) async fn create_room_route(
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PartialPdu::state(String::new(), &RoomCanonicalAliasEventContent {
-					alias: Some(room_alias_id.to_owned()),
-					alt_aliases: vec![],
-				}),
+				PartialPdu::state(
+					String::new(),
+					&assign!(RoomCanonicalAliasEventContent::new(), {
+						alias: Some(room_alias_id.to_owned()),
+						alt_aliases: vec![],
+					}),
+				),
 				sender_user,
 				Some(&room_id),
 				&state_lock,
@@ -420,9 +446,11 @@ pub(crate) async fn create_room_route(
 
 	// 6. Events listed in initial_state
 	for event in &body.initial_state {
-		let mut partial_pdu = event.deserialize_as::<PartialPdu>().map_err(|e| {
-			err!(Request(InvalidParam(warn!("Invalid initial state event: {e:?}"))))
-		})?;
+		let mut partial_pdu = event
+			.deserialize_as_unchecked::<PartialPdu>()
+			.map_err(|e| {
+				err!(Request(InvalidParam(warn!("Invalid initial state event: {e:?}"))))
+			})?;
 
 		debug_info!("Room creation initial state event: {event:?}");
 
@@ -473,7 +501,7 @@ pub(crate) async fn create_room_route(
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PartialPdu::state(String::new(), &RoomTopicEventContent { topic: topic.clone() }),
+				PartialPdu::state(String::new(), &RoomTopicEventContent::new(topic.clone())),
 				sender_user,
 				Some(&room_id),
 				&state_lock,
@@ -528,10 +556,13 @@ fn default_power_levels_content(
 	visibility: &room::Visibility,
 	users: BTreeMap<OwnedUserId, Int>,
 	creators: Vec<OwnedUserId>,
+	authorization_rules: &AuthorizationRules,
 ) -> Result<serde_json::Value> {
 	let mut power_levels_content =
-		serde_json::to_value(RoomPowerLevelsEventContent { users, ..Default::default() })
-			.expect("event is valid, we just created it");
+		serde_json::to_value(assign!(RoomPowerLevelsEventContent::new(authorization_rules), {
+			users
+		}))
+		.unwrap();
 
 	// secure proper defaults of sensitive/dangerous permissions that moderators
 	// (power level 50) should not have easy access to
@@ -621,7 +652,7 @@ async fn room_alias_check(
 	}
 
 	let server_name = services.globals.server_name();
-	let full_room_alias = OwnedRoomAliasId::parse(format!("#{room_alias_name}:{server_name}"))
+	let full_room_alias = RoomAliasId::parse(format!("#{room_alias_name}:{server_name}"))
 		.map_err(|e| {
 			err!(Request(InvalidParam(debug_error!(
 				?e,
