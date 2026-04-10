@@ -27,17 +27,20 @@ use futures::{
 };
 use ruma::{
 	DeviceId, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
-	api::client::sync::sync_events::{self, DeviceLists, UnreadNotificationsCount},
+	api::client::sync::sync_events::{
+		self, DeviceLists, UnreadNotificationsCount, v5::request::ExtensionRoomConfig,
+	},
+	assign,
 	directory::RoomTypeFilter,
 	events::{
-		AnyRawAccountDataEvent, AnySyncEphemeralRoomEvent, AnySyncStateEvent, StateEventType,
-		TimelineEventType,
+		AnySyncEphemeralRoomEvent, AnySyncStateEvent, StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
-		typing::TypingEventContent,
+		typing::{SyncTypingEvent, TypingEventContent},
 	},
 	serde::Raw,
 	uint,
 };
+use service::account_data::AnyRawAccountDataEvent;
 
 use super::share_encrypted_room;
 use crate::{
@@ -67,8 +70,8 @@ pub(crate) async fn sync_events_v5_route(
 	body: Ruma<sync_events::v5::Request>,
 ) -> Result<sync_events::v5::Response> {
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");
-	let sender_user = body.sender_user.as_ref().expect("user is authenticated");
-	let sender_device = body.sender_device.as_ref().expect("user is authenticated");
+	let ref sender_user = body.sender_user().to_owned();
+	let ref sender_device = body.sender_device().to_owned();
 
 	services
 		.users
@@ -90,7 +93,7 @@ pub(crate) async fn sync_events_v5_route(
 		.and_then(|string| string.parse().ok())
 		.unwrap_or(0);
 
-	let snake_key = into_snake_key(sender_user, sender_device, conn_id);
+	let snake_key = into_snake_key(sender_user.as_ref(), sender_device.as_str(), conn_id);
 
 	if globalsince != 0 && !services.sync.snake_connection_cached(&snake_key) {
 		return Err!(Request(UnknownPos(
@@ -112,7 +115,6 @@ pub(crate) async fn sync_events_v5_route(
 		.rooms
 		.state_cache
 		.rooms_joined(sender_user)
-		.map(ToOwned::to_owned)
 		.collect::<Vec<OwnedRoomId>>();
 
 	let all_invited_rooms = services
@@ -164,21 +166,20 @@ pub(crate) async fn sync_events_v5_route(
 	let (account_data, e2ee, to_device, receipts) =
 		try_join4(account_data, e2ee, to_device, receipts).await?;
 
-	let extensions = sync_events::v5::response::Extensions {
+	let extensions = assign!(sync_events::v5::response::Extensions::default(), {
 		account_data,
 		e2ee,
 		to_device,
 		receipts,
 		typing: sync_events::v5::response::Typing::default(),
-	};
+	});
 
-	let mut response = sync_events::v5::Response {
+	let mut response = assign!(sync_events::v5::Response::new(pos), {
 		txn_id: body.txn_id.clone(),
-		pos,
 		lists: BTreeMap::new(),
 		rooms: BTreeMap::new(),
 		extensions,
-	};
+	});
 
 	handle_lists(
 		services,
@@ -379,11 +380,12 @@ where
 				);
 			}
 		}
-		response
-			.lists
-			.insert(list_id.clone(), sync_events::v5::response::List {
+		response.lists.insert(
+			list_id.clone(),
+			assign!(sync_events::v5::response::List::default(), {
 				count: ruma_from_usize(active_rooms.len()),
-			});
+			}),
+		);
 
 		if let Some(conn_id) = body.conn_id.clone() {
 			let snake_key = into_snake_key(sender_user, sender_device, conn_id);
@@ -563,17 +565,19 @@ where
 			.state_cache
 			.room_members(room_id)
 			.ready_filter(|member| *member != sender_user)
-			.filter_map(|user_id| {
+			.filter_map(async |user_id| {
 				services
 					.rooms
 					.state_accessor
-					.get_member(room_id, user_id)
-					.map_ok(|memberevent| sync_events::v5::response::Hero {
-						user_id: user_id.into(),
-						name: memberevent.displayname,
-						avatar: memberevent.avatar_url,
+					.get_member(room_id, &user_id)
+					.map_ok(|member_event| {
+						assign!(sync_events::v5::response::Hero::new(user_id.clone()), {
+							name: member_event.displayname,
+							avatar: member_event.avatar_url,
+						})
 					})
 					.ok()
+					.await
 			})
 			.take(5)
 			.collect()
@@ -609,73 +613,76 @@ where
 			None
 		};
 
-		rooms.insert(room_id.clone(), sync_events::v5::response::Room {
-			name: services
-				.rooms
-				.state_accessor
-				.get_name(room_id)
-				.await
-				.ok()
-				.or(name),
-			avatar: match heroes_avatar {
-				| Some(heroes_avatar) => ruma::JsOption::Some(heroes_avatar),
-				| _ => match services.rooms.state_accessor.get_avatar(room_id).await {
-					| ruma::JsOption::Some(avatar) => ruma::JsOption::from_option(avatar.url),
-					| ruma::JsOption::Null => ruma::JsOption::Null,
-					| ruma::JsOption::Undefined => ruma::JsOption::Undefined,
+		rooms.insert(
+			room_id.clone(),
+			assign!(sync_events::v5::response::Room::new(), {
+				name: services
+					.rooms
+					.state_accessor
+					.get_name(room_id)
+					.await
+					.ok()
+					.or(name),
+				avatar: match heroes_avatar {
+					| Some(heroes_avatar) => ruma::JsOption::Some(heroes_avatar),
+					| _ => match services.rooms.state_accessor.get_avatar(room_id).await {
+						| ruma::JsOption::Some(avatar) => ruma::JsOption::from_option(avatar.url),
+						| ruma::JsOption::Null => ruma::JsOption::Null,
+						| ruma::JsOption::Undefined => ruma::JsOption::Undefined,
+					},
 				},
-			},
-			initial: Some(roomsince == &0),
-			is_dm: None,
-			invite_state,
-			unread_notifications: UnreadNotificationsCount {
-				highlight_count: Some(
+				initial: Some(roomsince == &0),
+				is_dm: None,
+				invite_state,
+				unread_notifications: assign!(UnreadNotificationsCount::new(), {
+					highlight_count: Some(
+						services
+							.rooms
+							.user
+							.highlight_count(sender_user, room_id)
+							.await
+							.try_into()
+							.expect("notification count can't go that high"),
+					),
+					notification_count: Some(
+						services
+							.rooms
+							.user
+							.notification_count(sender_user, room_id)
+							.await
+							.try_into()
+							.expect("notification count can't go that high"),
+					),
+				}),
+				timeline: room_events,
+				required_state,
+				prev_batch,
+				limited,
+				joined_count: Some(
 					services
 						.rooms
-						.user
-						.highlight_count(sender_user, room_id)
+						.state_cache
+						.room_joined_count(room_id)
 						.await
+						.unwrap_or(0)
 						.try_into()
-						.expect("notification count can't go that high"),
+						.unwrap_or_else(|_| uint!(0)),
 				),
-				notification_count: Some(
+				invited_count: Some(
 					services
 						.rooms
-						.user
-						.notification_count(sender_user, room_id)
+						.state_cache
+						.room_invited_count(room_id)
 						.await
+						.unwrap_or(0)
 						.try_into()
-						.expect("notification count can't go that high"),
+						.unwrap_or_else(|_| uint!(0)),
 				),
-			},
-			timeline: room_events,
-			required_state,
-			prev_batch,
-			limited,
-			joined_count: Some(
-				services
-					.rooms
-					.state_cache
-					.room_joined_count(room_id)
-					.await
-					.unwrap_or(0)
-					.try_into()
-					.unwrap_or_else(|_| uint!(0)),
-			),
-			invited_count: Some(
-				services
-					.rooms
-					.state_cache
-					.room_invited_count(room_id)
-					.await
-					.unwrap_or(0)
-					.try_into()
-					.unwrap_or_else(|_| uint!(0)),
-			),
-			num_live: None, // Count events in timeline greater than global sync counter
-			bump_stamp: timestamp,
-			heroes: Some(heroes),
-		});
+				num_live: None, // Count events in timeline greater than global sync counter
+				bump_stamp: timestamp,
+				heroes: Some(heroes),
+			}),
+		);
 	}
 	Ok(rooms)
 }
@@ -737,7 +744,8 @@ async fn collect_typing_events(
 	let rooms: Vec<_> = body.extensions.typing.rooms.clone().unwrap_or_else(|| {
 		body.room_subscriptions
 			.keys()
-			.map(ToOwned::to_owned)
+			.cloned()
+			.map(ExtensionRoomConfig::Room)
 			.collect()
 	});
 	let lists: Vec<_> = body
@@ -766,9 +774,7 @@ async fn collect_typing_events(
 			| Ok(typing_users) => {
 				typing_response.rooms.insert(
 					room_id.to_owned(), // Already OwnedRoomId
-					Raw::new(&sync_events::v5::response::SyncTypingEvent {
-						content: TypingEventContent::new(typing_users),
-					})?,
+					Raw::new(&SyncTypingEvent::new(TypingEventContent::new(typing_users)))?,
 				);
 			},
 			| Err(e) => {
@@ -784,10 +790,7 @@ async fn collect_account_data(
 	services: &Services,
 	(sender_user, _, globalsince, body): (&UserId, &DeviceId, u64, &sync_events::v5::Request),
 ) -> sync_events::v5::response::AccountData {
-	let mut account_data = sync_events::v5::response::AccountData {
-		global: Vec::new(),
-		rooms: BTreeMap::new(),
-	};
+	let mut account_data = sync_events::v5::response::AccountData::default();
 
 	if !body.extensions.account_data.enabled.unwrap_or(false) {
 		return sync_events::v5::response::AccountData::default();
@@ -802,15 +805,17 @@ async fn collect_account_data(
 
 	if let Some(rooms) = &body.extensions.account_data.rooms {
 		for room in rooms {
-			account_data.rooms.insert(
-				room.clone(),
-				services
-					.account_data
-					.changes_since(Some(room), sender_user, Some(globalsince), None)
-					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
-					.collect()
-					.await,
-			);
+			if let ExtensionRoomConfig::Room(room) = room {
+				account_data.rooms.insert(
+					room.clone(),
+					services
+						.account_data
+						.changes_since(Some(room.as_ref()), sender_user, Some(globalsince), None)
+						.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
+						.collect()
+						.await,
+				);
+			}
 		}
 	}
 
@@ -841,7 +846,6 @@ where
 		services
 			.users
 			.keys_changed(sender_user, Some(globalsince), None)
-			.map(ToOwned::to_owned)
 			.collect::<Vec<_>>()
 			.await,
 	);
@@ -932,7 +936,7 @@ where
 										if !share_encrypted_room(
 											services,
 											sender_user,
-											user_id,
+											&user_id,
 											Some(room_id),
 										)
 										.await
@@ -962,9 +966,10 @@ where
 						.ready_filter(|user_id| sender_user != *user_id)
 						// Only send keys if the sender doesn't share an encrypted room with the target
 						// already
-						.filter_map(|user_id| {
-							share_encrypted_room(services, sender_user, user_id, Some(room_id))
+						.filter_map(async |user_id| {
+							share_encrypted_room(services, sender_user, &user_id, Some(room_id))
 								.map(|res| res.or_some(user_id.to_owned()))
+								.await
 						})
 						.collect::<Vec<_>>()
 						.await,
@@ -978,7 +983,6 @@ where
 				.users
 				.room_keys_changed(room_id, Some(globalsince), None)
 				.map(|(user_id, _)| user_id)
-				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
 				.await,
 		);
@@ -995,7 +999,7 @@ where
 		}
 	}
 
-	Ok(sync_events::v5::response::E2EE {
+	Ok(assign!(sync_events::v5::response::E2EE::default(), {
 		device_unused_fallback_key_types: None,
 
 		device_one_time_keys_count: services
@@ -1003,11 +1007,11 @@ where
 			.count_one_time_keys(sender_user, sender_device)
 			.await,
 
-		device_lists: DeviceLists {
+		device_lists: assign!(DeviceLists::new(), {
 			changed: device_list_changes.into_iter().collect(),
 			left: device_list_left.into_iter().collect(),
-		},
-	})
+		}),
+	}))
 }
 
 async fn collect_to_device(
@@ -1024,7 +1028,7 @@ async fn collect_to_device(
 		.remove_to_device_events(sender_user, sender_device, globalsince)
 		.await;
 
-	Some(sync_events::v5::response::ToDevice {
+	Some(assign!(sync_events::v5::response::ToDevice::default(), {
 		next_batch: next_batch.to_string(),
 		events: services
 			.users
@@ -1032,12 +1036,12 @@ async fn collect_to_device(
 			.map(at!(1))
 			.collect()
 			.await,
-	})
+	}))
 }
 
 async fn collect_receipts(_services: &Services) -> sync_events::v5::response::Receipts {
-	sync_events::v5::response::Receipts { rooms: BTreeMap::new() }
 	// TODO: get explicitly requested read receipts
+	sync_events::v5::response::Receipts::default()
 }
 
 fn filter_rooms<'a, Rooms>(
