@@ -7,10 +7,7 @@ use ruma::{
 		get_global_account_data, get_room_account_data, set_global_account_data,
 		set_room_account_data,
 	},
-	events::{
-		AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent,
-		RoomAccountDataEventType,
-	},
+	events::{AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent},
 	serde::Raw,
 };
 use serde::Deserialize;
@@ -87,7 +84,7 @@ pub(crate) async fn get_global_account_data_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Data not found."))))?;
 
-	Ok(get_global_account_data::v3::Response { account_data: account_data.content })
+	Ok(get_global_account_data::v3::Response::new(account_data.content))
 }
 
 /// # `GET /_matrix/client/r0/user/{userId}/rooms/{roomId}/account_data/{type}`
@@ -109,7 +106,7 @@ pub(crate) async fn get_room_account_data_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Data not found."))))?;
 
-	Ok(get_room_account_data::v3::Response { account_data: account_data.content })
+	Ok(get_room_account_data::v3::Response::new(account_data.content))
 }
 
 async fn set_account_data(
