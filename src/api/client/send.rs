@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use axum_client_ip::ClientIp;
-use conduwuit::{Err, Result, err, matrix::pdu::PduBuilder, utils};
+use conduwuit::{Err, Result, err, matrix::pdu::PartialPdu, utils};
 use ruma::{api::client::message::send_message_event, events::MessageLikeEventType};
 use serde_json::from_str;
 
@@ -79,7 +79,7 @@ pub(crate) async fn send_message_event_route(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: body.event_type.clone().into(),
 				content,
 				unsigned: Some(unsigned),

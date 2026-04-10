@@ -6,7 +6,7 @@ use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, err, info,
 	matrix::{
 		event::gen_event_id,
-		pdu::{PduBuilder, PduEvent},
+		pdu::{PartialPdu, PduEvent},
 	},
 	result::FlatOk,
 	trace,
@@ -354,7 +354,7 @@ async fn knock_room_helper_local(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(sender_user.to_string(), &content),
+			PartialPdu::state(sender_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
 			&state_lock,

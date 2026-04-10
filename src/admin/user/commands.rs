@@ -9,7 +9,7 @@ use api::client::{
 };
 use conduwuit::{
 	Err, Result, debug_warn, error, info,
-	matrix::{Event, pdu::PduBuilder},
+	matrix::{Event, pdu::PartialPdu},
 	utils::{self, ReadyExt},
 	warn,
 };
@@ -753,7 +753,7 @@ pub(super) async fn force_demote(&self, user_id: String, room_id: OwnedRoomOrAli
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				room_power_levels
 					.try_into()
@@ -921,9 +921,9 @@ pub(super) async fn redact_event(&self, event_id: OwnedEventId) -> Result {
 			.rooms
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder {
+				PartialPdu {
 					redacts: Some(event.event_id().to_owned()),
-					..PduBuilder::timeline(&RoomRedactionEventContent {
+					..PartialPdu::timeline(&RoomRedactionEventContent {
 						redacts: Some(event.event_id().to_owned()),
 						reason: Some(reason),
 					})

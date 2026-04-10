@@ -1,6 +1,6 @@
-mod builder;
 mod count;
 mod id;
+mod partial;
 mod raw_id;
 mod redact;
 #[cfg(test)]
@@ -18,9 +18,9 @@ use serde_json::value::RawValue as RawJsonValue;
 
 pub use self::{
 	Count as PduCount, Id as PduId, Pdu as PduEvent, RawId as RawPduId,
-	builder::{Builder, Builder as PduBuilder},
 	count::Count,
 	id::{ShortId, *},
+	partial::PartialPdu,
 	raw_id::*,
 };
 use super::{Event, StateKey};

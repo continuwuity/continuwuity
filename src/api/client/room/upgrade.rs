@@ -3,7 +3,7 @@ use std::cmp::max;
 use axum::extract::State;
 use conduwuit::{
 	Err, Error, Event, Result, RoomVersion, debug, err, info,
-	matrix::{StateKey, pdu::PduBuilder},
+	matrix::{StateKey, pdu::PartialPdu},
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
@@ -85,7 +85,7 @@ pub(crate) async fn upgrade_room_route(
 		.rooms
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(StateKey::new(), &RoomTombstoneEventContent {
+			PartialPdu::state(StateKey::new(), &RoomTombstoneEventContent {
 				body: "This room has been replaced".to_owned(),
 				replacement_room: RoomId::new(services.globals.server_name()),
 			}),

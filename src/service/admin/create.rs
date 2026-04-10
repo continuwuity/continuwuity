@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{Result, info, pdu::PduBuilder};
+use conduwuit::{Result, info, pdu::PartialPdu};
 use futures::FutureExt;
 use ruma::{
 	RoomId, RoomVersionId,
@@ -58,7 +58,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &create_content),
+			PartialPdu::state(String::new(), &create_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -71,7 +71,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::from(server_user),
 				&RoomMemberEventContent::new(MembershipState::Join),
 			),
@@ -93,7 +93,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &power_levels_content),
+			PartialPdu::state(String::new(), &power_levels_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -106,7 +106,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomJoinRulesEventContent::new(JoinRule::Invite)),
+			PartialPdu::state(String::new(), &RoomJoinRulesEventContent::new(JoinRule::Invite)),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -119,7 +119,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				&RoomHistoryVisibilityEventContent::new(HistoryVisibility::Shared),
 			),
@@ -135,7 +135,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(
+			PartialPdu::state(
 				String::new(),
 				&RoomGuestAccessEventContent::new(GuestAccess::Forbidden),
 			),
@@ -152,7 +152,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomNameEventContent::new(room_name)),
+			PartialPdu::state(String::new(), &RoomNameEventContent::new(room_name)),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -165,7 +165,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &RoomTopicEventContent::markdown(room_topic)),
+			PartialPdu::state(String::new(), &RoomTopicEventContent::markdown(room_topic)),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -181,7 +181,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &alias_content),
+			PartialPdu::state(String::new(), &alias_content),
 			server_user,
 			Some(&room_id),
 			&state_lock,
