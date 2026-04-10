@@ -60,9 +60,9 @@ pub(crate) async fn ban_room(
 			.rooms
 			.alias
 			.local_aliases_for_room(&body.room_id)
-			.map(ToOwned::to_owned)
-			.collect::<Vec<_>>()
+			.collect()
 			.await;
+
 		for alias in &aliases {
 			info!("Removing alias {} for banned room {}", alias, body.room_id);
 			services

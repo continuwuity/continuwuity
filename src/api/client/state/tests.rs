@@ -14,7 +14,7 @@ fn test_strip_room_member() -> Result<()> {
 	let json: &mut Raw<AnyStateEventContent> =
 		&mut Raw::<AnyStateEventContent>::from_json_string(body.to_owned())?;
 	let mut membership_content: RoomMemberEventContent =
-		json.deserialize_as::<RoomMemberEventContent>()?;
+		json.deserialize_as_unchecked::<RoomMemberEventContent>()?;
 
 	//Begin Test
 	membership_content.join_authorized_via_users_server = None;
