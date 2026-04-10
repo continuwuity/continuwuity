@@ -259,7 +259,7 @@ pub(crate) async fn invite_helper(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(recipient_user.to_string(), &content),
+			PartialPdu::state(recipient_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
 			&state_lock,

@@ -4,7 +4,6 @@ use ruma::{
 	events::{
 		StateEventType, TimelineEventType,
 		room::{
-			create::RoomCreateEventContent,
 			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
 			member::{MembershipState, RoomMemberEventContent},
 		},
@@ -64,7 +63,7 @@ pub async fn user_can_redact(
 		return Ok(is_own_event);
 	}
 
-	return Ok(false);
+	Ok(false)
 }
 
 /// Whether a user is allowed to see an event, based on
@@ -139,7 +138,7 @@ pub async fn user_can_invite(
 	self.services
 		.timeline
 		.create_hash_and_sign_event(
-			PduBuilder::state(
+			PartialPdu::state(
 				target_user.as_str(),
 				&RoomMemberEventContent::new(MembershipState::Invite),
 			),
