@@ -2,7 +2,7 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
-	api::client::redact::redact_event, events::room::redaction::RoomRedactionEventContent,
+	api::client::redact::redact_event, assign, events::room::redaction::RoomRedactionEventContent,
 };
 
 use crate::Ruma;
@@ -28,7 +28,7 @@ pub(crate) async fn redact_event_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	let event_id = services
 		.rooms
@@ -36,10 +36,11 @@ pub(crate) async fn redact_event_route(
 		.build_and_append_pdu(
 			PartialPdu {
 				redacts: Some(body.event_id.clone()),
-				..PartialPdu::timeline(&RoomRedactionEventContent {
-					redacts: Some(body.event_id.clone()),
-					reason: body.reason.clone(),
-				})
+				..PartialPdu::timeline(
+					&assign!(RoomRedactionEventContent::new_v11(body.event_id.clone()), {
+						reason: body.reason.clone()
+					}),
+				)
 			},
 			sender_user,
 			Some(&body.room_id),
@@ -49,5 +50,5 @@ pub(crate) async fn redact_event_route(
 
 	drop(state_lock);
 
-	Ok(redact_event::v3::Response { event_id })
+	Ok(redact_event::v3::Response::new(event_id))
 }
