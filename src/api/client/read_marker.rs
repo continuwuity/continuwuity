@@ -8,7 +8,8 @@ use ruma::{
 	api::client::{read_marker::set_read_marker, receipt::create_receipt},
 	events::{
 		RoomAccountDataEventType,
-		receipt::{ReceiptThread, ReceiptType},
+		fully_read::{FullyReadEvent, FullyReadEventContent},
+		receipt::{Receipt, ReceiptEvent, ReceiptEventContent, ReceiptType},
 	},
 };
 
@@ -28,9 +29,7 @@ pub(crate) async fn set_read_marker_route(
 	let sender_user = body.sender_user();
 
 	if let Some(event) = &body.fully_read {
-		let fully_read_event = ruma::events::fully_read::FullyReadEvent {
-			content: ruma::events::fully_read::FullyReadEventContent { event_id: event.clone() },
-		};
+		let fully_read_event = FullyReadEvent::new(FullyReadEventContent::new(event.to_owned()));
 
 		services
 			.account_data
@@ -62,19 +61,16 @@ pub(crate) async fn set_read_marker_route(
 		if services.config.allow_local_read_receipts
 			&& !services.users.is_suspended(sender_user).await?
 		{
-			let receipt_content = BTreeMap::from_iter([(
+			let receipt_content = [(
 				event.to_owned(),
 				BTreeMap::from_iter([(
 					ReceiptType::Read,
 					BTreeMap::from_iter([(
 						sender_user.to_owned(),
-						ruma::events::receipt::Receipt {
-							ts: Some(MilliSecondsSinceUnixEpoch::now()),
-							thread: ReceiptThread::Unthreaded,
-						},
+						Receipt::new(MilliSecondsSinceUnixEpoch::now()),
 					)]),
 				)]),
-			)]);
+			)];
 
 			services
 				.rooms
@@ -82,10 +78,10 @@ pub(crate) async fn set_read_marker_route(
 				.readreceipt_update(
 					sender_user,
 					&body.room_id,
-					&ruma::events::receipt::ReceiptEvent {
-						content: ruma::events::receipt::ReceiptEventContent(receipt_content),
-						room_id: body.room_id.clone(),
-					},
+					&ReceiptEvent::new(
+						body.room_id.clone(),
+						ReceiptEventContent::from_iter(receipt_content),
+					),
 				)
 				.await;
 		}
@@ -111,7 +107,7 @@ pub(crate) async fn set_read_marker_route(
 			.private_read_set(&body.room_id, sender_user, count);
 	}
 
-	Ok(set_read_marker::v3::Response {})
+	Ok(set_read_marker::v3::Response::new())
 }
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/receipt/{receiptType}/{eventId}`
@@ -148,11 +144,8 @@ pub(crate) async fn create_receipt_route(
 
 	match body.receipt_type {
 		| create_receipt::v3::ReceiptType::FullyRead => {
-			let fully_read_event = ruma::events::fully_read::FullyReadEvent {
-				content: ruma::events::fully_read::FullyReadEventContent {
-					event_id: body.event_id.clone(),
-				},
-			};
+			let fully_read_event =
+				FullyReadEvent::new(FullyReadEventContent::new(body.event_id.clone()));
 			services
 				.account_data
 				.update(
@@ -164,19 +157,16 @@ pub(crate) async fn create_receipt_route(
 				.await?;
 		},
 		| create_receipt::v3::ReceiptType::Read => {
-			let receipt_content = BTreeMap::from_iter([(
+			let receipt_content = [(
 				body.event_id.clone(),
 				BTreeMap::from_iter([(
 					ReceiptType::Read,
 					BTreeMap::from_iter([(
 						sender_user.to_owned(),
-						ruma::events::receipt::Receipt {
-							ts: Some(MilliSecondsSinceUnixEpoch::now()),
-							thread: ReceiptThread::Unthreaded,
-						},
+						Receipt::new(MilliSecondsSinceUnixEpoch::now()),
 					)]),
 				)]),
-			)]);
+			)];
 
 			services
 				.rooms
@@ -184,10 +174,10 @@ pub(crate) async fn create_receipt_route(
 				.readreceipt_update(
 					sender_user,
 					&body.room_id,
-					&ruma::events::receipt::ReceiptEvent {
-						content: ruma::events::receipt::ReceiptEventContent(receipt_content),
-						room_id: body.room_id.clone(),
-					},
+					&ReceiptEvent::new(
+						body.room_id.clone(),
+						ReceiptEventContent::from_iter(receipt_content),
+					),
 				)
 				.await;
 		},
@@ -218,5 +208,5 @@ pub(crate) async fn create_receipt_route(
 		},
 	}
 
-	Ok(create_receipt::v3::Response {})
+	Ok(create_receipt::v3::Response::new())
 }
