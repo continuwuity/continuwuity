@@ -118,7 +118,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::send_message_event_route)
 		.ruma_route(&client::send_state_event_for_key_route)
 		.ruma_route(&client::get_state_events_route)
-		.ruma_route(&client::get_state_events_for_key_route)
+		.ruma_route(&client::get_state_event_for_key_route)
 		// Ruma doesn't have support for multiple paths for a single endpoint yet, and these routes
 		// share one Ruma request / response type pair with {get,send}_state_event_for_key_route
 		.route(
