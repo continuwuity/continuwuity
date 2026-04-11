@@ -1,228 +1,25 @@
+use std::collections::BTreeMap;
+
 use axum::extract::State;
-use conduwuit::{
-	Err, Result,
-	matrix::pdu::PartialPdu,
-	utils::{IterStream, future::TryExtExt, stream::TryIgnore},
-	warn,
-};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use conduwuit_service::Services;
-use futures::{
-	FutureExt, StreamExt, TryStreamExt,
-	future::{join, join3, join4},
-};
+use futures::StreamExt;
 use ruma::{
-	OwnedMxcUri, OwnedRoomId, UserId,
+	UserId,
 	api::{
 		client::profile::{
-			get_avatar_url, get_display_name, get_profile, set_avatar_url, set_display_name,
+			delete_profile_field, get_profile, get_profile_field, set_profile_field,
 		},
 		federation,
 	},
+	assign,
 	events::room::member::{MembershipState, RoomMemberEventContent},
 	presence::PresenceState,
+	profile::{ProfileFieldName, ProfileFieldValue},
 };
+use serde_json::{Value, to_value};
 
 use crate::Ruma;
-
-/// # `PUT /_matrix/client/r0/profile/{userId}/displayname`
-///
-/// Updates the displayname.
-///
-/// - Also makes sure other users receive the update using presence EDUs
-pub(crate) async fn set_displayname_route(
-	State(services): State<crate::State>,
-	body: Ruma<set_display_name::v3::Request>,
-) -> Result<set_display_name::v3::Response> {
-	let sender_user = body.sender_user();
-	if services.users.is_suspended(sender_user).await? {
-		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
-	}
-
-	if *sender_user != body.user_id && body.appservice_info.is_none() {
-		return Err!(Request(Forbidden("You cannot update the profile of another user")));
-	}
-
-	let all_joined_rooms: Vec<OwnedRoomId> = services
-		.rooms
-		.state_cache
-		.rooms_joined(&body.user_id)
-		.map(ToOwned::to_owned)
-		.collect()
-		.await;
-
-	update_displayname(&services, &body.user_id, body.displayname.clone(), &all_joined_rooms)
-		.boxed()
-		.await;
-
-	if services.config.allow_local_presence {
-		// Presence update
-		services
-			.presence
-			.ping_presence(&body.user_id, &PresenceState::Online)
-			.await?;
-	}
-
-	Ok(set_display_name::v3::Response {})
-}
-
-/// # `GET /_matrix/client/v3/profile/{userId}/displayname`
-///
-/// Returns the displayname of the user.
-///
-/// - If user is on another server and we do not have a local copy already fetch
-///   displayname over federation
-pub(crate) async fn get_displayname_route(
-	State(services): State<crate::State>,
-	body: Ruma<get_display_name::v3::Request>,
-) -> Result<get_display_name::v3::Response> {
-	if !services.globals.user_is_local(&body.user_id) {
-		// Create and update our local copy of the user
-		if let Ok(response) = services
-			.sending
-			.send_federation_request(
-				body.user_id.server_name(),
-				federation::query::get_profile_information::v1::Request {
-					user_id: body.user_id.clone(),
-					field: None, // we want the full user's profile to update locally too
-				},
-			)
-			.await
-		{
-			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None, None).await?;
-			}
-
-			services
-				.users
-				.set_displayname(&body.user_id, response.displayname.clone());
-			services
-				.users
-				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-			services
-				.users
-				.set_blurhash(&body.user_id, response.blurhash.clone());
-
-			return Ok(get_display_name::v3::Response { displayname: response.displayname });
-		}
-	}
-
-	if !services.users.exists(&body.user_id).await {
-		// Return 404 if this user doesn't exist and we couldn't fetch it over
-		// federation
-		return Err!(Request(NotFound("Profile was not found.")));
-	}
-
-	Ok(get_display_name::v3::Response {
-		displayname: services.users.displayname(&body.user_id).await.ok(),
-	})
-}
-
-/// # `PUT /_matrix/client/v3/profile/{userId}/avatar_url`
-///
-/// Updates the `avatar_url` and `blurhash`.
-///
-/// - Also makes sure other users receive the update using presence EDUs
-pub(crate) async fn set_avatar_url_route(
-	State(services): State<crate::State>,
-	body: Ruma<set_avatar_url::v3::Request>,
-) -> Result<set_avatar_url::v3::Response> {
-	let sender_user = body.sender_user();
-	if services.users.is_suspended(sender_user).await? {
-		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
-	}
-
-	if *sender_user != body.user_id && body.appservice_info.is_none() {
-		return Err!(Request(Forbidden("You cannot update the profile of another user")));
-	}
-
-	let all_joined_rooms: Vec<OwnedRoomId> = services
-		.rooms
-		.state_cache
-		.rooms_joined(&body.user_id)
-		.map(ToOwned::to_owned)
-		.collect()
-		.await;
-
-	update_avatar_url(
-		&services,
-		&body.user_id,
-		body.avatar_url.clone(),
-		body.blurhash.clone(),
-		&all_joined_rooms,
-	)
-	.boxed()
-	.await;
-
-	if services.config.allow_local_presence {
-		// Presence update
-		services
-			.presence
-			.ping_presence(&body.user_id, &PresenceState::Online)
-			.await
-			.ok();
-	}
-
-	Ok(set_avatar_url::v3::Response {})
-}
-
-/// # `GET /_matrix/client/v3/profile/{userId}/avatar_url`
-///
-/// Returns the `avatar_url` and `blurhash` of the user.
-///
-/// - If user is on another server and we do not have a local copy already fetch
-///   `avatar_url` and blurhash over federation
-pub(crate) async fn get_avatar_url_route(
-	State(services): State<crate::State>,
-	body: Ruma<get_avatar_url::v3::Request>,
-) -> Result<get_avatar_url::v3::Response> {
-	if !services.globals.user_is_local(&body.user_id) {
-		// Create and update our local copy of the user
-		if let Ok(response) = services
-			.sending
-			.send_federation_request(
-				body.user_id.server_name(),
-				federation::query::get_profile_information::v1::Request {
-					user_id: body.user_id.clone(),
-					field: None, // we want the full user's profile to update locally as well
-				},
-			)
-			.await
-		{
-			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None, None).await?;
-			}
-
-			services
-				.users
-				.set_displayname(&body.user_id, response.displayname.clone());
-			services
-				.users
-				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-			services
-				.users
-				.set_blurhash(&body.user_id, response.blurhash.clone());
-
-			return Ok(get_avatar_url::v3::Response {
-				avatar_url: response.avatar_url,
-				blurhash: response.blurhash,
-			});
-		}
-	}
-
-	if !services.users.exists(&body.user_id).await {
-		// Return 404 if this user doesn't exist and we couldn't fetch it over
-		// federation
-		return Err!(Request(NotFound("Profile was not found.")));
-	}
-
-	let (avatar_url, blurhash) = join(
-		services.users.avatar_url(&body.user_id).ok(),
-		services.users.blurhash(&body.user_id).ok(),
-	)
-	.await;
-
-	Ok(get_avatar_url::v3::Response { avatar_url, blurhash })
-}
 
 /// # `GET /_matrix/client/v3/profile/{userId}`
 ///
@@ -235,188 +32,289 @@ pub(crate) async fn get_profile_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_profile::v3::Request>,
 ) -> Result<get_profile::v3::Response> {
+	let Some(profile) = fetch_full_profile(&services, &body.user_id).await else {
+		return Err!(Request(NotFound("This user's profile could not be fetched.")));
+	};
+
+	Ok(get_profile::v3::Response::from_iter(profile.into_iter()))
+}
+
+pub(crate) async fn get_profile_field_route(
+	State(services): State<crate::State>,
+	body: Ruma<get_profile_field::v3::Request>,
+) -> Result<get_profile_field::v3::Response> {
+	let value = fetch_profile_field(&services, &body.user_id, body.field.clone()).await?;
+
+	Ok(assign!(get_profile_field::v3::Response::default(), { value }))
+}
+
+pub(crate) async fn set_profile_field_route(
+	State(services): State<crate::State>,
+	body: Ruma<set_profile_field::v3::Request>,
+) -> Result<set_profile_field::v3::Response> {
+	if body.user_id != body.sender_user()
+		&& !(body.appservice_info.is_some()
+			|| services.admin.user_is_admin(body.sender_user()).await)
+	{
+		return Err!(Request(Forbidden("You may not change other users' profile data.")));
+	}
+
 	if !services.globals.user_is_local(&body.user_id) {
-		// Create and update our local copy of the user
-		if let Ok(response) = services
-			.sending
-			.send_federation_request(
-				body.user_id.server_name(),
-				federation::query::get_profile_information::v1::Request {
-					user_id: body.user_id.clone(),
-					field: None,
-				},
-			)
+		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
+	}
+
+	set_profile_field(&services, &body.user_id, ProfileFieldChange::Set(body.value.clone()))
+		.await;
+
+	Ok(set_profile_field::v3::Response::new())
+}
+
+pub(crate) async fn delete_profile_field_route(
+	State(services): State<crate::State>,
+	body: Ruma<delete_profile_field::v3::Request>,
+) -> Result<delete_profile_field::v3::Response> {
+	if body.user_id != body.sender_user()
+		&& !(body.appservice_info.is_some()
+			|| services.admin.user_is_admin(body.sender_user()).await)
+	{
+		return Err!(Request(Forbidden("You may not change other users' profile data.")));
+	}
+
+	if !services.globals.user_is_local(&body.user_id) {
+		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
+	}
+
+	set_profile_field(&services, &body.user_id, ProfileFieldChange::Delete(body.field.clone()))
+		.await;
+
+	Ok(delete_profile_field::v3::Response::new())
+}
+
+async fn fetch_full_profile(
+	services: &Services,
+	user_id: &UserId,
+) -> Option<BTreeMap<String, Value>> {
+	// If the user exists locally, fetch their local profile
+	if services.users.exists(user_id).await {
+		let mut profile = BTreeMap::new();
+
+		// Get displayname and avatar_url independently because `all_profile_keys`
+		// doesn't include them
+		for field in [ProfileFieldName::AvatarUrl, ProfileFieldName::DisplayName] {
+			let key = field.as_str().to_owned();
+
+			if let Some(value) = get_local_profile_field(services, user_id, field).await {
+				profile.insert(key, value.value().into_owned());
+			}
+		}
+
+		// Insert all other profile fields
+		let mut all_fields = services.users.all_profile_keys(user_id);
+
+		while let Some((key, value)) = all_fields.next().await {
+			profile.insert(key, value);
+		}
+
+		return Some(profile);
+	}
+
+	// Otherwise ask their homeserver
+	let Ok(response) = services
+		.sending
+		.send_federation_request(
+			user_id.server_name(),
+			federation::query::get_profile_information::v1::Request::new(user_id.to_owned()),
+		)
+		.await
+	else {
+		return None;
+	};
+
+	// Update our local copies of their profile fields
+	services.users.clear_profile(user_id).await;
+
+	for (field, value) in response.iter() {
+		let Ok(value) = ProfileFieldValue::new(&field, value.to_owned()) else {
+			// Skip malformed fields
+			continue;
+		};
+
+		set_profile_field(services, user_id, ProfileFieldChange::Set(value)).await;
+	}
+
+	Some(BTreeMap::from_iter(response.into_iter()))
+}
+
+async fn fetch_profile_field(
+	services: &Services,
+	user_id: &UserId,
+	field: ProfileFieldName,
+) -> Result<Option<ProfileFieldValue>> {
+	// If the user exists locally, fetch their local profile field
+	if services.globals.user_is_local(user_id) {
+		return Ok(get_local_profile_field(services, user_id, field).await);
+	}
+
+	// Otherwise ask their homeserver
+	let Ok(response) = services
+		.sending
+		.send_federation_request(
+			user_id.server_name(),
+			assign!(federation::query::get_profile_information::v1::Request::new(user_id.to_owned()), {
+				field: Some(field.clone())
+			}),
+		)
+		.await
+	else {
+		return Err!(Request(NotFound(
+			"User's homeserver could not provide this profile field."
+		)));
+	};
+
+	if let Some(value) = response.get(field.as_str()).map(ToOwned::to_owned) {
+		if let Ok(value) = ProfileFieldValue::new(field.as_str(), value) {
+			set_profile_field(services, user_id, ProfileFieldChange::Set(value.clone())).await;
+
+			Ok(Some(value))
+		} else {
+			Err!(Request(Unknown(
+				"User's homeserver returned malformed data for this profile field."
+			)))
+		}
+	} else {
+		set_profile_field(services, user_id, ProfileFieldChange::Delete(field)).await;
+
+		Ok(None)
+	}
+}
+
+async fn get_local_profile_field(
+	services: &Services,
+	user_id: &UserId,
+	field: ProfileFieldName,
+) -> Option<ProfileFieldValue> {
+	let value = match field.clone() {
+		| ProfileFieldName::AvatarUrl => services
+			.users
+			.avatar_url(user_id)
 			.await
-		{
-			if !services.users.exists(&body.user_id).await {
-				services.users.create(&body.user_id, None, None).await?;
-			}
+			.ok()
+			.map(to_value)
+			.transpose()
+			.expect("converting avatar url to value should succeed"),
+		| ProfileFieldName::DisplayName => services
+			.users
+			.displayname(user_id)
+			.await
+			.ok()
+			.map(to_value)
+			.transpose()
+			.expect("converting displayname to value should succeed"),
+		| other => services
+			.users
+			.profile_key(user_id, other.as_str())
+			.await
+			.ok(),
+	}?;
 
-			services
-				.users
-				.set_displayname(&body.user_id, response.displayname.clone());
-			services
-				.users
-				.set_avatar_url(&body.user_id, response.avatar_url.clone());
-			services
-				.users
-				.set_blurhash(&body.user_id, response.blurhash.clone());
+	Some(
+		ProfileFieldValue::new(field.as_str(), value)
+			.expect("local profile field should be valid"),
+	)
+}
 
-			for (profile_key, profile_key_value) in &response.custom_profile_fields {
-				services.users.set_profile_key(
-					&body.user_id,
-					profile_key,
-					Some(profile_key_value.clone()),
-				);
-			}
+enum ProfileFieldChange {
+	Set(ProfileFieldValue),
+	Delete(ProfileFieldName),
+}
 
-			return Ok(get_profile::v3::Response {
-				displayname: response.displayname,
-				avatar_url: response.avatar_url,
-				blurhash: response.blurhash,
-				custom_profile_fields: response.custom_profile_fields,
-			});
+impl ProfileFieldChange {
+	fn field_name(&self) -> ProfileFieldName {
+		match self {
+			| &ProfileFieldChange::Delete(ref name) => name.clone(),
+			| &ProfileFieldChange::Set(ref value) => value.field_name(),
 		}
 	}
 
-	if !services.users.exists(&body.user_id).await {
-		// Return 404 if this user doesn't exist and we couldn't fetch it over
-		// federation
-		return Err!(Request(NotFound("Profile was not found.")));
+	fn value(&self) -> Option<Value> {
+		if let &ProfileFieldChange::Set(ref value) = self {
+			Some(value.value().into_owned())
+		} else {
+			None
+		}
 	}
-
-	let (avatar_url, blurhash, displayname, custom_profile_fields) = join4(
-		services.users.avatar_url(&body.user_id).ok(),
-		services.users.blurhash(&body.user_id).ok(),
-		services.users.displayname(&body.user_id).ok(),
-		services.users.all_profile_keys(&body.user_id).collect(),
-	)
-	.await;
-
-	Ok(get_profile::v3::Response {
-		avatar_url,
-		blurhash,
-		displayname,
-		custom_profile_fields,
-	})
 }
 
-pub async fn update_displayname(
-	services: &Services,
-	user_id: &UserId,
-	displayname: Option<String>,
-	all_joined_rooms: &[OwnedRoomId],
-) {
-	let (current_avatar_url, current_blurhash, current_displayname) = join3(
-		services.users.avatar_url(user_id).ok(),
-		services.users.blurhash(user_id).ok(),
-		services.users.displayname(user_id).ok(),
-	)
-	.await;
+async fn set_profile_field(services: &Services, user_id: &UserId, change: ProfileFieldChange) {
+	let field_name = change.field_name();
 
-	if displayname == current_displayname {
-		return;
+	match change {
+		| ProfileFieldChange::Set(ProfileFieldValue::DisplayName(displayname)) => {
+			services
+				.users
+				.set_displayname(user_id, Some(displayname).filter(|dn| !dn.is_empty()));
+		},
+		| ProfileFieldChange::Set(ProfileFieldValue::AvatarUrl(avatar_url)) => {
+			services
+				.users
+				.set_avatar_url(user_id, Some(avatar_url).filter(|av| av.is_valid()));
+		},
+		| ProfileFieldChange::Delete(ProfileFieldName::DisplayName) => {
+			services.users.set_displayname(user_id, None);
+		},
+		| ProfileFieldChange::Delete(ProfileFieldName::AvatarUrl) => {
+			services.users.set_avatar_url(user_id, None);
+		},
+		| other =>
+			if other.field_name().as_str() == "blurhash" {
+				if let Some(Value::String(blurhash)) = other.value() {
+					services.users.set_blurhash(user_id, Some(blurhash));
+				} else {
+					services.users.set_blurhash(user_id, None);
+				}
+			} else {
+				services.users.set_profile_key(
+					user_id,
+					other.field_name().as_str(),
+					other.value(),
+				);
+			},
 	}
 
-	services.users.set_displayname(user_id, displayname.clone());
+	// If the user is local and changed their displayname or avatar_url, update it
+	// in all their joined rooms
+	if matches!(field_name, ProfileFieldName::AvatarUrl | ProfileFieldName::DisplayName)
+		&& services.users.is_active_local(user_id).await
+	{
+		let displayname = services.users.displayname(user_id).await.ok();
+		let avatar_url = services.users.avatar_url(user_id).await.ok();
+		let membership_content = assign!(
+			RoomMemberEventContent::new(MembershipState::Join), { displayname, avatar_url }
+		);
 
-	// Send a new join membership event into all joined rooms
-	let avatar_url = &current_avatar_url;
-	let blurhash = &current_blurhash;
-	let displayname = &displayname;
-	let all_joined_rooms: Vec<_> = all_joined_rooms
-		.iter()
-		.try_stream()
-		.and_then(|room_id: &OwnedRoomId| async move {
-			let pdu = PartialPdu::state(user_id.to_string(), &RoomMemberEventContent {
-				displayname: displayname.clone(),
-				membership: MembershipState::Join,
-				avatar_url: avatar_url.clone(),
-				blurhash: blurhash.clone(),
-				join_authorized_via_users_server: None,
-				reason: None,
-				is_direct: None,
-				third_party_invite: None,
-				redact_events: None,
-			});
+		let mut all_joined_rooms = services.rooms.state_cache.rooms_joined(user_id);
 
-			Ok((pdu, room_id))
-		})
-		.ignore_err()
-		.collect()
-		.await;
+		while let Some(room_id) = all_joined_rooms.next().await {
+			let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
-	update_all_rooms(services, all_joined_rooms, user_id)
-		.boxed()
-		.await;
-}
+			let _ = services
+				.rooms
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(user_id.to_string(), &membership_content),
+					user_id,
+					Some(&room_id),
+					&state_lock,
+				)
+				.await;
+		}
 
-pub async fn update_avatar_url(
-	services: &Services,
-	user_id: &UserId,
-	avatar_url: Option<OwnedMxcUri>,
-	blurhash: Option<String>,
-	all_joined_rooms: &[OwnedRoomId],
-) {
-	let (current_avatar_url, current_blurhash, current_displayname) = join3(
-		services.users.avatar_url(user_id).ok(),
-		services.users.blurhash(user_id).ok(),
-		services.users.displayname(user_id).ok(),
-	)
-	.await;
-
-	if current_avatar_url == avatar_url && current_blurhash == blurhash {
-		return;
-	}
-
-	services.users.set_avatar_url(user_id, avatar_url.clone());
-	services.users.set_blurhash(user_id, blurhash.clone());
-
-	// Send a new join membership event into all joined rooms
-	let avatar_url = &avatar_url;
-	let blurhash = &blurhash;
-	let displayname = &current_displayname;
-	let all_joined_rooms: Vec<_> = all_joined_rooms
-		.iter()
-		.try_stream()
-		.and_then(|room_id: &OwnedRoomId| async move {
-			let pdu = PartialPdu::state(user_id.to_string(), &RoomMemberEventContent {
-				avatar_url: avatar_url.clone(),
-				blurhash: blurhash.clone(),
-				membership: MembershipState::Join,
-				displayname: displayname.clone(),
-				join_authorized_via_users_server: None,
-				reason: None,
-				is_direct: None,
-				third_party_invite: None,
-				redact_events: None,
-			});
-
-			Ok((pdu, room_id))
-		})
-		.ignore_err()
-		.collect()
-		.await;
-
-	update_all_rooms(services, all_joined_rooms, user_id)
-		.boxed()
-		.await;
-}
-
-pub async fn update_all_rooms(
-	services: &Services,
-	all_joined_rooms: Vec<(PartialPdu, &OwnedRoomId)>,
-	user_id: &UserId,
-) {
-	for (partial_pdu, room_id) in all_joined_rooms {
-		let state_lock = services.rooms.state.mutex.lock(room_id).await;
-		if let Err(e) = services
-			.rooms
-			.timeline
-			.build_and_append_pdu(partial_pdu, user_id, Some(room_id), &state_lock)
-			.await
-		{
-			warn!(%user_id, %room_id, "Failed to update/send new profile join membership update in room: {e}");
+		if services.config.allow_local_presence {
+			// Send a presence EDU to indicate the profile changed
+			let _ = services
+				.presence
+				.ping_presence(user_id, &PresenceState::Online)
+				.await;
 		}
 	}
 }

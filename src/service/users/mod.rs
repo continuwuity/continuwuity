@@ -1274,7 +1274,6 @@ impl Service {
 		profile_key: &str,
 		profile_key_value: Option<serde_json::Value>,
 	) {
-		// TODO: insert to the stable MSC4175 key when it's stable
 		let key = (user_id, profile_key);
 
 		if let Some(value) = profile_key_value {
@@ -1282,6 +1281,17 @@ impl Service {
 		} else {
 			self.db.useridprofilekey_value.del(key);
 		}
+	}
+
+	/// Clears all profile data for a user, including display name and avatar
+	/// url.
+	pub async fn clear_profile(&self, user_id: &UserId) {
+		self.set_displayname(user_id, None);
+		self.set_avatar_url(user_id, None);
+		self.set_blurhash(user_id, None);
+		self.all_profile_keys(user_id)
+			.ready_for_each(|(key, _)| self.set_profile_key(user_id, &key, None))
+			.await;
 	}
 
 	#[cfg(feature = "ldap")]

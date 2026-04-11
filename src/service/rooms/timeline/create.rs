@@ -13,11 +13,9 @@ use conduwuit_core::{
 };
 use futures::{StreamExt, TryStreamExt, future, future::ready};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, RoomId, UserId,
-	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
-	uint,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId, events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent}, room_version_rules::RoomVersionRules, uint
 };
-use serde_json::value::to_raw_value;
+use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
 
@@ -80,7 +78,7 @@ pub async fn create_event(
 	sender: &UserId,
 	room_id: Option<&RoomId>,
 	_mutex_lock: &RoomMutexGuard,
-) -> Result<(PduEvent, RoomVersionId)> {
+) -> Result<(PduEvent, RoomVersionRules)> {
 	let PartialPdu {
 		event_type,
 		content,
@@ -260,13 +258,13 @@ pub async fn create_event(
 		pdu.event_id,
 		pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 	);
-	Ok((pdu, room_version))
+	Ok((pdu, room_version_rules))
 }
 
 #[implement(super::Service)]
 pub async fn create_hash_and_sign_event(
 	&self,
-	pdu_builder: PduBuilder,
+	partial_pdu: PartialPdu,
 	sender: &UserId,
 	room_id: Option<&RoomId>,
 	mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
@@ -275,8 +273,8 @@ pub async fn create_hash_and_sign_event(
 	if !self.services.globals.user_is_local(sender) {
 		return Err!(Request(Forbidden("Sender must be a local user")));
 	}
-	let (mut pdu, room_version) = self
-		.create_event(pdu_builder, sender, room_id, mutex_lock)
+	let (mut pdu, room_version_rules) = self
+		.create_event(partial_pdu, sender, room_id, mutex_lock)
 		.await?;
 	// Hash and sign
 	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
