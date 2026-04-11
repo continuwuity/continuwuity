@@ -26,15 +26,17 @@ use ruma::{
 	DeviceId, RoomId, UserId,
 	api::{
 		Direction,
-		client::{error::ErrorKind, filter::RoomEventFilter, message::get_message_events},
+		client::{filter::RoomEventFilter, message::get_message_events},
+		error::ErrorKind,
 	},
+	assign,
 	events::{
 		AnyStateEvent, StateEventType,
 		TimelineEventType::{self, *},
-		invite_permission_config::FilterLevel,
 	},
 	serde::Raw,
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 use tracing::warn;
 
 use crate::Ruma;
@@ -199,12 +201,12 @@ pub(crate) async fn get_message_events_route(
 		.map(Event::into_format)
 		.collect();
 
-	Ok(get_message_events::v3::Response {
+	Ok(assign!(get_message_events::v3::Response::new(), {
 		start: from.to_string(),
 		end: next_token.as_ref().map(PduCount::to_string),
-		chunk,
-		state,
-	})
+		chunk: chunk,
+		state: state,
+	}))
 }
 
 pub(crate) async fn lazy_loading_witness<'a, I>(
@@ -301,7 +303,7 @@ where
 {
 	// exclude Synapse's dummy events from bloating up response bodies. clients
 	// don't need to see this.
-	if event.kind().to_cow_str() == "org.matrix.dummy_event" {
+	if event.kind().to_string() == "org.matrix.dummy_event" {
 		return Ok(true);
 	}
 
