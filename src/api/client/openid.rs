@@ -29,10 +29,10 @@ pub(crate) async fn create_openid_token_route(
 		.users
 		.create_openid_token(&body.user_id, &access_token)?;
 
-	Ok(account::request_openid_token::v3::Response {
+	Ok(account::request_openid_token::v3::Response::new(
 		access_token,
-		token_type: TokenType::Bearer,
-		matrix_server_name: services.server.name.clone(),
-		expires_in: Duration::from_secs(expires_in),
-	})
+		TokenType::Bearer,
+		services.server.name.clone(),
+		Duration::from_secs(expires_in),
+	))
 }
