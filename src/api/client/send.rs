@@ -40,7 +40,7 @@ pub(crate) async fn send_message_event_route(
 		return Err!(Request(Forbidden("Encryption has been disabled")));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	if body.event_type == MessageLikeEventType::CallInvite
 		&& services.rooms.directory.is_public_room(&body.room_id).await
@@ -62,11 +62,11 @@ pub(crate) async fn send_message_event_route(
 			)));
 		}
 
-		return Ok(send_message_event::v3::Response {
-			event_id: utils::string_from_bytes(&response)
-				.map(TryInto::try_into)
-				.map_err(|e| err!(Database("Invalid event_id in txnid data: {e:?}")))??,
-		});
+		let event_id = utils::string_from_bytes(&response)
+			.map(TryInto::try_into)
+			.map_err(|e| err!(Database("Invalid event_id in txnid data: {e:?}")))??;
+
+		return Ok(send_message_event::v3::Response::new(event_id));
 	}
 
 	let mut unsigned = BTreeMap::new();
@@ -101,5 +101,5 @@ pub(crate) async fn send_message_event_route(
 
 	drop(state_lock);
 
-	Ok(send_message_event::v3::Response { event_id })
+	Ok(send_message_event::v3::Response::new(event_id))
 }
