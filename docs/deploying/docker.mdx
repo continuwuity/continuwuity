@@ -47,63 +47,13 @@ Continuwuity requires HTTPS for Matrix federation. You'll need:
 For more setups with `.well-known` delegation and split-domain deployments, consult the [Delegation/Split-domain](../advanced/delegation) page.
 :::
 
-## Docker - Quick Run
-
-:::note For testing only
-The instructions below are only meant for a quick demo of Continuwuity.
-For production deployment, we recommend using [Docker Compose](#docker-compose)
-:::
-
-Get a working Continuwuity server with an admin user in four steps:
-
-1. Pull the image
-
-    ```bash
-    docker pull forgejo.ellis.link/continuwuation/continuwuity:latest
-    ```
-
-2. Start the server for the first time. Replace `example.com` with your actual server name.
-
-    ```bash
-    docker run -d \
-      -p 8008:8008 \
-      -v continuwuity_db:/var/lib/continuwuity \
-      -e CONTINUWUITY_SERVER_NAME="example.com" \
-      -e CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity" \
-      -e CONTINUWUITY_ADDRESS="0.0.0.0" \
-      -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
-      --name continuwuity \
-      forgejo.ellis.link/continuwuation/continuwuity:latest \
-      /sbin/conduwuit
-    ```
-
-3. Fetch the one-time initial registration token
-
-    ```bash
-    docker logs continuwuity 2>&1
-    ```
-
-    You'll see output as below.
-
-    ```
-    In order to use your new homeserver, you need to create its
-    first user account.
-    Open your Matrix client of choice and register an account
-    on example.com using registration token x5keUZ811RqvLsNa .
-    Pick your own username and password!
-    ```
-
-4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity at port 8008. See [Docker Compose](#docker-compose) for examples.
-
-Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
-
 ## Docker Compose
 
 Docker Compose is the recommended deployment method for Continuwuity containers. The following environment variables will be set:
 
-- `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name.
+- `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name. **This CANNOT be changed later without a data wipe.**
 - `CONTINUWUITY_DATABASE_PATH` - Where to store your database. This must match the docker volume mount.
-- `CONTINUWUITY_ADDRESS` - Bind address (use `0.0.0.0` to listen on all interfaces).
+- `CONTINUWUITY_ADDRESS` - Bind address (for Docker, use `0.0.0.0` to listen on all interfaces).
 
 Alternatively, you can specify a path to mount the configuration file using the `CONTINUWUITY_CONFIG` environment variable.
 
@@ -235,7 +185,59 @@ See the [generic deployment guide](generic.mdx) for more deployment options.
 
 Test that your setup works by following these [instructions](./generic.mdx#how-do-i-know-it-works)
 
-## (Optional) Building Custom Images
+## Other deployment methods
+
+### Docker - Quick Run
+
+:::note For testing only
+The instructions below are only meant for a quick demo of Continuwuity.
+For production deployment, we recommend using [Docker Compose](#docker-compose)
+:::
+
+Get a working Continuwuity server with an admin user in four steps:
+
+1. Pull the image
+
+    ```bash
+    docker pull forgejo.ellis.link/continuwuation/continuwuity:latest
+    ```
+
+2. Start the server for the first time. Replace `example.com` with your actual server name.
+
+    ```bash
+    docker run -d \
+      -p 8008:8008 \
+      -v continuwuity_db:/var/lib/continuwuity \
+      -e CONTINUWUITY_SERVER_NAME="example.com" \
+      -e CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity" \
+      -e CONTINUWUITY_ADDRESS="0.0.0.0" \
+      -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
+      --name continuwuity \
+      forgejo.ellis.link/continuwuation/continuwuity:latest \
+      /sbin/conduwuit
+    ```
+
+3. Fetch the one-time initial registration token
+
+    ```bash
+    docker logs continuwuity 2>&1
+    ```
+
+    You'll see output as below.
+
+    ```
+    In order to use your new homeserver, you need to create its
+    first user account.
+    Open your Matrix client of choice and register an account
+    on example.com using registration token x5keUZ811RqvLsNa .
+    Pick your own username and password!
+    ```
+
+4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity at port 8008. See [Docker Compose](#docker-compose) for examples.
+
+Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
+
+### (Optional) Building Custom Images
 
 For information on building your own Continuwuity Docker images, see the
 [Building Docker Images](../development/index.mdx#building-docker-images)
@@ -243,7 +245,7 @@ section in the development documentation.
 
 ## Next steps
 
-- For smooth federation, set up a caching resolver according to the [DNS tuning guide](../advanced/dns.mdx)
-- To set up Audio/Video communication, see the [Calls](../calls.mdx) page.
-If you want to set up an appservice, take a look at the [Appservice
-Guide](../appservices.mdx).
+- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
+- To set up Audio/Video communication, see the [**Calls**](../calls.mdx) page.
+- If you want to set up an appservice, take a look at the [**Appservice
+Guide**](../appservices.mdx).
