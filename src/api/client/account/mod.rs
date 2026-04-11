@@ -349,13 +349,7 @@ pub async fn full_user_deactivate(
 			.await;
 	}
 
-	services
-		.users
-		.all_profile_keys(user_id)
-		.ready_for_each(|(profile_key, _)| {
-			services.users.set_profile_key(user_id, &profile_key, None);
-		})
-		.await;
+	services.users.clear_profile(user_id).await;
 
 	services
 		.pusher
@@ -400,9 +394,16 @@ pub async fn full_user_deactivate(
 		// TODO: Redact all messages sent by the user in the room
 	}
 
-	super::update_all_rooms(services, pdu_queue, user_id)
-		.boxed()
-		.await;
+	for (pdu, room_id) in pdu_queue.into_iter() {
+		let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
+
+		let _ = services
+			.rooms
+			.timeline
+			.build_and_append_pdu(pdu, user_id, Some(room_id.as_ref()), &state_lock)
+			.await;
+	}
+
 	for room_id in all_joined_rooms {
 		services.rooms.state_cache.forget(room_id, user_id);
 	}
