@@ -8,13 +8,17 @@ use conduwuit::{
 	utils::{IterStream, stream::ReadyExt},
 };
 use conduwuit_service::{Services, rooms::search::RoomQuery};
-use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future::OptionFuture};
+use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use ruma::{
 	OwnedRoomId, RoomId, UInt, UserId,
 	api::client::search::search_events::{
 		self,
-		v3::{Criteria, EventContextResult, ResultCategories, ResultRoomEvents, SearchResult},
+		v3::{
+			Criteria, EventContextResult, ResultCategories, ResultGroupMapsByGroupingKey,
+			ResultRoomEvents, SearchResult,
+		},
 	},
+	assign,
 	events::AnyStateEvent,
 	serde::Raw,
 };
@@ -41,20 +45,15 @@ pub(crate) async fn search_events_route(
 ) -> Result<Response> {
 	let sender_user = body.sender_user();
 	let next_batch = body.next_batch.as_deref();
-	let room_events_result: OptionFuture<_> = body
-		.search_categories
-		.room_events
-		.as_ref()
-		.map(|criteria| category_room_events(&services, sender_user, next_batch, criteria))
-		.into();
 
-	Ok(Response {
-		search_categories: ResultCategories {
-			room_events: Box::pin(room_events_result)
-				.await
-				.unwrap_or_else(|| Ok(ResultRoomEvents::default()))?,
-		},
-	})
+	let mut result_categories = ResultCategories::new();
+
+	if let Some(criteria) = &body.search_categories.room_events {
+		result_categories.room_events =
+			category_room_events(&services, sender_user, next_batch, criteria).await?
+	}
+
+	Ok(Response::new(result_categories))
 }
 
 #[allow(clippy::map_unwrap_or)]
@@ -85,14 +84,7 @@ async fn category_room_events(
 		.map(IntoIterator::into_iter)
 		.map(IterStream::stream)
 		.map(StreamExt::boxed)
-		.unwrap_or_else(|| {
-			services
-				.rooms
-				.state_cache
-				.rooms_joined(sender_user)
-				.map(ToOwned::to_owned)
-				.boxed()
-		});
+		.unwrap_or_else(|| services.rooms.state_cache.rooms_joined(sender_user).boxed());
 
 	let results: Vec<_> = rooms
 		.filter_map(|room_id| async move {
@@ -129,7 +121,8 @@ async fn category_room_events(
 	let total: UInt = results
 		.iter()
 		.fold(0, |a: usize, (_, count, _)| a.saturating_add(*count))
-		.try_into()?;
+		.try_into()
+		.expect("total results should fit into a UInt");
 
 	let state: RoomStates = results
 		.iter()
@@ -161,16 +154,12 @@ async fn category_room_events(
 			pdu
 		})
 		.map(Event::into_format)
-		.map(|result| SearchResult {
-			rank: None,
-			result: Some(result),
-			context: EventContextResult {
-				profile_info: BTreeMap::new(), //TODO
-				events_after: Vec::new(),      //TODO
-				events_before: Vec::new(),     //TODO
-				start: None,                   //TODO
-				end: None,                     //TODO
-			},
+		.map(|result| {
+			assign!(SearchResult::new(), {
+				rank: None,
+				result: Some(result),
+				context: EventContextResult::default() // TODO
+			})
 		})
 		.collect()
 		.await;
@@ -186,14 +175,14 @@ async fn category_room_events(
 		.as_ref()
 		.map(ToString::to_string);
 
-	Ok(ResultRoomEvents {
+	Ok(assign!(ResultRoomEvents::new(), {
 		count: Some(total),
 		next_batch,
 		results,
 		state,
 		highlights,
-		groups: BTreeMap::new(), // TODO
-	})
+		groups: ResultGroupMapsByGroupingKey::default(), // TODO
+	}))
 }
 
 async fn procure_room_state(services: &Services, room_id: &RoomId) -> Result<RoomState> {
