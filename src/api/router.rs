@@ -22,9 +22,6 @@ use crate::{admin, client, server};
 pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 	let config = &server.config;
 	let mut router = router
-        .ruma_route(&client::get_profile_key_route)
-        .ruma_route(&client::set_profile_key_route)
-        .ruma_route(&client::delete_profile_key_route)
         .ruma_route(&client::appservice_ping)
 		.ruma_route(&client::get_supported_versions_route)
 		.ruma_route(&client::get_register_available_route)
@@ -64,10 +61,9 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::set_room_account_data_route)
 		.ruma_route(&client::get_global_account_data_route)
 		.ruma_route(&client::get_room_account_data_route)
-		.ruma_route(&client::set_displayname_route)
-		.ruma_route(&client::get_displayname_route)
-		.ruma_route(&client::set_avatar_url_route)
-		.ruma_route(&client::get_avatar_url_route)
+		.ruma_route(&client::get_profile_field_route)
+        .ruma_route(&client::set_profile_field_route)
+        .ruma_route(&client::delete_profile_field_route)
 		.ruma_route(&client::get_profile_route)
 		.ruma_route(&client::set_presence_route)
 		.ruma_route(&client::get_presence_route)
