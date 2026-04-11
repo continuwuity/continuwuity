@@ -18,6 +18,7 @@ Then, in the `[global.well_known]` section of your config file, add the followin
 ```toml
 [global.well_known]
 
+# defaults to port :443 if not specified
 client = "https://matrix.example.com"
 
 # port number MUST be specified
@@ -44,12 +45,12 @@ services:
         server=matrix.example.com:443
         }
 
-      # You can also configure individual .well-knowns as below
+      # You can also configure individual `.well-knowns` like this
       # CONTINUWUITY_WELL_KNOWN__CLIENT: https://matrix.example.com
       # CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
 ```
 
-## Reverse proxying .well-knowns to Continuwuity
+## Reverse proxying well-known files to Continuwuity
 
 After doing the steps above, Continuwuity will serve these 3 JSON files:
 
@@ -118,9 +119,9 @@ Restart Continuwuity and your reverse proxy. Once that's done, visit these route
 
 </details>
 
-### Serving .well-knowns manually
+### Serving well-known files manually
 
-Instead of reverse proxying .well-knowns, you can serve them directly as static JSON files that matches the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't available.
+Instead of configuring `[global.well_known]` options and reverse proxying well-known URIs, you can serve these files directly as static JSON that match the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't feasible.
 
 <details>
 
@@ -148,7 +149,7 @@ https://example.com {
 
 </details>
 
-When doing this, the `[global.well_known]` configurations can be safely removed. Remember to set the `Access-Control-Allow-Origin: *` header in your `/.well-known/matrix/client` path for web clients to work.
+Remember to set the `Access-Control-Allow-Origin: *` header in your `/.well-known/matrix/client` path for web clients to work.
 
 ## Troubleshooting
 
@@ -159,6 +160,15 @@ Check with the [Matrix Connectivity Tester][federation-tester] to see that it's 
 ### Cannot log in with web clients
 
 Make sure there is an `Access-Control-Allow-Origin: *` header in your `/.well-known/matrix/client` path. While Continuwuity serves this header by default, it may be dropped by reverse proxies or other middlewares.
+
+### Issues with alternative setups
+
+As Matrix clients prioritize well-known URIs for their destination, this can lead to issues with alternative methods of accessing the server that doesn't use a publicly routeable IP and domain name. You will probably find yourself connecting to non-existent/undesired URLs in certain cases like:
+
+- Accessing to the server via localhost IPs (e.g. for testing purposes)
+- Accessing the server from behind a VPN, or from alternative networks (such as from an onionsite)
+
+In these scenarios, further configurations would be needed. Refer to the [Related Documentation](#related-documentation) section for resolution steps and see how they could apply to your use case.
 
 ---
 
