@@ -15,6 +15,7 @@ use ruma::{
 			get_relating_events_with_rel_type_and_event_type,
 		},
 	},
+	assign,
 	events::{TimelineEventType, relation::RelationType},
 };
 
@@ -39,11 +40,12 @@ pub(crate) async fn get_relating_events_with_rel_type_and_event_type_route(
 		body.dir,
 	)
 	.await
-	.map(|res| get_relating_events_with_rel_type_and_event_type::v1::Response {
-		chunk: res.chunk,
-		next_batch: res.next_batch,
-		prev_batch: res.prev_batch,
-		recursion_depth: res.recursion_depth,
+	.map(|res| {
+		assign!(get_relating_events_with_rel_type_and_event_type::v1::Response::new(res.chunk), {
+			next_batch: res.next_batch,
+			prev_batch: res.prev_batch,
+			recursion_depth: res.recursion_depth,
+		})
 	})
 }
 
@@ -66,11 +68,12 @@ pub(crate) async fn get_relating_events_with_rel_type_route(
 		body.dir,
 	)
 	.await
-	.map(|res| get_relating_events_with_rel_type::v1::Response {
-		chunk: res.chunk,
-		next_batch: res.next_batch,
-		prev_batch: res.prev_batch,
-		recursion_depth: res.recursion_depth,
+	.map(|res| {
+		assign!(get_relating_events_with_rel_type::v1::Response::new(res.chunk), {
+			next_batch: res.next_batch,
+			prev_batch: res.prev_batch,
+			recursion_depth: res.recursion_depth,
+		})
 	})
 }
 
@@ -201,12 +204,11 @@ async fn paginate_relations_with_filter(
 		.map(Event::into_format)
 		.collect();
 
-	Ok(get_relating_events::v1::Response {
+	Ok(assign!(get_relating_events::v1::Response::new(chunk), {
 		next_batch,
 		prev_batch: from.map(Into::into),
 		recursion_depth: recurse.then_some(depth.into()),
-		chunk,
-	})
+	}))
 }
 
 async fn visibility_filter<Pdu: Event + Send + Sync>(
