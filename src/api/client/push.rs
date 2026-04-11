@@ -3,13 +3,13 @@ use conduwuit::{Err, Error, Result, err};
 use conduwuit_service::Services;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue,
-	api::client::{
-		error::ErrorKind,
-		push::{
+	api::{
+		client::push::{
 			delete_pushrule, get_pushers, get_pushrule, get_pushrule_actions,
 			get_pushrule_enabled, get_pushrules_all, get_pushrules_global_scope, set_pusher,
 			set_pushrule, set_pushrule_actions, set_pushrule_enabled,
 		},
+		error::ErrorKind,
 	},
 	events::{
 		GlobalAccountDataEventType,
@@ -80,9 +80,7 @@ pub(crate) async fn get_pushrules_all_route(
 			global_ruleset.update_with_server_default(Ruleset::server_default(sender_user));
 
 			let ty = GlobalAccountDataEventType::PushRules;
-			let event = PushRulesEvent {
-				content: PushRulesEventContent { global: global_ruleset.clone() },
-			};
+			let event = PushRulesEvent::new(PushRulesEventContent::new(global_ruleset.clone()));
 
 			services
 				.account_data
@@ -91,7 +89,7 @@ pub(crate) async fn get_pushrules_all_route(
 		}
 	};
 
-	Ok(get_pushrules_all::v3::Response { global: global_ruleset })
+	Ok(get_pushrules_all::v3::Response::new(global_ruleset))
 }
 
 /// # `GET /_matrix/client/r0/pushrules/global/`
@@ -116,21 +114,20 @@ pub(crate) async fn get_pushrules_global_route(
 		// user somehow has non-existent push rule event. recreate it and return server
 		// default silently
 
-		let ty = GlobalAccountDataEventType::PushRules;
-		let event = PushRulesEvent {
-			content: PushRulesEventContent {
-				global: Ruleset::server_default(sender_user),
-			},
-		};
+		let global_ruleset = Ruleset::server_default(sender_user);
+		let event = PushRulesEvent::new(PushRulesEventContent::new(global_ruleset.clone()));
 
 		services
 			.account_data
-			.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(event)?)
+			.update(
+				None,
+				sender_user,
+				GlobalAccountDataEventType::PushRules.to_string().into(),
+				&serde_json::to_value(event)?,
+			)
 			.await?;
 
-		return Ok(get_pushrules_global_scope::v3::Response {
-			global: Ruleset::server_default(sender_user),
-		});
+		return Ok(get_pushrules_global_scope::v3::Response::new(global_ruleset));
 	};
 
 	let account_data_content =
@@ -173,16 +170,16 @@ pub(crate) async fn get_pushrules_global_route(
 					None,
 					sender_user,
 					GlobalAccountDataEventType::PushRules.to_string().into(),
-					&serde_json::to_value(PushRulesEvent {
-						content: PushRulesEventContent { global: global_ruleset.clone() },
-					})
+					&serde_json::to_value(PushRulesEvent::new(PushRulesEventContent::new(
+						global_ruleset.clone(),
+					)))
 					.expect("to json always works"),
 				)
 				.await?;
 		}
 	};
 
-	Ok(get_pushrules_global_scope::v3::Response { global: global_ruleset })
+	Ok(get_pushrules_global_scope::v3::Response::new(global_ruleset))
 }
 
 /// # `GET /_matrix/client/r0/pushrules/{scope}/{kind}/{ruleId}`
@@ -216,7 +213,7 @@ pub(crate) async fn get_pushrule_route(
 		.map(Into::into);
 
 	if let Some(rule) = rule {
-		Ok(get_pushrule::v3::Response { rule })
+		Ok(get_pushrule::v3::Response::new(rule))
 	} else {
 		Err!(Request(NotFound("Push rule not found.")))
 	}
@@ -275,7 +272,7 @@ pub(crate) async fn set_pushrule_route(
 		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
-	Ok(set_pushrule::v3::Response {})
+	Ok(set_pushrule::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/pushrules/global/{kind}/{ruleId}/actions`
@@ -309,7 +306,7 @@ pub(crate) async fn get_pushrule_actions_route(
 		.map(|rule| rule.actions().to_owned())
 		.ok_or_else(|| err!(Request(NotFound("Push rule not found."))))?;
 
-	Ok(get_pushrule_actions::v3::Response { actions })
+	Ok(get_pushrule_actions::v3::Response::new(actions))
 }
 
 /// # `PUT /_matrix/client/r0/pushrules/global/{kind}/{ruleId}/actions`
@@ -342,7 +339,7 @@ pub(crate) async fn set_pushrule_actions_route(
 		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
-	Ok(set_pushrule_actions::v3::Response {})
+	Ok(set_pushrule_actions::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/pushrules/global/{kind}/{ruleId}/enabled`
@@ -360,7 +357,7 @@ pub(crate) async fn get_pushrule_enabled_route(
 		|| body.rule_id.as_str() == PredefinedOverrideRuleId::ContainsDisplayName.as_str()
 		|| body.rule_id.as_str() == PredefinedOverrideRuleId::RoomNotif.as_str()
 	{
-		return Ok(get_pushrule_enabled::v3::Response { enabled: false });
+		return Ok(get_pushrule_enabled::v3::Response::new(false));
 	}
 
 	let event: PushRulesEvent = services
@@ -376,7 +373,7 @@ pub(crate) async fn get_pushrule_enabled_route(
 		.map(ruma::push::AnyPushRuleRef::enabled)
 		.ok_or_else(|| err!(Request(NotFound("Push rule not found."))))?;
 
-	Ok(get_pushrule_enabled::v3::Response { enabled })
+	Ok(get_pushrule_enabled::v3::Response::new(enabled))
 }
 
 /// # `PUT /_matrix/client/r0/pushrules/global/{kind}/{ruleId}/enabled`
@@ -409,7 +406,7 @@ pub(crate) async fn set_pushrule_enabled_route(
 		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
-	Ok(set_pushrule_enabled::v3::Response {})
+	Ok(set_pushrule_enabled::v3::Response::new())
 }
 
 /// # `DELETE /_matrix/client/r0/pushrules/global/{kind}/{ruleId}`
@@ -451,7 +448,7 @@ pub(crate) async fn delete_pushrule_route(
 		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(account_data)?)
 		.await?;
 
-	Ok(delete_pushrule::v3::Response {})
+	Ok(delete_pushrule::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/pushers`
@@ -463,9 +460,7 @@ pub(crate) async fn get_pushers_route(
 ) -> Result<get_pushers::v3::Response> {
 	let sender_user = body.sender_user();
 
-	Ok(get_pushers::v3::Response {
-		pushers: services.pusher.get_pushers(sender_user).await,
-	})
+	Ok(get_pushers::v3::Response::new(services.pusher.get_pushers(sender_user).await))
 }
 
 /// # `POST /_matrix/client/r0/pushers/set`
@@ -493,19 +488,18 @@ pub async fn recreate_push_rules_and_return(
 	services: &Services,
 	sender_user: &ruma::UserId,
 ) -> Result<get_pushrules_all::v3::Response> {
-	let ty = GlobalAccountDataEventType::PushRules;
-	let event = PushRulesEvent {
-		content: PushRulesEventContent {
-			global: Ruleset::server_default(sender_user),
-		},
-	};
+	let global_ruleset = Ruleset::server_default(sender_user);
+	let event = PushRulesEvent::new(PushRulesEventContent::new(global_ruleset.clone()));
 
 	services
 		.account_data
-		.update(None, sender_user, ty.to_string().into(), &serde_json::to_value(event)?)
+		.update(
+			None,
+			sender_user,
+			GlobalAccountDataEventType::PushRules.to_string().into(),
+			&serde_json::to_value(event)?,
+		)
 		.await?;
 
-	Ok(get_pushrules_all::v3::Response {
-		global: Ruleset::server_default(sender_user),
-	})
+	Ok(get_pushrules_all::v3::Response::new(global_ruleset))
 }
