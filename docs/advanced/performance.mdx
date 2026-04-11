@@ -35,7 +35,7 @@ allow_outgoing_presence = false
 ## Tuning database compression
 
 :::warning
-These steps MUST be done **before** starting Continuwuity for the first time, as database compressions are irreversible.
+These steps SHOULD be done **before** starting Continuwuity for the first time. While switching database compression midway through is theoretically possible, this has not been tested extensively in the wild.
 :::
 
 ### Changing the compression algorithm
@@ -111,15 +111,18 @@ https://matrix.example.com {
 
 ### Tuning your trusted servers
 
+:::info Vet your trusted servers!
+Trusted servers are your first point of contact when obtaining public keys from other servers, and they could theoretically impersonate other servers and cause significant harm to your deployment. Please thoroughly verify your trusted servers' credibility before adding them to your configuration.
+:::
+
 Trusted servers are queried sequentially in the order they are listed. If you have multiple trusted servers configured, put the faster ones first:
 
 ```toml
 # Example config, using maintainers' recommended homeservers
 trusted_servers = ["codestorm.net","starstruck.systems","unredacted.org","matrix.org"]
-# Avoid prioritising `matrix.org`, as it tends to be quite slow.
 ```
 
-Please vet any servers for trustworthiness before using them, as they are your first point of contact when obtaining public keys from other servers.
+Avoid prioritising `matrix.org` as your primary trusted server, as it tends to be quite slow.
 
 Some users have also reported that increasing `trusted_server_batch_size` has helped with faster joins for huge rooms. Start with doubling the default to `2048` until you find a suitable value.
 
