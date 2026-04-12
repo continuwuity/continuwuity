@@ -119,5 +119,5 @@ pub(crate) async fn get_missing_events_route(
 		debug!("limit reached before queue was empty");
 	}
 	results.reverse(); // return oldest first
-	Ok(get_missing_events::v1::Response { events: results })
+	Ok(get_missing_events::v1::Response::new(results))
 }
