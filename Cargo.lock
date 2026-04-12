@@ -1799,7 +1799,6 @@ checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
  "curve25519-dalek",
  "ed25519",
- "rand_core 0.6.4",
  "serde",
  "sha2 0.10.9",
  "subtle",
@@ -4295,8 +4294,6 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
- "libc",
- "rand_chacha 0.3.1",
  "rand_core 0.6.4",
 ]
 
@@ -4306,7 +4303,7 @@ version = "0.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ec095654a25171c2124e9e3393a930bddbffdc939556c914957a4c3e0a87166"
 dependencies = [
- "rand_chacha 0.9.0",
+ "rand_chacha",
  "rand_core 0.9.5",
 ]
 
@@ -4319,16 +4316,6 @@ dependencies = [
  "chacha20",
  "getrandom 0.4.2",
  "rand_core 0.10.0",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e6c10a63a0fa32252be49d21e7709d4d4baf8d231c2dbce1eaa8141b9b127d88"
-dependencies = [
- "ppv-lite86",
- "rand_core 0.6.4",
 ]
 
 [[package]]
@@ -4393,7 +4380,7 @@ dependencies = [
  "paste",
  "profiling",
  "rand 0.9.3",
- "rand_chacha 0.9.0",
+ "rand_chacha",
  "simd_helpers",
  "thiserror 2.0.18",
  "v_frame",
@@ -4561,7 +4548,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.14.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "assign",
  "js_int",
@@ -4580,7 +4567,7 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.14.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4592,7 +4579,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.22.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "as_variant",
  "assign",
@@ -4614,20 +4601,20 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.17.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
  "bytes",
  "date_header",
  "form_urlencoded",
- "getrandom 0.2.17",
+ "getrandom 0.4.2",
  "http",
  "indexmap",
  "js_int",
  "konst",
  "percent-encoding",
- "rand 0.8.5",
+ "rand 0.10.1",
  "regex",
  "ruma-identifiers-validation",
  "ruma-macros",
@@ -4647,7 +4634,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.32.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "as_variant",
  "indexmap",
@@ -4668,7 +4655,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.13.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "bytes",
  "headers",
@@ -4678,7 +4665,7 @@ dependencies = [
  "js_int",
  "memchr",
  "mime",
- "rand 0.8.5",
+ "rand 0.10.1",
  "ruma-common",
  "ruma-events",
  "ruma-signatures",
@@ -4691,7 +4678,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.12.0"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "js_int",
  "thiserror 2.0.18",
@@ -4700,7 +4687,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.17.1"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "as_variant",
  "cfg-if",
@@ -4716,7 +4703,7 @@ dependencies = [
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.13.0"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4728,13 +4715,13 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
  "memchr",
  "pkcs8",
- "rand 0.8.5",
+ "rand 0.10.1",
  "ruma-common",
  "serde_json",
  "sha2 0.10.9",
@@ -4744,7 +4731,7 @@ dependencies = [
 [[package]]
 name = "ruma-state-res"
 version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=3df2c7a208859a022ab3fee9dc822a5ab4ca9edf#3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+source = "git+https://github.com/ruma/ruma.git?rev=ce4708a2727f18d42ba83b1c262142e6ffd0f545#ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -5195,9 +5182,9 @@ dependencies = [
 
 [[package]]
 name = "serde_html_form"
-version = "0.2.8"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2f2d7ff8a2140333718bb329f5c40fc5f0865b84c426183ce14c97d2ab8154f"
+checksum = "0946d52b4b7e28823148aebbeceb901012c595ad737920d504fa8634bb099e6f"
 dependencies = [
  "form_urlencoded",
  "indexmap",
