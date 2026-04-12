@@ -31,7 +31,6 @@ use ruma::{
 				Presence, Rooms, ToDevice,
 			},
 		},
-		uiaa::UiaaResponse,
 	},
 	assign,
 	events::presence::{PresenceEvent, PresenceEventContent},
@@ -44,7 +43,7 @@ use service::{
 
 use super::{load_timeline, share_encrypted_room};
 use crate::{
-	Ruma, RumaResponse,
+	Ruma,
 	client::{
 		is_ignored_invite,
 		sync::v3::{joined::load_joined_room, left::load_left_room},
@@ -181,7 +180,7 @@ pub(crate) async fn sync_events_route(
 	State(services): State<crate::State>,
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<sync_events::v3::Request>,
-) -> Result<sync_events::v3::Response, RumaResponse<UiaaResponse>> {
+) -> Result<sync_events::v3::Response> {
 	let (sender_user, sender_device) = body.sender();
 
 	// Presence update
@@ -225,7 +224,7 @@ pub(crate) async fn sync_events_route(
 pub(crate) async fn build_sync_events(
 	services: &Services,
 	body: &Ruma<sync_events::v3::Request>,
-) -> Result<sync_events::v3::Response, RumaResponse<UiaaResponse>> {
+) -> Result<sync_events::v3::Response> {
 	let (syncing_user, syncing_device) = body.sender();
 
 	let current_count = services.globals.current_count()?;
