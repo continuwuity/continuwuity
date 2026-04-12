@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, utils, utils::math::Tried};
-use ruma::api::client::typing::create_typing_event;
+use ruma::api::client::typing::create_typing_event::{self, v3::TypingInfo};
 
 use crate::Ruma;
 
@@ -34,9 +34,9 @@ pub(crate) async fn create_typing_event_route(
 	}
 	if services.config.allow_local_typing && !services.users.is_suspended(sender_user).await? {
 		match body.state {
-			| Typing::Yes(duration) => {
+			| Typing::Yes(TypingInfo { timeout, .. }) => {
 				let duration = utils::clamp(
-					duration.as_millis().try_into().unwrap_or(u64::MAX),
+					timeout.as_millis().try_into().unwrap_or(u64::MAX),
 					services
 						.server
 						.config
@@ -78,5 +78,5 @@ pub(crate) async fn create_typing_event_route(
 			.await?;
 	}
 
-	Ok(create_typing_event::v3::Response {})
+	Ok(create_typing_event::v3::Response::new())
 }
