@@ -1,4 +1,4 @@
-name: Check Changelog
+name: Checks / Changelog
 
 on:
   pull_request_target:
@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   check-changelog:
-    name: Check for changelog
+    name: Check changelog is added
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
