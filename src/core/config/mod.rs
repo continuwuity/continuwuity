@@ -20,7 +20,10 @@ use lettre::message::Mailbox;
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
-	api::client::discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
+	api::client::{
+		discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
+		rtc::transports::v1::RtcTransport,
+	},
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
 use url::Url;
@@ -2281,21 +2284,24 @@ pub struct MatrixRtcConfig {
 	///
 	/// default: []
 	#[serde(default)]
-	pub foci: Vec<RtcFocusInfo>,
+	pub foci: Vec<RtcTransport>,
 }
 
 impl MatrixRtcConfig {
 	/// Returns the effective foci, falling back to the deprecated
 	/// `rtc_focus_server_urls` if the new config is empty.
 	#[must_use]
-	pub fn effective_foci<'a>(
-		&'a self,
-		deprecated_foci: &'a [RtcFocusInfo],
-	) -> &'a [RtcFocusInfo] {
+	pub fn effective_foci(&self, deprecated_foci: &[RtcFocusInfo]) -> Vec<RtcTransport> {
 		if !self.foci.is_empty() {
-			&self.foci
+			self.foci.clone()
 		} else {
 			deprecated_foci
+				.iter()
+				.map(|focus| {
+					RtcTransport::new(focus.focus_type().to_owned(), focus.data().into_owned())
+						.unwrap()
+				})
+				.collect()
 		}
 	}
 }
