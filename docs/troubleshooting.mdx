@@ -45,10 +45,12 @@ log into the server account (`@conduit`) from a web client
 
 ## DNS issues
 
+### DNS server overload
+
 If your server experience any of the following symptoms:
 
-- Spurious log entries with "DNS No connections available", "mismatching responding nameservers", or "error sending request"
-- Excessively long room joins (30+ minutes)
+- Spurious server log entries with "DNS No connections available", "mismatching responding nameservers", or "error sending request"
+- Excessively long room joins (30+ minutes) as seen from server logs
 - Partial or non-functional outbound federation
 
 This is likely due to your DNS server being overloaded. Most likely, these problems are encountered in the following scenarios:
@@ -66,7 +68,7 @@ There may be circumstances where servers fail to connect to each other, probably
 
 To fix this, you can run `!admin query resolver flush-cache <SERVER_NAME>` to clear the bad cache for that domain, and outbound requests should work again.
 
-You may also use `!admin server clear-caches` or `!admin query resolver flush-cache -a` to clear all server/resolver caches, in case of failures with many domains. However, note this would significantly increase your server load for a short period.
+You may also use `!admin server clear-caches` or `!admin query resolver flush-cache -a` to clear all server/resolver caches, in case of failures with many domains. However, note that this significantly increases your server load for a short period.
 
 ## RocksDB / database issues
 

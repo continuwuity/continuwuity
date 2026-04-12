@@ -76,11 +76,11 @@ Some values that are commonly tuned include:
 
 ### Using a forwarder (optional)
 
-Unbound by default employs recursive resolution and contact many servers around the world. If this is not performant enough, consider forwarding your queries to public resolvers to benefit from their CDNs and get faster responses.
+Unbound by default employs **recursive resolution** and contacts many servers around the world. If this is not performant enough, consider forwarding your queries to public resolvers to benefit from their CDNs and get faster responses.
 
 However, most popular upstreams (such as Google DNS or Quad9) employ IP ratelimiting, so a generous cache is still needed to avoid making too many queries.
 
-DNS-over-TLS forwarders may also be used should you need on-the-wire encryption, but TLS overhead would incur some speed penalties.
+DNS-over-TLS forwarders may also be used should you need on-the-wire encryption, but TLS overhead causes some speed penalties.
 
 If you want to use forwarders, configure it as follows:
 
@@ -127,7 +127,7 @@ To best utilise dnsproxy, you should enable proper caching with `--cache` and se
 
 ### dnsmasq
 
-[dnsmasq][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only support forwarding rather than recursion. Increase the `cache-size` to something like `20000` for better caching performance.
+[dnsmasq][arch-linux-dnsmasq] can possibly work with Continuwuity, though it only supports forwarding rather than recursion. Increase the `cache-size` to something like `30000` for better caching performance.
 
 However, `dnsmasq` does not support TCP fallback which can be problematic when receiving large DNS responses such as from large SRV records. If you still want to use dnsmasq, make sure you disable `dns_tcp_fallback` in Continuwuity config.
 
@@ -142,11 +142,11 @@ However, `dnsmasq` does not support TCP fallback which can be problematic when r
 
 ## Testing
 
-As a rough stress test, you can issue `!admin query resolver flush-cache -a` or `!admin server clear-caches` to trigger a netburst of DNS queries. If your resolver can handle these loads without problem, then it should be ready for regular Continuwuity activity.
+As a rough stress test, you can run `!admin query resolver flush-cache -a` or `!admin server clear-caches` to trigger a netburst of DNS queries. If your resolver can handle these loads without problem, then it should be ready for regular Continuwuity activity.
 
 To test connectivity against a specific server, use `!admin debug ping <SERVER_NAME>` and `!admin debug resolve-true-destination <SERVER_NAME>`.
 
-Note that it is expected that not all servers will be resolved, as some of them may be temporarily offline, has broken DNS and/or discovery configuration, or have been decommissioned.
+Note that it is expected that not all servers will be resolved, as some of them may be temporarily offline, have broken DNS and/or discovery configuration, or have been decommissioned.
 
 ## Further steps
 
