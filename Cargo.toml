@@ -60,7 +60,7 @@ default-features = false
 
 # used for TURN server authentication
 [workspace.dependencies.hmac]
-version = "0.12.1"
+version = "0.13.0"
 default-features = false
 
 # used for checking if an IP is in specific subnets / CIDR ranges easier
