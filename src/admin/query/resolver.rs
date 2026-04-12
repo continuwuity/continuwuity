@@ -96,7 +96,10 @@ impl crate::Context<'_> {
 		    self.services.resolver.dns.cache.clear().await;
 		    writeln!(self, "Resolver caches cleared!").await
 	    } else if let Some(name) = name {
-		    self.services.resolver.resolver.remove_cache_entry(&name.as_str());
+		    self.services
+                .resolver
+                .resolver
+                .remove_cache_entry(name.as_str());
 			self.services.resolver.dns.cache.del_destination(&name);
 			self.services.resolver.dns.cache.del_override(&name);
 			self.write_str(&format!("Cleared {name} from resolver caches!"))
