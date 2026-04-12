@@ -51,10 +51,8 @@ jobs:
       #     owner: continuwuity
       #     repositories: continuwuity
 
-      - name: Install regctl
-        uses: https://forgejo.ellis.link/continuwuation/regclient-actions/regctl-installer@main
-        with:
-          binary: regsync
+      - name: Install regsync
+        uses: https://github.com/regclient/actions/regsync-installer@main
 
       - name: Check what images need mirroring
         run: |
