@@ -44,8 +44,7 @@ fn load(db: &Arc<Database>) -> Result<Box<Ed25519KeyPair>> {
 }
 
 fn create(db: &Arc<Database>) -> Result<(String, Vec<u8>)> {
-	let keypair = Ed25519KeyPair::generate()
-		.map_err(|e| err!("Failed to generate new ed25519 keypair: {e:?}"))?;
+	let keypair = Ed25519KeyPair::generate();
 
 	let id = utils::rand::string(8);
 	debug_info!("Generated new Ed25519 keypair: {id:?}");
