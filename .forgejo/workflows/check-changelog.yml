@@ -2,7 +2,7 @@ name: Check Changelog
 
 on:
   pull_request_target:
-    types: [opened, synchronize, reopened, ready_for_review]
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
 
 
 concurrency:
@@ -54,7 +54,7 @@ jobs:
             echo "src_changed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Manage PR Comment
+      - name: Manage PR Labels
         uses: https://github.com/actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           HAS_CHANGELOG: ${{ steps.check_files.outputs.has_changelog }}
@@ -63,41 +63,34 @@ jobs:
           script: |
             const hasChangelog = process.env.HAS_CHANGELOG === 'true';
             const srcChanged = process.env.SRC_CHANGED === 'true';
-            const commentSignature = '<!-- changelog-check-action -->';
-            const commentBody = `${commentSignature}\nPlease add a changelog fragment to \`changelog.d/\` describing your changes.`;
 
-            const { data: currentUser } = await github.rest.users.getAuthenticated();
-
-            const { data: comments } = await github.rest.issues.listComments({
+            const { data: pullRequest } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              issue_number: context.issue.number,
+              pull_number: context.issue.number,
             });
 
-            const botComment = comments.find(comment =>
-              comment.user.id === currentUser.id &&
-              comment.body.includes(commentSignature)
-            );
+            const currentLabels = pullRequest.labels.map(l => l.name);
 
-            const shouldWarn = srcChanged && !hasChangelog;
-
-            if (!shouldWarn) {
-              if (botComment) {
-                console.log('Changelog found or not required. Deleting existing warning comment.');
-                await github.rest.issues.deleteComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  comment_id: botComment.id,
-                });
-              }
+            if (hasChangelog) {
+              console.log('PR has changelog');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['Changelog/Added'],
+              });
+            } else if (currentLabels.includes('Changelog/None')) {
+              console.log('PR has Changelog/None label, skipping.');
+            } else if (srcChanged) {
+              console.log('PR is missing changelog');
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['Changelog/Missing'],
+              });
             } else {
-              if (!botComment) {
-                console.log('Changelog missing and required. Creating warning comment.');
-                await github.rest.issues.createComment({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  body: commentBody,
-                });
-              }
+              console.log('Changelog not needed');
+              // Changelog is probably not needed
             }
