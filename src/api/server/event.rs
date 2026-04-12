@@ -51,12 +51,12 @@ pub(crate) async fn get_event_route(
 		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
-	Ok(get_event::v1::Response {
-		origin: services.globals.server_name().to_owned(),
-		origin_server_ts: MilliSecondsSinceUnixEpoch::now(),
-		pdu: services
+	Ok(get_event::v1::Response::new(
+		services.globals.server_name().to_owned(),
+		MilliSecondsSinceUnixEpoch::now(),
+		services
 			.sending
 			.convert_to_outgoing_federation_event(event)
 			.await,
-	})
+	))
 }
