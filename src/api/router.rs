@@ -188,7 +188,6 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::room_initial_sync_route)
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
 		.route("/_continuwuity/server_version", get(client::conduwuit_server_version))
-		.route("/client/server.json", get(client::syncv3_client_server_json))
 		.ruma_route(&admin::rooms::ban::ban_room)
 		.ruma_route(&admin::rooms::list::list_rooms);
 
