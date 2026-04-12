@@ -27,7 +27,7 @@ use ruma::{
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
-		error::ErrorKind,
+		error::{ErrorKind, SenderIgnoredErrorData},
 	},
 	assign,
 	events::{
@@ -325,7 +325,7 @@ where
 	if server_ignored {
 		// the sender's server is ignored, so ignore this event
 		return Err(Error::BadRequest(
-			ErrorKind::SenderIgnored { sender: None },
+			ErrorKind::SenderIgnored(SenderIgnoredErrorData::new()),
 			"The sender's server is ignored by this server.",
 		));
 	}
@@ -334,7 +334,9 @@ where
 		// the recipient of this PDU has the sender ignored, and we're not
 		// configured to send ignored messages to clients
 		return Err(Error::BadRequest(
-			ErrorKind::SenderIgnored { sender: Some(event.sender().to_owned()) },
+			ErrorKind::SenderIgnored(SenderIgnoredErrorData::with_sender(
+				event.sender().to_owned(),
+			)),
 			"You have ignored this sender.",
 		));
 	}

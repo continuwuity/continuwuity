@@ -68,7 +68,7 @@ default-features = false
 version = "0.1.3"
 
 [workspace.dependencies.rand]
-version = "0.10.0"
+version = "0.10.1"
 
 # Used for the http request / response body type for Ruma endpoints used with reqwest
 [workspace.dependencies.bytes]
@@ -349,7 +349,7 @@ version = "1.1.1"
 [workspace.dependencies.ruma]
 # version = "0.14.1"
 git = "https://github.com/ruma/ruma.git"
-rev = "3df2c7a208859a022ab3fee9dc822a5ab4ca9edf"
+rev = "ce4708a2727f18d42ba83b1c262142e6ffd0f545"
 features = [
     "appservice-api-c",
     "client-api",
@@ -367,20 +367,21 @@ features = [
     "unstable-msc3061",
     "unstable-msc3814",
     "unstable-msc3245",
-    "unstable-msc3381", # polls
-    "unstable-msc3489", # beacon / live location
-    "unstable-msc3930", # polls push rules
+    "unstable-msc3381",
+    "unstable-msc3489",
+    "unstable-msc3930",
     "unstable-msc4075",
     "unstable-msc4095",
     "unstable-msc4121",
     "unstable-msc4125",
     "unstable-msc4186",
     "unstable-msc4195",
-    "unstable-msc4203", # sending to-device events to appservices
+    "unstable-msc4203",
     "unstable-msc4310",
     "unstable-msc4380",
-    "unstable-msc4143", # livekit well_known response
-    "unstable-msc4439", # pgp_key in .well_known/matrix/support
+    "unstable-msc4143",
+    "unstable-msc4406",
+    "unstable-msc4439",
     "unstable-extensible-events",
 ]
 
