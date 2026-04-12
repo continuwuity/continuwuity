@@ -45,7 +45,7 @@ impl crate::Service for Service {
 	}
 
 	async fn clear_cache(&self) {
-		// No ability to clean resolvematrix cache at the moment
+		self.resolver.clear_cache();
 		self.dns.resolver.clear_cache();
 		self.dns.cache.clear().await;
 	}

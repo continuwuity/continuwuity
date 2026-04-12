@@ -4602,9 +4602,9 @@ checksum = "1e061d1b48cb8d38042de4ae0a7a6401009d6143dc80d2e2d6f31f0bdd6470c7"
 
 [[package]]
 name = "resolvematrix"
-version = "0.0.3"
+version = "0.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "52dfcc6f56a81348db1fc6591356cfea9dc840408c75553b2fe225f86de43274"
+checksum = "ea2b9bc3cb1220455bf50519f315c27257859059cb1b0f1643758afd03cbef8a"
 dependencies = [
  "hickory-resolver",
  "reqwest 0.13.2",
