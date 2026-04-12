@@ -37,7 +37,7 @@ jobs:
           node-version: 22
 
       - name: Cache npm dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
+        uses: actions/cache@v5
         with:
           path: ~/.npm
           key: continuwuity-rspress-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-${{ steps.runner-env.outputs.node_version }}-${{ hashFiles('package-lock.json') }}
