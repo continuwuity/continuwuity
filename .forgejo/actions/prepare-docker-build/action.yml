@@ -113,7 +113,7 @@ runs:
       id: timelord
 
     - name: Cache Rust registry
-      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      if: ${{ env.BUILDKIT_ENDPOINT == '' && env.ACTIONS_CACHE_URL != '' }}
       uses: actions/cache@v3
       with:
         path: |
@@ -124,7 +124,7 @@ runs:
         key: continuwuity-rust-registry-image-${{hashFiles('**/Cargo.lock') }}
 
     - name: Cache cargo target
-      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      if: ${{ env.BUILDKIT_ENDPOINT == '' && env.ACTIONS_CACHE_URL != '' }}
       id: cache-cargo-target
       uses: actions/cache@v3
       with:
@@ -133,7 +133,7 @@ runs:
         key: continuwuity-cargo-target${{ env.CPU_SUFFIX }}-${{ inputs.slug }}-${{ inputs.profile }}-${{hashFiles('**/Cargo.lock') }}-${{steps.rust-toolchain.outputs.rustc_version}}
 
     - name: Cache apt cache
-      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      if: ${{ env.BUILDKIT_ENDPOINT == '' && env.ACTIONS_CACHE_URL != '' }}
       id: cache-apt
       uses: actions/cache@v3
       with:
@@ -142,7 +142,7 @@ runs:
         key: continuwuity-var-cache-apt-${{ inputs.slug }}
 
     - name: Cache apt lib
-      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      if: ${{ env.BUILDKIT_ENDPOINT == '' && env.ACTIONS_CACHE_URL != '' }}
       id: cache-apt-lib
       uses: actions/cache@v3
       with:
@@ -151,7 +151,7 @@ runs:
         key: continuwuity-var-lib-apt-${{ inputs.slug }}
 
     - name: inject cache into docker
-      if: ${{ env.BUILDKIT_ENDPOINT == '' }}
+      if: ${{ env.BUILDKIT_ENDPOINT == '' && env.ACTIONS_CACHE_URL != '' }}
       uses: https://github.com/reproducible-containers/buildkit-cache-dance@v3.3.2
       with:
         cache-map: |
