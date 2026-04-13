@@ -50,7 +50,7 @@ async fn destinations_cache(&self, server_name: Option<OwnedServerName>) -> Resu
 
 	while let Some((name, CachedDest { dest, host, expire })) = destinations.next().await {
 		if let Some(server_name) = server_name.as_ref() {
-			if name != server_name {
+			if name != *server_name {
 				continue;
 			}
 		}
@@ -76,7 +76,7 @@ async fn overrides_cache(&self, server_name: Option<String>) -> Result {
 		overrides.next().await
 	{
 		if let Some(server_name) = server_name.as_ref() {
-			if name != server_name {
+			if name != *server_name {
 				continue;
 			}
 		}
