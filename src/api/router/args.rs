@@ -17,7 +17,6 @@ use crate::{State, router::auth::CheckAuth, service::appservice::RegistrationInf
 /// Query parameters needed to authenticate requests
 #[derive(Deserialize)]
 pub(super) struct AuthQueryParams {
-	pub(super) access_token: Option<String>,
 	pub(super) user_id: Option<String>,
 	/// Device ID for appservice device masquerading (MSC3202/MSC4190).
 	/// Can be provided as `device_id` or `org.matrix.msc3202.device_id`.
