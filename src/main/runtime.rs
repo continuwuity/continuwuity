@@ -22,7 +22,7 @@ const WORKER_NAME: &str = "conduwuit:worker";
 const WORKER_MIN: usize = 2;
 const WORKER_KEEPALIVE: u64 = 36;
 const MAX_BLOCKING_THREADS: usize = 1024;
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_millis(10000);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 #[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
 const DISABLE_MUZZY_THRESHOLD: usize = 4;
 

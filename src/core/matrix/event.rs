@@ -11,7 +11,7 @@ use std::fmt::Debug;
 
 use ruma::{
 	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId,
-	RoomVersionId, UserId, events::TimelineEventType, room_version_rules::RoomVersionRules,
+	UserId, events::TimelineEventType, room_version_rules::RoomVersionRules,
 };
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, value::RawValue as RawJsonValue};

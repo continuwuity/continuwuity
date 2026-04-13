@@ -315,7 +315,7 @@ impl Service {
 					| TxnState::Active(_) => None,
 				})
 				.collect();
-			cached_entries.sort_by(|a, b| a.1.cmp(&b.1));
+			cached_entries.sort_by_key(|a| a.1);
 
 			// Remove the oldest cached entries to get under the limit
 			for (key, _) in cached_entries.into_iter().take(excess) {

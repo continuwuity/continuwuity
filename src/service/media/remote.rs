@@ -215,7 +215,7 @@ async fn handle_thumbnail_file(
 	.await
 	.map(|()| FileMeta {
 		content: Some(content.file),
-		content_type: content.content_type.map(Into::into),
+		content_type: content.content_type,
 		content_disposition: Some(content_disposition),
 	})
 }
@@ -243,7 +243,7 @@ async fn handle_content_file(
 	.await
 	.map(|()| FileMeta {
 		content: Some(content.file),
-		content_type: content.content_type.map(Into::into),
+		content_type: content.content_type,
 		content_disposition: Some(content_disposition),
 	})
 }
@@ -364,7 +364,7 @@ pub async fn fetch_remote_thumbnail_legacy(
 		body.width,
 		body.height,
 	);
-	request.method = body.method.clone();
+	request.method.clone_from(&body.method);
 	request.allow_remote = body.allow_remote;
 	request.allow_redirect = body.allow_redirect;
 	request.animated = body.animated;

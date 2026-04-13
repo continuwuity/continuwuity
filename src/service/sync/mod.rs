@@ -39,6 +39,7 @@ struct Services {
 	typing: Dep<rooms::typing::Service>,
 }
 
+#[allow(unused, reason = "TODO refactor")]
 struct SlidingSyncCache {
 	lists: BTreeMap<String, v5::request::List>,
 	subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,

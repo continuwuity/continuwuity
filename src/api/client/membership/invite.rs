@@ -10,7 +10,7 @@ use ruma::{
 	RoomId, UserId,
 	api::{
 		client::membership::invite_user::{self, v3::InviteUserId},
-		federation::membership::{RawStrippedState, create_invite},
+		federation::membership::create_invite,
 	},
 	events::room::member::{MembershipState, RoomMemberEventContent},
 };

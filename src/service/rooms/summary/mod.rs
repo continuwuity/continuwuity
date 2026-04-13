@@ -254,7 +254,7 @@ impl Service {
 			};
 
 			summaries.push(summary.summary);
-			inaccessible_children.extend(summary.inaccessible_children.into_iter());
+			inaccessible_children.extend(summary.inaccessible_children);
 
 			// Don't traverse the tree deeper than max_depth
 			#[allow(

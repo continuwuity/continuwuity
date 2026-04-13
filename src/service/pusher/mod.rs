@@ -13,7 +13,7 @@ use ipaddress::IPAddress;
 use ruma::{
 	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
 	api::{
-		IncomingResponse, MatrixVersion, OutgoingRequest,
+		IncomingResponse, OutgoingRequest,
 		auth_scheme::NoAuthentication,
 		client::push::{Pusher, PusherKind, set_pusher},
 		path_builder::SinglePath,
@@ -42,7 +42,6 @@ struct Services {
 	globals: Dep<globals::Service>,
 	config: Dep<config::Service>,
 	client: Dep<client::Service>,
-	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 	users: Dep<users::Service>,
@@ -65,7 +64,6 @@ impl crate::Service for Service {
 				globals: args.depend::<globals::Service>("globals"),
 				client: args.depend::<client::Service>("client"),
 				config: args.depend::<config::Service>("config"),
-				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -200,8 +198,6 @@ impl Service {
 			+ Debug
 			+ Send,
 	{
-		const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_0];
-
 		let dest = dest.replace(self.services.globals.notification_push_path(), "");
 		trace!("Push gateway destination: {dest}");
 

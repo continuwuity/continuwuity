@@ -98,18 +98,16 @@ impl Service {
 	pub async fn is_world_readable(&self, room_id: &RoomId) -> bool {
 		self.room_state_get_content(room_id, &StateEventType::RoomHistoryVisibility, "")
 			.await
-			.map(|c: RoomHistoryVisibilityEventContent| {
+			.is_ok_and(|c: RoomHistoryVisibilityEventContent| {
 				c.history_visibility == HistoryVisibility::WorldReadable
 			})
-			.unwrap_or(false)
 	}
 
 	/// Checks if guests are able to join a given room
 	pub async fn guest_can_join(&self, room_id: &RoomId) -> bool {
 		self.room_state_get_content(room_id, &StateEventType::RoomGuestAccess, "")
 			.await
-			.map(|c: RoomGuestAccessEventContent| c.guest_access == GuestAccess::CanJoin)
-			.unwrap_or(false)
+			.is_ok_and(|c: RoomGuestAccessEventContent| c.guest_access == GuestAccess::CanJoin)
 	}
 
 	/// Gets the primary alias from canonical alias event

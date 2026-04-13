@@ -278,8 +278,8 @@ where
 	let (short_state_keys, short_event_ids): pair_of!(Vec<_>) = short_state.unzip().await;
 
 	StreamExt::zip(
-		self.multi_get_statekey_from_short(stream::iter(short_state_keys.into_iter())),
-		self.multi_get_eventid_from_short(stream::iter(short_event_ids.into_iter())),
+		self.multi_get_statekey_from_short(stream::iter(short_state_keys)),
+		self.multi_get_eventid_from_short(stream::iter(short_event_ids)),
 	)
 	.ready_filter_map(|state_event| match state_event {
 		| (Ok(state_key), Ok(event_id)) => Some(Ok((state_key, event_id))),

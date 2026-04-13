@@ -64,7 +64,7 @@ pub async fn watch(&self, user_id: &UserId, device_id: &DeviceId) -> Result {
 		futures.push(self.db.pduid_pdu.watch_prefix(&short_roomid));
 
 		// EDUs
-		let typing_room_id = room_id.to_owned();
+		let typing_room_id = room_id.clone();
 		let typing_wait_for_update = async move {
 			self.services.typing.wait_for_update(&typing_room_id).await;
 		};

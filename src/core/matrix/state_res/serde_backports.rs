@@ -16,7 +16,9 @@ use serde::{
 ///
 /// To be used like this:
 /// `#[serde(deserialize_with = "vec_deserialize_v1_powerlevel_values")]`
-pub fn vec_deserialize_v1_powerlevel_values<'de, D, T>(de: D) -> Result<Vec<(T, Int)>, D::Error>
+pub(super) fn vec_deserialize_v1_powerlevel_values<'de, D, T>(
+	de: D,
+) -> Result<Vec<(T, Int)>, D::Error>
 where
 	D: Deserializer<'de>,
 	T: Deserialize<'de> + Ord,
@@ -76,7 +78,9 @@ where
 ///
 /// To be used like this:
 /// `#[serde(deserialize_with = "vec_deserialize_int_powerlevel_values")]`
-pub fn vec_deserialize_int_powerlevel_values<'de, D, T>(de: D) -> Result<Vec<(T, Int)>, D::Error>
+pub(super) fn vec_deserialize_int_powerlevel_values<'de, D, T>(
+	de: D,
+) -> Result<Vec<(T, Int)>, D::Error>
 where
 	D: Deserializer<'de>,
 	T: Deserialize<'de> + Ord,
