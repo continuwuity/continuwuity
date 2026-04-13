@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use axum::extract::State;
 use conduwuit::{Err, Result, err, info, matrix::event::gen_event_id_canonical_json};
 use conduwuit_service::Services;
@@ -15,18 +13,6 @@ use ruma::{
 use serde_json::value::RawValue as RawJsonValue;
 
 use crate::Ruma;
-
-/// # `PUT /_matrix/federation/v1/send_leave/{roomId}/{eventId}`
-///
-/// Submits a signed leave event.
-pub(crate) async fn create_leave_event_v1_route(
-	State(services): State<crate::State>,
-	body: Ruma<create_leave_event::v1::Request>,
-) -> Result<create_leave_event::v1::Response> {
-	create_leave_event(&services, body.origin(), &body.room_id, &body.pdu).await?;
-
-	Ok(create_leave_event::v1::Response::new())
-}
 
 /// # `PUT /_matrix/federation/v2/send_leave/{roomId}/{eventId}`
 ///
@@ -72,8 +58,10 @@ async fn create_leave_event(
 
 	// We do not add the event_id field to the pdu here because of signature and
 	// hashes checks
-	let room_version_id = services.rooms.state.get_room_version(room_id).await?;
-	let Ok((event_id, value)) = gen_event_id_canonical_json(pdu, &room_version_id) else {
+	let room_version = services.rooms.state.get_room_version(room_id).await?;
+	let room_version_rules = room_version.rules().unwrap();
+
+	let Ok((event_id, value)) = gen_event_id_canonical_json(pdu, &room_version_rules) else {
 		// Event could not be converted to canonical json
 		return Err!(Request(BadJson("Could not convert event to canonical json.")));
 	};
