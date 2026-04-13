@@ -1,7 +1,6 @@
 mod args;
 mod auth;
 mod handler;
-mod request;
 mod response;
 
 use std::str::FromStr;
