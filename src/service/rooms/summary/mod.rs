@@ -212,11 +212,7 @@ impl Service {
 			root_summary.inaccessible_children.into_iter().collect();
 
 		// TODO refactor this with Vec::peek_mut once it's stabilized
-		loop {
-			let Some(layer) = queue.last_mut() else {
-				break;
-			};
-
+		while let Some(layer) = queue.last_mut() {
 			let Some(SpaceChild { room_id, via }) = layer.pop() else {
 				// If this layer is empty, discard it from the queue and continue
 				queue.pop();

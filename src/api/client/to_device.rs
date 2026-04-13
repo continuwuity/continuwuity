@@ -99,7 +99,7 @@ pub(crate) async fn send_event_to_device_route(
 									event_type,
 									event.clone(),
 								)
-								.await
+								.await;
 						})
 						.await;
 				},

@@ -38,6 +38,7 @@ pub(super) fn dispatch(services: Arc<Services>, command: CommandInput) -> Proces
 }
 
 #[tracing::instrument(skip_all, name = "admin", level = "info")]
+#[allow(clippy::result_large_err)]
 async fn handle_command(services: Arc<Services>, command: CommandInput) -> ProcessorResult {
 	AssertUnwindSafe(Box::pin(process_command(services, &command)))
 		.catch_unwind()

@@ -34,7 +34,7 @@ pub(crate) async fn ban_user_route(
 		.unwrap_or_else(|_| RoomMemberEventContent::new(MembershipState::Ban));
 
 	content.membership = MembershipState::Ban;
-	content.reason = body.reason.clone();
+	content.reason.clone_from(&body.reason);
 	content.displayname = None;
 	content.avatar_url = None;
 	content.is_direct = None;

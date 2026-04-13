@@ -347,7 +347,7 @@ async fn knock_room_helper_local(
 	content.displayname = services.users.displayname(sender_user).await.ok();
 	content.avatar_url = services.users.avatar_url(sender_user).await.ok();
 	content.blurhash = services.users.blurhash(sender_user).await.ok();
-	content.reason = reason.clone();
+	content.reason.clone_from(&reason.clone());
 
 	// Try normal knock first
 	let Err(error) = services

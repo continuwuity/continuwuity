@@ -39,7 +39,7 @@ pub(crate) async fn kick_user_route(
 	}
 
 	event.membership = MembershipState::Leave;
-	event.reason = body.reason.clone();
+	event.reason.clone_from(&body.reason);
 	event.is_direct = None;
 	event.join_authorized_via_users_server = None;
 	event.third_party_invite = None;
