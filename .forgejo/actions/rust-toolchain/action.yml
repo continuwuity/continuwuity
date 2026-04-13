@@ -33,7 +33,7 @@ runs:
         echo "version=$(rustup --version)" >> $GITHUB_OUTPUT
     - name: Cache rustup toolchains
       if: steps.rustup-version.outputs.version == ''
-      uses: actions/cache@v3
+      uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
       with:
         path: |
           ~/.rustup

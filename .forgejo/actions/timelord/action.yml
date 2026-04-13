@@ -31,7 +31,7 @@ runs:
 
     - name: Restore binary cache
       id: binary-cache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           /usr/share/rust/.cargo/bin
@@ -71,13 +71,13 @@ runs:
 
     - name: Install timelord-cli and git-warp-time
       if: steps.check-binaries.outputs.need-install == 'true'
-      uses: https://github.com/taiki-e/install-action@v2
+      uses: https://github.com/taiki-e/install-action@0abfcd587b70a713fdaa7fb502c885e2112acb15 # v2
       with:
         tool: git-warp-time,timelord-cli@3.0.1
 
     - name: Save binary cache
       if: steps.check-binaries.outputs.need-install == 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           /usr/share/rust/.cargo/bin
@@ -87,7 +87,7 @@ runs:
 
     - name: Restore timelord cache with fallbacks
       id: timelord-restore
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.TIMELORD_CACHE_PATH }}
         key: ${{ env.TIMELORD_KEY }}
@@ -114,7 +114,7 @@ runs:
         timelord sync --source-dir ${{ env.TIMELORD_PATH }} --cache-dir ${{ env.TIMELORD_CACHE_PATH }}
 
     - name: Save updated timelord cache immediately
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: ${{ env.TIMELORD_CACHE_PATH }}
         key: ${{ env.TIMELORD_KEY }}

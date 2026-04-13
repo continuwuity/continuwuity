@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Sync repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -32,12 +32,12 @@ jobs:
 
       - name: Setup Node.js
         if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'
-        uses: https://github.com/actions/setup-node@v6
+        uses: https://github.com/actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: 22
 
       - name: Cache npm dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3
         with:
           path: ~/.npm
           key: continuwuity-rspress-${{ steps.runner-env.outputs.slug }}-${{ steps.runner-env.outputs.arch }}-node-${{ steps.runner-env.outputs.node_version }}-${{ hashFiles('package-lock.json') }}
@@ -56,7 +56,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages (Production)
         if: github.ref == 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
-        uses: https://github.com/cloudflare/wrangler-action@v3
+        uses: https://github.com/cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
 
       - name: Deploy to Cloudflare Pages (Preview)
         if: github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
-        uses: https://github.com/cloudflare/wrangler-action@v3
+        uses: https://github.com/cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}

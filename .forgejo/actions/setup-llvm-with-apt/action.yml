@@ -57,7 +57,7 @@ runs:
 
     - name: Check for LLVM cache
       id: cache
-      uses: actions/cache@v4
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: |
           /usr/bin/clang-*
@@ -120,7 +120,7 @@ runs:
 
     - name: Install additional packages
       if: inputs.extra-packages != ''
-      uses: https://github.com/awalsh128/cache-apt-pkgs-action@latest
+      uses: https://github.com/awalsh128/cache-apt-pkgs-action@2c09a5e66da6c8016428a2172bd76e5e4f14bb17 # latest
       with:
         packages: ${{ inputs.extra-packages }}
         version: 1.0

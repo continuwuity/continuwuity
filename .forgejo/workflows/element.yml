@@ -24,7 +24,7 @@ jobs:
 
     steps:
       - name: 📦 Setup Node.js
-        uses: https://github.com/actions/setup-node@v6
+        uses: https://github.com/actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
           node-version: "22"
 
@@ -121,7 +121,7 @@ jobs:
       - name: 🚀 Deploy to Cloudflare Pages
         if: vars.CLOUDFLARE_PROJECT_NAME != ''
         id: deploy
-        uses: https://github.com/cloudflare/wrangler-action@v3
+        uses: https://github.com/cloudflare/wrangler-action@da0e0dfe58b7a431659754fdf3f186c529afbe65 # v3
         with:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
