@@ -79,5 +79,5 @@ pub(crate) async fn get_room_state_route(
 		.try_collect()
 		.await?;
 
-	Ok(get_room_state::v1::Response { auth_chain, pdus })
+	Ok(get_room_state::v1::Response::new(auth_chain, pdus))
 }
