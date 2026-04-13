@@ -1,5 +1,3 @@
-#![allow(deprecated)]
-
 use std::{borrow::Borrow, time::Instant, vec};
 
 use axum::extract::State;
