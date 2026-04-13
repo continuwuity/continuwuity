@@ -41,7 +41,6 @@ pub(super) async fn process(subcommand: RoomAliasCommand, context: &Context<'_>)
 				.rooms
 				.alias
 				.local_aliases_for_room(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
