@@ -60,5 +60,5 @@ pub(crate) async fn get_room_state_ids_route(
 		.try_collect()
 		.await?;
 
-	Ok(get_room_state_ids::v1::Response { auth_chain_ids, pdu_ids })
+	Ok(get_room_state_ids::v1::Response::new(auth_chain_ids, pdu_ids))
 }
