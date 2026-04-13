@@ -252,7 +252,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 					return Ok(true);
 				}
 			},
-			| AllowRule::UnstableSpamChecker =>
+			| other if other.as_str() == "fi.mau.spam_checker" =>
 				return match services
 					.antispam
 					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
