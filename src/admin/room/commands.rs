@@ -22,14 +22,14 @@ pub(super) async fn list_rooms(
 		.metadata
 		.iter_ids()
 		.filter_map(|room_id| async move {
-			(!exclude_disabled || !self.services.rooms.metadata.is_disabled(room_id).await)
+			(!exclude_disabled || !self.services.rooms.metadata.is_disabled(&room_id).await)
 				.then_some(room_id)
 		})
 		.filter_map(|room_id| async move {
-			(!exclude_banned || !self.services.rooms.metadata.is_banned(room_id).await)
+			(!exclude_banned || !self.services.rooms.metadata.is_banned(&room_id).await)
 				.then_some(room_id)
 		})
-		.then(|room_id| get_room_info(self.services, room_id))
+		.then(async |room_id| get_room_info(self.services, &room_id).await)
 		.then(|(room_id, total_members, name)| async move {
 			let local_members: Vec<_> = self
 				.services
