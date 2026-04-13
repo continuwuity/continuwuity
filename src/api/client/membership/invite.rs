@@ -163,15 +163,7 @@ pub(crate) async fn invite_helper(
 				)
 				.await?;
 
-			#[allow(deprecated)]
-			let invite_room_state = services
-				.rooms
-				.state
-				.summary_stripped(&pdu, room_id)
-				.await
-				.into_iter()
-				.map(|event| RawStrippedState::Stripped(event))
-				.collect();
+			let invite_room_state = services.rooms.state.summary_stripped(&pdu, room_id).await;
 
 			drop(state_lock);
 

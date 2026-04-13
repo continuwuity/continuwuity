@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Write, iter::once, sync::Arc};
+use std::{collections::HashMap, fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
 use conduwuit::debug;
@@ -18,12 +18,9 @@ use futures::{
 };
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
-	events::{
-		AnyStrippedStateEvent, StateEventType, TimelineEventType,
-		room::create::RoomCreateEventContent,
-	},
+	api::federation::membership::RawStrippedState,
+	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
 	room_version_rules::RoomVersionRules,
-	serde::Raw,
 };
 
 use crate::{
@@ -303,7 +300,7 @@ impl Service {
 		&self,
 		event: &'a E,
 		room_id: &RoomId,
-	) -> Vec<Raw<AnyStrippedStateEvent>>
+	) -> Vec<RawStrippedState>
 	where
 		E: Event + Send + Sync,
 		&'a E: Event + Send,
@@ -329,8 +326,7 @@ impl Service {
 			.await
 			.into_iter()
 			.filter_map(Result::ok)
-			.map(Event::into_format)
-			.chain(once(event.to_format()))
+			.map(|pdu| RawStrippedState::Pdu(pdu.content))
 			.collect()
 	}
 
