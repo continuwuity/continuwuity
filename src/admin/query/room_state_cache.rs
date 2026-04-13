@@ -101,7 +101,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.room_servers(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -118,7 +117,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.server_rooms(&server)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -135,7 +133,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.room_members(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -152,7 +149,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.local_users_in_room(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -169,7 +165,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.active_local_users_in_room(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -212,7 +207,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.room_useroncejoined(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -229,7 +223,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.room_members_invited(&room_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
@@ -276,7 +269,6 @@ pub(super) async fn process(subcommand: RoomStateCacheCommand, context: &Context
 				.rooms
 				.state_cache
 				.rooms_joined(&user_id)
-				.map(ToOwned::to_owned)
 				.collect()
 				.await;
 			let query_time = timer.elapsed();
