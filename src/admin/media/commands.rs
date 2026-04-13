@@ -6,7 +6,8 @@ use conduwuit::{
 	warn,
 };
 use conduwuit_service::media::Dim;
-use ruma::{Mxc, OwnedEventId, OwnedMxcUri, OwnedServerName};
+use ruma::{OwnedEventId, OwnedMxcUri, OwnedServerName};
+use service::media::mxc::Mxc;
 
 use crate::{admin_command, utils::parse_local_user_id};
 
