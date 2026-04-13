@@ -60,6 +60,8 @@ pub enum Error {
 	Path(#[from] axum::extract::rejection::PathRejection),
 	#[error("Mutex poisoned: {0}")]
 	Poison(Cow<'static, str>),
+	#[error(transparent)]
+	Query(#[from] axum::extract::rejection::QueryRejection),
 	#[error("Regex error: {0}")]
 	Regex(#[from] regex::Error),
 	#[error("{0}")]

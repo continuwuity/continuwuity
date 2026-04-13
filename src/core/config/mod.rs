@@ -710,18 +710,6 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_public_room_directory_over_federation: bool,
 
-	/// Allow guests/unauthenticated users to access TURN credentials.
-	///
-	/// This is the equivalent of Synapse's `turn_allow_guests` config option.
-	/// This allows any unauthenticated user to call the endpoint
-	/// `/_matrix/client/v3/voip/turnServer`.
-	///
-	/// It is unlikely you need to enable this as all major clients support
-	/// authentication for this endpoint and prevents misuse of your TURN server
-	/// from potential bots.
-	#[serde(default)]
-	pub turn_allow_guests: bool,
-
 	/// Set this to true to lock down your server's public room directory and
 	/// only allow admins to publish rooms to the room directory. Unpublishing
 	/// is still allowed by all users with this enabled.

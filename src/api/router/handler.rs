@@ -38,7 +38,7 @@ macro_rules! ruma_handler {
 		where
 			Fun: Fn($($tx,)* Ruma<Req>,) -> Fut + Send + Sync + 'static,
 			Fut: Future<Output = Result<Req::OutgoingResponse, Err>> + Send,
-			Req: IncomingRequest + Send + Sync + 'static,
+			Req: IncomingRequest<Authentication: $crate::router::auth::CheckAuth> + Send + Sync + 'static,
 			Err: IntoResponse + Send,
 			<Req as IncomingRequest>::OutgoingResponse: Send,
 			$( $tx: FromRequestParts<State> + Send + Sync + 'static, )*
