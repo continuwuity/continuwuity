@@ -96,26 +96,7 @@ async fn fetch_full_profile(
 ) -> Option<BTreeMap<String, Value>> {
 	// If the user exists locally, fetch their local profile
 	if services.users.exists(user_id).await {
-		let mut profile = BTreeMap::new();
-
-		// Get displayname and avatar_url independently because `all_profile_keys`
-		// doesn't include them
-		for field in [ProfileFieldName::AvatarUrl, ProfileFieldName::DisplayName] {
-			let key = field.as_str().to_owned();
-
-			if let Some(value) = get_local_profile_field(services, user_id, field).await {
-				profile.insert(key, value.value().into_owned());
-			}
-		}
-
-		// Insert all other profile fields
-		let mut all_fields = services.users.all_profile_keys(user_id);
-
-		while let Some((key, value)) = all_fields.next().await {
-			profile.insert(key, value);
-		}
-
-		return Some(profile);
+		return Some(get_local_profile(services, user_id).await);
 	}
 
 	// Otherwise ask their homeserver
@@ -188,7 +169,33 @@ async fn fetch_profile_field(
 	}
 }
 
-async fn get_local_profile_field(
+pub(crate) async fn get_local_profile(
+	services: &Services,
+	user_id: &UserId,
+) -> BTreeMap<String, Value> {
+	let mut profile = BTreeMap::new();
+
+	// Get displayname and avatar_url independently because `all_profile_keys`
+	// doesn't include them
+	for field in [ProfileFieldName::AvatarUrl, ProfileFieldName::DisplayName] {
+		let key = field.as_str().to_owned();
+
+		if let Some(value) = get_local_profile_field(services, user_id, field).await {
+			profile.insert(key, value.value().into_owned());
+		}
+	}
+
+	// Insert all other profile fields
+	let mut all_fields = services.users.all_profile_keys(user_id);
+
+	while let Some((key, value)) = all_fields.next().await {
+		profile.insert(key, value);
+	}
+
+	return profile;
+}
+
+pub(crate) async fn get_local_profile_field(
 	services: &Services,
 	user_id: &UserId,
 	field: ProfileFieldName,
