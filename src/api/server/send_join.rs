@@ -15,8 +15,9 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{
 	CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName,
 	api::federation::membership::create_join_event,
+	assign,
 	events::{
-		StateEventType,
+		StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
@@ -68,10 +69,11 @@ async fn create_join_event(
 	// We do not add the event_id field to the pdu here because of signature and
 	// hashes checks
 	trace!("Getting room version");
-	let room_version_id = services.rooms.state.get_room_version(room_id).await?;
+	let room_version = services.rooms.state.get_room_version(room_id).await?;
+	let room_version_rules = room_version.rules().unwrap();
 
 	trace!("Generating event ID and converting to canonical json");
-	let Ok((event_id, mut value)) = gen_event_id_canonical_json(pdu, &room_version_id) else {
+	let Ok((event_id, mut value)) = gen_event_id_canonical_json(pdu, &room_version_rules) else {
 		// Event could not be converted to canonical json
 		return Err!(Request(BadJson("Could not convert event to canonical json.")));
 	};
@@ -149,9 +151,9 @@ async fn create_join_event(
 	if let Some(authorising_user) = content.join_authorized_via_users_server {
 		use ruma::RoomVersionId::*;
 
-		if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
+		if matches!(room_version, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
 			return Err!(Request(InvalidParam(
-				"Room version {room_version_id} does not support restricted rooms but \
+				"Room version {room_version} does not support restricted rooms but \
 				 join_authorised_via_users_server ({authorising_user}) was found in the event."
 			)));
 		}
@@ -175,14 +177,7 @@ async fn create_join_event(
 			)));
 		}
 
-		if !super::user_can_perform_restricted_join(
-			services,
-			&state_key,
-			room_id,
-			&room_version_id,
-		)
-		.await?
-		{
+		if !super::user_can_perform_restricted_join(services, &state_key, room_id).await? {
 			return Err!(Request(UnableToAuthorizeJoin(
 				"Joining user did not pass restricted room's rules."
 			)));
@@ -190,7 +185,7 @@ async fn create_join_event(
 
 		services
 			.server_keys
-			.hash_and_sign_event(&mut value, &room_version_id)
+			.hash_and_sign_event(&mut value, &room_version_rules)
 			.map_err(|e| {
 				err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}"))))
 			})?;
@@ -230,7 +225,7 @@ async fn create_join_event(
 			if omit_members {
 				if let Ok(e) = event_id.as_ref() {
 					let pdu = services.rooms.timeline.get_pdu(e).await;
-					if pdu.is_ok_and(|p| p.kind().to_cow_str() == "m.room.member") {
+					if pdu.is_ok_and(|p| *p.kind() == TimelineEventType::RoomMember) {
 						trace!("omitting member event {e:?} from returned state");
 						// skip members
 						return None;
@@ -292,67 +287,14 @@ async fn create_join_event(
 		};
 		Some(servers)
 	};
-	debug!("Returning send_join data");
-	Ok(create_join_event::v2::RoomState {
+
+	Ok(assign!(create_join_event::v2::RoomState::new(), {
 		auth_chain,
 		state,
 		event: to_raw_value(&CanonicalJsonValue::Object(value)).ok(),
 		members_omitted: omit_members,
 		servers_in_room,
-	})
-}
-
-/// # `PUT /_matrix/federation/v1/send_join/{roomId}/{eventId}`
-///
-/// Submits a signed join event.
-pub(crate) async fn create_join_event_v1_route(
-	State(services): State<crate::State>,
-	body: Ruma<create_join_event::v1::Request>,
-) -> Result<create_join_event::v1::Response> {
-	if services
-		.moderation
-		.is_remote_server_forbidden(body.origin())
-	{
-		warn!(
-			"Server {} tried joining room ID {} through us who has a server name that is \
-			 globally forbidden. Rejecting.",
-			body.origin(),
-			&body.room_id,
-		);
-		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
-	}
-
-	if let Some(server) = body.room_id.server_name() {
-		if services.moderation.is_remote_server_forbidden(server) {
-			warn!(
-				"Server {} tried joining room ID {} through us which has a server name that is \
-				 globally forbidden. Rejecting.",
-				body.origin(),
-				&body.room_id,
-			);
-			return Err!(Request(Forbidden(warn!(
-				"Room ID server name {server} is banned on this homeserver."
-			))));
-		}
-	}
-
-	let now = Instant::now();
-	let room_state = create_join_event(&services, body.origin(), &body.room_id, &body.pdu, false)
-		.boxed()
-		.await?;
-	let transformed = create_join_event::v1::RoomState {
-		auth_chain: room_state.auth_chain,
-		state: room_state.state,
-		event: room_state.event,
-	};
-	info!(
-		"Finished sending a join for {} in {} in {:?}",
-		body.origin(),
-		&body.room_id,
-		now.elapsed()
-	);
-
-	Ok(create_join_event::v1::Response { room_state: transformed })
+	}))
 }
 
 /// # `PUT /_matrix/federation/v2/send_join/{roomId}/{eventId}`
@@ -395,5 +337,5 @@ pub(crate) async fn create_join_event_v2_route(
 		now.elapsed()
 	);
 
-	Ok(create_join_event::v2::Response { room_state })
+	Ok(create_join_event::v2::Response::new(room_state))
 }
