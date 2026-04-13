@@ -735,8 +735,7 @@ async fn join_room_by_id_helper_local(
 			// This is a restricted room, check if we can complete the join requirements
 			// locally.
 			let needs_auth_user =
-				user_can_perform_restricted_join(services, sender_user, room_id, &room_version)
-					.await;
+				user_can_perform_restricted_join(services, sender_user, room_id).await;
 			if needs_auth_user.is_ok_and(is_true!()) {
 				// If there was an error or the value is false, we'll try joining over
 				// federation. Since it's Ok(true), we can authorise this locally.
