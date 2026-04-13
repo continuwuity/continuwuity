@@ -19,13 +19,6 @@ use service::{
 
 use crate::{router::args::AuthQueryParams, service::appservice::RegistrationInfo};
 
-enum Token {
-	Appservice(Box<RegistrationInfo>),
-	User((OwnedUserId, OwnedDeviceId)),
-	Invalid,
-	None,
-}
-
 #[derive(Default)]
 pub(super) struct Auth {
 	pub(super) origin: Option<OwnedServerName>,
