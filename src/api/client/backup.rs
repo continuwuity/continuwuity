@@ -3,7 +3,6 @@ use std::cmp::Ordering;
 use axum::extract::State;
 use conduwuit::{Err, Result, err};
 use conduwuit_service::Services;
-use futures::FutureExt;
 use ruma::{
 	UInt, UserId,
 	api::client::backup::{
@@ -379,12 +378,14 @@ async fn get_count_etag(
 	sender_user: &UserId,
 	version: &str,
 ) -> (UInt, String) {
-	let count = services
+	let count: UInt = services
 		.key_backups
 		.count_keys(sender_user, version)
-		.then(async |keys| UInt::try_from(keys).expect("number of keys should fit into a UInt"));
+		.await
+		.try_into()
+		.expect("number of keys should fit into a UInt");
 
-	let etag = services.key_backups.get_etag(sender_user, version);
+	let etag = services.key_backups.get_etag(sender_user, version).await;
 
-	futures::join!(count, etag)
+	(count, etag)
 }
