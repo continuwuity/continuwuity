@@ -159,8 +159,8 @@ pub(super) async fn list_features(&self) -> Result {
 	let mut enabled_features = conduwuit::info::introspection::ENABLED_FEATURES
 		.lock()
 		.expect("locked")
-		.iter()
-		.flat_map(|(_, f)| f.iter())
+		.values()
+		.flat_map(|f| f.iter())
 		.collect::<Vec<_>>();
 
 	enabled_features.sort_unstable();

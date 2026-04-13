@@ -139,7 +139,7 @@ pub(super) async fn process(command: RoomAliasCommand, context: &Context<'_>) ->
 					.rooms
 					.alias
 					.all_local_aliases()
-					.map(|(room_id, localpart)| (room_id.into(), localpart.into()))
+					.map(|(room_id, localpart)| (room_id, localpart.into()))
 					.collect::<Vec<(OwnedRoomId, String)>>()
 					.await;
 

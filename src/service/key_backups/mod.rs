@@ -210,7 +210,7 @@ pub async fn get_all(
 		.ignore_err()
 		.ready_for_each(|((_, _, room_id, session_id), key_backup_data): KeyVal<'_>| {
 			rooms
-				.entry(room_id.into())
+				.entry(room_id)
 				.or_insert_with(default)
 				.sessions
 				.insert(session_id.into(), key_backup_data);

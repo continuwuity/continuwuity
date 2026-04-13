@@ -1,5 +1,5 @@
 use ruma::{
-	OwnedEventId, RoomVersionId,
+	OwnedEventId,
 	events::{TimelineEventType, room::redaction::RoomRedactionEventContent},
 	room_version_rules::RoomVersionRules,
 };
@@ -64,8 +64,6 @@ pub(super) fn redacts_id<E: Event>(
 	event: &E,
 	room_version_rules: &RoomVersionRules,
 ) -> Option<OwnedEventId> {
-	use RoomVersionId::*;
-
 	if *event.kind() != TimelineEventType::RoomRedaction {
 		return None;
 	}

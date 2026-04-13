@@ -610,19 +610,9 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 		.expect_ok()
 		.ready_for_each(|key: Key| {
 			let (ref room_id, _, ref user_id) = key;
-			let last_room = cur_room.replace(
-				room_id
-					.as_str()
-					.try_into()
-					.expect("invalid room_id in database"),
-			);
+			let last_room = cur_room.replace(room_id.as_str().into());
 
-			let last_user = cur_user.replace(
-				user_id
-					.as_str()
-					.try_into()
-					.expect("invalid user_id in database"),
-			);
+			let last_user = cur_user.replace(user_id.as_str().into());
 
 			let is_dup = cur_room == last_room && cur_user == last_user;
 			if is_dup {

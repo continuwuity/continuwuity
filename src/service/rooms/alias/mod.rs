@@ -7,7 +7,7 @@ use conduwuit::{
 	utils::{ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Map};
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{Stream, StreamExt};
 use ruma::{
 	OwnedRoomAliasId, OwnedRoomId, OwnedServerName, OwnedUserId, RoomAliasId, RoomId,
 	RoomOrAliasId, UserId, events::StateEventType,

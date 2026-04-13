@@ -9,7 +9,7 @@ use conduwuit_core::{
 	},
 	validated, warn,
 };
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, EventId, OwnedServerName, RoomId, ServerName, api::federation,
 	events::TimelineEventType, uint,

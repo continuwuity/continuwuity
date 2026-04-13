@@ -163,7 +163,7 @@ where
 
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
-		&room_version,
+		room_version,
 		sorted_control_levels.iter().stream().map(AsRef::as_ref),
 		initial_state,
 		&event_fetch,
@@ -203,7 +203,7 @@ where
 	trace!(list = ?sorted_left_events, "events left, sorted, running iterative auth check");
 
 	let mut resolved_state = iterative_auth_check(
-		&room_version,
+		room_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
 		resolved_control, // The control events are added to the final resolved state
 		&event_fetch,
@@ -668,7 +668,7 @@ where
 					"Failed to parse create event ID from room ID/hash: {e}"
 				))
 			})?;
-			let create_event = fetch_event(create_event_id.into())
+			let create_event = fetch_event(create_event_id)
 				.await
 				.ok_or_else(|| Error::NotFound("Failed to find create event".into()))?;
 			auth_state.insert(create_event.event_type().with_state_key(""), create_event);

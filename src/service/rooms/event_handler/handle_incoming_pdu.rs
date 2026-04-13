@@ -14,7 +14,7 @@ use futures::{
 use ruma::{
 	CanonicalJsonValue, EventId, OwnedUserId, RoomId, ServerName, UserId,
 	events::{
-		StateEventType, TimelineEventType,
+		TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
@@ -209,7 +209,7 @@ pub async fn handle_incoming_pdu<'a>(
 	}
 
 	// Fetch create event
-	let ref create_event = self
+	let create_event = &self
 		.services
 		.state_accessor
 		.get_room_create_event(room_id)
