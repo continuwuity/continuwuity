@@ -7,8 +7,7 @@ use conduwuit::{
 use futures::FutureExt;
 use ruma::{
 	OwnedUserId,
-	RoomVersionId::*,
-	api::federation::knock::send_knock,
+	api::federation::membership::create_knock_event,
 	events::{
 		StateEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
@@ -23,8 +22,8 @@ use crate::Ruma;
 /// Submits a signed knock event.
 pub(crate) async fn create_knock_event_v1_route(
 	State(services): State<crate::State>,
-	body: Ruma<send_knock::v1::Request>,
-) -> Result<send_knock::v1::Response> {
+	body: Ruma<create_knock_event::v1::Request>,
+) -> Result<create_knock_event::v1::Response> {
 	if services
 		.moderation
 		.is_remote_server_forbidden(body.origin())
@@ -74,13 +73,15 @@ pub(crate) async fn create_knock_event_v1_route(
 		.acl_check(body.origin(), &body.room_id)
 		.await?;
 
-	let room_version_id = services.rooms.state.get_room_version(&body.room_id).await?;
+	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
+	let room_version_rules = room_version.rules().unwrap();
 
-	if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6) {
+	if !room_version_rules.authorization.knocking {
 		return Err!(Request(Forbidden("Room version does not support knocking.")));
 	}
 
-	let Ok((event_id, value)) = gen_event_id_canonical_json(&body.pdu, &room_version_id) else {
+	let Ok((event_id, value)) = gen_event_id_canonical_json(&body.pdu, &room_version_rules)
+	else {
 		// Event could not be converted to canonical json
 		return Err!(Request(InvalidParam("Could not convert event to canonical json.")));
 	};
@@ -161,7 +162,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		.rooms
 		.event_handler
 		.mutex_federation
-		.lock(&body.room_id)
+		.lock(body.room_id.as_str())
 		.await;
 
 	let pdu_id = services
@@ -185,5 +186,5 @@ pub(crate) async fn create_knock_event_v1_route(
 		.summary_stripped(&pdu, &body.room_id)
 		.await;
 
-	Ok(send_knock::v1::Response { knock_room_state })
+	Ok(create_knock_event::v1::Response::new(knock_room_state))
 }
