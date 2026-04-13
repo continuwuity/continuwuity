@@ -20,7 +20,7 @@ pub struct ResetTokenInfo {
 
 impl ResetTokenInfo {
 	// one hour
-	const MAX_TOKEN_AGE: Duration = Duration::from_secs(60 * 60);
+	const MAX_TOKEN_AGE: Duration = Duration::from_hours(1);
 
 	pub fn is_valid(&self) -> bool {
 		let now = SystemTime::now();

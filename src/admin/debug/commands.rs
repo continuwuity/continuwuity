@@ -121,7 +121,7 @@ pub(super) async fn get_pdu(&self, event_id: OwnedEventId) -> Result {
 			} else {
 				"PDU found in our database"
 			};
-			write!(self, "{msg}\n```json\n{text}\n```",)
+			write!(self, "{msg}\n```json\n{text}\n```")
 		},
 	}
 	.await
@@ -189,10 +189,7 @@ pub(super) async fn get_remote_pdu_list(&self, server: OwnedServerName, force: b
 
 	for event_id in list {
 		if force {
-			match self
-				.get_remote_pdu(event_id.to_owned(), server.clone())
-				.await
-			{
+			match self.get_remote_pdu(event_id.clone(), server.clone()).await {
 				| Err(e) => {
 					failed_count = failed_count.saturating_add(1);
 					self.services
@@ -207,7 +204,7 @@ pub(super) async fn get_remote_pdu_list(&self, server: OwnedServerName, force: b
 				},
 			}
 		} else {
-			self.get_remote_pdu(event_id.to_owned(), server.clone())
+			self.get_remote_pdu(event_id.clone(), server.clone())
 				.await?;
 			success_count = success_count.saturating_add(1);
 		}

@@ -50,7 +50,7 @@ pub type PubKeys = PublicKeySet;
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
-		let minimum_valid = Duration::from_secs(3600);
+		let minimum_valid = Duration::from_hours(1);
 
 		let (keypair, verify_keys) = keypair::init(args.db)?;
 		debug_assert!(verify_keys.len() == 1, "only one active verify_key supported");
@@ -171,11 +171,10 @@ pub async fn verify_keys_for(&self, origin: &ServerName) -> VerifyKeys {
 	let mut keys = self
 		.signing_keys_for(origin)
 		.await
-		.map(|keys| merge_old_keys(keys).verify_keys)
-		.unwrap_or(BTreeMap::new());
+		.map_or(BTreeMap::new(), |keys| merge_old_keys(keys).verify_keys);
 
 	if self.services.globals.server_is_ours(origin) {
-		keys.extend(self.verify_keys.clone().into_iter());
+		keys.extend(self.verify_keys.clone());
 	}
 
 	keys

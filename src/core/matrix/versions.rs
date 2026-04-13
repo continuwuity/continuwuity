@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+#[must_use]
 pub fn versions() -> Vec<String> {
 	vec![
 		"r0.0.1".to_owned(),
@@ -23,6 +24,7 @@ pub fn versions() -> Vec<String> {
 	]
 }
 
+#[must_use]
 pub fn unstable_features() -> BTreeMap<String, bool> {
 	BTreeMap::from_iter([
 		("org.matrix.e2e_cross_signing".to_owned(), true),

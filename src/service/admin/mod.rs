@@ -395,7 +395,7 @@ impl Service {
 				let mut stream = admin_users;
 
 				while let Some(user_id) = stream.next().await {
-					generated_admin_list.push(user_id.to_owned());
+					generated_admin_list.push(user_id.clone());
 				}
 			}
 		}

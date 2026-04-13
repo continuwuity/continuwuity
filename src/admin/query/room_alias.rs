@@ -53,7 +53,7 @@ pub(super) async fn process(subcommand: RoomAliasCommand, context: &Context<'_>)
 				.rooms
 				.alias
 				.all_local_aliases()
-				.map(|(room_id, alias)| (room_id.to_owned(), alias.to_owned()))
+				.map(|(room_id, alias)| (room_id, alias.to_owned()))
 				.collect::<Vec<_>>()
 				.await;
 			let query_time = timer.elapsed();

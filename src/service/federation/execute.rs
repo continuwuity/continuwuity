@@ -289,7 +289,7 @@ fn handle_error(
 /// requests for either versioned or unversioned endpoints, by requiring that
 /// the `Input` of the `PathBuilder` of the endpoint implements
 /// `FederationPathBuilderInput`.
-pub(crate) trait FederationPathBuilderInput {
+pub trait FederationPathBuilderInput {
 	fn create() -> Self;
 }
 
