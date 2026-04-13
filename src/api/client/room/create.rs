@@ -238,8 +238,8 @@ pub(crate) async fn create_room_route(
 		.as_object()
 		.unwrap()
 		.get("origin_server_ts")
-		.and_then(|value| value.as_integer())
-		.map(|value| value.into())
+		.and_then(ruma::CanonicalJsonValue::as_integer)
+		.map(Into::into)
 		.and_then(|value: i64| value.try_into().ok())
 		.map(MilliSecondsSinceUnixEpoch);
 
@@ -266,7 +266,7 @@ pub(crate) async fn create_room_route(
 		| None => {
 			let as_room_id = create_event_id.as_str().replace('$', "!");
 			trace!("Creating room with v12 room ID {as_room_id}");
-			RoomId::parse(&as_room_id)?.to_owned()
+			RoomId::parse(&as_room_id)?.clone()
 		},
 	};
 	drop(state_lock);
@@ -342,7 +342,7 @@ pub(crate) async fn create_room_route(
 	let power_levels_content = default_power_levels_content(
 		body.power_level_content_override
 			.as_ref()
-			.map(|power_levels| power_levels.cast_ref()),
+			.map(Raw::cast_ref),
 		&body.visibility,
 		power_levels_to_grant,
 		creators,

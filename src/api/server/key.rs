@@ -56,7 +56,7 @@ pub(crate) async fn get_server_keys_route(
 }
 
 fn valid_until_ts() -> MilliSecondsSinceUnixEpoch {
-	let dur = Duration::from_secs(86400 * 7);
+	let dur = Duration::from_hours(168);
 	let timepoint = timepoint_from_now(dur).expect("SystemTime should not overflow");
 	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
 }

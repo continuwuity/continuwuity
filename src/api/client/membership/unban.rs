@@ -35,7 +35,7 @@ pub(crate) async fn unban_user_route(
 	}
 
 	current_member_content.membership = MembershipState::Leave;
-	current_member_content.reason = body.reason.clone();
+	current_member_content.reason.clone_from(&body.reason);
 	current_member_content.join_authorized_via_users_server = None;
 	current_member_content.third_party_invite = None;
 	current_member_content.is_direct = None;

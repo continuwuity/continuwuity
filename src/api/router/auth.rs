@@ -36,7 +36,7 @@ pub(super) trait CheckAuth: AuthScheme {
 		async move {
 			let route = TypeId::of::<R>();
 
-			let output = Self::extract_authentication(&incoming_request).map_err(|err| {
+			let output = Self::extract_authentication(incoming_request).map_err(|err| {
 				err!(Request(Unauthorized(warn!(
 					"Failed to extract authorization: {}",
 					err.into()
@@ -85,8 +85,8 @@ impl CheckAuth for ServerSignatures {
 		let keys: PubKeyMap = [(output.origin.as_str().into(), keys)].into();
 
 		match output.verify_request(request, destination, &keys) {
-			| Ok(_) => Ok(Auth {
-				origin: Some(output.origin.to_owned()),
+			| Ok(()) => Ok(Auth {
+				origin: Some(output.origin.clone()),
 				..Default::default()
 			}),
 			| Err(err) =>
@@ -123,11 +123,11 @@ impl CheckAuth for AccessToken {
 			}
 		}
 
-		return Ok(Auth {
+		Ok(Auth {
 			sender_user: Some(sender_user),
 			sender_device: Some(sender_device),
 			..Default::default()
-		});
+		})
 	}
 }
 

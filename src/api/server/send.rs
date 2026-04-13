@@ -714,7 +714,7 @@ async fn handle_edu_direct_to_device_event(
 							ev_type,
 							event.clone(),
 						)
-						.await
+						.await;
 				})
 				.await;
 		},

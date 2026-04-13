@@ -90,7 +90,7 @@ pub(crate) async fn room_initial_sync_route(
 
 	Ok(assign!(Response::new(room_id.to_owned()), {
 		account_data: vec![],
-		state: state.into(),
+		state: state,
 		messages: messages.chunk.is_empty().or_some(messages),
 		visibility: visibility.into(),
 		membership,

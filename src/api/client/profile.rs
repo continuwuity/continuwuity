@@ -36,7 +36,7 @@ pub(crate) async fn get_profile_route(
 		return Err!(Request(NotFound("This user's profile could not be fetched.")));
 	};
 
-	Ok(get_profile::v3::Response::from_iter(profile.into_iter()))
+	Ok(get_profile::v3::Response::from_iter(profile))
 }
 
 pub(crate) async fn get_profile_field_route(
@@ -115,7 +115,7 @@ async fn fetch_full_profile(
 	services.users.clear_profile(user_id).await;
 
 	for (field, value) in response.iter() {
-		let Ok(value) = ProfileFieldValue::new(&field, value.to_owned()) else {
+		let Ok(value) = ProfileFieldValue::new(field, value.to_owned()) else {
 			// Skip malformed fields
 			continue;
 		};
@@ -123,7 +123,7 @@ async fn fetch_full_profile(
 		set_profile_field(services, user_id, ProfileFieldChange::Set(value)).await;
 	}
 
-	Some(BTreeMap::from_iter(response.into_iter()))
+	Some(BTreeMap::from_iter(response))
 }
 
 async fn fetch_profile_field(
@@ -192,7 +192,7 @@ pub(crate) async fn get_local_profile(
 		profile.insert(key, value);
 	}
 
-	return profile;
+	profile
 }
 
 pub(crate) async fn get_local_profile_field(
@@ -238,13 +238,13 @@ enum ProfileFieldChange {
 impl ProfileFieldChange {
 	fn field_name(&self) -> ProfileFieldName {
 		match self {
-			| &ProfileFieldChange::Delete(ref name) => name.clone(),
-			| &ProfileFieldChange::Set(ref value) => value.field_name(),
+			| &Self::Delete(ref name) => name.clone(),
+			| &Self::Set(ref value) => value.field_name(),
 		}
 	}
 
 	fn value(&self) -> Option<Value> {
-		if let &ProfileFieldChange::Set(ref value) = self {
+		if let Self::Set(value) = self {
 			Some(value.value().into_owned())
 		} else {
 			None
