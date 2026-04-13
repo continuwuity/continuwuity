@@ -89,7 +89,7 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 			 locally, if not using get_alias_helper to fetch room ID remotely"
 		);
 
-		match self.services.rooms.alias.resolve_alias(room_alias).await {
+		match self.services.rooms.alias.resolve_alias(&room_alias).await {
 			| Ok((room_id, servers)) => {
 				debug!(
 					%room_id,
@@ -116,7 +116,6 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		.rooms
 		.state_cache
 		.room_members(&room_id)
-		.map(ToOwned::to_owned)
 		.ready_filter(|user| self.services.globals.user_is_local(user))
 		.boxed();
 
@@ -140,7 +139,6 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		.rooms
 		.alias
 		.local_aliases_for_room(&room_id)
-		.map(ToOwned::to_owned)
 		.for_each(|local_alias| async move {
 			self.services
 				.rooms
@@ -215,7 +213,7 @@ async fn ban_list_of_rooms(&self) -> Result {
 								.services
 								.rooms
 								.alias
-								.resolve_local_alias(room_alias)
+								.resolve_local_alias(&room_alias)
 								.await
 							{
 								| Ok(room_id) => room_id,
@@ -229,7 +227,7 @@ async fn ban_list_of_rooms(&self) -> Result {
 										.services
 										.rooms
 										.alias
-										.resolve_alias(room_alias)
+										.resolve_alias(&room_alias)
 										.await
 									{
 										| Ok((room_id, servers)) => {
@@ -284,7 +282,6 @@ async fn ban_list_of_rooms(&self) -> Result {
 			.rooms
 			.state_cache
 			.room_members(&room_id)
-			.map(ToOwned::to_owned)
 			.ready_filter(|user| self.services.globals.user_is_local(user))
 			.boxed();
 
@@ -309,7 +306,6 @@ async fn ban_list_of_rooms(&self) -> Result {
 			.rooms
 			.alias
 			.local_aliases_for_room(&room_id)
-			.map(ToOwned::to_owned)
 			.for_each(|local_alias| async move {
 				self.services
 					.rooms
@@ -348,7 +344,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		};
 
 		debug!("Room specified is a room ID, unbanning room ID");
-		self.services.rooms.metadata.ban_room(room_id, false);
+		self.services.rooms.metadata.ban_room(&room_id, false);
 
 		room_id.to_owned()
 	} else if room.is_room_alias_id() {
@@ -372,7 +368,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 			.services
 			.rooms
 			.alias
-			.resolve_local_alias(room_alias)
+			.resolve_local_alias(&room_alias)
 			.await
 		{
 			| Ok(room_id) => room_id,
@@ -382,7 +378,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 					 room ID over federation"
 				);
 
-				match self.services.rooms.alias.resolve_alias(room_alias).await {
+				match self.services.rooms.alias.resolve_alias(&room_alias).await {
 					| Ok((room_id, servers)) => {
 						debug!(
 							%room_id,
