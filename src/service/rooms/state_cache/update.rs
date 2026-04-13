@@ -5,6 +5,7 @@ use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
 	OwnedServerName, RoomId, UserId,
+	api::federation::membership::RawStrippedState,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
 		StateEventType,
@@ -118,8 +119,17 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			let last_state = self.services.state.summary_stripped(pdu, room_id).await;
-			self.mark_as_invited(user_id, room_id, pdu.sender(), Some(last_state), None)
+			#[allow(deprecated)]
+			let last_state = self
+				.services
+				.state
+				.summary_stripped(pdu, room_id)
+				.await
+				.into_iter()
+				.map(RawStrippedState::Stripped)
+				.collect();
+
+			self.mark_as_invited(user_id, room_id, pdu.sender(), last_state, None)
 				.await?;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
@@ -332,7 +342,7 @@ pub async fn mark_as_invited(
 	user_id: &UserId,
 	room_id: &RoomId,
 	sender_user: &UserId,
-	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
+	last_state: Vec<RawStrippedState>,
 	invite_via: Option<Vec<OwnedServerName>>,
 ) -> Result<()> {
 	// return an error for blocked invites. ignored invites aren't handled here
@@ -356,7 +366,7 @@ pub async fn mark_as_invited(
 
 	self.db
 		.userroomid_invitestate
-		.raw_put(&userroom_id, Json(last_state.unwrap_or_default()));
+		.raw_put(&userroom_id, Json(last_state));
 	self.db
 		.roomuserid_invitecount
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());
