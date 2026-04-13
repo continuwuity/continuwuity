@@ -76,7 +76,6 @@ pub(crate) async fn get_message_events_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
-	debug_assert!(IGNORED_MESSAGE_TYPES.is_sorted(), "IGNORED_MESSAGE_TYPES is not sorted");
 	let sender_user = body.sender_user();
 	let sender_device = body.sender_device.as_deref();
 	let room_id = &body.room_id;
