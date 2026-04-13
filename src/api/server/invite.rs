@@ -155,7 +155,7 @@ pub(crate) async fn create_invite_route(
 
 	if let Err(e) = services
 		.antispam
-		.user_may_invite(sender_user.to_owned(), recipient_user.clone(), body.room_id.clone())
+		.user_may_invite(sender_user.clone(), recipient_user.clone(), body.room_id.clone())
 		.await
 	{
 		warn!("Antispam rejected invite: {e:?}");

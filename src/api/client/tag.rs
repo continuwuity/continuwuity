@@ -27,7 +27,7 @@ pub(crate) async fn update_tag_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event
 		.content
@@ -62,7 +62,7 @@ pub(crate) async fn delete_tag_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event.content.tags.remove(&body.tag.clone().into());
 
@@ -94,7 +94,7 @@ pub(crate) async fn get_tags_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	Ok(get_tags::v3::Response::new(tags_event.content.tags))
 }

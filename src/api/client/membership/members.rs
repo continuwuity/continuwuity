@@ -119,5 +119,5 @@ fn membership_filter<Pdu: Event>(
 		return None;
 	}
 
-	return Some(pdu);
+	Some(pdu)
 }

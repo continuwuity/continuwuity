@@ -806,7 +806,7 @@ pub(super) async fn put_room_tag(
 		.account_data
 		.get_room(&room_id, &user_id, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event
 		.content
@@ -843,7 +843,7 @@ pub(super) async fn delete_room_tag(
 		.account_data
 		.get_room(&room_id, &user_id, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event.content.tags.remove(&tag.clone().into());
 
@@ -873,7 +873,7 @@ pub(super) async fn get_room_tags(&self, user_id: String, room_id: OwnedRoomId) 
 		.account_data
 		.get_room(&room_id, &user_id, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent::new(TagEventContent::new(BTreeMap::new())));
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	self.write_str(&format!("```\n{:#?}\n```", tags_event.content.tags))
 		.await

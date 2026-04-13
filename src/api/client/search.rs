@@ -50,7 +50,7 @@ pub(crate) async fn search_events_route(
 
 	if let Some(criteria) = &body.search_categories.room_events {
 		result_categories.room_events =
-			category_room_events(&services, sender_user, next_batch, criteria).await?
+			category_room_events(&services, sender_user, next_batch, criteria).await?;
 	}
 
 	Ok(Response::new(result_categories))
