@@ -367,7 +367,7 @@ pub async fn full_user_deactivate(
 		let room_power_levels = services
 			.rooms
 			.state_accessor
-			.get_room_power_levels(&room_id)
+			.get_room_power_levels(room_id)
 			.await;
 
 		let user_can_demote_self =
@@ -394,7 +394,7 @@ pub async fn full_user_deactivate(
 		// TODO: Redact all messages sent by the user in the room
 	}
 
-	for (pdu, room_id) in pdu_queue.into_iter() {
+	for (pdu, room_id) in pdu_queue {
 		let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
 		let _ = services
