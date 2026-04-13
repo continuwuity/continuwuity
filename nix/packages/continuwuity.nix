@@ -9,6 +9,7 @@
   rustPlatform,
   cargoExtraArgs ? "",
   rocksdb ? callPackage ./rocksdb.nix { },
+  profile ? "release",
 }:
 let
   # see https://crane.dev/API.html#cranelibfiltercargosources
@@ -35,6 +36,7 @@ let
     env = {
       ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
+      CARGO_PROFILE = profile;
     };
   };
 in
