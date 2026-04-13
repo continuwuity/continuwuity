@@ -224,7 +224,7 @@ fn parse_servercurrentevent(key: &[u8], value: &[u8]) -> Result<(Destination, Se
 			.ok_or_else(|| Error::bad_database("Invalid bytes in servercurrentpdus."))?;
 
 		(
-			Destination::Push(user_id.to_owned(), pushkey_string),
+			Destination::Push(user_id, pushkey_string),
 			if value.is_empty() {
 				SendingEvent::Pdu(event.into())
 			} else {

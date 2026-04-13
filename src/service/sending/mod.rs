@@ -203,9 +203,7 @@ impl Service {
 		S: Stream<Item = OwnedServerName> + Send,
 	{
 		let requests = servers
-			.map(|server| {
-				(Destination::Federation(server.into()), SendingEvent::Pdu(pdu_id.to_owned()))
-			})
+			.map(|server| (Destination::Federation(server), SendingEvent::Pdu(pdu_id.to_owned())))
 			.collect::<Vec<_>>()
 			.await;
 

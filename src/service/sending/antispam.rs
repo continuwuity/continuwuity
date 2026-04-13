@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use conduwuit::{Err, Result, debug_error, err, utils, utils::response::LimitReadExt, warn};
 use reqwest::Client;
 use ruma::api::{
-	IncomingResponse, MatrixVersion, OutgoingRequest,
+	IncomingResponse, OutgoingRequest,
 	auth_scheme::{AppserviceToken, SendAccessToken},
 	path_builder::VersionHistory,
 };
@@ -23,7 +23,6 @@ where
 		+ Debug
 		+ Send,
 {
-	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_15];
 	let http_request = request
 		.try_into_http_request::<BytesMut>(
 			base_url,

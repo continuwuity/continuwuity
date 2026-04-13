@@ -34,7 +34,7 @@ pub(super) struct Auth {
 	pub(super) appservice_info: Option<RegistrationInfo>,
 }
 
-pub(crate) trait CheckAuth: AuthScheme {
+pub(super) trait CheckAuth: AuthScheme {
 	fn authenticate<R: IncomingRequest + Any, B: AsRef<[u8]> + Sync>(
 		services: &Services,
 		incoming_request: &hyper::Request<B>,

@@ -127,9 +127,7 @@ impl Event for Pdu {
 		} else {
 			// v12+
 			let constructed_hash = self.event_id.as_str().replace('$', "!");
-			RoomId::parse(&constructed_hash)
-				.expect("event ID can be parsed")
-				.to_owned()
+			RoomId::parse(&constructed_hash).expect("event ID can be parsed")
 		}
 	}
 
@@ -200,9 +198,7 @@ impl Event for &Pdu {
 		} else {
 			// v12+
 			let constructed_hash = self.event_id.as_str().replace('$', "!");
-			RoomId::parse(&constructed_hash)
-				.expect("event ID can be parsed")
-				.to_owned()
+			RoomId::parse(&constructed_hash).expect("event ID can be parsed")
 		}
 	}
 

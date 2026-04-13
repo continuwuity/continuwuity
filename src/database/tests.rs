@@ -1,6 +1,6 @@
 #![allow(clippy::needless_borrows_for_generic_args)]
 
-use std::{borrow::Cow, fmt::Debug};
+use std::borrow::Cow;
 
 use conduwuit::{
 	arrayvec::ArrayVec,
@@ -12,7 +12,7 @@ use conduwuit::{
 use serde::Serialize;
 
 use crate::{
-	Ignore, Interfix, de, ser,
+	Ignore, de, ser,
 	ser::{Json, serialize_to_vec},
 };
 
@@ -470,6 +470,7 @@ fn serde_tuple_option_none_none() {
 }
 
 #[test]
+#[allow(clippy::type_complexity)]
 fn serde_tuple_option_some_none_some() {
 	let room_id = room_id!("!room:example.com");
 	let user_id = user_id!("@user:example.com");

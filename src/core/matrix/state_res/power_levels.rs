@@ -10,7 +10,12 @@ use ruma::{
 use serde::Deserialize;
 use serde_json::{Error, from_str as from_json_str};
 
-use super::{Result, serde_backports::*};
+use super::{
+	Result,
+	serde_backports::{
+		vec_deserialize_int_powerlevel_values, vec_deserialize_v1_powerlevel_values,
+	},
+};
 use crate::error;
 
 #[derive(Deserialize)]
@@ -47,11 +52,11 @@ struct IntRoomPowerLevelsEventContent {
 }
 
 impl IntRoomPowerLevelsEventContent {
-	fn to_room_power_levels_content(
+	fn into_room_power_levels_content(
 		self,
 		auth_rules: &AuthorizationRules,
 	) -> RoomPowerLevelsEventContent {
-		let IntRoomPowerLevelsEventContent {
+		let Self {
 			ban,
 			events,
 			events_default,
@@ -116,7 +121,7 @@ fn deserialize_integer_power_levels(
 	auth_rules: &AuthorizationRules,
 ) -> Option<RoomPowerLevelsEventContent> {
 	match from_json_str::<IntRoomPowerLevelsEventContent>(content) {
-		| Ok(content) => Some(content.to_room_power_levels_content(auth_rules)),
+		| Ok(content) => Some(content.into_room_power_levels_content(auth_rules)),
 		| Err(_) => {
 			error!("m.room.power_levels event is not valid with integer values");
 			None

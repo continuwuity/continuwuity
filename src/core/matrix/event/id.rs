@@ -1,7 +1,7 @@
 use ruma::{CanonicalJsonObject, OwnedEventId, room_version_rules::RoomVersionRules};
 use serde_json::value::RawValue as RawJsonValue;
 
-use crate::{Err, Result, err};
+use crate::{Result, err};
 
 /// Generates a correct eventId for the incoming pdu.
 ///

@@ -48,7 +48,7 @@ impl Presence {
 		let now = utils::millis_since_unix_epoch();
 		let last_active_ago = Some(UInt::new_saturating(now.saturating_sub(self.last_active_ts)));
 		let mut content = PresenceEventContent::new(self.state.clone());
-		content.status_msg = self.status_msg.clone();
+		content.status_msg.clone_from(&self.status_msg);
 		content.currently_active = Some(self.currently_active);
 		content.last_active_ago = last_active_ago;
 		content.displayname = users.displayname(user_id).await.ok();

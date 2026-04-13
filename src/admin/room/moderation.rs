@@ -71,7 +71,7 @@ async fn ban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 
 		debug!("Room specified is a room ID, banning room ID");
 
-		room_id.to_owned()
+		room_id.clone()
 	} else if room.is_room_alias_id() {
 		let room_alias = match RoomAliasId::parse(&room) {
 			| Ok(room_alias) => room_alias,
@@ -203,7 +203,7 @@ async fn ban_list_of_rooms(&self) -> Result {
 						},
 					};
 
-					room_ids.push(room_id.to_owned());
+					room_ids.push(room_id.clone());
 				}
 
 				if room_alias_or_id.is_room_alias_id() {
@@ -346,7 +346,7 @@ async fn unban_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		debug!("Room specified is a room ID, unbanning room ID");
 		self.services.rooms.metadata.ban_room(&room_id, false);
 
-		room_id.to_owned()
+		room_id.clone()
 	} else if room.is_room_alias_id() {
 		let room_alias = match RoomAliasId::parse(&room) {
 			| Ok(room_alias) => room_alias,
@@ -449,6 +449,6 @@ async fn list_banned_rooms(&self, no_details: bool) -> Result {
 		.collect::<Vec<_>>()
 		.join("\n");
 
-	self.write_str(&format!("Rooms Banned ({num}):\n```\n{body}\n```",))
+	self.write_str(&format!("Rooms Banned ({num}):\n```\n{body}\n```"))
 		.await
 }
