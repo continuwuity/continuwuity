@@ -431,7 +431,7 @@ where
 					add_unsigned_device_display_name(&mut keys, metadata, include_display_names)
 						.map_err(|_| err!(Database("invalid device keys in database")))?;
 
-					container.insert(device_id.to_owned(), keys);
+					container.insert(device_id.clone(), keys);
 				}
 			}
 

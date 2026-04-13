@@ -941,13 +941,13 @@ where
 										)
 										.await
 										{
-											device_list_changes.insert(user_id.to_owned());
+											device_list_changes.insert(user_id.clone());
 										}
 									},
 									| MembershipState::Leave => {
 										// Write down users that have left encrypted rooms we
 										// are in
-										left_encrypted_users.insert(user_id.to_owned());
+										left_encrypted_users.insert(user_id.clone());
 									},
 									| _ => {},
 								}
@@ -968,7 +968,7 @@ where
 						// already
 						.filter_map(async |user_id| {
 							share_encrypted_room(services, sender_user, &user_id, Some(room_id))
-								.map(|res| res.or_some(user_id.to_owned()))
+								.map(|res| res.or_some(user_id.clone()))
 								.await
 						})
 						.collect::<Vec<_>>()

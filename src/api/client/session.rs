@@ -170,7 +170,8 @@ pub(crate) async fn handle_login(
 	debug!("Got password login type");
 
 	let user_id_or_localpart = match (identifier, user) {
-		| (Some(UserIdentifier::Matrix(MatrixUserIdentifier { user, .. })), _) => user,
+		| (Some(UserIdentifier::Matrix(MatrixUserIdentifier { user, .. })), _)
+		| (None, Some(user)) => user,
 		| (Some(UserIdentifier::Email(EmailUserIdentifier { address, .. })), _) => {
 			let email = Address::try_from(address.to_owned())
 				.map_err(|_| err!(Request(InvalidParam("Email is malformed"))))?;
@@ -181,7 +182,6 @@ pub(crate) async fn handle_login(
 				.await
 				.ok_or_else(|| err!(Request(Forbidden("Invalid identifier or password"))))?
 		},
-		| (None, Some(user)) => user,
 		| _ => {
 			return Err!(Request(InvalidParam("Identifier type not recognized")));
 		},

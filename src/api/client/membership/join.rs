@@ -426,7 +426,9 @@ async fn join_room_by_id_helper_remote(
 	join_content.avatar_url = services.users.avatar_url(sender_user).await.ok();
 	join_content.blurhash = services.users.blurhash(sender_user).await.ok();
 	join_content.reason = reason;
-	join_content.join_authorized_via_users_server = join_authorized_via_users_server.clone();
+	join_content
+		.join_authorized_via_users_server
+		.clone_from(&join_authorized_via_users_server);
 
 	join_event_stub.insert(
 		"content".to_owned(),
@@ -752,7 +754,7 @@ async fn join_room_by_id_helper_local(
 	content.displayname = services.users.displayname(sender_user).await.ok();
 	content.avatar_url = services.users.avatar_url(sender_user).await.ok();
 	content.blurhash = services.users.blurhash(sender_user).await.ok();
-	content.reason = reason.clone();
+	content.reason.clone_from(&reason);
 	content.join_authorized_via_users_server = auth_user;
 
 	// Try normal join first
@@ -861,7 +863,7 @@ async fn make_join_request(
 					);
 					return Err(e);
 				},
-				| ErrorKind::Forbidden { .. } => {
+				| ErrorKind::Forbidden => {
 					warn!("{remote_server} refuses to let us join: {e}.");
 					return Err(e);
 				},

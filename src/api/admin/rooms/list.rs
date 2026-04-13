@@ -24,7 +24,7 @@ pub(crate) async fn list_rooms(
 		.iter_ids()
 		.filter_map(|room_id| async move {
 			if !services.rooms.metadata.is_banned(&room_id).await {
-				Some(room_id.to_owned())
+				Some(room_id.clone())
 			} else {
 				None
 			}
