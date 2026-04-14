@@ -71,7 +71,7 @@ mod tests {
 				"via": "example.com",
 				"public_key": "6yhHGKhCiXTSEN2ksjV7kX_N6rBQZ3Xb-M7LlC6NS-s"
 			},
-			"event_id": "123:example.com",
+			"event_id": "$123:example.com",
 			"origin_server_ts": 1,
 			"room_id": "!123456:example.com",
 			"sender": "@carl:example.com",
