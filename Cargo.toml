@@ -360,6 +360,7 @@ features = [
     "markdown",
     "ring-compat",
     "compat-upload-signatures",
+    "compat-optional-txn-pdus",
     "unstable-msc2448",
     "unstable-msc2666",
     "unstable-msc2867",
