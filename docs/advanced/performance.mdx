@@ -8,7 +8,7 @@ Please see the dedicated [DNS tuning guide](./dns.mdx).
 
 ## Cache capacities
 
-If you have unused memory to spare, consider increasing the `cache_capacity_modifier` value to a larger number to allow more data to be stored in hot memory. This *significantly* speed up many intensive operations (such as state resolutions) and decreases CPU usage and disk I/O. Start with a baseline of `cache_capacity_modifier = 2.0` and tune up until you are satisfied with RAM usage.
+If you have memory to spare, consider increasing the `cache_capacity_modifier` value to a larger number to allow more data to be stored in hot memory. This *significantly* speeds up many intensive operations (such as state resolutions) and decreases CPU usage and disk I/O. Start with a baseline of `cache_capacity_modifier = 2.0` and tune up until you are satisfied with RAM usage.
 
 On the other hand, if your system doesn't have a lot of RAM, consider decreasing the cache capacity modifier to something smaller than `1.0` to avoid low-memory issues (at the cost of higher load on disk/CPU). This recommendation also works if your system has abnormally little RAM compared to the number of CPU cores (for example, 2GB RAM for 12 cores), as cache capacities scale according to number of available cores.
 
@@ -128,6 +128,6 @@ Some users have also reported that increasing `trusted_server_batch_size` has he
 
 ### Enable HTTP/3 on your reverse proxy
 
-Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy HTTP/3 is allowed by default, and you'd need to expose port :443/**udp** on your firewall.
+Consider enabling the newer **HTTP/3** protocol for inbound connections to Continuwuity. In Caddy HTTP/3 is allowed by default, but you must expose port :443/**udp** on your firewall.
 
 HTTP/3 can vastly improve Client-Server connections especially on unstable networks, as it reduces packet losses and latency from TCP head-of-line blocking, includes workarounds for network switching, and reduces connection establishment handshakes. Continuwuity also includes experimental _outbound_ HTTP/3 support in its Docker images, so connections between Continuwuity servers can benefit from this too.
