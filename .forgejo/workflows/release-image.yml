@@ -195,3 +195,10 @@ jobs:
           images: ${{ env.IMAGE_PATH }}
           registry_user: ${{ vars.BUILTIN_REGISTRY_USER || github.actor }}
           registry_password: ${{ secrets.BUILTIN_REGISTRY_PASSWORD || secrets.GITHUB_TOKEN }}
+
+  mirror_images:
+    needs:
+      - merge-maxperf
+      - merge-release
+    runs-on: ubuntu-latest
+    uses: ./.forgejo/workflows/mirror-images.yml

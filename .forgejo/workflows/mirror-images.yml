@@ -2,8 +2,11 @@ name: Mirror Container Images
 
 on:
   schedule:
-    # Run every 2 hours
-    - cron: "0 */2 * * *"
+    # Run nightly
+    - cron: "25 2 * * *"
+
+  workflow_call:
+
   workflow_dispatch:
     inputs:
       dry_run:
