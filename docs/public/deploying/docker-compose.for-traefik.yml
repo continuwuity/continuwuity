@@ -13,7 +13,7 @@ services:
       - proxy
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
+      - "traefik.http.routers.continuwuity.rule=(Host(`example.com`))"
       - "traefik.http.routers.continuwuity.entrypoints=websecure" # your HTTPS entry point
       - "traefik.http.routers.continuwuity.tls=true"
       - "traefik.http.routers.continuwuity.service=continuwuity"
@@ -21,7 +21,7 @@ services:
       # possibly, depending on your config:
       # - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
     environment:
-      CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
+      CONTINUWUITY_SERVER_NAME: example.com
       CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
       CONTINUWUITY_ADDRESS: 0.0.0.0
       CONTINUWUITY_PORT: 8008 # This must match with traefik's loadbalancer label

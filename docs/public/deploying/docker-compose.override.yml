@@ -6,7 +6,7 @@ services:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"  # Change this to the name of your Traefik docker proxy network
 
-      - "traefik.http.routers.to-continuwuity.rule=Host(`matrix.example.com`)"  # Change to the address on which Continuwuity is hosted
+      - "traefik.http.routers.to-continuwuity.rule=Host(`example.com`)"  # Change to the address on which Continuwuity is hosted
       - "traefik.http.routers.to-continuwuity.tls=true"
       - "traefik.http.routers.to-continuwuity.tls.certresolver=letsencrypt"
       - "traefik.http.routers.to-continuwuity.middlewares=cors-headers@docker"
