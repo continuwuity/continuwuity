@@ -342,6 +342,7 @@ impl Service {
 		// If we can't find a version for this room, it doesn't exist.
 		let room_version = self.services.state.get_room_version(room_id).await.ok()?;
 
+		info!(%room_id, "Preparing local summary for room");
 		let (
 			join_rule,
 			guest_can_join,
@@ -421,11 +422,10 @@ impl Service {
 			)));
 		}
 
+		info!(%room_id, ?via, "Asking for room summary over federation");
 		let request = assign!(get_hierarchy::v1::Request::new(room_id.to_owned()), { suggested_only: suggested_only });
 
 		for server in via {
-			info!(%room_id, %server, "Asking for room summary over federation");
-
 			match self
 				.services
 				.sending
@@ -443,6 +443,7 @@ impl Service {
 						continue;
 					}
 
+					info!(%room_id, %server, "Got room summary");
 					return Ok(Some((room, inaccessible_children)));
 				},
 				| Err(err) => {
