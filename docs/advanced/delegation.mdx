@@ -50,8 +50,6 @@ services:
       # CONTINUWUITY_WELL_KNOWN__SERVER: matrix.example.com:443
 ```
 
-## Reverse proxying well-known files to Continuwuity
-
 After doing the steps above, Continuwuity will serve these 3 JSON files:
 
 - `/.well-known/matrix/client`: for Client-Server discovery
@@ -60,9 +58,11 @@ After doing the steps above, Continuwuity will serve these 3 JSON files:
 
 To enable full discovery, you will need to reverse proxy these paths from the base domain back to Continuwuity.
 
+## Reverse proxying well-known files to Continuwuity
+
 <details>
 
-<summary>For Caddy</summary>
+<summary>For **Caddy**</summary>
 
 ```
 matrix.example.com:443 {
@@ -78,7 +78,7 @@ example.com:443 {
 
 <details>
 
-<summary>For Traefik (via Docker labels)</summary>
+<summary>For **Traefik** (via Docker labels)</summary>
 
 ```
 services:
@@ -93,7 +93,10 @@ services:
 
 </details>
 
-Restart Continuwuity and your reverse proxy. Once that's done, visit these routes and check that the responses match the examples below:
+
+For **Docker** users, consult the compose files in the [Appendix section](#docker-compose-examples).
+
+After applying these changes, restart Continuwuity and your reverse proxy.Visit these routes and check that the responses match the examples below:
 
 <details open>
 
@@ -253,3 +256,45 @@ See the following Matrix Specs for full details on client/server resolution mech
 - [Server-to-Server resolution](https://spec.matrix.org/v1.17/server-server-api/#resolving-server-names) (see this for more information on SRV records)
 - [Client-to-Server resolution](https://spec.matrix.org/v1.17/client-server-api/#server-discovery)
 - [MSC1929: Homeserver Admin Contact and Support page](https://github.com/matrix-org/matrix-spec-proposals/pull/1929)
+
+## Appendix
+
+### Docker Compose examples
+
+The following Compose files are taken from [Docker instructions](../deploying/docker.mdx) and reconfigured to support split-domain delegation. Note the updated `CONTINUWUITY_WELL_KNOWN` variable and relevant changes in reverse proxy rules.
+
+<details>
+<summary>Caddy (using Caddyfile) - delegated.docker-compose.with-caddy.yml ([view raw](/advanced/delegated.docker-compose.with-caddy.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-caddy.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Caddy (using labels) - delegated.docker-compose.with-caddy-labels.yml ([view raw](/advanced/delegated.docker-compose.with-caddy-labels.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-caddy-labels.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Traefik (for existing setup) - delegated.docker-compose.for-traefik.yml ([view raw](/advanced/delegated.docker-compose.for-traefik.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.for-traefik.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Traefik included - delegated.docker-compose.with-traefik.yml ([view raw](/advanced/delegated.docker-compose.with-traefik.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-traefik.yml"
+
+```
+
+</details>

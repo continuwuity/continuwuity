@@ -20,7 +20,11 @@ export default defineConfig({
                     '/deploying/docker-compose.for-traefik.yml',
                     '/deploying/docker-compose.with-traefik.yml',
                     `/deploying/docker-compose.override.yml`,
-                    `/deploying/docker-compose.yml`
+                    `/deploying/docker-compose.yml`,
+                    '/advanced/delegated.docker-compose.with-caddy.yml',
+                    '/advanced/delegated.docker-compose.with-caddy-labels.yml',
+                    '/advanced/delegated.docker-compose.for-traefik.yml',
+                    '/advanced/delegated.docker-compose.with-traefik.yml',
                 ]
             },
         },

@@ -1,0 +1,57 @@
+# Continuwuity - Using Caddy Docker Image
+
+services:
+    caddy:
+        image: docker.io/caddy:latest
+        ports:
+            - 80:80
+            - 443:443
+        networks:
+            - caddy
+        volumes:
+            - ./data:/data
+        restart: unless-stopped
+        configs:
+            - source: Caddyfile
+              target: /etc/caddy/Caddyfile
+
+    homeserver:
+        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        restart: unless-stopped
+        command: /sbin/conduwuit
+        volumes:
+            - db:/var/lib/continuwuity
+            - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
+            #- ./continuwuity.toml:/etc/continuwuity.toml
+        environment:
+            CONTINUWUITY_SERVER_NAME: example.com
+            CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
+            CONTINUWUITY_ADDRESS: 0.0.0.0
+            CONTINUWUITY_PORT: 8008
+            #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+
+            ## Serve .well-known files to tell others to reach Continuwuity on port :443
+            CONTINUWUITY_WELL_KNOWN: |
+                {
+                client=https://matrix.example.com,
+                server=matrix.example.com:443
+                }
+
+        networks:
+            - caddy
+
+networks:
+    caddy:
+
+volumes:
+    db:
+
+configs:
+    Caddyfile:
+        content: |
+            https://matrix.example.com:443 {
+                reverse_proxy http://homeserver:8008
+            }
+            https://example.com {
+                reverse_proxy /.well-known/matrix* http://homeserver:8008
+            }

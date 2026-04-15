@@ -1,0 +1,84 @@
+# Continuwuity - With Traefik Reverse Proxy
+
+services:
+  homeserver:
+    image: forgejo.ellis.link/continuwuation/continuwuity:latest
+    restart: unless-stopped
+    command: /sbin/conduwuit
+    volumes:
+      - db:/var/lib/continuwuity
+      - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
+      #- ./continuwuity.toml:/etc/continuwuity.toml
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.continuwuity.rule=(Host(`matrix.example.com`) || (Host(`example.com`) && PathPrefix(`/.well-known/matrix`)))"
+      - "traefik.http.routers.continuwuity.entrypoints=websecure"
+      - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
+      - "traefik.http.services.continuwuity.loadbalancer.server.port=8008"
+    environment:
+      CONTINUWUITY_SERVER_NAME: example.com # EDIT THIS
+      CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
+      CONTINUWUITY_ADDRESS: 0.0.0.0
+      CONTINUWUITY_PORT: 8008 # This must match with traefik's loadbalancer label
+      #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+
+      # Serve .well-known files to tell others to reach Continuwuity on port :443
+      CONTINUWUITY_WELL_KNOWN: |
+        {
+          client=https://matrix.example.com,
+          server=matrix.example.com:443
+        }
+
+  traefik:
+    image: "traefik:latest"
+    container_name: "traefik"
+    restart: "unless-stopped"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:z"
+      - "acme:/etc/traefik/acme"
+    labels:
+      - "traefik.enable=true"
+
+      # middleware redirect
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      # global redirect to https
+      - "traefik.http.routers.redirs.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.redirs.entrypoints=web"
+      - "traefik.http.routers.redirs.middlewares=redirect-to-https"
+
+    environment:
+      TRAEFIK_LOG_LEVEL: DEBUG
+      TRAEFIK_ENTRYPOINTS_WEB: true
+      TRAEFIK_ENTRYPOINTS_WEB_ADDRESS: ":80"
+      TRAEFIK_ENTRYPOINTS_WEB_HTTP_REDIRECTIONS_ENTRYPOINT_TO: websecure
+
+      TRAEFIK_ENTRYPOINTS_WEBSECURE: true
+      TRAEFIK_ENTRYPOINTS_WEBSECURE_ADDRESS: ":443"
+      TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_TLS_CERTRESOLVER: letsencrypt
+
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT: true
+      # CHANGE THIS to desired email for ACME
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: user@example.com
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE: true
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: web
+      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE: "/etc/traefik/acme/acme.json"
+
+      # Since Traefik 3.6.3, paths with certain "encoded characters" are now blocked by default; we need a couple, or else things *will* break
+      TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_ENCODEDCHARACTERS_ALLOWENCODEDSLASH: true
+      TRAEFIK_ENTRYPOINTS_WEBSECURE_HTTP_ENCODEDCHARACTERS_ALLOWENCODEDHASH: true
+
+      TRAEFIK_PROVIDERS_DOCKER: true
+      TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: "unix:///var/run/docker.sock"
+      TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: false
+
+volumes:
+  db:
+  acme:
+
+networks:
+  proxy:
