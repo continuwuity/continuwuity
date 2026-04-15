@@ -9,6 +9,9 @@ on:
     paths-ignore:
       - "*.md"
       - "**/*.md"
+      - "*.mdx"
+      - "**/*.mdx"
+      - "changelog.d/**"
       - ".gitlab-ci.yml"
       - ".gitignore"
       - "renovate.json"
