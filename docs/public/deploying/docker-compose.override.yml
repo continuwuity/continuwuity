@@ -1,4 +1,4 @@
-# Continuwuity - Traefik Reverse Proxy Labels
+# Continuwuity - Traefik Reverse Proxy Labels (override file)
 
 services:
   homeserver:

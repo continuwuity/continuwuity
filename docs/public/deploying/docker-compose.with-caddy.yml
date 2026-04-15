@@ -1,3 +1,5 @@
+# Continuwuity - Using Caddy Docker Image
+
 services:
     caddy:
         image: docker.io/caddy:latest
@@ -37,7 +39,6 @@ services:
             #     server=example.com:443
             #     }
 
-
         networks:
             - caddy
 
@@ -48,7 +49,7 @@ volumes:
     db:
 
 configs:
-    dynamic.yml:
+    Caddyfile:
         content: |
             https://example.com, https://example.com:8448 {
                 reverse_proxy http://homeserver:8008

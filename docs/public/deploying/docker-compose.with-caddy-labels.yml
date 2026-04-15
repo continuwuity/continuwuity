@@ -1,3 +1,5 @@
+# Continuwuity - With Caddy Labels
+
 services:
     caddy:
     # This compose file uses caddy-docker-proxy as the reverse proxy for Continuwuity!

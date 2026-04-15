@@ -1,4 +1,4 @@
-# Continuwuity
+# Continuwuity - Bare Configuration (for other reverse proxies)
 
 services:
     homeserver:

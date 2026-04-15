@@ -1,4 +1,4 @@
-# Continuwuity - Behind Traefik Reverse Proxy
+# Continuwuity - With Traefik Reverse Proxy
 
 services:
   homeserver:
