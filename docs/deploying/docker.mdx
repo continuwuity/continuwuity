@@ -251,7 +251,7 @@ For Docker Compose deployments this means adding `stdin_open: true` and `tty: tr
 
 ```yaml
 services:
-    homserver:
+    homeserver:
         stdin_open: true
         tty: true
         # ...
@@ -259,13 +259,14 @@ services:
 
 If you choose to deploy via `docker run`, add the flags `-i`/`--interactive` and `-t`/`--tty` to the command.
 
-From there you can access the server's console by running `docker attach <container-name>`, which will show the server's prompt `uwu> `. To exit `docker attach` press ctrl+p then ctrl+q.
+From there you can access the server's console by running `docker attach <container-name>`, which will show the server's prompt `uwu> `. To exit `docker attach`, press `CTRL+p` then `CTRL+q`. 
 
-Note that using `CTRL+c` within `docker attach`'s context will forward the signal to the server, stopping it. To exit `docker attach` press `CTRL+p` then `CTRL+q`. See [Docker's reference](https://docs.docker.com/reference/cli/docker/container/attach/) for more information.
+Note that using `CTRL+c` within `docker attach`'s context will forward the signal to the server, stopping it. See [Docker's reference][docker-attach-reference] for more information.
+
+[docker-attach-reference]: https://docs.docker.com/reference/cli/docker/container/attach/
 
 ## Next steps
 
 - For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
 - To set up Audio/Video communication, see the [**Calls**](../calls.mdx) page.
-- If you want to set up an appservice, take a look at the [**Appservice
-Guide**](../appservices.mdx).
+- If you want to set up an appservice, take a look at the [**Appservice Guide**](../appservices.mdx).
