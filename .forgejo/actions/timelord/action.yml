@@ -31,7 +31,7 @@ runs:
 
     - name: Restore binary cache
       id: binary-cache
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: |
           /usr/share/rust/.cargo/bin
@@ -77,7 +77,7 @@ runs:
 
     - name: Save binary cache
       if: steps.check-binaries.outputs.need-install == 'true'
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: |
           /usr/share/rust/.cargo/bin
@@ -87,7 +87,7 @@ runs:
 
     - name: Restore timelord cache with fallbacks
       id: timelord-restore
-      uses: actions/cache/restore@v5
+      uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: ${{ env.TIMELORD_CACHE_PATH }}
         key: ${{ env.TIMELORD_KEY }}
@@ -114,7 +114,7 @@ runs:
         timelord sync --source-dir ${{ env.TIMELORD_PATH }} --cache-dir ${{ env.TIMELORD_CACHE_PATH }}
 
     - name: Save updated timelord cache immediately
-      uses: actions/cache/save@v5
+      uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: ${{ env.TIMELORD_CACHE_PATH }}
         key: ${{ env.TIMELORD_KEY }}

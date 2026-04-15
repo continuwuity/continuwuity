@@ -65,7 +65,7 @@ runs:
 
     - name: Cache toolchain binaries
       id: toolchain-cache
-      uses: actions/cache@v5
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: |
           .cargo/bin
@@ -76,7 +76,7 @@ runs:
 
     - name: Cache Cargo registry and git
       id: registry-cache
-      uses: actions/cache@v5
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
       with:
         path: |
           .cargo/registry/index
