@@ -205,4 +205,15 @@ jobs:
     needs:
       - merge-maxperf
       - merge-release
+    env:
+      BUILTIN_REGISTRY_USER: ${{ vars.BUILTIN_REGISTRY_USER }}
+      BUILTIN_REGISTRY_PASSWORD: ${{ secrets.BUILTIN_REGISTRY_PASSWORD }}
+      GITLAB_USERNAME: ${{ vars.GITLAB_USERNAME }}
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      N7574_GIT_USERNAME: ${{ vars.N7574_GIT_USERNAME }}
+      N7574_GIT_TOKEN: ${{ secrets.N7574_GIT_TOKEN }}
+      GH_PACKAGES_USER: ${{ vars.GH_PACKAGES_USER }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GH_PACKAGES_TOKEN }}
+      DOCKER_MIRROR_USER: ${{ vars.DOCKER_MIRROR_USER }}
+      DOCKER_MIRROR_TOKEN: ${{ secrets.DOCKER_MIRROR_TOKEN }}
     uses: ./.forgejo/workflows/mirror-images.yml
