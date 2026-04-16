@@ -2,7 +2,7 @@
 
 services:
     caddy:
-        image: docker.io/caddy:latest
+        image: "docker.io/caddy:latest"
         ports:
             - 80:80
             - 443:443
@@ -16,7 +16,7 @@ services:
               target: /etc/caddy/Caddyfile
 
     homeserver:
-        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
         restart: unless-stopped
         command: /sbin/conduwuit
         volumes:
@@ -52,6 +52,6 @@ configs:
             https://matrix.example.com:443 {
                 reverse_proxy http://homeserver:8008
             }
-            https://example.com {
+            https://example.com:443 {
                 reverse_proxy /.well-known/matrix* http://homeserver:8008
             }

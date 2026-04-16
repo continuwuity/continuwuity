@@ -2,7 +2,7 @@
 
 services:
     homeserver:
-        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
         restart: unless-stopped
         command: /sbin/conduwuit
         ports:
@@ -25,7 +25,6 @@ services:
             #     client=https://example.com,
             #     server=example.com:443
             #     }
-
 
 volumes:
     db:

@@ -2,7 +2,7 @@
 
 services:
   homeserver:
-    image: forgejo.ellis.link/continuwuation/continuwuity:latest
+    image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
     restart: unless-stopped
     command: /sbin/conduwuit
     volumes:
@@ -32,14 +32,14 @@ services:
         }
 
   traefik:
-    image: "traefik:latest"
+    image: "docker.io/traefik:latest"
     container_name: "traefik"
     restart: "unless-stopped"
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:z"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "acme:/etc/traefik/acme"
     labels:
       - "traefik.enable=true"
@@ -52,6 +52,7 @@ services:
       - "traefik.http.routers.redirs.middlewares=redirect-to-https"
 
     environment:
+
       TRAEFIK_LOG_LEVEL: DEBUG
       TRAEFIK_ENTRYPOINTS_WEB: true
       TRAEFIK_ENTRYPOINTS_WEB_ADDRESS: ":80"

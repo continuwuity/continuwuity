@@ -2,7 +2,7 @@
 
 services:
     caddy:
-        image: docker.io/caddy:latest
+        image: "docker.io/caddy:latest"
         ports:
             - 80:80
             - 443:443
@@ -17,7 +17,7 @@ services:
               target: /etc/caddy/Caddyfile
 
     homeserver:
-        image: forgejo.ellis.link/continuwuation/continuwuity:latest
+        image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
         restart: unless-stopped
         command: /sbin/conduwuit
         volumes:
@@ -51,6 +51,6 @@ volumes:
 configs:
     Caddyfile:
         content: |
-            https://example.com, https://example.com:8448 {
+            https://example.com:443, https://example.com:8448 {
                 reverse_proxy http://homeserver:8008
             }
