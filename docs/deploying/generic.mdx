@@ -185,8 +185,8 @@ If you would like to use only port 443, a different port, or a subdomain for the
 
 ### Caddy
 
-Caddy is the recommended reverse proxy as it is easy to use, has good defaults, and handle TLS 
-certificates automatically. After installing Caddy via your preferred method, create 
+Caddy is the recommended reverse proxy as it is easy to use, has good defaults, and handle TLS
+certificates automatically. After installing Caddy via your preferred method, create
 `/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following (substitute `example.com`
 with your actual server name):
 
@@ -237,9 +237,9 @@ header, making federation non-functional. If you find a workaround, please share
     - `proxy_pass http://127.0.0.1:6167$request_uri;`
     - `proxy_pass http://127.0.0.1:6167;`
 
-    Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the `max_request_size` defined in conduwuit.toml.
+    Furthermore, Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the `max_request_size` defined in conduwuit.toml.
 
-## You're done
+## Starting Your Server
 
 Now you can start Continuwuity with:
 
@@ -253,13 +253,37 @@ Set it to start automatically when your system boots with:
 sudo systemctl enable conduwuit
 ```
 
+Check Continuwuity logs with the following command:
+
+```bash
+sudo journalctl -u conduwuit.service
+```
+
+If Continuwuity has successfully initialized, you'll see output as below.
+
+```
+In order to use your new homeserver, you need to create its
+first user account.
+Open your Matrix client of choice and register an account
+on example.com using registration token x5keUZ811RqvLsNa .
+Pick your own username and password!
+```
+
+You can then open [a Matrix client][matrix-clients],
+enter your homeserver address, and try to register with the provided token.
+By default, the first user is the instance's first admin. They will be added
+to the `#admin:example.com` room and be able to [issue admin commands](../reference/admin/index.md).
+
+[matrix-clients]: https://matrix.org/ecosystem/clients
+
 ## How do I know it works?
 
-You can open [a Matrix client](https://matrix.org/ecosystem/clients), enter your
-homeserver address, and try to register.
+To check if your server can communicate with other homeservers, use the
+[Matrix Federation Tester](https://federationtester.mtrnord.blog/). If you can
+register your account but cannot join federated rooms, check your configuration
+and verify that port 8448 is open and forwarded correctly.
 
-You can also use these commands as a quick health check (replace
-`example.com`).
+As a quick health check, you can also use these cURL commands:
 
 ```bash
 curl https://example.com/_conduwuit/server_version
@@ -269,16 +293,13 @@ curl https://example.com:8448/_conduwuit/server_version
 
 # If federation is enabled
 curl https://example.com:8448/_matrix/federation/v1/version
-```
 
-- To check if your server can communicate with other homeservers, use the
-  [Matrix Federation Tester](https://federationtester.mtrnord.blog/). If you can
-  register but cannot join federated rooms, check your configuration and verify
-  that port 8448 is open and forwarded correctly.
+# For client-server endpoints
+curl https://example.com/_matrix/client/versions
+```
 
 ## What's next?
 
-- For smooth federation, set up a caching resolver according to the [DNS tuning guide](../advanced/dns.mdx)
-- For Audio/Video call functionality see the [Calls](../calls.md) page.
-- If you want to set up an appservice, take a look at the [Appservice
-Guide](../appservices.md).
+- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
+- For Audio/Video call functionality see the [**Calls**](../calls.md) page.
+- If you want to set up an appservice, take a look at the [**Appservice Guide**](../appservices.md).
