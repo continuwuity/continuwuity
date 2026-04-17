@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 10,
+            "id": 11,
             "mention_room": false,
-            "date": "2026-03-03",
-            "message": "We've just released [v0.5.6](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.6), which contains a few  security improvements - plus significant reliability and performance improvements. Please update as soon as possible. \n\nWe released [v0.5.5](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.5) two weeks ago, but it skipped your admin room straight to [our announcements channel](https://matrix.to/#/!jIdNjSM5X-V5JVx2h2kAhUZIIQ08GyzPL55NFZAH1vM?via=ellis.link&via=gingershaped.computer&via=matrix.org). Make sure you're there to get important information as soon as we announce it! [Our space](https://matrix.to/#/!8cR4g-i9ucof69E4JHNg9LbPVkGprHb3SzcrGBDDJgk?via=continuwuity.org&via=ellis.link&via=matrix.org) has also gained a bunch of new and interesting rooms - be there or be square."
+            "date": "2026-04-17",
+            "message": "[v0.5.7](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.7) is out! Email verification! Terms and Conditions! Deleting notification pushers! So much good stuff. Go grab the release and read the changelog!"
         }
     ]
 }
