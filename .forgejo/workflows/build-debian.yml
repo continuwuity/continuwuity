@@ -92,10 +92,13 @@ jobs:
           BASE_VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.name == \"conduwuit\").version" | sed 's/[^a-zA-Z0-9.+]/~/g')
           # VERSION is the package version, COMPONENT is used in
           # apt's repository config like a git repo branch
-          if [[ "${{ forge.ref }}" == "refs/tags/"* ]]; then
-            # Use the "stable" component for tagged releases
+          VERSION=$BASE_VERSION
+          if [[ ${{ forge.ref_name }} =~ ^v+[0-9]\.+[0-9]\.+[0-9]$ ]]; then
+            # Use the "stable" component for tagged semver releases
             COMPONENT="stable"
-            VERSION=$BASE_VERSION
+          elif [[ ${{ forge.ref }} =~ ^refs/tags/^v+[0-9]\.+[0-9]\.+[0-9] ]]; then
+            # Use the "unstable" component for tagged semver pre-releases
+            COMPONENT="unstable"
           else
             # Use the "dev" component for development builds
             SHA=$(echo "${{ forge.sha }}" | cut -c1-7)
