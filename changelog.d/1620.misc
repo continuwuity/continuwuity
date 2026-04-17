@@ -1,1 +1,0 @@
-Fixed compiler warning in cf_opts.rs when building in release. Contributed by @ezera.

@@ -1,1 +1,0 @@
-Fixed resolving IP of servers that only use SRV delegation. Contributed by @tulir.
