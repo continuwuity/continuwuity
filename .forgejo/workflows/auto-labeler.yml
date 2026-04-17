@@ -1,0 +1,53 @@
+name: Auto Labeler
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  auto-label:
+    name: Apply labels based on changed files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Apply PR Labels
+        uses: https://github.com/actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            const allFiles = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const fileNames = allFiles.map(f => f.filename);
+            const labelsToAdd = new Set();
+
+            for (const file of fileNames) {
+              if (file.startsWith('docs/') || file.startsWith('theme/') || file.endsWith('.md') || file == 'rspress.config.ts') {
+                labelsToAdd.add('Documentation');
+              }
+              if (file.startsWith('.forgejo/')) {
+                labelsToAdd.add('Meta/CI');
+              }
+              if (file.startsWith('pkg/') || file.startsWith('nix/') || file === 'flake.nix' || file === 'flake.lock' || file.startsWith('docker/')) {
+                labelsToAdd.add('Meta/Packaging');
+              }
+            }
+
+            if (labelsToAdd.size > 0) {
+              const labelsArray = Array.from(labelsToAdd);
+              console.log('Adding labels:', labelsArray);
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: labelsArray,
+              });
+            } else {
+              console.log('No files changed that require auto-labeling.');
+            }
