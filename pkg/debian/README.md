@@ -6,7 +6,9 @@ This document provides information about downloading and deploying the Debian pa
 
 To add the Continuwuation apt repository:
 ```bash
-# Replace with `"dev"` for bleeding-edge builds at your own risk
+# Component `"stable"` contains all tagged releases. Use `"stable unstable"` to additionally include all pre-releases (alpha, beta, rc,...)
+# Replace with `"dev"` for bleeding-edge builds at your own risk, these contain
+# automatic nightly builds and might or might not work.
 export COMPONENT="stable"
 # Import the Continuwuation signing key
 sudo curl https://forgejo.ellis.link/api/packages/continuwuation/debian/repository.key -o /etc/apt/keyrings/forgejo-continuwuation.asc
