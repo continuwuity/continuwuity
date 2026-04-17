@@ -71,7 +71,7 @@ runs:
 
     - name: Install timelord-cli and git-warp-time
       if: steps.check-binaries.outputs.need-install == 'true'
-      uses: https://github.com/taiki-e/install-action@eea29cff9a2b68892c0845ae3e4f45fc47ee9354 # v2
+      uses: https://github.com/taiki-e/install-action@a2352fc6ce487f030a3aa709482d57823eadfb37 # v2
       with:
         tool: git-warp-time,timelord-cli@3.0.1
 
