@@ -91,7 +91,7 @@ You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firew
 
 To tell clients where to find LiveKit, you need to add the address of your `lk-jwt-service` to the `[global.matrix_rtc]` config section using the `foci` option.
 
-The variable should be a list of servers serving as MatrixRTC endpoints. Clients discover these via the `/_matrix/client/v1/rtc/transports` endpoint (MSC4143).
+The variable should be a list of servers serving as MatrixRTC endpoints. Replace the URL with the address you are deploying your instance of lk-jwt-service to:
 
 ```toml
 [global.matrix_rtc]
@@ -100,7 +100,10 @@ foci = [
 ]
 ```
 
-Remember to replace the URL with the address you are deploying your instance of lk-jwt-service to.
+This will expose LiveKit information on the following endpoints for clients to discover:
+
+- `/_matrix/client/unstable/org.matrix.msc4143/rtc/transports` (MSC4143 unstable, behind auth)
+- `/.well-known/matrix/client` (fallback, not behind auth. Only enabled if `[global.well_known].client` is set)
 
 ### 4. Configure your Reverse Proxy
 
@@ -114,6 +117,7 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 
 <details>
     <summary>Example caddy config</summary>
+
     ```
     livekit.example.com {
 
@@ -127,10 +131,12 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         reverse_proxy 127.0.0.1:7880
     }
     ```
+
 </details>
 
 <details>
     <summary>Example nginx config</summary>
+
     ```
     server {
         server_name livekit.example.com;
@@ -167,16 +173,19 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         ''      close;
     }
     ```
+
 </details>
 
 <details>
     <summary>Example traefik router</summary>
+
     ```
     # on LiveKit itself
     traefik.http.routers.livekit.rule=Host(`livekit.example.com`)
     # on the JWT service
     traefik.http.routers.livekit-jwt.rule=Host(`livekit.example.com`) && (PathPrefix(`/sfu/get`) || PathPrefix(`/healthz`) || PathPrefix(`/get_token`))
     ```
+
 </details>
 
 
@@ -257,11 +266,25 @@ To test that LiveKit is successfully integrated with Continuwuity, you will need
 
 First, you will need an access token for your current login session. These can be found in your client's settings or obtained via [this website](https://timedout.uk/mxtoken.html).
 
-Then, using that token, request another OpenID token for use with the lk-jwt-service:
+Then, using that token, fetch the discovery endpoints for MatrixRTC services
 
 ```bash
-~$ curl -X POST -H "Authorization: Bearer <session-access-token>" \
+curl -X POST -H "Authorization: Bearer <session-access-token>" \
+  https://matrix.example.com/_matrix/client/unstable/org.matrix.msc4143/rtc/transports
+```
+
+In the output, you should see the LiveKit URL matching the one [configured above](#3-telling-clients-where-to-find-livekit).
+
+With the same token, request another OpenID token for use with the lk-jwt-service:
+
+```bash
+curl -X POST -H "Authorization: Bearer <session-access-token>" \
   https://matrix.example.com/_matrix/client/v3/user/@user:example.com/openid/request_token
+```
+
+You will see a response as below:
+
+```json
 {"access_token":"<openid_access_token>","token_type":"Bearer","matrix_server_name":"example.com","expires_in":3600}
 ```
 
@@ -296,10 +319,15 @@ You can then send this payload to the lk-jwt-service:
 
 ```bash
 ~$ curl -X POST -d @payload.json https://livekit.example.com/get_token
+```
+
+The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt` token to create a LiveKit media room:
+
+```json
 {"url":"wss://livekit.example.com","jwt":"a_really_really_long_string"}
 ```
 
-The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt` token to create a LiveKit media room. Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test). If everything works there, then you have set up LiveKit successfully!
+Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test). If everything works there, then you have set up LiveKit successfully!
 
 ## Troubleshooting
 
@@ -363,8 +391,8 @@ Guides:
 
 Specifications:
 
-- [MatrixRTC proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
-- [LiveKit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
+- [MSC4143 - MatrixRTC proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
+- [MSC4195 - LiveKit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
 
 Source code:
 
