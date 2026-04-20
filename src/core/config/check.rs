@@ -254,6 +254,13 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
+	if config.default_room_acl_allow.is_some() && config.default_room_acl_deny.is_some() {
+		return Err!(Config(
+			"default_room_acl_deny",
+			"Cannot provide a value for both default_room_acl_allow and default_room_acl_deny"
+		));
+	}
+
 	Ok(())
 }
 

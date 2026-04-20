@@ -24,6 +24,7 @@ use ruma::{
 			member::{MembershipState, RoomMemberEventContent},
 			name::RoomNameEventContent,
 			power_levels::RoomPowerLevelsEventContent,
+			server_acl::RoomServerAclEventContent,
 			topic::RoomTopicEventContent,
 		},
 	},
@@ -477,7 +478,32 @@ pub(crate) async fn create_room_route(
 		.boxed()
 		.await?;
 
-	// 6. Events listed in initial_state
+	// 6. Initial state events provided by the homeserver
+
+	let mut server_initial_state: Vec<PartialPdu> = Vec::new();
+
+	if let Some(allow_list) = services.server.config.default_room_acl_allow.clone() {
+		server_initial_state.push(PartialPdu::state(
+			String::new(),
+			&RoomServerAclEventContent::new(true, allow_list, vec![]),
+		));
+	} else if let Some(deny_list) = services.server.config.default_room_acl_deny.clone() {
+		server_initial_state.push(PartialPdu::state(
+			String::new(),
+			&RoomServerAclEventContent::new(true, vec!["*".to_owned()], deny_list),
+		));
+	}
+
+	for pdu in server_initial_state {
+		services
+			.rooms
+			.timeline
+			.build_and_append_pdu(pdu, sender_user, Some(&room_id), &state_lock)
+			.boxed()
+			.await?;
+	}
+
+	// 7. Events listed in initial_state
 	for event in &body.initial_state {
 		let mut partial_pdu = event
 			.deserialize_as_unchecked::<PartialPdu>()
@@ -505,7 +531,7 @@ pub(crate) async fn create_room_route(
 			.await?;
 	}
 
-	// 7. Events implied by name and topic
+	// 8. Events implied by name and topic
 	if let Some(name) = &body.name {
 		services
 			.rooms
@@ -534,7 +560,7 @@ pub(crate) async fn create_room_route(
 			.await?;
 	}
 
-	// 8. Events implied by invite (and TODO: invite_3pid)
+	// 9. Events implied by invite (and TODO: invite_3pid)
 	drop(state_lock);
 	for recipient_user in &invitees {
 		if let Err(e) =

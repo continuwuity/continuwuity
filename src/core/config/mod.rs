@@ -760,6 +760,28 @@ pub struct Config {
 	#[serde(default = "default_default_room_version")]
 	pub default_room_version: RoomVersionId,
 
+	/// A default allow value for the Access Control List when creating a room.
+	///
+	/// If a list is provided, new rooms will be created with
+	/// a m.room.server_acl event. Only servers which match one of the patterns
+	/// in the list will be permitted to participate in the room.
+	///
+	/// ACLs in existing rooms will not be updated automatically. This is not
+	/// a substitute for moderation bots.
+	pub default_room_acl_allow: Option<Vec<String>>,
+
+	/// A default deny value for the Access Control List when creating a room.
+	///
+	/// If a list is provided, new rooms will be created with
+	/// a m.room.server_acl event. Servers which match one of the patterns
+	/// in the list will be NOT permitted to participate in the room.
+	///
+	/// This config cannot be used if the default_room_acl_allow config is used.
+	///
+	/// ACLs in existing rooms will not be updated automatically. This is not
+	/// a substitute for moderation bots.
+	pub default_room_acl_deny: Option<Vec<String>>,
+
 	/// display: nested
 	#[serde(default)]
 	pub well_known: WellKnownConfig,
