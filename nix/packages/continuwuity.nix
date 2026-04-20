@@ -8,6 +8,7 @@
   callPackage,
   rustPlatform,
   cargoExtraArgs ? "",
+  rustflags ? "",
   rocksdb ? callPackage ./rocksdb.nix { },
   profile ? "release",
 }:
@@ -37,6 +38,7 @@ let
       ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
       CARGO_PROFILE = profile;
+      RUSTFLAGS = rustflags;
     };
   };
 in
