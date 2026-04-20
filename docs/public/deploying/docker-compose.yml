@@ -6,7 +6,18 @@ services:
         restart: unless-stopped
         command: /sbin/conduwuit
         ports:
+
+            # If your reverse proxy is on the host, use this
+            # and configure it to connect to `127.0.0.1:8008`
             - 127.0.0.1:8008:8008
+
+            # If your reverse proxy is on another machine, use this
+            # and configure it to connect to <this-machine-ip>:8008
+            # - 8008:8008
+
+            # If your reverse proxy is a docker container on the same network,
+            # comment out the entire `ports` section, and configure it to connect to `continuwuity:8008`
+
         volumes:
             - db:/var/lib/continuwuity
             - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
