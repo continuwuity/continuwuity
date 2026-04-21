@@ -18,18 +18,14 @@ run the `uname -m` to check which you need.
 Prebuilt binaries are available from:
 
 - **Tagged releases**: [see Release page][release-page]
-- **Development builds**: CI artifacts from the `main` branch
-  (includes Debian/Ubuntu packages), [see Actions page for details][actions-page]
-
-When browsing CI artifacts, `ci-bins` contains binaries organised
-by commit hash, while `releases` contains tagged versions. Sort
-by last modified date to find the most recent builds.
+- **Development builds**: CI artifacts from the `main` branch, 
+  [see `release-image.yml` for details][release-image]
 
 The binaries require jemalloc and io_uring on the host system. Currently
 we can't cross-build static binaries - contributions are welcome here.
 
 [release-page]: https://forgejo.ellis.link/continuwuation/continuwuity/releases/
-[actions-page]: https://forgejo.ellis.link/continuwuation/continuwuity/actions/
+[release-image]: https://forgejo.ellis.link/continuwuation/continuwuity/actions/?workflow=release-image.yml
 
 #### Performance-optimised builds
 
