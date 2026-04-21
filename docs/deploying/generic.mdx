@@ -72,19 +72,9 @@ section in the development documentation.
 
 ##### Build
 
-You can build Continuwuity using `cargo build --release`.
+You can now build Continuwuity using `cargo build --release`.
 
 Continuwuity supports various optional features that can be enabled during compilation. Please see the Cargo.toml file for a comprehensive list, or ask in our rooms.
-
-#### Building with Nix
-
-If you prefer, you can use Nix (or [Lix](https://lix.systems)) to build Continuwuity. This provides improved reproducibility and makes it easy to set up a build environment and generate output. This approach also allows for easy cross-compilation.
-
-You can run the `nix build -L .#static-x86_64-linux-musl-all-features` or
-`nix build -L .#static-aarch64-linux-musl-all-features` commands based
-on architecture to cross-compile the necessary static binary located at
-`result/bin/conduwuit`. This is reproducible with the static binaries produced
-in our CI.
 
 ## Adding a Continuwuity user
 
@@ -181,10 +171,10 @@ If you would like to use only port 443, a different port, or a subdomain for the
 
 ### Caddy
 
-Caddy is the recommended reverse proxy as it is easy to use, has good defaults, and handle TLS
-certificates automatically. After installing Caddy via your preferred method, create
-`/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following (substitute `example.com`
-with your actual server name):
+Caddy is the recommended reverse proxy as it is easy to use, has good defaults,
+and handle TLS certificates automatically. After installing Caddy via your preferred
+method, create `/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following 
+(substitute `example.com` with your actual server name):
 
 ```
 example.com, example.com:8448 {
@@ -201,7 +191,9 @@ sudo systemctl enable --now caddy
 
 ### Other Reverse Proxies
 
-You will need to reverse proxy everything under the following routes:
+Normally, your reverse proxy should route everything from port :8448 and :443 back to Continuwuity.
+
+For more granular controls, you will need to proxy everything under these following routes:
 
 - `/_matrix/` - core Matrix APIs, which includes:
 
@@ -209,17 +201,19 @@ You will need to reverse proxy everything under the following routes:
 
   - `/_matrix/client` - core Client-Server APIs. These should be available on port :443
 
-- `/_conduwuit/` and/or `/_continuwuity/` - ad-hoc Continuwuity routes such as `/local_user_count` and `/server_version`
+- `/_conduwuit/` and `/_continuwuity/` - ad-hoc Continuwuity routes such as `/local_user_count`, `/server_version`, and for password reset links (if enabled)
 
 You can optionally reverse proxy the following individual routes:
 
 - `/.well-known/matrix/client` and `/.well-known/matrix/server` if using
   Continuwuity to perform delegation (see the `[global.well_known]` config section)
 - `/.well-known/matrix/support` if using Continuwuity to send the homeserver admin
-  contact and support page (formerly known as MSC1929)
+  [contact and support page][well-known-support]
 - `/` and `/_continuwuity/logo.svg` if you would like to see the Continuwuity landing page
 
-Normally, all of these could be achieved by reverse proxying everything from port :8448 and :443 back to Continuwuity. Refer to the respective software's documentation and online guides on how to do so.
+Refer to the respective software's documentation and online guides on how to do so.
+
+[well-known-support]: https://spec.matrix.org/v1.18/client-server-api/#getwell-knownmatrixsupport
 
 #### Caveats for specific reverse proxies
 
@@ -277,7 +271,7 @@ to the `#admin:example.com` room and be able to [issue admin commands](../refere
 To check if your server can communicate with other homeservers, use the
 [Matrix Federation Tester](https://federationtester.mtrnord.blog/). If you can
 register your account but cannot join federated rooms, check your configuration
-and verify that port 8448 is open and forwarded correctly.
+and verify that your federation endpoints are opened and forwarded correctly.
 
 As a quick health check, you can also use these cURL commands:
 
