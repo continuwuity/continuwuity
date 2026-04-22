@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu, utils::to_canonical_object};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
@@ -64,7 +64,7 @@ pub(crate) async fn set_profile_field_route(
 	}
 
 	set_profile_field(&services, &body.user_id, ProfileFieldChange::Set(body.value.clone()))
-		.await;
+		.await?;
 
 	Ok(set_profile_field::v3::Response::new())
 }
@@ -85,7 +85,7 @@ pub(crate) async fn delete_profile_field_route(
 	}
 
 	set_profile_field(&services, &body.user_id, ProfileFieldChange::Delete(body.field.clone()))
-		.await;
+		.await?;
 
 	Ok(delete_profile_field::v3::Response::new())
 }
@@ -120,7 +120,7 @@ async fn fetch_full_profile(
 			continue;
 		};
 
-		set_profile_field(services, user_id, ProfileFieldChange::Set(value)).await;
+		let _ = set_profile_field(services, user_id, ProfileFieldChange::Set(value)).await;
 	}
 
 	Some(BTreeMap::from_iter(response))
@@ -154,7 +154,8 @@ async fn fetch_profile_field(
 
 	if let Some(value) = response.get(field.as_str()).map(ToOwned::to_owned) {
 		if let Ok(value) = ProfileFieldValue::new(field.as_str(), value) {
-			set_profile_field(services, user_id, ProfileFieldChange::Set(value.clone())).await;
+			let _ = set_profile_field(services, user_id, ProfileFieldChange::Set(value.clone()))
+				.await;
 
 			Ok(Some(value))
 		} else {
@@ -163,7 +164,7 @@ async fn fetch_profile_field(
 			)))
 		}
 	} else {
-		set_profile_field(services, user_id, ProfileFieldChange::Delete(field)).await;
+		let _ = set_profile_field(services, user_id, ProfileFieldChange::Delete(field)).await;
 
 		Ok(None)
 	}
@@ -252,8 +253,49 @@ impl ProfileFieldChange {
 	}
 }
 
-async fn set_profile_field(services: &Services, user_id: &UserId, change: ProfileFieldChange) {
+async fn set_profile_field(
+	services: &Services,
+	user_id: &UserId,
+	change: ProfileFieldChange,
+) -> Result<()> {
 	let field_name = change.field_name();
+
+	// TODO: The spec mentions special error codes (M_PROFILE_TOO_LARGE,
+	// M_KEY_TOO_LARGE) for profile field size limits, but they're not in its list
+	// of error codes and Ruma doesn't have them. Should we return those, or is
+	// M_TOO_LARGE okay?
+	if field_name.as_str().len() > 255 {
+		return Err!(Request(TooLarge("Individual profile keys must not exceed 255 bytes.")));
+	}
+
+	// Serialize the entire profile as canonical JSON, including the new change,
+	// to check if it exceeds 64 KiB
+	{
+		let mut full_profile = get_local_profile(services, user_id).await;
+
+		match &change {
+			| ProfileFieldChange::Set(value) => {
+				full_profile.insert(
+					value.field_name().as_str().to_owned(),
+					value.value().clone().into_owned(),
+				);
+			},
+			| ProfileFieldChange::Delete(key) => {
+				full_profile.remove(key.as_str());
+			},
+		}
+
+		if let Ok(canonical_profile) = to_canonical_object(full_profile) {
+			if serde_json::to_string(&canonical_profile)
+				.expect("should be able to serialize to string")
+				.len() > 65536
+			{
+				return Err!("Profile data must not exceed 64KiB in size.");
+			}
+		} else {
+			return Err!(Request(BadJson("Failed to canonicalize profile.")));
+		}
+	}
 
 	match change {
 		| ProfileFieldChange::Set(ProfileFieldValue::DisplayName(displayname)) => {
@@ -324,4 +366,6 @@ async fn set_profile_field(services: &Services, user_id: &UserId, change: Profil
 				.await;
 		}
 	}
+
+	Ok(())
 }
