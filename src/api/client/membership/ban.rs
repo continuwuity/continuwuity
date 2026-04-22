@@ -2,6 +2,7 @@ use axum::extract::State;
 use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::membership::ban_user,
+	assign,
 	events::room::member::{MembershipState, RoomMemberEventContent},
 };
 
@@ -26,27 +27,17 @@ pub(crate) async fn ban_user_route(
 
 	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
-	let mut content = services
-		.rooms
-		.state_accessor
-		.get_member(&body.room_id, &body.user_id)
-		.await
-		.unwrap_or_else(|_| RoomMemberEventContent::new(MembershipState::Ban));
-
-	content.membership = MembershipState::Ban;
-	content.reason.clone_from(&body.reason);
-	content.displayname = None;
-	content.avatar_url = None;
-	content.is_direct = None;
-	content.join_authorized_via_users_server = None;
-	content.third_party_invite = None;
-	// TODO(upstream): MSC4293
-
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PartialPdu::state(body.user_id.to_string(), &content),
+			PartialPdu::state(
+				body.user_id.to_string(),
+				&assign!(RoomMemberEventContent::new(MembershipState::Ban), {
+					reason: body.reason.clone()
+					// TODO(upstream): MSC4293
+				}),
+			),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,
