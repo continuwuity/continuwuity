@@ -7,7 +7,7 @@ use axum::{
 };
 use conduwuit::{Error, Result, err};
 use ruma::{
-	CanonicalJsonValue, DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, ServerName,
+	CanonicalJsonObject, DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, ServerName,
 	UserId, api::IncomingRequest,
 };
 use serde::Deserialize;
@@ -47,7 +47,7 @@ pub(crate) struct Args<T> {
 
 	/// Parsed JSON content.
 	/// None when body is not a valid string
-	pub(crate) json_body: Option<CanonicalJsonValue>,
+	pub(crate) json_body: Option<CanonicalJsonObject>,
 }
 
 impl<T> Args<T>
@@ -127,7 +127,7 @@ where
 		};
 
 		// Make a JSON copy of the body for use in handlers
-		let json_body = serde_json::from_slice::<CanonicalJsonValue>(&body).ok();
+		let json_body = serde_json::from_slice::<CanonicalJsonObject>(&body).ok();
 
 		// Extract the query parameters and path
 		let Path(path): Path<Vec<String>> = parts.extract().await?;
