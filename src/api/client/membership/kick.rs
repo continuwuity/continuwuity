@@ -1,6 +1,10 @@
 use axum::extract::State;
 use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
-use ruma::{api::client::membership::kick_user, events::room::member::MembershipState};
+use ruma::{
+	api::client::membership::kick_user,
+	assign,
+	events::room::member::{MembershipState, RoomMemberEventContent},
+};
 
 use crate::Ruma;
 
@@ -17,38 +21,26 @@ pub(crate) async fn kick_user_route(
 	}
 	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
-	let Ok(mut event) = services
+	if !services
 		.rooms
-		.state_accessor
-		.get_member(&body.room_id, &body.user_id)
+		.state_cache
+		.is_joined(&body.user_id, &body.room_id)
 		.await
-	else {
-		// copy synapse's behaviour of returning 200 without any change to the state
-		// instead of erroring on left users
-		return Ok(kick_user::v3::Response::new());
-	};
-
-	if !matches!(
-		event.membership,
-		MembershipState::Invite | MembershipState::Knock | MembershipState::Join,
-	) {
-		return Err!(Request(Forbidden(
-			"Cannot kick a user who is not apart of the room (current membership: {})",
-			event.membership
-		)));
+	{
+		return Err!(Request(Forbidden("You cannot kick users who are not in the room.")));
 	}
-
-	event.membership = MembershipState::Leave;
-	event.reason.clone_from(&body.reason);
-	event.is_direct = None;
-	event.join_authorized_via_users_server = None;
-	event.third_party_invite = None;
 
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PartialPdu::state(body.user_id.to_string(), &event),
+			PartialPdu::state(
+				body.user_id.to_string(),
+				&assign!(RoomMemberEventContent::new(MembershipState::Leave), {
+					reason: body.reason.clone(),
+					// TODO(upstream): MSC4293
+				}),
+			),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,
