@@ -6,8 +6,8 @@ use std::{
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug, debug_warn, err,
-	result::NotFound,
-	utils::{IterStream, stream::WidebandExt},
+	result::FlatOk,
+	utils::{IterStream, TryFutureExtExt, stream::WidebandExt},
 };
 use conduwuit_service::{Services, users::parse_master_key};
 use futures::{StreamExt, stream::FuturesUnordered};
@@ -172,7 +172,7 @@ pub(crate) async fn upload_signing_keys_route(
 ) -> Result<upload_signing_keys::v3::Response> {
 	let sender_user = body.sender_user();
 
-	match check_for_new_keys(
+	if uiaa_needed_to_upload_keys(
 		services,
 		sender_user,
 		body.self_signing_key.as_ref(),
@@ -180,25 +180,11 @@ pub(crate) async fn upload_signing_keys_route(
 		body.master_key.as_ref(),
 	)
 	.await
-	.inspect_err(|e| debug!(?e))
 	{
-		| Ok(exists) => {
-			if let Some(result) = exists {
-				// No-op, they tried to reupload the same set of keys
-				// (lost connection for example)
-				return Ok(result);
-			}
-			debug!(
-				"Skipping UIA in accordance with MSC3967, the user didn't have any existing keys"
-			);
-			// Some of the keys weren't found, so we let them upload
-		},
-		| _ => {
-			let _ = services
-				.uiaa
-				.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
-				.await?;
-		},
+		let _ = services
+			.uiaa
+			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.await?;
 	}
 
 	services
@@ -215,63 +201,53 @@ pub(crate) async fn upload_signing_keys_route(
 	Ok(upload_signing_keys::v3::Response::new())
 }
 
-async fn check_for_new_keys(
+async fn uiaa_needed_to_upload_keys(
 	services: crate::State,
 	user_id: &UserId,
 	self_signing_key: Option<&Raw<CrossSigningKey>>,
 	user_signing_key: Option<&Raw<CrossSigningKey>>,
 	master_signing_key: Option<&Raw<CrossSigningKey>>,
-) -> Result<Option<upload_signing_keys::v3::Response>> {
-	debug!("checking for existing keys");
-	let mut empty = false;
-	if master_signing_key.is_some() {
-		let result = services
-			.users
-			.get_master_key(None, user_id, &|_| true)
-			.await;
-		if result.is_not_found() {
-			empty = true;
-		} else {
-			return Err!(Request(Forbidden(
-				"Tried to change an existing master key, UIA required"
-			)));
-		}
-	}
-	if user_signing_key.is_some() {
-		let key = services.users.get_user_signing_key(user_id).await;
-		if key.is_not_found() && !empty {
-			return Err!(Request(Forbidden(
-				"Tried to update an existing user signing key, UIA required"
-			)));
-		}
-		if !key.is_not_found() {
-			return Err!(Request(Forbidden(
-				"Tried to change an existing user signing key, UIA required"
-			)));
-		}
-	}
-	if self_signing_key.is_some() {
-		let key = services
+) -> bool {
+	let (self_signing_key, user_signing_key, master_signing_key) = (
+		self_signing_key.map(Raw::deserialize).flat_ok(),
+		user_signing_key.map(Raw::deserialize).flat_ok(),
+		master_signing_key.map(Raw::deserialize).flat_ok(),
+	);
+
+	let (existing_self_signing_key, existing_user_signing_key, existing_master_signing_key) = futures::join!(
+		services
 			.users
 			.get_self_signing_key(None, user_id, &|_| true)
-			.await;
-		if key.is_not_found() && !empty {
-			debug!(?key);
-			return Err!(Request(Forbidden(
-				"Tried to add a new signing key independently from the master key"
-			)));
-		}
-		if !key.is_not_found() {
-			return Err!(Request(Forbidden(
-				"Tried to update an existing self signing key, UIA required"
-			)));
-		}
-	}
-	if empty {
-		return Ok(None);
-	}
+			.ok(),
+		services.users.get_user_signing_key(user_id).ok(),
+		services.users.get_master_key(None, user_id, &|_| true).ok(),
+	);
 
-	Ok(Some(upload_signing_keys::v3::Response::new()))
+	let (existing_self_signing_key, existing_user_signing_key, existing_master_signing_key) = (
+		existing_self_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+		existing_user_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+		existing_master_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+	);
+
+	if let Some(existing_master_signing_key) = existing_master_signing_key {
+		// If a master key exists, UIAA is required if any of the keys are different.
+
+		master_signing_key != Some(existing_master_signing_key)
+			|| user_signing_key != existing_user_signing_key
+			|| self_signing_key != existing_self_signing_key
+	} else {
+		// If no master key exists, UIAA is not required.
+		false
+	}
 }
 
 /// # `POST /_matrix/client/r0/keys/signatures/upload`
