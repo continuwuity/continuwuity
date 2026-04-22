@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug, debug_info, debug_warn, err, info,
+	Err, Result, debug, debug_info, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
 	trace, warn,
 };
@@ -453,15 +453,6 @@ pub(crate) async fn create_room_route(
 			})?;
 
 		debug_info!("Room creation initial state event: {event:?}");
-
-		// client/appservice workaround: if a user sends an initial_state event with a
-		// state event in there with the content of literally `{}` (not null or empty
-		// string), let's just skip it over and warn.
-		if partial_pdu.content.get().eq("{}") {
-			debug_warn!("skipping empty initial state event with content of `{{}}`: {event:?}");
-			debug_warn!("content: {}", partial_pdu.content.get());
-			continue;
-		}
 
 		// Implicit state key defaults to ""
 		partial_pdu.state_key.get_or_insert_with(StateKey::new);
