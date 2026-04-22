@@ -258,14 +258,19 @@ async fn set_profile_field(
 	user_id: &UserId,
 	change: ProfileFieldChange,
 ) -> Result<()> {
+	const MAX_KEY_LENGTH_BYTES: usize = 255;
+	const MAX_PROFILE_LENGTH_BYTES: usize = 65536;
+
 	let field_name = change.field_name();
 
 	// TODO: The spec mentions special error codes (M_PROFILE_TOO_LARGE,
 	// M_KEY_TOO_LARGE) for profile field size limits, but they're not in its list
 	// of error codes and Ruma doesn't have them. Should we return those, or is
 	// M_TOO_LARGE okay?
-	if field_name.as_str().len() > 255 {
-		return Err!(Request(TooLarge("Individual profile keys must not exceed 255 bytes.")));
+	if field_name.as_str().len() > MAX_KEY_LENGTH_BYTES {
+		return Err!(Request(TooLarge(
+			"Individual profile keys must not exceed {MAX_KEY_LENGTH_BYTES} bytes in length."
+		)));
 	}
 
 	// Serialize the entire profile as canonical JSON, including the new change,
@@ -288,9 +293,11 @@ async fn set_profile_field(
 		if let Ok(canonical_profile) = to_canonical_object(full_profile) {
 			if serde_json::to_string(&canonical_profile)
 				.expect("should be able to serialize to string")
-				.len() > 65536
+				.len() > MAX_PROFILE_LENGTH_BYTES
 			{
-				return Err!("Profile data must not exceed 64KiB in size.");
+				return Err!(
+					"Profile data must not exceed {MAX_PROFILE_LENGTH_BYTES} bytes in length."
+				);
 			}
 		} else {
 			return Err!(Request(BadJson("Failed to canonicalize profile.")));
