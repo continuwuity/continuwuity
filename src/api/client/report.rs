@@ -25,6 +25,8 @@ struct Report {
 	reason: String,
 }
 
+const MAX_REASON_LENGTH: usize = 2000;
+
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report`
 ///
 /// Reports an abusive room to homeserver admins
@@ -39,10 +41,10 @@ pub(crate) async fn report_room_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	if body.reason.len() > 750 {
-		return Err!(Request(
-			InvalidParam("Reason too long, should be 750 characters or fewer",)
-		));
+	if body.reason.len() > MAX_REASON_LENGTH {
+		return Err!(Request(InvalidParam(
+			"Reason too long, should be {MAX_REASON_LENGTH} bytes or fewer",
+		)));
 	}
 
 	delay_response().await;
@@ -139,10 +141,10 @@ pub(crate) async fn report_user_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	if body.reason.len() > 750 {
-		return Err!(Request(
-			InvalidParam("Reason too long, should be 750 characters or fewer",)
-		));
+	if body.reason.len() > MAX_REASON_LENGTH {
+		return Err!(Request(InvalidParam(
+			"Reason too long, should be {MAX_REASON_LENGTH} bytes or fewer",
+		)));
 	}
 
 	delay_response().await;
@@ -194,10 +196,10 @@ async fn is_event_report_valid(
 		return Err!(Request(NotFound("Event ID does not belong to the reported room",)));
 	}
 
-	if reason.len() > 750 {
-		return Err!(Request(
-			InvalidParam("Reason too long, should be 750 characters or fewer",)
-		));
+	if reason.len() > MAX_REASON_LENGTH {
+		return Err!(Request(InvalidParam(
+			"Reason too long, should be {MAX_REASON_LENGTH} bytes or fewer",
+		)));
 	}
 
 	if !services
