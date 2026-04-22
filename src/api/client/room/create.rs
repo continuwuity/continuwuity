@@ -9,8 +9,8 @@ use conduwuit::{
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId, OwnedRoomId,
-	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
+	OwnedRoomId, OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
 	api::client::room::{self, create_room},
 	assign,
 	events::{
@@ -87,7 +87,19 @@ pub(crate) async fn create_room_route(
 	let room_version_rules = room_version.rules().unwrap();
 
 	let room_id: Option<OwnedRoomId> = match room_version_rules.room_id_format {
-		| RoomIdFormatVersion::V1 => Some(RoomId::new_v1(services.globals.server_name())),
+		| RoomIdFormatVersion::V1 => {
+			// Check for custom room ID field
+			if let Some(CanonicalJsonValue::String(room_id)) =
+				body.json_body.as_ref().unwrap().get("room_id")
+			{
+				Some(
+					RoomId::parse(room_id)
+						.map_err(|_| err!(Request(BadJson("Malformed custom room ID"))))?,
+				)
+			} else {
+				Some(RoomId::new_v1(services.globals.server_name()))
+			}
+		},
 		| _ => None,
 	};
 
@@ -235,10 +247,8 @@ pub(crate) async fn create_room_route(
 		.json_body
 		.as_ref()
 		.unwrap()
-		.as_object()
-		.unwrap()
 		.get("origin_server_ts")
-		.and_then(ruma::CanonicalJsonValue::as_integer)
+		.and_then(CanonicalJsonValue::as_integer)
 		.map(Into::into)
 		.and_then(|value: i64| value.try_into().ok())
 		.map(MilliSecondsSinceUnixEpoch);
