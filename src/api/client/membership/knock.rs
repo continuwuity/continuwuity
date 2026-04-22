@@ -506,9 +506,7 @@ async fn knock_room_helper_remote(
 		.expect("room version should have defined rules");
 
 	if !services.server.supported_room_version(&room_version) {
-		return Err!(BadServerResponse(
-			"Remote room version {room_version} is not supported by conduwuit"
-		));
+		return Err!(BadServerResponse("Remote room version {room_version} is not supported"));
 	}
 
 	let mut knock_event_stub: CanonicalJsonObject =

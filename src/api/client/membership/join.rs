@@ -384,9 +384,7 @@ async fn join_room_by_id_helper_remote(
 
 	if !services.server.supported_room_version(&room_version) {
 		// How did we get here?
-		return Err!(BadServerResponse(
-			"Remote room version {room_version} is not supported by conduwuit"
-		));
+		return Err!(BadServerResponse("Remote room version {room_version} is not supported"));
 	}
 
 	let mut join_event_stub: CanonicalJsonObject =
