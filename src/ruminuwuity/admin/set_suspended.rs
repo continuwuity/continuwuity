@@ -20,6 +20,7 @@ pub mod v1 {
 		authentication: AccessToken,
 		history: {
 			unstable => "/_matrix/client/unstable/uk.timedout.msc4323/admin/suspend/{user_id}",
+			1.18 => "/_matrix/client/v1/admin/suspend/{user_id}",
 		}
 	}
 
