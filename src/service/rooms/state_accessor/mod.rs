@@ -218,8 +218,12 @@ impl Service {
 		let power_levels_event: RoomPowerLevelsEventContent = self
 			.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
 			.await
-			.unwrap_or_else(|_| {
-				RoomPowerLevelsEventContent::new(&room_version_rules.authorization)
+			.unwrap_or_else(|err| {
+				if err.is_not_found() {
+					RoomPowerLevelsEventContent::new(&room_version_rules.authorization)
+				} else {
+					panic!("Failed to deserialize power levels event content")
+				}
 			});
 
 		RoomPowerLevels::new(
