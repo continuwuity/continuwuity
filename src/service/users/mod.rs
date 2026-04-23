@@ -15,7 +15,7 @@ use conduwuit_core::{debug, error};
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
 #[cfg(feature = "ldap")]
-use ldap3::{LdapConnAsync, Scope, SearchEntry};
+use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
@@ -1285,6 +1285,24 @@ impl Service {
 		}
 	}
 
+	#[cfg(feature = "ldap")]
+	async fn create_ldap_connection(
+		config: &conduwuit_core::config::LdapConfig,
+		uri: &str,
+	) -> Result<(LdapConnAsync, ldap3::Ldap), ldap3::LdapError> {
+		let mut settings = LdapConnSettings::new();
+
+		if config.use_starttls {
+			settings = settings.set_starttls(true);
+		}
+
+		if config.disable_tls_verification {
+			settings = settings.set_no_tls_verify(true);
+		}
+
+		LdapConnAsync::with_settings(settings, uri).await
+	}
+
 	#[cfg(not(feature = "ldap"))]
 	pub async fn search_ldap(&self, _user_id: &UserId) -> Result<Vec<(String, Option<bool>)>> {
 		Err!(FeatureDisabled("ldap"))
@@ -1302,7 +1320,7 @@ impl Service {
 			.ok_or_else(|| err!(Ldap(error!("LDAP URI is not configured."))))?;
 
 		debug!(?uri, "LDAP creating connection...");
-		let (conn, mut ldap) = LdapConnAsync::new(uri.as_str())
+		let (conn, mut ldap) = Self::create_ldap_connection(config, uri.as_str())
 			.await
 			.map_err(|e| err!(Ldap(error!(%user_id, "LDAP connection setup error: {e}"))))?;
 
@@ -1411,9 +1429,9 @@ impl Service {
 			.ok_or_else(|| err!(Ldap(error!("LDAP URI is not configured."))))?;
 
 		debug!(?uri, "LDAP creating connection...");
-		let (conn, mut ldap) = LdapConnAsync::new(uri.as_str())
+		let (conn, mut ldap) = Self::create_ldap_connection(config, uri.as_str())
 			.await
-			.map_err(|e| err!(Ldap(error!(?user_dn, "LDAP connection setup error: {e}"))))?;
+			.map_err(|e| err!(Ldap(error!(%user_dn, "LDAP connection setup error: {e}"))))?;
 
 		let driver = self.services.server.runtime().spawn(async move {
 			match conn.drive().await {

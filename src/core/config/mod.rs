@@ -2324,6 +2324,18 @@ pub struct LdapConfig {
 	#[serde(default)]
 	pub uri: Option<Url>,
 
+	/// StartTLS for LDAP connections.
+	///
+	/// default: false
+	#[serde(default)]
+	pub use_starttls: bool,
+
+	/// Skip TLS certificate verification, possibly dangerous.
+	///
+	/// default: false
+	#[serde(default)]
+	pub disable_tls_verification: bool,
+
 	/// Root of the searches.
 	///
 	/// example: "ou=users,dc=example,dc=org"
