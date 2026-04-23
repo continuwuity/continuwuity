@@ -25,6 +25,15 @@ pub struct Service {
 	ratelimiter: DefaultKeyedRateLimiter<Address>,
 }
 
+pub enum EmailRequirement {
+	/// Users may change their email, but cannot remove it entirely.
+	Always,
+	/// Users may change or remove their email.
+	Optional,
+	/// SMTP is not configured.
+	Unavailable,
+}
+
 struct Data {
 	localpart_email: Arc<Map>,
 	email_localpart: Arc<Map>,
@@ -63,6 +72,19 @@ impl Service {
 	const EMAIL_RATELIMIT: Quota =
 		Quota::per_minute(nonzero!(10_u32)).allow_burst(nonzero!(2_u32));
 	const VALIDATION_URL_PATH: &str = "/_continuwuity/3pid/email/validate";
+
+	/// Check if users are required to have an email address.
+	pub fn email_requirement(&self) -> EmailRequirement {
+		if let Some(smtp) = &self.services.config.smtp {
+			if smtp.require_email_for_registration || smtp.require_email_for_token_registration {
+				EmailRequirement::Always
+			} else {
+				EmailRequirement::Optional
+			}
+		} else {
+			EmailRequirement::Unavailable
+		}
+	}
 
 	/// Send a validation message to an email address.
 	///
@@ -233,6 +255,9 @@ impl Service {
 			},
 			| None => {
 				// The supplied email is not already in use.
+
+				// Remove the user's existing email first.
+				let _ = self.disassociate_localpart_email(localpart).await;
 
 				let email: &str = email.as_ref();
 				self.db.localpart_email.insert(localpart, email);
