@@ -137,10 +137,10 @@ default-features = false
 features = ["aws_lc_rs"]
 
 [workspace.dependencies.reqwest]
-version = "0.12.15"
+version = "0.13.2"
 default-features = false
 features = [
-    "rustls-tls-native-roots",
+    "rustls",
     "socks",
     "hickory-dns",
     "http2",
