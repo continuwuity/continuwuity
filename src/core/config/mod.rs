@@ -2516,6 +2516,9 @@ pub struct SmtpConfig {
 	/// Whether to require that users provide an email address when they
 	/// register.
 	///
+	/// If either this option or `require_email_for_token_registration` are set,
+	/// users will not be allowed to remove their email address.
+	///
 	/// default: false
 	#[serde(default)]
 	pub require_email_for_registration: bool,

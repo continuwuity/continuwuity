@@ -27,11 +27,19 @@ pub struct Service {
 
 pub enum EmailRequirement {
 	/// Users may change their email, but cannot remove it entirely.
-	Always,
+	Required,
 	/// Users may change or remove their email.
 	Optional,
-	/// SMTP is not configured.
+	/// Users may not change their email at all.
 	Unavailable,
+}
+
+impl EmailRequirement {
+	#[must_use]
+	pub fn may_change(&self) -> bool { matches!(self, Self::Required | Self::Optional) }
+
+	#[must_use]
+	pub fn may_remove(&self) -> bool { matches!(self, Self::Optional) }
 }
 
 struct Data {
@@ -77,7 +85,7 @@ impl Service {
 	pub fn email_requirement(&self) -> EmailRequirement {
 		if let Some(smtp) = &self.services.config.smtp {
 			if smtp.require_email_for_registration || smtp.require_email_for_token_registration {
-				EmailRequirement::Always
+				EmailRequirement::Required
 			} else {
 				EmailRequirement::Optional
 			}

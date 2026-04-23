@@ -32,7 +32,7 @@ pub(crate) async fn get_capabilities_route(
 
 	// Only allow 3pid changes if SMTP is configured
 	capabilities.thirdparty_id_changes = ThirdPartyIdChangesCapability {
-		enabled: services.mailer.mailer().is_some(),
+		enabled: services.threepid.email_requirement().may_change(),
 	};
 
 	capabilities.get_login_token = GetLoginTokenCapability {

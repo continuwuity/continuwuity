@@ -53,6 +53,10 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 	State(services): State<crate::State>,
 	body: Ruma<request_3pid_management_token_via_email::v3::Request>,
 ) -> Result<request_3pid_management_token_via_email::v3::Response> {
+	if !services.threepid.email_requirement().may_change() {
+		return Err!(Request(Forbidden("You may not change your email address.")));
+	}
+
 	let Ok(email) = Address::try_from(body.email.clone()) else {
 		return Err!(Request(InvalidParam("Invalid email address.")));
 	};
@@ -105,6 +109,10 @@ pub(crate) async fn add_3pid_route(
 ) -> Result<add_3pid::v3::Response> {
 	let sender_user = body.sender_user();
 
+	if !services.threepid.email_requirement().may_change() {
+		return Err!(Request(Forbidden("You may not change your email address.")));
+	}
+
 	// Require password auth to add an email
 	let _ = services
 		.uiaa
@@ -136,6 +144,10 @@ pub(crate) async fn delete_3pid_route(
 		return Ok(delete_3pid::v3::Response {
 			id_server_unbind_result: ThirdPartyIdRemovalStatus::NoSupport,
 		});
+	}
+
+	if !services.threepid.email_requirement().may_remove() {
+		return Err!(Request(Forbidden("You may not remove your email address.")));
 	}
 
 	if services
