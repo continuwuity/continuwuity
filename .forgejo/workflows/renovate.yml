@@ -90,12 +90,12 @@ jobs:
           RENOVATE_PLATFORM: forgejo
           RENOVATE_ENDPOINT: ${{ github.server_url }}
           RENOVATE_AUTODISCOVER: 'false'
-          RENOVATE_REPOSITORIES: '["${{ github.repository }}"]'
+          RENOVATE_REPOSITORIES: '["${{ github.repository }}", "continuwuation/resolvematrix"]'
 
           RENOVATE_GIT_TIMEOUT: 60000
 
           RENOVATE_REQUIRE_CONFIG: 'required'
-          RENOVATE_ONBOARDING: 'false'
+          # RENOVATE_ONBOARDING: 'false'
           RENOVATE_INHERIT_CONFIG: 'true'
 
           RENOVATE_GITHUB_TOKEN_WARN: 'false'
