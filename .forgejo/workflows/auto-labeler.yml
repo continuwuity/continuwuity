@@ -37,6 +37,9 @@ jobs:
               if (file.startsWith('pkg/') || file.startsWith('nix/') || file === 'flake.nix' || file === 'flake.lock' || file.startsWith('docker/')) {
                 labelsToAdd.add('Meta/Packaging');
               }
+              if (file === 'Cargo.lock') {
+                labelsToAdd.add('Dependencies');
+              }
             }
 
             if (labelsToAdd.size > 0) {
