@@ -18,7 +18,7 @@ run the `uname -m` to check which you need.
 Prebuilt binaries are available from:
 
 - **Tagged releases**: [see Release page][release-page]
-- **Development builds**: CI artifacts from the `main` branch, 
+- **Development builds**: CI artifacts from the `main` branch,
   [see `release-image.yml` for details][release-image]
 
 The binaries require jemalloc and io_uring on the host system. Currently
@@ -173,7 +173,7 @@ If you would like to use only port 443, a different port, or a subdomain for the
 
 Caddy is the recommended reverse proxy as it is easy to use, has good defaults,
 and handle TLS certificates automatically. After installing Caddy via your preferred
-method, create `/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following 
+method, create `/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following
 (substitute `example.com` with your actual server name):
 
 ```
@@ -201,7 +201,7 @@ For more granular controls, you will need to proxy everything under these follow
 
   - `/_matrix/client` - core Client-Server APIs. These should be available on port :443
 
-- `/_conduwuit/` and `/_continuwuity/` - ad-hoc Continuwuity routes such as `/local_user_count`, `/server_version`, and for password reset links (if enabled)
+- `/_conduwuit/` and `/_continuwuity/` - ad-hoc Continuwuity routes for password resets, email verification, and server details such as `/local_user_count` and `/server_version`.
 
 You can optionally reverse proxy the following individual routes:
 
