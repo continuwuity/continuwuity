@@ -15,7 +15,7 @@ use super::layers;
 /// Serve clients
 pub(super) async fn serve(
 	services: Arc<Services>,
-	handle: ServerHandle,
+	handle: ServerHandle<std::net::SocketAddr>,
 	mut shutdown: broadcast::Receiver<()>,
 ) -> Result {
 	let server = &services.server;

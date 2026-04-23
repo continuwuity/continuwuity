@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Error, PduEvent, Result, err, error,
@@ -22,7 +22,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "invite", level = "info")]
 pub(crate) async fn create_invite_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<create_invite::v2::Request>,
 ) -> Result<create_invite::v2::Response> {
 	// ACL check origin

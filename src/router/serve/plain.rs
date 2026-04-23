@@ -11,7 +11,7 @@ use tokio::task::JoinSet;
 pub(super) async fn serve(
 	server: &Arc<Server>,
 	app: Router,
-	handle: ServerHandle,
+	handle: ServerHandle<SocketAddr>,
 	addrs: Vec<SocketAddr>,
 ) -> Result<()> {
 	let app = app.into_make_service_with_connect_info::<SocketAddr>();

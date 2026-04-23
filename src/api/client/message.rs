@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, at, debug_warn,
 	matrix::{
@@ -71,7 +71,7 @@ const LIMIT_DEFAULT: usize = 10;
 ///   where the user was joined, depending on `history_visibility`)
 pub(crate) async fn get_message_events_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client_ip): InsecureClientIp,
+	ClientIp(client_ip): ClientIp,
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
 	debug_assert!(IGNORED_MESSAGE_TYPES.is_sorted(), "IGNORED_MESSAGE_TYPES is not sorted");

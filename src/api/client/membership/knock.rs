@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, err, info,
 	matrix::{
@@ -47,7 +47,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "knock", level = "info")]
 pub(crate) async fn knock_room_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<knock_room::v3::Request>,
 ) -> Result<knock_room::v3::Response> {
 	let sender_user = body.sender_user();

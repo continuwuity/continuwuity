@@ -6,7 +6,7 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, at, error, extract_variant, is_equal_to,
 	matrix::{Event, TypeStateKey, pdu::PduCount},
@@ -63,7 +63,7 @@ type KnownRooms = BTreeMap<String, BTreeMap<OwnedRoomId, u64>>;
 /// [MSC4186]: https://github.com/matrix-org/matrix-spec-proposals/pull/4186
 pub(crate) async fn sync_events_v5_route(
 	State(ref services): State<crate::State>,
-	InsecureClientIp(client_ip): InsecureClientIp,
+	ClientIp(client_ip): ClientIp,
 	body: Ruma<sync_events::v5::Request>,
 ) -> Result<sync_events::v5::Response> {
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");

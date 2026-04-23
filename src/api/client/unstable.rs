@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result};
 use futures::{FutureExt, StreamExt};
 use ruma::{
@@ -29,7 +29,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "mutual_rooms", level = "info")]
 pub(crate) async fn get_mutual_rooms_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<mutual_rooms::unstable::Request>,
 ) -> Result<mutual_rooms::unstable::Response> {
 	let sender_user = body.sender_user();

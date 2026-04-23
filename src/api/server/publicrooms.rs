@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{Error, Result};
 use ruma::{
 	api::{
@@ -17,7 +17,7 @@ use crate::Ruma;
 #[tracing::instrument(name = "publicrooms", level = "debug", skip_all, fields(%client))]
 pub(crate) async fn get_public_rooms_filtered_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms_filtered::v1::Request>,
 ) -> Result<get_public_rooms_filtered::v1::Response> {
 	if !services
@@ -55,7 +55,7 @@ pub(crate) async fn get_public_rooms_filtered_route(
 #[tracing::instrument(name = "publicrooms", level = "debug", skip_all, fields(%client))]
 pub(crate) async fn get_public_rooms_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms::v1::Request>,
 ) -> Result<get_public_rooms::v1::Response> {
 	if !services

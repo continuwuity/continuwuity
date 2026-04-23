@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{Err, PduCount, Result, err};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
@@ -119,7 +119,7 @@ pub(crate) async fn set_read_marker_route(
 /// Sets private read marker and public read receipt EDU.
 pub(crate) async fn create_receipt_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client_ip): InsecureClientIp,
+	ClientIp(client_ip): ClientIp,
 	body: Ruma<create_receipt::v3::Request>,
 ) -> Result<create_receipt::v3::Response> {
 	let sender_user = body.sender_user();

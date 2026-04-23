@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, err, info,
 	utils::{self, ReadyExt, hash, stream::BroadbandExt},
@@ -42,7 +42,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "login", level = "info")]
 pub(crate) async fn get_login_types_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	_body: Ruma<get_login_types::v3::Request>,
 ) -> Result<get_login_types::v3::Response> {
 	Ok(get_login_types::v3::Response::new(vec![
@@ -242,7 +242,7 @@ pub(crate) async fn handle_login(
 #[tracing::instrument(skip_all, fields(%client), name = "login", level = "info")]
 pub(crate) async fn login_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<login::v3::Request>,
 ) -> Result<login::v3::Response> {
 	let emergency_mode_enabled = services.config.emergency_password.is_some();
@@ -375,7 +375,7 @@ pub(crate) async fn login_route(
 #[tracing::instrument(skip_all, fields(%client), name = "login_token", level = "info")]
 pub(crate) async fn login_token_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_login_token::v1::Request>,
 ) -> Result<get_login_token::v1::Response> {
 	if !services.server.config.login_via_existing_session {
@@ -411,7 +411,7 @@ pub(crate) async fn login_token_route(
 #[tracing::instrument(skip_all, fields(%client), name = "logout", level = "info")]
 pub(crate) async fn logout_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<logout::v3::Request>,
 ) -> Result<logout::v3::Response> {
 	let (sender_user, sender_device) = body.sender();
@@ -457,7 +457,7 @@ pub(crate) async fn logout_route(
 #[tracing::instrument(skip_all, fields(%client), name = "logout", level = "info")]
 pub(crate) async fn logout_all_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<logout_all::v3::Request>,
 ) -> Result<logout_all::v3::Response> {
 	let sender_user = body.sender_user();

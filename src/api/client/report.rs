@@ -1,7 +1,7 @@
 use std::{fmt::Write as _, time::Duration};
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{Err, Event, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
 use conduwuit_service::Services;
 use ruma::{
@@ -31,7 +31,7 @@ struct Report {
 #[tracing::instrument(skip_all, fields(%client), name = "report_room", level = "info")]
 pub(crate) async fn report_room_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<report_room::v3::Request>,
 ) -> Result<report_room::v3::Response> {
 	let sender_user = body.sender_user();
@@ -87,7 +87,7 @@ pub(crate) async fn report_room_route(
 #[tracing::instrument(skip_all, fields(%client), name = "report_event", level = "info")]
 pub(crate) async fn report_event_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<report_content::v3::Request>,
 ) -> Result<report_content::v3::Response> {
 	// user authentication
@@ -135,7 +135,7 @@ pub(crate) async fn report_event_route(
 #[tracing::instrument(skip_all, fields(%client), name = "report_user", level = "info")]
 pub(crate) async fn report_user_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<report_user::v3::Request>,
 ) -> Result<report_user::v3::Response> {
 	// user authentication

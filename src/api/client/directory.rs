@@ -1,7 +1,7 @@
 use std::iter::once;
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Event, Result, RoomVersion, err, info,
 	utils::{
@@ -51,7 +51,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "publicrooms", level = "info")]
 pub(crate) async fn get_public_rooms_filtered_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms_filtered::v3::Request>,
 ) -> Result<get_public_rooms_filtered::v3::Response> {
 	if let Some(server) = &body.server {
@@ -87,7 +87,7 @@ pub(crate) async fn get_public_rooms_filtered_route(
 #[tracing::instrument(skip_all, fields(%client), name = "publicrooms", level = "info")]
 pub(crate) async fn get_public_rooms_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms::v3::Request>,
 ) -> Result<get_public_rooms::v3::Response> {
 	if let Some(server) = &body.server {
@@ -123,7 +123,7 @@ pub(crate) async fn get_public_rooms_route(
 #[tracing::instrument(skip_all, fields(%client), name = "room_directory", level = "info")]
 pub(crate) async fn set_room_visibility_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<set_room_visibility::v3::Request>,
 ) -> Result<set_room_visibility::v3::Response> {
 	let sender_user = body.sender_user();

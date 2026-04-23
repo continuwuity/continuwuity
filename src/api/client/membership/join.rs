@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug, debug_info, debug_warn, err, error, info, is_true,
 	matrix::{
@@ -67,7 +67,7 @@ use crate::{
 #[tracing::instrument(skip_all, fields(%client), name = "join", level = "info")]
 pub(crate) async fn join_room_by_id_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id::v3::Request>,
 ) -> Result<join_room_by_id::v3::Response> {
 	let sender_user = body.sender_user();
@@ -139,7 +139,7 @@ pub(crate) async fn join_room_by_id_route(
 #[tracing::instrument(skip_all, fields(%client), name = "join", level = "info")]
 pub(crate) async fn join_room_by_id_or_alias_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id_or_alias::v3::Request>,
 ) -> Result<join_room_by_id_or_alias::v3::Response> {
 	let sender_user = body.sender_user();

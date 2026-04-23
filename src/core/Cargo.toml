@@ -88,6 +88,7 @@ log.workspace = true
 lettre.workspace = true
 num-traits.workspace = true
 rand.workspace = true
+# tied to passwordhash 0.5.0
 rand_core = { version = "0.6.4", features = ["getrandom"] }
 regex.workspace = true
 reqwest.workspace = true

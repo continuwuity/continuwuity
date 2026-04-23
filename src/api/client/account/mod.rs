@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Event, Result, err, info,
 	pdu::PduBuilder,
@@ -48,7 +48,7 @@ pub(crate) mod threepid;
 #[tracing::instrument(skip_all, fields(%client), name = "register_available", level = "info")]
 pub(crate) async fn get_register_available_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<get_username_availability::v3::Request>,
 ) -> Result<get_username_availability::v3::Response> {
 	// Validate user id
@@ -110,7 +110,7 @@ pub(crate) async fn get_register_available_route(
 #[tracing::instrument(skip_all, fields(%client), name = "change_password", level = "info")]
 pub(crate) async fn change_password_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
 	let identity = if let Some(ref user_id) = body.sender_user {
@@ -272,7 +272,7 @@ pub(crate) async fn whoami_route(
 #[tracing::instrument(skip_all, fields(%client), name = "deactivate", level = "info")]
 pub(crate) async fn deactivate_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<deactivate::v3::Request>,
 ) -> Result<deactivate::v3::Response> {
 	// Authentication for this endpoint is technically optional,

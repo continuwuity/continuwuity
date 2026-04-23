@@ -9,7 +9,7 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Result, at, extract_variant,
 	utils::{
@@ -181,7 +181,7 @@ type PresenceUpdates = HashMap<OwnedUserId, PresenceEventContent>;
 )]
 pub(crate) async fn sync_events_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client_ip): InsecureClientIp,
+	ClientIp(client_ip): ClientIp,
 	body: Ruma<sync_events::v3::Request>,
 ) -> Result<sync_events::v3::Response, RumaResponse<UiaaResponse>> {
 	let (sender_user, sender_device) = body.sender();

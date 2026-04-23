@@ -4,7 +4,7 @@ use axum::{
 	Router,
 	extract::{DefaultBodyLimit, MatchedPath},
 };
-use axum_client_ip::SecureClientIpSource;
+use axum_client_ip::ClientIpSource;
 use conduwuit::{Result, Server, debug, error};
 use conduwuit_service::{Services, state::Guard};
 use http::{
@@ -59,7 +59,7 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 				.on_response(DefaultOnResponse::new().level(Level::DEBUG)),
 		)
 		.layer(axum::middleware::from_fn_with_state(Arc::clone(services), request::handle))
-		.layer(SecureClientIpSource::ConnectInfo.into_extension())
+		.layer(ClientIpSource::ConnectInfo.into_extension())
 		.layer(ResponseBodyTimeoutLayer::new(Duration::from_secs(
 			server.config.client_response_timeout,
 		)))

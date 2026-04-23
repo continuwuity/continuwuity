@@ -5,7 +5,7 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, debug_warn, err, error,
 	result::LogErr,
@@ -59,7 +59,7 @@ type Pdu = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
 /// Push EDUs and PDUs to this server.
 pub(crate) async fn send_transaction_message_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<send_transaction_message::v1::Request>,
 ) -> Result<send_transaction_message::v1::Response> {
 	if body.origin() != body.body.origin {

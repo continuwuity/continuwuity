@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
@@ -25,7 +25,7 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, fields(%client), name = "invite", level = "info")]
 pub(crate) async fn invite_user_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client): InsecureClientIp,
+	ClientIp(client): ClientIp,
 	body: Ruma<invite_user::v3::Request>,
 ) -> Result<invite_user::v3::Response> {
 	let sender_user = body.sender_user();

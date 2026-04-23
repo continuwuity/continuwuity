@@ -1,5 +1,5 @@
 use axum::extract::State;
-use axum_client_ip::InsecureClientIp;
+use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
 use ruma::{
 	api::client::redact::redact_event, events::room::redaction::RoomRedactionEventContent,
@@ -14,7 +14,7 @@ use crate::Ruma;
 /// - TODO: Handle txn id
 pub(crate) async fn redact_event_route(
 	State(services): State<crate::State>,
-	InsecureClientIp(client_ip): InsecureClientIp,
+	ClientIp(client_ip): ClientIp,
 	body: Ruma<redact_event::v3::Request>,
 ) -> Result<redact_event::v3::Response> {
 	let sender_user = body.sender_user();

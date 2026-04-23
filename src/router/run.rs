@@ -7,7 +7,7 @@ use std::{
 	time::Duration,
 };
 
-use axum_server::Handle as ServerHandle;
+use axum_server::{Address, Handle as ServerHandle};
 use conduwuit::{Error, Result, Server, debug, debug_error, debug_info, error, info};
 use futures::FutureExt;
 use service::Services;
@@ -117,7 +117,7 @@ pub(crate) async fn stop(services: Arc<Services>) -> Result<()> {
 }
 
 #[tracing::instrument(skip_all, level = "info")]
-async fn signal(server: Arc<Server>, tx: Sender<()>, handle: axum_server::Handle) {
+async fn signal<A: Address>(server: Arc<Server>, tx: Sender<()>, handle: axum_server::Handle<A>) {
 	server
 		.clone()
 		.until_shutdown()
@@ -125,7 +125,11 @@ async fn signal(server: Arc<Server>, tx: Sender<()>, handle: axum_server::Handle
 		.await;
 }
 
-async fn handle_shutdown(server: Arc<Server>, tx: Sender<()>, handle: axum_server::Handle) {
+async fn handle_shutdown<A: Address>(
+	server: Arc<Server>,
+	tx: Sender<()>,
+	handle: axum_server::Handle<A>,
+) {
 	if let Err(e) = tx.send(()) {
 		error!("failed sending shutdown transaction to channel: {e}");
 	}
