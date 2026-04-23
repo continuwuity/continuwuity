@@ -15,6 +15,7 @@ use conduwuit::{
 		IterStream, ReadyExt, millis_since_unix_epoch,
 		stream::{BroadbandExt, TryBroadbandExt, automatic_width},
 	},
+	warn,
 };
 use conduwuit_service::{
 	Services,
@@ -152,7 +153,7 @@ async fn process_inbound_transaction(
 		.iter()
 		.stream()
 		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
-		.inspect_err(|e| debug_warn!("Could not parse PDU: {e}"))
+		.inspect_err(|e| warn!("Could not parse incoming PDU: {e}"))
 		.ready_filter_map(Result::ok);
 
 	let edus = body
@@ -283,17 +284,16 @@ async fn build_local_dag(
 	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> = HashMap::new();
 
 	for (event_id, value) in pdu_map {
+		// We already checked that these properties are correct in parse_incoming_pdu,
+		// so it's safe to unwrap here.
 		let prev_events = value
 			.get("prev_events")
-			.expect("pdu must have prev_events")
+			.unwrap()
 			.as_array()
-			.expect("prev_events must be an array")
+			.unwrap()
 			.iter()
-			.map(|v| {
-				OwnedEventId::parse(v.as_str().expect("prev_events values must be strings"))
-					.expect("prev_events must be valid event IDs")
-			})
-			.collect::<HashSet<OwnedEventId>>();
+			.map(|v| OwnedEventId::parse(v.as_str().unwrap()).unwrap())
+			.collect();
 
 		dag.insert(event_id.clone(), prev_events);
 	}

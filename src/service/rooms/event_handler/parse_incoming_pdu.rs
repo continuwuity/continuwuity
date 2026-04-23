@@ -1,11 +1,94 @@
+use std::str::FromStr;
+
 use conduwuit::{
-	Result, RoomVersion, err, implement, matrix::event::gen_event_id_canonical_json,
-	result::FlatOk,
+	Err, Result, err, implement,
+	matrix::event::{gen_event_id, gen_event_id_canonical_json},
 };
+use itertools::Itertools;
 use ruma::{CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomVersionId};
 use serde_json::value::RawValue as RawJsonValue;
 
 type Parsed = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
+
+/// Extracts the expected room ID from the PDU. If the PDU claims its own room
+/// ID, that is returned. Since `m.room.create` in v12 and onward lacks this
+/// field over federation, it will be calculated if not provided, otherwise a
+/// validation error will be returned.
+fn extract_room_id(event_type: &str, pdu: &CanonicalJsonObject) -> Result<OwnedRoomId> {
+	use RoomVersionId::*;
+	if let Some(room_id) = pdu.get("room_id").and_then(CanonicalJsonValue::as_str) {
+		return OwnedRoomId::parse(room_id)
+			.map_err(|e| err!(Request(BadJson("Invalid room_id {room_id:?} in pdu: {e}"))));
+	}
+	// If there's no room ID, and this is not a create event, it is illegal.
+	if event_type != "m.room.create" || pdu.get("state_key").is_none() {
+		return Err!(Request(BadJson("Missing room_id in pdu")));
+	}
+
+	// Room versions 11 and below require the room ID is present.
+	let room_version_id = RoomVersionId::from_str(
+		pdu.get("content")
+			.and_then(CanonicalJsonValue::as_object)
+			.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid content in pdu"))))?
+			.get("room_version")
+			.and_then(CanonicalJsonValue::as_str)
+			.unwrap_or("1"), // Omitted room versions default to v1
+	)
+	.map_err(|e| err!(Request(BadJson("Invalid room_version in pdu: {e}"))))?;
+
+	if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11) {
+		return Err!(Request(BadJson("Missing room_id in pdu")));
+	}
+	let event_id = gen_event_id(pdu, &room_version_id)?;
+	Ok(OwnedRoomId::parse(event_id.as_str().replace('$', "!"))
+		.expect("constructed room ID has to be valid"))
+}
+
+/// Parses every entry in an array as an event ID, returning an error if any
+/// step fails.
+fn expect_event_id_array(value: &CanonicalJsonObject, field: &str) -> Result<Vec<OwnedEventId>> {
+	value
+		.get(field)
+		.ok_or_else(|| err!(Request(BadJson("missing field `{field}` on PDU"))))?
+		.as_array()
+		.ok_or_else(|| err!(Request(BadJson("expected an array PDU field `{field}`"))))?
+		.iter()
+		.map(|v| {
+			v.as_str()
+				.ok_or_else(|| {
+					err!(Request(BadJson("expected an array of event IDs for `{field}`")))
+				})
+				.and_then(|s| {
+					OwnedEventId::parse(s)
+						.map_err(|e| err!(Request(BadJson("invalid event ID in `{field}`: {e}"))))
+				})
+		})
+		.try_collect()
+}
+
+/// Performs some basic validation on the PDU to make sure it's not obviously
+/// malformed. This is not a full validation, but guards against extreme errors.
+///
+/// Currently, this just validates that prev/auth events are within acceptable
+/// ranges. Other servers do some additional things like checking depth range,
+/// but serde will do that later when converting the object to a PduEvent.
+#[implement(super::Service)]
+pub fn validate_pdu(&self, pdu: &CanonicalJsonObject) -> Result {
+	// Since v3:
+	// `event_id` should not be present on the PDU.
+	// NOTE: The above is ignored since technically it's still allowed to be
+	// included, but should be ignored instead.
+	// `auth_events` and `prev_events` must be an array of event IDs
+	let auth_events = expect_event_id_array(pdu, "auth_events")?;
+	if auth_events.len() > 10 {
+		return Err!(Request(BadJson("PDU has too many auth events")));
+	}
+	let prev_events = expect_event_id_array(pdu, "prev_events")?;
+	if prev_events.len() > 20 {
+		return Err!(Request(BadJson("PDU has too many prev events")));
+	}
+	Ok(())
+}
 
 #[implement(super::Service)]
 pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
@@ -17,39 +100,7 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 		.and_then(CanonicalJsonValue::as_str)
 		.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid type in pdu"))))?;
 
-	let room_id: OwnedRoomId = if event_type != "m.room.create" {
-		value
-			.get("room_id")
-			.and_then(CanonicalJsonValue::as_str)
-			.map(OwnedRoomId::parse)
-			.flat_ok_or(err!(Request(InvalidParam("Invalid room_id in pdu"))))?
-	} else {
-		// v12 rooms might have no room_id in the create event. We'll need to check the
-		// content.room_version
-		let content = value
-			.get("content")
-			.and_then(CanonicalJsonValue::as_object)
-			.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid content in pdu"))))?;
-		let room_version = content
-			.get("room_version")
-			.and_then(CanonicalJsonValue::as_str)
-			.unwrap_or("1");
-		let vi = RoomVersionId::try_from(room_version).unwrap_or(RoomVersionId::V1);
-		let vf = RoomVersion::new(&vi).expect("supported room version");
-		if vf.room_ids_as_hashes {
-			let (event_id, _) = gen_event_id_canonical_json(pdu, &vi).map_err(|e| {
-				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-			})?;
-			OwnedRoomId::parse(event_id.as_str().replace('$', "!")).expect("valid room ID")
-		} else {
-			// V11 or below room, room_id must be present
-			value
-				.get("room_id")
-				.and_then(CanonicalJsonValue::as_str)
-				.map(OwnedRoomId::parse)
-				.flat_ok_or(err!(Request(InvalidParam("Invalid or missing room_id in pdu"))))?
-		}
-	};
+	let room_id = extract_room_id(event_type, &value)?;
 
 	let room_version_id = self
 		.services
@@ -60,5 +111,6 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 	let (event_id, value) = gen_event_id_canonical_json(pdu, &room_version_id).map_err(|e| {
 		err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
 	})?;
+	self.validate_pdu(&value)?;
 	Ok((room_id, event_id, value))
 }
