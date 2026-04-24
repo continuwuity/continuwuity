@@ -69,7 +69,12 @@ pub(super) async fn load_joined_room(
 	and `join*` functions are used to perform steps in parallel which do not depend on each other.
 	*/
 
-	let insert_lock = services.rooms.timeline.mutex_insert.lock(room_id).await;
+	let insert_lock = services
+		.rooms
+		.timeline
+		.mutex_insert
+		.lock(room_id.as_str())
+		.await;
 	let (
 		account_data,
 		ephemeral,

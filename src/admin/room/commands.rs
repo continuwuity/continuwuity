@@ -148,14 +148,14 @@ pub(super) async fn purge_all_sync_tokens(
 		if let Some(target) = &target_option {
 			match target {
 				| RoomTargetOption::DisabledOnly => {
-					if !self.services.rooms.metadata.is_disabled(room_id).await {
+					if !self.services.rooms.metadata.is_disabled(&room_id).await {
 						debug!("Skipping room {} as it's not disabled", room_id.as_str());
 						skipped_rooms = skipped_rooms.saturating_add(1);
 						continue;
 					}
 				},
 				| RoomTargetOption::BannedOnly => {
-					if !self.services.rooms.metadata.is_banned(room_id).await {
+					if !self.services.rooms.metadata.is_banned(&room_id).await {
 						debug!("Skipping room {} as it's not banned", room_id.as_str());
 						skipped_rooms = skipped_rooms.saturating_add(1);
 						continue;
@@ -203,7 +203,7 @@ pub(super) async fn purge_all_sync_tokens(
 
 		if !execute {
 			// For dry run mode, count tokens without deleting
-			match self.services.rooms.user.count_room_tokens(room_id).await {
+			match self.services.rooms.user.count_room_tokens(&room_id).await {
 				| Ok(count) =>
 					if count > 0 {
 						debug!(
@@ -222,7 +222,7 @@ pub(super) async fn purge_all_sync_tokens(
 			}
 		} else {
 			// Real deletion mode
-			match self.services.rooms.user.delete_room_tokens(room_id).await {
+			match self.services.rooms.user.delete_room_tokens(&room_id).await {
 				| Ok(count) =>
 					if count > 0 {
 						debug!("Deleted {} sync tokens for room {}", count, room_id.as_str());
