@@ -1,3 +1,20 @@
+# Continuwuity 0.5.8 (2026-04-24)
+
+## Features
+
+- LDAP can now optionally be connected to using StartTLS, and you may unsafely skip verification. Contributed by @getz (#1389)
+- Users will now be prevented from removing their email if the server is configured to require an email when registering an account.
+
+## Bugfixes
+
+- Fixed a situation where multiple email addresses could be associated with one user when that user changes their email address.
+
+## Improved Documentation
+
+- Updated config docs to state we support room version 12, and set it as default. Contributed by @ezera. (#1622)
+- Improve instructions for generic deployments, removing unnecessary parts and documenting the new initial registration token flow. Contributed by @stratself (#1677)
+
+
 # Continuwuity v0.5.7 (2026-04-17)
 
 ## Features
