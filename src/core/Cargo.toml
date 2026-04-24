@@ -25,9 +25,6 @@ conduwuit_mods = [
 gzip_compression = [
 	"reqwest/gzip",
 ]
-http3 = [
-	# "reqwest/http3", # TODO: Depends on aws-lc
-]
 hardened_malloc = [
 	"dep:hardened_malloc-rs"
 ]

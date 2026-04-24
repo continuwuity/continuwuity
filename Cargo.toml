@@ -137,7 +137,6 @@ features = [
 [workspace.dependencies.rustls]
 version = "0.23.25"
 default-features = false
-features = ["ring"]
 
 [workspace.dependencies.reqwest]
 version = "0.13.2"

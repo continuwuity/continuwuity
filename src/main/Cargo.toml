@@ -43,6 +43,7 @@ assets = [
 default = [
     "standard",
     "release_max_log_level",
+    "ring",
 	"bindgen-runtime", # replace with bindgen-static on alpine
 ]
 standard = [
@@ -100,9 +101,14 @@ hardened_malloc = [
 	"conduwuit-core/hardened_malloc",
 ]
 http3 = [
-	"conduwuit-api/http3",
-	"conduwuit-core/http3",
-	"conduwuit-service/http3",
+    "reqwest/http3"
+]
+ring = [
+    "rustls/ring"
+]
+aws_lc_rs = [
+    "rustls/aws_lc_rs",
+    "dep:aws-lc-rs"
 ]
 io_uring = [
 	"conduwuit-database/io_uring",
@@ -238,6 +244,9 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 tracing-journald = { workspace = true, optional = true }
 parking_lot.workspace = true
+reqwest = { workspace = true, default-features = false }
+rustls = { workspace = true, default-features = false }
+aws-lc-rs = { version = "1.16.3", default-features = false, optional = true }
 
 
 [target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]
