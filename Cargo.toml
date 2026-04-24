@@ -562,7 +562,7 @@ version = "0.15.0"
 [workspace.dependencies.lettre]
 version = "0.11.19"
 default-features = false
-features = ["smtp-transport", "pool", "hostname", "builder", "rustls", "rustls-native-certs", "tokio1", "ring", "tokio1-rustls", "tracing", "serde"]
+features = ["smtp-transport", "pool", "hostname", "builder", "rustls", "rustls-native-certs", "tokio1", "rustls-no-provider", "tokio1-rustls", "tracing", "serde"]
 
 [workspace.dependencies.governor]
 version = "0.10.4"
