@@ -17,7 +17,7 @@ ARG LLVM_VERSION=21
 # Line one: compiler tools
 # Line two: curl, for downloading binaries and wget because llvm.sh is broken with curl
 # Line three: for xx-verify
-# golang, cmake: For aws-lc-rs
+# golang, cmake: For aws-lc-rs bindgen
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y \
@@ -164,7 +164,7 @@ ENV CONDUWUIT_VERSION_EXTRA=$CONDUWUIT_VERSION_EXTRA
 ENV CONTINUWUITY_VERSION_EXTRA=$CONTINUWUITY_VERSION_EXTRA
 
 ARG RUST_PROFILE=release
-ARG CARGO_FEATURES="default,http3,aws_lc_rs"
+ARG CARGO_FEATURES="default"
 
 # Build the binary
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -196,7 +196,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         -p $PACKAGE;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
         jq -r ".packages[] | select(.name == \"$PACKAGE\") | .targets[] | select( .kind | map(. == \"bin\") | any ) | .name"))
-    AWS_LC_SYS_NO_PREFIX=1 # https://github.com/rust-lang/rust-bindgen/issues/2935
     for BINARY in "${BINARIES[@]}"; do
         echo $BINARY
         xx-verify $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE_DIR}/$BINARY
