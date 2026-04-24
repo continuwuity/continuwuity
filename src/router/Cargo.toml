@@ -24,7 +24,7 @@ brotli_compression = [
 	"tower-http/compression-br",
 ]
 direct_tls = [
-	"axum-server/tls-rustls",
+	"axum-server/tls-rustls-no-provider",
 	"dep:rustls",
 	"dep:axum-server-dual-protocol",
 ]

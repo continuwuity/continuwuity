@@ -27,9 +27,9 @@ pub(super) async fn serve(
 
 	// we use ring for ruma and hashing state, but aws-lc-rs is the new default.
 	// without this, TLS mode will panic.
-	rustls::crypto::aws_lc_rs::default_provider()
+	rustls::crypto::ring::default_provider()
 		.install_default()
-		.expect("failed to initialise aws-lc-rs rustls crypto provider");
+		.expect("failed to initialise ring rustls crypto provider");
 
 	info!(
 		"Note: It is strongly recommended that you use a reverse proxy instead of running \
