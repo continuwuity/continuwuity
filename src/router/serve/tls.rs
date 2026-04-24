@@ -13,7 +13,7 @@ use tracing::{debug, info, warn};
 pub(super) async fn serve(
 	server: &Arc<Server>,
 	app: Router,
-	handle: ServerHandle,
+	handle: ServerHandle<SocketAddr>,
 	addrs: Vec<SocketAddr>,
 ) -> Result {
 	let tls = &server.config.tls;
