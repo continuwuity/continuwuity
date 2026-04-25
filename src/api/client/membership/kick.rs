@@ -38,7 +38,7 @@ pub(crate) async fn kick_user_route(
 				body.user_id.to_string(),
 				&assign!(RoomMemberEventContent::new(MembershipState::Leave), {
 					reason: body.reason.clone(),
-					// TODO(upstream): MSC4293
+					redact_events: body.redact_events,
 				}),
 			),
 			sender_user,
