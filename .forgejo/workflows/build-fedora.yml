@@ -105,7 +105,7 @@ jobs:
             RELEASE_SUFFIX=""
             TAG_NAME="${{ github.ref_name }}"
             # Extract version from tag (remove v prefix if present)
-            TAG_VERSION=$(echo "$TAG_NAME" | sed 's/^v//')
+            TAG_VERSION=$(echo "$TAG_NAME" | sed 's/^v//' | tr '-' '~')
 
             # Create spec file with tag version
             sed -e "s/^Version:.*$/Version:        $TAG_VERSION/" \
@@ -270,9 +270,13 @@ jobs:
 
           # Determine the group based on ref type and branch
           if [[ "${{ github.ref }}" == "refs/tags/"* ]]; then
-            GROUP="stable"
             # For tags, extract the tag name for version info
             TAG_NAME="${{ github.ref_name }}"
+            if [[ "$TAG_NAME" == *"-"* ]]; then
+              GROUP="unstable"
+            else
+              GROUP="stable"
+            fi
           elif [ "${{ github.ref_name }}" = "main" ]; then
             GROUP="dev"
           else
