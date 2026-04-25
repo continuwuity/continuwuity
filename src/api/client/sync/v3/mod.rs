@@ -395,6 +395,10 @@ pub(crate) async fn build_sync_events(
 		.users
 		.count_one_time_keys(syncing_user, syncing_device);
 
+	let unused_fallback_key_types = services
+		.users
+		.list_unused_fallback_key_types(syncing_user, syncing_device);
+
 	let (
 		(joined_rooms, mut device_list_updates),
 		left_rooms,
@@ -405,6 +409,7 @@ pub(crate) async fn build_sync_events(
 		to_device_events,
 		keys_changed,
 		device_one_time_keys_count,
+		unused_fallback_key_types,
 	) = async {
 		futures::join!(
 			joined_rooms,
@@ -415,7 +420,8 @@ pub(crate) async fn build_sync_events(
 			account_data,
 			to_device_events,
 			keys_changed,
-			device_one_time_keys_count
+			device_one_time_keys_count,
+			unused_fallback_key_types,
 		)
 	}
 	.boxed()
@@ -433,8 +439,7 @@ pub(crate) async fn build_sync_events(
 		account_data: assign!(GlobalAccountData::new(), { events: account_data }),
 		device_lists: device_list_updates.into(),
 		device_one_time_keys_count,
-		// Fallback keys are not yet supported
-		device_unused_fallback_key_types: None,
+		device_unused_fallback_key_types: Some(unused_fallback_key_types),
 		presence: assign!(Presence::new(), {
 			events: presence_updates
 				.into_iter()

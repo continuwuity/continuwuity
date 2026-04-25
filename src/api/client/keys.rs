@@ -64,6 +64,27 @@ pub(crate) async fn upload_keys_route(
 			.await?;
 	}
 
+	for (key_id, fallback_key) in &body.fallback_keys {
+		if fallback_key
+			.deserialize()
+			.inspect_err(|e| {
+				debug_warn!(
+					%key_id,
+					?fallback_key,
+					"Invalid one time key JSON submitted by client, skipping: {e}"
+				);
+			})
+			.is_err()
+		{
+			continue;
+		}
+
+		services
+			.users
+			.add_fallback_key(sender_user, sender_device, key_id, fallback_key, false)
+			.await?;
+	}
+
 	if let Some(device_keys) = &body.device_keys {
 		let deser_device_keys = device_keys.deserialize().map_err(|e| {
 			err!(Request(BadJson(debug_warn!(
