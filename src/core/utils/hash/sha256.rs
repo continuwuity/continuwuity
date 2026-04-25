@@ -19,9 +19,7 @@ where
 		}
 	}
 
-	ctx.finalize()
-		.try_into()
-		.expect("failed to return Digest buffer")
+	ctx.finalize().into()
 }
 
 /// Sha256 hash (input gather)
@@ -38,8 +36,7 @@ where
 			ctx
 		})
 		.finalize()
-		.try_into()
-		.expect("failed to return Digest buffer")
+		.into()
 }
 
 /// Sha256 hash
@@ -50,7 +47,5 @@ pub fn hash<T>(input: T) -> DigestOut
 where
 	T: AsRef<[u8]>,
 {
-	Sha256::digest(input)
-		.try_into()
-		.expect("failed to return Digest buffer")
+	Sha256::digest(input).into()
 }
