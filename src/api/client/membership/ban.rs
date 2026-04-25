@@ -34,8 +34,8 @@ pub(crate) async fn ban_user_route(
 			PartialPdu::state(
 				body.user_id.to_string(),
 				&assign!(RoomMemberEventContent::new(MembershipState::Ban), {
-					reason: body.reason.clone()
-					// TODO(upstream): MSC4293
+					reason: body.reason.clone(),
+					redact_events: body.redact_events,
 				}),
 			),
 			sender_user,

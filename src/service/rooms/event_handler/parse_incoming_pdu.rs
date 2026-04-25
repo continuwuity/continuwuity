@@ -6,7 +6,9 @@ use conduwuit::{
 };
 use itertools::Itertools;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId };
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
+	RoomVersionId,
+};
 use serde_json::value::RawValue as RawJsonValue;
 
 type Parsed = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
@@ -40,7 +42,10 @@ fn extract_room_id(event_type: &str, pdu: &CanonicalJsonObject) -> Result<OwnedR
 		return Err!(Request(BadJson("Unknown room version in pdu")));
 	};
 
-	if !room_version_rules.authorization.room_create_event_id_as_room_id {
+	if !room_version_rules
+		.authorization
+		.room_create_event_id_as_room_id
+	{
 		return Err!(Request(BadJson("Missing room_id in pdu")));
 	}
 
@@ -116,9 +121,10 @@ pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 		.rules()
 		.unwrap();
 
-	let (event_id, value) = gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
-		err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-	})?;
+	let (event_id, value) =
+		gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
+			err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+		})?;
 	self.validate_pdu(&value)?;
 	Ok((room_id, event_id, value))
 }
