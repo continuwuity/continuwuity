@@ -1,0 +1,1 @@
+Clarified in the config that `max_request_size` affects federated media as well.
