@@ -371,6 +371,7 @@ pub struct Config {
 	pub ip_lookup_strategy: u8,
 
 	/// Max request size for file uploads in bytes. Defaults to 20MB.
+	/// Also limits incoming federated media.
 	///
 	/// default: 20971520
 	#[serde(default = "default_max_request_size")]
