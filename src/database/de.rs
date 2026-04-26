@@ -288,8 +288,14 @@ impl<'a, 'de: 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
 	}
 
 	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip_all))]
-	fn deserialize_bool<V: Visitor<'de>>(self, _visitor: V) -> Result<V::Value> {
-		unhandled!("deserialize bool not implemented")
+	fn deserialize_bool<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+		let byte = self
+			.buf
+			.get(self.pos)
+			.ok_or(Self::Error::SerdeDe("bool buffer underflow".into()))?;
+		self.inc_pos(1);
+
+		visitor.visit_bool(*byte != 0x00)
 	}
 
 	#[cfg_attr(unabridged, tracing::instrument(level = "trace", skip_all))]
