@@ -24,10 +24,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 	},
 };
-use service::{
-	mailer::messages,
-	uiaa::{Identity, UiaaInitiator},
-};
+use service::{mailer::messages, uiaa::UiaaInitiator};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
@@ -285,7 +282,7 @@ pub(crate) async fn deactivate_route(
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, &sender_user, body.sender_device(), None)
+		.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 		.await?;
 
 	// Remove profile pictures and display name

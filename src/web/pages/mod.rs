@@ -35,7 +35,6 @@ macro_rules! template {
     ) => {
         #[derive(Debug, askama::Template)]
         #[template(path = $path)]
-        #[allow(clippy::useless_let_if_seq)]
         struct $name$(<$lifetime>)? {
             context: $crate::pages::TemplateContext,
             $($field_name: $field_type,)*

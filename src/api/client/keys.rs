@@ -26,7 +26,7 @@ use ruma::{
 	serde::Raw,
 };
 use serde_json::json;
-use service::{oauth::OAuthTicket, uiaa::Identity};
+use service::oauth::OAuthTicket;
 
 use crate::Ruma;
 

@@ -8,7 +8,6 @@ use ruma::{
 		self, delete_device, delete_devices, get_device, get_devices, update_device,
 	},
 };
-use service::uiaa::Identity;
 
 use crate::{Ruma, client::DEVICE_ID_LENGTH};
 

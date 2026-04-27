@@ -11,7 +11,7 @@ use ruma::{
 	},
 	thirdparty::{Medium, ThirdPartyIdentifierInit},
 };
-use service::{mailer::messages, uiaa::Identity};
+use service::mailer::messages;
 
 use crate::Ruma;
 

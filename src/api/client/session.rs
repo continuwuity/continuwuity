@@ -30,7 +30,6 @@ use ruma::{
 	},
 	assign,
 };
-use service::uiaa::Identity;
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::Ruma;

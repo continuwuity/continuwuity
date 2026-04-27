@@ -1,9 +1,7 @@
 use axum::{Router, extract::State, routing::on};
 use conduwuit_api::client::{full_user_deactivate, password_login};
-use conduwuit_service::oauth::OAuthTicket;
 use futures::StreamExt;
 use ruma::{OwnedRoomId, OwnedUserId, UserId};
-use serde::Deserialize;
 use tower_sessions::Session;
 use validator::{Validate, ValidationError, ValidationErrors};
 

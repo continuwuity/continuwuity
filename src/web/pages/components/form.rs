@@ -1,5 +1,5 @@
 use askama::{Template, filters::HtmlSafe};
-use validator::{ValidationError, ValidationErrors};
+use validator::ValidationErrors;
 
 /// A reusable form component with field validation.
 #[derive(Debug, Template)]

@@ -7,7 +7,7 @@ use std::{
 use conduwuit::{Err, Error, Result, error, utils, utils::hash};
 use lettre::Address;
 use ruma::{
-	DeviceId, OwnedDeviceId, OwnedUserId, UserId,
+	DeviceId, UserId,
 	api::{
 		client::uiaa::{
 			AuthData, AuthFlow, AuthType, EmailIdentity, EmailUserIdentifier,
@@ -82,8 +82,8 @@ enum UiaaSessionMetadata {
 impl UiaaSessionMetadata {
 	fn into_identity(self) -> Identity {
 		match self {
-			| UiaaSessionMetadata::Legacy { identity } => identity,
-			| UiaaSessionMetadata::OAuth { localpart, .. } =>
+			| Self::Legacy { identity } => identity,
+			| Self::OAuth { localpart, .. } =>
 				assign!(Identity::default(), { localpart: Some(localpart) }),
 		}
 	}
@@ -97,10 +97,12 @@ pub struct UiaaInitiator<'a> {
 }
 
 impl<'a> UiaaInitiator<'a> {
+	#[must_use]
 	pub fn new(user_id: &'a UserId, device_id: &'a DeviceId) -> Self {
 		Self { user_id, device_id, oauth_ticket: None }
 	}
 
+	#[must_use]
 	pub fn with_oauth_ticket(
 		user_id: &'a UserId,
 		device_id: &'a DeviceId,
