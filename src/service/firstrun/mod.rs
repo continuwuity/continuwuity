@@ -181,7 +181,7 @@ impl Service {
 		eprintln!(
 			"Welcome to {} {}!",
 			"Continuwuity".bold().bright_magenta(),
-			conduwuit::version::version().bold()
+			conduwuit::version().bold()
 		);
 		eprintln!();
 		eprintln!(
