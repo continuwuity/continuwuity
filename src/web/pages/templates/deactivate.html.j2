@@ -1,0 +1,37 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Deactivate your account
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>Deactivate your account <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
+    {% match body %}
+        {% when DeactivateBody::Form { user_id, user_card, form } %}
+            {{ user_card }}
+            <p>
+                <em class="negative">Please read this carefully. Deactivating your account is a permanent action.</em>
+            </p>
+            <p>
+                What will happen:
+                <ul>
+                    <li>Your account will be <em class="negative">permanently locked.</em>
+                    You will not be able to reactivate it or sign back in.</em>
+                    <li>Nobody, including you, will <b>ever</b> be able to re-use the user ID <code>{{ user_id }}</code>.</li>
+                    <li>Your profile information will be wiped from the server.</li>
+                    <li>You will be removed from all chatrooms and direct messages you are in.</li>
+                </ul>
+            </p>
+            <p>
+                Your messages will remain in chatrooms you were participating in.
+            </p>
+            <hr>
+            {{ form }}
+        {% when DeactivateBody::Success %}
+            <p>
+                Your account has been deactivated and you have been signed out of Matrix.
+            </p>
+    {% endmatch %}
+</div>
+{% endblock %}

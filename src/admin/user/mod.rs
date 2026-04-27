@@ -29,12 +29,6 @@ pub enum UserCommand {
 		password: Option<String>,
 	},
 
-	/// Issue a self-service password reset link for a user.
-	IssuePasswordResetLink {
-		/// Username of the user who may use the link
-		username: String,
-	},
-
 	/// Get a user's associated email address.
 	GetEmail {
 		user_id: String,

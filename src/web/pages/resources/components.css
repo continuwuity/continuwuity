@@ -11,12 +11,17 @@
     font-size: calc(var(--avatar-size) * 0.5);
     font-weight: 700;
     line-height: calc(var(--avatar-size) - 2px);
+    user-select: none;
 
-    color: oklch(from var(--c1) calc(l + 0.2) c h);
-    background-color: var(--c1);
+    color: oklch(from var(--avatar-color) calc(l + 0.2) c h);
+    background-color: var(--avatar-color);
 }
 
-.user-card {
+.green-avatar {
+    --avatar-color: var(--c1);
+}
+
+.card {
     display: flex;
     flex-direction: row;
     align-items: center;
@@ -32,13 +37,21 @@
         p {
             margin: 0;
 
-            &.display-name {
+            &.name {
                 font-weight: 700;
             }
+        }
 
-            &:nth-of-type(2) {
-                color: var(--secondary);
-            }
+        .id {
+            color: var(--secondary);
+            font-weight: normal;
         }
     }
+}
+
+.card-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 10px;
 }

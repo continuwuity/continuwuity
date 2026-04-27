@@ -29,7 +29,6 @@ use ruma::{
 	},
 	assign,
 };
-use service::uiaa::Identity;
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::Ruma;
@@ -53,7 +52,7 @@ pub(crate) async fn get_login_types_route(
 	]))
 }
 
-pub(crate) async fn handle_login(
+pub async fn handle_login(
 	services: &Services,
 	identifier: Option<&UserIdentifier>,
 	password: &str,
@@ -263,7 +262,7 @@ pub(crate) async fn login_token_route(
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.authenticate_password(&body.auth, sender_user, body.identity.sender_device(), None)
 		.await?;
 
 	let login_token = utils::random_string(TOKEN_LENGTH);

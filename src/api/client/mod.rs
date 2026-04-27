@@ -75,6 +75,7 @@ pub(super) use report::*;
 pub(super) use room::*;
 pub(super) use search::*;
 pub(super) use send::*;
+pub use session::handle_login;
 pub(super) use session::*;
 pub(super) use space::*;
 pub(super) use state::*;

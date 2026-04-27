@@ -24,7 +24,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 	},
 };
-use service::{mailer::messages, uiaa::Identity, users::HashedPassword};
+use service::{mailer::messages, uiaa::UiaaInitiator, users::HashedPassword};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::{Ruma, router::ClientIdentity};
@@ -109,12 +109,7 @@ pub(crate) async fn change_password_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	let identity = if let Some(user_id) = body
-		.identity
-		.as_ref()
-		.map(ClientIdentity::expect_sender_user)
-		.transpose()?
-	{
+	let identity = if let Some(identity) = body.identity.as_ref() {
 		// A signed-in user is trying to change their password, prompt them for their
 		// existing one
 
@@ -124,7 +119,10 @@ pub(crate) async fn change_password_route(
 				&body.auth,
 				vec![AuthFlow::new(vec![AuthType::Password])],
 				Box::default(),
-				Some(Identity::from_user_id(user_id)),
+				Some(UiaaInitiator::new(
+					identity.expect_sender_user()?,
+					identity.sender_device(),
+				)),
 			)
 			.await?
 	} else {
@@ -280,16 +278,17 @@ pub(crate) async fn deactivate_route(
 ) -> Result<deactivate::v3::Response> {
 	// Authentication for this endpoint is technically optional,
 	// but we require the user to be logged in
-	let sender_user = body
+	let identity = body
 		.identity
 		.as_ref()
-		.map(ClientIdentity::expect_sender_user)
-		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))??;
+		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
+
+	let sender_user = identity.expect_sender_user()?;
 
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.authenticate_password(&body.auth, &sender_user, identity.sender_device(), None)
 		.await?;
 
 	// Remove profile pictures and display name

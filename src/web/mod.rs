@@ -1,24 +1,32 @@
-use std::any::Any;
+use std::{any::Any, sync::Once, time::Duration};
 
 use askama::Template;
 use axum::{
 	Router,
 	extract::rejection::{FormRejection, QueryRejection},
 	http::{HeaderValue, StatusCode, header},
-	response::{Html, IntoResponse, Response},
+	response::{Html, IntoResponse, Redirect, Response},
 };
-use conduwuit_service::state;
+use conduwuit_service::{Services, state};
 use tower_http::{catch_panic::CatchPanicLayer, set_header::SetResponseHeaderLayer};
 use tower_sec_fetch::SecFetchLayer;
+use tower_sessions::{ExpiredDeletion, SessionManagerLayer};
 
-use crate::pages::TemplateContext;
+use crate::{
+	pages::TemplateContext,
+	session::{LoginQuery, store::RocksDbSessionStore},
+};
 
+mod extract;
 mod pages;
+mod session;
 
 type State = state::State;
 
 const CATASTROPHIC_FAILURE: &str = "cat-astrophic failure! we couldn't even render the error template. \
 please contact the team @ https://continuwuity.org";
+
+const ROUTE_PREFIX: &str = conduwuit_core::ROUTE_PREFIX;
 
 #[derive(Debug, thiserror::Error)]
 enum WebError {
@@ -33,6 +41,10 @@ enum WebError {
 
 	#[error("This page does not exist.")]
 	NotFound,
+	#[error("You are not allowed to request this page: {0}")]
+	Forbidden(String),
+	#[error("You must log in to access this page")]
+	LoginRequired(LoginQuery),
 
 	#[error("Failed to render template: {0}")]
 	Render(#[from] askama::Error),
@@ -52,12 +64,26 @@ impl IntoResponse for WebError {
 			context: TemplateContext,
 		}
 
+		if let Self::LoginRequired(query) = self {
+			return Redirect::to(&format!(
+				"{}/account/login?{}",
+				ROUTE_PREFIX,
+				serde_urlencoded::to_string(query).unwrap()
+			))
+			.into_response();
+		}
+
 		let status = match &self {
 			| Self::ValidationError(_)
 			| Self::BadRequest(_)
 			| Self::QueryRejection(_)
-			| Self::FormRejection(_) => StatusCode::BAD_REQUEST,
+			| Self::FormRejection(_)
+			| Self::InternalError(_) => StatusCode::BAD_REQUEST,
 			| Self::NotFound => StatusCode::NOT_FOUND,
+			| Self::Forbidden(_) => StatusCode::FORBIDDEN,
+			| Self::LoginRequired(_) => {
+				unreachable!("LoginRequired is handled earlier")
+			},
 			| _ => StatusCode::INTERNAL_SERVER_ERROR,
 		};
 
@@ -78,21 +104,34 @@ impl IntoResponse for WebError {
 	}
 }
 
-pub fn build() -> Router<state::State> {
+static STORE_CLEANUP_TASK: Once = Once::new();
+
+pub fn build(services: &Services) -> Router<state::State> {
 	#[allow(clippy::wildcard_imports)]
 	use pages::*;
+
+	let store = RocksDbSessionStore::new(&services.db);
+
+	STORE_CLEANUP_TASK.call_once(|| {
+		services.server.runtime().spawn(
+			store
+				.clone()
+				.continuously_delete_expired(Duration::from_hours(1)),
+		);
+	});
 
 	Router::new()
 		.merge(index::build())
 		.nest(
 			"/_continuwuity/",
 			Router::new()
-				.merge(resources::build())
-				.merge(password_reset::build())
+				.nest("/account/", account::build())
 				.merge(debug::build())
+				.merge(resources::build())
 				.merge(threepid::build())
 				.fallback(async || WebError::NotFound),
 		)
+		.layer(SessionManagerLayer::new(store).with_name("_c10y_session"))
 		.layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send + 'static>| {
 			let details = if let Some(s) = panic.downcast_ref::<String>() {
 				s.clone()

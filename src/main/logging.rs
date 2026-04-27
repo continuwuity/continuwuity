@@ -110,7 +110,7 @@ pub(crate) fn init(
 				.with_batch_exporter(exporter)
 				.build();
 
-			let tracer = provider.tracer(conduwuit_core::name());
+			let tracer = provider.tracer(conduwuit_core::BRANDING);
 
 			let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
