@@ -9,17 +9,17 @@
     <meta name="robots" content="noindex" />
     {%- endif %}
 
-    <link rel="icon" href="/_continuwuity/resources/logo.svg">
-    <link rel="stylesheet" href="/_continuwuity/resources/common.css">
-    <link rel="stylesheet" href="/_continuwuity/resources/components.css">
+    <link rel="icon" href="{{ crate::ROUTE_PREFIX }}/resources/logo.svg">
+    <link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/common.css">
+    <link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/components.css">
     {% block head %}{% endblock %}
 </head>
 
 <body>
-    <main>{%~ block content %}{% endblock ~%}</main>
+    {%~ block content %}{% endblock ~%}
     {%~ block footer ~%}
         <footer>
-            <img class="logo" src="/_continuwuity/resources/logo.svg">
+            <img class="logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg">
             <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }}
                 {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
                     {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}

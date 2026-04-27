@@ -1,0 +1,15 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Change your email
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1>Change your email</h1>
+    {{ user_card }}
+    <p>
+        Your email address has been removed. <a href="{{ crate::ROUTE_PREFIX }}/account/">Back</a>
+    </p>
+</div>
+{% endblock %}
