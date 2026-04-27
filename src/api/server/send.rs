@@ -9,7 +9,8 @@ use axum_client_ip::ClientIp;
 use conduwuit::{
 	debug, debug_warn, err, error, result::LogErr, state_res::lexicographical_topological_sort, trace,
 	utils::{
-		millis_since_unix_epoch, stream::{automatic_width, BroadbandExt, TryBroadbandExt}, IterStream, ReadyExt,
+		millis_since_unix_epoch, stream::{automatic_width, BroadbandExt, TryBroadbandExt}, IterStream,
+		ReadyExt,
 	},
 	warn,
 	Err,
@@ -309,7 +310,7 @@ async fn build_local_dag(
 		id_origin_ts.insert(event_id.clone(), origin_server_ts);
 	}
 
-	debug!(count=dag.len(), "Sorting incoming events with partial graph");
+	debug!(count = dag.len(), "Sorting incoming events with partial graph");
 	lexicographical_topological_sort(&dag, &async |node_id| {
 		// Note: we don't bother fetching power levels because that would massively slow
 		// this function down. This is a best-effort attempt to order events correctly
@@ -326,11 +327,13 @@ async fn build_local_dag(
 		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
 	})
 	.await
-	.inspect(|sorted| assert_eq!(
-		sorted.len(),
-		pdu_map.len(),
-		"Sorted graph was not the same size as the input graph"
-	))
+	.inspect(|sorted| {
+		debug_assert_eq!(
+			sorted.len(),
+			pdu_map.len(),
+			"Sorted graph was not the same size as the input graph"
+		);
+	})
 	.map_err(|e| err!("failed to resolve local graph: {e}"))
 }
 
