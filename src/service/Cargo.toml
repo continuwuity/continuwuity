@@ -124,6 +124,7 @@ webpage.optional = true
 blurhash.workspace = true
 blurhash.optional = true
 recaptcha-verify = { version = "0.2.0", default-features = false }
+reqwest_recaptcha = { package = "reqwest", version = "0.12.28", default-features = false, features = ["rustls-tls-no-provider"]  } # As long as recaptcha-verify's reqwest is outdated
 yansi.workspace = true
 lettre.workspace = true
 
