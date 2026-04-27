@@ -116,9 +116,11 @@ impl DeviceCard {
 		let display_name = oauth_metadata
 			.as_ref()
 			.and_then(|metadata| metadata.client_name.clone())
-			.or(device
-				.as_ref()
-				.and_then(|device| device.display_name.clone()));
+			.or_else(|| {
+				device
+					.as_ref()
+					.and_then(|device| device.display_name.clone())
+			});
 
 		let avatar_src = oauth_metadata
 			.as_ref()

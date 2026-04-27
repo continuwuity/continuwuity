@@ -286,7 +286,7 @@ pub(crate) async fn deactivate_route(
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, &sender_user, identity.sender_device(), None)
+		.authenticate_password(&body.auth, sender_user, identity.sender_device(), None)
 		.await?;
 
 	// Remove profile pictures and display name
