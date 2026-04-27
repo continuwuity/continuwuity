@@ -7,24 +7,26 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	debug, debug_warn, err, error, result::LogErr, state_res::lexicographical_topological_sort, trace,
+	Err, Error, Result, debug, debug_warn, err, error,
+	result::LogErr,
+	state_res::lexicographical_topological_sort,
+	trace,
 	utils::{
-		millis_since_unix_epoch, stream::{automatic_width, BroadbandExt, TryBroadbandExt}, IterStream,
-		ReadyExt,
+		IterStream, ReadyExt, millis_since_unix_epoch,
+		stream::{BroadbandExt, TryBroadbandExt, automatic_width},
 	},
 	warn,
-	Err,
-	Error,
-	Result,
 };
 use conduwuit_service::{
-	sending::{EDU_LIMIT, PDU_LIMIT},
 	Services,
+	sending::{EDU_LIMIT, PDU_LIMIT},
 };
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use http::StatusCode;
 use itertools::Itertools;
 use ruma::{
+	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
+	RoomId, ServerName, UInt, UserId,
 	api::{
 		client::error::{ErrorKind, ErrorKind::LimitExceeded},
 		federation::transactions::{
@@ -35,13 +37,11 @@ use ruma::{
 			},
 			send_transaction_message,
 		},
-	}, events::receipt::{ReceiptEvent, ReceiptEventContent, ReceiptType}, int, serde::Raw, to_device::DeviceIdOrAllDevices,
-	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId,
-	OwnedUserId,
-	RoomId,
-	ServerName,
-	UInt,
-	UserId,
+	},
+	events::receipt::{ReceiptEvent, ReceiptEventContent, ReceiptType},
+	int,
+	serde::Raw,
+	to_device::DeviceIdOrAllDevices,
 };
 use service::transactions::{
 	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
