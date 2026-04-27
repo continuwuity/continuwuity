@@ -7,7 +7,7 @@ use std::{
 use base64::Engine;
 use conduwuit::{Result, utils::hash::sha256};
 use database::{Deserialized, Json, Map};
-use ruma::{DeviceId, OwnedUserId, UserId};
+use ruma::DeviceId;
 
 use crate::{Dep, config, oauth::client_metadata::ClientMetadata};
 
@@ -36,6 +36,7 @@ pub enum OAuthTicket {
 impl OAuthTicket {
 	const MAX_AGE: Duration = Duration::from_mins(10);
 
+	#[must_use]
 	pub fn ticket_issue_path(&self) -> &'static str {
 		match self {
 			| Self::CrossSigningReset => "/account/cross_signing_reset",

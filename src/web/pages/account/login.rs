@@ -11,9 +11,8 @@ use ruma::{
 	OwnedUserId,
 	api::client::uiaa::{EmailUserIdentifier, MatrixUserIdentifier, UserIdentifier},
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tower_sessions::Session;
-use validator::Validate;
 
 use crate::{
 	WebError,
