@@ -1,9 +1,4 @@
-use axum::{
-	Router,
-	extract::State,
-	response::{IntoResponse, Response},
-	routing::get,
-};
+use axum::{Router, extract::State, response::Response, routing::get};
 use conduwuit_service::threepid::EmailRequirement;
 use futures::StreamExt;
 use ruma::{OwnedClientSecret, OwnedSessionId};
