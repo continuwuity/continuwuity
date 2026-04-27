@@ -126,7 +126,7 @@ pub(crate) async fn delete_device_route(
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 			.await?;
 	}
 
@@ -162,7 +162,7 @@ pub(crate) async fn delete_devices_route(
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 			.await?;
 	}
 

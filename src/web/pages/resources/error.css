@@ -2,12 +2,18 @@
     font-family: monospace;
     font-size: x-small;
     font-weight: 700;
-    transform: translate(1rem, 1.6rem);
+    transform: translate(0rem, 2rem);
     color: var(--secondary);
     user-select: none;
+    margin: 0;
+    padding: 0;
 }
 
 h1 {
     display: flex;
     align-items: center;
+}
+
+code {
+    white-space: pre-wrap;
 }

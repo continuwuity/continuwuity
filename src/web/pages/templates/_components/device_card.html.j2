@@ -1,0 +1,19 @@
+<div class="card">
+    {{ avatar() }}
+    <div class="info">
+        <p class="name">
+            {% if let Some(display_name) = display_name %}
+                {{ display_name }}
+            {% else %}
+                Unknown device
+            {% endif %}
+            &nbsp;<span class="id">{{ device_id }}</span>
+        </p>
+        <p>
+            Last active: {{ last_active }}
+            {% if let Some(metadata) = oauth_metadata %}
+                &nbsp;&bullet;&nbsp;<a href="{{ metadata.client_uri }}">Client information</a>
+            {% endif %}
+        </p>
+    </div>
+</div>

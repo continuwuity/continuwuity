@@ -1,7 +1,7 @@
 {% extends "_layout.html.j2" %}
 
 {%- block head -%}
-<link rel="stylesheet" href="/_continuwuity/resources/error.css">
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/error.css">
 {%- endblock -%}
 
 {%- block title -%}
@@ -9,33 +9,35 @@
 {%- endblock -%}
 
 {%- block content -%}
-<pre class="k10y" aria-hidden>
-　　　 　  ／＞　　 フ
-　　　 　  | 　_　 _|
-　 　　  ／` ミ＿xノ
-　　 　 /　　　 　 |
-　　　 /　 ヽ　　 ﾉ
-　 　 │　　|　|　|
-　／￣|　　 |　|　|
-　| (￣ヽ＿_ヽ_)__)
-　＼二つ
-</pre>
-<div class="panel">
-    <h1>
-        {% if status == StatusCode::NOT_FOUND %}
-        Not found
-        {% else if status == StatusCode::INTERNAL_SERVER_ERROR %}
-        Internal server error
-        {% else %}
-        Bad request
+<div class="error-body">
+    <pre class="k10y" aria-hidden>
+    　　　 　  ／＞　　 フ
+    　　　 　  | 　_　 _|
+    　 　　  ／` ミ＿xノ
+    　　 　 /　　　 　 |
+    　　　 /　 ヽ　　 ﾉ
+    　 　 │　　|　|　|
+    　／￣|　　 |　|　|
+    　| (￣ヽ＿_ヽ_)__)
+    　＼二つ
+    </pre>
+    <div class="panel middle">
+        <h1>
+            {% if status == StatusCode::NOT_FOUND %}
+            Not found
+            {% else if status == StatusCode::INTERNAL_SERVER_ERROR %}
+            Internal server error
+            {% else %}
+            Bad request
+            {% endif %}
+        </h1>
+
+        {% if status == StatusCode::INTERNAL_SERVER_ERROR %}
+        <p>Please <a href="https://forgejo.ellis.link/continuwuation/continuwuity/issues/new">submit a bug report</a> 🥺</p>
         {% endif %}
-    </h1>
 
-    {% if status == StatusCode::INTERNAL_SERVER_ERROR %}
-    <p>Please <a href="https://forgejo.ellis.link/continuwuation/continuwuity/issues/new">submit a bug report</a> 🥺</p>
-    {% endif %}
-
-    <pre><code>{{ error }}</code></pre>
+        <pre style="white-space: pre-wrap"><code>{{ error }}</code></pre>
+    </div>
 </div>
 
 {%- endblock -%}

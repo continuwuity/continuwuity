@@ -58,7 +58,7 @@ pub(crate) async fn get_login_types_route(
 ///
 /// Returns the user ID if successful, and an error otherwise.
 #[tracing::instrument(skip_all, fields(%user_id), name = "password", level = "debug")]
-pub(crate) async fn password_login(
+pub async fn password_login(
 	services: &Services,
 	user_id: &UserId,
 	lowercased_user_id: &UserId,
@@ -85,7 +85,7 @@ pub(crate) async fn password_login(
 	Ok(user_id.to_owned())
 }
 
-pub(crate) async fn handle_login(
+pub async fn handle_login(
 	services: &Services,
 	identifier: Option<&UserIdentifier>,
 	password: &str,
@@ -299,7 +299,7 @@ pub(crate) async fn login_token_route(
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 		.await?;
 
 	let login_token = utils::random_string(TOKEN_LENGTH);

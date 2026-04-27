@@ -1,0 +1,53 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Your account
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>Manage your account</h1>
+    {{ user_card }}
+    <section>
+        {% if email_requirement.may_change() %}
+            <p>
+                {% if let Some(email) = email %}
+                    Your account's associated email address is <code>{{ email }}</code>.
+                {% else %}
+                    Your account has no associated email address.
+                {% endif %}
+                <a href="email/change/">Change your email</a>
+            </p>
+        {% endif %}
+        <p>
+            <a href="password/change">Change your password</a>
+        </p>
+    </section>
+
+    <section>
+        <a class="button fullwidth" href="logout">Log out</a>
+    </section>
+
+    <section>
+        <details>
+            <summary>Your devices ({{ devices.len() }})</summary>
+            <div class="card-list">
+                {% for device in devices %}
+                    {{ device }}
+                {% endfor %}
+            </div>
+        </details>
+    </section>
+
+    <section>
+        <details>
+            <summary>Danger zone</summary>
+            <p>
+                Settings here <em class="negative">may affect the integrity of your account</em>.
+            </p>
+            <a href="cross_signing_reset">Reset your digital identity</a> &bullet;
+            <a href="deactivate">Deactivate your account</a>
+        </details>
+    </section>
+</div>
+{%- endblock -%}

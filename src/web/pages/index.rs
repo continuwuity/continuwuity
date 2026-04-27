@@ -5,7 +5,7 @@ use crate::{WebError, template};
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
 		.route("/", get(index))
-		.route("/_continuwuity/", get(index))
+		.route(&format!("{}/", crate::ROUTE_PREFIX), get(index))
 }
 
 async fn index(State(services): State<crate::State>) -> Result<impl IntoResponse, WebError> {

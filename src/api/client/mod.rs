@@ -76,6 +76,7 @@ pub(super) use room::*;
 pub(super) use search::*;
 pub(super) use send::*;
 pub(super) use session::*;
+pub use session::{handle_login, password_login};
 pub(super) use space::*;
 pub(super) use state::*;
 pub(super) use sync::*;

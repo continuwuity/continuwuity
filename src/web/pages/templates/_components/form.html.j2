@@ -1,30 +1,50 @@
+{% macro errors(field_errors, name) %}
+    {% if let Some(errors) = field_errors.get(name) %}
+        {% for error in errors %}
+            <small class="error">
+                {% if let Some(message) = error.message %}
+                    {{ message }}
+                {% else %}
+                    Mysterious validation error <code>{{ error.code }}</code>!
+                {% endif %}
+            </small>
+        {% endfor %}
+    {% endif %}
+{% endmacro %}
+
 <form method="post">
     {% let validation_errors = validation_errors.clone().unwrap_or_default() %}
     {% let field_errors = validation_errors.field_errors() %}
     {% for input in inputs %}
         <p>
-            <label for="{{ input.id }}">{{ input.label }}</label>
             {% let name = std::borrow::Cow::from(*input.id) %}
-            {% if let Some(errors) = field_errors.get(name) %}
-                {% for error in errors %}
-                    <small class="error">
-                        {% if let Some(message) = error.message %}
-                            {{ message }}
-                        {% else %}
-                            Mysterious validation error <code>{{ error.code }}</code>!
-                        {% endif %}
-                    </small>
-                {% endfor %}
+            {% if input.input_type == "checkbox" %}
+                <label for="{{ input.id }}">
+                    <input
+                        type="checkbox"
+                        id="{{ input.id }}"
+                        {% if input.type_name.is_some() %}name="{{ input.id }}"{% endif %}
+                        {% if input.required %}required{% endif %}
+                    >
+                    {{ input.label }}
+                </label>
+                {{ errors(field_errors, name) }}
+            {% else %}
+                <label for="{{ input.id }}">{{ input.label }}</label>
+                {{ errors(field_errors, name) }}
+                <input
+                    type="{{ input.input_type }}"
+                    id="{{ input.id }}"
+                    autocomplete="{{ input.autocomplete }}"
+                    {% if input.type_name.is_some() %}name="{{ input.id }}"{% endif %}
+                    {% if input.required %}required{% endif %}
+                >
             {% endif %}
-            <input
-                type="{{ input.input_type }}"
-                id="{{ input.id }}"
-                autocomplete="{{ input.autocomplete }}"
-                {% if input.type_name.is_some() %}name="{{ input.id }}"{% endif %}
-                {% if input.required %}required{% endif %}
-            >
         </p>
     {% endfor %}
 
-    <button type="submit">{{ submit_label }}</button>
+    <button type="submit"{% if slowdown %} class="slowdown"{% endif %}>{{ submit_label }}</button>
+    {% if slowdown %}
+        <script src="{{ crate::ROUTE_PREFIX }}/resources/slowdown.js"></script>
+    {% endif %}
 </form>

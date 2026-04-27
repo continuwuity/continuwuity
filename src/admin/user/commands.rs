@@ -305,31 +305,6 @@ pub(super) async fn reset_password(
 }
 
 #[admin_command]
-pub(super) async fn issue_password_reset_link(&self, username: String) -> Result {
-	use conduwuit_service::password_reset::{PASSWORD_RESET_PATH, RESET_TOKEN_QUERY_PARAM};
-
-	self.bail_restricted()?;
-
-	let mut reset_url = self
-		.services
-		.config
-		.get_client_domain()
-		.join(PASSWORD_RESET_PATH)
-		.unwrap();
-
-	let user_id = parse_local_user_id(self.services, &username)?;
-	let token = self.services.password_reset.issue_token(user_id).await?;
-	reset_url
-		.query_pairs_mut()
-		.append_pair(RESET_TOKEN_QUERY_PARAM, &token.token);
-
-	self.write_str(&format!("Password reset link issued for {username}: {reset_url}"))
-		.await?;
-
-	Ok(())
-}
-
-#[admin_command]
 pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> Result {
 	if self.body.len() < 2
 		|| !self.body[0].trim().starts_with("```")

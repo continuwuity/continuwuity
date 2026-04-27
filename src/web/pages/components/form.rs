@@ -1,13 +1,25 @@
 use askama::{Template, filters::HtmlSafe};
-use validator::ValidationErrors;
+use validator::{ValidationError, ValidationErrors};
 
 /// A reusable form component with field validation.
 #[derive(Debug, Template)]
 #[template(path = "_components/form.html.j2", print = "code")]
 pub(crate) struct Form<'a> {
-	pub inputs: Vec<FormInput<'a>>,
+	inputs: Vec<FormInput<'a>>,
+	submit_label: &'a str,
+	slowdown: bool,
 	pub validation_errors: Option<ValidationErrors>,
-	pub submit_label: &'a str,
+}
+
+impl<'a> Form<'a> {
+	pub(crate) fn new(inputs: Vec<FormInput<'a>>, submit_label: &'a str, slowdown: bool) -> Self {
+		Self {
+			inputs,
+			submit_label,
+			slowdown,
+			validation_errors: None,
+		}
+	}
 }
 
 impl HtmlSafe for Form<'_> {}
@@ -50,6 +62,16 @@ impl Default for FormInput<'_> {
 	}
 }
 
+#[macro_export]
+macro_rules! default {
+	($value:expr) => {
+		$value
+	};
+	() => {
+		Default::default()
+	};
+}
+
 /// Generate a deserializable struct which may be turned into a [`Form`]
 /// for inclusion in another template.
 #[macro_export]
@@ -63,6 +85,7 @@ macro_rules! form {
             ),*
 
             submit: $submit_label:expr
+            $(, slowdown: $slowdown:expr)?
         }
     ) => {
         #[derive(Debug, serde::Deserialize, validator::Validate)]
@@ -77,9 +100,9 @@ macro_rules! form {
         impl $struct_name {
             /// Generate a [`Form`] which matches the shape of this struct.
             #[allow(clippy::needless_update)]
-            fn build(validation_errors: Option<validator::ValidationErrors>) -> $crate::pages::components::form::Form<'static> {
-                $crate::pages::components::form::Form {
-                    inputs: vec![
+            fn build() -> $crate::pages::components::form::Form<'static> {
+                $crate::pages::components::form::Form::new(
+                    vec![
                         $(
                             $crate::pages::components::form::FormInput {
                                 id: stringify!($name),
@@ -89,9 +112,17 @@ macro_rules! form {
                             },
                         )*
                     ],
-                    validation_errors,
-                    submit_label: $submit_label,
-                }
+                    $submit_label,
+                    $crate::default!($($slowdown)?)
+                )
+            }
+
+            /// Generate a [`Form`] with validation errors.
+            #[allow(unused)]
+            fn with_errors(errors: validator::ValidationErrors) -> $crate::pages::components::form::Form<'static> {
+                let mut form = Self::build();
+                form.validation_errors = Some(errors);
+                form
             }
         }
     };

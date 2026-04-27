@@ -1219,17 +1219,23 @@ dependencies = [
  "axum",
  "axum-extra",
  "base64 0.22.1",
+ "conduwuit_api",
  "conduwuit_build_metadata",
  "conduwuit_core",
+ "conduwuit_database",
  "conduwuit_service",
  "futures",
+ "lettre",
  "memory-serve",
  "rand 0.10.1",
  "ruma",
  "serde",
+ "serde_urlencoded",
  "thiserror",
  "tower-http",
  "tower-sec-fetch",
+ "tower-sessions",
+ "tower-sessions-core",
  "tracing",
  "validator",
 ]
@@ -1644,6 +1650,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7cd812cc2bc1d69d4764bd80df88b4317eaef9e773c75226407d9bc0876b211c"
 dependencies = [
  "powerfmt",
+ "serde_core",
 ]
 
 [[package]]
@@ -5944,6 +5951,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "tower-cookies"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "151b5a3e3c45df17466454bb74e9ecedecc955269bdedbf4d150dfa393b55a36"
+dependencies = [
+ "axum-core",
+ "cookie",
+ "futures-util",
+ "http",
+ "parking_lot",
+ "pin-project-lite",
+ "tower-layer",
+ "tower-service",
+]
+
+[[package]]
 name = "tower-http"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5990,6 +6013,44 @@ name = "tower-service"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
+
+[[package]]
+name = "tower-sessions"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "518dca34b74a17cadfcee06e616a09d2bd0c3984eff1769e1e76d58df978fc78"
+dependencies = [
+ "async-trait",
+ "http",
+ "time",
+ "tokio",
+ "tower-cookies",
+ "tower-layer",
+ "tower-service",
+ "tower-sessions-core",
+ "tracing",
+]
+
+[[package]]
+name = "tower-sessions-core"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "568531ec3dfcf3ffe493de1958ae5662a0284ac5d767476ecdb6a34ff8c6b06c"
+dependencies = [
+ "async-trait",
+ "axum-core",
+ "base64 0.22.1",
+ "futures",
+ "http",
+ "parking_lot",
+ "rand 0.9.4",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "tracing"

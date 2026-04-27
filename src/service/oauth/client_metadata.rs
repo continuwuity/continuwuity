@@ -5,35 +5,36 @@ use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[non_exhaustive]
 pub struct ClientMetadata {
 	#[serde(default)]
-	application_type: ApplicationType,
+	pub application_type: ApplicationType,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	client_name: Option<String>,
+	pub client_name: Option<String>,
 
-	client_uri: Url,
+	pub client_uri: Url,
 
 	#[serde(default, deserialize_with = "btreeset_skip_err")]
-	grant_types: BTreeSet<GrantType>,
+	pub grant_types: BTreeSet<GrantType>,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	logo_uri: Option<Url>,
+	pub logo_uri: Option<Url>,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	policy_uri: Option<Url>,
+	pub policy_uri: Option<Url>,
 
 	#[serde(default)]
-	redirect_uris: Vec<Url>,
+	pub redirect_uris: Vec<Url>,
 
 	#[serde(default, deserialize_with = "btreeset_skip_err")]
-	response_types: BTreeSet<ResponseType>,
+	pub response_types: BTreeSet<ResponseType>,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	token_endpoint_auth_method: Option<String>,
+	pub token_endpoint_auth_method: Option<String>,
 
 	#[serde(default, skip_serializing_if = "Option::is_none")]
-	tos_uri: Option<Url>,
+	pub tos_uri: Option<Url>,
 }
 
 impl ClientMetadata {

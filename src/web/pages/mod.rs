@@ -1,9 +1,17 @@
+use axum::{response::Response, routing::MethodFilter};
+
+use crate::WebError;
+
+pub(super) mod account;
 mod components;
 pub(super) mod debug;
 pub(super) mod index;
-pub(super) mod password_reset;
 pub(super) mod resources;
 pub(super) mod threepid;
+
+type Result<T = Response, E = WebError> = std::result::Result<T, E>;
+
+const GET_POST: MethodFilter = MethodFilter::GET.or(MethodFilter::POST);
 
 #[derive(Debug)]
 pub(crate) struct TemplateContext {
@@ -27,6 +35,7 @@ macro_rules! template {
     ) => {
         #[derive(Debug, askama::Template)]
         #[template(path = $path)]
+        #[allow(clippy::useless_let_if_seq)]
         struct $name$(<$lifetime>)? {
             context: $crate::pages::TemplateContext,
             $($field_name: $field_type,)*
@@ -53,4 +62,17 @@ macro_rules! template {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! response {
+	(BadRequest($body:expr)) => {
+		response!((axum::http::StatusCode::BAD_REQUEST, $body))
+	};
+
+	($body:expr) => {{
+		use axum::response::IntoResponse;
+
+		Ok($body.into_response())
+	}};
 }
