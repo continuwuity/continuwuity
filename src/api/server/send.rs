@@ -309,7 +309,8 @@ async fn build_local_dag(
 		id_origin_ts.insert(event_id.clone(), origin_server_ts);
 	}
 
-	let sorted = lexicographical_topological_sort(&dag, &async |node_id| {
+	debug!(count=dag.len(), "Sorting incoming events with partial graph");
+	lexicographical_topological_sort(&dag, &async |node_id| {
 		// Note: we don't bother fetching power levels because that would massively slow
 		// this function down. This is a best-effort attempt to order events correctly
 		// for processing, however ultimately that should be the sender's job.
@@ -325,11 +326,12 @@ async fn build_local_dag(
 		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
 	})
 	.await
-	.map_err(|e| err!("failed to resolve local graph: {e}"));
-	if let Ok(ref s) = sorted {
-		assert_eq!(s.len(), pdu_map.len(), "Sorted graph was not the same size as the input graph");
-	};
-	sorted
+	.inspect(|sorted| assert_eq!(
+		sorted.len(),
+		pdu_map.len(),
+		"Sorted graph was not the same size as the input graph"
+	))
+	.map_err(|e| err!("failed to resolve local graph: {e}"))
 }
 
 async fn handle_room(

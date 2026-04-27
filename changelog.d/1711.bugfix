@@ -1,0 +1,1 @@
+Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a singular transaction. Contributed by @nex.
