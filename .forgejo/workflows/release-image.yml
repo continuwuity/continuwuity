@@ -216,7 +216,7 @@ jobs:
           path: binaries
           merge-multiple: true
       - name: Create Release and Upload
-        uses: https://github.com/softprops/action-gh-release@v2
+        uses: https://github.com/softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3
         with:
           draft: true
           files: binaries/*
