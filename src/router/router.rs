@@ -10,7 +10,7 @@ pub(crate) fn build(services: &Arc<Services>) -> (Router, Guard) {
 	let router = Router::<state::State>::new();
 	let (state, guard) = state::create(services.clone());
 	let router = conduwuit_api::router::build(router, &services.server)
-		.merge(conduwuit_web::build())
+		.merge(conduwuit_web::build(services))
 		.fallback(not_found)
 		.with_state(state);
 

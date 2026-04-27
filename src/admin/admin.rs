@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = conduwuit_core::name(), version = conduwuit_core::version())]
+#[command(name = conduwuit_core::BRANDING, version = conduwuit_core::version())]
 pub enum AdminCommand {
 	#[command(subcommand)]
 	/// Commands for managing appservices

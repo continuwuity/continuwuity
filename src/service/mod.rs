@@ -28,7 +28,6 @@ pub mod mailer;
 pub mod media;
 pub mod moderation;
 pub mod oauth;
-pub mod password_reset;
 pub mod presence;
 pub mod pusher;
 pub mod registration_tokens;

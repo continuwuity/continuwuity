@@ -1,0 +1,35 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Change your email
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>Change your email <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
+    {{ user_card }}
+    <p>
+        Your email address will be used for automated emails, such as password reset requests. It is also
+        visible to your homeserver's administrator, who may use it to contact you directly.
+    </p>
+    <p>
+        {% if let Some(email) = email %}
+            Your account's associated email address is <code>{{ email }}</code>.
+            To change your email address, enter your new address below.
+        {% else %}
+            Your account has no associated email address. To add an email address, enter it below.
+        {% endif %}
+    </p>
+    {{ form }}
+
+    {% if may_remove %}
+        <p>
+            You may remove your email address. Note that, if your account has no email address,
+            you will not be able to reset your password if you forget it.
+        </p>
+        <form method="post" action="delete">
+            <button type="submit">Remove your email address</button>
+        </form>
+    {% endif %}
+</div>
+{% endblock %}
