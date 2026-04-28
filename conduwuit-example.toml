@@ -1847,6 +1847,11 @@
 #
 #support_page =
 
+# The ed25519 public key for the policy server available at this server's
+# name. Must be unpadded base64.
+#
+#policy_server_public_key =
+
 # Role string for server support contacts, to be served as part of the
 # MSC1929 server support endpoint at /.well-known/matrix/support.
 #

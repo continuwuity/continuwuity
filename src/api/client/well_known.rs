@@ -3,6 +3,7 @@ use conduwuit::{Err, Result};
 use ruma::{
 	api::client::discovery::{
 		discover_homeserver::{self, HomeserverInfo, RtcFocusInfo},
+		discover_policy_server,
 		discover_support::{self, Contact, ContactRole},
 	},
 	assign,
@@ -118,4 +119,19 @@ pub(crate) async fn well_known_support(
 	}
 
 	Ok(assign!(discover_support::Response::with_contacts(contacts), { support_page }))
+}
+
+/// # `GET /.well-known/matrix/policy_server`
+///
+/// Advertises the policy server's public key, allowing clients to discover the
+/// values to be set in m.room.policy. Introduced in spec v1.18.
+pub(crate) async fn well_known_policy_server(
+	State(services): State<crate::State>,
+	_body: Ruma<discover_policy_server::Request>,
+) -> Result<discover_policy_server::Response> {
+	if let Some(key) = services.config.well_known.policy_server_public_key.clone() {
+		Ok(discover_policy_server::Response::new(key))
+	} else {
+		Err!(Request(NotFound("No policy server available.")))
+	}
 }
