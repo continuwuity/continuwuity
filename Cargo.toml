@@ -68,7 +68,7 @@ default-features = false
 version = "0.1.3"
 
 [workspace.dependencies.rand]
-version = "0.10.0"
+version = "0.10.1"
 
 # Used for the http request / response body type for Ruma endpoints used with reqwest
 [workspace.dependencies.bytes]
@@ -342,51 +342,50 @@ version = "0.1.88"
 [workspace.dependencies.lru-cache]
 version = "0.1.2"
 
+[workspace.dependencies.assign]
+version = "1.1.1"
+
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
-git = "https://forgejo.ellis.link/continuwuation/ruwuma"
-#branch = "conduwuit-changes"
-rev = "d00b51a8669b21689c4eb47fb81f3a8b27c3e371"
+# version = "0.14.1"
+git = "https://github.com/ruma/ruma.git"
+rev = "8b522a87b541be0802fb3c7820747a6869d37318"
 features = [
-    "compat",
-    "rand",
     "appservice-api-c",
     "client-api",
     "federation-api",
-    "markdown",
     "push-gateway-api-c",
-    "unstable-exhaustive-types",
+    "state-res",
+    "rand",
+    "markdown",
     "ring-compat",
     "compat-upload-signatures",
-    "identifiers-validation",
-    "unstable-unspecified",
+    "compat-optional-txn-pdus",
     "unstable-msc2448",
     "unstable-msc2666",
     "unstable-msc2867",
     "unstable-msc2870",
-    "unstable-msc3026",
     "unstable-msc3061",
     "unstable-msc3814",
     "unstable-msc3245",
-    "unstable-msc3266",
-    "unstable-msc3381", # polls
-    "unstable-msc3489", # beacon / live location
-    "unstable-msc3575",
-    "unstable-msc3930", # polls push rules
+    "unstable-msc3381",
+    "unstable-msc3489",
+    "unstable-msc3930",
     "unstable-msc4075",
     "unstable-msc4095",
     "unstable-msc4121",
     "unstable-msc4125",
-    "unstable-msc4155",
     "unstable-msc4186",
-    "unstable-msc4203", # sending to-device events to appservices
-    "unstable-msc4210", # remove legacy mentions
+    "unstable-msc4195",
+    "unstable-msc4203",
+    "unstable-msc4310",
+    "unstable-msc4373",
+    "unstable-msc4380",
+    "unstable-msc4143",
+    "unstable-msc4293",
+    "unstable-msc4406",
+    "unstable-msc4439",
     "unstable-extensible-events",
-    "unstable-pdu",
-    "unstable-msc4155",
-    "unstable-msc4143", # livekit well_known response
-    "unstable-msc4284",
-    "unstable-msc4439", # pgp_key in .well_known/matrix/support
 ]
 
 [workspace.dependencies.rust-rocksdb]
@@ -657,6 +656,10 @@ default-features = false
 [workspace.dependencies.conduwuit]
 package = "conduwuit"
 path = "src/main"
+
+[workspace.dependencies.ruminuwuity]
+package = "ruminuwuity"
+path = "src/ruminuwuity"
 
 ###############################################################################
 #

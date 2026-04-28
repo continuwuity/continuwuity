@@ -19,16 +19,18 @@ use ldap3::{LdapConnAsync, LdapConnSettings, Scope, SearchEntry};
 use ruma::{
 	DeviceId, KeyId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId,
 	OneTimeKeyName, OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedUserId, RoomId, UInt, UserId,
-	api::client::{device::Device, error::ErrorKind, filter::FilterDefinition},
+	api::{
+		client::{device::Device, filter::FilterDefinition},
+		error::ErrorKind,
+	},
 	encryption::{CrossSigningKey, DeviceKeys, OneTimeKey},
 	events::{
-		AnyToDeviceEvent, GlobalAccountDataEventType,
-		ignored_user_list::IgnoredUserListEvent,
-		invite_permission_config::{FilterLevel, InvitePermissionConfigEvent},
+		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
 	},
 	serde::Raw,
 	uint,
 };
+use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -163,10 +165,9 @@ impl Service {
 				.account_data
 				.get_global(recipient_user, GlobalAccountDataEventType::InvitePermissionConfig)
 				.await
-				.map(|config: InvitePermissionConfigEvent| {
+				.map_or(FilterLevel::Allow, |config: InvitePermissionConfigEvent| {
 					config.content.user_filter_level(sender_user)
 				})
-				.unwrap_or(FilterLevel::Allow)
 		}
 	}
 
@@ -206,7 +207,7 @@ impl Service {
 	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
 		// Remove all associated devices
 		self.all_device_ids(user_id)
-			.for_each(|device_id| self.remove_device(user_id, device_id))
+			.for_each(async |device_id| self.remove_device(user_id, &device_id).await)
 			.await;
 
 		// Set the password to "" to indicate a deactivated account. Hashes will never
@@ -342,15 +343,8 @@ impl Service {
 		self.db.token_userdeviceid.get(token).await.deserialized()
 	}
 
-	/// Returns an iterator over all users on this homeserver (offered for
-	/// compatibility)
-	#[allow(clippy::iter_without_into_iter, clippy::iter_not_returning_iterator)]
-	pub fn iter(&self) -> impl Stream<Item = OwnedUserId> + Send + '_ {
-		self.stream().map(ToOwned::to_owned)
-	}
-
 	/// Returns an iterator over all users on this homeserver.
-	pub fn stream(&self) -> impl Stream<Item = &UserId> + Send {
+	pub fn stream(&self) -> impl Stream<Item = OwnedUserId> + Send {
 		self.db.userid_password.keys().ignore_err()
 	}
 
@@ -358,12 +352,12 @@ impl Service {
 	///
 	/// A user account is considered `local` if the length of it's password is
 	/// greater then zero.
-	pub fn list_local_users(&self) -> impl Stream<Item = &UserId> + Send + '_ {
+	pub fn list_local_users(&self) -> impl Stream<Item = OwnedUserId> + Send + '_ {
 		self.db
 			.userid_password
 			.stream()
 			.ignore_err()
-			.ready_filter_map(|(u, p): (&UserId, &[u8])| (!p.is_empty()).then_some(u))
+			.ready_filter_map(|(u, p): (OwnedUserId, &[u8])| (!p.is_empty()).then_some(u))
 	}
 
 	/// Returns the origin of the user (password/LDAP/...).
@@ -470,15 +464,13 @@ impl Service {
 		}
 
 		let key = (user_id, device_id);
-		let val = Device {
-			device_id: device_id.into(),
-			display_name: initial_device_display_name,
-			last_seen_ip: client_ip,
-			last_seen_ts: Some(MilliSecondsSinceUnixEpoch::now()),
-		};
+		let mut device = Device::new(device_id.into());
+		device.display_name = initial_device_display_name;
+		device.last_seen_ip = client_ip;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
-		self.db.userdeviceid_metadata.put(key, Json(val));
+		self.db.userdeviceid_metadata.put(key, Json(device));
 		self.set_token(user_id, device_id, token).await
 	}
 
@@ -518,13 +510,13 @@ impl Service {
 	pub fn all_device_ids<'a>(
 		&'a self,
 		user_id: &'a UserId,
-	) -> impl Stream<Item = &'a DeviceId> + Send + 'a {
+	) -> impl Stream<Item = OwnedDeviceId> + Send + 'a {
 		let prefix = (user_id, Interfix);
 		self.db
 			.userdeviceid_metadata
 			.keys_prefix(&prefix)
 			.ignore_err()
-			.map(|(_, device_id): (Ignore, &DeviceId)| device_id)
+			.map(|(_, device_id): (Ignore, OwnedDeviceId)| device_id)
 	}
 
 	pub async fn get_token(&self, user_id: &UserId, device_id: &DeviceId) -> Result<String> {
@@ -866,7 +858,7 @@ impl Service {
 		user_id: &'a UserId,
 		from: Option<u64>,
 		to: Option<u64>,
-	) -> impl Stream<Item = &'a UserId> + Send + 'a {
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
 		self.keys_changed_user_or_room(user_id.as_str(), from, to)
 			.map(|(user_id, ..)| user_id)
 	}
@@ -877,7 +869,7 @@ impl Service {
 		room_id: &'a RoomId,
 		from: Option<u64>,
 		to: Option<u64>,
-	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
+	) -> impl Stream<Item = (OwnedUserId, u64)> + Send + 'a {
 		self.keys_changed_user_or_room(room_id.as_str(), from, to)
 	}
 
@@ -886,8 +878,8 @@ impl Service {
 		user_or_room_id: &'a str,
 		from: Option<u64>,
 		to: Option<u64>,
-	) -> impl Stream<Item = (&'a UserId, u64)> + Send + 'a {
-		type KeyVal<'a> = ((&'a str, u64), &'a UserId);
+	) -> impl Stream<Item = (OwnedUserId, u64)> + Send + 'a {
+		type KeyVal<'a> = ((&'a str, u64), OwnedUserId);
 
 		let from = from.unwrap_or(0);
 		let to = to.unwrap_or(u64::MAX);
@@ -909,7 +901,13 @@ impl Service {
 			.state_cache
 			.rooms_joined(user_id)
 			// Don't send key updates to unencrypted rooms
-			.filter(|room_id| self.services.state_accessor.is_encrypted_room(room_id))
+			.filter_map(async |room_id| {
+				if self.services.state_accessor.is_encrypted_room(&room_id).await {
+					Some(room_id)
+				} else {
+					None
+				}
+			})
 			.ready_for_each(|room_id| {
 				let key = (room_id, count);
 				self.db.keychangeid_userid.put_raw(key, user_id);
@@ -1013,7 +1011,7 @@ impl Service {
 		since: Option<u64>,
 		to: Option<u64>,
 	) -> impl Stream<Item = (u64, Raw<AnyToDeviceEvent>)> + Send + 'a {
-		type Key<'a> = (&'a UserId, &'a DeviceId, u64);
+		type Key = (OwnedUserId, OwnedDeviceId, u64);
 
 		let from = (user_id, device_id, since.map_or(0, |since| since.saturating_add(1)));
 
@@ -1021,7 +1019,7 @@ impl Service {
 			.todeviceid_events
 			.stream_from(&from)
 			.ignore_err()
-			.ready_take_while(move |((user_id_, device_id_, count), _): &(Key<'_>, _)| {
+			.ready_take_while(move |((user_id_, device_id_, count), _): &(Key, _)| {
 				user_id == *user_id_
 					&& device_id == *device_id_
 					&& to.is_none_or(|to| *count <= to)
@@ -1037,7 +1035,7 @@ impl Service {
 	) where
 		Until: Into<Option<u64>> + Send,
 	{
-		type Key<'a> = (&'a UserId, &'a DeviceId, u64);
+		type Key = (OwnedUserId, OwnedDeviceId, u64);
 
 		let until = until.into().unwrap_or(u64::MAX);
 		let from = (user_id, device_id, until);
@@ -1045,10 +1043,10 @@ impl Service {
 			.todeviceid_events
 			.rev_keys_from(&from)
 			.ignore_err()
-			.ready_take_while(move |(user_id_, device_id_, _): &Key<'_>| {
+			.ready_take_while(move |(user_id_, device_id_, _): &Key| {
 				user_id == *user_id_ && device_id == *device_id_
 			})
-			.ready_for_each(|key: Key<'_>| {
+			.ready_for_each(|key: Key| {
 				self.db.todeviceid_events.del(key);
 			})
 			.await;
@@ -1275,7 +1273,6 @@ impl Service {
 		profile_key: &str,
 		profile_key_value: Option<serde_json::Value>,
 	) {
-		// TODO: insert to the stable MSC4175 key when it's stable
 		let key = (user_id, profile_key);
 
 		if let Some(value) = profile_key_value {
@@ -1283,6 +1280,17 @@ impl Service {
 		} else {
 			self.db.useridprofilekey_value.del(key);
 		}
+	}
+
+	/// Clears all profile data for a user, including display name and avatar
+	/// url.
+	pub async fn clear_profile(&self, user_id: &UserId) {
+		self.set_displayname(user_id, None);
+		self.set_avatar_url(user_id, None);
+		self.set_blurhash(user_id, None);
+		self.all_profile_keys(user_id)
+			.ready_for_each(|(key, _)| self.set_profile_key(user_id, &key, None))
+			.await;
 	}
 
 	#[cfg(feature = "ldap")]

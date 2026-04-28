@@ -1,14 +1,18 @@
-use std::borrow::ToOwned;
+use std::{borrow::ToOwned, pin::pin};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug, debug_info, info, matrix::pdu::PduBuilder, utils, warn,
+	Err, Error, Result, debug, debug_info, info, matrix::pdu::PartialPdu, utils, warn,
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
 use ruma::{
-	OwnedUserId, RoomId, RoomVersionId, UserId,
-	api::{client::error::ErrorKind, federation::membership::prepare_join_event},
+	OwnedUserId, RoomId, UserId,
+	api::{
+		error::{ErrorKind, IncompatibleRoomVersionErrorData},
+		federation::membership::prepare_join_event,
+	},
+	assign,
 	events::{
 		StateEventType,
 		room::{
@@ -81,15 +85,18 @@ pub(crate) async fn create_join_event_template_route(
 		}
 	}
 
-	let room_version_id = services.rooms.state.get_room_version(&body.room_id).await?;
-	if !body.ver.contains(&room_version_id) {
+	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
+	let room_version_rules = room_version.rules().unwrap();
+	if !body.ver.contains(&room_version) {
 		return Err(Error::BadRequest(
-			ErrorKind::IncompatibleRoomVersion { room_version: room_version_id },
+			ErrorKind::IncompatibleRoomVersion(IncompatibleRoomVersionErrorData::new(
+				room_version,
+			)),
 			"Room version not supported.",
 		));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 	let (is_invited, is_joined) = join!(
 		services
 			.rooms
@@ -101,21 +108,15 @@ pub(crate) async fn create_join_event_template_route(
 			.is_joined(&body.user_id, &body.room_id)
 	);
 	let join_authorized_via_users_server: Option<OwnedUserId> = {
-		use RoomVersionId::*;
 		if is_joined || is_invited {
 			// User is already joined or invited and consequently does not need an
 			// authorising user
 			None
-		} else if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
+		} else if !room_version_rules.authorization.restricted_join_rule {
 			// room version does not support restricted join rules
 			None
-		} else if user_can_perform_restricted_join(
-			&services,
-			&body.user_id,
-			&body.room_id,
-			&room_version_id,
-		)
-		.await?
+		} else if user_can_perform_restricted_join(&services, &body.user_id, &body.room_id)
+			.await?
 		{
 			Some(
 				select_authorising_user(&services, &body.room_id, &body.user_id, &state_lock)
@@ -140,10 +141,12 @@ pub(crate) async fn create_join_event_template_route(
 		.rooms
 		.timeline
 		.create_event(
-			PduBuilder::state(body.user_id.to_string(), &RoomMemberEventContent {
-				join_authorized_via_users_server,
-				..RoomMemberEventContent::new(MembershipState::Join)
-			}),
+			PartialPdu::state(
+				body.user_id.to_string(),
+				&assign!(RoomMemberEventContent::new(MembershipState::Join), {
+					join_authorized_via_users_server,
+				}),
+			),
 			&body.user_id,
 			Some(&body.room_id),
 			&state_lock,
@@ -154,42 +157,38 @@ pub(crate) async fn create_join_event_template_route(
 		.expect("Barebones PDU should be convertible to canonical JSON");
 	pdu_json.remove("event_id");
 
-	Ok(prepare_join_event::v1::Response {
-		room_version: Some(room_version_id),
-		event: to_raw_value(&pdu_json).expect("CanonicalJson can be serialized to JSON"),
-	})
+	Ok(
+		assign!(prepare_join_event::v1::Response::new(to_raw_value(&pdu_json).expect("CanonicalJson can be serialized to JSON")), {
+			room_version: Some(room_version),
+		}),
+	)
 }
 
 /// Attempts to find a user who is able to issue an invite in the target room.
-pub(crate) async fn select_authorising_user(
+pub(crate) async fn select_authorising_user<'a>(
 	services: &Services,
-	room_id: &RoomId,
-	user_id: &UserId,
-	state_lock: &RoomMutexGuard,
+	room_id: &'a RoomId,
+	user_id: &'a UserId,
+	state_lock: &'a RoomMutexGuard,
 ) -> Result<OwnedUserId> {
-	let auth_user = services
-		.rooms
-		.state_cache
-		.local_users_in_room(room_id)
-		.filter(|user| {
-			services
-				.rooms
-				.state_accessor
-				.user_can_invite(room_id, user, user_id, state_lock)
-		})
-		.boxed()
-		.next()
-		.await
-		.map(ToOwned::to_owned);
+	let candidates = services.rooms.state_cache.local_users_in_room(room_id);
 
-	match auth_user {
-		| Some(auth_user) => Ok(auth_user),
-		| None => {
-			Err!(Request(UnableToGrantJoin(
-				"No user on this server is able to assist in joining."
-			)))
-		},
+	let mut candidates = pin!(candidates);
+
+	while let Some(candidate) = candidates.next().await {
+		if services
+			.rooms
+			.state_accessor
+			.user_can_invite(room_id, &candidate, user_id, state_lock)
+			.await
+		{
+			return Ok(candidate);
+		}
 	}
+
+	Err!(Request(UnableToGrantJoin(
+		"No user on this server is able to assist in joining."
+	)))
 }
 
 /// Checks whether the given user can join the given room via a restricted join.
@@ -197,17 +196,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,
-	room_version_id: &RoomVersionId,
 ) -> Result<bool> {
-	use RoomVersionId::*;
-
-	// restricted rooms are not supported on <=v7
-	if matches!(room_version_id, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
-		// This should be impossible as it was checked earlier on, but retain this check
-		// for safety.
-		unreachable!("user_can_perform_restricted_join got incompatible room version");
-	}
-
 	let Ok(join_rules_event_content) = services
 		.rooms
 		.state_accessor
@@ -263,7 +252,7 @@ pub(crate) async fn user_can_perform_restricted_join(
 					return Ok(true);
 				}
 			},
-			| AllowRule::UnstableSpamChecker =>
+			| other if other.rule_type() == "fi.mau.spam_checker" =>
 				return match services
 					.antispam
 					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())

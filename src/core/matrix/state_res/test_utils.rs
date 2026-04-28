@@ -15,7 +15,9 @@ use ruma::{
 			member::{MembershipState, RoomMemberEventContent},
 		},
 	},
-	int, room_id, uint, user_id,
+	int, room_id,
+	room_version_rules::RoomVersionRules,
+	uint, user_id,
 };
 use serde_json::{
 	json,
@@ -24,7 +26,7 @@ use serde_json::{
 
 use super::auth_types_for_event;
 use crate::{
-	Result, RoomVersion, info,
+	Result, info,
 	matrix::{Event, EventTypeExt, Pdu, StateMap, pdu::EventHash},
 };
 
@@ -133,9 +135,14 @@ pub(crate) async fn do_check(
 			let event_map = &event_map;
 			let fetch = |id: OwnedEventId| ready(event_map.get(&id).cloned());
 			let exists = |id: OwnedEventId| ready(event_map.get(&id).is_some());
-			let resolved =
-				super::resolve(&RoomVersionId::V6, state_sets, &auth_chain_sets, &fetch, &exists)
-					.await;
+			let resolved = super::resolve(
+				&RoomVersionRules::V6,
+				state_sets,
+				&auth_chain_sets,
+				&fetch,
+				&exists,
+			)
+			.await;
 
 			match resolved {
 				| Ok(state) => state,
@@ -154,7 +161,7 @@ pub(crate) async fn do_check(
 			fake_event.sender(),
 			fake_event.state_key(),
 			fake_event.content(),
-			&RoomVersion::V6,
+			&RoomVersionRules::V6,
 		)
 		.unwrap();
 

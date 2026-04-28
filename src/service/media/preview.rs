@@ -7,7 +7,9 @@
 
 use std::time::SystemTime;
 
-use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
+#[cfg(feature = "url_preview")]
+use conduwuit::utils::response::LimitReadExt;
+use conduwuit::{Err, Result, debug, err};
 use conduwuit_core::implement;
 use ipaddress::IPAddress;
 #[cfg(feature = "url_preview")]
@@ -16,6 +18,8 @@ use serde::Serialize;
 use url::Url;
 
 use super::Service;
+#[cfg(feature = "url_preview")]
+use crate::media::mxc::Mxc;
 
 #[derive(Serialize, Default)]
 pub struct UrlPreviewData {
@@ -130,7 +134,8 @@ pub async fn download_image(
 ) -> Result<UrlPreviewData> {
 	use conduwuit::utils::random_string;
 	use image::ImageReader;
-	use ruma::Mxc;
+
+	use crate::media::mxc::Mxc;
 
 	let mut preview_data = preview_data.unwrap_or_default();
 
@@ -217,7 +222,6 @@ pub async fn download_audio(
 pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 	use conduwuit::utils::random_string;
 	use http::header::CONTENT_TYPE;
-	use ruma::Mxc;
 
 	let response = self.services.client.url_preview.get(url).send().await?;
 	let content_type = response.headers().get(CONTENT_TYPE).cloned();

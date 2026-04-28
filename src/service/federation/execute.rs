@@ -1,64 +1,111 @@
-use std::{fmt::Debug, mem};
+use std::{borrow::Cow, fmt::Debug, mem};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug::INFO_SPAN_LEVEL, debug_error, debug_warn, err, implement,
-	trace, utils::response::LimitReadExt,
+	Err, Error, Result, debug, debug_error, debug_warn, err, implement, trace,
+	utils::response::LimitReadExt,
 };
-use http::{HeaderValue, header::AUTHORIZATION};
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, ServerName, ServerSigningKeyId,
+	ServerName,
 	api::{
-		EndpointError, IncomingResponse, MatrixVersion, OutgoingRequest, SendAccessToken,
-		client::error::Error as RumaError, federation::authentication::XMatrix,
+		EndpointError, IncomingResponse, OutgoingRequest, SupportedVersions,
+		auth_scheme::{AuthScheme, NoAuthentication},
+		error::Error as RumaError,
+		federation::authentication::{ServerSignatures, ServerSignaturesInput},
+		path_builder::PathBuilder,
 	},
-	serde::Base64,
 };
 
-use crate::resolver::actual::ActualDest;
+use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};
 
 /// Sends a request to a federation server
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, name = "request", level = "debug")]
-pub async fn execute<T>(&self, dest: &ServerName, request: T) -> Result<T::IncomingResponse>
+pub async fn execute<'i, T>(&self, dest: &ServerName, request: T) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest + Debug + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	let client = &self.services.client.federation;
-	self.execute_on(client, dest, request).await
+	self.execute_signed(client, dest, request).await
 }
 
 /// Like execute() but with a very large timeout
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, name = "synapse", level = "debug")]
-pub async fn execute_synapse<T>(
+pub async fn execute_synapse<'i, T>(
 	&self,
 	dest: &ServerName,
 	request: T,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest + Debug + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
 {
 	let client = &self.services.client.synapse;
-	self.execute_on(client, dest, request).await
+	self.execute_signed(client, dest, request).await
 }
 
 #[implement(super::Service)]
-#[tracing::instrument(
-		name = "fed",
-		level = INFO_SPAN_LEVEL,
-		skip(self, client, request),
-	)]
-pub async fn execute_on<T>(
+pub async fn execute_unauthenticated<'i, T>(
+	&self,
+	dest: &ServerName,
+	request: T,
+) -> Result<T::IncomingResponse>
+where
+	T: OutgoingRequest<
+			Authentication = NoAuthentication,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Debug
+		+ Send,
+{
+	let client = &self.services.client.federation;
+
+	self.execute_on(client, dest, request, ()).await
+}
+
+#[implement(super::Service)]
+pub async fn execute_signed<'i, T>(
 	&self,
 	client: &Client,
 	dest: &ServerName,
 	request: T,
 ) -> Result<T::IncomingResponse>
 where
-	T: OutgoingRequest + Send,
+	T: OutgoingRequest<
+			Authentication = ServerSignatures,
+			PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
+		> + Send,
+{
+	let authentication = ServerSignaturesInput::new(
+		self.services.server.name.clone(),
+		dest.to_owned(),
+		self.services.server_keys.keypair(),
+	);
+
+	self.execute_on(client, dest, request, authentication).await
+}
+
+#[implement(super::Service)]
+#[tracing::instrument(name = "fed", level = "info", skip(self, client, request, authentication))]
+pub async fn execute_on<'i, T, PathBuilderInput>(
+	&self,
+	client: &Client,
+	dest: &ServerName,
+	request: T,
+	authentication: <T::Authentication as AuthScheme>::Input<'_>,
+) -> Result<T::IncomingResponse>
+where
+	T: OutgoingRequest<PathBuilder: PathBuilder<Input<'i> = PathBuilderInput>> + Send,
+	PathBuilderInput: FederationPathBuilderInput,
 {
 	if !self.services.server.config.allow_federation {
 		return Err!(Config("allow_federation", "Federation is disabled."));
@@ -69,8 +116,15 @@ where
 	}
 
 	let actual = self.services.resolver.get_actual_dest(dest).await?;
-	let request = into_http_request::<T>(&actual, request)?;
-	let request = self.prepare(dest, request)?;
+
+	let request = Request::try_from(request.try_into_http_request::<Vec<u8>>(
+		actual.string().as_str(),
+		authentication,
+		PathBuilderInput::create(),
+	)?)?;
+	self.validate_url(request.url())?;
+	self.services.server.check_running()?;
+
 	self.perform::<T>(dest, &actual, request, client).await
 }
 
@@ -96,17 +150,6 @@ where
 		| Err(error) =>
 			Err(handle_error(actual, &method, &url, error).expect_err("always returns error")),
 	}
-}
-
-#[implement(super::Service)]
-fn prepare(&self, dest: &ServerName, mut request: http::Request<Vec<u8>>) -> Result<Request> {
-	self.sign_request(&mut request, dest);
-
-	let request = Request::try_from(request)?;
-	self.validate_url(request.url())?;
-	self.services.server.check_running()?;
-
-	Ok(request)
 }
 
 #[implement(super::Service)]
@@ -229,90 +272,31 @@ fn handle_error(
 	Err(e.into())
 }
 
-#[implement(super::Service)]
-fn sign_request(&self, http_request: &mut http::Request<Vec<u8>>, dest: &ServerName) {
-	type Member = (String, Value);
-	type Value = CanonicalJsonValue;
-	type Object = CanonicalJsonObject;
-
-	let origin = &self.services.server.name;
-	let body = http_request.body();
-	let uri = http_request
-		.uri()
-		.path_and_query()
-		.expect("http::Request missing path_and_query");
-
-	let mut req: Object = if !body.is_empty() {
-		let content: CanonicalJsonValue =
-			serde_json::from_slice(body).expect("failed to serialize body");
-
-		let authorization: [Member; 5] = [
-			("content".into(), content),
-			("destination".into(), dest.as_str().into()),
-			("method".into(), http_request.method().as_str().into()),
-			("origin".into(), origin.as_str().into()),
-			("uri".into(), uri.to_string().into()),
-		];
-
-		authorization.into()
-	} else {
-		let authorization: [Member; 4] = [
-			("destination".into(), dest.as_str().into()),
-			("method".into(), http_request.method().as_str().into()),
-			("origin".into(), origin.as_str().into()),
-			("uri".into(), uri.to_string().into()),
-		];
-
-		authorization.into()
-	};
-
-	self.services
-		.server_keys
-		.sign_json(&mut req)
-		.expect("request signing failed");
-
-	let signatures = req["signatures"]
-		.as_object()
-		.and_then(|object| object[origin.as_str()].as_object())
-		.expect("origin signatures object");
-
-	let key: &ServerSigningKeyId = signatures
-		.keys()
-		.next()
-		.map(|k| k.as_str().try_into())
-		.expect("at least one signature from this origin")
-		.expect("keyid is json string");
-
-	let sig: Base64 = signatures
-		.values()
-		.next()
-		.map(|s| s.as_str().map(Base64::parse))
-		.expect("at least one signature from this origin")
-		.expect("signature is json string")
-		.expect("signature is valid base64");
-
-	let x_matrix = XMatrix::new(origin.into(), dest.into(), key.into(), sig);
-	let authorization = HeaderValue::from(&x_matrix);
-	let authorization = http_request
-		.headers_mut()
-		.insert(AUTHORIZATION, authorization);
-
-	debug_assert!(authorization.is_none(), "Authorization header already present");
+/// A trait for the input types of acceptable path builders for outgoing
+/// federation requests.
+///
+/// Ruma uses Rust's type system to encode the versioning scheme of endpoints in
+/// the Matrix spec. Every endpoint has a `PathBuilder` associated type, which
+/// has an `Input` associated type. Endpoints with multiple versions have
+/// `VersionHistory` as their `PathBuilder`, which has `SupportedVersions`
+/// as its `Input` type. Endpoints with no version have `SinglePath` as their
+/// `PathBuilder`, which has `()` as its `Input` type. Both `SupportedVersions`
+/// and `()` can be created out of thin air using static data (or no data at
+/// all). This property is what the `FederationPathBuilderInput` trait
+/// represents.
+///
+/// This trait allows the federation sender service's functions to accept
+/// requests for either versioned or unversioned endpoints, by requiring that
+/// the `Input` of the `PathBuilder` of the endpoint implements
+/// `FederationPathBuilderInput`.
+pub trait FederationPathBuilderInput {
+	fn create() -> Self;
 }
 
-fn into_http_request<T>(actual: &ActualDest, request: T) -> Result<http::Request<Vec<u8>>>
-where
-	T: OutgoingRequest + Send,
-{
-	const VERSIONS: [MatrixVersion; 1] = [MatrixVersion::V1_11];
+impl FederationPathBuilderInput for () {
+	fn create() -> Self {}
+}
 
-	let http_request = request
-		.try_into_http_request::<Vec<u8>>(
-			actual.string().as_str(),
-			SendAccessToken::None,
-			&VERSIONS,
-		)
-		.map_err(|e| err!(BadServerResponse("Invalid destination: {e:?}")))?;
-
-	Ok(http_request)
+impl FederationPathBuilderInput for Cow<'_, SupportedVersions> {
+	fn create() -> Self { Cow::Borrowed(&SUPPORTED_VERSIONS) }
 }

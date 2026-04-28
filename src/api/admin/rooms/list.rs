@@ -1,7 +1,8 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, continuwuity_admin_api::rooms};
+use ruma::OwnedRoomId;
+use ruminuwuity::admin::continuwuity::rooms;
 
 use crate::Ruma;
 
@@ -22,8 +23,8 @@ pub(crate) async fn list_rooms(
 		.metadata
 		.iter_ids()
 		.filter_map(|room_id| async move {
-			if !services.rooms.metadata.is_banned(room_id).await {
-				Some(room_id.to_owned())
+			if !services.rooms.metadata.is_banned(&room_id).await {
+				Some(room_id.clone())
 			} else {
 				None
 			}

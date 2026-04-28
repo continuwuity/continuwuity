@@ -3,7 +3,7 @@ use std::sync::Arc;
 use conduwuit::{Result, implement, utils::stream::TryIgnore};
 use database::Map;
 use futures::Stream;
-use ruma::{RoomId, api::client::room::Visibility};
+use ruma::{OwnedRoomId, RoomId, api::client::room::Visibility};
 
 pub struct Service {
 	db: Data,
@@ -32,7 +32,7 @@ pub fn set_public(&self, room_id: &RoomId) { self.db.publicroomids.insert(room_i
 pub fn set_not_public(&self, room_id: &RoomId) { self.db.publicroomids.remove(room_id); }
 
 #[implement(Service)]
-pub fn public_rooms(&self) -> impl Stream<Item = &RoomId> + Send {
+pub fn public_rooms(&self) -> impl Stream<Item = OwnedRoomId> + Send {
 	self.db.publicroomids.keys().ignore_err()
 }
 

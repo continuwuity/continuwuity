@@ -1,11 +1,9 @@
 use axum::extract::State;
 use axum_client_ip::ClientIp;
-use conduwuit::{Error, Result};
+use conduwuit::{Err, Result, err};
 use ruma::{
-	api::{
-		client::error::ErrorKind,
-		federation::directory::{get_public_rooms, get_public_rooms_filtered},
-	},
+	api::federation::directory::{get_public_rooms, get_public_rooms_filtered},
+	assign,
 	directory::Filter,
 };
 
@@ -25,7 +23,7 @@ pub(crate) async fn get_public_rooms_filtered_route(
 		.config
 		.allow_public_room_directory_over_federation
 	{
-		return Err(Error::BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
+		return Err!(Request(Forbidden("Room directory is not public")));
 	}
 
 	let response = crate::client::get_public_rooms_filtered_helper(
@@ -37,16 +35,14 @@ pub(crate) async fn get_public_rooms_filtered_route(
 		&body.room_network,
 	)
 	.await
-	.map_err(|_| {
-		Error::BadRequest(ErrorKind::Unknown, "Failed to return this server's public room list.")
-	})?;
+	.map_err(|_| err!(Request(Unknown("Failed to return this server's public room list."))))?;
 
-	Ok(get_public_rooms_filtered::v1::Response {
+	Ok(assign!(get_public_rooms_filtered::v1::Response::new(), {
 		chunk: response.chunk,
 		prev_batch: response.prev_batch,
 		next_batch: response.next_batch,
 		total_room_count_estimate: response.total_room_count_estimate,
-	})
+	}))
 }
 
 /// # `GET /_matrix/federation/v1/publicRooms`
@@ -62,7 +58,7 @@ pub(crate) async fn get_public_rooms_route(
 		.globals
 		.allow_public_room_directory_over_federation()
 	{
-		return Err(Error::BadRequest(ErrorKind::forbidden(), "Room directory is not public"));
+		return Err!(Request(Forbidden("Room directory is not public")));
 	}
 
 	let response = crate::client::get_public_rooms_filtered_helper(
@@ -74,14 +70,12 @@ pub(crate) async fn get_public_rooms_route(
 		&body.room_network,
 	)
 	.await
-	.map_err(|_| {
-		Error::BadRequest(ErrorKind::Unknown, "Failed to return this server's public room list.")
-	})?;
+	.map_err(|_| err!(Request(Unknown("Failed to return this server's public room list."))))?;
 
-	Ok(get_public_rooms::v1::Response {
+	Ok(assign!(get_public_rooms::v1::Response::new(), {
 		chunk: response.chunk,
 		prev_batch: response.prev_batch,
 		next_batch: response.next_batch,
 		total_room_count_estimate: response.total_room_count_estimate,
-	})
+	}))
 }

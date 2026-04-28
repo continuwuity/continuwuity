@@ -3,7 +3,7 @@ use std::fmt::Write;
 use clap::Subcommand;
 use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomAliasId, OwnedRoomId};
+use ruma::{OwnedRoomAliasId, OwnedRoomId, RoomAliasId};
 
 use crate::Context;
 
@@ -52,7 +52,7 @@ pub(super) async fn process(command: RoomAliasCommand, context: &Context<'_>) ->
 		| RoomAliasCommand::Which { ref room_alias_localpart } => {
 			let room_alias_str =
 				format!("#{}:{}", room_alias_localpart, services.globals.server_name());
-			let room_alias = match OwnedRoomAliasId::parse(room_alias_str) {
+			let room_alias = match RoomAliasId::parse(room_alias_str) {
 				| Ok(alias) => alias,
 				| Err(err) => {
 					return Err!("Failed to parse alias: {err}");
@@ -139,7 +139,7 @@ pub(super) async fn process(command: RoomAliasCommand, context: &Context<'_>) ->
 					.rooms
 					.alias
 					.all_local_aliases()
-					.map(|(room_id, localpart)| (room_id.into(), localpart.into()))
+					.map(|(room_id, localpart)| (room_id, localpart.into()))
 					.collect::<Vec<(OwnedRoomId, String)>>()
 					.await;
 

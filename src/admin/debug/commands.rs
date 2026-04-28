@@ -79,12 +79,14 @@ pub(super) async fn parse_pdu(&self) -> Result {
 	}
 
 	let string = self.body[1..self.body.len().saturating_sub(1)].join("\n");
+	let room_version_rules = RoomVersionId::V12.rules().unwrap();
+
 	match serde_json::from_str(&string) {
 		| Err(e) => return Err!("Invalid json in command body: {e}"),
-		| Ok(value) => match ruma::signatures::reference_hash(&value, &RoomVersionId::V6) {
+		| Ok(value) => match ruma::signatures::reference_hash(&value, &room_version_rules) {
 			| Err(e) => return Err!("Could not parse PDU JSON: {e:?}"),
 			| Ok(hash) => {
-				let event_id = OwnedEventId::parse(format!("${hash}"));
+				let event_id = EventId::parse(format!("${hash}"));
 				match serde_json::from_value::<PduEvent>(serde_json::to_value(value)?) {
 					| Err(e) => return Err!("EventId: {event_id:?}\nCould not parse event: {e}"),
 					| Ok(pdu) => write!(self, "EventId: {event_id:?}\n{pdu:#?}"),
@@ -119,7 +121,7 @@ pub(super) async fn get_pdu(&self, event_id: OwnedEventId) -> Result {
 			} else {
 				"PDU found in our database"
 			};
-			write!(self, "{msg}\n```json\n{text}\n```",)
+			write!(self, "{msg}\n```json\n{text}\n```")
 		},
 	}
 	.await
@@ -187,10 +189,7 @@ pub(super) async fn get_remote_pdu_list(&self, server: OwnedServerName, force: b
 
 	for event_id in list {
 		if force {
-			match self
-				.get_remote_pdu(event_id.to_owned(), server.clone())
-				.await
-			{
+			match self.get_remote_pdu(event_id.clone(), server.clone()).await {
 				| Err(e) => {
 					failed_count = failed_count.saturating_add(1);
 					self.services
@@ -205,7 +204,7 @@ pub(super) async fn get_remote_pdu_list(&self, server: OwnedServerName, force: b
 				},
 			}
 		} else {
-			self.get_remote_pdu(event_id.to_owned(), server.clone())
+			self.get_remote_pdu(event_id.clone(), server.clone())
 				.await?;
 			success_count = success_count.saturating_add(1);
 		}
@@ -237,10 +236,10 @@ pub(super) async fn get_remote_pdu(
 	match self
 		.services
 		.sending
-		.send_federation_request(&server, ruma::api::federation::event::get_event::v1::Request {
-			event_id: event_id.clone(),
-			include_unredacted_content: None,
-		})
+		.send_federation_request(
+			&server,
+			ruma::api::federation::event::get_event::v1::Request::new(event_id.clone()),
+		)
 		.await
 	{
 		| Err(e) => {
@@ -330,9 +329,9 @@ pub(super) async fn ping(&self, server: OwnedServerName) -> Result {
 	match self
 		.services
 		.sending
-		.send_federation_request(
+		.send_unauthenticated_request(
 			&server,
-			ruma::api::federation::discovery::get_server_version::v1::Request {},
+			ruma::api::federation::discovery::get_server_version::v1::Request::new(),
 		)
 		.await
 	{
@@ -361,7 +360,7 @@ pub(super) async fn force_device_list_updates(&self) -> Result {
 	self.services
 		.users
 		.stream()
-		.for_each(|user_id| self.services.users.mark_device_key_update(user_id))
+		.for_each(async |user_id| self.services.users.mark_device_key_update(&user_id).await)
 		.await;
 
 	write!(self, "Marked all devices for all users as having new keys to update").await
@@ -430,9 +429,16 @@ pub(super) async fn verify_json(&self) -> Result {
 	}
 
 	let string = self.body[1..self.body.len().checked_sub(1).unwrap()].join("\n");
+	let room_version_rules = RoomVersionId::V12.rules().unwrap();
+
 	match serde_json::from_str::<CanonicalJsonObject>(&string) {
 		| Err(e) => return Err!("Invalid json: {e}"),
-		| Ok(value) => match self.services.server_keys.verify_json(&value, None).await {
+		| Ok(value) => match self
+			.services
+			.server_keys
+			.verify_json(&value, &room_version_rules)
+			.await
+		{
 			| Err(e) => return Err!("Signature verification failed: {e}"),
 			| Ok(()) => write!(self, "Signature correct"),
 		},
@@ -445,9 +451,15 @@ pub(super) async fn verify_pdu(&self, event_id: OwnedEventId) -> Result {
 	use ruma::signatures::Verified;
 
 	let mut event = self.services.rooms.timeline.get_pdu_json(&event_id).await?;
+	let room_version_rules = RoomVersionId::V12.rules().unwrap();
 
 	event.remove("event_id");
-	let msg = match self.services.server_keys.verify_event(&event, None).await {
+	let msg = match self
+		.services
+		.server_keys
+		.verify_event(&event, &room_version_rules)
+		.await
+	{
 		| Err(e) => return Err(e),
 		| Ok(Verified::Signatures) => "signatures OK, but content hash failed (redaction).",
 		| Ok(Verified::All) => "signatures and hashes OK.",
@@ -544,16 +556,17 @@ pub(super) async fn force_set_room_state_from_server(
 	};
 
 	let room_version = self.services.rooms.state.get_room_version(&room_id).await?;
+	let room_version_rules = room_version.rules().unwrap();
 
 	let mut state: HashMap<u64, OwnedEventId> = HashMap::new();
 
 	let remote_state_response = self
 		.services
 		.sending
-		.send_federation_request(&server_name, get_room_state::v1::Request {
-			room_id: room_id.clone(),
-			event_id: at_event_id,
-		})
+		.send_federation_request(
+			&server_name,
+			get_room_state::v1::Request::new(at_event_id, room_id.clone()),
+		)
 		.await?;
 
 	for pdu in remote_state_response.pdus.clone() {
@@ -576,7 +589,7 @@ pub(super) async fn force_set_room_state_from_server(
 	for result in remote_state_response.pdus.iter().map(|pdu| {
 		self.services
 			.server_keys
-			.validate_and_add_event_id(pdu, &room_version)
+			.validate_and_add_event_id(pdu, &room_version_rules)
 	}) {
 		let Ok((event_id, value)) = result.await else {
 			continue;
@@ -608,7 +621,7 @@ pub(super) async fn force_set_room_state_from_server(
 	for result in remote_state_response.auth_chain.iter().map(|pdu| {
 		self.services
 			.server_keys
-			.validate_and_add_event_id(pdu, &room_version)
+			.validate_and_add_event_id(pdu, &room_version_rules)
 	}) {
 		let Ok((event_id, value)) = result.await else {
 			continue;
@@ -625,7 +638,7 @@ pub(super) async fn force_set_room_state_from_server(
 		.services
 		.rooms
 		.event_handler
-		.resolve_state(&room_id, &room_version, state)
+		.resolve_state(&room_id, &room_version_rules, state)
 		.await?;
 
 	info!("Compressing new room state");

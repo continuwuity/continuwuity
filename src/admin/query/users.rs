@@ -104,7 +104,6 @@ async fn get_shared_rooms(&self, user_a: OwnedUserId, user_b: OwnedUserId) -> Re
 		.rooms
 		.state_cache
 		.get_shared_rooms(&user_a, &user_b)
-		.map(ToOwned::to_owned)
 		.collect()
 		.await;
 	let query_time = timer.elapsed();
@@ -217,8 +216,7 @@ async fn iter_users2(&self) -> Result {
 	let result: Vec<_> = self.services.users.stream().collect().await;
 	let result: Vec<_> = result
 		.into_iter()
-		.map(ruma::UserId::as_bytes)
-		.map(String::from_utf8_lossy)
+		.map(|user_id| String::from_utf8_lossy(user_id.as_bytes()).into_owned())
 		.collect();
 
 	let query_time = timer.elapsed();
@@ -254,7 +252,6 @@ async fn list_devices(&self, user_id: OwnedUserId) -> Result {
 		.services
 		.users
 		.all_device_ids(&user_id)
-		.map(ToOwned::to_owned)
 		.collect::<Vec<_>>()
 		.await;
 

@@ -11,26 +11,27 @@ use std::{
 use async_trait::async_trait;
 use conduwuit::{Err, SyncRwLock, utils};
 use conduwuit_core::{
-	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PduBuilder,
+	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PartialPdu,
 };
 pub use create::create_admin_room;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
-	Mxc, OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
+	OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
 	events::{
 		Mentions,
-		room::{
-			MediaSource,
-			message::{
-				FileInfo, FileMessageEventContent, MessageType, Relation, RoomMessageEventContent,
-			},
+		room::message::{
+			FileInfo, FileMessageEventContent, MessageType, Relation, RoomMessageEventContent,
 		},
 	},
 };
 use tokio::sync::RwLock;
 
-use crate::{Dep, account_data, globals, media::MXC_LENGTH, rooms, rooms::state::RoomMutexGuard};
+use crate::{
+	Dep, account_data, globals,
+	media::{MXC_LENGTH, mxc::Mxc},
+	rooms::{self, state::RoomMutexGuard},
+};
 
 pub struct Service {
 	services: Services,
@@ -61,7 +62,7 @@ pub struct CommandInput {
 	pub command: String,
 	pub reply_id: Option<OwnedEventId>,
 	pub source: InvocationSource,
-	pub sender: Option<Box<UserId>>,
+	pub sender: Option<OwnedUserId>,
 }
 
 /// Where a command is being invoked from.
@@ -200,19 +201,18 @@ impl Service {
 				.await
 				.expect("failed to create text file");
 			let size_u64: u64 = message_content.body().len().try_into().map_or(0, |n| n);
-			let metadata = FileInfo {
-				mimetype: Some("text/markdown".to_owned()),
-				size: Some(UInt::new_saturating(size_u64)),
-				thumbnail_info: None,
-				thumbnail_source: None,
-			};
-			let content = FileMessageEventContent {
-				body: "Output was too large to send as text.".to_owned(),
-				formatted: None,
-				filename: Some("output.md".to_owned()),
-				source: MediaSource::Plain(file),
-				info: Some(Box::new(metadata)),
-			};
+
+			let mut metadata = FileInfo::new();
+			metadata.mimetype = Some("text/markdown".to_owned());
+			metadata.size = Some(UInt::new_saturating(size_u64));
+
+			let mut content = FileMessageEventContent::plain(
+				"Output was too large to send as text.".to_owned(),
+				file,
+			);
+			content.filename = Some("output.md".to_owned());
+			content.info = Some(Box::new(metadata));
+
 			RoomMessageEventContent::new(MessageType::File(content))
 		} else {
 			message_content
@@ -317,7 +317,7 @@ impl Service {
 		command: String,
 		reply_id: Option<OwnedEventId>,
 		source: InvocationSource,
-		sender: Box<UserId>,
+		sender: OwnedUserId,
 	) -> Result<()> {
 		self.channel
 			.0
@@ -395,7 +395,7 @@ impl Service {
 				let mut stream = admin_users;
 
 				while let Some(user_id) = stream.next().await {
-					generated_admin_list.push(user_id.to_owned());
+					generated_admin_list.push(user_id.clone());
 				}
 			}
 		}
@@ -452,13 +452,18 @@ impl Service {
 	}
 
 	async fn handle_response(&self, content: RoomMessageEventContent) -> Result<()> {
-		let Some(Relation::Reply { in_reply_to }) = content.relates_to.as_ref() else {
+		let Some(Relation::Reply(reply)) = content.relates_to.as_ref() else {
 			return Ok(());
 		};
 
-		let Ok(pdu) = self.services.timeline.get_pdu(&in_reply_to.event_id).await else {
+		let Ok(pdu) = self
+			.services
+			.timeline
+			.get_pdu(&reply.in_reply_to.event_id)
+			.await
+		else {
 			error!(
-				event_id = ?in_reply_to.event_id,
+				event_id = ?reply.in_reply_to.event_id,
 				"Missing admin command in_reply_to event"
 			);
 			return Ok(());
@@ -488,7 +493,7 @@ impl Service {
 			.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::timeline(&self.text_or_file(content).await),
+				PartialPdu::timeline(&self.text_or_file(content).await),
 				user_id,
 				Some(room_id),
 				&state_lock,
@@ -520,7 +525,7 @@ impl Service {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::timeline(&content),
+				PartialPdu::timeline(&content),
 				user_id,
 				Some(room_id),
 				state_lock,

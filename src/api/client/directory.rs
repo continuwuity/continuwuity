@@ -1,23 +1,16 @@
-use std::iter::once;
-
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Event, Result, RoomVersion, err, info,
+	Err, Result, err, info,
 	utils::{
-		TryFutureExtExt,
 		math::Expected,
-		result::FlatOk,
 		stream::{ReadyExt, WidebandExt},
 	},
 };
 use conduwuit_service::Services;
-use futures::{
-	FutureExt, StreamExt, TryFutureExt,
-	future::{join, join4, join5},
-};
+use futures::StreamExt;
 use ruma::{
-	OwnedRoomId, RoomId, ServerName, UInt, UserId,
+	RoomId, ServerName, UInt, UserId,
 	api::{
 		client::{
 			directory::{
@@ -28,15 +21,9 @@ use ruma::{
 		},
 		federation,
 	},
-	directory::{Filter, PublicRoomJoinRule, PublicRoomsChunk, RoomNetwork, RoomTypeFilter},
-	events::{
-		StateEventType,
-		room::{
-			create::RoomCreateEventContent,
-			join_rules::{JoinRule, RoomJoinRulesEventContent},
-			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
-		},
-	},
+	assign,
+	directory::{Filter, PublicRoomsChunk, RoomNetwork, RoomTypeFilter},
+	events::StateEventType,
 	uint,
 };
 use tokio::join;
@@ -109,12 +96,11 @@ pub(crate) async fn get_public_rooms_route(
 		err!(Request(Unknown(warn!(?body.server, "Failed to return /publicRooms: {e}"))))
 	})?;
 
-	Ok(get_public_rooms::v3::Response {
-		chunk: response.chunk,
+	Ok(assign!(get_public_rooms::v3::Response::new(response.chunk), {
 		prev_batch: response.prev_batch,
 		next_batch: response.next_batch,
 		total_room_count_estimate: response.total_room_count_estimate,
-	})
+	}))
 }
 
 /// # `PUT /_matrix/client/r0/directory/list/room/{roomId}`
@@ -197,7 +183,7 @@ pub(crate) async fn set_room_visibility_route(
 		},
 	}
 
-	Ok(set_room_visibility::v3::Response {})
+	Ok(set_room_visibility::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/directory/list/room/{roomId}`
@@ -212,13 +198,13 @@ pub(crate) async fn get_room_visibility_route(
 		return Err!(Request(NotFound("Room not found")));
 	}
 
-	Ok(get_room_visibility::v3::Response {
-		visibility: if services.rooms.directory.is_public_room(&body.room_id).await {
-			room::Visibility::Public
-		} else {
-			room::Visibility::Private
-		},
-	})
+	let visibility = if services.rooms.directory.is_public_room(&body.room_id).await {
+		room::Visibility::Public
+	} else {
+		room::Visibility::Private
+	};
+
+	Ok(get_room_visibility::v3::Response::new(visibility))
 }
 
 pub(crate) async fn get_public_rooms_filtered_helper(
@@ -236,24 +222,24 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 			.sending
 			.send_federation_request(
 				other_server,
-				federation::directory::get_public_rooms_filtered::v1::Request {
+				assign!(federation::directory::get_public_rooms_filtered::v1::Request::new(), {
 					limit,
 					since: since.map(ToOwned::to_owned),
-					filter: Filter {
+					filter: assign!(Filter::new(), {
 						generic_search_term: filter.generic_search_term.clone(),
 						room_types: filter.room_types.clone(),
-					},
+					}),
 					room_network: RoomNetwork::Matrix,
-				},
+				}),
 			)
 			.await?;
 
-		return Ok(get_public_rooms_filtered::v3::Response {
+		return Ok(assign!(get_public_rooms_filtered::v3::Response::new(), {
 			chunk: response.chunk,
 			prev_batch: response.prev_batch,
 			next_batch: response.next_batch,
 			total_room_count_estimate: response.total_room_count_estimate,
-		});
+		}));
 	}
 
 	// Use limit or else 10, with maximum 100
@@ -284,16 +270,24 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 		.rooms
 		.directory
 		.public_rooms()
-		.map(ToOwned::to_owned)
-		.wide_then(|room_id| public_rooms_chunk(services, room_id))
-		.ready_filter_map(|chunk| {
+		.wide_then(async |room_id| {
+			let summary = services
+				.rooms
+				.summary
+				.build_local_room_summary(&room_id)
+				.await
+				.expect("room in public room directory should exist");
+
+			summary.into()
+		})
+		.ready_filter_map(|chunk: PublicRoomsChunk| {
 			if !filter.room_types.is_empty() && !filter.room_types.contains(&RoomTypeFilter::from(chunk.room_type.clone())) {
 				return None;
 			}
 
 			if let Some(query) = filter.generic_search_term.as_ref().map(|q| q.to_lowercase()) {
 				if let Some(name) = &chunk.name {
-					if name.as_str().to_lowercase().contains(&query) {
+					if name.to_lowercase().contains(&query) {
 						return Some(chunk);
 					}
 				}
@@ -320,7 +314,7 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 		.collect()
 		.await;
 
-	all_rooms.sort_by(|l, r| r.num_joined_members.cmp(&l.num_joined_members));
+	all_rooms.sort_by_key(|r| std::cmp::Reverse(r.num_joined_members));
 
 	let total_room_count_estimate = UInt::try_from(all_rooms.len())
 		.unwrap_or_else(|_| uint!(0))
@@ -335,12 +329,12 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 		.ge(&limit)
 		.then_some(format!("n{}", num_since.expected_add(limit)));
 
-	Ok(get_public_rooms_filtered::v3::Response {
+	Ok(assign!(get_public_rooms_filtered::v3::Response::new(), {
 		chunk,
 		prev_batch,
 		next_batch,
 		total_room_count_estimate,
-	})
+	}))
 }
 
 /// Checks whether the given user ID is allowed to publish the target room to
@@ -356,109 +350,25 @@ async fn user_can_publish_room(
 		// Server admins can always publish to their own room directory.
 		return Ok(true);
 	}
-	let (create_event, room_version, power_levels_content) = join!(
-		services
-			.rooms
-			.state_accessor
-			.room_state_get(room_id, &StateEventType::RoomCreate, ""),
+
+	let (room_version, room_creators, power_levels) = join!(
 		services.rooms.state.get_room_version(room_id),
-		services
-			.rooms
-			.state_accessor
-			.room_state_get_content::<RoomPowerLevelsEventContent>(
-				room_id,
-				&StateEventType::RoomPowerLevels,
-				""
-			)
+		services.rooms.state_accessor.get_room_creators(room_id),
+		services.rooms.state_accessor.get_room_power_levels(room_id),
 	);
+
 	let room_version = room_version
 		.as_ref()
 		.map_err(|_| err!(Request(NotFound("Unknown room"))))?;
-	let create_event = create_event.map_err(|_| err!(Request(NotFound("Unknown room"))))?;
-	if RoomVersion::new(room_version)
-		.expect("room version must be supported")
+	let room_version_rules = room_version.rules().unwrap();
+
+	if room_version_rules
+		.authorization
 		.explicitly_privilege_room_creators
+		&& room_creators.contains(user_id)
 	{
-		let create_content: RoomCreateEventContent =
-			serde_json::from_str(create_event.content().get())
-				.map_err(|_| err!(Database("Invalid event content for m.room.create")))?;
-		let is_creator = create_content
-			.additional_creators
-			.unwrap_or_default()
-			.into_iter()
-			.chain(once(create_event.sender().to_owned()))
-			.any(|sender| sender == user_id);
-		if is_creator {
-			return Ok(true);
-		}
+		return Ok(true);
 	}
-	match power_levels_content.map(RoomPowerLevels::from) {
-		| Ok(pl) => Ok(pl.user_can_send_state(user_id, StateEventType::RoomCanonicalAlias)),
-		| Err(e) =>
-			if e.is_not_found() {
-				Ok(create_event.sender() == user_id)
-			} else {
-				Err!(Database("Invalid event content for m.room.power_levels: {e}"))
-			},
-	}
-}
 
-async fn public_rooms_chunk(services: &Services, room_id: OwnedRoomId) -> PublicRoomsChunk {
-	let name = services.rooms.state_accessor.get_name(&room_id).ok();
-
-	let room_type = services.rooms.state_accessor.get_room_type(&room_id).ok();
-
-	let canonical_alias = services
-		.rooms
-		.state_accessor
-		.get_canonical_alias(&room_id)
-		.ok();
-
-	let avatar_url = services.rooms.state_accessor.get_avatar(&room_id);
-
-	let topic = services.rooms.state_accessor.get_room_topic(&room_id).ok();
-
-	let world_readable = services.rooms.state_accessor.is_world_readable(&room_id);
-
-	let join_rule = services
-		.rooms
-		.state_accessor
-		.room_state_get_content(&room_id, &StateEventType::RoomJoinRules, "")
-		.map_ok(|c: RoomJoinRulesEventContent| match c.join_rule {
-			| JoinRule::Public => PublicRoomJoinRule::Public,
-			| JoinRule::Knock => "knock".into(),
-			| JoinRule::KnockRestricted(_) => "knock_restricted".into(),
-			| _ => "invite".into(),
-		});
-
-	let guest_can_join = services.rooms.state_accessor.guest_can_join(&room_id);
-
-	let num_joined_members = services.rooms.state_cache.room_joined_count(&room_id);
-
-	let (
-		(avatar_url, canonical_alias, guest_can_join, join_rule, name),
-		(num_joined_members, room_type, topic, world_readable),
-	) = join(
-		join5(avatar_url, canonical_alias, guest_can_join, join_rule, name),
-		join4(num_joined_members, room_type, topic, world_readable),
-	)
-	.boxed()
-	.await;
-
-	PublicRoomsChunk {
-		avatar_url: avatar_url.into_option().unwrap_or_default().url,
-		canonical_alias,
-		guest_can_join,
-		join_rule: join_rule.unwrap_or_default(),
-		name,
-		num_joined_members: num_joined_members
-			.map(TryInto::try_into)
-			.map(Result::ok)
-			.flat_ok()
-			.unwrap_or_else(|| uint!(0)),
-		room_id,
-		room_type,
-		topic,
-		world_readable,
-	}
+	Ok(power_levels.user_can_send_state(user_id, StateEventType::RoomCanonicalAlias))
 }

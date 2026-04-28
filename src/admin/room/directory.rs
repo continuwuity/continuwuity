@@ -43,7 +43,7 @@ pub(super) async fn process(command: RoomDirectoryCommand, context: &Context<'_>
 				.rooms
 				.directory
 				.public_rooms()
-				.then(|room_id| get_room_info(services, room_id))
+				.then(async |room_id| get_room_info(services, &room_id).await)
 				.collect()
 				.await;
 
@@ -67,7 +67,7 @@ pub(super) async fn process(command: RoomDirectoryCommand, context: &Context<'_>
 				.join("\n");
 
 			context
-				.write_str(&format!("Rooms (page {page}):\n```\n{body}\n```",))
+				.write_str(&format!("Rooms (page {page}):\n```\n{body}\n```"))
 				.await
 		},
 	}

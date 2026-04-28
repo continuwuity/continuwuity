@@ -8,13 +8,14 @@
 use std::{cmp, num::Saturating as Sat};
 
 use conduwuit::{Result, checked, err, implement};
-use ruma::{Mxc, UInt, UserId, http_headers::ContentDisposition, media::Method};
+use ruma::{UInt, UserId, http_headers::ContentDisposition, media::Method};
 use tokio::{
 	fs,
 	io::{AsyncReadExt, AsyncWriteExt},
 };
 
 use super::{FileMeta, data::Metadata};
+use crate::media::mxc::Mxc;
 
 /// Dimension specification for a thumbnail.
 #[derive(Debug)]

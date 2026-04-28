@@ -47,3 +47,11 @@ pub use crate::services::Services;
 
 conduwuit::mod_ctor! {}
 conduwuit::mod_dtor! {}
+
+use std::sync::LazyLock;
+
+use conduwuit::matrix::versions::{unstable_features, versions};
+use ruma::api::SupportedVersions;
+
+pub static SUPPORTED_VERSIONS: LazyLock<SupportedVersions> =
+	LazyLock::new(|| SupportedVersions::from_parts(&versions(), &unstable_features()));

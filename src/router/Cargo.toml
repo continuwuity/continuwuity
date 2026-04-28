@@ -111,6 +111,7 @@ http-body-util.workspace = true
 hyper.workspace = true
 hyper-util.workspace = true
 log.workspace = true
+assign.workspace = true
 ruma.workspace = true
 rustls.workspace = true
 rustls.optional = true

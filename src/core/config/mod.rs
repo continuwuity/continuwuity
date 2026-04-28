@@ -20,7 +20,10 @@ use lettre::message::Mailbox;
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
-	api::client::discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
+	api::client::{
+		discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
+		rtc::transports::v1::RtcTransport,
+	},
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
 use url::Url;
@@ -706,18 +709,6 @@ pub struct Config {
 	/// is inherently false.
 	#[serde(default)]
 	pub allow_public_room_directory_over_federation: bool,
-
-	/// Allow guests/unauthenticated users to access TURN credentials.
-	///
-	/// This is the equivalent of Synapse's `turn_allow_guests` config option.
-	/// This allows any unauthenticated user to call the endpoint
-	/// `/_matrix/client/v3/voip/turnServer`.
-	///
-	/// It is unlikely you need to enable this as all major clients support
-	/// authentication for this endpoint and prevents misuse of your TURN server
-	/// from potential bots.
-	#[serde(default)]
-	pub turn_allow_guests: bool,
 
 	/// Set this to true to lock down your server's public room directory and
 	/// only allow admins to publish rooms to the room directory. Unpublishing
@@ -2279,21 +2270,24 @@ pub struct MatrixRtcConfig {
 	///
 	/// default: []
 	#[serde(default)]
-	pub foci: Vec<RtcFocusInfo>,
+	pub foci: Vec<RtcTransport>,
 }
 
 impl MatrixRtcConfig {
 	/// Returns the effective foci, falling back to the deprecated
 	/// `rtc_focus_server_urls` if the new config is empty.
 	#[must_use]
-	pub fn effective_foci<'a>(
-		&'a self,
-		deprecated_foci: &'a [RtcFocusInfo],
-	) -> &'a [RtcFocusInfo] {
+	pub fn effective_foci(&self, deprecated_foci: &[RtcFocusInfo]) -> Vec<RtcTransport> {
 		if !self.foci.is_empty() {
-			&self.foci
+			self.foci.clone()
 		} else {
 			deprecated_foci
+				.iter()
+				.map(|focus| {
+					RtcTransport::new(focus.focus_type().to_owned(), focus.data().into_owned())
+						.unwrap()
+				})
+				.collect()
 		}
 	}
 }

@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, info, matrix::pdu::PduBuilder, utils};
+use conduwuit::{Err, Result, info, matrix::pdu::PartialPdu, utils};
 use ruma::{
 	api::federation::membership::prepare_leave_event,
 	events::room::member::{MembershipState, RoomMemberEventContent},
@@ -45,14 +45,14 @@ pub(crate) async fn create_leave_event_template_route(
 		.acl_check(body.origin(), &body.room_id)
 		.await?;
 
-	let room_version_id = services.rooms.state.get_room_version(&body.room_id).await?;
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
+	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	let (pdu, _) = services
 		.rooms
 		.timeline
 		.create_event(
-			PduBuilder::state(
+			PartialPdu::state(
 				body.user_id.to_string(),
 				&RoomMemberEventContent::new(MembershipState::Leave),
 			),
@@ -67,8 +67,8 @@ pub(crate) async fn create_leave_event_template_route(
 		.expect("Barebones PDU should be convertible to canonical JSON");
 	pdu_json.remove("event_id");
 
-	Ok(prepare_leave_event::v1::Response {
-		room_version: Some(room_version_id),
-		event: to_raw_value(&pdu_json).expect("CanonicalJson can be serialized to JSON"),
-	})
+	Ok(prepare_leave_event::v1::Response::new(
+		Some(room_version),
+		to_raw_value(&pdu_json).expect("CanonicalJson can be serialized to JSON"),
+	))
 }

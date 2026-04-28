@@ -3,7 +3,7 @@ use std::{collections::HashSet, iter::once};
 use conduwuit::trace;
 use conduwuit_core::{
 	Err, Result, implement,
-	matrix::{event::Event, pdu::PduBuilder},
+	matrix::{event::Event, pdu::PartialPdu},
 	utils::{IterStream, ReadyExt},
 };
 use futures::{FutureExt, StreamExt};
@@ -24,16 +24,16 @@ use super::{ExtractBody, RoomMutexGuard};
 /// takes a roomid_mutex_state, meaning that only this function is able to
 /// mutate the room state.
 #[implement(super::Service)]
-#[tracing::instrument(skip(self, state_lock, pdu_builder), level = "trace")]
+#[tracing::instrument(skip(self, state_lock, partial_pdu), level = "trace")]
 pub async fn build_and_append_pdu(
 	&self,
-	pdu_builder: PduBuilder,
+	partial_pdu: PartialPdu,
 	sender: &UserId,
 	room_id: Option<&RoomId>,
 	state_lock: &RoomMutexGuard,
 ) -> Result<OwnedEventId> {
 	let (pdu, pdu_json) = self
-		.create_hash_and_sign_event(pdu_builder, sender, room_id, state_lock)
+		.create_hash_and_sign_event(partial_pdu, sender, room_id, state_lock)
 		.await?;
 
 	let room_id = pdu.room_id_or_hash();
@@ -140,7 +140,7 @@ pub async fn build_and_append_pdu(
 					body,
 					Some(pdu.event_id().into()),
 					source,
-					pdu.sender.clone().into(),
+					pdu.sender.clone(),
 				)?;
 			}
 		}
@@ -157,7 +157,6 @@ pub async fn build_and_append_pdu(
 		.services
 		.state_cache
 		.room_servers(&room_id)
-		.map(ToOwned::to_owned)
 		.collect()
 		.await;
 
@@ -180,7 +179,7 @@ pub async fn build_and_append_pdu(
 	trace!("Sending PDU {} to {} servers", pdu.event_id(), servers.len());
 	self.services
 		.sending
-		.send_pdu_servers(servers.iter().map(AsRef::as_ref).stream(), &pdu_id)
+		.send_pdu_servers(servers.stream(), &pdu_id)
 		.await?;
 
 	trace!("Event {} in room {:?} has been appended", pdu.event_id(), room_id);

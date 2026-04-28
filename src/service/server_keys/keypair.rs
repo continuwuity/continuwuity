@@ -12,9 +12,7 @@ pub(super) fn init(db: &Arc<Database>) -> Result<(Box<Ed25519KeyPair>, VerifyKey
 		remove(db);
 	})?;
 
-	let verify_key = VerifyKey {
-		key: Base64::new(keypair.public_key().to_vec()),
-	};
+	let verify_key = VerifyKey::new(Base64::new(keypair.public_key().to_vec()));
 
 	let id = format!("ed25519:{}", keypair.version());
 	let verify_keys: VerifyKeys = [(id.try_into()?, verify_key)].into();
@@ -46,8 +44,7 @@ fn load(db: &Arc<Database>) -> Result<Box<Ed25519KeyPair>> {
 }
 
 fn create(db: &Arc<Database>) -> Result<(String, Vec<u8>)> {
-	let keypair = Ed25519KeyPair::generate()
-		.map_err(|e| err!("Failed to generate new ed25519 keypair: {e:?}"))?;
+	let keypair = Ed25519KeyPair::generate();
 
 	let id = utils::rand::string(8);
 	debug_info!("Generated new Ed25519 keypair: {id:?}");

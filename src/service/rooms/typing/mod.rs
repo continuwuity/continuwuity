@@ -8,7 +8,7 @@ use futures::StreamExt;
 use ruma::{
 	OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::federation::transactions::edu::{Edu, TypingContent},
-	events::SyncEphemeralRoomEvent,
+	events::{SyncEphemeralRoomEvent, typing::TypingEventContent},
 };
 use tokio::sync::{RwLock, broadcast};
 
@@ -212,12 +212,9 @@ impl Service {
 		&self,
 		room_id: &RoomId,
 		sender_user: &UserId,
-	) -> Result<SyncEphemeralRoomEvent<ruma::events::typing::TypingEventContent>> {
-		Ok(SyncEphemeralRoomEvent {
-			content: ruma::events::typing::TypingEventContent {
-				user_ids: self.typing_users_for_user(room_id, sender_user).await?,
-			},
-		})
+	) -> Result<SyncEphemeralRoomEvent<TypingEventContent>> {
+		let user_ids = self.typing_users_for_user(room_id, sender_user).await?;
+		Ok(SyncEphemeralRoomEvent::new(TypingEventContent::new(user_ids)))
 	}
 
 	async fn federation_send(

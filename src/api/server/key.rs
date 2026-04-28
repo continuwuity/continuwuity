@@ -6,11 +6,12 @@ use std::{
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{Result, utils::timepoint_from_now};
 use ruma::{
-	MilliSecondsSinceUnixEpoch, Signatures,
+	MilliSecondsSinceUnixEpoch,
 	api::{
 		OutgoingResponse,
 		federation::discovery::{OldVerifyKey, ServerSigningKeys, get_server_keys},
 	},
+	assign,
 	serde::Raw,
 };
 
@@ -38,13 +39,10 @@ pub(crate) async fn get_server_keys_route(
 		.map(|(id, key)| (id, OldVerifyKey::new(expires_ts(), key.key)))
 		.collect();
 
-	let server_key = ServerSigningKeys {
+	let server_key = assign!(ServerSigningKeys::new(server_name.to_owned(), valid_until_ts()), {
 		verify_keys: [verify_keys].into(),
 		old_verify_keys,
-		server_name: server_name.to_owned(),
-		valid_until_ts: valid_until_ts(),
-		signatures: Signatures::new(),
-	};
+	});
 
 	let server_key = Raw::new(&server_key)?;
 	let mut response = get_server_keys::v2::Response::new(server_key)
@@ -58,7 +56,7 @@ pub(crate) async fn get_server_keys_route(
 }
 
 fn valid_until_ts() -> MilliSecondsSinceUnixEpoch {
-	let dur = Duration::from_secs(86400 * 7);
+	let dur = Duration::from_hours(168);
 	let timepoint = timepoint_from_now(dur).expect("SystemTime should not overflow");
 	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
 }

@@ -7,7 +7,7 @@ use database::Ignore;
 use futures::{Stream, StreamExt, stream::iter};
 use itertools::Itertools;
 use ruma::{
-	OwnedServerName, RoomId, ServerName,
+	OwnedServerName, RoomId,
 	events::{StateEventType, room::power_levels::RoomPowerLevelsEventContent},
 	int,
 };
@@ -17,7 +17,6 @@ use ruma::{
 pub async fn add_servers_invite_via(&self, room_id: &RoomId, servers: Vec<OwnedServerName>) {
 	let mut servers: Vec<_> = self
 		.servers_invite_via(room_id)
-		.map(ToOwned::to_owned)
 		.chain(iter(servers.into_iter()))
 		.collect()
 		.await;
@@ -81,12 +80,12 @@ pub async fn servers_route_via(&self, room_id: &RoomId) -> Result<Vec<OwnedServe
 pub fn servers_invite_via<'a>(
 	&'a self,
 	room_id: &'a RoomId,
-) -> impl Stream<Item = &'a ServerName> + Send + 'a {
-	type KeyVal<'a> = (Ignore, Vec<&'a ServerName>);
+) -> impl Stream<Item = OwnedServerName> + Send + 'a {
+	type KeyVal = (Ignore, Vec<OwnedServerName>);
 
 	self.db
 		.roomid_inviteviaservers
 		.stream_raw_prefix(room_id)
 		.ignore_err()
-		.map(|(_, servers): KeyVal<'_>| *servers.last().expect("at least one server"))
+		.map(|(_, mut servers): KeyVal| servers.pop().expect("at least one server"))
 }

@@ -163,7 +163,7 @@ fn cors_layer(_server: &Server) -> CorsLayer {
 		.allow_origin(cors::Any)
 		.allow_methods(METHODS)
 		.allow_headers(headers)
-		.max_age(Duration::from_secs(86400))
+		.max_age(Duration::from_hours(24))
 }
 
 fn body_limit_layer(server: &Server) -> DefaultBodyLimit {

@@ -7,10 +7,7 @@ use ruma::{
 		get_global_account_data, get_room_account_data, set_global_account_data,
 		set_room_account_data,
 	},
-	events::{
-		AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent,
-		RoomAccountDataEventType,
-	},
+	events::{AnyGlobalAccountDataEventContent, AnyRoomAccountDataEventContent},
 	serde::Raw,
 };
 use serde::Deserialize;
@@ -40,7 +37,7 @@ pub(crate) async fn set_global_account_data_route(
 	)
 	.await?;
 
-	Ok(set_global_account_data::v3::Response {})
+	Ok(set_global_account_data::v3::Response::new())
 }
 
 /// # `PUT /_matrix/client/r0/user/{userId}/rooms/{roomId}/account_data/{type}`
@@ -65,7 +62,7 @@ pub(crate) async fn set_room_account_data_route(
 	)
 	.await?;
 
-	Ok(set_room_account_data::v3::Response {})
+	Ok(set_room_account_data::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/user/{userId}/account_data/{type}`
@@ -87,7 +84,7 @@ pub(crate) async fn get_global_account_data_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Data not found."))))?;
 
-	Ok(get_global_account_data::v3::Response { account_data: account_data.content })
+	Ok(get_global_account_data::v3::Response::new(account_data.content))
 }
 
 /// # `GET /_matrix/client/r0/user/{userId}/rooms/{roomId}/account_data/{type}`
@@ -109,7 +106,7 @@ pub(crate) async fn get_room_account_data_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Data not found."))))?;
 
-	Ok(get_room_account_data::v3::Response { account_data: account_data.content })
+	Ok(get_room_account_data::v3::Response::new(account_data.content))
 }
 
 async fn set_account_data(
@@ -119,7 +116,7 @@ async fn set_account_data(
 	event_type_s: &str,
 	data: &RawJsonValue,
 ) -> Result {
-	if event_type_s == RoomAccountDataEventType::FullyRead.to_cow_str() {
+	if event_type_s == "m.fully_read" {
 		return Err!(Request(BadJson(
 			"This endpoint cannot be used for marking a room as fully read (setting \
 			 m.fully_read)"

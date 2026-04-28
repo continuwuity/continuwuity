@@ -14,7 +14,7 @@ use database::{Handle, Map};
 use ruma::{
 	DeviceId, OwnedServerName, OwnedTransactionId, TransactionId, UserId,
 	api::{
-		client::error::ErrorKind::LimitExceeded,
+		error::{ErrorKind::LimitExceeded, LimitExceededErrorData},
 		federation::transactions::send_transaction_message,
 	},
 };
@@ -184,7 +184,7 @@ impl Service {
 				"Got concurrent transaction request from an origin with an active transaction"
 			);
 			return Err(Error::BadRequest(
-				LimitExceeded { retry_after: None },
+				LimitExceeded(LimitExceededErrorData::default()),
 				"Still processing another transaction from this origin",
 			));
 		}
@@ -204,7 +204,7 @@ impl Service {
 				"Server is overloaded, dropping incoming transaction"
 			);
 			return Err(Error::BadRequest(
-				LimitExceeded { retry_after: None },
+				LimitExceeded(LimitExceededErrorData::default()),
 				"Server is overloaded, try again later",
 			));
 		}
@@ -315,7 +315,7 @@ impl Service {
 					| TxnState::Active(_) => None,
 				})
 				.collect();
-			cached_entries.sort_by(|a, b| a.1.cmp(&b.1));
+			cached_entries.sort_by_key(|a| a.1);
 
 			// Remove the oldest cached entries to get under the limit
 			for (key, _) in cached_entries.into_iter().take(excess) {

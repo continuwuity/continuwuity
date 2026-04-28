@@ -1,7 +1,8 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PduBuilder};
+use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::membership::ban_user,
+	assign,
 	events::room::member::{MembershipState, RoomMemberEventContent},
 };
 
@@ -24,30 +25,19 @@ pub(crate) async fn ban_user_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(&body.room_id).await;
-
-	let current_member_content = services
-		.rooms
-		.state_accessor
-		.get_member(&body.room_id, &body.user_id)
-		.await
-		.unwrap_or_else(|_| RoomMemberEventContent::new(MembershipState::Ban));
+	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(body.user_id.to_string(), &RoomMemberEventContent {
-				membership: MembershipState::Ban,
-				reason: body.reason.clone(),
-				displayname: None, // display name may be offensive
-				avatar_url: None,  // avatar may be offensive
-				is_direct: None,
-				join_authorized_via_users_server: None,
-				third_party_invite: None,
-				redact_events: body.redact_events,
-				..current_member_content
-			}),
+			PartialPdu::state(
+				body.user_id.to_string(),
+				&assign!(RoomMemberEventContent::new(MembershipState::Ban), {
+					reason: body.reason.clone(),
+					redact_events: body.redact_events,
+				}),
+			),
 			sender_user,
 			Some(&body.room_id),
 			&state_lock,

@@ -1,7 +1,7 @@
 use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
 use conduwuit_core::result::FlatOk;
-use conduwuit_service::Services;
+use conduwuit_service::{Services, media::mxc::Mxc};
 use ruma::UserId;
 
 pub(super) mod form;
@@ -36,8 +36,12 @@ impl<'a> UserCard<'a> {
 
 		let avatar_src = async {
 			let avatar_url = services.users.avatar_url(user_id).await.ok()?;
-			let avatar_mxc = avatar_url.parts().ok()?;
-			let file = services.media.get(&avatar_mxc).await.flat_ok()?;
+			let (server_name, media_id) = avatar_url.parts().ok()?;
+			let file = services
+				.media
+				.get(&Mxc { media_id, server_name })
+				.await
+				.flat_ok()?;
 
 			Some(format!(
 				"data:{};base64,{}",

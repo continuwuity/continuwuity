@@ -16,12 +16,9 @@ use futures::StreamExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomVersionId, UserId,
 	events::{
-		GlobalAccountDataEventType, StateEventType, TimelineEventType,
+		GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
-		room::{
-			encrypted::Relation, power_levels::RoomPowerLevelsEventContent,
-			redaction::RoomRedactionEventContent,
-		},
+		room::{encrypted::Relation, redaction::RoomRedactionEventContent},
 	},
 	push::{Action, Ruleset, Tweak},
 };
@@ -86,7 +83,7 @@ where
 					body,
 					Some(pdu.event_id().into()),
 					source,
-					pdu.sender.clone().into(),
+					pdu.sender.clone(),
 				)?;
 			}
 		}
@@ -204,18 +201,15 @@ where
 	drop(insert_lock);
 
 	// See if the event matches any known pushers via power level
-	let power_levels: RoomPowerLevelsEventContent = self
+	let power_levels = self
 		.services
 		.state_accessor
-		.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
-		.await
-		.unwrap_or_default();
-
+		.get_room_power_levels(room_id)
+		.await;
 	let mut push_target: HashSet<_> = self
 			.services
 			.state_cache
 			.active_local_users_in_room(room_id)
-			.map(ToOwned::to_owned)
 			// Don't notify the sender of their own events, and dont send from ignored users
 			.ready_filter(|user| *user != pdu.sender())
 			.filter_map(|recipient_user| async move { (!self.services.users.user_is_ignored(pdu.sender(), &recipient_user).await).then_some(recipient_user) })
@@ -229,8 +223,8 @@ where
 		if let Some(state_key) = pdu.state_key() {
 			let target_user_id = UserId::parse(state_key)?;
 
-			if self.services.users.is_active_local(target_user_id).await {
-				push_target.insert(target_user_id.to_owned());
+			if self.services.users.is_active_local(&target_user_id).await {
+				push_target.insert(target_user_id.clone());
 			}
 		}
 	}
@@ -253,12 +247,12 @@ where
 		for action in self
 			.services
 			.pusher
-			.get_actions(user, &rules_for_user, &power_levels, &serialized, room_id)
+			.get_actions(user, &rules_for_user, power_levels.clone(), &serialized, room_id)
 			.await
 		{
 			match action {
 				| Action::Notify => notify = true,
-				| Action::SetTweak(Tweak::Highlight(true)) => {
+				| Action::SetTweak(Tweak::Highlight(ruma::push::HighlightTweakValue::Yes)) => {
 					highlight = true;
 				},
 				| _ => {},
@@ -326,15 +320,6 @@ where
 				},
 			}
 		},
-		| TimelineEventType::SpaceChild =>
-			if let Some(_state_key) = pdu.state_key() {
-				self.services
-					.spaces
-					.roomid_spacehierarchy_cache
-					.lock()
-					.await
-					.remove(room_id);
-			},
 		| TimelineEventType::RoomMember => {
 			if let Some(state_key) = pdu.state_key() {
 				// if the state_key fails
@@ -346,7 +331,7 @@ where
 				// knock event for auth
 				self.services
 					.state_cache
-					.update_membership(room_id, target_user_id, pdu, true)
+					.update_membership(room_id, &target_user_id, pdu, true)
 					.await?;
 			}
 		},
@@ -373,10 +358,12 @@ where
 
 	if let Ok(content) = pdu.get_content::<ExtractRelatesTo>() {
 		match content.relates_to {
-			| Relation::Reply { in_reply_to } => {
+			| Relation::Reply(in_reply_to) => {
 				// We need to do it again here, because replies don't have
 				// event_id as a top level field
-				if let Ok(related_pducount) = self.get_pdu_count(&in_reply_to.event_id).await {
+				if let Ok(related_pducount) =
+					self.get_pdu_count(&in_reply_to.in_reply_to.event_id).await
+				{
 					self.services
 						.pdu_metadata
 						.add_relation(count2, related_pducount);
@@ -414,7 +401,7 @@ where
 				.and_then(|state_key| UserId::parse(state_key.as_str()).ok())
 			{
 				let appservice_uid = appservice.registration.sender_localpart.as_str();
-				if state_key_uid == &appservice_uid {
+				if state_key_uid == appservice_uid {
 					self.services
 						.sending
 						.send_pdu_appservice(appservice.registration.id.clone(), pdu_id)?;

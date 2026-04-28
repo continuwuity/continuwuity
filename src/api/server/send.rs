@@ -25,10 +25,10 @@ use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use http::StatusCode;
 use itertools::Itertools;
 use ruma::{
-	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId,
-	RoomId, ServerName, UInt, UserId,
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId,
+	OwnedUserId, RoomId, ServerName, UserId,
 	api::{
-		client::error::{ErrorKind, ErrorKind::LimitExceeded},
+		error::{ErrorKind, LimitExceededErrorData},
 		federation::transactions::{
 			edu::{
 				DeviceListUpdateContent, DirectDeviceContent, Edu, PresenceContent,
@@ -42,6 +42,7 @@ use ruma::{
 	int,
 	serde::Raw,
 	to_device::DeviceIdOrAllDevices,
+	uint,
 };
 use service::transactions::{
 	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
@@ -116,7 +117,7 @@ async fn wait_for_result(
 	{
 		// Took too long, return 429 to encourage the sender to try again
 		return Err(Error::BadRequest(
-			LimitExceeded { retry_after: None },
+			ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
 			"Transaction is being still being processed. Please try again later.",
 		));
 	}
@@ -187,12 +188,12 @@ async fn process_inbound_transaction(
 		"Finished processing transaction"
 	);
 
-	let response = send_transaction_message::v1::Response {
-		pdus: results
+	let response = send_transaction_message::v1::Response::new(
+		results
 			.into_iter()
 			.map(|(e, r)| (e, r.map_err(error::sanitized_message)))
 			.collect(),
-	};
+	);
 
 	services
 		.transactions
@@ -280,60 +281,29 @@ async fn build_local_dag(
 	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject>,
 ) -> Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
-	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
-		HashMap::with_capacity(pdu_map.len());
-	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
+	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> = HashMap::new();
 
 	for (event_id, value) in pdu_map {
 		// We already checked that these properties are correct in parse_incoming_pdu,
 		// so it's safe to unwrap here.
-		// We also filter to remove any prev_events that are not in this pdu_map, as we
-		// need to have at least one event with zero out degrees for the lexico-topo
-		// sort below. If there are multiple events with omitted prevs, they will be
-		// ordered by timestamp, then event ID. At that point though, it's unlikely to
-		// matter.
 		let prev_events = value
 			.get("prev_events")
 			.unwrap()
 			.as_array()
 			.unwrap()
 			.iter()
-			.map(|v| OwnedEventId::parse(v.as_str().unwrap()).unwrap())
-			.filter(|id| pdu_map.contains_key(id))
+			.map(|v| EventId::parse(v.as_str().unwrap()).unwrap())
 			.collect();
 
 		dag.insert(event_id.clone(), prev_events);
-		let origin_server_ts = value
-			.get("origin_server_ts")
-			.and_then(ruma::CanonicalJsonValue::as_integer)
-			.unwrap_or_default();
-		id_origin_ts.insert(event_id.clone(), origin_server_ts);
 	}
-
-	debug!(count = dag.len(), "Sorting incoming events with partial graph");
-	lexicographical_topological_sort(&dag, &async |node_id| {
+	lexicographical_topological_sort(&dag, &|_| async {
 		// Note: we don't bother fetching power levels because that would massively slow
 		// this function down. This is a best-effort attempt to order events correctly
 		// for processing, however ultimately that should be the sender's job.
-		let ts = id_origin_ts
-			.get(&node_id)
-			.copied()
-			.unwrap_or_else(|| int!(0))
-			.to_string()
-			.parse::<u64>()
-			.ok()
-			.and_then(UInt::new)
-			.unwrap_or_default();
-		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
+		Ok((int!(0), MilliSecondsSinceUnixEpoch(uint!(0))))
 	})
 	.await
-	.inspect(|sorted| {
-		debug_assert_eq!(
-			sorted.len(),
-			pdu_map.len(),
-			"Sorted graph was not the same size as the input graph"
-		);
-	})
 	.map_err(|e| err!("failed to resolve local graph: {e}"))
 }
 
@@ -348,7 +318,7 @@ async fn handle_room(
 		.rooms
 		.event_handler
 		.mutex_federation
-		.lock(&room_id)
+		.lock(room_id.as_str())
 		.await;
 
 	let room_id = &room_id;
@@ -544,10 +514,14 @@ async fn handle_edu_receipt_room_user(
 			services
 				.rooms
 				.read_receipt
-				.readreceipt_update(user_id, room_id, &ReceiptEvent {
-					content: ReceiptEventContent(content.into()),
-					room_id: room_id.to_owned(),
-				})
+				.readreceipt_update(
+					user_id,
+					room_id,
+					&ReceiptEvent::new(
+						room_id.to_owned(),
+						ReceiptEventContent::from_iter(content),
+					),
+				)
 				.await;
 		})
 		.await;
@@ -646,6 +620,7 @@ async fn handle_edu_direct_to_device(
 		ref ev_type,
 		ref message_id,
 		messages,
+		..
 	} = content;
 
 	if sender.server_name() != origin {
@@ -729,14 +704,17 @@ async fn handle_edu_direct_to_device_event(
 			services
 				.users
 				.all_device_ids(target_user_id)
-				.for_each(|target_device_id| {
-					services.users.add_to_device_event(
-						sender,
-						target_user_id,
-						target_device_id,
-						ev_type,
-						event.clone(),
-					)
+				.for_each(async |target_device_id| {
+					services
+						.users
+						.add_to_device_event(
+							sender,
+							target_user_id,
+							&target_device_id,
+							ev_type,
+							event.clone(),
+						)
+						.await;
 				})
 				.await;
 		},
@@ -749,7 +727,9 @@ async fn handle_edu_signing_key_update(
 	origin: &ServerName,
 	content: SigningKeyUpdateContent,
 ) {
-	let SigningKeyUpdateContent { user_id, master_key, self_signing_key } = content;
+	let SigningKeyUpdateContent {
+		user_id, master_key, self_signing_key, ..
+	} = content;
 
 	if user_id.server_name() != origin {
 		debug_warn!(

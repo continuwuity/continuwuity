@@ -16,8 +16,8 @@ use futures::{AsyncWriteExt, future::FutureExt, io::BufWriter};
 use ruma::{
 	EventId,
 	events::{
-		relation::InReplyTo,
-		room::message::{Relation::Reply, RoomMessageEventContent},
+		relation::{InReplyTo, Reply},
+		room::message::{Relation, RoomMessageEventContent},
 	},
 };
 use service::{
@@ -38,6 +38,7 @@ pub(super) fn dispatch(services: Arc<Services>, command: CommandInput) -> Proces
 }
 
 #[tracing::instrument(skip_all, name = "admin", level = "info")]
+#[allow(clippy::result_large_err)]
 async fn handle_command(services: Arc<Services>, command: CommandInput) -> ProcessorResult {
 	AssertUnwindSafe(Box::pin(process_command(services, &command)))
 		.catch_unwind()
@@ -277,9 +278,8 @@ fn reply(
 	mut content: RoomMessageEventContent,
 	reply_id: Option<&EventId>,
 ) -> RoomMessageEventContent {
-	content.relates_to = reply_id.map(|event_id| Reply {
-		in_reply_to: InReplyTo { event_id: event_id.to_owned() },
-	});
+	content.relates_to =
+		reply_id.map(|event_id| Relation::Reply(Reply::new(InReplyTo::new(event_id.to_owned()))));
 
 	content
 }

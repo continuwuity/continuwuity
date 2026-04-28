@@ -90,6 +90,7 @@ rand_core = { version = "0.6.4", features = ["getrandom"] }
 regex.workspace = true
 reqwest.workspace = true
 sha2.workspace = true
+assign.workspace = true
 ruma.workspace = true
 sanitize-filename.workspace = true
 serde_json.workspace = true

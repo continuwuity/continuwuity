@@ -2,7 +2,10 @@ use std::time::Duration;
 
 use axum::extract::State;
 use conduwuit::{Err, Result};
-use ruma::api::client::presence::{get_presence, set_presence};
+use ruma::{
+	api::client::presence::{get_presence, set_presence},
+	assign,
+};
 
 use crate::Ruma;
 
@@ -26,7 +29,7 @@ pub(crate) async fn set_presence_route(
 		.set_presence(body.sender_user(), &body.presence, None, None, body.status_msg.clone())
 		.await?;
 
-	Ok(set_presence::v3::Response {})
+	Ok(set_presence::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/presence/{userId}/status`
@@ -76,13 +79,11 @@ pub(crate) async fn get_presence_route(
 					.map(|millis| Duration::from_millis(millis.into())),
 			};
 
-			Ok(get_presence::v3::Response {
-				// TODO: Should ruma just use the presenceeventcontent type here?
+			Ok(assign!(get_presence::v3::Response::new(presence.content.presence), {
 				status_msg,
 				currently_active: presence.content.currently_active,
 				last_active_ago,
-				presence: presence.content.presence,
-			})
+			}))
 		},
 		| _ => Err!(Request(NotFound("Presence state for this user was not found"))),
 	}

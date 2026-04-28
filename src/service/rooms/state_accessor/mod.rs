@@ -3,13 +3,13 @@ mod server_can;
 mod state;
 mod user_can;
 
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Result, err};
+use conduwuit::{Event, Pdu, Result, err};
 use database::Map;
 use ruma::{
-	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, RoomId, UserId,
+	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, OwnedUserId, RoomId, UserId,
 	events::{
 		StateEventType,
 		room::{
@@ -22,6 +22,7 @@ use ruma::{
 			join_rules::{JoinRule, RoomJoinRulesEventContent},
 			member::RoomMemberEventContent,
 			name::RoomNameEventContent,
+			power_levels::{RoomPowerLevels, RoomPowerLevelsEventContent},
 			topic::RoomTopicEventContent,
 		},
 	},
@@ -97,18 +98,16 @@ impl Service {
 	pub async fn is_world_readable(&self, room_id: &RoomId) -> bool {
 		self.room_state_get_content(room_id, &StateEventType::RoomHistoryVisibility, "")
 			.await
-			.map(|c: RoomHistoryVisibilityEventContent| {
+			.is_ok_and(|c: RoomHistoryVisibilityEventContent| {
 				c.history_visibility == HistoryVisibility::WorldReadable
 			})
-			.unwrap_or(false)
 	}
 
 	/// Checks if guests are able to join a given room
 	pub async fn guest_can_join(&self, room_id: &RoomId) -> bool {
 		self.room_state_get_content(room_id, &StateEventType::RoomGuestAccess, "")
 			.await
-			.map(|c: RoomGuestAccessEventContent| c.guest_access == GuestAccess::CanJoin)
-			.unwrap_or(false)
+			.is_ok_and(|c: RoomGuestAccessEventContent| c.guest_access == GuestAccess::CanJoin)
 	}
 
 	/// Gets the primary alias from canonical alias event
@@ -161,5 +160,76 @@ impl Service {
 		self.room_state_get(room_id, &StateEventType::RoomEncryption, "")
 			.await
 			.is_ok()
+	}
+
+	/// Get a room's create event.
+	pub async fn get_room_create_event(&self, room_id: &RoomId) -> Pdu {
+		self.room_state_get(room_id, &StateEventType::RoomCreate, "")
+			.await
+			.expect("room should have a create event")
+	}
+
+	/// Get a set of the room's creators. This will always contain a single user
+	/// for room versions 11 and earlier.
+	pub async fn get_room_creators(&self, room_id: &RoomId) -> HashSet<OwnedUserId> {
+		let room_version_rules = self
+			.services
+			.state
+			.get_room_version(room_id)
+			.await
+			.expect("room should have a version")
+			.rules()
+			.expect("room version should be known");
+
+		let create_event = self.get_room_create_event(room_id).await;
+
+		let create_content: RoomCreateEventContent = create_event
+			.get_content()
+			.expect("create event content should be valid");
+
+		let mut creators = HashSet::new();
+		if room_version_rules.authorization.use_room_create_sender {
+			creators.insert(create_event.sender);
+		} else {
+			#[allow(deprecated)]
+			creators.insert(create_content.creator.unwrap());
+		}
+
+		if room_version_rules.authorization.additional_room_creators {
+			creators.extend(create_content.additional_creators);
+		}
+
+		creators
+	}
+
+	/// Get the room's power levels. This will never fail -- if the room has no
+	/// power level state event, the default power levels for the room's
+	/// version will be returned.
+	pub async fn get_room_power_levels(&self, room_id: &RoomId) -> RoomPowerLevels {
+		let room_version_rules = self
+			.services
+			.state
+			.get_room_version(room_id)
+			.await
+			.expect("room should have a version")
+			.rules()
+			.expect("room version should be known");
+		let creators = self.get_room_creators(room_id).await;
+		let power_levels_event: RoomPowerLevelsEventContent = self
+			.room_state_get_content(room_id, &StateEventType::RoomPowerLevels, "")
+			.await
+			.unwrap_or_else(|err| {
+				if err.is_not_found() {
+					RoomPowerLevelsEventContent::new(&room_version_rules.authorization)
+				} else {
+					panic!("Failed to deserialize power levels event content")
+				}
+			});
+
+		RoomPowerLevels::new(
+			power_levels_event.into(),
+			&room_version_rules.authorization,
+			creators,
+		)
 	}
 }

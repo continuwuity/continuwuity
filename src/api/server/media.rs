@@ -2,12 +2,10 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, utils::content_disposition::make_content_disposition};
 use conduwuit_service::media::{Dim, FileMeta};
-use ruma::{
-	Mxc,
-	api::federation::authenticated_media::{
-		Content, ContentMetadata, FileOrLocation, get_content, get_content_thumbnail,
-	},
+use ruma::api::federation::authenticated_media::{
+	Content, ContentMetadata, FileOrLocation, get_content, get_content_thumbnail,
 };
+use service::media::mxc::Mxc;
 
 use crate::Ruma;
 
@@ -41,16 +39,16 @@ pub(crate) async fn get_content_route(
 
 	let content_disposition =
 		make_content_disposition(content_disposition.as_ref(), content_type.as_deref(), None);
-	let content = Content {
-		file: content.expect("entire file contents"),
-		content_type: content_type.map(Into::into),
-		content_disposition: Some(content_disposition),
-	};
+	let content = Content::new(
+		content.expect("entire file contents"),
+		content_type.unwrap_or_default(),
+		content_disposition,
+	);
 
-	Ok(get_content::v1::Response {
-		content: FileOrLocation::File(content),
-		metadata: ContentMetadata::new(),
-	})
+	Ok(get_content::v1::Response::new(
+		ContentMetadata::new(),
+		FileOrLocation::File(content),
+	))
 }
 
 /// # `GET /_matrix/federation/v1/media/thumbnail/{mediaId}`
@@ -84,14 +82,14 @@ pub(crate) async fn get_content_thumbnail_route(
 
 	let content_disposition =
 		make_content_disposition(content_disposition.as_ref(), content_type.as_deref(), None);
-	let content = Content {
-		file: content.expect("entire file contents"),
-		content_type: content_type.map(Into::into),
-		content_disposition: Some(content_disposition),
-	};
+	let content = Content::new(
+		content.expect("entire file contents"),
+		content_type.unwrap_or_default(),
+		content_disposition,
+	);
 
-	Ok(get_content_thumbnail::v1::Response {
-		content: FileOrLocation::File(content),
-		metadata: ContentMetadata::new(),
-	})
+	Ok(get_content_thumbnail::v1::Response::new(
+		ContentMetadata::new(),
+		FileOrLocation::File(content),
+	))
 }

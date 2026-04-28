@@ -7,7 +7,7 @@ use conduwuit::{
 	},
 };
 use futures::StreamExt;
-use ruma::{api::client::threads::get_threads, uint};
+use ruma::{api::client::threads::get_threads, assign, uint};
 
 use crate::Ruma;
 
@@ -59,18 +59,18 @@ pub(crate) async fn get_threads_route(
 		.collect()
 		.await;
 
-	Ok(get_threads::v1::Response {
-		next_batch: threads
-			.last()
-			.filter(|_| threads.len() >= limit)
-			.map(at!(0))
-			.as_ref()
-			.map(ToString::to_string),
+	let next_batch = threads
+		.last()
+		.filter(|_| threads.len() >= limit)
+		.map(at!(0))
+		.as_ref()
+		.map(ToString::to_string);
 
-		chunk: threads
-			.into_iter()
-			.map(at!(1))
-			.map(Event::into_format)
-			.collect(),
-	})
+	let chunk = threads
+		.into_iter()
+		.map(at!(1))
+		.map(Event::into_format)
+		.collect();
+
+	Ok(assign!(get_threads::v1::Response::new(chunk), { next_batch }))
 }

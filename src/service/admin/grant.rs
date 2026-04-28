@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use conduwuit::{
-	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PduBuilder, warn,
+	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PartialPdu, warn,
 };
 use ruma::{
 	RoomId, UserId,
@@ -27,7 +27,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		return Ok(());
 	};
 
-	let state_lock = self.services.state.mutex.lock(&room_id).await;
+	let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
 
 	if self.services.state_cache.is_joined(user_id, &room_id).await {
 		return Err!(debug_warn!("User is already joined in the admin room"));
@@ -51,7 +51,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					String::from(user_id),
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
@@ -65,7 +65,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					String::from(user_id),
 					&RoomMemberEventContent::new(MembershipState::Join),
 				),
@@ -79,7 +79,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 		self.services
 			.timeline
 			.build_and_append_pdu(
-				PduBuilder::state(
+				PartialPdu::state(
 					user_id.to_string(),
 					&RoomMemberEventContent::new(MembershipState::Invite),
 				),
@@ -100,7 +100,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 			"",
 		)
 		.await
-		.unwrap_or_default();
+		.expect("admin room should have power levels");
 
 	room_power_levels
 		.users
@@ -110,7 +110,7 @@ pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
 	self.services
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(String::new(), &room_power_levels),
+			PartialPdu::state(String::new(), &room_power_levels),
 			server_user,
 			Some(&room_id),
 			&state_lock,
@@ -135,9 +135,7 @@ async fn set_room_tag(&self, room_id: &RoomId, user_id: &UserId, tag: &str) -> R
 		.account_data
 		.get_room(room_id, user_id, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or_else(|_| TagEvent {
-			content: TagEventContent { tags: BTreeMap::new() },
-		});
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	event
 		.content
@@ -177,9 +175,9 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 		return Err!(error!("No admin room available or created."));
 	};
 
-	let state_lock = self.services.state.mutex.lock(&room_id).await;
+	let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
 
-	let event = match self
+	let mut member_content = match self
 		.services
 		.state_accessor
 		.get_member(&room_id, user_id)
@@ -203,17 +201,13 @@ pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
 		},
 	};
 
+	member_content.membership = Leave;
+	member_content.reason = Some("Admin Revoked".to_owned());
+
 	self.services
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(user_id.to_string(), &RoomMemberEventContent {
-				membership: Leave,
-				reason: Some("Admin Revoked".into()),
-				is_direct: None,
-				join_authorized_via_users_server: None,
-				third_party_invite: None,
-				..event
-			}),
+			PartialPdu::state(user_id.to_string(), &member_content),
 			self.services.globals.server_user.as_ref(),
 			Some(&room_id),
 			&state_lock,

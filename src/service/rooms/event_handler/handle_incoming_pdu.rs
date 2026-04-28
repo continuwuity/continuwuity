@@ -14,7 +14,7 @@ use futures::{
 use ruma::{
 	CanonicalJsonValue, EventId, OwnedUserId, RoomId, ServerName, UserId,
 	events::{
-		StateEventType, TimelineEventType,
+		TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
@@ -55,7 +55,7 @@ async fn should_rescind_invite(
 	// Does the target user have a pending invite?
 	let Ok(pending_invite_state) = services
 		.state_cache
-		.invite_state(target_user_id, room_id)
+		.invite_state(&target_user_id, room_id)
 		.await
 	else {
 		return Ok(None); // No pending invite, so nothing to rescind
@@ -146,9 +146,11 @@ pub async fn handle_incoming_pdu<'a>(
 	let origin_acl_check = self.acl_check(origin, room_id);
 
 	// 1.3.2 Check room ACL on sender's server name
-	let sender: &UserId = value
+	let sender: OwnedUserId = value
 		.get("sender")
-		.try_into()
+		.and_then(|v| v.as_str())
+		.ok_or_else(|| err!("No sender in object"))
+		.and_then(|v| Ok(UserId::parse(v)?))
 		.map_err(|e| err!(Request(InvalidParam("PDU does not have a valid sender key: {e}"))))?;
 
 	let sender_acl_check: OptionFuture<_> = sender
@@ -180,7 +182,8 @@ pub async fn handle_incoming_pdu<'a>(
 		// copied from https://github.com/element-hq/synapse/blob/7e4588a/synapse/handlers/federation_event.py#L255-L300
 		if value.get("type").and_then(|t| t.as_str()) == Some("m.room.member") {
 			if let Some(pdu) =
-				should_rescind_invite(&self.services, &mut value.clone(), sender, room_id).await?
+				should_rescind_invite(&self.services, &mut value.clone(), &sender, room_id)
+					.await?
 			{
 				debug_info!(
 					"Invite to {room_id} appears to have been rescinded by {sender}, marking as \
@@ -188,7 +191,7 @@ pub async fn handle_incoming_pdu<'a>(
 				);
 				self.services
 					.state_cache
-					.mark_as_left(sender, room_id, Some(pdu))
+					.mark_as_left(&sender, room_id, Some(pdu))
 					.await;
 				return Ok(None);
 			}
@@ -206,11 +209,11 @@ pub async fn handle_incoming_pdu<'a>(
 	}
 
 	// Fetch create event
-	let create_event = &(self
+	let create_event = &self
 		.services
 		.state_accessor
-		.room_state_get(room_id, &StateEventType::RoomCreate, "")
-		.await?);
+		.get_room_create_event(room_id)
+		.await;
 
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)

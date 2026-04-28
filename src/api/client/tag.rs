@@ -27,9 +27,7 @@ pub(crate) async fn update_tag_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent {
-			content: TagEventContent { tags: BTreeMap::new() },
-		});
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event
 		.content
@@ -46,7 +44,7 @@ pub(crate) async fn update_tag_route(
 		)
 		.await?;
 
-	Ok(create_tag::v3::Response {})
+	Ok(create_tag::v3::Response::new())
 }
 
 /// # `DELETE /_matrix/client/r0/user/{userId}/rooms/{roomId}/tags/{tag}`
@@ -64,9 +62,7 @@ pub(crate) async fn delete_tag_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent {
-			content: TagEventContent { tags: BTreeMap::new() },
-		});
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
 	tags_event.content.tags.remove(&body.tag.clone().into());
 
@@ -80,7 +76,7 @@ pub(crate) async fn delete_tag_route(
 		)
 		.await?;
 
-	Ok(delete_tag::v3::Response {})
+	Ok(delete_tag::v3::Response::new())
 }
 
 /// # `GET /_matrix/client/r0/user/{userId}/rooms/{roomId}/tags`
@@ -98,9 +94,7 @@ pub(crate) async fn get_tags_route(
 		.account_data
 		.get_room(&body.room_id, sender_user, RoomAccountDataEventType::Tag)
 		.await
-		.unwrap_or(TagEvent {
-			content: TagEventContent { tags: BTreeMap::new() },
-		});
+		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
 
-	Ok(get_tags::v3::Response { tags: tags_event.content.tags })
+	Ok(get_tags::v3::Response::new(tags_event.content.tags))
 }

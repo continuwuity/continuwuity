@@ -7,7 +7,7 @@ use crate::Context;
 #[implement(Context, params = "<'_>")]
 pub(super) async fn check_all_users(&self) -> Result {
 	let timer = tokio::time::Instant::now();
-	let users = self.services.users.iter().collect::<Vec<_>>().await;
+	let users = self.services.users.stream().collect::<Vec<_>>().await;
 	let query_time = timer.elapsed();
 
 	let total = users.len();

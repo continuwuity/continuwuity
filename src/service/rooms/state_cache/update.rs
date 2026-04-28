@@ -5,11 +5,11 @@ use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{
 	OwnedServerName, RoomId, UserId,
+	api::federation::membership::RawStrippedState,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, RoomAccountDataEventType,
 		StateEventType,
 		direct::DirectEvent,
-		invite_permission_config::FilterLevel,
 		room::{
 			create::RoomCreateEventContent,
 			member::{MembershipState, RoomMemberEventContent},
@@ -17,6 +17,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 
 /// Update current membership data.
 #[implement(super::Service)]
@@ -119,7 +120,8 @@ pub async fn update_membership(
 		},
 		| MembershipState::Invite => {
 			let last_state = self.services.state.summary_stripped(pdu, room_id).await;
-			self.mark_as_invited(user_id, room_id, pdu.sender(), Some(last_state), None)
+
+			self.mark_as_invited(user_id, room_id, pdu.sender(), last_state, None)
 				.await?;
 		},
 		| MembershipState::Leave | MembershipState::Ban => {
@@ -174,12 +176,12 @@ pub async fn update_joined_count(&self, room_id: &RoomId) {
 
 	self.room_servers(room_id)
 		.ready_for_each(|old_joined_server| {
-			if joined_servers.remove(old_joined_server) {
+			if joined_servers.remove(&old_joined_server) {
 				return;
 			}
 
 			// Server not in room anymore
-			let roomserver_id = (room_id, old_joined_server);
+			let roomserver_id = (room_id, old_joined_server.clone());
 			let serverroom_id = (old_joined_server, room_id);
 
 			self.db.roomserverids.del(roomserver_id);
@@ -332,7 +334,7 @@ pub async fn mark_as_invited(
 	user_id: &UserId,
 	room_id: &RoomId,
 	sender_user: &UserId,
-	last_state: Option<Vec<Raw<AnyStrippedStateEvent>>>,
+	last_state: Vec<RawStrippedState>,
 	invite_via: Option<Vec<OwnedServerName>>,
 ) -> Result<()> {
 	// return an error for blocked invites. ignored invites aren't handled here
@@ -356,7 +358,7 @@ pub async fn mark_as_invited(
 
 	self.db
 		.userroomid_invitestate
-		.raw_put(&userroom_id, Json(last_state.unwrap_or_default()));
+		.raw_put(&userroom_id, Json(last_state));
 	self.db
 		.roomuserid_invitecount
 		.raw_aput::<8, _, _>(&roomuser_id, self.services.globals.next_count().unwrap());

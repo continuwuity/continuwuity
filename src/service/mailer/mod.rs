@@ -68,7 +68,7 @@ impl Service {
 
 	pub fn expect_mailer(&self) -> Result<Mailer<'_>> {
 		self.mailer().ok_or_else(|| {
-			err!(Request(FeatureDisabled("This homeserver is not configured to send email.")))
+			err!(Request(Unrecognized("This homeserver is not configured to send email.")))
 		})
 	}
 }

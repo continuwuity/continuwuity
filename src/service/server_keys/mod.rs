@@ -3,6 +3,7 @@ mod get;
 mod keypair;
 mod request;
 mod sign;
+mod util;
 mod verify;
 
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
@@ -14,15 +15,16 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use futures::StreamExt;
 use ruma::{
-	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, RoomVersionId,
-	ServerName, ServerSigningKeyId,
+	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, ServerName,
+	ServerSigningKeyId,
 	api::federation::discovery::{ServerSigningKeys, VerifyKey},
+	room_version_rules::RoomVersionRules,
 	serde::Raw,
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
 };
 use serde_json::value::RawValue as RawJsonValue;
 
-use crate::{Dep, globals, sending};
+use crate::{Dep, globals, sending, server_keys::util::required_keys};
 
 pub struct Service {
 	keypair: Box<Ed25519KeyPair>,
@@ -48,7 +50,7 @@ pub type PubKeys = PublicKeySet;
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
-		let minimum_valid = Duration::from_secs(3600);
+		let minimum_valid = Duration::from_hours(1);
 
 		let (keypair, verify_keys) = keypair::init(args.db)?;
 		debug_assert!(verify_keys.len() == 1, "only one active verify_key supported");
@@ -116,12 +118,10 @@ async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
 pub async fn required_keys_exist(
 	&self,
 	object: &CanonicalJsonObject,
-	version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> bool {
-	use ruma::signatures::required_keys;
-
 	trace!(?object, "Checking required keys exist");
-	let Ok(required_keys) = required_keys(object, version) else {
+	let Ok(required_keys) = required_keys(object, &room_version_rules.signatures) else {
 		debug_error!("Failed to determine required keys");
 		return false;
 	};
@@ -137,7 +137,7 @@ pub async fn required_keys_exist(
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "debug")]
 pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSigningKeyId) -> bool {
-	type KeysMap<'a> = BTreeMap<&'a ServerSigningKeyId, &'a RawJsonValue>;
+	type KeysMap = BTreeMap<OwnedServerSigningKeyId, Box<RawJsonValue>>;
 
 	let Ok(keys) = self
 		.db
@@ -150,13 +150,13 @@ pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSignin
 		return false;
 	};
 
-	if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap<'_>>("verify_keys") {
+	if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap>("verify_keys") {
 		if verify_keys.contains_key(key_id) {
 			return true;
 		}
 	}
 
-	if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap<'_>>("old_verify_keys") {
+	if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap>("old_verify_keys") {
 		if old_verify_keys.contains_key(key_id) {
 			return true;
 		}
@@ -171,11 +171,10 @@ pub async fn verify_keys_for(&self, origin: &ServerName) -> VerifyKeys {
 	let mut keys = self
 		.signing_keys_for(origin)
 		.await
-		.map(|keys| merge_old_keys(keys).verify_keys)
-		.unwrap_or(BTreeMap::new());
+		.map_or(BTreeMap::new(), |keys| merge_old_keys(keys).verify_keys);
 
 	if self.services.globals.server_is_ours(origin) {
-		keys.extend(self.verify_keys.clone().into_iter());
+		keys.extend(self.verify_keys.clone());
 	}
 
 	keys

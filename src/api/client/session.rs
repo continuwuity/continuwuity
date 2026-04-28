@@ -3,7 +3,7 @@ use std::time::Duration;
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, err, info,
+	Err, Result, debug, err, info,
 	utils::{self, ReadyExt, hash, stream::BroadbandExt},
 	warn,
 };
@@ -14,7 +14,6 @@ use lettre::Address;
 use ruma::{
 	OwnedUserId, UserId,
 	api::client::{
-		error::ErrorKind,
 		session::{
 			get_login_token,
 			get_login_types::{
@@ -27,8 +26,9 @@ use ruma::{
 			},
 			logout, logout_all,
 		},
-		uiaa::UserIdentifier,
+		uiaa::{EmailUserIdentifier, MatrixUserIdentifier, UserIdentifier},
 	},
+	assign,
 };
 use service::uiaa::Identity;
 
@@ -48,9 +48,9 @@ pub(crate) async fn get_login_types_route(
 	Ok(get_login_types::v3::Response::new(vec![
 		get_login_types::v3::LoginType::Password(PasswordLoginType::default()),
 		get_login_types::v3::LoginType::ApplicationService(ApplicationServiceLoginType::default()),
-		get_login_types::v3::LoginType::Token(TokenLoginType {
+		get_login_types::v3::LoginType::Token(assign!(TokenLoginType::new(), {
 			get_login_token: services.server.config.login_via_existing_session,
-		}),
+		})),
 	]))
 }
 
@@ -168,9 +168,11 @@ pub(crate) async fn handle_login(
 	user: Option<&String>,
 ) -> Result<OwnedUserId> {
 	debug!("Got password login type");
+
 	let user_id_or_localpart = match (identifier, user) {
-		| (Some(UserIdentifier::UserIdOrLocalpart(localpart)), _) => localpart,
-		| (Some(UserIdentifier::Email { address }), _) => {
+		| (Some(UserIdentifier::Matrix(MatrixUserIdentifier { user, .. })), _)
+		| (None, Some(user)) => user,
+		| (Some(UserIdentifier::Email(EmailUserIdentifier { address, .. })), _) => {
 			let email = Address::try_from(address.to_owned())
 				.map_err(|_| err!(Request(InvalidParam("Email is malformed"))))?;
 
@@ -180,7 +182,6 @@ pub(crate) async fn handle_login(
 				.await
 				.ok_or_else(|| err!(Request(Forbidden("Invalid identifier or password"))))?
 		},
-		| (None, Some(user)) => user,
 		| _ => {
 			return Err!(Request(InvalidParam("Identifier type not recognized")));
 		},
@@ -199,11 +200,11 @@ pub(crate) async fn handle_login(
 	if !services.globals.user_is_local(&user_id)
 		|| !services.globals.user_is_local(&lowercased_user_id)
 	{
-		return Err!(Request(Unknown("User ID does not belong to this homeserver")));
+		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
 	}
 
 	if services.users.is_locked(&user_id).await? {
-		return Err(Error::BadRequest(ErrorKind::UserLocked, "This account has been locked."));
+		return Err!(Request(UserLocked("This account has been locked.")));
 	}
 
 	if services.users.is_login_disabled(&user_id).await {
@@ -257,7 +258,7 @@ pub(crate) async fn login_route(
 			user,
 			..
 		}) => handle_login(&services, identifier.as_ref(), password, user.as_ref()).await?,
-		| login::v3::LoginInfo::Token(login::v3::Token { token }) => {
+		| login::v3::LoginInfo::Token(login::v3::Token { token, .. }) => {
 			debug!("Got token login type");
 			if !services.server.config.login_via_existing_session {
 				return Err!(Request(Unknown("Token login is not enabled.")));
@@ -268,6 +269,7 @@ pub(crate) async fn login_route(
 		| login::v3::LoginInfo::ApplicationService(login::v3::ApplicationService {
 			identifier,
 			user,
+			..
 		}) => {
 			debug!("Got appservice login type");
 
@@ -276,8 +278,8 @@ pub(crate) async fn login_route(
 			};
 
 			let user_id =
-				if let Some(UserIdentifier::UserIdOrLocalpart(user_id)) = identifier {
-					UserId::parse_with_server_name(user_id, &services.config.server_name)
+				if let Some(UserIdentifier::Matrix(MatrixUserIdentifier { user, .. })) = identifier {
+					UserId::parse_with_server_name(user, &services.config.server_name)
 				} else if let Some(user) = user {
 					UserId::parse_with_server_name(user, &services.config.server_name)
 				} else {
@@ -355,15 +357,12 @@ pub(crate) async fn login_route(
 	info!("{user_id} logged in");
 
 	#[allow(deprecated)]
-	Ok(login::v3::Response {
-		user_id,
-		access_token: token,
-		device_id,
+	Ok(assign!(login::v3::Response::new(user_id, token, device_id), {
 		well_known: client_discovery_info,
 		expires_in: None,
 		home_server: Some(services.config.server_name.clone()),
 		refresh_token: None,
-	})
+	}))
 }
 
 /// # `POST /_matrix/client/v1/login/get_token`
@@ -393,10 +392,10 @@ pub(crate) async fn login_token_route(
 	let login_token = utils::random_string(TOKEN_LENGTH);
 	let expires_in = services.users.create_login_token(sender_user, &login_token);
 
-	Ok(get_login_token::v1::Response {
-		expires_in: Duration::from_millis(expires_in),
+	Ok(get_login_token::v1::Response::new(
+		Duration::from_millis(expires_in),
 		login_token,
-	})
+	))
 }
 
 /// # `POST /_matrix/client/v3/logout`
@@ -464,7 +463,7 @@ pub(crate) async fn logout_all_route(
 	services
 		.users
 		.all_device_ids(sender_user)
-		.for_each(|device_id| services.users.remove_device(sender_user, device_id))
+		.for_each(async |device_id| services.users.remove_device(sender_user, &device_id).await)
 		.await;
 	services
 		.pusher

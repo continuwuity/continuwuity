@@ -4,14 +4,16 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err,
-	matrix::{Event, pdu::PduBuilder},
-	utils::BoolExt,
+	matrix::{Event, pdu::PartialPdu},
 };
 use conduwuit_service::Services;
 use futures::{FutureExt, TryStreamExt};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
-	api::client::state::{get_state_events, get_state_events_for_key, send_state_event},
+	api::client::state::{
+		get_state_event_for_key::{self, v3::StateEventFormat},
+		get_state_events, send_state_event,
+	},
 	events::{
 		AnyStateEventContent, StateEventType,
 		room::{
@@ -24,7 +26,7 @@ use ruma::{
 	},
 	serde::Raw,
 };
-use serde_json::json;
+use serde_json::{json, value::to_raw_value};
 
 use crate::{Ruma, RumaResponse};
 
@@ -46,23 +48,23 @@ pub(crate) async fn send_state_event_for_key_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	Ok(send_state_event::v3::Response {
-		event_id: send_state_event_for_key_helper(
-			&services,
-			sender_user,
-			&body.room_id,
-			&body.event_type,
-			&body.body.body,
-			&body.state_key,
-			if body.appservice_info.is_some() {
-				body.timestamp
-			} else {
-				None
-			},
-		)
-		.boxed()
-		.await?,
-	})
+	let event_id = send_state_event_for_key_helper(
+		&services,
+		sender_user,
+		&body.room_id,
+		&body.event_type,
+		&body.body.body,
+		&body.state_key,
+		if body.appservice_info.is_some() {
+			body.timestamp
+		} else {
+			None
+		},
+	)
+	.boxed()
+	.await?;
+
+	Ok(send_state_event::v3::Response::new(event_id))
 }
 
 /// # `PUT /_matrix/client/*/rooms/{roomId}/state/{eventType}`
@@ -100,15 +102,15 @@ pub(crate) async fn get_state_events_route(
 		return Err!(Request(Forbidden("You don't have permission to view the room state.")));
 	}
 
-	Ok(get_state_events::v3::Response {
-		room_state: services
-			.rooms
-			.state_accessor
-			.room_state_full_pdus(&body.room_id)
-			.map_ok(Event::into_format)
-			.try_collect()
-			.await?,
-	})
+	let room_state = services
+		.rooms
+		.state_accessor
+		.room_state_full_pdus(&body.room_id)
+		.map_ok(Event::into_format)
+		.try_collect()
+		.await?;
+
+	Ok(get_state_events::v3::Response::new(room_state))
 }
 
 /// # `GET /_matrix/client/v3/rooms/{roomid}/state/{eventType}/{stateKey}`
@@ -119,10 +121,10 @@ pub(crate) async fn get_state_events_route(
 ///
 /// - If not joined: Only works if current room history visibility is world
 ///   readable
-pub(crate) async fn get_state_events_for_key_route(
+pub(crate) async fn get_state_event_for_key_route(
 	State(services): State<crate::State>,
-	body: Ruma<get_state_events_for_key::v3::Request>,
-) -> Result<get_state_events_for_key::v3::Response> {
+	body: Ruma<get_state_event_for_key::v3::Request>,
+) -> Result<get_state_event_for_key::v3::Response> {
 	let sender_user = body.sender_user();
 
 	if !services
@@ -149,26 +151,23 @@ pub(crate) async fn get_state_events_for_key_route(
 			))))
 		})?;
 
-	let event_format = body
-		.format
-		.as_ref()
-		.is_some_and(|f| f.to_lowercase().eq("event"));
+	let content = match body.format {
+		| StateEventFormat::Content => event.content,
+		| StateEventFormat::Event => to_raw_value(&json!({
+			"content": event.content(),
+			"event_id": event.event_id(),
+			"origin_server_ts": event.origin_server_ts(),
+			"room_id": event.room_id_or_hash(),
+			"sender": event.sender(),
+			"state_key": event.state_key(),
+			"type": event.kind(),
+			"unsigned": event.unsigned(),
+		}))
+		.unwrap(),
+		| _ => return Err!(Request(InvalidParam("Unknown response format"))),
+	};
 
-	Ok(get_state_events_for_key::v3::Response {
-		content: event_format.or(|| event.get_content_as_value()),
-		event: event_format.then(|| {
-			json!({
-				"content": event.content(),
-				"event_id": event.event_id(),
-				"origin_server_ts": event.origin_server_ts(),
-				"room_id": event.room_id_or_hash(),
-				"sender": event.sender(),
-				"state_key": event.state_key(),
-				"type": event.kind(),
-				"unsigned": event.unsigned(),
-			})
-		}),
-	})
+	Ok(get_state_event_for_key::v3::Response::new(content))
 }
 
 /// # `GET /_matrix/client/v3/rooms/{roomid}/state/{eventType}`
@@ -181,9 +180,9 @@ pub(crate) async fn get_state_events_for_key_route(
 ///   readable
 pub(crate) async fn get_state_events_for_empty_key_route(
 	State(services): State<crate::State>,
-	body: Ruma<get_state_events_for_key::v3::Request>,
-) -> Result<RumaResponse<get_state_events_for_key::v3::Response>> {
-	get_state_events_for_key_route(State(services), body)
+	body: Ruma<get_state_event_for_key::v3::Request>,
+) -> Result<RumaResponse<get_state_event_for_key::v3::Response>> {
+	get_state_event_for_key_route(State(services), body)
 		.await
 		.map(RumaResponse)
 }
@@ -204,7 +203,7 @@ async fn send_state_event_for_key_helper(
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder {
+			PartialPdu {
 				event_type: event_type.to_string().into(),
 				content: serde_json::from_str(json.json().get())?,
 				state_key: Some(state_key.into()),
@@ -237,9 +236,16 @@ async fn allowed_to_send_state_event(
 		| StateEventType::RoomServerAcl => {
 			// prevents common ACL paw-guns as ACL management is difficult and prone to
 			// irreversible mistakes
-			match json.deserialize_as::<RoomServerAclEventContent>() {
+			match json.deserialize_as_unchecked::<RoomServerAclEventContent>() {
 				| Ok(acl_content) => {
-					if acl_content.allow_is_empty() {
+					let allow_has_wildcard = acl_content.allow.iter().any(|entry| entry == "*");
+					let deny_has_wildcard = acl_content.deny.iter().any(|entry| entry == "*");
+					let allow_has_server = acl_content
+						.allow
+						.iter()
+						.any(|entry| entry == services.globals.server_name().as_str());
+
+					if acl_content.allow.is_empty() {
 						return Err!(Request(BadJson(debug_warn!(
 							%room_id,
 							"Sending an ACL event with an empty allow key will permanently \
@@ -248,7 +254,7 @@ async fn allowed_to_send_state_event(
 						))));
 					}
 
-					if acl_content.deny_contains("*") && acl_content.allow_contains("*") {
+					if allow_has_wildcard && deny_has_wildcard {
 						return Err!(Request(BadJson(debug_warn!(
 							%room_id,
 							"Sending an ACL event with a deny and allow key value of \"*\" will \
@@ -257,9 +263,9 @@ async fn allowed_to_send_state_event(
 						))));
 					}
 
-					if acl_content.deny_contains("*")
+					if deny_has_wildcard
 						&& !acl_content.is_allowed(services.globals.server_name())
-						&& !acl_content.allow_contains(services.globals.server_name().as_str())
+						&& !allow_has_server
 					{
 						return Err!(Request(BadJson(debug_warn!(
 							%room_id,
@@ -269,9 +275,9 @@ async fn allowed_to_send_state_event(
 						))));
 					}
 
-					if !acl_content.allow_contains("*")
+					if !allow_has_wildcard
 						&& !acl_content.is_allowed(services.globals.server_name())
-						&& !acl_content.allow_contains(services.globals.server_name().as_str())
+						&& !allow_has_server
 					{
 						return Err!(Request(BadJson(debug_warn!(
 							%room_id,
@@ -297,7 +303,7 @@ async fn allowed_to_send_state_event(
 			// admin room is a sensitive room, it should not ever be made public
 			if let Ok(admin_room_id) = services.admin.get_admin_room().await {
 				if admin_room_id == room_id {
-					match json.deserialize_as::<RoomJoinRulesEventContent>() {
+					match json.deserialize_as_unchecked::<RoomJoinRulesEventContent>() {
 						| Ok(join_rule) =>
 							if join_rule.join_rule == JoinRule::Public {
 								return Err!(Request(Forbidden(
@@ -316,7 +322,7 @@ async fn allowed_to_send_state_event(
 		| StateEventType::RoomHistoryVisibility => {
 			// admin room is a sensitive room, it should not ever be made world readable
 			if let Ok(admin_room_id) = services.admin.get_admin_room().await {
-				match json.deserialize_as::<RoomHistoryVisibilityEventContent>() {
+				match json.deserialize_as_unchecked::<RoomHistoryVisibilityEventContent>() {
 					| Ok(visibility_content) => {
 						if admin_room_id == room_id
 							&& visibility_content.history_visibility
@@ -337,7 +343,7 @@ async fn allowed_to_send_state_event(
 			}
 		},
 		| StateEventType::RoomCanonicalAlias => {
-			match json.deserialize_as::<RoomCanonicalAliasEventContent>() {
+			match json.deserialize_as_unchecked::<RoomCanonicalAliasEventContent>() {
 				| Ok(canonical_alias_content) => {
 					let mut aliases = canonical_alias_content.alt_aliases.clone();
 
@@ -369,65 +375,66 @@ async fn allowed_to_send_state_event(
 				},
 			}
 		},
-		| StateEventType::RoomMember => match json.deserialize_as::<RoomMemberEventContent>() {
-			| Ok(mut membership_content) => {
-				let Ok(state_key) = UserId::parse(state_key) else {
-					return Err!(Request(BadJson(
-						"Membership event has invalid or non-existent state key"
-					)));
-				};
-
-				if let Some(authorising_user) =
-					membership_content.join_authorized_via_users_server
-				{
-					// join_authorized_via_users_server must be thrown away, if user is already a
-					// member of the room.
-					if services
-						.rooms
-						.state_cache
-						.is_joined(state_key, room_id)
-						.await
-					{
-						membership_content.join_authorized_via_users_server = None;
-						*json = Raw::<AnyStateEventContent>::from_json_string(
-							serde_json::to_string(&membership_content)?,
-						)?;
-						return Ok(());
-					}
-
-					if membership_content.membership != MembershipState::Join {
+		| StateEventType::RoomMember =>
+			match json.deserialize_as_unchecked::<RoomMemberEventContent>() {
+				| Ok(mut membership_content) => {
+					let Ok(state_key) = UserId::parse(state_key) else {
 						return Err!(Request(BadJson(
-							"join_authorised_via_users_server is only for member joins"
+							"Membership event has invalid or non-existent state key"
 						)));
-					}
+					};
 
-					if !services.globals.user_is_local(&authorising_user) {
-						return Err!(Request(InvalidParam(
-							"Authorising user {authorising_user} does not belong to this \
-							 homeserver"
-						)));
-					}
-
-					if !services
-						.rooms
-						.state_cache
-						.is_joined(&authorising_user, room_id)
-						.await
+					if let Some(authorising_user) =
+						membership_content.join_authorized_via_users_server
 					{
-						return Err!(Request(InvalidParam(
-							"Authorising user {authorising_user} is not in the room, they \
-							 cannot authorise the join."
-						)));
+						// join_authorized_via_users_server must be thrown away, if user is
+						// already a member of the room.
+						if services
+							.rooms
+							.state_cache
+							.is_joined(&state_key, room_id)
+							.await
+						{
+							membership_content.join_authorized_via_users_server = None;
+							*json = Raw::<AnyStateEventContent>::from_json_string(
+								serde_json::to_string(&membership_content)?,
+							)?;
+							return Ok(());
+						}
+
+						if membership_content.membership != MembershipState::Join {
+							return Err!(Request(BadJson(
+								"join_authorised_via_users_server is only for member joins"
+							)));
+						}
+
+						if !services.globals.user_is_local(&authorising_user) {
+							return Err!(Request(InvalidParam(
+								"Authorising user {authorising_user} does not belong to this \
+								 homeserver"
+							)));
+						}
+
+						if !services
+							.rooms
+							.state_cache
+							.is_joined(&authorising_user, room_id)
+							.await
+						{
+							return Err!(Request(InvalidParam(
+								"Authorising user {authorising_user} is not in the room, they \
+								 cannot authorise the join."
+							)));
+						}
 					}
-				}
+				},
+				| Err(e) => {
+					return Err!(Request(BadJson(
+						"Membership content must have a valid JSON body with at least a valid \
+						 membership state: {e}"
+					)));
+				},
 			},
-			| Err(e) => {
-				return Err!(Request(BadJson(
-					"Membership content must have a valid JSON body with at least a valid \
-					 membership state: {e}"
-				)));
-			},
-		},
 		| _ => (),
 	}
 

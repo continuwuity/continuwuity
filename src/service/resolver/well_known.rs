@@ -1,6 +1,7 @@
 use conduwuit::{
 	Result, debug, debug_error, debug_info, implement, trace, utils::response::LimitReadExt,
 };
+use ruma::ServerName;
 
 #[implement(super::Service)]
 #[tracing::instrument(name = "well-known", level = "debug", skip(self, dest))]
@@ -40,7 +41,7 @@ pub(super) async fn request_well_known(&self, dest: &str) -> Result<Option<Strin
 		.as_str()
 		.unwrap_or_default();
 
-	if ruma::identifiers_validation::server_name::validate(m_server).is_err() {
+	if ServerName::parse(m_server).is_err() {
 		debug_error!("response content missing or invalid");
 		return Ok(None);
 	}

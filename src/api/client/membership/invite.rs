@@ -2,18 +2,19 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
-	matrix::{event::gen_event_id_canonical_json, pdu::PduBuilder},
+	matrix::{event::gen_event_id_canonical_json, pdu::PartialPdu},
 	warn,
 };
 use futures::FutureExt;
 use ruma::{
 	RoomId, UserId,
-	api::{client::membership::invite_user, federation::membership::create_invite},
-	events::{
-		invite_permission_config::FilterLevel,
-		room::member::{MembershipState, RoomMemberEventContent},
+	api::{
+		client::membership::invite_user::{self, v3::InviteUserId},
+		federation::membership::create_invite,
 	},
+	events::room::member::{MembershipState, RoomMemberEventContent},
 };
+use ruminuwuity::invite_permission_config::FilterLevel;
 use service::Services;
 
 use super::banned_room_check;
@@ -51,7 +52,11 @@ pub(crate) async fn invite_user_route(
 	.await?;
 
 	match &body.recipient {
-		| invite_user::v3::InvitationRecipient::UserId { user_id: recipient_user } => {
+		| invite_user::v3::InvitationRecipient::UserId(InviteUserId {
+			user_id: recipient_user,
+			reason,
+			..
+		}) => {
 			let sender_filter_level = services
 				.users
 				.invite_filter_level(recipient_user, sender_user)
@@ -59,7 +64,7 @@ pub(crate) async fn invite_user_route(
 
 			if !matches!(sender_filter_level, FilterLevel::Allow) {
 				// drop invites if the sender has the recipient filtered
-				return Ok(invite_user::v3::Response {});
+				return Ok(invite_user::v3::Response::new());
 			}
 
 			if let Ok(target_user_membership) = services
@@ -95,13 +100,13 @@ pub(crate) async fn invite_user_route(
 				sender_user,
 				recipient_user,
 				&body.room_id,
-				body.reason.clone(),
+				reason.clone(),
 				false,
 			)
 			.boxed()
 			.await?;
 
-			Ok(invite_user::v3::Response {})
+			Ok(invite_user::v3::Response::new())
 		},
 		| _ => {
 			Err!(Request(NotFound("User not found.")))
@@ -141,18 +146,17 @@ pub(crate) async fn invite_helper(
 		let (pdu, pdu_json, invite_room_state) = {
 			let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-			let content = RoomMemberEventContent {
-				avatar_url: services.users.avatar_url(recipient_user).await.ok(),
-				is_direct: Some(is_direct),
-				reason,
-				..RoomMemberEventContent::new(MembershipState::Invite)
-			};
+			let mut content = RoomMemberEventContent::new(MembershipState::Invite);
+			content.displayname = services.users.displayname(recipient_user).await.ok();
+			content.avatar_url = services.users.avatar_url(recipient_user).await.ok();
+			content.is_direct = Some(is_direct);
+			content.reason = reason;
 
 			let (pdu, pdu_json) = services
 				.rooms
 				.timeline
 				.create_hash_and_sign_event(
-					PduBuilder::state(recipient_user.to_string(), &content),
+					PartialPdu::state(recipient_user.to_string(), &content),
 					sender_user,
 					Some(room_id),
 					&state_lock,
@@ -168,32 +172,39 @@ pub(crate) async fn invite_helper(
 
 		let room_version_id = services.rooms.state.get_room_version(room_id).await?;
 
+		let mut request = create_invite::v2::Request::new(
+			room_id.to_owned(),
+			(*pdu.event_id).to_owned(),
+			room_version_id.clone(),
+			services
+				.sending
+				.convert_to_outgoing_federation_event(pdu_json.clone())
+				.await,
+			invite_room_state,
+		);
+		request.via = services
+			.rooms
+			.state_cache
+			.servers_route_via(room_id)
+			.await
+			.ok();
+
 		let response = services
 			.sending
-			.send_federation_request(recipient_user.server_name(), create_invite::v2::Request {
-				room_id: room_id.to_owned(),
-				event_id: (*pdu.event_id).to_owned(),
-				room_version: room_version_id.clone(),
-				event: services
-					.sending
-					.convert_to_outgoing_federation_event(pdu_json.clone())
-					.await,
-				invite_room_state,
-				via: services
-					.rooms
-					.state_cache
-					.servers_route_via(room_id)
-					.await
-					.ok(),
-			})
+			.send_federation_request(recipient_user.server_name(), request)
 			.await?;
 
 		// We do not add the event_id field to the pdu here because of signature and
 		// hashes checks
-		let (event_id, value) = gen_event_id_canonical_json(&response.event, &room_version_id)
-			.map_err(|e| {
-				err!(Request(BadJson(warn!("Could not convert event to canonical JSON: {e}"))))
-			})?;
+		let (event_id, value) = gen_event_id_canonical_json(
+			&response.event,
+			&room_version_id
+				.rules()
+				.expect("room version should have defined rules"),
+		)
+		.map_err(|e| {
+			err!(Request(BadJson(warn!("Could not convert event to canonical JSON: {e}"))))
+		})?;
 
 		if pdu.event_id != event_id {
 			return Err!(Request(BadJson(warn!(
@@ -229,20 +240,18 @@ pub(crate) async fn invite_helper(
 
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
-	let content = RoomMemberEventContent {
-		displayname: services.users.displayname(recipient_user).await.ok(),
-		avatar_url: services.users.avatar_url(recipient_user).await.ok(),
-		blurhash: services.users.blurhash(recipient_user).await.ok(),
-		is_direct: Some(is_direct),
-		reason,
-		..RoomMemberEventContent::new(MembershipState::Invite)
-	};
+	let mut content = RoomMemberEventContent::new(MembershipState::Invite);
+	content.displayname = services.users.displayname(recipient_user).await.ok();
+	content.avatar_url = services.users.avatar_url(recipient_user).await.ok();
+	content.blurhash = services.users.blurhash(recipient_user).await.ok();
+	content.is_direct = Some(is_direct);
+	content.reason = reason;
 
 	services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
-			PduBuilder::state(recipient_user.to_string(), &content),
+			PartialPdu::state(recipient_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
 			&state_lock,

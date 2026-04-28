@@ -111,7 +111,7 @@ pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result 
 		.rooms
 		.state_cache
 		.rooms_joined(&user_id)
-		.then(|room_id| get_room_info(self.services, room_id))
+		.then(async |room_id| get_room_info(self.services, &room_id).await)
 		.collect()
 		.await;
 
@@ -129,6 +129,6 @@ pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result 
 		.collect::<Vec<_>>()
 		.join("\n");
 
-	self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```",))
+	self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```"))
 		.await
 }

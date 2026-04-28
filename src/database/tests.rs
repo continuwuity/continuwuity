@@ -1,30 +1,33 @@
 #![allow(clippy::needless_borrows_for_generic_args)]
 
-use std::fmt::Debug;
+use std::borrow::Cow;
 
 use conduwuit::{
 	arrayvec::ArrayVec,
-	ruma::{EventId, RoomId, UserId, serde::Raw},
+	ruma::{
+		EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId, room_id, serde::Raw,
+		user_id,
+	},
 };
 use serde::Serialize;
 
 use crate::{
-	Ignore, Interfix, de, ser,
+	Ignore, de, ser,
 	ser::{Json, serialize_to_vec},
 };
 
 #[test]
 #[cfg_attr(debug_assertions, should_panic(expected = "serializing string at the top-level"))]
 fn ser_str() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
 	let s = serialize_to_vec(&user_id).expect("failed to serialize user_id");
 	assert_eq!(&s, user_id.as_bytes());
 }
 
 #[test]
 fn ser_tuple() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	let mut a = user_id.as_bytes().to_vec();
 	a.push(0xFF);
@@ -38,8 +41,8 @@ fn ser_tuple() {
 
 #[test]
 fn ser_tuple_option() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
+	let user_id = user_id!("@user:example.com");
 
 	let mut a = Vec::<u8>::new();
 	a.push(0xFF);
@@ -64,8 +67,8 @@ fn ser_tuple_option() {
 fn ser_overflow() {
 	const BUFSIZE: usize = 10;
 
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	assert!(BUFSIZE < user_id.as_str().len() + room_id.as_str().len());
 	let mut buf = ArrayVec::<u8, BUFSIZE>::new();
@@ -75,47 +78,11 @@ fn ser_overflow() {
 }
 
 #[test]
-fn ser_complex() {
-	use conduwuit::ruma::Mxc;
-
-	#[derive(Debug, Serialize)]
-	struct Dim {
-		width: u32,
-		height: u32,
-	}
-
-	let mxc = Mxc {
-		server_name: "example.com".try_into().unwrap(),
-		media_id: "AbCdEfGhIjK",
-	};
-
-	let dim = Dim { width: 123, height: 456 };
-
-	let mut a = Vec::new();
-	a.extend_from_slice(b"mxc://");
-	a.extend_from_slice(mxc.server_name.as_bytes());
-	a.extend_from_slice(b"/");
-	a.extend_from_slice(mxc.media_id.as_bytes());
-	a.push(0xFF);
-	a.extend_from_slice(&dim.width.to_be_bytes());
-	a.extend_from_slice(&dim.height.to_be_bytes());
-	a.push(0xFF);
-
-	let d: &[u32] = &[dim.width, dim.height];
-	let b = (mxc, d, Interfix);
-	let b = serialize_to_vec(b).expect("failed to serialize complex");
-
-	assert_eq!(a, b);
-}
-
-#[test]
 fn ser_json() {
 	use conduwuit::ruma::api::client::filter::FilterDefinition;
 
-	let filter = FilterDefinition {
-		event_fields: Some(vec!["content.body".to_owned()]),
-		..Default::default()
-	};
+	let mut filter = FilterDefinition::default();
+	filter.event_fields = Some(vec!["content.body".to_owned()]);
 
 	let serialized = serialize_to_vec(Json(&filter)).expect("failed to serialize value");
 
@@ -127,10 +94,8 @@ fn ser_json() {
 fn ser_json_value() {
 	use conduwuit::ruma::api::client::filter::FilterDefinition;
 
-	let filter = FilterDefinition {
-		event_fields: Some(vec!["content.body".to_owned()]),
-		..Default::default()
-	};
+	let mut filter = FilterDefinition::default();
+	filter.event_fields = Some(vec!["content.body".to_owned()]);
 
 	let value = serde_json::to_value(filter).expect("failed to serialize to serde_json::value");
 	let serialized = serialize_to_vec(Json(value)).expect("failed to serialize value");
@@ -166,10 +131,8 @@ fn ser_json_macro() {
 fn ser_json_raw() {
 	use conduwuit::ruma::api::client::filter::FilterDefinition;
 
-	let filter = FilterDefinition {
-		event_fields: Some(vec!["content.body".to_owned()]),
-		..Default::default()
-	};
+	let mut filter = FilterDefinition::default();
+	filter.event_fields = Some(vec!["content.body".to_owned()]);
 
 	let value =
 		serde_json::value::to_raw_value(&filter).expect("failed to serialize to raw value");
@@ -183,10 +146,8 @@ fn ser_json_raw() {
 fn ser_json_raw_json() {
 	use conduwuit::ruma::api::client::filter::FilterDefinition;
 
-	let filter = FilterDefinition {
-		event_fields: Some(vec!["content.body".to_owned()]),
-		..Default::default()
-	};
+	let mut filter = FilterDefinition::default();
+	filter.event_fields = Some(vec!["content.body".to_owned()]);
 
 	let value =
 		serde_json::value::to_raw_value(&filter).expect("failed to serialize to raw value");
@@ -197,11 +158,11 @@ fn ser_json_raw_json() {
 
 #[test]
 fn de_tuple() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	let raw: &[u8] = b"@user:example.com\xFF!room:example.com";
-	let (a, b): (&UserId, &RoomId) = de::from_slice(raw).expect("failed to deserialize");
+	let (a, b): (OwnedUserId, OwnedRoomId) = de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
 	assert_eq!(b, room_id, "deserialized room_id does not match");
@@ -210,11 +171,11 @@ fn de_tuple() {
 #[test]
 #[should_panic(expected = "failed to deserialize")]
 fn de_tuple_invalid() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	let raw: &[u8] = b"@user:example.com\xFF@user:example.com";
-	let (a, b): (&UserId, &RoomId) = de::from_slice(raw).expect("failed to deserialize");
+	let (a, b): (OwnedUserId, OwnedRoomId) = de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
 	assert_eq!(b, room_id, "deserialized room_id does not match");
@@ -223,10 +184,10 @@ fn de_tuple_invalid() {
 #[test]
 #[should_panic(expected = "failed to deserialize")]
 fn de_tuple_incomplete() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
 
 	let raw: &[u8] = b"@user:example.com";
-	let (a, _): (&UserId, &RoomId) = de::from_slice(raw).expect("failed to deserialize");
+	let (a, _): (OwnedUserId, OwnedRoomId) = de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
 }
@@ -234,10 +195,10 @@ fn de_tuple_incomplete() {
 #[test]
 #[should_panic(expected = "failed to deserialize")]
 fn de_tuple_incomplete_with_sep() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
 
 	let raw: &[u8] = b"@user:example.com\xFF";
-	let (a, _): (&UserId, &RoomId) = de::from_slice(raw).expect("failed to deserialize");
+	let (a, _): (OwnedUserId, OwnedRoomId) = de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
 }
@@ -248,11 +209,11 @@ fn de_tuple_incomplete_with_sep() {
 	should_panic(expected = "deserialization failed to consume trailing bytes")
 )]
 fn de_tuple_unfinished() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	let raw: &[u8] = b"@user:example.com\xFF!room:example.com\xFF@user:example.com";
-	let (a, b): (&UserId, &RoomId) = de::from_slice(raw).expect("failed to deserialize");
+	let (a, b): (OwnedUserId, OwnedRoomId) = de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
 	assert_eq!(b, room_id, "deserialized room_id does not match");
@@ -260,11 +221,11 @@ fn de_tuple_unfinished() {
 
 #[test]
 fn de_tuple_ignore() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 
 	let raw: &[u8] = b"@user:example.com\xFF@user2:example.net\xFF!room:example.com";
-	let (a, _, c): (&UserId, Ignore, &RoomId) =
+	let (a, _, c): (OwnedUserId, Ignore, OwnedRoomId) =
 		de::from_slice(raw).expect("failed to deserialize");
 
 	assert_eq!(a, user_id, "deserialized user_id does not match");
@@ -360,10 +321,10 @@ fn de_array() {
 #[test]
 #[ignore = "Nested sequences are not supported"]
 fn de_complex() {
-	type Key<'a> = (&'a UserId, ArrayVec<u64, 2>, &'a RoomId);
+	type Key = (OwnedUserId, ArrayVec<u64, 2>, OwnedRoomId);
 
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
+	let room_id = room_id!("!room:example.com");
 	let a: u64 = 123_456;
 	let b: u64 = 987_654;
 
@@ -376,36 +337,36 @@ fn de_complex() {
 	v.extend_from_slice(room_id.as_bytes());
 
 	let arr: &[u64] = &[a, b];
-	let key = (user_id, arr, room_id);
+	let key = (user_id.to_owned(), arr, room_id.to_owned());
 	let s = serialize_to_vec(&key).expect("failed to serialize");
 
 	assert_eq!(&s, &v, "serialization does not match");
 
-	let key = (user_id, [a, b].into(), room_id);
-	let arr: Key<'_> = de::from_slice(&v).expect("failed to deserialize");
+	let key = (user_id.to_owned(), [a, b].into(), room_id.to_owned());
+	let arr: Key = de::from_slice(&v).expect("failed to deserialize");
 
 	assert_eq!(arr, key, "deserialization does not match");
 
-	let arr: Key<'_> = de::from_slice(&s).expect("failed to deserialize");
+	let arr: Key = de::from_slice(&s).expect("failed to deserialize");
 
 	assert_eq!(arr, key, "deserialization of serialization does not match");
 }
 
 #[test]
 fn serde_tuple_option_value_some() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
+	let user_id = user_id!("@user:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.extend_from_slice(room_id.as_bytes());
 	aa.push(0xFF);
 	aa.extend_from_slice(user_id.as_bytes());
 
-	let bb: (&RoomId, Option<&UserId>) = (room_id, Some(user_id));
+	let bb: (OwnedRoomId, Option<OwnedUserId>) = (room_id.to_owned(), Some(user_id.to_owned()));
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (&RoomId, Option<&UserId>) =
+	let cc: (OwnedRoomId, Option<OwnedUserId>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(bb.1, cc.1);
@@ -414,17 +375,17 @@ fn serde_tuple_option_value_some() {
 
 #[test]
 fn serde_tuple_option_value_none() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.extend_from_slice(room_id.as_bytes());
 	aa.push(0xFF);
 
-	let bb: (&RoomId, Option<&UserId>) = (room_id, None);
+	let bb: (OwnedRoomId, Option<OwnedUserId>) = (room_id.to_owned(), None);
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (&RoomId, Option<&UserId>) =
+	let cc: (OwnedRoomId, Option<OwnedUserId>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(None, cc.1);
@@ -433,17 +394,17 @@ fn serde_tuple_option_value_none() {
 
 #[test]
 fn serde_tuple_option_none_value() {
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let user_id = user_id!("@user:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.push(0xFF);
 	aa.extend_from_slice(user_id.as_bytes());
 
-	let bb: (Option<&RoomId>, &UserId) = (None, user_id);
+	let bb: (Option<OwnedRoomId>, OwnedUserId) = (None, user_id.to_owned());
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, &UserId) =
+	let cc: (Option<OwnedRoomId>, OwnedUserId) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(None, cc.0);
@@ -452,19 +413,19 @@ fn serde_tuple_option_none_value() {
 
 #[test]
 fn serde_tuple_option_some_value() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
+	let user_id = user_id!("@user:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.extend_from_slice(room_id.as_bytes());
 	aa.push(0xFF);
 	aa.extend_from_slice(user_id.as_bytes());
 
-	let bb: (Option<&RoomId>, &UserId) = (Some(room_id), user_id);
+	let bb: (Option<OwnedRoomId>, OwnedUserId) = (Some(room_id.to_owned()), user_id.to_owned());
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, &UserId) =
+	let cc: (Option<OwnedRoomId>, OwnedUserId) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(bb.0, cc.0);
@@ -473,19 +434,20 @@ fn serde_tuple_option_some_value() {
 
 #[test]
 fn serde_tuple_option_some_some() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
+	let user_id = user_id!("@user:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.extend_from_slice(room_id.as_bytes());
 	aa.push(0xFF);
 	aa.extend_from_slice(user_id.as_bytes());
 
-	let bb: (Option<&RoomId>, Option<&UserId>) = (Some(room_id), Some(user_id));
+	let bb: (Option<OwnedRoomId>, Option<OwnedUserId>) =
+		(Some(room_id.to_owned()), Some(user_id.to_owned()));
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, Option<&UserId>) =
+	let cc: (Option<OwnedRoomId>, Option<OwnedUserId>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(cc.0, bb.0);
@@ -496,11 +458,11 @@ fn serde_tuple_option_some_some() {
 fn serde_tuple_option_none_none() {
 	let aa = vec![0xFF];
 
-	let bb: (Option<&RoomId>, Option<&UserId>) = (None, None);
+	let bb: (Option<OwnedRoomId>, Option<OwnedUserId>) = (None, None);
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, Option<&UserId>) =
+	let cc: (Option<OwnedRoomId>, Option<OwnedUserId>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(cc.0, bb.0);
@@ -508,9 +470,10 @@ fn serde_tuple_option_none_none() {
 }
 
 #[test]
+#[allow(clippy::type_complexity)]
 fn serde_tuple_option_some_none_some() {
-	let room_id: &RoomId = "!room:example.com".try_into().unwrap();
-	let user_id: &UserId = "@user:example.com".try_into().unwrap();
+	let room_id = room_id!("!room:example.com");
+	let user_id = user_id!("@user:example.com");
 
 	let mut aa = Vec::<u8>::new();
 	aa.extend_from_slice(room_id.as_bytes());
@@ -524,24 +487,24 @@ fn serde_tuple_option_some_none_some() {
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, Option<&EventId>, Option<&UserId>) =
+	let cc: (Option<Cow<'_, RoomId>>, Option<Cow<'_, EventId>>, Option<Cow<'_, UserId>>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
-	assert_eq!(bb.0, cc.0);
-	assert_eq!(None, cc.1);
-	assert_eq!(bb.1, cc.1);
-	assert_eq!(bb.2, cc.2);
+	assert_eq!(bb.0, cc.0.as_deref());
+	assert_eq!(None, cc.1.as_deref());
+	assert_eq!(bb.1, cc.1.as_deref());
+	assert_eq!(bb.2, cc.2.as_deref());
 }
 
 #[test]
 fn serde_tuple_option_none_none_none() {
 	let aa = vec![0xFF, 0xFF];
 
-	let bb: (Option<&RoomId>, Option<&EventId>, Option<&UserId>) = (None, None, None);
+	let bb: (Option<OwnedRoomId>, Option<OwnedEventId>, Option<OwnedUserId>) = (None, None, None);
 	let bbs = serialize_to_vec(&bb).expect("failed to serialize tuple");
 	assert_eq!(aa, bbs);
 
-	let cc: (Option<&RoomId>, Option<&EventId>, Option<&UserId>) =
+	let cc: (Option<OwnedRoomId>, Option<OwnedEventId>, Option<OwnedUserId>) =
 		de::from_slice(&bbs).expect("failed to deserialize tuple");
 
 	assert_eq!(None, cc.0);

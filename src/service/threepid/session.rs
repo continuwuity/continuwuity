@@ -43,7 +43,7 @@ pub(crate) struct ValidationToken {
 
 impl ValidationToken {
 	// one hour
-	const MAX_TOKEN_AGE: Duration = Duration::from_secs(60 * 60);
+	const MAX_TOKEN_AGE: Duration = Duration::from_hours(1);
 	const RANDOM_TOKEN_LENGTH: usize = 16;
 
 	pub(super) fn new_random() -> Self {
@@ -70,7 +70,7 @@ impl ValidationSessions {
 
 	#[must_use]
 	pub(super) fn generate_session_id() -> OwnedSessionId {
-		OwnedSessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
+		SessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
 	}
 
 	pub(super) fn create_session(

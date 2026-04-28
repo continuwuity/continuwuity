@@ -5,25 +5,23 @@ use std::{
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, debug, debug_warn, err,
-	result::NotFound,
-	utils::{IterStream, stream::WidebandExt},
+	Err, Result, debug, debug_warn, err,
+	result::FlatOk,
+	utils::{IterStream, TryFutureExtExt, stream::WidebandExt},
 };
 use conduwuit_service::{Services, users::parse_master_key};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
 	OneTimeKeyAlgorithm, OwnedDeviceId, OwnedUserId, UserId,
 	api::{
-		client::{
-			error::ErrorKind,
-			keys::{
-				claim_keys, get_key_changes, get_keys, upload_keys,
-				upload_signatures::{self},
-				upload_signing_keys,
-			},
+		client::keys::{
+			claim_keys, get_key_changes, get_keys, upload_keys,
+			upload_signatures::{self},
+			upload_signing_keys,
 		},
 		federation,
 	},
+	assign,
 	encryption::CrossSigningKey,
 	serde::Raw,
 };
@@ -115,12 +113,12 @@ pub(crate) async fn upload_keys_route(
 		}
 	}
 
-	Ok(upload_keys::v3::Response {
-		one_time_key_counts: services
-			.users
-			.count_one_time_keys(sender_user, sender_device)
-			.await,
-	})
+	let one_time_key_counts = services
+		.users
+		.count_one_time_keys(sender_user, sender_device)
+		.await;
+
+	Ok(upload_keys::v3::Response::new(one_time_key_counts))
 }
 
 /// # `POST /_matrix/client/r0/keys/query`
@@ -174,7 +172,7 @@ pub(crate) async fn upload_signing_keys_route(
 ) -> Result<upload_signing_keys::v3::Response> {
 	let sender_user = body.sender_user();
 
-	match check_for_new_keys(
+	if uiaa_needed_to_upload_keys(
 		services,
 		sender_user,
 		body.self_signing_key.as_ref(),
@@ -182,25 +180,11 @@ pub(crate) async fn upload_signing_keys_route(
 		body.master_key.as_ref(),
 	)
 	.await
-	.inspect_err(|e| debug!(?e))
 	{
-		| Ok(exists) => {
-			if let Some(result) = exists {
-				// No-op, they tried to reupload the same set of keys
-				// (lost connection for example)
-				return Ok(result);
-			}
-			debug!(
-				"Skipping UIA in accordance with MSC3967, the user didn't have any existing keys"
-			);
-			// Some of the keys weren't found, so we let them upload
-		},
-		| _ => {
-			let _ = services
-				.uiaa
-				.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
-				.await?;
-		},
+		let _ = services
+			.uiaa
+			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.await?;
 	}
 
 	services
@@ -214,77 +198,56 @@ pub(crate) async fn upload_signing_keys_route(
 		)
 		.await?;
 
-	Ok(upload_signing_keys::v3::Response {})
+	Ok(upload_signing_keys::v3::Response::new())
 }
 
-async fn check_for_new_keys(
+async fn uiaa_needed_to_upload_keys(
 	services: crate::State,
 	user_id: &UserId,
 	self_signing_key: Option<&Raw<CrossSigningKey>>,
 	user_signing_key: Option<&Raw<CrossSigningKey>>,
 	master_signing_key: Option<&Raw<CrossSigningKey>>,
-) -> Result<Option<upload_signing_keys::v3::Response>> {
-	debug!("checking for existing keys");
-	let mut empty = false;
-	if let Some(master_signing_key) = master_signing_key {
-		let (key, value) = parse_master_key(user_id, master_signing_key)?;
-		let result = services
-			.users
-			.get_master_key(None, user_id, &|_| true)
-			.await;
-		if result.is_not_found() {
-			empty = true;
-		} else {
-			let existing_master_key = result?;
-			let (existing_key, existing_value) = parse_master_key(user_id, &existing_master_key)?;
-			if existing_key != key || existing_value != value {
-				return Err!(Request(Forbidden(
-					"Tried to change an existing master key, UIA required"
-				)));
-			}
-		}
-	}
-	if let Some(user_signing_key) = user_signing_key {
-		let key = services.users.get_user_signing_key(user_id).await;
-		if key.is_not_found() && !empty {
-			return Err!(Request(Forbidden(
-				"Tried to update an existing user signing key, UIA required"
-			)));
-		}
-		if !key.is_not_found() {
-			let existing_signing_key = key?.deserialize()?;
-			if existing_signing_key != user_signing_key.deserialize()? {
-				return Err!(Request(Forbidden(
-					"Tried to change an existing user signing key, UIA required"
-				)));
-			}
-		}
-	}
-	if let Some(self_signing_key) = self_signing_key {
-		let key = services
+) -> bool {
+	let (self_signing_key, user_signing_key, master_signing_key) = (
+		self_signing_key.map(Raw::deserialize).flat_ok(),
+		user_signing_key.map(Raw::deserialize).flat_ok(),
+		master_signing_key.map(Raw::deserialize).flat_ok(),
+	);
+
+	let (existing_self_signing_key, existing_user_signing_key, existing_master_signing_key) = futures::join!(
+		services
 			.users
 			.get_self_signing_key(None, user_id, &|_| true)
-			.await;
-		if key.is_not_found() && !empty {
-			debug!(?key);
-			return Err!(Request(Forbidden(
-				"Tried to add a new signing key independently from the master key"
-			)));
-		}
-		if !key.is_not_found() {
-			let existing_signing_key = key?.deserialize()?;
-			if existing_signing_key != self_signing_key.deserialize()? {
-				return Err!(Request(Forbidden(
-					"Tried to update an existing self signing key, UIA required"
-				)));
-			}
-		}
-	}
-	if empty {
-		return Ok(None);
-	}
+			.ok(),
+		services.users.get_user_signing_key(user_id).ok(),
+		services.users.get_master_key(None, user_id, &|_| true).ok(),
+	);
 
-	Ok(Some(upload_signing_keys::v3::Response {}))
+	let (existing_self_signing_key, existing_user_signing_key, existing_master_signing_key) = (
+		existing_self_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+		existing_user_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+		existing_master_signing_key
+			.as_ref()
+			.map(Raw::deserialize)
+			.flat_ok(),
+	);
+
+	if let Some(existing_master_signing_key) = existing_master_signing_key {
+		// If a master key exists, UIAA is required if any of the keys are different.
+
+		master_signing_key != Some(existing_master_signing_key)
+			|| user_signing_key != existing_user_signing_key
+			|| self_signing_key != existing_self_signing_key
+	} else {
+		// If no master key exists, UIAA is not required.
+		false
+	}
 }
 
 /// # `POST /_matrix/client/r0/keys/signatures/upload`
@@ -343,7 +306,7 @@ pub(crate) async fn upload_signatures_route(
 		}
 	}
 
-	Ok(upload_signatures::v3::Response { failures: BTreeMap::new() })
+	Ok(upload_signatures::v3::Response::new())
 }
 
 /// # `POST /_matrix/client/r0/keys/changes`
@@ -363,18 +326,17 @@ pub(crate) async fn get_key_changes_route(
 	let from = body
 		.from
 		.parse()
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invalid `from`."))?;
+		.map_err(|_| err!(Request(InvalidParam("Invalid `from`."))))?;
 
 	let to = body
 		.to
 		.parse()
-		.map_err(|_| Error::BadRequest(ErrorKind::InvalidParam, "Invalid `to`."))?;
+		.map_err(|_| err!(Request(InvalidParam("Invalid `to`."))))?;
 
 	device_list_updates.extend(
 		services
 			.users
 			.keys_changed(sender_user, Some(from), Some(to))
-			.map(ToOwned::to_owned)
 			.collect::<Vec<_>>()
 			.await,
 	);
@@ -385,18 +347,18 @@ pub(crate) async fn get_key_changes_route(
 		device_list_updates.extend(
 			services
 				.users
-				.room_keys_changed(room_id, Some(from), Some(to))
+				.room_keys_changed(&room_id, Some(from), Some(to))
 				.map(|(user_id, _)| user_id)
-				.map(ToOwned::to_owned)
 				.collect::<Vec<_>>()
 				.await,
 		);
 	}
 
-	Ok(get_key_changes::v3::Response {
-		changed: device_list_updates.into_iter().collect(),
-		left: Vec::new(), // TODO
-	})
+	Ok(get_key_changes::v3::Response::new(
+		device_list_updates.into_iter().collect(),
+		// TODO
+		vec![],
+	))
 }
 
 pub(crate) async fn get_keys_helper<F>(
@@ -433,10 +395,10 @@ where
 			let mut devices = services.users.all_device_ids(user_id).boxed();
 
 			while let Some(device_id) = devices.next().await {
-				if let Ok(mut keys) = services.users.get_device_keys(user_id, device_id).await {
+				if let Ok(mut keys) = services.users.get_device_keys(user_id, &device_id).await {
 					let metadata = services
 						.users
-						.get_device_metadata(user_id, device_id)
+						.get_device_metadata(user_id, &device_id)
 						.await
 						.map_err(|_| {
 							err!(Database("all_device_keys contained nonexistent device."))
@@ -445,7 +407,7 @@ where
 					add_unsigned_device_display_name(&mut keys, metadata, include_display_names)
 						.map_err(|_| err!(Database("invalid device keys in database")))?;
 
-					container.insert(device_id.to_owned(), keys);
+					container.insert(device_id.clone(), keys);
 				}
 			}
 
@@ -506,8 +468,7 @@ where
 				device_keys_input_fed.insert(user_id.to_owned(), keys.clone());
 			}
 
-			let request =
-				federation::keys::get_keys::v1::Request { device_keys: device_keys_input_fed };
+			let request = federation::keys::get_keys::v1::Request::new(device_keys_input_fed);
 			let response = tokio::time::timeout(
 				timeout,
 				services.sending.send_federation_request(server, request),
@@ -561,13 +522,13 @@ where
 		}
 	}
 
-	Ok(get_keys::v3::Response {
+	Ok(assign!(get_keys::v3::Response::new(), {
 		failures,
 		device_keys,
 		master_keys,
 		self_signing_keys,
 		user_signing_keys,
-	})
+	}))
 }
 
 fn add_unsigned_device_display_name(
@@ -576,7 +537,8 @@ fn add_unsigned_device_display_name(
 	include_display_names: bool,
 ) -> serde_json::Result<()> {
 	if let Some(display_name) = metadata.display_name {
-		let mut object = keys.deserialize_as::<serde_json::Map<String, serde_json::Value>>()?;
+		let mut object =
+			keys.deserialize_as_unchecked::<serde_json::Map<String, serde_json::Value>>()?;
 
 		let unsigned = object.entry("unsigned").or_insert_with(|| json!({}));
 		if let serde_json::Value::Object(unsigned_object) = unsigned {
@@ -642,9 +604,7 @@ pub(crate) async fn claim_keys_helper(
 				timeout,
 				services.sending.send_federation_request(
 					server,
-					federation::keys::claim_keys::v1::Request {
-						one_time_keys: one_time_keys_input_fed,
-					},
+					federation::keys::claim_keys::v1::Request::new(one_time_keys_input_fed),
 				),
 			)
 			.await
@@ -667,5 +627,5 @@ pub(crate) async fn claim_keys_helper(
 		}
 	}
 
-	Ok(claim_keys::v3::Response { failures, one_time_keys })
+	Ok(assign!(claim_keys::v3::Response::new(one_time_keys), { failures: failures }))
 }

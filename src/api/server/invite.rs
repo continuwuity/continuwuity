@@ -8,8 +8,11 @@ use conduwuit::{
 	warn,
 };
 use ruma::{
-	CanonicalJsonValue, OwnedUserId, UserId,
-	api::{client::error::ErrorKind, federation::membership::create_invite},
+	CanonicalJsonValue, UserId,
+	api::{
+		error::{ErrorKind, IncompatibleRoomVersionErrorData},
+		federation::membership::{RawStrippedState, create_invite},
+	},
 	events::room::member::{MembershipState, RoomMemberEventContent},
 	serde::JsonObject,
 };
@@ -34,10 +37,14 @@ pub(crate) async fn create_invite_route(
 
 	if !services.server.supported_room_version(&body.room_version) {
 		return Err(Error::BadRequest(
-			ErrorKind::IncompatibleRoomVersion { room_version: body.room_version.clone() },
+			ErrorKind::IncompatibleRoomVersion(IncompatibleRoomVersionErrorData::new(
+				body.room_version.clone(),
+			)),
 			"Server does not support this room version.",
 		));
 	}
+
+	let room_version_rules = body.room_version.rules().unwrap();
 
 	if let Some(server) = body.room_id.server_name() {
 		if services.moderation.is_remote_server_forbidden(server) {
@@ -91,21 +98,24 @@ pub(crate) async fn create_invite_route(
 	}
 
 	// Ensure the sending user isn't a lying bozo
-	let sender_server = signed_event
+	let sender_user = signed_event
 		.get("sender")
-		.try_into()
-		.map(UserId::server_name)
-		.map_err(|e| err!(Request(InvalidParam("Invalid sender property: {e}"))))?;
-	if sender_server != body.origin() {
+		.and_then(|v| v.as_str())
+		.map(UserId::parse)
+		.and_then(Result::ok)
+		.ok_or_else(|| err!(Request(InvalidParam("Invalid sender property"))))?;
+
+	if sender_user.server_name() != body.origin() {
 		return Err!(Request(Forbidden("Sender's server does not match the origin server.",)));
 	}
 
 	// Ensure the target user belongs to this server
-	let recipient_user: OwnedUserId = signed_event
+	let recipient_user = signed_event
 		.get("state_key")
-		.try_into()
-		.map(UserId::to_owned)
-		.map_err(|e| err!(Request(InvalidParam("Invalid state_key property: {e}"))))?;
+		.and_then(|v| v.as_str())
+		.map(UserId::parse)
+		.and_then(Result::ok)
+		.ok_or_else(|| err!(Request(InvalidParam("Invalid state_key property"))))?;
 
 	if !services
 		.globals
@@ -123,19 +133,14 @@ pub(crate) async fn create_invite_route(
 
 	services
 		.server_keys
-		.hash_and_sign_event(&mut signed_event, &body.room_version)
+		.hash_and_sign_event(&mut signed_event, &room_version_rules)
 		.map_err(|e| err!(Request(InvalidParam("Failed to sign event: {e}"))))?;
 
 	// Generate event id
-	let event_id = gen_event_id(&signed_event, &body.room_version)?;
+	let event_id = gen_event_id(&signed_event, &room_version_rules)?;
 
 	// Add event_id back
 	signed_event.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.to_string()));
-
-	let sender_user: &UserId = signed_event
-		.get("sender")
-		.try_into()
-		.map_err(|e| err!(Request(InvalidParam("Invalid sender property: {e}"))))?;
 
 	if services.rooms.metadata.is_banned(&body.room_id).await
 		&& !services.users.is_admin(&recipient_user).await
@@ -150,7 +155,7 @@ pub(crate) async fn create_invite_route(
 
 	if let Err(e) = services
 		.antispam
-		.user_may_invite(sender_user.to_owned(), recipient_user.clone(), body.room_id.clone())
+		.user_may_invite(sender_user.clone(), recipient_user.clone(), body.room_id.clone())
 		.await
 	{
 		warn!("Antispam rejected invite: {e:?}");
@@ -167,7 +172,7 @@ pub(crate) async fn create_invite_route(
 	let pdu: PduEvent = serde_json::from_value(event.into())
 		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
 
-	invite_state.push(pdu.to_format());
+	invite_state.push(RawStrippedState::Pdu(pdu.content.clone()));
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
@@ -185,8 +190,8 @@ pub(crate) async fn create_invite_route(
 			.mark_as_invited(
 				&recipient_user,
 				&body.room_id,
-				sender_user,
-				Some(invite_state),
+				&sender_user,
+				invite_state,
 				body.via.clone(),
 			)
 			.await?;
@@ -199,14 +204,15 @@ pub(crate) async fn create_invite_route(
 
 		for appservice in services.appservice.read().await.values() {
 			if appservice.is_user_match(&recipient_user) {
-				let request = ruma::api::appservice::event::push_events::v1::Request {
-					events: vec![pdu.to_format()],
-					txn_id: general_purpose::URL_SAFE_NO_PAD
-						.encode(sha256::hash(pdu.event_id.as_bytes()))
-						.into(),
-					ephemeral: Vec::new(),
-					to_device: Vec::new(),
-				};
+				let transaction_id = general_purpose::URL_SAFE_NO_PAD
+					.encode(sha256::hash(pdu.event_id.as_bytes()))
+					.into();
+
+				let request = ruma::api::appservice::event::push_events::v1::Request::new(
+					transaction_id,
+					vec![pdu.to_format()],
+				);
+
 				services
 					.sending
 					.send_appservice_request(appservice.registration.clone(), request)
@@ -224,10 +230,10 @@ pub(crate) async fn create_invite_route(
 		}
 	}
 
-	Ok(create_invite::v2::Response {
-		event: services
+	Ok(create_invite::v2::Response::new(
+		services
 			.sending
 			.convert_to_outgoing_federation_event(signed_event)
 			.await,
-	})
+	))
 }

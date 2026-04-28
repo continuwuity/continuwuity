@@ -38,21 +38,22 @@ macro_rules! ruma_handler {
 		where
 			Fun: Fn($($tx,)* Ruma<Req>,) -> Fut + Send + Sync + 'static,
 			Fut: Future<Output = Result<Req::OutgoingResponse, Err>> + Send,
-			Req: IncomingRequest + Send + Sync + 'static,
+			Req: IncomingRequest<Authentication: $crate::router::auth::CheckAuth> + Send + Sync + 'static,
 			Err: IntoResponse + Send,
 			<Req as IncomingRequest>::OutgoingResponse: Send,
 			$( $tx: FromRequestParts<State> + Send + Sync + 'static, )*
 		{
 			fn add_routes(&'static self, router: Router<State>) -> Router<State> {
-				Req::METADATA
-					.history
+				use ruma::api::path_builder::PathBuilder;
+
+				Req::PATH_BUILDER
 					.all_paths()
 					.fold(router, |router, path| self.add_route(router, path))
 			}
 
 			fn add_route(&'static self, router: Router<State>, path: &str) -> Router<State> {
 				let action = |$($tx,)* req| self($($tx,)* req).map_ok(RumaResponse);
-				let method = method_to_filter(&Req::METADATA.method);
+				let method = method_to_filter(&Req::METHOD);
 				router.route(path, on(method, action))
 			}
 		}

@@ -1,6 +1,7 @@
 use ruma::{
-	OwnedEventId, RoomVersionId,
+	OwnedEventId,
 	events::{TimelineEventType, room::redaction::RoomRedactionEventContent},
+	room_version_rules::RoomVersionRules,
 };
 use serde::Deserialize;
 use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
@@ -61,22 +62,19 @@ pub(super) fn is_redacted<E: Event>(event: &E) -> bool {
 #[must_use]
 pub(super) fn redacts_id<E: Event>(
 	event: &E,
-	room_version: &RoomVersionId,
+	room_version_rules: &RoomVersionRules,
 ) -> Option<OwnedEventId> {
-	use RoomVersionId::*;
-
 	if *event.kind() != TimelineEventType::RoomRedaction {
 		return None;
 	}
 
-	match *room_version {
-		| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
-			event.redacts().map(ToOwned::to_owned),
-		| _ =>
-			event
-				.get_content::<RoomRedactionEventContent>()
-				.ok()?
-				.redacts,
+	if room_version_rules.redaction.content_field_redacts {
+		event.redacts().map(ToOwned::to_owned)
+	} else {
+		event
+			.get_content::<RoomRedactionEventContent>()
+			.ok()?
+			.redacts
 	}
 }
 

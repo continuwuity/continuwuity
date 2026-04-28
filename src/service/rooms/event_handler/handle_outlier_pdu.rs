@@ -10,7 +10,7 @@ use ruma::{
 	events::StateEventType,
 };
 
-use super::{check_room_id, get_room_version_id, to_room_version};
+use super::{check_room_id, get_room_version_rules};
 use crate::rooms::timeline::pdu_fits;
 
 #[implement(super::Service)]
@@ -41,18 +41,20 @@ where
 
 	// 2. Check signatures, otherwise drop
 	// 3. check content hash, redact if doesn't match
-	let room_version_id = get_room_version_id(create_event)?;
+	let room_version_rules = get_room_version_rules(create_event)?;
 	let mut incoming_pdu = match self
 		.services
 		.server_keys
-		.verify_event(&value, Some(&room_version_id))
+		.verify_event(&value, &room_version_rules)
 		.await
 	{
 		| Ok(ruma::signatures::Verified::All) => value,
 		| Ok(ruma::signatures::Verified::Signatures) => {
 			// Redact
 			debug_info!("Calculated hash does not match (redaction): {event_id}");
-			let Ok(obj) = ruma::canonical_json::redact(value, &room_version_id, None) else {
+			let Ok(obj) =
+				ruma::canonical_json::redact(value, &room_version_rules.redaction, None)
+			else {
 				return Err!(Request(InvalidParam("Redaction failed")));
 			};
 
@@ -184,7 +186,7 @@ where
 	};
 
 	let auth_check = state_res::event_auth::auth_check(
-		&to_room_version(&room_version_id),
+		&room_version_rules,
 		&pdu_event,
 		None, // TODO: third party invite
 		state_fetch,

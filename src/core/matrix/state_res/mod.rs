@@ -3,7 +3,7 @@
 pub(crate) mod error;
 pub mod event_auth;
 mod power_levels;
-mod room_version;
+mod serde_backports;
 
 #[cfg(test)]
 mod test_utils;
@@ -20,25 +20,22 @@ use std::{
 
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future};
 use ruma::{
-	EventId, Int, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomVersionId,
+	EventId, Int, MilliSecondsSinceUnixEpoch, OwnedEventId,
 	events::{
 		StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	int,
+	room_version_rules::{RoomIdFormatVersion, RoomVersionRules, StateResolutionVersion},
 };
 use serde_json::from_str as from_json_str;
 
 pub(crate) use self::error::Error;
+pub use self::event_auth::{auth_check, auth_types_for_event};
 use self::power_levels::PowerLevelsContentFields;
-pub use self::{
-	event_auth::{auth_check, auth_types_for_event},
-	room_version::RoomVersion,
-};
 use crate::{
 	debug, debug_error, err,
 	matrix::{Event, StateKey},
-	state_res::room_version::StateResolutionVersion,
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
 	warn,
@@ -77,7 +74,7 @@ type Result<T, E = Error> = crate::Result<T, E>;
 //#[tracing::instrument(level event_fetch))]
 #[allow(clippy::cognitive_complexity)]
 pub async fn resolve<'a, Pdu, Sets, SetIter, Hasher, Fetch, FetchFut, Exists, ExistsFut>(
-	room_version: &RoomVersionId,
+	room_version: &RoomVersionRules,
 	state_sets: Sets,
 	auth_chain_sets: &'a [HashSet<OwnedEventId, Hasher>],
 	event_fetch: &Fetch,
@@ -94,11 +91,7 @@ where
 	Pdu: Event + Clone + Send + Sync,
 	for<'b> &'b Pdu: Event + Send,
 {
-	use RoomVersionId::*;
-	let stateres_version = match room_version {
-		| V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 | V11 => StateResolutionVersion::V2,
-		| _ => StateResolutionVersion::V2_1,
-	};
+	let stateres_version = room_version.state_res;
 	debug!(version = ?stateres_version, "State resolution starting");
 
 	// Split non-conflicting and conflicting state
@@ -114,19 +107,21 @@ where
 
 	debug!(count = conflicting.len(), "conflicting events");
 	trace!(map = ?conflicting, "conflicting events");
-	let (conflicted_state_subgraph, initial_state) =
-		if stateres_version == StateResolutionVersion::V2_1 {
-			let csg = calculate_conflicted_subgraph(&conflicting, event_fetch)
-				.await
-				.ok_or_else(|| {
-					Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
-				})?;
-			debug!(count = csg.len(), "conflicted subgraph");
-			trace!(set = ?csg, "conflicted subgraph");
-			(csg, HashMap::new())
-		} else {
-			(HashSet::new(), unconflicted.clone())
-		};
+	let (conflicted_state_subgraph, initial_state) = if let StateResolutionVersion::V2(v2_rules) =
+		stateres_version
+		&& v2_rules.consider_conflicted_state_subgraph
+	{
+		let csg = calculate_conflicted_subgraph(&conflicting, event_fetch)
+			.await
+			.ok_or_else(|| {
+				Error::InvalidPdu("Failed to calculate conflicted subgraph".to_owned())
+			})?;
+		debug!(count = csg.len(), "conflicted subgraph");
+		trace!(set = ?csg, "conflicted subgraph");
+		(csg, HashMap::new())
+	} else {
+		(HashSet::new(), unconflicted.clone())
+	};
 
 	// `all_conflicted` contains unique items
 	// synapse says `full_set = {eid for eid in full_conflicted_set if eid in
@@ -166,10 +161,9 @@ where
 	debug!(count = sorted_control_levels.len(), "power events");
 	trace!(list = ?sorted_control_levels, "sorted power events");
 
-	let room_version = RoomVersion::new(room_version)?;
 	// Sequentially auth check each control event.
 	let resolved_control = iterative_auth_check(
-		&room_version,
+		room_version,
 		sorted_control_levels.iter().stream().map(AsRef::as_ref),
 		initial_state,
 		&event_fetch,
@@ -209,7 +203,7 @@ where
 	trace!(list = ?sorted_left_events, "events left, sorted, running iterative auth check");
 
 	let mut resolved_state = iterative_auth_check(
-		&room_version,
+		room_version,
 		sorted_left_events.iter().stream().map(AsRef::as_ref),
 		resolved_control, // The control events are added to the final resolved state
 		&event_fetch,
@@ -596,7 +590,7 @@ where
 /// `event_auth::auth_check` function.
 #[tracing::instrument(level = "trace", skip_all)]
 async fn iterative_auth_check<'a, E, F, Fut, S>(
-	room_version: &RoomVersion,
+	room_version: &RoomVersionRules,
 	events_to_check: S,
 	unconflicted_state: StateMap<OwnedEventId>,
 	fetch_event: &F,
@@ -666,7 +660,7 @@ where
 		trace!(list = ?auth_types, event_id = event.event_id().as_str(), "auth types for event");
 
 		let mut auth_state = StateMap::new();
-		if room_version.room_ids_as_hashes {
+		if room_version.room_id_format == RoomIdFormatVersion::V2 {
 			trace!("room version uses hashed IDs, manually fetching create event");
 			let create_event_id_raw = event.room_id_or_hash().as_str().replace('!', "$");
 			let create_event_id = EventId::parse(&create_event_id_raw).map_err(|e| {
@@ -674,7 +668,7 @@ where
 					"Failed to parse create event ID from room ID/hash: {e}"
 				))
 			})?;
-			let create_event = fetch_event(create_event_id.into())
+			let create_event = fetch_event(create_event_id)
 				.await
 				.ok_or_else(|| Error::NotFound("Failed to find create event".into()))?;
 			auth_state.insert(create_event.event_type().with_state_key(""), create_event);
@@ -963,7 +957,7 @@ impl EventTypeExt for StateEventType {
 
 impl EventTypeExt for TimelineEventType {
 	fn with_state_key(self, state_key: impl Into<StateKey>) -> (StateEventType, StateKey) {
-		(self.into(), state_key.into())
+		(self.to_string().into(), state_key.into())
 	}
 }
 
@@ -988,13 +982,14 @@ mod tests {
 			StateEventType, TimelineEventType,
 			room::join_rules::{JoinRule, RoomJoinRulesEventContent},
 		},
-		int, uint,
+		int,
+		room_version_rules::RoomVersionRules,
+		uint,
 	};
 	use serde_json::{json, value::to_raw_value as to_raw_json_value};
 
 	use super::{
 		StateMap, is_power_event,
-		room_version::RoomVersion,
 		test_utils::{
 			INITIAL_EVENTS, TestStore, alice, bob, charlie, do_check, ella, event_id,
 			member_content_ban, member_content_join, room_id, to_init_pdu_event, to_pdu_event,
@@ -1004,7 +999,6 @@ mod tests {
 	use crate::{
 		debug,
 		matrix::{Event, EventTypeExt, Pdu as PduEvent},
-		state_res::room_version::StateResolutionVersion,
 		utils::stream::IterStream,
 	};
 
@@ -1036,7 +1030,7 @@ mod tests {
 				.unwrap();
 
 		let resolved_power = super::iterative_auth_check(
-			&RoomVersion::V6,
+			&RoomVersionRules::V6,
 			sorted_power_events.iter().map(AsRef::as_ref).stream(),
 			HashMap::new(), // unconflicted events
 			&fetcher,
@@ -1436,13 +1430,18 @@ mod tests {
 			})
 			.collect();
 
-		let resolved =
-			match super::resolve(&RoomVersionId::V2, &state_sets, &auth_chain, &fetcher, &exists)
-				.await
-			{
-				| Ok(state) => state,
-				| Err(e) => panic!("{e}"),
-			};
+		let resolved = match super::resolve(
+			&RoomVersionRules::V2,
+			&state_sets,
+			&auth_chain,
+			&fetcher,
+			&exists,
+		)
+		.await
+		{
+			| Ok(state) => state,
+			| Err(e) => panic!("{e}"),
+		};
 
 		assert_eq!(expected, resolved);
 	}
@@ -1549,13 +1548,18 @@ mod tests {
 
 		let fetcher = |id: OwnedEventId| ready(ev_map.get(&id).cloned());
 		let exists = |id: OwnedEventId| ready(ev_map.get(&id).is_some());
-		let resolved =
-			match super::resolve(&RoomVersionId::V6, &state_sets, &auth_chain, &fetcher, &exists)
-				.await
-			{
-				| Ok(state) => state,
-				| Err(e) => panic!("{e}"),
-			};
+		let resolved = match super::resolve(
+			&RoomVersionRules::V6,
+			&state_sets,
+			&auth_chain,
+			&fetcher,
+			&exists,
+		)
+		.await
+		{
+			| Ok(state) => state,
+			| Err(e) => panic!("{e}"),
+		};
 
 		debug!(
 			resolved = ?resolved
