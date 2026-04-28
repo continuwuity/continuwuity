@@ -1,15 +1,15 @@
 use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement, info, is_equal_to,
-	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
-	trace,
+	debug, debug_info, err, implement, info, is_equal_to, matrix::{state_res, Event, EventTypeExt, PduEvent, StateKey}, trace,
 	utils::stream::{BroadbandExt, ReadyExt},
 	warn,
+	Err,
+	Result,
 };
-use futures::{FutureExt, StreamExt, future::ready};
+use futures::{future::ready, FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonValue, RoomId, ServerName, api::error::ErrorKind, events::StateEventType,
+	api::error::ErrorKind, events::StateEventType, CanonicalJsonValue, RoomId, ServerName,
 };
 
 use super::get_room_version_rules;
@@ -251,36 +251,34 @@ where
 	if !soft_fail {
 		// Don't call the below checks on events that have already soft-failed, there's
 		// no reason to re-calculate that.
-		// 14-pre. If the event is not a state event, ask the policy server about it
-		if incoming_pdu.state_key.is_none() {
-			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
-			if let Err(e) = self
-				.policy_server_allows_event(
-					&incoming_pdu,
-					&mut incoming_pdu.to_canonical_object(),
-					room_id,
-					&room_version_rules,
-					true,
-				)
-				.await
-			{
-				if matches!(e.kind(), ErrorKind::Forbidden) {
-					warn!(
-						event_id = %incoming_pdu.event_id,
-						error = %e,
-						"Event has been marked as spam by policy server: {}",
-						e.message(),
-					);
-					soft_fail = true;
-				} else {
-					return Err(e);
-				}
-			} else {
-				debug!(
+		// 14-pre. ask the policy server to sign the event, if possible
+		debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+		if let Err(e) = self
+			.policy_server_allows_event(
+				&incoming_pdu,
+				&mut incoming_pdu.to_canonical_object(),
+				room_id,
+				&room_version_rules,
+				true,
+			)
+			.await
+		{
+			if matches!(e.kind(), ErrorKind::Forbidden) {
+				info!(
 					event_id = %incoming_pdu.event_id,
-					"Event has passed policy server check."
+					error = %e,
+					"Event has been marked as spam by policy server: {}",
+					e.message(),
 				);
+				soft_fail = true;
+			} else {
+				return Err(e);
 			}
+		} else {
+			debug!(
+				event_id = %incoming_pdu.event_id,
+				"Event has passed policy server check."
+			);
 		}
 
 		// Additionally, if this is a redaction for a soft-failed event, we soft-fail it
@@ -300,7 +298,7 @@ where
 				.is_event_soft_failed(&redact_id)
 				.await
 			{
-				warn!(
+				info!(
 					redact_id = %redact_id,
 					"Redaction is for a soft-failed event, soft failing the redaction"
 				);
@@ -312,10 +310,6 @@ where
 	// 14. Check if the event passes auth based on the "current state" of the room,
 	//     if not soft fail it
 	if soft_fail {
-		info!(
-			event_id = %incoming_pdu.event_id,
-			"Soft failing event"
-		);
 		// assert!(extremities.is_empty(), "soft_fail extremities empty");
 		let extremities = extremities.iter().map(Borrow::borrow);
 		debug_assert!(extremities.clone().count() > 0, "extremities not empty");
@@ -338,7 +332,7 @@ where
 			.pdu_metadata
 			.mark_event_soft_failed(incoming_pdu.event_id());
 
-		warn!(
+		info!(
 			event_id = %incoming_pdu.event_id,
 			"Event was soft failed"
 		);
