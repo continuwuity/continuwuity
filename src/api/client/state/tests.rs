@@ -1,3 +1,8 @@
+use ruma::{
+	events::{AnyStateEventContent, room::member::RoomMemberEventContent},
+	serde::Raw,
+};
+
 use super::*;
 
 #[test]

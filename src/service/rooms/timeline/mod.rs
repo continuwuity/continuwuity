@@ -3,6 +3,7 @@ mod backfill;
 mod build;
 mod create;
 mod data;
+mod helpers;
 mod redact;
 
 use std::{fmt::Write, sync::Arc};
@@ -28,8 +29,8 @@ use serde::Deserialize;
 use self::data::Data;
 pub use self::{create::pdu_fits, data::PdusIterItem};
 use crate::{
-	Dep, account_data, admin, appservice, globals, pusher, rooms, sending, server_keys, sync,
-	users,
+	Dep, account_data, admin, appservice, config, globals, pusher, rooms, sending, server_keys,
+	sync, users,
 };
 
 // Update Relationships
@@ -67,6 +68,7 @@ struct Services {
 	admin: Dep<admin::Service>,
 	alias: Dep<rooms::alias::Service>,
 	event_handler: Dep<rooms::event_handler::Service>,
+	config: Dep<config::Service>,
 	globals: Dep<globals::Service>,
 	pdu_metadata: Dep<rooms::pdu_metadata::Service>,
 	pusher: Dep<pusher::Service>,
@@ -98,6 +100,7 @@ impl crate::Service for Service {
 				appservice: args.depend::<appservice::Service>("appservice"),
 				admin: args.depend::<admin::Service>("admin"),
 				alias: args.depend::<rooms::alias::Service>("rooms::alias"),
+				config: args.depend::<config::Service>("config"),
 				event_handler: args
 					.depend::<rooms::event_handler::Service>("rooms::event_handler"),
 				globals: args.depend::<globals::Service>("globals"),

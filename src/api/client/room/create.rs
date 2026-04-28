@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug, debug_info, err, info,
+	Err, Error, Result, debug, debug_info, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
 	trace, warn,
 };
@@ -11,10 +11,13 @@ use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
 	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
-	api::client::room::{self, create_room},
+	api::{
+		client::room::{self, create_room},
+		error::ErrorKind::Forbidden,
+	},
 	assign,
 	events::{
-		TimelineEventType,
+		AnyStateEventContent, StateEventType, TimelineEventType,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			create::RoomCreateEventContent,
@@ -512,30 +515,42 @@ pub(crate) async fn create_room_route(
 
 	// 7. Events listed in initial_state
 	for event in &body.initial_state {
-		let mut partial_pdu = event
-			.deserialize_as_unchecked::<PartialPdu>()
-			.map_err(|e| {
-				err!(Request(InvalidParam(warn!("Invalid initial state event: {e:?}"))))
+		let event_type: StateEventType = event.get_field("type")?.ok_or_else(|| {
+			err!(Request(InvalidParam(warn!(
+				r#"Invalid initial state event: missing "type" field "#
+			))))
+		})?;
+
+		let content: Raw<AnyStateEventContent> =
+			event.get_field("content")?.ok_or_else(|| {
+				err!(Request(InvalidParam(warn!(
+					r#"Invalid initial state event: missing "content" field "#
+				))))
 			})?;
 
-		debug_info!("Room creation initial state event: {event:?}");
+		let state_key: String = event.get_field("state_key")?.unwrap_or_default();
 
-		// Implicit state key defaults to ""
-		partial_pdu.state_key.get_or_insert_with(StateKey::new);
-
-		// Silently skip encryption events if they are not allowed
-		if partial_pdu.event_type == TimelineEventType::RoomEncryption
-			&& !services.config.allow_encryption
-		{
-			continue;
-		}
-
-		services
+		match services
 			.rooms
 			.timeline
-			.build_and_append_pdu(partial_pdu, sender_user, Some(&room_id), &state_lock)
+			.send_state_event_for_key(
+				sender_user,
+				&room_id,
+				&state_lock,
+				&event_type,
+				&content,
+				&state_key,
+				None,
+			)
 			.boxed()
-			.await?;
+			.await
+		{
+			| Err(Error::Request(Forbidden, ..)) => {
+				// Silently skip forbidden events
+				continue;
+			},
+			| r => r,
+		}?;
 	}
 
 	// 8. Events implied by name and topic
