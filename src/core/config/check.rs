@@ -2,6 +2,7 @@ use std::env::consts::OS;
 
 use either::Either;
 use figment::Figment;
+use ruma::events::room::server_acl::RoomServerAclEventContent;
 
 use super::DEPRECATED_KEYS;
 use crate::{Config, Err, Result, Server, debug, debug_info, debug_warn, error, warn};
@@ -254,11 +255,38 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	if config.default_room_acl_allow.is_some() && config.default_room_acl_deny.is_some() {
-		return Err!(Config(
-			"default_room_acl_deny",
-			"Cannot provide a value for both default_room_acl_allow and default_room_acl_deny"
-		));
+	match (&config.default_room_acl_allow, &config.default_room_acl_deny) {
+		| (Some(_), Some(_)) => {
+			return Err!(Config(
+				"default_room_acl_deny",
+				"Cannot provide a value for both default_room_acl_allow and \
+				 default_room_acl_deny."
+			));
+		},
+		| (Some(allow), None) => {
+			if !RoomServerAclEventContent::new(true, allow.clone(), vec![])
+				.is_allowed(&config.server_name)
+			{
+				return Err!(Config(
+					"default_room_acl_allow",
+					"The default room Access Control List does not allow this server in the \
+					 rooms it creates. Note that when using an allow list, servers are denied \
+					 unless they match an allow value."
+				));
+			}
+		},
+		| (None, Some(deny)) => {
+			if !RoomServerAclEventContent::new(true, vec!["*".to_owned()], deny.clone())
+				.is_allowed(&config.server_name)
+			{
+				return Err!(Config(
+					"default_room_acl_deny",
+					"The default room Access Control List denies this server access to the \
+					 rooms it creates."
+				));
+			}
+		},
+		| _ => (),
 	}
 
 	Ok(())
