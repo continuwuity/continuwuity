@@ -291,6 +291,7 @@
 #ip_lookup_strategy = 5
 
 # Max request size for file uploads in bytes. Defaults to 20MB.
+# Also limits incoming federated media.
 #
 #max_request_size = 20971520
 
