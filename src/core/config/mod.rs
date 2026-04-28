@@ -21,6 +21,7 @@ use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
 	api::client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
+	serde::Base64,
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
 use url::Url;
@@ -2174,6 +2175,10 @@ pub struct WellKnownConfig {
 	/// the MSC1929 server support endpoint at /.well-known/matrix/support.
 	/// Will be included alongside any contact information
 	pub support_page: Option<Url>,
+
+	/// The ed25519 public key for the policy server available at this server's
+	/// name. Must be unpadded base64.
+	pub policy_server_public_key: Option<Base64<ruma::serde::base64::Standard>>,
 
 	/// Role string for server support contacts, to be served as part of the
 	/// MSC1929 server support endpoint at /.well-known/matrix/support.

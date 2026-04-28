@@ -183,6 +183,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::put_suspended_status)
 		.ruma_route(&client::well_known_support)
 		.ruma_route(&client::well_known_client)
+		.ruma_route(&client::well_known_policy_server)
 		.ruma_route(&client::get_rtc_transports)
 		.ruma_route(&client::room_initial_sync_route)
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
