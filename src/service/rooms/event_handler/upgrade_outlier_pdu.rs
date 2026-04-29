@@ -3,7 +3,6 @@ use std::{borrow::Borrow, collections::BTreeMap, iter::once, sync::Arc, time::In
 use conduwuit::{
 	debug, debug_info, err, implement, info, is_equal_to, matrix::{state_res, Event, EventTypeExt, PduEvent, StateKey}, trace,
 	utils::stream::{BroadbandExt, ReadyExt},
-	warn,
 	Err,
 	Result,
 };

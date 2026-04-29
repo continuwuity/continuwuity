@@ -21,7 +21,6 @@ use ruma::{
 };
 use ruminuwuity::policy::policy_sign::unstable::Request as PolicySignRequest;
 use serde_json::value::RawValue;
-use tokio::select;
 use tokio::time::sleep;
 
 pub(super) fn verify_policy_signature(
