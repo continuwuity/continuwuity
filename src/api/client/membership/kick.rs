@@ -24,9 +24,14 @@ pub(crate) async fn kick_user_route(
 	if !services
 		.rooms
 		.state_cache
-		.is_joined(&body.user_id, &body.room_id)
+		.user_membership(&body.user_id, &body.room_id)
 		.await
-	{
+		.is_some_and(|membership| {
+			matches!(
+				membership,
+				MembershipState::Invite | MembershipState::Join | MembershipState::Knock
+			)
+		}) {
 		return Err!(Request(Forbidden("You cannot kick users who are not in the room.")));
 	}
 
