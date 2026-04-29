@@ -100,32 +100,82 @@ impl CheckAuth for AccessToken {
 		services: &Services,
 		output: Self::Output,
 		_request: &hyper::Request<B>,
-		_query: AuthQueryParams,
+		query: AuthQueryParams,
 		route: TypeId,
 	) -> Result<Auth> {
-		let Ok((sender_user, sender_device)) = services.users.find_from_token(&output).await
-		else {
-			return Err!(Request(Unauthorized("Invalid access token.")));
+		// Check for appservice tokens first
+
+		let (sender_user, sender_device, appservice_info) = {
+			if let Ok((sender_user, sender_device)) =
+				services.users.find_from_token(&output).await
+			{
+				// Locked users can only use /logout and /logout/all
+				if services
+					.users
+					.is_locked(&sender_user)
+					.await
+					.is_ok_and(std::convert::identity)
+				{
+					if !(route == TypeId::of::<ruma::api::client::session::logout::v3::Request>()
+						|| route
+							== TypeId::of::<ruma::api::client::session::logout_all::v3::Request>(
+							)) {
+						return Err!(Request(Unauthorized("Your account is locked.")));
+					}
+				}
+
+				(Some(sender_user), Some(sender_device), None)
+			} else if let Ok(appservice_info) = services.appservice.find_from_token(&output).await
+			{
+				let Ok(sender_user) = query.user_id.clone().map_or_else(
+					|| {
+						UserId::parse_with_server_name(
+							appservice_info.registration.sender_localpart.as_str(),
+							services.globals.server_name(),
+						)
+					},
+					UserId::parse,
+				) else {
+					return Err!(Request(InvalidUsername("Username is invalid.")));
+				};
+
+				if !appservice_info.is_user_match(&sender_user) {
+					return Err!(Request(Exclusive("User is not in namespace.")));
+				}
+
+				// MSC3202/MSC4190: Handle device_id masquerading for appservices.
+				// The device_id can be provided via `device_id` or
+				// `org.matrix.msc3202.device_id` query parameter.
+				let sender_device =
+					if let Some(device_id) = query.device_id.as_deref().map(Into::into) {
+						// Verify the device exists for this user
+						if services
+							.users
+							.get_device_metadata(&sender_user, device_id)
+							.await
+							.is_err()
+						{
+							return Err!(Request(Forbidden(
+								"Device does not exist for user or appservice cannot masquerade \
+								 as this device."
+							)));
+						}
+
+						Some(device_id.to_owned())
+					} else {
+						None
+					};
+
+				(Some(sender_user), sender_device, Some(appservice_info))
+			} else {
+				return Err!(Request(Unauthorized("Invalid access token.")));
+			}
 		};
 
-		if services
-			.users
-			.is_locked(&sender_user)
-			.await
-			.is_ok_and(std::convert::identity)
-		{
-			// Locked users can only use /logout and /logout/all
-
-			if !(route == TypeId::of::<ruma::api::client::session::logout::v3::Request>()
-				|| route == TypeId::of::<ruma::api::client::session::logout_all::v3::Request>())
-			{
-				return Err!(Request(Unauthorized("Your account is locked.")));
-			}
-		}
-
 		Ok(Auth {
-			sender_user: Some(sender_user),
-			sender_device: Some(sender_device),
+			sender_user,
+			sender_device,
+			appservice_info,
 			..Default::default()
 		})
 	}
@@ -152,55 +202,15 @@ impl CheckAuth for AppserviceToken {
 		services: &Services,
 		output: Self::Output,
 		_request: &hyper::Request<B>,
-		query: AuthQueryParams,
+		_query: AuthQueryParams,
 		_route: TypeId,
 	) -> Result<Auth> {
 		let Ok(appservice_info) = services.appservice.find_from_token(&output).await else {
 			return Err!(Request(Unauthorized("Invalid appservice token.")));
 		};
 
-		let Ok(sender_user) = query.user_id.clone().map_or_else(
-			|| {
-				UserId::parse_with_server_name(
-					appservice_info.registration.sender_localpart.as_str(),
-					services.globals.server_name(),
-				)
-			},
-			UserId::parse,
-		) else {
-			return Err!(Request(InvalidUsername("Username is invalid.")));
-		};
-
-		if !appservice_info.is_user_match(&sender_user) {
-			return Err!(Request(Exclusive("User is not in namespace.")));
-		}
-
-		// MSC3202/MSC4190: Handle device_id masquerading for appservices.
-		// The device_id can be provided via `device_id` or
-		// `org.matrix.msc3202.device_id` query parameter.
-		let sender_device = if let Some(device_id) = query.device_id.as_deref().map(Into::into) {
-			// Verify the device exists for this user
-			if services
-				.users
-				.get_device_metadata(&sender_user, device_id)
-				.await
-				.is_err()
-			{
-				return Err!(Request(Forbidden(
-					"Device does not exist for user or appservice cannot masquerade as this \
-					 device."
-				)));
-			}
-
-			Some(device_id.to_owned())
-		} else {
-			None
-		};
-
 		Ok(Auth {
 			appservice_info: Some(appservice_info),
-			sender_user: Some(sender_user),
-			sender_device,
 			..Default::default()
 		})
 	}
