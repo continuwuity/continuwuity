@@ -6,21 +6,22 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error,
-	implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
+	debug, debug_error, debug_info, debug_warn, error, implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object,
+	warn, Err, Error, Event, PduEvent, Result,
 };
 use http::StatusCode;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyAlgorithm,
-	api::error::ErrorKind,
-	canonical_json::redact,
-	events::{StateEventType, room::policy::RoomPolicyEventContent},
-	room_version_rules::{RedactionRules, RoomVersionRules},
-	serde::{Base64, base64::Standard},
-	signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
+	api::error::ErrorKind, canonical_json::redact, events::{room::policy::RoomPolicyEventContent, StateEventType}, room_version_rules::{RedactionRules, RoomVersionRules}, serde::{base64::Standard, Base64}, signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
+	CanonicalJsonObject,
+	CanonicalJsonValue,
+	KeyId,
+	RoomId,
+	ServerName,
+	SigningKeyAlgorithm,
 };
 use ruminuwuity::policy::policy_sign::unstable::Request as PolicySignRequest;
 use serde_json::value::RawValue;
+use tokio::select;
 use tokio::time::sleep;
 
 pub(super) fn verify_policy_signature(
@@ -72,15 +73,13 @@ pub(super) fn verify_policy_signature(
 
 /// Asks a remote policy server if the event is allowed.
 ///
-/// If the event is the `org.matrix.msc4284.policy` configuration state event,
+/// If the event is the `m.room.policy` configuration state event,
 /// this check is skipped. Similarly, if there is no policy server configured in
 /// the PDU's room, or the configured server is not present in the room, the
 /// check is also skipped.
 ///
-/// If the policy server marks the event as spam, Ok(false) is returned,
-/// otherwise Ok(true) allows the event. If the policy server cannot be
-/// contacted for whatever reason, Err(e) is returned, which generally is a
-/// fail-open operation.
+/// If the policy server marks the event as spam, the relevant error is returned. Otherwise,
+/// the incoming PDU JSON is mutated to include the new policy server signature.
 #[implement(super::Service)]
 #[tracing::instrument(skip(self, pdu, pdu_json, room_version_rules), level = "info")]
 pub async fn policy_server_allows_event(
@@ -152,6 +151,7 @@ pub async fn policy_server_allows_event(
 			);
 			return Ok(());
 		}
+		// N.B. In a future room version, this will be a soft failure specifically.
 		debug_info!(
 			via = %ps.via,
 			"Event is incoming but does not have a valid policy server signature; asking policy \
@@ -183,6 +183,10 @@ pub async fn policy_server_allows_event(
 	self.fetch_policy_server_signature(pdu, pdu_json, &ps.via, outgoing, room_id, ps_key, 0)
 		.await
 }
+
+/// Handles an error returned by the policy server. If the error is one that should be returned to
+/// the user, it is propagated, otherwise the request may be retried (for example, when
+/// rate-limited).
 #[allow(clippy::too_many_arguments)]
 #[implement(super::Service)]
 async fn handle_policy_server_error(
@@ -290,7 +294,8 @@ async fn handle_policy_server_error(
 }
 
 /// Asks a remote policy server for a signature on this event.
-/// If the policy server signs this event, the original data is mutated.
+/// If the policy server signs this event, the original data is mutated. Otherwise, the error is
+/// handled and potentially returned.
 #[allow(clippy::too_many_arguments)]
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, fields(event_id=%pdu.event_id(), via=%via), level = "info")]
@@ -358,7 +363,7 @@ pub async fn fetch_policy_server_signature(
 			response.signatures
 		);
 		return Err!(BadServerResponse(
-			"Policy server did not include expected server name in signatures"
+			"Policy server did not sign the event"
 		));
 	}
 	// Unwraps are safe here because we checked both in the above if statement
