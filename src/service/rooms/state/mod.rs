@@ -326,7 +326,7 @@ impl Service {
 			.await
 			.into_iter()
 			.filter_map(Result::ok)
-			.map(|pdu| RawStrippedState::Pdu(pdu.content))
+			.map(|pdu| RawStrippedState::Pdu(serde_json::value::to_raw_value(&pdu).unwrap()))
 			.collect()
 	}
 
