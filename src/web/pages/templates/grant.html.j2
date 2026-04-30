@@ -26,16 +26,7 @@ Authorize client
     <p>
         <b>{{ client_name }}</b> (<a href="{{ client_uri }}">{{ client_uri.domain().unwrap() }}</a>) would like
         your permission to:
-        <ul>
-            {% for scope in scopes %}
-                {% match scope %}
-                    {% when Scope::ClientApi %}
-                        <li>Interact with Matrix on your behalf</li>
-                    {% when Scope::Device(_) %}
-                        <li>Connect to your Matrix account</li>
-                {% endmatch %}
-            {% endfor %}
-        </ul>
+        {{ scopes }}
     </p>
     {% match (&policy_uri, &tos_uri) %}
         {% when (Some(policy_uri), Some(tos_uri)) %}
