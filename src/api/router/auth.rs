@@ -165,7 +165,8 @@ impl CheckAuth for AccessToken {
 		if output.is_empty() {
 			return Err!(Request(Unauthorized("Missing access token.")));
 		}
-		if let Ok((sender_user, sender_device)) = services.users.find_from_token(&output).await {
+		if let Some((sender_user, sender_device)) = services.users.find_from_token(&output).await
+		{
 			// Locked users can only use /logout and /logout/all
 			if services
 				.users

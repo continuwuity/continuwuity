@@ -1,3 +1,5 @@
+use std::time::{Duration, SystemTime};
+
 use conduwuit::{
 	Err, debug_error, debug_warn, err, trace, utils,
 	utils::{ReadyExt, stream::TryIgnore},
@@ -240,12 +242,37 @@ impl super::Service {
 
 	/// Find out which user an access token belongs to. Will panic if the access
 	/// token is empty.
-	pub async fn find_from_token(
-		&self,
-		token: &str,
-	) -> conduwuit::Result<(OwnedUserId, OwnedDeviceId)> {
+	pub async fn find_from_token(&self, token: &str) -> Option<(OwnedUserId, OwnedDeviceId)> {
 		assert!(!token.is_empty(), "Empty access token");
-		self.db.token_userdeviceid.get(token).await.deserialized()
+
+		let user = self
+			.db
+			.token_userdeviceid
+			.get(token)
+			.await
+			.deserialized()
+			.ok()?;
+
+		// Check if the token has expired
+		if let Some(expires) = self
+			.db
+			.userdeviceid_tokenexpires
+			.qry(&user)
+			.await
+			.deserialized::<u64>()
+			.ok()
+			.map(Duration::from_secs)
+		{
+			let expires_at = SystemTime::UNIX_EPOCH
+				.checked_add(expires)
+				.expect("expiry time should not overflow SystemTime");
+
+			if SystemTime::now() > expires_at {
+				return None;
+			}
+		}
+
+		Some(user)
 	}
 
 	/// Returns an iterator over all users on this homeserver.

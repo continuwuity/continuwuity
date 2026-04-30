@@ -15,7 +15,7 @@ use database::Map;
 use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Raw};
 use serde::{Deserialize, Serialize};
 
-use crate::{Dep, account_data, admin, appservice, globals, rooms};
+use crate::{Dep, account_data, admin, appservice, globals, oauth, rooms};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -51,6 +51,7 @@ struct Services {
 	admin: Dep<admin::Service>,
 	appservice: Dep<appservice::Service>,
 	globals: Dep<globals::Service>,
+	oauth: Dep<oauth::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 }
@@ -64,6 +65,7 @@ struct Data {
 	logintoken_expiresatuserid: Arc<Map>,
 	todeviceid_events: Arc<Map>,
 	token_userdeviceid: Arc<Map>,
+	userdeviceid_tokenexpires: Arc<Map>,
 	userdeviceid_metadata: Arc<Map>,
 	userdeviceid_token: Arc<Map>,
 	userfilterid_filter: Arc<Map>,
@@ -91,6 +93,7 @@ impl crate::Service for Service {
 				admin: args.depend::<admin::Service>("admin"),
 				appservice: args.depend::<appservice::Service>("appservice"),
 				globals: args.depend::<globals::Service>("globals"),
+				oauth: args.depend::<oauth::Service>("oauth"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -120,6 +123,7 @@ impl crate::Service for Service {
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
+				userdeviceid_tokenexpires: args.db["userdeviceid_tokenexpires"].clone(),
 			},
 		}))
 	}

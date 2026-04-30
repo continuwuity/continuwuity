@@ -1,4 +1,7 @@
-use std::net::IpAddr;
+use std::{
+	net::IpAddr,
+	time::{Duration, SystemTime},
+};
 
 use conduwuit::{
 	Err, utils,
@@ -22,6 +25,7 @@ impl super::Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		token: &str,
+		token_max_age: Option<Duration>,
 		initial_device_display_name: Option<String>,
 		client_ip: Option<String>,
 	) -> conduwuit::Result<()> {
@@ -39,7 +43,8 @@ impl super::Service {
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.db.userdeviceid_metadata.put(key, Json(device));
-		self.set_token(user_id, device_id, token).await
+		self.set_token(user_id, device_id, token, token_max_age)
+			.await
 	}
 
 	/// Removes a device from a user.
@@ -55,6 +60,7 @@ impl super::Service {
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&userdeviceid).await {
 			self.db.userdeviceid_token.del(userdeviceid);
 			self.db.token_userdeviceid.remove(&old_token);
+			self.db.userdeviceid_tokenexpires.del(userdeviceid);
 		}
 
 		// Remove todevice events
@@ -67,6 +73,9 @@ impl super::Service {
 			.await;
 
 		// TODO: Remove onetimekeys
+
+		// Remove OAuth session information
+		self.services.oauth.remove_session(user_id, device_id).await;
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 
@@ -121,6 +130,7 @@ impl super::Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		token: &str,
+		token_max_age: Option<Duration>,
 	) -> conduwuit::Result<()> {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
@@ -147,12 +157,25 @@ impl super::Service {
 		// Remove old token
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
 			self.db.token_userdeviceid.remove(&old_token);
+			self.db.userdeviceid_tokenexpires.remove(&old_token);
 			// It will be removed from userdeviceid_token by the insert later
 		}
 
 		// Assign token to user device combination
 		self.db.userdeviceid_token.put_raw(key, token);
 		self.db.token_userdeviceid.raw_put(token, key);
+
+		if let Some(max_age) = token_max_age {
+			let expires = SystemTime::now()
+				.duration_since(SystemTime::UNIX_EPOCH)
+				.expect("system time should not be before the epoch")
+				.saturating_add(max_age)
+				.as_secs();
+
+			self.db.userdeviceid_tokenexpires.put(key, expires);
+		} else {
+			self.db.userdeviceid_tokenexpires.del(key);
+		}
 
 		Ok(())
 	}

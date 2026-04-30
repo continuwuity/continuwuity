@@ -206,7 +206,7 @@ pub(crate) async fn login_route(
 	if device_exists {
 		services
 			.users
-			.set_token(&user_id, &device_id, &token)
+			.set_token(&user_id, &device_id, &token, None)
 			.await?;
 	} else {
 		services
@@ -215,6 +215,7 @@ pub(crate) async fn login_route(
 				&user_id,
 				&device_id,
 				&token,
+				None,
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)
