@@ -197,16 +197,12 @@ input, button, a.button {
     font-size: inherit;
     font-family: inherit;
     line-height: normal;
-    color: white;
+    color: var(--text-color);
     text-decoration: none;
     background-color: transparent;
 
     border: none;
     border-radius: var(--border-radius-sm);
-
-    &:visited {
-        color: white;
-    }
 }
 
 input {
@@ -224,6 +220,7 @@ input[type="checkbox"] {
 }
 
 button, a.button {
+    color: white;
     background-color: var(--c1);
     transition: opacity .2s;
     text-align: center;
@@ -240,6 +237,10 @@ button, a.button {
 
     &:not(:disabled) {
         transition: linear color, background-color 0.1s;
+    }
+
+    &:visited {
+        color: white;
     }
 }
 
