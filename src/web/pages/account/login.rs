@@ -2,7 +2,7 @@ use std::time::SystemTime;
 
 use axum::{
 	Router,
-	extract::{Query, State},
+	extract::{Query, RawQuery, State},
 	response::{IntoResponse, Redirect},
 	routing::{get, on},
 };
@@ -15,11 +15,11 @@ use serde::Deserialize;
 use tower_sessions::Session;
 
 use crate::{
-	WebError,
+	ROUTE_PREFIX, WebError,
 	extract::{Expect, PostForm},
 	pages::{GET_POST, Result, components::UserCard},
 	response,
-	session::{LoginQuery, User, UserSession},
+	session::{LoginQuery, LoginTarget, User, UserSession},
 	template,
 };
 
@@ -32,6 +32,7 @@ pub(crate) fn build() -> Router<crate::State> {
 template! {
 	struct Login use "login.html.j2" {
 		body: LoginBody,
+		has_next: bool,
 		login_error: Option<String>
 	}
 }
@@ -54,11 +55,12 @@ struct LoginForm {
 
 async fn route_login(
 	State(services): State<crate::State>,
-	Expect(Query(query)): Expect<Query<LoginQuery>>,
+	Expect(Query(LoginQuery { next, reauthenticate })): Expect<Query<LoginQuery>>,
 	session_store: Session,
 	user: User,
 	PostForm(form): PostForm<LoginForm>,
 ) -> Result {
+	let next = next.unwrap_or_default();
 	let user_id = user.into_session().map(|session| session.user_id);
 
 	let body = match &user_id {
@@ -66,8 +68,8 @@ async fn route_login(
 			server_name: services.globals.server_name().to_string(),
 		},
 		| Some(user_id) => {
-			if !query.reauthenticate {
-				return response!(Redirect::to(&query.next.target_path()));
+			if !reauthenticate {
+				return response!(Redirect::to(&next.target_path()));
 			}
 
 			let user_card = UserCard::for_local_user(&services, user_id.to_owned()).await;
@@ -76,7 +78,7 @@ async fn route_login(
 		},
 	};
 
-	let mut template = Login::new(&services, body, None);
+	let mut template = Login::new(&services, body, next != LoginTarget::Account, None);
 
 	if let Some(form) = form {
 		let login_result = match (user_id, form.identifier) {
@@ -86,8 +88,6 @@ async fn route_login(
 			},
 			| (None, Some(identifier)) => {
 				// The user isn't authenticated, we need to log them in
-				// Yes, this does parse the email twice (handle_login does it again). I don't
-				// think this really needs to be optimized.
 				let identifier = if identifier.parse::<lettre::Address>().is_ok() {
 					UserIdentifier::Email(EmailUserIdentifier::new(identifier))
 				} else {
@@ -123,14 +123,14 @@ async fn route_login(
 			.await
 			.expect("should be able to serialize user session");
 
-		return response!(Redirect::to(&query.next.target_path()));
+		return response!(Redirect::to(&next.target_path()));
 	}
 
 	response!(template)
 }
 
-async fn get_logout(session: Session) -> impl IntoResponse {
+async fn get_logout(session: Session, RawQuery(query): RawQuery) -> impl IntoResponse {
 	let _ = session.remove::<OwnedUserId>(User::KEY).await;
 
-	Redirect::to("/_continuwuity/account/")
+	Redirect::to(&format!("{}/account/login?{}", ROUTE_PREFIX, query.unwrap_or_default()))
 }

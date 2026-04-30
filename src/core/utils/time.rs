@@ -61,17 +61,23 @@ pub fn format(ts: SystemTime, str: &str) -> String {
 pub fn pretty(d: Duration) -> String {
 	use Unit::*;
 
-	let fmt = |w, f, u| format!("{w}.{f} {u}");
-	let gen64 = |w, f, u| fmt(w, (f * 100.0) as u32, u);
-	let gen128 = |w, f, u| gen64(u64::try_from(w).expect("u128 to u64"), f, u);
+	let fmt = |w, u| {
+		if w == 1 {
+			format!("{w} {u}")
+		} else {
+			format!("{w} {u}s")
+		}
+	};
+	let gen64 = |w, u| fmt(w, u);
+	let gen128 = |w, u| gen64(u64::try_from(w).expect("u128 to u64"), u);
 	match whole_and_frac(d) {
-		| (Days(whole), frac) => gen64(whole, frac, "days"),
-		| (Hours(whole), frac) => gen64(whole, frac, "hours"),
-		| (Mins(whole), frac) => gen64(whole, frac, "minutes"),
-		| (Secs(whole), frac) => gen64(whole, frac, "seconds"),
-		| (Millis(whole), frac) => gen128(whole, frac, "milliseconds"),
-		| (Micros(whole), frac) => gen128(whole, frac, "microseconds"),
-		| (Nanos(whole), frac) => gen128(whole, frac, "nanoseconds"),
+		| (Days(whole), _) => gen64(whole, "day"),
+		| (Hours(whole), _) => gen64(whole, "hour"),
+		| (Mins(whole), _) => gen64(whole, "minute"),
+		| (Secs(whole), _) => gen64(whole, "second"),
+		| (Millis(whole), _) => gen128(whole, "millisecond"),
+		| (Micros(whole), _) => gen128(whole, "microsecond"),
+		| (Nanos(whole), _) => gen128(whole, "nanosecond"),
 	}
 }
 

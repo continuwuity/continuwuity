@@ -123,8 +123,9 @@ small.error {
 .panel {
     --preferred-width: 12rem + 40dvw;
     --maximum-width: 48rem;
+    --minimum-width: 32rem;
 
-    width: min(clamp(24rem, var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
+    width: min(clamp(var(--minimum-width), var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
     border-radius: var(--border-radius-lg);
     background-color: var(--panel-bg);
     padding-inline: 1.5rem;
@@ -182,6 +183,10 @@ label {
 
 a, a:visited {
     color: oklch(from var(--c1) var(--name-lightness) c h);
+}
+
+code {
+    color: oklch(from var(--secondary) var(--name-lightness) c h);
 }
 
 input, button, a.button {
