@@ -349,7 +349,7 @@ version = "1.1.1"
 [workspace.dependencies.ruma]
 # version = "0.14.1"
 git = "https://github.com/ruma/ruma.git"
-rev = "8b522a87b541be0802fb3c7820747a6869d37318"
+rev = "5742fec0021b85fedbf5cd1f59c50a00bb5b9f7c"
 features = [
     "appservice-api-c",
     "client-api",
