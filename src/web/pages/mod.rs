@@ -42,6 +42,7 @@ macro_rules! template {
         }
 
         impl$(<$lifetime>)? $name$(<$lifetime>)? {
+            #[allow(clippy::too_many_arguments)]
             fn new(state: &$crate::State, $($field_name: $field_type,)*) -> Self {
                 Self {
                     context: state.into(),
