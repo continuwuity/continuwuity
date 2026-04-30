@@ -1,13 +1,25 @@
-use axum::{Router, extract::State, response::Response, routing::get};
+use axum::{
+	Router,
+	extract::{Query, State},
+	response::Redirect,
+	routing::get,
+};
 use conduwuit_core::utils::{IterStream, ReadyExt, stream::TryExpect};
 use conduwuit_service::threepid::EmailRequirement;
 use futures::StreamExt;
-use ruma::{OwnedClientSecret, OwnedSessionId};
+use ruma::{
+	OwnedClientSecret, OwnedDeviceId, OwnedSessionId,
+	api::client::discovery::get_authorization_server_metadata::v1::AccountManagementAction,
+};
 use serde::{Deserialize, Serialize};
 
 use crate::{
 	WebError,
-	pages::components::{DeviceCard, DeviceCardStyle, UserCard},
+	extract::Expect,
+	pages::{
+		Result,
+		components::{DeviceCard, DeviceCardStyle, UserCard},
+	},
 	response,
 	session::{LoginTarget, User},
 	template,
@@ -26,6 +38,7 @@ pub(crate) fn build() -> Router<crate::State> {
 
 	Router::new()
 		.route("/", get(get_account))
+		.route("/deeplink", get(get_account_deeplink))
 		.merge(login::build())
 		.nest("/password/", password::build())
 		.nest("/email/", email::build())
@@ -49,10 +62,7 @@ template! {
 	}
 }
 
-async fn get_account(
-	State(services): State<crate::State>,
-	user: User,
-) -> Result<Response, WebError> {
+async fn get_account(State(services): State<crate::State>, user: User) -> Result {
 	let user_id = user.expect(LoginTarget::Account)?;
 
 	let email_requirement = services.threepid.email_requirement();
@@ -96,4 +106,42 @@ async fn get_account(
 		.await;
 
 	response!(Account::new(&services, user_card, email_requirement, email, device_cards))
+}
+
+#[derive(Deserialize)]
+struct AccountDeeplinkQuery {
+	action: Option<AccountManagementAction>,
+	device_id: Option<OwnedDeviceId>,
+}
+
+async fn get_account_deeplink(
+	Expect(Query(query)): Expect<Query<AccountDeeplinkQuery>>,
+) -> Result {
+	let redirect_target = match query.action.unwrap_or(AccountManagementAction::Profile) {
+		| AccountManagementAction::AccountDeactivate => "deactivate".to_owned(),
+		| AccountManagementAction::CrossSigningReset => "cross_signing_reset".to_owned(),
+		| AccountManagementAction::DeviceDelete => {
+			let Some(device_id) = query.device_id else {
+				return response!(WebError::BadRequest(
+					"A device ID is required for this action".to_owned()
+				));
+			};
+
+			format!("device/{device_id}/delete")
+		},
+		| AccountManagementAction::DeviceView => {
+			let Some(device_id) = query.device_id else {
+				return response!(WebError::BadRequest(
+					"A device ID is required for this action".to_owned()
+				));
+			};
+
+			format!("device/{device_id}/")
+		},
+		| AccountManagementAction::DevicesList => "#devices".to_owned(),
+		| AccountManagementAction::Profile => String::new(),
+		| _ => return response!(WebError::BadRequest("Unknown action".to_owned())),
+	};
+
+	response!(Redirect::to(&format!("{}/account/{}", crate::ROUTE_PREFIX, redirect_target)))
 }
