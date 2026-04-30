@@ -7,6 +7,7 @@ pub(super) mod profile;
 
 use std::{mem, sync::Arc};
 
+pub use account::AccessTokenStatus;
 use conduwuit::{
 	Err, Error, Result, Server, err,
 	utils::{self},

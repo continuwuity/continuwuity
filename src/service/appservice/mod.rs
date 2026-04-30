@@ -67,7 +67,7 @@ impl crate::Service for Service {
 		for (id, registration) in appservices {
 			// During startup, resolve any token collisions in favour of appservices
 			// by logging out conflicting user devices
-			if let Some((user_id, device_id)) = self
+			if let Some((user_id, device_id, _)) = self
 				.services
 				.users
 				.find_from_token(&registration.as_token)

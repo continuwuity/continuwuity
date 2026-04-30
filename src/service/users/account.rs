@@ -14,6 +14,12 @@ use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigE
 
 use crate::users::{HashedPassword, UserSuspension};
 
+/// The status of an access token.
+pub enum AccessTokenStatus {
+	Valid,
+	Expired,
+}
+
 impl super::Service {
 	/// Returns true/false based on whether the recipient/receiving user has
 	/// ignored the sender.
@@ -242,10 +248,13 @@ impl super::Service {
 
 	/// Find out which user an access token belongs to. Will panic if the access
 	/// token is empty.
-	pub async fn find_from_token(&self, token: &str) -> Option<(OwnedUserId, OwnedDeviceId)> {
+	pub async fn find_from_token(
+		&self,
+		token: &str,
+	) -> Option<(OwnedUserId, OwnedDeviceId, AccessTokenStatus)> {
 		assert!(!token.is_empty(), "Empty access token");
 
-		let user = self
+		let (user_id, device_id) = self
 			.db
 			.token_userdeviceid
 			.get(token)
@@ -257,7 +266,7 @@ impl super::Service {
 		if let Some(expires) = self
 			.db
 			.userdeviceid_tokenexpires
-			.qry(&user)
+			.qry(&(&user_id, &device_id))
 			.await
 			.deserialized::<u64>()
 			.ok()
@@ -268,11 +277,11 @@ impl super::Service {
 				.expect("expiry time should not overflow SystemTime");
 
 			if SystemTime::now() > expires_at {
-				return None;
+				return Some((user_id, device_id, AccessTokenStatus::Expired));
 			}
 		}
 
-		Some(user)
+		Some((user_id, device_id, AccessTokenStatus::Valid))
 	}
 
 	/// Returns an iterator over all users on this homeserver.
