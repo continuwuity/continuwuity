@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 
-use conduwuit::{Err, Result, err};
+use conduwuit::{Err, Error, Result, err};
+use http::StatusCode;
 use ruma::{
 	OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
 	api::{
@@ -9,12 +10,15 @@ use ruma::{
 			AccessToken, AccessTokenOptional, AppserviceToken, AppserviceTokenOptional,
 			AuthScheme, NoAccessToken, NoAuthentication,
 		},
+		error::{ErrorKind, UnknownTokenErrorData},
 		federation::authentication::ServerSignatures,
 	},
+	assign,
 };
 use service::{
 	Services,
 	server_keys::{PubKeyMap, PubKeys},
+	users::AccessTokenStatus,
 };
 
 use crate::{router::args::AuthQueryParams, service::appservice::RegistrationInfo};
@@ -103,12 +107,21 @@ impl CheckAuth for AccessToken {
 		query: AuthQueryParams,
 		route: TypeId,
 	) -> Result<Auth> {
-		// Check for appservice tokens first
-
 		let (sender_user, sender_device, appservice_info) = {
-			if let Some((sender_user, sender_device)) =
+			if let Some((sender_user, sender_device, status)) =
 				services.users.find_from_token(&output).await
 			{
+				// If the token is expired we return a soft logout
+				if matches!(status, AccessTokenStatus::Expired) {
+					return Err(Error::Request(
+						ErrorKind::UnknownToken(
+							assign!(UnknownTokenErrorData::new(), { soft_logout: true }),
+						),
+						"This token has expired".into(),
+						StatusCode::UNAUTHORIZED,
+					));
+				}
+
 				// Locked users can only use /logout and /logout/all
 				if services
 					.users
@@ -120,7 +133,7 @@ impl CheckAuth for AccessToken {
 						|| route
 							== TypeId::of::<ruma::api::client::session::logout_all::v3::Request>(
 							)) {
-						return Err!(Request(Unauthorized("Your account is locked.")));
+						return Err!(Request(UserLocked("Your account is locked.")));
 					}
 				}
 
@@ -168,7 +181,11 @@ impl CheckAuth for AccessToken {
 
 				(Some(sender_user), sender_device, Some(appservice_info))
 			} else {
-				return Err!(Request(Unauthorized("Invalid access token.")));
+				return Err(Error::Request(
+					ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
+					"Invalid token".into(),
+					StatusCode::UNAUTHORIZED,
+				));
 			}
 		};
 
