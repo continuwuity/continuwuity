@@ -37,6 +37,7 @@ ruma.workspace = true
 thiserror.workspace = true
 tower-http.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 lettre.workspace = true
 memory-serve = "2.1.0"
 validator = { version = "0.20.0", features = ["derive"] }

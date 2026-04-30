@@ -257,7 +257,7 @@ impl Service {
 				self
 					.services
 					.oauth
-					.get_client_id_for_device(initiator.user_id, device_id)
+					.get_session_info_for_device(initiator.user_id, device_id)
 					.await
 					.is_some()
 			} else {
