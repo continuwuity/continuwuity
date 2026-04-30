@@ -21,5 +21,10 @@
         <p>
             Last active: {{ last_active }}
         </p>
+        {% if show_actions %}
+            <p>
+                <a href="device/{{ device_id }}/remove">Remove</a>
+            </p>
+        {% endif %}
     </div>
 </div>
