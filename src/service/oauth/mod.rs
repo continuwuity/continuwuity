@@ -1,5 +1,5 @@
 use std::{
-	collections::{BTreeMap, BTreeSet, HashMap},
+	collections::{BTreeSet, HashMap},
 	sync::{Arc, Mutex},
 	time::{Duration, SystemTime},
 };
@@ -77,10 +77,10 @@ impl PendingCodeGrant {
 	const RANDOM_CODE_LENGTH: usize = 32;
 
 	#[must_use]
-	pub fn generate_code() -> String { utils::random_string(Self::RANDOM_CODE_LENGTH) }
+	pub(crate) fn generate_code() -> String { utils::random_string(Self::RANDOM_CODE_LENGTH) }
 
 	#[must_use]
-	pub fn is_valid_for(&self, client_id: &str) -> bool {
+	pub(crate) fn is_valid_for(&self, client_id: &str) -> bool {
 		let now = SystemTime::now();
 
 		self.expected_client_id == client_id
@@ -454,7 +454,7 @@ impl Service {
 				.remove(&session_info.current_refresh_token);
 			self.db
 				.userdeviceid_oauthsessioninfo
-				.del(&(user_id, device_id));
+				.del((user_id, device_id));
 			info!(?user_id, ?device_id, "Removed OAuth session");
 		}
 	}

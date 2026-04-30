@@ -4,7 +4,6 @@ mod token;
 
 use axum::{
 	Json, Router,
-	extract::State,
 	routing::method_routing::{get, post},
 };
 use serde_json::json;
