@@ -144,3 +144,8 @@ pub struct TokenResponse {
 pub enum TokenType {
 	Bearer,
 }
+
+#[derive(Deserialize)]
+pub struct RevokeTokenRequest {
+	pub token: String,
+}
