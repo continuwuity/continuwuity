@@ -162,7 +162,7 @@ impl CheckAuth for AccessToken {
 		query: AuthQueryParams,
 		route: TypeId,
 	) -> Result<Self::Identity> {
-		if let Ok((sender_user, sender_device)) = services.users.find_from_token(&output).await {
+		if let Some((sender_user, sender_device)) = services.users.find_from_token(&output).await {
 			// Locked users can only use /logout and /logout/all
 			if services
 				.users

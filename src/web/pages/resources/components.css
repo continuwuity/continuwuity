@@ -17,7 +17,7 @@
     background-color: var(--avatar-color);
 }
 
-.green-avatar {
+.red-avatar {
     --avatar-color: var(--c1);
 }
 

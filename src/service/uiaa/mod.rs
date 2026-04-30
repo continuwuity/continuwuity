@@ -253,17 +253,17 @@ impl Service {
 		let mut info = assign!(UiaaInfo::new(flows), { params: Some(params), session: Some(session_id.clone()) });
 
 		let session_metadata = if let Some(initiator) = initiator {
-			let is_oauth = OptionFuture::from(
-				initiator.device_id.map(async |device_id| {
-					self
-						.services
-						.oauth
-						.get_client_id_for_device(device_id)
-						.await
-				})
-			)
-			.await
-			.is_some();
+			let is_oauth = if let Some(device_id) = initiator.device_id {
+				self
+					.services
+					.oauth
+					.get_client_id_for_device(initiator.user_id, device_id)
+					.await
+					.is_some()
+			} else {
+				// Appservices never have oauth sessions
+				false
+			};
 
 			if is_oauth {
 				if let Some(oauth_ticket) = initiator.oauth_ticket {
@@ -279,7 +279,18 @@ impl Service {
 						.unwrap();
 
 					info.flows = vec![AuthFlow::new(vec![AuthType::OAuth])];
-					info.params = Some(to_raw_value(&json!({"url": ticket_url})).unwrap());
+					info.params = Some(
+						to_raw_value(&json!({
+							AuthType::OAuth.as_str(): {
+								"url": ticket_url,
+							},
+							// TODO(compat): This is necessary for older versions of matrix-rust-sdk
+							"org.matrix.cross_signing_reset": {
+								"url": ticket_url,
+							}
+						}))
+						.unwrap(),
+					);
 
 					UiaaSessionMetadata::OAuth {
 						localpart: initiator.user_id.localpart().to_owned(),

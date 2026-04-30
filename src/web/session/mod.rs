@@ -1,8 +1,14 @@
-use std::time::{Duration, SystemTime};
+use std::{
+	borrow::Cow,
+	collections::HashMap,
+	mem::discriminant,
+	time::{Duration, SystemTime},
+};
 
 use axum::{extract::FromRequestParts, http::request::Parts};
+use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
 use ruma::{OwnedUserId, UserId};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use tower_sessions::Session;
 
 use crate::{ROUTE_PREFIX, WebError};
@@ -12,7 +18,7 @@ pub(crate) mod store;
 #[derive(Debug, Deserialize, Serialize)]
 pub(crate) struct LoginQuery {
 	#[serde(flatten)]
-	pub next: LoginTarget,
+	pub next: Option<LoginTarget>,
 	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 	pub reauthenticate: bool,
 }
@@ -20,6 +26,7 @@ pub(crate) struct LoginQuery {
 #[derive(Debug, Default, Deserialize, Serialize)]
 #[serde(tag = "next", rename_all = "snake_case")]
 pub(crate) enum LoginTarget {
+	AuthorizationCode(AuthorizationCodeQuery),
 	#[default]
 	Account,
 	ChangePassword,
@@ -28,14 +35,23 @@ pub(crate) enum LoginTarget {
 	Deactivate,
 }
 
+impl PartialEq for LoginTarget {
+	fn eq(&self, other: &Self) -> bool { discriminant(self) == discriminant(other) }
+}
+
 impl LoginTarget {
 	pub(crate) fn target_path(&self) -> String {
-		let path = match self {
-			| Self::Account => "account/",
-			| Self::ChangePassword => "account/password/change",
-			| Self::ChangeEmail => "account/email/change/",
-			| Self::CrossSigningReset => "account/cross_signing_reset",
-			| Self::Deactivate => "account/deactivate",
+		let path: Cow<'_, str> = match self {
+			| Self::AuthorizationCode(code) => format!(
+				"oauth2/grant/authorization_code?{}",
+				serde_urlencoded::to_string(code).unwrap()
+			)
+			.into(),
+			| Self::Account => "account/".into(),
+			| Self::ChangePassword => "account/password/change".into(),
+			| Self::ChangeEmail => "account/email/change/".into(),
+			| Self::CrossSigningReset => "account/cross_signing_reset".into(),
+			| Self::Deactivate => "account/deactivate".into(),
 		};
 
 		format!("{ROUTE_PREFIX}/{path}")
@@ -80,7 +96,10 @@ impl User {
 		if let Some(session) = self.0 {
 			Ok(session.user_id)
 		} else {
-			Err(WebError::LoginRequired(LoginQuery { next: or_else, reauthenticate: false }))
+			Err(WebError::LoginRequired(LoginQuery {
+				next: Some(or_else),
+				reauthenticate: false,
+			}))
 		}
 	}
 
@@ -91,10 +110,16 @@ impl User {
 			if session.is_recent() {
 				Ok(session.user_id)
 			} else {
-				Err(WebError::LoginRequired(LoginQuery { next: or_else, reauthenticate: true }))
+				Err(WebError::LoginRequired(LoginQuery {
+					next: Some(or_else),
+					reauthenticate: true,
+				}))
 			}
 		} else {
-			Err(WebError::LoginRequired(LoginQuery { next: or_else, reauthenticate: false }))
+			Err(WebError::LoginRequired(LoginQuery {
+				next: Some(or_else),
+				reauthenticate: false,
+			}))
 		}
 	}
 }

@@ -162,6 +162,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM
 	},
 	Descriptor {
+		name: "refreshtoken_refreshtokeninfo",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "registrationtoken_info",
 		..descriptor::RANDOM_SMALL
 	},
@@ -373,6 +377,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "userdevicetxnid_response",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "userdeviceid_oauthsessioninfo",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "userdeviceid_tokenexpires",
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
