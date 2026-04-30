@@ -4,7 +4,7 @@ use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
 use conduwuit_core::{result::FlatOk, utils};
 use conduwuit_service::{Services, media::mxc::Mxc, oauth::client_metadata::ClientMetadata};
-use ruma::{MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId};
+use ruma::{OwnedDeviceId, OwnedUserId, UserId};
 
 pub(super) mod form;
 
@@ -24,10 +24,10 @@ impl HtmlSafe for Avatar {}
 
 impl Avatar {
 	pub(super) async fn for_local_user(services: &Services, user_id: &UserId) -> Self {
-		let display_name = services.users.displayname(&user_id).await.ok();
+		let display_name = services.users.displayname(user_id).await.ok();
 
 		let avatar_src = async {
-			let avatar_url = services.users.avatar_url(&user_id).await.ok()?;
+			let avatar_url = services.users.avatar_url(user_id).await.ok()?;
 			let (server_name, media_id) = avatar_url.parts().ok()?;
 			let file = services
 				.media
@@ -57,7 +57,7 @@ impl Avatar {
 			AvatarType::Initial(user_id.localpart().chars().next().unwrap())
 		};
 
-		Avatar { avatar_type }
+		Self { avatar_type }
 	}
 }
 
