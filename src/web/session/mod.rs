@@ -10,7 +10,7 @@ use ruma::{OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
-use crate::{ROUTE_PREFIX, WebError};
+use crate::{ROUTE_PREFIX, WebError, pages::account::device::RemoveDevicePath};
 
 pub(crate) mod store;
 
@@ -32,6 +32,7 @@ pub(crate) enum LoginTarget {
 	ChangeEmail,
 	CrossSigningReset,
 	Deactivate,
+	RemoveDevice(RemoveDevicePath),
 }
 
 impl PartialEq for LoginTarget {
@@ -51,6 +52,8 @@ impl LoginTarget {
 			| Self::ChangeEmail => "account/email/change/".into(),
 			| Self::CrossSigningReset => "account/cross_signing_reset".into(),
 			| Self::Deactivate => "account/deactivate".into(),
+			| Self::RemoveDevice(path) =>
+				format!("account/device/{}/remove", path.device,).into(),
 		};
 
 		format!("{ROUTE_PREFIX}/{path}")

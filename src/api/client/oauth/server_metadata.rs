@@ -4,13 +4,12 @@ use ruma::{api::client::discovery::get_authorization_server_metadata, serde::Raw
 use serde_json::{Value, json};
 use service::Services;
 
-use crate::Ruma;
-
-pub(super) const AUTH_CODE_PATH: &str = "grant/authorization_code";
-pub(super) const JWKS_URI_PATH: &str = "client/keys.json";
-pub(super) const CLIENT_REGISTER_PATH: &str = "client/register";
-pub(super) const TOKEN_REVOKE_PATH: &str = "client/revoke";
-pub(super) const TOKEN_PATH: &str = "grant/token";
+use crate::{
+	Ruma,
+	client::oauth::{
+		AUTH_CODE_PATH, CLIENT_REGISTER_PATH, JWKS_URI_PATH, TOKEN_PATH, TOKEN_REVOKE_PATH,
+	},
+};
 
 pub(crate) async fn get_authorization_server_metadata_route(
 	State(services): State<crate::State>,
