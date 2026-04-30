@@ -7,10 +7,16 @@ use axum::{
 	extract::State,
 	routing::method_routing::{get, post},
 };
+use const_str::concat;
 use serde_json::json;
 pub(crate) use server_metadata::*;
 
-const BASE_PATH: &str = const_str::concat!(conduwuit_core::ROUTE_PREFIX, "/oauth2/");
+const BASE_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/oauth2/");
+const AUTH_CODE_PATH: &str = "grant/authorization_code";
+const JWKS_URI_PATH: &str = "client/keys.json";
+const CLIENT_REGISTER_PATH: &str = "client/register";
+const TOKEN_REVOKE_PATH: &str = "client/revoke";
+const TOKEN_PATH: &str = "grant/token";
 
 pub(crate) fn router() -> Router<crate::State> {
 	Router::new().nest(BASE_PATH, oauth_router())
@@ -24,9 +30,9 @@ pub(crate) fn router() -> Router<crate::State> {
 
 fn oauth_router() -> Router<crate::State> {
 	Router::new()
-		.route(CLIENT_REGISTER_PATH, post(register_client::register_client_route))
+		.route(concat!("/", CLIENT_REGISTER_PATH), post(register_client::register_client_route))
 		// TODO(unspecced): used by old versions of the matrix-js-sdk
-		.route(JWKS_URI_PATH, get(async || Json(json!({"keys": []}))))
-		.route(TOKEN_PATH, post(token::token_route))
-		.route(TOKEN_REVOKE_PATH, post(token::revoke_token_route))
+		.route(concat!("/", JWKS_URI_PATH), get(async || Json(json!({"keys": []}))))
+		.route(concat!("/", TOKEN_PATH), post(token::token_route))
+		.route(concat!("/", TOKEN_REVOKE_PATH), post(token::revoke_token_route))
 }

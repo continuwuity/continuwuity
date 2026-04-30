@@ -1,4 +1,5 @@
 use axum::{Router, extract::State, response::Response, routing::get};
+use conduwuit_core::utils::{IterStream, stream::TryExpect};
 use conduwuit_service::threepid::EmailRequirement;
 use futures::StreamExt;
 use ruma::{OwnedClientSecret, OwnedSessionId};
@@ -12,11 +13,12 @@ use crate::{
 	template,
 };
 
-mod cross_signing_reset;
-mod deactivate;
-mod email;
-mod login;
-mod password;
+pub(crate) mod cross_signing_reset;
+pub(crate) mod deactivate;
+pub(crate) mod device;
+pub(crate) mod email;
+pub(crate) mod login;
+pub(crate) mod password;
 
 pub(crate) fn build() -> Router<crate::State> {
 	#[allow(clippy::wildcard_imports)]
@@ -29,6 +31,7 @@ pub(crate) fn build() -> Router<crate::State> {
 		.nest("/email/", email::build())
 		.nest("/cross_signing_reset", cross_signing_reset::build())
 		.nest("/deactivate", deactivate::build())
+		.nest("/device/", device::build())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -64,11 +67,24 @@ async fn get_account(
 	let mut devices: Vec<_> = services
 		.users
 		.all_device_ids(&user_id)
-		.then(async |device_id| DeviceCard::for_device(&services, &user_id, device_id).await)
+		.then(async |device_id| {
+			services
+				.users
+				.get_device_metadata(&user_id, &device_id)
+				.await
+		})
+		.expect_ok()
 		.collect()
 		.await;
 
 	devices.sort_unstable_by(|a, b| a.last_seen_ts.cmp(&b.last_seen_ts).reverse());
 
-	response!(Account::new(&services, user_card, email_requirement, email, devices))
+	let device_cards = devices
+		.into_iter()
+		.stream()
+		.then(async |device| DeviceCard::for_device(&services, &user_id, device, true).await)
+		.collect()
+		.await;
+
+	response!(Account::new(&services, user_card, email_requirement, email, device_cards))
 }

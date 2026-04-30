@@ -1,0 +1,36 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Remove a device
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>Remove a device <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
+    {% match body %}
+        {% when RemoveDeviceBody::Form { device_card, last_device } %}
+            {{ device_card }}
+            <p>
+                Do you want to remove this device from your account? It will be signed out immediately.
+            </p>
+            {% if last_device %}
+                <p>
+                    <em class="negative">This is your last device.</em> If you remove it, you will need to use
+                    your recovery key to recover your encrypted messages when you log in on a new device.
+                </p>
+            {% else %}
+                <p>
+                    <em class="negative">This may be a destructive action.</em> Make sure you have access to
+                    another confirmed device, or your recovery key, to avoid losing access to your encrypted messages.
+                </p>
+            {% endif %}
+            <form method="post">
+                <button type="submit">Remove this device</button>
+            </form>
+        {% when RemoveDeviceBody::Success %}
+            <p>
+                The device has been signed out successfully.
+            </p>
+    {% endmatch %}
+</div>
+{%- endblock -%}
