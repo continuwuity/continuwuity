@@ -1200,6 +1200,7 @@ dependencies = [
  "serde",
  "serde-saphyr",
  "serde_json",
+ "serde_urlencoded",
  "sha2 0.11.0",
  "termimad",
  "tokio",
@@ -1237,6 +1238,7 @@ dependencies = [
  "tower-sessions",
  "tower-sessions-core",
  "tracing",
+ "url",
  "validator",
 ]
 

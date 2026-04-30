@@ -1,0 +1,64 @@
+{% extends "_layout.html.j2" %}
+
+{%- block head -%}
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/grant.css">
+{%- endblock -%}
+
+{%- block title -%}
+Authorize client
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1>Authorize {{ client_name }}</h1>
+    <div class="avatars">
+        <div class="red-avatar">
+            {{ user_avatar }}
+        </div>
+        <div class="separator" aria-hidden>
+            ⇄
+        </div>
+        {{ client_avatar }}
+    </div>
+    <div class="identity">
+        Signed in as <code>{{ user_id }}</code>. <a href="{{ crate::ROUTE_PREFIX }}/account/logout?{{ logout_query }}">Switch accounts</a>
+    </div>
+    <p>
+        <b>{{ client_name }}</b> (<a href="{{ client_uri }}">{{ client_uri.domain().unwrap() }}</a>) would like
+        your permission to:
+        <ul>
+            {% for scope in scopes %}
+                {% match scope %}
+                    {% when Scope::ClientApi %}
+                        <li>Interact with Matrix on your behalf</li>
+                    {% when Scope::Device(_) %}
+                        <li>Connect to your Matrix account</li>
+                {% endmatch %}
+            {% endfor %}
+        </ul>
+    </p>
+    {% match (&policy_uri, &tos_uri) %}
+        {% when (Some(policy_uri), Some(tos_uri)) %}
+            <p>
+                {{ client_name }}'s <a href="{{ policy_uri }}">policies</a>
+                and <a href="{{ tos_uri }}">terms of service</a> apply.
+            </p>
+        {% when (Some(policy_uri), None) %}
+            <p>
+                {{ client_name }}'s <a href="{{ policy_uri }}">policies</a> apply.
+            </p>
+        {% when (None, Some(tos_uri)) %}
+            <p>
+                {{ client_name }}'s <a href="{{ tos_uri }}">terms of service</a> apply.
+            </p>
+        {% when (None, None) %}
+            <p>
+                Make sure you trust {{ client_name }} with access to your data.
+            </p>
+    {% endmatch %}
+
+    <form method="post">
+        <button type="submit">Continue</button>
+    </form>
+</div>
+{%- endblock -%}

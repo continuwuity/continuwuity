@@ -235,6 +235,7 @@ pub(crate) async fn register_route(
 				&user_id,
 				&device_id,
 				&new_token,
+				None,
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)

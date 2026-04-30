@@ -61,12 +61,14 @@ async fn get_account(
 
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
-	let devices = services
+	let mut devices: Vec<_> = services
 		.users
 		.all_device_ids(&user_id)
 		.then(async |device_id| DeviceCard::for_device(&services, &user_id, device_id).await)
 		.collect()
 		.await;
+
+	devices.sort_unstable_by(|a, b| a.last_seen_ts.cmp(&b.last_seen_ts).reverse());
 
 	response!(Account::new(&services, user_card, email_requirement, email, devices))
 }

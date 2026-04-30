@@ -127,6 +127,7 @@ pub fn build(services: &Services) -> Router<state::State> {
 			Router::new()
 				.nest("/account/", account::build())
 				.merge(debug::build())
+				.nest("/oauth2/", oauth::build())
 				.merge(resources::build())
 				.merge(threepid::build())
 				.fallback(async || WebError::NotFound),
@@ -145,7 +146,7 @@ pub fn build(services: &Services) -> Router<state::State> {
 		}))
 		.layer(SetResponseHeaderLayer::if_not_present(
 			header::CONTENT_SECURITY_POLICY,
-			HeaderValue::from_static("default-src 'self'; img-src 'self' data:;"),
+			HeaderValue::from_static("default-src 'self'; img-src 'self' https: data:;"),
 		))
 		.layer(SecFetchLayer::new(|policy| {
 			policy.allow_safe_methods().reject_missing_metadata();

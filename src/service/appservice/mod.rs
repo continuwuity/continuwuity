@@ -67,7 +67,7 @@ impl crate::Service for Service {
 		for (id, registration) in appservices {
 			// During startup, resolve any token collisions in favour of appservices
 			// by logging out conflicting user devices
-			if let Ok((user_id, device_id)) = self
+			if let Some((user_id, device_id)) = self
 				.services
 				.users
 				.find_from_token(&registration.as_token)
@@ -161,7 +161,7 @@ impl Service {
 			.users
 			.find_from_token(&registration.as_token)
 			.await
-			.is_ok()
+			.is_some()
 		{
 			return Err(err!(Request(InvalidParam(
 				"Cannot register appservice: The provided token is already in use by a user \

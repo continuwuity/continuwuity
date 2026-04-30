@@ -255,7 +255,7 @@ impl Service {
 			let is_oauth = self
 				.services
 				.oauth
-				.get_client_id_for_device(initiator.device_id)
+				.get_client_id_for_device(initiator.user_id, initiator.device_id)
 				.await
 				.is_some();
 
@@ -273,7 +273,18 @@ impl Service {
 						.unwrap();
 
 					info.flows = vec![AuthFlow::new(vec![AuthType::OAuth])];
-					info.params = Some(to_raw_value(&json!({"url": ticket_url})).unwrap());
+					info.params = Some(
+						to_raw_value(&json!({
+							AuthType::OAuth.as_str(): {
+								"url": ticket_url,
+							},
+							// TODO(compat): This is necessary for older versions of matrix-rust-sdk
+							"org.matrix.cross_signing_reset": {
+								"url": ticket_url,
+							}
+						}))
+						.unwrap(),
+					);
 
 					UiaaSessionMetadata::OAuth {
 						localpart: initiator.user_id.localpart().to_owned(),

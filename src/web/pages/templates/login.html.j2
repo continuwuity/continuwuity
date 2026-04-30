@@ -13,7 +13,11 @@ Log in
     {% match body %}
         {% when LoginBody::Unauthenticated { server_name } %}
             <h1 class="with-matrix-icon">
-                Log in to Matrix
+                {% if has_next %}
+                    Log in to continue
+                {% else %}
+                    Log in to Matrix
+                {% endif %}
                 <a href="https://matrix.org" target="_blank" noreferer>
                     <img class="matrix-icon" alt="Matrix logo" aria-ignore src="{{ crate::ROUTE_PREFIX }}/resources/matrix-icon.svg">
                 </a>

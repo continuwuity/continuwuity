@@ -186,7 +186,7 @@ pub fn build(router: Router<State>, server: &Server) -> Router<State> {
 		.ruma_route(&client::get_rtc_transports)
 		.ruma_route(&client::room_initial_sync_route)
 		.ruma_route(&client::get_authorization_server_metadata_route)
-		.nest(client::oauth::BASE_PATH, client::oauth::router())
+		.merge(client::oauth::router())
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
 		.route("/_continuwuity/server_version", get(client::conduwuit_server_version))
 		.ruma_route(&admin::rooms::ban::ban_room)

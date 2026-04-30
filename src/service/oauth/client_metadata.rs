@@ -38,7 +38,7 @@ pub struct ClientMetadata {
 }
 
 impl ClientMetadata {
-	const ACCEPTABLE_LOCALHOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
+	pub(super) const ACCEPTABLE_LOCALHOSTS: [&str; 3] = ["localhost", "127.0.0.1", "[::1]"];
 
 	pub(super) fn validate(&self) -> Result<(), &'static str> {
 		let Some(client_domain) = self.client_uri.domain() else {
@@ -137,6 +137,7 @@ pub enum GrantType {
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
+#[non_exhaustive]
 pub enum ResponseType {
 	Code,
 }
