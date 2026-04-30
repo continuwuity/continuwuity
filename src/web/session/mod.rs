@@ -1,6 +1,5 @@
 use std::{
 	borrow::Cow,
-	collections::HashMap,
 	mem::discriminant,
 	time::{Duration, SystemTime},
 };
@@ -8,7 +7,7 @@ use std::{
 use axum::{extract::FromRequestParts, http::request::Parts};
 use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
 use ruma::{OwnedUserId, UserId};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
 
 use crate::{ROUTE_PREFIX, WebError};

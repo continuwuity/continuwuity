@@ -1,9 +1,4 @@
-use std::{
-	collections::{BTreeSet, HashSet},
-	fmt::Debug,
-	hash::Hash,
-	mem::discriminant,
-};
+use std::{collections::BTreeSet, fmt::Debug, hash::Hash, mem::discriminant};
 
 use regex::Regex;
 use ruma::OwnedDeviceId;
@@ -127,6 +122,7 @@ pub enum TokenRequest {
 }
 
 impl TokenRequest {
+	#[must_use]
 	pub fn client_id(&self) -> &str {
 		match self {
 			| Self::AuthorizationCode { client_id, .. }

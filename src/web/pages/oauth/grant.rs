@@ -3,18 +3,11 @@ use std::collections::BTreeSet;
 use axum::{
 	Router,
 	extract::{Query, State},
-	response::{IntoResponse, Redirect},
+	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::{
-	oauth::{
-		client_metadata::{self, ClientMetadata},
-		grant::{AuthorizationCodeQuery, Scope},
-	},
-	rooms::user,
-};
-use ruma::{OwnedDeviceId, OwnedUserId};
-use serde::Deserialize;
+use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Scope};
+use ruma::OwnedUserId;
 use url::Url;
 
 use crate::{
