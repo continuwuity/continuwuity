@@ -1,7 +1,3 @@
-mod register_client;
-mod server_metadata;
-mod token;
-
 use axum::{
 	Json, Router,
 	extract::State,
@@ -11,12 +7,17 @@ use const_str::concat;
 use serde_json::json;
 pub(crate) use server_metadata::*;
 
+mod register_client;
+mod server_metadata;
+mod token;
+
 const BASE_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/oauth2/");
 const AUTH_CODE_PATH: &str = "grant/authorization_code";
 const JWKS_URI_PATH: &str = "client/keys.json";
 const CLIENT_REGISTER_PATH: &str = "client/register";
 const TOKEN_REVOKE_PATH: &str = "client/revoke";
 const TOKEN_PATH: &str = "grant/token";
+const ACCOUNT_MANAGEMENT_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/account/deeplink");
 
 pub(crate) fn router() -> Router<crate::State> {
 	Router::new().nest(BASE_PATH, oauth_router())

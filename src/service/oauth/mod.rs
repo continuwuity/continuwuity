@@ -314,8 +314,10 @@ impl Service {
 			.deserialized::<RefreshTokenInfo>()
 		{
 			(refresh_token_info.user_id, refresh_token_info.device_id)
-		} else if let Some(user) = self.services.users.find_from_token(&token).await {
-			user
+		} else if let Some((user_id, device_id, _)) =
+			self.services.users.find_from_token(&token).await
+		{
+			(user_id, device_id)
 		} else {
 			return Err!("Invalid token");
 		};
