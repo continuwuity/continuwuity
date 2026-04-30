@@ -6,6 +6,12 @@ use service::Services;
 
 use crate::Ruma;
 
+pub(super) const AUTH_CODE_PATH: &str = "grant/authorization_code";
+pub(super) const JWKS_URI_PATH: &str = "client/keys.json";
+pub(super) const CLIENT_REGISTER_PATH: &str = "client/register";
+pub(super) const TOKEN_REVOKE_PATH: &str = "client/revoke";
+pub(super) const TOKEN_PATH: &str = "grant/token";
+
 pub(crate) async fn get_authorization_server_metadata_route(
 	State(services): State<crate::State>,
 	_body: Ruma<get_authorization_server_metadata::v1::Request>,
@@ -23,16 +29,16 @@ pub(crate) async fn authorization_server_metadata(services: &Services) -> Value 
 		.unwrap();
 
 	json!({
-		"authorization_endpoint": endpoint_base.join("grant/authorization_code").unwrap(),
+		"authorization_endpoint": endpoint_base.join(AUTH_CODE_PATH).unwrap(),
 		"code_challenge_methods_supported": ["S256"],
 		"grant_types_supported": ["authorization_code", "refresh_token"],
 		"issuer": services.config.get_client_domain(),
-		"jwks_uri": endpoint_base.join("client/keys.json").unwrap(),
+		"jwks_uri": endpoint_base.join(JWKS_URI_PATH).unwrap(),
 		"prompt_values_supported": ["create"],
-		"registration_endpoint": endpoint_base.join("client/register").unwrap(),
+		"registration_endpoint": endpoint_base.join(CLIENT_REGISTER_PATH).unwrap(),
 		"response_modes_supported": ["query", "fragment"],
 		"response_types_supported": ["code"],
-		"revocation_endpoint": endpoint_base.join("client/revoke").unwrap(),
-		"token_endpoint": endpoint_base.join("grant/token").unwrap(),
+		"revocation_endpoint": endpoint_base.join(TOKEN_REVOKE_PATH).unwrap(),
+		"token_endpoint": endpoint_base.join(TOKEN_PATH).unwrap(),
 	})
 }
