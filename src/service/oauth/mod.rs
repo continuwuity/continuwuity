@@ -306,6 +306,30 @@ impl Service {
 		}
 	}
 
+	pub async fn revoke_token(&self, token: String) -> Result<()> {
+		let (user_id, device_id) = if let Ok(refresh_token_info) = self
+			.db
+			.refreshtoken_refreshtokeninfo
+			.get(&token)
+			.await
+			.deserialized::<RefreshTokenInfo>()
+		{
+			(refresh_token_info.user_id, refresh_token_info.device_id)
+		} else if let Some(user) = self.services.users.find_from_token(&token).await {
+			user
+		} else {
+			return Err!("Invalid token");
+		};
+
+		// This will also call [`Self::remove_session`]
+		self.services
+			.users
+			.remove_device(&user_id, &device_id)
+			.await;
+
+		Ok(())
+	}
+
 	async fn create_session(
 		&self,
 		authorizing_user: OwnedUserId,
