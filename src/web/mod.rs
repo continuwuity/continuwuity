@@ -10,7 +10,7 @@ use axum::{
 use conduwuit_service::{Services, state};
 use tower_http::{catch_panic::CatchPanicLayer, set_header::SetResponseHeaderLayer};
 use tower_sec_fetch::SecFetchLayer;
-use tower_sessions::{ExpiredDeletion, SessionManagerLayer};
+use tower_sessions::{ExpiredDeletion, SessionManagerLayer, cookie::SameSite};
 
 use crate::{
 	pages::TemplateContext,
@@ -134,7 +134,11 @@ pub fn build(services: &Services) -> Router<state::State> {
 				.merge(threepid::build())
 				.fallback(async || WebError::NotFound),
 		)
-		.layer(SessionManagerLayer::new(store).with_name("_c10y_session"))
+		.layer(
+			SessionManagerLayer::new(store)
+				.with_name("_c10y_session")
+				.with_same_site(SameSite::Lax),
+		)
 		.layer(CatchPanicLayer::custom(|panic: Box<dyn Any + Send + 'static>| {
 			let details = if let Some(s) = panic.downcast_ref::<String>() {
 				s.clone()
