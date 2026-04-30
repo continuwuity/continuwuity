@@ -1231,6 +1231,7 @@ dependencies = [
  "rand 0.10.1",
  "ruma",
  "serde",
+ "serde_json",
  "serde_urlencoded",
  "thiserror",
  "tower-http",

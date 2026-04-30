@@ -139,7 +139,6 @@ pub async fn get_dehydrated_device_id(&self, user_id: &UserId) -> Result<OwnedDe
 	level = "debug",
 	skip_all,
 	fields(%user_id),
-	ret,
 )]
 pub async fn get_dehydrated_device(&self, user_id: &UserId) -> Result<DehydratedDevice> {
 	self.db

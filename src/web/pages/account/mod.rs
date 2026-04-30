@@ -1,5 +1,5 @@
 use axum::{Router, extract::State, response::Response, routing::get};
-use conduwuit_core::utils::{IterStream, stream::TryExpect};
+use conduwuit_core::utils::{IterStream, ReadyExt, stream::TryExpect};
 use conduwuit_service::threepid::EmailRequirement;
 use futures::StreamExt;
 use ruma::{OwnedClientSecret, OwnedSessionId};
@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
 	WebError,
-	pages::components::{DeviceCard, UserCard},
+	pages::components::{DeviceCard, DeviceCardStyle, UserCard},
 	response,
 	session::{LoginTarget, User},
 	template,
@@ -64,6 +64,8 @@ async fn get_account(
 
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
+	let dehydrated_device_id = services.users.get_dehydrated_device_id(&user_id).await.ok();
+
 	let mut devices: Vec<_> = services
 		.users
 		.all_device_ids(&user_id)
@@ -74,6 +76,11 @@ async fn get_account(
 				.await
 		})
 		.expect_ok()
+		.ready_filter(|device| {
+			dehydrated_device_id
+				.as_ref()
+				.is_none_or(|id| device.device_id != *id)
+		})
 		.collect()
 		.await;
 
@@ -82,7 +89,9 @@ async fn get_account(
 	let device_cards = devices
 		.into_iter()
 		.stream()
-		.then(async |device| DeviceCard::for_device(&services, &user_id, device, true).await)
+		.then(async |device| {
+			DeviceCard::for_device(&services, &user_id, device, DeviceCardStyle::Minimal).await
+		})
 		.collect()
 		.await;
 

@@ -48,14 +48,14 @@ struct Services {
 	users: Dep<users::Service>,
 }
 
-#[derive(Deserialize, Serialize)]
-struct SessionInfo {
-	client_id: String,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SessionInfo {
+	pub client_id: String,
+	pub scopes: BTreeSet<Scope>,
 	current_refresh_token: String,
-	scopes: BTreeSet<Scope>,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct RefreshTokenInfo {
 	client_id: String,
 	user_id: OwnedUserId,
@@ -166,18 +166,17 @@ impl Service {
 			.ok()
 	}
 
-	pub async fn get_client_id_for_device(
+	pub async fn get_session_info_for_device(
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
-	) -> Option<String> {
+	) -> Option<SessionInfo> {
 		self.db
 			.userdeviceid_oauthsessioninfo
 			.qry(&(user_id, device_id))
 			.await
 			.deserialized::<SessionInfo>()
 			.ok()
-			.map(|session| session.client_id)
 	}
 
 	pub async fn request_authorization_code(
@@ -417,11 +416,11 @@ impl Service {
 		assert_eq!(&client_id, &refresh_token_info.client_id, "refresh token client id mismatch");
 
 		let mut session_info = self
-			.db
-			.userdeviceid_oauthsessioninfo
-			.qry(&(&refresh_token_info.user_id, &refresh_token_info.device_id))
+			.get_session_info_for_device(
+				&refresh_token_info.user_id,
+				&refresh_token_info.device_id,
+			)
 			.await
-			.deserialized::<SessionInfo>()
 			.expect("session info should exist");
 
 		assert_eq!(&client_id, &session_info.client_id, "session info client id mismatch");
@@ -464,13 +463,7 @@ impl Service {
 	}
 
 	pub async fn remove_session(&self, user_id: &UserId, device_id: &DeviceId) {
-		let session_info = self
-			.db
-			.userdeviceid_oauthsessioninfo
-			.qry(&(user_id, device_id))
-			.await
-			.deserialized::<SessionInfo>()
-			.ok();
+		let session_info = self.get_session_info_for_device(user_id, device_id).await;
 
 		if let Some(session_info) = session_info {
 			self.db

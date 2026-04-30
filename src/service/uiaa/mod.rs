@@ -255,7 +255,7 @@ impl Service {
 			let is_oauth = self
 				.services
 				.oauth
-				.get_client_id_for_device(initiator.user_id, initiator.device_id)
+				.get_session_info_for_device(initiator.user_id, initiator.device_id)
 				.await
 				.is_some();
 

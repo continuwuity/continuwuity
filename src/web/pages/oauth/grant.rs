@@ -1,12 +1,10 @@
-use std::collections::BTreeSet;
-
 use axum::{
 	Router,
 	extract::{Query, State},
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Scope};
+use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
 use ruma::OwnedUserId;
 use url::Url;
 
@@ -15,7 +13,7 @@ use crate::{
 	extract::{Expect, PostForm},
 	pages::{
 		GET_POST, Result,
-		components::{Avatar, AvatarType},
+		components::{Avatar, AvatarType, ClientScopes},
 	},
 	response,
 	session::{LoginQuery, LoginTarget, User},
@@ -36,7 +34,7 @@ template! {
 		client_avatar: Avatar,
 		policy_uri: Option<Url>,
 		tos_uri: Option<Url>,
-		scopes: BTreeSet<Scope>
+		scopes: ClientScopes
 	}
 }
 
@@ -101,6 +99,6 @@ async fn route_authorization_code(
 		client_avatar,
 		client.policy_uri.clone(),
 		client.tos_uri.clone(),
-		scopes,
+		ClientScopes { scopes },
 	))
 }
