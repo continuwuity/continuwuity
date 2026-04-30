@@ -1,9 +1,13 @@
-use std::time::SystemTime;
+use std::{collections::BTreeSet, time::SystemTime};
 
 use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
 use conduwuit_core::{result::FlatOk, utils};
-use conduwuit_service::{Services, media::mxc::Mxc, oauth::client_metadata::ClientMetadata};
+use conduwuit_service::{
+	Services,
+	media::mxc::Mxc,
+	oauth::{client_metadata::ClientMetadata, grant::Scope},
+};
 use ruma::{OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device};
 
 pub(super) mod form;
@@ -59,6 +63,29 @@ impl Avatar {
 
 		Self { avatar_type }
 	}
+
+	pub(super) fn for_device(
+		oauth_metadata: Option<&ClientMetadata>,
+		display_name: Option<&str>,
+	) -> Self {
+		let avatar_src = oauth_metadata
+			.and_then(|metadata| metadata.logo_uri.as_ref())
+			.map(|uri| uri.as_str().to_owned());
+
+		let avatar_type = if let Some(avatar_src) = avatar_src {
+			AvatarType::Image(avatar_src)
+		} else if let Some(initial) = display_name.and_then(|name| name.chars().next()) {
+			if oauth_metadata.is_some() {
+				AvatarType::Initial(initial)
+			} else {
+				AvatarType::Initial('❖')
+			}
+		} else {
+			AvatarType::Initial('?')
+		};
+
+		Self { avatar_type }
+	}
 }
 
 #[derive(Debug, Template)]
@@ -88,28 +115,34 @@ pub(super) struct DeviceCard {
 	pub avatar: Avatar,
 	pub last_active: String,
 	pub oauth_metadata: Option<ClientMetadata>,
-	pub show_actions: bool,
+	pub style: DeviceCardStyle,
 }
 
 impl HtmlSafe for DeviceCard {}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum DeviceCardStyle {
+	Minimal,
+	Detailed,
+}
 
 impl DeviceCard {
 	pub(super) async fn for_device(
 		services: &Services,
 		user_id: &UserId,
 		device: Device,
-		show_actions: bool,
+		style: DeviceCardStyle,
 	) -> Self {
 		let oauth_metadata = async {
-			let client_id = services
+			let session_info = services
 				.oauth
-				.get_client_id_for_device(user_id, &device.device_id)
+				.get_session_info_for_device(user_id, &device.device_id)
 				.await?;
 
 			Some(
 				services
 					.oauth
-					.get_client_metadata(&client_id)
+					.get_client_metadata(&session_info.client_id)
 					.await
 					.expect("client should exist"),
 			)
@@ -121,28 +154,7 @@ impl DeviceCard {
 			.and_then(|metadata| metadata.client_name.clone())
 			.or_else(|| device.display_name.clone());
 
-		let avatar = {
-			let avatar_src = oauth_metadata
-				.as_ref()
-				.and_then(|metadata| metadata.logo_uri.as_ref())
-				.map(|uri| uri.as_str().to_owned());
-
-			let avatar_type = if let Some(avatar_src) = avatar_src {
-				AvatarType::Image(avatar_src)
-			} else if let Some(initial) =
-				display_name.as_ref().and_then(|name| name.chars().next())
-			{
-				if oauth_metadata.is_some() {
-					AvatarType::Initial(initial)
-				} else {
-					AvatarType::Initial('❖')
-				}
-			} else {
-				AvatarType::Initial('?')
-			};
-
-			Avatar { avatar_type }
-		};
+		let avatar = Avatar::for_device(oauth_metadata.as_ref(), display_name.as_deref());
 
 		let last_active = device.last_seen_ts.map_or_else(
 			|| "unknown".to_owned(),
@@ -163,7 +175,15 @@ impl DeviceCard {
 			avatar,
 			last_active,
 			oauth_metadata,
-			show_actions,
+			style,
 		}
 	}
 }
+
+#[derive(Debug, Template)]
+#[template(path = "_components/client_scopes.html.j2")]
+pub(super) struct ClientScopes {
+	pub scopes: BTreeSet<Scope>,
+}
+
+impl HtmlSafe for ClientScopes {}
