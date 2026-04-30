@@ -4,7 +4,7 @@ use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
 use conduwuit_core::{result::FlatOk, utils};
 use conduwuit_service::{Services, media::mxc::Mxc, oauth::client_metadata::ClientMetadata};
-use ruma::{OwnedDeviceId, OwnedUserId, UserId};
+use ruma::{OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device};
 
 pub(super) mod form;
 
@@ -87,8 +87,8 @@ pub(super) struct DeviceCard {
 	pub display_name: Option<String>,
 	pub avatar: Avatar,
 	pub last_active: String,
-	pub last_seen_ts: Option<u64>,
 	pub oauth_metadata: Option<ClientMetadata>,
+	pub show_actions: bool,
 }
 
 impl HtmlSafe for DeviceCard {}
@@ -97,18 +97,13 @@ impl DeviceCard {
 	pub(super) async fn for_device(
 		services: &Services,
 		user_id: &UserId,
-		device_id: OwnedDeviceId,
+		device: Device,
+		show_actions: bool,
 	) -> Self {
-		let device = services
-			.users
-			.get_device_metadata(user_id, &device_id)
-			.await
-			.ok();
-
 		let oauth_metadata = async {
 			let client_id = services
 				.oauth
-				.get_client_id_for_device(user_id, &device_id)
+				.get_client_id_for_device(user_id, &device.device_id)
 				.await?;
 
 			Some(
@@ -124,11 +119,7 @@ impl DeviceCard {
 		let display_name = oauth_metadata
 			.as_ref()
 			.and_then(|metadata| metadata.client_name.clone())
-			.or_else(|| {
-				device
-					.as_ref()
-					.and_then(|device| device.display_name.clone())
-			});
+			.or_else(|| device.display_name.clone());
 
 		let avatar = {
 			let avatar_src = oauth_metadata
@@ -153,9 +144,7 @@ impl DeviceCard {
 			Avatar { avatar_type }
 		};
 
-		let last_seen_ts = device.as_ref().and_then(|device| device.last_seen_ts);
-
-		let last_active = last_seen_ts.map_or_else(
+		let last_active = device.last_seen_ts.map_or_else(
 			|| "unknown".to_owned(),
 			|last_seen_ts| {
 				last_seen_ts
@@ -169,12 +158,12 @@ impl DeviceCard {
 		);
 
 		Self {
-			device_id,
+			device_id: device.device_id,
 			display_name,
 			avatar,
 			last_active,
-			last_seen_ts: last_seen_ts.map(|last_seen_ts| last_seen_ts.as_secs().into()),
 			oauth_metadata,
+			show_actions,
 		}
 	}
 }

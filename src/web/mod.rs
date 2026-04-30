@@ -3,7 +3,7 @@ use std::{any::Any, sync::Once, time::Duration};
 use askama::Template;
 use axum::{
 	Router,
-	extract::rejection::{FormRejection, QueryRejection},
+	extract::rejection::{FormRejection, PathRejection, QueryRejection},
 	http::{HeaderValue, StatusCode, header},
 	response::{Html, IntoResponse, Redirect, Response},
 };
@@ -36,6 +36,8 @@ enum WebError {
 	QueryRejection(#[from] QueryRejection),
 	#[error("{0}")]
 	FormRejection(#[from] FormRejection),
+	#[error("{0}")]
+	PathRejection(#[from] PathRejection),
 	#[error("{0}")]
 	BadRequest(String),
 
