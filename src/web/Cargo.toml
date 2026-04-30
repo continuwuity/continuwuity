@@ -43,7 +43,8 @@ validator = { version = "0.20.0", features = ["derive"] }
 tower-sec-fetch = { version = "0.1.2", features = ["tracing"] }
 tower-sessions = { version = "0.15.0", default-features = false, features = ["axum-core"] }
 tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
-serde_urlencoded = "0.7.1"
+serde_urlencoded.workspace = true
+url.workspace = true
 
 [build-dependencies]
 memory-serve = "2.1.0"
