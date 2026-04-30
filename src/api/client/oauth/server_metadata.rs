@@ -1,13 +1,19 @@
 use axum::extract::State;
 use conduwuit::Result;
-use ruma::{api::client::discovery::get_authorization_server_metadata, serde::Raw};
+use ruma::{
+	api::client::discovery::get_authorization_server_metadata::{
+		self, v1::AccountManagementAction,
+	},
+	serde::Raw,
+};
 use serde_json::{Value, json};
 use service::Services;
 
 use crate::{
 	Ruma,
 	client::oauth::{
-		AUTH_CODE_PATH, CLIENT_REGISTER_PATH, JWKS_URI_PATH, TOKEN_PATH, TOKEN_REVOKE_PATH,
+		ACCOUNT_MANAGEMENT_PATH, AUTH_CODE_PATH, CLIENT_REGISTER_PATH, JWKS_URI_PATH, TOKEN_PATH,
+		TOKEN_REVOKE_PATH,
 	},
 };
 
@@ -28,6 +34,15 @@ pub(crate) async fn authorization_server_metadata(services: &Services) -> Value 
 		.unwrap();
 
 	json!({
+		"account_management_uri": endpoint_base.join(ACCOUNT_MANAGEMENT_PATH).unwrap(),
+		"account_management_actions_supported": [
+			AccountManagementAction::AccountDeactivate,
+			AccountManagementAction::CrossSigningReset,
+			AccountManagementAction::DeviceDelete,
+			AccountManagementAction::DeviceView,
+			AccountManagementAction::DevicesList,
+			AccountManagementAction::Profile,
+		],
 		"authorization_endpoint": endpoint_base.join(AUTH_CODE_PATH).unwrap(),
 		"code_challenge_methods_supported": ["S256"],
 		"grant_types_supported": ["authorization_code", "refresh_token"],

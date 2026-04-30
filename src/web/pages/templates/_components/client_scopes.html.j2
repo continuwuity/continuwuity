@@ -2,9 +2,9 @@
     {% for scope in scopes %}
         {% match scope %}
             {% when Scope::ClientApi %}
-                <li>Interact with Matrix on your behalf</li>
+                <li>Send messages and interact with chatrooms on your behalf</li>
             {% when Scope::Device(_) %}
-                <li>Connect to your Matrix account</li>
+                <li>Access your Matrix account</li>
         {% endmatch %}
     {% endfor %}
 </ul>
