@@ -802,7 +802,7 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 				&& services.globals.user_is_local(&membership_event.sender) {
 
 				// build and save stripped state for their invite in the database
-				let stripped_state = services.rooms.state.summary_stripped(&membership_event, &room_id).await;
+				let stripped_state = services.rooms.state.summary_stripped(&membership_event, &room_id, &user_id).await;
 				userroomid_invitestate.put((&user_id, &room_id), Json(stripped_state));
 				fixed = fixed.saturating_add(1);
 			}

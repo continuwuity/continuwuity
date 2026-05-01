@@ -163,7 +163,11 @@ pub(crate) async fn invite_helper(
 				)
 				.await?;
 
-			let invite_room_state = services.rooms.state.summary_stripped(&pdu, room_id).await;
+			let invite_room_state = services
+				.rooms
+				.state
+				.summary_stripped(&pdu, room_id, recipient_user)
+				.await;
 
 			drop(state_lock);
 

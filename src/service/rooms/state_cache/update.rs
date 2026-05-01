@@ -119,7 +119,11 @@ pub async fn update_membership(
 			self.mark_as_joined(user_id, room_id);
 		},
 		| MembershipState::Invite => {
-			let last_state = self.services.state.summary_stripped(pdu, room_id).await;
+			let last_state = self
+				.services
+				.state
+				.summary_stripped(pdu, room_id, user_id)
+				.await;
 
 			self.mark_as_invited(user_id, room_id, pdu.sender(), last_state, None)
 				.await?;

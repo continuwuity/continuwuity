@@ -300,12 +300,13 @@ impl Service {
 		&self,
 		event: &'a E,
 		room_id: &RoomId,
+		target_user: &UserId,
 	) -> Vec<RawStrippedState>
 	where
 		E: Event + Send + Sync,
 		&'a E: Event + Send,
 	{
-		let cells = [
+		let mut state_events = [
 			(&StateEventType::RoomCreate, ""),
 			(&StateEventType::RoomJoinRules, ""),
 			(&StateEventType::RoomCanonicalAlias, ""),
@@ -314,9 +315,14 @@ impl Service {
 			(&StateEventType::RoomMember, event.sender().as_str()), // Add recommended events
 			(&StateEventType::RoomEncryption, ""),
 			(&StateEventType::RoomTopic, ""),
-		];
+		]
+		.to_vec();
 
-		let fetches = cells.into_iter().map(|(event_type, state_key)| {
+		if target_user != event.sender() {
+			state_events.push((&StateEventType::RoomMember, target_user.as_str()));
+		}
+
+		let fetches = state_events.into_iter().map(|(event_type, state_key)| {
 			self.services
 				.state_accessor
 				.room_state_get(room_id, event_type, state_key)
