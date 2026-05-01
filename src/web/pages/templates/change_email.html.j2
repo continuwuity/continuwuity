@@ -1,0 +1,33 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Change your email
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1>Change your email</h1>
+    {{ user_card }}
+    {% match body %}
+        {% when ChangeEmailBody::ValidationPending { session_id, client_secret, validation_error } %}
+            <p>
+                A message has been sent to your new email address with a validation link. If you do not receive the email:
+                <ul>
+                    <li>Check your spam filter.</li>
+                </ul>
+            </p>
+            {% if validation_error %}
+                <small class="error">Validation failed. Have you clicked the link in the email that was sent to you?</small>
+            {% endif %}
+            <form method="get" action="validate">
+                <input type="hidden" name="session_id" value="{{ session_id }}">
+                <input type="hidden" name="client_secret" value="{{ client_secret }}">
+                <button type="submit">Continue</button>
+            </form>
+        {% when ChangeEmailBody::Success %}
+            <p>
+                Your email address has been changed successfully. <a href="{{ crate::ROUTE_PREFIX }}/account/">Back</a>
+            </p>
+    {% endmatch %}
+</div>
+{%- endblock -%}

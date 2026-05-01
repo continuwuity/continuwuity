@@ -1,0 +1,43 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Reset your digital identity
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>Reset your digital identity <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
+    {{ user_card }}
+    {% match body %}
+        {% when CrossSigningResetBody::Form %}
+            <p>
+                If you've lost your end-to-end encryption recovery key, you need to reset your digital identity to continue
+                using end-to-end encryption.
+            </p>
+            <p>
+                <b>You don't need to do this</b> if you still have access to a confirmed device. You can use that device
+                to change your recovery key without resetting your digital identity. Only reset your digital identity if you are
+                absolutely sure that you have lost your recovery key and can't use any of your confirmed devices.
+            </p>
+            <p>
+                What will happen:
+                <ul>
+                    <li>✅ Your account information, joined chatrooms, and preferences will not change.</li>
+                    <li>⚠️ You will <em class="negative">permanently lose access</em> to your encrypted message history.</li>
+                    <li>⚠️ You will need to confirm your devices and verify your contacts again.</li>
+                </ul>
+            </p>
+            <form method="post">
+                <button type="submit" class="slowdown">I understand, begin the reset process</button>
+            </form>
+            <script src="{{ crate::ROUTE_PREFIX }}/resources/slowdown.js"></script>
+        {% when CrossSigningResetBody::Success %}
+            <p>
+                The identity reset has been approved for the next ten minutes.
+                Return to your Matrix client to finish resetting your identity.
+                Remember that you will <em class="negative">permanently lose access</em>
+                to your encrypted message history if you continue.
+            </p>
+    {% endmatch %}
+</div>
+{% endblock %}

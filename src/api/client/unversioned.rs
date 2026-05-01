@@ -71,8 +71,8 @@ pub(crate) async fn get_supported_versions_route(
 /// `/_matrix/federation/v1/version`
 pub(crate) async fn conduwuit_server_version() -> Result<impl IntoResponse> {
 	Ok(Json(serde_json::json!({
-		"name": conduwuit::version::name(),
-		"version": conduwuit::version::version(),
+		"name": conduwuit::BRANDING,
+		"version": conduwuit::version(),
 	})))
 }
 

@@ -1,9 +1,9 @@
-<div class="user-card">
-    {{ avatar() }}
+<div class="card red-avatar">
+    {{ avatar }}
     <div class="info">
         {% if let Some(display_name) = display_name %}
-        <p class="display-name">{{ display_name }}</p>
+        <p class="name">{{ display_name }}</p>
         {% endif %}
-        <p class="user_id">{{ user_id }}</p>
+        <p class="id">{{ user_id }}</p>
     </div>
 </div>

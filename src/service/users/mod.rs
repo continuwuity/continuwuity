@@ -2,7 +2,13 @@ pub(super) mod dehydrated_device;
 
 #[cfg(feature = "ldap")]
 use std::collections::HashMap;
-use std::{collections::BTreeMap, mem, net::IpAddr, sync::Arc};
+use std::{
+	collections::BTreeMap,
+	mem,
+	net::IpAddr,
+	sync::Arc,
+	time::{Duration, SystemTime},
+};
 
 #[cfg(feature = "ldap")]
 use conduwuit::result::LogErr;
@@ -34,7 +40,7 @@ use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigE
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{Dep, account_data, admin, appservice, globals, rooms};
+use crate::{Dep, account_data, admin, appservice, globals, oauth, rooms};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -44,6 +50,12 @@ pub struct UserSuspension {
 	pub suspended_at: u64,
 	/// User ID of who suspended this user
 	pub suspended_by: String,
+}
+
+/// The status of an access token.
+pub enum AccessTokenStatus {
+	Valid,
+	Expired,
 }
 
 pub struct Service {
@@ -57,6 +69,7 @@ struct Services {
 	admin: Dep<admin::Service>,
 	appservice: Dep<appservice::Service>,
 	globals: Dep<globals::Service>,
+	oauth: Dep<oauth::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 }
@@ -69,6 +82,7 @@ struct Data {
 	logintoken_expiresatuserid: Arc<Map>,
 	todeviceid_events: Arc<Map>,
 	token_userdeviceid: Arc<Map>,
+	userdeviceid_tokenexpires: Arc<Map>,
 	userdeviceid_metadata: Arc<Map>,
 	userdeviceid_token: Arc<Map>,
 	userfilterid_filter: Arc<Map>,
@@ -98,6 +112,7 @@ impl crate::Service for Service {
 				admin: args.depend::<admin::Service>("admin"),
 				appservice: args.depend::<appservice::Service>("appservice"),
 				globals: args.depend::<globals::Service>("globals"),
+				oauth: args.depend::<oauth::Service>("oauth"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -128,6 +143,7 @@ impl crate::Service for Service {
 				userid_selfsigningkeyid: args.db["userid_selfsigningkeyid"].clone(),
 				userid_usersigningkeyid: args.db["userid_usersigningkeyid"].clone(),
 				useridprofilekey_value: args.db["useridprofilekey_value"].clone(),
+				userdeviceid_tokenexpires: args.db["userdeviceid_tokenexpires"].clone(),
 			},
 		}))
 	}
@@ -339,8 +355,42 @@ impl Service {
 	pub async fn count(&self) -> usize { self.db.userid_password.count().await }
 
 	/// Find out which user an access token belongs to.
-	pub async fn find_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
-		self.db.token_userdeviceid.get(token).await.deserialized()
+	pub async fn find_from_token(
+		&self,
+		token: &str,
+	) -> Option<(OwnedUserId, OwnedDeviceId, AccessTokenStatus)> {
+		let user = self
+			.db
+			.token_userdeviceid
+			.get(token)
+			.await
+			.deserialized()
+			.ok();
+
+		// Check if the token has expired
+		if let Some((user_id, device_id)) = user {
+			if let Some(expires) = self
+				.db
+				.userdeviceid_tokenexpires
+				.qry(&(&user_id, &device_id))
+				.await
+				.deserialized::<u64>()
+				.ok()
+				.map(Duration::from_secs)
+			{
+				let expires_at = SystemTime::UNIX_EPOCH
+					.checked_add(expires)
+					.expect("expiry time should not overflow SystemTime");
+
+				if SystemTime::now() > expires_at {
+					return Some((user_id, device_id, AccessTokenStatus::Expired));
+				}
+			}
+
+			Some((user_id, device_id, AccessTokenStatus::Valid))
+		} else {
+			None
+		}
 	}
 
 	/// Returns an iterator over all users on this homeserver.
@@ -454,6 +504,7 @@ impl Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		token: &str,
+		token_max_age: Option<Duration>,
 		initial_device_display_name: Option<String>,
 		client_ip: Option<String>,
 	) -> Result<()> {
@@ -471,7 +522,8 @@ impl Service {
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.db.userdeviceid_metadata.put(key, Json(device));
-		self.set_token(user_id, device_id, token).await
+		self.set_token(user_id, device_id, token, token_max_age)
+			.await
 	}
 
 	/// Removes a device from a user.
@@ -487,6 +539,7 @@ impl Service {
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&userdeviceid).await {
 			self.db.userdeviceid_token.del(userdeviceid);
 			self.db.token_userdeviceid.remove(&old_token);
+			self.db.userdeviceid_tokenexpires.del(userdeviceid);
 		}
 
 		// Remove todevice events
@@ -499,6 +552,9 @@ impl Service {
 			.await;
 
 		// TODO: Remove onetimekeys
+
+		// Remove OAuth session information
+		self.services.oauth.remove_session(user_id, device_id).await;
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 
@@ -555,6 +611,7 @@ impl Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		token: &str,
+		token_max_age: Option<Duration>,
 	) -> Result<()> {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
@@ -581,12 +638,25 @@ impl Service {
 		// Remove old token
 		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
 			self.db.token_userdeviceid.remove(&old_token);
+			self.db.userdeviceid_tokenexpires.remove(&old_token);
 			// It will be removed from userdeviceid_token by the insert later
 		}
 
 		// Assign token to user device combination
 		self.db.userdeviceid_token.put_raw(key, token);
 		self.db.token_userdeviceid.raw_put(token, key);
+
+		if let Some(max_age) = token_max_age {
+			let expires = SystemTime::now()
+				.duration_since(SystemTime::UNIX_EPOCH)
+				.expect("system time should not be before the epoch")
+				.saturating_add(max_age)
+				.as_secs();
+
+			self.db.userdeviceid_tokenexpires.put(key, expires);
+		} else {
+			self.db.userdeviceid_tokenexpires.del(key);
+		}
 
 		Ok(())
 	}

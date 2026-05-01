@@ -54,6 +54,7 @@ pub async fn set_dehydrated_device(&self, user_id: &UserId, request: Request) ->
 		user_id,
 		&request.device_id,
 		"",
+		None,
 		request.initial_device_display_name.clone(),
 		None,
 	)
@@ -138,7 +139,6 @@ pub async fn get_dehydrated_device_id(&self, user_id: &UserId) -> Result<OwnedDe
 	level = "debug",
 	skip_all,
 	fields(%user_id),
-	ret,
 )]
 pub async fn get_dehydrated_device(&self, user_id: &UserId) -> Result<DehydratedDevice> {
 	self.db

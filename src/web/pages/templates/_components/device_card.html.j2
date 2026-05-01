@@ -1,0 +1,32 @@
+<div class="card">
+    {{ avatar }}
+    <div class="info">
+        <p class="name">
+            {% if let Some(display_name) = display_name %}
+                {{ display_name }}
+            {% else %}
+                Unknown device
+            {% endif %}
+            {% if style == DeviceCardStyle::Detailed %}
+                <span class="id">
+                    &bullet;&nbsp;{{ device_id }}
+                    {% if let Some(metadata) = oauth_metadata %}
+                        &bullet;&nbsp;<a href="{{ metadata.client_uri }}">Client website</a>
+                    {% else %}
+                        (legacy)
+                    {% endif %}
+                </span>
+            {% endif %}
+        </p>
+        <p>
+            Last active: {{ last_active }}
+        </p>
+        <p>
+        {% if style == DeviceCardStyle::Detailed %}
+            <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id }}/remove">Remove</a>
+        {% else %}
+            <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id }}/">Details</a>
+        {% endif %}
+        </p>
+    </div>
+</div>

@@ -8,7 +8,6 @@ use ruma::{
 		self, delete_device, delete_devices, get_device, get_devices, update_device,
 	},
 };
-use service::uiaa::Identity;
 
 use crate::{Ruma, client::DEVICE_ID_LENGTH};
 
@@ -95,6 +94,7 @@ pub(crate) async fn update_device_route(
 					&device_id,
 					&appservice.registration.as_token,
 					None,
+					None,
 					Some(client.to_string()),
 				)
 				.await?;
@@ -126,7 +126,7 @@ pub(crate) async fn delete_device_route(
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 			.await?;
 	}
 
@@ -162,7 +162,7 @@ pub(crate) async fn delete_devices_route(
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 			.await?;
 	}
 

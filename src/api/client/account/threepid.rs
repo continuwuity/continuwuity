@@ -11,7 +11,7 @@ use ruma::{
 	},
 	thirdparty::{Medium, ThirdPartyIdentifierInit},
 };
-use service::{mailer::messages, uiaa::Identity};
+use service::mailer::messages;
 
 use crate::Ruma;
 
@@ -116,14 +116,15 @@ pub(crate) async fn add_3pid_route(
 	// Require password auth to add an email
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.authenticate_password(&body.auth, sender_user, body.sender_device(), None)
 		.await?;
 
 	let email = services
 		.threepid
-		.consume_valid_session(&body.sid, &body.client_secret)
+		.get_valid_session(&body.sid, &body.client_secret)
 		.await
-		.map_err(|message| err!(Request(ThreepidAuthFailed("{message}"))))?;
+		.map_err(|message| err!(Request(ThreepidAuthFailed("{message}"))))?
+		.consume();
 
 	services
 		.threepid

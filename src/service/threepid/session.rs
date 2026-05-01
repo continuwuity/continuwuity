@@ -8,14 +8,14 @@ use lettre::Address;
 use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId};
 
 #[derive(Default)]
-pub(super) struct ValidationSessions {
+pub struct ValidationSessions {
 	sessions: HashMap<OwnedSessionId, ValidationSession>,
 	client_secrets: HashMap<OwnedClientSecret, OwnedSessionId>,
 }
 
 /// A pending or completed email validation session.
 #[derive(Debug)]
-pub(crate) struct ValidationSession {
+pub struct ValidationSession {
 	/// The session's ID
 	pub session_id: OwnedSessionId,
 	/// The client's supplied client secret
@@ -28,7 +28,7 @@ pub(crate) struct ValidationSession {
 
 /// The state of an email validation session.
 #[derive(Debug)]
-pub(crate) enum ValidationState {
+pub enum ValidationState {
 	/// The session is waiting for this validation token to be provided
 	Pending(ValidationToken),
 	/// The session has been validated
@@ -36,7 +36,7 @@ pub(crate) enum ValidationState {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct ValidationToken {
+pub struct ValidationToken {
 	pub token: String,
 	pub issued_at: SystemTime,
 }
@@ -69,7 +69,7 @@ impl ValidationSessions {
 	const RANDOM_SID_LENGTH: usize = 16;
 
 	#[must_use]
-	pub(super) fn generate_session_id() -> OwnedSessionId {
+	pub fn generate_session_id() -> OwnedSessionId {
 		SessionId::parse(utils::random_string(Self::RANDOM_SID_LENGTH)).unwrap()
 	}
 

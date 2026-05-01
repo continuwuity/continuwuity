@@ -50,6 +50,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "clientid_clientmetadata",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "disabledroomids",
 		..descriptor::RANDOM_SMALL
 	},
@@ -152,6 +156,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	Descriptor {
 		name: "referencedevents",
 		..descriptor::RANDOM
+	},
+	Descriptor {
+		name: "refreshtoken_refreshtokeninfo",
+		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
 		name: "registrationtoken_info",
@@ -363,6 +371,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "userdeviceid_oauthsessioninfo",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "userdeviceid_tokenexpires",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "userfilterid_filter",
 		..descriptor::RANDOM_SMALL
 	},
@@ -464,6 +480,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "userroomid_invitesender",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "websessionid_session",
 		..descriptor::RANDOM_SMALL
 	},
 ];

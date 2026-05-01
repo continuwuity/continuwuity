@@ -26,7 +26,7 @@ use ruma::{
 	serde::Raw,
 };
 use serde_json::json;
-use service::uiaa::Identity;
+use service::oauth::OAuthTicket;
 
 use crate::Ruma;
 
@@ -183,7 +183,12 @@ pub(crate) async fn upload_signing_keys_route(
 	{
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(
+				&body.auth,
+				sender_user,
+				body.sender_device(),
+				Some(OAuthTicket::CrossSigningReset),
+			)
 			.await?;
 	}
 

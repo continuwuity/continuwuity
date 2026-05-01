@@ -672,6 +672,10 @@ pub struct Config {
 	#[serde(default)]
 	pub registration_terms: HashMap<String, HashMap<String, TermsDocument>>,
 
+	/// display: nested
+	#[serde(default)]
+	pub oauth: OauthConfig,
+
 	/// Controls whether encrypted rooms and events are allowed.
 	#[serde(default = "true_fn")]
 	pub allow_encryption: bool,
@@ -2540,6 +2544,43 @@ pub struct SmtpConfig {
 pub struct TermsDocument {
 	pub name: String,
 	pub url: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.oauth",
+	optional = "true"
+)]
+pub struct OauthConfig {
+	/// The compatibility mode to use for OAuth.
+	///
+	/// - "disabled": OAuth will be unavailable. Users will only be able to log
+	///   in using legacy authentication.
+	/// - "hybrid": OAuth and legacy authentication will both be available. Some
+	///   clients may only use one or the other.
+	/// - "exclusive": Only OAuth will be available. Clients which require
+	///   legacy authentication will be unable to log in.
+	///
+	/// default: "hybrid"
+	pub compatibility_mode: OAuthMode,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OAuthMode {
+	Disabled,
+	#[default]
+	Hybrid,
+	Exclusive,
+}
+
+impl OAuthMode {
+	#[must_use]
+	pub fn uiaa_available(&self) -> bool { matches!(self, Self::Disabled | Self::Hybrid) }
+
+	#[must_use]
+	pub fn oauth_available(&self) -> bool { matches!(self, Self::Hybrid | Self::Exclusive) }
 }
 
 const DEPRECATED_KEYS: &[&str] = &[

@@ -9,6 +9,7 @@
     --panel-bg: oklch(0.91 0.042 317.27);
     --c1: oklch(0.44 0.177 353.06);
     --c2: oklch(0.59 0.158 150.88);
+    --avatar-color: var(--c2);
 
     --name-lightness: 0.45;
     --background-lightness: 0.9;
@@ -26,7 +27,7 @@
 
     @media (prefers-color-scheme: dark) {
         color-scheme: dark;
-        --text-color: #fff;
+        --text-color: #f5ebeb;
         --secondary: #888;
         --bg: oklch(0.15 0.042 317.27);
         --panel-bg: oklch(0.24 0.03 317.27);
@@ -54,10 +55,13 @@
 }
 
 body {
-    display: grid;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-around;
+
     margin: 0;
     padding: 0;
-    place-items: center;
     min-height: 100vh;
 
     color: var(--text-color);
@@ -73,6 +77,7 @@ html {
 
 footer {
     padding-inline: 0.25rem;
+    margin-top: 1rem;
     height: max(fit-content, 2rem);
 
     .logo {
@@ -83,12 +88,24 @@ footer {
 
 p {
     margin: 1rem 0;
+
+    a {
+        white-space: nowrap;
+    }
+}
+
+section {
+    margin: 1rem 0;
 }
 
 em {
     color: oklch(from var(--c2) var(--name-lightness) c h);
     font-weight: bold;
     font-style: normal;
+
+    &.negative {
+        color: red;
+    }
 }
 
 small {
@@ -106,36 +123,82 @@ small.error {
 .panel {
     --preferred-width: 12rem + 40dvw;
     --maximum-width: 48rem;
+    --minimum-width: 32rem;
 
-    width: min(clamp(24rem, var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
+    width: min(clamp(var(--minimum-width), var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
     border-radius: var(--border-radius-lg);
     background-color: var(--panel-bg);
     padding-inline: 1.5rem;
     padding-block: 1rem;
+    margin-top: 1em;
+    margin-bottom: auto;
     box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
+
+    &.middle {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
 
     &.narrow {
         --preferred-width: 12rem + 20dvw;
         --maximum-width: 36rem;
 
-        input, button {
+        input, button, a.button {
             width: 100%;
         }
     }
+
+    &:not(.narrow) form p {
+        margin-bottom: 0;
+    }
+}
+
+img.matrix-icon {
+    @media (prefers-color-scheme: dark) {
+        filter: invert();
+    }
+}
+
+h1.with-matrix-icon {
+    display: flex;
+    align-items: center;
+
+    a:last-of-type {
+        margin-left: auto;
+
+        img {
+            height: 1em;
+        }
+    }
+}
+
+h1 a.back {
+    font-size: initial;
+    font-weight: initial;
 }
 
 label {
     display: block;
 }
 
-input, button {
+a, a:visited {
+    color: oklch(from var(--c1) var(--name-lightness) c h);
+}
+
+code {
+    color: oklch(from var(--secondary) var(--name-lightness) c h);
+}
+
+input, button, a.button {
     display: inline-block;
     padding: 0.5em;
     margin-bottom: 0.5em;
 
     font-size: inherit;
     font-family: inherit;
-    color: white;
+    line-height: normal;
+    color: var(--text-color);
+    text-decoration: none;
     background-color: transparent;
 
     border: none;
@@ -151,19 +214,44 @@ input {
     }
 }
 
-button {
+input[type="checkbox"] {
+    display: inline;
+    margin: 0;
+}
+
+button, a.button {
+    color: white;
     background-color: var(--c1);
     transition: opacity .2s;
+    text-align: center;
 
     &:enabled:hover {
         opacity: 0.8;
         cursor: pointer;
+    }
+
+    &:disabled {
+        color: lightgray;
+        background-color: gray;
+    }
+
+    &:not(:disabled) {
+        transition: linear color, background-color 0.1s;
+    }
+
+    &:visited {
+        color: white;
     }
 }
 
 h1 {
     margin-top: 0;
     margin-bottom: 0.67em;
+}
+
+.fullwidth {
+    width: 100%;
+    margin-bottom: 0 !important;
 }
 
 @media (max-width: 425px) {
@@ -175,11 +263,12 @@ h1 {
     .panel {
         border-radius: 0;
         width: 100%;
+        margin-top: 0;
     }
 }
 
 @media (max-width: 799px) {
-    input, button {
+    input, button, a.button {
         width: 100%;
     }
 }

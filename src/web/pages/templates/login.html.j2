@@ -1,0 +1,57 @@
+{% extends "_layout.html.j2" %}
+
+{%- block head -%}
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/login.css">
+{%- endblock -%}
+
+{%- block title -%}
+Log in
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    {% match body %}
+        {% when LoginBody::Unauthenticated { server_name } %}
+            <h1 class="with-matrix-icon">
+                {% if has_next %}
+                    Log in to continue
+                {% else %}
+                    Log in to Matrix
+                {% endif %}
+                <a href="https://matrix.org" target="_blank" noreferer>
+                    <img class="matrix-icon" alt="Matrix logo" aria-ignore src="{{ crate::ROUTE_PREFIX }}/resources/matrix-icon.svg">
+                </a>
+            </h1>
+            <p>
+                You're about to log in to your account on <em>{{ server_name }}</em>
+            </p>
+            <hr>
+            <form method="post">
+                <p>
+                    <label for="identifier">Username or email address</label>
+                    <input type="text" name="identifier" autocomplete="username">
+                </p>
+                <p>
+                    <label for="password">Password</label>
+                    <input type="password" name="password" autocomplete="current-password">
+                </p>
+                <button type="submit">Log in</button>
+            </form>
+        {% when LoginBody::Authenticated { user_card } %}
+            <h1>Confirm your identity</h1>
+            {{ user_card }}
+            <p>Enter your password to continue.</p>
+            <form method="post">
+                <p>
+                    <label for="password">Password</label>
+                    <input type="password" name="password" autocomplete="current-password">
+                </p>
+                <button type="submit">Continue</button>
+            </form>
+    {% endmatch %}
+    {% if let Some(error) = login_error %}
+        <small class="error">{{ error }}</small>
+    {% endif %}
+    <a class="reset-password" href="password/reset/"><i>Forgot your password?</i></a>
+</div>
+{%- endblock -%}
