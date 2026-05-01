@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-	Dep, config,
+	Dep,
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
@@ -44,7 +44,6 @@ struct Data {
 }
 
 struct Services {
-	config: Dep<config::Service>,
 	users: Dep<users::Service>,
 }
 
@@ -111,7 +110,6 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				config: args.depend::<config::Service>("config"),
 				users: args.depend::<users::Service>("users"),
 			},
 			db: Data {
