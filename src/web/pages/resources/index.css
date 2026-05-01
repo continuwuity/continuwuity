@@ -9,3 +9,7 @@
     color: transparent;
     filter: brightness(1.2);
 }
+
+.button {
+    margin: 0 !important;
+}
