@@ -9,7 +9,7 @@ use conduwuit::{
 		u64_from_u8,
 	},
 };
-use database::Map;
+use database::{Interfix, Map};
 use futures::{Stream, StreamExt};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
@@ -44,6 +44,16 @@ impl Data {
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
 		}
+	}
+
+	pub(super) async fn purge(&self, room_id: &RoomId) {
+		// NOTE: This does not remove soft-failed event references, that must be done
+		// somewhere else.
+		self.referencedevents
+			.keys_prefix_raw(&(room_id, Interfix))
+			.ignore_err()
+			.ready_for_each(|key| self.referencedevents.remove(key))
+			.await;
 	}
 
 	pub(super) fn add_relation(&self, from: u64, to: u64) {
@@ -120,5 +130,9 @@ impl Data {
 
 	pub(super) async fn is_event_soft_failed(&self, event_id: &EventId) -> bool {
 		self.softfailedeventids.get(event_id).await.is_ok()
+	}
+
+	pub(super) async fn remove_soft_fail_marker(&self, event_id: &EventId) {
+		self.softfailedeventids.remove(event_id);
 	}
 }

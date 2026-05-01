@@ -19,10 +19,11 @@ pub(crate) async fn well_known_client(
 ) -> Result<discover_homeserver::Response> {
 	let client_url = match services.config.well_known.client.as_ref() {
 		| Some(url) => url.to_string(),
-		| None =>
+		| None => {
 			return Err!(Request(NotFound(
 				"This server is not configured to serve well-known client information."
-			))),
+			)));
+		},
 	};
 
 	Ok(assign!(discover_homeserver::Response::new(HomeserverInfo::new(client_url)), {

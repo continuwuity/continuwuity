@@ -142,6 +142,8 @@ impl Service {
 	pub async fn last_privateread_update(&self, user_id: &UserId, room_id: &RoomId) -> u64 {
 		self.db.last_privateread_update(user_id, room_id).await
 	}
+
+	pub async fn purge(&self, room_id: &RoomId) { self.db.purge(room_id).await }
 }
 
 #[must_use]

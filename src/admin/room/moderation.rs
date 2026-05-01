@@ -1,9 +1,9 @@
 use api::client::leave_room;
 use clap::Subcommand;
 use conduwuit::{
-	Err, Result, debug, info,
-	utils::{IterStream, ReadyExt},
-	warn,
+	debug, info, utils::{IterStream, ReadyExt}, warn,
+	Err,
+	Result,
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{OwnedRoomId, OwnedRoomOrAliasId, RoomAliasId, RoomId, RoomOrAliasId};
@@ -42,6 +42,12 @@ pub enum RoomModerationCommand {
 		/// Whether to only output room IDs without supplementary room
 		/// information
 		no_details: bool,
+	},
+
+	/// Deletes a room
+	Delete {
+		/// The room ID
+		room_id: OwnedRoomId,
 	},
 }
 
@@ -451,4 +457,63 @@ async fn list_banned_rooms(&self, no_details: bool) -> Result {
 
 	self.write_str(&format!("Rooms Banned ({num}):\n```\n{body}\n```"))
 		.await
+}
+
+#[admin_command]
+async fn delete(&self, room_id: OwnedRoomId) -> Result {
+	let is_banned = self.services.rooms.metadata.is_banned(&room_id).await;
+	let is_disabled = self.services.rooms.metadata.is_disabled(&room_id).await;
+
+	// Temporarily forcefully ban the room to prevent people trying to join while
+	// deletion is ongoing.
+	self.services.rooms.metadata.disable_room(&room_id, true);
+	self.services.rooms.metadata.ban_room(&room_id, true);
+
+	let mut users = self
+		.services
+		.rooms
+		.state_cache
+		.room_members(&room_id)
+		.ready_filter(|user| self.services.globals.user_is_local(user))
+		.boxed();
+
+	while let Some(ref user_id) = users.next().await {
+		info!("Removing {user_id} from {room_id}",);
+
+		if let Err(e) = leave_room(self.services, user_id, &room_id, None)
+			.boxed()
+			.await
+		{
+			warn!("Failed to remove {user_id} from {room_id}: {e}");
+		}
+
+		self.services.rooms.state_cache.forget(&room_id, user_id);
+	}
+
+	self.services
+		.rooms
+		.alias
+		.local_aliases_for_room(&room_id)
+		.for_each(|local_alias| async move {
+			info!("Removing alias {local_alias}");
+			self.services
+				.rooms
+				.alias
+				.remove_alias(&local_alias, &self.services.globals.server_user)
+				.await
+				.ok();
+		})
+		.await;
+
+	info!("Removing the room from the directory if it is present");
+	self.services.rooms.directory.set_not_public(&room_id);
+	info!("Removing lazy-loading metadata");
+	self.services.rooms.lazy_loading.purge(&room_id).await;
+	info!("Removing PDU metadata");
+	self.services.rooms.pdu_metadata.purge(&room_id).await;
+	info!("Removing state cache");
+	self.services.rooms.state_cache.purge(&room_id).await;
+	info!("Removing room state");
+	self.services.rooms.state.purge(&room_id).await;
+	Ok(())
 }

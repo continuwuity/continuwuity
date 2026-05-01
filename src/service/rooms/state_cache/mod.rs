@@ -4,20 +4,21 @@ mod via;
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Pdu, Result, SyncRwLock, implement,
-	result::LogErr,
-	utils::{ReadyExt, stream::TryIgnore},
-	warn,
+	implement, result::LogErr, utils::{stream::TryIgnore, ReadyExt}, warn,
+	Pdu,
+	Result,
+	SyncRwLock,
 };
 use database::{Deserialized, Ignore, Interfix, Map};
-use futures::{Stream, StreamExt, future::join5, pin_mut};
+use futures::{future::join5, pin_mut, Stream, StreamExt};
 use ruma::{
-	OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, ServerName, UserId,
-	events::{AnyStrippedStateEvent, room::member::MembershipState},
-	serde::Raw,
+	events::{room::member::MembershipState, AnyStrippedStateEvent}, serde::Raw, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
+	ServerName,
+	UserId,
 };
+use tokio::join;
 
-use crate::{Dep, account_data, appservice::RegistrationInfo, config, globals, rooms, users};
+use crate::{account_data, appservice::RegistrationInfo, config, globals, rooms, users, Dep};
 
 pub struct Service {
 	appservice_in_room_cache: AppServiceInRoomCache,
@@ -91,6 +92,90 @@ impl crate::Service for Service {
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
+}
+
+#[implement(Service)]
+#[tracing::instrument(skip(self))]
+pub async fn purge(&self, room_id: &RoomId) {
+	let roomuser_key = (room_id, Interfix);
+	let userroom_key = (Interfix, room_id);
+	join!(
+		self.db
+			.roomid_invitedcount
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomid_invitedcount.remove(key)),
+		self.db
+			.roomid_inviteviaservers
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomid_inviteviaservers.remove(key)),
+		self.db
+			.roomid_joinedcount
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomid_joinedcount.remove(key)),
+		self.db
+			.roomserverids
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomserverids.remove(key)),
+		self.db
+			.roomuserid_invitecount
+			.keys_prefix_raw(&roomuser_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomuserid_invitecount.remove(key)),
+		self.db
+			.roomuserid_joined
+			.keys_prefix_raw(&roomuser_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomuserid_joined.remove(key)),
+		self.db
+			.roomuserid_leftcount
+			.keys_prefix_raw(&roomuser_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomuserid_leftcount.remove(key)),
+		self.db
+			.roomuserid_knockedcount
+			.keys_prefix_raw(&roomuser_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomuserid_knockedcount.remove(key)),
+		self.db
+			.roomuseroncejoinedids
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.db.roomuseroncejoinedids.remove(key)),
+		self.db
+			.userroomid_invitestate
+			.keys_prefix_raw(&userroom_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.userroomid_invitestate.remove(key)),
+		self.db
+			.userroomid_joined
+			.keys_prefix_raw(&userroom_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.userroomid_joined.remove(key)),
+		self.db
+			.userroomid_leftstate
+			.keys_prefix_raw(&userroom_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.userroomid_leftstate.remove(key)),
+		self.db
+			.userroomid_knockedstate
+			.keys_prefix_raw(&userroom_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.userroomid_knockedstate.remove(key)),
+		self.db
+			.userroomid_invitesender
+			.keys_prefix_raw(&userroom_key)
+			.ignore_err()
+			.ready_for_each(|key| self.db.userroomid_invitesender.remove(key)),
+		self.db
+			.serverroomids
+			.keys_prefix_raw(&(Interfix, room_id))
+			.ignore_err()
+			.ready_for_each(|key| self.db.serverroomids.remove(key)),
+	);
 }
 
 #[implement(Service)]

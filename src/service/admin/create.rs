@@ -160,7 +160,10 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.boxed()
 		.await?;
 
-	let room_topic = format!("Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/", services.config.server_name);
+	let room_topic = format!(
+		"Manage {} | Run commands prefixed with `!admin` | Run `!admin -h` for help | Documentation: https://continuwuity.org/",
+		services.config.server_name
+	);
 	services
 		.rooms
 		.timeline

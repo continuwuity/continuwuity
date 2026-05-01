@@ -140,4 +140,10 @@ impl Service {
 	pub async fn is_event_soft_failed(&self, event_id: &EventId) -> bool {
 		self.db.is_event_soft_failed(event_id).await
 	}
+
+	pub async fn purge(&self, room_id: &RoomId) { self.db.purge(room_id).await; }
+
+	pub async fn remove_soft_fail_marker(&self, event_id: &EventId) {
+		self.db.remove_soft_fail_marker(event_id).await;
+	}
 }

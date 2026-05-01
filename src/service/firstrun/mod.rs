@@ -312,7 +312,9 @@ impl Service {
 				 to open the console."
 			);
 		}
-		eprintln!("If you need assistance setting up your homeserver, make a Matrix account on another homeserver and join our chatroom: https://matrix.to/#/#continuwuity:continuwuity.org");
+		eprintln!(
+			"If you need assistance setting up your homeserver, make a Matrix account on another homeserver and join our chatroom: https://matrix.to/#/#continuwuity:continuwuity.org"
+		);
 
 		eprintln!("{}", "============".bold());
 	}

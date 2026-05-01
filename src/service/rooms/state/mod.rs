@@ -3,32 +3,32 @@ use std::{collections::HashMap, fmt::Write, sync::Arc};
 use async_trait::async_trait;
 use conduwuit::debug;
 use conduwuit_core::{
-	Event, PduEvent, Result, err,
-	result::FlatOk,
-	state_res::{self, StateMap},
-	utils::{
-		IterStream, MutexMap, MutexMapGuard, ReadyExt, calculate_hash,
-		stream::{BroadbandExt, TryIgnore},
+	err, result::FlatOk, state_res::{self, StateMap}, utils::{
+		calculate_hash, stream::{BroadbandExt, TryIgnore}, IterStream, MutexMap, MutexMapGuard,
+		ReadyExt,
 	},
 	warn,
+	Event,
+	PduEvent,
+	Result,
 };
 use conduwuit_database::{Deserialized, Ignore, Interfix, Map};
 use futures::{
-	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
+	future::join_all, pin_mut, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt,
 };
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId,
-	api::federation::membership::RawStrippedState,
-	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
-	room_version_rules::RoomVersionRules,
+	api::federation::membership::RawStrippedState, events::{room::create::RoomCreateEventContent, StateEventType, TimelineEventType}, room_version_rules::RoomVersionRules, EventId, OwnedEventId, OwnedRoomId,
+	RoomId,
+	RoomVersionId,
+	UserId,
 };
 
 use crate::{
-	Dep, globals, rooms,
-	rooms::{
+	globals, rooms, rooms::{
 		short::{ShortEventId, ShortStateHash},
-		state_compressor::{CompressedState, parse_compressed_state_event},
+		state_compressor::{parse_compressed_state_event, CompressedState},
 	},
+	Dep,
 };
 
 pub struct Service {
@@ -89,6 +89,25 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	pub async fn purge(&self, room_id: &RoomId) {
+		self.db.roomid_pduleaves
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|k| self.db.roomid_pduleaves.remove(k))
+			.await;
+		let mut shortstatehashes = self.db.roomid_shortstatehash
+			.keys_prefix_raw(room_id)
+			.ignore_err();
+		while let Some(key) = shortstatehashes.next().await {
+			self.db.shorteventid_shortstatehash
+				.keys_prefix_raw(&(Interfix, key))
+				.ignore_err()
+				.ready_for_each(|key| self.db.shorteventid_shortstatehash.remove(key))
+				.await;
+			self.db.roomid_shortstatehash.remove(key);
+		};
+	}
+
 	/// Set the room to the given statehash and update caches.
 	pub async fn force_state(
 		&self,

@@ -67,6 +67,17 @@ pub async fn reset(&self, ctx: &Context<'_>) {
 		.await;
 }
 
+#[implement(Service)]
+pub async fn purge(&self, room_id: &RoomId) {
+	let prefix = (Interfix, Interfix, room_id, Interfix);
+	self.db
+		.lazyloadedids
+		.keys_prefix_raw(&prefix)
+		.ignore_err()
+		.ready_for_each(|key| self.db.lazyloadedids.remove(key))
+		.await;
+}
+
 /// Returns only the subset of `senders` which should be sent to the client
 /// according to the provided lazy loading context.
 #[implement(Service)]

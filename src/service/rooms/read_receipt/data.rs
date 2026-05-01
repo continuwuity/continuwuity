@@ -115,4 +115,12 @@ impl Data {
 			.deserialized()
 			.unwrap_or(0)
 	}
+
+	pub(super) async fn purge(&self, room_id: &RoomId) {
+		self.readreceiptid_readreceipt
+			.keys_prefix_raw(room_id)
+			.ignore_err()
+			.ready_for_each(|key| self.readreceiptid_readreceipt.remove(key))
+			.await;
+	}
 }

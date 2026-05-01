@@ -375,7 +375,7 @@ async fn allowed_to_send_state_event(
 				},
 			}
 		},
-		| StateEventType::RoomMember =>
+		| StateEventType::RoomMember => {
 			match json.deserialize_as_unchecked::<RoomMemberEventContent>() {
 				| Ok(mut membership_content) => {
 					let Ok(state_key) = UserId::parse(state_key) else {
@@ -434,7 +434,8 @@ async fn allowed_to_send_state_event(
 						 membership state: {e}"
 					)));
 				},
-			},
+			}
+		},
 		| _ => (),
 	}
 

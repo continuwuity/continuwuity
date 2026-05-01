@@ -54,8 +54,9 @@ where
 	if !status.is_success() {
 		debug_error!("Antispam response bytes: {:?}", utils::string_from_bytes(&body));
 		return match status {
-			| http::StatusCode::FORBIDDEN =>
-				Err!(Request(Forbidden("Request was rejected by antispam service.",))),
+			| http::StatusCode::FORBIDDEN => {
+				Err!(Request(Forbidden("Request was rejected by antispam service.",)))
+			},
 			| _ => Err!(BadServerResponse(warn!(
 				"Antispam returned unsuccessful HTTP response {status}",
 			))),

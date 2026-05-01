@@ -360,11 +360,12 @@ impl Service {
 							));
 						}
 					},
-					| _ =>
+					| _ => {
 						return Err(StandardErrorBody::new(
 							ErrorKind::Unrecognized,
 							"Identifier type not recognized".to_owned(),
-						)),
+						));
+					},
 				};
 
 				let Ok(user_id) = UserId::parse_with_server_name(

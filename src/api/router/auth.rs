@@ -89,8 +89,9 @@ impl CheckAuth for ServerSignatures {
 				origin: Some(output.origin.clone()),
 				..Default::default()
 			}),
-			| Err(err) =>
-				Err!(Request(Unauthorized(warn!("Failed to verify X-Matrix header: {err}")))),
+			| Err(err) => {
+				Err!(Request(Unauthorized(warn!("Failed to verify X-Matrix header: {err}"))))
+			},
 		}
 	}
 }
