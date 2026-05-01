@@ -12,7 +12,7 @@ Device information
         <section>
             <p>
                 {% if let Some(tos_uri) = &client_metadata.tos_uri %}
-                &nbsp;<a href="{{ tos_uri }}">Terms of service</a>
+                <a href="{{ tos_uri }}">Terms of service</a>
                 {% endif %}
                 {% if let Some(policy_uri) = &client_metadata.policy_uri %}
                 &bullet;&nbsp;<a href="{{ policy_uri }}">Policies</a>
