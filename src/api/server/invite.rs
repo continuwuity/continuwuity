@@ -172,7 +172,9 @@ pub(crate) async fn create_invite_route(
 	let pdu: PduEvent = serde_json::from_value(event.into())
 		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
 
-	invite_state.push(RawStrippedState::Pdu(pdu.content.clone()));
+	invite_state.push(RawStrippedState::Pdu(
+		serde_json::value::to_raw_value(&pdu).expect("PDU was just created, it must be valid"),
+	));
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
