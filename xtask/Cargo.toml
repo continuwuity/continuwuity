@@ -14,7 +14,7 @@ conduwuit-admin.workspace = true
 conduwuit.workspace = true
 clap.workspace = true
 
-askama = "0.15.1"
+askama = "0.16.0"
 cargo_metadata = "0.23.1"
 
 [lints]

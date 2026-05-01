@@ -558,7 +558,7 @@ features = ["sync", "tls-rustls", "rustls-provider"]
 version = "1.0.1"
 
 [workspace.dependencies.askama]
-version = "0.15.0"
+version = "0.16.0"
 
 [workspace.dependencies.lettre]
 version = "0.11.19"
