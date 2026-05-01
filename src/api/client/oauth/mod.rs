@@ -1,9 +1,12 @@
 use axum::{
 	Json, Router,
-	extract::State,
+	extract::{Request, State},
+	middleware::{self, Next},
+	response::{IntoResponse, Response},
 	routing::method_routing::{get, post},
 };
 use const_str::concat;
+use http::StatusCode;
 use serde_json::json;
 pub(crate) use server_metadata::*;
 
@@ -19,14 +22,28 @@ const TOKEN_REVOKE_PATH: &str = "client/revoke";
 const TOKEN_PATH: &str = "grant/token";
 const ACCOUNT_MANAGEMENT_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/account/deeplink");
 
-pub(crate) fn router() -> Router<crate::State> {
-	Router::new().nest(BASE_PATH, oauth_router())
-	// TODO(unspecced): used by old versions of the matrix-js-sdk
-	.route("/.well-known/openid-configuration", get(
-		async |State(services): State<crate::State>| {
-			Json(authorization_server_metadata(&services).await)
-		}
-	))
+pub(crate) fn router(state: crate::State) -> Router<crate::State> {
+	Router::new()
+		.nest(BASE_PATH, oauth_router())
+		.route(
+			"/.well-known/openid-configuration",
+			get(
+				// TODO(unspecced): used by old versions of the matrix-js-sdk
+				async |State(services): State<crate::State>| {
+					Json(authorization_server_metadata(&services).await)
+				},
+			),
+		)
+		.layer(middleware::from_fn_with_state(
+			state,
+			async |State(state): State<crate::State>, request: Request, next: Next| -> Response {
+				if state.config.oauth.compatibility_mode.oauth_available() {
+					next.run(request).await
+				} else {
+					(StatusCode::NOT_FOUND, "OAuth is unavailable on this server").into_response()
+				}
+			},
+		))
 }
 
 fn oauth_router() -> Router<crate::State> {
