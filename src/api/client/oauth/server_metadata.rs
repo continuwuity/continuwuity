@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 use ruma::{
 	api::client::discovery::get_authorization_server_metadata::{
 		self, v1::AccountManagementAction,
@@ -21,6 +21,10 @@ pub(crate) async fn get_authorization_server_metadata_route(
 	State(services): State<crate::State>,
 	_body: Ruma<get_authorization_server_metadata::v1::Request>,
 ) -> Result<get_authorization_server_metadata::v1::Response> {
+	if !services.config.oauth.compatibility_mode.oauth_available() {
+		return Err!(Request(Unrecognized("OAuth is unavailable on this server")));
+	}
+
 	let metadata = Raw::new(&authorization_server_metadata(&services).await).unwrap();
 
 	Ok(get_authorization_server_metadata::v1::Response::new(metadata.cast_unchecked()))
