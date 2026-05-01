@@ -9,7 +9,7 @@ use ruma::api::error::ErrorKind;
 pub(crate) fn build(services: &Arc<Services>) -> (Router, Guard) {
 	let router = Router::<state::State>::new();
 	let (state, guard) = state::create(services.clone());
-	let router = conduwuit_api::router::build(router, &services.server)
+	let router = conduwuit_api::router::build(router, state)
 		.merge(conduwuit_web::build(services))
 		.fallback(not_found)
 		.with_state(state);

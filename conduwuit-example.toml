@@ -2014,3 +2014,16 @@
 # provide an email address.
 #
 #require_email_for_token_registration = false
+
+#[global.oauth]
+
+# The compatibility mode to use for OAuth.
+#
+# - "disabled": OAuth will be unavailable. Users will only be able to log
+#   in using legacy authentication.
+# - "hybrid": OAuth and legacy authentication will both be available. Some
+#   clients may only use one or the other.
+# - "exclusive": Only OAuth will be available. Clients which require
+#   legacy authentication will be unable to log in.
+#
+#compatibility_mode = "hybrid"

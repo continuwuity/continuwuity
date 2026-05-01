@@ -112,7 +112,9 @@ fn handle_result(method: &Method, uri: &Uri, result: Response) -> Result<Respons
 	}
 
 	if status == StatusCode::METHOD_NOT_ALLOWED {
-		return Ok(err!(Request(Unrecognized("Method Not Allowed"))).into_response());
+		return Ok(
+			err!(Request(Unrecognized("Method not allowed"), METHOD_NOT_ALLOWED)).into_response()
+		);
 	}
 
 	Ok(result)

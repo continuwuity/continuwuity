@@ -94,7 +94,7 @@ async fn route_remove_device(
 	Expect(Path(query)): Expect<Path<DevicePath>>,
 	PostForm(form): PostForm<()>,
 ) -> Result {
-	let user_id = user.expect(LoginTarget::RemoveDevice(query.clone()))?;
+	let user_id = user.expect_recent(LoginTarget::RemoveDevice(query.clone()))?;
 
 	let Ok(device) = services
 		.users

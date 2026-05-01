@@ -304,6 +304,20 @@ impl Service {
 			UiaaSessionMetadata::Legacy { identity: Identity::default() }
 		};
 
+		// Legacy sessions aren't available if OAuth is required
+		if matches!(&session_metadata, UiaaSessionMetadata::Legacy { .. })
+			&& !self
+				.services
+				.config
+				.oauth
+				.compatibility_mode
+				.uiaa_available()
+		{
+			return Err!(Request(Unrecognized(
+				"User-interactive authentication is unavailable on this server"
+			)));
+		}
+
 		uiaa_sessions.insert(session_id, UiaaSession { session_metadata, info: info.clone() });
 
 		Ok(info)
