@@ -189,6 +189,12 @@ code {
     color: oklch(from var(--secondary) var(--name-lightness) c h);
 }
 
+pre {
+    background-color: oklch(from var(--panel-bg) calc(l - 0.05) c h);
+    border-radius: var(--border-radius-sm);
+    padding: 8px;
+}
+
 input, button, a.button {
     display: inline-block;
     padding: 0.5em;
@@ -252,6 +258,10 @@ h1 {
 .fullwidth {
     width: 100%;
     margin-bottom: 0 !important;
+}
+
+.select-all {
+    user-select: all;
 }
 
 @media (max-width: 425px) {

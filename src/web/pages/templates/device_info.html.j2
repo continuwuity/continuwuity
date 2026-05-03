@@ -6,7 +6,7 @@ Device information
 
 {%- block content -%}
 <div class="panel">
-    <h1>About Device <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
+    <h1>About device <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
     {{ device_card }}
     {% if let Some((client_metadata, _)) = client_metadata %}
         <section>
