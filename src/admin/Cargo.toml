@@ -81,6 +81,7 @@ conduwuit-macros.workspace = true
 conduwuit-service.workspace = true
 const-str.workspace = true
 ctor.workspace = true
+dtor.workspace = true
 futures.workspace = true
 lettre.workspace = true
 log.workspace = true

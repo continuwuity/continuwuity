@@ -89,6 +89,7 @@ conduwuit-database.workspace = true
 conduwuit-macros.workspace = true
 const-str.workspace = true
 ctor.workspace = true
+dtor.workspace = true
 either.workspace = true
 futures.workspace = true
 governor.workspace = true

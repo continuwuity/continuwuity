@@ -32,11 +32,11 @@ pub(super) fn introspect(_args: TokenStream) -> Result<TokenStream> {
 			const CRATE_NAME: &str = #crate_name;
 
 			/// Register this crate's features with the global registry during static initialization
-			#[::ctor::ctor]
+			#[::ctor::ctor(unsafe)]
 			fn register() {
 				conduwuit_core::info::introspection::ENABLED_FEATURES.lock().unwrap().insert(#crate_name, &ENABLED);
 			}
-			#[::ctor::dtor]
+			#[::dtor::dtor(unsafe)]
 			fn unregister() {
 				conduwuit_core::info::introspection::ENABLED_FEATURES.lock().unwrap().remove(#crate_name);
 			}
