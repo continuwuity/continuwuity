@@ -70,6 +70,7 @@ conduwuit-build-metadata.workspace = true
 const-str.workspace = true
 core_affinity.workspace = true
 ctor.workspace = true
+dtor.workspace = true
 cyborgtime.workspace = true
 either.workspace = true
 figment.workspace = true

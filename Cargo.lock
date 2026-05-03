@@ -975,6 +975,7 @@ dependencies = [
  "console-subscriber",
  "const-str",
  "ctor",
+ "dtor",
  "hardened_malloc-rs",
  "log",
  "opentelemetry",
@@ -1008,6 +1009,7 @@ dependencies = [
  "conduwuit_service",
  "const-str",
  "ctor",
+ "dtor",
  "futures",
  "lettre",
  "log",
@@ -1035,6 +1037,7 @@ dependencies = [
  "conduwuit_service",
  "const-str",
  "ctor",
+ "dtor",
  "futures",
  "hmac",
  "http",
@@ -1085,6 +1088,7 @@ dependencies = [
  "core_affinity",
  "ctor",
  "cyborgtime",
+ "dtor",
  "either",
  "figment",
  "futures",
@@ -1138,6 +1142,7 @@ dependencies = [
  "conduwuit_macros",
  "const-str",
  "ctor",
+ "dtor",
  "futures",
  "log",
  "minicbor",
@@ -1178,6 +1183,7 @@ dependencies = [
  "conduwuit_web",
  "const-str",
  "ctor",
+ "dtor",
  "futures",
  "http",
  "http-body-util",
@@ -1212,6 +1218,7 @@ dependencies = [
  "conduwuit_macros",
  "const-str",
  "ctor",
+ "dtor",
  "either",
  "futures",
  "governor",
@@ -1770,6 +1777,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d4b8a88685455ed29a21542a33abd9cb6510b6b129abadabdcef0f4c55bc8f61"
 dependencies = [
  "litrs",
+]
+
+[[package]]
+name = "dtor"
+version = "0.13.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66261f2a6a4976b45407e398e63bc50a25fccf464d417f7d20f2e2b0974b9888"
+dependencies = [
+ "linktime-proc-macro",
 ]
 
 [[package]]

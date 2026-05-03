@@ -217,6 +217,7 @@ conduwuit-macros.workspace = true
 
 clap.workspace = true
 ctor.workspace = true
+dtor.workspace = true
 console-subscriber.optional = true
 console-subscriber.workspace = true
 const-str.workspace = true
