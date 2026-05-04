@@ -45,7 +45,6 @@ If you aren't sure about some, feel free to ask for clarification in #dev:contin
   - [ ] I have [tested my contribution][c1t] (or proof-read it for documentation-only changes)
         myself, if applicable. This includes ensuring code compiles.
   - [ ] My commit messages follow the [commit message format][c1cm] and are descriptive.
-  - [ ] I have written a [news fragment][n1] for this PR, if applicable<!--(can be done after hitting open!)-->.
 
 <!--
 Notes on these requirements:
@@ -79,4 +78,3 @@ Notes on these requirements:
 [c1pc]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#pre-commit-checks
 [c1t]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#running-tests-locally
 [c1cm]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/CONTRIBUTING.md#commit-messages
-[n1]: https://towncrier.readthedocs.io/en/stable/tutorial.html#creating-news-fragments
