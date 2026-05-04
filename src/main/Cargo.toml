@@ -42,26 +42,27 @@ assets = [
 [features]
 default = [
     "standard",
-    "release_max_log_level",
+    #"release_max_log_level",
     "ring",
-	"bindgen-runtime", # replace with bindgen-static on alpine
+    "bindgen-runtime", # replace with bindgen-static on alpine
 ]
 standard = [
     "blurhashing",
-	"brotli_compression",
-	"element_hacks",
-	"gzip_compression",
-	"io_uring",
-	"jemalloc",
-	"jemalloc_conf",
-	"journald",
-	"media_thumbnail",
-	"systemd",
-	"url_preview",
-	"zstd_compression",
+    "brotli_compression",
+    "element_hacks",
+    "gzip_compression",
+    "io_uring",
+    "jemalloc",
+    "jemalloc_conf",
+    "journald",
+    "media_thumbnail",
+    "systemd",
+    "url_preview",
+    "zstd_compression",
     "sentry_telemetry",
     "otlp_telemetry",
-	"console",
+    "console",
+    "direct_tls",
 ]
 full = [
     "standard",
