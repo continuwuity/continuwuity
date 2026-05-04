@@ -3,7 +3,7 @@ use validator::ValidationErrors;
 
 /// A reusable form component with field validation.
 #[derive(Debug, Template)]
-#[template(path = "_components/form.html.j2", print = "code")]
+#[template(path = "_components/form.html.j2")]
 pub(crate) struct Form<'a> {
 	inputs: Vec<FormInput<'a>>,
 	submit_label: &'a str,
