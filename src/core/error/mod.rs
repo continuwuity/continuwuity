@@ -110,8 +110,6 @@ pub enum Error {
 	InconsistentRoomState(&'static str, ruma::OwnedRoomId),
 	#[error(transparent)]
 	IntoHttp(#[from] ruma::api::error::IntoHttpError),
-	#[error("{0}")]
-	Ldap(Cow<'static, str>),
 	#[error(transparent)]
 	Mxc(#[from] ruma::MxcUriError),
 	#[error(transparent)]

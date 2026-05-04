@@ -52,9 +52,6 @@ jemalloc_stats = [
 	"conduwuit-core/jemalloc_stats",
 	"conduwuit-database/jemalloc_stats",
 ]
-ldap = [
-    "dep:ldap3"
-]
 media_thumbnail = [
 	"dep:image",
 ]
@@ -99,8 +96,6 @@ image.workspace = true
 image.optional = true
 ipaddress.workspace = true
 itertools.workspace = true
-ldap3.workspace = true
-ldap3.optional = true
 log.workspace = true
 loole.workspace = true
 lru-cache.workspace = true

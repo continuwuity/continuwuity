@@ -2130,10 +2130,6 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_web_indexing: bool,
 
-	/// display: nested
-	#[serde(default)]
-	pub ldap: LdapConfig,
-
 	/// Configuration for antispam support
 	/// display: nested
 	#[serde(default)]
@@ -2293,126 +2289,6 @@ impl MatrixRtcConfig {
 				.collect()
 		}
 	}
-}
-
-#[derive(Clone, Debug, Default, Deserialize)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.ldap")]
-pub struct LdapConfig {
-	/// Whether to enable LDAP login.
-	///
-	/// example: "true"
-	#[serde(default)]
-	pub enable: bool,
-
-	/// Whether to force LDAP authentication or authorize classical password
-	/// login.
-	///
-	/// example: "true"
-	#[serde(default)]
-	pub ldap_only: bool,
-
-	/// URI of the LDAP server.
-	///
-	/// example: "ldap://ldap.example.com:389"
-	///
-	/// default: ""
-	#[serde(default)]
-	pub uri: Option<Url>,
-
-	/// StartTLS for LDAP connections.
-	///
-	/// default: false
-	#[serde(default)]
-	pub use_starttls: bool,
-
-	/// Skip TLS certificate verification, possibly dangerous.
-	///
-	/// default: false
-	#[serde(default)]
-	pub disable_tls_verification: bool,
-
-	/// Root of the searches.
-	///
-	/// example: "ou=users,dc=example,dc=org"
-	///
-	/// default: ""
-	#[serde(default)]
-	pub base_dn: String,
-
-	/// Bind DN if anonymous search is not enabled.
-	///
-	/// You can use the variable `{username}` that will be replaced by the
-	/// entered username. In such case, the password used to bind will be the
-	/// one provided for the login and not the one given by
-	/// `bind_password_file`. Beware: automatically granting admin rights will
-	/// not work if you use this direct bind instead of a LDAP search.
-	///
-	/// example: "cn=ldap-reader,dc=example,dc=org" or
-	/// "cn={username},ou=users,dc=example,dc=org"
-	///
-	/// default: ""
-	#[serde(default)]
-	pub bind_dn: Option<String>,
-
-	/// Path to a file on the system that contains the password for the
-	/// `bind_dn`.
-	///
-	/// The server must be able to access the file, and it must not be empty.
-	///
-	/// default: ""
-	#[serde(default)]
-	pub bind_password_file: Option<PathBuf>,
-
-	/// Search filter to limit user searches.
-	///
-	/// You can use the variable `{username}` that will be replaced by the
-	/// entered username for more complex filters.
-	///
-	/// example: "(&(objectClass=person)(memberOf=matrix))"
-	///
-	/// default: "(objectClass=*)"
-	#[serde(default = "default_ldap_search_filter")]
-	pub filter: String,
-
-	/// Attribute to use to uniquely identify the user.
-	///
-	/// example: "uid" or "cn"
-	///
-	/// default: "uid"
-	#[serde(default = "default_ldap_uid_attribute")]
-	pub uid_attribute: String,
-
-	/// Attribute containing the display name of the user.
-	///
-	/// example: "givenName" or "sn"
-	///
-	/// default: "givenName"
-	#[serde(default = "default_ldap_name_attribute")]
-	pub name_attribute: String,
-
-	/// Root of the searches for admin users.
-	///
-	/// Defaults to `base_dn` if empty.
-	///
-	/// example: "ou=admins,dc=example,dc=org"
-	///
-	/// default: ""
-	#[serde(default)]
-	pub admin_base_dn: String,
-
-	/// The LDAP search filter to find administrative users for continuwuity.
-	///
-	/// If left blank, administrative state must be configured manually for each
-	/// user.
-	///
-	/// You can use the variable `{username}` that will be replaced by the
-	/// entered username for more complex filters.
-	///
-	/// example: "(objectClass=conduwuitAdmin)" or "(uid={username})"
-	///
-	/// default: ""
-	#[serde(default)]
-	pub admin_filter: String,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -2935,9 +2811,3 @@ pub(super) fn default_blurhash_x_component() -> u32 { 4 }
 pub(super) fn default_blurhash_y_component() -> u32 { 3 }
 
 // end recommended & blurhashing defaults
-
-fn default_ldap_search_filter() -> String { "(objectClass=*)".to_owned() }
-
-fn default_ldap_uid_attribute() -> String { String::from("uid") }
-
-fn default_ldap_name_attribute() -> String { String::from("givenName") }

@@ -111,7 +111,7 @@ impl Service {
 		if !self.services.users.exists(&appservice_user_id).await {
 			self.services
 				.users
-				.create(&appservice_user_id, None, None)
+				.create(&appservice_user_id, None)
 				.await?;
 		} else if self
 			.services

@@ -58,17 +58,6 @@ impl Service {
 			return Err!("Cannot issue a password reset token for the server user");
 		}
 
-		if self
-			.services
-			.users
-			.origin(&user_id)
-			.await
-			.unwrap_or_else(|_| "password".to_owned())
-			!= "password"
-		{
-			return Err!("Cannot issue a password reset token for non-internal user {user_id}");
-		}
-
 		if self.services.users.is_deactivated(&user_id).await? {
 			return Err!("Cannot issue a password reset token for deactivated user {user_id}");
 		}

@@ -190,7 +190,7 @@ pub(crate) async fn register_route(
 	let password = if is_guest { None } else { body.password.as_deref() };
 
 	// Create user
-	services.users.create(&user_id, password, None).await?;
+	services.users.create(&user_id, password).await?;
 
 	// Set an initial display name
 	let mut displayname = user_id.localpart().to_owned();

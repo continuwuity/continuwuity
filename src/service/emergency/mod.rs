@@ -37,11 +37,6 @@ impl crate::Service for Service {
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		if self.services.config.ldap.enable {
-			warn!("emergency password feature not available with LDAP enabled.");
-			return Ok(());
-		}
-
 		self.set_emergency_access().await.inspect_err(|e| {
 			error!("Could not set the configured emergency password for the server user: {e}");
 		})

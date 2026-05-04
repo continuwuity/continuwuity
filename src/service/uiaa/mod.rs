@@ -385,23 +385,6 @@ impl Service {
 					password_verified = hash::verify_password(password, &hash).is_ok();
 				}
 
-				// If local password verification failed, try LDAP authentication
-				#[cfg(feature = "ldap")]
-				if !password_verified && self.services.config.ldap.enable {
-					// Search for user in LDAP to get their DN
-					if let Ok(dns) = self.services.users.search_ldap(&user_id).await {
-						if let Some((user_dn, _is_admin)) = dns.first() {
-							// Try to authenticate with LDAP
-							password_verified = self
-								.services
-								.users
-								.auth_ldap(user_dn, password)
-								.await
-								.is_ok();
-						}
-					}
-				}
-
 				if password_verified {
 					identity.try_set_localpart(user_id.localpart().to_owned())?;
 

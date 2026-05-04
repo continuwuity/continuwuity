@@ -70,7 +70,7 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 	// Create user
 	self.services
 		.users
-		.create(&user_id, Some(password.as_str()), None)
+		.create(&user_id, Some(password.as_str()))
 		.await?;
 
 	// Default to pretty displayname

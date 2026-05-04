@@ -7,7 +7,7 @@ use conduwuit::{
 	utils::{self, ReadyExt, hash, stream::BroadbandExt},
 	warn,
 };
-use conduwuit_core::{debug_error, debug_warn};
+use conduwuit_core::debug_error;
 use conduwuit_service::Services;
 use futures::StreamExt;
 use lettre::Address;
@@ -64,17 +64,6 @@ pub(crate) async fn password_login(
 	lowercased_user_id: &UserId,
 	password: &str,
 ) -> Result<OwnedUserId> {
-	// Restrict login to accounts only of type 'password', including untyped
-	// legacy accounts which are equivalent to 'password'.
-	if services
-		.users
-		.origin(user_id)
-		.await
-		.is_ok_and(|origin| origin != "password")
-	{
-		return Err!(Request(Forbidden("Account does not permit password login.")));
-	}
-
 	let (hash, user_id) = match services.users.password_hash(user_id).await {
 		| Ok(hash) => (hash, user_id),
 		| Err(_) => services
@@ -94,71 +83,6 @@ pub(crate) async fn password_login(
 		.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?;
 
 	Ok(user_id.to_owned())
-}
-
-/// Authenticates the given user through the configured LDAP server.
-///
-/// Creates the user if the user is found in the LDAP and do not already have an
-/// account.
-#[tracing::instrument(skip_all, fields(%user_id), name = "ldap", level = "debug")]
-pub(super) async fn ldap_login(
-	services: &Services,
-	user_id: &UserId,
-	lowercased_user_id: &UserId,
-	password: &str,
-) -> Result<OwnedUserId> {
-	let (user_dn, is_ldap_admin) = match services.config.ldap.bind_dn.as_ref() {
-		| Some(bind_dn) if bind_dn.contains("{username}") =>
-			(bind_dn.replace("{username}", lowercased_user_id.localpart()), None),
-		| _ => {
-			debug!("Searching user in LDAP");
-
-			let dns = services.users.search_ldap(user_id).await?;
-			if dns.len() >= 2 {
-				return Err!(Ldap("LDAP search returned two or more results"));
-			}
-
-			let Some((user_dn, is_admin)) = dns.first() else {
-				return password_login(services, user_id, lowercased_user_id, password).await;
-			};
-
-			(user_dn.clone(), *is_admin)
-		},
-	};
-
-	let user_id = services
-		.users
-		.auth_ldap(&user_dn, password)
-		.await
-		.map(|()| lowercased_user_id.to_owned())?;
-
-	// LDAP users are automatically created on first login attempt. This is a very
-	// common feature that can be seen on many services using a LDAP provider for
-	// their users (synapse, Nextcloud, Jellyfin, ...).
-	//
-	// LDAP users are crated with a dummy password but non empty because an empty
-	// password is reserved for deactivated accounts. The conduwuit password field
-	// will never be read to login a LDAP user so it's not an issue.
-	if !services.users.exists(lowercased_user_id).await {
-		services
-			.users
-			.create(lowercased_user_id, Some("*"), Some("ldap"))
-			.await?;
-	}
-
-	// Only sync admin status if LDAP can actually determine it.
-	// None means LDAP cannot determine admin status (manual config required).
-	if let Some(is_ldap_admin) = is_ldap_admin {
-		let is_conduwuit_admin = services.admin.user_is_admin(lowercased_user_id).await;
-
-		if is_ldap_admin && !is_conduwuit_admin {
-			Box::pin(services.admin.make_user_admin(lowercased_user_id)).await?;
-		} else if !is_ldap_admin && is_conduwuit_admin {
-			Box::pin(services.admin.revoke_admin(lowercased_user_id)).await?;
-		}
-	}
-
-	Ok(user_id)
 }
 
 pub(crate) async fn handle_login(
@@ -212,18 +136,7 @@ pub(crate) async fn handle_login(
 		return Err!(Request(Forbidden("This account is not permitted to log in.")));
 	}
 
-	if cfg!(feature = "ldap") && services.config.ldap.enable {
-		match Box::pin(ldap_login(services, &user_id, &lowercased_user_id, password)).await {
-			| Ok(user_id) => Ok(user_id),
-			| Err(err) if services.config.ldap.ldap_only => Err(err),
-			| Err(err) => {
-				debug_warn!("{err}");
-				password_login(services, &user_id, &lowercased_user_id, password).await
-			},
-		}
-	} else {
-		password_login(services, &user_id, &lowercased_user_id, password).await
-	}
+	password_login(services, &user_id, &lowercased_user_id, password).await
 }
 
 /// # `POST /_matrix/client/v3/login`
