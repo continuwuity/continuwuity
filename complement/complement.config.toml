@@ -7,7 +7,6 @@
 [global]
 address = "0.0.0.0"
 allow_device_name_federation = true
-allow_guest_registration = true
 allow_public_room_directory_over_federation = true
 allow_registration = true
 database_path = "/database"
@@ -32,7 +31,6 @@ rocksdb_log_level = "info"
 rocksdb_max_log_files = 1
 rocksdb_recovery_mode = 0
 rocksdb_paranoid_file_checks = true
-log_guest_registrations = false
 allow_legacy_media = true
 startup_netburst = true
 startup_netburst_keep = -1

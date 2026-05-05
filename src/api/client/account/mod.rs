@@ -24,7 +24,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 	},
 };
-use service::{mailer::messages, uiaa::Identity};
+use service::{mailer::messages, uiaa::Identity, users::HashedPassword};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
 use crate::Ruma;
@@ -150,8 +150,7 @@ pub(crate) async fn change_password_route(
 
 	services
 		.users
-		.set_password(&sender_user, Some(&body.new_password))
-		.await?;
+		.set_password(&sender_user, Some(HashedPassword::new(&body.new_password)?));
 
 	if body.logout_devices {
 		// Logout all devices except the current one
@@ -239,19 +238,11 @@ pub(crate) async fn request_password_change_token_via_email_route(
 ///
 /// Note: Also works for Application Services
 pub(crate) async fn whoami_route(
-	State(services): State<crate::State>,
+	State(_): State<crate::State>,
 	body: Ruma<whoami::v3::Request>,
 ) -> Result<whoami::v3::Response> {
-	let is_guest = services
-		.users
-		.is_deactivated(body.sender_user())
-		.await
-		.map_err(|_| {
-			err!(Request(Forbidden("Application service has not registered this user.")))
-		})? && body.appservice_info.is_none();
-
-	Ok(assign!(whoami::v3::Response::new(body.sender_user().to_owned(), is_guest), {
-		device_id: body.sender_device.clone(),
+	Ok(assign!(whoami::v3::Response::new(body.sender_user().to_owned(), false), {
+		device_id: body.sender_device,
 	}))
 }
 

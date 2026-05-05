@@ -238,15 +238,8 @@ async fn knock_room_by_id_helper(
 			// join_room_by_id_helper We need to release the lock here and let
 			// join_room_by_id_helper acquire it again
 			drop(state_lock);
-			match join_room_by_id_helper(
-				services,
-				sender_user,
-				room_id,
-				reason.clone(),
-				servers,
-				&None,
-			)
-			.await
+			match join_room_by_id_helper(services, sender_user, room_id, reason.clone(), servers)
+				.await
 			{
 				| Ok(_) => return Ok(knock_room::v3::Response::new(room_id.to_owned())),
 				| Err(e) => {

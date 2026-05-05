@@ -9,7 +9,10 @@ use ruma::{
 	push::Ruleset,
 };
 
-use crate::{Dep, account_data, config, globals, users};
+use crate::{
+	Dep, account_data, config, globals,
+	users::{self, HashedPassword},
+};
 
 pub struct Service {
 	services: Services,
@@ -51,10 +54,15 @@ impl Service {
 	async fn set_emergency_access(&self) -> Result {
 		let server_user = &self.services.globals.server_user;
 
-		self.services
-			.users
-			.set_password(server_user, self.services.config.emergency_password.as_deref())
-			.await?;
+		self.services.users.set_password(
+			server_user,
+			self.services
+				.config
+				.emergency_password
+				.as_deref()
+				.map(HashedPassword::new)
+				.transpose()?,
+		);
 
 		let (ruleset, pwd_set) = match self.services.config.emergency_password {
 			| Some(_) => (Ruleset::server_default(server_user), true),

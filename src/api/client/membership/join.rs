@@ -39,7 +39,6 @@ use ruma::{
 };
 use service::{
 	Services,
-	appservice::RegistrationInfo,
 	rooms::{
 		state::RoomMutexGuard,
 		state_compressor::{CompressedState, HashSetCompressStateEvent},
@@ -112,16 +111,9 @@ pub(crate) async fn join_room_by_id_route(
 	shuffle(&mut servers);
 	let servers = deprioritize(servers, &services.config.deprioritize_joins_through_servers);
 
-	join_room_by_id_helper(
-		&services,
-		sender_user,
-		&body.room_id,
-		body.reason.clone(),
-		&servers,
-		&body.appservice_info,
-	)
-	.boxed()
-	.await
+	join_room_by_id_helper(&services, sender_user, &body.room_id, body.reason.clone(), &servers)
+		.boxed()
+		.await
 }
 
 /// # `POST /_matrix/client/r0/join/{roomIdOrAlias}`
@@ -140,7 +132,6 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	body: Ruma<join_room_by_id_or_alias::v3::Request>,
 ) -> Result<join_room_by_id_or_alias::v3::Response> {
 	let sender_user = body.sender_user();
-	let appservice_info = &body.appservice_info;
 	let body = &body.body;
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
@@ -235,16 +226,10 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	};
 
 	let servers = deprioritize(servers, &services.config.deprioritize_joins_through_servers);
-	let join_room_response = join_room_by_id_helper(
-		&services,
-		sender_user,
-		&room_id,
-		body.reason.clone(),
-		&servers,
-		appservice_info,
-	)
-	.boxed()
-	.await?;
+	let join_room_response =
+		join_room_by_id_helper(&services, sender_user, &room_id, body.reason.clone(), &servers)
+			.boxed()
+			.await?;
 
 	Ok(join_room_by_id_or_alias::v3::Response::new(join_room_response.room_id))
 }
@@ -255,20 +240,8 @@ pub async fn join_room_by_id_helper(
 	room_id: &RoomId,
 	reason: Option<String>,
 	servers: &[OwnedServerName],
-	appservice_info: &Option<RegistrationInfo>,
 ) -> Result<join_room_by_id::v3::Response> {
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
-
-	let user_is_guest = services
-		.users
-		.is_deactivated(sender_user)
-		.await
-		.unwrap_or(false)
-		&& appservice_info.is_none();
-
-	if user_is_guest && !services.rooms.state_accessor.guest_can_join(room_id).await {
-		return Err!(Request(Forbidden("Guests are not allowed to join this room")));
-	}
 
 	if services
 		.rooms

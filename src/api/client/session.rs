@@ -4,10 +4,9 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug, err, info,
-	utils::{self, ReadyExt, hash, stream::BroadbandExt},
+	utils::{self, ReadyExt, stream::BroadbandExt},
 	warn,
 };
-use conduwuit_core::debug_error;
 use conduwuit_service::Services;
 use futures::StreamExt;
 use lettre::Address;
@@ -54,37 +53,6 @@ pub(crate) async fn get_login_types_route(
 	]))
 }
 
-/// Authenticates the given user by its ID and its password.
-///
-/// Returns the user ID if successful, and an error otherwise.
-#[tracing::instrument(skip_all, fields(%user_id), name = "password", level = "debug")]
-pub(crate) async fn password_login(
-	services: &Services,
-	user_id: &UserId,
-	lowercased_user_id: &UserId,
-	password: &str,
-) -> Result<OwnedUserId> {
-	let (hash, user_id) = match services.users.password_hash(user_id).await {
-		| Ok(hash) => (hash, user_id),
-		| Err(_) => services
-			.users
-			.password_hash(lowercased_user_id)
-			.await
-			.map(|hash| (hash, lowercased_user_id))
-			.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?,
-	};
-
-	if hash.is_empty() {
-		return Err!(Request(UserDeactivated("The user has been deactivated")));
-	}
-
-	hash::verify_password(password, &hash)
-		.inspect_err(|e| debug_error!("{e}"))
-		.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?;
-
-	Ok(user_id.to_owned())
-}
-
 pub(crate) async fn handle_login(
 	services: &Services,
 	identifier: Option<&UserIdentifier>,
@@ -115,15 +83,7 @@ pub(crate) async fn handle_login(
 		UserId::parse_with_server_name(user_id_or_localpart, &services.config.server_name)
 			.map_err(|_| err!(Request(InvalidUsername("User ID is malformed"))))?;
 
-	let lowercased_user_id = UserId::parse_with_server_name(
-		user_id.localpart().to_lowercase(),
-		&services.config.server_name,
-	)
-	.unwrap();
-
-	if !services.globals.user_is_local(&user_id)
-		|| !services.globals.user_is_local(&lowercased_user_id)
-	{
+	if !services.globals.user_is_local(&user_id) {
 		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
 	}
 
@@ -136,7 +96,7 @@ pub(crate) async fn handle_login(
 		return Err!(Request(Forbidden("This account is not permitted to log in.")));
 	}
 
-	password_login(services, &user_id, &lowercased_user_id, password).await
+	services.users.check_password(&user_id, password).await
 }
 
 /// # `POST /_matrix/client/v3/login`

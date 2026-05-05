@@ -6,7 +6,10 @@ use conduwuit::{Err, Result, utils};
 use data::{Data, ResetTokenInfo};
 use ruma::OwnedUserId;
 
-use crate::{Dep, globals, users};
+use crate::{
+	Dep, globals,
+	users::{self, HashedPassword},
+};
 
 pub const PASSWORD_RESET_PATH: &str = "/_continuwuity/account/reset_password";
 pub const RESET_TOKEN_QUERY_PARAM: &str = "token";
@@ -100,8 +103,7 @@ impl Service {
 			self.db.remove_token(&token);
 			self.services
 				.users
-				.set_password(&info.user, Some(new_password))
-				.await?;
+				.set_password(&info.user, Some(HashedPassword::new(new_password)?));
 		}
 
 		Ok(())

@@ -3,7 +3,7 @@ pub(super) mod dehydrated_device;
 use std::{collections::BTreeMap, mem, net::IpAddr, sync::Arc};
 
 use conduwuit::{
-	Err, Error, Result, Server, debug_warn, err, trace,
+	Err, Error, Result, Server, debug_error, debug_warn, err, trace,
 	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
@@ -36,6 +36,19 @@ pub struct UserSuspension {
 	pub suspended_at: u64,
 	/// User ID of who suspended this user
 	pub suspended_by: String,
+}
+
+/// A password hash. This is only for use when setting a user's password,
+/// if the hash needs to be kept around for a while without keeping the password
+/// in memory.
+pub struct HashedPassword(String);
+
+impl HashedPassword {
+	pub fn new(password: &str) -> Result<Self> {
+		Ok(Self(utils::hash::password(password).map_err(|e| {
+			err!(Request(InvalidParam("Password does not meet the requirements: {e}")))
+		})?))
+	}
 }
 
 pub struct Service {
@@ -171,15 +184,22 @@ impl Service {
 
 	/// Create a new user account on this homeserver.
 	#[inline]
-	pub async fn create(&self, user_id: &UserId, password: Option<&str>) -> Result<()> {
+	pub async fn create(&self, user_id: &UserId, password: Option<HashedPassword>) -> Result<()> {
 		if !self.services.globals.user_is_local(user_id) && password.is_some() {
 			return Err!("Cannot create a nonlocal user with a set password");
 		}
 
-		self.set_password(user_id, password).await?;
+		self.set_password(user_id, password);
 
 		Ok(())
 	}
+
+	// /// Create a new account for a local human or bot user.
+	// pub async fn create_local_account(
+	// 	&self,
+	// 	username: String,
+	// 	password:
+	// )
 
 	/// Deactivate account
 	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
@@ -192,7 +212,7 @@ impl Service {
 		// result in an empty string, so the user will not be able to log in again.
 		// Systems like changing the password without logging in should check if the
 		// account is deactivated.
-		self.set_password(user_id, None).await?;
+		self.set_password(user_id, None);
 
 		// TODO: Unhook 3PID
 		Ok(())
@@ -338,25 +358,37 @@ impl Service {
 			.ready_filter_map(|(u, p): (OwnedUserId, &[u8])| (!p.is_empty()).then_some(u))
 	}
 
-	/// Returns the password hash for the given user.
-	pub async fn password_hash(&self, user_id: &UserId) -> Result<String> {
-		self.db.userid_password.get(user_id).await.deserialized()
+	/// Set a user's password.
+	pub fn set_password(&self, user_id: &UserId, password: Option<HashedPassword>) {
+		if let Some(hash) = password {
+			self.db.userid_password.insert(user_id, hash.0);
+		} else {
+			self.db.userid_password.insert(user_id, b"");
+		}
 	}
 
-	/// Hash and set the user's password to the Argon2 hash
-	pub async fn set_password(&self, user_id: &UserId, password: Option<&str>) -> Result<()> {
-		password
-			.map(utils::hash::password)
-			.transpose()
-			.map_err(|e| {
-				err!(Request(InvalidParam("Password does not meet the requirements: {e}")))
-			})?
-			.map_or_else(
-				|| self.db.userid_password.insert(user_id, b""),
-				|hash| self.db.userid_password.insert(user_id, hash),
-			);
+	/// Check a user's password.
+	pub async fn check_password(&self, user_id: &UserId, password: &str) -> Result<OwnedUserId> {
+		let (hash, user_id): (String, OwnedUserId) =
+			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
+				(hash, user_id.to_owned())
+			} else {
+				// We also check the lowercased version of the user ID to handle legacy user IDs
+				// better
+				let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
 
-		Ok(())
+				if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
+					(hash, lowercase_user_id)
+				} else {
+					return Err!(Request(UserDeactivated("This user is deactivated.")));
+				}
+			};
+
+		utils::hash::verify_password(password, &hash)
+			.inspect_err(|e| debug_error!("{e}"))
+			.map_err(|_| err!(Request(Forbidden("Invalid identifier or password."))))?;
+
+		Ok(user_id)
 	}
 
 	/// Returns the displayname of a user on this homeserver.

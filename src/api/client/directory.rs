@@ -122,16 +122,6 @@ pub(crate) async fn set_room_visibility_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	if services
-		.users
-		.is_deactivated(sender_user)
-		.await
-		.unwrap_or(false)
-		&& body.appservice_info.is_none()
-	{
-		return Err!(Request(Forbidden("Guests cannot publish to room directories")));
-	}
-
 	if !user_can_publish_room(&services, sender_user, &body.room_id).await? {
 		return Err!(Request(Forbidden("User is not allowed to publish this room")));
 	}

@@ -24,6 +24,7 @@ use ruma::{
 		tag::{TagEvent, TagEventContent, TagInfo},
 	},
 };
+use service::users::HashedPassword;
 
 use crate::{
 	admin_command, get_room_info,
@@ -70,7 +71,7 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 	// Create user
 	self.services
 		.users
-		.create(&user_id, Some(password.as_str()))
+		.create(&user_id, Some(HashedPassword::new(&password)?))
 		.await?;
 
 	// Default to pretty displayname
@@ -143,7 +144,6 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 						self.services.globals.server_name().to_owned(),
 						room_server_name.to_owned(),
 					],
-					&None,
 				)
 				.await
 				{
@@ -274,17 +274,13 @@ pub(super) async fn reset_password(
 
 	let new_password = password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
 
-	match self
-		.services
+	self.services
 		.users
-		.set_password(&user_id, Some(new_password.as_str()))
-		.await
-	{
-		| Err(e) => return Err!("Couldn't reset the password for user {user_id}: {e}"),
-		| Ok(()) => {
-			write!(self, "Successfully reset the password for user {user_id}: `{new_password}`")
-		},
-	}
+		.set_password(&user_id, Some(HashedPassword::new(&new_password)?));
+
+	self.write_str(&format!(
+		"Successfully reset the password for user {user_id}: `{new_password}`"
+	))
 	.await?;
 
 	if logout {
@@ -562,7 +558,6 @@ pub(super) async fn force_join_list_of_local_users(
 			&room_id,
 			Some(String::from(BULK_JOIN_REASON)),
 			&servers,
-			&None,
 		)
 		.await
 		{
@@ -646,7 +641,6 @@ pub(super) async fn force_join_all_local_users(
 			&room_id,
 			Some(String::from(BULK_JOIN_REASON)),
 			&servers,
-			&None,
 		)
 		.await
 		{
@@ -685,7 +679,7 @@ pub(super) async fn force_join_room(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
-	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers, &None).await?;
+	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers).await?;
 
 	self.write_str(&format!("{user_id} has been joined to {room_id}."))
 		.await

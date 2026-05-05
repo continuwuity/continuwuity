@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::{Err, Error, Result, error, utils, utils::hash};
+use conduwuit::{Err, Error, Result, error, utils};
 use lettre::Address;
 use ruma::{
 	UserId,
@@ -377,15 +377,13 @@ impl Service {
 					));
 				};
 
-				// Check if password is correct
-				let mut password_verified = false;
-
-				// First try local password hash verification
-				if let Ok(hash) = self.services.users.password_hash(&user_id).await {
-					password_verified = hash::verify_password(password, &hash).is_ok();
-				}
-
-				if password_verified {
+				if self
+					.services
+					.users
+					.check_password(&user_id, password)
+					.await
+					.is_ok()
+				{
 					identity.try_set_localpart(user_id.localpart().to_owned())?;
 
 					Ok(AuthType::Password)

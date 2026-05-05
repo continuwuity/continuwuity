@@ -1486,21 +1486,6 @@ pub struct Config {
 	#[serde(default)]
 	pub brotli_compression: bool,
 
-	/// Set to true to allow user type "guest" registrations. Some clients like
-	/// Element attempt to register guest users automatically.
-	#[serde(default)]
-	pub allow_guest_registration: bool,
-
-	/// Set to true to log guest registrations in the admin room. Note that
-	/// these may be noisy or unnecessary if you're a public homeserver.
-	#[serde(default)]
-	pub log_guest_registrations: bool,
-
-	/// Set to true to allow guest registrations/users to auto join any rooms
-	/// specified in `auto_join_rooms`.
-	#[serde(default)]
-	pub allow_guests_auto_join_rooms: bool,
-
 	/// Enable the legacy unauthenticated Matrix media repository endpoints.
 	/// These endpoints consist of:
 	/// - /_matrix/media/*/config

@@ -238,7 +238,7 @@ pub async fn room_joined_count(&self, room_id: &RoomId) -> Result<u64> {
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "debug")]
 /// Returns an iterator of all our local users in the room, even if they're
-/// deactivated/guests
+/// deactivated
 pub fn local_users_in_room<'a>(
 	&'a self,
 	room_id: &'a RoomId,
@@ -248,7 +248,7 @@ pub fn local_users_in_room<'a>(
 }
 
 /// Returns an iterator of all our local joined users in a room who are
-/// active (not deactivated, not guest)
+/// active (not deactivated)
 #[implement(Service)]
 #[tracing::instrument(skip(self), level = "trace")]
 pub fn active_local_users_in_room<'a>(

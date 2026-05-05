@@ -48,7 +48,7 @@ pub(crate) fn parse_local_user_id(services: &Services, user_id: &str) -> Result<
 	Ok(user_id)
 }
 
-/// Parses user ID that is an active (not guest or deactivated) local user
+/// Parses user ID that is an active (not deactivated) local user
 pub(crate) async fn parse_active_local_user_id(
 	services: &Services,
 	user_id: &str,

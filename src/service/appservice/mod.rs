@@ -121,10 +121,7 @@ impl Service {
 			.unwrap_or(false)
 		{
 			// Reactivate the appservice user if it was accidentally deactivated
-			self.services
-				.users
-				.set_password(&appservice_user_id, None)
-				.await?;
+			self.services.users.set_password(&appservice_user_id, None);
 		}
 
 		self.registration_info

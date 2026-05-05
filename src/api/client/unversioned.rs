@@ -80,7 +80,7 @@ pub(crate) async fn conduwuit_server_version() -> Result<impl IntoResponse> {
 ///
 /// conduwuit-specific API to return the amount of users registered on this
 /// homeserver. Endpoint is disabled if federation is disabled for privacy. This
-/// only includes active users (not deactivated, no guests, etc)
+/// only includes active users (not deactivated, etc)
 pub(crate) async fn conduwuit_local_user_count(
 	State(services): State<crate::State>,
 ) -> Result<impl IntoResponse> {

@@ -1271,21 +1271,6 @@
 #
 #brotli_compression = false
 
-# Set to true to allow user type "guest" registrations. Some clients like
-# Element attempt to register guest users automatically.
-#
-#allow_guest_registration = false
-
-# Set to true to log guest registrations in the admin room. Note that
-# these may be noisy or unnecessary if you're a public homeserver.
-#
-#log_guest_registrations = false
-
-# Set to true to allow guest registrations/users to auto join any rooms
-# specified in `auto_join_rooms`.
-#
-#allow_guests_auto_join_rooms = false
-
 # Enable the legacy unauthenticated Matrix media repository endpoints.
 # These endpoints consist of:
 # - /_matrix/media/*/config

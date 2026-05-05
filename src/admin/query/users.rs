@@ -15,10 +15,6 @@ pub enum UsersCommand {
 
 	IterUsers2,
 
-	PasswordHash {
-		user_id: OwnedUserId,
-	},
-
 	ListDevices {
 		user_id: OwnedUserId,
 	},
@@ -229,16 +225,6 @@ async fn iter_users2(&self) -> Result {
 async fn count_users(&self) -> Result {
 	let timer = tokio::time::Instant::now();
 	let result = self.services.users.count().await;
-	let query_time = timer.elapsed();
-
-	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
-		.await
-}
-
-#[admin_command]
-async fn password_hash(&self, user_id: OwnedUserId) -> Result {
-	let timer = tokio::time::Instant::now();
-	let result = self.services.users.password_hash(&user_id).await;
 	let query_time = timer.elapsed();
 
 	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{result:#?}\n```"))
