@@ -95,6 +95,7 @@ impl Services {
 				directory: build!(rooms::directory::Service),
 				event_handler: build!(rooms::event_handler::Service),
 				lazy_loading: build!(rooms::lazy_loading::Service),
+				membership: build!(rooms::membership::Service),
 				metadata: build!(rooms::metadata::Service),
 				outlier: build!(rooms::outlier::Service),
 				pdu_metadata: build!(rooms::pdu_metadata::Service),

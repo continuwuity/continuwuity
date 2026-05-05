@@ -19,9 +19,8 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use service::Services;
+use service::{Services, rooms::membership::validate_remote_member_event_stub};
 
-use super::validate_remote_member_event_stub;
 use crate::Ruma;
 
 /// # `POST /_matrix/client/v3/rooms/{roomId}/leave`

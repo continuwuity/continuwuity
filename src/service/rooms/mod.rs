@@ -3,6 +3,7 @@ pub mod auth_chain;
 pub mod directory;
 pub mod event_handler;
 pub mod lazy_loading;
+pub mod membership;
 pub mod metadata;
 pub mod outlier;
 pub mod pdu_metadata;
@@ -27,6 +28,7 @@ pub struct Service {
 	pub directory: Arc<directory::Service>,
 	pub event_handler: Arc<event_handler::Service>,
 	pub lazy_loading: Arc<lazy_loading::Service>,
+	pub membership: Arc<membership::Service>,
 	pub metadata: Arc<metadata::Service>,
 	pub outlier: Arc<outlier::Service>,
 	pub pdu_metadata: Arc<pdu_metadata::Service>,

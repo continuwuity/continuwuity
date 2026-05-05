@@ -33,12 +33,13 @@ use ruma::{
 use service::{
 	Services,
 	rooms::{
+		membership::validate_remote_member_event_stub,
 		state::RoomMutexGuard,
 		state_compressor::{CompressedState, HashSetCompressStateEvent},
 	},
 };
 
-use super::{banned_room_check, join::join_room_by_id_helper, validate_remote_member_event_stub};
+use super::banned_room_check;
 use crate::Ruma;
 
 /// # `POST /_matrix/client/*/knock/{roomIdOrAlias}`
@@ -238,7 +239,10 @@ async fn knock_room_by_id_helper(
 			// join_room_by_id_helper We need to release the lock here and let
 			// join_room_by_id_helper acquire it again
 			drop(state_lock);
-			match join_room_by_id_helper(services, sender_user, room_id, reason.clone(), servers)
+			match services
+				.rooms
+				.membership
+				.join_room(sender_user, room_id, reason.clone(), servers)
 				.await
 			{
 				| Ok(_) => return Ok(knock_room::v3::Response::new(room_id.to_owned())),

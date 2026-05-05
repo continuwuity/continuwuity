@@ -13,16 +13,10 @@ use std::net::IpAddr;
 use axum::extract::State;
 use conduwuit::{Err, Result, warn};
 use futures::{FutureExt, StreamExt};
-use ruma::{
-	CanonicalJsonObject, OwnedRoomId, RoomId, ServerName, UserId,
-	api::client::membership::joined_rooms,
-	events::{
-		StaticEventContent,
-		room::member::{MembershipState, RoomMemberEventContent},
-	},
-};
+use ruma::{OwnedRoomId, RoomId, ServerName, UserId, api::client::membership::joined_rooms};
 use service::Services;
 
+pub use self::leave::{leave_all_rooms, leave_room, remote_leave_room};
 pub(crate) use self::{
 	ban::ban_user_route,
 	forget::forget_room_route,
@@ -33,10 +27,6 @@ pub(crate) use self::{
 	leave::leave_room_route,
 	members::{get_member_events_route, joined_members_route},
 	unban::unban_user_route,
-};
-pub use self::{
-	join::join_room_by_id_helper,
-	leave::{leave_all_rooms, leave_room, remote_leave_room},
 };
 use crate::{Ruma, client::full_user_deactivate};
 
@@ -155,83 +145,6 @@ pub(crate) async fn banned_room_check(
 
 			return Err!(Request(Forbidden("This remote server is banned on this homeserver.")));
 		}
-	}
-
-	Ok(())
-}
-
-/// Validates that an event returned from a remote server by `/make_*`
-/// actually is a membership event with the expected fields.
-///
-/// Without checking this, the remote server could use the remote membership
-/// mechanism to trick our server into signing arbitrary malicious events.
-pub(crate) fn validate_remote_member_event_stub(
-	membership: &MembershipState,
-	user_id: &UserId,
-	room_id: &RoomId,
-	event_stub: &CanonicalJsonObject,
-) -> Result<()> {
-	let Some(event_type) = event_stub.get("type") else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing type field"
-		));
-	};
-	if event_type != &RoomMemberEventContent::TYPE {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with invalid event type"
-		));
-	}
-
-	let Some(sender) = event_stub.get("sender") else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing sender field"
-		));
-	};
-	if sender != &user_id.as_str() {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with incorrect sender"
-		));
-	}
-
-	let Some(state_key) = event_stub.get("state_key") else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing state_key field"
-		));
-	};
-	if state_key != &user_id.as_str() {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with incorrect state_key"
-		));
-	}
-
-	let Some(event_room_id) = event_stub.get("room_id") else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing room_id field"
-		));
-	};
-	if event_room_id != &room_id.as_str() {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with incorrect room_id"
-		));
-	}
-
-	let Some(content) = event_stub
-		.get("content")
-		.and_then(|content| content.as_object())
-	else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing content field"
-		));
-	};
-	let Some(event_membership) = content.get("membership") else {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with missing membership field"
-		));
-	};
-	if event_membership != &membership.as_str() {
-		return Err!(BadServerResponse(
-			"Remote server returned member event with incorrect membership type"
-		));
 	}
 
 	Ok(())

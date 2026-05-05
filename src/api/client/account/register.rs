@@ -29,7 +29,7 @@ use ruma::{
 use serde_json::value::RawValue;
 use service::{mailer::messages, users::HashedPassword};
 
-use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH, join_room_by_id_helper};
+use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::Ruma;
 
 const RANDOM_USER_ID_LENGTH: usize = 10;
@@ -278,15 +278,17 @@ pub(crate) async fn register_route(
 			}
 
 			if let Some(room_server_name) = room.server_name() {
-				match join_room_by_id_helper(
-					&services,
-					&user_id,
-					&room_id,
-					Some("Automatically joining this room upon registration".to_owned()),
-					&[services.globals.server_name().to_owned(), room_server_name.to_owned()],
-				)
-				.boxed()
-				.await
+				match services
+					.rooms
+					.membership
+					.join_room(
+						&user_id,
+						&room_id,
+						Some("Automatically joining this room upon registration".to_owned()),
+						&[services.globals.server_name().to_owned(), room_server_name.to_owned()],
+					)
+					.boxed()
+					.await
 				{
 					| Err(e) => {
 						// don't return this error so we don't fail registrations

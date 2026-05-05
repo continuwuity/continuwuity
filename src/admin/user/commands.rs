@@ -4,8 +4,7 @@ use std::{
 };
 
 use api::client::{
-	full_user_deactivate, join_room_by_id_helper, leave_room, recreate_push_rules_and_return,
-	remote_leave_room,
+	full_user_deactivate, leave_room, recreate_push_rules_and_return, remote_leave_room,
 };
 use conduwuit::{
 	Err, Result, debug_warn, error, info,
@@ -135,17 +134,20 @@ pub(super) async fn create_user(&self, username: String, password: Option<String
 			}
 
 			if let Some(room_server_name) = room.server_name() {
-				match join_room_by_id_helper(
-					self.services,
-					&user_id,
-					&room_id,
-					Some("Automatically joining this room upon registration".to_owned()),
-					&[
-						self.services.globals.server_name().to_owned(),
-						room_server_name.to_owned(),
-					],
-				)
-				.await
+				match self
+					.services
+					.rooms
+					.membership
+					.join_room(
+						&user_id,
+						&room_id,
+						Some("Automatically joining this room upon registration".to_owned()),
+						&[
+							self.services.globals.server_name().to_owned(),
+							room_server_name.to_owned(),
+						],
+					)
+					.await
 				{
 					| Ok(_response) => {
 						info!("Automatically joined room {room} for user {user_id}");
@@ -628,14 +630,12 @@ pub(super) async fn force_join_list_of_local_users(
 	let mut successful_joins: usize = 0;
 
 	for user_id in user_ids {
-		match join_room_by_id_helper(
-			self.services,
-			&user_id,
-			&room_id,
-			Some(String::from(BULK_JOIN_REASON)),
-			&servers,
-		)
-		.await
+		match self
+			.services
+			.rooms
+			.membership
+			.join_room(&user_id, &room_id, Some(String::from(BULK_JOIN_REASON)), &servers)
+			.await
 		{
 			| Ok(_res) => {
 				successful_joins = successful_joins.saturating_add(1);
@@ -711,14 +711,12 @@ pub(super) async fn force_join_all_local_users(
 		.collect::<Vec<_>>()
 		.await
 	{
-		match join_room_by_id_helper(
-			self.services,
-			user_id,
-			&room_id,
-			Some(String::from(BULK_JOIN_REASON)),
-			&servers,
-		)
-		.await
+		match self
+			.services
+			.rooms
+			.membership
+			.join_room(user_id, &room_id, Some(String::from(BULK_JOIN_REASON)), &servers)
+			.await
 		{
 			| Ok(_res) => {
 				successful_joins = successful_joins.saturating_add(1);
@@ -755,7 +753,11 @@ pub(super) async fn force_join_room(
 		self.services.globals.user_is_local(&user_id),
 		"Parsed user_id must be a local user"
 	);
-	join_room_by_id_helper(self.services, &user_id, &room_id, None, &servers).await?;
+	self.services
+		.rooms
+		.membership
+		.join_room(&user_id, &room_id, None, &servers)
+		.await?;
 
 	self.write_str(&format!("{user_id} has been joined to {room_id}."))
 		.await

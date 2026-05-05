@@ -58,7 +58,7 @@ pub(super) use keys::*;
 pub(super) use media::*;
 pub(super) use media_legacy::*;
 pub(super) use membership::*;
-pub use membership::{join_room_by_id_helper, leave_all_rooms, leave_room, remote_leave_room};
+pub use membership::{leave_all_rooms, leave_room, remote_leave_room};
 pub(super) use message::*;
 pub(super) use mutual_rooms::*;
 pub(super) use openid::*;
