@@ -7,7 +7,7 @@ Admin commands allow server administrators to manage the server from within thei
 
 * All commands listed here may be used by server administrators in the admin room by sending them as messages.
 * If the `admin_escape_commands` configuration option is enabled, server administrators may run certain commands in public rooms by prefixing them with a single backslash. These commands will only run on _their_ homeserver, even if they are a member of another homeserver's admin room. Some sensitive commands cannot be used outside the admin room and will return an error.
-* All commands listed here may be used in the server's console, if it is enabled. Commands entered in the console do not require the `!admin` prefix. If Continuwuity is deployed via Docker, be sure to set the appropriate options detailed in [the Docker deployment guide](../../deploying/docker.mdx#accessing-the-servers-console) to enable access to the server's console.
+* All commands listed here may be used in the server's console, if it is enabled. Commands entered in the console do not require the `!admin` prefix.
 
 ## Categories
 
