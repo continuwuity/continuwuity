@@ -369,20 +369,25 @@ impl Service {
 
 	/// Check a user's password.
 	pub async fn check_password(&self, user_id: &UserId, password: &str) -> Result<OwnedUserId> {
-		let (hash, user_id): (String, OwnedUserId) =
-			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
-				(hash, user_id.to_owned())
-			} else {
-				// We also check the lowercased version of the user ID to handle legacy user IDs
-				// better
-				let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
+		let (hash, user_id): (String, OwnedUserId) = if let Ok(hash) =
+			self.db.userid_password.get(user_id).await.deserialized()
+		{
+			(hash, user_id.to_owned())
+		} else {
+			// We also check the lowercased version of the user ID to handle legacy user IDs
+			// better
+			let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
 
-				if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
-					(hash, lowercase_user_id)
-				} else {
-					return Err!(Request(UserDeactivated("This user is deactivated.")));
-				}
-			};
+			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
+				(hash, lowercase_user_id)
+			} else {
+				return Err!(Request(InvalidParam("This user cannot log in with a password.")));
+			}
+		};
+
+		if hash.is_empty() {
+			return Err!(Request(UserDeactivated("This user is deactivated")));
+		}
 
 		utils::hash::verify_password(password, &hash)
 			.inspect_err(|e| debug_error!("{e}"))

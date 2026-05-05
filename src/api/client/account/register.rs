@@ -14,7 +14,7 @@ use ruma::{
 	OwnedUserId, UserId,
 	api::client::{
 		account::{
-			register::{self, LoginType},
+			register::{self, LoginType, RegistrationKind},
 			request_registration_token_via_email,
 		},
 		uiaa::{AuthFlow, AuthType},
@@ -48,6 +48,10 @@ pub(crate) async fn register_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<register::v3::Request>,
 ) -> Result<register::v3::Response> {
+	if body.kind != RegistrationKind::User {
+		return Err!(Request(GuestAccessForbidden("Guests may not register on this server.")));
+	}
+
 	let emergency_mode_enabled = services.config.emergency_password.is_some();
 
 	// Allow registration if it's enabled in the config file or if this is the first
