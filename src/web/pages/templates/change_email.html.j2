@@ -5,29 +5,31 @@ Change your email
 {%- endblock -%}
 
 {%- block content -%}
-<div class="panel narrow">
-    <h1>Change your email</h1>
+<div class="panel">
+    <h1>Change your email <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
     {{ user_card }}
-    {% match body %}
-        {% when ChangeEmailBody::ValidationPending { session_id, client_secret, validation_error } %}
-            <p>
-                A message has been sent to your new email address with a validation link. If you do not receive the email:
-                <ul>
-                    <li>Check your spam filter.</li>
-                </ul>
-            </p>
-            {% if validation_error %}
-                <small class="error">Validation failed. Have you clicked the link in the email that was sent to you?</small>
-            {% endif %}
-            <form method="get" action="validate">
-                <input type="hidden" name="session_id" value="{{ session_id }}">
-                <input type="hidden" name="client_secret" value="{{ client_secret }}">
-                <button type="submit">Continue</button>
-            </form>
-        {% when ChangeEmailBody::Success %}
-            <p>
-                Your email address has been changed successfully. <a href="{{ crate::ROUTE_PREFIX }}/account/">Back</a>
-            </p>
-    {% endmatch %}
+    <p>
+        Your email address will be used for automated emails, such as password reset requests. It is also
+        visible to your homeserver's administrator, who may use it to contact you directly.
+    </p>
+    <p>
+        {% if let Some(email) = email %}
+            Your account's associated email address is <code>{{ email }}</code>.
+            To change your email address, enter your new address below.
+        {% else %}
+            Your account has no associated email address. To add an email address, enter it below.
+        {% endif %}
+    </p>
+    {{ form }}
+
+    {% if may_remove %}
+        <p>
+            You may remove your email address. Note that, if your account has no email address,
+            you will not be able to reset your password if you forget it.
+        </p>
+        <form method="post" action="delete">
+            <button type="submit">Remove your email address</button>
+        </form>
+    {% endif %}
 </div>
-{%- endblock -%}
+{% endblock %}
