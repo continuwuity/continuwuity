@@ -1,5 +1,5 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, State},
 	response::Redirect,
 	routing::on,
@@ -12,7 +12,7 @@ use crate::{
 	WebError,
 	extract::{Expect, PostForm},
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		components::{Avatar, AvatarType, ClientScopes},
 	},
 	response,
@@ -40,6 +40,7 @@ template! {
 
 async fn route_authorization_code(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	Expect(Query(query)): Expect<Query<AuthorizationCodeQuery>>,
 	PostForm(form): PostForm<()>,
@@ -86,7 +87,7 @@ async fn route_authorization_code(
 	let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
 	response!(Grant::new(
-		&services,
+		context,
 		serde_urlencoded::to_string(LoginQuery {
 			next: Some(LoginTarget::AuthorizationCode(query)),
 			reauthenticate: false,

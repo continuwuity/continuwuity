@@ -4,11 +4,12 @@ use askama::Template;
 use axum::{
 	Router,
 	extract::rejection::{FormRejection, PathRejection, QueryRejection},
-	http::{HeaderValue, StatusCode, header},
+	http::StatusCode,
+	middleware::from_fn_with_state,
 	response::{Html, IntoResponse, Redirect, Response},
 };
 use conduwuit_service::{Services, state};
-use tower_http::{catch_panic::CatchPanicLayer, set_header::SetResponseHeaderLayer};
+use tower_http::catch_panic::CatchPanicLayer;
 use tower_sec_fetch::SecFetchLayer;
 use tower_sessions::{ExpiredDeletion, SessionManagerLayer, cookie::SameSite};
 
@@ -95,6 +96,7 @@ impl IntoResponse for WebError {
 			context: TemplateContext {
 				// Statically set false to prevent error pages from being indexed.
 				allow_indexing: false,
+				csp_nonce: String::new(),
 			},
 		};
 
@@ -150,10 +152,7 @@ pub fn build(services: &Services) -> Router<state::State> {
 
 			WebError::Panic(details).into_response()
 		}))
-		.layer(SetResponseHeaderLayer::if_not_present(
-			header::CONTENT_SECURITY_POLICY,
-			HeaderValue::from_static("default-src 'self'; img-src 'self' https: data:;"),
-		))
+		.layer(from_fn_with_state(services.config.clone(), template_context_middleware))
 		.layer(SecFetchLayer::new(|policy| {
 			policy.allow_safe_methods().reject_missing_metadata();
 		}))

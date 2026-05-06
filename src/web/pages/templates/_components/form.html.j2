@@ -45,6 +45,6 @@
 
     <button type="submit"{% if slowdown %} class="slowdown"{% endif %}>{{ submit_label }}</button>
     {% if slowdown %}
-        <script src="{{ crate::ROUTE_PREFIX }}/resources/slowdown.js"></script>
+        <script src="{{ crate::ROUTE_PREFIX }}/resources/slowdown.js" nonce="{{ context.csp_nonce }}"></script>
     {% endif %}
 </form>
