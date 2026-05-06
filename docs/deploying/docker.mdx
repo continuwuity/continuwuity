@@ -185,13 +185,15 @@ See the [generic deployment guide](generic.mdx) for more deployment options.
 
 Test that your setup works by following these [instructions](./generic.mdx#how-do-i-know-it-works)
 
+Check your container logs using `docker-compose logs --follow` to debug any issues. See the [Troubleshooting](../troubleshooting.mdx) page for common errors and how to fix them.
+
 ## Other deployment methods
 
 ### Docker - Quick Run
 
-:::note For testing only
-The instructions below are only meant for a quick demo of Continuwuity.
-For production deployment, we recommend using [Docker Compose](#docker-compose)
+:::warning For testing only
+The instructions below are only meant for a quick demo of Continuwuity with **federation disabled**.
+For production deployment, we recommend using [Docker Compose](#docker-compose).
 :::
 
 Get a working Continuwuity server with an admin user in four steps:
@@ -211,7 +213,7 @@ Get a working Continuwuity server with an admin user in four steps:
       -e CONTINUWUITY_SERVER_NAME="example.com" \
       -e CONTINUWUITY_DATABASE_PATH="/var/lib/continuwuity" \
       -e CONTINUWUITY_ADDRESS="0.0.0.0" \
-      -e CONTINUWUITY_ALLOW_REGISTRATION="false" \
+      -e CONTINUWUITY_ALLOW_FEDERATION="false" \
       --name continuwuity \
       forgejo.ellis.link/continuwuation/continuwuity:latest \
       /sbin/conduwuit
@@ -233,9 +235,9 @@ Get a working Continuwuity server with an admin user in four steps:
     Pick your own username and password!
     ```
 
-4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity at port 8008. See [Docker Compose](#docker-compose) for examples.
+4. Configure your reverse proxy to forward HTTPS traffic to Continuwuity at port 8008. See [Docker Compose](#docker-compose) or the [Generic instructions](./generic.mdx#setting-up-the-reverse-proxy) for examples.
 
-Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
+Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. If you did not configure step 4., log in via the `http://<your_server_ip>:8008` address. You will be automatically invited to the admin room where you can [manage your server](../reference/admin).
 
 ### (Optional) Building Custom Images
 
