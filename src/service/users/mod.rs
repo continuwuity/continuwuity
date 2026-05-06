@@ -9,11 +9,13 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Error, Result, Server, debug_error, debug_warn, err, trace,
+	Err, Error, Result, debug_error, debug_warn, err, info, trace,
 	utils::{self, ReadyExt, stream::TryIgnore, string::Unquoted},
+	warn,
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
+use lettre::Address;
 use ruma::{
 	DeviceId, MilliSecondsSinceUnixEpoch, OneTimeKeyAlgorithm, OneTimeKeyId, OneTimeKeyName,
 	OwnedDeviceId, OwnedKeyId, OwnedMxcUri, OwnedOneTimeKeyId, OwnedUserId, RoomId, UInt, UserId,
@@ -24,15 +26,24 @@ use ruma::{
 	encryption::{CrossSigningKey, DeviceKeys, OneTimeKey},
 	events::{
 		AnyToDeviceEvent, GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
+		push_rules::PushRulesEvent, room::message::RoomMessageEventContent,
 	},
+	push::Ruleset,
 	serde::Raw,
 	uint,
 };
 use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::error;
 
-use crate::{Dep, account_data, admin, appservice, globals, oauth, rooms};
+use crate::{
+	Dep, account_data, admin,
+	appservice::{self, RegistrationInfo},
+	config, firstrun, globals, oauth,
+	rooms::{self, alias, membership},
+	threepid,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -47,6 +58,7 @@ pub struct UserSuspension {
 /// A password hash. This is only for use when setting a user's password,
 /// if the hash needs to be kept around for a while without keeping the password
 /// in memory.
+#[derive(Serialize, Deserialize)]
 pub struct HashedPassword(String);
 
 impl HashedPassword {
@@ -69,14 +81,18 @@ pub struct Service {
 }
 
 struct Services {
-	server: Arc<Server>,
 	account_data: Dep<account_data::Service>,
 	admin: Dep<admin::Service>,
+	alias: Dep<alias::Service>,
 	appservice: Dep<appservice::Service>,
+	config: Dep<config::Service>,
+	firstrun: Dep<firstrun::Service>,
 	globals: Dep<globals::Service>,
+	membership: Dep<membership::Service>,
 	oauth: Dep<oauth::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
+	threepid: Dep<threepid::Service>,
 }
 
 struct Data {
@@ -111,15 +127,19 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				server: args.server.clone(),
 				account_data: args.depend::<account_data::Service>("account_data"),
 				admin: args.depend::<admin::Service>("admin"),
+				alias: args.depend::<alias::Service>("alias"),
 				appservice: args.depend::<appservice::Service>("appservice"),
+				config: args.depend::<config::Service>("config"),
+				firstrun: args.depend::<firstrun::Service>("firstrun"),
 				globals: args.depend::<globals::Service>("globals"),
+				membership: args.depend::<membership::Service>("membership"),
 				oauth: args.depend::<oauth::Service>("oauth"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
+				threepid: args.depend::<threepid::Service>("threepid"),
 			},
 			db: Data {
 				keychangeid_userid: args.db["keychangeid_userid"].clone(),
@@ -208,12 +228,238 @@ impl Service {
 		Ok(())
 	}
 
-	// /// Create a new account for a local human or bot user.
-	// pub async fn create_local_account(
-	// 	&self,
-	// 	username: String,
-	// 	password:
-	// )
+	/// Create a new account for a local human or bot user.
+	pub async fn create_local_account(
+		&self,
+		user_id: &UserId,
+		password: HashedPassword,
+		email: Option<Address>,
+	) {
+		self.create(user_id, Some(password))
+			.await
+			.expect("should be able to save a new local user. what happened?");
+
+		// Set an initial display name
+		{
+			let mut displayname = user_id.localpart().to_owned();
+
+			let suffix = &self.services.config.new_user_displayname_suffix;
+			if !suffix.is_empty() {
+				displayname.push_str(suffix);
+			}
+
+			self.set_displayname(user_id, Some(displayname));
+		};
+
+		// Set default push rules
+		self.services
+			.account_data
+			.update(
+				None,
+				user_id,
+				GlobalAccountDataEventType::PushRules.to_string().into(),
+				&serde_json::to_value(PushRulesEvent::new(
+					Ruleset::server_default(user_id).into(),
+				))
+				.expect("should be able to serialize push rules"),
+			)
+			.await
+			.expect("should be able to update account data");
+
+		// If the user registered with an email, associate it with their account.
+		if let Some(email) = email {
+			// This may fail if the email is already in use, but we  should have already
+			// checked that when we sent the validation email, so ignoring the error is
+			// acceptable here in the rare case that an email is sniped by another user
+			// between the validation email being sent and the account being created.
+			let _ = self
+				.services
+				.threepid
+				.associate_localpart_email(user_id.localpart(), &email)
+				.await;
+		}
+
+		// Attempt to empower the first user and disable first-run mode.
+		let was_first_user = self.services.firstrun.empower_first_user(user_id).await;
+
+		// If the registering user was not the first and we're suspending users on
+		// register, suspend them.
+		if !was_first_user && self.services.config.suspend_on_register {
+			// Note that we can still do auto joins for suspended users
+			self.suspend_account(user_id, &self.services.globals.server_user)
+				.await;
+
+			// And send an @room notice to the admin room, to prompt admins to review the
+			// new user and ideally unsuspend them if deemed appropriate.
+			if self.services.config.admin_room_notices {
+				self.services
+					.admin
+					.send_loud_message(RoomMessageEventContent::text_plain(format!(
+						"User {user_id} has been suspended as they are not the first user on \
+						 this server. Please review and unsuspend them if appropriate."
+					)))
+					.await
+					.ok();
+			}
+		}
+
+		// Autojoin the user to the configured autojoin rooms
+		for room in &self.services.config.auto_join_rooms {
+			let Ok(room_id) = self.services.alias.resolve(room).await else {
+				error!(
+					"Failed to resolve room alias to room ID when attempting to auto join \
+					 {room}, skipping"
+				);
+				continue;
+			};
+
+			if !self
+				.services
+				.state_cache
+				.server_in_room(self.services.globals.server_name(), &room_id)
+				.await
+			{
+				warn!(
+					"Skipping room {room} to automatically join as we have never joined before."
+				);
+				continue;
+			}
+
+			if let Some(room_server_name) = room.server_name() {
+				match self
+					.services
+					.membership
+					.join_room(
+						user_id,
+						&room_id,
+						Some("Automatically joining this room upon registration".to_owned()),
+						&[
+							self.services.globals.server_name().to_owned(),
+							room_server_name.to_owned(),
+						],
+					)
+					.boxed()
+					.await
+				{
+					| Err(e) => {
+						// don't return this error so we don't fail registrations
+						error!(
+							"Failed to automatically join room {room} for user {user_id}: {e}"
+						);
+					},
+					| _ => {
+						info!("Automatically joined room {room} for user {user_id}");
+					},
+				}
+			}
+		}
+
+		info!("Created new user account for {user_id}");
+	}
+
+	pub async fn determine_registration_user_id(
+		&self,
+		supplied_username: Option<String>,
+		email: Option<&Address>,
+		appservice_info: Option<&RegistrationInfo>,
+	) -> Result<OwnedUserId> {
+		const RANDOM_USER_ID_LENGTH: usize = 10;
+
+		let emergency_mode_enabled = self.services.config.emergency_password.is_some();
+
+		let supplied_username = supplied_username.or_else(|| {
+			// If the user didn't supply a username but did supply an email, use
+			// the email's user part to avoid falling back to a random username
+			email.map(|address| address.user().to_owned())
+		});
+
+		if let Some(supplied_username) = supplied_username {
+			// The user gets to pick their username. Do some validation to make sure it's
+			// acceptable.
+
+			// Don't allow registration with forbidden usernames.
+			if self
+				.services
+				.globals
+				.forbidden_usernames()
+				.is_match(&supplied_username)
+				&& !emergency_mode_enabled
+			{
+				return Err!(Request(Forbidden("Username is forbidden")));
+			}
+
+			// Create and validate the user ID
+			let user_id = match UserId::parse_with_server_name(
+				&supplied_username,
+				self.services.globals.server_name(),
+			) {
+				| Ok(user_id) => {
+					if let Err(e) = user_id.validate_strict() {
+						// Unless we are in emergency mode, we should follow synapse's behaviour
+						// on not allowing things like spaces and UTF-8 characters in
+						// usernames
+						if !emergency_mode_enabled {
+							return Err!(Request(InvalidUsername(debug_warn!(
+								"Username {supplied_username} contains disallowed characters or \
+								 spaces: {e}"
+							))));
+						}
+					}
+
+					// Don't allow registration with user IDs that aren't local
+					if !self.services.globals.user_is_local(&user_id) {
+						return Err!(Request(InvalidUsername(
+							"Username {supplied_username} is not local to this server"
+						)));
+					}
+
+					user_id
+				},
+				| Err(e) => {
+					return Err!(Request(InvalidUsername(debug_warn!(
+						"Username {supplied_username} is not valid: {e}"
+					))));
+				},
+			};
+
+			if self.exists(&user_id).await {
+				return Err!(Request(UserInUse("User ID is not available.")));
+			}
+
+			// Check that the user ID is/is not in an appservice's namespace
+			if let Some(appservice_info) = appservice_info {
+				if !appservice_info.is_user_match(&user_id) && !emergency_mode_enabled {
+					return Err!(Request(Exclusive(
+						"Username is not in this appservice's namespace."
+					)));
+				}
+			} else if self
+				.services
+				.appservice
+				.is_exclusive_user_id(&user_id)
+				.await && !emergency_mode_enabled
+			{
+				return Err!(Request(Exclusive("Username is reserved by an appservice.")));
+			}
+
+			Ok(user_id)
+		} else {
+			// The user didn't specify a username. Generate a username for
+			// them.
+
+			loop {
+				let user_id = UserId::parse_with_server_name(
+					utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
+					self.services.globals.server_name(),
+				)
+				.unwrap();
+
+				if !self.exists(&user_id).await {
+					break Ok(user_id);
+				}
+			}
+		}
+	}
 
 	/// Deactivate account
 	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
@@ -1308,7 +1554,7 @@ impl Service {
 	pub fn create_openid_token(&self, user_id: &UserId, token: &str) -> Result<u64> {
 		use std::num::Saturating as Sat;
 
-		let expires_in = self.services.server.config.openid_token_ttl;
+		let expires_in = self.services.config.openid_token_ttl;
 		let expires_at = Sat(utils::millis_since_unix_epoch()) + Sat(expires_in) * Sat(1000);
 
 		let mut value = expires_at.0.to_be_bytes().to_vec();
@@ -1352,7 +1598,7 @@ impl Service {
 	pub fn create_login_token(&self, user_id: &UserId, token: &str) -> u64 {
 		use std::num::Saturating as Sat;
 
-		let expires_in = self.services.server.config.login_token_ttl;
+		let expires_in = self.services.config.login_token_ttl;
 		let expires_at = Sat(utils::millis_since_unix_epoch()) + Sat(expires_in);
 
 		let value = (expires_at.0, user_id);

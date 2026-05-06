@@ -30,14 +30,37 @@ pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 		.issue_token(self.sender_or_service_user().into(), expires);
 
 	self.write_str(&format!(
-		"New registration token issued: `{token}`. {}.",
+		"New registration token issued: `{token}` . {}.",
 		if let Some(expires) = info.expires {
 			format!("{expires}")
 		} else {
 			"Never expires".to_owned()
 		}
 	))
-	.await
+	.await?;
+
+	if self
+		.services
+		.config
+		.oauth
+		.compatibility_mode
+		.oauth_available()
+	{
+		self.write_str(&format!(
+			"\nInvite link using this token: {}",
+			self.services
+				.config
+				.get_client_domain()
+				.join(&format!(
+					"{}/account/register/?flow=trusted&token={token}",
+					conduwuit::ROUTE_PREFIX
+				))
+				.unwrap()
+		))
+		.await?;
+	}
+
+	Ok(())
 }
 
 #[admin_command]

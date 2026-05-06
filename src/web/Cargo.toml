@@ -46,6 +46,8 @@ tower-sessions = { version = "0.15.0", default-features = false, features = ["ax
 tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
 serde_urlencoded.workspace = true
 url.workspace = true
+recaptcha-verify = { version = "0.2.0", default-features = false }
+reqwest_recaptcha = { package = "reqwest", version = "0.12.28", default-features = false, features = ["rustls-tls-native-roots-no-provider"]  } # As long as recaptcha-verify's reqwest is outdated
 
 [build-dependencies]
 memory-serve = "2.1.0"

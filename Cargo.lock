@@ -1117,6 +1117,8 @@ dependencies = [
  "lettre",
  "memory-serve",
  "rand 0.10.1",
+ "recaptcha-verify",
+ "reqwest 0.12.28",
  "ruma",
  "serde",
  "serde_json",
