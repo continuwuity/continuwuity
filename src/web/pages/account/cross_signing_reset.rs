@@ -1,9 +1,9 @@
-use axum::{Router, extract::State, routing::on};
+use axum::{Extension, Router, extract::State, routing::on};
 use conduwuit_service::oauth::OAuthTicket;
 
 use crate::{
 	extract::PostForm,
-	pages::{GET_POST, Result, components::UserCard},
+	pages::{GET_POST, Result, TemplateContext, components::UserCard},
 	response,
 	session::{LoginTarget, User},
 	template,
@@ -28,6 +28,7 @@ enum CrossSigningResetBody {
 
 async fn route_cross_signing_reset(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	PostForm(form): PostForm<()>,
 ) -> Result {
@@ -39,8 +40,8 @@ async fn route_cross_signing_reset(
 			.oauth
 			.issue_ticket(user_id.localpart().to_owned(), OAuthTicket::CrossSigningReset);
 
-		response!(CrossSigningReset::new(&services, user_card, CrossSigningResetBody::Success))
+		response!(CrossSigningReset::new(context, user_card, CrossSigningResetBody::Success))
 	} else {
-		response!(CrossSigningReset::new(&services, user_card, CrossSigningResetBody::Form))
+		response!(CrossSigningReset::new(context, user_card, CrossSigningResetBody::Form))
 	}
 }

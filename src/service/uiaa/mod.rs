@@ -452,147 +452,144 @@ impl Service {
 					))
 				}
 			},
-			| UiaaSessionMetadata::Legacy { identity } => {
-				match auth {
-					| AuthData::Dummy(_) => Ok(AuthType::Dummy),
-					| AuthData::EmailIdentity(EmailIdentity {
-						thirdparty_id_creds: ThirdpartyIdCredentials { client_secret, sid, .. },
-						..
-					}) => {
-						match self
-							.services
-							.threepid
-							.get_valid_session(sid, client_secret)
-							.await
-						{
-							| Ok(session) => {
-								let email = session.consume();
+			| UiaaSessionMetadata::Legacy { identity } => match auth {
+				| AuthData::Dummy(_) => Ok(AuthType::Dummy),
+				| AuthData::EmailIdentity(EmailIdentity {
+					thirdparty_id_creds: ThirdpartyIdCredentials { client_secret, sid, .. },
+					..
+				}) => {
+					match self
+						.services
+						.threepid
+						.get_valid_session(sid, client_secret)
+						.await
+					{
+						| Ok(session) => {
+							let email = session.consume();
 
-								if let Some(localpart) =
-									self.services.threepid.get_localpart_for_email(&email).await
-								{
-									identity.try_set_localpart(localpart)?;
-								}
+							if let Some(localpart) =
+								self.services.threepid.get_localpart_for_email(&email).await
+							{
+								identity.try_set_localpart(localpart)?;
+							}
 
+							identity.try_set_email(email)?;
+
+							Ok(AuthType::EmailIdentity)
+						},
+						| Err(message) => Err(StandardErrorBody::new(
+							ErrorKind::ThreepidAuthFailed,
+							message.into_owned(),
+						)),
+					}
+				},
+				#[allow(clippy::useless_let_if_seq)]
+				| AuthData::Password(Password { identifier, password, .. }) => {
+					let user_id_or_localpart = match identifier {
+						| UserIdentifier::Matrix(MatrixUserIdentifier { user, .. }) =>
+							user.to_owned(),
+						| UserIdentifier::Email(EmailUserIdentifier { address, .. }) => {
+							let Ok(email) = Address::try_from(address.to_owned()) else {
+								return Err(StandardErrorBody::new(
+									ErrorKind::InvalidParam,
+									"Email is malformed".to_owned(),
+								));
+							};
+
+							if let Some(localpart) =
+								self.services.threepid.get_localpart_for_email(&email).await
+							{
 								identity.try_set_email(email)?;
 
-								Ok(AuthType::EmailIdentity)
-							},
-							| Err(message) => Err(StandardErrorBody::new(
-								ErrorKind::ThreepidAuthFailed,
-								message.into_owned(),
-							)),
-						}
-					},
-					#[allow(clippy::useless_let_if_seq)]
-					| AuthData::Password(Password { identifier, password, .. }) => {
-						let user_id_or_localpart = match identifier {
-							| UserIdentifier::Matrix(MatrixUserIdentifier { user, .. }) =>
-								user.to_owned(),
-							| UserIdentifier::Email(EmailUserIdentifier { address, .. }) => {
-								let Ok(email) = Address::try_from(address.to_owned()) else {
-									return Err(StandardErrorBody::new(
-										ErrorKind::InvalidParam,
-										"Email is malformed".to_owned(),
-									));
-								};
-
-								if let Some(localpart) =
-									self.services.threepid.get_localpart_for_email(&email).await
-								{
-									identity.try_set_email(email)?;
-
-									localpart
-								} else {
-									return Err(StandardErrorBody::new(
-										ErrorKind::Forbidden,
-										"Invalid identifier or password".to_owned(),
-									));
-								}
-							},
-							| _ =>
+								localpart
+							} else {
 								return Err(StandardErrorBody::new(
-									ErrorKind::Unrecognized,
-									"Identifier type not recognized".to_owned(),
-								)),
-						};
-
-						let Ok(user_id) = UserId::parse_with_server_name(
-							user_id_or_localpart,
-							self.services.globals.server_name(),
-						) else {
-							return Err(StandardErrorBody::new(
-								ErrorKind::InvalidParam,
-								"User ID is malformed".to_owned(),
-							));
-						};
-
-						if self
-							.services
-							.users
-							.check_password(&user_id, password)
-							.await
-							.is_ok()
-						{
-							identity.try_set_localpart(user_id.localpart().to_owned())?;
-
-							Ok(AuthType::Password)
-						} else {
-							Err(StandardErrorBody::new(
-								ErrorKind::Forbidden,
-								"Invalid identifier or password".to_owned(),
-							))
-						}
-					},
-					| AuthData::ReCaptcha(ReCaptcha { response, .. }) => {
-						let Some(ref private_site_key) =
-							self.services.config.recaptcha_private_site_key
-						else {
-							return Err(StandardErrorBody::new(
-								ErrorKind::Forbidden,
-								"ReCaptcha is not configured".to_owned(),
-							));
-						};
-
-						match recaptcha_verify::verify_v3(private_site_key, response, None).await
-						{
-							| Ok(()) => Ok(AuthType::ReCaptcha),
-							| Err(e) => {
-								error!("ReCaptcha verification failed: {e:?}");
-								Err(StandardErrorBody::new(
 									ErrorKind::Forbidden,
-									"ReCaptcha verification failed".to_owned(),
-								))
-							},
-						}
-					},
-					| AuthData::RegistrationToken(RegistrationToken { token, .. }) => {
-						let token = token.trim().to_owned();
+									"Invalid identifier or password".to_owned(),
+								));
+							}
+						},
+						| _ =>
+							return Err(StandardErrorBody::new(
+								ErrorKind::Unrecognized,
+								"Identifier type not recognized".to_owned(),
+							)),
+					};
 
-						if let Some(valid_token) = self
-							.services
-							.registration_tokens
-							.validate_token(token)
-							.await
-						{
-							self.services
-								.registration_tokens
-								.mark_token_as_used(valid_token);
+					let Ok(user_id) = UserId::parse_with_server_name(
+						user_id_or_localpart,
+						self.services.globals.server_name(),
+					) else {
+						return Err(StandardErrorBody::new(
+							ErrorKind::InvalidParam,
+							"User ID is malformed".to_owned(),
+						));
+					};
 
-							Ok(AuthType::RegistrationToken)
-						} else {
+					if self
+						.services
+						.users
+						.check_password(&user_id, password)
+						.await
+						.is_ok()
+					{
+						identity.try_set_localpart(user_id.localpart().to_owned())?;
+
+						Ok(AuthType::Password)
+					} else {
+						Err(StandardErrorBody::new(
+							ErrorKind::Forbidden,
+							"Invalid identifier or password".to_owned(),
+						))
+					}
+				},
+				| AuthData::ReCaptcha(ReCaptcha { response, .. }) => {
+					let Some(ref private_site_key) =
+						self.services.config.recaptcha_private_site_key
+					else {
+						return Err(StandardErrorBody::new(
+							ErrorKind::Forbidden,
+							"ReCaptcha is not configured".to_owned(),
+						));
+					};
+
+					match recaptcha_verify::verify_v3(private_site_key, response, None).await {
+						| Ok(()) => Ok(AuthType::ReCaptcha),
+						| Err(e) => {
+							error!("ReCaptcha verification failed: {e:?}");
 							Err(StandardErrorBody::new(
 								ErrorKind::Forbidden,
-								"Invalid registration token".to_owned(),
+								"ReCaptcha verification failed".to_owned(),
 							))
-						}
-					},
-					| AuthData::Terms(_) => Ok(AuthType::Terms),
-					| _ => Err(StandardErrorBody::new(
-						ErrorKind::Unrecognized,
-						"Unsupported stage type".into(),
-					)),
-				}
+						},
+					}
+				},
+				| AuthData::RegistrationToken(RegistrationToken { token, .. }) => {
+					let token = token.trim().to_owned();
+
+					if let Some(valid_token) = self
+						.services
+						.registration_tokens
+						.validate_token(token)
+						.await
+					{
+						self.services
+							.registration_tokens
+							.mark_token_as_used(valid_token);
+
+						Ok(AuthType::RegistrationToken)
+					} else {
+						Err(StandardErrorBody::new(
+							ErrorKind::Forbidden,
+							"Invalid registration token".to_owned(),
+						))
+					}
+				},
+				| AuthData::Terms(_) => Ok(AuthType::Terms),
+				| _ => Err(StandardErrorBody::new(
+					ErrorKind::Unrecognized,
+					"Unsupported stage type".into(),
+				)),
 			},
 		}?;
 

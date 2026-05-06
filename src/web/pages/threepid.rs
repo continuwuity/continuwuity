@@ -1,5 +1,5 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, State, rejection::QueryRejection},
 	response::IntoResponse,
 	routing::get,
@@ -7,7 +7,7 @@ use axum::{
 use ruma::OwnedSessionId;
 use serde::Deserialize;
 
-use crate::{WebError, template};
+use crate::{WebError, pages::TemplateContext, template};
 
 template! {
 	struct ThreepidValidation use "threepid_validation.html.j2" {}
@@ -25,6 +25,7 @@ struct ThreepidValidationQuery {
 
 async fn threepid_validation(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	query: Result<Query<ThreepidValidationQuery>, QueryRejection>,
 ) -> Result<impl IntoResponse, WebError> {
 	let Query(query) = query?;
@@ -35,5 +36,5 @@ async fn threepid_validation(
 		.await
 		.map_err(|message| WebError::BadRequest(message.into_owned()))?;
 
-	Ok(ThreepidValidation::new(&services))
+	Ok(ThreepidValidation::new(context))
 }

@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, RawQuery, State},
 	response::{IntoResponse, Redirect},
 	routing::{get, on},
@@ -17,7 +17,7 @@ use tower_sessions::Session;
 use crate::{
 	ROUTE_PREFIX, WebError,
 	extract::{Expect, PostForm},
-	pages::{GET_POST, Result, components::UserCard},
+	pages::{GET_POST, Result, TemplateContext, components::UserCard},
 	response,
 	session::{LoginQuery, LoginTarget, User, UserSession},
 	template,
@@ -55,6 +55,7 @@ struct LoginForm {
 
 async fn route_login(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	Expect(Query(LoginQuery { next, reauthenticate })): Expect<Query<LoginQuery>>,
 	session_store: Session,
 	user: User,
@@ -78,13 +79,16 @@ async fn route_login(
 		},
 	};
 
-	let mut template = Login::new(&services, body, next != LoginTarget::Account, None);
+	let mut template = Login::new(context, body, next != LoginTarget::Account, None);
 
 	if let Some(form) = form {
 		let login_result = match (user_id, form.identifier) {
 			| (Some(user_id), _) => {
 				// The user is already authenticated, we need to check their password
-				services.users.check_password(&user_id, &form.password).await
+				services
+					.users
+					.check_password(&user_id, &form.password)
+					.await
 			},
 			| (None, Some(identifier)) => {
 				// The user isn't authenticated, we need to log them in

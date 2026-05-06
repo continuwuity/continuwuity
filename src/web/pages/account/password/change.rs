@@ -1,4 +1,4 @@
-use axum::{Router, extract::State, routing::on};
+use axum::{Extension, Router, extract::State, routing::on};
 use conduwuit_service::users::HashedPassword;
 use ruma::UserId;
 use validator::{Validate, ValidationError, ValidationErrors};
@@ -7,7 +7,7 @@ use crate::{
 	extract::PostForm,
 	form,
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		components::{UserCard, form::Form},
 	},
 	response,
@@ -61,6 +61,7 @@ form! {
 
 async fn route_change_password(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	PostForm(form): PostForm<ChangePasswordForm>,
 ) -> Result {
@@ -70,13 +71,14 @@ async fn route_change_password(
 	let body = if let Some(form) = form {
 		match change_password(&services, &user_id, form).await {
 			| Ok(()) => ChangePasswordBody::Success,
-			| Err(errors) => ChangePasswordBody::Form(ChangePasswordForm::with_errors(errors)),
+			| Err(errors) =>
+				ChangePasswordBody::Form(ChangePasswordForm::with_errors(context.clone(), errors)),
 		}
 	} else {
-		ChangePasswordBody::Form(ChangePasswordForm::build())
+		ChangePasswordBody::Form(ChangePasswordForm::build(context.clone()))
 	};
 
-	response!(ChangePassword::new(&services, user_card, body))
+	response!(ChangePassword::new(context, user_card, body))
 }
 
 async fn change_password(
@@ -86,7 +88,9 @@ async fn change_password(
 ) -> Result<(), ValidationErrors> {
 	form.validate()?;
 
-	if services.users.check_password(user_id, &form.current_password)
+	if services
+		.users
+		.check_password(user_id, &form.current_password)
 		.await
 		.is_err()
 	{
@@ -100,10 +104,10 @@ async fn change_password(
 	}
 
 	match HashedPassword::new(&form.new_password) {
-		Ok(hash) => {
+		| Ok(hash) => {
 			services.users.set_password(user_id, Some(hash));
 		},
-		Err(err) => {
+		| Err(err) => {
 			let mut errors = ValidationErrors::new();
 			errors.add(
 				"new_password",
@@ -111,7 +115,7 @@ async fn change_password(
 			);
 
 			return Err(errors);
-		}
+		},
 	}
 
 	Ok(())

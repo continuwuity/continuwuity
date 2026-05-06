@@ -1,5 +1,5 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, State},
 	response::Redirect,
 	routing::get,
@@ -17,7 +17,7 @@ use crate::{
 	WebError,
 	extract::Expect,
 	pages::{
-		Result,
+		Result, TemplateContext,
 		components::{DeviceCard, DeviceCardStyle, UserCard},
 	},
 	response,
@@ -62,7 +62,11 @@ template! {
 	}
 }
 
-async fn get_account(State(services): State<crate::State>, user: User) -> Result {
+async fn get_account(
+	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
+	user: User,
+) -> Result {
 	let user_id = user.expect(LoginTarget::Account)?;
 
 	let email_requirement = services.threepid.email_requirement();
@@ -105,7 +109,7 @@ async fn get_account(State(services): State<crate::State>, user: User) -> Result
 		.collect()
 		.await;
 
-	response!(Account::new(&services, user_card, email_requirement, email, device_cards))
+	response!(Account::new(context, user_card, email_requirement, email, device_cards))
 }
 
 #[derive(Deserialize)]
