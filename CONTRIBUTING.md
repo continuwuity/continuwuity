@@ -137,9 +137,9 @@ The allowed types for commits are:
 
 Examples:
 ```
-feat: add user authentication
-fix(database): resolve connection pooling issue
-docs: update installation instructions
+feat: Add user authentication
+fix(database): Resolve connection pooling issue
+docs: Update installation instructions
 ```
 
 The project uses the `committed` hook to validate commit messages in pre-commit. This ensures all commits follow the conventional format.
