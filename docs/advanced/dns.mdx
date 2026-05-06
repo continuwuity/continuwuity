@@ -74,13 +74,11 @@ Some values that are commonly tuned include:
 
 - Increase `discard-timeout` to something like `4800` to wait longer for upstream resolvers, as recursion can take a long time to respond to some domains. Continuwuity default to `dns_timeout = 10` seconds, so dropping requests early would lead to unnecessary retries and/or failures.
 
-### Using a forwarder (optional)
+### Recursion versus forwarding
 
-Unbound by default employs **recursive resolution** and contacts many servers around the world. If this is not performant enough, consider forwarding your queries to public resolvers to benefit from their CDNs and get faster responses.
+Unbound by default employs **recursive resolution** and contacts many servers around the world. While this allows updated and authoritative answers and are generally viable for most users, sometimes these recursive queries can be too slow to fully resolve. As an alternative, you can consider **forwarding** your queries to public resolvers, and benefit from faster responses from their CDNs.
 
-However, most popular upstreams (such as Google DNS or Quad9) employ IP ratelimiting, so a generous cache is still needed to avoid making too many queries.
-
-DNS-over-TLS forwarders may also be used should you need on-the-wire encryption, but TLS overhead causes some speed penalties.
+Do note that most popular upstreams (such as Google DNS or Quad9) employ IP ratelimiting, so a generous cache is still needed to avoid making too many queries.
 
 If you want to use forwarders, configure it as follows:
 
@@ -99,6 +97,8 @@ forward-zone:
     # forward-addr: 2606:4700:4700::1111@53
 
 # alternatively, use DNS-over-TLS for forwarders.
+# this will encrypt traffic between you and the forwarder,
+# but takes more time due to TLS overhead.
 # forward-zone:
     # name: "."
     # forward-tls-upstream: yes
@@ -133,9 +133,11 @@ However, `dnsmasq` does not support TCP fallback which can be problematic when r
 
 [arch-linux-dnsmasq]: https://wiki.archlinux.org/title/Dnsmasq
 
-### Technitium
+### Technitium DNS
 
-[Technitium][technitium] supports recursion as well as a myriad of forwarding protocols, allows saving cache to disk natively, and does work well with Continuwuity. Its default configurations however ratelimits single-IP requests by a lot, and hence must be changed. You may consult this [community guide][technitium-continuwuity] for more details on setting up a dedicated Technitium for Continuwuity.
+[Technitium DNS Server][technitium] supports recursion as well as a myriad of forwarding protocols, allows saving cache to disk natively, and does work well with Continuwuity. Its out-of-the-box configs however ratelimits single-IP requests by a lot, and hence must be changed.
+
+You may consult this [community guide][technitium-continuwuity] for more details on setting up and fine-tuning a dedicated Technitium instance for Continuwuity.
 
 [technitium]: https://github.com/TechnitiumSoftware/DnsServer
 [technitium-continuwuity]: https://muoi.me/~stratself/articles/technitium-continuwuity/
@@ -150,11 +152,13 @@ Note that it is expected that not all servers will be resolved, as some of them 
 
 ## Further steps
 
-- (Recommended) Set **`dns_cache_entries = 0`** inside Continuwuity and fully rely on the more performant external resolver.
+It is recommended to set **`dns_cache_entries = 0`** inside Continuwuity to fully rely on the external resolver. While Continuwuity does have an internal cache, it can run into reliability issues if you're federating with many domains.
+
+Additionally, you can also make the following improvements:
 
 - Consider employing **persistent cache to disk**, so your resolver can still run without hassle after a restart. Unbound, via [Cache DB module][unbound-cachedb], can use Redis as a storage backend for this feature.
 
-- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs. Since most Matrix homeservers have static IPs, this should help improve federation with them especially when upstream resolvers have timed out. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
+- Consider [enabling **Serve Stale**][unbound-serve-stale] functionality to serve expired data beyond DNS TTLs. Since most Matrix homeservers have static IPs, this should still allow federating with them when upstream resolvers have timed out. For dnsproxy, this corresponds to its [optimistic caching options][dnsproxy-usage].
 
 - If you still experience DNS performance issues, another step could be to **disable DNSSEC** (which is computationally expensive) at a cost of slightly decreased security. On Unbound this is done by commenting out `trust-anchors` config options and removing the `validator` module.
 
