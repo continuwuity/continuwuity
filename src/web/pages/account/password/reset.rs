@@ -28,18 +28,18 @@ use crate::{
 
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
-		.route("/", on(GET_POST, route_reset_password_request))
-		.route("/validate", on(GET_POST, route_reset_password))
+		.route("/", on(GET_POST, route_reset_password))
+		.route("/validate", on(GET_POST, route_reset_password_validate))
 }
 
 template! {
-	struct ResetPasswordRequest use "reset_password_request.html.j2" {
-		body: ResetPasswordRequestBody
+	struct ResetPassword use "reset_password.html.j2" {
+		body: ResetPasswordBody
 	}
 }
 
 #[derive(Debug)]
-enum ResetPasswordRequestBody {
+enum ResetPasswordBody {
 	Form(Form<'static>),
 	Unavailable,
 }
@@ -55,24 +55,21 @@ form! {
 	}
 }
 
-async fn route_reset_password_request(
+async fn route_reset_password(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	PostForm(form): PostForm<ResetPasswordRequestForm>,
 ) -> Result {
 	// Check if SMTP is configured
 	if services.mailer.mailer().is_none() {
-		return response!(ResetPasswordRequest::new(
-			context,
-			ResetPasswordRequestBody::Unavailable
-		));
+		return response!(ResetPassword::new(context, ResetPasswordBody::Unavailable));
 	}
 
 	let Some(form) = form else {
 		// For GET requests return the reset request form
-		return response!(ResetPasswordRequest::new(
+		return response!(ResetPassword::new(
 			context.clone(),
-			ResetPasswordRequestBody::Form(ResetPasswordRequestForm::build(context))
+			ResetPasswordBody::Form(ResetPasswordRequestForm::build(context))
 		));
 	};
 
@@ -118,21 +115,24 @@ async fn route_reset_password_request(
 		ValidationSessions::generate_session_id()
 	});
 
-	response!(ResetPassword::new(context, ResetPasswordBody::ValidationPending {
-		client_secret,
-		session_id,
-		validation_error: false
-	}))
+	response!(ResetPasswordValidate::new(
+		context,
+		ResetPasswordValidateBody::ValidationPending {
+			client_secret,
+			session_id,
+			validation_error: false
+		}
+	))
 }
 
 template! {
-	struct ResetPassword use "reset_password.html.j2" {
-		body: ResetPasswordBody
+	struct ResetPasswordValidate use "reset_password_validate.html.j2" {
+		body: ResetPasswordValidateBody
 	}
 }
 
 #[derive(Debug)]
-enum ResetPasswordBody {
+enum ResetPasswordValidateBody {
 	ValidationPending {
 		session_id: OwnedSessionId,
 		client_secret: OwnedClientSecret,
@@ -173,7 +173,7 @@ struct ResetPasswordQuery {
 	threepid: ThreepidQuery,
 }
 
-async fn route_reset_password(
+async fn route_reset_password_validate(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	Expect(Query(query)): Expect<Query<ResetPasswordQuery>>,
@@ -203,7 +203,7 @@ async fn route_reset_password(
 
 			if let Some(form) = form {
 				if let Err(err) = form.validate() {
-					ResetPasswordBody::ValidationSuccess {
+					ResetPasswordValidateBody::ValidationSuccess {
 						user_card,
 						form: ResetPasswordForm::with_errors(context.clone(), err),
 					}
@@ -214,7 +214,7 @@ async fn route_reset_password(
 
 							services.users.set_password(&user_id, Some(hash));
 
-							ResetPasswordBody::ResetSuccess { user_card }
+							ResetPasswordValidateBody::ResetSuccess { user_card }
 						},
 						| Err(err) => {
 							let mut errors = ValidationErrors::new();
@@ -225,7 +225,7 @@ async fn route_reset_password(
 									.with_message(err.message().into()),
 							);
 
-							ResetPasswordBody::ValidationSuccess {
+							ResetPasswordValidateBody::ValidationSuccess {
 								user_card,
 								form: ResetPasswordForm::with_errors(context.clone(), errors),
 							}
@@ -233,18 +233,18 @@ async fn route_reset_password(
 					}
 				}
 			} else {
-				ResetPasswordBody::ValidationSuccess {
+				ResetPasswordValidateBody::ValidationSuccess {
 					user_card,
 					form: ResetPasswordForm::build(context.clone()),
 				}
 			}
 		},
-		| Err(_) => ResetPasswordBody::ValidationPending {
+		| Err(_) => ResetPasswordValidateBody::ValidationPending {
 			session_id: query.threepid.session_id,
 			client_secret: query.threepid.client_secret,
 			validation_error: true,
 		},
 	};
 
-	response!(ResetPassword::new(context, body))
+	response!(ResetPasswordValidate::new(context, body))
 }

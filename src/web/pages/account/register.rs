@@ -31,7 +31,7 @@ const COMPLETED_REGISTRATION_KEY: &str = "completed_registration";
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
 		.route("/", on(GET_POST, route_register))
-		.route("/validate", get(get_register_confirm_email))
+		.route("/validate", get(get_register_email_validate))
 }
 
 template! {
@@ -225,7 +225,7 @@ async fn route_register(
 }
 
 template! {
-	struct RegisterConfirmEmail use "register_confirm_email.html.j2" {
+	struct RegisterEmailValidate use "register_email_validate.html.j2" {
 		session_id: OwnedSessionId,
 		client_secret: OwnedClientSecret,
 		validation_error: bool
@@ -233,18 +233,18 @@ template! {
 }
 
 #[derive(Deserialize, Serialize)]
-struct RegisterConfirmEmailQuery {
+struct RegisterEmailValidateQuery {
 	#[serde(flatten)]
 	threepid: ThreepidQuery,
 }
 
-async fn get_register_confirm_email(
+async fn get_register_email_validate(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	session_store: Session,
-	Expect(Query(RegisterConfirmEmailQuery {
+	Expect(Query(RegisterEmailValidateQuery {
 		threepid: ThreepidQuery { client_secret, session_id },
-	})): Expect<Query<RegisterConfirmEmailQuery>>,
+	})): Expect<Query<RegisterEmailValidateQuery>>,
 ) -> Result {
 	let Some(completed_registration) = session_store
 		.get::<CompletedRegistration>(COMPLETED_REGISTRATION_KEY)
@@ -261,7 +261,7 @@ async fn get_register_confirm_email(
 		.get_valid_session(&session_id, &client_secret)
 		.await
 	else {
-		return response!(RegisterConfirmEmail::new(context, session_id, client_secret, true,));
+		return response!(RegisterEmailValidate::new(context, session_id, client_secret, true,));
 	};
 
 	let email = session.consume();
@@ -451,7 +451,9 @@ async fn begin_registration(
 			.await
 			.expect("should have been able to serialize completed registration");
 
-		Ok(response!(RegisterConfirmEmail::new(context, session_id, client_secret, false,)))
+		Ok(response!(
+			RegisterEmailValidate::new(context, session_id, client_secret, false,)
+		))
 	} else {
 		// If email isn't required we can immediately complete registration
 		complete_registration(services, session_store, completed_registration, None).await;
