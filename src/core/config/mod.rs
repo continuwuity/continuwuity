@@ -663,6 +663,17 @@ pub struct Config {
 	#[serde(default)]
 	pub oauth: OauthConfig,
 
+	/// Controls whether users are allowed to deactivate their own accounts
+	/// through the account management panel or their Matrix clients. Server
+	/// admins can always deactivate users using the relevant admin commands.
+	///
+	/// Note that, in some jurisdictions, you may be legally required to honor
+	/// users who request to deactivate their accounts if you set this option
+	/// to `false`.
+	///
+	/// default: true
+	pub allow_deactivation: bool,
+
 	/// Controls whether encrypted rooms and events are allowed.
 	#[serde(default = "true_fn")]
 	pub allow_encryption: bool,

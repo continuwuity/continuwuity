@@ -5,9 +5,18 @@ Deactivate your account
 {%- endblock -%}
 
 {%- block content -%}
+{% match body %}
+    {% when DeactivateBody::Form { .. } | DeactivateBody::Success %}
 <div class="panel">
+    {% when DeactivateBody::Unavailable %}
+<div class="panel middle"/>
+{% endmatch %}
     <h1>Deactivate your account <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
     {% match body %}
+        {% when DeactivateBody::Unavailable %}
+            <p>
+                To deactivate your account, contact your homeserver's administrator.
+            </p>
         {% when DeactivateBody::Form { user_id, user_card, form } %}
             {{ user_card }}
             <p>
