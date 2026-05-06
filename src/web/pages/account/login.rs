@@ -17,7 +17,11 @@ use tower_sessions::Session;
 use crate::{
 	ROUTE_PREFIX, WebError,
 	extract::{Expect, PostForm},
-	pages::{GET_POST, Result, TemplateContext, components::UserCard},
+	pages::{
+		GET_POST, Result, TemplateContext,
+		account::register::{TrustedFlowStatus, UntrustedFlowStatus, registration_flow_status},
+		components::UserCard,
+	},
 	response,
 	session::{LoginQuery, LoginTarget, User, UserSession},
 	template,
@@ -41,6 +45,7 @@ template! {
 enum LoginBody {
 	Unauthenticated {
 		server_name: String,
+		registration_available: bool,
 	},
 	Authenticated {
 		user_card: UserCard,
@@ -65,8 +70,20 @@ async fn route_login(
 	let user_id = user.into_session().map(|session| session.user_id);
 
 	let body = match &user_id {
-		| None => LoginBody::Unauthenticated {
-			server_name: services.globals.server_name().to_string(),
+		| None => {
+			let (trusted_flow_status, untrusted_flow_status) =
+				registration_flow_status(&services).await;
+
+			LoginBody::Unauthenticated {
+				server_name: services.globals.server_name().to_string(),
+				registration_available: matches!(
+					trusted_flow_status,
+					TrustedFlowStatus::Available
+				) || matches!(
+					untrusted_flow_status,
+					UntrustedFlowStatus::Available { .. }
+				),
+			}
 		},
 		| Some(user_id) => {
 			if !reauthenticate {

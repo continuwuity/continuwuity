@@ -11,7 +11,7 @@ Log in
 {%- block content -%}
 <div class="panel narrow">
     {% match body %}
-        {% when LoginBody::Unauthenticated { server_name } %}
+        {% when LoginBody::Unauthenticated { server_name, registration_available } %}
             <h1 class="with-matrix-icon">
                 {% if has_next %}
                     Log in to continue
@@ -37,6 +37,12 @@ Log in
                 </p>
                 <button type="submit">Log in</button>
             </form>
+            <div class="centered-links">
+                {% if registration_available %}
+                    <a href="{{ crate::ROUTE_PREFIX }}/account/register/">Sign up</a>
+                {% endif %}
+                <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
+            </div>
         {% when LoginBody::Authenticated { user_card } %}
             <h1>Confirm your identity</h1>
             {{ user_card }}
@@ -48,10 +54,12 @@ Log in
                 </p>
                 <button type="submit">Continue</button>
             </form>
+            <div class="centered-links">
+                <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
+            </div>
     {% endmatch %}
     {% if let Some(error) = login_error %}
         <small class="error">{{ error }}</small>
     {% endif %}
-    <a class="reset-password" href="password/reset/"><i>Forgot your password?</i></a>
 </div>
 {%- endblock -%}

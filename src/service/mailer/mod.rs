@@ -92,8 +92,8 @@ impl Mailer<'_> {
 
 		let message = MessageBuilder::new()
 			.from(self.sender.clone())
-			.to(recipient)
-			.subject(subject)
+			.to(recipient.clone())
+			.subject(subject.clone())
 			.date_now()
 			.header(ContentType::TEXT_PLAIN)
 			.body(body)
@@ -103,6 +103,8 @@ impl Mailer<'_> {
 			.send(message)
 			.await
 			.map_err(|err: TransportError| err!("Failed to send message: {err}"))?;
+
+		info!(recipient = recipient.to_string(), ?subject, "Email sent");
 
 		Ok(())
 	}
