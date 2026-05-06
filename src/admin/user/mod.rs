@@ -161,8 +161,19 @@ pub enum UserCommand {
 	ListUsers,
 
 	/// Lists all the rooms (local and remote) that the specified user is
+	///   invited to
+	ListInvitedRooms {
+		user_id: String,
+	},
+
+	/// Lists all the rooms (local and remote) that the specified user is
 	///   joined in
 	ListJoinedRooms {
+		user_id: String,
+	},
+
+	/// Manually make a user reject all current invites
+	ForceRejectInvites {
 		user_id: String,
 	},
 

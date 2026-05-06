@@ -428,6 +428,82 @@ pub(super) async fn deactivate_all(&self, no_leave_rooms: bool, force: bool) -> 
 }
 
 #[admin_command]
+pub(super) async fn list_invited_rooms(&self, user_id: String) -> Result {
+	// Validate user id
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+
+	let mut rooms: Vec<((OwnedRoomId, u64, String), Result<OwnedUserId>)> = self
+		.services
+		.rooms
+		.state_cache
+		.rooms_invited(&user_id)
+		.then(async |(room_id, _)| {
+			let sender = self
+				.services
+				.rooms
+				.state_cache
+				.invite_sender(&user_id, &room_id)
+				.await;
+			(get_room_info(self.services, &room_id).await, sender)
+		})
+		.collect()
+		.await;
+
+	if rooms.is_empty() {
+		return Err!("User is not invited to any rooms.");
+	}
+
+	rooms.sort_by_key(|r| r.0.1);
+	rooms.reverse();
+
+	let body = rooms
+		.iter()
+		.map(|((id, members, name), sender)| match sender {
+			| Ok(user_id) =>
+				format!("{id}\tInviter: {user_id}\tMembers: {members}\tName: {name}"),
+			| Err(_) => format!("{id}\tMembers: {members}\tName: {name}"),
+		})
+		.collect::<Vec<_>>()
+		.join("\n");
+
+	self.write_str(&format!("Rooms {user_id} is Invited to ({}):\n```\n{body}\n```", rooms.len()))
+		.await
+}
+
+#[admin_command]
+pub(super) async fn force_reject_invites(&self, user_id: String) -> Result {
+	let user_id = parse_local_user_id(self.services, &user_id)?;
+
+	assert!(
+		self.services.globals.user_is_local(&user_id),
+		"Parsed user_id must be a local user"
+	);
+
+	let fails = self
+		.services
+		.rooms
+		.state_cache
+		.rooms_invited(&user_id)
+		.filter_map(async |(room_id, _)| {
+			match leave_room(self.services, &user_id, &room_id, None).await {
+				| Err(ref e) => {
+					warn!(%user_id, "Failed to leave {room_id} remotely: {e}");
+					Some(())
+				},
+				| Ok(()) => None,
+			}
+		})
+		.count()
+		.await;
+
+	if fails > 0 {
+		return Err!("{fails} invites could not be rejected");
+	}
+
+	self.write_str("Successfully rejected all invites.").await
+}
+
+#[admin_command]
 pub(super) async fn list_joined_rooms(&self, user_id: String) -> Result {
 	// Validate user id
 	let user_id = parse_local_user_id(self.services, &user_id)?;
