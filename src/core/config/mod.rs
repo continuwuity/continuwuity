@@ -4,7 +4,7 @@ pub mod manager;
 pub mod proxy;
 
 use std::{
-	collections::{BTreeMap, BTreeSet, HashMap},
+	collections::{BTreeMap, BTreeSet},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	path::PathBuf,
 };
@@ -655,19 +655,9 @@ pub struct Config {
 	/// even if `recaptcha_site_key` is set.
 	pub recaptcha_private_site_key: Option<String>,
 
-	/// Policy documents, such as terms and conditions or a privacy policy,
-	/// which users must agree to when registering an account.
-	///
-	/// Example:
-	/// ```ignore
-	/// [global.registration_terms.privacy_policy]
-	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
-	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
-	/// ```
-	///
-	/// default: {}
+	/// display: nested
 	#[serde(default)]
-	pub registration_terms: HashMap<String, HashMap<String, TermsDocument>>,
+	pub registration_terms: RegistrationTerms,
 
 	/// display: nested
 	#[serde(default)]
@@ -2353,6 +2343,31 @@ pub struct SmtpConfig {
 	/// default: false
 	#[serde(default)]
 	pub require_email_for_token_registration: bool,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.registration-terms",
+	optional = "true"
+)]
+pub struct RegistrationTerms {
+	/// The language code to provide to clients along with the policy documents.
+	///
+	/// default: "en"
+	pub language: String,
+	/// Policy documents, such as terms and conditions or a privacy policy,
+	/// which users must agree to when registering an account.
+	///
+	/// Example:
+	/// ```ignore
+	/// [global.registration_terms.documents.privacy_policy]
+	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
+	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
+	/// ```
+	///
+	/// default: {}
+	pub documents: BTreeMap<String, TermsDocument>,
 }
 
 /// A policy document for use with a m.login.terms stage.

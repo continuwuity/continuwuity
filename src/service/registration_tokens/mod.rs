@@ -10,6 +10,7 @@ use futures::{
 	stream::{iter, once},
 };
 use ruma::OwnedUserId;
+use serde::{Deserialize, Serialize};
 
 use crate::{Dep, config, firstrun};
 
@@ -27,7 +28,7 @@ struct Services {
 }
 
 /// A validated registration token which may be used to create an account.
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ValidToken {
 	pub token: String,
 	pub source: ValidTokenSource,
@@ -44,7 +45,7 @@ impl PartialEq<str> for ValidToken {
 }
 
 /// The source of a valid database token.
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub enum ValidTokenSource {
 	/// The static token set in the homeserver's config file.
 	Config,

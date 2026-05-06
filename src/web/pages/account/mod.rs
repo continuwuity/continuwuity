@@ -31,6 +31,7 @@ pub(crate) mod device;
 pub(crate) mod email;
 pub(crate) mod login;
 pub(crate) mod password;
+pub(crate) mod register;
 
 pub(crate) fn build() -> Router<crate::State> {
 	#[allow(clippy::wildcard_imports)]
@@ -45,6 +46,7 @@ pub(crate) fn build() -> Router<crate::State> {
 		.nest("/cross_signing_reset", cross_signing_reset::build())
 		.nest("/deactivate", deactivate::build())
 		.nest("/device/", device::build())
+		.nest("/register/", register::build())
 }
 
 #[derive(Deserialize, Serialize)]

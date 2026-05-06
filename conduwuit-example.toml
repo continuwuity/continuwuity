@@ -521,18 +521,6 @@
 #
 #recaptcha_private_site_key =
 
-# Policy documents, such as terms and conditions or a privacy policy,
-# which users must agree to when registering an account.
-#
-# Example:
-# ```ignore
-# [global.registration_terms.privacy_policy]
-# en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
-# es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
-# ```
-#
-#registration_terms = {}
-
 # Controls whether encrypted rooms and events are allowed.
 #
 #allow_encryption = true
@@ -1987,6 +1975,24 @@
 # `require_email_for_registration`.
 #
 #require_email_for_token_registration = false
+
+#[global.registration-terms]
+
+# The language code to provide to clients along with the policy documents.
+#
+#language = "en"
+
+# Policy documents, such as terms and conditions or a privacy policy,
+# which users must agree to when registering an account.
+#
+# Example:
+# ```ignore
+# [global.registration_terms.documents.privacy_policy]
+# en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
+# es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
+# ```
+#
+#documents = {}
 
 #[global.oauth]
 
