@@ -13,7 +13,7 @@ use conduwuit_service::{
 use futures::StreamExt;
 use lettre::{Address, message::Mailbox};
 use ruma::{ClientSecret, OwnedClientSecret, OwnedServerName, OwnedSessionId, OwnedUserId};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::IgnoredAny};
 use tower_sessions::Session;
 use validator::{Validate, ValidationError, ValidationErrors};
 
@@ -127,6 +127,16 @@ async fn route_register(
 	Expect(Query(query)): Expect<Query<RegistrationQuery>>,
 	PostForm(form): PostForm<RegistrationForm>,
 ) -> Result {
+	if session_store
+		.get::<IgnoredAny>(User::KEY)
+		.await
+		.unwrap()
+		.is_some()
+	{
+		// Redirect already logged-in users to the account panel
+		return response!(Redirect::to(&LoginTarget::Account.target_path()));
+	}
+
 	let validation_errors = if let Some(form) = form {
 		match form.validate() {
 			| Ok(()) => {
@@ -246,6 +256,14 @@ async fn get_register_email_validate(
 		threepid: ThreepidQuery { client_secret, session_id },
 	})): Expect<Query<RegisterEmailValidateQuery>>,
 ) -> Result {
+	let Ok(session) = services
+		.threepid
+		.get_valid_session(&session_id, &client_secret)
+		.await
+	else {
+		return response!(RegisterEmailValidate::new(context, session_id, client_secret, true));
+	};
+
 	let Some(completed_registration) = session_store
 		.get::<CompletedRegistration>(COMPLETED_REGISTRATION_KEY)
 		.await
@@ -254,14 +272,6 @@ async fn get_register_email_validate(
 		return response!(WebError::BadRequest(
 			"Inapplicable session. What are you doing here?".to_owned()
 		));
-	};
-
-	let Ok(session) = services
-		.threepid
-		.get_valid_session(&session_id, &client_secret)
-		.await
-	else {
-		return response!(RegisterEmailValidate::new(context, session_id, client_secret, true,));
 	};
 
 	let email = session.consume();
