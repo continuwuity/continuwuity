@@ -1,58 +1,54 @@
 # Setting up TURN/STUN
 
-[TURN](https://en.wikipedia.org/wiki/Traversal_Using_Relays_around_NAT) and [STUN](https://en.wikipedia.org/wiki/STUN) are used as a component in many calling systems. Matrix uses them directly for legacy calls and indirectly for MatrixRTC via Livekit.
+[TURN][turn] and [STUN][stun] are used as a component in many calling systems. Matrix uses them directly for legacy calls and indirectly for MatrixRTC via Livekit.
 
-Continuwuity recommends using [Coturn](https://github.com/coturn/coturn) as your TURN/STUN server, which is available as a Docker image or a distro package.
+Continuwuity recommends using [Coturn][coturn] as your TURN/STUN server, which is available as a Docker image or a distro package.
+
+[turn]: https://en.wikipedia.org/wiki/Traversal_Using_Relays_around_NAT
+[stun]: https://en.wikipedia.org/wiki/STUN
+[coturn]: https://github.com/coturn/coturn
 
 ## Installing Coturn
 
-### Configuration
+### 1. Domain
+
+Coturn should live on its own domain or subdomain. In this guide we use `coturn.example.com` - this should be replaced with a domain you control.
+
+### 2. Configuration
 
 Create a configuration file called `coturn.conf` containing:
 
 ```ini
 use-auth-secret
 static-auth-secret=<a secret key>
-realm=<your server domain>
+realm=coturn.example.com
 ```
 
-:::tip Generating a secure secret
-A common way to generate a suitable alphanumeric secret key is by using:
+:::tip Tip: Generate a long, secure secret with the following command
 ```bash
 pwgen -s 64 1
 ```
 :::
 
-#### Port Configuration
-
-By default, coturn uses the following ports:
-- `3478` (UDP/TCP): Standard TURN/STUN port
-- `5349` (UDP/TCP): TURN/STUN over TLS
-- `49152-65535` (UDP): Media relay ports
-
-If you're also running LiveKit, you'll need to avoid port conflicts. Configure non-overlapping port ranges:
+If you want to enable TURN-over-TLS (TURNS), add the appropriate cert/key paths to your `coturn.conf` by adding the following lines:
 
 ```ini
-# In coturn.conf
-min-port=50201
-max-port=65535
+cert=/etc/letsencrypt/coturn.example.com.crt
+pkey=/etc/letsencrypt/coturn.example.com.key
 ```
 
-This leaves ports `50100-50200` available for LiveKit's default configuration.
+The cert and key must be encoded in PEM format and are readable by the coturn user.
 
-### Running with Docker
+### 3. Running the coturn container
 
-Run the [Coturn](https://hub.docker.com/r/coturn/coturn) image using:
+Next, we will start the Coturn container with the [official image][coturn-image]. **Host networking mode** will be used, as it is better for performance and reduces configuration complexity (see [Coturn Docker docs][coturn-docker-docs] for rationale).
 
-```bash
-docker run -d --network=host \
-  -v $(pwd)/coturn.conf:/etc/coturn/turnserver.conf \
-  coturn/coturn
-```
+[coturn-image]: https://hub.docker.com/r/coturn/coturn
+[coturn-docker-docs]: https://github.com/coturn/coturn/blob/master/docker/coturn/README.md#why-so-many-ports-opened
 
-### Running with Docker Compose
+#### With Docker Compose (recommended)
 
-Create a `docker-compose.yml` file and run `docker compose up -d`:
+Create a `docker-compose.yml` file as follows and run `docker compose up -d`:
 
 ```yaml
 version: '3'
@@ -64,31 +60,73 @@ services:
     network_mode: "host"
     volumes:
       - ./coturn.conf:/etc/coturn/turnserver.conf
+      # replace this with actual paths to your certificates
+      - /path/to/certs:/etc/letsencrypt
 ```
 
-:::info Why host networking?
-Coturn uses host networking mode because it needs to bind to multiple ports and work with various network protocols. Using host networking is better for performance, and reduces configuration complexity. To understand alternative configuration options, visit [Coturn's Docker documentation](https://github.com/coturn/coturn/blob/master/docker/coturn/README.md).
+#### With Docker
+
+```bash
+docker run -d --network=host \
+  -v $(pwd)/coturn.conf:/etc/coturn/turnserver.conf \
+  -v /path/to/certs:/etc/letsencrypt # replace this with actual paths to your certificates
+  coturn/coturn
+```
+
+### 4. Opening ports
+
+By default, coturn uses the following ports:
+- `3478` (UDP/TCP): Standard TURN/STUN port
+- `5349` (UDP/TCP): TURN/STUN over TLS
+- `49152-65535` (UDP): Media relay ports
+
+You will need to allow them through your firewall. If you use UFW, the commands are: 
+
+```bash
+ufw allow 3478/udp
+ufw allow 3478/tcp
+ufw allow 5349/tcp
+ufw allow 5349/udp
+ufw allow 49152-65535/udp
+```
+
+::: tip For LiveKit users
+
+If you're also running LiveKit, you'll need configure non-overlapping port ranges to avoid port conflicts:
+
+```ini
+# In coturn.conf
+min-port=50201
+max-port=65535
+```
+
+```bash
+# With ufw
+ufw allow 50201:65535/udp
+```
+
+This leaves ports `50100-50200` available for LiveKit's default configuration.
+
 :::
 
-### Security Recommendations
+### 5. Security Recommendations
 
-For security best practices, see Synapse's [Coturn documentation](https://element-hq.github.io/synapse/latest/turn-howto.html), which includes important firewall and access control recommendations.
+For Coturn hardening and security best practices, see Synapse's [Coturn documentation][synapse-coturn-guide],
+which includes important firewall and access control recommendations.
+
+[synapse-coturn-guide]: https://element-hq.github.io/synapse/latest/setup/turn/coturn.html#configuration
 
 ## Configuring Continuwuity
 
 Once your TURN server is running, configure Continuwuity to provide credentials to clients. Add the following to your Continuwuity configuration file:
 
-### Shared Secret Authentication (Recommended)
-
-This is the most secure method and generates time-limited credentials automatically:
-
 ```toml
 # TURN URIs that clients should connect to
 turn_uris = [
-    "turn:coturn.example.com?transport=udp",
-    "turn:coturn.example.com?transport=tcp",
-    "turns:coturn.example.com?transport=udp",
-    "turns:coturn.example.com?transport=tcp"
+    "turn:coturn.example.com:3478?transport=udp",
+    "turn:coturn.example.com:3478?transport=tcp",
+    # Add this if you're using TURN-over-TLS (note the `turns:` prefix)
+    "turns:coturn.example.com:5349?transport=tcp"
 ]
 
 # Shared secret for generating credentials (must match coturn's static-auth-secret)
@@ -98,54 +136,18 @@ turn_secret = "<your coturn static-auth-secret>"
 # turn_secret_file = "/etc/continuwuity/.turn_secret"
 
 # TTL for generated credentials in seconds (default: 86400 = 24 hours)
-turn_ttl = 86400
+turn_ttl = 10800
 ```
 
-:::tip Using TLS
-The `turns:` URI prefix instructs clients to connect to TURN over TLS, which is highly recommended for security. Make sure you've configured TLS in your coturn server first.
-:::
-
-### Static Credentials (Alternative)
-
-If you prefer static username/password credentials instead of shared secrets:
-
-```toml
-turn_uris = [
-    "turn:coturn.example.com?transport=udp",
-    "turn:coturn.example.com?transport=tcp"
-]
-
-turn_username = "your_username"
-turn_password = "your_password"
-```
-
-:::warning
-Static credentials are less secure than shared secrets because they don't expire and must be configured in coturn separately. It is strongly advised you use shared secret authentication.
-:::
-
-### Guest Access
-
-By default, TURN credentials require client authentication. To allow unauthenticated access:
-
-```toml
-turn_allow_guests = true
-```
-
-:::caution
-This is not recommended as it allows unauthenticated users to access your TURN server, potentially enabling abuse by bots. All major Matrix clients that support legacy calls *also* support authenticated TURN access.
-:::
-
-### Important Notes
-
-- Replace `coturn.example.com` with your actual TURN server domain (the `realm` from coturn.conf)
-- The `turn_secret` must match the `static-auth-secret` in your coturn configuration
-- Restart or reload Continuwuity after making configuration changes
+Restart Continuwuity, and the new changes should now be applied.
 
 ## Testing Your TURN Server
 
 ### Testing Credentials
 
-Verify that Continuwuity is correctly serving TURN credentials to clients:
+Get an access token for your current login session. These can be found in your client's settings or obtained via [this website](https://timedout.uk/mxtoken.html).
+
+Then, using that token, verify that Continuwuity is correctly serving TURN credentials to clients:
 
 ```bash
 curl "https://matrix.example.com/_matrix/client/r0/voip/turnServer" \
@@ -159,7 +161,6 @@ You should receive a response like this:
   "username": "1752792167:@jade:example.com",
   "password": "KjlDlawdPbU9mvP4bhdV/2c/h65=",
   "uris": [
-    "turns:coturn.example.com?transport=udp",
     "turns:coturn.example.com?transport=tcp",
     "turn:coturn.example.com?transport=udp",
     "turn:coturn.example.com?transport=tcp"
@@ -168,47 +169,107 @@ You should receive a response like this:
 }
 ```
 
-:::note MSC4166 Compliance
-If no TURN URIs are configured (`turn_uris` is empty), Continuwuity will return a 404 Not Found response, as specified in MSC4166.
-:::
-
 ### Testing Connectivity
 
-Use [Trickle ICE](https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/) to verify that the TURN credentials actually work:
+Open the [Trickle ICE][trickle-ice] testing page in a browser and then:
 
-1. Copy the credentials from the response above
-2. Paste them into the Trickle ICE testing tool
-3. Click "Gather candidates"
-4. Look for successful `relay` candidates in the results
+1. Copy the URIs and credentials from the response above
+2. Paste them into the Trickle ICE testing tool, and click on "Add server"
+3. When finished adding all URIs and credentials, click "Gather candidates"
 
-If you see relay candidates, your TURN server is working correctly!
+If you see `relay` candidates in the results, your TURN/STUN server is working correctly! You should now be able to place and receive legacy calls.
+
+[trickle-ice]: https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
 
 ## Troubleshooting
 
-### Clients can't connect to TURN server
+### Errors with Trickle ICE
 
-- Verify firewall rules allow the necessary ports (3478, 5349, and your media port range)
-- Check that DNS resolves correctly for your TURN domain
-- Ensure your `turn_secret` matches coturn's `static-auth-secret`
-- Test with Trickle ICE to isolate the issue
+- `code=701` - the TURN server is not reachable
+  - Verify firewall rules allow the necessary ports (3478, 5349, and your media port range)
+  - Check that DNS resolves correctly for your TURN domain
+- `code=401` - unauthorized credentials
+  - Ensure your `turn_secret` matches coturn's `static-auth-secret`
+  - Ensure the credentials you obtained from the Testing steps has not expired yet. You can adjust `turn_ttl` in your Continuwuity configuration to increase this, or simply re-request a new one
 
-### Port conflicts with LiveKit
+### 404 when calling the turnServer endpoint
 
-- Make sure coturn's `min-port` starts above LiveKit's `port_range_end` (default: 50200)
-- Or adjust LiveKit's port range to avoid coturn's default range
+This is the correct response when no TURN servers are configured, as per [MSC4166][msc4166]. Verify that your `turn_uris` is not empty in your Continuwuity config and try again.
 
-### 404 when calling turnServer endpoint
+[msc4166]: https://github.com/matrix-org/matrix-spec-proposals/pull/4166
 
-- Verify that `turn_uris` is not empty in your Continuwuity config
-- This behavior is correct per MSC4166 if no TURN URIs are configured
-
-### Credentials expire too quickly
-
-- Adjust the `turn_ttl` value in your Continuwuity configuration
-- Default is 86400 seconds (24 hours)
-
-### Related Documentation
+## Related Documentation
 
 - [MatrixRTC/LiveKit Setup](./livekit.mdx) - Configure group calling with LiveKit
-- [Coturn GitHub](https://github.com/coturn/coturn) - Official coturn repository
-- [Synapse TURN Guide](https://element-hq.github.io/synapse/latest/turn-howto.html) - Additional security recommendations
+- [Coturn GitHub][coturn] - Official coturn repository
+- [Synapse TURN Guide][synapse-turn-guide] - TURN server guide for Synapse
+- [Synapse Coturn Guide][synapse-coturn-guide] - Additional security recommendations
+
+[synapse-turn-guide]: https://element-hq.github.io/synapse/latest/turn-howto.html
+
+## Appendix
+
+### Using Eturnal
+
+If you instead prefer to use [eturnal][eturnal], you can refer to the guides below:
+
+- [Community guidance][eturnal-continuwuity] on using eturnal with Legacy Calls, LiveKit calls, and more
+- Synapse's [eturnal documentation][synapse-eturnal-guide]
+
+[eturnal]: https://eturnal.net
+[eturnal-continuwuity]: https://muoi.me/~stratself/articles/an-eturnal-to-rule-them-all/
+[synapse-eturnal-guide]: https://element-hq.github.io/synapse/latest/setup/turn/eturnal.html
+
+### Unsafe TURN setups
+
+These TURN setups are available, but **not recommended** due to security issues. They are only included for completeness.
+
+<details>
+
+<summary>Using static credentials</summary>
+
+If you prefer static username/password credentials instead of shared secrets:
+
+```ini
+# In coturn.conf
+
+# Comment out options to use a secret
+# use-auth-secret
+# static-auth-secret=<a secret key>
+
+# Define a username-password pair
+user=your_username:your_password
+```
+
+```toml
+# In continuwuity.toml
+turn_uris = [
+    "turn:coturn.example.com?transport=udp",
+    "turn:coturn.example.com?transport=tcp"
+]
+
+turn_username = "your_username"
+turn_password = "your_password"
+```
+
+:::caution
+Static credentials are less secure than shared secrets because they don't expire and must be configured in coturn separately. It is strongly advised you use shared secret authentication.
+:::
+
+</details>
+
+<details>
+
+<summary>Allowing guest access</summary>
+
+By default, TURN credentials require client authentication. To allow unauthenticated access:
+
+```toml
+turn_allow_guests = true
+```
+
+:::caution
+This is not recommended as it allows unauthenticated users to access your TURN server, potentially enabling abuse by bots. All major Matrix clients that support legacy calls *also* support authenticated TURN access.
+:::
+
+</details>
