@@ -6,7 +6,7 @@ use std::{
 use askama::Template;
 use async_trait::async_trait;
 use conduwuit::{Result, info, utils::ReadyExt};
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use ruma::{UserId, events::room::message::RoomMessageEventContent};
 
 use crate::{
