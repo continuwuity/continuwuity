@@ -30,6 +30,7 @@ template! {
 #[derive(Debug)]
 #[allow(clippy::large_enum_variant)]
 enum DeactivateBody {
+	Unavailable,
 	Form {
 		user_id: OwnedUserId,
 		user_card: UserCard,
@@ -67,7 +68,9 @@ async fn route_deactivate(
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
 	let body = {
-		if let Some(form) = form {
+		if !services.config.allow_deactivation {
+			DeactivateBody::Unavailable
+		} else if let Some(form) = form {
 			if let Err(err) = validate_deactivate_form(&services, &user_id, form).await {
 				DeactivateBody::Form {
 					user_id,
