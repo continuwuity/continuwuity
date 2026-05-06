@@ -25,13 +25,13 @@ use crate::{
 
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
-		.route("/change/", on(GET_POST, route_change_email_request))
-		.route("/change/validate", get(get_change_email))
+		.route("/change/", on(GET_POST, route_change_email))
+		.route("/change/validate", get(get_change_email_validate))
 		.route("/change/delete", post(post_delete_email))
 }
 
 template! {
-	struct ChangeEmailRequest use "change_email_request.html.j2" {
+	struct ChangeEmail use "change_email.html.j2" {
 		user_card: UserCard,
 		email: Option<String>,
 		form: Form<'static>,
@@ -40,7 +40,7 @@ template! {
 }
 
 form! {
-	struct ChangeEmailRequestForm {
+	struct ChangeEmailForm {
 		email: Address where {
 			input_type: "email",
 			label: "Email address"
@@ -51,9 +51,9 @@ form! {
 }
 
 template! {
-	struct ChangeEmail use "change_email.html.j2" {
+	struct ChangeEmailValidate use "change_email_validate.html.j2" {
 		user_card: UserCard,
-		body: ChangeEmailBody
+		body: ChangeEmailValidateBody
 	}
 }
 
@@ -64,7 +64,7 @@ template! {
 }
 
 #[derive(Debug)]
-enum ChangeEmailBody {
+enum ChangeEmailValidateBody {
 	ValidationPending {
 		session_id: OwnedSessionId,
 		client_secret: OwnedClientSecret,
@@ -73,16 +73,16 @@ enum ChangeEmailBody {
 	Success,
 }
 
-async fn route_change_email_request(
+async fn route_change_email(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	user: User,
-	PostForm(form): PostForm<ChangeEmailRequestForm>,
+	PostForm(form): PostForm<ChangeEmailForm>,
 ) -> Result {
 	let user_id = user.expect_recent(LoginTarget::ChangeEmail)?;
 
 	let Some(form) = form else {
-		return response!(ChangeEmailRequest::new(
+		return response!(ChangeEmail::new(
 			context.clone(),
 			UserCard::for_local_user(&services, user_id.clone()).await,
 			services
@@ -90,7 +90,7 @@ async fn route_change_email_request(
 				.get_email_for_localpart(user_id.localpart())
 				.await
 				.map(|address| address.to_string()),
-			ChangeEmailRequestForm::build(context),
+			ChangeEmailForm::build(context),
 			services.threepid.email_requirement().may_remove(),
 		));
 	};
@@ -128,10 +128,10 @@ async fn route_change_email_request(
 		}
 	};
 
-	response!(ChangeEmail::new(
+	response!(ChangeEmailValidate::new(
 		context,
 		UserCard::for_local_user(&services, user_id).await,
-		ChangeEmailBody::ValidationPending {
+		ChangeEmailValidateBody::ValidationPending {
 			session_id,
 			client_secret,
 			validation_error: false
@@ -145,7 +145,7 @@ struct ChangeEmailQuery {
 	threepid: ThreepidQuery,
 }
 
-async fn get_change_email(
+async fn get_change_email_validate(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	Expect(Query(ChangeEmailQuery {
@@ -165,10 +165,10 @@ async fn get_change_email(
 		.get_valid_session(&session_id, &client_secret)
 		.await
 	else {
-		return response!(ChangeEmail::new(
+		return response!(ChangeEmailValidate::new(
 			context,
 			user_card,
-			ChangeEmailBody::ValidationPending {
+			ChangeEmailValidateBody::ValidationPending {
 				session_id,
 				client_secret,
 				validation_error: true
@@ -186,7 +186,7 @@ async fn get_change_email(
 		return response!(BadRequest(err.message()));
 	}
 
-	response!(ChangeEmail::new(context, user_card, ChangeEmailBody::Success))
+	response!(ChangeEmailValidate::new(context, user_card, ChangeEmailValidateBody::Success))
 }
 
 async fn post_delete_email(
