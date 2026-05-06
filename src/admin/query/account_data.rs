@@ -1,7 +1,8 @@
 use clap::Subcommand;
 use conduwuit::Result;
+use conduwuit_database::Deserialized as _;
 use futures::StreamExt;
-use ruma::{OwnedRoomId, OwnedUserId};
+use ruma::{OwnedRoomId, OwnedUserId, exports::serde::Serialize};
 
 use crate::{admin_command, admin_command_dispatch};
 
@@ -58,13 +59,22 @@ async fn account_data_get(
 	room_id: Option<OwnedRoomId>,
 ) -> Result {
 	let timer = tokio::time::Instant::now();
-	let results = self
+	let result = self
 		.services
 		.account_data
 		.get_raw(room_id.as_deref(), &user_id, &kind)
 		.await;
 	let query_time = timer.elapsed();
 
-	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```"))
+	let json = serde_json::to_string_pretty(&match room_id {
+		| None => result
+			.deserialized::<ruma::serde::Raw<ruma::events::AnyGlobalAccountDataEvent>>()?
+			.serialize(serde_json::value::Serializer)?,
+		| Some(_) => result
+			.deserialized::<ruma::serde::Raw<ruma::events::AnyRoomAccountDataEvent>>()?
+			.serialize(serde_json::value::Serializer)?,
+	})?;
+
+	self.write_str(&format!("Query completed in {query_time:?}:\n\n```rs\n{json}\n```"))
 		.await
 }
