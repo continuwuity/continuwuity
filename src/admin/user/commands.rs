@@ -471,7 +471,7 @@ pub(super) async fn list_invited_rooms(&self, user_id: String) -> Result {
 }
 
 #[admin_command]
-pub(super) async fn force_reject_invites(&self, user_id: String) -> Result {
+pub(super) async fn reject_all_invites(&self, user_id: String) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
 
 	assert!(
@@ -487,7 +487,7 @@ pub(super) async fn force_reject_invites(&self, user_id: String) -> Result {
 		.filter_map(async |(room_id, _)| {
 			match leave_room(self.services, &user_id, &room_id, None).await {
 				| Err(ref e) => {
-					warn!(%user_id, "Failed to leave {room_id} remotely: {e}");
+					warn!(%user_id, "Failed to leave {room_id}: {e}");
 					Some(())
 				},
 				| Ok(()) => None,

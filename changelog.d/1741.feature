@@ -1,1 +1,1 @@
-Add `!admin users force-reject-invites` to clean invite spam
+Add `!admin users reject-all-invites` to clean invite spam
