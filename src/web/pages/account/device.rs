@@ -1,5 +1,5 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Path, State},
 	routing::{get, on},
 };
@@ -12,7 +12,7 @@ use crate::{
 	WebError,
 	extract::{Expect, PostForm},
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		components::{ClientScopes, DeviceCard, DeviceCardStyle},
 	},
 	response,
@@ -35,6 +35,7 @@ template! {
 
 async fn get_device_info(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	Expect(Path(query)): Expect<Path<DevicePath>>,
 ) -> Result {
@@ -65,7 +66,7 @@ async fn get_device_info(
 	let device_card =
 		DeviceCard::for_device(&services, &user_id, device, DeviceCardStyle::Detailed).await;
 
-	response!(DeviceInfo::new(&services, device_card, client_metadata))
+	response!(DeviceInfo::new(context, device_card, client_metadata))
 }
 
 template! {
@@ -90,6 +91,7 @@ pub(crate) struct DevicePath {
 
 async fn route_remove_device(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	Expect(Path(query)): Expect<Path<DevicePath>>,
 	PostForm(form): PostForm<()>,
@@ -110,13 +112,13 @@ async fn route_remove_device(
 			.remove_device(&user_id, &device.device_id)
 			.await;
 
-		response!(RemoveDevice::new(&services, RemoveDeviceBody::Success))
+		response!(RemoveDevice::new(context, RemoveDeviceBody::Success))
 	} else {
 		let device_card =
 			DeviceCard::for_device(&services, &user_id, device, DeviceCardStyle::Minimal).await;
 		let last_device = services.users.all_devices_metadata(&user_id).count().await <= 1;
 
-		response!(RemoveDevice::new(&services, RemoveDeviceBody::Form {
+		response!(RemoveDevice::new(context, RemoveDeviceBody::Form {
 			device_card: Box::new(device_card),
 			last_device
 		}))

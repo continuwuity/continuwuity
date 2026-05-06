@@ -1,4 +1,13 @@
-use axum::{response::Response, routing::MethodFilter};
+use std::sync::Arc;
+
+use axum::{
+	extract::{Request, State},
+	http::{HeaderValue, header},
+	middleware::Next,
+	response::Response,
+	routing::MethodFilter,
+};
+use conduwuit_core::utils;
 
 use crate::WebError;
 
@@ -14,17 +23,42 @@ type Result<T = Response, E = WebError> = std::result::Result<T, E>;
 
 const GET_POST: MethodFilter = MethodFilter::GET.or(MethodFilter::POST);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct TemplateContext {
 	pub allow_indexing: bool,
+	pub csp_nonce: String,
 }
 
-impl From<&crate::State> for TemplateContext {
-	fn from(state: &crate::State) -> Self {
-		Self {
-			allow_indexing: state.config.allow_web_indexing,
-		}
-	}
+const CSP_NONCE_LENGTH: usize = 32;
+
+pub(super) async fn template_context_middleware(
+	State(config): State<Arc<conduwuit_service::config::Service>>,
+	mut request: Request,
+	next: Next,
+) -> Response {
+	let csp_nonce = utils::random_string(CSP_NONCE_LENGTH);
+	let context = TemplateContext {
+		allow_indexing: config.allow_web_indexing,
+		csp_nonce: csp_nonce.clone(),
+	};
+
+	assert!(
+		request.extensions_mut().insert(context).is_none(),
+		"template context should only be inserted once"
+	);
+
+	let mut response = next.run(request).await;
+
+	response.headers_mut().insert(
+		header::CONTENT_SECURITY_POLICY,
+		HeaderValue::from_str(&format!(
+			"default-src 'none'; style-src 'self'; img-src 'self' 'https' data:; script-src \
+			 'nonce-{csp_nonce}';"
+		))
+		.expect("should be able to build CSP header"),
+	);
+
+	response
 }
 
 #[macro_export]
@@ -43,9 +77,9 @@ macro_rules! template {
 
         impl$(<$lifetime>)? $name$(<$lifetime>)? {
             #[allow(clippy::too_many_arguments)]
-            fn new(state: &$crate::State, $($field_name: $field_type,)*) -> Self {
+            fn new(context: $crate::pages::TemplateContext, $($field_name: $field_type,)*) -> Self {
                 Self {
-                    context: state.into(),
+                    context,
                     $($field_name,)*
                 }
             }
