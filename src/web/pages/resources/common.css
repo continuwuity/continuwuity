@@ -108,6 +108,11 @@ em {
     }
 }
 
+hr {
+    border-width: 1px;
+    border-color: var(--secondary);
+}
+
 small {
     color: var(--secondary);
 }
@@ -223,6 +228,7 @@ input {
 input[type="checkbox"] {
     display: inline;
     margin: 0;
+    width: auto !important;
 }
 
 button, a.button {

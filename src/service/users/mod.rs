@@ -9,14 +9,20 @@ use std::{mem, sync::Arc};
 
 pub use account::AccessTokenStatus;
 use conduwuit::{
-	Err, Error, Result, Server, err,
+	Err, Error, Result, err,
 	utils::{self},
 };
 use database::Map;
 use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Raw};
 use serde::{Deserialize, Serialize};
 
-use crate::{Dep, account_data, admin, appservice, globals, oauth, rooms};
+use crate::{
+	Dep, account_data, admin,
+	appservice,
+	config, firstrun, globals, oauth,
+	rooms::{self, alias, membership},
+	threepid,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSuspension {
@@ -31,6 +37,7 @@ pub struct UserSuspension {
 /// A password hash. This is only for use when setting a user's password,
 /// if the hash needs to be kept around for a while without keeping the password
 /// in memory.
+#[derive(Serialize, Deserialize)]
 pub struct HashedPassword(String);
 
 impl HashedPassword {
@@ -47,14 +54,18 @@ pub struct Service {
 }
 
 struct Services {
-	server: Arc<Server>,
 	account_data: Dep<account_data::Service>,
 	admin: Dep<admin::Service>,
+	alias: Dep<alias::Service>,
 	appservice: Dep<appservice::Service>,
+	config: Dep<config::Service>,
+	firstrun: Dep<firstrun::Service>,
 	globals: Dep<globals::Service>,
+	membership: Dep<membership::Service>,
 	oauth: Dep<oauth::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
+	threepid: Dep<threepid::Service>,
 }
 
 struct Data {
@@ -89,15 +100,19 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				server: args.server.clone(),
 				account_data: args.depend::<account_data::Service>("account_data"),
 				admin: args.depend::<admin::Service>("admin"),
+				alias: args.depend::<alias::Service>("alias"),
 				appservice: args.depend::<appservice::Service>("appservice"),
+				config: args.depend::<config::Service>("config"),
+				firstrun: args.depend::<firstrun::Service>("firstrun"),
 				globals: args.depend::<globals::Service>("globals"),
+				membership: args.depend::<membership::Service>("membership"),
 				oauth: args.depend::<oauth::Service>("oauth"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
+				threepid: args.depend::<threepid::Service>("threepid"),
 			},
 			db: Data {
 				keychangeid_userid: args.db["keychangeid_userid"].clone(),

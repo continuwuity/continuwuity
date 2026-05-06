@@ -3,7 +3,8 @@ use futures::StreamExt;
 use service::registration_tokens::TokenExpires;
 
 impl crate::Context<'_> {
-	pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
+	
+pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 		let expires = {
 			if expires.immortal {
 				None
@@ -29,16 +30,39 @@ impl crate::Context<'_> {
 			.services
 			.registration_tokens
 			.issue_token(self.sender_or_service_user().into(), expires);
-
+	
 		self.write_str(&format!(
-			"New registration token issued: `{token}`. {}.",
+			"New registration token issued: `{token}` . {}.",
 			if let Some(expires) = info.expires {
 				format!("{expires}")
 			} else {
 				"Never expires".to_owned()
 			}
 		))
-		.await
+		.await?;
+	
+		if self
+			.services
+			.config
+			.oauth
+			.compatibility_mode
+			.oauth_available()
+		{
+			self.write_str(&format!(
+				"\nInvite link using this token: {}",
+				self.services
+					.config
+					.get_client_domain()
+					.join(&format!(
+						"{}/account/register/?flow=trusted&token={token}",
+						conduwuit::ROUTE_PREFIX
+					))
+					.unwrap()
+			))
+			.await?;
+		}
+	
+		Ok(())
 	}
 
 	pub(super) async fn revoke_token(&self, token: String) -> Result {

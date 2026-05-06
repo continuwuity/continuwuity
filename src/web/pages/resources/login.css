@@ -1,5 +1,62 @@
-.reset-password {
+.centered-links {
     display: flex;
-    width: 100%;
-    justify-content: right;
+    justify-content: space-between;
+
+    :last-child {
+        margin-left: auto;
+    }
+}
+
+.text-rule {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: var(--secondary);
+    margin-bottom: 0.5em;
+}
+
+.text-rule::before, .text-rule::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--secondary);
+}
+
+.text-rule:not(:empty)::before {
+  margin-right: 1rem;
+}
+
+.text-rule:not(:empty)::after {
+  margin-left: 1rem;
+}
+
+.username-input {
+    display: flex;
+    padding: 0.5em;
+    margin-bottom: 0.5em;
+    line-height: 1;
+
+    border-radius: var(--border-radius-sm);
+    border: 2px solid var(--secondary);
+
+    &:has(input:focus-visible) {
+        outline: 2px solid var(--c1);
+        border-color: transparent;
+    }
+
+    input {
+        flex: 1;
+        padding: 0;
+        margin: 0;
+        border: none;
+        outline: none;
+    }
+
+    span {
+        flex: 0;
+        color: var(--secondary);
+
+        &:first-of-type {
+            margin-inline-end: 0.5em;
+        }
+    }
 }

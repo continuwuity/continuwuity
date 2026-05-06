@@ -6,7 +6,7 @@ use std::{
 use askama::Template;
 use async_trait::async_trait;
 use conduwuit::{Result, info, utils::ReadyExt};
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use ruma::{UserId, events::room::message::RoomMessageEventContent};
 
 use crate::{
@@ -87,7 +87,7 @@ impl crate::Service for Service {
 				// first run mode is inactive (already filled inner lock)
 				OnceLock::from(())
 			})
-			.expect("Service worker should only be called once");
+			.expect("service worker should only be called once");
 
 		Ok(())
 	}
@@ -98,7 +98,7 @@ impl Service {
 	pub fn is_first_run(&self) -> bool {
 		self.first_run_marker
 			.get()
-			.expect("First run mode should not be checked during server startup")
+			.expect("first run mode should not be checked during server startup")
 			.get()
 			.is_none()
 	}
@@ -110,7 +110,7 @@ impl Service {
 	fn disable_first_run(&self) -> bool {
 		self.first_run_marker
 			.get()
-			.expect("First run mode should not be disabled during server startup")
+			.expect("first run mode should not be disabled during server startup")
 			.set(())
 			.is_ok()
 	}
@@ -118,9 +118,9 @@ impl Service {
 	/// If first-run mode is active, grant admin powers to the specified user
 	/// and disable first-run mode.
 	///
-	/// Returns Ok(true) if the specified user was the first user, and Ok(false)
+	/// Returns true if the specified user was the first user, and false
 	/// if they were not.
-	pub async fn empower_first_user(&self, user: &UserId) -> Result<bool> {
+	pub async fn empower_first_user(&self, user: &UserId) -> bool {
 		#[derive(Template)]
 		#[template(path = "welcome.md")]
 		struct WelcomeMessage<'a> {
@@ -130,10 +130,14 @@ impl Service {
 
 		// If first run mode isn't active, do nothing.
 		if !self.disable_first_run() {
-			return Ok(false);
+			return false;
 		}
 
-		self.services.admin.make_user_admin(user).boxed().await?;
+		self.services
+			.admin
+			.make_user_admin(user)
+			.await
+			.expect("should have been able to empower the first user");
 
 		// Send the welcome message
 		let welcome_message = WelcomeMessage {
@@ -146,11 +150,12 @@ impl Service {
 		self.services
 			.admin
 			.send_loud_message(RoomMessageEventContent::text_markdown(welcome_message))
-			.await?;
+			.await
+			.expect("should have been able to send welcome message");
 
 		info!("{user} has been invited to the admin room as the first user.");
 
-		Ok(true)
+		true
 	}
 
 	/// Get the single-use registration token which may be used to create the

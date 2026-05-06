@@ -1,18 +1,17 @@
 use std::time::{Duration, SystemTime};
 
 use conduwuit::{
-	Err, debug_error, debug_warn, err, trace, utils,
-	utils::{ReadyExt, stream::TryIgnore},
+	Err, Result, debug_error, debug_warn, err, error, info, trace, utils::{self, ReadyExt, stream::TryIgnore}, warn,
 };
 use database::{Deserialized, Json};
-use futures::{Stream, StreamExt, TryFutureExt};
+use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
+use lettre::Address;
 use ruma::{
-	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
-	events::{GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent},
+	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId, events::{GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent, push_rules::PushRulesEvent, room::message::RoomMessageEventContent}, push::Ruleset,
 };
 use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 
-use crate::users::{HashedPassword, UserSuspension};
+use crate::{appservice::RegistrationInfo, users::{HashedPassword, UserSuspension}};
 
 /// The status of an access token.
 pub enum AccessTokenStatus {
@@ -88,7 +87,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		password: Option<HashedPassword>,
-	) -> conduwuit::Result<()> {
+	) -> Result<()> {
 		if !self.services.globals.user_is_local(user_id) && password.is_some() {
 			return Err!("Cannot create a nonlocal user with a set password");
 		}
@@ -98,9 +97,241 @@ impl super::Service {
 		Ok(())
 	}
 
+	/// Create a new account for a local human or bot user.
+	pub async fn create_local_account(
+		&self,
+		user_id: &UserId,
+		password: HashedPassword,
+		email: Option<Address>,
+	) {
+		self.create(user_id, Some(password))
+			.expect("should be able to save a new local user. what happened?");
+
+		// Set an initial display name
+		{
+			let mut displayname = user_id.localpart().to_owned();
+
+			let suffix = &self.services.config.new_user_displayname_suffix;
+			if !suffix.is_empty() {
+				displayname.push_str(suffix);
+			}
+
+			self.set_displayname(user_id, Some(displayname));
+		};
+
+		// Set default push rules
+		self.services
+			.account_data
+			.update(
+				None,
+				user_id,
+				GlobalAccountDataEventType::PushRules.to_string().into(),
+				&serde_json::to_value(PushRulesEvent::new(
+					Ruleset::server_default(user_id).into(),
+				))
+				.expect("should be able to serialize push rules"),
+			)
+			.await
+			.expect("should be able to update account data");
+
+		// If the user registered with an email, associate it with their account.
+		if let Some(email) = email {
+			// This may fail if the email is already in use, but we should have already
+			// checked that when we sent the validation email, so ignoring the error is
+			// acceptable here in the rare case that an email is sniped by another user
+			// between the validation email being sent and the account being created.
+			let _ = self
+				.services
+				.threepid
+				.associate_localpart_email(user_id.localpart(), &email)
+				.await;
+		}
+
+		// Attempt to empower the first user and disable first-run mode.
+		let was_first_user = self.services.firstrun.empower_first_user(user_id).await;
+
+		// If the registering user was not the first and we're suspending users on
+		// register, suspend them.
+		if !was_first_user && self.services.config.suspend_on_register {
+			// Note that we can still do auto joins for suspended users
+			self.suspend_account(user_id, &self.services.globals.server_user)
+				.await;
+
+			// And send an @room notice to the admin room, to prompt admins to review the
+			// new user and ideally unsuspend them if deemed appropriate.
+			if self.services.config.admin_room_notices {
+				self.services
+					.admin
+					.send_loud_message(RoomMessageEventContent::text_plain(format!(
+						"User {user_id} has been suspended as they are not the first user on \
+						 this server. Please review and unsuspend them if appropriate."
+					)))
+					.await
+					.ok();
+			}
+		}
+
+		// Autojoin the user to the configured autojoin rooms
+		for room in &self.services.config.auto_join_rooms {
+			let Ok(room_id) = self.services.alias.resolve(room).await else {
+				error!(
+					"Failed to resolve room alias to room ID when attempting to auto join \
+					 {room}, skipping"
+				);
+				continue;
+			};
+
+			if !self
+				.services
+				.state_cache
+				.server_in_room(self.services.globals.server_name(), &room_id)
+				.await
+			{
+				warn!(
+					"Skipping room {room} to automatically join as we have never joined before."
+				);
+				continue;
+			}
+
+			if let Some(room_server_name) = room.server_name() {
+				match self
+					.services
+					.membership
+					.join_room(
+						user_id,
+						&room_id,
+						Some("Automatically joining this room upon registration".to_owned()),
+						&[
+							self.services.globals.server_name().to_owned(),
+							room_server_name.to_owned(),
+						],
+					)
+					.boxed()
+					.await
+				{
+					| Err(e) => {
+						// don't return this error so we don't fail registrations
+						error!(
+							"Failed to automatically join room {room} for user {user_id}: {e}"
+						);
+					},
+					| _ => {
+						info!("Automatically joined room {room} for user {user_id}");
+					},
+				}
+			}
+		}
+
+		info!("Created new user account for {user_id}");
+	}
+
+	pub async fn determine_registration_user_id(
+		&self,
+		supplied_username: Option<String>,
+		email: Option<&Address>,
+		appservice_info: Option<&RegistrationInfo>,
+	) -> Result<OwnedUserId> {
+		const RANDOM_USER_ID_LENGTH: usize = 10;
+
+		let emergency_mode_enabled = self.services.config.emergency_password.is_some();
+
+		let supplied_username = supplied_username.or_else(|| {
+			// If the user didn't supply a username but did supply an email, use
+			// the email's user part to avoid falling back to a random username
+			email.map(|address| address.user().to_owned())
+		});
+
+		if let Some(supplied_username) = supplied_username {
+			// The user gets to pick their username. Do some validation to make sure it's
+			// acceptable.
+
+			// Don't allow registration with forbidden usernames.
+			if self
+				.services
+				.globals
+				.forbidden_usernames()
+				.is_match(&supplied_username)
+				&& !emergency_mode_enabled
+			{
+				return Err!(Request(Forbidden("Username is forbidden")));
+			}
+
+			// Create and validate the user ID
+			let user_id = match UserId::parse_with_server_name(
+				&supplied_username,
+				self.services.globals.server_name(),
+			) {
+				| Ok(user_id) => {
+					if let Err(e) = user_id.validate_strict() {
+						// Unless we are in emergency mode, we should follow synapse's behaviour
+						// on not allowing things like spaces and UTF-8 characters in
+						// usernames
+						if !emergency_mode_enabled {
+							return Err!(Request(InvalidUsername(debug_warn!(
+								"Username {supplied_username} contains disallowed characters or \
+								 spaces: {e}"
+							))));
+						}
+					}
+
+					// Don't allow registration with user IDs that aren't local
+					if !self.services.globals.user_is_local(&user_id) {
+						return Err!(Request(InvalidUsername(
+							"Username {supplied_username} is not local to this server"
+						)));
+					}
+
+					user_id
+				},
+				| Err(e) => {
+					return Err!(Request(InvalidUsername(debug_warn!(
+						"Username {supplied_username} is not valid: {e}"
+					))));
+				},
+			};
+
+			if self.exists(&user_id).await {
+				return Err!(Request(UserInUse("User ID is not available.")));
+			}
+
+			// Check that the user ID is/is not in an appservice's namespace
+			if let Some(appservice_info) = appservice_info {
+				if !appservice_info.is_user_match(&user_id) && !emergency_mode_enabled {
+					return Err!(Request(Exclusive(
+						"Username is not in this appservice's namespace."
+					)));
+				}
+			} else if self
+				.services
+				.appservice
+				.is_exclusive_user_id(&user_id)
+				.await && !emergency_mode_enabled
+			{
+				return Err!(Request(Exclusive("Username is reserved by an appservice.")));
+			}
+
+			Ok(user_id)
+		} else {
+			// The user didn't specify a username. Generate a username for
+			// them.
+
+			loop {
+				let user_id = UserId::parse_with_server_name(
+					utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
+					self.services.globals.server_name(),
+				)
+				.unwrap();
+
+				if !self.exists(&user_id).await {
+					break Ok(user_id);
+				}
+			}
+		}
+	}
+
 	/// Deactivates an account, removing all of their device IDs and unsetting
 	/// their password.
-	pub async fn deactivate_account(&self, user_id: &UserId) -> conduwuit::Result<()> {
+	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
 		// Remove all associated devices
 		self.all_device_ids(user_id)
 			.for_each(async |device_id| self.remove_device(user_id, &device_id).await)
@@ -165,7 +396,7 @@ impl super::Service {
 
 	/// Check if account is deactivated (has an empty password). Returns a
 	/// NotFound error if the user does not exist.
-	pub async fn is_deactivated(&self, user_id: &UserId) -> conduwuit::Result<bool> {
+	pub async fn is_deactivated(&self, user_id: &UserId) -> Result<bool> {
 		self.db
 			.userid_password
 			.get(user_id)
@@ -175,7 +406,7 @@ impl super::Service {
 	}
 
 	/// Check if account is suspended. Returns false if the user does not exist.
-	pub async fn is_suspended(&self, user_id: &UserId) -> conduwuit::Result<bool> {
+	pub async fn is_suspended(&self, user_id: &UserId) -> Result<bool> {
 		match self
 			.db
 			.userid_suspension
@@ -195,7 +426,7 @@ impl super::Service {
 
 	/// Returns true if the user is locked. Returns false if the user does not
 	/// exist or is not locked.
-	pub async fn is_locked(&self, user_id: &UserId) -> conduwuit::Result<bool> {
+	pub async fn is_locked(&self, user_id: &UserId) -> Result<bool> {
 		match self
 			.db
 			.userid_lock
@@ -315,7 +546,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		password: &str,
-	) -> conduwuit::Result<OwnedUserId> {
+	) -> Result<OwnedUserId> {
 		let (hash, user_id): (String, OwnedUserId) =
 			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
 				(hash, user_id.to_owned())
@@ -350,10 +581,10 @@ impl super::Service {
 
 	/// Creates an OpenID token, which can be used to prove that a user has
 	/// access to an account (primarily for integrations)
-	pub fn create_openid_token(&self, user_id: &UserId, token: &str) -> conduwuit::Result<u64> {
+	pub fn create_openid_token(&self, user_id: &UserId, token: &str) -> Result<u64> {
 		use std::num::Saturating as Sat;
 
-		let expires_in = self.services.server.config.openid_token_ttl;
+		let expires_in = self.services.config.openid_token_ttl;
 		let expires_at = Sat(utils::millis_since_unix_epoch()) + Sat(expires_in) * Sat(1000);
 
 		let mut value = expires_at.0.to_be_bytes().to_vec();
@@ -367,7 +598,7 @@ impl super::Service {
 	}
 
 	/// Find out which user an OpenID access token belongs to.
-	pub async fn find_from_openid_token(&self, token: &str) -> conduwuit::Result<OwnedUserId> {
+	pub async fn find_from_openid_token(&self, token: &str) -> Result<OwnedUserId> {
 		let Ok(value) = self.db.openidtoken_expiresatuserid.get(token).await else {
 			return Err!(Request(Unauthorized("OpenID token is unrecognised")));
 		};
@@ -397,7 +628,7 @@ impl super::Service {
 	pub fn create_login_token(&self, user_id: &UserId, token: &str) -> u64 {
 		use std::num::Saturating as Sat;
 
-		let expires_in = self.services.server.config.login_token_ttl;
+		let expires_in = self.services.config.login_token_ttl;
 		let expires_at = Sat(utils::millis_since_unix_epoch()) + Sat(expires_in);
 
 		let value = (expires_at.0, user_id);
@@ -408,7 +639,7 @@ impl super::Service {
 
 	/// Find out which user a login token belongs to.
 	/// Removes the token to prevent double-use attacks.
-	pub async fn find_from_login_token(&self, token: &str) -> conduwuit::Result<OwnedUserId> {
+	pub async fn find_from_login_token(&self, token: &str) -> Result<OwnedUserId> {
 		let Ok(value) = self.db.logintoken_expiresatuserid.get(token).await else {
 			return Err!(Request(Forbidden("Login token is unrecognised")));
 		};
