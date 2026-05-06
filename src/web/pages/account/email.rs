@@ -1,5 +1,5 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, State},
 	routing::{get, on, post},
 };
@@ -14,7 +14,7 @@ use crate::{
 	extract::{Expect, PostForm},
 	form,
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		account::ThreepidQuery,
 		components::{UserCard, form::Form},
 	},
@@ -75,25 +75,24 @@ enum ChangeEmailBody {
 
 async fn route_change_email_request(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	PostForm(form): PostForm<ChangeEmailRequestForm>,
 ) -> Result {
 	let user_id = user.expect_recent(LoginTarget::ChangeEmail)?;
 
-	let template = ChangeEmailRequest::new(
-		&services,
-		UserCard::for_local_user(&services, user_id.clone()).await,
-		services
-			.threepid
-			.get_email_for_localpart(user_id.localpart())
-			.await
-			.map(|address| address.to_string()),
-		ChangeEmailRequestForm::build(),
-		services.threepid.email_requirement().may_remove(),
-	);
-
 	let Some(form) = form else {
-		return response!(template);
+		return response!(ChangeEmailRequest::new(
+			context.clone(),
+			UserCard::for_local_user(&services, user_id.clone()).await,
+			services
+				.threepid
+				.get_email_for_localpart(user_id.localpart())
+				.await
+				.map(|address| address.to_string()),
+			ChangeEmailRequestForm::build(context),
+			services.threepid.email_requirement().may_remove(),
+		));
 	};
 
 	let client_secret = ClientSecret::new();
@@ -130,7 +129,7 @@ async fn route_change_email_request(
 	};
 
 	response!(ChangeEmail::new(
-		&services,
+		context,
 		UserCard::for_local_user(&services, user_id).await,
 		ChangeEmailBody::ValidationPending {
 			session_id,
@@ -148,6 +147,7 @@ struct ChangeEmailQuery {
 
 async fn get_change_email(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	Expect(Query(ChangeEmailQuery {
 		threepid: ThreepidQuery { client_secret, session_id },
 	})): Expect<Query<ChangeEmailQuery>>,
@@ -166,7 +166,7 @@ async fn get_change_email(
 		.await
 	else {
 		return response!(ChangeEmail::new(
-			&services,
+			context,
 			user_card,
 			ChangeEmailBody::ValidationPending {
 				session_id,
@@ -186,10 +186,14 @@ async fn get_change_email(
 		return response!(BadRequest(err.message()));
 	}
 
-	response!(ChangeEmail::new(&services, user_card, ChangeEmailBody::Success))
+	response!(ChangeEmail::new(context, user_card, ChangeEmailBody::Success))
 }
 
-async fn post_delete_email(State(services): State<crate::State>, user: User) -> Result {
+async fn post_delete_email(
+	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
+	user: User,
+) -> Result {
 	let user_id = user.expect(LoginTarget::ChangeEmail)?;
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
@@ -202,5 +206,5 @@ async fn post_delete_email(State(services): State<crate::State>, user: User) -> 
 		.disassociate_localpart_email(user_id.localpart())
 		.await;
 
-	response!(DeleteEmail::new(&services, user_card))
+	response!(DeleteEmail::new(context, user_card))
 }

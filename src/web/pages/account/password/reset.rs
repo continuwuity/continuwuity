@@ -1,10 +1,12 @@
 use axum::{
-	Router,
+	Extension, Router,
 	extract::{Query, State},
 	routing::on,
 };
 use conduwuit_core::warn;
-use conduwuit_service::{mailer::messages, threepid::session::ValidationSessions, users::HashedPassword};
+use conduwuit_service::{
+	mailer::messages, threepid::session::ValidationSessions, users::HashedPassword,
+};
 use lettre::{Address, message::Mailbox};
 use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, UserId};
 use serde::{Deserialize, Serialize};
@@ -15,7 +17,7 @@ use crate::{
 	extract::{Expect, PostForm},
 	form,
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		account::ThreepidQuery,
 		components::{UserCard, form::Form},
 	},
@@ -55,12 +57,13 @@ form! {
 
 async fn route_reset_password_request(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	PostForm(form): PostForm<ResetPasswordRequestForm>,
 ) -> Result {
 	// Check if SMTP is configured
 	if services.mailer.mailer().is_none() {
 		return response!(ResetPasswordRequest::new(
-			&services,
+			context,
 			ResetPasswordRequestBody::Unavailable
 		));
 	}
@@ -68,8 +71,8 @@ async fn route_reset_password_request(
 	let Some(form) = form else {
 		// For GET requests return the reset request form
 		return response!(ResetPasswordRequest::new(
-			&services,
-			ResetPasswordRequestBody::Form(ResetPasswordRequestForm::build())
+			context.clone(),
+			ResetPasswordRequestBody::Form(ResetPasswordRequestForm::build(context))
 		));
 	};
 
@@ -115,7 +118,7 @@ async fn route_reset_password_request(
 		ValidationSessions::generate_session_id()
 	});
 
-	response!(ResetPassword::new(&services, ResetPasswordBody::ValidationPending {
+	response!(ResetPassword::new(context, ResetPasswordBody::ValidationPending {
 		client_secret,
 		session_id,
 		validation_error: false
@@ -172,6 +175,7 @@ struct ResetPasswordQuery {
 
 async fn route_reset_password(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	Expect(Query(query)): Expect<Query<ResetPasswordQuery>>,
 	PostForm(form): PostForm<ResetPasswordForm>,
 ) -> Result {
@@ -201,36 +205,37 @@ async fn route_reset_password(
 				if let Err(err) = form.validate() {
 					ResetPasswordBody::ValidationSuccess {
 						user_card,
-						form: ResetPasswordForm::with_errors(err),
+						form: ResetPasswordForm::with_errors(context.clone(), err),
 					}
 				} else {
 					match HashedPassword::new(&form.new_password) {
-						Ok(hash) => {
+						| Ok(hash) => {
 							let _ = session.consume();
 
 							services.users.set_password(&user_id, Some(hash));
 
 							ResetPasswordBody::ResetSuccess { user_card }
 						},
-						Err(err) => {
+						| Err(err) => {
 							let mut errors = ValidationErrors::new();
 
 							errors.add(
 								"new_password",
-								ValidationError::new("malformed").with_message(err.message().into()),
+								ValidationError::new("malformed")
+									.with_message(err.message().into()),
 							);
 
 							ResetPasswordBody::ValidationSuccess {
 								user_card,
-								form: ResetPasswordForm::with_errors(errors),
+								form: ResetPasswordForm::with_errors(context.clone(), errors),
 							}
-						}
+						},
 					}
 				}
 			} else {
 				ResetPasswordBody::ValidationSuccess {
 					user_card,
-					form: ResetPasswordForm::build(),
+					form: ResetPasswordForm::build(context.clone()),
 				}
 			}
 		},
@@ -241,5 +246,5 @@ async fn route_reset_password(
 		},
 	};
 
-	response!(ResetPassword::new(&services, body))
+	response!(ResetPassword::new(context, body))
 }

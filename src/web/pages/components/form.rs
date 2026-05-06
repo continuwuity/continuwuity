@@ -1,10 +1,13 @@
 use askama::{Template, filters::HtmlSafe};
 use validator::ValidationErrors;
 
+use crate::pages::TemplateContext;
+
 /// A reusable form component with field validation.
 #[derive(Debug, Template)]
 #[template(path = "_components/form.html.j2")]
 pub(crate) struct Form<'a> {
+	context: TemplateContext,
 	inputs: Vec<FormInput<'a>>,
 	submit_label: &'a str,
 	slowdown: bool,
@@ -12,8 +15,14 @@ pub(crate) struct Form<'a> {
 }
 
 impl<'a> Form<'a> {
-	pub(crate) fn new(inputs: Vec<FormInput<'a>>, submit_label: &'a str, slowdown: bool) -> Self {
+	pub(crate) fn new(
+		context: TemplateContext,
+		inputs: Vec<FormInput<'a>>,
+		submit_label: &'a str,
+		slowdown: bool,
+	) -> Self {
 		Self {
+			context,
 			inputs,
 			submit_label,
 			slowdown,
@@ -100,8 +109,9 @@ macro_rules! form {
         impl $struct_name {
             /// Generate a [`Form`] which matches the shape of this struct.
             #[allow(clippy::needless_update)]
-            fn build() -> $crate::pages::components::form::Form<'static> {
+            fn build(context: TemplateContext) -> $crate::pages::components::form::Form<'static> {
                 $crate::pages::components::form::Form::new(
+                    context,
                     vec![
                         $(
                             $crate::pages::components::form::FormInput {
@@ -119,8 +129,8 @@ macro_rules! form {
 
             /// Generate a [`Form`] with validation errors.
             #[allow(unused)]
-            fn with_errors(errors: validator::ValidationErrors) -> $crate::pages::components::form::Form<'static> {
-                let mut form = Self::build();
+            fn with_errors(context: TemplateContext, errors: validator::ValidationErrors) -> $crate::pages::components::form::Form<'static> {
+                let mut form = Self::build(context);
                 form.validation_errors = Some(errors);
                 form
             }

@@ -1,4 +1,4 @@
-use axum::{Router, extract::State, routing::on};
+use axum::{Extension, Router, extract::State, routing::on};
 use conduwuit_api::client::full_user_deactivate;
 use futures::StreamExt;
 use ruma::{OwnedRoomId, OwnedUserId, UserId};
@@ -9,7 +9,7 @@ use crate::{
 	extract::PostForm,
 	form,
 	pages::{
-		GET_POST, Result,
+		GET_POST, Result, TemplateContext,
 		components::{UserCard, form::Form},
 	},
 	response,
@@ -28,6 +28,7 @@ template! {
 }
 
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum DeactivateBody {
 	Form {
 		user_id: OwnedUserId,
@@ -57,6 +58,7 @@ form! {
 
 async fn route_deactivate(
 	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
 	user: User,
 	session: Session,
 	PostForm(form): PostForm<DeactivateForm>,
@@ -70,7 +72,7 @@ async fn route_deactivate(
 				DeactivateBody::Form {
 					user_id,
 					user_card,
-					form: DeactivateForm::with_errors(err),
+					form: DeactivateForm::with_errors(context.clone(), err),
 				}
 			} else {
 				let all_joined_rooms: Vec<OwnedRoomId> = services
@@ -90,12 +92,12 @@ async fn route_deactivate(
 			DeactivateBody::Form {
 				user_id,
 				user_card,
-				form: DeactivateForm::build(),
+				form: DeactivateForm::build(context.clone()),
 			}
 		}
 	};
 
-	response!(Deactivate::new(&services, body))
+	response!(Deactivate::new(context, body))
 }
 
 async fn validate_deactivate_form(
@@ -105,7 +107,9 @@ async fn validate_deactivate_form(
 ) -> Result<(), ValidationErrors> {
 	form.validate()?;
 
-	if services.users.check_password(user_id, &form.password)
+	if services
+		.users
+		.check_password(user_id, &form.password)
 		.await
 		.is_err()
 	{

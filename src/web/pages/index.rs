@@ -1,6 +1,6 @@
-use axum::{Router, extract::State, response::IntoResponse, routing::get};
+use axum::{Extension, Router, extract::State, response::IntoResponse, routing::get};
 
-use crate::{WebError, template};
+use crate::{WebError, pages::TemplateContext, template};
 
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
@@ -8,7 +8,10 @@ pub(crate) fn build() -> Router<crate::State> {
 		.route(&format!("{}/", crate::ROUTE_PREFIX), get(index))
 }
 
-async fn index(State(services): State<crate::State>) -> Result<impl IntoResponse, WebError> {
+async fn index(
+	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
+) -> Result<impl IntoResponse, WebError> {
 	template! {
 		struct Index<'a> use "index.html.j2" {
 			server_name: &'a str,
@@ -17,7 +20,7 @@ async fn index(State(services): State<crate::State>) -> Result<impl IntoResponse
 	}
 
 	Ok(Index::new(
-		&services,
+		context,
 		services.globals.server_name().as_str(),
 		services.firstrun.is_first_run(),
 	)

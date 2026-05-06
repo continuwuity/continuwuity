@@ -24,7 +24,7 @@ use ruma::{
 		power_levels::RoomPowerLevelsEventContent,
 	},
 };
-use service::{mailer::messages, users::HashedPassword, uiaa::UiaaInitiator};
+use service::{mailer::messages, uiaa::UiaaInitiator, users::HashedPassword};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::{Ruma, router::ClientIdentity};
