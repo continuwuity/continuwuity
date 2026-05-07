@@ -2372,9 +2372,8 @@ pub struct RegistrationTerms {
 	///
 	/// Example:
 	/// ```ignore
-	/// [global.registration_terms.documents.privacy_policy]
-	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
-	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
+	/// [global.registration_terms.documents]
+	/// privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 	/// ```
 	///
 	/// default: {}
