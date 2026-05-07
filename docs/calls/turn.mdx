@@ -220,7 +220,55 @@ If you instead prefer to use [eturnal][eturnal], you can refer to the guides bel
 [eturnal-continuwuity]: https://muoi.me/~stratself/articles/an-eturnal-to-rule-them-all/
 [synapse-eturnal-guide]: https://element-hq.github.io/synapse/latest/setup/turn/eturnal.html
 
-### Unsafe TURN setups
+### TURNS-over-443
+
+In very restrictive networks where UDP traffic and non-standard ports are disallowed, normal TURN servers are not reachable. To establish connectivity in these scenarios, a common solution is to host a TURN-over-TLS server on port 443, and allow clients to connect to it like any other web traffic.
+
+However, port 443 is usually utilized by other HTTPS services. Therefore, one would need to **multiplex** both the TURN and the HTTPS services, and filter packets to them via **SNI routing**. A layer-4 load balancer, such as [caddy-l4][caddy-l4], can serve this function.
+
+Below is an example of using Caddy-l4 on the host to:
+
+- Route `turn.example.com` to the TURNS port for Coturn without TLS termination, and
+- Route `livekit.example.com` to the [LiveKit services](./livekit.mdx) with TLS termination by Caddy
+
+```
+{
+    servers {
+        listener_wrappers {
+            # intercept packets meant for the TURN domain first
+            # before forwarding other packets to "normal" HTTP listeners
+            layer4 {
+                @turn {
+                    tls {
+                        sni turn.example.com
+                    }
+                }
+                route @turn {
+                    proxy {
+                        upstream 127.0.0.1:5349 # forward to normal TURNS port
+                    }
+                }
+            }
+            tls
+        }
+    }
+}
+
+# livekit stuff
+https://livekit.example.com {
+    @lk-jwt-service path /healthz /get_token /sfu/get
+    route @lk-jwt-service {
+        reverse_proxy 127.0.0.1:8081
+    }
+    reverse_proxy http://127.0.0.1:7880
+}
+```
+
+You can now advertise `turns:turn.example.com:443?transport=tcp` as an address in your `turn_uris` as well as LiveKit. Please note that all traffic from Coturn's perspective will be coming from caddy-l4's IP now.
+
+[caddy-l4]: https://github.com/mholt/caddy-l4
+
+### Unsafe TURN setups (not recommended)
 
 These TURN setups are available, but **not recommended** due to security issues. They are only included for completeness.
 
