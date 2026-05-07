@@ -11,9 +11,9 @@ Log in
 {%- block content -%}
 <div class="panel narrow">
     {% match body %}
-        {% when LoginBody::Unauthenticated { server_name, registration_available } %}
+        {% when LoginBody::Unauthenticated { server_name, registration_available, next } %}
             <h1 class="with-matrix-icon">
-                {% if has_next %}
+                {% if next.is_some() %}
                     Log in to continue
                 {% else %}
                     Log in to Matrix
@@ -39,7 +39,8 @@ Log in
             </form>
             <div class="centered-links">
                 {% if registration_available %}
-                    <a href="{{ crate::ROUTE_PREFIX }}/account/register/">Sign up</a>
+                    {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
+                    <a href="{{ crate::ROUTE_PREFIX }}/account/register/?{{ query }}">Sign up</a>
                 {% endif %}
                 <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
             </div>
