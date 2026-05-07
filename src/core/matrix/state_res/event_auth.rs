@@ -332,8 +332,7 @@ where
 	// If the create event content has the field m.federate set to false and the
 	// sender domain of the event does not match the sender domain of the create
 	// event, reject.
-	if !room_version.room_ids_as_hashes
-		&& !room_create_content.federate
+	if !room_create_content.federate
 		&& room_create_event.sender().server_name() != incoming_event.sender().server_name()
 	{
 		warn!(
