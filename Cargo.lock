@@ -916,7 +916,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "aws-lc-rs",
  "clap",
@@ -954,7 +954,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_admin"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "assign",
  "clap",
@@ -979,7 +979,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_api"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "assign",
  "async-trait",
@@ -1017,7 +1017,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_build_metadata"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "built",
  "cargo_metadata",
@@ -1025,7 +1025,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_core"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "argon2",
  "arrayvec",
@@ -1091,7 +1091,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_database"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "async-channel",
  "conduwuit_core",
@@ -1112,7 +1112,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_macros"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "cargo_toml",
  "itertools 0.14.0",
@@ -1123,7 +1123,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_router"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "assign",
  "axum",
@@ -1161,7 +1161,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_service"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "askama",
  "assign",
@@ -1211,7 +1211,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_web"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "askama",
  "assign",
@@ -4725,7 +4725,7 @@ dependencies = [
 
 [[package]]
 name = "ruminuwuity"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "assign",
  "ruma",
@@ -6828,7 +6828,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "0.5.8"
+version = "0.5.9"
 dependencies = [
  "askama",
  "cargo_metadata",
