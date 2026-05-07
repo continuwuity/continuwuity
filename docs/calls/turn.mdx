@@ -231,6 +231,10 @@ Below is an example of using Caddy-l4 on the host to:
 - Route `turn.example.com` to the TURNS port for Coturn without TLS termination, and
 - Route `livekit.example.com` to the [LiveKit services](./livekit.mdx) with TLS termination by Caddy
 
+<details>
+
+<summary>Caddyfile</summary>
+
 ```
 {
     servers {
@@ -263,6 +267,8 @@ https://livekit.example.com {
     reverse_proxy http://127.0.0.1:7880
 }
 ```
+
+</details>
 
 You can now advertise `turns:turn.example.com:443?transport=tcp` as an address in your `turn_uris` as well as LiveKit. Please note that all traffic from Coturn's perspective will be coming from caddy-l4's IP now.
 
