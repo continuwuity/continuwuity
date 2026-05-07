@@ -11,7 +11,9 @@ Change your email
     {% match body %}
         {% when ChangeEmailValidateBody::ValidationPending { session_id, client_secret, validation_error } %}
             <p>
-                A message has been sent to your new email address with a validation link. If you do not receive the email:
+                A message has been sent to your new email address with a validation link.
+                To finish changing your email, click the link and then return to this page.
+                If you do not receive the email:
                 <ul>
                     <li>Check your spam filter.</li>
                 </ul>
