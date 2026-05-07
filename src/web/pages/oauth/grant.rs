@@ -13,7 +13,7 @@ use crate::{
 	extract::{Expect, PostForm},
 	pages::{
 		GET_POST, Result, TemplateContext,
-		account::register::RegisterQuery,
+		account::register::{RegisterQuery, RequestedRegistrationFlow},
 		components::{Avatar, AvatarType, ClientScopes},
 	},
 	response,
@@ -49,17 +49,24 @@ async fn route_authorization_code(
 	let user_id = if let Some(user) = user.into_session() {
 		user.user_id
 	} else {
+		let is_first_run = services.firstrun.is_first_run();
 		let next = LoginTarget::AuthorizationCode(query.clone());
 
 		let uri = if query
 			.prompt
 			.is_some_and(|prompt| matches!(prompt, Prompt::Create))
+			|| is_first_run
 		{
 			format!(
 				"{}/account/register/?{}",
 				ROUTE_PREFIX,
 				serde_urlencoded::to_string(RegisterQuery {
 					next: Some(next),
+					flow: if is_first_run {
+						Some(RequestedRegistrationFlow::Trusted)
+					} else {
+						None
+					},
 					..Default::default()
 				})
 				.unwrap()
