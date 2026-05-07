@@ -12,7 +12,9 @@ Sign up
 {%- block content -%}
 <div class="panel narrow">
     <h1 class="with-matrix-icon">
-        {% if let RegisterBody::UsernamePrompt { next, .. } = body && next.is_some() %}
+        {% if is_first_run %}
+            Finish setting up
+        {% else if let RegisterBody::UsernamePrompt { next, .. } = body && next.is_some() %}
             Sign up to continue
         {% else %}
             Sign up
@@ -80,6 +82,11 @@ Sign up
             {% let validation_errors = validation_errors.clone() %}
             {% let field_errors = validation_errors.field_errors() %}
             <form method="post">
+                {% if is_first_run %}
+                    <p>
+                        To finish setting up your server, choose a username and password for your account.
+                    </p>
+                {% endif %}
                 <p>
                     <label for="username">Username</label>
                     <span class="username-input">
@@ -94,9 +101,11 @@ Sign up
                     {{ form::errors(field_errors, std::borrow::Cow::Borrowed("username")) }}
                     <small><b>Note:</b> Your username cannot be changed after you create your account.</small>
                 </p>
-                <p>
-                    Just a few more details to finish creating your account.
-                </p>
+                {% if !is_first_run %}
+                    <p>
+                        Just a few more details to finish creating your account.
+                    </p>
+                {% endif %}
                 <p>
                     <label for="password">Password</label>
                     <input type="password" name="password" autocomplete="new-password" required>
@@ -140,6 +149,9 @@ Sign up
                             <p>
                                 <label for="username">Registration token</label>
                                 <input type="text" name="registration_token" autocomplete="none" required>
+                                {% if is_first_run %}
+                                    <small>Check the server console to find the registration token.</small>
+                                {% endif %}
                                 {{ form::errors(field_errors, std::borrow::Cow::Borrowed("registration_token")) }}
                             </p>
                         {% endif %}
@@ -157,14 +169,16 @@ Sign up
                                 I agree to the <a target="_blank" href="{{ document.url }}">{{ document.name }}</a>
                             </label>
                         {% endfor %}
-                        <small><i>All policy links will open in a new tab.</i></small>
+                        <small>All policy links will open in a new tab.</small>
                     </p>
                 {% endif %}
                 <button type="submit">Continue</button>
             </form>
     {% endmatch %}
-    <div class="centered-links">
-        <a href="{{ crate::ROUTE_PREFIX }}/account/login">I already have an account</a>
-    </div>
+    {% if !is_first_run %}
+        <div class="centered-links">
+            <a href="{{ crate::ROUTE_PREFIX }}/account/login">I already have an account</a>
+        </div>
+    {% endif %}
 </div>
 {%- endblock -%}

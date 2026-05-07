@@ -37,6 +37,7 @@ pub(crate) fn build() -> Router<crate::State> {
 template! {
 	struct Register use "register.html.j2" {
 		server_name: OwnedServerName,
+		is_first_run: bool,
 		body: RegisterBody
 	}
 }
@@ -171,6 +172,7 @@ async fn route_register(
 		return response!(Register::new(
 			context,
 			services.globals.server_name().to_owned(),
+			services.firstrun.is_first_run(),
 			RegisterBody::Unavailable
 		));
 	}
@@ -195,6 +197,7 @@ async fn route_register(
 			return response!(Register::new(
 				context,
 				services.globals.server_name().to_owned(),
+				services.firstrun.is_first_run(),
 				RegisterBody::UsernamePrompt {
 					allow_federation: services.config.allow_federation,
 					trusted_flow_status,
@@ -245,7 +248,12 @@ async fn route_register(
 		}
 	};
 
-	response!(Register::new(context, services.globals.server_name().to_owned(), body))
+	response!(Register::new(
+		context,
+		services.globals.server_name().to_owned(),
+		services.firstrun.is_first_run(),
+		body
+	))
 }
 
 template! {
@@ -555,7 +563,7 @@ pub(super) async fn registration_flow_status(
 			.as_ref()
 			.is_some_and(|smtp| smtp.require_email_for_registration);
 
-		if !allow_registration {
+		if !allow_registration || services.firstrun.is_first_run() {
 			UntrustedFlowStatus::Unavailable
 		} else if services.config.recaptcha_private_site_key.is_some() || require_email {
 			UntrustedFlowStatus::Available { require_email }
