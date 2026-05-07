@@ -49,6 +49,7 @@ enum RegisterBody {
 		trusted_flow_status: TrustedFlowStatus,
 		untrusted_flow_status: UntrustedFlowStatus,
 		username_error: Option<String>,
+		next: Option<LoginTarget>,
 	},
 	DetailsPrompt {
 		username: Option<String>,
@@ -73,18 +74,20 @@ pub(super) enum UntrustedFlowStatus {
 	},
 }
 
-#[derive(Deserialize)]
-struct RegistrationQuery {
-	username: Option<String>,
-	token: Option<String>,
-	flow: Option<RequestedRegistrationFlow>,
+#[derive(Default, Deserialize, Serialize)]
+pub(crate) struct RegisterQuery {
+	pub username: Option<String>,
+	pub token: Option<String>,
+	pub flow: Option<RequestedRegistrationFlow>,
 	#[serde(default)]
-	from_landing: bool,
+	pub from_landing: bool,
+	#[serde(flatten)]
+	pub next: Option<LoginTarget>,
 }
 
-#[derive(Clone, Copy, Deserialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-enum RequestedRegistrationFlow {
+pub(crate) enum RequestedRegistrationFlow {
 	Untrusted,
 	Trusted,
 }
@@ -118,13 +121,14 @@ struct CompletedRegistration {
 	user_id: OwnedUserId,
 	password_hash: HashedPassword,
 	registration_token: Option<ValidToken>,
+	next: Option<LoginTarget>,
 }
 
 async fn route_register(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 	session_store: Session,
-	Expect(Query(query)): Expect<Query<RegistrationQuery>>,
+	Expect(Query(query)): Expect<Query<RegisterQuery>>,
 	PostForm(form): PostForm<RegistrationForm>,
 ) -> Result {
 	if session_store
@@ -140,7 +144,15 @@ async fn route_register(
 	let validation_errors = if let Some(form) = form {
 		match form.validate() {
 			| Ok(()) => {
-				match begin_registration(&services, context.clone(), session_store, form).await? {
+				match begin_registration(
+					&services,
+					context.clone(),
+					session_store,
+					form,
+					query.next.clone(),
+				)
+				.await?
+				{
 					| Ok(response) => return Ok(response),
 					| Err(err) => err,
 				}
@@ -188,6 +200,7 @@ async fn route_register(
 					trusted_flow_status,
 					untrusted_flow_status,
 					username_error: Some(err.message()),
+					next: query.next,
 				}
 			));
 		}
@@ -227,6 +240,7 @@ async fn route_register(
 				trusted_flow_status,
 				untrusted_flow_status,
 				username_error: None,
+				next: query.next,
 			},
 		}
 	};
@@ -276,9 +290,10 @@ async fn get_register_email_validate(
 
 	let email = session.consume();
 
-	complete_registration(&services, session_store, completed_registration, Some(email)).await;
-
-	response!(Redirect::to(&LoginTarget::Account.target_path()))
+	response!(
+		complete_registration(&services, session_store, completed_registration, Some(email))
+			.await
+	)
 }
 
 async fn begin_registration(
@@ -286,6 +301,7 @@ async fn begin_registration(
 	context: TemplateContext,
 	session_store: Session,
 	form: RegistrationForm,
+	next: Option<LoginTarget>,
 ) -> Result<Result<Response, ValidationErrors>> {
 	let open_registration = services
 		.config
@@ -383,6 +399,7 @@ async fn begin_registration(
 		user_id,
 		password_hash,
 		registration_token,
+		next,
 	};
 
 	// Check if we need to send an email
@@ -466,9 +483,9 @@ async fn begin_registration(
 		))
 	} else {
 		// If email isn't required we can immediately complete registration
-		complete_registration(services, session_store, completed_registration, None).await;
-
-		Ok(response!(Redirect::to(&LoginTarget::Account.target_path())))
+		Ok(response!(
+			complete_registration(services, session_store, completed_registration, None).await
+		))
 	}
 }
 
@@ -479,9 +496,10 @@ async fn complete_registration(
 		user_id,
 		password_hash,
 		registration_token,
+		next,
 	}: CompletedRegistration,
 	email: Option<Address>,
-) {
+) -> Redirect {
 	services
 		.users
 		.create_local_account(&user_id, password_hash, email)
@@ -499,6 +517,8 @@ async fn complete_registration(
 		.insert(User::KEY, user_session)
 		.await
 		.expect("should be able to serialize user session");
+
+	Redirect::to(&next.unwrap_or_default().target_path())
 }
 
 pub(super) async fn registration_flow_status(

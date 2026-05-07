@@ -113,6 +113,7 @@ impl super::Service {
 
 			let suffix = &self.services.config.new_user_displayname_suffix;
 			if !suffix.is_empty() {
+				displayname.push(' ');
 				displayname.push_str(suffix);
 			}
 

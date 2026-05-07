@@ -4,15 +4,16 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
+use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Prompt};
 use ruma::OwnedUserId;
 use url::Url;
 
 use crate::{
-	WebError,
+	ROUTE_PREFIX, WebError,
 	extract::{Expect, PostForm},
 	pages::{
 		GET_POST, Result, TemplateContext,
+		account::register::RegisterQuery,
 		components::{Avatar, AvatarType, ClientScopes},
 	},
 	response,
@@ -45,7 +46,38 @@ async fn route_authorization_code(
 	Expect(Query(query)): Expect<Query<AuthorizationCodeQuery>>,
 	PostForm(form): PostForm<()>,
 ) -> Result {
-	let user_id = user.expect(LoginTarget::AuthorizationCode(query.clone()))?;
+	let user_id = if let Some(user) = user.into_session() {
+		user.user_id
+	} else {
+		let next = LoginTarget::AuthorizationCode(query.clone());
+
+		let uri = if query
+			.prompt
+			.is_some_and(|prompt| matches!(prompt, Prompt::Create))
+		{
+			format!(
+				"{}/account/register/?{}",
+				ROUTE_PREFIX,
+				serde_urlencoded::to_string(RegisterQuery {
+					next: Some(next),
+					..Default::default()
+				})
+				.unwrap()
+			)
+		} else {
+			format!(
+				"{}/account/login?{}",
+				ROUTE_PREFIX,
+				serde_urlencoded::to_string(LoginQuery {
+					next: Some(next),
+					..Default::default()
+				})
+				.unwrap()
+			)
+		};
+
+		return response!(Redirect::to(&uri));
+	};
 
 	if form.is_some() {
 		let redirect_uri = services

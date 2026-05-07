@@ -12,7 +12,7 @@ Sign up
 {%- block content -%}
 <div class="panel narrow">
     <h1 class="with-matrix-icon">
-        {% if false %}
+        {% if let RegisterBody::UsernamePrompt { next, .. } = body && next.is_some() %}
             Sign up to continue
         {% else %}
             Sign up
@@ -26,7 +26,7 @@ Sign up
             <p>
                 This server is not currently accepting new accounts.
             </p>
-        {% when RegisterBody::UsernamePrompt { allow_federation, untrusted_flow_status, trusted_flow_status, username_error } %}
+        {% when RegisterBody::UsernamePrompt { allow_federation, untrusted_flow_status, trusted_flow_status, username_error, next } %}
             <p>
                 You're about to register a new Matrix account on <em>{{ server_name }}</em>.
             </p>
@@ -42,6 +42,13 @@ Sign up
             </p>
             <form method="get">
                 <input type="hidden" name="from_landing" value="true">
+                {% if let Some(next) = next %}
+                    {# urlencoded roundtrip moment #}
+                    {% let next = serde_urlencoded::to_string(&next).unwrap() %}
+                    {% for (key, value) in form_urlencoded::parse(next.as_bytes()) %}
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                {% endif %}
                 <p>
                     <label for="username">Username</label>
                     <span class="username-input">
