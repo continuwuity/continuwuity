@@ -78,6 +78,11 @@ Sign up
                     <button type="submit" name="flow" value="trusted">Continue with a registration token</button>
                 {% endif %}
             </form>
+            {% if !is_first_run %}
+                <div class="centered-links">
+                    <a href="{{ crate::ROUTE_PREFIX }}/account/login">I already have an account</a>
+                </div>
+            {% endif %}
         {% when RegisterBody::DetailsPrompt { username, require_email, flow, terms, validation_errors } %}
             {% let validation_errors = validation_errors.clone() %}
             {% let field_errors = validation_errors.field_errors() %}
@@ -99,7 +104,7 @@ Sign up
                         <span>:{{ server_name }}</span>
                     </span>
                     {{ form::errors(field_errors, std::borrow::Cow::Borrowed("username")) }}
-                    <small><b>Note:</b> Your username cannot be changed after you create your account.</small>
+                    <small>Your username cannot be changed after you create your account.</small>
                 </p>
                 {% if !is_first_run %}
                     <p>
@@ -175,10 +180,5 @@ Sign up
                 <button type="submit">Continue</button>
             </form>
     {% endmatch %}
-    {% if !is_first_run %}
-        <div class="centered-links">
-            <a href="{{ crate::ROUTE_PREFIX }}/account/login">I already have an account</a>
-        </div>
-    {% endif %}
 </div>
 {%- endblock -%}
