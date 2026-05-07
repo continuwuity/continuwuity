@@ -184,6 +184,7 @@ h1 a.back {
 
 label {
     display: block;
+    margin-bottom: 0.2em;
 }
 
 a, a:visited {
@@ -203,7 +204,6 @@ pre {
 input, button, a.button {
     display: inline-block;
     padding: 0.5em;
-    margin-bottom: 0.5em;
 
     font-size: inherit;
     font-family: inherit;
@@ -236,6 +236,7 @@ button, a.button {
     background-color: var(--c1);
     transition: opacity .2s;
     text-align: center;
+    margin: 0.5rem 0;
 
     &:enabled:hover {
         opacity: 0.8;

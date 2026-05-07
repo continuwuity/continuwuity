@@ -12,7 +12,6 @@
     align-items: center;
     text-align: center;
     color: var(--secondary);
-    margin-bottom: 0.5em;
 }
 
 .text-rule::before, .text-rule::after {
