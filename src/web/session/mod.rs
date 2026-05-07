@@ -14,7 +14,7 @@ use crate::{ROUTE_PREFIX, WebError, pages::account::device::DevicePath};
 
 pub(crate) mod store;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Default, Debug, Deserialize, Serialize)]
 pub(crate) struct LoginQuery {
 	#[serde(flatten)]
 	pub next: Option<LoginTarget>,
@@ -22,7 +22,7 @@ pub(crate) struct LoginQuery {
 	pub reauthenticate: bool,
 }
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(tag = "next", rename_all = "snake_case")]
 pub(crate) enum LoginTarget {
 	AuthorizationCode(AuthorizationCodeQuery),

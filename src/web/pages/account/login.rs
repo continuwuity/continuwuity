@@ -36,7 +36,6 @@ pub(crate) fn build() -> Router<crate::State> {
 template! {
 	struct Login use "login.html.j2" {
 		body: LoginBody,
-		has_next: bool,
 		login_error: Option<String>
 	}
 }
@@ -46,6 +45,7 @@ enum LoginBody {
 	Unauthenticated {
 		server_name: String,
 		registration_available: bool,
+		next: Option<LoginTarget>,
 	},
 	Authenticated {
 		user_card: UserCard,
@@ -66,7 +66,6 @@ async fn route_login(
 	user: User,
 	PostForm(form): PostForm<LoginForm>,
 ) -> Result {
-	let next = next.unwrap_or_default();
 	let user_id = user.into_session().map(|session| session.user_id);
 
 	let body = match &user_id {
@@ -74,20 +73,19 @@ async fn route_login(
 			let (trusted_flow_status, untrusted_flow_status) =
 				registration_flow_status(&services).await;
 
+			let registration_available =
+				matches!(trusted_flow_status, TrustedFlowStatus::Available)
+					|| matches!(untrusted_flow_status, UntrustedFlowStatus::Available { .. });
+
 			LoginBody::Unauthenticated {
 				server_name: services.globals.server_name().to_string(),
-				registration_available: matches!(
-					trusted_flow_status,
-					TrustedFlowStatus::Available
-				) || matches!(
-					untrusted_flow_status,
-					UntrustedFlowStatus::Available { .. }
-				),
+				registration_available,
+				next: next.clone(),
 			}
 		},
 		| Some(user_id) => {
 			if !reauthenticate {
-				return response!(Redirect::to(&next.target_path()));
+				return response!(Redirect::to(&next.unwrap_or_default().target_path()));
 			}
 
 			let user_card = UserCard::for_local_user(&services, user_id.to_owned()).await;
@@ -96,7 +94,7 @@ async fn route_login(
 		},
 	};
 
-	let mut template = Login::new(context, body, next != LoginTarget::Account, None);
+	let mut template = Login::new(context, body, None);
 
 	if let Some(form) = form {
 		let login_result = match (user_id, form.identifier) {
@@ -144,7 +142,7 @@ async fn route_login(
 			.await
 			.expect("should be able to serialize user session");
 
-		return response!(Redirect::to(&next.target_path()));
+		return response!(Redirect::to(&next.unwrap_or_default().target_path()));
 	}
 
 	response!(template)

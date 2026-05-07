@@ -18,6 +18,8 @@ pub struct AuthorizationCodeQuery {
 	pub response_mode: ResponseMode,
 	pub code_challenge: String,
 	pub code_challenge_method: CodeChallengeMethod,
+	#[serde(default)]
+	pub prompt: Option<Prompt>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -34,6 +36,15 @@ pub enum ResponseMode {
 #[non_exhaustive]
 pub enum CodeChallengeMethod {
 	S256,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum Prompt {
+	Create,
+	#[serde(other)]
+	Unknown,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialOrd, Ord)]

@@ -58,7 +58,7 @@ pub(super) async fn template_context_middleware(
 	response.headers_mut().insert(
 		header::CONTENT_SECURITY_POLICY,
 		HeaderValue::from_str(&format!(
-			"default-src 'none'; style-src 'self'; img-src 'self' 'https' data:; script-src \
+			"default-src 'none'; style-src 'self'; img-src 'self' https: data:; script-src \
 			 'nonce-{csp_nonce}'; child-src {child_src};"
 		))
 		.expect("should be able to build CSP header"),
