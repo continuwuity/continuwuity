@@ -140,4 +140,28 @@ impl Service {
 	pub async fn is_event_soft_failed(&self, event_id: &EventId) -> bool {
 		self.db.is_event_soft_failed(event_id).await
 	}
+
+	pub async fn is_event_rejected(&self, event_id: &EventId) -> bool {
+		self.db.is_event_rejected(event_id).await
+	}
+
+	pub fn mark_event_rejected(&self, event_id: &EventId) {
+		self.db.mark_event_rejected(event_id);
+	}
+
+	pub fn unmark_event_soft_failed(&self, event_id: &EventId) {
+		self.db.unmark_event_soft_failed(event_id);
+	}
+
+	pub fn unmark_event_rejected(&self, event_id: &EventId) {
+		self.db.unmark_event_rejected(event_id);
+	}
+
+	/// Returns true if the event is neither soft-failed nor rejected.
+	pub async fn is_event_accepted(&self, event_id: &EventId) -> bool {
+		!self.db.is_event_rejected(event_id).await
+			&& !self.db.is_event_soft_failed(event_id).await
+	}
+
+	pub fn unmark_pdu(&self, event_id: &EventId) { self.db.unmark_pdu(event_id); }
 }

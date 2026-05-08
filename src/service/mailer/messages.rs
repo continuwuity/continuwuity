@@ -37,7 +37,7 @@ pub struct PasswordReset<'a> {
 }
 
 impl MessageTemplate for PasswordReset<'_> {
-	fn subject(&self) -> String { format!("Password reset request for {}", &self.user_id) }
+	fn subject(&self) -> String { format!("Password reset request for {}", self.user_id) }
 }
 
 #[derive(Template)]

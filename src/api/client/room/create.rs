@@ -586,10 +586,7 @@ pub(crate) async fn create_room_route(
 		if services.server.config.admin_room_notices {
 			services
 				.admin
-				.send_text(&format!(
-					"{sender_user} made {} public to the room directory",
-					&room_id
-				))
+				.send_text(&format!("{sender_user} made {room_id} public to the room directory"))
 				.await;
 		}
 		info!("{sender_user} made {0} public to the room directory", &room_id);

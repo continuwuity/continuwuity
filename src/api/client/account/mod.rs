@@ -187,7 +187,7 @@ pub(crate) async fn change_password_route(
 	if services.server.config.admin_room_notices {
 		services
 			.admin
-			.notice(&format!("User {} changed their password.", &sender_user))
+			.notice(&format!("User {sender_user} changed their password."))
 			.await;
 	}
 

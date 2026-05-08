@@ -44,7 +44,7 @@ impl crate::Service for Service {
 			db,
 			server: args.server.clone(),
 			bad_event_ratelimiter: Arc::new(SyncRwLock::new(HashMap::new())),
-			admin_alias: OwnedRoomAliasId::try_from(format!("#admins:{}", &args.server.name))
+			admin_alias: OwnedRoomAliasId::try_from(format!("#admins:{}", args.server.name))
 				.expect("#admins:server_name is valid alias name"),
 			server_user: UserId::parse_with_server_name(
 				String::from("conduit"),

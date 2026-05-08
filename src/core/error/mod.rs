@@ -260,7 +260,7 @@ impl std::fmt::Display for FormattedReqwestError {
 				write!(f, "{real_error}")
 			}
 		} else {
-			write!(f, "Request error: {}", &self.0)
+			write!(f, "Request error: {}", self.0)
 		}
 	}
 }

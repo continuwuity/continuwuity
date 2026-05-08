@@ -34,7 +34,7 @@ use ruma::{
 use crate::{
 	Dep, antispam, globals,
 	rooms::{
-		metadata, outlier, short,
+		metadata, outlier, pdu_metadata, short,
 		state::{self, RoomMutexGuard},
 		state_accessor, state_cache,
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
@@ -54,6 +54,7 @@ struct Services {
 	globals: Dep<globals::Service>,
 	metadata: Dep<metadata::Service>,
 	outlier: Dep<outlier::Service>,
+	pdu_metadata: Dep<pdu_metadata::Service>,
 	sending: Dep<sending::Service>,
 	server_keys: Dep<server_keys::Service>,
 	short: Dep<short::Service>,
@@ -75,6 +76,7 @@ impl crate::Service for Service {
 				globals: args.depend::<globals::Service>("globals"),
 				metadata: args.depend::<metadata::Service>("rooms::metadata"),
 				outlier: args.depend::<outlier::Service>("rooms::outlier"),
+				pdu_metadata: args.depend::<pdu_metadata::Service>("rooms::pdu_metadata"),
 				sending: args.depend::<sending::Service>("sending"),
 				server_keys: args.depend::<server_keys::Service>("server_keys"),
 				short: args.depend::<short::Service>("rooms::short"),
@@ -285,7 +287,7 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip_all, fields(%sender_user, %room_id), name = "join_remote_room", level = "info")]
-	async fn join_remote_room(
+	pub async fn join_remote_room(
 		&self,
 		sender_user: &UserId,
 		room_id: &RoomId,
@@ -293,6 +295,7 @@ impl Service {
 		servers: &[OwnedServerName],
 		state_lock: RoomMutexGuard,
 	) -> Result {
+		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
 
 		let (make_join_response, remote_server) = self
@@ -512,6 +515,7 @@ impl Service {
 					return state;
 				}
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
+				self.services.pdu_metadata.unmark_pdu(&event_id);
 				if let Some(state_key) = &pdu.state_key {
 					let shortstatekey = self
 						.services
@@ -543,6 +547,7 @@ impl Service {
 			.ready_for_each(|(event_id, value)| {
 				trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
+				self.services.pdu_metadata.unmark_pdu(&event_id);
 			})
 			.await;
 

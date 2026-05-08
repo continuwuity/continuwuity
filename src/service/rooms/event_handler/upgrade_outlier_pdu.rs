@@ -38,13 +38,27 @@ where
 		return Ok(Some(pduid));
 	}
 
-	if self
+	if !self
 		.services
 		.pdu_metadata
-		.is_event_soft_failed(incoming_pdu.event_id())
+		.is_event_accepted(incoming_pdu.event_id())
 		.await
 	{
-		return Err!(Request(InvalidParam("Event has been soft failed")));
+		return Err!(Request(InvalidParam("Event has been rejected or soft-failed")));
+	}
+
+	// If any of the auth events are rejected, this event is also rejected.
+	for aid in incoming_pdu.auth_events() {
+		if self.services.pdu_metadata.is_event_rejected(aid).await {
+			warn!(
+				"Rejecting incoming event {} which depends on rejected auth event {aid}",
+				incoming_pdu.event_id()
+			);
+			self.services
+				.pdu_metadata
+				.mark_event_rejected(incoming_pdu.event_id());
+			return Err!(Request(InvalidParam("Event has rejected auth events")));
+		}
 	}
 
 	debug!(
@@ -106,6 +120,9 @@ where
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
 
 	if !auth_check {
+		self.services
+			.pdu_metadata
+			.mark_event_rejected(incoming_pdu.event_id());
 		return Err!(Request(Forbidden("Event has failed auth check with state at the event.")));
 	}
 

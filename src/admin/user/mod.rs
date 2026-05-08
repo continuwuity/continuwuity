@@ -183,6 +183,20 @@ pub enum UserCommand {
 		room_id: OwnedRoomOrAliasId,
 	},
 
+	/// Manually join a local user to a room via a remote server, regardless of
+	/// our current residency.
+	ForceJoinRoomRemotely {
+		/// The user to join
+		user_id: String,
+		/// The room to join
+		room_id: OwnedRoomOrAliasId,
+		/// The server name to join via.
+		///
+		/// This server will always be tried first, however if more are
+		/// available, they may be tried after.
+		via: String,
+	},
+
 	/// Manually leave a local user from a room.
 	ForceLeaveRoom {
 		user_id: String,

@@ -614,6 +614,7 @@ pub(super) async fn force_set_room_state_from_server(
 				.await;
 
 			state.insert(shortstatekey, pdu.event_id.clone());
+			self.services.rooms.pdu_metadata.unmark_pdu(pdu.event_id());
 		}
 	}
 
@@ -631,6 +632,7 @@ pub(super) async fn force_set_room_state_from_server(
 			.rooms
 			.outlier
 			.add_pdu_outlier(&event_id, &value);
+		self.services.rooms.pdu_metadata.unmark_pdu(&event_id);
 	}
 
 	info!("Resolving new room state");
@@ -662,10 +664,7 @@ pub(super) async fn force_set_room_state_from_server(
 		.force_state(room_id.clone().as_ref(), short_state_hash, added, removed, &state_lock)
 		.await?;
 
-	info!(
-		"Updating joined counts for room just in case (e.g. we may have found a difference in \
-		 the room's m.room.member state"
-	);
+	info!("Updating joined counts for room");
 	self.services
 		.rooms
 		.state_cache

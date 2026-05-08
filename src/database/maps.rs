@@ -312,6 +312,11 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "rejectedeventids",
+		key_size_hint: Some(48),
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "statehash_shortstatehash",
 		val_size_hint: Some(8),
 		..descriptor::RANDOM
