@@ -102,10 +102,6 @@ pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result 
 		);
 	}
 
-	if !self.services.users.exists(&user_id).await {
-		return Err!("Remote user does not exist in our database.",);
-	}
-
 	let mut rooms: Vec<(OwnedRoomId, u64, String)> = self
 		.services
 		.rooms

@@ -81,7 +81,8 @@ impl crate::Service for Service {
 				state: args.depend::<state::Service>("rooms::state"),
 				state_accessor: args.depend::<state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<state_cache::Service>("rooms::state_cache"),
-				state_compressor: args.depend::<state_compressor::Service>("rooms::state_compressor"),
+				state_compressor: args
+					.depend::<state_compressor::Service>("rooms::state_compressor"),
 				timeline: args.depend::<timeline::Service>("rooms::timeline"),
 				users: args.depend::<users::Service>("users"),
 			},

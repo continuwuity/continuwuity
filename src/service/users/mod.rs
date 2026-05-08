@@ -255,10 +255,12 @@ impl Service {
 
 	pub async fn unlock_account(&self, user_id: &UserId) { self.db.userid_lock.remove(user_id); }
 
-	/// Check if a user has an account on this homeserver.
+	/// Check if the provided user ID belongs to an existing (possibly
+	/// deactivated) account on this homeserver.
 	#[inline]
 	pub async fn exists(&self, user_id: &UserId) -> bool {
-		self.db.userid_password.get(user_id).await.is_ok()
+		self.services.globals.user_is_local(&user_id)
+			&& self.db.userid_password.get(user_id).await.is_ok()
 	}
 
 	/// Check if account is deactivated
