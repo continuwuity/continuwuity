@@ -80,7 +80,8 @@ Sign up
             </form>
             {% if !is_first_run %}
                 <div class="centered-links">
-                    <a href="{{ crate::ROUTE_PREFIX }}/account/login">I already have an account</a>
+                    {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
+                    <a href="{{ crate::ROUTE_PREFIX }}/account/login?{{ query }}">I already have an account</a>
                 </div>
             {% endif %}
         {% when RegisterBody::DetailsPrompt { username, require_email, flow, terms, validation_errors } %}
