@@ -7,8 +7,9 @@ use crate::{
 
 pub(crate) fn build() -> Router<crate::State> {
 	Router::new()
-		.route("/", get(index))
-		.route(&format!("{}/", crate::ROUTE_PREFIX), get(index))
+		.route("/", get(get_index))
+		.route(&format!("{}/", crate::ROUTE_PREFIX), get(get_index))
+		.route(&format!("{}/_book", crate::ROUTE_PREFIX), get(get_book))
 }
 
 template! {
@@ -18,7 +19,7 @@ template! {
 	}
 }
 
-async fn index(
+async fn get_index(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
 ) -> Result {
@@ -27,4 +28,12 @@ async fn index(
 		services.globals.server_name().as_str(),
 		services.firstrun.is_first_run(),
 	))
+}
+
+template! {
+	struct Book use "book.html.j2" {}
+}
+
+async fn get_book(Extension(context): Extension<TemplateContext>) -> Result {
+	response!(Book::new(context))
 }
