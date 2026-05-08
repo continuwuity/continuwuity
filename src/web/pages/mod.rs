@@ -76,8 +76,9 @@ macro_rules! template {
     ) => {
         #[derive(Debug, askama::Template)]
         #[template(path = $path)]
+		#[allow(unused)]
         struct $name$(<$lifetime>)? {
-            context: $crate::pages::TemplateContext,
+			context: $crate::pages::TemplateContext,
             $($field_name: $field_type,)*
         }
 
