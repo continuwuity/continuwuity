@@ -259,7 +259,7 @@ impl Service {
 	/// deactivated) account on this homeserver.
 	#[inline]
 	pub async fn exists(&self, user_id: &UserId) -> bool {
-		self.services.globals.user_is_local(&user_id)
+		self.services.globals.user_is_local(user_id)
 			&& self.db.userid_password.get(user_id).await.is_ok()
 	}
 
