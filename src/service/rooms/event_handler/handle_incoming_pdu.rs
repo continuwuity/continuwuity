@@ -215,6 +215,17 @@ pub async fn handle_incoming_pdu<'a>(
 		.get_room_create_event(room_id)
 		.await;
 
+	let start_time = Instant::now();
+	self.federation_handletime
+		.write()
+		.insert(room_id.into(), (event_id.to_owned(), start_time));
+
+	defer! {{
+		self.federation_handletime
+			.write()
+			.remove(room_id);
+	}};
+
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
 		.await?;
@@ -281,17 +292,6 @@ pub async fn handle_incoming_pdu<'a>(
 		.await?;
 
 	// Done with prev events, now handling the incoming event
-	let start_time = Instant::now();
-	self.federation_handletime
-		.write()
-		.insert(room_id.into(), (event_id.to_owned(), start_time));
-
-	defer! {{
-		self.federation_handletime
-			.write()
-			.remove(room_id);
-	}};
-
 	self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
 		.boxed()
 		.await

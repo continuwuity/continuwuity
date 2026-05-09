@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::BTreeMap, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement, is_equal_to,
+	Err, Result, debug, debug_info, debug_warn, err, implement, is_equal_to,
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
 	trace,
 	utils::{
@@ -50,10 +50,10 @@ where
 			.pdu_metadata
 			.is_event_soft_failed(incoming_pdu.event_id())
 	);
-	if rejected || soft_failed {
-		// TODO: debug_warn instead of warn
-		warn!(%rejected, %soft_failed, "Event is not accepted");
-		return Err!(Request(InvalidParam("Event has been rejected or soft-failed")));
+	if rejected {
+		return Err!(Request(InvalidParam("Event has been rejected")));
+	} else if soft_failed {
+		return Err!(Request(InvalidParam("Event has been soft-failed")));
 	}
 
 	// If any of the auth events are rejected, this event is also rejected.
@@ -376,15 +376,19 @@ where
 		self.services
 			.pdu_metadata
 			.mark_event_soft_failed(incoming_pdu.event_id());
-		return Err!(Request(InvalidParam("Event has been soft failed")));
+		debug_warn!(
+			elapsed = ?timer.elapsed(),
+			"Event has been soft-failed",
+		);
+	} else {
+		debug_info!(
+			elapsed = ?timer.elapsed(),
+			"Accepted",
+		);
 	}
 
 	// Event has passed all auth/stateres checks
 	drop(state_lock);
-	debug_info!(
-		elapsed = ?timer.elapsed(),
-		"Accepted",
-	);
 
 	Ok(pdu_id)
 }
