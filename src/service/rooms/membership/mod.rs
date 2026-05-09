@@ -1,46 +1,46 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Err, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
-	matrix::{
-		StateKey,
+	debug, debug_info, debug_warn, err, error, info, is_true, matrix::{
 		event::{gen_event_id, gen_event_id_canonical_json},
-	},
-	pdu::PartialPdu,
-	state_res, trace,
-	utils::{self, IterStream, ReadyExt, to_canonical_object},
+		StateKey,
+	}, pdu::PartialPdu, state_res, trace,
+	utils::{self, to_canonical_object, IterStream, ReadyExt},
 	warn,
+	Err, Pdu,
+	Result,
+	Server,
 };
 use database::Database;
-use futures::{FutureExt, StreamExt, TryFutureExt, join};
+use futures::{join, FutureExt, StreamExt, TryFutureExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
-	RoomVersionId, UserId,
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation,
-	},
-	canonical_json::to_canonical_value,
-	events::{
-		StateEventType, StaticEventContent,
+	}, canonical_json::to_canonical_value, events::{
 		room::{
 			join_rules::RoomJoinRulesEventContent,
 			member::{MembershipState, RoomMemberEventContent},
-		},
-	},
-	room::{AllowRule, JoinRule},
+		}, StateEventType,
+		StaticEventContent,
+	}, room::{AllowRule, JoinRule}, CanonicalJsonObject, CanonicalJsonValue,
+	OwnedRoomId, OwnedServerName,
+	OwnedUserId,
+	RoomId,
+	RoomVersionId,
+	UserId,
 };
 
 use crate::{
-	Dep, antispam, globals,
-	rooms::{
+	antispam, globals, rooms::{
 		metadata, outlier, pdu_metadata, short,
 		state::{self, RoomMutexGuard},
 		state_accessor, state_cache,
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
 		timeline::{self, pdu_fits},
 	},
-	sending, server_keys, users,
+	sending,
+	server_keys, users, Dep,
 };
 
 pub struct Service {
@@ -515,7 +515,7 @@ impl Service {
 					return state;
 				}
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
-				self.services.pdu_metadata.unmark_pdu(&event_id);
+				self.services.pdu_metadata.clear_pdu_markers(&event_id);
 				if let Some(state_key) = &pdu.state_key {
 					let shortstatekey = self
 						.services
@@ -547,7 +547,7 @@ impl Service {
 			.ready_for_each(|(event_id, value)| {
 				trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
-				self.services.pdu_metadata.unmark_pdu(&event_id);
+				self.services.pdu_metadata.clear_pdu_markers(&event_id);
 			})
 			.await;
 

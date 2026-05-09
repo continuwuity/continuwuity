@@ -4,22 +4,22 @@ use conduwuit::{
 	arrayvec::ArrayVec,
 	matrix::{Event, PduCount},
 	utils::{
-		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
 		u64_from_u8,
+		ReadyExt,
 	},
 };
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::{EventId, RoomId, UserId, api::Direction};
+use ruma::{api::Direction, EventId, RoomId, UserId};
 
 use crate::{
-	Dep,
 	rooms::{
 		self,
 		short::{ShortEventId, ShortRoomId},
 		timeline::{PduId, PdusIterItem, RawPduId},
 	},
+	Dep,
 };
 
 pub(super) struct Data {
@@ -141,7 +141,7 @@ impl Data {
 	}
 
 	/// Removes any soft-fail or rejection markers applied to the target PDU
-	pub(super) fn unmark_pdu(&self, event_id: &EventId) {
+	pub(super) fn clear_pdu_markers(&self, event_id: &EventId) {
 		self.unmark_event_rejected(event_id);
 		self.unmark_event_soft_failed(event_id);
 	}

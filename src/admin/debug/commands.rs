@@ -6,24 +6,24 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug_error, err, info,
-	matrix::{
-		Event,
+	debug_error, err, info, matrix::{
 		pdu::{PduEvent, PduId, RawPduId},
-	},
-	trace, utils,
+		Event,
+	}, trace,
+	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
-	},
-	warn,
+	}, warn,
+	Err,
+	Result,
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
+	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw, CanonicalJsonObject, CanonicalJsonValue,
+	EventId, OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName,
+	RoomId, RoomVersionId, UInt,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -813,7 +813,7 @@ pub(super) async fn force_set_room_state_from_server(
 				.await;
 
 			state.insert(shortstatekey, pdu.event_id.clone());
-			self.services.rooms.pdu_metadata.unmark_pdu(pdu.event_id());
+			self.services.rooms.pdu_metadata.clear_pdu_markers(pdu.event_id());
 		}
 	}
 
@@ -831,7 +831,7 @@ pub(super) async fn force_set_room_state_from_server(
 			.rooms
 			.outlier
 			.add_pdu_outlier(&event_id, &value);
-		self.services.rooms.pdu_metadata.unmark_pdu(&event_id);
+		self.services.rooms.pdu_metadata.clear_pdu_markers(&event_id);
 	}
 
 	info!("Resolving new room state");

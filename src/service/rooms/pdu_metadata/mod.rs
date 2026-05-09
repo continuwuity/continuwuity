@@ -2,14 +2,14 @@ mod bundled_aggregations;
 mod data;
 use std::sync::Arc;
 
-use conduwuit::{Result, matrix::PduCount};
-use futures::{StreamExt, future::try_join};
-use ruma::{EventId, RoomId, UserId, api::Direction};
+use conduwuit::{matrix::PduCount, Result};
+use futures::{future::try_join, StreamExt};
+use ruma::{api::Direction, EventId, RoomId, UserId};
 
 use self::data::Data;
 use crate::{
-	Dep,
 	rooms::{self, timeline::PdusIterItem},
+	Dep,
 };
 
 pub struct Service {
@@ -163,5 +163,5 @@ impl Service {
 			&& !self.db.is_event_soft_failed(event_id).await
 	}
 
-	pub fn unmark_pdu(&self, event_id: &EventId) { self.db.unmark_pdu(event_id); }
+	pub fn clear_pdu_markers(&self, event_id: &EventId) { self.db.clear_pdu_markers(event_id); }
 }
