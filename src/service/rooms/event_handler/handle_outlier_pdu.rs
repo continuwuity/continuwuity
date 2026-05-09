@@ -133,6 +133,8 @@ where
 		.filter(|id| !auth_events.contains_key(*id))
 		.collect::<Vec<_>>();
 	if !still_missing.is_empty() {
+		// Don't reject: this could be a temporary condition
+		// TODO: use get_missing_events?
 		return Err!(Request(InvalidParam(
 			"Could not fetch all auth events for outlier event {event_id}, still missing: \
 			 {still_missing:?}"
@@ -163,6 +165,7 @@ where
 				v.insert(auth_event);
 			},
 			| hash_map::Entry::Occupied(_) => {
+				self.services.pdu_metadata.mark_event_rejected(event_id);
 				return Err!(Request(InvalidParam(
 					"Auth event's type and state_key combination exists multiple times: {}, {}",
 					auth_event.kind,
@@ -177,6 +180,7 @@ where
 		auth_events_by_key.get(&(StateEventType::RoomCreate, String::new().into())),
 		Some(_) | None
 	) {
+		self.services.pdu_metadata.mark_event_rejected(event_id);
 		return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
 	}
 
@@ -185,6 +189,7 @@ where
 		ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
 	};
 
+	// PDU check: 3
 	let auth_check = state_res::event_auth::auth_check(
 		&room_version_rules,
 		&pdu_event,
@@ -196,7 +201,10 @@ where
 	.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
 
 	if !auth_check {
-		return Err!(Request(Forbidden("Auth check failed")));
+		self.services.pdu_metadata.mark_event_rejected(event_id);
+		return Err!(Request(Forbidden(
+			"Event authorisation fails based on event's claimed auth events"
+		)));
 	}
 
 	trace!("Validation successful.");

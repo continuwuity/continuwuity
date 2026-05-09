@@ -53,15 +53,7 @@ where
 		.await?;
 
 	if soft_fail {
-		self.services
-			.pdu_metadata
-			.mark_as_referenced(room_id, pdu.prev_events.iter().map(AsRef::as_ref));
-
-		// self.services
-		// 	.state
-		// 	.set_forward_extremities(room_id, new_room_leaves, state_lock)
-		// 	.await;
-
+		// Nothing else to do with a soft-failed event.
 		return Ok(None);
 	}
 

@@ -5,7 +5,7 @@ use std::{
 };
 
 use conduwuit::{
-	Result, debug, err, implement,
+	Result, debug, err, error, implement,
 	matrix::{Event, StateMap},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, TryWidebandExt},
@@ -121,6 +121,7 @@ where
 		.state_resolution(room_version_rules, fork_states.iter(), &auth_chain_sets)
 		.boxed()
 		.await
+		.inspect_err(|e| error!("State resolution failed: {e:?}"))
 	else {
 		return Ok(None);
 	};
