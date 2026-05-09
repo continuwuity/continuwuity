@@ -2,14 +2,14 @@ mod bundled_aggregations;
 mod data;
 use std::sync::Arc;
 
-use conduwuit::{matrix::PduCount, Result};
-use futures::{future::try_join, StreamExt};
-use ruma::{api::Direction, EventId, RoomId, UserId};
+use conduwuit::{Result, matrix::PduCount};
+use futures::{StreamExt, future::try_join};
+use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use self::data::Data;
 use crate::{
-	rooms::{self, timeline::PdusIterItem},
 	Dep,
+	rooms::{self, timeline::PdusIterItem},
 };
 
 pub struct Service {

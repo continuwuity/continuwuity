@@ -1,13 +1,13 @@
-use std::collections::{hash_map, BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	debug, debug_info, debug_warn, err, implement, state_res, trace, warn, Err, Event,
-	PduEvent, Result,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res,
+	trace, warn,
 };
 use futures::future::ready;
 use ruma::{
-	events::StateEventType, CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId,
-	ServerName,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
+	events::StateEventType,
 };
 
 use super::{check_room_id, get_room_version_rules};

@@ -1,46 +1,46 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	debug, debug_info, debug_warn, err, error, info, is_true, matrix::{
-		event::{gen_event_id, gen_event_id_canonical_json},
+	Err, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
+	matrix::{
 		StateKey,
-	}, pdu::PartialPdu, state_res, trace,
-	utils::{self, to_canonical_object, IterStream, ReadyExt},
+		event::{gen_event_id, gen_event_id_canonical_json},
+	},
+	pdu::PartialPdu,
+	state_res, trace,
+	utils::{self, IterStream, ReadyExt, to_canonical_object},
 	warn,
-	Err, Pdu,
-	Result,
-	Server,
 };
 use database::Database;
-use futures::{join, FutureExt, StreamExt, TryFutureExt};
+use futures::{FutureExt, StreamExt, TryFutureExt, join};
 use ruma::{
+	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
+	RoomVersionId, UserId,
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation,
-	}, canonical_json::to_canonical_value, events::{
+	},
+	canonical_json::to_canonical_value,
+	events::{
+		StateEventType, StaticEventContent,
 		room::{
 			join_rules::RoomJoinRulesEventContent,
 			member::{MembershipState, RoomMemberEventContent},
-		}, StateEventType,
-		StaticEventContent,
-	}, room::{AllowRule, JoinRule}, CanonicalJsonObject, CanonicalJsonValue,
-	OwnedRoomId, OwnedServerName,
-	OwnedUserId,
-	RoomId,
-	RoomVersionId,
-	UserId,
+		},
+	},
+	room::{AllowRule, JoinRule},
 };
 
 use crate::{
-	antispam, globals, rooms::{
+	Dep, antispam, globals,
+	rooms::{
 		metadata, outlier, pdu_metadata, short,
 		state::{self, RoomMutexGuard},
 		state_accessor, state_cache,
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
 		timeline::{self, pdu_fits},
 	},
-	sending,
-	server_keys, users, Dep,
+	sending, server_keys, users,
 };
 
 pub struct Service {

@@ -4,22 +4,22 @@ use conduwuit::{
 	arrayvec::ArrayVec,
 	matrix::{Event, PduCount},
 	utils::{
+		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
 		u64_from_u8,
-		ReadyExt,
 	},
 };
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::{api::Direction, EventId, RoomId, UserId};
+use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use crate::{
+	Dep,
 	rooms::{
 		self,
 		short::{ShortEventId, ShortRoomId},
 		timeline::{PduId, PdusIterItem, RawPduId},
 	},
-	Dep,
 };
 
 pub(super) struct Data {
