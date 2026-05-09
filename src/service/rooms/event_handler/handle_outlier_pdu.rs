@@ -1,13 +1,13 @@
-use std::collections::{BTreeMap, HashMap, hash_map};
+use std::collections::{hash_map, BTreeMap, HashMap};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, implement, state_res,
-	trace, warn,
+	debug, debug_info, debug_warn, err, implement, state_res, trace, warn, Err, Event,
+	PduEvent, Result,
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	events::StateEventType,
+	events::StateEventType, CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId,
+	ServerName,
 };
 
 use super::{check_room_id, get_room_version_rules};
@@ -165,6 +165,9 @@ where
 				v.insert(auth_event);
 			},
 			| hash_map::Entry::Occupied(_) => {
+				self.services
+					.outlier
+					.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 				self.services.pdu_metadata.mark_event_rejected(event_id);
 				return Err!(Request(InvalidParam(
 					"Auth event's type and state_key combination exists multiple times: {}, {}",
@@ -181,6 +184,9 @@ where
 		Some(_) | None
 	) {
 		self.services.pdu_metadata.mark_event_rejected(event_id);
+		self.services
+			.outlier
+			.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 		return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
 	}
 
@@ -202,6 +208,9 @@ where
 
 	if !auth_check {
 		self.services.pdu_metadata.mark_event_rejected(event_id);
+		self.services
+			.outlier
+			.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 		return Err!(Request(Forbidden(
 			"Event authorisation fails based on event's claimed auth events"
 		)));
