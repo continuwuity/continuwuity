@@ -1,15 +1,18 @@
 use std::{
-	collections::{BTreeMap, HashSet, VecDeque, hash_map},
+	cmp::min,
+	collections::{BTreeMap, HashMap, HashSet, VecDeque, hash_map},
 	time::Instant,
 };
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_warn, matrix::event::gen_event_id_canonical_json, trace,
-	utils::continue_exponential_backoff_secs, warn,
+	Err, Event, PduEvent, debug, debug_info, debug_warn, err,
+	matrix::event::gen_event_id_canonical_json, trace, utils::continue_exponential_backoff_secs,
+	warn,
 };
+use futures::StreamExt;
 use ruma::{
-	CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	api::federation::event::get_event,
+	CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName,
+	api::federation::event::{get_event, get_missing_events},
 };
 
 use super::get_room_version_rules;
@@ -231,5 +234,131 @@ impl super::Service {
 		}
 		trace!("Fetched and handled {} outlier pdus", pdus.len());
 		pdus
+	}
+
+	/// Uses `/_matrix/federation/v1/get_missing_events` to fill gaps in the
+	/// DAG.
+	///
+	/// When this function is called, the "earliest events" (current forward
+	/// extremities) will be collected, and the function will loop with an
+	/// exponentially incrementing limit (up to 100 per request) until it has
+	/// filled the gap, i.e. when the remote says there's no more events.
+	///
+	/// This function does not persist the events. The caller is responsible for
+	/// passing them through handle_incoming_pdu.
+	pub(super) async fn backfill_missing_events(
+		&self,
+		room_id: OwnedRoomId,
+		latest_events: Vec<OwnedEventId>,
+		via: OwnedServerName,
+	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
+		if latest_events.is_empty() {
+			return Ok(HashMap::new());
+		}
+		let earliest_events = self
+			.services
+			.state
+			.get_forward_extremities(&room_id)
+			.collect::<Vec<_>>()
+			.await;
+		// TODO: min_depth is probably necessary to avoid fetching the entire room
+		// history if there are very long gaps
+		let mut latest_events = latest_events;
+		let mut loop_count: u64 = 3;
+		// Start with a base number of 3 so that we fetch 10, 16, 25, 36, etc
+		// instead of 1, 2, 4, 9, so on.
+		let mut backfilled_events = HashMap::with_capacity(10);
+
+		while !latest_events.is_empty() {
+			let mut request = get_missing_events::v1::Request::new(
+				room_id.clone(),
+				earliest_events.clone(),
+				latest_events.clone(),
+			);
+			request.limit = min(loop_count.saturating_pow(2), 100)
+				.try_into()
+				.expect("limit cannot be greater than 100, which fits into UInt");
+			if backfilled_events.len() > 1000 {
+				warn!(
+					"Received {} missing events, refusing to fetch more (infinite loop?)",
+					backfilled_events.len()
+				);
+				break;
+			}
+
+			debug_info!(
+				backfilled=%backfilled_events.len(),
+				%loop_count,
+				"Asking {via} for up to {} missing events",
+				request.limit
+			);
+			trace!(
+				?latest_events,
+				?earliest_events,
+				%via,
+				limit=%request.limit,
+				"Requesting missing events"
+			);
+			let response: get_missing_events::v1::Response = self
+				.services
+				.sending
+				.send_federation_request(&via, request)
+				.await?;
+			loop_count = loop_count.saturating_add(1);
+
+			// Some buggy servers (including old continuwuity) may return the same events
+			// multiple times, which can cause this to be an infinite loop.
+			// In order to break this loop, if we see no new events from this response (i.e.
+			// all events in the response are already in backfilled_events), we stop,
+			// with a warning.
+			let mut unseen: usize = 0;
+			let chunk_len = response.events.len();
+			if response.events.is_empty() {
+				debug_info!("No more missing events found");
+				break;
+			}
+			for event in response.events {
+				let (incoming_room_id, event_id, pdu_json) =
+					self.parse_incoming_pdu(&event).await.map_err(|e| {
+						err!(BadServerResponse("{via} returned an invalid event: {e:?}"))
+					})?;
+				if incoming_room_id != room_id {
+					return Err!(BadServerResponse(
+						"{via} returned {event_id} in missing events which belongs to \
+						 {incoming_room_id}, not {room_id}"
+					));
+				}
+				if backfilled_events.contains_key(&event_id) {
+					debug_warn!(%via, %event_id, "Remote retransmitted event");
+					continue;
+				}
+				// TODO: Should this be scoped to the GME session? We might end up incorrectly
+				// assuming we've caught up if we do this
+				if self.services.timeline.pdu_exists(&event_id).await {
+					debug!(%via, %event_id, "Already seen event in database");
+					continue;
+				}
+				unseen = unseen.saturating_add(1);
+				let parsed = PduEvent::from_id_val(&event_id, pdu_json)
+					.map_err(|e| err!(BadServerResponse("Unable to parse {event_id}: {e}")))?;
+				backfilled_events.insert(event_id, parsed.clone());
+				for prev_event_id in parsed.prev_events() {
+					if backfilled_events.contains_key(prev_event_id)
+						|| self.services.timeline.pdu_exists(prev_event_id).await
+					{
+						continue;
+					}
+					latest_events.push(prev_event_id.to_owned());
+				}
+			}
+			latest_events.retain(|e| !backfilled_events.contains_key(e));
+			debug!(
+				chunk=%chunk_len,
+				remaining=%latest_events.len(),
+				"Got missing events"
+			);
+		}
+
+		Ok(backfilled_events)
 	}
 }
