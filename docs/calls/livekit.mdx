@@ -344,11 +344,18 @@ For browser-based clients, you can also inspect connections using DevTools' Netw
 
 Some distros do not allow Docker containers to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail connecting to `livekit` or `continuwuity` on the same host. As a result, you would see connection refused/connection timeouts log entries in the JWT service, even when `LIVEKIT_URL` has been configured correctly.
 
+You can also test that this is the case by cURLing from a sidecar container:
+
+```bash
+docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
+# --- some errors ---
+```
+
 To alleviate this, you can try one of the following workarounds:
 
 - Use `network_mode: host` for the `lk-jwt-service` container (instead of the default bridge networking).
 
-- Add an `extra_hosts` file mapping livekit's (and continuwuity's) domain name to a localhost address:
+- Add an `extra_hosts` file mapping livekit's (and continuwuity's) domain name to a locally-reachable address:
 
     ```diff
     # in docker-compose.yaml
@@ -362,12 +369,7 @@ To alleviate this, you can try one of the following workarounds:
 
 - (**untested, use at your own risk**) Implement an iptables workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
 
-After implementing the changes and restarting your compose, you can test whether the connection works by cURLing from a sidecar container:
-
-```bash
-docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
-# OK
-```
+After implementing the changes and restarting your compose, `lk-jwt-service` should now connect to your other services. The sidecar container test above should now return an `OK` from LiveKit.
 
 ### Workaround for non-federating servers
 
