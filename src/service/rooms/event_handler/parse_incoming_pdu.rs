@@ -56,7 +56,10 @@ fn extract_room_id(event_type: &str, pdu: &CanonicalJsonObject) -> Result<OwnedR
 
 /// Parses every entry in an array as an event ID, returning an error if any
 /// step fails.
-fn expect_event_id_array(value: &CanonicalJsonObject, field: &str) -> Result<Vec<OwnedEventId>> {
+pub(super) fn expect_event_id_array(
+	value: &CanonicalJsonObject,
+	field: &str,
+) -> Result<Vec<OwnedEventId>> {
 	value
 		.get(field)
 		.ok_or_else(|| err!(Request(BadJson("missing field `{field}` on PDU"))))?
