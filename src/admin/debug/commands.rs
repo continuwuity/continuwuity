@@ -6,24 +6,24 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug_error, err, info,
-	matrix::{
-		Event,
+	debug_error, err, info, matrix::{
 		pdu::{PduEvent, PduId, RawPduId},
-	},
-	trace, utils,
+		Event,
+	}, trace,
+	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
-	},
-	warn,
+	}, warn,
+	Err,
+	Result,
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId,
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
+	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw, CanonicalJsonObject, CanonicalJsonValue,
+	EventId, OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId,
+	OwnedServerName, RoomId, RoomVersionId,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -111,15 +111,21 @@ pub(super) async fn get_pdu(&self, event_id: OwnedEventId) -> Result {
 		outlier = true;
 		pdu_json = self.services.rooms.timeline.get_pdu_json(&event_id).await;
 	}
+	let rejected = self.services.rooms.pdu_metadata.is_event_rejected(&event_id).await;
+	let soft_failed = self.services.rooms.pdu_metadata.is_event_soft_failed(&event_id).await;
 
 	match pdu_json {
 		| Err(_) => return Err!("PDU not found locally."),
 		| Ok(json) => {
 			let text = serde_json::to_string_pretty(&json)?;
-			let msg = if outlier {
-				"Outlier (Rejected / Soft Failed) PDU found in our database"
+			let msg = if rejected {
+				"Rejected PDU:"
+			} else if soft_failed {
+				"Soft-failed PDU:"
+			} else if outlier {
+				"Outlier PDU:"
 			} else {
-				"PDU found in our database"
+				"PDU:"
 			};
 			write!(self, "{msg}\n```json\n{text}\n```")
 		},
