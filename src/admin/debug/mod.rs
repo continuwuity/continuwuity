@@ -17,9 +17,18 @@ pub enum DebugCommand {
 		message: Vec<String>,
 	},
 
-	/// Get the auth_chain of a PDU
+	/// Loads the auth_chain of a PDU, reporting how long it took.
 	GetAuthChain {
 		/// An event ID (the $ character followed by the base64 reference hash)
+		event_id: OwnedEventId,
+	},
+
+	/// Walks & displays the auth_chain of a PDU in a mermaid graph format.
+	///
+	/// This is useless to basically anyone but developers, and is also probably
+	/// slow and memory hungry.
+	ShowAuthChain {
+		/// The root event ID to start walking back from.
 		event_id: OwnedEventId,
 	},
 
