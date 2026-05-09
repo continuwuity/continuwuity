@@ -1,0 +1,1 @@
+Fixed an issue where Continuwuity would only advertise support for the unstable endpoint for Mutual Rooms (MSC2666), despite only supporting the stable endpoint. Contributed by @Henry-Hiles (QuadRadical)
