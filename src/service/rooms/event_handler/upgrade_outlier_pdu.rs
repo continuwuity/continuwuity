@@ -41,6 +41,7 @@ where
 		.get_pdu_id(incoming_pdu.event_id())
 		.await
 	{
+		trace!(event_id=%incoming_pdu.event_id(), "Skipping upgrade of already upgraded PDU");
 		return Ok(Some(pduid));
 	}
 
@@ -81,6 +82,7 @@ where
 	};
 
 	if state_at_incoming_event.is_none() {
+		trace!("Could not calculate incoming state, asking remote {origin} for it");
 		state_at_incoming_event = self
 			.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
 			.await?;

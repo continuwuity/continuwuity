@@ -34,8 +34,9 @@ where
 
 		batch
 	});
-
-	debug_assert!(!server_keys.is_empty(), "empty batch request to notary");
+	if server_keys.is_empty() {
+		return Ok(vec![]);
+	}
 
 	let mut results = Vec::new();
 	while let Some(batch) = server_keys
