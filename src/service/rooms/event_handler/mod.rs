@@ -4,7 +4,6 @@ mod fetch_prev;
 mod fetch_state;
 mod handle_incoming_pdu;
 mod handle_outlier_pdu;
-mod handle_prev_pdu;
 mod parse_incoming_pdu;
 mod policy_server;
 mod resolve_state;
@@ -15,6 +14,7 @@ use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
 use conduwuit::{Err, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
+pub use fetch_and_handle_outliers::build_local_dag;
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
@@ -22,7 +22,6 @@ use ruma::{
 use tokio::sync::Notify;
 
 use crate::{Dep, globals, rooms, sending, server_keys};
-
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
