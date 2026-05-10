@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, hash_map};
+use std::collections::{BTreeMap, HashMap, HashSet, hash_map};
 
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, state_res, trace, warn,
@@ -9,7 +9,7 @@ use ruma::{
 	events::StateEventType,
 };
 
-use super::{check_room_id, get_room_version_rules};
+use super::{build_local_dag, check_room_id, get_room_version_rules};
 use crate::rooms::timeline::pdu_fits;
 
 impl super::Service {
@@ -23,7 +23,7 @@ impl super::Service {
 		event_id: &'a EventId,
 		room_id: &'a RoomId,
 		mut value: CanonicalJsonObject,
-		auth_events_known: bool,
+		_auth_events_known: bool,
 	) -> Result<(PduEvent, BTreeMap<String, CanonicalJsonValue>)>
 	where
 		Pdu: Event + Send + Sync,
@@ -112,44 +112,71 @@ impl super::Service {
 		}
 
 		// Fetch any missing ones & reject invalid ones
-		let missing_auth_events = if auth_events_known {
-			pdu_event
-				.auth_events()
-				.filter(|id| !auth_events.contains_key(*id))
-				.collect::<Vec<_>>()
-		} else {
-			pdu_event.auth_events().collect::<Vec<_>>()
-		};
-		if !missing_auth_events.is_empty() || !auth_events_known {
+		let mut missing_auth_events: HashSet<OwnedEventId> = pdu_event
+			.auth_events()
+			.filter(|id| !auth_events.contains_key(*id))
+			.map(ToOwned::to_owned)
+			.collect();
+
+		if !missing_auth_events.is_empty() {
 			debug_info!(
 				"Fetching {} missing auth events for outlier event {event_id}",
 				missing_auth_events.len()
 			);
-			for (pdu, _) in self
-				.fetch_and_handle_outliers(
-					origin,
-					missing_auth_events.iter().copied(),
-					create_event,
-					room_id,
+			let backfilled = self
+				.backfill_missing_events(
+					room_id.to_owned(),
+					vec![event_id.to_owned()],
+					origin.to_owned(),
 				)
-				.await
-			{
-				auth_events.insert(pdu.event_id().to_owned(), pdu);
+				.await?;
+			debug_info!("Fetched {} missing auth events for {event_id}", backfilled.len());
+			let mapped = backfilled
+				.iter()
+				.map(|(eid, evt)| {
+					let mut obj = evt.to_canonical_object();
+					obj.remove("event_id"); // event_id is inserted by backfill_missing_events
+					(eid.clone(), obj)
+				})
+				.collect::<HashMap<_, _>>();
+			let local_dag = if mapped.len() == 1 {
+				mapped.keys().map(ToOwned::to_owned).collect()
+			} else {
+				build_local_dag(&mapped).await?
+			};
+			debug_info!("Preparing to handle {} missing auth events", backfilled.len());
+			for prev_event_id in local_dag {
+				let obj = mapped
+					.get(&prev_event_id)
+					.expect("We should have this event in memory");
+				debug_info!("Handling prev {prev_event_id}");
+				let (prev, _) = Box::pin(self.handle_outlier_pdu(
+					origin,
+					create_event,
+					&prev_event_id,
+					room_id,
+					obj.clone(),
+					false,
+				))
+				.await?;
+				if missing_auth_events.contains(&*prev_event_id) {
+					missing_auth_events.remove(&prev_event_id);
+					auth_events.insert(prev_event_id, prev);
+				}
+				debug_info!("Finished handling prev auth event");
 			}
 		} else {
 			debug!("No missing auth events for outlier event {event_id}");
 		}
-		// reject if we are still missing some
-		let still_missing = pdu_event
-			.auth_events()
-			.filter(|id| !auth_events.contains_key(*id))
-			.collect::<Vec<_>>();
-		if !still_missing.is_empty() {
+		// reject if we are still missing some auth events.
+		// If we're still missing prev events, we will fetch them individually later,
+		// but there's no reason for us to be missing auth events now we've gapfilled
+		// the DAG.
+		if !missing_auth_events.is_empty() {
 			// Don't reject: this could be a temporary condition
-			// TODO: use get_missing_events?
 			return Err!(Request(InvalidParam(
 				"Could not fetch all auth events for outlier event {event_id}, still missing: \
-				 {still_missing:?}"
+				 {missing_auth_events:?}"
 			)));
 		}
 

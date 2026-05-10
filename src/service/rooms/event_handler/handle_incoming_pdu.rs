@@ -1,14 +1,11 @@
-use std::{
-	collections::{BTreeMap, hash_map},
-	time::Instant,
-};
+use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
-	info, trace, utils::stream::IterStream, warn,
+	info, trace, warn,
 };
 use futures::{
-	FutureExt, TryFutureExt, TryStreamExt,
+	FutureExt,
 	future::{OptionFuture, try_join4},
 };
 use ruma::{
@@ -244,70 +241,22 @@ impl super::Service {
 		}
 
 		// Skip old events
-		let first_ts_in_room = self
-			.services
-			.timeline
-			.first_pdu_in_room(room_id)
-			.await?
-			.origin_server_ts();
+		// let first_ts_in_room = self
+		// 	.services
+		// 	.timeline
+		// 	.first_pdu_in_room(room_id)
+		// 	.await?
+		// 	.origin_server_ts();
 
 		// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 		//    These are timeline events
-		let (sorted_prev_events, mut eventid_info) = self
-			.fetch_prev(
-				origin,
-				create_event,
-				room_id,
-				first_ts_in_room,
-				incoming_pdu.prev_events(),
-			)
-			.await?;
+		debug!("Handling previous events");
 
-		debug!(
-			events = ?sorted_prev_events,
-			"Handling previous events"
-		);
-
-		sorted_prev_events
-			.iter()
-			.try_stream()
-			.map_ok(AsRef::as_ref)
-			.try_for_each(|prev_id| {
-				self.handle_prev_pdu(
-					origin,
-					event_id,
-					room_id,
-					eventid_info.remove(prev_id),
-					create_event,
-					first_ts_in_room,
-					prev_id,
-				)
-				.inspect_err(move |e| {
-					warn!("Prev {prev_id} failed: {e}");
-					match self
-						.services
-						.globals
-						.bad_event_ratelimiter
-						.write()
-						.entry(prev_id.into())
-					{
-						| hash_map::Entry::Vacant(e) => {
-							e.insert((Instant::now(), 1));
-						},
-						| hash_map::Entry::Occupied(mut e) => {
-							let tries = e.get().1.saturating_add(1);
-							*e.get_mut() = (Instant::now(), tries);
-						},
-					}
-				})
-				.map(|_| self.services.server.check_running())
-			})
-			.boxed()
+		self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
 			.await?;
 
 		// Done with prev events, now handling the incoming event
 		self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-			.boxed()
 			.await
 	}
 }

@@ -1,7 +1,6 @@
 use std::collections::{HashMap, hash_map};
 
 use conduwuit::{Err, Event, Result, debug, debug_warn, err};
-use futures::FutureExt;
 use ruma::{
 	EventId, OwnedEventId, RoomId, ServerName, api::federation::event::get_room_state_ids,
 	events::StateEventType,
@@ -14,10 +13,10 @@ impl super::Service {
 	/// server's response to some extent (sic), but we still do a lot of checks
 	/// on the events
 	#[tracing::instrument(
-		level = "debug",
-		skip_all,
-		fields(%origin),
-	)]
+	level = "debug",
+	skip_all,
+	fields(%origin),
+)]
 	pub(super) async fn fetch_state<Pdu>(
 		&self,
 		origin: &ServerName,
@@ -42,7 +41,6 @@ impl super::Service {
 		let state_ids = res.pdu_ids.iter().map(AsRef::as_ref);
 		let state_vec = self
 			.fetch_and_handle_outliers(origin, state_ids, create_event, room_id)
-			.boxed()
 			.await;
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =

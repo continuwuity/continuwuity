@@ -381,6 +381,7 @@ async fn handle_room(
 			.rooms
 			.event_handler
 			.handle_incoming_pdu(origin, room_id, &event_id, value, true)
+			.boxed()
 			.await
 			.map(|_| ());
 		results.push((event_id, result));
