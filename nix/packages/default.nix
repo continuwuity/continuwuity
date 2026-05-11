@@ -22,11 +22,13 @@
           rustflags = "--cfg reqwest_unstable";
         };
         # users may also override this with other cargo profiles to build for other feature sets
-        #
-        # other examples include:
-        #
-        # - release-high-perf
-        max-perf = self'.packages.default.override {
+        # for features configuration see `default` package which enables http3 by default
+
+        # example: different compilation profile and different target_cpu
+        max-perf-haswell = self'.packages.default.override {
+          # compiles explicitly for haswell arch cpus
+          target_cpu = "haswell";
+          # compiles slower but with more thorough optimizations
           profile = "release-max-perf";
         };
       };

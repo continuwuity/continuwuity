@@ -9,6 +9,7 @@
   rustPlatform,
   cargoExtraArgs ? "",
   rustflags ? "",
+  target_cpu ? null,
   rocksdb ? callPackage ./rocksdb.nix { },
   profile ? "release",
 }:
@@ -39,7 +40,10 @@ let
       ROCKSDB_LIB_DIR = "${rocksdb}/lib";
       CARGO_PROFILE = profile;
       RUSTFLAGS = rustflags;
-    };
+    }
+    // (lib.optionalAttrs (target_cpu != null) {
+      TARGET_CPU = target_cpu;
+    });
   };
 in
 craneLib.buildPackage (
