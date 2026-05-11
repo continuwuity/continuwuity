@@ -21,10 +21,6 @@ pub(crate) async fn get_mutual_rooms_route(
 		return Err!(Request(Unknown("You cannot request rooms in common with yourself.")));
 	}
 
-	if !services.users.exists(&body.user_id).await {
-		return Ok(mutual_rooms::unstable::Response::new(vec![]));
-	}
-
 	let mutual_rooms = services
 		.rooms
 		.state_cache
