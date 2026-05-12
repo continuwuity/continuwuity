@@ -16,10 +16,6 @@ crate-type = [
 ]
 
 [features]
-blurhashing = [
-	"dep:image",
-	"dep:blurhash",
-]
 brotli_compression = [
 	"conduwuit-core/brotli_compression",
 	"reqwest/brotli",
@@ -119,8 +115,6 @@ tracing.workspace = true
 url.workspace = true
 webpage.workspace = true
 webpage.optional = true
-blurhash.workspace = true
-blurhash.optional = true
 recaptcha-verify = { version = "0.2.0", default-features = false }
 reqwest_recaptcha = { package = "reqwest", version = "0.12.28", default-features = false, features = ["rustls-tls-native-roots-no-provider"]  } # As long as recaptcha-verify's reqwest is outdated
 yansi.workspace = true

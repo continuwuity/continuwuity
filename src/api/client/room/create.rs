@@ -288,7 +288,6 @@ pub(crate) async fn create_room_route(
 	let mut join_event = RoomMemberEventContent::new(MembershipState::Join);
 	join_event.displayname = services.users.displayname(sender_user).await.ok();
 	join_event.avatar_url = services.users.avatar_url(sender_user).await.ok();
-	join_event.blurhash = services.users.blurhash(sender_user).await.ok();
 	join_event.is_direct = Some(body.is_direct);
 
 	debug_info!("Joining {sender_user} to room {room_id}");

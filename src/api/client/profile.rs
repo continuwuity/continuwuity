@@ -23,8 +23,7 @@ use crate::Ruma;
 
 /// # `GET /_matrix/client/v3/profile/{userId}`
 ///
-/// Returns the displayname, avatar_url, blurhash, and custom profile fields of
-/// the user.
+/// Returns the user's profile information.
 ///
 /// - If user is on another server and we do not have a local copy already,
 ///   fetch profile over federation.
@@ -322,19 +321,9 @@ async fn set_profile_field(
 			services.users.set_avatar_url(user_id, None);
 		},
 		| other =>
-			if other.field_name().as_str() == "blurhash" {
-				if let Some(Value::String(blurhash)) = other.value() {
-					services.users.set_blurhash(user_id, Some(blurhash));
-				} else {
-					services.users.set_blurhash(user_id, None);
-				}
-			} else {
-				services.users.set_profile_key(
-					user_id,
-					other.field_name().as_str(),
-					other.value(),
-				);
-			},
+			services
+				.users
+				.set_profile_key(user_id, other.field_name().as_str(), other.value()),
 	}
 
 	// If the user is local and changed their displayname or avatar_url, update it

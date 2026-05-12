@@ -1874,24 +1874,6 @@
 #
 #support_pgp_key =
 
-[global.blurhashing]
-
-# blurhashing x component, 4 is recommended by https://blurha.sh/
-#
-#components_x = 4
-
-# blurhashing y component, 3 is recommended by https://blurha.sh/
-#
-#components_y = 3
-
-# Max raw size that the server will blurhash, this is the size of the
-# image after converting it to raw data, it should be higher than the
-# upload limit but not too high. The higher it is the higher the
-# potential load will be for clients requesting blurhashes. The default
-# is 33.55MB. Setting it to 0 disables blurhashing.
-#
-#blurhash_max_raw_size = 33554432
-
 [global.matrix_rtc]
 
 # A list of MatrixRTC foci (transports) which will be served via the

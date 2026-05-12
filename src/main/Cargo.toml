@@ -47,7 +47,6 @@ default = [
 	"bindgen-runtime", # replace with bindgen-static on alpine
 ]
 standard = [
-    "blurhashing",
 	"brotli_compression",
 	"element_hacks",
 	"gzip_compression",
@@ -71,9 +70,6 @@ full = [
     "tokio_console",
 ]
 
-blurhashing = [
-	"conduwuit-service/blurhashing",
-]
 brotli_compression = [
 	"conduwuit-api/brotli_compression",
 	"conduwuit-core/brotli_compression",

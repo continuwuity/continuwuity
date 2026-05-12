@@ -146,7 +146,7 @@ cargo clippy \
     --locked \
     --profile test \
     --no-default-features \
-    --features=console,systemd,element_hacks,direct_tls,perf_measurements,brotli_compression,blurhashing \
+    --features=console,systemd,element_hacks,direct_tls,perf_measurements,brotli_compression \
     --color=always \
     -- \
     -D warnings

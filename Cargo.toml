@@ -180,7 +180,7 @@ version = "0.5.3"
 features = ["alloc", "rand"]
 default-features = false
 
-# Used to generate thumbnails for images & blurhashes
+# Used to generate thumbnails for images
 [workspace.dependencies.image]
 version = "0.25.5"
 default-features = false
@@ -189,14 +189,6 @@ features = [
     "png",
     "gif",
     "webp",
-]
-
-[workspace.dependencies.blurhash]
-version = "0.2.3"
-default-features = false
-features = [
-    "fast-linear-to-srgb",
-    "image",
 ]
 
 # logging
@@ -364,7 +356,6 @@ features = [
     "ring-compat",
     "compat-upload-signatures",
     "compat-optional-txn-pdus",
-    "unstable-msc2448",
     "unstable-msc2666",
     "unstable-msc2867",
     "unstable-msc2870",

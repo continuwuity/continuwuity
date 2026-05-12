@@ -79,7 +79,6 @@ struct Data {
 	userdeviceid_token: Arc<Map>,
 	userfilterid_filter: Arc<Map>,
 	userid_avatarurl: Arc<Map>,
-	userid_blurhash: Arc<Map>,
 	userid_dehydrateddevice: Arc<Map>,
 	userid_devicelistversion: Arc<Map>,
 	userid_displayname: Arc<Map>,
@@ -120,7 +119,6 @@ impl crate::Service for Service {
 				userdeviceid_token: args.db["userdeviceid_token"].clone(),
 				userfilterid_filter: args.db["userfilterid_filter"].clone(),
 				userid_avatarurl: args.db["userid_avatarurl"].clone(),
-				userid_blurhash: args.db["userid_blurhash"].clone(),
 				userid_dehydrateddevice: args.db["userid_dehydrateddevice"].clone(),
 				userid_devicelistversion: args.db["userid_devicelistversion"].clone(),
 				userid_displayname: args.db["userid_displayname"].clone(),
@@ -427,20 +425,6 @@ impl Service {
 			| _ => {
 				self.db.userid_avatarurl.remove(user_id);
 			},
-		}
-	}
-
-	/// Get the blurhash of a user.
-	pub async fn blurhash(&self, user_id: &UserId) -> Result<String> {
-		self.db.userid_blurhash.get(user_id).await.deserialized()
-	}
-
-	/// Sets a new avatar_url or removes it if avatar_url is None.
-	pub fn set_blurhash(&self, user_id: &UserId, blurhash: Option<String>) {
-		if let Some(blurhash) = blurhash {
-			self.db.userid_blurhash.insert(user_id, blurhash);
-		} else {
-			self.db.userid_blurhash.remove(user_id);
 		}
 	}
 
@@ -1379,7 +1363,6 @@ impl Service {
 	pub async fn clear_profile(&self, user_id: &UserId) {
 		self.set_displayname(user_id, None);
 		self.set_avatar_url(user_id, None);
-		self.set_blurhash(user_id, None);
 		self.all_profile_keys(user_id)
 			.ready_for_each(|(key, _)| self.set_profile_key(user_id, &key, None))
 			.await;

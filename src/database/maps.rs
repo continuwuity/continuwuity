@@ -376,7 +376,7 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "userid_blurhash",
-		..descriptor::RANDOM_SMALL
+		..descriptor::DROPPED
 	},
 	Descriptor {
 		name: "userid_dehydrateddevice",

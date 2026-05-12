@@ -240,7 +240,6 @@ impl Service {
 		let mut content = RoomMemberEventContent::new(MembershipState::Join);
 		content.displayname = self.services.users.displayname(sender_user).await.ok();
 		content.avatar_url = self.services.users.avatar_url(sender_user).await.ok();
-		content.blurhash = self.services.users.blurhash(sender_user).await.ok();
 		content.reason.clone_from(&reason);
 		content.join_authorized_via_users_server = auth_user;
 
@@ -351,7 +350,6 @@ impl Service {
 		let mut join_content = RoomMemberEventContent::new(MembershipState::Join);
 		join_content.displayname = self.services.users.displayname(sender_user).await.ok();
 		join_content.avatar_url = self.services.users.avatar_url(sender_user).await.ok();
-		join_content.blurhash = self.services.users.blurhash(sender_user).await.ok();
 		join_content.reason = reason;
 		join_content
 			.join_authorized_via_users_server
