@@ -20,10 +20,7 @@ use lettre::message::Mailbox;
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
-	api::client::{
-		discovery::{discover_homeserver::RtcFocusInfo, discover_support::ContactRole},
-		rtc::transports::v1::RtcTransport,
-	},
+	api::client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
 use url::Url;
@@ -2197,18 +2194,6 @@ pub struct WellKnownConfig {
 	/// PGP key URI for server support contacts, to be served as part of the
 	/// MSC1929 server support endpoint.
 	pub support_pgp_key: Option<String>,
-
-	/// **DEPRECATED**: Use `[global.matrix_rtc].foci` instead.
-	///
-	/// A list of MatrixRTC foci URLs which will be served as part of the
-	/// MSC4143 client endpoint at /.well-known/matrix/client.
-	///
-	/// This option is deprecated and will be removed in a future release.
-	/// Please migrate to the new `[global.matrix_rtc]` config section.
-	///
-	/// default: []
-	#[serde(default)]
-	pub rtc_focus_server_urls: Vec<RtcFocusInfo>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Default)]
@@ -2255,25 +2240,6 @@ pub struct MatrixRtcConfig {
 	/// default: []
 	#[serde(default)]
 	pub foci: Vec<RtcTransport>,
-}
-
-impl MatrixRtcConfig {
-	/// Returns the effective foci, falling back to the deprecated
-	/// `rtc_focus_server_urls` if the new config is empty.
-	#[must_use]
-	pub fn effective_foci(&self, deprecated_foci: &[RtcFocusInfo]) -> Vec<RtcTransport> {
-		if !self.foci.is_empty() {
-			self.foci.clone()
-		} else {
-			deprecated_foci
-				.iter()
-				.map(|focus| {
-					RtcTransport::new(focus.focus_type().to_owned(), focus.data().into_owned())
-						.unwrap()
-				})
-				.collect()
-		}
-	}
 }
 
 #[derive(Deserialize, Clone, Debug)]

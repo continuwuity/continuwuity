@@ -1874,16 +1874,6 @@
 #
 #support_pgp_key =
 
-# **DEPRECATED**: Use `[global.matrix_rtc].foci` instead.
-#
-# A list of MatrixRTC foci URLs which will be served as part of the
-# MSC4143 client endpoint at /.well-known/matrix/client.
-#
-# This option is deprecated and will be removed in a future release.
-# Please migrate to the new `[global.matrix_rtc]` config section.
-#
-#rtc_focus_server_urls = []
-
 [global.blurhashing]
 
 # blurhashing x component, 4 is recommended by https://blurha.sh/

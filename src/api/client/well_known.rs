@@ -2,7 +2,7 @@ use axum::extract::State;
 use conduwuit::{Err, Result};
 use ruma::{
 	api::client::discovery::{
-		discover_homeserver::{self, HomeserverInfo, RtcFocusInfo},
+		discover_homeserver::{self, HomeserverInfo},
 		discover_support::{self, Contact, ContactRole},
 	},
 	assign,
@@ -31,10 +31,8 @@ pub(crate) async fn well_known_client(
 		rtc_foci: services
 			.config
 			.matrix_rtc
-			.effective_foci(&services.config.well_known.rtc_focus_server_urls)
-			.into_iter()
-			.map(|focus| RtcFocusInfo::new(focus.transport_type(), focus.data().into_owned()).unwrap())
-			.collect()
+			.foci
+			.clone()
 	}))
 }
 
@@ -48,10 +46,7 @@ pub(crate) async fn get_rtc_transports(
 	_body: Ruma<ruma::api::client::rtc::transports::v1::Request>,
 ) -> Result<ruma::api::client::rtc::transports::v1::Response> {
 	Ok(ruma::api::client::rtc::transports::v1::Response::new(
-		services
-			.config
-			.matrix_rtc
-			.effective_foci(&services.config.well_known.rtc_focus_server_urls),
+		services.config.matrix_rtc.foci.clone(),
 	))
 }
 
