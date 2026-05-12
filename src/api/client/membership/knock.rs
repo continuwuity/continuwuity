@@ -343,7 +343,6 @@ async fn knock_room_helper_local(
 	let mut content = RoomMemberEventContent::new(MembershipState::Knock);
 	content.displayname = services.users.displayname(sender_user).await.ok();
 	content.avatar_url = services.users.avatar_url(sender_user).await.ok();
-	content.blurhash = services.users.blurhash(sender_user).await.ok();
 	content.reason.clone_from(&reason.clone());
 
 	// Try normal knock first
@@ -527,7 +526,6 @@ async fn knock_room_helper_remote(
 	let mut knock_content = RoomMemberEventContent::new(MembershipState::Knock);
 	knock_content.displayname = services.users.displayname(sender_user).await.ok();
 	knock_content.avatar_url = services.users.avatar_url(sender_user).await.ok();
-	knock_content.blurhash = services.users.blurhash(sender_user).await.ok();
 	knock_content.reason = reason;
 
 	knock_event_stub.insert(

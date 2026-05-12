@@ -21,7 +21,6 @@ use ruma::{
 		},
 		media::create_content,
 	},
-	assign,
 };
 use service::media::mxc::Mxc;
 
@@ -76,17 +75,7 @@ pub(crate) async fn create_content_route(
 		return Err!(Request(Unknown("Failed to save uploaded media")));
 	}
 
-	let blurhash = body.generate_blurhash.then(|| {
-		services
-			.media
-			.create_blurhash(&body.file, content_type, filename)
-			.ok()
-			.flatten()
-	});
-
-	Ok(assign!(create_content::v3::Response::new(mxc.to_string().into()), {
-		blurhash: blurhash.flatten(),
-	}))
+	Ok(create_content::v3::Response::new(mxc.to_string().into()))
 }
 
 /// # `GET /_matrix/client/v1/media/thumbnail/{serverName}/{mediaId}`

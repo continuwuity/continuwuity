@@ -271,7 +271,6 @@ pub(crate) async fn upgrade_room_route(
 				&assign!(RoomMemberEventContent::new(MembershipState::Join), {
 					displayname: services.users.displayname(sender_user).await.ok(),
 					avatar_url: services.users.avatar_url(sender_user).await.ok(),
-					blurhash: services.users.blurhash(sender_user).await.ok(),
 				}),
 			),
 			sender_user,

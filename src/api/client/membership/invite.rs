@@ -247,7 +247,6 @@ pub(crate) async fn invite_helper(
 	let mut content = RoomMemberEventContent::new(MembershipState::Invite);
 	content.displayname = services.users.displayname(recipient_user).await.ok();
 	content.avatar_url = services.users.avatar_url(recipient_user).await.ok();
-	content.blurhash = services.users.blurhash(recipient_user).await.ok();
 	content.is_direct = Some(is_direct);
 	content.reason = reason;
 

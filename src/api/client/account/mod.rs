@@ -322,8 +322,6 @@ pub(crate) async fn check_registration_token_validity(
 /// Runs through all the deactivation steps:
 ///
 /// - Mark as deactivated
-/// - Removing display name
-/// - Removing avatar URL and blurhash
 /// - Removing all profile data
 /// - Leaving all rooms (and forgets all of them)
 pub async fn full_user_deactivate(
