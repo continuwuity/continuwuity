@@ -63,7 +63,7 @@ async fn route_login(
 	Extension(context): Extension<TemplateContext>,
 	Expect(Query(LoginQuery { next, reauthenticate })): Expect<Query<LoginQuery>>,
 	session_store: Session,
-	user: User,
+	user: User<true>,
 	PostForm(form): PostForm<LoginForm>,
 ) -> Result {
 	let user_id = user.into_session().map(|session| session.user_id);
