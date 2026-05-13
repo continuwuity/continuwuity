@@ -73,7 +73,7 @@ impl crate::Service for Service {
 				db: args.db.clone(),
 				antispam: args.depend::<antispam::Service>("antispam"),
 				globals: args.depend::<globals::Service>("globals"),
-				metadata: args.depend::<metadata::Service>("metadata"),
+				metadata: args.depend::<metadata::Service>("rooms::metadata"),
 				outlier: args.depend::<outlier::Service>("rooms::outlier"),
 				sending: args.depend::<sending::Service>("sending"),
 				server_keys: args.depend::<server_keys::Service>("server_keys"),
