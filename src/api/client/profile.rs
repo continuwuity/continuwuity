@@ -8,12 +8,12 @@ use ruma::{
 	UserId,
 	api::{
 		client::profile::{
-			delete_profile_field, get_profile, get_profile_field, set_profile_field,
+			PropagateTo, delete_profile_field, get_profile, get_profile_field, set_profile_field,
 		},
 		federation,
 	},
 	assign,
-	events::room::member::{MembershipState, RoomMemberEventContent},
+	events::room::member::MembershipState,
 	presence::PresenceState,
 	profile::{ProfileFieldName, ProfileFieldValue},
 };
@@ -62,8 +62,13 @@ pub(crate) async fn set_profile_field_route(
 		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
 	}
 
-	set_profile_field(&services, &body.user_id, ProfileFieldChange::Set(body.value.clone()))
-		.await?;
+	set_profile_field(
+		&services,
+		&body.user_id,
+		ProfileFieldChange::Set(body.value.clone()),
+		body.propagate_to.clone(),
+	)
+	.await?;
 
 	Ok(set_profile_field::v3::Response::new())
 }
@@ -83,8 +88,13 @@ pub(crate) async fn delete_profile_field_route(
 		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
 	}
 
-	set_profile_field(&services, &body.user_id, ProfileFieldChange::Delete(body.field.clone()))
-		.await?;
+	set_profile_field(
+		&services,
+		&body.user_id,
+		ProfileFieldChange::Delete(body.field.clone()),
+		body.propagate_to.clone(),
+	)
+	.await?;
 
 	Ok(delete_profile_field::v3::Response::new())
 }
@@ -119,7 +129,13 @@ async fn fetch_full_profile(
 			continue;
 		};
 
-		let _ = set_profile_field(services, user_id, ProfileFieldChange::Set(value)).await;
+		let _ = set_profile_field(
+			services,
+			user_id,
+			ProfileFieldChange::Set(value),
+			PropagateTo::None,
+		)
+		.await;
 	}
 
 	Some(BTreeMap::from_iter(response))
@@ -153,8 +169,13 @@ async fn fetch_profile_field(
 
 	if let Some(value) = response.get(field.as_str()).map(ToOwned::to_owned) {
 		if let Ok(value) = ProfileFieldValue::new(field.as_str(), value) {
-			let _ = set_profile_field(services, user_id, ProfileFieldChange::Set(value.clone()))
-				.await;
+			let _ = set_profile_field(
+				services,
+				user_id,
+				ProfileFieldChange::Set(value.clone()),
+				PropagateTo::None,
+			)
+			.await;
 
 			Ok(Some(value))
 		} else {
@@ -163,7 +184,13 @@ async fn fetch_profile_field(
 			)))
 		}
 	} else {
-		let _ = set_profile_field(services, user_id, ProfileFieldChange::Delete(field)).await;
+		let _ = set_profile_field(
+			services,
+			user_id,
+			ProfileFieldChange::Delete(field),
+			PropagateTo::None,
+		)
+		.await;
 
 		Ok(None)
 	}
@@ -256,6 +283,7 @@ async fn set_profile_field(
 	services: &Services,
 	user_id: &UserId,
 	change: ProfileFieldChange,
+	propagate_to: PropagateTo,
 ) -> Result<()> {
 	const MAX_KEY_LENGTH_BYTES: usize = 255;
 	const MAX_PROFILE_LENGTH_BYTES: usize = 65536;
@@ -303,6 +331,91 @@ async fn set_profile_field(
 		}
 	}
 
+	// If the user is local and changed their displayname or avatar_url, update it
+	// in all their joined rooms. This is done before updating their profile data
+	// so we can check the old value of the field if `propagate_to` is `unchanged`.
+	if matches!(field_name, ProfileFieldName::AvatarUrl | ProfileFieldName::DisplayName)
+		&& matches!(propagate_to, PropagateTo::All | PropagateTo::Unchanged)
+		&& services.globals.user_is_local(user_id)
+	{
+		let current_displayname = services.users.displayname(user_id).await.ok();
+		let current_avatar_url = services.users.avatar_url(user_id).await.ok();
+
+		let mut all_joined_rooms = services.rooms.state_cache.rooms_joined(user_id);
+
+		while let Some(room_id) = all_joined_rooms.next().await {
+			// TODO: this clobbers any custom fields on the event content
+			let mut current_membership = services
+				.rooms
+				.state_accessor
+				.get_member(&room_id, user_id)
+				.await
+				.expect("should be able to fetch membership event for joined room");
+
+			assert_eq!(
+				current_membership.membership,
+				MembershipState::Join,
+				"user should be joined"
+			);
+
+			// If `propagate_to` is `unchanged`, and the current value of the field we're
+			// updating was changed from its global value in this room, skip it.
+			if matches!(propagate_to, PropagateTo::Unchanged) {
+				let field_changed_from_global = match field_name {
+					| ProfileFieldName::AvatarUrl =>
+						current_membership.avatar_url.as_ref() != current_avatar_url.as_ref(),
+					| ProfileFieldName::DisplayName =>
+						current_membership.displayname.as_ref() != current_displayname.as_ref(),
+					| _ => unreachable!(),
+				};
+
+				if field_changed_from_global {
+					continue;
+				}
+			}
+
+			let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
+
+			// Preserve keys in accordance with the key copying rules
+			current_membership.reason = None;
+			current_membership.join_authorized_via_users_server = None;
+			match &change {
+				| ProfileFieldChange::Set(ProfileFieldValue::AvatarUrl(avatar_url)) => {
+					current_membership.avatar_url = Some(avatar_url.clone());
+				},
+				| ProfileFieldChange::Set(ProfileFieldValue::DisplayName(displayname)) => {
+					current_membership.displayname = Some(displayname.clone());
+				},
+				| ProfileFieldChange::Delete(ProfileFieldName::AvatarUrl) => {
+					current_membership.avatar_url = None;
+				},
+				| ProfileFieldChange::Delete(ProfileFieldName::DisplayName) => {
+					current_membership.displayname = None;
+				},
+				| _ => unreachable!(),
+			}
+
+			let _ = services
+				.rooms
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(user_id.to_string(), &current_membership),
+					user_id,
+					Some(&room_id),
+					&state_lock,
+				)
+				.await;
+		}
+
+		if services.config.allow_local_presence {
+			// Send a presence EDU to indicate the profile changed
+			let _ = services
+				.presence
+				.ping_presence(user_id, &PresenceState::Online)
+				.await;
+		}
+	}
+
 	match change {
 		| ProfileFieldChange::Set(ProfileFieldValue::DisplayName(displayname)) => {
 			services
@@ -324,43 +437,6 @@ async fn set_profile_field(
 			services
 				.users
 				.set_profile_key(user_id, other.field_name().as_str(), other.value()),
-	}
-
-	// If the user is local and changed their displayname or avatar_url, update it
-	// in all their joined rooms
-	if matches!(field_name, ProfileFieldName::AvatarUrl | ProfileFieldName::DisplayName)
-		&& services.globals.user_is_local(user_id)
-	{
-		let displayname = services.users.displayname(user_id).await.ok();
-		let avatar_url = services.users.avatar_url(user_id).await.ok();
-		let membership_content = assign!(
-			RoomMemberEventContent::new(MembershipState::Join), { displayname, avatar_url }
-		);
-
-		let mut all_joined_rooms = services.rooms.state_cache.rooms_joined(user_id);
-
-		while let Some(room_id) = all_joined_rooms.next().await {
-			let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
-
-			let _ = services
-				.rooms
-				.timeline
-				.build_and_append_pdu(
-					PartialPdu::state(user_id.to_string(), &membership_content),
-					user_id,
-					Some(&room_id),
-					&state_lock,
-				)
-				.await;
-		}
-
-		if services.config.allow_local_presence {
-			// Send a presence EDU to indicate the profile changed
-			let _ = services
-				.presence
-				.ping_presence(user_id, &PresenceState::Online)
-				.await;
-		}
 	}
 
 	Ok(())
