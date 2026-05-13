@@ -92,10 +92,6 @@ pub async fn handle_login(
 		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
 	}
 
-	if services.users.is_locked(&user_id).await? {
-		return Err!(Request(UserLocked("This account has been locked.")));
-	}
-
 	if services.users.is_login_disabled(&user_id).await {
 		warn!(%user_id, "user attempted to log in with a login-disabled account");
 		return Err!(Request(Forbidden("This account is not permitted to log in.")));
