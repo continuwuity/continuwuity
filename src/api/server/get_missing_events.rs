@@ -78,6 +78,15 @@ pub(crate) async fn get_missing_events_route(
 				body.room_id
 			)));
 		}
+		if services
+			.rooms
+			.pdu_metadata
+			.is_event_rejected(pdu.event_id())
+			.await
+		{
+			debug!(%next_event_id, "event rejected, not traversing");
+			continue;
+		}
 
 		if !services
 			.rooms

@@ -22,6 +22,15 @@ pub(crate) async fn get_event_route(
 		.await
 		.map_err(|_| err!(Request(NotFound("Event not found."))))?;
 
+	if services
+		.rooms
+		.pdu_metadata
+		.is_event_rejected(&body.event_id)
+		.await
+	{
+		return Err!(Request(NotFound("Event not found.")));
+	}
+
 	let room_id: &RoomId = event
 		.get("room_id")
 		.and_then(|val| val.as_str())

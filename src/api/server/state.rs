@@ -24,6 +24,15 @@ pub(crate) async fn get_room_state_route(
 	.check()
 	.await?;
 
+	if services
+		.rooms
+		.pdu_metadata
+		.is_event_rejected(&body.event_id)
+		.await
+	{
+		return Err!(Request(NotFound("Event not found.")));
+	}
+
 	if !services
 		.rooms
 		.state_cache
