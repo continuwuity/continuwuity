@@ -10,7 +10,7 @@ use conduwuit_core::{config::TermsDocument, warn};
 use conduwuit_service::{
 	mailer::messages, registration_tokens::ValidToken, users::HashedPassword,
 };
-use futures::StreamExt;
+use futures::{FutureExt, StreamExt};
 use lettre::{Address, message::Mailbox};
 use ruma::{ClientSecret, OwnedClientSecret, OwnedServerName, OwnedSessionId, OwnedUserId};
 use serde::{Deserialize, Serialize, de::IgnoredAny};
@@ -152,6 +152,7 @@ async fn route_register(
 					form,
 					query.next.clone(),
 				)
+				.boxed()
 				.await?
 				{
 					| Ok(response) => return Ok(response),
