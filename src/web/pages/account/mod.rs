@@ -58,18 +58,33 @@ struct ThreepidQuery {
 template! {
 	struct Account use "account.html.j2" {
 		user_card: UserCard,
+		body: AccountBody
+	}
+}
+
+#[derive(Debug)]
+enum AccountBody {
+	Unlocked {
+		suspended: bool,
 		email_requirement: EmailRequirement,
 		email: Option<String>,
-		devices: Vec<DeviceCard>
-	}
+		devices: Vec<DeviceCard>,
+	},
+	Locked,
 }
 
 async fn get_account(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
-	user: User,
+	user: User<true>,
 ) -> Result {
 	let user_id = user.expect(LoginTarget::Account)?;
+
+	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
+
+	if services.users.is_locked(&user_id).await.unwrap() {
+		return response!(Account::new(context, user_card, AccountBody::Locked));
+	}
 
 	let email_requirement = services.threepid.email_requirement();
 	let email = services
@@ -77,8 +92,6 @@ async fn get_account(
 		.get_email_for_localpart(user_id.localpart())
 		.await
 		.map(|address| address.to_string());
-
-	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
 	let dehydrated_device_id = services.users.get_dehydrated_device_id(&user_id).await.ok();
 
@@ -111,7 +124,14 @@ async fn get_account(
 		.collect()
 		.await;
 
-	response!(Account::new(context, user_card, email_requirement, email, device_cards))
+	let suspended = services.users.is_suspended(&user_id).await.unwrap();
+
+	response!(Account::new(context, user_card, AccountBody::Unlocked {
+		suspended,
+		email_requirement,
+		email,
+		devices: device_cards
+	}))
 }
 
 #[derive(Deserialize)]

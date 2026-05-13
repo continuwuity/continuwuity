@@ -47,6 +47,12 @@
             font-weight: normal;
         }
     }
+
+    &.danger {
+        display: block;
+        background-color: oklch(from red 0.2 c h);
+        border: 1px dashed red;
+    }
 }
 
 .card-list {

@@ -197,7 +197,9 @@ async fn route_reset_password_validate(
 				UserId::parse(format!("@{localpart}:{}", services.globals.server_name()))
 					.unwrap();
 
-			require_active(&services, &user_id).await?;
+			if let Err(response) = require_active(&services, &user_id, true).await {
+				return Ok(response);
+			}
 
 			let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 

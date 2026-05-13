@@ -42,7 +42,7 @@ template! {
 async fn route_authorization_code(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
-	user: User,
+	user: User<true>,
 	Expect(Query(query)): Expect<Query<AuthorizationCodeQuery>>,
 	PostForm(form): PostForm<()>,
 ) -> Result {

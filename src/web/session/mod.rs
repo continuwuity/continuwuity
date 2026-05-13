@@ -4,7 +4,11 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
-use axum::{extract::FromRequestParts, http::request::Parts};
+use axum::{
+	extract::FromRequestParts,
+	http::request::Parts,
+	response::{IntoResponse, Redirect, Response},
+};
 use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
 use ruma::{OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
@@ -62,7 +66,7 @@ impl LoginTarget {
 }
 
 /// An extractor that fetches the authenticated user.
-pub(crate) struct User(Option<UserSession>);
+pub(crate) struct User<const ALLOW_LOCKED: bool = false>(Option<UserSession>);
 
 #[derive(Serialize, Deserialize)]
 pub(crate) struct UserSession {
@@ -89,7 +93,9 @@ impl UserSession {
 
 impl User {
 	pub(crate) const KEY: &str = "session";
+}
 
+impl<const ALLOW_LOCKED: bool> User<ALLOW_LOCKED> {
 	/// Consume this extractor and return the user's session information.
 	pub(crate) fn into_session(self) -> Option<UserSession> { self.0 }
 
@@ -127,8 +133,8 @@ impl User {
 	}
 }
 
-impl FromRequestParts<crate::State> for User {
-	type Rejection = WebError;
+impl<const ALLOW_LOCKED: bool> FromRequestParts<crate::State> for User<ALLOW_LOCKED> {
+	type Rejection = Response;
 
 	async fn from_request_parts(
 		parts: &mut Parts,
@@ -139,12 +145,12 @@ impl FromRequestParts<crate::State> for User {
 			.expect("should be able to extract session");
 
 		let session = session_store
-			.get::<UserSession>(Self::KEY)
+			.get::<UserSession>(User::KEY)
 			.await
 			.expect("should be able to deserialize session");
 
 		if let Some(session) = &session {
-			require_active(services, &session.user_id).await?;
+			require_active(services, &session.user_id, ALLOW_LOCKED).await?;
 		}
 
 		Ok(Self(session))
@@ -154,18 +160,22 @@ impl FromRequestParts<crate::State> for User {
 pub(crate) async fn require_active(
 	services: &crate::State,
 	user_id: &UserId,
-) -> Result<(), WebError> {
+	allow_locked: bool,
+) -> Result<(), Response> {
 	if !services.users.is_active(user_id).await {
-		return Err(WebError::Forbidden("Your account is deactivated.".to_owned()));
+		return Err(
+			WebError::Forbidden("Your account is deactivated.".to_owned()).into_response()
+		);
 	}
 
-	if services
-		.users
-		.is_locked(user_id)
-		.await
-		.expect("should be able to check lock state")
+	if !allow_locked
+		&& services
+			.users
+			.is_locked(user_id)
+			.await
+			.expect("should be able to check lock state")
 	{
-		return Err(WebError::Forbidden("Your account is locked.".to_owned()));
+		return Err(Redirect::to(&format!("{ROUTE_PREFIX}/account/")).into_response());
 	}
 
 	Ok(())
