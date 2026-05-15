@@ -1,7 +1,11 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Result, Server};
+use conduwuit::{
+	Result, Server,
+	info::room_version::{STABLE_ROOM_VERSIONS, UNSTABLE_ROOM_VERSIONS},
+};
+use itertools::Itertools;
 use ruma::{
 	RoomVersionId,
 	api::client::discovery::get_capabilities::{
@@ -25,7 +29,13 @@ pub(crate) async fn get_capabilities_route(
 	body: Ruma<get_capabilities::v3::Request>,
 ) -> Result<get_capabilities::v3::Response> {
 	let available: BTreeMap<RoomVersionId, RoomVersionStability> =
-		Server::available_room_versions().collect();
+		Server::available_room_versions()
+			.filter(|(version, _)| {
+				(services.config.allow_unstable_room_versions
+					&& UNSTABLE_ROOM_VERSIONS.contains(version))
+					|| STABLE_ROOM_VERSIONS.contains(version)
+			})
+			.collect();
 
 	let mut capabilities = Capabilities::default();
 	capabilities.room_versions = RoomVersionsCapability::new(

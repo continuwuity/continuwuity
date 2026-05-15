@@ -21,12 +21,29 @@ pub const STABLE_ROOM_VERSIONS: &[RoomVersionId] = &[
 pub const UNSTABLE_ROOM_VERSIONS: &[RoomVersionId] =
 	&[RoomVersionId::V3, RoomVersionId::V4, RoomVersionId::V5];
 
+pub const DEPRECATED_ROOM_VERSIONS: &[RoomVersionId] = &[
+	RoomVersionId::V3,
+	RoomVersionId::V4,
+	RoomVersionId::V5,
+	RoomVersionId::V6,
+	RoomVersionId::V7,
+	RoomVersionId::V8,
+	RoomVersionId::V9,
+];
+
 type RoomVersion = (RoomVersionId, RoomVersionStability);
 
 impl crate::Server {
 	#[inline]
 	pub fn supported_room_version(&self, version: &RoomVersionId) -> bool {
 		self.supported_room_versions().any(is_equal_to!(*version))
+	}
+
+	pub fn version_is_deprecated(&self, version: &RoomVersionId) -> bool {
+		DEPRECATED_ROOM_VERSIONS
+			.iter()
+			.cloned()
+			.any(is_equal_to!(*version))
 	}
 
 	#[inline]
@@ -52,10 +69,15 @@ pub fn available_room_versions() -> impl Iterator<Item = RoomVersion> {
 		.iter()
 		.cloned()
 		.zip(once(RoomVersionStability::Unstable).cycle());
+	let deprecated_room_versions = DEPRECATED_ROOM_VERSIONS
+		.iter()
+		.cloned()
+		.zip(once(RoomVersionStability::Deprecated).cycle());
 
 	STABLE_ROOM_VERSIONS
 		.iter()
 		.cloned()
 		.zip(once(RoomVersionStability::Stable).cycle())
 		.chain(unstable_room_versions)
+		.chain(deprecated_room_versions)
 }
