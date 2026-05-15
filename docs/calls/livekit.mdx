@@ -188,28 +188,17 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 
 </details>
 <details>
-   <summary>Example full docker compose file with caddy-docker-proxy</summary>
+   <summary>Example docker compose file with caddy-docker-proxy labels</summary>
    ```yaml
-   # This example uses a separate TURN server that is configured separately to provide backwards
-   # compatibility instead of the one internal to livekit.  For more information look to the TURN
-   # section of this guide or remove the TURN portion from this compose file and use the internal
-   # TURN livekit server provided below
-
    services:
     lk-jwt-service:
         image: ghcr.io/element-hq/lk-jwt-service:latest
         container_name: lk-jwt-service
-        environment:
-            - LIVEKIT_JWT_BIND=:8081
-            - LIVEKIT_URL=wss://livekit.example.domain
-            - LIVEKIT_KEY=MYLIVEKITKEY
-            - LIVEKIT_SECRET=MYLIVEKITSECRET
-            - LIVEKIT_FULL_ACCESS_HOMESERVERS=example.domain
-        restart: unless-stopped
+        # lk-jwt-service environment config here..
         networks:
             - caddy
         labels:
-            caddy: livekit.example.domain
+            caddy: livekit.example.com
             caddy.@lk-jwt-service.path: "/sfu/get* /healthz* /get_token*"
             caddy.reverse_proxy: "@lk-jwt-service {{upstreams 8081}}"
         ports:
@@ -224,7 +213,7 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         networks:
             - caddy
         labels:
-            caddy: livekit.example.domain
+            caddy: livekit.example.com
             caddy.reverse_proxy: "{{upstreams 7880}}"
         volumes:
             - ./livekit.yaml:/etc/livekit.yaml:ro
@@ -233,13 +222,6 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
             - "7881:7881/tcp"
             - "50100-50200:50100-50200/udp"
 
-    turn:
-        container_name: coturn-server
-        image: docker.io/coturn/coturn
-        restart: unless-stopped
-        network_mode: "host"
-        volumes:
-            - ./coturn.conf:/etc/coturn/turnserver.conf
 
     caddy:
         # This compose file uses caddy-docker-proxy as the reverse proxy for Continuwuity!
@@ -257,42 +239,30 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
             - ./data:/data
         restart: unless-stopped
         labels:
-            caddy: example.domain
-            caddy.0_header: "*"
-            caddy.0_header.Access-Control-Allow-Origin: "*"
-            caddy.0_header.Access-Control-Allow-Methods: "GET, POST, OPTIONS"
-            caddy.0_header.Access-Control-Allow-Headers: "Authorization"
-            caddy.0_header.Content-Type: "application/json"
-            caddy.1_respond: /.well-known/matrix/server {"m.server":"matrix.example.domain:443"}
-            caddy.2_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.domain"},"m.homeserver":{"base_url":"https://matrix.example.domain"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://livekit.example.domain"}]}
+            # If you are having problems with continuwuity serving headers uncomment
+            # the header section below.
+
+            # caddy: example.com
+            # caddy.0_header: "*"
+            # caddy.0_header.Access-Control-Allow-Origin: "*"
+            # caddy.0_header.Access-Control-Allow-Methods: "GET, POST, OPTIONS"
+            # caddy.0_header.Access-Control-Allow-Headers: "Authorization"
+            # caddy.0_header.Content-Type: "application/json"
+
+            # If you already configured `[global.well_known]` with Continuwuity,
+            # comment out the *_respond labels and add this line
+            # caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
+            caddy.1_respond: /.well-known/matrix/server {"m.server":"matrix.example.com:443"}
+            caddy.2_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://livekit.example.com"}]}
 
     homeserver:
-        ### If you already built the Continuwuity image with 'docker build' or want to use a registry image,
-        ### then you are ready to go.
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
-        volumes:
-            - db:/var/lib/continuwuity
-            - /etc/resolv.conf:/etc/resolv.conf:ro # Use the host's DNS resolver rather than Docker's.
-        environment:
-            CONTINUWUITY_SERVER_NAME: example.domain # EDIT THIS
-            CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
-            CONTINUWUITY_PORT: 6167
-            CONTINUWUITY_MAX_REQUEST_SIZE: 20000000 # in bytes, ~20 MB
-            CONTINUWUITY_ALLOW_REGISTRATION: "true"
-            CONTINUWUITY_REGISTRATION_TOKEN: 'MYREGTOKENCHANGEME' # A registration token is required when registration is allowed.
-            CONTINUWUITY_ALLOW_FEDERATION: "true"
-            CONTINUWUITY_ALLOW_CHECK_FOR_UPDATES: "true"
-            CONTINUWUITY_TRUSTED_SERVERS: '["matrix.org"]'
-            CONTINUWUITY_ADDRESS: 0.0.0.0
-            CONTINUWUITY_QUERY_OVER_TCP_ONLY: "true"
-            CONTINUWUITY_TURN_URIS: '["turn:turn.example.domain?transport=udp", "turn:turn.example.domain?transport=tcp"]'
-            CONTINUWUITY_TURN_SECRET: "MYTURNSECRET"
-            CONTINUWUITY_TURN_TTL: 86400
+        # add additional config here...
         networks:
             - caddy
         labels:
-            caddy: matrix.example.domain
+            caddy: matrix.example.com
             caddy.reverse_proxy: "{{upstreams 6167}}"
 
 
