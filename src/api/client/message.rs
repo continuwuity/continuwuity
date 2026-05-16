@@ -307,7 +307,7 @@ where
 	}
 
 	let sender_user = event.sender();
-	let type_ignored = IGNORED_MESSAGE_TYPES.binary_search(event.kind()).is_ok();
+	let type_ignored = IGNORED_MESSAGE_TYPES.contains(event.kind());
 	let server_ignored = services
 		.moderation
 		.is_remote_server_ignored(sender_user.server_name());
