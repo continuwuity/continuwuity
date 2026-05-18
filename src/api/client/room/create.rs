@@ -2,14 +2,19 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
-	debug, debug_info, err, info, matrix::{pdu::PartialPdu, StateKey}, trace,
-	warn,
-	Err, Result,
+	Err, Result, debug, debug_info, err, info,
+	matrix::{StateKey, pdu::PartialPdu},
+	trace, warn,
 };
-use conduwuit_service::{appservice::RegistrationInfo, Services};
+use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	api::client::room::{self, create_room}, assign, events::{
+	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
+	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
+	api::client::room::{self, create_room},
+	assign,
+	events::{
+		TimelineEventType,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			create::RoomCreateEventContent,
@@ -21,20 +26,15 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			topic::RoomTopicEventContent,
 		},
-		TimelineEventType,
-	}, int, room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
-	serde::{JsonObject, Raw}, CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch,
-	OwnedRoomAliasId,
-	OwnedUserId,
-	RoomAliasId,
-	RoomId,
-	RoomVersionId,
-	UserId,
+	},
+	int,
+	room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
+	serde::{JsonObject, Raw},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 use serde_json::{json, value::to_raw_value};
 
-use crate::{client::invite_helper, Ruma};
+use crate::{Ruma, client::invite_helper};
 
 /// # `POST /_matrix/client/v3/createRoom`
 ///
@@ -298,10 +298,12 @@ pub(crate) async fn create_room_route(
 	};
 	drop(state_lock);
 	debug!("Room created with ID {room_id}");
-	if let Some(expected_room_id) = expect_room_id && expected_room_id != room_id {
+	if let Some(expected_room_id) = expect_room_id
+		&& expected_room_id != room_id
+	{
 		return Err!(BadServerResponse(
 			"Room's final room ID was {room_id}, but expected {expected_room_id}"
-		))
+		));
 	}
 	let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
