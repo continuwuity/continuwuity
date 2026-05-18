@@ -10,7 +10,7 @@ use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
-	OwnedRoomId, OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
+	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
 	api::client::room::{self, create_room},
 	assign,
 	events::{
@@ -86,25 +86,41 @@ pub(crate) async fn create_room_route(
 	};
 	let room_version_rules = room_version.rules().unwrap();
 
-	let room_id: Option<OwnedRoomId> = match room_version_rules.room_id_format {
-		| RoomIdFormatVersion::V1 => {
-			// Check for custom room ID field
-			if let Some(CanonicalJsonValue::String(room_id)) =
-				body.json_body.as_ref().unwrap().get("room_id")
-			{
-				Some(
-					RoomId::parse(room_id)
-						.map_err(|_| err!(Request(BadJson("Malformed custom room ID"))))?,
-				)
-			} else {
-				Some(RoomId::new_v1(services.globals.server_name()))
-			}
-		},
+	// For custom room IDs, if the user is creating a room with a v1 room ID format,
+	// we can just use that ID directly. However, if it's a custom *v2* room ID, we
+	// need to make sure that we don't generate one, which would in turn trick us
+	// into generating invalid v2 room events.
+	//
+	// expect_room_id is the custom room ID that the user is expecting - for v2
+	// formatted rooms, we check that the m.room.create event's generated room ID
+	// exactly matches this, and abort if it doesn't. Otherwise, we use it as the
+	// room ID itself.
+	let expect_room_id = {
+		let body_ref = body.json_body.as_ref().unwrap();
+		if let Some(CanonicalJsonValue::String(room_id)) = body_ref
+			.get("fi.mau.room_id")
+			.or_else(|| body_ref.get("room_id"))
+		{
+			Some(
+				RoomId::parse(room_id)
+					.map_err(|e| err!(Request(BadJson("Malformed custom room ID: {e}"))))?,
+			)
+		} else {
+			None
+		}
+	};
+
+	let room_id = match room_version_rules.room_id_format {
+		| RoomIdFormatVersion::V1 => Some(
+			expect_room_id
+				.clone()
+				.unwrap_or_else(|| RoomId::new_v1(services.globals.server_name())),
+		),
 		| _ => None,
 	};
 
 	// check if room ID doesn't already exist instead of erroring on auth check
-	if let Some(ref room_id) = room_id {
+	if let Some(room_id) = room_id.as_ref().or(expect_room_id.as_ref()) {
 		if services.rooms.short.get_shortroomid(room_id).await.is_ok() {
 			return Err!(Request(RoomInUse("Room with that custom room ID already exists",)));
 		}
@@ -243,15 +259,16 @@ pub(crate) async fn create_room_route(
 
 	// Allow requesters to override the `origin_server_ts` to customize room ids
 	// from v12 onwards
-	let custom_origin_server_ts = body
-		.json_body
-		.as_ref()
-		.unwrap()
-		.get("origin_server_ts")
-		.and_then(CanonicalJsonValue::as_integer)
-		.map(Into::into)
-		.and_then(|value: i64| value.try_into().ok())
-		.map(MilliSecondsSinceUnixEpoch);
+	let custom_origin_server_ts = {
+		let body_ref = body.json_body.as_ref().unwrap();
+		body_ref
+			.get("origin_server_ts")
+			.or_else(|| body_ref.get("fi.mau.origin_server_ts"))
+			.and_then(CanonicalJsonValue::as_integer)
+			.map(Into::into)
+			.and_then(|value: i64| value.try_into().ok())
+			.map(MilliSecondsSinceUnixEpoch)
+	};
 
 	let create_event_id = services
 		.rooms
