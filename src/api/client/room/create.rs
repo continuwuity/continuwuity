@@ -2,19 +2,14 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, debug, debug_info, err, info,
-	matrix::{StateKey, pdu::PartialPdu},
-	trace, warn,
+	debug, debug_info, err, info, matrix::{pdu::PartialPdu, StateKey}, trace,
+	warn,
+	Err, Result,
 };
-use conduwuit_service::{Services, appservice::RegistrationInfo};
+use conduwuit_service::{appservice::RegistrationInfo, Services};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
-	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
-	api::client::room::{self, create_room},
-	assign,
-	events::{
-		TimelineEventType,
+	api::client::room::{self, create_room}, assign, events::{
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			create::RoomCreateEventContent,
@@ -26,15 +21,20 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			topic::RoomTopicEventContent,
 		},
-	},
-	int,
-	room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
-	serde::{JsonObject, Raw},
+		TimelineEventType,
+	}, int, room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
+	serde::{JsonObject, Raw}, CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch,
+	OwnedRoomAliasId,
+	OwnedUserId,
+	RoomAliasId,
+	RoomId,
+	RoomVersionId,
+	UserId,
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 use serde_json::{json, value::to_raw_value};
 
-use crate::{Ruma, client::invite_helper};
+use crate::{client::invite_helper, Ruma};
 
 /// # `POST /_matrix/client/v3/createRoom`
 ///
@@ -298,6 +298,11 @@ pub(crate) async fn create_room_route(
 	};
 	drop(state_lock);
 	debug!("Room created with ID {room_id}");
+	if let Some(expected_room_id) = expect_room_id && expected_room_id != room_id {
+		return Err!(BadServerResponse(
+			"Room's final room ID was {room_id}, but expected {expected_room_id}"
+		))
+	}
 	let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
 
 	// 2. Let the room creator join
