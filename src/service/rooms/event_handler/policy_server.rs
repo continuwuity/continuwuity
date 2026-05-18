@@ -6,18 +6,18 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	debug, debug_error, debug_info, debug_warn, error, implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object,
-	warn, Err, Error, Event, PduEvent, Result,
+	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error,
+	implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
 };
 use http::StatusCode;
 use ruma::{
-	api::error::ErrorKind, canonical_json::redact, events::{room::policy::RoomPolicyEventContent, StateEventType}, room_version_rules::{RedactionRules, RoomVersionRules}, serde::{base64::Standard, Base64}, signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
-	CanonicalJsonObject,
-	CanonicalJsonValue,
-	KeyId,
-	RoomId,
-	ServerName,
-	SigningKeyAlgorithm,
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyAlgorithm,
+	api::error::ErrorKind,
+	canonical_json::redact,
+	events::{StateEventType, room::policy::RoomPolicyEventContent},
+	room_version_rules::{RedactionRules, RoomVersionRules},
+	serde::{Base64, base64::Standard},
+	signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
 };
 use ruminuwuity::policy::policy_sign::unstable::Request as PolicySignRequest;
 use serde_json::value::RawValue;
@@ -77,8 +77,9 @@ pub(super) fn verify_policy_signature(
 /// the PDU's room, or the configured server is not present in the room, the
 /// check is also skipped.
 ///
-/// If the policy server marks the event as spam, the relevant error is returned. Otherwise,
-/// the incoming PDU JSON is mutated to include the new policy server signature.
+/// If the policy server marks the event as spam, the relevant error is
+/// returned. Otherwise, the incoming PDU JSON is mutated to include the new
+/// policy server signature.
 #[implement(super::Service)]
 #[tracing::instrument(skip(self, pdu, pdu_json, room_version_rules), level = "info")]
 pub async fn policy_server_allows_event(
@@ -183,9 +184,9 @@ pub async fn policy_server_allows_event(
 		.await
 }
 
-/// Handles an error returned by the policy server. If the error is one that should be returned to
-/// the user, it is propagated, otherwise the request may be retried (for example, when
-/// rate-limited).
+/// Handles an error returned by the policy server. If the error is one that
+/// should be returned to the user, it is propagated, otherwise the request may
+/// be retried (for example, when rate-limited).
 #[allow(clippy::too_many_arguments)]
 #[implement(super::Service)]
 async fn handle_policy_server_error(
@@ -293,8 +294,8 @@ async fn handle_policy_server_error(
 }
 
 /// Asks a remote policy server for a signature on this event.
-/// If the policy server signs this event, the original data is mutated. Otherwise, the error is
-/// handled and potentially returned.
+/// If the policy server signs this event, the original data is mutated.
+/// Otherwise, the error is handled and potentially returned.
 #[allow(clippy::too_many_arguments)]
 #[implement(super::Service)]
 #[tracing::instrument(skip_all, fields(event_id=%pdu.event_id(), via=%via), level = "info")]
@@ -361,9 +362,7 @@ pub async fn fetch_policy_server_signature(
 			"Policy server did not sign event: {:?}",
 			response.signatures
 		);
-		return Err!(BadServerResponse(
-			"Policy server did not sign the event"
-		));
+		return Err!(BadServerResponse("Policy server did not sign the event"));
 	}
 	// Unwraps are safe here because we checked both in the above if statement
 	let signatures = response.signatures.unwrap();

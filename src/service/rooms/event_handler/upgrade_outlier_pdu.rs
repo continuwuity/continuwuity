@@ -9,9 +9,9 @@ use conduwuit::{
 	Err,
 	Result,
 };
-use futures::{future::ready, FutureExt, StreamExt};
+use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{
-	api::error::ErrorKind, events::StateEventType, CanonicalJsonValue, RoomId, ServerName,
+	CanonicalJsonValue, RoomId, ServerName, api::error::ErrorKind, events::StateEventType,
 };
 use tokio::join;
 
