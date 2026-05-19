@@ -28,7 +28,7 @@ jobs:
             const labelsToAdd = new Set();
 
             for (const file of fileNames) {
-              if (file.startsWith('docs/') || file.startsWith('theme/') || file.endsWith('.md') || file == 'rspress.config.ts') {
+              if (file.startsWith('docs/') || file.startsWith('theme/') || (file.endsWith('.md') && !file.startsWith('changelog.d/')) || file == 'rspress.config.ts') {
                 labelsToAdd.add('Documentation');
               }
               if (file.startsWith('.forgejo/')) {
