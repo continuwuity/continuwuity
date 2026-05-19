@@ -4359,8 +4359,8 @@ dependencies = [
 
 [[package]]
 name = "rust-librocksdb-sys"
-version = "0.42.0+10.10.1"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9#31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9"
+version = "0.45.1+11.1.1"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=0a25ff92f7c09b55eec496b9c192c7d5136ab2b8#0a25ff92f7c09b55eec496b9c192c7d5136ab2b8"
 dependencies = [
  "bindgen",
  "bzip2-sys",
@@ -4376,8 +4376,8 @@ dependencies = [
 
 [[package]]
 name = "rust-rocksdb"
-version = "0.46.0"
-source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9#31fb8f772c7afcdc0061ab6a40cfa3a1be2fccd9"
+version = "0.49.1"
+source = "git+https://forgejo.ellis.link/continuwuation/rust-rocksdb-zaidoon1?rev=0a25ff92f7c09b55eec496b9c192c7d5136ab2b8#0a25ff92f7c09b55eec496b9c192c7d5136ab2b8"
 dependencies = [
  "libc",
  "parking_lot",
