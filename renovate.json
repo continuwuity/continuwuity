@@ -5,7 +5,7 @@
     "osvVulnerabilityAlerts": true,
     "lockFileMaintenance": {
         "enabled": true,
-        "schedule": ["at any time"]
+        "schedule": ["* * * * 0,6"]
     },
     "platformAutomerge": true,
     "nix": {
@@ -67,6 +67,17 @@
             "groupName": "github-actions-non-major"
         },
         {
+            "description": "Batch GitHub Actions digest updates",
+            "matchManagers": ["github-actions"],
+            "matchUpdateTypes": ["digest"],
+            "groupName": "github-actions-digest",
+            "automerge": true,
+            "automergeStrategy": "fast-forward",
+            "schedule": [
+              "* 0-7 * * 2"
+            ]
+        },
+        {
             "description": "Batch patch-level Node.js dependency updates",
             "matchManagers": ["npm"],
             "matchUpdateTypes": ["patch"],
@@ -83,7 +94,10 @@
             "matchPackageNames": ["crate-ci/typos"],
             "matchUpdateTypes": ["minor", "patch"],
             "automerge": true,
-            "automergeStrategy": "fast-forward"
+            "automergeStrategy": "fast-forward",
+            "schedule": [
+              "* 0-7 * * 3"
+            ]
         },
         {
             "description": "Auto-merge renovatebot docker image updates",
@@ -91,7 +105,9 @@
             "matchPackageNames": ["ghcr.io/renovatebot/renovate"],
             "automerge": true,
             "automergeStrategy": "fast-forward",
-            "extends": ["schedule:earlyMondays"]
+            "schedule": [
+              "* 0-7 * * 1"
+            ]
         }
     ],
     "customManagers": [
