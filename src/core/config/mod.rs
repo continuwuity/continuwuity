@@ -2360,7 +2360,7 @@ pub struct SmtpConfig {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[config_example_generator(
 	filename = "conduwuit-example.toml",
-	section = "global.registration-terms",
+	section = "global.registration_terms",
 	optional = "true"
 )]
 pub struct RegistrationTerms {

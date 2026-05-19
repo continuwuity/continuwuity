@@ -1986,7 +1986,7 @@
 #
 #require_email_for_token_registration = false
 
-#[global.registration-terms]
+#[global.registration_terms]
 
 # The language code to provide to clients along with the policy documents.
 #
