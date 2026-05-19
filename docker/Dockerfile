@@ -1,5 +1,5 @@
 ARG RUST_VERSION=1
-ARG DEBIAN_VERSION=bookworm
+ARG DEBIAN_VERSION=trixie
 
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS base
@@ -10,7 +10,7 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean
 
 # Match Rustc version as close as possible
 # rustc -vV
-ARG LLVM_VERSION=21
+ARG LLVM_VERSION=22
 # ENV RUSTUP_TOOLCHAIN=${RUST_VERSION}
 
 # Install repo tools
@@ -22,7 +22,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && apt-get install -y \
     pkg-config make jq \
-    wget curl git software-properties-common \
+    wget curl git lsb-release gpg \
     file
     # golang cmake
 
