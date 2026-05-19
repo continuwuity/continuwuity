@@ -284,11 +284,11 @@ fn is_within_bounds() {
 	use utils::time::{TimeDirection, is_within_bounds};
 
 	let now = SystemTime::now();
-	let yesterday = now - Duration::from_secs(86400);
+	let yesterday = now - Duration::from_hours(24);
 	assert!(is_within_bounds(yesterday, now, TimeDirection::Before));
 	assert!(!is_within_bounds(yesterday, now, TimeDirection::After));
 
-	let tomorrow = now + Duration::from_secs(86400);
+	let tomorrow = now + Duration::from_hours(24);
 	assert!(is_within_bounds(tomorrow, now, TimeDirection::After));
 	assert!(!is_within_bounds(tomorrow, now, TimeDirection::Before));
 
