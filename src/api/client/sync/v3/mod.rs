@@ -110,6 +110,9 @@ struct SyncContext<'a> {
 	/// The sync filter, which the client uses to specify what data should be
 	/// included in the sync response.
 	filter: &'a FilterDefinition,
+	/// Whether the state at the end of the timeline should be used when
+	/// calculating state diffs for sync.
+	use_state_after: bool,
 }
 
 impl<'a> SyncContext<'a> {
@@ -263,6 +266,7 @@ pub(crate) async fn build_sync_events(
 		current_count,
 		full_state,
 		filter: &filter,
+		use_state_after: body.use_state_after,
 	};
 
 	let joined_rooms = services

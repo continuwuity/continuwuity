@@ -97,12 +97,19 @@ pub(super) async fn load_joined_room(
 		);
 	}
 
+	let state_events =
+		StateEvents::with_events(state_events.into_iter().map(Event::into_format).collect());
+
 	let joined_room = assign!(JoinedRoom::new(), {
 		account_data,
 		summary: summary.unwrap_or_default(),
 		unread_notifications: notification_counts.unwrap_or_default(),
 		timeline,
-		state: RoomState::Before(StateEvents::with_events(state_events.into_iter().map(Event::into_format).collect())),
+		state: if sync_context.use_state_after {
+			RoomState::After(state_events)
+		} else {
+			RoomState::Before(state_events)
+		},
 		ephemeral,
 		unread_thread_notifications: BTreeMap::new(),
 	});
@@ -366,7 +373,11 @@ async fn fetch_shortstatehashes(
 				let pdus_rev = services
 					.rooms
 					.timeline
-					.pdus_rev(room_id, Some(PduCount::Normal(last_sync_end_count.saturating_sub(1))))
+					// We add 2 to the count here because `pdu_shortstatehash` returns
+					// state _before_ the event ID (i.e. not including the event itself if it's a state event)
+					// and `pdus_rev` does exclusive iteration (i.e. not including an event that has _exactly_
+					// the provided count).
+					.pdus_rev(room_id, Some(PduCount::Normal(last_sync_end_count).saturating_add(2)))
 					.ignore_err();
 			}
 
@@ -444,6 +455,7 @@ async fn build_state_events(
 		syncing_user,
 		last_sync_end_count,
 		full_state,
+		use_state_after,
 		..
 	} = sync_context;
 
@@ -452,10 +464,6 @@ async fn build_state_events(
 		last_sync_end_shortstatehash,
 	} = shortstatehashes;
 
-	// the spec states that the `state` property only includes state events up to
-	// the beginning of the timeline, so we determine the state of the syncing room
-	// as of the first timeline event. NOTE: this explanation is not entirely
-	// accurate; see the implementation of `build_state_incremental`.
 	let timeline_start_shortstatehash = async {
 		if let Some((_, pdu)) = timeline.pdus.front() {
 			if let Ok(shortstatehash) = services
@@ -486,16 +494,15 @@ async fn build_state_events(
 		is Some (meaning the syncing user didn't just join this room for the first time ever), and `full_state` is false,
 		then use `build_state_incremental`.
 		*/
-		| (Some(last_sync_end_count), Some(last_sync_end_shortstatehash)) if !full_state =>
+		| (Some(_), Some(last_sync_end_shortstatehash)) if !full_state =>
 			build_state_incremental(
 				services,
 				syncing_user,
-				room_id,
-				PduCount::Normal(last_sync_end_count),
 				last_sync_end_shortstatehash,
 				timeline_start_shortstatehash,
 				current_shortstatehash,
 				timeline,
+				use_state_after,
 				lazily_loaded_members.as_ref(),
 			)
 			.boxed()
@@ -510,6 +517,8 @@ async fn build_state_events(
 				services,
 				syncing_user,
 				timeline_start_shortstatehash,
+				current_shortstatehash,
+				use_state_after,
 				lazily_loaded_members.as_ref(),
 			)
 			.boxed()
