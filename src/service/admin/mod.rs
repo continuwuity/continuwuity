@@ -18,6 +18,8 @@ use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use loole::{Receiver, Sender};
 use ruma::{
 	OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
+	api::client::discovery::discover_support::{Contact, ContactRole},
+	assign,
 	events::{
 		Mentions,
 		room::message::{
@@ -28,7 +30,7 @@ use ruma::{
 use tokio::sync::RwLock;
 
 use crate::{
-	Dep, account_data, globals,
+	Dep, account_data, config, globals,
 	media::{MXC_LENGTH, mxc::Mxc},
 	rooms::{self, state::RoomMutexGuard},
 };
@@ -44,6 +46,7 @@ pub struct Service {
 
 struct Services {
 	server: Arc<Server>,
+	config: Dep<config::Service>,
 	globals: Dep<globals::Service>,
 	alias: Dep<rooms::alias::Service>,
 	timeline: Dep<rooms::timeline::Service>,
@@ -115,6 +118,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			services: Services {
 				server: args.server.clone(),
+				config: args.depend::<config::Service>("config"),
 				globals: args.depend::<globals::Service>("globals"),
 				alias: args.depend::<rooms::alias::Service>("rooms::alias"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
@@ -622,5 +626,53 @@ impl Service {
 		let receiver = &mut *self.services.services.write();
 		let weak = services.map(Arc::downgrade);
 		*receiver = weak;
+	}
+
+	/// Get the server's configured support contacts.
+	pub async fn get_support_contacts(&self) -> Vec<Contact> {
+		let email_address = self.services.config.well_known.support_email.clone();
+		let matrix_id = self.services.config.well_known.support_mxid.clone();
+		let pgp_key = self.services.config.well_known.support_pgp_key.clone();
+
+		// TODO: support defining multiple contacts in the config
+		let mut contacts: Vec<Contact> = vec![];
+
+		let role = self
+			.services
+			.config
+			.well_known
+			.support_role
+			.clone()
+			.unwrap_or(ContactRole::Admin);
+
+		// Add configured contact if at least one contact method is specified
+		let configured_contact = match (matrix_id, email_address) {
+			| (Some(matrix_id), email_address) =>
+				Some(assign!(Contact::with_matrix_id(role, matrix_id), { email_address })),
+			| (None, Some(email_address)) =>
+				Some(Contact::with_email_address(role, email_address)),
+			| (None, None) => None,
+		};
+
+		if let Some(mut configured_contact) = configured_contact {
+			configured_contact.pgp_key = pgp_key;
+
+			contacts.push(configured_contact);
+		}
+
+		// Try to add admin users as contacts if no contacts are configured
+		if contacts.is_empty() {
+			let admin_users = self.get_admins().await;
+
+			for user_id in &admin_users {
+				if *user_id == self.services.globals.server_user {
+					continue;
+				}
+
+				contacts.push(Contact::with_matrix_id(ContactRole::Admin, user_id.to_owned()));
+			}
+		}
+
+		contacts
 	}
 }
