@@ -9,6 +9,7 @@ use ruma::{
 			AccessToken, AccessTokenOptional, AppserviceToken, AppserviceTokenOptional,
 			AuthScheme, NoAccessToken, NoAuthentication,
 		},
+		client,
 		federation::authentication::ServerSignatures,
 	},
 };
@@ -116,10 +117,9 @@ impl CheckAuth for AccessToken {
 					.await
 					.is_ok_and(std::convert::identity)
 				{
-					if !(route == TypeId::of::<ruma::api::client::session::logout::v3::Request>()
-						|| route
-							== TypeId::of::<ruma::api::client::session::logout_all::v3::Request>(
-							)) {
+					if !(route == TypeId::of::<client::session::logout::v3::Request>()
+						|| route == TypeId::of::<client::session::logout_all::v3::Request>())
+					{
 						return Err!(Request(Unauthorized("Your account is locked.")));
 					}
 				}
@@ -257,6 +257,19 @@ impl CheckAuth for NoAccessToken {
 		let token = AccessTokenOptional::extract_authentication(request).map_err(|err| {
 			err!(Request(Unauthorized(warn!("Failed to extract authorization: {}", err))))
 		})?;
+
+		// Check special access restrictions
+		if (route == TypeId::of::<client::profile::get_avatar_url::v3::Request>()
+			|| route == TypeId::of::<client::profile::get_display_name::v3::Request>()
+			|| route == TypeId::of::<client::profile::get_profile_field::v3::Request>()
+			|| route == TypeId::of::<client::profile::get_profile::v3::Request>())
+			&& services.config.require_auth_for_profile_requests
+			&& token.is_none()
+		{
+			return Err!(Request(Unauthorized(
+				"This server requires authentication to access user profiles."
+			)));
+		}
 
 		<AccessTokenOptional as CheckAuth>::verify(services, token, request, query, route).await
 	}
