@@ -2589,7 +2589,11 @@ pub struct SmtpConfig {
 	///
 	/// For a guide on the accepted URI syntax, consult Lettre's documentation:
 	/// https://docs.rs/lettre/latest/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url
-	pub connection_uri: String,
+	pub connection_uri: Option<String>,
+
+	/// Same as `connection_uri`, except loaded from a file. If `connection_uri`
+	/// is defined, it is prioritized and `connection_uri_file` is ignored
+	pub connection_uri_file: Option<PathBuf>,
 
 	/// The outgoing address which will be used for sending emails.
 	///

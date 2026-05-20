@@ -1,4 +1,4 @@
-use std::env::consts::OS;
+use std::{env::consts::OS, path::PathBuf};
 
 use either::Either;
 use figment::Figment;
@@ -260,6 +260,18 @@ pub fn check(config: &Config) -> Result {
 			"default_room_version",
 			"Room version {:?} is not available",
 			config.default_room_version
+		));
+	}
+
+	if config.smtp.as_ref().is_some_and(|f| {
+		f.connection_uri.is_none() && f.connection_uri_file.is_none()
+			|| (f.connection_uri == Some(String::new())
+				&& f.connection_uri_file == Some(PathBuf::new()))
+	}) {
+		return Err!(Config(
+			"connection_uri",
+			"If smtp is enabled, either connection_uri or connection_uri_file have to be \
+			 defined."
 		));
 	}
 

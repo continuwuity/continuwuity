@@ -20,16 +20,28 @@ pub struct Service {
 #[async_trait::async_trait]
 impl crate::Service for Service {
 	fn build(args: Args<'_>) -> Result<Arc<Self>> {
-		let transport = args
-			.server
-			.config
-			.smtp
-			.as_ref()
-			.map(|config| {
-				Ok((config.sender.clone(), Transport::from_url(&config.connection_uri)?.build()))
-			})
-			.transpose()
-			.map_err(|err: TransportError| err!("Failed to set up SMTP transport: {err}"))?;
+		let transport =
+			args.server
+				.config
+				.smtp
+				.as_ref()
+				.map(|config| -> Result<_> {
+					let connection_uri: String =
+						if let Some(uri) = &config.connection_uri {
+							uri.clone()
+						} else {
+							std::fs::read_to_string(
+								config.connection_uri_file.as_ref().unwrap() // Safe to unwrap here assuming the config checks properly run and throw errors
+							)
+							.map_err(|err| err!("Failed to read SMTP connection URI file: {err}"))?
+						};
+					let transport = Transport::from_url(&connection_uri)
+						.map_err(|err| err!("Failed to set up SMTP transport: {err}"))?
+						.build();
+
+					Ok((config.sender.clone(), transport))
+				})
+				.transpose()?;
 
 		Ok(Arc::new(Self { transport }))
 	}
