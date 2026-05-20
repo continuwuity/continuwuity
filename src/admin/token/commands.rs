@@ -6,18 +6,24 @@ use service::registration_tokens::TokenExpires;
 #[admin_command]
 pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 	let expires = {
-		if expires.immortal {
-			None
-		} else if let Some(max_uses) = expires.max_uses {
-			Some(TokenExpires::AfterUses(max_uses))
-		} else if expires.once {
-			Some(TokenExpires::AfterUses(1))
-		} else if let Some(max_age) = expires
+		let max_uses = expires.max_uses;
+		let max_age = expires
 			.max_age
 			.as_deref()
 			.map(|max_age| utils::time::timepoint_from_now(utils::time::parse_duration(max_age)?))
-			.transpose()?
+			.transpose()?;
+
+		if expires.immortal {
+			None
+		} else if let Some(max_uses) = max_uses
+			&& let Some(max_age) = max_age
 		{
+			Some(TokenExpires::AfterTimeOrUses { max_uses, max_age })
+		} else if let Some(max_uses) = max_uses {
+			Some(TokenExpires::AfterUses(max_uses))
+		} else if expires.once {
+			Some(TokenExpires::AfterUses(1))
+		} else if let Some(max_age) = max_age {
 			Some(TokenExpires::AfterTime(max_age))
 		} else {
 			unreachable!();

@@ -29,23 +29,23 @@ pub enum TokenCommand {
 }
 
 #[derive(Debug, Args)]
-#[group(required = true, multiple = false)]
+#[group(required = true, multiple = true)]
 pub struct TokenExpires {
 	/// The maximum number of times this token is allowed to be used before it
 	/// expires.
-	#[arg(long)]
+	#[arg(long, conflicts_with_all = ["immortal", "once"])]
 	max_uses: Option<u64>,
 
 	/// The maximum age of this token (e.g. 30s, 5m, 7d). It will expire after
 	/// this much time has passed.
-	#[arg(long)]
+	#[arg(long, conflicts_with_all = ["immortal", "once"])]
 	max_age: Option<String>,
 
 	/// This token will never expire.
-	#[arg(long)]
+	#[arg(long, conflicts_with_all = ["once", "max_uses", "max_age"])]
 	immortal: bool,
 
 	/// A shortcut for `--max-uses 1`.
-	#[arg(long)]
+	#[arg(long, conflicts_with_all = ["immortal", "max_uses", "max_age"])]
 	once: bool,
 }

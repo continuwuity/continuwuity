@@ -41,6 +41,8 @@ impl DatabaseTokenInfo {
 
 				expiry_time >= now
 			},
+			| Some(TokenExpires::AfterTimeOrUses { max_uses, max_age }) =>
+				self.uses < max_uses && max_age >= SystemTime::now(),
 			| None => true,
 		}
 	}
@@ -63,12 +65,16 @@ impl std::fmt::Display for DatabaseTokenInfo {
 pub enum TokenExpires {
 	AfterUses(u64),
 	AfterTime(SystemTime),
+	AfterTimeOrUses {
+		max_uses: u64,
+		max_age: SystemTime,
+	},
 }
 
 impl std::fmt::Display for TokenExpires {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
-			| Self::AfterUses(max_uses) => write!(f, "Expires after {max_uses} uses"),
+			| Self::AfterUses(max_uses) => write!(f, "Expires after {max_uses} use(s)"),
 			| Self::AfterTime(max_age) => {
 				let now = SystemTime::now();
 				let formatted_expiry = utils::time::format(*max_age, "%+");
@@ -77,6 +83,23 @@ impl std::fmt::Display for TokenExpires {
 					| Ok(duration) => write!(
 						f,
 						"Expires in {} ({formatted_expiry})",
+						utils::time::pretty(duration)
+					),
+					| Err(_) => write!(f, "Expired at {formatted_expiry}"),
+				}
+			},
+			| Self::AfterTimeOrUses { max_uses, max_age } => {
+				if *max_uses <= 0 {
+					return write!(f, "Already expired (uses exhausted)");
+				}
+
+				let now = SystemTime::now();
+				let formatted_expiry = utils::time::format(*max_age, "%+");
+
+				match max_age.duration_since(now) {
+					| Ok(duration) => write!(
+						f,
+						"Expires after {max_uses} use(s) or in {} ({formatted_expiry})",
 						utils::time::pretty(duration)
 					),
 					| Err(_) => write!(f, "Expired at {formatted_expiry}"),
