@@ -48,6 +48,13 @@ async fn load_timeline(
 	ending_count: Option<PduCount>,
 	limit: usize,
 ) -> Result<TimelinePdus> {
+	if let (Some(starting_count), Some(ending_count)) = (starting_count, ending_count) {
+		debug_assert!(
+			starting_count <= ending_count,
+			"starting count {starting_count} > ending count {ending_count}"
+		);
+	}
+
 	let mut pdu_stream = match starting_count {
 		| Some(starting_count) => {
 			let last_timeline_count = services

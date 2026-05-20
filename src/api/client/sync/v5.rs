@@ -15,7 +15,7 @@ use conduwuit::{
 		BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
 		future::ReadyEqExt,
 		math::{ruma_from_usize, usize_from_ruma},
-		stream::WidebandExt,
+		stream::{TryIgnore, WidebandExt},
 	},
 	warn,
 };
@@ -41,6 +41,7 @@ use ruma::{
 	uint,
 };
 use service::account_data::AnyRawAccountDataEvent;
+use tokio::pin;
 
 use super::share_encrypted_room;
 use crate::{
@@ -858,12 +859,27 @@ where
 			continue;
 		};
 
-		let since_shortstatehash = services
-			.rooms
-			.user
-			.get_token_shortstatehash(room_id, globalsince)
-			.await
-			.ok();
+		let since_shortstatehash = async {
+			pin! {
+				let pdus_rev = services
+					.rooms
+					.timeline
+					.pdus_rev(room_id, Some(PduCount::Normal(globalsince.saturating_sub(1))))
+					.ignore_err();
+			}
+
+			let (_, pdu_at_last_sync_end) = pdus_rev.next().await?;
+
+			Some(
+				services
+					.rooms
+					.state_accessor
+					.pdu_shortstatehash(&pdu_at_last_sync_end.event_id)
+					.await
+					.expect("pdu should have a shortstatehash"),
+			)
+		}
+		.await;
 
 		let encrypted_room = services
 			.rooms
