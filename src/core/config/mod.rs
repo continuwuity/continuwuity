@@ -2592,7 +2592,11 @@ pub struct SmtpConfig {
 	pub connection_uri: Option<String>,
 
 	/// Same as `connection_uri`, except loaded from a file. If `connection_uri`
-	/// is defined, it is prioritized and `connection_uri_file` is ignored
+	/// is defined, it is prioritized and `connection_uri_file` is ignored.
+	///
+	/// The file will be read once, when Continuwuity starts. It is not
+	/// currently reread when the server configuration is reloaded. If the file
+	/// cannot be read, Continuwuity will fail to start.
 	pub connection_uri_file: Option<PathBuf>,
 
 	/// The outgoing address which will be used for sending emails.

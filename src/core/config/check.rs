@@ -1,4 +1,4 @@
-use std::{env::consts::OS, path::PathBuf};
+use std::env::consts::OS;
 
 use either::Either;
 use figment::Figment;
@@ -264,14 +264,14 @@ pub fn check(config: &Config) -> Result {
 	}
 
 	if config.smtp.as_ref().is_some_and(|f| {
-		f.connection_uri.is_none() && f.connection_uri_file.is_none()
-			|| (f.connection_uri == Some(String::new())
-				&& f.connection_uri_file == Some(PathBuf::new()))
+		f.connection_uri.as_ref().is_none_or(String::is_empty)
+			&& f.connection_uri_file
+				.as_ref()
+				.is_none_or(|f| f.as_os_str().is_empty())
 	}) {
 		return Err!(Config(
 			"connection_uri",
-			"If smtp is enabled, either connection_uri or connection_uri_file has to be \
-			 defined."
+			"If smtp is enabled, either connection_uri or connection_uri_file has to be defined."
 		));
 	}
 
