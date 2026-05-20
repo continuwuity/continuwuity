@@ -2318,8 +2318,10 @@ pub struct SmtpConfig {
 	/// - `address@domain.org` to not use a name
 	pub sender: Mailbox,
 
-	/// Whether to require that users provide an email address when they
-	/// register.
+	/// Whether to allow public registration with an email address.
+	///
+	/// Note that, if this option is enabled, anyone will be able to register an
+	/// account with just an email address.
 	///
 	/// If either this option or `require_email_for_token_registration` are set,
 	/// users will not be allowed to remove their email address.
@@ -2329,7 +2331,8 @@ pub struct SmtpConfig {
 	pub require_email_for_registration: bool,
 
 	/// Whether to require that users who register with a registration token
-	/// provide an email address.
+	/// provide an email address. This option is independent of
+	/// `require_email_for_registration`.
 	///
 	/// default: false
 	#[serde(default)]
