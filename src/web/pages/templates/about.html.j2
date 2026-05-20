@@ -1,0 +1,84 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+About server
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel">
+    <h1>About {{ server_name }}</h1>
+    {% if let Some(support_page) = support_page %}
+    <p>
+        Support: <a href="{{ support_page }} target="_blank">{{ support_page }}</a>
+    </p>
+    {% endif %}
+    {% if !contacts.is_empty() %}
+        <p>
+            Contact the operators of this server:
+        </p>
+        <ul>
+            {% for contact in contacts %}
+                <li>
+                    {%- match contact.role -%}
+                        {%- when ContactRole::Admin -%}
+                            Administrator
+                        {%- when ContactRole::Security -%}
+                            Security
+                        {%- when ContactRole::Moderator -%}
+                            Moderator
+                        {%- when _ -%}
+                            Contact
+                    {%- endmatch -%}
+                    : <ul class="bullet-separated">
+                        {%- if let Some(matrix_id) = contact.matrix_id -%}
+                            <li><a href="matrix:u/{{ matrix_id.localpart() }}:{{ matrix_id.server_name() }}?action=chat" target="_blank">{{ matrix_id }}</a></li>
+                        {%- endif -%}
+                        {%- if let Some(email_address) = contact.email_address -%}
+                            <li><a href="mailto:{{ email_address }}" target="_blank">{{ email_address }}</a>
+                            {%- if let Some(pgp_key) = contact.pgp_key -%}
+                                (<a href="{{ pgp_key }}" target="_blank">PGP</a>)
+                            {%- endif -%}
+                            </li>
+                        {%- endif -%}
+                    </ul>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    {% if !terms.is_empty() %}
+        <p>
+            By using {{ server_name }} you agree to the following policies:
+        </p>
+        <ul>
+            {% for (id, document) in terms %}
+                <li>
+                    <a target="_blank" href="{{ document.url }}">{{ document.name }}</a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+    <p>
+        Server version {{ env!("CARGO_PKG_VERSION") }}
+        {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
+            {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
+                (<a href="{{ url }}">{{ version_info }}</a>)
+            {%~ else ~%}
+                ({{ version_info }})
+            {%~ endif ~%}
+        {%~ endif ~%}
+    </p>
+    <hr>
+    <p>
+        {{ server_name }} is powered by <a class="project-name" href="https://continuwuity.org">Continuwuity</a>,
+        a high-performance and community-driven <a href="https://matrix.org">Matrix</a> homeserver
+        maintained as an open source project by volunteers from around the world.
+    </p>
+    <p>
+        <ul class="bullet-separated">
+            <li><a href="https://forgejo.ellis.link/continuwuation/continuwuity">Source code</a></li>
+            <li><a href="https://matrix.to/#/#continuwuity:continuwuity.org">Official Matrix chatroom</a></li>
+            <li><span class="project-name">❤</span>&nbsp;<a href="https://opencollective.com/continuwuity">Support the project</a></li>
+        </ul>
+    </p>
+</div>
+{% endblock %}
