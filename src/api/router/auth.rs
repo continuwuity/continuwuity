@@ -91,7 +91,7 @@ impl CheckAuth for ServerSignatures {
 					.moderation
 					.is_remote_server_forbidden(&output.origin)
 				{
-					return Err!(Request(Unauthorized(
+					return Err!(Request(Forbidden(
 						"You are blocked from federating with this server."
 					)));
 				}
