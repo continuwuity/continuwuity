@@ -11,6 +11,7 @@ use conduwuit_core::utils;
 
 use crate::WebError;
 
+pub(super) mod about;
 pub(super) mod account;
 mod components;
 pub(super) mod debug;

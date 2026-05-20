@@ -34,17 +34,17 @@
     .info {
         flex: 1 1;
 
-        p {
-            margin: 0;
-
-            &.name {
-                font-weight: 700;
-            }
+        .name {
+            font-weight: bold;
         }
 
         .id {
             color: var(--secondary);
             font-weight: normal;
+
+            &::before {
+                content: "•";
+            }
         }
     }
 
