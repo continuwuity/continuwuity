@@ -28,7 +28,7 @@
     @media (prefers-color-scheme: dark) {
         color-scheme: dark;
         --text-color: #f5ebeb;
-        --secondary: #888;
+        --secondary: #999;
         --bg: oklch(0.15 0.042 317.27);
         --panel-bg: oklch(0.24 0.03 317.27);
 
@@ -94,6 +94,10 @@ p {
     }
 }
 
+ul {
+    margin: 1rem 0;
+}
+
 section {
     margin: 1rem 0;
 }
@@ -125,38 +129,6 @@ small.error {
     margin-bottom: 0.5rem;
 }
 
-.panel {
-    --preferred-width: 12rem + 40dvw;
-    --maximum-width: 48rem;
-    --minimum-width: 32rem;
-
-    width: min(clamp(var(--minimum-width), var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
-    border-radius: var(--border-radius-lg);
-    background-color: var(--panel-bg);
-    padding-inline: 1.5rem;
-    padding-block: 1rem;
-    margin-top: 1em;
-    margin-bottom: auto;
-    box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
-
-    &.middle {
-        margin-top: 0;
-        margin-bottom: 0;
-    }
-
-    &.narrow {
-        --preferred-width: 12rem + 20dvw;
-        --maximum-width: 36rem;
-
-        input, button, a.button {
-            width: 100%;
-        }
-    }
-
-    &:not(.narrow) form p {
-        margin-bottom: 0;
-    }
-}
 
 img.matrix-icon {
     @media (prefers-color-scheme: dark) {
@@ -262,6 +234,22 @@ h1 {
     margin-bottom: 0.67em;
 }
 
+ul.bullet-separated {
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+
+    li {
+        display: inline;
+        flex: 1;
+        list-style-type: none;
+
+        &:not(:first-child)::before {
+            content: "• ";
+        }
+    }
+}
+
 .fullwidth {
     width: 100%;
     margin-bottom: 0 !important;
@@ -269,6 +257,52 @@ h1 {
 
 .select-all {
     user-select: all;
+}
+
+.panel {
+    --preferred-width: 12rem + 40dvw;
+    --maximum-width: 48rem;
+    --minimum-width: 32rem;
+
+    width: min(clamp(var(--minimum-width), var(--preferred-width), var(--maximum-width)), calc(100dvw - 3rem));
+    border-radius: var(--border-radius-lg);
+    background-color: var(--panel-bg);
+    padding-inline: 1.5rem;
+    padding-block: 1rem;
+    margin-top: 1em;
+    margin-bottom: auto;
+    box-shadow: 0 0.25em 0.375em hsla(0, 0%, 0%, 0.1);
+
+    &.middle {
+        margin-top: 0;
+        margin-bottom: 0;
+    }
+
+    &.narrow {
+        --preferred-width: 12rem + 20dvw;
+        --maximum-width: 36rem;
+
+        input, button, a.button {
+            width: 100%;
+        }
+    }
+
+    &:not(.narrow) form p {
+        margin-bottom: 0;
+    }
+}
+
+.project-name {
+    font-weight: bold;
+    text-decoration: none !important;
+    background: linear-gradient(
+        130deg,
+        oklch(from var(--c1) var(--name-lightness) c h),
+        oklch(from var(--c2) var(--name-lightness) c h)
+    );
+    background-clip: text;
+    color: transparent;
+    filter: brightness(1.2);
 }
 
 @media (max-width: 425px) {

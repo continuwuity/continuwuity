@@ -19,16 +19,8 @@
     {%~ block content %}{% endblock ~%}
     {%~ block footer ~%}
         <footer>
-            <img class="logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg">
-            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }}
-                {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
-                    {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
-                        (<a href="{{ url }}">{{ version_info }}</a>)
-                    {%~ else ~%}
-                        ({{ version_info }})
-                    {%~ endif ~%}
-                {%~ endif ~%}
-            </p>
+            <a href="{{ crate::ROUTE_PREFIX }}/"><img class="logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg"></a>
+            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }} &bullet; <a href="{{ crate::ROUTE_PREFIX }}/about">About</a></p>
         </footer>
     {%~ endblock ~%}
 </body>

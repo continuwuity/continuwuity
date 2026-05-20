@@ -4,7 +4,7 @@ use ruma::{
 	api::client::discovery::{
 		discover_homeserver::{self, HomeserverInfo},
 		discover_policy_server,
-		discover_support::{self, Contact, ContactRole},
+		discover_support,
 	},
 	assign,
 };
@@ -67,46 +67,7 @@ pub(crate) async fn well_known_support(
 		.as_ref()
 		.map(ToString::to_string);
 
-	let email_address = services.config.well_known.support_email.clone();
-	let matrix_id = services.config.well_known.support_mxid.clone();
-	let pgp_key = services.config.well_known.support_pgp_key.clone();
-
-	// TODO: support defining multiple contacts in the config
-	let mut contacts: Vec<Contact> = vec![];
-
-	let role = services
-		.config
-		.well_known
-		.support_role
-		.clone()
-		.unwrap_or(ContactRole::Admin);
-
-	// Add configured contact if at least one contact method is specified
-	let configured_contact = match (matrix_id, email_address) {
-		| (Some(matrix_id), email_address) =>
-			Some(assign!(Contact::with_matrix_id(role, matrix_id), { email_address })),
-		| (None, Some(email_address)) => Some(Contact::with_email_address(role, email_address)),
-		| (None, None) => None,
-	};
-
-	if let Some(mut configured_contact) = configured_contact {
-		configured_contact.pgp_key = pgp_key;
-
-		contacts.push(configured_contact);
-	}
-
-	// Try to add admin users as contacts if no contacts are configured
-	if contacts.is_empty() {
-		let admin_users = services.admin.get_admins().await;
-
-		for user_id in &admin_users {
-			if *user_id == services.globals.server_user {
-				continue;
-			}
-
-			contacts.push(Contact::with_matrix_id(ContactRole::Admin, user_id.to_owned()));
-		}
-	}
+	let contacts = services.admin.get_support_contacts().await;
 
 	if contacts.is_empty() && support_page.is_none() {
 		// No admin room, no configured contacts, and no support page
