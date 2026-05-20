@@ -181,6 +181,9 @@ pub(super) async fn load_left_room(
 		.collect::<Vec<_>>()
 		.await;
 
+	let state_events =
+		StateEvents::with_events(state_events.into_iter().map(Event::into_format).collect());
+
 	Ok(Some(assign!(LeftRoom::new(), {
 		account_data: RoomAccountData::new(),
 		timeline: assign!(Timeline::new(), {
@@ -188,7 +191,11 @@ pub(super) async fn load_left_room(
 			prev_batch: Some(current_count.to_string()),
 			events: raw_timeline_pdus,
 		}),
-		state: State::Before(StateEvents::with_events(state_events.into_iter().map(Event::into_format).collect())),
+		state: if sync_context.use_state_after {
+			State::After(state_events)
+		} else {
+			State::Before(state_events)
+		},
 	})))
 }
 
@@ -264,6 +271,8 @@ async fn build_left_state_and_timeline(
 		services,
 		syncing_user,
 		timeline_start_shortstatehash,
+		leave_shortstatehash,
+		sync_context.use_state_after,
 		lazily_loaded_members.as_ref(),
 	)
 	.await?;
