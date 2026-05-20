@@ -270,7 +270,7 @@ pub fn check(config: &Config) -> Result {
 	}) {
 		return Err!(Config(
 			"connection_uri",
-			"If smtp is enabled, either connection_uri or connection_uri_file have to be \
+			"If smtp is enabled, either connection_uri or connection_uri_file has to be \
 			 defined."
 		));
 	}
