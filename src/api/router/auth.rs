@@ -86,10 +86,21 @@ impl CheckAuth for ServerSignatures {
 		let keys: PubKeyMap = [(output.origin.as_str().into(), keys)].into();
 
 		match output.verify_request(request, destination, &keys) {
-			| Ok(()) => Ok(Auth {
-				origin: Some(output.origin.clone()),
-				..Default::default()
-			}),
+			| Ok(()) => {
+				if services
+					.moderation
+					.is_remote_server_forbidden(&output.origin)
+				{
+					return Err!(Request(Unauthorized(
+						"You are blocked from federating with this server."
+					)));
+				}
+
+				Ok(Auth {
+					origin: Some(output.origin.clone()),
+					..Default::default()
+				})
+			},
 			| Err(err) =>
 				Err!(Request(Unauthorized(warn!("Failed to verify X-Matrix header: {err}")))),
 		}
