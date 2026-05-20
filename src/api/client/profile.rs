@@ -329,7 +329,7 @@ async fn set_profile_field(
 	// If the user is local and changed their displayname or avatar_url, update it
 	// in all their joined rooms
 	if matches!(field_name, ProfileFieldName::AvatarUrl | ProfileFieldName::DisplayName)
-		&& services.users.is_active_local(user_id).await
+		&& services.globals.user_is_local(user_id)
 	{
 		let displayname = services.users.displayname(user_id).await.ok();
 		let avatar_url = services.users.avatar_url(user_id).await.ok();
