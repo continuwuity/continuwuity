@@ -89,7 +89,7 @@ impl std::fmt::Display for TokenExpires {
 				}
 			},
 			| Self::AfterTimeOrUses { max_uses, max_age } => {
-				if *max_uses <= 0 {
+				if *max_uses == 0 {
 					return write!(f, "Already expired (uses exhausted)");
 				}
 
