@@ -39,6 +39,10 @@ pkey=/etc/letsencrypt/coturn.example.com.key
 
 The cert and key must be encoded in PEM format and are readable by the coturn user.
 
+Check out the [`turnserver.conf`][turnserver-conf] example for all coturn options.
+
+[turnserver-conf]: https://github.com/coturn/coturn/blob/master/examples/etc/turnserver.conf
+
 ### 3. Running the coturn container
 
 Next, we will start the Coturn container with the [official image][coturn-image]. **Host networking mode** will be used, as it is better for performance and reduces configuration complexity (see [Coturn Docker docs][coturn-docker-docs] for rationale).
@@ -202,8 +206,9 @@ This is the correct response when no TURN servers are configured, as per [MSC416
 
 - [MatrixRTC/LiveKit Setup](./livekit.mdx) - Configure group calling with LiveKit
 - [Coturn GitHub][coturn] - Official coturn repository
+- [`turnserver.conf`][turnserver-conf] - Coturn TURN SERVER configuration file with full options
 - [Synapse TURN Guide][synapse-turn-guide] - TURN server guide for Synapse
-- [Synapse Coturn Guide][synapse-coturn-guide] - Additional security recommendations
+- [Synapse Coturn Guide][synapse-coturn-guide] - Coturn-specific guide for Synapse, with important security recommendations
 
 [synapse-turn-guide]: https://element-hq.github.io/synapse/latest/turn-howto.html
 

@@ -83,6 +83,10 @@ keys:
   # APIUxUnMnSkuFWV: t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
 ```
 
+Consult [`config-sample.yaml`][config-sample-yaml] for all LiveKit options.
+
+[livekit-config-sample-yaml]: https://github.com/livekit/livekit/blob/master/config-sample.yaml
+
 #### Firewall hints
 
 You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firewall. If you use UFW, the commands are: `ufw allow 7881/tcp` and `ufw allow 50100:50200/udp`.
@@ -458,17 +462,32 @@ Subscribe to issue [!1440](https://forgejo.ellis.link/continuwuation/continuwuit
 
 Guides:
 
-- [Element Call self-hosting documentation](https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md)
-- [Community guide with overview of LiveKit's mechanisms](https://tomfos.tr/matrix/livekit/)
-- [Community guide using systemd](https://blog.kimiblock.top/2024/12/24/hosting-element-call/)
+- [Element Call self-hosting documentation from element-hq][element-call-selfhosting]
+- [Community guide with overview of LiveKit's mechanisms][tom-livekit-guide]
+- [Community guide using systemd][kimiblock-livekit-guide]
+
+[element-call-selfhosting]: https://github.com/element-hq/element-call/blob/livekit/docs/self-hosting.md
+[tom-livekit-guide]: https://tomfos.tr/matrix/livekit/
+[kimiblock-livekit-guide]: https://blog.kimiblock.top/2024/12/24/hosting-element-call/
+
+Configurations:
+
+- [Livekit's `config-sample.yaml`][livekit-config-sample-yaml] - LiveKit configuration file with full options
 
 Specifications:
 
-- [MSC4143 - MatrixRTC proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
-- [MSC4195 - LiveKit proposal](https://github.com/matrix-org/matrix-spec-proposals/pull/4195)
+- [MSC4143 - MatrixRTC proposal][MSC4143]
+- [MSC4195 - LiveKit proposal][MSC4195]
+
+[MSC4143]: https://github.com/matrix-org/matrix-spec-proposals/pull/4143
+[MSC4195]: https://github.com/matrix-org/matrix-spec-proposals/pull/4195
 
 Source code:
 
-- [Element Call](https://github.com/element-hq/element-call)
-- [lk-jwt-service](https://github.com/element-hq/lk-jwt-service)
-- [LiveKit server](https://github.com/livekit/livekit)
+- [Element Call][element-call-github]
+- [lk-jwt-service][lk-jwt-service-github]
+- [LiveKit server][livekit-server-github]
+
+[element-call-github]: https://github.com/element-hq/element-call
+[lk-jwt-service-github]: https://github.com/element-hq/lk-jwt-service
+[livekit-server-github]: https://github.com/livekit/livekit
