@@ -11,12 +11,11 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Result, at, extract_variant,
+	Err, Result, at, error, extract_variant,
 	utils::{
 		ReadyExt, TryFutureExtExt,
 		stream::{BroadbandExt, Tools, WidebandExt},
 	},
-	warn,
 };
 use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture};
@@ -279,7 +278,7 @@ pub(crate) async fn build_sync_events(
 			match joined_room {
 				| Ok((room, updates)) => Some((room_id, room, updates)),
 				| Err(err) => {
-					warn!(?err, %room_id, "error loading joined room");
+					error!(?err, %room_id, "error loading joined room");
 					None
 				},
 			}
@@ -308,7 +307,7 @@ pub(crate) async fn build_sync_events(
 				| Ok(Some(left_room)) => Some((room_id, left_room)),
 				| Ok(None) => None,
 				| Err(err) => {
-					warn!(?err, %room_id, "error loading joined room");
+					error!(?err, %room_id, "error loading joined room");
 					None
 				},
 			}
