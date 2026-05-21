@@ -21,7 +21,7 @@ use ruma::{
 			},
 			login::{
 				self,
-				v3::{DiscoveryInfo, HomeserverInfo},
+				v3::{DiscoveryInfo, HomeserverInfo, LoginInfo},
 			},
 			logout, logout_all,
 		},
@@ -121,9 +121,18 @@ pub(crate) async fn login_route(
 	body: Ruma<login::v3::Request>,
 ) -> Result<login::v3::Response> {
 	if !services.config.oauth.compatibility_mode.uiaa_available() {
-		return Err!(Request(Unrecognized(
-			"User-interactive authentication is not available on this server."
-		)));
+		return match body.login_info {
+			| LoginInfo::ApplicationService(_) => {
+				Err!(Request(AppserviceLoginUnsupported(
+					"User-interactive appservice login is not available on this server."
+				)))
+			},
+			| _ => {
+				Err!(Request(Unrecognized(
+					"User-interactive authentication is not available on this server."
+				)))
+			},
+		};
 	}
 
 	let emergency_mode_enabled = services.config.emergency_password.is_some();
@@ -131,13 +140,9 @@ pub(crate) async fn login_route(
 	// Validate login method
 	let user_id = match &body.login_info {
 		#[allow(deprecated)]
-		| login::v3::LoginInfo::Password(login::v3::Password {
-			identifier,
-			password,
-			user,
-			..
-		}) => handle_login(&services, identifier.as_ref(), password, user.as_ref()).await?,
-		| login::v3::LoginInfo::Token(login::v3::Token { token, .. }) => {
+		| LoginInfo::Password(login::v3::Password { identifier, password, user, .. }) =>
+			handle_login(&services, identifier.as_ref(), password, user.as_ref()).await?,
+		| LoginInfo::Token(login::v3::Token { token, .. }) => {
 			debug!("Got token login type");
 			if !services.server.config.login_via_existing_session {
 				return Err!(Request(Unknown("Token login is not enabled.")));
@@ -145,7 +150,7 @@ pub(crate) async fn login_route(
 			services.users.find_from_login_token(token).await?
 		},
 		#[allow(deprecated)]
-		| login::v3::LoginInfo::ApplicationService(login::v3::ApplicationService {
+		| LoginInfo::ApplicationService(login::v3::ApplicationService {
 			identifier,
 			user,
 			..
@@ -179,7 +184,6 @@ pub(crate) async fn login_route(
 			user_id
 		},
 		| _ => {
-			debug!("/login json_body: {:?}", &body.json_body);
 			return Err!(Request(Unknown(
 				debug_warn!(?body.login_info, "Invalid or unsupported login type")
 			)));
@@ -257,7 +261,7 @@ pub(crate) async fn login_token_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<get_login_token::v1::Request>,
 ) -> Result<get_login_token::v1::Response> {
-	if !services.server.config.login_via_existing_session {
+	if !services.config.login_via_existing_session {
 		return Err!(Request(Forbidden("Login via an existing session is not enabled")));
 	}
 
