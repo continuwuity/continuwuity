@@ -404,7 +404,10 @@ pub async fn fetch_policy_server_signature(
 	};
 	if response.signatures.len() > 1 {
 		warn!(?response.signatures, "Misbehaving policy server: returned signatures for extraneous servers");
-		return Ok(());
+		// TODO: This should return an error but doesn't because some servers do
+		// this. It's safe for us to not explode for now because we only care
+		// about the signature for `via`, but ideally we'd want to enforce
+		// this more strictly in the future.
 	}
 
 	let Some(signature) = signatures
