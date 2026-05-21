@@ -9,8 +9,10 @@ use conduwuit::{
 	Err,
 	Result,
 };
-use futures::{future::ready, FutureExt, StreamExt};
-use ruma::{api::error::ErrorKind, events::StateEventType, CanonicalJsonObject, CanonicalJsonValue, RoomId, ServerName};
+use futures::{FutureExt, StreamExt, future::ready};
+use ruma::{
+	CanonicalJsonObject, RoomId, ServerName, api::error::ErrorKind, events::StateEventType,
+};
 use tokio::join;
 
 use super::get_room_version_rules;
