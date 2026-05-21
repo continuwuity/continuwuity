@@ -302,8 +302,6 @@ pub async fn create_hash_and_sign_event(
 	pdu.event_id = gen_event_id(&pdu_json, &room_version_rules)?;
 	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	// Verify that the *full* PDU isn't over 64KiB.
-	// Ruma only validates that it's under 64KiB before signing and hashing.
-	// Has to be cloned to prevent mutating pdu_json itself :(
 	if !pdu_fits(&mut pdu_json.clone()) {
 		// feckin huge PDU mate
 		return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
@@ -315,6 +313,11 @@ pub async fn create_hash_and_sign_event(
 			"Checking event in room {} with policy server",
 			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 		);
+		// We need to remove the event ID before getting a PS signature on the event.
+		// Note that we seemingly pointlessly add it above just to remove it here, but
+		// it's important to make sure the event ID isn't the field that makes the
+		// difference between an illegally-large event and one that is okay.
+		pdu_json.remove("event_id");
 		self.services
 			.event_handler
 			.policy_server_allows_event(
@@ -325,6 +328,8 @@ pub async fn create_hash_and_sign_event(
 				false,
 			)
 			.await?;
+		pdu_json
+			.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 	}
 
 	// Generate short event id

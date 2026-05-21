@@ -30,7 +30,16 @@ pub(super) fn verify_policy_signature(
 	pdu_json: &CanonicalJsonObject,
 	redaction_rules: &RedactionRules,
 ) -> bool {
-	trace!(data=?pdu_json, "Preparing to check policy server signature");
+	#[cfg(debug_assertions)]
+	{
+		assert!(
+			!pdu_json.contains_key("event_id"),
+			"event_id should be removed from the JSON before verifying the policy server \
+			 signature"
+		);
+		let pretty = serde_json::to_string(pdu_json).unwrap();
+		trace!(data=%pretty, "Preparing to check policy server signature");
+	};
 	let Some(canonical_json) = redact(pdu_json.clone(), redaction_rules, None)
 		.ok()
 		.and_then(|r| to_canonical_object(r).ok())
@@ -187,8 +196,10 @@ pub async fn policy_server_allows_event(
 	if verify_policy_signature(&ps.via, ps_key, pdu_json, &room_version_rules.redaction) {
 		Ok(())
 	} else {
-		Err!(BadServerResponse(
-			"Policy server signature was made with a different key to the one advertised"
+		Err(Error::Request(
+			ErrorKind::Unknown,
+			"Policy server signature was made with a different key to the one advertised".into(),
+			StatusCode::BAD_GATEWAY,
 		))
 	}
 }
