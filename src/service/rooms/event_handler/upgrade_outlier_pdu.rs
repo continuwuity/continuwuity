@@ -1,13 +1,14 @@
-use std::{borrow::Borrow, collections::BTreeMap, sync::Arc, time::Instant};
+use std::{borrow::Borrow, sync::Arc, time::Instant};
 
 use conduwuit::{
-	debug, debug_info, debug_warn, err, implement, is_equal_to, matrix::{state_res, Event, EventTypeExt, PduEvent, StateKey}, trace,
+	Err, Result, debug, debug_info, err, implement, info, is_equal_to,
+	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
+	trace,
 	utils::{
 		IterStream,
 		stream::{BroadbandExt, ReadyExt},
 	},
-	Err,
-	Result,
+	warn,
 };
 use futures::{FutureExt, StreamExt, future::ready};
 use ruma::{
@@ -250,6 +251,7 @@ where
 		// no reason to re-calculate that.
 		// 14-pre. ask the policy server to sign the event, if possible
 		debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+		let tmp_evt_id = val.remove("event_id");
 		if let Err(e) = self
 			.policy_server_allows_event(
 				&incoming_pdu,
@@ -276,6 +278,9 @@ where
 				event_id = %incoming_pdu.event_id,
 				"Event has passed policy server check."
 			);
+		}
+		if let Some(id) = tmp_evt_id {
+			val.insert("event_id".to_owned(), id);
 		}
 
 		// Additionally, if this is a redaction for a soft-failed event, we soft-fail it

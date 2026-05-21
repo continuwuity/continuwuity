@@ -47,11 +47,6 @@ pub(super) fn verify_policy_signature(
 ) -> bool {
 	#[cfg(debug_assertions)]
 	{
-		assert!(
-			!pdu_json.contains_key("event_id"),
-			"event_id should be removed from the JSON before verifying the policy server \
-			 signature"
-		);
 		let pretty = serde_json::to_string(pdu_json).unwrap();
 		trace!(data=%pretty, "Preparing to check policy server signature");
 	};
@@ -125,6 +120,10 @@ pub async fn policy_server_allows_event(
 	room_version_rules: &RoomVersionRules,
 	incoming: bool,
 ) -> Result<()> {
+	assert!(
+		!pdu_json.contains_key("event_id"),
+		"event_id should be removed from the JSON before calling policy_server_allows_event"
+	);
 	if pdu.event_type().with_state_key("") == (StateEventType::RoomPolicy, "".into()) {
 		return Ok(());
 	}
@@ -169,15 +168,7 @@ pub async fn policy_server_allows_event(
 	}
 
 	if incoming {
-		// Verify the signature instead of calling a check
-		let event_id = pdu_json.remove("event_id");
-		let ps_allowed =
-			verify_policy_signature(&ps.via, ps_key, pdu_json, &room_version_rules.redaction);
-		if let Some(event_id) = event_id {
-			pdu_json.insert("event_id".into(), event_id);
-		}
-
-		if ps_allowed {
+		if verify_policy_signature(&ps.via, ps_key, pdu_json, &room_version_rules.redaction) {
 			debug!(
 				via = %ps.via,
 				"Event is incoming and has a valid policy server signature"
@@ -195,7 +186,7 @@ pub async fn policy_server_allows_event(
 	if ps.via == self.services.globals.server_name()
 		&& !self.services.server.config.federation_loopback
 	{
-		warn!(
+		error!(
 			%ps.via,
 			%room_id,
 			"Cannot ask ourselves for a policy signature if `federation_loopback=false`",
