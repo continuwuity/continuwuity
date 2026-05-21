@@ -259,8 +259,10 @@ async fn handle_policy_server_error(
 					retries,
 					"Policy server rate-limited us; retrying after {retry_after:?}"
 				);
-				// TODO: select between this sleep and shutdown signal
-				sleep(saturated).await;
+				tokio::select! {
+					() = self.server_shutdown.notified() => (),
+					() = sleep(saturated) => (),
+				}
 				if !self.services.server.running() {
 					return Err(error);
 				}

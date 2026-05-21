@@ -19,6 +19,7 @@ use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
+use tokio::sync::Notify;
 
 use crate::{Dep, globals, rooms, sending, server_keys};
 
@@ -26,6 +27,7 @@ pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
 	services: Services,
+	server_shutdown: Notify,
 }
 
 struct Services {
@@ -72,6 +74,7 @@ impl crate::Service for Service {
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 				server: args.server.clone(),
 			},
+			server_shutdown: Notify::new(),
 		}))
 	}
 
@@ -86,6 +89,8 @@ impl crate::Service for Service {
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
+
+	fn interrupt(&self) { self.server_shutdown.notify_waiters(); }
 }
 
 impl Service {
