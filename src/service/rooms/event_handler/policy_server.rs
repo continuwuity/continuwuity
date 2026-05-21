@@ -6,18 +6,18 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error,
-	implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
+	debug, debug_error, debug_info, debug_warn, error, implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object,
+	warn, Err, Error, Event, PduEvent, Result,
 };
 use http::StatusCode;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyAlgorithm,
-	api::error::ErrorKind,
-	canonical_json::redact,
-	events::{StateEventType, room::policy::RoomPolicyEventContent},
-	room_version_rules::{RedactionRules, RoomVersionRules},
-	serde::{Base64, base64::Standard},
-	signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
+	api::error::ErrorKind, canonical_json::redact, events::{room::policy::RoomPolicyEventContent, StateEventType}, room_version_rules::{RedactionRules, RoomVersionRules}, serde::{base64::Standard, Base64}, signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
+	CanonicalJsonObject,
+	CanonicalJsonValue,
+	KeyId,
+	RoomId,
+	ServerName,
+	SigningKeyAlgorithm,
 };
 use ruminuwuity::policy::policy_sign::unstable::Request as PolicySignRequest;
 use serde_json::value::RawValue;
@@ -360,7 +360,10 @@ pub async fn fetch_policy_server_signature(
 			"Policy server did not sign event: {:?}",
 			response.signatures
 		);
-		return Err!(BadServerResponse("Policy server did not sign the event"));
+		// NOTE: Legacy policy servers return a `200 {}` to indicate that the event was
+		// flagged as spam. We'll make a distinction in the error message in case
+		// it's unexpected.
+		return Err!(Request(Forbidden("Policy server did not sign the event")));
 	}
 	// Unwraps are safe here because we checked both in the above if statement
 	let signatures = response.signatures.unwrap();
