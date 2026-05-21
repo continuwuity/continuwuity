@@ -180,7 +180,17 @@ pub async fn policy_server_allows_event(
 		"Asking policy server to sign event"
 	);
 	self.fetch_policy_server_signature(pdu, pdu_json, &ps.via, outgoing, room_id, ps_key, 0)
-		.await
+		.await?;
+
+	// Verify that the policy server signature was made with the same public key as
+	// is in the state event, not just that it was signed.
+	if verify_policy_signature(&ps.via, ps_key, pdu_json, &room_version_rules.redaction) {
+		Ok(())
+	} else {
+		Err!(BadServerResponse(
+			"Policy server signature was made with a different key to the one advertised"
+		))
+	}
 }
 
 /// Handles an error returned by the policy server. If the error is one that
