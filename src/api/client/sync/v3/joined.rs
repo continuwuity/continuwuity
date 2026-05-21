@@ -362,41 +362,41 @@ async fn fetch_shortstatehashes(
 		.rooms
 		.state
 		.get_room_shortstatehash(room_id)
-		.map_err(|_| err!(Database(error!("Room {room_id} has no state"))));
+		.map_err(|_| err!(Database(error!("Room {room_id} has no state"))))
+		.await?;
 
-	// the room state as of the end of the last sync.
-	// this will be None if we are doing an initial sync or if we just joined this
+	// The room state as of the end of the last sync.
+	// This will be None if we are doing an initial sync or if we just joined this
 	// room.
 	let last_sync_end_shortstatehash =
 		OptionFuture::from(last_sync_end_count.map(async |last_sync_end_count| {
 			pin! {
-				let pdus_rev = services
+				let pdus = services
 					.rooms
 					.timeline
-					// We add 2 to the count here because `pdu_shortstatehash` returns
-					// state _before_ the event ID (i.e. not including the event itself if it's a state event)
-					// and `pdus_rev` does exclusive iteration (i.e. not including an event that has _exactly_
-					// the provided count).
-					.pdus_rev(room_id, Some(PduCount::Normal(last_sync_end_count).saturating_add(2)))
+					.pdus(room_id, Some(PduCount::Normal(last_sync_end_count)))
 					.ignore_err();
 			}
 
-			let (_, pdu_at_last_sync_end) = pdus_rev.next().await?;
+			match pdus.next().await {
+				| Some((_, pdu_after_last_sync_end)) => {
+					trace!(?pdu_after_last_sync_end.event_id, "pdu at last sync end");
 
-			Some(
-				services
-					.rooms
-					.state_accessor
-					.pdu_shortstatehash(&pdu_at_last_sync_end.event_id)
-					.await
-					.expect("pdu should have a shortstatehash"),
-			)
+					services
+						.rooms
+						.state_accessor
+						.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
+						.await
+						.expect("pdu should have a shortstatehash")
+				},
+				| None => {
+					// No events have been sent since the last sync,
+					// so the state then is the same as the state now
+					current_shortstatehash
+				},
+			}
 		}))
-		.map(Option::flatten)
-		.map(Ok);
-
-	let (current_shortstatehash, last_sync_end_shortstatehash) =
-		try_join(current_shortstatehash, last_sync_end_shortstatehash).await?;
+		.await;
 
 	Ok(ShortStateHashes {
 		current_shortstatehash,
@@ -464,28 +464,22 @@ async fn build_state_events(
 		last_sync_end_shortstatehash,
 	} = shortstatehashes;
 
-	let timeline_start_shortstatehash = async {
-		if let Some((_, pdu)) = timeline.pdus.front() {
-			if let Ok(shortstatehash) = services
-				.rooms
-				.state_accessor
-				.pdu_shortstatehash(&pdu.event_id)
-				.await
-			{
-				return shortstatehash;
-			}
-		}
-
-		current_shortstatehash
+	let timeline_start_shortstatehash = if let Some((_, pdu)) = timeline.pdus.front() {
+		services
+			.rooms
+			.state_accessor
+			.pdu_shortstatehash(&pdu.event_id)
+			.await
+			.expect("event should have shortstatehash")
+	} else {
+		// if the timeline is empty there can't possibly be any changes to the state
+		return Ok(vec![]);
 	};
 
 	// the user IDs of members whose membership needs to be sent to the client, if
 	// lazy-loading is enabled.
 	let lazily_loaded_members =
-		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders());
-
-	let (timeline_start_shortstatehash, lazily_loaded_members) =
-		join(timeline_start_shortstatehash, lazily_loaded_members).await;
+		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders()).await;
 
 	// compute the state delta between the previous sync and this sync.
 	match (last_sync_end_count, last_sync_end_shortstatehash) {

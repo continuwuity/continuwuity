@@ -100,12 +100,15 @@ pub(super) async fn build_state_incremental<'a>(
 	use_state_after: bool,
 	lazily_loaded_members: Option<&'a MemberSet>,
 ) -> Result<Vec<PduEvent>> {
-	// NB: a limited sync is one where `timeline.limited == true`. Synapse calls
-	// this a "gappy" sync internally.
-
 	let mut state_event_ids: HashSet<OwnedEventId> = HashSet::new();
 
-	trace!(%timeline.limited, "computing state for incremental sync");
+	trace!(
+		%use_state_after,
+		%last_sync_end_shortstatehash,
+		%timeline_start_shortstatehash,
+		%timeline_end_shortstatehash,
+		"computing state for incremental sync"
+	);
 
 	// Fetch lazy-loaded membership events if lazy-loading is enabled
 	if let Some(lazily_loaded_members) = lazily_loaded_members
