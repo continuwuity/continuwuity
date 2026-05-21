@@ -6,22 +6,23 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	debug, debug_error, debug_info, debug_warn, error, implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object,
-	warn, Err, Error, Event, PduEvent, Result,
+	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error,
+	implement, info, state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
 };
 use http::StatusCode;
 use ruma::{
-	api::error::ErrorKind, canonical_json::redact, events::{room::policy::RoomPolicyEventContent, StateEventType}, room_version_rules::{RedactionRules, RoomVersionRules}, serde::{base64::Standard, Base64}, signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
-	CanonicalJsonObject,
-	CanonicalJsonValue,
-	KeyId,
-	RoomId,
-	ServerName,
-	SigningKeyAlgorithm,
+	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyAlgorithm,
+	api::{error::ErrorKind, federation::policy::sign_event},
+	canonical_json::redact,
+	events::{StateEventType, room::policy::RoomPolicyEventContent},
+	room_version_rules::{RedactionRules, RoomVersionRules},
+	serde::{Base64, base64::Standard},
+	signatures::{to_canonical_json_string_for_signing, verify_canonical_json_bytes},
 };
-use ruminuwuity::policy::policy_sign::unstable::Request as PolicySignRequest;
 use serde_json::value::RawValue;
 use tokio::time::sleep;
+
+const POLICY_SERVER_KEY_ID_ED25519: &str = "ed25519:policy_server";
 
 pub(super) fn verify_policy_signature(
 	via: &ServerName,
@@ -46,7 +47,7 @@ pub(super) fn verify_policy_signature(
 		return false;
 	};
 	let Some(signature) = signature_set
-		.get("ed25519:policy_server")
+		.get(POLICY_SERVER_KEY_ID_ED25519)
 		.and_then(|s| s.as_str())
 		.and_then(|s| Base64::<Standard>::parse(s).ok())
 	else {
@@ -313,15 +314,12 @@ pub async fn fetch_policy_server_signature(
 		timeout,
 		self.services
 			.sending
-			.send_federation_request(via, PolicySignRequest::new(outgoing.clone())),
+			.send_federation_request(via, sign_event::v1::Request::new(outgoing.clone())),
 	)
 	.await;
 
 	let response = match response {
-		| Ok(Ok(response)) => {
-			debug!("Response from policy server: {:?}", response);
-			response
-		},
+		| Ok(Ok(response)) => response,
 		| Ok(Err(e)) => {
 			debug_error!("Error from policy server: {:?}", e);
 			return self
@@ -344,86 +342,47 @@ pub async fn fetch_policy_server_signature(
 				event_id = %pdu.event_id(),
 				%room_id,
 				%elapsed,
-				"Policy server signature request timed out"
+				"Policy server signature request timServerSignaturesed out"
 			);
 			return Err!(Request(Forbidden("Policy server did not respond in time")));
 		},
 	};
 
-	if response
-		.signatures
-		.as_ref()
-		.is_none_or(|sigs| !sigs.contains_key(via))
-	{
-		error!(
-			%via,
-			"Policy server did not sign event: {:?}",
-			response.signatures
-		);
+	let Some(signatures) = response.signatures.get(via) else {
 		// NOTE: Legacy policy servers return a `200 {}` to indicate that the event was
 		// flagged as spam. We'll make a distinction in the error message in case
 		// it's unexpected.
 		return Err!(Request(Forbidden("Policy server did not sign the event")));
+	};
+	if response.signatures.len() > 1 {
+		warn!(?response.signatures, "Misbehaving policy server: returned signatures for extraneous servers");
+		return Ok(());
 	}
-	// Unwraps are safe here because we checked both in the above if statement
-	let signatures = response.signatures.unwrap();
-	let keypairs = signatures.get(via).unwrap();
 
-	// TODO: need to be able to verify other algorithms
-	let wanted_key_id = KeyId::parse("ed25519:policy_server")?;
-	if !keypairs.contains_key(&wanted_key_id) {
-		error!(
-			signatures = ?signatures,
-			"Policy server returned signatures, but did not use the key ID \
-			 'ed25519:policy_server'."
-		);
+	let Some(signature) = signatures
+		.get(&KeyId::parse(POLICY_SERVER_KEY_ID_ED25519).expect("policy server key ID is valid"))
+	else {
 		return Err!(BadServerResponse(
-			"Policy server signed the event, but did not use the expected key ID"
+			"Policy server did not return a signature with the expected key ID",
 		));
+	};
+	if signatures.len() > 1 {
+		info!(?signatures, "Misbehaving policy server: returned extraneous signatures");
 	}
-	let signatures_entry = pdu_json
+
+	pdu_json
 		.entry("signatures".to_owned())
-		.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()));
-
-	if let CanonicalJsonValue::Object(signatures_map) = signatures_entry {
-		let sig_value = keypairs.get(&wanted_key_id).unwrap().to_owned();
-
-		match signatures_map.get_mut(via.as_str()) {
-			| Some(CanonicalJsonValue::Object(inner_map)) => {
-				trace!("inserting PS signature: {}", sig_value);
-				inner_map.insert(
-					"ed25519:policy_server".to_owned(),
-					CanonicalJsonValue::String(sig_value),
-				);
-			},
-			| Some(_) => {
-				// This should never happen
-				unreachable!(
-					"Existing `signatures[{}]` field is not an object; cannot insert policy \
-					 signature",
-					via
-				);
-			},
-			| None => {
-				let mut inner = BTreeMap::new();
-				inner.insert(
-					"ed25519:policy_server".to_owned(),
-					CanonicalJsonValue::String(sig_value.clone()),
-				);
-				trace!(
-					"created new signatures object for {via} with the signature {}",
-					sig_value
-				);
-				signatures_map.insert(via.as_str().to_owned(), CanonicalJsonValue::Object(inner));
-			},
-		}
-		// TODO: verify signature value was made with the policy_server_key
-		// rather than the expected key.
-	} else {
-		unreachable!(
-			"Existing `signatures` field is not an object; cannot insert policy signature"
+		.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()))
+		.as_object_mut()
+		.expect("`signatures` field must be an object")
+		.entry(via.to_string())
+		.or_insert_with(|| CanonicalJsonValue::Object(BTreeMap::default()))
+		.as_object_mut()
+		.expect("`signatures[via]` field must be an object")
+		.insert(
+			POLICY_SERVER_KEY_ID_ED25519.to_owned(),
+			CanonicalJsonValue::String(signature.clone()),
 		);
-	}
 	debug_info!("Policy server allowed event");
 	Ok(())
 }
