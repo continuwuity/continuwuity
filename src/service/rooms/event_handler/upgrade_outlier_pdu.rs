@@ -9,10 +9,8 @@ use conduwuit::{
 	Err,
 	Result,
 };
-use futures::{FutureExt, StreamExt, future::ready};
-use ruma::{
-	CanonicalJsonValue, RoomId, ServerName, api::error::ErrorKind, events::StateEventType,
-};
+use futures::{future::ready, FutureExt, StreamExt};
+use ruma::{api::error::ErrorKind, events::StateEventType, CanonicalJsonObject, CanonicalJsonValue, RoomId, ServerName};
 use tokio::join;
 
 use super::get_room_version_rules;
@@ -25,7 +23,7 @@ use crate::rooms::{
 pub(super) async fn upgrade_outlier_to_timeline_pdu<Pdu>(
 	&self,
 	incoming_pdu: PduEvent,
-	val: BTreeMap<String, CanonicalJsonValue>,
+	mut val: CanonicalJsonObject,
 	create_event: &Pdu,
 	origin: &ServerName,
 	room_id: &RoomId,
@@ -250,11 +248,10 @@ where
 		// no reason to re-calculate that.
 		// 14-pre. ask the policy server to sign the event, if possible
 		debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
-		let mut mutable_object = incoming_pdu.to_canonical_object();
 		if let Err(e) = self
 			.policy_server_allows_event(
 				&incoming_pdu,
-				&mut mutable_object,
+				&mut val,
 				room_id,
 				&room_version_rules,
 				true,
