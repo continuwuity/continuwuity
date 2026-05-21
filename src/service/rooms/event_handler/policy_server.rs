@@ -90,29 +90,27 @@ pub async fn policy_server_allows_event(
 	room_version_rules: &RoomVersionRules,
 	incoming: bool,
 ) -> Result<()> {
-	let ps = match pdu.event_type().with_state_key("").0 {
-		| StateEventType::RoomPolicy => return Ok(()),
-		| _ =>
-			self.services
-				.state_accessor
-				.room_state_get_content::<RoomPolicyEventContent>(
-					room_id,
-					&StateEventType::RoomPolicy,
-					"",
-				)
-				.await,
-	};
-	let ps: RoomPolicyEventContent = match ps {
-		| Ok(ps) => ps,
-		| Err(e) => {
-			if e.is_not_found() {
-				trace!("no policy server configured");
+	if pdu.event_type().with_state_key("") == (StateEventType::RoomPolicy, "".into()) {
+		return Ok(());
+	}
+	let ps = match self
+		.services
+		.state_accessor
+		.room_state_get_content::<RoomPolicyEventContent>(
+			room_id,
+			&StateEventType::RoomPolicy,
+			"",
+		)
+		.await
+	{
+		| Ok(s) => s,
+		| Err(e) =>
+			return if e.is_not_found() || e.kind() == ErrorKind::BadJson {
+				debug!(%e, "no policy server configured");
+				Ok(())
 			} else {
-				error!("failed to load policy server event: {e}");
-				// TODO: Should this fail closed?
-			}
-			return Ok(());
-		},
+				Err!("failed to load m.room.policy state event: {e}")
+			},
 	};
 
 	let Some(ps_key) = ps.public_keys.get(&SigningKeyAlgorithm::Ed25519) else {
