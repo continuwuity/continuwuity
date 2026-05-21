@@ -62,19 +62,7 @@ pub(super) fn verify_policy_signature(
 		debug_warn!("Failed to redact event");
 		return false;
 	};
-	let Some(CanonicalJsonValue::Object(signature_map)) = pdu_json.get("signatures") else {
-		debug_warn!("Signatures map is not present?");
-		return false;
-	};
-	let Some(CanonicalJsonValue::Object(signature_set)) = signature_map.get(via.as_str()) else {
-		debug!("Signature map does not contain via {}", via.as_str());
-		return false;
-	};
-	let Some(signature) = signature_set
-		.get(POLICY_SERVER_KEY_ID_ED25519)
-		.and_then(|s| s.as_str())
-		.and_then(|s| Base64::<Standard>::parse(s).ok())
-	else {
+	let Some(signature) = extract_signature(pdu_json, via, POLICY_SERVER_KEY_ID_ED25519) else {
 		debug!("No (valid) policy server signature present on event");
 		return false;
 	};
@@ -93,6 +81,21 @@ pub(super) fn verify_policy_signature(
 	)
 	.inspect_err(|e| debug_error!("Policy server verification failed: {e}"))
 	.is_ok()
+}
+
+pub(super) fn extract_signature(
+	pdu_json: &CanonicalJsonObject,
+	server_name: &ServerName,
+	key_id: &str,
+) -> Option<Base64<Standard, Vec<u8>>> {
+	pdu_json
+		.get("signatures")?
+		.as_object()?
+		.get(server_name.as_str())?
+		.as_object()?
+		.get(key_id)?
+		.as_str()
+		.and_then(|signature| Base64::<Standard>::parse(signature).ok())
 }
 
 /// Verifies the existing policy server signature, and/or fetches a new one

@@ -250,10 +250,11 @@ where
 		// no reason to re-calculate that.
 		// 14-pre. ask the policy server to sign the event, if possible
 		debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+		let mut mutable_object = incoming_pdu.to_canonical_object();
 		if let Err(e) = self
 			.policy_server_allows_event(
 				&incoming_pdu,
-				&mut incoming_pdu.to_canonical_object(),
+				&mut mutable_object,
 				room_id,
 				&room_version_rules,
 				true,
