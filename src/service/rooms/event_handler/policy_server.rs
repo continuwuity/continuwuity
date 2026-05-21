@@ -24,6 +24,21 @@ use tokio::time::sleep;
 
 const POLICY_SERVER_KEY_ID_ED25519: &str = "ed25519:policy_server";
 
+/// Checks that the given policy server signed the event with the given public
+/// key.
+///
+/// Note: The caller MUST ensure event_id (and any other keys) are stripped
+/// BEFORE passing to this function - no mutation is performed beyond redacting.
+///
+/// Parameters:
+///
+/// - via: The policy server that should've signed the event.
+/// - ps_key: The public key part of the policy server's signing key.
+/// - pdu_json: The raw PDU JSON object (will be cloned).
+/// - redaction_rules: The redaction rules of the room version
+///
+/// Returns: `true` if the signature is present, `false` if it is not (including
+/// if the signatures object is malformed).
 pub(super) fn verify_policy_signature(
 	via: &ServerName,
 	ps_key: &Base64<Standard, Vec<u8>>,
@@ -80,16 +95,23 @@ pub(super) fn verify_policy_signature(
 	.is_ok()
 }
 
-/// Asks a remote policy server if the event is allowed.
+/// Verifies the existing policy server signature, and/or fetches a new one
+/// immediately.
+///
+/// If `incoming` is `true`, the event is checked for an existing signature. If
+/// it has a valid one, `Ok` is returned. If it does not have a valid signature,
+/// the function falls through to fetching a new one (which may be a soft-fail
+/// in a future version).
 ///
 /// If the event is the `m.room.policy` configuration state event,
 /// this check is skipped. Similarly, if there is no policy server configured in
-/// the PDU's room, or the configured server is not present in the room, the
-/// check is also skipped.
+/// the PDU's room, the configuration event is malformed, or the configured
+/// server is not present in the room, the check is also skipped.
 ///
 /// If the policy server marks the event as spam, the relevant error is
 /// returned. Otherwise, the incoming PDU JSON is mutated to include the new
-/// policy server signature.
+/// policy server signature. Transient errors such as rate-limits are handled,
+/// so any error returned by this function should be treated as final.
 #[implement(super::Service)]
 #[tracing::instrument(skip(self, pdu, pdu_json, room_version_rules), level = "info")]
 pub async fn policy_server_allows_event(
