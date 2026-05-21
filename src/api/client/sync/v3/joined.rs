@@ -387,16 +387,17 @@ async fn fetch_shortstatehashes(
 						.state_accessor
 						.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
 						.await
-						.expect("pdu should have a shortstatehash")
+						.map_err(|err| err!("Last sync end PDU has no shortstatehash: {err}"))
 				},
 				| None => {
 					// No events have been sent since the last sync,
 					// so the state then is the same as the state now
-					current_shortstatehash
+					Ok(current_shortstatehash)
 				},
 			}
 		}))
-		.await;
+		.await
+		.transpose()?;
 
 	Ok(ShortStateHashes {
 		current_shortstatehash,
@@ -470,7 +471,7 @@ async fn build_state_events(
 			.state_accessor
 			.pdu_shortstatehash(&pdu.event_id)
 			.await
-			.expect("event should have shortstatehash")
+			.map_err(|err| err!("Timeline start has no shortstatehash: {err}"))?
 	} else {
 		// if the timeline is empty there can't possibly be any changes to the state
 		return Ok(vec![]);
