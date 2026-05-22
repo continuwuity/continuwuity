@@ -2743,7 +2743,7 @@ fn default_eventid_pdu_cache_capacity() -> u32 {
 }
 
 fn default_shortstatekey_cache_capacity() -> u32 {
-	parallelism_scaled_u32(50_000).saturating_add(100_000)
+	parallelism_scaled_u32(100_000).saturating_add(100_000)
 }
 
 fn default_statekeyshort_cache_capacity() -> u32 {
