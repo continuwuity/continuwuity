@@ -10,15 +10,18 @@
                 {% endif %}
             </span>
             {% if style == DeviceCardStyle::Detailed %}
-                <ul class="id bullet-separated">
-                    <li>{{ device_id }}</li>
-                    <li>
-                        {% if let Some(metadata) = oauth_metadata %}
-                            <a href="{{ metadata.client_uri }}">Client website</a>
-                        {% else %}
-                            (legacy)
-                        {% endif %}
-                    </li>
+                <span class="id">
+                    •
+                    <ul class="bullet-separated">
+                        <li>{{ device_id }}</li>
+                        <li>
+                            {% if let Some(metadata) = oauth_metadata %}
+                                <a href="{{ metadata.client_uri }}">Client website</a>
+                            {% else %}
+                                legacy
+                            {% endif %}
+                        </li>
+                    </span>
                 </span>
             {% endif %}
         </div>

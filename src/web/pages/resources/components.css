@@ -41,10 +41,6 @@
         .id {
             color: var(--secondary);
             font-weight: normal;
-
-            &::before {
-                content: "•";
-            }
         }
     }
 
