@@ -190,19 +190,16 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 <details>
    <summary>Example docker compose file with caddy-docker-proxy labels</summary>
    ```yaml
+   # This setup assumes all containers share the same bridge network
    services:
     lk-jwt-service:
         image: ghcr.io/element-hq/lk-jwt-service:latest
         container_name: lk-jwt-service
         # lk-jwt-service environment config here..
-        networks:
-            - caddy
         labels:
             caddy: livekit.example.com
             caddy.@lk-jwt-service.path: "/sfu/get* /healthz* /get_token*"
             caddy.reverse_proxy: "@lk-jwt-service {{upstreams 8081}}"
-        ports:
-            - "8081:8081"
 
 
     livekit:
@@ -210,8 +207,6 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         container_name: livekit
         command: --config /etc/livekit.yaml
         restart: unless-stopped
-        networks:
-            - caddy
         labels:
             caddy: livekit.example.com
             caddy.reverse_proxy: "{{upstreams 7880}}"
@@ -224,21 +219,23 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 
 
     caddy:
-        # This compose file uses caddy-docker-proxy as the reverse proxy for Continuwuity!
-        # For more info, visit https://github.com/lucaslorentz/caddy-docker-proxy
         image: lucaslorentz/caddy-docker-proxy:ci-alpine
         ports:
             - 80:80
             - 443:443
         environment:
             - CADDY_INGRESS_NETWORKS=caddy
-        networks:
-            - caddy
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
             - ./data:/data
         restart: unless-stopped
         labels:
+            # If you already configured `[global.well_known]` with Continuwuity,
+            # comment out the *_respond labels and add this line
+            # caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
+            caddy.1_respond: /.well-known/matrix/server {"m.server":"matrix.example.com:443"}
+            caddy.2_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://livekit.example.com"}]}
+
             # If you are having problems with continuwuity serving headers uncomment
             # the header section below.
 
@@ -249,27 +246,14 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
             # caddy.0_header.Access-Control-Allow-Headers: "Authorization"
             # caddy.0_header.Content-Type: "application/json"
 
-            # If you already configured `[global.well_known]` with Continuwuity,
-            # comment out the *_respond labels and add this line
-            # caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
-            caddy.1_respond: /.well-known/matrix/server {"m.server":"matrix.example.com:443"}
-            caddy.2_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://livekit.example.com"}]}
-
     homeserver:
         image: forgejo.ellis.link/continuwuation/continuwuity:latest
         restart: unless-stopped
-        # add additional environment and network config here...
+        # add additional environment, volume, and network config here...
         labels:
             caddy: matrix.example.com
             caddy.reverse_proxy: "{{upstreams 8008}}"
 
-
-    volumes:
-        db:
-
-    networks:
-        caddy:
-            external: true
     ``` 
 </details>
 
