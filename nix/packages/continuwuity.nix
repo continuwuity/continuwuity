@@ -59,7 +59,7 @@ craneLib.buildPackage (
         ]
       }"
 
-      patchelf  --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
+      patchelf --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
     '';
 
     meta = {
