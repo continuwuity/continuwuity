@@ -5,12 +5,11 @@
   liburing,
   craneLib,
   pkg-config,
-  callPackage,
   rustPlatform,
   cargoExtraArgs ? "",
   rustflags ? "",
   target_cpu ? null,
-  rocksdb ? callPackage ./rocksdb.nix { },
+  rocksdb,
   profile ? "release",
 }:
 let

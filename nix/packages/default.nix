@@ -15,6 +15,7 @@
         rocksdb = pkgs.callPackage ./rocksdb.nix { };
         default = pkgs.callPackage ./continuwuity.nix {
           inherit self craneLib;
+          inherit (self'.packages) rocksdb;
           # extra features via `cargoExtraArgs`
           cargoExtraArgs = "-F http3";
           # extra RUSTFLAGS via `rustflags`
