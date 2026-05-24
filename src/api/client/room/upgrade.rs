@@ -308,13 +308,13 @@ pub(crate) async fn upgrade_room_route(
 					body.additional_creators.clone()
 				} else { Vec::new() },
 				creator: if new_version_rules.authorization.use_room_create_sender {
-					Some(sender_user.to_owned())
-				} else { None },
+					None
+				} else { Some(sender_user.to_owned()) },
 				predecessor: Some(assign!(PreviousRoom::new(body.room_id.clone()), {
 					event_id: last_event,
 				})),
-				room_version: body.new_version.clone(),
 				room_type: old_create_event.room_type.clone(),
+				room_version: body.new_version.clone(),
 			}
 		)
 	};
