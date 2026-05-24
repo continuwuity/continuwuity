@@ -1,5 +1,7 @@
 {
-  stdenv,
+  # stdenv,
+  # enableJemalloc ? stdenv.hostPlatform.isLinux,
+  enableJemalloc ? false,
   rocksdb,
   fetchFromGitea,
   rust-jemalloc-sys-unprefixed,
@@ -13,7 +15,7 @@
   #
   # [1]: https://github.com/tikv/jemallocator/blob/ab0676d77e81268cd09b059260c75b38dbef2d51/jemalloc-sys/src/env.rs#L17
   jemalloc = rust-jemalloc-sys-unprefixed;
-  enableJemalloc = stdenv.hostPlatform.isLinux;
+  inherit enableJemalloc;
 }).overrideAttrs
   ({
     version = "continuwuity-v0.5.0-unstable-2026-05-19";
