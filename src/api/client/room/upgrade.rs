@@ -31,7 +31,7 @@ use serde_json::value::to_raw_value;
 use crate::router::Ruma;
 
 /// Recommended transferable state events list from the spec
-const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 9] = &[
+const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
 	StateEventType::RoomServerAcl,
 	StateEventType::RoomEncryption,
 	StateEventType::RoomName,
@@ -41,6 +41,8 @@ const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 9] = &[
 	StateEventType::RoomHistoryVisibility,
 	StateEventType::RoomJoinRules,
 	StateEventType::RoomPowerLevels,
+	StateEventType::SpaceParent,
+	StateEventType::SpaceChild,
 ];
 
 /// Updates spaces that are marked as parents of old_room_id to instead point to
@@ -84,7 +86,7 @@ async fn msc4168_update_parent_spaces(
 					new_room_id=?new_room_id,
 					%e,
 					"failed to fetch m.space.child from parent"
-				)
+				);
 			})
 		else {
 			// If the space does not have a child event for this room, we can skip it
@@ -121,7 +123,7 @@ async fn msc4168_update_parent_spaces(
 					new_room_id=?new_room_id,
 					%e,
 					"failed to send m.space.child to parent during room upgrade"
-				)
+				);
 			})
 			.ok();
 		drop(state_lock);
@@ -176,7 +178,7 @@ async fn msc4168_update_space_children(
 					new_room_id=?new_room_id,
 					%e,
 					"failed to fetch m.space.parent from child"
-				)
+				);
 			})
 		else {
 			// If the child does not have a parent event for this room, we can skip it.
@@ -233,7 +235,7 @@ async fn msc4168_update_space_children(
 						new_room_id=?new_room_id,
 						%e,
 						"failed to send non-canonical m.space.parent to child room"
-					)
+					);
 				})
 				.ok();
 		}
@@ -609,7 +611,7 @@ pub(crate) async fn upgrade_room_route(
 			new_room_id=?replacement_room_id.as_deref().unwrap(),
 			%e,
 			"failed to update parent spaces during room upgrade"
-		)
+		);
 	})
 	.ok();
 
@@ -628,7 +630,7 @@ pub(crate) async fn upgrade_room_route(
 			new_room_id=?replacement_room_id.as_deref().unwrap(),
 			%e,
 			"failed to update space children during room upgrade"
-		)
+		);
 	})
 	.ok();
 
