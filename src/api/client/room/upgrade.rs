@@ -267,12 +267,12 @@ pub(crate) async fn upgrade_room_route(
 		})?;
 
 	// Create a replacement room
-	let room_version_rules = body
+	let new_version_rules = body
 		.new_version
 		.rules()
 		.expect("new room version should have defined rules");
 
-	let last_event = if room_version_rules
+	let last_event = if new_version_rules
 		.authorization
 		.room_create_event_id_as_room_id
 	{
@@ -294,7 +294,7 @@ pub(crate) async fn upgrade_room_route(
 		.room_state_get_content(&body.room_id, &StateEventType::RoomCreate, "")
 		.await
 		.map_err(|_| err!(Database("Found room without m.room.create event.")))?;
-	let create_event_content = if room_version_rules.authorization.use_room_create_sender {
+	let create_event_content = if new_version_rules.authorization.use_room_create_sender {
 		RoomCreateEventContent::new_v1(sender_user.to_owned())
 	} else {
 		RoomCreateEventContent::new_v11()
@@ -304,10 +304,10 @@ pub(crate) async fn upgrade_room_route(
 		assign!(
 			create_event_content,
 			{
-				additional_creators: if room_version_rules.authorization.additional_room_creators {
+				additional_creators: if new_version_rules.authorization.additional_room_creators {
 					body.additional_creators.clone()
 				} else { Vec::new() },
-				creator: if room_version_rules.authorization.use_room_create_sender {
+				creator: if new_version_rules.authorization.use_room_create_sender {
 					Some(sender_user.to_owned())
 				} else { None },
 				predecessor: Some(assign!(PreviousRoom::new(body.room_id.clone()), {
@@ -320,10 +320,10 @@ pub(crate) async fn upgrade_room_route(
 	};
 
 	let replacement_room_id: Option<OwnedRoomId> =
-		if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
-			Some(RoomId::new_v1(services.globals.server_name()))
-		} else {
+		if new_version_rules.room_id_format == RoomIdFormatVersion::V2 {
 			None
+		} else {
+			Some(RoomId::new_v1(services.globals.server_name()))
 		};
 
 	let new_room_state_lock = if let Some(new_room_id) = replacement_room_id.as_ref() {
@@ -351,8 +351,13 @@ pub(crate) async fn upgrade_room_route(
 	// we get one anyway because the function requires it and I can't be bothered
 	// refactoring it.
 	let (replacement_room_id, new_room_state_lock) =
-		if room_version_rules.room_id_format == RoomIdFormatVersion::V2 {
-			let parsed_room_id = RoomId::new_v2(create_event_id.as_str())?;
+		if new_version_rules.room_id_format == RoomIdFormatVersion::V2 {
+			let parsed_room_id = RoomId::new_v2(
+				create_event_id
+					.as_str()
+					.strip_prefix("$")
+					.expect("event ID must start with $ sigil"),
+			)?;
 			let lock = services
 				.rooms
 				.state
@@ -417,7 +422,7 @@ pub(crate) async fn upgrade_room_route(
 					serde_json::from_str(event_content.get()).map_err(|_| {
 						err!(Request(BadJson("Power levels event content is not valid")))
 					})?;
-				if room_version_rules
+				if new_version_rules
 					.authorization
 					.explicitly_privilege_room_creators
 				{
