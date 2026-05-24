@@ -19,10 +19,7 @@ use ruma::{
 			power_levels::RoomPowerLevelsEventContent,
 			tombstone::RoomTombstoneEventContent,
 		},
-		space::{
-			child::{RedactedSpaceChildEventContent, SpaceChildEventContent},
-			parent::SpaceParentEventContent,
-		},
+		space::{child::SpaceChildEventContent, parent::SpaceParentEventContent},
 	},
 	int,
 	room_version_rules::RoomIdFormatVersion,
@@ -58,6 +55,8 @@ async fn msc4168_update_parent_spaces(
 	new_room_id: &RoomId,
 ) -> Result {
 	// Fetch the spaces which this room claims are its parents.
+
+	// In rooms that reference the old room via m.space.child events...
 	let parents = services
 		.rooms
 		.state_accessor
@@ -83,29 +82,9 @@ async fn msc4168_update_parent_spaces(
 			continue;
 		};
 
-		// First, clear the existing child event, to remove the reference to the old
-		// room. This removes the old room from the space
-		services
-			.rooms
-			.timeline
-			.build_and_append_pdu(
-				PartialPdu {
-					event_type: StateEventType::SpaceChild.into(),
-					content: to_raw_value(&RedactedSpaceChildEventContent::new())
-						.expect("event is valid, we just created it"),
-					state_key: Some(old_room_id.as_str().into()),
-					..Default::default()
-				},
-				sender,
-				Some(&parent_id),
-				&state_lock,
-			)
-			.boxed()
-			.await
-			.ok();
-
-		// The space has now disowned old_room_id.
-		// Now, add a new child event for the replacement room:
+		// ...the upgrading server SHOULD send a new m.space.child event with state_key
+		// set to the new room's ID, copying the order and suggested fields from the
+		// content of the m.space.child with state_key of the previous room ID.
 		services
 			.rooms
 			.timeline
@@ -147,6 +126,8 @@ async fn msc4168_update_space_children(
 	// Fetch the children of this space.
 	// Note that this might not actually be a space, but just a room that has
 	// children.
+
+	// In rooms that reference the old room via m.space.parent events...
 	let parents = services
 		.rooms
 		.state_accessor
@@ -172,13 +153,28 @@ async fn msc4168_update_space_children(
 			continue;
 		};
 
-		// First, mark the existing space parent as non-canonical.
-		// We do this instead of flat out removing it, as users need time to migrate to
-		// the new space, and removing the child will cause the room to go back into
-		// their global view, potentially getting lost.
-		let canonical = parent.canonical;
+		// ... the upgrading server SHOULD send a new m.space.parent event with
+		// state_key set to the new room's ID.
+		services
+			.rooms
+			.timeline
+			.build_and_append_pdu(
+				PartialPdu::state(
+					new_room_id.as_str(),
+					&assign!(SpaceParentEventContent::new(vec![sender.server_name().to_owned()]), { canonical: parent.canonical }),
+				),
+				sender,
+				Some(&child_id),
+				&state_lock,
+			)
+			.boxed()
+			.await
+			.ok();
+
+		// If the previous m.space.parent event has canonical set to true in content,
+		// homeservers SHOULD update the old state event to set canonical to false,
+		// while setting it to true in the newly-sent m.space.parent event.
 		if parent.canonical {
-			// ^ No point sending a no-op event
 			services
 				.rooms
 				.timeline
@@ -198,25 +194,6 @@ async fn msc4168_update_space_children(
 				.await
 				.ok();
 		}
-
-		// The child has now marked the old parent as non-canonical.
-		// Now we can send the new parent event, copying the original canonical value
-		// (which may itself be false already)
-		services
-			.rooms
-			.timeline
-			.build_and_append_pdu(
-				PartialPdu::state(
-					new_room_id.as_str(),
-					&assign!(SpaceParentEventContent::new(parent.via.clone()), { canonical }),
-				),
-				sender,
-				Some(&child_id),
-				&state_lock,
-			)
-			.boxed()
-			.await
-			.ok();
 		drop(state_lock);
 	}
 
