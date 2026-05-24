@@ -422,12 +422,24 @@ pub(crate) async fn upgrade_room_route(
 					serde_json::from_str(event_content.get()).map_err(|_| {
 						err!(Request(BadJson("Power levels event content is not valid")))
 					})?;
-				if new_version_rules
-					.authorization
-					.explicitly_privilege_room_creators
-				{
-					for creator in creators {
+				for creator in creators {
+					if new_version_rules
+						.authorization
+						.explicitly_privilege_room_creators
+					{
 						power_levels_event_content.users.remove(&creator);
+					} else {
+						power_levels_event_content.users.insert(
+							creator.clone(),
+							max(
+								int!(100),
+								power_levels_event_content
+									.users
+									.get(&creator)
+									.copied()
+									.unwrap_or_default(),
+							),
+						);
 					}
 				}
 				event_content = to_raw_value(&power_levels_event_content)
