@@ -2,7 +2,9 @@ use std::cmp::max;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Event, Result, err,
+	Err, Error, Event, Result, debug,
+	debug::DebugInspect,
+	err, error,
 	info::room_version::UNSTABLE_ROOM_VERSIONS,
 	matrix::{StateKey, pdu::PartialPdu},
 };
@@ -29,7 +31,7 @@ use serde_json::value::to_raw_value;
 use crate::router::Ruma;
 
 /// Recommended transferable state events list from the spec
-const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
+const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 9] = &[
 	StateEventType::RoomServerAcl,
 	StateEventType::RoomEncryption,
 	StateEventType::RoomName,
@@ -39,9 +41,6 @@ const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
 	StateEventType::RoomHistoryVisibility,
 	StateEventType::RoomJoinRules,
 	StateEventType::RoomPowerLevels,
-	// MSC4168: https://github.com/matrix-org/matrix-spec-proposals/pull/4168
-	StateEventType::SpaceChild,
-	StateEventType::SpaceParent,
 ];
 
 /// Updates spaces that are marked as parents of old_room_id to instead point to
@@ -61,7 +60,8 @@ async fn msc4168_update_parent_spaces(
 		.rooms
 		.state_accessor
 		.room_state_keys(old_room_id, &StateEventType::SpaceParent)
-		.await?;
+		.await
+		.debug_inspect(|k| debug!(?old_room_id, "Parents: {k:?}"))?;
 
 	for raw_parent_id in parents {
 		let parent_id = RoomId::parse(&raw_parent_id)?;
@@ -77,6 +77,15 @@ async fn msc4168_update_parent_spaces(
 				old_room_id.as_str(),
 			)
 			.await
+			.debug_inspect_err(|e| {
+				error!(
+					?parent_id,
+					old_room_id=?old_room_id,
+					new_room_id=?new_room_id,
+					%e,
+					"failed to fetch m.space.child from parent"
+				)
+			})
 		else {
 			// If the space does not have a child event for this room, we can skip it
 			continue;
@@ -105,6 +114,15 @@ async fn msc4168_update_parent_spaces(
 			)
 			.boxed()
 			.await
+			.debug_inspect_err(|e| {
+				error!(
+					?parent_id,
+					old_room_id=?old_room_id,
+					new_room_id=?new_room_id,
+					%e,
+					"failed to send m.space.child to parent during room upgrade"
+				)
+			})
 			.ok();
 		drop(state_lock);
 	}
@@ -128,11 +146,14 @@ async fn msc4168_update_space_children(
 	// children.
 
 	// In rooms that reference the old room via m.space.parent events...
+	// NOTE: Doing that would be expensive. We'll instead fetch rooms which the
+	// space claims are children.
 	let parents = services
 		.rooms
 		.state_accessor
-		.room_state_keys(old_room_id, &StateEventType::SpaceParent)
-		.await?;
+		.room_state_keys(old_room_id, &StateEventType::SpaceChild)
+		.await
+		.debug_inspect(|k| debug!(?old_room_id, "Children: {k:?}"))?;
 
 	for raw_child_id in parents {
 		let child_id = RoomId::parse(&raw_child_id)?;
@@ -148,6 +169,15 @@ async fn msc4168_update_space_children(
 				old_room_id.as_str(),
 			)
 			.await
+			.debug_inspect_err(|e| {
+				error!(
+					?child_id,
+					old_room_id=?old_room_id,
+					new_room_id=?new_room_id,
+					%e,
+					"failed to fetch m.space.parent from child"
+				)
+			})
 		else {
 			// If the child does not have a parent event for this room, we can skip it.
 			continue;
@@ -169,6 +199,13 @@ async fn msc4168_update_space_children(
 			)
 			.boxed()
 			.await
+			.debug_inspect_err(|e| error!(
+				child_id=?child_id,
+				old_room_id=?old_room_id,
+				new_room_id=?new_room_id,
+				%e,
+				"failed to send updated m.space.parent to child during room upgrade"
+			))
 			.ok();
 
 		// If the previous m.space.parent event has canonical set to true in content,
@@ -179,19 +216,25 @@ async fn msc4168_update_space_children(
 				.rooms
 				.timeline
 				.build_and_append_pdu(
-					PartialPdu {
-						event_type: StateEventType::SpaceParent.into(),
-						content: to_raw_value(&assign!(parent.clone(), {canonical: false}))
-							.expect("event is valid, we just created it"),
-						state_key: Some(old_room_id.as_str().into()),
-						..Default::default()
-					},
+					PartialPdu::state(
+						old_room_id.as_str(),
+						&assign!(parent.clone(), {canonical: false}),
+					),
 					sender,
 					Some(&child_id),
 					&state_lock,
 				)
 				.boxed()
 				.await
+				.debug_inspect_err(|e| {
+					error!(
+						child_id=?child_id,
+						old_room_id=?old_room_id,
+						new_room_id=?new_room_id,
+						%e,
+						"failed to send non-canonical m.space.parent to child room"
+					)
+				})
 				.ok();
 		}
 		drop(state_lock);
@@ -334,6 +377,7 @@ pub(crate) async fn upgrade_room_route(
 		// risk of concurrent in-flight collisions.
 		services.rooms.state.mutex.lock("!new-room").await
 	};
+	debug!("Upgrading {} to room version {}", &body.room_id, &body.new_version);
 	let create_event_id = services
 		.rooms
 		.timeline
@@ -372,6 +416,7 @@ pub(crate) async fn upgrade_room_route(
 			(Some(new_room_id), lock)
 		};
 
+	debug!("Upgraded {} to {}", &body.room_id, replacement_room_id.as_deref().unwrap());
 	// Join the new room
 	services
 		.rooms
@@ -446,6 +491,7 @@ pub(crate) async fn upgrade_room_route(
 					.expect("event is valid, we just deserialized and modified it");
 			}
 
+			debug!(%event_type, ?state_key, "Transferring state event to new room");
 			services
 				.rooms
 				.timeline
@@ -473,6 +519,7 @@ pub(crate) async fn upgrade_room_route(
 		.boxed();
 
 	while let Some(alias) = local_aliases.next().await {
+		debug!(?alias, "Migrating alias");
 		services
 			.rooms
 			.alias
@@ -488,6 +535,7 @@ pub(crate) async fn upgrade_room_route(
 
 	// 5. Send a `m.room.tombstone` event to the old room to indicate that it is not
 	//    intended to be used any further.
+	debug!(target=?body.room_id, "Sending tombstone to old room");
 	services
 		.rooms
 		.timeline
@@ -529,6 +577,7 @@ pub(crate) async fn upgrade_room_route(
 	// 6. Modify the power levels in the old room to prevent sending of events and
 	// inviting new users
 	// Spec dictates that this is allowed to fail.
+	debug!(target=?body.room_id, ?new_level, "Raising power level in old room to lock it");
 	services
 		.rooms
 		.timeline
@@ -546,6 +595,7 @@ pub(crate) async fn upgrade_room_route(
 		.ok();
 
 	// MSC4168: Update spaces that reference this room to point at the new room.
+	debug!("Updating parent spaces");
 	msc4168_update_parent_spaces(
 		&services,
 		sender_user,
@@ -553,8 +603,18 @@ pub(crate) async fn upgrade_room_route(
 		replacement_room_id.as_deref().unwrap(),
 	)
 	.await
+	.inspect_err(|e| {
+		error!(
+			old_room_id=?body.room_id,
+			new_room_id=?replacement_room_id.as_deref().unwrap(),
+			%e,
+			"failed to update parent spaces during room upgrade"
+		)
+	})
 	.ok();
+
 	// MSC4168: Update child rooms to point at the new space, where possible
+	debug!("Updating space children");
 	msc4168_update_space_children(
 		&services,
 		sender_user,
@@ -562,6 +622,14 @@ pub(crate) async fn upgrade_room_route(
 		replacement_room_id.as_deref().unwrap(),
 	)
 	.await
+	.inspect_err(|e| {
+		error!(
+			old_room_id=?body.room_id,
+			new_room_id=?replacement_room_id.as_deref().unwrap(),
+			%e,
+			"failed to update space children during room upgrade"
+		)
+	})
 	.ok();
 
 	// Return the replacement room id
