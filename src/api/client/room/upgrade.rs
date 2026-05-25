@@ -67,6 +67,15 @@ async fn update_parents(
 
 	for raw_parent_id in parents {
 		let parent_id = RoomId::parse(&raw_parent_id)?;
+		if !services
+			.rooms
+			.state_cache
+			.is_joined(sender, &parent_id)
+			.await
+		{
+			debug!(%parent_id, "Skipping space as sender is not joined");
+			continue; // Skip updating rooms the sender isn't in.
+		}
 		let state_lock = services.rooms.state.mutex.lock(parent_id.as_str()).await;
 		// We're now fetching state from the *space* that has the old room as a *child*.
 		// Follow along. This will be on the test.
@@ -159,6 +168,15 @@ async fn update_children(
 
 	for raw_child_id in parents {
 		let child_id = RoomId::parse(&raw_child_id)?;
+		if !services
+			.rooms
+			.state_cache
+			.is_joined(sender, &child_id)
+			.await
+		{
+			debug!(%child_id, "Skipping child room as sender is not joined");
+			continue;
+		}
 		let state_lock = services.rooms.state.mutex.lock(child_id.as_str()).await;
 		// We're now fetching state from the *child* that has the old space as a
 		// *parent*. Follow along. This will also be on the test.
