@@ -279,15 +279,12 @@ pub(crate) async fn upgrade_room_route(
 ) -> Result<upgrade_room::v3::Response> {
 	let sender_user = body.sender_user();
 
-	if !services.server.supported_room_version(&body.new_version) {
-		return Err(Error::BadRequest(
-			ErrorKind::UnsupportedRoomVersion,
-			"This server does not support that room version.",
-		));
-	}
-	if !services.config.allow_unstable_room_versions
-		&& UNSTABLE_ROOM_VERSIONS.contains(&body.new_version)
-	{
+	let (supported, forbid_unstable, is_unstable) = (
+		services.server.supported_room_version(&body.new_version),
+		!services.config.allow_unstable_room_versions,
+		UNSTABLE_ROOM_VERSIONS.contains(&body.new_version),
+	);
+	if !supported || (forbid_unstable && is_unstable) {
 		return Err(Error::BadRequest(
 			ErrorKind::UnsupportedRoomVersion,
 			"This server does not support that room version.",
