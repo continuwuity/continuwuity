@@ -10,7 +10,8 @@ pub mod v1 {
 		rate_limited: false,
 		authentication: AccessToken,
 		history: {
-			1.0 => "/_continuwuity/admin/rooms/{room_id}/ban",
+			unstable("org.continuwuity.admin") => "/_continuwuity/admin/rooms/{room_id}/ban",
+			1.0 => "/_continuwuity/admin/v1/rooms/{room_id}/ban",
 		}
 	}
 
