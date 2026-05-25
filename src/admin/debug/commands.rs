@@ -6,24 +6,24 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug_error, err, info,
-	matrix::{
-		Event,
+	debug_error, err, info, matrix::{
 		pdu::{PduEvent, PduId, RawPduId},
-	},
-	trace, utils,
+		Event,
+	}, trace,
+	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
-	},
-	warn,
+	}, warn,
+	Err,
+	Result,
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
+	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw, CanonicalJsonObject, CanonicalJsonValue,
+	EventId, OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName,
+	RoomId, RoomVersionId, UInt,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -89,17 +89,18 @@ fn render_node(
 	graph: &mut String,
 	node_id: &str,
 	event_id: &EventId,
+	name: &str,
 	status: NodeStatus,
 ) -> Result {
 	let evt_str = event_id.to_string();
 
 	let status_label = match status {
-		| NodeStatus::Normal(false) => evt_str,
-		| NodeStatus::Normal(true) => format!("{evt_str} (missing locally)"),
-		| NodeStatus::SoftFailed(false) => format!("{evt_str} (soft-failed)"),
-		| NodeStatus::SoftFailed(true) => format!("{evt_str} (soft-failed & missing locally)"),
-		| NodeStatus::Rejected(false) => format!("{evt_str} (rejected)"),
-		| NodeStatus::Rejected(true) => format!("{evt_str} (rejected & missing locally)"),
+		| NodeStatus::Normal(false) => format!("{evt_str}: {name}"),
+		| NodeStatus::Normal(true) => format!("{evt_str}: {name} (missing locally)"),
+		| NodeStatus::SoftFailed(false) => format!("{evt_str}: {name} (soft-failed)"),
+		| NodeStatus::SoftFailed(true) => format!("{evt_str}: {name} (soft-failed & missing locally)"),
+		| NodeStatus::Rejected(false) => format!("{evt_str}: {name} (rejected)"),
+		| NodeStatus::Rejected(true) => format!("{evt_str}: {name} (rejected & missing locally)"),
 	};
 
 	writeln!(graph, "{node_id}[\"{}\"]", status_label.as_str())?;
@@ -168,6 +169,13 @@ pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
 			})
 			.clone()
 	};
+	let node_name = |e: &PduEvent| {
+		if let Some(state_key) = e.state_key() {
+			format!("{},'{}'", e.event_type(), state_key)
+		} else {
+			format!("{}", e.event_type())
+		}
+	};
 
 	while let Some(event) = stack.pop() {
 		let current_event_id = event.event_id().to_owned();
@@ -178,7 +186,7 @@ pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
 		let current_node_id = node_id_for(&current_event_id, &mut node_ids, &mut next_node_id);
 		let current_status = node_status(&current_event_id, false).await;
 
-		render_node(&mut graph, &current_node_id, &current_event_id, current_status)?;
+		render_node(&mut graph, &current_node_id, &current_event_id, &node_name(&event), current_status)?;
 
 		let mut children = Vec::with_capacity(event.auth_events.len());
 		for auth_event_id in event.auth_events().rev() {
@@ -242,6 +250,7 @@ pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
 					&mut graph,
 					&child.node_id,
 					&child.event_id,
+					"",
 					node_status(&child.event_id, true).await,
 				)?;
 			}
