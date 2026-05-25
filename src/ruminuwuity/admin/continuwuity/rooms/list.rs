@@ -1,8 +1,8 @@
 pub mod v1 {
 	use ruma::{
+		OwnedRoomId,
 		api::{auth_scheme::AccessToken, request, response},
 		metadata,
-		OwnedRoomId,
 	};
 
 	metadata! {
@@ -10,7 +10,8 @@ pub mod v1 {
 		rate_limited: false,
 		authentication: AccessToken,
 		history: {
-			1.0 => "/_continuwuity/admin/rooms/list",
+			unstable("org.continuwuity.admin") => "/_continuwuity/admin/rooms/list",
+			1.0 => "/_continuwuity/admin/v1/rooms/list",
 		}
 	}
 
