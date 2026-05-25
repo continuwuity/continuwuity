@@ -13,8 +13,6 @@ pub mod server;
 
 pub mod client_ip;
 
-pub mod admin;
-
 pub(crate) use self::router::{Ruma, RumaResponse, State};
 
 conduwuit::mod_ctor! {}

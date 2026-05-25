@@ -11,7 +11,7 @@ pub mod v1 {
 		authentication: AccessToken,
 		history: {
 			unstable("org.continuwuity.admin") => "/_continuwuity/admin/rooms/list",
-			1.0 => "/_continuwuity/admin/v1/rooms/list",
+			1.0 => "/_continuwuity/admin/v1/rooms",
 		}
 	}
 
