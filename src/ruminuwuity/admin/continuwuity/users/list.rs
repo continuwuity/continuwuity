@@ -7,7 +7,7 @@ pub mod v1 {
 	use serde::Deserialize;
 
 	metadata! {
-		method: PUT,
+		method: GET,
 		rate_limited: false,
 		authentication: AccessToken,
 		history: {
@@ -30,6 +30,18 @@ pub mod v1 {
 		#[ruma_api(query)]
 		#[serde(default, skip_serializing_if = "ruma::serde::is_default")]
 		pub include_suspended: bool,
+
+		/// The maximum number of results to return in this page. Maximum (and
+		/// default) is 100.
+		#[ruma_api(query)]
+		#[serde(default, skip_serializing_if = "ruma::serde::is_default")]
+		pub limit: Option<usize>,
+
+		/// The number of results to skip over before returning results. Default
+		/// is 0.
+		#[ruma_api(query)]
+		#[serde(default, skip_serializing_if = "ruma::serde::is_default")]
+		pub offset: Option<usize>,
 	}
 
 	#[derive(Debug, Clone, PartialEq, Eq, Deserialize, serde::Serialize)]
