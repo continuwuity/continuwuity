@@ -1,17 +1,17 @@
 use std::{borrow::Borrow, collections::BTreeMap, sync::Arc, time::Instant};
 
 use conduwuit::{
-	debug, debug_info, debug_warn, err, implement, is_equal_to, matrix::{state_res, Event, EventTypeExt, PduEvent, StateKey}, trace,
+	Err, Result, debug, debug_info, debug_warn, err, implement, is_equal_to,
+	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
+	trace,
 	utils::{
-		stream::{BroadbandExt, ReadyExt},
 		IterStream,
+		stream::{BroadbandExt, ReadyExt},
 	},
 	warn,
-	Err,
-	Result,
 };
-use futures::{future::ready, FutureExt, StreamExt};
-use ruma::{events::StateEventType, CanonicalJsonValue, RoomId, ServerName};
+use futures::{FutureExt, StreamExt, future::ready};
+use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 use tokio::join;
 
 use super::get_room_version_rules;

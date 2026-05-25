@@ -179,13 +179,6 @@ pub enum UserCommand {
 
 	/// Manually join a local user to a room.
 	ForceJoinRoom {
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-	},
-
-	/// Manually join a local user to a room via a remote server, regardless of
-	/// our current residency.
-	ForceJoinRoomRemotely {
 		/// The user to join
 		user_id: String,
 		/// The room to join
@@ -194,7 +187,7 @@ pub enum UserCommand {
 		///
 		/// This server will always be tried first, however if more are
 		/// available, they may be tried after.
-		via: String,
+		via: Option<String>,
 	},
 
 	/// Manually leave a local user from a room.

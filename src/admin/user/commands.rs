@@ -740,14 +740,19 @@ pub(super) async fn force_join_room(
 	&self,
 	user_id: String,
 	room_id: OwnedRoomOrAliasId,
+	via: Option<String>,
 ) -> Result {
 	let user_id = parse_local_user_id(self.services, &user_id)?;
-	let (room_id, servers) = self
+	let (room_id, mut servers) = self
 		.services
 		.rooms
 		.alias
 		.resolve_with_servers(&room_id, None)
 		.await?;
+	if let Some(via) = via.map(ServerName::parse).transpose()? {
+		servers.retain(|n| *n != via);
+		servers.insert(0, via);
+	}
 
 	assert!(
 		self.services.globals.user_is_local(&user_id),
@@ -757,41 +762,6 @@ pub(super) async fn force_join_room(
 		.rooms
 		.membership
 		.join_room(&user_id, &room_id, None, &servers)
-		.await?;
-
-	self.write_str(&format!("{user_id} has been joined to {room_id}."))
-		.await
-}
-
-#[admin_command]
-pub(super) async fn force_join_room_remotely(
-	&self,
-	user_id: String,
-	room_id: OwnedRoomOrAliasId,
-	via: String,
-) -> Result {
-	let via = ServerName::parse(&via)?;
-	let user_id = parse_local_user_id(self.services, &user_id)?;
-	let (room_id, mut servers) = self
-		.services
-		.rooms
-		.alias
-		.resolve_with_servers(&room_id, None)
-		.await?;
-	if servers.contains(&via) {
-		servers.retain(|n| *n != via);
-	}
-	servers.insert(0, via);
-
-	assert!(
-		self.services.globals.user_is_local(&user_id),
-		"Parsed user_id must be a local user"
-	);
-	let state_lock = self.services.rooms.state.mutex.lock(&*room_id).await;
-	self.services
-		.rooms
-		.membership
-		.join_remote_room(&user_id, &room_id, None, &servers, state_lock)
 		.await?;
 
 	self.write_str(&format!("{user_id} has been joined to {room_id}."))

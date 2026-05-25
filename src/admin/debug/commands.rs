@@ -6,24 +6,24 @@ use std::{
 };
 
 use conduwuit::{
-	debug_error, err, info, matrix::{
-		pdu::{PduEvent, PduId, RawPduId},
+	Err, Result, debug_error, err, info,
+	matrix::{
 		Event,
-	}, trace,
-	utils,
+		pdu::{PduEvent, PduId, RawPduId},
+	},
+	trace, utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
-	}, warn,
-	Err,
-	Result,
+	},
+	warn,
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use ruma::{
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw, CanonicalJsonObject, CanonicalJsonValue,
-	EventId, OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName,
-	RoomId, RoomVersionId, UInt,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
+	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
+	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -98,7 +98,8 @@ fn render_node(
 		| NodeStatus::Normal(false) => format!("{evt_str}: {name}"),
 		| NodeStatus::Normal(true) => format!("{evt_str}: {name} (missing locally)"),
 		| NodeStatus::SoftFailed(false) => format!("{evt_str}: {name} (soft-failed)"),
-		| NodeStatus::SoftFailed(true) => format!("{evt_str}: {name} (soft-failed & missing locally)"),
+		| NodeStatus::SoftFailed(true) =>
+			format!("{evt_str}: {name} (soft-failed & missing locally)"),
 		| NodeStatus::Rejected(false) => format!("{evt_str}: {name} (rejected)"),
 		| NodeStatus::Rejected(true) => format!("{evt_str}: {name} (rejected & missing locally)"),
 	};
@@ -186,7 +187,13 @@ pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
 		let current_node_id = node_id_for(&current_event_id, &mut node_ids, &mut next_node_id);
 		let current_status = node_status(&current_event_id, false).await;
 
-		render_node(&mut graph, &current_node_id, &current_event_id, &node_name(&event), current_status)?;
+		render_node(
+			&mut graph,
+			&current_node_id,
+			&current_event_id,
+			&node_name(&event),
+			current_status,
+		)?;
 
 		let mut children = Vec::with_capacity(event.auth_events.len());
 		for auth_event_id in event.auth_events().rev() {
