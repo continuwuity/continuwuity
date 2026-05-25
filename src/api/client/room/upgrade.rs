@@ -49,7 +49,7 @@ const TRANSFERABLE_STATE_EVENTS: &[StateEventType; 11] = &[
 /// the new room ID.
 ///
 /// See: https://github.com/matrix-org/matrix-spec-proposals/pull/4168
-async fn msc4168_update_parent_spaces(
+async fn update_parents(
 	services: &crate::State,
 	sender: &UserId,
 	old_room_id: &RoomId,
@@ -137,7 +137,7 @@ async fn msc4168_update_parent_spaces(
 /// at the new space.
 ///
 /// See: https://github.com/matrix-org/matrix-spec-proposals/pull/4168
-async fn msc4168_update_space_children(
+async fn update_children(
 	services: &crate::State,
 	sender: &UserId,
 	old_room_id: &RoomId,
@@ -598,7 +598,7 @@ pub(crate) async fn upgrade_room_route(
 
 	// MSC4168: Update spaces that reference this room to point at the new room.
 	debug!("Updating parent spaces");
-	msc4168_update_parent_spaces(
+	update_parents(
 		&services,
 		sender_user,
 		&body.room_id,
@@ -617,7 +617,7 @@ pub(crate) async fn upgrade_room_route(
 
 	// MSC4168: Update child rooms to point at the new space, where possible
 	debug!("Updating space children");
-	msc4168_update_space_children(
+	update_children(
 		&services,
 		sender_user,
 		&body.room_id,
