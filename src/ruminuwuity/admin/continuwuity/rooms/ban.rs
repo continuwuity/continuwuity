@@ -29,8 +29,11 @@ pub mod v1 {
 
 	#[response]
 	pub struct Response {
+		/// Users who were successfully kicked from this room.
 		pub kicked_users: Vec<OwnedUserId>,
+		/// Users who could not be kicked from the room.
 		pub failed_kicked_users: Vec<OwnedUserId>,
+		/// Any local aliases that were removed from the room.
 		pub local_aliases: Vec<OwnedRoomAliasId>,
 	}
 

@@ -1,8 +1,8 @@
 pub mod v1 {
 	use ruma::{
-		OwnedRoomId,
 		api::{auth_scheme::AccessToken, request, response},
 		metadata,
+		OwnedRoomId,
 	};
 
 	metadata! {
@@ -20,6 +20,7 @@ pub mod v1 {
 
 	#[response]
 	pub struct Response {
+		/// A list of room IDs known to this server.
 		pub rooms: Vec<OwnedRoomId>,
 	}
 
