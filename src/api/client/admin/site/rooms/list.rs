@@ -11,6 +11,7 @@ use ruma::{
 		room::{
 			create::RoomCreateEventContent,
 			encryption::PossiblyRedactedRoomEncryptionEventContent,
+			tombstone::PossiblyRedactedRoomTombstoneEventContent,
 		},
 	},
 };
@@ -94,6 +95,7 @@ pub(crate) async fn list_rooms_route(
 				canonical_alias_event,
 				join_rules_event,
 				history_visibility_event,
+				tombstone_event,
 			) = join!(
 				services.rooms.metadata.is_banned(&room_id),
 				services.rooms.metadata.is_disabled(&room_id),
@@ -143,6 +145,14 @@ pub(crate) async fn list_rooms_route(
 					&StateEventType::RoomHistoryVisibility,
 					""
 				),
+				services
+					.rooms
+					.state_accessor
+					.room_state_get_content::<PossiblyRedactedRoomTombstoneEventContent>(
+						&room_id,
+						&StateEventType::RoomTombstone,
+						""
+					),
 			);
 			let Ok(create_event) = create_event else {
 				return None;
@@ -168,6 +178,8 @@ pub(crate) async fn list_rooms_route(
 				canonical_alias: canonical_alias_event.unwrap_or(None),
 				join_rules: join_rules_event.unwrap_or(None),
 				history_visibility: history_visibility_event.unwrap_or(None),
+				predecessor: create_content.predecessor.map(|c| c.room_id),
+				successor: tombstone_event.map_or(None, |c| c.replacement_room),
 			})
 		})
 		.collect()
