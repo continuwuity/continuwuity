@@ -366,8 +366,7 @@ async fn fetch_shortstatehashes(
 		.await?;
 
 	// The room state as of the end of the last sync.
-	// This will be None if we are doing an initial sync or if we just joined this
-	// room.
+	// This will be None if we are doing an initial sync.
 	let last_sync_end_shortstatehash =
 		OptionFuture::from(last_sync_end_count.map(async |last_sync_end_count| {
 			pin! {
@@ -390,7 +389,7 @@ async fn fetch_shortstatehashes(
 						.map_err(|err| err!("Last sync end PDU has no shortstatehash: {err}"))
 				},
 				| None => {
-					// No events have been sent since the last sync,
+					// No events have been sent since the last sync, or we just joined this room,
 					// so the state then is the same as the state now
 					Ok(current_shortstatehash)
 				},
@@ -465,13 +464,19 @@ async fn build_state_events(
 		last_sync_end_shortstatehash,
 	} = shortstatehashes;
 
-	let timeline_start_shortstatehash = if let Some((_, pdu)) = timeline.pdus.front() {
-		services
-			.rooms
-			.state_accessor
-			.pdu_shortstatehash(&pdu.event_id)
-			.await
-			.map_err(|err| err!("Timeline start has no shortstatehash: {err}"))?
+	let timeline_start_shortstatehash = if let Some((count, pdu)) = timeline.pdus.front() {
+		if matches!(count, PduCount::Backfilled(_)) {
+			// We don't have shortstatehashes for backfilled PDUs, the best we can
+			// do is to use the current state
+			current_shortstatehash
+		} else {
+			services
+				.rooms
+				.state_accessor
+				.pdu_shortstatehash(&pdu.event_id)
+				.await
+				.map_err(|err| err!("Timeline start has no shortstatehash: {err}"))?
+		}
 	} else {
 		// if the timeline is empty there can't possibly be any changes to the state
 		return Ok(vec![]);
@@ -594,22 +599,24 @@ async fn check_joined_since_last_sync(
 	ShortStateHashes { last_sync_end_shortstatehash, .. }: ShortStateHashes,
 	SyncContext { syncing_user, .. }: SyncContext<'_>,
 ) -> Result<bool> {
-	// fetch the syncing user's membership event during the last sync.
-	// this will be None if `previous_sync_end_shortstatehash` is None.
-	let membership_during_previous_sync = match last_sync_end_shortstatehash {
-		| Some(last_sync_end_shortstatehash) => services
-			.rooms
-			.state_accessor
-			.state_get_content(
-				last_sync_end_shortstatehash,
-				&StateEventType::RoomMember,
-				syncing_user.as_str(),
-			)
-			.await
-			.inspect_err(|_| debug_warn!("User has no previous membership"))
-			.ok(),
-		| None => None,
+	let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash else {
+		// For initial syncs always return false, since there's no "last sync" for the
+		// user to have joined since.
+		return Ok(false);
 	};
+
+	// Fetch the syncing user's membership event during the last sync.
+	let membership_during_previous_sync = services
+		.rooms
+		.state_accessor
+		.state_get_content(
+			last_sync_end_shortstatehash,
+			&StateEventType::RoomMember,
+			syncing_user.as_str(),
+		)
+		.await
+		.inspect_err(|_| debug_warn!("User has no previous membership"))
+		.ok();
 
 	// TODO: If the requesting user got state-reset out of the room, this
 	// will be `true` when it shouldn't be. this function should never be called
