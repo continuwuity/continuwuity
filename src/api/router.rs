@@ -6,13 +6,13 @@ mod response;
 use std::str::FromStr;
 
 use axum::{
+	Router,
 	response::{IntoResponse, Redirect},
 	routing::{any, get, post},
-	Router,
 };
 use conduwuit::err;
 pub(super) use conduwuit_service::state::State;
-use http::{uri, Uri};
+use http::{Uri, uri};
 
 use self::handler::RouterExt;
 pub(super) use self::{args::Args as Ruma, auth::ClientIdentity, response::RumaResponse};
@@ -283,7 +283,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		router = router
 			.ruma_route(&admin_api::users::list_users_route)
 			.ruma_route(&admin_api::rooms::ban_room)
-			.ruma_route(&admin_api::rooms::list_rooms);
+			.ruma_route(&admin_api::rooms::legacy_list_rooms_route)
+			.ruma_route(&admin_api::rooms::list_rooms_route);
 	};
 
 	router
