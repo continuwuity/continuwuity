@@ -23,6 +23,10 @@ pub mod v1 {
 		/// The user's desired password. Cannot be blank.
 		pub password: String,
 
+		/// The user's email address, if any.
+		#[serde(default, skip_serializing_if = "ruma::serde::is_default")]
+		pub email: Option<String>,
+
 		/// The display name to set upon creation.
 		#[serde(default, skip_serializing_if = "ruma::serde::is_default")]
 		pub display_name: Option<String>,
@@ -80,6 +84,7 @@ pub mod v1 {
 			Self {
 				localpart,
 				password,
+				email: None,
 				display_name: None,
 				avatar_url: None,
 				suspended: false,
