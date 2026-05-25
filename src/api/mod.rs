@@ -11,8 +11,6 @@ pub mod client;
 pub mod router;
 pub mod server;
 
-pub mod admin;
-
 pub(crate) use self::router::{Ruma, RumaResponse, State};
 
 conduwuit::mod_ctor! {}

@@ -6,17 +6,19 @@ mod response;
 use std::str::FromStr;
 
 use axum::{
-	Router,
 	response::{IntoResponse, Redirect},
 	routing::{any, get, post},
+	Router,
 };
 use conduwuit::err;
 pub(super) use conduwuit_service::state::State;
-use http::{Uri, uri};
+use http::{uri, Uri};
 
 use self::handler::RouterExt;
 pub(super) use self::{args::Args as Ruma, auth::ClientIdentity, response::RumaResponse};
-use crate::{admin, client, server};
+#[cfg(feature = "admin_api")]
+use crate::client::admin::site as admin_api;
+use crate::{client, server};
 
 pub fn build(router: Router<State>, state: State) -> Router<State> {
 	let config = &state.server.config;
@@ -191,9 +193,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_authorization_server_metadata_route)
 		.merge(client::oauth::router(state))
 		.route("/_conduwuit/server_version", get(client::conduwuit_server_version))
-		.route("/_continuwuity/server_version", get(client::conduwuit_server_version))
-		.ruma_route(&admin::rooms::ban::ban_room)
-		.ruma_route(&admin::rooms::list::list_rooms);
+		.route("/_continuwuity/server_version", get(client::conduwuit_server_version));
 
 	if config.allow_federation {
 		router = router
@@ -277,6 +277,14 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 			.route("/_matrix/media/r0/thumbnail/{*path}", any(legacy_media_disabled))
 			.route("/_matrix/media/r0/preview_url", any(redirect_legacy_preview));
 	}
+
+	#[cfg(feature = "admin_api")]
+	{
+		router = router
+			.ruma_route(&admin_api::users::list_users_route)
+			.ruma_route(&admin_api::rooms::ban_room)
+			.ruma_route(&admin_api::rooms::list_rooms)
+	};
 
 	router
 }
