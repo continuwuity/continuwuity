@@ -1,3 +1,4 @@
+mod lock;
 mod suspend;
 
-pub(crate) use self::suspend::*;
+pub(crate) use self::{lock::*, suspend::*};
