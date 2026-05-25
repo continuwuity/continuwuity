@@ -381,7 +381,7 @@ pub async fn fetch_policy_server_signature(
 				event_id = %pdu.event_id(),
 				%room_id,
 				%elapsed,
-				"Policy server signature request timServerSignaturesed out"
+				"Policy server signature request timed out"
 			);
 			return Err!(Request(Forbidden("Policy server did not respond in time")));
 		},
