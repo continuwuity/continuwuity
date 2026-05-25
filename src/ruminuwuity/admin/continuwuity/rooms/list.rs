@@ -140,6 +140,12 @@ pub mod v1 {
 		/// is present. May be redacted.
 		#[serde(default, skip_serializing_if = "Option::is_none")]
 		pub history_visibility: Option<PossiblyRedactedRoomHistoryVisibilityEventContent>,
+		/// The ID of the room which replaces this one, if any.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		pub successor: Option<OwnedRoomId>,
+		/// The ID of the room which preceded this one, if any.
+		#[serde(default, skip_serializing_if = "Option::is_none")]
+		pub predecessor: Option<OwnedRoomId>,
 	}
 
 	#[response]
