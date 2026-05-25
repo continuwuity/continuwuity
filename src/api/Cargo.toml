@@ -62,6 +62,8 @@ zstd_compression = [
 	"reqwest/zstd",
 ]
 
+admin_api = []
+
 [dependencies]
 async-trait.workspace = true
 axum-client-ip.workspace = true

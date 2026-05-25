@@ -68,6 +68,7 @@ full = [
     "jemalloc_prof",
     "perf_measurements",
     "tokio_console",
+	"conduwuit-api/admin_api",
 ]
 
 brotli_compression = [
