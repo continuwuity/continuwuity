@@ -528,6 +528,7 @@ async fn complete_registration(
 			.registration_tokens
 			.mark_token_as_used(registration_token);
 	}
+	services.users.join_auto_join_rooms(&user_id).await;
 
 	let user_session = UserSession { user_id, last_login: SystemTime::now() };
 

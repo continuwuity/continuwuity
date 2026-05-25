@@ -229,6 +229,9 @@ impl Service {
 	}
 
 	/// Create a new account for a local human or bot user.
+	///
+	/// Does not automatically join the user to auto join rooms. Use
+	/// `join_auto_join_rooms` for that.
 	pub async fn create_local_account(
 		&self,
 		user_id: &UserId,
@@ -303,8 +306,11 @@ impl Service {
 					.ok();
 			}
 		}
+		info!("Created new user account for {user_id}");
+	}
 
-		// Autojoin the user to the configured autojoin rooms
+	/// Autojoin the user to the configured autojoin rooms
+	pub async fn join_auto_join_rooms(&self, user_id: &UserId) {
 		for room in &self.services.config.auto_join_rooms {
 			let Ok(room_id) = self.services.alias.resolve(room).await else {
 				error!(
@@ -320,9 +326,7 @@ impl Service {
 				.server_in_room(self.services.globals.server_name(), &room_id)
 				.await
 			{
-				warn!(
-					"Skipping room {room} to automatically join as we have never joined before."
-				);
+				warn!("Skipping auto-room {room} as we have never joined before.");
 				continue;
 			}
 
@@ -354,8 +358,6 @@ impl Service {
 				}
 			}
 		}
-
-		info!("Created new user account for {user_id}");
 	}
 
 	pub async fn determine_registration_user_id(

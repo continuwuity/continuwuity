@@ -99,7 +99,7 @@ pub(crate) async fn register_route(
 			.users
 			.create_local_account(&user_id, password, identity.email)
 			.await;
-
+		services.users.join_auto_join_rooms(&user_id).await;
 		user_id
 	};
 
