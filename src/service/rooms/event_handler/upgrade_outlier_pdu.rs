@@ -1,17 +1,17 @@
 use std::{borrow::Borrow, collections::BTreeMap, sync::Arc, time::Instant};
 
 use conduwuit::{
-	debug, debug_info, debug_warn, err, implement, is_equal_to, matrix::{state_res, Event, EventTypeExt, PduEvent, StateKey}, trace,
+	Err, Result, debug, debug_info, debug_warn, err, implement, is_equal_to,
+	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
+	trace,
 	utils::{
-		stream::{BroadbandExt, ReadyExt},
 		IterStream,
+		stream::{BroadbandExt, ReadyExt},
 	},
 	warn,
-	Err,
-	Result,
 };
-use futures::{future::ready, FutureExt, StreamExt};
-use ruma::{events::StateEventType, CanonicalJsonValue, RoomId, ServerName};
+use futures::{FutureExt, StreamExt, future::ready};
+use ruma::{CanonicalJsonValue, RoomId, ServerName, events::StateEventType};
 use tokio::join;
 
 use super::get_room_version_rules;
@@ -54,20 +54,6 @@ where
 		return Err!(Request(InvalidParam("Event has been rejected")));
 	} else if soft_failed {
 		return Err!(Request(InvalidParam("Event has been soft-failed")));
-	}
-
-	// If any of the auth events are rejected, this event is also rejected.
-	for aid in incoming_pdu.auth_events() {
-		if self.services.pdu_metadata.is_event_rejected(aid).await {
-			debug_warn!(
-				"Rejecting incoming event {} which depends on rejected auth event {aid}",
-				incoming_pdu.event_id()
-			);
-			self.services
-				.pdu_metadata
-				.mark_event_rejected(incoming_pdu.event_id());
-			return Err!(Request(InvalidParam("Event has rejected auth event: {aid}")));
-		}
 	}
 
 	debug!(

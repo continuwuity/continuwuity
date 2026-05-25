@@ -37,8 +37,6 @@ where
 	// 1. Remove unsigned field
 	value.remove("unsigned");
 
-	// TODO: For RoomVersion6 we must check that Raw<..> is canonical do we anywhere?: https://matrix.org/docs/spec/rooms/v6#canonical-json
-
 	// 2. Check signatures, otherwise drop
 	// 3. check content hash, redact if doesn't match
 	let room_version_rules = get_room_version_rules(create_event)?;
@@ -90,6 +88,15 @@ where
 	let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
 
 	for aid in pdu_event.auth_events() {
+		if self.services.pdu_metadata.is_event_rejected(aid).await {
+			debug_warn!(
+				"Rejecting incoming event {} which depends on rejected auth event {aid}",
+				event_id,
+			);
+			self.services.pdu_metadata.mark_event_rejected(event_id);
+			return Err!(Request(InvalidParam("Event has rejected auth event: {aid}")));
+		}
+
 		if let Ok(auth_event) = self.services.timeline.get_pdu(aid).await {
 			check_room_id(room_id, &auth_event)?;
 			trace!("Found auth event {aid} for outlier event {event_id} locally");
