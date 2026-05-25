@@ -282,7 +282,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		router = router
 			.ruma_route(&admin_api::users::list_users_route)
 			.ruma_route(&admin_api::rooms::ban_room)
-			.ruma_route(&admin_api::rooms::list_rooms)
+			.ruma_route(&admin_api::rooms::list_rooms);
 	};
 
 	router

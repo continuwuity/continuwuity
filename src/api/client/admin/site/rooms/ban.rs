@@ -1,10 +1,10 @@
 use axum::extract::State;
-use conduwuit::{info, utils::ReadyExt, warn, Err, Result};
+use conduwuit::{Err, Result, info, utils::ReadyExt, warn};
 use futures::{FutureExt, StreamExt};
-use ruma::{events::room::message::RoomMessageEventContent, OwnedRoomAliasId};
+use ruma::{OwnedRoomAliasId, events::room::message::RoomMessageEventContent};
 use ruminuwuity::admin::continuwuity::rooms;
 
-use crate::{client::leave_room, Ruma};
+use crate::{Ruma, client::leave_room};
 
 /// # `PUT /_continuwuity/admin/v1/rooms/{roomID}/ban`
 ///
