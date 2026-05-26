@@ -108,7 +108,6 @@ async fn should_rescind_invite(
 #[implement(super::Service)]
 #[tracing::instrument(
 	name = "pdu",
-	level = INFO_SPAN_LEVEL,
 	skip_all,
 	fields(%room_id, %event_id),
 )]
