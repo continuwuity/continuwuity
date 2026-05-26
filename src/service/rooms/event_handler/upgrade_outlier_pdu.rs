@@ -385,7 +385,7 @@ where
 
 	// Event has passed all auth/stateres checks
 	drop(state_lock);
-	if incoming_pdu.depth > min_depth {
+	if incoming_pdu.depth > min_depth && incoming_pdu.state_key().is_some() {
 		self.services
 			.metadata
 			.set_mindepth(room_id, incoming_pdu.depth.into());
