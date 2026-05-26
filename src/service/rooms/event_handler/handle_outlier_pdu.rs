@@ -81,6 +81,14 @@ impl super::Service {
 			CanonicalJsonValue::String(event_id.as_str().to_owned()),
 		);
 
+		if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
+			debug!(
+				"Already have event {event_id} as an outlier or timeline event, not \
+				 re-processing"
+			);
+			return Ok((pdu_event, incoming_pdu));
+		}
+
 		let pdu_event = serde_json::from_value::<PduEvent>(
 			serde_json::to_value(&incoming_pdu).expect("CanonicalJsonObj is a valid JsonValue"),
 		)
