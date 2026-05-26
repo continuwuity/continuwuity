@@ -868,16 +868,20 @@ where
 					.ignore_err();
 			}
 
-			let (_, pdu_at_last_sync_end) = pdus_rev.next().await?;
+			let (count, pdu_at_last_sync_end) = pdus_rev.next().await?;
 
-			Some(
-				services
-					.rooms
-					.state_accessor
-					.pdu_shortstatehash(&pdu_at_last_sync_end.event_id)
-					.await
-					.expect("pdu should have a shortstatehash"),
-			)
+			if matches!(count, PduCount::Backfilled(_)) {
+				None
+			} else {
+				Some(
+					services
+						.rooms
+						.state_accessor
+						.pdu_shortstatehash(&pdu_at_last_sync_end.event_id)
+						.await
+						.expect("pdu should have a shortstatehash"),
+				)
+			}
 		}
 		.await;
 
