@@ -64,6 +64,7 @@ impl super::Service {
 			"Upgrading PDU from outlier to timeline"
 		);
 		let timer = Instant::now();
+		let min_depth = self.services.metadata.get_mindepth(room_id).await;
 		let room_version_rules = get_room_version_rules(create_event)?;
 
 		// 10. Fetch missing state and auth chain events by calling /state_ids at
@@ -387,6 +388,11 @@ impl super::Service {
 
 		// Event has passed all auth/stateres checks
 		drop(state_lock);
+		if incoming_pdu.depth > min_depth {
+			self.services
+				.metadata
+				.set_mindepth(room_id, incoming_pdu.depth.into());
+		}
 
 		Ok(pdu_id)
 	}

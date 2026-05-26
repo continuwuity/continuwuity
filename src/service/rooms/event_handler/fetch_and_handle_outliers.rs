@@ -467,12 +467,16 @@ impl super::Service {
 	/// - `tail`: The most recently known events in the graph (typically forward
 	///   extremities).
 	/// - `via`: The server to ask for missing events.
+	/// - `min_depth`: Don't process events with a `depth` lower than this
+	///   value. Not massively useful, but can help short-circuit infinite loops
+	///   and weird edge paths.
 	pub async fn get_missing_events(
 		&self,
 		room_id: &RoomId,
 		head: &PduEvent,
 		tail: Vec<OwnedEventId>,
 		via: &ServerName,
+		min_depth: UInt,
 	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
 		#[cfg(debug_assertions)]
 		{
@@ -507,7 +511,7 @@ impl super::Service {
 		loop {
 			iterations = iterations.saturating_add(1);
 			let limit = iterations.saturating_mul(10).min(100);
-			debug_info!(%limit, %via, %iterations, "Attempting to gap fill missing events");
+			debug_info!(%limit, %via, %iterations, discovered=discovered.len(), %min_depth, "Attempting to gap fill missing events");
 			let response: get_missing_events::v1::Response = self
 				.services
 				.sending
@@ -519,7 +523,7 @@ impl super::Service {
 							tail.clone(),
 							latest_events.clone()
 						),
-						{limit: limit.into()}
+						{limit: limit.into(), min_depth}
 					),
 				)
 				.await?;
@@ -536,6 +540,15 @@ impl super::Service {
 				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
 					err!(Request(BadJson("Failed to parse backfilled event {event_id}: {e}")))
 				})?;
+
+				if pdu.depth < min_depth {
+					debug_warn!(
+						"Received PDU with depth {} below min_depth {}, ignoring",
+						pdu.depth,
+						min_depth
+					);
+					continue;
+				}
 
 				for prev_event_id in pdu.prev_events() {
 					if discovered.contains_key(prev_event_id) {

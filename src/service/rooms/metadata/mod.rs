@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use conduwuit::{Result, utils::stream::TryIgnore};
-use database::Map;
+use database::{Deserialized, Map};
 use futures::{Stream, StreamExt};
-use ruma::{OwnedRoomId, RoomId};
+use ruma::{OwnedRoomId, RoomId, UInt, uint};
 
 use crate::{Dep, rooms};
 
@@ -17,6 +17,7 @@ struct Data {
 	bannedroomids: Arc<Map>,
 	roomid_shortroomid: Arc<Map>,
 	pduid_pdu: Arc<Map>,
+	roomid_mindepth: Arc<Map>,
 }
 
 struct Services {
@@ -31,6 +32,7 @@ impl crate::Service for Service {
 				bannedroomids: args.db["bannedroomids"].clone(),
 				roomid_shortroomid: args.db["roomid_shortroomid"].clone(),
 				pduid_pdu: args.db["pduid_pdu"].clone(),
+				roomid_mindepth: args.db["roomid_mindepth"].clone(),
 			},
 			services: Services {
 				short: args.depend::<rooms::short::Service>("rooms::short"),
@@ -97,5 +99,26 @@ impl Service {
 	/// Lists all rooms that are currently banned.
 	pub fn list_banned_rooms(&self) -> impl Stream<Item = OwnedRoomId> + Send + '_ {
 		self.db.bannedroomids.keys().ignore_err()
+	}
+
+	pub async fn get_mindepth(&self, room_id: &RoomId) -> UInt {
+		self.db
+			.roomid_mindepth
+			.get(room_id)
+			.await
+			.deserialized::<UInt>()
+			.unwrap_or_else(|_| uint!(0))
+	}
+
+	pub fn set_mindepth(&self, room_id: &RoomId, min_depth: u64) {
+		self.db
+			.roomid_mindepth
+			.put_raw(room_id.as_bytes(), min_depth.to_be_bytes());
+	}
+
+	pub async fn maybe_set_mindepth(&self, room_id: &RoomId, min_depth: u64) {
+		if min_depth > self.get_mindepth(room_id).await.into() {
+			self.set_mindepth(room_id, min_depth);
+		}
 	}
 }
