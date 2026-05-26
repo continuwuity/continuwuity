@@ -1,5 +1,4 @@
 use std::{
-	cmp::min,
 	collections::{BTreeMap, HashMap, HashSet, VecDeque, hash_map},
 	time::Instant,
 };
@@ -9,7 +8,6 @@ use conduwuit::{
 	matrix::event::gen_event_id_canonical_json, state_res::lexicographical_topological_sort,
 	trace, utils::continue_exponential_backoff_secs, warn,
 };
-use futures::StreamExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
 	OwnedRoomId, OwnedServerName, RoomId, ServerName, UInt,
@@ -97,6 +95,7 @@ impl super::Service {
 	/// b. Look at outlier pdu tree
 	/// c. Ask origin server over federation
 	/// d. TODO: Ask other servers over federation?
+	#[deprecated]
 	pub(super) async fn fetch_and_handle_outliers<'a, Pdu, Events>(
 		&self,
 		origin: &'a ServerName,
@@ -316,37 +315,33 @@ impl super::Service {
 	///
 	/// This function does not persist the events. The caller is responsible for
 	/// passing them through handle_incoming_pdu.
-	pub(super) async fn backfill_missing_events(
+	pub async fn backfill_missing_events(
 		&self,
 		room_id: OwnedRoomId,
-		head: Vec<OwnedEventId>,
+		head: HashSet<OwnedEventId>,
+		tail: Vec<OwnedEventId>,
 		via: OwnedServerName,
 	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
 		if head.is_empty() {
 			return Ok(HashMap::new());
 		}
-		let tail = self
-			.services
-			.state
-			.get_forward_extremities(&room_id)
-			.collect::<Vec<_>>()
-			.await;
 		// TODO: min_depth is probably necessary to avoid fetching the entire room
 		// history if there are very long gaps
-		let mut latest_events: HashSet<OwnedEventId> = HashSet::from_iter(head.clone());
+		let mut latest_events = head.clone();
 		let mut loop_count: u64 = 3;
-		// Start with a base number of 3 so that we fetch 10, 16, 25, 36, etc
-		// instead of 1, 2, 4, 9, so on.
+		// Start with 3 so that we fetch 9, 16, 25, 36, 49, 64, 81, 100 events.
+		// This gives steady growth to the server's typical limit of 100. It's unlikely
+		// we'll end up close to that.
 		let mut backfilled_events = HashMap::with_capacity(10);
 
 		while !latest_events.is_empty() {
+			// TODO: holy clone()
+			let frontier_before = latest_events.clone();
 			let todo: Vec<OwnedEventId> = latest_events.clone().into_iter().collect();
 			let mut request =
 				get_missing_events::v1::Request::new(room_id.clone(), tail.clone(), todo.clone());
-			let limit = min(loop_count.saturating_pow(2), 100);
-			request.limit = limit
-				.try_into()
-				.expect("limit cannot be greater than 100, which fits into UInt");
+			let limit = loop_count.saturating_pow(2).min(100);
+			request.limit = limit.try_into().expect("limit must fit into UInt");
 
 			debug_info!(
 				backfilled=%backfilled_events.len(),
@@ -366,6 +361,7 @@ impl super::Service {
 				.send_federation_request(&via, request)
 				.await?;
 			loop_count = loop_count.saturating_add(1);
+			trace!(?response, "get_missing_events response");
 
 			// Some buggy servers (including old continuwuity) may return the same events
 			// multiple times, which can cause this to be an infinite loop.
@@ -378,6 +374,7 @@ impl super::Service {
 				debug_info!("No more missing events found");
 				break;
 			}
+
 			for event in response.events {
 				trace!("Parsing incoming event from backfill");
 				let (incoming_room_id, event_id, pdu_json) =
@@ -396,52 +393,41 @@ impl super::Service {
 					debug!("Skipping known event {event_id}");
 					continue;
 				}
-				if backfilled_events.contains_key(&event_id) {
+				let retransmitted = backfilled_events.contains_key(&event_id);
+				if retransmitted {
 					debug_warn!(%via, %event_id, "Remote retransmitted event");
-					continue;
-				}
-				// TODO: Should this be scoped to the GME session? We might end up incorrectly
-				// assuming we've caught up if we do this
-				if let Ok(pdu) = self.services.timeline.get_pdu(&event_id).await {
-					debug!(%via, %event_id, "Already seen event in database");
-					backfilled_events.insert(event_id.clone(), pdu);
 				} else {
-					unseen = unseen.saturating_add(1);
+					if let Ok(pdu) = self.services.timeline.get_pdu(&event_id).await {
+						debug!(%via, %event_id, "Already seen event in database");
+						backfilled_events.insert(event_id.clone(), pdu);
+					} else {
+						unseen = unseen.saturating_add(1);
+					}
 				}
 				let parsed = PduEvent::from_id_val(&event_id, pdu_json)
 					.map_err(|e| err!(BadServerResponse("Unable to parse {event_id}: {e}")))?;
 				for prev_event_id in parsed.prev_events() {
-					// Verify that we have all of this event's prev_events. If we don't, add it to
-					// the work queue
 					if !(backfilled_events.contains_key(prev_event_id)
 						|| self.services.timeline.pdu_exists(prev_event_id).await)
 					{
 						latest_events.insert(prev_event_id.to_owned());
-						break;
 					}
-					continue;
 				}
-				backfilled_events.insert(event_id.clone(), parsed);
-			}
-			for event_id in todo {
-				latest_events.remove(&event_id);
-				if let hash_map::Entry::Vacant(e) = backfilled_events.entry(event_id.clone()) {
-					let evt = self.services.timeline.get_pdu(&event_id).await?;
-					e.insert(evt);
+				if !retransmitted {
+					backfilled_events.insert(event_id.clone(), parsed);
 				}
 			}
+			latest_events.retain(|event_id| !backfilled_events.contains_key(event_id));
 			debug!(
 				count=%chunk_len,
 				new=%unseen,
 				remaining=%latest_events.len(),
 				"Got missing events"
 			);
-			if unseen == 0 {
-				debug_warn!("Didn't see any new events, breaking cycle");
-				break;
-			} else if chunk_len < usize::try_from(limit)? {
-				debug!(
-					"Got less than the limit number of events, assuming there's no more to fetch"
+			let frontier_changed = latest_events != frontier_before;
+			if unseen == 0 && !frontier_changed {
+				debug_warn!(
+					"Didn't see any new events and the frontier did not change, breaking cycle"
 				);
 				break;
 			}

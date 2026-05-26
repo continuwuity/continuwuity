@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashMap, HashSet, hash_map};
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, state_res, trace, warn,
 };
-use futures::future::ready;
+use futures::{StreamExt, future::ready};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
 	events::StateEventType,
@@ -123,10 +123,17 @@ impl super::Service {
 				"Fetching {} missing auth events for outlier event {event_id}",
 				missing_auth_events.len()
 			);
+			let tail = self
+				.services
+				.state
+				.get_forward_extremities(room_id)
+				.collect::<Vec<_>>()
+				.await;
 			let backfilled = self
 				.backfill_missing_events(
 					room_id.to_owned(),
-					vec![event_id.to_owned()],
+					HashSet::from_iter(vec![event_id.to_owned()]),
+					tail,
 					origin.to_owned(),
 				)
 				.await?;

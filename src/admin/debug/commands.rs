@@ -22,7 +22,7 @@ use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
+	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, ServerName, UInt,
 	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
 };
 use service::rooms::{
@@ -1164,6 +1164,34 @@ impl crate::Context<'_> {
 		self.write_str(&format!("Test email successfully sent to {email}"))
 			.await?;
 
+		Ok(())
+	}
+
+	pub(super) async fn walk_missing_events(
+		&self,
+		latest: OwnedEventId,
+		earliest: OwnedEventId,
+		via: String,
+	) -> Result {
+		let earliest_pdu = self.services.rooms.timeline.get_pdu(&earliest).await?;
+		let events = self
+			.services
+			.rooms
+			.event_handler
+			.backfill_missing_events(
+				earliest_pdu.room_id_or_hash(),
+				HashSet::from_iter(vec![latest]),
+				vec![earliest],
+				ServerName::parse(via)?,
+			)
+			.await?;
+		self.write_str(&format!("Found {} events:\n\n```\n", events.len()))
+			.await?;
+		for (event_id, event) in events {
+			self.write_str(&format!("{event_id}: {:?}\n\n", serde_json::to_string(&event)))
+				.await?;
+		}
+		self.write_str("\n```").await?;
 		Ok(())
 	}
 }
