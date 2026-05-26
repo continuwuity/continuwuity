@@ -47,6 +47,7 @@ use service::transactions::{
 	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
 };
 use tokio::sync::watch::{Receiver, Sender};
+use tracing::instrument;
 
 use crate::Ruma;
 
