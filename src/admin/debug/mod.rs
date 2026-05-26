@@ -32,6 +32,12 @@ pub enum DebugCommand {
 		event_id: OwnedEventId,
 	},
 
+	WalkMissingEvents {
+		latest: OwnedEventId,
+		earliest: OwnedEventId,
+		via: String,
+	},
+
 	/// Parse and print a PDU from a JSON
 	///
 	/// The PDU event is only checked for validity and is not added to the
