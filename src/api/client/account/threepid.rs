@@ -13,7 +13,7 @@ use ruma::{
 };
 use service::{mailer::messages, uiaa::Identity};
 
-use crate::Ruma;
+use crate::{Ruma, router::ClientIdentity};
 
 /// # `GET _matrix/client/v3/account/3pid`
 ///
@@ -58,7 +58,7 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 	let sender_user = body
 		.identity
 		.as_ref()
-		.map(|identity| identity.sender_user())
+		.map(ClientIdentity::sender_user)
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
 
 	if !services.threepid.email_requirement().may_change() {

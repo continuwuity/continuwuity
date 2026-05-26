@@ -93,7 +93,7 @@ pub(crate) async fn sync_events_v5_route(
 		.and_then(|string| string.parse().ok())
 		.unwrap_or(0);
 
-	let snake_key = into_snake_key(sender_user.as_ref(), sender_device.as_str(), conn_id);
+	let snake_key = into_snake_key(sender_user, sender_device.as_str(), conn_id);
 
 	if globalsince != 0 && !services.sync.snake_connection_cached(&snake_key) {
 		return Err!(Request(UnknownPos(
