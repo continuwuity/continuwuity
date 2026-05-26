@@ -122,7 +122,11 @@ pub(crate) async fn add_3pid_route(
 	// Require password auth to add an email
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, body.identity.expect_sender_user()?, body.identity.sender_device(), None)
+		.authenticate_password(
+			&body.auth, body.identity.expect_sender_user()?,
+			body.identity.sender_device(),
+			None,
+		)
 		.await?;
 
 	let email = services

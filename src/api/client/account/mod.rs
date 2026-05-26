@@ -49,39 +49,16 @@ pub(crate) async fn get_register_available_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<get_username_availability::v3::Request>,
 ) -> Result<get_username_availability::v3::Response> {
-	// Validate user id
-	let user_id =
-		match UserId::parse_with_server_name(&body.username, services.globals.server_name()) {
-			| Ok(user_id) => {
-				if let Err(e) = user_id.validate_strict() {
-					return Err!(Request(InvalidUsername(debug_warn!(
-						"Username {} contains disallowed characters or spaces: {e}",
-						body.username
-					))));
-				}
-
-				user_id
-			},
-			| Err(e) => {
-				return Err!(Request(InvalidUsername(debug_warn!(
-					"Username {} is not valid: {e}",
-					body.username
-				))));
-			},
-		};
-
-	// Check if username is creative enough
-	if services.users.exists(&user_id).await {
-		return Err!(Request(UserInUse("User ID is not available.")));
-	}
-
-	if let Some(ClientIdentity::Appservice { appservice_info, .. }) = &body.identity
-		&& !appservice_info.is_user_match(&user_id)
-	{
-		return Err!(Request(Exclusive("Username is not in an appservice namespace.")));
-	} else if services.appservice.is_exclusive_user_id(&user_id).await {
-		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
-	}
+	let _ = services
+		.users
+		.determine_registration_user_id(
+			Some(body.username.clone()),
+			None,
+			body.identity
+				.as_ref()
+				.and_then(ClientIdentity::appservice_info),
+		)
+		.await?;
 
 	Ok(get_username_availability::v3::Response::new(true))
 }
@@ -109,8 +86,7 @@ pub(crate) async fn change_password_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	let identity = if let Some(identity) = body.identity.as_ref()
-	{
+	let identity = if let Some(identity) = body.identity.as_ref() {
 		// A signed-in user is trying to change their password, prompt them for their
 		// existing one
 

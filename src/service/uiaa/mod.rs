@@ -5,7 +5,6 @@ use std::{
 };
 
 use conduwuit::{Err, Error, Result, error, utils};
-use futures::future::OptionFuture;
 use lettre::Address;
 use ruma::{
 	DeviceId, UserId,
@@ -254,8 +253,7 @@ impl Service {
 
 		let session_metadata = if let Some(initiator) = initiator {
 			let is_oauth = if let Some(device_id) = initiator.device_id {
-				self
-					.services
+				self.services
 					.oauth
 					.get_session_info_for_device(initiator.user_id, device_id)
 					.await

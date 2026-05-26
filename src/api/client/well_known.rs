@@ -3,8 +3,7 @@ use conduwuit::{Err, Result};
 use ruma::{
 	api::client::discovery::{
 		discover_homeserver::{self, HomeserverInfo},
-		discover_policy_server,
-		discover_support,
+		discover_policy_server, discover_support,
 	},
 	assign,
 };

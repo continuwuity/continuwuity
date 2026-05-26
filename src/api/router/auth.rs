@@ -166,7 +166,9 @@ impl CheckAuth for AccessToken {
 		query: AuthQueryParams,
 		route: TypeId,
 	) -> Result<Self::Identity> {
-		if let Some((sender_user, sender_device, status)) = services.users.find_from_token(&output).await {
+		if let Some((sender_user, sender_device, status)) =
+			services.users.find_from_token(&output).await
+		{
 			// If the token is expired we return a soft logout
 			if matches!(status, AccessTokenStatus::Expired) {
 				return Err(Error::Request(
