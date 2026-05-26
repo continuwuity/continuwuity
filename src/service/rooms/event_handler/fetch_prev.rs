@@ -46,7 +46,13 @@ impl super::Service {
 			.await;
 
 		let backfilled = self
-			.get_missing_events(room_id, incoming_pdu, tail, origin)
+			.get_missing_events(
+				room_id,
+				incoming_pdu,
+				tail,
+				origin,
+				self.services.metadata.get_mindepth(room_id).await,
+			)
 			.await?;
 		debug_info!("Fetched {} missing events", backfilled.len());
 
