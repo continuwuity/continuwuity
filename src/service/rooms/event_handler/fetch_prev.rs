@@ -1,9 +1,9 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use conduwuit::{
 	Event, PduEvent, debug, debug_info,
-	result::DebugInspect,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
+	warn,
 };
 use futures::StreamExt;
 use ruma::{RoomId, ServerName};
@@ -28,8 +28,6 @@ impl super::Service {
 					.timeline
 					.get_non_outlier_pdu_json(event_id)
 					.await
-					.inspect(|_| debug!("Found prev_event {event_id} locally."))
-					.inspect_err(|e| debug!(%e, "Could not find prev_event {event_id} locally."))
 					.is_ok()
 					.or(|| event_id.to_owned())
 			})
@@ -48,12 +46,7 @@ impl super::Service {
 			.await;
 
 		let backfilled = self
-			.backfill_missing_events(
-				room_id.to_owned(),
-				HashSet::from_iter(vec![incoming_pdu.event_id().to_owned()]),
-				tail,
-				origin.to_owned(),
-			)
+			.get_missing_events(room_id, incoming_pdu, tail, origin)
 			.await?;
 		debug_info!("Fetched {} missing events", backfilled.len());
 
@@ -75,13 +68,19 @@ impl super::Service {
 
 		for event_id in to_persist {
 			debug_info!("Persisting fetched prev event {event_id}");
-			let pdu_event = backfilled.get(&event_id).cloned().unwrap_or_else(|| {
-				panic!("Event {event_id} was in backfill response but not in map")
-			});
-			let obj = pdu_event.to_canonical_object();
-			self.upgrade_outlier_to_timeline_pdu(pdu_event, obj, create_event, origin, room_id)
+			let obj = mapped.get(&event_id).cloned().unwrap();
+			match self
+				.handle_outlier_pdu(origin, create_event, &event_id, room_id, obj, false)
 				.await
-				.debug_inspect(|_| debug_info!("Persisted fetched prev event {event_id}"))?;
+			{
+				| Ok((pdu, val)) =>
+					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
+						.await,
+				| Err(e) => {
+					warn!("Failed to persist prev_event {event_id}: {e}");
+					continue;
+				},
+			}?;
 		}
 
 		// NOTE because i keep forgetting: the caller persists incoming_pdu.
