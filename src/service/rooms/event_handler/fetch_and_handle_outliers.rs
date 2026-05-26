@@ -452,10 +452,10 @@ impl super::Service {
 	/// filled the gap, i.e. when the remote says there's no more events.
 	///
 	/// This function will iterate until the remote returns no more events,
-	/// increasing the limit by a factor of 10. If 20 iterations are reached or
-	/// 200 events are backfilled, the function will give up and return what it
-	/// has, to avoid pulling in too much data (for example, absurdly large
-	/// gaps).
+	/// increasing the limit by a factor of 10. If 100 iterations are reached or
+	/// max_fetch_prev_events events are backfilled, the function will give up
+	/// and return what it has, to avoid pulling in too much data (for example,
+	/// absurdly large gaps).
 	///
 	/// This function does not persist the events. The caller is responsible for
 	/// passing them through handle_incoming_pdu.
@@ -506,7 +506,7 @@ impl super::Service {
 		let mut iterations = 0_u8;
 		loop {
 			iterations = iterations.saturating_add(1);
-			let limit = iterations.saturating_mul(10);
+			let limit = iterations.saturating_mul(10).min(100);
 			debug_info!(%limit, %via, %iterations, "Attempting to gap fill missing events");
 			let response: get_missing_events::v1::Response = self
 				.services
@@ -558,8 +558,15 @@ impl super::Service {
 
 			if latest_events.is_empty() {
 				break;
-			} else if discovered.len() >= 200 || iterations >= 20 {
-				error!("Gap too large, giving up");
+			} else if discovered.len() > self.services.server.config.max_fetch_prev_events.into()
+				|| iterations >= 20
+			{
+				error!(
+					filled=discovered.len(),
+					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
+					%iterations,
+					"Gap too large, giving up"
+				);
 				break;
 			}
 		}
