@@ -1173,16 +1173,16 @@ impl crate::Context<'_> {
 		earliest: OwnedEventId,
 		via: String,
 	) -> Result {
-		let earliest_pdu = self.services.rooms.timeline.get_pdu(&earliest).await?;
+		let latest_pdu = self.services.rooms.timeline.get_pdu(&latest).await?;
 		let events = self
 			.services
 			.rooms
 			.event_handler
-			.backfill_missing_events(
-				earliest_pdu.room_id_or_hash(),
-				HashSet::from_iter(vec![latest]),
+			.get_missing_events(
+				&latest_pdu.room_id_or_hash(),
+				&latest_pdu,
 				vec![earliest],
-				ServerName::parse(via)?,
+				&ServerName::parse(via)?,
 			)
 			.await?;
 		self.write_str(&format!("Found {} events:\n\n```\n", events.len()))

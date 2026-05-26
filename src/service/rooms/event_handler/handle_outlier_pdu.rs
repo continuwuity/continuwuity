@@ -1,15 +1,16 @@
-use std::collections::{BTreeMap, HashMap, HashSet, hash_map};
+use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, state_res, trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res, trace,
+	warn,
 };
-use futures::{StreamExt, future::ready};
+use futures::future::ready;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	events::StateEventType,
+	api::federation::authorization::get_event_authorization, events::StateEventType,
 };
 
-use super::{build_local_dag, check_room_id, get_room_version_rules};
+use super::{check_room_id, get_room_version_rules};
 use crate::rooms::timeline::pdu_fits;
 
 impl super::Service {
@@ -112,79 +113,52 @@ impl super::Service {
 		}
 
 		// Fetch any missing ones & reject invalid ones
-		let mut missing_auth_events: HashSet<OwnedEventId> = pdu_event
-			.auth_events()
-			.filter(|id| !auth_events.contains_key(*id))
-			.map(ToOwned::to_owned)
-			.collect();
-
-		if !missing_auth_events.is_empty() {
-			debug_info!(
-				"Fetching {} missing auth events for outlier event {event_id}",
-				missing_auth_events.len()
-			);
-			let tail = self
+		if auth_events.len() != pdu_event.auth_events().count() {
+			info!("Missing some auth events, asking remote for auth chain");
+			let response: get_event_authorization::v1::Response = self
 				.services
-				.state
-				.get_forward_extremities(room_id)
-				.collect::<Vec<_>>()
-				.await;
-			let backfilled = self
-				.backfill_missing_events(
-					room_id.to_owned(),
-					HashSet::from_iter(vec![event_id.to_owned()]),
-					tail,
-					origin.to_owned(),
-				)
-				.await?;
-			debug_info!("Fetched {} missing auth events for {event_id}", backfilled.len());
-			let mapped = backfilled
-				.iter()
-				.map(|(eid, evt)| {
-					let mut obj = evt.to_canonical_object();
-					obj.remove("event_id"); // event_id is inserted by backfill_missing_events
-					(eid.clone(), obj)
-				})
-				.collect::<HashMap<_, _>>();
-			let local_dag = if mapped.len() == 1 {
-				mapped.keys().map(ToOwned::to_owned).collect()
-			} else {
-				build_local_dag(&mapped).await?
-			};
-			debug_info!("Preparing to handle {} missing auth events", backfilled.len());
-			for prev_event_id in local_dag {
-				let obj = mapped
-					.get(&prev_event_id)
-					.expect("We should have this event in memory");
-				debug_info!("Handling prev {prev_event_id}");
-				let (prev, _) = Box::pin(self.handle_outlier_pdu(
+				.sending
+				.send_federation_request(
 					origin,
-					create_event,
-					&prev_event_id,
-					room_id,
-					obj.clone(),
-					false,
-				))
-				.await?;
-				if missing_auth_events.contains(&*prev_event_id) {
-					missing_auth_events.remove(&prev_event_id);
-					auth_events.insert(prev_event_id, prev);
+					get_event_authorization::v1::Request::new(
+						room_id.to_owned(),
+						event_id.to_owned(),
+					),
+				)
+				.await
+				.map_err(|e| {
+					err!(Request(Forbidden(
+						"Remote server is not divulging incoming event's auth chain: {e}"
+					)))
+				})?;
+			let mut auth_chain_map = HashMap::with_capacity(response.auth_chain.len());
+			for auth_pdu_json in response.auth_chain {
+				let (auth_event_room_id, auth_event_id, auth_pdu_json) =
+					self.parse_incoming_pdu(&auth_pdu_json).await?;
+				if auth_event_room_id != room_id {
+					return Err!(Request(BadJson(
+						"Auth event {auth_event_id} is in {auth_event_room_id}, not {room_id}."
+					)));
 				}
-				debug_info!("Finished handling prev auth event");
+				let auth_pdu = PduEvent::from_id_val(&auth_event_id, auth_pdu_json)
+					.map_err(|e| err!(Request(BadJson("Invalid PDU {auth_event_id}: {e}"))))?;
+				auth_chain_map.insert(auth_event_id, auth_pdu);
 			}
-		} else {
-			debug!("No missing auth events for outlier event {event_id}");
-		}
-		// reject if we are still missing some auth events.
-		// If we're still missing prev events, we will fetch them individually later,
-		// but there's no reason for us to be missing auth events now we've gapfilled
-		// the DAG.
-		if !missing_auth_events.is_empty() {
-			// Don't reject: this could be a temporary condition
-			return Err!(Request(InvalidParam(
-				"Could not fetch all auth events for outlier event {event_id}, still missing: \
-				 {missing_auth_events:?}"
-			)));
+			for aid in pdu_event.auth_events() {
+				if auth_events.contains_key(aid) {
+					continue;
+				}
+				if let Some(auth_event) = auth_chain_map.get(aid) {
+					auth_events.insert(aid.to_owned(), auth_event.clone());
+				} else {
+					return Err!(Request(Forbidden(
+						"Remote server is not divulging incoming event's auth events (missing: \
+						 {aid})"
+					)));
+				}
+			}
+			// TODO: do events received from auth chain need persisting? that
+			// sounds awfully slow
 		}
 
 		// 6. Reject "due to auth events" if the event doesn't pass auth based on the

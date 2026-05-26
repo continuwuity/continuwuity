@@ -3,11 +3,16 @@ use std::{
 	time::Instant,
 };
 
+use assign::assign;
 use conduwuit::{
-	Err, Event, PduEvent, debug, debug_info, debug_warn, err,
-	matrix::event::gen_event_id_canonical_json, state_res::lexicographical_topological_sort,
-	trace, utils::continue_exponential_backoff_secs, warn,
+	Err, Event, PduEvent, debug, debug_info, debug_warn, err, error,
+	matrix::event::gen_event_id_canonical_json,
+	state_res::lexicographical_topological_sort,
+	trace,
+	utils::{IterStream, continue_exponential_backoff_secs, stream::BroadbandExt},
+	warn,
 };
+use futures::StreamExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
 	OwnedRoomId, OwnedServerName, RoomId, ServerName, UInt,
@@ -436,5 +441,129 @@ impl super::Service {
 		debug_info!("Successfully fetched {} missing events from {via}", backfilled_events.len());
 		trace!("Missing_events: {backfilled_events:?}");
 		Ok(backfilled_events)
+	}
+
+	/// Uses `/_matrix/federation/v1/get_missing_events` to fill gaps in the
+	/// DAG.
+	///
+	/// When this function is called, the "earliest events" (current forward
+	/// extremities) will be collected, and the function will loop with an
+	/// exponentially incrementing limit (up to 100 per request) until it has
+	/// filled the gap, i.e. when the remote says there's no more events.
+	///
+	/// This function will iterate until the remote returns no more events,
+	/// increasing the limit by a factor of 10. If 20 iterations are reached or
+	/// 200 events are backfilled, the function will give up and return what it
+	/// has, to avoid pulling in too much data (for example, absurdly large
+	/// gaps).
+	///
+	/// This function does not persist the events. The caller is responsible for
+	/// passing them through handle_incoming_pdu.
+	///
+	/// ## Parameters
+	///
+	/// - `room_id`: The room's ID.
+	/// - `head`: The event we are potentially missing prev_events for.
+	/// - `tail`: The most recently known events in the graph (typically forward
+	///   extremities).
+	/// - `via`: The server to ask for missing events.
+	pub async fn get_missing_events(
+		&self,
+		room_id: &RoomId,
+		head: &PduEvent,
+		tail: Vec<OwnedEventId>,
+		via: &ServerName,
+	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
+		#[cfg(debug_assertions)]
+		{
+			let missing_count = head
+				.prev_events()
+				.stream()
+				.broad_filter_map(|event_id| async move {
+					match self
+						.services
+						.timeline
+						.get_non_outlier_pdu_json(event_id)
+						.await
+						.inspect(|_| debug!("Found prev_event {event_id} locally."))
+						.inspect_err(
+							|e| debug!(%e, "Could not find prev_event {event_id} locally."),
+						) {
+						| Ok(_) => None,
+						| Err(_) => Some(event_id),
+					}
+				})
+				.count()
+				.await;
+			debug_assert_ne!(
+				missing_count, 0,
+				"event passed to get_missing_events is not missing any events (wasteful call)"
+			);
+		};
+
+		let mut discovered = HashMap::with_capacity(20);
+		let mut latest_events = vec![head.event_id().to_owned()];
+		let mut iterations = 0_u8;
+		loop {
+			iterations = iterations.saturating_add(1);
+			let limit = iterations.saturating_mul(10);
+			debug_info!(%limit, %via, %iterations, "Attempting to gap fill missing events");
+			let response: get_missing_events::v1::Response = self
+				.services
+				.sending
+				.send_federation_request(
+					via,
+					assign!(
+						get_missing_events::v1::Request::new(
+							room_id.to_owned(),
+							tail.clone(),
+							latest_events.clone()
+						),
+						{limit: limit.into()}
+					),
+				)
+				.await?;
+
+			if response.events.is_empty() {
+				debug_info!(%via, "Finished gap filling missing events (remote returned no more events).");
+				break;
+			}
+			debug_info!("Got {} events back from remote", response.events.len());
+
+			latest_events.clear();
+			for raw_event in response.events {
+				let (_, event_id, pdu_json) = self.parse_incoming_pdu(&raw_event).await?;
+				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
+					err!(Request(BadJson("Failed to parse backfilled event {event_id}: {e}")))
+				})?;
+
+				for prev_event_id in pdu.prev_events() {
+					if discovered.contains_key(prev_event_id) {
+						continue;
+					}
+					if self
+						.services
+						.timeline
+						.non_outlier_pdu_exists(prev_event_id)
+						.await
+					{
+						continue;
+					}
+					latest_events.push(prev_event_id.to_owned());
+					break;
+				}
+
+				discovered.insert(event_id.clone(), pdu);
+			}
+
+			if latest_events.is_empty() {
+				break;
+			} else if discovered.len() >= 200 || iterations >= 20 {
+				error!("Gap too large, giving up");
+				break;
+			}
+		}
+
+		Ok(discovered)
 	}
 }
