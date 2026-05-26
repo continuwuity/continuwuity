@@ -108,7 +108,6 @@ impl super::Service {
 	///     room, if not soft fail it
 	#[tracing::instrument(
 	name = "pdu",
-	level = INFO_SPAN_LEVEL,
 	skip_all,
 	fields(%room_id, %event_id),
 	)]

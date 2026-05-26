@@ -392,6 +392,7 @@ impl super::Service {
 			self.services
 				.metadata
 				.set_mindepth(room_id, incoming_pdu.depth.into());
+			trace!("Increased room's min depth from {} to {}", min_depth, incoming_pdu.depth);
 		}
 
 		Ok(pdu_id)
