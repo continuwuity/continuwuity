@@ -5,7 +5,6 @@ use std::{
 };
 
 use conduwuit::{Err, Error, Result, error, utils};
-use futures::future::OptionFuture;
 use lettre::Address;
 use ruma::{
 	DeviceId, UserId,
