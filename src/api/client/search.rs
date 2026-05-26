@@ -43,7 +43,7 @@ pub(crate) async fn search_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<Request>,
 ) -> Result<Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	let next_batch = body.next_batch.as_deref();
 
 	let mut result_categories = ResultCategories::new();

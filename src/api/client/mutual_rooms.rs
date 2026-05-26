@@ -15,7 +15,7 @@ pub(crate) async fn get_mutual_rooms_route(
 	State(services): State<crate::State>,
 	body: Ruma<mutual_rooms::unstable::Request>,
 ) -> Result<mutual_rooms::unstable::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if sender_user == body.user_id {
 		return Err!(Request(Unknown("You cannot request rooms in common with yourself.")));

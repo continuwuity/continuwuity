@@ -28,7 +28,7 @@ pub(crate) async fn get_relating_events_with_rel_type_and_event_type_route(
 ) -> Result<get_relating_events_with_rel_type_and_event_type::v1::Response> {
 	paginate_relations_with_filter(
 		&services,
-		body.sender_user(),
+		body.identity.sender_user(),
 		&body.room_id,
 		&body.event_id,
 		body.event_type.clone().into(),
@@ -56,7 +56,7 @@ pub(crate) async fn get_relating_events_with_rel_type_route(
 ) -> Result<get_relating_events_with_rel_type::v1::Response> {
 	paginate_relations_with_filter(
 		&services,
-		body.sender_user(),
+		body.identity.sender_user(),
 		&body.room_id,
 		&body.event_id,
 		None,
@@ -84,7 +84,7 @@ pub(crate) async fn get_relating_events_route(
 ) -> Result<get_relating_events::v1::Response> {
 	paginate_relations_with_filter(
 		&services,
-		body.sender_user(),
+		body.identity.sender_user(),
 		&body.room_id,
 		&body.event_id,
 		None,

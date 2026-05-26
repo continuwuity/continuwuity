@@ -28,14 +28,14 @@ pub(crate) async fn create_knock_event_template_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			room_id = %body.room_id,
 			"Refusing to serve make_knock for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
-	if body.user_id.server_name() != body.origin() {
+	if body.user_id.server_name() != body.identity {
 		return Err!(Request(BadJson("Not allowed to knock on behalf of another server/user.")));
 	}
 
@@ -43,19 +43,17 @@ pub(crate) async fn create_knock_event_template_route(
 	services
 		.rooms
 		.event_handler
-		.acl_check(body.origin(), &body.room_id)
+		.acl_check(&body.identity, &body.room_id)
 		.await?;
 
 	if services
 		.moderation
-		.is_remote_server_forbidden(body.origin())
+		.is_remote_server_forbidden(&body.identity)
 	{
 		warn!(
 			"Server {} for remote user {} tried knocking room ID {} which has a server name \
 			 that is globally forbidden. Rejecting.",
-			body.origin(),
-			&body.user_id,
-			&body.room_id,
+			body.identity, &body.user_id, &body.room_id,
 		);
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 	}

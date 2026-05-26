@@ -28,7 +28,13 @@ pub(crate) async fn get_room_summary(
 	let summary = services
 		.rooms
 		.summary
-		.get_room_summary_for_user(body.sender_user.as_deref(), &room_id, &servers)
+		.get_room_summary_for_user(
+			body.identity
+				.as_ref()
+				.map(|identity| identity.sender_user()),
+			&room_id,
+			&servers,
+		)
 		.await?;
 
 	match summary {

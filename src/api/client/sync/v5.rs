@@ -70,8 +70,8 @@ pub(crate) async fn sync_events_v5_route(
 	body: Ruma<sync_events::v5::Request>,
 ) -> Result<sync_events::v5::Response> {
 	debug_assert!(DEFAULT_BUMP_TYPES.is_sorted(), "DEFAULT_BUMP_TYPES is not sorted");
-	let ref sender_user = body.sender_user().to_owned();
-	let ref sender_device = body.sender_device().to_owned();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.expect_sender_device()?;
 
 	services
 		.users

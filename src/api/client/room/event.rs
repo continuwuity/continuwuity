@@ -24,25 +24,25 @@ pub(crate) async fn get_room_event_route(
 	let visible = services
 		.rooms
 		.state_accessor
-		.user_can_see_event(body.sender_user(), room_id, event_id)
+		.user_can_see_event(body.identity.sender_user(), room_id, event_id)
 		.map(Ok);
 
 	let (mut event, visible) = try_join(event, visible).await?;
 
-	if !visible || is_ignored_pdu(services, &event, body.sender_user()).await? {
+	if !visible || is_ignored_pdu(services, &event, body.identity.sender_user()).await? {
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));
 	}
 
 	if let Err(e) = services
 		.rooms
 		.pdu_metadata
-		.add_bundled_aggregations_to_pdu(body.sender_user(), &mut event)
+		.add_bundled_aggregations_to_pdu(body.identity.sender_user(), &mut event)
 		.await
 	{
 		debug_warn!("Failed to add bundled aggregations to event: {e}");
 	}
 
-	event.set_unsigned(body.sender_user.as_deref());
+	event.set_unsigned(Some(body.identity.sender_user()));
 
 	Ok(get_room_event::v3::Response::new(event.into_format()))
 }

@@ -22,8 +22,8 @@ pub(crate) async fn send_event_to_device_route(
 	State(services): State<crate::State>,
 	body: Ruma<send_event_to_device::v3::Request>,
 ) -> Result<send_event_to_device::v3::Response> {
-	let sender_user = body.sender_user();
-	let sender_device = body.sender_device.as_deref();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.sender_device();
 
 	// Check if this is a new transaction id
 	if services

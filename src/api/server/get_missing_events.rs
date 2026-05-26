@@ -22,7 +22,7 @@ pub(crate) async fn get_missing_events_route(
 ) -> Result<get_missing_events::v1::Response> {
 	AccessCheck {
 		services: &services,
-		origin: body.origin(),
+		origin: &body.identity,
 		room_id: &body.room_id,
 		event_id: None,
 	}
@@ -36,7 +36,7 @@ pub(crate) async fn get_missing_events_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			"Refusing to serve state for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -91,10 +91,10 @@ pub(crate) async fn get_missing_events_route(
 		if !services
 			.rooms
 			.state_accessor
-			.server_can_see_event(body.origin(), &body.room_id, pdu.event_id())
+			.server_can_see_event(&body.identity, &body.room_id, pdu.event_id())
 			.await
 		{
-			debug!(%next_event_id, origin = %body.origin(), "redacting event origin cannot see");
+			debug!(%next_event_id, origin = %body.identity, "redacting event origin cannot see");
 			pdu.redact(&room_version, json!({}))?;
 		}
 

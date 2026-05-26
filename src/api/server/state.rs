@@ -17,7 +17,7 @@ pub(crate) async fn get_room_state_route(
 ) -> Result<get_room_state::v1::Response> {
 	AccessCheck {
 		services: &services,
-		origin: body.origin(),
+		origin: &body.identity,
 		room_id: &body.room_id,
 		event_id: None,
 	}
@@ -40,7 +40,7 @@ pub(crate) async fn get_room_state_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			"Refusing to serve state for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));

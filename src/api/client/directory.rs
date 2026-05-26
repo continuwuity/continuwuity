@@ -112,7 +112,7 @@ pub(crate) async fn set_room_visibility_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<set_room_visibility::v3::Request>,
 ) -> Result<set_room_visibility::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if !services.rooms.metadata.exists(&body.room_id).await {
 		// Return 404 if the room doesn't exist
@@ -130,7 +130,7 @@ pub(crate) async fn set_room_visibility_route(
 		| room::Visibility::Public => {
 			if services.server.config.lockdown_public_room_directory
 				&& !services.users.is_admin(sender_user).await
-				&& body.appservice_info.is_none()
+				&& !body.identity.is_appservice()
 			{
 				info!(
 					"Non-admin user {sender_user} tried to publish {0} to the room directory \

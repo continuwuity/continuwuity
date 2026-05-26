@@ -304,7 +304,7 @@ pub(crate) async fn create_join_event_v2_route(
 ) -> Result<create_join_event::v2::Response> {
 	if services
 		.moderation
-		.is_remote_server_forbidden(body.origin())
+		.is_remote_server_forbidden(&body.identity)
 	{
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 	}
@@ -314,8 +314,7 @@ pub(crate) async fn create_join_event_v2_route(
 			warn!(
 				"Server {} tried joining room ID {} through us which has a server name that is \
 				 globally forbidden. Rejecting.",
-				body.origin(),
-				&body.room_id,
+				body.identity, &body.room_id,
 			);
 			return Err!(Request(Forbidden(warn!(
 				"Room ID server name {server} is banned on this homeserver."
@@ -325,12 +324,12 @@ pub(crate) async fn create_join_event_v2_route(
 
 	let now = Instant::now();
 	let room_state =
-		create_join_event(&services, body.origin(), &body.room_id, &body.pdu, body.omit_members)
+		create_join_event(&services, &body.identity, &body.room_id, &body.pdu, body.omit_members)
 			.boxed()
 			.await?;
 	info!(
 		"Finished sending a join for {} in {} in {:?}",
-		body.origin(),
+		body.identity,
 		&body.room_id,
 		now.elapsed()
 	);

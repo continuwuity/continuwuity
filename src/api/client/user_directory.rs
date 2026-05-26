@@ -26,7 +26,7 @@ pub(crate) async fn search_users_route(
 	State(services): State<crate::State>,
 	body: Ruma<search_users::v3::Request>,
 ) -> Result<search_users::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	let limit = usize::try_from(body.limit)
 		.map_or(LIMIT_DEFAULT, usize::from)
 		.min(LIMIT_MAX);

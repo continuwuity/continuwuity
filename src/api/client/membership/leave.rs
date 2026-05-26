@@ -32,7 +32,7 @@ pub(crate) async fn leave_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<leave_room::v3::Request>,
 ) -> Result<leave_room::v3::Response> {
-	leave_room(&services, body.sender_user(), &body.room_id, body.reason.clone())
+	leave_room(&services, body.identity.sender_user(), &body.room_id, body.reason.clone())
 		.boxed()
 		.await
 		.map(|()| leave_room::v3::Response::new())

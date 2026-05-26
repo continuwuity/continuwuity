@@ -41,7 +41,8 @@ pub(crate) async fn upload_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<upload_keys::v3::Request>,
 ) -> Result<upload_keys::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.expect_sender_device()?;
 
 	for (key_id, one_time_key) in &body.one_time_keys {
 		if one_time_key
@@ -154,7 +155,7 @@ pub(crate) async fn get_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_keys::v3::Request>,
 ) -> Result<get_keys::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	get_keys_helper(
 		&services,
@@ -191,7 +192,7 @@ pub(crate) async fn upload_signing_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<upload_signing_keys::v3::Request>,
 ) -> Result<upload_signing_keys::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if uiaa_needed_to_upload_keys(
 		services,
@@ -287,7 +288,7 @@ pub(crate) async fn upload_signatures_route(
 		return Ok(upload_signatures::v3::Response::new());
 	}
 
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	for (user_id, keys) in &body.signed_keys {
 		for (key_id, key) in keys {
@@ -340,7 +341,7 @@ pub(crate) async fn get_key_changes_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_key_changes::v3::Request>,
 ) -> Result<get_key_changes::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let mut device_list_updates = HashSet::new();
 

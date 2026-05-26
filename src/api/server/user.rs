@@ -60,13 +60,13 @@ pub(crate) async fn get_devices_route(
 
 	let master_key = services
 		.users
-		.get_master_key(None, &body.user_id, &|u| u.server_name() == body.origin())
+		.get_master_key(None, &body.user_id, &|u| u.server_name() == body.identity)
 		.await
 		.ok();
 
 	let self_signing_key = services
 		.users
-		.get_self_signing_key(None, &body.user_id, &|u| u.server_name() == body.origin())
+		.get_self_signing_key(None, &body.user_id, &|u| u.server_name() == body.identity)
 		.await
 		.ok();
 
@@ -94,7 +94,7 @@ pub(crate) async fn get_keys_route(
 		&services,
 		None,
 		&body.device_keys,
-		|u| Some(u.server_name()) == body.origin.as_deref(),
+		|u| u.server_name() == body.identity,
 		services.globals.allow_device_name_federation(),
 		Duration::from_secs(0),
 	)

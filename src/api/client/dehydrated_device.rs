@@ -25,16 +25,11 @@ pub(crate) async fn put_dehydrated_device_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<put_dehydrated_device::Request>,
 ) -> Result<put_dehydrated_device::Response> {
-	let sender_user = body
-		.sender_user
-		.as_deref()
-		.expect("AccessToken authentication required");
-
-	let device_id = body.body.device_id.clone();
+	let device_id = body.device_id.clone();
 
 	services
 		.users
-		.set_dehydrated_device(sender_user, body.body)
+		.set_dehydrated_device(body.identity.sender_user(), body.body)
 		.await?;
 
 	Ok(put_dehydrated_device::Response::new(device_id))
@@ -49,7 +44,7 @@ pub(crate) async fn delete_dehydrated_device_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<delete_dehydrated_device::Request>,
 ) -> Result<delete_dehydrated_device::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let device_id = services.users.get_dehydrated_device_id(sender_user).await?;
 
@@ -67,7 +62,7 @@ pub(crate) async fn get_dehydrated_device_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<get_dehydrated_device::Request>,
 ) -> Result<get_dehydrated_device::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let device = services.users.get_dehydrated_device(sender_user).await?;
 
@@ -83,7 +78,7 @@ pub(crate) async fn get_dehydrated_events_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<get_events::Request>,
 ) -> Result<get_events::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let device_id = &body.body.device_id;
 	let existing_id = services.users.get_dehydrated_device_id(sender_user).await;

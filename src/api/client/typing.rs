@@ -14,13 +14,13 @@ pub(crate) async fn create_typing_event_route(
 	body: Ruma<create_typing_event::v3::Request>,
 ) -> Result<create_typing_event::v3::Response> {
 	use create_typing_event::v3::Typing;
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	services
 		.users
-		.update_device_last_seen(sender_user, body.sender_device.as_deref(), ip)
+		.update_device_last_seen(sender_user, body.identity.sender_device(), ip)
 		.await;
 
-	if sender_user != body.user_id && body.appservice_info.is_none() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(Forbidden("You cannot update typing status of other users.")));
 	}
 

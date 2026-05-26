@@ -277,7 +277,7 @@ pub(crate) async fn upgrade_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<upgrade_room::v3::Request>,
 ) -> Result<upgrade_room::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let (supported, forbid_unstable, is_unstable) = (
 		services.server.supported_room_version(&body.new_version),
