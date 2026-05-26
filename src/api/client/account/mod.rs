@@ -109,10 +109,7 @@ pub(crate) async fn change_password_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	let identity = if let Some(user_id) = body
-		.identity
-		.as_ref()
-		.map(|identity| identity.sender_user())
+	let identity = if let Some(user_id) = body.identity.as_ref().map(ClientIdentity::sender_user)
 	{
 		// A signed-in user is trying to change their password, prompt them for their
 		// existing one
@@ -282,7 +279,7 @@ pub(crate) async fn deactivate_route(
 	let sender_user = body
 		.identity
 		.as_ref()
-		.map(|identity| identity.sender_user())
+		.map(ClientIdentity::sender_user)
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
 
 	// Prompt the user to confirm with their password using UIAA

@@ -28,7 +28,7 @@ pub(crate) enum ClientIdentity {
 	Appservice {
 		sender_user: OwnedUserId,
 		sender_device: Option<OwnedDeviceId>,
-		appservice_info: RegistrationInfo,
+		appservice_info: Box<RegistrationInfo>,
 	},
 }
 
@@ -49,7 +49,7 @@ impl ClientIdentity {
 
 	pub(crate) fn expect_sender_device(&self) -> Result<&DeviceId> {
 		self.sender_device().ok_or_else(|| {
-			err!(Request(Forbidden("Appservices must masquerade to use this endpoint")))
+			err!(Request(Forbidden("Appservices must masquerade to use this endpoint.")))
 		})
 	}
 
@@ -212,10 +212,10 @@ impl CheckAuth for AccessToken {
 			Ok(ClientIdentity::Appservice {
 				sender_user,
 				sender_device,
-				appservice_info,
+				appservice_info: Box::new(appservice_info),
 			})
 		} else {
-			return Err!(Request(Unauthorized("Invalid access token.")));
+			Err!(Request(Unauthorized("Invalid access token.")))
 		}
 	}
 }

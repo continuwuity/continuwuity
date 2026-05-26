@@ -80,7 +80,7 @@ pub(crate) async fn send_transaction_message_route(
 		)));
 	}
 
-	let txn_key = (body.identity.to_owned(), body.transaction_id.clone());
+	let txn_key = (body.identity.clone(), body.transaction_id.clone());
 
 	// Atomically check cache, join active, or start new transaction
 	match services
