@@ -626,6 +626,10 @@ impl Service {
 				room_id,
 			)
 			.await?;
+		self.services
+			.metadata
+			.maybe_set_mindepth(room_id, parsed_join_pdu.depth.into())
+			.await;
 
 		info!("Setting final room state for new room");
 		// We set the room state after inserting the pdu, so that we never have a moment
