@@ -1,8 +1,7 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
-	info, trace, warn,
+	Err, Event, PduEvent, Result, debug_error, debug_info, defer, err, info, trace, warn,
 };
 use futures::{
 	FutureExt,
