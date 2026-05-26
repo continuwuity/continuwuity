@@ -7,7 +7,8 @@ use conduwuit::{
 use futures::future::ready;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	api::federation::authorization::get_event_authorization, events::StateEventType,
+	api::federation::authorization::get_event_authorization, canonical_json::redact,
+	events::StateEventType,
 };
 
 use super::{check_room_id, get_room_version_rules};
@@ -46,27 +47,45 @@ where
 		.verify_event(&value, &room_version_rules)
 		.await
 	{
-		| Ok(ruma::signatures::Verified::All) => value,
+		| Ok(ruma::signatures::Verified::All) => {
+			if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
+				debug!(
+					"Already have event {event_id} as an outlier or timeline event, not \
+					 re-processing"
+				);
+				value.insert(
+					"event_id".to_owned(),
+					CanonicalJsonValue::String(event_id.as_str().to_owned()),
+				);
+				check_room_id(room_id, &pdu_event)?;
+				return Ok((pdu_event, value));
+			}
+			value
+		},
 		| Ok(ruma::signatures::Verified::Signatures) => {
-			// Redact
 			debug_info!("Calculated hash does not match (redaction): {event_id}");
-			let Ok(obj) =
-				ruma::canonical_json::redact(value, &room_version_rules.redaction, None)
-			else {
-				return Err!(Request(InvalidParam("Redaction failed")));
+			let mut obj = match redact(value, &room_version_rules.redaction, None) {
+				| Ok(obj) => obj,
+				| Err(e) => return Err!(Request(BadJson("Failed to redact {event_id}: {e}"))),
 			};
 
-			// Skip the PDU if it is redacted and we already have it as an outlier event
-			if self.services.timeline.pdu_exists(event_id).await {
-				return Err!(Request(InvalidParam(
-					"Event was redacted and we already knew about it"
-				)));
+			if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
+				debug!(
+					"Received a redacted copy of {event_id}, but we already knew about it. \
+					 Re-using known content instead."
+				);
+				obj.insert(
+					"event_id".to_owned(),
+					CanonicalJsonValue::String(event_id.as_str().to_owned()),
+				);
+				check_room_id(room_id, &pdu_event)?;
+				return Ok((pdu_event, obj));
 			}
 
 			obj
 		},
 		| Err(e) => {
-			return Err!(Request(InvalidParam(debug_error!(
+			return Err!(Request(Forbidden(debug_error!(
 				"Signature verification failed for {event_id}: {e}"
 			))));
 		},
@@ -76,13 +95,6 @@ where
 	// convert to our PduEvent type
 	incoming_pdu
 		.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.as_str().to_owned()));
-
-	if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
-		debug!(
-			"Already have event {event_id} as an outlier or timeline event, not re-processing"
-		);
-		return Ok((pdu_event, incoming_pdu));
-	}
 
 	let pdu_event = serde_json::from_value::<PduEvent>(
 		serde_json::to_value(&incoming_pdu).expect("CanonicalJsonObj is a valid JsonValue"),
