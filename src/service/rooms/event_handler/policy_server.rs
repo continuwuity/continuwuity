@@ -204,17 +204,27 @@ pub async fn policy_server_allows_event(
 		%ps.via,
 		"Asking policy server to sign event"
 	);
-	self.fetch_policy_server_signature(pdu, pdu_json, &ps.via, outgoing, room_id, ps_key, 0)
-		.await?;
-
-	// Verify that the policy server signature was made with the same public key as
-	// is in the state event, not just that it was signed.
+	if let Err(e) = self
+		.fetch_policy_server_signature(pdu, pdu_json, &ps.via, outgoing, room_id, ps_key, 0)
+		.await
+	{
+		if e.is_not_found() {
+			return Ok(());
+		}
+		return Err(e);
+	}
+	trace!(
+		"Got successful response for fetching PS signature, ensuring it is signed with the \
+		 expected key."
+	);
 	if verify_policy_signature(&ps.via, ps_key, pdu_json, &room_version_rules.redaction) {
 		Ok(())
+	} else if incoming {
+		Err!(Request(Forbidden("Policy server signature is invalid")))
 	} else {
 		Err(Error::Request(
 			ErrorKind::Unknown,
-			"Policy server signature was made with a different key to the one advertised".into(),
+			"Policy server signature is invalid".into(),
 			StatusCode::BAD_GATEWAY,
 		))
 	}
@@ -272,7 +282,7 @@ async fn handle_policy_server_error(
 				"Policy server is not actually a policy server or is not protecting this room: {}",
 				error.message()
 			);
-			Ok(())
+			Err(error)
 		},
 		| StatusCode::TOO_MANY_REQUESTS => {
 			if let Some(retry_after) = error.retry_after() {
