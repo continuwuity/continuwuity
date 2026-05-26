@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use conduwuit::{
 	Event, PduEvent, debug, debug_info,
-	utils::{BoolExt, IterStream, math::try_into, stream::BroadbandExt},
+	utils::{BoolExt, IterStream, stream::BroadbandExt},
 	warn,
 };
 use futures::StreamExt;
-use ruma::{RoomId, ServerName, UInt};
+use ruma::{RoomId, ServerName};
 
 use crate::rooms::event_handler::build_local_dag;
 
