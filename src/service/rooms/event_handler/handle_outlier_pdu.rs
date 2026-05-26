@@ -63,26 +63,19 @@ where
 			value
 		},
 		| Ok(ruma::signatures::Verified::Signatures) => {
-			debug_info!("Calculated hash does not match (redaction): {event_id}");
-			let mut obj = match redact(value, &room_version_rules.redaction, None) {
-				| Ok(obj) => obj,
-				| Err(e) => return Err!(Request(BadJson("Failed to redact {event_id}: {e}"))),
-			};
-
 			if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
 				debug!(
 					"Received a redacted copy of {event_id}, but we already knew about it. \
 					 Re-using known content instead."
 				);
-				obj.insert(
-					"event_id".to_owned(),
-					CanonicalJsonValue::String(event_id.as_str().to_owned()),
-				);
 				check_room_id(room_id, &pdu_event)?;
+				let obj = pdu_event.to_canonical_object();
 				return Ok((pdu_event, obj));
 			}
 
-			obj
+			debug_info!("Calculated hash does not match (redaction): {event_id}");
+			redact(value, &room_version_rules.redaction, None)
+				.map_err(|e| err!(Request(BadJson("Failed to redact {event_id}: {e}"))))?
 		},
 		| Err(e) => {
 			return Err!(Request(Forbidden(debug_error!(
