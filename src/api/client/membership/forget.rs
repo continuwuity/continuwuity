@@ -18,7 +18,7 @@ pub(crate) async fn forget_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<forget_room::v3::Request>,
 ) -> Result<forget_room::v3::Response> {
-	let user_id = body.sender_user();
+	let user_id = body.identity.sender_user();
 	let room_id = &body.room_id;
 
 	let joined = services.rooms.state_cache.is_joined(user_id, room_id);

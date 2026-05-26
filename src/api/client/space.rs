@@ -27,7 +27,7 @@ pub(crate) async fn get_hierarchy_route(
 		.rooms
 		.summary
 		.get_room_hierarchy_for_user(
-			body.sender_user(),
+			body.identity.sender_user(),
 			body.room_id.clone(),
 			max_depth,
 			body.suggested_only,

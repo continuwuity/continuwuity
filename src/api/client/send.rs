@@ -22,16 +22,16 @@ pub(crate) async fn send_message_event_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<send_message_event::v3::Request>,
 ) -> Result<send_message_event::v3::Response> {
-	let sender_user = body.sender_user();
-	let sender_device = body.sender_device.as_deref();
-	let appservice_info = body.appservice_info.as_ref();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.sender_device();
+
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
 	services
 		.users
-		.update_device_last_seen(sender_user, body.sender_device.as_deref(), client_ip)
+		.update_device_last_seen(sender_user, sender_device, client_ip)
 		.await;
 
 	// Forbid m.room.encrypted if encryption is disabled
@@ -83,7 +83,11 @@ pub(crate) async fn send_message_event_route(
 				event_type: body.event_type.clone().into(),
 				content,
 				unsigned: Some(unsigned),
-				timestamp: appservice_info.and(body.timestamp),
+				timestamp: if body.identity.is_appservice() {
+					body.timestamp
+				} else {
+					None
+				},
 				..Default::default()
 			},
 			sender_user,

@@ -2,14 +2,12 @@ use std::time::{Duration, SystemTime};
 
 use axum::extract::State;
 use base64::{Engine as _, engine::general_purpose};
-use conduwuit::{Err, Result, utils};
+use conduwuit::{Err, Result};
 use hmac::{Hmac, KeyInit, Mac};
-use ruma::{SecondsSinceUnixEpoch, UserId, api::client::voip::get_turn_server_info};
+use ruma::{SecondsSinceUnixEpoch, api::client::voip::get_turn_server_info};
 use sha1::Sha1;
 
 use crate::Ruma;
-
-const RANDOM_USER_ID_LENGTH: usize = 10;
 
 type HmacSha1 = Hmac<Sha1>;
 
@@ -35,15 +33,7 @@ pub(crate) async fn turn_server_route(
 		)
 		.expect("time is valid");
 
-		let user = body.sender_user.unwrap_or_else(|| {
-			UserId::parse_with_server_name(
-				utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
-				&services.server.name,
-			)
-			.unwrap()
-		});
-
-		let username: String = format!("{}:{}", expiry.get(), user);
+		let username: String = format!("{}:{}", expiry.get(), body.identity.sender_user());
 
 		let mut mac = HmacSha1::new_from_slice(turn_secret.as_bytes())
 			.expect("HMAC can take key of any size");

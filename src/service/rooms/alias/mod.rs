@@ -294,7 +294,7 @@ impl Service {
 	pub async fn appservice_checks(
 		&self,
 		room_alias: &RoomAliasId,
-		appservice_info: &Option<RegistrationInfo>,
+		appservice_info: Option<&RegistrationInfo>,
 	) -> Result<()> {
 		if !self
 			.services

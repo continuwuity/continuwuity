@@ -21,7 +21,7 @@ pub(crate) async fn get_devices_route(
 ) -> Result<get_devices::v3::Response> {
 	let devices: Vec<device::Device> = services
 		.users
-		.all_devices_metadata(body.sender_user())
+		.all_devices_metadata(body.identity.sender_user())
 		.collect()
 		.await;
 
@@ -37,7 +37,7 @@ pub(crate) async fn get_device_route(
 ) -> Result<get_device::v3::Response> {
 	let device = services
 		.users
-		.get_device_metadata(body.sender_user(), &body.body.device_id)
+		.get_device_metadata(body.identity.sender_user(), &body.body.device_id)
 		.await
 		.map_err(|_| err!(Request(NotFound("Device not found."))))?;
 
@@ -53,8 +53,8 @@ pub(crate) async fn update_device_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<update_device::v3::Request>,
 ) -> Result<update_device::v3::Response> {
-	let sender_user = body.sender_user();
-	let appservice = body.appservice_info.as_ref();
+	let sender_user = body.identity.sender_user();
+	let appservice = body.identity.appservice_info();
 
 	match services
 		.users
@@ -118,8 +118,8 @@ pub(crate) async fn delete_device_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_device::v3::Request>,
 ) -> Result<delete_device::v3::Response> {
-	let sender_user = body.sender_user();
-	let appservice = body.appservice_info.as_ref();
+	let sender_user = body.identity.sender_user();
+	let appservice = body.identity.appservice_info();
 
 	// Appservices get to skip UIAA for this endpoint
 	if appservice.is_none() {
@@ -154,8 +154,8 @@ pub(crate) async fn delete_devices_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_devices::v3::Request>,
 ) -> Result<delete_devices::v3::Response> {
-	let sender_user = body.sender_user();
-	let appservice = body.appservice_info.as_ref();
+	let sender_user = body.identity.sender_user();
+	let appservice = body.identity.appservice_info();
 
 	// Appservices get to skip UIAA for this endpoint
 	if appservice.is_none() {

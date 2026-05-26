@@ -21,7 +21,7 @@ pub(crate) async fn create_leave_event_v2_route(
 	State(services): State<crate::State>,
 	body: Ruma<create_leave_event::v2::Request>,
 ) -> Result<create_leave_event::v2::Response> {
-	create_leave_event(&services, body.origin(), &body.room_id, &body.pdu).await?;
+	create_leave_event(&services, &body.identity, &body.room_id, &body.pdu).await?;
 
 	Ok(create_leave_event::v2::Response::new())
 }

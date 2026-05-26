@@ -22,7 +22,7 @@ pub(crate) async fn third_party_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_3pids::v3::Request>,
 ) -> Result<get_3pids::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	let mut threepids = vec![];
 
 	if let Some(email) = services
@@ -53,6 +53,14 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 	State(services): State<crate::State>,
 	body: Ruma<request_3pid_management_token_via_email::v3::Request>,
 ) -> Result<request_3pid_management_token_via_email::v3::Response> {
+	// Authentication for this endpoint is technically optional,
+	// but we require the user to be logged in
+	let sender_user = body
+		.identity
+		.as_ref()
+		.map(|identity| identity.sender_user())
+		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
+
 	if !services.threepid.email_requirement().may_change() {
 		return Err!(Request(Forbidden("You may not change your email address.")));
 	}
@@ -76,7 +84,7 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 			Mailbox::new(None, email),
 			|verification_link| messages::ChangeEmail {
 				server_name: services.config.server_name.as_str(),
-				user_id: body.sender_user.as_deref(),
+				user_id: Some(sender_user),
 				verification_link,
 			},
 			&body.client_secret,
@@ -107,8 +115,6 @@ pub(crate) async fn add_3pid_route(
 	State(services): State<crate::State>,
 	body: Ruma<add_3pid::v3::Request>,
 ) -> Result<add_3pid::v3::Response> {
-	let sender_user = body.sender_user();
-
 	if !services.threepid.email_requirement().may_change() {
 		return Err!(Request(Forbidden("You may not change your email address.")));
 	}
@@ -116,7 +122,10 @@ pub(crate) async fn add_3pid_route(
 	// Require password auth to add an email
 	let _ = services
 		.uiaa
-		.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+		.authenticate_password(
+			&body.auth,
+			Some(Identity::from_user_id(body.identity.sender_user())),
+		)
 		.await?;
 
 	let email = services
@@ -127,7 +136,7 @@ pub(crate) async fn add_3pid_route(
 
 	services
 		.threepid
-		.associate_localpart_email(sender_user.localpart(), &email)
+		.associate_localpart_email(body.identity.sender_user().localpart(), &email)
 		.await?;
 
 	Ok(add_3pid::v3::Response::new())
@@ -138,8 +147,6 @@ pub(crate) async fn delete_3pid_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_3pid::v3::Request>,
 ) -> Result<delete_3pid::v3::Response> {
-	let sender_user = body.sender_user();
-
 	if body.medium != Medium::Email {
 		return Ok(delete_3pid::v3::Response::new(ThirdPartyIdRemovalStatus::NoSupport));
 	}
@@ -150,7 +157,7 @@ pub(crate) async fn delete_3pid_route(
 
 	if services
 		.threepid
-		.disassociate_localpart_email(sender_user.localpart())
+		.disassociate_localpart_email(body.identity.sender_user().localpart())
 		.await
 		.is_none()
 	{

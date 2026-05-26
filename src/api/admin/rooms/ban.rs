@@ -13,7 +13,7 @@ pub(crate) async fn ban_room(
 	State(services): State<crate::State>,
 	body: Ruma<rooms::ban::v1::Request>,
 ) -> Result<rooms::ban::v1::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	if !services.users.is_admin(sender_user).await {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}

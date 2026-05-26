@@ -61,10 +61,10 @@ pub(crate) async fn create_room_route(
 ) -> Result<create_room::v3::Response> {
 	use create_room::v3::RoomPreset;
 
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if !services.globals.allow_room_creation()
-		&& body.appservice_info.is_none()
+		&& !body.identity.is_appservice()
 		&& !services.users.is_admin(sender_user).await
 	{
 		return Err!(Request(Forbidden("Room creation has been disabled.",)));
@@ -130,7 +130,7 @@ pub(crate) async fn create_room_route(
 	if body.visibility == room::Visibility::Public
 		&& services.server.config.lockdown_public_room_directory
 		&& !services.users.is_admin(sender_user).await
-		&& body.appservice_info.is_none()
+		&& !body.identity.is_appservice()
 	{
 		warn!(
 			"Non-admin user {sender_user} tried to publish {room_id:?} to the room directory \
@@ -186,7 +186,7 @@ pub(crate) async fn create_room_route(
 
 	let alias: Option<OwnedRoomAliasId> = match body.room_alias_name.as_ref() {
 		| Some(alias) =>
-			Some(room_alias_check(&services, alias, body.appservice_info.as_ref()).await?),
+			Some(room_alias_check(&services, alias, body.identity.appservice_info()).await?),
 		| _ => None,
 	};
 

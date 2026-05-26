@@ -37,8 +37,8 @@ pub(crate) async fn get_context_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_context::v3::Request>,
 ) -> Result<get_context::v3::Response> {
-	let sender = body.sender();
-	let (sender_user, sender_device) = sender;
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.sender_device();
 	let room_id = &body.room_id;
 	let event_id = &body.event_id;
 	let filter = &body.filter;
@@ -143,7 +143,7 @@ pub(crate) async fn get_context_route(
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: Some(sender_device),
+		device_id: sender_device,
 		room_id,
 		token: Some(base_count.into_unsigned()),
 		options: Some(&filter.lazy_load_options),

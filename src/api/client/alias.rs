@@ -11,7 +11,7 @@ pub(crate) async fn create_alias_route(
 	State(services): State<crate::State>,
 	body: Ruma<create_alias::v3::Request>,
 ) -> Result<create_alias::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
@@ -19,7 +19,7 @@ pub(crate) async fn create_alias_route(
 	services
 		.rooms
 		.alias
-		.appservice_checks(&body.room_alias, &body.appservice_info)
+		.appservice_checks(&body.room_alias, body.identity.appservice_info())
 		.await?;
 
 	// this isn't apart of alias_checks or delete alias route because we should
@@ -59,7 +59,7 @@ pub(crate) async fn delete_alias_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_alias::v3::Request>,
 ) -> Result<delete_alias::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
@@ -67,7 +67,7 @@ pub(crate) async fn delete_alias_route(
 	services
 		.rooms
 		.alias
-		.appservice_checks(&body.room_alias, &body.appservice_info)
+		.appservice_checks(&body.room_alias, body.identity.appservice_info())
 		.await?;
 
 	services

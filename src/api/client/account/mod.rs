@@ -27,7 +27,7 @@ use ruma::{
 use service::{mailer::messages, uiaa::Identity, users::HashedPassword};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
-use crate::Ruma;
+use crate::{Ruma, router::ClientIdentity};
 
 pub(crate) mod register;
 pub(crate) mod threepid;
@@ -75,13 +75,11 @@ pub(crate) async fn get_register_available_route(
 		return Err!(Request(UserInUse("User ID is not available.")));
 	}
 
-	if let Some(ref info) = body.appservice_info {
-		if !info.is_user_match(&user_id) {
-			return Err!(Request(Exclusive("Username is not in an appservice namespace.")));
-		}
-	}
-
-	if services.appservice.is_exclusive_user_id(&user_id).await {
+	if let Some(ClientIdentity::Appservice { appservice_info, .. }) = &body.identity
+		&& !appservice_info.is_user_match(&user_id)
+	{
+		return Err!(Request(Exclusive("Username is not in an appservice namespace.")));
+	} else if services.appservice.is_exclusive_user_id(&user_id).await {
 		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
 	}
 
@@ -111,7 +109,11 @@ pub(crate) async fn change_password_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	let identity = if let Some(ref user_id) = body.sender_user {
+	let identity = if let Some(user_id) = body
+		.identity
+		.as_ref()
+		.map(|identity| identity.sender_user())
+	{
 		// A signed-in user is trying to change their password, prompt them for their
 		// existing one
 
@@ -157,7 +159,12 @@ pub(crate) async fn change_password_route(
 		services
 			.users
 			.all_device_ids(&sender_user)
-			.ready_filter(|id| *id != body.sender_device())
+			.ready_filter(|id| {
+				body.identity
+					.as_ref()
+					.and_then(|identity| identity.sender_device())
+					.is_none_or(|sender_device| sender_device != *id)
+			})
 			.for_each(async |id| services.users.remove_device(&sender_user, &id).await)
 			.await;
 
@@ -173,7 +180,12 @@ pub(crate) async fn change_password_route(
 					.await
 					.ok()
 					.as_ref()
-					.is_some_and(|pusher_device| pusher_device != body.sender_device())
+					.is_some_and(|pusher_device| {
+						body.identity
+							.as_ref()
+							.and_then(|identity| identity.sender_device())
+							.is_none_or(|sender_device| sender_device != *pusher_device)
+					})
 					.then_some(pushkey)
 			})
 			.for_each(async |pushkey| {
@@ -241,9 +253,11 @@ pub(crate) async fn whoami_route(
 	State(_): State<crate::State>,
 	body: Ruma<whoami::v3::Request>,
 ) -> Result<whoami::v3::Response> {
-	Ok(assign!(whoami::v3::Response::new(body.sender_user().to_owned(), false), {
-		device_id: body.sender_device,
-	}))
+	Ok(
+		assign!(whoami::v3::Response::new(body.identity.sender_user().to_owned(), false), {
+			device_id: body.identity.sender_device().map(ToOwned::to_owned),
+		}),
+	)
 }
 
 /// # `POST /_matrix/client/r0/account/deactivate`
@@ -266,8 +280,9 @@ pub(crate) async fn deactivate_route(
 	// Authentication for this endpoint is technically optional,
 	// but we require the user to be logged in
 	let sender_user = body
-		.sender_user
+		.identity
 		.as_ref()
+		.map(|identity| identity.sender_user())
 		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
 
 	// Prompt the user to confirm with their password using UIAA

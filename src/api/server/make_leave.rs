@@ -26,13 +26,13 @@ pub(crate) async fn create_leave_event_template_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			"Refusing to serve make_leave for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
 	}
 
-	if body.user_id.server_name() != body.origin() {
+	if body.user_id.server_name() != body.identity {
 		return Err!(Request(Forbidden(
 			"Not allowed to leave on behalf of another server/user."
 		)));
@@ -42,7 +42,7 @@ pub(crate) async fn create_leave_event_template_route(
 	services
 		.rooms
 		.event_handler
-		.acl_check(body.origin(), &body.room_id)
+		.acl_check(&body.identity, &body.room_id)
 		.await?;
 
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;

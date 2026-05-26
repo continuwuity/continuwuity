@@ -62,7 +62,7 @@ pub(crate) async fn send_transaction_message_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<send_transaction_message::v1::Request>,
 ) -> Result<send_transaction_message::v1::Response> {
-	if body.origin() != body.body.origin {
+	if body.identity != body.body.origin {
 		return Err!(Request(Forbidden(
 			"Not allowed to send transactions on behalf of other servers"
 		)));
@@ -80,7 +80,7 @@ pub(crate) async fn send_transaction_message_route(
 		)));
 	}
 
-	let txn_key = (body.origin().to_owned(), body.transaction_id.clone());
+	let txn_key = (body.identity.to_owned(), body.transaction_id.clone());
 
 	// Atomically check cache, join active, or start new transaction
 	match services
@@ -136,7 +136,7 @@ async fn wait_for_result(
 	skip_all,
 	fields(
 		id = ?body.transaction_id.as_str(),
-		origin = ?body.origin()
+		origin = ?body.identity
 	)
 )]
 async fn process_inbound_transaction(
@@ -164,7 +164,7 @@ async fn process_inbound_transaction(
 		.stream();
 
 	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
-	let results = match handle(&services, &client, body.origin(), pdus, edus).await {
+	let results = match handle(&services, &client, &body.identity, pdus, edus).await {
 		| Ok(results) => results,
 		| Err(err) => {
 			fail_federation_txn(services, &txn_key, &sender, err);

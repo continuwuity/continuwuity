@@ -23,7 +23,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	DeviceId, RoomId, UserId,
+	RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -37,7 +37,6 @@ use ruma::{
 	serde::Raw,
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
-use tracing::warn;
 
 use crate::Ruma;
 
@@ -76,8 +75,8 @@ pub(crate) async fn get_message_events_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
-	let sender_user = body.sender_user();
-	let sender_device = body.sender_device.as_deref();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.sender_device();
 	let room_id = &body.room_id;
 	let filter = &body.filter;
 
@@ -158,17 +157,7 @@ pub(crate) async fn get_message_events_route(
 
 	let lazy_loading_context = lazy_loading::Context {
 		user_id: sender_user,
-		device_id: sender_device.or_else(|| {
-			if let Some(registration) = body.appservice_info.as_ref() {
-				Some(<&DeviceId>::from(registration.registration.id.as_str()))
-			} else {
-				warn!(
-					"No device_id provided and no appservice registration found, this should be \
-					 unreachable"
-				);
-				None
-			}
-		}),
+		device_id: sender_device,
 		room_id,
 		token: Some(from.into_unsigned()),
 		options: Some(&filter.lazy_load_options),

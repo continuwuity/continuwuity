@@ -26,7 +26,7 @@ pub(crate) async fn set_read_marker_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_read_marker::v3::Request>,
 ) -> Result<set_read_marker::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if let Some(event) = &body.fully_read {
 		let fully_read_event = FullyReadEvent::new(FullyReadEventContent::new(event.to_owned()));
@@ -118,10 +118,10 @@ pub(crate) async fn create_receipt_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<create_receipt::v3::Request>,
 ) -> Result<create_receipt::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	services
 		.users
-		.update_device_last_seen(sender_user, body.sender_device.as_deref(), client_ip)
+		.update_device_last_seen(sender_user, body.identity.sender_device(), client_ip)
 		.await;
 
 	if matches!(

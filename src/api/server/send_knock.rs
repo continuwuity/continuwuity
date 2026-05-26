@@ -26,13 +26,12 @@ pub(crate) async fn create_knock_event_v1_route(
 ) -> Result<create_knock_event::v1::Response> {
 	if services
 		.moderation
-		.is_remote_server_forbidden(body.origin())
+		.is_remote_server_forbidden(&body.identity)
 	{
 		warn!(
 			"Server {} tried knocking room ID {} who has a server name that is globally \
 			 forbidden. Rejecting.",
-			body.origin(),
-			&body.room_id,
+			body.identity, &body.room_id,
 		);
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 	}
@@ -42,8 +41,7 @@ pub(crate) async fn create_knock_event_v1_route(
 			warn!(
 				"Server {} tried knocking room ID {} which has a server name that is globally \
 				 forbidden. Rejecting.",
-				body.origin(),
-				&body.room_id,
+				body.identity, &body.room_id,
 			);
 			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 		}
@@ -60,7 +58,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			"Refusing to serve send_knock for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -70,7 +68,7 @@ pub(crate) async fn create_knock_event_v1_route(
 	services
 		.rooms
 		.event_handler
-		.acl_check(body.origin(), &body.room_id)
+		.acl_check(&body.identity, &body.room_id)
 		.await?;
 
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
@@ -133,7 +131,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		.await?;
 
 	// check if origin server is trying to send for another server
-	if sender.server_name() != body.origin() {
+	if sender.server_name() != body.identity {
 		return Err!(Request(BadJson("Not allowed to knock on behalf of another server/user.")));
 	}
 

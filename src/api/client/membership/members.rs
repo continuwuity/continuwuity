@@ -30,7 +30,7 @@ pub(crate) async fn get_member_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_member_events::v3::Request>,
 ) -> Result<get_member_events::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	let membership = body.membership.as_ref();
 	let not_membership = body.not_membership.as_ref();
 
@@ -72,7 +72,7 @@ pub(crate) async fn joined_members_route(
 	if !services
 		.rooms
 		.state_accessor
-		.user_can_see_state_events(body.sender_user(), &body.room_id)
+		.user_can_see_state_events(body.identity.sender_user(), &body.room_id)
 		.await
 	{
 		return Err!(Request(Forbidden("You don't have permission to view this room.")));

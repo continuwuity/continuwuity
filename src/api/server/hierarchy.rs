@@ -20,7 +20,7 @@ pub(crate) async fn get_hierarchy_route(
 		.await
 	{
 		info!(
-			origin = body.origin().as_str(),
+			origin = body.identity.as_str(),
 			"Refusing to serve state for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -29,7 +29,7 @@ pub(crate) async fn get_hierarchy_route(
 	let response = services
 		.rooms
 		.summary
-		.get_local_room_summary_for_server(body.origin(), &body.room_id, body.suggested_only)
+		.get_local_room_summary_for_server(&body.identity, &body.room_id, body.suggested_only)
 		.await;
 
 	if let Accessibility::Accessible(response) = response {

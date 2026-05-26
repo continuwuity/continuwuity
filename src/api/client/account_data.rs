@@ -22,9 +22,9 @@ pub(crate) async fn set_global_account_data_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_global_account_data::v3::Request>,
 ) -> Result<set_global_account_data::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
-	if sender_user != body.user_id && body.appservice_info.is_none() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(Forbidden("You cannot set account data for other users.")));
 	}
 
@@ -47,9 +47,9 @@ pub(crate) async fn set_room_account_data_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_room_account_data::v3::Request>,
 ) -> Result<set_room_account_data::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
-	if sender_user != body.user_id && body.appservice_info.is_none() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(Forbidden("You cannot set account data for other users.")));
 	}
 
@@ -72,9 +72,9 @@ pub(crate) async fn get_global_account_data_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_global_account_data::v3::Request>,
 ) -> Result<get_global_account_data::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
-	if sender_user != body.user_id && body.appservice_info.is_none() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(Forbidden("You cannot get account data of other users.")));
 	}
 
@@ -94,9 +94,9 @@ pub(crate) async fn get_room_account_data_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_room_account_data::v3::Request>,
 ) -> Result<get_room_account_data::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
-	if sender_user != body.user_id && body.appservice_info.is_none() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(Forbidden("You cannot get account data of other users.")));
 	}
 

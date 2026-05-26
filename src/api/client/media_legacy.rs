@@ -56,7 +56,7 @@ pub(crate) async fn get_media_preview_legacy_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<get_media_preview::v3::Request>,
 ) -> Result<get_media_preview::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	let url = &body.url;
 	let url = Url::parse(&body.url).map_err(|e| {

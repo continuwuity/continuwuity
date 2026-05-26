@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, err};
+use conduwuit::{Err, Result};
 use ruma::{
 	api::{appservice::ping, client::appservice::request_ping},
 	assign,
@@ -15,9 +15,7 @@ pub(crate) async fn appservice_ping(
 	State(services): State<crate::State>,
 	body: Ruma<request_ping::v1::Request>,
 ) -> Result<request_ping::v1::Response> {
-	let appservice_info = body.appservice_info.as_ref().ok_or_else(|| {
-		err!(Request(Forbidden("This endpoint can only be called by appservices.")))
-	})?;
+	let appservice_info = &body.identity;
 
 	if body.appservice_id != appservice_info.registration.id {
 		return Err!(Request(Forbidden(

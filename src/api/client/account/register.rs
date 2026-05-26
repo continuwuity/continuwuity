@@ -59,7 +59,7 @@ pub(crate) async fn register_route(
 	let allow_registration =
 		services.config.allow_registration || services.firstrun.is_first_run();
 
-	if !allow_registration && body.appservice_info.is_none() {
+	if !allow_registration && body.identity.is_none() {
 		info!(
 			?body.username,
 			?body.initial_device_display_name,
@@ -71,7 +71,7 @@ pub(crate) async fn register_route(
 		)));
 	}
 
-	let identity = if body.appservice_info.is_some() {
+	let identity = if body.identity.is_some() {
 		// Appservices can skip auth
 		None
 	} else {
@@ -107,7 +107,7 @@ pub(crate) async fn register_route(
 		// For appservice logins, make sure that the user ID is in the appservice's
 		// namespace
 
-		match body.appservice_info {
+		match body.identity {
 			| Some(ref info) =>
 				if !info.is_user_match(&user_id) && !emergency_mode_enabled {
 					return Err!(Request(Exclusive(
@@ -125,7 +125,7 @@ pub(crate) async fn register_route(
 		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
 	}
 
-	let password = if body.appservice_info.is_some() {
+	let password = if body.identity.is_some() {
 		None
 	} else if let Some(password) = body.password.as_deref() {
 		Some(HashedPassword::new(password)?)
@@ -140,9 +140,7 @@ pub(crate) async fn register_route(
 	let mut displayname = user_id.localpart().to_owned();
 
 	// Apply the new user displayname suffix, if it's set
-	if !services.globals.new_user_displayname_suffix().is_empty()
-		&& body.appservice_info.is_none()
-	{
+	if !services.globals.new_user_displayname_suffix().is_empty() && body.identity.is_none() {
 		write!(displayname, " {}", services.server.config.new_user_displayname_suffix)?;
 	}
 
@@ -209,7 +207,7 @@ pub(crate) async fn register_route(
 
 	let device_display_name = body.initial_device_display_name.as_deref().unwrap_or("");
 
-	if body.appservice_info.is_none() {
+	if body.identity.is_none() {
 		if !device_display_name.is_empty() {
 			let notice = format!(
 				"New user \"{user_id}\" registered on this server from IP {client} and device \
@@ -255,7 +253,7 @@ pub(crate) async fn register_route(
 		}
 	}
 
-	if body.appservice_info.is_none() && !services.server.config.auto_join_rooms.is_empty() {
+	if body.identity.is_none() && !services.server.config.auto_join_rooms.is_empty() {
 		for room in &services.server.config.auto_join_rooms {
 			let Ok(room_id) = services.rooms.alias.resolve(room).await else {
 				error!(

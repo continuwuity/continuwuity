@@ -146,7 +146,7 @@ pub(crate) async fn login_route(
 		}) => {
 			debug!("Got appservice login type");
 
-			let Some(ref info) = body.appservice_info else {
+			let Some(ref info) = body.identity else {
 				return Err!(Request(MissingToken("Missing appservice token.")));
 			};
 
@@ -254,7 +254,7 @@ pub(crate) async fn login_token_route(
 		return Err!(Request(Forbidden("Login via an existing session is not enabled")));
 	}
 
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services
@@ -286,7 +286,9 @@ pub(crate) async fn logout_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<logout::v3::Request>,
 ) -> Result<logout::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.expect_sender_device()?;
+
 	services
 		.users
 		.remove_device(sender_user, sender_device)
@@ -332,7 +334,7 @@ pub(crate) async fn logout_all_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<logout_all::v3::Request>,
 ) -> Result<logout_all::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	services
 		.users
 		.all_device_ids(sender_user)

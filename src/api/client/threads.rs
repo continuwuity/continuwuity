@@ -34,14 +34,14 @@ pub(crate) async fn get_threads_route(
 	let threads: Vec<(PduCount, PduEvent)> = services
 		.rooms
 		.threads
-		.threads_until(body.sender_user(), &body.room_id, from, &body.include)
+		.threads_until(body.identity.sender_user(), &body.room_id, from, &body.include)
 		.await?
 		.take(limit)
 		.filter_map(|(count, pdu)| async move {
 			services
 				.rooms
 				.state_accessor
-				.user_can_see_event(body.sender_user(), &body.room_id, &pdu.event_id)
+				.user_can_see_event(body.identity.sender_user(), &body.room_id, &pdu.event_id)
 				.await
 				.then_some((count, pdu))
 		})
@@ -49,7 +49,7 @@ pub(crate) async fn get_threads_route(
 			if let Err(e) = services
 				.rooms
 				.pdu_metadata
-				.add_bundled_aggregations_to_pdu(body.sender_user(), &mut pdu)
+				.add_bundled_aggregations_to_pdu(body.identity.sender_user(), &mut pdu)
 				.await
 			{
 				debug_warn!("Failed to add bundled aggregations to thread: {e}");

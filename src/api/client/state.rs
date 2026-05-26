@@ -38,10 +38,10 @@ pub(crate) async fn send_state_event_for_key_route(
 	ClientIp(ip): ClientIp,
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<send_state_event::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	services
 		.users
-		.update_device_last_seen(sender_user, body.sender_device.as_deref(), ip)
+		.update_device_last_seen(sender_user, body.identity.sender_device(), ip)
 		.await;
 
 	if services.users.is_suspended(sender_user).await? {
@@ -55,7 +55,7 @@ pub(crate) async fn send_state_event_for_key_route(
 		&body.event_type,
 		&body.body.body,
 		&body.state_key,
-		if body.appservice_info.is_some() {
+		if body.identity.is_appservice() {
 			body.timestamp
 		} else {
 			None
@@ -91,7 +91,7 @@ pub(crate) async fn get_state_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_events::v3::Request>,
 ) -> Result<get_state_events::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if !services
 		.rooms
@@ -125,7 +125,7 @@ pub(crate) async fn get_state_event_for_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_event_for_key::v3::Request>,
 ) -> Result<get_state_event_for_key::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 
 	if !services
 		.rooms

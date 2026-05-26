@@ -15,7 +15,7 @@ pub(crate) async fn kick_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<kick_user::v3::Request>,
 ) -> Result<kick_user::v3::Response> {
-	let sender_user = body.sender_user();
+	let sender_user = body.identity.sender_user();
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}

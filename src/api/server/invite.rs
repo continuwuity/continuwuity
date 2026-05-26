@@ -32,7 +32,7 @@ pub(crate) async fn create_invite_route(
 	services
 		.rooms
 		.event_handler
-		.acl_check(body.origin(), &body.room_id)
+		.acl_check(&body.identity, &body.room_id)
 		.await?;
 
 	if !services.server.supported_room_version(&body.room_version) {
@@ -54,12 +54,11 @@ pub(crate) async fn create_invite_route(
 
 	if services
 		.moderation
-		.is_remote_server_forbidden(body.origin())
+		.is_remote_server_forbidden(&body.identity)
 	{
 		warn!(
 			"Received federated/remote invite from banned server {} for room ID {}. Rejecting.",
-			body.origin(),
-			body.room_id
+			body.identity, body.room_id
 		);
 
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
@@ -105,7 +104,7 @@ pub(crate) async fn create_invite_route(
 		.and_then(Result::ok)
 		.ok_or_else(|| err!(Request(InvalidParam("Invalid sender property"))))?;
 
-	if sender_user.server_name() != body.origin() {
+	if sender_user.server_name() != body.identity {
 		return Err!(Request(Forbidden("Sender's server does not match the origin server.",)));
 	}
 

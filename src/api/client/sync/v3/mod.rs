@@ -181,7 +181,8 @@ pub(crate) async fn sync_events_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<sync_events::v3::Request>,
 ) -> Result<sync_events::v3::Response> {
-	let (sender_user, sender_device) = body.sender();
+	let sender_user = body.identity.sender_user();
+	let sender_device = body.identity.expect_sender_device()?;
 
 	// Presence update
 	if services.config.allow_local_presence {
@@ -225,7 +226,8 @@ pub(crate) async fn build_sync_events(
 	services: &Services,
 	body: &Ruma<sync_events::v3::Request>,
 ) -> Result<sync_events::v3::Response> {
-	let (syncing_user, syncing_device) = body.sender();
+	let syncing_user = body.identity.sender_user();
+	let syncing_device = body.identity.sender_device().expect("should have a device");
 
 	let current_count = services.globals.current_count()?;
 
