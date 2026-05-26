@@ -2,11 +2,11 @@ use std::collections::HashMap;
 
 use conduwuit::{
 	Event, PduEvent, debug, debug_info,
-	utils::{BoolExt, IterStream, stream::BroadbandExt},
+	utils::{BoolExt, IterStream, math::try_into, stream::BroadbandExt},
 	warn,
 };
 use futures::StreamExt;
-use ruma::{RoomId, ServerName};
+use ruma::{RoomId, ServerName, UInt};
 
 use crate::rooms::event_handler::build_local_dag;
 
@@ -45,19 +45,28 @@ impl super::Service {
 			.collect::<Vec<_>>()
 			.await;
 
-		let backfilled = self
+		let gapfilled = self
 			.get_missing_events(
 				room_id,
 				incoming_pdu,
 				tail,
 				origin,
-				self.services.metadata.get_mindepth(room_id).await,
+				self.services
+					.metadata
+					.get_mindepth(room_id)
+					.await
+					.saturating_sub(
+						u8::try_from(incoming_pdu.prev_events.len())
+							.unwrap()
+							.saturating_mul(2)
+							.into(),
+					),
 			)
 			.await?;
-		debug_info!("Fetched {} missing events", backfilled.len());
+		debug_info!("Fetched {} missing events", gapfilled.len());
 
 		// Persist all fetched events
-		let mapped = backfilled
+		let mapped = gapfilled
 			.iter()
 			.map(|(eid, evt)| {
 				let mut obj = evt.to_canonical_object();
