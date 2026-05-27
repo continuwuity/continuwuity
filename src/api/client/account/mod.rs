@@ -96,7 +96,10 @@ pub(crate) async fn change_password_route(
 				&body.auth,
 				vec![AuthFlow::new(vec![AuthType::Password])],
 				Box::default(),
-				Some(UiaaInitiator::new(identity.expect_sender_user()?, identity.sender_device())),
+				Some(UiaaInitiator::new(
+					identity.expect_sender_user()?,
+					identity.sender_device(),
+				)),
 			)
 			.await?
 	} else {
