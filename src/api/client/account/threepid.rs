@@ -123,7 +123,8 @@ pub(crate) async fn add_3pid_route(
 	let _ = services
 		.uiaa
 		.authenticate_password(
-			&body.auth, body.identity.expect_sender_user()?,
+			&body.auth,
+			body.identity.expect_sender_user()?,
 			body.identity.sender_device(),
 			None,
 		)
