@@ -112,7 +112,7 @@ pub(crate) async fn set_room_visibility_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<set_room_visibility::v3::Request>,
 ) -> Result<set_room_visibility::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if !services.rooms.metadata.exists(&body.room_id).await {
 		// Return 404 if the room doesn't exist

@@ -29,7 +29,10 @@ pub(crate) async fn get_room_summary(
 		.rooms
 		.summary
 		.get_room_summary_for_user(
-			body.identity.as_ref().map(ClientIdentity::sender_user),
+			body.identity
+				.as_ref()
+				.map(ClientIdentity::expect_sender_user)
+				.transpose()?,
 			&room_id,
 			&servers,
 		)

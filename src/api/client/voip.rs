@@ -33,7 +33,8 @@ pub(crate) async fn turn_server_route(
 		)
 		.expect("time is valid");
 
-		let username: String = format!("{}:{}", expiry.get(), body.identity.sender_user());
+		let username: String =
+			format!("{}:{}", expiry.get(), body.identity.expect_sender_user()?);
 
 		let mut mac = HmacSha1::new_from_slice(turn_secret.as_bytes())
 			.expect("HMAC can take key of any size");

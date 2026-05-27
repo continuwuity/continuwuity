@@ -22,7 +22,7 @@ pub(crate) async fn third_party_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_3pids::v3::Request>,
 ) -> Result<get_3pids::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	let mut threepids = vec![];
 
 	if let Some(email) = services
@@ -58,8 +58,8 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 	let sender_user = body
 		.identity
 		.as_ref()
-		.map(ClientIdentity::sender_user)
-		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
+		.map(ClientIdentity::expect_sender_user)
+		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))??;
 
 	if !services.threepid.email_requirement().may_change() {
 		return Err!(Request(Forbidden("You may not change your email address.")));
@@ -124,7 +124,7 @@ pub(crate) async fn add_3pid_route(
 		.uiaa
 		.authenticate_password(
 			&body.auth,
-			Some(Identity::from_user_id(body.identity.sender_user())),
+			Some(Identity::from_user_id(body.identity.expect_sender_user()?)),
 		)
 		.await?;
 
@@ -136,7 +136,7 @@ pub(crate) async fn add_3pid_route(
 
 	services
 		.threepid
-		.associate_localpart_email(body.identity.sender_user().localpart(), &email)
+		.associate_localpart_email(body.identity.expect_sender_user()?.localpart(), &email)
 		.await?;
 
 	Ok(add_3pid::v3::Response::new())
@@ -157,7 +157,7 @@ pub(crate) async fn delete_3pid_route(
 
 	if services
 		.threepid
-		.disassociate_localpart_email(body.identity.sender_user().localpart())
+		.disassociate_localpart_email(body.identity.expect_sender_user()?.localpart())
 		.await
 		.is_none()
 	{

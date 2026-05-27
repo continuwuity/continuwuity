@@ -17,12 +17,13 @@ pub(crate) async fn room_initial_sync_route(
 	State(services): State<crate::State>,
 	body: Ruma<Request>,
 ) -> Result<Response> {
+	let sender_user = body.identity.expect_sender_user()?;
 	let room_id = &body.room_id;
 
 	if !services
 		.rooms
 		.state_accessor
-		.user_can_see_state_events(body.identity.sender_user(), room_id)
+		.user_can_see_state_events(sender_user, room_id)
 		.await
 	{
 		return Err!(Request(Forbidden("No room preview available.")));
@@ -31,7 +32,7 @@ pub(crate) async fn room_initial_sync_route(
 	let membership = services
 		.rooms
 		.state_cache
-		.user_membership(body.identity.sender_user(), room_id)
+		.user_membership(sender_user, room_id)
 		.map(Ok);
 
 	let visibility = services.rooms.directory.visibility(room_id).map(Ok);
@@ -52,11 +53,11 @@ pub(crate) async fn room_initial_sync_route(
 		.pdus_rev(room_id, None)
 		.try_take(limit)
 		.and_then(async |mut pdu| {
-			pdu.1.set_unsigned(Some(body.identity.sender_user()));
+			pdu.1.set_unsigned(Some(sender_user));
 			if let Err(e) = services
 				.rooms
 				.pdu_metadata
-				.add_bundled_aggregations_to_pdu(body.identity.sender_user(), &mut pdu.1)
+				.add_bundled_aggregations_to_pdu(sender_user, &mut pdu.1)
 				.await
 			{
 				debug_warn!("Failed to add bundled aggregations: {e}");

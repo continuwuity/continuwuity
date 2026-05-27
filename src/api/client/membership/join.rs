@@ -28,7 +28,7 @@ pub(crate) async fn join_room_by_id_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id::v3::Request>,
 ) -> Result<join_room_by_id::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
@@ -97,7 +97,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id_or_alias::v3::Request>,
 ) -> Result<join_room_by_id_or_alias::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	let body = &body.body;
 	if services.users.is_suspended(sender_user).await? {
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));

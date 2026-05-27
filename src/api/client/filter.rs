@@ -15,7 +15,7 @@ pub(crate) async fn get_filter_route(
 ) -> Result<get_filter::v3::Response> {
 	services
 		.users
-		.get_filter(body.identity.sender_user(), &body.filter_id)
+		.get_filter(body.identity.expect_sender_user()?, &body.filter_id)
 		.await
 		.map(get_filter::v3::Response::new)
 		.map_err(|_| err!(Request(NotFound("Filter not found."))))
@@ -30,7 +30,7 @@ pub(crate) async fn create_filter_route(
 ) -> Result<create_filter::v3::Response> {
 	let filter_id = services
 		.users
-		.create_filter(body.identity.sender_user(), &body.filter);
+		.create_filter(body.identity.expect_sender_user()?, &body.filter);
 
 	Ok(create_filter::v3::Response::new(filter_id))
 }

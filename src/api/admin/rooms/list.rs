@@ -13,7 +13,7 @@ pub(crate) async fn list_rooms(
 	State(services): State<crate::State>,
 	body: Ruma<rooms::list::v1::Request>,
 ) -> Result<rooms::list::v1::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	if !services.users.is_admin(sender_user).await {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}

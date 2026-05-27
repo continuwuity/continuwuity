@@ -40,7 +40,7 @@ pub(crate) async fn joined_rooms_route(
 	let joined_rooms = services
 		.rooms
 		.state_cache
-		.rooms_joined(body.identity.sender_user())
+		.rooms_joined(body.identity.expect_sender_user()?)
 		.collect()
 		.await;
 

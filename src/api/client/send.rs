@@ -22,7 +22,7 @@ pub(crate) async fn send_message_event_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<send_message_event::v3::Request>,
 ) -> Result<send_message_event::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	let sender_device = body.identity.sender_device();
 
 	if services.users.is_suspended(sender_user).await? {

@@ -75,7 +75,7 @@ pub(crate) async fn get_message_events_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	let sender_device = body.identity.sender_device();
 	let room_id = &body.room_id;
 	let filter = &body.filter;

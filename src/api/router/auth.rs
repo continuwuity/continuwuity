@@ -33,10 +33,17 @@ pub(crate) enum ClientIdentity {
 }
 
 impl ClientIdentity {
-	pub(crate) fn sender_user(&self) -> &UserId {
+	pub(crate) fn sender_user(&self) -> Option<&UserId> {
 		match self {
 			| Self::User { sender_user, .. } | Self::Appservice { sender_user, .. } =>
-				sender_user,
+				Some(sender_user),
+		}
+	}
+
+	pub(crate) fn expect_sender_user(&self) -> Result<&UserId> {
+		match self {
+			| Self::User { sender_user, .. } | Self::Appservice { sender_user, .. } =>
+				Ok(sender_user),
 		}
 	}
 
@@ -48,9 +55,11 @@ impl ClientIdentity {
 	}
 
 	pub(crate) fn expect_sender_device(&self) -> Result<&DeviceId> {
-		self.sender_device().ok_or_else(|| {
-			err!(Request(Forbidden("Appservices must masquerade to use this endpoint.")))
-		})
+		match self {
+			| Self::User { sender_device, .. } => Ok(sender_device),
+			| Self::Appservice { .. } =>
+				Err!(Request(Forbidden("Appservices must masquerade to use this endpoint."))),
+		}
 	}
 
 	pub(crate) fn appservice_info(&self) -> Option<&RegistrationInfo> {

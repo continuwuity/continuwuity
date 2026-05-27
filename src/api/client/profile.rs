@@ -51,11 +51,11 @@ pub(crate) async fn set_profile_field_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_profile_field::v3::Request>,
 ) -> Result<set_profile_field::v3::Response> {
-	if body.user_id != body.identity.sender_user()
+	if body.user_id != body.identity.expect_sender_user()?
 		&& !(body.identity.is_appservice()
 			|| services
 				.admin
-				.user_is_admin(body.identity.sender_user())
+				.user_is_admin(body.identity.expect_sender_user()?)
 				.await)
 	{
 		return Err!(Request(Forbidden("You may not change other users' profile data.")));
@@ -75,11 +75,11 @@ pub(crate) async fn delete_profile_field_route(
 	State(services): State<crate::State>,
 	body: Ruma<delete_profile_field::v3::Request>,
 ) -> Result<delete_profile_field::v3::Response> {
-	if body.user_id != body.identity.sender_user()
+	if body.user_id != body.identity.expect_sender_user()?
 		&& !(body.identity.is_appservice()
 			|| services
 				.admin
-				.user_is_admin(body.identity.sender_user())
+				.user_is_admin(body.identity.expect_sender_user()?)
 				.await)
 	{
 		return Err!(Request(Forbidden("You may not change other users' profile data.")));

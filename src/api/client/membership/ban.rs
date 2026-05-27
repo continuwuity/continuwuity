@@ -15,7 +15,7 @@ pub(crate) async fn ban_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<ban_user::v3::Request>,
 ) -> Result<ban_user::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if sender_user == body.user_id {
 		return Err!(Request(Forbidden("You cannot ban yourself.")));

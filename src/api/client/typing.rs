@@ -14,7 +14,8 @@ pub(crate) async fn create_typing_event_route(
 	body: Ruma<create_typing_event::v3::Request>,
 ) -> Result<create_typing_event::v3::Response> {
 	use create_typing_event::v3::Typing;
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
+
 	services
 		.users
 		.update_device_last_seen(sender_user, body.identity.sender_device(), ip)

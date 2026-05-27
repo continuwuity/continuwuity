@@ -13,7 +13,7 @@ pub(crate) async fn get_suspended_status(
 	body: Ruma<get_suspended::v1::Request>,
 ) -> Result<get_suspended::v1::Response> {
 	let (admin, active) = join(
-		services.users.is_admin(body.identity.sender_user()),
+		services.users.is_admin(body.identity.expect_sender_user()?),
 		services.users.is_active(&body.user_id),
 	)
 	.await;
@@ -38,7 +38,7 @@ pub(crate) async fn put_suspended_status(
 	State(services): State<crate::State>,
 	body: Ruma<set_suspended::v1::Request>,
 ) -> Result<set_suspended::v1::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	let (sender_admin, active, target_admin) = join3(
 		services.users.is_admin(sender_user),

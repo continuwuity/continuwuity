@@ -15,7 +15,7 @@ pub(crate) async fn get_room_aliases_route(
 	State(services): State<crate::State>,
 	body: Ruma<aliases::v3::Request>,
 ) -> Result<aliases::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if !services
 		.rooms

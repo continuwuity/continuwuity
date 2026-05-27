@@ -17,7 +17,7 @@ pub(crate) async fn redact_event_route(
 	ClientIp(client_ip): ClientIp,
 	body: Ruma<redact_event::v3::Request>,
 ) -> Result<redact_event::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	services
 		.users
 		.update_device_last_seen(sender_user, body.identity.sender_device(), client_ip)

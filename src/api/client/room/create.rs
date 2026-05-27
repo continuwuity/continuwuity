@@ -61,7 +61,7 @@ pub(crate) async fn create_room_route(
 ) -> Result<create_room::v3::Response> {
 	use create_room::v3::RoomPreset;
 
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if !services.globals.allow_room_creation()
 		&& !body.identity.is_appservice()

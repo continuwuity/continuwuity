@@ -48,7 +48,11 @@ pub(crate) async fn get_capabilities_route(
 		json!({"enabled": services.config.forget_forced_upon_leave}),
 	)?;
 
-	if services.users.is_admin(body.identity.sender_user()).await {
+	if services
+		.users
+		.is_admin(body.identity.expect_sender_user()?)
+		.await
+	{
 		// Advertise suspension API
 		capabilities.set("uk.timedout.msc4323", json!({"suspend": true, "lock": false}))?;
 	}

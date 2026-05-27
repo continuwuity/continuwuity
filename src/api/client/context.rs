@@ -37,7 +37,7 @@ pub(crate) async fn get_context_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_context::v3::Request>,
 ) -> Result<get_context::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	let sender_device = body.identity.sender_device();
 	let room_id = &body.room_id;
 	let event_id = &body.event_id;

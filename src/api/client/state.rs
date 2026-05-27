@@ -38,7 +38,7 @@ pub(crate) async fn send_state_event_for_key_route(
 	ClientIp(ip): ClientIp,
 	body: Ruma<send_state_event::v3::Request>,
 ) -> Result<send_state_event::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 	services
 		.users
 		.update_device_last_seen(sender_user, body.identity.sender_device(), ip)
@@ -91,7 +91,7 @@ pub(crate) async fn get_state_events_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_events::v3::Request>,
 ) -> Result<get_state_events::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if !services
 		.rooms
@@ -125,7 +125,7 @@ pub(crate) async fn get_state_event_for_key_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_state_event_for_key::v3::Request>,
 ) -> Result<get_state_event_for_key::v3::Response> {
-	let sender_user = body.identity.sender_user();
+	let sender_user = body.identity.expect_sender_user()?;
 
 	if !services
 		.rooms

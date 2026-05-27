@@ -16,23 +16,19 @@ pub(crate) async fn set_presence_route(
 	State(services): State<crate::State>,
 	body: Ruma<set_presence::v3::Request>,
 ) -> Result<set_presence::v3::Response> {
+	let sender_user = body.identity.expect_sender_user()?;
+
 	if !services.config.allow_local_presence {
 		return Err!(Request(Forbidden("Presence is disabled on this server")));
 	}
 
-	if body.identity.sender_user() != body.user_id && !body.identity.is_appservice() {
+	if sender_user != body.user_id && !body.identity.is_appservice() {
 		return Err!(Request(InvalidParam("Not allowed to set presence of other users")));
 	}
 
 	services
 		.presence
-		.set_presence(
-			body.identity.sender_user(),
-			&body.presence,
-			None,
-			None,
-			body.status_msg.clone(),
-		)
+		.set_presence(sender_user, &body.presence, None, None, body.status_msg.clone())
 		.await?;
 
 	Ok(set_presence::v3::Response::new())
@@ -55,7 +51,7 @@ pub(crate) async fn get_presence_route(
 	let has_shared_rooms = services
 		.rooms
 		.state_cache
-		.user_sees_user(body.identity.sender_user(), &body.user_id)
+		.user_sees_user(body.identity.expect_sender_user()?, &body.user_id)
 		.await;
 
 	if has_shared_rooms {

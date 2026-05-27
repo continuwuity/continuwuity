@@ -109,7 +109,11 @@ pub(crate) async fn change_password_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
-	let identity = if let Some(user_id) = body.identity.as_ref().map(ClientIdentity::sender_user)
+	let identity = if let Some(user_id) = body
+		.identity
+		.as_ref()
+		.map(ClientIdentity::expect_sender_user)
+		.transpose()?
 	{
 		// A signed-in user is trying to change their password, prompt them for their
 		// existing one
@@ -251,7 +255,7 @@ pub(crate) async fn whoami_route(
 	body: Ruma<whoami::v3::Request>,
 ) -> Result<whoami::v3::Response> {
 	Ok(
-		assign!(whoami::v3::Response::new(body.identity.sender_user().to_owned(), false), {
+		assign!(whoami::v3::Response::new(body.identity.expect_sender_user()?.to_owned(), false), {
 			device_id: body.identity.sender_device().map(ToOwned::to_owned),
 		}),
 	)
@@ -279,8 +283,8 @@ pub(crate) async fn deactivate_route(
 	let sender_user = body
 		.identity
 		.as_ref()
-		.map(ClientIdentity::sender_user)
-		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))?;
+		.map(ClientIdentity::expect_sender_user)
+		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))??;
 
 	// Prompt the user to confirm with their password using UIAA
 	let _ = services

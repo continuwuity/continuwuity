@@ -32,10 +32,15 @@ pub(crate) async fn leave_room_route(
 	State(services): State<crate::State>,
 	body: Ruma<leave_room::v3::Request>,
 ) -> Result<leave_room::v3::Response> {
-	leave_room(&services, body.identity.sender_user(), &body.room_id, body.reason.clone())
-		.boxed()
-		.await
-		.map(|()| leave_room::v3::Response::new())
+	leave_room(
+		&services,
+		body.identity.expect_sender_user()?,
+		&body.room_id,
+		body.reason.clone(),
+	)
+	.boxed()
+	.await
+	.map(|()| leave_room::v3::Response::new())
 }
 
 // Make a user leave all their joined rooms, rescinds knocks, forgets all rooms,
