@@ -381,21 +381,25 @@ async fn fetch_shortstatehashes(
 				| Some((_, pdu_after_last_sync_end)) => {
 					trace!(?pdu_after_last_sync_end.event_id, "pdu at last sync end");
 
-					services
-						.rooms
-						.state_accessor
-						.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
-						.await
-						.map_err(|err| err!("Last sync end PDU has no shortstatehash: {err}"))
+					Some(
+						services
+							.rooms
+							.state_accessor
+							.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
+							.await
+							.map_err(|err| {
+								err!("Last sync end PDU has no shortstatehash: {err}")
+							}),
+					)
 				},
 				| None => {
-					// No events have been sent since the last sync, or we just joined this room,
-					// so the state then is the same as the state now
-					Ok(current_shortstatehash)
+					// No events have been sent since the last sync, or we just joined this room
+					None
 				},
 			}
 		}))
 		.await
+		.flatten()
 		.transpose()?;
 
 	Ok(ShortStateHashes {
@@ -464,23 +468,10 @@ async fn build_state_events(
 		last_sync_end_shortstatehash,
 	} = shortstatehashes;
 
-	let timeline_start_shortstatehash = if let Some((count, pdu)) = timeline.pdus.front() {
-		if matches!(count, PduCount::Backfilled(_)) {
-			// We don't have shortstatehashes for backfilled PDUs, the best we can
-			// do is to use the current state
-			current_shortstatehash
-		} else {
-			services
-				.rooms
-				.state_accessor
-				.pdu_shortstatehash(&pdu.event_id)
-				.await
-				.map_err(|err| err!("Timeline start has no shortstatehash: {err}"))?
-		}
-	} else {
-		// if the timeline is empty there can't possibly be any changes to the state
+	if timeline.pdus.is_empty() {
+		// If the timeline is empty there can't possibly be any changes to the state
 		return Ok(vec![]);
-	};
+	}
 
 	// the user IDs of members whose membership needs to be sent to the client, if
 	// lazy-loading is enabled.
@@ -499,7 +490,6 @@ async fn build_state_events(
 				services,
 				syncing_user,
 				last_sync_end_shortstatehash,
-				timeline_start_shortstatehash,
 				current_shortstatehash,
 				timeline,
 				use_state_after,
@@ -516,8 +506,8 @@ async fn build_state_events(
 			build_state_initial(
 				services,
 				syncing_user,
-				timeline_start_shortstatehash,
 				current_shortstatehash,
+				timeline,
 				use_state_after,
 				lazily_loaded_members.as_ref(),
 			)
