@@ -54,9 +54,9 @@ where
 			.is_event_soft_failed(incoming_pdu.event_id())
 	);
 	if rejected {
-		return Err!(Request(InvalidParam("Event has been rejected")));
+		return Err!(Request(Forbidden("Event has been rejected")));
 	} else if soft_failed {
-		return Err!(Request(InvalidParam("Event has been soft-failed")));
+		return Err!(Request(Forbidden("Event has been soft-failed")));
 	}
 
 	debug!(
