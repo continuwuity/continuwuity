@@ -33,19 +33,21 @@ use crate::client::TimelinePdus;
 pub(super) async fn build_state_initial(
 	services: &Services,
 	sender_user: &UserId,
-	timeline_start_shortstatehash: ShortStateHash,
 	timeline_end_shortstatehash: ShortStateHash,
+	timeline: &TimelinePdus,
 	use_state_after: bool,
 	lazily_loaded_members: Option<&MemberSet>,
 ) -> Result<Vec<PduEvent>> {
+	let event_ids_in_timeline: HashSet<_> =
+		timeline.pdus.iter().map(|pdu| &pdu.1.event_id).collect();
+
 	// load the keys and event IDs of the state events at the start of the timeline
 	let (shortstatekeys, event_ids): (Vec<_>, Vec<_>) = services
 		.rooms
 		.state_accessor
-		.state_full_ids(if use_state_after {
-			timeline_end_shortstatehash
-		} else {
-			timeline_start_shortstatehash
+		.state_full_ids(timeline_end_shortstatehash)
+		.ready_filter(|(_, event_id)| {
+			use_state_after || !event_ids_in_timeline.contains(event_id)
 		})
 		.unzip()
 		.await;
@@ -94,7 +96,6 @@ pub(super) async fn build_state_incremental<'a>(
 	services: &Services,
 	sender_user: &'a UserId,
 	last_sync_end_shortstatehash: ShortStateHash,
-	timeline_start_shortstatehash: ShortStateHash,
 	timeline_end_shortstatehash: ShortStateHash,
 	timeline: &TimelinePdus,
 	use_state_after: bool,
@@ -105,7 +106,6 @@ pub(super) async fn build_state_incremental<'a>(
 	trace!(
 		%use_state_after,
 		%last_sync_end_shortstatehash,
-		%timeline_start_shortstatehash,
 		%timeline_end_shortstatehash,
 		"computing state for incremental sync"
 	);
@@ -132,7 +132,7 @@ pub(super) async fn build_state_incremental<'a>(
 							.rooms
 							.state_accessor
 							.state_get_shortid(
-								timeline_start_shortstatehash,
+								timeline_end_shortstatehash,
 								&StateEventType::RoomMember,
 								user_id.as_str(),
 							)

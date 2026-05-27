@@ -4,7 +4,7 @@ use conduwuit::{
 	trace,
 	utils::{self, IterStream, future::ReadyEqExt, stream::WidebandExt as _},
 };
-use futures::{StreamExt, future::join};
+use futures::StreamExt;
 use ruma::{
 	EventId, OwnedRoomId, RoomId,
 	api::client::sync::sync_events::v3::{
@@ -240,29 +240,8 @@ async fn build_left_state_and_timeline(
 	)
 	.await?;
 
-	let timeline_start_shortstatehash = async {
-		if let Some((_, pdu)) = timeline.pdus.front() {
-			if let Ok(shortstatehash) = services
-				.rooms
-				.state_accessor
-				.pdu_shortstatehash(&pdu.event_id)
-				.await
-			{
-				return shortstatehash;
-			}
-		}
-
-		// the timeline generally should not be empty (see the TODO further down),
-		// but in case it is we use `leave_shortstatehash` as the state to
-		// send
-		leave_shortstatehash
-	};
-
 	let lazily_loaded_members =
-		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders());
-
-	let (timeline_start_shortstatehash, lazily_loaded_members) =
-		join(timeline_start_shortstatehash, lazily_loaded_members).await;
+		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders()).await;
 
 	// TODO: calculate incremental state for incremental syncs.
 	// always calculating initial state _works_ but returns more data and does
@@ -270,8 +249,8 @@ async fn build_left_state_and_timeline(
 	let mut state = build_state_initial(
 		services,
 		syncing_user,
-		timeline_start_shortstatehash,
 		leave_shortstatehash,
+		&timeline,
 		sync_context.use_state_after,
 		lazily_loaded_members.as_ref(),
 	)
