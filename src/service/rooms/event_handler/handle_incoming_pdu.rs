@@ -15,7 +15,6 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use tracing::debug;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -241,7 +240,6 @@ pub async fn handle_incoming_pdu<'a>(
 
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
-	debug!("Handling previous events");
 
 	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
 		.await?;

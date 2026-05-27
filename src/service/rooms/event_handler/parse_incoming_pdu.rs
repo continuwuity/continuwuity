@@ -7,7 +7,7 @@ use conduwuit::{
 use itertools::Itertools;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	RoomVersionId,
+	RoomVersionId, room_version_rules::RoomVersionRules,
 };
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -101,6 +101,20 @@ pub fn validate_pdu(&self, pdu: &CanonicalJsonObject) -> Result {
 		return Err!(Request(BadJson("PDU has too many prev events")));
 	}
 	Ok(())
+}
+
+#[implement(super::Service)]
+pub async fn parse_incoming_pdu_with_known_room(
+	&self,
+	pdu: &RawJsonValue,
+	room_version_rules: &RoomVersionRules,
+) -> Result<(OwnedEventId, CanonicalJsonObject)> {
+	let (event_id, value) =
+		gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
+			err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+		})?;
+	self.validate_pdu(&value)?;
+	Ok((event_id, value))
 }
 
 #[implement(super::Service)]
