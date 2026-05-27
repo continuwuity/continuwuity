@@ -1,11 +1,14 @@
-use std::any::{Any, TypeId};
+use std::{
+	any::{Any, TypeId},
+	fmt::Display,
+};
 
 use conduwuit::{Err, Error, Result, err};
 use http::StatusCode;
 use ruma::{
 	DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
 	api::{
-		IncomingRequest,
+		IncomingRequest, OAuthClientScope,
 		auth_scheme::{
 			AccessToken, AccessTokenOptional, AppserviceToken, AppserviceTokenOptional,
 			AuthScheme, NoAccessToken, NoAuthentication,
@@ -77,6 +80,17 @@ impl ClientIdentity {
 	pub(crate) fn is_appservice(&self) -> bool { matches!(self, Self::Appservice { .. }) }
 }
 
+impl Display for ClientIdentity {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		match self {
+			| Self::User { sender_user, sender_device } =>
+				write!(f, "{sender_user} ({sender_device})"),
+			| Self::Appservice { sender_user, appservice_info, .. } =>
+				write!(f, "appservice `{}` using {sender_user}", appservice_info.registration.id),
+		}
+	}
+}
+
 pub(crate) trait CheckAuth: AuthScheme {
 	type Identity: Send;
 
@@ -95,7 +109,8 @@ pub(crate) trait CheckAuth: AuthScheme {
 				))))
 			})?;
 
-			Self::verify(services, output, incoming_request, query, route).await
+			Self::verify(services, output, incoming_request, query, route, R::REQUIRED_SCOPES)
+				.await
 		}
 	}
 
@@ -105,6 +120,7 @@ pub(crate) trait CheckAuth: AuthScheme {
 		request: &hyper::Request<B>,
 		query: AuthQueryParams,
 		route: TypeId,
+		required_scopes: &[OAuthClientScope],
 	) -> impl Future<Output = Result<Self::Identity>> + Send;
 }
 
@@ -117,6 +133,7 @@ impl CheckAuth for ServerSignatures {
 		request: &hyper::Request<B>,
 		_query: AuthQueryParams,
 		_route: TypeId,
+		_required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		let destination = services.globals.server_name();
 		if output
@@ -166,6 +183,7 @@ impl CheckAuth for AccessToken {
 		_request: &hyper::Request<B>,
 		query: AuthQueryParams,
 		route: TypeId,
+		required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		if output.is_empty() {
 			return Err!(Request(Unauthorized("Missing access token.")));
@@ -195,6 +213,32 @@ impl CheckAuth for AccessToken {
 					|| route == TypeId::of::<client::session::logout_all::v3::Request>())
 				{
 					return Err!(Request(UserLocked("Your account is locked.")));
+				}
+			}
+
+			// If this device is bound to an OAuth session, check its scopes. This will also
+			// handle admin-only endpoints for OAuth clients.
+			if let Some(session) = services
+				.oauth
+				.get_session_info_for_device(&sender_user, &sender_device)
+				.await
+			{
+				if !required_scopes
+					.iter()
+					.any(|scope| session.scopes.contains(scope))
+				{
+					return Err!(Request(Forbidden(
+						"You don't have the necessary scopes to use this endpoint."
+					)));
+				}
+			} else {
+				// Otherwise, explicitly if the endpoint is restricted to admins only.
+				if required_scopes.contains(&OAuthClientScope::ServerAdministration)
+					&& services.users.is_admin(&sender_user).await
+				{
+					return Err!(Request(Forbidden(
+						"Only server administrators can use this endpoint"
+					)));
 				}
 			}
 
@@ -263,12 +307,19 @@ impl CheckAuth for AccessTokenOptional {
 		request: &hyper::Request<B>,
 		query: AuthQueryParams,
 		route: TypeId,
+		required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		match output {
-			| Some(token) =>
-				<AccessToken as CheckAuth>::verify(services, token, request, query, route)
-					.await
-					.map(Some),
+			| Some(token) => <AccessToken as CheckAuth>::verify(
+				services,
+				token,
+				request,
+				query,
+				route,
+				required_scopes,
+			)
+			.await
+			.map(Some),
 			| None => Ok(None),
 		}
 	}
@@ -283,6 +334,7 @@ impl CheckAuth for AppserviceToken {
 		_request: &hyper::Request<B>,
 		_query: AuthQueryParams,
 		_route: TypeId,
+		_required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		if output.is_empty() {
 			return Err!(Request(Unauthorized("Missing access token.")));
@@ -304,12 +356,19 @@ impl CheckAuth for AppserviceTokenOptional {
 		request: &hyper::Request<B>,
 		query: AuthQueryParams,
 		route: TypeId,
+		required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		match output {
-			| Some(token) =>
-				<AppserviceToken as CheckAuth>::verify(services, token, request, query, route)
-					.await
-					.map(Some),
+			| Some(token) => <AppserviceToken as CheckAuth>::verify(
+				services,
+				token,
+				request,
+				query,
+				route,
+				required_scopes,
+			)
+			.await
+			.map(Some),
 			| None => Ok(None),
 		}
 	}
@@ -324,6 +383,7 @@ impl CheckAuth for NoAuthentication {
 		_request: &hyper::Request<B>,
 		_query: AuthQueryParams,
 		_route: TypeId,
+		_required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		Ok(())
 	}
@@ -338,6 +398,7 @@ impl CheckAuth for NoAccessToken {
 		request: &hyper::Request<B>,
 		query: AuthQueryParams,
 		route: TypeId,
+		required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		// We handle these the same as AccessTokenOptional
 		let token = AccessTokenOptional::extract_authentication(request).map_err(|err| {
@@ -357,6 +418,14 @@ impl CheckAuth for NoAccessToken {
 			)));
 		}
 
-		<AccessTokenOptional as CheckAuth>::verify(services, token, request, query, route).await
+		<AccessTokenOptional as CheckAuth>::verify(
+			services,
+			token,
+			request,
+			query,
+			route,
+			required_scopes,
+		)
+		.await
 	}
 }

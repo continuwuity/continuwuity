@@ -6,7 +6,7 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::{oauth::grant::AuthorizationCodeResponse, oidc::SessionCompletionStatus};
+use conduwuit_service::{oauth::grant::AuthorizationCodeData, oidc::SessionCompletionStatus};
 use futures::FutureExt;
 use ruma::{OwnedServerName, UserId};
 use serde::{Deserialize, de::IgnoredAny};
@@ -57,7 +57,7 @@ struct LoginForm {
 async fn route_complete(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
-	Expect(Query(query)): Expect<Query<AuthorizationCodeResponse>>,
+	Expect(Query(query)): Expect<Query<AuthorizationCodeData>>,
 	session_store: Session,
 	user: User<true>,
 	PostForm(form): PostForm<LoginForm>,

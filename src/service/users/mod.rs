@@ -31,7 +31,7 @@ pub struct UserSuspension {
 	/// When the user was suspended (Unix timestamp in milliseconds)
 	pub suspended_at: u64,
 	/// User ID of who suspended this user
-	pub suspended_by: String,
+	pub suspended_by: Option<String>,
 }
 
 /// A password hash. This is only for use when setting a user's password,

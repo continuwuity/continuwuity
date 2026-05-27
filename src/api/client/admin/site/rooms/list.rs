@@ -1,6 +1,6 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Event, Result,
+	Event, Result,
 	utils::stream::{BroadbandExt, WidebandExt},
 };
 use futures::StreamExt;
@@ -28,15 +28,10 @@ use crate::Ruma;
 /// pagination or including banned rooms. It is recommended to use the
 /// `/v1/rooms` endpoint instead. This endpoint may be removed in a future
 /// release.
-pub(crate) async fn legacy_list_rooms_route(
+pub(crate) async fn legacy_list_rooms(
 	State(services): State<crate::State>,
-	body: Ruma<rooms::list::unstable::Request>,
+	_body: Ruma<rooms::list::unstable::Request>,
 ) -> Result<rooms::list::unstable::Response> {
-	let sender_user = body.identity.expect_sender_user()?;
-	if !services.users.is_admin(sender_user).await {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
-
 	let mut rooms: Vec<OwnedRoomId> = services
 		.rooms
 		.metadata
@@ -57,15 +52,10 @@ pub(crate) async fn legacy_list_rooms_route(
 /// # `GET /_continuwuity/admin/v1/rooms`
 ///
 /// Lists rooms known to this server.
-pub(crate) async fn list_rooms_route(
+pub(crate) async fn list_rooms(
 	State(services): State<crate::State>,
 	body: Ruma<rooms::list::v1::Request>,
 ) -> Result<rooms::list::v1::Response> {
-	let sender_user = body.sender_user();
-	if !services.users.is_admin(sender_user).await {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
-
 	let include_banned_rooms = body.include_banned_rooms;
 	let rooms = services
 		.rooms

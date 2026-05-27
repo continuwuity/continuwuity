@@ -8,7 +8,7 @@ use std::{
 };
 
 use regex::Regex;
-use ruma::OwnedDeviceId;
+use ruma::{OwnedDeviceId, api::OAuthClientScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -55,26 +55,40 @@ pub enum Prompt {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialOrd, Ord)]
-pub enum Scope {
+pub enum RequestedScope {
 	Device(OwnedDeviceId),
-	ClientApi,
+	ApiFullAccess,
+	ServerAdministration,
 }
 
-impl PartialEq for Scope {
+impl RequestedScope {
+	#[must_use]
+	pub fn as_granted_scope(&self) -> Option<OAuthClientScope> {
+		match self {
+			| Self::ApiFullAccess => Some(OAuthClientScope::ApiFullAccess),
+			| Self::ServerAdministration => Some(OAuthClientScope::ServerAdministration),
+			| Self::Device(_) => None,
+		}
+	}
+}
+
+impl PartialEq for RequestedScope {
 	fn eq(&self, other: &Self) -> bool { discriminant(self) == discriminant(other) }
 }
 
-impl Eq for Scope {}
+impl Eq for RequestedScope {}
 
-impl Hash for Scope {
+impl Hash for RequestedScope {
 	fn hash<H: std::hash::Hasher>(&self, state: &mut H) { discriminant(self).hash(state); }
 }
 
-impl Display for Scope {
+impl Display for RequestedScope {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let urn = match self {
-			| Self::ClientApi => "urn:matrix:client:api:*".to_owned(),
+			| Self::ApiFullAccess => "urn:matrix:client:api:*".to_owned(),
 			| Self::Device(device_id) => format!("urn:matrix:client:device:{device_id}"),
+			| Self::ServerAdministration =>
+				"urn:matrix:client:cc.c10y.msc4484.server_administration".to_owned(),
 		};
 
 		f.write_str(&urn)
@@ -85,22 +99,27 @@ impl Display for Scope {
 pub struct RawScopes(String);
 
 impl RawScopes {
-	pub fn to_scopes(&self) -> Result<BTreeSet<Scope>, String> {
-		let client_api_token_regex =
+	pub fn to_scopes(&self) -> Result<BTreeSet<RequestedScope>, String> {
+		let full_access_regex =
 			Regex::new(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*").unwrap();
 		let device_token_regex = Regex::new(
 			r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})",
 		)
 		.unwrap();
+		let server_administration_regex =
+			Regex::new(r"urn:matrix:client:cc.c10y.msc4484.server_administration").unwrap();
 
 		let mut scopes = BTreeSet::new();
 
 		for token in self.0.split(' ') {
 			let scope_was_new = {
-				if client_api_token_regex.is_match(token) {
-					scopes.insert(Scope::ClientApi)
+				if full_access_regex.is_match(token) {
+					scopes.insert(RequestedScope::ApiFullAccess)
 				} else if let Some(captures) = device_token_regex.captures(token) {
-					scopes.insert(Scope::Device(captures.get(2).unwrap().as_str().into()))
+					scopes
+						.insert(RequestedScope::Device(captures.get(2).unwrap().as_str().into()))
+				} else if server_administration_regex.is_match(token) {
+					scopes.insert(RequestedScope::ServerAdministration)
 				} else if token == "openid" {
 					// TODO(unspecced): Element sets this scope but doesn't use it for anything
 					true
@@ -160,8 +179,15 @@ pub enum ErrorCode {
 	InvalidClientMetadata,
 }
 
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum AuthorizationCodeResponse {
+	Success(AuthorizationCodeData),
+	Error(OAuthError),
+}
+
 #[derive(Serialize, Deserialize)]
-pub struct AuthorizationCodeResponse {
+pub struct AuthorizationCodeData {
 	pub state: String,
 	pub code: String,
 }

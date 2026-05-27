@@ -6,8 +6,7 @@ use conduwuit::{
 };
 use ruma::api::{
 	IncomingResponse, OutgoingRequest,
-	appservice::Registration,
-	auth_scheme::{AccessToken, SendAccessToken},
+	appservice::{HomeserverToken, Registration},
 	path_builder::SinglePath,
 };
 
@@ -22,7 +21,7 @@ impl super::Service {
 		request: T,
 	) -> Result<Option<T::IncomingResponse>>
 	where
-		T: OutgoingRequest<Authentication = AccessToken, PathBuilder = SinglePath> + Debug + Send,
+		T: OutgoingRequest<Authentication = HomeserverToken, PathBuilder = SinglePath> + Debug + Send,
 	{
 		let Some(dest) = registration.url else {
 			return Ok(None);
@@ -36,7 +35,7 @@ impl super::Service {
 
 		let hs_token = registration.hs_token.as_str();
 		let mut http_request = request
-			.try_into_http_request::<BytesMut>(&dest, SendAccessToken::Appservice(hs_token), ())
+			.try_into_http_request::<BytesMut>(&dest, hs_token, ())
 			.map_err(|e| {
 				err!(BadServerResponse(
 					warn!(appservice = %registration.id, "Failed to find destination {dest}: {e:?}")

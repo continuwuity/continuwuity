@@ -33,7 +33,7 @@ use url::Url;
 
 use crate::{
 	Dep, config, globals, media,
-	oauth::grant::AuthorizationCodeResponse,
+	oauth::grant::AuthorizationCodeData,
 	threepid,
 	users::{self, AccountStatus, ProfileFieldChange},
 };
@@ -245,7 +245,7 @@ impl Service {
 	pub async fn exchange_code(
 		&self,
 		session: PendingSession,
-		response: AuthorizationCodeResponse,
+		response: AuthorizationCodeData,
 	) -> Result<Claims, &'static str> {
 		let Some(OidcClient { machine, client, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
