@@ -18,7 +18,7 @@ use self::handler::RouterExt;
 pub(super) use self::{args::Args as Ruma, auth::ClientIdentity, response::RumaResponse};
 #[cfg(feature = "admin_api")]
 use crate::client::admin::site as admin_api;
-use crate::{client, server};
+use crate::{client::{self, admin}, server};
 
 pub fn build(router: Router<State>, state: State) -> Router<State> {
 	let config = &state.server.config;
@@ -193,8 +193,11 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_authorization_server_metadata_route)
 		.merge(client::oauth::router(state))
 		.route("/_continuwuity/server_version", get(client::continuwuity_server_version))
-		.ruma_route(&admin::rooms::ban::ban_room)
-		.ruma_route(&admin::rooms::list::list_rooms);
+		.ruma_route(&admin::site::rooms::ban_room)
+		.ruma_route(&admin::site::rooms::list_rooms)
+		.ruma_route(&admin::site::rooms::legacy_list_rooms)
+		.ruma_route(&admin::site::users::create_user)
+		.ruma_route(&admin::site::users::list_users);
 
 	if config.allow_federation {
 		router = router

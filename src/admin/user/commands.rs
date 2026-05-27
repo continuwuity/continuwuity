@@ -101,7 +101,8 @@ impl crate::Context<'_> {
 			.await
 	}
 
-	pub(super) async fn suspend(&self, user_id: String) -> Result {
+	
+pub(super) async fn suspend(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
@@ -115,7 +116,7 @@ impl crate::Context<'_> {
 		// TODO: Record the actual user that sent the suspension where possible
 		self.services
 			.users
-			.suspend_account(&user_id, self.sender_or_service_user())
+			.suspend_account(&user_id, self.sender)
 			.await;
 
 		self.write_str(&format!("User {user_id} has been suspended."))
@@ -934,7 +935,8 @@ impl crate::Context<'_> {
 			.await
 	}
 
-	pub(super) async fn lock(&self, user_id: String) -> Result {
+	
+pub(super) async fn lock(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
@@ -948,7 +950,7 @@ impl crate::Context<'_> {
 
 		self.services
 			.users
-			.lock_account(&user_id, self.sender_or_service_user())
+			.lock_account(&user_id, self.sender)
 			.await;
 
 		self.write_str(&format!("User {user_id} has been locked."))

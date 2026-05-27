@@ -7,7 +7,7 @@ use axum::{
 	routing::on,
 };
 use conduwuit_service::{
-	oauth::grant::AuthorizationCodeResponse,
+	oauth::grant::AuthorizationCodeData,
 	oidc::{ClaimedLocalUser, SessionCompletionStatus},
 };
 use futures::FutureExt;
@@ -60,7 +60,7 @@ struct LoginForm {
 async fn route_complete(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
-	Expect(Query(query)): Expect<Query<AuthorizationCodeResponse>>,
+	Expect(Query(query)): Expect<Query<AuthorizationCodeData>>,
 	session_store: Session,
 	user: User<true>,
 	PostForm(form): PostForm<LoginForm>,

@@ -4567,7 +4567,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "assign",
  "js_int",
@@ -4586,8 +4586,9 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
+ "http",
  "js_int",
  "ruma-common",
  "ruma-events",
@@ -4598,7 +4599,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.24.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "as_variant",
  "assign",
@@ -4620,7 +4621,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
@@ -4653,7 +4654,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.34.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "as_variant",
  "indexmap 2.14.0",
@@ -4674,7 +4675,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "bytes",
  "headers",
@@ -4697,7 +4698,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.12.1"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "js_int",
  "thiserror 2.0.18",
@@ -4706,7 +4707,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "as_variant",
  "cfg-if",
@@ -4722,7 +4723,7 @@ dependencies = [
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4734,7 +4735,7 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.21.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
@@ -4751,7 +4752,7 @@ dependencies = [
 [[package]]
 name = "ruma-state-res"
 version = "0.17.0"
-source = "git+https://github.com/ruma/ruma.git?rev=04d5d68841c3c8d71e5fe6f7899ccccad94274c3#04d5d68841c3c8d71e5fe6f7899ccccad94274c3"
+source = "git+https://github.com/gingershaped/ruwuma.git?rev=66811f042b1bdc147dab3c45f697383e902f28c0#66811f042b1bdc147dab3c45f697383e902f28c0"
 dependencies = [
  "js_int",
  "ruma-common",

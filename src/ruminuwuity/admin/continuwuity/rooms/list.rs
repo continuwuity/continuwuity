@@ -1,7 +1,7 @@
 pub mod unstable {
 	use ruma::{
 		OwnedRoomId,
-		api::{auth_scheme::AccessToken, request, response},
+		api::{OAuthClientScope, auth_scheme::AccessToken, request, response},
 		metadata,
 	};
 
@@ -9,6 +9,7 @@ pub mod unstable {
 		method: GET,
 		rate_limited: false,
 		authentication: AccessToken,
+		required_scopes: [OAuthClientScope::ServerAdministration],
 		history: {
 			unstable => "/_continuwuity/admin/rooms/list",
 		}

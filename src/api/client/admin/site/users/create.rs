@@ -1,66 +1,71 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, err, error, info,
+	err, error, info,
 	utils::{IterStream, stream::BroadbandExt},
 	warn,
 };
 use futures::{FutureExt, StreamExt};
-use ruma::UserId;
+use ruma::{UserId, api::client::profile::PropagateTo, profile::ProfileFieldValue};
 use ruminuwuity::admin::continuwuity::users;
-use service::users::HashedPassword;
+use service::users::{HashedPassword, ProfileFieldChange};
 
 use crate::router::Ruma;
 
 /// # `POST /_continuwuity/admin/v1/users/create`
 ///
 /// Creates a new user.
-pub(crate) async fn create_user_route(
+pub(crate) async fn create_user(
 	State(services): State<crate::State>,
 	body: Ruma<users::create::v1::Request>,
 ) -> conduwuit::Result<users::create::v1::Response> {
-	let sender_user = body.sender_user();
-
-	if !services.users.is_admin(sender_user).await {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
 	let user_id =
 		&UserId::parse_with_server_name(&body.localpart, services.globals.server_name())?;
-	if services.users.is_active_local(user_id).await {
-		return Err!(Conflict("A user with this username already exists"));
-	}
+	
+	let email = body.email
+		.clone()
+		.map(lettre::Address::try_from)
+		.transpose()
+		.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?;
 
 	services
 		.users
-		.create_local_account(
-			user_id,
-			HashedPassword::new(&body.password)?,
-			body.email
-				.clone()
-				.map(lettre::Address::try_from)
-				.transpose()
-				.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?,
-		)
-		.await;
+		.create_shadow_account(user_id)
+		.await?;
+
+	services.users.convert_to_local_account(user_id, HashedPassword::new(&body.password)?).await?;
+
+	if let Some(email) = &email {
+		services.threepid.associate_localpart_email(user_id.localpart(), email).await?;
+	}
+
 	if body.suspended {
-		services.users.suspend_account(user_id, sender_user).await;
+		services
+			.users
+			.suspend_account(user_id, body.identity.sender_user())
+			.await;
 	}
 	if body.locked {
-		services.users.lock_account(user_id, sender_user).await;
+		services
+			.users
+			.lock_account(user_id, body.identity.sender_user())
+			.await;
 	}
 	if body.login_disabled {
 		services.users.disable_login(user_id);
 	}
 	if let Some(ref value) = body.display_name {
-		services.users.set_profile_key(
+		services.users.set_profile_field(
 			user_id,
-			"displayname",
-			Some(serde_json::to_value(value)?),
+			ProfileFieldChange::Set(ProfileFieldValue::DisplayName(value.to_owned())),
+			PropagateTo::None,
 		);
 	}
 	if let Some(ref value) = body.avatar_url {
-		services
-			.users
-			.set_profile_key(user_id, "avatar_url", Some(serde_json::to_value(value)?));
+		services.users.set_profile_field(
+			user_id,
+			ProfileFieldChange::Set(ProfileFieldValue::AvatarUrl(value.to_owned())),
+			PropagateTo::None,
+		);
 	}
 	if body.admin {
 		services
@@ -70,14 +75,18 @@ pub(crate) async fn create_user_route(
 			.inspect_err(|e| error!("failed to make new user {user_id} an admin: {e}"))
 			.ok();
 	}
-	if !body.skip_auto_join {
-		services.users.join_auto_join_rooms(user_id).await;
-	}
 
 	body.auto_join_rooms
 		.clone()
 		.into_iter()
 		.stream()
+		.chain(
+			if body.skip_auto_join {
+				vec![]
+			} else {
+				services.config.auto_join_rooms.clone()
+			}.into_iter().stream()
+		)
 		.broad_filter_map(|room| async move {
 			services
 				.rooms

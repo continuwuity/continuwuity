@@ -7,6 +7,7 @@ use axum::{
 use conduwuit_service::oauth::{
 	client_metadata::ClientMetadata,
 	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
+RequestedScope,
 };
 use ruma::OwnedUserId;
 use serde::{Deserialize, de::IgnoredAny};
@@ -102,7 +103,13 @@ async fn route_authorization_code(
 		return Err(WebError::BadRequest("Invalid client ID".to_owned()));
 	};
 
-	let scopes = query.scope.to_scopes().map_err(WebError::BadRequest)?;
+	let scopes = query
+		.scope
+		.to_scopes()
+		.map_err(WebError::BadRequest)?
+		.iter()
+		.filter_map(RequestedScope::as_granted_scope)
+		.collect();
 
 	let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
