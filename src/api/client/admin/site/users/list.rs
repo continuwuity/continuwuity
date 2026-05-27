@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, utils::stream::WidebandExt};
+use conduwuit::utils::stream::WidebandExt;
 use futures::StreamExt;
 use ruminuwuity::admin::continuwuity::users;
 use tokio::join;
@@ -13,12 +13,6 @@ pub(crate) async fn list_users_route(
 	State(services): State<crate::State>,
 	body: Ruma<users::list::v1::Request>,
 ) -> conduwuit::Result<users::list::v1::Response> {
-	let sender_user = body.sender_user();
-
-	if !services.users.is_admin(sender_user).await {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
-
 	let users = services
 		.users
 		.list_local_users()

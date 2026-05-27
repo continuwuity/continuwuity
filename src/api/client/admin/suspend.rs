@@ -70,7 +70,7 @@ pub(crate) async fn put_suspended_status(
 	let action = if body.suspended {
 		services
 			.users
-			.suspend_account(&body.user_id, sender_user)
+			.suspend_account(&body.user_id, body.identity.sender_user())
 			.await;
 		"suspended"
 	} else {

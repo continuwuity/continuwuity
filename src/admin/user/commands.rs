@@ -122,7 +122,7 @@ pub(super) async fn suspend(&self, user_id: String) -> Result {
 	// TODO: Record the actual user that sent the suspension where possible
 	self.services
 		.users
-		.suspend_account(&user_id, self.sender_or_service_user())
+		.suspend_account(&user_id, self.sender)
 		.await;
 
 	self.write_str(&format!("User {user_id} has been suspended."))
@@ -939,7 +939,7 @@ pub(super) async fn lock(&self, user_id: String) -> Result {
 	}
 	self.services
 		.users
-		.lock_account(&user_id, self.sender_or_service_user())
+		.lock_account(&user_id, self.sender)
 		.await;
 
 	self.write_str(&format!("User {user_id} has been locked."))

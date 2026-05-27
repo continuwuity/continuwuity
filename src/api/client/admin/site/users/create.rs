@@ -18,13 +18,9 @@ pub(crate) async fn create_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<users::create::v1::Request>,
 ) -> conduwuit::Result<users::create::v1::Response> {
-	let sender_user = body.sender_user();
-
-	if !services.users.is_admin(sender_user).await {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
 	let user_id =
 		&UserId::parse_with_server_name(&body.localpart, services.globals.server_name())?;
+
 	if services.users.is_active_local(user_id).await {
 		return Err!(Conflict("A user with this username already exists"));
 	}
@@ -41,11 +37,18 @@ pub(crate) async fn create_user_route(
 				.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?,
 		)
 		.await;
+
 	if body.suspended {
-		services.users.suspend_account(user_id, sender_user).await;
+		services
+			.users
+			.suspend_account(user_id, body.identity.sender_user())
+			.await;
 	}
 	if body.locked {
-		services.users.lock_account(user_id, sender_user).await;
+		services
+			.users
+			.lock_account(user_id, body.identity.sender_user())
+			.await;
 	}
 	if body.login_disabled {
 		services.users.disable_login(user_id);

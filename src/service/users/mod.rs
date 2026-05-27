@@ -52,7 +52,7 @@ pub struct UserSuspension {
 	/// When the user was suspended (Unix timestamp in milliseconds)
 	pub suspended_at: u64,
 	/// User ID of who suspended this user
-	pub suspended_by: String,
+	pub suspended_by: Option<String>,
 }
 
 /// A password hash. This is only for use when setting a user's password,
@@ -290,8 +290,7 @@ impl Service {
 		// register, suspend them.
 		if !was_first_user && self.services.config.suspend_on_register {
 			// Note that we can still do auto joins for suspended users
-			self.suspend_account(user_id, &self.services.globals.server_user)
-				.await;
+			self.suspend_account(user_id, None).await;
 
 			// And send an @room notice to the admin room, to prompt admins to review the
 			// new user and ideally unsuspend them if deemed appropriate.
@@ -482,13 +481,13 @@ impl Service {
 	}
 
 	/// Suspend account, placing it in a read-only state
-	pub async fn suspend_account(&self, user_id: &UserId, suspending_user: &UserId) {
+	pub async fn suspend_account(&self, user_id: &UserId, suspending_user: Option<&UserId>) {
 		self.db.userid_suspension.raw_put(
 			user_id,
 			Json(UserSuspension {
 				suspended: true,
 				suspended_at: MilliSecondsSinceUnixEpoch::now().get().into(),
-				suspended_by: suspending_user.to_string(),
+				suspended_by: suspending_user.map(ToString::to_string),
 			}),
 		);
 	}
@@ -498,7 +497,7 @@ impl Service {
 		self.db.userid_suspension.remove(user_id);
 	}
 
-	pub async fn lock_account(&self, user_id: &UserId, locking_user: &UserId) {
+	pub async fn lock_account(&self, user_id: &UserId, locking_user: Option<&UserId>) {
 		// NOTE: Locking is basically just suspension with a more severe effect,
 		// so we'll just re-use the suspension data structure to store the lock state.
 		let suspension = self
@@ -510,7 +509,7 @@ impl Service {
 			.unwrap_or_else(|_| UserSuspension {
 				suspended: true,
 				suspended_at: MilliSecondsSinceUnixEpoch::now().get().into(),
-				suspended_by: locking_user.to_string(),
+				suspended_by: locking_user.map(ToString::to_string),
 			});
 
 		self.db.userid_lock.raw_put(user_id, Json(suspension));

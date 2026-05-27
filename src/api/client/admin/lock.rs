@@ -1,6 +1,5 @@
 use axum::extract::State;
 use conduwuit::Err;
-use futures::future::{join, join3};
 use ruma::api::client::admin::{is_user_locked, lock_user};
 
 use crate::router::Ruma;
@@ -12,19 +11,12 @@ pub(crate) async fn get_locked_status(
 	State(services): State<crate::State>,
 	body: Ruma<is_user_locked::v1::Request>,
 ) -> conduwuit::Result<is_user_locked::v1::Response> {
-	let sender_user = body.sender_user();
+	if !services.users.is_active_local(&body.user_id).await {
+		return Err!(Request(InvalidParam(
+			"Can only check the lock status of active local users"
+		)));
+	}
 
-	let (admin, active) =
-		join(services.users.is_admin(sender_user), services.users.is_active(&body.user_id)).await;
-	if !admin {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
-	if !services.globals.user_is_local(&body.user_id) {
-		return Err!(Request(InvalidParam("Can only check the lock status of local users")));
-	}
-	if !active {
-		return Err!(Request(NotFound("Unknown user")));
-	}
 	Ok(is_user_locked::v1::Response::new(
 		services.users.is_locked(&body.user_id).await?,
 	))
@@ -37,30 +29,20 @@ pub(crate) async fn put_locked_status(
 	State(services): State<crate::State>,
 	body: Ruma<lock_user::v1::Request>,
 ) -> conduwuit::Result<lock_user::v1::Response> {
-	let sender_user = body.sender_user();
+	if !services.users.is_active_local(&body.user_id).await {
+		return Err!(Request(InvalidParam(
+			"Can only set the locked status of active local users"
+		)));
+	}
 
-	let (sender_admin, active, target_admin) = join3(
-		services.users.is_admin(sender_user),
-		services.users.is_active(&body.user_id),
-		services.users.is_admin(&body.user_id),
-	)
-	.await;
-
-	if !sender_admin {
-		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
-	}
-	if !services.globals.user_is_local(&body.user_id) {
-		return Err!(Request(InvalidParam("Can only set the locked status of local users")));
-	}
-	if !active {
-		return Err!(Request(NotFound("Unknown user")));
-	}
-	if body.user_id == *sender_user {
+	if body.identity.sender_user() == Some(&body.user_id) {
 		return Err!(Request(Forbidden("You cannot lock yourself")));
 	}
-	if target_admin {
+
+	if services.users.is_admin(&body.user_id).await {
 		return Err!(Request(Forbidden("You cannot lock another server administrator")));
 	}
+
 	if services.users.is_locked(&body.user_id).await? == body.locked {
 		// No change
 		return Ok(lock_user::v1::Response::new(body.locked));
@@ -69,7 +51,7 @@ pub(crate) async fn put_locked_status(
 	let action = if body.locked {
 		services
 			.users
-			.lock_account(&body.user_id, sender_user)
+			.lock_account(&body.user_id, body.identity.sender_user())
 			.await;
 		"suspended"
 	} else {
@@ -81,7 +63,7 @@ pub(crate) async fn put_locked_status(
 		// Notify the admin room that an account has been un/suspended
 		services
 			.admin
-			.send_text(&format!("{} has been {} by {}.", body.user_id, action, sender_user))
+			.send_text(&format!("{} has been {} by {}.", body.user_id, action, body.identity))
 			.await;
 	}
 

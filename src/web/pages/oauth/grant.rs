@@ -4,7 +4,7 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Prompt};
+use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Prompt, RequestedScope};
 use ruma::OwnedUserId;
 use url::Url;
 
@@ -100,7 +100,13 @@ async fn route_authorization_code(
 		return Err(WebError::BadRequest("Invalid client ID".to_owned()));
 	};
 
-	let scopes = query.scope.to_scopes().map_err(WebError::BadRequest)?;
+	let scopes = query
+		.scope
+		.to_scopes()
+		.map_err(WebError::BadRequest)?
+		.iter()
+		.filter_map(RequestedScope::as_granted_scope)
+		.collect();
 
 	let client_name = if let Some(name) = &client.client_name {
 		name

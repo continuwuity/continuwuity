@@ -3,12 +3,11 @@ use std::{collections::BTreeSet, time::SystemTime};
 use askama::{Template, filters::HtmlSafe};
 use base64::Engine;
 use conduwuit_core::{result::FlatOk, utils};
-use conduwuit_service::{
-	Services,
-	media::mxc::Mxc,
-	oauth::{client_metadata::ClientMetadata, grant::Scope},
+use conduwuit_service::{Services, media::mxc::Mxc, oauth::client_metadata::ClientMetadata};
+use ruma::{
+	OwnedDeviceId, OwnedUserId, UserId,
+	api::{OAuthScope, client::device::Device},
 };
-use ruma::{OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device};
 
 pub(super) mod form;
 
@@ -183,7 +182,7 @@ impl DeviceCard {
 #[derive(Debug, Template)]
 #[template(path = "_components/client_scopes.html.j2")]
 pub(super) struct ClientScopes {
-	pub scopes: BTreeSet<Scope>,
+	pub scopes: BTreeSet<OAuthScope>,
 }
 
 impl HtmlSafe for ClientScopes {}

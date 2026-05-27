@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::BTreeSet};
+use std::collections::BTreeSet;
 
 use futures::{
 	Future,
@@ -824,7 +824,7 @@ where
 
 			let prev_event_is_create_event = prev_events
 				.next()
-				.is_some_and(|event_id| event_id.borrow() == create_room.event_id().borrow());
+				.is_some_and(|event_id| event_id == create_room.event_id());
 			let no_more_prev_events = prev_events.next().is_none();
 
 			if prev_event_is_create_event && no_more_prev_events {

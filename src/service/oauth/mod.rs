@@ -11,7 +11,7 @@ use conduwuit::{
 };
 use database::{Deserialized, Json, Map};
 use itertools::Itertools;
-use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId};
+use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId, api::OAuthScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -20,8 +20,8 @@ use crate::{
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
-			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode,
-			OAuthError, ResponseMode, Scope, TokenRequest, TokenResponse, TokenType,
+			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode, OAuthError,
+			RequestedScope, ResponseMode, TokenRequest, TokenResponse, TokenType,
 		},
 	},
 	users,
@@ -50,7 +50,7 @@ struct Services {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SessionInfo {
 	pub client_id: String,
-	pub scopes: BTreeSet<Scope>,
+	pub scopes: BTreeSet<OAuthScope>,
 	current_refresh_token: String,
 }
 
@@ -63,7 +63,7 @@ struct RefreshTokenInfo {
 
 struct PendingCodeGrant {
 	authorizing_user: OwnedUserId,
-	requested_scopes: BTreeSet<Scope>,
+	requested_scopes: BTreeSet<RequestedScope>,
 	client_name: Option<String>,
 	expected_client_id: String,
 	expected_redirect_uri: Url,
@@ -217,48 +217,58 @@ impl Service {
 			}
 		}
 
-		let requested_scopes = query.scope.to_scopes()?;
-
 		let redirect_uri_query_separator = match query.response_mode {
 			| ResponseMode::Fragment => '#',
 			| ResponseMode::Query => '?',
 		};
 
-		let code = PendingCodeGrant::generate_code();
+		let response = 'response: {
+			let requested_scopes = query.scope.to_scopes()?;
 
-		info!(
-			client_id = &query.client_id,
-			client_name = &client_metadata.client_name,
-			?requested_scopes,
-			?authorizing_user,
-			"Issuing oauth authorization code"
-		);
+			if requested_scopes.contains(&RequestedScope::ServerAdministration) {
+				// Only server admins can request this scope
+				if !self.services.users.is_admin(&authorizing_user).await {
+					break 'response AuthorizationCodeResponse::Error(OAuthError {
+						error: ErrorCode::AccessDenied,
+						error_description: "You are not a server administrator.".into(),
+					});
+				}
+			}
+
+			let code = PendingCodeGrant::generate_code();
+
+			info!(
+				client_id = &query.client_id,
+				client_name = &client_metadata.client_name,
+				?requested_scopes,
+				?authorizing_user,
+				"Issuing oauth authorization code"
+			);
+
+			let pending_grant = PendingCodeGrant {
+				authorizing_user,
+				requested_scopes,
+				client_name: client_metadata.client_name,
+				expected_client_id: query.client_id,
+				expected_redirect_uri: query.redirect_uri.clone(),
+				code_challenge: query.code_challenge,
+				requested_at: SystemTime::now(),
+			};
+
+			self.pending_code_grants
+				.lock()
+				.await
+				.insert(code.clone(), pending_grant);
+
+			AuthorizationCodeResponse::Success { state: query.state, code }
+		};
 
 		let redirect_uri = format!(
 			"{}{}{}",
 			query.redirect_uri,
 			redirect_uri_query_separator,
-			serde_urlencoded::to_string(AuthorizationCodeResponse {
-				state: query.state,
-				code: code.clone(),
-			})
-			.unwrap(),
+			serde_urlencoded::to_string(response).unwrap(),
 		);
-
-		let pending_grant = PendingCodeGrant {
-			authorizing_user,
-			requested_scopes,
-			client_name: client_metadata.client_name,
-			expected_client_id: query.client_id,
-			expected_redirect_uri: query.redirect_uri,
-			code_challenge: query.code_challenge,
-			requested_at: SystemTime::now(),
-		};
-
-		self.pending_code_grants
-			.lock()
-			.await
-			.insert(code, pending_grant);
 
 		Ok(redirect_uri)
 	}
@@ -332,7 +342,7 @@ impl Service {
 	async fn create_session(
 		&self,
 		authorizing_user: OwnedUserId,
-		requested_scopes: BTreeSet<Scope>,
+		requested_scopes: BTreeSet<RequestedScope>,
 		client_name: Option<String>,
 		client_id: String,
 	) -> Result<TokenResponse, OAuthError> {
@@ -342,7 +352,7 @@ impl Service {
 		let device_id = requested_scopes
 			.iter()
 			.find_map(|scope| {
-				if let Scope::Device(device_id) = scope {
+				if let RequestedScope::Device(device_id) = scope {
 					Some(device_id)
 				} else {
 					None
@@ -384,7 +394,10 @@ impl Service {
 			Json(SessionInfo {
 				client_id: client_id.clone(),
 				current_refresh_token: refresh_token.clone(),
-				scopes: requested_scopes.clone(),
+				scopes: requested_scopes
+					.iter()
+					.filter_map(RequestedScope::as_granted_scope)
+					.collect(),
 			}),
 		);
 

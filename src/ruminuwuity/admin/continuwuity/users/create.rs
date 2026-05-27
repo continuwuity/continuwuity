@@ -1,7 +1,7 @@
 pub mod v1 {
 	use ruma::{
 		OwnedMxcUri, OwnedRoomOrAliasId, OwnedUserId,
-		api::{auth_scheme::AccessToken, request, response},
+		api::{OAuthScope, auth_scheme::AccessToken, request, response},
 		metadata,
 	};
 
@@ -9,6 +9,7 @@ pub mod v1 {
 		method: POST,
 		rate_limited: false,
 		authentication: AccessToken,
+		required_scopes: [OAuthScope::ServerAdministration],
 		history: {
 			1.0 => "/_continuwuity/admin/v1/users/create",
 		},
