@@ -23,17 +23,14 @@ use crate::rooms::{
 };
 
 #[implement(super::Service)]
-pub(super) async fn upgrade_outlier_to_timeline_pdu<Pdu>(
+pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	&self,
 	incoming_pdu: PduEvent,
 	mut val: CanonicalJsonObject,
-	create_event: &Pdu,
+	create_event: &PduEvent,
 	origin: &ServerName,
 	room_id: &RoomId,
-) -> Result<Option<RawPduId>>
-where
-	Pdu: Event + Send + Sync,
-{
+) -> Result<Option<RawPduId>> {
 	// Skip the PDU if we already have it as a timeline event
 	if let Ok(pduid) = self
 		.services
