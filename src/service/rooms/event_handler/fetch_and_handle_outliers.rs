@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use assign::assign;
 use conduwuit::{
-	Err, Event, PduEvent, debug, debug_info, debug_warn, err, error,
+	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err, error,
 	state_res::lexicographical_topological_sort,
 	trace,
 	utils::{IterStream, stream::BroadbandExt},
@@ -149,15 +149,21 @@ impl super::Service {
 			candidates.len()
 		);
 
+		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
 		for id in events {
-			let mut todo: VecDeque<_> = [id.clone()].into();
+			let mut todo: VecDeque<OwnedEventId> = [id.clone()].into();
 			while let Some(next_id) = todo.pop_front() {
 				if seeded_events.contains_key(&next_id) {
 					continue;
 				}
 				if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
 					trace!("Found {next_id} in db");
-					seeded_events.insert(id.clone(), local_pdu.into_canonical_object());
+					seeded_events.insert(next_id.clone(), local_pdu.into_canonical_object());
+					continue;
+				}
+				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
+				if attempts >= 5 {
+					debug_error!(%attempts, %next_id, "Could not fetch missing event after 5 attempts, giving up");
 					continue;
 				}
 
@@ -206,6 +212,8 @@ impl super::Service {
 						trace!(%auth_event_id, "Already found auth event");
 						continue;
 					}
+					debug!("Missing auth event {auth_event_id} for event {next_id}");
+					seen.insert(auth_event_id.clone(), attempts.saturating_add(1));
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
 				}
@@ -213,13 +221,14 @@ impl super::Service {
 				// all of its auth events have been fetched.
 				// TODO: This may result in infinite looping, needs a breaker
 				if have_all_auth {
-					debug!(%event_id, "Have all auth events");
-					seeded_events.insert(event_id, value);
+					debug!(%next_id, "Have all auth events");
+					seeded_events.insert(next_id, value);
 				} else {
 					debug_warn!(
-						"Fetched {event_id} but missing some auth events, will have to re-fetch."
+						"Fetched {next_id} but missing some auth events, will have to re-fetch."
 					);
-					todo.push_back(event_id);
+					seen.insert(next_id.clone(), attempts.saturating_add(1));
+					todo.push_back(next_id);
 				}
 			}
 		}
