@@ -375,7 +375,7 @@ pub struct Config {
 	#[serde(default = "default_max_request_size")]
 	pub max_request_size: usize,
 
-	/// default: 256
+	/// default: 1024
 	#[serde(default = "default_max_fetch_prev_events")]
 	pub max_fetch_prev_events: u16,
 
@@ -2549,7 +2549,7 @@ fn default_pusher_timeout() -> u64 { 60 }
 
 fn default_pusher_idle_timeout() -> u64 { 15 }
 
-fn default_max_fetch_prev_events() -> u16 { 256_u16 }
+fn default_max_fetch_prev_events() -> u16 { 1024 }
 
 fn default_max_concurrent_inbound_transactions() -> usize { 150 }
 
