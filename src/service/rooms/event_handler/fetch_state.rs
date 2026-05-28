@@ -1,6 +1,8 @@
 use std::collections::{HashMap, hash_map};
 
-use conduwuit::{Err, Event, PduEvent, Result, debug, debug_warn, err, utils::IterStream, warn};
+use conduwuit::{
+	Err, Event, PduEvent, Result, debug, debug_warn, err, trace, utils::IterStream, warn,
+};
 use futures::StreamExt;
 use ruma::{
 	EventId, OwnedEventId, RoomId, ServerName,
@@ -30,6 +32,7 @@ impl super::Service {
 		room_id: &RoomId,
 		event_id: &EventId,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>> {
+		trace!(%origin, "Asking remote for state_ids");
 		let res: get_room_state_ids::v1::Response = self
 			.services
 			.sending
@@ -40,7 +43,7 @@ impl super::Service {
 			.await
 			.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))?;
 
-		debug!("Fetching state events");
+		debug!(events = res.pdu_ids.len(), "Fetching state events");
 		let mut state_events: HashMap<OwnedEventId, PduEvent> =
 			HashMap::with_capacity(res.pdu_ids.len());
 		let to_fetch: Vec<OwnedEventId> = res
@@ -57,32 +60,46 @@ impl super::Service {
 			})
 			.collect()
 			.await;
-		if !to_fetch.is_empty() {
-			if to_fetch.len() >= 100 {
-				// That's a lot of events to fetch, just ask for the full state
-				// at that point.
-				debug_warn!(
-					to_fetch = to_fetch.len(),
-					"Fetching full state from remote server for event"
-				);
-				state_events.extend(
-					self.fetch_full_state(origin, create_event, room_id, event_id)
-						.await?,
-				);
-			} else {
-				debug!(
-					to_fetch = to_fetch.len(),
-					"Fetching missing events for state from remote"
-				);
-				state_events.extend(
-					self.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
-						.await,
-				);
-			}
+		if to_fetch.is_empty() {
+			debug!("All required state events are already known.");
+			state_events = res
+				.pdu_ids
+				.iter()
+				.stream()
+				.broad_filter_map(|event_id| async move {
+					Some((
+						event_id.clone(),
+						self.services
+							.timeline
+							.get_pdu(event_id)
+							.await
+							.expect("Event disappeared between filtering and fetching"),
+					))
+				})
+				.collect()
+				.await;
+		} else if to_fetch.len() >= 100 {
+			// That's a lot of events to fetch, just ask for the full state
+			// at that point.
+			debug_warn!(
+				to_fetch = to_fetch.len(),
+				"Fetching full state from remote server for event"
+			);
+			state_events.extend(
+				self.fetch_full_state(origin, create_event, room_id, event_id)
+					.await?,
+			);
+		} else {
+			debug!(to_fetch = to_fetch.len(), "Fetching missing events for state from remote");
+			state_events.extend(
+				self.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
+					.await,
+			);
 		}
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =
 			HashMap::with_capacity(state_events.len());
+		debug!(events = state_events.len(), "Processing state events");
 		for (event_id, pdu) in state_events {
 			let state_key = pdu.state_key().ok_or_else(|| {
 				err!(Database("Found non-state pdu in state events: {event_id}"))
@@ -136,6 +153,7 @@ impl super::Service {
 		room_id: &RoomId,
 		event_id: &EventId,
 	) -> Result<HashMap<OwnedEventId, PduEvent>> {
+		trace!("Fetching full state from remote server");
 		let res: get_room_state::v1::Response = self
 			.services
 			.sending
