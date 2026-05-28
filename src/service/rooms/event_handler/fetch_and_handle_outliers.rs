@@ -29,7 +29,7 @@ const GET_MISSING_EVENTS_MAX_BATCH_SIZE: u16 = 50; // matches src/server/get_mis
 /// dependencies, however it is ultimately the sender's responsibility to send
 /// them in a processable order, so this is just a best effort attempt. It does
 /// not account for power levels or other tie breaks.
-pub async fn build_local_dag<S: std::hash::BuildHasher>(
+pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject, S>,
 ) -> conduwuit::Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
