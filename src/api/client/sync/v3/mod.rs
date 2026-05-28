@@ -34,6 +34,7 @@ use ruma::{
 	},
 	assign,
 	events::presence::{PresenceEvent, PresenceEventContent},
+	presence::PresenceState,
 	serde::Raw,
 };
 use service::{
@@ -185,7 +186,7 @@ pub(crate) async fn sync_events_route(
 	let sender_device = body.identity.expect_sender_device()?;
 
 	// Presence update
-	if services.config.allow_local_presence {
+	if services.config.allow_local_presence && body.set_presence != PresenceState::Offline {
 		services
 			.presence
 			.ping_presence(sender_user, &body.body.set_presence)
