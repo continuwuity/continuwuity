@@ -132,6 +132,8 @@ async fn route_register(
 	Expect(Query(query)): Expect<Query<RegisterQuery>>,
 	PostForm(form): PostForm<RegistrationForm>,
 ) -> Result {
+	let is_first_run = services.firstrun.is_first_run();
+
 	if session_store
 		.get::<IgnoredAny>(User::KEY)
 		.await
@@ -226,6 +228,13 @@ async fn route_register(
 					terms,
 					validation_errors,
 				},
+			| (_, token) if is_first_run => RegisterBody::DetailsPrompt {
+				username: query.username,
+				require_email: false,
+				flow: RegistrationFlowParameters::Trusted { registration_token: token },
+				terms,
+				validation_errors,
+			},
 			| (Some(RequestedRegistrationFlow::Untrusted), _) => RegisterBody::DetailsPrompt {
 				username: query.username,
 				require_email: services
@@ -252,7 +261,7 @@ async fn route_register(
 	response!(Register::new(
 		context,
 		services.globals.server_name().to_owned(),
-		services.firstrun.is_first_run(),
+		is_first_run,
 		body
 	))
 }
