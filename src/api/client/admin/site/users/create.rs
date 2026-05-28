@@ -5,7 +5,7 @@ use conduwuit::{
 	warn,
 };
 use futures::{FutureExt, StreamExt};
-use ruma::{UserId, api::client::profile::PropagateTo, profile::ProfileFieldValue};
+use ruma::{api::client::profile::PropagateTo, profile::ProfileFieldValue};
 use ruminuwuity::admin::continuwuity::users;
 use service::users::{HashedPassword, ProfileFieldChange};
 
@@ -18,14 +18,17 @@ pub(crate) async fn create_user(
 	State(services): State<crate::State>,
 	body: Ruma<users::create::v1::Request>,
 ) -> conduwuit::Result<users::create::v1::Response> {
-	let user_id =
-		&UserId::parse_with_server_name(&body.localpart, services.globals.server_name())?;
-	
-	let email = body.email
+	let email = body
+		.email
 		.clone()
 		.map(lettre::Address::try_from)
 		.transpose()
 		.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?;
+
+	let ref user_id = services
+		.users
+		.determine_registration_user_id(Some(body.localpart.clone()), email.as_ref(), None)
+		.await?;
 
 	services
 		.users
@@ -41,7 +44,7 @@ pub(crate) async fn create_user(
 	if body.suspended {
 		services
 			.users
-			.suspend_account(user_id, body.identity.sender_user())
+			.suspend_account(&user_id, body.identity.sender_user())
 			.await;
 	}
 	if body.locked {
