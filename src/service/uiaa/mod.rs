@@ -584,10 +584,12 @@ impl Service {
 					}
 				},
 				| AuthData::Terms(_) => Ok(AuthType::Terms),
-				| _ => Err(StandardErrorBody::new(
-					ErrorKind::Unrecognized,
-					"Unsupported stage type".into(),
-				)),
+				| unknown => {
+					// We already checked that the stage type is one that exists in the flow,
+					// so we can only get here if we ourselves served a flow with a stage that we
+					// don't understand.
+					panic!("tried to check an unsupported stage type: {unknown:?}");
+				},
 			},
 		}?;
 
