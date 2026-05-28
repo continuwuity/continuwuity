@@ -556,7 +556,7 @@ impl Service {
 						| Err(e) => {
 							error!("ReCaptcha verification failed: {e:?}");
 							Err(StandardErrorBody::new(
-								ErrorKind::Forbidden,
+								ErrorKind::CaptchaInvalid,
 								"ReCaptcha verification failed".to_owned(),
 							))
 						},
