@@ -41,5 +41,7 @@ pub fn unstable_features() -> BTreeMap<String, bool> {
 		("org.matrix.msc4155".to_owned(), true),
 		// profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466)
 		("computer.gingershaped.msc4466".to_owned(), true),
+		// server admin oauth scope (https://github.com/matrix-org/matrix-spec-proposals/pull/4484)
+		("org.continuwuity.msc4484.unstable".to_owned(), true),
 	])
 }
