@@ -1,8 +1,9 @@
 use std::{borrow::Borrow, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement, info, is_equal_to,
+	Err, Result, debug, debug_error, debug_info, err, implement, info, is_equal_to,
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
+	result::DebugInspect,
 	trace,
 	utils::{
 		IterStream,
@@ -83,11 +84,14 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		trace!("Could not calculate incoming state, asking remote {origin} for it");
 		state_at_incoming_event = self
 			.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
-			.await?;
+			.await
+			.debug_inspect_err(|e| debug_error!("Could not fetch state from {origin}: {e}"))?;
 	}
 
 	let state_at_incoming_event =
 		state_at_incoming_event.expect("we always set this to some above");
+	assert!(!state_at_incoming_event.is_empty(), "Event has no incoming state");
+	trace!(state_events = state_at_incoming_event.len(), "Calculated incoming state");
 
 	debug!(
 		event_id = %incoming_pdu.event_id,
