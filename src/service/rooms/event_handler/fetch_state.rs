@@ -22,7 +22,7 @@ impl super::Service {
 	///
 	/// The end result is a result containing a map of shortstatekeys to event
 	/// IDs. The underlying `Option` is always `Some`.
-	#[tracing::instrument(skip(self, create_event))]
+	#[tracing::instrument(skip_all)]
 	pub(super) async fn fetch_state(
 		&self,
 		origin: &ServerName,
