@@ -139,8 +139,10 @@ impl super::Service {
 			.candidate_backfill_servers(room_id)
 			.await;
 		candidates.insert(origin.to_owned());
+		candidates.retain(|sn| self.services.globals.server_name() != sn);
+		assert_ne!(candidates.len(), 0, "no candidates to fetch missing events from");
 		let mut seeded_events =
-			HashMap::with_capacity(events.len() + (events.len().saturating_mul(3)));
+			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
 		trace!(
 			"Fetching {} unknown PDUs on demand from {} candidates",
 			events.len(),
@@ -193,8 +195,32 @@ impl super::Service {
 							continue;
 						},
 					};
-				todo.extend(auth_events);
-				seeded_events.insert(event_id, value);
+				let mut have_all_auth = true;
+				for auth_event_id in auth_events {
+					if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
+						trace!("Found auth event {next_id} in db");
+						seeded_events.insert(id.clone(), local_pdu.into_canonical_object());
+						continue;
+					}
+					if seeded_events.contains_key(&auth_event_id) {
+						trace!(%auth_event_id, "Already found auth event");
+						continue;
+					}
+					todo.push_back(auth_event_id);
+					have_all_auth = false;
+				}
+				// Insert this PDU back at the end of the queue so that it will be resolved once
+				// all of its auth events have been fetched.
+				// TODO: This may result in infinite looping, needs a breaker
+				if have_all_auth {
+					debug!(%event_id, "Have all auth events");
+					seeded_events.insert(event_id, value);
+				} else {
+					debug_warn!(
+						"Fetched {event_id} but missing some auth events, will have to re-fetch."
+					);
+					todo.push_back(event_id);
+				}
 			}
 		}
 
@@ -209,7 +235,7 @@ impl super::Service {
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
 		for id in seeded_ordered {
 			let pdu_json = seeded_events.remove(&id).unwrap();
-			trace!("Handling missing event {id}");
+			debug_info!("Handling missing event {id} as outlier");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
 				create_event,
@@ -225,6 +251,10 @@ impl super::Service {
 				},
 				| Err(e) => warn!("Authentication of event {id} failed: {e:?}"),
 			}
+
+			// TODO: should this try to promote to timeline?
+			// If we got here, we probably weren't able to promote it before
+			// now.
 		}
 
 		trace!("Fetched and handled {} missing PDUs", pdus.len());
