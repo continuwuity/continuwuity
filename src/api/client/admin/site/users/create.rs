@@ -18,30 +18,27 @@ pub(crate) async fn create_user_route(
 	State(services): State<crate::State>,
 	body: Ruma<users::create::v1::Request>,
 ) -> conduwuit::Result<users::create::v1::Response> {
-	let user_id =
-		&UserId::parse_with_server_name(&body.localpart, services.globals.server_name())?;
+	let email = body
+		.email
+		.clone()
+		.map(lettre::Address::try_from)
+		.transpose()
+		.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?;
 
-	if services.users.is_active_local(user_id).await {
-		return Err!(Conflict("A user with this username already exists"));
-	}
+	let ref user_id = services
+		.users
+		.determine_registration_user_id(Some(body.localpart.clone()), email.as_ref(), None)
+		.await?;
 
 	services
 		.users
-		.create_local_account(
-			user_id,
-			HashedPassword::new(&body.password)?,
-			body.email
-				.clone()
-				.map(lettre::Address::try_from)
-				.transpose()
-				.map_err(|e| err!(Request(BadJson("Invalid email address: {e}"))))?,
-		)
+		.create_local_account(user_id, HashedPassword::new(&body.password)?, email)
 		.await;
 
 	if body.suspended {
 		services
 			.users
-			.suspend_account(user_id, body.identity.sender_user())
+			.suspend_account(&user_id, body.identity.sender_user())
 			.await;
 	}
 	if body.locked {
