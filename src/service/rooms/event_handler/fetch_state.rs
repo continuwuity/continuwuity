@@ -1,7 +1,10 @@
-use std::collections::{HashMap, hash_map};
+use std::{
+	cmp::max,
+	collections::{HashMap, hash_map},
+};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_warn, err, trace, utils::IterStream, warn,
+	Err, Event, PduEvent, Result, debug, debug_warn, err, error, trace, utils::IterStream, warn,
 };
 use futures::StreamExt;
 use ruma::{
@@ -78,23 +81,51 @@ impl super::Service {
 				})
 				.collect()
 				.await;
-		} else if to_fetch.len() >= 100 {
-			// That's a lot of events to fetch, just ask for the full state
-			// at that point.
-			debug_warn!(
-				to_fetch = to_fetch.len(),
-				"Fetching full state from remote server for event"
-			);
-			state_events.extend(
-				self.fetch_full_state(origin, create_event, room_id, event_id)
-					.await?,
-			);
 		} else {
-			debug!(to_fetch = to_fetch.len(), "Fetching missing events for state from remote");
-			state_events.extend(
-				self.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
-					.await,
-			);
+			let total_count = res.pdu_ids.len();
+			let missing_count = to_fetch.len();
+			if missing_count >= max(50, total_count >> 2) {
+				// If there's more than 50 events to fetch, or we're missing 25% or more of the
+				// state, we would need to make a lot of atomic requests, so we'll just try
+				// to fetch the full state from the remote instead.
+				// Since this endpoint might fail in huge rooms, we fall back to atomic fetch
+				// anyway.
+				debug_warn!(
+					%missing_count,
+					%total_count,
+					"Fetching full state from remote server for event"
+				);
+				let fetched_state = match self
+					.fetch_full_state(origin, create_event, room_id, event_id)
+					.await
+				{
+					| Ok(state) => state,
+					| Err(e) => {
+						error!(
+							error=?e,
+							%origin,
+							"Failed to fetch full state from remote, falling back to atomic fetch"
+						);
+						self.fetch_and_handle_missing_events(
+							origin,
+							to_fetch,
+							create_event,
+							room_id,
+						)
+						.await
+					},
+				};
+				state_events.extend(fetched_state);
+			} else {
+				debug!(
+					to_fetch = to_fetch.len(),
+					"Fetching missing events for state from remote"
+				);
+				state_events.extend(
+					self.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
+						.await,
+				);
+			}
 		}
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =
