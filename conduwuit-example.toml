@@ -297,7 +297,7 @@
 
 # This item is undocumented. Please contribute documentation for it.
 #
-#max_fetch_prev_events = 256
+#max_fetch_prev_events = 1024
 
 # How many incoming federation transactions the server is willing to be
 # processing at any given time before it becomes overloaded and starts

@@ -20,6 +20,8 @@ use ruma::{
 use super::get_room_version_rules;
 use crate::rooms::event_handler::parse_incoming_pdu::expect_event_id_array;
 
+const GET_MISSING_EVENTS_MAX_BATCH_SIZE: u16 = 50; // matches src/server/get_missing_events.rs#LIMIT_MAX
+
 /// Attempts to build a localised directed acyclic graph out of the given PDUs,
 /// returning them in a topologically sorted order.
 ///
@@ -423,14 +425,39 @@ impl super::Service {
 				"event passed to get_missing_events is not missing any events (wasteful call)"
 			);
 		};
+		assert!(!tail.is_empty(), "empty tail");
+		assert_ne!(via, self.services.globals.server_name(), "cannot ask ourselves for events");
 
-		let mut discovered = HashMap::with_capacity(20);
+		// The iteration limit is in place to ensure that if the remote server leaves us
+		// in a state of infinite recursion (as old versions of continuwuity and
+		// predecessors would), we give up. However, get_missing_events doesn't return
+		// that many events per-request. Synapse returns 20, and conduwuit+ return 50.
+		// This means with a hard iteration limit, we might give up too early, before
+		// we get a chance to even come close to max_fetch_prev_events. As such, we'll
+		// calculate the max limit based on that config option based on these averages.
+		let max_fetch = self.services.server.config.max_fetch_prev_events;
+		let iteration_limit = max_fetch.saturating_div(20).max(10);
+
+		let mut discovered = HashMap::with_capacity(head.prev_events.len());
 		let mut latest_events = vec![head.event_id().to_owned()];
-		let mut iterations = 0_u8;
-		loop {
-			iterations = iterations.saturating_add(1);
-			let limit = iterations.saturating_mul(10).min(100);
-			debug_info!(%limit, %via, %iterations, discovered=discovered.len(), %min_depth, "Attempting to gap fill missing events");
+		debug!(
+			%room_id,
+			event_id=%head.event_id(),
+			%iteration_limit,
+			"Fetching any missing events for head event",
+		);
+		for iteration in 0..iteration_limit {
+			let limit = iteration
+				.saturating_mul(10)
+				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
+			debug_info!(
+				%limit,
+				%via,
+				%iteration,
+				discovered=discovered.len(),
+				%min_depth,
+				"Attempting to gap fill missing events"
+			);
 			let response: get_missing_events::v1::Response = self
 				.services
 				.sending
@@ -466,11 +493,13 @@ impl super::Service {
 						pdu.depth,
 						min_depth
 					);
+					discovered.insert(event_id.clone(), pdu);
 					continue;
 				}
 
 				for prev_event_id in pdu.prev_events() {
 					if discovered.contains_key(prev_event_id) {
+						// We already received this event.
 						continue;
 					}
 					if self
@@ -479,25 +508,53 @@ impl super::Service {
 						.non_outlier_pdu_exists(prev_event_id)
 						.await
 					{
+						// NOTE: we explicitly check for *non*-outlier events here, as if we end
+						// up discovering outlier events, we will be able to upgrade them
+						// immediately.
 						continue;
 					}
 					latest_events.push(prev_event_id.to_owned());
-					break;
 				}
 
 				discovered.insert(event_id.clone(), pdu);
 			}
 
 			if latest_events.is_empty() {
+				debug!(
+					%limit,
+					%via,
+					%iteration,
+					discovered=discovered.len(),
+					"No more events to fetch."
+				);
 				break;
-			} else if discovered.len() > self.services.server.config.max_fetch_prev_events.into()
-				|| iterations >= 20
-			{
+			}
+			if discovered.len() >= self.services.server.config.max_fetch_prev_events.into() {
+				// Stupid hack, debug_error!() drops the log to a DEBUG when not in debug mode,
+				// which is bad because this should at least produce a warning. It's an error in
+				// debug mode because this can be important, but typically not much can be done
+				// about it as a user.
+				#[cfg(debug_assertions)]
 				error!(
-					filled=discovered.len(),
+					discovered=discovered.len(),
 					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
-					%iterations,
-					"Gap too large, giving up"
+					%iteration,
+					%iteration_limit,
+					%via,
+					event_id=%head.event_id(),
+					%room_id,
+					"Encountered a gap too large to fill, giving up"
+				);
+				#[cfg(not(debug_assertions))]
+				warn!(
+					discovered=discovered.len(),
+					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
+					%iteration,
+					%iteration_limit,
+					%via,
+					event_id=%head.event_id(),
+					%room_id,
+					"Encountered a gap too large to fill"
 				);
 				break;
 			}
