@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Err, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
+	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -576,6 +576,11 @@ impl Service {
 		if !auth_check {
 			return Err!(Request(Forbidden("Auth check failed")));
 		}
+		let resident_before = self
+			.services
+			.state_cache
+			.server_in_room(self.services.globals.server_name(), room_id)
+			.await;
 
 		info!("Compressing state from send_join");
 		let compressed: CompressedState = self
@@ -636,6 +641,22 @@ impl Service {
 		self.services
 			.state
 			.set_room_state(room_id, statehash_after_join, &state_lock);
+		if !resident_before {
+			// NOTE: We replace local extremities for this room if we were not a resident
+			// before. We might be doing a remote join to satisfy restricted join rules,
+			// so we don't want to do this if we're already a resident. Otherwise, we
+			// want to replace our forward extremities whole-sale in case we were
+			// desynced.
+			info!("Replacing local forward extremities");
+			self.services
+				.state
+				.set_forward_extremities(
+					room_id,
+					std::iter::once(parsed_join_pdu.event_id()),
+					&state_lock,
+				)
+				.await;
+		}
 
 		Ok(())
 	}
