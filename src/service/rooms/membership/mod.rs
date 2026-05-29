@@ -34,7 +34,7 @@ use ruma::{
 use crate::{
 	Dep, antispam, globals,
 	rooms::{
-		metadata, outlier, pdu_metadata, short,
+		event_handler, metadata, outlier, pdu_metadata, short,
 		state::{self, RoomMutexGuard},
 		state_accessor, state_cache,
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
@@ -51,6 +51,7 @@ struct Services {
 	server: Arc<Server>,
 	db: Arc<Database>,
 	antispam: Dep<antispam::Service>,
+	event_handler: Dep<event_handler::Service>,
 	globals: Dep<globals::Service>,
 	metadata: Dep<metadata::Service>,
 	outlier: Dep<outlier::Service>,
@@ -73,6 +74,7 @@ impl crate::Service for Service {
 				server: args.server.clone(),
 				db: args.db.clone(),
 				antispam: args.depend::<antispam::Service>("antispam"),
+				event_handler: args.depend::<event_handler::Service>("rooms::event_handler"),
 				globals: args.depend::<globals::Service>("globals"),
 				metadata: args.depend::<metadata::Service>("rooms::metadata"),
 				outlier: args.depend::<outlier::Service>("rooms::outlier"),
@@ -380,8 +382,6 @@ impl Service {
 
 		// It has enough fields to be called a proper event now
 		let mut join_event = join_event_stub;
-
-		info!("Asking {remote_server} for send_join in room {room_id}");
 		let send_join_request = federation::membership::create_join_event::v2::Request::new(
 			room_id.to_owned(),
 			event_id.clone(),
@@ -391,6 +391,18 @@ impl Service {
 				.await,
 		);
 
+		// NOTE: send_join can take a long time to respond, but from the point of view
+		// of other servers, we may already have finished joining. This means they
+		// sometimes end up sending PDUs to us that we aren't yet ready to accept, and
+		// consequently drop. Holding the mutex over the room while processing mitigates
+		// this.
+		let _room_lock = self
+			.services
+			.event_handler
+			.mutex_federation
+			.lock(room_id.as_str())
+			.await;
+		info!("Asking {remote_server} for send_join in room {room_id}");
 		let send_join_response = match self
 			.services
 			.sending
