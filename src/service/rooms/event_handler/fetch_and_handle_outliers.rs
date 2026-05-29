@@ -121,6 +121,7 @@ impl super::Service {
 	/// Asks remote servers for any individual events that are missing. Should
 	/// only be used for fetching missing auth events or resolving missing
 	/// events from state_ids. For all other uses, use get_missing_events.
+	#[tracing::instrument(name = "get_missing_events_atomic", skip_all)]
 	pub(super) async fn fetch_and_handle_missing_events<'a, Pdu>(
 		&self,
 		origin: &'a ServerName,
@@ -435,6 +436,7 @@ impl super::Service {
 	/// - `min_depth`: Don't process events with a `depth` lower than this
 	///   value. Not massively useful, but can help short-circuit infinite loops
 	///   and weird edge paths.
+	#[tracing::instrument(name = "get_missing_events_bulk", skip_all)]
 	pub async fn get_missing_events(
 		&self,
 		room_id: &RoomId,
