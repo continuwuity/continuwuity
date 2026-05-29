@@ -133,7 +133,7 @@ impl super::Service {
 		debug!(events = state_events.len(), "Processing state events");
 		for (event_id, pdu) in state_events {
 			let state_key = pdu.state_key().ok_or_else(|| {
-				err!(Database("Found non-state pdu in state events: {event_id}"))
+				err!(Request(BadJson("Found non-state pdu in state events: {event_id}")))
 			})?;
 
 			let shortstatekey = self
@@ -146,13 +146,14 @@ impl super::Service {
 				| hash_map::Entry::Vacant(v) => {
 					v.insert(pdu.event_id().to_owned());
 				},
-				| hash_map::Entry::Occupied(_) => {
-					return Err!(Database(
+				| hash_map::Entry::Occupied(existing) => {
+					return Err!(Request(Forbidden(
 						"State event's type and state_key combination exists multiple times \
-						 ({event_id}): {}, {}",
+						 ({event_id} + {}): ({}, \"{}\")",
+						existing.get(),
 						pdu.kind(),
-						state_key
-					));
+						state_key,
+					)));
 				},
 			}
 		}
@@ -165,7 +166,7 @@ impl super::Service {
 			.await?;
 
 		if state.get(&create_shortstatekey).map(AsRef::as_ref) != Some(create_event.event_id()) {
-			return Err!(Database("Incoming event refers to wrong create event."));
+			return Err!(Request(Forbidden("Incoming event refers to wrong create event.")));
 		}
 
 		Ok(Some(state))

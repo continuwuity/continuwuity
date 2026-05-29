@@ -57,6 +57,12 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		return Err!(Request(Forbidden("Event has been soft-failed")));
 	}
 
+	assert_eq!(
+		*create_event.kind(),
+		StateEventType::RoomCreate.into(),
+		"tried to upgrade a PDU with a create_event that is not a room create event"
+	);
+
 	debug!(
 		event_id = %incoming_pdu.event_id,
 		"Upgrading PDU from outlier to timeline"
