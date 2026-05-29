@@ -594,6 +594,7 @@ impl Service {
 			.server_in_room(self.services.globals.server_name(), room_id)
 			.await;
 
+		let cork = self.services.db.cork_and_flush();
 		info!("Compressing state from send_join");
 		let compressed: CompressedState = self
 			.services
@@ -669,6 +670,7 @@ impl Service {
 				)
 				.await;
 		}
+		drop(cork);
 
 		Ok(())
 	}

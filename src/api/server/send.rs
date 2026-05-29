@@ -7,7 +7,7 @@ use std::{
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Error, Result, debug, debug_warn, err, error,
+	Err, Error, Result, debug, debug_error, debug_warn, err, error,
 	result::LogErr,
 	state_res::lexicographical_topological_sort,
 	trace,
@@ -175,8 +175,14 @@ async fn process_inbound_transaction(
 
 	for (id, result) in &results {
 		if let Err(e) = result {
-			if matches!(e, Error::BadRequest(ErrorKind::NotFound, _)) {
-				debug_warn!("Incoming PDU failed {id}: {e:?}");
+			match e {
+				| Error::BadRequest(
+					ErrorKind::Forbidden | ErrorKind::InvalidParam | ErrorKind::BadJson,
+					..,
+				) => {
+					debug_warn!("Incoming PDU {id} failed: {e:?}");
+				},
+				| _ => debug_error!("Incoming PDU {id} failed: {e:?}"),
 			}
 		}
 	}
