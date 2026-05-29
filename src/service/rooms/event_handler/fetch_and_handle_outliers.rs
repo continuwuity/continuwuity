@@ -358,7 +358,9 @@ impl super::Service {
 				}
 				if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
 					trace!("Found {next_id} in db");
-					seeded_events.insert(next_id.clone(), local_pdu.into_canonical_object());
+					let mut obj = local_pdu.into_canonical_object();
+					obj.remove("event_id");
+					seeded_events.insert(next_id.clone(), obj);
 					continue;
 				}
 				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
@@ -405,7 +407,9 @@ impl super::Service {
 				for auth_event_id in auth_events {
 					if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
 						trace!("Found auth event {next_id} in db");
-						seeded_events.insert(id.clone(), local_pdu.into_canonical_object());
+						let mut obj = local_pdu.into_canonical_object();
+						obj.remove("event_id");
+						seeded_events.insert(id.clone(), obj);
 						continue;
 					}
 					if seeded_events.contains_key(&auth_event_id) {
@@ -445,6 +449,7 @@ impl super::Service {
 		for id in seeded_ordered {
 			let pdu_json = seeded_events.remove(&id).unwrap();
 			debug_info!("Handling missing event {id} as outlier");
+			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
 				create_event,
