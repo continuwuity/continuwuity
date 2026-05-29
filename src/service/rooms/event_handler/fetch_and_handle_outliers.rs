@@ -5,7 +5,7 @@ use conduwuit::{
 	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err, error,
 	state_res::lexicographical_topological_sort,
 	trace,
-	utils::{IterStream, stream::BroadbandExt},
+	utils::{IterStream, math::Expected, stream::BroadbandExt},
 	warn,
 };
 use futures::{StreamExt, future::select_ok};
@@ -175,6 +175,7 @@ impl super::Service {
 		);
 		for iteration in 0..iteration_limit {
 			let limit = iteration
+				.expected_add(1)
 				.saturating_mul(10)
 				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
 			debug_info!(
