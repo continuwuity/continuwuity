@@ -10,7 +10,6 @@ use futures::StreamExt;
 use ruma::{
 	EventId, OwnedEventId, RoomId, ServerName,
 	api::federation::event::{get_room_state, get_room_state_ids},
-	events::StateEventType,
 };
 
 use crate::{conduwuit::utils::stream::BroadbandExt, rooms::short::ShortStateKey};
@@ -156,22 +155,6 @@ impl super::Service {
 					)));
 				},
 			}
-		}
-
-		// The original create event must still be in the state
-		let create_shortstatekey = self
-			.services
-			.short
-			.get_shortstatekey(&StateEventType::RoomCreate, "")
-			.await?;
-
-		let create_event_id = state.get(&create_shortstatekey).map(AsRef::as_ref);
-		if create_event_id != Some(create_event.event_id()) {
-			return Err!(Request(Forbidden(
-				"Incoming event refers to wrong create event: expected {}, got: \
-				 {create_event_id:?}",
-				create_event.event_id()
-			)));
 		}
 
 		Ok(Some(state))
