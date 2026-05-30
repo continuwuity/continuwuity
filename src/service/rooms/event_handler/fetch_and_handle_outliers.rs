@@ -144,9 +144,8 @@ impl super::Service {
 			.candidate_backfill_servers(room_id)
 			.await;
 		candidates.insert(origin.to_owned());
-		candidates.retain(|sn| self.services.globals.server_name() != sn);
-		assert_ne!(candidates.len(), 0, "no candidates to fetch missing events from");
-		let mut seeded_events =
+		assert!(!candidates.is_empty(), "no candidates to fetch missing events from");
+		let mut discovered_events =
 			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
 		trace!(
 			elapsed=?start.elapsed(),
@@ -156,17 +155,17 @@ impl super::Service {
 		);
 
 		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
-		for id in events {
-			let mut todo: VecDeque<OwnedEventId> = [id.clone()].into();
+		for id in &events {
+			let mut todo: VecDeque<OwnedEventId> = [id.to_owned()].into();
 			while let Some(next_id) = todo.pop_front() {
-				if seeded_events.contains_key(&next_id) {
+				if discovered_events.contains_key(&next_id) {
 					continue;
 				}
 				if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
 					trace!(elapsed=?start.elapsed(),"Found {next_id} in db");
 					let mut obj = local_pdu.into_canonical_object();
 					obj.remove("event_id");
-					seeded_events.insert(next_id.clone(), obj);
+					discovered_events.insert(next_id.clone(), obj);
 					continue;
 				}
 				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
@@ -217,10 +216,10 @@ impl super::Service {
 						trace!(elapsed=?start.elapsed(),"Found auth event {next_id} in db");
 						let mut obj = local_pdu.into_canonical_object();
 						obj.remove("event_id");
-						seeded_events.insert(id.clone(), obj);
+						discovered_events.insert(id.clone(), obj);
 						continue;
 					}
-					if seeded_events.contains_key(&auth_event_id) {
+					if discovered_events.contains_key(&auth_event_id) {
 						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
 						continue;
 					}
@@ -234,7 +233,7 @@ impl super::Service {
 				// TODO: This may result in infinite looping, needs a breaker
 				if have_all_auth {
 					debug!(elapsed=?start.elapsed(),%next_id, "Have all auth events");
-					seeded_events.insert(next_id, value);
+					discovered_events.insert(next_id, value);
 				} else {
 					debug_warn!(elapsed=?start.elapsed(),
 						"Fetched {next_id} but missing some auth events, will have to re-fetch."
@@ -246,16 +245,14 @@ impl super::Service {
 		}
 
 		let seeded_ordered = build_local_dag(
-			&seeded_events
-				.iter()
-				.map(|(eid, e)| (eid.to_owned(), e.clone()))
-				.collect::<HashMap<OwnedEventId, CanonicalJsonObject>>(),
+			&discovered_events.clone(), /* TODO: this clones like several megabytes of data,
+			                             * owie :( */
 		)
 		.await
 		.expect("failed to build local DAG");
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
 		for id in seeded_ordered {
-			let pdu_json = seeded_events.remove(&id).unwrap();
+			let pdu_json = discovered_events.remove(&id).unwrap();
 			debug_info!(elapsed=?start.elapsed(),"Handling missing event {id} as outlier");
 			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
 			match Box::pin(self.handle_outlier_pdu(
@@ -282,6 +279,7 @@ impl super::Service {
 		}
 
 		trace!(elapsed=?start.elapsed(),"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs", pdus.len());
+		pdus.retain(|id, _| events.contains(id)); // Only return state events
 		pdus
 	}
 

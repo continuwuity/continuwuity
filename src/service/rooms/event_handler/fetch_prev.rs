@@ -1,11 +1,10 @@
 use std::{collections::HashMap, time::Instant};
 
-use askama::filters::e;
 use conduwuit::{
 	Event, PduEvent, debug, debug_info, debug_warn, info, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
-use futures::{StreamExt, future::ok};
+use futures::StreamExt;
 use ruma::{RoomId, ServerName};
 
 use crate::rooms::event_handler::build_local_dag;
