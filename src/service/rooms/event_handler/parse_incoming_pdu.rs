@@ -118,6 +118,7 @@ impl super::Service {
 		Ok((event_id, value))
 	}
 
+	#[tracing::instrument(name = "parse", skip_all)]
 	pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 		let value = serde_json::from_str::<CanonicalJsonObject>(pdu.get()).map_err(|e| {
 			err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))

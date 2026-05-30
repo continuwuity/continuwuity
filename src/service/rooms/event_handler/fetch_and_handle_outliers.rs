@@ -548,12 +548,12 @@ impl super::Service {
 
 				if pdu.depth < min_depth {
 					debug_warn!(
-						elapsed=?start.elapsed(),"Received PDU with depth {} below min_depth {}, ignoring",
+						elapsed=?start.elapsed(),"Received PDU with depth {} below min_depth {}",
 						pdu.depth,
 						min_depth
 					);
-					discovered.insert(event_id.clone(), pdu);
-					continue;
+					// discovered.insert(event_id.clone(), pdu);
+					// continue;
 				}
 
 				for prev_event_id in pdu.prev_events() {

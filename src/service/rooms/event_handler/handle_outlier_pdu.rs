@@ -18,6 +18,7 @@ impl super::Service {
 	/// Handles a PDU as an outlier, performing basic checks like signatures and
 	/// hashes, proclaimed event auth, and then adding it to the outlier tree.
 	#[allow(clippy::too_many_arguments)]
+	#[tracing::instrument(name="handle_outlier", skip_all, fields(%event_id))]
 	pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 		&self,
 		origin: &'a ServerName,
