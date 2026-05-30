@@ -1,10 +1,11 @@
 use std::{collections::HashMap, time::Instant};
 
+use askama::filters::e;
 use conduwuit::{
-	Event, PduEvent, debug, debug_info, debug_warn, trace,
+	Event, PduEvent, debug, debug_info, debug_warn, info, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
-use futures::StreamExt;
+use futures::{StreamExt, future::ok};
 use ruma::{RoomId, ServerName};
 
 use crate::rooms::event_handler::build_local_dag;
@@ -83,24 +84,47 @@ impl super::Service {
 
 		let job_start = Instant::now();
 		trace!("Starting to persist {} prev events", to_persist.len());
-		for event_id in to_persist {
-			debug_info!("Persisting fetched prev event {event_id}");
-			let obj = mapped.get(&event_id).cloned().unwrap();
+		for (i, event_id) in to_persist.iter().enumerate() {
+			info!(
+				elapsed=?start.elapsed(),
+				"[TODO] Persisting fetched prev event: {event_id} ({}/{})",
+				i.saturating_add(1),
+				to_persist.len(),
+			);
+			debug_info!(elapsed=?start.elapsed(), "Persisting fetched prev event {event_id}");
+			let obj = mapped.get(event_id).cloned().unwrap();
 			let persist_start = Instant::now();
 			match self
-				.handle_outlier_pdu(origin, create_event, &event_id, room_id, obj, false)
+				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj, false)
 				.await
 			{
 				| Ok((pdu, val)) => {
 					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
 						.await
 						.inspect_err(|e| {
-							debug_warn!(total_elapsed=?start.elapsed(), job_elapsed=?job_start.elapsed(), task_elapsed=?persist_start.elapsed(), "Failed to upgrade prev event {event_id}: {e}");
+							debug_warn!(
+								total_elapsed=?start.elapsed(),
+								job_elapsed=?job_start.elapsed(),
+								task_elapsed=?persist_start.elapsed(),
+								"Failed to upgrade prev event {event_id}: {e}",
+							);
+						})
+						.inspect(|_| {
+							debug_info!(
+								total_elapsed=?start.elapsed(),
+								job_elapsed=?job_start.elapsed(),
+								task_elapsed=?persist_start.elapsed(),
+								"Upgraded prev event {event_id}",
+							);
 						})
 						.ok();
 				},
-				| Err(e) =>
-					debug_warn!(total_elapsed=?start.elapsed(), job_elapsed=?job_start.elapsed(), task_elapsed=?persist_start.elapsed(), "Failed to persist prev event {event_id}: {e}"),
+				| Err(e) => debug_warn!(
+					total_elapsed=?start.elapsed(),
+					job_elapsed=?job_start.elapsed(),
+					task_elapsed=?persist_start.elapsed(),
+					"Failed to persist prev event {event_id}: {e}",
+				),
 			}
 		}
 
