@@ -220,6 +220,23 @@ impl super::Service {
 				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
 					err!(Request(BadJson("Failed to parse gapfilled event {event_id}: {e}")))
 				})?;
+				if discovered.contains_key(&event_id) {
+					// We already received this event.
+					trace!("Already received {event_id}");
+					continue;
+				}
+				if self
+					.services
+					.timeline
+					.non_outlier_pdu_exists(&event_id)
+					.await
+				{
+					// NOTE: we explicitly check for *non*-outlier events here, as if we end
+					// up discovering outlier events, we will be able to upgrade them
+					// immediately.
+					trace!("Already have {event_id} as a timeline PDU");
+					continue;
+				}
 
 				if pdu.depth < min_depth {
 					debug_warn!(
@@ -235,6 +252,7 @@ impl super::Service {
 				for prev_event_id in pdu.prev_events() {
 					if discovered.contains_key(prev_event_id) {
 						// We already received this event.
+						trace!("Already received prev event {prev_event_id}");
 						continue;
 					}
 					if self
@@ -246,6 +264,7 @@ impl super::Service {
 						// NOTE: we explicitly check for *non*-outlier events here, as if we end
 						// up discovering outlier events, we will be able to upgrade them
 						// immediately.
+						trace!("Already have prev event {prev_event_id} as a timeline PDU");
 						continue;
 					}
 					if let Ok(outlier) = self.services.timeline.get_pdu(prev_event_id).await {
@@ -264,14 +283,17 @@ impl super::Service {
 							})
 							.await;
 						if outlier_missing_prevs > 0 {
+							trace!("Missing {outlier_missing_prevs} PDU(s) for prev event");
 							latest_events.push(prev_event_id.to_owned());
 						}
+						trace!("Had {prev_event_id} as an outlier already, skipping discovery");
 						discovered.insert(prev_event_id.to_owned(), outlier);
 						continue;
 					}
+					trace!("Missing prev {prev_event_id} of {event_id}");
 					latest_events.push(prev_event_id.to_owned());
 				}
-
+				trace!("Discovered {event_id}");
 				discovered.insert(event_id.clone(), pdu);
 			}
 
