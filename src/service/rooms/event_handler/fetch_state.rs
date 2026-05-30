@@ -165,8 +165,13 @@ impl super::Service {
 			.get_shortstatekey(&StateEventType::RoomCreate, "")
 			.await?;
 
-		if state.get(&create_shortstatekey).map(AsRef::as_ref) != Some(create_event.event_id()) {
-			return Err!(Request(Forbidden("Incoming event refers to wrong create event.")));
+		let create_event_id = state.get(&create_shortstatekey).map(AsRef::as_ref);
+		if create_event_id != Some(create_event.event_id()) {
+			return Err!(Request(Forbidden(
+				"Incoming event refers to wrong create event: expected {}, got: \
+				 {create_event_id:?}",
+				create_event.event_id()
+			)));
 		}
 
 		Ok(Some(state))

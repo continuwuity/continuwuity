@@ -1,8 +1,8 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug_error, debug_info, defer, err, implement, info, trace,
-	warn,
+	Err, Event, PduEvent, Result, debug_error, debug_info, defer, err, error, implement, info,
+	trace, warn,
 };
 use futures::{
 	FutureExt,
@@ -146,7 +146,7 @@ pub async fn handle_incoming_pdu<'a>(
 		.and_then(|v| v.as_str())
 		.ok_or_else(|| err!("No sender in object"))
 		.and_then(|v| Ok(UserId::parse(v)?))
-		.map_err(|e| err!(Request(InvalidParam("PDU does not have a valid sender key: {e}"))))?;
+		.map_err(|e| err!(Request(BadJson("PDU does not have a valid sender key: {e}"))))?;
 
 	let sender_acl_check: OptionFuture<_> = sender
 		.server_name()
@@ -223,7 +223,8 @@ pub async fn handle_incoming_pdu<'a>(
 
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
-		.await?;
+		.await
+		.inspect(|e| error!("[TODO] Failed to handle outlier PDU: {e:?}"))?;
 
 	// 8. if not timeline event: stop
 	if !is_timeline_event {
@@ -242,9 +243,11 @@ pub async fn handle_incoming_pdu<'a>(
 	//    These are timeline events
 
 	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
-		.await?;
+		.await
+		.inspect_err(|e| error!("[TODO] Failed to fetch_prevs: {e:?}"))?;
 
 	// Done with prev events, now handling the incoming event
 	self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
 		.await
+		.inspect_err(|e| error!("[TODO] Failed to upgrade outlier to timeline pdu: {e:?}"))
 }
