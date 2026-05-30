@@ -6,9 +6,9 @@ use std::{
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_warn, err, error, trace, utils::IterStream, warn,
 };
-use futures::StreamExt;
+use futures::{StreamExt, TryFutureExt, future::select_ok};
 use ruma::{
-	EventId, OwnedEventId, RoomId, ServerName,
+	EventId, OwnedEventId, OwnedRoomId, RoomId, ServerName,
 	api::federation::event::{get_room_state, get_room_state_ids},
 };
 
@@ -35,7 +35,7 @@ impl super::Service {
 		event_id: &EventId,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>> {
 		trace!(%origin, "Asking remote for state_ids");
-		let res: get_room_state_ids::v1::Response = self
+		let res: get_room_state_ids::v1::Response = match self
 			.services
 			.sending
 			.send_federation_request(
@@ -43,7 +43,20 @@ impl super::Service {
 				get_room_state_ids::v1::Request::new(event_id.to_owned(), room_id.to_owned()),
 			)
 			.await
-			.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))?;
+			.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))
+		{
+			| Ok(resp) => Ok(resp),
+			| Err(e) =>
+				if e.is_not_found() {
+					self.fetch_state_ids_from_backfill_servers(
+						event_id.to_owned(),
+						room_id.to_owned(),
+					)
+					.await
+				} else {
+					Err(e)
+				},
+		}?;
 
 		debug!(events = res.pdu_ids.len(), "Fetching state events");
 		let mut state_events: HashMap<OwnedEventId, PduEvent> =
@@ -158,6 +171,33 @@ impl super::Service {
 		}
 
 		Ok(Some(state))
+	}
+
+	async fn fetch_state_ids_from_backfill_servers(
+		&self,
+		event_id: OwnedEventId,
+		room_id: OwnedRoomId,
+	) -> Result<get_room_state_ids::v1::Response> {
+		let candidates = self
+			.services
+			.timeline
+			.candidate_backfill_servers(&room_id)
+			.await;
+		debug!(%room_id, ?candidates, "Asking backfill servers for state_ids");
+		let futures = candidates.iter().map(|server_name| {
+			Box::pin(
+				self.services
+					.sending
+					.send_federation_request(
+						server_name,
+						get_room_state_ids::v1::Request::new(event_id.clone(), room_id.clone()),
+					)
+					.inspect_err(|e| {
+						debug_warn!("Fallback fetching state for event failed: {e}");
+					}),
+			)
+		});
+		Ok(select_ok(futures).await?.0)
 	}
 
 	/// Fetches the full state via `GET /_matrix/federation/v1/state` from a
