@@ -33,18 +33,8 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	origin: &ServerName,
 	room_id: &RoomId,
 ) -> Result<Option<RawPduId>> {
-	// Skip the PDU if we already have it as a timeline event
-	if let Ok(pduid) = self
-		.services
-		.timeline
-		.get_pdu_id(incoming_pdu.event_id())
-		.await
-	{
-		trace!(event_id=%incoming_pdu.event_id(), "Skipping upgrade of already upgraded PDU");
-		return Ok(Some(pduid));
-	}
-
-	let (rejected, soft_failed) = join!(
+	let (pduid, rejected, soft_failed) = join!(
+		self.services.timeline.get_pdu_id(incoming_pdu.event_id()),
 		self.services
 			.pdu_metadata
 			.is_event_rejected(incoming_pdu.event_id()),
@@ -52,7 +42,10 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 			.pdu_metadata
 			.is_event_soft_failed(incoming_pdu.event_id())
 	);
-	if rejected {
+	if let Ok(id) = pduid {
+		trace!(event_id=%incoming_pdu.event_id(), "Skipping upgrade of already upgraded PDU");
+		return Ok(Some(id));
+	} else if rejected {
 		return Err!(Request(Forbidden("Event has been rejected")));
 	} else if soft_failed {
 		return Err!(Request(Forbidden("Event has been soft-failed")));
@@ -97,7 +90,11 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 
 	let state_at_incoming_event =
 		state_at_incoming_event.expect("we always set this to some above");
-	debug_assert!(!state_at_incoming_event.is_empty(), "Event has no incoming state");
+	if state_at_incoming_event.is_empty()
+		&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
+	{
+		return Err!(Request(Forbidden("Incoming event has empty incoming state at")));
+	}
 	trace!(state_events = state_at_incoming_event.len(), "Calculated incoming state");
 
 	debug!(
