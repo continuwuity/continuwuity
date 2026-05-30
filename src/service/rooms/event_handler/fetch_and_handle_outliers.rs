@@ -1,4 +1,7 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+	collections::{HashMap, HashSet, VecDeque},
+	time::Instant,
+};
 
 use assign::assign;
 use conduwuit::{
@@ -132,6 +135,7 @@ impl super::Service {
 	where
 		Pdu: Event + Send + Sync,
 	{
+		let start = Instant::now();
 		let room_version_rules =
 			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
 		let mut candidates = self
@@ -145,6 +149,7 @@ impl super::Service {
 		let mut seeded_events =
 			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
 		trace!(
+			elapsed=?start.elapsed(),
 			"Fetching {} unknown PDUs on demand from {} candidates",
 			events.len(),
 			candidates.len()
@@ -158,7 +163,7 @@ impl super::Service {
 					continue;
 				}
 				if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
-					trace!("Found {next_id} in db");
+					trace!(elapsed=?start.elapsed(),"Found {next_id} in db");
 					let mut obj = local_pdu.into_canonical_object();
 					obj.remove("event_id");
 					seeded_events.insert(next_id.clone(), obj);
@@ -166,11 +171,11 @@ impl super::Service {
 				}
 				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
 				if attempts >= 5 {
-					debug_error!(%attempts, %next_id, "Could not fetch missing event after 5 attempts, giving up");
+					debug_error!(elapsed=?start.elapsed(),%attempts, %next_id, "Could not fetch missing event after 5 attempts, giving up");
 					continue;
 				}
 
-				debug!("Fetching {next_id} over federation");
+				debug!(elapsed=?start.elapsed(),"Fetching {next_id} over federation");
 				let futures = candidates
 					.iter()
 					.map(|remote| {
@@ -184,13 +189,14 @@ impl super::Service {
 				let (event_id, value) = match select_ok(futures).await {
 					| Ok((x, _)) => x,
 					| Err(e) => {
-						warn!("failed to fetch missing event {next_id} from any candidate: {e}");
+						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {next_id} from any candidate: {e}");
 						continue;
 					},
 				};
 				let auth_events =
 					match expect_event_id_array(&value, "auth_events").map_err(|e| {
 						err!(Request(BadJson(warn!(
+							elapsed=?start.elapsed(),
 							%event_id,
 							"Failed to parse event fetched from remote: {e}"
 						))))
@@ -198,6 +204,7 @@ impl super::Service {
 						| Ok(auth_events) => auth_events,
 						| Err(e) => {
 							warn!(
+								elapsed=?start.elapsed(),
 								?e,
 								"event {event_id} is malformed (bad auth_events), skipping"
 							);
@@ -207,17 +214,17 @@ impl super::Service {
 				let mut have_all_auth = true;
 				for auth_event_id in auth_events {
 					if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
-						trace!("Found auth event {next_id} in db");
+						trace!(elapsed=?start.elapsed(),"Found auth event {next_id} in db");
 						let mut obj = local_pdu.into_canonical_object();
 						obj.remove("event_id");
 						seeded_events.insert(id.clone(), obj);
 						continue;
 					}
 					if seeded_events.contains_key(&auth_event_id) {
-						trace!(%auth_event_id, "Already found auth event");
+						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
 						continue;
 					}
-					debug!("Missing auth event {auth_event_id} for event {next_id}");
+					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {next_id}");
 					seen.insert(auth_event_id.clone(), attempts.saturating_add(1));
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
@@ -226,10 +233,10 @@ impl super::Service {
 				// all of its auth events have been fetched.
 				// TODO: This may result in infinite looping, needs a breaker
 				if have_all_auth {
-					debug!(%next_id, "Have all auth events");
+					debug!(elapsed=?start.elapsed(),%next_id, "Have all auth events");
 					seeded_events.insert(next_id, value);
 				} else {
-					debug_warn!(
+					debug_warn!(elapsed=?start.elapsed(),
 						"Fetched {next_id} but missing some auth events, will have to re-fetch."
 					);
 					seen.insert(next_id.clone(), attempts.saturating_add(1));
@@ -249,7 +256,7 @@ impl super::Service {
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
 		for id in seeded_ordered {
 			let pdu_json = seeded_events.remove(&id).unwrap();
-			debug_info!("Handling missing event {id} as outlier");
+			debug_info!(elapsed=?start.elapsed(),"Handling missing event {id} as outlier");
 			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
@@ -262,9 +269,11 @@ impl super::Service {
 			.await
 			{
 				| Ok((pdu, _)) => {
+					trace!(elapsed=?start.elapsed(), "Persisted {id}");
 					let _ = pdus.insert(id, pdu);
 				},
-				| Err(e) => warn!("Authentication of event {id} failed: {e:?}"),
+				| Err(e) =>
+					warn!(elapsed=?start.elapsed(),"Authentication of event {id} failed: {e:?}"),
 			}
 
 			// TODO: should this try to promote to timeline?
@@ -272,7 +281,7 @@ impl super::Service {
 			// now.
 		}
 
-		trace!("Fetched and handled {} missing PDUs", pdus.len());
+		trace!(elapsed=?start.elapsed(),"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs", pdus.len());
 		pdus
 	}
 
@@ -445,6 +454,7 @@ impl super::Service {
 		via: &ServerName,
 		min_depth: UInt,
 	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
+		let start = Instant::now();
 		#[cfg(debug_assertions)]
 		{
 			let missing_count = head
@@ -456,9 +466,11 @@ impl super::Service {
 						.timeline
 						.get_non_outlier_pdu_json(event_id)
 						.await
-						.inspect(|_| debug!("Found prev_event {event_id} locally."))
+						.inspect(
+							|_| debug!(elapsed=?start.elapsed(),"Found prev_event {event_id} locally."),
+						)
 						.inspect_err(
-							|e| debug!(%e, "Could not find prev_event {event_id} locally."),
+							|e| debug!(elapsed=?start.elapsed(),%e, "Could not find prev_event {event_id} locally."),
 						) {
 						| Ok(_) => None,
 						| Err(_) => Some(event_id),
@@ -486,7 +498,7 @@ impl super::Service {
 
 		let mut discovered = HashMap::with_capacity(head.prev_events.len());
 		let mut latest_events = vec![head.event_id().to_owned()];
-		debug!(
+		debug!(elapsed=?start.elapsed(),
 			%room_id,
 			event_id=%head.event_id(),
 			%iteration_limit,
@@ -497,7 +509,7 @@ impl super::Service {
 				.expected_add(1)
 				.saturating_mul(10)
 				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
-			debug_info!(
+			debug_info!(elapsed=?start.elapsed(),
 				%limit,
 				%via,
 				%iteration,
@@ -522,10 +534,10 @@ impl super::Service {
 				.await?;
 
 			if response.events.is_empty() {
-				debug_info!(%via, "Finished gap filling missing events (remote returned no more events).");
+				debug_info!(elapsed=?start.elapsed(),%via, "Finished gap filling missing events (remote returned no more events).");
 				break;
 			}
-			debug_info!("Got {} events back from remote", response.events.len());
+			debug_info!(elapsed=?start.elapsed(),"Got {} events back from remote", response.events.len());
 
 			latest_events.clear();
 			for raw_event in response.events {
@@ -536,7 +548,7 @@ impl super::Service {
 
 				if pdu.depth < min_depth {
 					debug_warn!(
-						"Received PDU with depth {} below min_depth {}, ignoring",
+						elapsed=?start.elapsed(),"Received PDU with depth {} below min_depth {}, ignoring",
 						pdu.depth,
 						min_depth
 					);
@@ -567,7 +579,7 @@ impl super::Service {
 			}
 
 			if latest_events.is_empty() {
-				debug!(
+				debug!(elapsed=?start.elapsed(),
 					%limit,
 					%via,
 					%iteration,
@@ -582,7 +594,7 @@ impl super::Service {
 				// debug mode because this can be important, but typically not much can be done
 				// about it as a user.
 				#[cfg(debug_assertions)]
-				error!(
+				error!(elapsed=?start.elapsed(),
 					discovered=discovered.len(),
 					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
 					%iteration,
@@ -593,7 +605,7 @@ impl super::Service {
 					"Encountered a gap too large to fill, giving up"
 				);
 				#[cfg(not(debug_assertions))]
-				warn!(
+				warn!(elapsed=?start.elapsed(),
 					discovered=discovered.len(),
 					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
 					%iteration,
@@ -607,6 +619,7 @@ impl super::Service {
 			}
 		}
 
+		trace!(elapsed=?start.elapsed(), "Finished get_missing_events");
 		Ok(discovered)
 	}
 }
