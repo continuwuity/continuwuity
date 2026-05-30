@@ -96,6 +96,12 @@ impl super::Service {
 				})
 				.collect()
 				.await;
+			assert_eq!(
+				state_events.len(),
+				res.pdu_ids.len(),
+				"Failed to load all required state events despite allegedly knowing all of them \
+				 already",
+			);
 		} else {
 			let total_count = res.pdu_ids.len();
 			let missing_count = to_fetch.len();
@@ -132,6 +138,11 @@ impl super::Service {
 						.await
 					},
 				};
+				assert!(
+					!fetched_state.is_empty(),
+					"fetch_full_state or fetch_and_handle_missing_events returned empty state \
+					 map"
+				);
 				state_events.extend(fetched_state);
 			} else {
 				debug!(
@@ -139,10 +150,14 @@ impl super::Service {
 					to_fetch = to_fetch.len(),
 					"Fetching missing events for state from remote"
 				);
-				state_events.extend(
-					self.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
-						.await,
+				let fetched_state = self
+					.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
+					.await;
+				assert!(
+					!fetched_state.is_empty(),
+					"fetch_and_handle_missing_events returned empty state map"
 				);
+				state_events.extend(fetched_state);
 			}
 		}
 
