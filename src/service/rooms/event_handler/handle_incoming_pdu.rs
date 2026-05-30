@@ -229,7 +229,7 @@ impl super::Service {
 		let (incoming_pdu, val) = self
 			.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
 			.await
-			.inspect(|e| error!("[TODO] Failed to handle outlier PDU: {e:?}"))?;
+			.inspect_err(|e| error!("[TODO] Failed to handle outlier PDU: {e:?}"))?;
 
 		// 8. if not timeline event: stop
 		if !is_timeline_event {

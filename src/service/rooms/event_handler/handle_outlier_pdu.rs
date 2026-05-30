@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res,
-	state_res::EventTypeExt, trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res, trace,
+	warn,
 };
 use futures::future::ready;
 use ruma::{
@@ -209,25 +209,6 @@ impl super::Service {
 					)));
 				},
 			}
-		}
-
-		// The original create event must be in the auth events
-		let claimed_create_event =
-			auth_events_by_key.get(&StateEventType::RoomCreate.with_state_key(""));
-		if let Some(claimed_create_event) = claimed_create_event {
-			if claimed_create_event.event_id() != create_event.event_id() {
-				self.services.pdu_metadata.mark_event_rejected(event_id);
-				self.services
-					.outlier
-					.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
-				return Err!(Request(Forbidden(
-					"Incoming event refers to wrong create event (expected {}, got {})",
-					create_event.event_id(),
-					claimed_create_event.event_id(),
-				)));
-			}
-		} else if !pdu_event.auth_events.is_empty() {
-			return Err!(Request(Forbidden("Incoming event does not refer to any create event")));
 		}
 
 		let state_fetch = |ty: &StateEventType, sk: &str| {
