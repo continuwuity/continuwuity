@@ -92,7 +92,7 @@ impl super::Service {
 				.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
 				.await
 				.debug_inspect_err(|e| {
-					debug_error!("Could not fetch state from {origin}: {e}")
+					debug_error!("Could not fetch state from {origin}: {e}");
 				})?;
 		}
 

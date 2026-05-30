@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res, trace,
-	warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res,
+	state_res::EventTypeExt, trace, warn,
 };
 use futures::future::ready;
 use ruma::{
@@ -110,7 +110,7 @@ impl super::Service {
 					event_id,
 				);
 				self.services.pdu_metadata.mark_event_rejected(event_id);
-				return Err!(Request(InvalidParam("Event has rejected auth event: {aid}")));
+				return Err!(Request(Forbidden("Event has rejected auth event: {aid}")));
 			}
 
 			if let Ok(auth_event) = self.services.timeline.get_pdu(aid).await {
@@ -148,7 +148,7 @@ impl super::Service {
 				let (auth_event_room_id, auth_event_id, auth_pdu_json) =
 					self.parse_incoming_pdu(&auth_pdu_json).await?;
 				if auth_event_room_id != room_id {
-					return Err!(Request(BadJson(
+					return Err!(Request(Forbidden(
 						"Auth event {auth_event_id} is in {auth_event_room_id}, not {room_id}."
 					)));
 				}
@@ -201,7 +201,7 @@ impl super::Service {
 						.outlier
 						.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 					self.services.pdu_metadata.mark_event_rejected(event_id);
-					return Err!(Request(InvalidParam(
+					return Err!(Request(Forbidden(
 						"Auth event's type and state_key combination exists multiple times: {}, \
 						 {}",
 						auth_event.kind,
@@ -212,15 +212,22 @@ impl super::Service {
 		}
 
 		// The original create event must be in the auth events
-		if !matches!(
-			auth_events_by_key.get(&(StateEventType::RoomCreate, String::new().into())),
-			Some(_) | None
-		) {
-			self.services.pdu_metadata.mark_event_rejected(event_id);
-			self.services
-				.outlier
-				.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
-			return Err!(Request(InvalidParam("Incoming event refers to wrong create event.")));
+		let claimed_create_event =
+			auth_events_by_key.get(&StateEventType::RoomCreate.with_state_key(""));
+		if let Some(claimed_create_event) = claimed_create_event {
+			if claimed_create_event.event_id() != create_event.event_id() {
+				self.services.pdu_metadata.mark_event_rejected(event_id);
+				self.services
+					.outlier
+					.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
+				return Err!(Request(Forbidden(
+					"Incoming event refers to wrong create event (expected {}, got {})",
+					create_event.event_id(),
+					claimed_create_event.event_id(),
+				)));
+			}
+		} else if !pdu_event.auth_events.is_empty() {
+			return Err!(Request(Forbidden("Incoming event does not refer to any create event")));
 		}
 
 		let state_fetch = |ty: &StateEventType, sk: &str| {
