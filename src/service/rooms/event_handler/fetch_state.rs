@@ -1,6 +1,7 @@
 use std::{
 	cmp::max,
 	collections::{HashMap, hash_map},
+	time::Instant,
 };
 
 use conduwuit::{
@@ -34,6 +35,7 @@ impl super::Service {
 		room_id: &RoomId,
 		event_id: &EventId,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>> {
+		let start = Instant::now();
 		trace!(%origin, "Asking remote for state_ids");
 		let res: get_room_state_ids::v1::Response = match self
 			.services
@@ -43,8 +45,9 @@ impl super::Service {
 				get_room_state_ids::v1::Request::new(event_id.to_owned(), room_id.to_owned()),
 			)
 			.await
-			.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))
-		{
+			.inspect_err(
+				|e| debug_warn!(elapsed=?start.elapsed(), "Fetching state for event failed: {e}"),
+			) {
 			| Ok(resp) => Ok(resp),
 			| Err(e) =>
 				if e.is_not_found() {
@@ -58,7 +61,7 @@ impl super::Service {
 				},
 		}?;
 
-		debug!(events = res.pdu_ids.len(), "Fetching state events");
+		debug!(elapsed=?start.elapsed(), events = res.pdu_ids.len(), "Fetching state events");
 		let mut state_events: HashMap<OwnedEventId, PduEvent> =
 			HashMap::with_capacity(res.pdu_ids.len());
 		let to_fetch: Vec<OwnedEventId> = res
@@ -76,7 +79,7 @@ impl super::Service {
 			.collect()
 			.await;
 		if to_fetch.is_empty() {
-			debug!("All required state events are already known.");
+			debug!(elapsed=?start.elapsed(), "All required state events are already known.");
 			state_events = res
 				.pdu_ids
 				.iter()
@@ -103,6 +106,7 @@ impl super::Service {
 				// Since this endpoint might fail in huge rooms, we fall back to atomic fetch
 				// anyway.
 				debug_warn!(
+					elapsed=?start.elapsed(),
 					%missing_count,
 					%total_count,
 					"Fetching full state from remote server for event"
@@ -114,6 +118,7 @@ impl super::Service {
 					| Ok(state) => state,
 					| Err(e) => {
 						error!(
+							elapsed=?start.elapsed(),
 							error=?e,
 							%origin,
 							"Failed to fetch full state from remote, falling back to atomic fetch"
@@ -130,6 +135,7 @@ impl super::Service {
 				state_events.extend(fetched_state);
 			} else {
 				debug!(
+					elapsed=?start.elapsed(),
 					to_fetch = to_fetch.len(),
 					"Fetching missing events for state from remote"
 				);
@@ -142,7 +148,7 @@ impl super::Service {
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =
 			HashMap::with_capacity(state_events.len());
-		debug!(events = state_events.len(), "Processing state events");
+		debug!(elapsed=?start.elapsed(), events = state_events.len(), "Processing state events");
 		for (event_id, pdu) in state_events {
 			let state_key = pdu.state_key().ok_or_else(|| {
 				err!(Request(BadJson("Found non-state pdu in state events: {event_id}")))
@@ -169,7 +175,7 @@ impl super::Service {
 				},
 			}
 		}
-
+		trace!(elapsed=?start.elapsed(), "fetch_state finished");
 		Ok(Some(state))
 	}
 
@@ -213,6 +219,7 @@ impl super::Service {
 		room_id: &RoomId,
 		event_id: &EventId,
 	) -> Result<HashMap<OwnedEventId, PduEvent>> {
+		let start = Instant::now();
 		trace!("Fetching full state from remote server");
 		let res: get_room_state::v1::Response = self
 			.services
@@ -223,7 +230,7 @@ impl super::Service {
 			)
 			.await
 			.inspect_err(|e| debug_warn!("Fetching state for event failed: {e}"))?;
-		debug!(count = res.auth_chain.len(), "Handling incoming auth chain...");
+		debug!(elapsed=?start.elapsed(), count = res.auth_chain.len(), "Handling incoming auth chain...");
 		res.auth_chain
 			.iter()
 			.stream()
@@ -260,8 +267,8 @@ impl super::Service {
 				},
 			)
 			.await;
-		debug!(count = res.pdus.len(), "Handling incoming state PDUs...");
-		Ok(res
+		debug!(elapsed=?start.elapsed(), count = res.pdus.len(), "Handling incoming state PDUs...");
+		let r = res
 			.pdus
 			.iter()
 			.stream()
@@ -287,6 +294,7 @@ impl super::Service {
 					.await
 					.inspect_err(|e| {
 						warn!(
+							elapsed=?start.elapsed(),
 							%incoming_room_id,
 							%incoming_event_id,
 							?e,
@@ -300,6 +308,8 @@ impl super::Service {
 				acc.insert(event.event_id().to_owned(), event);
 				acc
 			})
-			.await)
+			.await;
+		trace!(elapsed=?start.elapsed(), "fetch_full_state finished");
+		Ok(r)
 	}
 }
