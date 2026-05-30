@@ -221,13 +221,15 @@ pub async fn handle_incoming_pdu<'a>(
 			.remove(room_id);
 	}};
 
+	info!("[TODO] Handling PDU as outlier");
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
 		.await
 		.inspect_err(|e| error!("[TODO] Failed to handle outlier PDU: {e:?}"))?;
-
+	info!("[TODO] Finished handling PDU as outlier");
 	// 8. if not timeline event: stop
 	if !is_timeline_event {
+		info!("[TODO] Not upgrading PDU");
 		return Ok(None);
 	}
 
@@ -242,10 +244,12 @@ pub async fn handle_incoming_pdu<'a>(
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
 
+	info!("[TODO] Fetching prev events");
 	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
 		.await
 		.inspect_err(|e| error!("[TODO] Failed to fetch_prevs: {e:?}"))?;
 
+	info!("[TODO] Finished fetching prev events, attempting to upgrade");
 	// Done with prev events, now handling the incoming event
 	self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
 		.await
