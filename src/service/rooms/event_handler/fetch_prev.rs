@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Instant};
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_info, debug_warn,
+	Event, PduEvent, debug, debug_info, debug_warn, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
 use futures::StreamExt;
@@ -19,6 +19,7 @@ impl super::Service {
 		incoming_pdu: &PduEvent,
 		origin: &ServerName,
 	) -> conduwuit::Result<()> {
+		let start = Instant::now();
 		let missing = incoming_pdu
 			.prev_events()
 			.stream()
@@ -33,10 +34,10 @@ impl super::Service {
 			.collect::<Vec<_>>()
 			.await;
 		if missing.is_empty() {
-			debug!(event_id=%incoming_pdu.event_id(), "No missing prev events.");
+			debug!(elapsed=?start.elapsed(), event_id=%incoming_pdu.event_id(), "No missing prev events.");
 			return Ok(());
 		}
-		debug!(%room_id, event_id=%incoming_pdu.event_id(), ?missing, "Fetching previous events");
+		debug!(elapsed=?start.elapsed(), %room_id, event_id=%incoming_pdu.event_id(), ?missing, "Fetching previous events");
 		let tail = self
 			.services
 			.state
@@ -62,7 +63,7 @@ impl super::Service {
 					),
 			)
 			.await?;
-		debug_info!("Fetched {} missing events", gapfilled.len());
+		debug_info!(elapsed=?start.elapsed(), "Fetched {} missing events", gapfilled.len());
 
 		// Persist all fetched events
 		let mapped = gapfilled
@@ -80,9 +81,12 @@ impl super::Service {
 			build_local_dag(&mapped).await?
 		};
 
+		let job_start = Instant::now();
+		trace!("Starting to persist {} prev events", to_persist.len());
 		for event_id in to_persist {
 			debug_info!("Persisting fetched prev event {event_id}");
 			let obj = mapped.get(&event_id).cloned().unwrap();
+			let persist_start = Instant::now();
 			match self
 				.handle_outlier_pdu(origin, create_event, &event_id, room_id, obj, false)
 				.await
@@ -91,16 +95,21 @@ impl super::Service {
 					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
 						.await
 						.inspect_err(|e| {
-							debug_warn!("Failed to upgrade prev event {event_id}: {e}");
+							debug_warn!(total_elapsed=?start.elapsed(), job_elapsed=?job_start.elapsed(), task_elapsed=?persist_start.elapsed(), "Failed to upgrade prev event {event_id}: {e}");
 						})
 						.ok();
 				},
-				| Err(e) => debug_warn!("Failed to persist prev event {event_id}: {e}"),
+				| Err(e) =>
+					debug_warn!(total_elapsed=?start.elapsed(), job_elapsed=?job_start.elapsed(), task_elapsed=?persist_start.elapsed(), "Failed to persist prev event {event_id}: {e}"),
 			}
 		}
 
 		// NOTE because i keep forgetting: the caller persists incoming_pdu.
 		// we only care about its prev events
+		trace!(
+			total_elapsed=?start.elapsed(),
+			persist_elapsed=?job_start.elapsed(),
+		);
 		Ok(())
 	}
 }
