@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_info,
+	Event, PduEvent, debug, debug_info, debug_warn,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
-	warn,
 };
 use futures::StreamExt;
 use ruma::{RoomId, ServerName};
@@ -88,14 +87,16 @@ impl super::Service {
 				.handle_outlier_pdu(origin, create_event, &event_id, room_id, obj, false)
 				.await
 			{
-				| Ok((pdu, val)) =>
+				| Ok((pdu, val)) => {
 					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
-						.await,
-				| Err(e) => {
-					warn!("Failed to persist prev_event {event_id}: {e}");
-					continue;
+						.await
+						.inspect_err(|e| {
+							debug_warn!("Failed to upgrade prev event {event_id}: {e}");
+						})
+						.ok();
 				},
-			}?;
+				| Err(e) => debug_warn!("Failed to persist prev event {event_id}: {e}"),
+			}
 		}
 
 		// NOTE because i keep forgetting: the caller persists incoming_pdu.
