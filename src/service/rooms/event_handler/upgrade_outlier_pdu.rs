@@ -99,7 +99,7 @@ impl super::Service {
 
 		let state_at_incoming_event =
 			state_at_incoming_event.expect("we always set this to some above");
-		assert!(!state_at_incoming_event.is_empty(), "Event has no incoming state");
+		debug_assert!(!state_at_incoming_event.is_empty(), "Event has no incoming state");
 		trace!(state_events = state_at_incoming_event.len(), "Calculated incoming state");
 
 		debug!(
