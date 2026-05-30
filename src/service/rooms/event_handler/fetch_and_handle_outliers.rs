@@ -8,10 +8,10 @@ use conduwuit::{
 	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err, error,
 	state_res::lexicographical_topological_sort,
 	trace,
-	utils::{IterStream, math::Expected, stream::BroadbandExt},
+	utils::{BoolExt, IterStream, math::Expected},
 	warn,
 };
-use futures::{StreamExt, future::select_ok};
+use futures::{StreamExt, TryStreamExt, future::select_ok};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
 	OwnedServerName, RoomId, ServerName, UInt,
@@ -136,23 +136,13 @@ impl super::Service {
 			let missing_count = head
 				.prev_events()
 				.stream()
-				.broad_filter_map(|event_id| async move {
-					match self
-						.services
-						.timeline
-						.get_non_outlier_pdu_json(event_id)
-						.await
-						.inspect(
-							|_| debug!(elapsed=?start.elapsed(),"Found prev_event {event_id} locally."),
-						)
-						.inspect_err(
-							|e| debug!(elapsed=?start.elapsed(),%e, "Could not find prev_event {event_id} locally."),
-						) {
-						| Ok(_) => None,
-						| Err(_) => Some(event_id),
+				.fold(0_u8, |i, event_id| async move {
+					if self.services.timeline.pdu_exists(event_id).await {
+						i.expected_add(1)
+					} else {
+						i
 					}
 				})
-				.count()
 				.await;
 			debug_assert_ne!(
 				missing_count, 0,
@@ -189,6 +179,7 @@ impl super::Service {
 				%limit,
 				%via,
 				%iteration,
+				%iteration_limit,
 				discovered=discovered.len(),
 				%min_depth,
 				"Attempting to gap fill missing events"
@@ -210,21 +201,30 @@ impl super::Service {
 				.await?;
 
 			if response.events.is_empty() {
-				debug_info!(elapsed=?start.elapsed(),%via, "Finished gap filling missing events (remote returned no more events).");
+				debug_info!(
+					elapsed=?start.elapsed(),
+					%via,
+					"Finished gap filling missing events (remote returned no more events)."
+				);
 				break;
 			}
-			debug_info!(elapsed=?start.elapsed(),"Got {} events back from remote", response.events.len());
+			debug_info!(
+				elapsed=?start.elapsed(),
+				"Got {} events back from remote",
+				response.events.len()
+			);
 
 			latest_events.clear();
 			for raw_event in response.events {
 				let (_, event_id, pdu_json) = self.parse_incoming_pdu(&raw_event).await?;
 				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
-					err!(Request(BadJson("Failed to parse backfilled event {event_id}: {e}")))
+					err!(Request(BadJson("Failed to parse gapfilled event {event_id}: {e}")))
 				})?;
 
 				if pdu.depth < min_depth {
 					debug_warn!(
-						elapsed=?start.elapsed(),"Received PDU with depth {} below min_depth {}",
+						elapsed=?start.elapsed(),
+						"Received PDU with depth {} below min_depth {}",
 						pdu.depth,
 						min_depth
 					);
@@ -246,6 +246,27 @@ impl super::Service {
 						// NOTE: we explicitly check for *non*-outlier events here, as if we end
 						// up discovering outlier events, we will be able to upgrade them
 						// immediately.
+						continue;
+					}
+					if let Ok(outlier) = self.services.timeline.get_pdu(prev_event_id).await {
+						// We already have this PDU as an outlier, don't ask for
+						// it. However, if we are missing any prev events for it, add it to the
+						// latest events anyway.
+						let outlier_missing_prevs = outlier
+							.prev_events()
+							.stream()
+							.fold(0_u8, |i, event_id| async move {
+								if self.services.timeline.pdu_exists(event_id).await {
+									i.expected_add(1)
+								} else {
+									i
+								}
+							})
+							.await;
+						if outlier_missing_prevs > 0 {
+							latest_events.push(prev_event_id.to_owned());
+						}
+						discovered.insert(prev_event_id.to_owned(), outlier);
 						continue;
 					}
 					latest_events.push(prev_event_id.to_owned());
