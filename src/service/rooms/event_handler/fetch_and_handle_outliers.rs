@@ -228,8 +228,8 @@ impl super::Service {
 						pdu.depth,
 						min_depth
 					);
-					// discovered.insert(event_id.clone(), pdu);
-					// continue;
+					discovered.insert(event_id.clone(), pdu);
+					continue;
 				}
 
 				for prev_event_id in pdu.prev_events() {
