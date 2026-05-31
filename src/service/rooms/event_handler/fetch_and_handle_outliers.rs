@@ -4,14 +4,16 @@ use std::{
 };
 
 use assign::assign;
+#[cfg(debug_assertions)]
+use conduwuit::error;
 use conduwuit::{
-	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err, error,
+	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err,
 	state_res::lexicographical_topological_sort,
 	trace,
-	utils::{BoolExt, IterStream, math::Expected},
+	utils::{IterStream, math::Expected},
 	warn,
 };
-use futures::{StreamExt, TryStreamExt, future::select_ok};
+use futures::{StreamExt, future::select_ok};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
 	OwnedRoomId, OwnedServerName, RoomId, ServerName, UInt,
