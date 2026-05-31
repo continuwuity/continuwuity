@@ -255,6 +255,11 @@ impl super::Service {
 			.timeline
 			.candidate_backfill_servers(&room_id)
 			.await;
+		if candidates.is_empty() {
+			return Err!(Request(NotFound(
+				"Cannot ask any other servers for the state at this event"
+			)));
+		}
 		debug!(%room_id, ?candidates, "Asking backfill servers for state_ids");
 		let futures = candidates.iter().map(|server_name| {
 			Box::pin(
