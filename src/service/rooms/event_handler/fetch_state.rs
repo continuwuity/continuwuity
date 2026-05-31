@@ -9,7 +9,7 @@ use conduwuit::{
 	utils::{BoolExt, IterStream},
 	warn,
 };
-use futures::{FutureExt, StreamExt, TryFutureExt, future::select_ok};
+use futures::{StreamExt, TryFutureExt, future::select_ok};
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, ServerName,
 	api::federation::event::{get_room_state, get_room_state_ids},
