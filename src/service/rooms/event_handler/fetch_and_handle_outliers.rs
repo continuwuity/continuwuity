@@ -528,6 +528,7 @@ impl super::Service {
 
 		trace!(elapsed=?start.elapsed(),"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs", pdus.len());
 		pdus.retain(|id, _| events.contains(id)); // Only return state events
+		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
 		pdus
 	}
 }
