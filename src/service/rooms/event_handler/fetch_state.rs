@@ -5,7 +5,8 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_warn, err, error, trace, utils::IterStream, warn,
+	Err, Event, PduEvent, Result, debug, debug_warn, err, error, info, trace, utils::IterStream,
+	warn,
 };
 use futures::{StreamExt, TryFutureExt, future::select_ok};
 use ruma::{
@@ -70,11 +71,11 @@ impl super::Service {
 			.into_iter()
 			.stream()
 			.broad_filter_map(|event_id| async move {
-				if self.services.timeline.pdu_exists(&event_id).await {
-					None
-				} else {
-					Some(event_id)
-				}
+				self.services
+					.timeline
+					.pdu_exists(&event_id)
+					.await
+					.then_some(event_id)
 			})
 			.collect()
 			.await;
@@ -105,22 +106,32 @@ impl super::Service {
 		} else {
 			let total_count = res.pdu_ids.len();
 			let missing_count = to_fetch.len();
-			if missing_count >= max(50, total_count >> 2) {
+			let missing_threshold = max(50, total_count >> 2);
+			if missing_count >= missing_threshold {
 				// If there's more than 50 events to fetch, or we're missing 25% or more of the
 				// state, we would need to make a lot of atomic requests, so we'll just try
 				// to fetch the full state from the remote instead.
 				// Since this endpoint might fail in huge rooms, we fall back to atomic fetch
 				// anyway.
-				debug_warn!(
+				warn!(
 					elapsed=?start.elapsed(),
 					%missing_count,
 					%total_count,
+					%missing_threshold,
 					"Fetching full state from remote server for event"
 				);
 				let fetched_state = match self
 					.fetch_full_state(origin, create_event, room_id, event_id)
 					.await
-				{
+					.inspect(|_| {
+						info!(
+							elapsed=?start.elapsed(),
+							%missing_count,
+							%total_count,
+							%missing_threshold,
+							"Fetched full state from remote server for event"
+						);
+					}) {
 					| Ok(state) => state,
 					| Err(e) => {
 						error!(
@@ -138,6 +149,9 @@ impl super::Service {
 						.await
 					},
 				};
+				// TODO: Should probably verify that fetched_state solely consists of PDUs we're
+				// expecting, otherwise this might be vulnerable to the "me when I lie attack",
+				// maybe?
 				assert!(
 					!fetched_state.is_empty(),
 					"fetch_full_state or fetch_and_handle_missing_events returned empty state \
@@ -145,6 +159,20 @@ impl super::Service {
 				);
 				state_events.extend(fetched_state);
 			} else {
+				state_events = res
+					.pdu_ids
+					.iter()
+					.stream()
+					.broad_filter_map(|event_id| async move {
+						self.services
+							.timeline
+							.get_pdu(event_id)
+							.await
+							.map(|p| (event_id.to_owned(), p))
+							.ok()
+					})
+					.collect()
+					.await;
 				debug!(
 					elapsed=?start.elapsed(),
 					to_fetch = to_fetch.len(),
