@@ -170,7 +170,12 @@ impl super::Service {
 				}
 				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
 				if attempts >= 5 {
-					debug_error!(elapsed=?start.elapsed(),%attempts, %next_id, "Could not fetch missing event after 5 attempts, giving up");
+					debug_error!(
+						elapsed=?start.elapsed(),
+						%attempts,
+						%next_id,
+						"Could not fetch missing event after 5 attempts, giving up"
+					);
 					continue;
 				}
 

@@ -145,7 +145,7 @@ impl super::Service {
 							);
 							self.fetch_and_handle_missing_events(
 								origin,
-								to_fetch,
+								res.pdu_ids.clone(),
 								create_event,
 								room_id,
 							)
@@ -161,7 +161,7 @@ impl super::Service {
 						);
 						self.fetch_and_handle_missing_events(
 							origin,
-							to_fetch,
+							res.pdu_ids.clone(),
 							create_event,
 							room_id,
 						)
@@ -192,6 +192,11 @@ impl super::Service {
 					})
 					.collect()
 					.await;
+				assert!(
+					!state_events.is_empty(),
+					"Only missing {} events but read-ahead state vec was empty",
+					to_fetch.len()
+				);
 				debug!(
 					elapsed=?start.elapsed(),
 					to_fetch = to_fetch.len(),
@@ -200,12 +205,11 @@ impl super::Service {
 				let fetched_state = self
 					.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
 					.await;
-				assert!(
-					!fetched_state.is_empty(),
-					"fetch_and_handle_missing_events returned empty state map"
-				);
 				state_events.extend(fetched_state);
 			}
+		}
+		if state_events.is_empty() {
+			return Ok(Some(HashMap::new()));
 		}
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =

@@ -95,7 +95,11 @@ impl super::Service {
 		if state_at_incoming_event.is_empty()
 			&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
 		{
-			return Err!(Request(Forbidden("Incoming event has empty incoming state at")));
+			// This can happen if the remote sends an event but cannot be reached to fetch
+			// the state at it, and all other servers in the room (which might just be the
+			// unreachable server) are unable to provide required info.
+			// returning an error here allows the upgrade to be attempted at another time.
+			return Err!(Request(Forbidden("Could not resolve incoming state at event")));
 		}
 		trace!(state_events = state_at_incoming_event.len(), "Calculated incoming state");
 
