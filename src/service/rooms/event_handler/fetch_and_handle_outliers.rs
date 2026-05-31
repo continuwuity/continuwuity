@@ -174,7 +174,13 @@ impl super::Service {
 			let limit = iteration
 				.expected_add(1)
 				.saturating_mul(10)
-				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
+				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE)
+				.max(
+					// This max call ensures we fetch *at least* all the prev events the
+					// head has.
+					u16::try_from(head.prev_events.len())
+						.expect("cannot have more than 20 prev events, which fits in u16"),
+				);
 			debug_info!(elapsed=?start.elapsed(),
 				%limit,
 				%via,
