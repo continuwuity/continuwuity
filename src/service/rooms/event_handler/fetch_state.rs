@@ -1,14 +1,15 @@
 use std::{
 	cmp::max,
 	collections::{HashMap, hash_map},
-	time::Instant,
+	time::{Duration, Instant},
 };
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_warn, err, error, info, trace, utils::IterStream,
+	Err, Event, PduEvent, Result, debug, debug_warn, err, info, trace,
+	utils::{BoolExt, IterStream},
 	warn,
 };
-use futures::{StreamExt, TryFutureExt, future::select_ok};
+use futures::{FutureExt, StreamExt, TryFutureExt, future::select_ok};
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, RoomId, ServerName,
 	api::federation::event::{get_room_state, get_room_state_ids},
@@ -75,7 +76,7 @@ impl super::Service {
 					.timeline
 					.pdu_exists(&event_id)
 					.await
-					.then_some(event_id)
+					.or_some(event_id)
 			})
 			.collect()
 			.await;
@@ -120,25 +121,43 @@ impl super::Service {
 					%missing_threshold,
 					"Fetching full state from remote server for event"
 				);
-				let fetched_state = match self
-					.fetch_full_state(origin, create_event, room_id, event_id)
-					.await
-					.inspect(|_| {
-						info!(
-							elapsed=?start.elapsed(),
-							%missing_count,
-							%total_count,
-							%missing_threshold,
-							"Fetched full state from remote server for event"
-						);
-					}) {
-					| Ok(state) => state,
+				let state_response = tokio::time::timeout(
+					Duration::from_secs(30),
+					self.fetch_full_state(origin, create_event, room_id, event_id),
+				)
+				.await;
+				info!(
+					elapsed=?start.elapsed(),
+					%missing_count,
+					%total_count,
+					%missing_threshold,
+					"Fetched full state from remote server for event"
+				);
+				let fetched_state = match state_response {
+					| Ok(wrapped) => match wrapped {
+						| Ok(state) => state,
+						| Err(e) => {
+							warn!(
+								elapsed=?start.elapsed(),
+								error=?e,
+								%origin,
+								"Failed to fetch full state from remote, falling back to atomic fetch"
+							);
+							self.fetch_and_handle_missing_events(
+								origin,
+								to_fetch,
+								create_event,
+								room_id,
+							)
+							.await
+						},
+					},
 					| Err(e) => {
-						error!(
+						warn!(
 							elapsed=?start.elapsed(),
 							error=?e,
 							%origin,
-							"Failed to fetch full state from remote, falling back to atomic fetch"
+							"Remote did not return room state in an acceptable timeframe, falling back to atomic fetch"
 						);
 						self.fetch_and_handle_missing_events(
 							origin,
