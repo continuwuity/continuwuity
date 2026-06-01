@@ -313,7 +313,7 @@ impl Service {
 		}
 
 		if remote_mxcs.is_empty() {
-			return Err!(Database("Did not found any eligible MXCs to delete."));
+			return Err!(Database("Did not find any eligible MXCs to delete."));
 		}
 
 		debug_info!("Deleting media now {direction:?} {time_boundary:?}");
