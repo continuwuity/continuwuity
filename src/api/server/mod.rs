@@ -1,5 +1,4 @@
 pub(super) mod backfill;
-pub(super) mod edutypes;
 pub(super) mod event;
 pub(super) mod event_auth;
 pub(super) mod get_missing_events;
@@ -24,7 +23,6 @@ pub(super) mod version;
 pub(super) mod well_known;
 
 pub(super) use backfill::*;
-pub(super) use edutypes::*;
 pub(super) use event::*;
 pub(super) use event_auth::*;
 pub(super) use get_missing_events::*;
