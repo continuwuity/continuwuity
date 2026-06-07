@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Instant};
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_info, debug_warn, info, trace,
+	Event, PduEvent, debug, debug_info, debug_warn, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
 use futures::StreamExt;
@@ -84,13 +84,12 @@ impl super::Service {
 		let job_start = Instant::now();
 		trace!("Starting to persist {} prev events", to_persist.len());
 		for (i, event_id) in to_persist.iter().enumerate() {
-			info!(
+			debug!(
 				elapsed=?start.elapsed(),
 				"[TODO] Persisting fetched prev event: {event_id} ({}/{})",
 				i.saturating_add(1),
 				to_persist.len(),
 			);
-			debug_info!(elapsed=?start.elapsed(), "Persisting fetched prev event {event_id}");
 			let obj = mapped.get(event_id).cloned().unwrap();
 			let persist_start = Instant::now();
 			match self
