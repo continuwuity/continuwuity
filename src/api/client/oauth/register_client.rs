@@ -22,7 +22,7 @@ pub(crate) async fn register_client_route(
 		.oauth
 		.register_client(&metadata)
 		.await
-		.map_err(|err| (StatusCode::BAD_REQUEST, err.to_owned()).into_response())?;
+		.map_err(|err| (StatusCode::BAD_REQUEST, Json(err)).into_response())?;
 
 	Ok(Json(RegisteredClient { client_id, metadata }).into_response())
 }

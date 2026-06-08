@@ -8,7 +8,7 @@ pub(crate) async fn token_route(
 ) -> impl IntoResponse {
 	match services.oauth.issue_token(request).await {
 		| Ok(response) => Ok(Json(response)),
-		| Err(err) => Err((StatusCode::BAD_REQUEST, err.message())),
+		| Err(err) => Err((StatusCode::BAD_REQUEST, Json(err))),
 	}
 }
 
@@ -18,6 +18,6 @@ pub(crate) async fn revoke_token_route(
 ) -> impl IntoResponse {
 	match services.oauth.revoke_token(request.token).await {
 		| Ok(()) => Ok(StatusCode::OK),
-		| Err(err) => Err((StatusCode::BAD_REQUEST, err.message())),
+		| Err(err) => Err((StatusCode::BAD_REQUEST, Json(err))),
 	}
 }
