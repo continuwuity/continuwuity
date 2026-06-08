@@ -1,4 +1,11 @@
-use std::{collections::BTreeSet, fmt::Debug, hash::Hash, mem::discriminant};
+use std::{
+	borrow::Cow,
+	collections::BTreeSet,
+	error::Error,
+	fmt::{Debug, Display},
+	hash::Hash,
+	mem::discriminant,
+};
 
 use regex::Regex;
 use ruma::OwnedDeviceId;
@@ -63,7 +70,7 @@ impl Hash for Scope {
 	fn hash<H: std::hash::Hasher>(&self, state: &mut H) { discriminant(self).hash(state); }
 }
 
-impl std::fmt::Display for Scope {
+impl Display for Scope {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		let urn = match self {
 			| Self::ClientApi => "urn:matrix:client:api:*".to_owned(),
@@ -109,6 +116,46 @@ impl RawScopes {
 
 		Ok(scopes)
 	}
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct OAuthError {
+	pub error: ErrorCode,
+	pub error_description: Cow<'static, str>,
+}
+
+impl OAuthError {
+	pub const fn invalid_request(error_description: &'static str) -> Self {
+		Self {
+			error: ErrorCode::InvalidRequest,
+			error_description: Cow::Borrowed(error_description),
+		}
+	}
+
+	pub const fn invalid_grant(error_description: &'static str) -> Self {
+		Self {
+			error: ErrorCode::InvalidGrant,
+			error_description: Cow::Borrowed(error_description),
+		}
+	}
+}
+
+impl Display for OAuthError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "OAuth error {:?}: {}", self.error, self.error_description)
+	}
+}
+
+impl Error for OAuthError {}
+
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ErrorCode {
+	InvalidRequest,
+	AccessDenied,
+	InvalidScope,
+	InvalidGrant,
+	InvalidClientMetadata,
 }
 
 #[derive(Serialize)]
