@@ -2367,6 +2367,7 @@ pub struct RegistrationTerms {
 	/// The language code to provide to clients along with the policy documents.
 	///
 	/// default: "en"
+	#[serde(default = "default_terms_language")]
 	pub language: String,
 	/// Policy documents, such as terms and conditions or a privacy policy,
 	/// which users must agree to when registering an account.
@@ -2376,8 +2377,6 @@ pub struct RegistrationTerms {
 	/// [global.registration_terms.documents]
 	/// privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 	/// ```
-	///
-	/// default: {}
 	pub documents: BTreeMap<String, TermsDocument>,
 }
 
@@ -2805,3 +2804,5 @@ fn default_client_response_timeout() -> u64 { 120 }
 fn default_client_shutdown_timeout() -> u64 { 15 }
 
 fn default_sender_shutdown_timeout() -> u64 { 5 }
+
+fn default_terms_language() -> String { "en".to_owned() }
