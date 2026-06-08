@@ -305,6 +305,25 @@ ul.bullet-separated {
     filter: brightness(1.2);
 }
 
+.kitty {
+    margin-bottom: 0;
+    overflow: clip;
+    width: fit-content;
+    position: relative;
+    float: right;
+    cursor: default;
+
+    span {
+        display: inline-block;
+        transform: translateX(calc(100% - 1.5em));
+        transition: transform 0.3s ease-in-out;
+
+        &:hover {
+            transform: translateX(0);
+        }
+    }
+}
+
 @media (max-width: 425px) {
     main {
         padding-block-start: 2rem;
@@ -315,6 +334,20 @@ ul.bullet-separated {
         border-radius: 0;
         width: 100%;
         margin-top: 0;
+    }
+
+    ul.bullet-separated {
+        display: block;
+        padding-left: inherit;
+
+        li {
+            display: list-item;
+            list-style-type: disc;
+
+            &::before {
+                content: none !important;
+            }
+        }
     }
 }
 

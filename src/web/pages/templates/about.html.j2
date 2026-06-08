@@ -5,11 +5,11 @@ About server
 {%- endblock -%}
 
 {%- block content -%}
-<div class="panel">
+<div class="panel middle">
     <h1>About {{ server_name }}</h1>
     {% if let Some(support_page) = support_page %}
     <p>
-        Support: <a href="{{ support_page }} target="_blank">{{ support_page }}</a>
+        Visit this server's website: <a href="{{ support_page }} target="_blank">{{ support_page }}</a>
     </p>
     {% endif %}
     {% if !contacts.is_empty() %}
@@ -58,7 +58,7 @@ About server
         </ul>
     {% endif %}
     <p>
-        Server version {{ env!("CARGO_PKG_VERSION") }}
+        Server version <b>{{ env!("CARGO_PKG_VERSION") }}</b>
         {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
             {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
                 (<a href="{{ url }}">{{ version_info }}</a>)
@@ -73,12 +73,13 @@ About server
         a high-performance and community-driven <a href="https://matrix.org">Matrix</a> homeserver
         maintained as an open source project by volunteers from around the world.
     </p>
-    <p>
-        <ul class="bullet-separated">
-            <li><a href="https://forgejo.ellis.link/continuwuation/continuwuity">Source code</a></li>
-            <li><a href="https://matrix.to/#/#continuwuity:continuwuity.org">Official Matrix chatroom</a></li>
-            <li><span class="project-name">❤</span>&nbsp;<a href="https://opencollective.com/continuwuity">Support the project</a></li>
-        </ul>
+    <ul class="bullet-separated">
+        <li><a href="https://forgejo.ellis.link/continuwuation/continuwuity">Source code</a></li>
+        <li><a href="https://matrix.to/#/#continuwuity:continuwuity.org">Official Matrix chatroom</a></li>
+        <li><span class="project-name">❤</span>&nbsp;<a href="https://opencollective.com/continuwuity">Support the project</a></li>
+    </ul>
+    <p class="kitty">
+        <span>🐈 meow :3</span>
     </p>
 </div>
 {% endblock %}
