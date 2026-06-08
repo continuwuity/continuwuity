@@ -549,6 +549,8 @@ impl Service {
 			return None;
 		}
 
+		// Trim leading spaces from commands
+		let trimmed_body: &str = body.trim_start();
 		if let Some(room_id) = event.room_id()
 			&& self.is_admin_room(room_id).await
 		{
@@ -556,7 +558,9 @@ impl Service {
 
 			// Ignore messages which aren't admin commands
 			let server_user = &self.services.globals.server_user;
-			if !(body.starts_with("!admin") || body.starts_with(server_user.as_str())) {
+			if !(trimmed_body.starts_with("!admin")
+				|| trimmed_body.starts_with(server_user.as_str()))
+			{
 				return None;
 			}
 
@@ -572,8 +576,8 @@ impl Service {
 			// This is a message outside the admin room
 
 			// Is it an escaped admin command? i.e. `\!admin --help`
-			let is_public_escape =
-				body.starts_with('\\') && body.trim_start_matches('\\').starts_with("!admin");
+			let is_public_escape = trimmed_body.starts_with('\\')
+				&& trimmed_body.trim_start_matches('\\').starts_with("!admin");
 
 			// Ignore the message if it's not
 			if !is_public_escape {
