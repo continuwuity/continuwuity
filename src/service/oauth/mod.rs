@@ -6,7 +6,7 @@ use std::{
 
 use base64::Engine;
 use conduwuit::{
-	Err, Result, err, info,
+	Result, info,
 	utils::{self, hash::sha256},
 };
 use database::{Deserialized, Json, Map};
@@ -20,8 +20,8 @@ use crate::{
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
-			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ResponseMode,
-			Scope, TokenRequest, TokenResponse, TokenType,
+			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode,
+			OAuthError, ResponseMode, Scope, TokenRequest, TokenResponse, TokenType,
 		},
 	},
 	users,
@@ -131,11 +131,11 @@ impl Service {
 
 	fn generate_token() -> String { utils::random_string(Self::RANDOM_TOKEN_LENGTH) }
 
-	pub async fn register_client(
-		&self,
-		metadata: &ClientMetadata,
-	) -> Result<String, &'static str> {
-		metadata.validate()?;
+	pub async fn register_client(&self, metadata: &ClientMetadata) -> Result<String, OAuthError> {
+		metadata.validate().map_err(|error| OAuthError {
+			error: ErrorCode::InvalidClientMetadata,
+			error_description: error.into(),
+		})?;
 
 		let client_id = base64::prelude::BASE64_STANDARD
 			.encode(sha256::hash(serde_json::to_string(metadata).unwrap().as_bytes()));
@@ -263,7 +263,7 @@ impl Service {
 		Ok(redirect_uri)
 	}
 
-	pub async fn issue_token(&self, request: TokenRequest) -> Result<TokenResponse> {
+	pub async fn issue_token(&self, request: TokenRequest) -> Result<TokenResponse, OAuthError> {
 		match request {
 			| TokenRequest::AuthorizationCode {
 				code,
@@ -277,17 +277,17 @@ impl Service {
 					.remove(&code)
 					.filter(|grant| grant.is_valid_for(&client_id))
 				else {
-					return Err!("Invalid code");
+					return Err(OAuthError::invalid_grant("Invalid authorization code"));
 				};
 
 				if redirect_uri != pending_grant.expected_redirect_uri {
-					return Err!("Unexpected redirect uri");
+					return Err(OAuthError::invalid_grant("Invalid redirect URI"));
 				}
 
 				let expected_code_challenge =
 					base64::prelude::BASE64_URL_SAFE_NO_PAD.encode(sha256::hash(&code_verifier));
 				if expected_code_challenge != pending_grant.code_challenge {
-					return Err!("Invalid code challenge");
+					return Err(OAuthError::invalid_grant("Invalid code challenge"));
 				}
 
 				self.create_session(
@@ -303,7 +303,7 @@ impl Service {
 		}
 	}
 
-	pub async fn revoke_token(&self, token: String) -> Result<()> {
+	pub async fn revoke_token(&self, token: String) -> Result<(), OAuthError> {
 		let (user_id, device_id) = if let Ok(refresh_token_info) = self
 			.db
 			.refreshtoken_refreshtokeninfo
@@ -317,7 +317,7 @@ impl Service {
 		{
 			(user_id, device_id)
 		} else {
-			return Err!("Invalid token");
+			return Err(OAuthError::invalid_grant("Invalid access or refersh token"));
 		};
 
 		// This will also call [`Self::remove_session`]
@@ -335,7 +335,7 @@ impl Service {
 		requested_scopes: BTreeSet<Scope>,
 		client_name: Option<String>,
 		client_id: String,
-	) -> Result<TokenResponse> {
+	) -> Result<TokenResponse, OAuthError> {
 		let access_token = Self::generate_token();
 		let refresh_token = Self::generate_token();
 
@@ -348,7 +348,7 @@ impl Service {
 					None
 				}
 			})
-			.ok_or_else(|| err!("No device ID scope supplied"))?;
+			.ok_or_else(|| OAuthError::invalid_grant("No device ID scope supplied"))?;
 
 		self.services
 			.users
@@ -360,7 +360,10 @@ impl Service {
 				client_name,
 				None,
 			)
-			.await?;
+			.await
+			// This can only panic if the authorizing user suffered a spontaneous existence
+			// failure during authentication, which should(?) be impossible(?)
+			.expect("failed to create device");
 
 		self.db.userdeviceid_oauthsessioninfo.put(
 			(&authorizing_user, device_id),
@@ -401,7 +404,7 @@ impl Service {
 		&self,
 		client_id: String,
 		refresh_token: String,
-	) -> Result<TokenResponse> {
+	) -> Result<TokenResponse, OAuthError> {
 		let Some(refresh_token_info) = self
 			.db
 			.refreshtoken_refreshtokeninfo
@@ -410,7 +413,7 @@ impl Service {
 			.deserialized::<RefreshTokenInfo>()
 			.ok()
 		else {
-			return Err!("Invalid refresh token");
+			return Err(OAuthError::invalid_grant("Invalid refresh token"));
 		};
 
 		assert_eq!(&client_id, &refresh_token_info.client_id, "refresh token client id mismatch");
@@ -440,7 +443,8 @@ impl Service {
 				&new_access_token,
 				Some(Self::ACCESS_TOKEN_MAX_AGE),
 			)
-			.await?;
+			.await
+			.expect("should be able to set token");
 
 		self.db.userdeviceid_oauthsessioninfo.put(
 			(&refresh_token_info.user_id, &refresh_token_info.device_id),
