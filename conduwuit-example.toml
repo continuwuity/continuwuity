@@ -2001,7 +2001,7 @@
 # privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 # ```
 #
-#documents = {}
+#documents =
 
 #[global.oauth]
 
