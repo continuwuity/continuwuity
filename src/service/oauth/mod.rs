@@ -350,6 +350,20 @@ impl Service {
 			})
 			.ok_or_else(|| OAuthError::invalid_grant("No device ID scope supplied"))?;
 
+		if self
+			.services
+			.users
+			.get_device_metadata(&authorizing_user, device_id)
+			.await
+			.is_ok()
+		{
+			return Err(OAuthError {
+				error: ErrorCode::InvalidScope,
+				error_description: "A device with the supplied ID already exists for this user"
+					.into(),
+			});
+		}
+
 		self.services
 			.users
 			.create_device(
