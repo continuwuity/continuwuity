@@ -521,17 +521,15 @@
 #
 #recaptcha_private_site_key =
 
-# Policy documents, such as terms and conditions or a privacy policy,
-# which users must agree to when registering an account.
+# Controls whether users are allowed to deactivate their own accounts
+# through the account management panel or their Matrix clients. Server
+# admins can always deactivate users using the relevant admin commands.
 #
-# Example:
-# ```ignore
-# [global.registration_terms.privacy_policy]
-# en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
-# es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
-# ```
+# Note that, in some jurisdictions, you may be legally required to honor
+# users who request to deactivate their accounts if you set this option
+# to `false`.
 #
-#registration_terms = {}
+#allow_deactivation = true
 
 # Controls whether encrypted rooms and events are allowed.
 #
@@ -1985,3 +1983,33 @@
 # `require_email_for_registration`.
 #
 #require_email_for_token_registration = false
+
+#[global.registration_terms]
+
+# The language code to provide to clients along with the policy documents.
+#
+#language = "en"
+
+# Policy documents, such as terms and conditions or a privacy policy,
+# which users must agree to when registering an account.
+#
+# Example:
+# ```ignore
+# [global.registration_terms.documents]
+# privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
+# ```
+#
+#documents =
+
+#[global.oauth]
+
+# The compatibility mode to use for OAuth.
+#
+# - "disabled": OAuth will be unavailable. Users will only be able to log
+#   in using legacy authentication.
+# - "hybrid": OAuth and legacy authentication will both be available. Some
+#   clients may only use one or the other.
+# - "exclusive": Only OAuth will be available. Clients which require
+#   legacy authentication will be unable to log in.
+#
+#compatibility_mode = "hybrid"

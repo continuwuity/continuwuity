@@ -161,6 +161,7 @@ impl Error {
 		match self {
 			| Self::Federation(origin, error) => format!("Answer from {origin}: {error}"),
 			| Self::Ruma(error) => response::ruma_error_message(error),
+			| Self::Request(_, message, _) => message.clone().into_owned(),
 			| _ => format!("{self}"),
 		}
 	}

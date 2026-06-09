@@ -1,6 +1,7 @@
 use std::any::{Any, TypeId};
 
-use conduwuit::{Err, Result, err};
+use conduwuit::{Err, Error, Result, err};
+use http::StatusCode;
 use ruma::{
 	DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
 	api::{
@@ -10,12 +11,15 @@ use ruma::{
 			AuthScheme, NoAccessToken, NoAuthentication,
 		},
 		client,
+		error::{ErrorKind, UnknownTokenErrorData},
 		federation::authentication::ServerSignatures,
 	},
+	assign,
 };
 use service::{
 	Services,
 	server_keys::{PubKeyMap, PubKeys},
+	users::AccessTokenStatus,
 };
 
 use crate::{router::args::AuthQueryParams, service::appservice::RegistrationInfo};
@@ -162,7 +166,20 @@ impl CheckAuth for AccessToken {
 		query: AuthQueryParams,
 		route: TypeId,
 	) -> Result<Self::Identity> {
-		if let Ok((sender_user, sender_device)) = services.users.find_from_token(&output).await {
+		if let Some((sender_user, sender_device, status)) =
+			services.users.find_from_token(&output).await
+		{
+			// If the token is expired we return a soft logout
+			if matches!(status, AccessTokenStatus::Expired) {
+				return Err(Error::Request(
+					ErrorKind::UnknownToken(
+						assign!(UnknownTokenErrorData::new(), { soft_logout: true }),
+					),
+					"This token has expired".into(),
+					StatusCode::UNAUTHORIZED,
+				));
+			}
+
 			// Locked users can only use /logout and /logout/all
 			if services
 				.users
@@ -173,7 +190,7 @@ impl CheckAuth for AccessToken {
 				if !(route == TypeId::of::<client::session::logout::v3::Request>()
 					|| route == TypeId::of::<client::session::logout_all::v3::Request>())
 				{
-					return Err!(Request(Unauthorized("Your account is locked.")));
+					return Err!(Request(UserLocked("Your account is locked.")));
 				}
 			}
 
@@ -224,7 +241,11 @@ impl CheckAuth for AccessToken {
 				appservice_info: Box::new(appservice_info),
 			})
 		} else {
-			Err!(Request(Unauthorized("Invalid access token.")))
+			Err(Error::Request(
+				ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
+				"Invalid token".into(),
+				StatusCode::UNAUTHORIZED,
+			))
 		}
 	}
 }

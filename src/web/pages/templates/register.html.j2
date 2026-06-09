@@ -1,0 +1,185 @@
+{% extends "_layout.html.j2" %}
+{% import "_components/form.html.j2" as form %}
+
+{%- block head -%}
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/login.css">
+{%- endblock -%}
+
+{%- block title -%}
+Sign up
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1 class="with-matrix-icon">
+        {% if is_first_run %}
+            Finish setting up
+        {% else if let RegisterBody::UsernamePrompt { next, .. } = body && next.is_some() %}
+            Sign up to continue
+        {% else %}
+            Sign up
+        {% endif %}
+        <a href="https://matrix.org" target="_blank" noreferer>
+            <img class="matrix-icon" alt="Matrix logo" aria-ignore src="{{ crate::ROUTE_PREFIX }}/resources/matrix-icon.svg">
+        </a>
+    </h1>
+    {% match body %}
+        {% when RegisterBody::Unavailable %}
+            <p>
+                This server is not currently accepting new accounts.
+            </p>
+        {% when RegisterBody::UsernamePrompt { allow_federation, untrusted_flow_status, trusted_flow_status, username_error, next } %}
+            <p>
+                You're about to register a new Matrix account on <em>{{ server_name }}</em>.
+            </p>
+            {% if allow_federation %}
+                <p>
+                    Like email, Matrix is a network of servers. Your account will be able to talk to
+                    users on hundreds of different Matrix servers across the world.
+                </p>
+            {% endif %}
+            <hr>
+            <p>
+                Choose a username to continue.
+            </p>
+            <form method="get">
+                <input type="hidden" name="from_landing" value="true">
+                {% if let Some(next) = next %}
+                    {# urlencoded roundtrip moment #}
+                    {% let next = serde_urlencoded::to_string(&next).unwrap() %}
+                    {% for (key, value) in form_urlencoded::parse(next.as_bytes()) %}
+                        <input type="hidden" name="{{ key }}" value="{{ value }}">
+                    {% endfor %}
+                {% endif %}
+                <p>
+                    <label for="username">Username</label>
+                    <span class="username-input">
+                        <span>@</span>
+                        <input type="text" id="username" name="username" autocomplete="username" required>
+                        <span>:{{ server_name }}</span>
+                    </span>
+                    {% if let Some(username_error) = username_error %}
+                        <small class="error">
+                            {{ username_error }}
+                        </small>
+                    {% endif %}
+                </p>
+                {% if let UntrustedFlowStatus::Available { require_email } = untrusted_flow_status %}
+                    {% if require_email %}
+                        <button type="submit" name="flow" value="untrusted">Continue with email</button>
+                    {% else %}
+                        <button type="submit" name="flow" value="untrusted">Continue</button>
+                    {% endif %}
+                {% endif %}
+                {% if let UntrustedFlowStatus::Available { .. } = untrusted_flow_status && let TrustedFlowStatus::Available = trusted_flow_status %}
+                    <div class="text-rule">or</div>
+                {% endif %}
+                {% if let TrustedFlowStatus::Available = trusted_flow_status %}
+                    <button type="submit" name="flow" value="trusted">Continue with a registration token</button>
+                {% endif %}
+            </form>
+            {% if !is_first_run %}
+                <div class="centered-links">
+                    {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
+                    <a href="{{ crate::ROUTE_PREFIX }}/account/login?{{ query }}">I already have an account</a>
+                </div>
+            {% endif %}
+        {% when RegisterBody::DetailsPrompt { username, require_email, flow, terms, validation_errors } %}
+            {% let validation_errors = validation_errors.clone() %}
+            {% let field_errors = validation_errors.field_errors() %}
+            <form method="post">
+                {% if is_first_run %}
+                    <p>
+                        To finish setting up your server, choose a username and password for your account.
+                    </p>
+                {% endif %}
+                <p>
+                    <label for="username">Username</label>
+                    <span class="username-input">
+                        <span>@</span>
+                        {% if let Some(username) = username %}
+                            <input type="text" id="username" name="username" value="{{ username }}" autocomplete="username" required>
+                        {% else %}
+                            <input type="text" id="username" name="username" autocomplete="username" required>
+                        {% endif %}
+                        <span>:{{ server_name }}</span>
+                    </span>
+                    {{ form::errors(field_errors, std::borrow::Cow::Borrowed("username")) }}
+                    <small>Your username cannot be changed after you create your account.</small>
+                </p>
+                {% if !is_first_run %}
+                    <p>
+                        Just a few more details to finish creating your account.
+                    </p>
+                {% endif %}
+                <p>
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="new-password" required>
+                    {{ form::errors(field_errors, std::borrow::Cow::Borrowed("password")) }}
+                </p>
+                <p>
+                    <label for="confirm_password">Confirm password</label>
+                    <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
+                    {{ form::errors(field_errors, std::borrow::Cow::Borrowed("confirm_password")) }}
+                </p>
+                {% if require_email %}
+                    <p>
+                        <label for="email">Email address</label>
+                        <input type="email" id="email" name="email" required>
+                        {{ form::errors(field_errors, std::borrow::Cow::Borrowed("email")) }}
+                    </p>
+                {% endif %}
+                {% match flow %}
+                    {% when RegistrationFlowParameters::Untrusted { recaptcha_sitekey } %}
+                        <input type="hidden" name="flow" value="untrusted">
+                        {% if let Some(recaptcha_sitekey) = recaptcha_sitekey %}
+                            <script src="https://www.google.com/recaptcha/enterprise.js" nonce="{{ context.csp_nonce }}" async defer></script>
+                            <noscript>
+                                <p>
+                                    ⚠️ Please enable JavaScript to complete the reCAPTCHA challenge.
+                                </p>
+                            </noscript>
+                            <p>
+                                <span class="g-recaptcha" data-sitekey="{{ recaptcha_sitekey }}"></span>
+                                {{ form::errors(field_errors, std::borrow::Cow::Borrowed("recaptcha")) }}
+                            </p>
+                        {% endif %}
+                    {% when RegistrationFlowParameters::Trusted { registration_token } %}
+                        <input type="hidden" name="flow" value="trusted">
+                        {% if let Some(registration_token) = registration_token %}
+                            <input type="hidden" name="registration_token" value="{{ registration_token }}">
+                            <div>
+                                {{ form::errors(field_errors, std::borrow::Cow::Borrowed("registration_token")) }}
+                            </div>
+                        {% else %}
+                            <p>
+                                <label for="registration_token">Registration token</label>
+                                <input type="text" id="registration_token" name="registration_token" autocomplete="none" required>
+                                {% if is_first_run %}
+                                    <small>Check the server console to find the registration token.</small>
+                                {% endif %}
+                                {{ form::errors(field_errors, std::borrow::Cow::Borrowed("registration_token")) }}
+                            </p>
+                        {% endif %}
+                {% endmatch %}
+
+                {% if !terms.is_empty() %}
+                    <p>
+                        {% for (id, document) in terms %}
+                            <label for="policy-{{ id }}">
+                                <input
+                                    type="checkbox"
+                                    id="policy-{{ id }}"
+                                    required
+                                >
+                                I agree to the <a target="_blank" href="{{ document.url }}">{{ document.name }}</a>
+                            </label>
+                        {% endfor %}
+                        <small>All policy links will open in a new tab.</small>
+                    </p>
+                {% endif %}
+                <button type="submit">Continue</button>
+            </form>
+    {% endmatch %}
+</div>
+{%- endblock -%}

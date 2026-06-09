@@ -4,7 +4,7 @@ pub mod manager;
 pub mod proxy;
 
 use std::{
-	collections::{BTreeMap, BTreeSet, HashMap},
+	collections::{BTreeMap, BTreeSet},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	path::PathBuf,
 };
@@ -655,19 +655,25 @@ pub struct Config {
 	/// even if `recaptcha_site_key` is set.
 	pub recaptcha_private_site_key: Option<String>,
 
-	/// Policy documents, such as terms and conditions or a privacy policy,
-	/// which users must agree to when registering an account.
-	///
-	/// Example:
-	/// ```ignore
-	/// [global.registration_terms.privacy_policy]
-	/// en = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
-	/// es = { name = "Política de Privacidad", url = "https://homeserver.example/es/privacy_policy.html" }
-	/// ```
-	///
-	/// default: {}
+	/// display: nested
 	#[serde(default)]
-	pub registration_terms: HashMap<String, HashMap<String, TermsDocument>>,
+	pub registration_terms: RegistrationTerms,
+
+	/// display: nested
+	#[serde(default)]
+	pub oauth: OauthConfig,
+
+	/// Controls whether users are allowed to deactivate their own accounts
+	/// through the account management panel or their Matrix clients. Server
+	/// admins can always deactivate users using the relevant admin commands.
+	///
+	/// Note that, in some jurisdictions, you may be legally required to honor
+	/// users who request to deactivate their accounts if you set this option
+	/// to `false`.
+	///
+	/// default: true
+	#[serde(default = "true_fn")]
+	pub allow_deactivation: bool,
 
 	/// Controls whether encrypted rooms and events are allowed.
 	#[serde(default = "true_fn")]
@@ -2349,11 +2355,71 @@ pub struct SmtpConfig {
 	pub require_email_for_token_registration: bool,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.registration_terms",
+	optional = "true"
+)]
+pub struct RegistrationTerms {
+	/// The language code to provide to clients along with the policy documents.
+	///
+	/// default: "en"
+	#[serde(default = "default_terms_language")]
+	pub language: String,
+	/// Policy documents, such as terms and conditions or a privacy policy,
+	/// which users must agree to when registering an account.
+	///
+	/// Example:
+	/// ```ignore
+	/// [global.registration_terms.documents]
+	/// privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
+	/// ```
+	pub documents: BTreeMap<String, TermsDocument>,
+}
+
 /// A policy document for use with a m.login.terms stage.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct TermsDocument {
 	pub name: String,
 	pub url: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.oauth",
+	optional = "true"
+)]
+pub struct OauthConfig {
+	/// The compatibility mode to use for OAuth.
+	///
+	/// - "disabled": OAuth will be unavailable. Users will only be able to log
+	///   in using legacy authentication.
+	/// - "hybrid": OAuth and legacy authentication will both be available. Some
+	///   clients may only use one or the other.
+	/// - "exclusive": Only OAuth will be available. Clients which require
+	///   legacy authentication will be unable to log in.
+	///
+	/// default: "hybrid"
+	pub compatibility_mode: OAuthMode,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OAuthMode {
+	Disabled,
+	#[default]
+	Hybrid,
+	Exclusive,
+}
+
+impl OAuthMode {
+	#[must_use]
+	pub fn uiaa_available(&self) -> bool { matches!(self, Self::Disabled | Self::Hybrid) }
+
+	#[must_use]
+	pub fn oauth_available(&self) -> bool { matches!(self, Self::Hybrid | Self::Exclusive) }
 }
 
 const DEPRECATED_KEYS: &[&str] = &[
@@ -2751,3 +2817,5 @@ fn default_client_response_timeout() -> u64 { 120 }
 fn default_client_shutdown_timeout() -> u64 { 15 }
 
 fn default_sender_shutdown_timeout() -> u64 { 5 }
+
+fn default_terms_language() -> String { "en".to_owned() }

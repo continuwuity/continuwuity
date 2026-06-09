@@ -15,7 +15,7 @@ use conduwuit_core::{
 #[clap(
 	about,
 	long_about = None,
-	name = conduwuit_core::name(),
+	name = conduwuit_core::BRANDING,
 	version = conduwuit_core::version(),
 )]
 pub struct Args {

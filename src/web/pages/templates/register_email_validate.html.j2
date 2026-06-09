@@ -1,0 +1,27 @@
+{% extends "_layout.html.j2" %}
+
+{%- block title -%}
+Confirm your email
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1>Confirm your email</h1>
+    <p>
+        A message has been sent to your email address with a validation link.
+        To finish creating your account, click the link and then return to this page.
+        If you do not receive the email:
+        <ul>
+            <li>Check your spam filter.</li>
+        </ul>
+    </p>
+    {% if validation_error %}
+        <small class="error">Validation failed. Have you clicked the link in the email that was sent to you?</small>
+    {% endif %}
+    <form method="get" action="validate">
+        <input type="hidden" name="session_id" value="{{ session_id }}">
+        <input type="hidden" name="client_secret" value="{{ client_secret }}">
+        <button type="submit">Continue</button>
+    </form>
+</div>
+{%- endblock -%}
