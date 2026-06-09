@@ -31,6 +31,12 @@ pub(crate) async fn get_profile_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_profile::v3::Request>,
 ) -> Result<get_profile::v3::Response> {
+	if services.config.require_auth_for_profile_requests && body.identity.is_none() {
+		return Err!(Request(Unauthorized(
+			"This server requires authentication to view user profiles."
+		)));
+	}
+
 	let Some(profile) = fetch_full_profile(&services, &body.user_id).await else {
 		return Err!(Request(NotFound("This user's profile could not be fetched.")));
 	};
@@ -42,6 +48,12 @@ pub(crate) async fn get_profile_field_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_profile_field::v3::Request>,
 ) -> Result<get_profile_field::v3::Response> {
+	if services.config.require_auth_for_profile_requests && body.identity.is_none() {
+		return Err!(Request(Unauthorized(
+			"This server requires authentication to view user profiles."
+		)));
+	}
+
 	let value = fetch_profile_field(&services, &body.user_id, body.field.clone()).await?;
 
 	Ok(assign!(get_profile_field::v3::Response::default(), { value }))

@@ -20,8 +20,8 @@ use crate::{
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
-			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode, OAuthError,
-			RequestedScope, ResponseMode, TokenRequest, TokenResponse, TokenType,
+			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode,
+			OAuthError, RequestedScope, ResponseMode, TokenRequest, TokenResponse, TokenType,
 		},
 	},
 	users,

@@ -344,7 +344,7 @@ version = "1.1.1"
 [workspace.dependencies.ruma]
 # version = "0.14.1"
 git = "https://github.com/gingershaped/ruwuma.git"
-rev = "60d948f4cea201786735b2582309509d299899c2"
+rev = "a0178c4e5e1729d27cf2f1c4dacf77b763987749"
 features = [
     "appservice-api-c",
     "client-api",
