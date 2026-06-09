@@ -11,6 +11,7 @@ use conduwuit::{
 };
 use database::{Deserialized, Json, Map};
 use itertools::Itertools;
+use lru_cache::LruCache;
 use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -34,7 +35,7 @@ pub struct Service {
 	services: Services,
 	db: Data,
 	tickets: Mutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
-	pending_code_grants: tokio::sync::Mutex<HashMap<String, PendingCodeGrant>>,
+	pending_code_grants: tokio::sync::Mutex<LruCache<String, PendingCodeGrant>>,
 }
 
 struct Data {
@@ -118,7 +119,9 @@ impl crate::Service for Service {
 				refreshtoken_refreshtokeninfo: args.db["refreshtoken_refreshtokeninfo"].clone(),
 			},
 			tickets: Mutex::default(),
-			pending_code_grants: tokio::sync::Mutex::default(),
+			pending_code_grants: tokio::sync::Mutex::new(LruCache::new(
+				Self::MAX_PENDING_CODE_GRANTS,
+			)),
 		}))
 	}
 
@@ -127,6 +130,10 @@ impl crate::Service for Service {
 
 impl Service {
 	const ACCESS_TOKEN_MAX_AGE: Duration = Duration::from_hours(1);
+	// Maximum number of pending code grants which will be held in memory at once,
+	// to prevent unbounded memory use if someone decides to repeatedly reload the
+	// grant page.
+	const MAX_PENDING_CODE_GRANTS: usize = 100;
 	const RANDOM_TOKEN_LENGTH: usize = 32;
 
 	fn generate_token() -> String { utils::random_string(Self::RANDOM_TOKEN_LENGTH) }
