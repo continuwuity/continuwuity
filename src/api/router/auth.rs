@@ -102,7 +102,7 @@ pub(crate) trait CheckAuth: AuthScheme {
 		async move {
 			let output = Self::extract_authentication(incoming_request).map_err(|err| {
 				err!(Request(Unauthorized(warn!(
-					"Failed to extract authorization: {}",
+					"Failed to extract request authentication: {}",
 					err.into()
 				))))
 			})?;
@@ -133,8 +133,8 @@ impl CheckAuth for ServerSignatures {
 			.server_keys
 			.get_verify_key(&output.origin, &output.key)
 			.await
-			.map_err(|e| {
-				err!(Request(Unauthorized(warn!("Failed to fetch signing keys: {e}"))))
+			.map_err(|err| {
+				err!(Request(Unauthorized(warn!("Failed to fetch signing keys: {err}"))))
 			})?;
 
 		let keys: PubKeys = [(output.key.to_string(), key.key)].into();
@@ -288,7 +288,7 @@ async fn verify_access_token(
 				ErrorKind::UnknownToken(
 					assign!(UnknownTokenErrorData::new(), { soft_logout: true }),
 				),
-				"This token has expired".into(),
+				"This access token has expired.".into(),
 				StatusCode::UNAUTHORIZED,
 			));
 		}
@@ -328,7 +328,7 @@ async fn verify_access_token(
 				&& services.users.is_admin(&sender_user).await
 			{
 				return Err!(Request(Forbidden(
-					"Only server administrators can use this endpoint"
+					"Only server administrators can use this endpoint."
 				)));
 			}
 		}
@@ -348,7 +348,7 @@ async fn verify_access_token(
 		};
 
 		if !appservice_info.is_user_match(&sender_user) {
-			return Err!(Request(Exclusive("User is not in namespace.")));
+			return Err!(Request(Exclusive("User is not in this appservice's namespace.")));
 		}
 
 			// MSC3202/MSC4190: Handle device_id masquerading for appservices.
@@ -367,10 +367,7 @@ async fn verify_access_token(
 					.await
 					.is_err()
 				{
-					return Err!(Request(Forbidden(
-						"Device does not exist for user or appservice cannot masquerade as this \
-						 device."
-					)));
+					return Err!(Request(Forbidden("Appservice cannot masquerade as this device.")));
 				}
 
 				Some(device_id.to_owned())
@@ -386,7 +383,7 @@ async fn verify_access_token(
 	} else {
 		Err(Error::Request(
 			ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
-			"Invalid token".into(),
+			"Invalid access token.".into(),
 			StatusCode::UNAUTHORIZED,
 		))
 	}
