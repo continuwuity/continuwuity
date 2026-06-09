@@ -1,8 +1,9 @@
 use std::{collections::HashMap, time::Instant};
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_info, debug_warn, trace,
+	Event, PduEvent, debug, debug_info, info, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
+	warn,
 };
 use futures::StreamExt;
 use ruma::{RoomId, ServerName};
@@ -84,9 +85,9 @@ impl super::Service {
 		let job_start = Instant::now();
 		trace!("Starting to persist {} prev events", to_persist.len());
 		for (i, event_id) in to_persist.iter().enumerate() {
-			debug!(
+			info!(
 				elapsed=?start.elapsed(),
-				"[TODO] Persisting fetched prev event: {event_id} ({}/{})",
+				"Persisting fetched prev event: {event_id} ({}/{})",
 				i.saturating_add(1),
 				to_persist.len(),
 			);
@@ -100,7 +101,7 @@ impl super::Service {
 					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
 						.await
 						.inspect_err(|e| {
-							debug_warn!(
+							warn!(
 								total_elapsed=?start.elapsed(),
 								job_elapsed=?job_start.elapsed(),
 								task_elapsed=?persist_start.elapsed(),
@@ -108,7 +109,7 @@ impl super::Service {
 							);
 						})
 						.inspect(|_| {
-							debug_info!(
+							info!(
 								total_elapsed=?start.elapsed(),
 								job_elapsed=?job_start.elapsed(),
 								task_elapsed=?persist_start.elapsed(),
@@ -117,7 +118,7 @@ impl super::Service {
 						})
 						.ok();
 				},
-				| Err(e) => debug_warn!(
+				| Err(e) => warn!(
 					total_elapsed=?start.elapsed(),
 					job_elapsed=?job_start.elapsed(),
 					task_elapsed=?persist_start.elapsed(),
