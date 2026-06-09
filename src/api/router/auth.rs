@@ -128,15 +128,6 @@ impl CheckAuth for ServerSignatures {
 		request: &hyper::Request<B>,
 		_query: AuthQueryParams,
 	) -> Result<Self::Identity> {
-		let destination = services.globals.server_name();
-		if output
-			.destination
-			.as_ref()
-			.is_some_and(|supplied_destination| supplied_destination != destination)
-		{
-			return Err!(Request(Unauthorized("Destination mismatch.")));
-		}
-
 		let key = services
 			.server_keys
 			.get_verify_key(&output.origin, &output.key)
@@ -148,7 +139,7 @@ impl CheckAuth for ServerSignatures {
 		let keys: PubKeys = [(output.key.to_string(), key.key)].into();
 		let keys: PubKeyMap = [(output.origin.as_str().into(), keys)].into();
 
-		match output.verify_request(request, destination, &keys) {
+		match output.verify_request(request, services.globals.server_name(), &keys) {
 			| Ok(()) => {
 				if services
 					.moderation
