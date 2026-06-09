@@ -6,8 +6,7 @@ use axum::{
 };
 use conduwuit_service::oauth::{
 	client_metadata::ClientMetadata,
-	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
-RequestedScope,
+	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt, RequestedScope},
 };
 use ruma::OwnedUserId;
 use serde::{Deserialize, de::IgnoredAny};
@@ -192,6 +191,11 @@ async fn route_device_code(
 
 			let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
+			let scopes = grant_info.requested_scopes
+				.iter()
+				.filter_map(RequestedScope::as_granted_scope)
+				.collect();
+
 			response!(Grant::new(
 				context,
 				serde_urlencoded::to_string(LoginQuery {
@@ -203,7 +207,7 @@ async fn route_device_code(
 				user_id,
 				user_avatar,
 				grant_info.client_metadata,
-				ClientScopes { scopes: grant_info.requested_scopes },
+				ClientScopes { scopes },
 				Some(grant_info.device_code),
 			))
 		},

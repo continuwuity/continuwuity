@@ -94,14 +94,12 @@ impl Display for ClientIdentity {
 pub(crate) trait CheckAuth: AuthScheme {
 	type Identity: Send;
 
-	fn authenticate<R: IncomingRequest + Any, B: AsRef<[u8]> + Sync>(
+	fn authenticate<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
 		services: &Services,
 		incoming_request: &hyper::Request<B>,
 		query: AuthQueryParams,
 	) -> impl Future<Output = Result<Self::Identity>> + Send {
 		async move {
-			let route = TypeId::of::<R>();
-
 			let output = Self::extract_authentication(incoming_request).map_err(|err| {
 				err!(Request(Unauthorized(warn!(
 					"Failed to extract authorization: {}",
@@ -109,31 +107,27 @@ pub(crate) trait CheckAuth: AuthScheme {
 				))))
 			})?;
 
-			Self::verify(services, output, incoming_request, query, route, R::required_scopes())
+			Self::verify::<R, B>(services, output, incoming_request, query)
 				.await
 		}
 	}
 
-	fn verify<B: AsRef<[u8]> + Sync>(
+	fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
 		services: &Services,
 		output: Self::Output,
 		request: &hyper::Request<B>,
 		query: AuthQueryParams,
-		route: TypeId,
-		required_scopes: &[OAuthClientScope],
 	) -> impl Future<Output = Result<Self::Identity>> + Send;
 }
 
 impl CheckAuth for ServerSignatures {
 	type Identity = OwnedServerName;
 
-	async fn verify<B: AsRef<[u8]> + Sync>(
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
 		services: &Services,
 		output: Self::Output,
 		request: &hyper::Request<B>,
 		_query: AuthQueryParams,
-		_route: TypeId,
-		_required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
 		let destination = services.globals.server_name();
 		if output
@@ -177,88 +171,194 @@ impl CheckAuth for ServerSignatures {
 impl CheckAuth for AccessToken {
 	type Identity = ClientIdentity;
 
-	async fn verify<B: AsRef<[u8]> + Sync>(
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
 		services: &Services,
 		output: Self::Output,
 		_request: &hyper::Request<B>,
 		query: AuthQueryParams,
-		route: TypeId,
-		required_scopes: &[OAuthClientScope],
 	) -> Result<Self::Identity> {
-		if output.is_empty() {
-			return Err!(Request(Unauthorized("Missing access token.")));
+		verify_access_token(services, output, query, TypeId::of::<R>(), R::required_scopes())
+			.await
+	}
+}
+
+impl CheckAuth for AccessTokenOptional {
+	type Identity = Option<ClientIdentity>;
+
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
+		services: &Services,
+		output: Self::Output,
+		_request: &hyper::Request<B>,
+		query: AuthQueryParams,
+	) -> Result<Self::Identity> {
+		match output {
+			| Some(token) => verify_access_token(
+				services,
+				token,
+				query,
+				TypeId::of::<R>(),
+				R::required_scopes(),
+			)
+			.await
+			.map(Some),
+			| None => Ok(None),
 		}
-		if let Some((sender_user, sender_device, status)) =
-			services.users.find_from_token(&output).await
+	}
+}
+
+impl CheckAuth for AppserviceToken {
+	type Identity = RegistrationInfo;
+
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
+		services: &Services,
+		output: Self::Output,
+		_request: &hyper::Request<B>,
+		_query: AuthQueryParams,
+	) -> Result<Self::Identity> {
+		verify_appservice_access_token(services, output).await
+	}
+}
+
+impl CheckAuth for AppserviceTokenOptional {
+	type Identity = Option<RegistrationInfo>;
+
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
+		services: &Services,
+		output: Self::Output,
+		_request: &hyper::Request<B>,
+		_query: AuthQueryParams,
+	) -> Result<Self::Identity> {
+		match output {
+			| Some(token) => verify_appservice_access_token(services, token)
+				.await
+				.map(Some),
+			| None => Ok(None),
+		}
+	}
+}
+
+impl CheckAuth for NoAuthentication {
+	type Identity = ();
+
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
+		_services: &Services,
+		_output: Self::Output,
+		_request: &hyper::Request<B>,
+		_query: AuthQueryParams,
+	) -> Result<Self::Identity> {
+		Ok(())
+	}
+}
+
+impl CheckAuth for NoAccessToken {
+	type Identity = Option<ClientIdentity>;
+
+	async fn verify<R: IncomingRequest<Authentication = Self> + Any, B: AsRef<[u8]> + Sync>(
+		services: &Services,
+		_output: Self::Output,
+		request: &hyper::Request<B>,
+		query: AuthQueryParams,
+	) -> Result<Self::Identity> {
+		// We handle these the same as AccessTokenOptional
+		let token = AccessTokenOptional::extract_authentication(request).map_err(|err| {
+			err!(Request(Unauthorized(warn!("Failed to extract authorization: {}", err))))
+		})?;
+
+		match token {
+			| Some(token) => verify_access_token(
+				services,
+				token,
+				query,
+				TypeId::of::<R>(),
+				// Assume that no scopes are required for these endpoints since
+				// ostensibly they don't require authentication
+				&[],
+			)
+			.await
+			.map(Some),
+			| None => Ok(None),
+		}
+	}
+}
+
+async fn verify_access_token(
+	services: &Services,
+	output: String,
+	query: AuthQueryParams,
+	route: TypeId,
+	required_scopes: &[OAuthClientScope],
+) -> Result<ClientIdentity> {
+	if let Some((sender_user, sender_device, status)) =
+		services.users.find_from_token(&output).await
+	{
+		// If the token is expired we return a soft logout
+		if matches!(status, AccessTokenStatus::Expired) {
+			return Err(Error::Request(
+				ErrorKind::UnknownToken(
+					assign!(UnknownTokenErrorData::new(), { soft_logout: true }),
+				),
+				"This token has expired".into(),
+				StatusCode::UNAUTHORIZED,
+			));
+		}
+
+		// Locked users can only use /logout and /logout/all
+		if services
+			.users
+			.is_locked(&sender_user)
+			.await
+			.is_ok_and(std::convert::identity)
 		{
-			// If the token is expired we return a soft logout
-			if matches!(status, AccessTokenStatus::Expired) {
-				return Err(Error::Request(
-					ErrorKind::UnknownToken(
-						assign!(UnknownTokenErrorData::new(), { soft_logout: true }),
-					),
-					"This token has expired".into(),
-					StatusCode::UNAUTHORIZED,
-				));
-			}
-
-			// Locked users can only use /logout and /logout/all
-			if services
-				.users
-				.is_locked(&sender_user)
-				.await
-				.is_ok_and(std::convert::identity)
+			if !(route == TypeId::of::<client::session::logout::v3::Request>()
+				|| route == TypeId::of::<client::session::logout_all::v3::Request>())
 			{
-				if !(route == TypeId::of::<client::session::logout::v3::Request>()
-					|| route == TypeId::of::<client::session::logout_all::v3::Request>())
-				{
-					return Err!(Request(UserLocked("Your account is locked.")));
-				}
+				return Err!(Request(UserLocked("Your account is locked.")));
 			}
+		}
 
-			// If this device is bound to an OAuth session, check its scopes. This will also
-			// handle admin-only endpoints for OAuth clients.
-			if let Some(session) = services
-				.oauth
-				.get_session_info_for_device(&sender_user, &sender_device)
-				.await
+		// If this device is bound to an OAuth session, check its scopes. This will also
+		// handle admin-only endpoints for OAuth clients.
+		if let Some(session) = services
+			.oauth
+			.get_session_info_for_device(&sender_user, &sender_device)
+			.await
+		{
+			if required_scopes
+				.iter()
+				.any(|scope| session.scopes.contains(scope))
 			{
-				if !required_scopes
-					.iter()
-					.any(|scope| session.scopes.contains(scope))
-				{
-					return Err!(Request(Forbidden(
-						"You don't have the necessary scopes to use this endpoint."
-					)));
-				}
-			} else {
-				// Otherwise, explicitly if the endpoint is restricted to admins only.
-				if required_scopes.contains(&OAuthClientScope::ServerAdministration)
-					&& services.users.is_admin(&sender_user).await
-				{
-					return Err!(Request(Forbidden(
-						"Only server administrators can use this endpoint"
-					)));
-				}
+				return Err!(Request(Forbidden(
+					"You don't have the necessary scopes to use this endpoint."
+				)));
 			}
-
-			Ok(ClientIdentity::User { sender_user, sender_device })
-		} else if let Ok(appservice_info) = services.appservice.find_from_token(&output).await {
-			let Ok(sender_user) = query.user_id.clone().map_or_else(
-				|| {
-					UserId::parse_with_server_name(
-						appservice_info.registration.sender_localpart.as_str(),
-						services.globals.server_name(),
-					)
-				},
-				UserId::parse,
-			) else {
-				return Err!(Request(InvalidUsername("Username is invalid.")));
-			};
-
-			if !appservice_info.is_user_match(&sender_user) {
-				return Err!(Request(Exclusive("User is not in namespace.")));
+		} else {
+			// Otherwise, explicitly check if the endpoint is restricted to admins only.
+			if required_scopes.contains(&OAuthClientScope::ServerAdministration)
+				&& services.users.is_admin(&sender_user).await
+			{
+				return Err!(Request(Forbidden(
+					"Only server administrators can use this endpoint"
+				)));
 			}
+		}
+
+		Ok(ClientIdentity::User { sender_user, sender_device })
+	} else if let Ok(appservice_info) = services.appservice.find_from_token(&output).await {
+		let Ok(sender_user) = query.user_id.clone().map_or_else(
+			|| {
+				UserId::parse_with_server_name(
+					appservice_info.registration.sender_localpart.as_str(),
+					services.globals.server_name(),
+				)
+			},
+			UserId::parse,
+		) else {
+			return Err!(Request(InvalidUsername("Username is invalid.")));
+		};
+
+		if !appservice_info.is_user_match(&sender_user) {
+			return Err!(Request(Exclusive("User is not in namespace.")));
+		}
 
 			// MSC3202/MSC4190: Handle device_id masquerading for appservices.
 			// The device_id can be provided via `device_id` or
@@ -287,149 +387,27 @@ impl CheckAuth for AccessToken {
 				None
 			};
 
-			Ok(ClientIdentity::Appservice {
-				sender_user,
-				sender_device,
-				appservice_info: Box::new(appservice_info),
-			})
-		} else {
-			Err(Error::Request(
-				ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
-				"Invalid token".into(),
-				StatusCode::UNAUTHORIZED,
-			))
-		}
+		Ok(ClientIdentity::Appservice {
+			sender_user,
+			sender_device,
+			appservice_info: Box::new(appservice_info),
+		})
+	} else {
+		Err(Error::Request(
+			ErrorKind::UnknownToken(UnknownTokenErrorData::new()),
+			"Invalid token".into(),
+			StatusCode::UNAUTHORIZED,
+		))
 	}
 }
 
-impl CheckAuth for AccessTokenOptional {
-	type Identity = Option<ClientIdentity>;
+async fn verify_appservice_access_token(
+	services: &Services,
+	output: String,
+) -> Result<RegistrationInfo> {
+	let Ok(appservice_info) = services.appservice.find_from_token(&output).await else {
+		return Err!(Request(Unauthorized("Invalid appservice token.")));
+	};
 
-	async fn verify<B: AsRef<[u8]> + Sync>(
-		services: &Services,
-		output: Self::Output,
-		request: &hyper::Request<B>,
-		query: AuthQueryParams,
-		route: TypeId,
-		required_scopes: &[OAuthClientScope],
-	) -> Result<Self::Identity> {
-		match output {
-			| Some(token) => <AccessToken as CheckAuth>::verify(
-				services,
-				token,
-				request,
-				query,
-				route,
-				required_scopes,
-			)
-			.await
-			.map(Some),
-			| None => Ok(None),
-		}
-	}
-}
-
-impl CheckAuth for AppserviceToken {
-	type Identity = RegistrationInfo;
-
-	async fn verify<B: AsRef<[u8]> + Sync>(
-		services: &Services,
-		output: Self::Output,
-		_request: &hyper::Request<B>,
-		_query: AuthQueryParams,
-		_route: TypeId,
-		_required_scopes: &[OAuthClientScope],
-	) -> Result<Self::Identity> {
-		if output.is_empty() {
-			return Err!(Request(Unauthorized("Missing access token.")));
-		}
-		let Ok(appservice_info) = services.appservice.find_from_token(&output).await else {
-			return Err!(Request(Unauthorized("Invalid appservice token.")));
-		};
-
-		Ok(appservice_info)
-	}
-}
-
-impl CheckAuth for AppserviceTokenOptional {
-	type Identity = Option<RegistrationInfo>;
-
-	async fn verify<B: AsRef<[u8]> + Sync>(
-		services: &Services,
-		output: Self::Output,
-		request: &hyper::Request<B>,
-		query: AuthQueryParams,
-		route: TypeId,
-		required_scopes: &[OAuthClientScope],
-	) -> Result<Self::Identity> {
-		match output {
-			| Some(token) => <AppserviceToken as CheckAuth>::verify(
-				services,
-				token,
-				request,
-				query,
-				route,
-				required_scopes,
-			)
-			.await
-			.map(Some),
-			| None => Ok(None),
-		}
-	}
-}
-
-impl CheckAuth for NoAuthentication {
-	type Identity = ();
-
-	async fn verify<B: AsRef<[u8]> + Sync>(
-		_services: &Services,
-		_output: Self::Output,
-		_request: &hyper::Request<B>,
-		_query: AuthQueryParams,
-		_route: TypeId,
-		_required_scopes: &[OAuthClientScope],
-	) -> Result<Self::Identity> {
-		Ok(())
-	}
-}
-
-impl CheckAuth for NoAccessToken {
-	type Identity = Option<ClientIdentity>;
-
-	async fn verify<B: AsRef<[u8]> + Sync>(
-		services: &Services,
-		_output: Self::Output,
-		request: &hyper::Request<B>,
-		query: AuthQueryParams,
-		route: TypeId,
-		required_scopes: &[OAuthClientScope],
-	) -> Result<Self::Identity> {
-		// We handle these the same as AccessTokenOptional
-		let token = AccessTokenOptional::extract_authentication(request).map_err(|err| {
-			err!(Request(Unauthorized(warn!("Failed to extract authorization: {}", err))))
-		})?;
-
-		// Check special access restrictions
-		if (route == TypeId::of::<client::profile::get_avatar_url::v3::Request>()
-			|| route == TypeId::of::<client::profile::get_display_name::v3::Request>()
-			|| route == TypeId::of::<client::profile::get_profile_field::v3::Request>()
-			|| route == TypeId::of::<client::profile::get_profile::v3::Request>())
-			&& services.config.require_auth_for_profile_requests
-			&& token.is_none()
-		{
-			return Err!(Request(Unauthorized(
-				"This server requires authentication to access user profiles."
-			)));
-		}
-
-		<AccessTokenOptional as CheckAuth>::verify(
-			services,
-			token,
-			request,
-			query,
-			route,
-			required_scopes,
-		)
-		.await
-	}
+	Ok(appservice_info)
 }

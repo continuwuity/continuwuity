@@ -23,7 +23,8 @@ use crate::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
 			AuthorizationCodeData, AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
-			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RequestedScope, ResponseMode,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode,
+			OAuthError, RequestedScope, ResponseMode,
 			TokenRequest, TokenRequestType, TokenResponse, TokenType
 		},
 	},
