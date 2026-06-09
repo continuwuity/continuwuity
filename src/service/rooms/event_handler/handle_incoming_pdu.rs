@@ -1,14 +1,11 @@
-use std::{
-	collections::{BTreeMap, hash_map},
-	time::Instant,
-};
+use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
-	implement, info, trace, utils::stream::IterStream, warn,
+	Err, Event, PduEvent, Result, debug, debug_error, debug_info, defer, err, error, implement,
+	info, result::DebugInspect, trace, warn,
 };
 use futures::{
-	FutureExt, TryFutureExt, TryStreamExt,
+	FutureExt,
 	future::{OptionFuture, try_join4},
 };
 use ruma::{
@@ -18,7 +15,6 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use tracing::debug;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -111,7 +107,6 @@ async fn should_rescind_invite(
 #[implement(super::Service)]
 #[tracing::instrument(
 	name = "pdu",
-	level = INFO_SPAN_LEVEL,
 	skip_all,
 	fields(%room_id, %event_id),
 )]
@@ -151,7 +146,7 @@ pub async fn handle_incoming_pdu<'a>(
 		.and_then(|v| v.as_str())
 		.ok_or_else(|| err!("No sender in object"))
 		.and_then(|v| Ok(UserId::parse(v)?))
-		.map_err(|e| err!(Request(InvalidParam("PDU does not have a valid sender key: {e}"))))?;
+		.map_err(|e| err!(Request(BadJson("PDU does not have a valid sender key: {e}"))))?;
 
 	let sender_acl_check: OptionFuture<_> = sender
 		.server_name()
@@ -235,64 +230,29 @@ pub async fn handle_incoming_pdu<'a>(
 		return Ok(None);
 	}
 
-	// Skip old events
+	// Skip events sent before we joined (they need to be persisted as backfilled
+	// events, not timeline events, which is handled elsewhere).
 	let first_ts_in_room = self
 		.services
 		.timeline
 		.first_pdu_in_room(room_id)
 		.await?
 		.origin_server_ts();
+	if incoming_pdu.origin_server_ts() < first_ts_in_room {
+		return Ok(None);
+	}
 
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
-	let (sorted_prev_events, mut eventid_info) = self
-		.fetch_prev(origin, create_event, room_id, first_ts_in_room, incoming_pdu.prev_events())
-		.await?;
 
-	debug!(
-		events = ?sorted_prev_events,
-		"Handling previous events"
-	);
-
-	sorted_prev_events
-		.iter()
-		.try_stream()
-		.map_ok(AsRef::as_ref)
-		.try_for_each(|prev_id| {
-			self.handle_prev_pdu(
-				origin,
-				event_id,
-				room_id,
-				eventid_info.remove(prev_id),
-				create_event,
-				first_ts_in_room,
-				prev_id,
-			)
-			.inspect_err(move |e| {
-				warn!("Prev {prev_id} failed: {e}");
-				match self
-					.services
-					.globals
-					.bad_event_ratelimiter
-					.write()
-					.entry(prev_id.into())
-				{
-					| hash_map::Entry::Vacant(e) => {
-						e.insert((Instant::now(), 1));
-					},
-					| hash_map::Entry::Occupied(mut e) => {
-						let tries = e.get().1.saturating_add(1);
-						*e.get_mut() = (Instant::now(), tries);
-					},
-				}
-			})
-			.map(|_| self.services.server.check_running())
-		})
-		.boxed()
-		.await?;
+	debug!("Fetching and persisting any missing prev events");
+	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
+		.await
+		.debug_inspect_err(|e| {
+			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
+		})?;
 
 	// Done with prev events, now handling the incoming event
 	self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-		.boxed()
 		.await
 }

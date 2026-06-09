@@ -1,8 +1,9 @@
 use std::{borrow::Borrow, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err, implement, info, is_equal_to,
+	Err, Result, debug, debug_error, debug_info, err, implement, info, is_equal_to,
 	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
+	result::DebugInspect,
 	trace,
 	utils::{
 		IterStream,
@@ -23,28 +24,17 @@ use crate::rooms::{
 };
 
 #[implement(super::Service)]
-pub(super) async fn upgrade_outlier_to_timeline_pdu<Pdu>(
+#[tracing::instrument(name="upgrade_outlier", skip_all, fields(event_id=%incoming_pdu.event_id()))]
+pub(super) async fn upgrade_outlier_to_timeline_pdu(
 	&self,
 	incoming_pdu: PduEvent,
 	mut val: CanonicalJsonObject,
-	create_event: &Pdu,
+	create_event: &PduEvent,
 	origin: &ServerName,
 	room_id: &RoomId,
-) -> Result<Option<RawPduId>>
-where
-	Pdu: Event + Send + Sync,
-{
-	// Skip the PDU if we already have it as a timeline event
-	if let Ok(pduid) = self
-		.services
-		.timeline
-		.get_pdu_id(incoming_pdu.event_id())
-		.await
-	{
-		return Ok(Some(pduid));
-	}
-
-	let (rejected, soft_failed) = join!(
+) -> Result<Option<RawPduId>> {
+	let (pduid, rejected, soft_failed) = join!(
+		self.services.timeline.get_pdu_id(incoming_pdu.event_id()),
 		self.services
 			.pdu_metadata
 			.is_event_rejected(incoming_pdu.event_id()),
@@ -52,17 +42,27 @@ where
 			.pdu_metadata
 			.is_event_soft_failed(incoming_pdu.event_id())
 	);
-	if rejected {
-		return Err!(Request(InvalidParam("Event has been rejected")));
+	if let Ok(id) = pduid {
+		trace!(event_id=%incoming_pdu.event_id(), "Skipping upgrade of already upgraded PDU");
+		return Ok(Some(id));
+	} else if rejected {
+		return Err!(Request(Forbidden("Event has been rejected")));
 	} else if soft_failed {
-		return Err!(Request(InvalidParam("Event has been soft-failed")));
+		return Err!(Request(Forbidden("Event has been soft-failed")));
 	}
+
+	assert_eq!(
+		*create_event.kind(),
+		StateEventType::RoomCreate.into(),
+		"tried to upgrade a PDU with a create_event that is not a room create event"
+	);
 
 	debug!(
 		event_id = %incoming_pdu.event_id,
 		"Upgrading PDU from outlier to timeline"
 	);
 	let timer = Instant::now();
+	let min_depth = self.services.metadata.get_mindepth(room_id).await;
 	let room_version_rules = get_room_version_rules(create_event)?;
 
 	// 10. Fetch missing state and auth chain events by calling /state_ids at
@@ -81,13 +81,25 @@ where
 	};
 
 	if state_at_incoming_event.is_none() {
+		trace!("Could not calculate incoming state, asking remote {origin} for it");
 		state_at_incoming_event = self
 			.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
-			.await?;
+			.await
+			.debug_inspect_err(|e| debug_error!("Could not fetch state from {origin}: {e}"))?;
 	}
 
 	let state_at_incoming_event =
 		state_at_incoming_event.expect("we always set this to some above");
+	if state_at_incoming_event.is_empty()
+		&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
+	{
+		// This can happen if the remote sends an event but cannot be reached to fetch
+		// the state at it, and all other servers in the room (which might just be the
+		// unreachable server) are unable to provide required info.
+		// returning an error here allows the upgrade to be attempted at another time.
+		return Err!(Request(Forbidden("Could not resolve incoming state at event")));
+	}
+	trace!(state_events = state_at_incoming_event.len(), "Calculated incoming state");
 
 	debug!(
 		event_id = %incoming_pdu.event_id,
@@ -382,6 +394,12 @@ where
 
 	// Event has passed all auth/stateres checks
 	drop(state_lock);
+	if incoming_pdu.depth > min_depth && incoming_pdu.state_key().is_some() {
+		self.services
+			.metadata
+			.set_mindepth(room_id, incoming_pdu.depth.into());
+		trace!("Increased room's min depth from {} to {}", min_depth, incoming_pdu.depth);
+	}
 
 	Ok(pdu_id)
 }
