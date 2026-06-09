@@ -4,7 +4,7 @@
 
     --background-color: #fff;
     --text-color: #000;
-    --secondary: #666;
+    --secondary: #555;
     --bg: oklch(0.76 0.0854 317.27);
     --panel-bg: oklch(0.91 0.042 317.27);
     --c1: oklch(0.44 0.177 353.06);
@@ -83,6 +83,10 @@ footer {
     .logo {
         width: 100%;
         height: 64px;
+    }
+
+    @media (prefers-color-scheme: light) {
+        --name-lightness: 0.35;
     }
 }
 
@@ -312,6 +316,7 @@ ul.bullet-separated {
     position: relative;
     float: right;
     cursor: default;
+    font-size: small;
 
     span {
         display: inline-block;

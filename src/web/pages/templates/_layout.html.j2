@@ -19,7 +19,7 @@
     {%~ block content %}{% endblock ~%}
     {%~ block footer ~%}
         <footer>
-            <a href="{{ crate::ROUTE_PREFIX }}/"><img class="logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg"></a>
+            <a href="{{ crate::ROUTE_PREFIX }}/"><img class="logo" alt="Continuwuity logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg"></a>
             <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }} &bullet; <a href="{{ crate::ROUTE_PREFIX }}/about">About</a></p>
         </footer>
     {%~ endblock ~%}
