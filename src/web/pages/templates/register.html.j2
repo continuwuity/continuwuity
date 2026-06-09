@@ -55,7 +55,7 @@ Sign up
                     <label for="username">Username</label>
                     <span class="username-input">
                         <span>@</span>
-                        <input type="text" name="username" autocomplete="username" required>
+                        <input type="text" id="username" name="username" autocomplete="username" required>
                         <span>:{{ server_name }}</span>
                     </span>
                     {% if let Some(username_error) = username_error %}
@@ -98,9 +98,9 @@ Sign up
                     <span class="username-input">
                         <span>@</span>
                         {% if let Some(username) = username %}
-                            <input type="text" name="username" value="{{ username }}" autocomplete="username" required>
+                            <input type="text" id="username" name="username" value="{{ username }}" autocomplete="username" required>
                         {% else %}
-                            <input type="text" name="username" autocomplete="username" required>
+                            <input type="text" id="username" name="username" autocomplete="username" required>
                         {% endif %}
                         <span>:{{ server_name }}</span>
                     </span>
@@ -114,18 +114,18 @@ Sign up
                 {% endif %}
                 <p>
                     <label for="password">Password</label>
-                    <input type="password" name="password" autocomplete="new-password" required>
+                    <input type="password" id="password" name="password" autocomplete="new-password" required>
                     {{ form::errors(field_errors, std::borrow::Cow::Borrowed("password")) }}
                 </p>
                 <p>
                     <label for="confirm_password">Confirm password</label>
-                    <input type="password" name="confirm_password" autocomplete="new-password" required>
+                    <input type="password" id="confirm_password" name="confirm_password" autocomplete="new-password" required>
                     {{ form::errors(field_errors, std::borrow::Cow::Borrowed("confirm_password")) }}
                 </p>
                 {% if require_email %}
                     <p>
                         <label for="email">Email address</label>
-                        <input type="email" name="email" required>
+                        <input type="email" id="email" name="email" required>
                         {{ form::errors(field_errors, std::borrow::Cow::Borrowed("email")) }}
                     </p>
                 {% endif %}
@@ -153,8 +153,8 @@ Sign up
                             </div>
                         {% else %}
                             <p>
-                                <label for="username">Registration token</label>
-                                <input type="text" name="registration_token" autocomplete="none" required>
+                                <label for="registration_token">Registration token</label>
+                                <input type="text" id="registration_token" name="registration_token" autocomplete="none" required>
                                 {% if is_first_run %}
                                     <small>Check the server console to find the registration token.</small>
                                 {% endif %}
