@@ -32,7 +32,7 @@ About server
                     : <ul class="bullet-separated">
                         {%- if let Some(matrix_id) = contact.matrix_id -%}
                             <li><a href="matrix:u/{{ matrix_id.localpart() }}:{{ matrix_id.server_name() }}?action=chat" target="_blank">{{ matrix_id }}</a></li>
-                        {%- endif -%}
+                        {%~ endif -%}
                         {%- if let Some(email_address) = contact.email_address -%}
                             <li><a href="mailto:{{ email_address }}" target="_blank">{{ email_address }}</a>
                             {%- if let Some(pgp_key) = contact.pgp_key -%}
