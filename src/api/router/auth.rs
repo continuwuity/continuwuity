@@ -315,7 +315,7 @@ async fn verify_access_token(
 		{
 			if required_scopes
 				.iter()
-				.any(|scope| session.scopes.contains(scope))
+				.all(|scope| !session.scopes.contains(scope))
 			{
 				return Err!(Request(Forbidden(
 					"You don't have the necessary scopes to use this endpoint."
@@ -324,7 +324,7 @@ async fn verify_access_token(
 		} else {
 			// Otherwise, explicitly check if the endpoint is restricted to admins only.
 			if required_scopes.contains(&OAuthClientScope::ServerAdministration)
-				&& services.users.is_admin(&sender_user).await
+				&& !services.users.is_admin(&sender_user).await
 			{
 				return Err!(Request(Forbidden(
 					"Only server administrators can use this endpoint."
