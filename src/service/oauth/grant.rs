@@ -125,6 +125,7 @@ pub struct OAuthError {
 }
 
 impl OAuthError {
+	#[must_use]
 	pub const fn invalid_request(error_description: &'static str) -> Self {
 		Self {
 			error: ErrorCode::InvalidRequest,
@@ -132,6 +133,7 @@ impl OAuthError {
 		}
 	}
 
+	#[must_use]
 	pub const fn invalid_grant(error_description: &'static str) -> Self {
 		Self {
 			error: ErrorCode::InvalidGrant,
