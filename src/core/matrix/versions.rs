@@ -21,7 +21,7 @@ pub fn versions() -> Vec<String> {
 		"v1.12".to_owned(),
 		"v1.13".to_owned(),
 		"v1.14".to_owned(),
-		"v1.15".to_owned(),
+		"v1.16".to_owned(),
 	]
 }
 
@@ -43,6 +43,5 @@ pub fn unstable_features() -> BTreeMap<String, bool> {
 		("org.matrix.simplified_msc3575".to_owned(), true), /* Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186) */
 		("uk.timedout.msc4323".to_owned(), true), /* agnostic suspend (https://github.com/matrix-org/matrix-spec-proposals/pull/4323) */
 		("org.matrix.msc4155".to_owned(), true), /* invite filtering (https://github.com/matrix-org/matrix-spec-proposals/pull/4155) */
-		("computer.gingershaped.msc4466".to_owned(), true), /* profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466) */
 	])
 }

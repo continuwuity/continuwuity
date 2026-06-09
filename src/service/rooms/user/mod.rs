@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use conduwuit::{Result, implement};
-use database::{Database, Deserialized, Map};
+use database::{Deserialized, Map};
 use ruma::{RoomId, UserId};
 
-use crate::{Dep, globals, rooms, rooms::short::ShortStateHash};
+use crate::{Dep, globals};
 
 pub struct Service {
 	db: Data,
@@ -12,32 +12,25 @@ pub struct Service {
 }
 
 struct Data {
-	db: Arc<Database>,
 	userroomid_notificationcount: Arc<Map>,
 	userroomid_highlightcount: Arc<Map>,
 	roomuserid_lastnotificationread: Arc<Map>,
-	roomsynctoken_shortstatehash: Arc<Map>,
 }
 
 struct Services {
 	globals: Dep<globals::Service>,
-	short: Dep<rooms::short::Service>,
 }
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			db: Data {
-				db: args.db.clone(),
 				userroomid_notificationcount: args.db["userroomid_notificationcount"].clone(),
 				userroomid_highlightcount: args.db["userroomid_highlightcount"].clone(),
 				roomuserid_lastnotificationread: args.db["userroomid_highlightcount"].clone(),
-				roomsynctoken_shortstatehash: args.db["roomsynctoken_shortstatehash"].clone(),
 			},
-
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
-				short: args.depend::<rooms::short::Service>("rooms::short"),
 			},
 		}))
 	}
@@ -89,41 +82,4 @@ pub async fn last_notification_read(&self, user_id: &UserId, room_id: &RoomId) -
 		.await
 		.deserialized()
 		.unwrap_or(0)
-}
-
-#[implement(Service)]
-pub async fn associate_token_shortstatehash(
-	&self,
-	room_id: &RoomId,
-	token: u64,
-	shortstatehash: ShortStateHash,
-) {
-	let shortroomid = self
-		.services
-		.short
-		.get_shortroomid(room_id)
-		.await
-		.expect("room exists");
-
-	let _cork = self.db.db.cork();
-	let key: &[u64] = &[shortroomid, token];
-	self.db
-		.roomsynctoken_shortstatehash
-		.put(key, shortstatehash);
-}
-
-#[implement(Service)]
-pub async fn get_token_shortstatehash(
-	&self,
-	room_id: &RoomId,
-	token: u64,
-) -> Result<ShortStateHash> {
-	let shortroomid = self.services.short.get_shortroomid(room_id).await?;
-
-	let key: &[u64] = &[shortroomid, token];
-	self.db
-		.roomsynctoken_shortstatehash
-		.qry(key)
-		.await
-		.deserialized()
 }
