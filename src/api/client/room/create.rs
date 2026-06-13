@@ -563,10 +563,16 @@ pub(crate) async fn create_room_route(
 	// 9. Events implied by invite (and TODO: invite_3pid)
 	drop(state_lock);
 	for recipient_user in &invitees {
-		if let Err(e) =
-			invite_helper(&services, sender_user, recipient_user, &room_id, None, body.is_direct)
-				.boxed()
-				.await
+		if let Err(e) = invite_helper(
+			&services,
+			sender_user,
+			recipient_user,
+			&room_id,
+			body.invite_reason.clone(),
+			body.is_direct,
+		)
+		.boxed()
+		.await
 		{
 			warn!(?e, "Failed to send invite");
 		}
