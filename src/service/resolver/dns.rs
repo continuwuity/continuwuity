@@ -53,7 +53,7 @@ impl Resolver {
 			conf.add_name_server(ns);
 		}
 
-		opts.cache_size = config.dns_cache_entries as u64;
+		opts.cache_size = u64::from(config.dns_cache_entries);
 		opts.preserve_intermediates = true;
 		opts.negative_min_ttl = Some(Duration::from_secs(config.dns_min_ttl_nxdomain));
 		opts.negative_max_ttl = Some(Duration::from_hours(720));
