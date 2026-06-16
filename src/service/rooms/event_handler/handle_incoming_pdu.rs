@@ -15,7 +15,6 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use serde_json::{json, value::to_raw_value};
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -278,13 +277,8 @@ impl super::Service {
 				"Attempting to squash extremities after upgrading pdu"
 			);
 			// Try to send a dummy event to squash extremities. See issue #1844
-			while let Some(user_id) = self
-				.services
-				.state_cache
-				.local_users_in_room(room_id)
-				.next()
-				.await
-			{
+			let mut local_users = self.services.state_cache.local_users_in_room(room_id);
+			while let Some(user_id) = local_users.next().await {
 				let state_lock = self.services.state.mutex.lock(room_id).await;
 				if self
 					.services
@@ -292,11 +286,7 @@ impl super::Service {
 					.build_and_append_pdu(
 						PartialPdu {
 							event_type: "org.matrix.dummy_event".into(),
-							content: to_raw_value(&json!({})).expect("john json"),
-							unsigned: None,
-							state_key: None,
-							redacts: None,
-							timestamp: None,
+							..PartialPdu::default()
 						},
 						&user_id,
 						Some(room_id),
