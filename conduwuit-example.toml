@@ -645,6 +645,14 @@
 #
 #default_room_acl_deny =
 
+# The number of forward extremities to tolerate in a room before
+# attempting to manually squash them with a "dummy event". Setting this
+# above 20 will hinder its efficacy, and setting it below 5 will cause
+# more dummy events to be sent than necessary (which increases federation
+# traffic).
+#
+#dummy_event_threshold = 10
+
 # Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
 # Jaeger exporter. Traces will be sent via OTLP to a collector (such as
 # Jaeger) that supports the OpenTelemetry Protocol.
