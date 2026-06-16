@@ -386,19 +386,3 @@ Static credentials are less secure than shared secrets because they don't expire
 :::
 
 </details>
-
-<details>
-
-<summary>Allowing guest access</summary>
-
-By default, TURN credentials require client authentication. To allow unauthenticated access:
-
-```toml
-turn_allow_guests = true
-```
-
-:::caution
-This is not recommended as it allows unauthenticated users to access your TURN server, potentially enabling abuse by bots. All major Matrix clients that support legacy calls *also* support authenticated TURN access.
-:::
-
-</details>
