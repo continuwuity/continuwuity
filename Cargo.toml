@@ -296,7 +296,7 @@ default-features = false
 features = ["env", "toml"]
 
 [workspace.dependencies.hickory-resolver]
-version = "0.25.2"
+version = "0.26.0"
 default-features = false
 features = [
     "serde",
