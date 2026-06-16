@@ -1,11 +1,11 @@
 use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_error, debug_info, defer, err, error, info,
-	result::DebugInspect, trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, defer, err, error,
+	info, matrix::PartialPdu, result::DebugInspect, trace, warn,
 };
 use futures::{
-	FutureExt,
+	FutureExt, StreamExt,
 	future::{OptionFuture, try_join4},
 };
 use ruma::{
@@ -15,6 +15,7 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
+use serde_json::{json, value::to_raw_value};
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -259,7 +260,60 @@ impl super::Service {
 			})?;
 
 		// Done with prev events, now handling the incoming event
-		self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-			.await
+		let pdu_id = self
+			.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
+			.await?;
+
+		let extremities_count = self
+			.services
+			.state
+			.get_forward_extremities(room_id)
+			.count()
+			.await;
+
+		if extremities_count >= self.services.server.config.dummy_event_threshold.into() {
+			debug_warn!(
+				count=%extremities_count,
+				threshold=%self.services.server.config.dummy_event_threshold,
+				"Attempting to squash extremities after upgrading pdu"
+			);
+			// Try to send a dummy event to squash extremities. See issue #1844
+			while let Some(user_id) = self
+				.services
+				.state_cache
+				.local_users_in_room(room_id)
+				.next()
+				.await
+			{
+				let state_lock = self.services.state.mutex.lock(room_id).await;
+				if self
+					.services
+					.timeline
+					.build_and_append_pdu(
+						PartialPdu {
+							event_type: "org.matrix.dummy_event".into(),
+							content: to_raw_value(&json!({})).expect("john json"),
+							unsigned: None,
+							state_key: None,
+							redacts: None,
+							timestamp: None,
+						},
+						&user_id,
+						Some(room_id),
+						&state_lock,
+					)
+					.await
+					.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))
+					.inspect_err(
+						|e| debug!(sender=%user_id, ?e, "Failed to send a dummy event via user"),
+					)
+					.is_ok()
+				{
+					break;
+				}
+			}
+		}
+
+		Ok(pdu_id)
 	}
 }

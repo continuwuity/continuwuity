@@ -781,6 +781,16 @@ pub struct Config {
 	/// a substitute for moderation bots.
 	pub default_room_acl_deny: Option<Vec<String>>,
 
+	/// The number of forward extremities to tolerate in a room before
+	/// attempting to manually squash them with a "dummy event". Setting this
+	/// above 20 will hinder its efficacy, and setting it below 5 will cause
+	/// more dummy events to be sent than necessary (which increases federation
+	/// traffic).
+	///
+	/// default: 10
+	#[serde(default = "default_extremity_threshold")]
+	pub dummy_event_threshold: u8,
+
 	/// display: nested
 	#[serde(default)]
 	pub well_known: WellKnownConfig,
@@ -2651,6 +2661,8 @@ fn default_rocksdb_stats_level() -> u8 { 1 }
 #[must_use]
 #[inline]
 pub fn default_default_room_version() -> RoomVersionId { RoomVersionId::V12 }
+
+fn default_extremity_threshold() -> u8 { 10 }
 
 fn default_ip_range_denylist() -> Vec<String> {
 	vec![
