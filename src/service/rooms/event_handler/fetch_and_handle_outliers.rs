@@ -35,7 +35,7 @@ const GET_MISSING_EVENTS_MAX_BATCH_SIZE: u16 = 50; // matches src/server/get_mis
 /// them in a processable order, so this is just a best effort attempt. It does
 /// not account for power levels or other tie breaks.
 pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
-	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject, S>,
+	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject, S>,
 ) -> conduwuit::Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
 	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
@@ -237,7 +237,6 @@ impl super::Service {
 				}
 				// Insert this PDU back at the end of the queue so that it will be resolved once
 				// all of its auth events have been fetched.
-				// TODO: This may result in infinite looping, needs a breaker
 				if have_all_auth {
 					debug!(elapsed=?start.elapsed(),%next_id, "Have all auth events");
 					discovered_events.insert(next_id, value);
@@ -251,12 +250,13 @@ impl super::Service {
 			}
 		}
 
-		let seeded_ordered = build_local_dag(
-			&discovered_events.clone(), /* TODO: this clones like several megabytes of data,
-			                             * owie :( */
-		)
-		.await
-		.expect("failed to build local DAG");
+		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = discovered_events
+			.iter()
+			.map(|(id, data)| (id.clone(), data))
+			.collect();
+		let seeded_ordered = build_local_dag(&refmap)
+			.await
+			.expect("failed to build local DAG");
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
 		for id in seeded_ordered {
 			let pdu_json = discovered_events.remove(&id).unwrap();
@@ -279,10 +279,6 @@ impl super::Service {
 				| Err(e) =>
 					warn!(elapsed=?start.elapsed(),"Authentication of event {id} failed: {e:?}"),
 			}
-
-			// TODO: should this try to promote to timeline?
-			// If we got here, we probably weren't able to promote it before
-			// now.
 		}
 
 		trace!(elapsed=?start.elapsed(),"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs", pdus.len());
