@@ -41,17 +41,6 @@ jobs:
       #    else
       #      echo "No workaround needed for llvm-project#153385"
       #    fi
-      - name: Pick compatible clang version
-        id: clang-version
-        run: |
-          # both latest need to use clang-23, but oldstable and previous can just use clang
-          if [[ "${{ matrix.container }}" == "ubuntu-latest" ]]; then
-            echo "Using clang-23 package for ${{ matrix.container }}"
-            echo "version=clang-23" >> $GITHUB_OUTPUT
-          else
-            echo "Using default clang package for ${{ matrix.container }}"
-            echo "version=clang" >> $GITHUB_OUTPUT
-          fi
 
       - name: Checkout repository with full history
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
@@ -130,7 +119,7 @@ jobs:
         run: |
           apt-get update -y
           # Build dependencies for rocksdb
-          apt-get install -y liburing-dev ${{ steps.clang-version.outputs.version }}
+          apt-get install -y liburing-dev clang
 
       - name: Run cargo-deb
         id: cargo-deb
