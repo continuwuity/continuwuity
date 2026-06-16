@@ -5,7 +5,7 @@ use conduwuit::{
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
 use futures::StreamExt;
-use ruma::{RoomId, ServerName};
+use ruma::{CanonicalJsonObject, OwnedEventId, RoomId, ServerName};
 
 use crate::rooms::event_handler::build_local_dag;
 
@@ -78,7 +78,9 @@ impl super::Service {
 		let to_persist = if mapped.len() <= 1 {
 			mapped.keys().map(ToOwned::to_owned).collect()
 		} else {
-			build_local_dag(&mapped).await?
+			let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> =
+				mapped.iter().map(|(id, data)| (id.clone(), data)).collect();
+			build_local_dag(&refmap).await?
 		};
 
 		let job_start = Instant::now();
