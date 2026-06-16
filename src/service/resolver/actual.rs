@@ -5,7 +5,10 @@ use std::{
 
 use conduwuit::{Err, Result, debug, debug_info, err, error, trace};
 use futures::{FutureExt, TryFutureExt};
-use hickory_resolver::ResolveError;
+use hickory_resolver::{
+	net::{DnsError, NetError},
+	proto::rr::rdata::SRV,
+};
 use ipaddress::IPAddress;
 use ruma::ServerName;
 
@@ -289,7 +292,7 @@ impl super::Service {
 			| Err(e) => Self::handle_resolve_error(&e, hostname),
 			| Ok(override_ip) => {
 				self.cache.set_override(untername, &CachedOverride {
-					ips: override_ip.into_iter().take(MAX_IPS).collect(),
+					ips: override_ip.iter().take(MAX_IPS).collect(),
 					port,
 					expire: CachedOverride::default_expire(),
 					overriding: (hostname != untername)
@@ -315,10 +318,16 @@ impl super::Service {
 			match self.resolver.resolver.srv_lookup(hostname).await {
 				| Err(e) => Self::handle_resolve_error(&e, hostname)?,
 				| Ok(result) => {
-					return Ok(result.iter().next().map(|result| {
+					return Ok(result.answers().iter().next().map(|result| {
+						let data = result.try_borrow::<SRV>().expect("should be SRV response");
+
 						FedDest::Named(
-							result.target().to_string().trim_end_matches('.').to_owned(),
-							format!(":{}", result.port())
+							data.data()
+								.target
+								.to_string()
+								.trim_end_matches('.')
+								.to_owned(),
+							format!(":{}", data.data().port)
 								.as_str()
 								.try_into()
 								.unwrap_or_else(|_| FedDest::default_port()),
@@ -331,31 +340,24 @@ impl super::Service {
 		Ok(None)
 	}
 
-	fn handle_resolve_error(e: &ResolveError, host: &'_ str) -> Result<()> {
-		use hickory_resolver::{ResolveErrorKind::Proto, proto::ProtoErrorKind};
+	fn handle_resolve_error(err: &NetError, host: &'_ str) -> Result<()> {
+		match err {
+			| NetError::NoConnections => {
+				error!(
+					"Your DNS server is overloaded and has ran out of connections. It is \
+					 strongly recommended you remediate this issue to ensure proper federation \
+					 connectivity."
+				);
 
-		match e.kind() {
-			| Proto(e) => match e.kind() {
-				| ProtoErrorKind::NoRecordsFound { .. } => {
-					// Raise to debug_warn if we can find out the result wasn't from cache
-					debug!(%host, "No DNS records found: {e}");
-					Ok(())
-				},
-				| ProtoErrorKind::Timeout => {
-					Err!(warn!(%host, "DNS {e}"))
-				},
-				| ProtoErrorKind::NoConnections => {
-					error!(
-						"Your DNS server is overloaded and has ran out of connections. It is \
-						 strongly recommended you remediate this issue to ensure proper \
-						 federation connectivity."
-					);
-
-					Err!(error!(%host, "DNS error: {e}"))
-				},
-				| _ => Err!(error!(%host, "DNS error: {e}")),
+				Err!(error!(%host, "DNS error: {err}"))
 			},
-			| _ => Err!(error!(%host, "DNS error: {e}")),
+			| NetError::Timeout => Err!(error!(%host, "DNS query timed out")),
+			| NetError::Dns(DnsError::NoRecordsFound(..)) => {
+				// Raise to debug_warn if we can find out the result wasn't from cache
+				debug!(%host, "No DNS records found: {err}");
+				Ok(())
+			},
+			| _ => Err!(error!(%host, "DNS error: {err}")),
 		}
 	}
 

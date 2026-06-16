@@ -2,7 +2,10 @@ use std::{net::SocketAddr, sync::Arc, time::Duration};
 
 use conduwuit::{Result, Server, err};
 use futures::FutureExt;
-use hickory_resolver::{TokioResolver, lookup_ip::LookupIp};
+use hickory_resolver::{
+	TokioResolver, config::ConnectionConfig, lookup_ip::LookupIp,
+	net::runtime::TokioRuntimeProvider,
+};
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 
 use super::cache::{Cache, CachedOverride};
@@ -28,7 +31,7 @@ impl Resolver {
 		let (sys_conf, mut opts) = hickory_resolver::system_conf::read_system_conf()
 			.map_err(|e| err!(error!("Failed to configure DNS resolver from system: {e}")))?;
 
-		let mut conf = hickory_resolver::config::ResolverConfig::new();
+		let mut conf = hickory_resolver::config::ResolverConfig::default();
 
 		if let Some(domain) = sys_conf.domain() {
 			conf.set_domain(domain.clone());
@@ -42,7 +45,7 @@ impl Resolver {
 			let mut ns = sys_conf.clone();
 
 			if config.query_over_tcp_only {
-				ns.protocol = hickory_resolver::proto::xfer::Protocol::Tcp;
+				ns.connections = vec![ConnectionConfig::tcp()];
 			}
 
 			ns.trust_negative_responses = !config.query_all_nameservers;
@@ -50,7 +53,7 @@ impl Resolver {
 			conf.add_name_server(ns);
 		}
 
-		opts.cache_size = config.dns_cache_entries as usize;
+		opts.cache_size = config.dns_cache_entries as u64;
 		opts.preserve_intermediates = true;
 		opts.negative_min_ttl = Some(Duration::from_secs(config.dns_min_ttl_nxdomain));
 		opts.negative_max_ttl = Some(Duration::from_hours(720));
@@ -70,11 +73,10 @@ impl Resolver {
 			| _ => hickory_resolver::config::LookupIpStrategy::Ipv4thenIpv6,
 		};
 
-		let rt_prov = hickory_resolver::proto::runtime::TokioRuntimeProvider::new();
-		let conn_prov = hickory_resolver::name_server::TokioConnectionProvider::new(rt_prov);
-		let mut builder = TokioResolver::builder_with_config(conf, conn_prov);
+		let runtime_provider = TokioRuntimeProvider::new();
+		let mut builder = TokioResolver::builder_with_config(conf, runtime_provider);
 		*builder.options_mut() = opts;
-		let resolver = Arc::new(builder.build());
+		let resolver = Arc::new(builder.build().expect("failed to build resolver :("));
 
 		Ok(Arc::new(Self {
 			resolver: resolver.clone(),
@@ -139,8 +141,15 @@ async fn resolve_to_reqwest(
 	use std::{io, io::ErrorKind::Interrupted};
 
 	let handle_shutdown = || Box::new(io::Error::new(Interrupted, "Server shutting down"));
-	let handle_results =
-		|results: LookupIp| Box::new(results.into_iter().map(|ip| SocketAddr::new(ip, 0)));
+	let handle_results = |results: LookupIp| {
+		Box::new(
+			results
+				.iter()
+				.collect::<Vec<_>>()
+				.into_iter()
+				.map(|ip| SocketAddr::new(ip, 0)),
+		)
+	};
 
 	tokio::select! {
 		results = resolver.lookup_ip(name.as_str()) => Ok(handle_results(results?)),
