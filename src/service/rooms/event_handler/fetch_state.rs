@@ -4,6 +4,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
+use askama::filters::e;
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_warn, err, info, trace,
 	utils::{BoolExt, IterStream},
@@ -131,23 +132,35 @@ impl super::Service {
 					"Fetched full state from remote server for event"
 				);
 				let fetched_state = match state_response {
-					| Ok(wrapped) => match wrapped {
-						| Ok(state) => state,
-						| Err(e) => {
-							warn!(
-								elapsed=?start.elapsed(),
-								error=?e,
-								%origin,
-								"Failed to fetch full state from remote, falling back to atomic fetch"
-							);
-							self.fetch_and_handle_missing_events(
-								origin,
-								res.pdu_ids.clone(),
-								create_event,
-								room_id,
-							)
+					| Ok(Ok(state)) => {
+						// Filter to ensure we only use the PDUs we were expecting, preventing
+						// arbitrary state injection.
+						// Atomic fetch does not have this problem as each PDU is evaluated
+						// individually.
+						let expected = &res.pdu_ids;
+						state
+							.into_iter()
+							.stream()
+							.broad_filter_map(|(event_id, pdu)| async move {
+								expected.contains(&event_id).then_some((event_id, pdu))
+							})
+							.collect()
 							.await
-						},
+					},
+					| Ok(Err(e)) => {
+						warn!(
+							elapsed=?start.elapsed(),
+							error=?e,
+							%origin,
+							"Failed to fetch full state from remote, falling back to atomic fetch"
+						);
+						self.fetch_and_handle_missing_events(
+							origin,
+							res.pdu_ids.clone(),
+							create_event,
+							room_id,
+						)
+						.await
 					},
 					| Err(e) => {
 						warn!(
@@ -165,9 +178,7 @@ impl super::Service {
 						.await
 					},
 				};
-				// TODO: Should probably verify that fetched_state solely consists of PDUs we're
-				// expecting, otherwise this might be vulnerable to the "me when I lie attack",
-				// maybe?
+
 				assert!(
 					!fetched_state.is_empty(),
 					"fetch_full_state or fetch_and_handle_missing_events returned empty state \
