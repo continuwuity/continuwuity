@@ -278,9 +278,7 @@ pub async fn handle_incoming_pdu<'a>(
 			.await;
 		let mut local_users = self.services.state_cache.local_users_in_room(room_id);
 		while let Some(user_id) = local_users.next().await {
-			if power_levels.for_user(&user_id)
-				< power_levels.for_message("org.matrix.dummy_event".into())
-			{
+			if power_levels.user_can_send_message(&user_id, "org.matrix.dummy_event".into()) {
 				trace!(%user_id, "user does not have power level to send dummy event, skipping");
 				continue;
 			}
