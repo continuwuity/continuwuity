@@ -9,25 +9,18 @@
     <meta name="robots" content="noindex" />
     {%- endif %}
 
-    <link rel="icon" href="/_continuwuity/resources/logo.svg">
-    <link rel="stylesheet" href="/_continuwuity/resources/common.css">
-    <link rel="stylesheet" href="/_continuwuity/resources/components.css">
+    <link rel="icon" href="{{ crate::ROUTE_PREFIX }}/resources/logo.svg">
+    <link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/common.css">
+    <link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/components.css">
     {% block head %}{% endblock %}
 </head>
 
 <body>
-    <main>{%~ block content %}{% endblock ~%}</main>
+    {%~ block content %}{% endblock ~%}
     {%~ block footer ~%}
         <footer>
-            <img class="logo" src="/_continuwuity/resources/logo.svg">
-            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }}
-                {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
-                    {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
-                        (<a href="{{ url }}">{{ version_info }}</a>)
-                    {%~ else ~%}
-                        ({{ version_info }})
-                    {%~ endif ~%}
-                {%~ endif ~%}</p>
+            <a href="{{ crate::ROUTE_PREFIX }}/"><img class="logo" alt="Continuwuity logo" src="{{ crate::ROUTE_PREFIX }}/resources/logo.svg"></a>
+            <p>Powered by <a href="https://continuwuity.org">Continuwuity</a> {{ env!("CARGO_PKG_VERSION") }} &bullet; <a href="{{ crate::ROUTE_PREFIX }}/about">About</a></p>
         </footer>
     {%~ endblock ~%}
 </body>

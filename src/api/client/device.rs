@@ -8,7 +8,6 @@ use ruma::{
 		self, delete_device, delete_devices, get_device, get_devices, update_device,
 	},
 };
-use service::uiaa::Identity;
 
 use crate::{Ruma, client::DEVICE_ID_LENGTH};
 
@@ -95,6 +94,7 @@ pub(crate) async fn update_device_route(
 					&device_id,
 					&appservice.registration.as_token,
 					None,
+					None,
 					Some(client.to_string()),
 				)
 				.await?;
@@ -119,14 +119,13 @@ pub(crate) async fn delete_device_route(
 	body: Ruma<delete_device::v3::Request>,
 ) -> Result<delete_device::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
-	let appservice = body.identity.appservice_info();
 
 	// Appservices get to skip UIAA for this endpoint
-	if appservice.is_none() {
+	if let Some(sender_device) = body.identity.sender_device() {
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, Some(sender_device), None)
 			.await?;
 	}
 
@@ -155,14 +154,13 @@ pub(crate) async fn delete_devices_route(
 	body: Ruma<delete_devices::v3::Request>,
 ) -> Result<delete_devices::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
-	let appservice = body.identity.appservice_info();
 
 	// Appservices get to skip UIAA for this endpoint
-	if appservice.is_none() {
+	if let Some(sender_device) = body.identity.sender_device() {
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
-			.authenticate_password(&body.auth, Some(Identity::from_user_id(sender_user)))
+			.authenticate_password(&body.auth, sender_user, Some(sender_device), None)
 			.await?;
 	}
 

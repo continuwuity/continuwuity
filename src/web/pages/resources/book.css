@@ -1,0 +1,22 @@
+html {
+    height: 100svh;
+    --bg: oklch(0.44 0.177 353.06);
+    background-color: var(--bg);
+    background-image: linear-gradient(180deg, var(--bg) 55%, black 100%);;
+}
+
+main {
+    margin-top: 20vh;
+    margin-left: 5%;
+    margin-right: 5%;
+    color: white;
+    font-family: monospace;
+    font-size: 1.3em;
+    line-height: 1.2;
+}
+
+em {
+    font-size: 1.35em;
+    font-weight: bold;
+    white-space: nowrap;
+}

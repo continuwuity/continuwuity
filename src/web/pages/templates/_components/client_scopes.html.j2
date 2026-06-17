@@ -1,0 +1,10 @@
+<ul>
+    {% for scope in scopes %}
+        {% match scope %}
+            {% when Scope::ClientApi %}
+                <li>Send messages and interact with chatrooms on your behalf</li>
+            {% when Scope::Device(_) %}
+                <li>Access your Matrix account</li>
+        {% endmatch %}
+    {% endfor %}
+</ul>

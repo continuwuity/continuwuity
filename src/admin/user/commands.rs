@@ -1,13 +1,10 @@
-use std::{
-	collections::{BTreeMap, HashSet},
-	fmt::Write as _,
-};
+use std::collections::{BTreeMap, HashSet};
 
 use api::client::{
 	full_user_deactivate, leave_room, recreate_push_rules_and_return, remote_leave_room,
 };
 use conduwuit::{
-	Err, Result, debug_warn, error, info,
+	Err, Result, debug_warn, info,
 	matrix::{Event, pdu::PartialPdu},
 	utils::{self, ReadyExt},
 	warn,
@@ -53,130 +50,22 @@ pub(super) async fn list_users(&self) -> Result {
 #[admin_command]
 pub(super) async fn create_user(&self, username: String, password: Option<String>) -> Result {
 	// Validate user id
-	let user_id = parse_local_user_id(self.services, &username)?;
-
-	if let Err(e) = user_id.validate_strict() {
-		if self.services.config.emergency_password.is_none() {
-			return Err!("Username {user_id} contains disallowed characters or spaces: {e}");
-		}
-	}
-
-	if self.services.users.exists(&user_id).await {
-		return Err!("User {user_id} already exists");
-	}
-
-	let password = password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
-
-	// Create user
-	self.services
-		.users
-		.create(&user_id, Some(HashedPassword::new(&password)?))
-		.await?;
-
-	// Default to pretty displayname
-	let mut displayname = user_id.localpart().to_owned();
-
-	// If `new_user_displayname_suffix` is set, registration will push whatever
-	// content is set to the user's display name with a space before it
-	if !self
+	let user_id = self
 		.services
-		.server
-		.config
-		.new_user_displayname_suffix
-		.is_empty()
-	{
-		write!(displayname, " {}", self.services.server.config.new_user_displayname_suffix)?;
-	}
+		.users
+		.determine_registration_user_id(Some(username), None, None)
+		.await?;
+
+	let password = HashedPassword::new(
+		&password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH)),
+	)?;
 
 	self.services
 		.users
-		.set_displayname(&user_id, Some(displayname));
+		.create_local_account(&user_id, password, None)
+		.await;
 
-	// Initial account data
-	self.services
-		.account_data
-		.update(
-			None,
-			&user_id,
-			ruma::events::GlobalAccountDataEventType::PushRules
-				.to_string()
-				.into(),
-			&serde_json::to_value(ruma::events::push_rules::PushRulesEvent::new(
-				ruma::events::push_rules::PushRulesEventContent::new(
-					ruma::push::Ruleset::server_default(&user_id),
-				),
-			))
-			.unwrap(),
-		)
-		.await?;
-
-	if !self.services.server.config.auto_join_rooms.is_empty() {
-		for room in &self.services.server.config.auto_join_rooms {
-			let Ok(room_id) = self.services.rooms.alias.resolve(room).await else {
-				error!(
-					%user_id,
-					"Failed to resolve room alias to room ID when attempting to auto join {room}, skipping"
-				);
-				continue;
-			};
-
-			if !self
-				.services
-				.rooms
-				.state_cache
-				.server_in_room(self.services.globals.server_name(), &room_id)
-				.await
-			{
-				warn!(
-					"Skipping room {room} to automatically join as we have never joined before."
-				);
-				continue;
-			}
-
-			if let Some(room_server_name) = room.server_name() {
-				match self
-					.services
-					.rooms
-					.membership
-					.join_room(
-						&user_id,
-						&room_id,
-						Some("Automatically joining this room upon registration".to_owned()),
-						&[
-							self.services.globals.server_name().to_owned(),
-							room_server_name.to_owned(),
-						],
-					)
-					.await
-				{
-					| Ok(_response) => {
-						info!("Automatically joined room {room} for user {user_id}");
-					},
-					| Err(e) => {
-						// don't return this error so we don't fail registrations
-						error!(
-							"Failed to automatically join room {room} for user {user_id}: {e}"
-						);
-						self.services
-							.admin
-							.send_text(&format!(
-								"Failed to automatically join room {room} for user {user_id}: \
-								 {e}"
-							))
-							.await;
-					},
-				}
-			}
-		}
-	}
-
-	// we dont add a device since we're not the user, just the creator
-
-	// Make the first user to register an administrator and disable first-run mode.
-	self.services.firstrun.empower_first_user(&user_id).await?;
-
-	self.write_str(&format!("Created user with user_id: {user_id} and password: `{password}`"))
-		.await
+	self.write_str(&format!("Created user {user_id}")).await
 }
 
 #[admin_command]
@@ -298,31 +187,6 @@ pub(super) async fn reset_password(
 			.await;
 		write!(self, "\nAll existing sessions have been logged out.").await?;
 	}
-
-	Ok(())
-}
-
-#[admin_command]
-pub(super) async fn issue_password_reset_link(&self, username: String) -> Result {
-	use conduwuit_service::password_reset::{PASSWORD_RESET_PATH, RESET_TOKEN_QUERY_PARAM};
-
-	self.bail_restricted()?;
-
-	let mut reset_url = self
-		.services
-		.config
-		.get_client_domain()
-		.join(PASSWORD_RESET_PATH)
-		.unwrap();
-
-	let user_id = parse_local_user_id(self.services, &username)?;
-	let token = self.services.password_reset.issue_token(user_id).await?;
-	reset_url
-		.query_pairs_mut()
-		.append_pair(RESET_TOKEN_QUERY_PARAM, &token.token);
-
-	self.write_str(&format!("Password reset link issued for {username}: {reset_url}"))
-		.await?;
 
 	Ok(())
 }

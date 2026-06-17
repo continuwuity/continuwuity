@@ -1,21 +1,71 @@
+use std::sync::Arc;
+
+use axum::{
+	extract::{Request, State},
+	http::{HeaderValue, header},
+	middleware::Next,
+	response::Response,
+	routing::MethodFilter,
+};
+use conduwuit_core::utils;
+
+use crate::WebError;
+
+pub(super) mod about;
+pub(super) mod account;
 mod components;
 pub(super) mod debug;
 pub(super) mod index;
-pub(super) mod password_reset;
+pub(super) mod oauth;
 pub(super) mod resources;
 pub(super) mod threepid;
 
-#[derive(Debug)]
+type Result<T = Response, E = WebError> = std::result::Result<T, E>;
+
+const GET_POST: MethodFilter = MethodFilter::GET.or(MethodFilter::POST);
+
+#[derive(Debug, Clone)]
 pub(crate) struct TemplateContext {
 	pub allow_indexing: bool,
+	pub csp_nonce: String,
 }
 
-impl From<&crate::State> for TemplateContext {
-	fn from(state: &crate::State) -> Self {
-		Self {
-			allow_indexing: state.config.allow_web_indexing,
-		}
-	}
+const CSP_NONCE_LENGTH: usize = 32;
+
+pub(super) async fn template_context_middleware(
+	State(config): State<Arc<conduwuit_service::config::Service>>,
+	mut request: Request,
+	next: Next,
+) -> Response {
+	let csp_nonce = utils::random_string(CSP_NONCE_LENGTH);
+	let context = TemplateContext {
+		allow_indexing: config.allow_web_indexing,
+		csp_nonce: csp_nonce.clone(),
+	};
+
+	assert!(
+		request.extensions_mut().insert(context).is_none(),
+		"template context should only be inserted once"
+	);
+
+	let mut response = next.run(request).await;
+
+	let child_src = if config.recaptcha_site_key.is_some() {
+		"www.google.com"
+	} else {
+		"'none'"
+	};
+
+	response.headers_mut().insert(
+		header::CONTENT_SECURITY_POLICY,
+		HeaderValue::from_str(&format!(
+			"default-src 'none'; style-src 'self'; img-src 'self' https: data:; script-src \
+			 'nonce-{csp_nonce}'; child-src {child_src};"
+		))
+		.expect("should be able to build CSP header"),
+	);
+
+	response
 }
 
 #[macro_export]
@@ -27,15 +77,17 @@ macro_rules! template {
     ) => {
         #[derive(Debug, askama::Template)]
         #[template(path = $path)]
+		#[allow(unused)]
         struct $name$(<$lifetime>)? {
-            context: $crate::pages::TemplateContext,
+			context: $crate::pages::TemplateContext,
             $($field_name: $field_type,)*
         }
 
         impl$(<$lifetime>)? $name$(<$lifetime>)? {
-            fn new(state: &$crate::State, $($field_name: $field_type,)*) -> Self {
+            #[allow(clippy::too_many_arguments)]
+            fn new(context: $crate::pages::TemplateContext, $($field_name: $field_type,)*) -> Self {
                 Self {
-                    context: state.into(),
+                    context,
                     $($field_name,)*
                 }
             }
@@ -53,4 +105,17 @@ macro_rules! template {
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! response {
+	(BadRequest($body:expr)) => {
+		response!((axum::http::StatusCode::BAD_REQUEST, $body))
+	};
+
+	($body:expr) => {{
+		use axum::response::IntoResponse;
+
+		Ok($body.into_response())
+	}};
 }

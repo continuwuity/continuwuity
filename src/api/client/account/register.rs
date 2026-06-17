@@ -1,17 +1,15 @@
-use std::{collections::HashMap, fmt::Write};
+use std::collections::HashMap;
 
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use conduwuit::{
-	Err, Result, debug_info, error, info,
+	Err, Result, debug_info, info,
 	utils::{self},
-	warn,
 };
 use conduwuit_service::Services;
-use futures::{FutureExt, StreamExt};
+use futures::StreamExt;
 use lettre::{Address, message::Mailbox};
 use ruma::{
-	OwnedUserId, UserId,
 	api::client::{
 		account::{
 			register::{self, LoginType, RegistrationKind},
@@ -20,19 +18,12 @@ use ruma::{
 		uiaa::{AuthFlow, AuthType},
 	},
 	assign,
-	events::{
-		GlobalAccountDataEventType, push_rules::PushRulesEvent,
-		room::message::RoomMessageEventContent,
-	},
-	push,
 };
 use serde_json::value::RawValue;
 use service::{mailer::messages, users::HashedPassword};
 
 use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
 use crate::Ruma;
-
-const RANDOM_USER_ID_LENGTH: usize = 10;
 
 /// # `POST /_matrix/client/v3/register`
 ///
@@ -52,8 +43,6 @@ pub(crate) async fn register_route(
 		return Err!(Request(GuestAccessForbidden("Guests may not register on this server.")));
 	}
 
-	let emergency_mode_enabled = services.config.emergency_password.is_some();
-
 	// Allow registration if it's enabled in the config file or if this is the first
 	// run (so the first user account can be created)
 	let allow_registration =
@@ -71,99 +60,59 @@ pub(crate) async fn register_route(
 		)));
 	}
 
-	let identity = if body.identity.is_some() {
-		// Appservices can skip auth
-		None
+	let user_id = if body.body.login_type == Some(LoginType::ApplicationService) {
+		let Some(appservice_info) = &body.identity else {
+			return Err!(Request(Forbidden(
+				"Only appservices can use the appservice login type."
+			)));
+		};
+
+		let user_id = services
+			.users
+			.determine_registration_user_id(body.username.clone(), None, Some(appservice_info))
+			.await?;
+
+		services.users.create(&user_id, None).await?;
+
+		user_id
 	} else {
 		// Perform UIAA to determine the user's identity
 		let (flows, params) = create_registration_uiaa_session(&services).await?;
 
-		Some(
-			services
-				.uiaa
-				.authenticate(&body.auth, flows, params, None)
-				.await?,
-		)
-	};
-
-	// If the user didn't supply a username but did supply an email, use
-	// the email's user as their initial localpart to avoid falling back to
-	// a randomly generated localpart
-	let supplied_username = body.username.clone().or_else(|| {
-		if let Some(identity) = &identity
-			&& let Some(email) = &identity.email
-		{
-			Some(email.user().to_owned())
-		} else {
-			None
-		}
-	});
-
-	let user_id =
-		determine_registration_user_id(&services, supplied_username, emergency_mode_enabled)
+		let identity = services
+			.uiaa
+			.authenticate(&body.auth, flows, params, None)
 			.await?;
 
-	if body.body.login_type == Some(LoginType::ApplicationService) {
-		// For appservice logins, make sure that the user ID is in the appservice's
-		// namespace
+		let password = if let Some(password) = &body.password {
+			HashedPassword::new(password)?
+		} else {
+			return Err!(Request(InvalidParam("A password must be provided.")));
+		};
 
-		match body.identity {
-			| Some(ref info) =>
-				if !info.is_user_match(&user_id) && !emergency_mode_enabled {
-					return Err!(Request(Exclusive(
-						"Username is not in an appservice namespace."
-					)));
-				},
-			| _ => {
-				return Err!(Request(MissingToken("Missing appservice token.")));
-			},
-		}
-	} else if services.appservice.is_exclusive_user_id(&user_id).await && !emergency_mode_enabled
-	{
-		// For non-appservice logins, ban user IDs which are in an appservice's
-		// namespace (unless emergency mode is enabled)
-		return Err!(Request(Exclusive("Username is reserved by an appservice.")));
-	}
+		let user_id = services
+			.users
+			.determine_registration_user_id(body.username.clone(), identity.email.as_ref(), None)
+			.await?;
 
-	let password = if body.identity.is_some() {
-		None
-	} else if let Some(password) = body.password.as_deref() {
-		Some(HashedPassword::new(password)?)
-	} else {
-		return Err!(Request(InvalidParam("A password must be provided")));
+		services
+			.users
+			.create_local_account(&user_id, password, identity.email)
+			.await;
+
+		user_id
 	};
 
-	// Create user
-	services.users.create(&user_id, password).await?;
-
-	// Set an initial display name
-	let mut displayname = user_id.localpart().to_owned();
-
-	// Apply the new user displayname suffix, if it's set
-	if !services.globals.new_user_displayname_suffix().is_empty() && body.identity.is_none() {
-		write!(displayname, " {}", services.server.config.new_user_displayname_suffix)?;
-	}
-
-	services
-		.users
-		.set_displayname(&user_id, Some(displayname.clone()));
-
-	// Initial account data
-	services
-		.account_data
-		.update(
-			None,
-			&user_id,
-			GlobalAccountDataEventType::PushRules.to_string().into(),
-			&serde_json::to_value(PushRulesEvent::new(
-				push::Ruleset::server_default(&user_id).into(),
-			))
-			.expect("should be able to serialize push rules"),
-		)
-		.await?;
-
-	// Generate new device id if the user didn't specify one
 	let (token, device) = if !body.inhibit_login {
+		// If UIAA is disabled, we can't create a device. In that case only appservices
+		// can reach this point in the first place, so we return an error for them.
+		if !services.config.oauth.compatibility_mode.uiaa_available() {
+			return Err!(Request(AppserviceLoginUnsupported(
+				"User-interactive appservice registration is not available on this server."
+			)));
+		}
+
+		// Generate new device id if the user didn't specify one
 		let device_id = body
 			.device_id
 			.clone()
@@ -179,6 +128,7 @@ pub(crate) async fn register_route(
 				&user_id,
 				&device_id,
 				&new_token,
+				None,
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)
@@ -189,118 +139,7 @@ pub(crate) async fn register_route(
 		(None, None)
 	};
 
-	debug_info!(%user_id, ?device, "User account was created");
-
-	// If the user registered with an email, associate it with their account.
-	if let Some(identity) = identity
-		&& let Some(email) = identity.email
-	{
-		// This may fail if the email is already in use, but we already check for that
-		// in `/requestToken`, so ignoring the error is acceptable here in the rare case
-		// that an email is sniped by another user between the `/requestToken` request
-		// and the `/register` request.
-		let _ = services
-			.threepid
-			.associate_localpart_email(user_id.localpart(), &email)
-			.await;
-	}
-
-	let device_display_name = body.initial_device_display_name.as_deref().unwrap_or("");
-
-	if body.identity.is_none() {
-		if !device_display_name.is_empty() {
-			let notice = format!(
-				"New user \"{user_id}\" registered on this server from IP {client} and device \
-				 display name \"{device_display_name}\""
-			);
-
-			info!("{notice}");
-			if services.server.config.admin_room_notices {
-				services.admin.notice(&notice).await;
-			}
-		} else {
-			let notice = format!("New user \"{user_id}\" registered on this server.");
-
-			info!("{notice}");
-			if services.server.config.admin_room_notices {
-				services.admin.notice(&notice).await;
-			}
-		}
-	}
-
-	// Make the first user to register an administrator and disable first-run mode.
-	let was_first_user = services.firstrun.empower_first_user(&user_id).await?;
-
-	// If the registering user was not the first and we're suspending users on
-	// register, suspend them.
-	if !was_first_user && services.config.suspend_on_register {
-		// Note that we can still do auto joins for suspended users
-		services
-			.users
-			.suspend_account(&user_id, &services.globals.server_user)
-			.await;
-		// And send an @room notice to the admin room, to prompt admins to review the
-		// new user and ideally unsuspend them if deemed appropriate.
-		if services.server.config.admin_room_notices {
-			services
-				.admin
-				.send_loud_message(RoomMessageEventContent::text_plain(format!(
-					"User {user_id} has been suspended as they are not the first user on this \
-					 server. Please review and unsuspend them if appropriate."
-				)))
-				.await
-				.ok();
-		}
-	}
-
-	if body.identity.is_none() && !services.server.config.auto_join_rooms.is_empty() {
-		for room in &services.server.config.auto_join_rooms {
-			let Ok(room_id) = services.rooms.alias.resolve(room).await else {
-				error!(
-					"Failed to resolve room alias to room ID when attempting to auto join \
-					 {room}, skipping"
-				);
-				continue;
-			};
-
-			if !services
-				.rooms
-				.state_cache
-				.server_in_room(services.globals.server_name(), &room_id)
-				.await
-			{
-				warn!(
-					"Skipping room {room} to automatically join as we have never joined before."
-				);
-				continue;
-			}
-
-			if let Some(room_server_name) = room.server_name() {
-				match services
-					.rooms
-					.membership
-					.join_room(
-						&user_id,
-						&room_id,
-						Some("Automatically joining this room upon registration".to_owned()),
-						&[services.globals.server_name().to_owned(), room_server_name.to_owned()],
-					)
-					.boxed()
-					.await
-				{
-					| Err(e) => {
-						// don't return this error so we don't fail registrations
-						error!(
-							"Failed to automatically join room {room} for user {user_id}: {e}"
-						);
-					},
-					| _ => {
-						info!("Automatically joined room {room} for user {user_id}");
-					},
-				}
-			}
-		}
-	}
+	debug_info!(%user_id, ?device, "New account created via legacy registration");
 
 	Ok(assign!(register::v3::Response::new(user_id), {
 		access_token: token,
@@ -372,21 +211,21 @@ async fn create_registration_uiaa_session(
 
 		// Require all users to agree to the terms and conditions, if configured
 		let terms = &services.config.registration_terms;
-		if !terms.is_empty() {
-			let mut terms =
-				serde_json::to_value(terms.clone()).expect("failed to serialize terms");
+		if !terms.documents.is_empty() {
+			let mut terms_map = HashMap::new();
 
-			// Insert a dummy `version` field
-			for (_, documents) in terms.as_object_mut().unwrap() {
-				let documents = documents.as_object_mut().unwrap();
-
-				documents.insert("version".to_owned(), "latest".into());
+			for (id, document) in &terms.documents {
+				terms_map.insert(id.to_owned(), serde_json::json!({
+					terms.language.clone(): serde_json::to_value(document).expect("should be able to serialize document")
+				}));
 			}
+
+			terms_map.insert("version".to_owned(), "latest".into());
 
 			params.insert(
 				AuthType::Terms.as_str().to_owned(),
 				serde_json::json!({
-					"policies": terms,
+					"policies": terms_map,
 				}),
 			);
 
@@ -417,81 +256,6 @@ async fn create_registration_uiaa_session(
 	let params = serde_json::value::to_raw_value(&params).expect("params should be valid JSON");
 
 	Ok((flows, params))
-}
-
-async fn determine_registration_user_id(
-	services: &Services,
-	supplied_username: Option<String>,
-	emergency_mode_enabled: bool,
-) -> Result<OwnedUserId> {
-	if let Some(supplied_username) = supplied_username {
-		// The user gets to pick their username. Do some validation to make sure it's
-		// acceptable.
-
-		// Don't allow registration with forbidden usernames.
-		if services
-			.globals
-			.forbidden_usernames()
-			.is_match(&supplied_username)
-			&& !emergency_mode_enabled
-		{
-			return Err!(Request(Forbidden("Username is forbidden")));
-		}
-
-		// Create and validate the user ID
-		let user_id = match UserId::parse_with_server_name(
-			&supplied_username,
-			services.globals.server_name(),
-		) {
-			| Ok(user_id) => {
-				if let Err(e) = user_id.validate_strict() {
-					// Unless we are in emergency mode, we should follow synapse's behaviour on
-					// not allowing things like spaces and UTF-8 characters in usernames
-					if !emergency_mode_enabled {
-						return Err!(Request(InvalidUsername(debug_warn!(
-							"Username {supplied_username} contains disallowed characters or \
-							 spaces: {e}"
-						))));
-					}
-				}
-
-				// Don't allow registration with user IDs that aren't local
-				if !services.globals.user_is_local(&user_id) {
-					return Err!(Request(InvalidUsername(
-						"Username {supplied_username} is not local to this server"
-					)));
-				}
-
-				user_id
-			},
-			| Err(e) => {
-				return Err!(Request(InvalidUsername(debug_warn!(
-					"Username {supplied_username} is not valid: {e}"
-				))));
-			},
-		};
-
-		if services.users.exists(&user_id).await {
-			return Err!(Request(UserInUse("User ID is not available.")));
-		}
-
-		Ok(user_id)
-	} else {
-		// The user didn't specify a username. Generate a username for
-		// them.
-
-		loop {
-			let user_id = UserId::parse_with_server_name(
-				utils::random_string(RANDOM_USER_ID_LENGTH).to_lowercase(),
-				services.globals.server_name(),
-			)
-			.unwrap();
-
-			if !services.users.exists(&user_id).await {
-				break Ok(user_id);
-			}
-		}
-	}
 }
 
 /// # `POST /_matrix/client/v3/register/email/requestToken`

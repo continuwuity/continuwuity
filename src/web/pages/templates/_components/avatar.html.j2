@@ -1,6 +1,6 @@
 {% match avatar_type %}
     {% when AvatarType::Initial with (initial) %}
-    <span class="avatar" role="img">{{ initial }}</span>
+    <span class="avatar" role="img" aria-hidden="true">{{ initial }}</span>
     {% when AvatarType::Image with (src) %}
-    <img class="avatar" src="{{ src }}">
+    <img class="avatar" src="{{ src }}" aria-hidden="true">
 {% endmatch %}
