@@ -104,7 +104,7 @@ impl super::Service {
 			let obj = mapped.get(event_id).cloned().unwrap();
 			let persist_start = Instant::now();
 			match self
-				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj, false)
+				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj)
 				.await
 			{
 				| Ok((pdu, val)) if pdu.origin_server_ts() >= first_ts_in_room => {

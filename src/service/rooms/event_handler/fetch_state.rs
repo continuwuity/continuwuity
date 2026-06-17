@@ -331,7 +331,6 @@ impl super::Service {
 						&incoming_event_id,
 						&incoming_room_id,
 						incoming_event_json,
-						true,
 					)
 					.await
 					.inspect_err(|e| {
@@ -368,7 +367,6 @@ impl super::Service {
 						&incoming_event_id,
 						&incoming_room_id,
 						incoming_event_json,
-						true,
 					)
 					.await
 					.inspect_err(|e| {
