@@ -282,7 +282,6 @@ impl super::Service {
 	/// state events as outliers, for use later.
 	///
 	/// Any events that cannot be persisted are dropped with a warning.
-	/// TODO: make it noisy?
 	pub(super) async fn fetch_full_state(
 		&self,
 		origin: &ServerName,

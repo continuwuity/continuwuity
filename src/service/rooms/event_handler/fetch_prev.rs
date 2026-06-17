@@ -88,7 +88,7 @@ impl super::Service {
 		for (i, event_id) in to_persist.iter().enumerate() {
 			debug!(
 				elapsed=?start.elapsed(),
-				"[TODO] Persisting fetched prev event: {event_id} ({}/{})",
+				"Persisting fetched prev event: {event_id} ({}/{})",
 				i.saturating_add(1),
 				to_persist.len(),
 			);

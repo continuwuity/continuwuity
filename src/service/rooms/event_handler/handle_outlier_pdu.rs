@@ -170,8 +170,6 @@ impl super::Service {
 					)));
 				}
 			}
-			// TODO: do events received from auth chain need persisting? that
-			// sounds awfully slow
 		}
 
 		// 6. Reject "due to auth events" if the event doesn't pass auth based on the
