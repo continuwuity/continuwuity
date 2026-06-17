@@ -557,7 +557,6 @@ impl super::Service {
 				&discovered_event_id,
 				room_id,
 				pdu_json,
-				true,
 			))
 			.await
 			{

@@ -24,7 +24,6 @@ pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 	event_id: &'a EventId,
 	room_id: &'a RoomId,
 	mut value: CanonicalJsonObject,
-	_auth_events_known: bool,
 ) -> Result<(PduEvent, BTreeMap<String, CanonicalJsonValue>)>
 where
 	Pdu: Event + Send + Sync,

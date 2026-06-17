@@ -222,7 +222,7 @@ pub async fn handle_incoming_pdu<'a>(
 	}}
 
 	let (incoming_pdu, val) = self
-		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
+		.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
 		.await?;
 
 	// 8. if not timeline event: stop
