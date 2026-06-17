@@ -5,7 +5,7 @@ use conduwuit::{
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
 use futures::StreamExt;
-use ruma::{CanonicalJsonObject, OwnedEventId, RoomId, ServerName};
+use ruma::{CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, ServerName};
 
 use crate::rooms::event_handler::build_local_dag;
 
@@ -18,9 +18,10 @@ impl super::Service {
 		create_event: &PduEvent,
 		incoming_pdu: &PduEvent,
 		origin: &ServerName,
+		first_ts_in_room: MilliSecondsSinceUnixEpoch,
 	) -> conduwuit::Result<()> {
 		let start = Instant::now();
-		let missing = incoming_pdu
+		let mut missing = incoming_pdu
 			.prev_events()
 			.stream()
 			.broad_filter_map(|event_id| async move {
@@ -45,7 +46,7 @@ impl super::Service {
 			.collect::<Vec<_>>()
 			.await;
 
-		let gapfilled = self
+		let mut gapfilled = self
 			.get_missing_events(
 				room_id,
 				incoming_pdu,
@@ -64,6 +65,14 @@ impl super::Service {
 			)
 			.await?;
 		debug_info!(elapsed=?start.elapsed(), "Fetched {} missing events", gapfilled.len());
+		missing.retain(|eid| !gapfilled.contains_key(eid));
+		if !missing.is_empty() {
+			debug_warn!(elapsed=?start.elapsed(), "Still missing {} events, falling back to atomic fetch.", missing.len());
+			gapfilled.extend(
+				self.fetch_prev_events(origin, missing, create_event, room_id)
+					.await,
+			);
+		}
 
 		// Persist all fetched events
 		let mapped = gapfilled
@@ -98,7 +107,7 @@ impl super::Service {
 				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj, false)
 				.await
 			{
-				| Ok((pdu, val)) => {
+				| Ok((pdu, val)) if pdu.origin_server_ts() >= first_ts_in_room => {
 					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
 						.await
 						.inspect_err(|e| {
@@ -125,6 +134,7 @@ impl super::Service {
 					task_elapsed=?persist_start.elapsed(),
 					"Failed to persist prev event {event_id}: {e}",
 				),
+				| _ => {},
 			}
 		}
 

@@ -153,7 +153,7 @@ impl super::Service {
 							%origin,
 							"Failed to fetch full state from remote, falling back to atomic fetch"
 						);
-						self.fetch_and_handle_missing_events(
+						self.fetch_and_handle_auth_events(
 							origin,
 							res.pdu_ids.clone(),
 							create_event,
@@ -168,7 +168,7 @@ impl super::Service {
 							%origin,
 							"Remote did not return room state in an acceptable timeframe, falling back to atomic fetch"
 						);
-						self.fetch_and_handle_missing_events(
+						self.fetch_and_handle_auth_events(
 							origin,
 							res.pdu_ids.clone(),
 							create_event,
@@ -210,7 +210,7 @@ impl super::Service {
 					"Fetching missing events for state from remote"
 				);
 				let fetched_state = self
-					.fetch_and_handle_missing_events(origin, to_fetch, create_event, room_id)
+					.fetch_and_handle_auth_events(origin, to_fetch, create_event, room_id)
 					.await;
 				state_events.extend(fetched_state);
 			}
