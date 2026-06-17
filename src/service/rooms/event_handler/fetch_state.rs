@@ -1,6 +1,7 @@
 use std::{
 	cmp::max,
-	collections::{HashMap, hash_map},
+	collections::{HashMap, HashSet, hash_map},
+	hash::{BuildHasherDefault, DefaultHasher},
 	time::{Duration, Instant},
 };
 
@@ -136,7 +137,8 @@ impl super::Service {
 						// arbitrary state injection.
 						// Atomic fetch does not have this problem as each PDU is evaluated
 						// individually.
-						let expected = &res.pdu_ids;
+						let expected: &HashSet<OwnedEventId, BuildHasherDefault<DefaultHasher>> =
+							&HashSet::from_iter(res.pdu_ids.clone());
 						state
 							.into_iter()
 							.stream()
