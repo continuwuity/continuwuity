@@ -246,7 +246,7 @@ pub async fn handle_incoming_pdu<'a>(
 	//    These are timeline events
 
 	debug!("Fetching and persisting any missing prev events");
-	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin)
+	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin, first_ts_in_room)
 		.await
 		.debug_inspect_err(|e| {
 			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");

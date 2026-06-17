@@ -10,7 +10,7 @@ use conduwuit::{
 	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err,
 	state_res::lexicographical_topological_sort,
 	trace,
-	utils::{IterStream, math::Expected},
+	utils::{IterStream, math::Expected, stream::BroadbandExt},
 	warn,
 };
 use futures::{StreamExt, future::select_ok};
@@ -356,7 +356,7 @@ impl super::Service {
 	/// returned the correct event.
 	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
 	/// multiple remotes in parallel.
-	async fn fetch_and_handle_missing_event_via(
+	async fn fetch_event_via(
 		&self,
 		remote: OwnedServerName,
 		event_id: OwnedEventId,
@@ -383,17 +383,42 @@ impl super::Service {
 		}
 	}
 
+	async fn fetch_event_vias(
+		&self,
+		candidates: impl Iterator<Item = &OwnedServerName>,
+		event_id: &EventId,
+		room_version_rules: &RoomVersionRules,
+	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+		if let Ok(pdu_json) = self.services.timeline.get_pdu_json(event_id).await {
+			return Ok((event_id.to_owned(), pdu_json));
+		}
+		let futures = candidates
+			.map(|remote| {
+				Box::pin(self.fetch_event_via(
+					remote.to_owned(),
+					event_id.to_owned(),
+					room_version_rules,
+				))
+			})
+			.collect::<Vec<_>>();
+		select_ok(futures).await.map(|(res, _)| res)
+	}
+
 	/// Asks remote servers for any individual events that are missing, also
 	/// known as "atomic fetch". Should only be used for fetching missing auth
 	/// events or resolving missing events from state_ids. For all other uses,
 	/// use get_missing_events.
-	#[tracing::instrument(name = "get_missing_events_atomic", skip_all)]
-	pub(super) async fn fetch_and_handle_missing_events<'a, Pdu>(
+	///
+	/// This function manually walks auth_events trees in a breadth-first
+	/// search, and persists all fetched events as outliers when all the
+	/// backwards extremities have been resolved.
+	#[tracing::instrument(name = "get_missing_auth_events_atomic", skip_all)]
+	pub(super) async fn fetch_and_handle_auth_events<Pdu>(
 		&self,
-		origin: &'a ServerName,
+		origin: &ServerName,
 		events: Vec<OwnedEventId>,
-		create_event: &'a Pdu,
-		room_id: &'a RoomId,
+		create_event: &Pdu,
+		room_id: &RoomId,
 	) -> HashMap<OwnedEventId, PduEvent>
 	where
 		Pdu: Event + Send + Sync,
@@ -443,18 +468,11 @@ impl super::Service {
 				}
 
 				debug!(elapsed=?start.elapsed(),"Fetching {next_id} over federation");
-				let futures = candidates
-					.iter()
-					.map(|remote| {
-						Box::pin(self.fetch_and_handle_missing_event_via(
-							remote.clone(),
-							next_id.clone(),
-							room_version_rules,
-						))
-					})
-					.collect::<Vec<_>>();
-				let (event_id, value) = match select_ok(futures).await {
-					| Ok((x, _)) => x,
+				let (event_id, value) = match self
+					.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
+					.await
+				{
+					| Ok(x) => x,
 					| Err(e) => {
 						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {next_id} from any candidate: {e}");
 						continue;
@@ -546,5 +564,86 @@ impl super::Service {
 		pdus.retain(|id, _| events.contains(id)); // Only return state events
 		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
 		pdus
+	}
+
+	/// Similar to `fetch_and_handle_missing_events`, but simply walks the
+	/// prev events tree instead of the auth events tree. Additionally, it does
+	/// not *handle* fetched PDUs in any capacity.
+	#[tracing::instrument(name = "get_missing_prev_events_atomic", skip_all)]
+	pub(super) async fn fetch_prev_events<Pdu>(
+		&self,
+		origin: &ServerName,
+		events: Vec<OwnedEventId>,
+		create_event: &Pdu,
+		room_id: &RoomId,
+	) -> HashMap<OwnedEventId, PduEvent>
+	where
+		Pdu: Event + Send + Sync,
+	{
+		let room_version_rules =
+			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
+		let mut candidates = self
+			.services
+			.timeline
+			.candidate_backfill_servers(room_id)
+			.await;
+		candidates.insert(origin.to_owned());
+
+		let mut todo: VecDeque<OwnedEventId> = VecDeque::from(events);
+		let mut discovered_events = HashMap::new();
+		while let Some(next_id) = todo.pop_front() {
+			if discovered_events.len() >= self.services.server.config.max_fetch_prev_events.into()
+			{
+				debug_warn!(
+					"Encountered a gap too large to fill, giving up (fetched {} events)",
+					discovered_events.len()
+				);
+				break;
+			}
+			let pdu = match self
+				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
+				.await
+			{
+				| Ok((_, data)) => data,
+				| Err(e) => {
+					warn!("Failed to fetch prev event {next_id} from any candidate: {e}");
+					continue;
+				},
+			};
+
+			let prev_events = match expect_event_id_array(&pdu, "prev_events").map_err(|e| {
+				err!(Request(BadJson(warn!(
+					event_id=%next_id,
+					"Failed to parse event fetched from remote: {e}"
+				))))
+			}) {
+				| Ok(auth_events) => auth_events,
+				| Err(e) => {
+					warn!(?e, "event {next_id} is malformed (bad prev_events), skipping");
+					continue;
+				},
+			};
+			let missing_prev = prev_events
+				.iter()
+				.stream()
+				.broad_filter_map(|event_id| async {
+					if discovered_events.contains_key(event_id)
+						|| self.services.timeline.pdu_exists(event_id).await
+					{
+						None
+					} else {
+						Some(event_id.to_owned())
+					}
+				})
+				.collect::<Vec<_>>()
+				.await;
+			todo.extend(missing_prev);
+			discovered_events.insert(
+				next_id.clone(),
+				PduEvent::from_id_val(&next_id, pdu).expect("fetched PDU was already validated"),
+			);
+		}
+
+		discovered_events
 	}
 }
