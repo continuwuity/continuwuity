@@ -104,23 +104,32 @@ impl super::Service {
 		// Fetch all auth events
 		let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
 
-		for aid in pdu_event.auth_events() {
-			if self.services.pdu_metadata.is_event_rejected(aid).await {
+		for auth_event_id in pdu_event.auth_events() {
+			if self
+				.services
+				.pdu_metadata
+				.is_event_rejected(auth_event_id)
+				.await
+			{
 				debug_warn!(
-					"Rejecting incoming event {} which depends on rejected auth event {aid}",
+					"Rejecting incoming event {} which depends on rejected auth event \
+					 {auth_event_id}",
 					event_id,
 				);
 				self.services.pdu_metadata.mark_event_rejected(event_id);
-				return Err!(Request(Forbidden("Event has rejected auth event: {aid}")));
+				return Err!(Request(Forbidden(
+					"Event has rejected auth event: {auth_event_id}"
+				)));
 			}
 
-			if let Ok(auth_event) = self.services.timeline.get_pdu(aid).await {
+			if let Ok(auth_event) = self.services.timeline.get_pdu(auth_event_id).await {
 				check_room_id(room_id, &auth_event)?;
-				trace!("Found auth event {aid} for outlier event {event_id} locally");
-				auth_events.insert(aid.to_owned(), auth_event);
+				trace!("Found auth event {auth_event_id} for outlier event {event_id} locally");
+				auth_events.insert(auth_event_id.to_owned(), auth_event);
 			} else {
 				debug_warn!(
-					"Could not find auth event {aid} for outlier event {event_id} locally"
+					"Could not find auth event {auth_event_id} for outlier event {event_id} \
+					 locally"
 				);
 			}
 		}
@@ -157,16 +166,16 @@ impl super::Service {
 					.map_err(|e| err!(Request(BadJson("Invalid PDU {auth_event_id}: {e}"))))?;
 				auth_chain_map.insert(auth_event_id, auth_pdu);
 			}
-			for aid in pdu_event.auth_events() {
-				if auth_events.contains_key(aid) {
+			for auth_event_id in pdu_event.auth_events() {
+				if auth_events.contains_key(auth_event_id) {
 					continue;
 				}
-				if let Some(auth_event) = auth_chain_map.get(aid) {
-					auth_events.insert(aid.to_owned(), auth_event.clone());
+				if let Some(auth_event) = auth_chain_map.get(auth_event_id) {
+					auth_events.insert(auth_event_id.to_owned(), auth_event.clone());
 				} else {
 					return Err!(Request(Forbidden(
 						"Remote server is not divulging incoming event's auth events (missing: \
-						 {aid})"
+						 {auth_event_id})"
 					)));
 				}
 			}
