@@ -4,7 +4,6 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use askama::filters::e;
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_warn, err, info, trace,
 	utils::{BoolExt, IterStream},
