@@ -62,7 +62,7 @@ impl Default for PartialPdu {
 	fn default() -> Self {
 		Self {
 			event_type: "m.room.message".into(),
-			content: Box::<RawJsonValue>::default(),
+			content: to_raw_value("{}").unwrap(),
 			unsigned: None,
 			state_key: None,
 			redacts: None,
