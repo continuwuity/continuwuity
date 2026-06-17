@@ -191,6 +191,7 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
     ```
 
 </details>
+
 <details>
    <summary>Example docker compose file with caddy-docker-proxy labels</summary>
    ```yaml
@@ -265,73 +266,6 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 ### 6. Start Everything
 
 Start up the services using your usual method - for example `docker compose up -d`.
-
-## Additional TURN configuration
-
-### Using LiveKit's built-in TURN server
-
-LiveKit includes a built-in TURN server which can be used in place of an external option. This TURN server will only work with LiveKit, so you can't use it for legacy Matrix calling or anything else.
-
-If you don't want to set up a separate TURN server, you can enable this with the following changes:
-
-```yaml
-### add this to livekit.yaml ###
-turn:
-  enabled: true
-  udp_port: 3478
-  relay_range_start: 50300
-  relay_range_end: 50400
-  domain: livekit.example.com
-```
-
-```yaml
-### add these to livekit's docker-compose ###
-ports:
-  - "3478:3478/udp"
-  - "50300-50400:50300-50400/udp"
-### if you're using `network_mode: host`, you can skip this part
-```
-
-Recreate the LiveKit container (with `docker-compose up -d livekit`) to apply these changes. Remember to allow the new `3478/udp` and `50300:50400/udp` ports through your firewall.
-
-### Integration with an external TURN server
-
-If you've already [set up coturn](./turn), you can configure Livekit to use it.
-
-:::tip Avoid port clashes between the two services
-
-Before continuing, make sure coturn's `min-port` and `max-port` do not overlap with LiveKit's port range:
-
-```ini
-# in your coturn.conf
-min-port=50201
-max-port=65535
-```
-:::
-
-Generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for LiveKit to use.
-
-Then configure LiveKit, making sure to replace `COTURN_SECRET` with the one you generated:
-
-```yaml
-# livekit.yaml
-rtc:
-  turn_servers:
-    - host: coturn.example.com
-      port: 3478
-      protocol: udp
-      secret: "COTURN_SECRET"
-    - host: coturn.example.com
-      port: 3478
-      protocol: tcp
-      secret: "COTURN_SECRET"
-    - host: coturn.example.com
-      port: 5349
-      protocol: tls # Only if you have already set up TLS in your coturn
-      secret: "COTURN_SECRET"
-```
-
-Restart LiveKit and coturn to apply these changes.
 
 ## Testing
 
@@ -491,3 +425,121 @@ Source code:
 [element-call-github]: https://github.com/element-hq/element-call
 [lk-jwt-service-github]: https://github.com/element-hq/lk-jwt-service
 [livekit-server-github]: https://github.com/livekit/livekit
+
+Other:
+
+- [Matrix VOIP and LiveKit][sspaeth-matrix-voip] - Community member deep dive on current VOIP solutions on Matrix
+
+[sspaeth-matrix-voip]: https://sspaeth.de/2026/04/matrix-voip-and-livekit/
+
+## Appendix
+
+### Additional TURNS-over-443 configuration
+
+In most situations, LiveKit [does not need TURN][sspaeth-matrix-voip-turn] to function. However, when clients are in very restrictive networks where UDP traffic and non-standard ports are disallowed, a TURN-over-TLS server on port `:443` could be employed to relay traffic.
+
+[sspaeth-matrix-voip-turn]: https://sspaeth.de/2026/04/matrix-voip-and-livekit/#turn
+
+You can either use LiveKit's built-in TURN server, or integrate LiveKit with [coturn](./turn).
+
+<details>
+
+<summary>Using LiveKit's built-in TURN server</summary>
+
+First, set up LiveKit's built-in TURN server with its own domain - we'll use `livekit-turn.example.com` in our example.
+
+```yaml
+## add this to `livekit.yaml` ##
+turn:
+  enabled: true
+  tls_port: 5349
+  relay_range_start: 50300
+  relay_range_end: 50400
+  domain: livekit-turn.example.com
+  # replace these with your actual cert/key files
+  cert_file: /path/to/livekit-turn.example.com.crt
+  key_file: /path/to/livekit-turn.example.com.key
+```
+
+```yaml
+### add these to livekit's docker-compose ###
+ports:
+  - "127.0.0.1:5349:5349/tcp"
+  - "50300-50400:50300-50400/udp"
+### if you're using `network_mode: host`, you can skip this part
+```
+
+Recreate the LiveKit container (with `docker-compose up -d livekit`) to apply these changes. Remember to allow the new `50300:50400/udp` ports through your firewall.
+
+Then, we will configure a route from port 443 of the host back to our `livekit-turn.example.com` service on port 5349. To both **multiplex** this and LiveKit's websocket on the same port, we will use a layer-4 reverse proxy with **SNI routing** capabilities, such as [caddy-l4][caddy-l4].
+
+```
+## in your Caddyfile ##
+{
+    servers {
+        listener_wrappers {
+            # intercept packets meant for the TURN domain first
+            # before forwarding other packets to "normal" HTTP listeners
+            layer4 {
+                @turn {
+                    tls {
+                        sni livekit-turn.example.com
+                    }
+                }
+                route @turn {
+                    proxy {
+                        upstream 127.0.0.1:5349 # forward to normal TURNS port
+                    }
+                }
+            }
+            tls
+        }
+    }
+}
+
+# livekit stuff
+https://livekit.example.com {
+    @lk-jwt-service path /healthz /get_token /sfu/get
+    route @lk-jwt-service {
+        reverse_proxy 127.0.0.1:8081
+    }
+    reverse_proxy http://127.0.0.1:7880
+}
+```
+
+[caddy-l4]: https://github.com/mholt/caddy-l4
+
+</details>
+
+<details>
+<summary>Using an external TURN server</summary>
+
+Before continuing, make sure coturn's `min-port` and `max-port` do not overlap with LiveKit's port range:
+
+```ini
+# in your coturn.conf
+min-port=50201
+max-port=65535
+```
+
+Then, generate a long random secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for LiveKit to use.
+
+After that, refer to the following [**TURN instructions**](./turn#turns-over-443) to set up coturn with TLS, as well as multiplexing with LiveKit's websocket on port 443.
+
+Then configure LiveKit, making sure to replace `COTURN_SECRET` with the one you generated:
+
+```yaml
+# livekit.yaml
+rtc:
+  turn_servers:
+    - host: coturn.example.com
+      port: 443
+      protocol: tls
+      secret: "COTURN_SECRET"
+```
+
+Restart LiveKit, coturn, and Caddy-l4 to apply these changes.
+
+</details>
+
+After finishing configuration, you can run the Testing steps again to check that TURN-over-TLS is working. In the LiveKit connection test page, there should be a green tick saying "Can connect to TURN".
