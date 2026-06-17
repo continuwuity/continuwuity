@@ -316,7 +316,7 @@ default-features = false
 
 # Used to make working with iterators easier, was already a transitive depdendency
 [workspace.dependencies.itertools]
-version = "0.14.0"
+version = "0.15.0"
 
 # to parse user-friendly time durations in admin commands
 #TODO: overlaps chrono?
