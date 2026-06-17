@@ -371,6 +371,16 @@ impl Service {
 			.deserialized()
 	}
 
+	pub fn all_forward_extremities(
+		&self,
+	) -> impl Stream<Item = (OwnedRoomId, OwnedEventId)> + Send {
+		self.db
+			.roomid_pduleaves
+			.keys()
+			.map_ok(|(room_id, event_id): (OwnedRoomId, OwnedEventId)| (room_id, event_id))
+			.ignore_err()
+	}
+
 	pub fn get_forward_extremities<'a>(
 		&'a self,
 		room_id: &'a RoomId,
