@@ -96,22 +96,20 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 }
 
 impl super::Service {
-	/// Uses `/_matrix/federation/v1/get_missing_events` to fill gaps in the
-	/// DAG.
+	/// Uses `POST /_matrix/federation/v1/get_missing_events/{room_id}` to fill
+	/// gaps in the DAG.
 	///
-	/// When this function is called, the "earliest events" (current forward
-	/// extremities) will be collected, and the function will loop with an
-	/// exponentially incrementing limit (up to 100 per request) until it has
-	/// filled the gap, i.e. when the remote says there's no more events.
+	/// This function walks backwards from `head`, fetching incrementally (by a
+	/// factor of 10) more events until the remote we're fetching from either
+	/// stops returning new events, or the min_depth is reached.
 	///
-	/// This function will iterate until the remote returns no more events,
-	/// increasing the limit by a factor of 10. If 100 iterations are reached or
-	/// max_fetch_prev_events events are backfilled, the function will give up
-	/// and return what it has, to avoid pulling in too much data (for example,
-	/// absurdly large gaps).
+	/// This function does not persist the events, but does validate them. The
+	/// caller is responsible for passing them through handle_incoming_pdu or
+	/// related functions.
 	///
-	/// This function does not persist the events. The caller is responsible for
-	/// passing them through handle_incoming_pdu.
+	/// Only the one `via` is asked for missing events, as multiplexing remotes
+	/// may result in the event tree being walked in a gappy or disordered
+	/// manner.
 	///
 	/// ## Parameters
 	///
@@ -160,7 +158,8 @@ impl super::Service {
 		// that many events per-request. Synapse returns 20, and conduwuit+ return 50.
 		// This means with a hard iteration limit, we might give up too early, before
 		// we get a chance to even come close to max_fetch_prev_events. As such, we'll
-		// calculate the max limit based on that config option based on these averages.
+		// calculate the limit based on that config option and the aforementioned
+		// averages.
 		let max_fetch = self.services.server.config.max_fetch_prev_events;
 		let iteration_limit = max_fetch.saturating_div(20).max(10);
 
@@ -350,6 +349,11 @@ impl super::Service {
 		Ok(discovered)
 	}
 
+	/// Sends a `GET /_matrix/federation/v1/event/{event_id}` request to the
+	/// target `remote`, parses the resulting PDU, and ensures the remote
+	/// returned the correct event.
+	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
+	/// multiple remotes in parallel.
 	async fn fetch_and_handle_missing_event_via(
 		&self,
 		remote: OwnedServerName,
@@ -377,9 +381,10 @@ impl super::Service {
 		}
 	}
 
-	/// Asks remote servers for any individual events that are missing. Should
-	/// only be used for fetching missing auth events or resolving missing
-	/// events from state_ids. For all other uses, use get_missing_events.
+	/// Asks remote servers for any individual events that are missing, also
+	/// known as "atomic fetch". Should only be used for fetching missing auth
+	/// events or resolving missing events from state_ids. For all other uses,
+	/// use get_missing_events.
 	#[tracing::instrument(name = "get_missing_events_atomic", skip_all)]
 	pub(super) async fn fetch_and_handle_missing_events<'a, Pdu>(
 		&self,
