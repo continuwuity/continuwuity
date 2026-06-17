@@ -167,38 +167,39 @@ impl super::Service {
 		);
 
 		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
-		for id in &events {
-			let mut todo: VecDeque<OwnedEventId> = [id.to_owned()].into();
-			while let Some(next_id) = todo.pop_front() {
-				if discovered_events.contains_key(&next_id) {
+		for apex_event_id in &events {
+			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
+
+			while let Some(target_id) = todo.pop_front() {
+				if discovered_events.contains_key(&target_id) {
 					continue;
 				}
-				if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
-					trace!(elapsed=?start.elapsed(),"Found {next_id} in db");
+				if let Ok(local_pdu) = self.services.timeline.get_pdu(&target_id).await {
+					trace!(elapsed=?start.elapsed(), "Found {target_id} in db");
 					let mut obj = local_pdu.into_canonical_object();
 					obj.remove("event_id");
-					discovered_events.insert(next_id.clone(), obj);
+					discovered_events.insert(target_id.clone(), obj);
 					continue;
 				}
-				let attempts = seen.get(&*next_id).copied().unwrap_or_default();
+				let attempts = seen.get(&*target_id).copied().unwrap_or_default();
 				if attempts >= 5 {
 					debug_error!(
 						elapsed=?start.elapsed(),
 						%attempts,
-						%next_id,
+						%target_id,
 						"Could not fetch missing event after 5 attempts, giving up"
 					);
 					continue;
 				}
 
-				debug!(elapsed=?start.elapsed(),"Fetching {next_id} over federation");
-				let (event_id, value) = match self
-					.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
+				debug!(elapsed=?start.elapsed(),"Fetching {target_id} over federation");
+				let value = match self
+					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
 					.await
 				{
-					| Ok(x) => x,
+					| Ok((_, x)) => x,
 					| Err(e) => {
-						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {next_id} from any candidate: {e}");
+						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {target_id} from any candidate: {e}");
 						continue;
 					},
 				};
@@ -206,7 +207,7 @@ impl super::Service {
 					match expect_event_id_array(&value, "auth_events").map_err(|e| {
 						err!(Request(BadJson(warn!(
 							elapsed=?start.elapsed(),
-							%event_id,
+							event_id=%target_id,
 							"Failed to parse event fetched from remote: {e}"
 						))))
 					}) {
@@ -215,40 +216,46 @@ impl super::Service {
 							warn!(
 								elapsed=?start.elapsed(),
 								?e,
-								"event {event_id} is malformed (bad auth_events), skipping"
+								"event {target_id} is malformed (bad auth_events), skipping"
 							);
 							continue;
 						},
 					};
 				let mut have_all_auth = true;
 				for auth_event_id in auth_events {
-					if let Ok(local_pdu) = self.services.timeline.get_pdu(&next_id).await {
-						trace!(elapsed=?start.elapsed(),"Found auth event {next_id} in db");
+					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
+						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
 						let mut obj = local_pdu.into_canonical_object();
 						obj.remove("event_id");
-						discovered_events.insert(id.clone(), obj);
+						discovered_events.insert(auth_event_id.clone(), obj);
 						continue;
 					}
 					if discovered_events.contains_key(&auth_event_id) {
 						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
 						continue;
 					}
-					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {next_id}");
-					seen.insert(auth_event_id.clone(), attempts.saturating_add(1));
+					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {target_id}");
+					seen.insert(
+						auth_event_id.clone(),
+						seen.get(&auth_event_id)
+							.copied()
+							.unwrap_or_default()
+							.saturating_add(1),
+					);
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
 				}
 				// Insert this PDU back at the end of the queue so that it will be resolved once
 				// all of its auth events have been fetched.
 				if have_all_auth {
-					debug!(elapsed=?start.elapsed(),%next_id, "Have all auth events");
-					discovered_events.insert(next_id, value);
+					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
+					discovered_events.insert(target_id, value);
 				} else {
 					debug_warn!(elapsed=?start.elapsed(),
-						"Fetched {next_id} but missing some auth events, will have to re-fetch."
+						"Fetched {target_id} but missing some auth events, will have to re-fetch."
 					);
-					seen.insert(next_id.clone(), attempts.saturating_add(1));
-					todo.push_back(next_id);
+					seen.insert(target_id.clone(), attempts.saturating_add(1));
+					todo.push_back(target_id);
 				}
 			}
 		}
@@ -261,14 +268,17 @@ impl super::Service {
 			.await
 			.expect("failed to build local DAG");
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
-		for id in seeded_ordered {
-			let pdu_json = discovered_events.remove(&id).unwrap();
-			debug_info!(elapsed=?start.elapsed(),"Handling missing event {id} as outlier");
+		for discovered_event_id in seeded_ordered {
+			let pdu_json = discovered_events.remove(&discovered_event_id).unwrap();
+			debug_info!(
+				elapsed=?start.elapsed(),
+				"Handling missing event {discovered_event_id} as outlier"
+			);
 			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
 				create_event,
-				&id,
+				&discovered_event_id,
 				room_id,
 				pdu_json,
 				true,
@@ -276,15 +286,21 @@ impl super::Service {
 			.await
 			{
 				| Ok((pdu, _)) => {
-					trace!(elapsed=?start.elapsed(), "Persisted {id}");
-					let _ = pdus.insert(id, pdu);
+					trace!(elapsed=?start.elapsed(), "Persisted {discovered_event_id}");
+					let _ = pdus.insert(discovered_event_id, pdu);
 				},
-				| Err(e) =>
-					warn!(elapsed=?start.elapsed(),"Authentication of event {id} failed: {e:?}"),
+				| Err(e) => warn!(
+					elapsed=?start.elapsed(),
+					"Authentication of event {discovered_event_id} failed: {e:?}"
+				),
 			}
 		}
 
-		trace!(elapsed=?start.elapsed(),"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs", pdus.len());
+		trace!(
+			elapsed=?start.elapsed(),
+			"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs",
+			pdus.len()
+		);
 		pdus.retain(|id, _| events.contains(id)); // Only return state events
 		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
 		pdus
