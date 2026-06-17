@@ -733,6 +733,9 @@ impl super::Service {
 				);
 				break;
 			}
+			if discovered_events.contains_key(&next_id) {
+				continue;
+			}
 			let pdu = match self
 				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
 				.await
