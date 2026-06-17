@@ -25,7 +25,7 @@ use ruma::{
 use super::get_room_version_rules;
 use crate::rooms::event_handler::parse_incoming_pdu::expect_event_id_array;
 
-const GET_MISSING_EVENTS_MAX_BATCH_SIZE: u16 = 50; // matches src/server/get_missing_events.rs#LIMIT_MAX
+pub const GET_MISSING_EVENTS_MAX_BATCH_SIZE: usize = 50;
 
 /// Attempts to build a localised directed acyclic graph out of the given PDUs,
 /// returning them in a topologically sorted order.
@@ -505,7 +505,9 @@ impl super::Service {
 			let limit = iteration
 				.expected_add(1)
 				.saturating_mul(10)
-				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE)
+				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE.try_into().expect(
+					"GET_MISSING_EVENTS_MAX_BATCH_SIZE (usize) should fit in u16 (<=65536)",
+				))
 				.max(
 					// This max call ensures we fetch *at least* all the prev events the
 					// head has.
