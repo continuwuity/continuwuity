@@ -277,8 +277,19 @@ impl super::Service {
 				"Attempting to squash extremities after upgrading pdu"
 			);
 			// Try to send a dummy event to squash extremities. See issue #1844
+			let power_levels = self
+				.services
+				.state_accessor
+				.get_room_power_levels(room_id)
+				.await;
 			let mut local_users = self.services.state_cache.local_users_in_room(room_id);
 			while let Some(user_id) = local_users.next().await {
+				if power_levels.for_user(&user_id)
+					< power_levels.for_message("org.matrix.dummy_event".into())
+				{
+					trace!(%user_id, "user does not have power level to send dummy event, skipping");
+					continue;
+				}
 				let state_lock = self.services.state.mutex.lock(room_id).await;
 				if self
 					.services
