@@ -73,23 +73,22 @@ pub(super) async fn upgrade_outlier_to_timeline_pdu(
 		event_id = %incoming_pdu.event_id,
 		"Resolving state at event"
 	);
-	let mut state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
+	let state_at_incoming_event = if incoming_pdu.prev_events().count() == 1 {
 		self.state_at_incoming_degree_one(&incoming_pdu).await?
 	} else {
 		self.state_at_incoming_resolved(&incoming_pdu, room_id, &room_version_rules)
 			.await?
 	};
+	let state_at_incoming_event = match state_at_incoming_event {
+		| Some(s) => s,
+		| None => {
+			trace!("Could not calculate incoming state, asking remote {origin} for it");
+			self.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
+				.await
+				.debug_inspect_err(|e| debug_error!("Could not fetch state from {origin}: {e}"))?
+		},
+	};
 
-	if state_at_incoming_event.is_none() {
-		trace!("Could not calculate incoming state, asking remote {origin} for it");
-		state_at_incoming_event = self
-			.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
-			.await
-			.debug_inspect_err(|e| debug_error!("Could not fetch state from {origin}: {e}"))?;
-	}
-
-	let state_at_incoming_event =
-		state_at_incoming_event.expect("we always set this to some above");
 	if state_at_incoming_event.is_empty()
 		&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
 	{

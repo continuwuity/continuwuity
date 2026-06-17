@@ -26,9 +26,6 @@ impl super::Service {
 	/// to requesting the full state in PDU format from the remote (`GET
 	/// /_matrix/federation/v1/state, very slow in large rooms), and persists
 	/// them directly.
-	///
-	/// The end result is a result containing a map of shortstatekeys to event
-	/// IDs. The underlying `Option` is always `Some`.
 	#[tracing::instrument(skip_all)]
 	pub(super) async fn fetch_state(
 		&self,
@@ -36,7 +33,7 @@ impl super::Service {
 		create_event: &PduEvent,
 		room_id: &RoomId,
 		event_id: &EventId,
-	) -> Result<Option<HashMap<u64, OwnedEventId>>> {
+	) -> Result<HashMap<u64, OwnedEventId>> {
 		let start = Instant::now();
 		trace!(%origin, "Asking remote for state_ids");
 		let res: get_room_state_ids::v1::Response = match self
@@ -209,7 +206,7 @@ impl super::Service {
 			}
 		}
 		if state_events.is_empty() {
-			return Ok(Some(HashMap::new()));
+			return Ok(HashMap::new());
 		}
 
 		let mut state: HashMap<ShortStateKey, OwnedEventId> =
@@ -242,7 +239,7 @@ impl super::Service {
 			}
 		}
 		trace!(elapsed=?start.elapsed(), "fetch_state finished");
-		Ok(Some(state))
+		Ok(state)
 	}
 
 	async fn fetch_state_ids_from_backfill_servers(
