@@ -237,6 +237,11 @@ pub enum DebugCommand {
 	/// Send a test email to the invoking admin's email address
 	SendTestEmail,
 
+	/// Lists room IDs by forward extremity count in descending order
+	RoomsByExtremityCount {
+		page: Option<usize>,
+	},
+
 	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]

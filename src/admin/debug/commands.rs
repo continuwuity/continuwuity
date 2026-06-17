@@ -31,7 +31,7 @@ use service::rooms::{
 };
 use tracing_subscriber::EnvFilter;
 
-use crate::admin_command;
+use crate::{PAGE_SIZE, admin_command};
 
 #[admin_command]
 pub(super) async fn echo(&self, message: Vec<String>) -> Result {
@@ -1137,4 +1137,54 @@ pub(super) async fn send_test_email(&self) -> Result {
 		.await?;
 
 	Ok(())
+}
+
+#[admin_command]
+pub(super) async fn rooms_by_extremity_count(&self, page: Option<usize>) -> Result {
+	let page = page.unwrap_or(1);
+	// My Giant Chain:tm:
+	let mapped: HashMap<OwnedRoomId, u64> = self
+		.services
+		.rooms
+		.state
+		.all_forward_extremities()
+		.ready_fold(HashMap::new(), move |mut map, (room_id, _)| {
+			let count: u64 = map.get(&room_id).copied().unwrap_or(0);
+			map.insert(room_id, count.saturating_add(1));
+			map
+		})
+		.await
+		.into_iter()
+		.filter_map(|(room_id, count)| (count >= 2).then_some((room_id, count)))
+		.collect();
+	if mapped.is_empty() {
+		return Err!("No more rooms.");
+	}
+
+	let mut rooms = mapped.keys().collect::<Vec<_>>();
+	rooms.sort_by_key(|room_id| {
+		mapped
+			.get(*room_id)
+			.copied()
+			.expect("keys must have values")
+	});
+	rooms.reverse();
+
+	let body = rooms
+		.into_iter()
+		.stream()
+		.skip(page.saturating_sub(1).saturating_mul(PAGE_SIZE))
+		.take(PAGE_SIZE)
+		.map(|room_id| {
+			format!("{room_id}: {}", mapped.get(room_id).copied().expect("keys must have values"))
+		})
+		.collect::<Vec<_>>()
+		.await;
+
+	self.write_str(&format!(
+		"Rooms by extremity count ({}):\n```\n{}\n```",
+		body.len(),
+		body.join("\n")
+	))
+	.await
 }
