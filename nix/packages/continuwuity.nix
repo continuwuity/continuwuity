@@ -38,10 +38,6 @@ let
       CARGO_PROFILE = profile;
       RUSTFLAGS = rustflags;
     }
-    // (lib.optionalAttrs stdenv.hostPlatform.isStatic {
-      CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
-      CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
-    })
     // (lib.optionalAttrs (target_cpu != null) {
       TARGET_CPU = target_cpu;
     });
