@@ -124,7 +124,7 @@ default-features = false
 features = ["util"]
 
 [workspace.dependencies.tower-http]
-version = "0.6.8"
+version = "0.7.0"
 default-features = false
 features = [
     "add-extension",
