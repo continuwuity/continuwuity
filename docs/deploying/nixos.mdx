@@ -47,9 +47,16 @@ The NixOS module provides these configuration options:
 - `extraEnvironment`: Extra environment variables to pass to the Continuwuity server
 - `package`: The Continuwuity package to use, defaults to `pkgs.matrix-continuwuity`
     - You may want to override this to be from our flake, for faster updates and unstable versions:
+
     ```nix
-    package = inputs.continuwuity.packages.${pkgs.stdenv.hostPlatform.system}.default;
+    package = inputs.continuwuity.packages.${pkgs.stdenv.hostPlatform.system}.packageName;
     ```
+
+    Where `packageName` is one of:
+    - `default`
+    - `max-perf`: Takes longer to build, but has more runtime optimizations
+    - `max-perf-haswell`: Optimized for modern CPUs, don't use if your CPU is not Haswell.
+
 - `admin.enable`: Whether to add the `conduwuit` binary to `PATH` for administration (enabled by default)
 - `settings`: The Continuwuity configuration
 

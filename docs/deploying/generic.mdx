@@ -47,11 +47,15 @@ and, for amd64, target the haswell CPU architecture.
 
 ### Nix
 
-Theres a Nix package defined in our flake, available for Linux and MacOS. Add continuwuity as an input to your flake, and use `inputs.continuwuity.packages.${system}.default` to get a working Continuwuity package.
+If you wish to generate a static binary, you can do so using Nix: `nix build git+https://forgejo.ellis.link/continuwuation/continuwuity#packageName`, where `packageName` is one of:
 
-If you simply wish to generate a binary using Nix, you can run `nix build git+https://forgejo.ellis.link/continuwuation/continuwuity` to generate a binary in `result/bin/conduwuit`.
+- `default-static-x86_64`
+- `default-static-aarch64`
+- `max-perf-static-x86_64`
+- `max-perf-haswell-static-x86_64`
+- `max-perf-static-aarch64`
 
-Alternatively, you can get a statically compiled musl binary by running `nix build git+https://forgejo.ellis.link/continuwuation/continuwuity#default-static-[x86_64/aarch64 (choose one)]`.
+`max-perf` takes longer to build, but has more runtime optimizations. Haswell builds are optimized for modern CPUs.
 
 ### Compiling
 
