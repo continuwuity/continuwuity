@@ -14,7 +14,7 @@ on:
 
 jobs:
   build:
-    name: "Build Binaries"
+    name: "Build ${{ matrix.filename }} Binary"
     runs-on: ubuntu-latest
 
     strategy:
