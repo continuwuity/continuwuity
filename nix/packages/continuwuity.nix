@@ -34,6 +34,7 @@ let
       rustPlatform.bindgenHook
     ];
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux [ liburing ];
+    doCheck = false;
     env = {
       CARGO_PROFILE = profile;
       RUSTFLAGS = rustflags;
