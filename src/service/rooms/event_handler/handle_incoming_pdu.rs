@@ -223,7 +223,8 @@ pub async fn handle_incoming_pdu<'a>(
 
 	let (incoming_pdu, val) = self
 		.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
-		.await?;
+		.await
+		.inspect_err(|e| error!("Failed to handle outlier PDU: {e:?}"))?;
 
 	// 8. if not timeline event: stop
 	if !is_timeline_event {
