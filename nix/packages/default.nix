@@ -33,8 +33,7 @@
                 else
                   self'.packages.stable-toolchain
               );
-            in
-            {
+
               default = pkgs.callPackage ./continuwuity.nix {
                 inherit self craneLib;
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
@@ -44,19 +43,23 @@
                 # the stuff below is required for http3
                 rustflags = "--cfg reqwest_unstable";
               };
+
               # users may also override this with other cargo profiles to build for other feature sets
               # for features configuration see `default` package which enables http3 by default
 
-              max-perf = self'.packages.default.override {
+              max-perf = default.override {
                 # compiles slower but with more thorough optimizations
                 profile = "release-max-perf";
               };
 
-              # example: different compilation profile and different target_cpu
-              max-perf-haswell = self'.packages.max-perf.override {
+              max-perf-haswell = max-perf.override {
                 # compiles explicitly for haswell arch cpus
                 target_cpu = "haswell";
               };
+            in
+            {
+              inherit default max-perf max-perf-haswell;
+
             };
         in
         (mkPackages pkgs)
