@@ -9,7 +9,6 @@
   cargoExtraArgs ? "",
   rustflags ? "",
   target_cpu ? null,
-  rocksdb,
   profile ? "release",
 }:
 let
@@ -29,17 +28,20 @@ let
 
   attrs = {
     inherit src;
+    strictDeps = true;
     nativeBuildInputs = [
       pkg-config
       rustPlatform.bindgenHook
     ];
     buildInputs = lib.optionals stdenv.hostPlatform.isLinux [ liburing ];
     env = {
-      ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
-      ROCKSDB_LIB_DIR = "${rocksdb}/lib";
       CARGO_PROFILE = profile;
       RUSTFLAGS = rustflags;
     }
+    // (lib.optionalAttrs stdenv.hostPlatform.isStatic {
+      CARGO_BUILD_TARGET = "x86_64-unknown-linux-musl";
+      CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+    })
     // (lib.optionalAttrs (target_cpu != null) {
       TARGET_CPU = target_cpu;
     });
@@ -49,18 +51,6 @@ craneLib.buildPackage (
   lib.recursiveUpdate attrs {
     inherit cargoExtraArgs;
     cargoArtifacts = craneLib.buildDepsOnly attrs;
-
-    # Needed to make continuwuity link to rocksdb
-    postFixup = lib.optionalString stdenv.hostPlatform.isLinux ''
-      old_rpath="$(patchelf --print-rpath $out/bin/conduwuit)"
-      extra_rpath="${
-        lib.makeLibraryPath [
-          rocksdb
-        ]
-      }"
-
-      patchelf --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
-    '';
 
     meta = {
       description = "A community-driven Matrix homeserver in Rust";

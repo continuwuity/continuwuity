@@ -45,9 +45,6 @@ jobs:
 
           rm new_toolchain_hash.txt
 
-      - name: Update rocksdb
-        run: nix run .#update-rocksdb
-
       - name: Show diff
         run: git diff flake.nix nix
 

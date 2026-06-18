@@ -1,4 +1,5 @@
 {
+  inputs,
   self,
   ...
 }:
@@ -6,32 +7,71 @@
   perSystem =
     {
       self',
+      lib,
       pkgs,
+      system,
       craneLib,
       ...
     }:
     {
-      packages = {
-        rocksdb = pkgs.callPackage ./rocksdb.nix { };
-        default = pkgs.callPackage ./continuwuity.nix {
-          inherit self craneLib;
-          inherit (self'.packages) rocksdb;
-          # extra features via `cargoExtraArgs`
-          cargoExtraArgs = "-F http3";
-          # extra RUSTFLAGS via `rustflags`
-          # the stuff below is required for http3
-          rustflags = "--cfg reqwest_unstable";
-        };
-        # users may also override this with other cargo profiles to build for other feature sets
-        # for features configuration see `default` package which enables http3 by default
+      packages =
+        let
+          mkPackages =
+            pkgs:
+            let
+              fnx = inputs.fenix.packages.${system};
 
-        # example: different compilation profile and different target_cpu
-        max-perf-haswell = self'.packages.default.override {
-          # compiles explicitly for haswell arch cpus
-          target_cpu = "haswell";
-          # compiles slower but with more thorough optimizations
-          profile = "release-max-perf";
-        };
-      };
+              isStatic = pkgs.stdenv.hostPlatform.isMusl;
+
+              craneLib = (inputs.crane.mkLib pkgs).overrideToolchain (
+                _:
+                if isStatic then
+                  fnx.combine [
+                    self'.packages.stable-toolchain
+                    (fnx.targets.${pkgs.stdenv.hostPlatform.config}.stable).rust-std
+                  ]
+                else
+                  self'.packages.stable-toolchain
+              );
+            in
+            {
+              default = pkgs.callPackage ./continuwuity.nix {
+                inherit self craneLib;
+                liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
+                # extra features via `cargoExtraArgs`
+                cargoExtraArgs = "-F http3";
+                # extra RUSTFLAGS via `rustflags`
+                # the stuff below is required for http3
+                rustflags = "--cfg reqwest_unstable";
+              };
+              # users may also override this with other cargo profiles to build for other feature sets
+              # for features configuration see `default` package which enables http3 by default
+
+              # example: different compilation profile and different target_cpu
+              max-perf-haswell = self'.packages.default.override {
+                # compiles explicitly for haswell arch cpus
+                target_cpu = "haswell";
+                # compiles slower but with more thorough optimizations
+                profile = "release-max-perf";
+              };
+            };
+        in
+        (mkPackages pkgs)
+        // (lib.mapAttrs' (name: value: lib.nameValuePair "${name}-static-x86_64" value) (
+          mkPackages (
+            import inputs.nixpkgs {
+              localSystem = system;
+              crossSystem = "x86_64-unknown-linux-musl";
+            }
+          )
+        ))
+        // (lib.mapAttrs' (name: value: lib.nameValuePair "${name}-static-aarch64" value) (
+          mkPackages (
+            import inputs.nixpkgs {
+              localSystem = system;
+              crossSystem = "aarch64-unknown-linux-musl";
+            }
+          )
+        ));
     };
 }

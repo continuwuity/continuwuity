@@ -13,7 +13,7 @@
           fnx = inputs.fenix.packages.${system};
 
           stable-toolchain = fnx.fromToolchainFile {
-            file = inputs.self + "/rust-toolchain.toml";
+            dir = inputs.self;
 
             # See also `rust-toolchain.toml`
             sha256 = "sha256-mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
