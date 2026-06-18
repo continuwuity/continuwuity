@@ -173,6 +173,10 @@ impl Service {
 		self.db.get_non_outlier_pdu_json(event_id).await
 	}
 
+	pub async fn non_outlier_pdu_exists(&self, event_id: &EventId) -> bool {
+		self.db.non_outlier_pdu_exists(event_id).await.is_ok()
+	}
+
 	/// Returns the pdu's id.
 	#[inline]
 	pub async fn get_pdu_id(&self, event_id: &EventId) -> Result<RawPduId> {

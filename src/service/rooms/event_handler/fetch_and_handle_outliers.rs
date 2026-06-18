@@ -1,233 +1,667 @@
 use std::{
-	collections::{BTreeMap, HashSet, VecDeque, hash_map},
+	collections::{HashMap, HashSet, VecDeque},
 	time::Instant,
 };
 
+use assign::assign;
+#[cfg(debug_assertions)]
+use conduwuit::error;
 use conduwuit::{
-	Event, PduEvent, debug, debug_warn, implement, matrix::event::gen_event_id_canonical_json,
-	trace, utils::continue_exponential_backoff_secs, warn,
+	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err,
+	state_res::lexicographical_topological_sort,
+	trace,
+	utils::{IterStream, math::Expected, stream::BroadbandExt},
+	warn,
 };
+use futures::{StreamExt, future::select_ok};
 use ruma::{
-	CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	api::federation::event::get_event,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
+	OwnedServerName, RoomId, ServerName, UInt,
+	api::federation::event::{get_event, get_missing_events},
+	int,
+	room_version_rules::RoomVersionRules,
 };
 
 use super::get_room_version_rules;
+use crate::rooms::event_handler::parse_incoming_pdu::expect_event_id_array;
 
-/// Find the event and auth it. Once the event is validated (steps 1 - 8)
-/// it is appended to the outliers Tree.
+pub const GET_MISSING_EVENTS_MAX_BATCH_SIZE: usize = 50;
+
+/// Attempts to build a localised directed acyclic graph out of the given PDUs,
+/// returning them in a topologically sorted order.
 ///
-/// Returns pdu and if we fetched it over federation the raw json.
-///
-/// a. Look in the main timeline (pduid_pdu tree)
-/// b. Look at outlier pdu tree
-/// c. Ask origin server over federation
-/// d. TODO: Ask other servers over federation?
-#[implement(super::Service)]
-pub(super) async fn fetch_and_handle_outliers<'a, Pdu, Events>(
-	&self,
-	origin: &'a ServerName,
-	events: Events,
-	create_event: &'a Pdu,
-	room_id: &'a RoomId,
-) -> Vec<(PduEvent, Option<BTreeMap<String, CanonicalJsonValue>>)>
-where
-	Pdu: Event + Send + Sync,
-	Events: Iterator<Item = &'a EventId> + Clone + Send,
-{
-	let back_off = |id| match self
-		.services
-		.globals
-		.bad_event_ratelimiter
-		.write()
-		.entry(id)
-	{
-		| hash_map::Entry::Vacant(e) => {
-			e.insert((Instant::now(), 1));
-		},
-		| hash_map::Entry::Occupied(mut e) => {
-			*e.get_mut() = (Instant::now(), e.get().1.saturating_add(1));
-		},
-	};
+/// This is used to attempt to process PDUs in an order that respects their
+/// dependencies, however it is ultimately the sender's responsibility to send
+/// them in a processable order, so this is just a best effort attempt. It does
+/// not account for power levels or other tie breaks.
+pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
+	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject, S>,
+) -> conduwuit::Result<Vec<OwnedEventId>> {
+	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
+	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
+		HashMap::with_capacity(pdu_map.len());
+	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
 
-	let mut events_with_auth_events = Vec::with_capacity(events.clone().count());
-	trace!("Fetching {} outlier pdus", events.clone().count());
+	for (event_id, value) in pdu_map {
+		// We already checked that these properties are correct in parse_incoming_pdu,
+		// so it's safe to unwrap here.
+		// We also filter to remove any prev_events that are not in this pdu_map, as we
+		// need to have at least one event with zero out degrees for the lexico-topo
+		// sort below. If there are multiple events with omitted prevs, they will be
+		// ordered by timestamp, then event ID. At that point though, it's unlikely to
+		// matter.
+		let prev_events = value
+			.get("prev_events")
+			.unwrap()
+			.as_array()
+			.unwrap()
+			.iter()
+			.map(|v| EventId::parse(v.as_str().unwrap()).unwrap())
+			.filter(|id| pdu_map.contains_key(id))
+			.collect();
 
-	for id in events {
-		// a. Look in the main timeline (pduid_pdu tree)
-		// b. Look at outlier pdu tree
-		// (get_pdu_json checks both)
-		if let Ok(local_pdu) = self.services.timeline.get_pdu(id).await {
-			trace!("Found {id} in main timeline or outlier tree");
-			events_with_auth_events.push((id.to_owned(), Some(local_pdu), vec![]));
-			continue;
-		}
+		dag.insert(event_id.clone(), prev_events);
+		let origin_server_ts = value
+			.get("origin_server_ts")
+			.and_then(CanonicalJsonValue::as_integer)
+			.unwrap_or_default();
+		id_origin_ts.insert(event_id.clone(), origin_server_ts);
+	}
 
-		// c. Ask origin server over federation
-		// We also handle its auth chain here so we don't get a stack overflow in
-		// handle_outlier_pdu.
-		let mut todo_auth_events: VecDeque<_> = [id.to_owned()].into();
-		let mut events_in_reverse_order = Vec::with_capacity(todo_auth_events.len());
+	debug!(count = dag.len(), "Sorting incoming events with partial graph");
+	lexicographical_topological_sort(&dag, &async |node_id| {
+		// Note: we don't bother fetching power levels because that would massively slow
+		// this function down. This is a best-effort attempt to order events correctly
+		// for processing, however ultimately that should be the sender's job.
+		let ts = id_origin_ts
+			.get(&node_id)
+			.copied()
+			.unwrap_or_else(|| int!(0))
+			.to_string()
+			.parse::<u64>()
+			.ok()
+			.and_then(UInt::new)
+			.unwrap_or_default();
+		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
+	})
+	.await
+	.inspect(|sorted| {
+		debug_assert_eq!(
+			sorted.len(),
+			pdu_map.len(),
+			"Sorted graph was not the same size as the input graph"
+		);
+	})
+	.map_err(|e| err!("failed to resolve local graph: {e}"))
+}
 
-		let mut events_all = HashSet::with_capacity(todo_auth_events.len());
-		while let Some(next_id) = todo_auth_events.pop_front() {
-			if let Some((time, tries)) = self
-				.services
-				.globals
-				.bad_event_ratelimiter
-				.read()
-				.get(&*next_id)
-			{
-				// Exponential backoff
-				const MIN_DURATION: u64 = 60 * 2;
-				const MAX_DURATION: u64 = 60 * 60;
-				if continue_exponential_backoff_secs(
-					MIN_DURATION,
-					MAX_DURATION,
-					time.elapsed(),
-					*tries,
-				) {
-					debug_warn!(
-						tried = ?*tries,
-						elapsed = ?time.elapsed(),
-						"Backing off from {next_id}",
-					);
-					continue;
-				}
-			}
+impl super::Service {
+	/// Uses `POST /_matrix/federation/v1/get_missing_events/{room_id}` to fill
+	/// gaps in the DAG.
+	///
+	/// This function walks backwards from `head`, fetching incrementally (by a
+	/// factor of 10) more events until the remote we're fetching from either
+	/// stops returning new events, or the min_depth is reached.
+	///
+	/// This function does not persist the events, but does validate them. The
+	/// caller is responsible for passing them through handle_incoming_pdu or
+	/// related functions.
+	///
+	/// Only the one `via` is asked for missing events, as multiplexing remotes
+	/// may result in the event tree being walked in a gappy or disordered
+	/// manner.
+	///
+	/// ## Parameters
+	///
+	/// - `room_id`: The room's ID.
+	/// - `head`: The event we are potentially missing prev_events for.
+	/// - `tail`: The most recently known events in the graph (typically forward
+	///   extremities).
+	/// - `via`: The server to ask for missing events.
+	/// - `min_depth`: Don't process events with a `depth` lower than this
+	///   value. Not massively useful, but can help short-circuit infinite loops
+	///   and weird edge paths.
+	#[tracing::instrument(name = "get_missing_events_bulk", skip_all)]
+	pub async fn get_missing_events(
+		&self,
+		room_id: &RoomId,
+		head: &PduEvent,
+		tail: Vec<OwnedEventId>,
+		via: &ServerName,
+		min_depth: UInt,
+	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
+		let start = Instant::now();
+		#[cfg(debug_assertions)]
+		{
+			let missing_count = head
+				.prev_events()
+				.stream()
+				.fold(0_u8, |i, event_id| async move {
+					if self.services.timeline.pdu_exists(event_id).await {
+						i.expected_add(1)
+					} else {
+						i
+					}
+				})
+				.await;
+			debug_assert_ne!(
+				missing_count, 0,
+				"event passed to get_missing_events is not missing any events (wasteful call)"
+			);
+		};
+		assert!(!tail.is_empty(), "empty tail");
+		assert_ne!(via, self.services.globals.server_name(), "cannot ask ourselves for events");
 
-			if events_all.contains(&next_id) {
-				continue;
-			}
+		// The iteration limit is in place to ensure that if the remote server leaves us
+		// in a state of infinite recursion (as old versions of continuwuity and
+		// predecessors would), we give up. However, get_missing_events doesn't return
+		// that many events per-request. Synapse returns 20, and conduwuit+ return 50.
+		// This means with a hard iteration limit, we might give up too early, before
+		// we get a chance to even come close to max_fetch_prev_events. As such, we'll
+		// calculate the limit based on that config option and the aforementioned
+		// averages.
+		let max_fetch = self.services.server.config.max_fetch_prev_events;
+		let iteration_limit = max_fetch.saturating_div(20).max(10);
 
-			if self.services.timeline.pdu_exists(&next_id).await {
-				trace!("Found {next_id} in db");
-				continue;
-			}
-
-			debug!("Fetching {next_id} over federation from {origin}.");
-			match self
+		let mut discovered = HashMap::with_capacity(head.prev_events.len());
+		let mut latest_events: Vec<OwnedEventId> = vec![head.event_id().to_owned()];
+		debug!(elapsed=?start.elapsed(),
+			%room_id,
+			event_id=%head.event_id(),
+			%iteration_limit,
+			"Fetching any missing events for head event",
+		);
+		for iteration in 0..iteration_limit {
+			let limit = iteration
+				.expected_add(1)
+				.saturating_mul(10)
+				.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE.try_into().expect(
+					"GET_MISSING_EVENTS_MAX_BATCH_SIZE (usize) should fit in u16 (<=65536)",
+				))
+				.max(
+					// This max call ensures we fetch *at least* all the prev events the
+					// head has.
+					u16::try_from(head.prev_events.len())
+						.expect("cannot have more than 20 prev events, which fits in u16"),
+				);
+			debug_info!(elapsed=?start.elapsed(),
+				%limit,
+				%via,
+				%iteration,
+				%iteration_limit,
+				discovered=discovered.len(),
+				%min_depth,
+				"Attempting to gap fill missing events"
+			);
+			let response: get_missing_events::v1::Response = self
 				.services
 				.sending
 				.send_federation_request(
-					origin,
-					get_event::v1::Request::new((*next_id).to_owned()),
+					via,
+					assign!(
+						get_missing_events::v1::Request::new(
+							room_id.to_owned(),
+							tail.clone(),
+							latest_events.clone()
+						),
+						{limit: limit.into(), min_depth}
+					),
 				)
-				.await
-			{
-				| Ok(res) => {
-					debug!("Got {next_id} over federation from {origin}");
-					let Ok(room_version_rules) = get_room_version_rules(create_event) else {
-						back_off((*next_id).to_owned());
-						continue;
-					};
+				.await?;
 
-					let Ok((calculated_event_id, value)) =
-						gen_event_id_canonical_json(&res.pdu, &room_version_rules)
-					else {
-						back_off((*next_id).to_owned());
-						continue;
-					};
-
-					if calculated_event_id != *next_id {
-						warn!(
-							"Server didn't return event id we requested: requested: {next_id}, \
-							 we got {calculated_event_id}. Event: {:?}",
-							&res.pdu
-						);
-					}
-
-					if let Some(auth_events) = value
-						.get("auth_events")
-						.and_then(CanonicalJsonValue::as_array)
-					{
-						for auth_event in auth_events {
-							match serde_json::from_value::<OwnedEventId>(
-								auth_event.clone().into(),
-							) {
-								| Ok(auth_event) => {
-									trace!(
-										"Found auth event id {auth_event} for event {next_id}"
-									);
-									todo_auth_events.push_back(auth_event);
-								},
-								| _ => {
-									warn!("Auth event id is not valid");
-								},
-							}
-						}
-					} else {
-						warn!("Auth event list invalid");
-					}
-
-					events_in_reverse_order.push((next_id.clone(), value));
-					events_all.insert(next_id);
-				},
-				| Err(e) => {
-					warn!("Failed to fetch auth event {next_id} from {origin}: {e}");
-					back_off((*next_id).to_owned());
-				},
+			if response.events.is_empty() {
+				debug_info!(
+					elapsed=?start.elapsed(),
+					%via,
+					"Finished gap filling missing events (remote returned no more events)."
+				);
+				break;
 			}
-		}
+			debug_info!(
+				elapsed=?start.elapsed(),
+				"Got {} events back from remote",
+				response.events.len()
+			);
 
-		events_with_auth_events.push((id.to_owned(), None, events_in_reverse_order));
-	}
-
-	let mut pdus = Vec::with_capacity(events_with_auth_events.len());
-	for (id, local_pdu, events_in_reverse_order) in events_with_auth_events {
-		// a. Look in the main timeline (pduid_pdu tree)
-		// b. Look at outlier pdu tree
-		// (get_pdu_json checks both)
-		if let Some(local_pdu) = local_pdu {
-			trace!("Found {id} in main timeline or outlier tree");
-			pdus.push((local_pdu.clone(), None));
-		}
-
-		for (next_id, value) in events_in_reverse_order.into_iter().rev() {
-			if let Some((time, tries)) = self
-				.services
-				.globals
-				.bad_event_ratelimiter
-				.read()
-				.get(&*next_id)
-			{
-				// Exponential backoff
-				const MIN_DURATION: u64 = 5 * 60;
-				const MAX_DURATION: u64 = 60 * 60 * 24;
-				if continue_exponential_backoff_secs(
-					MIN_DURATION,
-					MAX_DURATION,
-					time.elapsed(),
-					*tries,
-				) {
-					debug!("Backing off from {next_id}");
+			latest_events.clear();
+			for raw_event in response.events {
+				let (_, event_id, pdu_json) = self.parse_incoming_pdu(&raw_event).await?;
+				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
+					err!(Request(BadJson("Failed to parse gapfilled event {event_id}: {e}")))
+				})?;
+				if discovered.contains_key(&event_id) {
+					// We already received this event.
+					trace!("Already received {event_id}");
 					continue;
 				}
+				if self
+					.services
+					.timeline
+					.non_outlier_pdu_exists(&event_id)
+					.await
+				{
+					// NOTE: we explicitly check for *non*-outlier events here, as if we end
+					// up discovering outlier events, we will be able to upgrade them
+					// immediately.
+					trace!("Already have {event_id} as a timeline PDU");
+					continue;
+				}
+
+				if pdu.depth < min_depth {
+					debug_warn!(
+						elapsed=?start.elapsed(),
+						"Received PDU with depth {} below min_depth {}",
+						pdu.depth,
+						min_depth
+					);
+					discovered.insert(event_id.clone(), pdu);
+					continue;
+				}
+
+				for prev_event_id in pdu.prev_events() {
+					if discovered.contains_key(prev_event_id) {
+						// We already received this event.
+						trace!("Already received prev event {prev_event_id}");
+						continue;
+					}
+					if self
+						.services
+						.timeline
+						.non_outlier_pdu_exists(prev_event_id)
+						.await
+					{
+						// NOTE: we explicitly check for *non*-outlier events here, as if we end
+						// up discovering outlier events, we will be able to upgrade them
+						// immediately.
+						trace!("Already have prev event {prev_event_id} as a timeline PDU");
+						continue;
+					}
+					if let Ok(outlier) = self.services.timeline.get_pdu(prev_event_id).await {
+						// We already have this PDU as an outlier, don't ask for
+						// it. However, if we are missing any prev events for it, add it to the
+						// latest events anyway.
+						let outlier_missing_prevs = outlier
+							.prev_events()
+							.stream()
+							.fold(0_u8, |i, event_id| async move {
+								if self.services.timeline.pdu_exists(event_id).await {
+									i.expected_add(1)
+								} else {
+									i
+								}
+							})
+							.await;
+						if outlier_missing_prevs > 0 {
+							trace!("Missing {outlier_missing_prevs} PDU(s) for prev event");
+							latest_events.push(prev_event_id.to_owned());
+						}
+						trace!("Had {prev_event_id} as an outlier already, skipping discovery");
+						discovered.insert(prev_event_id.to_owned(), outlier);
+						continue;
+					}
+					trace!("Missing prev {prev_event_id} of {event_id}");
+					latest_events.push(prev_event_id.to_owned());
+				}
+				trace!("Discovered {event_id}");
+				discovered.insert(event_id.clone(), pdu);
 			}
 
-			trace!("Handling outlier {next_id}");
+			if latest_events.is_empty() {
+				debug!(elapsed=?start.elapsed(),
+					%limit,
+					%via,
+					%iteration,
+					discovered=discovered.len(),
+					"No more events to fetch."
+				);
+				break;
+			}
+			if discovered.len() >= self.services.server.config.max_fetch_prev_events.into() {
+				// Stupid hack, debug_error!() drops the log to a DEBUG when not in debug mode,
+				// which is bad because this should at least produce a warning. It's an error in
+				// debug mode because this can be important, but typically not much can be done
+				// about it as a user.
+				#[cfg(debug_assertions)]
+				error!(elapsed=?start.elapsed(),
+					discovered=discovered.len(),
+					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
+					%iteration,
+					%iteration_limit,
+					%via,
+					event_id=%head.event_id(),
+					%room_id,
+					"Encountered a gap too large to fill, giving up"
+				);
+				#[cfg(not(debug_assertions))]
+				warn!(elapsed=?start.elapsed(),
+					discovered=discovered.len(),
+					max_fetch_prev_events=self.services.server.config.max_fetch_prev_events,
+					%iteration,
+					%iteration_limit,
+					%via,
+					event_id=%head.event_id(),
+					%room_id,
+					"Encountered a gap too large to fill"
+				);
+				break;
+			}
+		}
+
+		trace!(elapsed=?start.elapsed(), "Finished get_missing_events");
+		Ok(discovered)
+	}
+
+	/// Sends a `GET /_matrix/federation/v1/event/{event_id}` request to the
+	/// target `remote`, parses the resulting PDU, and ensures the remote
+	/// returned the correct event.
+	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
+	/// multiple remotes in parallel.
+	async fn fetch_event_via(
+		&self,
+		remote: OwnedServerName,
+		event_id: OwnedEventId,
+		room_version_rules: &RoomVersionRules,
+	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+		let res = self
+			.services
+			.sending
+			.send_federation_request(&remote, get_event::v1::Request::new(event_id.clone()))
+			.await?;
+
+		let (calculated_event_id, value) = self
+			.parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)
+			.await?;
+
+		if calculated_event_id != event_id {
+			Err!(Request(BadJson(warn!(
+				expected=%event_id,
+				received=%calculated_event_id,
+				"Server didn't return event id we requested",
+			))))
+		} else {
+			Ok((event_id, value))
+		}
+	}
+
+	async fn fetch_event_vias(
+		&self,
+		candidates: impl Iterator<Item = &OwnedServerName>,
+		event_id: &EventId,
+		room_version_rules: &RoomVersionRules,
+	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+		if let Ok(pdu_json) = self.services.timeline.get_pdu_json(event_id).await {
+			return Ok((event_id.to_owned(), pdu_json));
+		}
+		let futures = candidates
+			.map(|remote| {
+				Box::pin(self.fetch_event_via(
+					remote.to_owned(),
+					event_id.to_owned(),
+					room_version_rules,
+				))
+			})
+			.collect::<Vec<_>>();
+		select_ok(futures).await.map(|(res, _)| res)
+	}
+
+	/// Asks remote servers for any individual events that are missing, also
+	/// known as "atomic fetch". Should only be used for fetching missing auth
+	/// events or resolving missing events from state_ids. For all other uses,
+	/// use get_missing_events.
+	///
+	/// This function manually walks auth_events trees in a breadth-first
+	/// search, and persists all fetched events as outliers when all the
+	/// backwards extremities have been resolved.
+	#[tracing::instrument(name = "get_missing_auth_events_atomic", skip_all)]
+	pub(super) async fn fetch_and_handle_auth_events<Pdu>(
+		&self,
+		origin: &ServerName,
+		events: Vec<OwnedEventId>,
+		create_event: &Pdu,
+		room_id: &RoomId,
+	) -> HashMap<OwnedEventId, PduEvent>
+	where
+		Pdu: Event + Send + Sync,
+	{
+		let start = Instant::now();
+		let room_version_rules =
+			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
+		let mut candidates = self
+			.services
+			.timeline
+			.candidate_backfill_servers(room_id)
+			.await;
+		candidates.insert(origin.to_owned());
+		assert!(!candidates.is_empty(), "no candidates to fetch missing events from");
+		let mut discovered_events =
+			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
+		trace!(
+			elapsed=?start.elapsed(),
+			"Fetching {} unknown PDUs on demand from {} candidates",
+			events.len(),
+			candidates.len()
+		);
+
+		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
+		for apex_event_id in &events {
+			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
+
+			while let Some(target_id) = todo.pop_front() {
+				if discovered_events.contains_key(&target_id) {
+					continue;
+				}
+				if let Ok(local_pdu) = self.services.timeline.get_pdu(&target_id).await {
+					trace!(elapsed=?start.elapsed(), "Found {target_id} in db");
+					let mut obj = local_pdu.into_canonical_object();
+					obj.remove("event_id");
+					discovered_events.insert(target_id.clone(), obj);
+					continue;
+				}
+				let attempts = seen.get(&*target_id).copied().unwrap_or_default();
+				if attempts >= 5 {
+					debug_error!(
+						elapsed=?start.elapsed(),
+						%attempts,
+						%target_id,
+						"Could not fetch missing event after 5 attempts, giving up"
+					);
+					continue;
+				}
+
+				debug!(elapsed=?start.elapsed(),"Fetching {target_id} over federation");
+				let value = match self
+					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
+					.await
+				{
+					| Ok((_, x)) => x,
+					| Err(e) => {
+						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {target_id} from any candidate: {e}");
+						continue;
+					},
+				};
+				let auth_events =
+					match expect_event_id_array(&value, "auth_events").map_err(|e| {
+						err!(Request(BadJson(warn!(
+							elapsed=?start.elapsed(),
+							event_id=%target_id,
+							"Failed to parse event fetched from remote: {e}"
+						))))
+					}) {
+						| Ok(auth_events) => auth_events,
+						| Err(e) => {
+							warn!(
+								elapsed=?start.elapsed(),
+								?e,
+								"event {target_id} is malformed (bad auth_events), skipping"
+							);
+							continue;
+						},
+					};
+				let mut have_all_auth = true;
+				for auth_event_id in auth_events {
+					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
+						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
+						let mut obj = local_pdu.into_canonical_object();
+						obj.remove("event_id");
+						discovered_events.insert(auth_event_id.clone(), obj);
+						continue;
+					}
+					if discovered_events.contains_key(&auth_event_id) {
+						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
+						continue;
+					}
+					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {target_id}");
+					seen.insert(
+						auth_event_id.clone(),
+						seen.get(&auth_event_id)
+							.copied()
+							.unwrap_or_default()
+							.saturating_add(1),
+					);
+					todo.push_back(auth_event_id);
+					have_all_auth = false;
+				}
+				// Insert this PDU back at the end of the queue so that it will be resolved once
+				// all of its auth events have been fetched.
+				if have_all_auth {
+					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
+					discovered_events.insert(target_id, value);
+				} else {
+					debug_warn!(elapsed=?start.elapsed(),
+						"Fetched {target_id} but missing some auth events, will have to re-fetch."
+					);
+					seen.insert(target_id.clone(), attempts.saturating_add(1));
+					todo.push_back(target_id);
+				}
+			}
+		}
+
+		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = discovered_events
+			.iter()
+			.map(|(id, data)| (id.clone(), data))
+			.collect();
+		let seeded_ordered = build_local_dag(&refmap)
+			.await
+			.expect("failed to build local DAG");
+		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
+		for discovered_event_id in seeded_ordered {
+			let pdu_json = discovered_events.remove(&discovered_event_id).unwrap();
+			debug_info!(
+				elapsed=?start.elapsed(),
+				"Handling missing event {discovered_event_id} as outlier"
+			);
+			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
 			match Box::pin(self.handle_outlier_pdu(
 				origin,
 				create_event,
-				&next_id,
+				&discovered_event_id,
 				room_id,
-				value.clone(),
-				true,
+				pdu_json,
 			))
 			.await
 			{
-				| Ok((pdu, json)) =>
-					if next_id == *id {
-						trace!("Handled outlier {next_id} (original request)");
-						pdus.push((pdu, Some(json)));
-					},
-				| Err(e) => {
-					warn!("Authentication of event {next_id} failed: {e:?}");
-					back_off(next_id);
+				| Ok((pdu, _)) => {
+					trace!(elapsed=?start.elapsed(), "Persisted {discovered_event_id}");
+					let _ = pdus.insert(discovered_event_id, pdu);
 				},
+				| Err(e) => warn!(
+					elapsed=?start.elapsed(),
+					"Authentication of event {discovered_event_id} failed: {e:?}"
+				),
 			}
 		}
+
+		trace!(
+			elapsed=?start.elapsed(),
+			"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs",
+			pdus.len()
+		);
+		pdus.retain(|id, _| events.contains(id)); // Only return state events
+		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
+		pdus
 	}
-	trace!("Fetched and handled {} outlier pdus", pdus.len());
-	pdus
+
+	/// Similar to `fetch_and_handle_missing_events`, but simply walks the
+	/// prev events tree instead of the auth events tree. Additionally, it does
+	/// not *handle* fetched PDUs in any capacity.
+	#[tracing::instrument(name = "get_missing_prev_events_atomic", skip_all)]
+	pub(super) async fn fetch_prev_events<Pdu>(
+		&self,
+		origin: &ServerName,
+		events: Vec<OwnedEventId>,
+		create_event: &Pdu,
+		room_id: &RoomId,
+	) -> HashMap<OwnedEventId, PduEvent>
+	where
+		Pdu: Event + Send + Sync,
+	{
+		let room_version_rules =
+			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
+		let mut candidates = self
+			.services
+			.timeline
+			.candidate_backfill_servers(room_id)
+			.await;
+		candidates.insert(origin.to_owned());
+
+		let mut todo: VecDeque<OwnedEventId> = VecDeque::from(events);
+		let mut discovered_events = HashMap::new();
+		while let Some(next_id) = todo.pop_front() {
+			if discovered_events.len() >= self.services.server.config.max_fetch_prev_events.into()
+			{
+				debug_warn!(
+					"Encountered a gap too large to fill, giving up (fetched {} events)",
+					discovered_events.len()
+				);
+				break;
+			}
+			if discovered_events.contains_key(&next_id) {
+				continue;
+			}
+			let pdu = match self
+				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
+				.await
+			{
+				| Ok((_, data)) => data,
+				| Err(e) => {
+					warn!("Failed to fetch prev event {next_id} from any candidate: {e}");
+					continue;
+				},
+			};
+
+			let prev_events = match expect_event_id_array(&pdu, "prev_events").map_err(|e| {
+				err!(Request(BadJson(warn!(
+					event_id=%next_id,
+					"Failed to parse event fetched from remote: {e}"
+				))))
+			}) {
+				| Ok(auth_events) => auth_events,
+				| Err(e) => {
+					warn!(?e, "event {next_id} is malformed (bad prev_events), skipping");
+					continue;
+				},
+			};
+			let missing_prev = prev_events
+				.iter()
+				.stream()
+				.broad_filter_map(|event_id| async {
+					if discovered_events.contains_key(event_id)
+						|| self.services.timeline.pdu_exists(event_id).await
+					{
+						None
+					} else {
+						Some(event_id.to_owned())
+					}
+				})
+				.collect::<Vec<_>>()
+				.await;
+			todo.extend(missing_prev);
+			discovered_events.insert(
+				next_id.clone(),
+				PduEvent::from_id_val(&next_id, pdu).expect("fetched PDU was already validated"),
+			);
+		}
+
+		discovered_events
+	}
 }

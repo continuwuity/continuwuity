@@ -221,7 +221,10 @@ pub async fn backfill_pdu(&self, origin: &ServerName, pdu: Box<RawJsonValue>) ->
 }
 
 #[implement(super::Service)]
-async fn candidate_backfill_servers(&self, room_id: &RoomId) -> HashSet<OwnedServerName> {
+pub(crate) async fn candidate_backfill_servers(
+	&self,
+	room_id: &RoomId,
+) -> HashSet<OwnedServerName> {
 	let mut candidate_backfill_servers = HashSet::new();
 
 	let power_levels = self

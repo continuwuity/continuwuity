@@ -1,14 +1,11 @@
-use std::{
-	collections::{BTreeMap, hash_map},
-	time::Instant,
-};
+use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
-	implement, info, trace, utils::stream::IterStream, warn,
+	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, defer, err, error,
+	implement, info, matrix::PartialPdu, result::DebugInspect, trace, warn,
 };
 use futures::{
-	FutureExt, TryFutureExt, TryStreamExt,
+	FutureExt, StreamExt,
 	future::{OptionFuture, try_join4},
 };
 use ruma::{
@@ -18,7 +15,6 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use tracing::debug;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -111,7 +107,6 @@ async fn should_rescind_invite(
 #[implement(super::Service)]
 #[tracing::instrument(
 	name = "pdu",
-	level = INFO_SPAN_LEVEL,
 	skip_all,
 	fields(%room_id, %event_id),
 )]
@@ -151,7 +146,7 @@ pub async fn handle_incoming_pdu<'a>(
 		.and_then(|v| v.as_str())
 		.ok_or_else(|| err!("No sender in object"))
 		.and_then(|v| Ok(UserId::parse(v)?))
-		.map_err(|e| err!(Request(InvalidParam("PDU does not have a valid sender key: {e}"))))?;
+		.map_err(|e| err!(Request(BadJson("PDU does not have a valid sender key: {e}"))))?;
 
 	let sender_acl_check: OptionFuture<_> = sender
 		.server_name()
@@ -224,10 +219,10 @@ pub async fn handle_incoming_pdu<'a>(
 		self.federation_handletime
 			.write()
 			.remove(room_id);
-	}};
+	}}
 
 	let (incoming_pdu, val) = self
-		.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
+		.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
 		.await?;
 
 	// 8. if not timeline event: stop
@@ -235,64 +230,82 @@ pub async fn handle_incoming_pdu<'a>(
 		return Ok(None);
 	}
 
-	// Skip old events
+	// Skip events sent before we joined (they need to be persisted as backfilled
+	// events, not timeline events, which is handled elsewhere).
 	let first_ts_in_room = self
 		.services
 		.timeline
 		.first_pdu_in_room(room_id)
 		.await?
 		.origin_server_ts();
+	if incoming_pdu.origin_server_ts() < first_ts_in_room {
+		return Ok(None);
+	}
 
 	// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 	//    These are timeline events
-	let (sorted_prev_events, mut eventid_info) = self
-		.fetch_prev(origin, create_event, room_id, first_ts_in_room, incoming_pdu.prev_events())
-		.await?;
 
-	debug!(
-		events = ?sorted_prev_events,
-		"Handling previous events"
-	);
-
-	sorted_prev_events
-		.iter()
-		.try_stream()
-		.map_ok(AsRef::as_ref)
-		.try_for_each(|prev_id| {
-			self.handle_prev_pdu(
-				origin,
-				event_id,
-				room_id,
-				eventid_info.remove(prev_id),
-				create_event,
-				first_ts_in_room,
-				prev_id,
-			)
-			.inspect_err(move |e| {
-				warn!("Prev {prev_id} failed: {e}");
-				match self
-					.services
-					.globals
-					.bad_event_ratelimiter
-					.write()
-					.entry(prev_id.into())
-				{
-					| hash_map::Entry::Vacant(e) => {
-						e.insert((Instant::now(), 1));
-					},
-					| hash_map::Entry::Occupied(mut e) => {
-						let tries = e.get().1.saturating_add(1);
-						*e.get_mut() = (Instant::now(), tries);
-					},
-				}
-			})
-			.map(|_| self.services.server.check_running())
-		})
-		.boxed()
-		.await?;
+	debug!("Fetching and persisting any missing prev events");
+	self.fetch_prevs(room_id, create_event, &incoming_pdu, origin, first_ts_in_room)
+		.await
+		.debug_inspect_err(|e| {
+			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
+		})?;
 
 	// Done with prev events, now handling the incoming event
-	self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-		.boxed()
-		.await
+	let pdu_id = self
+		.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
+		.await?;
+
+	let extremities_count = self
+		.services
+		.state
+		.get_forward_extremities(room_id)
+		.count()
+		.await;
+
+	if extremities_count >= self.services.server.config.dummy_event_threshold.into() {
+		debug_warn!(
+			count=%extremities_count,
+			threshold=%self.services.server.config.dummy_event_threshold,
+			"Attempting to squash extremities after upgrading pdu"
+		);
+		// Try to send a dummy event to squash extremities. See issue #1844
+		let power_levels = self
+			.services
+			.state_accessor
+			.get_room_power_levels(room_id)
+			.await;
+		let mut local_users = self.services.state_cache.local_users_in_room(room_id);
+		while let Some(user_id) = local_users.next().await {
+			if !power_levels.user_can_send_message(&user_id, "org.matrix.dummy_event".into()) {
+				trace!(%user_id, "user does not have power level to send dummy event, skipping");
+				continue;
+			}
+			let state_lock = self.services.state.mutex.lock(room_id).await;
+			if self
+				.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu {
+						event_type: "org.matrix.dummy_event".into(),
+						..PartialPdu::default()
+					},
+					&user_id,
+					Some(room_id),
+					&state_lock,
+				)
+				.await
+				.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))
+				.inspect_err(
+					|e| debug!(sender=%user_id, ?e, "Failed to send a dummy event via user"),
+				)
+				.is_ok()
+			{
+				break;
+			}
+		}
+	}
+
+	Ok(pdu_id)
 }
