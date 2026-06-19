@@ -27,8 +27,11 @@ let
   };
 
   attrs = {
-    inherit src;
+    __structuredAttrs = true;
     strictDeps = true;
+
+    inherit src;
+
     nativeBuildInputs = [
       pkg-config
       rustPlatform.bindgenHook
