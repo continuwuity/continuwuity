@@ -9,8 +9,10 @@
       self',
       lib,
       pkgs,
+      inputs',
       system,
       craneLib,
+      mkToolchain,
       ...
     }:
     {
@@ -19,7 +21,7 @@
           mkPackages =
             pkgs:
             let
-              fnx = inputs.fenix.packages.${system};
+              fnx = inputs'.fenix.packages;
 
               isStatic = pkgs.stdenv.hostPlatform.isMusl;
 
@@ -28,7 +30,7 @@
                 if isStatic then
                   fnx.combine [
                     self'.packages.stable-toolchain
-                    (fnx.targets.${pkgs.stdenv.hostPlatform.config}.stable).rust-std
+                    (mkToolchain fnx.targets.${pkgs.stdenv.hostPlatform.config}).rust-std
                   ]
                 else
                   self'.packages.stable-toolchain
@@ -62,7 +64,6 @@
             in
             {
               inherit default max-perf max-perf-haswell;
-
             };
         in
         {

@@ -2,22 +2,26 @@
 {
   perSystem =
     {
-      system,
       lib,
+      inputs',
       pkgs,
       ...
     }:
+    let
+      mkToolchain =
+        target:
+        target.fromToolchainName {
+          name = (lib.importTOML "${inputs.self}/rust-toolchain.toml").toolchain.channel;
+          sha256 = "sha256-mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
+        };
+    in
     {
+      _module.args = { inherit mkToolchain; };
+
       packages =
         let
-          fnx = inputs.fenix.packages.${system};
-
-          stable-toolchain = fnx.fromToolchainFile {
-            dir = inputs.self;
-
-            # See also `rust-toolchain.toml`
-            sha256 = "sha256-mvUGEOHYJpn3ikC5hckneuGixaC+yGrkMM/liDIDgoU=";
-          };
+          fnx = inputs'.fenix.packages;
+          stable-toolchain = (mkToolchain fnx).toolchain;
         in
         {
           inherit stable-toolchain;
