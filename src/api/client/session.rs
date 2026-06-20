@@ -87,6 +87,10 @@ pub(crate) async fn handle_login(
 		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
 	}
 
+	if services.users.is_deactivated(&user_id).await? {
+		return Err!(Request(UserDeactivated("This account has been deactivated.")));
+	}
+
 	if services.users.is_locked(&user_id).await? {
 		return Err!(Request(UserLocked("This account has been locked.")));
 	}
