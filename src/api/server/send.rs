@@ -671,6 +671,13 @@ async fn handle_edu_direct_to_device(
 	messages
 		.into_iter()
 		.stream()
+		.broad_filter_map(|(target_user_id, map)| async move {
+			services
+				.users
+				.is_active_local(&target_user_id)
+				.await
+				.then_some((target_user_id, map))
+		})
 		.for_each_concurrent(automatic_width(), |(target_user_id, map)| {
 			handle_edu_direct_to_device_user(services, target_user_id, sender, &ev_type, map)
 		})
