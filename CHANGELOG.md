@@ -1,3 +1,7 @@
+# Continuwuity 0.5.11 (2026-06-20 take 2)
+
+This release purely contains some fix for the Nix package. There are no changes to the server itself.
+
 # Continuwuity 0.5.10 (2026-06-20)
 
 ## Security
