@@ -10,7 +10,7 @@ on:
       - "v*.*.*"
   workflow_dispatch:
   schedule:
-    - cron: '30 0 * * *'
+    - cron: '30 0 * * 1'
 
 jobs:
   build:

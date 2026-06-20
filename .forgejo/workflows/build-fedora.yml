@@ -16,7 +16,7 @@ on:
     #   - '.forgejo/workflows/build-fedora.yml'
   workflow_dispatch:
   schedule:
-    - cron: '30 0 * * *'
+    - cron: '30 0 * * 2'
 
 jobs:
   build:
