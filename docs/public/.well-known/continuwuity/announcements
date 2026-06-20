@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 13,
+            "id": 14,
             "mention_room": true,
             "date": "2026-05-08",
-            "message": "[v0.5.9](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.9) has been released, fixing a few low-severity federation-related vulnerabilities. It is recommended you read the changelog and update as soon as possible. There are no new features or other changes in this release, only related bugfixes. Deployments tracking the main branch should also update to the latest commit."
+            "message": "[v0.5.10](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v0.5.10) has been released. It is a security release, so we suggest you update as soon as possible. Don't forget to also join [our announcements room](https://matrix.to/#/!jIdNjSM5X-V5JVx2h2kAhUZIIQ08GyzPL55NFZAH1vM/%24K1ISNKIqfNiZzsNVCaTt2E7ZtNeP6Dsy6sbz9l3rO0A?via=ellis.link&via=gingershaped.computer&via=matrix.org)."
         }
     ]
 }
