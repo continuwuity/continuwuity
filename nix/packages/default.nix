@@ -38,7 +38,7 @@
                 inherit self craneLib;
 
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
-                rocksdb = if isStatic then null else pkgs.callPackage ./rocksdb.nix { };
+                rocksdb = if isStatic then null else self'.packages.rocksdb;
 
                 # extra features via `cargoExtraArgs`
                 cargoExtraArgs = "-F http3";
@@ -65,7 +65,10 @@
 
             };
         in
-        (mkPackages pkgs)
+        {
+          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+        }
+        // (mkPackages pkgs)
         // (lib.mapAttrs' (name: value: lib.nameValuePair "${name}-static-x86_64" value) (
           mkPackages (
             import inputs.nixpkgs {
