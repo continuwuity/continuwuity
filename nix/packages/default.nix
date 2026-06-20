@@ -36,7 +36,10 @@
 
               default = pkgs.callPackage ./continuwuity.nix {
                 inherit self craneLib;
+
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
+                rocksdb = if isStatic then null else pkgs.callPackage ./rocksdb.nix { };
+
                 # extra features via `cargoExtraArgs`
                 cargoExtraArgs = "-F http3";
                 # extra RUSTFLAGS via `rustflags`
