@@ -27,7 +27,7 @@ jobs:
       - name: Get new toolchain hash
         run: |
           # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/rust.nix > temp.nix
+          awk '/fromToolchainName *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/rust.nix > temp.nix
           mv temp.nix nix/rust.nix
 
           # Build continuwuity and filter for the new hash
@@ -39,7 +39,7 @@ jobs:
           sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/rust.nix
 
           echo "New hash:"
-          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/rust.nix
+          awk -F'"' '/fromToolchainName/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/rust.nix
           echo "Expected new hash:"
           cat new_toolchain_hash.txt
 
