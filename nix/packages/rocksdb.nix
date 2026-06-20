@@ -1,5 +1,7 @@
 {
-  stdenv,
+  # stdenv,
+  # enableJemalloc ? stdenv.hostPlatform.isLinux,
+  enableJemalloc ? false,
   rocksdb,
   fetchFromGitea,
   rust-jemalloc-sys-unprefixed,
@@ -13,16 +15,16 @@
   #
   # [1]: https://github.com/tikv/jemallocator/blob/ab0676d77e81268cd09b059260c75b38dbef2d51/jemalloc-sys/src/env.rs#L17
   jemalloc = rust-jemalloc-sys-unprefixed;
-  enableJemalloc = stdenv.hostPlatform.isLinux;
+  inherit enableJemalloc;
 }).overrideAttrs
   ({
-    version = "continuwuity-v0.5.0-unstable-2026-03-27";
+    version = "continuwuity-v0.5.0-unstable-2026-05-19";
     src = fetchFromGitea {
       domain = "forgejo.ellis.link";
       owner = "continuwuation";
       repo = "rocksdb";
-      rev = "463f47afceebfe088f6922420265546bd237f249";
-      hash = "sha256-1ef75IDMs5Hba4VWEyXPJb02JyShy5k4gJfzGDhopRk=";
+      rev = "3756b2b905e13216d8b56bcc783d814e7b073aff";
+      hash = "sha256-rSv4fr2bf9JJwdodgeuPCuceeh7k97KVxrAOC0wyPQY=";
     };
 
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
