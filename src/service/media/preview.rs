@@ -423,7 +423,7 @@ pub fn url_preview_allowed(&self, url: &Url) -> bool {
 							 url_preview_domain_explicit_denylist (check 1/3)",
 							&root_domain
 						);
-						return true;
+						return false;
 					}
 
 					if allowlist_domain_explicit.contains(&root_domain.to_owned()) {
