@@ -4,9 +4,9 @@
 
 - Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a
   singular transaction. Contributed by @nex. (#1711)
-- Fixed a bug that caused the server to panic while handling transactions with malformed events, resulting in a 
+- Fixed a bug that caused the server to panic while handling transactions with malformed events, resulting in a
   deadlock that prevented the remote server from federating with us until the server was restarted. Contributed by @nex.
-- Fixed a bug that resulted in the `m.federate` field of `m.room.create` being ignored in v12 rooms, allowing remote 
+- Fixed a bug that resulted in the `m.federate` field of `m.room.create` being ignored in v12 rooms, allowing remote
   servers to participate in local-only rooms. Contributed by @nex, reported by [@mat:emzee.ee](matrix:u/mat:emzee.ee?action=chat).
 
 # Continuwuity 0.5.8 (2026-04-24)

@@ -379,6 +379,9 @@ async fn find_token(services: &Services, token: Option<&str>) -> Result<Token> {
 	let Some(token) = token else {
 		return Ok(Token::None);
 	};
+	if token.is_empty() {
+		return Ok(Token::Invalid);
+	}
 
 	let user_token = services.users.find_from_token(token).map_ok(Token::User);
 

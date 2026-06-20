@@ -339,6 +339,7 @@ impl Service {
 
 	/// Find out which user an access token belongs to.
 	pub async fn find_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
+		assert!(!token.is_empty(), "Empty access token");
 		self.db.token_userdeviceid.get(token).await.deserialized()
 	}
 
