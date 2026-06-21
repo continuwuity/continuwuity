@@ -82,10 +82,10 @@ jobs:
           # VERSION is the package version, COMPONENT is used in
           # apt's repository config like a git repo branch
           VERSION=$BASE_VERSION
-          if [[ ${{ forge.ref_name }} =~ ^v+[0-9]\.+[0-9]\.+[0-9]$ ]]; then
+          if [[ ${{ forge.ref_name }} =~ ^v+[0-9]+\.+[0-9]+\.+[0-9]+$ ]]; then
             # Use the "stable" component for tagged semver releases
             COMPONENT="stable"
-          elif [[ ${{ forge.ref_name }} =~ ^v+[0-9]\.+[0-9]\.+[0-9] ]]; then
+          elif [[ ${{ forge.ref_name }} =~ ^v+[0-9]+\.+[0-9]+\.+[0-9]+ ]]; then
             # Use the "unstable" component for tagged semver pre-releases
             COMPONENT="unstable"
           else
