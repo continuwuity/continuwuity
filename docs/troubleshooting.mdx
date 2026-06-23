@@ -10,7 +10,7 @@ Please check that your issues are not due to problems with your Docker setup.
 
 ### Slow joins to rooms
 
-Some slowness is to be expected if you're the first person on your homserver to join a room (which will
+Some slowness is to be expected if you're the first person on your homeserver to join a room (which will
 always be the case for single-user homeservers). In this situation, your homeserver has to verify the signatures of
 all of the state events sent by other servers before your join. To make this process as fast as possible, make sure you have
 multiple fast, trusted servers listed in `trusted_servers` in your configuration, and ensure
