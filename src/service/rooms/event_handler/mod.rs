@@ -25,6 +25,7 @@ use crate::{Dep, globals, rooms, sending, server_keys};
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
+	pub last_extremity_squash: SyncRwLock<HashMap<OwnedRoomId, Instant>>,
 	services: Services,
 	server_shutdown: Notify,
 }
@@ -55,6 +56,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			mutex_federation: RoomMutexMap::new(),
 			federation_handletime: HandleTimeMap::new().into(),
+			last_extremity_squash: SyncRwLock::new(HashMap::new()),
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
@@ -90,6 +92,11 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 
 	fn interrupt(&self) { self.server_shutdown.notify_waiters(); }
+
+	async fn clear_cache(&self) {
+		let mut squashes = self.last_extremity_squash.write();
+		squashes.clear();
+	}
 }
 
 impl Service {

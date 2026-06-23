@@ -1,4 +1,7 @@
-use std::{collections::BTreeMap, time::Instant};
+use std::{
+	collections::BTreeMap,
+	time::{Duration, Instant},
+};
 
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, defer, err, error,
@@ -266,47 +269,60 @@ pub async fn handle_incoming_pdu<'a>(
 		.await;
 
 	if extremities_count >= self.services.server.config.dummy_event_threshold.into() {
-		debug_warn!(
-			count=%extremities_count,
-			threshold=%self.services.server.config.dummy_event_threshold,
-			"Attempting to squash extremities after upgrading pdu"
-		);
-		// Try to send a dummy event to squash extremities. See issue #1844
-		let power_levels = self
-			.services
-			.state_accessor
-			.get_room_power_levels(room_id)
-			.await;
-		let mut local_users = self.services.state_cache.local_users_in_room(room_id);
-		while let Some(user_id) = local_users.next().await {
-			if !power_levels.user_can_send_message(&user_id, "org.matrix.dummy_event".into()) {
-				trace!(%user_id, "user does not have power level to send dummy event, skipping");
-				continue;
-			}
-			let state_lock = self.services.state.mutex.lock(room_id).await;
-			if self
-				.services
-				.timeline
-				.build_and_append_pdu(
-					PartialPdu {
-						event_type: "org.matrix.dummy_event".into(),
-						..PartialPdu::default()
-					},
-					&user_id,
-					Some(room_id),
-					&state_lock,
-				)
-				.await
-				.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))
-				.inspect_err(
-					|e| debug!(sender=%user_id, ?e, "Failed to send a dummy event via user"),
-				)
-				.is_ok()
-			{
-				break;
-			}
-		}
+		self.squash_extremities(room_id, extremities_count).await;
 	}
 
 	Ok(pdu_id)
+}
+
+#[implement(super::Service)]
+async fn squash_extremities(&self, room_id: &RoomId, count: usize) {
+	let last_squash = {
+		let squash_timings = self.last_extremity_squash.read();
+		squash_timings.get(room_id).copied()
+	};
+	if last_squash.is_some_and(|s| s.elapsed() < Duration::from_mins(1)) {
+		// Avoid sending more than one squash per minute to avoid flooding rooms.
+		return;
+	}
+	debug_warn!(
+		%count,
+		threshold=%self.services.server.config.dummy_event_threshold,
+		"Attempting to squash extremities after upgrading pdu"
+	);
+	// Try to send a dummy event to squash extremities. See issue #1844
+	let power_levels = self
+		.services
+		.state_accessor
+		.get_room_power_levels(room_id)
+		.await;
+	let mut local_users = self.services.state_cache.local_users_in_room(room_id);
+	while let Some(user_id) = local_users.next().await {
+		if !power_levels.user_can_send_message(&user_id, "org.matrix.dummy_event".into()) {
+			trace!(%user_id, "user does not have power level to send dummy event, skipping");
+			continue;
+		}
+		let state_lock = self.services.state.mutex.lock(room_id).await;
+		if self
+			.services
+			.timeline
+			.build_and_append_pdu(
+				PartialPdu {
+					event_type: "org.matrix.dummy_event".into(),
+					..PartialPdu::default()
+				},
+				&user_id,
+				Some(room_id),
+				&state_lock,
+			)
+			.await
+			.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))
+			.inspect_err(|e| debug!(sender=%user_id, ?e, "Failed to send a dummy event via user"))
+			.is_ok()
+		{
+			break;
+		}
+	}
+	let mut squash_timings = self.last_extremity_squash.write();
+	squash_timings.insert(room_id.to_owned(), Instant::now());
 }
