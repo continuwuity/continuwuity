@@ -263,7 +263,7 @@ pub(crate) async fn deactivate_route(
 	let sender_user = identity.expect_sender_user()?;
 
 	if !services.config.allow_deactivation {
-		return Err!(Request(Unauthorized(
+		return Err!(Request(Forbidden(
 			"You may not deactivate your own account. Contact your server's administrator for \
 			 assistance."
 		)));
