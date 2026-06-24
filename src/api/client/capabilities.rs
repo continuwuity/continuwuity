@@ -12,7 +12,6 @@ use ruma::{
 		},
 	},
 };
-use serde_json::json;
 
 use crate::Ruma;
 
@@ -40,21 +39,15 @@ pub(crate) async fn get_capabilities_route(
 	capabilities.get_login_token =
 		GetLoginTokenCapability::new(services.server.config.login_via_existing_session);
 
-	// MSC4133 capability
-	capabilities.set("uk.tcpip.msc4133.profile_fields", json!({"enabled": true}))?;
-
-	capabilities.set(
-		"org.matrix.msc4267.forget_forced_upon_leave",
-		json!({"enabled": services.config.forget_forced_upon_leave}),
-	)?;
+	capabilities.forget_forced_upon_leave.enabled = true;
 
 	if services
 		.users
 		.is_admin(body.identity.expect_sender_user()?)
 		.await
 	{
-		// Advertise suspension API
-		capabilities.set("uk.timedout.msc4323", json!({"suspend": true, "lock": false}))?;
+		capabilities.account_moderation.lock = true;
+		capabilities.account_moderation.suspend = true
 	}
 
 	Ok(get_capabilities::v3::Response::new(capabilities))

@@ -22,6 +22,10 @@ pub fn versions() -> Vec<String> {
 		"v1.13".to_owned(),
 		"v1.14".to_owned(),
 		"v1.16".to_owned(),
+		// "v1.17".to_owned(),
+		// v1.17 requires: MSC4326 (AS device masquerading), MSC4312 (m.auth), MSC4190 (AS oauth
+		// user registration).
+		"v1.18".to_owned(),
 	]
 }
 
