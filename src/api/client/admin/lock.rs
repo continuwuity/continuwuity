@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use futures::future::{join, join3};
-use ruminuwuity::admin::{get_suspended, set_suspended};
+use ruma::api::client::admin::{is_user_locked, lock_user};
 
 use crate::Ruma;
 
@@ -10,8 +10,8 @@ use crate::Ruma;
 /// Check the account lock status of a target user
 pub(crate) async fn get_lock_status(
 	State(services): State<crate::State>,
-	body: Ruma<get_suspended::v1::Request>,
-) -> Result<get_suspended::v1::Response> {
+	body: Ruma<is_user_locked::v1::Request>,
+) -> Result<is_user_locked::v1::Response> {
 	let (admin, active) = join(
 		services.users.is_admin(body.identity.expect_sender_user()?),
 		services.users.is_active(&body.user_id),
@@ -26,7 +26,9 @@ pub(crate) async fn get_lock_status(
 	if !active {
 		return Err!(Request(NotFound("Unknown user")));
 	}
-	Ok(get_suspended::v1::Response::new(services.users.is_locked(&body.user_id).await?))
+	Ok(is_user_locked::v1::Response::new(
+		services.users.is_locked(&body.user_id).await?,
+	))
 }
 
 /// # `PUT /_matrix/client/v1/admin/lock/{userId}`
@@ -34,8 +36,8 @@ pub(crate) async fn get_lock_status(
 /// Set the account lock status of a target user
 pub(crate) async fn put_lock_status(
 	State(services): State<crate::State>,
-	body: Ruma<set_suspended::v1::Request>,
-) -> Result<set_suspended::v1::Response> {
+	body: Ruma<lock_user::v1::Request>,
+) -> Result<lock_user::v1::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
 	let (sender_admin, active, target_admin) = join3(
@@ -60,12 +62,12 @@ pub(crate) async fn put_lock_status(
 	if target_admin {
 		return Err!(Request(Forbidden("You cannot lock another server administrator")));
 	}
-	if services.users.is_locked(&body.user_id).await? == body.suspended {
+	if services.users.is_locked(&body.user_id).await? == body.locked {
 		// No change
-		return Ok(set_suspended::v1::Response::new(body.suspended));
+		return Ok(lock_user::v1::Response::new(body.locked));
 	}
 
-	let action = if body.suspended {
+	let action = if body.locked {
 		services
 			.users
 			.suspend_account(&body.user_id, sender_user)
@@ -84,5 +86,5 @@ pub(crate) async fn put_lock_status(
 			.await;
 	}
 
-	Ok(set_suspended::v1::Response::new(body.suspended))
+	Ok(lock_user::v1::Response::new(body.locked))
 }

@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use futures::future::{join, join3};
-use ruminuwuity::admin::{get_suspended, set_suspended};
+use ruma::api::client::admin::{is_user_suspended, suspend_user};
 
 use crate::Ruma;
 
@@ -10,8 +10,8 @@ use crate::Ruma;
 /// Check the suspension status of a target user
 pub(crate) async fn get_suspended_status(
 	State(services): State<crate::State>,
-	body: Ruma<get_suspended::v1::Request>,
-) -> Result<get_suspended::v1::Response> {
+	body: Ruma<is_user_suspended::v1::Request>,
+) -> Result<is_user_suspended::v1::Response> {
 	let (admin, active) = join(
 		services.users.is_admin(body.identity.expect_sender_user()?),
 		services.users.is_active(&body.user_id),
@@ -26,7 +26,7 @@ pub(crate) async fn get_suspended_status(
 	if !active {
 		return Err!(Request(NotFound("Unknown user")));
 	}
-	Ok(get_suspended::v1::Response::new(
+	Ok(is_user_suspended::v1::Response::new(
 		services.users.is_suspended(&body.user_id).await?,
 	))
 }
@@ -36,8 +36,8 @@ pub(crate) async fn get_suspended_status(
 /// Set the suspension status of a target user
 pub(crate) async fn put_suspended_status(
 	State(services): State<crate::State>,
-	body: Ruma<set_suspended::v1::Request>,
-) -> Result<set_suspended::v1::Response> {
+	body: Ruma<suspend_user::v1::Request>,
+) -> Result<suspend_user::v1::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
 	let (sender_admin, active, target_admin) = join3(
@@ -64,7 +64,7 @@ pub(crate) async fn put_suspended_status(
 	}
 	if services.users.is_suspended(&body.user_id).await? == body.suspended {
 		// No change
-		return Ok(set_suspended::v1::Response::new(body.suspended));
+		return Ok(suspend_user::v1::Response::new(body.suspended));
 	}
 
 	let action = if body.suspended {
@@ -86,5 +86,5 @@ pub(crate) async fn put_suspended_status(
 			.await;
 	}
 
-	Ok(set_suspended::v1::Response::new(body.suspended))
+	Ok(suspend_user::v1::Response::new(body.suspended))
 }
