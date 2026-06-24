@@ -95,6 +95,14 @@ pub enum DebugCommand {
 		room_id: OwnedRoomOrAliasId,
 	},
 
+	/// Gets all the room state events at the specified event.
+	///
+	/// State at event might not be available for some PDUs, such as rejected
+	/// ones.
+	GetStateAt {
+		event_id: OwnedEventId,
+	},
+
 	/// Get and display signing keys from local cache or remote server.
 	GetSigningKeys {
 		server_name: Option<OwnedServerName>,

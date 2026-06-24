@@ -6,7 +6,7 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug_error, err, info,
+	Err, Result, at, debug_error, err, info,
 	matrix::{
 		Event,
 		pdu::{PduEvent, PduId, RawPduId},
@@ -502,6 +502,44 @@ pub(super) async fn get_remote_pdu(
 		},
 	}
 	.await
+}
+
+#[admin_command]
+pub(super) async fn get_state_at(&self, event_id: OwnedEventId) -> Result {
+	self.bail_restricted()?;
+
+	let shortstatehash = self
+		.services
+		.rooms
+		.state_accessor
+		.pdu_shortstatehash(&event_id)
+		.await?;
+
+	let state_ids: Vec<OwnedEventId> = self
+		.services
+		.rooms
+		.state_accessor
+		.state_full_ids(shortstatehash)
+		.map(at!(1))
+		.collect()
+		.await;
+
+	let pdus: Vec<CanonicalJsonObject> = state_ids
+		.iter()
+		.try_stream()
+		.and_then(|id| self.services.rooms.timeline.get_pdu_json(id))
+		.try_collect()
+		.await?;
+
+	let json = serde_json::to_string_pretty(&pdus).map_err(|e| {
+		err!(Database(
+			"Failed to convert room state events to pretty JSON, possible invalid room state \
+			 events in our database {e}",
+		))
+	})?;
+
+	let out = format!("```json\n{json}\n```");
+	self.write_str(&out).await
 }
 
 #[admin_command]
