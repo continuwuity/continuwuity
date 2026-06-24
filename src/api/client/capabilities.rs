@@ -47,7 +47,7 @@ pub(crate) async fn get_capabilities_route(
 		.await
 	{
 		capabilities.account_moderation.lock = true;
-		capabilities.account_moderation.suspend = true
+		capabilities.account_moderation.suspend = true;
 	}
 
 	Ok(get_capabilities::v3::Response::new(capabilities))
