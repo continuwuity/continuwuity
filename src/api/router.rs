@@ -181,6 +181,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_room_summary)
 		.ruma_route(&client::get_suspended_status)
 		.ruma_route(&client::put_suspended_status)
+		.ruma_route(&client::get_lock_status)
+		.ruma_route(&client::put_lock_status)
 		.ruma_route(&client::well_known_support)
 		.ruma_route(&client::well_known_client)
 		.ruma_route(&client::well_known_policy_server)
