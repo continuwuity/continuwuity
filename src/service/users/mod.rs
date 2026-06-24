@@ -164,13 +164,27 @@ impl Service {
 		if self.user_is_ignored(sender_user, recipient_user).await {
 			FilterLevel::Ignore
 		} else {
-			self.services
-				.account_data
-				.get_global(recipient_user, GlobalAccountDataEventType::InvitePermissionConfig)
-				.await
-				.map_or(FilterLevel::Allow, |config: InvitePermissionConfigEvent| {
-					config.content.user_filter_level(sender_user)
-				})
+			let (stable, unstable) = tokio::join!(
+				self.services
+					.account_data
+					.get_global::<InvitePermissionConfigEvent>(
+						recipient_user,
+						GlobalAccountDataEventType::InvitePermissionConfig
+					),
+				self.services
+					.account_data
+					.get_global::<InvitePermissionConfigEvent>(
+						recipient_user,
+						"org.matrix.msc4155.invite_permission_config".into()
+					) // TODO: MSC4155 probably needs upstreaming to ruma at some point
+			);
+			if stable.is_err() && unstable.is_err() {
+				return FilterLevel::Allow;
+			}
+			stable
+				.unwrap_or_else(|_| unstable.unwrap())
+				.content
+				.user_filter_level(sender_user)
 		}
 	}
 
