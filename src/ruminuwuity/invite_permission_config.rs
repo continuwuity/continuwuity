@@ -137,7 +137,9 @@ impl InvitePermissionConfigEventContent {
 	/// Test the filters against a server name. Port numbers are ignored.
 	#[must_use]
 	pub fn server_filter_level(&self, server: &ServerName) -> FilterLevel {
-		if !self.enabled {
+		if self.are_all_blocked() {
+			FilterLevel::Block
+		} else if !self.enabled {
 			FilterLevel::Allow
 		} else {
 			let server = server.host();
