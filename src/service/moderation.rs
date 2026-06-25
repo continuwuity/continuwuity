@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, implement};
+use conduwuit::Result;
 use ruma::ServerName;
 
 use crate::{Dep, config};
@@ -27,67 +27,65 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-#[implement(Service)]
-#[must_use]
-pub fn is_remote_server_ignored(&self, server_name: &ServerName) -> bool {
-	// We must never block federating with ourselves
-	if server_name == self.services.config.server_name {
-		return false;
+impl Service {
+	#[must_use]
+	pub fn is_remote_server_ignored(&self, server_name: &ServerName) -> bool {
+		// We must never block federating with ourselves
+		if server_name == self.services.config.server_name {
+			return false;
+		}
+
+		self.services
+			.config
+			.ignore_messages_from_server_names
+			.is_match(server_name.host())
 	}
 
-	self.services
-		.config
-		.ignore_messages_from_server_names
-		.is_match(server_name.host())
-}
+	#[must_use]
+	pub fn is_remote_server_forbidden(&self, server_name: &ServerName) -> bool {
+		// We must never block federating with ourselves
+		if server_name == self.services.config.server_name {
+			return false;
+		}
 
-#[implement(Service)]
-#[must_use]
-pub fn is_remote_server_forbidden(&self, server_name: &ServerName) -> bool {
-	// We must never block federating with ourselves
-	if server_name == self.services.config.server_name {
-		return false;
-	}
-
-	// Check if server is explicitly allowed
-	if self
-		.services
-		.config
-		.allowed_remote_server_names
-		.is_match(server_name.host())
-	{
-		return false;
-	}
-
-	// Check if server is explicitly forbidden
-	self.services
-		.config
-		.forbidden_remote_server_names
-		.is_match(server_name.host())
-}
-
-#[implement(Service)]
-#[must_use]
-pub fn is_remote_server_room_directory_forbidden(&self, server_name: &ServerName) -> bool {
-	// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
-	// OR forbidden contains server
-	self.is_remote_server_forbidden(server_name)
-		|| self
+		// Check if server is explicitly allowed
+		if self
 			.services
 			.config
-			.forbidden_remote_room_directory_server_names
+			.allowed_remote_server_names
 			.is_match(server_name.host())
-}
+		{
+			return false;
+		}
 
-#[implement(Service)]
-#[must_use]
-pub fn is_remote_server_media_downloads_forbidden(&self, server_name: &ServerName) -> bool {
-	// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
-	// OR forbidden contains server
-	self.is_remote_server_forbidden(server_name)
-		|| self
-			.services
+		// Check if server is explicitly forbidden
+		self.services
 			.config
-			.prevent_media_downloads_from
+			.forbidden_remote_server_names
 			.is_match(server_name.host())
+	}
+
+	#[must_use]
+	pub fn is_remote_server_room_directory_forbidden(&self, server_name: &ServerName) -> bool {
+		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
+		// OR forbidden contains server
+		self.is_remote_server_forbidden(server_name)
+			|| self
+				.services
+				.config
+				.forbidden_remote_room_directory_server_names
+				.is_match(server_name.host())
+	}
+
+	#[must_use]
+	pub fn is_remote_server_media_downloads_forbidden(&self, server_name: &ServerName) -> bool {
+		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
+		// OR forbidden contains server
+		self.is_remote_server_forbidden(server_name)
+			|| self
+				.services
+				.config
+				.prevent_media_downloads_from
+				.is_match(server_name.host())
+	}
 }
