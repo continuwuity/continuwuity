@@ -28,6 +28,9 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Returns true if the remote server is *ignored*. Ignored server names are
+	/// still permitted in federation, but should not have their events sent to
+	/// local users.
 	#[must_use]
 	pub fn is_remote_server_ignored(&self, server_name: &ServerName) -> bool {
 		// We must never block federating with ourselves
@@ -41,6 +44,9 @@ impl Service {
 			.is_match(server_name.host())
 	}
 
+	/// Returns true if the remote server is *forbidden*. Forbidden server names
+	/// must be blocked in federation in both directions - no inbound nor
+	/// outbound requests from the remote are permitted.
 	#[must_use]
 	pub fn is_remote_server_forbidden(&self, server_name: &ServerName) -> bool {
 		// We must never block federating with ourselves
@@ -65,6 +71,9 @@ impl Service {
 			.is_match(server_name.host())
 	}
 
+	/// Returns true if the remote server is *forbidden*, or if it is only
+	/// forbidden from having its room directory checked. Does not prevent the
+	/// remote from reading our room directory.
 	#[must_use]
 	pub fn is_remote_server_room_directory_forbidden(&self, server_name: &ServerName) -> bool {
 		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
@@ -77,6 +86,10 @@ impl Service {
 				.is_match(server_name.host())
 	}
 
+	/// Returns true if the remote server is *forbidden*, or if it is only
+	/// forbidden from serving media to us (i.e. we aren't allowed to download
+	/// media from the remote). Does not prevent the remote downloading media
+	/// from us.
 	#[must_use]
 	pub fn is_remote_server_media_downloads_forbidden(&self, server_name: &ServerName) -> bool {
 		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
