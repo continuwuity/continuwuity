@@ -140,7 +140,7 @@ impl crate::Service for Service {
 
 impl Service {
 	/// Returns true/false based on whether the recipient/receiving user has
-	/// blocked the sender
+	/// ignored the sender.
 	pub async fn user_is_ignored(&self, sender_user: &UserId, recipient_user: &UserId) -> bool {
 		self.services
 			.account_data
@@ -213,7 +213,8 @@ impl Service {
 	// 	password:
 	// )
 
-	/// Deactivate account
+	/// Deactivates an account, removing all of their device IDs and unsetting
+	/// their password.
 	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
 		// Remove all associated devices
 		self.all_device_ids(user_id)
@@ -247,6 +248,7 @@ impl Service {
 		self.db.userid_suspension.remove(user_id);
 	}
 
+	/// Locks an account, preventing it being used until it is unlocked.
 	pub async fn lock_account(&self, user_id: &UserId, locking_user: &UserId) {
 		// NOTE: Locking is basically just suspension with a more severe effect,
 		// so we'll just re-use the suspension data structure to store the lock state.
@@ -265,6 +267,7 @@ impl Service {
 		self.db.userid_lock.raw_put(user_id, Json(suspension));
 	}
 
+	/// Unlocks an account, allowing the user to log in and use it again.
 	pub async fn unlock_account(&self, user_id: &UserId) { self.db.userid_lock.remove(user_id); }
 
 	/// Check if the provided user ID belongs to an existing (possibly
@@ -275,7 +278,8 @@ impl Service {
 			&& self.db.userid_password.get(user_id).await.is_ok()
 	}
 
-	/// Check if account is deactivated
+	/// Check if account is deactivated (has an empty password). Returns a
+	/// NotFound error if the user does not exist.
 	pub async fn is_deactivated(&self, user_id: &UserId) -> Result<bool> {
 		self.db
 			.userid_password
@@ -285,7 +289,7 @@ impl Service {
 			.await
 	}
 
-	/// Check if account is suspended
+	/// Check if account is suspended. Returns false if the user does not exist.
 	pub async fn is_suspended(&self, user_id: &UserId) -> Result<bool> {
 		match self
 			.db
@@ -304,6 +308,8 @@ impl Service {
 		}
 	}
 
+	/// Returns true if the user is locked. Returns false if the user does not
+	/// exist or is not locked.
 	pub async fn is_locked(&self, user_id: &UserId) -> Result<bool> {
 		match self
 			.db
@@ -322,12 +328,16 @@ impl Service {
 		}
 	}
 
+	/// Disables login for a user, preventing them from creating new devices,
+	/// but allows them to continue using their existing sessions unimpeded.
 	pub fn disable_login(&self, user_id: &UserId) {
 		self.db.userid_logindisabled.insert(user_id, "");
 	}
 
+	/// Re-enables login for a user, allowing them to create new devices again.
 	pub fn enable_login(&self, user_id: &UserId) { self.db.userid_logindisabled.remove(user_id); }
 
+	/// Returns true if the target user's login is disabled.
 	pub async fn is_login_disabled(&self, user_id: &UserId) -> bool {
 		self.db
 			.userid_logindisabled
@@ -336,21 +346,23 @@ impl Service {
 			.is_ok()
 	}
 
-	/// Check if account is active, infallible
+	/// Check if account is active (not deactivated)
 	pub async fn is_active(&self, user_id: &UserId) -> bool {
 		!self.is_deactivated(user_id).await.unwrap_or(true)
 	}
 
-	/// Check if account is active, infallible
+	/// Check if account is a local user, and is active (not deactivated)
 	pub async fn is_active_local(&self, user_id: &UserId) -> bool {
 		self.services.globals.user_is_local(user_id) && self.is_active(user_id).await
 	}
 
-	/// Returns the number of users registered on this server.
+	/// Returns the number of users registered on this server, including
+	/// deactivated users.
 	#[inline]
 	pub async fn count(&self) -> usize { self.db.userid_password.count().await }
 
-	/// Find out which user an access token belongs to.
+	/// Find out which user an access token belongs to. Will panic if the access
+	/// token is empty.
 	pub async fn find_from_token(&self, token: &str) -> Result<(OwnedUserId, OwnedDeviceId)> {
 		assert!(!token.is_empty(), "Empty access token");
 		self.db.token_userdeviceid.get(token).await.deserialized()
@@ -361,10 +373,10 @@ impl Service {
 		self.db.userid_password.keys().ignore_err()
 	}
 
-	/// Returns a list of local users as list of usernames.
+	/// Returns a list of active local users.
 	///
-	/// A user account is considered `local` if the length of it's password is
-	/// greater then zero.
+	/// A user account is considered `local` if the associated password is not
+	/// empty.
 	pub fn list_local_users(&self) -> impl Stream<Item = OwnedUserId> + Send + '_ {
 		self.db
 			.userid_password
@@ -384,21 +396,26 @@ impl Service {
 
 	/// Check a user's password.
 	pub async fn check_password(&self, user_id: &UserId, password: &str) -> Result<OwnedUserId> {
-		let (hash, user_id): (String, OwnedUserId) = if let Ok(hash) =
-			self.db.userid_password.get(user_id).await.deserialized()
-		{
-			(hash, user_id.to_owned())
-		} else {
-			// We also check the lowercased version of the user ID to handle legacy user IDs
-			// better
-			let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
-
+		let (hash, user_id): (String, OwnedUserId) =
 			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
-				(hash, lowercase_user_id)
+				(hash, user_id.to_owned())
 			} else {
-				return Err!(Request(InvalidParam("This user cannot log in with a password.")));
-			}
-		};
+				// We also check the lowercased version of the user ID to handle legacy user IDs
+				// better
+				let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
+
+				if let Ok(hash) = self
+					.db
+					.userid_password
+					.get(lowercase_user_id.as_str())
+					.await
+					.deserialized()
+				{
+					(hash, lowercase_user_id)
+				} else {
+					return Err!(Request(Forbidden("This user cannot log in with a password.")));
+				}
+			};
 
 		if hash.is_empty() {
 			return Err!(Request(UserDeactivated("This user is deactivated")));
@@ -443,7 +460,8 @@ impl Service {
 		}
 	}
 
-	/// Adds a new device to a user.
+	/// Adds a new device to a user. The user must exist, otherwise InvalidParam
+	/// is returned.
 	pub async fn create_device(
 		&self,
 		user_id: &UserId,
@@ -514,6 +532,7 @@ impl Service {
 			.map(|(_, device_id): (Ignore, OwnedDeviceId)| device_id)
 	}
 
+	/// Gets the access token associated with a device.
 	pub async fn get_token(&self, user_id: &UserId, device_id: &DeviceId) -> Result<String> {
 		let key = (user_id, device_id);
 		self.db.userdeviceid_token.qry(&key).await.deserialized()
@@ -524,19 +543,12 @@ impl Service {
 		loop {
 			let token = utils::random_string(32);
 
-			// Check for collision with appservice tokens
-			if self
-				.services
-				.appservice
-				.find_from_token(&token)
-				.await
-				.is_ok()
-			{
-				continue;
-			}
-
-			// Check for collision with user tokens
-			if self.db.token_userdeviceid.get(&token).await.is_ok() {
+			// Check for collision with existing appservice and user tokens
+			let (appservice, usr) = tokio::join!(
+				self.services.appservice.find_from_token(&token),
+				self.db.token_userdeviceid.get(&token)
+			);
+			if appservice.is_ok() || usr.is_ok() {
 				continue;
 			}
 
@@ -586,6 +598,7 @@ impl Service {
 		Ok(())
 	}
 
+	/// Adds a single one-time key to a device.
 	pub async fn add_one_time_key(
 		&self,
 		user_id: &UserId,
@@ -628,7 +641,7 @@ impl Service {
 	}
 
 	/// Save a fallback key for the given user, device, and algorithm
-	/// This key will replace an existing fallback key
+	/// This key will replace an existing fallback key.
 	pub async fn add_fallback_key(
 		&self,
 		user_id: &UserId,
@@ -660,6 +673,8 @@ impl Service {
 		Ok(())
 	}
 
+	/// Returns the timestamp at when the last OTK update for the user was, or 0
+	/// if the keys have never been updated.
 	pub async fn last_one_time_keys_update(&self, user_id: &UserId) -> u64 {
 		self.db
 			.userid_lastonetimekeyupdate
@@ -669,6 +684,10 @@ impl Service {
 			.unwrap_or(0)
 	}
 
+	/// Consumes a one-time key belonging to the device of a given algorithm. If
+	/// no one-time keys are available, a fallback key is returned instead (if
+	/// available). If neither an OTK nor fallback key are available, NotFound
+	/// is returned.
 	pub async fn take_one_time_key(
 		&self,
 		user_id: &UserId,
@@ -751,6 +770,8 @@ impl Service {
 		Err(err!(Request(NotFound("No one-time key or fallback key found"))))
 	}
 
+	/// Returns the number of one-time keys the given device has. Does not count
+	/// fallback keys.
 	pub async fn count_one_time_keys(
 		&self,
 		user_id: &UserId,
@@ -781,6 +802,7 @@ impl Service {
 		algorithm_counts
 	}
 
+	/// Returns a list of *unused* fallback key types.
 	pub async fn list_unused_fallback_key_types(
 		&self,
 		user_id: &UserId,
@@ -809,6 +831,8 @@ impl Service {
 		unused_algorithms
 	}
 
+	/// Adds device identity keys to a device, overwriting existing ones if they
+	/// exist. Dispatches a device key update.
 	pub async fn add_device_keys(
 		&self,
 		user_id: &UserId,
@@ -821,6 +845,8 @@ impl Service {
 		self.mark_device_key_update(user_id).await;
 	}
 
+	/// Adds cross-signing keys for the given user. If notify is true, a device
+	/// key update is dispatched.
 	pub async fn add_cross_signing_keys(
 		&self,
 		user_id: &UserId,
@@ -898,6 +924,8 @@ impl Service {
 		Ok(())
 	}
 
+	/// Appends a new signature to the given key ID. Dispatches a new device key
+	/// update.
 	pub async fn sign_key(
 		&self,
 		target_id: &UserId,
@@ -943,6 +971,7 @@ impl Service {
 		Ok(())
 	}
 
+	/// Returns a stream of changed keys between the two counts.
 	#[inline]
 	pub fn keys_changed<'a>(
 		&'a self,
@@ -954,6 +983,8 @@ impl Service {
 			.map(|(user_id, ..)| user_id)
 	}
 
+	/// Returns a stream of changed keys between the two counts in the given
+	/// room specifically.
 	#[inline]
 	pub fn room_keys_changed<'a>(
 		&'a self,
@@ -985,6 +1016,8 @@ impl Service {
 			.map(|((_, count), user_id): KeyVal<'_>| (user_id, count))
 	}
 
+	/// Marks that a user's device keys have been updated, so that other users
+	/// can be notified of the change.
 	pub async fn mark_device_key_update(&self, user_id: &UserId) {
 		let count = self.services.globals.next_count().unwrap();
 
@@ -1009,6 +1042,7 @@ impl Service {
 		self.db.keychangeid_userid.put_raw(key, user_id);
 	}
 
+	/// Returns the device identity keys for a given device.
 	pub async fn get_device_keys<'a>(
 		&'a self,
 		user_id: &'a UserId,
@@ -1018,6 +1052,7 @@ impl Service {
 		self.db.keyid_key.qry(&key_id).await.deserialized()
 	}
 
+	/// Gets a specific cross-signing key.
 	pub async fn get_key<F>(
 		&self,
 		key_id: &[u8],
@@ -1035,6 +1070,7 @@ impl Service {
 		Ok(Raw::from_json(raw_value))
 	}
 
+	/// Gets a user's master cross-signing key.
 	pub async fn get_master_key<F>(
 		&self,
 		sender_user: Option<&UserId>,
@@ -1050,6 +1086,7 @@ impl Service {
 			.await
 	}
 
+	/// Gets a user's self-signing cross-signing key.
 	pub async fn get_self_signing_key<F>(
 		&self,
 		sender_user: Option<&UserId>,
@@ -1065,6 +1102,7 @@ impl Service {
 			.await
 	}
 
+	/// Gets a user's user-signing cross-signing key.
 	pub async fn get_user_signing_key(&self, user_id: &UserId) -> Result<Raw<CrossSigningKey>> {
 		self.db
 			.userid_usersigningkeyid
@@ -1074,6 +1112,7 @@ impl Service {
 			.deserialized()
 	}
 
+	/// Pushes a new to-device event into a device's inbox.
 	pub async fn add_to_device_event(
 		&self,
 		sender: &UserId,
@@ -1095,6 +1134,7 @@ impl Service {
 		);
 	}
 
+	/// Gets all to-device events between the two counts.
 	pub fn get_to_device_events<'a>(
 		&'a self,
 		user_id: &'a UserId,
@@ -1118,6 +1158,8 @@ impl Service {
 			.map(|((_, _, count), event)| (count, event))
 	}
 
+	/// Removes to-device events from the target device's inbox, until the given
+	/// count.
 	pub async fn remove_to_device_events<Until>(
 		&self,
 		user_id: &UserId,
@@ -1152,14 +1194,13 @@ impl Service {
 	) -> Result<()> {
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.update_device_metadata_no_increment(user_id, device_id, device)
-			.await
 	}
 
-	// Updates device metadata without incrementing the device list version.
-	// This is namely used for updating the last_seen_ip and last_seen_ts values,
-	// as those do not need a device list version bump due to them not being
-	// relevant to other consumers.
-	pub async fn update_device_metadata_no_increment(
+	/// Updates device metadata without incrementing the device list version.
+	/// This is namely used for updating the last_seen_ip and last_seen_ts
+	/// values, as those do not need a device list version bump due to them not
+	/// being relevant to other consumers.
+	fn update_device_metadata_no_increment(
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
@@ -1171,6 +1212,9 @@ impl Service {
 		Ok(())
 	}
 
+	/// Updates the last seen timestamp for a device. Silently does nothing if
+	/// the last update was less than 10 seconds ago, or the device does not
+	/// exist.
 	pub async fn update_device_last_seen(
 		&self,
 		user_id: &UserId,
@@ -1190,7 +1234,6 @@ impl Service {
 				device.last_seen_ts = Some(now);
 
 				self.update_device_metadata_no_increment(user_id, device_id, &device)
-					.await
 					.ok();
 			}
 		}
@@ -1209,6 +1252,7 @@ impl Service {
 			.deserialized()
 	}
 
+	/// Gets the most recent device list version for a user.
 	pub async fn get_devicelist_version(&self, user_id: &UserId) -> Result<u64> {
 		self.db
 			.userid_devicelistversion
@@ -1217,6 +1261,7 @@ impl Service {
 			.deserialized()
 	}
 
+	/// Gets metadata for all devices belonging to the target user.
 	pub fn all_devices_metadata<'a>(
 		&'a self,
 		user_id: &'a UserId,
@@ -1239,6 +1284,7 @@ impl Service {
 		filter_id
 	}
 
+	/// Fetches a filter from a filter ID belonging to a user.
 	pub async fn get_filter(
 		&self,
 		user_id: &UserId,
