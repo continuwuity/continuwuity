@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, implement, matrix::Event, pdu::PartialPdu};
+use conduwuit::{Err, Result, matrix::Event, pdu::PartialPdu};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{
@@ -12,140 +12,139 @@ use ruma::{
 
 use crate::rooms::state::RoomMutexGuard;
 
-/// Checks if a given user can redact a given event
-///
-/// If federation is true, it allows redaction events from any user of the
-/// same server as the original event sender
-#[implement(super::Service)]
-pub async fn user_can_redact(
-	&self,
-	redacts: &EventId,
-	sender: &UserId,
-	room_id: &RoomId,
-	federation: bool,
-) -> Result<bool> {
-	let redacting_event = self.services.timeline.get_pdu(redacts).await;
+impl super::Service {
+	/// Checks if a given user can redact a given event
+	///
+	/// If federation is true, it allows redaction events from any user of the
+	/// same server as the original event sender
+	pub async fn user_can_redact(
+		&self,
+		redacts: &EventId,
+		sender: &UserId,
+		room_id: &RoomId,
+		federation: bool,
+	) -> Result<bool> {
+		let redacting_event = self.services.timeline.get_pdu(redacts).await;
 
-	if redacting_event
-		.as_ref()
-		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomCreate)
-	{
-		return Err!(Request(Forbidden("Redacting m.room.create is not safe, forbidding.")));
+		if redacting_event
+			.as_ref()
+			.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomCreate)
+		{
+			return Err!(Request(Forbidden("Redacting m.room.create is not safe, forbidding.")));
+		}
+
+		if redacting_event
+			.as_ref()
+			.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomServerAcl)
+		{
+			return Err!(Request(Forbidden(
+				"Redacting m.room.server_acl will result in the room being inaccessible for \
+				 everyone (empty allow key), forbidding."
+			)));
+		}
+
+		let power_levels = self.get_room_power_levels(room_id).await;
+
+		if power_levels.user_can_redact_event_of_other(sender) {
+			return Ok(true);
+		}
+
+		if power_levels.user_can_redact_own_event(sender) {
+			let is_own_event = match redacting_event {
+				| Ok(redacting_event) =>
+					if federation {
+						redacting_event.sender().server_name() == sender.server_name()
+					} else {
+						redacting_event.sender() == sender
+					},
+				| _ => false,
+			};
+
+			return Ok(is_own_event);
+		}
+
+		Ok(false)
 	}
 
-	if redacting_event
-		.as_ref()
-		.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomServerAcl)
-	{
-		return Err!(Request(Forbidden(
-			"Redacting m.room.server_acl will result in the room being inaccessible for \
-			 everyone (empty allow key), forbidding."
-		)));
-	}
-
-	let power_levels = self.get_room_power_levels(room_id).await;
-
-	if power_levels.user_can_redact_event_of_other(sender) {
-		return Ok(true);
-	}
-
-	if power_levels.user_can_redact_own_event(sender) {
-		let is_own_event = match redacting_event {
-			| Ok(redacting_event) =>
-				if federation {
-					redacting_event.sender().server_name() == sender.server_name()
-				} else {
-					redacting_event.sender() == sender
-				},
-			| _ => false,
+	/// Whether a user is allowed to see an event, based on
+	/// the room's history_visibility at that event's state.
+	pub async fn user_can_see_event(
+		&self,
+		user_id: &UserId,
+		room_id: &RoomId,
+		event_id: &EventId,
+	) -> bool {
+		let Ok(shortstatehash) = self.pdu_shortstatehash(event_id).await else {
+			return true;
 		};
 
-		return Ok(is_own_event);
+		let currently_member = self.services.state_cache.is_joined(user_id, room_id).await;
+
+		let history_visibility = self
+			.state_get_content(shortstatehash, &StateEventType::RoomHistoryVisibility, "")
+			.await
+			.map_or(HistoryVisibility::Shared, |c: RoomHistoryVisibilityEventContent| {
+				c.history_visibility
+			});
+
+		match history_visibility {
+			| HistoryVisibility::Invited => {
+				// Allow if any member on requesting server was AT LEAST invited, else deny
+				self.user_was_invited(shortstatehash, user_id).await
+			},
+			| HistoryVisibility::Joined => {
+				// Allow if any member on requested server was joined, else deny
+				self.user_was_joined(shortstatehash, user_id).await
+			},
+			| HistoryVisibility::WorldReadable => true,
+			| HistoryVisibility::Shared | _ => currently_member,
+		}
 	}
 
-	Ok(false)
-}
+	/// Whether a user is allowed to see an event, based on
+	/// the room's history_visibility at that event's state.
+	pub async fn user_can_see_state_events(&self, user_id: &UserId, room_id: &RoomId) -> bool {
+		if self.services.state_cache.is_joined(user_id, room_id).await {
+			return true;
+		}
 
-/// Whether a user is allowed to see an event, based on
-/// the room's history_visibility at that event's state.
-#[implement(super::Service)]
-#[tracing::instrument(skip_all, level = "trace")]
-pub async fn user_can_see_event(
-	&self,
-	user_id: &UserId,
-	room_id: &RoomId,
-	event_id: &EventId,
-) -> bool {
-	let Ok(shortstatehash) = self.pdu_shortstatehash(event_id).await else {
-		return true;
-	};
+		let history_visibility = self
+			.room_state_get_content(room_id, &StateEventType::RoomHistoryVisibility, "")
+			.await
+			.map_or(HistoryVisibility::Shared, |c: RoomHistoryVisibilityEventContent| {
+				c.history_visibility
+			});
 
-	let currently_member = self.services.state_cache.is_joined(user_id, room_id).await;
-
-	let history_visibility = self
-		.state_get_content(shortstatehash, &StateEventType::RoomHistoryVisibility, "")
-		.await
-		.map_or(HistoryVisibility::Shared, |c: RoomHistoryVisibilityEventContent| {
-			c.history_visibility
-		});
-
-	match history_visibility {
-		| HistoryVisibility::Invited => {
-			// Allow if any member on requesting server was AT LEAST invited, else deny
-			self.user_was_invited(shortstatehash, user_id).await
-		},
-		| HistoryVisibility::Joined => {
-			// Allow if any member on requested server was joined, else deny
-			self.user_was_joined(shortstatehash, user_id).await
-		},
-		| HistoryVisibility::WorldReadable => true,
-		| HistoryVisibility::Shared | _ => currently_member,
-	}
-}
-
-/// Whether a user is allowed to see an event, based on
-/// the room's history_visibility at that event's state.
-#[implement(super::Service)]
-#[tracing::instrument(skip_all, level = "trace")]
-pub async fn user_can_see_state_events(&self, user_id: &UserId, room_id: &RoomId) -> bool {
-	if self.services.state_cache.is_joined(user_id, room_id).await {
-		return true;
+		match history_visibility {
+			| HistoryVisibility::Invited =>
+				self.services.state_cache.is_invited(user_id, room_id).await,
+			| HistoryVisibility::WorldReadable => true,
+			| _ => false,
+		}
 	}
 
-	let history_visibility = self
-		.room_state_get_content(room_id, &StateEventType::RoomHistoryVisibility, "")
-		.await
-		.map_or(HistoryVisibility::Shared, |c: RoomHistoryVisibilityEventContent| {
-			c.history_visibility
-		});
-
-	match history_visibility {
-		| HistoryVisibility::Invited =>
-			self.services.state_cache.is_invited(user_id, room_id).await,
-		| HistoryVisibility::WorldReadable => true,
-		| _ => false,
+	/// Checks if the target user can send a specific invite by creating and
+	/// discarding a new PDU. If creating the PDU fails, the user is not
+	/// permitted to issue the invite.
+	pub async fn user_can_invite(
+		&self,
+		room_id: &RoomId,
+		sender: &UserId,
+		target_user: &UserId,
+		state_lock: &RoomMutexGuard,
+	) -> bool {
+		self.services
+			.timeline
+			.create_event(
+				PartialPdu::state(
+					target_user.as_str(),
+					&RoomMemberEventContent::new(MembershipState::Invite),
+				),
+				sender,
+				Some(room_id),
+				state_lock,
+			)
+			.await
+			.is_ok()
 	}
-}
-
-#[implement(super::Service)]
-pub async fn user_can_invite(
-	&self,
-	room_id: &RoomId,
-	sender: &UserId,
-	target_user: &UserId,
-	state_lock: &RoomMutexGuard,
-) -> bool {
-	self.services
-		.timeline
-		.create_hash_and_sign_event(
-			PartialPdu::state(
-				target_user.as_str(),
-				&RoomMemberEventContent::new(MembershipState::Invite),
-			),
-			sender,
-			Some(room_id),
-			state_lock,
-		)
-		.await
-		.is_ok()
 }
