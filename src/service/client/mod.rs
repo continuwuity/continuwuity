@@ -13,7 +13,7 @@ pub struct Service {
 	pub extern_media: reqwest::Client,
 	pub well_known: reqwest::Client,
 	pub federation: reqwest::Client,
-	pub synapse: reqwest::Client,
+	pub federation_slow: reqwest::Client,
 	pub sender: reqwest::Client,
 	pub appservice: reqwest::Client,
 	pub pusher: reqwest::Client,
@@ -85,7 +85,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
-			synapse: base(config)?
+			federation_slow: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))

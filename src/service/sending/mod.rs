@@ -311,7 +311,7 @@ impl Service {
 
 	/// Like send_federation_request() but with a very large timeout
 	#[inline]
-	pub async fn send_synapse_request<'i, T>(
+	pub async fn send_slow_federation_request<'i, T>(
 		&self,
 		dest: &ServerName,
 		request: T,
@@ -323,10 +323,7 @@ impl Service {
 			> + Debug
 			+ Send,
 	{
-		self.services
-			.federation
-			.execute_synapse(dest, request)
-			.await
+		self.services.federation.execute_slow(dest, request).await
 	}
 
 	/// Send an unauthenticated federation request with no X-Matrix header.

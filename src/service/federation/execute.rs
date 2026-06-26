@@ -39,8 +39,8 @@ impl super::Service {
 	}
 
 	/// Like execute() but with a very large timeout
-	#[tracing::instrument(skip_all, name = "synapse", level = "debug")]
-	pub async fn execute_synapse<'i, T>(
+	#[tracing::instrument(skip_all, name = "request_slow", level = "debug")]
+	pub async fn execute_slow<'i, T>(
 		&self,
 		dest: &ServerName,
 		request: T,
@@ -52,7 +52,7 @@ impl super::Service {
 			> + Debug
 			+ Send,
 	{
-		let client = &self.services.client.synapse;
+		let client = &self.services.client.federation_slow;
 		self.execute_signed(client, dest, request).await
 	}
 

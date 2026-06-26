@@ -394,7 +394,7 @@ impl Service {
 		let send_join_response = match self
 			.services
 			.sending
-			.send_synapse_request(&remote_server, send_join_request)
+			.send_slow_federation_request(&remote_server, send_join_request)
 			.await
 		{
 			| Ok(response) => response,
