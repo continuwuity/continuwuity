@@ -1,6 +1,6 @@
 use std::{convert::AsRef, fmt::Debug, sync::Arc};
 
-use conduwuit::{Result, implement};
+use conduwuit::Result;
 use futures::{Stream, StreamExt, TryStreamExt, future};
 use serde::{Deserialize, Serialize};
 

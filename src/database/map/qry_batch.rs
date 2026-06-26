@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use conduwuit::{
-	Result, implement,
+	Result,
 	utils::{
 		IterStream,
 		stream::{WidebandExt, automatic_amplification, automatic_width},
