@@ -3,7 +3,7 @@ use std::{net::IpAddr, sync::Arc, time::SystemTime};
 use conduwuit::{
 	Result,
 	arrayvec::ArrayVec,
-	at, err, implement,
+	at, err,
 	utils::{math::Expected, rand, stream::TryIgnore},
 };
 use database::{Cbor, Deserialized, Map};
@@ -43,83 +43,70 @@ impl Cache {
 			overrides: args.db["servername_override"].clone(),
 		})
 	}
-}
 
-#[implement(Cache)]
-pub async fn clear(&self) { join(self.clear_destinations(), self.clear_overrides()).await; }
+	pub async fn clear(&self) { join(self.clear_destinations(), self.clear_overrides()).await; }
 
-#[implement(Cache)]
-pub async fn clear_destinations(&self) { self.destinations.clear().await; }
+	pub async fn clear_destinations(&self) { self.destinations.clear().await; }
 
-#[implement(Cache)]
-pub async fn clear_overrides(&self) { self.overrides.clear().await; }
+	pub async fn clear_overrides(&self) { self.overrides.clear().await; }
 
-#[implement(Cache)]
-pub fn del_destination(&self, name: &ServerName) { self.destinations.remove(name); }
+	pub fn del_destination(&self, name: &ServerName) { self.destinations.remove(name); }
 
-#[implement(Cache)]
-pub fn del_override(&self, name: &ServerName) { self.overrides.remove(name); }
+	pub fn del_override(&self, name: &ServerName) { self.overrides.remove(name); }
 
-#[implement(Cache)]
-pub fn set_destination(&self, name: &ServerName, dest: &CachedDest) {
-	self.destinations.raw_put(name, Cbor(dest));
-}
+	pub fn set_destination(&self, name: &ServerName, dest: &CachedDest) {
+		self.destinations.raw_put(name, Cbor(dest));
+	}
 
-#[implement(Cache)]
-pub fn set_override(&self, name: &str, over: &CachedOverride) {
-	self.overrides.raw_put(name, Cbor(over));
-}
+	pub fn set_override(&self, name: &str, over: &CachedOverride) {
+		self.overrides.raw_put(name, Cbor(over));
+	}
 
-#[implement(Cache)]
-#[must_use]
-pub async fn has_destination(&self, destination: &ServerName) -> bool {
-	self.get_destination(destination).await.is_ok()
-}
+	#[must_use]
+	pub async fn has_destination(&self, destination: &ServerName) -> bool {
+		self.get_destination(destination).await.is_ok()
+	}
 
-#[implement(Cache)]
-#[must_use]
-pub async fn has_override(&self, destination: &str) -> bool {
-	self.get_override(destination)
-		.await
-		.iter()
-		.any(CachedOverride::valid)
-}
+	#[must_use]
+	pub async fn has_override(&self, destination: &str) -> bool {
+		self.get_override(destination)
+			.await
+			.iter()
+			.any(CachedOverride::valid)
+	}
 
-#[implement(Cache)]
-pub async fn get_destination(&self, name: &ServerName) -> Result<CachedDest> {
-	self.destinations
-		.get(name)
-		.await
-		.deserialized::<Cbor<_>>()
-		.map(at!(0))
-		.into_iter()
-		.find(CachedDest::valid)
-		.ok_or(err!(Request(NotFound("Expired from cache"))))
-}
+	pub async fn get_destination(&self, name: &ServerName) -> Result<CachedDest> {
+		self.destinations
+			.get(name)
+			.await
+			.deserialized::<Cbor<_>>()
+			.map(at!(0))
+			.into_iter()
+			.find(CachedDest::valid)
+			.ok_or(err!(Request(NotFound("Expired from cache"))))
+	}
 
-#[implement(Cache)]
-pub async fn get_override(&self, name: &str) -> Result<CachedOverride> {
-	self.overrides
-		.get(name)
-		.await
-		.deserialized::<Cbor<_>>()
-		.map(at!(0))
-}
+	pub async fn get_override(&self, name: &str) -> Result<CachedOverride> {
+		self.overrides
+			.get(name)
+			.await
+			.deserialized::<Cbor<_>>()
+			.map(at!(0))
+	}
 
-#[implement(Cache)]
-pub fn destinations(&self) -> impl Stream<Item = (OwnedServerName, CachedDest)> + Send + '_ {
-	self.destinations
-		.stream()
-		.ignore_err()
-		.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
-}
+	pub fn destinations(&self) -> impl Stream<Item = (OwnedServerName, CachedDest)> + Send + '_ {
+		self.destinations
+			.stream()
+			.ignore_err()
+			.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
+	}
 
-#[implement(Cache)]
-pub fn overrides(&self) -> impl Stream<Item = (OwnedServerName, CachedOverride)> + Send + '_ {
-	self.overrides
-		.stream()
-		.ignore_err()
-		.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
+	pub fn overrides(&self) -> impl Stream<Item = (OwnedServerName, CachedOverride)> + Send + '_ {
+		self.overrides
+			.stream()
+			.ignore_err()
+			.map(|item: (OwnedServerName, Cbor<_>)| (item.0, item.1.0))
+	}
 }
 
 impl CachedDest {
