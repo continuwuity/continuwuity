@@ -10,11 +10,13 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit::{
-	debug_info, debug_warn, info, utils::time::exponential_backoff::min_exp_backoff_duration,
+	debug_info, debug_warn, defer, info,
+	utils::time::exponential_backoff::min_exp_backoff_duration,
 };
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	result::LogErr,
+	trace,
 	utils::{
 		ReadyExt, calculate_hash, continue_exponential_backoff_secs,
 		future::TryExtExt,
@@ -51,6 +53,7 @@ use ruma::{
 	uint,
 };
 use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
+use tokio::{select, time::interval};
 
 use super::{Destination, EduBuf, EduVec, Msg, SendingEvent, Service, data::QueueItem};
 
@@ -257,6 +260,7 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		let monitor = self.new_progress_monitor(format!("Startup netburst on shard {id}"));
 		let keep =
 			usize::try_from(self.server.config.startup_netburst_keep).unwrap_or(usize::MAX);
 		let mut txns = HashMap::<Destination, Vec<SendingEvent>>::new();
@@ -287,6 +291,7 @@ impl Service {
 				futures.push(self.send_events(dest.clone(), events));
 			}
 		}
+		monitor.notify_one();
 	}
 
 	/// Selects any new events to send to the given destination.
@@ -679,6 +684,17 @@ impl Service {
 		}
 	}
 
+	/// Creates a new progress monitor with the given name, returning a marker
+	/// that can be used to mark the progress monitor as finished.
+	fn new_progress_monitor(&self, task_name: String) -> Arc<tokio::sync::Notify> {
+		let marker = Arc::new(tokio::sync::Notify::new());
+		let monitor_marker = marker.clone();
+		self.server.runtime().spawn(async move {
+			progress_monitor(&task_name, monitor_marker).await;
+		});
+		marker
+	}
+
 	#[tracing::instrument(
 		name = "appservice",
 		level = "debug",
@@ -692,7 +708,13 @@ impl Service {
 		id: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
+		let monitor = self.new_progress_monitor(format!(
+			"Send {} events to appservice {}",
+			events.len(),
+			id
+		));
 		let Some(appservice) = self.services.appservice.get_registration(&id).await else {
+			monitor.notify_one();
 			return Err((
 				Destination::Appservice(id.clone()),
 				err!(Database(warn!(?id, "Missing appservice registration"))),
@@ -741,7 +763,10 @@ impl Service {
 		request.ephemeral = edu_jsons;
 		request.to_device = Vec::new(); // TODO
 
-		match self.send_appservice_request(appservice, request).await {
+		let result = self.send_appservice_request(appservice, request).await;
+		monitor.notify_one();
+
+		match result {
 			| Ok(_) => Ok(Destination::Appservice(id)),
 			| Err(e) => Err((Destination::Appservice(id), e)),
 		}
@@ -761,7 +786,12 @@ impl Service {
 		pushkey: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
+		let monitor = self.new_progress_monitor(format!(
+			"Send {} events to pusher {pushkey} for {user_id}",
+			events.len(),
+		));
 		let Ok(pusher) = self.services.pusher.get_pusher(&user_id, &pushkey).await else {
+			monitor.notify_one();
 			return Err((
 				Destination::Push(user_id.clone(), pushkey.clone()),
 				err!(Database(error!(%user_id, ?pushkey, "Missing pusher"))),
@@ -819,6 +849,7 @@ impl Service {
 				.await
 				.map_err(|e| (Destination::Push(user_id.clone(), pushkey.clone()), e));
 		}
+		monitor.notify_one();
 
 		Ok(Destination::Push(user_id, pushkey))
 	}
@@ -828,6 +859,16 @@ impl Service {
 		server: OwnedServerName,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
+		let master_monitor = self.new_progress_monitor(format!(
+			"Dispatch {} events to {server} (overall)",
+			events.len()
+		));
+		defer! {{
+			master_monitor.notify_one();
+		}}
+
+		let monitor =
+			self.new_progress_monitor(format!("Get {} events to send to {server}", events.len()));
 		let pdus: Vec<_> = events
 			.iter()
 			.filter_map(|pdu| match pdu {
@@ -850,6 +891,7 @@ impl Service {
 			.filter_map(Result::ok)
 			.collect();
 
+		monitor.notify_one();
 		if pdus.is_empty() && edus.is_empty() {
 			return Ok(Destination::Federation(server));
 		}
@@ -878,6 +920,12 @@ impl Service {
 			"Sending transaction to remote"
 		);
 		let start = Instant::now();
+		let monitor = self.new_progress_monitor(format!(
+			"Send {} events ({} PDUs, {} EDUs) to {server}",
+			events.len(),
+			request.pdus.len(),
+			request.edus.len(),
+		));
 		let result = self
 			.services
 			.federation
@@ -902,6 +950,7 @@ impl Service {
 				);
 			}
 		}
+		monitor.notify_one();
 
 		match result {
 			| Err(error) => Err((Destination::Federation(server), error)),
@@ -927,5 +976,37 @@ impl Service {
 		pdu_json.remove("event_id");
 
 		to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value")
+	}
+}
+
+/// Monitors progress by alerting every 10 seconds that elapse after 60
+/// seconds if the progress monitor is not marked as finished via the
+/// marker.
+/// Progress monitoring starts immediately.
+async fn progress_monitor(task_name: &str, marker: Arc<tokio::sync::Notify>) {
+	// TODO: this might be useful in more places than the sender service.
+	// Only temporary for diagnostic purposes rn
+	let start = Instant::now();
+	let mut interval = interval(Duration::from_secs(10));
+	loop {
+		select! {
+			_ = interval.tick() => {
+				let elapsed = start.elapsed();
+				if elapsed.as_secs() > 60 {
+					warn!(
+						%task_name,
+						?elapsed,
+						"Task has been running for a long time (stuck?)"
+					);
+				} else {
+					trace!(
+						%task_name,
+						?elapsed,
+						"Task is still running"
+					);
+				}
+			},
+			() = marker.notified() => return
+		}
 	}
 }
