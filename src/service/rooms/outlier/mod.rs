@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, implement, matrix::PduEvent};
+use conduwuit::{Result, matrix::PduEvent};
 use database::{Deserialized, Json, Map};
 use ruma::{CanonicalJsonObject, EventId};
 
