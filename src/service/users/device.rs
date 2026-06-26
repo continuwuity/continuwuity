@@ -1,0 +1,321 @@
+use std::net::IpAddr;
+
+use conduwuit::{
+	Err, utils,
+	utils::{ReadyExt, stream::TryIgnore},
+};
+use database::{Deserialized, Ignore, Interfix, Json};
+use futures::{Stream, StreamExt};
+use ruma::{
+	DeviceId, MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
+	api::client::device::Device, events::AnyToDeviceEvent, serde::Raw, uint,
+};
+use serde_json::json;
+
+use crate::users::increment;
+
+impl super::Service {
+	/// Adds a new device to a user. The user must exist, otherwise InvalidParam
+	/// is returned.
+	pub async fn create_device(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		token: &str,
+		initial_device_display_name: Option<String>,
+		client_ip: Option<String>,
+	) -> conduwuit::Result<()> {
+		if !self.exists(user_id).await {
+			return Err!(Request(InvalidParam(error!(
+				"Called create_device for non-existent user {user_id}"
+			))));
+		}
+
+		let key = (user_id, device_id);
+		let mut device = Device::new(device_id.into());
+		device.display_name = initial_device_display_name;
+		device.last_seen_ip = client_ip;
+		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
+
+		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
+		self.db.userdeviceid_metadata.put(key, Json(device));
+		self.set_token(user_id, device_id, token).await
+	}
+
+	/// Removes a device from a user.
+	pub async fn remove_device(&self, user_id: &UserId, device_id: &DeviceId) {
+		// Remove dehydrated device if this is the dehydrated device
+		let _: conduwuit::Result<_> = self
+			.remove_dehydrated_device(user_id, Some(device_id))
+			.await;
+
+		let userdeviceid = (user_id, device_id);
+
+		// Remove tokens
+		if let Ok(old_token) = self.db.userdeviceid_token.qry(&userdeviceid).await {
+			self.db.userdeviceid_token.del(userdeviceid);
+			self.db.token_userdeviceid.remove(&old_token);
+		}
+
+		// Remove todevice events
+		let prefix = (user_id, device_id, Interfix);
+		self.db
+			.todeviceid_events
+			.keys_prefix_raw(&prefix)
+			.ignore_err()
+			.ready_for_each(|key| self.db.todeviceid_events.remove(key))
+			.await;
+
+		// TODO: Remove onetimekeys
+
+		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
+
+		self.db.userdeviceid_metadata.del(userdeviceid);
+		self.mark_device_key_update(user_id).await;
+	}
+
+	/// Returns an iterator over all device ids of this user.
+	pub fn all_device_ids<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = OwnedDeviceId> + Send + 'a {
+		let prefix = (user_id, Interfix);
+		self.db
+			.userdeviceid_metadata
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, device_id): (Ignore, OwnedDeviceId)| device_id)
+	}
+
+	/// Gets the access token associated with a device.
+	pub async fn get_token(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+	) -> conduwuit::Result<String> {
+		let key = (user_id, device_id);
+		self.db.userdeviceid_token.qry(&key).await.deserialized()
+	}
+
+	/// Generate a unique access token that doesn't collide with existing tokens
+	pub async fn generate_unique_token(&self) -> String {
+		loop {
+			let token = utils::random_string(32);
+
+			// Check for collision with existing appservice and user tokens
+			let (appservice, usr) = tokio::join!(
+				self.services.appservice.find_from_token(&token),
+				self.db.token_userdeviceid.get(&token)
+			);
+			if appservice.is_ok() || usr.is_ok() {
+				continue;
+			}
+
+			return token;
+		}
+	}
+
+	/// Replaces the access token of one device.
+	pub async fn set_token(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		token: &str,
+	) -> conduwuit::Result<()> {
+		let key = (user_id, device_id);
+		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
+			return Err!(Database(error!(
+				%user_id,
+				%device_id,
+				"User does not exist or device has no metadata."
+			)));
+		}
+
+		// Check for token collision with appservices
+		if self
+			.services
+			.appservice
+			.find_from_token(token)
+			.await
+			.is_ok()
+		{
+			return Err!(Request(InvalidParam(
+				"Token conflicts with an existing appservice token"
+			)));
+		}
+
+		// Remove old token
+		if let Ok(old_token) = self.db.userdeviceid_token.qry(&key).await {
+			self.db.token_userdeviceid.remove(&old_token);
+			// It will be removed from userdeviceid_token by the insert later
+		}
+
+		// Assign token to user device combination
+		self.db.userdeviceid_token.put_raw(key, token);
+		self.db.token_userdeviceid.raw_put(token, key);
+
+		Ok(())
+	}
+
+	/// Pushes a new to-device event into a device's inbox.
+	pub async fn add_to_device_event(
+		&self,
+		sender: &UserId,
+		target_user_id: &UserId,
+		target_device_id: &DeviceId,
+		event_type: &str,
+		content: serde_json::Value,
+	) {
+		let count = self.services.globals.next_count().unwrap();
+
+		let key = (target_user_id, target_device_id, count);
+		self.db.todeviceid_events.put(
+			key,
+			Json(json!({
+				"type": event_type,
+				"sender": sender,
+				"content": content,
+			})),
+		);
+	}
+
+	/// Gets all to-device events between the two counts.
+	pub fn get_to_device_events<'a>(
+		&'a self,
+		user_id: &'a UserId,
+		device_id: &'a DeviceId,
+		since: Option<u64>,
+		to: Option<u64>,
+	) -> impl Stream<Item = (u64, Raw<AnyToDeviceEvent>)> + Send + 'a {
+		type Key = (OwnedUserId, OwnedDeviceId, u64);
+
+		let from = (user_id, device_id, since.map_or(0, |since| since.saturating_add(1)));
+
+		self.db
+			.todeviceid_events
+			.stream_from(&from)
+			.ignore_err()
+			.ready_take_while(move |((user_id_, device_id_, count), _): &(Key, _)| {
+				user_id == *user_id_
+					&& device_id == *device_id_
+					&& to.is_none_or(|to| *count <= to)
+			})
+			.map(|((_, _, count), event)| (count, event))
+	}
+
+	/// Removes to-device events from the target device's inbox, until the given
+	/// count.
+	pub async fn remove_to_device_events<Until>(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		until: Until,
+	) where
+		Until: Into<Option<u64>> + Send,
+	{
+		type Key = (OwnedUserId, OwnedDeviceId, u64);
+
+		let until = until.into().unwrap_or(u64::MAX);
+		let from = (user_id, device_id, until);
+		self.db
+			.todeviceid_events
+			.rev_keys_from(&from)
+			.ignore_err()
+			.ready_take_while(move |(user_id_, device_id_, _): &Key| {
+				user_id == *user_id_ && device_id == *device_id_
+			})
+			.ready_for_each(|key: Key| {
+				self.db.todeviceid_events.del(key);
+			})
+			.await;
+	}
+
+	/// Updates device metadata and increments the device list version.
+	pub async fn update_device_metadata(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		device: &Device,
+	) -> conduwuit::Result<()> {
+		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
+		self.update_device_metadata_no_increment(user_id, device_id, device)
+	}
+
+	/// Updates device metadata without incrementing the device list version.
+	/// This is namely used for updating the last_seen_ip and last_seen_ts
+	/// values, as those do not need a device list version bump due to them not
+	/// being relevant to other consumers.
+	fn update_device_metadata_no_increment(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+		device: &Device,
+	) -> conduwuit::Result<()> {
+		let key = (user_id, device_id);
+		self.db.userdeviceid_metadata.put(key, Json(device));
+
+		Ok(())
+	}
+
+	/// Updates the last seen timestamp for a device. Silently does nothing if
+	/// the last update was less than 10 seconds ago, or the device does not
+	/// exist.
+	pub async fn update_device_last_seen(
+		&self,
+		user_id: &UserId,
+		device_id: Option<&DeviceId>,
+		ip: IpAddr,
+	) {
+		let now = MilliSecondsSinceUnixEpoch::now();
+		if let Some(device_id) = device_id {
+			if let Ok(mut device) = self.get_device_metadata(user_id, device_id).await {
+				device.last_seen_ip = Some(ip.to_string());
+				// If the last update was less than 10 seconds ago, don't update the timestamp
+				if let Some(prev) = device.last_seen_ts {
+					if now.get().saturating_sub(prev.get()) < uint!(10_000) {
+						return;
+					}
+				}
+				device.last_seen_ts = Some(now);
+
+				self.update_device_metadata_no_increment(user_id, device_id, &device)
+					.ok();
+			}
+		}
+	}
+
+	/// Get device metadata.
+	pub async fn get_device_metadata(
+		&self,
+		user_id: &UserId,
+		device_id: &DeviceId,
+	) -> conduwuit::Result<Device> {
+		self.db
+			.userdeviceid_metadata
+			.qry(&(user_id, device_id))
+			.await
+			.deserialized()
+	}
+
+	/// Gets the most recent device list version for a user.
+	pub async fn get_devicelist_version(&self, user_id: &UserId) -> conduwuit::Result<u64> {
+		self.db
+			.userid_devicelistversion
+			.get(user_id)
+			.await
+			.deserialized()
+	}
+
+	/// Gets metadata for all devices belonging to the target user.
+	pub fn all_devices_metadata<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = Device> + Send + 'a {
+		let key = (user_id, Interfix);
+		self.db
+			.userdeviceid_metadata
+			.stream_prefix(&key)
+			.ignore_err()
+			.map(|(_, val): (Ignore, Device)| val)
+	}
+}

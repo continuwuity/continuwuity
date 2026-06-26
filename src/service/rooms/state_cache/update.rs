@@ -38,7 +38,7 @@ impl super::Service {
 		if !self.services.globals.user_is_local(user_id)
 			&& !self.services.users.exists(user_id).await
 		{
-			self.services.users.create(user_id, None).await?;
+			self.services.users.create(user_id, None)?;
 		}
 
 		match &membership.membership {

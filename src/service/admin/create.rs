@@ -48,7 +48,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 
 	// Create a user for the server
 	let server_user = services.globals.server_user.as_ref();
-	services.users.create(server_user, None).await?;
+	services.users.create(server_user, None)?;
 
 	let mut create_content = if room_version_rules.authorization.use_room_create_sender {
 		RoomCreateEventContent::new_v1(server_user.into())

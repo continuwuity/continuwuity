@@ -69,8 +69,7 @@ impl crate::Context<'_> {
 		// Create user
 		self.services
 			.users
-			.create(&user_id, Some(HashedPassword::new(&password)?))
-			.await?;
+			.create(&user_id, Some(HashedPassword::new(&password)?))?;
 
 		// Default to pretty displayname
 		let mut displayname = user_id.localpart().to_owned();
