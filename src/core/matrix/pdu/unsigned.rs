@@ -58,7 +58,7 @@ impl Pdu {
 		Ok(())
 	}
 
-	pub fn add_relation(&mut self, name: &str, pdu: Option<&Pdu>) -> Result {
+	pub fn add_relation(&mut self, name: &str, pdu: Option<&Self>) -> Result {
 		use serde_json::Map;
 
 		let mut unsigned: Map<String, JsonValue> = self
