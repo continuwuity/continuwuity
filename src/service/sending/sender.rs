@@ -81,9 +81,11 @@ impl Service {
 		let mut statuses: CurTransactionStatus = CurTransactionStatus::new();
 		let mut futures: SendingFutures<'_> = FuturesUnordered::new();
 
+		info!(shard_id=%id, "Starting netburst");
 		self.startup_netburst(id, &mut futures, &mut statuses)
 			.boxed()
 			.await;
+		info!(shard_id=%id, "Finished netburst");
 
 		self.work_loop(id, &mut futures, &mut statuses).await;
 
@@ -162,8 +164,21 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		let monitor = self.new_progress_monitor(
+			format!("Handle OK response from {dest:?}"),
+			Duration::from_secs(70),
+		);
+		defer! {{ monitor.notify_one(); }}
+		let start = Instant::now();
 		let _cork = self.db.db.cork();
 		self.db.delete_all_active_requests_for(dest).await;
+		if start.elapsed().as_secs() > 1 {
+			warn!(
+				elapsed=?start.elapsed(),
+				"Deleting all active requests for {dest:?} took a long time"
+			);
+		}
+		let start = Instant::now();
 
 		// Find events that have been added since starting the last request
 		let new_events = self
@@ -172,6 +187,12 @@ impl Service {
 			.take(DEQUEUE_LIMIT)
 			.collect::<Vec<_>>()
 			.await;
+		if start.elapsed().as_secs() > 1 {
+			warn!(
+				elapsed=?start.elapsed(),
+				"Fetching queued requests for {dest:?} took a long time"
+			);
+		}
 
 		// Insert any pdus we found
 		if !new_events.is_empty() {
@@ -192,6 +213,11 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		let monitor = self.new_progress_monitor(
+			format!("Handle send request {:?}", msg.queue_id),
+			Duration::from_secs(70),
+		);
+		defer! {{ monitor.notify_one(); }}
 		let iv = vec![(msg.queue_id, msg.event)];
 		if let Ok(Some(events)) = self.select_events(&msg.dest, iv, statuses).await {
 			if !events.is_empty() {
@@ -244,7 +270,10 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
-		let monitor = self.new_progress_monitor(format!("Startup netburst on shard {id}"));
+		let monitor = self.new_progress_monitor(
+			format!("Startup netburst on shard {id}"),
+			Duration::from_mins(2),
+		);
 		let keep =
 			usize::try_from(self.server.config.startup_netburst_keep).unwrap_or(usize::MAX);
 		let mut txns = HashMap::<Destination, Vec<SendingEvent>>::new();
@@ -300,11 +329,16 @@ impl Service {
 
 		// Must retry any previous transaction for this remote.
 		if retry {
+			let active_requests_task = self.new_progress_monitor(
+				format!("Fetch previous transactions for {dest:?}"),
+				Duration::from_secs(1),
+			);
 			self.db
 				.active_requests_for(dest)
 				.ready_for_each(|(_, e)| events.push(e))
 				.await;
-
+			active_requests_task.notify_one();
+			info!(?dest, "Attempting to retry destination with {} previous events", events.len());
 			return Ok(Some(events));
 		}
 
@@ -368,6 +402,11 @@ impl Service {
 		skip_all,
 	)]
 	async fn select_edus(&self, server_name: &ServerName) -> Result<(EduVec, u64)> {
+		let monitor = self.new_progress_monitor(
+			format!("Select EDUs for {server_name}"),
+			Duration::from_secs(1),
+		);
+		defer! {{ monitor.notify_one(); }}
 		// selection window
 		let since = self.db.get_latest_educount(server_name).await;
 		let since_upper = self.services.globals.current_count()?;
@@ -416,6 +455,11 @@ impl Service {
 		max_edu_count: &AtomicU64,
 		events_len: &AtomicUsize,
 	) -> EduVec {
+		let monitor = self.new_progress_monitor(
+			format!("Select device list update EDUs for {server_name}"),
+			Duration::from_secs(1),
+		);
+		defer! {{ monitor.notify_one(); }}
 		let mut events = EduVec::new();
 		let server_rooms = self.services.state_cache.server_rooms(server_name);
 
@@ -473,6 +517,11 @@ impl Service {
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
 	) -> Option<EduBuf> {
+		let monitor = self.new_progress_monitor(
+			format!("Select read receipt EDUs for {server_name}"),
+			Duration::from_secs(1),
+		);
+		defer! {{ monitor.notify_one(); }}
 		let mut num = 0;
 		let receipts: BTreeMap<OwnedRoomId, ReceiptMap> = self
 			.services
@@ -579,6 +628,11 @@ impl Service {
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
 	) -> Option<EduBuf> {
+		let monitor = self.new_progress_monitor(
+			format!("Select presence EDUs for {server_name}"),
+			Duration::from_secs(1),
+		);
+		defer! {{ monitor.notify_one(); }}
 		let presence_since = self.services.presence.presence_since(since.0);
 
 		pin_mut!(presence_since);
@@ -656,11 +710,15 @@ impl Service {
 
 	/// Creates a new progress monitor with the given name, returning a marker
 	/// that can be used to mark the progress monitor as finished.
-	fn new_progress_monitor(&self, task_name: String) -> Arc<tokio::sync::Notify> {
+	fn new_progress_monitor(
+		&self,
+		task_name: String,
+		tolerance: Duration,
+	) -> Arc<tokio::sync::Notify> {
 		let marker = Arc::new(tokio::sync::Notify::new());
 		let monitor_marker = marker.clone();
 		self.server.runtime().spawn(async move {
-			progress_monitor(&task_name, monitor_marker).await;
+			progress_monitor(&task_name, tolerance, monitor_marker).await;
 		});
 		marker
 	}
@@ -678,11 +736,10 @@ impl Service {
 		id: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
-		let monitor = self.new_progress_monitor(format!(
-			"Send {} events to appservice {}",
-			events.len(),
-			id
-		));
+		let monitor = self.new_progress_monitor(
+			format!("Send {} events to appservice {}", events.len(), id),
+			Duration::from_secs(5),
+		);
 		let Some(appservice) = self.services.appservice.get_registration(&id).await else {
 			monitor.notify_one();
 			return Err((
@@ -759,10 +816,10 @@ impl Service {
 		pushkey: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
-		let monitor = self.new_progress_monitor(format!(
-			"Send {} events to pusher {pushkey} for {user_id}",
-			events.len(),
-		));
+		let monitor = self.new_progress_monitor(
+			format!("Send {} events to pusher {pushkey} for {user_id}", events.len()),
+			Duration::from_secs(5),
+		);
 		let Ok(pusher) = self.services.pusher.get_pusher(&user_id, &pushkey).await else {
 			monitor.notify_one();
 			return Err((
@@ -832,16 +889,18 @@ impl Service {
 		server: OwnedServerName,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
-		let master_monitor = self.new_progress_monitor(format!(
-			"Dispatch {} events to {server} (overall)",
-			events.len()
-		));
+		let master_monitor = self.new_progress_monitor(
+			format!("Dispatch {} events to {server} (overall)", events.len()),
+			Duration::from_secs(70),
+		);
 		defer! {{
 			master_monitor.notify_one();
 		}}
 
-		let monitor =
-			self.new_progress_monitor(format!("Get {} events to send to {server}", events.len()));
+		let monitor = self.new_progress_monitor(
+			format!("Get {} events to send to {server}", events.len()),
+			Duration::from_secs(5),
+		);
 		let pdus: Vec<_> = events
 			.iter()
 			.filter_map(|pdu| match pdu {
@@ -884,12 +943,15 @@ impl Service {
 		request.pdus = pdus;
 		request.edus = edus;
 
-		let monitor = self.new_progress_monitor(format!(
-			"Send {} events ({} PDUs, {} EDUs) to {server}",
-			events.len(),
-			request.pdus.len(),
-			request.edus.len(),
-		));
+		let monitor = self.new_progress_monitor(
+			format!(
+				"Send {} events ({} PDUs, {} EDUs) to {server}",
+				events.len(),
+				request.pdus.len(),
+				request.edus.len(),
+			),
+			Duration::from_mins(1),
+		);
 		let result = self
 			.services
 			.federation
@@ -958,7 +1020,11 @@ impl Service {
 /// seconds if the progress monitor is not marked as finished via the
 /// marker.
 /// Progress monitoring starts immediately.
-async fn progress_monitor(task_name: &str, marker: Arc<tokio::sync::Notify>) {
+async fn progress_monitor(
+	task_name: &str,
+	tolerance: Duration,
+	marker: Arc<tokio::sync::Notify>,
+) {
 	// TODO: this might be useful in more places than the sender service.
 	// Only temporary for diagnostic purposes rn
 	let start = Instant::now();
@@ -967,21 +1033,41 @@ async fn progress_monitor(task_name: &str, marker: Arc<tokio::sync::Notify>) {
 		select! {
 			_ = interval.tick() => {
 				let elapsed = start.elapsed();
-				if elapsed.as_secs() > 60 {
+				if elapsed > tolerance {
 					warn!(
 						%task_name,
 						?elapsed,
+						?tolerance,
 						"Task has been running for a long time (stuck?)"
 					);
 				} else {
 					trace!(
 						%task_name,
 						?elapsed,
+						?tolerance,
 						"Task is still running"
 					);
 				}
 			},
-			() = marker.notified() => return
+			() = marker.notified() => {
+								let elapsed = start.elapsed();
+				if elapsed > tolerance {
+					warn!(
+						%task_name,
+						?elapsed,
+						?tolerance,
+						"Task took a long time (but didn't get stuck)"
+					);
+				} else {
+					trace!(
+						%task_name,
+						?elapsed,
+						?tolerance,
+						"Task finished"
+					);
+				}
+				break;
+			}
 		}
 	}
 }
