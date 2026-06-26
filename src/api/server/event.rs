@@ -44,7 +44,7 @@ pub(crate) async fn get_event_route(
 		room_id,
 		event_id: Some(&body.event_id),
 	}
-	.check()
+	.assert()
 	.await?;
 
 	if !services
