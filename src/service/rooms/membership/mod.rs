@@ -282,8 +282,7 @@ impl Service {
 			remote_servers = %servers.len(),
 			"Could not join room locally, attempting remote join",
 		);
-		self.join_remote_room(sender_user, room_id, reason, servers, state_lock)
-			.await
+		Box::pin(self.join_remote_room(sender_user, room_id, reason, servers, state_lock)).await
 	}
 
 	#[tracing::instrument(skip_all, fields(%sender_user, %room_id), name = "join_remote_room", level = "info")]
