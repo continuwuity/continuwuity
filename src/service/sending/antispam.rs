@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, debug_info, err, utils, utils::response::LimitReadExt, warn};
+use conduwuit::{Err, Result, debug_info, err, utils::response::LimitReadExt};
 use reqwest::Client;
 use ruma::api::{
 	IncomingResponse, OutgoingRequest,

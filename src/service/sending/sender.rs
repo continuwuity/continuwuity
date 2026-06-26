@@ -1,7 +1,6 @@
 use std::{
 	collections::{BTreeMap, HashMap, HashSet},
 	fmt::Debug,
-	future::ready,
 	sync::{
 		Arc,
 		atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -11,13 +10,11 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit::{
-	debug_error, debug_info, debug_warn, info,
-	utils::time::exponential_backoff::min_exp_backoff_duration,
+	debug_info, debug_warn, info, utils::time::exponential_backoff::min_exp_backoff_duration,
 };
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	result::LogErr,
-	trace,
 	utils::{
 		ReadyExt, calculate_hash, continue_exponential_backoff_secs,
 		future::TryExtExt,
@@ -33,7 +30,7 @@ use futures::{
 };
 use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId,
-	RoomId, RoomVersionId, ServerName, UInt,
+	RoomId, ServerName, UInt,
 	api::{
 		appservice::event::push_events::v1::EphemeralData,
 		federation::transactions::{
@@ -164,10 +161,11 @@ impl Service {
 	}
 
 	/// Handles a successful response, queueing up more sends if necessary.
+	#[allow(clippy::needless_pass_by_ref_mut)]
 	async fn handle_response_ok<'a>(
 		&'a self,
 		dest: &Destination,
-		futures: &SendingFutures<'a>,
+		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
 		let _cork = self.db.db.cork();
@@ -196,10 +194,11 @@ impl Service {
 	/// no new events to send the destination, it is removed from the status map
 	/// instead.
 	#[tracing::instrument(name = "request", level = "debug", skip_all)]
+	#[allow(clippy::needless_pass_by_ref_mut)]
 	async fn handle_request<'a>(
 		&'a self,
 		msg: Msg,
-		futures: &SendingFutures<'a>,
+		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
 		let iv = vec![(msg.queue_id, msg.event)];
