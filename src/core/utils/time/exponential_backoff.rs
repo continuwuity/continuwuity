@@ -27,3 +27,12 @@ pub fn continue_exponential_backoff(
 	let min = cmp::min(min, max);
 	elapsed < min
 }
+
+/// Determines the minimum number of backoff seconds
+#[must_use]
+pub fn min_exp_backoff_duration(min: u64, max: u64, retries: u32) -> Duration {
+	let min = Duration::from_secs(min)
+		.saturating_mul(retries)
+		.saturating_mul(retries);
+	Duration::from_secs(max).min(min)
+}
