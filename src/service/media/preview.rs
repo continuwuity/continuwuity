@@ -123,7 +123,6 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-
 	pub async fn download_image(
 		&self,
 		url: &str,
@@ -179,7 +178,6 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-
 	pub async fn download_video(
 		&self,
 		url: &str,
@@ -197,7 +195,6 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-
 	pub async fn download_audio(
 		&self,
 		url: &str,
@@ -215,7 +212,6 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-
 	pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 		use conduwuit::utils::random_string;
 		use http::header::CONTENT_TYPE;
@@ -278,7 +274,6 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-
 	async fn download_html(&self, url: &str) -> Result<UrlPreviewData> {
 		use webpage::HTML;
 

@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, implement, is_false};
+use conduwuit::{Err, Result, is_false};
 use conduwuit_service::Services;
 use futures::{FutureExt, future::OptionFuture, join};
 use ruma::{EventId, RoomId, ServerName};
@@ -10,7 +10,7 @@ pub(super) struct AccessCheck<'a> {
 	pub(super) event_id: Option<&'a EventId>,
 }
 
-impl<'a> AccessCheck {
+impl AccessCheck<'_> {
 	/// Asserts that the server has access to the room and event (if any).
 	/// If the server is permitted, `Ok(())` is returned. Otherwise, a Forbidden
 	/// error is returned.
