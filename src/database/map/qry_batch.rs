@@ -32,30 +32,31 @@ where
 	}
 }
 
-#[implement(super::Map)]
-#[tracing::instrument(skip(self, keys), level = "trace")]
-pub(crate) fn qry_batch<'a, S, K>(
-	self: &'a Arc<Self>,
-	keys: S,
-) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a
-where
-	S: Stream<Item = K> + Send + 'a,
-	K: Serialize + Debug + 'a,
-{
-	use crate::pool::Get;
+impl super::Map {
+	#[tracing::instrument(skip(self, keys), level = "trace")]
+	pub(crate) fn qry_batch<'a, S, K>(
+		self: &'a Arc<Self>,
+		keys: S,
+	) -> impl Stream<Item = Result<Handle<'a>>> + Send + 'a
+	where
+		S: Stream<Item = K> + Send + 'a,
+		K: Serialize + Debug + 'a,
+	{
+		use crate::pool::Get;
 
-	keys.ready_chunks(automatic_amplification())
-		.widen_then(automatic_width(), |chunk| {
-			let keys = chunk
-				.iter()
-				.map(ser::serialize_to::<KeyBuf, _>)
-				.map(|result| result.expect("failed to serialize query key"))
-				.collect();
+		keys.ready_chunks(automatic_amplification())
+			.widen_then(automatic_width(), |chunk| {
+				let keys = chunk
+					.iter()
+					.map(ser::serialize_to::<KeyBuf, _>)
+					.map(|result| result.expect("failed to serialize query key"))
+					.collect();
 
-			self.db
-				.pool
-				.execute_get(Get { map: self.clone(), key: keys, res: None })
-		})
-		.map_ok(|results| results.into_iter().stream())
-		.try_flatten()
+				self.db
+					.pool
+					.execute_get(Get { map: self.clone(), key: keys, res: None })
+			})
+			.map_ok(|results| results.into_iter().stream())
+			.try_flatten()
+	}
 }

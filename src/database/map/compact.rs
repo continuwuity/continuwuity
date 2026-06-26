@@ -23,40 +23,41 @@ pub struct Options {
 	pub exclusive: bool,
 }
 
-#[implement(super::Map)]
-#[tracing::instrument(
-	name = "compact",
-	level = "info",
-	skip(self),
-	fields(%self),
-)]
-pub fn compact_blocking(&self, opts: Options) -> Result {
-	let mut co = CompactOptions::default();
-	co.set_exclusive_manual_compaction(opts.exclusive);
-	co.set_bottommost_level_compaction(match opts.exhaustive {
-		| true => BottommostLevelCompaction::Force,
-		| false => BottommostLevelCompaction::ForceOptimized,
-	});
+impl super::Map {
+	#[tracing::instrument(
+		name = "compact",
+		skip(self),
+		fields(%self),
+	)]
+	pub fn compact_blocking(&self, opts: Options) -> Result {
+		let mut co = CompactOptions::default();
+		co.set_exclusive_manual_compaction(opts.exclusive);
+		co.set_bottommost_level_compaction(match opts.exhaustive {
+			| true => BottommostLevelCompaction::Force,
+			| false => BottommostLevelCompaction::ForceOptimized,
+		});
 
-	match opts.level {
-		| (None, None) => {
-			co.set_change_level(true);
-			co.set_target_level(-1);
-		},
-		| (None, Some(level)) => {
-			co.set_change_level(true);
-			co.set_target_level(level.try_into()?);
-		},
-		| (Some(level), None) => {
-			co.set_change_level(false);
-			co.set_target_level(level.try_into()?);
-		},
-		| (Some(_), Some(_)) => return Err!("compacting between specific levels not supported"),
+		match opts.level {
+			| (None, None) => {
+				co.set_change_level(true);
+				co.set_target_level(-1);
+			},
+			| (None, Some(level)) => {
+				co.set_change_level(true);
+				co.set_target_level(level.try_into()?);
+			},
+			| (Some(level), None) => {
+				co.set_change_level(false);
+				co.set_target_level(level.try_into()?);
+			},
+			| (Some(_), Some(_)) =>
+				return Err!("compacting between specific levels not supported"),
+		}
+
+		self.db
+			.db
+			.compact_range_cf_opt(&self.cf(), opts.range.0, opts.range.1, &co);
+
+		Ok(())
 	}
-
-	self.db
-		.db
-		.compact_range_cf_opt(&self.cf(), opts.range.0, opts.range.1, &co);
-
-	Ok(())
 }
