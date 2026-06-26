@@ -738,7 +738,7 @@ impl Service {
 	) -> SendingResult {
 		let monitor = self.new_progress_monitor(
 			format!("Send {} events to appservice {}", events.len(), id),
-			Duration::from_secs(5),
+			Duration::from_secs(self.server.config.sender_timeout),
 		);
 		let Some(appservice) = self.services.appservice.get_registration(&id).await else {
 			monitor.notify_one();
@@ -816,17 +816,16 @@ impl Service {
 		pushkey: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
-		let monitor = self.new_progress_monitor(
-			format!("Send {} events to pusher {pushkey} for {user_id}", events.len()),
-			Duration::from_secs(5),
-		);
 		let Ok(pusher) = self.services.pusher.get_pusher(&user_id, &pushkey).await else {
-			monitor.notify_one();
 			return Err((
 				Destination::Push(user_id.clone(), pushkey.clone()),
 				err!(Database(error!(%user_id, ?pushkey, "Missing pusher"))),
 			));
 		};
+		let monitor = self.new_progress_monitor(
+			format!("Send {} events to pusher {} for {user_id}", pusher.ids.app_id, events.len()),
+			Duration::from_secs(self.server.config.sender_timeout),
+		);
 
 		let mut pdus = Vec::with_capacity(
 			events
@@ -891,7 +890,7 @@ impl Service {
 	) -> SendingResult {
 		let master_monitor = self.new_progress_monitor(
 			format!("Dispatch {} events to {server} (overall)", events.len()),
-			Duration::from_secs(70),
+			Duration::from_secs(self.server.config.sender_timeout),
 		);
 		defer! {{
 			master_monitor.notify_one();
@@ -950,7 +949,7 @@ impl Service {
 				request.pdus.len(),
 				request.edus.len(),
 			),
-			Duration::from_mins(1),
+			Duration::from_secs(self.server.config.sender_timeout),
 		);
 		let result = self
 			.services
