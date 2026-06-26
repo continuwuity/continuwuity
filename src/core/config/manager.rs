@@ -10,7 +10,7 @@ use std::{
 };
 
 use super::Config;
-use crate::{Result, implement};
+use crate::Result;
 
 /// The configuration manager is an indirection to reload the configuration for
 /// the server while it is running. In order to not burden or clutter the many
@@ -39,6 +39,48 @@ impl Manager {
 			active: AtomicPtr::new(Arc::into_raw(config).cast_mut()),
 		}
 	}
+
+	/// Update the active configuration, returning prior configuration.
+	#[tracing::instrument(skip_all, level = "info")]
+	pub fn update(&self, config: Config) -> Result<Arc<Config>> {
+		let config = Arc::new(config);
+		let new = Arc::into_raw(config);
+		let old = self.active.swap(new.cast_mut(), Ordering::AcqRel);
+
+		// SAFETY: The old active pointer was set using an Arc::into_raw(). We're
+		// obliged to reconstitute that into Arc otherwise it will leak.
+		Ok(unsafe { Arc::from_raw(old) })
+	}
+
+	fn load(&self, handle: &mut [Option<Arc<Config>>]) -> &'static Arc<Config> {
+		let config = self.active.load(Ordering::Acquire);
+
+		// Branch taken after config reload or first access by this thread.
+		if handle[INDEX.get()]
+			.as_ref()
+			.is_none_or(|handle| !ptr::eq(config, Arc::as_ptr(handle)))
+		{
+			INDEX.set(INDEX.get().wrapping_add(1).wrapping_rem(HISTORY));
+			return load_miss(handle, INDEX.get(), config);
+		}
+
+		let config: &Arc<Config> = handle[INDEX.get()]
+			.as_ref()
+			.expect("handle was already cached for this thread");
+
+		// SAFETY: The caller should not hold multiple references at a time directly
+		// into Config, as a subsequent reference might invalidate the thread's cache
+		// causing another reference to dangle.
+		//
+		// This is a highly unusual pattern as most config values are copied by value or
+		// used immediately without running overlap with another value. Even if it does
+		// actually occur somewhere, the window of danger is limited to the config being
+		// reloaded while the reference is held and another access is made by the same
+		// thread into a different config value. This is mitigated by creating a buffer
+		// of old configs rather than discarding at the earliest opportunity; the odds
+		// of this scenario are thus astronomical.
+		unsafe { std::mem::transmute(config) }
+	}
 }
 
 impl Drop for Manager {
@@ -55,50 +97,6 @@ impl Deref for Manager {
 	type Target = Arc<Config>;
 
 	fn deref(&self) -> &Self::Target { HANDLE.with_borrow_mut(|handle| self.load(handle)) }
-}
-
-/// Update the active configuration, returning prior configuration.
-#[implement(Manager)]
-#[tracing::instrument(skip_all, level = "info")]
-pub fn update(&self, config: Config) -> Result<Arc<Config>> {
-	let config = Arc::new(config);
-	let new = Arc::into_raw(config);
-	let old = self.active.swap(new.cast_mut(), Ordering::AcqRel);
-
-	// SAFETY: The old active pointer was set using an Arc::into_raw(). We're
-	// obliged to reconstitute that into Arc otherwise it will leak.
-	Ok(unsafe { Arc::from_raw(old) })
-}
-
-#[implement(Manager)]
-fn load(&self, handle: &mut [Option<Arc<Config>>]) -> &'static Arc<Config> {
-	let config = self.active.load(Ordering::Acquire);
-
-	// Branch taken after config reload or first access by this thread.
-	if handle[INDEX.get()]
-		.as_ref()
-		.is_none_or(|handle| !ptr::eq(config, Arc::as_ptr(handle)))
-	{
-		INDEX.set(INDEX.get().wrapping_add(1).wrapping_rem(HISTORY));
-		return load_miss(handle, INDEX.get(), config);
-	}
-
-	let config: &Arc<Config> = handle[INDEX.get()]
-		.as_ref()
-		.expect("handle was already cached for this thread");
-
-	// SAFETY: The caller should not hold multiple references at a time directly
-	// into Config, as a subsequent reference might invalidate the thread's cache
-	// causing another reference to dangle.
-	//
-	// This is a highly unusual pattern as most config values are copied by value or
-	// used immediately without running overlap with another value. Even if it does
-	// actually occur somewhere, the window of danger is limited to the config being
-	// reloaded while the reference is held and another access is made by the same
-	// thread into a different config value. This is mitigated by creating a buffer
-	// of old configs rather than discarding at the earliest opportunity; the odds
-	// of this scenario are thus astronomical.
-	unsafe { std::mem::transmute(config) }
 }
 
 #[tracing::instrument(
