@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{
-	Err, Result, debug_info, debug_warn, error, implement, matrix::pdu::PartialPdu, warn,
-};
+use conduwuit::{Err, Result, debug_info, debug_warn, error, matrix::pdu::PartialPdu, warn};
 use ruma::{
-	RoomId, UserId,
+	Int, RoomId, UserId,
 	events::{
 		RoomAccountDataEventType, StateEventType,
 		room::{
@@ -13,205 +11,241 @@ use ruma::{
 		},
 		tag::{TagEvent, TagEventContent, TagInfo},
 	},
+	int,
 };
 
-/// Invite the user to the conduwuit admin room.
-///
-/// This is equivalent to granting server admin privileges.
-#[implement(super::Service)]
-pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
-	let Ok(room_id) = self.get_admin_room().await else {
-		debug_warn!(
-			"make_user_admin was called without an admin room being available or created"
-		);
-		return Ok(());
-	};
-
-	let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
-
-	if self.services.state_cache.is_joined(user_id, &room_id).await {
-		return Err!(debug_warn!("User is already joined in the admin room"));
-	}
-	if self
-		.services
-		.state_cache
-		.is_invited(user_id, &room_id)
-		.await
-	{
-		return Err!(debug_warn!("User is already pending an invitation to the admin room"));
-	}
-
-	// Use the server user to grant the new admin's power level
-	let server_user = self.services.globals.server_user.as_ref();
-
-	// if this is our local user, just forcefully join them in the room. otherwise,
-	// invite the remote user.
-	if self.services.globals.user_is_local(user_id) {
-		debug_info!("Inviting local user {user_id} to admin room {room_id}");
-		self.services
-			.timeline
-			.build_and_append_pdu(
-				PartialPdu::state(
-					String::from(user_id),
-					&RoomMemberEventContent::new(MembershipState::Invite),
-				),
-				server_user,
-				Some(&room_id),
-				&state_lock,
-			)
-			.await?;
-
-		debug_info!("Force joining local user {user_id} to admin room {room_id}");
-		self.services
-			.timeline
-			.build_and_append_pdu(
-				PartialPdu::state(
-					String::from(user_id),
-					&RoomMemberEventContent::new(MembershipState::Join),
-				),
-				user_id,
-				Some(&room_id),
-				&state_lock,
-			)
-			.await?;
-	} else {
-		debug_info!("Inviting remote user {user_id} to admin room {room_id}");
-		self.services
-			.timeline
-			.build_and_append_pdu(
-				PartialPdu::state(
-					user_id.to_string(),
-					&RoomMemberEventContent::new(MembershipState::Invite),
-				),
-				server_user,
-				Some(&room_id),
-				&state_lock,
-			)
-			.await?;
-	}
-
-	// Set power levels
-	let mut room_power_levels = self
-		.services
-		.state_accessor
-		.room_state_get_content::<RoomPowerLevelsEventContent>(
-			&room_id,
-			&StateEventType::RoomPowerLevels,
-			"",
-		)
-		.await
-		.expect("admin room should have power levels");
-
-	room_power_levels
-		.users
-		.insert(server_user.into(), 69420.into());
-	room_power_levels.users.insert(user_id.into(), 100.into());
-
-	self.services
-		.timeline
-		.build_and_append_pdu(
-			PartialPdu::state(String::new(), &room_power_levels),
-			server_user,
-			Some(&room_id),
-			&state_lock,
-		)
-		.await?;
-
-	// Set room tag
-	let room_tag = self.services.server.config.admin_room_tag.as_str();
-	if !room_tag.is_empty() {
-		if let Err(e) = self.set_room_tag(&room_id, user_id, room_tag).await {
-			error!(%room_id, %user_id, %room_tag, "Failed to set tag for admin grant: {e}");
-		}
-	}
-
-	Ok(())
-}
-
-#[implement(super::Service)]
-async fn set_room_tag(&self, room_id: &RoomId, user_id: &UserId, tag: &str) -> Result {
-	let mut event = self
-		.services
-		.account_data
-		.get_room(room_id, user_id, RoomAccountDataEventType::Tag)
-		.await
-		.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
-
-	event
-		.content
-		.tags
-		.insert(tag.to_owned().into(), TagInfo::new());
-
-	self.services
-		.account_data
-		.update(
-			Some(room_id),
-			user_id,
-			RoomAccountDataEventType::Tag,
-			&serde_json::to_value(event)?,
-		)
-		.await
-}
-
-/// Demote an admin, removing its rights.
-#[implement(super::Service)]
-pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
-	use MembershipState::{Invite, Join, Knock, Leave};
-
-	if self
-		.services
-		.server
-		.config
-		.admins_list
-		.contains(&user_id.to_owned())
-	{
-		warn!(
-			"Revoking the admin status of {user_id} will not work correctly as they are within \
-			 the admins_list config."
-		);
-	}
-
-	let Ok(room_id) = self.get_admin_room().await else {
-		return Err!(error!("No admin room available or created."));
-	};
-
-	let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
-
-	let mut member_content = match self
-		.services
-		.state_accessor
-		.get_member(&room_id, user_id)
-		.await
-	{
-		| Err(e) if e.is_not_found() => return Err!("{user_id} was never an admin."),
-
-		| Err(e) => return Err!(error!(?e, "Failure occurred while attempting revoke.")),
-
-		| Ok(event) if !matches!(event.membership, Invite | Knock | Join) => {
-			return Err!("Cannot revoke {user_id} in membership state {:?}.", event.membership);
-		},
-
-		| Ok(event) => {
-			assert!(
-				matches!(event.membership, Invite | Knock | Join),
-				"Incorrect membership state to remove user."
+impl super::Service {
+	/// Invite the user to the conduwuit admin room.
+	///
+	/// This is equivalent to granting server admin privileges.
+	pub async fn make_user_admin(&self, user_id: &UserId) -> Result {
+		let Ok(room_id) = self.get_admin_room().await else {
+			debug_warn!(
+				"make_user_admin was called without an admin room being available or created"
 			);
+			return Ok(());
+		};
 
-			event
-		},
-	};
+		let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
 
-	member_content.membership = Leave;
-	member_content.reason = Some("Admin Revoked".to_owned());
+		if self.services.state_cache.is_joined(user_id, &room_id).await {
+			return Err!(debug_warn!("User is already joined in the admin room"));
+		}
+		if self
+			.services
+			.state_cache
+			.is_invited(user_id, &room_id)
+			.await
+		{
+			return Err!(debug_warn!("User is already pending an invitation to the admin room"));
+		}
 
-	self.services
-		.timeline
-		.build_and_append_pdu(
-			PartialPdu::state(user_id.to_string(), &member_content),
-			self.services.globals.server_user.as_ref(),
-			Some(&room_id),
-			&state_lock,
-		)
-		.await
-		.map(|_| ())
+		// Use the server user to grant the new admin's power level
+		let server_user = self.services.globals.server_user.as_ref();
+
+		// if this is our local user, just forcefully join them in the room. otherwise,
+		// invite the remote user.
+		if self.services.globals.user_is_local(user_id) {
+			debug_info!("Inviting local user {user_id} to admin room {room_id}");
+			self.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(
+						String::from(user_id),
+						&RoomMemberEventContent::new(MembershipState::Invite),
+					),
+					server_user,
+					Some(&room_id),
+					&state_lock,
+				)
+				.await?;
+
+			debug_info!("Force joining local user {user_id} to admin room {room_id}");
+			self.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(
+						String::from(user_id),
+						&RoomMemberEventContent::new(MembershipState::Join),
+					),
+					user_id,
+					Some(&room_id),
+					&state_lock,
+				)
+				.await?;
+		} else {
+			debug_info!("Inviting remote user {user_id} to admin room {room_id}");
+			self.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(
+						user_id.to_string(),
+						&RoomMemberEventContent::new(MembershipState::Invite),
+					),
+					server_user,
+					Some(&room_id),
+					&state_lock,
+				)
+				.await?;
+		}
+
+		// Set power levels
+		let mut room_power_levels = self
+			.services
+			.state_accessor
+			.room_state_get_content::<RoomPowerLevelsEventContent>(
+				&room_id,
+				&StateEventType::RoomPowerLevels,
+				"",
+			)
+			.await
+			.expect("admin room should have power levels");
+
+		let server_user_power_level = room_power_levels
+			.users
+			.get(server_user)
+			.copied()
+			.unwrap_or(Int::MAX);
+		room_power_levels
+			.users
+			.insert(user_id.into(), server_user_power_level.saturating_sub(int!(1)));
+
+		self.services
+			.timeline
+			.build_and_append_pdu(
+				PartialPdu::state(String::new(), &room_power_levels),
+				server_user,
+				Some(&room_id),
+				&state_lock,
+			)
+			.await?;
+
+		// Set room tag
+		let room_tag = self.services.server.config.admin_room_tag.as_str();
+		if !room_tag.is_empty() {
+			if let Err(e) = self.set_room_tag(&room_id, user_id, room_tag).await {
+				error!(%room_id, %user_id, %room_tag, "Failed to set tag for admin grant: {e}");
+			}
+		}
+
+		Ok(())
+	}
+
+	async fn set_room_tag(&self, room_id: &RoomId, user_id: &UserId, tag: &str) -> Result {
+		let mut event = self
+			.services
+			.account_data
+			.get_room(room_id, user_id, RoomAccountDataEventType::Tag)
+			.await
+			.unwrap_or_else(|_| TagEvent::new(TagEventContent::new(BTreeMap::new())));
+
+		event
+			.content
+			.tags
+			.insert(tag.to_owned().into(), TagInfo::new());
+
+		self.services
+			.account_data
+			.update(
+				Some(room_id),
+				user_id,
+				RoomAccountDataEventType::Tag,
+				&serde_json::to_value(event)?,
+			)
+			.await
+	}
+
+	/// Demote an admin, removing its rights.
+	pub async fn revoke_admin(&self, user_id: &UserId) -> Result {
+		use MembershipState::{Invite, Join, Knock, Leave};
+
+		if self
+			.services
+			.server
+			.config
+			.admins_list
+			.contains(&user_id.to_owned())
+		{
+			warn!(
+				"Revoking the admin status of {user_id} will not work correctly as they are \
+				 within the admins_list config."
+			);
+		}
+
+		let Ok(room_id) = self.get_admin_room().await else {
+			return Err!(error!("No admin room available or created."));
+		};
+
+		let state_lock = self.services.state.mutex.lock(room_id.as_str()).await;
+
+		let mut room_power_levels = self
+			.services
+			.state_accessor
+			.room_state_get_content::<RoomPowerLevelsEventContent>(
+				&room_id,
+				&StateEventType::RoomPowerLevels,
+				"",
+			)
+			.await
+			.expect("admin room should have power levels");
+		if room_power_levels.users.remove(user_id).is_some() {
+			// drop the target's power level
+			self.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu::state(String::new(), &room_power_levels),
+					self.services.globals.server_user.as_ref(),
+					Some(&room_id),
+					&state_lock,
+				)
+				.await
+				.inspect_err(|e| {
+					error!(?e, "Failed to update power levels while revoking admin.");
+				})
+				.ok();
+			// Don't treat this as fatal. removing them from the room is more
+			// important.
+		}
+
+		let mut member_content = match self
+			.services
+			.state_accessor
+			.get_member(&room_id, user_id)
+			.await
+		{
+			| Err(e) if e.is_not_found() => return Err!("{user_id} was never an admin."),
+
+			| Err(e) => return Err!(error!(?e, "Failure occurred while attempting revoke.")),
+
+			| Ok(event) if !matches!(event.membership, Invite | Knock | Join) => {
+				return Err!(
+					"Cannot revoke {user_id} in membership state {:?}.",
+					event.membership
+				);
+			},
+
+			| Ok(event) => {
+				assert!(
+					matches!(event.membership, Invite | Knock | Join),
+					"Incorrect membership state to remove user."
+				);
+
+				event
+			},
+		};
+
+		member_content.membership = Leave;
+		member_content.reason = Some("Admin Revoked".to_owned());
+
+		self.services
+			.timeline
+			.build_and_append_pdu(
+				PartialPdu::state(user_id.to_string(), &member_content),
+				self.services.globals.server_user.as_ref(),
+				Some(&room_id),
+				&state_lock,
+			)
+			.await
+			.map(|_| ())
+	}
 }

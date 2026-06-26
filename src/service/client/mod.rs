@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use conduwuit::{Config, Result, err, implement, trace};
+use conduwuit::{Config, Result, err, trace};
 use either::Either;
 use ipaddress::IPAddress;
 use reqwest::redirect;
@@ -141,6 +141,16 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { service::make_name(std::module_path!()) }
 }
 
+impl Service {
+	#[inline]
+	#[must_use]
+	pub fn valid_cidr_range(&self, ip: &IPAddress) -> bool {
+		self.cidr_range_denylist
+			.iter()
+			.all(|cidr| !cidr.includes(ip))
+	}
+}
+
 fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
 	let mut builder = reqwest::Client::builder()
 		.hickory_dns(true)
@@ -226,13 +236,4 @@ fn builder_interface(
 	} else {
 		Ok(builder)
 	}
-}
-
-#[inline]
-#[must_use]
-#[implement(Service)]
-pub fn valid_cidr_range(&self, ip: &IPAddress) -> bool {
-	self.cidr_range_denylist
-		.iter()
-		.all(|cidr| !cidr.includes(ip))
 }
