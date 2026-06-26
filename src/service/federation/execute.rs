@@ -1,8 +1,9 @@
-use std::{borrow::Cow, fmt::Debug, mem};
+use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
 use bytes::Bytes;
 use conduwuit::{
-	Err, Error, Result, debug, debug_error, debug_warn, err, trace, utils::response::LimitReadExt,
+	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, trace,
+	utils::response::LimitReadExt,
 };
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
@@ -20,7 +21,7 @@ use ruma::{
 use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};
 
 impl super::Service {
-	/// Sends a request to a federation server
+	/// Sends a signed request to a remote server over federation.
 	#[tracing::instrument(skip_all, name = "request", level = "debug")]
 	pub async fn execute<'i, T>(
 		&self,
@@ -38,7 +39,8 @@ impl super::Service {
 		self.execute_signed(client, dest, request).await
 	}
 
-	/// Like execute() but with a very large timeout
+	/// Sends a signed request to a remote server over federation, with a
+	/// significantly higher timeout to account for slow endpoints.
 	#[tracing::instrument(skip_all, name = "request_slow", level = "debug")]
 	pub async fn execute_slow<'i, T>(
 		&self,
@@ -56,6 +58,8 @@ impl super::Service {
 		self.execute_signed(client, dest, request).await
 	}
 
+	/// Sends an unsigned (unauthenticated) request to a remote server over
+	/// federation.
 	pub async fn execute_unauthenticated<'i, T>(
 		&self,
 		dest: &ServerName,
@@ -73,6 +77,8 @@ impl super::Service {
 		self.execute_on(client, dest, request, ()).await
 	}
 
+	/// Sends a signed request to a remote server over federation, given the
+	/// specific client.
 	pub async fn execute_signed<'i, T>(
 		&self,
 		client: &Client,
@@ -94,6 +100,10 @@ impl super::Service {
 		self.execute_on(client, dest, request, authentication).await
 	}
 
+	/// Prepares and sends a federation request with the given client.
+	/// If federation is disabled, an error is returned here. Likewise, if the
+	/// destination is forbidden.
+	/// Preparation includes resolving the server before sending the request.
 	#[tracing::instrument(
 		name = "fed",
 		level = "info",
@@ -133,6 +143,10 @@ impl super::Service {
 		self.perform::<T>(dest, &actual, request, client).await
 	}
 
+	/// Actually sends the federation request, handling the response before
+	/// returning.
+	///
+	/// Timing info and request logs are available when debug logs are enabled.
 	async fn perform<T>(
 		&self,
 		dest: &ServerName,
@@ -146,8 +160,20 @@ impl super::Service {
 		let url = request.url().clone();
 		let method = request.method().clone();
 
-		debug!(%method, %url, "Sending request");
-		match client.execute(request).await {
+		debug_info!(
+			"Sending request: {} matrix-federation://{dest}{}",
+			method.as_str(),
+			url.path(),
+		);
+		let start = Instant::now();
+		let response = client.execute(request).await;
+		debug_info!(
+			"Request finished in {:?}: {} matrix-federation://{dest}{}",
+			start.elapsed(),
+			method.as_str(),
+			url.path(),
+		);
+		match response {
 			| Ok(response) =>
 				self.handle_response::<T>(dest, actual, &method, &url, response)
 					.await,
@@ -167,6 +193,8 @@ impl super::Service {
 		Ok(())
 	}
 
+	/// Handles a successful response from a remote server, reading and
+	/// deserializing the response body (if any).
 	async fn handle_response<T>(
 		&self,
 		dest: &ServerName,
