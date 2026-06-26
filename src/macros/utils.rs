@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 
-use syn::{Expr, ExprLit, Generics, Lit, Meta, MetaNameValue, parse_str};
-
-use crate::Result;
+use syn::{Expr, ExprLit, Lit, Meta, MetaNameValue};
 
 pub(crate) fn get_simple_settings(args: &[Meta]) -> HashMap<String, String> {
 	args.iter().fold(HashMap::new(), |mut map, arg| {

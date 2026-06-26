@@ -2,18 +2,9 @@ use itertools::Itertools;
 use proc_macro::{Span, TokenStream};
 use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, quote};
-use syn::{Attribute, Error, Fields, Ident, ItemEnum, ItemFn, Meta, Variant, parse_quote};
+use syn::{Error, Fields, Ident, ItemEnum, Meta, Variant};
 
 use crate::{Result, utils::camel_to_snake_string};
-
-pub(super) fn command(mut item: ItemFn, _args: &[Meta]) -> Result<TokenStream> {
-	let attr: Attribute = parse_quote! {
-		#[conduwuit_macros::implement(crate::Context, params = "<'_>")]
-	};
-
-	item.attrs.push(attr);
-	Ok(item.into_token_stream().into())
-}
 
 pub(super) fn command_dispatch(item: ItemEnum, _args: &[Meta]) -> Result<TokenStream> {
 	let name = &item.ident;

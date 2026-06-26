@@ -3,7 +3,7 @@ use futures::StreamExt;
 
 use crate::Context;
 
-impl Context {
+impl Context<'_> {
 	pub(super) async fn check_all_users(&self) -> Result {
 		let timer = tokio::time::Instant::now();
 		let users = self.services.users.stream().collect::<Vec<_>>().await;

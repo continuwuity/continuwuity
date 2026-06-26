@@ -1,6 +1,6 @@
 use conduwuit::{Err, Result};
 
-use crate::{admin_command, admin_command_dispatch};
+use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, clap::Subcommand)]
@@ -11,37 +11,32 @@ pub enum TesterCommand {
 	Timer,
 }
 
-#[rustfmt::skip]
-#[admin_command]
-async fn panic(&self) -> Result {
+impl crate::Context<'_> {
+	#[rustfmt::skip]
+	async fn panic(&self) -> Result {
+		panic!("panicked")
+	}
 
-	panic!("panicked")
-}
+	#[rustfmt::skip]
+	async fn failure(&self) -> Result {
+		Err!("failed")
+	}
 
-#[rustfmt::skip]
-#[admin_command]
-async fn failure(&self) -> Result {
+	#[inline(never)]
+	#[rustfmt::skip]
+	async fn tester(&self) -> Result {
+		self.write_str("Ok").await
+	}
 
-	Err!("failed")
-}
+	#[inline(never)]
+	#[rustfmt::skip]
+	async fn timer(&self) -> Result {
+		let started = std::time::Instant::now();
+		timed(self.body);
 
-#[inline(never)]
-#[rustfmt::skip]
-#[admin_command]
-async fn tester(&self) -> Result {
-
-	self.write_str("Ok").await
-}
-
-#[inline(never)]
-#[rustfmt::skip]
-#[admin_command]
-async fn timer(&self) -> Result {
-	let started = std::time::Instant::now();
-	timed(self.body);
-
-	let elapsed = started.elapsed();
-	self.write_str(&format!("completed in {elapsed:#?}")).await
+		let elapsed = started.elapsed();
+		self.write_str(&format!("completed in {elapsed:#?}")).await
+	}
 }
 
 #[inline(never)]

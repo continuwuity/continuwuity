@@ -3,7 +3,7 @@ use conduwuit::{PduCount, Result, utils::stream::TryTools};
 use futures::TryStreamExt;
 use ruma::OwnedRoomOrAliasId;
 
-use crate::{admin_command, admin_command_dispatch};
+use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
@@ -23,39 +23,39 @@ pub enum RoomTimelineCommand {
 	},
 }
 
-#[admin_command]
-pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result {
-	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
+impl crate::Context<'_> {
+	pub(super) async fn last(&self, room_id: OwnedRoomOrAliasId) -> Result {
+		let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
-	let result = self
-		.services
-		.rooms
-		.timeline
-		.last_timeline_count(&room_id)
-		.await?;
+		let result = self
+			.services
+			.rooms
+			.timeline
+			.last_timeline_count(&room_id)
+			.await?;
 
-	self.write_str(&format!("{result:#?}")).await
-}
+		self.write_str(&format!("{result:#?}")).await
+	}
 
-#[admin_command]
-pub(super) async fn pdus(
-	&self,
-	room_id: OwnedRoomOrAliasId,
-	from: Option<String>,
-	limit: Option<usize>,
-) -> Result {
-	let room_id = self.services.rooms.alias.resolve(&room_id).await?;
+	pub(super) async fn pdus(
+		&self,
+		room_id: OwnedRoomOrAliasId,
+		from: Option<String>,
+		limit: Option<usize>,
+	) -> Result {
+		let room_id = self.services.rooms.alias.resolve(&room_id).await?;
 
-	let from: Option<PduCount> = from.as_deref().map(str::parse).transpose()?;
+		let from: Option<PduCount> = from.as_deref().map(str::parse).transpose()?;
 
-	let result: Vec<_> = self
-		.services
-		.rooms
-		.timeline
-		.pdus_rev(&room_id, from)
-		.try_take(limit.unwrap_or(3))
-		.try_collect()
-		.await?;
+		let result: Vec<_> = self
+			.services
+			.rooms
+			.timeline
+			.pdus_rev(&room_id, from)
+			.try_take(limit.unwrap_or(3))
+			.try_collect()
+			.await?;
 
-	self.write_str(&format!("```\n{result:#?}\n```")).await
+		self.write_str(&format!("```\n{result:#?}\n```")).await
+	}
 }

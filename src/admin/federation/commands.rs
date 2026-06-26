@@ -4,127 +4,131 @@ use conduwuit::{Err, Result, utils::response::LimitReadExt};
 use futures::StreamExt;
 use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
 
-use crate::{admin_command, get_room_info};
+use crate::get_room_info;
 
-#[admin_command]
-pub(super) async fn disable_room(&self, room_id: OwnedRoomId) -> Result {
-	self.bail_restricted()?;
-	self.services.rooms.metadata.disable_room(&room_id, true);
-	self.write_str("Room disabled.").await
-}
+impl crate::Context<'_> {
+	pub(super) async fn disable_room(&self, room_id: OwnedRoomId) -> Result {
+		self.bail_restricted()?;
+		self.services.rooms.metadata.disable_room(&room_id, true);
+		self.write_str("Room disabled.").await
+	}
 
-#[admin_command]
-pub(super) async fn enable_room(&self, room_id: OwnedRoomId) -> Result {
-	self.bail_restricted()?;
-	self.services.rooms.metadata.disable_room(&room_id, false);
-	self.write_str("Room enabled.").await
-}
+	pub(super) async fn enable_room(&self, room_id: OwnedRoomId) -> Result {
+		self.bail_restricted()?;
+		self.services.rooms.metadata.disable_room(&room_id, false);
+		self.write_str("Room enabled.").await
+	}
 
-#[admin_command]
-pub(super) async fn incoming_federation(&self) -> Result {
-	let msg = {
-		let map = self
+	pub(super) async fn incoming_federation(&self) -> Result {
+		let msg = {
+			let map = self
+				.services
+				.rooms
+				.event_handler
+				.federation_handletime
+				.read();
+
+			let mut msg = format!(
+				"Handling {} incoming PDUs across {} active transactions:\n",
+				map.len(),
+				self.services.transactions.txn_active_handle_count()
+			);
+			for (r, (e, i)) in map.iter() {
+				let elapsed = i.elapsed();
+				writeln!(
+					msg,
+					"{} {}: {}m{}s",
+					r,
+					e,
+					elapsed.as_secs() / 60,
+					elapsed.as_secs() % 60
+				)?;
+			}
+			msg
+		};
+
+		self.write_str(&msg).await
+	}
+
+	pub(super) async fn fetch_support_well_known(&self, server_name: OwnedServerName) -> Result {
+		let response = self
+			.services
+			.client
+			.default
+			.get(format!("https://{server_name}/.well-known/matrix/support"))
+			.send()
+			.await?;
+
+		let text = response
+			.limit_read_text(
+				self.services
+					.config
+					.max_request_size
+					.try_into()
+					.expect("u64 fits into usize"),
+			)
+			.await?;
+
+		if text.is_empty() {
+			return Err!("Response text/body is empty.");
+		}
+
+		if text.len() > 1500 {
+			return Err!(
+				"Response text/body is over 1500 characters, assuming no support well-known.",
+			);
+		}
+
+		let json: serde_json::Value = match serde_json::from_str(&text) {
+			| Ok(json) => json,
+			| Err(_) => {
+				return Err!("Response text/body is not valid JSON.",);
+			},
+		};
+
+		let pretty_json: String = match serde_json::to_string_pretty(&json) {
+			| Ok(json) => json,
+			| Err(_) => {
+				return Err!("Response text/body is not valid JSON.",);
+			},
+		};
+
+		self.write_str(&format!("Got JSON response:\n\n```json\n{pretty_json}\n```"))
+			.await
+	}
+
+	pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result {
+		if user_id.server_name() == self.services.server.name {
+			return Err!(
+				"User belongs to our server, please use `list-joined-rooms` user admin command \
+				 instead.",
+			);
+		}
+
+		let mut rooms: Vec<(OwnedRoomId, u64, String)> = self
 			.services
 			.rooms
-			.event_handler
-			.federation_handletime
-			.read();
+			.state_cache
+			.rooms_joined(&user_id)
+			.then(async |room_id| get_room_info(self.services, &room_id).await)
+			.collect()
+			.await;
 
-		let mut msg = format!(
-			"Handling {} incoming PDUs across {} active transactions:\n",
-			map.len(),
-			self.services.transactions.txn_active_handle_count()
-		);
-		for (r, (e, i)) in map.iter() {
-			let elapsed = i.elapsed();
-			writeln!(msg, "{} {}: {}m{}s", r, e, elapsed.as_secs() / 60, elapsed.as_secs() % 60)?;
+		if rooms.is_empty() {
+			return Err!("User is not in any rooms.");
 		}
-		msg
-	};
 
-	self.write_str(&msg).await
-}
+		rooms.sort_by_key(|r| r.1);
+		rooms.reverse();
 
-#[admin_command]
-pub(super) async fn fetch_support_well_known(&self, server_name: OwnedServerName) -> Result {
-	let response = self
-		.services
-		.client
-		.default
-		.get(format!("https://{server_name}/.well-known/matrix/support"))
-		.send()
-		.await?;
+		let num = rooms.len();
+		let body = rooms
+			.iter()
+			.map(|(id, members, name)| format!("{id} | Members: {members} | Name: {name}"))
+			.collect::<Vec<_>>()
+			.join("\n");
 
-	let text = response
-		.limit_read_text(
-			self.services
-				.config
-				.max_request_size
-				.try_into()
-				.expect("u64 fits into usize"),
-		)
-		.await?;
-
-	if text.is_empty() {
-		return Err!("Response text/body is empty.");
+		self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```"))
+			.await
 	}
-
-	if text.len() > 1500 {
-		return Err!(
-			"Response text/body is over 1500 characters, assuming no support well-known.",
-		);
-	}
-
-	let json: serde_json::Value = match serde_json::from_str(&text) {
-		| Ok(json) => json,
-		| Err(_) => {
-			return Err!("Response text/body is not valid JSON.",);
-		},
-	};
-
-	let pretty_json: String = match serde_json::to_string_pretty(&json) {
-		| Ok(json) => json,
-		| Err(_) => {
-			return Err!("Response text/body is not valid JSON.",);
-		},
-	};
-
-	self.write_str(&format!("Got JSON response:\n\n```json\n{pretty_json}\n```"))
-		.await
-}
-
-#[admin_command]
-pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result {
-	if user_id.server_name() == self.services.server.name {
-		return Err!(
-			"User belongs to our server, please use `list-joined-rooms` user admin command \
-			 instead.",
-		);
-	}
-
-	let mut rooms: Vec<(OwnedRoomId, u64, String)> = self
-		.services
-		.rooms
-		.state_cache
-		.rooms_joined(&user_id)
-		.then(async |room_id| get_room_info(self.services, &room_id).await)
-		.collect()
-		.await;
-
-	if rooms.is_empty() {
-		return Err!("User is not in any rooms.");
-	}
-
-	rooms.sort_by_key(|r| r.1);
-	rooms.reverse();
-
-	let num = rooms.len();
-	let body = rooms
-		.iter()
-		.map(|(id, members, name)| format!("{id} | Members: {members} | Name: {name}"))
-		.collect::<Vec<_>>()
-		.join("\n");
-
-	self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```"))
-		.await
 }
