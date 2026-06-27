@@ -534,9 +534,9 @@ impl crate::Context<'_> {
 
 		let json = serde_json::to_string_pretty(&pdus).map_err(|e| {
 			err!(Database(
-			"Failed to convert room state events to pretty JSON, possible invalid room state \
-			 events in our database {e}",
-		))
+				"Failed to convert room state events to pretty JSON, possible invalid room \
+				 state events in our database {e}",
+			))
 		})?;
 
 		let out = format!("```json\n{json}\n```");
