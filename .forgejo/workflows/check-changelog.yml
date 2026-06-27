@@ -21,7 +21,7 @@ jobs:
           git config --global http.${{ github.server_url }}/.extraheader "Authorization: basic $AUTH"
           git clone "${{ github.event.repository.clone_url }}" repo.git --bare
 
-          git -C repo.git fetch origin refs/pull/${{ github.event.pull_request.number }}/merge
+          git -C repo.git fetch origin pull/${{ github.event.pull_request.number }}/head
 
           # Check for Added (A) or Modified (M) files in changelog.d
           CHANGELOG_CHANGES=$(git -C repo.git diff --name-status ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} -- changelog.d/)
