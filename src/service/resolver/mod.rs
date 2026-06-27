@@ -38,8 +38,8 @@ impl crate::Service for Service {
 				.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
 				.build()?,
 			dns: Dns {
-				cache: cache.clone(),
-				resolver: resolver.clone(),
+				cache,
+				resolver,
 			},
 			services: Services {
 				client: args.depend::<client::Service>("client"),
