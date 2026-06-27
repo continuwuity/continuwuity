@@ -32,6 +32,7 @@ pub fn versions() -> Vec<String> {
 #[must_use]
 pub fn unstable_features() -> BTreeMap<String, bool> {
 	BTreeMap::from_iter([
+		("uk.half-shot.msc2666.query_mutual_rooms".to_owned(), true), /* query mutual rooms (https://github.com/matrix-org/matrix-spec-proposals/pull/2666) */
 		("org.matrix.simplified_msc3575".to_owned(), true), /* Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186) */
 		("org.matrix.msc4155".to_owned(), true), /* invite filtering (https://github.com/matrix-org/matrix-spec-proposals/pull/4155) */
 		("computer.gingershaped.msc4466".to_owned(), true), /* profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466) */
