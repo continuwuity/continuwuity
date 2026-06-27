@@ -108,25 +108,31 @@ impl super::Service {
 				.await
 			{
 				| Ok((pdu, val)) if pdu.origin_server_ts() >= first_ts_in_room => {
-					self.upgrade_outlier_to_timeline_pdu(pdu, val, create_event, origin, room_id)
-						.await
-						.inspect_err(|e| {
-							debug_warn!(
-								total_elapsed=?start.elapsed(),
-								job_elapsed=?job_start.elapsed(),
-								task_elapsed=?persist_start.elapsed(),
-								"Failed to upgrade prev event {event_id}: {e}",
-							);
-						})
-						.inspect(|_| {
-							debug_info!(
-								total_elapsed=?start.elapsed(),
-								job_elapsed=?job_start.elapsed(),
-								task_elapsed=?persist_start.elapsed(),
-								"Upgraded prev event {event_id}",
-							);
-						})
-						.ok();
+					Box::pin(self.upgrade_outlier_to_timeline_pdu(
+						pdu,
+						val,
+						create_event,
+						origin,
+						room_id,
+					))
+					.await
+					.inspect_err(|e| {
+						debug_warn!(
+							total_elapsed=?start.elapsed(),
+							job_elapsed=?job_start.elapsed(),
+							task_elapsed=?persist_start.elapsed(),
+							"Failed to upgrade prev event {event_id}: {e}",
+						);
+					})
+					.inspect(|_| {
+						debug_info!(
+							total_elapsed=?start.elapsed(),
+							job_elapsed=?job_start.elapsed(),
+							task_elapsed=?persist_start.elapsed(),
+							"Upgraded prev event {event_id}",
+						);
+					})
+					.ok();
 				},
 				| Err(e) => debug_warn!(
 					total_elapsed=?start.elapsed(),
