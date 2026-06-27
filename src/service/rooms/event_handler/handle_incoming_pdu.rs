@@ -255,16 +255,27 @@ impl super::Service {
 		//    These are timeline events
 
 		debug!("Fetching and persisting any missing prev events");
-		self.fetch_prevs(room_id, create_event, &incoming_pdu, origin, first_ts_in_room)
-			.await
-			.debug_inspect_err(|e| {
-				error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
-			})?;
+		Box::pin(self.fetch_prevs(
+			room_id,
+			create_event,
+			&incoming_pdu,
+			origin,
+			first_ts_in_room,
+		))
+		.await
+		.debug_inspect_err(|e| {
+			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
+		})?;
 
 		// Done with prev events, now handling the incoming event
-		let pdu_id = self
-			.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-			.await?;
+		let pdu_id = Box::pin(self.upgrade_outlier_to_timeline_pdu(
+			incoming_pdu,
+			val,
+			create_event,
+			origin,
+			room_id,
+		))
+		.await?;
 
 		let extremities_count = self
 			.services
