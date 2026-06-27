@@ -20,7 +20,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
-use resolvematrix::server::{MatrixResolver, ResolvedDestination};
+use resolvematrix::{resolution::ResolvedDestination, server::MatrixResolver};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
 	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,

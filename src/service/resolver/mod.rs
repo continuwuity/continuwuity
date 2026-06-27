@@ -7,7 +7,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use conduwuit::{Err, Result, implement};
 use ipaddress::IPAddress;
-use resolvematrix::server::MatrixResolver;
+use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
 
 use self::{cache::Cache, dns::Resolver};
 use crate::{Dep, client};
@@ -32,11 +32,14 @@ impl crate::Service for Service {
 	#[allow(clippy::as_conversions, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let cache = Cache::new(&args);
+		let resolver = Resolver::build(args.server, cache.clone())?;
 		Ok(Arc::new(Self {
-			resolver: MatrixResolver::new()?,
+			resolver: MatrixResolverBuilder::new()
+				.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
+				.build()?,
 			dns: Dns {
 				cache: cache.clone(),
-				resolver: Resolver::build(args.server, cache)?,
+				resolver: resolver.clone(),
 			},
 			services: Services {
 				client: args.depend::<client::Service>("client"),

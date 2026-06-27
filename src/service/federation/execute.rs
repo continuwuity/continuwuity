@@ -19,7 +19,7 @@ use ruma::{
 	},
 };
 
-use crate::{SUPPORTED_VERSIONS, resolver::actual::ActualDest};
+use crate::SUPPORTED_VERSIONS;
 
 impl super::Service {
 	/// Sends a signed request to a remote server over federation.
@@ -131,10 +131,15 @@ impl super::Service {
 			))));
 		}
 
-		let actual = self.services.resolver.get_actual_dest(dest).await?;
+		let actual = self
+		.services
+		.resolver
+		.resolver
+		.resolve_server(dest.as_str())
+		.await?;
 
 		let request = Request::try_from(request.try_into_http_request::<Vec<u8>>(
-			actual.string().as_str(),
+			actual.base_url().as_str(),
 			authentication,
 			PathBuilderInput::create(),
 		)?)?;
