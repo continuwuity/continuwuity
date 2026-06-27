@@ -19,15 +19,16 @@ use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
-use tokio::sync::Notify;
+use tokio::sync::{Notify, mpsc};
 
 use crate::{Dep, globals, rooms, sending, server_keys};
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
-	pub last_extremity_squash: SyncRwLock<HashMap<OwnedRoomId, Instant>>,
+	pub extremity_squashers: SyncRwLock<HashMap<OwnedRoomId, mpsc::Sender<(usize, bool)>>>,
 	services: Services,
 	server_shutdown: Notify,
+	me: std::sync::Weak<Self>,
 }
 
 struct Services {
@@ -53,10 +54,11 @@ type HandleTimeMap = HashMap<OwnedRoomId, (OwnedEventId, Instant)>;
 #[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
-		Ok(Arc::new(Self {
+		Ok(Arc::new_cyclic(|s| Self {
+			me: s.clone(),
 			mutex_federation: RoomMutexMap::new(),
 			federation_handletime: HandleTimeMap::new().into(),
-			last_extremity_squash: SyncRwLock::new(HashMap::new()),
+			extremity_squashers: SyncRwLock::new(HashMap::new()),
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
@@ -93,10 +95,7 @@ impl crate::Service for Service {
 
 	fn interrupt(&self) { self.server_shutdown.notify_waiters(); }
 
-	async fn clear_cache(&self) {
-		let mut squashes = self.last_extremity_squash.write();
-		squashes.clear();
-	}
+	async fn clear_cache(&self) {}
 }
 
 impl Service {

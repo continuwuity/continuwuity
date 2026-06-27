@@ -18,6 +18,7 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
+use tokio::sync::mpsc;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -267,6 +268,8 @@ impl super::Service {
 			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
 		})?;
 
+		let is_dummy_event = incoming_pdu.event_type().to_string() == "org.matrix.dummy_event";
+
 		// Done with prev events, now handling the incoming event
 		let pdu_id = Box::pin(self.upgrade_outlier_to_timeline_pdu(
 			incoming_pdu,
@@ -284,24 +287,108 @@ impl super::Service {
 			.count()
 			.await;
 
-		if extremities_count >= self.services.server.config.dummy_event_threshold.into() {
-			self.squash_extremities(room_id, extremities_count).await;
-		}
+		self.maybe_squash_extremities(room_id, extremities_count, is_dummy_event)
+			.await;
 
 		Ok(pdu_id)
 	}
 
-	async fn squash_extremities(&self, room_id: &RoomId, count: usize) {
-		let last_squash = {
-			let squash_timings = self.last_extremity_squash.read();
-			squash_timings.get(room_id).copied()
+	async fn maybe_squash_extremities(
+		&self,
+		room_id: &RoomId,
+		extremities_count: usize,
+		is_dummy_event: bool,
+	) {
+		let (tx, fut) = {
+			if let Some(tx) = self.extremity_squashers.read().get(room_id)
+				&& !tx.is_closed()
+			{
+				(tx.clone(), None)
+			} else {
+				let mut map = self.extremity_squashers.upgradable_read();
+
+				if let Some(tx) = map.get(room_id)
+					&& !tx.is_closed()
+				{
+					(tx.clone(), None)
+				} else {
+					let (tx, rx) = mpsc::channel(100);
+					map.with_upgraded(|map| map.insert(room_id.to_owned(), tx.clone()));
+
+					(tx, Some(self.spawn_squasher(room_id, rx)))
+				}
+			}
 		};
-		if last_squash.is_some_and(|s| s.elapsed() < Duration::from_mins(1)) {
-			// Avoid sending more than one squash per minute to avoid flooding rooms.
-			return;
+
+		if let Some(fut) = fut {
+			fut.await;
 		}
+		let _ = tx.try_send((extremities_count, is_dummy_event));
+	}
+
+	async fn spawn_squasher(&self, room_id: &RoomId, mut rx: mpsc::Receiver<(usize, bool)>) {
+		let Some(service) = self.me.upgrade() else {
+			return;
+		};
+		let room_id = room_id.to_owned();
+
+		self.services.server.runtime().spawn(async move {
+			let mut latest_extremity_count = None;
+			let mut non_dummy_event = false;
+
+			let mut closing = false;
+
+			let waker = tokio::time::sleep(Duration::from_mins(2));
+			tokio::pin!(waker);
+
+			loop {
+				tokio::select! {
+					msg = rx.recv() => {
+						if let Some((extremities_count, is_dummy_event)) = msg {
+							latest_extremity_count = Some(extremities_count);
+							non_dummy_event = non_dummy_event || !is_dummy_event;
+							#[allow(clippy::arithmetic_side_effects)]
+							waker.as_mut().reset(tokio::time::Instant::now() + Duration::from_mins(1));
+						} else {
+							{let mut map = service.extremity_squashers.write();
+							if let Some(tx) = map.get(&room_id) && tx.is_closed() {
+								map.remove(&room_id);
+							}}
+
+							if let Some(count) = latest_extremity_count {
+								if non_dummy_event && count >= service.services.server.config.dummy_event_threshold.into() {
+									Self::squash_extremities(&service, &room_id, count).await;
+								}
+							}
+							break;
+						}
+					}
+					() = &mut waker, if !closing => {
+						if let Some(count) = latest_extremity_count {
+							if non_dummy_event && count >= service.services.server.config.dummy_event_threshold.into() {
+								Self::squash_extremities(&service, &room_id, count).await;
+							}
+							latest_extremity_count = None;
+							non_dummy_event = false;
+							#[allow(clippy::arithmetic_side_effects)]
+							waker.as_mut().reset(tokio::time::Instant::now() + Duration::from_mins(2));
+						} else {
+							rx.close();
+							closing = true;
+						}
+					}
+					() = service.server_shutdown.notified(), if !closing => {
+						rx.close();
+						closing = true;
+					}
+				}
+			}
+		});
+	}
+
+	async fn squash_extremities(&self, room_id: &RoomId, extremities_count: usize) {
 		debug_warn!(
-			%count,
+			%extremities_count,
 			threshold=%self.services.server.config.dummy_event_threshold,
 			"Attempting to squash extremities after upgrading pdu"
 		);
@@ -340,7 +427,5 @@ impl super::Service {
 				break;
 			}
 		}
-		let mut squash_timings = self.last_extremity_squash.write();
-		squash_timings.insert(room_id.to_owned(), Instant::now());
 	}
 }
