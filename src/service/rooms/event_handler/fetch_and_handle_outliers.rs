@@ -16,7 +16,7 @@ use conduwuit::{
 use futures::{StreamExt, future::select_ok};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
-	OwnedRoomId, OwnedServerName, RoomId, ServerName, UInt,
+	OwnedServerName, RoomId, ServerName, UInt,
 	api::federation::event::{get_event, get_missing_events},
 	int,
 	room_version_rules::RoomVersionRules,
@@ -96,348 +96,6 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 }
 
 impl super::Service {
-	/// Sends a `GET /_matrix/federation/v1/event/{event_id}` request to the
-	/// target `remote`, parses the resulting PDU, and ensures the remote
-	/// returned the correct event.
-	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
-	/// multiple remotes in parallel.
-	async fn fetch_event_via(
-		&self,
-		remote: OwnedServerName,
-		event_id: OwnedEventId,
-		room_version_rules: &RoomVersionRules,
-	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
-		let res = self
-			.services
-			.sending
-			.send_federation_request(&remote, get_event::v1::Request::new(event_id.clone()))
-			.await?;
-
-		let (calculated_event_id, value) = self
-			.parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)
-			.await?;
-
-		if calculated_event_id != event_id {
-			Err!(Request(BadJson(warn!(
-				expected=%event_id,
-				received=%calculated_event_id,
-				"Server didn't return event id we requested",
-			))))
-		} else {
-			Ok((event_id, value))
-		}
-	}
-
-	/// Asks remote servers for any individual events that are missing, also
-	/// known as "atomic fetch". Should only be used for fetching missing auth
-	/// events or resolving missing events from state_ids. For all other uses,
-	/// use get_missing_events.
-	///
-	/// This function manually walks auth_events trees in a breadth-first
-	/// search, and persists all fetched events as outliers when all the
-	/// backwards extremities have been resolved.
-	#[tracing::instrument(name = "get_missing_auth_events_atomic", skip_all)]
-	pub(super) async fn fetch_and_handle_auth_events<Pdu>(
-		&self,
-		origin: &ServerName,
-		events: Vec<OwnedEventId>,
-		create_event: &Pdu,
-		room_id: &RoomId,
-	) -> HashMap<OwnedEventId, PduEvent>
-	where
-		Pdu: Event + Send + Sync,
-	{
-		let start = Instant::now();
-		let room_version_rules =
-			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
-		let mut candidates = self
-			.services
-			.timeline
-			.candidate_backfill_servers(room_id)
-			.await;
-		candidates.insert(origin.to_owned());
-		assert!(!candidates.is_empty(), "no candidates to fetch missing events from");
-		let mut discovered_events =
-			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
-		trace!(
-			elapsed=?start.elapsed(),
-			"Fetching {} unknown PDUs on demand from {} candidates",
-			events.len(),
-			candidates.len()
-		);
-
-		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
-		for apex_event_id in &events {
-			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
-
-			while let Some(target_id) = todo.pop_front() {
-				if discovered_events.contains_key(&target_id) {
-					continue;
-				}
-				if let Ok(local_pdu) = self.services.timeline.get_pdu(&target_id).await {
-					trace!(elapsed=?start.elapsed(), "Found {target_id} in db");
-					let mut obj = local_pdu.into_canonical_object();
-					obj.remove("event_id");
-					discovered_events.insert(target_id.clone(), obj);
-					continue;
-				}
-				let attempts = seen.get(&*target_id).copied().unwrap_or_default();
-				if attempts >= 5 {
-					debug_error!(
-						elapsed=?start.elapsed(),
-						%attempts,
-						%target_id,
-						"Could not fetch missing event after 5 attempts, giving up"
-					);
-					continue;
-				}
-
-				debug!(elapsed=?start.elapsed(),"Fetching {target_id} over federation");
-				let value = match self
-					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
-					.await
-				{
-					| Ok((_, x)) => x,
-					| Err(e) => {
-						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {target_id} from any candidate: {e}");
-						continue;
-					},
-				};
-				let auth_events =
-					match expect_event_id_array(&value, "auth_events").map_err(|e| {
-						err!(Request(BadJson(warn!(
-							elapsed=?start.elapsed(),
-							event_id=%target_id,
-							"Failed to parse event fetched from remote: {e}"
-						))))
-					}) {
-						| Ok(auth_events) => auth_events,
-						| Err(e) => {
-							warn!(
-								elapsed=?start.elapsed(),
-								?e,
-								"event {target_id} is malformed (bad auth_events), skipping"
-							);
-							continue;
-						},
-					};
-				let mut have_all_auth = true;
-				for auth_event_id in auth_events {
-					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
-						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
-						let mut obj = local_pdu.into_canonical_object();
-						obj.remove("event_id");
-						discovered_events.insert(auth_event_id.clone(), obj);
-						continue;
-					}
-					if discovered_events.contains_key(&auth_event_id) {
-						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
-						continue;
-					}
-					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {target_id}");
-					seen.insert(
-						auth_event_id.clone(),
-						seen.get(&auth_event_id)
-							.copied()
-							.unwrap_or_default()
-							.saturating_add(1),
-					);
-					todo.push_back(auth_event_id);
-					have_all_auth = false;
-				}
-				// Insert this PDU back at the end of the queue so that it will be resolved once
-				// all of its auth events have been fetched.
-				if have_all_auth {
-					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
-					discovered_events.insert(target_id, value);
-				} else {
-					debug_warn!(elapsed=?start.elapsed(),
-						"Fetched {target_id} but missing some auth events, will have to re-fetch."
-					);
-					seen.insert(target_id.clone(), attempts.saturating_add(1));
-					todo.push_back(target_id);
-				}
-			}
-		}
-
-		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = discovered_events
-			.iter()
-			.map(|(id, data)| (id.clone(), data))
-			.collect();
-		let seeded_ordered = build_local_dag(&refmap)
-			.await
-			.expect("failed to build local DAG");
-		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
-		for discovered_event_id in seeded_ordered {
-			let pdu_json = discovered_events.remove(&discovered_event_id).unwrap();
-			debug_info!(
-				elapsed=?start.elapsed(),
-				"Handling missing event {discovered_event_id} as outlier"
-			);
-			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
-			match Box::pin(self.handle_outlier_pdu(
-				origin,
-				create_event,
-				&discovered_event_id,
-				room_id,
-				pdu_json,
-			))
-			.await
-			{
-				| Ok((pdu, _)) => {
-					trace!(elapsed=?start.elapsed(), "Persisted {discovered_event_id}");
-					let _ = pdus.insert(discovered_event_id, pdu);
-				},
-				| Err(e) => warn!(
-					elapsed=?start.elapsed(),
-					"Authentication of event {discovered_event_id} failed: {e:?}"
-				),
-			}
-		}
-
-		trace!(
-			elapsed=?start.elapsed(),
-			"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs",
-			pdus.len()
-		);
-		pdus.retain(|id, _| events.contains(id)); // Only return state events
-		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
-		pdus
-	}
-
-	/// Uses `/_matrix/federation/v1/get_missing_events` to fill gaps in the
-	/// DAG.
-	///
-	/// When this function is called, the "earliest events" (current forward
-	/// extremities) will be collected, and the function will loop with an
-	/// exponentially incrementing limit (up to 100 per request) until it has
-	/// filled the gap, i.e. when the remote says there's no more events.
-	///
-	/// This function does not persist the events. The caller is responsible for
-	/// passing them through handle_incoming_pdu.
-	pub async fn backfill_missing_events(
-		&self,
-		room_id: OwnedRoomId,
-		head: HashSet<OwnedEventId>,
-		tail: Vec<OwnedEventId>,
-		via: OwnedServerName,
-	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
-		if head.is_empty() {
-			return Ok(HashMap::new());
-		}
-		// TODO: min_depth is probably necessary to avoid fetching the entire room
-		// history if there are very long gaps
-		let mut latest_events = head.clone();
-		let mut loop_count: u64 = 3;
-		// Start with 3 so that we fetch 9, 16, 25, 36, 49, 64, 81, 100 events.
-		// This gives steady growth to the server's typical limit of 100. It's unlikely
-		// we'll end up close to that.
-		let mut backfilled_events = HashMap::with_capacity(10);
-
-		while !latest_events.is_empty() {
-			// TODO: holy clone()
-			let frontier_before = latest_events.clone();
-			let todo: Vec<OwnedEventId> = latest_events.clone().into_iter().collect();
-			let mut request =
-				get_missing_events::v1::Request::new(room_id.clone(), tail.clone(), todo.clone());
-			let limit = loop_count.saturating_pow(2).min(100);
-			request.limit = limit.try_into().expect("limit must fit into UInt");
-
-			debug_info!(
-				backfilled=%backfilled_events.len(),
-				%loop_count,
-				"Asking {via} for up to {limit} missing events",
-			);
-			trace!(
-				?latest_events,
-				?tail,
-				%via,
-				%limit,
-				"Requesting missing events"
-			);
-			let response: get_missing_events::v1::Response = self
-				.services
-				.sending
-				.send_federation_request(&via, request)
-				.await?;
-			loop_count = loop_count.saturating_add(1);
-			trace!(?response, "get_missing_events response");
-
-			// Some buggy servers (including old continuwuity) may return the same events
-			// multiple times, which can cause this to be an infinite loop.
-			// In order to break this loop, if we see no new events from this response (i.e.
-			// all events in the response are already in backfilled_events), we stop,
-			// with a warning.
-			let mut unseen: usize = 0;
-			let chunk_len = response.events.len();
-			if response.events.is_empty() {
-				debug_info!("No more missing events found");
-				break;
-			}
-
-			for event in response.events {
-				trace!("Parsing incoming event from backfill");
-				let (incoming_room_id, event_id, pdu_json) =
-					self.parse_incoming_pdu(&event).await.map_err(|e| {
-						err!(BadServerResponse("{via} returned an invalid event: {e:?}"))
-					})?;
-				trace!(%incoming_room_id, %event_id, "Parsed incoming event from backfill");
-				if incoming_room_id != room_id {
-					return Err!(BadServerResponse(
-						"{via} returned {event_id} in missing events which belongs to \
-						 {incoming_room_id}, not {room_id}"
-					));
-				}
-				latest_events.remove(&event_id);
-				if head.contains(&event_id) || tail.contains(&event_id) {
-					debug!("Skipping known event {event_id}");
-					continue;
-				}
-				let retransmitted = backfilled_events.contains_key(&event_id);
-				if retransmitted {
-					debug_warn!(%via, %event_id, "Remote retransmitted event");
-				} else {
-					if let Ok(pdu) = self.services.timeline.get_pdu(&event_id).await {
-						debug!(%via, %event_id, "Already seen event in database");
-						backfilled_events.insert(event_id.clone(), pdu);
-					} else {
-						unseen = unseen.saturating_add(1);
-					}
-				}
-				let parsed = PduEvent::from_id_val(&event_id, pdu_json)
-					.map_err(|e| err!(BadServerResponse("Unable to parse {event_id}: {e}")))?;
-				for prev_event_id in parsed.prev_events() {
-					if !(backfilled_events.contains_key(prev_event_id)
-						|| self.services.timeline.pdu_exists(prev_event_id).await)
-					{
-						latest_events.insert(prev_event_id.to_owned());
-					}
-				}
-				if !retransmitted {
-					backfilled_events.insert(event_id.clone(), parsed);
-				}
-			}
-			latest_events.retain(|event_id| !backfilled_events.contains_key(event_id));
-			debug!(
-				count=%chunk_len,
-				new=%unseen,
-				remaining=%latest_events.len(),
-				"Got missing events"
-			);
-			let frontier_changed = latest_events != frontier_before;
-			if unseen == 0 && !frontier_changed {
-				debug_warn!(
-					"Didn't see any new events and the frontier did not change, breaking cycle"
-				);
-				break;
-			}
-		}
-
-		debug_info!("Successfully fetched {} missing events from {via}", backfilled_events.len());
-		trace!("Missing_events: {backfilled_events:?}");
-		Ok(backfilled_events)
-	}
-
 	/// Uses `POST /_matrix/federation/v1/get_missing_events/{room_id}` to fill
 	/// gaps in the DAG.
 	///
@@ -506,7 +164,7 @@ impl super::Service {
 		let iteration_limit = max_fetch.saturating_div(20).max(10);
 
 		let mut discovered = HashMap::with_capacity(head.prev_events.len());
-		let mut latest_events = vec![head.event_id().to_owned()];
+		let mut latest_events: Vec<OwnedEventId> = vec![head.event_id().to_owned()];
 		debug!(elapsed=?start.elapsed(),
 			%room_id,
 			event_id=%head.event_id(),
@@ -693,6 +351,38 @@ impl super::Service {
 		Ok(discovered)
 	}
 
+	/// Sends a `GET /_matrix/federation/v1/event/{event_id}` request to the
+	/// target `remote`, parses the resulting PDU, and ensures the remote
+	/// returned the correct event.
+	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
+	/// multiple remotes in parallel.
+	async fn fetch_event_via(
+		&self,
+		remote: OwnedServerName,
+		event_id: OwnedEventId,
+		room_version_rules: &RoomVersionRules,
+	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+		let res = self
+			.services
+			.sending
+			.send_federation_request(&remote, get_event::v1::Request::new(event_id.clone()))
+			.await?;
+
+		let (calculated_event_id, value) = self
+			.parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)
+			.await?;
+
+		if calculated_event_id != event_id {
+			Err!(Request(BadJson(warn!(
+				expected=%event_id,
+				received=%calculated_event_id,
+				"Server didn't return event id we requested",
+			))))
+		} else {
+			Ok((event_id, value))
+		}
+	}
+
 	async fn fetch_event_vias(
 		&self,
 		candidates: impl Iterator<Item = &OwnedServerName>,
@@ -712,6 +402,183 @@ impl super::Service {
 			})
 			.collect::<Vec<_>>();
 		select_ok(futures).await.map(|(res, _)| res)
+	}
+
+	/// Asks remote servers for any individual events that are missing, also
+	/// known as "atomic fetch". Should only be used for fetching missing auth
+	/// events or resolving missing events from state_ids. For all other uses,
+	/// use get_missing_events.
+	///
+	/// This function manually walks auth_events trees in a breadth-first
+	/// search, and persists all fetched events as outliers when all the
+	/// backwards extremities have been resolved.
+	#[tracing::instrument(name = "get_missing_auth_events_atomic", skip_all)]
+	pub(super) async fn fetch_and_handle_auth_events<Pdu>(
+		&self,
+		origin: &ServerName,
+		events: Vec<OwnedEventId>,
+		create_event: &Pdu,
+		room_id: &RoomId,
+	) -> HashMap<OwnedEventId, PduEvent>
+	where
+		Pdu: Event + Send + Sync,
+	{
+		let start = Instant::now();
+		let room_version_rules =
+			&get_room_version_rules(create_event).unwrap_or(RoomVersionRules::V1);
+		let mut candidates = self
+			.services
+			.timeline
+			.candidate_backfill_servers(room_id)
+			.await;
+		candidates.insert(origin.to_owned());
+		assert!(!candidates.is_empty(), "no candidates to fetch missing events from");
+		let mut discovered_events =
+			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
+		trace!(
+			elapsed=?start.elapsed(),
+			"Fetching {} unknown PDUs on demand from {} candidates",
+			events.len(),
+			candidates.len()
+		);
+
+		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
+		for apex_event_id in &events {
+			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
+
+			while let Some(target_id) = todo.pop_front() {
+				if discovered_events.contains_key(&target_id) {
+					continue;
+				}
+				if let Ok(local_pdu) = self.services.timeline.get_pdu(&target_id).await {
+					trace!(elapsed=?start.elapsed(), "Found {target_id} in db");
+					let mut obj = local_pdu.into_canonical_object();
+					obj.remove("event_id");
+					discovered_events.insert(target_id.clone(), obj);
+					continue;
+				}
+				let attempts = seen.get(&*target_id).copied().unwrap_or_default();
+				if attempts >= 5 {
+					debug_error!(
+						elapsed=?start.elapsed(),
+						%attempts,
+						%target_id,
+						"Could not fetch missing event after 5 attempts, giving up"
+					);
+					continue;
+				}
+
+				debug!(elapsed=?start.elapsed(),"Fetching {target_id} over federation");
+				let value = match self
+					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
+					.await
+				{
+					| Ok((_, x)) => x,
+					| Err(e) => {
+						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {target_id} from any candidate: {e}");
+						continue;
+					},
+				};
+				let auth_events =
+					match expect_event_id_array(&value, "auth_events").map_err(|e| {
+						err!(Request(BadJson(warn!(
+							elapsed=?start.elapsed(),
+							event_id=%target_id,
+							"Failed to parse event fetched from remote: {e}"
+						))))
+					}) {
+						| Ok(auth_events) => auth_events,
+						| Err(e) => {
+							warn!(
+								elapsed=?start.elapsed(),
+								?e,
+								"event {target_id} is malformed (bad auth_events), skipping"
+							);
+							continue;
+						},
+					};
+				let mut have_all_auth = true;
+				for auth_event_id in auth_events {
+					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
+						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
+						let mut obj = local_pdu.into_canonical_object();
+						obj.remove("event_id");
+						discovered_events.insert(auth_event_id.clone(), obj);
+						continue;
+					}
+					if discovered_events.contains_key(&auth_event_id) {
+						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
+						continue;
+					}
+					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {target_id}");
+					seen.insert(
+						auth_event_id.clone(),
+						seen.get(&auth_event_id)
+							.copied()
+							.unwrap_or_default()
+							.saturating_add(1),
+					);
+					todo.push_back(auth_event_id);
+					have_all_auth = false;
+				}
+				// Insert this PDU back at the end of the queue so that it will be resolved once
+				// all of its auth events have been fetched.
+				if have_all_auth {
+					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
+					discovered_events.insert(target_id, value);
+				} else {
+					debug_warn!(elapsed=?start.elapsed(),
+						"Fetched {target_id} but missing some auth events, will have to re-fetch."
+					);
+					seen.insert(target_id.clone(), attempts.saturating_add(1));
+					todo.push_back(target_id);
+				}
+			}
+		}
+
+		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = discovered_events
+			.iter()
+			.map(|(id, data)| (id.clone(), data))
+			.collect();
+		let seeded_ordered = build_local_dag(&refmap)
+			.await
+			.expect("failed to build local DAG");
+		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
+		for discovered_event_id in seeded_ordered {
+			let pdu_json = discovered_events.remove(&discovered_event_id).unwrap();
+			debug_info!(
+				elapsed=?start.elapsed(),
+				"Handling missing event {discovered_event_id} as outlier"
+			);
+			assert_eq!(pdu_json.get("event_id"), None, "pdu_json had event_id");
+			match Box::pin(self.handle_outlier_pdu(
+				origin,
+				create_event,
+				&discovered_event_id,
+				room_id,
+				pdu_json,
+			))
+			.await
+			{
+				| Ok((pdu, _)) => {
+					trace!(elapsed=?start.elapsed(), "Persisted {discovered_event_id}");
+					let _ = pdus.insert(discovered_event_id, pdu);
+				},
+				| Err(e) => warn!(
+					elapsed=?start.elapsed(),
+					"Authentication of event {discovered_event_id} failed: {e:?}"
+				),
+			}
+		}
+
+		trace!(
+			elapsed=?start.elapsed(),
+			"Finished fetch_and_handle_missing_events: fetched and handled {} missing PDUs",
+			pdus.len()
+		);
+		pdus.retain(|id, _| events.contains(id)); // Only return state events
+		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
+		pdus
 	}
 
 	/// Similar to `fetch_and_handle_missing_events`, but simply walks the
