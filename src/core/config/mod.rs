@@ -1661,6 +1661,11 @@ pub struct Config {
 	#[serde(default)]
 	pub send_messages_from_ignored_users_to_client: bool,
 
+	/// Send "org.matrix.dummy_event" events to the client. This is a debugging
+	/// option.
+	#[serde(default)]
+	pub send_dummy_events_to_clients: bool,
+
 	/// Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
 	/// do not want continuwuity to send outbound requests to. Defaults to
 	/// RFC1918, unroutable, loopback, multicast, and testnet addresses for

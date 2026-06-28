@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res,
-	trace, warn,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res, trace,
+	warn,
 };
 use futures::future::ready;
 use ruma::{
@@ -104,14 +104,21 @@ impl super::Service {
 		let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
 
 		for auth_event_id in pdu_event.auth_events() {
-			if self.services.pdu_metadata.is_event_rejected(auth_event_id).await {
+			if self
+				.services
+				.pdu_metadata
+				.is_event_rejected(auth_event_id)
+				.await
+			{
 				debug_warn!(
 					"Rejecting incoming event {} which depends on rejected auth event \
-					{auth_event_id}",
+					 {auth_event_id}",
 					event_id,
 				);
 				self.services.pdu_metadata.mark_event_rejected(event_id);
-				return Err!(Request(Forbidden("Event has rejected auth event: {auth_event_id}")));
+				return Err!(Request(Forbidden(
+					"Event has rejected auth event: {auth_event_id}"
+				)));
 			}
 
 			if let Ok(auth_event) = self.services.timeline.get_pdu(auth_event_id).await {
@@ -120,7 +127,8 @@ impl super::Service {
 				auth_events.insert(auth_event_id.to_owned(), auth_event);
 			} else {
 				debug_warn!(
-					"Could not find auth event {auth_event_id} for outlier event {event_id} locally"
+					"Could not find auth event {auth_event_id} for outlier event {event_id} \
+					 locally"
 				);
 			}
 		}

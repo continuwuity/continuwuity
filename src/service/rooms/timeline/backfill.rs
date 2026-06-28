@@ -228,7 +228,7 @@ impl super::Service {
 		&self,
 		room_id: &RoomId,
 	) -> HashSet<OwnedServerName> {
-	let mut candidate_backfill_servers = HashSet::new();
+		let mut candidate_backfill_servers = HashSet::new();
 
 		let power_levels = self
 			.services

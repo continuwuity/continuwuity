@@ -26,16 +26,16 @@ use crate::rooms::{
 impl super::Service {
 	#[tracing::instrument(name="upgrade_outlier", skip_all, fields(event_id=%incoming_pdu.event_id()))]
 	pub(super) async fn upgrade_outlier_to_timeline_pdu(
-			&self,
-			incoming_pdu: PduEvent,
-			mut val: CanonicalJsonObject,
-			create_event: &PduEvent,
+		&self,
+		incoming_pdu: PduEvent,
+		mut val: CanonicalJsonObject,
+		create_event: &PduEvent,
 		origin: &ServerName,
 		room_id: &RoomId,
 	) -> Result<Option<RawPduId>> {
 		let (pduid, rejected, soft_failed) = join!(
 			self.services.timeline.get_pdu_id(incoming_pdu.event_id()),
-				self.services
+			self.services
 				.pdu_metadata
 				.is_event_rejected(incoming_pdu.event_id()),
 			self.services
@@ -85,7 +85,9 @@ impl super::Service {
 				trace!("Could not calculate incoming state, asking remote {origin} for it");
 				self.fetch_state(origin, create_event, room_id, incoming_pdu.event_id())
 					.await
-					.debug_inspect_err(|e| debug_error!("Could not fetch state from {origin}: {e}"))?
+					.debug_inspect_err(|e| {
+						debug_error!("Could not fetch state from {origin}: {e}");
+					})?
 			},
 		};
 
