@@ -100,10 +100,13 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Checks if a single event exists. Alias for
+	/// `self.services.timeline.pdu_exists`.
 	async fn event_exists(&self, event_id: OwnedEventId) -> bool {
 		self.services.timeline.pdu_exists(&event_id).await
 	}
 
+	/// Fetches a single PDU, returning None if there is an error.
 	async fn event_fetch(&self, event_id: OwnedEventId) -> Option<PduEvent> {
 		self.services.timeline.get_pdu(&event_id).await.ok()
 	}

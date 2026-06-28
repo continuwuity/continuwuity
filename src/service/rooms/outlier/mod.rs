@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, implement, matrix::PduEvent};
+use conduwuit::{Result, matrix::PduEvent};
 use database::{Deserialized, Json, Map};
 use ruma::{CanonicalJsonObject, EventId};
 
@@ -24,29 +24,27 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-/// Returns the pdu from the outlier tree.
-#[implement(Service)]
-pub async fn get_outlier_pdu_json(&self, event_id: &EventId) -> Result<CanonicalJsonObject> {
-	self.db
-		.eventid_outlierpdu
-		.get(event_id)
-		.await
-		.deserialized()
-}
+impl Service {
+	/// Returns the pdu from the outlier tree.
+	pub async fn get_outlier_pdu_json(&self, event_id: &EventId) -> Result<CanonicalJsonObject> {
+		self.db
+			.eventid_outlierpdu
+			.get(event_id)
+			.await
+			.deserialized()
+	}
 
-/// Returns the pdu from the outlier tree.
-#[implement(Service)]
-pub async fn get_pdu_outlier(&self, event_id: &EventId) -> Result<PduEvent> {
-	self.db
-		.eventid_outlierpdu
-		.get(event_id)
-		.await
-		.deserialized()
-}
+	/// Returns the pdu from the outlier tree.
+	pub async fn get_pdu_outlier(&self, event_id: &EventId) -> Result<PduEvent> {
+		self.db
+			.eventid_outlierpdu
+			.get(event_id)
+			.await
+			.deserialized()
+	}
 
-/// Append the PDU as an outlier.
-#[implement(Service)]
-#[tracing::instrument(skip(self, pdu), level = "debug")]
-pub fn add_pdu_outlier(&self, event_id: &EventId, pdu: &CanonicalJsonObject) {
-	self.db.eventid_outlierpdu.raw_put(event_id, Json(pdu));
+	/// Append the PDU as an outlier.
+	pub fn add_pdu_outlier(&self, event_id: &EventId, pdu: &CanonicalJsonObject) {
+		self.db.eventid_outlierpdu.raw_put(event_id, Json(pdu));
+	}
 }

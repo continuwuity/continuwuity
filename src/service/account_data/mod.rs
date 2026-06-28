@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use conduwuit::{
-	Err, Result, err, implement,
+	Err, Result, err,
 	utils::{ReadyExt, result::LogErr, stream::TryIgnore},
 };
 use database::{Deserialized, Handle, Ignore, Json, Map};
@@ -54,114 +54,115 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-/// Places one event in the account data of the user and removes the
-/// previous entry.
-#[allow(clippy::needless_pass_by_value)]
-#[implement(Service)]
-pub async fn update(
-	&self,
-	room_id: Option<&RoomId>,
-	user_id: &UserId,
-	event_type: RoomAccountDataEventType,
-	data: &serde_json::Value,
-) -> Result<()> {
-	if data.get("type").is_none() || data.get("content").is_none() {
-		return Err!(Request(InvalidParam("Account data doesn't have all required fields.")));
+impl Service {
+	/// Places one event in the account data of the user and removes the
+	/// previous entry.
+	#[allow(clippy::needless_pass_by_value)]
+	pub async fn update(
+		&self,
+		room_id: Option<&RoomId>,
+		user_id: &UserId,
+		event_type: RoomAccountDataEventType,
+		data: &serde_json::Value,
+	) -> Result<()> {
+		if data.get("type").is_none() || data.get("content").is_none() {
+			return Err!(Request(InvalidParam("Account data doesn't have all required fields.")));
+		}
+
+		let count = self.services.globals.next_count().unwrap();
+		let roomuserdataid = (room_id, user_id, count, &event_type);
+		self.db
+			.roomuserdataid_accountdata
+			.put(roomuserdataid, Json(data));
+
+		let key = (room_id, user_id, &event_type);
+		let prev = self.db.roomusertype_roomuserdataid.qry(&key).await;
+		self.db.roomusertype_roomuserdataid.put(key, roomuserdataid);
+
+		// Remove old entry
+		if let Ok(prev) = prev {
+			self.db.roomuserdataid_accountdata.remove(&prev);
+		}
+
+		Ok(())
 	}
 
-	let count = self.services.globals.next_count().unwrap();
-	let roomuserdataid = (room_id, user_id, count, &event_type);
-	self.db
-		.roomuserdataid_accountdata
-		.put(roomuserdataid, Json(data));
-
-	let key = (room_id, user_id, &event_type);
-	let prev = self.db.roomusertype_roomuserdataid.qry(&key).await;
-	self.db.roomusertype_roomuserdataid.put(key, roomuserdataid);
-
-	// Remove old entry
-	if let Ok(prev) = prev {
-		self.db.roomuserdataid_accountdata.remove(&prev);
+	/// Searches the room account data for a specific kind.
+	pub async fn get_global<T>(
+		&self,
+		user_id: &UserId,
+		kind: GlobalAccountDataEventType,
+	) -> Result<T>
+	where
+		T: for<'de> Deserialize<'de>,
+	{
+		self.get_raw(None, user_id, &kind.to_string())
+			.await
+			.deserialized()
 	}
 
-	Ok(())
-}
+	/// Searches the global account data for a specific kind.
+	pub async fn get_room<T>(
+		&self,
+		room_id: &RoomId,
+		user_id: &UserId,
+		kind: RoomAccountDataEventType,
+	) -> Result<T>
+	where
+		T: for<'de> Deserialize<'de>,
+	{
+		self.get_raw(Some(room_id), user_id, &kind.to_string())
+			.await
+			.deserialized()
+	}
 
-/// Searches the room account data for a specific kind.
-#[implement(Service)]
-pub async fn get_global<T>(&self, user_id: &UserId, kind: GlobalAccountDataEventType) -> Result<T>
-where
-	T: for<'de> Deserialize<'de>,
-{
-	self.get_raw(None, user_id, &kind.to_string())
-		.await
-		.deserialized()
-}
+	pub async fn get_raw(
+		&self,
+		room_id: Option<&RoomId>,
+		user_id: &UserId,
+		kind: &str,
+	) -> Result<Handle<'_>> {
+		let key = (room_id, user_id, kind.to_owned());
+		self.db
+			.roomusertype_roomuserdataid
+			.qry(&key)
+			.and_then(|roomuserdataid| self.db.roomuserdataid_accountdata.get(&roomuserdataid))
+			.await
+	}
 
-/// Searches the global account data for a specific kind.
-#[implement(Service)]
-pub async fn get_room<T>(
-	&self,
-	room_id: &RoomId,
-	user_id: &UserId,
-	kind: RoomAccountDataEventType,
-) -> Result<T>
-where
-	T: for<'de> Deserialize<'de>,
-{
-	self.get_raw(Some(room_id), user_id, &kind.to_string())
-		.await
-		.deserialized()
-}
+	/// Returns all changes to the account data that happened after `since`.
+	pub fn changes_since<'a>(
+		&'a self,
+		room_id: Option<&'a RoomId>,
+		user_id: &'a UserId,
+		since: Option<u64>,
+		to: Option<u64>,
+	) -> impl Stream<Item = AnyRawAccountDataEvent> + Send + 'a {
+		type Key = (Option<OwnedRoomId>, OwnedUserId, u64, Ignore);
 
-#[implement(Service)]
-pub async fn get_raw(
-	&self,
-	room_id: Option<&RoomId>,
-	user_id: &UserId,
-	kind: &str,
-) -> Result<Handle<'_>> {
-	let key = (room_id, user_id, kind.to_owned());
-	self.db
-		.roomusertype_roomuserdataid
-		.qry(&key)
-		.and_then(|roomuserdataid| self.db.roomuserdataid_accountdata.get(&roomuserdataid))
-		.await
-}
+		// Skip the data that's exactly at since, because we sent that last time
+		// ...unless this is an initial sync, in which case send everything
+		let first_possible = (room_id, user_id, since.map_or(0, |since| since.saturating_add(1)));
 
-/// Returns all changes to the account data that happened after `since`.
-#[implement(Service)]
-pub fn changes_since<'a>(
-	&'a self,
-	room_id: Option<&'a RoomId>,
-	user_id: &'a UserId,
-	since: Option<u64>,
-	to: Option<u64>,
-) -> impl Stream<Item = AnyRawAccountDataEvent> + Send + 'a {
-	type Key = (Option<OwnedRoomId>, OwnedUserId, u64, Ignore);
-
-	// Skip the data that's exactly at since, because we sent that last time
-	// ...unless this is an initial sync, in which case send everything
-	let first_possible = (room_id, user_id, since.map_or(0, |since| since.saturating_add(1)));
-
-	self.db
-		.roomuserdataid_accountdata
-		.stream_from(&first_possible)
-		.ignore_err()
-		.ready_take_while(move |((room_id_, user_id_, count, _), _): &(Key, _)| {
-			room_id == room_id_.as_deref()
-				&& user_id == user_id_
-				&& to.is_none_or(|to| *count <= to)
-		})
-		.map(move |(_, v)| {
-			match room_id {
-				| Some(_) => serde_json::from_slice::<Raw<AnyRoomAccountDataEvent>>(v)
-					.map(AnyRawAccountDataEvent::Room),
-				| None => serde_json::from_slice::<Raw<AnyGlobalAccountDataEvent>>(v)
-					.map(AnyRawAccountDataEvent::Global),
-			}
-			.map_err(|e| err!(Database("Database contains invalid account data: {e}")))
-			.log_err()
-		})
-		.ignore_err()
+		self.db
+			.roomuserdataid_accountdata
+			.stream_from(&first_possible)
+			.ignore_err()
+			.ready_take_while(move |((room_id_, user_id_, count, _), _): &(Key, _)| {
+				room_id == room_id_.as_deref()
+					&& user_id == user_id_
+					&& to.is_none_or(|to| *count <= to)
+			})
+			.map(move |(_, v)| {
+				match room_id {
+					| Some(_) => serde_json::from_slice::<Raw<AnyRoomAccountDataEvent>>(v)
+						.map(AnyRawAccountDataEvent::Room),
+					| None => serde_json::from_slice::<Raw<AnyGlobalAccountDataEvent>>(v)
+						.map(AnyRawAccountDataEvent::Global),
+				}
+				.map_err(|e| err!(Database("Database contains invalid account data: {e}")))
+				.log_err()
+			})
+			.ignore_err()
+	}
 }

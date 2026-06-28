@@ -284,8 +284,7 @@ impl Service {
 			remote_servers = %servers.len(),
 			"Could not join room locally, attempting remote join",
 		);
-		self.join_remote_room(sender_user, room_id, reason, servers, state_lock)
-			.await
+		Box::pin(self.join_remote_room(sender_user, room_id, reason, servers, state_lock)).await
 	}
 
 	#[tracing::instrument(skip_all, fields(%sender_user, %room_id), name = "join_remote_room", level = "info")]
@@ -407,7 +406,7 @@ impl Service {
 		let send_join_response = match self
 			.services
 			.sending
-			.send_synapse_request(&remote_server, send_join_request)
+			.send_slow_federation_request(&remote_server, send_join_request)
 			.await
 		{
 			| Ok(response) => response,

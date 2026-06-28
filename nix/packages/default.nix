@@ -9,8 +9,10 @@
       self',
       lib,
       pkgs,
+      inputs',
       system,
       craneLib,
+      mkToolchain,
       ...
     }:
     {
@@ -19,7 +21,7 @@
           mkPackages =
             pkgs:
             let
-              fnx = inputs.fenix.packages.${system};
+              fnx = inputs'.fenix.packages;
 
               isStatic = pkgs.stdenv.hostPlatform.isMusl;
 
@@ -28,7 +30,7 @@
                 if isStatic then
                   fnx.combine [
                     self'.packages.stable-toolchain
-                    (fnx.targets.${pkgs.stdenv.hostPlatform.config}.stable).rust-std
+                    (mkToolchain fnx.targets.${pkgs.stdenv.hostPlatform.config}).rust-std
                   ]
                 else
                   self'.packages.stable-toolchain
@@ -36,7 +38,10 @@
 
               default = pkgs.callPackage ./continuwuity.nix {
                 inherit self craneLib;
+
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
+                rocksdb = if isStatic then null else self'.packages.rocksdb;
+
                 # extra features via `cargoExtraArgs`
                 cargoExtraArgs = "-F http3";
                 # extra RUSTFLAGS via `rustflags`
@@ -59,10 +64,12 @@
             in
             {
               inherit default max-perf max-perf-haswell;
-
             };
         in
-        (mkPackages pkgs)
+        {
+          rocksdb = pkgs.callPackage ./rocksdb.nix { };
+        }
+        // (mkPackages pkgs)
         // (lib.mapAttrs' (name: value: lib.nameValuePair "${name}-static-x86_64" value) (
           mkPackages (
             import inputs.nixpkgs {

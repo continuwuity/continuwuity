@@ -2,7 +2,7 @@ use std::{cmp, collections::HashMap};
 
 use conduwuit::{smallstr::SmallString, trace};
 use conduwuit_core::{
-	Err, Error, Result, err, implement,
+	Err, Error, Result, err,
 	matrix::{
 		event::{Event, gen_event_id},
 		pdu::{EventHash, PartialPdu, PduEvent},
@@ -73,277 +73,289 @@ fn room_version_from_event(
 	}
 }
 
-// Creates an event, but does not hash or sign it.
-#[implement(super::Service)]
-pub async fn create_event(
-	&self,
-	partial_pdu: PartialPdu,
-	sender: &UserId,
-	room_id: Option<&RoomId>,
-	_mutex_lock: &RoomMutexGuard,
-) -> Result<(PduEvent, RoomVersionRules)> {
-	let PartialPdu {
-		event_type,
-		content,
-		unsigned,
-		state_key,
-		redacts,
-		timestamp,
-	} = partial_pdu;
+impl super::Service {
+	/// Creates a new PDU and runs an auth check before returning it. Does not
+	/// hash or sign the PDU, meaning it can be mutated after.
+	pub async fn create_event(
+		&self,
+		partial_pdu: PartialPdu,
+		sender: &UserId,
+		room_id: Option<&RoomId>,
+		_mutex_lock: &RoomMutexGuard,
+	) -> Result<(PduEvent, RoomVersionRules)> {
+		let PartialPdu {
+			event_type,
+			content,
+			unsigned,
+			state_key,
+			redacts,
+			timestamp,
+		} = partial_pdu;
 
-	trace!(
-		"Creating event of type {} in room {}",
-		event_type,
-		room_id.as_ref().map_or("None", |id| id.as_str())
-	);
-	let room_version = match room_id {
-		| Some(room_id) => {
-			trace!(%room_id, "Looking up existing room ID");
-			self.services
-				.state
-				.get_room_version(room_id)
+		trace!(
+			"Creating event of type {} in room {}",
+			event_type,
+			room_id.as_ref().map_or("None", |id| id.as_str())
+		);
+		let room_version = match room_id {
+			| Some(room_id) => {
+				trace!(%room_id, "Looking up existing room ID");
+				self.services
+					.state
+					.get_room_version(room_id)
+					.await
+					.or_else(|_| {
+						room_version_from_event(
+							room_id.to_owned(),
+							&event_type.clone(),
+							&content.clone(),
+						)
+					})?
+			},
+			| None => {
+				trace!("No room ID, assuming room creation");
+				room_version_from_event(
+					RoomId::new_v1(self.services.globals.server_name()),
+					&event_type.clone(),
+					&content.clone(),
+				)?
+			},
+		};
+
+		let Some(room_version_rules) = room_version.rules() else {
+			return Err!(Request(UnsupportedRoomVersion("Unsupported room version")));
+		};
+
+		let prev_events: Vec<OwnedEventId> = match room_id {
+			| Some(room_id) =>
+				self.services
+					.state
+					.get_forward_extremities(room_id)
+					.take(20)
+					.map(Into::into)
+					.collect()
+					.await,
+			| None => Vec::new(),
+		};
+
+		let auth_events: HashMap<(StateEventType, SmallString<[u8; 48]>), PduEvent> =
+			match room_id {
+				| Some(room_id) =>
+					self.services
+						.state
+						.get_auth_events(
+							room_id,
+							&event_type,
+							sender,
+							state_key.as_deref(),
+							&content,
+							&room_version_rules,
+						)
+						.await?,
+				| None => HashMap::new(),
+			};
+		// Our depth is the maximum depth of prev_events + 1
+		let depth = match room_id {
+			| Some(_) => prev_events
+				.iter()
+				.stream()
+				.map(Ok)
+				.and_then(|event_id| self.get_pdu(event_id))
+				.and_then(|pdu| future::ok(pdu.depth))
+				.ignore_err()
+				.ready_fold(uint!(0), cmp::max)
 				.await
-				.or_else(|_| {
-					room_version_from_event(
-						room_id.to_owned(),
-						&event_type.clone(),
-						&content.clone(),
-					)
-				})?
-		},
-		| None => {
-			trace!("No room ID, assuming room creation");
-			room_version_from_event(
-				RoomId::new_v1(self.services.globals.server_name()),
-				&event_type.clone(),
-				&content.clone(),
-			)?
-		},
-	};
+				.saturating_add(uint!(1)),
+			| None => uint!(1),
+		};
 
-	let Some(room_version_rules) = room_version.rules() else {
-		return Err!(Request(UnsupportedRoomVersion("Unsupported room version")));
-	};
+		let mut unsigned = unsigned.unwrap_or_default();
 
-	let prev_events: Vec<OwnedEventId> = match room_id {
-		| Some(room_id) =>
-			self.services
-				.state
-				.get_forward_extremities(room_id)
-				.take(20)
-				.map(Into::into)
-				.collect()
-				.await,
-		| None => Vec::new(),
-	};
-
-	let auth_events: HashMap<(StateEventType, SmallString<[u8; 48]>), PduEvent> = match room_id {
-		| Some(room_id) =>
-			self.services
-				.state
-				.get_auth_events(
-					room_id,
-					&event_type,
-					sender,
-					state_key.as_deref(),
-					&content,
-					&room_version_rules,
-				)
-				.await?,
-		| None => HashMap::new(),
-	};
-	// Our depth is the maximum depth of prev_events + 1
-	let depth = match room_id {
-		| Some(_) => prev_events
-			.iter()
-			.stream()
-			.map(Ok)
-			.and_then(|event_id| self.get_pdu(event_id))
-			.and_then(|pdu| future::ok(pdu.depth))
-			.ignore_err()
-			.ready_fold(uint!(0), cmp::max)
-			.await
-			.saturating_add(uint!(1)),
-		| None => uint!(1),
-	};
-
-	let mut unsigned = unsigned.unwrap_or_default();
-
-	if let Some(room_id) = room_id {
-		if let Some(state_key) = &state_key {
-			if let Ok(prev_pdu) = self
-				.services
-				.state_accessor
-				.room_state_get(room_id, &event_type.clone().to_string().into(), state_key)
-				.await
-			{
-				unsigned.insert("prev_content".to_owned(), prev_pdu.get_content_as_value());
-				unsigned
-					.insert("prev_sender".to_owned(), serde_json::to_value(prev_pdu.sender())?);
-				unsigned.insert(
-					"replaces_state".to_owned(),
-					serde_json::to_value(prev_pdu.event_id())?,
-				);
+		if let Some(room_id) = room_id {
+			if let Some(state_key) = &state_key {
+				if let Ok(prev_pdu) = self
+					.services
+					.state_accessor
+					.room_state_get(room_id, &event_type.clone().to_string().into(), state_key)
+					.await
+				{
+					unsigned.insert("prev_content".to_owned(), prev_pdu.get_content_as_value());
+					unsigned.insert(
+						"prev_sender".to_owned(),
+						serde_json::to_value(prev_pdu.sender())?,
+					);
+					unsigned.insert(
+						"replaces_state".to_owned(),
+						serde_json::to_value(prev_pdu.event_id())?,
+					);
+				}
 			}
 		}
-	}
 
-	let pdu = PduEvent {
-		event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
-		room_id: room_id.map(ToOwned::to_owned),
-		sender: sender.to_owned(),
-		origin: None,
-		origin_server_ts: timestamp.map_or_else(
-			|| {
-				utils::millis_since_unix_epoch()
-					.try_into()
-					.expect("u64 fits into UInt")
+		let pdu = PduEvent {
+			event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
+			room_id: room_id.map(ToOwned::to_owned),
+			sender: sender.to_owned(),
+			origin: None,
+			origin_server_ts: timestamp.map_or_else(
+				|| {
+					utils::millis_since_unix_epoch()
+						.try_into()
+						.expect("u64 fits into UInt")
+				},
+				|ts| ts.get(),
+			),
+			kind: event_type,
+			content,
+			state_key,
+			prev_events,
+			depth,
+			auth_events: auth_events
+				.values()
+				.map(|pdu| pdu.event_id.clone())
+				.collect(),
+			redacts,
+			unsigned: if unsigned.is_empty() {
+				None
+			} else {
+				Some(to_raw_value(&unsigned)?)
 			},
-			|ts| ts.get(),
-		),
-		kind: event_type,
-		content,
-		state_key,
-		prev_events,
-		depth,
-		auth_events: auth_events
-			.values()
-			.map(|pdu| pdu.event_id.clone())
-			.collect(),
-		redacts,
-		unsigned: if unsigned.is_empty() {
-			None
-		} else {
-			Some(to_raw_value(&unsigned)?)
-		},
-		hashes: EventHash { sha256: String::new() },
-		signatures: None,
-	};
-
-	let auth_fetch = |k: &StateEventType, s: &str| {
-		let key = (k.clone(), s.into());
-		ready(auth_events.get(&key).map(ToOwned::to_owned))
-	};
-
-	let room_id_or_hash = pdu.room_id_or_hash();
-	let create_pdu = match &pdu.kind {
-		| TimelineEventType::RoomCreate => None,
-		| _ => Some(
-			self.services
-				.state_accessor
-				.room_state_get(&room_id_or_hash, &StateEventType::RoomCreate, "")
-				.await
-				.map_err(|e| {
-					err!(Request(Forbidden(warn!("Failed to fetch room create event: {e}"))))
-				})?,
-		),
-	};
-	let create_event = match &pdu.kind {
-		| TimelineEventType::RoomCreate => &pdu,
-		| _ => create_pdu.as_ref().unwrap().as_pdu(),
-	};
-
-	let auth_check = state_res::auth_check(
-		&room_version_rules,
-		&pdu,
-		None, // TODO: third_party_invite
-		auth_fetch,
-		create_event,
-	)
-	.await
-	.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
-
-	if !auth_check {
-		return Err!(Request(Forbidden("Event is not authorized.")));
-	}
-	trace!(
-		"Event {} in room {} is authorized",
-		pdu.event_id,
-		pdu.room_id.as_ref().map_or("None", |id| id.as_str())
-	);
-	Ok((pdu, room_version_rules))
-}
-
-#[implement(super::Service)]
-pub async fn create_hash_and_sign_event(
-	&self,
-	partial_pdu: PartialPdu,
-	sender: &UserId,
-	room_id: Option<&RoomId>,
-	mutex_lock: &RoomMutexGuard, /* Take mutex guard to make sure users get the room
-	                              * state mutex */
-) -> Result<(PduEvent, CanonicalJsonObject)> {
-	if !self.services.globals.user_is_local(sender) {
-		return Err!(Request(Forbidden("Sender must be a local user")));
-	}
-	let (mut pdu, room_version_rules) = self
-		.create_event(partial_pdu, sender, room_id, mutex_lock)
-		.await?;
-	// Hash and sign
-	let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
-		err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
-	})?;
-	pdu_json.remove("event_id");
-
-	trace!("hashing and signing event {}", pdu.event_id);
-	if let Err(e) = self
-		.services
-		.server_keys
-		.hash_and_sign_event(&mut pdu_json, &room_version_rules)
-	{
-		return match e {
-			| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
-				Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
-			},
-			| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
+			hashes: EventHash { sha256: String::new() },
+			signatures: None,
 		};
-	}
-	// Generate event id
-	pdu.event_id = gen_event_id(&pdu_json, &room_version_rules)?;
-	pdu_json.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
-	// Verify that the *full* PDU isn't over 64KiB.
-	if !pdu_fits(&mut pdu_json.clone()) {
-		// feckin huge PDU mate
-		return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
-	}
 
-	// Check with the policy server
-	if room_id.is_some() {
+		let auth_fetch = |k: &StateEventType, s: &str| {
+			let key = (k.clone(), s.into());
+			ready(auth_events.get(&key).map(ToOwned::to_owned))
+		};
+
+		let room_id_or_hash = pdu.room_id_or_hash();
+		let create_pdu = match &pdu.kind {
+			| TimelineEventType::RoomCreate => None,
+			| _ => Some(
+				self.services
+					.state_accessor
+					.room_state_get(&room_id_or_hash, &StateEventType::RoomCreate, "")
+					.await
+					.map_err(|e| {
+						err!(Request(Forbidden(warn!("Failed to fetch room create event: {e}"))))
+					})?,
+			),
+		};
+		let create_event = match &pdu.kind {
+			| TimelineEventType::RoomCreate => &pdu,
+			| _ => create_pdu.as_ref().unwrap().as_pdu(),
+		};
+
+		let auth_check = state_res::auth_check(
+			&room_version_rules,
+			&pdu,
+			None, // TODO: third_party_invite
+			auth_fetch,
+			create_event,
+		)
+		.await
+		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
+
+		if !auth_check {
+			return Err!(Request(Forbidden("Event is not authorized.")));
+		}
 		trace!(
-			"Checking event in room {} with policy server",
+			"Event {} in room {} is authorized",
+			pdu.event_id,
 			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 		);
-		// We need to remove the event ID before getting a PS signature on the event.
-		// Note that we seemingly pointlessly add it above just to remove it here, but
-		// it's important to make sure the event ID isn't the field that makes the
-		// difference between an illegally-large event and one that is okay.
-		pdu_json.remove("event_id");
-		self.services
-			.event_handler
-			.policy_server_allows_event(
-				&pdu,
-				&mut pdu_json,
-				pdu.room_id().expect("has room ID"),
-				&room_version_rules,
-				false,
-			)
-			.await?;
-		pdu_json
-			.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
+		Ok((pdu, room_version_rules))
 	}
 
-	// Generate short event id
-	trace!(
-		"Generating short event ID for {} in room {}",
-		pdu.event_id,
-		pdu.room_id.as_ref().map_or("None", |id| id.as_str())
-	);
-	let _shorteventid = self
-		.services
-		.short
-		.get_or_create_shorteventid(&pdu.event_id)
-		.await;
+	/// Creates, checks, hashes, and signs a new PDU. The resulting PDU is
+	/// immutable. Since the PDU is immutable, the `event_id` field is
+	/// populated.
+	///
+	/// TODO: The `event_id` field should be a separate return option, not
+	/// embedded.
+	pub async fn create_hash_and_sign_event(
+		&self,
+		partial_pdu: PartialPdu,
+		sender: &UserId,
+		room_id: Option<&RoomId>,
+		mutex_lock: &RoomMutexGuard,
+	) -> Result<(PduEvent, CanonicalJsonObject)> {
+		if !self.services.globals.user_is_local(sender) {
+			return Err!(Request(Forbidden("Sender must be a local user")));
+		}
+		let (mut pdu, room_version_rules) = self
+			.create_event(partial_pdu, sender, room_id, mutex_lock)
+			.await?;
+		// Hash and sign
+		let mut pdu_json = utils::to_canonical_object(&pdu).map_err(|e| {
+			err!(Request(BadJson(warn!("Failed to convert PDU to canonical JSON: {e}"))))
+		})?;
+		pdu_json.remove("event_id");
 
-	trace!("New PDU created: {pdu:?}");
-	Ok((pdu, pdu_json))
+		trace!("hashing and signing event {}", pdu.event_id);
+		if let Err(e) = self
+			.services
+			.server_keys
+			.hash_and_sign_event(&mut pdu_json, &room_version_rules)
+		{
+			return match e {
+				| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
+					Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
+				},
+				| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
+			};
+		}
+		// Generate event id
+		pdu.event_id = gen_event_id(&pdu_json, &room_version_rules)?;
+		pdu_json
+			.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
+		// Verify that the *full* PDU isn't over 64KiB.
+		if !pdu_fits(&mut pdu_json.clone()) {
+			// feckin huge PDU mate
+			return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
+		}
+
+		// Check with the policy server
+		if room_id.is_some() {
+			trace!(
+				"Checking event in room {} with policy server",
+				pdu.room_id.as_ref().map_or("None", |id| id.as_str())
+			);
+			// We need to remove the event ID before getting a PS signature on the event.
+			// Note that we seemingly pointlessly add it above just to remove it here, but
+			// it's important to make sure the event ID isn't the field that makes the
+			// difference between an illegally-large event and one that is okay.
+			pdu_json.remove("event_id");
+			self.services
+				.event_handler
+				.policy_server_allows_event(
+					&pdu,
+					&mut pdu_json,
+					pdu.room_id().expect("has room ID"),
+					&room_version_rules,
+					false,
+				)
+				.await?;
+			pdu_json.insert(
+				"event_id".into(),
+				CanonicalJsonValue::String(pdu.event_id.clone().into()),
+			);
+		}
+
+		// Generate short event id
+		trace!(
+			"Generating short event ID for {} in room {}",
+			pdu.event_id,
+			pdu.room_id.as_ref().map_or("None", |id| id.as_str())
+		);
+		let _shorteventid = self
+			.services
+			.short
+			.get_or_create_shorteventid(&pdu.event_id)
+			.await;
+
+		trace!("New PDU created: {pdu:?}");
+		Ok((pdu, pdu_json))
+	}
 }

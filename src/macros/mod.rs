@@ -2,7 +2,6 @@ mod admin;
 mod build_info;
 mod config;
 mod debug;
-mod implement;
 mod refutable;
 mod utils;
 
@@ -14,11 +13,6 @@ use syn::{
 };
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
-
-#[proc_macro_attribute]
-pub fn admin_command(args: TokenStream, input: TokenStream) -> TokenStream {
-	attribute_macro::<ItemFn, _>(args, input, admin::command)
-}
 
 #[proc_macro_attribute]
 pub fn admin_command_dispatch(args: TokenStream, input: TokenStream) -> TokenStream {
@@ -33,11 +27,6 @@ pub fn recursion_depth(args: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn refutable(args: TokenStream, input: TokenStream) -> TokenStream {
 	attribute_macro::<ItemFn, _>(args, input, refutable::refutable)
-}
-
-#[proc_macro_attribute]
-pub fn implement(args: TokenStream, input: TokenStream) -> TokenStream {
-	attribute_macro::<ItemFn, _>(args, input, implement::implement)
 }
 
 #[proc_macro_attribute]

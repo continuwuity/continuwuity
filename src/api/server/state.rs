@@ -21,7 +21,7 @@ pub(crate) async fn get_room_state_route(
 		room_id: &body.room_id,
 		event_id: None,
 	}
-	.check()
+	.assert()
 	.await?;
 
 	if services

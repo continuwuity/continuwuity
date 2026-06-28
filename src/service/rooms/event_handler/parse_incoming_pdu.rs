@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use conduwuit::{
-	Err, Result, err, implement,
+	Err, Result, err,
 	matrix::event::{gen_event_id, gen_event_id_canonical_json},
 };
 use itertools::Itertools;
@@ -79,70 +79,70 @@ pub(super) fn expect_event_id_array(
 		.try_collect()
 }
 
-/// Performs some basic validation on the PDU to make sure it's not obviously
-/// malformed. This is not a full validation, but guards against extreme errors.
-///
-/// Currently, this just validates that prev/auth events are within acceptable
-/// ranges. Other servers do some additional things like checking depth range,
-/// but serde will do that later when converting the object to a PduEvent.
-#[implement(super::Service)]
-pub fn validate_pdu(&self, pdu: &CanonicalJsonObject) -> Result {
-	// Since v3:
-	// `event_id` should not be present on the PDU.
-	// NOTE: The above is ignored since technically it's still allowed to be
-	// included, but should be ignored instead.
-	// `auth_events` and `prev_events` must be an array of event IDs
-	let auth_events = expect_event_id_array(pdu, "auth_events")?;
-	if auth_events.len() > 10 {
-		return Err!(Request(BadJson("PDU has too many auth events")));
+impl super::Service {
+	/// Performs some basic validation on the PDU to make sure it's not
+	/// obviously malformed. This is not a full validation, but guards against
+	/// extreme errors.
+	///
+	/// Currently, this just validates that prev/auth events are within
+	/// acceptable ranges. Other servers do some additional things like
+	/// checking depth range, but serde will do that later when converting the
+	/// object to a PduEvent.
+	pub fn validate_pdu(&self, pdu: &CanonicalJsonObject) -> Result {
+		// Since v3:
+		// `event_id` should not be present on the PDU.
+		// NOTE: The above is ignored since technically it's still allowed to be
+		// included, but should be ignored instead.
+		// `auth_events` and `prev_events` must be an array of event IDs
+		let auth_events = expect_event_id_array(pdu, "auth_events")?;
+		if auth_events.len() > 10 {
+			return Err!(Request(BadJson("PDU has too many auth events")));
+		}
+		let prev_events = expect_event_id_array(pdu, "prev_events")?;
+		if prev_events.len() > 20 {
+			return Err!(Request(BadJson("PDU has too many prev events")));
+		}
+		Ok(())
 	}
-	let prev_events = expect_event_id_array(pdu, "prev_events")?;
-	if prev_events.len() > 20 {
-		return Err!(Request(BadJson("PDU has too many prev events")));
+
+	pub async fn parse_incoming_pdu_with_known_room(
+		&self,
+		pdu: &RawJsonValue,
+		room_version_rules: &RoomVersionRules,
+	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
+		let (event_id, value) =
+			gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
+				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+			})?;
+		self.validate_pdu(&value)?;
+		Ok((event_id, value))
 	}
-	Ok(())
-}
 
-#[implement(super::Service)]
-pub async fn parse_incoming_pdu_with_known_room(
-	&self,
-	pdu: &RawJsonValue,
-	room_version_rules: &RoomVersionRules,
-) -> Result<(OwnedEventId, CanonicalJsonObject)> {
-	let (event_id, value) =
-		gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
-			err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+	pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
+		let value = serde_json::from_str::<CanonicalJsonObject>(pdu.get()).map_err(|e| {
+			err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
 		})?;
-	self.validate_pdu(&value)?;
-	Ok((event_id, value))
-}
+		let event_type = value
+			.get("type")
+			.and_then(CanonicalJsonValue::as_str)
+			.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid type in pdu"))))?;
 
-#[implement(super::Service)]
-#[tracing::instrument(name = "parse", skip_all)]
-pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
-	let value = serde_json::from_str::<CanonicalJsonObject>(pdu.get()).map_err(|e| {
-		err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
-	})?;
-	let event_type = value
-		.get("type")
-		.and_then(CanonicalJsonValue::as_str)
-		.ok_or_else(|| err!(Request(InvalidParam("Missing or invalid type in pdu"))))?;
+		let room_id = extract_room_id(event_type, &value)?;
 
-	let room_id = extract_room_id(event_type, &value)?;
+		let room_version_rules = self
+			.services
+			.state
+			.get_room_version(&room_id)
+			.await
+			.unwrap_or(RoomVersionId::V1)
+			.rules()
+			.unwrap();
 
-	let room_version_rules = self
-		.services
-		.state
-		.get_room_version(&room_id)
-		.await
-		.unwrap_or(RoomVersionId::V1)
-		.rules()
-		.unwrap();
-
-	let (event_id, value) =
-		gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
-			err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-		})?;
-	self.validate_pdu(&value)?;
-	Ok((room_id, event_id, value))
+		let (event_id, value) =
+			gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
+				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
+			})?;
+		self.validate_pdu(&value)?;
+		Ok((room_id, event_id, value))
+	}
 }

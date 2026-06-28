@@ -26,7 +26,7 @@ extern crate conduwuit_api as api;
 extern crate conduwuit_core as conduwuit;
 extern crate conduwuit_service as service;
 
-pub(crate) use conduwuit_macros::{admin_command, admin_command_dispatch};
+pub(crate) use conduwuit_macros::admin_command_dispatch;
 
 pub(crate) use crate::{context::Context, utils::get_room_info};
 

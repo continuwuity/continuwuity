@@ -1,20 +1,22 @@
-use std::collections::BTreeMap;
-
 use conduwuit::{Result, info, pdu::PartialPdu};
 use futures::FutureExt;
 use ruma::{
-	RoomId, RoomVersionId,
-	events::room::{
-		canonical_alias::RoomCanonicalAliasEventContent,
-		create::RoomCreateEventContent,
-		guest_access::{GuestAccess, RoomGuestAccessEventContent},
-		history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
-		join_rules::{JoinRule, RoomJoinRulesEventContent},
-		member::{MembershipState, RoomMemberEventContent},
-		name::RoomNameEventContent,
-		power_levels::RoomPowerLevelsEventContent,
-		topic::RoomTopicEventContent,
+	Int, RoomId,
+	events::{
+		TimelineEventType,
+		room::{
+			canonical_alias::RoomCanonicalAliasEventContent,
+			create::RoomCreateEventContent,
+			guest_access::{GuestAccess, RoomGuestAccessEventContent},
+			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
+			join_rules::{JoinRule, RoomJoinRulesEventContent},
+			member::{MembershipState, RoomMemberEventContent},
+			name::RoomNameEventContent,
+			power_levels::RoomPowerLevelsEventContent,
+			topic::RoomTopicEventContent,
+		},
 	},
+	room_version_rules::RoomIdFormatVersion,
 };
 
 use crate::Services;
@@ -24,47 +26,68 @@ use crate::Services;
 /// Users in this room are considered admins by conduwuit, and the room can be
 /// used to issue admin commands by talking to the server user inside it.
 pub async fn create_admin_room(services: &Services) -> Result {
-	let room_id = RoomId::new_v1(services.globals.server_name());
-	let room_version = &RoomVersionId::V11;
+	let room_version = services.config.default_room_version.clone();
+	let room_version_rules = room_version
+		.rules()
+		.expect("default_room_version must be supported");
+	let room_id = match room_version_rules.room_id_format {
+		| RoomIdFormatVersion::V1 => {
+			let room_id = RoomId::new_v1(services.globals.server_name());
+			services
+				.rooms
+				.short
+				.get_or_create_shortroomid(&room_id)
+				.await;
+			Some(room_id)
+		},
+		| RoomIdFormatVersion::V2 => None,
+		| _ => panic!("Unknown room version format"),
+	};
 
-	let _short_id = services
-		.rooms
-		.short
-		.get_or_create_shortroomid(&room_id)
-		.await;
-
-	let state_lock = services.rooms.state.mutex.lock(room_id.as_str()).await;
+	let state_lock = services.rooms.state.mutex.lock("!new-room").await;
 
 	// Create a user for the server
 	let server_user = services.globals.server_user.as_ref();
-	services.users.create(server_user, None).await?;
+	services.users.create(server_user, None)?;
 
-	let mut create_content = {
-		use RoomVersionId::*;
-		match room_version {
-			| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
-				RoomCreateEventContent::new_v1(server_user.into()),
-			| _ => RoomCreateEventContent::new_v11(),
-		}
+	let mut create_content = if room_version_rules.authorization.use_room_create_sender {
+		RoomCreateEventContent::new_v1(server_user.into())
+	} else {
+		RoomCreateEventContent::new_v11()
 	};
 
 	create_content.federate = true;
 	create_content.room_version = room_version.clone();
 
-	info!("Creating admin room {} with version {}", room_id, room_version);
+	info!(
+		"Creating admin room {} with version {}",
+		room_id
+			.clone()
+			.map_or_else(|| "<not known ahead of time>".to_owned(), |id| id.as_str().to_owned()),
+		room_version
+	);
 
 	// 1. The room create event
-	services
+	let create_event_id = services
 		.rooms
 		.timeline
 		.build_and_append_pdu(
 			PartialPdu::state(String::new(), &create_content),
 			server_user,
-			Some(&room_id),
+			room_id.as_deref(),
 			&state_lock,
 		)
 		.boxed()
 		.await?;
+	let room_id = room_id.unwrap_or_else(|| {
+		RoomId::new_v2(
+			create_event_id
+				.as_str()
+				.strip_prefix("$")
+				.expect("event ID must start with a $ sigil"),
+		)
+		.expect("event ID without sigil must be a valid room ID")
+	});
 
 	// 2. Make server user/bot join
 	services
@@ -83,11 +106,27 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.await?;
 
 	// 3. Power levels
-	let users = BTreeMap::from_iter([(server_user.into(), 69420.into())]);
-
 	let mut power_levels_content =
-		RoomPowerLevelsEventContent::new(&room_version.rules().unwrap().authorization);
-	power_levels_content.users = users;
+		RoomPowerLevelsEventContent::new(&room_version_rules.authorization);
+	if !room_version_rules
+		.authorization
+		.explicitly_privilege_room_creators
+	{
+		power_levels_content
+			.users
+			.insert(server_user.into(), Int::MAX);
+	}
+	// Prevent common foot-shotguns
+	power_levels_content
+		.events
+		.insert(TimelineEventType::RoomTombstone, Int::MAX);
+	power_levels_content
+		.events
+		.insert(TimelineEventType::RoomEncryption, Int::MAX);
+	power_levels_content
+		.events
+		.insert(TimelineEventType::RoomCanonicalAlias, Int::MAX);
+	power_levels_content.invite = power_levels_content.state_default;
 
 	services
 		.rooms

@@ -70,12 +70,14 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	/// Gets the name of a room, if any.
 	pub async fn get_name(&self, room_id: &RoomId) -> Result<String> {
 		self.room_state_get_content(room_id, &StateEventType::RoomName, "")
 			.await
 			.map(|c: RoomNameEventContent| c.name)
 	}
 
+	/// Gets the avatar event of a room, if any.
 	pub async fn get_avatar(&self, room_id: &RoomId) -> JsOption<RoomAvatarEventContent> {
 		let content = self
 			.room_state_get_content(room_id, &StateEventType::RoomAvatar, "")
@@ -85,6 +87,7 @@ impl Service {
 		JsOption::from_option(content)
 	}
 
+	/// Gets a member's event content, if one exists.
 	pub async fn get_member(
 		&self,
 		room_id: &RoomId,
@@ -124,7 +127,13 @@ impl Service {
 	pub async fn get_room_topic(&self, room_id: &RoomId) -> Result<String> {
 		self.room_state_get_content(room_id, &StateEventType::RoomTopic, "")
 			.await
-			.map(|c: RoomTopicEventContent| c.topic)
+			.map(|c: RoomTopicEventContent| {
+				c.topic_block
+					.text
+					.find_plain()
+					.map(ToOwned::to_owned)
+					.unwrap_or(c.topic)
+			})
 	}
 
 	/// Returns the join rules for a given room (`JoinRule` type). Will default
@@ -135,6 +144,7 @@ impl Service {
 			.map_or(JoinRule::Invite, |c: RoomJoinRulesEventContent| c.join_rule)
 	}
 
+	/// Gets the room type of a room, typically a space.
 	pub async fn get_room_type(&self, room_id: &RoomId) -> Result<RoomType> {
 		self.room_state_get_content(room_id, &StateEventType::RoomCreate, "")
 			.await
@@ -156,6 +166,7 @@ impl Service {
 			.map(|content: RoomEncryptionEventContent| content.algorithm)
 	}
 
+	/// Checks if the given room is one with encryption enabled.
 	pub async fn is_encrypted_room(&self, room_id: &RoomId) -> bool {
 		self.room_state_get(room_id, &StateEventType::RoomEncryption, "")
 			.await
@@ -166,7 +177,7 @@ impl Service {
 	pub async fn get_room_create_event(&self, room_id: &RoomId) -> Pdu {
 		self.room_state_get(room_id, &StateEventType::RoomCreate, "")
 			.await
-			.expect("room should have a create event")
+			.expect("room must have a create event")
 	}
 
 	/// Get a set of the room's creators. This will always contain a single user
@@ -202,7 +213,7 @@ impl Service {
 		creators
 	}
 
-	/// Get the room's power levels. This will never fail -- if the room has no
+	/// Get the room's power levels. This will never fail - if the room has no
 	/// power level state event, the default power levels for the room's
 	/// version will be returned.
 	pub async fn get_room_power_levels(&self, room_id: &RoomId) -> RoomPowerLevels {

@@ -9,7 +9,7 @@ mod verify;
 use std::{collections::BTreeMap, sync::Arc, time::Duration};
 
 use conduwuit::{
-	Result, Server, debug_error, debug_warn, implement, trace,
+	Result, Server,
 	utils::{IterStream, timepoint_from_now},
 };
 use database::{Deserialized, Json, Map};
@@ -73,123 +73,124 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-#[implement(Service)]
-#[inline]
-pub fn keypair(&self) -> &Ed25519KeyPair { &self.keypair }
+impl Service {
+	/// Fetches the server's active keypair.
+	pub fn keypair(&self) -> &Ed25519KeyPair { &self.keypair }
 
-#[implement(Service)]
-#[inline]
-pub fn active_key_id(&self) -> &ServerSigningKeyId { self.active_verify_key().0 }
+	/// Fetches the server's active signing key ID.
+	pub fn active_key_id(&self) -> &ServerSigningKeyId { self.active_verify_key().0 }
 
-#[implement(Service)]
-#[inline]
-pub fn active_verify_key(&self) -> (&ServerSigningKeyId, &VerifyKey) {
-	debug_assert!(self.verify_keys.len() <= 1, "more than one active verify_key");
-	self.verify_keys
-		.iter()
-		.next()
-		.map(|(id, key)| (id.as_ref(), key))
-		.expect("missing active verify_key")
-}
+	/// Fetches the server's active signing key. Panics if there's more than 1
+	/// active key.
+	pub fn active_verify_key(&self) -> (&ServerSigningKeyId, &VerifyKey) {
+		debug_assert!(self.verify_keys.len() <= 1, "more than one active verify_key");
+		self.verify_keys
+			.iter()
+			.next()
+			.map(|(id, key)| (id.as_ref(), key))
+			.expect("missing active verify_key")
+	}
 
-#[implement(Service)]
-async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
-	let origin = &new_keys.server_name;
+	/// Combines signing keys from the incoming response to the existing
+	/// database set.
+	async fn add_signing_keys(&self, new_keys: ServerSigningKeys) {
+		let origin = &new_keys.server_name;
 
-	// (timo) Not atomic, but this is not critical
-	let mut keys: ServerSigningKeys = self
-		.db
-		.server_signingkeys
-		.get(origin)
-		.await
-		.deserialized()
-		.unwrap_or_else(|_| {
-			// Just insert "now", it doesn't matter
-			ServerSigningKeys::new(origin.to_owned(), MilliSecondsSinceUnixEpoch::now())
-		});
+		// (timo) Not atomic, but this is not critical
+		let mut keys: ServerSigningKeys = self
+			.db
+			.server_signingkeys
+			.get(origin)
+			.await
+			.deserialized()
+			.unwrap_or_else(|_| {
+				// Just insert "now", it doesn't matter
+				ServerSigningKeys::new(origin.to_owned(), MilliSecondsSinceUnixEpoch::now())
+			});
 
-	keys.verify_keys.extend(new_keys.verify_keys);
-	keys.old_verify_keys.extend(new_keys.old_verify_keys);
-	self.db.server_signingkeys.raw_put(origin, Json(&keys));
-}
+		keys.verify_keys.extend(new_keys.verify_keys);
+		keys.old_verify_keys.extend(new_keys.old_verify_keys);
+		self.db.server_signingkeys.raw_put(origin, Json(&keys));
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self, object), level = "debug")]
-pub async fn required_keys_exist(
-	&self,
-	object: &CanonicalJsonObject,
-	room_version_rules: &RoomVersionRules,
-) -> bool {
-	trace!(?object, "Checking required keys exist");
-	let Ok(required_keys) = required_keys(object, &room_version_rules.signatures) else {
-		debug_error!("Failed to determine required keys");
-		return false;
-	};
-	trace!(?required_keys, "Required keys to verify event");
-	required_keys
-		.iter()
-		.flat_map(|(server, key_ids)| key_ids.iter().map(move |key_id| (server, key_id)))
-		.stream()
-		.all(|(server, key_id)| self.verify_key_exists(server, key_id))
-		.await
-}
+	/// Checks if the keys required to verify an incoming PDU are already known
+	/// locally.
+	pub async fn required_keys_exist(
+		&self,
+		object: &CanonicalJsonObject,
+		room_version_rules: &RoomVersionRules,
+	) -> bool {
+		let Ok(required_keys) = required_keys(object, &room_version_rules.signatures) else {
+			return false;
+		};
+		required_keys
+			.iter()
+			.flat_map(|(server, key_ids)| key_ids.iter().map(move |key_id| (server, key_id)))
+			.stream()
+			.all(|(server, key_id)| self.verify_key_exists(server, key_id))
+			.await
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub async fn verify_key_exists(&self, origin: &ServerName, key_id: &ServerSigningKeyId) -> bool {
-	type KeysMap = BTreeMap<OwnedServerSigningKeyId, Box<RawJsonValue>>;
+	/// Checks if a single verify key belonging to the target server is already
+	/// known locally.
+	pub async fn verify_key_exists(
+		&self,
+		origin: &ServerName,
+		key_id: &ServerSigningKeyId,
+	) -> bool {
+		type KeysMap = BTreeMap<OwnedServerSigningKeyId, Box<RawJsonValue>>;
 
-	let Ok(keys) = self
-		.db
-		.server_signingkeys
-		.get(origin)
-		.await
-		.deserialized::<Raw<ServerSigningKeys>>()
-	else {
-		debug_warn!("No known signing keys found for {origin}");
-		return false;
-	};
+		let Ok(keys) = self
+			.db
+			.server_signingkeys
+			.get(origin)
+			.await
+			.deserialized::<Raw<ServerSigningKeys>>()
+		else {
+			return false;
+		};
 
-	if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap>("verify_keys") {
-		if verify_keys.contains_key(key_id) {
-			return true;
+		if let Ok(Some(verify_keys)) = keys.get_field::<KeysMap>("verify_keys") {
+			if verify_keys.contains_key(key_id) {
+				return true;
+			}
 		}
-	}
 
-	if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap>("old_verify_keys") {
-		if old_verify_keys.contains_key(key_id) {
-			return true;
+		if let Ok(Some(old_verify_keys)) = keys.get_field::<KeysMap>("old_verify_keys") {
+			if old_verify_keys.contains_key(key_id) {
+				return true;
+			}
 		}
+
+		false
 	}
 
-	debug_warn!("Key {key_id} not found for {origin}");
-	false
-}
+	/// Returns all verify keys for the origin.
+	pub async fn verify_keys_for(&self, origin: &ServerName) -> VerifyKeys {
+		let mut keys = self
+			.signing_keys_for(origin)
+			.await
+			.map_or(BTreeMap::new(), |keys| merge_old_keys(keys).verify_keys);
 
-#[implement(Service)]
-pub async fn verify_keys_for(&self, origin: &ServerName) -> VerifyKeys {
-	let mut keys = self
-		.signing_keys_for(origin)
-		.await
-		.map_or(BTreeMap::new(), |keys| merge_old_keys(keys).verify_keys);
+		if self.services.globals.server_is_ours(origin) {
+			keys.extend(self.verify_keys.clone());
+		}
 
-	if self.services.globals.server_is_ours(origin) {
-		keys.extend(self.verify_keys.clone());
+		keys
 	}
 
-	keys
-}
+	/// Returns the stored server signing keys response for the origin.
+	pub async fn signing_keys_for(&self, origin: &ServerName) -> Result<ServerSigningKeys> {
+		self.db.server_signingkeys.get(origin).await.deserialized()
+	}
 
-#[implement(Service)]
-pub async fn signing_keys_for(&self, origin: &ServerName) -> Result<ServerSigningKeys> {
-	self.db.server_signingkeys.get(origin).await.deserialized()
-}
-
-#[implement(Service)]
-fn minimum_valid_ts(&self) -> MilliSecondsSinceUnixEpoch {
-	let timepoint =
-		timepoint_from_now(self.minimum_valid).expect("SystemTime should not overflow");
-	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
+	/// Returns the minimum_valid_ts for a key response from the current point
+	/// in time, plus the minimum valid time.
+	fn minimum_valid_ts(&self) -> MilliSecondsSinceUnixEpoch {
+		let timepoint =
+			timepoint_from_now(self.minimum_valid).expect("SystemTime should not overflow");
+		MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
+	}
 }
 
 fn merge_old_keys(mut keys: ServerSigningKeys) -> ServerSigningKeys {

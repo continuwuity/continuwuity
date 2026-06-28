@@ -32,7 +32,7 @@ pub(crate) async fn get_backfill_route(
 		room_id: &body.room_id,
 		event_id: None,
 	}
-	.check()
+	.assert()
 	.await?;
 	if !services
 		.rooms

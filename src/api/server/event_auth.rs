@@ -23,7 +23,7 @@ pub(crate) async fn get_event_authorization_route(
 		room_id: &body.room_id,
 		event_id: None,
 	}
-	.check()
+	.assert()
 	.await?;
 
 	if services

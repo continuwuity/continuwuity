@@ -1,8 +1,13 @@
-//! Types for invite filtering ([MSC4155]).
+//! Types for invite filtering ([MSC4155]) and
+//! invite blocking ([invite-blocking]).
 //!
 //! MSC4155: https://github.com/matrix-org/matrix-spec-proposals/pull/4155
+//! invite-blocking: https://spec.matrix.org/v1.18/client-server-api/#invite-permission
 
-use ruma::{ServerName, UserId, exports::ruma_macros::EventContent};
+use ruma::{
+	ServerName, UserId, events::invite_permission_config::InvitePermissionAction,
+	exports::ruma_macros::EventContent,
+};
 use serde::{Deserialize, Serialize};
 use wildmatch::WildMatch;
 
@@ -24,6 +29,21 @@ pub struct InvitePermissionConfigEventContent {
 	/// A global on/off toggle for all rules
 	#[serde(default = "ruma::serde::default_true")]
 	pub enabled: bool,
+
+	/// The default action chosen by the user that the homeserver should perform
+	/// automatically when receiving an invitation for this account.
+	///
+	/// A missing, invalid or unsupported value means that the user wants to
+	/// receive invites as normal. Other parts of the specification might still
+	/// have effects on invites, like [ignoring users].
+	///
+	/// [ignoring users]: https://spec.matrix.org/v1.18/client-server-api/#ignoring-users
+	#[serde(
+		default,
+		deserialize_with = "ruma::serde::default_on_error",
+		skip_serializing_if = "Option::is_none"
+	)]
+	pub default_action: Option<InvitePermissionAction>,
 
 	/// A list of globs matching users which are allowed to send an invite.
 	/// Entries in this list supersede entries in the ignored and blocked lists.
@@ -77,6 +97,7 @@ impl InvitePermissionConfigEventContent {
 	) -> Self {
 		Self {
 			enabled,
+			default_action: None,
 			allowed_users,
 			ignored_users,
 			blocked_users,
@@ -86,12 +107,21 @@ impl InvitePermissionConfigEventContent {
 		}
 	}
 
+	/// Returns true if the default action is configured and set to block.
+	fn are_all_blocked(&self) -> bool {
+		self.default_action
+			.clone()
+			.is_some_and(|action| action == InvitePermissionAction::Block)
+	}
+
 	/// Test the filters against a user id. This function will check both the
 	/// user rules _and_ the server rules.
 	#[must_use]
 	#[allow(clippy::if_same_then_else)]
 	pub fn user_filter_level(&self, user: &UserId) -> FilterLevel {
-		if !self.enabled {
+		if self.are_all_blocked() {
+			FilterLevel::Block
+		} else if !self.enabled {
 			FilterLevel::Allow
 		} else if Self::matches(&self.allowed_users, user.as_str()) {
 			FilterLevel::Allow
@@ -107,7 +137,9 @@ impl InvitePermissionConfigEventContent {
 	/// Test the filters against a server name. Port numbers are ignored.
 	#[must_use]
 	pub fn server_filter_level(&self, server: &ServerName) -> FilterLevel {
-		if !self.enabled {
+		if self.are_all_blocked() {
+			FilterLevel::Block
+		} else if !self.enabled {
 			FilterLevel::Allow
 		} else {
 			let server = server.host();
@@ -132,7 +164,12 @@ impl InvitePermissionConfigEventContent {
 
 #[cfg(test)]
 mod tests {
-	use ruma::{ServerName, UserId, events::GlobalAccountDataEvent};
+	use assign::assign;
+	use ruma::{
+		ServerName, UserId,
+		events::{GlobalAccountDataEvent, invite_permission_config::InvitePermissionAction},
+		user_id,
+	};
 	use serde_json::{from_value as from_json_value, json};
 
 	use crate::invite_permission_config::{FilterLevel, InvitePermissionConfigEventContent};
@@ -266,6 +303,60 @@ mod tests {
 		assert_eq!(
 			event.user_filter_level(user_id("@kevin:reallybadguys.org")),
 			FilterLevel::Ignore
+		);
+	}
+
+	#[test]
+	fn v118_blocking_enabled_blocks_all() {
+		let event = assign!(
+			InvitePermissionConfigEventContent::default(),
+			{ default_action: Some(InvitePermissionAction::Block) }
+		);
+		let fixtures = [
+			user_id!("@alice:goodguys.org"),
+			user_id!("@alice:goodguys.org:8080"),
+			user_id!("@bob:bar.com"),
+			user_id!("@bob:Bar.com"),
+			user_id!("@kevin:reallybadguys.org"),
+		];
+		assert!(
+			fixtures
+				.iter()
+				.all(|f| event.user_filter_level(f) == FilterLevel::Block)
+		);
+	}
+
+	#[test]
+	fn v118_blocking_enabled_is_uninfluenced_by_msc4155() {
+		let toggled = InvitePermissionConfigEventContent {
+			enabled: false,
+			default_action: Some(InvitePermissionAction::Block),
+			..Default::default()
+		};
+		let only_goodguys = InvitePermissionConfigEventContent {
+			enabled: true,
+			default_action: Some(InvitePermissionAction::Block),
+			allowed_servers: vec!["goodguys.org".to_owned()],
+			ignored_servers: vec!["reallybadguys.org".to_owned()],
+			blocked_servers: vec!["*".to_owned()],
+			..Default::default()
+		};
+		let fixtures = [
+			user_id!("@alice:goodguys.org"),
+			user_id!("@alice:goodguys.org:8080"),
+			user_id!("@bob:bar.com"),
+			user_id!("@bob:Bar.com"),
+			user_id!("@kevin:reallybadguys.org"),
+		];
+		assert!(
+			fixtures
+				.iter()
+				.all(|f| toggled.user_filter_level(f) == FilterLevel::Block)
+		);
+		assert!(
+			fixtures
+				.iter()
+				.all(|f| only_goodguys.user_filter_level(f) == FilterLevel::Block)
 		);
 	}
 }

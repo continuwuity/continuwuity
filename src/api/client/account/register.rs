@@ -134,7 +134,7 @@ pub(crate) async fn register_route(
 	};
 
 	// Create user
-	services.users.create(&user_id, password).await?;
+	services.users.create(&user_id, password)?;
 
 	// Set an initial display name
 	let mut displayname = user_id.localpart().to_owned();

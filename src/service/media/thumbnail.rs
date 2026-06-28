@@ -7,7 +7,7 @@
 
 use std::{cmp, num::Saturating as Sat};
 
-use conduwuit::{Result, checked, err, implement};
+use conduwuit::{Result, checked, err};
 use ruma::{UInt, UserId, http_headers::ContentDisposition, media::Method};
 use tokio::{
 	fs,
@@ -74,80 +74,77 @@ impl super::Service {
 			},
 		}
 	}
-}
 
-/// Using saved thumbnail
-#[implement(super::Service)]
-#[tracing::instrument(name = "saved", level = "debug", skip(self, data))]
-async fn get_thumbnail_saved(&self, data: Metadata) -> Result<Option<FileMeta>> {
-	let mut content = Vec::new();
-	let path = self.get_media_file(&data.key);
-	fs::File::open(path)
-		.await?
-		.read_to_end(&mut content)
-		.await?;
+	/// Using saved thumbnail
+	#[tracing::instrument(name = "saved", level = "debug", skip(self, data))]
+	async fn get_thumbnail_saved(&self, data: Metadata) -> Result<Option<FileMeta>> {
+		let mut content = Vec::new();
+		let path = self.get_media_file(&data.key);
+		fs::File::open(path)
+			.await?
+			.read_to_end(&mut content)
+			.await?;
 
-	Ok(Some(into_filemeta(data, content)))
-}
-
-/// Generate a thumbnail
-#[cfg(feature = "media_thumbnail")]
-#[implement(super::Service)]
-#[tracing::instrument(name = "generate", level = "debug", skip(self, data))]
-async fn get_thumbnail_generate(
-	&self,
-	mxc: &Mxc<'_>,
-	dim: &Dim,
-	data: Metadata,
-) -> Result<Option<FileMeta>> {
-	let mut content = Vec::new();
-	let path = self.get_media_file(&data.key);
-	fs::File::open(path)
-		.await?
-		.read_to_end(&mut content)
-		.await?;
-
-	let Ok(image) = image::load_from_memory(&content) else {
-		// Couldn't parse file to generate thumbnail, send original
-		return Ok(Some(into_filemeta(data, content)));
-	};
-
-	if dim.width > image.width() || dim.height > image.height() {
-		return Ok(Some(into_filemeta(data, content)));
+		Ok(Some(into_filemeta(data, content)))
 	}
 
-	let mut thumbnail_bytes = Vec::new();
-	let thumbnail = thumbnail_generate(&image, dim)?;
-	let mut cursor = std::io::Cursor::new(&mut thumbnail_bytes);
-	thumbnail
-		.write_to(&mut cursor, image::ImageFormat::Png)
-		.map_err(|error| err!(error!(%error, "Error writing PNG thumbnail.")))?;
+	/// Generate a thumbnail
+	#[cfg(feature = "media_thumbnail")]
+	#[tracing::instrument(name = "generate", level = "debug", skip(self, data))]
+	async fn get_thumbnail_generate(
+		&self,
+		mxc: &Mxc<'_>,
+		dim: &Dim,
+		data: Metadata,
+	) -> Result<Option<FileMeta>> {
+		let mut content = Vec::new();
+		let path = self.get_media_file(&data.key);
+		fs::File::open(path)
+			.await?
+			.read_to_end(&mut content)
+			.await?;
 
-	// Save thumbnail in database so we don't have to generate it again next time
-	let thumbnail_key = self.db.create_file_metadata(
-		mxc,
-		None,
-		dim,
-		data.content_disposition.as_ref(),
-		data.content_type.as_deref(),
-	)?;
+		let Ok(image) = image::load_from_memory(&content) else {
+			// Couldn't parse file to generate thumbnail, send original
+			return Ok(Some(into_filemeta(data, content)));
+		};
 
-	let mut f = self.create_media_file(&thumbnail_key).await?;
-	f.write_all(&thumbnail_bytes).await?;
+		if dim.width > image.width() || dim.height > image.height() {
+			return Ok(Some(into_filemeta(data, content)));
+		}
 
-	Ok(Some(into_filemeta(data, thumbnail_bytes)))
-}
+		let mut thumbnail_bytes = Vec::new();
+		let thumbnail = thumbnail_generate(&image, dim)?;
+		let mut cursor = std::io::Cursor::new(&mut thumbnail_bytes);
+		thumbnail
+			.write_to(&mut cursor, image::ImageFormat::Png)
+			.map_err(|error| err!(error!(%error, "Error writing PNG thumbnail.")))?;
 
-#[cfg(not(feature = "media_thumbnail"))]
-#[implement(super::Service)]
-#[tracing::instrument(name = "fallback", level = "debug", skip_all)]
-async fn get_thumbnail_generate(
-	&self,
-	_mxc: &Mxc<'_>,
-	_dim: &Dim,
-	data: Metadata,
-) -> Result<Option<FileMeta>> {
-	self.get_thumbnail_saved(data).await
+		// Save thumbnail in database so we don't have to generate it again next time
+		let thumbnail_key = self.db.create_file_metadata(
+			mxc,
+			None,
+			dim,
+			data.content_disposition.as_ref(),
+			data.content_type.as_deref(),
+		)?;
+
+		let mut f = self.create_media_file(&thumbnail_key).await?;
+		f.write_all(&thumbnail_bytes).await?;
+
+		Ok(Some(into_filemeta(data, thumbnail_bytes)))
+	}
+
+	#[cfg(not(feature = "media_thumbnail"))]
+	#[tracing::instrument(name = "fallback", level = "debug", skip_all)]
+	async fn get_thumbnail_generate(
+		&self,
+		_mxc: &Mxc<'_>,
+		_dim: &Dim,
+		data: Metadata,
+	) -> Result<Option<FileMeta>> {
+		self.get_thumbnail_saved(data).await
+	}
 }
 
 #[cfg(feature = "media_thumbnail")]

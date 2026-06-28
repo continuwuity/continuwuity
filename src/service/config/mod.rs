@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use conduwuit::{
 	Result, Server,
 	config::{Config, check},
-	error, implement,
+	error,
 };
 use url::Url;
 
@@ -15,28 +15,6 @@ pub struct Service {
 }
 
 const SIGNAL: &str = "SIGUSR1";
-
-impl Service {
-	/// Get the registration token set in the config file, if it exists.
-	#[must_use]
-	pub fn get_config_file_token(&self) -> Option<ValidToken> {
-		self.registration_token
-			.clone()
-			.map(|token| ValidToken { token, source: ValidTokenSource::Config })
-	}
-
-	/// Get the base domain to use for user-facing URLs.
-	#[must_use]
-	pub fn get_client_domain(&self) -> Url {
-		self.well_known.client.clone().unwrap_or_else(|| {
-			let host = self.server_name.host();
-			format!("https://{host}")
-				.as_str()
-				.try_into()
-				.expect("server name should be a valid host")
-		})
-	}
-}
 
 #[async_trait]
 impl crate::Service for Service {
@@ -66,32 +44,53 @@ impl Deref for Service {
 	fn deref(&self) -> &Self::Target { &self.server.config }
 }
 
-#[implement(Service)]
-fn handle_reload(&self) -> Result {
-	if self.server.config.config_reload_signal {
-		#[cfg(all(feature = "systemd", target_os = "linux"))]
-		sd_notify::notify(&[
-			sd_notify::NotifyState::Reloading,
-			sd_notify::NotifyState::monotonic_usec_now().expect("Failed to read monotonic time"),
-		])
-		.expect("failed to notify systemd of reloading state");
-
-		let config_paths = self.server.config.config_paths.clone().unwrap_or_default();
-		self.reload(&config_paths)?;
-
-		#[cfg(all(feature = "systemd", target_os = "linux"))]
-		sd_notify::notify(&[sd_notify::NotifyState::Ready])
-			.expect("failed to notify systemd of ready state");
+impl Service {
+	/// Get the registration token set in the config file, if it exists.
+	#[must_use]
+	pub fn get_config_file_token(&self) -> Option<ValidToken> {
+		self.registration_token
+			.clone()
+			.map(|token| ValidToken { token, source: ValidTokenSource::Config })
 	}
 
-	Ok(())
-}
+	/// Get the base domain to use for user-facing URLs.
+	#[must_use]
+	pub fn get_client_domain(&self) -> Url {
+		self.well_known.client.clone().unwrap_or_else(|| {
+			let host = self.server_name.host();
+			format!("https://{host}")
+				.as_str()
+				.try_into()
+				.expect("server name should be a valid host")
+		})
+	}
 
-#[implement(Service)]
-pub fn reload(&self, paths: &[PathBuf]) -> Result<Arc<Config>> {
-	let old = self.server.config.clone();
-	let new = Config::load(paths).and_then(|raw| Config::new(&raw))?;
+	fn handle_reload(&self) -> Result {
+		if self.server.config.config_reload_signal {
+			#[cfg(all(feature = "systemd", target_os = "linux"))]
+			sd_notify::notify(&[
+				sd_notify::NotifyState::Reloading,
+				sd_notify::NotifyState::monotonic_usec_now()
+					.expect("Failed to read monotonic time"),
+			])
+			.expect("failed to notify systemd of reloading state");
 
-	check::reload(&old, &new)?;
-	self.server.config.update(new)
+			let config_paths = self.server.config.config_paths.clone().unwrap_or_default();
+			self.reload(&config_paths)?;
+
+			#[cfg(all(feature = "systemd", target_os = "linux"))]
+			sd_notify::notify(&[sd_notify::NotifyState::Ready])
+				.expect("failed to notify systemd of ready state");
+		}
+
+		Ok(())
+	}
+
+	pub fn reload(&self, paths: &[PathBuf]) -> Result<Arc<Config>> {
+		let old = self.server.config.clone();
+		let new = Config::load(paths).and_then(|raw| Config::new(&raw))?;
+
+		check::reload(&old, &new)?;
+		self.server.config.update(new)
+	}
 }

@@ -44,5 +44,6 @@ pub fn unstable_features() -> BTreeMap<String, bool> {
 		("uk.timedout.msc4323".to_owned(), true), /* agnostic suspend (https://github.com/matrix-org/matrix-spec-proposals/pull/4323) */
 		("org.matrix.msc4155".to_owned(), true), /* invite filtering (https://github.com/matrix-org/matrix-spec-proposals/pull/4155) */
 		("computer.gingershaped.msc4466".to_owned(), true), /* profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466) */
+		("org.matrix.msc4380.stable".to_owned(), true),
 	])
 }

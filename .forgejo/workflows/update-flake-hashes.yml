@@ -14,7 +14,7 @@ jobs:
   update-flake-hashes:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           persist-credentials: true
           token: ${{ secrets.FORGEJO_TOKEN }}
@@ -27,7 +27,7 @@ jobs:
       - name: Get new toolchain hash
         run: |
           # Set the current sha256 to an empty hash to make `nix build` calculate a new one
-          awk '/fromToolchainFile *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/rust.nix > temp.nix
+          awk '/fromToolchainName *\{/{found=1; print; next} found && /sha256 =/{sub(/sha256 = .*/, "sha256 = lib.fakeSha256;"); found=0} 1' nix/rust.nix > temp.nix
           mv temp.nix nix/rust.nix
 
           # Build continuwuity and filter for the new hash
@@ -39,11 +39,14 @@ jobs:
           sed -i "s|lib.fakeSha256|\"$new_hash\"|" nix/rust.nix
 
           echo "New hash:"
-          awk -F'"' '/fromToolchainFile/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/rust.nix
+          awk -F'"' '/fromToolchainName/{found=1; next} found && /sha256 =/{print $2; found=0}' nix/rust.nix
           echo "Expected new hash:"
           cat new_toolchain_hash.txt
 
           rm new_toolchain_hash.txt
+
+      - name: Update rocksdb
+        run: nix run .#update-rocksdb
 
       - name: Show diff
         run: git diff flake.nix nix

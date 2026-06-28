@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use conduwuit::{Config, Result, err, implement, trace};
+use conduwuit::{Config, Result, err, trace};
 use either::Either;
 use ipaddress::IPAddress;
 use reqwest::redirect;
@@ -13,7 +13,7 @@ pub struct Service {
 	pub extern_media: reqwest::Client,
 	pub well_known: reqwest::Client,
 	pub federation: reqwest::Client,
-	pub synapse: reqwest::Client,
+	pub federation_slow: reqwest::Client,
 	pub sender: reqwest::Client,
 	pub appservice: reqwest::Client,
 	pub pusher: reqwest::Client,
@@ -85,7 +85,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
-			synapse: base(config)?
+			federation_slow: base(config)?
 				.dns_resolver(resolver.resolver.hooked.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))
@@ -139,6 +139,16 @@ impl crate::Service for Service {
 	}
 
 	fn name(&self) -> &str { service::make_name(std::module_path!()) }
+}
+
+impl Service {
+	#[inline]
+	#[must_use]
+	pub fn valid_cidr_range(&self, ip: &IPAddress) -> bool {
+		self.cidr_range_denylist
+			.iter()
+			.all(|cidr| !cidr.includes(ip))
+	}
 }
 
 fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
@@ -226,13 +236,4 @@ fn builder_interface(
 	} else {
 		Ok(builder)
 	}
-}
-
-#[inline]
-#[must_use]
-#[implement(Service)]
-pub fn valid_cidr_range(&self, ip: &IPAddress) -> bool {
-	self.cidr_range_denylist
-		.iter()
-		.all(|cidr| !cidr.includes(ip))
 }

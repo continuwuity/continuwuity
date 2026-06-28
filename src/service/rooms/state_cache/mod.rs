@@ -4,10 +4,9 @@ mod via;
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Pdu, Result, SyncRwLock, implement,
+	Pdu, Result, SyncRwLock,
 	result::LogErr,
 	utils::{ReadyExt, stream::TryIgnore},
-	warn,
 };
 use database::{Deserialized, Ignore, Interfix, Map};
 use futures::{Stream, StreamExt, future::join5, pin_mut};
@@ -93,448 +92,414 @@ impl crate::Service for Service {
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
 
-#[implement(Service)]
-#[tracing::instrument(level = "trace", skip_all)]
-pub async fn appservice_in_room(&self, room_id: &RoomId, appservice: &RegistrationInfo) -> bool {
-	if let Some(cached) = self
-		.appservice_in_room_cache
-		.read()
-		.get(room_id)
-		.and_then(|map| map.get(&appservice.registration.id))
-		.copied()
-	{
-		return cached;
+impl Service {
+	/// Checks if an appservice (or any user in its claimed namespace) is in the
+	/// target room.
+	pub async fn appservice_in_room(
+		&self,
+		room_id: &RoomId,
+		appservice: &RegistrationInfo,
+	) -> bool {
+		if let Some(cached) = self
+			.appservice_in_room_cache
+			.read()
+			.get(room_id)
+			.and_then(|map| map.get(&appservice.registration.id))
+			.copied()
+		{
+			return cached;
+		}
+
+		let appservice_user_id = UserId::parse_with_server_name(
+			appservice.registration.sender_localpart.as_str(),
+			self.services.globals.server_name(),
+		);
+
+		let Ok(bridge_user_id) = appservice_user_id.log_err() else {
+			return false;
+		};
+
+		let (as_user_joined, any_as_namespace_user_joined) = tokio::join!(
+			self.is_joined(&bridge_user_id, room_id),
+			self.room_members(room_id)
+				.ready_any(|user_id| appservice.users.is_match(user_id.as_str()))
+		);
+		let in_room = as_user_joined || any_as_namespace_user_joined;
+
+		self.appservice_in_room_cache
+			.write()
+			.entry(room_id.into())
+			.or_default()
+			.insert(appservice.registration.id.clone(), in_room);
+
+		in_room
 	}
 
-	let bridge_user_id = UserId::parse_with_server_name(
-		appservice.registration.sender_localpart.as_str(),
-		self.services.globals.server_name(),
-	);
+	/// Gets the size of the AS joined room cache and its capacity.
+	pub fn get_appservice_in_room_cache_usage(&self) -> (usize, usize) {
+		let cache = self.appservice_in_room_cache.read();
 
-	let Ok(bridge_user_id) = bridge_user_id.log_err() else {
-		return false;
-	};
-
-	let in_room = self.is_joined(&bridge_user_id, room_id).await
-		|| self
-			.room_members(room_id)
-			.ready_any(|user_id| appservice.users.is_match(user_id.as_str()))
-			.await;
-
-	self.appservice_in_room_cache
-		.write()
-		.entry(room_id.into())
-		.or_default()
-		.insert(appservice.registration.id.clone(), in_room);
-
-	in_room
-}
-
-#[implement(Service)]
-pub fn get_appservice_in_room_cache_usage(&self) -> (usize, usize) {
-	let cache = self.appservice_in_room_cache.read();
-
-	(cache.len(), cache.capacity())
-}
-
-#[implement(Service)]
-#[tracing::instrument(level = "debug", skip_all)]
-pub fn clear_appservice_in_room_cache(&self) { self.appservice_in_room_cache.write().clear(); }
-
-/// Returns an iterator of all servers participating in this room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn room_servers<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedServerName> + Send + 'a {
-	let prefix = (room_id, Interfix);
-	self.db
-		.roomserverids
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, server): (Ignore, OwnedServerName)| server)
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn server_in_room<'a>(&'a self, server: &'a ServerName, room_id: &'a RoomId) -> bool {
-	let key = (server, room_id);
-	self.db.serverroomids.qry(&key).await.is_ok()
-}
-
-/// Returns an iterator of all rooms a server participates in (as far as we
-/// know).
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn server_rooms<'a>(
-	&'a self,
-	server: &'a ServerName,
-) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
-	let prefix = (server, Interfix);
-	self.db
-		.serverroomids
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, room_id): (Ignore, OwnedRoomId)| room_id)
-}
-
-/// Returns true if server can see user by sharing at least one room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn server_sees_user(&self, server: &ServerName, user_id: &UserId) -> bool {
-	self.server_rooms(server)
-		.any(async |room_id| self.is_joined(user_id, &room_id).await)
-		.await
-}
-
-/// Returns true if user_a and user_b share at least one room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn user_sees_user(&self, user_a: &UserId, user_b: &UserId) -> bool {
-	let get_shared_rooms = self.get_shared_rooms(user_a, user_b);
-
-	pin_mut!(get_shared_rooms);
-	get_shared_rooms.next().await.is_some()
-}
-
-/// List the rooms common between two users
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn get_shared_rooms<'a>(
-	&'a self,
-	user_a: &'a UserId,
-	user_b: &'a UserId,
-) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
-	use conduwuit::utils::set;
-
-	let a = self.rooms_joined(user_a);
-	let b = self.rooms_joined(user_b);
-	set::intersection_sorted_stream2(a, b)
-}
-
-/// Returns an iterator of all joined members of a room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn room_members<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	let prefix = (room_id, Interfix);
-	self.db
-		.roomuserid_joined
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
-}
-
-/// Returns the number of users which are currently in a room
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn room_joined_count(&self, room_id: &RoomId) -> Result<u64> {
-	self.db.roomid_joinedcount.get(room_id).await.deserialized()
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-/// Returns an iterator of all our local users in the room, even if they're
-/// deactivated
-pub fn local_users_in_room<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	self.room_members(room_id)
-		.ready_filter(|user| self.services.globals.user_is_local(user))
-}
-
-/// Returns an iterator of all our local joined users in a room who are
-/// active (not deactivated)
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub fn active_local_users_in_room<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	self.local_users_in_room(room_id)
-		.filter_map(async |user_id| {
-			if self.services.users.is_active(&user_id).await {
-				Some(user_id)
-			} else {
-				None
-			}
-		})
-}
-
-/// Returns the number of users which are currently invited to a room
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn room_invited_count(&self, room_id: &RoomId) -> Result<u64> {
-	self.db
-		.roomid_invitedcount
-		.get(room_id)
-		.await
-		.deserialized()
-}
-
-/// Returns an iterator over all User IDs who ever joined a room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn room_useroncejoined<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	let prefix = (room_id, Interfix);
-	self.db
-		.roomuseroncejoinedids
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
-}
-
-/// Returns an iterator over all invited members of a room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn room_members_invited<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	let prefix = (room_id, Interfix);
-	self.db
-		.roomuserid_invitecount
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
-}
-
-/// Returns an iterator over all knocked members of a room.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn room_members_knocked<'a>(
-	&'a self,
-	room_id: &'a RoomId,
-) -> impl Stream<Item = OwnedUserId> + Send + 'a {
-	let prefix = (room_id, Interfix);
-	self.db
-		.roomuserid_knockedcount
-		.keys_prefix(&prefix)
-		.ignore_err()
-		.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn get_invite_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
-	let key = (room_id, user_id);
-	self.db
-		.roomuserid_invitecount
-		.qry(&key)
-		.await
-		.deserialized()
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn get_knock_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
-	let key = (room_id, user_id);
-	self.db
-		.roomuserid_knockedcount
-		.qry(&key)
-		.await
-		.deserialized()
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn get_left_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
-	let key = (room_id, user_id);
-	self.db.roomuserid_leftcount.qry(&key).await.deserialized()
-}
-
-/// Returns an iterator over all rooms this user joined.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn rooms_joined<'a>(
-	&'a self,
-	user_id: &'a UserId,
-) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
-	self.db
-		.userroomid_joined
-		.keys_raw_prefix(user_id)
-		.ignore_err()
-		.map(|(_, room_id): (Ignore, OwnedRoomId)| room_id)
-}
-
-/// Returns an iterator over all rooms a user was invited to.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn rooms_invited<'a>(
-	&'a self,
-	user_id: &'a UserId,
-) -> impl Stream<Item = StrippedStateEventItem> + Send + 'a {
-	type KeyVal = (Key, Raw<Vec<AnyStrippedStateEvent>>);
-	type Key = (OwnedUserId, OwnedRoomId);
-
-	let prefix = (user_id, Interfix);
-	self.db
-		.userroomid_invitestate
-		.stream_prefix(&prefix)
-		.ignore_err()
-		.map(|((_, room_id), state): KeyVal| (room_id, state))
-		.map(|(room_id, state)| Ok((room_id, state.deserialize_as_unchecked()?)))
-		.ignore_err()
-}
-
-/// Returns an iterator over all rooms a user is currently knocking.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub fn rooms_knocked<'a>(
-	&'a self,
-	user_id: &'a UserId,
-) -> impl Stream<Item = StrippedStateEventItem> + Send + 'a {
-	type KeyVal = (Key, Raw<Vec<AnyStrippedStateEvent>>);
-	type Key = (OwnedUserId, OwnedRoomId);
-
-	let prefix = (user_id, Interfix);
-	self.db
-		.userroomid_knockedstate
-		.stream_prefix(&prefix)
-		.ignore_err()
-		.map(|((_, room_id), state): KeyVal| (room_id, state))
-		.map(|(room_id, state)| Ok((room_id, state.deserialize_as_unchecked()?)))
-		.ignore_err()
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn invite_state(
-	&self,
-	user_id: &UserId,
-	room_id: &RoomId,
-) -> Result<Vec<Raw<AnyStrippedStateEvent>>> {
-	let key = (user_id, room_id);
-	self.db
-		.userroomid_invitestate
-		.qry(&key)
-		.await
-		.deserialized()
-		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
-			val.deserialize_as_unchecked().map_err(Into::into)
-		})
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn knock_state(
-	&self,
-	user_id: &UserId,
-	room_id: &RoomId,
-) -> Result<Vec<Raw<AnyStrippedStateEvent>>> {
-	let key = (user_id, room_id);
-	self.db
-		.userroomid_knockedstate
-		.qry(&key)
-		.await
-		.deserialized()
-		.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
-			val.deserialize_as_unchecked().map_err(Into::into)
-		})
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn left_state(&self, user_id: &UserId, room_id: &RoomId) -> Result<Option<Pdu>> {
-	let key = (user_id, room_id);
-	self.db.userroomid_leftstate.qry(&key).await.deserialized()
-}
-
-/// Returns an iterator over all rooms a user left.
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub fn rooms_left<'a>(
-	&'a self,
-	user_id: &'a UserId,
-) -> impl Stream<Item = (OwnedRoomId, Option<Pdu>)> + Send + 'a {
-	type KeyVal = (Key, Raw<Option<Pdu>>);
-	type Key = (OwnedUserId, OwnedRoomId);
-
-	let prefix = (user_id, Interfix);
-	self.db
-		.userroomid_leftstate
-		.stream_prefix(&prefix)
-		.ignore_err()
-		.map(|((_, room_id), state): KeyVal| (room_id, state))
-		.map(|(room_id, state)| Ok((room_id, state.deserialize()?)))
-		.ignore_err()
-}
-
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn user_membership(
-	&self,
-	user_id: &UserId,
-	room_id: &RoomId,
-) -> Option<MembershipState> {
-	let states = join5(
-		self.is_joined(user_id, room_id),
-		self.is_left(user_id, room_id),
-		self.is_knocked(user_id, room_id),
-		self.is_invited(user_id, room_id),
-		self.once_joined(user_id, room_id),
-	)
-	.await;
-
-	match states {
-		| (true, ..) => Some(MembershipState::Join),
-		| (_, true, ..) => Some(MembershipState::Leave),
-		| (_, _, true, ..) => Some(MembershipState::Knock),
-		| (_, _, _, true, ..) => Some(MembershipState::Invite),
-		| (false, false, false, false, true) => Some(MembershipState::Ban),
-		| _ => None,
+		(cache.len(), cache.capacity())
 	}
-}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "debug")]
-pub async fn once_joined(&self, user_id: &UserId, room_id: &RoomId) -> bool {
-	let key = (user_id, room_id);
-	self.db.roomuseroncejoinedids.qry(&key).await.is_ok()
-}
+	/// Clears the internal cache of appservice joined rooms.
+	pub fn clear_appservice_in_room_cache(&self) {
+		self.appservice_in_room_cache.write().clear();
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn is_joined<'a>(&'a self, user_id: &'a UserId, room_id: &'a RoomId) -> bool {
-	let key = (user_id, room_id);
-	self.db.userroomid_joined.qry(&key).await.is_ok()
-}
+	/// Returns an iterator of all servers participating in this room.
+	pub fn room_servers<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedServerName> + Send + 'a {
+		let prefix = (room_id, Interfix);
+		self.db
+			.roomserverids
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, server): (Ignore, OwnedServerName)| server)
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn is_knocked<'a>(&'a self, user_id: &'a UserId, room_id: &'a RoomId) -> bool {
-	let key = (user_id, room_id);
-	self.db.userroomid_knockedstate.qry(&key).await.is_ok()
-}
+	/// Determines if a server name has at least one joined member in a room.
+	pub async fn server_in_room<'a>(
+		&'a self,
+		server: &'a ServerName,
+		room_id: &'a RoomId,
+	) -> bool {
+		let key = (server, room_id);
+		self.db.serverroomids.qry(&key).await.is_ok()
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn is_invited(&self, user_id: &UserId, room_id: &RoomId) -> bool {
-	let key = (user_id, room_id);
-	self.db.userroomid_invitestate.qry(&key).await.is_ok()
-}
+	/// Returns an iterator of all rooms a server participates in (as far as we
+	/// know).
+	pub fn server_rooms<'a>(
+		&'a self,
+		server: &'a ServerName,
+	) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
+		let prefix = (server, Interfix);
+		self.db
+			.serverroomids
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, room_id): (Ignore, OwnedRoomId)| room_id)
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn is_left(&self, user_id: &UserId, room_id: &RoomId) -> bool {
-	let key = (user_id, room_id);
-	self.db.userroomid_leftstate.qry(&key).await.is_ok()
-}
+	/// Returns true if server can see user by sharing at least one room.
+	pub async fn server_sees_user(&self, server: &ServerName, user_id: &UserId) -> bool {
+		self.server_rooms(server)
+			.any(async |room_id| self.is_joined(user_id, &room_id).await)
+			.await
+	}
 
-#[implement(Service)]
-#[tracing::instrument(skip(self), level = "trace")]
-pub async fn invite_sender(&self, user_id: &UserId, room_id: &RoomId) -> Result<OwnedUserId> {
-	let key = (user_id, room_id);
-	self.db
-		.userroomid_invitesender
-		.qry(&key)
-		.await
-		.deserialized()
+	/// Returns true if user_a and user_b share at least one room.
+	pub async fn user_sees_user(&self, user_a: &UserId, user_b: &UserId) -> bool {
+		let get_shared_rooms = self.get_shared_rooms(user_a, user_b);
+
+		pin_mut!(get_shared_rooms);
+		get_shared_rooms.next().await.is_some()
+	}
+
+	/// Lists the rooms common between two users.
+	pub fn get_shared_rooms<'a>(
+		&'a self,
+		user_a: &'a UserId,
+		user_b: &'a UserId,
+	) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
+		use conduwuit::utils::set;
+
+		let a = self.rooms_joined(user_a);
+		let b = self.rooms_joined(user_b);
+		set::intersection_sorted_stream2(a, b)
+	}
+
+	/// Returns an iterator of all joined members of a room.
+	pub fn room_members<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		let prefix = (room_id, Interfix);
+		self.db
+			.roomuserid_joined
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
+	}
+
+	/// Returns the number of users which are currently in a room.
+	pub async fn room_joined_count(&self, room_id: &RoomId) -> Result<u64> {
+		self.db.roomid_joinedcount.get(room_id).await.deserialized()
+	}
+
+	/// Returns an iterator of all our local users in the room, even if they're
+	/// deactivated.
+	pub fn local_users_in_room<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		self.room_members(room_id)
+			.ready_filter(|user| self.services.globals.user_is_local(user))
+	}
+
+	/// Returns an iterator of all our local joined users in a room who are
+	/// active (not deactivated)
+	pub fn active_local_users_in_room<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		self.local_users_in_room(room_id)
+			.filter_map(async |user_id| {
+				if self.services.users.is_active(&user_id).await {
+					Some(user_id)
+				} else {
+					None
+				}
+			})
+	}
+
+	/// Returns the number of users which are currently invited to a room
+	pub async fn room_invited_count(&self, room_id: &RoomId) -> Result<u64> {
+		self.db
+			.roomid_invitedcount
+			.get(room_id)
+			.await
+			.deserialized()
+	}
+
+	/// Returns an iterator over all User IDs who ever joined a room, even if
+	/// they are no longer joined.
+	pub fn room_useroncejoined<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		let prefix = (room_id, Interfix);
+		self.db
+			.roomuseroncejoinedids
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
+	}
+
+	/// Returns an iterator over all invited members of a room.
+	pub fn room_members_invited<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		let prefix = (room_id, Interfix);
+		self.db
+			.roomuserid_invitecount
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
+	}
+
+	/// Returns an iterator over all knocking members of a room.
+	pub fn room_members_knocked<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
+		let prefix = (room_id, Interfix);
+		self.db
+			.roomuserid_knockedcount
+			.keys_prefix(&prefix)
+			.ignore_err()
+			.map(|(_, user_id): (Ignore, OwnedUserId)| user_id)
+	}
+
+	/// Gets the invite count value.
+	pub async fn get_invite_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
+		let key = (room_id, user_id);
+		self.db
+			.roomuserid_invitecount
+			.qry(&key)
+			.await
+			.deserialized()
+	}
+
+	/// Gets the knock count value.
+	pub async fn get_knock_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
+		let key = (room_id, user_id);
+		self.db
+			.roomuserid_knockedcount
+			.qry(&key)
+			.await
+			.deserialized()
+	}
+
+	/// Gets the left count value.
+	pub async fn get_left_count(&self, room_id: &RoomId, user_id: &UserId) -> Result<u64> {
+		let key = (room_id, user_id);
+		self.db.roomuserid_leftcount.qry(&key).await.deserialized()
+	}
+
+	/// Returns an iterator over all rooms this user joined.
+	pub fn rooms_joined<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
+		self.db
+			.userroomid_joined
+			.keys_raw_prefix(user_id)
+			.ignore_err()
+			.map(|(_, room_id): (Ignore, OwnedRoomId)| room_id)
+	}
+
+	/// Returns an iterator over all rooms a user was invited to.
+	pub fn rooms_invited<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = StrippedStateEventItem> + Send + 'a {
+		type KeyVal = (Key, Raw<Vec<AnyStrippedStateEvent>>);
+		type Key = (OwnedUserId, OwnedRoomId);
+
+		let prefix = (user_id, Interfix);
+		self.db
+			.userroomid_invitestate
+			.stream_prefix(&prefix)
+			.ignore_err()
+			.map(|((_, room_id), state): KeyVal| (room_id, state))
+			.map(|(room_id, state)| Ok((room_id, state.deserialize_as_unchecked()?)))
+			.ignore_err()
+	}
+
+	/// Returns an iterator over all rooms a user is currently knocking on.
+	pub fn rooms_knocked<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = StrippedStateEventItem> + Send + 'a {
+		type KeyVal = (Key, Raw<Vec<AnyStrippedStateEvent>>);
+		type Key = (OwnedUserId, OwnedRoomId);
+
+		let prefix = (user_id, Interfix);
+		self.db
+			.userroomid_knockedstate
+			.stream_prefix(&prefix)
+			.ignore_err()
+			.map(|((_, room_id), state): KeyVal| (room_id, state))
+			.map(|(room_id, state)| Ok((room_id, state.deserialize_as_unchecked()?)))
+			.ignore_err()
+	}
+
+	/// Returns the invite state for a user in a room, if they are invited.
+	pub async fn invite_state(
+		&self,
+		user_id: &UserId,
+		room_id: &RoomId,
+	) -> Result<Vec<Raw<AnyStrippedStateEvent>>> {
+		let key = (user_id, room_id);
+		self.db
+			.userroomid_invitestate
+			.qry(&key)
+			.await
+			.deserialized()
+			.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
+				val.deserialize_as_unchecked().map_err(Into::into)
+			})
+	}
+
+	/// Returns the knock state for a user in a room, if they are knocking.
+	pub async fn knock_state(
+		&self,
+		user_id: &UserId,
+		room_id: &RoomId,
+	) -> Result<Vec<Raw<AnyStrippedStateEvent>>> {
+		let key = (user_id, room_id);
+		self.db
+			.userroomid_knockedstate
+			.qry(&key)
+			.await
+			.deserialized()
+			.and_then(|val: Raw<Vec<AnyStrippedStateEvent>>| {
+				val.deserialize_as_unchecked().map_err(Into::into)
+			})
+	}
+
+	/// Returns the left state for a user in a room, if they have left.
+	pub async fn left_state(&self, user_id: &UserId, room_id: &RoomId) -> Result<Option<Pdu>> {
+		let key = (user_id, room_id);
+		self.db.userroomid_leftstate.qry(&key).await.deserialized()
+	}
+
+	/// Returns an iterator over all rooms a user left.
+	pub fn rooms_left<'a>(
+		&'a self,
+		user_id: &'a UserId,
+	) -> impl Stream<Item = (OwnedRoomId, Option<Pdu>)> + Send + 'a {
+		type KeyVal = (Key, Raw<Option<Pdu>>);
+		type Key = (OwnedUserId, OwnedRoomId);
+
+		let prefix = (user_id, Interfix);
+		self.db
+			.userroomid_leftstate
+			.stream_prefix(&prefix)
+			.ignore_err()
+			.map(|((_, room_id), state): KeyVal| (room_id, state))
+			.map(|(room_id, state)| Ok((room_id, state.deserialize()?)))
+			.ignore_err()
+	}
+
+	/// Determines a user's membership in a target room. If the user has never
+	/// been a member of the target room at any point in time, None is returned.
+	pub async fn user_membership(
+		&self,
+		user_id: &UserId,
+		room_id: &RoomId,
+	) -> Option<MembershipState> {
+		let states = join5(
+			self.is_joined(user_id, room_id),
+			self.is_left(user_id, room_id),
+			self.is_knocked(user_id, room_id),
+			self.is_invited(user_id, room_id),
+			self.once_joined(user_id, room_id),
+		)
+		.await;
+
+		match states {
+			| (true, ..) => Some(MembershipState::Join),
+			| (_, true, ..) => Some(MembershipState::Leave),
+			| (_, _, true, ..) => Some(MembershipState::Knock),
+			| (_, _, _, true, ..) => Some(MembershipState::Invite),
+			| (false, false, false, false, true) => Some(MembershipState::Ban),
+			| _ => None,
+		}
+	}
+
+	/// Checks if a user has joined at least once before.
+	pub async fn once_joined(&self, user_id: &UserId, room_id: &RoomId) -> bool {
+		let key = (user_id, room_id);
+		self.db.roomuseroncejoinedids.qry(&key).await.is_ok()
+	}
+
+	/// Checks if a user is currently joined to a room.
+	pub async fn is_joined<'a>(&'a self, user_id: &'a UserId, room_id: &'a RoomId) -> bool {
+		let key = (user_id, room_id);
+		self.db.userroomid_joined.qry(&key).await.is_ok()
+	}
+
+	/// Checks if a user is currently knocking on a room.
+	pub async fn is_knocked<'a>(&'a self, user_id: &'a UserId, room_id: &'a RoomId) -> bool {
+		let key = (user_id, room_id);
+		self.db.userroomid_knockedstate.qry(&key).await.is_ok()
+	}
+
+	/// Checks if a user is currently invited to a room.
+	pub async fn is_invited(&self, user_id: &UserId, room_id: &RoomId) -> bool {
+		let key = (user_id, room_id);
+		self.db.userroomid_invitestate.qry(&key).await.is_ok()
+	}
+
+	/// Checks if a user has left the room.
+	pub async fn is_left(&self, user_id: &UserId, room_id: &RoomId) -> bool {
+		let key = (user_id, room_id);
+		self.db.userroomid_leftstate.qry(&key).await.is_ok()
+	}
+
+	/// Fetches the sender who invited a target user.
+	pub async fn invite_sender(&self, user_id: &UserId, room_id: &RoomId) -> Result<OwnedUserId> {
+		let key = (user_id, room_id);
+		self.db
+			.userroomid_invitesender
+			.qry(&key)
+			.await
+			.deserialized()
+	}
 }

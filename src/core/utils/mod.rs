@@ -22,8 +22,6 @@ mod tests;
 pub mod time;
 pub mod with_lock;
 
-pub use ::conduwuit_macros::implement;
-
 pub use self::{
 	arrayvec::ArrayVecExt,
 	bool::BoolExt,

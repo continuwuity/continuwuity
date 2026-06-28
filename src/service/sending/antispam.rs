@@ -1,7 +1,7 @@
-use std::{borrow::Cow, fmt::Debug, mem};
+use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
 use bytes::BytesMut;
-use conduwuit::{Err, Result, debug_error, err, utils, utils::response::LimitReadExt, warn};
+use conduwuit::{Err, Result, debug_info, err, utils::response::LimitReadExt};
 use reqwest::Client;
 use ruma::api::{
 	IncomingResponse, OutgoingRequest,
@@ -32,10 +32,20 @@ where
 		.map(BytesMut::freeze);
 	let reqwest_request = reqwest::Request::try_from(http_request)?;
 
+	let method = reqwest_request.method().clone();
+	let url = reqwest_request.url().clone();
+	debug_info!("Sending request to appservice: {} {}", method, url);
+	let start = Instant::now();
 	let mut response = client.execute(reqwest_request).await.map_err(|e| {
-		warn!("Could not send request to antispam: {e:?}");
-		e
+		err!(BadServerResponse(error!(?e, "Failed to contact antispam service.")))
 	})?;
+	debug_info!(
+		"Received response (HTTP {}) from antispam service in {:?}: {} {}",
+		response.status(),
+		start.elapsed().as_millis(),
+		method,
+		url,
+	);
 
 	// reqwest::Response -> http::Response conversion
 	let status = response.status();
@@ -49,10 +59,14 @@ where
 			.expect("http::response::Builder is usable"),
 	);
 
-	let body = response.limit_read(65535).await?; // TODO: handle timeout
+	let body = response.limit_read(65535).await.map_err(|e| {
+		err!(BadServerResponse(error!(
+			?e,
+			"Failed to read response body from antispam service."
+		)))
+	})?; // TODO: handle timeout
 
 	if !status.is_success() {
-		debug_error!("Antispam response bytes: {:?}", utils::string_from_bytes(&body));
 		return match status {
 			| http::StatusCode::FORBIDDEN =>
 				Err!(Request(Forbidden("Request was rejected by antispam service.",))),
