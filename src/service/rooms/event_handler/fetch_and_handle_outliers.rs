@@ -8,6 +8,7 @@ use assign::assign;
 use conduwuit::error;
 use conduwuit::{
 	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err,
+	result::FlatOk,
 	state_res::lexicographical_topological_sort,
 	trace,
 	utils::{IterStream, math::Expected, stream::BroadbandExt},
@@ -52,11 +53,11 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 		// matter.
 		let prev_events = value
 			.get("prev_events")
-			.unwrap()
-			.as_array()
-			.unwrap()
+			.and_then(CanonicalJsonValue::as_array)
+			.expect("prev_events must be present in PDU JSON object")
 			.iter()
-			.map(|v| EventId::parse(v.as_str().unwrap()).unwrap())
+			.map(|v| v.as_str().expect("prev_events entries must be strings"))
+			.map(|v| EventId::parse(v).expect("prev_events entries must be valid event IDs"))
 			.filter(|id| pdu_map.contains_key(id))
 			.collect();
 
@@ -64,6 +65,9 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 		let origin_server_ts = value
 			.get("origin_server_ts")
 			.and_then(CanonicalJsonValue::as_integer)
+			.map(i64::from)
+			.map(UInt::try_from)
+			.flat_ok()
 			.unwrap_or_default();
 		id_origin_ts.insert(event_id.clone(), origin_server_ts);
 	}
@@ -73,15 +77,7 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 		// Note: we don't bother fetching power levels because that would massively slow
 		// this function down. This is a best-effort attempt to order events correctly
 		// for processing, however ultimately that should be the sender's job.
-		let ts = id_origin_ts
-			.get(&node_id)
-			.copied()
-			.unwrap_or_else(|| int!(0))
-			.to_string()
-			.parse::<u64>()
-			.ok()
-			.and_then(UInt::new)
-			.unwrap_or_default();
+		let ts = id_origin_ts.get(&node_id).copied().unwrap_or_default();
 		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
 	})
 	.await
