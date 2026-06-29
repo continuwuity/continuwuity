@@ -5,7 +5,10 @@ use ruma::{
 	events::{MessageLikeEventContent, StateEventContent, TimelineEventType},
 };
 use serde::Deserialize;
-use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
+use serde_json::{
+	json,
+	value::{RawValue as RawJsonValue, to_raw_value},
+};
 
 use super::StateKey;
 
@@ -62,7 +65,7 @@ impl Default for PartialPdu {
 	fn default() -> Self {
 		Self {
 			event_type: "m.room.message".into(),
-			content: to_raw_value("{}").unwrap(),
+			content: to_raw_value(&json!({})).unwrap(),
 			unsigned: None,
 			state_key: None,
 			redacts: None,
