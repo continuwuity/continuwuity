@@ -351,8 +351,14 @@ impl super::Service {
 						if let Some((extremities_count, is_dummy_event)) = msg {
 							latest_extremity_count = Some(extremities_count);
 							non_dummy_event = non_dummy_event || !is_dummy_event;
+							let sleep_duration = if extremities_count >= 20 {
+								// Skip the original sleep duration and send in the next 3-7 seconds as the number of extremities has grown beyond what one squash can reasonably reduce. We still jitter here in case we receive more events in that time that reduce the number anyway, and to account for other servers sending the same squashes.
+								jitter(Duration::from_secs(5), -50.0..=50.0)
+							} else {
+								jitter(Duration::from_mins(1), -50.0..=50.0)
+							};
 							#[allow(clippy::arithmetic_side_effects)]
-							waker.as_mut().reset(tokio::time::Instant::now() + jitter(Duration::from_mins(1), -50.0..=50.0));
+							waker.as_mut().reset(tokio::time::Instant::now() + sleep_duration);
 						} else {
 							{let mut map = service.extremity_squashers.write();
 							if let Some(tx) = map.get(&room_id) && tx.is_closed() {
