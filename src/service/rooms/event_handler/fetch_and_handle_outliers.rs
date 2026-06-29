@@ -54,11 +54,13 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 		let prev_events = value
 			.get("prev_events")
 			.and_then(CanonicalJsonValue::as_array)
-			.expect("prev_events must be present in PDU JSON object")
+			.ok_or_else(|| {
+				err!(Request(BadJson("event JSON for {event_id} is missing prev_events")))
+			})?
 			.iter()
-			.map(|v| v.as_str().expect("prev_events entries must be strings"))
-			.map(|v| EventId::parse(v).expect("prev_events entries must be valid event IDs"))
-			.filter(|id| pdu_map.contains_key(id))
+			.map(|v| v.as_str().and_then(|s| EventId::parse(s).ok()))
+			.filter(|id| id.as_ref().is_some_and(|id| pdu_map.contains_key(id)))
+			.map(Option::unwrap)
 			.collect();
 
 		dag.insert(event_id.clone(), prev_events);
