@@ -3,8 +3,7 @@ use futures::StreamExt;
 use service::registration_tokens::TokenExpires;
 
 impl crate::Context<'_> {
-	
-pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
+	pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 		let expires = {
 			if expires.immortal {
 				None
@@ -30,7 +29,7 @@ pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 			.services
 			.registration_tokens
 			.issue_token(self.sender_or_service_user().into(), expires);
-	
+
 		self.write_str(&format!(
 			"New registration token issued: `{token}` . {}.",
 			if let Some(expires) = info.expires {
@@ -40,7 +39,7 @@ pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 			}
 		))
 		.await?;
-	
+
 		if self
 			.services
 			.config
@@ -61,7 +60,7 @@ pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
 			))
 			.await?;
 		}
-	
+
 		Ok(())
 	}
 

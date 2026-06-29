@@ -17,9 +17,7 @@ use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Ra
 use serde::{Deserialize, Serialize};
 
 use crate::{
-	Dep, account_data, admin,
-	appservice,
-	config, firstrun, globals, oauth,
+	Dep, account_data, admin, appservice, config, firstrun, globals, oauth,
 	rooms::{self, alias, membership},
 	threepid,
 };

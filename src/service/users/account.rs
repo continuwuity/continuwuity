@@ -1,17 +1,27 @@
 use std::time::{Duration, SystemTime};
 
 use conduwuit::{
-	Err, Result, debug_error, debug_warn, err, error, info, trace, utils::{self, ReadyExt, stream::TryIgnore}, warn,
+	Err, Result, debug_error, debug_warn, err, error, info, trace,
+	utils::{self, ReadyExt, stream::TryIgnore},
+	warn,
 };
 use database::{Deserialized, Json};
 use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
 use lettre::Address;
 use ruma::{
-	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId, events::{GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent, push_rules::PushRulesEvent, room::message::RoomMessageEventContent}, push::Ruleset,
+	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
+	events::{
+		GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
+		push_rules::PushRulesEvent, room::message::RoomMessageEventContent,
+	},
+	push::Ruleset,
 };
 use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 
-use crate::{appservice::RegistrationInfo, users::{HashedPassword, UserSuspension}};
+use crate::{
+	appservice::RegistrationInfo,
+	users::{HashedPassword, UserSuspension},
+};
 
 /// The status of an access token.
 pub enum AccessTokenStatus {
@@ -83,11 +93,7 @@ impl super::Service {
 	/// to create a non-local user. Non-local users with a password will return
 	/// an error.
 	#[inline]
-	pub fn create(
-		&self,
-		user_id: &UserId,
-		password: Option<HashedPassword>,
-	) -> Result<()> {
+	pub fn create(&self, user_id: &UserId, password: Option<HashedPassword>) -> Result<()> {
 		if !self.services.globals.user_is_local(user_id) && password.is_some() {
 			return Err!("Cannot create a nonlocal user with a set password");
 		}
@@ -543,11 +549,7 @@ impl super::Service {
 	}
 
 	/// Check a user's password.
-	pub async fn check_password(
-		&self,
-		user_id: &UserId,
-		password: &str,
-	) -> Result<OwnedUserId> {
+	pub async fn check_password(&self, user_id: &UserId, password: &str) -> Result<OwnedUserId> {
 		let (hash, user_id): (String, OwnedUserId) =
 			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
 				(hash, user_id.to_owned())
