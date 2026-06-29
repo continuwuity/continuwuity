@@ -20,7 +20,7 @@ use ruma::{
 		tag::{TagEvent, TagEventContent, TagInfo},
 	},
 };
-use service::users::HashedPassword;
+use service::users::{AccountStatus, HashedPassword};
 
 use crate::{
 	get_room_info,
@@ -60,7 +60,7 @@ impl crate::Context<'_> {
 		self.services
 			.users
 			.create_local_account(&user_id, HashedPassword::new(password)?, None)
-			.await;
+			.await?;
 
 		self.write_str(&format!("Created user {user_id} with password `{password}`"))
 			.await
@@ -103,15 +103,12 @@ impl crate::Context<'_> {
 
 	pub(super) async fn suspend(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
 			return Err!("Not allowed to suspend the server service account.",);
 		}
 
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
 		if self.services.users.is_admin(&user_id).await {
 			return Err!("Admin users cannot be suspended.");
 		}
@@ -127,15 +124,12 @@ impl crate::Context<'_> {
 
 	pub(super) async fn unsuspend(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
 			return Err!("Not allowed to unsuspend the server service account.",);
 		}
 
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
 		self.services.users.unsuspend_account(&user_id).await;
 
 		self.write_str(&format!("User {user_id} has been unsuspended."))
@@ -147,6 +141,7 @@ impl crate::Context<'_> {
 		logout: bool,
 		username: String,
 		password: Option<String>,
+		convert_to_local_account: bool,
 	) -> Result {
 		let user_id = parse_local_user_id(self.services, &username)?;
 
@@ -159,15 +154,37 @@ impl crate::Context<'_> {
 
 		let new_password =
 			password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
+		let new_password_hash = HashedPassword::new(&new_password)?;
 
-		self.services
-			.users
-			.set_password(&user_id, Some(HashedPassword::new(&new_password)?));
+		if convert_to_local_account {
+			self.services
+				.users
+				.convert_to_local_account(&user_id, new_password_hash)
+				.await?;
+		} else {
+			match self.services.users.status(&user_id).await {
+				| AccountStatus::Active if !self.services.users.is_shadow(&user_id).await => {
+					self.services
+						.users
+						.set_password(&user_id, new_password_hash)
+						.await?;
+				},
+				| AccountStatus::NotFound => {
+					return Err!("The provided user does not exist.");
+				},
+				| _ => {
+					return Err!(
+						"The provided user is a shadow or deactivated account. To convert it to \
+						 a local account, pass the --convert-to-local-account flag."
+					);
+				},
+			}
 
-		self.write_str(&format!(
-			"Successfully reset the password for user {user_id}: `{new_password}`"
-		))
-		.await?;
+			self.write_str(&format!(
+				"Successfully reset the password for user {user_id}: `{new_password}`"
+			))
+			.await?;
+		}
 
 		if logout {
 			self.services
@@ -919,21 +936,16 @@ impl crate::Context<'_> {
 
 	pub(super) async fn lock(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		if user_id == self.services.globals.server_user {
 			return Err!("Not allowed to lock the server service account.",);
 		}
 
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
 		if self.services.users.is_admin(&user_id).await {
 			return Err!("Admin users cannot be locked.");
 		}
+
 		self.services
 			.users
 			.lock_account(&user_id, self.sender_or_service_user())
@@ -945,11 +957,8 @@ impl crate::Context<'_> {
 
 	pub(super) async fn unlock(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		self.services.users.unlock_account(&user_id).await;
 
 		self.write_str(&format!("User {user_id} has been unlocked."))
@@ -958,21 +967,16 @@ impl crate::Context<'_> {
 
 	pub(super) async fn logout(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		if user_id == self.services.globals.server_user {
 			return Err!("Not allowed to log out the server service account.",);
 		}
 
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
 		if self.services.users.is_admin(&user_id).await {
 			return Err!("You cannot forcefully log out admin users.");
 		}
+
 		self.services
 			.users
 			.all_device_ids(&user_id)
@@ -989,18 +993,12 @@ impl crate::Context<'_> {
 
 	pub(super) async fn disable_login(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		if user_id == self.services.globals.server_user {
 			return Err!("Not allowed to disable login for the server service account.",);
 		}
 
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
 		if self.services.users.is_admin(&user_id).await {
 			return Err!("Admin users cannot have their login disallowed.");
 		}
@@ -1014,14 +1012,8 @@ impl crate::Context<'_> {
 
 	pub(super) async fn enable_login(&self, user_id: String) -> Result {
 		self.bail_restricted()?;
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
-		if !self.services.users.exists(&user_id).await {
-			return Err!("User {user_id} does not exist.");
-		}
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		self.services.users.enable_login(&user_id);
 
 		self.write_str(&format!("{user_id} can now log in.")).await
@@ -1129,10 +1121,8 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn reset_push_rules(&self, user_id: String) -> Result {
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		if !self.services.users.is_active(&user_id).await {
-			return Err!("User is not active.");
-		}
+		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
+
 		recreate_push_rules_and_return(self.services, &user_id).await?;
 		self.write_str("Reset user's push rules to the server default.")
 			.await

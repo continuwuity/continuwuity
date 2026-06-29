@@ -162,10 +162,8 @@ pub(crate) async fn require_active(
 	user_id: &UserId,
 	allow_locked: bool,
 ) -> Result<(), Response> {
-	if !services.users.is_active(user_id).await {
-		return Err(
-			WebError::Forbidden("Your account is deactivated.".to_owned()).into_response()
-		);
+	if let Err(err) = services.users.status(user_id).await.ensure_active() {
+		return Err(WebError::Forbidden(err.message()).into_response());
 	}
 
 	if !allow_locked

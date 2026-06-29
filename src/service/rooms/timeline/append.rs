@@ -255,7 +255,13 @@ impl super::Service {
 			if let Some(state_key) = pdu.state_key() {
 				match UserId::parse(state_key) {
 					| Ok(target_user_id) => {
-						if self.services.users.is_active_local(&target_user_id).await {
+						if self
+							.services
+							.users
+							.status(&target_user_id)
+							.await
+							.is_active()
+						{
 							push_targets.insert(target_user_id.clone());
 						}
 					},

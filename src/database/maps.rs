@@ -170,6 +170,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "remoteuserid_remoteuser",
+		..descriptor::RANDOM
+	},
+	Descriptor {
 		name: "roomid_invitedcount",
 		..descriptor::RANDOM_SMALL
 	},
@@ -397,6 +401,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	Descriptor {
 		name: "userid_blurhash",
 		..descriptor::DROPPED
+	},
+	Descriptor {
+		name: "userid_deactivated",
+		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
 		name: "userid_dehydrateddevice",

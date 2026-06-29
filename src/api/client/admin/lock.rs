@@ -12,20 +12,18 @@ pub(crate) async fn get_lock_status(
 	State(services): State<crate::State>,
 	body: Ruma<is_user_locked::v1::Request>,
 ) -> Result<is_user_locked::v1::Response> {
-	let (admin, active) = join(
+	let (admin, status) = join(
 		services.users.is_admin(body.identity.expect_sender_user()?),
-		services.users.is_active(&body.user_id),
+		services.users.status(&body.user_id),
 	)
 	.await;
+
 	if !admin {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}
-	if !services.globals.user_is_local(&body.user_id) {
-		return Err!(Request(InvalidParam("Can only check the lock status of local users")));
-	}
-	if !active {
-		return Err!(Request(NotFound("Unknown user")));
-	}
+
+	status.ensure_active()?;
+
 	Ok(is_user_locked::v1::Response::new(
 		services.users.is_locked(&body.user_id).await?,
 	))
@@ -40,9 +38,9 @@ pub(crate) async fn put_lock_status(
 ) -> Result<lock_user::v1::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
-	let (sender_admin, active, target_admin) = join3(
+	let (sender_admin, status, target_admin) = join3(
 		services.users.is_admin(sender_user),
-		services.users.is_active(&body.user_id),
+		services.users.status(&body.user_id),
 		services.users.is_admin(&body.user_id),
 	)
 	.await;
@@ -50,18 +48,17 @@ pub(crate) async fn put_lock_status(
 	if !sender_admin {
 		return Err!(Request(Forbidden("Only server administrators can use this endpoint")));
 	}
-	if !services.globals.user_is_local(&body.user_id) {
-		return Err!(Request(InvalidParam("Can only set the lock status of local users")));
-	}
-	if !active {
-		return Err!(Request(NotFound("Unknown user")));
-	}
+
+	status.ensure_active()?;
+
 	if body.user_id == *sender_user {
 		return Err!(Request(Forbidden("You cannot lock yourself")));
 	}
+
 	if target_admin {
 		return Err!(Request(Forbidden("You cannot lock another server administrator")));
 	}
+
 	if services.users.is_locked(&body.user_id).await? == body.locked {
 		// No change
 		return Ok(lock_user::v1::Response::new(body.locked));

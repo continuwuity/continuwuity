@@ -88,14 +88,6 @@ pub async fn handle_login(
 		UserId::parse_with_server_name(user_id_or_localpart, &services.config.server_name)
 			.map_err(|_| err!(Request(InvalidUsername("User ID is malformed"))))?;
 
-	if !services.globals.user_is_local(&user_id) {
-		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
-	}
-
-	if services.users.is_deactivated(&user_id).await? {
-		return Err!(Request(UserDeactivated("This account has been deactivated.")));
-	}
-
 	if services.users.is_locked(&user_id).await? {
 		return Err!(Request(UserLocked("This account has been locked.")));
 	}

@@ -110,7 +110,7 @@ async fn fetch_full_profile(
 	user_id: &UserId,
 ) -> Option<BTreeMap<String, Value>> {
 	// If the user exists locally, fetch their local profile
-	if services.users.exists(user_id).await {
+	if services.users.status(user_id).await.is_found() {
 		return Some(get_local_profile(services, user_id).await);
 	}
 

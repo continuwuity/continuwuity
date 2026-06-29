@@ -214,7 +214,7 @@ async fn route_reset_password_validate(
 						| Ok(hash) => {
 							let _ = session.consume();
 
-							services.users.set_password(&user_id, Some(hash));
+							services.users.set_password(&user_id, hash).await?;
 
 							ResetPasswordValidateBody::ResetSuccess { user_card }
 						},

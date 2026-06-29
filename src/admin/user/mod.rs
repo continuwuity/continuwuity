@@ -27,6 +27,9 @@ pub enum UserCommand {
 		username: String,
 		/// New password for the user, if unspecified one is generated
 		password: Option<String>,
+
+		#[arg(long)]
+		convert_to_local_account: bool,
 	},
 
 	/// Get a user's associated email address.
