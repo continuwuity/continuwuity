@@ -23,6 +23,7 @@ pub fn versions() -> Vec<String> {
 		"v1.14".to_owned(),
 		"v1.15".to_owned(),
 		"v1.16".to_owned(),
+		"v1.17".to_owned(),
 	]
 }
 
