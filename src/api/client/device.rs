@@ -121,7 +121,9 @@ pub(crate) async fn delete_device_route(
 	let sender_user = body.identity.expect_sender_user()?;
 
 	// Appservices get to skip UIAA for this endpoint
-	if let Some(sender_device) = body.identity.sender_device() {
+	if !body.identity.is_appservice() {
+		let sender_device = body.identity.expect_sender_device()?;
+
 		// Prompt the user to confirm with their password using UIAA
 		let _ = services
 			.uiaa
