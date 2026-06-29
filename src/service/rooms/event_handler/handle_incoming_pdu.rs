@@ -293,6 +293,9 @@ impl super::Service {
 		Ok(pdu_id)
 	}
 
+	/// Conditionally starts an extremity squasher. If there is no waiting
+	/// extremity squasher, a new one is created. Otherwise, the existing one is
+	/// pinged.
 	async fn maybe_squash_extremities(
 		&self,
 		room_id: &RoomId,
@@ -326,6 +329,7 @@ impl super::Service {
 		let _ = tx.try_send((extremities_count, is_dummy_event));
 	}
 
+	/// Spawns an extremity squasher with the given room and receiver channel.
 	async fn spawn_squasher(&self, room_id: &RoomId, mut rx: mpsc::Receiver<(usize, bool)>) {
 		let Some(service) = self.me.upgrade() else {
 			return;
@@ -386,6 +390,14 @@ impl super::Service {
 		});
 	}
 
+	/// Squashes extremities in a room by sending dummy events (empty events
+	/// that are hidden from clients) to the room. It will only send ONE dummy
+	/// event to squash. If there are more than 20 extremities, multiple calls
+	/// to `squash_extremities` will be required.
+	/// Sending the dummy event will be attempted by iterating over each local
+	/// user currently joined to the room (including deactivated users) until
+	/// either one of them successfully builds and appends a dummy event PDU, or
+	/// there are no more users to try.
 	async fn squash_extremities(&self, room_id: &RoomId, extremities_count: usize) {
 		debug_warn!(
 			%extremities_count,
@@ -424,8 +436,9 @@ impl super::Service {
 				)
 				.is_ok()
 			{
-				break;
+				return;
 			}
 		}
+		debug_warn!("Unable to squash extremities using any local user");
 	}
 }
