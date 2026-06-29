@@ -1,6 +1,9 @@
 pub mod exponential_backoff;
+pub mod jitter;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+pub use jitter::jitter;
 
 use crate::{Result, err};
 

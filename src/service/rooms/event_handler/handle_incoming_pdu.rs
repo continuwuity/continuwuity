@@ -5,7 +5,7 @@ use std::{
 
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, defer, err, error,
-	info, matrix::PartialPdu, result::DebugInspect, trace, warn,
+	info, matrix::PartialPdu, result::DebugInspect, trace, utils::time::jitter, warn,
 };
 use futures::{
 	FutureExt, StreamExt,
@@ -338,7 +338,7 @@ impl super::Service {
 
 			let mut closing = false;
 
-			let waker = tokio::time::sleep(Duration::from_mins(2));
+			let waker = tokio::time::sleep(jitter(Duration::from_mins(2), -25.0..=25.0));
 			tokio::pin!(waker);
 
 			loop {
@@ -348,7 +348,7 @@ impl super::Service {
 							latest_extremity_count = Some(extremities_count);
 							non_dummy_event = non_dummy_event || !is_dummy_event;
 							#[allow(clippy::arithmetic_side_effects)]
-							waker.as_mut().reset(tokio::time::Instant::now() + Duration::from_mins(1));
+							waker.as_mut().reset(tokio::time::Instant::now() + jitter(Duration::from_mins(1), -50.0..=50.0));
 						} else {
 							{let mut map = service.extremity_squashers.write();
 							if let Some(tx) = map.get(&room_id) && tx.is_closed() {
