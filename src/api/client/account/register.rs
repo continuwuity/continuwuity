@@ -72,7 +72,7 @@ pub(crate) async fn register_route(
 			.determine_registration_user_id(body.username.clone(), None, Some(appservice_info))
 			.await?;
 
-		services.users.create(&user_id, None)?;
+		services.users.create_shadow_account(&user_id).await?;
 
 		user_id
 	} else {
@@ -98,7 +98,7 @@ pub(crate) async fn register_route(
 		services
 			.users
 			.create_local_account(&user_id, password, identity.email)
-			.await;
+			.await?;
 
 		user_id
 	};

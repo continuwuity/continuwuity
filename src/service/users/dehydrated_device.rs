@@ -21,10 +21,7 @@ pub struct DehydratedDevice {
 impl super::Service {
 	/// Creates or recreates the user's dehydrated device.
 	pub async fn set_dehydrated_device(&self, user_id: &UserId, request: Request) -> Result {
-		assert!(
-			self.exists(user_id).await,
-			"Tried to create dehydrated device for non-existent user"
-		);
+		self.status(user_id).await.ensure_active()?;
 
 		let existing_id = self.get_dehydrated_device_id(user_id).await;
 

@@ -6,7 +6,7 @@ use conduwuit::{
 	warn,
 };
 use database::{Deserialized, Json};
-use futures::{FutureExt, Stream, StreamExt, TryFutureExt};
+use futures::{FutureExt, Stream, StreamExt};
 use lettre::Address;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
@@ -27,6 +27,28 @@ use crate::{
 pub enum AccessTokenStatus {
 	Valid,
 	Expired,
+}
+
+/// The status of a user account.
+#[derive(Clone, Copy)]
+pub enum AccountStatus {
+	NotFound,
+	Active,
+	Deactivated,
+}
+
+impl AccountStatus {
+	pub fn is_found(&self) -> bool { !matches!(self, Self::NotFound) }
+
+	pub fn is_active(&self) -> bool { matches!(self, Self::Active) }
+
+	pub fn ensure_active(&self) -> Result<()> {
+		match self {
+			| Self::Active => Ok(()),
+			| Self::Deactivated => Err!(Request(UserDeactivated("This account is deactivated."))),
+			| Self::NotFound => Err!(Request(NotFound("This account does not exist."))),
+		}
+	}
 }
 
 impl super::Service {
@@ -89,16 +111,16 @@ impl super::Service {
 		self.services.admin.user_is_admin(user_id).await
 	}
 
-	/// Create a new user account on this homeserver. Set the password to `None`
-	/// to create a non-local user. Non-local users with a password will return
-	/// an error.
-	#[inline]
-	pub fn create(&self, user_id: &UserId, password: Option<HashedPassword>) -> Result<()> {
-		if !self.services.globals.user_is_local(user_id) && password.is_some() {
-			return Err!("Cannot create a nonlocal user with a set password");
+	/// Create a new shadow user account on this server. Shadow accounts
+	/// have no password and cannot be logged into.
+	pub async fn create_shadow_account(&self, user_id: &UserId) -> Result<()> {
+		assert!(self.services.globals.user_is_local(user_id), "user id must be local");
+
+		if self.status(user_id).await.is_found() {
+			return Err!(Request(UserInUse("An account with this user ID already exists.")));
 		}
 
-		self.set_password(user_id, password);
+		self.db.userid_password.insert(user_id, "");
 
 		Ok(())
 	}
@@ -109,9 +131,9 @@ impl super::Service {
 		user_id: &UserId,
 		password: HashedPassword,
 		email: Option<Address>,
-	) {
-		self.create(user_id, Some(password))
-			.expect("should be able to save a new local user. what happened?");
+	) -> Result<()> {
+		self.create_shadow_account(user_id).await?;
+		self.convert_to_local_account(user_id, password).await?;
 
 		// Set an initial display name
 		{
@@ -230,6 +252,8 @@ impl super::Service {
 		}
 
 		info!("Created new user account for {user_id}");
+
+		Ok(())
 	}
 
 	pub async fn determine_registration_user_id(
@@ -297,7 +321,7 @@ impl super::Service {
 				},
 			};
 
-			if self.exists(&user_id).await {
+			if self.status(&user_id).await.is_found() {
 				return Err!(Request(UserInUse("User ID is not available.")));
 			}
 
@@ -329,26 +353,24 @@ impl super::Service {
 				)
 				.unwrap();
 
-				if !self.exists(&user_id).await {
+				if !self.status(&user_id).await.is_found() {
 					break Ok(user_id);
 				}
 			}
 		}
 	}
 
-	/// Deactivates an account, removing all of their device IDs and unsetting
-	/// their password.
+	/// Deactivates an account, removing all of their device IDs.
 	pub async fn deactivate_account(&self, user_id: &UserId) -> Result<()> {
+		self.status(user_id).await.ensure_active()?;
+
 		// Remove all associated devices
 		self.all_device_ids(user_id)
 			.for_each(async |device_id| self.remove_device(user_id, &device_id).await)
 			.await;
 
-		// Set the password to "" to indicate a deactivated account. Hashes will never
-		// result in an empty string, so the user will not be able to log in again.
-		// Systems like changing the password without logging in should check if the
-		// account is deactivated.
-		self.set_password(user_id, None);
+		// Mark user as deactivated
+		self.db.userid_deactivated.insert(user_id, "");
 
 		// TODO: Unhook 3PID
 		Ok(())
@@ -392,25 +414,6 @@ impl super::Service {
 
 	/// Unlocks an account, allowing the user to log in and use it again.
 	pub async fn unlock_account(&self, user_id: &UserId) { self.db.userid_lock.remove(user_id); }
-
-	/// Check if the provided user ID belongs to an existing (possibly
-	/// deactivated) account on this homeserver.
-	#[inline]
-	pub async fn exists(&self, user_id: &UserId) -> bool {
-		self.services.globals.user_is_local(user_id)
-			&& self.db.userid_password.get(user_id).await.is_ok()
-	}
-
-	/// Check if account is deactivated (has an empty password). Returns a
-	/// NotFound error if the user does not exist.
-	pub async fn is_deactivated(&self, user_id: &UserId) -> Result<bool> {
-		self.db
-			.userid_password
-			.get(user_id)
-			.map_ok(|val| val.is_empty())
-			.map_err(|_| err!(Request(NotFound("User does not exist."))))
-			.await
-	}
 
 	/// Check if account is suspended. Returns false if the user does not exist.
 	pub async fn is_suspended(&self, user_id: &UserId) -> Result<bool> {
@@ -469,18 +472,33 @@ impl super::Service {
 			.is_ok()
 	}
 
-	/// Check if account is active (not deactivated)
-	pub async fn is_active(&self, user_id: &UserId) -> bool {
-		!self.is_deactivated(user_id).await.unwrap_or(true)
+	/// Checks the activation status of the provided user ID's account.
+	pub async fn status(&self, user_id: &UserId) -> AccountStatus {
+		if !self.services.globals.user_is_local(user_id) {
+			AccountStatus::NotFound
+		} else if self.db.userid_password.exists(user_id).await.is_ok() {
+			if self.db.userid_deactivated.exists(user_id).await.is_ok() {
+				AccountStatus::Deactivated
+			} else {
+				AccountStatus::Active
+			}
+		} else {
+			AccountStatus::NotFound
+		}
 	}
 
-	/// Check if account is a local user, and is active (not deactivated)
-	pub async fn is_active_local(&self, user_id: &UserId) -> bool {
-		self.services.globals.user_is_local(user_id) && self.is_active(user_id).await
+	/// Checks if a user is a shadow.
+	pub async fn is_shadow(&self, user_id: &UserId) -> bool {
+		self.db
+			.userid_password
+			.get(user_id)
+			.await
+			.deserialized::<String>()
+			.is_ok_and(|hash| hash.is_empty())
 	}
 
 	/// Returns the number of users registered on this server, including
-	/// deactivated users.
+	/// deactivated and shadow users.
 	#[inline]
 	pub async fn count(&self) -> usize { self.db.userid_password.count().await }
 
@@ -522,8 +540,8 @@ impl super::Service {
 		Some((user_id, device_id, AccessTokenStatus::Valid))
 	}
 
-	/// Returns an iterator over all users on this homeserver.
-	pub fn stream(&self) -> impl Stream<Item = OwnedUserId> + Send {
+	/// Returns an iterator over all local users on this homeserver.
+	pub fn stream_local_users(&self) -> impl Stream<Item = OwnedUserId> + Send {
 		self.db.userid_password.keys().ignore_err()
 	}
 
@@ -540,16 +558,49 @@ impl super::Service {
 	}
 
 	/// Set a user's password.
-	pub fn set_password(&self, user_id: &UserId, password: Option<HashedPassword>) {
-		if let Some(hash) = password {
-			self.db.userid_password.insert(user_id, hash.0);
-		} else {
-			self.db.userid_password.insert(user_id, b"");
+	pub async fn set_password(&self, user_id: &UserId, password: HashedPassword) -> Result {
+		self.status(user_id).await.ensure_active()?;
+
+		self.db.userid_password.insert(user_id, password.0);
+
+		Ok(())
+	}
+
+	/// Convert an existing user to an active local account. This will turn
+	/// shadow accounts into normal accounts and will clear the deactivation
+	/// flag on the user if it is set.
+	pub async fn convert_to_local_account(
+		&self,
+		user_id: &UserId,
+		password: HashedPassword,
+	) -> Result {
+		if !self.status(user_id).await.is_found() {
+			return Err!(Request(NotFound("This account does not exist.")));
 		}
+
+		self.db.userid_deactivated.remove(user_id);
+		self.db.userid_password.insert(user_id, password.0);
+
+		Ok(())
+	}
+
+	/// Convert an existing user to a shadow account. This will clear their
+	/// password and reactivate them if they are deactivated.
+	pub async fn convert_to_shadow_account(&self, user_id: &UserId) -> Result {
+		if !self.status(user_id).await.is_found() {
+			return Err!(Request(NotFound("This account does not exist.")));
+		}
+
+		self.db.userid_deactivated.remove(user_id);
+		self.db.userid_password.insert(user_id, "");
+
+		Ok(())
 	}
 
 	/// Check a user's password.
 	pub async fn check_password(&self, user_id: &UserId, password: &str) -> Result<OwnedUserId> {
+		self.status(user_id).await.ensure_active()?;
+
 		let (hash, user_id): (String, OwnedUserId) =
 			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
 				(hash, user_id.to_owned())
@@ -558,21 +609,20 @@ impl super::Service {
 				// better
 				let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
 
-				if let Ok(hash) = self
+				let hash = self
 					.db
 					.userid_password
 					.get(lowercase_user_id.as_str())
 					.await
 					.deserialized()
-				{
-					(hash, lowercase_user_id)
-				} else {
-					return Err!(Request(Forbidden("This user cannot log in with a password.")));
-				}
+					.expect("user should exist");
+
+				(hash, lowercase_user_id)
 			};
 
 		if hash.is_empty() {
-			return Err!(Request(UserDeactivated("This user is deactivated")));
+			// Cannot log into shadow users
+			return Err!(Request(Forbidden("This user cannot log in with a password.")));
 		}
 
 		utils::hash::verify_password(password, &hash)

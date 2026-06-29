@@ -191,8 +191,13 @@ impl crate::Context<'_> {
 
 	async fn iter_users(&self) -> Result {
 		let timer = tokio::time::Instant::now();
-		let result: Vec<OwnedUserId> =
-			self.services.users.stream().map(Into::into).collect().await;
+		let result: Vec<OwnedUserId> = self
+			.services
+			.users
+			.stream_local_users()
+			.map(Into::into)
+			.collect()
+			.await;
 
 		let query_time = timer.elapsed();
 
@@ -202,7 +207,7 @@ impl crate::Context<'_> {
 
 	async fn iter_users2(&self) -> Result {
 		let timer = tokio::time::Instant::now();
-		let result: Vec<_> = self.services.users.stream().collect().await;
+		let result: Vec<_> = self.services.users.stream_local_users().collect().await;
 		let result: Vec<_> = result
 			.into_iter()
 			.map(|user_id| String::from_utf8_lossy(user_id.as_bytes()).into_owned())

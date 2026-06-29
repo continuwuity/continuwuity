@@ -4,10 +4,11 @@ pub(super) mod device;
 pub(super) mod filters;
 pub(super) mod keys;
 pub(super) mod profile;
+pub(super) mod remote;
 
 use std::{mem, sync::Arc};
 
-pub use account::AccessTokenStatus;
+pub use account::{AccessTokenStatus, AccountStatus};
 use conduwuit::{
 	Err, Error, Result, err,
 	utils::{self},
@@ -75,11 +76,13 @@ struct Data {
 	logintoken_expiresatuserid: Arc<Map>,
 	todeviceid_events: Arc<Map>,
 	token_userdeviceid: Arc<Map>,
+	remoteuserid_remoteuser: Arc<Map>,
 	userdeviceid_tokenexpires: Arc<Map>,
 	userdeviceid_metadata: Arc<Map>,
 	userdeviceid_token: Arc<Map>,
 	userfilterid_filter: Arc<Map>,
 	userid_avatarurl: Arc<Map>,
+	userid_deactivated: Arc<Map>,
 	userid_dehydrateddevice: Arc<Map>,
 	userid_devicelistversion: Arc<Map>,
 	userid_displayname: Arc<Map>,
@@ -121,10 +124,12 @@ impl crate::Service for Service {
 				logintoken_expiresatuserid: args.db["logintoken_expiresatuserid"].clone(),
 				todeviceid_events: args.db["todeviceid_events"].clone(),
 				token_userdeviceid: args.db["token_userdeviceid"].clone(),
+				remoteuserid_remoteuser: args.db["remoteuserid_remoteuser"].clone(),
 				userdeviceid_metadata: args.db["userdeviceid_metadata"].clone(),
 				userdeviceid_token: args.db["userdeviceid_token"].clone(),
 				userfilterid_filter: args.db["userfilterid_filter"].clone(),
 				userid_avatarurl: args.db["userid_avatarurl"].clone(),
+				userid_deactivated: args.db["userid_deactivated"].clone(),
 				userid_dehydrateddevice: args.db["userid_dehydrateddevice"].clone(),
 				userid_devicelistversion: args.db["userid_devicelistversion"].clone(),
 				userid_displayname: args.db["userid_displayname"].clone(),

@@ -54,15 +54,22 @@ impl Service {
 	async fn set_emergency_access(&self) -> Result {
 		let server_user = &self.services.globals.server_user;
 
-		self.services.users.set_password(
-			server_user,
-			self.services
-				.config
-				.emergency_password
-				.as_deref()
-				.map(HashedPassword::new)
-				.transpose()?,
-		);
+		match &self.services.config.emergency_password {
+			| Some(emergency_password) => {
+				let emergency_password = HashedPassword::new(emergency_password)?;
+
+				self.services
+					.users
+					.convert_to_local_account(server_user, emergency_password)
+					.await?;
+			},
+			| None => {
+				self.services
+					.users
+					.convert_to_shadow_account(server_user)
+					.await?;
+			},
+		}
 
 		let (ruleset, pwd_set) = match self.services.config.emergency_password {
 			| Some(_) => (Ruleset::server_default(server_user), true),

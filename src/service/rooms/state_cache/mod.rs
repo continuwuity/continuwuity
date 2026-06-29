@@ -248,7 +248,7 @@ impl Service {
 	) -> impl Stream<Item = OwnedUserId> + Send + 'a {
 		self.local_users_in_room(room_id)
 			.filter_map(async |user_id| {
-				if self.services.users.is_active(&user_id).await {
+				if self.services.users.status(&user_id).await.is_active() {
 					Some(user_id)
 				} else {
 					None
