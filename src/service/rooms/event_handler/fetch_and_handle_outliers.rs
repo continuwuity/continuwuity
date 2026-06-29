@@ -35,8 +35,9 @@ pub const GET_MISSING_EVENTS_MAX_BATCH_SIZE: usize = 50;
 /// dependencies, however it is ultimately the sender's responsibility to send
 /// them in a processable order, so this is just a best effort attempt. It does
 /// not account for power levels or other tie breaks.
-pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
-	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject, S>,
+#[allow(clippy::implicit_hasher)]
+pub async fn build_local_dag(
+	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject>,
 ) -> conduwuit::Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
 	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
@@ -44,13 +45,8 @@ pub async fn build_local_dag<S: std::hash::BuildHasher + Send + Sync>(
 	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
 
 	for (event_id, value) in pdu_map {
-		// We already checked that these properties are correct in parse_incoming_pdu,
-		// so it's safe to unwrap here.
-		// We also filter to remove any prev_events that are not in this pdu_map, as we
-		// need to have at least one event with zero out degrees for the lexico-topo
-		// sort below. If there are multiple events with omitted prevs, they will be
-		// ordered by timestamp, then event ID. At that point though, it's unlikely to
-		// matter.
+		// Parse all prev events as event IDs - if they are missing, return an error (we
+		// can't sanely continue in this case), otherwise skip invalid prev events.
 		let prev_events = value
 			.get("prev_events")
 			.and_then(CanonicalJsonValue::as_array)

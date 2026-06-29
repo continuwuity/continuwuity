@@ -1,5 +1,5 @@
 use std::{
-	collections::{BTreeMap, HashMap, HashSet},
+	collections::{BTreeMap, HashMap},
 	net::IpAddr,
 	time::{Duration, Instant},
 };
@@ -9,7 +9,6 @@ use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, debug_error, debug_warn, err, error,
 	result::LogErr,
-	state_res::lexicographical_topological_sort,
 	trace,
 	utils::{
 		IterStream, ReadyExt, millis_since_unix_epoch,
@@ -25,8 +24,7 @@ use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use http::StatusCode;
 use itertools::Itertools;
 use ruma::{
-	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId,
-	OwnedUserId, RoomId, ServerName, UInt, UserId,
+	CanonicalJsonObject, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName, UserId,
 	api::{
 		error::{ErrorKind, LimitExceededErrorData},
 		federation::transactions::{
@@ -39,12 +37,12 @@ use ruma::{
 		},
 	},
 	events::receipt::{ReceiptEvent, ReceiptEventContent, ReceiptType},
-	int,
 	serde::Raw,
 	to_device::DeviceIdOrAllDevices,
 };
-use service::transactions::{
-	FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse,
+use service::{
+	rooms::event_handler::build_local_dag,
+	transactions::{FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse},
 };
 use tokio::sync::watch::{Receiver, Sender};
 use tracing::instrument;
@@ -276,74 +274,6 @@ async fn handle(
 	Ok(results)
 }
 
-/// Attempts to build a localised directed acyclic graph out of the given PDUs,
-/// returning them in a topologically sorted order.
-///
-/// This is used to attempt to process PDUs in an order that respects their
-/// dependencies, however it is ultimately the sender's responsibility to send
-/// them in a processable order, so this is just a best effort attempt. It does
-/// not account for power levels or other tie breaks.
-async fn build_local_dag(
-	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject>,
-) -> Result<Vec<OwnedEventId>> {
-	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
-	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
-		HashMap::with_capacity(pdu_map.len());
-	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
-
-	for (event_id, value) in pdu_map {
-		// We already checked that these properties are correct in parse_incoming_pdu,
-		// so it's safe to unwrap here.
-		// We also filter to remove any prev_events that are not in this pdu_map, as we
-		// need to have at least one event with zero out degrees for the lexico-topo
-		// sort below. If there are multiple events with omitted prevs, they will be
-		// ordered by timestamp, then event ID. At that point though, it's unlikely to
-		// matter.
-		let prev_events = value
-			.get("prev_events")
-			.unwrap()
-			.as_array()
-			.unwrap()
-			.iter()
-			.map(|v| EventId::parse(v.as_str().unwrap()).unwrap())
-			.filter(|id| pdu_map.contains_key(id))
-			.collect();
-
-		dag.insert(event_id.clone(), prev_events);
-		let origin_server_ts = value
-			.get("origin_server_ts")
-			.and_then(ruma::CanonicalJsonValue::as_integer)
-			.unwrap_or_default();
-		id_origin_ts.insert(event_id.clone(), origin_server_ts);
-	}
-
-	debug!(count = dag.len(), "Sorting incoming events with partial graph");
-	lexicographical_topological_sort(&dag, &async |node_id| {
-		// Note: we don't bother fetching power levels because that would massively slow
-		// this function down. This is a best-effort attempt to order events correctly
-		// for processing, however ultimately that should be the sender's job.
-		let ts = id_origin_ts
-			.get(&node_id)
-			.copied()
-			.unwrap_or_else(|| int!(0))
-			.to_string()
-			.parse::<u64>()
-			.ok()
-			.and_then(UInt::new)
-			.unwrap_or_default();
-		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
-	})
-	.await
-	.inspect(|sorted| {
-		debug_assert_eq!(
-			sorted.len(),
-			pdu_map.len(),
-			"Sorted graph was not the same size as the input graph"
-		);
-	})
-	.map_err(|e| err!("failed to resolve local graph: {e}"))
-}
-
 async fn handle_room(
 	services: &Services,
 	_client: &IpAddr,
@@ -359,7 +289,7 @@ async fn handle_room(
 		.await;
 
 	let room_id = &room_id;
-	let pdu_map: HashMap<OwnedEventId, CanonicalJsonObject> = pdus
+	let mut pdu_map: HashMap<OwnedEventId, CanonicalJsonObject> = pdus
 		.into_iter()
 		.map(|(_, event_id, value)| (event_id, value))
 		.collect();
@@ -367,7 +297,11 @@ async fn handle_room(
 	// failure (e.g., cycles). This is best-effort; proper ordering is the sender's
 	// responsibility.
 	let sorted_event_ids = if pdu_map.len() >= 2 {
-		build_local_dag(&pdu_map).await.unwrap_or_else(|e| {
+		let refmap = pdu_map
+			.iter()
+			.map(|(event_id, obj)| (event_id.clone(), obj))
+			.collect();
+		build_local_dag(&refmap).await.unwrap_or_else(|e| {
 			debug_warn!("Failed to build local DAG for room {room_id}: {e}");
 			pdu_map.keys().cloned().collect()
 		})
@@ -377,9 +311,8 @@ async fn handle_room(
 	let mut results = Vec::with_capacity(sorted_event_ids.len());
 	for event_id in sorted_event_ids {
 		let value = pdu_map
-			.get(&event_id)
-			.expect("sorted event IDs must be from the original map")
-			.clone();
+			.remove(&event_id)
+			.expect("sorted event IDs must be from the original map");
 		services
 			.server
 			.check_running()
@@ -387,7 +320,7 @@ async fn handle_room(
 		let result = services
 			.rooms
 			.event_handler
-			.handle_incoming_pdu(origin, room_id, &event_id, value, true)
+			.handle_incoming_pdu(origin, room_id, &event_id, value.clone(), true)
 			.boxed()
 			.await
 			.map(|_| ());
