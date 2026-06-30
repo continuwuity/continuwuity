@@ -45,7 +45,7 @@ version = "1.0.6"
 version = "1.0.0"
 
 [workspace.dependencies.cargo_toml]
-version = "0.22"
+version = "1.0"
 default-features = false
 features = ["features"]
 
@@ -164,7 +164,7 @@ features = ["raw_value"]
 
 # Used for appservice registration files
 [workspace.dependencies.serde-saphyr]
-version = "0.0.27"
+version = "0.0.28"
 
 # Used to load forbidden room/user regex from config
 [workspace.dependencies.serde_regex]
@@ -356,6 +356,7 @@ features = [
     "ring-compat",
     "compat-upload-signatures",
     "compat-optional-txn-pdus",
+    "compat-get-3pids",
     "unstable-msc2666",
     "unstable-msc2867",
     "unstable-msc2870",
