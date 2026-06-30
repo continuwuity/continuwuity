@@ -9,7 +9,7 @@
     {
       # basic nix shell containing all things necessary to build continuwuity in all flavors manually (on x86_64-linux)
       devShells.default =
-        (inputs.crane.mkLib pkgs).overrideToolchain (pkgs: self'.packages.stable-toolchain).devShell
+        ((inputs.crane.mkLib pkgs).overrideToolchain (pkgs: self'.packages.stable-toolchain)).devShell
           {
             packages = [
               self'.packages.rocksdb
