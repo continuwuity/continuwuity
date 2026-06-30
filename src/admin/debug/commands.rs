@@ -20,7 +20,10 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
-use resolvematrix::{resolution::ResolvedDestination, server::MatrixResolver};
+use resolvematrix::{
+	resolution::ResolvedDestination,
+	server::{MatrixResolver, MatrixResolverBuilder},
+};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
 	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
@@ -1009,7 +1012,10 @@ impl crate::Context<'_> {
 		}
 
 		let resolver: &MatrixResolver = if no_cache {
-			&MatrixResolver::new()?
+			&MatrixResolverBuilder::new()
+				.dangerous_tls_accept_invalid_certs(self.services.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
+				.http_client(self.services.client.well_known.clone())
+				.build()?
 		} else {
 			&self.services.resolver.resolver
 		};

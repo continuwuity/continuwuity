@@ -9,17 +9,16 @@ use conduwuit::Result;
 use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
 
 use self::{cache::Cache, dns::Resolver};
-use crate::{Dep, client};
+use crate::client;
 
 pub struct Service {
 	pub resolver: MatrixResolver,
 	pub dns: Dns,
+	#[allow(dead_code)] // This service doesn't access services after construction
 	services: Services,
 }
 
-struct Services {
-	client: Dep<client::Service>,
-}
+struct Services {}
 
 pub struct Dns {
 	pub cache: Arc<Cache>,
@@ -41,9 +40,7 @@ impl crate::Service for Service {
 				cache,
 				resolver,
 			},
-			services: Services {
-				client: args.depend::<client::Service>("client"),
-			},
+			services: Services {},
 		}))
 	}
 
