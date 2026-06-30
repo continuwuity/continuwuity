@@ -4,6 +4,7 @@ use ruma::UserId;
 use validator::{Validate, ValidationError, ValidationErrors};
 
 use crate::{
+	WebError,
 	extract::PostForm,
 	form,
 	pages::{
@@ -65,6 +66,12 @@ async fn route_change_password(
 	user: User,
 	PostForm(form): PostForm<ChangePasswordForm>,
 ) -> Result {
+	if services.oidc.enabled() {
+		return Err(WebError::BadRequest(
+			"Password changing is not available on this server".to_owned(),
+		));
+	}
+
 	let user_id = user.expect(LoginTarget::ChangePassword)?;
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 

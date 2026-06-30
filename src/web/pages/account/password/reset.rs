@@ -65,6 +65,13 @@ async fn route_reset_password(
 		return response!(ResetPassword::new(context, ResetPasswordBody::Unavailable));
 	}
 
+	// Check if OIDC is enabled
+	if services.oidc.enabled() {
+		return Err(WebError::BadRequest(
+			"Password resets are not available on this server".to_owned(),
+		));
+	}
+
 	let Some(form) = form else {
 		// For GET requests return the reset request form
 		return response!(ResetPassword::new(
