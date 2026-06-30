@@ -36,6 +36,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			resolver: MatrixResolverBuilder::new()
 				.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
+				.http_client(args.depend::<client::Service>("client").well_known.clone())
 				.build()?,
 			dns: Dns {
 				cache,
