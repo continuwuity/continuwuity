@@ -14,8 +14,9 @@ pub enum OidcCommand {
 		subject: String,
 	},
 
+	/// Unlink the given subject claim from its associated user ID.
 	#[clap(name = "unlink")]
 	OidcUnlink {
-		user_id: String,
+		subject: String,
 	},
 }

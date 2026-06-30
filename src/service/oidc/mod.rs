@@ -263,7 +263,7 @@ impl Service {
 						Self::SERVER_MISCONFIGURED
 					})?;
 
-				self.link_user(&user_id, subject).await;
+				self.link_user(&user_id, subject);
 
 				info!(?subject, ?user_id, "Shadow user created for {user_id}");
 			},
@@ -275,9 +275,11 @@ impl Service {
 		Ok(SessionCompletionStatus::Complete(user_id))
 	}
 
-	pub async fn link_user(&self, user_id: &UserId, subject: &str) {
+	pub fn link_user(&self, user_id: &UserId, subject: &str) {
 		self.db
 			.openidsubject_localpart
 			.insert(subject, user_id.localpart());
 	}
+
+	pub fn unlink_user(&self, subject: &str) { self.db.openidsubject_localpart.remove(subject); }
 }
