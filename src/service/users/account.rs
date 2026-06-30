@@ -298,28 +298,7 @@ impl super::Service {
 				&supplied_username,
 				self.services.globals.server_name(),
 			) {
-				| Ok(user_id) => {
-					if let Err(e) = user_id.validate_strict() {
-						// Unless we are in emergency mode, we should follow synapse's behaviour
-						// on not allowing things like spaces and UTF-8 characters in
-						// usernames
-						if !emergency_mode_enabled {
-							return Err!(Request(InvalidUsername(debug_warn!(
-								"Username {supplied_username} contains disallowed characters or \
-								 spaces: {e}"
-							))));
-						}
-					}
-
-					// Don't allow registration with user IDs that aren't local
-					if !self.services.globals.user_is_local(&user_id) {
-						return Err!(Request(InvalidUsername(
-							"Username {supplied_username} is not local to this server"
-						)));
-					}
-
-					user_id
-				},
+				| Ok(user_id) => user_id,
 				| Err(e) => {
 					return Err!(Request(InvalidUsername(debug_warn!(
 						"Username {supplied_username} is not valid: {e}"
@@ -327,8 +306,27 @@ impl super::Service {
 				},
 			};
 
+			if let Err(e) = user_id.validate_strict() {
+				// Unless we are in emergency mode, we should follow synapse's behaviour
+				// on not allowing things like spaces and UTF-8 characters in
+				// usernames
+				if !emergency_mode_enabled {
+					return Err!(Request(InvalidUsername(debug_warn!(
+						"Username {supplied_username} contains disallowed characters or spaces: \
+						 {e}"
+					))));
+				}
+			}
+
+			// Don't allow registration with user IDs that aren't local
+			if !self.services.globals.user_is_local(&user_id) {
+				return Err!(Request(InvalidUsername(
+					"Username {supplied_username} is not local to this server"
+				)));
+			}
+
 			if self.status(&user_id).await.is_found() {
-				return Err!(Request(UserInUse("User ID is not available.")));
+				return Err!(Request(UserInUse("Username is not available.")));
 			}
 
 			// Check that the user ID is/is not in an appservice's namespace

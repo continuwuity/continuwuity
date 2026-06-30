@@ -19,47 +19,48 @@ use crate::{
 #[derive(Debug, Parser)]
 #[command(name = conduwuit_core::BRANDING, version = conduwuit_core::version())]
 pub enum AdminCommand {
-	#[command(subcommand)]
 	/// Commands for managing appservices
+	#[command(subcommand)]
 	Appservices(AppserviceCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing local users
+	#[command(subcommand)]
 	Users(UserCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing registration tokens
+	#[command(subcommand)]
 	Token(TokenCommand),
 
+	/// Commands for managing OIDC
 	#[command(subcommand)]
 	Oidc(OidcCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing rooms
+	#[command(subcommand)]
 	Rooms(RoomCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing federation
+	#[command(subcommand)]
 	Federation(FederationCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing the server
+	#[command(subcommand)]
 	Server(ServerCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing media
+	#[command(subcommand)]
 	Media(MediaCommand),
 
-	#[command(subcommand)]
 	/// Commands for checking integrity
+	#[command(subcommand)]
 	Check(CheckCommand),
 
-	#[command(subcommand)]
 	/// Commands for debugging things
+	#[command(subcommand)]
 	Debug(DebugCommand),
 
-	#[command(subcommand)]
 	/// Low-level queries for database getters and iterators
+	#[command(subcommand)]
 	Query(QueryCommand),
 }
 
