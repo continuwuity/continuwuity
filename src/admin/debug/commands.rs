@@ -1008,22 +1008,22 @@ impl crate::Context<'_> {
 			);
 		}
 
-	let resolver: &MatrixResolver = if no_cache {
-		&MatrixResolver::new()?
-	} else {
-		&self.services.resolver.resolver
-	};
+		let resolver: &MatrixResolver = if no_cache {
+			&MatrixResolver::new()?
+		} else {
+			&self.services.resolver.resolver
+		};
 
-	let actual = resolver.resolve_server(server_name.as_str()).await?;
+		let actual = resolver.resolve_server(server_name.as_str()).await?;
 
-	let destination = match actual.destination {
-		| ResolvedDestination::Literal(addr) => addr.to_string(),
-		| ResolvedDestination::Named(host, port) => format!("{host}:{port}"),
-	};
+		let destination = match actual.destination {
+			| ResolvedDestination::Literal(addr) => addr.to_string(),
+			| ResolvedDestination::Named(host, port) => format!("{host}:{port}"),
+		};
 
-	let msg = format!("Destination: {}\nHostname URI (SNI): {}", destination, actual.host);
-	self.write_str(&msg).await
-}
+		let msg = format!("Destination: {}\nHostname URI (SNI): {}", destination, actual.host);
+		self.write_str(&msg).await
+	}
 
 	pub(super) async fn memory_stats(&self, opts: Option<String>) -> Result {
 		const OPTS: &str = "abcdefghijklmnopqrstuvwxyz";

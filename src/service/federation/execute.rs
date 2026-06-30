@@ -132,11 +132,11 @@ impl super::Service {
 		}
 
 		let actual = self
-		.services
-		.resolver
-		.resolver
-		.resolve_server(dest.as_str())
-		.await?;
+			.services
+			.resolver
+			.resolver
+			.resolve_server(dest.as_str())
+			.await?;
 
 		let request = Request::try_from(request.try_into_http_request::<Vec<u8>>(
 			actual.base_url().as_str(),
