@@ -1,0 +1,39 @@
+{% extends "_layout.html.j2" %}
+{% import "_components/form.html.j2" as form %}
+
+{%- block head -%}
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/login.css">
+{%- endblock -%}
+
+{%- block title -%}
+Link your account
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1 class="with-matrix-icon">
+        Link your account
+        <a href="https://matrix.org" target="_blank" noreferer>
+            <img class="matrix-icon" alt="Matrix logo" aria-ignore src="{{ crate::ROUTE_PREFIX }}/resources/matrix-icon.svg">
+        </a>
+    </h1>
+    <form method="post">
+        <p>To finish linking your account to Matrix, choose a username.</p>
+        <p>
+            <label for="username">Username</label>
+            <span class="username-input">
+                <span>@</span>
+                <input type="text" id="username" name="username" autocomplete="username" required>
+                <span>:{{ server_name }}</span>
+            </span>
+            {% if let Some(username_error) = username_error %}
+                <small class="error">
+                    {{ username_error }}
+                </small>
+            {% endif %}
+            <small>Your username cannot be changed after you create your account.</small>
+        </p>
+        <button type="submit">Continue</button>
+    </form>
+</div>
+{% endblock %}

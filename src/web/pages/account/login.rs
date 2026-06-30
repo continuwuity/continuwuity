@@ -21,6 +21,7 @@ use crate::{
 		GET_POST, Result, TemplateContext,
 		account::register::{TrustedFlowStatus, UntrustedFlowStatus, registration_flow_status},
 		components::UserCard,
+		oidc::{OIDC_SESSION_ID_KEY, OidcSession, OidcSessionState},
 	},
 	response,
 	session::{LoginQuery, LoginTarget, User, UserSession},
@@ -67,6 +68,24 @@ async fn route_login(
 	PostForm(form): PostForm<LoginForm>,
 ) -> Result {
 	let user_id = user.into_session().map(|session| session.user_id);
+
+	if services.oidc.enabled() {
+		if user_id.is_some() && !reauthenticate {
+			return response!(Redirect::to(&next.unwrap_or_default().target_path()));
+		}
+
+		let (session, redirect_url) = services.oidc.begin_session().await;
+
+		session_store
+			.insert(OIDC_SESSION_ID_KEY, OidcSession {
+				next: next.unwrap_or_default(),
+				state: OidcSessionState::CodeExchange { expected_user: user_id, session },
+			})
+			.await
+			.expect("should be able to serialize OIDC session");
+
+		return response!(Redirect::to(redirect_url.as_str()));
+	}
 
 	let body = match &user_id {
 		| None => {

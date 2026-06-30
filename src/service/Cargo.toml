@@ -120,6 +120,7 @@ reqwest_recaptcha = { package = "reqwest", version = "0.12.28", default-features
 yansi.workspace = true
 lettre.workspace = true
 serde_urlencoded.workspace = true
+openidconnect.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true

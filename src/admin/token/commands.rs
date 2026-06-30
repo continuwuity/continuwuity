@@ -44,7 +44,7 @@ impl crate::Context<'_> {
 			.services
 			.config
 			.oauth
-			.compatibility_mode
+			.compatibility_mode()
 			.oauth_available()
 		{
 			self.write_str(&format!(

@@ -133,6 +133,7 @@ pub fn build(services: &Services) -> Router<state::State> {
 				.nest("/account/", account::build())
 				.merge(debug::build())
 				.nest("/oauth2/", oauth::build())
+				.nest("/oidc/", oidc::build())
 				.merge(resources::build())
 				.merge(threepid::build())
 				.fallback(async || WebError::NotFound),

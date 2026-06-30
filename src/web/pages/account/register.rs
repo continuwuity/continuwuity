@@ -520,7 +520,7 @@ async fn complete_registration(
 ) -> Result<Redirect> {
 	services
 		.users
-		.create_local_account(&user_id, password_hash, email)
+		.create_local_account(&user_id, Some(password_hash), email)
 		.await?;
 
 	if let Some(registration_token) = registration_token {

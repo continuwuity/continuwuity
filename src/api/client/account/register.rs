@@ -97,7 +97,7 @@ pub(crate) async fn register_route(
 
 		services
 			.users
-			.create_local_account(&user_id, password, identity.email)
+			.create_local_account(&user_id, Some(password), identity.email)
 			.await?;
 
 		user_id
@@ -106,7 +106,7 @@ pub(crate) async fn register_route(
 	let (token, device) = if !body.inhibit_login {
 		// If UIAA is disabled, we can't create a device. In that case only appservices
 		// can reach this point in the first place, so we return an error for them.
-		if !services.config.oauth.compatibility_mode.uiaa_available() {
+		if !services.config.oauth.compatibility_mode().uiaa_available() {
 			return Err!(Request(AppserviceLoginUnsupported(
 				"User-interactive appservice registration is not available on this server."
 			)));
