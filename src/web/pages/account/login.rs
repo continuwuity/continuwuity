@@ -26,7 +26,7 @@ use crate::{
 		oidc::{OIDC_SESSION_ID_KEY, OidcSession, OidcSessionState},
 	},
 	response,
-	session::{LoginQuery, LoginTarget, User, UserSession},
+	session::{LoginIntent, LoginQuery, LoginTarget, User, UserSession},
 	template,
 };
 
@@ -74,7 +74,7 @@ struct LoginForm {
 async fn route_login(
 	State(services): State<crate::State>,
 	Extension(context): Extension<TemplateContext>,
-	Expect(Query(LoginQuery { next, reauthenticate })): Expect<Query<LoginQuery>>,
+	Expect(Query(LoginQuery { next, reauthenticate, intent })): Expect<Query<LoginQuery>>,
 	session_store: Session,
 	user: User<true>,
 	PostForm(form): PostForm<LoginForm>,
@@ -84,7 +84,11 @@ async fn route_login(
 	let login_type = if services.oidc.enabled() {
 		let (session, redirect_url) = services
 			.oidc
-			.begin_session(reauthenticate.then(|| CoreAuthPrompt::Consent))
+			.begin_session(match intent {
+				| Some(LoginIntent::SwitchAccounts) => Some(CoreAuthPrompt::SelectAccount),
+				| _ if reauthenticate => Some(CoreAuthPrompt::Consent),
+				| _ => None,
+			})
 			.await;
 
 		session_store
