@@ -10,17 +10,19 @@ use futures::{FutureExt, Stream, StreamExt};
 use lettre::Address;
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
+	api::client::profile::PropagateTo,
 	events::{
 		GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
 		push_rules::PushRulesEvent, room::message::RoomMessageEventContent,
 	},
+	profile::ProfileFieldValue,
 	push::Ruleset,
 };
 use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 
 use crate::{
 	appservice::RegistrationInfo,
-	users::{HashedPassword, UserSuspension},
+	users::{HashedPassword, UserSuspension, profile::ProfileFieldChange},
 };
 
 /// The status of an access token.
@@ -151,7 +153,13 @@ impl super::Service {
 				displayname.push_str(suffix);
 			}
 
-			self.set_displayname(user_id, Some(displayname));
+			self.set_profile_field(
+				user_id,
+				ProfileFieldChange::Set(ProfileFieldValue::DisplayName(displayname)),
+				PropagateTo::None,
+			)
+			.await
+			.expect("should be able to set display name");
 		};
 
 		// Set default push rules

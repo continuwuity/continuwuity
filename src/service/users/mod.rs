@@ -14,11 +14,12 @@ use conduwuit::{
 	utils::{self},
 };
 use database::Map;
+pub use profile::ProfileFieldChange;
 use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Raw};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-	Dep, account_data, admin, appservice, config, firstrun, globals, oauth,
+	Dep, account_data, admin, appservice, config, firstrun, globals, oauth, presence,
 	rooms::{self, alias, membership},
 	threepid,
 };
@@ -62,9 +63,12 @@ struct Services {
 	globals: Dep<globals::Service>,
 	membership: Dep<membership::Service>,
 	oauth: Dep<oauth::Service>,
+	presence: Dep<presence::Service>,
+	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 	threepid: Dep<threepid::Service>,
+	timeline: Dep<rooms::timeline::Service>,
 }
 
 struct Data {
@@ -110,10 +114,13 @@ impl crate::Service for Service {
 				globals: args.depend::<globals::Service>("globals"),
 				membership: args.depend::<membership::Service>("membership"),
 				oauth: args.depend::<oauth::Service>("oauth"),
+				presence: args.depend::<presence::Service>("presence"),
+				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 				threepid: args.depend::<threepid::Service>("threepid"),
+				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
 			db: Data {
 				keychangeid_userid: args.db["keychangeid_userid"].clone(),
