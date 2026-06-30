@@ -66,6 +66,7 @@ template! {
 enum AccountBody {
 	Unlocked {
 		suspended: bool,
+		oidc_enabled: bool,
 		email_requirement: EmailRequirement,
 		email: Option<String>,
 		devices: Vec<DeviceCard>,
@@ -128,6 +129,7 @@ async fn get_account(
 
 	response!(Account::new(context, user_card, AccountBody::Unlocked {
 		suspended,
+		oidc_enabled: services.oidc.enabled(),
 		email_requirement,
 		email,
 		devices: device_cards
