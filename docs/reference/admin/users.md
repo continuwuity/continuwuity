@@ -12,10 +12,6 @@ Create a new user
 
 Reset user password
 
-## `!admin users issue-password-reset-link`
-
-Issue a self-service password reset link for a user
-
 ## `!admin users get-email`
 
 Get a user's associated email address
@@ -95,6 +91,14 @@ Disables login for the specified user without deactivating or locking their acco
 ## `!admin users list-users`
 
 List local users in the database
+
+## `!admin users list-invited-rooms`
+
+Lists all the rooms (local and remote) that the specified user is invited to
+
+## `!admin users reject-all-invites`
+
+Manually make a user reject all current invites
 
 ## `!admin users list-joined-rooms`
 

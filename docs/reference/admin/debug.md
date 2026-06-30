@@ -10,7 +10,13 @@ Echo input of admin command
 
 ## `!admin debug get-auth-chain`
 
-Get the auth_chain of a PDU
+Loads the auth_chain of a PDU, reporting how long it took
+
+## `!admin debug show-auth-chain`
+
+Walks & displays the auth_chain of a PDU in a mermaid graph format.
+
+This is useless to basically anyone but developers, and is also probably slow and memory hungry.
 
 ## `!admin debug parse-pdu`
 
@@ -43,6 +49,12 @@ Gets all the room state events for the specified room.
 This is functionally equivalent to `GET /_matrix/client/v3/rooms/{roomid}/state`, except the admin command does *not* check if the sender user is allowed to see state events. This is done because it's implied that server admins here have database access and can see/get room info themselves anyways if they were malicious admins.
 
 Of course the check is still done on the actual client API.
+
+## `!admin debug get-state-at`
+
+Gets all the room state events at the specified event.
+
+State at event might not be available for some PDUs, such as rejected ones.
 
 ## `!admin debug get-signing-keys`
 
