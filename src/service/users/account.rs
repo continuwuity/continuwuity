@@ -38,8 +38,10 @@ pub enum AccountStatus {
 }
 
 impl AccountStatus {
+	#[must_use]
 	pub fn is_found(&self) -> bool { !matches!(self, Self::NotFound) }
 
+	#[must_use]
 	pub fn is_active(&self) -> bool { matches!(self, Self::Active) }
 
 	pub fn ensure_active(&self) -> Result<()> {
@@ -125,15 +127,19 @@ impl super::Service {
 		Ok(())
 	}
 
-	/// Create a new account for a local human or bot user.
+	/// Create a new account for a local human or bot user. If `password` is
+	/// None, the account will be a shadow account.
 	pub async fn create_local_account(
 		&self,
 		user_id: &UserId,
-		password: HashedPassword,
+		password: Option<HashedPassword>,
 		email: Option<Address>,
 	) -> Result<()> {
 		self.create_shadow_account(user_id).await?;
-		self.convert_to_local_account(user_id, password).await?;
+
+		if let Some(password) = password {
+			self.convert_to_local_account(user_id, password).await?;
+		}
 
 		// Set an initial display name
 		{

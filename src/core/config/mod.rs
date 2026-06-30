@@ -17,6 +17,7 @@ use either::{
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use lettre::message::Mailbox;
+use openidconnect::{ClientId, ClientSecret};
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
@@ -2419,10 +2420,65 @@ pub struct OauthConfig {
 	///   legacy authentication will be unable to log in.
 	///
 	/// default: "hybrid"
-	pub compatibility_mode: OAuthMode,
+	compatibility_mode: OAuthMode,
+
+	pub oidc: Option<OidcConfig>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+impl OauthConfig {
+	#[must_use]
+	pub fn compatibility_mode(&self) -> OAuthMode {
+		if self.oidc.is_some() {
+			OAuthMode::Exclusive
+		} else {
+			self.compatibility_mode
+		}
+	}
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.oauth.oidc",
+	optional = "true",
+	header = "\
+# Uncommenting this section will enable Continuwuity's support for
+# authenticating users using an OpenID Connect-compatible identity provider.
+# This is referred to as \"delegated authentication\".
+#
+# IMPORTANT NOTE: When delegated authentication is active, Continuwuity will behave as if
+# the `global.oauth.compatibility_mode` setting is set to `exclusive`.
+# Matrix clients which do not support OAuth login (also referred to as \"next-gen auth\") will \
+	          NOT be able
+# to log in while delegated authentication is active."
+)]
+pub struct OidcConfig {
+	/// The OIDC issuer URL. Continuwuity will use OpenID Connect Discovery to
+	/// automatically fetch the identity provider's metadata from this URL.
+	/// Generally you should set this to the base domain your identity provider
+	/// runs on.
+	pub discovery_url: Url,
+
+	/// The OAuth client ID for Continuwuity to use when communicating with the
+	/// identity provider.
+	pub client_id: ClientId,
+
+	/// The OAuth client secret for Continuwuity to use when communicating with
+	/// the identity provider.
+	pub client_secret: ClientSecret,
+
+	/// Whether the user should be prompted to choose a localpart
+	/// when signing in for the first time. If this is `false`, Continuwuity
+	/// will attempt to use the value of the `preferred_username` claim
+	/// returned from the IDP as the user's localpart, and authentication will
+	/// fail if this claim is missing or is not a valid localpart.
+	///
+	/// default: false
+	#[serde(default)]
+	pub prompt_for_localpart: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthMode {
 	Disabled,

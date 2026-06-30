@@ -1,5 +1,5 @@
 use clap::Parser;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 
 use crate::{
 	appservice::{self, AppserviceCommand},
@@ -8,6 +8,7 @@ use crate::{
 	debug::{self, DebugCommand},
 	federation::{self, FederationCommand},
 	media::{self, MediaCommand},
+	oidc::{self, OidcCommand},
 	query::{self, QueryCommand},
 	room::{self, RoomCommand},
 	server::{self, ServerCommand},
@@ -29,6 +30,9 @@ pub enum AdminCommand {
 	#[command(subcommand)]
 	/// Commands for managing registration tokens
 	Token(TokenCommand),
+
+	#[command(subcommand)]
+	Oidc(OidcCommand),
 
 	#[command(subcommand)]
 	/// Commands for managing rooms
@@ -79,6 +83,16 @@ pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Res
 			// token commands are all restricted
 			context.bail_restricted()?;
 			token::process(command, context).await
+		},
+		| Oidc(command) => {
+			// OIDC commands are all restricted
+			context.bail_restricted()?;
+
+			if !context.services.oidc.enabled() {
+				return Err!("OIDC is not configured");
+			}
+
+			oidc::process(command, context).await
 		},
 		| Rooms(command) => room::process(command, context).await,
 		| Federation(command) => federation::process(command, context).await,

@@ -403,6 +403,9 @@ default-features = false
 version = "0.11.0"
 default-features = false
 
+[workspace.dependencies.openidconnect]
+version = "4.0.1"
+
 # optional opentelemetry, performance measurements, flamegraphs, etc for performance measurements and monitoring
 [workspace.dependencies.opentelemetry]
 version = "0.32.0"

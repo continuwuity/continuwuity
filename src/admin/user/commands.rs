@@ -60,7 +60,7 @@ impl crate::Context<'_> {
 
 		self.services
 			.users
-			.create_local_account(&user_id, password, None)
+			.create_local_account(&user_id, Some(password), None)
 			.await?;
 
 		self.write_str(&format!("Created user {user_id}")).await

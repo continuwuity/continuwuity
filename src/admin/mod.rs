@@ -16,6 +16,7 @@ pub(crate) mod check;
 pub(crate) mod debug;
 pub(crate) mod federation;
 pub(crate) mod media;
+pub(crate) mod oidc;
 pub(crate) mod query;
 pub(crate) mod room;
 pub(crate) mod server;
