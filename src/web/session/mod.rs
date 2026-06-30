@@ -24,6 +24,8 @@ pub(crate) struct LoginQuery {
 	pub next: Option<LoginTarget>,
 	#[serde(default, skip_serializing_if = "std::ops::Not::not")]
 	pub reauthenticate: bool,
+	#[serde(default)]
+	pub intent: Option<LoginIntent>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -63,6 +65,12 @@ impl LoginTarget {
 
 		format!("{ROUTE_PREFIX}/{path}")
 	}
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum LoginIntent {
+	SwitchAccounts,
 }
 
 /// An extractor that fetches the authenticated user.
@@ -107,7 +115,7 @@ impl<const ALLOW_LOCKED: bool> User<ALLOW_LOCKED> {
 		} else {
 			Err(WebError::LoginRequired(LoginQuery {
 				next: Some(or_else),
-				reauthenticate: false,
+				..Default::default()
 			}))
 		}
 	}
@@ -122,12 +130,13 @@ impl<const ALLOW_LOCKED: bool> User<ALLOW_LOCKED> {
 				Err(WebError::LoginRequired(LoginQuery {
 					next: Some(or_else),
 					reauthenticate: true,
+					..Default::default()
 				}))
 			}
 		} else {
 			Err(WebError::LoginRequired(LoginQuery {
 				next: Some(or_else),
-				reauthenticate: false,
+				..Default::default()
 			}))
 		}
 	}
