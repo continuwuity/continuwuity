@@ -6,7 +6,10 @@ use database::{Deserialized, Map};
 use openidconnect::{
 	AuthorizationCode, CsrfToken, EndpointMaybeSet, EndpointNotSet, EndpointSet, IssuerUrl,
 	Nonce, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, TokenResponse,
-	core::{CoreAuthenticationFlow, CoreClient, CoreIdTokenClaims, CoreProviderMetadata},
+	core::{
+		CoreAuthPrompt, CoreAuthenticationFlow, CoreClient, CoreIdTokenClaims,
+		CoreProviderMetadata,
+	},
 	reqwest,
 };
 use ruma::{OwnedUserId, UserId};
@@ -133,20 +136,25 @@ impl Service {
 
 	pub fn enabled(&self) -> bool { self.client.is_some() }
 
-	pub async fn begin_session(&self) -> (PendingSession, Url) {
+	pub async fn begin_session(&self, prompt: Option<CoreAuthPrompt>) -> (PendingSession, Url) {
 		let OidcClient { machine, .. } = self.client.as_ref().expect("oidc should be configured");
 		let machine = machine.wait().await;
 
 		let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
-		let (auth_url, csrf_token, nonce) = machine
+		let mut auth_url = machine
 			.authorize_url(
 				CoreAuthenticationFlow::AuthorizationCode,
 				CsrfToken::new_random,
 				Nonce::new_random,
 			)
-			.set_pkce_challenge(pkce_challenge)
-			.url();
+			.set_pkce_challenge(pkce_challenge);
+
+		if let Some(prompt) = prompt {
+			auth_url = auth_url.add_prompt(prompt);
+		}
+
+		let (auth_url, csrf_token, nonce) = auth_url.url();
 
 		(PendingSession { pkce_verifier, nonce, csrf_token }, auth_url)
 	}
@@ -253,14 +261,14 @@ impl Service {
 						Self::SERVER_MISCONFIGURED
 					})?;
 
-				self.link_user(&user_id, subject);
-
 				info!(?subject, ?user_id, "Shadow user created for {user_id}");
 			},
 			| AccountStatus::Deactivated => {
 				return Err("Your account has been deactivated.");
 			},
 		}
+
+		self.link_user(&user_id, subject);
 
 		Ok(SessionCompletionStatus::Complete(user_id))
 	}

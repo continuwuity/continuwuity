@@ -7,12 +7,14 @@ use axum::{
 	routing::{get, on},
 };
 use conduwuit_api::client::handle_login;
+use openidconnect::core::CoreAuthPrompt;
 use ruma::{
 	OwnedUserId,
 	api::client::uiaa::{EmailUserIdentifier, MatrixUserIdentifier, UserIdentifier},
 };
 use serde::Deserialize;
 use tower_sessions::Session;
+use url::Url;
 
 use crate::{
 	ROUTE_PREFIX, WebError,
@@ -37,6 +39,7 @@ pub(crate) fn build() -> Router<crate::State> {
 template! {
 	struct Login use "login.html.j2" {
 		body: LoginBody,
+		login_type: LoginType,
 		login_error: Option<String>
 	}
 }
@@ -45,11 +48,20 @@ template! {
 enum LoginBody {
 	Unauthenticated {
 		server_name: String,
-		registration_available: bool,
 		next: Option<LoginTarget>,
 	},
 	Authenticated {
 		user_card: UserCard,
+	},
+}
+
+#[derive(Debug)]
+enum LoginType {
+	Interactive {
+		registration_available: bool,
+	},
+	Oidc {
+		redirect_url: Url,
 	},
 }
 
@@ -69,38 +81,39 @@ async fn route_login(
 ) -> Result {
 	let user_id = user.into_session().map(|session| session.user_id);
 
-	if services.oidc.enabled() {
-		if user_id.is_some() && !reauthenticate {
-			return response!(Redirect::to(&next.unwrap_or_default().target_path()));
-		}
-
-		let (session, redirect_url) = services.oidc.begin_session().await;
+	let login_type = if services.oidc.enabled() {
+		let (session, redirect_url) = services
+			.oidc
+			.begin_session(reauthenticate.then(|| CoreAuthPrompt::Consent))
+			.await;
 
 		session_store
 			.insert(OIDC_SESSION_ID_KEY, OidcSession {
-				next: next.unwrap_or_default(),
-				state: OidcSessionState::CodeExchange { expected_user: user_id, session },
+				next: next.clone().unwrap_or_default(),
+				state: OidcSessionState::CodeExchange { expected_user: user_id.clone(), session },
 			})
 			.await
 			.expect("should be able to serialize OIDC session");
 
-		return response!(Redirect::to(redirect_url.as_str()));
-	}
+		if next.is_some() {
+			return response!(Redirect::to(redirect_url.as_str()));
+		}
+
+		LoginType::Oidc { redirect_url }
+	} else {
+		let (trusted_flow_status, untrusted_flow_status) =
+			registration_flow_status(&services).await;
+
+		let registration_available = matches!(trusted_flow_status, TrustedFlowStatus::Available)
+			|| matches!(untrusted_flow_status, UntrustedFlowStatus::Available { .. });
+
+		LoginType::Interactive { registration_available }
+	};
 
 	let body = match &user_id {
-		| None => {
-			let (trusted_flow_status, untrusted_flow_status) =
-				registration_flow_status(&services).await;
-
-			let registration_available =
-				matches!(trusted_flow_status, TrustedFlowStatus::Available)
-					|| matches!(untrusted_flow_status, UntrustedFlowStatus::Available { .. });
-
-			LoginBody::Unauthenticated {
-				server_name: services.globals.server_name().to_string(),
-				registration_available,
-				next: next.clone(),
-			}
+		| None => LoginBody::Unauthenticated {
+			server_name: services.globals.server_name().to_string(),
+			next: next.clone(),
 		},
 		| Some(user_id) => {
 			if !reauthenticate {
@@ -113,7 +126,7 @@ async fn route_login(
 		},
 	};
 
-	let mut template = Login::new(context, body, None);
+	let mut template = Login::new(context, body, login_type, None);
 
 	if let Some(form) = form {
 		let login_result = match (user_id, form.identifier) {
