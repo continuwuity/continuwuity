@@ -5,8 +5,7 @@ pub mod fed;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use conduwuit::{Err, Result, implement};
-use ipaddress::IPAddress;
+use conduwuit::Result;
 use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
 
 use self::{cache::Cache, dns::Resolver};
@@ -55,13 +54,4 @@ impl crate::Service for Service {
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(module_path!()) }
-}
-
-#[implement(Service)]
-pub fn validate_ip(&self, ip: &IPAddress) -> Result<()> {
-	if !self.services.client.valid_cidr_range(ip) {
-		return Err!(BadServerResponse("Not allowed to send requests to this IP"));
-	}
-
-	Ok(())
 }

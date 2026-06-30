@@ -192,7 +192,9 @@ impl super::Service {
 		if let Some(url_host) = url.host_str() {
 			if let Ok(ip) = IPAddress::parse(url_host) {
 				trace!("Checking request URL IP {ip:?}");
-				self.services.resolver.validate_ip(&ip)?;
+				if !self.services.client.valid_cidr_range(&ip) {
+					return Err!(BadServerResponse("Not allowed to send requests to this IP"));
+				}
 			}
 		}
 
