@@ -9,7 +9,7 @@ Your account
     <h1>Manage your account</h1>
     {{ user_card }}
     {% match body %}
-        {% when AccountBody::Unlocked { suspended, email_requirement, email, devices } %}
+        {% when AccountBody::Unlocked { suspended, email_requirement, email, devices, oidc_enabled } %}
             {% if suspended %}
                 <p class="card danger">
                     ⚠️ Your account has been suspended by your homeserver's administrator.
@@ -27,9 +27,11 @@ Your account
                         <a href="email/change/">Change your email</a>
                     </p>
                 {% endif %}
-                <p>
-                    <a href="password/change">Change your password</a>
-                </p>
+                {% if !oidc_enabled %}
+                    <p>
+                        <a href="password/change">Change your password</a>
+                    </p>
+                {% endif %}
             </section>
 
             <section>
