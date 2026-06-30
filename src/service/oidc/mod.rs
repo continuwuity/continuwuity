@@ -58,9 +58,8 @@ pub struct PendingSession {
 }
 
 pub enum SessionCompletionStatus {
+	NeedsUserId,
 	Complete(OwnedUserId),
-	NeedsLocalpart,
-	InvalidLocalpart(String),
 }
 
 #[async_trait]
@@ -199,7 +198,7 @@ impl Service {
 	pub async fn complete_session(
 		&self,
 		claims: &CoreIdTokenClaims,
-		supplied_username: Option<String>,
+		supplied_user_id: Option<OwnedUserId>,
 	) -> Result<SessionCompletionStatus, &'static str> {
 		let Some(OidcClient { config, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
@@ -217,19 +216,10 @@ impl Service {
 			UserId::parse(format!("@{localpart}:{}", self.services.globals.server_name()))
 				.expect("saved localpart should be valid")
 		} else if config.prompt_for_localpart {
-			if let Some(supplied_username) = supplied_username {
-				match self
-					.services
-					.users
-					.determine_registration_user_id(Some(supplied_username), None, None)
-					.await
-				{
-					| Ok(user_id) => user_id,
-					| Err(err) =>
-						return Ok(SessionCompletionStatus::InvalidLocalpart(err.message())),
-				}
+			if let Some(supplied_user_id) = supplied_user_id {
+				supplied_user_id
 			} else {
-				return Ok(SessionCompletionStatus::NeedsLocalpart);
+				return Ok(SessionCompletionStatus::NeedsUserId);
 			}
 		} else if let Some(preferred_username) = claims.preferred_username() {
 			self.services
