@@ -356,6 +356,7 @@ features = [
     "ring-compat",
     "compat-upload-signatures",
     "compat-optional-txn-pdus",
+    "compat-get-3pids",
     "unstable-msc2666",
     "unstable-msc2867",
     "unstable-msc2870",
