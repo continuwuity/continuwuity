@@ -2029,10 +2029,6 @@
 #
 #compatibility_mode = "hybrid"
 
-# This item is undocumented. Please contribute documentation for it.
-#
-#oidc =
-
 #[global.oauth.oidc]
 # Uncommenting this section will enable Continuwuity's support for
 # authenticating users using an OpenID Connect-compatible identity provider.
