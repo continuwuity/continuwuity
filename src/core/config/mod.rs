@@ -4,7 +4,7 @@ pub mod manager;
 pub mod proxy;
 
 use std::{
-	collections::{BTreeMap, BTreeSet},
+	collections::{BTreeMap, BTreeSet, HashMap},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	path::PathBuf,
 };
@@ -22,6 +22,7 @@ use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
 	api::client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
+	profile::ProfileFieldName,
 	serde::Base64,
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
@@ -2436,6 +2437,23 @@ impl OauthConfig {
 	}
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OAuthMode {
+	Disabled,
+	#[default]
+	Hybrid,
+	Exclusive,
+}
+
+impl OAuthMode {
+	#[must_use]
+	pub fn uiaa_available(&self) -> bool { matches!(self, Self::Disabled | Self::Hybrid) }
+
+	#[must_use]
+	pub fn oauth_available(&self) -> bool { matches!(self, Self::Hybrid | Self::Exclusive) }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
 	filename = "conduwuit-example.toml",
@@ -2469,30 +2487,55 @@ pub struct OidcConfig {
 
 	/// Whether the user should be prompted to choose a localpart
 	/// when signing in for the first time. If this is `false`, Continuwuity
-	/// will attempt to use the value of the `preferred_username` claim
-	/// returned from the IDP as the user's localpart, and authentication will
+	/// will attempt to use the value of the `preferred_username_claim`
+	/// (see below) as the user's localpart. Authentication will
 	/// fail if this claim is missing or is not a valid localpart.
 	///
-	/// default: false
-	#[serde(default)]
+	/// default: true
+	#[serde(default = "true_fn")]
 	pub prompt_for_localpart: bool,
+
+	/// The claim to use for the user's localpart, if `prompt_for_localpart` is
+	/// false.
+	///
+	/// default: "preferred_username"
+	#[serde(default = "default_preferred_username_claim")]
+	pub preferred_username_claim: String,
+
+	/// Defines how claims returned from the IDP should be mapped to a user's
+	/// profile data. The profile field named in each key will be set from the
+	/// claim named in the corresponding value when the user first registers,
+	/// and possibly on subsequent logins as well, depending on the value of
+	/// `profile_key_import_mode` (see below).
+	///
+	/// SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
+	/// perform a HTTP GET to the URL in the mapped claim and use the returned
+	/// file as the user's profile picture. Make sure your users are not able
+	/// to set the value of the mapped claim to an arbitrary URL.
+	///
+	/// default: { displayname = "name" }
+	#[serde(default = "default_profile_key_map")]
+	pub profile_key_map: HashMap<String, String>,
+
+	/// When profile keys should be imported from the IDP's claims.
+	///
+	/// - "on_registration": Listed keys will be imported once, when the user
+	///   registers.
+	/// - "on_login": Listed keys will be imported every time the user logs in.
+	///   Additionally, users will not be able to manually edit the keys through
+	///   their Matrix client.
+	///
+	/// default: "on_registration"
+	#[serde(default)]
+	pub profile_key_import_mode: OidcProfileKeyImportMode,
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize)]
+#[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
-pub enum OAuthMode {
-	Disabled,
+pub enum OidcProfileKeyImportMode {
 	#[default]
-	Hybrid,
-	Exclusive,
-}
-
-impl OAuthMode {
-	#[must_use]
-	pub fn uiaa_available(&self) -> bool { matches!(self, Self::Disabled | Self::Hybrid) }
-
-	#[must_use]
-	pub fn oauth_available(&self) -> bool { matches!(self, Self::Hybrid | Self::Exclusive) }
+	OnRegistration,
+	OnLogin,
 }
 
 const DEPRECATED_KEYS: &[&str] = &[
@@ -2879,3 +2922,9 @@ fn default_client_shutdown_timeout() -> u64 { 15 }
 fn default_sender_shutdown_timeout() -> u64 { 5 }
 
 fn default_terms_language() -> String { "en".to_owned() }
+
+fn default_preferred_username_claim() -> String { "preferred_username".to_owned() }
+
+fn default_profile_key_map() -> HashMap<String, String> {
+	HashMap::from_iter([(ProfileFieldName::DisplayName.to_string(), "name".to_owned())])
+}

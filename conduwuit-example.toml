@@ -2061,8 +2061,36 @@
 
 # Whether the user should be prompted to choose a localpart
 # when signing in for the first time. If this is `false`, Continuwuity
-# will attempt to use the value of the `preferred_username` claim
-# returned from the IDP as the user's localpart, and authentication will
+# will attempt to use the value of the `preferred_username_claim`
+# (see below) as the user's localpart. Authentication will
 # fail if this claim is missing or is not a valid localpart.
 #
-#prompt_for_localpart = false
+#prompt_for_localpart = true
+
+# The claim to use for the user's localpart, if `prompt_for_localpart` is
+# false.
+#
+#preferred_username_claim = "preferred_username"
+
+# Defines how claims returned from the IDP should be mapped to a user's
+# profile data. The profile field named in each key will be set from the
+# claim named in the corresponding value when the user first registers,
+# and possibly on subsequent logins as well, depending on the value of
+# `profile_key_import_mode` (see below).
+#
+# SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
+# perform a HTTP GET to the URL in the mapped claim and use the returned
+# file as the user's profile picture. Make sure your users are not able
+# to set the value of the mapped claim to an arbitrary URL.
+#
+#profile_key_map = { displayname = "name" }
+
+# When profile keys should be imported from the IDP's claims.
+#
+# - "on_registration": Listed keys will be imported once, when the user
+#   registers.
+# - "on_login": Listed keys will be imported every time the user logs in.
+#   Additionally, users will not be able to manually edit the keys through
+#   their Matrix client.
+#
+#profile_key_import_mode = "on_registration"

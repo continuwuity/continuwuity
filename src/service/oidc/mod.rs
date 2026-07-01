@@ -1,57 +1,103 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Result, config::OidcConfig, err, error, info};
+use conduwuit::{
+	Result,
+	config::{OidcConfig, OidcProfileKeyImportMode},
+	debug, err, error, info, warn,
+};
 use database::{Deserialized, Map};
 use openidconnect::{
-	AuthorizationCode, CsrfToken, EndpointMaybeSet, EndpointNotSet, EndpointSet, IssuerUrl,
-	Nonce, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, TokenResponse,
+	AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, EndpointMaybeSet,
+	EndpointNotSet, EndpointSet, IdTokenClaims, IdTokenFields, IssuerUrl, Nonce,
+	PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, StandardErrorResponse,
+	StandardTokenResponse, TokenResponse,
 	core::{
-		CoreAuthPrompt, CoreAuthenticationFlow, CoreClient, CoreIdTokenClaims,
-		CoreProviderMetadata,
+		CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreErrorResponseType,
+		CoreGenderClaim, CoreJsonWebKey, CoreJweContentEncryptionAlgorithm,
+		CoreJwsSigningAlgorithm, CoreProviderMetadata, CoreRevocableToken,
+		CoreRevocationErrorResponse, CoreTokenIntrospectionResponse, CoreTokenType,
 	},
 	reqwest,
 };
-use ruma::{OwnedUserId, UserId};
+use ruma::{
+	OwnedUserId, UserId,
+	api::client::profile::PropagateTo,
+	profile::{ProfileFieldName, ProfileFieldValue},
+};
 use serde::{Deserialize, Serialize};
-use tokio::sync::SetOnce;
+use serde_json::Value;
+use tokio::{runtime, sync::SetOnce};
 use url::Url;
 
 use crate::{
-	Dep, config, globals,
+	Dep, config, globals, media,
 	oauth::grant::AuthorizationCodeResponse,
-	users::{self, AccountStatus},
+	users::{self, AccountStatus, ProfileFieldChange},
 };
 
 pub struct Service {
 	services: Services,
+	runtime: runtime::Handle,
 	db: Data,
 	client: Option<OidcClient>,
 }
 
 struct Data {
 	openidsubject_localpart: Arc<Map>,
+	openidsubject_currentpictureurl: Arc<Map>,
 }
 struct Services {
 	config: Dep<config::Service>,
 	globals: Dep<globals::Service>,
+	media: Dep<media::Service>,
 	users: Dep<users::Service>,
 }
 
 struct OidcClient {
 	config: OidcConfig,
-	machine: SetOnce<
-		CoreClient<
-			EndpointSet,
-			EndpointNotSet,
-			EndpointNotSet,
-			EndpointNotSet,
-			EndpointMaybeSet,
-			EndpointMaybeSet,
-		>,
-	>,
+	machine: SetOnce<OidcClientMachine>,
 	client: reqwest::Client,
 }
+
+type OidcClientMachine = openidconnect::Client<
+	AllClaims,
+	CoreAuthDisplay,
+	CoreGenderClaim,
+	CoreJweContentEncryptionAlgorithm,
+	CoreJsonWebKey,
+	CoreAuthPrompt,
+	StandardErrorResponse<CoreErrorResponseType>,
+	StandardTokenResponse<
+		IdTokenFields<
+			AllClaims,
+			EmptyExtraTokenFields,
+			CoreGenderClaim,
+			CoreJweContentEncryptionAlgorithm,
+			CoreJwsSigningAlgorithm,
+		>,
+		CoreTokenType,
+	>,
+	CoreTokenIntrospectionResponse,
+	CoreRevocableToken,
+	CoreRevocationErrorResponse,
+	EndpointSet,
+	EndpointNotSet,
+	EndpointNotSet,
+	EndpointNotSet,
+	EndpointMaybeSet,
+	EndpointMaybeSet,
+>;
+
+pub type Claims = IdTokenClaims<AllClaims, CoreGenderClaim>;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct AllClaims {
+	#[serde(flatten)]
+	pub claims: HashMap<String, Value>,
+}
+
+impl AdditionalClaims for AllClaims {}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct PendingSession {
@@ -72,10 +118,13 @@ impl crate::Service for Service {
 			services: Services {
 				config: args.depend::<config::Service>("config"),
                 globals: args.depend::<globals::Service>("globals"),
+				media: args.depend::<media::Service>("media"),
                 users: args.depend::<users::Service>("users"),
 			},
+			runtime: args.server.runtime().clone(),
             db: Data {
                 openidsubject_localpart: args.db["openidsubject_localpart"].clone(),
+				openidsubject_currentpictureurl: args.db["openidsubject_currentpictureurl"].clone(),
             },
             client: args.server.config.oauth.oidc.as_ref().map(|config| OidcClient {
                     config: config.clone(),
@@ -114,7 +163,7 @@ impl crate::Service for Service {
 
 			machine
 				.set(
-					CoreClient::from_provider_metadata(
+					OidcClientMachine::from_provider_metadata(
 						provider_metadata,
 						config.client_id.clone(),
 						Some(config.client_secret.clone()),
@@ -135,6 +184,20 @@ impl Service {
 		"Identity server is misconfigured. Contact your homeserver's administrator.";
 
 	pub fn enabled(&self) -> bool { self.client.is_some() }
+
+	pub fn restricted_profile_fields(&self) -> Vec<ProfileFieldName> {
+		if let Some(config) = self.client.as_ref().map(|client| &client.config)
+			&& matches!(config.profile_key_import_mode, OidcProfileKeyImportMode::OnLogin)
+		{
+			config
+				.profile_key_map
+				.keys()
+				.map(|key| ProfileFieldName::from(key.as_str()))
+				.collect()
+		} else {
+			vec![]
+		}
+	}
 
 	pub async fn begin_session(&self, prompt: Option<CoreAuthPrompt>) -> (PendingSession, Url) {
 		let OidcClient { machine, .. } = self.client.as_ref().expect("oidc should be configured");
@@ -163,7 +226,7 @@ impl Service {
 		&self,
 		session: PendingSession,
 		response: AuthorizationCodeResponse,
-	) -> Result<CoreIdTokenClaims, &'static str> {
+	) -> Result<Claims, &'static str> {
 		let Some(OidcClient { machine, client, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
 		};
@@ -203,14 +266,24 @@ impl Service {
 		Ok(claims)
 	}
 
+	#[tracing::instrument(skip(self, claims), fields(subject = claims.subject().to_string()))]
 	pub async fn complete_session(
 		&self,
-		claims: &CoreIdTokenClaims,
+		claims: &Claims,
 		supplied_user_id: Option<OwnedUserId>,
 	) -> Result<SessionCompletionStatus, &'static str> {
 		let Some(OidcClient { config, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
 		};
+
+		// this is a truly awful hack but we really need all the claims in a map
+		let all_claims = serde_json::to_value(claims)
+			.expect("should be able to serialize claims")
+			.as_object()
+			.expect("claims should be an object")
+			.to_owned();
+
+		debug!(?all_claims);
 
 		let subject = claims.subject().as_str();
 
@@ -229,10 +302,15 @@ impl Service {
 			} else {
 				return Ok(SessionCompletionStatus::NeedsUserId);
 			}
-		} else if let Some(preferred_username) = claims.preferred_username() {
+		} else if let Some(preferred_username) = all_claims.get(&config.preferred_username_claim)
+		{
 			self.services
 				.users
-				.determine_registration_user_id(Some(preferred_username.to_string()), None, None)
+				.determine_registration_user_id(
+					Some(preferred_username.as_str().unwrap().to_owned()),
+					None,
+					None,
+				)
 				.await
 				.map_err(|err| {
 					error!("Preferred username claim is not a valid localpart: {err}");
@@ -246,9 +324,11 @@ impl Service {
 
 		info!(?subject, ?user_id, "User {user_id} successfully authorized with OIDC");
 
-		match self.services.users.status(&user_id).await {
+		// Create a shadow account for the user if necessary
+		let new_account_registered = match self.services.users.status(&user_id).await {
 			| AccountStatus::Active => {
 				// Do nothing, an account already exists
+				false
 			},
 			| AccountStatus::NotFound => {
 				// Create a new shadow user
@@ -262,13 +342,97 @@ impl Service {
 					})?;
 
 				info!(?subject, ?user_id, "Shadow user created for {user_id}");
+				true
 			},
 			| AccountStatus::Deactivated => {
 				return Err("Your account has been deactivated.");
 			},
-		}
+		};
 
 		self.link_user(&user_id, subject);
+
+		// Import profile fields
+		if matches!(config.profile_key_import_mode, OidcProfileKeyImportMode::OnLogin)
+			|| (matches!(
+				config.profile_key_import_mode,
+				OidcProfileKeyImportMode::OnRegistration
+			) && new_account_registered)
+		{
+			let user_id = user_id.clone();
+			let subject = claims.subject().to_string();
+			let profile_key_map = config.profile_key_map.clone();
+			let openidsubject_currentpictureurl = self.db.openidsubject_currentpictureurl.clone();
+			let users = self.services.users.clone();
+			let media = self.services.media.clone();
+
+			let import_task = self.runtime.spawn(async move {
+				for (field, claim) in &profile_key_map {
+					let Some(value) = all_claims.get(claim).cloned() else {
+						warn!(?field, ?claim, "IDP provided no value for this mapped claim");
+						continue;
+					};
+
+					let value = if let Some(picture) = value.as_str()
+						&& field == ProfileFieldName::AvatarUrl.as_str()
+						&& openidsubject_currentpictureurl
+							.get(&subject)
+							.await
+							.deserialized::<String>()
+							.ok()
+							.is_none_or(|current_picture| current_picture != picture)
+					{
+						match media.download_media(picture).await {
+							| Ok((mxc, size)) => {
+								openidsubject_currentpictureurl.insert(&subject, picture);
+								info!(?mxc, ?size, "Downloaded profile picture");
+
+								ProfileFieldValue::AvatarUrl(mxc)
+							},
+							| Err(err) => {
+								warn!(
+									?claim,
+									?picture,
+									"Failed to download profile picture: {err}"
+								);
+								continue;
+							},
+						}
+					} else {
+						match ProfileFieldValue::new(field, value.clone()) {
+							| Ok(value) => value,
+							| Err(err) => {
+								warn!(
+									?field,
+									?claim,
+									?value,
+									"Failed to parse claim value for profile field: {err}"
+								);
+								continue;
+							},
+						}
+					};
+
+					if let Err(err) = users
+						.set_profile_field(
+							&user_id,
+							ProfileFieldChange::Set(value),
+							PropagateTo::Unchanged,
+						)
+						.await
+					{
+						warn!(?field, ?claim, "Error while setting profile field: {err}");
+					}
+				}
+
+				info!("Profile import complete");
+			});
+
+			// Only wait for import to complete if this is a new account,
+			// so they see the correct profile information in the account panel
+			if new_account_registered {
+				let _ = import_task.await;
+			}
+		}
 
 		Ok(SessionCompletionStatus::Complete(user_id))
 	}

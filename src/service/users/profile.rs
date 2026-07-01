@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{borrow::Cow, collections::BTreeMap};
 
 use conduwuit::{
 	Err, Result,
@@ -29,9 +29,9 @@ impl ProfileFieldChange {
 		}
 	}
 
-	fn value(&self) -> Option<Value> {
+	fn value(&self) -> Option<Cow<'_, Value>> {
 		if let Self::Set(value) = self {
-			Some(value.value().into_owned())
+			Some(value.value())
 		} else {
 			None
 		}
@@ -90,6 +90,15 @@ impl super::Service {
 			} else {
 				return Err!(Request(BadJson("Failed to canonicalize profile.")));
 			}
+		}
+
+		// Check if this change would be a no-op
+		if self
+			.get_local_profile_field(user_id, field_name.clone())
+			.await
+			.is_some_and(|value| Some(value.value()) == change.value())
+		{
+			return Ok(());
 		}
 
 		// If the user is local and changed their displayname or avatar_url, update it
@@ -192,7 +201,11 @@ impl super::Service {
 			| ProfileFieldChange::Delete(ProfileFieldName::AvatarUrl) => {
 				self.set_avatar_url(user_id, None);
 			},
-			| other => self.set_profile_key(user_id, other.field_name().as_str(), other.value()),
+			| other => self.set_profile_key(
+				user_id,
+				other.field_name().as_str(),
+				other.value().map(Cow::into_owned),
+			),
 		}
 
 		Ok(())

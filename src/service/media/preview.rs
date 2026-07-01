@@ -211,7 +211,6 @@ impl Service {
 		Ok(preview_data)
 	}
 
-	#[cfg(feature = "url_preview")]
 	pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 		use conduwuit::utils::random_string;
 		use http::header::CONTENT_TYPE;
@@ -265,11 +264,6 @@ impl Service {
 		_url: &str,
 		_preview_data: Option<UrlPreviewData>,
 	) -> Result<UrlPreviewData> {
-		Err!(FeatureDisabled("url_preview"))
-	}
-
-	#[cfg(not(feature = "url_preview"))]
-	pub async fn download_media(&self, _url: &str) -> Result<UrlPreviewData> {
 		Err!(FeatureDisabled("url_preview"))
 	}
 
