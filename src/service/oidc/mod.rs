@@ -204,7 +204,8 @@ impl Service {
 	}
 
 	pub async fn begin_session(&self, prompt: Option<CoreAuthPrompt>) -> (PendingSession, Url) {
-		let OidcClient { machine, .. } = self.client.as_ref().expect("oidc should be configured");
+		let OidcClient { machine, config, .. } =
+			self.client.as_ref().expect("oidc should be configured");
 		let machine = machine.wait().await;
 
 		let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
@@ -215,6 +216,7 @@ impl Service {
 				CsrfToken::new_random,
 				Nonce::new_random,
 			)
+			.add_scopes(config.additional_scopes.iter().cloned())
 			.set_pkce_challenge(pkce_challenge);
 
 		if let Some(prompt) = prompt {
