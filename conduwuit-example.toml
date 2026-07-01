@@ -2032,6 +2032,8 @@
 # This item is undocumented. Please contribute documentation for it.
 #
 #oidc =
+
+#[global.oauth.oidc]
 # Uncommenting this section will enable Continuwuity's support for
 # authenticating users using an OpenID Connect-compatible identity provider.
 # This is referred to as "delegated authentication".
@@ -2040,8 +2042,6 @@
 # the `global.oauth.compatibility_mode` setting is set to `exclusive`.
 # Matrix clients which do not support OAuth login (also referred to as "next-gen auth") will NOT be able
 # to log in while delegated authentication is active.
-#[global.oauth.oidc]
-
 # The OIDC issuer URL. Continuwuity will use OpenID Connect Discovery to
 # automatically fetch the identity provider's metadata from this URL.
 # Generally you should set this to the base domain your identity provider
@@ -2090,7 +2090,7 @@
 # - "on_registration": Listed keys will be imported once, when the user
 #   registers.
 # - "on_login": Listed keys will be imported every time the user logs in.
-#   Additionally, users will not be able to manually edit the keys through
-#   their Matrix client.
+#   Additionally, users will not be able to manually edit any listed keys
+#   through their Matrix client.
 #
 #profile_key_import_mode = "on_registration"
