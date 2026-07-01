@@ -2509,6 +2509,9 @@ pub struct OidcConfig {
 	/// and possibly on subsequent logins as well, depending on the value of
 	/// `profile_key_import_mode` (see below).
 	///
+	/// Per-room overrides to the user's display name or avatar will be
+	/// preserved by the import process.
+	///
 	/// SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
 	/// perform a HTTP GET to the URL in the mapped claim and use the returned
 	/// file as the user's profile picture. Make sure your users are not able
@@ -2521,7 +2524,7 @@ pub struct OidcConfig {
 	/// When profile keys should be imported from the IDP's claims.
 	///
 	/// - "on_registration": Listed keys will be imported once, when the user
-	///   registers.
+	///   logs in for the first time and their shadow account is created.
 	/// - "on_login": Listed keys will be imported every time the user logs in.
 	///   Additionally, users will not be able to manually edit any listed keys
 	///   through their Matrix client.

@@ -99,10 +99,6 @@ async fn route_login(
 			.await
 			.expect("should be able to serialize OIDC session");
 
-		if next.is_some() {
-			return response!(Redirect::to(redirect_url.as_str()));
-		}
-
 		LoginType::Oidc { redirect_url }
 	} else {
 		let (trusted_flow_status, untrusted_flow_status) =

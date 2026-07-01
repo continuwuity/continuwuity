@@ -302,15 +302,13 @@ impl Service {
 			} else {
 				return Ok(SessionCompletionStatus::NeedsUserId);
 			}
-		} else if let Some(preferred_username) = all_claims.get(&config.preferred_username_claim)
+		} else if let Some(preferred_username) = all_claims
+			.get(&config.preferred_username_claim)
+			.and_then(|claim| claim.as_str())
 		{
 			self.services
 				.users
-				.determine_registration_user_id(
-					Some(preferred_username.as_str().unwrap().to_owned()),
-					None,
-					None,
-				)
+				.determine_registration_user_id(Some(preferred_username.to_owned()), None, None)
 				.await
 				.map_err(|err| {
 					error!("Preferred username claim is not a valid localpart: {err}");
@@ -372,26 +370,26 @@ impl Service {
 						continue;
 					};
 
-					let value = if let Some(picture) = value.as_str()
+					let value = if let Some(picture_url) = value.as_str()
 						&& field == ProfileFieldName::AvatarUrl.as_str()
 						&& openidsubject_currentpictureurl
 							.get(&subject)
 							.await
 							.deserialized::<String>()
 							.ok()
-							.is_none_or(|current_picture| current_picture != picture)
+							.is_none_or(|current_picture| current_picture != picture_url)
 					{
-						match media.download_media(picture).await {
+						match media.download_media(picture_url).await {
 							| Ok((mxc, size)) => {
-								openidsubject_currentpictureurl.insert(&subject, picture);
-								info!(?mxc, ?size, "Downloaded profile picture");
+								openidsubject_currentpictureurl.insert(&subject, picture_url);
+								info!(?picture_url, ?mxc, ?size, "Downloaded profile picture");
 
 								ProfileFieldValue::AvatarUrl(mxc)
 							},
 							| Err(err) => {
 								warn!(
 									?claim,
-									?picture,
+									?picture_url,
 									"Failed to download profile picture: {err}"
 								);
 								continue;
