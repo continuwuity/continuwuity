@@ -2459,7 +2459,7 @@ impl OAuthMode {
 	filename = "conduwuit-example.toml",
 	section = "global.oauth.oidc",
 	optional = "true",
-	header = "\
+	subheader = "\
 # Uncommenting this section will enable Continuwuity's support for
 # authenticating users using an OpenID Connect-compatible identity provider.
 # This is referred to as \"delegated authentication\".
@@ -2467,7 +2467,7 @@ impl OAuthMode {
 # IMPORTANT NOTE: When delegated authentication is active, Continuwuity will behave as if
 # the `global.oauth.compatibility_mode` setting is set to `exclusive`.
 # Matrix clients which do not support OAuth login (also referred to as \"next-gen auth\") will \
-	          NOT be able
+	             NOT be able
 # to log in while delegated authentication is active."
 )]
 pub struct OidcConfig {
@@ -2522,8 +2522,8 @@ pub struct OidcConfig {
 	/// - "on_registration": Listed keys will be imported once, when the user
 	///   registers.
 	/// - "on_login": Listed keys will be imported every time the user logs in.
-	///   Additionally, users will not be able to manually edit the keys through
-	///   their Matrix client.
+	///   Additionally, users will not be able to manually edit any listed keys
+	///   through their Matrix client.
 	///
 	/// default: "on_registration"
 	#[serde(default)]
