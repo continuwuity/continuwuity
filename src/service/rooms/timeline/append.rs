@@ -458,6 +458,16 @@ impl super::Service {
 		pdu: &PduEvent,
 	) -> bool {
 		let room_id = pdu.room_id().unwrap();
+
+		if self
+			.services
+			.state_cache
+			.appservice_in_room(room_id, appservice)
+			.await
+		{
+			return true;
+		}
+
 		let target = if *pdu.kind() == TimelineEventType::RoomMember {
 			pdu.state_key().and_then(|sk| UserId::parse(sk).ok())
 		} else {
@@ -472,8 +482,13 @@ impl super::Service {
 			| _ => (false, false),
 		};
 		let sender_matches_namespace = appservice.users.is_match(pdu.sender().as_str());
+		let room_matches_namespace = appservice.rooms.is_match(room_id.as_str());
 
-		if target_matches_sender || target_matches_namespace || sender_matches_namespace {
+		if target_matches_sender
+			|| target_matches_namespace
+			|| sender_matches_namespace
+			|| room_matches_namespace
+		{
 			return true;
 		}
 
