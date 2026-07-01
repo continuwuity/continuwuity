@@ -20,7 +20,7 @@ use conduwuit_core::{
 };
 use futures::{StreamExt, TryFutureExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomId, RoomVersionId, UserId,
 	events::{
 		GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
@@ -44,7 +44,7 @@ impl super::Service {
 		state_ids_compressed: Arc<CompressedState>,
 		soft_fail: bool,
 		state_lock: &'a RoomMutexGuard,
-		room_id: &'a ruma::RoomId,
+		room_id: &'a RoomId,
 	) -> Result<Option<RawPduId>>
 	where
 		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -147,7 +147,7 @@ impl super::Service {
 		mut pdu_json: CanonicalJsonObject,
 		leaves: Leaves,
 		state_lock: &'a RoomMutexGuard,
-		room_id: &'a ruma::RoomId,
+		room_id: &'a RoomId,
 	) -> Result<RawPduId>
 	where
 		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
@@ -210,8 +210,8 @@ impl super::Service {
 		// See if the event matches any known pushers via power level
 		if *pdu.kind() != TimelineEventType::RoomCreate {
 			tokio::join!(
-				self.notify_local_users(pdu, &pdu_id),
-				self.handle_pdu_effects(pdu, &pdu_id, shortroomid)
+				self.notify_local_users(pdu, &pdu_id, room_id),
+				self.handle_pdu_effects(pdu, &pdu_id, room_id, shortroomid)
 					.inspect_err(|e| {
 						error!(
 							"failed to handle PDU effects of incoming PDU {}: {e:?}",
@@ -223,23 +223,23 @@ impl super::Service {
 			);
 		}
 
-		self.send_to_interested_appservices(pdu, &pdu_id).await;
+		self.send_to_interested_appservices(pdu, &pdu_id, room_id)
+			.await;
 
 		Ok(pdu_id)
 	}
 
 	/// Notifies local users of the incoming event with a power levels context.
-	async fn notify_local_users(&self, pdu: &PduEvent, pdu_id: &RawPduId) {
-		let room_id = pdu.room_id_or_hash();
+	async fn notify_local_users(&self, pdu: &PduEvent, pdu_id: &RawPduId, room_id: &RoomId) {
 		let power_levels = self
 			.services
 			.state_accessor
-			.get_room_power_levels(&room_id)
+			.get_room_power_levels(room_id)
 			.await;
 		let mut push_targets: HashSet<_> = self
 			.services
 			.state_cache
-			.active_local_users_in_room(&room_id)
+			.active_local_users_in_room(room_id)
 			// Don't notify the sender of their own events, and don't send from ignored users
 			.ready_filter(|user| *user != pdu.sender())
 			.filter_map(|recipient_user| async move {
@@ -286,13 +286,7 @@ impl super::Service {
 			for action in self
 				.services
 				.pusher
-				.get_actions(
-					user,
-					&rules_for_user,
-					power_levels.clone(),
-					&serialized,
-					&pdu.room_id_or_hash(),
-				)
+				.get_actions(user, &rules_for_user, power_levels.clone(), &serialized, room_id)
 				.await
 			{
 				match action {
@@ -332,7 +326,7 @@ impl super::Service {
 		}
 
 		self.db
-			.increment_notification_counts(&room_id, notifies, highlights);
+			.increment_notification_counts(room_id, notifies, highlights);
 	}
 
 	/// Handles PDU effects based on the type of incoming event.
@@ -342,22 +336,22 @@ impl super::Service {
 		&self,
 		pdu: &PduEvent,
 		pdu_id: &RawPduId,
+		room_id: &RoomId,
 		short_room_id: ShortRoomId,
 	) -> Result {
-		let room_id = pdu.room_id_or_hash();
 		match *pdu.kind() {
 			| TimelineEventType::RoomRedaction => {
 				use RoomVersionId::*;
 
 				// TODO: support delayed redaction (MSC2815)
-				let room_version_id = self.services.state.get_room_version(&room_id).await?;
+				let room_version_id = self.services.state.get_room_version(room_id).await?;
 				match room_version_id {
 					| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
 						if let Some(redact_id) = pdu.redacts() {
 							if self
 								.services
 								.state_accessor
-								.user_can_redact(redact_id, pdu.sender(), &room_id, false)
+								.user_can_redact(redact_id, pdu.sender(), room_id, false)
 								.await?
 							{
 								self.redact_pdu(redact_id, pdu, short_room_id).await?;
@@ -370,7 +364,7 @@ impl super::Service {
 							if self
 								.services
 								.state_accessor
-								.user_can_redact(redact_id, pdu.sender(), &room_id, false)
+								.user_can_redact(redact_id, pdu.sender(), room_id, false)
 								.await?
 							{
 								self.redact_pdu(redact_id, pdu, short_room_id).await?;
@@ -390,7 +384,7 @@ impl super::Service {
 					// knock event for auth
 					self.services
 						.state_cache
-						.update_membership(&room_id, &target_user_id, pdu, true)
+						.update_membership(room_id, &target_user_id, pdu, true)
 						.await?;
 				}
 			},
@@ -457,9 +451,8 @@ impl super::Service {
 		&self,
 		appservice: &RegistrationInfo,
 		pdu: &PduEvent,
+		room_id: &RoomId,
 	) -> bool {
-		let room_id = &pdu.room_id_or_hash();
-
 		if self
 			.services
 			.state_cache
@@ -502,7 +495,12 @@ impl super::Service {
 	}
 
 	/// Notifies interested appservices of a new PDU.
-	async fn send_to_interested_appservices(&self, pdu: &PduEvent, pdu_id: &RawPduId) {
+	async fn send_to_interested_appservices(
+		&self,
+		pdu: &PduEvent,
+		pdu_id: &RawPduId,
+		room_id: &RoomId,
+	) {
 		let interested_appservices = self
 			.services
 			.appservice
@@ -514,7 +512,7 @@ impl super::Service {
 		interested_appservices
 			.stream()
 			.broad_filter_map(|appservice| async move {
-				self.is_appservice_interested(&appservice, pdu)
+				self.is_appservice_interested(&appservice, pdu, room_id)
 					.await
 					.then_some(appservice)
 			})
