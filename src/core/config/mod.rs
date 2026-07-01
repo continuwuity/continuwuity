@@ -2423,6 +2423,7 @@ pub struct OauthConfig {
 	/// default: "hybrid"
 	compatibility_mode: OAuthMode,
 
+	/// display: hidden
 	pub oidc: Option<OidcConfig>,
 }
 
