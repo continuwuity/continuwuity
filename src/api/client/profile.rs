@@ -63,6 +63,16 @@ pub(crate) async fn set_profile_field_route(
 		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
 	}
 
+	if services
+		.oidc
+		.restricted_profile_fields()
+		.contains(&body.value.field_name())
+	{
+		return Err!(Request(Forbidden(
+			"This profile field is controlled by your identity provider."
+		)));
+	}
+
 	services
 		.users
 		.set_profile_field(
@@ -91,6 +101,16 @@ pub(crate) async fn delete_profile_field_route(
 
 	if !services.globals.user_is_local(&body.user_id) {
 		return Err!(Request(InvalidParam("You may not change a remote user's profile data.")));
+	}
+
+	if services
+		.oidc
+		.restricted_profile_fields()
+		.contains(&body.field)
+	{
+		return Err!(Request(Forbidden(
+			"This profile field is controlled by your identity provider."
+		)));
 	}
 
 	services

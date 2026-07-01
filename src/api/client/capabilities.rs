@@ -7,10 +7,11 @@ use ruma::{
 	api::client::discovery::get_capabilities::{
 		self,
 		v3::{
-			Capabilities, GetLoginTokenCapability, RoomVersionStability, RoomVersionsCapability,
-			ThirdPartyIdChangesCapability,
+			Capabilities, GetLoginTokenCapability, ProfileFieldsCapability, RoomVersionStability,
+			RoomVersionsCapability, ThirdPartyIdChangesCapability,
 		},
 	},
+	assign,
 };
 
 use crate::Ruma;
@@ -49,6 +50,10 @@ pub(crate) async fn get_capabilities_route(
 		capabilities.account_moderation.lock = true;
 		capabilities.account_moderation.suspend = true;
 	}
+
+	capabilities.profile_fields = Some(
+		assign!(ProfileFieldsCapability::new(true), { disallowed: Some(services.oidc.restricted_profile_fields()) }),
+	);
 
 	Ok(get_capabilities::v3::Response::new(capabilities))
 }

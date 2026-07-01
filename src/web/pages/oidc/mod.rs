@@ -1,6 +1,5 @@
 use axum::Router;
-use conduwuit_service::oidc;
-use openidconnect::core::CoreIdTokenClaims;
+use conduwuit_service::oidc::{self, Claims};
 use ruma::OwnedUserId;
 use serde::{Deserialize, Serialize};
 
@@ -23,7 +22,7 @@ pub(crate) enum OidcSessionState {
 		session: oidc::PendingSession,
 	},
 	Authorized {
-		claims: Box<CoreIdTokenClaims>,
+		claims: Box<Claims>,
 	},
 }
 
