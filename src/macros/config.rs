@@ -85,6 +85,7 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 		if let Some(subheader) = settings.get("subheader") {
 			file.write_all(subheader.as_bytes())
 				.expect("written to config file");
+			file.write_all(b"\n\n").expect("written to config file");
 		}
 	}
 
