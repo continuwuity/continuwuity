@@ -230,15 +230,16 @@ impl super::Service {
 
 	/// Notifies local users of the incoming event with a power levels context.
 	async fn notify_local_users(&self, pdu: &PduEvent, pdu_id: &RawPduId) {
+		let room_id = pdu.room_id_or_hash();
 		let power_levels = self
 			.services
 			.state_accessor
-			.get_room_power_levels(pdu.room_id().unwrap())
+			.get_room_power_levels(&room_id)
 			.await;
 		let mut push_targets: HashSet<_> = self
 			.services
 			.state_cache
-			.active_local_users_in_room(pdu.room_id().unwrap())
+			.active_local_users_in_room(&room_id)
 			// Don't notify the sender of their own events, and don't send from ignored users
 			.ready_filter(|user| *user != pdu.sender())
 			.filter_map(|recipient_user| async move {
@@ -290,7 +291,7 @@ impl super::Service {
 					&rules_for_user,
 					power_levels.clone(),
 					&serialized,
-					pdu.room_id().unwrap(),
+					&pdu.room_id_or_hash(),
 				)
 				.await
 			{
@@ -331,7 +332,7 @@ impl super::Service {
 		}
 
 		self.db
-			.increment_notification_counts(pdu.room_id().unwrap(), notifies, highlights);
+			.increment_notification_counts(&room_id, notifies, highlights);
 	}
 
 	/// Handles PDU effects based on the type of incoming event.
@@ -343,20 +344,20 @@ impl super::Service {
 		pdu_id: &RawPduId,
 		short_room_id: ShortRoomId,
 	) -> Result {
-		let room_id = pdu.room_id().unwrap();
+		let room_id = pdu.room_id_or_hash();
 		match *pdu.kind() {
 			| TimelineEventType::RoomRedaction => {
 				use RoomVersionId::*;
 
 				// TODO: support delayed redaction (MSC2815)
-				let room_version_id = self.services.state.get_room_version(room_id).await?;
+				let room_version_id = self.services.state.get_room_version(&room_id).await?;
 				match room_version_id {
 					| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
 						if let Some(redact_id) = pdu.redacts() {
 							if self
 								.services
 								.state_accessor
-								.user_can_redact(redact_id, pdu.sender(), room_id, false)
+								.user_can_redact(redact_id, pdu.sender(), &room_id, false)
 								.await?
 							{
 								self.redact_pdu(redact_id, pdu, short_room_id).await?;
@@ -369,7 +370,7 @@ impl super::Service {
 							if self
 								.services
 								.state_accessor
-								.user_can_redact(redact_id, pdu.sender(), room_id, false)
+								.user_can_redact(redact_id, pdu.sender(), &room_id, false)
 								.await?
 							{
 								self.redact_pdu(redact_id, pdu, short_room_id).await?;
@@ -389,7 +390,7 @@ impl super::Service {
 					// knock event for auth
 					self.services
 						.state_cache
-						.update_membership(room_id, &target_user_id, pdu, true)
+						.update_membership(&room_id, &target_user_id, pdu, true)
 						.await?;
 				}
 			},
@@ -457,7 +458,7 @@ impl super::Service {
 		appservice: &RegistrationInfo,
 		pdu: &PduEvent,
 	) -> bool {
-		let room_id = pdu.room_id().unwrap();
+		let room_id = &pdu.room_id_or_hash();
 
 		if self
 			.services
