@@ -1,7 +1,7 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Err, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
+	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -34,7 +34,7 @@ use ruma::{
 use crate::{
 	Dep, antispam, globals,
 	rooms::{
-		metadata, outlier, pdu_metadata, short,
+		event_handler, metadata, outlier, pdu_metadata, short,
 		state::{self, RoomMutexGuard},
 		state_accessor, state_cache,
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
@@ -51,6 +51,7 @@ struct Services {
 	server: Arc<Server>,
 	db: Arc<Database>,
 	antispam: Dep<antispam::Service>,
+	event_handler: Dep<event_handler::Service>,
 	globals: Dep<globals::Service>,
 	metadata: Dep<metadata::Service>,
 	outlier: Dep<outlier::Service>,
@@ -73,6 +74,7 @@ impl crate::Service for Service {
 				server: args.server.clone(),
 				db: args.db.clone(),
 				antispam: args.depend::<antispam::Service>("antispam"),
+				event_handler: args.depend::<event_handler::Service>("rooms::event_handler"),
 				globals: args.depend::<globals::Service>("globals"),
 				metadata: args.depend::<metadata::Service>("rooms::metadata"),
 				outlier: args.depend::<outlier::Service>("rooms::outlier"),
@@ -380,8 +382,6 @@ impl Service {
 
 		// It has enough fields to be called a proper event now
 		let mut join_event = join_event_stub;
-
-		info!("Asking {remote_server} for send_join in room {room_id}");
 		let send_join_request = federation::membership::create_join_event::v2::Request::new(
 			room_id.to_owned(),
 			event_id.clone(),
@@ -391,6 +391,18 @@ impl Service {
 				.await,
 		);
 
+		// NOTE: send_join can take a long time to respond, but from the point of view
+		// of other servers, we may already have finished joining. This means they
+		// sometimes end up sending PDUs to us that we aren't yet ready to accept, and
+		// consequently drop. Holding the mutex over the room while processing mitigates
+		// this.
+		let _room_lock = self
+			.services
+			.event_handler
+			.mutex_federation
+			.lock(room_id.as_str())
+			.await;
+		info!("Asking {remote_server} for send_join in room {room_id}");
 		let send_join_response = match self
 			.services
 			.sending
@@ -576,7 +588,13 @@ impl Service {
 		if !auth_check {
 			return Err!(Request(Forbidden("Auth check failed")));
 		}
+		let resident_before = self
+			.services
+			.state_cache
+			.server_in_room(self.services.globals.server_name(), room_id)
+			.await;
 
+		let cork = self.services.db.cork_and_flush();
 		info!("Compressing state from send_join");
 		let compressed: CompressedState = self
 			.services
@@ -625,6 +643,10 @@ impl Service {
 				room_id,
 			)
 			.await?;
+		self.services
+			.metadata
+			.maybe_set_mindepth(room_id, parsed_join_pdu.depth.into())
+			.await;
 
 		info!("Setting final room state for new room");
 		// We set the room state after inserting the pdu, so that we never have a moment
@@ -632,6 +654,23 @@ impl Service {
 		self.services
 			.state
 			.set_room_state(room_id, statehash_after_join, &state_lock);
+		if !resident_before {
+			// NOTE: We replace local extremities for this room if we were not a resident
+			// before. We might be doing a remote join to satisfy restricted join rules,
+			// so we don't want to do this if we're already a resident. Otherwise, we
+			// want to replace our forward extremities whole-sale in case we were
+			// desynced.
+			info!("Replacing local forward extremities");
+			self.services
+				.state
+				.set_forward_extremities(
+					room_id,
+					std::iter::once(parsed_join_pdu.event_id()),
+					&state_lock,
+				)
+				.await;
+		}
+		drop(cork);
 
 		Ok(())
 	}

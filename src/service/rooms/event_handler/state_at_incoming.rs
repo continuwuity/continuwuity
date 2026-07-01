@@ -5,7 +5,7 @@ use std::{
 };
 
 use conduwuit::{
-	Result, debug, err, error,
+	Result, debug, debug_error, err, error,
 	matrix::{Event, StateMap},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, TryWidebandExt},
@@ -37,6 +37,7 @@ impl super::Service {
 			.pdu_shortstatehash(prev_event)
 			.await
 		else {
+			trace!("No shortstatehash for {prev_event}, cannot calculate one-degree state.");
 			return Ok(None);
 		};
 
@@ -100,6 +101,7 @@ impl super::Service {
 					.map_ok(move |sstatehash| (sstatehash, prev_event))
 			})
 			.try_collect::<HashMap<_, _>>()
+			.inspect_err(|e| debug_error!("failed to calculate N-degree short state hashes: {e}"))
 			.await
 		else {
 			return Ok(None);

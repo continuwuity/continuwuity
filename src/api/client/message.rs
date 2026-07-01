@@ -291,7 +291,9 @@ where
 {
 	// exclude Synapse's dummy events from bloating up response bodies. clients
 	// don't need to see this.
-	if event.kind().to_string() == "org.matrix.dummy_event" {
+	if !services.config.send_dummy_events_to_clients
+		&& event.kind().to_string() == "org.matrix.dummy_event"
+	{
 		return Ok(true);
 	}
 

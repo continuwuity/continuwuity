@@ -1,14 +1,14 @@
 use std::{
-	collections::{BTreeMap, hash_map},
-	time::Instant,
+	collections::BTreeMap,
+	time::{Duration, Instant},
 };
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug::INFO_SPAN_LEVEL, debug_error, debug_info, defer, err,
-	info, trace, utils::stream::IterStream, warn,
+	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, defer, err, error,
+	info, matrix::PartialPdu, result::DebugInspect, trace, utils::time::jitter, warn,
 };
 use futures::{
-	FutureExt, TryFutureExt, TryStreamExt,
+	FutureExt, StreamExt,
 	future::{OptionFuture, try_join4},
 };
 use ruma::{
@@ -18,7 +18,7 @@ use ruma::{
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 };
-use tracing::debug;
+use tokio::sync::mpsc;
 
 use crate::rooms::timeline::{RawPduId, pdu_fits};
 
@@ -110,10 +110,9 @@ impl super::Service {
 	/// 14. Check if the event passes auth based on the "current state" of the
 	///     room, if not soft fail it
 	#[tracing::instrument(
-	name = "pdu",
-	level = INFO_SPAN_LEVEL,
-	skip_all,
-	fields(%room_id, %event_id),
+		name = "pdu",
+		skip_all,
+		fields(%room_id, %event_id),
 	)]
 	pub async fn handle_incoming_pdu<'a>(
 		&self,
@@ -153,9 +152,7 @@ impl super::Service {
 			.and_then(|v| v.as_str())
 			.ok_or_else(|| err!("No sender in object"))
 			.and_then(|v| Ok(UserId::parse(v)?))
-			.map_err(|e| {
-				err!(Request(InvalidParam("PDU does not have a valid sender key: {e}")))
-			})?;
+			.map_err(|e| err!(Request(BadJson("PDU does not have a valid sender key: {e}"))))?;
 
 		let sender_acl_check: OptionFuture<_> = sender
 			.server_name()
@@ -235,7 +232,7 @@ impl super::Service {
 		}}
 
 		let (incoming_pdu, val) = self
-			.handle_outlier_pdu(origin, create_event, event_id, room_id, value, false)
+			.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
 			.await?;
 
 		// 8. if not timeline event: stop
@@ -243,71 +240,211 @@ impl super::Service {
 			return Ok(None);
 		}
 
-		// Skip old events
+		// Skip events sent before we joined (they need to be persisted as backfilled
+		// events, not timeline events, which is handled elsewhere).
 		let first_ts_in_room = self
 			.services
 			.timeline
 			.first_pdu_in_room(room_id)
 			.await?
 			.origin_server_ts();
+		if incoming_pdu.origin_server_ts() < first_ts_in_room {
+			return Ok(None);
+		}
 
 		// 9. Fetch any missing prev events doing all checks listed here starting at 1.
 		//    These are timeline events
-		let (sorted_prev_events, mut eventid_info) = self
-			.fetch_prev(
-				origin,
-				create_event,
-				room_id,
-				first_ts_in_room,
-				incoming_pdu.prev_events(),
-			)
-			.await?;
 
-		debug!(
-			events = ?sorted_prev_events,
-			"Handling previous events"
-		);
+		debug!("Fetching and persisting any missing prev events");
+		Box::pin(self.fetch_prevs(
+			room_id,
+			create_event,
+			&incoming_pdu,
+			origin,
+			first_ts_in_room,
+		))
+		.await
+		.debug_inspect_err(|e| {
+			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
+		})?;
 
-		sorted_prev_events
-			.iter()
-			.try_stream()
-			.map_ok(AsRef::as_ref)
-			.try_for_each(|prev_id| {
-				self.handle_prev_pdu(
-					origin,
-					event_id,
-					room_id,
-					eventid_info.remove(prev_id),
-					create_event,
-					first_ts_in_room,
-					prev_id,
-				)
-				.inspect_err(move |e| {
-					warn!("Prev {prev_id} failed: {e}");
-					match self
-						.services
-						.globals
-						.bad_event_ratelimiter
-						.write()
-						.entry(prev_id.into())
-					{
-						| hash_map::Entry::Vacant(e) => {
-							e.insert((Instant::now(), 1));
-						},
-						| hash_map::Entry::Occupied(mut e) => {
-							let tries = e.get().1.saturating_add(1);
-							*e.get_mut() = (Instant::now(), tries);
-						},
-					}
-				})
-				.map(|_| self.services.server.check_running())
-			})
-			.boxed()
-			.await?;
+		let is_dummy_event = incoming_pdu.event_type().to_string() == "org.matrix.dummy_event";
 
 		// Done with prev events, now handling the incoming event
-		self.upgrade_outlier_to_timeline_pdu(incoming_pdu, val, create_event, origin, room_id)
-			.boxed()
-			.await
+		let pdu_id = Box::pin(self.upgrade_outlier_to_timeline_pdu(
+			incoming_pdu,
+			val,
+			create_event,
+			origin,
+			room_id,
+		))
+		.await?;
+
+		let extremities_count = self
+			.services
+			.state
+			.get_forward_extremities(room_id)
+			.count()
+			.await;
+
+		self.maybe_squash_extremities(room_id, extremities_count, is_dummy_event)
+			.await;
+
+		Ok(pdu_id)
+	}
+
+	/// Conditionally starts an extremity squasher. If there is no waiting
+	/// extremity squasher, a new one is created. Otherwise, the existing one is
+	/// pinged.
+	async fn maybe_squash_extremities(
+		&self,
+		room_id: &RoomId,
+		extremities_count: usize,
+		is_dummy_event: bool,
+	) {
+		let (tx, fut) = {
+			if let Some(tx) = self.extremity_squashers.read().get(room_id)
+				&& !tx.is_closed()
+			{
+				(tx.clone(), None)
+			} else {
+				let mut map = self.extremity_squashers.upgradable_read();
+
+				if let Some(tx) = map.get(room_id)
+					&& !tx.is_closed()
+				{
+					(tx.clone(), None)
+				} else {
+					let (tx, rx) = mpsc::channel(100);
+					map.with_upgraded(|map| map.insert(room_id.to_owned(), tx.clone()));
+
+					(tx, Some(self.spawn_squasher(room_id, rx)))
+				}
+			}
+		};
+
+		if let Some(fut) = fut {
+			fut.await;
+		}
+		let _ = tx.try_send((extremities_count, is_dummy_event));
+	}
+
+	/// Spawns an extremity squasher with the given room and receiver channel.
+	async fn spawn_squasher(&self, room_id: &RoomId, mut rx: mpsc::Receiver<(usize, bool)>) {
+		let Some(service) = self.me.upgrade() else {
+			return;
+		};
+		let room_id = room_id.to_owned();
+
+		self.services.server.runtime().spawn(async move {
+			let mut latest_extremity_count = None;
+			let mut non_dummy_event = false;
+
+			let mut closing = false;
+
+			let waker = tokio::time::sleep(jitter(Duration::from_mins(2), -25.0..=25.0));
+			tokio::pin!(waker);
+
+			loop {
+				tokio::select! {
+					msg = rx.recv() => {
+						if let Some((extremities_count, is_dummy_event)) = msg {
+							latest_extremity_count = Some(extremities_count);
+							non_dummy_event = non_dummy_event || !is_dummy_event;
+							let sleep_duration = if extremities_count >= 20 {
+								// Skip the original sleep duration and send in the next 3-7 seconds as the number of extremities has grown beyond what one squash can reasonably reduce. We still jitter here in case we receive more events in that time that reduce the number anyway, and to account for other servers sending the same squashes.
+								jitter(Duration::from_secs(5), -50.0..=50.0)
+							} else {
+								jitter(Duration::from_mins(1), -50.0..=50.0)
+							};
+							#[allow(clippy::arithmetic_side_effects)]
+							waker.as_mut().reset(tokio::time::Instant::now() + sleep_duration);
+						} else {
+							{let mut map = service.extremity_squashers.write();
+							if let Some(tx) = map.get(&room_id) && tx.is_closed() {
+								map.remove(&room_id);
+							}}
+
+							if let Some(count) = latest_extremity_count {
+								if non_dummy_event && count >= service.services.server.config.dummy_event_threshold.into() {
+									Self::squash_extremities(&service, &room_id, count).await;
+								}
+							}
+							break;
+						}
+					}
+					() = &mut waker, if !closing => {
+						if let Some(count) = latest_extremity_count {
+							if non_dummy_event && count >= service.services.server.config.dummy_event_threshold.into() {
+								Self::squash_extremities(&service, &room_id, count).await;
+							}
+							latest_extremity_count = None;
+							non_dummy_event = false;
+							#[allow(clippy::arithmetic_side_effects)]
+							waker.as_mut().reset(tokio::time::Instant::now() + Duration::from_mins(2));
+						} else {
+							rx.close();
+							closing = true;
+						}
+					}
+					() = service.server_shutdown.notified(), if !closing => {
+						rx.close();
+						closing = true;
+					}
+				}
+			}
+		});
+	}
+
+	/// Squashes extremities in a room by sending dummy events (empty events
+	/// that are hidden from clients) to the room. It will only send ONE dummy
+	/// event to squash. If there are more than 20 extremities, multiple calls
+	/// to `squash_extremities` will be required.
+	/// Sending the dummy event will be attempted by iterating over each local
+	/// user currently joined to the room (including deactivated users) until
+	/// either one of them successfully builds and appends a dummy event PDU, or
+	/// there are no more users to try.
+	async fn squash_extremities(&self, room_id: &RoomId, extremities_count: usize) {
+		debug_warn!(
+			%extremities_count,
+			threshold=%self.services.server.config.dummy_event_threshold,
+			"Attempting to squash extremities after upgrading pdu"
+		);
+		// Try to send a dummy event to squash extremities. See issue #1844
+		let power_levels = self
+			.services
+			.state_accessor
+			.get_room_power_levels(room_id)
+			.await;
+		let mut local_users = self.services.state_cache.local_users_in_room(room_id);
+		while let Some(user_id) = local_users.next().await {
+			if !power_levels.user_can_send_message(&user_id, "org.matrix.dummy_event".into()) {
+				trace!(%user_id, "user does not have power level to send dummy event, skipping");
+				continue;
+			}
+			let state_lock = self.services.state.mutex.lock(room_id).await;
+			if self
+				.services
+				.timeline
+				.build_and_append_pdu(
+					PartialPdu {
+						event_type: "org.matrix.dummy_event".into(),
+						..PartialPdu::default()
+					},
+					&user_id,
+					Some(room_id),
+					&state_lock,
+				)
+				.await
+				.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))
+				.inspect_err(
+					|e| debug!(sender=%user_id, ?e, "Failed to send a dummy event via user"),
+				)
+				.is_ok()
+			{
+				return;
+			}
+		}
+		debug_warn!("Unable to squash extremities using any local user");
 	}
 }

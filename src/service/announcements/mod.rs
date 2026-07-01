@@ -18,7 +18,11 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, debug, error, utils::response::LimitReadExt, warn};
+use conduwuit::{
+	Result, Server, debug, error,
+	utils::{response::LimitReadExt, time::jitter},
+	warn,
+};
 use database::{Deserialized, Map};
 use ruma::events::{Mentions, room::message::RoomMessageEventContent};
 use serde::Deserialize;
@@ -98,10 +102,7 @@ impl crate::Service for Service {
 				.ok();
 		}
 
-		let first_check_jitter = {
-			let jitter_percent = rand::random_range(-50.0..=10.0);
-			self.interval.mul_f64(1.0 + jitter_percent / 100.0)
-		};
+		let first_check_jitter = jitter(self.interval, -50.0..=10.0);
 
 		let mut i = interval(self.interval);
 		i.set_missed_tick_behavior(MissedTickBehavior::Delay);

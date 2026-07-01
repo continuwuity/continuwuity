@@ -4,14 +4,10 @@ use axum::extract::State;
 use conduwuit::{Err, Event, Result, debug, info, trace, utils::to_canonical_object, warn};
 use ruma::{OwnedEventId, api::federation::event::get_missing_events};
 use serde_json::{json, value::RawValue};
+use service::rooms::event_handler::GET_MISSING_EVENTS_MAX_BATCH_SIZE;
 
 use super::AccessCheck;
 use crate::Ruma;
-
-/// arbitrary number but synapse's is 20 and we can handle lots of these anyways
-const LIMIT_MAX: usize = 50;
-/// spec says default is 10
-const LIMIT_DEFAULT: usize = 10;
 
 /// # `POST /_matrix/federation/v1/get_missing_events/{roomId}`
 ///
@@ -45,8 +41,8 @@ pub(crate) async fn get_missing_events_route(
 	let limit = body
 		.limit
 		.try_into()
-		.unwrap_or(LIMIT_DEFAULT)
-		.min(LIMIT_MAX);
+		.unwrap_or(10)
+		.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
 
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
 

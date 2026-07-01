@@ -297,7 +297,7 @@
 
 # This item is undocumented. Please contribute documentation for it.
 #
-#max_fetch_prev_events = 192
+#max_fetch_prev_events = 1024
 
 # How many incoming federation transactions the server is willing to be
 # processing at any given time before it becomes overloaded and starts
@@ -642,6 +642,14 @@
 # a substitute for moderation bots.
 #
 #default_room_acl_deny =
+
+# The number of forward extremities to tolerate in a room before
+# attempting to manually squash them with a "dummy event". Setting this
+# above 20 will hinder its efficacy, and setting it below 5 will cause
+# more dummy events to be sent than necessary (which increases federation
+# traffic).
+#
+#dummy_event_threshold = 10
 
 # Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
 # Jaeger exporter. Traces will be sent via OTLP to a collector (such as
@@ -1425,6 +1433,11 @@
 # limitation.
 #
 #send_messages_from_ignored_users_to_client = false
+
+# Send "org.matrix.dummy_event" events to the client. This is a debugging
+# option.
+#
+#send_dummy_events_to_clients = false
 
 # Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
 # do not want continuwuity to send outbound requests to. Defaults to

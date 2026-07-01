@@ -375,7 +375,7 @@ pub struct Config {
 	#[serde(default = "default_max_request_size")]
 	pub max_request_size: usize,
 
-	/// default: 192
+	/// default: 1024
 	#[serde(default = "default_max_fetch_prev_events")]
 	pub max_fetch_prev_events: u16,
 
@@ -786,6 +786,16 @@ pub struct Config {
 	/// ACLs in existing rooms will not be updated automatically. This is not
 	/// a substitute for moderation bots.
 	pub default_room_acl_deny: Option<Vec<String>>,
+
+	/// The number of forward extremities to tolerate in a room before
+	/// attempting to manually squash them with a "dummy event". Setting this
+	/// above 20 will hinder its efficacy, and setting it below 5 will cause
+	/// more dummy events to be sent than necessary (which increases federation
+	/// traffic).
+	///
+	/// default: 10
+	#[serde(default = "default_extremity_threshold")]
+	pub dummy_event_threshold: u8,
 
 	/// display: nested
 	#[serde(default)]
@@ -1656,6 +1666,11 @@ pub struct Config {
 	/// limitation.
 	#[serde(default)]
 	pub send_messages_from_ignored_users_to_client: bool,
+
+	/// Send "org.matrix.dummy_event" events to the client. This is a debugging
+	/// option.
+	#[serde(default)]
+	pub send_dummy_events_to_clients: bool,
 
 	/// Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
 	/// do not want continuwuity to send outbound requests to. Defaults to
@@ -2615,7 +2630,7 @@ fn default_pusher_timeout() -> u64 { 60 }
 
 fn default_pusher_idle_timeout() -> u64 { 15 }
 
-fn default_max_fetch_prev_events() -> u16 { 192_u16 }
+fn default_max_fetch_prev_events() -> u16 { 1024 }
 
 fn default_max_concurrent_inbound_transactions() -> usize { 150 }
 
@@ -2717,6 +2732,8 @@ fn default_rocksdb_stats_level() -> u8 { 1 }
 #[must_use]
 #[inline]
 pub fn default_default_room_version() -> RoomVersionId { RoomVersionId::V12 }
+
+fn default_extremity_threshold() -> u8 { 10 }
 
 fn default_ip_range_denylist() -> Vec<String> {
 	vec![
