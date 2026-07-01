@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use conduwuit::{
@@ -7,6 +7,7 @@ use conduwuit::{
 	debug, err, error, info, warn,
 };
 use database::{Deserialized, Map};
+use lettre::Address;
 use openidconnect::{
 	AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, EndpointMaybeSet,
 	EndpointNotSet, EndpointSet, IdTokenClaims, IdTokenFields, IssuerUrl, Nonce,
@@ -33,6 +34,7 @@ use url::Url;
 use crate::{
 	Dep, config, globals, media,
 	oauth::grant::AuthorizationCodeResponse,
+	threepid,
 	users::{self, AccountStatus, ProfileFieldChange},
 };
 
@@ -51,6 +53,7 @@ struct Services {
 	config: Dep<config::Service>,
 	globals: Dep<globals::Service>,
 	media: Dep<media::Service>,
+	threepid: Dep<threepid::Service>,
 	users: Dep<users::Service>,
 }
 
@@ -119,6 +122,7 @@ impl crate::Service for Service {
 				config: args.depend::<config::Service>("config"),
                 globals: args.depend::<globals::Service>("globals"),
 				media: args.depend::<media::Service>("media"),
+                threepid: args.depend::<threepid::Service>("threepid"),
                 users: args.depend::<users::Service>("users"),
 			},
 			runtime: args.server.runtime().clone(),
@@ -316,7 +320,7 @@ impl Service {
 					 your homeserver's administrator."
 				})?
 		} else {
-			error!("No preferred username claim was present");
+			error!("Preferred username claim was not present or was not a string");
 			return Err(Self::SERVER_MISCONFIGURED);
 		};
 
@@ -356,6 +360,26 @@ impl Service {
 				OidcProfileKeyImportMode::OnRegistration
 			) && new_account_registered)
 		{
+			if let Some(email_claim) = &config.email_claim {
+				if let Some(email) = claims.email().map(|email| email.as_str())
+					&& let Ok(address) = Address::from_str(email)
+				{
+					if let Err(err) = self
+						.services
+						.threepid
+						.associate_localpart_email(user_id.localpart(), &address)
+						.await
+					{
+						warn!(?email_claim, ?address, "Failed to associate email address: {err}");
+					}
+				} else {
+					warn!(
+						?email_claim,
+						"Email claim was not present or was not a valid email address"
+					);
+				}
+			}
+
 			let user_id = user_id.clone();
 			let subject = claims.subject().to_string();
 			let profile_key_map = config.profile_key_map.clone();

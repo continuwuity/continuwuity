@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use conduwuit::{Err, Error, Result, result::FlatOk};
+use conduwuit::{Err, Error, Result, config::OidcProfileKeyImportMode, result::FlatOk};
 use database::{Deserialized, Map};
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{Address, message::Mailbox};
@@ -87,7 +87,14 @@ impl Service {
 	/// Check if users are required to have an email address.
 	pub fn email_requirement(&self) -> EmailRequirement {
 		if let Some(smtp) = &self.services.config.smtp {
-			if smtp.require_email_for_registration || smtp.require_email_for_token_registration {
+			if let Some(oidc) = &self.services.config.oauth.oidc
+				&& matches!(oidc.profile_key_import_mode, OidcProfileKeyImportMode::OnLogin)
+				&& oidc.email_claim.is_some()
+			{
+				EmailRequirement::Unavailable
+			} else if smtp.require_email_for_registration
+				|| smtp.require_email_for_token_registration
+			{
 				EmailRequirement::Required
 			} else {
 				EmailRequirement::Optional
