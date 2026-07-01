@@ -17,7 +17,7 @@ use either::{
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use lettre::message::Mailbox;
-use openidconnect::{ClientId, ClientSecret};
+use openidconnect::{ClientId, ClientSecret, Scope};
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
@@ -2485,6 +2485,14 @@ pub struct OidcConfig {
 	/// The OAuth client secret for Continuwuity to use when communicating with
 	/// the identity provider.
 	pub client_secret: ClientSecret,
+
+	/// Additional scopes Continuwuity should request from the IDP. This may be
+	/// necessary to access certain claims. Continuwuity always requests the
+	/// `openid` scope.
+	///
+	/// default: []
+	#[serde(default)]
+	pub additional_scopes: Vec<Scope>,
 
 	/// Whether the user should be prompted to choose a localpart
 	/// when signing in for the first time. If this is `false`, Continuwuity

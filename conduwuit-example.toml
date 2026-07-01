@@ -2055,6 +2055,12 @@
 #
 #client_secret =
 
+# Additional scopes Continuwuity should request from the IDP. This may be
+# necessary to access certain claims. Continuwuity always requests the
+# `openid` scope.
+#
+#additional_scopes = []
+
 # Whether the user should be prompted to choose a localpart
 # when signing in for the first time. If this is `false`, Continuwuity
 # will attempt to use the value of the `preferred_username_claim`
