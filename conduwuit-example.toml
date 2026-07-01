@@ -2068,11 +2068,27 @@
 #
 #preferred_username_claim = "preferred_username"
 
+# The claim which will be used to set the user's email address,
+# either on initial registration or on every login depending on
+# the value of `profile_key_import_mode`. Continuwuity assumes that
+# the IDP has taken care of verifying that the user controls the email
+# address it provides.
+#
+# This option does nothing if SMTP is not configured.
+#
+# If this option is set, and `profile_key_import_mode` is `on_login`,
+# users will not be able to change their email addresses themselves.
+#
+#email_claim = "email"
+
 # Defines how claims returned from the IDP should be mapped to a user's
 # profile data. The profile field named in each key will be set from the
 # claim named in the corresponding value when the user first registers,
 # and possibly on subsequent logins as well, depending on the value of
 # `profile_key_import_mode` (see below).
+#
+# Per-room overrides to the user's display name or avatar will be
+# preserved by the import process.
 #
 # SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
 # perform a HTTP GET to the URL in the mapped claim and use the returned
@@ -2084,7 +2100,7 @@
 # When profile keys should be imported from the IDP's claims.
 #
 # - "on_registration": Listed keys will be imported once, when the user
-#   registers.
+#   logs in for the first time and their shadow account is created.
 # - "on_login": Listed keys will be imported every time the user logs in.
 #   Additionally, users will not be able to manually edit any listed keys
 #   through their Matrix client.

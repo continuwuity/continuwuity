@@ -2503,6 +2503,20 @@ pub struct OidcConfig {
 	#[serde(default = "default_preferred_username_claim")]
 	pub preferred_username_claim: String,
 
+	/// The claim which will be used to set the user's email address,
+	/// either on initial registration or on every login depending on
+	/// the value of `profile_key_import_mode`. Continuwuity assumes that
+	/// the IDP has taken care of verifying that the user controls the email
+	/// address it provides.
+	///
+	/// This option does nothing if SMTP is not configured.
+	///
+	/// If this option is set, and `profile_key_import_mode` is `on_login`,
+	/// users will not be able to change their email addresses themselves.
+	///
+	/// default: "email"
+	pub email_claim: Option<String>,
+
 	/// Defines how claims returned from the IDP should be mapped to a user's
 	/// profile data. The profile field named in each key will be set from the
 	/// claim named in the corresponding value when the user first registers,
