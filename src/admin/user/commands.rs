@@ -54,16 +54,16 @@ impl crate::Context<'_> {
 			.determine_registration_user_id(Some(username), None, None)
 			.await?;
 
-		let password = HashedPassword::new(
-			&password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH)),
-		)?;
+		let password =
+			&password.unwrap_or_else(|| utils::random_string(AUTO_GEN_PASSWORD_LENGTH));
 
 		self.services
 			.users
-			.create_local_account(&user_id, password, None)
+			.create_local_account(&user_id, HashedPassword::new(password)?, None)
 			.await;
 
-		self.write_str(&format!("Created user {user_id}")).await
+		self.write_str(&format!("Created user {user_id} with password `{password}`"))
+			.await
 	}
 
 	pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> Result {
