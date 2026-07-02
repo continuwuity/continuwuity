@@ -134,13 +134,15 @@ async fn route_register(
 ) -> Result {
 	let is_first_run = services.firstrun.is_first_run();
 
-	if session_store
-		.get::<IgnoredAny>(User::KEY)
-		.await
-		.unwrap()
-		.is_some()
+	if services.oidc.enabled()
+		|| session_store
+			.get::<IgnoredAny>(User::KEY)
+			.await
+			.unwrap()
+			.is_some()
 	{
-		// Redirect already logged-in users to the account panel
+		// Redirect to the account panel if the user is already logged in
+		// or OIDC is enabled
 		return response!(Redirect::to(&LoginTarget::Account.target_path()));
 	}
 
