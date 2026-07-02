@@ -9,9 +9,9 @@ use conduwuit::{
 use database::{Deserialized, Map};
 use lettre::Address;
 use openidconnect::{
-	AdditionalClaims, AuthorizationCode, CsrfToken, EmptyExtraTokenFields, EndpointMaybeSet,
-	EndpointNotSet, EndpointSet, IdTokenClaims, IdTokenFields, IssuerUrl, Nonce,
-	PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, StandardErrorResponse,
+	AdditionalClaims, AuthorizationCode, ClientSecret, CsrfToken, EmptyExtraTokenFields,
+	EndpointMaybeSet, EndpointNotSet, EndpointSet, IdTokenClaims, IdTokenFields, IssuerUrl,
+	Nonce, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, StandardErrorResponse,
 	StandardTokenResponse, TokenResponse,
 	core::{
 		CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreErrorResponseType,
@@ -59,6 +59,7 @@ struct Services {
 
 struct OidcClient {
 	config: OidcConfig,
+	client_secret: ClientSecret,
 	machine: SetOnce<OidcClientMachine>,
 	client: reqwest::Client,
 }
@@ -130,8 +131,19 @@ impl crate::Service for Service {
                 openidsubject_localpart: args.db["openidsubject_localpart"].clone(),
 				openidsubject_currentpictureurl: args.db["openidsubject_currentpictureurl"].clone(),
             },
-            client: args.server.config.oauth.oidc.as_ref().map(|config| OidcClient {
+            client: args.server.config.oauth.oidc.as_ref().map(|config| -> Result<OidcClient> {
+				Ok(OidcClient {
                     config: config.clone(),
+					client_secret: if let Some(client_secret_file) = &config.client_secret_file {
+						std::fs::read_to_string(client_secret_file)
+							.map(ClientSecret::new)
+							.map_err(|err| err!("Failed to read OIDC client secret file: {err}"))?
+					} else if let Some(client_secret) = &config.client_secret {
+						client_secret.clone()
+					} else {
+						// The config check function should cause an early exit before this happens
+						panic!("neither client secret or client secret file were set");
+					},
                     machine: SetOnce::new(),
                     // This isn't in the client service because it has to use the `reqwest` shipped by `openidconnect`
                     client: reqwest::ClientBuilder::new()
@@ -145,12 +157,13 @@ impl crate::Service for Service {
                         .danger_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
                         .build()
                         .expect("client should build")
-                }),
+                })}
+			).transpose()?,
 		}))
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		if let Some(OidcClient { config, machine, client }) = &self.client {
+		if let Some(OidcClient { config, client_secret, machine, client }) = &self.client {
 			let redirect_url = self
 				.services
 				.config
@@ -170,7 +183,7 @@ impl crate::Service for Service {
 					OidcClientMachine::from_provider_metadata(
 						provider_metadata,
 						config.client_id.clone(),
-						Some(config.client_secret.clone()),
+						Some(client_secret.clone()),
 					)
 					.set_redirect_uri(RedirectUrl::from_url(redirect_url)),
 				)

@@ -2484,7 +2484,13 @@ pub struct OidcConfig {
 
 	/// The OAuth client secret for Continuwuity to use when communicating with
 	/// the identity provider.
-	pub client_secret: ClientSecret,
+	pub client_secret: Option<ClientSecret>,
+
+	/// A path to a file which Continuwuity will read the client secret from.
+	/// If this option is set, it will override `client_secret`.
+	///
+	/// The server will fail to start if the file cannot be read.
+	pub client_secret_file: Option<PathBuf>,
 
 	/// Additional scopes Continuwuity should request from the IDP. This may be
 	/// necessary to access certain claims. Continuwuity always requests the

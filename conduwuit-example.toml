@@ -2057,6 +2057,13 @@
 #
 #client_secret =
 
+# A path to a file which Continuwuity will read the client secret from.
+# If this option is set, it will override `client_secret`.
+#
+# The server will fail to start if the file cannot be read.
+#
+#client_secret_file =
+
 # Additional scopes Continuwuity should request from the IDP. This may be
 # necessary to access certain claims. Continuwuity always requests the
 # `openid` scope.
