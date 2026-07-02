@@ -341,18 +341,8 @@ ul.bullet-separated {
         margin-top: 0;
     }
 
-    ul.bullet-separated {
-        display: block;
-        padding-left: inherit;
-
-        li {
-            display: list-item;
-            list-style-type: disc;
-
-            &::before {
-                content: none !important;
-            }
-        }
+    .mobile-hidden {
+        display: none;
     }
 }
 
