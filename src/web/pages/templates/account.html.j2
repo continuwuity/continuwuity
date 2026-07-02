@@ -17,14 +17,16 @@ Your account
                 </p>
             {% endif %}
             <section>
-                {% if email_requirement.may_change() %}
+                {% if email_requirement.may_view() %}
                     <p>
                         {% if let Some(email) = email %}
                             Your account's associated email address is <code>{{ email }}</code>.
                         {% else %}
                             Your account has no associated email address.
                         {% endif %}
-                        <a href="email/change/">Change your email</a>
+                        {% if email_requirement.may_change() %}
+                            <a href="email/change/">Change your email</a>\
+                        {% endif %}
                     </p>
                 {% endif %}
                 {% if !oidc_enabled %}
