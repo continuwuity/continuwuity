@@ -9,6 +9,7 @@ repository.workspace = true
 version.workspace = true
 
 [lib]
+doctest = false
 path = "mod.rs"
 crate-type = [
 	"rlib",
