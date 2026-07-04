@@ -201,9 +201,6 @@ pub(crate) async fn sync_events_route(
 		.update_device_last_seen(sender_user, Some(sender_device), client_ip)
 		.await;
 
-	// Setup watchers, so if there's no response, we can wait for them
-	let watcher = services.sync.watch(sender_user, sender_device);
-
 	let response = build_sync_events(&services, &body).await?;
 	if body.body.full_state
 		|| !(response.rooms.is_empty()
@@ -219,7 +216,7 @@ pub(crate) async fn sync_events_route(
 	// Stop hanging if new info arrives
 	let default = Duration::from_secs(30);
 	let duration = cmp::min(body.body.timeout.unwrap_or(default), default);
-	_ = tokio::time::timeout(duration, watcher).await;
+	_ = tokio::time::timeout(duration, services.sync.wait_for_wake(sender_user)).await;
 
 	// Retry returning data
 	build_sync_events(&services, &body).await

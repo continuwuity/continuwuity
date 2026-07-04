@@ -191,6 +191,8 @@ impl super::Service {
 				"content": content,
 			})),
 		);
+
+		self.services.sync.wake(target_user_id).await;
 	}
 
 	/// Gets all to-device events between the two counts.
@@ -242,6 +244,8 @@ impl super::Service {
 				self.db.todeviceid_events.del(key);
 			})
 			.await;
+
+		self.services.sync.wake(user_id).await;
 	}
 
 	/// Updates device metadata and increments the device list version.

@@ -86,6 +86,8 @@ impl super::Service {
 			}
 		}
 
+		self.services.sync.wake_all_joined(room_id).await;
+
 		Ok(Some(pdu_id))
 	}
 
@@ -187,18 +189,6 @@ impl super::Service {
 
 		let count1 = self.services.globals.next_count().unwrap();
 
-		// Mark as read first so the sending client doesn't get a notification even if
-		// appending fails
-		// TODO: Is this necessary? appending doesn't seem that fallible, and if it is,
-		// there's bigger issues than ghost notifications.
-		self.services
-			.read_receipt
-			.private_read_set(room_id, pdu.sender(), count1);
-
-		self.services
-			.user
-			.reset_notification_counts(pdu.sender(), room_id);
-
 		let count2 = PduCount::Normal(self.services.globals.next_count().unwrap());
 		let pdu_id: RawPduId = PduId { shortroomid, shorteventid: count2 }.into();
 
@@ -222,6 +212,14 @@ impl super::Service {
 				self.aggregate_relations(pdu, count2),
 			);
 		}
+
+		self.services
+			.read_receipt
+			.private_read_set(room_id, pdu.sender(), count1);
+
+		self.services
+			.user
+			.reset_notification_counts(pdu.sender(), room_id);
 
 		self.send_to_interested_appservices(pdu, &pdu_id, room_id)
 			.await;

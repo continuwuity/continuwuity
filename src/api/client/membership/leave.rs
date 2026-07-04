@@ -170,9 +170,7 @@ pub async fn leave_room(
 					 locally."
 				);
 
-				// return the existing leave state, if one exists. `mark_as_left` will then
-				// update the `roomuserid_leftcount` table, making the leave come down sync
-				// again.
+				// return the existing leave state, if one exists
 				services
 					.rooms
 					.state_cache
@@ -206,6 +204,8 @@ pub async fn leave_room(
 		.state_cache
 		.update_joined_count(room_id)
 		.await;
+
+	services.sync.wake(user_id).await;
 
 	Ok(())
 }

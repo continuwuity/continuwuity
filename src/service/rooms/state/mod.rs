@@ -24,11 +24,13 @@ use ruma::{
 };
 
 use crate::{
-	Dep, globals, rooms,
+	Dep, globals,
 	rooms::{
+		self,
 		short::{ShortEventId, ShortStateHash},
 		state_compressor::{CompressedState, parse_compressed_state_event},
 	},
+	sync,
 };
 
 pub struct Service {
@@ -43,6 +45,7 @@ struct Services {
 	state_cache: Dep<rooms::state_cache::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_compressor: Dep<rooms::state_compressor::Service>,
+	sync: Dep<sync::Service>,
 	timeline: Dep<rooms::timeline::Service>,
 }
 
@@ -68,6 +71,7 @@ impl crate::Service for Service {
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_compressor: args
 					.depend::<rooms::state_compressor::Service>("rooms::state_compressor"),
+				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
 			db: Data {
@@ -134,6 +138,8 @@ impl Service {
 		self.services.state_cache.update_joined_count(room_id).await;
 
 		self.set_room_state(room_id, shortstatehash, state_lock);
+
+		self.services.sync.wake_all_joined(room_id).await;
 
 		Ok(())
 	}
@@ -296,23 +302,19 @@ impl Service {
 	}
 
 	#[tracing::instrument(skip_all, level = "debug")]
-	pub async fn summary_stripped<'a, E>(
+	pub async fn summary_stripped(
 		&self,
-		event: &'a E,
+		event: &PduEvent,
 		room_id: &RoomId,
 		target_user: &UserId,
-	) -> Vec<RawStrippedState>
-	where
-		E: Event + Send + Sync,
-		&'a E: Event + Send,
-	{
+	) -> Vec<RawStrippedState> {
 		let mut state_events = [
 			(&StateEventType::RoomCreate, ""),
 			(&StateEventType::RoomJoinRules, ""),
 			(&StateEventType::RoomCanonicalAlias, ""),
 			(&StateEventType::RoomName, ""),
 			(&StateEventType::RoomAvatar, ""),
-			(&StateEventType::RoomMember, event.sender().as_str()), // Add recommended events
+			(&StateEventType::RoomMember, event.sender().as_str()),
 			(&StateEventType::RoomEncryption, ""),
 			(&StateEventType::RoomTopic, ""),
 		]
@@ -322,11 +324,20 @@ impl Service {
 			state_events.push((&StateEventType::RoomMember, target_user.as_str()));
 		}
 
-		let fetches = state_events.into_iter().map(|(event_type, state_key)| {
-			self.services
-				.state_accessor
-				.room_state_get(room_id, event_type, state_key)
-		});
+		let fetches = state_events
+			.into_iter()
+			.map(async |(event_type, state_key)| {
+				if event.event_type() == &TimelineEventType::from(event_type.clone())
+					&& event.state_key() == Some(state_key)
+				{
+					Ok(event.clone())
+				} else {
+					self.services
+						.state_accessor
+						.room_state_get(room_id, event_type, state_key)
+						.await
+				}
+			});
 
 		join_all(fetches)
 			.await

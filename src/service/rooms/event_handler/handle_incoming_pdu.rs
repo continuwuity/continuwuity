@@ -194,10 +194,14 @@ impl super::Service {
 						"Invite to {room_id} appears to have been rescinded by {sender}, \
 						 marking as left"
 					);
+
 					self.services
 						.state_cache
 						.mark_as_left(&sender, room_id, Some(pdu))
 						.await;
+
+					self.services.sync.wake(&sender).await;
+
 					return Ok(None);
 				}
 			}

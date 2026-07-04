@@ -16,7 +16,7 @@ use ruma::{
 };
 use serde::Deserialize;
 
-use crate::{Dep, globals};
+use crate::{Dep, globals, sync};
 
 #[derive(Debug)]
 pub enum AnyRawAccountDataEvent {
@@ -36,6 +36,7 @@ struct Data {
 
 struct Services {
 	globals: Dep<globals::Service>,
+	sync: Dep<sync::Service>,
 }
 
 impl crate::Service for Service {
@@ -43,6 +44,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
+				sync: args.depend::<sync::Service>("sync"),
 			},
 			db: Data {
 				roomuserdataid_accountdata: args.db["roomuserdataid_accountdata"].clone(),
@@ -83,6 +85,8 @@ impl Service {
 		if let Ok(prev) = prev {
 			self.db.roomuserdataid_accountdata.remove(&prev);
 		}
+
+		self.services.sync.wake(user_id).await;
 
 		Ok(())
 	}

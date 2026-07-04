@@ -16,7 +16,9 @@ use ruma::{
 	serde::Raw,
 };
 
-use crate::{Dep, account_data, appservice::RegistrationInfo, config, globals, rooms, users};
+use crate::{
+	Dep, account_data, appservice::RegistrationInfo, config, globals, rooms, sync, users,
+};
 
 pub struct Service {
 	appservice_in_room_cache: AppServiceInRoomCache,
@@ -31,6 +33,7 @@ struct Services {
 	metadata: Dep<rooms::metadata::Service>,
 	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
+	sync: Dep<sync::Service>,
 	users: Dep<users::Service>,
 }
 
@@ -67,6 +70,7 @@ impl crate::Service for Service {
 				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
+				sync: args.depend::<sync::Service>("sync"),
 				users: args.depend::<users::Service>("users"),
 			},
 			db: Data {

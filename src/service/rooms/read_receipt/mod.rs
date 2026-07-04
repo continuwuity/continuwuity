@@ -21,7 +21,7 @@ use ruma::{
 };
 
 use self::data::{Data, ReceiptItem};
-use crate::{Dep, rooms, sending};
+use crate::{Dep, rooms, sending, sync};
 
 pub struct Service {
 	services: Services,
@@ -31,6 +31,7 @@ pub struct Service {
 struct Services {
 	sending: Dep<sending::Service>,
 	short: Dep<rooms::short::Service>,
+	sync: Dep<sync::Service>,
 	timeline: Dep<rooms::timeline::Service>,
 }
 
@@ -40,6 +41,7 @@ impl crate::Service for Service {
 			services: Services {
 				sending: args.depend::<sending::Service>("sending"),
 				short: args.depend::<rooms::short::Service>("rooms::short"),
+				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
 			db: Data::new(&args),
@@ -63,6 +65,7 @@ impl Service {
 			.flush_room(room_id)
 			.await
 			.expect("room flush failed");
+		self.services.sync.wake_all_joined(room_id).await;
 	}
 
 	/// Gets the latest private read receipt from the user in the room

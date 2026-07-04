@@ -107,6 +107,8 @@ pub(crate) async fn set_read_marker_route(
 			.private_read_set(&body.room_id, sender_user, count);
 	}
 
+	services.sync.wake(sender_user).await;
+
 	Ok(set_read_marker::v3::Response::new())
 }
 
@@ -208,6 +210,8 @@ pub(crate) async fn create_receipt_route(
 			))));
 		},
 	}
+
+	services.sync.wake(sender_user).await;
 
 	Ok(create_receipt::v3::Response::new())
 }

@@ -56,6 +56,8 @@ impl super::Service {
 		let count = self.services.globals.next_count().unwrap();
 		self.db.userid_lastonetimekeyupdate.raw_put(user_id, count);
 
+		self.services.sync.wake(user_id).await;
+
 		Ok(())
 	}
 
@@ -152,6 +154,7 @@ impl super::Service {
 			});
 
 		if let Some(result) = one_time_key {
+			self.services.sync.wake(user_id).await;
 			return Ok(result);
 		}
 
@@ -183,6 +186,8 @@ impl super::Service {
 				)
 				.await?;
 			}
+
+			self.services.sync.wake(user_id).await;
 			return Ok((fallback_key_id, fallback_key_value));
 		}
 
@@ -450,9 +455,11 @@ impl super::Service {
 					None
 				}
 			})
-			.ready_for_each(|room_id| {
-				let key = (room_id, count);
+			.for_each(async |room_id| {
+				let key = (&room_id, count);
 				self.db.keychangeid_userid.put_raw(key, user_id);
+
+				self.services.sync.wake_all_joined(&room_id).await;
 			})
 			.await;
 

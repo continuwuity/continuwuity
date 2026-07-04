@@ -203,6 +203,8 @@ pub(crate) async fn create_invite_route(
 			.update_joined_count(&body.room_id)
 			.await;
 
+		services.sync.wake(&recipient_user).await;
+
 		for appservice in services.appservice.read().await.values() {
 			if appservice.is_user_match(&recipient_user) {
 				let transaction_id = general_purpose::URL_SAFE_NO_PAD

@@ -29,8 +29,9 @@ impl super::Service {
 		update_joined_count: bool,
 	) -> Result {
 		let membership = pdu.get_content::<RoomMemberEventContent>()?;
+		let is_local = self.services.globals.user_is_local(user_id);
 
-		if !self.services.globals.user_is_local(user_id) {
+		if !is_local {
 			self.services.users.record_remote_user(user_id);
 		}
 
@@ -41,13 +42,14 @@ impl super::Service {
 					// Add the user ID to the join list then
 					self.mark_as_once_joined(user_id, room_id);
 
-					// Check if the room has a predecessor
-					if let Ok(Some(predecessor)) = self
-						.services
-						.state_accessor
-						.room_state_get_content(room_id, &StateEventType::RoomCreate, "")
-						.await
-						.map(|content: RoomCreateEventContent| content.predecessor)
+					// Copy data from the predecessor if the user is local
+					if is_local
+						&& let Ok(Some(predecessor)) = self
+							.services
+							.state_accessor
+							.room_state_get_content(room_id, &StateEventType::RoomCreate, "")
+							.await
+							.map(|content: RoomCreateEventContent| content.predecessor)
 					{
 						// Copy old tags to new room
 						if let Ok(tag_event) = self
@@ -109,13 +111,16 @@ impl super::Service {
 				self.mark_as_joined(user_id, room_id);
 			},
 			| MembershipState::Invite => {
-				let last_state = self
-					.services
-					.state
-					.summary_stripped(pdu, room_id, user_id)
-					.await;
+				let invite_state = if is_local {
+					self.services
+						.state
+						.summary_stripped(pdu, room_id, user_id)
+						.await
+				} else {
+					vec![]
+				};
 
-				self.mark_as_invited(user_id, room_id, pdu.sender(), last_state, None)
+				self.mark_as_invited(user_id, room_id, pdu.sender(), invite_state, None)
 					.await?;
 			},
 			| MembershipState::Leave | MembershipState::Ban => {
@@ -126,6 +131,13 @@ impl super::Service {
 
 		if update_joined_count {
 			self.update_joined_count(room_id).await;
+		}
+
+		// Kick the target user's sync loop if they're local and this isn't a join to
+		// make sure that membership changes like invites or invite rejections get
+		// synced
+		if is_local && !matches!(membership.membership, MembershipState::Join) {
+			self.services.sync.wake(user_id).await;
 		}
 
 		Ok(())

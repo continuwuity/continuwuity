@@ -153,6 +153,8 @@ impl super::Service {
 			.state
 			.set_room_state(&room_id, statehashid, state_lock);
 
+		self.services.sync.wake_all_joined(&room_id).await;
+
 		let mut servers: HashSet<OwnedServerName> = self
 			.services
 			.state_cache

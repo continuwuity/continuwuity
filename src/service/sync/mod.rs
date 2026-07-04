@@ -1,42 +1,26 @@
-mod watch;
-
 use std::{
-	collections::{BTreeMap, BTreeSet},
+	collections::{BTreeMap, BTreeSet, HashMap},
+	pin::pin,
 	sync::Arc,
 };
 
-use conduwuit::{Result, Server, SyncMutex};
-use database::Map;
-use ruma::{OwnedDeviceId, OwnedRoomId, OwnedUserId, api::client::sync::sync_events::v5};
+use conduwuit::{Result, SyncMutex, trace};
+use futures::StreamExt;
+use ruma::{
+	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::sync::sync_events::v5,
+};
+use tokio::sync::{Mutex, Notify};
 
 use crate::{Dep, rooms};
 
 pub struct Service {
-	db: Data,
 	services: Services,
-	connections: DbConnections<DbConnectionsKey, DbConnectionsVal>,
+	wakers: Mutex<HashMap<OwnedUserId, Arc<Notify>>>,
 	snake_connections: DbConnections<SnakeConnectionsKey, SnakeConnectionsVal>,
 }
 
-pub struct Data {
-	todeviceid_events: Arc<Map>,
-	userroomid_joined: Arc<Map>,
-	userroomid_invitestate: Arc<Map>,
-	userroomid_leftstate: Arc<Map>,
-	userroomid_notificationcount: Arc<Map>,
-	userroomid_highlightcount: Arc<Map>,
-	pduid_pdu: Arc<Map>,
-	keychangeid_userid: Arc<Map>,
-	roomusertype_roomuserdataid: Arc<Map>,
-	readreceiptid_readreceipt: Arc<Map>,
-	userid_lastonetimekeyupdate: Arc<Map>,
-}
-
 struct Services {
-	server: Arc<Server>,
-	short: Dep<rooms::short::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
-	typing: Dep<rooms::typing::Service>,
 }
 
 #[allow(unused, reason = "TODO refactor")]
@@ -58,33 +42,16 @@ struct SnakeSyncCache {
 
 type DbConnections<K, V> = SyncMutex<BTreeMap<K, V>>;
 type DbConnectionsKey = (OwnedUserId, OwnedDeviceId, String);
-type DbConnectionsVal = Arc<SyncMutex<SlidingSyncCache>>;
 type SnakeConnectionsKey = (OwnedUserId, OwnedDeviceId, Option<String>);
 type SnakeConnectionsVal = Arc<SyncMutex<SnakeSyncCache>>;
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			db: Data {
-				todeviceid_events: args.db["todeviceid_events"].clone(),
-				userroomid_joined: args.db["userroomid_joined"].clone(),
-				userroomid_invitestate: args.db["userroomid_invitestate"].clone(),
-				userroomid_leftstate: args.db["userroomid_leftstate"].clone(),
-				userroomid_notificationcount: args.db["userroomid_notificationcount"].clone(),
-				userroomid_highlightcount: args.db["userroomid_highlightcount"].clone(),
-				pduid_pdu: args.db["pduid_pdu"].clone(),
-				keychangeid_userid: args.db["keychangeid_userid"].clone(),
-				roomusertype_roomuserdataid: args.db["roomusertype_roomuserdataid"].clone(),
-				readreceiptid_readreceipt: args.db["readreceiptid_readreceipt"].clone(),
-				userid_lastonetimekeyupdate: args.db["userid_lastonetimekeyupdate"].clone(),
-			},
 			services: Services {
-				server: args.server.clone(),
-				short: args.depend::<rooms::short::Service>("rooms::short"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
-				typing: args.depend::<rooms::typing::Service>("rooms::typing"),
 			},
-			connections: SyncMutex::new(BTreeMap::new()),
+			wakers: Mutex::default(),
 			snake_connections: SyncMutex::new(BTreeMap::new()),
 		}))
 	}
@@ -93,20 +60,47 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	pub async fn wait_for_wake(&self, user: &UserId) {
+		self.waker_for(user).await.notified().await;
+	}
+
+	/// Wake the target user's sync loop. Call this when something
+	/// that gets included in a legacy sync response changes.
+	///
+	/// Be careful where you call this function! In particular, don't call
+	/// it in any function that's called by `append_pdu`. `append_pdu` will call
+	/// it _after_ it's done appending a PDU, and calling it earlier can cause
+	/// hard-to-diagnose race conditions.
+	pub async fn wake(&self, user: &UserId) {
+		trace!(?user, "Waking user's sync loops");
+
+		self.waker_for(user).await.notify_waiters();
+	}
+
+	/// Wake all of our users who are joined to the specified room.
+	pub async fn wake_all_joined(&self, room: &RoomId) {
+		trace!(?room, "Waking all joined users' sync loops");
+		let mut wakers = self.wakers.lock().await;
+
+		let mut users_in_room = pin!(self.services.state_cache.active_local_users_in_room(room));
+
+		while let Some(user) = users_in_room.next().await {
+			wakers.entry(user).or_default().notify_waiters();
+		}
+	}
+
+	async fn waker_for(&self, user: &UserId) -> Arc<Notify> {
+		let mut wakers = self.wakers.lock().await;
+
+		wakers.entry(user.to_owned()).or_default().clone()
+	}
+
 	pub fn snake_connection_cached(&self, key: &SnakeConnectionsKey) -> bool {
 		self.snake_connections.lock().contains_key(key)
 	}
 
 	pub fn forget_snake_sync_connection(&self, key: &SnakeConnectionsKey) {
 		self.snake_connections.lock().remove(key);
-	}
-
-	pub fn remembered(&self, key: &DbConnectionsKey) -> bool {
-		self.connections.lock().contains_key(key)
-	}
-
-	pub fn forget_sync_request_connection(&self, key: &DbConnectionsKey) {
-		self.connections.lock().remove(key);
 	}
 
 	pub fn update_snake_sync_request_with_cache(

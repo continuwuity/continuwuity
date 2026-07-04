@@ -40,7 +40,7 @@ use crate::{
 		state_compressor::{self, CompressedState, HashSetCompressStateEvent},
 		timeline::{self, pdu_fits},
 	},
-	sending, server_keys, users,
+	sending, server_keys, sync, users,
 };
 
 pub struct Service {
@@ -63,6 +63,7 @@ struct Services {
 	state_accessor: Dep<state_accessor::Service>,
 	state_cache: Dep<state_cache::Service>,
 	state_compressor: Dep<state_compressor::Service>,
+	sync: Dep<sync::Service>,
 	timeline: Dep<timeline::Service>,
 	users: Dep<users::Service>,
 }
@@ -87,6 +88,7 @@ impl crate::Service for Service {
 				state_cache: args.depend::<state_cache::Service>("rooms::state_cache"),
 				state_compressor: args
 					.depend::<state_compressor::Service>("rooms::state_compressor"),
+				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<timeline::Service>("rooms::timeline"),
 				users: args.depend::<users::Service>("users"),
 			},
@@ -671,6 +673,8 @@ impl Service {
 				.await;
 		}
 		drop(cork);
+
+		self.services.sync.wake_all_joined(room_id).await;
 
 		Ok(())
 	}
