@@ -340,14 +340,14 @@ pub(crate) async fn create_room_route(
 	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
 
 	if preset == RoomPreset::TrustedPrivateChat {
-		for recipient_user in &invitees {
+		for recipient_user in invitees.iter().cloned() {
 			if room_version_rules
 				.authorization
 				.explicitly_privilege_room_creators
 			{
-				creators.push(recipient_user.to_owned());
+				creators.push(recipient_user);
 			} else {
-				power_levels_to_grant.insert(recipient_user.clone(), int!(100));
+				power_levels_to_grant.insert(recipient_user, int!(100));
 			}
 		}
 	}
