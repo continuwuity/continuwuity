@@ -14,6 +14,7 @@ Admin commands allow server administrators to manage the server from within thei
 - [`!admin appservices`](appservices/): Commands for managing appservices
 - [`!admin users`](users/): Commands for managing local users
 - [`!admin token`](token/): Commands for managing registration tokens
+- [`!admin oidc`](oidc/): Commands for managing OIDC
 - [`!admin rooms`](rooms/): Commands for managing rooms
 - [`!admin federation`](federation/): Commands for managing federation
 - [`!admin server`](server/): Commands for managing the server

@@ -25,6 +25,10 @@ pub(crate) async fn third_party_route(
 	let sender_user = body.identity.expect_sender_user()?;
 	let mut threepids = vec![];
 
+	if !services.threepid.email_requirement().may_view() {
+		return Ok(get_3pids::v3::Response::new(vec![]));
+	}
+
 	if let Some(email) = services
 		.threepid
 		.get_email_for_localpart(sender_user.localpart())

@@ -4,6 +4,7 @@ use ruma::UserId;
 use validator::{Validate, ValidationError, ValidationErrors};
 
 use crate::{
+	WebError,
 	extract::PostForm,
 	form,
 	pages::{
@@ -65,11 +66,17 @@ async fn route_change_password(
 	user: User,
 	PostForm(form): PostForm<ChangePasswordForm>,
 ) -> Result {
+	if services.oidc.enabled() {
+		return Err(WebError::BadRequest(
+			"Password changing is not available on this server".to_owned(),
+		));
+	}
+
 	let user_id = user.expect(LoginTarget::ChangePassword)?;
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
 	let body = if let Some(form) = form {
-		match change_password(&services, &user_id, form).await {
+		match change_password(&services, &user_id, form).await? {
 			| Ok(()) => ChangePasswordBody::Success,
 			| Err(errors) =>
 				ChangePasswordBody::Form(ChangePasswordForm::with_errors(context.clone(), errors)),
@@ -85,7 +92,7 @@ async fn change_password(
 	services: &crate::State,
 	user_id: &UserId,
 	form: ChangePasswordForm,
-) -> Result<(), ValidationErrors> {
+) -> Result<Result<(), ValidationErrors>> {
 	form.validate()?;
 
 	if services
@@ -100,12 +107,12 @@ async fn change_password(
 			ValidationError::new("wrong").with_message("Incorrect password".into()),
 		);
 
-		return Err(errors);
+		return Ok(Err(errors));
 	}
 
 	match HashedPassword::new(&form.new_password) {
 		| Ok(hash) => {
-			services.users.set_password(user_id, Some(hash));
+			services.users.set_password(user_id, hash).await?;
 		},
 		| Err(err) => {
 			let mut errors = ValidationErrors::new();
@@ -114,9 +121,9 @@ async fn change_password(
 				ValidationError::new("malformed").with_message(err.message().into()),
 			);
 
-			return Err(errors);
+			return Ok(Err(errors));
 		},
 	}
 
-	Ok(())
+	Ok(Ok(()))
 }

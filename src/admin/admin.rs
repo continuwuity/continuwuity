@@ -1,5 +1,5 @@
 use clap::Parser;
-use conduwuit::Result;
+use conduwuit::{Err, Result};
 
 use crate::{
 	appservice::{self, AppserviceCommand},
@@ -8,6 +8,7 @@ use crate::{
 	debug::{self, DebugCommand},
 	federation::{self, FederationCommand},
 	media::{self, MediaCommand},
+	oidc::{self, OidcCommand},
 	query::{self, QueryCommand},
 	room::{self, RoomCommand},
 	server::{self, ServerCommand},
@@ -18,44 +19,48 @@ use crate::{
 #[derive(Debug, Parser)]
 #[command(name = conduwuit_core::BRANDING, version = conduwuit_core::version())]
 pub enum AdminCommand {
-	#[command(subcommand)]
 	/// Commands for managing appservices
+	#[command(subcommand)]
 	Appservices(AppserviceCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing local users
+	#[command(subcommand)]
 	Users(UserCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing registration tokens
+	#[command(subcommand)]
 	Token(TokenCommand),
 
+	/// Commands for managing OIDC
 	#[command(subcommand)]
+	Oidc(OidcCommand),
+
 	/// Commands for managing rooms
+	#[command(subcommand)]
 	Rooms(RoomCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing federation
+	#[command(subcommand)]
 	Federation(FederationCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing the server
+	#[command(subcommand)]
 	Server(ServerCommand),
 
-	#[command(subcommand)]
 	/// Commands for managing media
+	#[command(subcommand)]
 	Media(MediaCommand),
 
-	#[command(subcommand)]
 	/// Commands for checking integrity
+	#[command(subcommand)]
 	Check(CheckCommand),
 
-	#[command(subcommand)]
 	/// Commands for debugging things
+	#[command(subcommand)]
 	Debug(DebugCommand),
 
-	#[command(subcommand)]
 	/// Low-level queries for database getters and iterators
+	#[command(subcommand)]
 	Query(QueryCommand),
 }
 
@@ -79,6 +84,16 @@ pub(super) async fn process(command: AdminCommand, context: &Context<'_>) -> Res
 			// token commands are all restricted
 			context.bail_restricted()?;
 			token::process(command, context).await
+		},
+		| Oidc(command) => {
+			// OIDC commands are all restricted
+			context.bail_restricted()?;
+
+			if !context.services.oidc.enabled() {
+				return Err!("OIDC is not configured");
+			}
+
+			oidc::process(command, context).await
 		},
 		| Rooms(command) => room::process(command, context).await,
 		| Federation(command) => federation::process(command, context).await,

@@ -17,7 +17,7 @@ use crate::{
 		components::{Avatar, AvatarType, ClientScopes},
 	},
 	response,
-	session::{LoginQuery, LoginTarget, User},
+	session::{LoginIntent, LoginQuery, LoginTarget, User},
 	template,
 };
 
@@ -129,7 +129,8 @@ async fn route_authorization_code(
 		context,
 		serde_urlencoded::to_string(LoginQuery {
 			next: Some(LoginTarget::AuthorizationCode(query)),
-			reauthenticate: false,
+			intent: Some(LoginIntent::SwitchAccounts),
+			..Default::default()
 		})
 		.unwrap(),
 		user_id,

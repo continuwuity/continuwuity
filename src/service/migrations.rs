@@ -41,7 +41,7 @@ pub(crate) async fn migrations(services: &Services) -> Result<()> {
 	// requires recreating the database from scratch.
 	if users_count > 0 {
 		let server_user = &services.globals.server_user;
-		if !services.users.exists(server_user).await {
+		if !services.users.status(server_user).await.is_found() {
 			error!("The {server_user} server user does not exist, and the database is not new.");
 			return Err!(Database(
 				"Cannot reuse an existing database after changing the server name, please \
@@ -228,6 +228,18 @@ async fn migrate(services: &Services) -> Result<()> {
 			.map_err(|e| err!("Failed to run 'fix_local_invite_state' migration': {e}"))?;
 	}
 
+	if services.globals.db.database_version().await < 18 {
+		services.globals.db.bump_database_version(18);
+		info!("Migration: Bumped database version to 18");
+	}
+
+	if db["global"].get(SPLIT_USERID_PASSWORD).await.is_not_found() {
+		info!("Running migration 'split_userid_password'");
+		split_userid_password(services)
+			.await
+			.map_err(|e| err!("Failed to run 'split_userid_password' migration': {e}"))?;
+	}
+
 	assert_eq!(
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
@@ -242,9 +254,9 @@ async fn migrate(services: &Services) -> Result<()> {
 		if !patterns.is_empty() {
 			services
 				.users
-				.stream()
+				.stream_local_users()
 				.filter_map(async |user_id| {
-					if services.users.is_active_local(&user_id).await {
+					if services.users.status(&user_id).await.is_found() {
 						Some(user_id)
 					} else {
 						None
@@ -774,7 +786,7 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 
 	let db = &services.db;
 	let cork = db.cork_and_sync();
-	let userroomid_invitestate = services.db["userroomid_invitestate"].clone();
+	let userroomid_invitestate = db["userroomid_invitestate"].clone();
 
 	// for each user invited to a room
 	let fixed =  userroomid_invitestate.stream()
@@ -813,6 +825,47 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 
 	drop(cork);
 	info!(?fixed, "Fixed local invite state cache entries.");
+
+	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
+	db.db.sort()?;
+	Ok(())
+}
+
+const SPLIT_USERID_PASSWORD: &str = "split_userid_password";
+async fn split_userid_password(services: &Services) -> Result {
+	// Split remote and deactivated users out from the `userid_password` table
+
+	let db = &services.db;
+	let cork = db.cork_and_sync();
+	let userid_password = db["userid_password"].clone();
+	let remoteuserid_remoteuser = db["remoteuserid_remoteuser"].clone();
+	let userid_deactivated = db["userid_deactivated"].clone();
+
+	let remote_users = userid_password
+		.stream::<OwnedUserId, String>()
+		.ignore_err()
+		.fold(0_usize, async |mut remote_users, (user_id, hash)| {
+			if !services.globals.user_is_local(&user_id) {
+				assert!(hash.is_empty(), "non-empty hash {hash} for remote user {user_id}");
+
+				remoteuserid_remoteuser.insert(&user_id, "");
+				userid_password.remove(&user_id);
+				remote_users = remote_users.saturating_add(1);
+			} else if hash.is_empty() {
+				if !(services.appservice.is_exclusive_user_id(&user_id).await
+					|| user_id == services.globals.server_user)
+				{
+					info!("Marking {user_id} as deactivated");
+					userid_deactivated.insert(&user_id, "");
+				}
+			}
+
+			remote_users
+		})
+		.await;
+
+	drop(cork);
+	info!(?remote_users, "Split userid_password.");
 
 	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
 	db.db.sort()?;

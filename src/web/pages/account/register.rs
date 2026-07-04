@@ -134,13 +134,15 @@ async fn route_register(
 ) -> Result {
 	let is_first_run = services.firstrun.is_first_run();
 
-	if session_store
-		.get::<IgnoredAny>(User::KEY)
-		.await
-		.unwrap()
-		.is_some()
+	if services.oidc.enabled()
+		|| session_store
+			.get::<IgnoredAny>(User::KEY)
+			.await
+			.unwrap()
+			.is_some()
 	{
-		// Redirect already logged-in users to the account panel
+		// Redirect to the account panel if the user is already logged in
+		// or OIDC is enabled
 		return response!(Redirect::to(&LoginTarget::Account.target_path()));
 	}
 
@@ -310,7 +312,7 @@ async fn get_register_email_validate(
 
 	response!(
 		complete_registration(&services, session_store, completed_registration, Some(email))
-			.await
+			.await?
 	)
 }
 
@@ -502,7 +504,7 @@ async fn begin_registration(
 	} else {
 		// If email isn't required we can immediately complete registration
 		Ok(response!(
-			complete_registration(services, session_store, completed_registration, None).await
+			complete_registration(services, session_store, completed_registration, None).await?
 		))
 	}
 }
@@ -517,11 +519,11 @@ async fn complete_registration(
 		next,
 	}: CompletedRegistration,
 	email: Option<Address>,
-) -> Redirect {
+) -> Result<Redirect> {
 	services
 		.users
-		.create_local_account(&user_id, password_hash, email)
-		.await;
+		.create_local_account(&user_id, Some(password_hash), email)
+		.await?;
 
 	if let Some(registration_token) = registration_token {
 		services
@@ -536,7 +538,7 @@ async fn complete_registration(
 		.await
 		.expect("should be able to serialize user session");
 
-	Redirect::to(&next.unwrap_or_default().target_path())
+	Ok(Redirect::to(&next.unwrap_or_default().target_path()))
 }
 
 pub(super) async fn registration_flow_status(

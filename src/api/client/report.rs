@@ -149,7 +149,7 @@ pub(crate) async fn report_user_route(
 
 	delay_response().await;
 
-	if !services.users.is_active_local(&body.user_id).await {
+	if !services.users.status(&body.user_id).await.is_found() {
 		// return 200 as to not reveal if the user exists. Recommended by spec.
 		return Ok(report_user::v3::Response::new());
 	}

@@ -7,10 +7,7 @@ use ruma::{
 	api::federation::query::{get_profile_information, get_room_information},
 };
 
-use crate::{
-	Ruma,
-	client::{get_local_profile, get_local_profile_field},
-};
+use crate::Ruma;
 
 /// # `GET /_matrix/federation/v1/query/directory`
 ///
@@ -75,15 +72,19 @@ pub(crate) async fn get_profile_information_route(
 	let response = if let Some(field) = &body.field {
 		let mut response = get_profile_information::v1::Response::new();
 
-		if let Some(value) =
-			get_local_profile_field(&services, &body.user_id, field.to_owned()).await
+		if let Some(value) = services
+			.users
+			.get_local_profile_field(&body.user_id, field.to_owned())
+			.await
 		{
 			response.set(value.field_name().as_str().to_owned(), value.value().into_owned());
 		}
 
 		response
 	} else {
-		get_local_profile(&services, &body.user_id)
+		services
+			.users
+			.get_local_profile(&body.user_id)
 			.await
 			.into_iter()
 			.collect()

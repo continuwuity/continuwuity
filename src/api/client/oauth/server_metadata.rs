@@ -21,7 +21,7 @@ pub(crate) async fn get_authorization_server_metadata_route(
 	State(services): State<crate::State>,
 	_body: Ruma<get_authorization_server_metadata::v1::Request>,
 ) -> Result<get_authorization_server_metadata::v1::Response> {
-	if !services.config.oauth.compatibility_mode.oauth_available() {
+	if !services.config.oauth.compatibility_mode().oauth_available() {
 		return Err!(Request(Unrecognized("OAuth is unavailable on this server")));
 	}
 

@@ -33,6 +33,7 @@
     padding: 0.5em;
     margin-bottom: 0.5em;
     line-height: 1;
+    align-items: baseline;
 
     border-radius: var(--border-radius-sm);
     border: 2px solid var(--secondary);

@@ -32,22 +32,26 @@ pub(crate) async fn search_users_route(
 		.min(LIMIT_MAX);
 
 	let search_term = body.search_term.to_lowercase();
-	let mut users = services.users.stream().broad_filter_map(async |user_id| {
-		let display_name = services.users.displayname(&user_id).await.ok();
 
-		let user_id_matches = user_id.as_str().to_lowercase().contains(&search_term);
+	let mut users = services
+		.users
+		.stream_local_users()
+		.chain(services.users.stream_remote_users())
+		.broad_filter_map(async |user_id| {
+			let display_name = services.users.displayname(&user_id).await.ok();
 
-		let display_name_matches = display_name
-			.as_deref()
-			.map(str::to_lowercase)
-			.is_some_and(|display_name| display_name.contains(&search_term));
+			let user_id_matches = user_id.as_str().to_lowercase().contains(&search_term);
 
-		if !user_id_matches && !display_name_matches {
-			return None;
-		}
+			let display_name_matches = display_name
+				.as_deref()
+				.map(str::to_lowercase)
+				.is_some_and(|display_name| display_name.contains(&search_term));
 
-		let user_in_public_room =
-			services
+			if !user_id_matches && !display_name_matches {
+				return None;
+			}
+
+			let user_in_public_room = services
 				.rooms
 				.state_cache
 				.rooms_joined(&user_id)
@@ -60,22 +64,22 @@ pub(crate) async fn search_users_route(
 						.await
 				});
 
-		let user_sees_user = services
-			.rooms
-			.state_cache
-			.user_sees_user(sender_user, &user_id);
+			let user_sees_user = services
+				.rooms
+				.state_cache
+				.user_sees_user(sender_user, &user_id);
 
-		pin_mut!(user_in_public_room, user_sees_user);
+			pin_mut!(user_in_public_room, user_sees_user);
 
-		if user_in_public_room.or(user_sees_user).await {
-			Some(assign!(search_users::v3::User::new(user_id.clone()), {
-				display_name,
-				avatar_url: services.users.avatar_url(&user_id).await.ok(),
-			}))
-		} else {
-			None
-		}
-	});
+			if user_in_public_room.or(user_sees_user).await {
+				Some(assign!(search_users::v3::User::new(user_id.clone()), {
+					display_name,
+					avatar_url: services.users.avatar_url(&user_id).await.ok(),
+				}))
+			} else {
+				None
+			}
+		});
 
 	let results = users.by_ref().take(limit).collect().await;
 	let limited = users.next().await.is_some();

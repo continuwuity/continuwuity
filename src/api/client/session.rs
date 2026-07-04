@@ -43,7 +43,7 @@ pub(crate) async fn get_login_types_route(
 	ClientIp(client): ClientIp,
 	_body: Ruma<get_login_types::v3::Request>,
 ) -> Result<get_login_types::v3::Response> {
-	if !services.config.oauth.compatibility_mode.uiaa_available() {
+	if !services.config.oauth.compatibility_mode().uiaa_available() {
 		return Err!(Request(Unrecognized(
 			"User-interactive authentication is not available on this server."
 		)));
@@ -88,14 +88,6 @@ pub async fn handle_login(
 		UserId::parse_with_server_name(user_id_or_localpart, &services.config.server_name)
 			.map_err(|_| err!(Request(InvalidUsername("User ID is malformed"))))?;
 
-	if !services.globals.user_is_local(&user_id) {
-		return Err!(Request(InvalidParam("User ID does not belong to this homeserver")));
-	}
-
-	if services.users.is_deactivated(&user_id).await? {
-		return Err!(Request(UserDeactivated("This account has been deactivated.")));
-	}
-
 	if services.users.is_locked(&user_id).await? {
 		return Err!(Request(UserLocked("This account has been locked.")));
 	}
@@ -128,7 +120,7 @@ pub(crate) async fn login_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<login::v3::Request>,
 ) -> Result<login::v3::Response> {
-	if !services.config.oauth.compatibility_mode.uiaa_available() {
+	if !services.config.oauth.compatibility_mode().uiaa_available() {
 		return match body.login_info {
 			| LoginInfo::ApplicationService(_) => {
 				Err!(Request(AppserviceLoginUnsupported(

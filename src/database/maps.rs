@@ -125,6 +125,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "openidsubject_localpart",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "openidsubject_currentpictureurl",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "fallbackkeyid_fallbackkey",
 		..descriptor::RANDOM_SMALL
 	},
@@ -168,6 +176,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	Descriptor {
 		name: "registrationtoken_info",
 		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "remoteuserid_remoteuser",
+		..descriptor::RANDOM
 	},
 	Descriptor {
 		name: "roomid_invitedcount",
@@ -397,6 +409,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	Descriptor {
 		name: "userid_blurhash",
 		..descriptor::DROPPED
+	},
+	Descriptor {
+		name: "userid_deactivated",
+		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
 		name: "userid_dehydrateddevice",

@@ -30,15 +30,8 @@ impl super::Service {
 	) -> Result {
 		let membership = pdu.get_content::<RoomMemberEventContent>()?;
 
-		// Keep track what remote users exist by adding them as "deactivated" users
-		//
-		// TODO: use futures to update remote profiles without blocking the membership
-		// update
-		#[allow(clippy::collapsible_if)]
-		if !self.services.globals.user_is_local(user_id)
-			&& !self.services.users.exists(user_id).await
-		{
-			self.services.users.create(user_id, None)?;
+		if !self.services.globals.user_is_local(user_id) {
+			self.services.users.record_remote_user(user_id);
 		}
 
 		match &membership.membership {

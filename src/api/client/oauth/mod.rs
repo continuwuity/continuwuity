@@ -37,7 +37,7 @@ pub(crate) fn router(state: crate::State) -> Router<crate::State> {
 		.layer(middleware::from_fn_with_state(
 			state,
 			async |State(state): State<crate::State>, request: Request, next: Next| -> Response {
-				if state.config.oauth.compatibility_mode.oauth_available() {
+				if state.config.oauth.compatibility_mode().oauth_available() {
 					next.run(request).await
 				} else {
 					(StatusCode::NOT_FOUND, "OAuth is unavailable on this server").into_response()

@@ -108,17 +108,17 @@ impl Service {
 			self.services.globals.server_name(),
 		)?;
 
-		if !self.services.users.exists(&appservice_user_id).await {
-			self.services.users.create(&appservice_user_id, None)?;
-		} else if self
+		if !self
 			.services
 			.users
-			.is_deactivated(&appservice_user_id)
+			.status(&appservice_user_id)
 			.await
-			.unwrap_or(false)
+			.is_found()
 		{
-			// Reactivate the appservice user if it was accidentally deactivated
-			self.services.users.set_password(&appservice_user_id, None);
+			self.services
+				.users
+				.create_shadow_account(&appservice_user_id)
+				.await?;
 		}
 
 		self.registration_info

@@ -128,7 +128,8 @@ pub(crate) async fn change_password_route(
 
 	services
 		.users
-		.set_password(&sender_user, Some(HashedPassword::new(&body.new_password)?));
+		.set_password(&sender_user, HashedPassword::new(&body.new_password)?)
+		.await?;
 
 	if body.logout_devices {
 		// Logout all devices except the current one

@@ -616,7 +616,7 @@ impl crate::Context<'_> {
 		// Force E2EE device list updates for all users
 		self.services
 			.users
-			.stream()
+			.stream_local_users()
 			.for_each(async |user_id| self.services.users.mark_device_key_update(&user_id).await)
 			.await;
 

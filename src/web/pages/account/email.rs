@@ -81,6 +81,10 @@ async fn route_change_email(
 ) -> Result {
 	let user_id = user.expect_recent(LoginTarget::ChangeEmail)?;
 
+	if !services.threepid.email_requirement().may_change() {
+		return Err(WebError::Forbidden("You may not change your email address.".to_owned()));
+	}
+
 	let Some(form) = form else {
 		return response!(ChangeEmail::new(
 			context.clone(),

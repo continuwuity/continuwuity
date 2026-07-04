@@ -289,6 +289,15 @@ pub fn check(config: &Config) -> Result {
 		| _ => (),
 	}
 
+	if let Some(oidc) = &config.oauth.oidc
+		&& oidc.client_secret.is_none()
+		&& oidc.client_secret_file.is_none()
+	{
+		return Err!(
+			"Either `client_secret` or `client_secret_file` must be set if OIDC is configured."
+		);
+	}
+
 	Ok(())
 }
 

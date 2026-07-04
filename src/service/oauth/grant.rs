@@ -160,7 +160,7 @@ pub enum ErrorCode {
 	InvalidClientMetadata,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct AuthorizationCodeResponse {
 	pub state: String,
 	pub code: String,

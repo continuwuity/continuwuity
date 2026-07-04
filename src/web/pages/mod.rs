@@ -17,6 +17,7 @@ mod components;
 pub(super) mod debug;
 pub(super) mod index;
 pub(super) mod oauth;
+pub(super) mod oidc;
 pub(super) mod resources;
 pub(super) mod threepid;
 

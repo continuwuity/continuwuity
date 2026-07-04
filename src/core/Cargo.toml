@@ -119,6 +119,7 @@ parking_lot.workspace = true
 lock_api.workspace = true
 hyper-util.workspace = true
 resolvematrix.workspace = true
+openidconnect.workspace = true
 
 [target.'cfg(unix)'.dependencies]
 nix.workspace = true

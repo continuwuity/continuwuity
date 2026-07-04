@@ -4,7 +4,7 @@ pub mod manager;
 pub mod proxy;
 
 use std::{
-	collections::{BTreeMap, BTreeSet},
+	collections::{BTreeMap, BTreeSet, HashMap},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	path::PathBuf,
 };
@@ -17,10 +17,12 @@ use either::{
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use lettre::message::Mailbox;
+use openidconnect::{ClientId, ClientSecret, Scope};
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
 	api::client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
+	profile::ProfileFieldName,
 	serde::Base64,
 };
 use serde::{Deserialize, Serialize, de::IgnoredAny};
@@ -2419,10 +2421,24 @@ pub struct OauthConfig {
 	///   legacy authentication will be unable to log in.
 	///
 	/// default: "hybrid"
-	pub compatibility_mode: OAuthMode,
+	compatibility_mode: OAuthMode,
+
+	/// display: hidden
+	pub oidc: Option<OidcConfig>,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
+impl OauthConfig {
+	#[must_use]
+	pub fn compatibility_mode(&self) -> OAuthMode {
+		if self.oidc.is_some() {
+			OAuthMode::Exclusive
+		} else {
+			self.compatibility_mode
+		}
+	}
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum OAuthMode {
 	Disabled,
@@ -2437,6 +2453,121 @@ impl OAuthMode {
 
 	#[must_use]
 	pub fn oauth_available(&self) -> bool { matches!(self, Self::Hybrid | Self::Exclusive) }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.oauth.oidc",
+	optional = "true",
+	subheader = "\
+# Uncommenting this section will enable Continuwuity's support for
+# authenticating users using an OpenID Connect-compatible identity provider.
+# This is referred to as \"delegated authentication\".
+#
+# IMPORTANT NOTE: When delegated authentication is active, Continuwuity will behave as if
+# the `global.oauth.compatibility_mode` setting is set to `exclusive`.
+# Matrix clients which do not support OAuth login (also referred to as \"next-gen auth\") will \
+	             NOT be able
+# to log in while delegated authentication is active."
+)]
+pub struct OidcConfig {
+	/// The OIDC issuer URL. Continuwuity will use OpenID Connect Discovery to
+	/// automatically fetch the identity provider's metadata from this URL.
+	/// Generally you should set this to the base domain your identity provider
+	/// runs on.
+	pub discovery_url: Url,
+
+	/// The OAuth client ID for Continuwuity to use when communicating with the
+	/// identity provider.
+	pub client_id: ClientId,
+
+	/// The OAuth client secret for Continuwuity to use when communicating with
+	/// the identity provider.
+	pub client_secret: Option<ClientSecret>,
+
+	/// A path to a file which Continuwuity will read the client secret from.
+	/// If this option is set, it will override `client_secret`.
+	///
+	/// The server will fail to start if the file cannot be read.
+	pub client_secret_file: Option<PathBuf>,
+
+	/// Additional scopes Continuwuity should request from the IDP. This may be
+	/// necessary to access certain claims. Continuwuity always requests the
+	/// `openid` scope.
+	///
+	/// default: []
+	#[serde(default)]
+	pub additional_scopes: Vec<Scope>,
+
+	/// Whether the user should be prompted to choose a localpart
+	/// when signing in for the first time. If this is `false`, Continuwuity
+	/// will attempt to use the value of the `preferred_username_claim`
+	/// (see below) as the user's localpart. Authentication will
+	/// fail if this claim is missing or is not a valid localpart.
+	///
+	/// default: true
+	#[serde(default = "true_fn")]
+	pub prompt_for_localpart: bool,
+
+	/// The claim to use for the user's localpart, if `prompt_for_localpart` is
+	/// false.
+	///
+	/// default: "preferred_username"
+	#[serde(default = "default_preferred_username_claim")]
+	pub preferred_username_claim: String,
+
+	/// The claim which will be used to set the user's email address,
+	/// either on initial registration or on every login depending on
+	/// the value of `profile_key_import_mode`. Continuwuity assumes that
+	/// the IDP has taken care of verifying that the user controls the email
+	/// address it provides.
+	///
+	/// This option does nothing if SMTP is not configured.
+	///
+	/// If this option is set, and `profile_key_import_mode` is `on_login`,
+	/// users will not be able to change their email addresses themselves.
+	///
+	/// default: "email"
+	pub email_claim: Option<String>,
+
+	/// Defines how claims returned from the IDP should be mapped to a user's
+	/// profile data. The profile field named in each key will be set from the
+	/// claim named in the corresponding value when the user first registers,
+	/// and possibly on subsequent logins as well, depending on the value of
+	/// `profile_key_import_mode` (see below).
+	///
+	/// Per-room overrides to the user's display name or avatar will be
+	/// preserved by the import process.
+	///
+	/// SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
+	/// perform a HTTP GET to the URL in the mapped claim and use the returned
+	/// file as the user's profile picture. Make sure your users are not able
+	/// to set the value of the mapped claim to an arbitrary URL.
+	///
+	/// default: { displayname = "name" }
+	#[serde(default = "default_profile_key_map")]
+	pub profile_key_map: HashMap<String, String>,
+
+	/// When profile keys should be imported from the IDP's claims.
+	///
+	/// - "on_registration": Listed keys will be imported once, when the user
+	///   logs in for the first time and their shadow account is created.
+	/// - "on_login": Listed keys will be imported every time the user logs in.
+	///   Additionally, users will not be able to manually edit any listed keys
+	///   through their Matrix client.
+	///
+	/// default: "on_registration"
+	#[serde(default)]
+	pub profile_key_import_mode: OidcProfileKeyImportMode,
+}
+
+#[derive(Clone, Debug, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum OidcProfileKeyImportMode {
+	#[default]
+	OnRegistration,
+	OnLogin,
 }
 
 const DEPRECATED_KEYS: &[&str] = &[
@@ -2823,3 +2954,9 @@ fn default_client_shutdown_timeout() -> u64 { 15 }
 fn default_sender_shutdown_timeout() -> u64 { 5 }
 
 fn default_terms_language() -> String { "en".to_owned() }
+
+fn default_preferred_username_claim() -> String { "preferred_username".to_owned() }
+
+fn default_profile_key_map() -> HashMap<String, String> {
+	HashMap::from_iter([(ProfileFieldName::DisplayName.to_string(), "name".to_owned())])
+}

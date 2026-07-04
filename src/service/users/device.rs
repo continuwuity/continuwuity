@@ -4,8 +4,8 @@ use std::{
 };
 
 use conduwuit::{
-	Err, utils,
-	utils::{ReadyExt, stream::TryIgnore},
+	Err, Result,
+	utils::{self, ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Json};
 use futures::{Stream, StreamExt};
@@ -18,8 +18,7 @@ use serde_json::json;
 use crate::users::increment;
 
 impl super::Service {
-	/// Adds a new device to a user. The user must exist, otherwise InvalidParam
-	/// is returned.
+	/// Adds a new device to a user.
 	pub async fn create_device(
 		&self,
 		user_id: &UserId,
@@ -28,12 +27,8 @@ impl super::Service {
 		token_max_age: Option<Duration>,
 		initial_device_display_name: Option<String>,
 		client_ip: Option<String>,
-	) -> conduwuit::Result<()> {
-		if !self.exists(user_id).await {
-			return Err!(Request(InvalidParam(error!(
-				"Called create_device for non-existent user {user_id}"
-			))));
-		}
+	) -> Result<()> {
+		self.status(user_id).await.ensure_active()?;
 
 		let key = (user_id, device_id);
 		let mut device = Device::new(device_id.into());
@@ -50,7 +45,7 @@ impl super::Service {
 	/// Removes a device from a user.
 	pub async fn remove_device(&self, user_id: &UserId, device_id: &DeviceId) {
 		// Remove dehydrated device if this is the dehydrated device
-		let _: conduwuit::Result<_> = self
+		let _ = self
 			.remove_dehydrated_device(user_id, Some(device_id))
 			.await;
 
@@ -97,11 +92,7 @@ impl super::Service {
 	}
 
 	/// Gets the access token associated with a device.
-	pub async fn get_token(
-		&self,
-		user_id: &UserId,
-		device_id: &DeviceId,
-	) -> conduwuit::Result<String> {
+	pub async fn get_token(&self, user_id: &UserId, device_id: &DeviceId) -> Result<String> {
 		let key = (user_id, device_id);
 		self.db.userdeviceid_token.qry(&key).await.deserialized()
 	}
@@ -131,7 +122,7 @@ impl super::Service {
 		device_id: &DeviceId,
 		token: &str,
 		token_max_age: Option<Duration>,
-	) -> conduwuit::Result<()> {
+	) -> Result<()> {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
 			return Err!(Database(error!(
@@ -259,7 +250,7 @@ impl super::Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		device: &Device,
-	) -> conduwuit::Result<()> {
+	) -> Result<()> {
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.update_device_metadata_no_increment(user_id, device_id, device)
 	}
@@ -273,7 +264,7 @@ impl super::Service {
 		user_id: &UserId,
 		device_id: &DeviceId,
 		device: &Device,
-	) -> conduwuit::Result<()> {
+	) -> Result<()> {
 		let key = (user_id, device_id);
 		self.db.userdeviceid_metadata.put(key, Json(device));
 
@@ -312,7 +303,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
-	) -> conduwuit::Result<Device> {
+	) -> Result<Device> {
 		self.db
 			.userdeviceid_metadata
 			.qry(&(user_id, device_id))
@@ -321,7 +312,7 @@ impl super::Service {
 	}
 
 	/// Gets the most recent device list version for a user.
-	pub async fn get_devicelist_version(&self, user_id: &UserId) -> conduwuit::Result<u64> {
+	pub async fn get_devicelist_version(&self, user_id: &UserId) -> Result<u64> {
 		self.db
 			.userid_devicelistversion
 			.get(user_id)

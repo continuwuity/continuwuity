@@ -314,7 +314,7 @@ impl Service {
 				.services
 				.config
 				.oauth
-				.compatibility_mode
+				.compatibility_mode()
 				.uiaa_available()
 		{
 			return Err!(Request(Unrecognized(

@@ -121,6 +121,7 @@ yansi.workspace = true
 lettre.workspace = true
 resolvematrix.workspace = true
 serde_urlencoded.workspace = true
+openidconnect.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true

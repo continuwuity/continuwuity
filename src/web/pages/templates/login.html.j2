@@ -9,9 +9,14 @@ Log in
 {%- endblock -%}
 
 {%- block content -%}
+{% match login_type %}
+    {% when LoginType::Interactive { .. } %}
 <div class="panel narrow">
+    {% when LoginType::Oidc { .. } %}
+<div class="panel narrow middle"/>
+{% endmatch %}
     {% match body %}
-        {% when LoginBody::Unauthenticated { server_name, registration_available, next } %}
+        {% when LoginBody::Unauthenticated { server_name, next } %}
             <h1 class="with-matrix-icon">
                 {% if next.is_some() %}
                     Log in to continue
@@ -25,39 +30,49 @@ Log in
             <p>
                 You're about to log in to your account on <em>{{ server_name }}</em>
             </p>
-            <hr>
-            <form method="post">
-                <p>
-                    <label for="identifier">Username or email address</label>
-                    <input type="text" id="identifier" name="identifier" autocomplete="username">
-                </p>
-                <p>
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" autocomplete="current-password">
-                </p>
-                <button type="submit">Log in</button>
-            </form>
-            <div class="centered-links">
-                {% if registration_available %}
-                    {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
-                    <a href="{{ crate::ROUTE_PREFIX }}/account/register/?{{ query }}">Sign up</a>
-                {% endif %}
-                <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
-            </div>
+            {% match login_type %}
+                {% when LoginType::Interactive { registration_available } %}
+                    <hr>
+                    <form method="post">
+                        <p>
+                            <label for="identifier">Username or email address</label>
+                            <input type="text" id="identifier" name="identifier" autocomplete="username">
+                        </p>
+                        <p>
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" autocomplete="current-password">
+                        </p>
+                        <button type="submit">Log in</button>
+                    </form>
+                    <div class="centered-links">
+                        {% if registration_available %}
+                            {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
+                            <a href="{{ crate::ROUTE_PREFIX }}/account/register/?{{ query }}">Sign up</a>
+                        {% endif %}
+                        <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
+                    </div>
+                {% when LoginType::Oidc { redirect_url } %}
+                    <a class="button" href="{{ redirect_url }}">Continue</a>
+            {% endmatch %}
         {% when LoginBody::Authenticated { user_card } %}
             <h1>Confirm your identity</h1>
             {{ user_card }}
-            <p>Enter your password to continue.</p>
-            <form method="post">
-                <p>
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" autocomplete="current-password">
-                </p>
-                <button type="submit">Continue</button>
-            </form>
-            <div class="centered-links">
-                <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
-            </div>
+            {% match login_type %}
+                {% when LoginType::Interactive { .. } %}
+                    <p>Enter your password to continue.</p>
+                    <form method="post">
+                        <p>
+                            <label for="password">Password</label>
+                            <input type="password" id="password" name="password" autocomplete="current-password">
+                        </p>
+                        <button type="submit">Continue</button>
+                    </form>
+                    <div class="centered-links">
+                        <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
+                    </div>
+                {% when LoginType::Oidc { redirect_url } %}
+                    <a class="button" href="{{ redirect_url }}">Continue</a>
+            {% endmatch %}
     {% endmatch %}
     {% if let Some(error) = login_error %}
         <small class="error">{{ error }}</small>
