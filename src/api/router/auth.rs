@@ -60,8 +60,9 @@ impl ClientIdentity {
 
 	pub(crate) fn expect_sender_device(&self) -> Result<&DeviceId> {
 		match self {
-			| Self::User { sender_device, .. } => Ok(sender_device),
-			| Self::Appservice { .. } =>
+			| Self::User { sender_device, .. }
+			| Self::Appservice { sender_device: Some(sender_device), .. } => Ok(sender_device),
+			| Self::Appservice { sender_device: None, .. } =>
 				Err!(Request(Forbidden("Appservices must masquerade to use this endpoint."))),
 		}
 	}
