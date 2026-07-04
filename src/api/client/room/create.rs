@@ -337,14 +337,21 @@ pub(crate) async fn create_room_route(
 	});
 
 	let mut power_levels_to_grant = BTreeMap::from_iter([(sender_user.to_owned(), int!(100))]);
+	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
 
 	if preset == RoomPreset::TrustedPrivateChat {
 		for recipient_user in &invitees {
-			power_levels_to_grant.insert(recipient_user.clone(), int!(100));
+			if room_version_rules
+				.authorization
+				.explicitly_privilege_room_creators
+			{
+				creators.push(recipient_user.to_owned());
+			} else {
+				power_levels_to_grant.insert(recipient_user.clone(), int!(100));
+			}
 		}
 	}
 
-	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
 	// Do we care about additional_creators?
 	if room_version_rules
 		.authorization
