@@ -11,7 +11,6 @@ pub struct Service {
 	pub default: reqwest::Client,
 	pub url_preview: reqwest::Client,
 	pub extern_media: reqwest::Client,
-	pub well_known: reqwest::Client,
 	pub federation: reqwest::Client,
 	pub federation_slow: reqwest::Client,
 	pub sender: reqwest::Client,
@@ -60,15 +59,6 @@ impl crate::Service for Service {
 			extern_media: base(config)?
 				.dns_resolver(resolver.dns.resolver.clone())
 				.redirect(redirect::Policy::limited(3))
-				.build()?,
-
-			well_known: base(config)?
-				.dns_resolver(resolver.dns.resolver.clone())
-				.connect_timeout(Duration::from_secs(config.well_known_conn_timeout))
-				.read_timeout(Duration::from_secs(config.well_known_timeout))
-				.timeout(Duration::from_secs(config.well_known_timeout))
-				.pool_max_idle_per_host(0)
-				.redirect(redirect::Policy::limited(4))
 				.build()?,
 
 			federation: base(config)?
@@ -151,7 +141,7 @@ impl Service {
 	}
 }
 
-fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
+pub fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
 	let mut builder = reqwest::Client::builder()
 		.hickory_dns(true)
 		.connect_timeout(Duration::from_secs(config.request_conn_timeout))
