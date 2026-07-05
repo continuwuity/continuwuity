@@ -4,6 +4,7 @@ use conduwuit::{
 	Err, Result,
 	pdu::PartialPdu,
 	utils::{ReadyExt, stream::TryIgnore, to_canonical_object},
+	warn,
 };
 use database::{Deserialized, Ignore, Interfix, Json};
 use futures::{Stream, StreamExt};
@@ -115,18 +116,32 @@ impl super::Service {
 
 			while let Some(room_id) = all_joined_rooms.next().await {
 				// TODO: this clobbers any custom fields on the event content
-				let mut current_membership = self
+				let mut current_membership = match self
 					.services
 					.state_accessor
 					.get_member(&room_id, user_id)
 					.await
-					.expect("should be able to fetch membership event for joined room");
-
-				assert_eq!(
-					current_membership.membership,
-					MembershipState::Join,
-					"user should be joined"
-				);
+				{
+					| Ok(current_membership)
+						if current_membership.membership == MembershipState::Join =>
+						current_membership,
+					| Ok(current_membership) => {
+						warn!(
+							?user_id,
+							?room_id,
+							"User is not joined in joined room: {current_membership:?}"
+						);
+						continue;
+					},
+					| Err(err) => {
+						warn!(
+							?user_id,
+							?room_id,
+							"Could not load membership event for joined room: {err}"
+						);
+						continue;
+					},
+				};
 
 				// If `propagate_to` is `unchanged`, and the current value of the field we're
 				// updating was changed from its global value in this room, skip it.
