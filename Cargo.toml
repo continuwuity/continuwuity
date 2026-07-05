@@ -141,6 +141,12 @@ features = [
 version = "0.23.25"
 default-features = false
 
+[workspace.dependencies.aws-lc-sys]
+version = "0.41.0"
+
+[workspace.dependencies.aws-lc-rs]
+version = "1.17.0"
+
 [workspace.dependencies.reqwest]
 version = "0.13.2"
 default-features = false
