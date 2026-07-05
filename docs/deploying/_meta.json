@@ -16,8 +16,8 @@
     },
     {
         "type": "file",
-        "name": "fedora",
-        "label": "Fedora"
+        "name": "rpm",
+        "label": "RPM"
     },
     {
         "type": "file",

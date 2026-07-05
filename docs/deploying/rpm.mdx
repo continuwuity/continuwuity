@@ -1,0 +1,165 @@
+import { Tab, Tabs} from '@rspress/core/theme';
+
+# RPM Installation Guide
+
+## Overview
+
+Continuwuity versions v0.5.10+ are available as RPM packages for the following distributions:
+
+<Tabs groupId="distro">
+<Tab label="Fedora">
+Available for upstream-supported Fedora versions (including compatible distributions, such as Ultramarine Linux) and Rawhide through Terra.
+</Tab>
+<Tab label="EL">
+Available for Enterprise Linux (RHEL, AlmaLinux, Rocky Linux, etc.) **10+** through Terra.
+
+:::warning Oracle Linux support
+Due to upstream limitations, Terra is only usable on Oracle Linux if you use [upstream EPEL](https://docs.fedoraproject.org/en-US/epel/getting-started/)
+rather than Oracle's rebuilds of EPEL. Oracle tends to lag behind on new EL versions, both major and minor—for example, as of the time of writing, 10.2 has been
+available for over a month through other ELs, but Oracle has not yet released corresponding updates—so you may encounter further compatibility issues with EPEL.
+**For this reason, it is recommended that you use another EL distribution if at all possible.**
+:::
+
+</Tab>
+<Tab label="SUSE">
+Available for openSUSE Tumbleweed and [supported Leap versions](https://en.opensuse.org/Lifetime) through the openSUSE Build Service.
+</Tab>
+</Tabs>
+
+## Installation methods
+
+### Stable releases (recommended)
+
+<Tabs groupId="distro">
+<Tab label="Fedora">
+1. Follow [Terra's directions for adding the Terra repo on your distribution](https://docs.terrapkg.com/usage/installing/#fedora-and-derivatives).
+2. Install the `continuwuity` package.
+</Tab>
+<Tab label="EL">
+1. Follow [Terra's directions for adding the Terra repo on your distribution](https://docs.terrapkg.com/usage/installing/#enterprise-linux). Be sure to acquire/enable relevant dependencies!
+2. Install the `continuwuity` package.
+</Tab>
+<Tab label="SUSE">
+openSUSE packages are available through an openSUSE Build Service project namespace provided by a community member.
+
+1. Navigate to [this page](https://software.opensuse.org/download.html?project=home%3Ajulian45&package=continuwuity).
+2. Click on the "Add repository and install manually" text to expand install instructions.
+3. Follow the provided instructions for your version of openSUSE.
+</Tab>
+</Tabs>
+
+### Nightly releases
+Nightly versions are built from the latest commit on the `main` branch every 24 hours.
+
+<Tabs groupId="distro">
+<Tab label="Fedora">
+1. Follow [Terra's directions for adding the Terra repo on your distribution](https://docs.terrapkg.com/usage/installing/#fedora-and-derivatives).
+2. Install the `continuwuity-nightly` package.
+</Tab>
+<Tab label="EL">
+1. Follow [Terra's directions for adding the Terra repo on your distribution](https://docs.terrapkg.com/usage/installing/#enterprise-linux). Be sure to acquire/enable relevant dependencies!
+2. Install the `continuwuity-nightly` package.
+</Tab>
+<Tab label="SUSE">
+Nightly packages for openSUSE are **not currently available**.
+
+If there is an ongoing need for these, please ask in `#continuwuity:continuwuity.org` or [open an issue on Forgejo](https://forgejo.ellis.link/continuwuation/continuwuity/issues/new).
+In the meantime, you may follow the [generic deployment instructions](deployment/generic).
+</Tab>
+</Tabs>
+
+## Service management and removal
+
+**Systemd service commands**
+
+```bash
+# Start the service
+sudo systemctl start conduwuit
+
+# Enable on boot
+sudo systemctl enable conduwuit
+
+# Check status
+sudo systemctl status conduwuit
+
+# View logs
+sudo journalctl -u conduwuit -f
+```
+
+**Uninstallation**
+
+```bash
+# Stop and disable the service
+sudo systemctl stop conduwuit
+sudo systemctl disable conduwuit
+
+# Remove the package
+sudo dnf remove continuwuity # replace `dnf` with `zypper` on openSUSE
+```
+
+## Troubleshooting
+
+**GPG key errors**: Temporarily disable GPG checking
+
+```bash
+sudo dnf --nogpgcheck install continuwuity
+```
+
+**Repository metadata issues**: Clear and rebuild cache
+
+```bash
+sudo dnf clean all
+sudo dnf makecache
+```
+
+**Finding specific versions**
+
+```bash
+# List all available versions
+dnf --showduplicates list continuwuity
+
+# Install a specific version
+sudo dnf install continuwuity-<version>
+```
+
+## Building locally
+
+<Tabs groupId="distro">
+<Tab label="Fedora">
+:::details Directly from Continuwuity source
+
+Build the RPM locally using rpkg:
+```bash
+# Install dependencies
+sudo dnf install rpkg rpm-build cargo-rpm-macros systemd-rpm-macros
+
+# Clone the repository
+git clone https://forgejo.ellis.link/continuwuation/continuwuity.git
+cd continuwuity
+
+# Build SRPM
+rpkg srpm
+
+# Build RPM
+rpmbuild --rebuild *.src.rpm
+```
+:::
+
+Or, use Terra:
+1. Follow [Terra's prep directions](https://docs.terrapkg.com/contributing/getting-started/#preparation) to bootstrap your development environment.
+2. `git clone` the [Terra sources repo](https://github.com/terrapkg/packages).
+3. Follow [Terra's build instructions](https://docs.terrapkg.com/contributing/getting-started/#building), using the path `anda/misc/continuwuity/nightly/pkg`. If desiring a build of the latest stable version, replace `nightly` with `stable` instead.
+</Tab>
+<Tab label="EL">
+1. Follow [Terra's prep directions](https://docs.terrapkg.com/contributing/getting-started/#preparation) to bootstrap your development environment.
+2. `git clone` the [Terra sources repo](https://github.com/terrapkg/packages).
+3. Follow [Terra's build instructions](https://docs.terrapkg.com/contributing/getting-started/#building), using the path `anda/misc/continuwuity/nightly/pkg`. If desiring a build of the latest stable version, replace `nightly` with `stable` instead.
+</Tab>
+<Tab label="SUSE">
+1. Navigate to [this package's location in the openSUSE Build Service web UI](https://build.opensuse.org/package/show/home:julian45/continuwuity).
+2. Click on the "Checkout package" text and follow the instructions to acquire a local copy of the packaging source.
+3. In the `_service` file, adjust the revision within the `<param name="revision">` tag (approx. line 6) to your desired git repo revision.
+4. Run `osc service ra` to update your copy of the Continuwuity sources and vendored packages.
+5. Run `osc build` to locally build an openSUSE-ready RPM.
+</Tab>
+</Tabs>
