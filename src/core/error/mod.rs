@@ -119,8 +119,6 @@ pub enum Error {
 	Mxc(#[from] ruma::MxcUriError),
 	#[error(transparent)]
 	Mxid(#[from] ruma::IdParseError),
-	#[error("from {0}: {1}")]
-	Redaction(ruma::OwnedServerName, ruma::canonical_json::RedactionError),
 	#[error("{0:?}: {1}")]
 	Request(ErrorKind, Cow<'static, str>, http::StatusCode),
 	#[error(transparent)]
