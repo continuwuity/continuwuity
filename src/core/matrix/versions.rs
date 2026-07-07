@@ -33,7 +33,7 @@ pub fn unstable_features() -> BTreeMap<String, bool> {
 	BTreeMap::from_iter([
 		// query mutual rooms (https://github.com/matrix-org/matrix-spec-proposals/pull/2666)
 		// Expected for spec v1.19
-		("uk.half-shot.msc2666.query_mutual_rooms.stable".to_owned(), true),
+		("uk.half-shot.msc2666.query_mutual_rooms".to_owned(), true),
 		// Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186)
 		// Expected for spec v1.19
 		("org.matrix.simplified_msc3575".to_owned(), true),
