@@ -29,23 +29,23 @@ pub(crate) async fn get_supported_versions_route(
 	))
 }
 
-/// # `GET /_conduwuit/server_version`
+/// # `GET /_continuwuity/server_version`
 ///
 /// Conduwuit-specific API to get the server version, results akin to
 /// `/_matrix/federation/v1/version`
-pub(crate) async fn conduwuit_server_version() -> Result<impl IntoResponse> {
+pub(crate) async fn continuwuity_server_version() -> Result<impl IntoResponse> {
 	Ok(Json(serde_json::json!({
 		"name": conduwuit::BRANDING,
 		"version": conduwuit::version(),
 	})))
 }
 
-/// # `GET /_conduwuit/local_user_count`
+/// # `GET /_continuwuity/local_user_count`
 ///
 /// conduwuit-specific API to return the amount of users registered on this
 /// homeserver. Endpoint is disabled if federation is disabled for privacy. This
 /// only includes active users (not deactivated, etc)
-pub(crate) async fn conduwuit_local_user_count(
+pub(crate) async fn continuwuity_local_user_count(
 	State(services): State<crate::State>,
 ) -> Result<impl IntoResponse> {
 	let user_count = services.users.list_local_users().count().await;
