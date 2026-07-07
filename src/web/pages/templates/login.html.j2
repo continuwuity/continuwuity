@@ -44,6 +44,9 @@ Log in
                         </p>
                         <button type="submit">Log in</button>
                     </form>
+                    {% if let Some(error) = login_error %}
+                        <small class="error">{{ error }}</small>
+                    {% endif %}
                     <div class="centered-links">
                         {% if registration_available %}
                             {% let query = next.as_ref().map(serde_urlencoded::to_string).transpose().unwrap().unwrap_or_default() %}
@@ -67,6 +70,9 @@ Log in
                         </p>
                         <button type="submit">Continue</button>
                     </form>
+                    {% if let Some(error) = login_error %}
+                        <small class="error">{{ error }}</small>
+                    {% endif %}
                     <div class="centered-links">
                         <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
                     </div>
@@ -74,8 +80,5 @@ Log in
                     <a class="button" href="{{ redirect_url }}">Continue</a>
             {% endmatch %}
     {% endmatch %}
-    {% if let Some(error) = login_error %}
-        <small class="error">{{ error }}</small>
-    {% endif %}
 </div>
 {%- endblock -%}

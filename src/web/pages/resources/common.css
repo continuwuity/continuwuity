@@ -214,11 +214,6 @@ button, a.button {
     text-align: center;
     margin: 0.5rem 0;
 
-    &:enabled:hover {
-        opacity: 0.8;
-        cursor: pointer;
-    }
-
     &:disabled {
         color: lightgray;
         background-color: gray;
@@ -226,6 +221,11 @@ button, a.button {
 
     &:not(:disabled) {
         transition: linear color, background-color 0.1s;
+
+        &:hover {
+            opacity: 0.8;
+            cursor: pointer;
+        }
     }
 
     &:visited {
