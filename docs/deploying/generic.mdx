@@ -170,7 +170,7 @@ expose these ports on your firewall or router. If you use UFW, the commands to a
 are: `ufw allow 8448/tcp` and `ufw allow 443/tcp`.
 
 :::tip Alternative port/domain setups
-If you would like to use only port 443, a different port, or a subdomain for the homeserver, you will need to set up `.well-known` delegation. Consult the `[global.well_known]` section of the config file, and the [**Delegation/Split-domain**](../advanced/delegation) page to learn more about these kinds of deployments.
+If you would like to use only port 443, a different port, or a subdomain for the homeserver, you will need to set up `.well-known` delegation. Consult the `[global.well_known]` section of the config file, and the [**Delegation/Split-domain**](../guides/delegation) page to learn more about these kinds of deployments.
 :::
 
 ## Setting up the Reverse Proxy
@@ -300,7 +300,8 @@ curl https://example.com/_matrix/client/versions
 
 ## What's next?
 
-- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
+- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../guides/dns.mdx) (recommended)
+- To configure OIDC login with an identity provider, see the [**delegated authentication guide**](../guides/oidc.mdx).
 - For Audio/Video call functionality see the [**Calls**](../calls.md) page.
 - Consult the [Maintenance](../maintenance.mdx) page for guidance on maintaining your homeserver.
 - If you want to set up an appservice, take a look at the [**Appservice Guide**](../appservices.md).

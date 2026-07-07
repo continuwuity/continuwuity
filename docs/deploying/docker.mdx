@@ -44,7 +44,7 @@ Continuwuity requires HTTPS for Matrix federation. You'll need:
     - Alternatively, if you want both client and federation traffic on `:443`, you can configure `CONTINUWUITY_WELL_KNOWN` following some of the [examples](#choose-your-reverse-proxy) below.
 
 :::tip Split-domain setups
-For more setups with `.well-known` delegation and split-domain deployments, consult the [Delegation/Split-domain](../advanced/delegation) page.
+For more setups with `.well-known` delegation and split-domain deployments, consult the [Delegation/Split-domain](../guides/delegation) page.
 :::
 
 ## Docker Compose
@@ -79,7 +79,7 @@ nameserver 1.0.0.1
 nameserver 1.1.1.1
 ```
 
-Consult the [**DNS tuning guide (recommended)**](../advanced/dns.mdx) for full solutions to this issue.
+Consult the [**DNS tuning guide (recommended)**](../guides/dns.mdx) for full solutions to this issue.
 :::
 
 #### Caddy (using Caddyfile)
@@ -269,7 +269,7 @@ Note that using `CTRL+c` within `docker attach`'s context will forward the signa
 
 ## Next steps
 
-- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../advanced/dns.mdx) (recommended)
+- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../guides/dns.mdx) (recommended)
 - To set up Audio/Video communication, see the [**Calls**](../calls.mdx) page.
 - Consult the [Maintenance](../maintenance.mdx) page for guidance on maintaining your homeserver.
 - If you want to set up an appservice, take a look at the [**Appservice Guide**](../appservices.mdx).
