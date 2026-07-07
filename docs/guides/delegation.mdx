@@ -58,6 +58,13 @@ After doing the steps above, Continuwuity will serve these 3 JSON files:
 
 To enable full discovery, you will need to reverse proxy these paths from the base domain back to Continuwuity.
 
+:::warning
+If you choose to serve the well-known files directly through your reverse proxy, and you are
+using delegation, you must still set the `global.well_known.client` configuration option to
+the domain you're delegating to. Continuwuity needs to know the domain it runs on for OAuth-compatible
+clients to work correctly.
+:::
+
 ## Reverse proxying well-known files to Continuwuity
 
 <details>
