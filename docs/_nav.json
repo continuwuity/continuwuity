@@ -1,8 +1,8 @@
 [
     {
-        "text": "Guide",
+        "text": "Documentation",
         "link": "/introduction",
-        "activeMatch": "^/(introduction|configuration|deploying|calls|appservices|maintenance|troubleshooting|advanced)"
+        "activeMatch": "^/(introduction|configuration|deploying|calls|appservices|maintenance|troubleshooting|guides)"
     },
     {
         "text": "Development",

@@ -36,8 +36,8 @@
     },
     {
         "type": "dir",
-        "name": "advanced",
-        "label": "Advanced"
+        "name": "guides",
+        "label": "Guides"
     },
     "security",
     {
