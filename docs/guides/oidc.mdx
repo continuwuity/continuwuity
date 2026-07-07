@@ -5,10 +5,7 @@ Continuwuity supports delegating user authentication to an external identity pro
 :::warning{title="OIDC versus OAuth, and supported clients"}
 **OIDC** is not to be confused with **OAuth**. In the context of Matrix, OAuth is the protocol that Matrix clients use to authenticate with the _homeserver_. OIDC is the protocol that the _homeserver_ uses to communicate with the _identity provider_. Continuwuity supports OAuth by default, alongside the legacy **UIAA** authentication framework.
 
-When OIDC is configured, Continuwuity will disable its support for UIAA. **Only clients that support OAuth**, such as
-the Element family of clients, will be able to log in when OIDC is configured. If your client of choice shows an error
-when you try to log in after configuring OIDC, it likely does not support OAuth. This is an issue with your client, not
-Continuwuity, and should be reported to your client's developers.
+When OIDC is configured, Continuwuity will disable its support for legacy authentication. **Only clients that support OAuth**, such as the Element family of clients, will be able to log in when OIDC is configured. If your client of choice shows an error when you try to log in after configuring OIDC, it likely does not support OAuth. This is an issue with your client, not Continuwuity, and should be reported to your client's developers.
 :::
 
 A simple OIDC configuration is as easy as creating a new OIDC application in your identity provider's settings and supplying Continuwuity with the client ID and client secret. This guide will use kanidm as an example, but the described steps are broadly applicable to other identity providers.
@@ -17,7 +14,8 @@ First, create a new application for Continuwuity in your identity provider.
 ```sh
 # Here, `c10y` is the client ID that kanidm will use, and `Continuwuity` is the display name.
 # Other identity providers may generate a client ID for you.
-# Use the domain that Continuwuity is actually running on, even if you've configured delegation.
+# Use the domain that clients can reach Continuwuity at, which may not be the same as your server name
+# if you have configured well-known delegation.
 kanidm system oauth2 create c10y Continuwuity https://matrix.yourdomain.com
 ```
 
