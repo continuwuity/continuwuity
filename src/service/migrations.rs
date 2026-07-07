@@ -315,7 +315,8 @@ async fn migrate(services: &Services) -> Result<()> {
 async fn db_lt_12(services: &Services) -> Result<()> {
 	for username in &services
 		.users
-		.list_local_users()
+		.stream_local_users()
+		.ready_filter(|user| services.globals.user_is_local(user))
 		.collect::<Vec<OwnedUserId>>()
 		.await
 	{
@@ -394,7 +395,8 @@ async fn db_lt_12(services: &Services) -> Result<()> {
 async fn db_lt_13(services: &Services) -> Result<()> {
 	for username in &services
 		.users
-		.list_local_users()
+		.stream_local_users()
+		.ready_filter(|user| services.globals.user_is_local(user))
 		.collect::<Vec<OwnedUserId>>()
 		.await
 	{

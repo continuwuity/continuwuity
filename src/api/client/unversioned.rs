@@ -48,7 +48,7 @@ pub(crate) async fn continuwuity_server_version() -> Result<impl IntoResponse> {
 pub(crate) async fn continuwuity_local_user_count(
 	State(services): State<crate::State>,
 ) -> Result<impl IntoResponse> {
-	let user_count = services.users.list_local_users().count().await;
+	let user_count = services.users.stream_local_users().count().await;
 
 	Ok(Json(serde_json::json!({
 		"count": user_count

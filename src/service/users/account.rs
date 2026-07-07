@@ -2,7 +2,7 @@ use std::time::{Duration, SystemTime};
 
 use conduwuit::{
 	Err, Result, debug_error, debug_warn, err, error, info, trace,
-	utils::{self, ReadyExt, stream::TryIgnore},
+	utils::{self, stream::TryIgnore},
 	warn,
 };
 use database::{Deserialized, Json};
@@ -555,18 +555,6 @@ impl super::Service {
 	/// Returns an iterator over all local users on this homeserver.
 	pub fn stream_local_users(&self) -> impl Stream<Item = OwnedUserId> + Send {
 		self.db.userid_password.keys().ignore_err()
-	}
-
-	/// Returns a list of active local users.
-	///
-	/// A user account is considered `local` if the associated password is not
-	/// empty.
-	pub fn list_local_users(&self) -> impl Stream<Item = OwnedUserId> + Send + '_ {
-		self.db
-			.userid_password
-			.stream()
-			.ignore_err()
-			.ready_filter_map(|(u, p): (OwnedUserId, &[u8])| (!p.is_empty()).then_some(u))
 	}
 
 	/// Set a user's password.

@@ -182,7 +182,7 @@ impl Service {
 		for user_id in &self
 			.services
 			.users
-			.list_local_users()
+			.stream_local_users()
 			.collect::<Vec<OwnedUserId>>()
 			.await
 		{

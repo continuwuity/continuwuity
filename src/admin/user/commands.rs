@@ -35,7 +35,7 @@ impl crate::Context<'_> {
 		let users: Vec<_> = self
 			.services
 			.users
-			.list_local_users()
+			.stream_local_users()
 			.map(|id| id.as_str().to_owned())
 			.collect()
 			.await;
@@ -588,7 +588,7 @@ impl crate::Context<'_> {
 		for user_id in &self
 			.services
 			.users
-			.list_local_users()
+			.stream_local_users()
 			.collect::<Vec<_>>()
 			.await
 		{

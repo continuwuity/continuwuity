@@ -73,7 +73,7 @@ impl crate::Service for Service {
 			&& self
 				.services
 				.users
-				.list_local_users()
+				.stream_local_users()
 				.ready_filter(|user| *user != self.services.globals.server_user)
 				.next()
 				.await
