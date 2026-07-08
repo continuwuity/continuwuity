@@ -570,7 +570,10 @@ features = ["std"]
 version = "0.3.0"
 
 [workspace.dependencies.resolvematrix]
-version = "0.1.2"
+#version = "0.1.2"
+rev = "b2280bc4eaacea3de18bc47534cddeeeb1ceab9c"
+git = "https://forgejo.ellis.link/continuwuation/resolvematrix"
+#branch = "zoe/cache-get-all"
 
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"

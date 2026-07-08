@@ -1017,7 +1017,7 @@ impl crate::Context<'_> {
 				.http_client(self.services.client.default.clone())
 				.build()?
 		} else {
-			&self.services.resolver.resolver
+			&self.services.client.resolver
 		};
 
 		let actual = resolver.resolve_server(server_name.as_str()).await?;
@@ -1027,7 +1027,10 @@ impl crate::Context<'_> {
 			| ResolvedDestination::Named(host, port) => format!("{host}:{port}"),
 		};
 
-		let msg = format!("Destination: {}\nHostname URI (SNI): {}", destination, actual.host);
+		let msg = format!(
+			"Destination: {}\nHostname URI (SNI): {}\nIs override?: {}\nResolution step: {}",
+			destination, actual.host, actual.is_override, actual.resolution_step
+		);
 		self.write_str(&msg).await
 	}
 

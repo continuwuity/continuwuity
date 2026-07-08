@@ -8,17 +8,8 @@ use hickory_resolver::{
 };
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 
-use super::cache::{Cache, CachedOverride};
-
 pub struct Resolver {
 	pub(crate) resolver: Arc<TokioResolver>,
-	pub(crate) hooked: Arc<Hooked>,
-	server: Arc<Server>,
-}
-
-pub(crate) struct Hooked {
-	resolver: Arc<TokioResolver>,
-	cache: Arc<Cache>,
 	server: Arc<Server>,
 }
 
@@ -26,7 +17,7 @@ type ResolvingResult = Result<Addrs, Box<dyn std::error::Error + Send + Sync>>;
 
 impl Resolver {
 	#[allow(clippy::as_conversions, clippy::cast_sign_loss, clippy::cast_possible_truncation)]
-	pub(super) fn build(server: &Arc<Server>, cache: Arc<Cache>) -> Result<Arc<Self>> {
+	pub(super) fn build(server: &Arc<Server>) -> Result<Arc<Self>> {
 		let config = &server.config;
 		let (sys_conf, mut opts) = hickory_resolver::system_conf::read_system_conf()
 			.map_err(|e| err!(error!("Failed to configure DNS resolver from system: {e}")))?;
@@ -80,7 +71,6 @@ impl Resolver {
 
 		Ok(Arc::new(Self {
 			resolver: resolver.clone(),
-			hooked: Arc::new(Hooked { resolver, cache, server: server.clone() }),
 			server: server.clone(),
 		}))
 	}
@@ -93,43 +83,6 @@ impl Resolver {
 impl Resolve for Resolver {
 	fn resolve(&self, name: Name) -> Resolving {
 		resolve_to_reqwest(self.server.clone(), self.resolver.clone(), name).boxed()
-	}
-}
-
-impl Resolve for Hooked {
-	fn resolve(&self, name: Name) -> Resolving {
-		hooked_resolve(self.cache.clone(), self.server.clone(), self.resolver.clone(), name)
-			.boxed()
-	}
-}
-
-#[tracing::instrument(
-	level = "debug",
-	skip_all,
-	fields(name = ?name.as_str())
-)]
-async fn hooked_resolve(
-	cache: Arc<Cache>,
-	server: Arc<Server>,
-	resolver: Arc<TokioResolver>,
-	name: Name,
-) -> Result<Addrs, Box<dyn std::error::Error + Send + Sync>> {
-	match cache.get_override(name.as_str()).await {
-		| Ok(cached) if cached.valid() => cached_to_reqwest(cached).await,
-		| Ok(CachedOverride { overriding, .. }) if overriding.is_some() =>
-			resolve_to_reqwest(
-				server,
-				resolver,
-				overriding
-					.as_deref()
-					.map(str::parse)
-					.expect("overriding is set for this record")
-					.expect("overriding is a valid internet name"),
-			)
-			.boxed()
-			.await,
-
-		| _ => resolve_to_reqwest(server, resolver, name).boxed().await,
 	}
 }
 
@@ -155,13 +108,4 @@ async fn resolve_to_reqwest(
 		results = resolver.lookup_ip(name.as_str()) => Ok(handle_results(results?)),
 		() = server.until_shutdown() => Err(handle_shutdown()),
 	}
-}
-
-async fn cached_to_reqwest(cached: CachedOverride) -> ResolvingResult {
-	let addrs = cached
-		.ips
-		.into_iter()
-		.map(move |ip| SocketAddr::new(ip, cached.port));
-
-	Ok(Box::new(addrs))
 }

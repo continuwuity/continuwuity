@@ -1,13 +1,20 @@
+mod dns;
+
 use std::{sync::Arc, time::Duration};
 
+use async_trait::async_trait;
 use conduwuit::{Config, Result, err, trace};
 use either::Either;
 use ipaddress::IPAddress;
 use reqwest::redirect;
+use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
 
-use crate::{resolver, service};
+use crate::{client::dns::Resolver, service};
 
 pub struct Service {
+	pub resolver: MatrixResolver,
+	pub dns: Arc<Resolver>,
+
 	pub default: reqwest::Client,
 	pub url_preview: reqwest::Client,
 	pub extern_media: reqwest::Client,
@@ -20,10 +27,24 @@ pub struct Service {
 	pub cidr_range_denylist: Vec<IPAddress>,
 }
 
+#[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let config = &args.server.config;
-		let resolver = args.require::<resolver::Service>("resolver");
+		let dns = Resolver::build(args.server)?;
+		let resolver = MatrixResolverBuilder::new()
+			.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
+			.http_client(
+				base(&args.server.config)?
+					.connect_timeout(Duration::from_secs(args.server.config.well_known_conn_timeout))
+					.read_timeout(Duration::from_secs(args.server.config.well_known_timeout))
+					.timeout(Duration::from_secs(args.server.config.well_known_timeout))
+					.pool_max_idle_per_host(0)
+					.redirect(redirect::Policy::limited(4))
+					.build()?
+			)
+			.dns_resolver(dns.resolver.clone())
+			.build()?;
 
 		let url_preview_bind_addr = config
 			.url_preview_bound_interface
@@ -41,28 +62,29 @@ impl crate::Service for Service {
 			.unwrap_or_else(|| conduwuit::user_agent_media().to_owned());
 
 		Ok(Arc::new(Self {
-			default: base(config)?
-				.dns_resolver(resolver.dns.resolver.clone())
-				.build()?,
+			resolver,
+			dns: dns.clone(),
+
+			default: base(config)?.dns_resolver(dns.clone()).build()?,
 
 			url_preview: base(config)
 				.and_then(|builder| {
 					builder_interface(builder, url_preview_bind_iface.as_deref())
 				})?
 				.local_address(url_preview_bind_addr)
-				.dns_resolver(resolver.dns.resolver.clone())
+				.dns_resolver(dns.clone())
 				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
 				.user_agent(url_preview_user_agent)
 				.build()?,
 
 			extern_media: base(config)?
-				.dns_resolver(resolver.dns.resolver.clone())
+				.dns_resolver(dns.clone())
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
 			federation: base(config)?
-				.dns_resolver(resolver.dns.resolver.hooked.clone())
+				.dns_resolver(dns.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout))
 				.timeout(Duration::from_secs(
@@ -76,7 +98,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			federation_slow: base(config)?
-				.dns_resolver(resolver.dns.resolver.hooked.clone())
+				.dns_resolver(dns.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))
 				.timeout(Duration::from_secs(
@@ -90,7 +112,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			sender: base(config)?
-				.dns_resolver(resolver.dns.resolver.hooked.clone())
+				.dns_resolver(dns.clone())
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.sender_timeout))
 				.timeout(Duration::from_secs(config.sender_timeout))
@@ -100,7 +122,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			appservice: base(config)?
-				.dns_resolver(resolver.dns.resolver.clone())
+				.dns_resolver(dns.clone())
 				.connect_timeout(Duration::from_secs(5))
 				.read_timeout(Duration::from_secs(config.appservice_timeout))
 				.timeout(Duration::from_secs(config.appservice_timeout))
@@ -110,7 +132,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			pusher: base(config)?
-				.dns_resolver(resolver.dns.resolver.clone())
+				.dns_resolver(dns.clone())
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)
@@ -126,6 +148,11 @@ impl crate::Service for Service {
 				.collect::<Result<_, String>>()
 				.map_err(|e| err!(Config("ip_range_denylist", e)))?,
 		}))
+	}
+
+	async fn clear_cache(&self) {
+		self.resolver.clear_cache();
+		self.dns.resolver.clear_cache();
 	}
 
 	fn name(&self) -> &str { service::make_name(std::module_path!()) }
