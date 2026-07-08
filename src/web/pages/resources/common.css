@@ -175,6 +175,7 @@ pre {
     background-color: oklch(from var(--panel-bg) calc(l - 0.05) c h);
     border-radius: var(--border-radius-sm);
     padding: 8px;
+    overflow-x: scroll;
 }
 
 input, button, a.button {
