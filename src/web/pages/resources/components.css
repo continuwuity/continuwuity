@@ -2,8 +2,8 @@
     --avatar-size: 56px;
 
     display: inline-block;
-    aspect-ratio: 1 / 1;
-    inline-size: var(--avatar-size);
+    width: var(--avatar-size);
+    height: var(--avatar-size);
     border-radius: 50%;
 
     text-align: center;
