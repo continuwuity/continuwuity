@@ -132,7 +132,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			pusher: base(config)?
-				.dns_resolver(dns.clone())
+				.dns_resolver(dns)
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)

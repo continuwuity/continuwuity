@@ -69,10 +69,7 @@ impl Resolver {
 		*builder.options_mut() = opts;
 		let resolver = Arc::new(builder.build().expect("failed to build resolver :("));
 
-		Ok(Arc::new(Self {
-			resolver: resolver.clone(),
-			server: server.clone(),
-		}))
+		Ok(Arc::new(Self { resolver, server: server.clone() }))
 	}
 
 	/// Clear the in-memory hickory-dns caches
