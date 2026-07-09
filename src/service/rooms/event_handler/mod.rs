@@ -1,5 +1,6 @@
 mod acl_check;
 mod fetch_and_handle_outliers;
+mod fetch_auth;
 mod fetch_prev;
 mod fetch_state;
 mod handle_incoming_pdu;
@@ -14,7 +15,9 @@ use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
 use conduwuit::{Err, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
-pub use fetch_and_handle_outliers::{GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag};
+pub use fetch_and_handle_outliers::{
+	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
+};
 use ruma::{
 	OwnedEventId, OwnedRoomId, RoomId, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,

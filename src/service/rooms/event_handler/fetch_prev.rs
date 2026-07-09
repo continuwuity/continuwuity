@@ -7,7 +7,7 @@ use conduwuit::{
 use futures::StreamExt;
 use ruma::{CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, ServerName};
 
-use crate::rooms::event_handler::build_local_dag;
+use crate::rooms::event_handler::{build_local_dag, fetch_and_handle_outliers::DagBuilderTree};
 
 impl super::Service {
 	/// Fetches any missing prev_events for this event and persists them before
@@ -89,7 +89,7 @@ impl super::Service {
 		} else {
 			let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> =
 				mapped.iter().map(|(id, data)| (id.clone(), data)).collect();
-			build_local_dag(&refmap).await?
+			build_local_dag(&refmap, DagBuilderTree::PrevEvents).await?
 		};
 
 		let job_start = Instant::now();

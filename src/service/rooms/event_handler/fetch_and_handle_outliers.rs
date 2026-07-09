@@ -7,7 +7,7 @@ use assign::assign;
 #[cfg(debug_assertions)]
 use conduwuit::error;
 use conduwuit::{
-	Err, Event, PduEvent, debug, debug_error, debug_info, debug_warn, err,
+	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, err,
 	result::FlatOk,
 	state_res::lexicographical_topological_sort,
 	trace,
@@ -28,6 +28,11 @@ use crate::rooms::event_handler::parse_incoming_pdu::expect_event_id_array;
 
 pub const GET_MISSING_EVENTS_MAX_BATCH_SIZE: usize = 50;
 
+pub enum DagBuilderTree {
+	PrevEvents,
+	AuthEvents,
+}
+
 /// Attempts to build a localised directed acyclic graph out of the given PDUs,
 /// returning them in a topologically sorted order.
 ///
@@ -38,21 +43,24 @@ pub const GET_MISSING_EVENTS_MAX_BATCH_SIZE: usize = 50;
 #[allow(clippy::implicit_hasher)]
 pub async fn build_local_dag(
 	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject>,
-) -> conduwuit::Result<Vec<OwnedEventId>> {
+	tree: DagBuilderTree,
+) -> Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
 	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
 		HashMap::with_capacity(pdu_map.len());
 	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
+	let tree = match tree {
+		| DagBuilderTree::AuthEvents => "auth_events",
+		| DagBuilderTree::PrevEvents => "prev_events",
+	};
 
 	for (event_id, value) in pdu_map {
 		// Parse all prev events as event IDs - if they are missing, return an error (we
 		// can't sanely continue in this case), otherwise skip invalid prev events.
 		let prev_events = value
-			.get("prev_events")
+			.get(tree)
 			.and_then(CanonicalJsonValue::as_array)
-			.ok_or_else(|| {
-				err!(Request(BadJson("event JSON for {event_id} is missing prev_events")))
-			})?
+			.ok_or_else(|| err!(Request(BadJson("event JSON for {event_id} is missing {tree}"))))?
 			.iter()
 			.map(|v| v.as_str().and_then(|s| EventId::parse(s).ok()))
 			.filter(|id| id.as_ref().is_some_and(|id| pdu_map.contains_key(id)))
@@ -123,7 +131,7 @@ impl super::Service {
 		tail: Vec<OwnedEventId>,
 		via: &ServerName,
 		min_depth: UInt,
-	) -> conduwuit::Result<HashMap<OwnedEventId, PduEvent>> {
+	) -> Result<HashMap<OwnedEventId, PduEvent>> {
 		let start = Instant::now();
 		#[cfg(debug_assertions)]
 		{
@@ -355,7 +363,7 @@ impl super::Service {
 		remote: OwnedServerName,
 		event_id: OwnedEventId,
 		room_version_rules: &RoomVersionRules,
-	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 		let res = self
 			.services
 			.sending
@@ -382,7 +390,7 @@ impl super::Service {
 		candidates: impl Iterator<Item = &OwnedServerName>,
 		event_id: &EventId,
 		room_version_rules: &RoomVersionRules,
-	) -> conduwuit::Result<(OwnedEventId, CanonicalJsonObject)> {
+	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 		if let Ok(pdu_json) = self.services.timeline.get_pdu_json(event_id).await {
 			return Ok((event_id.to_owned(), pdu_json));
 		}
@@ -534,7 +542,7 @@ impl super::Service {
 			.iter()
 			.map(|(id, data)| (id.clone(), data))
 			.collect();
-		let seeded_ordered = build_local_dag(&refmap)
+		let seeded_ordered = build_local_dag(&refmap, DagBuilderTree::AuthEvents)
 			.await
 			.expect("failed to build local DAG");
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());

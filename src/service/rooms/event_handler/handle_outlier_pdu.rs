@@ -1,14 +1,13 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err, info, state_res, trace,
-	warn,
+	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_info, debug_warn, err, info,
+	matrix::StateKey, state_res::auth_check, trace, warn,
 };
 use futures::future::ready;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	api::federation::authorization::get_event_authorization, canonical_json::redact,
-	events::StateEventType,
+	canonical_json::redact, events::StateEventType, room_version_rules::RoomVersionRules,
 };
 
 use super::{check_room_id, get_room_version_rules};
@@ -100,10 +99,62 @@ impl super::Service {
 
 		check_room_id(room_id, &pdu_event)?;
 
+		// TODO(nex): From hereon the event is not dropped, and thus always added as an
+		// outlier. However, we only do that at the end of this function, which means
+		// several duplicated calls to add_pdu_outlier. Shouldn't we just do it here
+		// instead, since we know it's going to be persisted as an outlier no matter
+		// what? the rest of this function is basically just to check PDU check 4.
+
+		// NOTE^: Technically, persisting the event before knowing if it's rejected
+		// introduces a race condition in fetch_and_persist_event_auth, where we have
+		// the event locally, but haven't yet flagged it as rejected, which the
+		// fetcher perceives as "accepted". I'm not sure if that's practically possible
+		// though.
+
 		// Fetch all auth events
 		let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
 
 		for auth_event_id in pdu_event.auth_events() {
+			if let Ok(auth_event) = self.services.timeline.get_pdu(auth_event_id).await {
+				check_room_id(room_id, &auth_event)?;
+				trace!("Found auth event {auth_event_id} for outlier event {event_id} locally");
+				auth_events.insert(auth_event_id.to_owned(), auth_event);
+			} else {
+				debug_warn!(
+					"Could not find auth event {auth_event_id} for outlier event {event_id} \
+					 locally"
+				);
+			}
+		}
+
+		// Fetch any missing ones & reject invalid ones
+		if auth_events.len() != pdu_event.auth_events().count() {
+			info!("Missing some auth events, asking remote for auth chain");
+			let auth_chain_map = self
+				.fetch_and_persist_event_auth(
+					&pdu_event,
+					origin,
+					&room_version_rules,
+					create_event,
+				)
+				.await?;
+			for auth_event_id in pdu_event.auth_events() {
+				if auth_events.contains_key(auth_event_id) {
+					continue;
+				}
+				if let Some(auth_event) = auth_chain_map.get(auth_event_id) {
+					auth_events.insert(auth_event_id.to_owned(), auth_event.clone());
+				} else {
+					return Err!(Request(Forbidden(
+						"Remote server is not divulging incoming event's auth events (missing: \
+						 {auth_event_id})"
+					)));
+				}
+			}
+		}
+
+		// Ensure none of the auth events are rejected - if they are, reject too.
+		for auth_event_id in auth_events.keys() {
 			if self
 				.services
 				.pdu_metadata
@@ -120,64 +171,6 @@ impl super::Service {
 					"Event has rejected auth event: {auth_event_id}"
 				)));
 			}
-
-			if let Ok(auth_event) = self.services.timeline.get_pdu(auth_event_id).await {
-				check_room_id(room_id, &auth_event)?;
-				trace!("Found auth event {auth_event_id} for outlier event {event_id} locally");
-				auth_events.insert(auth_event_id.to_owned(), auth_event);
-			} else {
-				debug_warn!(
-					"Could not find auth event {auth_event_id} for outlier event {event_id} \
-					 locally"
-				);
-			}
-		}
-
-		// Fetch any missing ones & reject invalid ones
-		if auth_events.len() != pdu_event.auth_events().count() {
-			info!("Missing some auth events, asking remote for auth chain");
-			let response: get_event_authorization::v1::Response = self
-				.services
-				.sending
-				.send_federation_request(
-					origin,
-					get_event_authorization::v1::Request::new(
-						room_id.to_owned(),
-						event_id.to_owned(),
-					),
-				)
-				.await
-				.map_err(|e| {
-					err!(Request(Forbidden(
-						"Remote server is not divulging incoming event's auth chain: {e}"
-					)))
-				})?;
-			let mut auth_chain_map = HashMap::with_capacity(response.auth_chain.len());
-			for auth_pdu_json in response.auth_chain {
-				let (auth_event_room_id, auth_event_id, auth_pdu_json) =
-					self.parse_incoming_pdu(&auth_pdu_json).await?;
-				if auth_event_room_id != room_id {
-					return Err!(Request(Forbidden(
-						"Auth event {auth_event_id} is in {auth_event_room_id}, not {room_id}."
-					)));
-				}
-				let auth_pdu = PduEvent::from_id_val(&auth_event_id, auth_pdu_json)
-					.map_err(|e| err!(Request(BadJson("Invalid PDU {auth_event_id}: {e}"))))?;
-				auth_chain_map.insert(auth_event_id, auth_pdu);
-			}
-			for auth_event_id in pdu_event.auth_events() {
-				if auth_events.contains_key(auth_event_id) {
-					continue;
-				}
-				if let Some(auth_event) = auth_chain_map.get(auth_event_id) {
-					auth_events.insert(auth_event_id.to_owned(), auth_event.clone());
-				} else {
-					return Err!(Request(Forbidden(
-						"Remote server is not divulging incoming event's auth events (missing: \
-						 {auth_event_id})"
-					)));
-				}
-			}
 		}
 
 		// 6. Reject "due to auth events" if the event doesn't pass auth based on the
@@ -193,13 +186,13 @@ impl super::Service {
 
 			check_room_id(room_id, &auth_event)?;
 
-			match auth_events_by_key.entry((
-				auth_event.kind.to_string().into(),
+			let key = auth_event.kind().with_state_key(
 				auth_event
 					.state_key
 					.clone()
-					.expect("all auth events have state keys"),
-			)) {
+					.expect("all auth events must have state keys"),
+			);
+			match auth_events_by_key.entry(key) {
 				| hash_map::Entry::Vacant(v) => {
 					v.insert(auth_event);
 				},
@@ -218,23 +211,15 @@ impl super::Service {
 			}
 		}
 
-		let state_fetch = |ty: &StateEventType, sk: &str| {
-			let key = (ty.to_owned(), sk.into());
-			ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
-		};
-
-		// PDU check: 3
-		let auth_check = state_res::event_auth::auth_check(
-			&room_version_rules,
-			&pdu_event,
-			None, // TODO: third party invite
-			state_fetch,
-			create_event.as_pdu(),
-		)
-		.await
-		.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
-
-		if !auth_check {
+		if !self
+			.is_event_self_authorised(
+				&pdu_event,
+				&room_version_rules,
+				create_event.as_pdu(),
+				&auth_events_by_key,
+			)
+			.await
+		{
 			self.services.pdu_metadata.mark_event_rejected(event_id);
 			self.services
 				.outlier
@@ -254,5 +239,56 @@ impl super::Service {
 		trace!("Added pdu as outlier.");
 
 		Ok((pdu_event, incoming_pdu))
+	}
+
+	/// Helper method that turns the return value of `is_event_self_authorised`
+	/// into a `Result` depending on the value.
+	///
+	/// If the event is not authorised, a Forbidden error is returned.
+	/// Otherwise, an empty `Ok`.
+	pub(super) async fn is_event_self_authorised(
+		&self,
+		pdu: &PduEvent,
+		room_version_rules: &RoomVersionRules,
+		create_event: &PduEvent,
+		auth_events_by_key: &HashMap<(StateEventType, StateKey), PduEvent>,
+	) -> bool {
+		self.expect_event_is_self_authorised(
+			pdu,
+			room_version_rules,
+			create_event,
+			auth_events_by_key,
+		)
+		.await
+		.is_ok()
+	}
+
+	/// Checks PDU check 4: Passes authorisation rules based on the event's auth
+	/// events ([spec]).
+	///
+	/// If the auth check fails, false is returned, otherwise true.
+	///
+	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
+	pub(super) async fn expect_event_is_self_authorised(
+		&self,
+		pdu: &PduEvent,
+		room_version_rules: &RoomVersionRules,
+		create_event: &PduEvent,
+		auth_events_by_key: &HashMap<(StateEventType, StateKey), PduEvent>,
+	) -> Result<bool> {
+		let state_fetch = |ty: &StateEventType, sk: &str| {
+			let key = (ty.to_owned(), sk.into());
+			ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
+		};
+
+		auth_check(
+			room_version_rules,
+			pdu,
+			None, // TODO: third party invite
+			state_fetch,
+			create_event,
+		)
+		.await
+		.map_err(|e| err!("Event self-authentication failed: {e:?}"))
 	}
 }

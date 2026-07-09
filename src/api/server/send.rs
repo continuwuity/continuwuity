@@ -41,7 +41,7 @@ use ruma::{
 	to_device::DeviceIdOrAllDevices,
 };
 use service::{
-	rooms::event_handler::build_local_dag,
+	rooms::event_handler::{DagBuilderTree, build_local_dag},
 	transactions::{FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse},
 };
 use tokio::sync::watch::{Receiver, Sender};
@@ -301,10 +301,12 @@ async fn handle_room(
 			.iter()
 			.map(|(event_id, obj)| (event_id.clone(), obj))
 			.collect();
-		build_local_dag(&refmap).await.unwrap_or_else(|e| {
-			debug_warn!("Failed to build local DAG for room {room_id}: {e}");
-			pdu_map.keys().cloned().collect()
-		})
+		build_local_dag(&refmap, DagBuilderTree::PrevEvents)
+			.await
+			.unwrap_or_else(|e| {
+				debug_warn!("Failed to build local DAG for room {room_id}: {e}");
+				pdu_map.keys().cloned().collect()
+			})
 	} else {
 		pdu_map.keys().cloned().collect()
 	};
