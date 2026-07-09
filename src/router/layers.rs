@@ -48,15 +48,20 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 	))]
 	let layers = layers.layer(compression_layer(server));
 
-	let client_ip_layer = match services.config.request_ip_source {
-		| 1 => ClientIpSource::CfConnectingIp,
-		| 2 => ClientIpSource::CloudFrontViewerAddress,
-		| 3 => ClientIpSource::FlyClientIp,
-		| 4 => ClientIpSource::RightmostXForwardedFor,
-		| 5 => ClientIpSource::TrueClientIp,
-		| 6 => ClientIpSource::XEnvoyExternalAddress,
-		| 7 => ClientIpSource::XRealIp,
-		| _ => ClientIpSource::ConnectInfo,
+	let client_ip_layer = match services
+		.config
+		.request_ip_source
+		.as_ref()
+		.map(AsRef::as_ref)
+	{
+		| Some("cf_connecting_ip") => ClientIpSource::CfConnectingIp,
+		| Some("cloudfront_viewer_address") => ClientIpSource::CloudFrontViewerAddress,
+		| Some("fly_client_ip") => ClientIpSource::FlyClientIp,
+		| Some("x_forwarded_for") => ClientIpSource::RightmostXForwardedFor,
+		| Some("true_client_ip") => ClientIpSource::TrueClientIp,
+		| Some("x_envoy_external_address") => ClientIpSource::XEnvoyExternalAddress,
+		| Some("x_real_ip") => ClientIpSource::XRealIp,
+		| None | Some(_) => ClientIpSource::ConnectInfo,
 	};
 
 	let services_ = services.clone();

@@ -372,25 +372,24 @@ pub struct Config {
 
 	/// The source to use for discovering the real connecting client IP.
 	///
-	/// Takes the number of any of the following options:
+	/// Takes any of the following options:
 	///
-	/// 0 - Use the IP address of the TCP connection
-	/// 1 - `Cf-Connecting-Ip` header
-	/// 2 - `CloudFront-Viewer-Address` header
-	/// 3 - `Fly-Client-IP` header
-	/// 4 - rightmost value of the `X-Forwarded-For` header
-	/// 5 - `True-Client-Ip` header
-	/// 6 - `X-Envoy-External-Address` header
-	/// 7 - `X-Real-Ip` header
+	/// cf_connecting_ip - `Cf-Connecting-Ip` header
+	/// cloudfront_viewer_address - `CloudFront-Viewer-Address` header
+	/// fly_client_ip - `Fly-Client-IP` header
+	/// x_forwarded_for - rightmost value of the `X-Forwarded-For` header
+	/// true_client_ip - `True-Client-Ip` header
+	/// x_envoy_external_address - `X-Envoy-External-Address` header
+	/// x_real_ip - `X-Real-Ip` header
 	///
-	/// Only change this from `0` if you are certain only your reverse proxy
+	/// Only set this if you are certain only your reverse proxy
 	/// will send the expected header. There is no "is the connecting IP allowed
 	/// to set this header" check; if the header selected is present, it is
 	/// used.
 	///
-	/// default: 0
+	/// Defaults to the IP address actually making the connection.
 	#[serde(default)]
-	pub request_ip_source: u8,
+	pub request_ip_source: Option<String>,
 
 	/// Max request size for file uploads in bytes. Defaults to 20MB.
 	/// Also limits incoming federated media.
