@@ -58,13 +58,6 @@ After doing the steps above, Continuwuity will serve these 3 JSON files:
 
 To enable full discovery, you will need to reverse proxy these paths from the base domain back to Continuwuity.
 
-:::warning
-If you choose to serve the well-known files directly through your reverse proxy, and you are
-using delegation, you must still set the `global.well_known.client` configuration option to
-the domain you're delegating to. Continuwuity needs to know the domain it runs on for OAuth-compatible
-clients to work correctly.
-:::
-
 ## Reverse proxying well-known files to Continuwuity
 
 <details>
@@ -131,7 +124,11 @@ After applying these changes, restart Continuwuity and your reverse proxy.Visit 
 
 ### Serving well-known files manually
 
-Instead of configuring `[global.well_known]` options and reverse proxying well-known URIs, you can serve these files directly as static JSON that match the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't feasible.
+Instead of reverse proxying well-known URIs, you can serve these files directly as static JSON that match the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't feasible.
+
+:::warning
+Even if you choose to serve the well-known files manually, if you are using delegation at all, you **must** still set the `global.well_known.client` configuration option to the domain you're delegating to. Continuwuity needs to know the domain it runs on for OAuth-compatible clients to work correctly.
+:::
 
 <details>
 
@@ -155,6 +152,17 @@ https://example.com {
     JSON
     }
 }
+```
+
+</details>
+
+<details>
+
+<summary>Accompanying Continuwuity configuration</summary>
+
+```toml
+[global.well_known]
+client = "https://matrix.example.com/"
 ```
 
 </details>
