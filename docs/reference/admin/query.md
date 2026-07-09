@@ -104,13 +104,11 @@ users.rs iterators and getters
 
 resolver service
 
-### `!admin query resolver destinations-cache`
+### `!admin query resolver cache`
 
-Query the destinations cache
+Query the destinations or overrides cache
 
-### `!admin query resolver overrides-cache`
-
-Query the overrides cache
+Shows entire cache by default, but can be narrowed to only show overrides with `-o/--overrides true`, or to exclude them with `false`
 
 ### `!admin query resolver flush-cache`
 
