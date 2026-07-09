@@ -19,7 +19,6 @@ use ruma::{
 	},
 	room::{JoinRuleSummary, RestrictedSummary, RoomSummary},
 	serde::Raw,
-	uint,
 };
 
 use crate::{Dep, rooms, sending};
@@ -189,12 +188,6 @@ impl Service {
 		// This function traverses the space hierarchy tree depth-first as required by
 		// the specification.
 
-		// Limit max depth to 50 to keep cycles in the space graph from blowing up the
-		// traversal. If you actually have over fifty nested spaces, and you're
-		// looking at this function to figure out what the issue is, I suggest
-		// you reconsider some of the choices you made which led you to this point.
-		let max_depth = max_depth.unwrap_or_else(|| uint!(50));
-
 		// Check accessibility of the root room first, because we need to error out
 		// if it isn't accessible.
 		// TODO refactor this once the Try trait is stable
@@ -266,11 +259,20 @@ impl Service {
 				reason = "queue.len() should never be large enough to cause strange behavior \
 				          here"
 			)]
-			if (queue.len() as u64 + 1) > max_depth.into() {
+			if max_depth.is_some_and(|max_depth| (queue.len() as u64 + 1) > max_depth.into()) {
 				continue;
 			}
 
-			// Add accessible children as a new layer
+			// Bail out if queue length exceeds 50 to keep cycles in the space graph from
+			// blowing up the traversal. If you actually have over fifty nested spaces,
+			// and you're looking at this function to figure out what the issue is, I
+			// suggest you reconsider some of the choices you made which led you to this
+			// point.
+			if queue.len() > 50 {
+				return Err!("Space hierarchy is unreasonably large");
+			}
+
+			// Add accessible children as a new layer, unless the layer
 			if !summary.children.is_empty() {
 				queue.push(summary.children);
 			}
