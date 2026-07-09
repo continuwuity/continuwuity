@@ -240,6 +240,19 @@ async fn migrate(services: &Services) -> Result<()> {
 			.map_err(|e| err!("Failed to run 'split_userid_password' migration': {e}"))?;
 	}
 
+	if db["global"]
+		.get(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH)
+		.await
+		.is_not_found()
+	{
+		info!("Running migration 'drop_roomsynctoken_shortstatehash'");
+		obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(services)
+			.await
+			.map_err(|e| {
+				err!("Failed to run 'drop_roomsynctoken_shortstatehash' migration': {e}")
+			})?;
+	}
+
 	assert_eq!(
 		services.globals.db.database_version().await,
 		DATABASE_VERSION,
@@ -871,5 +884,16 @@ async fn split_userid_password(services: &Services) -> Result {
 
 	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
 	db.db.sort()?;
+	Ok(())
+}
+
+const DROP_ROOMSYNCTOKEN_SHORTSTATEHASH: &str = "drop_roomsynctoken_shortstatehash";
+async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
+	services: &Services,
+) -> Result {
+	services.db.db.drop_column("roomsynctoken_shortstatehash")?;
+
+	info!("Cleared roomsynctoken_shortstatehash.");
+
 	Ok(())
 }

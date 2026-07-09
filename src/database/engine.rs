@@ -17,7 +17,7 @@ use std::{
 	},
 };
 
-use conduwuit::{Err, Result, debug, info, warn};
+use conduwuit::{Err, Result, debug, err, info, warn};
 use rocksdb::{
 	AsColumnFamilyRef, BoundColumnFamily, DBCommon, DBWithThreadMode, MultiThreaded,
 	WaitForCompactOptions,
@@ -126,6 +126,12 @@ impl Engine {
 		tracing::Span::current().record("sequence", sequence);
 
 		sequence
+	}
+
+	pub fn drop_column(&self, name: &str) -> Result {
+		self.db
+			.drop_cf(name)
+			.map_err(|err| err!("Failed to drop {name}: {err}"))
 	}
 }
 
