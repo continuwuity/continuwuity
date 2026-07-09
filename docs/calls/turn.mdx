@@ -57,8 +57,8 @@ Create a `docker-compose.yml` file as follows and run `docker compose up -d`:
 ```yaml
 version: '3'
 services:
-  turn:
-    container_name: coturn-server
+  coturn:
+    container_name: coturn
     image: docker.io/coturn/coturn
     restart: unless-stopped
     network_mode: "host"
@@ -296,6 +296,7 @@ First, enable coturn's PROXY-protocol accepting port by adding this:
 ```ini
 # in coturn.conf
 tcp-proxy-port=5555
+
 ```
 
 Then, in the Caddyfile:
