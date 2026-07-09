@@ -290,6 +290,26 @@
 #
 #ip_lookup_strategy = 5
 
+# The source to use for discovering the real connecting client IP.
+#
+# Takes the number of any of the following options:
+#
+# 0 - Use the IP address of the TCP connection
+# 1 - `Cf-Connecting-Ip` header
+# 2 - `CloudFront-Viewer-Address` header
+# 3 - `Fly-Client-IP` header
+# 4 - rightmost value of the `X-Forwarded-For` header
+# 5 - `True-Client-Ip` header
+# 6 - `X-Envoy-External-Address` header
+# 7 - `X-Real-Ip` header
+#
+# Only change this from `0` if you are certain only your reverse proxy
+# will send the expected header. There is no "is the connecting IP allowed
+# to set this header" check; if the header selected is present, it is
+# used.
+#
+#request_ip_source = 0
+
 # Max request size for file uploads in bytes. Defaults to 20MB.
 # Also limits incoming federated media.
 #

@@ -48,6 +48,17 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 	))]
 	let layers = layers.layer(compression_layer(server));
 
+	let client_ip_layer = match services.config.request_ip_source {
+		| 1 => ClientIpSource::CfConnectingIp,
+		| 2 => ClientIpSource::CloudFrontViewerAddress,
+		| 3 => ClientIpSource::FlyClientIp,
+		| 4 => ClientIpSource::RightmostXForwardedFor,
+		| 5 => ClientIpSource::TrueClientIp,
+		| 6 => ClientIpSource::XEnvoyExternalAddress,
+		| 7 => ClientIpSource::XRealIp,
+		| _ => ClientIpSource::ConnectInfo,
+	};
+
 	let services_ = services.clone();
 	let layers = layers
 		.layer(SetSensitiveHeadersLayer::new([header::AUTHORIZATION]))
@@ -59,7 +70,7 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 				.on_response(DefaultOnResponse::new().level(Level::DEBUG)),
 		)
 		.layer(axum::middleware::from_fn_with_state(Arc::clone(services), request::handle))
-		.layer(ClientIpSource::ConnectInfo.into_extension())
+		.layer(client_ip_layer.into_extension())
 		.layer(ResponseBodyTimeoutLayer::new(Duration::from_secs(
 			server.config.client_response_timeout,
 		)))
