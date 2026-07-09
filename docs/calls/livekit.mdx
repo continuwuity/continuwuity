@@ -135,6 +135,11 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         reverse_proxy 127.0.0.1:7880
     }
     ```
+    
+    **Note**: if you run Caddy inside a container (e.g. by following the example [here](../deploying/docker.mdx#caddy-using-caddyfile)) instead of on the host, then:
+
+    - Put these containers on the same bridge network as caddy (by defining `networks: [ caddy ]` in each of the services), and
+    - Use appropriate container hostnames (`lk-jwt-service` and `livekit`) instead of `127.0.0.1` in the Caddyfile
 
 </details>
 
