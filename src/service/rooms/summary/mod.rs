@@ -272,7 +272,7 @@ impl Service {
 				return Err!("Space hierarchy is unreasonably large");
 			}
 
-			// Add accessible children as a new layer, unless the layer
+			// Add accessible children as a new layer
 			if !summary.children.is_empty() {
 				queue.push(summary.children);
 			}
