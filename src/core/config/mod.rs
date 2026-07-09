@@ -374,13 +374,13 @@ pub struct Config {
 	///
 	/// Takes any of the following options:
 	///
-	/// cf_connecting_ip - `Cf-Connecting-Ip` header
-	/// cloudfront_viewer_address - `CloudFront-Viewer-Address` header
-	/// fly_client_ip - `Fly-Client-IP` header
-	/// x_forwarded_for - rightmost value of the `X-Forwarded-For` header
-	/// true_client_ip - `True-Client-Ip` header
-	/// x_envoy_external_address - `X-Envoy-External-Address` header
-	/// x_real_ip - `X-Real-Ip` header
+	/// "cf_connecting_ip" - `Cf-Connecting-Ip` header
+	/// "cloudfront_viewer_address" - `CloudFront-Viewer-Address` header
+	/// "fly_client_ip" - `Fly-Client-IP` header
+	/// "x_forwarded_for" - rightmost value of the `X-Forwarded-For` header
+	/// "true_client_ip" - `True-Client-Ip` header
+	/// "x_envoy_external_address" - `X-Envoy-External-Address` header
+	/// "x_real_ip" - `X-Real-Ip` header
 	///
 	/// Only set this if you are certain only your reverse proxy
 	/// will send the expected header. There is no "is the connecting IP allowed
