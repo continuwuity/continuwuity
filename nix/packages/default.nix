@@ -36,14 +36,16 @@
                   self'.packages.stable-toolchain
               );
 
+              # extra features via `cargoExtraArgs`
+              cargoExtraArgs = "-F http3";
+
               default = pkgs.callPackage ./continuwuity.nix {
                 inherit self craneLib;
 
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
                 rocksdb = if isStatic then null else self'.packages.rocksdb;
 
-                # extra features via `cargoExtraArgs`
-                cargoExtraArgs = "-F http3";
+                inherit cargoExtraArgs;
                 # extra RUSTFLAGS via `rustflags`
                 # the stuff below is required for http3
                 rustflags = "--cfg reqwest_unstable";
@@ -55,6 +57,7 @@
               max-perf = default.override {
                 # compiles slower but with more thorough optimizations
                 profile = "release-max-perf";
+                cargoExtraArgs = cargoExtraArgs + "-F release_max_log_level";
               };
 
               max-perf-haswell = max-perf.override {
