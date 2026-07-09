@@ -29,9 +29,7 @@
             Last active: {{ last_active }}
         </div>
         <div>
-        {% if style == DeviceCardStyle::Detailed %}
-            <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id }}/remove">Remove</a>
-        {% else %}
+        {% if style != DeviceCardStyle::Detailed %}
             <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id }}/">Details</a>
         {% endif %}
         </div>
