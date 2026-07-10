@@ -1,9 +1,8 @@
 use std::{borrow::Borrow, collections::HashMap, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_error, debug_info, err, info, is_equal_to, is_true,
-	matrix::{Event, EventTypeExt, PduEvent, StateKey, state_res},
-	result::DebugInspect,
+	Err, Result, debug, debug_info, is_equal_to, is_true,
+	matrix::{Event, PduEvent},
 	trace,
 	utils::{
 		IterStream,
@@ -11,10 +10,10 @@ use conduwuit::{
 		stream::{BroadbandExt, ReadyExt},
 	},
 };
-use futures::{FutureExt, StreamExt, future::ready};
+use futures::{FutureExt, StreamExt};
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, OwnedRoomId, RoomId, ServerName, api::error::ErrorKind,
-	events::StateEventType, room_version_rules::RoomVersionRules,
+	CanonicalJsonObject, OwnedEventId, OwnedRoomId, RoomId, ServerName, events::StateEventType,
+	room_version_rules::RoomVersionRules,
 };
 use tokio::join;
 
@@ -79,12 +78,7 @@ impl super::Service {
 		// either need to have all the prev events locally, or ask a remote server
 		// for the state at the event.
 		let (passes_state_before, state_before) = self
-			.is_authorised_by_state_before(
-				&incoming_pdu,
-				&room_version_rules,
-				create_event,
-				origin,
-			)
+			.state_before_check_5(&incoming_pdu, &room_version_rules, create_event, origin)
 			.await?;
 
 		if !passes_state_before {
@@ -108,7 +102,7 @@ impl super::Service {
 		);
 		let state_lock = self.services.state.mutex.lock(room_id).await;
 		let passes_current_state = self
-			.is_authorised_by_current_state(&incoming_pdu, &room_version_rules, create_event)
+			.current_state_check_6(&incoming_pdu, &room_version_rules, create_event)
 			.await?;
 
 		// Determine whether this PDU should be soft-failed.
@@ -133,7 +127,7 @@ impl super::Service {
 			// since the policy server refusing this event also soft-fails it.
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
 			should_soft_fail = self
-				.policy_server_check(&incoming_pdu, &mut val, &room_version_rules)
+				.policy_server_check_7(&incoming_pdu, &mut val, &room_version_rules)
 				.await?;
 
 			// TODO: this is supposed to hide redactions from policy servers and janitorial
@@ -232,181 +226,6 @@ impl super::Service {
 		}
 
 		Ok(pdu_id)
-	}
-
-	/// Checks that the event passes PDU check 5, which ensures that the event
-	/// is authorised based on the state before the event (which is the resolved
-	/// state across all prev events).
-	///
-	/// Returns a boolean indicating whether the event is authorised, and also
-	/// the resolved state before the event for later use. Returns an error if
-	/// state fetching or auth checking fails.
-	async fn is_authorised_by_state_before(
-		&self,
-		incoming_pdu: &PduEvent,
-		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-		origin: &ServerName,
-	) -> Result<(bool, HashMap<u64, OwnedEventId>)> {
-		debug!(
-			event_id = %incoming_pdu.event_id,
-			"Resolving state at event"
-		);
-		let room_id = incoming_pdu.room_id_or_hash();
-
-		// If the incoming event only has one prev event, we can just use the state at
-		// that event, but otherwise we have to resolve across each fork. If we're
-		// missing even one of the prev events, we have to ask a remote server for help.
-		//
-		// TODO: this can be optimised by only loading auth chain events into memory,
-		// rather than the entire state.
-		let state_before = if incoming_pdu.prev_events().count() == 1 {
-			self.state_at_incoming_degree_one(&incoming_pdu).await?
-		} else {
-			self.state_at_incoming_resolved(&incoming_pdu, &room_id, room_version_rules)
-				.await?
-		};
-		let state_before = match state_before {
-			| Some(s) => s,
-			| None => {
-				trace!("Could not calculate incoming state, asking remote {origin} for it");
-				self.fetch_state(origin, create_event, &room_id, incoming_pdu.event_id())
-					.await
-					.debug_inspect_err(|e| {
-						debug_error!("Could not fetch state from {origin}: {e}");
-					})?
-			},
-		};
-
-		if state_before.is_empty()
-			&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
-		{
-			// This can happen if the remote sends an event but cannot be reached to fetch
-			// the state at it, and all other servers in the room (which might just be the
-			// unreachable server) are unable to provide required info.
-			// returning an error here allows the upgrade to be attempted at another time.
-			return Err!(Request(Forbidden("Could not resolve incoming state before event")));
-		}
-		trace!(state_events = state_before.len(), "Calculated incoming state");
-
-		let state_fetch_state = &state_before;
-		let state_fetch = |k: StateEventType, s: StateKey| async move {
-			let shortstatekey = self.services.short.get_shortstatekey(&k, &s).await.ok()?;
-
-			let event_id = state_fetch_state.get(&shortstatekey)?;
-			self.services.timeline.get_pdu(event_id).await.ok()
-		};
-
-		debug!(
-			event_id = %incoming_pdu.event_id,
-			"Running state-before auth check"
-		);
-
-		// PDU check: 5
-		let auth_check = state_res::event_auth::auth_check(
-			room_version_rules,
-			incoming_pdu,
-			None, // TODO: third party invite
-			|ty, sk| state_fetch(ty.clone(), sk.into()),
-			create_event.as_pdu(),
-		)
-		.await
-		.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
-		Ok((auth_check, state_before))
-	}
-
-	/// Checks that the event passes PDU check 6, which ensures that the event
-	/// is authorised based on the room's current state (which is the resolved
-	/// state across all current forward extremities).
-	///
-	/// Returns a boolean indicating whether the event is authorised, or an
-	/// error if the auth check fails.
-	async fn is_authorised_by_current_state(
-		&self,
-		incoming_pdu: &PduEvent,
-		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-	) -> Result<bool> {
-		debug!(
-			event_id = %incoming_pdu.event_id,
-			"Gathering auth events"
-		);
-		let auth_events = self
-			.services
-			.state
-			.get_auth_events(
-				&incoming_pdu.room_id_or_hash(),
-				incoming_pdu.kind(),
-				incoming_pdu.sender(),
-				incoming_pdu.state_key(),
-				incoming_pdu.content(),
-				room_version_rules,
-			)
-			.await?;
-
-		let state_fetch = |k: &StateEventType, s: &str| {
-			let key = k.with_state_key(s);
-			ready(auth_events.get(&key).map(ToOwned::to_owned))
-		};
-
-		debug!(
-			event_id = %incoming_pdu.event_id,
-			"Running current state auth check"
-		);
-		state_res::event_auth::auth_check(
-			room_version_rules,
-			incoming_pdu,
-			None, // third-party invite
-			state_fetch,
-			create_event.as_pdu(),
-		)
-		.await
-		.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))
-	}
-
-	/// Performs PDU check 7 - does the policy server allow this event.
-	///
-	/// If the policy server forbids the event, false is returned. If there is a
-	/// problem contacting the policy server, or it returns an unrecognised
-	/// response, an appropriate error is returned.
-	async fn policy_server_check(
-		&self,
-		incoming_pdu: &PduEvent,
-		pdu_json: &mut CanonicalJsonObject,
-		room_version_rules: &RoomVersionRules,
-	) -> Result<bool> {
-		let event_id = pdu_json
-			.remove("event_id")
-			.expect("event_id should be present in pdu_json at this stage");
-		if let Err(e) = self
-			.policy_server_allows_event(
-				incoming_pdu,
-				pdu_json,
-				&incoming_pdu.room_id_or_hash(),
-				room_version_rules,
-				true,
-			)
-			.await
-			.debug_inspect(|()| {
-				debug!(
-					event_id = %incoming_pdu.event_id,
-					"Event has passed policy server check."
-				);
-			}) {
-			return if matches!(e.kind(), ErrorKind::Forbidden) {
-				info!(
-					event_id = %incoming_pdu.event_id,
-					error = %e,
-					"Event has been marked as spam by policy server: {}",
-					e.message(),
-				);
-				Ok(false)
-			} else {
-				Err(e)
-			};
-		}
-		pdu_json.insert("event_id".to_owned(), event_id);
-		Ok(true)
 	}
 
 	/// Derives new room state from the incoming event and filters forward

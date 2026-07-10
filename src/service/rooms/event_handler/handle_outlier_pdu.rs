@@ -1,13 +1,12 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_info, debug_warn, err, info,
-	matrix::StateKey, state_res::auth_check, trace, warn,
+	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_info, debug_warn, err, info, trace,
+	warn,
 };
-use futures::future::ready;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	canonical_json::redact, events::StateEventType, room_version_rules::RoomVersionRules,
+	canonical_json::redact,
 };
 
 use super::{check_room_id, get_room_version_rules};
@@ -213,13 +212,13 @@ impl super::Service {
 		}
 
 		if !self
-			.is_event_self_authorised(
+			.auth_state_check_4(
 				&pdu_event,
 				&room_version_rules,
 				create_event.as_pdu(),
 				&auth_events_by_key,
 			)
-			.await
+			.await?
 		{
 			self.reject_and_persist(event_id, &incoming_pdu);
 			return Err!(Request(Forbidden(
@@ -237,57 +236,6 @@ impl super::Service {
 		trace!("Added pdu as outlier.");
 
 		Ok((pdu_event, incoming_pdu))
-	}
-
-	/// Helper method that turns the return value of `is_event_self_authorised`
-	/// into a `Result` depending on the value.
-	///
-	/// If the event is not authorised, a Forbidden error is returned.
-	/// Otherwise, an empty `Ok`.
-	pub(super) async fn is_event_self_authorised(
-		&self,
-		pdu: &PduEvent,
-		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-		auth_events_by_key: &HashMap<(StateEventType, StateKey), PduEvent>,
-	) -> bool {
-		self.expect_event_is_self_authorised(
-			pdu,
-			room_version_rules,
-			create_event,
-			auth_events_by_key,
-		)
-		.await
-		.is_ok()
-	}
-
-	/// Checks PDU check 4: Passes authorisation rules based on the event's auth
-	/// events ([spec]).
-	///
-	/// If the auth check fails, false is returned, otherwise true.
-	///
-	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
-	pub(super) async fn expect_event_is_self_authorised(
-		&self,
-		pdu: &PduEvent,
-		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-		auth_events_by_key: &HashMap<(StateEventType, StateKey), PduEvent>,
-	) -> Result<bool> {
-		let state_fetch = |ty: &StateEventType, sk: &str| {
-			let key = (ty.to_owned(), sk.into());
-			ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
-		};
-
-		auth_check(
-			room_version_rules,
-			pdu,
-			None, // TODO: third party invite
-			state_fetch,
-			create_event,
-		)
-		.await
-		.map_err(|e| err!("Event self-authentication failed: {e:?}"))
 	}
 
 	/// Marks the event as rejected and then saves it as an outlier.
