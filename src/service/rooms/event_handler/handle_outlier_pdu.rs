@@ -50,7 +50,7 @@ impl super::Service {
 
 		// 1. Check that the PDU follows the format for the room version
 		// (in this case, just size check)
-		if !pdu_fits(&value) {
+		if !Self::pdu_format_check_1(&value) {
 			warn!(
 				"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
 				 exceeds 65535 bytes or is otherwise too large."
@@ -63,24 +63,9 @@ impl super::Service {
 
 		// 2. Check signatures, otherwise drop.
 		// 3. Check content hash, redacting the event if it fails.
-		let mut incoming_pdu = match self
-			.services
-			.server_keys
-			.verify_event(&value, &room_version_rules)
-			.await
-		{
-			| Ok(ruma::signatures::Verified::All) => value,
-			| Ok(ruma::signatures::Verified::Signatures) => {
-				debug_info!("Content hash mismatch, redacting event and continuing");
-				redact(value, &room_version_rules.redaction, None)
-					.map_err(|e| err!(Request(BadJson("Unable to redact {event_id}: {e}"))))?
-			},
-			| Err(e) => {
-				return Err!(Request(Forbidden(debug_error!(
-					"Signature verification failed for {event_id}: {e}"
-				))));
-			},
-		};
+		let mut incoming_pdu = self
+			.signature_hash_check_2_3(value, &room_version_rules)
+			.await?;
 
 		// Now that we have checked the signature and hashes we can add the eventID and
 		// convert to our PduEvent type

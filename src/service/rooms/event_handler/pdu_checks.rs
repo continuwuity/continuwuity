@@ -1,16 +1,55 @@
 use std::collections::HashMap;
 
 use conduwuit::{
-	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error, err,
-	info, matrix::StateKey, state_res, trace,
+	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error,
+	debug_info, err, info, matrix::StateKey, state_res, trace, warn,
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, ServerName, api::error::ErrorKind, events::StateEventType,
-	room_version_rules::RoomVersionRules,
+	CanonicalJsonObject, OwnedEventId, ServerName, api::error::ErrorKind, canonical_json::redact,
+	events::StateEventType, room_version_rules::RoomVersionRules,
 };
 
+use crate::rooms::timeline::pdu_fits;
+
 impl super::Service {
+	/// Checks that the PDU conforms to the PDU format (check 1). This is
+	/// already mostly done during deserialisation, so this function just checks
+	/// that the PDU isn't a too large.
+	pub(super) fn pdu_format_check_1(pdu_json: &CanonicalJsonObject) -> bool {
+		// NOTE: if we do any more validation outside of deserialisation, it has to be
+		// done here.
+		pdu_fits(pdu_json)
+	}
+
+	/// Checks that the PDU has a valid signature (check 2), and redacts it if
+	/// the content hash verification fails (check 3), returning the
+	/// potentially modified JSON. Returns an error if the PDU cannot be
+	/// redacted, or fails signature verification.
+	pub(super) async fn signature_hash_check_2_3(
+		&self,
+		pdu_json: CanonicalJsonObject,
+		room_version_rules: &RoomVersionRules,
+	) -> Result<CanonicalJsonObject> {
+		match self
+			.services
+			.server_keys
+			.verify_event(&pdu_json, &room_version_rules)
+			.await
+		{
+			| Ok(ruma::signatures::Verified::All) => Ok(pdu_json),
+			| Ok(ruma::signatures::Verified::Signatures) => {
+				debug_info!("Content hash mismatch, redacting event and continuing");
+				let redacted = redact(pdu_json, &room_version_rules.redaction, None)
+					.map_err(|e| err!(Request(BadJson("Unable to redact event: {e}"))))?;
+				Ok(redacted)
+			},
+			| Err(e) => {
+				Err!(Request(Forbidden(debug_error!("Signature verification failed: {e}"))))
+			},
+		}
+	}
+
 	/// Checks PDU check 4: Passes authorisation rules based on the event's auth
 	/// events ([spec]).
 	///
