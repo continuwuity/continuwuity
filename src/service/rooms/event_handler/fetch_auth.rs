@@ -159,13 +159,13 @@ impl super::Service {
 				}
 			}
 			if !self
-				.is_event_self_authorised(
+				.auth_state_check_4(
 					&pdu,
 					room_version_rules,
 					create_event.as_pdu(),
 					&auth_events_by_key,
 				)
-				.await
+				.await?
 			{
 				self.services.pdu_metadata.mark_event_rejected(&event_id);
 			}

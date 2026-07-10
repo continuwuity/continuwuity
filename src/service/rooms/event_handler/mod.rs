@@ -6,6 +6,7 @@ mod fetch_state;
 mod handle_incoming_pdu;
 mod handle_outlier_pdu;
 mod parse_incoming_pdu;
+pub mod pdu_checks;
 mod policy_server;
 mod resolve_state;
 mod state_at_incoming;
