@@ -24,7 +24,7 @@ use ruma::{
 };
 use tokio::sync::{Notify, mpsc};
 
-use crate::{Dep, globals, rooms, sending, server_keys, sync};
+use crate::{Dep, globals, rooms, sending, server_keys};
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
@@ -47,7 +47,6 @@ struct Services {
 	state_cache: Dep<rooms::state_cache::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_compressor: Dep<rooms::state_compressor::Service>,
-	sync: Dep<sync::Service>,
 	timeline: Dep<rooms::timeline::Service>,
 	server: Arc<Server>,
 }
@@ -78,7 +77,6 @@ impl crate::Service for Service {
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_compressor: args
 					.depend::<rooms::state_compressor::Service>("rooms::state_compressor"),
-				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 				server: args.server.clone(),
 			},
