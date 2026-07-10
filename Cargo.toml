@@ -572,7 +572,7 @@ version = "0.3.0"
 [workspace.dependencies.resolvematrix]
 #version = "1.0.0"
 git = "https://forgejo.ellis.link/continuwuation/resolvematrix"
-rev = "397294dd7fbae7b43678140fec64ff50cc1f6ab6"
+rev = "bc4e487dde472c55674b3cfded570bdae4965bda"
 
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"
