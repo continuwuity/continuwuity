@@ -1,1 +1,0 @@
-fix `!admin query account-data account-data-get` not returning the content

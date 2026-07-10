@@ -1,1 +1,0 @@
-Fixed admin commands being ignored when they had leading whitespace before admin commands. Contributed by @kitvonsnookerz.

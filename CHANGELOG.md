@@ -1,3 +1,131 @@
+# Continuwuity 26.6.0 (2026-07-10)
+
+## Features
+
+- Added support for linking an external identity provider with OIDC. Contributed by @ginger. (#765)
+- Updated [MSC4284: Policy Servers](https://github.com/matrix-org/matrix-spec-proposals/pull/4284) implementation to support the newly stabilised proposal. Contributed by @nex. (#1487)
+- Added config option for default room ACLs. Contributed by @eve. (#1691)
+- Added support for fallback encryption keys. (#1710)
+- Add `!admin users reject-all-invites` to clean invite spam (#1741)
+- Implemented event rejection, which should resolve and prevent future netsplits of the kinds observed
+  within some Continuwuity rooms.
+  Also resolved several bugs related to both soft-failing events, and event backfilling, which should
+  improve state resolution stability.
+  The `!admin debug get-pdu` command was updated to disambiguate event acceptance status, and
+  `!admin debug show-auth-chain` was added to visually display event auth chains, which may assist
+  developers in debugging strangely complex events.
+
+  Contributed by @nex. (#1747)
+- Added full support for [MSC4168: Update `m.space.*` state on room upgrade](https://github.com/matrix-org/matrix-spec-proposals/pull/4168). Contributed by @nex. (#1807)
+- Improved the performance and reliability of fetching missing events, improving network partition recovery. Contributed
+  by @nex. (#1818)
+- Added static builds using Nix, allowing for Continuwuity on musl. During this, we also introduced a `max-perf-haswell` package, separating it from `max-perf`, so you may want to swap to this if you are on NixOS. Contributed by @Henry-Hiles (QuadRadical). (#1853)
+- Added support for MSC4380 invite blocking, which has become part of the Matrix specification in v1.18. Contributed by @nex. (#1875)
+- Added `!admin debug get-state-at` command (#1877)
+- Added a configuration option to allow choosing a client IP source that is not the TCP connecting IP. Contributed by @nex. (#1931)
+- Added support for MSC4466, which allows clients to customize how changes to a user's global profile are propagated. Contributed by @ginger.
+- Added support for Matrix 1.16's `state_after` feature, allowing clients which understand it to sync room state changes more reliably. Contributed by @ginger.
+- Added support for authenticating clients using the new OAuth 2.0 login API. Contributed by @ginger.
+- Appservice device management as outlined in MSC4190 (part of Matrix 1.17) is now fully supported. Contributed by @ginger.
+- Users may now be forbidden from deactivating their own accounts with the new `allow_deactivation` config option. Contributed by @ginger.
+
+## Bugfixes
+
+- Adjusted legacy sync logic to allow the `roomsynctoken_shortstatehash` database column to be dropped, massively reducing database sizes, especially for old deployments. Contributed by @ginger. (#917)
+- Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a singular transaction. Contributed by @nex. (#1711)
+- fix `!admin query account-data account-data-get` not returning the content (#1742)
+- Fixed an issue where Continuwuity would only advertise support for the unstable endpoint for Mutual Rooms (MSC2666), despite only supporting the stable endpoint. Contributed by @Henry-Hiles (QuadRadical) (#1752)
+- Fixed admin commands being ignored when they had leading whitespace before admin commands. Contributed by @kitvonsnookerz. (#1804)
+- Fixed several bugs in the `POST /_matrix/client/v3/rooms/{roomId}/upgrade` endpoint. Contributed by @nex. (#1807)
+- Devices which set their presence as "offline" will no longer be considered for presence updates. Contributed by @timedout.
+- Improved invite and join reliability in clients using legacy sync. Contributed by @ginger
+- The invite recipient's membership event is now included in invite stripped state, which should fix flaky invite display in some clients. Contributed by @ginger
+
+## Improved Documentation
+
+- Add performance tuning documentation. Contributed by @stratself. (#1498)
+- Added example configuration using caddy-docker-proxy in the livekit setup section of the docs. Contributed by @Cease (#1762)
+- Updated deployment docs to account for new RPM package availability across more distros. Contributed by @julian45. (#1912)
+
+## Deprecations and Removals
+
+- Removed support for LDAP. (#1701)
+- Removed support for guest user registration, a little-used and deprecated approach to room previews.
+- Removed the `/_conduwuit/` versions of the `local_user_count` and `version` routes. These routes are still accessible under the `/_continuwuity` prefix.
+- Support for server-side blurhashing (part of MSC2448) has been removed.
+- The deprecated `well_known.rtc_focus_server_urls` config option has been removed. MatrixRTC foci should be configured using the `matrix_rtc.foci` config option.
+
+## Misc
+
+- #1829, #1933
+- Switched from Continuwuity's fork of Ruma back to upstream Ruma. Contributed by @ginger.
+- The version of Debian that the Docker-based build process uses has been upgraded from Bookworm to Trixie, meaning that standalone binaries now have a minimum glibc of 2.41, and can no longer be used on distro versions from before 2025-01-30
+
+
+# Continuwuity 26.6.0 (2026-07-10)
+
+## Features
+
+- Added support for linking an external identity provider with OIDC. Contributed by @ginger. (#765)
+- Updated [MSC4284: Policy Servers](https://github.com/matrix-org/matrix-spec-proposals/pull/4284) implementation to support the newly stabilised proposal. Contributed by @nex. (#1487)
+- Added config option for default room ACLs. Contributed by @eve. (#1691)
+- Added support for fallback encryption keys. (#1710)
+- Add `!admin users reject-all-invites` to clean invite spam (#1741)
+- Implemented event rejection, which should resolve and prevent future netsplits of the kinds observed
+  within some Continuwuity rooms.
+  Also resolved several bugs related to both soft-failing events, and event backfilling, which should
+  improve state resolution stability.
+  The `!admin debug get-pdu` command was updated to disambiguate event acceptance status, and
+  `!admin debug show-auth-chain` was added to visually display event auth chains, which may assist
+  developers in debugging strangely complex events.
+
+  Contributed by @nex. (#1747)
+- Added full support for [MSC4168: Update `m.space.*` state on room upgrade](https://github.com/matrix-org/matrix-spec-proposals/pull/4168). Contributed by @nex. (#1807)
+- Improved the performance and reliability of fetching missing events, improving network partition recovery. Contributed
+  by @nex. (#1818)
+- Added static builds using Nix, allowing for Continuwuity on musl. During this, we also introduced a `max-perf-haswell` package, separating it from `max-perf`, so you may want to swap to this if you are on NixOS. Contributed by @Henry-Hiles (QuadRadical). (#1853)
+- Added support for MSC4380 invite blocking, which has become part of the Matrix specification in v1.18. Contributed by @nex. (#1875)
+- Added `!admin debug get-state-at` command (#1877)
+- Added a configuration option to allow choosing a client IP source that is not the TCP connecting IP. Contributed by @nex. (#1931)
+- Added support for MSC4466, which allows clients to customize how changes to a user's global profile are propagated. Contributed by @ginger.
+- Added support for Matrix 1.16's `state_after` feature, allowing clients which understand it to sync room state changes more reliably. Contributed by @ginger.
+- Added support for authenticating clients using the new OAuth 2.0 login API. Contributed by @ginger.
+- Appservice device management as outlined in MSC4190 (part of Matrix 1.17) is now fully supported. Contributed by @ginger.
+- Users may now be forbidden from deactivating their own accounts with the new `allow_deactivation` config option. Contributed by @ginger.
+
+## Bugfixes
+
+- Adjusted legacy sync logic to allow the `roomsynctoken_shortstatehash` database column to be dropped, massively reducing database sizes, especially for old deployments. Contributed by @ginger. (#917)
+- Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a singular transaction. Contributed by @nex. (#1711)
+- fix `!admin query account-data account-data-get` not returning the content (#1742)
+- Fixed an issue where Continuwuity would only advertise support for the unstable endpoint for Mutual Rooms (MSC2666), despite only supporting the stable endpoint. Contributed by @Henry-Hiles (QuadRadical) (#1752)
+- Fixed admin commands being ignored when they had leading whitespace before admin commands. Contributed by @kitvonsnookerz. (#1804)
+- Fixed several bugs in the `POST /_matrix/client/v3/rooms/{roomId}/upgrade` endpoint. Contributed by @nex. (#1807)
+- Devices which set their presence as "offline" will no longer be considered for presence updates. Contributed by @timedout.
+- Improved invite and join reliability in clients using legacy sync. Contributed by @ginger
+- The invite recipient's membership event is now included in invite stripped state, which should fix flaky invite display in some clients. Contributed by @ginger
+
+## Improved Documentation
+
+- Add performance tuning documentation. Contributed by @stratself. (#1498)
+- Added example configuration using caddy-docker-proxy in the livekit setup section of the docs. Contributed by @Cease (#1762)
+- Updated deployment docs to account for new RPM package availability across more distros. Contributed by @julian45. (#1912)
+
+## Deprecations and Removals
+
+- Removed support for LDAP. (#1701)
+- Removed support for guest user registration, a little-used and deprecated approach to room previews.
+- Removed the `/_conduwuit/` versions of the `local_user_count` and `version` routes. These routes are still accessible under the `/_continuwuity` prefix.
+- Support for server-side blurhashing (part of MSC2448) has been removed.
+- The deprecated `well_known.rtc_focus_server_urls` config option has been removed. MatrixRTC foci should be configured using the `matrix_rtc.foci` config option.
+
+## Misc
+
+- #1829, #1933
+- Switched from Continuwuity's fork of Ruma back to upstream Ruma. Contributed by @ginger.
+- The version of Debian that the Docker-based build process uses has been upgraded from Bookworm to Trixie, meaning that standalone binaries now have a minimum glibc of 2.41, and can no longer be used on distro versions from before 2025-01-30
+
+
 # Continuwuity 0.5.8 (2026-04-24)
 
 ## Features

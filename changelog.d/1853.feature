@@ -1,1 +1,0 @@
-Added static builds using Nix, allowing for Continuwuity on musl. During this, we also introduced a `max-perf-haswell` package, separating it from `max-perf`, so you may want to swap to this if you are on NixOS. Contributed by @Henry-Hiles (QuadRadical).

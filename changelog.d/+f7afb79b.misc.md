@@ -1,1 +1,0 @@
-The version of Debian that the Docker-based build process uses has been upgraded from Bookworm to Trixie, meaning that standalone binaries now have a minimum glibc of 2.41, and can no longer be used on distro versions from before 2025-01-30
