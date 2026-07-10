@@ -42,7 +42,7 @@ pub enum DagBuilderTree {
 /// not account for power levels or other tie breaks.
 #[allow(clippy::implicit_hasher)]
 pub async fn build_local_dag(
-	pdu_map: &HashMap<OwnedEventId, &CanonicalJsonObject>,
+	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject>,
 	tree: DagBuilderTree,
 ) -> Result<Vec<OwnedEventId>> {
 	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
@@ -538,11 +538,7 @@ impl super::Service {
 			}
 		}
 
-		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = discovered_events
-			.iter()
-			.map(|(id, data)| (id.clone(), data))
-			.collect();
-		let seeded_ordered = build_local_dag(&refmap, DagBuilderTree::AuthEvents)
+		let seeded_ordered = build_local_dag(&discovered_events, DagBuilderTree::AuthEvents)
 			.await
 			.expect("failed to build local DAG");
 		let mut pdus = HashMap::with_capacity(seeded_ordered.len());
