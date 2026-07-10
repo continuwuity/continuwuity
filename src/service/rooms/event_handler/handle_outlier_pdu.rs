@@ -1,16 +1,11 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_info, debug_warn, err, info, trace,
-	warn,
+	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_warn, err, info, trace, warn,
 };
-use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName,
-	canonical_json::redact,
-};
+use ruma::{CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName};
 
 use super::{check_room_id, get_room_version_rules};
-use crate::rooms::timeline::pdu_fits;
 
 impl super::Service {
 	/// Handles a PDU as an outlier, performing basic checks like signatures and
