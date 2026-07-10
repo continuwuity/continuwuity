@@ -5,7 +5,7 @@ use conduwuit::{
 };
 use ruma::{CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName};
 
-use super::{check_room_id, get_room_version_rules};
+use super::get_room_version_rules;
 
 impl super::Service {
 	/// Handles a PDU as an outlier, performing basic checks like signatures and
@@ -39,7 +39,6 @@ impl super::Service {
 				"event_id".to_owned(),
 				CanonicalJsonValue::String(event_id.as_str().to_owned()),
 			);
-			check_room_id(room_id, &pdu_event)?;
 			return Ok((pdu_event, value));
 		}
 

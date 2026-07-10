@@ -5,15 +5,16 @@ use std::{
 
 use conduwuit::{
 	Err, Event, Result, debug, debug_error, debug_warn, defer, error, matrix::PartialPdu,
-	result::DebugInspect, trace, utils::time::jitter, warn,
+	result::DebugInspect, trace, utils::time::jitter,
 };
 use futures::{FutureExt, StreamExt, future::try_join3};
 use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId};
 use tokio::sync::mpsc;
 
-use crate::rooms::timeline::{RawPduId, pdu_fits};
+use crate::rooms::timeline::RawPduId;
 
 impl super::Service {
+	/// Handles an incoming PDU from federation.
 	#[tracing::instrument(
 		name = "pdu",
 		skip_all,
@@ -31,13 +32,6 @@ impl super::Service {
 		// outliers in this scenario.
 		if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
 			return Ok(Some(pdu_id));
-		}
-		if !pdu_fits(&value) {
-			warn!(
-				"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
-				 exceeds 65535 bytes or is otherwise too large."
-			);
-			return Err!(Request(TooLarge("PDU is too large")));
 		}
 		trace!(
 			"processing incoming PDU from {origin} for room {room_id} with event id {event_id}"

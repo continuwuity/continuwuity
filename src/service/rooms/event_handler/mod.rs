@@ -115,22 +115,6 @@ impl Service {
 	}
 }
 
-fn check_room_id<Pdu: Event>(room_id: &RoomId, pdu: &Pdu) -> Result {
-	if pdu
-		.room_id()
-		.is_some_and(|claimed_room_id| claimed_room_id != room_id)
-	{
-		return Err!(Request(InvalidParam(error!(
-			pdu_event_id = %pdu.event_id(),
-			pdu_room_id = pdu.room_id().map(tracing::field::display),
-			%room_id,
-			"Found event from room in room",
-		))));
-	}
-
-	Ok(())
-}
-
 fn get_room_version_rules<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionRules> {
 	let content: RoomCreateEventContent = create_event.get_content()?;
 	let Some(room_version_rules) = content.room_version.rules() else {
