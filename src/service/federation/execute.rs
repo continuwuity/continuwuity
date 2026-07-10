@@ -134,7 +134,7 @@ impl super::Service {
 		let actual = self
 			.services
 			.client
-			.resolver
+			.matrix_resolver
 			.resolve_server(dest.as_str())
 			.await?;
 

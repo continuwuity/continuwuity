@@ -1017,7 +1017,7 @@ impl crate::Context<'_> {
 				.http_client(self.services.client.default.clone())
 				.build()?
 		} else {
-			&self.services.client.resolver
+			&self.services.client.matrix_resolver
 		};
 
 		let actual = resolver.resolve_server(server_name.as_str()).await?;

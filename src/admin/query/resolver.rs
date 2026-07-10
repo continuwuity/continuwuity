@@ -47,7 +47,7 @@ impl crate::Context<'_> {
 		writeln!(self, "| Server Name | Destination | SNI | Override | Step | Expires |").await?;
 		writeln!(self, "| ----------- | ----------- | --- | -------- | ---- | ------- |").await?;
 
-		let entries = self.services.client.resolver.get_all_cache_entries();
+		let entries = self.services.client.matrix_resolver.get_all_cache_entries();
 
 		for (host, entry) in entries {
 			if let Some(ors) = overrides
@@ -81,13 +81,13 @@ impl crate::Context<'_> {
 
 	async fn flush_cache(&self, name: Option<OwnedServerName>, all: bool) -> Result {
 		if all {
-			self.services.client.resolver.clear_cache();
-			self.services.client.dns.clear_cache();
+			self.services.client.matrix_resolver.clear_cache();
+			self.services.client.dns_resolver.clear_cache();
 			writeln!(self, "Resolver and DNS caches cleared!").await
 		} else if let Some(name) = name {
 			self.services
 				.client
-				.resolver
+				.matrix_resolver
 				.remove_cache_entry(name.as_str());
 			self.write_str(&format!("Cleared {name} from resolver caches!"))
 				.await
