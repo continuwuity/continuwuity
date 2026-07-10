@@ -16,8 +16,13 @@ use crate::rooms::timeline::pdu_fits;
 impl super::Service {
 	/// Handles a PDU as an outlier, performing basic checks like signatures and
 	/// hashes, proclaimed event auth, and then adding it to the outlier tree.
+	///
+	/// This performs steps 1 through 4 of [S-S section 5.1][spec], returning
+	/// the parsed PDU and modified JSON object.
+	///
+	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
 	#[allow(clippy::too_many_arguments)]
-	#[tracing::instrument(name="handle_outlier", skip_all, fields(%event_id))]
+	#[tracing::instrument(name = "handle_outlier", skip_all)]
 	pub(super) async fn handle_outlier_pdu<'a, Pdu>(
 		&self,
 		origin: &'a ServerName,
@@ -29,54 +34,47 @@ impl super::Service {
 	where
 		Pdu: Event + Send + Sync,
 	{
-		if !pdu_fits(&mut value.clone()) {
+		// Skip outlier handling if we already have this event as either a timeline or
+		// outlier PDU.
+		if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
+			debug!(
+				"Already have event {event_id} as an outlier or timeline event, not \
+				 re-processing"
+			);
+			value.insert(
+				"event_id".to_owned(),
+				CanonicalJsonValue::String(event_id.as_str().to_owned()),
+			);
+			check_room_id(room_id, &pdu_event)?;
+			return Ok((pdu_event, value));
+		}
+
+		// 1. Check that the PDU follows the format for the room version
+		// (in this case, just size check)
+		if !pdu_fits(&value) {
 			warn!(
 				"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
 				 exceeds 65535 bytes or is otherwise too large."
 			);
 			return Err!(Request(TooLarge("PDU is too large")));
 		}
-		// 1. Remove unsigned field
-		value.remove("unsigned");
 
-		// 2. Check signatures, otherwise drop
-		// 3. check content hash, redact if doesn't match
+		value.remove("unsigned");
 		let room_version_rules = get_room_version_rules(create_event)?;
+
+		// 2. Check signatures, otherwise drop.
+		// 3. Check content hash, redacting the event if it fails.
 		let mut incoming_pdu = match self
 			.services
 			.server_keys
 			.verify_event(&value, &room_version_rules)
 			.await
 		{
-			| Ok(ruma::signatures::Verified::All) => {
-				if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
-					debug!(
-						"Already have event {event_id} as an outlier or timeline event, not \
-						 re-processing"
-					);
-					value.insert(
-						"event_id".to_owned(),
-						CanonicalJsonValue::String(event_id.as_str().to_owned()),
-					);
-					check_room_id(room_id, &pdu_event)?;
-					return Ok((pdu_event, value));
-				}
-				value
-			},
+			| Ok(ruma::signatures::Verified::All) => value,
 			| Ok(ruma::signatures::Verified::Signatures) => {
-				if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
-					debug!(
-						"Received a redacted copy of {event_id}, but we already knew about it. \
-						 Re-using known content instead."
-					);
-					check_room_id(room_id, &pdu_event)?;
-					let obj = pdu_event.to_canonical_object();
-					return Ok((pdu_event, obj));
-				}
-
-				debug_info!("Calculated hash does not match (redaction): {event_id}");
+				debug_info!("Content hash mismatch, redacting event and continuing");
 				redact(value, &room_version_rules.redaction, None)
-					.map_err(|e| err!(Request(BadJson("Failed to redact {event_id}: {e}"))))?
+					.map_err(|e| err!(Request(BadJson("Unable to redact {event_id}: {e}"))))?
 			},
 			| Err(e) => {
 				return Err!(Request(Forbidden(debug_error!(
@@ -91,13 +89,10 @@ impl super::Service {
 			"event_id".to_owned(),
 			CanonicalJsonValue::String(event_id.as_str().to_owned()),
 		);
-
 		let pdu_event = serde_json::from_value::<PduEvent>(
 			serde_json::to_value(&incoming_pdu).expect("CanonicalJsonObj is a valid JsonValue"),
 		)
 		.map_err(|e| err!(Request(BadJson(debug_warn!("Event is not a valid PDU: {e}")))))?;
-
-		check_room_id(room_id, &pdu_event)?;
 
 		// TODO(nex): From hereon the event is not dropped, and thus always added as an
 		// outlier. However, we only do that at the end of this function, which means
@@ -116,7 +111,6 @@ impl super::Service {
 
 		for auth_event_id in pdu_event.auth_events() {
 			if let Ok(auth_event) = self.services.timeline.get_pdu(auth_event_id).await {
-				check_room_id(room_id, &auth_event)?;
 				trace!("Found auth event {auth_event_id} for outlier event {event_id} locally");
 				auth_events.insert(auth_event_id.to_owned(), auth_event);
 			} else {
@@ -154,7 +148,7 @@ impl super::Service {
 		}
 
 		// Ensure none of the auth events are rejected - if they are, reject too.
-		for auth_event_id in auth_events.keys() {
+		for (auth_event_id, auth_event) in &auth_events {
 			if self
 				.services
 				.pdu_metadata
@@ -166,15 +160,27 @@ impl super::Service {
 					 {auth_event_id}",
 					event_id,
 				);
-				self.services.pdu_metadata.mark_event_rejected(event_id);
+				self.reject_and_persist(event_id, &incoming_pdu);
 				return Err!(Request(Forbidden(
 					"Event has rejected auth event: {auth_event_id}"
 				)));
 			}
+			if auth_event.room_id_or_hash() != room_id {
+				debug_warn!(
+					%auth_event_id,
+					auth_event_room_id=%auth_event.room_id_or_hash(),
+					expected_room_id=%room_id,
+					"Rejecting incoming event which depends on an auth event in another room.",
+				);
+				self.reject_and_persist(event_id, &incoming_pdu);
+				return Err!(Request(Forbidden(
+					"Event depends on a cross-room auth event: {auth_event_id}"
+				)));
+			}
 		}
 
-		// 6. Reject "due to auth events" if the event doesn't pass auth based on the
-		//    auth events
+		// 4. Reject "due to auth events" if the event doesn't pass auth based on the
+		//    claimed auth events
 		debug!("Checking based on auth events");
 		let mut auth_events_by_key: HashMap<_, _> = HashMap::with_capacity(auth_events.len());
 		// Build map of auth events
@@ -183,8 +189,6 @@ impl super::Service {
 				.get(id)
 				.expect("we just checked that we have all auth events")
 				.to_owned();
-
-			check_room_id(room_id, &auth_event)?;
 
 			let key = auth_event.kind().with_state_key(
 				auth_event
@@ -197,10 +201,7 @@ impl super::Service {
 					v.insert(auth_event);
 				},
 				| hash_map::Entry::Occupied(_) => {
-					self.services
-						.outlier
-						.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
-					self.services.pdu_metadata.mark_event_rejected(event_id);
+					self.reject_and_persist(event_id, &incoming_pdu);
 					return Err!(Request(Forbidden(
 						"Auth event's type and state_key combination exists multiple times: {}, \
 						 {}",
@@ -220,10 +221,7 @@ impl super::Service {
 			)
 			.await
 		{
-			self.services.pdu_metadata.mark_event_rejected(event_id);
-			self.services
-				.outlier
-				.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
+			self.reject_and_persist(event_id, &incoming_pdu);
 			return Err!(Request(Forbidden(
 				"Event authorisation fails based on event's claimed auth events"
 			)));
@@ -290,5 +288,11 @@ impl super::Service {
 		)
 		.await
 		.map_err(|e| err!("Event self-authentication failed: {e:?}"))
+	}
+
+	/// Marks the event as rejected and then saves it as an outlier.
+	pub(super) fn reject_and_persist(&self, event_id: &EventId, pdu: &CanonicalJsonObject) {
+		self.services.pdu_metadata.mark_event_rejected(event_id);
+		self.services.outlier.add_pdu_outlier(event_id, pdu);
 	}
 }

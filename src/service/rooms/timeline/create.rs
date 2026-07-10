@@ -22,7 +22,9 @@ use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
 
-pub fn pdu_fits(owned_obj: &mut CanonicalJsonObject) -> bool {
+/// Ensures the given PDU fits inside the size limits for a PDU.
+#[must_use]
+pub fn pdu_fits(owned_obj: &CanonicalJsonObject) -> bool {
 	// room IDs, event IDs, senders, types, and state keys must all be <= 255 bytes
 	if let Some(CanonicalJsonValue::String(room_id)) = owned_obj.get("room_id") {
 		if room_id.len() > 255 {
@@ -311,7 +313,7 @@ impl super::Service {
 		pdu_json
 			.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 		// Verify that the *full* PDU isn't over 64KiB.
-		if !pdu_fits(&mut pdu_json.clone()) {
+		if !pdu_fits(&pdu_json.clone()) {
 			// feckin huge PDU mate
 			return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
 		}
