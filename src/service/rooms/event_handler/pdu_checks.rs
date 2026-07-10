@@ -66,12 +66,9 @@ impl super::Service {
 		//
 		// TODO: this can be optimised by only loading auth chain events into memory,
 		// rather than the entire state.
-		let state_before = if incoming_pdu.prev_events().count() == 1 {
-			self.state_at_incoming_degree_one(&incoming_pdu).await?
-		} else {
-			self.state_at_incoming_resolved(&incoming_pdu, &room_id, room_version_rules)
-				.await?
-		};
+		let state_before = self
+			.state_before_incoming(&incoming_pdu, room_version_rules)
+			.await?;
 		let state_before = match state_before {
 			| Some(s) => s,
 			| None => {

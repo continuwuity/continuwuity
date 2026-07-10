@@ -16,10 +16,31 @@ use ruma::{OwnedEventId, RoomId, room_version_rules::RoomVersionRules};
 use crate::rooms::short::ShortStateHash;
 
 impl super::Service {
-	// TODO: if we know the prev_events of the incoming event we can avoid the
-	// request and build the state from a known point and resolve if > 1 prev_event
+	/// Resolves the state before the incoming event.
+	///
+	/// If we do not know enough information to resolve the state, `Ok(None)` is
+	/// returned, and the caller will have to figure it out some other way (e.g.
+	/// by fetching the state from a remote server).
+	pub(super) async fn state_before_incoming<Pdu>(
+		&self,
+		incoming_pdu: &Pdu,
+		room_version_rules: &RoomVersionRules,
+	) -> Result<Option<HashMap<u64, OwnedEventId>>>
+	where
+		Pdu: Event + Send + Sync,
+	{
+		if incoming_pdu.prev_events().count() == 1 {
+			self.state_before_incoming_degree_one(incoming_pdu).await
+		} else {
+			self.state_before_incoming_resolved(incoming_pdu, room_version_rules)
+				.await
+		}
+	}
+
+	/// Determines the state before the incoming pdu, when it has only one prev
+	/// event. This is a special case that does not require state resolution.
 	#[tracing::instrument(name = "state", level = "debug", skip_all)]
-	pub(super) async fn state_at_incoming_degree_one<Pdu>(
+	async fn state_before_incoming_degree_one<Pdu>(
 		&self,
 		incoming_pdu: &Pdu,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>>
@@ -66,7 +87,7 @@ impl super::Service {
 				.await;
 
 			state.insert(shortstatekey, prev_event.to_owned());
-			// Now it's the state after the pdu
+			// Now it's the state at the pdu
 		}
 
 		debug_assert!(!state.is_empty(), "should be returning None for empty HashMap result");
@@ -74,11 +95,14 @@ impl super::Service {
 		Ok(Some(state))
 	}
 
+	/// Resolves the state before the incoming pdu across all of its prev
+	/// events. If we do not know enough information to resolve the state,
+	/// `Ok(None)` is returned, and the caller will have to figure it out some
+	/// other way (e.g. by fetching the state from a remote server).
 	#[tracing::instrument(name = "state", level = "debug", skip_all)]
-	pub(super) async fn state_at_incoming_resolved<Pdu>(
+	async fn state_before_incoming_resolved<Pdu>(
 		&self,
 		incoming_pdu: &Pdu,
-		room_id: &RoomId,
 		room_version_rules: &RoomVersionRules,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>>
 	where
@@ -108,6 +132,7 @@ impl super::Service {
 		};
 
 		trace!("Calculating fork states...");
+		let room_id = &incoming_pdu.room_id_or_hash();
 		let (fork_states, auth_chain_sets): (Vec<StateMap<_>>, Vec<HashSet<_>>) =
 			extremity_sstatehashes
 				.into_iter()
@@ -145,6 +170,8 @@ impl super::Service {
 			.await
 	}
 
+	/// Determines the state at an incoming fork (aka the state at a prev
+	/// event), returning the resolved state and its associated auth chain.
 	async fn state_at_incoming_fork<Pdu>(
 		&self,
 		room_id: &RoomId,
