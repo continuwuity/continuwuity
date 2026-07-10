@@ -20,7 +20,7 @@ pub use fetch_and_handle_outliers::{
 	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
 };
 use ruma::{
-	OwnedEventId, OwnedRoomId, RoomId, events::room::create::RoomCreateEventContent,
+	OwnedEventId, OwnedRoomId, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
 use tokio::sync::{Notify, mpsc};

@@ -306,11 +306,7 @@ async fn handle_room(
 	// failure (e.g., cycles). This is best-effort; proper ordering is the sender's
 	// responsibility.
 	let sorted_event_ids = if pdu_map.len() >= 2 {
-		let refmap = pdu_map
-			.iter()
-			.map(|(event_id, obj)| (event_id.clone(), obj))
-			.collect();
-		build_local_dag(&refmap, DagBuilderTree::PrevEvents)
+		build_local_dag(&pdu_map, DagBuilderTree::PrevEvents)
 			.await
 			.unwrap_or_else(|e| {
 				debug_warn!("Failed to build local DAG for room {room_id}: {e}");

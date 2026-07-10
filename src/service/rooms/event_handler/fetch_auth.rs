@@ -2,8 +2,7 @@ use std::collections::{HashMap, hash_map};
 
 use conduwuit::{Err, Event, EventTypeExt, PduEvent, Result, err, warn};
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, ServerName,
-	api::federation::authorization::get_event_authorization,
+	OwnedEventId, ServerName, api::federation::authorization::get_event_authorization,
 	room_version_rules::RoomVersionRules,
 };
 use tokio::join;
@@ -126,17 +125,11 @@ impl super::Service {
 	where
 		Pdu: Event + Send + Sync,
 	{
-		// TODO(nex): build_local_dag's signature needs changing because all callsites
-		// seem to do this refmap hack.
 		let pdu_objects = auth_chain_map
 			.iter()
-			.map(|(event_id, pdu)| (event_id, pdu.to_canonical_object()))
+			.map(|(event_id, pdu)| (event_id.clone(), pdu.to_canonical_object()))
 			.collect::<HashMap<_, _>>();
-		let refmap: HashMap<OwnedEventId, &CanonicalJsonObject> = pdu_objects
-			.iter()
-			.map(|(id, data)| ((*id).to_owned(), data))
-			.collect();
-		let auth_chain_topo = build_local_dag(&refmap, DagBuilderTree::AuthEvents)
+		let auth_chain_topo = build_local_dag(&pdu_objects, DagBuilderTree::AuthEvents)
 			.await?
 			.into_iter()
 			.map(|event_id| (event_id.clone(), auth_chain_map.get(&event_id).unwrap().to_owned()))
