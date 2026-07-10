@@ -11,7 +11,7 @@ use crate::rooms::event_handler::{build_local_dag, fetch_and_handle_outliers::Da
 
 impl super::Service {
 	/// Fetches any missing prev_events for this event and persists them before
-	/// returning.
+	/// returning. The caller is responsible for then handling the incoming PDU.
 	pub(super) async fn fetch_prevs(
 		&self,
 		room_id: &RoomId,

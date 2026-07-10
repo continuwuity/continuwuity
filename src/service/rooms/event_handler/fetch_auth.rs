@@ -127,6 +127,11 @@ impl super::Service {
 				continue;
 			}
 
+			// IMPORTANT: We can't use the handy dandy `handle_outlier_pdu` function here
+			// because it may then try to fetch missing auth events, resulting in deep
+			// recursion. We will do the minimum required steps to validate the PDU here
+			// (steps 1 through 4).
+
 			let mut auth_events_by_key: HashMap<_, _> =
 				HashMap::with_capacity(pdu.auth_events.len());
 
