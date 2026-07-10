@@ -57,7 +57,7 @@
               max-perf = default.override {
                 # compiles slower but with more thorough optimizations
                 profile = "release-max-perf";
-                cargoExtraArgs = cargoExtraArgs + "-F release_max_log_level";
+                cargoExtraArgs = "${cargoExtraArgs} -F release_max_log_level";
               };
 
               max-perf-haswell = max-perf.override {
