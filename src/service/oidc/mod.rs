@@ -172,7 +172,8 @@ impl crate::Service for Service {
 				.expect("redirect url should be valid");
 
 			let provider_metadata = CoreProviderMetadata::discover_async(
-				IssuerUrl::from_url(config.discovery_url.clone()),
+				IssuerUrl::new(config.discovery_url.clone())
+					.map_err(|err| err!("Failed to parse OIDC discovery URL: {err}"))?,
 				client,
 			)
 			.await

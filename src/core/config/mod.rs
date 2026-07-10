@@ -2497,7 +2497,7 @@ pub struct OidcConfig {
 	/// automatically fetch the identity provider's metadata from this URL.
 	/// Generally you should set this to the base domain your identity provider
 	/// runs on.
-	pub discovery_url: Url,
+	pub discovery_url: String,
 
 	/// The OAuth client ID for Continuwuity to use when communicating with the
 	/// identity provider.
