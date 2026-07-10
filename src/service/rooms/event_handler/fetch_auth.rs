@@ -1,6 +1,6 @@
 use std::collections::{HashMap, hash_map};
 
-use conduwuit::{Err, Event, EventTypeExt, PduEvent, Result, err};
+use conduwuit::{Err, Event, EventTypeExt, PduEvent, Result, err, warn};
 use ruma::{
 	CanonicalJsonObject, OwnedEventId, ServerName,
 	api::federation::authorization::get_event_authorization,
@@ -50,16 +50,45 @@ impl super::Service {
 
 		for auth_pdu_json in event_auth.auth_chain {
 			let (auth_event_room_id, auth_event_id, auth_pdu_json) =
-				self.parse_incoming_pdu(&auth_pdu_json).await?;
+				match self.parse_incoming_pdu(&auth_pdu_json).await {
+					| Ok(parsed) => parsed,
+					| Err(e) => {
+						warn!(error=?e, "Dropping auth chain event as it could not be parsed");
+						continue;
+					},
+				};
+			if !Self::pdu_format_check_1(&auth_pdu_json) {
+				// drop this PDU
+				warn!(%auth_event_id, "Dropping auth chain event as it is too large");
+				continue;
+			}
+			let auth_pdu_json = match self
+				.signature_hash_check_2_3(auth_pdu_json, room_version_rules)
+				.await
+			{
+				| Ok(pdu_json) => pdu_json,
+				| Err(e) => {
+					// drop this PDU
+					warn!(
+						%auth_event_id,
+						error=?e,
+						"Dropping auth chain event as it has an invalid signature"
+					);
+					continue;
+				},
+			};
+
+			// PDU check 4 is done when we've finished aggregating
 			if auth_event_room_id != incoming_event.room_id_or_hash() {
 				return Err!(Request(Forbidden(
-					"Auth event {auth_event_id} is in {auth_event_room_id}, not {}.",
+					"Auth chain event {auth_event_id} is in {auth_event_room_id}, not {}.",
 					incoming_event.room_id_or_hash()
 				)));
 			}
 			let auth_pdu = PduEvent::from_id_val(&auth_event_id, auth_pdu_json).map_err(|e| {
 				err!(Request(BadJson("Invalid PDU {auth_event_id} in auth chain: {e}")))
 			})?;
+
 			if auth_pdu.state_key().is_none() {
 				return Err!(Request(BadJson(
 					"Invalid PDU {auth_event_id} in auth_chain: not a state event"
@@ -129,8 +158,9 @@ impl super::Service {
 
 			// IMPORTANT: We can't use the handy dandy `handle_outlier_pdu` function here
 			// because it may then try to fetch missing auth events, resulting in deep
-			// recursion. We will do the minimum required steps to validate the PDU here
-			// (steps 1 through 4).
+			// recursion. We will do the minimum required steps to validate the PDU here.
+			// Checks 1-3 were already done before this function is called, so we only need
+			// to do check 4.
 
 			let mut auth_events_by_key: HashMap<_, _> =
 				HashMap::with_capacity(pdu.auth_events.len());

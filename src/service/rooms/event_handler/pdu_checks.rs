@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use conduwuit::{
 	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error,
-	debug_info, err, info, matrix::StateKey, state_res, trace, warn,
+	debug_info, err, info, matrix::StateKey, state_res, trace,
 };
 use futures::future::ready;
 use ruma::{
@@ -34,7 +34,7 @@ impl super::Service {
 		match self
 			.services
 			.server_keys
-			.verify_event(&pdu_json, &room_version_rules)
+			.verify_event(&pdu_json, room_version_rules)
 			.await
 		{
 			| Ok(ruma::signatures::Verified::All) => Ok(pdu_json),
