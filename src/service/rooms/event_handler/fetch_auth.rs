@@ -150,10 +150,7 @@ impl super::Service {
 					},
 					| hash_map::Entry::Occupied(_) => {
 						// Duplicate auth events by key are not allowed.
-						self.services
-							.pdu_metadata
-							.mark_event_rejected(auth_event_id);
-						self.services.pdu_metadata.mark_event_rejected(&event_id);
+						self.reject_and_persist(&event_id, &pdu.to_canonical_object());
 						continue 'outer;
 					},
 				}
@@ -167,7 +164,7 @@ impl super::Service {
 				)
 				.await?
 			{
-				self.services.pdu_metadata.mark_event_rejected(&event_id);
+				self.reject_and_persist(&event_id, &pdu.to_canonical_object());
 			}
 		}
 
