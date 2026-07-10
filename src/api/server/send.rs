@@ -152,7 +152,16 @@ async fn process_inbound_transaction(
 		.stream()
 		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
 		.inspect_err(|e| warn!("Could not parse incoming PDU: {e}"))
-		.ready_filter_map(Result::ok);
+		.ready_filter_map(Result::ok)
+		.ready_filter_map(|pdu| {
+			// Room IDs should always be present on events being pushed to us in txns.
+			// This also ensures incoming PDUs have the right room ID.
+			pdu.2
+				.get("room_id")
+				.and_then(|r| r.as_str())
+				.is_some_and(|v| v == pdu.0.as_str())
+				.then_some(pdu)
+		});
 
 	let edus = body
 		.edus
@@ -241,7 +250,7 @@ async fn handle(
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
 ) -> std::result::Result<ResolvedMap, TransactionError> {
-	// group pdus by room
+	// Group PDUs by room for parallel processing
 	let pdus = pdus
 		.collect()
 		.map(|mut pdus: Vec<_>| {
@@ -252,7 +261,7 @@ async fn handle(
 		})
 		.await;
 
-	// we can evaluate rooms concurrently
+	// Evaluate rooms in parallel
 	let results: ResolvedMap = pdus
 		.into_iter()
 		.try_stream()
@@ -266,7 +275,7 @@ async fn handle(
 		.boxed()
 		.await?;
 
-	// evaluate edus after pdus, at least for now.
+	// Evaluate EDUs after PDUs in case some of the PDUs then forbid some EDUs.
 	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
 		.boxed()
 		.await;
@@ -322,7 +331,7 @@ async fn handle_room(
 		let result = services
 			.rooms
 			.event_handler
-			.handle_incoming_pdu(origin, room_id, &event_id, value.clone(), true)
+			.handle_incoming_pdu(origin, room_id, &event_id, value, true)
 			.boxed()
 			.await
 			.map(|_| ());
