@@ -23,7 +23,12 @@ fn extract_room_id(event_type: &str, pdu: &CanonicalJsonObject) -> Result<OwnedR
 			.map_err(|e| err!(Request(BadJson("Invalid room_id {room_id:?} in pdu: {e}"))));
 	}
 	// If there's no room ID, and this is not a create event, it is illegal.
-	if event_type != "m.room.create" || pdu.get("state_key").is_none() {
+	let is_create = event_type == "m.room.create"
+		&& pdu
+			.get("state_key")
+			.and_then(|v| v.as_str())
+			.is_some_and(str::is_empty);
+	if !is_create {
 		return Err!(Request(BadJson("Missing room_id in pdu")));
 	}
 
@@ -42,10 +47,7 @@ fn extract_room_id(event_type: &str, pdu: &CanonicalJsonObject) -> Result<OwnedR
 		return Err!(Request(BadJson("Unknown room version in pdu")));
 	};
 
-	if !room_version_rules
-		.authorization
-		.room_create_event_id_as_room_id
-	{
+	if room_version_rules.event_format.require_room_create_room_id {
 		return Err!(Request(BadJson("Missing room_id in pdu")));
 	}
 
@@ -80,33 +82,10 @@ pub(super) fn expect_event_id_array(
 }
 
 impl super::Service {
-	/// Performs some basic validation on the PDU to make sure it's not
-	/// obviously malformed. This is not a full validation, but guards against
-	/// extreme errors.
-	///
-	/// Currently, this just validates that prev/auth events are within
-	/// acceptable ranges. Other servers do some additional things like
-	/// checking depth range, but serde will do that later when converting the
-	/// object to a PduEvent.
-	pub fn validate_pdu(&self, pdu: &CanonicalJsonObject) -> Result {
-		// Since v3:
-		// `event_id` should not be present on the PDU.
-		// NOTE: The above is ignored since technically it's still allowed to be
-		// included, but should be ignored instead.
-		// `auth_events` and `prev_events` must be an array of event IDs
-		let auth_events = expect_event_id_array(pdu, "auth_events")?;
-		if auth_events.len() > 10 {
-			return Err!(Request(BadJson("PDU has too many auth events")));
-		}
-		let prev_events = expect_event_id_array(pdu, "prev_events")?;
-		if prev_events.len() > 20 {
-			return Err!(Request(BadJson("PDU has too many prev events")));
-		}
-		Ok(())
-	}
-
+	/// Parses an incoming PDU JSON object, generating an event ID for it. Does
+	/// not insert the event ID into the returned object. Does not discover the
+	/// room ID.
 	pub(super) fn parse_incoming_pdu_with_known_room(
-		&self,
 		pdu: &RawJsonValue,
 		room_version_rules: &RoomVersionRules,
 	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
@@ -114,10 +93,13 @@ impl super::Service {
 			gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
 				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
 			})?;
-		self.validate_pdu(&value)?;
+		// NOTE: validation checks are now performed by `pdu_format_check_1`.
 		Ok((event_id, value))
 	}
 
+	/// Parses an incoming PDU JSON object, generating an event ID for it and
+	/// attempts to discover the associated room ID. Does not insert the event
+	/// ID into the returned object.
 	pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
 		let value = serde_json::from_str::<CanonicalJsonObject>(pdu.get()).map_err(|e| {
 			err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
@@ -142,7 +124,7 @@ impl super::Service {
 			gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
 				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
 			})?;
-		self.validate_pdu(&value)?;
+		// NOTE: validation checks are now performed by `pdu_format_check_1`.
 		Ok((room_id, event_id, value))
 	}
 }

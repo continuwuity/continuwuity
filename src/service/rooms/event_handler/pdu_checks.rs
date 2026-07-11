@@ -10,20 +10,49 @@ use ruma::{
 	events::StateEventType, room_version_rules::RoomVersionRules,
 };
 
-use crate::rooms::timeline::pdu_fits;
+use crate::rooms::{
+	event_handler::parse_incoming_pdu::expect_event_id_array, timeline::pdu_fits,
+};
 
 impl super::Service {
 	/// Checks that the PDU conforms to the PDU format (check 1). This is
 	/// already mostly done during deserialisation, so this function just checks
 	/// that the PDU isn't a too large.
-	pub(super) fn pdu_format_check_1(pdu_json: &CanonicalJsonObject) -> Result<()> {
+	pub(super) fn pdu_format_check_1(
+		pdu_json: &CanonicalJsonObject,
+		room_version_rules: &RoomVersionRules,
+		create_event_id: &OwnedEventId,
+	) -> Result<()> {
+		let event_format = &room_version_rules.event_format;
 		// NOTE: if we do any more validation outside of deserialisation, it has to be
 		// done here.
+
 		if !pdu_fits(pdu_json) {
-			Err!(Request(TooLarge("PDU is too large")))
-		} else {
-			Ok(())
+			return Err!(Request(TooLarge("PDU is too large")));
 		}
+
+		if event_format.require_room_create_room_id {
+			if pdu_json.get("room_id").is_none() {
+				return Err!(Request(BadJson("Missing required PDU field: `room_id`")));
+			}
+		}
+
+		let auth_events = expect_event_id_array(pdu_json, "auth_events")?;
+		if auth_events.len() > 10 {
+			return Err!(Request(BadJson("PDU has too many auth events")));
+		}
+
+		let create_event_in_auth_events = auth_events.contains(create_event_id);
+		if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
+			return Err!(Request(BadJson("PDU references a create event")));
+		}
+
+		let prev_events = expect_event_id_array(pdu_json, "prev_events")?;
+		if prev_events.len() > 20 {
+			return Err!(Request(BadJson("PDU has too many prev events")));
+		}
+
+		Ok(())
 	}
 
 	/// Checks that the PDU has a valid signature (check 2), and redacts it if

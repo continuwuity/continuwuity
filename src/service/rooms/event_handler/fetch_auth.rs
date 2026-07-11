@@ -56,7 +56,11 @@ impl super::Service {
 						continue;
 					},
 				};
-			if let Err(e) = Self::pdu_format_check_1(&auth_pdu_json) {
+			if let Err(e) = Self::pdu_format_check_1(
+				&auth_pdu_json,
+				room_version_rules,
+				&create_event.event_id().to_owned(),
+			) {
 				// drop this PDU
 				warn!(%auth_event_id, error=?e, "Dropping auth chain event as it violates the room event format");
 				continue;

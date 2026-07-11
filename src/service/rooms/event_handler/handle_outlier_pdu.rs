@@ -44,7 +44,13 @@ impl super::Service {
 
 		// 1. Check that the PDU follows the format for the room version
 		// (in this case, just size check)
-		Self::pdu_format_check_1(&value).inspect_err(|e| {
+		let room_version_rules = get_room_version_rules(create_event)?;
+		Self::pdu_format_check_1(
+			&value,
+			&room_version_rules,
+			&create_event.event_id().to_owned(),
+		)
+		.inspect_err(|e| {
 			info!(
 				err=?e,
 				"Dropping incoming PDU from {origin} because it violates the room event format"
