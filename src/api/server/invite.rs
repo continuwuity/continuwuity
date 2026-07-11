@@ -4,10 +4,10 @@ use axum::extract::State;
 use axum_client_ip::ClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, EventTypeExt, PduEvent, Result, err, error,
+	Err, Error, EventTypeExt, PduEvent, Result, debug, err, error,
 	matrix::{Event, StateKey},
 	result::FlatOk,
-	state_res,
+	state_res, trace,
 	utils::hash::sha256,
 	warn,
 };
@@ -58,6 +58,11 @@ pub(crate) async fn create_invite_route(
 
 	// First, validate the invite room state, so we can compare with the create
 	// event.
+	debug!(
+		event_id=%body.event_id,
+		room_id=%body.room_id,
+		"Validating invite room state for invite request"
+	);
 	let (create_event_id, state) = validate_invite_state(
 		&services,
 		&body.invite_room_state,
@@ -288,9 +293,12 @@ async fn validate_invite_state(
 	let mut invite_state_map: HashMap<(StateEventType, StateKey), _> =
 		HashMap::with_capacity(invite_state.len());
 	let mut create_event_id: Option<OwnedEventId> = None;
+
 	for (idx, invite_state_event) in invite_state.iter().cloned().enumerate() {
+		trace!(%idx, ?invite_state_event, "Invite state event");
 		// Stripped state hasn't been sent over federation since v1.16.
 		let RawStrippedState::Pdu(raw_pdu) = invite_state_event else {
+			debug!(%idx, "Invite state event is not a PDU");
 			return Err!(Request(InvalidParam(
 				"PDU in invite state (index {idx}) violates the room event format"
 			)));
@@ -300,12 +308,16 @@ async fn validate_invite_state(
 			.event_handler
 			.parse_incoming_pdu(&raw_pdu)
 			.await
-			.map_err(|e| err!(Request(InvalidParam("Invalid PDU in invite state: {e}"))))?;
+			.map_err(|e| {
+				err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))
+			})?;
 
 		if state_event_room_id != room_id {
-			return Err!(Request(InvalidParam(
+			return Err!(Request(InvalidParam(debug_warn!(
+				%state_event_room_id,
+				%room_id,
 				"PDU in invite state ({state_event_id}) belongs to the wrong room"
-			)));
+			))));
 		}
 
 		services
@@ -317,14 +329,14 @@ async fn validate_invite_state(
 			})?;
 
 		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(
+			return Err!(Request(InvalidParam(debug_info!(
 				"PDU in invite state ({state_event_id}) is not a state event"
-			)));
+			))));
 		};
-		let Some(event_type) = state_event_json.get("event_type").and_then(|k| k.as_str()) else {
-			return Err!(Request(InvalidParam(
+		let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
+			return Err!(Request(InvalidParam(debug_warn!(
 				"PDU in invite state ({state_event_id}) is not an event?"
-			)));
+			))));
 		};
 
 		let key = StateEventType::from(event_type).with_state_key(state_key);
@@ -340,6 +352,7 @@ async fn validate_invite_state(
 					let pdu_event =
 						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
 							.expect("must be able to create pdu event from event json");
+					debug!("Validating discovered create event in invite room state");
 					validate_invite_create_event(&pdu_event, room_version_rules).await?;
 					create_event_id = Some(state_event_id);
 				}
@@ -348,9 +361,10 @@ async fn validate_invite_state(
 		}
 	}
 	let Some(create_event_id) = create_event_id else {
-		return Err!(Request(InvalidParam(
+		return Err!(Request(InvalidParam(debug_warn!(
+			parsed_state=?invite_state_map,
 			"Invite state does not contain the m.room.create event"
-		)));
+		))));
 	};
 	invite_state_map.iter().try_for_each(|(key, event_json)| {
 		service::rooms::event_handler::Service::pdu_format_check_1(
