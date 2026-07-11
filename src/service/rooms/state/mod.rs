@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::debug;
+use conduwuit::{debug, utils::stream::WidebandExt};
 use conduwuit_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
@@ -30,7 +30,7 @@ use crate::{
 		short::{ShortEventId, ShortStateHash},
 		state_compressor::{CompressedState, parse_compressed_state_event},
 	},
-	sync,
+	sending, sync,
 };
 
 pub struct Service {
@@ -45,6 +45,7 @@ struct Services {
 	state_cache: Dep<rooms::state_cache::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
 	state_compressor: Dep<rooms::state_compressor::Service>,
+	sending: Dep<sending::Service>,
 	sync: Dep<sync::Service>,
 	timeline: Dep<rooms::timeline::Service>,
 }
@@ -71,6 +72,7 @@ impl crate::Service for Service {
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
 				state_compressor: args
 					.depend::<rooms::state_compressor::Service>("rooms::state_compressor"),
+				sending: args.depend::<sending::Service>("sending"),
 				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
@@ -307,6 +309,7 @@ impl Service {
 		event: &PduEvent,
 		room_id: &RoomId,
 		target_user: &UserId,
+		federation: bool,
 	) -> Vec<RawStrippedState> {
 		let mut state_events = [
 			(&StateEventType::RoomCreate, ""),
@@ -343,8 +346,20 @@ impl Service {
 			.await
 			.into_iter()
 			.filter_map(Result::ok)
-			.map(|pdu| RawStrippedState::Pdu(serde_json::value::to_raw_value(&pdu).unwrap()))
+			.stream()
+			.wide_then(async |pdu| {
+				let formatted = if federation {
+					self.services
+						.sending
+						.convert_to_outgoing_federation_event(pdu.to_canonical_object())
+						.await
+				} else {
+					serde_json::value::to_raw_value(&pdu).unwrap()
+				};
+				RawStrippedState::Pdu(formatted)
+			})
 			.collect()
+			.await
 	}
 
 	/// Set the state hash to a new version, but does not update state_cache.

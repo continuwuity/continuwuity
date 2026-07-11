@@ -114,7 +114,7 @@ impl super::Service {
 				let invite_state = if is_local {
 					self.services
 						.state
-						.summary_stripped(pdu, room_id, user_id)
+						.summary_stripped(pdu, room_id, user_id, false)
 						.await
 				} else {
 					vec![]

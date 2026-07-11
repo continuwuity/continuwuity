@@ -166,7 +166,7 @@ pub(crate) async fn invite_helper(
 			let invite_room_state = services
 				.rooms
 				.state
-				.summary_stripped(&pdu, room_id, recipient_user)
+				.summary_stripped(&pdu, room_id, recipient_user, true)
 				.await;
 
 			drop(state_lock);
