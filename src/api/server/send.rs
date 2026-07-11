@@ -296,16 +296,12 @@ async fn handle_room(
 	// Try to sort PDUs by their dependencies, but fall back to arbitrary order on
 	// failure (e.g., cycles). This is best-effort; proper ordering is the sender's
 	// responsibility.
-	let sorted_event_ids = if pdu_map.len() >= 2 {
-		build_local_dag(&pdu_map, DagBuilderTree::PrevEvents)
-			.await
-			.unwrap_or_else(|e| {
-				debug_warn!("Failed to build local DAG for room {room_id}: {e}");
-				pdu_map.keys().cloned().collect()
-			})
-	} else {
-		pdu_map.keys().cloned().collect()
-	};
+	let sorted_event_ids = build_local_dag(&pdu_map, DagBuilderTree::PrevEvents)
+		.await
+		.unwrap_or_else(|e| {
+			debug_warn!("Failed to build local DAG for room {room_id}: {e}");
+			pdu_map.keys().cloned().collect()
+		});
 	let mut results = Vec::with_capacity(sorted_event_ids.len());
 	for event_id in sorted_event_ids {
 		let value = pdu_map
