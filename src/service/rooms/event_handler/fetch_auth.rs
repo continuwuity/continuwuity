@@ -48,14 +48,16 @@ impl super::Service {
 		let mut auth_chain_map = HashMap::with_capacity(event_auth.auth_chain.len());
 
 		for auth_pdu_json in event_auth.auth_chain {
-			let (auth_event_room_id, auth_event_id, auth_pdu_json) =
-				match self.parse_incoming_pdu(&auth_pdu_json).await {
-					| Ok(parsed) => parsed,
-					| Err(e) => {
-						warn!(error=?e, "Dropping auth chain event as it could not be parsed");
-						continue;
-					},
-				};
+			let (auth_event_room_id, auth_event_id, auth_pdu_json) = match self
+				.parse_incoming_pdu(&auth_pdu_json, Some(room_version_rules))
+				.await
+			{
+				| Ok(parsed) => parsed,
+				| Err(e) => {
+					warn!(error=?e, "Dropping auth chain event as it could not be parsed");
+					continue;
+				},
+			};
 			if let Err(e) = Self::pdu_format_check_1(
 				&auth_pdu_json,
 				room_version_rules,

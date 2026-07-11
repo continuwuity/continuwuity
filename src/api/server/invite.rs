@@ -250,6 +250,7 @@ async fn validate_invite_membership_event(
 	room_id: OwnedRoomId,
 	event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, OwnedUserId, OwnedUserId)> {
+	trace!(?body, "Invite membership event");
 	let (pdu, target_membership, sender_user, recipient_user) = validate_any_membership_event(
 		services,
 		body,
@@ -309,7 +310,7 @@ async fn validate_invite_state(
 		let (state_event_room_id, state_event_id, state_event_json) = services
 			.rooms
 			.event_handler
-			.parse_incoming_pdu(&raw_pdu)
+			.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
 			.await
 			.map_err(|e| {
 				err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))

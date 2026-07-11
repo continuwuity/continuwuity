@@ -94,7 +94,7 @@ pub(crate) async fn validate_any_membership_event(
 	let (template_room_id, template_event_id, pdu) = services
 		.rooms
 		.event_handler
-		.parse_incoming_pdu(body)
+		.parse_incoming_pdu(body, Some(room_version_rules))
 		.await
 		.map_err(|e| err!(Request(BadJson("Invalid membership PDU: {e}"))))?;
 
@@ -102,9 +102,11 @@ pub(crate) async fn validate_any_membership_event(
 		return Err!(Request(InvalidParam("Membership event does not belong to requested room")));
 	}
 	if template_event_id != expected_event_id {
-		return Err!(Request(InvalidParam(
+		return Err!(Request(InvalidParam(debug_warn!(
+			%template_event_id,
+			%expected_event_id,
 			"Membership event ID does not match provided event ID"
-		)));
+		))));
 	}
 
 	services

@@ -314,7 +314,7 @@ impl super::Service {
 			.iter()
 			.stream()
 			.broad_filter_map(|raw_event_json| async {
-				if let Some(parsed) = self.parse_incoming_pdu(raw_event_json).await.ok()
+				if let Some(parsed) = self.parse_incoming_pdu(raw_event_json, None).await.ok()
 					&& parsed.0 == room_id
 				{
 					Some(parsed)
@@ -351,7 +351,7 @@ impl super::Service {
 			.iter()
 			.stream()
 			.broad_filter_map(|raw_event_json| async {
-				if let Some(parsed) = self.parse_incoming_pdu(raw_event_json).await.ok()
+				if let Some(parsed) = self.parse_incoming_pdu(raw_event_json, None).await.ok()
 					&& parsed.0 == room_id
 				{
 					Some(parsed)

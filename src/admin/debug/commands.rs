@@ -486,7 +486,7 @@ impl crate::Context<'_> {
 						.services
 						.rooms
 						.event_handler
-						.parse_incoming_pdu(&response.pdu)
+						.parse_incoming_pdu(&response.pdu, None)
 						.boxed()
 						.await;
 
@@ -832,7 +832,7 @@ impl crate::Context<'_> {
 				.services
 				.rooms
 				.event_handler
-				.parse_incoming_pdu(&pdu)
+				.parse_incoming_pdu(&pdu, Some(&room_version_rules))
 				.await
 			{
 				| Ok(t) => t,

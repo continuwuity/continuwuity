@@ -82,25 +82,14 @@ pub(super) fn expect_event_id_array(
 }
 
 impl super::Service {
-	/// Parses an incoming PDU JSON object, generating an event ID for it. Does
-	/// not insert the event ID into the returned object. Does not discover the
-	/// room ID.
-	pub(super) fn parse_incoming_pdu_with_known_room(
-		pdu: &RawJsonValue,
-		room_version_rules: &RoomVersionRules,
-	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
-		let (event_id, value) =
-			gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
-				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
-			})?;
-		// NOTE: validation checks are now performed by `pdu_format_check_1`.
-		Ok((event_id, value))
-	}
-
 	/// Parses an incoming PDU JSON object, generating an event ID for it and
 	/// attempts to discover the associated room ID. Does not insert the event
 	/// ID into the returned object.
-	pub async fn parse_incoming_pdu(&self, pdu: &RawJsonValue) -> Result<Parsed> {
+	pub async fn parse_incoming_pdu(
+		&self,
+		pdu: &RawJsonValue,
+		room_version_rules: Option<&RoomVersionRules>,
+	) -> Result<Parsed> {
 		let value = serde_json::from_str::<CanonicalJsonObject>(pdu.get()).map_err(|e| {
 			err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
 		})?;
@@ -111,17 +100,20 @@ impl super::Service {
 
 		let room_id = extract_room_id(event_type, &value)?;
 
-		let room_version_rules = self
-			.services
-			.state
-			.get_room_version(&room_id)
-			.await
-			.unwrap_or(RoomVersionId::V1)
-			.rules()
-			.unwrap();
+		let room_version_rules = match room_version_rules {
+			| Some(r) => r,
+			| None => &self
+				.services
+				.state
+				.get_room_version(&room_id)
+				.await
+				.unwrap_or(RoomVersionId::V1)
+				.rules()
+				.unwrap(),
+		};
 
 		let (event_id, value) =
-			gen_event_id_canonical_json(pdu, &room_version_rules).map_err(|e| {
+			gen_event_id_canonical_json(pdu, room_version_rules).map_err(|e| {
 				err!(Request(InvalidParam("Could not convert event to canonical json: {e}")))
 			})?;
 		// NOTE: validation checks are now performed by `pdu_format_check_1`.

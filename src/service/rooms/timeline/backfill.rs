@@ -166,8 +166,11 @@ impl super::Service {
 	/// Backfills a single PDU.
 	#[tracing::instrument(skip(self, pdu), level = "debug")]
 	pub async fn backfill_pdu(&self, origin: &ServerName, pdu: Box<RawJsonValue>) -> Result<()> {
-		let (room_id, event_id, value) =
-			self.services.event_handler.parse_incoming_pdu(&pdu).await?;
+		let (room_id, event_id, value) = self
+			.services
+			.event_handler
+			.parse_incoming_pdu(&pdu, None)
+			.await?;
 
 		// Lock so we cannot backfill the same pdu twice at the same time
 		let mutex_lock = self

@@ -241,7 +241,7 @@ impl super::Service {
 
 			latest_events.clear();
 			for raw_event in response.events {
-				let (_, event_id, pdu_json) = self.parse_incoming_pdu(&raw_event).await?;
+				let (_, event_id, pdu_json) = self.parse_incoming_pdu(&raw_event, None).await?;
 				let pdu = PduEvent::from_id_val(&event_id, pdu_json).map_err(|e| {
 					err!(Request(BadJson("Failed to parse gapfilled event {event_id}: {e}")))
 				})?;
@@ -384,8 +384,9 @@ impl super::Service {
 			.send_federation_request(&remote, get_event::v1::Request::new(event_id.clone()))
 			.await?;
 
-		let (calculated_event_id, value) =
-			Self::parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)?;
+		let (_, calculated_event_id, value) = self
+			.parse_incoming_pdu(&res.pdu, Some(room_version_rules))
+			.await?;
 
 		if calculated_event_id != event_id {
 			Err!(Request(BadJson(warn!(

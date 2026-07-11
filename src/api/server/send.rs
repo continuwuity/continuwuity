@@ -150,7 +150,7 @@ async fn process_inbound_transaction(
 		.pdus
 		.iter()
 		.stream()
-		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
+		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu, None))
 		.inspect_err(|e| warn!("Could not parse incoming PDU: {e}"))
 		.ready_filter_map(Result::ok);
 
