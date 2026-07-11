@@ -58,12 +58,6 @@ pub(crate) async fn create_knock_event_template_route(
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 	}
 
-	if let Some(server) = body.room_id.server_name() {
-		if services.moderation.is_remote_server_forbidden(server) {
-			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
-		}
-	}
-
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
 	let room_version_rules = room_version.rules().unwrap();
 

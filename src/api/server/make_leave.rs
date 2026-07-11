@@ -27,6 +27,7 @@ pub(crate) async fn create_leave_event_template_route(
 	{
 		info!(
 			origin = body.identity.as_str(),
+			room_id = %body.room_id,
 			"Refusing to serve make_leave for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
