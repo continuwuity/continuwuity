@@ -115,6 +115,21 @@ pub enum SessionCompletionStatus {
 	Complete(OwnedUserId),
 }
 
+pub enum ClaimedLocalUser {
+	/// The claim refers to an existing user.
+	Existing(OwnedUserId),
+	/// The claim refers to a new user ID which should be registered.
+	New(OwnedUserId),
+}
+
+impl ClaimedLocalUser {
+	fn into_user_id(self) -> OwnedUserId {
+		match self {
+			| Self::Existing(user_id) | Self::New(user_id) => user_id,
+		}
+	}
+}
+
 #[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
@@ -303,7 +318,7 @@ impl Service {
 			.expect("claims should be an object")
 			.to_owned();
 
-		debug!(?all_claims);
+		debug!(?all_claims, "Got claims from the identity provider");
 
 		let subject = claims.subject().as_str();
 
@@ -326,14 +341,13 @@ impl Service {
 			.get(&config.preferred_username_claim)
 			.and_then(|claim| claim.as_str())
 		{
-			self.services
-				.users
-				.determine_registration_user_id(Some(preferred_username.to_owned()), None, None)
+			self.identify_claimed_local_user(preferred_username)
 				.await
+				.map(ClaimedLocalUser::into_user_id)
 				.map_err(|err| {
 					error!("Preferred username claim is not a valid localpart: {err}");
-					"Your preferred username is not a valid Matrix user ID localpart. Contact \
-					 your homeserver's administrator."
+					"Your preferred username could not be converted to a valid Matrix user ID. \
+					 Contact your homeserver's administrator."
 				})?
 		} else {
 			error!("Preferred username claim was not present or was not a string");
@@ -482,4 +496,22 @@ impl Service {
 	}
 
 	pub fn unlink_user(&self, subject: &str) { self.db.openidsubject_localpart.remove(subject); }
+
+	/// Determine what user ID a localpart claim refers to.
+	pub async fn identify_claimed_local_user(&self, claim: &str) -> Result<ClaimedLocalUser> {
+		if let Ok(user_id) =
+			UserId::parse(format!("@{}:{}", claim, self.services.globals.server_name()))
+			&& self.services.users.status(&user_id).await.is_active()
+		{
+			Ok(ClaimedLocalUser::Existing(user_id))
+		} else {
+			let user_id = self
+				.services
+				.users
+				.determine_registration_user_id(Some(claim.to_owned()), None, None)
+				.await?;
+
+			Ok(ClaimedLocalUser::New(user_id))
+		}
+	}
 }

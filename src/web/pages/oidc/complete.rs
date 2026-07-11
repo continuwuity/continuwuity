@@ -6,9 +6,12 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::{oauth::grant::AuthorizationCodeResponse, oidc::SessionCompletionStatus};
+use conduwuit_service::{
+	oauth::grant::AuthorizationCodeResponse,
+	oidc::{ClaimedLocalUser, SessionCompletionStatus},
+};
 use futures::FutureExt;
-use ruma::{OwnedServerName, UserId};
+use ruma::OwnedServerName;
 use serde::{Deserialize, de::IgnoredAny};
 use tower_sessions::Session;
 
@@ -99,65 +102,60 @@ async fn route_complete(
 					state: OidcSessionState::Authorized { claims: Box::new(claims.clone()) },
 				})
 				.await
-				.expect("Should be able to serialize oidc session");
+				.expect("should be able to serialize oidc session");
 
 			services.oidc.complete_session(&claims, None).await
 		},
 		| OidcSessionState::Authorized { claims } => {
 			let supplied_user_id = if let Some(form) = form {
-				if let Ok(user_id) = UserId::parse(format!(
-					"@{}:{}",
-					form.username,
-					services.globals.server_name()
-				)) && services.users.status(&user_id).await.is_active()
+				match services
+					.oidc
+					.identify_claimed_local_user(&form.username)
+					.await
 				{
-					let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
+					| Ok(ClaimedLocalUser::Existing(user_id)) => {
+						let user_card =
+							UserCard::for_local_user(&services, user_id.clone()).await;
 
-					if let Some(password) = form.password {
-						if services
-							.users
-							.check_password(&user_id, &password)
-							.await
-							.is_ok()
-						{
-							Some(user_id)
+						if let Some(password) = form.password {
+							if services
+								.users
+								.check_password(&user_id, &password)
+								.await
+								.is_ok()
+							{
+								Some(user_id)
+							} else {
+								return response!(OidcComplete::new(
+									context,
+									OidcCompleteBody::PasswordPrompt {
+										username: form.username,
+										user_card,
+										password_error: true
+									}
+								));
+							}
 						} else {
 							return response!(OidcComplete::new(
 								context,
 								OidcCompleteBody::PasswordPrompt {
 									username: form.username,
 									user_card,
-									password_error: true
+									password_error: false,
 								}
 							));
 						}
-					} else {
+					},
+					| Ok(ClaimedLocalUser::New(user_id)) => Some(user_id),
+					| Err(err) => {
 						return response!(OidcComplete::new(
 							context,
-							OidcCompleteBody::PasswordPrompt {
-								username: form.username,
-								user_card,
-								password_error: false,
+							OidcCompleteBody::UsernamePrompt {
+								server_name: services.globals.server_name().to_owned(),
+								username_error: Some(err.message()),
 							}
 						));
-					}
-				} else {
-					match services
-						.users
-						.determine_registration_user_id(Some(form.username), None, None)
-						.await
-					{
-						| Ok(user_id) => Some(user_id),
-						| Err(err) => {
-							return response!(OidcComplete::new(
-								context,
-								OidcCompleteBody::UsernamePrompt {
-									server_name: services.globals.server_name().to_owned(),
-									username_error: Some(err.message()),
-								}
-							));
-						},
-					}
+					},
 				}
 			} else {
 				None
