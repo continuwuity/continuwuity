@@ -1,19 +1,24 @@
+use std::collections::{HashMap, hash_map::Entry};
+
 use axum::extract::State;
 use axum_client_ip::ClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Error, PduEvent, Result, err, error,
-	matrix::{Event, event::gen_event_id},
+	Err, Error, EventTypeExt, PduEvent, Result, err, error,
+	matrix::{Event, StateKey, event::gen_event_id},
 	utils::{self, hash::sha256},
 	warn,
 };
 use ruma::{
-	CanonicalJsonValue, UserId,
+	CanonicalJsonValue, OwnedEventId, UserId,
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation::membership::{RawStrippedState, create_invite},
 	},
-	events::room::member::{MembershipState, RoomMemberEventContent},
+	events::{
+		StateEventType,
+		room::member::{MembershipState, RoomMemberEventContent},
+	},
 	serde::JsonObject,
 };
 
@@ -66,6 +71,14 @@ pub(crate) async fn create_invite_route(
 
 	let mut signed_event = utils::to_canonical_object(&body.event)
 		.map_err(|_| err!(Request(InvalidParam("Invite event is invalid."))))?;
+
+	services
+		.server_keys
+		.verify_event(&signed_event, &room_version_rules)
+		.await
+		.map_err(|e| {
+			err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))
+		})?;
 
 	// Ensure this is a membership event
 	if signed_event
@@ -123,23 +136,83 @@ pub(crate) async fn create_invite_route(
 		return Err!(Request(InvalidParam("User does not belong to this homeserver.")));
 	}
 
-	// Make sure we're not ACL'ed from their room.
-	services
-		.rooms
-		.event_handler
-		.acl_check(recipient_user.server_name(), &body.room_id)
-		.await?;
+	// Validate the invite room state.
+	let mut invite_state_map: HashMap<(StateEventType, StateKey), _> =
+		HashMap::with_capacity(body.invite_room_state.len());
+	let mut create_event_id: Option<OwnedEventId> = None;
+	for (idx, invite_state_event) in body.invite_room_state.iter().cloned().enumerate() {
+		// Stripped state hasn't been sent over federation since v1.16.
+		let RawStrippedState::Pdu(raw_pdu) = invite_state_event else {
+			return Err!(Request(InvalidParam(
+				"PDU in invite state (index {idx}) violates the room event format"
+			)));
+		};
+		let (state_event_room_id, state_event_id, state_event_json) = services
+			.rooms
+			.event_handler
+			.parse_incoming_pdu(&raw_pdu)
+			.await
+			.map_err(|e| err!(Request(InvalidParam("Invalid PDU in invite state: {e}"))))?;
 
-	services
-		.server_keys
-		.hash_and_sign_event(&mut signed_event, &room_version_rules)
-		.map_err(|e| err!(Request(InvalidParam("Failed to sign event: {e}"))))?;
+		if state_event_room_id != body.room_id {
+			return Err!(Request(InvalidParam(
+				"PDU in invite state ({state_event_id}) belongs to the wrong room"
+			)));
+		}
 
-	// Generate event id
-	let event_id = gen_event_id(&signed_event, &room_version_rules)?;
+		services
+			.server_keys
+			.verify_event(&signed_event, &room_version_rules)
+			.await
+			.map_err(|e| {
+				err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))
+			})?;
 
-	// Add event_id back
-	signed_event.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.to_string()));
+		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
+			return Err!(Request(InvalidParam(
+				"PDU in invite state ({state_event_id}) is not a state event"
+			)));
+		};
+		let Some(event_type) = state_event_json.get("event_type").and_then(|k| k.as_str()) else {
+			return Err!(Request(InvalidParam(
+				"PDU in invite state ({state_event_id}) is not an event?"
+			)));
+		};
+
+		let key = StateEventType::from(event_type).with_state_key(state_key);
+		match invite_state_map.entry(key) {
+			| Entry::Occupied(entry) =>
+				return Err!(Request(InvalidParam(
+					"Duplicate state events in invite state for state key: {:?}",
+					entry.key(),
+				))),
+			| Entry::Vacant(entry) => {
+				if entry.key().0 == StateEventType::RoomCreate {
+					let event_id = gen_event_id(&state_event_json, &room_version_rules)
+						.expect("must be able to generate room ID");
+					create_event_id = Some(event_id);
+				}
+				entry.insert(state_event_json);
+			},
+		}
+	}
+	let Some(create_event_id) = create_event_id else {
+		return Err!(Request(InvalidParam(
+			"Invite state does not contain the m.room.create event"
+		)));
+	};
+	invite_state_map.iter().try_for_each(|(key, event_json)| {
+		service::rooms::event_handler::Service::pdu_format_check_1(
+			event_json,
+			&room_version_rules,
+			&create_event_id,
+		)
+		.map_err(|e| {
+			err!(Request(InvalidParam(
+				"PDU in invite state for {key:?} violates the room event format: {e}"
+			)))
+		})
+	})?;
 
 	if services.rooms.metadata.is_banned(&body.room_id).await
 		&& !services.users.is_admin(&recipient_user).await
@@ -160,6 +233,24 @@ pub(crate) async fn create_invite_route(
 		warn!("Antispam rejected invite: {e:?}");
 		return Err!(Request(Forbidden("Invite rejected by antispam service.")));
 	}
+
+	// Make sure we're not ACL'ed from their room.
+	services
+		.rooms
+		.event_handler
+		.acl_check(recipient_user.server_name(), &body.room_id)
+		.await?;
+
+	services
+		.server_keys
+		.hash_and_sign_event(&mut signed_event, &room_version_rules)
+		.map_err(|e| err!(Request(InvalidParam("Failed to sign event: {e}"))))?;
+
+	// Generate event id
+	let event_id = gen_event_id(&signed_event, &room_version_rules)?;
+
+	// Add event_id back
+	signed_event.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.to_string()));
 
 	let mut invite_state = body.invite_room_state.clone();
 

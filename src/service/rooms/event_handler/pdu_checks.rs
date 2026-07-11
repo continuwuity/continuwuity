@@ -18,7 +18,7 @@ impl super::Service {
 	/// Checks that the PDU conforms to the PDU format (check 1). This is
 	/// already mostly done during deserialisation, so this function just checks
 	/// that the PDU isn't a too large.
-	pub(super) fn pdu_format_check_1(
+	pub fn pdu_format_check_1(
 		pdu_json: &CanonicalJsonObject,
 		room_version_rules: &RoomVersionRules,
 		create_event_id: &EventId,
@@ -45,6 +45,8 @@ impl super::Service {
 		let create_event_in_auth_events = auth_events.iter().any(|id| id == create_event_id);
 		if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
 			return Err!(Request(BadJson("PDU references a create event")));
+		} else if event_format.allow_room_create_in_auth_events && !create_event_in_auth_events {
+			return Err!(Request(BadJson("PDU does not reference the room create event")));
 		}
 
 		let prev_events = expect_event_id_array(pdu_json, "prev_events")?;
@@ -59,7 +61,7 @@ impl super::Service {
 	/// the content hash verification fails (check 3), returning the
 	/// potentially modified JSON. Returns an error if the PDU cannot be
 	/// redacted, or fails signature verification.
-	pub(super) async fn signature_hash_check_2_3(
+	pub async fn signature_hash_check_2_3(
 		&self,
 		pdu_json: CanonicalJsonObject,
 		room_version_rules: &RoomVersionRules,
