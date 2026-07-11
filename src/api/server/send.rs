@@ -152,16 +152,7 @@ async fn process_inbound_transaction(
 		.stream()
 		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu))
 		.inspect_err(|e| warn!("Could not parse incoming PDU: {e}"))
-		.ready_filter_map(Result::ok)
-		.ready_filter_map(|pdu| {
-			// Room IDs should always be present on events being pushed to us in txns.
-			// This also ensures incoming PDUs have the right room ID.
-			pdu.2
-				.get("room_id")
-				.and_then(|r| r.as_str())
-				.is_some_and(|v| v == pdu.0.as_str())
-				.then_some(pdu)
-		});
+		.ready_filter_map(Result::ok);
 
 	let edus = body
 		.edus
