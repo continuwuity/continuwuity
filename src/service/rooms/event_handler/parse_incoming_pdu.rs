@@ -109,7 +109,7 @@ impl super::Service {
 				.await
 				.unwrap_or(RoomVersionId::V1)
 				.rules()
-				.unwrap(),
+				.expect("room version must be supported"),
 		};
 
 		let (event_id, value) =
