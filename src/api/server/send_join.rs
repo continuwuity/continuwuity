@@ -22,7 +22,8 @@ use serde_json::value::to_raw_value;
 
 use crate::{Ruma, server::utils::validate_any_membership_event};
 
-/// helper method for /send_join v1 and v2
+/// Creates a join membership event for the target, returning a computed
+/// response with room state, auth chains, etc.
 #[tracing::instrument(skip(services, pdu, omit_members), fields(room_id = room_id.as_str(), origin = origin.as_str()), level = "info")]
 async fn create_join_event(
 	services: &Services,
