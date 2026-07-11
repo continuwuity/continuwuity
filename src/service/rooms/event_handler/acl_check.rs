@@ -14,6 +14,7 @@ impl super::Service {
 			.await
 			.map(|c: RoomServerAclEventContent| c)
 		else {
+			trace!("Room has no ACL, allowing");
 			return Ok(());
 		};
 

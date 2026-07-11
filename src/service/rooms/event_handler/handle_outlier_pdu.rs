@@ -32,8 +32,8 @@ impl super::Service {
 		// outlier PDU.
 		if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
 			debug!(
-				"Already have event {event_id} as an outlier or timeline event, not \
-				 re-processing"
+				"Database hit for {event_id} (event is either an outlier or already promoted), \
+				 skipping outlier handling"
 			);
 			value.insert(
 				"event_id".to_owned(),
@@ -46,7 +46,7 @@ impl super::Service {
 		// (in this case, just size check)
 		if !Self::pdu_format_check_1(&value) {
 			warn!(
-				"dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
+				"Dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
 				 exceeds 65535 bytes or is otherwise too large."
 			);
 			return Err!(Request(TooLarge("PDU is too large")));
@@ -180,12 +180,12 @@ impl super::Service {
 				},
 				| hash_map::Entry::Occupied(_) => {
 					self.reject_and_persist(event_id, &incoming_pdu);
-					return Err!(Request(Forbidden(
+					return Err!(Request(Forbidden(debug_warn!(
 						"Auth event's type and state_key combination exists multiple times: {}, \
 						 {}",
 						auth_event.kind,
 						auth_event.state_key().unwrap_or("")
-					)));
+					))));
 				},
 			}
 		}
@@ -200,19 +200,17 @@ impl super::Service {
 			.await?
 		{
 			self.reject_and_persist(event_id, &incoming_pdu);
-			return Err!(Request(Forbidden(
+			return Err!(Request(Forbidden(debug_warn!(
 				"Event authorisation fails based on event's claimed auth events"
-			)));
+			))));
 		}
-
-		trace!("Validation successful.");
 
 		// 7. Persist the event as an outlier.
 		self.services
 			.outlier
 			.add_pdu_outlier(pdu_event.event_id(), &incoming_pdu);
 
-		trace!("Added pdu as outlier.");
+		debug!("PDU passed checks and has been persisted as an outlier");
 
 		Ok((pdu_event, incoming_pdu))
 	}

@@ -149,6 +149,14 @@ macro_rules! err_log {
 #[macro_export]
 #[collapse_debuginfo(yes)]
 macro_rules! err_lev {
+	(debug_info) => {
+		if $crate::debug::logging() {
+			$crate::tracing::Level::INFO
+		} else {
+			$crate::tracing::Level::DEBUG
+		}
+	};
+
 	(debug_warn) => {
 		if $crate::debug::logging() {
 			$crate::tracing::Level::WARN

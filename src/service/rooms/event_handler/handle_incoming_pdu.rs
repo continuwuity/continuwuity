@@ -4,8 +4,8 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Event, Result, debug, debug_error, debug_warn, defer, error, matrix::PartialPdu,
-	result::DebugInspect, trace, utils::time::jitter,
+	Err, Event, Result, debug, debug_error, debug_warn, defer, matrix::PartialPdu, trace,
+	utils::time::jitter,
 };
 use futures::{FutureExt, StreamExt, future::try_join3};
 use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId};
@@ -31,6 +31,7 @@ impl super::Service {
 		// Skip the PDU if we already have it as a timeline event. We still re-process
 		// outliers in this scenario.
 		if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
+			debug!("Database hit for incoming PDU, skipping processing");
 			return Ok(Some(pdu_id));
 		}
 		trace!(
@@ -96,6 +97,7 @@ impl super::Service {
 
 		// If this is not a timeline event, stop now, as we don't want to de-outlier it.
 		if !is_timeline_event {
+			debug!("Not promoting incoming event as it is not a timeline event");
 			return Ok(None);
 		}
 
@@ -108,6 +110,7 @@ impl super::Service {
 			.await?
 			.origin_server_ts();
 		if incoming_pdu.origin_server_ts() < first_ts_in_room {
+			debug!("Not promoting incoming event as it is sent before we joined the room");
 			return Ok(None);
 		}
 
@@ -124,8 +127,8 @@ impl super::Service {
 			first_ts_in_room,
 		))
 		.await
-		.debug_inspect_err(|e| {
-			error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
+		.inspect_err(|e| {
+			debug_error!("Failed to fetch and persist incoming event's prev_events: {e:?}");
 		})?;
 
 		let is_dummy_event = incoming_pdu.event_type().to_string() == "org.matrix.dummy_event"
