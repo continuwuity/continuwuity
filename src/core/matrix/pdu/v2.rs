@@ -1,6 +1,6 @@
 use ruma::{
-	EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId,
-	ServerSignatures, UInt, UserId, events::TimelineEventType,
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId,
+	OwnedUserId, RoomId, ServerSignatures, UInt, UserId, events::TimelineEventType,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue as RawJsonValue;
@@ -33,6 +33,7 @@ pub struct PDU {
 	/// For redaction events, the ID of the event being redacted.
 	///
 	/// Not used in v11.
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub redacts: Option<OwnedEventId>,
 	/// The room in which this event resides.
 	pub room_id: OwnedRoomId,
@@ -41,6 +42,7 @@ pub struct PDU {
 	/// The signatures on this event.
 	pub signatures: ServerSignatures,
 	/// The state key for this PDU, if any.
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub state_key: Option<String>,
 	/// The type of this PDU.
 	#[serde(rename = "type")]
@@ -50,8 +52,13 @@ pub struct PDU {
 	///
 	/// This should be `None` when receiving from and transmitting over
 	/// federation.
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub unsigned: Option<Box<RawJsonValue>>,
 
+	/// Internal metadata that is important to the PDU but should not be
+	/// serialized into the final event.
+	///
+	/// This field MUST NOT be sent to clients or federation.
 	pub internal_metadata: PduMetadata,
 }
 
@@ -90,7 +97,7 @@ impl ruma::state_res::Event for PDU {
 	fn rejected(&self) -> bool { self.internal_metadata().rejected }
 }
 
-impl super::Event for PDU {
+impl crate::Event for PDU {
 	fn as_pdu(&self) -> &Pdu { todo!() }
 
 	fn into_pdu(self) -> Pdu { todo!() }
@@ -124,4 +131,36 @@ impl super::Event for PDU {
 	fn unsigned(&self) -> Option<&RawJsonValue> { self.unsigned.as_deref() }
 
 	fn event_type(&self) -> &TimelineEventType { &self.event_type }
+}
+
+impl TryFrom<&RawJsonValue> for PDU {
+	type Error = crate::Error;
+
+	fn try_from(value: &RawJsonValue) -> Result<Self, Self::Error> {
+		serde_json::from_str(value.get()).map_err(Into::into)
+	}
+}
+
+impl TryFrom<Box<RawJsonValue>> for PDU {
+	type Error = crate::Error;
+
+	fn try_from(value: Box<RawJsonValue>) -> Result<Self, Self::Error> {
+		Self::try_from(value.as_ref())
+	}
+}
+
+impl TryFrom<serde_json::Value> for PDU {
+	type Error = crate::Error;
+
+	fn try_from(value: serde_json::Value) -> Result<Self, Self::Error> {
+		serde_json::from_value(value).map_err(Into::into)
+	}
+}
+
+impl TryFrom<CanonicalJsonObject> for PDU {
+	type Error = crate::Error;
+
+	fn try_from(value: CanonicalJsonObject) -> Result<Self, Self::Error> {
+		serde_json::from_value(serde_json::to_value(value)?).map_err(Into::into)
+	}
 }
