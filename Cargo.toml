@@ -502,7 +502,7 @@ version = "0.4.9"
 default-features = false
 
 [workspace.dependencies.termimad]
-version = "0.34.0"
+version = "0.35.0"
 default-features = false
 
 [workspace.dependencies.checked_ops]
