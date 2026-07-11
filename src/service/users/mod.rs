@@ -14,6 +14,7 @@ use conduwuit::{
 	utils::{self},
 };
 use database::Map;
+pub use device::DeviceToken;
 pub use profile::ProfileFieldChange;
 use ruma::{UserId, api::error::ErrorKind, encryption::CrossSigningKey, serde::Raw};
 use serde::{Deserialize, Serialize};

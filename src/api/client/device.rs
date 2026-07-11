@@ -89,14 +89,7 @@ pub(crate) async fn update_device_route(
 
 			services
 				.users
-				.create_device(
-					sender_user,
-					&device_id,
-					&appservice.registration.as_token,
-					None,
-					None,
-					Some(client.to_string()),
-				)
+				.create_device(sender_user, &device_id, None, None, Some(client.to_string()))
 				.await?;
 
 			return Ok(update_device::v3::Response::new());

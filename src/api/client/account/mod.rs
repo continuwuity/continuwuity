@@ -26,7 +26,7 @@ use ruma::{
 };
 use service::{mailer::messages, uiaa::UiaaInitiator, users::HashedPassword};
 
-use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
+use super::DEVICE_ID_LENGTH;
 use crate::{Ruma, router::ClientIdentity};
 
 pub(crate) mod register;
