@@ -151,6 +151,7 @@ impl crate::Service for Service {
                     config: config.clone(),
 					client_secret: if let Some(client_secret_file) = &config.client_secret_file {
 						std::fs::read_to_string(client_secret_file)
+							.map(|client_secret| client_secret.trim().to_owned())
 							.map(ClientSecret::new)
 							.map_err(|err| err!("Failed to read OIDC client secret file: {err}"))?
 					} else if let Some(client_secret) = &config.client_secret {
