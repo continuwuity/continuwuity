@@ -143,7 +143,7 @@ impl super::Service {
 				| Ok(value) => {
 					self.services
 						.event_handler
-						.handle_incoming_pdu(&backfill_server, room_id, event_id, value, false)
+						.handle_incoming_pdu(&backfill_server, room_id, event_id, value, true)
 						.boxed()
 						.await?;
 					debug!("Successfully backfilled {event_id} from {backfill_server}");
@@ -185,7 +185,7 @@ impl super::Service {
 
 		self.services
 			.event_handler
-			.handle_incoming_pdu(origin, &room_id, &event_id, value, false)
+			.handle_incoming_pdu(origin, &room_id, &event_id, value, true)
 			.boxed()
 			.await?;
 

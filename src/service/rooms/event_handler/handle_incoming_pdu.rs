@@ -15,6 +15,26 @@ use crate::rooms::timeline::RawPduId;
 
 impl super::Service {
 	/// Handles an incoming PDU from federation.
+	///
+	/// First checks that we want to receive this PDU. If we already have it as
+	/// a timeline PDU, or we don't want to receive the PDU (e.g. origin ACL'd,
+	/// room disabled/unknown), abort.
+	///
+	/// The PDU is then handled as an outlier event, which performs [PDU checks]
+	/// 1 through 4. See: `handle_outlier_pdu`.
+	///
+	/// Once handled as an outlier, any missing prev events are fetched, and
+	/// then the PDU will be promoted/upgraded from an outlier to a timeline
+	/// event clients can see. See: `upgrade_outlier_to_timeline_pdu`. After
+	/// this finishes, the PDU is either accepted or left as an outlier.
+	///
+	/// If the PDU is successfully upgraded, the remaining extremity count of
+	/// the room is checked. If there are a potentially problematic number of
+	/// forward extremities, a squasher task is started with a debounce period,
+	/// which will eventually send a dummy event that ties up as many DAG forks
+	/// as possible.
+	///
+	/// [PDU checks]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
 	#[tracing::instrument(
 		name = "pdu",
 		skip_all,
@@ -26,7 +46,7 @@ impl super::Service {
 		room_id: &'a RoomId,
 		event_id: &'a EventId,
 		value: BTreeMap<String, CanonicalJsonValue>,
-		is_timeline_event: bool,
+		is_backfilled_event: bool,
 	) -> Result<Option<RawPduId>> {
 		// Skip the PDU if we already have it as a timeline event. We still re-process
 		// outliers in this scenario.
@@ -65,7 +85,7 @@ impl super::Service {
 			)));
 		}
 
-		if !room_exists && !is_interesting_member_event {
+		if !room_exists {
 			if is_interesting_member_event {
 				// TODO: handle interesting membership events where we aren't in
 				// the room
@@ -95,9 +115,10 @@ impl super::Service {
 			.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
 			.await?;
 
-		// If this is not a timeline event, stop now, as we don't want to de-outlier it.
-		if !is_timeline_event {
-			debug!("Not promoting incoming event as it is not a timeline event");
+		// If this event is being processed as part of backfill, we don't want to end up
+		// *appending* it during the upgrade process, so we return early.
+		if is_backfilled_event {
+			debug!("Not promoting incoming event as it is being backfilled");
 			return Ok(None);
 		}
 
@@ -110,7 +131,10 @@ impl super::Service {
 			.await?
 			.origin_server_ts();
 		if incoming_pdu.origin_server_ts() < first_ts_in_room {
-			debug!("Not promoting incoming event as it is sent before we joined the room");
+			debug_warn!(
+				"Not promoting incoming event as it is sent before we joined the room (but was \
+				 not backfilled)"
+			);
 			return Ok(None);
 		}
 

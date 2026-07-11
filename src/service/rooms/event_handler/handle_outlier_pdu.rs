@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_warn, err, info, trace, warn,
+	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_warn, err, info, trace,
 };
 use ruma::{CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName};
 
@@ -44,13 +44,12 @@ impl super::Service {
 
 		// 1. Check that the PDU follows the format for the room version
 		// (in this case, just size check)
-		if !Self::pdu_format_check_1(&value) {
-			warn!(
-				"Dropping incoming PDU {event_id} in room {room_id} from {origin} because it \
-				 exceeds 65535 bytes or is otherwise too large."
+		Self::pdu_format_check_1(&value).inspect_err(|e| {
+			info!(
+				err=?e,
+				"Dropping incoming PDU from {origin} because it violates the room event format"
 			);
-			return Err!(Request(TooLarge("PDU is too large")));
-		}
+		})?;
 
 		value.remove("unsigned");
 		let room_version_rules = get_room_version_rules(create_event)?;

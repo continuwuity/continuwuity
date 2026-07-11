@@ -327,7 +327,7 @@ async fn handle_room(
 		let result = services
 			.rooms
 			.event_handler
-			.handle_incoming_pdu(origin, room_id, &event_id, value, true)
+			.handle_incoming_pdu(origin, room_id, &event_id, value, false)
 			.boxed()
 			.await
 			.map(|_| ());

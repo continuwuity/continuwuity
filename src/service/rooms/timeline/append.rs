@@ -1,69 +1,113 @@
 use std::{
-	collections::{BTreeMap, HashSet},
+	borrow::Borrow,
+	collections::{BTreeMap, HashMap, HashSet},
 	sync::Arc,
 };
 
 use conduwuit::{
-	debug_warn,
+	Result, debug, debug_warn, is_equal_to,
+	matrix::{Event, PduEvent},
 	pdu::{Count, ShortRoomId},
 	trace,
-	utils::{IterStream, TryFutureExtExt, stream::BroadbandExt},
+	utils::{
+		IterStream, TryFutureExtExt,
+		mutex_map::Guard,
+		stream::{BroadbandExt, ReadyExt},
+	},
 	warn,
 };
 use conduwuit_core::{
-	Result, err, error,
-	matrix::{
-		event::Event,
-		pdu::{PduCount, PduEvent, PduId, RawPduId},
-	},
-	utils::{self, ReadyExt},
+	err, error,
+	matrix::pdu::{PduCount, PduId, RawPduId},
+	utils::{self},
 };
-use futures::{StreamExt, TryFutureExt};
+use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, RoomId, RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
+	RoomVersionId, UserId,
 	events::{
 		GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
 		room::{encrypted::Relation, redaction::RoomRedactionEventContent},
 	},
 	push::{Action, Ruleset, Tweak},
+	room_version_rules::RoomVersionRules,
 };
 
 use super::{ExtractBody, ExtractRelatesTo, ExtractRelatesToEventId, RoomMutexGuard};
-use crate::{appservice::RegistrationInfo, rooms::state_compressor::CompressedState};
+use crate::{
+	appservice::RegistrationInfo,
+	rooms::state_compressor::{CompressedState, HashSetCompressStateEvent},
+};
 
 impl super::Service {
 	/// Append the incoming event setting the state snapshot to the state from
 	/// the server that sent the event.
-	#[allow(clippy::too_many_arguments)]
-	pub async fn append_incoming_pdu<'a, Leaves>(
+	pub async fn append_incoming_pdu<'a>(
 		&'a self,
 		pdu: &'a PduEvent,
 		pdu_json: CanonicalJsonObject,
-		new_room_leaves: Leaves,
-		state_ids_compressed: Arc<CompressedState>,
-		soft_fail: bool,
+		room_version_rules: &RoomVersionRules,
+		state_before: HashMap<u64, OwnedEventId>,
+		should_soft_fail: bool,
 		state_lock: &'a RoomMutexGuard,
-		room_id: &'a RoomId,
-	) -> Result<Option<RawPduId>>
-	where
-		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
-	{
+	) -> Result<Option<RawPduId>> {
+		let room_id = pdu.room_id_or_hash();
+
+		let sb = state_before.iter().map(|(ssk, eid)| (ssk, eid.as_ref()));
+		let state_ids_compressed: Arc<CompressedState> = self
+			.services
+			.state_compressor
+			.compress_state_events(sb)
+			.collect()
+			.map(Arc::new)
+			.await;
+
 		// We append to state before appending the pdu, so we don't have a moment in
 		// time with the pdu without it's state. This is okay because append_pdu can't
 		// fail.
 		self.services
 			.state
-			.set_event_state(&pdu.event_id, room_id, state_ids_compressed)
+			.set_event_state(&pdu.event_id, &room_id, state_ids_compressed)
 			.await?;
 
-		if soft_fail {
+		if should_soft_fail {
 			// Nothing else to do with a soft-failed event.
+			self.services
+				.pdu_metadata
+				.mark_event_soft_failed(pdu.event_id());
 			return Ok(None);
 		}
 
+		// Per https://spec.matrix.org/unstable/server-server-api/#soft-failure, soft-failed events
+		// are not added as forward extremities.
+		// This also means we set the state here.
+		// We do this BEFORE setting the extremities so that there's never a point in
+		// time where we have fresh extremities referencing stale state.
+		let mut extremities: Vec<_> = self
+			.services
+			.state
+			.get_forward_extremities(&room_id)
+			.collect()
+			.await;
+		extremities = self
+			.progress_state_and_extremities(
+				pdu,
+				room_version_rules,
+				state_before.clone(),
+				extremities,
+				state_lock,
+			)
+			.await?;
+
 		let pdu_id = self
-			.append_pdu(pdu, pdu_json, new_room_leaves, state_lock, room_id)
+			.append_pdu(
+				pdu,
+				pdu_json,
+				extremities.iter().map(Borrow::borrow),
+				state_lock,
+				&room_id,
+			)
 			.await?;
 
 		// Process admin commands for federation events
@@ -86,9 +130,108 @@ impl super::Service {
 			}
 		}
 
-		self.services.sync.wake_all_joined(room_id).await;
+		self.services.sync.wake_all_joined(&room_id).await;
 
 		Ok(Some(pdu_id))
+	}
+
+	/// Derives new room state from the incoming event and filters forward
+	/// extremities accordingly. Does not set forward extremities.
+	///
+	/// Only call this function if the incoming PDU is not soft-failed or
+	/// rejected.
+	async fn progress_state_and_extremities(
+		&self,
+		incoming_pdu: &PduEvent,
+		room_version_rules: &RoomVersionRules,
+		state_before: HashMap<u64, OwnedEventId>,
+		forward_extremities: Vec<OwnedEventId>,
+		state_lock: &Guard<OwnedRoomId, ()>,
+	) -> Result<Vec<OwnedEventId>> {
+		if incoming_pdu.state_key().is_some() {
+			debug!("Event is a state-event. Deriving new room state");
+			self.derive_new_state(incoming_pdu, room_version_rules, state_before, state_lock)
+				.await?;
+		}
+
+		// Now we calculate the set of extremities this room has after the incoming
+		// event has been applied. We start with the previous extremities
+		trace!("Calculating extremities");
+		let mut forward_extremities = forward_extremities
+			.into_iter()
+			.stream()
+			.ready_filter(|event_id| {
+				// Remove any that are referenced by this incoming event's prev_events
+				!incoming_pdu.prev_events().any(is_equal_to!(event_id))
+			})
+			.broad_filter_map(|event_id| async move {
+				// Only keep those extremities were not referenced yet
+				self.services
+					.pdu_metadata
+					.is_event_referenced(&incoming_pdu.room_id_or_hash(), &event_id)
+					.await
+					.eq(&false)
+					.then_some(event_id)
+			})
+			.collect::<Vec<_>>()
+			.await;
+		forward_extremities.push(incoming_pdu.event_id().to_owned());
+		debug!(
+			"Retained {} extremities checked against {} prev_events",
+			forward_extremities.len(),
+			incoming_pdu.prev_events().count()
+		);
+		assert!(!forward_extremities.is_empty(), "resolved extremities cannot be empty");
+		Ok(forward_extremities)
+	}
+
+	/// Derives a new room state by adding the incoming PDU to the state before
+	/// it to create the state at, which then becomes the current room state.
+	///
+	/// The caller MUST ensure forward extremities are set appropriately,
+	/// including this incoming pdu, either before or after calling this
+	/// function. Failing to do so will result in an inconsistent current state
+	/// cache, which may affect event authentication.
+	async fn derive_new_state(
+		&self,
+		incoming_pdu: &PduEvent,
+		room_version_rules: &RoomVersionRules,
+		state_before: HashMap<u64, OwnedEventId>,
+		state_lock: &Guard<OwnedRoomId, ()>,
+	) -> Result {
+		let room_id = incoming_pdu.room_id_or_hash();
+		// We also add state after incoming event to the fork states
+		let mut state_at_incoming_event = state_before;
+		let shortstatekey = self
+			.services
+			.short
+			.get_or_create_shortstatekey(
+				&incoming_pdu.kind().to_string().into(),
+				incoming_pdu.state_key().unwrap(),
+			)
+			.await;
+
+		let event_id = incoming_pdu.event_id();
+		state_at_incoming_event.insert(shortstatekey, event_id.to_owned());
+
+		debug!("Resolving new room state");
+		let new_room_state = self
+			.services
+			.event_handler
+			.resolve_state(&room_id, room_version_rules, state_at_incoming_event)
+			.await?;
+
+		debug!("Forcing new room state");
+		let HashSetCompressStateEvent { shortstatehash, added, removed } = self
+			.services
+			.state_compressor
+			.save_state(&room_id, new_room_state)
+			.await?;
+
+		self.services
+			.state
+			.force_state(&room_id, shortstatehash, added, removed, state_lock)
+			.await
 	}
 
 	/// Populates the unsigned data of a PDU
