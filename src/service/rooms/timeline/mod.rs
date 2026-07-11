@@ -77,6 +77,7 @@ struct Services {
 	short: Dep<rooms::short::Service>,
 	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
+	state_compressor: Dep<rooms::state_compressor::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
 	sync: Dep<sync::Service>,
 	threads: Dep<rooms::threads::Service>,
@@ -110,6 +111,8 @@ impl crate::Service for Service {
 				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
 					.depend::<rooms::state_accessor::Service>("rooms::state_accessor"),
+				state_compressor: args
+					.depend::<rooms::state_compressor::Service>("rooms::state_compressor"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 				sync: args.depend::<sync::Service>("sync"),
 				threads: args.depend::<rooms::threads::Service>("rooms::threads"),

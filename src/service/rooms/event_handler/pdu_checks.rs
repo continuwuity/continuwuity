@@ -16,10 +16,14 @@ impl super::Service {
 	/// Checks that the PDU conforms to the PDU format (check 1). This is
 	/// already mostly done during deserialisation, so this function just checks
 	/// that the PDU isn't a too large.
-	pub(super) fn pdu_format_check_1(pdu_json: &CanonicalJsonObject) -> bool {
+	pub(super) fn pdu_format_check_1(pdu_json: &CanonicalJsonObject) -> Result<()> {
 		// NOTE: if we do any more validation outside of deserialisation, it has to be
 		// done here.
-		pdu_fits(pdu_json)
+		if !pdu_fits(pdu_json) {
+			Err!(Request(TooLarge("PDU is too large")))
+		} else {
+			Ok(())
+		}
 	}
 
 	/// Checks that the PDU has a valid signature (check 2), and redacts it if

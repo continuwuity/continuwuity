@@ -1,5 +1,6 @@
 use std::{
 	collections::{HashMap, HashSet, VecDeque},
+	fmt::{Display, Formatter},
 	time::Instant,
 };
 
@@ -33,6 +34,20 @@ pub enum DagBuilderTree {
 	AuthEvents,
 }
 
+impl DagBuilderTree {
+	#[must_use]
+	pub fn as_str(&self) -> &str {
+		match self {
+			| Self::AuthEvents => "auth_events",
+			| Self::PrevEvents => "prev_events",
+		}
+	}
+}
+
+impl Display for DagBuilderTree {
+	fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { f.write_str(self.as_str()) }
+}
+
 /// Attempts to build a localised directed acyclic graph out of the given PDUs,
 /// returning them in a topologically sorted order.
 ///
@@ -45,20 +60,19 @@ pub async fn build_local_dag(
 	pdu_map: &HashMap<OwnedEventId, CanonicalJsonObject>,
 	tree: DagBuilderTree,
 ) -> Result<Vec<OwnedEventId>> {
-	debug_assert!(pdu_map.len() >= 2, "needless call to build_local_dag with less than 2 PDUs");
+	if pdu_map.len() <= 1 {
+		return Ok(pdu_map.keys().cloned().collect());
+	}
+
 	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
 		HashMap::with_capacity(pdu_map.len());
 	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
-	let tree = match tree {
-		| DagBuilderTree::AuthEvents => "auth_events",
-		| DagBuilderTree::PrevEvents => "prev_events",
-	};
 
 	for (event_id, value) in pdu_map {
 		// Parse all prev events as event IDs - if they are missing, return an error (we
 		// can't sanely continue in this case), otherwise skip invalid prev events.
 		let prev_events = value
-			.get(tree)
+			.get(tree.as_str())
 			.and_then(CanonicalJsonValue::as_array)
 			.ok_or_else(|| err!(Request(BadJson("event JSON for {event_id} is missing {tree}"))))?
 			.iter()

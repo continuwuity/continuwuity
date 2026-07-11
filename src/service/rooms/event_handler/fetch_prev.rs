@@ -84,11 +84,7 @@ impl super::Service {
 			})
 			.collect::<HashMap<_, _>>();
 
-		let to_persist = if mapped.len() <= 1 {
-			mapped.keys().map(ToOwned::to_owned).collect()
-		} else {
-			build_local_dag(&mapped, DagBuilderTree::PrevEvents).await?
-		};
+		let to_persist = build_local_dag(&mapped, DagBuilderTree::PrevEvents).await?;
 
 		let job_start = Instant::now();
 		trace!("Starting to persist {} prev events", to_persist.len());
