@@ -74,7 +74,6 @@ jobs:
             CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
             TARGET_CPU=
             RUST_PROFILE=release
-            CARGO_FEATURES=default
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.prepare.outputs.metadata_labels }}
           annotations: ${{ steps.prepare.outputs.metadata_annotations }}
@@ -162,7 +161,6 @@ jobs:
             CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
             TARGET_CPU=${{ matrix.target_cpu }}
             RUST_PROFILE=release-max-perf
-            CARGO_FEATURES=default,release_max_log_level
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.prepare.outputs.metadata_labels }}
           annotations: ${{ steps.prepare.outputs.metadata_annotations }}

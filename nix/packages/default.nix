@@ -36,16 +36,14 @@
                   self'.packages.stable-toolchain
               );
 
-              # extra features via `cargoExtraArgs`
-              cargoExtraArgs = "-F http3";
-
               default = pkgs.callPackage ./continuwuity.nix {
                 inherit self craneLib;
 
                 liburing = (if isStatic then pkgs.pkgsStatic else pkgs).liburing;
                 rocksdb = if isStatic then null else self'.packages.rocksdb;
 
-                inherit cargoExtraArgs;
+                # extra features via `cargoExtraArgs`
+                cargoExtraArgs = "-F http3";
                 # extra RUSTFLAGS via `rustflags`
                 # the stuff below is required for http3
                 rustflags = "--cfg reqwest_unstable";

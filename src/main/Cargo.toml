@@ -42,12 +42,12 @@ assets = [
 [features]
 default = [
     "standard",
+    "release_max_log_level",
     "ring",
 	"bindgen-runtime", # replace with bindgen-static on alpine
 ]
 standard = [
 	"brotli_compression",
-	"direct_tls",
 	"element_hacks",
 	"gzip_compression",
 	"io_uring",
