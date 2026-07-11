@@ -384,9 +384,8 @@ impl super::Service {
 			.send_federation_request(&remote, get_event::v1::Request::new(event_id.clone()))
 			.await?;
 
-		let (calculated_event_id, value) = self
-			.parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)
-			.await?;
+		let (calculated_event_id, value) =
+			self.parse_incoming_pdu_with_known_room(&res.pdu, room_version_rules)?;
 
 		if calculated_event_id != event_id {
 			Err!(Request(BadJson(warn!(
