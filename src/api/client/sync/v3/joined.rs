@@ -381,16 +381,21 @@ async fn fetch_shortstatehashes(
 				| Some((_, pdu_after_last_sync_end)) => {
 					trace!(?pdu_after_last_sync_end.event_id, "pdu at last sync end");
 
-					Some(
-						services
-							.rooms
-							.state_accessor
-							.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
-							.await
-							.map_err(|err| {
-								err!("Last sync end PDU has no shortstatehash: {err}")
-							}),
-					)
+					if pdu_after_last_sync_end.kind == RoomCreate {
+						// Room create events have no previous state
+						None
+					} else {
+						Some(
+							services
+								.rooms
+								.state_accessor
+								.pdu_shortstatehash(&pdu_after_last_sync_end.event_id)
+								.await
+								.map_err(|err| {
+									err!("Last sync end PDU has no shortstatehash: {err}")
+								}),
+						)
+					}
 				},
 				| None => {
 					// No events have been sent since the last sync, or we just joined this room
