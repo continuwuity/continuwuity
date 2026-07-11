@@ -6,8 +6,8 @@ use conduwuit::{
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, ServerName, api::error::ErrorKind, canonical_json::redact,
-	events::StateEventType, room_version_rules::RoomVersionRules,
+	CanonicalJsonObject, EventId, OwnedEventId, ServerName, api::error::ErrorKind,
+	canonical_json::redact, events::StateEventType, room_version_rules::RoomVersionRules,
 };
 
 use crate::rooms::{
@@ -21,7 +21,7 @@ impl super::Service {
 	pub(super) fn pdu_format_check_1(
 		pdu_json: &CanonicalJsonObject,
 		room_version_rules: &RoomVersionRules,
-		create_event_id: &OwnedEventId,
+		create_event_id: &EventId,
 	) -> Result<()> {
 		let event_format = &room_version_rules.event_format;
 		// NOTE: if we do any more validation outside of deserialisation, it has to be
@@ -42,7 +42,7 @@ impl super::Service {
 			return Err!(Request(BadJson("PDU has too many auth events")));
 		}
 
-		let create_event_in_auth_events = auth_events.contains(create_event_id);
+		let create_event_in_auth_events = auth_events.iter().any(|id| id == create_event_id);
 		if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
 			return Err!(Request(BadJson("PDU references a create event")));
 		}
