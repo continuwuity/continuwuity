@@ -143,8 +143,6 @@ pub trait Event: Clone + Debug {
 
 	fn into_pdu(self) -> Pdu;
 
-	fn is_owned(&self) -> bool;
-
 	//
 	// Canonical properties
 	//
@@ -182,12 +180,12 @@ pub trait Event: Clone + Debug {
 	fn state_key(&self) -> Option<&str>;
 
 	/// The event type.
+	// #[deprecated]
 	fn kind(&self) -> &TimelineEventType;
 
 	/// Metadata container; peer-trusted only.
 	fn unsigned(&self) -> Option<&RawJsonValue>;
 
-	//#[deprecated]
 	#[inline]
 	fn event_type(&self) -> &TimelineEventType { self.kind() }
 }

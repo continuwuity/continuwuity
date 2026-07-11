@@ -1,11 +1,15 @@
 mod count;
+pub mod hashes;
 mod id;
+pub mod metadata;
 mod partial;
 mod raw_id;
 mod redact;
 #[cfg(test)]
 mod tests;
 mod unsigned;
+pub mod v2;
+pub mod v3;
 
 use std::cmp::Ordering;
 
@@ -151,9 +155,6 @@ impl Event for Pdu {
 
 	#[inline]
 	fn into_pdu(self) -> Pdu { self }
-
-	#[inline]
-	fn is_owned(&self) -> bool { true }
 }
 
 impl Event for &Pdu {
@@ -219,9 +220,6 @@ impl Event for &Pdu {
 
 	#[inline]
 	fn into_pdu(self) -> Pdu { self.clone() }
-
-	#[inline]
-	fn is_owned(&self) -> bool { false }
 }
 
 /// Prevent derived equality which wouldn't limit itself to event_id
