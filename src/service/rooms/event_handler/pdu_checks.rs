@@ -37,7 +37,10 @@ impl super::Service {
 			.verify_event(&pdu_json, room_version_rules)
 			.await
 		{
-			| Ok(ruma::signatures::Verified::All) => Ok(pdu_json),
+			| Ok(ruma::signatures::Verified::All) => {
+				trace!("Signatures and hashes verified successfully");
+				Ok(pdu_json)
+			},
 			| Ok(ruma::signatures::Verified::Signatures) => {
 				debug_info!("Content hash mismatch, redacting event and continuing");
 				let redacted = redact(pdu_json, &room_version_rules.redaction, None)
@@ -114,7 +117,7 @@ impl super::Service {
 				trace!("Could not calculate incoming state, asking remote {origin} for it");
 				self.fetch_state(origin, create_event, &room_id, incoming_pdu.event_id())
 					.await
-					.debug_inspect_err(|e| {
+					.inspect_err(|e| {
 						debug_error!("Could not fetch state from {origin}: {e}");
 					})?
 			},

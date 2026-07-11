@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, sync::Arc, time::Instant};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, is_equal_to, is_true,
+	Err, Result, debug, debug_info, debug_warn, is_equal_to, is_true,
 	matrix::{Event, PduEvent},
 	trace,
 	utils::{
@@ -46,10 +46,10 @@ impl super::Service {
 			trace!(event_id=%incoming_pdu.event_id(), "Skipping upgrade of already upgraded PDU");
 			return Ok(Some(id));
 		} else if rejected {
-			return Err!(Request(Forbidden("Event has been rejected")));
+			return Err!(Request(Forbidden(debug_info!("Event has been rejected"))));
 		} else if soft_failed {
 			// Soft-failed events cannot be promoted.
-			return Err!(Request(Forbidden("Event has been soft-failed")));
+			return Err!(Request(Forbidden(debug_info!("Event has been soft-failed"))));
 		}
 
 		// These should never happen, but they're good last-minute sanity checks to
@@ -83,9 +83,9 @@ impl super::Service {
 
 		if !passes_state_before {
 			self.reject_and_persist(incoming_pdu.event_id(), &val);
-			return Err!(Request(Forbidden(
+			return Err!(Request(Forbidden(debug_warn!(
 				"Event authorisation fails based on the state before the event"
-			)));
+			))));
 		}
 
 		// Now that we know the event passes both self-authentication, and
@@ -103,7 +103,15 @@ impl super::Service {
 		let state_lock = self.services.state.mutex.lock(room_id).await;
 		let passes_current_state = self
 			.current_state_check_6(&incoming_pdu, &room_version_rules, create_event)
-			.await?;
+			.await
+			.inspect(|passes| {
+				if !*passes {
+					debug_warn!(
+						"Event authorisation fails based on the current room state - will be \
+						 soft-failed"
+					);
+				}
+			})?;
 
 		// Determine whether this PDU should be soft-failed.
 		// If the auth check failed, invariably yes. Otherwise, only if the user isn't
@@ -128,7 +136,14 @@ impl super::Service {
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
 			should_soft_fail = self
 				.policy_server_check_7(&incoming_pdu, &mut val, &room_version_rules)
-				.await?;
+				.await
+				.inspect(|passes| {
+					if !*passes {
+						debug_warn!(
+							"Event did not pass the policy server check and will be soft-failed"
+						);
+					}
+				})?;
 
 			// TODO: this is supposed to hide redactions from policy servers and janitorial
 			// bots, however, for full efficacy it also needs to hide redactions for
