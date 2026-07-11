@@ -23,7 +23,7 @@ use ruma::{
 };
 use serde::Deserialize;
 
-use crate::Ruma;
+use crate::{Ruma, server::utils::validate_any_membership_event};
 
 /// # `PUT /_matrix/federation/v2/invite/{roomId}/{eventId}`
 ///
@@ -86,7 +86,7 @@ pub(crate) async fn create_invite_route(
 	}
 
 	// And then we can validate the member event itself
-	let (mut signed_event, sender_user, recipient_user) = validate_membership_event(
+	let (mut signed_event, sender_user, recipient_user) = validate_invite_membership_event(
 		&services,
 		&body.event,
 		&room_version_rules,
@@ -234,7 +234,7 @@ pub(crate) async fn create_invite_route(
 /// invite event itself.
 ///
 /// [spec]: https://spec.matrix.org/v1.19/server-server-api/#put_matrixfederationv2inviteroomideventid
-async fn validate_membership_event(
+async fn validate_invite_membership_event(
 	services: &crate::State,
 	body: &serde_json::value::RawValue,
 	room_version_rules: &RoomVersionRules,
@@ -243,80 +243,22 @@ async fn validate_membership_event(
 	room_id: OwnedRoomId,
 	event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, OwnedUserId, OwnedUserId)> {
-	let (template_room_id, template_event_id, pdu) = services
-		.rooms
-		.event_handler
-		.parse_incoming_pdu(body)
-		.await
-		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
-
-	if template_room_id != room_id {
-		return Err!(Request(InvalidParam("Membership event does not belong to requested room")));
-	}
-	if template_event_id != event_id {
-		return Err!(Request(InvalidParam(
-			"Membership event ID does not match provided event ID"
-		)));
-	}
-
-	services
-		.server_keys
-		.verify_event(&pdu, room_version_rules)
-		.await
-		.map_err(|e| {
-			err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))
-		})?;
-
-	// Ensure this is a membership event
-	if pdu
-		.get("type")
-		.expect("event must have a type")
-		.as_str()
-		.expect("type must be a string")
-		!= "m.room.member"
-	{
-		return Err!(Request(BadJson(
-			"Not allowed to send non-membership event to invite endpoint"
-		)));
-	}
-
-	// Ensure it is an invite event
-	// My Huge Chain (avoids deser)
-	let membership = pdu
-		.get("content")
-		.ok_or_else(|| err!(Request(BadJson("Event missing content property"))))?
-		.as_object()
-		.ok_or_else(|| err!(Request(BadJson("Event content is not an object"))))?
-		.get("membership")
-		.ok_or_else(|| err!(Request(BadJson("Event missing membership property"))))?
-		.as_str()
-		.ok_or_else(|| err!(Request(BadJson("Event is not a string"))))?;
-	if MembershipState::Invite != membership.into() {
-		return Err!(Request(BadJson(
-			"Not allowed to send non-invite membership event to invite endpoint"
-		)));
-	}
+	let (pdu, target_membership, sender_user, recipient_user) = validate_any_membership_event(
+		services,
+		body,
+		room_version_rules,
+		create_event_id,
+		room_id,
+		event_id,
+	)
+	.await?;
 
 	// Ensure the sender belongs to the remote that is sending the invite
-	let sender_user = pdu
-		.get("sender")
-		.and_then(|v| v.as_str())
-		.map(UserId::parse)
-		.and_then(Result::ok)
-		.ok_or_else(|| err!(Request(InvalidParam("Invalid sender property"))))?;
-
 	if sender_user.server_name() != origin {
 		return Err!(Request(Forbidden("Sender belongs to a different server")));
 	}
 
 	// Ensure the target user belongs to this server
-	let recipient_user = pdu
-		.get("state_key")
-		.and_then(|v| v.as_str())
-		.map(UserId::parse)
-		.and_then(Result::ok)
-		.ok_or_else(|| err!(Request(InvalidParam("Invalid state_key property"))))?;
-
 	if !services
 		.globals
 		.server_is_ours(recipient_user.server_name())
@@ -324,18 +266,9 @@ async fn validate_membership_event(
 		return Err!(Request(InvalidParam("Recipient does not belong to this homeserver")));
 	}
 
-	// Do a quick format check. The spec doesn't suggest this, but it's probably
-	// a good idea nonetheless.
-	service::rooms::event_handler::Service::pdu_format_check_1(
-		&pdu,
-		room_version_rules,
-		&create_event_id,
-	)
-	.map_err(|e| {
-		err!(Request(InvalidParam(
-			"Invite membership event violates the room event format: {e}"
-		)))
-	})?;
+	if target_membership != MembershipState::Invite {
+		return Err!(Request(BadJson("Invalid membership (expected `invite`)")));
+	}
 
 	Ok((pdu, sender_user, recipient_user))
 }
