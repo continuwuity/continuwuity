@@ -14,10 +14,12 @@ impl super::Service {
 	/// This performs steps 1 through 4 of [S-S section 5.1][spec], returning
 	/// the parsed PDU and modified JSON object.
 	///
+	/// **External callers likely want `handle_incoming_pdu` instead.**
+	///
 	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
 	#[allow(clippy::too_many_arguments)]
 	#[tracing::instrument(name = "handle_outlier", skip_all)]
-	pub(super) async fn handle_outlier_pdu<'a, Pdu>(
+	pub async fn handle_outlier_pdu<'a, Pdu>(
 		&self,
 		origin: &'a ServerName,
 		create_event: &'a Pdu,
@@ -54,7 +56,6 @@ impl super::Service {
 			})?;
 
 		value.remove("unsigned");
-		let room_version_rules = get_room_version_rules(create_event)?;
 
 		// 2. Check signatures, otherwise drop.
 		// 3. Check content hash, redacting the event if it fails.

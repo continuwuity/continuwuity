@@ -94,7 +94,7 @@ impl super::Service {
 	/// If the auth check fails, false is returned, otherwise true.
 	///
 	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
-	pub(super) async fn auth_state_check_4(
+	pub async fn auth_state_check_4(
 		&self,
 		pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,

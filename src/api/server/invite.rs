@@ -6,6 +6,7 @@ use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Error, EventTypeExt, PduEvent, Result, err, error,
 	matrix::{Event, StateKey, event::gen_event_id},
+	state_res,
 	utils::hash::sha256,
 	warn,
 };
@@ -70,7 +71,7 @@ pub(crate) async fn create_invite_route(
 
 	// First, validate the invite room state, so we can compare with the create
 	// event.
-	let (create_event_id, _) = validate_invite_state(
+	let (create_event_id, state) = validate_invite_state(
 		&services,
 		&body.invite_room_state,
 		&room_version_rules,
@@ -84,7 +85,7 @@ pub(crate) async fn create_invite_route(
 		&body.event,
 		&room_version_rules,
 		&body.identity,
-		create_event_id,
+		create_event_id.clone(),
 		body.room_id.clone(),
 		body.event_id.clone(),
 	)
@@ -152,6 +153,20 @@ pub(crate) async fn create_invite_route(
 		.server_in_room(services.globals.server_name(), &body.room_id)
 		.await
 	{
+		// We will start by recording the room's create event as an outlier.
+		// This will allow us to recognise it later in case the sender revokes the
+		// invite over federation later. We could store more state from the invite
+		// request, but we will get that during send_join anyway.
+		let create_event_json = state
+			.get(&StateEventType::RoomCreate.with_state_key(""))
+			.expect("must have create event in invite state by this point");
+		// This is safe to just add directly as an outlier as we already auth checked it
+		// during validation.
+		services
+			.rooms
+			.outlier
+			.add_pdu_outlier(&create_event_id, create_event_json);
+
 		services
 			.rooms
 			.state_cache
@@ -387,6 +402,28 @@ async fn validate_invite_state(
 				))),
 			| Entry::Vacant(entry) => {
 				if entry.key().0 == StateEventType::RoomCreate {
+					// Ensure this is a legal create event.
+					let pdu_event =
+						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
+							.expect("must be able to create pdu event from event json");
+					if !state_res::auth_check(
+						room_version_rules,
+						&pdu_event,
+						None,
+						|_, _| async {
+							unreachable!(
+								"No state should be fetched when processing a lone create event"
+							);
+						},
+						&pdu_event,
+					)
+					.await
+					.unwrap_or_default()
+					{
+						return Err!(Request(InvalidParam(
+							"m.room.create event fails auth check"
+						)));
+					}
 					create_event_id = Some(state_event_id);
 				}
 				entry.insert(state_event_json);
