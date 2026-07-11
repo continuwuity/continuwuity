@@ -73,4 +73,29 @@ impl crate::Context<'_> {
 			})
 			.await
 	}
+
+	pub(super) async fn ensure_puppets_active(&self) -> Result {
+		self.services
+			.users
+			.stream_local_users()
+			.filter_map(async |user_id| {
+				if self.services.appservice.is_user_id(&user_id).await {
+					Some(user_id)
+				} else {
+					None
+				}
+			})
+			.for_each(async |user_id| {
+				self.services
+					.users
+					.convert_to_shadow_account(&user_id)
+					.await
+					.expect("should be able to convert to shadow");
+			})
+			.await;
+
+		write!(self, "All appservice puppets have been marked as active.").await?;
+
+		Ok(())
+	}
 }

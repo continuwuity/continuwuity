@@ -146,6 +146,10 @@ List database files
 
 Send a test email to the invoking admin's email address
 
+## `!admin debug rooms-by-extremity-count`
+
+Lists room IDs by forward extremity count in descending order
+
 ## `!admin debug tester`
 
 Developer test stubs

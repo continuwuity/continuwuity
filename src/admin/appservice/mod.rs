@@ -37,4 +37,10 @@ pub enum AppserviceCommand {
 	/// List all the currently registered appservices
 	#[clap(alias("list"))]
 	ListRegistered,
+
+	/// Ensure no appservice puppets are marked as deactivated.
+	/// This is a debug command to fix issues caused by a faulty database
+	/// migration in Continuwuity 26.6.0.
+	#[clap(hide = true)]
+	EnsurePuppetsActive,
 }

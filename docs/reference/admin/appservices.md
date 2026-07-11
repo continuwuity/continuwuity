@@ -27,3 +27,7 @@ You can find the ID using the `list-appservices` command.
 ## `!admin appservices list-registered`
 
 List all the currently registered appservices
+
+## `!admin appservices ensure-puppets-active`
+
+Ensure no appservice puppets are marked as deactivated. This is a debug command to fix issues caused by a faulty database migration in Continuwuity 26.6.0

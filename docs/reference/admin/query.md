@@ -106,9 +106,7 @@ resolver service
 
 ### `!admin query resolver cache`
 
-Query the destinations or overrides cache
-
-Shows entire cache by default, but can be narrowed to only show overrides with `-o/--overrides true`, or to exclude them with `false`
+Query the destinations or overrides cache, depending on the value of the `overrides` flag (default false)
 
 ### `!admin query resolver flush-cache`
 
