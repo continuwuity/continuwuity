@@ -21,7 +21,9 @@ impl super::Service {
 		request: T,
 	) -> Result<Option<T::IncomingResponse>>
 	where
-		T: OutgoingRequest<Authentication = HomeserverToken, PathBuilder = SinglePath> + Debug + Send,
+		T: OutgoingRequest<Authentication = HomeserverToken, PathBuilder = SinglePath>
+			+ Debug
+			+ Send,
 	{
 		let Some(dest) = registration.url else {
 			return Ok(None);

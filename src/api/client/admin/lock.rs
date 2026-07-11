@@ -30,10 +30,8 @@ pub(crate) async fn put_lock_status(
 ) -> Result<lock_user::v1::Response> {
 	let sender_user = body.identity.sender_user();
 
-	let (status, target_admin) = join!(
-		services.users.status(&body.user_id),
-		services.users.is_admin(&body.user_id),
-	);
+	let (status, target_admin) =
+		join!(services.users.status(&body.user_id), services.users.is_admin(&body.user_id),);
 
 	status.ensure_active()?;
 

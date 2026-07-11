@@ -99,7 +99,7 @@ pub(crate) async fn register_route(
 			.users
 			.create_local_account(&user_id, Some(password), identity.email)
 			.await?;
-		
+
 		user_id
 	};
 

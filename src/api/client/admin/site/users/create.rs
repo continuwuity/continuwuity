@@ -30,21 +30,24 @@ pub(crate) async fn create_user(
 		.determine_registration_user_id(Some(body.localpart.clone()), email.as_ref(), None)
 		.await?;
 
+	services.users.create_shadow_account(user_id).await?;
+
 	services
 		.users
-		.create_shadow_account(user_id)
+		.convert_to_local_account(user_id, HashedPassword::new(&body.password)?)
 		.await?;
 
-	services.users.convert_to_local_account(user_id, HashedPassword::new(&body.password)?).await?;
-
 	if let Some(email) = &email {
-		services.threepid.associate_localpart_email(user_id.localpart(), email).await?;
+		services
+			.threepid
+			.associate_localpart_email(user_id.localpart(), email)
+			.await?;
 	}
 
 	if body.suspended {
 		services
 			.users
-			.suspend_account(&user_id, body.identity.sender_user())
+			.suspend_account(user_id, body.identity.sender_user())
 			.await;
 	}
 	if body.locked {
@@ -57,18 +60,24 @@ pub(crate) async fn create_user(
 		services.users.disable_login(user_id);
 	}
 	if let Some(ref value) = body.display_name {
-		services.users.set_profile_field(
-			user_id,
-			ProfileFieldChange::Set(ProfileFieldValue::DisplayName(value.to_owned())),
-			PropagateTo::None,
-		);
+		services
+			.users
+			.set_profile_field(
+				user_id,
+				ProfileFieldChange::Set(ProfileFieldValue::DisplayName(value.to_owned())),
+				PropagateTo::None,
+			)
+			.await?;
 	}
 	if let Some(ref value) = body.avatar_url {
-		services.users.set_profile_field(
-			user_id,
-			ProfileFieldChange::Set(ProfileFieldValue::AvatarUrl(value.to_owned())),
-			PropagateTo::None,
-		);
+		services
+			.users
+			.set_profile_field(
+				user_id,
+				ProfileFieldChange::Set(ProfileFieldValue::AvatarUrl(value.to_owned())),
+				PropagateTo::None,
+			)
+			.await?;
 	}
 	if body.admin {
 		services
@@ -88,7 +97,9 @@ pub(crate) async fn create_user(
 				vec![]
 			} else {
 				services.config.auto_join_rooms.clone()
-			}.into_iter().stream()
+			}
+			.into_iter()
+			.stream(),
 		)
 		.broad_filter_map(|room| async move {
 			services

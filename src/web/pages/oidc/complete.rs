@@ -107,7 +107,7 @@ async fn route_complete(
 			let supplied_user_id = if let Some(form) = form {
 				if let Ok(user_id) = UserId::parse(format!(
 					"@{}:{}",
-					&form.username,
+					form.username,
 					services.globals.server_name()
 				)) && services.users.status(&user_id).await.is_active()
 				{
