@@ -134,7 +134,7 @@ impl super::Service {
 			// We explicitly only do this if we aren't already going to soft-fail the event,
 			// since the policy server refusing this event also soft-fails it.
 			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
-			should_soft_fail = self
+			should_soft_fail = !self
 				.policy_server_check_7(&incoming_pdu, &mut val, &room_version_rules)
 				.await
 				.inspect(|passes| {
