@@ -18,7 +18,10 @@ use self::handler::RouterExt;
 pub(super) use self::{args::Args as Ruma, auth::ClientIdentity, response::RumaResponse};
 #[cfg(feature = "admin_api")]
 use crate::client::admin::site as admin_api;
-use crate::{client::{self, admin}, server};
+use crate::{
+	client::{self, admin},
+	server,
+};
 
 pub fn build(router: Router<State>, state: State) -> Router<State> {
 	let config = &state.server.config;

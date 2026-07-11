@@ -22,10 +22,10 @@ use crate::{
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
-			AuthorizationCodeData, AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
-			DeviceCodeRequest, DeviceCodeResponse, ErrorCode,
-			OAuthError, RequestedScope, ResponseMode,
-			TokenRequest, TokenRequestType, TokenResponse, TokenType
+			AuthorizationCodeData, AuthorizationCodeQuery, AuthorizationCodeResponse,
+			CodeChallengeMethod,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RequestedScope, ResponseMode,
+			TokenRequest, TokenRequestType, TokenResponse, TokenType,
 		},
 	},
 	users::{self, DeviceToken},
