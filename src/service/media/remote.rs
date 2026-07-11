@@ -260,7 +260,7 @@ impl super::Service {
 		let response = self
 			.services
 			.client
-			.extern_media
+			.external_resource
 			.get(location)
 			.send()
 			.await?;

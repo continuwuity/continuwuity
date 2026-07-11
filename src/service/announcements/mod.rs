@@ -134,7 +134,7 @@ impl Service {
 		let response = self
 			.services
 			.client
-			.default
+			.external_resource
 			.get(CHECK_FOR_ANNOUNCEMENTS_URL)
 			.send()
 			.await?

@@ -16,9 +16,9 @@ pub struct Service {
 	pub matrix_resolver: Arc<MatrixResolver>,
 	pub dns_resolver: Arc<TokioResolver>,
 
-	pub default: reqwest::Client,
+	pub dns: reqwest::Client,
 	pub url_preview: reqwest::Client,
-	pub extern_media: reqwest::Client,
+	pub external_resource: reqwest::Client,
 	pub federation: reqwest::Client,
 	pub federation_slow: reqwest::Client,
 	pub sender: reqwest::Client,
@@ -35,17 +35,17 @@ impl crate::Service for Service {
 
 		let dns_resolver = get_dns_resolver(args.server)?;
 
+		let dns_client = base(&args.server.config)?
+			.connect_timeout(Duration::from_secs(args.server.config.well_known_conn_timeout))
+			.read_timeout(Duration::from_secs(args.server.config.well_known_timeout))
+			.timeout(Duration::from_secs(args.server.config.well_known_timeout))
+			.pool_max_idle_per_host(0)
+			.redirect(redirect::Policy::limited(4))
+			.build()?;
+
 		let matrix_resolver = Arc::new(MatrixResolverBuilder::new()
 			.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
-			.http_client(
-				base(&args.server.config)?
-					.connect_timeout(Duration::from_secs(args.server.config.well_known_conn_timeout))
-					.read_timeout(Duration::from_secs(args.server.config.well_known_timeout))
-					.timeout(Duration::from_secs(args.server.config.well_known_timeout))
-					.pool_max_idle_per_host(0)
-					.redirect(redirect::Policy::limited(4))
-					.build()?
-			)
+			.http_client(dns_client.clone())
 			.dns_resolver(dns_resolver.clone())
 			.build()?);
 		let matrix_dns_resolver = matrix_resolver.create_dns_resolver();
@@ -69,23 +69,19 @@ impl crate::Service for Service {
 			matrix_resolver,
 			dns_resolver,
 
-			default: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
-				.build()?,
+			dns: dns_client,
 
 			url_preview: base(config)
 				.and_then(|builder| {
 					builder_interface(builder, url_preview_bind_iface.as_deref())
 				})?
 				.local_address(url_preview_bind_addr)
-				.dns_resolver(matrix_dns_resolver.clone())
 				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
 				.user_agent(url_preview_user_agent)
 				.build()?,
 
-			extern_media: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
+			external_resource: base(config)?
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
@@ -128,7 +124,7 @@ impl crate::Service for Service {
 				.build()?,
 
 			appservice: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
+				.dns_resolver(matrix_dns_resolver)
 				.connect_timeout(Duration::from_secs(5))
 				.read_timeout(Duration::from_secs(config.appservice_timeout))
 				.timeout(Duration::from_secs(config.appservice_timeout))
@@ -138,7 +134,6 @@ impl crate::Service for Service {
 				.build()?,
 
 			pusher: base(config)?
-				.dns_resolver(matrix_dns_resolver)
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)

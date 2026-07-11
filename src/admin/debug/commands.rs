@@ -1014,7 +1014,7 @@ impl crate::Context<'_> {
 		let resolver: &MatrixResolver = if no_cache {
 			&MatrixResolverBuilder::new()
 				.dangerous_tls_accept_invalid_certs(self.services.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
-				.http_client(self.services.client.default.clone())
+				.http_client(self.services.client.dns.clone())
 				.build()?
 		} else {
 			&self.services.client.matrix_resolver
