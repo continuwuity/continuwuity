@@ -155,7 +155,7 @@ async fn get_account_deeplink(
 				));
 			};
 
-			format!("device/{device_id}/delete")
+			format!("device/{device_id}/remove")
 		},
 		| AccountManagementAction::DeviceView => {
 			let Some(device_id) = query.device_id else {
