@@ -308,6 +308,21 @@ impl super::Service {
 				| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
 			};
 		}
+
+		// Evil hack because only the PDU JSON gets signed
+		pdu.hashes = serde_json::from_value(serde_json::to_value(
+			pdu_json
+				.get("hashes")
+				.expect("must have hashes after signing")
+				.clone(),
+		)?)?;
+		pdu.signatures = serde_json::from_value(serde_json::to_value(
+			pdu_json
+				.get("signatures")
+				.expect("must have signatures after signing")
+				.clone(),
+		)?)?;
+
 		// Generate event id
 		pdu.event_id = gen_event_id(&pdu_json, &room_version_rules)?;
 		pdu_json

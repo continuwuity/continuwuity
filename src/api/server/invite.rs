@@ -61,6 +61,8 @@ pub(crate) async fn create_invite_route(
 	debug!(
 		event_id=%body.event_id,
 		room_id=%body.room_id,
+		room_version=?body.room_version,
+		via=?body.via,
 		"Validating invite room state for invite request"
 	);
 	let (create_event_id, state) = validate_invite_state(
@@ -290,6 +292,7 @@ async fn validate_invite_state(
 	room_version_rules: &RoomVersionRules,
 	room_id: OwnedRoomId,
 ) -> Result<(OwnedEventId, HashMap<(StateEventType, StateKey), CanonicalJsonObject>)> {
+	trace!(?invite_state, "Raw invite state");
 	let mut invite_state_map: HashMap<(StateEventType, StateKey), _> =
 		HashMap::with_capacity(invite_state.len());
 	let mut create_event_id: Option<OwnedEventId> = None;

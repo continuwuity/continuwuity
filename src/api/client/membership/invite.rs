@@ -3,7 +3,7 @@ use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PartialPdu},
-	warn,
+	trace, warn,
 };
 use futures::FutureExt;
 use ruma::{
@@ -193,6 +193,7 @@ pub(crate) async fn invite_helper(
 			.await
 			.ok();
 
+		trace!(?request, "Sending invite");
 		let response = services
 			.sending
 			.send_federation_request(recipient_user.server_name(), request)
