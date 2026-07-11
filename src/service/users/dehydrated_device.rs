@@ -41,7 +41,6 @@ impl super::Service {
 		self.create_device(
 			user_id,
 			&request.device_id,
-			"",
 			None,
 			request.initial_device_display_name.clone(),
 			None,

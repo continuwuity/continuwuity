@@ -20,9 +20,12 @@ use ruma::{
 	assign,
 };
 use serde_json::value::RawValue;
-use service::{mailer::messages, users::HashedPassword};
+use service::{
+	mailer::messages,
+	users::{DeviceToken, HashedPassword},
+};
 
-use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
+use super::DEVICE_ID_LENGTH;
 use crate::Ruma;
 
 /// # `POST /_matrix/client/v3/register`
@@ -119,7 +122,7 @@ pub(crate) async fn register_route(
 			.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
 
 		// Generate new token for the device
-		let new_token = utils::random_string(TOKEN_LENGTH);
+		let new_token = DeviceToken::new_random();
 
 		// Create device for this account
 		services
@@ -127,8 +130,7 @@ pub(crate) async fn register_route(
 			.create_device(
 				&user_id,
 				&device_id,
-				&new_token,
-				None,
+				Some(new_token.clone()),
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)
@@ -142,7 +144,7 @@ pub(crate) async fn register_route(
 	debug_info!(%user_id, ?device, "New account created via legacy registration");
 
 	Ok(assign!(register::v3::Response::new(user_id), {
-		access_token: token,
+		access_token: token.map(DeviceToken::into_token),
 		device_id: device,
 		refresh_token: None,
 		expires_in: None,

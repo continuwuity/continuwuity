@@ -29,8 +29,9 @@ use ruma::{
 	},
 	assign,
 };
+use service::users::DeviceToken;
 
-use super::{DEVICE_ID_LENGTH, TOKEN_LENGTH};
+use super::DEVICE_ID_LENGTH;
 use crate::Ruma;
 
 /// # `GET /_matrix/client/v3/login`
@@ -196,8 +197,8 @@ pub(crate) async fn login_route(
 		.clone()
 		.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
 
-	// Generate a new token for the device (ensuring no collisions)
-	let token = services.users.generate_unique_token().await;
+	// Generate a new token for the device
+	let token = DeviceToken::new_random();
 
 	// Determine if device_id was provided and exists in the db for this user
 	let device_exists = if body.device_id.is_some() {
@@ -213,7 +214,7 @@ pub(crate) async fn login_route(
 	if device_exists {
 		services
 			.users
-			.set_token(&user_id, &device_id, &token, None)
+			.set_token(&user_id, &device_id, token.clone())
 			.await?;
 	} else {
 		services
@@ -221,8 +222,7 @@ pub(crate) async fn login_route(
 			.create_device(
 				&user_id,
 				&device_id,
-				&token,
-				None,
+				Some(token.clone()),
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)
@@ -241,7 +241,7 @@ pub(crate) async fn login_route(
 	info!("{user_id} logged in");
 
 	#[allow(deprecated)]
-	Ok(assign!(login::v3::Response::new(user_id, token, device_id), {
+	Ok(assign!(login::v3::Response::new(user_id, token.into_token(), device_id), {
 		well_known: client_discovery_info,
 		expires_in: None,
 		home_server: Some(services.config.server_name.clone()),
@@ -273,7 +273,7 @@ pub(crate) async fn login_token_route(
 		.authenticate_password(&body.auth, sender_user, body.identity.sender_device(), None)
 		.await?;
 
-	let login_token = utils::random_string(TOKEN_LENGTH);
+	let login_token = DeviceToken::new_random().into_token();
 	let expires_in = services.users.create_login_token(sender_user, &login_token);
 
 	Ok(get_login_token::v1::Response::new(

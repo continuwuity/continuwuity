@@ -11,20 +11,44 @@ use database::{Deserialized, Ignore, Interfix, Json};
 use futures::{Stream, StreamExt};
 use ruma::{
 	DeviceId, MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedUserId, UserId,
-	api::client::device::Device, events::AnyToDeviceEvent, serde::Raw, uint,
+	api::client::device::Device, assign, events::AnyToDeviceEvent, serde::Raw, uint,
 };
 use serde_json::json;
 
 use crate::users::increment;
 
+#[must_use]
+#[derive(Clone)]
+pub struct DeviceToken {
+	token: String,
+	max_age: Option<Duration>,
+}
+
+impl DeviceToken {
+	const DEVICE_ID_LENGTH: usize = 10;
+
+	pub fn new(token: String) -> Self { Self { token, max_age: None } }
+
+	pub fn new_random() -> Self { Self::new(utils::random_string(Self::DEVICE_ID_LENGTH)) }
+
+	pub fn with_max_age(self, max_age: Duration) -> Self {
+		assign!(self, { max_age: Some(max_age) })
+	}
+
+	#[must_use]
+	pub fn into_token(self) -> String { self.token }
+}
+
 impl super::Service {
 	/// Adds a new device to a user.
+	///
+	/// If no `token` is provided, the device will not be able to be logged
+	/// into.
 	pub async fn create_device(
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
-		token: &str,
-		token_max_age: Option<Duration>,
+		token: Option<DeviceToken>,
 		initial_device_display_name: Option<String>,
 		client_ip: Option<String>,
 	) -> Result<()> {
@@ -38,8 +62,12 @@ impl super::Service {
 
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.db.userdeviceid_metadata.put(key, Json(device));
-		self.set_token(user_id, device_id, token, token_max_age)
-			.await
+
+		if let Some(token) = token {
+			self.set_token(user_id, device_id, token).await?;
+		}
+
+		Ok(())
 	}
 
 	/// Removes a device from a user.
@@ -97,31 +125,12 @@ impl super::Service {
 		self.db.userdeviceid_token.qry(&key).await.deserialized()
 	}
 
-	/// Generate a unique access token that doesn't collide with existing tokens
-	pub async fn generate_unique_token(&self) -> String {
-		loop {
-			let token = utils::random_string(32);
-
-			// Check for collision with existing appservice and user tokens
-			let (appservice, usr) = tokio::join!(
-				self.services.appservice.find_from_token(&token),
-				self.db.token_userdeviceid.get(&token)
-			);
-			if appservice.is_ok() || usr.is_ok() {
-				continue;
-			}
-
-			return token;
-		}
-	}
-
 	/// Replaces the access token of one device.
 	pub async fn set_token(
 		&self,
 		user_id: &UserId,
 		device_id: &DeviceId,
-		token: &str,
-		token_max_age: Option<Duration>,
+		DeviceToken { token, max_age }: DeviceToken,
 	) -> Result<()> {
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
@@ -136,7 +145,7 @@ impl super::Service {
 		if self
 			.services
 			.appservice
-			.find_from_token(token)
+			.find_from_token(&token)
 			.await
 			.is_ok()
 		{
@@ -153,10 +162,10 @@ impl super::Service {
 		}
 
 		// Assign token to user device combination
-		self.db.userdeviceid_token.put_raw(key, token);
-		self.db.token_userdeviceid.raw_put(token, key);
+		self.db.userdeviceid_token.put_raw(key, &token);
+		self.db.token_userdeviceid.raw_put(&token, key);
 
-		if let Some(max_age) = token_max_age {
+		if let Some(max_age) = max_age {
 			let expires = SystemTime::now()
 				.duration_since(SystemTime::UNIX_EPOCH)
 				.expect("system time should not be before the epoch")

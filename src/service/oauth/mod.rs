@@ -25,7 +25,7 @@ use crate::{
 			OAuthError, ResponseMode, Scope, TokenRequest, TokenResponse, TokenType,
 		},
 	},
-	users,
+	users::{self, DeviceToken},
 };
 
 pub mod client_metadata;
@@ -343,7 +343,7 @@ impl Service {
 		client_name: Option<String>,
 		client_id: String,
 	) -> Result<TokenResponse, OAuthError> {
-		let access_token = Self::generate_token();
+		let access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
 		let refresh_token = Self::generate_token();
 
 		let device_id = requested_scopes
@@ -376,8 +376,7 @@ impl Service {
 			.create_device(
 				&authorizing_user,
 				device_id,
-				&access_token,
-				Some(Self::ACCESS_TOKEN_MAX_AGE),
+				Some(access_token.clone()),
 				client_name,
 				None,
 			)
@@ -413,7 +412,7 @@ impl Service {
 		);
 
 		Ok(TokenResponse {
-			access_token,
+			access_token: access_token.into_token(),
 			token_type: TokenType::Bearer,
 			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
 			scope: requested_scopes.iter().join(" "),
@@ -449,7 +448,7 @@ impl Service {
 
 		assert_eq!(&client_id, &session_info.client_id, "session info client id mismatch");
 
-		let new_access_token = Self::generate_token();
+		let new_access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
 		let new_refresh_token = Self::generate_token();
 		let scope = session_info.scopes.iter().join(" ");
 		session_info
@@ -461,8 +460,7 @@ impl Service {
 			.set_token(
 				&refresh_token_info.user_id,
 				&refresh_token_info.device_id,
-				&new_access_token,
-				Some(Self::ACCESS_TOKEN_MAX_AGE),
+				new_access_token.clone(),
 			)
 			.await
 			.expect("should be able to set token");
@@ -479,7 +477,7 @@ impl Service {
 			.raw_put(&new_refresh_token, Json(refresh_token_info));
 
 		Ok(TokenResponse {
-			access_token: new_access_token,
+			access_token: new_access_token.into_token(),
 			token_type: TokenType::Bearer,
 			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
 			scope,
