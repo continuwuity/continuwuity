@@ -2,26 +2,25 @@ use std::{borrow::Borrow, time::Instant, vec};
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Event, Result, at, debug, err, info,
-	matrix::event::gen_event_id_canonical_json,
-	trace,
+	Err, Event, Result, at, debug, err, info, trace,
 	utils::stream::{BroadbandExt, IterStream, TryBroadbandExt},
 	warn,
 };
 use conduwuit_service::Services;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{
-	CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName, UserId,
 	api::federation::membership::create_join_event,
 	assign,
 	events::{
-		StateEventType, TimelineEventType,
+		TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
+	room_version_rules::RoomVersionRules,
 };
-use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
+use serde_json::value::to_raw_value;
 
-use crate::Ruma;
+use crate::{Ruma, server::utils::validate_any_membership_event};
 
 /// helper method for /send_join v1 and v2
 #[tracing::instrument(skip(services, pdu, omit_members), fields(room_id = room_id.as_str(), origin = origin.as_str()), level = "info")]
@@ -29,7 +28,9 @@ async fn create_join_event(
 	services: &Services,
 	origin: &ServerName,
 	room_id: &RoomId,
-	pdu: &RawJsonValue,
+	event_id: &EventId,
+	room_version_rules: &RoomVersionRules,
+	mut pdu: CanonicalJsonObject,
 	omit_members: bool,
 ) -> Result<create_join_event::v2::RoomState> {
 	if !services.rooms.metadata.exists(room_id).await {
@@ -43,6 +44,7 @@ async fn create_join_event(
 	{
 		info!(
 			origin = origin.as_str(),
+			room_id = %room_id,
 			"Refusing to serve send_join for room we aren't participating in"
 		);
 		return Err!(Request(NotFound("This server is not participating in that room.")));
@@ -64,94 +66,25 @@ async fn create_join_event(
 		.await
 		.map_err(|e| err!(Request(NotFound(error!("Room has no state: {e}")))))?;
 
-	// We do not add the event_id field to the pdu here because of signature and
-	// hashes checks
-	trace!("Getting room version");
-	let room_version = services.rooms.state.get_room_version(room_id).await?;
-	let room_version_rules = room_version.rules().unwrap();
-
-	trace!("Generating event ID and converting to canonical json");
-	let Ok((event_id, mut value)) = gen_event_id_canonical_json(pdu, &room_version_rules) else {
-		// Event could not be converted to canonical json
-		return Err!(Request(BadJson("Could not convert event to canonical json.")));
-	};
-
-	let event_room_id: OwnedRoomId = serde_json::from_value(
-		value
-			.get("room_id")
-			.ok_or_else(|| err!(Request(BadJson("Event missing room_id property."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson(warn!("room_id field is not a valid room ID: {e}")))))?;
-
-	if event_room_id != room_id {
-		return Err!(Request(BadJson("Event room_id does not match request path room ID.")));
-	}
-
-	let event_type: StateEventType = serde_json::from_value(
-		value
-			.get("type")
-			.ok_or_else(|| err!(Request(BadJson("Event missing type property."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson(warn!("Event has invalid state event type: {e}")))))?;
-
-	if event_type != StateEventType::RoomMember {
-		return Err!(Request(BadJson(
-			"Not allowed to send non-membership state event to join endpoint."
-		)));
-	}
+	let sender = pdu
+		.get("sender")
+		.and_then(|v| v.as_str())
+		.map(UserId::parse)
+		.and_then(Result::ok)
+		.expect("sender was already validated");
 
 	let content: RoomMemberEventContent = serde_json::from_value(
-		value
-			.get("content")
+		pdu.get("content")
 			.ok_or_else(|| err!(Request(BadJson("Event missing content property"))))?
 			.clone()
 			.into(),
 	)
 	.map_err(|e| err!(Request(BadJson(warn!("Event content is empty or invalid: {e}")))))?;
 
-	if content.membership != MembershipState::Join {
-		return Err!(Request(BadJson(
-			"Not allowed to send a non-join membership event to join endpoint."
-		)));
-	}
-
-	let sender: OwnedUserId = serde_json::from_value(
-		value
-			.get("sender")
-			.ok_or_else(|| err!(Request(BadJson("Event missing sender property."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson(warn!("sender property is not a valid user ID: {e}")))))?;
-
-	// check if origin server is trying to send for another server
-	if sender.server_name() != origin {
-		return Err!(Request(Forbidden("Not allowed to join on behalf of another server.")));
-	}
-
-	let state_key: OwnedUserId = serde_json::from_value(
-		value
-			.get("state_key")
-			.ok_or_else(|| err!(Request(BadJson("Event missing state_key property."))))?
-			.clone()
-			.into(),
-	)
-	.map_err(|e| err!(Request(BadJson(warn!("State key is not a valid user ID: {e}")))))?;
-
-	if state_key != sender {
-		return Err!(Request(BadJson("State key does not match sender user.")));
-	}
-
 	if let Some(authorising_user) = content.join_authorized_via_users_server {
-		use ruma::RoomVersionId::*;
-
-		if matches!(room_version, V1 | V2 | V3 | V4 | V5 | V6 | V7) {
+		if !room_version_rules.authorization.restricted_join_rule {
 			return Err!(Request(InvalidParam(
-				"Room version {room_version} does not support restricted rooms but \
+				"Room version does not support restricted rooms but \
 				 join_authorised_via_users_server ({authorising_user}) was found in the event."
 			)));
 		}
@@ -174,8 +107,7 @@ async fn create_join_event(
 				 they cannot authorise your join."
 			)));
 		}
-
-		if !super::user_can_perform_restricted_join(services, &state_key, room_id).await? {
+		if !super::user_can_perform_restricted_join(services, &sender, room_id).await? {
 			return Err!(Request(UnableToAuthorizeJoin(
 				"Joining user did not pass restricted room's rules."
 			)));
@@ -183,7 +115,7 @@ async fn create_join_event(
 
 		services
 			.server_keys
-			.hash_and_sign_event(&mut value, &room_version_rules)
+			.hash_and_sign_event(&mut pdu, room_version_rules)
 			.map_err(|e| {
 				err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}"))))
 			})?;
@@ -200,7 +132,7 @@ async fn create_join_event(
 	let pdu_id = services
 		.rooms
 		.event_handler
-		.handle_incoming_pdu(sender.server_name(), room_id, &event_id, value.clone(), false)
+		.handle_incoming_pdu(sender.server_name(), room_id, event_id, pdu.clone(), false)
 		.boxed()
 		.await?
 		.ok_or_else(|| err!(Request(InvalidParam("Could not accept as timeline event."))))?;
@@ -220,14 +152,12 @@ async fn create_join_event(
 		.iter()
 		.try_stream()
 		.broad_filter_map(|event_id| async move {
-			if omit_members {
-				if let Ok(e) = event_id.as_ref() {
-					let pdu = services.rooms.timeline.get_pdu(e).await;
-					if pdu.is_ok_and(|p| *p.kind() == TimelineEventType::RoomMember) {
-						trace!("omitting member event {e:?} from returned state");
-						// skip members
-						return None;
-					}
+			if omit_members && let Ok(e) = event_id.as_ref() {
+				let pdu = services.rooms.timeline.get_pdu(e).await;
+				if pdu.is_ok_and(|p| *p.kind() == TimelineEventType::RoomMember) {
+					trace!("omitting member event {e:?} from returned state");
+					// skip members
+					return None;
 				}
 			}
 			Some(event_id)
@@ -289,7 +219,7 @@ async fn create_join_event(
 	Ok(assign!(create_join_event::v2::RoomState::new(), {
 		auth_chain,
 		state,
-		event: to_raw_value(&CanonicalJsonValue::Object(value)).ok(),
+		event: to_raw_value(&CanonicalJsonValue::Object(pdu)).ok(),
 		members_omitted: omit_members,
 		servers_in_room,
 	}))
@@ -309,24 +239,45 @@ pub(crate) async fn create_join_event_v2_route(
 		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
 	}
 
-	if let Some(server) = body.room_id.server_name() {
-		if services.moderation.is_remote_server_forbidden(server) {
-			warn!(
-				"Server {} tried joining room ID {} through us which has a server name that is \
-				 globally forbidden. Rejecting.",
-				body.identity, &body.room_id,
-			);
-			return Err!(Request(Forbidden(warn!(
-				"Room ID server name {server} is banned on this homeserver."
-			))));
-		}
+	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
+	let create_event = services
+		.rooms
+		.state_accessor
+		.get_room_create_event(&body.room_id)
+		.await;
+	let room_version_rules = room_version.rules().unwrap();
+
+	let (value, membership, sender, target) = validate_any_membership_event(
+		&services,
+		&body.pdu,
+		&room_version_rules,
+		create_event.event_id.clone(),
+		body.room_id.clone(),
+		body.event_id.clone(),
+	)
+	.await?;
+	if membership != MembershipState::Join {
+		return Err!(Request(InvalidParam("Invalid membership (expected `join`)")));
+	}
+	if sender.server_name() != body.identity {
+		return Err!(Request(InvalidParam("Sender belongs to a different server")));
+	}
+	if sender != target {
+		return Err!(Request(InvalidParam("Sender does not match state key")));
 	}
 
 	let now = Instant::now();
-	let room_state =
-		create_join_event(&services, &body.identity, &body.room_id, &body.pdu, body.omit_members)
-			.boxed()
-			.await?;
+	let room_state = create_join_event(
+		&services,
+		&body.identity,
+		&body.room_id,
+		&body.event_id,
+		&room_version_rules,
+		value,
+		body.omit_members,
+	)
+	.boxed()
+	.await?;
 	info!(
 		"Finished sending a join for {} in {} in {:?}",
 		body.identity,
