@@ -2442,6 +2442,7 @@ pub struct OauthConfig {
 	///   legacy authentication will be unable to log in.
 	///
 	/// default: "hybrid"
+	#[serde(default)]
 	compatibility_mode: OAuthMode,
 
 	/// display: hidden
