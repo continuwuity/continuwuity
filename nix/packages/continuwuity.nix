@@ -43,8 +43,8 @@ let
     env = {
       CARGO_PROFILE = profile;
       RUSTFLAGS = rustflags;
-      GIT_COMMIT_HASH = self.rev or self.dirtyRev;
-      GIT_COMMIT_HASH_SHORT = self.shortRev or self.dirtyShortRev;
+      GIT_COMMIT_HASH = self.rev or self.dirtyRev or "";
+      GIT_COMMIT_HASH_SHORT = self.shortRev or self.dirtyShortRev or "";
     }
     // (lib.optionalAttrs (rocksdb != null) {
       ROCKSDB_INCLUDE_DIR = "${rocksdb}/include";
