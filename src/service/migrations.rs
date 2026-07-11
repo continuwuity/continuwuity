@@ -867,7 +867,7 @@ async fn split_userid_password(services: &Services) -> Result {
 				userid_password.remove(&user_id);
 				remote_users = remote_users.saturating_add(1);
 			} else if hash.is_empty() {
-				if !(services.appservice.is_exclusive_user_id(&user_id).await
+				if !(services.appservice.is_user_id(&user_id).await
 					|| user_id == services.globals.server_user)
 				{
 					info!("Marking {user_id} as deactivated");

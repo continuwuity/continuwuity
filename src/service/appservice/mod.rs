@@ -224,6 +224,15 @@ impl Service {
 			.any(|info| info.is_exclusive_user_match(user_id))
 	}
 
+	/// Checks if a given user id matches any appservice regex, exclusive or
+	/// otherwise
+	pub async fn is_user_id(&self, user_id: &UserId) -> bool {
+		self.read()
+			.await
+			.values()
+			.any(|info| info.is_user_match(user_id))
+	}
+
 	/// Checks if a given room alias matches any exclusive appservice regex
 	pub async fn is_exclusive_alias(&self, alias: &RoomAliasId) -> bool {
 		self.read()
