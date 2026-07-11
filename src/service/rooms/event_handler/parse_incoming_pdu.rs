@@ -105,7 +105,7 @@ impl super::Service {
 		Ok(())
 	}
 
-	pub async fn parse_incoming_pdu_with_known_room(
+	pub(super) fn parse_incoming_pdu_with_known_room(
 		&self,
 		pdu: &RawJsonValue,
 		room_version_rules: &RoomVersionRules,
