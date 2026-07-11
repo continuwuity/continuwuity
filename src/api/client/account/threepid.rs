@@ -57,13 +57,11 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 	State(services): State<crate::State>,
 	body: Ruma<request_3pid_management_token_via_email::v3::Request>,
 ) -> Result<request_3pid_management_token_via_email::v3::Response> {
-	// Authentication for this endpoint is technically optional,
-	// but we require the user to be logged in
 	let sender_user = body
 		.identity
 		.as_ref()
 		.map(ClientIdentity::expect_sender_user)
-		.ok_or_else(|| err!(Request(MissingToken("Missing access token."))))??;
+		.transpose()?;
 
 	if !services.threepid.email_requirement().may_change() {
 		return Err!(Request(Forbidden("You may not change your email address.")));
@@ -88,7 +86,7 @@ pub(crate) async fn request_3pid_management_token_via_email_route(
 			Mailbox::new(None, email),
 			|verification_link| messages::ChangeEmail {
 				server_name: services.config.server_name.as_str(),
-				user_id: Some(sender_user),
+				user_id: sender_user,
 				verification_link,
 			},
 			&body.client_secret,
