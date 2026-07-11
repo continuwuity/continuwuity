@@ -54,7 +54,7 @@ impl crate::Context<'_> {
 		let response = self
 			.services
 			.client
-			.default
+			.external_resource
 			.get(format!("https://{server_name}/.well-known/matrix/support"))
 			.send()
 			.await?;
