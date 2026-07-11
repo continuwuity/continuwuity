@@ -5,7 +5,8 @@ use axum_client_ip::ClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Error, EventTypeExt, PduEvent, Result, err, error,
-	matrix::{Event, StateKey, event::gen_event_id},
+	matrix::{Event, StateKey},
+	result::FlatOk,
 	state_res,
 	utils::hash::sha256,
 	warn,
@@ -19,8 +20,8 @@ use ruma::{
 	},
 	events::{StateEventType, room::member::MembershipState},
 	room_version_rules::RoomVersionRules,
-	serde::JsonObject,
 };
+use serde::Deserialize;
 
 use crate::Ruma;
 
@@ -33,29 +34,15 @@ pub(crate) async fn create_invite_route(
 	ClientIp(client): ClientIp,
 	body: Ruma<create_invite::v2::Request>,
 ) -> Result<create_invite::v2::Response> {
-	// ACL check origin
-	services
-		.rooms
-		.event_handler
-		.acl_check(&body.identity, &body.room_id)
-		.await?;
-
 	if !services.server.supported_room_version(&body.room_version) {
 		return Err(Error::BadRequest(
 			ErrorKind::IncompatibleRoomVersion(IncompatibleRoomVersionErrorData::new(
 				body.room_version.clone(),
 			)),
-			"Server does not support this room version.",
+			"This server does not support that room version",
 		));
 	}
-
 	let room_version_rules = body.room_version.rules().unwrap();
-
-	if let Some(server) = body.room_id.server_name() {
-		if services.moderation.is_remote_server_forbidden(server) {
-			return Err!(Request(Forbidden("Server is banned on this homeserver.")));
-		}
-	}
 
 	if services
 		.moderation
@@ -66,7 +53,7 @@ pub(crate) async fn create_invite_route(
 			body.identity, body.room_id
 		);
 
-		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
+		return Err!(Request(Forbidden("Federation denied with {}", body.identity)));
 	}
 
 	// First, validate the invite room state, so we can compare with the create
@@ -78,6 +65,25 @@ pub(crate) async fn create_invite_route(
 		body.room_id.clone(),
 	)
 	.await?;
+	let create_event_json = state
+		.get(&StateEventType::RoomCreate.with_state_key(""))
+		.expect("must have create event in invite state by this point");
+
+	// We can now perform the banned remote server check with the create event.
+	// N.B. this checks the sender field, which is technically incorrect for rooms
+	// v10 and below. This usually isn't the case though so sue me
+	let creator = create_event_json
+		.get("sender")
+		.and_then(|v| v.as_str())
+		.map(UserId::parse)
+		.flat_ok()
+		.expect("must have valid sender in create event");
+	if services
+		.moderation
+		.is_remote_server_forbidden(creator.server_name())
+	{
+		return Err!(Request(Forbidden("Server is banned on this homeserver.")));
+	}
 
 	// And then we can validate the member event itself
 	let (mut signed_event, sender_user, recipient_user) = validate_membership_event(
@@ -94,7 +100,7 @@ pub(crate) async fn create_invite_route(
 	if services.rooms.metadata.is_banned(&body.room_id).await
 		&& !services.users.is_admin(&recipient_user).await
 	{
-		return Err!(Request(Forbidden("This room is banned on this homeserver.")));
+		return Err!(Request(Forbidden("That room is banned on this homeserver.")));
 	}
 
 	if services.config.block_non_admin_invites && !services.users.is_admin(&recipient_user).await
@@ -111,55 +117,50 @@ pub(crate) async fn create_invite_route(
 		return Err!(Request(Forbidden("Invite rejected by antispam service.")));
 	}
 
-	// Make sure we're not ACL'ed from their room.
-	services
+	// If we're already in the room, ensure that neither the origin nor ourselves
+	// are ACL'd.
+	let resident = services
 		.rooms
-		.event_handler
-		.acl_check(recipient_user.server_name(), &body.room_id)
-		.await?;
+		.state_cache
+		.server_in_room(services.globals.server_name(), &body.room_id)
+		.await;
+	if resident {
+		services
+			.rooms
+			.event_handler
+			.acl_check(&body.identity, &body.room_id)
+			.await?;
+		services
+			.rooms
+			.event_handler
+			.acl_check(recipient_user.server_name(), &body.room_id)
+			.await
+			.map_err(|_| err!(Request(Forbidden("This server is ACL'd from that room"))))?;
+	}
 
 	services
 		.server_keys
 		.hash_and_sign_event(&mut signed_event, &room_version_rules)
 		.map_err(|e| err!(Request(InvalidParam("Failed to sign event: {e}"))))?;
 
-	// Generate event id
-	let event_id = gen_event_id(&signed_event, &room_version_rules)?;
-
 	// Add event_id back
-	signed_event.insert("event_id".to_owned(), CanonicalJsonValue::String(event_id.to_string()));
+	signed_event
+		.insert("event_id".to_owned(), CanonicalJsonValue::String(body.event_id.to_string()));
 
 	let mut invite_state = body.invite_room_state.clone();
-
-	let mut event: JsonObject = serde_json::from_str(body.event.get())
-		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
-
-	event.insert("event_id".to_owned(), "$placeholder".into());
-
-	let pdu: PduEvent = serde_json::from_value(event.into())
-		.map_err(|e| err!(Request(BadJson("Invalid invite event PDU: {e}"))))?;
-
-	invite_state.push(RawStrippedState::Pdu(
-		serde_json::value::to_raw_value(&pdu).expect("PDU was just created, it must be valid"),
-	));
+	let pdu = PduEvent::from_id_val(&body.event_id, signed_event.clone())
+		.expect("must be able to create PDU object");
+	invite_state.push(RawStrippedState::Pdu(serde_json::value::to_raw_value(&signed_event)?));
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
 	// record the invited state for client /sync through update_membership(), and
 	// send the invite PDU to the relevant appservices.
-	if !services
-		.rooms
-		.state_cache
-		.server_in_room(services.globals.server_name(), &body.room_id)
-		.await
-	{
+	if !resident {
 		// We will start by recording the room's create event as an outlier.
 		// This will allow us to recognise it later in case the sender revokes the
 		// invite over federation later. We could store more state from the invite
 		// request, but we will get that during send_join anyway.
-		let create_event_json = state
-			.get(&StateEventType::RoomCreate.with_state_key(""))
-			.expect("must have create event in invite state by this point");
 		// This is safe to just add directly as an outlier as we already auth checked it
 		// during validation.
 		services
@@ -406,24 +407,7 @@ async fn validate_invite_state(
 					let pdu_event =
 						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
 							.expect("must be able to create pdu event from event json");
-					if !state_res::auth_check(
-						room_version_rules,
-						&pdu_event,
-						None,
-						|_, _| async {
-							unreachable!(
-								"No state should be fetched when processing a lone create event"
-							);
-						},
-						&pdu_event,
-					)
-					.await
-					.unwrap_or_default()
-					{
-						return Err!(Request(InvalidParam(
-							"m.room.create event fails auth check"
-						)));
-					}
+					validate_invite_create_event(&pdu_event, room_version_rules).await?;
 					create_event_id = Some(state_event_id);
 				}
 				entry.insert(state_event_json);
@@ -449,4 +433,43 @@ async fn validate_invite_state(
 	})?;
 
 	Ok((create_event_id, invite_state_map))
+}
+
+#[derive(Deserialize)]
+struct MFederate {
+	#[serde(rename = "m.federate")]
+	mfederate: Option<bool>,
+}
+
+/// Validates that a create event is suitable for the invite, namely:
+///
+/// 1. It passes auth checks (aka is valid)
+/// 2. The room is federated (there's no point persisting unfederated rooms)
+async fn validate_invite_create_event(
+	pdu: &PduEvent,
+	room_version_rules: &RoomVersionRules,
+) -> Result {
+	if !state_res::auth_check(
+		room_version_rules,
+		pdu,
+		None,
+		|_, _| async {
+			unreachable!("No state should be fetched when processing a lone create event");
+		},
+		pdu,
+	)
+	.await
+	.unwrap_or_default()
+	{
+		return Err!(Request(InvalidParam("m.room.create event fails auth check")));
+	}
+
+	let can_federate = pdu.get_content::<MFederate>()?.mfederate;
+	if !can_federate.unwrap_or(true) {
+		return Err!(Request(InvalidParam(
+			"Cannot receive invites to a room with m.federate=false"
+		)));
+	}
+
+	Ok(())
 }
