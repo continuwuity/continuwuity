@@ -882,7 +882,7 @@ async fn split_userid_password(services: &Services) -> Result {
 	drop(cork);
 	info!(?remote_users, "Split userid_password.");
 
-	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
+	db["global"].insert(SPLIT_USERID_PASSWORD, []);
 	db.db.sort()?;
 	Ok(())
 }
@@ -894,6 +894,8 @@ async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
 	services.db.db.drop_column("roomsynctoken_shortstatehash")?;
 
 	info!("Cleared roomsynctoken_shortstatehash.");
+
+	services.db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
 
 	Ok(())
 }
