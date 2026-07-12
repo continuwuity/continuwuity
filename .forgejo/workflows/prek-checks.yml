@@ -104,3 +104,6 @@ jobs:
             --profile test \
             --all-targets \
             --no-fail-fast
+
+      - name: Check for unused dependencies
+        run: cargo shear
