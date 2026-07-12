@@ -1,3 +1,18 @@
+# Continuwuity 26.6.1 (2026-07-12)
+
+## Features
+
+- Added enforcement for new federated invite checks and corrected a bunch of related spec compliance issues along the way. Contributed by @nex. (#1952)
+
+## Bugfixes
+
+- Fixed existing accounts failing to link when logging in with OIDC if `prompt_for_localpart` was `false`. (#1942)
+- Authentication is no longer required on the `/_matrix/client/v3/account/3pid/email/requestToken` endpoint. (#1953)
+- Fixed newly created rooms failing to sync properly in clients using legacy sync.
+- Stopped appservice users from being erroneously marked as deactivated during a 26.6 database migration.
+- Whitespace will now automatically be trimmed from the start and end of the `global.oauth.oidc.client_secret_file`.
+
+
 # Continuwuity 26.6.0 (2026-07-10)
 
 ## Features
