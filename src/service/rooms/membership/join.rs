@@ -181,15 +181,15 @@ impl super::Service {
 		}
 	}
 
-	async fn send_join(
+	pub async fn send_join(
 		&self,
 		room_id: OwnedRoomId,
 		event_id: OwnedEventId,
-		event: CanonicalJsonObject,
+		event: &CanonicalJsonObject,
 		via: &ServerName,
 		room_version_rules: &RoomVersionRules,
 		state_lock: &RoomMutexGuard,
-	) -> Result {
+	) -> Result<Option<()>> {
 		let send_join_request = create_join_event::v2::Request::new(
 			room_id.clone(),
 			event_id.clone(),
@@ -200,11 +200,7 @@ impl super::Service {
 		);
 
 		info!("Asking {via} for send_join in room {room_id}");
-		self.services
-			.short
-			.get_or_create_shortroomid(&room_id)
-			.await;
-		let send_join_response = self
+		let Ok(send_join_response) = self
 			.services
 			.sending
 			.send_slow_federation_request(via, send_join_request)
@@ -217,7 +213,14 @@ impl super::Service {
 					resp.room_state.auth_chain.len(),
 				);
 			})
-			.inspect_err(|e| debug_error!("{via} failed to send_join: {e:?}"))?;
+			.inspect_err(|e| debug_error!("{via} failed to send_join: {e:?}"))
+		else {
+			return Ok(None); // Try another server
+		};
+		self.services
+			.short
+			.get_or_create_shortroomid(&room_id)
+			.await;
 
 		info!("Acquiring server signing keys for room state events");
 		self.services
@@ -232,9 +235,19 @@ impl super::Service {
 			.await;
 
 		info!("Building state map");
-		let (create_event, untrusted_state_before) = self
+		let (create_event, untrusted_state_before) = match self
 			.build_state_map(&send_join_response, &room_id, room_version_rules)
-			.await?;
+			.await
+		{
+			| Ok(result) => result,
+			| Err(e) => {
+				error!("Failed to build state map: {e}");
+				// This usually happens when the remote server sends a malformed response (e.g.
+				// forgotten m.room.create event). In this case, we might succeed with another
+				// server, so we will return Ok(None) to encourage the caller to re-attempt.
+				return Ok(None);
+			},
+		};
 
 		info!(
 			"Handling returned room state authentication events ({} events)",
@@ -338,6 +351,12 @@ impl super::Service {
 			.force_state(&room_id, statehash_before_join, added, removed, state_lock)
 			.await?;
 
+		let statehash_after_join = self
+			.services
+			.state
+			.append_to_state(&membership_pdu, &room_id)
+			.await?;
+
 		debug!("Promoting membership event");
 		self.services
 			.timeline
@@ -349,8 +368,20 @@ impl super::Service {
 				&room_id,
 			)
 			.await
-			.inspect(|_| info!("Finished joining {room_id}"))
-			.map(|_| ())
+			.inspect(|_| info!("Finished joining {room_id}"))?;
+		self.services
+			.metadata
+			.maybe_set_mindepth(&room_id, membership_pdu.depth.into())
+			.await;
+
+		info!("Setting final room state for new room");
+		// We set the room state after inserting the pdu, so that we never have a moment
+		// in time where events in the current room state do not exist
+		self.services
+			.state
+			.set_room_state(&room_id, statehash_after_join, state_lock);
+
+		Ok(Some(()))
 	}
 
 	async fn build_state_map(

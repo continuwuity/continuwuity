@@ -141,7 +141,7 @@ pub(crate) async fn knock_room_route(
 		},
 	};
 
-	knock_room_by_id_helper(&services, sender_user, &room_id, body.reason.clone(), &servers)
+	knock_room_by_id_helper(&services, sender_user, &room_id, body.reason.clone(), servers)
 		.boxed()
 		.await
 }
@@ -151,7 +151,7 @@ async fn knock_room_by_id_helper(
 	sender_user: &UserId,
 	room_id: &RoomId,
 	reason: Option<String>,
-	servers: &[OwnedServerName],
+	servers: Vec<OwnedServerName>,
 ) -> Result<knock_room::v3::Response> {
 	let state_lock = services.rooms.state.mutex.lock(room_id).await;
 
@@ -242,7 +242,7 @@ async fn knock_room_by_id_helper(
 			match services
 				.rooms
 				.membership
-				.join_room(sender_user, room_id, reason.clone(), servers)
+				.join_room(sender_user, room_id, reason.clone(), servers.clone())
 				.await
 			{
 				| Ok(_) => return Ok(knock_room::v3::Response::new(room_id.to_owned())),
@@ -326,7 +326,7 @@ async fn knock_room_helper_local(
 	sender_user: &UserId,
 	room_id: &RoomId,
 	reason: Option<String>,
-	servers: &[OwnedServerName],
+	servers: Vec<OwnedServerName>,
 	state_lock: RoomMutexGuard,
 ) -> Result {
 	debug_info!("We can knock locally");
@@ -486,7 +486,7 @@ async fn knock_room_helper_remote(
 	sender_user: &UserId,
 	room_id: &RoomId,
 	reason: Option<String>,
-	servers: &[OwnedServerName],
+	servers: Vec<OwnedServerName>,
 	state_lock: RoomMutexGuard,
 ) -> Result {
 	info!("Knocking {room_id} over federation.");
@@ -694,7 +694,7 @@ async fn make_knock_request(
 	services: &Services,
 	sender_user: &UserId,
 	room_id: &RoomId,
-	servers: &[OwnedServerName],
+	servers: Vec<OwnedServerName>,
 ) -> Result<(federation::membership::prepare_knock_event::v1::Response, OwnedServerName)> {
 	let mut make_knock_response_and_server =
 		Err!(BadServerResponse("No server available to assist in knocking."));
@@ -702,7 +702,7 @@ async fn make_knock_request(
 	let mut make_knock_counter: usize = 0;
 
 	for remote_server in servers {
-		if services.globals.server_is_ours(remote_server) {
+		if services.globals.server_is_ours(&remote_server) {
 			continue;
 		}
 
@@ -716,7 +716,7 @@ async fn make_knock_request(
 
 		let make_knock_response = services
 			.sending
-			.send_federation_request(remote_server, request)
+			.send_federation_request(&remote_server, request)
 			.await;
 
 		trace!("make_knock response: {make_knock_response:?}");

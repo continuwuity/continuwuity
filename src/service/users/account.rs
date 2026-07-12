@@ -244,7 +244,7 @@ impl super::Service {
 						user_id,
 						&room_id,
 						Some("Automatically joining this room upon registration".to_owned()),
-						&[
+						vec![
 							self.services.globals.server_name().to_owned(),
 							room_server_name.to_owned(),
 						],

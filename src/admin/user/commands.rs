@@ -514,7 +514,12 @@ impl crate::Context<'_> {
 				.services
 				.rooms
 				.membership
-				.join_room(&user_id, &room_id, Some(String::from(BULK_JOIN_REASON)), &servers)
+				.join_room(
+					&user_id,
+					&room_id,
+					Some(String::from(BULK_JOIN_REASON)),
+					servers.clone(),
+				)
 				.await
 			{
 				| Ok(_res) => {
@@ -596,7 +601,12 @@ impl crate::Context<'_> {
 				.services
 				.rooms
 				.membership
-				.join_room(user_id, &room_id, Some(String::from(BULK_JOIN_REASON)), &servers)
+				.join_room(
+					user_id,
+					&room_id,
+					Some(String::from(BULK_JOIN_REASON)),
+					servers.clone(),
+				)
 				.await
 			{
 				| Ok(_res) => {
@@ -643,7 +653,7 @@ impl crate::Context<'_> {
 		self.services
 			.rooms
 			.membership
-			.join_room(&user_id, &room_id, None, &servers)
+			.join_room(&user_id, &room_id, None, servers)
 			.await?;
 
 		self.write_str(&format!("{user_id} has been joined to {room_id}."))
