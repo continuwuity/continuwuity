@@ -1,3 +1,12 @@
+# Continuwuity 26.6.2 (2026-07-12)
+
+## Bugfixes
+
+- Fixed the server returning 500 errors if `admin_console_automatic` is enabled and no TTY is available. Contributed by @s1lv3r. (#1975)
+- Fixed `global.oauth.compatibility_mode` being required, despite being ignored, when the `[global.oauth.oidc]` config section is provided.
+- Fixed an issue with a migration that could cause user accounts imported from an identity provider to be marked as deactivated when the server started. If you have accounts affected by this issue, use `!admin users reset-password --convert-to-local-account` to reactivate them.
+
+
 # Continuwuity 26.6.1 (2026-07-12)
 
 ## Features
