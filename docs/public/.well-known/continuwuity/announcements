@@ -9,7 +9,7 @@
             "id": 15,
             "mention_room": true,
             "date": "2026-07-10",
-            "message": "[Continuwuity 26.6.0](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.6.0) is finally out! This is by far our largest release yet, and it wouldn't have been possible without our community. Thank you so much for all of your patience, support, and/or development time over the last three months <3"
+            "message": "[Continuwuity 26.6.1](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.6.1) has just been released! This release contains a bunch of bugfixes for bugs found initially after 26.6.0's release - please read the changelog before updating!"
         }
     ]
 }
