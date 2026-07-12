@@ -1,10 +1,10 @@
 use std::{any::Any, sync::Arc, time::Duration};
 
 use axum::{
-	Router,
-	extract::{DefaultBodyLimit, MatchedPath},
+	Router, extract,
+	extract::{DefaultBodyLimit, FromRequestParts, MatchedPath},
 };
-use axum_client_ip::ClientIpSource;
+use axum_client_ip::{ClientIp, ClientIpSource};
 use conduwuit::{Result, Server, debug, error};
 use conduwuit_service::{Services, state::Guard};
 use http::{
@@ -20,7 +20,6 @@ use tower_http::{
 	timeout::{RequestBodyTimeoutLayer, ResponseBodyTimeoutLayer, TimeoutLayer},
 	trace::{DefaultOnFailure, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
-use tracing::Level;
 
 use crate::{request, router};
 
@@ -67,15 +66,16 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 	let services_ = services.clone();
 	let layers = layers
 		.layer(SetSensitiveHeadersLayer::new([header::AUTHORIZATION]))
+		.layer(client_ip_layer.into_extension())
 		.layer(
 			TraceLayer::new_for_http()
 				.make_span_with(tracing_span::<_>)
-				.on_failure(DefaultOnFailure::new().level(Level::ERROR))
-				.on_request(DefaultOnRequest::new().level(Level::TRACE))
-				.on_response(DefaultOnResponse::new().level(Level::DEBUG)),
+				.on_failure(DefaultOnFailure::new().level(tracing::Level::ERROR))
+				.on_request(DefaultOnRequest::new().level(tracing::Level::TRACE))
+				.on_response(DefaultOnResponse::new().level(tracing::Level::DEBUG)),
 		)
+		.layer(axum::middleware::from_fn(request_ip))
 		.layer(axum::middleware::from_fn_with_state(Arc::clone(services), request::handle))
-		.layer(client_ip_layer.into_extension())
 		.layer(ResponseBodyTimeoutLayer::new(Duration::from_secs(
 			server.config.client_response_timeout,
 		)))
@@ -230,9 +230,23 @@ fn tracing_span<T>(request: &http::Request<T>) -> tracing::Span {
 		parent: None,
 		debug::INFO_SPAN_LEVEL,
 		"router",
+		ip=tracing::field::Empty,
 		method = %request.method(),
 		%path,
 	}
+}
+
+/// Annotates the tracing span with the client IP
+async fn request_ip(
+	request: extract::Request,
+	next: axum::middleware::Next,
+) -> axum::response::Response {
+	let (mut parts, body) = request.into_parts();
+	if let Ok(ip) = ClientIp::from_request_parts(&mut parts, &()).await {
+		let span = tracing::Span::current();
+		span.record("ip", ip.0.to_string());
+	}
+	next.run(extract::Request::from_parts(parts, body)).await
 }
 
 fn request_path_str<T>(request: &http::Request<T>) -> &str {
