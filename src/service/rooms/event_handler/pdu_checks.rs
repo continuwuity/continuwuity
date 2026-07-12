@@ -124,7 +124,7 @@ impl super::Service {
 	/// Returns a boolean indicating whether the event is authorised, and also
 	/// the resolved state before the event for later use. Returns an error if
 	/// state fetching or auth checking fails.
-	pub(super) async fn state_before_check_5(
+	pub async fn state_before_check_5(
 		&self,
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,

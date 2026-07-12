@@ -1,3 +1,6 @@
+mod event;
+mod join;
+
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
