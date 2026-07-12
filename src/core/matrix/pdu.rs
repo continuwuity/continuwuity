@@ -13,11 +13,13 @@ pub mod v3;
 
 use std::cmp::Ordering;
 
+use assign::assign;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId,
-	OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, UInt, UserId, events::TimelineEventType,
+	OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, ServerSignatures, UInt, UserId, event_id,
+	events::TimelineEventType, room_version_rules::RoomVersionRules, state_res::Event,
 };
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::value::RawValue as RawJsonValue;
 
 pub use self::{
@@ -27,10 +29,193 @@ pub use self::{
 	partial::PartialPdu,
 	raw_id::*,
 };
-use super::{Event, StateKey};
-use crate::Result;
+use super::StateKey;
+use crate::{
+	Err, Result,
+	pdu::{hashes::Hashes, metadata::PduMetadata},
+};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EventFormatVersion {
+	/// V1 represents the PDU format for rooms v1 and v2.
+	V1,
+	/// V2 represents the PDU format for rooms v3-v11.
+	V2,
+	/// V3 represents the PDU format for rooms v12+.
+	V3,
+}
+
+impl From<RoomVersionRules> for EventFormatVersion {
+	fn from(rules: RoomVersionRules) -> Self {
+		// TODO: this is hacky because ruma doesn't actually define event versions in an
+		// enum, but does define consts with the appropriate rules.
+		if rules.event_format.require_event_id {
+			Self::V1
+		} else if rules.event_format.require_room_create_room_id {
+			Self::V2
+		} else {
+			Self::V3
+		}
+	}
+}
+
+/// Trait that allows conversion from a generic PDU to a concrete PDU type.
+pub trait ConcretePDU: ruma::state_res::Event<Id = OwnedEventId> {
+	/// The concrete type for this PDU (`v2::PDU`, `v3::PDU`, etc)
+	type Concrete;
+
+	/// Get a reference to the concrete PDU type.
+	fn to_concrete(&self) -> &Self::Concrete;
+
+	/// Get the value of the concrete PDU type, consuming.
+	fn into_concrete(self) -> Self::Concrete;
+}
+
+pub fn new_pdu<E, C, P, JSON>(
+	format: EventFormatVersion,
+	metadata: PduMetadata,
+	json: serde_json::Value,
+) -> Result<E>
+where
+	E: ConcretePDU<Concrete = C>,
+	JSON: DeserializeOwned,
+{
+	match format {
+		| EventFormatVersion::V2 =>
+			Ok(assign!(v2::PDU::try_from(json)?, {internal_metadata: metadata})),
+		| EventFormatVersion::V3 =>
+			Ok(assign!(v3::PDU::try_from(json)?, {internal_metadata: metadata})),
+		| _ => Err!("Unsupported event format: {format:?}"),
+	}
+}
+
+/// A builder type that specifies every field present on any PDU type, allowing
+/// it to be used to create any PDU version with the appropriate function.
+///
+/// See `create_pdu`.
+#[derive(Clone, Debug, Default)]
+pub struct CommonPDUBuilder {
+	pub auth_events: Option<Vec<OwnedEventId>>,
+	pub content: Option<Box<RawJsonValue>>,
+	pub depth: Option<UInt>,
+	pub hashes: Option<Hashes>,
+	pub origin_server_ts: Option<MilliSecondsSinceUnixEpoch>,
+	pub prev_events: Option<Vec<OwnedEventId>>,
+	pub redacts: Option<OwnedEventId>,
+	pub room_id: Option<OwnedRoomId>,
+	pub sender: Option<OwnedUserId>,
+	pub signatures: Option<ServerSignatures>,
+	pub state_key: Option<String>,
+	pub event_type: Option<TimelineEventType>,
+	pub unsigned: Option<Box<RawJsonValue>>,
+	pub internal_metadata: Option<PduMetadata>,
+}
+
+/// Creates a new PDU based on the given version and builder.
+///
+/// ## Example
+///
+/// ```rust
+/// use conduwuit_core::pdu::{CommonPDUBuilder, create_pdu}
+///
+/// let room_version_rules = RoomVersionRules::V10;  // This usually comes dynamically.
+/// let builder = CommonPDUBuilder {
+///     auth_events: Some(vec![event_id!("$auth_event_id").to_owned()]),
+///     content: Some(Box::new(serde_json::json!({"key": "value"}))),
+///     depth: Some(1),
+///     origin_server_ts: Some(MilliSecondsSinceUnixEpoch(123456789)),
+///     prev_events: Some(vec![event_id!("$prev_event_id").to_owned()]),
+///     room_id: Some(room_id!("!room_id").to_owned()),
+///     sender: Some(user_id!("@sender:example.com").to_owned()),
+///     event_type: Some(TimelineEventType::RoomMessage),
+///     ..Default::default()
+/// };
+/// let pdu = create_pdu(
+///     room_version_rules.into(),
+///     builder,
+/// ).expect("PDU creation must succeed");
+/// ```
+pub fn create_pdu<C>(version: EventFormatVersion, builder: CommonPDUBuilder) -> Result<C> {
+	match version {
+		| EventFormatVersion::V2 => Ok(create_v2_pdu(builder)),
+		| EventFormatVersion::V3 => Ok(create_v3_pdu(builder)),
+		| _ => Err!("Unsupported event format: {version:?}"),
+	}
+}
+
+fn create_v2_pdu<C>(builder: CommonPDUBuilder) -> v2::PDU {
+	v2::PDU {
+		auth_events: builder
+			.auth_events
+			.expect("auth_events must be provided for a V2 PDU"),
+		content: builder
+			.content
+			.expect("content must be provided for a V2 PDU"),
+		depth: builder.depth.expect("depth must be provided for a V2 PDU"),
+		hashes: builder.hashes.unwrap_or_default(), /* We allow default here since we might not
+		                                             * have hashed yet */
+		origin_server_ts: builder
+			.origin_server_ts
+			.expect("origin_server_ts must be provided for a V2 PDU"),
+		prev_events: builder
+			.prev_events
+			.expect("prev_events must be provided for a V2 PDU"),
+		redacts: builder.redacts,
+		room_id: builder
+			.room_id
+			.expect("room_id must be provided for a V2 PDU"),
+		sender: builder
+			.sender
+			.expect("sender must be provided for a V2 PDU"),
+		signatures: builder.signatures.unwrap_or_default(), /* We allow default here since we
+		                                                     * might not have signed yet */
+		state_key: builder.state_key,
+		event_type: builder
+			.event_type
+			.expect("event_type must be provided for a V2 PDU"),
+		unsigned: builder.unsigned,
+		internal_metadata: builder
+			.internal_metadata
+			.unwrap_or_else(|| PduMetadata::new(event_id!("$unknown").to_owned())),
+	}
+}
+
+fn create_v3_pdu(builder: CommonPDUBuilder) -> v3::PDU {
+	v3::PDU {
+		auth_events: builder
+			.auth_events
+			.expect("auth_events must be provided for a V3 PDU"),
+		content: builder
+			.content
+			.expect("content must be provided for a V3 PDU"),
+		depth: builder.depth.expect("depth must be provided for a V3 PDU"),
+		hashes: builder.hashes.unwrap_or_default(), /* We allow default here since we might not
+		                                             * have hashed yet */
+		origin_server_ts: builder
+			.origin_server_ts
+			.expect("origin_server_ts must be provided for a V3 PDU"),
+		prev_events: builder
+			.prev_events
+			.expect("prev_events must be provided for a V3 PDU"),
+		room_id: builder.room_id,
+		sender: builder
+			.sender
+			.expect("sender must be provided for a V3 PDU"),
+		signatures: builder.signatures.unwrap_or_default(), /* We allow default here since we
+		                                                     * might not have signed yet */
+		state_key: builder.state_key,
+		event_type: builder
+			.event_type
+			.expect("event_type must be provided for a V3 PDU"),
+		unsigned: builder.unsigned,
+		internal_metadata: builder
+			.internal_metadata
+			.unwrap_or_else(|| PduMetadata::new(event_id!("$unknown").to_owned())),
+	}
+}
 
 /// Persistent Data Unit (Event)
+#[deprecated(note = "Use `v2::PDU` or `v3::PDU` or `ruma::state_res::Event` instead")]
 #[derive(Clone, Deserialize, Serialize, Debug)]
 pub struct Pdu {
 	pub event_id: OwnedEventId,
@@ -89,7 +274,7 @@ impl Pdu {
 	}
 }
 
-impl Event for Pdu {
+impl crate::Event for Pdu {
 	#[inline]
 	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.auth_events.iter().map(AsRef::as_ref)
@@ -157,7 +342,7 @@ impl Event for Pdu {
 	fn into_pdu(self) -> Pdu { self }
 }
 
-impl Event for &Pdu {
+impl crate::Event for &Pdu {
 	#[inline]
 	fn auth_events(&self) -> impl DoubleEndedIterator<Item = &EventId> + Clone + Send + '_ {
 		self.auth_events.iter().map(AsRef::as_ref)

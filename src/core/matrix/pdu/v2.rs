@@ -67,6 +67,14 @@ impl PDU {
 	pub fn internal_metadata(&self) -> &PduMetadata { &self.internal_metadata }
 }
 
+impl crate::pdu::ConcretePDU for PDU {
+	type Concrete = PDU;
+
+	fn to_concrete(&self) -> &Self::Concrete { &self }
+
+	fn into_concrete(self) -> Self::Concrete { self }
+}
+
 impl ruma::state_res::Event for PDU {
 	type Id = OwnedEventId;
 

@@ -1,9 +1,11 @@
 use std::collections::HashSet;
 
+use assign::assign;
 use axum::extract::State;
 use conduwuit::{
 	Err, Pdu, Result, debug_info, debug_warn, err,
 	matrix::{event::gen_event_id, pdu::PartialPdu},
+	pdu::{AnyPDU, metadata::PduMetadata, new_pdu},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},
 	warn,
 };
@@ -216,7 +218,7 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 	room_id: &RoomId,
 	reason: Option<String>,
 	mut servers: HashSet<OwnedServerName, S>,
-) -> Result<Pdu> {
+) -> Result<AnyPDU> {
 	let mut make_leave_response_and_server =
 		Err!(BadServerResponse("No remote server available to assist in leaving {room_id}."));
 
@@ -406,9 +408,14 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 		.outlier
 		.add_pdu_outlier(&event_id, &leave_event);
 
-	let leave_pdu = Pdu::from_id_val(&event_id, leave_event).map_err(|e| {
-		err!(BadServerResponse("Invalid leave PDU received during federated leave: {e:?}"))
-	})?;
+	let leave_pdu = new_pdu(
+		room_version_rules.into(),
+		PduMetadata::new(event_id),
+		serde_json::to_value(leave_event)?,
+	)?;
+	// let leave_pdu = Pdu::from_id_val(&event_id, leave_event).map_err(|e| {
+	// 	err!(BadServerResponse("Invalid leave PDU received during federated leave:
+	// {e:?}")) })?;
 
 	Ok(leave_pdu)
 }

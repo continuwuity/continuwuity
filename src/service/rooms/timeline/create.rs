@@ -1,6 +1,6 @@
 use std::{cmp, collections::HashMap};
 
-use conduwuit::{smallstr::SmallString, trace};
+use conduwuit::{pdu::AnyPDU, smallstr::SmallString, trace};
 use conduwuit_core::{
 	Err, Error, Result, err,
 	matrix::{
@@ -84,7 +84,7 @@ impl super::Service {
 		sender: &UserId,
 		room_id: Option<&RoomId>,
 		_mutex_lock: &RoomMutexGuard,
-	) -> Result<(PduEvent, RoomVersionRules)> {
+	) -> Result<AnyPDU> {
 		let PartialPdu {
 			event_type,
 			content,
@@ -282,7 +282,7 @@ impl super::Service {
 		sender: &UserId,
 		room_id: Option<&RoomId>,
 		mutex_lock: &RoomMutexGuard,
-	) -> Result<(PduEvent, CanonicalJsonObject)> {
+	) -> Result<AnyPDU> {
 		if !self.services.globals.user_is_local(sender) {
 			return Err!(Request(Forbidden("Sender must be a local user")));
 		}
