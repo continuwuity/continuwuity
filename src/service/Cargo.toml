@@ -96,7 +96,6 @@ log.workspace = true
 loole.workspace = true
 lru-cache.workspace = true
 nonzero_ext.workspace = true
-rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 assign.workspace = true
