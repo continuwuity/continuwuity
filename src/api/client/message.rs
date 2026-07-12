@@ -71,7 +71,7 @@ const LIMIT_DEFAULT: usize = 10;
 ///   where the user was joined, depending on `history_visibility`)
 pub(crate) async fn get_message_events_route(
 	State(services): State<crate::State>,
-	ClientIp(client_ip): ClientIp,
+	ClientIp(client_ip): ClientIp, // NOTE: Required for updating device metadata
 	body: Ruma<get_message_events::v3::Request>,
 ) -> Result<get_message_events::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;

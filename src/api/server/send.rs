@@ -1,6 +1,5 @@
 use std::{
 	collections::{BTreeMap, HashMap},
-	net::IpAddr,
 	time::{Duration, Instant},
 };
 
@@ -56,7 +55,6 @@ type Pdu = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);
 /// Push EDUs and PDUs to this server.
 pub(crate) async fn send_transaction_message_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<send_transaction_message::v1::Request>,
 ) -> Result<send_transaction_message::v1::Response> {
 	if body.identity != body.body.origin {
@@ -97,7 +95,7 @@ pub(crate) async fn send_transaction_message_route(
 			services
 				.server
 				.runtime()
-				.spawn(process_inbound_transaction(services, body, client, txn_key, sender));
+				.spawn(process_inbound_transaction(services, body, txn_key, sender));
 			// and wait for it
 			wait_for_result(receiver).await
 		},
@@ -140,7 +138,6 @@ async fn wait_for_result(
 async fn process_inbound_transaction(
 	services: crate::State,
 	body: Ruma<send_transaction_message::v1::Request>,
-	client: IpAddr,
 	txn_key: TxnKey,
 	sender: Sender<WrappedTransactionResponse>,
 ) {
@@ -162,7 +159,7 @@ async fn process_inbound_transaction(
 		.stream();
 
 	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
-	let results = match handle(&services, &client, &body.identity, pdus, edus).await {
+	let results = match handle(&services, &body.identity, pdus, edus).await {
 		| Ok(results) => results,
 		| Err(err) => {
 			fail_federation_txn(services, &txn_key, &sender, err);
@@ -235,7 +232,6 @@ fn transaction_error_to_response(err: &TransactionError) -> Error {
 }
 async fn handle(
 	services: &Services,
-	client: &IpAddr,
 	origin: &ServerName,
 	pdus: impl Stream<Item = Pdu> + Send,
 	edus: impl Stream<Item = Edu> + Send,
@@ -256,7 +252,7 @@ async fn handle(
 		.into_iter()
 		.try_stream()
 		.broad_and_then(|(room_id, pdus): (_, Vec<_>)| {
-			handle_room(services, client, origin, room_id, pdus.into_iter())
+			handle_room(services, origin, room_id, pdus.into_iter())
 				.map_ok(Vec::into_iter)
 				.map_ok(IterStream::try_stream)
 		})
@@ -266,7 +262,7 @@ async fn handle(
 		.await?;
 
 	// Evaluate EDUs after PDUs in case some of the PDUs then forbid some EDUs.
-	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, client, origin, edu))
+	edus.for_each_concurrent(automatic_width(), |edu| handle_edu(services, origin, edu))
 		.boxed()
 		.await;
 
@@ -275,7 +271,6 @@ async fn handle(
 
 async fn handle_room(
 	services: &Services,
-	_client: &IpAddr,
 	origin: &ServerName,
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
@@ -322,25 +317,25 @@ async fn handle_room(
 	Ok(results)
 }
 
-async fn handle_edu(services: &Services, client: &IpAddr, origin: &ServerName, edu: Edu) {
+async fn handle_edu(services: &Services, origin: &ServerName, edu: Edu) {
 	match edu {
 		| Edu::Presence(presence) if services.server.config.allow_incoming_presence =>
-			handle_edu_presence(services, client, origin, presence).await,
+			handle_edu_presence(services, origin, presence).await,
 
 		| Edu::Receipt(receipt) if services.server.config.allow_incoming_read_receipts =>
-			handle_edu_receipt(services, client, origin, receipt).await,
+			handle_edu_receipt(services, origin, receipt).await,
 
 		| Edu::Typing(typing) if services.server.config.allow_incoming_typing =>
-			handle_edu_typing(services, client, origin, typing).await,
+			handle_edu_typing(services, origin, typing).await,
 
 		| Edu::DeviceListUpdate(content) =>
-			handle_edu_device_list_update(services, client, origin, content).await,
+			handle_edu_device_list_update(services, origin, content).await,
 
 		| Edu::DirectToDevice(content) =>
-			handle_edu_direct_to_device(services, client, origin, content).await,
+			handle_edu_direct_to_device(services, origin, content).await,
 
 		| Edu::SigningKeyUpdate(content) =>
-			handle_edu_signing_key_update(services, client, origin, content).await,
+			handle_edu_signing_key_update(services, origin, content).await,
 
 		| Edu::_Custom(ref _custom) => debug_warn!(?edu, "received custom/unknown EDU"),
 
@@ -350,7 +345,6 @@ async fn handle_edu(services: &Services, client: &IpAddr, origin: &ServerName, e
 
 async fn handle_edu_presence(
 	services: &Services,
-	_client: &IpAddr,
 	origin: &ServerName,
 	presence: PresenceContent,
 ) {
@@ -391,12 +385,7 @@ async fn handle_edu_presence_update(
 		.ok();
 }
 
-async fn handle_edu_receipt(
-	services: &Services,
-	_client: &IpAddr,
-	origin: &ServerName,
-	receipt: ReceiptContent,
-) {
+async fn handle_edu_receipt(services: &Services, origin: &ServerName, receipt: ReceiptContent) {
 	receipt
 		.receipts
 		.into_iter()
@@ -491,12 +480,7 @@ async fn handle_edu_receipt_room_user(
 		.await;
 }
 
-async fn handle_edu_typing(
-	services: &Services,
-	_client: &IpAddr,
-	origin: &ServerName,
-	typing: TypingContent,
-) {
+async fn handle_edu_typing(services: &Services, origin: &ServerName, typing: TypingContent) {
 	if typing.user_id.server_name() != origin {
 		debug_warn!(
 			%typing.user_id, %origin,
@@ -556,7 +540,6 @@ async fn handle_edu_typing(
 
 async fn handle_edu_device_list_update(
 	services: &Services,
-	_client: &IpAddr,
 	origin: &ServerName,
 	content: DeviceListUpdateContent,
 ) {
@@ -575,7 +558,6 @@ async fn handle_edu_device_list_update(
 
 async fn handle_edu_direct_to_device(
 	services: &Services,
-	_client: &IpAddr,
 	origin: &ServerName,
 	content: DirectDeviceContent,
 ) {
@@ -695,7 +677,6 @@ async fn handle_edu_direct_to_device_event(
 
 async fn handle_edu_signing_key_update(
 	services: &Services,
-	_client: &IpAddr,
 	origin: &ServerName,
 	content: SigningKeyUpdateContent,
 ) {

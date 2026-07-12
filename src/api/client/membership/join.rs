@@ -21,10 +21,9 @@ use crate::{Ruma, client_ip::ClientIp};
 ///   rules locally
 /// - If the server does not know about the room: asks other servers over
 ///   federation
-#[tracing::instrument(skip_all, fields(%client), name = "join", level = "info")]
+#[tracing::instrument(skip_all, name = "join", level = "info")]
 pub(crate) async fn join_room_by_id_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id::v3::Request>,
 ) -> Result<join_room_by_id::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
@@ -32,14 +31,8 @@ pub(crate) async fn join_room_by_id_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	banned_room_check(
-		&services,
-		sender_user,
-		Some(&body.room_id),
-		body.room_id.server_name(),
-		client,
-	)
-	.await?;
+	banned_room_check(&services, sender_user, Some(&body.room_id), body.room_id.server_name())
+		.await?;
 
 	// There is no body.server_name for /roomId/join
 	let mut servers: Vec<_> = services
@@ -90,10 +83,9 @@ pub(crate) async fn join_room_by_id_route(
 /// - If the server does not know about the room: use the server name query
 ///   param if specified. if not specified, asks other servers over federation
 ///   via room alias server name and room ID server name
-#[tracing::instrument(skip_all, fields(%client), name = "join", level = "info")]
+#[tracing::instrument(skip_all, name = "join", level = "info")]
 pub(crate) async fn join_room_by_id_or_alias_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<join_room_by_id_or_alias::v3::Request>,
 ) -> Result<join_room_by_id_or_alias::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
@@ -104,15 +96,9 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 
 	let (servers, room_id) = match OwnedRoomId::try_from(body.room_id_or_alias.clone()) {
 		| Ok(room_id) => {
-			banned_room_check(
-				&services,
-				sender_user,
-				Some(&room_id),
-				room_id.server_name(),
-				client,
-			)
-			.boxed()
-			.await?;
+			banned_room_check(&services, sender_user, Some(&room_id), room_id.server_name())
+				.boxed()
+				.await?;
 
 			let mut servers = body.via.clone();
 			if servers.is_empty() {
@@ -158,7 +144,6 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 				sender_user,
 				Some(&room_id),
 				Some(room_alias.server_name()),
-				client,
 			)
 			.await?;
 

@@ -8,8 +8,6 @@ mod leave;
 mod members;
 mod unban;
 
-use std::net::IpAddr;
-
 use axum::extract::State;
 use conduwuit::{Err, Result, warn};
 use futures::{FutureExt, StreamExt};
@@ -58,7 +56,6 @@ pub(crate) async fn banned_room_check(
 	user_id: &UserId,
 	room_id: Option<&RoomId>,
 	server_name: Option<&ServerName>,
-	client_ip: IpAddr,
 ) -> Result {
 	if services.users.is_admin(user_id).await {
 		return Ok(());
@@ -85,7 +82,7 @@ pub(crate) async fn banned_room_check(
 						.admin
 						.send_text(&format!(
 							"Automatically deactivating user {user_id} due to attempted banned \
-							 room join from IP {client_ip}"
+							 room join"
 						))
 						.await;
 				}
@@ -121,7 +118,7 @@ pub(crate) async fn banned_room_check(
 						.admin
 						.send_text(&format!(
 							"Automatically deactivating user {user_id} due to attempted banned \
-							 room join from IP {client_ip}"
+							 room join"
 						))
 						.await;
 				}

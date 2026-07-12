@@ -29,10 +29,9 @@ const MAX_REASON_LENGTH: usize = 2000;
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report`
 ///
 /// Reports an abusive room to homeserver admins
-#[tracing::instrument(skip_all, fields(%client), name = "report_room", level = "info")]
+#[tracing::instrument(skip_all, name = "report_room", level = "info")]
 pub(crate) async fn report_room_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<report_room::v3::Request>,
 ) -> Result<report_room::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
@@ -84,10 +83,9 @@ pub(crate) async fn report_room_route(
 /// # `POST /_matrix/client/v3/rooms/{roomId}/report/{eventId}`
 ///
 /// Reports an inappropriate event to homeserver admins
-#[tracing::instrument(skip_all, fields(%client), name = "report_event", level = "info")]
+#[tracing::instrument(skip_all, name = "report_event", level = "info")]
 pub(crate) async fn report_event_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<report_content::v3::Request>,
 ) -> Result<report_content::v3::Response> {
 	// user authentication
@@ -128,10 +126,9 @@ pub(crate) async fn report_event_route(
 	Ok(report_content::v3::Response::new())
 }
 
-#[tracing::instrument(skip_all, fields(%client), name = "report_user", level = "info")]
+#[tracing::instrument(skip_all, name = "report_user", level = "info")]
 pub(crate) async fn report_user_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<report_user::v3::Request>,
 ) -> Result<report_user::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;

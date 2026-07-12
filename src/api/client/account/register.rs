@@ -35,10 +35,10 @@ use crate::{Ruma, client_ip::ClientIp};
 /// /_matrix/client/v3/register/available`](fn.get_register_available_route.
 /// html) to check if the user id is valid and available.
 #[allow(clippy::doc_markdown)]
-#[tracing::instrument(skip_all, fields(%client), name = "register", level = "info")]
+#[tracing::instrument(skip_all, name = "register", level = "info")]
 pub(crate) async fn register_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
+	ClientIp(client): ClientIp, // NOTE: Required for metadata.
 	body: Ruma<register::v3::Request>,
 ) -> Result<register::v3::Response> {
 	if body.kind != RegistrationKind::User {

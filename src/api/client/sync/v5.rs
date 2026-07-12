@@ -67,7 +67,7 @@ type KnownRooms = BTreeMap<String, BTreeMap<OwnedRoomId, u64>>;
 /// [MSC4186]: https://github.com/matrix-org/matrix-spec-proposals/pull/4186
 pub(crate) async fn sync_events_v5_route(
 	State(ref services): State<crate::State>,
-	ClientIp(client_ip): ClientIp,
+	ClientIp(client_ip): ClientIp, // NOTE: Required for updating device metadata
 	body: Ruma<sync_events::v5::Request>,
 ) -> Result<sync_events::v5::Response> {
 	let sender_user = body.identity.expect_sender_user()?;

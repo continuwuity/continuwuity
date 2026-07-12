@@ -34,10 +34,9 @@ use crate::{Ruma, client_ip::ClientIp};
 /// Lists the public rooms on this server.
 ///
 /// - Rooms are ordered by the number of joined members
-#[tracing::instrument(skip_all, fields(%client), name = "publicrooms", level = "info")]
+#[tracing::instrument(skip_all, name = "publicrooms", level = "info")]
 pub(crate) async fn get_public_rooms_filtered_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms_filtered::v3::Request>,
 ) -> Result<get_public_rooms_filtered::v3::Response> {
 	if let Some(server) = &body.server {
@@ -70,10 +69,9 @@ pub(crate) async fn get_public_rooms_filtered_route(
 /// Lists the public rooms on this server.
 ///
 /// - Rooms are ordered by the number of joined members
-#[tracing::instrument(skip_all, fields(%client), name = "publicrooms", level = "info")]
+#[tracing::instrument(skip_all, name = "publicrooms", level = "info")]
 pub(crate) async fn get_public_rooms_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<get_public_rooms::v3::Request>,
 ) -> Result<get_public_rooms::v3::Response> {
 	if let Some(server) = &body.server {
@@ -105,10 +103,9 @@ pub(crate) async fn get_public_rooms_route(
 /// # `PUT /_matrix/client/r0/directory/list/room/{roomId}`
 ///
 /// Sets the visibility of a given room in the room directory.
-#[tracing::instrument(skip_all, fields(%client), name = "room_directory", level = "info")]
+#[tracing::instrument(skip_all, name = "room_directory", level = "info")]
 pub(crate) async fn set_room_visibility_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<set_room_visibility::v3::Request>,
 ) -> Result<set_room_visibility::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;

@@ -18,7 +18,7 @@ use crate::{Ruma, client_ip::ClientIp};
 ///   allowed
 pub(crate) async fn send_message_event_route(
 	State(services): State<crate::State>,
-	ClientIp(client_ip): ClientIp,
+	ClientIp(client_ip): ClientIp, // NOTE: required for updating device metadata
 	body: Ruma<send_message_event::v3::Request>,
 ) -> Result<send_message_event::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;

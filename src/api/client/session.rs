@@ -37,10 +37,9 @@ use crate::{Ruma, client_ip::ClientIp};
 ///
 /// Get the supported login types of this server. One of these should be used as
 /// the `type` field when logging in.
-#[tracing::instrument(skip_all, fields(%client), name = "login", level = "info")]
+#[tracing::instrument(skip_all, name = "login", level = "info")]
 pub(crate) async fn get_login_types_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	_body: Ruma<get_login_types::v3::Request>,
 ) -> Result<get_login_types::v3::Response> {
 	if !services.config.oauth.compatibility_mode().uiaa_available() {
@@ -114,10 +113,10 @@ pub async fn handle_login(
 /// Note: You can use [`GET
 /// /_matrix/client/r0/login`](fn.get_supported_versions_route.html) to see
 /// supported login types.
-#[tracing::instrument(skip_all, fields(%client), name = "login", level = "info")]
+#[tracing::instrument(skip_all, name = "login", level = "info")]
 pub(crate) async fn login_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
+	ClientIp(client): ClientIp, // NOTE: Required for device metadata
 	body: Ruma<login::v3::Request>,
 ) -> Result<login::v3::Response> {
 	if !services.config.oauth.compatibility_mode().uiaa_available() {
@@ -254,10 +253,9 @@ pub(crate) async fn login_route(
 /// to log in with the m.login.token flow.
 ///
 /// <https://spec.matrix.org/v1.13/client-server-api/#post_matrixclientv1loginget_token>
-#[tracing::instrument(skip_all, fields(%client), name = "login_token", level = "info")]
+#[tracing::instrument(skip_all, name = "login_token", level = "info")]
 pub(crate) async fn login_token_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<get_login_token::v1::Request>,
 ) -> Result<get_login_token::v1::Response> {
 	if !services.config.login_via_existing_session {
@@ -290,10 +288,9 @@ pub(crate) async fn login_token_route(
 ///   last seen ts)
 /// - Forgets to-device events
 /// - Triggers device list updates
-#[tracing::instrument(skip_all, fields(%client), name = "logout", level = "info")]
+#[tracing::instrument(skip_all, name = "logout", level = "info")]
 pub(crate) async fn logout_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<logout::v3::Request>,
 ) -> Result<logout::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
@@ -338,10 +335,9 @@ pub(crate) async fn logout_route(
 /// Note: This is equivalent to calling [`GET
 /// /_matrix/client/r0/logout`](fn.logout_route.html) from each device of this
 /// user.
-#[tracing::instrument(skip_all, fields(%client), name = "logout", level = "info")]
+#[tracing::instrument(skip_all, name = "logout", level = "info")]
 pub(crate) async fn logout_all_route(
 	State(services): State<crate::State>,
-	ClientIp(client): ClientIp,
 	body: Ruma<logout_all::v3::Request>,
 ) -> Result<logout_all::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
