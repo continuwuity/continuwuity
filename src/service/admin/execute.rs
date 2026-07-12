@@ -1,4 +1,6 @@
-use conduwuit::{Err, Result, debug, debug_info, error, info};
+use std::io::IsTerminal;
+
+use conduwuit::{Err, Result, debug, debug_info, error, info, warn};
 use ruma::events::room::message::RoomMessageEventContent;
 use tokio::time::{Duration, sleep};
 
@@ -7,10 +9,16 @@ use crate::admin::InvocationSource;
 pub(super) const SIGNAL: &str = "SIGUSR2";
 
 impl super::Service {
-	/// Possibly spawn the terminal console at startup if configured.
+	/// Possibly spawn the terminal console at startup if configured and a TTY
+	/// is available.
 	pub(super) async fn console_auto_start(&self) {
 		#[cfg(feature = "console")]
 		if self.services.server.config.admin_console_automatic {
+			if !std::io::stdin().is_terminal() {
+				warn!("Console enabled without a tty available; Not enabling console");
+				return;
+			}
+
 			// Allow more of the startup sequence to execute before spawning
 			tokio::task::yield_now().await;
 			self.console.start().await;
