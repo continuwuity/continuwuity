@@ -9,7 +9,7 @@ use axum::{
 	http::request::Parts,
 	response::{IntoResponse, Redirect, Response},
 };
-use conduwuit_service::oauth::grant::AuthorizationCodeQuery;
+use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery};
 use ruma::{OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;
@@ -38,6 +38,7 @@ pub(crate) enum LoginTarget {
 	ChangeEmail,
 	CrossSigningReset,
 	Deactivate,
+	DeviceCode(DeviceCodeVerifyQuery),
 	DeviceInfo(DevicePath),
 	RemoveDevice(DevicePath),
 }
@@ -59,6 +60,9 @@ impl LoginTarget {
 			| Self::ChangeEmail => "account/email/change/".into(),
 			| Self::CrossSigningReset => "account/cross_signing_reset".into(),
 			| Self::Deactivate => "account/deactivate".into(),
+			| Self::DeviceCode(code) =>
+				format!("oauth2/grant/device_code?{}", serde_urlencoded::to_string(code).unwrap())
+					.into(),
 			| Self::DeviceInfo(path) => format!("account/device/{}/", path.device).into(),
 			| Self::RemoveDevice(path) => format!("account/device/{}/remove", path.device).into(),
 		};

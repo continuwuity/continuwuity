@@ -4,9 +4,12 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, Prompt};
+use conduwuit_service::oauth::{
+	client_metadata::ClientMetadata,
+	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
+};
 use ruma::OwnedUserId;
-use url::Url;
+use serde::Deserialize;
 
 use crate::{
 	ROUTE_PREFIX, WebError,
@@ -14,7 +17,7 @@ use crate::{
 	pages::{
 		GET_POST, Result, TemplateContext,
 		account::register::{RegisterQuery, RequestedRegistrationFlow},
-		components::{Avatar, AvatarType, ClientScopes},
+		components::{Avatar, ClientScopes, UserCard},
 	},
 	response,
 	session::{LoginIntent, LoginQuery, LoginTarget, User},
@@ -22,7 +25,9 @@ use crate::{
 };
 
 pub(crate) fn build() -> Router<crate::State> {
-	Router::new().route("/authorization_code", on(GET_POST, route_authorization_code))
+	Router::new()
+		.route("/authorization_code", on(GET_POST, route_authorization_code))
+		.route("/device_code", on(GET_POST, route_device_code))
 }
 
 template! {
@@ -30,12 +35,9 @@ template! {
 		logout_query: String,
 		user_id: OwnedUserId,
 		user_avatar: Avatar,
-		client_uri: Url,
-		client_name: String,
-		client_avatar: Avatar,
-		policy_uri: Option<Url>,
-		tos_uri: Option<Url>,
-		scopes: ClientScopes
+		client_metadata: ClientMetadata,
+		scopes: ClientScopes,
+		device_code: Option<String>
 	}
 }
 
@@ -102,27 +104,6 @@ async fn route_authorization_code(
 
 	let scopes = query.scope.to_scopes().map_err(WebError::BadRequest)?;
 
-	let client_name = if let Some(name) = &client.client_name {
-		name
-	} else {
-		"Unknown application"
-	}
-	.to_owned();
-
-	let client_avatar = {
-		let avatar_type = if let Some(logo) = &client.logo_uri {
-			AvatarType::Image(logo.to_string())
-		} else if let Some(name) = &client.client_name
-			&& let Some(char) = name.chars().next()
-		{
-			AvatarType::Initial(char)
-		} else {
-			AvatarType::Initial('?')
-		};
-
-		Avatar { avatar_type }
-	};
-
 	let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
 	response!(Grant::new(
@@ -135,11 +116,102 @@ async fn route_authorization_code(
 		.unwrap(),
 		user_id,
 		user_avatar,
-		client.client_uri.clone(),
-		client_name,
-		client_avatar,
-		client.policy_uri.clone(),
-		client.tos_uri.clone(),
+		client,
 		ClientScopes { scopes },
+		None,
 	))
+}
+
+#[derive(Deserialize)]
+#[serde(tag = "stage", rename_all = "snake_case")]
+enum DeviceCodeForm {
+	Lookup {
+		user_code: String,
+	},
+	Confirm {
+		device_code: String,
+	},
+}
+
+template! {
+	struct DeviceCodeGrant use "device_code_grant.html.j2" {
+		user_card: UserCard,
+		body: DeviceCodeGrantBody
+	}
+}
+
+#[derive(Debug)]
+enum DeviceCodeGrantBody {
+	Lookup {
+		user_code_error: bool,
+	},
+	Success,
+}
+
+async fn route_device_code(
+	State(services): State<crate::State>,
+	Extension(context): Extension<TemplateContext>,
+	user: User<true>,
+	Expect(Query(query)): Expect<Query<DeviceCodeVerifyQuery>>,
+	PostForm(form): PostForm<DeviceCodeForm>,
+) -> Result {
+	let user_id = if let Some(user) = user.into_session() {
+		user.user_id
+	} else {
+		let next = LoginTarget::DeviceCode(query.clone());
+
+		let uri = format!(
+			"{}/account/login?{}",
+			ROUTE_PREFIX,
+			serde_urlencoded::to_string(LoginQuery { next: Some(next), ..Default::default() })
+				.unwrap()
+		);
+
+		return response!(Redirect::to(&uri));
+	};
+
+	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
+
+	match (form, query.user_code.clone()) {
+		| (None, Some(user_code)) | (Some(DeviceCodeForm::Lookup { user_code }), _) => {
+			let Some(grant_info) = services.oauth.grant_info_for_user_code(&user_code).await
+			else {
+				return response!(DeviceCodeGrant::new(
+					context,
+					user_card,
+					DeviceCodeGrantBody::Lookup { user_code_error: true }
+				));
+			};
+
+			let user_avatar = Avatar::for_local_user(&services, &user_id).await;
+
+			response!(Grant::new(
+				context,
+				serde_urlencoded::to_string(LoginQuery {
+					next: Some(LoginTarget::DeviceCode(query)),
+					intent: Some(LoginIntent::SwitchAccounts),
+					..Default::default()
+				})
+				.unwrap(),
+				user_id,
+				user_avatar,
+				grant_info.client_metadata,
+				ClientScopes { scopes: grant_info.requested_scopes },
+				Some(grant_info.device_code),
+			))
+		},
+		| (Some(DeviceCodeForm::Confirm { device_code }), _) => {
+			services
+				.oauth
+				.validate_device_code(user_id, &device_code)
+				.await
+				.map_err(WebError::BadRequest)?;
+
+			response!(DeviceCodeGrant::new(context, user_card, DeviceCodeGrantBody::Success))
+		},
+		| (None, None) =>
+			response!(DeviceCodeGrant::new(context, user_card, DeviceCodeGrantBody::Lookup {
+				user_code_error: false
+			})),
+	}
 }

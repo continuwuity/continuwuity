@@ -1,0 +1,50 @@
+{% extends "_layout.html.j2" %}
+
+{%- block head -%}
+<link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/grant.css">
+{%- endblock -%}
+
+{%- block title -%}
+Authorize client
+{%- endblock -%}
+
+{%- block content -%}
+<div class="panel narrow">
+    <h1>Authorize device</h1>
+    {{ user_card }}
+    {% match body %}
+        {% when DeviceCodeGrantBody::Lookup { user_code_error }  %}
+            <p>
+                Enter the code displayed on your device, or in the app you're signing into.
+            </p>
+            <p>
+                <em class="negative">Never enter a code given to you by someone else.</em>
+                Your homeserver administrator will never ask you to enter a code on this page.
+            </p>
+
+            <form method="post">
+                <p>
+                    <div class="user-code">
+                        <label for="user_code">Validation code</label>
+                        <input
+                            type="text"
+                            id="user_code"
+                            name="user_code"
+                            maxlength="6"
+                            spellcheck="false"
+                            pattern="\d{6}"
+                            title="Enter the six-digit validation code"
+                        >
+                    </div>
+                    {% if user_code_error %}
+                        <small class="error">Invalid code</small>
+                    {% endif %}
+                </p>
+                <input type="hidden" name="stage" value="lookup">
+                <button type="submit">Continue</button>
+            </form>
+        {% when DeviceCodeGrantBody::Success %}
+            <p>Success! 🎉 You can close this tab and return to your device.</p>
+    {% endmatch %}
+</div>
+{% endblock %}

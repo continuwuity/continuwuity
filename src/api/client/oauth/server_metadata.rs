@@ -12,8 +12,8 @@ use service::Services;
 use crate::{
 	Ruma,
 	client::oauth::{
-		ACCOUNT_MANAGEMENT_PATH, AUTH_CODE_PATH, CLIENT_REGISTER_PATH, JWKS_URI_PATH, TOKEN_PATH,
-		TOKEN_REVOKE_PATH,
+		ACCOUNT_MANAGEMENT_PATH, AUTH_CODE_PATH, CLIENT_REGISTER_PATH, DEVICE_AUTHORIZATION_PATH,
+		JWKS_URI_PATH, TOKEN_PATH, TOKEN_REVOKE_PATH,
 	},
 };
 
@@ -60,7 +60,8 @@ pub(crate) async fn authorization_server_metadata(services: &Services) -> Value 
 		],
 		"authorization_endpoint": endpoint_base.join(AUTH_CODE_PATH).unwrap(),
 		"code_challenge_methods_supported": ["S256"],
-		"grant_types_supported": ["authorization_code", "refresh_token"],
+		"device_authorization_endpoint": endpoint_base.join(DEVICE_AUTHORIZATION_PATH).unwrap(),
+		"grant_types_supported": ["authorization_code", "refresh_token", "urn:ietf:params:oauth:grant-type:device_code"],
 		"issuer": services.config.get_client_domain(),
 		"jwks_uri": endpoint_base.join(JWKS_URI_PATH).unwrap(),
 		"prompt_values_supported": prompt_values_supported,

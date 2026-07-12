@@ -9,6 +9,7 @@ Authorize client
 {%- endblock -%}
 
 {%- block content -%}
+{% let client_name = client_metadata.client_name.as_deref().unwrap_or("Unknown application") %}
 <div class="panel narrow">
     <h1>Authorize {{ client_name }}</h1>
     <div class="avatars">
@@ -18,17 +19,17 @@ Authorize client
         <div class="separator" aria-hidden="true">
             ⇄
         </div>
-        {{ client_avatar }}
+        {{ Avatar::for_client(client_metadata) }}
     </div>
     <div class="identity">
         Signed in as <code>{{ user_id }}</code>. <a href="{{ crate::ROUTE_PREFIX }}/account/logout?{{ logout_query }}">Switch accounts</a>
     </div>
     <p>
-        <b>{{ client_name }}</b> (<a href="{{ client_uri }}">{{ client_uri.domain().unwrap() }}</a>) would like
+        <b>{{ client_name }}</b> (<a href="{{ client_metadata.client_uri }}">{{ client_metadata.client_uri.domain().unwrap() }}</a>) would like
         your permission to:
         {{ scopes }}
     </p>
-    {% match (&policy_uri, &tos_uri) %}
+    {% match (&client_metadata.policy_uri, &client_metadata.tos_uri) %}
         {% when (Some(policy_uri), Some(tos_uri)) %}
             <p>
                 {{ client_name }}'s <a href="{{ policy_uri }}">policies</a>
@@ -49,6 +50,10 @@ Authorize client
     {% endmatch %}
 
     <form method="post">
+        <input type="hidden" name="stage" value="confirm">
+        {% if let Some(device_code) = device_code %}
+            <input type="hidden" name="device_code" value="{{ device_code }}">
+        {% endif %}
         <button type="submit">Continue</button>
     </form>
 </div>

@@ -12,17 +12,19 @@ use conduwuit::{
 use database::{Deserialized, Json, Map};
 use itertools::Itertools;
 use lru_cache::LruCache;
+use rand::distr::{Distribution, slice::Choose};
 use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-	Dep,
+	Dep, config,
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
 		grant::{
-			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod, ErrorCode,
-			OAuthError, ResponseMode, Scope, TokenRequest, TokenResponse, TokenType,
+			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, ResponseMode, Scope,
+			TokenRequest, TokenRequestType, TokenResponse, TokenType,
 		},
 	},
 	users::{self, DeviceToken},
@@ -35,7 +37,8 @@ pub struct Service {
 	services: Services,
 	db: Data,
 	tickets: Mutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
-	pending_code_grants: tokio::sync::Mutex<LruCache<String, PendingCodeGrant>>,
+	pending_auth_code_grants: tokio::sync::Mutex<LruCache<String, PendingAuthCodeGrant>>,
+	pending_device_code_grants: tokio::sync::Mutex<LruCache<String, PendingDeviceCodeGrant>>,
 }
 
 struct Data {
@@ -46,6 +49,7 @@ struct Data {
 
 struct Services {
 	users: Dep<users::Service>,
+	config: Dep<config::Service>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -62,7 +66,7 @@ struct RefreshTokenInfo {
 	device_id: OwnedDeviceId,
 }
 
-struct PendingCodeGrant {
+struct PendingAuthCodeGrant {
 	authorizing_user: OwnedUserId,
 	requested_scopes: BTreeSet<Scope>,
 	client_name: Option<String>,
@@ -72,12 +76,8 @@ struct PendingCodeGrant {
 	requested_at: SystemTime,
 }
 
-impl PendingCodeGrant {
+impl PendingAuthCodeGrant {
 	const MAX_AGE: Duration = Duration::from_mins(1);
-	const RANDOM_CODE_LENGTH: usize = 32;
-
-	#[must_use]
-	pub(crate) fn generate_code() -> String { utils::random_string(Self::RANDOM_CODE_LENGTH) }
 
 	#[must_use]
 	pub(crate) fn is_valid_for(&self, client_id: &str) -> bool {
@@ -88,6 +88,43 @@ impl PendingCodeGrant {
 				.duration_since(self.requested_at)
 				.is_ok_and(|age| age < Self::MAX_AGE)
 	}
+}
+
+struct PendingDeviceCodeGrant {
+	state: DeviceCodeGrantState,
+	requested_scopes: BTreeSet<Scope>,
+	client_name: Option<String>,
+	client_id: String,
+	requested_at: SystemTime,
+}
+
+enum DeviceCodeGrantState {
+	Unverified {
+		user_code: String,
+	},
+	Verified {
+		authorizing_user: OwnedUserId,
+	},
+}
+
+impl PendingDeviceCodeGrant {
+	const MAX_AGE: Duration = Duration::from_mins(1);
+
+	#[must_use]
+	pub(crate) fn is_valid_for(&self, client_id: &str) -> bool {
+		let now = SystemTime::now();
+
+		self.client_id == client_id
+			&& now
+				.duration_since(self.requested_at)
+				.is_ok_and(|age| age < Self::MAX_AGE)
+	}
+}
+
+pub struct DeviceCodeGrantInfo {
+	pub device_code: String,
+	pub client_metadata: ClientMetadata,
+	pub requested_scopes: BTreeSet<Scope>,
 }
 
 /// A time-limited grant for a client to perform some sensitive action.
@@ -112,6 +149,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			services: Services {
 				users: args.depend::<users::Service>("users"),
+				config: args.depend::<config::Service>("config"),
 			},
 			db: Data {
 				clientid_clientmetadata: args.db["clientid_clientmetadata"].clone(),
@@ -119,8 +157,11 @@ impl crate::Service for Service {
 				refreshtoken_refreshtokeninfo: args.db["refreshtoken_refreshtokeninfo"].clone(),
 			},
 			tickets: Mutex::default(),
-			pending_code_grants: tokio::sync::Mutex::new(LruCache::new(
-				Self::MAX_PENDING_CODE_GRANTS,
+			pending_auth_code_grants: tokio::sync::Mutex::new(LruCache::new(
+				Self::MAX_PENDING_GRANTS,
+			)),
+			pending_device_code_grants: tokio::sync::Mutex::new(LruCache::new(
+				Self::MAX_PENDING_GRANTS,
 			)),
 		}))
 	}
@@ -133,10 +174,20 @@ impl Service {
 	// Maximum number of pending code grants which will be held in memory at once,
 	// to prevent unbounded memory use if someone decides to repeatedly reload the
 	// grant page.
-	const MAX_PENDING_CODE_GRANTS: usize = 100;
+	const MAX_PENDING_GRANTS: usize = 100;
 	const RANDOM_TOKEN_LENGTH: usize = 32;
+	const USER_CODE_CHARACTERS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+	const USER_CODE_LENGTH: usize = 6;
 
 	fn generate_token() -> String { utils::random_string(Self::RANDOM_TOKEN_LENGTH) }
+
+	fn generate_user_code() -> String {
+		Choose::new(Self::USER_CODE_CHARACTERS)
+			.unwrap()
+			.sample_iter(&mut rand::rng())
+			.take(Self::USER_CODE_LENGTH)
+			.collect()
+	}
 
 	pub async fn register_client(&self, metadata: &ClientMetadata) -> Result<String, OAuthError> {
 		metadata.validate().map_err(|error| OAuthError {
@@ -231,14 +282,14 @@ impl Service {
 			| ResponseMode::Query => '?',
 		};
 
-		let code = PendingCodeGrant::generate_code();
+		let code = Self::generate_token();
 
 		info!(
 			client_id = &query.client_id,
 			client_name = &client_metadata.client_name,
 			?requested_scopes,
 			?authorizing_user,
-			"Issuing oauth authorization code"
+			"Issuing OAuth authorization code"
 		);
 
 		let redirect_uri = format!(
@@ -252,7 +303,7 @@ impl Service {
 			.unwrap(),
 		);
 
-		let pending_grant = PendingCodeGrant {
+		let pending_grant = PendingAuthCodeGrant {
 			authorizing_user,
 			requested_scopes,
 			client_name: client_metadata.client_name,
@@ -262,7 +313,7 @@ impl Service {
 			requested_at: SystemTime::now(),
 		};
 
-		self.pending_code_grants
+		self.pending_auth_code_grants
 			.lock()
 			.await
 			.insert(code, pending_grant);
@@ -270,15 +321,129 @@ impl Service {
 		Ok(redirect_uri)
 	}
 
+	pub async fn request_device_code(
+		&self,
+		query: DeviceCodeRequest,
+	) -> Result<DeviceCodeResponse, OAuthError> {
+		let Some(client_metadata) = self.get_client_metadata(&query.client_id).await else {
+			return Err(OAuthError::invalid_grant("Invalid client ID"));
+		};
+
+		let requested_scopes = query
+			.scope
+			.to_scopes()
+			.map_err(|err| OAuthError::new(ErrorCode::InvalidGrant, err))?;
+
+		let device_code = Self::generate_token();
+		let user_code = Self::generate_user_code();
+
+		let verification_uri = self
+			.services
+			.config
+			.get_client_domain()
+			.join(&format!("{}/oauth2/grant/device_code", conduwuit::ROUTE_PREFIX))
+			.unwrap();
+
+		let mut verification_uri_complete = verification_uri.clone();
+		verification_uri_complete
+			.query_pairs_mut()
+			.append_pair("user_code", &user_code);
+
+		info!(
+			client_id = &query.client_id,
+			client_name = &client_metadata.client_name,
+			?requested_scopes,
+			"Issuing OAuth device code"
+		);
+
+		let pending_grant = PendingDeviceCodeGrant {
+			state: DeviceCodeGrantState::Unverified { user_code: user_code.clone() },
+			requested_scopes,
+			client_name: client_metadata.client_name,
+			client_id: query.client_id,
+			requested_at: SystemTime::now(),
+		};
+
+		self.pending_device_code_grants
+			.lock()
+			.await
+			.insert(device_code.clone(), pending_grant);
+
+		Ok(DeviceCodeResponse {
+			device_code,
+			user_code,
+			verification_uri,
+			verification_uri_complete: Some(verification_uri_complete),
+			expires_in: PendingDeviceCodeGrant::MAX_AGE.as_secs(),
+		})
+	}
+
+	pub async fn grant_info_for_user_code(
+		&self,
+		supplied_user_code: &str,
+	) -> Option<DeviceCodeGrantInfo> {
+		let pending_grants = self.pending_device_code_grants.lock().await;
+
+		let (device_code, grant) = pending_grants
+			.iter()
+			.find(|(_, grant)| {
+				matches!(&grant.state, DeviceCodeGrantState::Unverified { user_code } if user_code == supplied_user_code)
+			})?;
+
+		let client_metadata = self
+			.get_client_metadata(&grant.client_id)
+			.await
+			.expect("client should exist");
+
+		Some(DeviceCodeGrantInfo {
+			device_code: device_code.clone(),
+			client_metadata,
+			requested_scopes: grant.requested_scopes.clone(),
+		})
+	}
+
+	pub async fn validate_device_code(
+		&self,
+		authorizing_user: OwnedUserId,
+		device_code: &str,
+	) -> Result<(), String> {
+		let mut pending_grants = self.pending_device_code_grants.lock().await;
+
+		let Some(pending_grant) = pending_grants.get_mut(device_code) else {
+			return Err("Invalid device code".to_owned());
+		};
+
+		match &mut pending_grant.state {
+			| state @ DeviceCodeGrantState::Unverified { .. } => {
+				*state = DeviceCodeGrantState::Verified { authorizing_user };
+
+				Ok(())
+			},
+			| DeviceCodeGrantState::Verified {
+				authorizing_user: previous_authorizing_user,
+			} =>
+				if *previous_authorizing_user == authorizing_user {
+					Ok(())
+				} else {
+					Err("Device code is already verified".to_owned())
+				},
+		}
+	}
+
 	pub async fn issue_token(&self, request: TokenRequest) -> Result<TokenResponse, OAuthError> {
+		let TokenRequest { client_id, request } = request;
+
+		let Some(client_metadata) = self.get_client_metadata(&client_id).await else {
+			return Err(OAuthError::invalid_request("Invalid client ID"));
+		};
+
+		if !client_metadata.grant_types.contains(&request.grant_type()) {
+			return Err(OAuthError::invalid_grant("Client cannot request this grant type"));
+		}
+
 		match request {
-			| TokenRequest::AuthorizationCode {
-				code,
-				redirect_uri,
-				client_id,
-				code_verifier,
-			} => {
-				let mut pending_grants = self.pending_code_grants.lock().await;
+			| TokenRequestType::AuthorizationCode { code, redirect_uri, code_verifier } => {
+				let mut pending_grants = self.pending_auth_code_grants.lock().await;
 
 				let Some(pending_grant) = pending_grants
 					.remove(&code)
@@ -305,7 +470,39 @@ impl Service {
 				)
 				.await
 			},
-			| TokenRequest::RefreshToken { client_id, refresh_token } =>
+			| TokenRequestType::DeviceCode { device_code } => {
+				let mut pending_grants = self.pending_device_code_grants.lock().await;
+
+				let Some(pending_grant) = pending_grants
+					.remove(&device_code)
+					.filter(|grant| grant.is_valid_for(&client_id))
+				else {
+					return Err(OAuthError::new_static(
+						ErrorCode::ExpiredToken,
+						"Invalid device code",
+					));
+				};
+
+				match &pending_grant.state {
+					| DeviceCodeGrantState::Unverified { .. } => {
+						pending_grants.insert(device_code, pending_grant);
+
+						Err(OAuthError::new_static(
+							ErrorCode::AuthorizationPending,
+							"Authorization is pending",
+						))
+					},
+					| DeviceCodeGrantState::Verified { authorizing_user } =>
+						self.create_session(
+							authorizing_user.to_owned(),
+							pending_grant.requested_scopes,
+							pending_grant.client_name,
+							client_id,
+						)
+						.await,
+				}
+			},
+			| TokenRequestType::RefreshToken { refresh_token } =>
 				self.refresh_session(client_id, refresh_token).await,
 		}
 	}
@@ -364,11 +561,10 @@ impl Service {
 			.await
 			.is_ok()
 		{
-			return Err(OAuthError {
-				error: ErrorCode::InvalidScope,
-				error_description: "A device with the supplied ID already exists for this user"
-					.into(),
-			});
+			return Err(OAuthError::new_static(
+				ErrorCode::InvalidScope,
+				"A device with the supplied ID already exists for this user",
+			));
 		}
 
 		self.services

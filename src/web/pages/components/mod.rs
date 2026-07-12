@@ -65,21 +65,35 @@ impl Avatar {
 	}
 
 	pub(super) fn for_device(
-		oauth_metadata: Option<&ClientMetadata>,
+		client_metadata: Option<&ClientMetadata>,
 		display_name: Option<&str>,
 	) -> Self {
-		let avatar_src = oauth_metadata
+		let avatar_src = client_metadata
 			.and_then(|metadata| metadata.logo_uri.as_ref())
 			.map(|uri| uri.as_str().to_owned());
 
 		let avatar_type = if let Some(avatar_src) = avatar_src {
 			AvatarType::Image(avatar_src)
 		} else if let Some(initial) = display_name.and_then(|name| name.chars().next()) {
-			if oauth_metadata.is_some() {
+			if client_metadata.is_some() {
 				AvatarType::Initial(initial)
 			} else {
 				AvatarType::Initial('❖')
 			}
+		} else {
+			AvatarType::Initial('?')
+		};
+
+		Self { avatar_type }
+	}
+
+	pub(super) fn for_client(client_metadata: &ClientMetadata) -> Self {
+		let avatar_type = if let Some(logo) = &client_metadata.logo_uri {
+			AvatarType::Image(logo.to_string())
+		} else if let Some(name) = &client_metadata.client_name
+			&& let Some(char) = name.chars().next()
+		{
+			AvatarType::Initial(char)
 		} else {
 			AvatarType::Initial('?')
 		};

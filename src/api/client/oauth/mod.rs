@@ -10,6 +10,7 @@ use http::StatusCode;
 use serde_json::json;
 pub(crate) use server_metadata::*;
 
+mod device;
 mod register_client;
 mod server_metadata;
 mod token;
@@ -20,6 +21,7 @@ const JWKS_URI_PATH: &str = "client/keys.json";
 const CLIENT_REGISTER_PATH: &str = "client/register";
 const TOKEN_REVOKE_PATH: &str = "client/revoke";
 const TOKEN_PATH: &str = "grant/token";
+const DEVICE_AUTHORIZATION_PATH: &str = "device";
 const ACCOUNT_MANAGEMENT_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/account/deeplink");
 
 pub(crate) fn router(state: crate::State) -> Router<crate::State> {
@@ -53,4 +55,5 @@ fn oauth_router() -> Router<crate::State> {
 		.route(concat!("/", JWKS_URI_PATH), get(async || Json(json!({"keys": []}))))
 		.route(concat!("/", TOKEN_PATH), post(token::token_route))
 		.route(concat!("/", TOKEN_REVOKE_PATH), post(token::revoke_token_route))
+		.route(concat!("/", DEVICE_AUTHORIZATION_PATH), post(device::device_authorization_route))
 }

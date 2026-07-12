@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use url::Url;
 
 use super::client_metadata::ResponseType;
+use crate::oauth::client_metadata::GrantType;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AuthorizationCodeQuery {
@@ -27,6 +28,33 @@ pub struct AuthorizationCodeQuery {
 	pub code_challenge_method: CodeChallengeMethod,
 	#[serde(default)]
 	pub prompt: Option<Prompt>,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct AuthorizationCodeResponse {
+	pub state: String,
+	pub code: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DeviceCodeRequest {
+	pub client_id: String,
+	pub scope: RawScopes,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct DeviceCodeResponse {
+	pub device_code: String,
+	pub user_code: String,
+	pub verification_uri: Url,
+	#[serde(skip_serializing_if = "Option::is_none")]
+	pub verification_uri_complete: Option<Url>,
+	pub expires_in: u64,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DeviceCodeVerifyQuery {
+	pub user_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -126,19 +154,29 @@ pub struct OAuthError {
 
 impl OAuthError {
 	#[must_use]
-	pub const fn invalid_request(error_description: &'static str) -> Self {
+	pub fn new(error: ErrorCode, error_description: String) -> Self {
 		Self {
-			error: ErrorCode::InvalidRequest,
+			error,
+			error_description: Cow::Owned(error_description),
+		}
+	}
+
+	#[must_use]
+	pub const fn new_static(error: ErrorCode, error_description: &'static str) -> Self {
+		Self {
+			error,
 			error_description: Cow::Borrowed(error_description),
 		}
 	}
 
 	#[must_use]
+	pub const fn invalid_request(error_description: &'static str) -> Self {
+		Self::new_static(ErrorCode::InvalidRequest, error_description)
+	}
+
+	#[must_use]
 	pub const fn invalid_grant(error_description: &'static str) -> Self {
-		Self {
-			error: ErrorCode::InvalidGrant,
-			error_description: Cow::Borrowed(error_description),
-		}
+		Self::new_static(ErrorCode::InvalidGrant, error_description)
 	}
 }
 
@@ -158,35 +196,41 @@ pub enum ErrorCode {
 	InvalidScope,
 	InvalidGrant,
 	InvalidClientMetadata,
+	AuthorizationPending,
+	ExpiredToken,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct AuthorizationCodeResponse {
-	pub state: String,
-	pub code: String,
+#[derive(Deserialize)]
+pub struct TokenRequest {
+	pub client_id: String,
+	#[serde(flatten)]
+	pub request: TokenRequestType,
 }
 
 #[derive(Deserialize)]
 #[serde(tag = "grant_type", rename_all = "snake_case")]
-pub enum TokenRequest {
+pub enum TokenRequestType {
 	AuthorizationCode {
 		code: String,
 		redirect_uri: Url,
-		client_id: String,
 		code_verifier: String,
 	},
+	#[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
+	DeviceCode {
+		device_code: String,
+	},
 	RefreshToken {
-		client_id: String,
 		refresh_token: String,
 	},
 }
 
-impl TokenRequest {
+impl TokenRequestType {
 	#[must_use]
-	pub fn client_id(&self) -> &str {
+	pub fn grant_type(&self) -> GrantType {
 		match self {
-			| Self::AuthorizationCode { client_id, .. }
-			| Self::RefreshToken { client_id, .. } => client_id,
+			| Self::AuthorizationCode { .. } => GrantType::AuthorizationCode,
+			| Self::DeviceCode { .. } => GrantType::DeviceCode,
+			| Self::RefreshToken { .. } => GrantType::RefreshToken,
 		}
 	}
 }

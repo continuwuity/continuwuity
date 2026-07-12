@@ -132,6 +132,8 @@ pub enum ApplicationType {
 #[serde(rename_all = "snake_case")]
 pub enum GrantType {
 	AuthorizationCode,
+	#[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
+	DeviceCode,
 	RefreshToken,
 }
 
