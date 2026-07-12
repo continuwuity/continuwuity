@@ -67,7 +67,7 @@ pub(crate) async fn join_room_by_id_route(
 	let room_id = services
 		.rooms
 		.membership
-		.join_room(sender_user, &body.room_id, body.reason.clone(), &servers)
+		.join_room(sender_user, &body.room_id, body.reason.clone(), servers)
 		.boxed()
 		.await?;
 
@@ -179,7 +179,7 @@ pub(crate) async fn join_room_by_id_or_alias_route(
 	let room_id = services
 		.rooms
 		.membership
-		.join_room(sender_user, &room_id, body.reason.clone(), &servers)
+		.join_room(sender_user, &room_id, body.reason.clone(), servers)
 		.boxed()
 		.await?;
 
