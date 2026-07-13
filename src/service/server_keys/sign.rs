@@ -18,6 +18,12 @@ impl super::Service {
 		object: &mut CanonicalJsonObject,
 		room_version_rules: &RoomVersionRules,
 	) -> Result {
+		#[cfg(debug_assertions)]
+		{
+			if object.contains_key("event_id") {
+				conduwuit::warn!("Signing a PDU that has an `event_id` present");
+			}
+		}
 		hash_and_sign_event(
 			self.services.globals.server_name().as_str(),
 			self.keypair(),

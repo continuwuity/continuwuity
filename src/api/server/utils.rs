@@ -195,5 +195,6 @@ pub(crate) async fn validate_any_membership_event(
 		err!(Request(InvalidParam("Membership event violates the room event format: {e}")))
 	})?;
 
+	// pdu.insert("event_id".to_owned(), template_event_id.to_string().into());
 	Ok((pdu, membership.into(), sender_user, recipient_user))
 }
