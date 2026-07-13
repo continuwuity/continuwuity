@@ -15,10 +15,9 @@ use crate::{State, router::auth::CheckAuth};
 #[derive(Deserialize)]
 pub(crate) struct AuthQueryParams {
 	pub(super) user_id: Option<String>,
-	/// Device ID for appservice device masquerading (MSC3202/MSC4190).
-	/// Can be provided as `device_id` or `org.matrix.msc3202.device_id`.
-	#[serde(alias = "org.matrix.msc3202.device_id")]
 	pub(super) device_id: Option<String>,
+	#[serde(rename = "org.matrix.msc3202.device_id")]
+	pub(super) legacy_device_id: Option<String>,
 }
 
 /// Extractor for Ruma request structs

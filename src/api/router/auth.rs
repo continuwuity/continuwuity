@@ -219,25 +219,29 @@ impl CheckAuth for AccessToken {
 			// MSC3202/MSC4190: Handle device_id masquerading for appservices.
 			// The device_id can be provided via `device_id` or
 			// `org.matrix.msc3202.device_id` query parameter.
-			let sender_device =
-				if let Some(device_id) = query.device_id.as_deref().map(Into::into) {
-					// Verify the device exists for this user
-					if services
-						.users
-						.get_device_metadata(&sender_user, device_id)
-						.await
-						.is_err()
-					{
-						return Err!(Request(Forbidden(
-							"Device does not exist for user or appservice cannot masquerade as \
-							 this device."
-						)));
-					}
+			let sender_device = if let Some(device_id) = query
+				.device_id
+				.or(query.legacy_device_id)
+				.as_deref()
+				.map(Into::into)
+			{
+				// Verify the device exists for this user
+				if services
+					.users
+					.get_device_metadata(&sender_user, device_id)
+					.await
+					.is_err()
+				{
+					return Err!(Request(Forbidden(
+						"Device does not exist for user or appservice cannot masquerade as this \
+						 device."
+					)));
+				}
 
-					Some(device_id.to_owned())
-				} else {
-					None
-				};
+				Some(device_id.to_owned())
+			} else {
+				None
+			};
 
 			Ok(ClientIdentity::Appservice {
 				sender_user,
