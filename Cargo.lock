@@ -314,17 +314,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axum-client-ip"
-version = "1.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8ba1af5b620232acf37f2eb6d22151ea465491e0b4c25f552d1990f64ec5a67"
-dependencies = [
- "axum",
- "client-ip",
- "serde",
-]
-
-[[package]]
 name = "axum-core"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -896,10 +885,10 @@ dependencies = [
  "assign",
  "async-trait",
  "axum",
- "axum-client-ip",
  "axum-extra",
  "base64 0.22.1",
  "bytes",
+ "client-ip",
  "conduwuit_core",
  "conduwuit_macros",
  "conduwuit_service",
@@ -1041,7 +1030,6 @@ version = "26.6.2"
 dependencies = [
  "assign",
  "axum",
- "axum-client-ip",
  "axum-server",
  "axum-server-dual-protocol",
  "bytes",

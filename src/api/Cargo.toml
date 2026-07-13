@@ -64,11 +64,11 @@ zstd_compression = [
 
 [dependencies]
 async-trait.workspace = true
-axum-client-ip.workspace = true
 axum-extra.workspace = true
 axum.workspace = true
 base64.workspace = true
 bytes.workspace = true
+client-ip.workspace = true
 conduwuit-core.workspace = true
 conduwuit-macros.workspace = true
 conduwuit-service.workspace = true

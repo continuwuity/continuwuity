@@ -91,7 +91,6 @@ zstd_compression = [
 ]
 
 [dependencies]
-axum-client-ip.workspace = true
 axum-server-dual-protocol.workspace = true
 axum-server-dual-protocol.optional = true
 axum-server.workspace = true

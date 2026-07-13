@@ -11,7 +11,7 @@ pub mod client;
 pub mod router;
 pub mod server;
 
-pub(crate) mod client_ip;
+pub mod client_ip;
 
 pub mod admin;
 

@@ -370,7 +370,7 @@ pub struct Config {
 	#[serde(default = "default_ip_lookup_strategy")]
 	pub ip_lookup_strategy: u8,
 
-	/// The source to use for discovering the real connecting client IP.
+	/// The preferred source to use for getting the real client IP.
 	///
 	/// Takes any of the following options:
 	///
@@ -381,15 +381,48 @@ pub struct Config {
 	/// "true_client_ip" - `True-Client-Ip` header
 	/// "x_envoy_external_address" - `X-Envoy-External-Address` header
 	/// "x_real_ip" - `X-Real-Ip` header
+	/// "direct" - the directly connected IP address (fallback for other
+	/// options)
 	///
 	/// Only set this if you are certain only your reverse proxy
 	/// will send the expected header. There is no "is the connecting IP allowed
 	/// to set this header" check; if the header selected is present, it is
 	/// used.
 	///
-	/// Defaults to the IP address actually making the connection.
+	/// Ignored if `accepted_ip_sources` is set.
+	///
+	/// If not set set, `direct` is used. Additionally, `direct` is used
+	/// as a fallback if the chosen header is not found.
 	#[serde(default)]
 	pub request_ip_source: Option<String>,
+
+	/// The accepted source(s) for the real client IP.
+	///
+	/// Takes any combination of the following options:
+	///
+	/// "cf_connecting_ip" - `Cf-Connecting-Ip` header
+	/// "cloudfront_viewer_address" - `CloudFront-Viewer-Address` header
+	/// "fly_client_ip" - `Fly-Client-IP` header
+	/// "x_forwarded_for" - rightmost value of the `X-Forwarded-For` header
+	/// "true_client_ip" - `True-Client-Ip` header
+	/// "x_envoy_external_address" - `X-Envoy-External-Address` header
+	/// "x_real_ip" - `X-Real-Ip` header
+	/// "direct" - the directly connected IP address
+	///
+	/// Only set this if you are certain only your reverse proxy
+	/// will send the expected header. There is no "is the connecting IP allowed
+	/// to set this header" check; if the header selected is present, it is
+	/// used.
+	///
+	/// One of the configured sources must be available or the request is
+	/// rejected. If you want a fallback (including `direct`!), you have to
+	/// configure it. Priority is based on configuration order.
+	///
+	/// If not set, `request_ip_source` configuration is used.
+	///
+	/// default: []
+	#[serde(default)]
+	pub accepted_ip_sources: Vec<String>,
 
 	/// Max request size for file uploads in bytes. Defaults to 20MB.
 	/// Also limits incoming federated media.

@@ -1,135 +1,212 @@
-use std::{
-	convert::Infallible,
-	net::{IpAddr, Ipv4Addr, SocketAddr},
+use core::net::{IpAddr, SocketAddr};
+use std::ops::Deref;
+
+use axum::{
+	extract::{ConnectInfo, FromRequestParts},
+	response::{IntoResponse, Response},
 };
+use conduwuit::{debug_info, debug_warn};
+use http::{HeaderMap, StatusCode, request::Parts};
+use service::Services;
 
-use axum::extract::{ConnectInfo, FromRequestParts};
-use axum_client_ip::ClientIp as SourcedClientIp;
-use conduwuit::debug_warn;
-use http::request::Parts;
+#[derive(Debug, PartialEq)]
+pub enum ClientIpError {
+	Header(client_ip::Error),
+	Direct,
+}
 
-const UNKNOWN_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+impl IntoResponse for ClientIpError {
+	fn into_response(self) -> Response {
+		let text = match self {
+			| Self::Header(e) => format!("{e}"),
+			| Self::Direct => "Failed to extract IP from ConnectionInfo".to_owned(),
+		};
+		(StatusCode::INTERNAL_SERVER_ERROR, text).into_response()
+	}
+}
 
-/// [`ClientIp`] extractor that falls back to the connection peer address
-/// instead of rejecting the request when `request_ip_source` can't be resolved.
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct ClientIp(pub IpAddr);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ClientIp(pub IpAddr);
+
+type PartsToIpFn = Box<dyn Fn(&Parts) -> Result<ClientIp, ClientIpError>>;
+
+impl ClientIp {
+	fn from_header<T>(func: T) -> PartsToIpFn
+	where
+		T: Fn(&HeaderMap) -> Result<IpAddr, client_ip::Error> + 'static,
+	{
+		Box::new(move |parts: &Parts| {
+			func(&parts.headers)
+				.map(Self)
+				.map_err(ClientIpError::Header)
+		})
+	}
+
+	fn from_connection_info(parts: &Parts) -> Result<Self, ClientIpError> {
+		parts
+			.extensions
+			.get::<ConnectInfo<SocketAddr>>()
+			.ok_or_else(|| ClientIpError::Direct)
+			.map(|ConnectInfo(addr)| Self(addr.ip()))
+	}
+
+	fn for_source(source: &str) -> Option<PartsToIpFn> {
+		match source {
+			| "cf_connecting_ip" => Some(Self::from_header(client_ip::cf_connecting_ip)),
+			| "cloudfront_viewer_address" =>
+				Some(Self::from_header(client_ip::cloudfront_viewer_address)),
+			| "fly_client_ip" => Some(Self::from_header(client_ip::fly_client_ip)),
+			| "x_forwarded_for" => Some(Self::from_header(client_ip::rightmost_x_forwarded_for)),
+			| "true_client_ip" => Some(Self::from_header(client_ip::true_client_ip)),
+			| "x_envoy_external_address" =>
+				Some(Self::from_header(client_ip::x_envoy_external_address)),
+			| "x_real_ip" => Some(Self::from_header(client_ip::x_real_ip)),
+			| "direct" => Some(Box::new(Self::from_connection_info)),
+			| s => {
+				debug_warn!("Invalid client IP source option supplied, skipping: {s}");
+				None
+			},
+		}
+	}
+
+	fn for_config(
+		parts: &Parts,
+		accepted_ip_sources: &[String],
+		request_ip_source: Option<&String>,
+	) -> Result<Self, ClientIpError> {
+		accepted_ip_sources
+			.iter()
+			.filter_map(|s| Self::for_source(s))
+			.map(|f| f(parts))
+			.reduce(Result::or)
+			.or_else(|| {
+				debug_info!(
+					"No (valid) options set in `accepted_ip_sources`; falling back to \
+					 `request_ip_source`"
+				);
+				request_ip_source
+					.and_then(|s| Self::for_source(s))
+					.map(|f| f(parts).or_else(|_| Self::from_connection_info(parts)))
+			})
+			.unwrap_or_else(|| {
+				debug_info!(
+					"No (valid) options set in `accepted_ip_sources` or `request_ip_source`; \
+					 using peer address"
+				);
+				Self::from_connection_info(parts)
+			})
+	}
+}
 
 impl<S> FromRequestParts<S> for ClientIp
 where
-	S: Sync,
+	S: Deref<Target = Services> + Sync,
 {
-	type Rejection = Infallible;
+	type Rejection = ClientIpError;
 
 	async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-		let ip = match SourcedClientIp::from_request_parts(parts, state).await {
-			| Ok(SourcedClientIp(ip)) => ip,
-			| Err(rejection) => {
-				debug_warn!(
-					%rejection,
-					"Could not resolve client IP from request_ip_source; using peer address"
-				);
-				parts
-					.extensions
-					.get::<ConnectInfo<SocketAddr>>()
-					.map_or(UNKNOWN_IP, |ConnectInfo(addr)| addr.ip())
-			},
-		};
-
-		Ok(Self(ip))
+		Self::for_config(
+			parts,
+			&state.config.accepted_ip_sources,
+			state.config.request_ip_source.as_ref(),
+		)
 	}
 }
 
 #[cfg(test)]
 mod tests {
-	use std::net::Ipv6Addr;
-
-	use axum_client_ip::ClientIpSource;
+	use std::net::{Ipv4Addr, Ipv6Addr};
 
 	use super::*;
 
-	const PEER: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(198, 51, 100, 7)), 8448);
-	const PEER_V6: SocketAddr =
-		SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0x2001, 0xDB8, 0, 0, 0, 0, 0, 1)), 8448);
+	const SOCKET_V4: IpAddr = IpAddr::V4(Ipv4Addr::new(198, 51, 100, 1));
+	const HEADER_V4: IpAddr = IpAddr::V4(Ipv4Addr::new(203, 0, 113, 1));
 
-	fn parts(
-		source: Option<ClientIpSource>,
-		peer: Option<SocketAddr>,
-		headers: &[(&str, &str)],
-	) -> Parts {
+	const SOCKET_V6: IpAddr = IpAddr::V6(Ipv6Addr::new(0x2001, 0xDB8, 0, 0, 0, 0, 0, 1));
+	const HEADER_V6: IpAddr = IpAddr::V6(Ipv6Addr::new(0x2001, 0xDB8, 0, 0, 0, 0, 0, 2));
+
+	fn parts(peer: Option<IpAddr>, headers: &[(&str, &str)]) -> Parts {
 		let mut builder = http::Request::builder();
 		for (name, value) in headers {
 			builder = builder.header(*name, *value);
 		}
 
 		let (mut parts, ()) = builder.body(()).unwrap().into_parts();
-		if let Some(source) = source {
-			parts.extensions.insert(source);
-		}
 		if let Some(peer) = peer {
-			parts.extensions.insert(ConnectInfo(peer));
+			parts
+				.extensions
+				.insert(ConnectInfo(SocketAddr::new(peer, 8448)));
 		}
 
 		parts
 	}
 
-	async fn extract(mut parts: Parts) -> IpAddr {
-		let ClientIp(ip) = ClientIp::from_request_parts(&mut parts, &()).await.unwrap();
-		ip
+	fn extract(
+		parts: &Parts,
+		accepted_ip_sources: &[String],
+		request_ip_source: Option<&String>,
+	) -> Result<IpAddr, ClientIpError> {
+		ClientIp::for_config(parts, accepted_ip_sources, request_ip_source).map(|ClientIp(ip)| ip)
 	}
 
 	#[tokio::test]
-	async fn resolves_from_configured_source() {
-		let parts =
-			parts(Some(ClientIpSource::XRealIp), Some(PEER), &[("x-real-ip", "203.0.113.5")]);
+	async fn resolves_from_configured_source_ipv4() {
+		let parts = parts(Some(SOCKET_V4), &[("x-real-ip", &HEADER_V4.to_string())]);
 
-		assert_eq!(extract(parts).await, IpAddr::V4(Ipv4Addr::new(203, 0, 113, 5)));
+		assert_eq!(extract(&parts, &["x_real_ip".to_owned()], None), Ok(HEADER_V4));
+		assert_eq!(extract(&parts, &[], Some(&"x_real_ip".to_owned())), Ok(HEADER_V4));
 	}
 
 	#[tokio::test]
-	async fn resolves_ipv6_from_configured_source() {
-		let parts =
-			parts(Some(ClientIpSource::XRealIp), Some(PEER), &[("x-real-ip", "2001:db8::2")]);
+	async fn resolves_from_configured_source_ipv6() {
+		let parts = parts(Some(SOCKET_V6), &[("x-real-ip", &HEADER_V6.to_string())]);
+
+		assert_eq!(extract(&parts, &["x_real_ip".to_owned()], None), Ok(HEADER_V6));
+		assert_eq!(extract(&parts, &[], Some(&"x_real_ip".to_owned())), Ok(HEADER_V6));
+	}
+
+	#[tokio::test]
+	async fn accepted_ip_sources_no_fall_back_to_peer_when_header_missing() {
+		let parts = parts(Some(SOCKET_V4), &[]);
+
+		extract(&parts, &["x_real_ip".to_owned()], None).unwrap_err();
+	}
+
+	#[tokio::test]
+	async fn request_ip_source_falls_back_to_peer_when_header_missing() {
+		let parts = parts(Some(SOCKET_V4), &[]);
+
+		assert_eq!(extract(&parts, &[], Some(&"x_real_ip".to_owned())), Ok(SOCKET_V4));
+	}
+
+	#[tokio::test]
+	async fn accepted_ip_sources_no_fall_back_to_peer_when_header_unparsable() {
+		let parts = parts(Some(SOCKET_V4), &[("x-real-ip", "not-an-ip")]);
+
+		extract(&parts, &["x_real_ip".to_owned()], None).unwrap_err();
+	}
+
+	#[tokio::test]
+	async fn request_ip_source_falls_back_to_peer_when_header_unparsable() {
+		let parts = parts(Some(SOCKET_V4), &[("x-real-ip", "not-an-ip")]);
+
+		assert_eq!(extract(&parts, &[], Some(&"x_real_ip".to_owned())), Ok(SOCKET_V4));
+	}
+
+	#[tokio::test]
+	async fn accepted_ip_sources_falls_back_when_configured() {
+		let parts = parts(Some(SOCKET_V4), &[]);
 
 		assert_eq!(
-			extract(parts).await,
-			IpAddr::V6(Ipv6Addr::new(0x2001, 0xDB8, 0, 0, 0, 0, 0, 2))
+			extract(&parts, &["x_real_ip".to_owned(), "direct".to_owned()], None),
+			Ok(SOCKET_V4)
 		);
 	}
 
 	#[tokio::test]
-	async fn falls_back_to_peer_when_header_missing() {
-		let parts = parts(Some(ClientIpSource::XRealIp), Some(PEER), &[]);
+	async fn falls_back_to_peer_no_configuration() {
+		let parts = parts(Some(SOCKET_V4), &[("x-real-ip", &HEADER_V4.to_string())]);
 
-		assert_eq!(extract(parts).await, PEER.ip());
-	}
-
-	#[tokio::test]
-	async fn falls_back_to_ipv6_peer_when_header_missing() {
-		let parts = parts(Some(ClientIpSource::XRealIp), Some(PEER_V6), &[]);
-
-		assert_eq!(extract(parts).await, PEER_V6.ip());
-	}
-
-	#[tokio::test]
-	async fn falls_back_to_peer_when_header_unparsable() {
-		let parts =
-			parts(Some(ClientIpSource::XRealIp), Some(PEER), &[("x-real-ip", "not-an-ip")]);
-
-		assert_eq!(extract(parts).await, PEER.ip());
-	}
-
-	#[tokio::test]
-	async fn falls_back_to_peer_when_source_unset() {
-		let parts = parts(None, Some(PEER), &[("x-real-ip", "203.0.113.5")]);
-
-		assert_eq!(extract(parts).await, PEER.ip());
-	}
-
-	#[tokio::test]
-	async fn falls_back_to_unspecified_without_peer() {
-		let parts = parts(Some(ClientIpSource::XRealIp), None, &[]);
-
-		assert_eq!(extract(parts).await, UNKNOWN_IP);
+		assert_eq!(extract(&parts, &[], None), Ok(SOCKET_V4));
 	}
 }
