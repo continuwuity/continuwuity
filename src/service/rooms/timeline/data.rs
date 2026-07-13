@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use conduwuit::{
-	Err, PduCount, PduEvent, Result, at, err,
+	Err, Event, PduCount, PduEvent, Result, at, err,
 	result::NotFound,
 	utils::{self, stream::TryReadyExt},
 };
@@ -176,6 +176,15 @@ impl Data {
 		count: PduCount,
 	) {
 		debug_assert!(matches!(count, PduCount::Normal(_)), "PduCount not Normal");
+		debug_assert!(
+			json.get("event_id").is_some(),
+			"event_id must be present in database events"
+		);
+		debug_assert_eq!(
+			json.get("event_id").unwrap().as_str().unwrap(),
+			pdu.event_id().as_str(),
+			"event ID mismatch between PDU JSON and PDU object"
+		);
 
 		self.pduid_pdu.raw_put(pdu_id, Json(json));
 		self.eventid_pduid.insert(pdu.event_id.as_bytes(), pdu_id);
@@ -188,6 +197,10 @@ impl Data {
 		event_id: &EventId,
 		json: &CanonicalJsonObject,
 	) {
+		debug_assert!(
+			json.get("event_id").is_some(),
+			"event_id must be present in database events"
+		);
 		self.pduid_pdu.raw_put(pdu_id, Json(json));
 		self.eventid_pduid.insert(event_id, pdu_id);
 		self.eventid_outlierpdu.remove(event_id);
@@ -202,7 +215,10 @@ impl Data {
 		if self.pduid_pdu.get(pdu_id).await.is_not_found() {
 			return Err!(Request(NotFound("PDU does not exist.")));
 		}
-
+		debug_assert!(
+			pdu_json.get("event_id").is_some(),
+			"event_id must be present in database events"
+		);
 		self.pduid_pdu.raw_put(pdu_id, Json(pdu_json));
 
 		Ok(())
