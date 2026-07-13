@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 15,
+            "id": 16,
             "mention_room": true,
-            "date": "2026-07-10",
-            "message": "[Continuwuity 26.6.1](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.6.1) has just been released! This release contains a bunch of bugfixes for bugs found initially after 26.6.0's release - please read the changelog before updating!"
+            "date": "2026-07-13",
+            "message": "[Continuwuity 26.6.2](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.6.1) has just been released! This release fixes a severe bug with OIDC that could cause users' accounts to be flagged as deactivated. If you use OIDC, please update as soon as possible."
         }
     ]
 }
