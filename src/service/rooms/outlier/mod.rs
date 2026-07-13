@@ -45,6 +45,10 @@ impl Service {
 
 	/// Append the PDU as an outlier.
 	pub fn add_pdu_outlier(&self, event_id: &EventId, pdu: &CanonicalJsonObject) {
+		debug_assert!(
+			pdu.get("event_id").is_some(),
+			"event_id must be present in database events"
+		);
 		self.db.eventid_outlierpdu.raw_put(event_id, Json(pdu));
 	}
 }

@@ -8,7 +8,7 @@ use std::{
 use assign::assign;
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_error, debug_info, err, error, info,
-	matrix::StateKey,
+	matrix::{StateKey, event::gen_event_id},
 	state_res,
 	state_res::EventTypeExt,
 	trace,
@@ -267,11 +267,8 @@ impl super::Service {
 			.values()
 			.map(|value| {
 				(
-					value
-						.get("event_id")
-						.and_then(|v| v.as_str())
-						.and_then(|v| EventId::parse(v).ok())
-						.expect("We inserted event_id during parsing"),
+					gen_event_id(value, room_version_rules)
+						.expect("must be able to generate event ID"),
 					value,
 				)
 			})
@@ -398,14 +395,13 @@ impl super::Service {
 			.iter()
 			.stream()
 			.wide_filter_map(async |pdu| {
-				let (event_room_id, event_id, mut value) = self
+				let (event_room_id, event_id, value) = self
 					.services
 					.event_handler
 					.parse_incoming_pdu(pdu, Some(room_version_rules))
 					.await
 					.inspect_err(|e| warn!("Invalid PDU in room state (dropping): {e:?}"))
 					.ok()?;
-				value.insert("event_id".to_owned(), event_id.as_str().into());
 				if event_room_id != room_id {
 					warn!(%event_id, expected=%room_id, actual=%event_room_id, "PDU in room state belongs to a different room (dropping)");
 					return None;
@@ -420,13 +416,14 @@ impl super::Service {
 			.collect::<HashMap<(StateEventType, StateKey), CanonicalJsonObject>>()
 			.await;
 
-		let create_event: PduEvent = serde_json::from_value(serde_json::to_value(
-			untrusted_state_before
-				.get(&StateEventType::RoomCreate.with_state_key(""))
-				.ok_or_else(|| {
-					err!("Room state returned from send_join did not contain a room create event")
-				})?,
-		)?)?;
+		let create_event_json = untrusted_state_before
+			.get(&StateEventType::RoomCreate.with_state_key(""))
+			.ok_or_else(|| {
+				err!("Room state returned from send_join did not contain a room create event")
+			})?;
+		let create_event_id = gen_event_id(create_event_json, room_version_rules)
+			.map_err(|e| err!("Failed to generate event ID for room create event: {e:?}"))?;
+		let create_event = PduEvent::from_id_val(&create_event_id, create_event_json.clone())?;
 
 		Ok((create_event, untrusted_state_before))
 	}
@@ -481,8 +478,16 @@ impl super::Service {
 			})
 			.collect::<HashMap<_, _>>()
 			.await;
+		let events_per_second = response.room_state.auth_chain.len().saturating_div(
+			auth_chain_timing_start
+				.elapsed()
+				.as_secs()
+				.try_into()
+				.expect("u64 must fit into usize"),
+		);
 		debug!(
 			elapsed=?auth_chain_timing_start.elapsed(),
+			%events_per_second,
 			"Finished validating auth chain ({}/{} events passed validation)",
 			unauthed_auth_chain.len(),
 			response.room_state.auth_chain.len()
@@ -542,8 +547,16 @@ impl super::Service {
 			})
 			.collect::<BTreeMap<_, _>>()
 			.await;
+		let events_per_second = unauthed_auth_chain.len().saturating_div(
+			auth_chain_timing_start
+				.elapsed()
+				.as_secs()
+				.try_into()
+				.expect("u64 must fit into usize"),
+		);
 		debug!(
 			elapsed=?auth_chain_timing_start.elapsed(),
+			%events_per_second,
 			"Finished authentication auth chain ({}/{} events passed authentication)",
 			auth_chain.len(),
 			unauthed_auth_chain.len()
@@ -564,7 +577,14 @@ impl super::Service {
 				}
 			})
 			.await;
-		info!(elapsed=?auth_chain_timing_start.elapsed(), "Finished processing authentication events");
+		let events_per_second = auth_chain.len().saturating_div(
+			auth_chain_timing_start
+				.elapsed()
+				.as_secs()
+				.try_into()
+				.expect("u64 must fit into usize"),
+		);
+		info!(elapsed=?auth_chain_timing_start.elapsed(), %events_per_second, "Finished processing authentication events");
 
 		Ok(auth_chain)
 	}
@@ -641,8 +661,16 @@ impl super::Service {
 			})
 			.collect::<Vec<_>>()
 			.await;
+		let events_per_second = state_size.saturating_div(
+			state_timing_start
+				.elapsed()
+				.as_secs()
+				.try_into()
+				.expect("u64 must fit into usize"),
+		);
 		debug!(
 			elapsed=?state_timing_start.elapsed(),
+			%events_per_second,
 			"Finished validation and authentication of room state ({}/{} events retained)",
 			state_before.len(),
 			state_size,
@@ -667,8 +695,16 @@ impl super::Service {
 			})
 			.await;
 
+		let events_per_second = state_before.len().saturating_div(
+			state_timing_start
+				.elapsed()
+				.as_secs()
+				.try_into()
+				.expect("u64 must fit into usize"),
+		);
 		info!(
 			elapsed=?state_timing_start.elapsed(),
+			%events_per_second,
 			"Finished processing send join state ({}/{} events)",
 			state_before.len(),
 			state_size,
