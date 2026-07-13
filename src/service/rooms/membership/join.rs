@@ -395,7 +395,7 @@ impl super::Service {
 			.iter()
 			.stream()
 			.wide_filter_map(async |pdu| {
-				let (event_room_id, event_id, mut value) = self
+				let (event_room_id, event_id, value) = self
 					.services
 					.event_handler
 					.parse_incoming_pdu(pdu, Some(room_version_rules))
@@ -471,10 +471,11 @@ impl super::Service {
 					warn!(%event_id, "PDU in send_join auth chain failed format check (dropping): {e:?}");
 				}).ok()?;
 
-				let value = self.services.event_handler.signature_hash_check_2_3(value, room_version_rules).await.inspect_err(|e| {
+				let mut value = self.services.event_handler.signature_hash_check_2_3(value, room_version_rules).await.inspect_err(|e| {
 					warn!(%event_id, "PDU in send_join auth chain failed signature check (dropping): {e:?}");
 				}).ok()?;
 
+				value.insert("event_id".to_owned(), event_id.as_str().into());
 				Some((event_id, value))
 			})
 			.collect::<HashMap<_, _>>()
@@ -553,12 +554,9 @@ impl super::Service {
 			.for_each_concurrent(automatic_width(), async |event_id| {
 				if self.services.timeline.get_pdu(event_id).await.is_err() {
 					// Only add events that we don't already have
-					self.services.outlier.add_pdu_outlier(
-						event_id,
-						unauthed_auth_chain
-							.get(event_id)
-							.expect("authorized auth chain event must be in auth chain map"),
-					);
+					self.services
+						.outlier
+						.add_pdu_outlier(event_id, &unauthed_auth_chain[event_id]);
 				}
 			})
 			.await;
@@ -591,7 +589,7 @@ impl super::Service {
 				})
 				.ok()?;
 
-				let value = self
+				let mut value = self
 					.services
 					.event_handler
 					.signature_hash_check_2_3(value.clone(), room_version_rules)
@@ -600,6 +598,8 @@ impl super::Service {
 						warn!(%event_id, "PDU in send_join state failed signature check (dropping): {e:?}");
 					})
 					.ok()?;
+
+				value.insert("event_id".to_owned(), event_id.as_str().into());
 
 				let pdu = PduEvent::from_id_val(&event_id, value.clone())
 					.expect("We already validated this state event");
@@ -724,11 +724,13 @@ impl super::Service {
 			create_event.event_id(),
 		)?;
 
-		let value = self
+		let mut value = self
 			.services
 			.event_handler
 			.signature_hash_check_2_3(value, room_version_rules)
 			.await?;
+
+		value.insert("event_id".to_owned(), event_id.as_str().into());
 
 		let pdu = PduEvent::from_id_val(event_id, value.clone())
 			.expect("We already validated this state event");
