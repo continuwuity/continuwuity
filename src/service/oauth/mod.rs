@@ -326,7 +326,7 @@ impl Service {
 		query: DeviceCodeRequest,
 	) -> Result<DeviceCodeResponse, OAuthError> {
 		let Some(client_metadata) = self.get_client_metadata(&query.client_id).await else {
-			return Err(OAuthError::invalid_grant("Invalid client ID"));
+			return Err(OAuthError::new_static(ErrorCode::InvalidClient, "Invalid client ID"));
 		};
 
 		let requested_scopes = query
@@ -434,7 +434,7 @@ impl Service {
 		let TokenRequest { client_id, request } = request;
 
 		let Some(client_metadata) = self.get_client_metadata(&client_id).await else {
-			return Err(OAuthError::invalid_request("Invalid client ID"));
+			return Err(OAuthError::new_static(ErrorCode::InvalidClient, "Invalid client ID"));
 		};
 
 		if !client_metadata.grant_types.contains(&request.grant_type()) {

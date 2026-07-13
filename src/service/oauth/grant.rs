@@ -195,6 +195,7 @@ pub enum ErrorCode {
 	AccessDenied,
 	InvalidScope,
 	InvalidGrant,
+	InvalidClient,
 	InvalidClientMetadata,
 	AuthorizationPending,
 	ExpiredToken,
