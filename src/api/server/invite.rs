@@ -307,7 +307,7 @@ async fn validate_invite_state(
 				"PDU in invite state (index {idx}) violates the room event format"
 			)));
 		};
-		let (state_event_room_id, state_event_id, state_event_json) = services
+		let (state_event_room_id, state_event_id, mut state_event_json) = services
 			.rooms
 			.event_handler
 			.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
@@ -351,6 +351,7 @@ async fn validate_invite_state(
 					entry.key(),
 				))),
 			| Entry::Vacant(entry) => {
+				state_event_json.insert("event_id".to_owned(), state_event_id.to_string().into());
 				if entry.key().0 == StateEventType::RoomCreate {
 					// Ensure this is a legal create event.
 					let pdu_event =

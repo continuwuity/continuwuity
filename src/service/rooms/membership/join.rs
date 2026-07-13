@@ -395,7 +395,7 @@ impl super::Service {
 			.iter()
 			.stream()
 			.wide_filter_map(async |pdu| {
-				let (event_room_id, event_id, value) = self
+				let (event_room_id, event_id, mut value) = self
 					.services
 					.event_handler
 					.parse_incoming_pdu(pdu, Some(room_version_rules))
@@ -406,6 +406,7 @@ impl super::Service {
 					warn!(%event_id, expected=%room_id, actual=%event_room_id, "PDU in room state belongs to a different room (dropping)");
 					return None;
 				}
+				// value.insert("event_id".to_owned(), event_id.to_string().into());
 				if self.services.pdu_metadata.is_event_rejected(&event_id).await {
 					// Rejection will be re-evaluated later
 					trace!(%event_id, "Un-rejecting event");
@@ -478,16 +479,8 @@ impl super::Service {
 			})
 			.collect::<HashMap<_, _>>()
 			.await;
-		let events_per_second = response.room_state.auth_chain.len().saturating_div(
-			auth_chain_timing_start
-				.elapsed()
-				.as_secs()
-				.try_into()
-				.expect("u64 must fit into usize"),
-		);
 		debug!(
 			elapsed=?auth_chain_timing_start.elapsed(),
-			%events_per_second,
 			"Finished validating auth chain ({}/{} events passed validation)",
 			unauthed_auth_chain.len(),
 			response.room_state.auth_chain.len()
@@ -547,16 +540,8 @@ impl super::Service {
 			})
 			.collect::<BTreeMap<_, _>>()
 			.await;
-		let events_per_second = unauthed_auth_chain.len().saturating_div(
-			auth_chain_timing_start
-				.elapsed()
-				.as_secs()
-				.try_into()
-				.expect("u64 must fit into usize"),
-		);
 		debug!(
 			elapsed=?auth_chain_timing_start.elapsed(),
-			%events_per_second,
 			"Finished authentication auth chain ({}/{} events passed authentication)",
 			auth_chain.len(),
 			unauthed_auth_chain.len()
@@ -577,14 +562,7 @@ impl super::Service {
 				}
 			})
 			.await;
-		let events_per_second = auth_chain.len().saturating_div(
-			auth_chain_timing_start
-				.elapsed()
-				.as_secs()
-				.try_into()
-				.expect("u64 must fit into usize"),
-		);
-		info!(elapsed=?auth_chain_timing_start.elapsed(), %events_per_second, "Finished processing authentication events");
+		info!(elapsed=?auth_chain_timing_start.elapsed(), "Finished processing authentication events");
 
 		Ok(auth_chain)
 	}
@@ -661,16 +639,8 @@ impl super::Service {
 			})
 			.collect::<Vec<_>>()
 			.await;
-		let events_per_second = state_size.saturating_div(
-			state_timing_start
-				.elapsed()
-				.as_secs()
-				.try_into()
-				.expect("u64 must fit into usize"),
-		);
 		debug!(
 			elapsed=?state_timing_start.elapsed(),
-			%events_per_second,
 			"Finished validation and authentication of room state ({}/{} events retained)",
 			state_before.len(),
 			state_size,
@@ -695,16 +665,8 @@ impl super::Service {
 			})
 			.await;
 
-		let events_per_second = state_before.len().saturating_div(
-			state_timing_start
-				.elapsed()
-				.as_secs()
-				.try_into()
-				.expect("u64 must fit into usize"),
-		);
 		info!(
 			elapsed=?state_timing_start.elapsed(),
-			%events_per_second,
 			"Finished processing send join state ({}/{} events)",
 			state_before.len(),
 			state_size,

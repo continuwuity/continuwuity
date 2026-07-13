@@ -66,6 +66,12 @@ impl super::Service {
 		pdu_json: CanonicalJsonObject,
 		room_version_rules: &RoomVersionRules,
 	) -> Result<CanonicalJsonObject> {
+		#[cfg(debug_assertions)]
+		{
+			if pdu_json.contains_key("event_id") {
+				conduwuit::warn!("Checking signature of a PDU that has an `event_id` present");
+			}
+		}
 		match self
 			.services
 			.server_keys

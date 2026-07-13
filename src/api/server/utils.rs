@@ -91,7 +91,7 @@ pub(crate) async fn validate_any_membership_event(
 	expected_room_id: OwnedRoomId,
 	expected_event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, MembershipState, OwnedUserId, OwnedUserId)> {
-	let (template_room_id, template_event_id, pdu) = services
+	let (template_room_id, template_event_id, mut pdu) = services
 		.rooms
 		.event_handler
 		.parse_incoming_pdu(body, Some(room_version_rules))
@@ -164,5 +164,6 @@ pub(crate) async fn validate_any_membership_event(
 		err!(Request(InvalidParam("Membership event violates the room event format: {e}")))
 	})?;
 
+	// pdu.insert("event_id".to_owned(), template_event_id.to_string().into());
 	Ok((pdu, membership.into(), sender_user, recipient_user))
 }
