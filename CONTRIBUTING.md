@@ -26,8 +26,8 @@ You can run these checks locally by installing [prek](https://github.com/j178/pr
 
 
 ```bash
-# Install prek using cargo-binstall
-cargo install prek
+# Install prek using cargo-binstall https://github.com/cargo-bins/cargo-binstall
+cargo binstall prek
 
 # Install git hooks to run checks automatically
 prek install
