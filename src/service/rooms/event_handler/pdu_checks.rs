@@ -6,8 +6,9 @@ use conduwuit::{
 };
 use futures::future::ready;
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, ServerName, api::error::ErrorKind,
-	canonical_json::redact, events::StateEventType, room_version_rules::RoomVersionRules,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, ServerName,
+	api::error::ErrorKind, canonical_json::redact, events::StateEventType,
+	room_version_rules::RoomVersionRules,
 };
 
 use crate::rooms::{
@@ -42,11 +43,27 @@ impl super::Service {
 			return Err!(Request(BadJson("PDU has too many auth events")));
 		}
 
-		let create_event_in_auth_events = auth_events.iter().any(|id| id == create_event_id);
-		if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
-			return Err!(Request(BadJson("PDU references a create event")));
-		} else if event_format.allow_room_create_in_auth_events && !create_event_in_auth_events {
-			return Err!(Request(BadJson("PDU does not reference the room create event")));
+		// The m.room.create event is the genesis event and has empty auth_events
+		// by definition, so it is exempt from the checks below requiring or
+		// forbidding the create event in auth_events (it cannot reference itself).
+		let Some(event_type) = pdu_json.get("type").and_then(CanonicalJsonValue::as_str) else {
+			return Err!(Request(BadJson("PDU is missing a type")));
+		};
+		let state_key = pdu_json
+			.get("state_key")
+			.and_then(CanonicalJsonValue::as_str);
+
+		let is_create_event = event_type == "m.room.create" && state_key == Some("");
+
+		if !is_create_event {
+			let create_event_in_auth_events = auth_events.iter().any(|id| id == create_event_id);
+			if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
+				return Err!(Request(BadJson("PDU references a create event")));
+			} else if event_format.allow_room_create_in_auth_events
+				&& !create_event_in_auth_events
+			{
+				return Err!(Request(BadJson("PDU does not reference the room create event")));
+			}
 		}
 
 		let prev_events = expect_event_id_array(pdu_json, "prev_events")?;
