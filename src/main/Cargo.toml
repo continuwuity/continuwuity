@@ -35,7 +35,10 @@ systemd-units = { unit-name = "conduwuit", start = false, unit-scripts = "../../
 assets = [
 	["../../pkg/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
 	["../../README.md", "usr/share/doc/conduwuit/", "644"],
-	["../../target/release/conduwuit", "usr/bin/conduwuit", "755"],
+	# cargo-deb only treats the exact prefix "target/release/" as the magic
+	# path that resolves to the real build dir (e.g. target/<triple>/release
+	# when cross-compiling); a ../../ prefix would be read as a literal path
+	["target/release/conduwuit", "usr/bin/conduwuit", "755"],
 	["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
 ]
 
