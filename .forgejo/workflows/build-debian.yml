@@ -75,7 +75,18 @@ jobs:
         if: matrix.arch == 'arm64'
         run: |
           dpkg --add-architecture arm64
-          apt-get update
+          if ! apt-get update; then
+            # Older Ubuntu releases (e.g. noble) advertise arm64 in their
+            # Release files but only serve amd64/i386 from archive.ubuntu.com,
+            # so apt update 404s. Restrict the main sources to amd64 and
+            # fetch arm64 from ports.ubuntu.com instead.
+            CODENAME=$(lsb_release -sc)
+            sed -i '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+            printf 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports %s main restricted universe multiverse\n' \
+              "$CODENAME" "$CODENAME-updates" "$CODENAME-security" \
+              > /etc/apt/sources.list.d/arm64-ports.list
+            apt-get update
+          fi
           apt-get install -y \
             gcc-aarch64-linux-gnu \
             g++-aarch64-linux-gnu \
@@ -97,6 +108,10 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+          # rust-rocksdb's build script probes liburing via pkg-config, which
+          # refuses to run when host != target unless explicitly allowed
+          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
+          echo "PKG_CONFIG_PATH_aarch64_unknown_linux_gnu=/usr/lib/aarch64-linux-gnu/pkgconfig" >> $GITHUB_ENV
 
       - name: Get package version and component
         id: package-meta
