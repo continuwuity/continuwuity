@@ -1,0 +1,77 @@
+# Releasing
+
+Continuwuity is rapidly evolving software that needs to keep up with an ecosystem that demands equally faced paced
+development. While we generally encourage people follow the `main` branch, not everyone has the time or will to keep up
+with even nightly updates. For this reason, we do regular releases.
+
+In order to ensure that releases are stable and predictable, the process defined in this document should be followed.
+
+## Schedule
+
+The release `YY.MM` should be forked from the `main` branch on the first day of the final week of the month.
+Immediately after, `YY.MM.0-rc.1` should be tagged and released as a pre-release.
+
+Then, for each day of the final week of the month, if there have been bug fixes since the last release candidate, a new
+release candidate should be tagged and released as a pre-release. This means there can be between 1 and 6
+release candidates for a given release.
+
+On the last day of the final week of the month, if there are no outstanding serious bugs, the full release should be
+tagged and released.
+
+If there ARE serious bugs found at the time the final release is due, the release should be delayed until the
+bugs are fixed. Additionally, another release candidate should be tagged for at least 24 hours after the patch is
+released, to allow for testing and verification of the fix. Only then can the final release be made.
+
+This means a release timeline MIGHT look like:
+
+- Week 1: Bugfixes from the previous release that missed the cycle
+- Week 2: New major features & other changes
+- Week 3: New minor features & bugfixing
+- Week 4: Release candidates and final release
+- Day 1: Fork release branch from `main` and tag `YY.MM.0-rc.1`
+- Day 2: If there are bugfixes, tag `YY.MM.0-rc.2`
+- Day 3: If there are bugfixes, tag `YY.MM.0-rc.3`
+- Day 4: If there are bugfixes, tag `YY.MM.0-rc.4`
+- Day 5: If there are bugfixes, tag `YY.MM.0-rc.5`
+- Day 6: If there are bugfixes, tag `YY.MM.0-rc.6`
+- Day 7: If there are no serious bugs, tag `YY.MM.0` and release.
+
+New changes of any sort may be made to the `main` branch at any point during the month, but they will not be included
+in the release until the next cycle.
+
+### Off-schedule releases (patches)
+
+Sometimes, critical bugs may be discovered that require an immediate release.
+In this case, a new branch should be forked **from the previous release tag**, incrementing the patch value (e.g. `YY.MM.0` ->` YY.MM.1`)
+This will ensure that the critical bug is fixed without introducing any new changes that may potentially be incompatible.
+
+### Security releases
+
+Following the [security policy](../security.mdx), security releases might be made off-cycle, and may even require
+creating new releases for older versions (backports). It is imperative that security patches are tested BEFORE being
+pushed to the public repository, as once the cat is out of the bag, it doesn't go back in. Consequently,
+there is no "pre-release" system for security releases - security patches always go straight to release.
+
+Not all security fixes require a new release. If there are several low-severity security problems that are awaiting
+an upstream merge, they should instead wait for the next scheduled release, unless they are critical enough to warrant
+an immediate release.
+
+Security patches should NEVER be pushed to the public repository when a release is not planned to be made very soon
+after. The shorter the window between the diff going live and the release, the smaller the window for exploit.
+
+### Release candidates
+
+Release candidates are the primary form of pre-release - they imply a feature freeze, which allows maintainers and
+contributors to focus on fixing bugs before the ultimate release, which ensures all new features are stable and working
+as intended. Simply relying on deployments to run main has proven to be insufficient for filling this role,
+so release candidates are a necessary step in the release process.
+
+Release candidates should be announced in the same way any other release is (ping in the announcements room,
+announcement sent out via the checker, etc), but should be clearly marked as a pre-release. Extra attention to detail
+should be spent ensuring breaking changes are clearly communicated.
+
+### Alphas and Betas
+
+Alphas and betas may be created during any time of the month, and it is recommended to do so after merging a major
+feature, especially if the release candidate cycle is not close to starting. This is not expected to be commonplace, so
+announcing these releases is up to the discretion of the release manager.
