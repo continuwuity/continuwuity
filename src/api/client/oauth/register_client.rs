@@ -24,5 +24,5 @@ pub(crate) async fn register_client_route(
 		.await
 		.map_err(|err| (StatusCode::BAD_REQUEST, Json(err)).into_response())?;
 
-	Ok(Json(RegisteredClient { client_id, metadata }).into_response())
+	Ok((StatusCode::CREATED, Json(RegisteredClient { client_id, metadata })).into_response())
 }
