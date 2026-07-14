@@ -155,7 +155,7 @@ of it, especially when the CI completed successfully and everything so it
 
 Before submitting a pull request, please ensure:
 1. Your code passes all CI checks (formatting, linting, typo detection, etc.)
-2. Your code follows the [code style guide](/development/code_style.md)
+2. Your code follows the [code style guide](docs/development/code_style.mdx)
 3. Your commit messages follow the conventional commits format
 4. Tests are added for new functionality
 5. Documentation is updated if needed
