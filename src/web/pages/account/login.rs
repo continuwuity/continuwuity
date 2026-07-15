@@ -21,7 +21,6 @@ use crate::{
 	extract::{Expect, PostForm},
 	pages::{
 		GET_POST, Result, TemplateContext,
-		account::register::{TrustedFlowStatus, UntrustedFlowStatus, registration_flow_status},
 		components::UserCard,
 		oidc::{OIDC_SESSION_ID_KEY, OidcSession, OidcSessionState},
 	},
@@ -101,13 +100,13 @@ async fn route_login(
 
 		LoginType::Oidc { redirect_url }
 	} else {
-		let (trusted_flow_status, untrusted_flow_status) =
-			registration_flow_status(&services).await;
-
-		let registration_available = matches!(trusted_flow_status, TrustedFlowStatus::Available)
-			|| matches!(untrusted_flow_status, UntrustedFlowStatus::Available { .. });
-
-		LoginType::Interactive { registration_available }
+		LoginType::Interactive {
+			registration_available: services
+				.uiaa
+				.registration_flow_status()
+				.await
+				.any_available(),
+		}
 	};
 
 	let body = match &user_id {

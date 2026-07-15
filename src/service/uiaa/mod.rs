@@ -5,6 +5,7 @@ use std::{
 };
 
 use conduwuit::{Err, Error, Result, error, utils};
+use futures::StreamExt;
 use lettre::Address;
 use ruma::{
 	DeviceId, UserId,
@@ -25,7 +26,7 @@ use serde_json::{
 use tokio::sync::Mutex;
 
 use crate::{
-	Dep, config, globals,
+	Dep, config, firstrun, globals,
 	oauth::{self, OAuthTicket},
 	registration_tokens, threepid, users,
 };
@@ -36,25 +37,54 @@ pub struct Service {
 }
 
 struct Services {
-	globals: Dep<globals::Service>,
-	users: Dep<users::Service>,
 	config: Dep<config::Service>,
+	firstrun: Dep<firstrun::Service>,
+	globals: Dep<globals::Service>,
+	oauth: Dep<oauth::Service>,
 	registration_tokens: Dep<registration_tokens::Service>,
 	threepid: Dep<threepid::Service>,
-	oauth: Dep<oauth::Service>,
+	users: Dep<users::Service>,
+}
+
+#[derive(Debug)]
+pub enum TrustedFlowStatus {
+	Unavailable,
+	Available,
+}
+
+#[derive(Debug)]
+pub enum UntrustedFlowStatus {
+	Unavailable,
+	Available {
+		require_email: bool,
+	},
+}
+
+pub struct FlowStatus {
+	pub trusted: TrustedFlowStatus,
+	pub untrusted: UntrustedFlowStatus,
+}
+
+impl FlowStatus {
+	#[must_use]
+	pub fn any_available(&self) -> bool {
+		matches!(self.trusted, TrustedFlowStatus::Available)
+			|| matches!(self.untrusted, UntrustedFlowStatus::Available { .. })
+	}
 }
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
-				globals: args.depend::<globals::Service>("globals"),
-				users: args.depend::<users::Service>("users"),
 				config: args.depend::<config::Service>("config"),
+				firstrun: args.depend::<firstrun::Service>("firstrun"),
+				globals: args.depend::<globals::Service>("globals"),
+				oauth: args.depend::<oauth::Service>("oauth"),
 				registration_tokens: args
 					.depend::<registration_tokens::Service>("registration_tokens"),
 				threepid: args.depend::<threepid::Service>("threepid"),
-				oauth: args.depend::<oauth::Service>("oauth"),
+				users: args.depend::<users::Service>("users"),
 			},
 			uiaa_sessions: Mutex::new(HashMap::new()),
 		}))
@@ -594,5 +624,57 @@ impl Service {
 		}?;
 
 		Ok((completed_auth_type, session_metadata))
+	}
+
+	pub async fn registration_flow_status(&self) -> FlowStatus {
+		// Allow registration if it's enabled in the config file or if this is the first
+		// run (so the first user account can be created)
+		let allow_registration =
+			self.services.config.allow_registration || self.services.firstrun.is_first_run();
+
+		// Trusted flow is only available if any registration tokens exist
+		let trusted = {
+			if !allow_registration {
+				TrustedFlowStatus::Unavailable
+			} else if self
+				.services
+				.registration_tokens
+				.iterate_tokens()
+				.next()
+				.await
+				.is_some()
+			{
+				TrustedFlowStatus::Available
+			} else {
+				TrustedFlowStatus::Unavailable
+			}
+		};
+
+		// Untrusted flow is available if email is required for registration,
+		// or reCAPTCHA is configured, or open registration is enabled
+		let untrusted = {
+			let require_email = self
+				.services
+				.config
+				.smtp
+				.as_ref()
+				.is_some_and(|smtp| smtp.require_email_for_registration);
+
+			if !allow_registration || self.services.firstrun.is_first_run() {
+				UntrustedFlowStatus::Unavailable
+			} else if self.services.config.recaptcha_private_site_key.is_some() || require_email {
+				UntrustedFlowStatus::Available { require_email }
+			} else if self
+				.services
+				.config
+				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+			{
+				UntrustedFlowStatus::Available { require_email: false }
+			} else {
+				UntrustedFlowStatus::Unavailable
+			}
+		};
+
+		FlowStatus { trusted, untrusted }
 	}
 }

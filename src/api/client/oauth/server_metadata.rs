@@ -37,6 +37,17 @@ pub(crate) async fn authorization_server_metadata(services: &Services) -> Value 
 		.join(super::BASE_PATH)
 		.unwrap();
 
+	let prompt_values_supported = if services
+		.uiaa
+		.registration_flow_status()
+		.await
+		.any_available()
+	{
+		json!(["create"])
+	} else {
+		json!([])
+	};
+
 	json!({
 		"account_management_uri": endpoint_base.join(ACCOUNT_MANAGEMENT_PATH).unwrap(),
 		"account_management_actions_supported": [
@@ -52,7 +63,7 @@ pub(crate) async fn authorization_server_metadata(services: &Services) -> Value 
 		"grant_types_supported": ["authorization_code", "refresh_token"],
 		"issuer": services.config.get_client_domain(),
 		"jwks_uri": endpoint_base.join(JWKS_URI_PATH).unwrap(),
-		"prompt_values_supported": ["create"],
+		"prompt_values_supported": prompt_values_supported,
 		"registration_endpoint": endpoint_base.join(CLIENT_REGISTER_PATH).unwrap(),
 		"response_modes_supported": ["query", "fragment"],
 		"response_types_supported": ["code"],

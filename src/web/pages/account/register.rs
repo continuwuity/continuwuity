@@ -8,9 +8,12 @@ use axum::{
 };
 use conduwuit_core::{config::TermsDocument, warn};
 use conduwuit_service::{
-	mailer::messages, registration_tokens::ValidToken, users::HashedPassword,
+	mailer::messages,
+	registration_tokens::ValidToken,
+	uiaa::{FlowStatus, TrustedFlowStatus, UntrustedFlowStatus},
+	users::HashedPassword,
 };
-use futures::{FutureExt, StreamExt};
+use futures::FutureExt;
 use lettre::{Address, message::Mailbox};
 use ruma::{ClientSecret, OwnedClientSecret, OwnedServerName, OwnedSessionId, OwnedUserId};
 use serde::{Deserialize, Serialize, de::IgnoredAny};
@@ -58,20 +61,6 @@ enum RegisterBody {
 		flow: RegistrationFlowParameters,
 		terms: BTreeMap<String, TermsDocument>,
 		validation_errors: ValidationErrors,
-	},
-}
-
-#[derive(Debug)]
-pub(super) enum TrustedFlowStatus {
-	Unavailable,
-	Available,
-}
-
-#[derive(Debug)]
-pub(super) enum UntrustedFlowStatus {
-	Unavailable,
-	Available {
-		require_email: bool,
 	},
 }
 
@@ -169,7 +158,10 @@ async fn route_register(
 		ValidationErrors::new()
 	};
 
-	let (trusted_flow_status, untrusted_flow_status) = registration_flow_status(&services).await;
+	let FlowStatus {
+		trusted: trusted_flow_status,
+		untrusted: untrusted_flow_status,
+	} = services.uiaa.registration_flow_status().await;
 
 	if matches!(trusted_flow_status, TrustedFlowStatus::Unavailable)
 		&& matches!(untrusted_flow_status, UntrustedFlowStatus::Unavailable)
@@ -539,55 +531,4 @@ async fn complete_registration(
 		.expect("should be able to serialize user session");
 
 	Ok(Redirect::to(&next.unwrap_or_default().target_path()))
-}
-
-pub(super) async fn registration_flow_status(
-	services: &crate::State,
-) -> (TrustedFlowStatus, UntrustedFlowStatus) {
-	// Allow registration if it's enabled in the config file or if this is the first
-	// run (so the first user account can be created)
-	let allow_registration =
-		services.config.allow_registration || services.firstrun.is_first_run();
-
-	// Trusted flow is only available if any registration tokens exist
-	let trusted_flow_status = {
-		if !allow_registration {
-			TrustedFlowStatus::Unavailable
-		} else if services
-			.registration_tokens
-			.iterate_tokens()
-			.next()
-			.await
-			.is_some()
-		{
-			TrustedFlowStatus::Available
-		} else {
-			TrustedFlowStatus::Unavailable
-		}
-	};
-
-	// Untrusted flow is available if email is required for registration,
-	// or reCAPTCHA is configured, or open registration is enabled
-	let untrusted_flow_status = {
-		let require_email = services
-			.config
-			.smtp
-			.as_ref()
-			.is_some_and(|smtp| smtp.require_email_for_registration);
-
-		if !allow_registration || services.firstrun.is_first_run() {
-			UntrustedFlowStatus::Unavailable
-		} else if services.config.recaptcha_private_site_key.is_some() || require_email {
-			UntrustedFlowStatus::Available { require_email }
-		} else if services
-			.config
-			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-		{
-			UntrustedFlowStatus::Available { require_email: false }
-		} else {
-			UntrustedFlowStatus::Unavailable
-		}
-	};
-
-	(trusted_flow_status, untrusted_flow_status)
 }
