@@ -1,0 +1,1 @@
+Fix joining restricted rooms over federation failing with signature verification error.

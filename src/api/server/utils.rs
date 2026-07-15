@@ -91,7 +91,7 @@ pub(crate) async fn validate_any_membership_event(
 	expected_room_id: OwnedRoomId,
 	expected_event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, MembershipState, OwnedUserId, OwnedUserId)> {
-	let (template_room_id, template_event_id, pdu) = services
+	let (template_room_id, template_event_id, mut pdu) = services
 		.rooms
 		.event_handler
 		.parse_incoming_pdu(body, Some(room_version_rules))
@@ -107,6 +107,37 @@ pub(crate) async fn validate_any_membership_event(
 			%expected_event_id,
 			"Membership event ID does not match provided event ID"
 		))));
+	}
+
+	// Only `join` events carry `join_authorised_via_users_server`; co-sign
+	// restricted joins so verification passes. Authorisation is enforced in
+	// create_join_event.
+	let membership_is_join = pdu
+		.get("content")
+		.and_then(|v| v.as_object())
+		.and_then(|c| c.get("membership"))
+		.and_then(|v| v.as_str())
+		.is_some_and(|m| m == "join");
+
+	let authorising_user = pdu
+		.get("content")
+		.and_then(|v| v.as_object())
+		.and_then(|c| c.get("join_authorised_via_users_server"))
+		.and_then(|v| v.as_str())
+		.map(UserId::parse)
+		.and_then(Result::ok);
+
+	if room_version_rules.authorization.restricted_join_rule
+		&& membership_is_join
+		&& let Some(authorising_user) = authorising_user
+		&& services.globals.user_is_local(&authorising_user)
+	{
+		services
+			.server_keys
+			.hash_and_sign_event(&mut pdu, room_version_rules)
+			.map_err(|e| {
+				err!(Request(InvalidParam("Failed to sign restricted join event: {e}")))
+			})?;
 	}
 
 	services
