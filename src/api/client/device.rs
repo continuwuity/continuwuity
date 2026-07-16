@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, debug, err, utils};
 use futures::StreamExt;
 use ruma::{
@@ -9,7 +8,7 @@ use ruma::{
 	},
 };
 
-use crate::{Ruma, client::DEVICE_ID_LENGTH};
+use crate::{Ruma, client::DEVICE_ID_LENGTH, client_ip::ClientIp};
 
 /// # `GET /_matrix/client/r0/devices`
 ///

@@ -9,7 +9,6 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, at, error, extract_variant,
 	utils::{
@@ -48,6 +47,7 @@ use crate::{
 		is_ignored_invite,
 		sync::v3::{joined::load_joined_room, left::load_left_room},
 	},
+	client_ip::ClientIp,
 };
 
 /// The default maximum number of events to return in the `timeline` key of

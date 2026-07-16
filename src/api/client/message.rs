@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, at, debug_warn,
 	matrix::{
@@ -38,7 +37,7 @@ use ruma::{
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// list of safe and common non-state events to ignore if the user is ignored
 const IGNORED_MESSAGE_TYPES: &[TimelineEventType] = &[

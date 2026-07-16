@@ -6,7 +6,6 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, at, error, extract_variant, is_equal_to,
 	matrix::{Event, TypeStateKey, pdu::PduCount},
@@ -49,6 +48,7 @@ use crate::{
 	client::{
 		DEFAULT_BUMP_TYPES, TimelinePdus, ignored_filter, is_ignored_invite, sync::load_timeline,
 	},
+	client_ip::ClientIp,
 };
 
 type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request);

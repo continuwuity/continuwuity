@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PartialPdu},
@@ -18,7 +17,7 @@ use ruminuwuity::invite_permission_config::FilterLevel;
 use service::Services;
 
 use super::banned_room_check;
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/invite`
 ///

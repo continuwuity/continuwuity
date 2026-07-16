@@ -5,7 +5,6 @@ use std::{
 };
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Error, Result, debug, debug_error, debug_warn, err, error,
 	result::LogErr,
@@ -47,7 +46,7 @@ use service::{
 use tokio::sync::watch::{Receiver, Sender};
 use tracing::instrument;
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 type ResolvedMap = BTreeMap<OwnedEventId, Result>;
 type Pdu = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);

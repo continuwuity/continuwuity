@@ -1,7 +1,6 @@
 #[cfg(test)]
 mod tests;
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err,
 	matrix::{Event, pdu::PartialPdu},
@@ -28,7 +27,7 @@ use ruma::{
 };
 use serde_json::{json, value::to_raw_value};
 
-use crate::{Ruma, RumaResponse};
+use crate::{Ruma, RumaResponse, client_ip::ClientIp};
 
 /// # `PUT /_matrix/client/*/rooms/{roomId}/state/{eventType}/{stateKey}`
 ///

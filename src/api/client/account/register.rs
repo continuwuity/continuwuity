@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, debug_info, info,
 	utils::{self},
@@ -26,7 +25,7 @@ use service::{
 };
 
 use super::DEVICE_ID_LENGTH;
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `POST /_matrix/client/v3/register`
 ///

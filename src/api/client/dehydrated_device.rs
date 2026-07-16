@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, at};
 use futures::StreamExt;
 use ruma::{
@@ -12,7 +11,7 @@ use ruma::{
 	assign,
 };
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 const MAX_BATCH_EVENTS: usize = 50;
 

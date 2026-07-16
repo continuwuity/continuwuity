@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, err};
 use ruma::{
 	api::federation::directory::{get_public_rooms, get_public_rooms_filtered},
@@ -7,7 +6,7 @@ use ruma::{
 	directory::Filter,
 };
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `POST /_matrix/federation/v1/publicRooms`
 ///

@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err, info,
 	utils::{
@@ -28,7 +27,7 @@ use ruma::{
 };
 use tokio::join;
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `POST /_matrix/client/v3/publicRooms`
 ///

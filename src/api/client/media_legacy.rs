@@ -1,7 +1,6 @@
 #![allow(deprecated)]
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err,
 	utils::{content_disposition::make_content_disposition, math::ruma_from_usize},
@@ -17,7 +16,7 @@ use ruma::{
 };
 use service::media::mxc::Mxc;
 
-use crate::{Ruma, RumaResponse, client::create_content_route};
+use crate::{Ruma, RumaResponse, client::create_content_route, client_ip::ClientIp};
 
 /// # `GET /_matrix/media/v3/config`
 ///

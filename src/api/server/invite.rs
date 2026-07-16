@@ -1,7 +1,6 @@
 use std::collections::{HashMap, hash_map::Entry};
 
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Error, EventTypeExt, PduEvent, Result, debug, err, error,
@@ -23,7 +22,7 @@ use ruma::{
 };
 use serde::Deserialize;
 
-use crate::{Ruma, server::utils::validate_any_membership_event};
+use crate::{Ruma, client_ip::ClientIp, server::utils::validate_any_membership_event};
 
 /// # `PUT /_matrix/federation/v2/invite/{roomId}/{eventId}`
 ///

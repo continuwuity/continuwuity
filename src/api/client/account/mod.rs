@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{
 	Err, Result, err, info,
 	pdu::PartialPdu,
@@ -27,7 +26,7 @@ use ruma::{
 use service::{mailer::messages, uiaa::UiaaInitiator, users::HashedPassword};
 
 use super::DEVICE_ID_LENGTH;
-use crate::{Ruma, router::ClientIdentity};
+use crate::{Ruma, client_ip::ClientIp, router::ClientIdentity};
 
 pub(crate) mod register;
 pub(crate) mod threepid;

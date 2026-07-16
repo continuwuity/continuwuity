@@ -1,11 +1,10 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::redact::redact_event, assign, events::room::redaction::RoomRedactionEventContent,
 };
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `PUT /_matrix/client/r0/rooms/{roomId}/redact/{eventId}/{txnId}`
 ///

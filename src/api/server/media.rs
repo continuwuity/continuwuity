@@ -1,5 +1,4 @@
 use axum::extract::State;
-use axum_client_ip::ClientIp;
 use conduwuit::{Err, Result, utils::content_disposition::make_content_disposition};
 use conduwuit_service::media::{Dim, FileMeta};
 use ruma::api::federation::authenticated_media::{
@@ -7,7 +6,7 @@ use ruma::api::federation::authenticated_media::{
 };
 use service::media::mxc::Mxc;
 
-use crate::Ruma;
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `GET /_matrix/federation/v1/media/download/{mediaId}`
 ///
