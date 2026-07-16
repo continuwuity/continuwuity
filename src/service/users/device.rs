@@ -253,8 +253,6 @@ impl super::Service {
 				self.db.todeviceid_events.del(key);
 			})
 			.await;
-
-		self.services.sync.wake(user_id).await;
 	}
 
 	/// Updates device metadata and increments the device list version.

@@ -1,0 +1,1 @@
+Fixed high CPU usage when multiple clients from the same account were connected at once. Each sync woke the account's other sync loops, causing them to wake each other in a loop.
