@@ -61,6 +61,13 @@
             "groupName": "rust-toolchain"
         },
         {
+            "description": "Delay major rust toolchain updates",
+            "matchManagers": ["custom.regex"],
+            "matchPackageNames": ["rust", "rustc", "cargo"],
+            "matchUpdateTypes": ["major"],
+            "minimumReleaseAge": "30 days"
+        },
+        {
             "description": "Batch minor and patch GitHub Actions updates",
             "matchManagers": ["github-actions"],
             "matchUpdateTypes": ["minor", "patch"],
