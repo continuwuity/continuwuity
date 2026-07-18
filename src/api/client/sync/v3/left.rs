@@ -230,7 +230,7 @@ async fn build_left_state_and_timeline(
 		.and_then(|limit| limit.try_into().ok())
 		.unwrap_or(DEFAULT_TIMELINE_LIMIT);
 
-	let timeline = load_timeline(
+	let mut timeline = load_timeline(
 		services,
 		syncing_user,
 		room_id,
@@ -239,6 +239,20 @@ async fn build_left_state_and_timeline(
 		timeline_limit,
 	)
 	.await?;
+
+	// the timeline index can lag behind the leave PDU, so `load_timeline` may omit
+	// it. we already hold the leave event, so ensure it's always synced to the
+	// client.
+	let leave_synced = timeline
+		.pdus
+		.iter()
+		.any(|(_, pdu)| pdu.event_id() == leave_membership_event.event_id());
+
+	if !leave_synced {
+		timeline
+			.pdus
+			.push_back((timeline_end_count, leave_membership_event));
+	}
 
 	let lazily_loaded_members =
 		prepare_lazily_loaded_members(services, sync_context, room_id, timeline.senders()).await;
