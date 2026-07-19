@@ -6,7 +6,7 @@ use ruma::api::federation::authenticated_media::{
 };
 use service::media::mxc::Mxc;
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `GET /_matrix/federation/v1/media/download/{mediaId}`
 ///

@@ -3,7 +3,7 @@ use conduwuit::{Err, Result};
 use ruma::api::client::room::get_summary;
 use service::rooms::summary::Accessibility;
 
-use crate::{Ruma, client_ip::ClientIp, router::ClientIdentity};
+use crate::{Ruma, router::ClientIdentity};
 
 /// # `GET /_matrix/client/v1/room_summary/{roomIdOrAlias}`
 ///

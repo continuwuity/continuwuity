@@ -6,7 +6,7 @@ use ruma::{
 	directory::Filter,
 };
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `POST /_matrix/federation/v1/publicRooms`
 ///

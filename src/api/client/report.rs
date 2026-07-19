@@ -13,7 +13,7 @@ use ruma::{
 };
 use tokio::time::sleep;
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 struct Report {
 	sender: OwnedUserId,

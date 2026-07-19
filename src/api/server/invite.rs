@@ -22,7 +22,7 @@ use ruma::{
 };
 use serde::Deserialize;
 
-use crate::{Ruma, client_ip::ClientIp, server::utils::validate_any_membership_event};
+use crate::{Ruma, server::utils::validate_any_membership_event};
 
 /// # `PUT /_matrix/federation/v2/invite/{roomId}/{eventId}`
 ///

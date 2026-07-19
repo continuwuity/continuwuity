@@ -11,7 +11,7 @@ use ruma::{
 	assign,
 };
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 const MAX_BATCH_EVENTS: usize = 50;
 

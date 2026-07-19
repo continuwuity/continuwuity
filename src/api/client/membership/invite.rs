@@ -17,7 +17,7 @@ use ruminuwuity::invite_permission_config::FilterLevel;
 use service::Services;
 
 use super::banned_room_check;
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/invite`
 ///

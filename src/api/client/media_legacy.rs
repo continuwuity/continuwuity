@@ -16,7 +16,7 @@ use ruma::{
 };
 use service::media::mxc::Mxc;
 
-use crate::{Ruma, RumaResponse, client::create_content_route, client_ip::ClientIp};
+use crate::{Ruma, RumaResponse, client::create_content_route};
 
 /// # `GET /_matrix/media/v3/config`
 ///

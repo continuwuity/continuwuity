@@ -11,7 +11,7 @@ use ruma::{
 };
 
 use super::banned_room_check;
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `POST /_matrix/client/r0/rooms/{roomId}/join`
 ///

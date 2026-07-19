@@ -23,7 +23,7 @@ use ruma::{
 };
 use service::media::mxc::Mxc;
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `GET /_matrix/client/v1/media/config`
 pub(crate) async fn get_media_config_route(

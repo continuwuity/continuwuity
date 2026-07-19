@@ -45,7 +45,7 @@ use service::{
 use tokio::sync::watch::{Receiver, Sender};
 use tracing::instrument;
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 type ResolvedMap = BTreeMap<OwnedEventId, Result>;
 type Pdu = (OwnedRoomId, OwnedEventId, CanonicalJsonObject);

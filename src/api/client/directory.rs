@@ -27,7 +27,7 @@ use ruma::{
 };
 use tokio::join;
 
-use crate::{Ruma, client_ip::ClientIp};
+use crate::Ruma;
 
 /// # `POST /_matrix/client/v3/publicRooms`
 ///
