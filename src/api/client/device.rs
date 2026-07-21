@@ -1,14 +1,14 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, debug, err, utils};
+use conduwuit::{Err, Result, debug, err};
 use futures::StreamExt;
 use ruma::{
-	MilliSecondsSinceUnixEpoch, OwnedDeviceId,
+	MilliSecondsSinceUnixEpoch,
 	api::client::device::{
 		self, delete_device, delete_devices, get_device, get_devices, update_device,
 	},
 };
 
-use crate::{Ruma, client::DEVICE_ID_LENGTH, client_ip::ClientIp};
+use crate::{Ruma, client_ip::ClientIp};
 
 /// # `GET /_matrix/client/r0/devices`
 ///
@@ -84,11 +84,15 @@ pub(crate) async fn update_device_route(
 				appservice.registration.id
 			);
 
-			let device_id = OwnedDeviceId::from(utils::random_string(DEVICE_ID_LENGTH));
-
 			services
 				.users
-				.create_device(sender_user, &device_id, None, None, Some(client.to_string()))
+				.create_device(
+					sender_user,
+					&body.device_id,
+					None,
+					body.display_name.clone(),
+					Some(client.to_string()),
+				)
 				.await?;
 
 			return Ok(update_device::v3::Response::new());
