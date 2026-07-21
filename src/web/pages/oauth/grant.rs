@@ -9,7 +9,7 @@ use conduwuit_service::oauth::{
 	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
 };
 use ruma::OwnedUserId;
-use serde::Deserialize;
+use serde::{de::IgnoredAny, Deserialize};
 
 use crate::{
 	ROUTE_PREFIX, WebError,
@@ -46,7 +46,7 @@ async fn route_authorization_code(
 	Extension(context): Extension<TemplateContext>,
 	user: User<true>,
 	Expect(Query(query)): Expect<Query<AuthorizationCodeQuery>>,
-	PostForm(form): PostForm<()>,
+	PostForm(form): PostForm<IgnoredAny>,
 ) -> Result {
 	let user_id = if let Some(user) = user.into_session() {
 		user.user_id
