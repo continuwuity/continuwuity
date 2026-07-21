@@ -9,7 +9,7 @@ use conduwuit_service::oauth::{
 	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
 };
 use ruma::OwnedUserId;
-use serde::{de::IgnoredAny, Deserialize};
+use serde::{Deserialize, de::IgnoredAny};
 
 use crate::{
 	ROUTE_PREFIX, WebError,
