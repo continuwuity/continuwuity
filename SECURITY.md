@@ -29,13 +29,15 @@ ensure that potential vulnerabilities are addressed properly, please follow thes
     - [@ginger:gingershaped.computer](https://matrix.to/#/@ginger:gingershaped.computer)
 2. **Email the security team** at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so
    don't include sensitive details.
-3. **Do not disclose the vulnerability publicly** until it has been addressed
+3. **Do not disclose the vulnerability publicly** until a fix has been pushed to the main branch.
 4. **Provide detailed information** about the vulnerability, including:
     - A clear description of the issue
     - Steps to reproduce
     - Potential impact
     - Any possible mitigations
     - Version(s) affected, including specific commits if possible
+    - How you want to be attributed if your report is accepted (website, social media handle, Matrix user ID, etc).
+      **Please state explicitly if you wish to remain anonymous.**
 
 If you have any doubts about a potential security vulnerability, contact us via private channels first! We'd prefer that
 you bother us, instead of having a vulnerability disclosed without a fix.
@@ -74,14 +76,15 @@ Likewise, CVE farming (reporting vulnerabilities with the primary intent to get 
 project, and will not be credited. Severe violations of this policy will result in a permanent ban from collaborating
 with the project in any capacity. We are attempting to build high quality free software, not flesh out your CV/resume.
 
-### What to Expect
+### What to expect
 
 When you report a security vulnerability:
 
-1. **Acknowledgment**: We will acknowledge receipt of your report.
-2. **Assessment**: We will assess the vulnerability and determine its impact on our users
-3. **Updates**: We will provide updates on our progress in addressing the vulnerability, and may request you help test
-   mitigations
+1. **Acknowledgment**: We will acknowledge receipt of your report. We may ask for further information.
+2. **Triage**: The report will be triaged into our internal tracker, and you will be provided with a reference number (
+   in case you end up with multiple reports). An ETA for a fix will be provided if feasible.
+3. **Updates**: We will provide updates on our progress in addressing the vulnerability, including a heads-up for when
+   we plan to release a fix.
 4. **Resolution**: Once resolved, we will notify you and discuss coordinated disclosure
 5. **Credit**: We will recognize your contribution (unless you prefer to remain anonymous)
 
