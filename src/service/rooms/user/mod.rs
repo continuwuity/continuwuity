@@ -27,7 +27,8 @@ impl crate::Service for Service {
 			db: Data {
 				userroomid_notificationcount: args.db["userroomid_notificationcount"].clone(),
 				userroomid_highlightcount: args.db["userroomid_highlightcount"].clone(),
-				roomuserid_lastnotificationread: args.db["userroomid_highlightcount"].clone(),
+				roomuserid_lastnotificationread: args.db["roomuserid_lastnotificationread"]
+					.clone(),
 			},
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
