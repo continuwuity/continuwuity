@@ -4,7 +4,7 @@
 Commands for managing local users
 
 
-## `!admin users create-user`
+## `!admin users create`
 
 Create a new user
 
@@ -92,7 +92,7 @@ Disable login for a user
 
 Disables login for the specified user without deactivating or locking their account. This prevents the user from obtaining new access tokens, but does not invalidate existing sessions.
 
-## `!admin users list-users`
+## `!admin users list`
 
 List local users in the database
 

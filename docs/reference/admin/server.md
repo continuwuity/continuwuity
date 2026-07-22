@@ -36,7 +36,7 @@ List database backups
 
 Send a message to the admin room
 
-## `!admin server reload-mods`
+## `!admin server reload`
 
 Hot-reload the server
 

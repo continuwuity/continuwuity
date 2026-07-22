@@ -10,7 +10,7 @@ use crate::admin_command_dispatch;
 #[derive(Debug, Subcommand)]
 pub enum UserCommand {
 	/// Create a new user
-	#[clap(alias = "create")]
+	#[command(name = "create", alias = "create-user")]
 	CreateUser {
 		/// Username of the new user
 		username: String,
@@ -163,7 +163,7 @@ pub enum UserCommand {
 	},
 
 	/// List local users in the database
-	#[clap(alias = "list")]
+	#[command(name = "list", alias = "list-users")]
 	ListUsers,
 
 	/// Lists all the rooms (local and remote) that the specified user is

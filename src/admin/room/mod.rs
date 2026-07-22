@@ -18,7 +18,7 @@ use crate::admin_command_dispatch;
 #[derive(Debug, Subcommand)]
 pub enum RoomCommand {
 	/// List all rooms the server knows about
-	#[clap(alias = "list")]
+	#[command(name = "list", alias = "list-rooms")]
 	ListRooms {
 		page: Option<usize>,
 

@@ -4,7 +4,7 @@
 Commands for managing rooms
 
 
-## `!admin rooms list-rooms`
+## `!admin rooms list`
 
 List all rooms the server knows about
 

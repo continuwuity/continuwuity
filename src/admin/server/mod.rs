@@ -40,7 +40,7 @@ pub enum ServerCommand {
 	},
 
 	/// Hot-reload the server
-	#[clap(alias = "reload")]
+	#[command(name = "reload", alias = "reload-mods")]
 	ReloadMods,
 
 	#[cfg(unix)]
