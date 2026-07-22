@@ -27,9 +27,9 @@
           inherit stable-toolchain;
 
           dev-toolchain = fnx.combine [
-            stable-toolchain
             # use the nightly rustfmt because we use nightly features
             fnx.complete.rustfmt
+            stable-toolchain
           ];
         };
     };
