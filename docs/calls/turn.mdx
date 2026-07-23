@@ -191,6 +191,8 @@ To gather debug logs while troubleshooting Coturn, add `verbose` to your `coturn
 - `code=401` - unauthorized credentials
   - Ensure your `turn_secret` matches coturn's `static-auth-secret`
   - Ensure the credentials you obtained from the Testing steps has not expired yet. You can adjust `turn_ttl` in your Continuwuity configuration to increase this, or simply re-request a new one
+- Wrong IP address advertised
+  - This may be caused by coturn not recognizing its public-facing IP correctly, due to particular network setups. You can configure `external-ip=<desired-public-ip>` to fix this issue.
 
 ### 404 when calling the turnServer endpoint
 

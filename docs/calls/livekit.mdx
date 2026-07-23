@@ -91,7 +91,7 @@ You will need to allow ports `7881/tcp` and `50100:50200/udp` through your firew
 
 ### 3. Telling clients where to find LiveKit
 
-To tell clients where to find LiveKit, you need to add the address of your `lk-jwt-service` to the `[global.matrix_rtc]` config section using the `foci` option.
+To tell clients where to find LiveKit, you need to add your `lk-jwt-service`'s address to the `[global.matrix_rtc] > foci` field of your Continuwuity config file.
 
 The variable should be a list of servers serving as MatrixRTC endpoints. Replace the URL with the address you are deploying your instance of lk-jwt-service to:
 
@@ -139,7 +139,7 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
         reverse_proxy 127.0.0.1:7880
     }
     ```
-    
+
     **Note**: if you run Caddy inside a container (e.g. by following the example [here](../deploying/docker.mdx#caddy-using-caddyfile)) instead of on the host, then:
 
     - Put these containers on the same bridge network as caddy (by defining `networks: [ caddy ]` in each of the services), and
@@ -343,7 +343,9 @@ The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt
 {"url":"wss://livekit.example.com","jwt":"a_really_really_long_string"}
 ```
 
-Use this token to test at the [LiveKit Connection Tester](https://livekit.io/connection-test). If everything works there, then you have set up LiveKit successfully!
+Use this token to test at the [LiveKit Connection Tester][livekit-connection-test]. If everything works there, then you have set up LiveKit successfully!
+
+[livekit-connection-test]: https://livekit.com/webrtc/connection-test
 
 ## Troubleshooting
 
@@ -386,6 +388,19 @@ To alleviate this, you can try one of the following workarounds:
 - (**untested, use at your own risk**) Implement an iptables workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
 
 After implementing the changes and restarting your compose, `lk-jwt-service` should now connect to your other services. The sidecar container test above should now return an `OK` from LiveKit.
+
+### Incorrect IP address for LiveKit
+
+By default, LiveKit auto-discovers its public IP address(es), which is reflected in the "Establishing WebRTC connection" section of the connection test page. If these IPs are incorrect, you may want to hardcode your own IP by doing the following:
+
+```diff
+### in your livekit.yaml ###
+rtc:
+  # ... other configs here ...
+- use_external_ip: true
++ use_external_ip: false
++ node_ip: "1.2.3.4"
+```
 
 ### Workaround for non-federating servers
 
@@ -543,8 +558,9 @@ After that, refer to the following [**TURN instructions**](./turn#turns-over-443
 Then configure LiveKit, making sure to replace `COTURN_SECRET` with the one you generated:
 
 ```yaml
-# livekit.yaml
+### in your livekit.yaml ###
 rtc:
+  # ... other configs here ...
   turn_servers:
     - host: coturn.example.com
       port: 443
