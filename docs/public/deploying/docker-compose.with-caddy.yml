@@ -11,10 +11,9 @@ services:
             - caddy
         volumes:
             - ./data:/data
+            # mount your created Caddyfile into the container
+            - ./Caddyfile:/etc/caddy/Caddyfile
         restart: unless-stopped
-        configs:
-            - source: Caddyfile
-              target: /etc/caddy/Caddyfile
 
     homeserver:
         image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
@@ -47,10 +46,3 @@ networks:
 
 volumes:
     db:
-
-configs:
-    Caddyfile:
-        content: |
-            https://example.com:443, https://example.com:8448 {
-                reverse_proxy http://homeserver:8008
-            }

@@ -9,7 +9,7 @@ The following OCI images are available for Continuwuity:
 | Image                                                                                        | Notes                                                                                                     |
 | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [https://forgejo.ellis.link/continuwuation/continuwuity:**latest**][latest]                 | Latest tagged release. (recommended)                                                                      |
-| [https://forgejo.ellis.link/continuwuation/continuwuity:**main**][main]                     | Latest `main` branch commit.                                                                              |
+| [https://forgejo.ellis.link/continuwuation/continuwuity:**main**][main]                     | Latest `main` branch commit. Built with [CI][release-image]                                                                              |
 | [https://forgejo.ellis.link/continuwuation/continuwuity:**latest-maxperf**][latest-maxperf] | Latest tagged release, [performance optimised version](./generic.mdx#performance-optimised-builds).       |
 | [https://forgejo.ellis.link/continuwuation/continuwuity:**main-maxperf**][main-maxperf]     | Latest `main` branch commit, [performance optimised version](./generic.mdx#performance-optimised-builds). |
 
@@ -17,6 +17,7 @@ The following OCI images are available for Continuwuity:
 [main]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main
 [latest-maxperf]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/latest-maxperf
 [main-maxperf]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/main-maxperf
+[release-image]: https://forgejo.ellis.link/continuwuation/continuwuity/actions/?workflow=release-image.yml
 
 If you want a specific version or commit hash, you can browse for them [here][oci-all-versions].
 
@@ -25,13 +26,11 @@ Images are also mirrored to these locations automatically, on a schedule:
 - `ghcr.io/continuwuity/continuwuity` ([Github Registry][ghcr-io])
 - `docker.io/jadedblueeyes/continuwuity` ([Docker Hub][docker-hub])
 - `registry.gitlab.com/continuwuity/continuwuity` ([Gitlab Registry][gitlab-registry])
-- `git.nexy7574.co.uk/mirrored/continuwuity` ([Nexy's forge][nexy-forge]. Releases only, no `main` tags)
 
 [oci-all-versions]: https://forgejo.ellis.link/continuwuation/-/packages/container/continuwuity/versions
 [ghcr-io]: https://github.com/continuwuity/continuwuity/pkgs/container/continuwuity/versions?filters%5Bversion_type%5D=tagged
 [docker-hub]: https://hub.docker.com/r/jadedblueeyes/continuwuity/
 [gitlab-registry]: https://gitlab.com/continuwuity/continuwuity/container_registry/8871720
-[nexy-forge]: https://git.nexy7574.co.uk/mirrored/-/packages/container/continuwuity/versions
 
 ### Prerequisites
 
@@ -85,7 +84,18 @@ Consult the [**DNS tuning guide (recommended)**](../guides/dns.mdx) for full sol
 #### Caddy (using Caddyfile)
 
 <details>
+
 <summary>docker-compose.with-caddy.yml ([view raw](/deploying/docker-compose.with-caddy.yml))</summary>
+
+Create a Caddyfile with the following content:
+
+```
+https://example.com:443, https://example.com:8448 {
+    reverse_proxy http://homeserver:8008
+}
+```
+
+Then, for the docker-compose:
 
 ```yaml file="../public/deploying/docker-compose.with-caddy.yml"
 
