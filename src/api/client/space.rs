@@ -19,9 +19,14 @@ pub(crate) async fn get_hierarchy_route(
 	// there's no reasonable way to handle a space hierarchy changing during
 	// pagination.
 
-	let max_depth = body
-		.max_depth
-		.map(|max_depth| max_depth.min(UInt::from(MAX_MAX_DEPTH)));
+	// Default to MAX_MAX_DEPTH when the client doesn't specify one, so an
+	// unbounded traversal can never happen.
+	let max_depth = Some(
+		body.max_depth
+			.map_or(UInt::from(MAX_MAX_DEPTH), |max_depth| {
+				max_depth.min(UInt::from(MAX_MAX_DEPTH))
+			}),
+	);
 
 	let hierarchy = services
 		.rooms
