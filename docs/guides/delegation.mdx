@@ -54,11 +54,15 @@ After doing the steps above, Continuwuity will serve these 3 JSON files:
 
 - `/.well-known/matrix/client`: for Client-Server discovery
 - `/.well-known/matrix/server`: for Server-Server (federation) discovery
-- `/.well-known/matrix/support`: admin contact details (strongly recommended to have)
+- `/.well-known/matrix/support`: admin contact details (strongly recommended to have). By default, this include members of the admin room.
 
 To enable full discovery, you will need to reverse proxy these paths from the base domain back to Continuwuity.
 
-## Reverse proxying well-known files to Continuwuity
+## Serving well-known files
+
+You can either reverse proxy well-known paths to Continuwuity, or serve static JSON files yourself.
+
+### Option 1: Reverse proxying well-known files to Continuwuity
 
 <details>
 
@@ -96,7 +100,7 @@ services:
 
 For **Docker** users, consult the compose files in the [Appendix section](#docker-compose-examples).
 
-After applying these changes, restart Continuwuity and your reverse proxy.Visit these routes and check that the responses match the examples below:
+After applying these changes, restart Continuwuity and your reverse proxy. Visit these routes and check that the responses match the examples below:
 
 <details open>
 
@@ -122,12 +126,12 @@ After applying these changes, restart Continuwuity and your reverse proxy.Visit 
 
 </details>
 
-### Serving well-known files manually
+### Option 2: Manually serving static files for well-known
 
 Instead of reverse proxying well-known URIs, you can serve these files directly as static JSON that match the ones above. This is useful if your base domain points to a different physical server, and reverse proxying isn't feasible.
 
-:::warning
-Even if you choose to serve the well-known files manually, if you are using delegation at all, you **must** still set the `global.well_known.client` configuration option to the domain you're delegating to. Continuwuity needs to know the domain it runs on for OAuth-compatible clients to work correctly.
+:::warning Warning: always configure [global.well_known]
+Even if you choose to serve the well-known files manually, you **must** still set the `global.well_known.client` configuration option to the domain you're delegating to. Continuwuity needs to know the domain it runs on, in order to redirect clients properly to email, OAuth, and account management endpoints.
 :::
 
 <details>
@@ -190,15 +194,67 @@ As Matrix clients prioritize well-known URIs for their destination, this can lea
 
 In these scenarios, further configurations would be needed. Refer to the [Related Documentation](#related-documentation) section for resolution steps and see how they could apply to your use case.
 
----
+## Related Documentation
 
-## Using SRV records (not recommended)
+Community guides:
+
+- [Federation Setup guide by MTRNord](https://connectivity-tester.mtrnord.blog/docs/getting-started/federation-setup)
+
+See the following Matrix Specs for full details on client/server resolution mechanisms:
+
+- [Server-to-Server resolution](https://spec.matrix.org/latest/server-server-api/#resolving-server-names) (see this for more information on SRV records)
+- [Client-to-Server resolution](https://spec.matrix.org/latest/client-server-api/#server-discovery)
+- [MSC1929: Homeserver Admin Contact and Support page](https://github.com/matrix-org/matrix-spec-proposals/pull/1929)
+
+## Appendix
+
+### Docker Compose examples
+
+The following Compose files are taken from [Docker instructions](../deploying/docker.mdx) and reconfigured to support split-domain delegation. Note the updated `CONTINUWUITY_WELL_KNOWN` variable and relevant changes in reverse proxy rules.
+
+<details>
+<summary>Caddy (using Caddyfile) - delegated.docker-compose.with-caddy.yml ([view raw](/advanced/delegated.docker-compose.with-caddy.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-caddy.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Caddy (using labels) - delegated.docker-compose.with-caddy-labels.yml ([view raw](/advanced/delegated.docker-compose.with-caddy-labels.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-caddy-labels.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Traefik (for existing setup) - delegated.docker-compose.for-traefik.yml ([view raw](/advanced/delegated.docker-compose.for-traefik.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.for-traefik.yml"
+
+```
+
+</details>
+
+<details>
+<summary>Traefik included - delegated.docker-compose.with-traefik.yml ([view raw](/advanced/delegated.docker-compose.with-traefik.yml))</summary>
+
+```yaml file="../public/advanced/delegated.docker-compose.with-traefik.yml"
+
+```
+
+</details>
+
+### Using SRV records (not recommended)
 
 :::warning
-The following methods are **not recommended** due to increased complexity with little benefits. If you have already set up `.well-known` delegation as above, you can safely skip this part.
-:::
+The following methods use DNS SRV records, and are **not recommended** due to increased complexity with little benefits. They also work with federation traffic only.
 
-The following methods uses SRV DNS records and only work with federation traffic. They are only included for completeness.
+If you have already set up `.well-known` delegation as above, you can safely skip this part.
+:::
 
 <details>
 
@@ -261,57 +317,5 @@ If you want other servers to default to using port :443 even when it is offline,
 - Target: `example.com.`
 
 On the target's IP at port 443, you'll need to provide a valid route and cert for `example.com`.
-
-</details>
-
----
-
-## Related Documentation
-
-See the following Matrix Specs for full details on client/server resolution mechanisms:
-
-- [Server-to-Server resolution](https://spec.matrix.org/v1.17/server-server-api/#resolving-server-names) (see this for more information on SRV records)
-- [Client-to-Server resolution](https://spec.matrix.org/v1.17/client-server-api/#server-discovery)
-- [MSC1929: Homeserver Admin Contact and Support page](https://github.com/matrix-org/matrix-spec-proposals/pull/1929)
-
-## Appendix
-
-### Docker Compose examples
-
-The following Compose files are taken from [Docker instructions](../deploying/docker.mdx) and reconfigured to support split-domain delegation. Note the updated `CONTINUWUITY_WELL_KNOWN` variable and relevant changes in reverse proxy rules.
-
-<details>
-<summary>Caddy (using Caddyfile) - delegated.docker-compose.with-caddy.yml ([view raw](/advanced/delegated.docker-compose.with-caddy.yml))</summary>
-
-```yaml file="../public/advanced/delegated.docker-compose.with-caddy.yml"
-
-```
-
-</details>
-
-<details>
-<summary>Caddy (using labels) - delegated.docker-compose.with-caddy-labels.yml ([view raw](/advanced/delegated.docker-compose.with-caddy-labels.yml))</summary>
-
-```yaml file="../public/advanced/delegated.docker-compose.with-caddy-labels.yml"
-
-```
-
-</details>
-
-<details>
-<summary>Traefik (for existing setup) - delegated.docker-compose.for-traefik.yml ([view raw](/advanced/delegated.docker-compose.for-traefik.yml))</summary>
-
-```yaml file="../public/advanced/delegated.docker-compose.for-traefik.yml"
-
-```
-
-</details>
-
-<details>
-<summary>Traefik included - delegated.docker-compose.with-traefik.yml ([view raw](/advanced/delegated.docker-compose.with-traefik.yml))</summary>
-
-```yaml file="../public/advanced/delegated.docker-compose.with-traefik.yml"
-
-```
 
 </details>
