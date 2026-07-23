@@ -1,8 +1,6 @@
 # Matrix RTC/Element Call Setup
 
-:::info
 This guide assumes that you are using docker compose for deployment. LiveKit only provides Docker images.
-:::
 
 :::tip
 You can find help setting up MatrixRTC in our dedicated room - [#matrixrtc:continuwuity.org](https://matrix.to/#/%23matrixrtc%3Acontinuwuity.org)
@@ -102,6 +100,12 @@ The variable should be a list of servers serving as MatrixRTC endpoints. Replace
 foci = [
     { type = "livekit", livekit_service_url = "https://livekit.example.com" },
 ]
+```
+
+If you configure Continuwuity via environment variables, use the following:
+
+```bash
+CONTINUWUITY_MATRIX_RTC__FOCI=[{ type = "livekit", livekit_service_url = "https://livekit.example.com" }]
 ```
 
 This will expose LiveKit information on the following endpoints for clients to discover:
@@ -441,7 +445,7 @@ Other:
 
 ### Additional TURNS-over-443 configuration
 
-In most situations, LiveKit [does not need TURN][sspaeth-matrix-voip-turn] to function. However, when clients are in very restrictive networks where UDP traffic and non-standard ports are disallowed, a TURN-over-TLS server on port `:443` could be employed to relay traffic.
+Most of the time, LiveKit [**does not need TURN**][sspaeth-matrix-voip-turn] to function. However, there are situations where clients are in very restrictive networks that disallows non-standard ports and UDP. In these cases, a TURN-over-TLS server on port :443 could be employed to relay traffic for them.
 
 [sspaeth-matrix-voip-turn]: https://sspaeth.de/2026/04/matrix-voip-and-livekit/#turn
 
@@ -457,43 +461,48 @@ First, set up LiveKit's built-in TURN server with its own domain - we'll use `li
 ## add this to `livekit.yaml` ##
 turn:
   enabled: true
+
+  # note: the TLS port will always be advertised as :443
   tls_port: 5349
+
+  # optional: configure an extra UDP port on :3478
+  # udp_port: 3478
+
   relay_range_start: 50300
   relay_range_end: 50400
+
   domain: livekit-turn.example.com
+
   # replace these with your actual cert/key files
   cert_file: /path/to/livekit-turn.example.com.crt
   key_file: /path/to/livekit-turn.example.com.key
 ```
 
 ```yaml
-### add these to livekit's docker-compose ###
+### add these ports to livekit's docker-compose ###
+### if you're using `network_mode: host`, you can skip this part
 ports:
   - "127.0.0.1:5349:5349/tcp"
   - "50300-50400:50300-50400/udp"
-### if you're using `network_mode: host`, you can skip this part
+  # "3478:3478/udp" # (optional UDP port)
 ```
 
 Recreate the LiveKit container (with `docker-compose up -d livekit`) to apply these changes. Remember to allow the new `50300:50400/udp` ports through your firewall.
 
-Then, we will configure a route from port 443 of the host back to our `livekit-turn.example.com` service on port 5349. To both **multiplex** this and LiveKit's websocket on the same port, we will use a layer-4 reverse proxy with **SNI routing** capabilities, such as [caddy-l4][caddy-l4].
+Then, we will configure a route from port 443 of the host back to our `livekit-turn.example.com` service on port 5349. To both **multiplex** this and LiveKit's websocket on the same port, we will use a layer-4 reverse proxy with **SNI routing** capabilities, such as [caddy-l4][caddy-l4] on the host system.
 
 ```
 ## in your Caddyfile ##
 {
     servers {
         listener_wrappers {
+
             # intercept packets meant for the TURN domain first
             # before forwarding other packets to "normal" HTTP listeners
             layer4 {
-                @turn {
-                    tls {
-                        sni livekit-turn.example.com
-                    }
-                }
+                @turn tls sni livekit-turn.example.com
                 route @turn {
-                    proxy {
-                        upstream 127.0.0.1:5349 # forward to normal TURNS port
+                    proxy 127.0.0.1:5349 # forward to normal TURNS port
                     }
                 }
             }
@@ -517,7 +526,7 @@ https://livekit.example.com {
 </details>
 
 <details>
-<summary>Using an external TURN server</summary>
+<summary>Using an external TURN server (coturn)</summary>
 
 Before continuing, make sure coturn's `min-port` and `max-port` do not overlap with LiveKit's port range:
 

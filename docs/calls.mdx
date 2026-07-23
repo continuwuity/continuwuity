@@ -3,11 +3,11 @@
 Matrix supports two types of calls:
 
 - Element Call powered by [MatrixRTC](https://half-shot.github.io/msc-crafter/#msc/4143) and [LiveKit](https://github.com/livekit/livekit)
-- Legacy calls, sometimes using Jitsi
+- Legacy calls, supported by a STUN/TURN server. 
 
 Both types of calls are supported by different sets of clients, but most clients are moving towards MatrixRTC / Element Call.
 
-For either one to work correctly, you have to do some additional setup.
+For either one to work correctly, you have to do some additional setup:
 
 - For legacy calls to work, you need to set up a TURN/STUN server. [Read the TURN guide for tips on how to set up coturn](./calls/turn.mdx)
-- For MatrixRTC / Element Call to work, you have to set up the LiveKit backend (foci). LiveKit also uses TURN/STUN to increase reliability - you can set up its built-in TURN server, or integrate with an existing one. [Read the LiveKit guide](./calls/livekit.mdx)
+- For MatrixRTC / Element Call to work, you have to set up the LiveKit backend. LiveKit also uses TURN/STUN to increase reliability - you can set up its built-in TURN server, or integrate with an existing one. [Read the LiveKit guide](./calls/livekit.mdx)
