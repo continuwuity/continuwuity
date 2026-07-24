@@ -132,6 +132,18 @@ impl super::Service {
 
 		self.services.sync.wake_all_joined(&room_id).await;
 
+		if *pdu.kind() == TimelineEventType::RoomMember {
+			if let Some(target_user) = pdu
+				.state_key
+				.as_ref()
+				.and_then(|state_key| UserId::parse(state_key.as_str()).ok())
+			{
+				if self.services.globals.user_is_local(&target_user) {
+					self.services.sync.wake(&target_user).await;
+				}
+			}
+		}
+
 		Ok(Some(pdu_id))
 	}
 
