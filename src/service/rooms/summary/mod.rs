@@ -210,6 +210,10 @@ impl Service {
 		let mut summaries = vec![root_summary.summary];
 		let mut inaccessible_children: HashSet<_> =
 			root_summary.inaccessible_children.into_iter().collect();
+		// Rooms already included in the response. The spec requires each room to
+		// appear at most once, and this also terminates traversal of cyclic space
+		// graphs (e.g. a space containing itself).
+		let mut visited: HashSet<OwnedRoomId> = HashSet::from([room_id]);
 
 		// TODO refactor this with Vec::peek_mut once it's stabilized
 		while let Some(layer) = queue.last_mut() {
@@ -221,6 +225,11 @@ impl Service {
 
 			// Do not request rooms which have been determined to be inaccessible
 			if inaccessible_children.contains(&room_id) {
+				continue;
+			}
+
+			// Skip rooms already present in the response
+			if !visited.insert(room_id.clone()) {
 				continue;
 			}
 
@@ -269,7 +278,7 @@ impl Service {
 			// suggest you reconsider some of the choices you made which led you to this
 			// point.
 			if queue.len() > 50 {
-				return Err!("Space hierarchy is unreasonably large");
+				return Err!(Request(TooLarge("Space hierarchy is unreasonably large")));
 			}
 
 			// Add accessible children as a new layer

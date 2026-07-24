@@ -1,0 +1,1 @@
+Fixed the client space hierarchy endpoint returning a 500 "Space hierarchy is unreasonably large" error for cyclic space graphs (e.g. a space containing itself). Rooms are now deduplicated during traversal as required by the spec, and the traversal depth is bounded even when the client does not specify `max_depth`.
