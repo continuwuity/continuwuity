@@ -44,11 +44,25 @@ pub(crate) async fn continuwuity_server_version() -> Result<impl IntoResponse> {
 ///
 /// conduwuit-specific API to return the amount of users registered on this
 /// homeserver. Endpoint is disabled if federation is disabled for privacy. This
+///
 /// only includes active users (not deactivated, etc)
 pub(crate) async fn continuwuity_local_user_count(
 	State(services): State<crate::State>,
 ) -> Result<impl IntoResponse> {
-	let user_count = services.users.stream_local_users().count().await;
+	let user_count = services
+		.users
+		.stream_local_users()
+		.filter_map(async |user_id| {
+			if !services.users.status(&user_id).await.is_active()
+				|| services.appservice.is_exclusive_user_id(&user_id).await
+			{
+				None
+			} else {
+				Some(user_id)
+			}
+		})
+		.count()
+		.await;
 
 	Ok(Json(serde_json::json!({
 		"count": user_count
