@@ -32,7 +32,7 @@ use crate::{Services, media, rooms::short::ShortStateHash};
 /// - If database is opened at lesser version we apply migrations up to this.
 ///   Note that named-feature migrations may also be performed when opening at
 ///   equal or lesser version. These are expected to be backward-compatible.
-pub(crate) const DATABASE_VERSION: u64 = 18;
+pub(crate) const DATABASE_VERSION: u64 = 19;
 
 pub(crate) async fn migrations(services: &Services) -> Result<()> {
 	let users_count = services.users.count().await;
@@ -71,6 +71,8 @@ async fn fresh(services: &Services) -> Result<()> {
 	db["global"].insert(b"fix_corrupt_msc4133_fields", []);
 	db["global"].insert(b"populate_userroomid_leftstate_table", []);
 	db["global"].insert(b"fix_local_invite_state", []);
+	db["global"].insert(SPLIT_USERID_PASSWORD, []);
+	db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
 
 	// Create the admin room and server user on first run
 	info!("Creating admin room and server user");
@@ -228,9 +230,9 @@ async fn migrate(services: &Services) -> Result<()> {
 			.map_err(|e| err!("Failed to run 'fix_local_invite_state' migration': {e}"))?;
 	}
 
-	if services.globals.db.database_version().await < 18 {
-		services.globals.db.bump_database_version(18);
-		info!("Migration: Bumped database version to 18");
+	if services.globals.db.database_version().await < 19 {
+		services.globals.db.bump_database_version(19);
+		info!("Migration: Bumped database version to 19");
 	}
 
 	if db["global"].get(SPLIT_USERID_PASSWORD).await.is_not_found() {
