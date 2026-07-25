@@ -88,7 +88,7 @@ pub(crate) async fn update_device_route(
 				.users
 				.create_device(
 					sender_user,
-					&body.device_id,
+					Some(body.device_id.clone()),
 					None,
 					body.display_name.clone(),
 					Some(client.to_string()),

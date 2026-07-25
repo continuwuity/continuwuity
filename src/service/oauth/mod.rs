@@ -547,7 +547,7 @@ impl Service {
 			.iter()
 			.find_map(|scope| {
 				if let Scope::Device(device_id) = scope {
-					Some(device_id)
+					Some(device_id.to_owned())
 				} else {
 					None
 				}
@@ -557,7 +557,7 @@ impl Service {
 		if self
 			.services
 			.users
-			.get_device_metadata(&authorizing_user, device_id)
+			.get_device_metadata(&authorizing_user, &device_id)
 			.await
 			.is_ok()
 		{
@@ -567,11 +567,11 @@ impl Service {
 			));
 		}
 
-		self.services
+		let device_id = self.services
 			.users
 			.create_device(
 				&authorizing_user,
-				device_id,
+				Some(device_id),
 				Some(access_token.clone()),
 				client_name,
 				None,
@@ -581,8 +581,16 @@ impl Service {
 			// failure during authentication, which should(?) be impossible(?)
 			.expect("failed to create device");
 
+		info!(
+			?client_id,
+			?authorizing_user,
+			?device_id,
+			?requested_scopes,
+			"Created new oauth session"
+		);
+
 		self.db.userdeviceid_oauthsessioninfo.put(
-			(&authorizing_user, device_id),
+			(&authorizing_user, &device_id),
 			Json(SessionInfo {
 				client_id: client_id.clone(),
 				current_refresh_token: refresh_token.clone(),
@@ -595,16 +603,8 @@ impl Service {
 			Json(RefreshTokenInfo {
 				client_id: client_id.clone(),
 				user_id: authorizing_user.clone(),
-				device_id: device_id.to_owned(),
+				device_id,
 			}),
-		);
-
-		info!(
-			?client_id,
-			?authorizing_user,
-			?device_id,
-			?requested_scopes,
-			"Created new oauth session"
 		);
 
 		Ok(TokenResponse {

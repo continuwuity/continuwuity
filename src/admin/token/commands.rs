@@ -3,7 +3,7 @@ use futures::StreamExt;
 use service::registration_tokens::TokenExpires;
 
 impl crate::Context<'_> {
-	pub(super) async fn issue_token(&self, expires: super::TokenExpires) -> Result {
+	pub(super) async fn issue_registration_token(&self, expires: super::TokenExpires) -> Result {
 		let expires = {
 			if expires.immortal {
 				None

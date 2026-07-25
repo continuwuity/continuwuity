@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use axum::extract::State;
-use conduwuit::{
-	Err, Result, debug_info, info,
-	utils::{self},
-};
+use conduwuit::{Err, Result, debug_info, info};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use lettre::{Address, message::Mailbox};
@@ -24,7 +21,6 @@ use service::{
 	users::{DeviceToken, HashedPassword},
 };
 
-use super::DEVICE_ID_LENGTH;
 use crate::{Ruma, client_ip::ClientIp};
 
 /// # `POST /_matrix/client/v3/register`
@@ -114,26 +110,21 @@ pub(crate) async fn register_route(
 			)));
 		}
 
-		// Generate new device id if the user didn't specify one
-		let device_id = body
-			.device_id
-			.clone()
-			.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
-
 		// Generate new token for the device
 		let new_token = DeviceToken::new_random();
 
 		// Create device for this account
-		services
+		let device_id = services
 			.users
 			.create_device(
 				&user_id,
-				&device_id,
+				body.device_id.clone(),
 				Some(new_token.clone()),
 				body.initial_device_display_name.clone(),
 				Some(client.to_string()),
 			)
 			.await?;
+
 		(Some(new_token), Some(device_id))
 	} else {
 		// Don't create a device for inhibited logins

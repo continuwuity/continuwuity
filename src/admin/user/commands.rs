@@ -20,7 +20,7 @@ use ruma::{
 		tag::{TagEvent, TagEventContent, TagInfo},
 	},
 };
-use service::users::{AccountStatus, HashedPassword};
+use service::users::{AccountStatus, DeviceToken, HashedPassword};
 
 use crate::{
 	get_room_info,
@@ -64,6 +64,29 @@ impl crate::Context<'_> {
 
 		self.write_str(&format!("Created user {user_id} with password `{password}`"))
 			.await
+	}
+
+	pub(super) async fn issue_access_token(&self, username: String, password: String) -> Result {
+		let user_id = parse_active_local_user_id(self.services, &username).await?;
+
+		let user_id = self
+			.services
+			.users
+			.check_password(&user_id, &password)
+			.await?;
+		let token = DeviceToken::new_random();
+
+		let device_id = self
+			.services
+			.users
+			.create_device(&user_id, None, Some(token.clone()), None, None)
+			.await?;
+
+		self.write_str(&format!(
+			"Created device `{device_id}` with access token `{}` for {user_id}",
+			token.into_token()
+		))
+		.await
 	}
 
 	pub(super) async fn deactivate(&self, no_leave_rooms: bool, user_id: String) -> Result {

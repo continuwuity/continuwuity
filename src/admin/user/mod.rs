@@ -18,6 +18,15 @@ pub enum UserCommand {
 		password: Option<String>,
 	},
 
+	/// Issue an access token for a user. This command will not work on
+	/// shadow users, such as appservice puppets or accounts imported from
+	/// an identity provider.
+	#[clap(name = "issue-token")]
+	IssueAccessToken {
+		username: String,
+		password: String,
+	},
+
 	/// Reset user password
 	ResetPassword {
 		/// Log out existing sessions

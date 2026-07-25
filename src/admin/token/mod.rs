@@ -10,7 +10,7 @@ use crate::admin_command_dispatch;
 pub enum TokenCommand {
 	/// Issue a new registration token
 	#[clap(name = "issue")]
-	IssueToken {
+	IssueRegistrationToken {
 		/// When this token will expire.
 		#[command(flatten)]
 		expires: TokenExpires,

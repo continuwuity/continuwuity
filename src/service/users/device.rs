@@ -42,32 +42,39 @@ impl DeviceToken {
 impl super::Service {
 	/// Adds a new device to a user.
 	///
+	/// If no `device_id` is provided, a random one will be generated.
+	///
 	/// If no `token` is provided, the device will not be able to be logged
 	/// into.
 	pub async fn create_device(
 		&self,
 		user_id: &UserId,
-		device_id: &DeviceId,
+		device_id: Option<OwnedDeviceId>,
 		token: Option<DeviceToken>,
 		initial_device_display_name: Option<String>,
 		client_ip: Option<String>,
-	) -> Result<()> {
+	) -> Result<OwnedDeviceId> {
+		const DEVICE_ID_LENGTH: usize = 10;
+
 		self.status(user_id).await.ensure_active()?;
 
-		let key = (user_id, device_id);
-		let mut device = Device::new(device_id.into());
+		let device_id =
+			device_id.unwrap_or_else(|| utils::random_string(DEVICE_ID_LENGTH).into());
+
+		let mut device = Device::new(device_id.clone());
 		device.display_name = initial_device_display_name;
 		device.last_seen_ip = client_ip;
 		device.last_seen_ts = Some(MilliSecondsSinceUnixEpoch::now());
 
+		let key = (user_id, &device_id);
 		increment(&self.db.userid_devicelistversion, user_id.as_bytes());
 		self.db.userdeviceid_metadata.put(key, Json(device));
 
 		if let Some(token) = token {
-			self.set_token(user_id, device_id, token).await?;
+			self.set_token(user_id, &device_id, token).await?;
 		}
 
-		Ok(())
+		Ok(device_id)
 	}
 
 	/// Removes a device from a user.
