@@ -125,7 +125,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn suspend(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
@@ -146,7 +145,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn unsuspend(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
@@ -958,7 +956,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn lock(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
@@ -979,7 +976,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn unlock(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		self.services.users.unlock_account(&user_id).await;
@@ -989,7 +985,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn logout(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
@@ -1015,7 +1010,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn disable_login(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		if user_id == self.services.globals.server_user {
@@ -1034,7 +1028,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn enable_login(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_active_local_user_id(self.services, &user_id).await?;
 
 		self.services.users.enable_login(&user_id);
@@ -1043,7 +1036,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn get_email(&self, user_id: String) -> Result {
-		self.bail_restricted()?;
 		let user_id = parse_local_user_id(self.services, &user_id)?;
 
 		match self
@@ -1062,8 +1054,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn get_user_by_email(&self, email: String) -> Result {
-		self.bail_restricted()?;
-
 		let Ok(email) = Address::try_from(email) else {
 			return Err!("Invalid email address.");
 		};
@@ -1086,8 +1076,6 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn change_email(&self, user_id: String, email: Option<String>) -> Result {
-		self.bail_restricted()?;
-
 		let user_id = parse_local_user_id(self.services, &user_id)?;
 		let Ok(new_email) = email.map(Address::try_from).transpose() else {
 			return Err!("Invalid email address.");
