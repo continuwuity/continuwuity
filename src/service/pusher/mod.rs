@@ -13,7 +13,7 @@ use ipaddress::IPAddress;
 use ruma::{
 	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
 	api::{
-		IncomingResponse, OutgoingRequest,
+		IncomingResponse, OutgoingRequest, OutgoingRequestExt,
 		auth_scheme::NoAuthentication,
 		client::push::{Pusher, PusherKind, set_pusher},
 		path_builder::SinglePath,

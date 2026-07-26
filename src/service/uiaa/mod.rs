@@ -265,7 +265,7 @@ impl Service {
 	/// Create a new UIAA session with a random session ID.
 	///
 	/// If information about the user's identity is already known, it may be
-	/// supplied with the `identity` parameter. Authentication will fail if
+	/// supplied with the `initiator` parameter. Authentication will fail if
 	/// flows provide different values for known identity information.
 	///
 	/// Returns the info of the newly created session.
@@ -424,7 +424,7 @@ impl Service {
 						*session_metadata = updated_metadata;
 					},
 					| Err(error) => {
-						info.auth_error = Some(error);
+						info.auth_error = Some(Box::new(error));
 					},
 				}
 			}

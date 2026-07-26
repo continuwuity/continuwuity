@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use conduwuit::{Err, Result, debug_info, err, utils::response::LimitReadExt};
 use reqwest::Client;
 use ruma::api::{
-	IncomingResponse, OutgoingRequest,
+	IncomingResponse, OutgoingRequest, OutgoingRequestExt,
 	auth_scheme::{AppserviceToken, SendAccessToken},
 	path_builder::VersionHistory,
 };

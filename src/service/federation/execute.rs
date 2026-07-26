@@ -11,7 +11,7 @@ use resolvematrix::resolution::Resolution;
 use ruma::{
 	ServerName,
 	api::{
-		EndpointError, IncomingResponse, OutgoingRequest, SupportedVersions,
+		EndpointError, IncomingResponse, OutgoingRequest, OutgoingRequestExt, SupportedVersions,
 		auth_scheme::{AuthScheme, NoAuthentication},
 		error::Error as RumaError,
 		federation::authentication::{ServerSignatures, ServerSignaturesInput},
