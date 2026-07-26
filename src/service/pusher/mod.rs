@@ -347,6 +347,42 @@ impl Service {
 		Ok(())
 	}
 
+	pub async fn push_joined_count(&self, room_id: &RoomId) -> UInt {
+		self.services
+			.state_cache
+			.room_joined_count(room_id)
+			.await
+			.unwrap_or(1)
+			.try_into()
+			.unwrap_or_else(|_| uint!(0))
+	}
+
+	#[tracing::instrument(skip(self, user), level = "debug")]
+	pub async fn push_condition_ctx(
+		&self,
+		user: &UserId,
+		power_levels: RoomPowerLevels,
+		room_id: &RoomId,
+		room_joined_count: UInt,
+	) -> PushConditionRoomCtx {
+		let power_levels = PushConditionPowerLevelsCtx::from(power_levels);
+
+		let user_display_name = self
+			.services
+			.users
+			.displayname(user)
+			.await
+			.unwrap_or_else(|_| user.localpart().to_owned());
+
+		PushConditionRoomCtx::new(
+			room_id.to_owned(),
+			room_joined_count,
+			user.to_owned(),
+			user_display_name,
+		)
+		.with_power_levels(power_levels)
+	}
+
 	#[tracing::instrument(skip(self, user, ruleset, pdu), level = "debug")]
 	pub async fn get_actions<'a>(
 		&self,
@@ -356,31 +392,10 @@ impl Service {
 		pdu: &Raw<AnySyncTimelineEvent>,
 		room_id: &RoomId,
 	) -> &'a [Action] {
-		let power_levels = PushConditionPowerLevelsCtx::from(power_levels);
-
-		let room_joined_count = self
-			.services
-			.state_cache
-			.room_joined_count(room_id)
-			.await
-			.unwrap_or(1)
-			.try_into()
-			.unwrap_or_else(|_| uint!(0));
-
-		let user_display_name = self
-			.services
-			.users
-			.displayname(user)
-			.await
-			.unwrap_or_else(|_| user.localpart().to_owned());
-
-		let ctx = PushConditionRoomCtx::new(
-			room_id.to_owned(),
-			room_joined_count,
-			user.to_owned(),
-			user_display_name,
-		)
-		.with_power_levels(power_levels);
+		let room_joined_count = self.push_joined_count(room_id).await;
+		let ctx = self
+			.push_condition_ctx(user, power_levels, room_id, room_joined_count)
+			.await;
 
 		ruleset.get_actions(pdu, &ctx).await
 	}

@@ -26,12 +26,13 @@ use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
 	RoomVersionId, UserId,
 	events::{
-		GlobalAccountDataEventType, TimelineEventType,
+		AnySyncTimelineEvent, GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
 		room::{encrypted::Relation, redaction::RoomRedactionEventContent},
 	},
 	push::{Action, Ruleset, Tweak},
 	room_version_rules::RoomVersionRules,
+	serde::Raw,
 };
 
 use super::{ExtractBody, ExtractRelatesTo, ExtractRelatesToEventId, RoomMutexGuard};
@@ -427,7 +428,9 @@ impl super::Service {
 			return;
 		}
 
-		let serialized = pdu.to_format();
+		let serialized: Raw<AnySyncTimelineEvent> = pdu.to_format();
+		let room_joined_count = self.services.pusher.push_joined_count(room_id).await;
+
 		for user in &push_targets {
 			let rules_for_user = self
 				.services
@@ -442,12 +445,13 @@ impl super::Service {
 			let mut highlight = false;
 			let mut notify = false;
 
-			for action in self
+			let ctx = self
 				.services
 				.pusher
-				.get_actions(user, &rules_for_user, power_levels.clone(), &serialized, room_id)
-				.await
-			{
+				.push_condition_ctx(user, power_levels.clone(), room_id, room_joined_count)
+				.await;
+
+			for action in rules_for_user.get_actions(&serialized, &ctx).await {
 				match action {
 					| Action::Notify => notify = true,
 					| Action::SetTweak(Tweak::Highlight(
