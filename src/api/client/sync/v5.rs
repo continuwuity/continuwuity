@@ -203,16 +203,27 @@ pub(crate) async fn sync_events_v5_route(
 	)
 	.await?;
 
-	if response.rooms.iter().all(|(id, r)| {
+	let no_account_data = response.extensions.account_data.global.is_empty()
+		&& response
+			.extensions
+			.account_data
+			.rooms
+			.values()
+			.all(Vec::is_empty);
+
+	let no_room_data = response.rooms.iter().all(|(id, r)| {
 		r.timeline.is_empty()
 			&& r.required_state.is_empty()
 			&& !response.extensions.receipts.rooms.contains_key(id)
-	}) && response
+	});
+
+	let no_to_device_messages = response
 		.extensions
 		.to_device
 		.clone()
-		.is_none_or(|to| to.events.is_empty())
-	{
+		.is_none_or(|to| to.events.is_empty());
+
+	if no_account_data && no_room_data && no_to_device_messages {
 		// Hang a few seconds so requests are not spammed
 		// Stop hanging if new info arrives
 		let default = Duration::from_secs(30);
