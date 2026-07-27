@@ -4,7 +4,10 @@ use async_trait::async_trait;
 use conduwuit::{Config, Result, Server, err, trace, utils::response::LimitReadExt, warn};
 use either::Either;
 use hickory_resolver::{
-	TokioResolver, config::ConnectionConfig, net::runtime::TokioRuntimeProvider,
+	TokioResolver,
+	config::{ConnectionConfig, NameServerConfig},
+	net::runtime::TokioRuntimeProvider,
+	proto::rr::IntoName,
 };
 use ipaddress::IPAddress;
 use reqwest::redirect;
@@ -320,7 +323,20 @@ fn get_dns_resolver(server: &Arc<Server>) -> Result<Arc<TokioResolver>> {
 		conf.add_search(sys_conf.clone());
 	}
 
-	for sys_conf in sys_conf.name_servers() {
+	let config_nameservers: Vec<NameServerConfig> = server
+		.config
+		.dns_servers
+		.iter()
+		.filter_map(IntoName::to_ip)
+		.map(NameServerConfig::udp_and_tcp)
+		.collect();
+	let nameservers = if !config_nameservers.is_empty() {
+		config_nameservers
+	} else {
+		sys_conf.name_servers().to_vec()
+	};
+
+	for sys_conf in nameservers {
 		let mut ns = sys_conf.clone();
 
 		if config.query_over_tcp_only {

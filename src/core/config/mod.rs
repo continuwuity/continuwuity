@@ -383,6 +383,15 @@ pub struct Config {
 	#[serde(default = "default_stateinfo_cache_capacity")]
 	pub stateinfo_cache_capacity: u32,
 
+	/// DNS servers to use instead of system defaults. Does NOT accept IP:Port
+	/// pairs, only plain IPs. IPv6 addresses should be without brackets.
+	///
+	/// Uses system configuration (/etc/resolv.conf) if empty.
+	///
+	/// default: []
+	#[serde(default)]
+	pub dns_servers: Vec<String>,
+
 	/// Maximum entries stored in DNS memory-cache. The size of an entry may
 	/// vary so please take care if raising this value excessively. Only
 	/// decrease this when using an external DNS cache. Please note that
