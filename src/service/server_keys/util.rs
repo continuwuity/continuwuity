@@ -28,7 +28,9 @@ pub(super) fn required_keys(
 			.cloned()
 			.map(TryInto::try_into)
 			.filter_map(Result::ok)
-			.filter(|key_id| key_id.as_str() != POLICY_SERVER_ED25519_SIGNING_KEY_ID)
+			.filter(|key_id: &OwnedServerSigningKeyId| {
+				key_id.as_str() != POLICY_SERVER_ED25519_SIGNING_KEY_ID
+			})
 			.for_each(|key_id| entry.push(key_id));
 	}
 
