@@ -81,7 +81,14 @@ jobs:
             # so apt update 404s. Restrict the main sources to amd64 and
             # fetch arm64 from ports.ubuntu.com instead.
             CODENAME=$(lsb_release -sc)
-            sed -i '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+            # deb822 sources (noble and newer)
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ]; then
+              sed -i '/^Components:/a Architectures: amd64' /etc/apt/sources.list.d/ubuntu.sources
+            fi
+            # one-line sources (jammy and older)
+            if [ -f /etc/apt/sources.list ]; then
+              sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list
+            fi
             printf 'deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports %s main restricted universe multiverse\n' \
               "$CODENAME" "$CODENAME-updates" "$CODENAME-security" \
               > /etc/apt/sources.list.d/arm64-ports.list
