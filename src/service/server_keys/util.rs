@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, OwnedServerSigningKeyId,
+	events::room::policy::POLICY_SERVER_ED25519_SIGNING_KEY_ID,
 	room_version_rules::SignaturesRules,
 	signatures::{VerificationError, required_server_signatures_to_verify_event},
 };
@@ -27,6 +28,7 @@ pub(super) fn required_keys(
 			.cloned()
 			.map(TryInto::try_into)
 			.filter_map(Result::ok)
+			.filter(|key_id| key_id.as_str() != POLICY_SERVER_ED25519_SIGNING_KEY_ID)
 			.for_each(|key_id| entry.push(key_id));
 	}
 
