@@ -8,6 +8,10 @@ Commands for managing local users
 
 Create a new user
 
+## `!admin users issue-token`
+
+Issue an access token for a user. This command will not work on shadow users, such as appservice puppets or accounts imported from an identity provider
+
 ## `!admin users reset-password`
 
 Reset user password
