@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         container: [ "ubuntu-latest", "ubuntu-previous", "debian-latest", "debian-oldstable" ]
-        arch: ["amd64", "arm64"]
+        arch: [ "amd64", "arm64" ]
     container:
       image: "ghcr.io/tcpipuk/act-runner:${{ matrix.container }}"
 
@@ -44,7 +44,7 @@ jobs:
       #    fi
 
       - name: Checkout repository with full history
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
           ref: ${{ github.ref_name }}
@@ -165,6 +165,12 @@ jobs:
           apt-get update -y
           # Build dependencies for rocksdb
           apt-get install -y liburing-dev clang
+          # For arm64 builds, install cross-compiled dependencies.
+          # libstdc++6:arm64 is needed by dpkg-shlibdeps to resolve the
+          # dynamically-linked libstdc++ when cargo-deb computes $auto depends.
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            apt-get install -y liburing-dev:arm64 libstdc++6:arm64
+          fi
 
       - name: Run cargo-deb
         id: cargo-deb
