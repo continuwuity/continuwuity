@@ -367,7 +367,7 @@ impl Service {
 				// Create a new shadow user
 				self.services
 					.users
-					.create_local_account(&user_id, None, None)
+					.create_local_account(&user_id, None, None, None, None)
 					.await
 					.map_err(|err| {
 						error!("Failed to create a shadow user for {user_id}: {err}");

@@ -1,4 +1,7 @@
-use std::time::{Duration, SystemTime};
+use std::{
+	net::IpAddr,
+	time::{Duration, SystemTime},
+};
 
 use conduwuit::{
 	Err, Result, debug_error, debug_warn, err, error, info, trace,
@@ -136,11 +139,29 @@ impl super::Service {
 		user_id: &UserId,
 		password: Option<HashedPassword>,
 		email: Option<Address>,
+		client: Option<&IpAddr>,
+		device_name: Option<&str>,
 	) -> Result<()> {
 		self.create_shadow_account(user_id).await?;
 
 		if let Some(password) = password {
 			self.convert_to_local_account(user_id, password).await?;
+		}
+
+		if let Some(client) = client {
+			let notice = if let Some(device_name) = device_name {
+				format!(
+					"New user \"{user_id}\" registered on this server from IP {client} and \
+					 device display name \"{device_name}\".",
+				)
+			} else {
+				format!("New user \"{user_id}\" registered on this server from IP {client}.")
+			};
+			info!("{notice}");
+
+			if self.services.config.admin_room_notices {
+				self.services.admin.notice(&notice).await;
+			}
 		}
 
 		// Set an initial display name
