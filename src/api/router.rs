@@ -177,6 +177,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_relating_events_with_rel_type_route)
 		.ruma_route(&client::get_relating_events_route)
 		.ruma_route(&client::get_hierarchy_route)
+		.ruma_route(&client::get_mutual_rooms_unstable_route)
 		.ruma_route(&client::get_mutual_rooms_route)
 		.ruma_route(&client::get_room_summary)
 		.ruma_route(&client::get_suspended_status)
