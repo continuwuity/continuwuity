@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, time::SystemTime};
+use std::{collections::BTreeMap, net::IpAddr, time::SystemTime};
 
 use axum::{
 	Extension, Router,
@@ -6,6 +6,7 @@ use axum::{
 	response::{Redirect, Response},
 	routing::{get, on},
 };
+use conduwuit_api::client_ip::ClientIp;
 use conduwuit_core::{config::TermsDocument, info, warn};
 use conduwuit_service::{
 	mailer::messages,
@@ -116,6 +117,7 @@ struct CompletedRegistration {
 
 async fn route_register(
 	State(services): State<crate::State>,
+	ClientIp(client): ClientIp, // NOTE: Required for metadata.
 	Extension(context): Extension<TemplateContext>,
 	session_store: Session,
 	Expect(Query(query)): Expect<Query<RegisterQuery>>,
@@ -144,6 +146,7 @@ async fn route_register(
 					session_store,
 					form,
 					query.next.clone(),
+					&client,
 				)
 				.boxed()
 				.await?
@@ -276,6 +279,7 @@ struct RegisterEmailValidateQuery {
 
 async fn get_register_email_validate(
 	State(services): State<crate::State>,
+	ClientIp(client): ClientIp, // NOTE: Required for metadata.
 	Extension(context): Extension<TemplateContext>,
 	session_store: Session,
 	Expect(Query(RegisterEmailValidateQuery {
@@ -303,8 +307,14 @@ async fn get_register_email_validate(
 	let email = session.consume();
 
 	response!(
-		complete_registration(&services, session_store, completed_registration, Some(email))
-			.await?
+		complete_registration(
+			&services,
+			session_store,
+			completed_registration,
+			Some(email),
+			&client
+		)
+		.await?
 	)
 }
 
@@ -314,6 +324,7 @@ async fn begin_registration(
 	session_store: Session,
 	form: RegistrationForm,
 	next: Option<LoginTarget>,
+	client: &IpAddr,
 ) -> Result<Result<Response, ValidationErrors>> {
 	let open_registration = services
 		.config
@@ -496,7 +507,8 @@ async fn begin_registration(
 	} else {
 		// If email isn't required we can immediately complete registration
 		Ok(response!(
-			complete_registration(services, session_store, completed_registration, None).await?
+			complete_registration(services, session_store, completed_registration, None, client)
+				.await?
 		))
 	}
 }
@@ -511,6 +523,7 @@ async fn complete_registration(
 		next,
 	}: CompletedRegistration,
 	email: Option<Address>,
+	client: &IpAddr,
 ) -> Result<Redirect> {
 	services
 		.users
@@ -523,7 +536,7 @@ async fn complete_registration(
 			.mark_token_as_used(registration_token);
 	}
 
-	let notice = format!("New user \"{user_id}\" registered on this server.");
+	let notice = format!("New user \"{user_id}\" registered on this server from IP {client}.");
 
 	info!("{notice}");
 	if services.server.config.admin_room_notices {

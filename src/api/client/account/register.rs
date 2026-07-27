@@ -151,7 +151,10 @@ pub(crate) async fn register_route(
 				 display name \"{device_name}\" via legacy registration",
 			)
 		} else {
-			format!("New user \"{user_id}\" registered on this server via legacy registration.")
+			format!(
+				"New user \"{user_id}\" registered on this server from IP {client} via legacy \
+				 registration."
+			)
 		};
 		info!("{notice}");
 		if services.server.config.admin_room_notices {
