@@ -9,7 +9,7 @@ Your account
     <h1>Manage your account</h1>
     {{ user_card }}
     {% match body %}
-        {% when AccountBody::Unlocked { suspended, email_requirement, email, devices, oidc_enabled } %}
+        {% when AccountBody::Unlocked { suspended, email_requirement, email, devices, oidc_enabled, dehydrated_device_id } %}
             {% if suspended %}
                 <p class="card danger">
                     ⚠️ Your account has been suspended by your homeserver's administrator.
@@ -52,6 +52,9 @@ Your account
                                 and sign in to start chatting on Matrix.
                             </span>
                         {% endfor %}
+                        {% if let Some(dehydrated_device_id) = dehydrated_device_id %}
+                            <small>⊡ Your account has a dehydrated device. <a href="device/{{ dehydrated_device_id | urlencode_strict }}/">View details</a></small>
+                        {% endif %}
                     </div>
                 </details>
             </section>

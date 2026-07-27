@@ -70,6 +70,7 @@ enum AccountBody {
 		email_requirement: EmailRequirement,
 		email: Option<String>,
 		devices: Vec<DeviceCard>,
+		dehydrated_device_id: Option<OwnedDeviceId>,
 	},
 	Locked,
 }
@@ -132,7 +133,8 @@ async fn get_account(
 		oidc_enabled: services.oidc.enabled(),
 		email_requirement,
 		email,
-		devices: device_cards
+		devices: device_cards,
+		dehydrated_device_id,
 	}))
 }
 

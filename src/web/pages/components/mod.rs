@@ -67,12 +67,15 @@ impl Avatar {
 	pub(super) fn for_device(
 		client_metadata: Option<&ClientMetadata>,
 		display_name: Option<&str>,
+		dehydrated: bool,
 	) -> Self {
 		let avatar_src = client_metadata
 			.and_then(|metadata| metadata.logo_uri.as_ref())
 			.map(|uri| uri.as_str().to_owned());
 
-		let avatar_type = if let Some(avatar_src) = avatar_src {
+		let avatar_type = if dehydrated {
+			AvatarType::Initial('⊡')
+		} else if let Some(avatar_src) = avatar_src {
 			AvatarType::Image(avatar_src)
 		} else if let Some(initial) = display_name.and_then(|name| name.chars().next()) {
 			if client_metadata.is_some() {
@@ -130,6 +133,7 @@ pub(super) struct DeviceCard {
 	pub last_active: String,
 	pub oauth_metadata: Option<ClientMetadata>,
 	pub style: DeviceCardStyle,
+	pub dehydrated: bool,
 }
 
 impl HtmlSafe for DeviceCard {}
@@ -163,12 +167,21 @@ impl DeviceCard {
 		}
 		.await;
 
+		let dehydrated_device_id = services
+			.users
+			.get_dehydrated_device(user_id)
+			.await
+			.ok()
+			.map(|device| device.device_id);
+		let dehydrated = dehydrated_device_id.as_ref() == Some(&device.device_id);
+
 		let display_name = oauth_metadata
 			.as_ref()
 			.and_then(|metadata| metadata.client_name.clone())
 			.or_else(|| device.display_name.clone());
 
-		let avatar = Avatar::for_device(oauth_metadata.as_ref(), display_name.as_deref());
+		let avatar =
+			Avatar::for_device(oauth_metadata.as_ref(), display_name.as_deref(), dehydrated);
 
 		let last_active = device.last_seen_ts.map_or_else(
 			|| "unknown".to_owned(),
@@ -190,6 +203,7 @@ impl DeviceCard {
 			last_active,
 			oauth_metadata,
 			style,
+			dehydrated,
 		}
 	}
 }

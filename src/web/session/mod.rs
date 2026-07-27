@@ -4,6 +4,7 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
+use askama::filters::urlencode_strict;
 use axum::{
 	extract::FromRequestParts,
 	http::request::Parts,
@@ -63,8 +64,11 @@ impl LoginTarget {
 			| Self::DeviceCode(code) =>
 				format!("oauth2/grant/device_code?{}", serde_urlencoded::to_string(code).unwrap())
 					.into(),
-			| Self::DeviceInfo(path) => format!("account/device/{}/", path.device).into(),
-			| Self::RemoveDevice(path) => format!("account/device/{}/remove", path.device).into(),
+			| Self::DeviceInfo(path) =>
+				format!("account/device/{}/", urlencode_strict(&path.device).unwrap()).into(),
+			| Self::RemoveDevice(path) =>
+				format!("account/device/{}/remove", urlencode_strict(&path.device).unwrap())
+					.into(),
 		};
 
 		format!("{ROUTE_PREFIX}/{path}")

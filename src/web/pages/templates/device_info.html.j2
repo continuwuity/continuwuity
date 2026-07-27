@@ -27,6 +27,8 @@ Device information
             {% if let Some((_, session_info)) = client_metadata %}
                 This device has permission to:
                 {{ ClientScopes { scopes: session_info.scopes.clone() } }}
+            {% else if device_card.dehydrated %}
+                This is your dehydrated device. It saves encryption keys for you while you're offline.
             {% else %}
                 This device can access and control all features of your Matrix account.
                 <br>
