@@ -1,3 +1,43 @@
+# Continuwuity 26.7.0 (2026-07-27)
+
+## Features
+
+- Build and publish arm64 .deb packages alongside amd64 for all supported Debian and Ubuntu releases. (#1235)
+- Dehydrated devices are now visible in the account panel. Contributed by @ginger. (#1970)
+- Introduce `accepted_ip_sources` as a multiple options variant of `request_ip_source`, allowing for more advanced deployments and making fallbacks an explicit choice. Contributed by @Omar007 (#1985)
+- Added an admin command to issue an access token for a bot account, to allow legacy bots to function while legacy authentication is disabled. Contributed by @ginger (#2044)
+- Added support for the OAuth2 device authorization flow. Contributed by @ginger
+- Added support for the stable mutual rooms query endpoint. Contributed by @ginger
+- Fetch the joined member count once per event instead of once per notified user.
+
+## Bugfixes
+
+- Fix joining restricted rooms over federation failing with signature verification error. (fix-federation-signature)
+- Fixed the client space hierarchy endpoint returning a 500 "Space hierarchy is unreasonably large" error for cyclic space graphs (e.g. a space containing itself). Rooms are now deduplicated during traversal as required by the spec, and the traversal depth is bounded even when the client does not specify `max_depth`. (space-hierarchy-cycle)
+- Fixed simplified sliding sync holding account data for up to 30 seconds, which made encryption setup and cross-signing resets appear to hang. (sss-account-data-longpoll)
+- Fixed local invites and invite acceptances not being reflected in sync promptly. Contributed by @eleboucher (wake-local-member-sync)
+- Fixed the deeplink redirect for deleting devices. Contributed by @koen (#1965)
+- Fix status code for oauth registration. Contributed by @n00byking (#1984)
+- Exempt m.room.create from auth_events check. Contributed by @eleboucher (#1987)
+- Fixed `create` being returned as a supported prompt value regardless of if registration is enabled or not. Contributed by @ginger (#1994)
+- Fixed high CPU usage when multiple clients from the same account were connected at once. Each sync woke the account's other sync loops, causing them to wake each other in a loop. (#2006)
+- Fixed MSC4190 appservice device creation registering a random device ID instead of the requested one (and dropping the requested display name), which prevented encrypted mautrix bridges from starting on OIDC-enabled servers and leaked an orphan device on the bridge bot per startup attempt. (#2015)
+- Deactivated users and appservice puppets are no longer counted by `/_continuwuity/local_user_count`. Contributed by @ginger. (#2040)
+- Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. (#2057)
+- Appservices are now properly able to create devices for E2EE.
+- Appservices may now specify both the unstable and stable `device_id` query parameters in a request. The stable parameter will take priority. Contributed by @ginger.
+- Fixed `roomuserid_lastnotificationread` being aliased to the highlight count table, which clobbered highlight counts when setting a read marker. Contributed by @eleboucher
+- Fixed freshly left room failing to sync.
+- Fixed newly created rooms failing to sync properly in clients using legacy sync.
+- Fixed newly joined rooms failing to sync their full state (including the room name) to clients using legacy sync.
+- Fixed requests returning `500 Internal Server Error` when the header selected by `request_ip_source` is absent, duplicated, or malformed (for example Envoy omitting `X-Envoy-External-Address` on internal requests). The client IP now falls back to the connection peer address instead of failing the request. Contributed by @eleboucher
+- Resolve alias service by correct name for auto-join. Contributed by @eleboucher
+
+## Improved Documentation
+
+- Updated an out-of-date statement about Oracle Linux release cadences. (#1999)
+
+
 # Continuwuity 26.6.2 (2026-07-12)
 
 ## Bugfixes

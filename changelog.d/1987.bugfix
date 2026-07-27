@@ -1,1 +1,0 @@
-Exempt m.room.create from auth_events check. Contributed by @eleboucher
