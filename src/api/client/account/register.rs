@@ -132,6 +132,23 @@ pub(crate) async fn register_route(
 	};
 
 	debug_info!(%user_id, ?device, "New account created via legacy registration");
+	// Only log if the user wasn't registered via an appservice.
+	if body.identity.is_none() {
+		let notice = if device.is_some()
+			&& let Some(device_name) = body.initial_device_display_name.as_ref()
+		{
+			format!(
+				"New user \"{user_id}\" registered on this server from IP {client} and device \
+				 display name \"{device_name}\" via legacy registration",
+			)
+		} else {
+			format!("New user \"{user_id}\" registered on this server via legacy registration.")
+		};
+		info!("{notice}");
+		if services.server.config.admin_room_notices {
+			services.admin.notice(&notice).await;
+		}
+	}
 
 	Ok(assign!(register::v3::Response::new(user_id), {
 		access_token: token.map(DeviceToken::into_token),

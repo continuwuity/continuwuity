@@ -6,7 +6,7 @@ use axum::{
 	response::{Redirect, Response},
 	routing::{get, on},
 };
-use conduwuit_core::{config::TermsDocument, warn};
+use conduwuit_core::{config::TermsDocument, info, warn};
 use conduwuit_service::{
 	mailer::messages,
 	registration_tokens::ValidToken,
@@ -521,6 +521,13 @@ async fn complete_registration(
 		services
 			.registration_tokens
 			.mark_token_as_used(registration_token);
+	}
+
+	let notice = format!("New user \"{user_id}\" registered on this server.");
+
+	info!("{notice}");
+	if services.server.config.admin_room_notices {
+		services.admin.notice(&notice).await;
 	}
 
 	let user_session = UserSession { user_id, last_login: SystemTime::now() };
