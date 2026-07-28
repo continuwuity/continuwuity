@@ -1,7 +1,6 @@
 use std::{
 	cmp::{self, Ordering},
 	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
-	ops::Deref,
 	time::Duration,
 };
 
@@ -24,7 +23,7 @@ use conduwuit_service::{
 	sync::{SnakeConnectionsKey, into_snake_key},
 };
 use futures::{
-	FutureExt, Stream, StreamExt, TryFutureExt,
+	FutureExt, StreamExt, TryFutureExt,
 	future::{OptionFuture, join3, try_join4},
 	pin_mut,
 };
@@ -36,8 +35,13 @@ use ruma::{
 	assign,
 	directory::RoomTypeFilter,
 	events::{
-		AnySyncEphemeralRoomEvent, AnySyncStateEvent, StateEventType, TimelineEventType,
-		room::member::{MembershipState, RoomMemberEventContent},
+		AnyStrippedStateEvent, AnySyncEphemeralRoomEvent, AnySyncStateEvent,
+		GlobalAccountDataEventType, StateEventType, TimelineEventType,
+		direct::DirectEvent,
+		room::{
+			create::RoomCreateEventContent,
+			member::{MembershipState, RoomMemberEventContent},
+		},
 		typing::{SyncTypingEvent, TypingEventContent},
 	},
 	serde::Raw,
@@ -255,13 +259,32 @@ async fn collect_sync_response(
 		rooms: BTreeMap::new(),
 		extensions,
 	});
+	let direct_rooms = if body.lists.values().any(|list| {
+		list.filters
+			.as_ref()
+			.is_some_and(|filters| filters.is_dm.is_some())
+	}) {
+		match services
+			.account_data
+			.get_global::<DirectEvent>(sender_user, GlobalAccountDataEventType::Direct)
+			.await
+		{
+			| Ok(event) => event.content.0.into_values().flatten().collect(),
+			| Err(error) if error.is_not_found() => HashSet::new(),
+			| Err(error) => return Err(error),
+		}
+	} else {
+		HashSet::new()
+	};
 
 	let mut known_room_updates = handle_lists(
 		services,
+		sender_user,
 		body,
 		all_invited_rooms.clone(),
 		all_joined_rooms.clone(),
 		all_rooms,
+		&direct_rooms,
 		&mut todo_rooms,
 		known_rooms,
 		&mut response,
@@ -405,10 +428,12 @@ async fn fetch_subscriptions(
 #[allow(clippy::too_many_arguments)]
 async fn handle_lists<'a, Rooms, AllRooms>(
 	services: &Services,
+	sender_user: &UserId,
 	body: &sync_events::v5::Request,
 	all_invited_rooms: Rooms,
 	all_joined_rooms: Rooms,
 	all_rooms: AllRooms,
+	direct_rooms: &HashSet<OwnedRoomId>,
 	todo_rooms: &'a mut TodoRooms,
 	known_rooms: &'a KnownRooms,
 	response: &'_ mut sync_events::v5::Response,
@@ -417,29 +442,75 @@ where
 	Rooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 	AllRooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 {
-	// TODO MSC4186: Implement remaining list filters: is_dm, is_encrypted,
-	// room_types.
+	// TODO MSC4186: ruma's `ListFilters` does not model `spaces`, `tags` or
+	// `not_tags`, nor the rename of `is_invite` to `is_invited`.
+	let invited_rooms: HashSet<&RoomId> = all_invited_rooms.clone().collect();
+
+	// Memoised for the whole request; lists commonly overlap.
+	let mut encrypted_rooms: HashMap<&RoomId, bool> = HashMap::new();
+	let mut room_types: HashMap<&RoomId, Option<RoomTypeFilter>> = HashMap::new();
+
 	let mut known_room_updates = KnownRoomUpdates::new();
 	for (list_id, list) in &body.lists {
-		let active_rooms: Vec<_> = match list.filters.as_ref().and_then(|f| f.is_invite) {
+		let filters = list.filters.as_ref();
+		let is_dm = filters.and_then(|filters| filters.is_dm);
+		let is_encrypted = filters.and_then(|filters| filters.is_encrypted);
+		let room_types_filter = filters.map_or(&[][..], |filters| filters.room_types.as_slice());
+		let not_room_types = filters.map_or(&[][..], |filters| filters.not_room_types.as_slice());
+		let filter_room_types = !room_types_filter.is_empty() || !not_room_types.is_empty();
+
+		let candidate_rooms: Vec<&RoomId> = match filters.and_then(|filters| filters.is_invite) {
 			| None => all_rooms.clone().collect(),
 			| Some(true) => all_invited_rooms.clone().collect(),
 			| Some(false) => all_joined_rooms.clone().collect(),
 		};
 
-		let active_rooms = match list.filters.as_ref().map(|f| &f.not_room_types) {
-			| None => active_rooms,
-			| Some(filter) if filter.is_empty() => active_rooms,
-			| Some(value) =>
-				filter_rooms(
-					services,
-					value,
-					&true,
-					active_rooms.iter().stream().map(Deref::deref),
-				)
-				.collect()
-				.await,
-		};
+		let mut active_rooms: Vec<&RoomId> = Vec::with_capacity(candidate_rooms.len());
+		for room_id in candidate_rooms {
+			if !matches_bool_filter(direct_rooms.contains(room_id), is_dm) {
+				continue;
+			}
+
+			let invited = invited_rooms.contains(room_id);
+
+			if is_encrypted.is_some() {
+				let encrypted = match encrypted_rooms.get(room_id) {
+					| Some(encrypted) => *encrypted,
+					| None => {
+						let encrypted =
+							room_is_encrypted(services, sender_user, room_id, invited).await;
+						encrypted_rooms.insert(room_id, encrypted);
+						encrypted
+					},
+				};
+
+				if !matches_bool_filter(encrypted, is_encrypted) {
+					continue;
+				}
+			}
+
+			if filter_room_types {
+				let room_type = match room_types.get(room_id) {
+					| Some(room_type) => room_type.clone(),
+					| None => {
+						let room_type =
+							room_type_filter(services, sender_user, room_id, invited).await;
+						room_types.insert(room_id, room_type.clone());
+						room_type
+					},
+				};
+
+				let Some(room_type) = room_type else {
+					continue;
+				};
+
+				if !matches_room_type(&room_type, room_types_filter, not_room_types) {
+					continue;
+				}
+			}
+
+			active_rooms.push(room_id);
+		}
 
 		let mut new_known_rooms: BTreeSet<OwnedRoomId> = BTreeSet::new();
 
@@ -500,6 +571,92 @@ where
 	}
 
 	known_room_updates
+}
+
+fn matches_bool_filter(value: bool, filter: Option<bool>) -> bool {
+	filter.is_none_or(|expected| value == expected)
+}
+
+/// Rooms we are only invited to have no state locally, so their stripped
+/// invite state answers for them instead.
+async fn room_is_encrypted(
+	services: &Services,
+	sender_user: &UserId,
+	room_id: &RoomId,
+	invited: bool,
+) -> bool {
+	if !invited {
+		return services
+			.rooms
+			.state_accessor
+			.is_encrypted_room(room_id)
+			.await;
+	}
+
+	stripped_state_event(services, sender_user, room_id, &StateEventType::RoomEncryption)
+		.await
+		.is_some()
+}
+
+/// Returns `None` if the type could not be determined, in which case the room
+/// is excluded from the list.
+///
+/// Stripped invite state is only recommended to carry `m.room.create`, so an
+/// invite without one is treated as untyped rather than hidden from every list.
+async fn room_type_filter(
+	services: &Services,
+	sender_user: &UserId,
+	room_id: &RoomId,
+	invited: bool,
+) -> Option<RoomTypeFilter> {
+	if invited {
+		let content: Option<RoomCreateEventContent> =
+			stripped_state_event(services, sender_user, room_id, &StateEventType::RoomCreate)
+				.await
+				.and_then(|event| event.get_field("content").ok().flatten());
+
+		return Some(RoomTypeFilter::from(content.and_then(|content| content.room_type)));
+	}
+
+	match services.rooms.state_accessor.get_room_type(room_id).await {
+		| Ok(room_type) => Some(RoomTypeFilter::from(Some(room_type))),
+		| Err(error) if error.is_not_found() => Some(RoomTypeFilter::Default),
+		| Err(error) => {
+			warn!(%room_id, %error, "Failed to fetch room type for a sliding sync list filter");
+			None
+		},
+	}
+}
+
+async fn stripped_state_event(
+	services: &Services,
+	sender_user: &UserId,
+	room_id: &RoomId,
+	event_type: &StateEventType,
+) -> Option<Raw<AnyStrippedStateEvent>> {
+	services
+		.rooms
+		.state_cache
+		.invite_state(sender_user, room_id)
+		.await
+		.ok()?
+		.into_iter()
+		.find(|event| {
+			event
+				.get_field::<StateEventType>("type")
+				.ok()
+				.flatten()
+				.as_ref() == Some(event_type)
+		})
+}
+
+fn matches_room_type(
+	room_type: &RoomTypeFilter,
+	room_types: &[RoomTypeFilter],
+	not_room_types: &[RoomTypeFilter],
+) -> bool {
+	!not_room_types.contains(room_type)
+		&& (room_types.is_empty() || room_types.contains(room_type))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1232,41 +1389,61 @@ async fn collect_receipts(_services: &Services) -> sync_events::v5::response::Re
 	sync_events::v5::response::Receipts::default()
 }
 
-fn filter_rooms<'a, Rooms>(
-	services: &'a Services,
-	filter: &'a [RoomTypeFilter],
-	negate: &'a bool,
-	rooms: Rooms,
-) -> impl Stream<Item = &'a RoomId> + Send + 'a
-where
-	Rooms: Stream<Item = &'a RoomId> + Send + 'a,
-{
-	rooms.filter_map(async |room_id| {
-		let room_type = services.rooms.state_accessor.get_room_type(room_id).await;
-
-		if room_type.as_ref().is_err_and(|e| !e.is_not_found()) {
-			return None;
-		}
-
-		let room_type_filter = RoomTypeFilter::from(room_type.ok());
-
-		let include = if *negate {
-			!filter.contains(&room_type_filter)
-		} else {
-			filter.is_empty() || filter.contains(&room_type_filter)
-		};
-
-		include.then_some(room_id)
-	})
-}
-
 #[cfg(test)]
 mod tests {
+	use std::slice;
+
 	use ruma::{owned_room_id, room_id};
 
 	use super::*;
 
+	fn custom_room_type() -> RoomTypeFilter { RoomTypeFilter::from(Some("com.example")) }
+
 	fn response() -> sync_events::v5::Response { sync_events::v5::Response::new("1".to_owned()) }
+
+	#[test]
+	fn absent_bool_filter_matches_either_value() {
+		assert!(matches_bool_filter(true, None));
+		assert!(matches_bool_filter(false, None));
+	}
+
+	#[test]
+	fn bool_filter_matches_only_its_own_value() {
+		assert!(matches_bool_filter(true, Some(true)));
+		assert!(!matches_bool_filter(false, Some(true)));
+		assert!(matches_bool_filter(false, Some(false)));
+		assert!(!matches_bool_filter(true, Some(false)));
+	}
+
+	#[test]
+	fn absent_room_type_filters_match_every_type() {
+		assert!(matches_room_type(&custom_room_type(), &[], &[]));
+		assert!(matches_room_type(&RoomTypeFilter::Default, &[], &[]));
+	}
+
+	#[test]
+	fn positive_room_type_matches_and_mismatches() {
+		let custom = custom_room_type();
+		assert!(matches_room_type(&custom, slice::from_ref(&custom), &[]));
+		assert!(!matches_room_type(&custom, &[RoomTypeFilter::Default], &[]));
+	}
+
+	#[test]
+	fn default_room_type_matches_untyped_rooms() {
+		assert!(matches_room_type(&RoomTypeFilter::Default, &[RoomTypeFilter::Default], &[]));
+	}
+
+	#[test]
+	fn negative_room_type_excludes_without_a_positive_filter() {
+		assert!(!matches_room_type(&RoomTypeFilter::Space, &[], &[RoomTypeFilter::Space]));
+		assert!(matches_room_type(&RoomTypeFilter::Default, &[], &[RoomTypeFilter::Space]));
+	}
+
+	#[test]
+	fn negative_room_type_overrides_positive() {
+		let custom = custom_room_type();
+		assert!(!matches_room_type(&custom, slice::from_ref(&custom), slice::from_ref(&custom)));
+	}
 
 	#[test]
 	fn fresh_response_is_empty() {
