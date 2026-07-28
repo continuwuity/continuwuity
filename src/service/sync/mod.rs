@@ -1,6 +1,5 @@
 use std::{
 	collections::{BTreeMap, BTreeSet, HashMap},
-	pin::pin,
 	sync::Arc,
 };
 
@@ -9,13 +8,13 @@ use futures::StreamExt;
 use ruma::{
 	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::sync::sync_events::v5,
 };
-use tokio::sync::{Mutex, Notify};
+use tokio::sync::{Mutex, watch};
 
 use crate::{Dep, rooms};
 
 pub struct Service {
 	services: Services,
-	wakers: Mutex<HashMap<OwnedUserId, Arc<Notify>>>,
+	wakers: Wakers,
 	snake_connections: DbConnections<SnakeConnectionsKey, SnakeConnectionsVal>,
 }
 
@@ -42,8 +41,52 @@ struct SnakeSyncCache {
 
 type DbConnections<K, V> = SyncMutex<BTreeMap<K, V>>;
 type DbConnectionsKey = (OwnedUserId, OwnedDeviceId, String);
-type SnakeConnectionsKey = (OwnedUserId, OwnedDeviceId, Option<String>);
+pub type SnakeConnectionsKey = (OwnedUserId, OwnedDeviceId, Option<String>);
 type SnakeConnectionsVal = Arc<SyncMutex<SnakeSyncCache>>;
+
+#[derive(Default)]
+struct Wakers(Mutex<HashMap<OwnedUserId, watch::Sender<u64>>>);
+
+impl Wakers {
+	async fn subscribe(&self, user: &UserId) -> watch::Receiver<u64> {
+		self.0
+			.lock()
+			.await
+			.entry(user.to_owned())
+			.or_insert_with(|| watch::channel(0).0)
+			.subscribe()
+	}
+
+	async fn wake(&self, user: &UserId) {
+		let mut wakers = self.0.lock().await;
+		wake_waker(&mut wakers, user);
+	}
+
+	async fn wake_all<I>(&self, users: I)
+	where
+		I: IntoIterator<Item = OwnedUserId> + Send,
+	{
+		let mut wakers = self.0.lock().await;
+		for user in users {
+			wake_waker(&mut wakers, &user);
+		}
+	}
+}
+
+/// Bumps the generation observed by anyone long-polling for this user, reaping
+/// the entry once its last subscriber is gone.
+fn wake_waker(wakers: &mut HashMap<OwnedUserId, watch::Sender<u64>>, user: &UserId) {
+	let Some(waker) = wakers.get(user) else {
+		return;
+	};
+
+	if waker.receiver_count() == 0 {
+		wakers.remove(user);
+		return;
+	}
+
+	waker.send_modify(|generation| *generation = generation.wrapping_add(1));
+}
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
@@ -51,7 +94,7 @@ impl crate::Service for Service {
 			services: Services {
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
 			},
-			wakers: Mutex::default(),
+			wakers: Wakers::default(),
 			snake_connections: SyncMutex::new(BTreeMap::new()),
 		}))
 	}
@@ -60,8 +103,8 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn wait_for_wake(&self, user: &UserId) {
-		self.waker_for(user).await.notified().await;
+	pub async fn subscribe_to_wake(&self, user: &UserId) -> watch::Receiver<u64> {
+		self.wakers.subscribe(user).await
 	}
 
 	/// Wake the target user's sync loop. Call this when something
@@ -74,25 +117,20 @@ impl Service {
 	pub async fn wake(&self, user: &UserId) {
 		trace!(?user, "Waking user's sync loops");
 
-		self.waker_for(user).await.notify_waiters();
+		self.wakers.wake(user).await;
 	}
 
 	/// Wake all of our users who are joined to the specified room.
 	pub async fn wake_all_joined(&self, room: &RoomId) {
 		trace!(?room, "Waking all joined users' sync loops");
-		let mut wakers = self.wakers.lock().await;
+		let users: Vec<_> = self
+			.services
+			.state_cache
+			.active_local_users_in_room(room)
+			.collect()
+			.await;
 
-		let mut users_in_room = pin!(self.services.state_cache.active_local_users_in_room(room));
-
-		while let Some(user) = users_in_room.next().await {
-			wakers.entry(user).or_default().notify_waiters();
-		}
-	}
-
-	async fn waker_for(&self, user: &UserId) -> Arc<Notify> {
-		let mut wakers = self.wakers.lock().await;
-
-		wakers.entry(user.to_owned()).or_default().clone()
+		self.wakers.wake_all(users).await;
 	}
 
 	pub fn snake_connection_cached(&self, key: &SnakeConnectionsKey) -> bool {
@@ -288,5 +326,64 @@ fn list_or_sticky<T: Clone>(target: &mut Vec<T>, cached: &Vec<T>) {
 fn some_or_sticky<T>(target: &mut Option<T>, cached: Option<T>) {
 	if target.is_none() {
 		*target = cached;
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[tokio::test]
+	async fn wake_after_subscription_is_observable() {
+		let wakers = Wakers::default();
+		let user = UserId::parse("@alice:example.com").unwrap();
+		let mut receiver = wakers.subscribe(&user).await;
+		let generation = *receiver.borrow_and_update();
+
+		wakers.wake(&user).await;
+		wakers.wake(&user).await;
+
+		receiver.changed().await.unwrap();
+		assert_eq!(*receiver.borrow_and_update(), generation.wrapping_add(2));
+	}
+
+	#[tokio::test]
+	async fn wake_notifies_all_subscribers() {
+		let wakers = Wakers::default();
+		let user = UserId::parse("@alice:example.com").unwrap();
+		let mut first = wakers.subscribe(&user).await;
+		let mut second = wakers.subscribe(&user).await;
+
+		wakers.wake(&user).await;
+
+		first.changed().await.unwrap();
+		second.changed().await.unwrap();
+	}
+
+	#[tokio::test]
+	async fn waker_is_not_retained_without_subscribers() {
+		let wakers = Wakers::default();
+		let user = UserId::parse("@alice:example.com").unwrap();
+
+		wakers.wake(&user).await;
+		assert!(wakers.0.lock().await.is_empty());
+
+		drop(wakers.subscribe(&user).await);
+		assert_eq!(wakers.0.lock().await.len(), 1);
+
+		wakers.wake(&user).await;
+		assert!(wakers.0.lock().await.is_empty());
+	}
+
+	#[tokio::test]
+	async fn subscriber_still_woken_after_a_sibling_disconnects() {
+		let wakers = Wakers::default();
+		let user = UserId::parse("@alice:example.com").unwrap();
+		let mut receiver = wakers.subscribe(&user).await;
+		drop(wakers.subscribe(&user).await);
+
+		wakers.wake(&user).await;
+
+		receiver.changed().await.unwrap();
 	}
 }

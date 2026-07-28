@@ -18,7 +18,11 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::{Services, rooms::read_receipt::pack_receipts, sync::into_snake_key};
+use conduwuit_service::{
+	Services,
+	rooms::read_receipt::pack_receipts,
+	sync::{SnakeConnectionsKey, into_snake_key},
+};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt,
 	future::{OptionFuture, join3, try_join4},
@@ -54,6 +58,13 @@ use crate::{
 type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request);
 type TodoRooms = BTreeMap<OwnedRoomId, (BTreeSet<TypeStateKey>, usize, u64)>;
 type KnownRooms = BTreeMap<String, BTreeMap<OwnedRoomId, u64>>;
+type KnownRoomUpdates = BTreeMap<String, BTreeSet<OwnedRoomId>>;
+
+struct SyncCollection {
+	response: sync_events::v5::Response,
+	known_room_updates: KnownRoomUpdates,
+	todo_rooms: TodoRooms,
+}
 
 /// `POST /_matrix/client/unstable/org.matrix.simplified_msc3575/sync`
 /// ([MSC4186])
@@ -80,8 +91,6 @@ pub(crate) async fn sync_events_v5_route(
 
 	let mut body = body.body;
 
-	let next_batch = services.globals.next_count()?;
-
 	let conn_id = body.conn_id.clone();
 
 	let globalsince = body
@@ -107,6 +116,73 @@ pub(crate) async fn sync_events_v5_route(
 	let known_rooms = services
 		.sync
 		.update_snake_sync_request_with_cache(&snake_key, &mut body);
+
+	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user).await;
+	let mut collection = collect_sync_response(
+		services,
+		sender_user,
+		sender_device,
+		&body,
+		globalsince,
+		&known_rooms,
+	)
+	.await?;
+
+	if response_is_empty(&collection.response) {
+		let default = Duration::from_secs(30);
+		let duration = cmp::min(body.timeout.unwrap_or(default), default);
+		let woke = tokio::time::timeout(duration, wake_receiver.changed())
+			.await
+			.is_ok();
+
+		if woke {
+			collection = collect_sync_response(
+				services,
+				sender_user,
+				sender_device,
+				&body,
+				globalsince,
+				&known_rooms,
+			)
+			.await?;
+		}
+	}
+
+	// Typing never wakes a sync loop, so collect it after the long poll settles.
+	collection.response.extensions.typing =
+		collect_typing_events(services, sender_user, &body, &collection.todo_rooms).await?;
+
+	commit_sync_collection(
+		services,
+		sender_user,
+		sender_device,
+		&body,
+		globalsince,
+		&snake_key,
+		&collection.known_room_updates,
+	)
+	.await;
+
+	trace!(
+		rooms = ?collection.response.rooms.len(),
+		account_data = ?collection.response.extensions.account_data.rooms.len(),
+		receipts = ?collection.response.extensions.receipts.rooms.len(),
+		"responding to request with"
+	);
+	Ok(collection.response)
+}
+
+async fn collect_sync_response(
+	services: &Services,
+	sender_user: &UserId,
+	sender_device: &DeviceId,
+	body: &sync_events::v5::Request,
+	globalsince: u64,
+	known_rooms: &KnownRooms,
+) -> Result<SyncCollection> {
+	// Bounds every read below and becomes the `pos` returned to the client. Zero
+	// would be echoed back as a request for an initial sync.
+	let next_batch = services.globals.current_count()?.max(1);
 
 	let all_joined_rooms = services
 		.rooms
@@ -153,11 +229,11 @@ pub(crate) async fn sync_events_v5_route(
 		.chain(all_invited_rooms.clone())
 		.chain(all_knocked_rooms.clone());
 
-	let pos = next_batch.clone().to_string();
+	let pos = next_batch.to_string();
 
 	let mut todo_rooms: TodoRooms = BTreeMap::new();
 
-	let sync_info: SyncInfo<'_> = (sender_user, sender_device, globalsince, &body);
+	let sync_info: SyncInfo<'_> = (sender_user, sender_device, globalsince, body);
 
 	let account_data = collect_account_data(services, sync_info).map(Ok);
 
@@ -185,19 +261,22 @@ pub(crate) async fn sync_events_v5_route(
 		extensions,
 	});
 
-	handle_lists(
+	let mut known_room_updates = handle_lists(
 		services,
-		sync_info,
+		body,
 		all_invited_rooms.clone(),
 		all_joined_rooms.clone(),
 		all_rooms,
 		&mut todo_rooms,
-		&known_rooms,
+		known_rooms,
 		&mut response,
 	)
 	.await;
 
-	fetch_subscriptions(services, sync_info, &known_rooms, &allowed_rooms, &mut todo_rooms).await;
+	known_room_updates.insert(
+		"subscriptions".to_owned(),
+		fetch_subscriptions(services, body, known_rooms, &allowed_rooms, &mut todo_rooms).await,
+	);
 
 	response.rooms = process_rooms(
 		services,
@@ -207,10 +286,14 @@ pub(crate) async fn sync_events_v5_route(
 		all_knocked_rooms.clone(),
 		&todo_rooms,
 		&mut response,
-		&body,
+		body,
 	)
 	.await?;
 
+	Ok(SyncCollection { response, known_room_updates, todo_rooms })
+}
+
+fn response_is_empty(response: &sync_events::v5::Response) -> bool {
 	let no_account_data = response.extensions.account_data.global.is_empty()
 		&& response
 			.extensions
@@ -218,47 +301,58 @@ pub(crate) async fn sync_events_v5_route(
 			.rooms
 			.values()
 			.all(Vec::is_empty);
-
-	let no_room_data = response.rooms.iter().all(|(id, r)| {
-		r.timeline.is_empty()
-			&& r.required_state.is_empty()
-			&& r.invite_state.is_none()
+	let no_room_data = response.rooms.iter().all(|(id, room)| {
+		room.timeline.is_empty()
+			&& room.required_state.is_empty()
+			&& room.invite_state.is_none()
 			&& !response.extensions.receipts.rooms.contains_key(id)
 	});
-
 	let no_to_device_messages = response
 		.extensions
 		.to_device
-		.clone()
+		.as_ref()
 		.is_none_or(|to| to.events.is_empty());
 
-	if no_account_data && no_room_data && no_to_device_messages {
-		// Hang a few seconds so requests are not spammed
-		// Stop hanging if new info arrives
-		let default = Duration::from_secs(30);
-		let duration = cmp::min(body.timeout.unwrap_or(default), default);
-		_ = tokio::time::timeout(duration, services.sync.wait_for_wake(sender_user)).await;
+	no_account_data && no_room_data && no_to_device_messages
+}
+
+async fn commit_sync_collection(
+	services: &Services,
+	sender_user: &UserId,
+	sender_device: &DeviceId,
+	body: &sync_events::v5::Request,
+	globalsince: u64,
+	snake_key: &SnakeConnectionsKey,
+	known_room_updates: &KnownRoomUpdates,
+) {
+	let (.., conn_id) = snake_key;
+
+	if conn_id.is_some() {
+		for (list_id, rooms) in known_room_updates {
+			services.sync.update_snake_sync_known_rooms(
+				snake_key,
+				list_id.clone(),
+				rooms.clone(),
+				globalsince,
+			);
+		}
 	}
 
-	let typing = collect_typing_events(services, sender_user, &body, &todo_rooms).await?;
-	response.extensions.typing = typing;
-
-	trace!(
-		rooms = ?response.rooms.len(),
-		account_data = ?response.extensions.account_data.rooms.len(),
-		receipts = ?response.extensions.receipts.rooms.len(),
-		"responding to request with"
-	);
-	Ok(response)
+	if body.extensions.to_device.enabled.unwrap_or(false) {
+		services
+			.users
+			.remove_to_device_events(sender_user, sender_device, globalsince)
+			.await;
+	}
 }
 
 async fn fetch_subscriptions(
 	services: &Services,
-	(sender_user, sender_device, globalsince, body): SyncInfo<'_>,
+	body: &sync_events::v5::Request,
 	known_rooms: &KnownRooms,
 	allowed_rooms: &BTreeSet<OwnedRoomId>,
 	todo_rooms: &mut TodoRooms,
-) {
+) -> BTreeSet<OwnedRoomId> {
 	let mut known_subscription_rooms = BTreeSet::new();
 	for (room_id, room) in &body.room_subscriptions {
 		// Silently ignore subscriptions to rooms the user is not a member of
@@ -307,34 +401,27 @@ async fn fetch_subscriptions(
 	//	body.room_subscriptions.remove(&r);
 	//}
 
-	if let Some(conn_id) = body.conn_id.clone() {
-		let snake_key = into_snake_key(sender_user, sender_device, conn_id);
-		services.sync.update_snake_sync_known_rooms(
-			&snake_key,
-			"subscriptions".to_owned(),
-			known_subscription_rooms,
-			globalsince,
-		);
-	}
+	known_subscription_rooms
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_lists<'a, Rooms, AllRooms>(
 	services: &Services,
-	(sender_user, sender_device, globalsince, body): SyncInfo<'_>,
+	body: &sync_events::v5::Request,
 	all_invited_rooms: Rooms,
 	all_joined_rooms: Rooms,
 	all_rooms: AllRooms,
 	todo_rooms: &'a mut TodoRooms,
 	known_rooms: &'a KnownRooms,
 	response: &'_ mut sync_events::v5::Response,
-) -> KnownRooms
+) -> KnownRoomUpdates
 where
 	Rooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 	AllRooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
 {
 	// TODO MSC4186: Implement remaining list filters: is_dm, is_encrypted,
 	// room_types.
+	let mut known_room_updates = KnownRoomUpdates::new();
 	for (list_id, list) in &body.lists {
 		let active_rooms: Vec<_> = match list.filters.as_ref().and_then(|f| f.is_invite) {
 			| None => all_rooms.clone().collect(),
@@ -411,18 +498,10 @@ where
 			}),
 		);
 
-		if let Some(conn_id) = body.conn_id.clone() {
-			let snake_key = into_snake_key(sender_user, sender_device, conn_id);
-			services.sync.update_snake_sync_known_rooms(
-				&snake_key,
-				list_id.clone(),
-				new_known_rooms,
-				globalsince,
-			);
-		}
+		known_room_updates.insert(list_id.clone(), new_known_rooms);
 	}
 
-	BTreeMap::default()
+	known_room_updates
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1139,16 +1218,11 @@ async fn collect_to_device(
 		return None;
 	}
 
-	services
-		.users
-		.remove_to_device_events(sender_user, sender_device, globalsince)
-		.await;
-
 	Some(assign!(sync_events::v5::response::ToDevice::default(), {
 		next_batch: next_batch.to_string(),
 		events: services
 			.users
-			.get_to_device_events(sender_user, sender_device, None, Some(next_batch))
+			.get_to_device_events(sender_user, sender_device, Some(globalsince), Some(next_batch))
 			.map(at!(1))
 			.collect()
 			.await,
@@ -1186,4 +1260,66 @@ where
 
 		include.then_some(room_id)
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::{owned_room_id, room_id};
+
+	use super::*;
+
+	fn response() -> sync_events::v5::Response { sync_events::v5::Response::new("1".to_owned()) }
+
+	#[test]
+	fn fresh_response_is_empty() {
+		assert!(response_is_empty(&response()));
+	}
+
+	#[test]
+	fn account_data_is_not_empty() {
+		let mut response = response();
+		response
+			.extensions
+			.account_data
+			.rooms
+			.insert(owned_room_id!("!a:example.com"), vec![
+				Raw::from_json_string("{}".to_owned()).unwrap(),
+			]);
+
+		assert!(!response_is_empty(&response));
+	}
+
+	#[test]
+	fn a_room_with_no_events_is_still_empty() {
+		let mut response = response();
+		response
+			.rooms
+			.insert(owned_room_id!("!a:example.com"), sync_events::v5::response::Room::default());
+
+		assert!(response_is_empty(&response));
+	}
+
+	#[test]
+	fn a_receipt_makes_its_room_non_empty() {
+		let room_id = room_id!("!a:example.com");
+		let mut response = response();
+		response
+			.rooms
+			.insert(room_id.to_owned(), sync_events::v5::response::Room::default());
+		response
+			.extensions
+			.receipts
+			.rooms
+			.insert(room_id.to_owned(), Raw::from_json_string("{}".to_owned()).unwrap());
+
+		assert!(!response_is_empty(&response));
+	}
+
+	#[test]
+	fn to_device_without_events_is_empty() {
+		let mut response = response();
+		response.extensions.to_device = Some(sync_events::v5::response::ToDevice::default());
+
+		assert!(response_is_empty(&response));
+	}
 }
