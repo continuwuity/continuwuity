@@ -40,7 +40,7 @@ serde.workspace = true
 serde_json.workspace = true
 lettre.workspace = true
 memory-serve = "2.1.0"
-validator = { version = "0.20.0", features = ["derive"] }
+validator = { version = "0.21.0", features = ["derive"] }
 tower-sec-fetch = { version = "0.1.2", features = ["tracing"] }
 tower-sessions = { version = "0.15.0", default-features = false, features = ["axum-core"] }
 tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
