@@ -1,6 +1,6 @@
 use std::{
 	cmp::{self, Ordering},
-	collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
 	ops::Deref,
 	time::Duration,
 };
@@ -138,6 +138,13 @@ pub(crate) async fn sync_events_v5_route(
 	let (all_joined_rooms, all_invited_rooms, all_knocked_rooms) =
 		join3(all_joined_rooms, all_invited_rooms, all_knocked_rooms).await;
 
+	let allowed_rooms: BTreeSet<OwnedRoomId> = all_joined_rooms
+		.iter()
+		.chain(all_invited_rooms.iter())
+		.chain(all_knocked_rooms.iter())
+		.cloned()
+		.collect();
+
 	let all_joined_rooms = all_joined_rooms.iter().map(AsRef::as_ref);
 	let all_invited_rooms = all_invited_rooms.iter().map(AsRef::as_ref);
 	let all_knocked_rooms = all_knocked_rooms.iter().map(AsRef::as_ref);
@@ -190,13 +197,14 @@ pub(crate) async fn sync_events_v5_route(
 	)
 	.await;
 
-	fetch_subscriptions(services, sync_info, &known_rooms, &mut todo_rooms).await;
+	fetch_subscriptions(services, sync_info, &known_rooms, &allowed_rooms, &mut todo_rooms).await;
 
 	response.rooms = process_rooms(
 		services,
 		sender_user,
 		next_batch,
 		all_invited_rooms.clone(),
+		all_knocked_rooms.clone(),
 		&todo_rooms,
 		&mut response,
 		&body,
@@ -214,6 +222,7 @@ pub(crate) async fn sync_events_v5_route(
 	let no_room_data = response.rooms.iter().all(|(id, r)| {
 		r.timeline.is_empty()
 			&& r.required_state.is_empty()
+			&& r.invite_state.is_none()
 			&& !response.extensions.receipts.rooms.contains_key(id)
 	});
 
@@ -247,10 +256,17 @@ async fn fetch_subscriptions(
 	services: &Services,
 	(sender_user, sender_device, globalsince, body): SyncInfo<'_>,
 	known_rooms: &KnownRooms,
+	allowed_rooms: &BTreeSet<OwnedRoomId>,
 	todo_rooms: &mut TodoRooms,
 ) {
 	let mut known_subscription_rooms = BTreeSet::new();
 	for (room_id, room) in &body.room_subscriptions {
+		// Silently ignore subscriptions to rooms the user is not a member of
+		// (joined or invited).
+		if !allowed_rooms.contains(room_id) {
+			continue;
+		}
+
 		let not_exists = services.rooms.metadata.exists(room_id).eq(&false);
 
 		let is_disabled = services.rooms.metadata.is_disabled(room_id);
@@ -409,11 +425,13 @@ where
 	BTreeMap::default()
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn process_rooms<'a, Rooms>(
 	services: &Services,
 	sender_user: &UserId,
 	next_batch: u64,
 	all_invited_rooms: Rooms,
+	all_knocked_rooms: Rooms,
 	todo_rooms: &TodoRooms,
 	response: &mut sync_events::v5::Response,
 	body: &sync_events::v5::Request,
@@ -426,37 +444,100 @@ where
 		let roomsincecount = PduCount::Normal(*roomsince);
 
 		let mut timestamp: Option<_> = None;
-		let mut invite_state = None;
 		let (timeline_pdus, limited);
 		let new_room_id: &RoomId = (*room_id).as_ref();
 		if all_invited_rooms.clone().any(is_equal_to!(new_room_id)) {
+			let Ok(invite_count) = services
+				.rooms
+				.state_cache
+				.get_invite_count(room_id, sender_user)
+				.await
+			else {
+				continue;
+			};
+
+			if *roomsince >= invite_count {
+				continue;
+			}
+
 			// TODO: figure out a timestamp we can use for remote invites
-			invite_state = services
+			let invite_state = services
 				.rooms
 				.state_cache
 				.invite_state(sender_user, room_id)
 				.await
 				.ok();
 
-			(timeline_pdus, limited) = (VecDeque::new(), true);
-		} else {
-			TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
-				services,
-				sender_user,
-				room_id,
-				Some(roomsincecount),
-				Some(PduCount::from(next_batch)),
-				*timeline_limit,
-			)
-			.await
-			{
-				| Ok(value) => value,
-				| Err(err) => {
-					warn!("Encountered missing timeline in {}, error {}", room_id, err);
-					continue;
-				},
-			};
+			rooms.insert(
+				room_id.clone(),
+				assign!(sync_events::v5::response::Room::new(), {
+					initial: Some(roomsince == &0),
+					invite_state,
+					limited: true,
+				}),
+			);
+			continue;
 		}
+
+		if all_knocked_rooms.clone().any(is_equal_to!(new_room_id)) {
+			let Ok(knock_count) = services
+				.rooms
+				.state_cache
+				.get_knock_count(room_id, sender_user)
+				.await
+			else {
+				continue;
+			};
+
+			if *roomsince >= knock_count {
+				continue;
+			}
+
+			let Ok(knock_state) = services
+				.rooms
+				.state_cache
+				.knock_state(sender_user, room_id)
+				.await
+			else {
+				continue;
+			};
+
+			rooms.insert(
+				room_id.clone(),
+				assign!(sync_events::v5::response::Room::new(), {
+					initial: Some(roomsince == &0),
+					invite_state: Some(knock_state),
+					limited: true,
+				}),
+			);
+			continue;
+		}
+
+		if !services
+			.rooms
+			.state_cache
+			.is_joined(sender_user, room_id)
+			.await
+		{
+			continue;
+		}
+
+		TimelinePdus { pdus: timeline_pdus, limited } = match load_timeline(
+			services,
+			sender_user,
+			room_id,
+			Some(roomsincecount),
+			Some(PduCount::from(next_batch)),
+			*timeline_limit,
+		)
+		.await
+		{
+			| Ok(value) => value,
+			| Err(err) => {
+				warn!("Encountered missing timeline in {}, error {}", room_id, err);
+				continue;
+			},
+		};
 
 		if body.extensions.account_data.enabled == Some(true) {
 			response.extensions.account_data.rooms.insert(
@@ -641,7 +722,6 @@ where
 				},
 				initial: Some(roomsince == &0),
 				is_dm: None,
-				invite_state,
 				unread_notifications: assign!(UnreadNotificationsCount::new(), {
 					highlight_count: Some(
 						services
@@ -769,6 +849,15 @@ async fn collect_typing_events(
 
 	let mut typing_response = sync_events::v5::response::Typing::default();
 	for (room_id, (_, _, roomsince)) in todo_rooms {
+		if !services
+			.rooms
+			.state_cache
+			.is_joined(sender_user, room_id)
+			.await
+		{
+			continue;
+		}
+
 		if services.rooms.typing.last_typing_update(room_id).await? <= *roomsince {
 			continue;
 		}
