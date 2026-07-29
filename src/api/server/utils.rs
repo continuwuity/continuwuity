@@ -80,6 +80,12 @@ impl AccessCheck<'_> {
 /// 6. `state_key` field presence (and parsing)
 /// 7. PDU room format check (PDU check 1)
 ///
+/// ## Compatibility
+///
+/// If `create_event_id` is `None`, step 7 is not performed. This should only be
+/// the case for the invite route where servers still send stripped events on
+/// occasion, and as such the create event may not be included in the state.
+///
 /// ## Returns
 ///
 /// A resulting tuple of (PDU JSON, target membership state, sender, recipient).
@@ -87,7 +93,7 @@ pub(crate) async fn validate_any_membership_event(
 	services: &crate::State,
 	body: &serde_json::value::RawValue,
 	room_version_rules: &RoomVersionRules,
-	create_event_id: OwnedEventId,
+	create_event_id: Option<OwnedEventId>,
 	expected_room_id: OwnedRoomId,
 	expected_event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, MembershipState, OwnedUserId, OwnedUserId)> {
@@ -171,6 +177,11 @@ pub(crate) async fn validate_any_membership_event(
 		.ok_or_else(|| err!(Request(BadJson("Event is not a string"))))?
 		.to_owned();
 
+	assert!(
+		create_event_id.is_some() || membership == "invite",
+		"non-invite membership check had no associated create event"
+	);
+
 	let sender_user = pdu
 		.get("sender")
 		.and_then(|v| v.as_str())
@@ -184,16 +195,18 @@ pub(crate) async fn validate_any_membership_event(
 		.and_then(Result::ok)
 		.ok_or_else(|| err!(Request(InvalidParam("Invalid state_key property"))))?;
 
-	// Do a quick format check. The spec doesn't suggest this, but it's probably
-	// a good idea nonetheless.
-	service::rooms::event_handler::Service::pdu_format_check_1(
-		&pdu,
-		room_version_rules,
-		&create_event_id,
-	)
-	.map_err(|e| {
-		err!(Request(InvalidParam("Membership event violates the room event format: {e}")))
-	})?;
+	if let Some(create_event_id) = create_event_id {
+		// Do a quick format check. The spec doesn't suggest this, but it's probably
+		// a good idea nonetheless.
+		service::rooms::event_handler::Service::pdu_format_check_1(
+			&pdu,
+			room_version_rules,
+			&create_event_id,
+		)
+		.map_err(|e| {
+			err!(Request(InvalidParam("Membership event violates the room event format: {e}")))
+		})?;
+	}
 
 	Ok((pdu, membership.into(), sender_user, recipient_user))
 }

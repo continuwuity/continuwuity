@@ -17,10 +17,11 @@ use ruma::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation::membership::{RawStrippedState, create_invite},
 	},
-	events::{StateEventType, room::member::MembershipState},
+	events::{AnyStrippedStateEvent, StateEventType, room::member::MembershipState},
 	room_version_rules::RoomVersionRules,
 };
 use serde::Deserialize;
+use serde_json::value::RawValue;
 
 use crate::{Ruma, server::utils::validate_any_membership_event};
 
@@ -168,12 +169,14 @@ pub(crate) async fn create_invite_route(
 		// request, but we will get that during send_join anyway.
 		// This is safe to just add directly as an outlier as we already auth checked it
 		// during validation.
-		let mut create_event_json = create_event_json.clone();
-		create_event_json.insert("event_id".to_owned(), create_event_id.as_str().into());
-		services
-			.rooms
-			.outlier
-			.add_pdu_outlier(&create_event_id, &create_event_json);
+		if let Some(create_event_id) = create_event_id {
+			let mut create_event_json = create_event_json.clone();
+			create_event_json.insert("event_id".to_owned(), create_event_id.as_str().into());
+			services
+				.rooms
+				.outlier
+				.add_pdu_outlier(&create_event_id, &create_event_json);
+		}
 
 		services
 			.rooms
@@ -243,10 +246,10 @@ pub(crate) async fn create_invite_route(
 /// [spec]: https://spec.matrix.org/v1.19/server-server-api/#put_matrixfederationv2inviteroomideventid
 async fn validate_invite_membership_event(
 	services: &crate::State,
-	body: &serde_json::value::RawValue,
+	body: &RawValue,
 	room_version_rules: &RoomVersionRules,
 	origin: &ServerName,
-	create_event_id: OwnedEventId,
+	create_event_id: Option<OwnedEventId>,
 	room_id: OwnedRoomId,
 	event_id: OwnedEventId,
 ) -> Result<(CanonicalJsonObject, OwnedUserId, OwnedUserId)> {
@@ -281,6 +284,9 @@ async fn validate_invite_membership_event(
 	Ok((pdu, sender_user, recipient_user))
 }
 
+type ValidatedInviteState =
+	(Option<OwnedEventId>, HashMap<(StateEventType, StateKey), CanonicalJsonObject>);
+
 /// Validates the *invite state* of an invite request, per the steps listed
 /// under the endpoint's [spec].
 ///
@@ -292,7 +298,7 @@ async fn validate_invite_state(
 	invite_state: &[RawStrippedState],
 	room_version_rules: &RoomVersionRules,
 	room_id: OwnedRoomId,
-) -> Result<(OwnedEventId, HashMap<(StateEventType, StateKey), CanonicalJsonObject>)> {
+) -> Result<ValidatedInviteState> {
 	let allow_stripped = services.config.enable_legacy_invite_support;
 	trace!(?invite_state, "Raw invite state");
 	let mut invite_state_map: HashMap<(StateEventType, StateKey), _> =
@@ -325,54 +331,41 @@ async fn validate_invite_state(
 					"PDU in invite state (index {idx}) is completely malformed"
 				))),
 		};
-		let (state_event_id, state_event_json) = if full {
-			let (state_event_room_id, state_event_id, state_event_json) = services
-				.rooms
-				.event_handler
-				.parse_incoming_pdu(&raw_pdu, Some(room_version_rules))
-				.await
-				.map_err(|e| {
-					err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))
-				})?;
-			if state_event_room_id != room_id {
-				return Err!(Request(InvalidParam(debug_warn!(
-					%state_event_room_id,
-					%room_id,
-					"PDU in invite state ({state_event_id}) belongs to the wrong room"
-				))));
-			}
-
-			services
-				.server_keys
-				.verify_event(&state_event_json, room_version_rules)
-				.await
-				.map_err(|e| {
-					err!(Request(InvalidParam(
-						"Signature verification failed on invite event: {e}"
-					)))
-				})?;
-			(state_event_id, state_event_json)
+		let (state_event_id, state_event_json) = if !allow_stripped || full {
+			validate_invite_state_pdu(services, &raw_pdu, &room_id, room_version_rules).await?
 		} else {
-			warn!("Skipping verification of nonconformant invite state event");
-			let pdu =
-				serde_json::from_str::<CanonicalJsonObject>(raw_pdu.get()).map_err(|e| {
-					err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
-				})?;
-			(EventId::parse(format!("$stripped_invite_state_{idx}")).unwrap(), pdu)
+			validate_legacy_invite_state_event(&raw_pdu, idx)?
 		};
 
 		let Some(state_key) = state_event_json.get("state_key").and_then(|k| k.as_str()) else {
 			return Err!(Request(InvalidParam(debug_info!(
-				"PDU in invite state ({state_event_id}) is not a state event"
+				"Event in invite state ({state_event_id}) is not a state event"
 			))));
 		};
 		let Some(event_type) = state_event_json.get("type").and_then(|k| k.as_str()) else {
 			return Err!(Request(InvalidParam(debug_warn!(
-				"PDU in invite state ({state_event_id}) is not an event?"
+				"Event in invite state ({state_event_id}) is not an event?"
 			))));
 		};
 
 		let key = StateEventType::from(event_type).with_state_key(state_key);
+		if key.0 == StateEventType::RoomCreate && key.1 == "" {
+			// Ensure this is a legal create event.
+			let pdu_event = PduEvent::from_id_val(&state_event_id, state_event_json.clone())
+				.expect("must be able to create pdu event from event json");
+			debug!("Validating discovered create event in invite room state");
+			create_event_id = validate_invite_create_event(&pdu_event, room_version_rules)
+				.await
+				.inspect_err(|e| {
+					warn!(
+						error=?e,
+						"m.room.create event in invite state failed validation"
+					);
+				})
+				.ok()
+				.map(|_| state_event_id.clone());
+		}
+
 		match invite_state_map.entry(key) {
 			| Entry::Occupied(entry) =>
 				return Err!(Request(InvalidParam(
@@ -380,24 +373,79 @@ async fn validate_invite_state(
 					entry.key(),
 				))),
 			| Entry::Vacant(entry) => {
-				if entry.key().0 == StateEventType::RoomCreate {
-					// Ensure this is a legal create event.
-					let pdu_event =
-						PduEvent::from_id_val(&state_event_id, state_event_json.clone())
-							.expect("must be able to create pdu event from event json");
-					debug!("Validating discovered create event in invite room state");
-					validate_invite_create_event(&pdu_event, room_version_rules).await?;
-					create_event_id = Some(state_event_id);
-				}
 				entry.insert(state_event_json);
 			},
 		}
 	}
-	let Some(create_event_id) = create_event_id else {
+
+	format_check_state_map(
+		create_event_id.as_deref(),
+		&invite_state_map,
+		room_version_rules,
+		allow_stripped,
+	)?;
+
+	Ok((create_event_id, invite_state_map))
+}
+
+async fn validate_invite_state_pdu(
+	services: &crate::State,
+	raw_pdu: &RawValue,
+	room_id: &ruma::RoomId,
+	rules: &RoomVersionRules,
+) -> Result<(OwnedEventId, CanonicalJsonObject)> {
+	let (state_event_room_id, state_event_id, state_event_json) = services
+		.rooms
+		.event_handler
+		.parse_incoming_pdu(&raw_pdu, Some(rules))
+		.await
+		.map_err(|e| {
+			err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))
+		})?;
+	if state_event_room_id != room_id {
 		return Err!(Request(InvalidParam(debug_warn!(
-			parsed_state=?invite_state_map,
-			"Invite state does not contain the m.room.create event"
+			%state_event_room_id,
+			%room_id,
+			"PDU in invite state ({state_event_id}) belongs to the wrong room"
 		))));
+	}
+
+	services
+		.server_keys
+		.verify_event(&state_event_json, rules)
+		.await
+		.map_err(|e| {
+			err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))
+		})?;
+	Ok((state_event_id, state_event_json))
+}
+
+async fn validate_legacy_invite_state_event(
+	event: &RawValue,
+	idx: usize,
+) -> Result<(OwnedEventId, CanonicalJsonObject)> {
+	let pdu = serde_json::from_str::<CanonicalJsonObject>(event.get()).map_err(|e| {
+		err!(BadServerResponse(debug_warn!("Error parsing incoming event {e:?}")))
+	})?;
+	Ok((EventId::parse(format!("$stripped_invite_state_{idx}"))?, pdu))
+}
+
+fn format_check_state_map(
+	create_event_id: Option<&EventId>,
+	invite_state_map: &HashMap<(StateEventType, StateKey), CanonicalJsonObject>,
+	room_version_rules: &RoomVersionRules,
+	allow_stripped: bool,
+) -> Result<()> {
+	let Some(create_event_id) = create_event_id else {
+		if !allow_stripped {
+			return Err!(Request(InvalidParam(debug_warn!(
+				parsed_state=?invite_state_map,
+				"Invite state does not contain a valid m.room.create event"
+			))));
+		}
+
+		warn!("Not validating final invite state map, no valid create event was included.");
+		return Ok(());
 	};
 	invite_state_map.iter().try_for_each(|(key, event_json)| {
 		if event_json.get("signatures").is_none() && allow_stripped {
@@ -415,11 +463,8 @@ async fn validate_invite_state(
 				)))
 			})
 		}
-	})?;
-
-	Ok((create_event_id, invite_state_map))
+	})
 }
-
 #[derive(Deserialize)]
 struct MFederate {
 	#[serde(rename = "m.federate")]

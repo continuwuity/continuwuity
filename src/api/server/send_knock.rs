@@ -67,7 +67,7 @@ pub(crate) async fn create_knock_event_v1_route(
 		&services,
 		&body.pdu,
 		&room_version_rules,
-		create_event.event_id().to_owned(),
+		Some(create_event.event_id().to_owned()),
 		body.room_id.clone(),
 		body.event_id.clone(),
 	)

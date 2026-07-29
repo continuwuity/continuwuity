@@ -252,7 +252,7 @@ pub(crate) async fn create_join_event_v2_route(
 		&services,
 		&body.pdu,
 		&room_version_rules,
-		create_event.event_id.clone(),
+		Some(create_event.event_id.clone()),
 		body.room_id.clone(),
 		body.event_id.clone(),
 	)
