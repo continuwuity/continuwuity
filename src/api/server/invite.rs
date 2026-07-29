@@ -351,19 +351,24 @@ async fn validate_invite_state(
 		let key = StateEventType::from(event_type).with_state_key(state_key);
 		if key.0 == StateEventType::RoomCreate && key.1.is_empty() {
 			// Ensure this is a legal create event.
-			let pdu_event = PduEvent::from_id_val(&state_event_id, state_event_json.clone())
-				.expect("must be able to create pdu event from event json");
-			debug!("Validating discovered create event in invite room state");
-			create_event_id = validate_invite_create_event(&pdu_event, room_version_rules)
-				.await
-				.inspect_err(|e| {
-					warn!(
-						error=?e,
-						"m.room.create event in invite state failed validation"
-					);
-				})
-				.ok()
-				.map(|()| state_event_id.clone());
+			match PduEvent::from_id_val(&state_event_id, state_event_json.clone()) {
+				| Ok(pdu_event) => {
+					debug!("Validating discovered create event in invite room state");
+					create_event_id = Some(
+						validate_invite_create_event(&pdu_event, room_version_rules)
+							.await
+							.map(|_| state_event_id.clone())?,
+					)
+				},
+				| Err(e) => {
+					if !allow_stripped {
+						return Err!(Request(InvalidParam(
+							"Invalid create event in invite room state: {e:?}"
+						)));
+					}
+					warn!(error=?e, "Invalid create event in invite room state");
+				},
+			};
 		}
 
 		match invite_state_map.entry(key) {
