@@ -17,7 +17,7 @@ use ruma::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation::membership::{RawStrippedState, create_invite},
 	},
-	events::{AnyStrippedStateEvent, StateEventType, room::member::MembershipState},
+	events::{StateEventType, room::member::MembershipState},
 	room_version_rules::RoomVersionRules,
 };
 use serde::Deserialize;
@@ -349,7 +349,7 @@ async fn validate_invite_state(
 		};
 
 		let key = StateEventType::from(event_type).with_state_key(state_key);
-		if key.0 == StateEventType::RoomCreate && key.1 == "" {
+		if key.0 == StateEventType::RoomCreate && key.1.is_empty() {
 			// Ensure this is a legal create event.
 			let pdu_event = PduEvent::from_id_val(&state_event_id, state_event_json.clone())
 				.expect("must be able to create pdu event from event json");
@@ -363,7 +363,7 @@ async fn validate_invite_state(
 					);
 				})
 				.ok()
-				.map(|_| state_event_id.clone());
+				.map(|()| state_event_id.clone());
 		}
 
 		match invite_state_map.entry(key) {
@@ -397,7 +397,7 @@ async fn validate_invite_state_pdu(
 	let (state_event_room_id, state_event_id, state_event_json) = services
 		.rooms
 		.event_handler
-		.parse_incoming_pdu(&raw_pdu, Some(rules))
+		.parse_incoming_pdu(raw_pdu, Some(rules))
 		.await
 		.map_err(|e| {
 			err!(Request(InvalidParam(debug_warn!("Invalid PDU in invite state: {e}"))))
@@ -420,7 +420,7 @@ async fn validate_invite_state_pdu(
 	Ok((state_event_id, state_event_json))
 }
 
-async fn validate_legacy_invite_state_event(
+fn validate_legacy_invite_state_event(
 	event: &RawValue,
 	idx: usize,
 ) -> Result<(OwnedEventId, CanonicalJsonObject)> {
@@ -455,7 +455,7 @@ fn format_check_state_map(
 			service::rooms::event_handler::Service::pdu_format_check_1(
 				event_json,
 				room_version_rules,
-				&create_event_id,
+				create_event_id,
 			)
 			.map_err(|e| {
 				err!(Request(InvalidParam(
