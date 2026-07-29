@@ -1723,6 +1723,15 @@ pub struct Config {
 	#[serde(default)]
 	pub send_messages_from_ignored_users_to_client: bool,
 
+	/// Disables strict validation on incoming federated invites. This weakens
+	/// your server's security - only enable it if you encounter issues
+	/// receiving invites from outdated servers.
+	///
+	/// Validation will still be performed, but it will log a warning instead of
+	/// causing an error.
+	#[serde(default)]
+	pub enable_legacy_invite_support: bool,
+
 	/// Send "org.matrix.dummy_event" events to the client. This is a debugging
 	/// option.
 	#[serde(default)]
