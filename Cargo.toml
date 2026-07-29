@@ -564,7 +564,9 @@ features = ["std"]
 version = "0.3.0"
 
 [workspace.dependencies.resolvematrix]
-version = "1.2.0"
+#version = "1.2.0"
+git = "https://forgejo.ellis.link/continuwuation/resolvematrix"
+rev = "434f56b4f90552e8f79f8716f8d49a513f1a2f81"
 
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"
