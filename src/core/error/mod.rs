@@ -88,7 +88,9 @@ pub enum Error {
 	#[error(transparent)]
 	YamlSer(#[from] serde_saphyr::ser_error::Error),
 	#[error(transparent)]
-	ResolveServer(#[from] resolvematrix::error::ResolveServerError),
+	ResolveServer(#[from] resolvematrix::error::ServerResolverBuilderError),
+	#[error(transparent)]
+	ServerResolutionError(#[from] resolvematrix::error::ServerResolutionError),
 
 	// ruma/conduwuit
 	#[error("Arithmetic operation failed: {0}")]
