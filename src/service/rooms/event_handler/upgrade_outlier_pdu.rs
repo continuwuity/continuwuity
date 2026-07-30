@@ -104,24 +104,24 @@ impl super::Service {
 		// Determine whether this PDU should be soft-failed.
 		// If the auth check failed, invariably yes. Otherwise, only if the user isn't
 		// allowed to redact the target event (if any).
-		let mut should_soft_fail =
-			match (passes_current_state, incoming_pdu.redacts_id(&room_version_rules)) {
-				| (false, _) => true,
-				| (true, None) => false,
-				| (true, Some(redact_id)) => self
-					.services
+		let redaction_permitted =
+			if let Some(redacted_id) = incoming_pdu.redacts_id(&room_version_rules) {
+				self.services
 					.state_accessor
-					.user_can_redact(&redact_id, incoming_pdu.sender(), room_id, true)
+					.user_can_redact(&redacted_id, incoming_pdu.sender(), room_id, true)
 					.await
-					.is_ok_and(is_true!()),
+					.is_ok_and(is_true!())
+			} else {
+				true
 			};
+		let mut should_soft_fail = !redaction_permitted || !passes_current_state;
 
 		if !should_soft_fail {
 			// Now we can perform check 7, which is ensuring the event passes policy server
 			// checks.
 			// We explicitly only do this if we aren't already going to soft-fail the event,
 			// since the policy server refusing this event also soft-fails it.
-			debug!(event_id = %incoming_pdu.event_id, "Checking policy server for event");
+			debug!("Checking policy server for event");
 			should_soft_fail = !self
 				.policy_server_check_7(&incoming_pdu, &mut val, &room_version_rules)
 				.await
@@ -153,6 +153,12 @@ impl super::Service {
 					should_soft_fail = true;
 				}
 			}
+		} else {
+			debug!(
+				%redaction_permitted,
+				%passes_current_state,
+				"Intending to soft-fail event (skipping further PDU checks)"
+			);
 		}
 
 		// The PDU has now passed all checks! We can now promote it (or soft-fail it if

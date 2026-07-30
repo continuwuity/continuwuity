@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, matrix::Event, pdu::PartialPdu};
+use conduwuit::{Err, Result, matrix::Event, pdu::PartialPdu, trace};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{
@@ -46,6 +46,7 @@ impl super::Service {
 		let power_levels = self.get_room_power_levels(room_id).await;
 
 		if power_levels.user_can_redact_event_of_other(sender) {
+			trace!(%sender, "Sender is allowed to redact other users' events");
 			return Ok(true);
 		}
 
@@ -59,10 +60,12 @@ impl super::Service {
 					},
 				| _ => false,
 			};
+			trace!(%is_own_event, "User can redact own event");
 
 			return Ok(is_own_event);
 		}
 
+		trace!("User is not permitted to redact their own event nor others' events");
 		Ok(false)
 	}
 
