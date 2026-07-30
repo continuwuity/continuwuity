@@ -7,7 +7,7 @@ use conduwuit::{
 	Err, Event, Result, debug, debug_error, debug_warn, defer, matrix::PartialPdu, trace,
 	utils::time::jitter,
 };
-use futures::{FutureExt, StreamExt, future::try_join3};
+use futures::{FutureExt, StreamExt, future::try_join4};
 use ruma::{CanonicalJsonValue, EventId, RoomId, ServerName, UserId};
 use tokio::sync::mpsc;
 
@@ -69,9 +69,13 @@ impl super::Service {
 				.and_then(|s| UserId::parse(s).ok())
 				.is_some_and(|u| self.services.globals.user_is_local(&u));
 
-		let (room_exists, is_disabled, ()) = try_join3(
+		let (room_exists, is_disabled, is_resident, ()) = try_join4(
 			self.services.metadata.exists(room_id).map(Ok),
 			self.services.metadata.is_disabled(room_id).map(Ok),
+			self.services
+				.state_cache
+				.server_in_room(self.services.globals.server_name(), room_id)
+				.map(Ok),
 			self.acl_check(origin, room_id),
 		)
 		.await
@@ -85,12 +89,20 @@ impl super::Service {
 			)));
 		}
 
+		// If the room doesn't exist (we don't have the create event), there's nothing
+		// we can do.
 		if !room_exists {
+			return Err!(Request(NotFound("Room is unknown to this server")));
+		}
+		// If the room does exist, but we aren't a resident of it, we might be
+		// interested in an out-of-band membership (for example, an inviter rescinding
+		// their invite).
+		if !is_resident {
 			if is_interesting_member_event {
 				// TODO: handle interesting membership events where we aren't in
 				// the room
 			}
-			return Err!(Request(NotFound("Room is unknown to this server")));
+			return Err!(Request(NotFound("This server does not have any members this room")));
 		}
 
 		// Fetch create event
