@@ -20,17 +20,19 @@ First, go into the `#admins` room of your homeserver. The first person that
 registered on the homeserver automatically joins it. Then send a message into
 the room like this:
 
-    !admin appservices register
-    ```
-    paste
-    the
-    contents
-    of
-    the
-    yaml
-    registration
-    here
-    ```
+~~~txt
+!admin appservices register
+```
+paste
+the
+contents
+of
+the
+yaml
+registration
+here
+```
+~~~
 
 You can confirm it worked by sending a message like this:
 `!admin appservices list`
@@ -51,3 +53,9 @@ To remove an appservice go to your admin room and execute
 `!admin appservices unregister <name>`
 
 where `<name>` one of the output of `appservices list`.
+
+## Caveats
+
+### Docker DNS
+
+If you follow the [DNS tuning guide](./guides/dns.mdx#for-docker-users) and mount a custom `/etc/resolv.conf`, you may not be able to connect to appservices containers via hostname. Follow the workaround [there](./guides/dns.mdx#breaking-resolution-with-container-hostnames) to connect to your appservice via static IPs.
