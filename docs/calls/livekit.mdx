@@ -1,6 +1,6 @@
 # Matrix RTC/Element Call Setup
 
-This guide assumes that you are using docker compose for deployment. LiveKit only provides Docker images.
+This guide assumes that you are using docker compose for deployment.
 
 :::tip
 You can find help setting up MatrixRTC in our dedicated room - [#matrixrtc:continuwuity.org](https://matrix.to/#/%23matrixrtc%3Acontinuwuity.org)
@@ -8,15 +8,15 @@ You can find help setting up MatrixRTC in our dedicated room - [#matrixrtc:conti
 
 ## Instructions
 
-### 1. Domain
+### 1. Set up your domain
 
 LiveKit should live on its own domain or subdomain. In this guide we use `livekit.example.com` - this should be replaced with a domain you control.
 
 Make sure the DNS record for the (sub)domain you plan to use is pointed to your server.
 
-### 2. Services
+### 2. Set up the LiveKit services
 
-Using LiveKit with Matrix requires two services - LiveKit itself, and a service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
+Using LiveKit with Matrix requires two services - LiveKit itself, and a brokering service (`lk-jwt-service`) that grants Matrix users permission to connect to it.
 
 You must generate a key and secret to allow the Matrix service to authenticate with LiveKit. `LK_MATRIX_KEY` should be around 20 random characters, and `LK_MATRIX_SECRET` should be around 64. Remember to replace these with the actual values!
 
@@ -79,6 +79,10 @@ keys:
   LK_MATRIX_KEY: LK_MATRIX_SECRET
   # replace these with your key-secret pair. Example:
   # APIUxUnMnSkuFWV: t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A
+
+# do not create rooms by default
+room:
+  auto_create: false
 ```
 
 Consult [`config-sample.yaml`][config-sample-yaml] for all LiveKit options.
