@@ -1,1 +1,1 @@
-Refactor and improve TURN documentation: remove unsafe setups from default docs, and add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself
+Refactor TURN docs and remove unsafe setups. Polish LiveKit docs: the recommended `room.auto_create: false` is now included. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself
