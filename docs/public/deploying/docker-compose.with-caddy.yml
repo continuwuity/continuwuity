@@ -1,48 +1,48 @@
 # Continuwuity - Using Caddy Docker Image
 
 services:
-    caddy:
-        image: "docker.io/caddy:latest"
-        ports:
-            - 80:80
-            - 443:443
-            - 8448:8448
-        networks:
-            - caddy
-        volumes:
-            - ./data:/data
-            # mount your created Caddyfile into the container
-            - ./Caddyfile:/etc/caddy/Caddyfile
-        restart: unless-stopped
+  caddy:
+    image: "docker.io/caddy:latest"
+    ports:
+      - 80:80
+      - 443:443
+      - 8448:8448
+    networks:
+      - proxy
+    volumes:
+      - ./data:/data
+      # mount your created Caddyfile into the container
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    restart: unless-stopped
 
-    homeserver:
-        image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
-        restart: unless-stopped
-        command: /sbin/conduwuit
-        volumes:
-            - db:/var/lib/continuwuity
-            - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
-            #- ./continuwuity.toml:/etc/continuwuity.toml
-        environment:
-            CONTINUWUITY_SERVER_NAME: example.com
-            CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
-            CONTINUWUITY_ADDRESS: 0.0.0.0
-            CONTINUWUITY_PORT: 8008
-            #CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
+  homeserver:
+    image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
+    restart: unless-stopped
+    command: /sbin/conduwuit
+    volumes:
+      - db:/var/lib/continuwuity
+      - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
+      # - ./continuwuity.toml:/etc/continuwuity.toml
+    environment:
+      CONTINUWUITY_SERVER_NAME: example.com
+      CONTINUWUITY_DATABASE_PATH: /var/lib/continuwuity
+      CONTINUWUITY_ADDRESS: 0.0.0.0
+      CONTINUWUITY_PORT: 8008
+      # CONTINUWUITY_CONFIG: '/etc/continuwuity.toml' # Uncomment if you mapped config toml above
 
-            ## (Optional) Serve .well-known files to tell others to reach Continuwuity on port :443
-            ## If you do this, remove all routes to port :8448 from the compose and Caddyfile
-            # CONTINUWUITY_WELL_KNOWN: |
-            #     {
-            #     client=https://example.com,
-            #     server=example.com:443
-            #     }
+      ## (Optional) Serve .well-known files to tell others to reach Continuwuity on port :443
+      ## If you do this, remove all routes to port :8448 from the compose and Caddyfile
+      # CONTINUWUITY_WELL_KNOWN: |
+      #     {
+      #     client=https://example.com,
+      #     server=example.com:443
+      #     }
 
-        networks:
-            - caddy
+    networks:
+      - proxy
 
 networks:
-    caddy:
+  proxy:
 
 volumes:
-    db:
+  db:
