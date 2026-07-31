@@ -197,6 +197,21 @@ Test that your setup works by following these [instructions](./generic.mdx#how-d
 
 Check your container logs using `docker-compose logs --follow` to debug any issues. See the [Troubleshooting](../troubleshooting.mdx) page for common errors and how to fix them.
 
+## Updating
+
+To update to a new version of Continuwuity, use the following commands:
+
+```bash
+# stop the services in docker-compose.yaml
+docker-compose down
+
+# pull latest images for the services in docker-compose.yaml
+docker-compose pull
+
+# spin up the containers again
+docker-compose up -d
+```
+
 ## Other deployment methods
 
 ### Docker - Quick Run
