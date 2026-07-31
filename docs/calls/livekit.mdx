@@ -85,7 +85,7 @@ room:
   auto_create: false
 ```
 
-Consult [`config-sample.yaml`][config-sample-yaml] for all LiveKit options.
+Consult [`config-sample.yaml`][livekit-config-sample-yaml] for all LiveKit options.
 
 [livekit-config-sample-yaml]: https://github.com/livekit/livekit/blob/master/config-sample.yaml
 
@@ -357,8 +357,9 @@ To debug any issues, you can place a call or redo the Testing instructions, and 
 
 ### Common errors in Element Call UI
 
-- `MISSING_MATRIX_RTC_FOCUS`: LiveKit is missing from Continuwuity's config file
+- `MISSING_MATRIX_RTC_FOCUS`/`MISSING_MATRIX_RTC_TRANSPORT`: LiveKit is missing from Continuwuity's config file
 - "Waiting for media" popup always showing: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
+- `OPEN_ID_ERROR`: Your client can reach out to `lk-jwt-service`, but has problems authenticating with it. In this case, check `lk-jwt-service` logs for more details
 
 For browser-based clients, you can also inspect connections using DevTools' Networking tab, to see which requests are erroring out.
 
