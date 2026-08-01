@@ -1,6 +1,5 @@
 use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
-use bytes::Bytes;
 use conduwuit::{
 	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, trace,
 	utils::response::LimitReadExt,
@@ -11,7 +10,8 @@ use resolvematrix::resolution::Resolution;
 use ruma::{
 	ServerName,
 	api::{
-		EndpointError, IncomingResponse, OutgoingRequest, OutgoingRequestExt, SupportedVersions,
+		EndpointError, IncomingResponseExt, OutgoingRequest, OutgoingRequestExt,
+		SupportedVersions,
 		auth_scheme::{AuthScheme, NoAuthentication},
 		error::Error as RumaError,
 		federation::authentication::{ServerSignatures, ServerSignaturesInput},
@@ -232,8 +232,12 @@ impl super::Service {
 		let response =
 			into_http_response(dest, actual, method, url, response, size_limit).await?;
 
-		T::IncomingResponse::try_from_http_response(response)
-			.map_err(|e| err!(BadServerResponse("Server returned bad 200 response: {e:?}")))
+		let (parts, body) = response.into_parts();
+		T::IncomingResponse::try_from_http_response(http::Response::from_parts(
+			parts,
+			body.as_ref(),
+		))
+		.map_err(|e| err!(BadServerResponse("Server returned bad 200 response: {e:?}")))
 	}
 }
 
@@ -244,7 +248,7 @@ async fn into_http_response(
 	url: &Url,
 	mut response: Response,
 	max_size: u64,
-) -> Result<http::Response<Bytes>> {
+) -> Result<http::Response<Vec<u8>>> {
 	let status = response.status();
 	trace!(
 		%status, %method,
@@ -267,20 +271,15 @@ async fn into_http_response(
 
 	trace!("Waiting for response body...");
 	let http_response = http_response_builder
-		.body(
-			response
-				.limit_read(max_size)
-				.await
-				.unwrap_or_default()
-				.into(),
-		)
+		.body(response.limit_read(max_size).await.unwrap_or_default())
 		.expect("reqwest body is valid http body");
 
 	debug!("Got {status:?} for {method} {url}");
 	if !status.is_success() {
+		let (parts, body) = http_response.into_parts();
 		return Err(Error::Federation(
 			dest.to_owned(),
-			RumaError::from_http_response(http_response),
+			RumaError::from_http_response(http::Response::from_parts(parts, body.as_ref())),
 		));
 	}
 

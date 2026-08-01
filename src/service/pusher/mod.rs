@@ -13,7 +13,7 @@ use ipaddress::IPAddress;
 use ruma::{
 	DeviceId, OwnedDeviceId, RoomId, UInt, UserId,
 	api::{
-		IncomingResponse, OutgoingRequest, OutgoingRequestExt,
+		IncomingResponseExt, OutgoingRequest, OutgoingRequestExt,
 		auth_scheme::NoAuthentication,
 		client::push::{Pusher, PusherKind, set_pusher},
 		path_builder::SinglePath,
@@ -266,10 +266,12 @@ impl Service {
 					)));
 				}
 
+				let (parts, body) = http_response_builder
+					.body(body)
+					.expect("reqwest body is valid http body")
+					.into_parts();
 				let response = T::IncomingResponse::try_from_http_response(
-					http_response_builder
-						.body(body)
-						.expect("reqwest body is valid http body"),
+					http::Response::from_parts(parts, body.as_ref()),
 				);
 				response.map_err(|e| {
 					err!(BadServerResponse(warn!(

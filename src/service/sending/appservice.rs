@@ -5,7 +5,7 @@ use conduwuit::{
 	Err, Result, debug_error, err, trace, utils, utils::response::LimitReadExt, warn,
 };
 use ruma::api::{
-	IncomingResponse, OutgoingRequest, OutgoingRequestExt,
+	IncomingResponseExt, OutgoingRequest, OutgoingRequestExt,
 	appservice::Registration,
 	auth_scheme::{AccessToken, SendAccessToken},
 	path_builder::SinglePath,
@@ -97,11 +97,14 @@ impl super::Service {
 			)));
 		}
 
-		let response = T::IncomingResponse::try_from_http_response(
-			http_response_builder
-				.body(body)
-				.expect("reqwest body is valid http body"),
-		);
+		let (parts, body) = http_response_builder
+			.body(body)
+			.expect("reqwest body is valid http body")
+			.into_parts();
+		let response = T::IncomingResponse::try_from_http_response(http::Response::from_parts(
+			parts,
+			body.as_ref(),
+		));
 
 		response.map(Some).map_err(|e| {
 			err!(BadServerResponse(warn!(

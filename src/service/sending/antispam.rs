@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use conduwuit::{Err, Result, debug_info, err, utils::response::LimitReadExt};
 use reqwest::Client;
 use ruma::api::{
-	IncomingResponse, OutgoingRequest, OutgoingRequestExt,
+	IncomingResponseExt, OutgoingRequest, OutgoingRequestExt,
 	auth_scheme::{AppserviceToken, SendAccessToken},
 	path_builder::VersionHistory,
 };
@@ -76,11 +76,14 @@ where
 		};
 	}
 
-	let response = T::IncomingResponse::try_from_http_response(
-		http_response_builder
-			.body(body)
-			.expect("reqwest body is valid http body"),
-	);
+	let (parts, body) = http_response_builder
+		.body(body)
+		.expect("reqwest body is valid http body")
+		.into_parts();
+	let response = T::IncomingResponse::try_from_http_response(http::Response::from_parts(
+		parts,
+		body.as_ref(),
+	));
 
 	response.map_err(|e| {
 		err!(BadServerResponse(warn!(
