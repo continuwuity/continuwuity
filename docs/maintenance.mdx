@@ -42,7 +42,8 @@ running compaction is not recommended, or compaction via a timer, due to
 creating unnecessary I/O amplification. RocksDB is built with io_uring support
 via liburing for improved read performance.
 
-RocksDB troubleshooting can be found [in the RocksDB section of troubleshooting](troubleshooting.md).
+RocksDB troubleshooting can be found [in the RocksDB section of 
+troubleshooting](./troubleshooting.mdx#rocksdb--database-issues).
 
 ### Compression
 
@@ -78,37 +79,47 @@ config option.
 
 ## Backups
 
-Currently only RocksDB supports online backups. If you'd like to backup your
-database online without any downtime, see the `!admin server` command for the
-backup commands and the `database_backup_path` config options in the example
-config. Please note that the format of the database backup is not the exact
-same. This is unfortunately a bad design choice by Facebook as we are using the
+### Database online backup
+
+If you'd like to backup your database online without any downtime, see the
+[`!admin server` command](./reference/admin/server.md) for the backup commands
+and the `database_backup_path` config options in the example config.
+
+Please note that the format of the database backup is not the exact same.
+This is unfortunately a bad design choice by Facebook as we are using the
 database backup engine API from RocksDB, however the data is still there and can
 still be joined together.
 
 To restore a backup from an online RocksDB backup:
 
-- shutdown Continuwuity
-- create a new directory for merging together the data
-- in the online backup created, copy all `.sst` files in
+- Shutdown Continuwuity
+- Create a new directory for merging together the data
+- In the online backup created, copy all `.sst` files in
 `$DATABASE_BACKUP_PATH/shared_checksum` to your new directory
 - trim all the strings so instead of `######_sxxxxxxxxx.sst`, it reads
 `######.sst`. A way of doing this with sed and bash is `for file in *.sst; do mv
 "$file" "$(echo "$file" | sed 's/_s.*/.sst/')"; done`
-- copy all the files in `$DATABASE_BACKUP_PATH/1` (or the latest backup number
+- Copy all the files in `$DATABASE_BACKUP_PATH/private/1` (or the latest backup number
 if you have multiple) to your new directory
-- set your `database_path` config option to your new directory, or replace your
+- Set your `database_path` config option to your new directory, or replace your
 old one with the new one you crafted
-- start up Continuwuity again and it should open as normal
+- Verify that 
+- Start up Continuwuity again and it should open as normal
+
+Note: You can verify the necessary files to copy by comparing them with contents in the `$DATABASE_BACKUP_PATH/meta/1` (or latest backup number) file.
+
+### Database offline backup
 
 If you'd like to do an offline backup, shutdown Continuwuity and copy your
 `database_path` directory elsewhere. This can be restored with no modifications
 needed.
 
-Backing up media is also just copying the `media/` directory from your database
-directory.
+### Media backup
 
-## Media
+Media is stored in the `media/` subdirectory from your database directory.
+Backing up media is also just copying that subdirectory.
+
+## Media management
 
 Media still needs various work, however Continuwuity implements media deletion via:
 
@@ -117,9 +128,12 @@ event)
 - Delete list of MXC URIs
 - Delete remote media in the past `N` seconds/minutes via filesystem metadata on
 the file created time (`btime`) or file modified time (`mtime`)
+- Delete all media from a local user
+- Delete all media from a remote server
+- Delete cached URL previews
 
-See the `!admin media` command for further information. All media in Continuwuity
-is stored at `$DATABASE_DIR/media`. This will be configurable soon.
+See the [`!admin media` commands](./reference/admin/media.md) for further information.
+All media in Continuwuity is stored at `$DATABASE_DIR/media`.
 
 If you are finding yourself needing extensive granular control over media, we
 recommend looking into [Matrix Media
@@ -130,6 +144,6 @@ management.
 Built-in S3 support is also planned, but for now using a "S3 filesystem" on
 `media/` works. Continuwuity also sends a `Cache-Control` header of 1 year and
 immutable for all media requests (download and thumbnail) to reduce unnecessary
-media requests from browsers, reduce bandwidth usage, and reduce load.
+media requests, bandwidth, and load.
 
 [rocksdb-compaction]: https://github.com/facebook/rocksdb/wiki/Compaction
