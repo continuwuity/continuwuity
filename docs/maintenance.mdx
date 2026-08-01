@@ -42,7 +42,7 @@ running compaction is not recommended, or compaction via a timer, due to
 creating unnecessary I/O amplification. RocksDB is built with io_uring support
 via liburing for improved read performance.
 
-RocksDB troubleshooting can be found [in the RocksDB section of 
+RocksDB troubleshooting can be found [in the RocksDB section of
 troubleshooting](./troubleshooting.mdx#rocksdb--database-issues).
 
 ### Compression
@@ -103,7 +103,6 @@ To restore a backup from an online RocksDB backup:
 if you have multiple) to your new directory
 - Set your `database_path` config option to your new directory, or replace your
 old one with the new one you crafted
-- Verify that 
 - Start up Continuwuity again and it should open as normal
 
 Note: You can verify the necessary files to copy by comparing them with contents in the `$DATABASE_BACKUP_PATH/meta/1` (or latest backup number) file.
