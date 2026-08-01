@@ -6,7 +6,7 @@ This page aims to outline various performance tweaks for Continuwuity and their 
 
 ## DNS tuning (recommended)
 
-Please see the dedicated [DNS tuning guide](./dns.mdx).
+For federating servers, DNS tuning is important for a smooth experience. Please see the dedicated [DNS tuning guide](./dns.mdx).
 
 ## Cache capacities
 
@@ -115,6 +115,8 @@ https://matrix.example.com {
 
 :::info Vet your trusted servers!
 Trusted servers are your first point of contact when obtaining public keys from other servers, and they could theoretically impersonate other servers and cause significant harm to your deployment. Please thoroughly verify your trusted servers' credibility before adding them to your configuration.
+
+If you need suggestions for trusted servers, ask in the Continuwuity main room.
 :::
 
 Trusted servers are queried sequentially in the order they are listed. If you have multiple trusted servers configured, put the faster ones first:

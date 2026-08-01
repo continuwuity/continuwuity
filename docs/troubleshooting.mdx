@@ -13,7 +13,7 @@ Please check that your issues are not due to problems with your Docker setup.
 Some slowness is to be expected if you're the first person on your homeserver to join a room (which will
 always be the case for single-user homeservers). In this situation, your homeserver has to verify the signatures of
 all of the state events sent by other servers before your join. To make this process as fast as possible, make sure you have
-multiple fast, trusted servers listed in `trusted_servers` in your configuration, and ensure
+[multiple fast, trusted servers](./guides/performance.mdx#tuning-your-trusted-servers) listed in `trusted_servers` in your configuration, and ensure
 `query_trusted_key_servers_first_on_join` is set to true (the default).
 If you need suggestions for trusted servers, ask in the Continuwuity main room.
 
@@ -22,6 +22,8 @@ on your homeserver, may be caused by [issue !779](https://forgejo.ellis.link/con
 which is a longstanding bug with synchronizing room joins to clients. In this situation, you did succeed in joining the room, but
 the bug caused your homeserver to forget to tell your client. **To fix this, clear your client's cache.** Both Element and Cinny
 have a button to clear their cache in the "About" section of their settings.
+
+[Tuning your DNS](./guides/dns.mdx) can also help make initial joins faster.
 
 ### Configuration not working as expected
 
@@ -64,7 +66,7 @@ Follow the [**DNS tuning guide**](./guides/dns) for details on setting it up.
 
 ### Intermittent federation failures to a specific server
 
-There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors.
+There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors, and `!admin query resolver cache <SERVER_NAME>` would return a wrong destination endpoint.
 
 To fix this, you can run `!admin query resolver flush-cache <SERVER_NAME>` to clear the bad cache for that domain, and outbound requests should work again.
 
@@ -121,7 +123,7 @@ much possible corruption is restored
 
 Note that users should not really need to debug things. If you find yourself
 debugging and find the issue, please let us know and/or how we can fix it.
-Various debug commands can be found in `!admin debug`.
+Various debug commands can be [found in `!admin debug`](./reference/admin/debug).
 
 ### Debug/Trace log level
 
