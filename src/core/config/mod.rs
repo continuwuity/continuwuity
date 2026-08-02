@@ -1526,6 +1526,14 @@ pub struct Config {
 	#[serde(default = "true_fn")]
 	pub allow_incoming_typing: bool,
 
+	/// Allow the use of unstable persistent "sticky events" ([MSC4354])
+	///
+	/// MSC4354: https://c10y.cc/MSC4354
+	///
+	/// default: false
+	#[serde(default)]
+	pub allow_sticky_events: bool,
+
 	/// Maximum time federation user can indicate typing.
 	///
 	/// default: 30

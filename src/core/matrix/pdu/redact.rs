@@ -11,6 +11,9 @@ impl super::Pdu {
 
 		self.unsigned = None;
 
+		// a redacted sticky event is just a normal event (MSC4354)
+		self.sticky = None;
+
 		let mut content = serde_json::from_str(self.content.get()).map_err(|e| {
 			err!(Request(BadJson("Failed to deserialize content into type: {e}")))
 		})?;

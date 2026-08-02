@@ -20,6 +20,8 @@ pub struct PartialPdu {
 
 	pub content: Box<RawJsonValue>,
 
+	pub sticky: Option<Box<RawJsonValue>>,
+
 	pub unsigned: Option<Unsigned>,
 
 	pub state_key: Option<StateKey>,
@@ -66,6 +68,7 @@ impl Default for PartialPdu {
 		Self {
 			event_type: "m.room.message".into(),
 			content: to_raw_value(&json!({})).unwrap(),
+			sticky: None,
 			unsigned: None,
 			state_key: None,
 			redacts: None,

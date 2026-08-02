@@ -181,6 +181,10 @@ pub trait Event: Clone + Debug {
 	/// The state key for this event.
 	fn state_key(&self) -> Option<&str>;
 
+	/// The MSC4354 sticky object, verbatim, if the event has one.
+	#[inline]
+	fn sticky(&self) -> Option<&RawJsonValue> { None }
+
 	/// The event type.
 	fn kind(&self) -> &TimelineEventType;
 

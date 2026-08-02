@@ -414,6 +414,7 @@ where
 		content,
 		origin: None,
 		redacts: None,
+		sticky: None,
 		unsigned: None,
 		auth_events,
 		prev_events,

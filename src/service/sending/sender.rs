@@ -14,6 +14,7 @@ use conduwuit::{
 };
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
+	matrix::pdu::sticky,
 	result::LogErr,
 	utils::{
 		ReadyExt, calculate_hash, continue_exponential_backoff_secs,
@@ -268,7 +269,10 @@ impl Service {
 			}
 
 			let entry = txns.entry(dest.clone()).or_default();
-			if self.server.config.startup_netburst_keep >= 0 && entry.len() >= keep {
+			let over_budget =
+				self.server.config.startup_netburst_keep >= 0 && entry.len() >= keep;
+
+			if over_budget && !self.survives_netburst_trim(&event).await {
 				warn!(
 					startup_netburst_keep = self.server.config.startup_netburst_keep,
 					queue_size = entry.len(),
@@ -287,6 +291,29 @@ impl Service {
 				futures.push(self.send_events(dest.clone(), events));
 			}
 		}
+	}
+
+	/// Whether this event skips the netburst budget, which MSC4354 asks of
+	/// still-sticky events. Only netburst delivers this queue, so with it
+	/// disabled there is nothing to keep the event for.
+	async fn survives_netburst_trim(&self, event: &SendingEvent) -> bool {
+		if !self.server.config.allow_sticky_events || !self.server.config.startup_netburst {
+			return false;
+		}
+
+		let SendingEvent::Pdu(pdu_id) = event else {
+			return false;
+		};
+
+		let Ok(pdu) = self.services.timeline.get_pdu_from_id(pdu_id).await else {
+			return false;
+		};
+
+		let now = MilliSecondsSinceUnixEpoch::now().get().into();
+
+		pdu.sticky
+			.as_deref()
+			.is_some_and(|sticky| sticky::is_sticky(pdu.origin_server_ts, sticky, now))
 	}
 
 	/// Selects any new events to send to the given destination.

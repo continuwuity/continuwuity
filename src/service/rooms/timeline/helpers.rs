@@ -1,6 +1,9 @@
 //! Helpers for submitting events with the right checks performed
 
-use conduwuit::{Err, Result, err, matrix::pdu::PartialPdu};
+use conduwuit::{
+	Err, Result, err,
+	matrix::pdu::{PartialPdu, sticky},
+};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
 	events::{
@@ -12,6 +15,7 @@ use ruma::{
 			member::{MembershipState, RoomMemberEventContent},
 			server_acl::RoomServerAclEventContent,
 		},
+		sticky::StickyDurationMs,
 	},
 	serde::Raw,
 };
@@ -28,6 +32,7 @@ impl super::Service {
 		event_type: &StateEventType,
 		content: &Raw<AnyStateEventContent>,
 		state_key: &str,
+		sticky_duration_ms: Option<StickyDurationMs>,
 		timestamp: Option<MilliSecondsSinceUnixEpoch>,
 	) -> Result<OwnedEventId> {
 		let mut content: Raw<AnyStateEventContent> = content.clone();
@@ -42,6 +47,13 @@ impl super::Service {
 				PartialPdu {
 					event_type: event_type.to_string().into(),
 					content,
+					sticky: self
+						.services
+						.config
+						.allow_sticky_events
+						.then_some(sticky_duration_ms)
+						.flatten()
+						.map(sticky::object),
 					state_key: Some(state_key.into()),
 					timestamp,
 					..Default::default()

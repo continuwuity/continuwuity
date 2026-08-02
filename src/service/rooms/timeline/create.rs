@@ -88,6 +88,7 @@ impl super::Service {
 		let PartialPdu {
 			event_type,
 			content,
+			sticky,
 			unsigned,
 			state_key,
 			redacts,
@@ -209,6 +210,7 @@ impl super::Service {
 			),
 			kind: event_type,
 			content,
+			sticky,
 			state_key,
 			prev_events,
 			depth,

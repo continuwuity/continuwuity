@@ -1306,6 +1306,12 @@
 #
 #allow_incoming_typing = true
 
+# Allow the use of unstable persistent "sticky events" ([MSC4354])
+#
+# MSC4354: https://c10y.cc/MSC4354
+#
+#allow_sticky_events = false
+
 # Maximum time federation user can indicate typing.
 #
 #typing_federation_timeout_s = 30

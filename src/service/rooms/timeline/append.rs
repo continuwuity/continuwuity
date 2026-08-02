@@ -1,6 +1,7 @@
 use std::{
 	borrow::Borrow,
 	collections::{BTreeMap, HashMap, HashSet},
+	iter::once,
 	sync::Arc,
 };
 
@@ -18,17 +19,22 @@ use conduwuit::{
 };
 use conduwuit_core::{
 	err, error,
-	matrix::pdu::{PduCount, PduId, RawPduId},
-	utils::{self},
+	matrix::pdu::{PduCount, PduId, RawPduId, sticky},
+	result::LogErr,
+	utils::{self, stream::TryIgnore},
 };
-use futures::{FutureExt, StreamExt, TryFutureExt};
+use futures::{FutureExt, StreamExt, TryFutureExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	RoomVersionId, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
+	RoomId, RoomVersionId, ServerName, UserId,
 	events::{
 		AnySyncTimelineEvent, GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
-		room::{encrypted::Relation, redaction::RoomRedactionEventContent},
+		room::{
+			encrypted::Relation,
+			member::{MembershipState, RoomMemberEventContent},
+			redaction::RoomRedactionEventContent,
+		},
 	},
 	push::{Action, Ruleset, Tweak},
 	room_version_rules::RoomVersionRules,
@@ -542,6 +548,10 @@ impl super::Service {
 					let target_user_id = UserId::parse(state_key)
 						.expect("This state_key was previously validated");
 
+					// must be checked before the membership update, which is what
+					// marks the server as being in the room
+					let joining_server = self.joining_server(pdu, &target_user_id, room_id).await;
+
 					// Update our membership info, we do this here incase a user is invited or
 					// knocked and immediately leaves we need the DB to record the invite or
 					// knock event for auth
@@ -549,6 +559,11 @@ impl super::Service {
 						.state_cache
 						.update_membership(room_id, &target_user_id, pdu, true)
 						.await?;
+
+					if let Some(server) = joining_server {
+						self.send_sticky_events_to_server(room_id, short_room_id, &server)
+							.await;
+					}
 				}
 			},
 			| TimelineEventType::RoomMessage => {
@@ -561,6 +576,80 @@ impl super::Service {
 		}
 
 		Ok(())
+	}
+
+	/// The server of `target_user_id`, if this membership event brings it into
+	/// the room for the first time.
+	async fn joining_server(
+		&self,
+		pdu: &PduEvent,
+		target_user_id: &UserId,
+		room_id: &RoomId,
+	) -> Option<OwnedServerName> {
+		let server = target_user_id.server_name();
+		if !self.services.config.allow_sticky_events
+			|| self.services.globals.server_is_ours(server)
+		{
+			return None;
+		}
+
+		let content: RoomMemberEventContent = pdu.get_content().ok()?;
+		if content.membership != MembershipState::Join {
+			return None;
+		}
+
+		let already_joined = self
+			.services
+			.state_cache
+			.server_in_room(server, room_id)
+			.await;
+
+		(!already_joined).then(|| server.to_owned())
+	}
+
+	/// MSC4354: a server which has just joined will not backfill far enough to
+	/// see our unexpired sticky events, so push them to it.
+	async fn send_sticky_events_to_server(
+		&self,
+		room_id: &RoomId,
+		short_room_id: ShortRoomId,
+		server: &ServerName,
+	) {
+		let now = utils::millis_since_unix_epoch();
+		let oldest_sticky_ts = now.saturating_sub(sticky::MAX_DURATION_MS);
+
+		let mut pdu_ids = Vec::new();
+		let pdus = self.pdus_rev(room_id, None).ignore_err();
+
+		pin_mut!(pdus);
+		while let Some((count, pdu)) = pdus.next().await {
+			if u64::from(pdu.origin_server_ts) < oldest_sticky_ts {
+				break;
+			}
+
+			let is_ours = self.services.globals.user_is_local(pdu.sender());
+			let is_sticky = pdu
+				.sticky
+				.as_deref()
+				.is_some_and(|sticky| sticky::is_sticky(pdu.origin_server_ts, sticky, now));
+
+			if is_ours && is_sticky {
+				pdu_ids.push(RawPduId::from(PduId {
+					shortroomid: short_room_id,
+					shorteventid: count,
+				}));
+			}
+		}
+
+		// oldest first, as MSC4354 asks for creation order
+		for pdu_id in pdu_ids.iter().rev() {
+			self.services
+				.sending
+				.send_pdu_servers(once(server.to_owned()).stream(), pdu_id)
+				.await
+				.log_err()
+				.ok();
+		}
 	}
 
 	/// Adds relation data to the incoming event and events it relates to.

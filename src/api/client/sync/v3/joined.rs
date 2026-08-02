@@ -4,7 +4,7 @@ use conduwuit::{
 	Result, at, debug_warn, err, extract_variant,
 	matrix::{
 		Event,
-		pdu::{PduCount, PduEvent},
+		pdu::{PduCount, PduEvent, sticky},
 	},
 	trace,
 	utils::{
@@ -20,12 +20,12 @@ use futures::{
 	future::{OptionFuture, join, join3, join4, try_join, try_join3},
 };
 use ruma::{
-	OwnedRoomId, OwnedUserId, RoomId, UserId,
+	MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::sync::sync_events::{
 		UnreadNotificationsCount,
 		v3::{
 			Ephemeral, JoinedRoom, RoomAccountData, RoomSummary, State as RoomState, StateEvents,
-			Timeline,
+			Sticky, Timeline,
 		},
 	},
 	assign,
@@ -42,7 +42,7 @@ use tokio::pin;
 
 use super::{load_timeline, share_encrypted_room};
 use crate::client::{
-	TimelinePdus, ignored_filter,
+	TimelinePdus, ignored_filter, is_ignored_pdu,
 	sync::v3::{
 		DEFAULT_TIMELINE_LIMIT, DeviceListUpdates, SyncContext, prepare_lazily_loaded_members,
 		state::{build_state_incremental, build_state_initial},
@@ -76,6 +76,7 @@ pub(super) async fn load_joined_room(
 		StateAndTimeline {
 			state_events,
 			timeline,
+			sticky,
 			summary,
 			notification_counts,
 			device_list_updates,
@@ -111,6 +112,7 @@ pub(super) async fn load_joined_room(
 			RoomState::Before(state_events)
 		},
 		ephemeral,
+		sticky,
 		unread_thread_notifications: BTreeMap::new(),
 	});
 
@@ -251,9 +253,80 @@ async fn build_ephemeral(
 struct StateAndTimeline {
 	state_events: Vec<PduEvent>,
 	timeline: Timeline,
+	sticky: Sticky,
 	summary: Option<RoomSummary>,
 	notification_counts: Option<UnreadNotificationsCount>,
 	device_list_updates: DeviceListUpdates,
+}
+
+async fn build_sticky_events(
+	services: &Services,
+	sync_context: SyncContext<'_>,
+	room_id: &RoomId,
+	timeline: &TimelinePdus,
+	joined_since_last_sync: bool,
+) -> Sticky {
+	if !services.config.allow_sticky_events {
+		return Sticky::new();
+	}
+
+	let SyncContext {
+		syncing_user,
+		last_sync_end_count,
+		current_count,
+		..
+	} = sync_context;
+
+	let timeline_event_ids: HashSet<_> =
+		timeline.pdus.iter().map(|(_, pdu)| &pdu.event_id).collect();
+	let now = u64::from(MilliSecondsSinceUnixEpoch::now().get());
+
+	// on join the client needs every unexpired sticky event, not just the ones
+	// since its last sync
+	let since = (!joined_since_last_sync)
+		.then_some(last_sync_end_count)
+		.flatten()
+		.map(PduCount::Normal);
+
+	// nothing older than this can still be sticky, so the walk back never goes far
+	let oldest_sticky_ts = now.saturating_sub(sticky::MAX_DURATION_MS);
+
+	let mut events = Vec::new();
+	let pdus = services
+		.rooms
+		.timeline
+		.pdus_rev(room_id, Some(PduCount::Normal(current_count).saturating_add(1)))
+		.ignore_err();
+
+	pin!(pdus);
+	while let Some((count, mut pdu)) = pdus.next().await {
+		if since.is_some_and(|since| count <= since)
+			|| u64::from(pdu.origin_server_ts) < oldest_sticky_ts
+		{
+			break;
+		}
+
+		let is_sticky = pdu
+			.sticky
+			.as_deref()
+			.is_some_and(|sticky| sticky::is_sticky(pdu.origin_server_ts, sticky, now));
+
+		if !is_sticky
+			|| timeline_event_ids.contains(&pdu.event_id)
+			|| is_ignored_pdu(services, &pdu, syncing_user)
+				.await
+				.unwrap_or(true)
+		{
+			continue;
+		}
+
+		pdu.set_unsigned(Some(syncing_user));
+		events.push(Event::into_format(pdu));
+	}
+
+	events.reverse();
+
+	assign!(Sticky::new(), { events })
 }
 
 /// Compute changes to the room's state and timeline.
@@ -274,6 +347,9 @@ async fn build_state_and_timeline(
 		check_joined_since_last_sync(services, shortstatehashes, sync_context),
 	)
 	.await?;
+	let sticky =
+		build_sticky_events(services, sync_context, room_id, &timeline, joined_since_last_sync)
+			.await;
 
 	let state_events = build_state_events(
 		services,
@@ -342,6 +418,7 @@ async fn build_state_and_timeline(
 			prev_batch: prev_batch.as_ref().map(ToString::to_string),
 			events: filtered_timeline,
 		}),
+		sticky,
 		summary,
 		notification_counts,
 		device_list_updates,

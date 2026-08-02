@@ -49,6 +49,7 @@ pub(crate) async fn send_state_event_for_key_route(
 			&body.event_type,
 			&body.body.body,
 			&body.state_key,
+			body.sticky_duration_ms,
 			if body.identity.is_appservice() {
 				body.timestamp
 			} else {

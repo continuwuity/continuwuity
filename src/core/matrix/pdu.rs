@@ -3,6 +3,7 @@ mod id;
 mod partial;
 mod raw_id;
 mod redact;
+pub mod sticky;
 #[cfg(test)]
 mod tests;
 mod unsigned;
@@ -45,6 +46,11 @@ pub struct Pdu {
 	pub kind: TimelineEventType,
 
 	pub content: Box<RawJsonValue>,
+
+	/// MSC4354 sticky object, kept verbatim because it is signed. Interpret it
+	/// with [`sticky`], never by rewriting it.
+	#[serde(rename = "msc4354_sticky", default, skip_serializing_if = "Option::is_none")]
+	pub sticky: Option<Box<RawJsonValue>>,
 
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub state_key: Option<StateKey>,
@@ -138,6 +144,9 @@ impl Event for Pdu {
 	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
 
 	#[inline]
+	fn sticky(&self) -> Option<&RawJsonValue> { self.sticky.as_deref() }
+
+	#[inline]
 	fn kind(&self) -> &TimelineEventType { &self.kind }
 
 	#[inline]
@@ -207,6 +216,9 @@ impl Event for &Pdu {
 
 	#[inline]
 	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
+
+	#[inline]
+	fn sticky(&self) -> Option<&RawJsonValue> { self.sticky.as_deref() }
 
 	#[inline]
 	fn kind(&self) -> &TimelineEventType { &self.kind }

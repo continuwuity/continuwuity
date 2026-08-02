@@ -9,6 +9,7 @@ use ruma::{
 use serde_json::json;
 
 use super::{Event, redact};
+use crate::matrix::pdu::sticky;
 
 pub struct Owned<E: Event>(pub(super) E);
 
@@ -35,6 +36,9 @@ impl<'a, E: Event> From<Ref<'a, E>> for Raw<AnySyncTimelineEvent> {
 		}
 		if let Some(state_key) = event.state_key() {
 			json["state_key"] = json!(state_key);
+		}
+		if let Some(sticky_object) = event.sticky() {
+			json[sticky::PDU_KEY] = json!(sticky_object);
 		}
 		if let Some(unsigned) = event.unsigned() {
 			json["unsigned"] = json!(unsigned);
@@ -67,6 +71,9 @@ impl<'a, E: Event> From<Ref<'a, E>> for Raw<AnyTimelineEvent> {
 		if let Some(state_key) = event.state_key() {
 			json["state_key"] = json!(state_key);
 		}
+		if let Some(sticky_object) = event.sticky() {
+			json[sticky::PDU_KEY] = json!(sticky_object);
+		}
 		if let Some(unsigned) = event.unsigned() {
 			json["unsigned"] = json!(unsigned);
 		}
@@ -97,6 +104,9 @@ impl<'a, E: Event> From<Ref<'a, E>> for Raw<AnyMessageLikeEvent> {
 		}
 		if let Some(state_key) = event.state_key() {
 			json["state_key"] = json!(state_key);
+		}
+		if let Some(sticky_object) = event.sticky() {
+			json[sticky::PDU_KEY] = json!(sticky_object);
 		}
 		if let Some(unsigned) = event.unsigned() {
 			json["unsigned"] = json!(unsigned);

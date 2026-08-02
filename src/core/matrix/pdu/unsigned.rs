@@ -3,7 +3,7 @@ use std::{borrow::Borrow, collections::BTreeMap};
 use ruma::MilliSecondsSinceUnixEpoch;
 use serde_json::value::{RawValue as RawJsonValue, Value as JsonValue, to_raw_value};
 
-use super::Pdu;
+use super::{Pdu, sticky};
 use crate::{Result, err, result::LogErr};
 
 impl Pdu {
@@ -17,6 +17,7 @@ impl Pdu {
 			self.remove_transaction_id().log_err().ok();
 		}
 		self.add_age().log_err().ok();
+		self.add_sticky_duration_ttl().log_err().ok();
 	}
 
 	pub fn remove_transaction_id(&mut self) -> Result {
@@ -53,6 +54,31 @@ impl Pdu {
 		let this_age = now.saturating_sub(then);
 
 		unsigned.insert("age", to_raw_value(&this_age)?);
+		self.unsigned = Some(to_raw_value(&unsigned)?);
+
+		Ok(())
+	}
+
+	pub fn add_sticky_duration_ttl(&mut self) -> Result {
+		use BTreeMap as Map;
+
+		let now = u64::from(MilliSecondsSinceUnixEpoch::now().get());
+		let Some(expires_at) = self
+			.sticky
+			.as_deref()
+			.and_then(|sticky| sticky::expires_at(self.origin_server_ts, sticky, now))
+		else {
+			return Ok(());
+		};
+
+		let mut unsigned: Map<&str, Box<RawJsonValue>> = self
+			.unsigned
+			.as_deref()
+			.map(RawJsonValue::get)
+			.map_or_else(|| Ok(Map::new()), serde_json::from_str)
+			.map_err(|e| err!(Database("Invalid unsigned in pdu event: {e}")))?;
+
+		unsigned.insert(sticky::TTL_UNSIGNED_KEY, to_raw_value(&expires_at.saturating_sub(now))?);
 		self.unsigned = Some(to_raw_value(&unsigned)?);
 
 		Ok(())

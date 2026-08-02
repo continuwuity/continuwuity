@@ -1,7 +1,11 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, err, matrix::pdu::PartialPdu, utils};
+use conduwuit::{
+	Err, Result, err,
+	matrix::pdu::{PartialPdu, sticky},
+	utils,
+};
 use ruma::{api::client::message::send_message_event, events::MessageLikeEventType};
 use serde_json::from_str;
 
@@ -81,6 +85,12 @@ pub(crate) async fn send_message_event_route(
 			PartialPdu {
 				event_type: body.event_type.clone().into(),
 				content,
+				sticky: services
+					.config
+					.allow_sticky_events
+					.then_some(body.sticky_duration_ms)
+					.flatten()
+					.map(sticky::object),
 				unsigned: Some(unsigned),
 				timestamp: if body.identity.is_appservice() {
 					body.timestamp

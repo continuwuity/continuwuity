@@ -21,12 +21,19 @@ use crate::Ruma;
 /// Note: Unstable features are used while developing new features. Clients
 /// should avoid using unstable features in their stable releases
 pub(crate) async fn get_supported_versions_route(
+	State(services): State<crate::State>,
 	_body: Ruma<get_supported_versions::Request>,
 ) -> Result<get_supported_versions::Response> {
-	Ok(assign!(
-		get_supported_versions::Response::new(versions()),
-		{ unstable_features: unstable_features() }
-	))
+	let mut unstable_features = unstable_features();
+
+	if services.config.allow_sticky_events {
+		// sticky events (https://github.com/matrix-org/matrix-spec-proposals/pull/4354)
+		unstable_features.insert("org.matrix.msc4354".to_owned(), true);
+	}
+
+	Ok(assign!(get_supported_versions::Response::new(versions()), {
+		unstable_features
+	}))
 }
 
 /// # `GET /_continuwuity/server_version`
