@@ -114,7 +114,7 @@ impl crate::Service for Service {
 				config: args.depend::<config::Service>("config"),
 				firstrun: args.depend::<firstrun::Service>("firstrun"),
 				globals: args.depend::<globals::Service>("globals"),
-				membership: args.depend::<membership::Service>("membership"),
+				membership: args.depend::<membership::Service>("rooms::membership"),
 				oauth: args.depend::<oauth::Service>("oauth"),
 				presence: args.depend::<presence::Service>("presence"),
 				state: args.depend::<rooms::state::Service>("rooms::state"),
