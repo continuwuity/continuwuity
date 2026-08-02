@@ -63,7 +63,6 @@ type KnownRoomUpdates = BTreeMap<String, BTreeSet<OwnedRoomId>>;
 struct SyncCollection {
 	response: sync_events::v5::Response,
 	known_room_updates: KnownRoomUpdates,
-	todo_rooms: TodoRooms,
 }
 
 /// `POST /_matrix/client/unstable/org.matrix.simplified_msc3575/sync`
@@ -147,10 +146,6 @@ pub(crate) async fn sync_events_v5_route(
 			.await?;
 		}
 	}
-
-	// Typing never wakes a sync loop, so collect it after the long poll settles.
-	collection.response.extensions.typing =
-		collect_typing_events(services, sender_user, &body, &collection.todo_rooms).await?;
 
 	commit_sync_collection(
 		services,
@@ -290,7 +285,10 @@ async fn collect_sync_response(
 	)
 	.await?;
 
-	Ok(SyncCollection { response, known_room_updates, todo_rooms })
+	response.extensions.typing =
+		collect_typing_events(services, sender_user, body, &todo_rooms).await?;
+
+	Ok(SyncCollection { response, known_room_updates })
 }
 
 fn response_is_empty(response: &sync_events::v5::Response) -> bool {

@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
-	Result, Server, debug_info, trace,
+	Result, Server, debug_info,
 	utils::{self, IterStream},
 };
 use futures::StreamExt;
@@ -10,9 +10,9 @@ use ruma::{
 	api::federation::transactions::edu::{Edu, TypingContent},
 	events::{SyncEphemeralRoomEvent, typing::TypingEventContent},
 };
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::RwLock;
 
-use crate::{Dep, globals, sending, sending::EduBuf, users};
+use crate::{Dep, globals, sending, sending::EduBuf, sync, users};
 
 pub struct Service {
 	server: Arc<Server>,
@@ -21,12 +21,12 @@ pub struct Service {
 	pub typing: RwLock<BTreeMap<OwnedRoomId, BTreeMap<OwnedUserId, u64>>>,
 	/// timestamp of the last change to typing users
 	pub last_typing_update: RwLock<BTreeMap<OwnedRoomId, u64>>,
-	pub typing_update_sender: broadcast::Sender<OwnedRoomId>,
 }
 
 struct Services {
 	globals: Dep<globals::Service>,
 	sending: Dep<sending::Service>,
+	sync: Dep<sync::Service>,
 	users: Dep<users::Service>,
 }
 
@@ -37,11 +37,11 @@ impl crate::Service for Service {
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
+				sync: args.depend::<sync::Service>("sync"),
 				users: args.depend::<users::Service>("users"),
 			},
 			typing: RwLock::new(BTreeMap::new()),
 			last_typing_update: RwLock::new(BTreeMap::new()),
-			typing_update_sender: broadcast::channel(100).0,
 		}))
 	}
 
@@ -71,9 +71,7 @@ impl Service {
 			.await
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
-		if self.typing_update_sender.send(room_id.to_owned()).is_err() {
-			trace!("receiver found what it was looking for and is no longer interested");
-		}
+		self.services.sync.wake_all_joined(room_id).await;
 
 		// update federation
 		if self.services.globals.user_is_local(user_id) {
@@ -99,9 +97,7 @@ impl Service {
 			.await
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
-		if self.typing_update_sender.send(room_id.to_owned()).is_err() {
-			trace!("receiver found what it was looking for and is no longer interested");
-		}
+		self.services.sync.wake_all_joined(room_id).await;
 
 		// update federation
 		if self.services.globals.user_is_local(user_id) {
@@ -109,15 +105,6 @@ impl Service {
 		}
 
 		Ok(())
-	}
-
-	pub async fn wait_for_update(&self, room_id: &RoomId) {
-		let mut receiver = self.typing_update_sender.subscribe();
-		while let Ok(next) = receiver.recv().await {
-			if next == room_id {
-				break;
-			}
-		}
 	}
 
 	/// Makes sure that typing events with old timestamps get removed.
@@ -152,9 +139,7 @@ impl Service {
 				.await
 				.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
-			if self.typing_update_sender.send(room_id.to_owned()).is_err() {
-				trace!("receiver found what it was looking for and is no longer interested");
-			}
+			self.services.sync.wake_all_joined(room_id).await;
 
 			// update federation
 			for user in &removable {
