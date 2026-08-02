@@ -7,7 +7,10 @@ use std::{
 use axum::extract::State;
 use conduwuit::{
 	Err, Error, Result, at, error, extract_variant, is_equal_to,
-	matrix::{Event, TypeStateKey, pdu::PduCount},
+	matrix::{
+		Event, TypeStateKey,
+		pdu::{PduCount, PduEvent, sticky},
+	},
 	trace,
 	utils::{
 		BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
@@ -28,7 +31,7 @@ use futures::{
 	pin_mut,
 };
 use ruma::{
-	DeviceId, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
+	DeviceId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId, UInt, UserId,
 	api::client::sync::sync_events::{
 		self, DeviceLists, UnreadNotificationsCount, v5::request::ExtensionRoomConfig,
 	},
@@ -63,6 +66,9 @@ type SyncInfo<'a> = (&'a UserId, &'a DeviceId, u64, &'a sync_events::v5::Request
 type TodoRooms = BTreeMap<OwnedRoomId, (BTreeSet<TypeStateKey>, usize, u64)>;
 type KnownRooms = BTreeMap<String, BTreeMap<OwnedRoomId, u64>>;
 type KnownRoomUpdates = BTreeMap<String, BTreeSet<OwnedRoomId>>;
+
+/// Default and maximum number of sticky events returned per response.
+const DEFAULT_STICKY_LIMIT: usize = 100;
 
 struct SyncCollection {
 	response: sync_events::v5::Response,
@@ -221,6 +227,10 @@ async fn collect_sync_response(
 		.collect();
 
 	let all_joined_rooms = all_joined_rooms.iter().map(AsRef::as_ref);
+	let joined_room_ids = all_joined_rooms
+		.clone()
+		.map(ToOwned::to_owned)
+		.collect::<BTreeSet<_>>();
 	let all_invited_rooms = all_invited_rooms.iter().map(AsRef::as_ref);
 	let all_knocked_rooms = all_knocked_rooms.iter().map(AsRef::as_ref);
 	let all_rooms = all_joined_rooms
@@ -231,6 +241,7 @@ async fn collect_sync_response(
 	let pos = next_batch.to_string();
 
 	let mut todo_rooms: TodoRooms = BTreeMap::new();
+	let mut sticky_rooms = BTreeSet::new();
 
 	let sync_info: SyncInfo<'_> = (sender_user, sender_device, globalsince, body);
 
@@ -251,6 +262,7 @@ async fn collect_sync_response(
 		to_device,
 		receipts,
 		typing: sync_events::v5::response::Typing::default(),
+		sticky_events: sync_events::v5::response::StickyEvents::default(),
 	});
 
 	let mut response = assign!(sync_events::v5::Response::new(pos), {
@@ -286,6 +298,7 @@ async fn collect_sync_response(
 		all_rooms,
 		&direct_rooms,
 		&mut todo_rooms,
+		&mut sticky_rooms,
 		known_rooms,
 		&mut response,
 	)
@@ -295,7 +308,9 @@ async fn collect_sync_response(
 		"subscriptions".to_owned(),
 		fetch_subscriptions(services, body, known_rooms, &allowed_rooms, &mut todo_rooms).await,
 	);
+	sticky_rooms.extend(body.room_subscriptions.keys().cloned());
 
+	let mut timeline_event_ids = BTreeSet::new();
 	response.rooms = process_rooms(
 		services,
 		sender_user,
@@ -305,6 +320,18 @@ async fn collect_sync_response(
 		&todo_rooms,
 		&mut response,
 		body,
+		&mut timeline_event_ids,
+	)
+	.await?;
+
+	response.extensions.sticky_events = collect_sticky_events(
+		services,
+		sender_user,
+		body,
+		&sticky_rooms,
+		&joined_room_ids,
+		&todo_rooms,
+		&timeline_event_ids,
 	)
 	.await?;
 
@@ -334,7 +361,10 @@ fn response_is_empty(response: &sync_events::v5::Response) -> bool {
 		.as_ref()
 		.is_none_or(|to| to.events.is_empty());
 
-	no_account_data && no_room_data && no_to_device_messages
+	no_account_data
+		&& no_room_data
+		&& no_to_device_messages
+		&& response.extensions.sticky_events.is_empty()
 }
 
 async fn commit_sync_collection(
@@ -435,6 +465,7 @@ async fn handle_lists<'a, Rooms, AllRooms>(
 	all_rooms: AllRooms,
 	direct_rooms: &HashSet<OwnedRoomId>,
 	todo_rooms: &'a mut TodoRooms,
+	sticky_rooms: &mut BTreeSet<OwnedRoomId>,
 	known_rooms: &'a KnownRooms,
 	response: &'_ mut sync_events::v5::Response,
 ) -> KnownRoomUpdates
@@ -511,6 +542,7 @@ where
 
 			active_rooms.push(room_id);
 		}
+		sticky_rooms.extend(active_rooms.iter().map(|room_id| (*room_id).to_owned()));
 
 		let mut new_known_rooms: BTreeSet<OwnedRoomId> = BTreeSet::new();
 
@@ -669,6 +701,7 @@ async fn process_rooms<'a, Rooms>(
 	todo_rooms: &TodoRooms,
 	response: &mut sync_events::v5::Response,
 	body: &sync_events::v5::Request,
+	timeline_event_ids: &mut BTreeSet<OwnedEventId>,
 ) -> Result<BTreeMap<OwnedRoomId, sync_events::v5::response::Room>>
 where
 	Rooms: Iterator<Item = &'a RoomId> + Clone + Send + 'a,
@@ -872,6 +905,7 @@ where
 			.map(Event::into_format)
 			.collect()
 			.await;
+		timeline_event_ids.extend(timeline_pdus.iter().map(|(_, pdu)| pdu.event_id.clone()));
 
 		for (_, pdu) in timeline_pdus {
 			let ts = pdu.origin_server_ts;
@@ -1007,6 +1041,124 @@ where
 		);
 	}
 	Ok(rooms)
+}
+
+async fn collect_sticky_events(
+	services: &Services,
+	sender_user: &UserId,
+	body: &sync_events::v5::Request,
+	sticky_rooms: &BTreeSet<OwnedRoomId>,
+	joined_room_ids: &BTreeSet<OwnedRoomId>,
+	todo_rooms: &TodoRooms,
+	timeline_event_ids: &BTreeSet<OwnedEventId>,
+) -> Result<sync_events::v5::response::StickyEvents> {
+	if !services.config.allow_sticky_events
+		|| !body.extensions.sticky_events.enabled.unwrap_or(false)
+	{
+		return Ok(sync_events::v5::response::StickyEvents::default());
+	}
+
+	let since = body
+		.extensions
+		.sticky_events
+		.since
+		.as_deref()
+		.and_then(|token| token.parse::<u64>().ok())
+		.unwrap_or(0);
+	let limit = body
+		.extensions
+		.sticky_events
+		.limit
+		.map_or(DEFAULT_STICKY_LIMIT, usize_from_ruma)
+		.clamp(1, DEFAULT_STICKY_LIMIT);
+	let now = u64::from(MilliSecondsSinceUnixEpoch::now().get());
+	let oldest_sticky_ts = now.saturating_sub(sticky::MAX_DURATION_MS);
+
+	let mut backlog = Vec::new();
+	let mut stream = Vec::new();
+	for room_id in sticky_rooms
+		.iter()
+		.filter(|room_id| joined_room_ids.contains(*room_id))
+	{
+		// a room the client has not seen before needs its whole backlog, which a
+		// single stream position cannot express
+		let initial = todo_rooms
+			.get(room_id)
+			.is_some_and(|&(_, _, roomsince)| roomsince == 0);
+
+		let pdus = services.rooms.timeline.pdus_rev(room_id, None).ignore_err();
+		pin_mut!(pdus);
+		while let Some((count, pdu)) = pdus.next().await {
+			// nothing older than this can still be sticky, and on the stream we
+			// have already delivered everything up to `since`
+			if u64::from(pdu.origin_server_ts) < oldest_sticky_ts
+				|| (!initial && count <= PduCount::Normal(since))
+			{
+				break;
+			}
+
+			let PduCount::Normal(count) = count else {
+				continue;
+			};
+
+			let is_sticky = pdu
+				.sticky
+				.as_deref()
+				.is_some_and(|sticky| sticky::is_sticky(pdu.origin_server_ts, sticky, now));
+
+			if !is_sticky || timeline_event_ids.contains(&pdu.event_id) {
+				continue;
+			}
+			if services
+				.users
+				.user_is_ignored(pdu.sender(), sender_user)
+				.await
+			{
+				continue;
+			}
+
+			if count > since {
+				stream.push((count, room_id.clone(), pdu));
+			} else {
+				backlog.push((room_id.clone(), pdu));
+			}
+		}
+	}
+	stream.sort_by_key(|(count, ..)| *count);
+
+	let mut response = sync_events::v5::response::StickyEvents::default();
+
+	// MSC4480 lets us ignore the limit for a newly visible room's backlog
+	for (room_id, pdu) in backlog {
+		push_sticky_event(&mut response, sender_user, room_id, pdu);
+	}
+
+	let mut next_batch = None;
+	for (count, room_id, pdu) in stream.into_iter().take(limit) {
+		push_sticky_event(&mut response, sender_user, room_id, pdu);
+		next_batch = Some(count);
+	}
+
+	if !response.rooms.is_empty() {
+		response.next_batch = Some(next_batch.unwrap_or(since).to_string());
+	}
+
+	Ok(response)
+}
+
+fn push_sticky_event(
+	response: &mut sync_events::v5::response::StickyEvents,
+	sender_user: &UserId,
+	room_id: OwnedRoomId,
+	mut pdu: PduEvent,
+) {
+	pdu.set_unsigned(Some(sender_user));
+	response
+		.rooms
+		.entry(room_id)
+		.or_default()
+		.events
+		.push(Event::into_format(pdu));
 }
 
 /// Collect the required state events for a room
