@@ -146,6 +146,7 @@ impl Service {
 				if e.status_code().is_server_error()
 					&& let Destination::Federation(dest) = &dest
 				{
+					debug!("{dest} is now unhealthy due to server error response: {e:?}");
 					self.services.federation.hit_unhealthy(dest.clone());
 				}
 				Self::handle_response_err(dest, statuses, &e);
