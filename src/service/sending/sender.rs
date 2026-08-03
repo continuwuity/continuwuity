@@ -146,7 +146,7 @@ impl Service {
 				if e.status_code().is_server_error()
 					&& let Destination::Federation(dest) = &dest
 				{
-					self.hit_unhealthy(dest.clone());
+					self.services.federation.hit_unhealthy(dest.clone());
 				}
 				Self::handle_response_err(dest, statuses, &e);
 			},
@@ -179,7 +179,7 @@ impl Service {
 		let _cork = self.db.db.cork();
 		self.db.delete_all_active_requests_for(dest).await;
 		if let Destination::Federation(server_name) = dest {
-			self.mark_healthy(server_name);
+			self.services.federation.mark_healthy(server_name);
 		}
 
 		// Find events that have been added since starting the last request
