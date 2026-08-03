@@ -441,10 +441,10 @@ fn num_senders(args: &crate::Args<'_>) -> usize {
 		max_senders = max_senders.min(num_cores);
 	}
 
-	// If the user doesn't override the default 0, this is intended to then default
-	// to 1 for now as multiple senders is experimental.
-	args.server
-		.config
-		.sender_workers
-		.clamp(MIN_SENDERS, max_senders)
+	let worker_count = args.server.config.sender_workers;
+	if worker_count == 0 {
+		max_senders
+	} else {
+		worker_count.clamp(MIN_SENDERS, max_senders)
+	}
 }
