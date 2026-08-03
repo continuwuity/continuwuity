@@ -79,26 +79,17 @@ impl Service {
 	/// not already marked as unhealthy, a new entry is created. Otherwise, the
 	/// retry count is incremented and
 	pub fn hit_unhealthy(&self, server_name: OwnedServerName) {
-		// TODO(nex): Can multiple concurrent failures cause this health monitor to
-		// rapidly max out?
-		//
-		// consider: a profile query and key claim query both go out at the same time,
-		// and both fail. They both then go to hit this (synchronous) function, which
-		// means one of them will increment the failure count by 1, and consequently
-		// increase the exp backoff. Then the second failure is allowed to call the
-		// function, at which point it increments the failure count AGAIN, increasing
-		// the backoff again.
-		// Technically, these are two distinct failures. However, from a UX perspective,
-		// they happened at the same time, so shouldn't incur a double penalty?
-		// Perhaps only incrementing the retry counter when the current next_retry is in
-		// the past might help.
-		//
-		// You know it's a banger thought process when the comment is longer than the
-		// code itself.
 		let unix_now = millis_since_unix_epoch();
 		let mut map = self.remote_health.write();
 		let sn2 = server_name.clone(); // for logging since map.entry() moves
 		let (retries, next_retry) = map.entry(server_name).or_default();
+		if *next_retry > unix_now {
+			// Don't update the retry marker if we are already in a backoff
+			// period. This prevents the backoff skyrocketing if multiple
+			// concurrent or closely-related requests fail and consequently try
+			// to mark as offline.
+			return;
+		}
 
 		let min = self.services.server.config.sender_timeout;
 		let max = self.services.server.config.sender_retry_backoff_limit;
