@@ -6,7 +6,10 @@ use assign::assign;
 use async_trait::async_trait;
 use conduwuit::{
 	Error, Result, Server, SyncRwLock, debug,
-	utils::{millis_since_unix_epoch, time::exponential_backoff::min_exp_backoff_duration},
+	utils::{
+		math::Expected, millis_since_unix_epoch,
+		time::exponential_backoff::min_exp_backoff_duration,
+	},
 };
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
@@ -72,7 +75,7 @@ impl Service {
 		let map = self.remote_health.read();
 		let unix_now = millis_since_unix_epoch();
 		map.get(server_name)
-			.map(|(_, next_retry)| Duration::from_millis(*next_retry - unix_now))
+			.map(|(_, next_retry)| Duration::from_millis((*next_retry).expected_sub(unix_now)))
 	}
 
 	/// Marks or updates a remote's health status as unhealthy. If the remote is
