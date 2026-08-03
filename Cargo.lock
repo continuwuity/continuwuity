@@ -950,6 +950,7 @@ dependencies = [
  "log",
  "resolvematrix",
  "ruma",
+ "ruminuwuity",
  "serde-saphyr",
  "serde_json",
  "tokio",

@@ -8,7 +8,7 @@ use std::{
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{Error, Result, Server, SyncRwLock, debug, utils::millis_since_unix_epoch};
+use conduwuit::{Err, Error, Result, Server, SyncRwLock, debug, err, error, utils::millis_since_unix_epoch};
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
 use ruma::{
@@ -22,6 +22,8 @@ pub struct Service {
 	services: Services,
 	pub remote_health: SyncRwLock<HashMap<OwnedServerName, (u32, u64)>>,
 	pub stale_destinations: SyncRwLock<HashSet<OwnedServerName>>,
+	/// A map of {answer: channel}
+	pingpongs: SyncRwLock<HashMap<String, tokio::sync::oneshot::Sender<()>>>,
 }
 
 struct Services {
@@ -43,6 +45,7 @@ impl crate::Service for Service {
 			},
 			remote_health: SyncRwLock::new(HashMap::new()),
 			stale_destinations: SyncRwLock::new(HashSet::new()),
+			pingpongs: SyncRwLock::new(HashMap::new()),
 		}))
 	}
 
@@ -206,5 +209,36 @@ impl Service {
 	/// Returns a clone of the internal stale destinations set.
 	pub fn stale_destinations(&self) -> HashSet<OwnedServerName> {
 		self.stale_destinations.read().clone()
+	}
+
+	/// Registers an outbound ping waiter based on the answer returned by the
+	/// remote. Returns a channel that is written to when the remote pongs.
+	pub fn register_ping_answer(
+		&self,
+		expected_answer: String,
+	) -> Result<tokio::sync::oneshot::Receiver<()>> {
+		let mut pingpongs = self.pingpongs.write();
+		if pingpongs.contains_key(&expected_answer) {
+			return Err!(Request(InvalidParam("Duplicate answer")));
+		}
+		let (tx, rx) = tokio::sync::oneshot::channel();
+		pingpongs.insert(expected_answer, tx);
+		Ok(rx)
+	}
+
+	/// "Answers" a registered outbound ping by sending an event to it. This is
+	/// called when the remote server that was pinged calls /pong.
+	///
+	/// `M_NOT_FOUND` is returned if the answer is not recognised.
+	pub fn answer_ping(&self, answer: &str) -> Result<()> {
+		let mut pingpongs = self.pingpongs.write();
+		let Some(tx) = pingpongs.remove(answer) else {
+			return Err!(Request(NotFound("Unknown answer")));
+		};
+		tx.send(()).map_err(|e| {
+			err!(BadServerResponse(error!(
+				error=?e, "Failed to handle pong"
+			)))
+		})
 	}
 }

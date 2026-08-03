@@ -10,6 +10,8 @@ pub(super) mod make_knock;
 pub(super) mod make_leave;
 pub(super) mod media;
 pub(super) mod openid;
+pub(super) mod ping;
+pub(super) mod pong;
 pub(super) mod publicrooms;
 pub(super) mod query;
 pub(super) mod send;
@@ -34,6 +36,8 @@ pub(super) use make_knock::*;
 pub(super) use make_leave::*;
 pub(super) use media::*;
 pub(super) use openid::*;
+pub(super) use ping::ping;
+pub(super) use pong::pong;
 pub(super) use publicrooms::*;
 pub(super) use query::*;
 pub(super) use send::*;
@@ -45,6 +49,6 @@ pub(super) use state_ids::*;
 pub(super) use user::*;
 pub(super) use version::*;
 pub(super) use well_known::*;
-
 mod utils;
+
 use utils::AccessCheck;
