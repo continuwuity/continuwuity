@@ -131,6 +131,8 @@ impl super::Service {
 			))));
 		}
 
+		self.ensure_remote_is_healthy(dest)?;
+
 		let actual = self
 			.services
 			.client
@@ -183,8 +185,12 @@ impl super::Service {
 			| Ok(response) =>
 				self.handle_response::<T>(dest, actual, &method, &url, response)
 					.await,
-			| Err(error) =>
-				Err(handle_error(actual, &method, &url, error).expect_err("always returns error")),
+			| Err(error) => {
+				if error.is_connect() {
+					self.hit_unhealthy(dest.to_owned());
+				}
+				Err(handle_error(actual, &method, &url, error).expect_err("always returns error"))
+			},
 		}
 	}
 
@@ -237,6 +243,7 @@ impl super::Service {
 			parts,
 			body.as_ref(),
 		))
+		.inspect(|_| self.mark_healthy(dest))
 		.map_err(|e| err!(BadServerResponse("Server returned bad 200 response: {e:?}")))
 	}
 }
