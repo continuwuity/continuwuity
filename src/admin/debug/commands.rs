@@ -6,13 +6,14 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, at, debug_error, err, info,
+	Err, Result, at, debug_error, debug_info, err, info,
 	matrix::{
 		Event,
 		pdu::{PduEvent, PduId, RawPduId},
 	},
 	trace, utils,
 	utils::{
+		random_string,
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
 	},
@@ -26,8 +27,10 @@ use resolvematrix::{
 };
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
+	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, ServerName, UInt,
+	api::{error::ErrorKind, federation::event::get_room_state},
+	events::AnyStateEvent,
+	serde::Raw,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -581,14 +584,60 @@ impl crate::Context<'_> {
 		if server == self.services.globals.server_name() {
 			return Err!("Not allowed to send federation requests to ourselves.");
 		}
+		let modern = self.modern_pingpong_ping(&server).await?;
+		if let Some(w) = modern {
+			self.write_str(&w).await
+		} else {
+			info!("{server} does not support msc4524, falling back to legacy ping");
+			self.legacy_ping(&server).await
+		}
+	}
 
+	async fn modern_pingpong_ping(&self, server: &ServerName) -> Result<Option<String>> {
+		let timer = tokio::time::Instant::now();
+		let question = &random_string(64);
+
+		let response = self
+			.services
+			.sending
+			.send_federation_request(
+				server,
+				ruminuwuity::api::federation::ping::unstable::Request::new(question.to_owned()),
+			)
+			.await;
+
+		let answer = match response {
+			| Ok(resp) => resp.answer,
+			| Err(e) =>
+				return if e.is_not_found() && e.kind() == ErrorKind::Unrecognized {
+					Ok(None)
+				} else {
+					Err!("Failed sending federation request to specified server:\n\n{e}")
+				},
+		};
+		let recv = self
+			.services
+			.federation
+			.register_ping_answer(answer.clone())?;
+		debug_info!("Waiting for a pong for up to 60 seconds");
+		let result = tokio::time::timeout(std::time::Duration::from_mins(1), recv).await;
+		match result {
+			| Err(e) => Err!(BadServerResponse("Remote did not answer the ping in time: {e:?}")),
+			| Ok(Err(e)) =>
+				Err!(BadServerResponse("Unexpectedly could not read from pong channel: {e:?}")),
+			| Ok(Ok(())) =>
+				Ok(Some(format!("Ping got a pong in {:?}: {answer}", timer.elapsed()))),
+		}
+	}
+
+	async fn legacy_ping(&self, server: &ServerName) -> Result {
 		let timer = tokio::time::Instant::now();
 
 		match self
 			.services
 			.sending
 			.send_unauthenticated_request(
-				&server,
+				server,
 				ruma::api::federation::discovery::get_server_version::v1::Request::new(),
 			)
 			.await

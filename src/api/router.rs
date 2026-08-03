@@ -229,6 +229,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 			.ruma_route(&server::well_known_server)
 			.ruma_route(&server::get_content_route)
 			.ruma_route(&server::get_content_thumbnail_route)
+			.ruma_route(&server::ping)
+			.ruma_route(&server::pong)
 			.route("/_continuwuity/local_user_count", get(client::continuwuity_local_user_count));
 	} else {
 		router = router
