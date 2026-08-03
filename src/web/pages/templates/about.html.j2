@@ -9,7 +9,7 @@ About server
     <h1>About {{ server_name }}</h1>
     {% if let Some(support_page) = support_page %}
     <p>
-        Visit this server's website: <a href="{{ support_page }} target="_blank">{{ support_page }}</a>
+        Visit this server's website: <a href="{{ support_page }}" target="_blank">{{ support_page }}</a>
     </p>
     {% endif %}
     {% if !contacts.is_empty() %}
