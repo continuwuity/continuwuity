@@ -149,6 +149,9 @@ impl CheckAuth for ServerSignatures {
 					)));
 				}
 
+				// Ping the server as healthy
+				services.sending.mark_healthy(&output.origin);
+
 				Ok(output.origin)
 			},
 			| Err(err) =>
