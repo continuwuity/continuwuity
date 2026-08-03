@@ -2,12 +2,17 @@ mod execute;
 
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+use assign::assign;
 use conduwuit::{
-	Result, Server, SyncRwLock,
+	Error, Result, Server, SyncRwLock,
 	utils::{millis_since_unix_epoch, time::exponential_backoff::min_exp_backoff_duration},
 };
 pub(crate) use execute::FederationPathBuilderInput;
-use ruma::{OwnedServerName, ServerName};
+use http::StatusCode;
+use ruma::{
+	OwnedServerName, ServerName,
+	api::error::{ErrorKind, LimitExceededErrorData, RetryAfter},
+};
 
 use crate::{Dep, client, moderation, server_keys};
 
@@ -105,5 +110,27 @@ impl Service {
 		// by the senders themselves.
 		let mut map = self.remote_health.write();
 		map.remove(server_name);
+	}
+
+	/// Returns a rate-limited error if the remote is unhealthy.
+	fn ensure_remote_is_healthy(&self, server_name: &ServerName) -> Result<()> {
+		if self.is_healthy(server_name) {
+			Ok(())
+		} else {
+			let retry_after = self
+				.retry_after(server_name)
+				.expect("remote is unhealthy and must have an accompanying retry timestamp");
+			Err(Error::Request(
+				ErrorKind::LimitExceeded(assign!(LimitExceededErrorData::new(), {
+					retry_after: Some(RetryAfter::Delay(retry_after)),
+				})),
+				format!(
+					"Remote server is currently unhealthy (not retrying for another {} seconds)",
+					retry_after.as_secs()
+				)
+				.into(),
+				StatusCode::TOO_MANY_REQUESTS,
+			))
+		}
 	}
 }
