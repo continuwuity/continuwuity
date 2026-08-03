@@ -488,6 +488,8 @@ impl Service {
 	///
 	/// TODO: flush senders too
 	pub fn mark_healthy(&self, server_name: &ServerName) {
+		// TODO: We need to make sure the sender flush DOESN'T trigger if this is called
+		// by the senders themselves.
 		let mut map = self.remote_health.write();
 		map.remove(server_name);
 	}
