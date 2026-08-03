@@ -3,6 +3,7 @@ mod execute;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use assign::assign;
+use async_trait::async_trait;
 use conduwuit::{
 	Error, Result, Server, SyncRwLock, debug,
 	utils::{millis_since_unix_epoch, time::exponential_backoff::min_exp_backoff_duration},
@@ -28,6 +29,7 @@ struct Services {
 	moderation: Dep<moderation::Service>,
 }
 
+#[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
@@ -42,6 +44,11 @@ impl crate::Service for Service {
 	}
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
+
+	async fn clear_cache(&self) {
+		let mut map = self.remote_health.write();
+		map.clear();
+	}
 }
 
 impl Service {
