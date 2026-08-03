@@ -4,7 +4,7 @@ use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use assign::assign;
 use conduwuit::{
-	Error, Result, Server, SyncRwLock,
+	Error, Result, Server, SyncRwLock, debug,
 	utils::{millis_since_unix_epoch, time::exponential_backoff::min_exp_backoff_duration},
 };
 pub(crate) use execute::FederationPathBuilderInput;
@@ -90,6 +90,7 @@ impl Service {
 		// code itself.
 		let unix_now = millis_since_unix_epoch();
 		let mut map = self.remote_health.write();
+		let sn2 = server_name.clone(); // for logging since map.entry() moves
 		let (retries, next_retry) = map.entry(server_name).or_default();
 
 		let min = self.services.server.config.sender_timeout;
@@ -100,6 +101,10 @@ impl Service {
 			u64::try_from(min_exp_backoff_duration(min, max, *retries).as_millis())
 				.expect("backoff milliseconds should not exceed u64::MAX"),
 		);
+		debug!(
+			"{} is (now) unhealthy ({} retries, blocked until: {})",
+			sn2, *retries, *next_retry
+		);
 	}
 
 	/// Marks a server as "healthy" by removing it from the health map.
@@ -109,7 +114,9 @@ impl Service {
 		// TODO: We need to make sure the sender flush DOESN'T trigger if this is called
 		// by the senders themselves.
 		let mut map = self.remote_health.write();
-		map.remove(server_name);
+		if map.remove(server_name).is_some() {
+			debug!("{} is now healthy", server_name);
+		}
 	}
 
 	/// Returns a rate-limited error if the remote is unhealthy.
