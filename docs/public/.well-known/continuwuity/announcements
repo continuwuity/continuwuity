@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 16,
+            "id": 17,
             "mention_room": true,
-            "date": "2026-07-13",
-            "message": "[Continuwuity 26.6.2](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.6.1) has just been released! This release fixes a severe bug with OIDC that could cause users' accounts to be flagged as deactivated. If you use OIDC, please update as soon as possible."
+            "date": "2026-07-30",
+            "message": "[Continuwuity 26.7.2](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.7.1) (and [v26.7.1](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.7.1)) have been released! v26.7.1 includes several new bug fixes and features, such as the OAuth2 device authorization flow, and a fix for the \"empty room\" bug (check the release notes!). v26.7.2 is a hotfix that fixes a low severity vulnerability in simplified sliding sync (particularly relevant to multi-user homeservers) and two regressions. It is recommended every deployment upgrades as soon as possible. Join the [announcements room](https://matrix.to/#/#announcements:continuwuity.org) for more prompt announcements regarding updates!"
         }
     ]
 }
