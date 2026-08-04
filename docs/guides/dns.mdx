@@ -92,7 +92,7 @@ url: http://10.10.10.30:29318
 
 ### For IPv4-only users
 
-If you don't have IPv6 connectivity, change `ip_lookup_strategy` to `1`, in order to only resolve for IPv4 and remove unnecessary AAAA queries.
+If you don't have IPv6 connectivity, change `ip_lookup_strategy` to `1` in Continuwuity's configuration, in order to only resolve for IPv4 and remove unnecessary AAAA queries.
 
 ```toml title="continuwuity.toml"
 [global]
@@ -110,7 +110,7 @@ Some values that are commonly tuned include:
 
 - Increase `rrset-cache-size` and `msg-cache-size` to something much higher than the default `4M`, such as `64M`.
 
-- Increase `discard-timeout` to something like `4800` to wait longer for upstream resolvers, as recursion can take a long time to respond to some domains. Continuwuity default to `dns_timeout = 10` seconds, so dropping requests early would lead to unnecessary retries and/or failures.
+- Increase `discard-timeout` to something like `4800` to wait longer for upstream resolvers, as recursion can take a long time to respond to some domains. Continuwuity defaults to `dns_timeout = 10` seconds, so dropping requests early would lead to unnecessary retries and/or failures.
 
 ### Using a forwarder (optional)
 
