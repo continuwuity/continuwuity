@@ -336,7 +336,8 @@ async fn collect_sync_response(
 	.await?;
 
 	response.extensions.typing =
-		collect_typing_events(services, sender_user, body, &todo_rooms).await?;
+		collect_typing_events(services, sender_user, body, &todo_rooms, &known_room_updates)
+			.await?;
 
 	Ok(SyncCollection { response, known_room_updates })
 }
@@ -365,6 +366,7 @@ fn response_is_empty(response: &sync_events::v5::Response) -> bool {
 		&& no_room_data
 		&& no_to_device_messages
 		&& response.extensions.sticky_events.is_empty()
+		&& response.extensions.typing.is_empty()
 }
 
 async fn commit_sync_collection(
@@ -1211,30 +1213,28 @@ async fn collect_typing_events(
 	sender_user: &UserId,
 	body: &sync_events::v5::Request,
 	todo_rooms: &TodoRooms,
+	known_room_updates: &KnownRoomUpdates,
 ) -> Result<sync_events::v5::response::Typing> {
 	if !body.extensions.typing.enabled.unwrap_or(false) {
 		return Ok(sync_events::v5::response::Typing::default());
 	}
-	let rooms: Vec<_> = body.extensions.typing.rooms.clone().unwrap_or_else(|| {
-		body.room_subscriptions
-			.keys()
-			.cloned()
-			.map(ExtensionRoomConfig::Room)
-			.collect()
-	});
-	let lists: Vec<_> = body
-		.extensions
-		.typing
-		.lists
-		.clone()
-		.unwrap_or_else(|| body.lists.keys().map(ToOwned::to_owned).collect::<Vec<_>>());
-
-	if rooms.is_empty() && lists.is_empty() {
+	let typing = &body.extensions.typing;
+	let scope = extension_scope(
+		typing.lists.as_deref(),
+		typing.rooms.as_deref(),
+		body.lists.keys().map(String::as_str),
+		known_room_updates,
+	);
+	if scope.is_empty() {
 		return Ok(sync_events::v5::response::Typing::default());
 	}
 
 	let mut typing_response = sync_events::v5::response::Typing::default();
 	for (room_id, (_, _, roomsince)) in todo_rooms {
+		if !scope.contains(room_id) {
+			continue;
+		}
+
 		if !services
 			.rooms
 			.state_cache
@@ -1267,6 +1267,44 @@ async fn collect_typing_events(
 	}
 
 	Ok(typing_response)
+}
+
+fn extension_scope<'a>(
+	lists: Option<&'a [String]>,
+	rooms: Option<&[ExtensionRoomConfig]>,
+	all_list_ids: impl Iterator<Item = &'a str>,
+	known_room_updates: &KnownRoomUpdates,
+) -> BTreeSet<OwnedRoomId> {
+	let list_ids: Vec<&str> = lists.map_or_else(
+		|| all_list_ids.collect(),
+		|lists| lists.iter().map(String::as_str).collect(),
+	);
+	let subscribed_rooms = known_room_updates
+		.get("subscriptions")
+		.cloned()
+		.unwrap_or_default();
+	let mut scope = BTreeSet::new();
+	for list_id in list_ids {
+		if let Some(rooms) = known_room_updates.get(list_id) {
+			scope.extend(rooms.iter().cloned());
+		}
+	}
+	if let Some(rooms) = rooms {
+		for room in rooms {
+			match room {
+				| ExtensionRoomConfig::AllSubscribed =>
+					scope.extend(subscribed_rooms.iter().cloned()),
+				| ExtensionRoomConfig::Room(room_id) if subscribed_rooms.contains(room_id) => {
+					scope.insert(room_id.clone());
+				},
+				| _ => {},
+			}
+		}
+	} else {
+		scope.extend(subscribed_rooms);
+	}
+
+	scope
 }
 
 async fn collect_account_data(
@@ -1553,6 +1591,39 @@ mod tests {
 
 	fn response() -> sync_events::v5::Response { sync_events::v5::Response::new("1".to_owned()) }
 
+	fn typing_scope_request() -> sync_events::v5::Request {
+		let mut request = sync_events::v5::Request::new();
+		request
+			.lists
+			.insert("first".to_owned(), sync_events::v5::request::List::default());
+		request
+			.lists
+			.insert("second".to_owned(), sync_events::v5::request::List::default());
+		request.room_subscriptions.insert(
+			owned_room_id!("!subscription-a:example.com"),
+			sync_events::v5::request::RoomSubscription::default(),
+		);
+		request.room_subscriptions.insert(
+			owned_room_id!("!subscription-b:example.com"),
+			sync_events::v5::request::RoomSubscription::default(),
+		);
+		request
+	}
+
+	fn known_typing_rooms() -> KnownRoomUpdates {
+		BTreeMap::from([
+			("first".to_owned(), BTreeSet::from([owned_room_id!("!list-a:example.com")])),
+			("second".to_owned(), BTreeSet::from([owned_room_id!("!list-b:example.com")])),
+			(
+				"subscriptions".to_owned(),
+				BTreeSet::from([
+					owned_room_id!("!subscription-a:example.com"),
+					owned_room_id!("!subscription-b:example.com"),
+				]),
+			),
+		])
+	}
+
 	#[test]
 	fn absent_bool_filter_matches_either_value() {
 		assert!(matches_bool_filter(true, None));
@@ -1640,6 +1711,58 @@ mod tests {
 			.insert(room_id.to_owned(), Raw::from_json_string("{}".to_owned()).unwrap());
 
 		assert!(!response_is_empty(&response));
+	}
+
+	#[test]
+	fn typing_makes_a_response_non_empty() {
+		let mut response = response();
+		response.extensions.typing.rooms.insert(
+			owned_room_id!("!a:example.com"),
+			Raw::from_json_string("{}".to_owned()).unwrap(),
+		);
+
+		assert!(!response_is_empty(&response));
+	}
+
+	#[test]
+	fn typing_scope_uses_selected_lists_and_subscriptions() {
+		let request = typing_scope_request();
+
+		assert_eq!(
+			extension_scope(
+				Some(&["first".to_owned()]),
+				Some(&[
+					ExtensionRoomConfig::Room(owned_room_id!("!list-b:example.com")),
+					ExtensionRoomConfig::Room(owned_room_id!("!subscription-b:example.com")),
+				]),
+				request.lists.keys().map(String::as_str),
+				&known_typing_rooms(),
+			),
+			BTreeSet::from([
+				owned_room_id!("!list-a:example.com"),
+				owned_room_id!("!subscription-b:example.com"),
+			])
+		);
+	}
+
+	#[test]
+	fn typing_scope_defaults_to_all_lists_and_subscriptions() {
+		let request = typing_scope_request();
+
+		assert_eq!(
+			extension_scope(
+				None,
+				None,
+				request.lists.keys().map(String::as_str),
+				&known_typing_rooms(),
+			),
+			BTreeSet::from([
+				owned_room_id!("!list-a:example.com"),
+				owned_room_id!("!list-b:example.com"),
+				owned_room_id!("!subscription-a:example.com"),
+				owned_room_id!("!subscription-b:example.com"),
+			])
+		);
 	}
 
 	#[test]
