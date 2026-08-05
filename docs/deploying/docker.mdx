@@ -174,7 +174,7 @@ See the [Other reverse proxies](generic.mdx#setting-up-the-reverse-proxy) sectio
 4. Check your server logs for a registration token:
 
     ```bash
-    docker-compose logs continuwuity 2>&1
+    docker compose logs continuwuity 2>&1
     ```
 
     You'll see output as below.
@@ -203,13 +203,11 @@ To update to a new version of Continuwuity, use the following commands:
 
 ```bash
 # stop the services in docker-compose.yaml
-docker-compose down
-
+docker compose down
 # pull latest images for the services in docker-compose.yaml
-docker-compose pull
-
+docker compose pull
 # spin up the containers again
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Other deployment methods

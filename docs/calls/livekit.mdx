@@ -282,7 +282,7 @@ Start up the services using your usual method - for example `docker compose up -
 
 ## Testing
 
-To test that LiveKit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service#%EF%B8%8F-how-it-works--token-exchange-flow). Follow the steps below while checking Docker logs (`docker-compose logs --follow`), in order to help [troubleshooting](#troubleshooting) any issues.
+To test that LiveKit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service#%EF%B8%8F-how-it-works--token-exchange-flow). Follow the steps below while checking Docker logs (`docker compose logs --follow`), in order to help [troubleshooting](#troubleshooting) any issues.
 
 First, you will need an access token for your current login session. These can be found in your client's settings or obtained via [this website](https://timedout.uk/mxtoken.html).
 
@@ -353,7 +353,7 @@ Use this token to test at the [LiveKit Connection Tester][livekit-connection-tes
 
 ## Troubleshooting
 
-To debug any issues, you can place a call or redo the Testing instructions, and check the container logs for any specific errors. Use `docker-compose logs --follow` to follow these logs in real-time.
+To debug any issues, you can place a call or redo the Testing instructions, and check the container logs for any specific errors. Use `docker compose logs --follow` to follow these logs in real-time.
 
 ### Common errors in Element Call UI
 
@@ -507,7 +507,7 @@ ports:
   # "3478:3478/udp" # (optional UDP port)
 ```
 
-Recreate the LiveKit container (with `docker-compose up -d livekit`) to apply these changes. Remember to allow the new `50300:50400/udp` ports through your firewall.
+Recreate the LiveKit container (with `docker compose up -d livekit`) to apply these changes. Remember to allow the new `50300:50400/udp` ports through your firewall.
 
 Then, we will configure a route from port 443 of the host back to our `livekit-turn.example.com` service on port 5349. To both **multiplex** this and LiveKit's websocket on the same port, we will use a layer-4 reverse proxy with **SNI routing** capabilities, such as [caddy-l4][caddy-l4] on the host system.
 
