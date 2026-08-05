@@ -191,10 +191,10 @@
 # Accepts any 32-bit integer.
 #
 # When determining is a user is authorized to send an event,
-# the server will first check the auth chain cache.
+# the server will first check the cache for an auth chain.
 # If the auth chain is not present in the cache,
-# The server will reach out to the origin server for
-# authorization.
+# The server will read the auth chain from the database
+# and add it to the cache.
 #
 # This defaults to 100,000 + (10,000 * CPU core count)
 #
