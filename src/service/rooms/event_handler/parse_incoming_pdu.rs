@@ -1,13 +1,15 @@
 use std::str::FromStr;
 
 use conduwuit::{
-	Err, Result, err,
+	Err, Error, Result, err,
 	matrix::event::{gen_event_id, gen_event_id_canonical_json},
 };
 use itertools::Itertools;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	RoomVersionId, room_version_rules::RoomVersionRules,
+	RoomVersionId,
+	api::error::{ErrorKind, IncompatibleRoomVersionErrorData},
+	room_version_rules::RoomVersionRules,
 };
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -102,14 +104,25 @@ impl super::Service {
 
 		let room_version_rules = match room_version_rules {
 			| Some(r) => r,
-			| None => &self
-				.services
-				.state
-				.get_room_version(&room_id)
-				.await
-				.unwrap_or(RoomVersionId::V1)
-				.rules()
-				.expect("room version must be supported"),
+			| None => {
+				let room_version = self
+					.services
+					.state
+					.get_room_version(&room_id)
+					.await
+					.map_err(|_| err!(Request(NotFound("no version associated with room ID"))))?;
+				if matches!(room_version, RoomVersionId::V1 | RoomVersionId::V2) {
+					return Err(Error::BadRequest(
+						ErrorKind::IncompatibleRoomVersion(
+							IncompatibleRoomVersionErrorData::new(room_version),
+						),
+						"Room version is too old.",
+					));
+				}
+				&room_version
+					.rules()
+					.expect("room version must be supported")
+			},
 		};
 
 		let (event_id, value) =

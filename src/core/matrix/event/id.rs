@@ -1,4 +1,7 @@
-use ruma::{CanonicalJsonObject, OwnedEventId, room_version_rules::RoomVersionRules};
+use ruma::{
+	CanonicalJsonObject, EventId, OwnedEventId,
+	room_version_rules::{EventIdFormatVersion, RoomVersionRules},
+};
 use serde_json::value::RawValue as RawJsonValue;
 
 use crate::{Result, err};
@@ -24,8 +27,11 @@ pub fn gen_event_id(
 	value: &CanonicalJsonObject,
 	room_version_rules: &RoomVersionRules,
 ) -> Result<OwnedEventId> {
+	assert_ne!(
+		room_version_rules.event_id_format,
+		EventIdFormatVersion::V1,
+		"Continuwuity does not support PDU v1"
+	);
 	let reference_hash = ruma::signatures::reference_hash(value, room_version_rules)?;
-	let event_id: OwnedEventId = format!("${reference_hash}").try_into()?;
-
-	Ok(event_id)
+	Ok(EventId::new_v2_or_v3(&reference_hash)?)
 }
