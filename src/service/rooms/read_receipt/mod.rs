@@ -152,15 +152,21 @@ pub fn pack_receipts<I>(receipts: I) -> Raw<SyncEphemeralRoomEvent<ReceiptEventC
 where
 	I: Iterator<Item = Raw<AnySyncEphemeralRoomEvent>>,
 {
-	let mut json = BTreeMap::new();
+	let mut json: BTreeMap<OwnedEventId, Receipts> = BTreeMap::new();
 	for value in receipts {
 		let receipt = serde_json::from_str::<SyncEphemeralRoomEvent<ReceiptEventContent>>(
 			value.json().get(),
 		);
 		match receipt {
 			| Ok(value) =>
-				for (event, receipt) in value.content {
-					json.insert(event, receipt);
+				for (event, receipt_types) in value.content {
+					let event_receipts = json.entry(event).or_default();
+					for (receipt_type, users) in receipt_types {
+						event_receipts
+							.entry(receipt_type)
+							.or_default()
+							.extend(users);
+					}
 				},
 			| _ => {
 				debug!("failed to parse receipt: {:?}", receipt);
@@ -174,4 +180,47 @@ where
 		serde_json::value::to_raw_value(&SyncEphemeralRoomEvent::new(content))
 			.expect("received valid json"),
 	)
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::{
+		events::receipt::{Receipt, ReceiptType},
+		user_id,
+	};
+
+	use super::*;
+
+	fn receipt(event_id: OwnedEventId, user_id: OwnedUserId) -> Raw<AnySyncEphemeralRoomEvent> {
+		let content = ReceiptEventContent::from_iter([(
+			event_id,
+			BTreeMap::from([(
+				ReceiptType::Read,
+				BTreeMap::from([(user_id, Receipt::default())]),
+			)]),
+		)]);
+		Raw::from_json(
+			serde_json::value::to_raw_value(&SyncEphemeralRoomEvent::new(content))
+				.expect("receipt event serializes"),
+		)
+	}
+
+	#[test]
+	fn pack_receipts_keeps_users_reading_the_same_event() {
+		let event_id: OwnedEventId = "$event:example.org".try_into().expect("valid event ID");
+		let packed = pack_receipts(
+			[
+				receipt(event_id.clone(), user_id!("@alice:example.org").to_owned()),
+				receipt(event_id.clone(), user_id!("@bob:example.org").to_owned()),
+			]
+			.into_iter(),
+		);
+		let packed: SyncEphemeralRoomEvent<ReceiptEventContent> =
+			serde_json::from_str(packed.json().get()).expect("packed receipt is valid");
+
+		let users = &packed.content[&event_id][&ReceiptType::Read];
+		assert_eq!(users.len(), 2);
+		assert!(users.contains_key(user_id!("@alice:example.org")));
+		assert!(users.contains_key(user_id!("@bob:example.org")));
+	}
 }
