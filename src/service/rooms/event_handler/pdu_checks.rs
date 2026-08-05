@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use base64::Engine;
 use conduwuit::{
 	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error,
 	debug_info, err, info, matrix::StateKey, state_res, trace,
@@ -7,13 +8,42 @@ use conduwuit::{
 use futures::future::ready;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, ServerName,
-	api::error::ErrorKind, canonical_json::redact, events::StateEventType,
-	room_version_rules::RoomVersionRules,
+	api::error::ErrorKind,
+	canonical_json::redact,
+	events::StateEventType,
+	room_version_rules::{EventIdFormatVersion, RoomVersionRules},
 };
 
 use crate::rooms::{
 	event_handler::parse_incoming_pdu::expect_event_id_array, timeline::pdu_fits,
 };
+
+/// Checks that the given event ID matches the expected format by attempting to
+/// decode the base64 string.
+fn check_event_id_format(
+	event_id: &EventId,
+	room_version_rules: &RoomVersionRules,
+) -> Result<Vec<u8>> {
+	let event_id_without_sigil = event_id
+		.as_str()
+		.strip_prefix("$")
+		.expect("event ID must start with a $ sigil");
+	let b64_alphabet = match room_version_rules.event_id_format {
+		| EventIdFormatVersion::V2 => base64::alphabet::STANDARD,
+		| EventIdFormatVersion::V3 => base64::alphabet::URL_SAFE,
+		| _ => return Err!("Unsupported event ID Format"),
+	};
+	let b64_engine = base64::engine::GeneralPurpose::new(
+		&b64_alphabet,
+		base64::engine::general_purpose::NO_PAD,
+	);
+	b64_engine.decode(event_id_without_sigil).map_err(|e| {
+		err!(Request(InvalidParam(debug_error!(
+			error=?e,
+			"PDU references an invalid event ID: {event_id}"
+		))))
+	})
+}
 
 impl super::Service {
 	/// Checks that the PDU conforms to the PDU format (check 1). This is
@@ -42,6 +72,9 @@ impl super::Service {
 		if auth_events.len() > 10 {
 			return Err!(Request(BadJson("PDU has too many auth events")));
 		}
+		for auth_event_id in &auth_events {
+			check_event_id_format(auth_event_id, room_version_rules)?;
+		}
 
 		// The m.room.create event is the genesis event and has empty auth_events
 		// by definition, so it is exempt from the checks below requiring or
@@ -69,6 +102,9 @@ impl super::Service {
 		let prev_events = expect_event_id_array(pdu_json, "prev_events")?;
 		if prev_events.len() > 20 {
 			return Err!(Request(BadJson("PDU has too many prev events")));
+		}
+		for prev_event_id in &prev_events {
+			check_event_id_format(prev_event_id, room_version_rules)?;
 		}
 
 		Ok(())
@@ -304,5 +340,94 @@ impl super::Service {
 		}
 		pdu_json.insert("event_id".to_owned(), event_id);
 		Ok(true)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::server_name;
+
+	use super::*;
+
+	#[test]
+	fn v1_event_id_always_errors() {
+		let v1_event_id = EventId::new_v1(server_name!("example.com"));
+		assert!(
+			check_event_id_format(&v1_event_id, &RoomVersionRules::V3).is_err(),
+			"V1 event ID should not be valid in room V3"
+		);
+		assert!(
+			check_event_id_format(&v1_event_id, &RoomVersionRules::V4).is_err(),
+			"V1 event ID should not be valid in room V4"
+		);
+	}
+
+	#[test]
+	fn v2_event_id_ok_in_room_v3_only() {
+		let v2_event_id = EventId::new_v2_or_v3("KtY/RFXNXYxprwSOypvTlZsbohReRw19qcPATZDda4E")
+			.expect("fixture event hash must be valid");
+		let decoded_bytes = check_event_id_format(&v2_event_id, &RoomVersionRules::V3)
+			.expect("V2 event ID should be valid in room V3");
+		assert_eq!(
+			decoded_bytes,
+			vec![
+				42, 214, 63, 68, 85, 205, 93, 140, 105, 175, 4, 142, 202, 155, 211, 149, 155, 27,
+				162, 20, 94, 71, 13, 125, 169, 195, 192, 77, 144, 221, 107, 129
+			],
+			"V2 event reference hash did not decode to expected bytes"
+		);
+		assert!(
+			check_event_id_format(&v2_event_id, &RoomVersionRules::V4).is_err(),
+			"V2 event ID should not be valid in room V4"
+		);
+	}
+
+	#[test]
+	fn v3_event_id_errors_in_room_v3() {
+		let v3_event_id = EventId::new_v2_or_v3("zsj67_pqjr5qqh5GMTXqxLM0FqjP5OLrvXO0PjwWe88")
+			.expect("fixture event hash must be valid");
+		// Since the urlsafe replacements aren't in the standard base64 alphabet, this
+		// simply errors instead of decoding to potentially incorrect bytes.
+		assert!(
+			check_event_id_format(&v3_event_id, &RoomVersionRules::V3).is_err(),
+			"V3 event ID should not be valid in room V3"
+		);
+	}
+	#[test]
+	fn v3_event_id_ok_in_room_v4_onward() {
+		let v3_event_id = EventId::new_v2_or_v3("zsj67_pqjr5qqh5GMTXqxLM0FqjP5OLrvXO0PjwWe88")
+			.expect("fixture event hash must be valid");
+		// Since the urlsafe replacements aren't in the standard base64 alphabet, this
+		// simply errors instead of decoding to potentially incorrect bytes.
+		let expected_bytes = vec![
+			206, 200, 250, 239, 250, 106, 142, 190, 106, 170, 30, 70, 49, 53, 234, 196, 179, 52,
+			22, 168, 207, 228, 226, 235, 189, 115, 180, 62, 60, 22, 123, 207,
+		];
+		assert_eq!(
+			check_event_id_format(&v3_event_id, &RoomVersionRules::V4)
+				.expect("V3 event should be valid room V4"),
+			expected_bytes,
+			"V3 event ID in room V4 did not decode to expected bytes"
+		);
+		// These versions didn't change the algorithm, but might as well test them
+		// anyway
+		assert_eq!(
+			check_event_id_format(&v3_event_id, &RoomVersionRules::V6)
+				.expect("V3 event should be valid room V6"),
+			expected_bytes,
+			"V3 event ID in room V6 did not decode to expected bytes"
+		);
+		assert_eq!(
+			check_event_id_format(&v3_event_id, &RoomVersionRules::V10)
+				.expect("V3 event should be valid room V10"),
+			expected_bytes,
+			"V3 event ID in room V10 did not decode to expected bytes"
+		);
+		assert_eq!(
+			check_event_id_format(&v3_event_id, &RoomVersionRules::V12)
+				.expect("V3 event should be valid room V12"),
+			expected_bytes,
+			"V3 event ID in room V12 did not decode to expected bytes"
+		);
 	}
 }
