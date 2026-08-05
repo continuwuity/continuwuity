@@ -170,43 +170,136 @@
 #
 #db_write_buffer_capacity_mb = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# The maximum number of Persisted Data Units (PDUs) to cache.
+# Accepts any 32-bit integer.
+#
+# PDUs are events broadcast from one homeserver to any others that have
+# joined the same room (identified by Room ID). They are persisted in
+# long-term storage and record the history of messages and state
+# for a room.
+#
+# An example of a PDU would be a message or joining a room.
+#
+# Setting this higher might be useful if the server has a large memory
+# capacity and is noticeably I/O limited.
+#
+# This defaults to 100,000 + (10,000 * CPU core count)
 #
 #pdu_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# The maximum number of auth chains to cache.
+# Accepts any 32-bit integer.
+#
+# When determining is a user is authorized to send an event,
+# the server will first check the auth chain cache.
+# If the auth chain is not present in the cache,
+# The server will reach out to the origin server for
+# authorization.
+#
+# This defaults to 100,000 + (10,000 * CPU core count)
 #
 #auth_chain_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for eventid data references.
+# Accepts any 32-bit integer.
+#
+# Each matrix event can be referenced in the database via either
+# an eventid (string) or a shorteventid (64-bit integer).
+# This caps the capacity of cached eventids referenced
+# by their shorteventid.
+#
+# This defaults to 100,000 + (50,000 * CPU core count)
 #
 #shorteventid_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for eventid data references.
+# Accepts any 32-bit integer.
+#
+# Each matrix event can be referenced in the database via either
+# an eventid (string) or a shorteventid (64-bit integer).
+# This caps the capacity of cached shorteventids referenced
+# by their eventid.
+#
+# This defaults to 100,000 + (25,000 * CPU core count)
 #
 #eventidshort_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for pdu data references.
+# Accepts any 32-bit integer.
+#
+# This caps the capacity of cached pdus referenced
+# by their eventid.
+#
+# This defaults to 100,000 + (25,000 * CPU core count)
 #
 #eventid_pdu_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for state key data references.
+# Accepts any 32-bit integer.
+#
+# State keys are used by the server to verify that a token
+# from a third-party invite event was actually generated
+# by the server where the room resides.
+#
+# These state keys can be referenced in the database via either
+# a statekey (string) or a shortstatekey (64-bit integer).
+# This caps the capacity of cached statekeys referenced
+# by shortstatekeys.
+#
+# This defaults to 100,000 + (10,000 * CPU core count)
 #
 #shortstatekey_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for state key data references.
+# Accepts any 32-bit integer.
+#
+# State keys are used by the server to verify that a token
+# from a third-party invite event was actually generated
+# by the server where the room resides.
+#
+# These state keys can be referenced in the database via either
+# a statekey (string) or a shortstatekey (64-bit integer).
+# This caps the capacity of cached shortstatekeys referenced
+# by statekeys.
+#
+# This defaults to 100,000 + (10,000 * CPU core count)
 #
 #statekeyshort_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for event_data references scoped
+# by server_name.
+# Accepts any 32-bit integer.
+#
+# Event data can be referenced in the database by server name.
+# This is useful if the server needs to clear all events associated
+# with a particular federated server, for example.
+# This caps the capacity of cached event_data referenced
+# by server_name.
+#
+# This defaults to 500,000 + (10,000 * CPU core count)
 #
 #servernameevent_data_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for room states.
+# Accepts any 32-bit integer.
+#
+# To ensure data integrity of room events across asynchronous
+# requests from federated servers, Matrix tracks the state
+# of a room using a statehash and the changes since the
+# previous (parent) statehash.
+# This caps the capacity of cached room state data.
+#
+# This defaults to 100 * CPU core count.
 #
 #stateinfo_cache_capacity = varies by system
 
-# This item is undocumented. Please contribute documentation for it.
+# Determines the cache size for spacehierarchy data.
+# Accepts any 32-bit integer.
+#
+# Each roomid contains info on its place in the space hierarchy.
+# This caps the capacity of cached spacehierarchy data.
+#
+# This defaults to 1,000 * CPU core count.
 #
 #roomid_spacehierarchy_cache_capacity = varies by system
 
@@ -347,7 +440,13 @@
 #
 #max_request_size = 20971520
 
-# This item is undocumented. Please contribute documentation for it.
+# Maximum number of prev_events the server will request from
+# other servers.
+#
+# When requesting room events from another server, this server will
+# specify a maximum prev_events for the other server to return in its
+# response. This can be used for things like backfilling room data and
+# getting missing events.
 #
 #max_fetch_prev_events = 1024
 
@@ -732,11 +831,15 @@
 #
 #tracing_flame = false
 
-# This item is undocumented. Please contribute documentation for it.
+# Which log level tracing_flame will trace.
+#
+# See "tracing_flame" for more details.
 #
 #tracing_flame_filter = "info"
 
-# This item is undocumented. Please contribute documentation for it.
+# The output path for tracing_flame data.
+#
+# See "tracing_flame" for more details.
 #
 #tracing_flame_output_path = "./tracing.folded"
 
@@ -964,7 +1067,7 @@
 #
 #rocksdb_log_level = "error"
 
-# This item is undocumented. Please contribute documentation for it.
+# Whether to output RocksDB errors to stderr.
 #
 #rocksdb_log_stderr = false
 
@@ -1214,7 +1317,17 @@
 #
 #emergency_password =
 
-# This item is undocumented. Please contribute documentation for it.
+# Specifies the path where push notifications will be sent to a
+# push gateway.
+#
+# When a Matrix client registers for push notifications, it will specify
+# a push gateway url where notification events will be sent.
+# According to the current spec for Matrix Push Gateways, the path should
+# always be "/_matrix/push/v1/notify".
+# You should only change this if you have configured your own push gateway
+# that requires a different path.
+#
+# For more information on Push Gateways: https://spec.matrix.org/v1.9/push-gateway-api/
 #
 #notification_push_path = "/_matrix/push/v1/notify"
 
@@ -1371,7 +1484,10 @@
 #
 #allow_legacy_media = true
 
-# This item is undocumented. Please contribute documentation for it.
+# If set to true, prevents fetching new legacy remote media.
+#
+# Legacy media may still be accessible if it was already fetched
+# previously and allow_legacy_media is true.
 #
 #freeze_legacy_media = true
 
@@ -1779,7 +1895,18 @@
 #
 #tokio_console = false
 
-# This item is undocumented. Please contribute documentation for it.
+# A list of flags that modify startup behavior.
+# Accepts an array of strings.
+#
+# During startup, the program will check for the presence of certain
+# strings in this array. Matching values will modify how the program runs
+# those startup tasks.
+#
+# If this variable is empty or contains no matches, the server will start
+# normally.
+#
+# Currently this only checks for "smoke" which enables "Smoketest mode."
+# This mode exits the program after running startup tasks.
 #
 #test = false
 

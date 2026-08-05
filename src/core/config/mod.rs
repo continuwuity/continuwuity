@@ -238,42 +238,155 @@ pub struct Config {
 	#[serde(default = "default_db_write_buffer_capacity_mb")]
 	pub db_write_buffer_capacity_mb: f64,
 
+	/// The maximum number of Persisted Data Units (PDUs) to cache.
+	/// Accepts any 32-bit integer.
+	///
+	/// PDUs are events broadcast from one homeserver to any others that have
+	/// joined the same room (identified by Room ID). They are persisted in
+	/// long-term storage and record the history of messages and state
+	/// for a room.
+	///
+	/// An example of a PDU would be a message or joining a room.
+	///
+	/// Setting this higher might be useful if the server has a large memory
+	/// capacity and is noticeably I/O limited.
+	///
+	/// This defaults to 100,000 + (10,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_pdu_cache_capacity")]
 	pub pdu_cache_capacity: u32,
 
+	/// The maximum number of auth chains to cache.
+	/// Accepts any 32-bit integer.
+	///
+	/// When determining is a user is authorized to send an event,
+	/// the server will first check the auth chain cache.
+	/// If the auth chain is not present in the cache,
+	/// The server will reach out to the origin server for
+	/// authorization.
+	///
+	/// This defaults to 100,000 + (10,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_auth_chain_cache_capacity")]
 	pub auth_chain_cache_capacity: u32,
 
+	/// Determines the cache size for eventid data references.
+	/// Accepts any 32-bit integer.
+	///
+	/// Each matrix event can be referenced in the database via either
+	/// an eventid (string) or a shorteventid (64-bit integer).
+	/// This caps the capacity of cached eventids referenced
+	/// by their shorteventid.
+	///
+	/// This defaults to 100,000 + (50,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_shorteventid_cache_capacity")]
 	pub shorteventid_cache_capacity: u32,
 
+	/// Determines the cache size for eventid data references.
+	/// Accepts any 32-bit integer.
+	///
+	/// Each matrix event can be referenced in the database via either
+	/// an eventid (string) or a shorteventid (64-bit integer).
+	/// This caps the capacity of cached shorteventids referenced
+	/// by their eventid.
+	///
+	/// This defaults to 100,000 + (25,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_eventidshort_cache_capacity")]
 	pub eventidshort_cache_capacity: u32,
 
+	/// Determines the cache size for pdu data references.
+	/// Accepts any 32-bit integer.
+	///
+	/// This caps the capacity of cached pdus referenced
+	/// by their eventid.
+	///
+	/// This defaults to 100,000 + (25,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_eventid_pdu_cache_capacity")]
 	pub eventid_pdu_cache_capacity: u32,
 
+	/// Determines the cache size for state key data references.
+	/// Accepts any 32-bit integer.
+	///
+	/// State keys are used by the server to verify that a token
+	/// from a third-party invite event was actually generated
+	/// by the server where the room resides.
+	///
+	/// These state keys can be referenced in the database via either
+	/// a statekey (string) or a shortstatekey (64-bit integer).
+	/// This caps the capacity of cached statekeys referenced
+	/// by shortstatekeys.
+	///
+	/// This defaults to 100,000 + (10,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_shortstatekey_cache_capacity")]
 	pub shortstatekey_cache_capacity: u32,
 
+	/// Determines the cache size for state key data references.
+	/// Accepts any 32-bit integer.
+	///
+	/// State keys are used by the server to verify that a token
+	/// from a third-party invite event was actually generated
+	/// by the server where the room resides.
+	///
+	/// These state keys can be referenced in the database via either
+	/// a statekey (string) or a shortstatekey (64-bit integer).
+	/// This caps the capacity of cached shortstatekeys referenced
+	/// by statekeys.
+	///
+	/// This defaults to 100,000 + (10,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_statekeyshort_cache_capacity")]
 	pub statekeyshort_cache_capacity: u32,
 
+	/// Determines the cache size for event_data references scoped
+	/// by server_name.
+	/// Accepts any 32-bit integer.
+	///
+	/// Event data can be referenced in the database by server name.
+	/// This is useful if the server needs to clear all events associated
+	/// with a particular federated server, for example.
+	/// This caps the capacity of cached event_data referenced
+	/// by server_name.
+	///
+	/// This defaults to 500,000 + (10,000 * CPU core count)
+	///
 	/// default: varies by system
 	#[serde(default = "default_servernameevent_data_cache_capacity")]
 	pub servernameevent_data_cache_capacity: u32,
 
+	/// Determines the cache size for room states.
+	/// Accepts any 32-bit integer.
+	///
+	/// To ensure data integrity of room events across asynchronous
+	/// requests from federated servers, Matrix tracks the state
+	/// of a room using a statehash and the changes since the
+	/// previous (parent) statehash.
+	/// This caps the capacity of cached room state data.
+	///
+	/// This defaults to 100 * CPU core count.
+	///
 	/// default: varies by system
 	#[serde(default = "default_stateinfo_cache_capacity")]
 	pub stateinfo_cache_capacity: u32,
 
+	/// Determines the cache size for spacehierarchy data.
+	/// Accepts any 32-bit integer.
+	///
+	/// Each roomid contains info on its place in the space hierarchy.
+	/// This caps the capacity of cached spacehierarchy data.
+	///
+	/// This defaults to 1,000 * CPU core count.
+	///
 	/// default: varies by system
 	#[serde(default = "default_roomid_spacehierarchy_cache_capacity")]
 	pub roomid_spacehierarchy_cache_capacity: u32,
@@ -431,6 +544,14 @@ pub struct Config {
 	#[serde(default = "default_max_request_size")]
 	pub max_request_size: usize,
 
+	/// Maximum number of prev_events the server will request from
+	/// other servers.
+	///
+	/// When requesting room events from another server, this server will
+	/// specify a maximum prev_events for the other server to return in its
+	/// response. This can be used for things like backfilling room data and
+	/// getting missing events.
+	///
 	/// default: 1024
 	#[serde(default = "default_max_fetch_prev_events")]
 	pub max_fetch_prev_events: u16,
@@ -890,13 +1011,23 @@ pub struct Config {
 	///
 	/// [1]: https://github.com/jonhoo/inferno
 	/// [2]: www.speedscope.app
+	///
+	/// default: false
 	#[serde(default)]
 	pub tracing_flame: bool,
 
+	/// Which log level tracing_flame will trace.
+	///
+	/// See "tracing_flame" for more details.
+	///
 	/// default: "info"
 	#[serde(default = "default_tracing_flame_filter")]
 	pub tracing_flame_filter: String,
 
+	/// The output path for tracing_flame data.
+	///
+	/// See "tracing_flame" for more details.
+	///
 	/// default: "./tracing.folded"
 	#[serde(default = "default_tracing_flame_output_path")]
 	pub tracing_flame_output_path: String,
@@ -1158,6 +1289,9 @@ pub struct Config {
 	#[serde(default = "default_rocksdb_log_level")]
 	pub rocksdb_log_level: String,
 
+	/// Whether to output RocksDB errors to stderr.
+	///
+	/// default: false
 	#[serde(default)]
 	pub rocksdb_log_stderr: bool,
 
@@ -1430,6 +1564,18 @@ pub struct Config {
 	/// display: sensitive
 	pub emergency_password: Option<String>,
 
+	/// Specifies the path where push notifications will be sent to a
+	/// push gateway.
+	///
+	/// When a Matrix client registers for push notifications, it will specify
+	/// a push gateway url where notification events will be sent.
+	/// According to the current spec for Matrix Push Gateways, the path should
+	/// always be "/_matrix/push/v1/notify".
+	/// You should only change this if you have configured your own push gateway
+	/// that requires a different path.
+	///
+	/// For more information on Push Gateways: https://spec.matrix.org/v1.9/push-gateway-api/
+	///
 	/// default: "/_matrix/push/v1/notify"
 	#[serde(default = "default_notification_push_path")]
 	pub notification_push_path: String,
@@ -1596,9 +1742,17 @@ pub struct Config {
 	///
 	/// Defaults to true for now, but this is highly subject to change, likely
 	/// in the next release.
+	///
+	/// default: true
 	#[serde(default = "true_fn")]
 	pub allow_legacy_media: bool,
 
+	/// If set to true, prevents fetching new legacy remote media.
+	///
+	/// Legacy media may still be accessible if it was already fetched
+	/// previously and allow_legacy_media is true.
+	///
+	/// default: true
 	#[serde(default = "true_fn")]
 	pub freeze_legacy_media: bool,
 
@@ -2058,6 +2212,20 @@ pub struct Config {
 	#[serde(default)]
 	pub tokio_console: bool,
 
+	/// A list of flags that modify startup behavior.
+	/// Accepts an array of strings.
+	///
+	/// During startup, the program will check for the presence of certain
+	/// strings in this array. Matching values will modify how the program runs
+	/// those startup tasks.
+	///
+	/// If this variable is empty or contains no matches, the server will start
+	/// normally.
+	///
+	/// Currently this only checks for "smoke" which enables "Smoketest mode."
+	/// This mode exits the program after running startup tasks.
+	///
+	/// default: false
 	#[serde(default)]
 	pub test: BTreeSet<String>,
 
