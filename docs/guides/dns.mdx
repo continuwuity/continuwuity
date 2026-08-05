@@ -59,7 +59,7 @@ nameserver 10.10.10.20
 
 :::warning Breaking resolution with container hostnames
 
-After you mount a custom `/etc/resolv.conf`, you won't be able to connect to other container using their hostnames, such as for [appservices](../appservices.mdx) in the same Docker network. To work around this, force your appservice to use a static IP address, and refer to its static IP during registration.
+After you mount a custom `/etc/resolv.conf`, you won't be able to connect to other containers using their hostnames, such as for [appservices](../appservices.mdx) in the same Docker network. To work around this, force your appservice to use a static IP address, and refer to its static IP during registration.
 
 <details>
 <summary>Example Docker deployment with an appservice</summary>
