@@ -42,15 +42,14 @@ running compaction is not recommended, or compaction via a timer, due to
 creating unnecessary I/O amplification. RocksDB is built with io_uring support
 via liburing for improved read performance.
 
-RocksDB troubleshooting can be found [in the RocksDB section of
-troubleshooting](./troubleshooting.mdx#rocksdb--database-issues).
+RocksDB troubleshooting can be found [in the RocksDB section of troubleshooting](./troubleshooting.mdx#rocksdb--database-issues).
 
 ### Compression
 
-Some RocksDB settings can be adjusted such as the compression method chosen. See
-the RocksDB section in the [example config](./reference/config.mdx), and the
+Some RocksDB settings can be adjusted, such as the chosen compression method and level.
+See the RocksDB section in the [example config](./reference/config.mdx), and the
 [database compression section](./guides/performance.mdx#tuning-database-compression)
-in the perf-tuning documentation for more.
+in the performance tuning documentation for more.
 
 #### Caveats for btrfs users
 
@@ -87,14 +86,15 @@ config option.
 
 ### Database online backup
 
-If you'd like to backup your database online without any downtime, see the
-[`!admin server` command](./reference/admin/server.md) for the backup commands
-and the `database_backup_path` config options in the example config.
+f you'd like to run an online backup of your database - that is, a backup with
+no downtime - check the [`!admin server` command](./reference/admin/server.md)
+for the required commands and the `database_backup_path` config options in
+the example config.
 
-Please note that the format of the database backup is not the exact same.
-This is unfortunately a bad design choice by Facebook as we are using the
-database backup engine API from RocksDB, however the data is still there and can
-still be joined together.
+Please note that the format of the database backup is not the exact same as the
+format of offline backups. This is unfortunately a bad design choice by Facebook
+as we are using the database backup engine API from RocksDB, however the data
+is still there and can still be joined together.
 
 To restore a backup from an online RocksDB backup:
 
@@ -140,9 +140,9 @@ the file created time (`btime`) or file modified time (`mtime`)
 See the [`!admin media` commands](./reference/admin/media.md) for further information.
 All media in Continuwuity is stored at `$DATABASE_DIR/media`.
 
-While Continuwuity does not implement built-in S3 support, using an "S3 filesystem
-on the `media/` path will works. Continuwuity also sends a `Cache-Control` header
-of 1 year and immutable for all media requests (download and thumbnail)
-to reduce unnecessary bandwidth and load.
+While Continuwuity does not implement built-in S3 support, using an S3 filesystem
+mount on the `media/` path will work. Continuwuity also sends a `Cache-Control`
+header of 1 year with the `immutable` directive for all media requests
+(download and thumbnail) to reduce unnecessary bandwidth and load.
 
 [rocksdb-compaction]: https://github.com/facebook/rocksdb/wiki/Compaction

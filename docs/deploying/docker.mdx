@@ -62,7 +62,7 @@ See the [reference configuration](../reference/config) page for all config optio
 
 These examples include reverse proxy configurations for Matrix federation, which will route your Matrix domain (and optionally .well-known paths) to Continuwuity.
 
-:::note Docker DNS Performance
+:::important Docker DNS Performance
 Docker's default DNS resolver are known to [**cause timeout issues**](../troubleshooting#dns-issues) for Matrix federation. To bypass it and use a more performant resolver, we will mount a custom `/etc/resolv.conf` config file into the Continuwuity container.
 
 ```yaml title='docker-compose.yml'

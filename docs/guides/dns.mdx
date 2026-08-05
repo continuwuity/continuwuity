@@ -18,7 +18,7 @@ nameserver 127.0.0.1
 
 ### For Docker users
 
-By default, Docker bridge networks uses a non-performant resolver to intercept and respond to container hostnames. **This resolver should also be avoided**. Instead, mount a custom `/etc/resolv.conf` file into the container, and hardcode a resolver address to bypass Docker's.
+By default, Docker bridge networks uses a poorly performing resolver to intercept and respond to container hostnames. **This resolver should also be avoided**. Instead, mount a custom `/etc/resolv.conf` file into the container, and hardcode a resolver address to bypass Docker's.
 
 It is recommended to run a dedicated resolver container for Continuwuity, as to separate from the host's resolver setup. To do this, create a custom bridge network and IP range, and explicitly define an IP address for the resolver container.
 
@@ -27,10 +27,9 @@ It is recommended to run a dedicated resolver container for Continuwuity, as to 
 
 ```yaml title="docker-compose.yml"
 networks:
-
-  # re-use the `proxy` network, as shown in Docker deployment docs,
-  # with a custom subnet
-  # https://continuwuity.org/deploying/docker#choose-your-reverse-proxy
+  # re-use the `proxy` network, as shown in the Docker deployment docs
+  # (https://continuwuity.org/deploying/docker#choose-your-reverse-proxy)
+  # and configure it with a custom subnet
   proxy:
     ipam:
       driver: default
@@ -60,7 +59,7 @@ nameserver 10.10.10.20
 
 :::warning Breaking resolution with container hostnames
 
-By mounting a custom `/etc/resolv.conf`, you won't be able to connect to other container via their hostnames, such as [appservice](../appservices.mdx) in the same Docker network. To work around this, also force your appservice to use a static IP address, and refer to such IP during registration.
+After you mount a custom `/etc/resolv.conf`, you won't be able to connect to other container using their hostnames, such as for [appservices](../appservices.mdx) in the same Docker network. To work around this, force your appservice to use a static IP address, and refer to its static IP during registration.
 
 <details>
 <summary>Example Docker deployment with an appservice</summary>
@@ -92,7 +91,7 @@ url: http://10.10.10.30:29318
 
 ### For IPv4-only users
 
-If you don't have IPv6 connectivity, change `ip_lookup_strategy` to `1` in Continuwuity's configuration, in order to only resolve for IPv4 and remove unnecessary AAAA queries.
+If you don't have IPv6 connectivity, change `ip_lookup_strategy` to `1` in Continuwuity's configuration in order to onlyresolve IPv4 addresses and remove unnecessary IPv6 queries.
 
 ```toml title="continuwuity.toml"
 [global]
@@ -114,7 +113,7 @@ Some values that are commonly tuned include:
 
 ### Using a forwarder (optional)
 
-Unbound by default employs **recursive resolution** and contacts many nameservers around the world. While this is generally viable for most users, sometimes these recursive queries can be too slow to fully resolve. As an alternative, you may consider **forwarding** your queries to public resolvers, and benefit from faster responses from their CDNs.
+Unbound employs **recursive resolution** by default, contacting many nameservers around the world in the process. While this is generally viable for most users, sometimes these recursive queries can be too slow to fully resolve. As an alternative, you may consider **forwarding** your queries to public resolvers, and benefit from faster responses from their caches.
 
 However, do note that most popular upstreams (such as Google DNS or Quad9) employ IP ratelimiting, so a generous Unbound cache is still needed to avoid making too many queries.
 
@@ -182,7 +181,7 @@ You may consult this [community guide][technitium-continuwuity] for more details
 
 ## Testing
 
-As a rough stress test, you can run `!admin query resolver flush-cache -a` or `!admin server clear-caches` to clear your destinations cache - this will then trigger a netburst of DNS queries. If your resolver can handle this load without problem, then it should be ready for regular Continuwuity activity.
+As a rough stress test, you can run `!admin query resolver flush-cache -a` or `!admin server clear-caches` to clear your destinations cache - this will then trigger a netburst of DNS queries. If your resolver can handle this load without issue, then it should be ready for regular Continuwuity activity.
 
 To test connectivity against a specific server, use `!admin debug ping <SERVER_NAME>` and `!admin debug resolve-true-destination <SERVER_NAME>`.
 
