@@ -1327,7 +1327,7 @@
 # You should only change this if you have configured your own push gateway
 # that requires a different path.
 #
-# For more information on Push Gateways: https://spec.matrix.org/v1.9/push-gateway-api/
+# For more information on Push Gateways: https://spec.matrix.org/latest/push-gateway-api/
 #
 #notification_push_path = "/_matrix/push/v1/notify"
 

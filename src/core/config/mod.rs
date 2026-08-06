@@ -1574,7 +1574,7 @@ pub struct Config {
 	/// You should only change this if you have configured your own push gateway
 	/// that requires a different path.
 	///
-	/// For more information on Push Gateways: https://spec.matrix.org/v1.9/push-gateway-api/
+	/// For more information on Push Gateways: https://spec.matrix.org/latest/push-gateway-api/
 	///
 	/// default: "/_matrix/push/v1/notify"
 	#[serde(default = "default_notification_push_path")]
