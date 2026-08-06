@@ -393,6 +393,17 @@ impl Service {
 		dest: &Destination,
 		statuses: &mut CurTransactionStatus,
 	) -> Result<(bool, bool)> {
+		if let Destination::Federation(server_name) = dest {
+			let status = statuses
+				.entry(dest.clone())
+				.or_insert(TransactionStatus::Running);
+			let retry = matches!(status, TransactionStatus::Failed(_, _));
+			return match self.services.federation.retry_after(server_name) {
+				| None => Ok((true, retry)),
+				| Some(t) => Ok((t.as_millis() > 0, retry)),
+			};
+		}
+
 		let (mut allow, mut retry) = (true, false);
 		statuses
 			.entry(dest.clone())
@@ -456,6 +467,8 @@ impl Service {
 		let mut events = device_changes;
 		events.extend(presence.into_iter().flatten());
 		events.extend(receipts.into_iter().flatten());
+
+		// TODO(nex): some EDUs like typing need flattening
 
 		Ok((events, max_edu_count.load(Ordering::Acquire)))
 	}
