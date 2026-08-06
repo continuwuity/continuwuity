@@ -358,7 +358,7 @@ pub struct Config {
 	/// This caps the capacity of cached event_data referenced
 	/// by server_name.
 	///
-	/// This defaults to 500,000 + (10,000 * CPU core count)
+	/// This defaults to 500,000 + (100,000 * CPU core count)
 	///
 	/// default: varies by system
 	#[serde(default = "default_servernameevent_data_cache_capacity")]
