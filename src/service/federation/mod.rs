@@ -6,10 +6,7 @@ use assign::assign;
 use async_trait::async_trait;
 use conduwuit::{
 	Error, Result, Server, SyncRwLock, debug,
-	utils::{
-		math::Expected, millis_since_unix_epoch,
-		time::exponential_backoff::min_exp_backoff_duration,
-	},
+	utils::{math::Expected, millis_since_unix_epoch, time::exponential_backoff::next_interval},
 };
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
@@ -94,12 +91,12 @@ impl Service {
 			return;
 		}
 
-		let min = self.services.server.config.sender_timeout;
-		let max = self.services.server.config.sender_retry_backoff_limit;
+		let min = Duration::from_secs(self.services.server.config.sender_timeout);
+		let max = Duration::from_secs(self.services.server.config.sender_retry_backoff_limit);
 
 		*retries = retries.saturating_add(1);
 		*next_retry = unix_now.saturating_add(
-			u64::try_from(min_exp_backoff_duration(min, max, *retries).as_millis())
+			u64::try_from(next_interval(min, max, *retries).as_millis())
 				.expect("backoff milliseconds should not exceed u64::MAX"),
 		);
 		debug!(
