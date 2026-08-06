@@ -10,14 +10,15 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit::{
-	debug_info, debug_warn, info, utils::time::exponential_backoff::min_exp_backoff_duration,
+	debug_info, debug_warn, info,
+	utils::{should_continue_backoff, time::exponential_backoff::next_interval},
 };
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	matrix::pdu::sticky,
 	result::LogErr,
 	utils::{
-		ReadyExt, calculate_hash, continue_exponential_backoff_secs,
+		ReadyExt, calculate_hash,
 		future::TryExtExt,
 		stream::{BroadbandExt, IterStream, WidebandExt},
 	},
@@ -409,13 +410,12 @@ impl Service {
 			.entry(dest.clone())
 			.and_modify(|e| match e {
 				| TransactionStatus::Failed(tries, time) => {
-					// Fail if a request has failed recently (exponential backoff)
-					let min = self.server.config.sender_timeout;
-					let max = self.server.config.sender_retry_backoff_limit;
-					if continue_exponential_backoff_secs(min, max, time.elapsed(), *tries)
+					let min = Duration::from_secs(self.server.config.sender_timeout);
+					let max = Duration::from_secs(self.server.config.sender_retry_backoff_limit);
+					if should_continue_backoff(min, max, time.elapsed(), *tries)
 						&& !matches!(dest, Destination::Appservice(_))
 					{
-						let retry_after = min_exp_backoff_duration(min, max, *tries);
+						let retry_after = next_interval(min, max, *tries);
 						debug_warn!("Not retrying destination for another {retry_after:?}");
 						allow = false;
 					} else {
