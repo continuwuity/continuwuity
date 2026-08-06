@@ -410,7 +410,7 @@ impl Service {
 			.entry(dest.clone())
 			.and_modify(|e| match e {
 				| TransactionStatus::Failed(tries, time) => {
-					let min = Duration::from_secs(self.server.config.sender_timeout);
+					let min = Duration::from_secs(self.server.config.sender_retry_backoff_base);
 					let max = Duration::from_secs(self.server.config.sender_retry_backoff_limit);
 					if should_continue_backoff(min, max, time.elapsed(), *tries)
 						&& !matches!(dest, Destination::Appservice(_))
