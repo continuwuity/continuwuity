@@ -573,9 +573,30 @@ pub struct Config {
 	#[serde(default = "default_sender_idle_timeout")]
 	pub sender_idle_timeout: u64,
 
-	/// Federation sender transaction retry backoff limit (seconds).
+	/// Federation sender retry backoff base (seconds).
 	///
-	/// default: 86400
+	/// This period will be doubled for each failed federation request until
+	/// either the remote server becomes healthy, or the value is clamped to
+	/// `sender_retry_backoff_limit`.
+	///
+	/// default: 60
+	#[serde(default = "default_sender_retry_backoff_base")]
+	pub sender_retry_backoff_base: u64,
+
+	/// Federation sender retry backoff limit (seconds).
+	///
+	/// Defaults to one week. Requests will never stop being retried if their
+	/// backoff period exceeds this value, however the maximum amount of time
+	/// between each request will instead be clamped at this value.
+	///
+	/// The backoff period is reset if a successful request is made, or
+	/// continuwuity receives a request from the server that is being backed off
+	/// from.
+	///
+	/// It is not recommended to lower this value below 48 hours or above
+	/// 1 year.
+	///
+	/// default: 806400
 	#[serde(default = "default_sender_retry_backoff_limit")]
 	pub sender_retry_backoff_limit: u64,
 
@@ -2811,6 +2832,8 @@ fn default_federation_idle_per_host() -> u16 { 1 }
 fn default_sender_timeout() -> u64 { 180 }
 
 fn default_sender_idle_timeout() -> u64 { 180 }
+
+fn default_sender_retry_backoff_base() -> u64 { 60 }
 
 fn default_sender_retry_backoff_limit() -> u64 { 86400 }
 

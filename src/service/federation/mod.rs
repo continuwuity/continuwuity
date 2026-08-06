@@ -91,7 +91,7 @@ impl Service {
 			return;
 		}
 
-		let min = Duration::from_secs(self.services.server.config.sender_timeout);
+		let min = Duration::from_secs(self.services.server.config.sender_retry_backoff_base);
 		let max = Duration::from_secs(self.services.server.config.sender_retry_backoff_limit);
 
 		*retries = retries.saturating_add(1);
