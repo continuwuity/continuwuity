@@ -442,7 +442,7 @@ impl Service {
 		};
 
 		if !client_metadata.grant_types.contains(&request.grant_type()) {
-			return Err(OAuthError::invalid_grant("Client cannot request this grant type"));
+			return Err(OAuthError::unauthorized_client("Client cannot request this grant type"));
 		}
 
 		match request {
