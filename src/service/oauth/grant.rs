@@ -178,6 +178,11 @@ impl OAuthError {
 	pub const fn invalid_grant(error_description: &'static str) -> Self {
 		Self::new_static(ErrorCode::InvalidGrant, error_description)
 	}
+
+	#[must_use]
+	pub const fn unauthorized_client(error_description: &'static str) -> Self {
+		Self::new_static(ErrorCode::UnauthorizedClient, error_description)
+	}
 }
 
 impl Display for OAuthError {
@@ -197,6 +202,7 @@ pub enum ErrorCode {
 	InvalidGrant,
 	InvalidClient,
 	InvalidClientMetadata,
+	UnauthorizedClient,
 	AuthorizationPending,
 	ExpiredToken,
 }

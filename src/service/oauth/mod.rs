@@ -20,7 +20,7 @@ use url::Url;
 use crate::{
 	Dep, config,
 	oauth::{
-		client_metadata::{ApplicationType, ClientMetadata, ResponseType},
+		client_metadata::{ApplicationType, ClientMetadata, GrantType, ResponseType},
 		grant::{
 			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
 			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, ResponseMode, Scope,
@@ -328,6 +328,10 @@ impl Service {
 		let Some(client_metadata) = self.get_client_metadata(&query.client_id).await else {
 			return Err(OAuthError::new_static(ErrorCode::InvalidClient, "Invalid client ID"));
 		};
+
+		if !client_metadata.grant_types.contains(&GrantType::DeviceCode) {
+			return Err(OAuthError::unauthorized_client("Client cannot request this grant type"));
+		}
 
 		let requested_scopes = query
 			.scope
