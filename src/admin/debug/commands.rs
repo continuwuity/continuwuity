@@ -1237,4 +1237,58 @@ impl crate::Context<'_> {
 		))
 		.await
 	}
+
+	pub(super) async fn servers_in_backoff(
+		&self,
+		room_id: Option<OwnedRoomId>,
+		name: Option<OwnedServerName>,
+	) -> Result {
+		let backoff_map = {
+			// We can't send the backoff map to another thread, so we clone it here.
+			let map = self.services.federation.remote_health.read();
+			map.clone()
+		};
+
+		if backoff_map.is_empty() {
+			return Err!("No servers in backoff.");
+		}
+
+		if let Some(specific_server_name) = name {
+			let entry = backoff_map.get(&specific_server_name);
+			return match entry {
+				| Some((retries, next_retry)) =>
+					self.write_str(&format!(
+						"{specific_server_name}: {retries} retries, next retry at {next_retry}"
+					))
+					.await,
+				| None =>
+					self.write_str(&format!("Server {specific_server_name} is not in backoff."))
+						.await,
+			};
+		}
+
+		self.write_str("| Server Name | Retries | Next connection attempt |\n")
+			.await?;
+		self.write_str("| ----------- | ------- | ----------------------- |\n")
+			.await?;
+
+		if let Some(specific_room) = room_id {
+			let mut servers_in_room =
+				self.services.rooms.state_cache.room_servers(&specific_room);
+			while let Some(server_name) = servers_in_room.next().await {
+				let Some((retries, retry_at)) = backoff_map.get(&server_name) else { continue };
+				self.write_str(&format!("| {server_name} | {retries} | {retry_at} |\n"))
+					.await?;
+			}
+
+			return Ok(());
+		}
+
+		for (server_name, (retries, retry_at)) in &backoff_map {
+			self.write_str(&format!("| {server_name} | {retries} | {retry_at} |\n"))
+				.await?;
+		}
+
+		Ok(())
+	}
 }

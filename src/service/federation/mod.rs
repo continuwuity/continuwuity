@@ -19,7 +19,7 @@ use crate::{Dep, client, moderation, server_keys};
 
 pub struct Service {
 	services: Services,
-	remote_health: SyncRwLock<HashMap<OwnedServerName, (u32, u64)>>,
+	pub remote_health: SyncRwLock<HashMap<OwnedServerName, (u32, u64)>>,
 }
 
 struct Services {

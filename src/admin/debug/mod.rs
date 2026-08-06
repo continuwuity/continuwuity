@@ -250,6 +250,13 @@ pub enum DebugCommand {
 		page: Option<usize>,
 	},
 
+	ServersInBackoff {
+		#[arg(short, long, alias = "room")]
+		room_id: Option<OwnedRoomId>,
+		#[arg(short, long)]
+		name: Option<OwnedServerName>,
+	},
+
 	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]
