@@ -225,9 +225,9 @@ If you instead prefer to use [eturnal][eturnal], you can refer to the guides bel
 
 ### TURNS-over-443
 
-Normally, TURN would work on their default setups. However, there are situations where clients may be unable to use nonstandard ports or UDP connections, such as in highly restrictive networks. In such cases, a TURN-over-TLS (a.k.a. TURNS) server on port 443 could relay traffic for the clients.
+TURN servers are generally reachable on their default ports, as configured above. However, there are situations where clients may be unable to use nonstandard ports or UDP connections, such as in highly restrictive networks. In such cases, a TURN-over-TLS server on port 443 could relay traffic for the clients.
 
-However, port 443 is usually utilized by other HTTPS services. Therefore, one would need to **multiplex** both TURNS and HTTPS on these ports, and filter packets to them via **SNI routing**.
+However, port 443 is usually used by other HTTPS services. Therefore, one would need to multiplex both TURNS and HTTPS on these ports, and filter packets to them via SNI routing.
 
 Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443, using [caddy-l4][caddy-l4] on the host system.
 
@@ -302,7 +302,7 @@ Then, in the Caddyfile:
             # intercept packets meant for the TURN domain first
             # before forwarding other packets to "normal" HTTP listeners
             layer4 {
-                @turn tlssni turn.example.com
+                @turn tls sni turn.example.com
 
                 route @turn {
                     tls # terminate TLS for the turn.example.com packets

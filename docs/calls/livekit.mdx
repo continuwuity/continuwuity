@@ -441,8 +441,8 @@ Configurations:
 
 Specifications:
 
-- [MSC4143 - MatrixRTC – Real-time communication over Matrix][MSC4143]
-- [MSC4195 - MatrixRTC Transport using LiveKit Backend][MSC4195]
+- [MSC4143: MatrixRTC \- Real-time communication over Matrix][MSC4143]
+- [MSC4195: MatrixRTC Transport using LiveKit Backend][MSC4195]
 
 [MSC4143]: https://github.com/matrix-org/matrix-spec-proposals/pull/4143
 [MSC4195]: https://github.com/matrix-org/matrix-spec-proposals/pull/4195
@@ -477,16 +477,16 @@ You can either use LiveKit's built-in TURN server, or integrate LiveKit with [co
 
 <summary>Using LiveKit's built-in TURN server</summary>
 
-First, set up LiveKit's built-in TURN server with its own domain - we will use `livekit-turn.example.com` in our example.
+First, set up LiveKit's built-in TURN server with its own domain - this example will use `livekit-turn.example.com` in our example.
 
 ```yaml
 ## add this to `livekit.yaml` ##
 turn:
   enabled: true
 
-  # Note: LiveKit will always advertise its TURNS-TLS port on 443,
-  # so further load balancing is needed to route from 443 back to
-  # the port being configured here
+  # Note: LiveKit will always advertise its TURN-over-TLS port on 443,
+  # so further load balancing is needed to route back from port 443
+  # to the port being configured here
   tls_port: 5349
 
   # Optional: configure an extra UDP port   
@@ -560,7 +560,7 @@ min-port=50201
 max-port=65535
 ```
 
-Then, generate a long random TURN secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. You can add as many secrets as you want, so set a different one for LiveKit to use.
+Then, generate a long random TURN secret for LiveKit, and add it to your coturn config under the `static-auth-secret` option. coturn allows multiple secrets in its configuration, so set a different one for LiveKit to use.
 
 After that, refer to the following [TURNS-over-443 instructions](./turn#turns-over-443) to set up coturn with TLS, as well as multiplexing with LiveKit's websocket on port 443.
 
@@ -581,4 +581,4 @@ Restart LiveKit, coturn, and Caddy-l4 to apply these changes.
 
 </details>
 
-After you finish configuring the services, you can run the Testing steps again to check that TURNS-over-443 is working. There should now be a green tick in the [LiveKit connection test page][livekit-connection-test] with "Can connect to TURN" to confirm this is set up successfully.
+Once the services are configured, run the Testing steps again to check that TURNS-over-443 is working. There should now be a green tick in the [LiveKit connection test page][livekit-connection-test] showing "Can connect to TURN" to confirm this is set up successfully.
