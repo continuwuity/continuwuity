@@ -513,7 +513,7 @@ ports:
 
 Recreate the LiveKit container (with `docker compose up -d livekit`) to apply these changes. Remember to allow the new `50300:50400/udp` ports through your firewall.
 
-Then, configure a route from port 443 on the host back to the `livekit-turn.example.com` service on port 5349. To multiplex the service and LiveKit's websocket on the same port, use a layer 4 reverse proxy with SNI routing capabilities, such as [caddy-l4], on the host system.
+Then, configure a route from port 443 on the host back to the `livekit-turn.example.com` service on port 5349. To multiplex the service and LiveKit's websocket on the same port, use a layer 4 reverse proxy with SNI routing capabilities, such as [Caddy-L4][caddy-l4], on the host system.
 
 ```
 ## in your Caddyfile ##
@@ -577,7 +577,7 @@ rtc:
       secret: "COTURN_SECRET"
 ```
 
-Restart LiveKit, coturn, and Caddy-l4 to apply these changes.
+Restart LiveKit, coturn, and Caddy-L4 to apply these changes.
 
 </details>
 

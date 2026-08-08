@@ -229,7 +229,7 @@ TURN servers are generally reachable on their default ports, as configured above
 
 However, port 443 is usually used by other HTTPS services. Therefore, one would need to multiplex both TURNS and HTTPS on these ports, and filter packets to them via SNI routing.
 
-Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443, using [caddy-l4][caddy-l4] on the host system.
+Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443, using [Caddy-L4][caddy-l4] on the host system.
 
 <details>
 
@@ -240,7 +240,7 @@ This Caddyfile:
 - Route `turn.example.com` to the TURNS port for Coturn without TLS termination, and
 - Route `livekit.example.com` to the [LiveKit services](./livekit.mdx) with TLS termination by Caddy
 
-Please note that all traffic from Coturn's perspective will be coming from caddy-l4's IP now.
+Please note that all traffic from Coturn's perspective will be coming from Caddy-L4's IP now.
 
 ```
 {
