@@ -213,6 +213,12 @@ impl super::Service {
 
 		drop(insert_lock);
 
+		// Backfilled events skip append_pdu, so this is the only place their
+		// prev_events can be marked as referenced. See issue #2115.
+		self.services
+			.pdu_metadata
+			.mark_as_referenced(&room_id, pdu.prev_events().map(AsRef::as_ref));
+
 		if pdu.kind == TimelineEventType::RoomMessage {
 			let content: ExtractBody = pdu.get_content()?;
 			if let Some(body) = content.body {

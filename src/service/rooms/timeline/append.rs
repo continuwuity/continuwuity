@@ -194,7 +194,24 @@ impl super::Service {
 			})
 			.collect::<Vec<_>>()
 			.await;
-		forward_extremities.push(incoming_pdu.event_id().to_owned());
+
+		// An event with a child is not a leaf, but a room with no extremities cannot be
+		// written to, so it is added anyway when nothing else remains.
+		let has_child = self
+			.services
+			.pdu_metadata
+			.is_event_referenced(&incoming_pdu.room_id_or_hash(), incoming_pdu.event_id())
+			.await;
+		if !has_child || forward_extremities.is_empty() {
+			if has_child {
+				warn!(
+					"Adding {} as an extremity despite its child, the room has no other leaves",
+					incoming_pdu.event_id()
+				);
+			}
+			forward_extremities.push(incoming_pdu.event_id().to_owned());
+		}
+
 		debug!(
 			"Retained {} extremities checked against {} prev_events",
 			forward_extremities.len(),

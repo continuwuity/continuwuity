@@ -154,9 +154,9 @@ impl super::Service {
 				.stream()
 				.fold(0_u8, |i, event_id| async move {
 					if self.services.timeline.pdu_exists(event_id).await {
-						i.expected_add(1)
-					} else {
 						i
+					} else {
+						i.expected_add(1)
 					}
 				})
 				.await;
