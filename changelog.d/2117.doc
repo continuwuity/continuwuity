@@ -1,0 +1,1 @@
+Generic deployment documentation: Use `/etc/caddy/Caddyfile` instead of `/etc/caddy/conf.d/*` paths, which do not exist on a majority of Caddy installations.
