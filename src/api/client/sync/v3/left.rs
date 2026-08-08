@@ -215,12 +215,18 @@ async fn build_left_state_and_timeline(
 		.get_pdu_count(&prev_membership_event.event_id)
 		.await?;
 
-	// end the timeline at the user's leave event
-	let timeline_end_count = services
+	// end the timeline at the user's leave event. for federated events, the
+	// membership cache is updated before the PDU is appended to the timeline,
+	// so the leave event may not be in the timeline index yet.
+	let timeline_end_count = match services
 		.rooms
 		.timeline
 		.get_pdu_count(leave_membership_event.event_id())
-		.await?;
+		.await
+	{
+		| Ok(count) => count,
+		| Err(_) => services.rooms.timeline.last_timeline_count(room_id).await?,
+	};
 
 	// limit the timeline using the same logic as for joined rooms
 	let timeline_limit = filter

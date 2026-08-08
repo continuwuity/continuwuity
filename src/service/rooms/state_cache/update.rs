@@ -133,13 +133,6 @@ impl super::Service {
 			self.update_joined_count(room_id).await;
 		}
 
-		// Kick the target user's sync loop if they're local and this isn't a join to
-		// make sure that membership changes like invites or invite rejections get
-		// synced
-		if is_local && !matches!(membership.membership, MembershipState::Join) {
-			self.services.sync.wake(user_id).await;
-		}
-
 		Ok(())
 	}
 
