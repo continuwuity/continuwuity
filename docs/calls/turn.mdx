@@ -1,8 +1,8 @@
 # Setting up TURN/STUN
 
-[TURN][turn] and [STUN][stun] are used as a component in many calling systems. Matrix uses them directly for legacy calls and indirectly for MatrixRTC via Livekit.
+[TURN][turn] and [STUN][stun] are used as components in many calling systems. Matrix uses them directly for legacy calls and indirectly for MatrixRTC via Livekit.
 
-Continuwuity recommends using [Coturn][coturn] as your TURN/STUN server, which is available as a Docker image or a distro package. This guide assumes that you are using docker compose for deployment.
+Continuwuity recommends using [coturn][coturn] as your TURN/STUN server, which is available as a Docker image or a distro package. This guide assumes that you are using docker compose for deployment.
 
 :::tip
 You can find help setting up TURN/STUN in our MatrixRTC room - [#matrixrtc:continuwuity.org](https://matrix.to/#/%23matrixrtc%3Acontinuwuity.org)
@@ -14,11 +14,11 @@ You can find help setting up TURN/STUN in our MatrixRTC room - [#matrixrtc:conti
 
 ## Installing Coturn
 
-### 1. Domain
+### 1. Set up your domain
 
 Coturn should live on its own domain or subdomain. In this guide we use `coturn.example.com` - this should be replaced with a domain you control.
 
-### 2. Configuration
+### 2. Configuring coturn
 
 Create a configuration file called `coturn.conf` containing:
 
@@ -34,14 +34,14 @@ pwgen -s 64 1
 ```
 :::
 
-If you want to enable TURN-over-TLS (TURNS), add the appropriate cert/key paths to your `coturn.conf` by adding the following lines:
+If you want to enable TURN-over-TLS (TURNS), add the appropriate certificate and key paths to your `coturn.conf` by adding the following lines:
 
 ```ini
 cert=/etc/letsencrypt/coturn.example.com.crt
 pkey=/etc/letsencrypt/coturn.example.com.key
 ```
 
-The cert and key must be encoded in PEM format and are readable by the coturn user.
+The cert and key must be encoded in PEM format and must be readable by the coturn user.
 
 Check out the [`turnserver.conf`][turnserver-conf] example for all coturn options.
 
@@ -49,7 +49,7 @@ Check out the [`turnserver.conf`][turnserver-conf] example for all coturn option
 
 ### 3. Running the coturn container
 
-Next, we will start the Coturn container with the [official image][coturn-image]. **Host networking mode** will be used, as it is better for performance and reduces configuration complexity (see [Coturn Docker docs][coturn-docker-docs] for rationale).
+Next, we will start the Coturn container with the [official image][coturn-image]. **Host networking mode** is used here for better performance and reduced configuration complexity (see [Coturn Docker docs][coturn-docker-docs] for rationale).
 
 [coturn-image]: https://hub.docker.com/r/coturn/coturn
 [coturn-docker-docs]: https://github.com/coturn/coturn/blob/master/docker/coturn/README.md#why-so-many-ports-opened
@@ -57,7 +57,6 @@ Next, we will start the Coturn container with the [official image][coturn-image]
 Create a `docker-compose.yml` file as follows and run `docker compose up -d`:
 
 ```yaml
-version: '3'
 services:
   coturn:
     container_name: coturn
@@ -87,7 +86,7 @@ ufw allow 5349/udp
 ufw allow 49152-65535/udp
 ```
 
-::: tip For LiveKit users
+:::tip For LiveKit users
 
 If you're also running LiveKit, you'll need configure non-overlapping port ranges to avoid port conflicts:
 
@@ -108,8 +107,7 @@ This leaves ports `50100-50200` available for LiveKit's default configuration.
 
 ### 5. Security Recommendations
 
-For Coturn hardening and security best practices, see Synapse's [Coturn documentation][synapse-coturn-guide],
-which includes important firewall and access control recommendations.
+For Coturn hardening and security best practices, see Synapse's [Coturn documentation][synapse-coturn-guide], which includes important firewall and access control recommendations.
 
 [synapse-coturn-guide]: https://element-hq.github.io/synapse/latest/setup/turn/coturn.html#configuration
 
@@ -142,7 +140,9 @@ Restart Continuwuity, and the new changes should now be applied.
 
 ### Testing Credentials
 
-Get an access token for your current login session. These can be found in your client's settings or obtained via [this website](https://timedout.uk/mxtoken.html).
+Get an access token for your current login session. These can be found in your client's settings or obtained via [this website][starstruck-mxtoken2].
+
+[starstruck-mxtoken2]: https://starstruck.systems/matrix/tools/mxtoken2
 
 Then, using that token, verify that Continuwuity is correctly serving TURN credentials to clients:
 
@@ -172,7 +172,7 @@ Open the [Trickle ICE][trickle-ice] testing page in a browser and then:
 
 1. Copy the URIs and credentials from the response above
 2. Paste them into the Trickle ICE testing tool, and click on "Add server"
-3. When finished adding all URIs and credentials, click "Gather candidates"
+3. Once all the URIs and credentials have been added, click "Gather candidates"
 
 If you see `relay` candidates in the results, your TURN/STUN server is working correctly! You should now be able to place and receive legacy calls.
 
@@ -180,7 +180,7 @@ If you see `relay` candidates in the results, your TURN/STUN server is working c
 
 ## Troubleshooting
 
-To gather debug logs while troubleshooting Coturn, add `verbose` to your `coturn.conf`. You can then view these logs with `docker-compose logs --follow coturn`.
+To gather debug logs while troubleshooting Coturn, add `verbose` to your `coturn.conf`. You can then view these logs with `docker compose logs --follow coturn`.
 
 ### Errors with Trickle ICE
 
@@ -192,7 +192,7 @@ To gather debug logs while troubleshooting Coturn, add `verbose` to your `coturn
   - Ensure your `turn_secret` matches coturn's `static-auth-secret`
   - Ensure the credentials you obtained from the Testing steps has not expired yet. You can adjust `turn_ttl` in your Continuwuity configuration to increase this, or simply re-request a new one
 - Wrong IP address advertised
-  - This may be caused by coturn not recognizing its public-facing IP correctly, due to particular network setups. You can configure `external-ip=<desired-public-ip>` to fix this issue.
+  - This may be caused by coturn not recognizing its public-facing IP correctly. You can configure `external-ip=<desired-public-ip>` to fix this issue.
 
 ### 404 when calling the turnServer endpoint
 
@@ -225,9 +225,9 @@ If you instead prefer to use [eturnal][eturnal], you can refer to the guides bel
 
 ### TURNS-over-443
 
-Normally, TURN would work on their default setups. However, there are situations where clients are in very restrictive networks that disallows non-standard ports and UDP. In these cases, a TURN-over-TLS server on port :443 could be employed to relay traffic for them.
+Normally, TURN would work on their default setups. However, there are situations where clients may be unable to use nonstandard ports or UDP connections, such as in highly restrictive networks. In such cases, a TURN-over-TLS (a.k.a. TURNS) server on port 443 could relay traffic for the clients.
 
-However, port 443 is usually utilized by other HTTPS services. Therefore, one would need to **multiplex** both TURN HTTPS on these ports, and filter packets to them via **SNI routing**.
+However, port 443 is usually utilized by other HTTPS services. Therefore, one would need to **multiplex** both TURNS and HTTPS on these ports, and filter packets to them via **SNI routing**.
 
 Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443, using [caddy-l4][caddy-l4] on the host system.
 
