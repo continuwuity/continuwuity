@@ -151,12 +151,11 @@ If you would like to use only port 443, a different port, or a subdomain for the
 
 Caddy is the recommended reverse proxy as it is easy to use, has good defaults,
 and handle TLS certificates automatically. After installing Caddy via your preferred
-method, create `/etc/caddy/conf.d/conduwuit_caddyfile` and enter the following
+method, add the following content to your `/etc/caddy/Caddyfile` file
 (substitute `example.com` with your actual server name):
 
 ```
 example.com, example.com:8448 {
-    # TCP reverse_proxy
     reverse_proxy 127.0.0.1:8008
 }
 ```
