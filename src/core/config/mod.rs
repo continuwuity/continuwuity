@@ -2845,6 +2845,26 @@ const DEPRECATED_KEYS: &[&str] = &[
 ];
 
 impl Config {
+	/// Get the base domain to use for user-facing URLs.
+	#[must_use]
+	pub fn get_client_domain(&self) -> Url {
+		self.well_known.client.clone().unwrap_or_else(|| {
+			let host = self.server_name.host();
+			format!("https://{host}")
+				.as_str()
+				.try_into()
+				.expect("server name should be a valid host")
+		})
+	}
+
+	/// Contact for the VAPID `sub` claim.
+	#[must_use]
+	pub fn webpush_vapid_contact(&self) -> Url {
+		self.get_client_domain()
+			.join("/_continuwuity/about")
+			.expect("about page is a valid path")
+	}
+
 	/// Pre-initialize config
 	pub fn load(paths: &[PathBuf]) -> Result<Figment> {
 		let envs = [

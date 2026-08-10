@@ -24,6 +24,7 @@ pub struct Service {
 	pub sender: reqwest::Client,
 	pub appservice: reqwest::Client,
 	pub pusher: reqwest::Client,
+	pub webpush: reqwest::Client,
 
 	pub cidr_range_denylist: Vec<IPAddress>,
 }
@@ -139,6 +140,16 @@ impl crate::Service for Service {
 				.pool_max_idle_per_host(1)
 				.pool_idle_timeout(Duration::from_secs(config.pusher_idle_timeout))
 				.redirect(redirect::Policy::limited(2))
+				.build()?,
+
+			// MSC4174 recommends against following redirects, since the destination
+			// is only checked before the request is sent.
+			webpush: base(config)?
+				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
+				.timeout(Duration::from_secs(config.pusher_timeout))
+				.pool_max_idle_per_host(1)
+				.pool_idle_timeout(Duration::from_secs(config.pusher_idle_timeout))
+				.redirect(redirect::Policy::none())
 				.build()?,
 
 			cidr_range_denylist: config
