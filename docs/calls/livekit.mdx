@@ -308,14 +308,14 @@ To debug any issues, you can place a call or redo the Testing instructions, and 
 ### Common errors in Element Call UI
 
 - `MISSING_MATRIX_RTC_FOCUS`/`MISSING_MATRIX_RTC_TRANSPORT`: LiveKit is missing from Continuwuity's config file
-- "Waiting for media" popup always showing: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
+- "Waiting for media" popup always showing for yourself: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
 - `OPEN_ID_ERROR`: Your client can reach out to `lk-jwt-service`, but has problems authenticating with it. In this case, check `lk-jwt-service` logs for more details
 
 For browser-based clients, you can also inspect connections using DevTools' Networking tab, to see which requests are erroring out.
 
 ### Docker loopback networking issues
 
-Some distros do not allow Docker containers to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail connecting to `livekit` or `continuwuity` on the same host. As a result, you would see connection refused/connection timeouts log entries in the JWT service, even when `LIVEKIT_URL` has been configured correctly.
+Some distros do not allow Docker containers in bridge networks to connect to its host's public IP by default. This would cause `lk-jwt-service` to fail connecting to `livekit` or `continuwuity` on the same host. As a result, you would see connection refused/connection timeouts log entries in the JWT service, even when `LIVEKIT_URL` has been configured correctly.
 
 You can also test that this is the case by cURLing from a sidecar container:
 
@@ -324,25 +324,24 @@ docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https:/
 # --- some errors ---
 ```
 
-To alleviate this, you can try one of the following workarounds:
+To resolve this, we can configure an `extra_hosts` file mapping LiveKit's (and Continuwuity's) domain name to Docker's custom host loopback address (represented by `host-gateway`):
 
-- Use `network_mode: host` for the `lk-jwt-service` container (instead of the default bridge networking).
-
-- Add an `extra_hosts` file mapping livekit's (and continuwuity's) domain name to a locally-reachable address:
-
-    ```diff
-    # in docker-compose.yaml
-    services:
-      lk-jwt-service:
-        ...
-    +    extra_hosts:
-    +     - "livekit.example.com:127.0.0.1"
-    +     - "matrix.example.com:127.0.0.1"
-    ```
-
-- (**untested, use at your own risk**) Implement an iptables workaround as shown [here](https://forums.docker.com/t/unable-to-connect-to-host-service-from-inside-docker-container/145749/6).
+```diff
+# in docker-compose.yaml
+services:
+  lk-jwt-service:
+    ...
++    extra_hosts:
++     - "livekit.example.com:host-gateway"
++     - "matrix.example.com:host-gateway"
+```
 
 After implementing the changes and restarting your compose, `lk-jwt-service` should now connect to your other services. The sidecar container test above should now return an `OK` from LiveKit.
+
+For more information about the `host-gateway` parameter, kindly refer to the `--add-host` documentation for [Docker][docker-add-host] and [Podman][podman-add-host]. Should you have further difficulties, feel free to inquire in the support rooms.
+
+[docker-add-host]: https://docs.docker.com/reference/cli/docker/container/run/#add-host
+[podman-add-host]: https://docs.podman.io/en/latest/markdown/podman-run.1.html#add-host-hostname-hostname-ip
 
 ### Incorrect IP address for LiveKit
 
