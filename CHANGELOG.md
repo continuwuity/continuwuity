@@ -1,4 +1,11 @@
-# Continuwuity v26.7.2 (2026-07-30)
+# Continuwuity 26.7.3 (2026-08-11)
+
+## Bugfixes
+
+- Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
+- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
+
+# Continuwuity 26.7.2 (2026-07-30)
 
 ## Bugfixes
 
