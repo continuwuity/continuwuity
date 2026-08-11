@@ -398,18 +398,25 @@ impl Service {
 		dest: &Destination,
 		statuses: &mut CurTransactionStatus,
 	) -> Result<(bool, bool)> {
+		let (mut allow, mut retry) = (true, false);
 		if let Destination::Federation(server_name) = dest {
-			let status = statuses
+			statuses
 				.entry(dest.clone())
+				.and_modify(|e| match e {
+					| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
+						allow = false; // already running
+					},
+					| TransactionStatus::Failed(tries, _) => {
+						*e = TransactionStatus::Retrying(*tries);
+						retry = true;
+					},
+				})
 				.or_insert(TransactionStatus::Running);
-			let retry = matches!(status, TransactionStatus::Failed(_, _));
 			return match self.services.federation.retry_after(server_name) {
-				| None => Ok((true, retry)),
-				| Some(t) => Ok((t.as_millis() > 0, retry)),
+				| None => Ok((allow, retry)),
+				| Some(t) => Ok((t.as_millis() > 0 && allow, retry)),
 			};
 		}
-
-		let (mut allow, mut retry) = (true, false);
 		statuses
 			.entry(dest.clone())
 			.and_modify(|e| match e {
