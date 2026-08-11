@@ -10,7 +10,7 @@ use assign::assign;
 use async_trait::async_trait;
 use conduwuit::{
 	Error, Result, Server, SyncRwLock, debug,
-	utils::{math::Expected, millis_since_unix_epoch, time::exponential_backoff::next_interval},
+	utils::{millis_since_unix_epoch, time::exponential_backoff::next_interval},
 };
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
