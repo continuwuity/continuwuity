@@ -1,1 +1,0 @@
-Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom.
