@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, iter::once};
 
 use axum::extract::State;
-use conduwuit::{Err, Result, at, err, info};
+use conduwuit::{Err, Event, Result, at, err, info};
 use futures::{StreamExt, TryStreamExt};
 use ruma::{OwnedEventId, api::federation::event::get_room_state_ids};
 
@@ -24,6 +24,17 @@ pub(crate) async fn get_room_state_ids_route(
 	}
 	.assert()
 	.await?;
+
+	// The event must be in the room we just authorised access to
+	if !services
+		.rooms
+		.timeline
+		.get_pdu(&body.event_id)
+		.await
+		.is_ok_and(|pdu| pdu.room_id_or_hash() == body.room_id)
+	{
+		return Err!(Request(NotFound("Event not found.")));
+	}
 
 	if services
 		.rooms
