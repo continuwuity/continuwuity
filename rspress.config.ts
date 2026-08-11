@@ -25,6 +25,7 @@ export default defineConfig({
                     '/advanced/delegated.docker-compose.with-caddy-labels.yml',
                     '/advanced/delegated.docker-compose.for-traefik.yml',
                     '/advanced/delegated.docker-compose.with-traefik.yml',
+                    '/calls/livekit.docker-compose.with-caddy-labels.yml'
                 ]
             },
         },

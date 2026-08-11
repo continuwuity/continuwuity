@@ -1,3 +1,5 @@
+import { Tab, Tabs} from '@rspress/core/theme';
+
 # MatrixRTC/Element Call Setup
 
 This guide assumes that you are using docker compose for deployment.
@@ -127,154 +129,100 @@ All paths should be forwarded to LiveKit by default, with the exception of the f
 - `/healthz`
 - `/get_token`
 
-<details>
-    <summary>Example caddy config</summary>
+<Tabs groupId="reverse-proxy">
+<Tab label="Caddy (on host)">
 
-    ```
-    livekit.example.com {
+```ini
+livekit.example.com {
 
-        # for lk-jwt-service
-        @lk-jwt-service path /sfu/get* /healthz* /get_token*
-        route @lk-jwt-service {
-            reverse_proxy 127.0.0.1:8081
-        }
-
-        # for livekit
-        reverse_proxy 127.0.0.1:7880
+    # for lk-jwt-service
+    @lk-jwt-service path /sfu/get* /healthz* /get_token*
+    route @lk-jwt-service {
+        reverse_proxy 127.0.0.1:8081
     }
-    ```
 
-    **Note**: if you run Caddy inside a container (e.g. by following the example [here](../deploying/docker.mdx#caddy-using-caddyfile)) instead of on the host, then:
+    # for livekit
+    reverse_proxy 127.0.0.1:7880
+}
+```
 
-    - Put these containers on the same bridge network as Caddy (by defining `networks: [ caddy ]` in each of the services), and
-    - Use appropriate container hostnames (`lk-jwt-service` and `livekit`) instead of `127.0.0.1` in the Caddyfile
+</Tab>
+<Tab label="Caddy (in container)">
 
-</details>
+Requires `livekit` and `lk-jwt-service` to be on the same docker bridge network as Caddy.
 
-<details>
-    <summary>Example nginx config</summary>
+```ini
+livekit.example.com {
 
-    ```
-    server {
-        server_name livekit.example.com;
-
-        # for lk-jwt-service
-        location ~ ^/(sfu/get|healthz|get_token) {
-            proxy_pass http://127.0.0.1:8081$request_uri;
-            proxy_set_header X-Forwarded-For $remote_addr;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header Host $http_host;
-            proxy_buffering off;
-        }
-
-        # for LiveKit
-        location / {
-            proxy_pass http://127.0.0.1:7880$request_uri;
-            proxy_set_header X-Forwarded-For $remote_addr;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header Host $http_host;
-            proxy_buffering off;
-
-            # websocket
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection $connection_upgrade;
-        }
+    # for lk-jwt-service
+    @lk-jwt-service path /sfu/get* /healthz* /get_token*
+    route @lk-jwt-service {
+        reverse_proxy lk-jwt-service:8081
     }
-    ```
 
-    Note that for websockets to work, you need to have this somewhere outside your server block:
-    ```
-    map $http_upgrade $connection_upgrade {
-        default upgrade;
-        ''      close;
+    # for livekit
+    reverse_proxy livekit:7880
+}
+```
+</Tab>
+<Tab label="Caddy (via Docker labels)">
+
+```yaml file="../public/calls/livekit.docker-compose.with-caddy-labels.yml"
+
+```
+</Tab>
+<Tab label="Traefik (via Docker labels)">
+
+Requires `livekit` and `lk-jwt-service` to be on the same docker bridge network as Traefik.
+
+```
+# on LiveKit itself
+traefik.http.routers.livekit.rule=Host(`livekit.example.com`)
+# on the JWT service
+traefik.http.routers.livekit-jwt.rule=Host(`livekit.example.com`) && (PathPrefix(`/sfu/get`) || PathPrefix(`/healthz`) || PathPrefix(`/get_token`))
+```
+
+</Tab>
+<Tab label="Nginx">
+
+```ini
+server {
+    server_name livekit.example.com;
+
+    # for lk-jwt-service
+    location ~ ^/(sfu/get|healthz|get_token) {
+        proxy_pass http://127.0.0.1:8081$request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_buffering off;
     }
-    ```
 
-</details>
+    # for LiveKit
+    location / {
+        proxy_pass http://127.0.0.1:7880$request_uri;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $http_host;
+        proxy_buffering off;
 
-<details>
-    <summary>Example traefik router</summary>
+        # websocket
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}
+```
 
-    ```
-    # on LiveKit itself
-    traefik.http.routers.livekit.rule=Host(`livekit.example.com`)
-    # on the JWT service
-    traefik.http.routers.livekit-jwt.rule=Host(`livekit.example.com`) && (PathPrefix(`/sfu/get`) || PathPrefix(`/healthz`) || PathPrefix(`/get_token`))
-    ```
-
-</details>
-
-<details>
-   <summary>Example docker compose file with caddy-docker-proxy labels</summary>
-   ```yaml
-   # This setup assumes all containers share the same bridge network
-   services:
-    lk-jwt-service:
-        image: ghcr.io/element-hq/lk-jwt-service:latest
-        container_name: lk-jwt-service
-        # lk-jwt-service environment config here..
-        labels:
-            caddy: livekit.example.com
-            caddy.@lk-jwt-service.path: "/sfu/get* /healthz* /get_token*"
-            caddy.reverse_proxy: "@lk-jwt-service {{upstreams 8081}}"
-
-
-    livekit:
-        image: livekit/livekit-server:latest
-        container_name: livekit
-        command: --config /etc/livekit.yaml
-        restart: unless-stopped
-        labels:
-            caddy: livekit.example.com
-            caddy.reverse_proxy: "{{upstreams 7880}}"
-        volumes:
-            - ./livekit.yaml:/etc/livekit.yaml:ro
-        ports:
-            - "127.0.0.1:7880:7880/tcp"
-            - "7881:7881/tcp"
-            - "50100-50200:50100-50200/udp"
-
-
-    caddy:
-        image: lucaslorentz/caddy-docker-proxy:ci-alpine
-        ports:
-            - 80:80
-            - 443:443
-        environment:
-            - CADDY_INGRESS_NETWORKS=caddy
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-            - ./data:/data
-        restart: unless-stopped
-        labels:
-            # If you already configured `[global.well_known]` with Continuwuity,
-            # comment out the *_respond labels and add this line
-            # caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
-            caddy.1_respond: /.well-known/matrix/server {"m.server":"matrix.example.com:443"}
-            caddy.2_respond: /.well-known/matrix/client {"m.server":{"base_url":"https://matrix.example.com"},"m.homeserver":{"base_url":"https://matrix.example.com"},"org.matrix.msc4143.rtc_foci":[{"type":"livekit","livekit_service_url":"https://livekit.example.com"}]}
-
-            # If you are having problems with continuwuity serving headers uncomment
-            # the header section below.
-
-            # caddy: example.com
-            # caddy.0_header: "*"
-            # caddy.0_header.Access-Control-Allow-Origin: "*"
-            # caddy.0_header.Access-Control-Allow-Methods: "GET, POST, OPTIONS"
-            # caddy.0_header.Access-Control-Allow-Headers: "Authorization"
-            # caddy.0_header.Content-Type: "application/json"
-
-    homeserver:
-        image: forgejo.ellis.link/continuwuation/continuwuity:latest
-        restart: unless-stopped
-        # add additional environment, volume, and network config here...
-        labels:
-            caddy: matrix.example.com
-            caddy.reverse_proxy: "{{upstreams 8008}}"
-
-    ```
-</details>
-
+Note that for websockets to work, you need to have this somewhere outside your server block:
+```
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+```
+</Tab>
+</Tabs>
 
 ### 6. Start Everything
 
