@@ -24,7 +24,7 @@ use crate::{Dep, client, moderation, server_keys};
 pub struct Service {
 	services: Services,
 	pub remote_health: SyncRwLock<HashMap<OwnedServerName, (u32, u64)>>,
-	stale_destinations: SyncRwLock<HashSet<OwnedServerName>>,
+	pub stale_destinations: SyncRwLock<HashSet<OwnedServerName>>,
 }
 
 struct Services {
@@ -173,8 +173,13 @@ impl Service {
 			.insert(server_name.to_owned());
 	}
 
-	/// Returns true if the destination has been marked stale.
-	fn is_destination_stale(&self, server_name: &ServerName) -> bool {
-		self.stale_destinations.read().contains(server_name)
+	/// Returns a clone of the internal remote health tracking map.
+	pub fn remote_health(&self) -> HashMap<OwnedServerName, (u32, u64)> {
+		self.remote_health.read().clone()
+	}
+
+	/// Returns a clone of the internal stale destinations set.
+	pub fn stale_destinations(&self) -> HashSet<OwnedServerName> {
+		self.stale_destinations.read().clone()
 	}
 }
