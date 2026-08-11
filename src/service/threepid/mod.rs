@@ -127,6 +127,10 @@ impl Service {
 			// If a validation session already exists for this client secret, we can either
 			// reuse it with a new token or return early because it's already valid.
 			| Some(session) => {
+				if session.email != recipient.email {
+					return Err!(Request(InvalidParam("Wrong email for session.")));
+				}
+
 				match session.validation_state {
 					| ValidationState::Validated => {
 						// If the existing session is already valid, don't send an email.
@@ -134,7 +138,7 @@ impl Service {
 					},
 					| ValidationState::Pending(ref mut token) => {
 						// Check ratelimiting for the target address.
-						if self.ratelimiter.check_key(&recipient.email).is_err() {
+						if self.ratelimiter.check_key(&session.email).is_err() {
 							return Err(Error::BadRequest(
 								ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
 								"You're sending emails too fast, try again in a few minutes.",
