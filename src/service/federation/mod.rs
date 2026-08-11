@@ -151,7 +151,9 @@ impl Service {
 					retry_after: Some(RetryAfter::Delay(retry_after)),
 				})),
 				format!(
-					"Remote server is currently unhealthy (not retrying for another {} seconds)",
+					"Remote server {} is currently unhealthy (not retrying for another {} \
+					 seconds)",
+					server_name,
 					retry_after.as_secs()
 				)
 				.into(),
@@ -171,6 +173,18 @@ impl Service {
 		self.stale_destinations
 			.write()
 			.insert(server_name.to_owned());
+	}
+
+	/// Determines whether a destination should be marked "stale" depending on
+	/// the returned error.
+	pub fn should_mark_stale(&self, error: &Error) -> bool {
+		if let Error::Reqwest(error) = error {
+			if error.is_connect() {
+				return true;
+			}
+		}
+
+		error.status_code() == StatusCode::MISDIRECTED_REQUEST
 	}
 
 	/// Returns a clone of the internal remote health tracking map.

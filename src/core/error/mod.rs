@@ -287,3 +287,7 @@ impl From<reqwest::Error> for FormattedReqwestError {
 impl From<reqwest::Error> for Error {
 	fn from(err: reqwest::Error) -> Self { Self::Reqwest(err.into()) }
 }
+
+impl From<FormattedReqwestError> for reqwest::Error {
+	fn from(val: FormattedReqwestError) -> Self { val.0 }
+}

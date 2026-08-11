@@ -145,9 +145,7 @@ impl Service {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
 			| Err((dest, e)) => {
 				if let Destination::Federation(dest) = &dest {
-					if let Error::Reqwest(e) = &e
-						&& e.is_connect()
-					{
+					if self.services.federation.should_mark_stale(&e) {
 						debug!("{dest} is now unhealthy & stale due to a connect error: {e:?}");
 						self.services.federation.mark_destination_stale(dest);
 						self.services.federation.hit_unhealthy(dest.clone());

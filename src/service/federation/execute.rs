@@ -186,12 +186,23 @@ impl super::Service {
 				self.handle_response::<T>(dest, actual, &method, &url, response)
 					.await,
 			| Err(error) => {
-				if error.is_connect() {
+				// This awful wrapping hack is required because `reqwest::Error` does not
+				// implement `Clone`, but we need to convert it into a local error type to pass
+				// to should_mark_stale, but handle_error then itself expects the original
+				// reqwest error.
+				// handle_error *could* just take the wrapped error, but it'd have to unwrap it
+				// anyway.
+				let wrapped = Error::Reqwest(error.into());
+				if self.should_mark_stale(&wrapped) {
 					debug_info!("{dest} is unhealthy & stale due to a connect error");
 					self.mark_destination_stale(dest);
 					self.hit_unhealthy(dest.to_owned());
 				}
-				Err(handle_error(actual, &method, &url, error).expect_err("always returns error"))
+				let Error::Reqwest(unwrapped) = wrapped else {
+					unreachable!("wrapped reqwest error must unwrap to a reqwest error");
+				};
+				Err(handle_error(actual, &method, &url, unwrapped.into())
+					.expect_err("always returns error"))
 			},
 		}
 	}
