@@ -1,6 +1,10 @@
 mod execute;
 
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{
+	collections::{HashMap, HashSet},
+	sync::Arc,
+	time::Duration,
+};
 
 use assign::assign;
 use async_trait::async_trait;
@@ -20,6 +24,7 @@ use crate::{Dep, client, moderation, server_keys};
 pub struct Service {
 	services: Services,
 	pub remote_health: SyncRwLock<HashMap<OwnedServerName, (u32, u64)>>,
+	stale_destinations: SyncRwLock<HashSet<OwnedServerName>>,
 }
 
 struct Services {
@@ -40,6 +45,7 @@ impl crate::Service for Service {
 				moderation: args.depend::<moderation::Service>("moderation"),
 			},
 			remote_health: SyncRwLock::new(HashMap::new()),
+			stale_destinations: SyncRwLock::new(HashSet::new()),
 		}))
 	}
 
@@ -111,9 +117,24 @@ impl Service {
 	pub fn mark_healthy(&self, server_name: &ServerName) {
 		// TODO: We need to make sure the sender flush DOESN'T trigger if this is called
 		// by the senders themselves.
-		let mut map = self.remote_health.write();
-		if map.remove(server_name).is_some() {
+		let mut health_map = self.remote_health.write();
+		if health_map.remove(server_name).is_some() {
 			debug!("{} is now healthy", server_name);
+		}
+		// The lock for remote_health is deliberately retained until the end of the
+		// function to prevent parallel requests from marking the server as healthy
+		// and then immediately marking it as unhealthy again due to the stale cache
+		// we might be about to clear
+		let mut stale_destinations = self.stale_destinations.write();
+		if stale_destinations.remove(server_name) {
+			debug!(
+				"{server_name} is no longer unhealthy but was stale, clearing destination cache \
+				 entry"
+			);
+			self.services
+				.client
+				.matrix_resolver
+				.remove_cache_entry(server_name.as_str());
 		}
 	}
 
@@ -137,5 +158,23 @@ impl Service {
 				StatusCode::TOO_MANY_REQUESTS,
 			))
 		}
+	}
+
+	/// Marks a destination as stale, which will cause the destination cache to
+	/// be invalidated next time we receive a request FROM that destination.
+	/// This does not inherently mark the remote as "unhealthy".
+	///
+	/// Typically, this should only be done if a connection error is
+	/// encountered, which might indicate that the address of the destination
+	/// is incorrect or has since moved.
+	pub fn mark_destination_stale(&self, server_name: &ServerName) {
+		self.stale_destinations
+			.write()
+			.insert(server_name.to_owned());
+	}
+
+	/// Returns true if the destination has been marked stale.
+	fn is_destination_stale(&self, server_name: &ServerName) -> bool {
+		self.stale_destinations.read().contains(server_name)
 	}
 }

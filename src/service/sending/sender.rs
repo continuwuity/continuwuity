@@ -144,11 +144,17 @@ impl Service {
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
 			| Err((dest, e)) => {
-				if e.status_code().is_server_error()
-					&& let Destination::Federation(dest) = &dest
-				{
-					debug!("{dest} is now unhealthy due to server error response: {e:?}");
-					self.services.federation.hit_unhealthy(dest.clone());
+				if let Destination::Federation(dest) = &dest {
+					if let Error::Reqwest(e) = &e
+						&& e.is_connect()
+					{
+						debug!("{dest} is now unhealthy & stale due to a connect error: {e:?}");
+						self.services.federation.mark_destination_stale(dest);
+						self.services.federation.hit_unhealthy(dest.clone());
+					} else if e.status_code().is_server_error() {
+						debug!("{dest} is now unhealthy due to server error response: {e:?}");
+						self.services.federation.hit_unhealthy(dest.clone());
+					}
 				}
 				Self::handle_response_err(dest, statuses, &e);
 			},

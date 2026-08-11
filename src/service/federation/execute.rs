@@ -187,7 +187,8 @@ impl super::Service {
 					.await,
 			| Err(error) => {
 				if error.is_connect() {
-					debug_info!("{dest} is unhealthy due to a connect error");
+					debug_info!("{dest} is unhealthy & stale due to a connect error");
+					self.mark_destination_stale(dest);
 					self.hit_unhealthy(dest.to_owned());
 				}
 				Err(handle_error(actual, &method, &url, error).expect_err("always returns error"))
