@@ -70,6 +70,20 @@ type KnownRoomUpdates = BTreeMap<String, BTreeSet<OwnedRoomId>>;
 /// Default and maximum number of sticky events returned per response.
 const DEFAULT_STICKY_LIMIT: usize = 100;
 
+fn num_live_events<'a>(
+	counts: impl DoubleEndedIterator<Item = &'a PduCount>,
+	globalsince: u64,
+) -> usize {
+	if globalsince == 0 {
+		return 0;
+	}
+
+	counts
+		.rev()
+		.take_while(|count| matches!(count, PduCount::Normal(count) if *count > globalsince))
+		.count()
+}
+
 struct SyncCollection {
 	response: sync_events::v5::Response,
 	known_room_updates: KnownRoomUpdates,
@@ -314,6 +328,7 @@ async fn collect_sync_response(
 	response.rooms = process_rooms(
 		services,
 		sender_user,
+		globalsince,
 		next_batch,
 		all_invited_rooms.clone(),
 		all_knocked_rooms.clone(),
@@ -697,6 +712,7 @@ fn matches_room_type(
 async fn process_rooms<'a, Rooms>(
 	services: &Services,
 	sender_user: &UserId,
+	globalsince: u64,
 	next_batch: u64,
 	all_invited_rooms: Rooms,
 	all_knocked_rooms: Rooms,
@@ -899,17 +915,16 @@ where
 		let required_state =
 			collect_required_state(services, room_id, required_state_request).await;
 
-		let room_events: Vec<_> = timeline_pdus
+		let timeline_pdus: Vec<_> = timeline_pdus
 			.iter()
 			.stream()
 			.filter_map(|item| ignored_filter(services, item.clone(), sender_user))
-			.map(at!(1))
-			.map(Event::into_format)
 			.collect()
 			.await;
+		let num_live = num_live_events(timeline_pdus.iter().map(|(count, _)| count), globalsince);
 		timeline_event_ids.extend(timeline_pdus.iter().map(|(_, pdu)| pdu.event_id.clone()));
 
-		for (_, pdu) in timeline_pdus {
+		for (_, pdu) in &timeline_pdus {
 			let ts = pdu.origin_server_ts;
 			if DEFAULT_BUMP_TYPES.binary_search(&pdu.kind).is_ok()
 				&& timestamp.is_none_or(|time| time <= ts)
@@ -917,6 +932,11 @@ where
 				timestamp = Some(ts);
 			}
 		}
+		let room_events = timeline_pdus
+			.into_iter()
+			.map(at!(1))
+			.map(Event::into_format)
+			.collect();
 
 		// Heroes
 		let heroes: Vec<_> = services
@@ -1036,7 +1056,7 @@ where
 						.try_into()
 						.unwrap_or_else(|_| uint!(0)),
 				),
-				num_live: None, // Count events in timeline greater than global sync counter
+				num_live: Some(ruma_from_usize(num_live)),
 				bump_stamp: timestamp,
 				heroes: Some(heroes),
 			}),
@@ -1771,5 +1791,26 @@ mod tests {
 		response.extensions.to_device = Some(sync_events::v5::response::ToDevice::default());
 
 		assert!(response_is_empty(&response));
+	}
+
+	#[test]
+	fn num_live_events_counts_the_new_normal_suffix() {
+		let counts = [
+			PduCount::Backfilled(-2),
+			PduCount::Normal(8),
+			PduCount::Normal(11),
+			PduCount::Normal(12),
+		];
+
+		assert_eq!(num_live_events(counts.iter(), 0), 0);
+		assert_eq!(num_live_events(counts.iter(), 10), 2);
+		assert_eq!(num_live_events(counts.iter(), 12), 0);
+	}
+
+	#[test]
+	fn num_live_events_stops_at_history() {
+		let counts = [PduCount::Normal(11), PduCount::Normal(9), PduCount::Normal(12)];
+
+		assert_eq!(num_live_events(counts.iter(), 10), 1);
 	}
 }
