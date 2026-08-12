@@ -29,14 +29,14 @@ runs:
         echo "TIMELORD_CACHE_PATH=$HOME/.cache/timelord" >> $GITHUB_ENV
         echo "PATH=$HOME/.cargo/bin:/usr/share/rust/.cargo/bin:$PATH" >> $GITHUB_ENV
 
-    - name: Restore binary cache
-      id: binary-cache
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-      with:
-        path: |
-          /usr/share/rust/.cargo/bin
-          ~/.cargo/bin
-        key: continuwuity-timelord-binaries
+#    - name: Restore binary cache
+#      id: binary-cache
+#      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+#      with:
+#        path: |
+#          /usr/share/rust/.cargo/bin
+#          ~/.cargo/bin
+#        key: continuwuity-timelord-binaries
 
     - name: Check if binaries need installation
       shell: bash
@@ -75,24 +75,24 @@ runs:
       with:
         tool: git-warp-time,timelord-cli@3.0.1
 
-    - name: Save binary cache
-      if: steps.check-binaries.outputs.need-install == 'true'
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-      with:
-        path: |
-          /usr/share/rust/.cargo/bin
-          ~/.cargo/bin
-        key: continuwuity-timelord-binaries
+#    - name: Save binary cache
+#      if: steps.check-binaries.outputs.need-install == 'true'
+#      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+#      with:
+#        path: |
+#          /usr/share/rust/.cargo/bin
+#          ~/.cargo/bin
+#        key: continuwuity-timelord-binaries
 
 
-    - name: Restore timelord cache with fallbacks
-      id: timelord-restore
-      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-      with:
-        path: ${{ env.TIMELORD_CACHE_PATH }}
-        key: ${{ env.TIMELORD_KEY }}
-        restore-keys: |
-          continuwuity-timelord-${{ github.repository }}-
+#    - name: Restore timelord cache with fallbacks
+#      id: timelord-restore
+#      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+#      with:
+#        path: ${{ env.TIMELORD_CACHE_PATH }}
+#        key: ${{ env.TIMELORD_KEY }}
+#        restore-keys: |
+#          continuwuity-timelord-${{ github.repository }}-
 
     - name: Initialize timestamps on complete cache miss
       if: steps.timelord-restore.outputs.cache-hit != 'true'
@@ -113,8 +113,8 @@ runs:
         mkdir -p ${{ env.TIMELORD_CACHE_PATH }}
         timelord sync --source-dir ${{ env.TIMELORD_PATH }} --cache-dir ${{ env.TIMELORD_CACHE_PATH }}
 
-    - name: Save updated timelord cache immediately
-      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
-      with:
-        path: ${{ env.TIMELORD_CACHE_PATH }}
-        key: ${{ env.TIMELORD_KEY }}
+#    - name: Save updated timelord cache immediately
+#      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+#      with:
+#        path: ${{ env.TIMELORD_CACHE_PATH }}
+#        key: ${{ env.TIMELORD_KEY }}

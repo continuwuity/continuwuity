@@ -78,7 +78,7 @@ jobs:
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.prepare.outputs.metadata_labels }}
           annotations: ${{ steps.prepare.outputs.metadata_annotations }}
-          cache-from: type=gha
+#          cache-from: type=gha
           # cache-to: type=gha,mode=max
           sbom: true
           outputs: |
