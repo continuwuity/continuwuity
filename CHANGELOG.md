@@ -1,3 +1,43 @@
+# Continuwuity v26.8.0-alpha.1 (2026-08-14)
+
+## Features
+
+- Added MSC4354 sticky events, behind the `allow_sticky_events` config option. Contributed by @eleboucher.
+- Added MSC4480 sticky events to simplified sliding sync. Contributed by @eleboucher.
+- Added scoped typing updates to simplified Sliding Sync (MSC4508). Contributed by @eleboucher.
+
+## Bugfixes
+
+- Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
+- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
+- Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. (#2057)
+- Resolve membership service by correct name for auto-join. Contributed by @Aranjedeath (#2082)
+- Plugged a logic gap that may have been allowing Continuwuity to process events with incorrect room versions under certain conditions. Contributed by @nex. (#2106)
+- The OAuth 2.0 device authorization endpoint now rejects clients which did not register the device code grant type, instead of issuing them a device code. The token endpoint now returns the `unauthorized_client` error code when a client requests a grant type it did not register, instead of `invalid_grant`. Contributed by @mmaudet. (#2110)
+- Added MSC4186 direct, encrypted, and room-type list filters, resolving invited rooms from their stripped invite state. Contributed by @eleboucher.
+- Fixed left/banned rooms sometimes not coming down sync.
+- Fixed missed wake-ups and stale responses in legacy and sliding sync long polls. Contributed by @eleboucher.
+- Fixed sync loops being woken before membership changes are fully committed.
+- Fixed typing notifications not interrupting a sync long poll. Contributed by @eleboucher.
+- Preserve all users' read receipts when batching room receipt updates.
+
+## Improved Documentation
+
+- Refactor TURN docs and remove unsafe setups. Polish LiveKit docs. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself (#1740)
+- Updated the docs to reflect the current default User-Agent for URL previews (#2079)
+- Added missing documentation to config parameters. Contributed by @renegadespork (#2107)
+- Generic deployment documentation: Use `/etc/caddy/Caddyfile` instead of `/etc/caddy/conf.d/*` paths, which do not exist on a majority of Caddy installations. (#2117)
+- Add caveat and workaround for container resolution (e.g. for dockerized appservices) when using mounted `/etc/resolv.conf`. Contributed by @stratself
+- Livekit docs: `room.auto_create: false` is now included in default `livekit.yaml`, following `lk-jwt-service` recommendation.
+- Replace deprecated `docker-compose` commands with `docker compose` to reflect latest Docker changes.
+- Update backup instructions: the right paths for `.sst` files are now in `$DATABASE_BACKUP_PATH/private/<number>` path instead of `$DATABASE_BACKUP_PATH/<number>`. Contributed by @stratself
+
+## Misc
+
+- #2033
+- Updated Ruma dependencies. Contributed by @eleboucher.
+
+
 # Continuwuity 26.7.3 (2026-08-11)
 
 ## Bugfixes
