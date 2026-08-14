@@ -12,11 +12,11 @@ You can find help setting up TURN/STUN in our MatrixRTC room - [#matrixrtc:conti
 [stun]: https://en.wikipedia.org/wiki/STUN
 [coturn]: https://github.com/coturn/coturn
 
-## Installing Coturn
+## Installing coturn
 
 ### 1. Set up your domain
 
-Coturn should live on its own domain or subdomain. In this guide we use `coturn.example.com` - this should be replaced with a domain you control.
+coturn should live on its own domain or subdomain. In this guide we use `coturn.example.com` - this should be replaced with a domain you control.
 
 ### 2. Configuring coturn
 
@@ -41,7 +41,7 @@ cert=/etc/letsencrypt/coturn.example.com.crt
 pkey=/etc/letsencrypt/coturn.example.com.key
 ```
 
-The cert and key must be encoded in PEM format and must be readable by the coturn user.
+The cert and key must be encoded in PEM format and must be readable by the `coturn` user.
 
 Check out the [`turnserver.conf`][turnserver-conf] example for all coturn options.
 
@@ -49,7 +49,7 @@ Check out the [`turnserver.conf`][turnserver-conf] example for all coturn option
 
 ### 3. Running the coturn container
 
-Next, we will start the Coturn container with the [official image][coturn-image]. **Host networking mode** is used here for better performance and reduced configuration complexity (see [Coturn Docker docs][coturn-docker-docs] for rationale).
+Next, we will start the coturn container with the [official image][coturn-image]. **Host networking mode** is used here for better performance and reduced configuration complexity (see [coturn's Docker docs][coturn-docker-docs] for rationale).
 
 [coturn-image]: https://hub.docker.com/r/coturn/coturn
 [coturn-docker-docs]: https://github.com/coturn/coturn/blob/master/docker/coturn/README.md#why-so-many-ports-opened
@@ -107,7 +107,7 @@ This leaves ports `50100-50200` available for LiveKit's default configuration.
 
 ### 5. Security Recommendations
 
-For Coturn hardening and security best practices, see Synapse's [Coturn documentation][synapse-coturn-guide], which includes important firewall and access control recommendations.
+For coturn hardening and security best practices, see [Synapse's coturn documentation][synapse-coturn-guide], which includes important firewall and access control recommendations.
 
 [synapse-coturn-guide]: https://element-hq.github.io/synapse/latest/setup/turn/coturn.html#configuration
 
@@ -180,7 +180,7 @@ If you see `relay` candidates in the results, your TURN/STUN server is working c
 
 ## Troubleshooting
 
-To gather debug logs while troubleshooting Coturn, add `verbose` to your `coturn.conf`. You can then view these logs with `docker compose logs --follow coturn`.
+To gather debug logs while troubleshooting coturn, add `verbose` to your `coturn.conf`. You can then view these logs with `docker compose logs --follow coturn`.
 
 ### Errors with Trickle ICE
 
@@ -203,10 +203,10 @@ This is the correct response when no TURN servers are configured, as per [MSC416
 ## Related Documentation
 
 - [MatrixRTC/LiveKit Setup](./livekit.mdx) - Configure group calling with LiveKit
-- [Coturn GitHub][coturn] - Official coturn repository
+- [coturn GitHub][coturn] - Official coturn repository
 - [`turnserver.conf`][turnserver-conf] - Coturn TURN SERVER configuration file with full options
 - [Synapse TURN Guide][synapse-turn-guide] - TURN server guide for Synapse
-- [Synapse Coturn Guide][synapse-coturn-guide] - Coturn-specific guide for Synapse, with important security recommendations
+- [Synapse coturn Guide][synapse-coturn-guide] - Coturn-specific guide for Synapse, with important security recommendations
 
 [synapse-turn-guide]: https://element-hq.github.io/synapse/latest/turn-howto.html
 
@@ -229,7 +229,7 @@ TURN servers are generally reachable on their default ports, as configured above
 
 However, port 443 is usually used by other HTTPS services. Therefore, one would need to multiplex both TURN-over-TLS and HTTPS on these ports, and filter packets to them via SNI routing.
 
-Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443, using [Caddy-L4][caddy-l4] on the host system.
+Below are examples to multiplex coturn and [LiveKit](./livekit.mdx) on port 443, using [Caddy-L4][caddy-l4] on the host system.
 
 <details>
 
@@ -237,10 +237,10 @@ Below are examples to multiplex Coturn and [LiveKit](./livekit.mdx) on port 443,
 
 This Caddyfile:
 
-- Route `turn.example.com` to the TURN-over-TLS port for Coturn (port 5349) without TLS termination, and
+- Route `turn.example.com` to the TURN-over-TLS port for coturn (port 5349) without TLS termination, and
 - Route `livekit.example.com` to the [LiveKit services](./livekit.mdx) with TLS termination by Caddy
 
-Please note that all traffic from Coturn's perspective will be coming from Caddy-L4's IP now.
+Please note that all traffic from coturn's perspective will be coming from Caddy-L4's IP now.
 
 ```
 {
