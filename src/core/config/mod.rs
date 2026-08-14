@@ -379,18 +379,6 @@ pub struct Config {
 	#[serde(default = "default_stateinfo_cache_capacity")]
 	pub stateinfo_cache_capacity: u32,
 
-	/// Determines the cache size for spacehierarchy data.
-	/// Accepts any 32-bit integer.
-	///
-	/// Each roomid contains info on its place in the space hierarchy.
-	/// This caps the capacity of cached spacehierarchy data.
-	///
-	/// This defaults to 1,000 * CPU core count.
-	///
-	/// default: varies by system
-	#[serde(default = "default_roomid_spacehierarchy_cache_capacity")]
-	pub roomid_spacehierarchy_cache_capacity: u32,
-
 	/// Maximum entries stored in DNS memory-cache. The size of an entry may
 	/// vary so please take care if raising this value excessively. Only
 	/// decrease this when using an external DNS cache. Please note that
@@ -2805,6 +2793,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
+	"roomid_spacehierarchy_cache_capacity",
 	"well_known_client",
 	"well_known_server",
 	"well_known_support_page",
@@ -2933,8 +2922,6 @@ fn default_servernameevent_data_cache_capacity() -> u32 {
 }
 
 fn default_stateinfo_cache_capacity() -> u32 { parallelism_scaled_u32(100) }
-
-fn default_roomid_spacehierarchy_cache_capacity() -> u32 { parallelism_scaled_u32(1000) }
 
 fn default_dns_cache_entries() -> u32 { 32768 }
 

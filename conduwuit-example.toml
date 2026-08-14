@@ -293,16 +293,6 @@
 #
 #stateinfo_cache_capacity = varies by system
 
-# Determines the cache size for spacehierarchy data.
-# Accepts any 32-bit integer.
-#
-# Each roomid contains info on its place in the space hierarchy.
-# This caps the capacity of cached spacehierarchy data.
-#
-# This defaults to 1,000 * CPU core count.
-#
-#roomid_spacehierarchy_cache_capacity = varies by system
-
 # Maximum entries stored in DNS memory-cache. The size of an entry may
 # vary so please take care if raising this value excessively. Only
 # decrease this when using an external DNS cache. Please note that

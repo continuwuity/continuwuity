@@ -17,7 +17,7 @@ use ruma::{
 		StateEventType,
 		space::child::{HierarchySpaceChildEvent, SpaceChildEventContent},
 	},
-	room::{JoinRuleSummary, RestrictedSummary, RoomSummary},
+	room::{JoinRuleSummary, RestrictedSummary, RoomSummary, RoomType},
 	serde::Raw,
 };
 
@@ -124,7 +124,7 @@ impl Service {
 		via: Option<&[OwnedServerName]>,
 		suggested_only: bool,
 	) -> Result<Accessibility<SpaceSummaryAndChildren>> {
-		let (summary, inaccessible_children) = {
+		let (mut summary, inaccessible_children) = {
 			if let Some(summary) = self.build_local_room_summary(room_id).await {
 				// We have this room locally.
 				let children_state = self.get_space_child_events(room_id).await;
@@ -159,15 +159,27 @@ impl Service {
 			return Ok(Accessibility::Inaccessible);
 		}
 
-		let children = summary
+		if !matches!(summary.summary.room_type.as_ref(), Some(RoomType::Space)) {
+			summary.children_state.clear();
+		}
+
+		let mut children: Vec<_> = summary
             .children_state
             .iter()
             // Ignore deserialization failures
             .flat_map(Raw::deserialize)
             // Filter out non-suggested children if suggested_only is set
             .filter(|child| !suggested_only || child.content.suggested)
-            .map(|child| SpaceChild { room_id: child.state_key, via: child.content.via })
-            .collect();
+			.collect();
+		children.sort();
+		let children = children
+			.into_iter()
+			.rev()
+			.map(|child| SpaceChild {
+				room_id: child.state_key,
+				via: child.content.via,
+			})
+			.collect();
 
 		Ok(Accessibility::Accessible(SpaceSummaryAndChildren {
 			summary,
@@ -223,6 +235,13 @@ impl Service {
 				continue;
 			};
 
+			// The root room is at depth zero, so the current layer is the depth of
+			// the child about to be processed.
+			let depth = u64::try_from(queue.len()).expect("hierarchy depth should fit into u64");
+			if max_depth.is_some_and(|max_depth| depth > max_depth.into()) {
+				continue;
+			}
+
 			// Do not request rooms which have been determined to be inaccessible
 			if inaccessible_children.contains(&room_id) {
 				continue;
@@ -261,17 +280,6 @@ impl Service {
 			summaries.push(summary.summary);
 			inaccessible_children.extend(summary.inaccessible_children);
 
-			// Don't traverse the tree deeper than max_depth
-			#[allow(
-				clippy::as_conversions,
-				clippy::arithmetic_side_effects,
-				reason = "queue.len() should never be large enough to cause strange behavior \
-				          here"
-			)]
-			if max_depth.is_some_and(|max_depth| (queue.len() as u64 + 1) > max_depth.into()) {
-				continue;
-			}
-
 			// Bail out if queue length exceeds 50 to keep cycles in the space graph from
 			// blowing up the traversal. If you actually have over fifty nested spaces,
 			// and you're looking at this function to figure out what the issue is, I
@@ -306,7 +314,11 @@ impl Service {
 			return Accessibility::Inaccessible;
 		}
 
-		let children_state = self.get_space_child_events(room_id).await;
+		let children_state = if matches!(summary.room_type.as_ref(), Some(RoomType::Space)) {
+			self.get_space_child_events(room_id).await
+		} else {
+			vec![]
+		};
 
 		let (accessible_children, inaccessible_children) = children_state
             .iter()
