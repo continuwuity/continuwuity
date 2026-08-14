@@ -598,6 +598,23 @@ impl Service {
 			return true;
 		}
 
+		// For restricted rooms, federation responses must include the summary when
+		// a user on the querying server can satisfy one of the join conditions.
+		if let JoinRuleSummary::Restricted(RestrictedSummary { allowed_room_ids, .. }) =
+			&summary.join_rule
+		{
+			for room_id in allowed_room_ids {
+				if self
+					.services
+					.state_cache
+					.server_in_room(querying_server, room_id)
+					.await
+				{
+					return true;
+				}
+			}
+		}
+
 		// If the server isn't in the room, the same visibility rules apply as for
 		// anonymous summary requests.
 		self.user_may_see_summary(None, summary).await
