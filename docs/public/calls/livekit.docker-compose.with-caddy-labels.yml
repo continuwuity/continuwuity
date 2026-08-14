@@ -1,4 +1,3 @@
-# This setup assumes all containers share the same bridge network
 services:
   lk-jwt-service:
     image: ghcr.io/element-hq/lk-jwt-service:latest

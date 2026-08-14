@@ -167,9 +167,15 @@ livekit.example.com {
 </Tab>
 <Tab label="Caddy (via Docker labels)">
 
-```yaml file="../public/calls/livekit.docker-compose.with-caddy-labels.yml"
+This setup assumes all containers share the same bridge network.
+
+
+```yaml title="docker-compose.yml" fold height="200" file="../public/calls/livekit.docker-compose.with-caddy-labels.yml"
 
 ```
+
+([view raw](/calls/livekit.docker-compose.with-caddy-labels.yml))
+
 </Tab>
 <Tab label="Traefik (via Docker labels)">
 
@@ -185,37 +191,14 @@ traefik.http.routers.livekit-jwt.rule=Host(`livekit.example.com`) && (PathPrefix
 </Tab>
 <Tab label="nginx">
 
-```ini
-server {
-    server_name livekit.example.com;
+```nginx title="nginx.conf" file="../public/calls/livekit.nginx.conf"
 
-    # for lk-jwt-service
-    location ~ ^/(sfu/get|healthz|get_token) {
-        proxy_pass http://127.0.0.1:8081$request_uri;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header Host $http_host;
-        proxy_buffering off;
-    }
-
-    # for LiveKit
-    location / {
-        proxy_pass http://127.0.0.1:7880$request_uri;
-        proxy_set_header X-Forwarded-For $remote_addr;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header Host $http_host;
-        proxy_buffering off;
-
-        # WebSocket
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-    }
-}
 ```
+
+([view raw](/calls/livekit.nginx.conf))
 
 Note: To enable WebSockets proxying functionality, include the following snippet somewhere outside your server block:
-```
+```nginx
 map $http_upgrade $connection_upgrade {
     default upgrade;
     ''      close;
