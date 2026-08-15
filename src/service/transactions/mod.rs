@@ -39,7 +39,7 @@ impl fmt::Display for TransactionError {
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			| Self::ShuttingDown => write!(f, "Server is shutting down"),
-			| Self::Unexpected => write!(f, "Fatal Internal Server Error"),
+			| Self::Unexpected => write!(f, "Unhandled internal server error"),
 		}
 	}
 }
