@@ -159,10 +159,24 @@ async fn process_inbound_transaction(
 		.stream();
 
 	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
-	let results = match handle(&services, &body.identity, pdus, edus).await {
-		| Ok(results) => results,
-		| Err(err) => {
+	// We have an additional panic catch here because if there's a panic in the
+	// handle, the sender will effectively become defederated until restart after
+	// never being removed from the tracking map. Ideally the handle function
+	// doesn't panic, but when has "ideally" ever worked for us.
+	let handle_result =
+		std::panic::AssertUnwindSafe(handle(&services, &body.identity, pdus, edus))
+			.catch_unwind()
+			.map_err(Error::from_panic)
+			.await;
+	let results = match handle_result {
+		| Ok(Ok(results)) => results,
+		| Ok(Err(err)) => {
 			fail_federation_txn(services, &txn_key, &sender, err);
+			return;
+		},
+		| Err(err) => {
+			error!(error=?err, "Fatal error while processing incoming transaction");
+			fail_federation_txn(services, &txn_key, &sender, TransactionError::Unexpected);
 			return;
 		},
 	};
@@ -227,6 +241,11 @@ fn transaction_error_to_response(err: &TransactionError) -> Error {
 			ErrorKind::Unknown,
 			"Server is shutting down, please retry later".into(),
 			StatusCode::SERVICE_UNAVAILABLE,
+		),
+		| TransactionError::Unexpected => Error::Request(
+			ErrorKind::Unknown,
+			err.to_string().into(),
+			StatusCode::INTERNAL_SERVER_ERROR,
 		),
 	}
 }
