@@ -20,14 +20,16 @@ use std::{
 
 use futures::{Future, FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future};
 use ruma::{
-	EventId, Int, MilliSecondsSinceUnixEpoch, OwnedEventId,
+	EventId, Int, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedUserId,
 	events::{
 		StateEventType, TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	int,
 	room_version_rules::{RoomIdFormatVersion, RoomVersionRules, StateResolutionVersion},
+	serde::Raw,
 };
+use serde::Deserialize;
 use serde_json::from_str as from_json_str;
 
 pub(crate) use self::error::Error;
@@ -155,8 +157,13 @@ where
 
 	// Sort the control events based on power_level/clock/event_id and
 	// outgoing/incoming edges
-	let sorted_control_levels =
-		reverse_topological_power_sort(control_events, &all_conflicted, &event_fetch).await?;
+	let sorted_control_levels = reverse_topological_power_sort(
+		control_events,
+		&all_conflicted,
+		room_version,
+		&event_fetch,
+	)
+	.await?;
 
 	debug!(count = sorted_control_levels.len(), "power events");
 	trace!(list = ?sorted_control_levels, "sorted power events");
@@ -357,6 +364,7 @@ where
 async fn reverse_topological_power_sort<E, F, Fut>(
 	events_to_sort: Vec<OwnedEventId>,
 	auth_diff: &HashSet<OwnedEventId>,
+	room_version: &RoomVersionRules,
 	fetch_event: &F,
 ) -> Result<Vec<OwnedEventId>>
 where
@@ -377,7 +385,7 @@ where
 		.cloned()
 		.stream()
 		.broad_filter_map(async |event_id| {
-			let pl = get_power_level_for_sender(&event_id, fetch_event)
+			let pl = get_power_level_for_sender(&event_id, room_version, fetch_event)
 				.await
 				.ok()?;
 
@@ -533,48 +541,139 @@ where
 	Ok(sorted)
 }
 
-/// Find the power level for the sender of `event_id` or return a default value
-/// of zero.
+/// Find the power level for the sender of `event_id`, falling back to the
+/// room creator's power and then to `users_default`.
 ///
 /// Do NOT use this any where but topological sort, we find the power level for
 /// the eventId at the eventId's generation (we walk backwards to `EventId`s
 /// most recent previous power level event).
 async fn get_power_level_for_sender<E, F, Fut>(
 	event_id: &EventId,
+	room_version: &RoomVersionRules,
 	fetch_event: &F,
 ) -> serde_json::Result<Int>
 where
 	F: Fn(OwnedEventId) -> Fut + Sync,
 	Fut: Future<Output = Option<E>> + Send,
-	E: Event + Send,
+	E: Event + Send + Sync,
 {
 	debug!("fetch event ({event_id}) senders power level");
 
-	let event = fetch_event(event_id.to_owned()).await;
+	let Some(event) = fetch_event(event_id.to_owned()).await else {
+		return Ok(int!(0));
+	};
 
-	let auth_events = event.as_ref().map(Event::auth_events);
-
-	let pl = auth_events
-		.into_iter()
-		.flatten()
+	let auth_events: Vec<E> = event
+		.auth_events()
+		.map(ToOwned::to_owned)
 		.stream()
-		.broadn_filter_map(5, |aid| fetch_event(aid.to_owned()))
-		.ready_find(|aev| is_type_and_key(aev, &TimelineEventType::RoomPowerLevels, ""))
+		.broadn_filter_map(5, fetch_event)
+		.collect()
 		.await;
 
+	let sender_is_creator =
+		sender_is_creator(&event, room_version, &auth_events, fetch_event).await?;
+
+	// Since v12 the room creators outrank any m.room.power_levels event, so their
+	// ordering position does not depend on one being in scope.
+	if sender_is_creator
+		&& room_version
+			.authorization
+			.explicitly_privilege_room_creators
+	{
+		return Ok(Int::MAX);
+	}
+
+	let pl = auth_events
+		.iter()
+		.find(|aev| is_type_and_key(*aev, &TimelineEventType::RoomPowerLevels, ""));
+
 	let content: PowerLevelsContentFields = match pl {
-		| None => return Ok(int!(0)),
+		// With no m.room.power_levels in scope the create event's defaults apply,
+		// under which the room creator holds 100 and everyone else 0.
+		| None => return Ok(if sender_is_creator { int!(100) } else { int!(0) }),
 		| Some(ev) => from_json_str(ev.content().get())?,
 	};
 
-	if let Some(ev) = event {
-		if let Some(&user_level) = content.get_user_power(ev.sender()) {
-			debug!("found {} at power_level {user_level}", ev.sender());
-			return Ok(user_level);
-		}
+	if let Some(&user_level) = content.get_user_power(event.sender()) {
+		debug!("found {} at power_level {user_level}", event.sender());
+		return Ok(user_level);
 	}
 
 	Ok(content.users_default)
+}
+
+#[derive(Deserialize)]
+struct RoomCreateContentFields {
+	creator: Option<Raw<OwnedUserId>>,
+	additional_creators: Option<Vec<Raw<OwnedUserId>>>,
+}
+
+/// Whether the sender of `event` created the room, either by sending the
+/// create event, by being named as the creator in it (room versions 1-10) or
+/// by being named in its `additional_creators`.
+async fn sender_is_creator<E, F, Fut>(
+	event: &E,
+	room_version: &RoomVersionRules,
+	auth_events: &[E],
+	fetch_event: &F,
+) -> serde_json::Result<bool>
+where
+	F: Fn(OwnedEventId) -> Fut + Sync,
+	Fut: Future<Output = Option<E>> + Send,
+	E: Event + Send + Sync,
+{
+	let create_event = auth_events
+		.iter()
+		.find(|aev| is_type_and_key(*aev, &TimelineEventType::RoomCreate, ""))
+		.cloned();
+
+	// Since v12 the create event is no longer listed in auth_events; the room ID
+	// is its event ID.
+	let create_event = match create_event {
+		| Some(create_event) => Some(create_event),
+		| None =>
+			match OwnedEventId::try_from(event.room_id_or_hash().as_str().replace('!', "$")) {
+				| Ok(create_event_id) => fetch_event(create_event_id).await,
+				| Err(_) => None,
+			},
+	};
+
+	let Some(create_event) = create_event else {
+		return Ok(false);
+	};
+
+	let content: RoomCreateContentFields = from_json_str(create_event.content().get())?;
+
+	// Before v11 the creator is recorded in the create event's content and can
+	// differ from its sender.
+	let is_creator = if room_version.authorization.use_room_create_sender {
+		create_event.sender() == event.sender()
+	} else {
+		content
+			.creator
+			.iter()
+			.filter_map(|creator| creator.deserialize().ok())
+			.any(|creator| creator == event.sender())
+	};
+
+	if is_creator {
+		return Ok(true);
+	}
+
+	if !room_version
+		.authorization
+		.explicitly_privilege_room_creators
+	{
+		return Ok(false);
+	}
+
+	Ok(content
+		.additional_creators
+		.iter()
+		.flatten()
+		.filter_map(|creator| creator.deserialize().ok())
+		.any(|creator| creator == event.sender()))
 }
 
 /// Check the that each event is authenticated based on the events before it.
@@ -1002,6 +1101,106 @@ mod tests {
 		utils::stream::IterStream,
 	};
 
+	/// Events at the start of a room have no `m.room.power_levels` in their
+	/// auth events, so the sender's power for sort ordering comes from the
+	/// create event instead.
+	#[tokio::test]
+	async fn power_level_for_sender_falls_back_to_creator() {
+		use futures::future::ready;
+
+		let create = to_pdu_event::<&str>(
+			"CREATE",
+			alice(),
+			TimelineEventType::RoomCreate,
+			Some(""),
+			to_raw_json_value(&json!({ "creator": alice() })).unwrap(),
+			&[],
+			&[],
+		);
+
+		// alice created the room, and there is no m.room.power_levels yet.
+		let alice_join = to_pdu_event(
+			"IMA",
+			alice(),
+			TimelineEventType::RoomMember,
+			Some(alice().as_str()),
+			member_content_join(),
+			&["CREATE"],
+			&["CREATE"],
+		);
+
+		let events: HashMap<OwnedEventId, PduEvent> = [create, alice_join]
+			.into_iter()
+			.map(|ev| (ev.event_id.clone(), ev))
+			.collect();
+
+		let fetcher = |id: OwnedEventId| ready(events.get(&id).cloned());
+
+		let power_level =
+			super::get_power_level_for_sender(&event_id("IMA"), &RoomVersionRules::V6, &fetcher)
+				.await
+				.unwrap();
+
+		assert_eq!(power_level, int!(100), "the creator should sort with their default power");
+	}
+
+	#[tokio::test]
+	async fn power_level_for_sender_uses_create_content_creator() {
+		use futures::future::ready;
+
+		// bob sent the create event, but alice is named as the creator in it.
+		let create = to_pdu_event::<&str>(
+			"CREATE",
+			bob(),
+			TimelineEventType::RoomCreate,
+			Some(""),
+			to_raw_json_value(&json!({ "creator": alice() })).unwrap(),
+			&[],
+			&[],
+		);
+
+		let alice_join = to_pdu_event(
+			"IMA",
+			alice(),
+			TimelineEventType::RoomMember,
+			Some(alice().as_str()),
+			member_content_join(),
+			&["CREATE"],
+			&["CREATE"],
+		);
+
+		let bob_join = to_pdu_event(
+			"IMB",
+			bob(),
+			TimelineEventType::RoomMember,
+			Some(bob().as_str()),
+			member_content_join(),
+			&["CREATE"],
+			&["CREATE"],
+		);
+
+		let events: HashMap<OwnedEventId, PduEvent> = [create, alice_join, bob_join]
+			.into_iter()
+			.map(|ev| (ev.event_id.clone(), ev))
+			.collect();
+
+		let fetcher = |id: OwnedEventId| ready(events.get(&id).cloned());
+
+		let alice_power =
+			super::get_power_level_for_sender(&event_id("IMA"), &RoomVersionRules::V6, &fetcher)
+				.await
+				.unwrap();
+
+		assert_eq!(alice_power, int!(100), "the content creator should sort with creator power");
+
+		let bob_power =
+			super::get_power_level_for_sender(&event_id("IMB"), &RoomVersionRules::V6, &fetcher)
+				.await
+				.unwrap();
+
+		assert_eq!(bob_power, int!(0), "the create event's sender is not the creator");
+	}
+
 	async fn test_event_sort() {
 		use futures::future::ready;
 
@@ -1024,10 +1223,14 @@ mod tests {
 			.collect::<Vec<_>>();
 
 		let fetcher = |id| ready(events.get(&id).cloned());
-		let sorted_power_events =
-			super::reverse_topological_power_sort(power_events, &auth_chain, &fetcher)
-				.await
-				.unwrap();
+		let sorted_power_events = super::reverse_topological_power_sort(
+			power_events,
+			&auth_chain,
+			&RoomVersionRules::V6,
+			&fetcher,
+		)
+		.await
+		.unwrap();
 
 		let resolved_power = super::iterative_auth_check(
 			&RoomVersionRules::V6,
