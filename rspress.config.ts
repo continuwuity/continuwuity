@@ -77,8 +77,17 @@ export default defineConfig({
             from: '/community$',
             to: '/community/guidelines'
         }, {
-            from: "^/turn",
+            from: "^/turn$",
             to: "/calls/turn",
+        }, {
+            from: "^/livekit$",
+            to: "/calls/livekit",
+        }, {
+            from: "^/dns",
+            to: "/guides/dns",
+        }, {
+            from: "^/source(|_code)$",
+            to: "https://forgejo.ellis.link/continuwuation/continuwuity",
         }
         ]
     })],
