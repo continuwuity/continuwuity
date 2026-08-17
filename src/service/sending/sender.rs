@@ -10,7 +10,7 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit::{
-	debug_info, debug_warn, info,
+	debug_error, debug_info, debug_warn, info,
 	utils::{should_continue_backoff, time::exponential_backoff::next_interval},
 };
 use conduwuit_core::{
@@ -219,12 +219,14 @@ impl Service {
 		statuses: &mut CurTransactionStatus,
 	) {
 		let iv = vec![(msg.queue_id, msg.event)];
-		if let Ok(Some(events)) = self.select_events(&msg.dest, iv, statuses).await {
-			if !events.is_empty() {
+		match self.select_events(&msg.dest, iv, statuses).await {
+			| Ok(Some(events)) if !events.is_empty() => {
 				futures.push(self.send_events(msg.dest, events));
-			} else {
+			},
+			| Ok(_) => {
 				statuses.remove(&msg.dest);
-			}
+			},
+			| Err(e) => debug_error!(error=?e, ?msg.dest, "Failed to select events"),
 		}
 	}
 
@@ -400,22 +402,24 @@ impl Service {
 	) -> Result<(bool, bool)> {
 		let (mut allow, mut retry) = (true, false);
 		if let Destination::Federation(server_name) = dest {
-			statuses
-				.entry(dest.clone())
-				.and_modify(|e| match e {
-					| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
-						allow = false; // already running
-					},
-					| TransactionStatus::Failed(tries, _) => {
-						*e = TransactionStatus::Retrying(*tries);
-						retry = true;
-					},
-				})
-				.or_insert(TransactionStatus::Running);
-			return match self.services.federation.retry_after(server_name) {
-				| None => Ok((allow, retry)),
-				| Some(t) => Ok((t.as_millis() > 0 && allow, retry)),
-			};
+			let entry = statuses.entry(dest.clone()).and_modify(|e| match e {
+				| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
+					allow = false; // already running
+				},
+				| TransactionStatus::Failed(tries, _) => {
+					*e = TransactionStatus::Retrying(*tries);
+					retry = true;
+				},
+			});
+			if let Some(retry_after) = self.services.federation.retry_after(server_name) {
+				if retry_after.is_zero() && allow {
+					allow = true;
+				}
+			}
+			if allow {
+				entry.or_insert(TransactionStatus::Running);
+			}
+			return Ok((allow, retry));
 		}
 		statuses
 			.entry(dest.clone())
