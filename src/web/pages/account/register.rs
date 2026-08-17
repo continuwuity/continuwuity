@@ -536,13 +536,6 @@ async fn complete_registration(
 			.mark_token_as_used(registration_token);
 	}
 
-	let notice = format!("New user \"{user_id}\" registered on this server from IP {client}.");
-
-	info!("{notice}");
-	if services.server.config.admin_room_notices {
-		services.admin.notice(&notice).await;
-	}
-
 	let user_session = UserSession { user_id, last_login: SystemTime::now() };
 
 	session_store
