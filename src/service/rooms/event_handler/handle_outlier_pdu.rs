@@ -170,12 +170,13 @@ impl super::Service {
 				.expect("we just checked that we have all auth events")
 				.to_owned();
 
-			let key = auth_event.kind().with_state_key(
-				auth_event
-					.state_key
-					.clone()
-					.expect("all auth events must have state keys"),
-			);
+			let Some(state_key) = auth_event.state_key() else {
+				self.reject_and_persist(event_id, &incoming_pdu);
+				return Err!(Request(Forbidden(debug_warn!(
+					"Event references non-state event as an auth event: {id}",
+				))));
+			};
+			let key = auth_event.kind().with_state_key(state_key);
 			match auth_events_by_key.entry(key) {
 				| hash_map::Entry::Vacant(v) => {
 					v.insert(auth_event);

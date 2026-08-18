@@ -7,7 +7,7 @@ use axum::{
 	routing::{get, on},
 };
 use conduwuit_api::client_ip::ClientIp;
-use conduwuit_core::{config::TermsDocument, info, warn};
+use conduwuit_core::{config::TermsDocument, warn};
 use conduwuit_service::{
 	mailer::messages,
 	registration_tokens::ValidToken,
