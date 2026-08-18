@@ -152,8 +152,8 @@ impl Service {
 						debug!("{dest} is now unhealthy & stale due to a connect error: {e:?}");
 						self.services.federation.mark_destination_stale(dest);
 						self.services.federation.hit_unhealthy(dest.clone());
-					} else if e.status_code().is_server_error() {
-						debug!("{dest} is now unhealthy due to server error response: {e:?}");
+					} else if e.status_code() != StatusCode::OK {
+						debug!("{dest} is now unhealthy due to error response: {e:?}");
 						self.services.federation.hit_unhealthy(dest.clone());
 					}
 				}
