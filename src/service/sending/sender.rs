@@ -10,7 +10,7 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use conduwuit::{
-	debug_error, debug_info, debug_warn, info,
+	debug_info, debug_warn, info, trace,
 	utils::{should_continue_backoff, time::exponential_backoff::next_interval},
 };
 use conduwuit_core::{
@@ -160,15 +160,22 @@ impl Service {
 	}
 
 	/// Handles a response error, incrementing the backoff factor.
-	fn handle_response_err(dest: Destination, statuses: &mut CurTransactionStatus, e: &Error) {
-		debug!(dest = ?dest, "{e:?}");
+	fn handle_response_err(dest: Destination, statuses: &mut CurTransactionStatus, er: &Error) {
+		debug!(dest = ?dest, "{er:?}");
+		let dest2 = dest.clone();
 		statuses.entry(dest).and_modify(|e| {
 			*e = match e {
 				| TransactionStatus::Running => TransactionStatus::Failed(1, Instant::now()),
 				| &mut TransactionStatus::Retrying(ref n) =>
 					TransactionStatus::Failed(n.saturating_add(1), Instant::now()),
 				| TransactionStatus::Failed(..) => {
-					panic!("Request that was not even running failed?!")
+					panic!(
+						"{}",
+						format!(
+							"Request to {dest2:?} that was not even running ({e:?}) failed: \
+							 {er:?}"
+						)
+					)
 				},
 			}
 		});
@@ -220,13 +227,21 @@ impl Service {
 	) {
 		let iv = vec![(msg.queue_id, msg.event)];
 		match self.select_events(&msg.dest, iv, statuses).await {
-			| Ok(Some(events)) if !events.is_empty() => {
-				futures.push(self.send_events(msg.dest, events));
+			| Ok(Some(events)) => {
+				if events.is_empty() {
+					// Nothing more to send to this remote
+					statuses.remove(&msg.dest);
+				} else {
+					futures.push(self.send_events(msg.dest, events));
+				}
 			},
-			| Ok(_) => {
-				statuses.remove(&msg.dest);
+			| Ok(None) => {
+				trace!(
+					?msg.dest,
+					"Ignoring request to send to destination (nothing to send/already busy)"
+				);
 			},
-			| Err(e) => debug_error!(error=?e, ?msg.dest, "Failed to select events"),
+			| Err(e) => error!(error=?e, ?msg.dest, "Failed to select events"),
 		}
 	}
 
@@ -405,18 +420,19 @@ impl Service {
 			let entry = statuses.entry(dest.clone()).and_modify(|e| match e {
 				| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
 					allow = false; // already running
+					trace!("Transaction is already running for {dest:?}");
 				},
 				| TransactionStatus::Failed(tries, _) => {
 					*e = TransactionStatus::Retrying(*tries);
 					retry = true;
+					trace!("Previous transaction failed for {dest:?} ({e:?}), will retry");
 				},
 			});
 			if let Some(retry_after) = self.services.federation.retry_after(server_name) {
-				if retry_after.is_zero() && allow {
-					allow = true;
-				}
+				allow = allow && retry_after.is_zero();
 			}
 			if allow {
+				trace!(current_status=?entry, "Inserting running status for {dest:?}");
 				entry.or_insert(TransactionStatus::Running);
 			}
 			return Ok((allow, retry));
@@ -941,6 +957,7 @@ impl Service {
 			%txn_id,
 			pdus=pdu_count,
 			edus=edu_count,
+			%server,
 			"Sending transaction to remote"
 		);
 		let start = Instant::now();
@@ -954,6 +971,7 @@ impl Service {
 			pdus=pdu_count,
 			edus=edu_count,
 			elapsed=?start.elapsed(),
+			%server,
 			"Finished sending transaction"
 		);
 

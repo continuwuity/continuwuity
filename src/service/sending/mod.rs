@@ -132,11 +132,11 @@ impl crate::Service for Service {
 
 		while let Some(ret) = senders.join_next_with_id().await {
 			match ret {
-				| Ok((id, _)) => {
-					debug!(?id, "sender worker finished");
+				| Ok((id, error)) => {
+					debug!(?id, ?error, "sender worker finished");
 				},
 				| Err(error) => {
-					error!(id = ?error.id(), ?error, "sender worker finished");
+					error!(id = ?error.id(), ?error, "sender worker failed");
 				},
 			}
 		}
