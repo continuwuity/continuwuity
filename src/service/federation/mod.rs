@@ -184,7 +184,15 @@ impl Service {
 			}
 		}
 
-		error.status_code() == StatusCode::MISDIRECTED_REQUEST
+		match error.status_code() {
+			// Some special servers account for this specifically
+			| StatusCode::MISDIRECTED_REQUEST
+			// Common error codes observed for misdirected requests
+			// | StatusCode::NOT_FOUND  This one can be encountered naturally
+			| StatusCode::METHOD_NOT_ALLOWED
+			| StatusCode::IM_A_TEAPOT => true,
+			_ => false,
+		}
 	}
 
 	/// Returns a clone of the internal remote health tracking map.

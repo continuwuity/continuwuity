@@ -30,6 +30,7 @@ use futures::{
 	join, pin_mut,
 	stream::FuturesUnordered,
 };
+use http::StatusCode;
 use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId,
 	RoomId, ServerName, UInt,
@@ -145,7 +146,9 @@ impl Service {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
 			| Err((dest, e)) => {
 				if let Destination::Federation(dest) = &dest {
-					if self.services.federation.should_mark_stale(&e) {
+					if self.services.federation.should_mark_stale(&e)
+						|| e.status_code() == StatusCode::NOT_FOUND
+					{
 						debug!("{dest} is now unhealthy & stale due to a connect error: {e:?}");
 						self.services.federation.mark_destination_stale(dest);
 						self.services.federation.hit_unhealthy(dest.clone());
