@@ -1,0 +1,44 @@
+name: Bug Report
+about: Report a bug or some other undesirable behaviour
+title: 'bug: '
+ref: 'main'
+labels:
+  - bug
+  - 'Status/Needs Investigation'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Please ask for help in #main:continuwuity.org to ensure that what you are experiencing is actually a bug.**
+        **Do not report security or security-aligned issues here. See /SECURITY.md for that.**
+
+        Note that issue descriptions generated in part or in whole by AI tools will be closed without review.
+        Please instead describe the problem you are having to the best of your own ability.
+  - type: textarea
+    attributes:
+      label: What is the bug?
+      description: Provide a detailed description of the issue you are experiencing.
+      placeholder: |
+        Continuwuity does not do xyz, which causes abc to happen. I expected it to do this, but instead it did that.
+      required: true
+  - type: textarea
+    attributes:
+      label: Steps to reproduce
+      description: Provide a step-by-step description of how to reproduce the issue.
+      placeholder: |
+        1. Do this
+        2. Then do that
+        3. Finally, observe the issue
+      required: true
+  - type: input
+    attributes:
+      label: Server name and version
+      description: |
+        What server did this happen on (e.g: continuwuity.org) and what Continuwuity version is running (e.g: v26.7.3)?
+      placeholder: |
+        continuwuity.example 26.8.0-alpha.1 (47eb39843)
+      required: true
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Anything else you think might be relevant to the issue
