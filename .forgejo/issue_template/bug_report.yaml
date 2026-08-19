@@ -20,6 +20,7 @@ body:
       description: Provide a detailed description of the issue you are experiencing.
       placeholder: |
         Continuwuity does not do xyz, which causes abc to happen. I expected it to do this, but instead it did that.
+    validations:
       required: true
   - type: textarea
     attributes:
@@ -29,6 +30,7 @@ body:
         1. Do this
         2. Then do that
         3. Finally, observe the issue
+    validations:
       required: true
   - type: input
     attributes:
@@ -37,6 +39,7 @@ body:
         What server did this happen on (e.g: continuwuity.org) and what Continuwuity version is running (e.g: v26.7.3)?
       placeholder: |
         continuwuity.example 26.8.0-alpha.1 (47eb39843)
+    validations:
       required: true
   - type: textarea
     attributes:

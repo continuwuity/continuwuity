@@ -1,5 +1,8 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Matrix room
+  - name: Get support
     url: https://matrix.to/#/#continuwuity:continuwuity.org
     about: Open a web portal to join our support room
+  - name: Report a security issue
+    url: https://continuwuity.org/security
+    about: Report a security issue to the Continuwuity team
