@@ -9,14 +9,14 @@ body:
     attributes:
       value: |
         **Do not report security or security-aligned issues here. See [/SECURITY.md] for that.**
-        
+
         Keep in mind that continuwuity is developed by a small team of volunteers and as such your
         feature request may take a long time to get attention. If you want something implemented
         sooner, feel free to open a pull request after getting a go-ahead from the maintainer team.
 
         Note that issue descriptions generated in part or in whole by AI tools will be closed without review.
         Please instead describe the problem you are having to the best of your own ability.
-        
+
         [/SECURITY.md]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/SECURITY.md
   - type: textarea
     attributes:
@@ -35,7 +35,7 @@ body:
         A lot of changes in Matrix software will require Matrix Spec Change proposals.
         If your feature request is related to a change in the Matrix specification,
         please link any relevant proposals here.
-        
+
         Likewise, if there are any discussions elsewhere related to this feature request
         (e.g. issues or pull requests on other issue trackers), please link them here too.
       placeholder: |

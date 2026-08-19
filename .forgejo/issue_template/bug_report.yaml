@@ -13,7 +13,7 @@ body:
 
         Note that issue descriptions generated in part or in whole by AI tools will be closed without review.
         Please instead describe the problem you are having to the best of your own ability.
-        
+
         [/SECURITY.md]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/SECURITY.md
   - type: textarea
     attributes:
