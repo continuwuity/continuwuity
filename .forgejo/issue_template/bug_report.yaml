@@ -1,7 +1,6 @@
 name: Bug Report
 about: Report a bug or some other undesirable behaviour
 title: 'bug: '
-ref: 'main'
 labels:
   - bug
   - 'Status/Needs Investigation'
