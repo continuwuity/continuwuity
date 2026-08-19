@@ -688,7 +688,7 @@ pub struct Config {
 	/// either the remote server becomes healthy, or the value is clamped to
 	/// `sender_retry_backoff_limit`.
 	///
-	/// default: 60
+	/// default: 10
 	#[serde(default = "default_sender_retry_backoff_base")]
 	pub sender_retry_backoff_base: u64,
 
@@ -2988,7 +2988,7 @@ fn default_sender_timeout() -> u64 { 180 }
 
 fn default_sender_idle_timeout() -> u64 { 180 }
 
-fn default_sender_retry_backoff_base() -> u64 { 60 }
+fn default_sender_retry_backoff_base() -> u64 { 10 }
 
 fn default_sender_retry_backoff_limit() -> u64 { 86400 }
 
