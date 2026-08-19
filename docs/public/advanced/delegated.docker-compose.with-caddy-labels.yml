@@ -8,8 +8,6 @@ services:
     ports:
       - 80:80
       - 443:443
-    environment:
-      - CADDY_INGRESS_NETWORKS=caddy
     networks:
       - proxy
     volumes:
@@ -49,7 +47,7 @@ services:
       caddy.reverse_proxy: "{{upstreams 8008}}"
 
 volumes:
-    db:
+  db:
 
 networks:
-    proxy:
+  proxy:
