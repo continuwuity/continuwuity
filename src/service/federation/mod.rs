@@ -8,10 +8,7 @@ use std::{
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{
-	Error, Result, Server, SyncRwLock, debug,
-	utils::{millis_since_unix_epoch, time::exponential_backoff::next_interval},
-};
+use conduwuit::{Error, Result, Server, SyncRwLock, debug, utils::millis_since_unix_epoch};
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
 use ruma::{
@@ -83,7 +80,9 @@ impl Service {
 
 	/// Marks or updates a remote's health status as unhealthy. If the remote is
 	/// not already marked as unhealthy, a new entry is created. Otherwise, the
-	/// retry count is incremented and
+	/// retry count is incremented and next retry window is updated.
+	///
+	/// Does not update the marker if the backoff period is already in effect.
 	pub fn hit_unhealthy(&self, server_name: OwnedServerName) {
 		let unix_now = millis_since_unix_epoch();
 		let mut map = self.remote_health.write();
@@ -101,8 +100,9 @@ impl Service {
 		let max = Duration::from_secs(self.services.server.config.sender_retry_backoff_limit);
 
 		*retries = retries.saturating_add(1);
+		let next_interval = min.saturating_mul(*retries).min(max);
 		*next_retry = unix_now.saturating_add(
-			u64::try_from(next_interval(min, max, *retries).as_millis())
+			u64::try_from(next_interval.as_millis())
 				.expect("backoff milliseconds should not exceed u64::MAX"),
 		);
 		debug!(
@@ -113,12 +113,12 @@ impl Service {
 
 	/// Marks a server as "healthy" by removing it from the health map.
 	///
-	/// TODO: flush senders too
-	pub fn mark_healthy(&self, server_name: &ServerName) {
-		// TODO: We need to make sure the sender flush DOESN'T trigger if this is called
-		// by the senders themselves.
+	/// Returns true if the server was previously marked as unhealthy, false
+	/// otherwise.
+	pub fn mark_healthy(&self, server_name: &ServerName) -> bool {
 		let mut health_map = self.remote_health.write();
-		if health_map.remove(server_name).is_some() {
+		let was_unhealthy = health_map.remove(server_name).is_some();
+		if was_unhealthy {
 			debug!("{} is now healthy", server_name);
 		}
 		// The lock for remote_health is deliberately retained until the end of the
@@ -136,6 +136,8 @@ impl Service {
 				.matrix_resolver
 				.remove_cache_entry(server_name.as_str());
 		}
+
+		was_unhealthy
 	}
 
 	/// Returns a rate-limited error if the remote is unhealthy.

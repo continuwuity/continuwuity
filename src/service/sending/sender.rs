@@ -9,10 +9,7 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use conduwuit::{
-	debug_info, debug_warn, info, trace,
-	utils::{should_continue_backoff, time::exponential_backoff::next_interval},
-};
+use conduwuit::{debug_info, debug_warn, info, trace};
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	matrix::pdu::sticky,
@@ -173,11 +170,7 @@ impl Service {
 					TransactionStatus::Failed(n.saturating_add(1), Instant::now()),
 				| TransactionStatus::Failed(..) => {
 					panic!(
-						"{}",
-						format!(
-							"Request to {dest2:?} that was not even running ({e:?}) failed: \
-							 {er:?}"
-						)
+						"Request to {dest2:?} that was not even running ({e:?}) failed: {er:?}"
 					)
 				},
 			}
@@ -446,16 +439,16 @@ impl Service {
 				});
 			return Ok((allow, retry));
 		}
+
+		// Legacy backoff tracking for non-server remotes
 		statuses
 			.entry(dest.clone())
 			.and_modify(|e| match e {
 				| TransactionStatus::Failed(tries, time) => {
 					let min = Duration::from_secs(self.server.config.sender_retry_backoff_base);
 					let max = Duration::from_secs(self.server.config.sender_retry_backoff_limit);
-					if should_continue_backoff(min, max, time.elapsed(), *tries)
-						&& !matches!(dest, Destination::Appservice(_))
-					{
-						let retry_after = next_interval(min, max, *tries);
+					let retry_after = min.saturating_mul(*tries).min(max);
+					if time.elapsed() < retry_after {
 						debug_warn!("Not retrying destination for another {retry_after:?}");
 						allow = false;
 					} else {

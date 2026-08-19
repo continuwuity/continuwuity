@@ -1246,7 +1246,7 @@ impl crate::Context<'_> {
 		let backoff_map = self.services.federation.remote_health();
 
 		if backoff_map.is_empty() {
-			return Err!("No servers in backoff.");
+			return self.write_str("No servers are currently in backoff.").await;
 		}
 
 		let stale_map = self.services.federation.stale_destinations();

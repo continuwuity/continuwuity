@@ -1,4 +1,3 @@
-pub mod exponential_backoff;
 pub mod jitter;
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};

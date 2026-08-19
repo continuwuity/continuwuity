@@ -256,8 +256,15 @@ impl super::Service {
 			parts,
 			body.as_ref(),
 		))
-		.inspect(|_| self.mark_healthy(dest))
-		.map_err(|e| err!(BadServerResponse("Server returned bad 200 response: {e:?}")))
+		.inspect(|_| {
+			self.mark_healthy(dest);
+		})
+		.map_err(|e| {
+			// Bad 200 response is usually a sign of bad routing, so we'll mark as stale.
+			// We won't mark as offline though since we technically got a response.
+			self.mark_destination_stale(dest);
+			err!(BadServerResponse("Server returned bad 200 response: {e:?}"))
+		})
 	}
 }
 

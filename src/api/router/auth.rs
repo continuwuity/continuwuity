@@ -1,6 +1,6 @@
 use std::any::{Any, TypeId};
 
-use conduwuit::{Err, Error, Result, err};
+use conduwuit::{Err, Error, Result, err, utils::IterStream};
 use http::StatusCode;
 use ruma::{
 	DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
@@ -150,7 +150,13 @@ impl CheckAuth for ServerSignatures {
 				}
 
 				// Ping the server as healthy
-				services.federation.mark_healthy(&output.origin);
+				if services.federation.mark_healthy(&output.origin) {
+					services
+						.sending
+						.flush_servers([output.origin.clone()].stream())
+						.await
+						.ok();
+				}
 
 				Ok(output.origin)
 			},
