@@ -1,0 +1,48 @@
+name: Feature request
+about: Suggest a new feature or improvement
+title: 'FR: '
+labels:
+  - Enhancement
+  - 'Status/Needs Investigation'
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not report security or security-aligned issues here. See [/SECURITY.md] for that.**
+        
+        Keep in mind that continuwuity is developed by a small team of volunteers and as such your
+        feature request may take a long time to get attention. If you want something implemented
+        sooner, feel free to open a pull request instead.
+
+        Note that issue descriptions generated in part or in whole by AI tools will be closed without review.
+        Please instead describe the problem you are having to the best of your own ability.
+        
+        [/SECURITY.md]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/SECURITY.md
+  - type: textarea
+    attributes:
+      label: What new feature do you want to see? What problem does it solve?
+      description: |
+        Provide a detailed description of the feature you would like to see, describing what it does,
+        how it will be used, and how this is beneficial to the broader Matrix community.
+      placeholder: |
+        I would like to see a new feature that allows users to do xyz.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Further reading
+      description: |
+        A lot of changes in Matrix software will require Matrix Spec Change proposals.
+        If your feature request is related to a change in the Matrix specification,
+        please link any relevant proposals here.
+        
+        Likewise, if there are any discussions elsewhere related to this feature request
+        (e.g. issues or pull requests on other issue trackers), please link them here too.
+      placeholder: |
+        - https://github.com/matrix-org/matrix-spec-proposals/pull/1234
+        - #1234 (issue/PR in continuwuity's repo)
+        - https://gitlab.com/other-matrix-project/other-matrix-project/-/issues/1234
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Anything else you think might be relevant to the issue

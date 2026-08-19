@@ -2,17 +2,19 @@ name: Bug Report
 about: Report a bug or some other undesirable behaviour
 title: 'bug: '
 labels:
-  - bug
+  - Bug
   - 'Status/Needs Investigation'
 body:
   - type: markdown
     attributes:
       value: |
         **Please ask for help in #main:continuwuity.org to ensure that what you are experiencing is actually a bug.**
-        **Do not report security or security-aligned issues here. See /SECURITY.md for that.**
+        **Do not report security or security-aligned issues here. See [/SECURITY.md] for that.**
 
         Note that issue descriptions generated in part or in whole by AI tools will be closed without review.
         Please instead describe the problem you are having to the best of your own ability.
+        
+        [/SECURITY.md]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/SECURITY.md
   - type: textarea
     attributes:
       label: What is the bug?

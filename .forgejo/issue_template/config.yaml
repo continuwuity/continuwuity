@@ -1,4 +1,4 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
   - name: Get support
     url: https://matrix.to/#/#continuwuity:continuwuity.org
