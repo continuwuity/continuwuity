@@ -550,7 +550,7 @@
 # either the remote server becomes healthy, or the value is clamped to
 # `sender_retry_backoff_limit`.
 #
-#sender_retry_backoff_base = 60
+#sender_retry_backoff_base = 10
 
 # Federation sender retry backoff limit (seconds).
 #
