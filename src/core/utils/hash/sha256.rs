@@ -5,6 +5,7 @@ pub type DigestOut = [u8; 256 / 8];
 /// Sha256 hash (input gather joined by 0xFF bytes)
 #[must_use]
 #[tracing::instrument(skip(inputs), level = "trace")]
+#[allow(clippy::unnecessary_fallible_conversions)]
 pub fn delimited<'a, T, I>(mut inputs: I) -> DigestOut
 where
 	I: Iterator<Item = T> + 'a,
@@ -25,6 +26,7 @@ where
 /// Sha256 hash (input gather)
 #[must_use]
 #[tracing::instrument(skip(inputs), level = "trace")]
+#[allow(clippy::unnecessary_fallible_conversions)]
 pub fn concat<'a, T, I>(inputs: I) -> DigestOut
 where
 	I: Iterator<Item = T> + 'a,
@@ -43,6 +45,7 @@ where
 #[inline]
 #[must_use]
 #[tracing::instrument(skip(input), level = "trace")]
+#[allow(clippy::unnecessary_fallible_conversions)]
 pub fn hash<T>(input: T) -> DigestOut
 where
 	T: AsRef<[u8]>,
