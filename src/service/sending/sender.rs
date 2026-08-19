@@ -420,24 +420,25 @@ impl Service {
 	) -> Result<(bool, bool)> {
 		let (mut allow, mut retry) = (true, false);
 		if let Destination::Federation(server_name) = dest {
-			let entry = statuses.entry(dest.clone()).and_modify(|e| match e {
+			if let Some(retry_after) = self.services.federation.retry_after(server_name) {
+				allow = retry_after.is_zero();
+			}
+			statuses.entry(dest.clone()).and_modify(|e| match e {
 				| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
 					allow = false; // already running
 					trace!("Transaction is already running for {dest:?}");
 				},
 				| TransactionStatus::Failed(tries, _) => {
-					*e = TransactionStatus::Retrying(*tries);
+					if allow {
+						*e = TransactionStatus::Retrying(*tries);
+						trace!("Previous transaction failed for {dest:?} ({e:?}), will retry");
+					}
 					retry = true;
-					trace!("Previous transaction failed for {dest:?} ({e:?}), will retry");
 				},
+			}).or_insert_with(|| {
+				trace!("Inserting running status for {dest:?}");
+				TransactionStatus::Running
 			});
-			if let Some(retry_after) = self.services.federation.retry_after(server_name) {
-				allow = allow && retry_after.is_zero();
-			}
-			if allow {
-				trace!(current_status=?entry, "Inserting running status for {dest:?}");
-				entry.or_insert(TransactionStatus::Running);
-			}
 			return Ok((allow, retry));
 		}
 		statuses
