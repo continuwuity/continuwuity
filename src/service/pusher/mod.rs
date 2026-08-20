@@ -1,9 +1,11 @@
+mod webpush;
+
 use std::{fmt::Debug, mem, sync::Arc};
 
 use bytes::BytesMut;
 use conduwuit::utils::response::LimitReadExt;
 use conduwuit_core::{
-	Err, Event, Result, debug_warn, err, trace,
+	Err, Event, Result, Server, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
 	warn,
 };
@@ -15,7 +17,6 @@ use ruma::{
 	api::{
 		IncomingResponseExt, OutgoingRequest, OutgoingRequestExt,
 		auth_scheme::NoAuthentication,
-		client::push::{Pusher, PusherKind, set_pusher},
 		path_builder::SinglePath,
 		push_gateway::send_event_notification::{
 			self,
@@ -27,18 +28,24 @@ use ruma::{
 		Action, HighlightTweakValue, PushConditionPowerLevelsCtx, PushConditionRoomCtx,
 		PushFormat, Ruleset, Tweak,
 	},
-	serde::Raw,
+	serde::{JsonObject, Raw},
 	uint,
 };
+use ruminuwuity::pushers::{Pusher, PusherKind, set_pusher::v3::PusherAction};
 
+pub use self::webpush::ActivationOutcome;
+use self::webpush::Vapid;
 use crate::{Dep, client, config, globals, rooms, sending, users};
 
 pub struct Service {
 	db: Data,
 	services: Services,
+	me: std::sync::Weak<Self>,
+	vapid: Option<Vapid>,
 }
 
 struct Services {
+	server: Arc<Server>,
 	globals: Dep<globals::Service>,
 	config: Dep<config::Service>,
 	client: Dep<client::Service>,
@@ -50,17 +57,31 @@ struct Services {
 
 struct Data {
 	senderkey_pusher: Arc<Map>,
+	senderkey_webpushbackoff: Arc<Map>,
+	senderkey_webpushstate: Arc<Map>,
 	pushkey_deviceid: Arc<Map>,
 }
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
-		Ok(Arc::new(Self {
+		let vapid = args
+			.server
+			.config
+			.well_known
+			.support_page
+			.is_some()
+			.then(|| Vapid::init(args.db))
+			.transpose()?;
+
+		Ok(Arc::new_cyclic(|me| Self {
 			db: Data {
 				senderkey_pusher: args.db["senderkey_pusher"].clone(),
+				senderkey_webpushbackoff: args.db["senderkey_webpushbackoff"].clone(),
+				senderkey_webpushstate: args.db["senderkey_webpushstate"].clone(),
 				pushkey_deviceid: args.db["pushkey_deviceid"].clone(),
 			},
 			services: Services {
+				server: args.server.clone(),
 				globals: args.depend::<globals::Service>("globals"),
 				client: args.depend::<client::Service>("client"),
 				config: args.depend::<config::Service>("config"),
@@ -70,6 +91,8 @@ impl crate::Service for Service {
 				users: args.depend::<users::Service>("users"),
 				sending: args.depend::<sending::Service>("sending"),
 			},
+			me: me.clone(),
+			vapid,
 		}))
 	}
 
@@ -81,71 +104,89 @@ impl Service {
 		&self,
 		sender: &UserId,
 		sender_device: &DeviceId,
-		pusher: &set_pusher::v3::PusherAction,
-	) -> Result {
-		match pusher {
-			| set_pusher::v3::PusherAction::Post(data) => {
-				let pushkey = data.pusher.ids.pushkey.as_str();
-
-				if pushkey.len() > 512 {
-					return Err!(Request(InvalidParam(
-						"Push key length cannot be greater than 512 bytes."
-					)));
-				}
-
-				if data.pusher.ids.app_id.as_str().len() > 64 {
-					return Err!(Request(InvalidParam(
-						"App ID length cannot be greater than 64 bytes."
-					)));
-				}
-
-				// add some validation to the pusher URL
-				let pusher_kind = &data.pusher.kind;
-				if let PusherKind::Http(http) = pusher_kind {
-					let url = &http.url;
-					let url = url::Url::parse(&http.url).map_err(|e| {
-						err!(Request(InvalidParam(
-							warn!(%url, "HTTP pusher URL is not a valid URL: {e}")
-						)))
-					})?;
-
-					if ["http", "https"]
-						.iter()
-						.all(|&scheme| scheme != url.scheme().to_lowercase())
-					{
-						return Err!(Request(InvalidParam(
-							warn!(%url, "HTTP pusher URL is not a valid HTTP/HTTPS URL")
-						)));
-					}
-
-					if let Ok(ip) =
-						IPAddress::parse(url.host_str().expect("URL previously validated"))
-					{
-						if !self.services.client.valid_cidr_range(&ip) {
-							return Err!(Request(InvalidParam(
-								warn!(%url, "HTTP pusher URL is a forbidden remote address")
-							)));
-						}
-					}
-				}
-
-				let pushkey = data.pusher.ids.pushkey.as_str();
-				let key = (sender, pushkey);
-				self.db.senderkey_pusher.put(key, Json(pusher));
-				self.db.pushkey_deviceid.insert(pushkey, sender_device);
-			},
-			| set_pusher::v3::PusherAction::Delete(ids) => {
+		action: &PusherAction,
+	) -> Result<bool> {
+		let pusher = match action {
+			| PusherAction::Post(pusher) => pusher,
+			| PusherAction::Delete(ids) => {
 				self.delete_pusher(sender, ids.pushkey.as_str()).await;
+				return Ok(false);
 			},
-			| _ => return Err!(Request(InvalidParam("Unknown pusher action"))),
+		};
+
+		let pushkey = pusher.ids.pushkey.as_str();
+		if pushkey.len() > 512 {
+			return Err!(Request(InvalidParam(
+				"Push key length cannot be greater than 512 bytes."
+			)));
 		}
 
-		Ok(())
+		if pusher.ids.app_id.as_str().len() > 64 {
+			return Err!(Request(InvalidParam("App ID length cannot be greater than 64 bytes.")));
+		}
+
+		match &pusher.kind {
+			| PusherKind::Http(http) => {
+				self.validate_push_url(&http.url, false)?;
+			},
+			| PusherKind::WebPush(data) => {
+				if self.vapid.is_none() {
+					return Err!(Request(InvalidParam(
+						"Web push is not enabled on this server."
+					)));
+				}
+
+				self.validate_push_url(&data.url, true)?;
+				webpush::decode_pushkey(pushkey)?;
+				webpush::decode_auth(&data.auth)?;
+
+				if let Some(default_payload) = data.data.get("default_payload") {
+					if serde_json::to_vec(default_payload)?.len() > webpush::MAX_DEFAULT_PAYLOAD {
+						return Err!(Request(TooLarge(
+							"Default payload cannot be greater than {} bytes.",
+							webpush::MAX_DEFAULT_PAYLOAD
+						)));
+					}
+				}
+			},
+			| PusherKind::Email(_) | PusherKind::Custom { .. } => (),
+		}
+
+		let key = (sender, pushkey);
+		let previous: Option<Pusher> = self
+			.db
+			.senderkey_pusher
+			.qry(&key)
+			.await
+			.deserialized()
+			.map_err(|e| {
+				if !e.is_not_found() {
+					warn!(%pushkey, "Replacing a stored pusher that could not be read: {e}");
+				}
+			})
+			.ok();
+		let needs_activation = self
+			.webpush_needs_activation(sender, pusher, previous.as_ref())
+			.await;
+
+		if needs_activation {
+			self.begin_webpush_activation(sender, pusher);
+		} else if pusher.kind.as_webpush().is_none() {
+			self.db.senderkey_webpushstate.del(key);
+			self.db.senderkey_webpushbackoff.del(key);
+		}
+
+		self.db.senderkey_pusher.put(key, Json(pusher));
+		self.db.pushkey_deviceid.insert(pushkey, sender_device);
+
+		Ok(needs_activation)
 	}
 
 	pub async fn delete_pusher(&self, sender: &UserId, pushkey: &str) {
 		let key = (sender, pushkey);
 		self.db.senderkey_pusher.del(key);
+		self.db.senderkey_webpushbackoff.del(key);
+		self.db.senderkey_webpushstate.del(key);
 		self.db.pushkey_deviceid.remove(pushkey);
 
 		self.services
@@ -191,6 +232,36 @@ impl Service {
 			.map(|(_, pushkey): (Ignore, &str)| pushkey)
 	}
 
+	/// Checks that a pusher URL is well-formed and not pointing at a forbidden
+	/// address.
+	fn validate_push_url(&self, url: &str, require_https: bool) -> Result<url::Url> {
+		let parsed = url::Url::parse(url).map_err(|e| {
+			err!(Request(InvalidParam(warn!(%url, "Pusher URL is not a valid URL: {e}"))))
+		})?;
+
+		let scheme = parsed.scheme().to_lowercase();
+		let allowed: &[&str] = if require_https { &["https"] } else { &["http", "https"] };
+		if !allowed.contains(&scheme.as_str()) {
+			return Err!(Request(InvalidParam(warn!(
+				%url,
+				"Pusher URL scheme {scheme} is not allowed"
+			))));
+		}
+
+		if let Some(host) = parsed.host_str() {
+			if let Ok(ip) = IPAddress::parse(host) {
+				if !self.services.client.valid_cidr_range(&ip) {
+					return Err!(Request(InvalidParam(warn!(
+						%url,
+						"Pusher URL is a forbidden remote address"
+					))));
+				}
+			}
+		}
+
+		Ok(parsed)
+	}
+
 	#[tracing::instrument(skip(self, dest, request))]
 	pub async fn send_request<T>(&self, dest: &str, request: T) -> Result<T::IncomingResponse>
 	where
@@ -210,9 +281,48 @@ impl Service {
 			})?
 			.map(BytesMut::freeze);
 
-		let reqwest_request = reqwest::Request::try_from(http_request)?;
+		let (status, version, headers, body) = self
+			.execute_pusher_request(
+				&self.services.client.pusher,
+				reqwest::Request::try_from(http_request)?,
+			)
+			.await?;
 
-		if let Some(url_host) = reqwest_request.url().host_str() {
+		if !status.is_success() {
+			debug_warn!("Push gateway response body: {:?}", string_from_bytes(&body));
+			return Err!(BadServerResponse(warn!(
+				"Push gateway {dest} returned unsuccessful HTTP response: {status}"
+			)));
+		}
+
+		let mut builder = http::Response::builder().status(status).version(version);
+		*builder
+			.headers_mut()
+			.expect("http::response::Builder is usable") = headers;
+
+		let (parts, body) = builder
+			.body(body)
+			.expect("reqwest body is valid http body")
+			.into_parts();
+
+		T::IncomingResponse::try_from_http_response(http::Response::from_parts(
+			parts,
+			body.as_ref(),
+		))
+		.map_err(|e| {
+			err!(BadServerResponse(warn!("Push gateway {dest} returned invalid response: {e}")))
+		})
+	}
+
+	/// Executes a request, checking the destination address on the way out and
+	/// on the way in. The status is returned as-is; callers decide which codes
+	/// are failures.
+	async fn execute_pusher_request(
+		&self,
+		client: &reqwest::Client,
+		request: reqwest::Request,
+	) -> Result<(http::StatusCode, http::Version, http::HeaderMap, Vec<u8>)> {
+		if let Some(url_host) = request.url().host_str() {
 			trace!("Checking request URL for IP");
 			if let Ok(ip) = IPAddress::parse(url_host) {
 				if !self.services.client.valid_cidr_range(&ip) {
@@ -221,69 +331,36 @@ impl Service {
 			}
 		}
 
-		let response = self.services.client.pusher.execute(reqwest_request).await;
+		let dest = request.url().clone();
+		let mut response = client.execute(request).await.map_err(|e| {
+			err!(BadServerResponse(warn!(%dest, "Could not send request to pusher: {e}")))
+		})?;
 
-		match response {
-			| Ok(mut response) => {
-				// reqwest::Response -> http::Response conversion
-
-				trace!("Checking response destination's IP");
-				if let Some(remote_addr) = response.remote_addr() {
-					if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
-						if !self.services.client.valid_cidr_range(&ip) {
-							return Err!(BadServerResponse(
-								"Not allowed to send requests to this IP"
-							));
-						}
-					}
+		trace!("Checking response destination's IP");
+		if let Some(remote_addr) = response.remote_addr() {
+			if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
+				if !self.services.client.valid_cidr_range(&ip) {
+					return Err!(BadServerResponse("Not allowed to send requests to this IP"));
 				}
-
-				let status = response.status();
-				let mut http_response_builder = http::Response::builder()
-					.status(status)
-					.version(response.version());
-				mem::swap(
-					response.headers_mut(),
-					http_response_builder
-						.headers_mut()
-						.expect("http::response::Builder is usable"),
-				);
-
-				let body = response
-					.limit_read(
-						self.services
-							.config
-							.max_request_size
-							.try_into()
-							.expect("usize fits into u64"),
-					)
-					.await?;
-
-				if !status.is_success() {
-					debug_warn!("Push gateway response body: {:?}", string_from_bytes(&body));
-					return Err!(BadServerResponse(warn!(
-						"Push gateway {dest} returned unsuccessful HTTP response: {status}"
-					)));
-				}
-
-				let (parts, body) = http_response_builder
-					.body(body)
-					.expect("reqwest body is valid http body")
-					.into_parts();
-				let response = T::IncomingResponse::try_from_http_response(
-					http::Response::from_parts(parts, body.as_ref()),
-				);
-				response.map_err(|e| {
-					err!(BadServerResponse(warn!(
-						"Push gateway {dest} returned invalid response: {e}"
-					)))
-				})
-			},
-			| Err(e) => {
-				warn!("Could not send request to pusher {dest}: {e}");
-				Err(e.into())
-			},
+			}
 		}
+
+		let status = response.status();
+		let version = response.version();
+		let mut headers = http::HeaderMap::new();
+		mem::swap(response.headers_mut(), &mut headers);
+
+		let body = response
+			.limit_read(
+				self.services
+					.config
+					.max_request_size
+					.try_into()
+					.expect("usize fits into u64"),
+			)
+			.await?;
+
+		Ok((status, version, headers, body))
 	}
 
 	#[tracing::instrument(skip(self, user, unread, pusher, ruleset, event))]
@@ -314,13 +391,7 @@ impl Service {
 
 		let serialized = event.to_format();
 		for action in self
-			.get_actions(
-				user,
-				&ruleset,
-				power_levels.clone(),
-				&serialized,
-				event.room_id().unwrap(),
-			)
+			.get_actions(user, &ruleset, power_levels.clone(), &serialized, room_id)
 			.await
 		{
 			let n = match action {
@@ -342,7 +413,8 @@ impl Service {
 		}
 
 		if notify == Some(true) {
-			self.send_notice(unread, pusher, tweaks, event).await?;
+			self.send_notice(user, unread, pusher, tweaks, event)
+				.await?;
 		}
 		// Else the event triggered no actions
 
@@ -405,6 +477,7 @@ impl Service {
 	#[tracing::instrument(skip(self, unread, pusher, tweaks, event))]
 	async fn send_notice<E>(
 		&self,
+		user: &UserId,
 		unread: UInt,
 		pusher: &Pusher,
 		tweaks: Vec<Tweak>,
@@ -416,109 +489,112 @@ impl Service {
 		// TODO: email
 		match &pusher.kind {
 			| PusherKind::Http(http) => {
-				let url = &http.url;
-				let url = url::Url::parse(&http.url).map_err(|e| {
-					err!(Request(InvalidParam(
-						warn!(%url, "HTTP pusher URL is not a valid URL: {e}")
-					)))
-				})?;
+				self.validate_push_url(&http.url, false)?;
 
-				if ["http", "https"]
-					.iter()
-					.all(|&scheme| scheme != url.scheme().to_lowercase())
-				{
-					return Err!(Request(InvalidParam(
-						warn!(%url, "HTTP pusher URL is not a valid HTTP/HTTPS URL")
-					)));
-				}
-
-				if let Ok(ip) =
-					IPAddress::parse(url.host_str().expect("URL previously validated"))
-				{
-					if !self.services.client.valid_cidr_range(&ip) {
-						return Err!(Request(InvalidParam(
-							warn!(%url, "HTTP pusher URL is a forbidden remote address")
-						)));
-					}
-				}
-
-				// TODO (timo): can pusher/devices have conflicting formats
-				let event_id_only = http.format == Some(PushFormat::EventIdOnly);
-
-				let mut device =
-					Device::new(pusher.ids.app_id.clone(), pusher.ids.pushkey.clone());
-				device.data.data.clone_from(&http.data);
-				device.data.format.clone_from(&http.format);
-
-				// Tweaks are only added if the format is NOT event_id_only
-				if !event_id_only {
-					device.tweaks.clone_from(&tweaks);
-				}
-
-				let d = vec![device];
-				let mut notify = Notification::new(d);
-
-				notify.event_id = Some(event.event_id().to_owned());
-				notify.room_id = Some(event.room_id().unwrap().to_owned());
-				if http
-					.data
-					.get("org.matrix.msc4076.disable_badge_count")
-					.is_none() && http.data.get("disable_badge_count").is_none()
-				{
-					notify.counts = NotificationCounts::new(unread, uint!(0));
-				} else {
-					// counts will not be serialised if it's the default (0, 0)
-					// skip_serializing_if = "NotificationCounts::is_default"
-					notify.counts = NotificationCounts::default();
-				}
-
-				if !event_id_only {
-					if *event.kind() == TimelineEventType::RoomEncrypted
-						|| tweaks.iter().any(|t| {
-							matches!(
-								t,
-								Tweak::Highlight(HighlightTweakValue::Yes) | Tweak::Sound(_)
-							)
-						}) {
-						notify.prio = NotificationPriority::High;
-					} else {
-						notify.prio = NotificationPriority::Low;
-					}
-					notify.sender = Some(event.sender().to_owned());
-					notify.event_type = Some(event.kind().to_owned());
-					notify.content = serde_json::value::to_raw_value(event.content()).ok();
-
-					if *event.kind() == TimelineEventType::RoomMember {
-						notify.user_is_target =
-							event.state_key() == Some(event.sender().as_str());
-					}
-
-					notify.sender_display_name =
-						self.services.users.displayname(event.sender()).await.ok();
-
-					notify.room_name = self
-						.services
-						.state_accessor
-						.get_name(event.room_id().unwrap())
-						.await
-						.ok();
-
-					notify.room_alias = self
-						.services
-						.state_accessor
-						.get_canonical_alias(event.room_id().unwrap())
-						.await
-						.ok();
-				}
+				let notify = self
+					.build_notification(
+						pusher,
+						&http.data,
+						http.format.as_ref(),
+						&tweaks,
+						event,
+						unread,
+					)
+					.await;
 
 				self.send_request(&http.url, send_event_notification::v1::Request::new(notify))
 					.await?;
 
 				Ok(())
 			},
-			// TODO: Handle email
-			//PusherKind::Email(_) => Ok(()),
-			| _ => Ok(()),
+			| PusherKind::WebPush(data) => {
+				let notify = self
+					.build_notification(
+						pusher,
+						&data.data,
+						data.format.as_ref(),
+						&tweaks,
+						event,
+						unread,
+					)
+					.await;
+
+				self.send_webpush_notice(user, pusher, data, notify).await
+			},
+			| PusherKind::Email(_) | PusherKind::Custom { .. } => Ok(()),
 		}
+	}
+
+	async fn build_notification<E>(
+		&self,
+		pusher: &Pusher,
+		data: &JsonObject,
+		format: Option<&PushFormat>,
+		tweaks: &[Tweak],
+		event: &E,
+		unread: UInt,
+	) -> Notification
+	where
+		E: Event + Send + Sync,
+	{
+		// TODO (timo): can pusher/devices have conflicting formats
+		let event_id_only = format == Some(&PushFormat::EventIdOnly);
+
+		let mut device = Device::new(pusher.ids.app_id.clone(), pusher.ids.pushkey.clone());
+		device.data.data.clone_from(data);
+		device.data.format = format.cloned();
+
+		// Tweaks are only added if the format is NOT event_id_only
+		if !event_id_only {
+			device.tweaks = tweaks.to_owned();
+		}
+
+		let mut notify = Notification::new(vec![device]);
+
+		notify.event_id = Some(event.event_id().to_owned());
+		notify.room_id = event.room_id().map(ToOwned::to_owned);
+		if data.get("org.matrix.msc4076.disable_badge_count").is_none()
+			&& data.get("disable_badge_count").is_none()
+		{
+			notify.counts = NotificationCounts::new(unread, uint!(0));
+		} else {
+			// counts will not be serialised if it's the default (0, 0)
+			// skip_serializing_if = "NotificationCounts::is_default"
+			notify.counts = NotificationCounts::default();
+		}
+
+		if !event_id_only {
+			if *event.kind() == TimelineEventType::RoomEncrypted
+				|| tweaks.iter().any(|t| {
+					matches!(t, Tweak::Highlight(HighlightTweakValue::Yes) | Tweak::Sound(_))
+				}) {
+				notify.prio = NotificationPriority::High;
+			} else {
+				notify.prio = NotificationPriority::Low;
+			}
+			notify.sender = Some(event.sender().to_owned());
+			notify.event_type = Some(event.kind().to_owned());
+			notify.content = serde_json::value::to_raw_value(event.content()).ok();
+
+			if *event.kind() == TimelineEventType::RoomMember {
+				notify.user_is_target = event.state_key() == Some(event.sender().as_str());
+			}
+
+			notify.sender_display_name =
+				self.services.users.displayname(event.sender()).await.ok();
+
+			if let Some(room_id) = event.room_id() {
+				notify.room_name = self.services.state_accessor.get_name(room_id).await.ok();
+
+				notify.room_alias = self
+					.services
+					.state_accessor
+					.get_canonical_alias(room_id)
+					.await
+					.ok();
+			}
+		}
+
+		notify
 	}
 }

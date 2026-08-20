@@ -31,6 +31,10 @@ pub(crate) async fn get_supported_versions_route(
 		unstable_features.insert("org.matrix.msc4354".to_owned(), true);
 	}
 
+	if services.config.well_known.support_page.is_some() {
+		unstable_features.insert("org.matrix.msc4174".to_owned(), true);
+	}
+
 	Ok(assign!(get_supported_versions::Response::new(versions()), {
 		unstable_features
 	}))

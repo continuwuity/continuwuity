@@ -66,6 +66,15 @@ default-features = false
 version = "0.13.0"
 default-features = false
 
+[workspace.dependencies.web-push-native]
+version = "0.5.0"
+default-features = false
+
+[workspace.dependencies.p256]
+version = "0.13.2"
+default-features = false
+features = ["ecdsa", "std"]
+
 # used for checking if an IP is in specific subnets / CIDR ranges easier
 [workspace.dependencies.ipaddress]
 version = "0.1.3"

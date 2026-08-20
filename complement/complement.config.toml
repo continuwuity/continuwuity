@@ -47,5 +47,8 @@ sender_idle_timeout = 300
 sender_retry_backoff_limit = 300
 force_disable_first_run_mode = true
 
+[global.well_known]
+support_page = "https://complement.example.com"
+
 [global.tls]
 dual_protocol = true

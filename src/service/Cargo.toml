@@ -96,6 +96,7 @@ log.workspace = true
 loole.workspace = true
 lru-cache.workspace = true
 nonzero_ext.workspace = true
+p256.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -113,6 +114,7 @@ termimad.optional = true
 tokio.workspace = true
 tracing.workspace = true
 url.workspace = true
+web-push-native.workspace = true
 webpage.workspace = true
 webpage.optional = true
 recaptcha-verify = { version = "0.2.0", default-features = false }

@@ -2436,6 +2436,7 @@ pub struct WellKnownConfig {
 	/// URL to a support page for the server, which will be served as part of
 	/// the MSC1929 server support endpoint at /.well-known/matrix/support.
 	/// Will be included alongside any contact information
+	/// Also used as the VAPID contact for encrypted Web Push (MSC4174).
 	pub support_page: Option<Url>,
 
 	/// The ed25519 public key for the policy server available at this server's
@@ -2822,6 +2823,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"well_known_support_email",
 	"well_known_support_mxid",
 	"well_known.rtc_focus_server_urls",
+	"webpush_vapid_contact",
 ];
 
 impl Config {

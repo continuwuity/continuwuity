@@ -263,6 +263,14 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "senderkey_webpushbackoff",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
+		name: "senderkey_webpushstate",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "server_signingkeys",
 		..descriptor::RANDOM
 	},

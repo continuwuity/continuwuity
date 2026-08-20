@@ -171,6 +171,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_key_changes_route)
 		.ruma_route(&client::get_pushers_route)
 		.ruma_route(&client::set_pushers_route)
+		.ruma_route(&client::pushers_ack_route)
 		.ruma_route(&client::upgrade_room_route)
 		.ruma_route(&client::get_threads_route)
 		.ruma_route(&client::get_relating_events_with_rel_type_and_event_type_route)

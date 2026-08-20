@@ -13,6 +13,7 @@ use ruma::{
 	},
 	assign,
 };
+use serde_json::json;
 
 use crate::Ruma;
 
@@ -54,6 +55,11 @@ pub(crate) async fn get_capabilities_route(
 	capabilities.profile_fields = Some(
 		assign!(ProfileFieldsCapability::new(true), { disallowed: Some(services.oidc.restricted_profile_fields()) }),
 	);
+
+	if let Some(vapid) = services.pusher.webpush_vapid_public_key() {
+		capabilities
+			.set("org.matrix.msc4174.webpush", json!({ "enabled": true, "vapid": vapid }))?;
+	}
 
 	Ok(get_capabilities::v3::Response::new(capabilities))
 }

@@ -21,6 +21,8 @@ unstable-msc4203 = []
 
 [dependencies]
 assign.workspace = true
+bytes.workspace = true
+http.workspace = true
 ruma.workspace = true
 serde = { workspace = true }
 serde_json = { workspace = true }
