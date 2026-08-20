@@ -7,6 +7,7 @@ mod handle_incoming_pdu;
 mod handle_outlier_pdu;
 mod parse_incoming_pdu;
 pub mod pdu_checks;
+mod pending_join_pdus;
 mod policy_server;
 mod resolve_state;
 mod state_at_incoming;
@@ -20,9 +21,10 @@ pub use fetch_and_handle_outliers::{
 	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
 };
 use ruma::{
-	OwnedEventId, OwnedRoomId, events::room::create::RoomCreateEventContent,
+	OwnedEventId, OwnedRoomId, OwnedServerName, events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
+use serde_json::value::RawValue as RawJsonValue;
 use tokio::sync::{Notify, mpsc};
 
 use crate::{Dep, globals, rooms, sending, server_keys};
@@ -30,6 +32,7 @@ pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
 	pub extremity_squashers: SyncRwLock<HashMap<OwnedRoomId, mpsc::Sender<(usize, bool)>>>,
+	joining_rooms: SyncRwLock<HashMap<OwnedRoomId, mpsc::Sender<PendingJoinPdu>>>,
 	services: Services,
 	server_shutdown: Notify,
 	me: std::sync::Weak<Self>,
@@ -55,6 +58,11 @@ struct Services {
 type RoomMutexMap = MutexMap<OwnedRoomId, ()>;
 type HandleTimeMap = HashMap<OwnedRoomId, (OwnedEventId, Instant)>;
 
+enum PendingJoinPdu {
+	Pdu(OwnedServerName, Box<RawJsonValue>),
+	Complete,
+}
+
 #[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
@@ -63,6 +71,7 @@ impl crate::Service for Service {
 			mutex_federation: RoomMutexMap::new(),
 			federation_handletime: HandleTimeMap::new().into(),
 			extremity_squashers: SyncRwLock::new(HashMap::new()),
+			joining_rooms: HashMap::new().into(),
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),

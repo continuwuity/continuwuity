@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
+	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, defer, err, error, info,
+	is_true,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -300,6 +301,8 @@ impl Service {
 	) -> Result {
 		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
+		self.services.event_handler.begin_remote_join(room_id);
+		defer! {{ self.services.event_handler.cancel_remote_join(room_id); }}
 
 		let (make_join_response, remote_server) = self
 			.make_join_request(sender_user, room_id, servers)
@@ -675,6 +678,10 @@ impl Service {
 		drop(cork);
 
 		self.services.sync.wake_all_joined(room_id).await;
+		self.services
+			.event_handler
+			.process_pending_join_pdus(room_id)
+			.await;
 
 		Ok(())
 	}

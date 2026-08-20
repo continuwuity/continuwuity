@@ -9,7 +9,7 @@ use conduwuit::{
 	result::LogErr,
 	trace,
 	utils::{
-		IterStream, ReadyExt, millis_since_unix_epoch,
+		IterStream, millis_since_unix_epoch,
 		stream::{BroadbandExt, TryBroadbandExt, automatic_width},
 	},
 	warn,
@@ -142,13 +142,26 @@ async fn process_inbound_transaction(
 	sender: Sender<WrappedTransactionResponse>,
 ) {
 	let txn_start_time = Instant::now();
-	let pdus = body
-		.pdus
-		.iter()
-		.stream()
-		.broad_then(|pdu| services.rooms.event_handler.parse_incoming_pdu(pdu, None))
-		.inspect_err(|e| warn!("Could not parse incoming PDU: {e}"))
-		.ready_filter_map(Result::ok);
+	let pdus = body.pdus.iter().stream().broad_filter_map(|pdu| async {
+		match services
+			.rooms
+			.event_handler
+			.parse_incoming_pdu(pdu, None)
+			.await
+		{
+			| Ok(pdu) => Some(pdu),
+			| Err(error) => {
+				if !services
+					.rooms
+					.event_handler
+					.queue_pending_join_pdu(&body.identity, pdu)
+				{
+					warn!("Could not parse incoming PDU: {error}");
+				}
+				None
+			},
+		}
+	});
 
 	let edus = body
 		.edus
