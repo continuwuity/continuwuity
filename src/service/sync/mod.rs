@@ -36,7 +36,36 @@ struct SnakeSyncCache {
 	lists: BTreeMap<String, v5::request::List>,
 	subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
 	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
+	acknowledged_pos: u64,
+	pending: Option<PendingSnakeSync>,
 	extensions: v5::request::Extensions,
+}
+
+struct PendingSnakeSync {
+	pos: u64,
+	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
+}
+
+impl SnakeSyncCache {
+	fn accepts_pos(&self, pos: u64) -> bool {
+		self.acknowledged_pos == pos
+			|| self
+				.pending
+				.as_ref()
+				.is_some_and(|pending| pending.pos == pos)
+	}
+
+	fn acknowledge(&mut self, pos: u64) {
+		if self
+			.pending
+			.as_ref()
+			.is_some_and(|pending| pending.pos == pos)
+		{
+			let pending = self.pending.take().expect("pending sync checked above");
+			self.known_rooms = pending.known_rooms;
+			self.acknowledged_pos = pos;
+		}
+	}
 }
 
 type DbConnections<K, V> = SyncMutex<BTreeMap<K, V>>;
@@ -137,6 +166,13 @@ impl Service {
 		self.snake_connections.lock().contains_key(key)
 	}
 
+	pub fn snake_connection_accepts_pos(&self, key: &SnakeConnectionsKey, pos: u64) -> bool {
+		self.snake_connections
+			.lock()
+			.get(key)
+			.is_some_and(|cache| cache.lock().accepts_pos(pos))
+	}
+
 	pub fn forget_snake_sync_connection(&self, key: &SnakeConnectionsKey) {
 		self.snake_connections.lock().remove(key);
 	}
@@ -144,6 +180,7 @@ impl Service {
 	pub fn update_snake_sync_request_with_cache(
 		&self,
 		snake_key: &SnakeConnectionsKey,
+		pos: u64,
 		request: &mut v5::Request,
 	) -> BTreeMap<String, BTreeMap<OwnedRoomId, u64>> {
 		let mut cache = self.snake_connections.lock();
@@ -154,6 +191,8 @@ impl Service {
 		);
 		let cached = &mut cached.lock();
 		drop(cache);
+
+		cached.acknowledge(pos);
 
 		//v5::Request::try_from_http_request(req, path_args);
 		for (list_id, list) in &mut request.lists {
@@ -244,14 +283,12 @@ impl Service {
 		cached.known_rooms.clone()
 	}
 
-	pub fn update_snake_sync_known_rooms(
+	pub fn store_snake_sync_pending(
 		&self,
 		key: &SnakeConnectionsKey,
-		list_id: String,
-		new_cached_rooms: BTreeSet<OwnedRoomId>,
-		globalsince: u64,
+		pos: u64,
+		known_rooms: BTreeMap<String, BTreeSet<OwnedRoomId>>,
 	) {
-		assert!(key.2.is_some(), "Some(conn_id) required for this call");
 		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
 			cache
@@ -261,20 +298,17 @@ impl Service {
 		let cached = &mut cached.lock();
 		drop(cache);
 
-		for (room_id, lastsince) in cached
-			.known_rooms
-			.entry(list_id.clone())
-			.or_default()
-			.iter_mut()
-		{
-			if !new_cached_rooms.contains(room_id) {
-				*lastsince = 0;
+		let mut pending_rooms = cached.known_rooms.clone();
+		for (list_id, rooms) in known_rooms {
+			let list = pending_rooms.entry(list_id).or_default();
+			for last_seen in list.values_mut() {
+				*last_seen = 0;
+			}
+			for room_id in rooms {
+				list.insert(room_id, pos);
 			}
 		}
-		let list = cached.known_rooms.entry(list_id).or_default();
-		for room_id in new_cached_rooms {
-			list.insert(room_id, globalsince);
-		}
+		cached.pending = Some(PendingSnakeSync { pos, known_rooms: pending_rooms });
 	}
 
 	pub fn update_snake_sync_subscriptions(
@@ -385,5 +419,32 @@ mod tests {
 		wakers.wake(&user).await;
 
 		receiver.changed().await.unwrap();
+	}
+
+	#[test]
+	fn pending_rooms_are_committed_only_when_the_response_pos_is_acknowledged() {
+		let room_id = OwnedRoomId::try_from("!room:example.com").unwrap();
+		let mut cache = SnakeSyncCache {
+			pending: Some(PendingSnakeSync {
+				pos: 42,
+				known_rooms: BTreeMap::from([(
+					"list".to_owned(),
+					BTreeMap::from([(room_id, 42)]),
+				)]),
+			}),
+			..Default::default()
+		};
+
+		assert!(cache.known_rooms.is_empty());
+		assert!(cache.accepts_pos(0));
+		assert!(cache.accepts_pos(42));
+		assert!(!cache.accepts_pos(41));
+
+		cache.acknowledge(0);
+		assert!(cache.known_rooms.is_empty());
+
+		cache.acknowledge(42);
+		assert_eq!(cache.acknowledged_pos, 42);
+		assert_eq!(cache.known_rooms["list"].len(), 1);
 	}
 }

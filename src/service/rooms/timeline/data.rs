@@ -16,6 +16,7 @@ pub(super) struct Data {
 	eventid_outlierpdu: Arc<Map>,
 	eventid_pduid: Arc<Map>,
 	pduid_pdu: Arc<Map>,
+	roomid_lasttimelinecount: Arc<Map>,
 	userroomid_highlightcount: Arc<Map>,
 	userroomid_notificationcount: Arc<Map>,
 	pub(super) db: Arc<Database>,
@@ -35,6 +36,7 @@ impl Data {
 			eventid_outlierpdu: db["eventid_outlierpdu"].clone(),
 			eventid_pduid: db["eventid_pduid"].clone(),
 			pduid_pdu: db["pduid_pdu"].clone(),
+			roomid_lasttimelinecount: db["roomid_lasttimelinecount"].clone(),
 			userroomid_highlightcount: db["userroomid_highlightcount"].clone(),
 			userroomid_notificationcount: db["userroomid_notificationcount"].clone(),
 			db: args.db.clone(),
@@ -57,6 +59,27 @@ impl Data {
 			.unwrap_or_else(PduCount::max);
 
 		Ok(last_count)
+	}
+
+	pub(super) async fn room_activity(&self, room_id: &RoomId) -> Result<u64> {
+		if let Ok(count) = self
+			.roomid_lasttimelinecount
+			.get(room_id)
+			.await
+			.deserialized()
+		{
+			return Ok(count);
+		}
+
+		let pdus_rev = self.pdus_rev(room_id, PduCount::max());
+		pin_mut!(pdus_rev);
+		let Some((PduCount::Normal(count), _)) = pdus_rev.try_next().await? else {
+			return Ok(0);
+		};
+
+		self.roomid_lasttimelinecount
+			.put_raw(room_id.as_bytes(), count.to_be_bytes());
+		Ok(count)
 	}
 
 	#[inline]
@@ -172,6 +195,7 @@ impl Data {
 		&self,
 		pdu_id: &RawPduId,
 		pdu: &PduEvent,
+		room_id: &RoomId,
 		json: &CanonicalJsonObject,
 		count: PduCount,
 	) {
@@ -180,6 +204,8 @@ impl Data {
 		self.pduid_pdu.raw_put(pdu_id, Json(json));
 		self.eventid_pduid.insert(pdu.event_id.as_bytes(), pdu_id);
 		self.eventid_outlierpdu.remove(pdu.event_id.as_bytes());
+		self.roomid_lasttimelinecount
+			.put_raw(room_id.as_bytes(), count.into_unsigned().to_be_bytes());
 	}
 
 	pub(super) fn prepend_backfill_pdu(

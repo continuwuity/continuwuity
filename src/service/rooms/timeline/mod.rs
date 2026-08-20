@@ -163,6 +163,11 @@ impl Service {
 		self.db.last_timeline_count(room_id).await
 	}
 
+	#[tracing::instrument(skip(self), level = "debug")]
+	pub async fn room_activity(&self, room_id: &RoomId) -> Result<u64> {
+		self.db.room_activity(room_id).await
+	}
+
 	/// Returns the `count` of this pdu's id.
 	pub async fn get_pdu_count(&self, event_id: &EventId) -> Result<PduCount> {
 		self.db.get_pdu_count(event_id).await
