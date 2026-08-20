@@ -35,11 +35,10 @@ To run test packages that mention an MSC, pass its number:
 This selects packages from Complement's source comments and file names, so it
 can include tests shared with that MSC but does not claim a complete mapping.
 
-To use an image built elsewhere, load and name it before running the script:
+To run a Docker image archive instead of building locally:
 
 ```bash
-docker load < complement_oci_image.tar.gz
-COMPLEMENT_BASE_IMAGE=your-image:tag ./bin/complement
+./bin/complement --image path/to/complement-image.tar.gz
 ```
 
 `COMPLEMENT_ENABLE_DIRTY_RUNS=1` reuses Complement containers for faster local

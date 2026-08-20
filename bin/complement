@@ -7,10 +7,30 @@ DEFAULT_COMPLEMENT_SRC="$toplevel/target/complement"
 DEFAULT_COMPLEMENT_REVISION="6d2fdc286c2b44faaddd1037205869b2242a4005"
 
 MSC="${COMPLEMENT_MSC:-}"
-if [ "${1:-}" = "--msc" ]; then
-    MSC="${2:-}"
-    shift 2
-fi
+IMAGE_ARCHIVE=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --msc)
+            if [ "$#" -lt 2 ]; then
+                echo "--msc requires an MSC number"
+                exit 2
+            fi
+            MSC="$2"
+            shift 2
+            ;;
+        --image)
+            if [ "$#" -lt 2 ]; then
+                echo "--image requires a path to a Docker image archive"
+                exit 2
+            fi
+            IMAGE_ARCHIVE="$2"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
 
 if [ -n "$MSC" ]; then
     MSC="${MSC#MSC}"
@@ -62,6 +82,20 @@ for command in docker go jq; do
         exit 1
     fi
 done
+
+if [ -n "$IMAGE_ARCHIVE" ]; then
+    if [ ! -f "$IMAGE_ARCHIVE" ]; then
+        echo "Docker image archive not found: $IMAGE_ARCHIVE"
+        exit 1
+    fi
+    load_output="$(docker load --input "$IMAGE_ARCHIVE" 2>&1)"
+    printf '%s\n' "$load_output"
+    COMPLEMENT_BASE_IMAGE="$(printf '%s\n' "$load_output" | sed -n 's/^Loaded image: //p; s/^Loaded image ID: //p' | tail -n1)"
+    if [ -z "$COMPLEMENT_BASE_IMAGE" ]; then
+        echo "could not determine the image loaded from: $IMAGE_ARCHIVE"
+        exit 1
+    fi
+fi
 
 if ! docker image inspect "$COMPLEMENT_BASE_IMAGE" > /dev/null 2>&1; then
     echo "Complement base image not found: $COMPLEMENT_BASE_IMAGE"
