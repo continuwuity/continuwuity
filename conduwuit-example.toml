@@ -449,6 +449,10 @@
 #
 #max_concurrent_inbound_transactions = 150
 
+# Maximum number of federation PDUs queued while completing a remote join.
+#
+#remote_join_pdu_queue_capacity = 50
+
 # Maximum age (in seconds) for cached federation transaction responses.
 # Entries older than this will be removed during cleanup.
 #

@@ -115,6 +115,13 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
+	if config.remote_join_pdu_queue_capacity == 0 {
+		return Err!(Config(
+			"remote_join_pdu_queue_capacity",
+			"The remote join PDU queue capacity must be greater than zero"
+		));
+	}
+
 	// yeah, unless the user built a debug build hopefully for local testing only
 	if cfg!(not(debug_assertions)) && config.server_name == "your.server.name" {
 		return Err!(Config(

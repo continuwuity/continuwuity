@@ -555,6 +555,12 @@ pub struct Config {
 	#[serde(default = "default_max_concurrent_inbound_transactions")]
 	pub max_concurrent_inbound_transactions: usize,
 
+	/// Maximum number of federation PDUs queued while completing a remote join.
+	///
+	/// default: 50
+	#[serde(default = "default_remote_join_pdu_queue_capacity")]
+	pub remote_join_pdu_queue_capacity: usize,
+
 	/// Maximum age (in seconds) for cached federation transaction responses.
 	/// Entries older than this will be removed during cleanup.
 	///
@@ -3005,6 +3011,8 @@ fn default_pusher_idle_timeout() -> u64 { 15 }
 fn default_max_fetch_prev_events() -> u16 { 1024 }
 
 fn default_max_concurrent_inbound_transactions() -> usize { 150 }
+
+fn default_remote_join_pdu_queue_capacity() -> usize { 50 }
 
 fn default_transaction_id_cache_max_age_secs() -> u64 { 60 * 60 * 2 }
 

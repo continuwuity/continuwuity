@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use conduwuit::{
-	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, err, error, info, is_true,
+	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, defer, err, error, info,
+	is_true,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -404,6 +405,8 @@ impl Service {
 			.mutex_federation
 			.lock(room_id.as_str())
 			.await;
+		self.services.event_handler.begin_remote_join(room_id);
+		defer! {{ self.services.event_handler.cancel_remote_join(room_id); }}
 		info!("Asking {remote_server} for send_join in room {room_id}");
 		let send_join_response = match self
 			.services
@@ -675,6 +678,10 @@ impl Service {
 		drop(cork);
 
 		self.services.sync.wake_all_joined(room_id).await;
+		self.services
+			.event_handler
+			.process_pending_join_pdus(room_id)
+			.await;
 
 		Ok(())
 	}
