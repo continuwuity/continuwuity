@@ -75,7 +75,7 @@ cargo +nightly fmt
 
 ### Matrix tests
 
-Continuwuity uses [Complement][complement] for Matrix protocol compliance testing. Complement tests are run manually by developers, and documentation on how to run these tests locally is currently being developed.
+Continuwuity uses [Complement][complement] for Matrix protocol compliance testing. Complement tests are run manually by developers; see the [local testing instructions][complement-testing].
 
 If your changes are done to fix Matrix tests, please note that in your pull request. If more Complement tests start failing from your changes, please review the logs and determine if they're intended or not.
 
@@ -174,6 +174,7 @@ continuwuity Matrix rooms for Code of Conduct violations.
 [issues]: https://forgejo.ellis.link/continuwuation/continuwuity/issues
 [continuwuity-matrix]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [complement]: https://github.com/matrix-org/complement/
+[complement-testing]: docs/development/testing.mdx#complement
 [sytest]: https://github.com/matrix-org/sytest/
 [nodejs-download]: https://nodejs.org/en/download
 [rspress]: https://rspress.rs/

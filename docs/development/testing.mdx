@@ -3,30 +3,65 @@
 ## Complement
 
 Have a look at [Complement's repository][complement] for an explanation of what
-it is.
+it is. Continuwuity runs Complement manually; it is not part of the normal test
+suite or default CI gate.
 
-To test against Complement, with Nix (or [Lix](https://lix.systems) and
-[direnv installed and set up][direnv] (run `direnv allow` after setting up the hook), you can:
+### Run it locally
 
-* Run `./bin/complement "$COMPLEMENT_SRC"` to build a Complement image, run
-the tests, and output the logs and results to the specified paths. This will also output the OCI image
-at `result`
-* Run `nix build .#complement` from the root of the repository to just build a
-Complement OCI image outputted to `result` (it's a `.tar.gz` file)
-* Or download the latest Complement OCI image from the CI workflow artifacts
-output from the commit/revision you want to test (e.g. from main)
-[here][ci-workflows]
+Install Git, Rust, Docker, Go, and `jq`. From this repository's root, build the
+server image and run the suite:
 
-If you want to use your own prebuilt OCI image (such as from our CI) without needing
-Nix installed, put the image at `complement_oci_image.tar.gz` in the root of the repo
-and run the script.
+```bash
+cargo build -p conduwuit
+docker build -t continuwuity:complement -f docker/complement.Dockerfile .
+./bin/complement
+```
 
-If you're on macOS and need to build an image, run `nix build .#linux-complement`.
+The run can take up to an hour. The runner writes the full Go test stream to
+`tests/test_results/complement/test_logs.jsonl` and a sorted pass/fail/skip
+summary to `tests/test_results/complement/test_results.jsonl`. It exits nonzero
+when Complement reports failing tests, after writing both files.
 
-We have a Complement fork as some tests have needed to be fixed. This can be found
-at [continuwuation/complement](https://forgejo.ellis.link/continuwuation/complement)
+On first use, the runner downloads the pinned upstream Complement revision to
+`target/complement`. Pass a checkout path or set `COMPLEMENT_SRC` to run a
+different revision or the [Continuwuity fork][complement-fork].
 
-[ci-workflows]:
-https://forgejo.ellis.link/continuwuation/continuwuity/actions/?workflow=ci.yml&actor=0&status=1
+To run test packages that mention an MSC, pass its number:
+
+```bash
+./bin/complement --msc 3391
+```
+
+This selects packages from Complement's source comments and file names, so it
+can include tests shared with that MSC but does not claim a complete mapping.
+
+To use an image built elsewhere, load and name it before running the script:
+
+```bash
+docker load < complement_oci_image.tar.gz
+COMPLEMENT_BASE_IMAGE=your-image:tag ./bin/complement
+```
+
+`COMPLEMENT_ENABLE_DIRTY_RUNS=1` reuses Complement containers for faster local
+runs, but can let state leak between tests. Do not use it when validating a
+failure or updating the committed result summary.
+
+The checked-in result summary is a baseline, not an assertion that every test
+passes. Compare a manual run with it when working on a compliance fix:
+
+```bash
+git diff -- tests/test_results/complement/test_results.jsonl
+```
+
+### Run it in CI
+
+Add the `Testing/Complement` label to a pull request to run the suite in
+Forgejo Actions. The workflow builds the image from the pull request, checks
+out upstream Complement, and uploads the full logs and result summary as an
+artifact. It passes only when the summary matches the checked-in baseline, so
+expected existing failures do not hide regressions.
+
+You can also start the workflow manually from the Actions page.
+
 [complement]: https://github.com/matrix-org/complement
-[direnv]: https://direnv.net/docs/hook.html
+[complement-fork]: https://forgejo.ellis.link/continuwuation/complement

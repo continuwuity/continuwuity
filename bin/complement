@@ -2,14 +2,34 @@
 
 set -euo pipefail
 
-# The root path where complement is available.
-COMPLEMENT_SRC="${COMPLEMENT_SRC:-$1}"
+toplevel="$(git rev-parse --show-toplevel)"
+DEFAULT_COMPLEMENT_SRC="$toplevel/target/complement"
+DEFAULT_COMPLEMENT_REVISION="6d2fdc286c2b44faaddd1037205869b2242a4005"
 
-# A `.jsonl` file to write test logs to
-LOG_FILE="${2:-tests/test_results/complement/test_logs.jsonl}"
+MSC="${COMPLEMENT_MSC:-}"
+if [ "${1:-}" = "--msc" ]; then
+    MSC="${2:-}"
+    shift 2
+fi
 
-# A `.jsonl` file to write test results to
-RESULTS_FILE="${3:-tests/test_results/complement/test_results.jsonl}"
+if [ -n "$MSC" ]; then
+    MSC="${MSC#MSC}"
+    MSC="${MSC#msc}"
+    if ! [[ "$MSC" =~ ^[0-9]+$ ]]; then
+        echo "--msc must be an MSC number, for example: --msc 3391"
+        exit 2
+    fi
+fi
+
+# The root path where Complement is available.
+if [ -n "${COMPLEMENT_SRC:-}" ]; then
+    LOG_FILE="${1:-tests/test_results/complement/test_logs.jsonl}"
+    RESULTS_FILE="${2:-tests/test_results/complement/test_results.jsonl}"
+else
+    COMPLEMENT_SRC="${1:-$DEFAULT_COMPLEMENT_SRC}"
+    LOG_FILE="${2:-tests/test_results/complement/test_logs.jsonl}"
+    RESULTS_FILE="${3:-tests/test_results/complement/test_results.jsonl}"
+fi
 
 # The base docker image to use for complement tests
 # You can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`
@@ -19,45 +39,93 @@ COMPLEMENT_BASE_IMAGE="${COMPLEMENT_BASE_IMAGE:-continuwuity:complement}"
 # Complement tests that are skipped due to flakiness/reliability issues or we don't implement such features and won't for a long time
 SKIPPED_COMPLEMENT_TESTS='TestPartialStateJoin.*|TestRoomDeleteAlias/Parallel/Regular_users_can_add_and_delete_aliases_when_m.*|TestRoomDeleteAlias/Parallel/Can_delete_canonical_alias|TestUnbanViaInvite.*|TestRoomState/Parallel/GET_/publicRooms_lists.*"|TestRoomDeleteAlias/Parallel/Users_with_sufficient_power-level_can_delete_other.*'
 
-# $COMPLEMENT_SRC needs to be a directory to Complement source code
-if [ -f "$COMPLEMENT_SRC" ]; then
-    echo "\$COMPLEMENT_SRC must be a directory/path to Complement source code"
+# Download the pinned upstream Complement checkout on first use. A local
+# checkout can be supplied as the first argument or with COMPLEMENT_SRC.
+if [ ! -e "$COMPLEMENT_SRC" ]; then
+    mkdir -p "$(dirname "$COMPLEMENT_SRC")"
+    git init --quiet "$COMPLEMENT_SRC"
+    git -C "$COMPLEMENT_SRC" remote add origin https://github.com/matrix-org/complement.git
+    git -C "$COMPLEMENT_SRC" fetch --depth 1 origin "$DEFAULT_COMPLEMENT_REVISION"
+    git -C "$COMPLEMENT_SRC" checkout --quiet --detach FETCH_HEAD
+fi
+
+if [ ! -d "$COMPLEMENT_SRC" ] || [ ! -f "$COMPLEMENT_SRC/go.mod" ]; then
+    echo "\$COMPLEMENT_SRC must be a directory containing Complement source code"
     exit 1
 fi
 
-# quick test to make sure we can actually write to $LOG_FILE and $RESULTS_FILE
-touch $LOG_FILE && rm -v $LOG_FILE
-touch $RESULTS_FILE && rm -v $RESULTS_FILE
-
-toplevel="$(git rev-parse --show-toplevel)"
-
 pushd "$toplevel" > /dev/null
 
+for command in docker go jq; do
+    if ! command -v "$command" > /dev/null; then
+        echo "missing required command: $command"
+        exit 1
+    fi
+done
+
+if ! docker image inspect "$COMPLEMENT_BASE_IMAGE" > /dev/null 2>&1; then
+    echo "Complement base image not found: $COMPLEMENT_BASE_IMAGE"
+    echo "Build it with: cargo build -p conduwuit && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
+    exit 1
+fi
+
+mkdir -p "$(dirname "$LOG_FILE")" "$(dirname "$RESULTS_FILE")"
+LOG_TMP="$(mktemp "${LOG_FILE}.XXXXXX")"
+RESULTS_TMP="$(mktemp "${RESULTS_FILE}.XXXXXX")"
+trap 'rm -f "$LOG_TMP" "$RESULTS_TMP"' EXIT
 
 echo ""
 echo "running go test with:"
 echo "\$COMPLEMENT_SRC: $COMPLEMENT_SRC"
+COMPLEMENT_REVISION="$(git -C "$COMPLEMENT_SRC" rev-parse HEAD 2>/dev/null || echo unknown)"
+echo "\$COMPLEMENT_REVISION: $COMPLEMENT_REVISION"
+echo "\$COMPLEMENT_MSC: ${MSC:-all}"
 echo "\$COMPLEMENT_BASE_IMAGE: $COMPLEMENT_BASE_IMAGE"
 echo "\$RESULTS_FILE: $RESULTS_FILE"
 echo "\$LOG_FILE: $LOG_FILE"
 echo ""
 
-# It's okay (likely, even) that `go test` exits nonzero
+TEST_PACKAGES=(./tests/...)
+if [ -n "$MSC" ]; then
+    test_files="$({
+        grep -rilE --include='*.go' "msc$MSC([^0-9]|$)" "$COMPLEMENT_SRC/tests" || true
+        find "$COMPLEMENT_SRC/tests" -type f -name '*.go' -print | while IFS= read -r file; do
+            if [[ "$(basename "$file")" =~ [Mm][Ss][Cc]$MSC([^0-9]|$) ]]; then
+                printf '%s\n' "$file"
+            fi
+        done
+    } | sort -u)"
+    if [ -z "$test_files" ]; then
+        echo "no Complement tests mention MSC$MSC"
+        exit 1
+    fi
+    TEST_PACKAGES=()
+    while IFS= read -r test_file; do
+        test_dir="$(dirname "$test_file")"
+        TEST_PACKAGES+=(".${test_dir#"$COMPLEMENT_SRC"}")
+    done <<< "$test_files"
+fi
+
 # `COMPLEMENT_ENABLE_DIRTY_RUNS=1`  reuses the same complement container for faster complement, at the possible expense of test environment pollution
-set +o pipefail
-env \
-    -C "$COMPLEMENT_SRC" \
+set +e
+(cd "$COMPLEMENT_SRC" && \
     COMPLEMENT_BASE_IMAGE="$COMPLEMENT_BASE_IMAGE" \
-    go test -tags="conduwuit_blacklist" -skip="$SKIPPED_COMPLEMENT_TESTS" -v -timeout 1h -json ./tests/... | tee "$LOG_FILE"
-set -o pipefail
+    go test -tags="conduwuit_blacklist" -skip="$SKIPPED_COMPLEMENT_TESTS" -v -timeout 1h -json "${TEST_PACKAGES[@]}"
+) | tee "$LOG_TMP"
+test_status=${PIPESTATUS[0]}
+set -e
 
 # Post-process the results into an easy-to-compare format, sorted by Test name for reproducible results
-jq -s -c 'sort_by(.Test)[]' < "$LOG_FILE" | jq -c '
+jq -s -c 'sort_by(.Test)[]' < "$LOG_TMP" | jq -c '
     select(
         (.Action == "pass" or .Action == "fail" or .Action == "skip")
         and .Test != null
     ) | {Action: .Action, Test: .Test}
-    ' > "$RESULTS_FILE"
+    ' > "$RESULTS_TMP"
+
+mv "$LOG_TMP" "$LOG_FILE"
+mv "$RESULTS_TMP" "$RESULTS_FILE"
+trap - EXIT
 
 echo ""
 echo ""
@@ -65,3 +133,5 @@ echo "complement logs saved at $LOG_FILE"
 echo "complement results saved at $RESULTS_FILE"
 echo ""
 echo ""
+
+exit "$test_status"

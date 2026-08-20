@@ -1,0 +1,87 @@
+name: Complement
+
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: complement-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  complement:
+    name: Matrix compliance tests
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'Testing/Complement'
+    runs-on: ubuntu-latest
+    services:
+      dind:
+        image: docker:dind
+        options: --privileged
+        env:
+          DOCKER_TLS_CERTDIR: ""
+    env:
+      DOCKER_HOST: tcp://dind:2375
+      DOCKER_TLS_CERTDIR: ""
+
+    steps:
+      - name: Checkout Continuwuity
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Checkout Complement
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: matrix-org/complement
+          ref: 6d2fdc286c2b44faaddd1037205869b2242a4005
+          path: complement-source
+          persist-credentials: false
+
+      - name: Setup LLVM
+        uses: ./.forgejo/actions/setup-llvm-with-apt
+        with:
+          extra-packages: golang-go jq liburing-dev liburing2
+
+      - name: Setup Rust with caching
+        uses: ./.forgejo/actions/setup-rust
+        with:
+          github-token: ${{ secrets.GH_PUBLIC_RO }}
+
+      - name: Build Complement image
+        run: |
+          cargo build --locked -p conduwuit
+          docker build --tag continuwuity:complement --file docker/complement.Dockerfile .
+
+      - name: Run Complement tests
+        id: complement
+        shell: bash
+        run: |
+          set +e
+          COMPLEMENT_HS_PORT_BINDING_IP="$(getent ahostsv4 dind | awk 'NR == 1 { print $1 }')" \
+          COMPLEMENT_HOSTNAME_RUNNING_COMPLEMENT=dind \
+          ./bin/complement complement-source complement_test_logs.jsonl complement_test_results.jsonl | tee complement_output.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ ! -s complement_test_results.jsonl ]; then
+            exit "$status"
+          fi
+
+          diff --unified --color=always \
+            tests/test_results/complement/test_results.jsonl \
+            complement_test_results.jsonl
+
+      - name: Upload Complement artifacts
+        if: always()
+        uses: forgejo/upload-artifact@v4
+        with:
+          name: complement-${{ github.run_id }}
+          path: |
+            complement_output.log
+            complement_test_logs.jsonl
+            complement_test_results.jsonl
+          if-no-files-found: warn
