@@ -565,7 +565,7 @@
 # It is not recommended to lower this value below 48 hours or above
 # 1 year.
 #
-#sender_retry_backoff_limit = 806400
+#sender_retry_backoff_limit = 604800
 
 # Appservice URL request connection timeout. Defaults to 35 seconds as
 # generally appservices are hosted within the same network.
