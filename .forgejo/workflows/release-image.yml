@@ -30,7 +30,7 @@ env:
 jobs:
   build-release:
     name: "Build ${{ matrix.slug }} (release)"
-    runs-on: dind
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -41,14 +41,29 @@ jobs:
         include:
           - platform: "linux/amd64"
             slug: "linux-amd64"
+            runner: "dind"
+            march: ""
+            rust_cpu_flags: ""
           - platform: "linux/arm64"
             slug: "linux-arm64"
+            runner: "ubuntu-arm64"
+            native: true
+            march: "armv8-a+crc"
+            rust_cpu_flags: "-C target-feature=+crc"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Compile on the runner host
+        if: matrix.native
+        uses: ./.forgejo/actions/build-native
+        with:
+          profile: "release"
+          features: "default"
+          march: ${{ matrix.march }}
+          rust-cpu-flags: ${{ matrix.rust_cpu_flags }}
       - name: Prepare Docker build environment
         id: prepare
         uses: ./.forgejo/actions/prepare-docker-build
@@ -73,8 +88,11 @@ jobs:
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
             CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
             TARGET_CPU=
+            TARGET_MARCH=${{ matrix.march }}
+            TARGET_RUSTFLAGS=${{ matrix.rust_cpu_flags }}
             RUST_PROFILE=release
             CARGO_FEATURES=default
+            ARTIFACTS=${{ matrix.native && 'artifacts-prebuilt' || 'artifacts-builder' }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.prepare.outputs.metadata_labels }}
           annotations: ${{ steps.prepare.outputs.metadata_annotations }}
@@ -115,7 +133,7 @@ jobs:
 
   build-maxperf:
     name: "Build ${{ matrix.slug }} (max-perf)"
-    runs-on: dind
+    runs-on: ${{ matrix.runner }}
     needs: build-release
     permissions:
       contents: read
@@ -128,15 +146,30 @@ jobs:
           - platform: "linux/amd64"
             slug: "linux-amd64"
             target_cpu: "haswell"
+            runner: "dind"
+            march: "haswell"
+            rust_cpu_flags: "-C target-cpu=haswell"
           - platform: "linux/arm64"
             slug: "linux-arm64"
             target_cpu: ""
+            runner: "ubuntu-arm64"
+            native: true
+            march: "armv8-a+crc"
+            rust_cpu_flags: "-C target-feature=+crc"
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Compile on the runner host
+        if: matrix.native
+        uses: ./.forgejo/actions/build-native
+        with:
+          profile: "release-max-perf"
+          features: "default,release_max_log_level"
+          march: ${{ matrix.march }}
+          rust-cpu-flags: ${{ matrix.rust_cpu_flags }}
       - name: Prepare max-perf Docker build environment
         id: prepare
         uses: ./.forgejo/actions/prepare-docker-build
@@ -161,8 +194,11 @@ jobs:
             GIT_REMOTE_COMMIT_URL=${{github.event.head_commit.url }}
             CARGO_INCREMENTAL=${{ env.BUILDKIT_ENDPOINT != '' && '1' || '0' }}
             TARGET_CPU=${{ matrix.target_cpu }}
+            TARGET_MARCH=${{ matrix.march }}
+            TARGET_RUSTFLAGS=${{ matrix.rust_cpu_flags }}
             RUST_PROFILE=release-max-perf
             CARGO_FEATURES=default,release_max_log_level
+            ARTIFACTS=${{ matrix.native && 'artifacts-prebuilt' || 'artifacts-builder' }}
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.prepare.outputs.metadata_labels }}
           annotations: ${{ steps.prepare.outputs.metadata_annotations }}

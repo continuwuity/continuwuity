@@ -1,6 +1,10 @@
 ARG RUST_VERSION=1
 ARG DEBIAN_VERSION=trixie
 
+# Source of compiled artefacts: the builder stage, or out/ from the build context
+# when the runner compiled natively.
+ARG ARTIFACTS=artifacts-builder
+
 FROM --platform=$BUILDPLATFORM docker.io/tonistiigi/xx AS xx
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS base
 FROM --platform=$BUILDPLATFORM rust:${RUST_VERSION}-slim-${DEBIAN_VERSION} AS toolchain
@@ -118,15 +122,19 @@ EOF
 
 # Apply CPU-specific optimizations if TARGET_CPU is provided
 ARG TARGET_CPU
+ARG TARGET_MARCH
+ARG TARGET_RUSTFLAGS
 
 RUN <<EOF
     set -o allexport
     set -o xtrace
     . /etc/environment
-    if [ -n "${TARGET_CPU}" ]; then
-        echo "CFLAGS='${CFLAGS} -march=${TARGET_CPU}'" >> /etc/environment
-        echo "CXXFLAGS='${CXXFLAGS} -march=${TARGET_CPU}'" >> /etc/environment
-        echo "RUSTFLAGS='${RUSTFLAGS} -C target-cpu=${TARGET_CPU}'" >> /etc/environment
+    if [ -n "${TARGET_MARCH}" ]; then
+        echo "CFLAGS='${CFLAGS} -march=${TARGET_MARCH}'" >> /etc/environment
+        echo "CXXFLAGS='${CXXFLAGS} -march=${TARGET_MARCH}'" >> /etc/environment
+    fi
+    if [ -n "${TARGET_RUSTFLAGS}" ]; then
+        echo "RUSTFLAGS='${RUSTFLAGS} ${TARGET_RUSTFLAGS}'" >> /etc/environment
     fi
 EOF
 
@@ -245,6 +253,13 @@ RUN <<'DEPS_EOF'
     find /out/libs* -type f 2>/dev/null | sort || echo "No libraries found"
 DEPS_EOF
 
+FROM scratch AS artifacts-prebuilt
+COPY out/ /out/
+
+FROM builder AS artifacts-builder
+
+FROM ${ARTIFACTS} AS artifacts
+
 FROM ubuntu:latest AS prepper
 
 # Create layer structure
@@ -254,14 +269,14 @@ RUN mkdir -p /layer1/etc/ssl/certs \
 
 # Copy SSL certs and root-path libraries to layer1 (ultra-stable)
 COPY --from=base /etc/ssl/certs /layer1/etc/ssl/certs
-COPY --from=builder /out/libs-root/ /layer1/
+COPY --from=artifacts /out/libs-root/ /layer1/
 
 # Copy application libraries to layer2 (semi-stable)
-COPY --from=builder /out/libs/ /layer2/usr/lib/
+COPY --from=artifacts /out/libs/ /layer2/usr/lib/
 
 # Copy binaries and SBOM to layer3 (volatile)
-COPY --from=builder /out/sbin/ /layer3/sbin/
-COPY --from=builder /out/sbom/ /layer3/sbom/
+COPY --from=artifacts /out/sbin/ /layer3/sbin/
+COPY --from=artifacts /out/sbom/ /layer3/sbom/
 
 # Fix permissions after copying
 RUN chmod -R 755 /layer1 /layer2 /layer3
