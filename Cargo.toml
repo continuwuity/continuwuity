@@ -343,7 +343,7 @@ version = "1.1.1"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://github.com/ruma/ruma.git"
-rev = "c1100793d2fd464be34052773360f3f3773d0fc4"
+rev = "0908aaa9847093ecb32bc6edf0af525f726717fd"
 features = [
     "appservice-api-c",
     "client-api",
