@@ -68,7 +68,7 @@ default-features = false
 
 # used for checking if an IP is in specific subnets / CIDR ranges easier
 [workspace.dependencies.ipaddress]
-version = "0.1.3"
+version = "0.2.0"
 
 [workspace.dependencies.rand]
 version = "0.10.1"
