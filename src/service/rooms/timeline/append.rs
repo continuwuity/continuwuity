@@ -405,7 +405,9 @@ impl super::Service {
 		let pdu_id: RawPduId = PduId { shortroomid, shorteventid: count2 }.into();
 
 		// Insert pdu
-		self.db.append_pdu(&pdu_id, pdu, &pdu_json, count2).await;
+		self.db
+			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2)
+			.await;
 
 		drop(insert_lock);
 

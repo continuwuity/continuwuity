@@ -194,6 +194,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
+		name: "roomid_lasttimelinecount",
+		..descriptor::RANDOM_SMALL
+	},
+	Descriptor {
 		name: "roomid_pduleaves",
 		..descriptor::RANDOM_SMALL
 	},

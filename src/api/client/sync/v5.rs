@@ -124,7 +124,12 @@ pub(crate) async fn sync_events_v5_route(
 
 	let snake_key = into_snake_key(sender_user, sender_device.as_str(), conn_id);
 
-	if globalsince != 0 && !services.sync.snake_connection_cached(&snake_key) {
+	if globalsince != 0
+		&& (!services.sync.snake_connection_cached(&snake_key)
+			|| !services
+				.sync
+				.snake_connection_accepts_pos(&snake_key, globalsince))
+	{
 		return Err!(Request(UnknownPos(
 			"Connection data unknown to server; restarting sync stream."
 		)));
@@ -136,9 +141,10 @@ pub(crate) async fn sync_events_v5_route(
 	}
 
 	// Get sticky parameters from cache
-	let known_rooms = services
-		.sync
-		.update_snake_sync_request_with_cache(&snake_key, &mut body);
+	let known_rooms =
+		services
+			.sync
+			.update_snake_sync_request_with_cache(&snake_key, globalsince, &mut body);
 
 	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user).await;
 	let mut collection = collect_sync_response(
@@ -178,7 +184,7 @@ pub(crate) async fn sync_events_v5_route(
 		&body,
 		globalsince,
 		&snake_key,
-		&collection.known_room_updates,
+		&collection,
 	)
 	.await;
 
@@ -391,20 +397,17 @@ async fn commit_sync_collection(
 	body: &sync_events::v5::Request,
 	globalsince: u64,
 	snake_key: &SnakeConnectionsKey,
-	known_room_updates: &KnownRoomUpdates,
+	collection: &SyncCollection,
 ) {
-	let (.., conn_id) = snake_key;
-
-	if conn_id.is_some() {
-		for (list_id, rooms) in known_room_updates {
-			services.sync.update_snake_sync_known_rooms(
-				snake_key,
-				list_id.clone(),
-				rooms.clone(),
-				globalsince,
-			);
-		}
-	}
+	services.sync.store_snake_sync_pending(
+		snake_key,
+		collection
+			.response
+			.pos
+			.parse()
+			.expect("generated sync position"),
+		collection.known_room_updates.clone(),
+	);
 
 	if body.extensions.to_device.enabled.unwrap_or(false) {
 		services
@@ -559,6 +562,22 @@ where
 
 			active_rooms.push(room_id);
 		}
+		let mut active_rooms: Vec<_> = active_rooms
+			.into_iter()
+			.stream()
+			.wide_then(|room_id| async move {
+				let activity = services
+					.rooms
+					.timeline
+					.room_activity(room_id)
+					.await
+					.unwrap_or(0);
+				(room_id, activity)
+			})
+			.collect()
+			.await;
+		sort_rooms_by_activity(&mut active_rooms);
+		let active_rooms: Vec<_> = active_rooms.into_iter().map(at!(0)).collect();
 		sticky_rooms.extend(active_rooms.iter().map(|room_id| (*room_id).to_owned()));
 
 		let mut new_known_rooms: BTreeSet<OwnedRoomId> = BTreeSet::new();
@@ -624,6 +643,17 @@ where
 
 fn matches_bool_filter(value: bool, filter: Option<bool>) -> bool {
 	filter.is_none_or(|expected| value == expected)
+}
+
+fn sort_rooms_by_activity<Room>(rooms: &mut [(Room, u64)])
+where
+	Room: Ord,
+{
+	rooms.sort_unstable_by(|(left_room, left_activity), (right_room, right_activity)| {
+		right_activity
+			.cmp(left_activity)
+			.then_with(|| left_room.cmp(right_room))
+	});
 }
 
 /// Rooms we are only invited to have no state locally, so their stripped
@@ -1654,6 +1684,15 @@ mod tests {
 		assert!(!matches_bool_filter(false, Some(true)));
 		assert!(matches_bool_filter(false, Some(false)));
 		assert!(!matches_bool_filter(true, Some(false)));
+	}
+
+	#[test]
+	fn room_activity_orders_newest_first_with_a_stable_tie_break() {
+		let mut rooms = [("!b", 3), ("!c", 1), ("!a", 3)];
+
+		sort_rooms_by_activity(&mut rooms);
+
+		assert_eq!(rooms, [("!a", 3), ("!b", 3), ("!c", 1)]);
 	}
 
 	#[test]
