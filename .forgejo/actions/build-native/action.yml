@@ -1,0 +1,149 @@
+name: build-native
+description: |
+  Compile the binary on the runner host rather than inside Docker, then assemble the
+  artefact tree the Docker packaging stages expect.
+
+  Intended for runners whose architecture matches the target, where a persistent local
+  sccache is available. Produces out/{sbin,sbom,libs,libs-root} for consumption as a
+  named build context.
+
+inputs:
+  package:
+    description: Cargo package to build
+    required: false
+    default: conduwuit
+  profile:
+    description: Cargo build profile (release or release-max-perf)
+    required: true
+  features:
+    description: Comma-separated cargo features
+    required: false
+    default: default
+  march:
+    description: Value for -march passed to the C and C++ compilers
+    required: false
+    default: ''
+  rust-cpu-flags:
+    description: Architecture flags appended to RUSTFLAGS
+    required: false
+    default: ''
+  llvm-version:
+    description: LLVM major version the host toolchain must provide
+    required: false
+    default: '22'
+  target-dir:
+    description: Cargo target directory, defaults to one outside the per-run workspace
+    required: false
+    default: ''
+  out-dir:
+    description: Directory to assemble the artefact tree in
+    required: false
+    default: out
+
+outputs:
+  out-dir:
+    description: Directory containing sbin/, sbom/, libs/ and libs-root/
+    value: ${{ steps.assemble.outputs.dir }}
+
+runs:
+  using: composite
+  steps:
+    - name: Add cargo binaries to PATH
+      shell: bash
+      run: echo "${CARGO_HOME:-$HOME/.cargo}/bin" >> "$GITHUB_PATH"
+
+    - name: Verify host toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        fail=0
+        for tool in clang clang++ ld.lld cargo sccache cargo-sbom lddtree; do
+          if ! command -v "$tool" >/dev/null; then
+            echo "missing: $tool"
+            fail=1
+          fi
+        done
+        [ "$fail" -eq 0 ] || { echo "host is not provisioned for native builds"; exit 1; }
+
+        # Must match the container's ARG LLVM_VERSION or the two paths diverge.
+        got=$(clang --version | sed -n 's/.*clang version \([0-9]*\).*/\1/p' | head -1)
+        if [ "$got" != "${{ inputs.llvm-version }}" ]; then
+          echo "clang major version is $got, expected ${{ inputs.llvm-version }}"
+          exit 1
+        fi
+        echo "clang $got, $(cargo --version), $(sccache --version)"
+
+    - name: Configure build environment
+      shell: bash
+      run: |
+        set -euo pipefail
+        # Mirrors the values docker/Dockerfile writes into /etc/environment.
+        cflags="-flto"
+        if [ -n "${{ inputs.march }}" ]; then
+          cflags="$cflags -march=${{ inputs.march }}"
+        fi
+        {
+          echo "CARGO_INCREMENTAL=0"
+          echo "CC=clang"
+          echo "CXX=clang++"
+          echo "CFLAGS=$cflags"
+          echo "CXXFLAGS=$cflags"
+          echo "RUSTC_WRAPPER=sccache"
+        } >> "$GITHUB_ENV"
+
+        # Outside the per-run workspace, so cargo can reuse artefacts between runs.
+        target_dir="${{ inputs.target-dir }}"
+        [ -n "$target_dir" ] || target_dir="$HOME/.cache/continuwuity-target"
+        echo "CARGO_TARGET_DIR=$target_dir" >> "$GITHUB_ENV"
+
+        # A fat LTO link runs for minutes without compiling, which would otherwise
+        # idle the sccache server out and lose the statistics with it.
+        echo "SCCACHE_IDLE_TIMEOUT=1800" >> "$GITHUB_ENV"
+
+        rustflags='-Clinker-plugin-lto -Clink-arg=-fuse-ld=lld'
+        if [ -n "${{ inputs.rust-cpu-flags }}" ]; then
+          rustflags="$rustflags ${{ inputs.rust-cpu-flags }}"
+        fi
+        echo "RUSTFLAGS=$rustflags" >> "$GITHUB_ENV"
+
+    - name: Build
+      shell: bash
+      run: |
+        set -euo pipefail
+        sccache --zero-stats >/dev/null 2>&1 || true
+        cargo build --locked \
+          --profile ${{ inputs.profile }} \
+          --no-default-features --features ${{ inputs.features }} \
+          -p ${{ inputs.package }}
+
+    - name: Assemble artefact tree
+      id: assemble
+      shell: bash
+      run: |
+        set -euo pipefail
+        out="${{ inputs.out-dir }}"
+        rm -rf "$out"
+        mkdir -p "$out/sbin" "$out/sbom" "$out/libs" "$out/libs-root"
+
+        profile_dir="${{ inputs.profile }}"
+        [ "$profile_dir" = "dev" ] && profile_dir=debug
+        target_dir=$(cargo metadata --no-deps --format-version 1 | jq -r '.target_directory')
+
+        cp "$target_dir/$profile_dir/${{ inputs.package }}" "$out/sbin/${{ inputs.package }}"
+        cargo sbom --cargo-package ${{ inputs.package }} > "$out/sbom/${{ inputs.package }}.spdx.json"
+
+        # Resolved here, not in the container: these are the libraries linked against.
+        for binary in "$out"/sbin/*; do
+          resolved=$(lddtree "$binary" 2>/dev/null) || continue
+          [ -n "$resolved" ] || continue
+          echo "$resolved" | awk '{print $(NF-0) " " $1}' | sort -u -k 1,1 | \
+            awk -v out="$out" '{dest = ($2 ~ /^\//) ? out "/libs-root" $2 : out "/libs/" $2; print $1 " " dest}' | \
+            while read -r src dest; do install -D "$src" "$dest"; done
+        done
+
+        echo "dir=$out" >> "$GITHUB_OUTPUT"
+        find "$out" -type f -printf '%10s  %P\n' | sort -k2
+
+    - name: Report cache statistics
+      shell: bash
+      run: sccache --show-stats || true
