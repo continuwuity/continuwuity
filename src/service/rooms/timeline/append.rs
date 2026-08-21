@@ -210,7 +210,9 @@ impl super::Service {
 		let room_id = incoming_pdu.room_id_or_hash();
 		while let Some(prev_event_id) = ancestors_todo.pop_front() {
 			new_extremities.remove(&prev_event_id);
-			self.services.pdu_metadata.mark_as_referenced(&room_id, once(prev_event_id.as_ref()));
+			self.services
+				.pdu_metadata
+				.mark_as_referenced(&room_id, once(prev_event_id.as_ref()));
 			let Ok(prev_event) = self.get_pdu(&prev_event_id).await else {
 				continue;
 			};
