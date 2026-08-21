@@ -5,7 +5,7 @@ use std::{
 	sync::Arc,
 	time::Instant,
 };
-
+use std::ops::Not;
 use conduwuit::{
 	Err, Result, debug, debug_warn,
 	matrix::{Event, PduEvent},
@@ -190,6 +190,7 @@ impl super::Service {
 					.pdu_metadata
 					.is_event_referenced(&incoming_pdu.room_id_or_hash(), &extremity)
 					.await
+					.not()
 					.then_some(extremity)
 			})
 			.collect()
