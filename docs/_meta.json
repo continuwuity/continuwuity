@@ -16,6 +16,11 @@
     },
     {
         "type": "dir",
+        "name": "authentication",
+        "label": "Authentication"
+    },
+    {
+        "type": "dir",
         "name": "calls",
         "label": "Calls"
     },
