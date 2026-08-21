@@ -239,7 +239,6 @@ impl super::Service {
 					once(ancestor_id.as_ref()),
 				);
 			}
-			new_extremities.retain(|extremity| !outlier_prevs.contains(extremity));
 			ancestors_todo.extend(outlier_prevs);
 		}
 
