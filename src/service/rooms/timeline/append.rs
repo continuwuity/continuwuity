@@ -207,8 +207,10 @@ impl super::Service {
 		// status.
 		let mut ancestors_todo: VecDeque<OwnedEventId> =
 			VecDeque::from_iter(incoming_pdu.prev_events.clone());
+		let room_id = incoming_pdu.room_id_or_hash();
 		while let Some(prev_event_id) = ancestors_todo.pop_front() {
 			new_extremities.remove(&prev_event_id);
+			self.services.pdu_metadata.mark_as_referenced(&room_id, once(prev_event_id.as_ref()));
 			let Ok(prev_event) = self.get_pdu(&prev_event_id).await else {
 				continue;
 			};
@@ -233,12 +235,6 @@ impl super::Service {
 				})
 				.collect::<Vec<_>>()
 				.await;
-			for ancestor_id in &ancestors_todo {
-				self.services.pdu_metadata.mark_as_referenced(
-					&incoming_pdu.room_id_or_hash(),
-					once(ancestor_id.as_ref()),
-				);
-			}
 			ancestors_todo.extend(outlier_prevs);
 		}
 
