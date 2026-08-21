@@ -1,12 +1,13 @@
 use std::{
 	borrow::Borrow,
-	collections::{BTreeMap, HashMap, HashSet},
+	collections::{BTreeMap, HashMap, HashSet, VecDeque},
 	iter::once,
 	sync::Arc,
+	time::Instant,
 };
 
 use conduwuit::{
-	Result, debug, debug_warn, is_equal_to,
+	Err, Result, debug, debug_warn,
 	matrix::{Event, PduEvent},
 	pdu::{Count, ShortRoomId},
 	trace,
@@ -173,51 +174,85 @@ impl super::Service {
 				.await?;
 		}
 
-		// Now we calculate the set of extremities this room has after the incoming
-		// event has been applied. We start with the previous extremities
+		let start = Instant::now();
 		trace!("Calculating extremities");
-		let mut forward_extremities = forward_extremities
+		// Start with the current extremity set, to avoid dropping unreferenced events.
+		let mut new_extremities: HashSet<OwnedEventId> =
+			forward_extremities.iter().cloned().collect();
+		// Add the incoming event
+		new_extremities.insert(incoming_pdu.event_id().to_owned());
+		// Remove any extremities that have since been referenced but not removed(?)
+		new_extremities = new_extremities
 			.into_iter()
 			.stream()
-			.ready_filter(|event_id| {
-				// Remove any that are referenced by this incoming event's prev_events
-				!incoming_pdu.prev_events().any(is_equal_to!(event_id))
-			})
-			.broad_filter_map(|event_id| async move {
-				// Only keep those extremities were not referenced yet
+			.broad_filter_map(|extremity| async {
 				self.services
 					.pdu_metadata
-					.is_event_referenced(&incoming_pdu.room_id_or_hash(), &event_id)
+					.is_event_referenced(&incoming_pdu.room_id_or_hash(), &extremity)
 					.await
-					.eq(&false)
-					.then_some(event_id)
+					.then_some(extremity)
 			})
-			.collect::<Vec<_>>()
+			.collect()
 			.await;
 
-		// An event with a child is not a leaf, but a room with no extremities cannot be
-		// written to, so it is added anyway when nothing else remains.
-		let has_child = self
-			.services
-			.pdu_metadata
-			.is_event_referenced(&incoming_pdu.room_id_or_hash(), incoming_pdu.event_id())
-			.await;
-		if !has_child || forward_extremities.is_empty() {
-			if has_child {
-				warn!(
-					"Adding {} as an extremity despite its child, the room has no other leaves",
-					incoming_pdu.event_id()
+		// Also iteratively walk prev events to ensure we drop any ancestors which are
+		// referenced regardless of soft-fail or rejection status. Soft-failed events
+		// and rejected events are not added as forward extremities, and as such do not
+		// remove their own prevs from the extremity set. This can lead to a situation
+		// where extremities build up because there's lots of soft-fails in the room,
+		// ultimately resulting in excessive cross-state boundary dummy events being
+		// created to squash the references. By walking the prevs until we stop
+		// reaching soft-fails, we can ensure that we properly prune all events which
+		// have actually been referenced, regardless of their soft-fail or rejection
+		// status.
+		let mut ancestors_todo: VecDeque<OwnedEventId> =
+			VecDeque::from_iter(incoming_pdu.prev_events.clone());
+		while let Some(prev_event_id) = ancestors_todo.pop_front() {
+			new_extremities.remove(&prev_event_id);
+			let Ok(prev_event) = self.get_pdu(&prev_event_id).await else {
+				continue;
+			};
+			// Only retain prevs which are themselves not referenced AND
+			// soft-failed/rejected/outlier.
+			let outlier_prevs = prev_event
+				.prev_events()
+				.map(ToOwned::to_owned)
+				.stream()
+				.broad_filter_map(|prev_id| async move {
+					let room_id = incoming_pdu.room_id_or_hash();
+					let (referenced, is_outlier, is_soft_failed, is_rejected) = tokio::join!(
+						self.services
+							.pdu_metadata
+							.is_event_referenced(&room_id, &prev_id),
+						self.db.outlier_pdu_exists(&prev_id).is_ok(),
+						self.services.pdu_metadata.is_event_soft_failed(&prev_id),
+						self.services.pdu_metadata.is_event_rejected(&prev_id)
+					);
+					(!referenced && (is_outlier || is_soft_failed || is_rejected))
+						.then_some(prev_id)
+				})
+				.collect::<Vec<_>>()
+				.await;
+			for ancestor_id in &ancestors_todo {
+				self.services.pdu_metadata.mark_as_referenced(
+					&incoming_pdu.room_id_or_hash(),
+					once(ancestor_id.as_ref()),
 				);
 			}
-			forward_extremities.push(incoming_pdu.event_id().to_owned());
+			new_extremities.retain(|extremity| !outlier_prevs.contains(extremity));
+			ancestors_todo.extend(outlier_prevs);
 		}
 
 		debug!(
-			"Retained {} extremities checked against {} prev_events",
+			"Retained {} extremities against {} prev_events in {:?}",
 			forward_extremities.len(),
-			incoming_pdu.prev_events().count()
+			incoming_pdu.prev_events().count(),
+			start.elapsed(),
 		);
-		assert!(!forward_extremities.is_empty(), "resolved extremities cannot be empty");
+		debug_assert!(!forward_extremities.is_empty(), "resolved extremities cannot be empty");
+		if forward_extremities.is_empty() {
+			return Err!("Resolved extremities cannot be empty");
+		}
 		Ok(forward_extremities)
 	}
 
