@@ -2,27 +2,38 @@
 
 ## Features
 
-- Added new health tracking to monitor the health of remote servers and intelligently back-off federation globally with automatic stale re-resolution. ([#2097](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2097))
+- Added new health tracking to monitor the health of remote servers and intelligently back-off federation globally with automatic stale re-resolution.
+  ([#2097](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2097))
 - Added [MSC4354](https://github.com/matrix-org/matrix-spec-proposals/pull/4354) sticky events, behind the `allow_sticky_events` config option. Contributed by @eleboucher.
 - Added [MSC4480](https://github.com/matrix-org/matrix-spec-proposals/pull/4480) sticky events to simplified sliding sync. Contributed by @eleboucher.
 - Added scoped typing updates to simplified Sliding Sync ([MSC4508](https://github.com/matrix-org/matrix-spec-proposals/pull/4508)). Contributed by @eleboucher.
-- Fixed [MSC4323](https://github.com/matrix-org/matrix-spec-proposals/pull/4323) suspend/lock admin endpoints: the lock endpoint now locks instead of suspending users, and error codes match the ratified spec. Contributed by @eleboucher.
+- Fixed [MSC4323](https://github.com/matrix-org/matrix-spec-proposals/pull/4323) suspend/lock admin endpoints: the lock endpoint now locks instead of suspending users, and error codes match the
+  ratified spec. Contributed by @eleboucher.
 
 ## Bugfixes
 
 - Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
-- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
+- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions.
+  ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
 - Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. ([#2057](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2057))
-- Fixed federation PDUs received during remote joins being dropped before their room state was available. Contributed by @eleboucher. ([#2063](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2063))
+- Fixed federation PDUs received during remote joins being dropped before their room state was available. Contributed by @eleboucher.
+  ([#2063](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2063))
 - Resolve membership service by correct name for auto-join. Contributed by @Aranjedeath ([#2082](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2082))
 - Fixed simplified sliding sync reporting the number of live timeline events. Contributed by @eleboucher. ([#2083](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2083))
-- Plugged a logic gap that may have been allowing Continuwuity to process events with incorrect room versions under certain conditions. Contributed by @nex. ([#2106](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2106))
-- The OAuth 2.0 device authorization endpoint now rejects clients which did not register the device code grant type, instead of issuing them a device code. The token endpoint now returns the `unauthorized_client` error code when a client requests a grant type it did not register, instead of `invalid_grant`. Contributed by @mmaudet. ([#2110](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2110))
-- Events arriving after one of their children has already been backfilled are no longer used as forward extremities. Contributed by @eleboucher. ([#2115](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2115))
+- Plugged a logic gap that may have been allowing Continuwuity to process events with incorrect room versions under certain conditions. Contributed by @nex.
+  ([#2106](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2106))
+- The OAuth 2.0 device authorization endpoint now rejects clients which did not register the device code grant type, instead of issuing them a device code. The token endpoint now returns the
+  `unauthorized_client` error code when a client requests a grant type it did not register, instead of `invalid_grant`. Contributed by @mmaudet.
+  ([#2110](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2110))
+- Events arriving after one of their children has already been backfilled are no longer used as forward extremities. Contributed by @eleboucher.
+  ([#2115](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2115))
 - Fixed federated space hierarchies omitting rooms restricted to members of private spaces. Contributed by @eleboucher. ([#2132](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2132))
-- A panic during transaction handling will no longer cause the handle tracker to reference a stale transaction, which caused federation between two servers to fail until continuwuity was restarted. Contributed by @nex. ([#2137](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2137))
-- Fixed event tracking forgetting to mark soft-failed/rejected events as referenced, which caused a build-up of incorrectly unreferenced events, triggering frequent dummy squashes and associated state resets. ([#2164](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2164))
-- Added [MSC4186](https://github.com/matrix-org/matrix-spec-proposals/pull/4186) direct, encrypted, and room-type list filters, resolving invited rooms from their stripped invite state. Contributed by @eleboucher.
+- A panic during transaction handling will no longer cause the handle tracker to reference a stale transaction, which caused federation between two servers to fail until continuwuity was restarted.
+  Contributed by @nex. ([#2137](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2137))
+- Fixed event tracking forgetting to mark soft-failed/rejected events as referenced, which caused a build-up of incorrectly unreferenced events, triggering frequent dummy squashes and associated state
+  resets. ([#2164](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2164))
+- Added [MSC4186](https://github.com/matrix-org/matrix-spec-proposals/pull/4186) direct, encrypted, and room-type list filters, resolving invited rooms from their stripped invite state. Contributed by
+  @eleboucher.
 - Fixed left/banned rooms sometimes not coming down sync.
 - Fixed local events dropping forward extremities they did not reference. Contributed by @eleboucher.
 - Fixed missed wake-ups and stale responses in legacy and sliding sync long polls. Contributed by @eleboucher.
@@ -34,12 +45,15 @@
 
 ## Improved Documentation
 
-- Refactor TURN docs and remove unsafe setups. Polish LiveKit docs. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself ([#1740](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1740))
+- Refactor TURN docs and remove unsafe setups. Polish LiveKit docs. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself
+  ([#1740](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1740))
 - Updated the docs to reflect the current default User-Agent for URL previews ([#2079](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2079))
 - Added missing documentation to config parameters. Contributed by @renegadespork ([#2107](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2107))
-- Generic deployment documentation: Use `/etc/caddy/Caddyfile` instead of `/etc/caddy/conf.d/*` paths, which do not exist on a majority of Caddy installations. ([#2117](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2117))
+- Generic deployment documentation: Use `/etc/caddy/Caddyfile` instead of `/etc/caddy/conf.d/*` paths, which do not exist on a majority of Caddy installations.
+  ([#2117](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2117))
 - Add caveat and workaround for container resolution (e.g. for dockerized appservices) when using mounted `/etc/resolv.conf`. Contributed by @stratself
-- Livekit docs, troubleshooting section: Advise using `host-gateway` magic address for `lk-jwt-service` container to loop back to host, instead of the other incomplete/incorrect workarounds. Contributed by @stratself
+- Livekit docs, troubleshooting section: Advise using `host-gateway` magic address for `lk-jwt-service` container to loop back to host, instead of the other incomplete/incorrect workarounds.
+  Contributed by @stratself
 - Livekit docs: `room.auto_create: false` is now included in default `livekit.yaml`, following `lk-jwt-service` recommendation.
 - Replace deprecated `docker-compose` commands with `docker compose` to reflect latest Docker changes.
 - Update backup instructions: the right paths for `.sst` files are now in `$DATABASE_BACKUP_PATH/private/<number>` path instead of `$DATABASE_BACKUP_PATH/<number>`. Contributed by @stratself
@@ -48,54 +62,14 @@
 
 - #2033
 - Updated Ruma dependencies. Contributed by @eleboucher.
-
-
-# Continuwuity v26.8.0-alpha.1 (2026-08-14)
-
-## Features
-
-- Added [MSC4354](https://github.com/matrix-org/matrix-spec-proposals/pull/4354) sticky events, behind the `allow_sticky_events` config option. Contributed by @eleboucher.
-- Added [MSC4480](https://github.com/matrix-org/matrix-spec-proposals/pull/4480) sticky events to simplified sliding sync. Contributed by @eleboucher.
-- Added scoped typing updates to simplified Sliding Sync ([MSC4508](https://github.com/matrix-org/matrix-spec-proposals/pull/4508)). Contributed by @eleboucher.
-
-## Bugfixes
-
-- Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
-- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
-- Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. ([#2057](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2057))
-- Resolve membership service by correct name for auto-join. Contributed by @Aranjedeath ([#2082](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2082))
-- Plugged a logic gap that may have been allowing Continuwuity to process events with incorrect room versions under certain conditions. Contributed by @nex. ([#2106](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2106))
-- The OAuth 2.0 device authorization endpoint now rejects clients which did not register the device code grant type, instead of issuing them a device code. The token endpoint now returns the `unauthorized_client` error code when a client requests a grant type it did not register, instead of `invalid_grant`. Contributed by @mmaudet. ([#2110](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2110))
-- Added [MSC4186](https://github.com/matrix-org/matrix-spec-proposals/pull/4186) direct, encrypted, and room-type list filters, resolving invited rooms from their stripped invite state. Contributed by @eleboucher.
-- Fixed left/banned rooms sometimes not coming down sync.
-- Fixed missed wake-ups and stale responses in legacy and sliding sync long polls. Contributed by @eleboucher.
-- Fixed sync loops being woken before membership changes are fully committed.
-- Fixed typing notifications not interrupting a sync long poll. Contributed by @eleboucher.
-- Preserve all users' read receipts when batching room receipt updates.
-
-## Improved Documentation
-
-- Refactor TURN docs and remove unsafe setups. Polish LiveKit docs. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself ([#1740](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1740))
-- Updated the docs to reflect the current default User-Agent for URL previews ([#2079](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2079))
-- Added missing documentation to config parameters. Contributed by @renegadespork ([#2107](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2107))
-- Generic deployment documentation: Use `/etc/caddy/Caddyfile` instead of `/etc/caddy/conf.d/*` paths, which do not exist on a majority of Caddy installations. ([#2117](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2117))
-- Add caveat and workaround for container resolution (e.g. for dockerized appservices) when using mounted `/etc/resolv.conf`. Contributed by @stratself
-- Livekit docs: `room.auto_create: false` is now included in default `livekit.yaml`, following `lk-jwt-service` recommendation.
-- Replace deprecated `docker-compose` commands with `docker compose` to reflect latest Docker changes.
-- Update backup instructions: the right paths for `.sst` files are now in `$DATABASE_BACKUP_PATH/private/<number>` path instead of `$DATABASE_BACKUP_PATH/<number>`. Contributed by @stratself
-
-## Misc
-
-- #2033
-- Updated Ruma dependencies. Contributed by @eleboucher.
-
 
 # Continuwuity 26.7.3 (2026-08-11)
 
 ## Bugfixes
 
 - Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
-- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions. ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
+- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions.
+  ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
 
 # Continuwuity 26.7.2 (2026-07-30)
 
@@ -111,8 +85,10 @@
 
 - Build and publish arm64 .deb packages alongside amd64 for all supported Debian and Ubuntu releases. ([#1235](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1235))
 - Dehydrated devices are now visible in the account panel. Contributed by @ginger. ([#1970](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1970))
-- Introduce `accepted_ip_sources` as a multiple options variant of `request_ip_source`, allowing for more advanced deployments and making fallbacks an explicit choice. Contributed by @Omar007 ([#1985](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1985))
-- Added an admin command to issue an access token for a bot account, to allow legacy bots to function while legacy authentication is disabled. Contributed by @ginger ([#2044](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2044))
+- Introduce `accepted_ip_sources` as a multiple options variant of `request_ip_source`, allowing for more advanced deployments and making fallbacks an explicit choice. Contributed by @Omar007
+  ([#1985](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1985))
+- Added an admin command to issue an access token for a bot account, to allow legacy bots to function while legacy authentication is disabled. Contributed by @ginger
+  ([#2044](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2044))
 - Added support for the OAuth2 device authorization flow. Contributed by @ginger
 - Added support for the stable mutual rooms query endpoint. Contributed by @ginger
 - Fetch the joined member count once per event instead of once per notified user.
@@ -127,11 +103,15 @@
 - Fixed the deeplink redirect for deleting devices. Contributed by @koen ([#1965](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1965))
 - Fix status code for oauth registration. Contributed by @n00byking ([#1984](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1984))
 - Exempt m.room.create from auth_events check. Contributed by @eleboucher ([#1987](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1987))
-- Fixed `create` being returned as a supported prompt value regardless of if registration is enabled or not. Contributed by @ginger ([#1994](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1994))
-- Fixed high CPU usage when multiple clients from the same account were connected at once. Each sync woke the account's other sync loops, causing them to wake each other in a loop. ([#2006](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2006))
-- Fixed [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) appservice device creation registering a random device ID instead of the requested one (and dropping the requested display name), which prevented encrypted mautrix bridges from
-  starting on OIDC-enabled servers and leaked an orphan device on the bridge bot per startup attempt. ([#2015](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2015))
-- Deactivated users and appservice puppets are no longer counted by `/_continuwuity/local_user_count`. Contributed by @ginger. ([#2040](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2040))
+- Fixed `create` being returned as a supported prompt value regardless of if registration is enabled or not. Contributed by @ginger
+  ([#1994](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1994))
+- Fixed high CPU usage when multiple clients from the same account were connected at once. Each sync woke the account's other sync loops, causing them to wake each other in a loop.
+  ([#2006](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2006))
+- Fixed [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) appservice device creation registering a random device ID instead of the requested one (and dropping the requested
+  display name), which prevented encrypted mautrix bridges from starting on OIDC-enabled servers and leaked an orphan device on the bridge bot per startup attempt.
+  ([#2015](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2015))
+- Deactivated users and appservice puppets are no longer counted by `/_continuwuity/local_user_count`. Contributed by @ginger.
+  ([#2040](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2040))
 - Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. ([#2057](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2057))
 - Appservices are now properly able to create devices for E2EE.
 - Appservices may now specify both the unstable and stable `device_id` query parameters in a request. The stable parameter will take priority. Contributed by @ginger.
@@ -151,7 +131,8 @@
 
 ## Bugfixes
 
-- Fixed the server returning 500 errors if `admin_console_automatic` is enabled and no TTY is available. Contributed by @s1lv3r. ([#1975](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1975))
+- Fixed the server returning 500 errors if `admin_console_automatic` is enabled and no TTY is available. Contributed by @s1lv3r.
+  ([#1975](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1975))
 - Fixed `global.oauth.compatibility_mode` being required, despite being ignored, when the `[global.oauth.oidc]` config section is provided.
 - Fixed an issue with a migration that could cause user accounts imported from an identity provider to be marked as deactivated when the server started. If you have accounts affected by this issue,
   use `!admin users reset-password --convert-to-local-account` to reactivate them.
@@ -160,7 +141,8 @@
 
 ## Features
 
-- Added enforcement for new federated invite checks and corrected a bunch of related spec compliance issues along the way. Contributed by @nex. ([#1952](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1952))
+- Added enforcement for new federated invite checks and corrected a bunch of related spec compliance issues along the way. Contributed by @nex.
+  ([#1952](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1952))
 
 ## Bugfixes
 
@@ -175,7 +157,8 @@
 ## Features
 
 - Added support for linking an external identity provider with OIDC. Contributed by @ginger. (#765)
-- Updated [MSC4284: Policy Servers](https://github.com/matrix-org/matrix-spec-proposals/pull/4284) implementation to support the newly stabilised proposal. Contributed by @nex. ([#1487](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1487))
+- Updated [MSC4284: Policy Servers](https://github.com/matrix-org/matrix-spec-proposals/pull/4284) implementation to support the newly stabilised proposal. Contributed by @nex.
+  ([#1487](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1487))
 - Added config option for default room ACLs. Contributed by @eve. ([#1691](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1691))
 - Added support for fallback encryption keys. ([#1710](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1710))
 - Add `!admin users reject-all-invites` to clean invite spam ([#1741](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1741))
@@ -184,14 +167,18 @@
   `!admin debug show-auth-chain` was added to visually display event auth chains, which may assist developers in debugging strangely complex events.
 
   Contributed by @nex. ([#1747](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1747))
-- Added full support for [MSC4168: Update `m.space.*` state on room upgrade](https://github.com/matrix-org/matrix-spec-proposals/pull/4168). Contributed by @nex. ([#1807](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1807))
-- Improved the performance and reliability of fetching missing events, improving network partition recovery. Contributed by @nex. ([#1818](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1818))
+- Added full support for [MSC4168: Update `m.space.*` state on room upgrade](https://github.com/matrix-org/matrix-spec-proposals/pull/4168). Contributed by @nex.
+  ([#1807](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1807))
+- Improved the performance and reliability of fetching missing events, improving network partition recovery. Contributed by @nex.
+  ([#1818](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1818))
 - Added static builds using Nix, allowing for Continuwuity on musl. During this, we also introduced a `max-perf-haswell` package, separating it from `max-perf`, so you may want to swap to this if you
   are on NixOS. Contributed by @Henry-Hiles (QuadRadical). ([#1853](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1853))
-- Added support for [MSC4380](https://github.com/matrix-org/matrix-spec-proposals/pull/4380) invite blocking, which has become part of the Matrix specification in v1.18. Contributed by @nex. ([#1875](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1875))
+- Added support for [MSC4380](https://github.com/matrix-org/matrix-spec-proposals/pull/4380) invite blocking, which has become part of the Matrix specification in v1.18. Contributed by @nex.
+  ([#1875](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1875))
 - Added `!admin debug get-state-at` command ([#1877](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1877))
 - Added a configuration option to allow choosing a client IP source that is not the TCP connecting IP. Contributed by @nex. ([#1931](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1931))
-- Added support for [MSC4466](https://github.com/matrix-org/matrix-spec-proposals/pull/4466), which allows clients to customize how changes to a user's global profile are propagated. Contributed by @ginger.
+- Added support for [MSC4466](https://github.com/matrix-org/matrix-spec-proposals/pull/4466), which allows clients to customize how changes to a user's global profile are propagated. Contributed by
+  @ginger.
 - Added support for Matrix 1.16's `state_after` feature, allowing clients which understand it to sync room state changes more reliably. Contributed by @ginger.
 - Added support for authenticating clients using the new OAuth 2.0 login API. Contributed by @ginger.
 - Appservice device management as outlined in [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) (part of Matrix 1.17) is now fully supported. Contributed by @ginger.
@@ -201,11 +188,13 @@
 
 - Adjusted legacy sync logic to allow the `roomsynctoken_shortstatehash` database column to be dropped, massively reducing database sizes, especially for old deployments. Contributed by @ginger.
   (#917)
-- Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a singular transaction. Contributed by @nex. ([#1711](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1711))
+- Fixed a bug that caused the server to drop events during processing if several events for the same room were sent in a singular transaction. Contributed by @nex.
+  ([#1711](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1711))
 - fix `!admin query account-data account-data-get` not returning the content ([#1742](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1742))
-- Fixed an issue where Continuwuity would only advertise support for the unstable endpoint for Mutual Rooms ([MSC2666](https://github.com/matrix-org/matrix-spec-proposals/pull/2666)), despite only supporting the stable endpoint. Contributed by @Henry-Hiles
-  (QuadRadical) ([#1752](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1752))
-- Fixed admin commands being ignored when they had leading whitespace before admin commands. Contributed by @kitvonsnookerz. ([#1804](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1804))
+- Fixed an issue where Continuwuity would only advertise support for the unstable endpoint for Mutual Rooms ([MSC2666](https://github.com/matrix-org/matrix-spec-proposals/pull/2666)), despite only
+  supporting the stable endpoint. Contributed by @Henry-Hiles (QuadRadical) ([#1752](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1752))
+- Fixed admin commands being ignored when they had leading whitespace before admin commands. Contributed by @kitvonsnookerz.
+  ([#1804](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1804))
 - Fixed several bugs in the `POST /_matrix/client/v3/rooms/{roomId}/upgrade` endpoint. Contributed by @nex. ([#1807](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1807))
 - Devices which set their presence as "offline" will no longer be considered for presence updates. Contributed by @timedout.
 - Improved invite and join reliability in clients using legacy sync. Contributed by @ginger
@@ -248,18 +237,21 @@
 ## Improved Documentation
 
 - Updated config docs to state we support room version 12, and set it as default. Contributed by @ezera. ([#1622](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1622))
-- Improve instructions for generic deployments, removing unnecessary parts and documenting the new initial registration token flow. Contributed by @stratself ([#1677](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1677))
+- Improve instructions for generic deployments, removing unnecessary parts and documenting the new initial registration token flow. Contributed by @stratself
+  ([#1677](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1677))
 
 # Continuwuity v0.5.7 (2026-04-17)
 
 ## Features
 
 - Re-added support for reading registration tokens from a file. Contributed by @ginger and @benbot. ([#1371](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1371))
-- Add new config option to allow or disallow search engine indexing through a `<meta ../>` tag. Defaults to blocking indexing (`content="noindex"`). Contributed by @s1lv3r and @ginger. ([#1527](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1527))
+- Add new config option to allow or disallow search engine indexing through a `<meta ../>` tag. Defaults to blocking indexing (`content="noindex"`). Contributed by @s1lv3r and @ginger.
+  ([#1527](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1527))
 - Add new config option for [MSC4439](https://github.com/matrix-org/matrix-spec-proposals/pull/4439)
   PGP key URIs. Contributed by LogN. ([#1609](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1609))
 - Added `!admin users reset-push-rules` command to reset the notification settings of users. Contributed by @nex. ([#1613](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1613))
-- Notification pushers are now automatically removed when their associated device is. Admin commands now exist for manual cleanup too. Contributed by @nex. ([#1614](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1614))
+- Notification pushers are now automatically removed when their associated device is. Admin commands now exist for manual cleanup too. Contributed by @nex.
+  ([#1614](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1614))
 - Implemented option to deprioritize servers for room join requests. Contributed by @ezera. ([#1624](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1624))
 - Added admin commands to get build information and features. Contributed by @Jade ([#1629](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1629))
 - Added support for associating email addresses with accounts, requiring email addresses for registration, and resetting passwords via email. Contributed by @ginger
@@ -269,14 +261,18 @@
 ## Bugfixes
 
 - Fixed corrupted appservice registrations causing the server to enter a crash loop. Contributed by @nex. ([#1265](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1265))
-- Prevent removing the admin room alias (`#admins`) to avoid accidentally breaking admin room functionality. Contributed by @0xnim ([#1448](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1448))
+- Prevent removing the admin room alias (`#admins`) to avoid accidentally breaking admin room functionality. Contributed by @0xnim
+  ([#1448](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1448))
 - Stripped `join_authorised_via_users_server` from json if user is already in room (@partha:cxy.run) ([#1542](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1542))
 - Fixed internal server errors for fetching thumbnails. Contributed by @PerformativeJade ([#1572](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1572))
 - Fixed error 500 when joining non-existent rooms. Contributed by @ezera. ([#1579](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1579))
-- Refactored nix package. Breaking, since `all-features` package no longer exists. Continuwuity is now built with jemalloc and liburing by default. Contributed by @Henry-Hiles (QuadRadical). ([#1596](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1596))
+- Refactored nix package. Breaking, since `all-features` package no longer exists. Continuwuity is now built with jemalloc and liburing by default. Contributed by @Henry-Hiles (QuadRadical).
+  ([#1596](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1596))
 - Fixed resolving IP of servers that only use SRV delegation. Contributed by @tulir. ([#1615](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1615))
-- Fixed "Sender must be a local user" error for make_join, make_knock, and make_leave federation routes. Contributed by @nex. ([#1623](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1623))
-- Fixed restricted joins not being signed when we are being used as an authorising server. Contributed by @nex, reported by [vel](matrix:u/vel:nhjkl.com?action=chat). ([#1630](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1630))
+- Fixed "Sender must be a local user" error for make_join, make_knock, and make_leave federation routes. Contributed by @nex.
+  ([#1623](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1623))
+- Fixed restricted joins not being signed when we are being used as an authorising server. Contributed by @nex, reported by [vel](matrix:u/vel:nhjkl.com?action=chat).
+  ([#1630](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1630))
 - Fixed room alias deletion so removing one local alias no longer removes other aliases from room alias listings.
 - Stopped left rooms from being unconditionally sent on initial sync, hopefully fixing spurious appearances of left rooms in some clients (and making sync faster as a bonus). Contributed by @ginger
 - Correct the response field name for MatrixRTC transports. Contributed by @spaetz
@@ -285,7 +281,8 @@
 
 - Added Testing and Troubleshooting instructions for Livekit documentation. Contributed by @stratself. ([#1429](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1429))
 - Refactored docker docs to include new initial token workflow, and add Caddyfile example. Contributed by @stratself. ([#1594](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1594))
-- Add DNS tuning guide for Continuwuity. Users are recommended to set up a local caching resolver following the guide's advice. Contributed by @stratself ([#1601](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1601))
+- Add DNS tuning guide for Continuwuity. Users are recommended to set up a local caching resolver following the guide's advice. Contributed by @stratself
+  ([#1601](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1601))
 
 ## Misc
 
@@ -304,8 +301,8 @@
   Contributed by @nex. ([#1399](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1399))
 - Improved the concurrency handling of federation transactions, vastly improving performance and reliability by more accurately handling inbound transactions and reducing the amount of repeated wasted
   work. Contributed by @nex and @Jade. ([#1428](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1428))
-- Added [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202) Device masquerading (not all of [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202)). This should fix issues with
-  enabling [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) for some Mautrix bridges. Contributed by @Jade
+- Added [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202) Device masquerading (not all of [MSC3202](https://github.com/matrix-org/matrix-spec-proposals/pull/3202)). This should
+  fix issues with enabling [MSC4190](https://github.com/matrix-org/matrix-spec-proposals/pull/4190) for some Mautrix bridges. Contributed by @Jade
   ([#1435](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1435))
 - Added [MSC3814](https://github.com/matrix-org/matrix-spec-proposals/pull/3814) Dehydrated Devices - you can now decrypt messages sent while all devices were logged out.
   ([#1436](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1436))
