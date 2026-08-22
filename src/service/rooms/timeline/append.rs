@@ -224,8 +224,7 @@ impl super::Service {
 				.prev_events()
 				.map(ToOwned::to_owned)
 				.stream()
-				.broad_filter_map(|prev_id| async move {
-					let room_id = incoming_pdu.room_id_or_hash();
+				.broad_filter_map(|prev_id| async {
 					let (referenced, is_outlier, is_soft_failed, is_rejected) = tokio::join!(
 						self.services
 							.pdu_metadata
@@ -248,11 +247,11 @@ impl super::Service {
 			incoming_pdu.prev_events().count(),
 			start.elapsed(),
 		);
-		debug_assert!(!new_extremities.is_empty(), "resolved extremities cannot be empty");
 		if new_extremities.is_empty() {
-			return Err!("Resolved extremities cannot be empty");
+			Err!("Resolved extremity set was empty after processing incoming event")
+		} else {
+			Ok(new_extremities.into_iter().collect())
 		}
-		Ok(new_extremities.into_iter().collect())
 	}
 
 	/// Derives a new room state by adding the incoming PDU to the state before
