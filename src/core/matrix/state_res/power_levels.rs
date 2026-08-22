@@ -180,30 +180,6 @@ impl From<IntPowerLevelsContentFields> for PowerLevelsContentFields {
 	}
 }
 
-#[inline]
-pub(crate) fn deserialize_power_levels_content_fields(
-	content: &str,
-	room_version: &RoomVersionRules,
-) -> Result<PowerLevelsContentFields, Error> {
-	if room_version.authorization.integer_power_levels {
-		deserialize_integer_power_levels_content_fields(content)
-	} else {
-		deserialize_legacy_power_levels_content_fields(content)
-	}
-}
-
-fn deserialize_integer_power_levels_content_fields(
-	content: &str,
-) -> Result<PowerLevelsContentFields, Error> {
-	from_json_str::<IntPowerLevelsContentFields>(content).map(Into::into)
-}
-
-fn deserialize_legacy_power_levels_content_fields(
-	content: &str,
-) -> Result<PowerLevelsContentFields, Error> {
-	from_json_str(content)
-}
-
 #[derive(Deserialize)]
 pub(crate) struct PowerLevelsContentInvite {
 	#[serde(default, deserialize_with = "deserialize_v1_powerlevel")]
