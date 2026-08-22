@@ -4,17 +4,13 @@
 
 - Added new health tracking to monitor the health of remote servers and intelligently back-off federation globally with automatic stale re-resolution.
   ([#2097](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2097))
-- Added [MSC4354](https://github.com/matrix-org/matrix-spec-proposals/pull/4354) sticky events, behind the `allow_sticky_events` config option. Contributed by @eleboucher.
-- Added [MSC4480](https://github.com/matrix-org/matrix-spec-proposals/pull/4480) sticky events to simplified sliding sync. Contributed by @eleboucher.
-- Added scoped typing updates to simplified Sliding Sync ([MSC4508](https://github.com/matrix-org/matrix-spec-proposals/pull/4508)). Contributed by @eleboucher.
-- Fixed [MSC4323](https://github.com/matrix-org/matrix-spec-proposals/pull/4323) suspend/lock admin endpoints: the lock endpoint now locks instead of suspending users, and error codes match the
-  ratified spec. Contributed by @eleboucher.
+- Added [MSC4354](https://github.com/matrix-org/matrix-spec-proposals/pull/4354) sticky events (and [MSC4480](https://github.com/matrix-org/matrix-spec-proposals/pull/4480) for sliding sync), behind the `allow_sticky_events` config option. Contributed by @eleboucher.
+- Added scoped typing updates to Simplified Sliding Sync ([MSC4508](https://github.com/matrix-org/matrix-spec-proposals/pull/4508)). Contributed by @eleboucher.
+- Added [MSC4186](https://github.com/matrix-org/matrix-spec-proposals/pull/4186) direct, encrypted, and room-type list filters to Simplified Sliding Sync, resolving invited rooms from their stripped invite state. Contributed by
+  @eleboucher.
 
 ## Bugfixes
 
-- Fixed a vulnerability that enabled the server to leak certain events over federation. Contributed by @eleboucher. (SEC26)
-- Fixed an issue that allowed an attacker to take over another account on the same server under certain conditions.
-  ([GHSA-v2x6-m99h-vqxx](https://github.com/continuwuity/continuwuity/security/advisories/GHSA-v2x6-m99h-vqxx)) Contributed by @gingershaped and reported by GlitchedAxiom. (SEC28)
 - Re-introduced admin room registration alerts that were accidentally removed in the OAuth2 update. ([#2057](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2057))
 - Fixed federation PDUs received during remote joins being dropped before their room state was available. Contributed by @eleboucher.
   ([#2063](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2063))
@@ -32,8 +28,6 @@
   Contributed by @nex. ([#2137](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2137))
 - Fixed event tracking forgetting to mark soft-failed/rejected events as referenced, which caused a build-up of incorrectly unreferenced events, triggering frequent dummy squashes and associated state
   resets. ([#2164](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2164))
-- Added [MSC4186](https://github.com/matrix-org/matrix-spec-proposals/pull/4186) direct, encrypted, and room-type list filters, resolving invited rooms from their stripped invite state. Contributed by
-  @eleboucher.
 - Fixed left/banned rooms sometimes not coming down sync.
 - Fixed local events dropping forward extremities they did not reference. Contributed by @eleboucher.
 - Fixed missed wake-ups and stale responses in legacy and sliding sync long polls. Contributed by @eleboucher.
@@ -42,6 +36,8 @@
 - Fixed sync loops being woken before membership changes are fully committed.
 - Fixed typing notifications not interrupting a sync long poll. Contributed by @eleboucher.
 - Preserve all users' read receipts when batching room receipt updates.
+- Fixed [MSC4323](https://github.com/matrix-org/matrix-spec-proposals/pull/4323) suspend/lock admin endpoints: the lock endpoint now locks instead of suspending users, and error codes match the
+  ratified spec. Contributed by @eleboucher.
 
 ## Improved Documentation
 
@@ -60,7 +56,7 @@
 
 ## Misc
 
-- #2033
+- Updated admin command names (list-users -> list, list-rooms -> list, and reload-mods -> reload), old names are now aliases. Contributed by @PerformativeJade ([#2033](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2033))
 - Updated Ruma dependencies. Contributed by @eleboucher.
 
 # Continuwuity 26.7.3 (2026-08-11)

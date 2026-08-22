@@ -6,3 +6,5 @@ publish = false
 
 sign-commit = true
 sign-tag = true
+
+pre-release-hook = [ "sh", "-c", "$WORKSPACE_ROOT/bin/release-script" ]

@@ -1,4 +1,5 @@
-#!/bin/python3
+#!/usr/bin/env python3
+
 """
 Nexy's magic changelog linkifier script! Linkify that changelog! Make it clickable!
 The masses LOVE being able to click things!
