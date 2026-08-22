@@ -4,7 +4,8 @@
 # It updates the changelog as necessary.
 
 set -euo pipefail
+cd $WORKSPACE_ROOT
 
 towncrier build --name Continuwuity --version $NEW_VERSION --date "$(date -I)"
 
-./linkify-changelog.py
+"`dirname $0`"/linkify-changelog.py

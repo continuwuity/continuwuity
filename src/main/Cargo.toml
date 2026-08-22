@@ -11,6 +11,9 @@ repository.workspace = true
 version.workspace = true
 metadata.crane.workspace = true
 
+[package.metadata.release]
+pre-release-hook = [ "sh", "-c", "$WORKSPACE_ROOT/bin/release-script" ]
+
 [lib]
 path = "mod.rs"
 crate-type = [
