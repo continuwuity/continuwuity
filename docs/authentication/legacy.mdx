@@ -1,3 +1,5 @@
+import { Tab, Tabs } from '@rspress/core/theme';
+
 # Legacy Authentication
 
 ## Registration
@@ -6,9 +8,41 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 
 ### Admin-issued tokens (recommended)
 
+Homeserver admins can generate short-lived or single-use tokens from the admin room. This is the recommended method for private or invite-only homeservers, and requires no extra configuration.
+
+See the [`!admin token issue`](../reference/admin/token.md) command for further details.
+
 ### Static token
+
+Static tokens allow users to provide a shared secret upon registration. It can be set via the following two ways:
+
+<Tabs groupId="static-token-methods">
+<Tab label="In the config file">
+
+```toml title="continuwuity.toml"
+allow_registration = true
+registration_token  = "o&^uCtes4HPf0Vu@F20jQeeWE7"
+```
+
+</Tab>
+<Tab label="Read from a file">
+
+```toml title="continuwuity.toml"
+allow_registration = true
+registration_token_file  = "/etc/secrets/.registration_token"
+```
+
+```txt title="/etc/secrets/.registration_token"
+o&^uCtes4HPf0Vu@F20jQeeWE7
+```
+
+</Tab>
+</Tabs>
+
+When both options are set, `registration_token_file` takes priority.
+
+Please note that the static token does not follow any limited time scope or usage scope.
 
 ### reCAPTCHA
 
 ## Email verification
-
