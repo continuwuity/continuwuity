@@ -6,6 +6,6 @@
 set -euo pipefail
 cd $WORKSPACE_ROOT
 
-towncrier build --name Continuwuity --version $NEW_VERSION --date "$(date -I)"
+towncrier build --name Continuwuity --version v$NEW_VERSION --date "$(date -I)"
 
 "`dirname $0`"/linkify-changelog.py

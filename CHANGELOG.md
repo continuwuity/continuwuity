@@ -1,4 +1,4 @@
-# Continuwuity 26.8.1 (2026-08-22)
+# Continuwuity v26.8.1 (2026-08-22)
 
 No significant changes.
 
