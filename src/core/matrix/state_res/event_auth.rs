@@ -934,7 +934,7 @@ where
 						);
 						false
 					} else {
-						let allow = sender_power < effective_power_levels.invite;
+						let allow = sender_power >= effective_power_levels.invite;
 						if allow {
 							warn!(
 								%sender,
@@ -988,11 +988,11 @@ where
 				// level is less than the ban level, reject. If the sender's power level is
 				// greater than or equal to the kick level, and the target user's power level is
 				// less than the sender's power level, allow.
-				let can_unban = target_user_current_membership == MembershipState::Ban
+				let cannot_unban = target_user_current_membership == MembershipState::Ban
 					&& sender_power < effective_power_levels.ban;
 				let can_kick =
 					sender_power >= effective_power_levels.kick && target_power < sender_power;
-				if !can_unban {
+				if cannot_unban {
 					warn!(
 						%sender,
 						?target_user_membership_event_id,
