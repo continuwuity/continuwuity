@@ -1,1 +1,0 @@
-Refactor TURN docs and remove unsafe setups. Polish LiveKit docs. Add guidance for TURNS-over-443 multiplexing for both LiveKit and legacy calls. Contributed by @stratself
