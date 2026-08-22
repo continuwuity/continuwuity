@@ -2,10 +2,11 @@ use std::{
 	borrow::Borrow,
 	collections::{BTreeMap, HashMap, HashSet, VecDeque},
 	iter::once,
+	ops::Not,
 	sync::Arc,
 	time::Instant,
 };
-use std::ops::Not;
+
 use conduwuit::{
 	Err, Result, debug, debug_warn,
 	matrix::{Event, PduEvent},
@@ -165,7 +166,7 @@ impl super::Service {
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
 		state_before: HashMap<u64, OwnedEventId>,
-		forward_extremities: Vec<OwnedEventId>,
+		current_extremities: Vec<OwnedEventId>,
 		state_lock: &Guard<OwnedRoomId, ()>,
 	) -> Result<Vec<OwnedEventId>> {
 		if incoming_pdu.state_key().is_some() {
@@ -178,7 +179,7 @@ impl super::Service {
 		trace!("Calculating extremities");
 		// Start with the current extremity set, to avoid dropping unreferenced events.
 		let mut new_extremities: HashSet<OwnedEventId> =
-			forward_extremities.iter().cloned().collect();
+			current_extremities.into_iter().collect();
 		// Add the incoming event
 		new_extremities.insert(incoming_pdu.event_id().to_owned());
 		// Remove any extremities that have since been referenced but not removed(?)
@@ -243,15 +244,15 @@ impl super::Service {
 
 		debug!(
 			"Retained {} extremities against {} prev_events in {:?}",
-			forward_extremities.len(),
+			new_extremities.len(),
 			incoming_pdu.prev_events().count(),
 			start.elapsed(),
 		);
-		debug_assert!(!forward_extremities.is_empty(), "resolved extremities cannot be empty");
-		if forward_extremities.is_empty() {
+		debug_assert!(!new_extremities.is_empty(), "resolved extremities cannot be empty");
+		if new_extremities.is_empty() {
 			return Err!("Resolved extremities cannot be empty");
 		}
-		Ok(forward_extremities)
+		Ok(new_extremities.into_iter().collect())
 	}
 
 	/// Derives a new room state by adding the incoming PDU to the state before
