@@ -280,7 +280,7 @@ impl Service {
 			.request_async(client)
 			.await
 			.map_err(|err| {
-				error!("Failed to exchange OIDC authorization code: {err}");
+				error!(error=?err, "Failed to exchange OIDC authorization code");
 				"Code exchange failed."
 			})?;
 
