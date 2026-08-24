@@ -1,0 +1,1 @@
+Fixed simplified sliding sync omitting device list updates for rooms with only timeline changes. Contributed by @eleboucher.

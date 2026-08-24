@@ -1432,12 +1432,10 @@ where
 			.await
 			.is_ok();
 
-		if let Some(since_shortstatehash) = since_shortstatehash {
-			// Skip if there are only timeline changes
-			if since_shortstatehash == current_shortstatehash {
-				continue;
-			}
-
+		// Skip the state diff only: `room_keys_changed` below must run for every room.
+		if let Some(since_shortstatehash) =
+			since_shortstatehash.filter(|since| *since != current_shortstatehash)
+		{
 			let since_encryption = services
 				.rooms
 				.state_accessor
