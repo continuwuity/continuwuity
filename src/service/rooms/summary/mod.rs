@@ -127,7 +127,7 @@ impl Service {
 		let (mut summary, inaccessible_children) = {
 			if let Some(summary) = self.build_local_room_summary(room_id).await {
 				// We have this room locally.
-				let children_state = self.get_space_child_events(room_id).await;
+				let children_state = self.get_space_child_events(room_id, suggested_only).await;
 
 				// All of the room's children are accessible to this server (because we have the
 				// full room and its state), although some of them may not be accessible to
@@ -315,7 +315,7 @@ impl Service {
 		}
 
 		let children_state = if matches!(summary.room_type.as_ref(), Some(RoomType::Space)) {
-			self.get_space_child_events(room_id).await
+			self.get_space_child_events(room_id, suggested_only).await
 		} else {
 			vec![]
 		};
@@ -324,8 +324,6 @@ impl Service {
             .iter()
             // Ignore deserialization failures
             .flat_map(Raw::deserialize)
-            // Filter out non-suggested children if suggested_only is set
-            .filter(|child| !suggested_only || child.content.suggested)
             // Fetch summaries for the children in parallel
             .stream()
             .broad_then(async |child| {
@@ -490,6 +488,7 @@ impl Service {
 	async fn get_space_child_events(
 		&self,
 		room_id: &RoomId,
+		suggested_only: bool,
 	) -> Vec<Raw<HierarchySpaceChildEvent>> {
 		let current_shortstatehash = self
 			.services
@@ -515,6 +514,10 @@ impl Service {
 				};
 
 				if content.via.is_empty() {
+					return None;
+				}
+
+				if suggested_only && !content.suggested {
 					return None;
 				}
 
