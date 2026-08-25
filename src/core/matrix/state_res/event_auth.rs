@@ -935,24 +935,25 @@ where
 						false
 					} else {
 						let allow = sender_power >= effective_power_levels.invite;
-						if allow {
+						if !allow {
 							warn!(
 								%sender,
 								has=?sender_power,
 								required=?effective_power_levels.invite,
 								"sender does not have enough power to produce invites",
 							);
+						} else {
+							trace!(
+								%sender,
+								?sender_membership_event_id,
+								?sender_membership,
+								?target_user_membership_event_id,
+								?target_user_current_membership,
+								sender_pl=?sender_power,
+								required_pl=?effective_power_levels.invite,
+								"allowing invite"
+							);
 						}
-						trace!(
-							%sender,
-							?sender_membership_event_id,
-							?sender_membership,
-							?target_user_membership_event_id,
-							?target_user_current_membership,
-							sender_pl=?sender_power,
-							required_pl=?effective_power_levels.invite,
-							"allowing invite"
-						);
 						allow
 					},
 			}
