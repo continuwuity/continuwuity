@@ -2749,6 +2749,18 @@ pub struct OidcConfig {
 	#[serde(default)]
 	pub additional_scopes: Vec<Scope>,
 
+	/// The name of the identity provider. If this is set, the login page's
+	/// button reads "Continue with <name>" instead of just "Continue".
+	///
+	/// example: "Kanidm"
+	pub provider_name: Option<String>,
+
+	/// The URL of an icon for the identity provider, shown on the login page
+	/// next to its name.
+	///
+	/// example: "https://idm.example.com/pkg/img/logo-square.svg"
+	pub provider_icon: Option<Url>,
+
 	/// Whether the user should be prompted to choose a localpart
 	/// when signing in for the first time. If this is `false`, Continuwuity
 	/// will attempt to use the value of the `preferred_username_claim`

@@ -7,6 +7,18 @@
     }
 }
 
+a.button.provider-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5em;
+}
+
+.provider-icon {
+    flex: none;
+    height: 2em;
+}
+
 .text-rule {
     display: flex;
     align-items: center;

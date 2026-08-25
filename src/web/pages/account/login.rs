@@ -61,6 +61,8 @@ enum LoginType {
 	},
 	Oidc {
 		redirect_url: Url,
+		provider_name: Option<String>,
+		provider_icon: Option<Url>,
 	},
 }
 
@@ -98,7 +100,11 @@ async fn route_login(
 			.await
 			.expect("should be able to serialize OIDC session");
 
-		LoginType::Oidc { redirect_url }
+		LoginType::Oidc {
+			redirect_url,
+			provider_name: services.oidc.provider_name(),
+			provider_icon: services.oidc.provider_icon(),
+		}
 	} else {
 		LoginType::Interactive {
 			registration_available: services

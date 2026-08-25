@@ -219,6 +219,18 @@ impl Service {
 
 	pub fn enabled(&self) -> bool { self.client.is_some() }
 
+	pub fn provider_name(&self) -> Option<String> {
+		let OidcClient { config, .. } = self.client.as_ref().expect("oidc should be configured");
+
+		config.provider_name.clone()
+	}
+
+	pub fn provider_icon(&self) -> Option<Url> {
+		let OidcClient { config, .. } = self.client.as_ref().expect("oidc should be configured");
+
+		config.provider_icon.clone()
+	}
+
 	pub fn restricted_profile_fields(&self) -> Vec<ProfileFieldName> {
 		if let Some(config) = self.client.as_ref().map(|client| &client.config)
 			&& matches!(config.profile_key_import_mode, OidcProfileKeyImportMode::OnLogin)

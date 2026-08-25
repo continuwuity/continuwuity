@@ -8,6 +8,19 @@
 Log in
 {%- endblock -%}
 
+{%- macro oidc_button(redirect_url, provider_name, provider_icon) -%}
+<a class="button provider-button" href="{{ redirect_url }}">
+    {% if let Some(icon) = provider_icon %}
+        <img class="provider-icon" src="{{ icon }}" alt="" aria-hidden="true">
+    {% endif %}
+    {% if let Some(name) = provider_name %}
+        Continue with {{ name }}
+    {% else %}
+        Continue
+    {% endif %}
+</a>
+{%- endmacro -%}
+
 {%- block content -%}
 {% match login_type %}
     {% when LoginType::Interactive { .. } %}
@@ -54,8 +67,8 @@ Log in
                         {% endif %}
                         <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
                     </div>
-                {% when LoginType::Oidc { redirect_url } %}
-                    <a class="button" href="{{ redirect_url }}">Continue</a>
+                {% when LoginType::Oidc { redirect_url, provider_name, provider_icon } %}
+                    {{ oidc_button(redirect_url, provider_name, provider_icon) }}
             {% endmatch %}
         {% when LoginBody::Authenticated { user_card } %}
             <h1>Confirm your identity</h1>
@@ -76,8 +89,8 @@ Log in
                     <div class="centered-links">
                         <a href="{{ crate::ROUTE_PREFIX }}/account/password/reset/">Forgot your password?</a>
                     </div>
-                {% when LoginType::Oidc { redirect_url } %}
-                    <a class="button" href="{{ redirect_url }}">Continue</a>
+                {% when LoginType::Oidc { redirect_url, provider_name, provider_icon } %}
+                    {{ oidc_button(redirect_url, provider_name, provider_icon) }}
             {% endmatch %}
     {% endmatch %}
 </div>
