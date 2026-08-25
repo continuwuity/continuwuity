@@ -104,7 +104,7 @@ pub type ProcessorFuture = Pin<Box<dyn Future<Output = ProcessorResult> + Send>>
 /// events which have digested any prior errors. The wrapping preserves whether
 /// the command failed without interpreting the text. Ok(None) outputs are
 /// dropped to produce no response.
-pub type ProcessorResult = Result<Option<CommandOutput>, CommandOutput>;
+pub type ProcessorResult = Result<Option<Box<CommandOutput>>, Box<CommandOutput>>;
 
 /// Alias for the output structure.
 pub type CommandOutput = RoomMessageEventContent;
@@ -204,7 +204,7 @@ impl Service {
 				.text_to_file(message_content.body())
 				.await
 				.expect("failed to create text file");
-			let size_u64: u64 = message_content.body().len().try_into().map_or(0, |n| n);
+			let size_u64: u64 = message_content.body().len().try_into().unwrap_or(0);
 
 			let mut metadata = FileInfo::new();
 			metadata.mimetype = Some("text/markdown".to_owned());
@@ -365,7 +365,7 @@ impl Service {
 		match self.process_command(command).await {
 			| Ok(None) => debug!("Command successful with no response"),
 			| Ok(Some(output)) | Err(output) => self
-				.handle_response(output)
+				.handle_response(*output)
 				.await
 				.unwrap_or_else(default_log),
 		}

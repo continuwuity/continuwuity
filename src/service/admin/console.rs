@@ -49,12 +49,14 @@ impl Console {
 		}
 	}
 
-	pub async fn start(self: &Arc<Self>) {
+	pub fn start(self: &Arc<Self>) -> impl Future<Output = ()> {
 		let mut worker_join = self.worker_join.lock();
 		if worker_join.is_none() {
 			let self_ = Arc::clone(self);
 			_ = worker_join.insert(self.server.runtime().spawn(self_.worker()));
 		}
+
+		std::future::ready(())
 	}
 
 	pub async fn close(self: &Arc<Self>) {

@@ -61,7 +61,7 @@ enum TransactionStatus {
 	Retrying(u32),        // number of times failed
 }
 
-type SendingError = (Destination, Error);
+type SendingError = (Destination, Box<Error>);
 type SendingResult = Result<Destination, SendingError>;
 type SendingFuture<'a> = BoxFuture<'a, SendingResult>;
 type SendingFutures<'a> = FuturesUnordered<SendingFuture<'a>>;
@@ -779,7 +779,7 @@ impl Service {
 		let Some(appservice) = self.services.appservice.get_registration(&id).await else {
 			return Err((
 				Destination::Appservice(id.clone()),
-				err!(Database(warn!(?id, "Missing appservice registration"))),
+				Box::new(err!(Database(warn!(?id, "Missing appservice registration")))),
 			));
 		};
 
@@ -827,7 +827,7 @@ impl Service {
 
 		match self.send_appservice_request(appservice, request).await {
 			| Ok(_) => Ok(Destination::Appservice(id)),
-			| Err(e) => Err((Destination::Appservice(id), e)),
+			| Err(e) => Err((Destination::Appservice(id), Box::new(e))),
 		}
 	}
 
@@ -848,7 +848,7 @@ impl Service {
 		let Ok(pusher) = self.services.pusher.get_pusher(&user_id, &pushkey).await else {
 			return Err((
 				Destination::Push(user_id.clone(), pushkey.clone()),
-				err!(Database(error!(%user_id, ?pushkey, "Missing pusher"))),
+				Box::new(err!(Database(error!(%user_id, ?pushkey, "Missing pusher")))),
 			));
 		};
 
@@ -990,17 +990,17 @@ impl Service {
 		}
 
 		match result {
-			| Err(error) => Err((Destination::Federation(server), error)),
+			| Err(error) => Err((Destination::Federation(server), Box::new(error))),
 			| Ok(_) => Ok(Destination::Federation(server)),
 		}
 	}
 
 	/// Converts and sanitises an outgoing PDU object for federation
 	/// transmission.
-	pub async fn convert_to_outgoing_federation_event(
+	pub fn convert_to_outgoing_federation_event(
 		&self,
 		mut pdu_json: CanonicalJsonObject,
-	) -> Box<RawJsonValue> {
+	) -> impl Future<Output = Box<RawJsonValue>> {
 		if let Some(unsigned) = pdu_json
 			.get_mut("unsigned")
 			.and_then(|val| val.as_object_mut())
@@ -1012,6 +1012,8 @@ impl Service {
 		// so we can safely remove it here.
 		pdu_json.remove("event_id");
 
-		to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value")
+		std::future::ready(
+			to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value"),
+		)
 	}
 }

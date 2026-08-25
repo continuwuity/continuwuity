@@ -331,14 +331,14 @@ impl CheckAuth for AppserviceTokenOptional {
 impl CheckAuth for NoAuthentication {
 	type Identity = ();
 
-	async fn verify<B: AsRef<[u8]> + Sync>(
+	fn verify<B: AsRef<[u8]> + Sync>(
 		_services: &Services,
 		_output: Self::Output,
 		_request: &hyper::Request<B>,
 		_query: AuthQueryParams,
 		_route: TypeId,
-	) -> Result<Self::Identity> {
-		Ok(())
+	) -> impl Future<Output = Result<Self::Identity>> {
+		std::future::ready(Ok(()))
 	}
 }
 

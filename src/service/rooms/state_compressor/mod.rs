@@ -136,14 +136,14 @@ impl Service {
 
 	/// Returns a stack with info on shortstatehash, full state, added diff and
 	/// removed diff for the selected shortstatehash and each parent layer.
-	async fn cache_shortstatehash_info(
+	fn cache_shortstatehash_info(
 		&self,
 		shortstatehash: ShortStateHash,
 		stack: ShortStateInfoVec,
-	) -> Result {
+	) -> impl Future<Output = Result> {
 		self.stateinfo_cache.lock().insert(shortstatehash, stack);
 
-		Ok(())
+		std::future::ready(Ok(()))
 	}
 
 	/// Inserts a new shortstatehash info entry.

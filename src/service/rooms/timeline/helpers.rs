@@ -82,8 +82,7 @@ impl super::Service {
 				))));
 			},
 			| StateEventType::RoomServerAcl =>
-				self.assert_allowed_to_send_room_server_acl_event(room_id, json)
-					.await?,
+				self.assert_allowed_to_send_room_server_acl_event(room_id, json)?,
 			| StateEventType::RoomEncryption =>
 			// Forbid m.room.encryption if encryption is disabled
 				if !self.services.config.allow_encryption {
@@ -109,7 +108,7 @@ impl super::Service {
 		Ok(())
 	}
 
-	async fn assert_allowed_to_send_room_server_acl_event(
+	fn assert_allowed_to_send_room_server_acl_event(
 		&self,
 		room_id: &RoomId,
 		json: &Raw<AnyStateEventContent>,

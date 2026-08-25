@@ -49,18 +49,22 @@ pub struct UrlPreviewData {
 }
 
 impl Service {
-	pub async fn remove_url_preview(&self, url: &str) -> Result<()> {
+	pub fn remove_url_preview(&self, url: &str) -> impl Future<Output = Result<()>> {
 		// TODO: also remove the downloaded image
-		self.db.remove_url_preview(url)
+		std::future::ready(self.db.remove_url_preview(url))
 	}
 
 	pub async fn clear_url_previews(&self) { self.db.clear_url_previews().await; }
 
-	pub async fn set_url_preview(&self, url: &str, data: &UrlPreviewData) -> Result<()> {
+	pub fn set_url_preview(
+		&self,
+		url: &str,
+		data: &UrlPreviewData,
+	) -> impl Future<Output = Result<()>> {
 		let now = SystemTime::now()
 			.duration_since(SystemTime::UNIX_EPOCH)
 			.expect("valid system time");
-		self.db.set_url_preview(url, data, now)
+		std::future::ready(self.db.set_url_preview(url, data, now))
 	}
 
 	pub async fn get_url_preview(&self, url: &Url) -> Result<UrlPreviewData> {

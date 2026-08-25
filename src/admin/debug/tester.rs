@@ -11,6 +11,7 @@ pub enum TesterCommand {
 	Timer,
 }
 
+#[allow(clippy::unused_async_trait_impl)]
 impl crate::Context<'_> {
 	#[rustfmt::skip]
 	async fn panic(&self) -> Result {

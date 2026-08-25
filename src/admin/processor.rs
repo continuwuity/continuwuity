@@ -49,7 +49,7 @@ async fn handle_command(services: Arc<Services>, command: CommandInput) -> Proce
 
 async fn process_command(services: Arc<Services>, input: &CommandInput) -> ProcessorResult {
 	let (command, args, body) = match parse(&services, input) {
-		| Err(error) => return Err(error),
+		| Err(error) => return Err(Box::new(error)),
 		| Ok(parsed) => parsed,
 	};
 
@@ -72,18 +72,26 @@ async fn process_command(services: Arc<Services>, input: &CommandInput) -> Proce
 		String::from_utf8(take(output.get_mut())).expect("invalid utf8 in command output stream");
 
 	match result {
-		| Ok(()) if logs.is_empty() =>
-			Ok(Some(reply(RoomMessageEventContent::notice_markdown(output), context.reply_id))),
+		| Ok(()) if logs.is_empty() => Ok(Some(Box::new(reply(
+			RoomMessageEventContent::notice_markdown(output),
+			context.reply_id,
+		)))),
 
 		| Ok(()) => {
 			logs.write_str(output.as_str()).expect("output buffer");
-			Ok(Some(reply(RoomMessageEventContent::notice_markdown(logs), context.reply_id)))
+			Ok(Some(Box::new(reply(
+				RoomMessageEventContent::notice_markdown(logs),
+				context.reply_id,
+			))))
 		},
 		| Err(error) => {
 			write!(&mut logs, "Command failed with error:\n```\n{error:#?}\n```")
 				.expect("output buffer");
 
-			Err(reply(RoomMessageEventContent::notice_markdown(logs), context.reply_id))
+			Err(Box::new(reply(
+				RoomMessageEventContent::notice_markdown(logs),
+				context.reply_id,
+			)))
 		},
 	}
 }
@@ -94,7 +102,7 @@ fn handle_panic(error: &Error, command: &CommandInput) -> ProcessorResult {
 	let msg = format!("Panic occurred while processing command:\n```\n{error:#?}\n```\n{link}");
 	let content = RoomMessageEventContent::notice_markdown(msg);
 	error!("Panic while processing command: {error:?}");
-	Err(reply(content, command.reply_id.as_deref()))
+	Err(Box::new(reply(content, command.reply_id.as_deref())))
 }
 
 /// Parse and process a message from the admin room

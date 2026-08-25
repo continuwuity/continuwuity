@@ -68,8 +68,7 @@ pub(crate) async fn update_device_route(
 
 			services
 				.users
-				.update_device_metadata(sender_user, &body.device_id, &device)
-				.await?;
+				.update_device_metadata(sender_user, &body.device_id, &device)?;
 
 			Ok(update_device::v3::Response::new())
 		},

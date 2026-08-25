@@ -48,8 +48,10 @@ impl Data {
 			.map_err(|_| err!(Request(NotFound("auth_chain not found"))))?;
 
 		let chain = chain
-			.chunks_exact(size_of::<u64>())
-			.map(utils::u64_from_u8)
+			.as_chunks::<{ size_of::<u64>() }>()
+			.0
+			.iter()
+			.map(|s| utils::u64_from_u8(s))
 			.collect::<Arc<[u64]>>();
 
 		// Cache in RAM

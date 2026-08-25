@@ -104,12 +104,15 @@ where
 {
 	type Rejection = ClientIpError;
 
-	async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-		Self::for_config(
+	fn from_request_parts(
+		parts: &mut Parts,
+		state: &S,
+	) -> impl Future<Output = Result<Self, Self::Rejection>> {
+		std::future::ready(Self::for_config(
 			parts,
 			&state.config.accepted_ip_sources,
 			state.config.request_ip_source.as_ref(),
-		)
+		))
 	}
 }
 
