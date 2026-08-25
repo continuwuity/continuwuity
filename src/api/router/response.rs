@@ -3,7 +3,7 @@ use bytes::BytesMut;
 use conduwuit::{Error, error};
 use http::StatusCode;
 use http_body_util::Full;
-use ruma::api::{OutgoingResponse, client::uiaa::UiaaResponse};
+use ruma::api::{OutgoingResponse, OutgoingResponseExt, client::uiaa::UiaaResponse};
 
 pub(crate) struct RumaResponse<T>(pub(crate) T)
 where

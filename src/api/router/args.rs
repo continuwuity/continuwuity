@@ -6,7 +6,10 @@ use axum::{
 	extract::{FromRequest, Path, Query},
 };
 use conduwuit::{Error, Result, err};
-use ruma::{CanonicalJsonObject, api::IncomingRequest};
+use ruma::{
+	CanonicalJsonObject,
+	api::{IncomingRequest, IncomingRequestExt},
+};
 use serde::Deserialize;
 
 use crate::{State, router::auth::CheckAuth};
@@ -82,18 +85,18 @@ where
 
 		// Extract the query parameters and path
 		let Path(path): Path<Vec<String>> = parts.extract().await?;
+		let borrowed_path: Vec<_> = path.iter().map(String::as_str).collect();
 		let Query(auth_query): Query<AuthQueryParams> = parts.extract().await?;
 
 		// Assemble a new request from the read body and parts
-		let request = hyper::Request::from_parts(parts, body);
+		let request = hyper::Request::from_parts(parts, body.as_ref());
 
 		// Check authentication
 		let auth =
-			R::Authentication::authenticate::<R, bytes::Bytes>(services, &request, auth_query)
-				.await?;
+			R::Authentication::authenticate::<R, &[u8]>(services, &request, auth_query).await?;
 
 		// Deserialize the body
-		let body = R::try_from_http_request(request, &path)
+		let body = R::try_from_http_request(request, &borrowed_path)
 			.map_err(|e| err!(Request(BadJson(debug_warn!("{e}")))))?;
 
 		Ok(Self { body, json_body, identity: auth })

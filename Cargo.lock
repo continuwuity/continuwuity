@@ -1203,6 +1203,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 
 [[package]]
+name = "const-oid"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a6ef517f0926dd24a1582492c791b6a4818a4d94e789a334894aa15b0d12f55c"
+
+[[package]]
 name = "const-str"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1485,7 +1491,23 @@ dependencies = [
  "cpufeatures 0.2.17",
  "curve25519-dalek-derive",
  "digest 0.10.7",
- "fiat-crypto",
+ "fiat-crypto 0.2.9",
+ "rustc_version",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "curve25519-dalek"
+version = "5.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5eed333089e2e1c1ac8c6c0398e5e2497b4c9926ca6d0365ed1e099afa5bc23"
+dependencies = [
+ "cfg-if",
+ "cpufeatures 0.3.0",
+ "curve25519-dalek-derive",
+ "digest 0.11.3",
+ "fiat-crypto 0.3.0",
  "rustc_version",
  "subtle",
  "zeroize",
@@ -1570,8 +1592,18 @@ version = "0.7.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e7c1832837b905bbfb5101e07cc24c8deddf52f93225eee6ead5f4d63d53ddcb"
 dependencies = [
- "const-oid",
+ "const-oid 0.9.6",
  "pem-rfc7468",
+ "zeroize",
+]
+
+[[package]]
+name = "der"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a69dedd701da44b0536442edf09c81a64b0ab97a7a4a5e3d1971f00027cbc63d"
+dependencies = [
+ "const-oid 0.10.2",
  "zeroize",
 ]
 
@@ -1613,7 +1645,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer 0.10.4",
- "const-oid",
+ "const-oid 0.9.6",
  "crypto-common 0.1.6",
  "subtle",
 ]
@@ -1625,6 +1657,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1dd6dbb5841937940781866fa1281a1ff7bd3bf827091440879f9994983d5c2"
 dependencies = [
  "block-buffer 0.12.1",
+ "const-oid 0.10.2",
  "crypto-common 0.2.2",
  "ctutils",
 ]
@@ -1686,12 +1719,12 @@ version = "0.16.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ee27f32b5c5292967d2d4a9d7f1e0b0aed2c15daded5a60300e4abb9d8020bca"
 dependencies = [
- "der",
+ "der 0.7.10",
  "digest 0.10.7",
  "elliptic-curve",
  "rfc6979",
- "signature",
- "spki",
+ "signature 2.2.0",
+ "spki 0.7.3",
 ]
 
 [[package]]
@@ -1700,8 +1733,18 @@ version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "115531babc129696a58c64a4fef0a8bf9e9698629fb97e9e40767d235cfbcd53"
 dependencies = [
- "pkcs8",
- "signature",
+ "pkcs8 0.10.2",
+ "signature 2.2.0",
+]
+
+[[package]]
+name = "ed25519"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "29fcf32e6c73d1079f83ab4d782de2d81620346a5f38c6237a86a22f8368980a"
+dependencies = [
+ "pkcs8 0.11.0",
+ "signature 3.0.0",
 ]
 
 [[package]]
@@ -1710,10 +1753,25 @@ version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "70e796c081cee67dc755e1a36a0a172b897fab85fc3f6bc48307991f64e4eca9"
 dependencies = [
- "curve25519-dalek",
- "ed25519",
+ "curve25519-dalek 4.1.3",
+ "ed25519 2.2.3",
  "serde",
  "sha2 0.10.9",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
+name = "ed25519-dalek"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ebaa1a2bf1290ab3bfe5a7b771d050ebffab2711c19a81691c683a5144a25de"
+dependencies = [
+ "curve25519-dalek 5.0.0",
+ "ed25519 3.0.0",
+ "serde",
+ "sha2 0.11.0",
+ "signature 3.0.0",
  "subtle",
  "zeroize",
 ]
@@ -1741,7 +1799,7 @@ dependencies = [
  "group",
  "hkdf",
  "pem-rfc7468",
- "pkcs8",
+ "pkcs8 0.10.2",
  "rand_core 0.6.4",
  "sec1",
  "subtle",
@@ -1847,6 +1905,12 @@ name = "fiat-crypto"
 version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28dea519a9695b9977216879a3ebfddf92f1c08c05d984f8996aecd6ecdc811d"
+
+[[package]]
+name = "fiat-crypto"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64cd1e32ddd350061ae6edb1b082d7c54915b5c672c389143b9a63403a109f24"
 
 [[package]]
 name = "figment"
@@ -3654,7 +3718,7 @@ dependencies = [
  "base64 0.21.7",
  "chrono",
  "dyn-clone",
- "ed25519-dalek",
+ "ed25519-dalek 2.2.0",
  "hmac 0.12.1",
  "http",
  "itertools 0.10.5",
@@ -3974,9 +4038,9 @@ version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8ffb9f10fa047879315e6625af03c164b16962a5368d724ed16323b68ace47f"
 dependencies = [
- "der",
- "pkcs8",
- "spki",
+ "der 0.7.10",
+ "pkcs8 0.10.2",
+ "spki 0.7.3",
 ]
 
 [[package]]
@@ -3985,8 +4049,18 @@ version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f950b2377845cebe5cf8b5165cb3cc1a5e0fa5cfa3e1f7f55707d8fd82e0a7b7"
 dependencies = [
- "der",
- "spki",
+ "der 0.7.10",
+ "spki 0.7.3",
+]
+
+[[package]]
+name = "pkcs8"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "451913da69c775a56034ea8d9003d27ee8948e12443eae7c038ba100a4f21cb7"
+dependencies = [
+ "der 0.8.1",
+ "spki 0.8.0",
 ]
 
 [[package]]
@@ -4556,16 +4630,16 @@ version = "0.9.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b8573f03f5883dcaebdfcf4725caa1ecb9c15b2ef50c43a07b816e06799bb12d"
 dependencies = [
- "const-oid",
+ "const-oid 0.9.6",
  "digest 0.10.7",
  "num-bigint-dig",
  "num-integer",
  "num-traits",
  "pkcs1",
- "pkcs8",
+ "pkcs8 0.10.2",
  "rand_core 0.6.4",
- "signature",
- "spki",
+ "signature 2.2.0",
+ "spki 0.7.3",
  "subtle",
  "zeroize",
 ]
@@ -4573,7 +4647,7 @@ dependencies = [
 [[package]]
 name = "ruma"
 version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "assign",
  "js_int",
@@ -4592,8 +4666,9 @@ dependencies = [
 [[package]]
 name = "ruma-appservice-api"
 version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
+ "http",
  "js_int",
  "ruma-common",
  "ruma-events",
@@ -4604,7 +4679,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.24.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "as_variant",
  "assign",
@@ -4626,7 +4701,7 @@ dependencies = [
 [[package]]
 name = "ruma-common"
 version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "as_variant",
  "base64 0.22.1",
@@ -4659,7 +4734,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.34.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "as_variant",
  "indexmap 2.14.0",
@@ -4680,7 +4755,7 @@ dependencies = [
 [[package]]
 name = "ruma-federation-api"
 version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "bytes",
  "headers",
@@ -4703,7 +4778,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.12.1"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "js_int",
  "thiserror 2.0.20",
@@ -4712,7 +4787,7 @@ dependencies = [
 [[package]]
 name = "ruma-macros"
 version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "as_variant",
  "cfg-if",
@@ -4721,14 +4796,14 @@ dependencies = [
  "quote",
  "ruma-identifiers-validation",
  "serde",
- "syn 2.0.119",
+ "syn 3.0.3",
  "toml 1.1.4+spec-1.1.0",
 ]
 
 [[package]]
 name = "ruma-push-gateway-api"
 version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4740,24 +4815,24 @@ dependencies = [
 [[package]]
 name = "ruma-signatures"
 version = "0.21.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "base64 0.22.1",
- "ed25519-dalek",
+ "ed25519-dalek 3.0.0",
  "memchr",
- "pkcs8",
+ "pkcs8 0.11.0",
  "rand 0.10.2",
  "ruma-common",
  "ruma-events",
  "serde_json",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "thiserror 2.0.20",
 ]
 
 [[package]]
 name = "ruma-state-res"
 version = "0.17.0"
-source = "git+https://github.com/ruma/ruma.git?rev=c1100793d2fd464be34052773360f3f3773d0fc4#c1100793d2fd464be34052773360f3f3773d0fc4"
+source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -5017,9 +5092,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d3e97a565f76233a6003f9f5c54be1d9c5bdfa3eccfb189469f11ec4901c47dc"
 dependencies = [
  "base16ct",
- "der",
+ "der 0.7.10",
  "generic-array",
- "pkcs8",
+ "pkcs8 0.10.2",
  "subtle",
  "zeroize",
 ]
@@ -5487,6 +5562,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "signature"
+version = "3.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28d567dcbaf0049cb8ac2608a76cd95ff9e4412e1899d389ee400918ca7537f5"
+
+[[package]]
 name = "simd-adler32"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5571,7 +5652,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d91ed6c858b01f942cd56b37a94b3e0a1798290327d1236e4d9cf4eaca44d29d"
 dependencies = [
  "base64ct",
- "der",
+ "der 0.7.10",
+]
+
+[[package]]
+name = "spki"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d9efca8738c78ee9484207732f728b1ef517bbb1833d6fc0879ca898a522f6f"
+dependencies = [
+ "base64ct",
+ "der 0.8.1",
 ]
 
 [[package]]

@@ -8,7 +8,7 @@ use conduwuit::{Result, utils::timepoint_from_now};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
 	api::{
-		OutgoingResponse,
+		OutgoingResponseExt,
 		federation::discovery::{OldVerifyKey, ServerSigningKeys, get_server_keys},
 	},
 	assign,
