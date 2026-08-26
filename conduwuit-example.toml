@@ -643,6 +643,9 @@
 # Enabling this setting opens registration to anyone without restrictions.
 # This makes your server vulnerable to abuse
 #
+# Only works if continuwuity was compiled from source with the
+# "openreg" compile-time feature.
+#
 #yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = false
 
 # A static registration token that new users will have to provide when
