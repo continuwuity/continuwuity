@@ -12,13 +12,13 @@ version.workspace = true
 metadata.crane.workspace = true
 
 [package.metadata.release]
-pre-release-hook = [ "sh", "-c", "$WORKSPACE_ROOT/bin/release-script" ]
+pre-release-hook = ["sh", "-c", "$WORKSPACE_ROOT/bin/release-script"]
 
 [lib]
 path = "mod.rs"
 crate-type = [
-	"rlib",
-#	"dylib",
+    "rlib",
+    #	"dylib",
 ]
 
 [package.metadata.deb]
@@ -36,37 +36,37 @@ conf-files = ["/etc/conduwuit/conduwuit.toml"]
 maintainer-scripts = "../../pkg/debian/"
 systemd-units = { unit-name = "conduwuit", start = false, unit-scripts = "../../pkg/" }
 assets = [
-	["../../pkg/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
-	["../../README.md", "usr/share/doc/conduwuit/", "644"],
-	# cargo-deb only treats the exact prefix "target/release/" as the magic
-	# path that resolves to the real build dir (e.g. target/<triple>/release
-	# when cross-compiling); a ../../ prefix would be read as a literal path
-	["target/release/conduwuit", "usr/bin/conduwuit", "755"],
-	["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
+    ["../../pkg/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
+    ["../../README.md", "usr/share/doc/conduwuit/", "644"],
+    # cargo-deb only treats the exact prefix "target/release/" as the magic
+    # path that resolves to the real build dir (e.g. target/<triple>/release
+    # when cross-compiling); a ../../ prefix would be read as a literal path
+    ["target/release/conduwuit", "usr/bin/conduwuit", "755"],
+    ["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
 ]
 
 [features]
 default = [
     "standard",
     "ring",
-	"bindgen-runtime", # replace with bindgen-static on alpine
+    "bindgen-runtime", # replace with bindgen-static on alpine
 ]
 standard = [
-	"brotli_compression",
-	"direct_tls",
-	"element_hacks",
-	"gzip_compression",
-	"io_uring",
-	"jemalloc",
-	"jemalloc_conf",
-	"journald",
-	"media_thumbnail",
-	"systemd",
-	"url_preview",
-	"zstd_compression",
+    "brotli_compression",
+    "direct_tls",
+    "element_hacks",
+    "gzip_compression",
+    "io_uring",
+    "jemalloc",
+    "jemalloc_conf",
+    "journald",
+    "media_thumbnail",
+    "systemd",
+    "url_preview",
+    "zstd_compression",
     "sentry_telemetry",
     "otlp_telemetry",
-	"console",
+    "console",
 ]
 full = [
     "standard",
@@ -77,29 +77,29 @@ full = [
 ]
 
 brotli_compression = [
-	"conduwuit-api/brotli_compression",
-	"conduwuit-core/brotli_compression",
-	"conduwuit-router/brotli_compression",
-	"conduwuit-service/brotli_compression",
+    "conduwuit-api/brotli_compression",
+    "conduwuit-core/brotli_compression",
+    "conduwuit-router/brotli_compression",
+    "conduwuit-service/brotli_compression",
 ]
 console = [
-	"conduwuit-service/console",
+    "conduwuit-service/console",
 ]
 direct_tls = [
     "conduwuit-router/direct_tls"
 ]
 element_hacks = [
-	"conduwuit-api/element_hacks",
-	"conduwuit-service/element_hacks",
+    "conduwuit-api/element_hacks",
+    "conduwuit-service/element_hacks",
 ]
 gzip_compression = [
-	"conduwuit-api/gzip_compression",
-	"conduwuit-core/gzip_compression",
-	"conduwuit-router/gzip_compression",
-	"conduwuit-service/gzip_compression",
+    "conduwuit-api/gzip_compression",
+    "conduwuit-core/gzip_compression",
+    "conduwuit-router/gzip_compression",
+    "conduwuit-service/gzip_compression",
 ]
 hardened_malloc = [
-	"conduwuit-core/hardened_malloc",
+    "conduwuit-core/hardened_malloc",
 ]
 http3 = [
     "reqwest/http3"
@@ -112,80 +112,81 @@ aws_lc_rs = [
     "dep:aws-lc-rs"
 ]
 io_uring = [
-	"conduwuit-database/io_uring",
+    "conduwuit-database/io_uring",
 ]
 jemalloc = [
-	"conduwuit-core/jemalloc",
-	"conduwuit-database/jemalloc",
+    "conduwuit-core/jemalloc",
+    "conduwuit-database/jemalloc",
 ]
 jemalloc_prof = [
-	"conduwuit-core/jemalloc_prof",
+    "conduwuit-core/jemalloc_prof",
 ]
 jemalloc_stats = [
-	"conduwuit-core/jemalloc_stats",
+    "conduwuit-core/jemalloc_stats",
 ]
 jemalloc_conf = [
-	"conduwuit-core/jemalloc_conf",
+    "conduwuit-core/jemalloc_conf",
 ]
 media_thumbnail = [
-	"conduwuit-service/media_thumbnail",
+    "conduwuit-service/media_thumbnail",
 ]
 otlp_telemetry = [
-	"dep:opentelemetry",
-	"dep:tracing-opentelemetry",
-	"dep:opentelemetry_sdk",
-	"dep:opentelemetry-otlp",
+    "dep:opentelemetry",
+    "dep:tracing-opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-otlp",
 ]
 perf_measurements = [
-	"dep:tracing-flame",
-	"otlp_telemetry",
-	"conduwuit-core/perf_measurements",
-	"conduwuit-core/sentry_telemetry",
+    "dep:tracing-flame",
+    "otlp_telemetry",
+    "conduwuit-core/perf_measurements",
+    "conduwuit-core/sentry_telemetry",
 ]
 # increases performance, reduces build times, and reduces binary size by not compiling or
 # genreating code for log level filters that users will generally not use (debug and trace)
 release_max_log_level = [
-	"tracing/max_level_trace",
-	"tracing/release_max_level_info",
-	"log/max_level_trace",
-	"log/release_max_level_info",
-	"conduwuit-admin/release_max_log_level",
-	"conduwuit-api/release_max_log_level",
-	"conduwuit-core/release_max_log_level",
-	"conduwuit-database/release_max_log_level",
-	"conduwuit-router/release_max_log_level",
-	"conduwuit-service/release_max_log_level",
+    "tracing/max_level_trace",
+    "tracing/release_max_level_info",
+    "log/max_level_trace",
+    "log/release_max_level_info",
+    "conduwuit-admin/release_max_log_level",
+    "conduwuit-api/release_max_log_level",
+    "conduwuit-core/release_max_log_level",
+    "conduwuit-database/release_max_log_level",
+    "conduwuit-router/release_max_log_level",
+    "conduwuit-service/release_max_log_level",
 ]
 sentry_telemetry = [
-	"dep:sentry",
-	"dep:sentry-tracing",
-	"dep:sentry-tower",
-	"conduwuit-core/sentry_telemetry",
-	"conduwuit-router/sentry_telemetry",
+    "dep:sentry",
+    "dep:sentry-tracing",
+    "dep:sentry-tower",
+    "conduwuit-core/sentry_telemetry",
+    "conduwuit-router/sentry_telemetry",
 ]
 systemd = [
-	"conduwuit-router/systemd",
-	"conduwuit-service/systemd"
+    "conduwuit-router/systemd",
+    "conduwuit-service/systemd"
 ]
-journald = [ # This is a stub on non-unix platforms
-	"dep:tracing-journald",
+journald = [# This is a stub on non-unix platforms
+    "dep:tracing-journald",
 ]
+openreg = ["conduwuit-core/openreg"]
 
 
 # enable the tokio_console server ncompatible with release_max_log_level
 tokio_console = [
-	"dep:console-subscriber",
-	"tokio/tracing",
+    "dep:console-subscriber",
+    "tokio/tracing",
 ]
 url_preview = [
-	"conduwuit-service/url_preview",
+    "conduwuit-service/url_preview",
 ]
 zstd_compression = [
     "conduwuit-api/zstd_compression",
-	"conduwuit-core/zstd_compression",
-	"conduwuit-database/zstd_compression",
-	"conduwuit-router/zstd_compression",
-	"conduwuit-service/zstd_compression",
+    "conduwuit-core/zstd_compression",
+    "conduwuit-database/zstd_compression",
+    "conduwuit-router/zstd_compression",
+    "conduwuit-service/zstd_compression",
 ]
 conduwuit_mods = [
     "conduwuit-core/conduwuit_mods",
