@@ -419,27 +419,27 @@ impl Service {
 					return Ok((false, false));
 				}
 			}
-			statuses
-				.entry(dest.clone())
-				.and_modify(|e| match e {
-					| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
-						allow = false; // already running
-						trace!("Transaction is already running for {dest:?}");
-					},
-					| TransactionStatus::Failed(tries, _) => {
-						if allow {
-							*e = TransactionStatus::Retrying(*tries);
-							trace!(
-								"Previous transaction failed for {dest:?} ({e:?}), will retry"
-							);
-						}
-						retry = true;
-					},
-				})
-				.or_insert_with(|| {
-					trace!("Inserting running status for {dest:?}");
-					TransactionStatus::Running
-				});
+			let entry = statuses.entry(dest.clone()).and_modify(|e| match e {
+				| TransactionStatus::Running | TransactionStatus::Retrying(_) => {
+					allow = false; // already running
+					trace!("Transaction is already running for {dest:?}");
+				},
+				| TransactionStatus::Failed(tries, _) => {
+					if allow {
+						*e = TransactionStatus::Retrying(*tries);
+						trace!("Previous transaction failed for {dest:?} ({e:?}), will retry");
+					}
+					retry = true;
+				},
+			});
+
+			// Only claim the destination if we are actually going to send. A status
+			// inserted here without a transaction being queued is never cleared.
+			if allow {
+				trace!("Inserting running status for {dest:?}");
+				entry.or_insert(TransactionStatus::Running);
+			}
+
 			return Ok((allow, retry));
 		}
 
