@@ -255,10 +255,7 @@ async fn create_registration_uiaa_session(
 		if flows.is_empty() {
 			// No flows are configured. Bail out by default
 			// unless open registration was explicitly enabled.
-			if !services
-				.config
-				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-			{
+			if !services.config.enable_challengeless_registration() {
 				return Err!(Request(Forbidden(
 					"This server is not accepting registrations at this time."
 				)));

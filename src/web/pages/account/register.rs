@@ -326,9 +326,7 @@ async fn begin_registration(
 	next: Option<LoginTarget>,
 	client: &IpAddr,
 ) -> Result<Result<Response, ValidationErrors>> {
-	let open_registration = services
-		.config
-		.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse;
+	let open_registration = services.config.enable_challengeless_registration();
 	let mut errors = ValidationErrors::new();
 
 	let user_id = match services

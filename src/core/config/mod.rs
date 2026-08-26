@@ -806,6 +806,9 @@ pub struct Config {
 
 	/// Enabling this setting opens registration to anyone without restrictions.
 	/// This makes your server vulnerable to abuse
+	///
+	/// Only works if continuwuity was compiled from source with the
+	/// "openreg" compile-time feature.
 	#[serde(default)]
 	pub yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse: bool,
 
@@ -2896,6 +2899,19 @@ impl Config {
 	}
 
 	pub fn check(&self) -> Result<(), Error> { check(self) }
+
+	#[cfg(debug_assertions)]
+	#[inline]
+	#[must_use]
+	pub fn enable_challengeless_registration(&self) -> bool {
+		cfg!(feature = "openreg")
+			&& self.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
+	}
+
+	#[cfg(not(debug_assertions))]
+	#[inline(always)]
+	#[must_use]
+	pub fn enable_challengeless_registration(&self) -> bool { false }
 }
 
 fn true_fn() -> bool { true }

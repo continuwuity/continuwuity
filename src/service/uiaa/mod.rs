@@ -664,11 +664,7 @@ impl Service {
 				UntrustedFlowStatus::Unavailable
 			} else if self.services.config.recaptcha_private_site_key.is_some() || require_email {
 				UntrustedFlowStatus::Available { require_email }
-			} else if self
-				.services
-				.config
-				.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-			{
+			} else if self.services.config.enable_challengeless_registration() {
 				UntrustedFlowStatus::Available { require_email: false }
 			} else {
 				UntrustedFlowStatus::Unavailable

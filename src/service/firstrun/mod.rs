@@ -261,11 +261,7 @@ impl Service {
 			"Find a list of Matrix clients here:".bold()
 		);
 
-		if self
-			.services
-			.config
-			.yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse
-		{
+		if self.services.config.enable_challengeless_registration() {
 			eprintln!();
 			eprintln!(
 				"{}",
