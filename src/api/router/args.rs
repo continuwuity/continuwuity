@@ -8,7 +8,7 @@ use axum::{
 use conduwuit::{Error, Result, err};
 use ruma::{
 	CanonicalJsonObject,
-	api::{IncomingRequest, IncomingRequestExt},
+	api::{IncomingRequest, IncomingRequestExt, auth_scheme::AuthScheme},
 };
 use serde::Deserialize;
 
@@ -92,13 +92,22 @@ where
 		let request = hyper::Request::from_parts(parts, body.as_ref());
 
 		// Check authentication
-		let auth =
-			R::Authentication::authenticate::<R, &[u8]>(services, &request, auth_query).await?;
+		let authentication =
+			R::Authentication::extract_authentication(&request).map_err(|err| {
+				err!(Request(Unauthorized(warn!(
+					path = request.uri().path(),
+					err = err.into(),
+					"Failed to extract authentication"
+				))))
+			})?;
+
+		let identity =
+			R::Authentication::check::<R>(services, &request, authentication, auth_query).await?;
 
 		// Deserialize the body
 		let body = R::try_from_http_request(request, &borrowed_path)
 			.map_err(|e| err!(Request(BadJson(debug_warn!("{e}")))))?;
 
-		Ok(Self { body, json_body, identity: auth })
+		Ok(Self { body, json_body, identity })
 	}
 }
