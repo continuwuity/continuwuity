@@ -147,7 +147,7 @@ pub enum ResponseType {
 /// Deserialize a BTreeSet from a sequence, skipping items which fail to
 /// deserialize. This is used as a deserialize helper for ClientMetadata to
 /// ignore unknown enum variants in a few fields.
-fn btreeset_skip_err<'de, D, V>(de: D) -> Result<BTreeSet<V>, D::Error>
+pub(super) fn btreeset_skip_err<'de, D, V>(de: D) -> Result<BTreeSet<V>, D::Error>
 where
 	D: Deserializer<'de>,
 	V: Deserialize<'de> + Hash + Eq + Ord,

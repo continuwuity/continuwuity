@@ -1,14 +1,14 @@
 use std::{
 	borrow::Cow,
-	collections::BTreeSet,
+	collections::HashSet,
 	error::Error,
 	fmt::{Debug, Display},
 	hash::Hash,
 	mem::discriminant,
 };
 
-use regex::Regex;
-use ruma::OwnedDeviceId;
+use regex::regex;
+use ruma::{OwnedDeviceId, api::OAuthClientScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -82,30 +82,41 @@ pub enum Prompt {
 	Unknown,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialOrd, Ord)]
-pub enum Scope {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub enum RequestedScope {
 	Device(OwnedDeviceId),
 	ClientApi,
+	ServerAdministration,
 }
 
-impl PartialEq for Scope {
+impl RequestedScope {
+	#[must_use]
+	pub fn as_client_scope(&self) -> Option<OAuthClientScope> {
+		match self {
+			| Self::ClientApi => Some(OAuthClientScope::ApiFullAccess),
+			| Self::Device(_) => None,
+			| Self::ServerAdministration => Some(OAuthClientScope::ServerAdministration),
+		}
+	}
+}
+
+impl PartialEq for RequestedScope {
 	fn eq(&self, other: &Self) -> bool { discriminant(self) == discriminant(other) }
 }
 
-impl Eq for Scope {}
+impl Eq for RequestedScope {}
 
-impl Hash for Scope {
+impl Hash for RequestedScope {
 	fn hash<H: std::hash::Hasher>(&self, state: &mut H) { discriminant(self).hash(state); }
 }
 
-impl Display for Scope {
+impl Display for RequestedScope {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let urn = match self {
-			| Self::ClientApi => "urn:matrix:client:api:*".to_owned(),
-			| Self::Device(device_id) => format!("urn:matrix:client:device:{device_id}"),
-		};
-
-		f.write_str(&urn)
+		match self {
+			| Self::ClientApi => write!(f, "urn:matrix:client:api:*"),
+			| Self::Device(device_id) => write!(f, "urn:matrix:client:device:{device_id}"),
+			| Self::ServerAdministration => write!(f, "urn:matrix:client:cc.c10y.msc4484.server_administration"),
+		}
 	}
 }
 
@@ -113,22 +124,25 @@ impl Display for Scope {
 pub struct RawScopes(String);
 
 impl RawScopes {
-	pub fn to_scopes(&self) -> Result<BTreeSet<Scope>, String> {
+	#[allow(clippy::trivial_regex)]
+	pub fn to_scopes(&self) -> Result<HashSet<RequestedScope>, String> {
 		let client_api_token_regex =
-			Regex::new(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*").unwrap();
-		let device_token_regex = Regex::new(
-			r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})",
-		)
-		.unwrap();
+			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
+		let device_token_regex =
+			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})");
+		let server_administration_regex = regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
 
-		let mut scopes = BTreeSet::new();
+		let mut scopes = HashSet::new();
 
 		for token in self.0.split(' ') {
 			let scope_was_new = {
 				if client_api_token_regex.is_match(token) {
-					scopes.insert(Scope::ClientApi)
+					scopes.insert(RequestedScope::ClientApi)
+				} else if server_administration_regex.is_match(token) {
+					scopes.insert(RequestedScope::ServerAdministration)
 				} else if let Some(captures) = device_token_regex.captures(token) {
-					scopes.insert(Scope::Device(captures.get(2).unwrap().as_str().into()))
+					scopes
+						.insert(RequestedScope::Device(captures.get(2).unwrap().as_str().into()))
 				} else if token == "openid" {
 					// TODO(unspecced): Element sets this scope but doesn't use it for anything
 					true
