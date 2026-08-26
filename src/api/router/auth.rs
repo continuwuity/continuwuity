@@ -1,4 +1,7 @@
-use std::any::{Any, TypeId};
+use std::{
+	any::{Any, TypeId},
+	collections::BTreeSet,
+};
 
 use conduwuit::{
 	Err, Error, Result, err,
@@ -9,7 +12,7 @@ use ruma::{
 	DeviceId, MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedServerName, OwnedUserId, UInt,
 	UserId,
 	api::{
-		IncomingRequest,
+		IncomingRequest, OAuthClientScope,
 		auth_scheme::{
 			AccessToken, AccessTokenOptional, AppserviceToken, AppserviceTokenOptional,
 			AuthScheme, NoAccessToken, NoAuthentication,
@@ -84,7 +87,7 @@ impl ClientIdentity {
 pub(crate) trait CheckAuth: AuthScheme {
 	type Identity: Send;
 
-	fn check<R: IncomingRequest + Any>(
+	fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
 		authentication: Self::Output,
@@ -95,7 +98,7 @@ pub(crate) trait CheckAuth: AuthScheme {
 impl CheckAuth for ServerSignatures {
 	type Identity = OwnedServerName;
 
-	async fn check<R: IncomingRequest + Any>(
+	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
 		authentication: Self::Output,
@@ -155,29 +158,42 @@ impl CheckAuth for ServerSignatures {
 impl CheckAuth for AccessToken {
 	type Identity = ClientIdentity;
 
-	async fn check<R: IncomingRequest + Any>(
+	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
-		check_access_token(services, &authentication, query, TypeId::of::<R>()).await
+		check_access_token(
+			services,
+			&authentication,
+			query,
+			TypeId::of::<R>(),
+			R::required_client_scopes(),
+		)
+		.await
 	}
 }
 
 impl CheckAuth for AccessTokenOptional {
 	type Identity = Option<ClientIdentity>;
 
-	async fn check<R: IncomingRequest + Any>(
+	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
 		if let Some(authentication) = authentication {
-			check_access_token(services, &authentication, query, TypeId::of::<R>())
-				.await
-				.map(Some)
+			check_access_token(
+				services,
+				&authentication,
+				query,
+				TypeId::of::<R>(),
+				R::required_client_scopes(),
+			)
+			.await
+			.map(Some)
 		} else {
 			Ok(None)
 		}
@@ -200,7 +216,7 @@ impl CheckAuth for AppserviceToken {
 impl CheckAuth for AppserviceTokenOptional {
 	type Identity = Option<RegistrationInfo>;
 
-	async fn check<R: IncomingRequest + Any>(
+	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
 		authentication: Self::Output,
@@ -219,7 +235,7 @@ impl CheckAuth for AppserviceTokenOptional {
 impl CheckAuth for NoAuthentication {
 	type Identity = ();
 
-	fn check<R: IncomingRequest + Any>(
+	fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		_services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
 		_authentication: Self::Output,
@@ -232,7 +248,7 @@ impl CheckAuth for NoAuthentication {
 impl CheckAuth for NoAccessToken {
 	type Identity = Option<ClientIdentity>;
 
-	async fn check<R: IncomingRequest + Any>(
+	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
 		_authentication: Self::Output,
@@ -245,7 +261,7 @@ impl CheckAuth for NoAccessToken {
 			})?;
 
 		if let Some(authentication) = authentication {
-			check_access_token(services, &authentication, query, TypeId::of::<R>())
+			check_access_token(services, &authentication, query, TypeId::of::<R>(), &[])
 				.await
 				.map(Some)
 		} else {
@@ -259,6 +275,7 @@ async fn check_access_token(
 	token: &str,
 	query: AuthQueryParams,
 	route: TypeId,
+	required_scopes: &[OAuthClientScope],
 ) -> Result<ClientIdentity> {
 	if token.is_empty() {
 		return Err!(Request(Unauthorized("Empty access token.")));
@@ -290,6 +307,32 @@ async fn check_access_token(
 			{
 				return Err!(Request(UserLocked("Your account is locked.")));
 			}
+		}
+
+		// Make sure the user has the right scopes to use the route
+		let user_scopes = if let Some(session_info) = services
+			.oauth
+			.get_session_info_for_device(&sender_user, &sender_device)
+			.await
+		{
+			session_info.scopes
+		} else {
+			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
+
+			if services.admin.user_is_admin(&sender_user).await {
+				scopes.insert(OAuthClientScope::ServerAdministration);
+			}
+
+			scopes
+		};
+
+		if !required_scopes
+			.iter()
+			.any(|scope| user_scopes.contains(scope))
+		{
+			return Err!(Request(Forbidden(
+				"You do not have permission to access this endpoint."
+			)));
 		}
 
 		Ok(ClientIdentity::User { sender_user, sender_device })
