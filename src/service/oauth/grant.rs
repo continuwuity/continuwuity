@@ -115,7 +115,8 @@ impl Display for RequestedScope {
 		match self {
 			| Self::ClientApi => write!(f, "urn:matrix:client:api:*"),
 			| Self::Device(device_id) => write!(f, "urn:matrix:client:device:{device_id}"),
-			| Self::ServerAdministration => write!(f, "urn:matrix:client:cc.c10y.msc4484.server_administration"),
+			| Self::ServerAdministration =>
+				write!(f, "urn:matrix:client:cc.c10y.msc4484.server_administration"),
 		}
 	}
 }
@@ -130,7 +131,8 @@ impl RawScopes {
 			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
 		let device_token_regex =
 			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})");
-		let server_administration_regex = regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
+		let server_administration_regex =
+			regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
 
 		let mut scopes = HashSet::new();
 
@@ -143,11 +145,8 @@ impl RawScopes {
 				} else if let Some(captures) = device_token_regex.captures(token) {
 					scopes
 						.insert(RequestedScope::Device(captures.get(2).unwrap().as_str().into()))
-				} else if token == "openid" {
-					// TODO(unspecced): Element sets this scope but doesn't use it for anything
-					true
 				} else {
-					return Err(format!("Invalid scope: {token}"));
+					continue;
 				}
 			};
 
