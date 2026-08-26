@@ -6,9 +6,9 @@ use axum::{
 };
 use conduwuit_service::oauth::{
 	client_metadata::ClientMetadata,
-	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
+	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt, RequestedScope},
 };
-use ruma::OwnedUserId;
+use ruma::{OwnedUserId, api::OAuthClientScope};
 use serde::{Deserialize, de::IgnoredAny};
 
 use crate::{
@@ -102,7 +102,13 @@ async fn route_authorization_code(
 		return Err(WebError::BadRequest("Invalid client ID".to_owned()));
 	};
 
-	let scopes = query.scope.to_scopes().map_err(WebError::BadRequest)?;
+	let scopes = query
+		.scope
+		.to_scopes()
+		.map_err(WebError::BadRequest)?
+		.iter()
+		.filter_map(RequestedScope::as_client_scope)
+		.collect();
 
 	let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
@@ -183,6 +189,12 @@ async fn route_device_code(
 				));
 			};
 
+			let scopes = grant_info
+				.requested_scopes
+				.iter()
+				.filter_map(RequestedScope::as_client_scope)
+				.collect();
+
 			let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
 			response!(Grant::new(
@@ -196,7 +208,7 @@ async fn route_device_code(
 				user_id,
 				user_avatar,
 				grant_info.client_metadata,
-				ClientScopes { scopes: grant_info.requested_scopes },
+				ClientScopes { scopes },
 				Some(grant_info.device_code),
 			))
 		},
