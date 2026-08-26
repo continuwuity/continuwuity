@@ -142,26 +142,27 @@ impl Service {
 
 	/// Returns a rate-limited error if the remote is unhealthy.
 	fn ensure_remote_is_healthy(&self, server_name: &ServerName) -> Result<()> {
-		if self.is_healthy(server_name) {
-			Ok(())
-		} else {
-			let retry_after = self
-				.retry_after(server_name)
-				.expect("remote is unhealthy and must have an accompanying retry timestamp");
-			Err(Error::Request(
-				ErrorKind::LimitExceeded(assign!(LimitExceededErrorData::new(), {
-					retry_after: Some(RetryAfter::Delay(retry_after)),
-				})),
-				format!(
-					"Remote server {} is currently unhealthy (not retrying for another {} \
-					 seconds)",
-					server_name,
-					retry_after.as_secs()
-				)
-				.into(),
-				StatusCode::TOO_MANY_REQUESTS,
-			))
-		}
+		// Read the backoff window once. The remote can be marked healthy between two
+		// lookups.
+		let Some(retry_after) = self
+			.retry_after(server_name)
+			.filter(|retry_after| !retry_after.is_zero())
+		else {
+			return Ok(());
+		};
+
+		Err(Error::Request(
+			ErrorKind::LimitExceeded(assign!(LimitExceededErrorData::new(), {
+				retry_after: Some(RetryAfter::Delay(retry_after)),
+			})),
+			format!(
+				"Remote server {} is currently unhealthy (not retrying for another {} seconds)",
+				server_name,
+				retry_after.as_secs()
+			)
+			.into(),
+			StatusCode::TOO_MANY_REQUESTS,
+		))
 	}
 
 	/// Marks a destination as stale, which will cause the destination cache to
