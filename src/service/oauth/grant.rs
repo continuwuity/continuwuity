@@ -145,12 +145,8 @@ impl RawScopes {
 				} else if let Some(captures) = device_token_regex.captures(token) {
 					scopes
 						.insert(RequestedScope::Device(captures.get(2).unwrap().as_str().into()))
-				} else if token == "openid" {
-					// TODO(unspecced): Element sets this scope but doesn't use
-					// it for anything
-					true
 				} else {
-					return Err(format!("Invalid scope: {token}"));
+					continue;
 				}
 			};
 
