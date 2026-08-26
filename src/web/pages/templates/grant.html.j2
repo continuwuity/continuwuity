@@ -21,14 +21,26 @@ Authorize client
         </div>
         {{ Avatar::for_client(client_metadata) }}
     </div>
+
     <div class="identity">
         Signed in as <code>{{ user_id }}</code>. <a href="{{ crate::ROUTE_PREFIX }}/account/logout?{{ logout_query }}">Switch accounts</a>
     </div>
+
     <p>
         <b>{{ client_name }}</b> (<a href="{{ client_metadata.client_uri }}">{{ client_metadata.client_uri.domain().unwrap() }}</a>) would like
         your permission to:
+
         {{ scopes }}
     </p>
+
+    {% if scopes.scopes.contains(&OAuthClientScope::ServerAdministration) %}
+        <p class="card danger">
+            ⚠️ {{ client_name }} wants to be able to administrate your homeserver. If it is untrustworthy,
+            it could use its administrator powers to cause severe damage to your homeserver's users and rooms.
+            Make sure you trust it fully before you continue.
+        </p>
+    {% endif %}
+
     {% match (&client_metadata.policy_uri, &client_metadata.tos_uri) %}
         {% when (Some(policy_uri), Some(tos_uri)) %}
             <p>

@@ -1,5 +1,5 @@
 use std::{
-	collections::{BTreeSet, HashMap},
+	collections::{BTreeSet, HashMap, HashSet},
 	sync::{Arc, Mutex},
 	time::{Duration, SystemTime},
 };
@@ -13,18 +13,18 @@ use database::{Deserialized, Json, Map};
 use itertools::Itertools;
 use lru_cache::LruCache;
 use rand::distr::{Distribution, slice::Choose};
-use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId};
+use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId, api::OAuthClientScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-	Dep, config,
+	Dep, admin, config,
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, GrantType, ResponseType},
 		grant::{
 			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
-			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, ResponseMode, Scope,
-			TokenRequest, TokenRequestType, TokenResponse, TokenType,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RequestedScope,
+			ResponseMode, TokenRequest, TokenRequestType, TokenResponse, TokenType,
 		},
 	},
 	users::{self, DeviceToken},
@@ -48,6 +48,7 @@ struct Data {
 }
 
 struct Services {
+	admin: Dep<admin::Service>,
 	users: Dep<users::Service>,
 	config: Dep<config::Service>,
 }
@@ -55,7 +56,9 @@ struct Services {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SessionInfo {
 	pub client_id: String,
-	pub scopes: BTreeSet<Scope>,
+	// Ignore unknown scopes, old databases might have a device scope in here
+	#[serde(deserialize_with = "client_metadata::btreeset_skip_err")]
+	pub scopes: BTreeSet<OAuthClientScope>,
 	current_refresh_token: String,
 }
 
@@ -68,7 +71,7 @@ struct RefreshTokenInfo {
 
 struct PendingAuthCodeGrant {
 	authorizing_user: OwnedUserId,
-	requested_scopes: BTreeSet<Scope>,
+	requested_scopes: HashSet<RequestedScope>,
 	client_name: Option<String>,
 	expected_client_id: String,
 	expected_redirect_uri: Url,
@@ -92,7 +95,7 @@ impl PendingAuthCodeGrant {
 
 struct PendingDeviceCodeGrant {
 	state: DeviceCodeGrantState,
-	requested_scopes: BTreeSet<Scope>,
+	requested_scopes: HashSet<RequestedScope>,
 	client_name: Option<String>,
 	client_id: String,
 	requested_at: SystemTime,
@@ -124,7 +127,7 @@ impl PendingDeviceCodeGrant {
 pub struct DeviceCodeGrantInfo {
 	pub device_code: String,
 	pub client_metadata: ClientMetadata,
-	pub requested_scopes: BTreeSet<Scope>,
+	pub requested_scopes: HashSet<RequestedScope>,
 }
 
 /// A time-limited grant for a client to perform some sensitive action.
@@ -148,6 +151,7 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
+				admin: args.depend::<admin::Service>("admin"),
 				users: args.depend::<users::Service>("users"),
 				config: args.depend::<config::Service>("config"),
 			},
@@ -540,17 +544,20 @@ impl Service {
 	async fn create_session(
 		&self,
 		authorizing_user: OwnedUserId,
-		requested_scopes: BTreeSet<Scope>,
+		requested_scopes: HashSet<RequestedScope>,
 		client_name: Option<String>,
 		client_id: String,
 	) -> Result<TokenResponse, OAuthError> {
+		self.check_requested_scopes(&authorizing_user, &requested_scopes)
+			.await?;
+
 		let access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
 		let refresh_token = Self::generate_token();
 
 		let device_id = requested_scopes
 			.iter()
 			.find_map(|scope| {
-				if let Scope::Device(device_id) = scope {
+				if let RequestedScope::Device(device_id) = scope {
 					Some(device_id.to_owned())
 				} else {
 					None
@@ -598,7 +605,10 @@ impl Service {
 			Json(SessionInfo {
 				client_id: client_id.clone(),
 				current_refresh_token: refresh_token.clone(),
-				scopes: requested_scopes.clone(),
+				scopes: requested_scopes
+					.iter()
+					.filter_map(RequestedScope::as_client_scope)
+					.collect(),
 			}),
 		);
 
@@ -697,6 +707,23 @@ impl Service {
 				.del((user_id, device_id));
 			info!(?user_id, ?device_id, "Removed OAuth session");
 		}
+	}
+
+	async fn check_requested_scopes(
+		&self,
+		authorizing_user: &UserId,
+		requested_scopes: &HashSet<RequestedScope>,
+	) -> Result<(), OAuthError> {
+		if requested_scopes.contains(&RequestedScope::ServerAdministration)
+			&& !self.services.admin.user_is_admin(authorizing_user).await
+		{
+			return Err(OAuthError::new(
+				ErrorCode::AccessDenied,
+				"You are not a server administrator.".to_owned(),
+			));
+		}
+
+		Ok(())
 	}
 
 	/// Issue a ticket for `localpart` to perform some action.

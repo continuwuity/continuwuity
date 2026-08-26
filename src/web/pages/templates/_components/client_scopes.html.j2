@@ -1,10 +1,12 @@
 <ul>
     {% for scope in scopes %}
         {% match scope %}
-            {% when Scope::ClientApi %}
-                <li>Send messages and interact with chatrooms on your behalf</li>
-            {% when Scope::Device(_) %}
-                <li>Access your Matrix account</li>
+            {% when OAuthClientScope::ApiFullAccess %}
+                <li>Access and control all features of your Matrix account</li>
+            {% when OAuthClientScope::ServerAdministration %}
+                <li><em class="danger">Access your homeserver's administrator tools</em></li>
+            {% when _ %}
+                <li>missingno</li>
         {% endmatch %}
     {% endfor %}
 </ul>
