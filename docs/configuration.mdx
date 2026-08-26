@@ -37,6 +37,10 @@ CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL="https://draupnir.example.com"
 # Alternatively, you can pass a (quoted) struct to define an entire section
 # This maps to the [global.well_known] section
 CONTINUWUITY_WELL_KNOWN="{ client=https://example.com,server=example.com:443 }"
+
+# Options that take a list are written as a (quoted) array
+CONTINUWUITY_TRUSTED_SERVERS='["matrix.org"]'
+CONTINUWUITY_PORT='[8008, 8448]'
 ```
 
 ### Alternative prefixes

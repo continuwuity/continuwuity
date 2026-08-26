@@ -38,6 +38,7 @@
 #
 # example: "continuwuity.org"
 #
+# env: CONTINUWUITY_SERVER_NAME
 #server_name =
 
 # The default address (IPv4 or IPv6) continuwuity will listen on.
@@ -48,6 +49,7 @@
 # To listen on multiple addresses, specify a vector e.g. ["127.0.0.1",
 # "::1"]
 #
+# env: CONTINUWUITY_ADDRESS
 #address = ["127.0.0.1", "::1"]
 
 # The port(s) continuwuity will listen on.
@@ -60,6 +62,7 @@
 #
 # To listen on multiple ports, specify a vector e.g. [8080, 8448]
 #
+# env: CONTINUWUITY_PORT
 #port = 8008
 
 # The UNIX socket continuwuity will listen on.
@@ -74,10 +77,12 @@
 #
 # example: "/run/continuwuity/continuwuity.sock"
 #
+# env: CONTINUWUITY_UNIX_SOCKET_PATH
 #unix_socket_path =
 
 # The default permissions (in octal) to create the UNIX socket with.
 #
+# env: CONTINUWUITY_UNIX_SOCKET_PERMS
 #unix_socket_perms = 660
 
 # This is the only directory where continuwuity will save its data,
@@ -89,6 +94,7 @@
 #
 # example: "/var/lib/conduwuit"
 #
+# env: CONTINUWUITY_DATABASE_PATH
 #database_path =
 
 # continuwuity supports online database backups using RocksDB's Backup
@@ -104,11 +110,13 @@
 #
 # example: "/opt/continuwuity-db-backups"
 #
+# env: CONTINUWUITY_DATABASE_BACKUP_PATH
 #database_backup_path =
 
 # The amount of online RocksDB database backups to keep/retain, if using
 # "database_backup_path", before deleting the oldest one.
 #
+# env: CONTINUWUITY_DATABASE_BACKUPS_TO_KEEP
 #database_backups_to_keep = 1
 
 # Text which will be added to the end of the user's displayname upon
@@ -121,12 +129,14 @@
 #
 # example: "🏳️‍⚧️"
 #
+# env: CONTINUWUITY_NEW_USER_DISPLAYNAME_SUFFIX
 #new_user_displayname_suffix = "🏳️‍⚧️"
 
 # If enabled, continuwuity will send a simple GET request periodically to
 # `https://continuwuity.org/.well-known/continuwuity/announcements` for any new
 # announcements or major updates. This is not an update check endpoint.
 #
+# env: CONTINUWUITY_ALLOW_ANNOUNCEMENTS_CHECK
 #allow_announcements_check = true
 
 # Set this to any float value to multiply continuwuity's in-memory LRU
@@ -140,6 +150,7 @@
 # By default, the individual caches such as "auth_chain_cache_capacity"
 # are scaled by your CPU core count.
 #
+# env: CONTINUWUITY_CACHE_CAPACITY_MODIFIER
 #cache_capacity_modifier = 1.0
 
 # Set this to any float value in megabytes for continuwuity to tell the
@@ -154,6 +165,7 @@
 #
 # This defaults to 128.0 + (64.0 * CPU core count).
 #
+# env: CONTINUWUITY_DB_CACHE_CAPACITY_MB
 #db_cache_capacity_mb = varies by system
 
 # Set this to any float value in megabytes for continuwuity to tell the
@@ -168,6 +180,7 @@
 #
 # This defaults to 48.0 + (4.0 * CPU core count).
 #
+# env: CONTINUWUITY_DB_WRITE_BUFFER_CAPACITY_MB
 #db_write_buffer_capacity_mb = varies by system
 
 # The maximum number of Persisted Data Units (PDUs) to cache.
@@ -185,6 +198,7 @@
 #
 # This defaults to 100,000 + (10,000 * CPU core count)
 #
+# env: CONTINUWUITY_PDU_CACHE_CAPACITY
 #pdu_cache_capacity = varies by system
 
 # The maximum number of auth chains to cache.
@@ -198,6 +212,7 @@
 #
 # This defaults to 100,000 + (10,000 * CPU core count)
 #
+# env: CONTINUWUITY_AUTH_CHAIN_CACHE_CAPACITY
 #auth_chain_cache_capacity = varies by system
 
 # Determines the cache size for eventid data references.
@@ -210,6 +225,7 @@
 #
 # This defaults to 100,000 + (50,000 * CPU core count)
 #
+# env: CONTINUWUITY_SHORTEVENTID_CACHE_CAPACITY
 #shorteventid_cache_capacity = varies by system
 
 # Determines the cache size for eventid data references.
@@ -222,6 +238,7 @@
 #
 # This defaults to 100,000 + (25,000 * CPU core count)
 #
+# env: CONTINUWUITY_EVENTIDSHORT_CACHE_CAPACITY
 #eventidshort_cache_capacity = varies by system
 
 # Determines the cache size for pdu data references.
@@ -232,6 +249,7 @@
 #
 # This defaults to 100,000 + (25,000 * CPU core count)
 #
+# env: CONTINUWUITY_EVENTID_PDU_CACHE_CAPACITY
 #eventid_pdu_cache_capacity = varies by system
 
 # Determines the cache size for state key data references.
@@ -248,6 +266,7 @@
 #
 # This defaults to 100,000 + (10,000 * CPU core count)
 #
+# env: CONTINUWUITY_SHORTSTATEKEY_CACHE_CAPACITY
 #shortstatekey_cache_capacity = varies by system
 
 # Determines the cache size for state key data references.
@@ -264,6 +283,7 @@
 #
 # This defaults to 100,000 + (10,000 * CPU core count)
 #
+# env: CONTINUWUITY_STATEKEYSHORT_CACHE_CAPACITY
 #statekeyshort_cache_capacity = varies by system
 
 # Determines the cache size for event_data references scoped
@@ -278,6 +298,7 @@
 #
 # This defaults to 500,000 + (100,000 * CPU core count)
 #
+# env: CONTINUWUITY_SERVERNAMEEVENT_DATA_CACHE_CAPACITY
 #servernameevent_data_cache_capacity = varies by system
 
 # Determines the cache size for room states.
@@ -291,7 +312,16 @@
 #
 # This defaults to 100 * CPU core count.
 #
+# env: CONTINUWUITY_STATEINFO_CACHE_CAPACITY
 #stateinfo_cache_capacity = varies by system
+
+# DNS servers to use instead of system defaults. Does NOT accept IP:Port
+# pairs, only plain IPs. IPv6 addresses should be without brackets.
+#
+# Uses system configuration (/etc/resolv.conf) if empty.
+#
+# env: CONTINUWUITY_DNS_SERVERS
+#dns_servers = []
 
 # Maximum entries stored in DNS memory-cache. The size of an entry may
 # vary so please take care if raising this value excessively. Only
@@ -299,6 +329,7 @@
 # systemd-resolved does *not* count as an external cache, even when
 # configured to do so.
 #
+# env: CONTINUWUITY_DNS_CACHE_ENTRIES
 #dns_cache_entries = 32768
 
 # Minimum time-to-live in seconds for entries in the DNS cache. The
@@ -307,6 +338,7 @@
 # longer running Matrix). Only decrease this if you are using an external
 # DNS cache.
 #
+# env: CONTINUWUITY_DNS_MIN_TTL
 #dns_min_ttl = 10800
 
 # Minimum time-to-live in seconds for NXDOMAIN entries in the DNS cache.
@@ -316,10 +348,12 @@
 #
 # Defaults to 3 days as these are *very rarely* false negatives.
 #
+# env: CONTINUWUITY_DNS_MIN_TTL_NXDOMAIN
 #dns_min_ttl_nxdomain = 259200
 
 # Number of DNS nameserver retries after a timeout or error.
 #
+# env: CONTINUWUITY_DNS_ATTEMPTS
 #dns_attempts = 10
 
 # The number of seconds to wait for a reply to a DNS query. Please note
@@ -327,11 +361,13 @@
 # so this value should not be too low, especially on slower hardware or
 # resolvers.
 #
+# env: CONTINUWUITY_DNS_TIMEOUT
 #dns_timeout = 10
 
 # Fallback to TCP on DNS errors. Set this to false if unsupported by
 # nameserver.
 #
+# env: CONTINUWUITY_DNS_TCP_FALLBACK
 #dns_tcp_fallback = true
 
 # Enable to query all nameservers until the domain is found. Referred to
@@ -339,6 +375,7 @@
 # useless DNS queries if the first nameserver responds with NXDOMAIN or
 # an empty NOERROR response.
 #
+# env: CONTINUWUITY_QUERY_ALL_NAMESERVERS
 #query_all_nameservers = true
 
 # Enable using *only* TCP for querying your specified nameservers instead
@@ -348,6 +385,7 @@
 # option may need to be enabled. For more details, see:
 # https://continuwuity.org/troubleshooting.html#potential-dns-issues-when-using-docker
 #
+# env: CONTINUWUITY_QUERY_OVER_TCP_ONLY
 #query_over_tcp_only = false
 
 # DNS A/AAAA record lookup strategy
@@ -371,6 +409,7 @@
 # the AAAA record contents even if the AAAA record is successful instead
 # of the A record.
 #
+# env: CONTINUWUITY_IP_LOOKUP_STRATEGY
 #ip_lookup_strategy = 5
 
 # The preferred source to use for getting the real client IP.
@@ -397,6 +436,7 @@
 # If not set set, `direct` is used. Additionally, `direct` is used
 # as a fallback if the chosen header is not found.
 #
+# env: CONTINUWUITY_REQUEST_IP_SOURCE
 #request_ip_source = false
 
 # The accepted source(s) for the real client IP.
@@ -423,11 +463,13 @@
 #
 # If not set, `request_ip_source` configuration is used.
 #
+# env: CONTINUWUITY_ACCEPTED_IP_SOURCES
 #accepted_ip_sources = []
 
 # Max request size for file uploads in bytes. Defaults to 20MB.
 # Also limits incoming federated media.
 #
+# env: CONTINUWUITY_MAX_REQUEST_SIZE
 #max_request_size = 20971520
 
 # Maximum number of prev_events the server will request from
@@ -438,6 +480,7 @@
 # response. This can be used for things like backfilling room data and
 # getting missing events.
 #
+# env: CONTINUWUITY_MAX_FETCH_PREV_EVENTS
 #max_fetch_prev_events = 1024
 
 # How many incoming federation transactions the server is willing to be
@@ -447,31 +490,37 @@
 # Setting this value too low or too high may result in unstable
 # federation, and setting it too high may cause runaway resource usage.
 #
+# env: CONTINUWUITY_MAX_CONCURRENT_INBOUND_TRANSACTIONS
 #max_concurrent_inbound_transactions = 150
 
 # Maximum number of federation PDUs queued while completing a remote join.
 #
+# env: CONTINUWUITY_REMOTE_JOIN_PDU_QUEUE_CAPACITY
 #remote_join_pdu_queue_capacity = 50
 
 # Maximum age (in seconds) for cached federation transaction responses.
 # Entries older than this will be removed during cleanup.
 #
+# env: CONTINUWUITY_TRANSACTION_ID_CACHE_MAX_AGE_SECS
 #transaction_id_cache_max_age_secs = 7200 (2 hours)
 
 # Maximum number of cached federation transaction responses.
 # When the cache exceeds this limit, older entries will be removed.
 #
+# env: CONTINUWUITY_TRANSACTION_ID_CACHE_MAX_ENTRIES
 #transaction_id_cache_max_entries = 8192
 
 # Default/base connection timeout (seconds). This is used only by URL
 # previews and update/news endpoint checks.
 #
+# env: CONTINUWUITY_REQUEST_CONN_TIMEOUT
 #request_conn_timeout = 10
 
 # Default/base request timeout (seconds). The time waiting to receive more
 # data from another server. This is used only by URL previews,
 # update/news, and misc endpoint checks.
 #
+# env: CONTINUWUITY_REQUEST_TIMEOUT
 #request_timeout = 35
 
 # Default/base request total timeout (seconds). The time limit for a whole
@@ -479,25 +528,30 @@
 # serving as a backstop. This is used only by URL previews and update/news
 # endpoint checks.
 #
+# env: CONTINUWUITY_REQUEST_TOTAL_TIMEOUT
 #request_total_timeout = 320
 
 # Default/base idle connection pool timeout (seconds). This is used only
 # by URL previews and update/news endpoint checks.
 #
+# env: CONTINUWUITY_REQUEST_IDLE_TIMEOUT
 #request_idle_timeout = 5
 
 # Default/base max idle connections per host. This is used only by URL
 # previews and update/news endpoint checks. Defaults to 1 as generally the
 # same open connection can be re-used.
 #
+# env: CONTINUWUITY_REQUEST_IDLE_PER_HOST
 #request_idle_per_host = 1
 
 # Federation well-known resolution connection timeout (seconds).
 #
+# env: CONTINUWUITY_WELL_KNOWN_CONN_TIMEOUT
 #well_known_conn_timeout = 6
 
 # Federation HTTP well-known resolution request timeout (seconds).
 #
+# env: CONTINUWUITY_WELL_KNOWN_TIMEOUT
 #well_known_timeout = 10
 
 # Federation client connection timeout (seconds). You should not set this
@@ -507,6 +561,7 @@
 # respond. This will cause most clients to time out /keys/query, causing
 # E2EE and device verification to fail.
 #
+# env: CONTINUWUITY_FEDERATION_CONN_TIMEOUT
 #federation_conn_timeout = 10
 
 # Federation client request timeout (seconds). You most definitely want
@@ -515,6 +570,7 @@
 #
 # Joins have 6x the timeout.
 #
+# env: CONTINUWUITY_FEDERATION_TIMEOUT
 #federation_timeout = 60
 
 # Policy server request timeout (seconds). Generally policy
@@ -528,24 +584,29 @@
 # About policy servers: https://matrix.org/blog/2025/04/introducing-policy-servers/
 # (Stabilized in Matrix v1.18)
 #
+# env: CONTINUWUITY_POLICY_SERVER_REQUEST_TIMEOUT
 #policy_server_request_timeout = 30
 
 # Federation client idle connection pool timeout (seconds).
 #
+# env: CONTINUWUITY_FEDERATION_IDLE_TIMEOUT
 #federation_idle_timeout = 25
 
 # Federation client max idle connections per host. Defaults to 1 as
 # generally the same open connection can be re-used.
 #
+# env: CONTINUWUITY_FEDERATION_IDLE_PER_HOST
 #federation_idle_per_host = 1
 
 # Federation sender request timeout (seconds). The time it takes for the
 # remote server to process sent transactions can take a while.
 #
+# env: CONTINUWUITY_SENDER_TIMEOUT
 #sender_timeout = 180
 
 # Federation sender idle connection pool timeout (seconds).
 #
+# env: CONTINUWUITY_SENDER_IDLE_TIMEOUT
 #sender_idle_timeout = 180
 
 # Federation sender retry backoff base (seconds).
@@ -554,6 +615,7 @@
 # either the remote server becomes healthy, or the value is clamped to
 # `sender_retry_backoff_limit`.
 #
+# env: CONTINUWUITY_SENDER_RETRY_BACKOFF_BASE
 #sender_retry_backoff_base = 10
 
 # Federation sender retry backoff limit (seconds).
@@ -569,47 +631,58 @@
 # It is not recommended to lower this value below 48 hours or above
 # 1 year.
 #
+# env: CONTINUWUITY_SENDER_RETRY_BACKOFF_LIMIT
 #sender_retry_backoff_limit = 604800
 
 # Appservice URL request connection timeout. Defaults to 35 seconds as
 # generally appservices are hosted within the same network.
 #
+# env: CONTINUWUITY_APPSERVICE_TIMEOUT
 #appservice_timeout = 35
 
 # Appservice URL idle connection pool timeout (seconds).
 #
+# env: CONTINUWUITY_APPSERVICE_IDLE_TIMEOUT
 #appservice_idle_timeout = 300
 
 # Notification gateway pusher request connection timeout (seconds).
 #
+# env: CONTINUWUITY_PUSHER_CONN_TIMEOUT
 #pusher_conn_timeout = 15
 
 # Notification gateway pusher total request timeout (seconds).
 #
+# env: CONTINUWUITY_PUSHER_TIMEOUT
 #pusher_timeout = 60
 
 # Notification gateway pusher idle connection pool timeout (seconds).
 #
+# env: CONTINUWUITY_PUSHER_IDLE_TIMEOUT
 #pusher_idle_timeout = 15
 
 # Maximum time to receive a request from a client (seconds).
 #
+# env: CONTINUWUITY_CLIENT_RECEIVE_TIMEOUT
 #client_receive_timeout = 75
 
 # Maximum time to process a request received from a client (seconds).
 #
+# env: CONTINUWUITY_CLIENT_REQUEST_TIMEOUT
 #client_request_timeout = 180
 
 # Maximum time to transmit a response to a client (seconds)
 #
+# env: CONTINUWUITY_CLIENT_RESPONSE_TIMEOUT
 #client_response_timeout = 120
 
 # Grace period for clean shutdown of client requests (seconds).
 #
+# env: CONTINUWUITY_CLIENT_SHUTDOWN_TIMEOUT
 #client_shutdown_timeout = 10
 
 # Grace period for clean shutdown of federation requests (seconds).
 #
+# env: CONTINUWUITY_SENDER_SHUTDOWN_TIMEOUT
 #sender_shutdown_timeout = 5
 
 # Enables registration. If set to false, no users can register on this
@@ -622,6 +695,7 @@
 # If you would like registration only via token reg, please configure
 # `registration_token`.
 #
+# env: CONTINUWUITY_ALLOW_REGISTRATION
 #allow_registration = true
 
 # If registration is enabled, and this setting is true, new users
@@ -638,6 +712,7 @@
 # information that new users can read (since they won't be able to DM
 # anyone, or send a message, and may be confused).
 #
+# env: CONTINUWUITY_SUSPEND_ON_REGISTER
 #suspend_on_register = false
 
 # Enabling this setting opens registration to anyone without restrictions.
@@ -646,6 +721,7 @@
 # Only works if continuwuity was compiled from source with the
 # "openreg" compile-time feature.
 #
+# env: CONTINUWUITY_YES_I_AM_VERY_VERY_SURE_I_WANT_AN_OPEN_REGISTRATION_SERVER_PRONE_TO_ABUSE
 #yes_i_am_very_very_sure_i_want_an_open_registration_server_prone_to_abuse = false
 
 # A static registration token that new users will have to provide when
@@ -655,6 +731,7 @@
 #
 # example: "o&^uCtes4HPf0Vu@F20jQeeWE7"
 #
+# env: CONTINUWUITY_REGISTRATION_TOKEN
 #registration_token =
 
 # A path to a file containing static registration tokens, one per line.
@@ -666,6 +743,7 @@
 # currently reread when the server configuration is reloaded. If the file
 # cannot be read, Continuwuity will fail to start.
 #
+# env: CONTINUWUITY_REGISTRATION_TOKEN_FILE
 #registration_token_file =
 
 # The public site key for reCaptcha. If this is provided, reCaptcha
@@ -680,12 +758,14 @@
 # Registration must be enabled (`allow_registration` must be true) for
 # this to have any effect.
 #
+# env: CONTINUWUITY_RECAPTCHA_SITE_KEY
 #recaptcha_site_key =
 
 # The private site key for reCaptcha.
 # If this is omitted, captcha registration will not work,
 # even if `recaptcha_site_key` is set.
 #
+# env: CONTINUWUITY_RECAPTCHA_PRIVATE_SITE_KEY
 #recaptcha_private_site_key =
 
 # Controls whether users are allowed to deactivate their own accounts
@@ -696,15 +776,18 @@
 # users who request to deactivate their accounts if you set this option
 # to `false`.
 #
+# env: CONTINUWUITY_ALLOW_DEACTIVATION
 #allow_deactivation = true
 
 # Controls whether encrypted rooms and events are allowed.
 #
+# env: CONTINUWUITY_ALLOW_ENCRYPTION
 #allow_encryption = true
 
 # Controls whether federation is allowed or not. It is not recommended to
 # disable this after the fact due to potential federation breakage.
 #
+# env: CONTINUWUITY_ALLOW_FEDERATION
 #allow_federation = true
 
 # Allows federation requests to be made to itself
@@ -713,11 +796,13 @@
 # being sent to yourself. This currently mainly exists for development
 # purposes.
 #
+# env: CONTINUWUITY_FEDERATION_LOOPBACK
 #federation_loopback = false
 
 # Always calls /forget on behalf of the user if leaving a room. This is a
 # part of MSC4267 "Automatically forgetting rooms on leave"
 #
+# env: CONTINUWUITY_FORGET_FORCED_UPON_LEAVE
 #forget_forced_upon_leave = false
 
 # Set this to true to require authentication on the normally
@@ -726,6 +811,7 @@
 #
 # This can prevent profile scraping.
 #
+# env: CONTINUWUITY_REQUIRE_AUTH_FOR_PROFILE_REQUESTS
 #require_auth_for_profile_requests = false
 
 # Set this to true to allow your server's public room directory to be
@@ -734,12 +820,14 @@
 # directory. If federation is disabled entirely (`allow_federation`), this
 # is inherently false.
 #
+# env: CONTINUWUITY_ALLOW_PUBLIC_ROOM_DIRECTORY_OVER_FEDERATION
 #allow_public_room_directory_over_federation = false
 
 # Set this to true to lock down your server's public room directory and
 # only allow admins to publish rooms to the room directory. Unpublishing
 # is still allowed by all users with this enabled.
 #
+# env: CONTINUWUITY_LOCKDOWN_PUBLIC_ROOM_DIRECTORY
 #lockdown_public_room_directory = false
 
 # Set this to true to allow federating device display names / allow
@@ -747,6 +835,7 @@
 # disabled entirely (`allow_federation`), this is inherently false. For
 # privacy reasons, this is best left disabled.
 #
+# env: CONTINUWUITY_ALLOW_DEVICE_NAME_FEDERATION
 #allow_device_name_federation = false
 
 # Config option to allow or disallow incoming federation requests that
@@ -760,11 +849,13 @@
 #
 # This is inherently false if `allow_federation` is disabled
 #
+# env: CONTINUWUITY_ALLOW_INBOUND_PROFILE_LOOKUP_FEDERATION_REQUESTS
 #allow_inbound_profile_lookup_federation_requests = true
 
 # Allow standard users to create rooms. Appservices and admins are always
 # allowed to create rooms
 #
+# env: CONTINUWUITY_ALLOW_ROOM_CREATION
 #allow_room_creation = true
 
 # Set to false to disable users from joining or creating room versions
@@ -775,6 +866,7 @@
 # continuwuity has slightly experimental (though works fine in practice)
 # support for versions 3 - 5.
 #
+# env: CONTINUWUITY_ALLOW_UNSTABLE_ROOM_VERSIONS
 #allow_unstable_room_versions = true
 
 # Default room version continuwuity will create rooms with.
@@ -784,6 +876,7 @@
 #
 # Per spec, room version "12" is the default.
 #
+# env: CONTINUWUITY_DEFAULT_ROOM_VERSION
 #default_room_version = "12"
 
 # A default allow value for the Access Control List when creating a room.
@@ -795,6 +888,7 @@
 # ACLs in existing rooms will not be updated automatically. This is not
 # a substitute for moderation bots.
 #
+# env: CONTINUWUITY_DEFAULT_ROOM_ACL_ALLOW
 #default_room_acl_allow =
 
 # A default deny value for the Access Control List when creating a room.
@@ -808,6 +902,7 @@
 # ACLs in existing rooms will not be updated automatically. This is not
 # a substitute for moderation bots.
 #
+# env: CONTINUWUITY_DEFAULT_ROOM_ACL_DENY
 #default_room_acl_deny =
 
 # The number of forward extremities to tolerate in a room before
@@ -816,6 +911,7 @@
 # more dummy events to be sent than necessary (which increases federation
 # traffic).
 #
+# env: CONTINUWUITY_DUMMY_EVENT_THRESHOLD
 #dummy_event_threshold = 10
 
 # Enable OpenTelemetry OTLP tracing export. This replaces the deprecated
@@ -825,11 +921,13 @@
 # Configure your OTLP endpoint using the OTEL_EXPORTER_OTLP_ENDPOINT
 # environment variable, or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (defaults to http://localhost:4318), and OTEL_EXPORTER_OTLP_PROTOCOL for the protocol.
 #
+# env: CONTINUWUITY_ALLOW_OTLP
 #allow_otlp = false
 
 # Filter for OTLP tracing spans. This controls which spans are exported
 # to the OTLP collector.
 #
+# env: CONTINUWUITY_OTLP_FILTER
 #otlp_filter = "info"
 
 # Enable OpenTelemetry OTLP metrics export. Configure your OTLP endpoint
@@ -841,6 +939,7 @@
 # OTEL_METRIC_EXPORT_INTERVAL environment variable (milliseconds,
 # defaults to 60000).
 #
+# env: CONTINUWUITY_ALLOW_OTLP_METRICS
 #allow_otlp_metrics = false
 
 # Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
@@ -849,11 +948,13 @@
 # Set `prometheus_metrics_token` or restrict access at your reverse proxy
 # to avoid exposing it publicly.
 #
+# env: CONTINUWUITY_ALLOW_PROMETHEUS_METRICS
 #allow_prometheus_metrics = false
 
 # Bearer token required to scrape the Prometheus metrics endpoint. When
 # set, requests must include an `Authorization: Bearer <token>` header.
 #
+# env: CONTINUWUITY_PROMETHEUS_METRICS_TOKEN
 #prometheus_metrics_token =
 
 # If the 'perf_measurements' compile-time feature is enabled, enables
@@ -864,18 +965,21 @@
 # [1]: https://github.com/jonhoo/inferno
 # [2]: www.speedscope.app
 #
+# env: CONTINUWUITY_TRACING_FLAME
 #tracing_flame = false
 
 # Which log level tracing_flame will trace.
 #
 # See "tracing_flame" for more details.
 #
+# env: CONTINUWUITY_TRACING_FLAME_FILTER
 #tracing_flame_filter = "info"
 
 # The output path for tracing_flame data.
 #
 # See "tracing_flame" for more details.
 #
+# env: CONTINUWUITY_TRACING_FLAME_OUTPUT_PATH
 #tracing_flame_output_path = "./tracing.folded"
 
 # Examples:
@@ -907,6 +1011,7 @@
 #   `ordinary.onion`, `matrix.myspecial.onion`, but not
 #   `hello.myspecial.onion`.
 #
+# env: CONTINUWUITY_PROXY
 #proxy = "none"
 
 # Servers listed here will be used to gather public keys of other servers
@@ -953,6 +1058,7 @@
 # empty list (`[]`) to operate without trusted server assistance, but this
 # is discouraged for performance and reliability reasons.
 #
+# env: CONTINUWUITY_TRUSTED_SERVERS
 #trusted_servers = ["matrix.org"]
 
 # Whether to prioritise trusted server lookups over origin server lookups.
@@ -964,6 +1070,7 @@
 # If you wish to prioritise handling responses from trusted servers
 # *before* handling responses from origin servers, set this to true.
 #
+# env: CONTINUWUITY_QUERY_TRUSTED_KEY_SERVERS_FIRST
 #query_trusted_key_servers_first = false
 
 # Any old signing keys that were used to sign events using this server
@@ -991,6 +1098,7 @@
 # milliseconds, and the actual key value should be the unpadded base64
 # representation of the public key component of the expired signing key.
 #
+# env: CONTINUWUITY_OLD_VERIFY_KEYS
 #old_verify_keys =
 
 # Max log level for continuwuity. Allows debug, info, warn, or error.
@@ -1004,24 +1112,29 @@
 # binary from trace macros. For debug builds, this restriction is not
 # applied.
 #
+# env: CONTINUWUITY_LOG
 #log = "info"
 
 # Output logs with ANSI colours.
 #
+# env: CONTINUWUITY_LOG_COLORS
 #log_colors = true
 
 # Configures the span events which will be outputted with the log.
 #
+# env: CONTINUWUITY_LOG_SPAN_EVENTS
 #log_span_events = "none"
 
 # Configures whether CONTINUWUITY_LOG EnvFilter matches values using
 # regular expressions. See the tracing_subscriber documentation on
 # Directives.
 #
+# env: CONTINUWUITY_LOG_FILTER_REGEX
 #log_filter_regex = true
 
 # Toggles the display of ThreadId in tracing log output.
 #
+# env: CONTINUWUITY_LOG_THREAD_IDS
 #log_thread_ids = false
 
 # Enable journald logging on Unix platforms
@@ -1029,6 +1142,7 @@
 # When enabled, log output will be sent to the systemd journal
 # This is only supported on Unix platforms
 #
+# env: CONTINUWUITY_LOG_TO_JOURNALD
 #log_to_journald = false
 
 # The syslog identifier to use with journald logging
@@ -1037,6 +1151,7 @@
 #
 # Defaults to the binary name
 #
+# env: CONTINUWUITY_JOURNALD_IDENTIFIER
 #journald_identifier =
 
 # OpenID token expiration/TTL in seconds.
@@ -1045,6 +1160,7 @@
 # integrations (e.g. Vector Integrations in Element), *not* OIDC/OpenID
 # Connect/etc.
 #
+# env: CONTINUWUITY_OPENID_TOKEN_TTL
 #openid_token_ttl = 3600
 
 # Allow an existing session to mint a login token for another client.
@@ -1053,6 +1169,7 @@
 # session.
 # Enabled by default.
 #
+# env: CONTINUWUITY_LOGIN_VIA_EXISTING_SESSION
 #login_via_existing_session = true
 
 # Login token expiration/TTL in milliseconds.
@@ -1061,18 +1178,21 @@
 # This is used to allow existing sessions to create new sessions.
 # see login_via_existing_session.
 #
+# env: CONTINUWUITY_LOGIN_TOKEN_TTL
 #login_token_ttl = 120000
 
 # Static TURN username to provide the client if not using a shared secret
 # ("turn_secret"), It is recommended to use a shared secret over static
 # credentials.
 #
+# env: CONTINUWUITY_TURN_USERNAME
 #turn_username = false
 
 # Static TURN password to provide the client if not using a shared secret
 # ("turn_secret"). It is recommended to use a shared secret over static
 # credentials.
 #
+# env: CONTINUWUITY_TURN_PASSWORD
 #turn_password = false
 
 # Vector list of TURN URIs/servers to use.
@@ -1084,6 +1204,7 @@
 # example: ["turn:example.turn.uri?transport=udp",
 # "turn:example.turn.uri?transport=tcp"]
 #
+# env: CONTINUWUITY_TURN_URIS
 #turn_uris = []
 
 # TURN secret to use for generating the HMAC-SHA1 hash apart of username
@@ -1092,6 +1213,7 @@
 # This is more secure, but if needed you can use traditional static
 # username/password credentials.
 #
+# env: CONTINUWUITY_TURN_SECRET
 #turn_secret = false
 
 # TURN secret to use that's read from the file path specified.
@@ -1101,10 +1223,12 @@
 #
 # example: "/etc/continuwuity/.turn_secret"
 #
+# env: CONTINUWUITY_TURN_SECRET_FILE
 #turn_secret_file =
 
 # TURN TTL, in seconds.
 #
+# env: CONTINUWUITY_TURN_TTL
 #turn_ttl = 86400
 
 # List/vector of room IDs or room aliases that continuwuity will make
@@ -1114,6 +1238,7 @@
 # example: ["#continuwuity:continuwuity.org",
 # "!main-1:continuwuity.org"]
 #
+# env: CONTINUWUITY_AUTO_JOIN_ROOMS
 #auto_join_rooms = []
 
 # Config option to automatically deactivate the account of any user who
@@ -1133,6 +1258,7 @@
 # Defaults to false as rooms can be banned for non-moderation-related
 # reasons and this performs a full user deactivation.
 #
+# env: CONTINUWUITY_AUTO_DEACTIVATE_BANNED_ROOM_ATTEMPTS
 #auto_deactivate_banned_room_attempts = false
 
 # RocksDB log level. This is not the same as continuwuity's log level.
@@ -1140,19 +1266,23 @@
 # your database folder/path as `LOG` files. continuwuity will log RocksDB
 # errors as normal through tracing or panics if severe for safety.
 #
+# env: CONTINUWUITY_ROCKSDB_LOG_LEVEL
 #rocksdb_log_level = "error"
 
 # Whether to output RocksDB errors to stderr.
 #
+# env: CONTINUWUITY_ROCKSDB_LOG_STDERR
 #rocksdb_log_stderr = false
 
 # Max RocksDB `LOG` file size before rotating in bytes. Defaults to 4MB in
 # bytes.
 #
+# env: CONTINUWUITY_ROCKSDB_MAX_LOG_FILE_SIZE
 #rocksdb_max_log_file_size = 4194304
 
 # Time in seconds before RocksDB will forcibly rotate logs.
 #
+# env: CONTINUWUITY_ROCKSDB_LOG_TIME_TO_ROLL
 #rocksdb_log_time_to_roll = 0
 
 # Set this to true to use RocksDB config options that are tailored to HDDs
@@ -1172,6 +1302,7 @@
 # For more information, see:
 # https://github.com/facebook/rocksdb/wiki/Direct-IO
 #
+# env: CONTINUWUITY_ROCKSDB_OPTIMIZE_FOR_SPINNING_DISKS
 #rocksdb_optimize_for_spinning_disks = false
 
 # Enables direct-io to increase database performance via unbuffered I/O.
@@ -1183,18 +1314,21 @@
 # does not support direct-io like FUSE, or any form of complex filesystem
 # setup such as possibly ZFS.
 #
+# env: CONTINUWUITY_ROCKSDB_DIRECT_IO
 #rocksdb_direct_io = true
 
 # Amount of threads that RocksDB will use for parallelism on database
 # operations such as cleanup, sync, flush, compaction, etc. Set to 0 to
 # use all your logical threads. Defaults to your CPU logical thread count.
 #
+# env: CONTINUWUITY_ROCKSDB_PARALLELISM_THREADS
 #rocksdb_parallelism_threads = varies by system
 
 # Maximum number of LOG files RocksDB will keep. This must *not* be set to
 # 0. It must be at least 1. Defaults to 3 as these are not very useful
 # unless troubleshooting/debugging a RocksDB bug.
 #
+# env: CONTINUWUITY_ROCKSDB_MAX_LOG_FILES
 #rocksdb_max_log_files = 3
 
 # Type of RocksDB database compression to use.
@@ -1211,6 +1345,7 @@
 #
 # "none" will disable compression.
 #
+# env: CONTINUWUITY_ROCKSDB_COMPRESSION_ALGO
 #rocksdb_compression_algo = "zstd"
 
 # Level of compression the specified compression algorithm for RocksDB to
@@ -1223,6 +1358,7 @@
 # Note when using the default value we may override it with a setting
 # tailored specifically for continuwuity.
 #
+# env: CONTINUWUITY_ROCKSDB_COMPRESSION_LEVEL
 #rocksdb_compression_level = 32767
 
 # Level of compression the specified compression algorithm for the
@@ -1239,6 +1375,7 @@
 # Note when using the default value we may override it with a setting
 # tailored specifically for continuwuity.
 #
+# env: CONTINUWUITY_ROCKSDB_BOTTOMMOST_COMPRESSION_LEVEL
 #rocksdb_bottommost_compression_level = 32767
 
 # Whether to enable RocksDB's "bottommost_compression".
@@ -1250,6 +1387,7 @@
 #
 # See https://github.com/facebook/rocksdb/wiki/Compression for more details.
 #
+# env: CONTINUWUITY_ROCKSDB_BOTTOMMOST_COMPRESSION
 #rocksdb_bottommost_compression = true
 
 # Compression algorithm for RocksDB's Write-Ahead-Log (WAL).
@@ -1265,6 +1403,7 @@
 # For more information on WAL compression, see:
 # https://github.com/facebook/rocksdb/wiki/WAL-Compression
 #
+# env: CONTINUWUITY_ROCKSDB_WAL_COMPRESSION
 #rocksdb_wal_compression = "zstd"
 
 # Database recovery mode (for RocksDB WAL corruption).
@@ -1300,6 +1439,7 @@
 # For more details on recovering a corrupt database, see:
 # https://continuwuity.org/troubleshooting.html#database-corruption
 #
+# env: CONTINUWUITY_ROCKSDB_RECOVERY_MODE
 #rocksdb_recovery_mode = 1
 
 # Enables or disables paranoid SST file checks. This can improve RocksDB
@@ -1309,6 +1449,7 @@
 # For more information, see:
 # https://github.com/facebook/rocksdb/wiki/Online-Verification#columnfamilyoptionsparanoid_file_checks
 #
+# env: CONTINUWUITY_ROCKSDB_PARANOID_FILE_CHECKS
 #rocksdb_paranoid_file_checks = false
 
 # Enables or disables checksum verification in rocksdb at runtime.
@@ -1316,6 +1457,7 @@
 # enabled in rocksdb by default. Older or slower platforms may see gains
 # from disabling.
 #
+# env: CONTINUWUITY_ROCKSDB_CHECKSUMS
 #rocksdb_checksums = true
 
 # Enables the "atomic flush" mode in rocksdb. This option is not intended
@@ -1323,6 +1465,7 @@
 # may be enabled by the paranoid to possibly improve database integrity at
 # the cost of performance.
 #
+# env: CONTINUWUITY_ROCKSDB_ATOMIC_FLUSH
 #rocksdb_atomic_flush = false
 
 # Database repair mode (for RocksDB SST corruption).
@@ -1340,18 +1483,21 @@
 #
 # See https://continuwuity.org/troubleshooting.html#database-corruption for more details on recovering a corrupt database.
 #
+# env: CONTINUWUITY_ROCKSDB_REPAIR
 #rocksdb_repair = false
 
 # Enables idle CPU priority for compaction thread. This is not enabled by
 # default to prevent compaction from falling too far behind on busy
 # systems.
 #
+# env: CONTINUWUITY_ROCKSDB_COMPACTION_PRIO_IDLE
 #rocksdb_compaction_prio_idle = false
 
 # Enables idle IO priority for compaction thread. This prevents any
 # unexpected lag in the server's operation and is usually a good idea.
 # Enabled by default.
 #
+# env: CONTINUWUITY_ROCKSDB_COMPACTION_IOPRIO_IDLE
 #rocksdb_compaction_ioprio_idle = true
 
 # Enables RocksDB compaction. You should never ever have to set this
@@ -1363,6 +1509,7 @@
 # explosively large database, gradually poor performance, unnecessarily
 # excessive disk read/writes, and slower shutdowns and startups.
 #
+# env: CONTINUWUITY_ROCKSDB_COMPACTION
 #rocksdb_compaction = true
 
 # Level of statistics collection. Some admin commands to display database
@@ -1376,6 +1523,7 @@
 # 3 to 5 = Statistics with possible performance impact.
 # 6 = All statistics.
 #
+# env: CONTINUWUITY_ROCKSDB_STATS_LEVEL
 #rocksdb_stats_level = 1
 
 # This is a password that can be configured that will let you login to the
@@ -1390,6 +1538,7 @@
 #
 # example: "F670$2CP@Hw8mG7RY1$%!#Ic7YA"
 #
+# env: CONTINUWUITY_EMERGENCY_PASSWORD
 #emergency_password =
 
 # Suffix stripped from the end of a pusher URL before appending
@@ -1398,6 +1547,7 @@
 #
 # For more information on Push Gateways: https://spec.matrix.org/latest/push-gateway-api/
 #
+# env: CONTINUWUITY_NOTIFICATION_PUSH_PATH
 #notification_push_path = "/_matrix/push/v1/notify"
 
 # Allow local (your server only) presence updates/requests.
@@ -1408,6 +1558,7 @@
 # presence, but will still become more expensive the more local users you
 # have.
 #
+# env: CONTINUWUITY_ALLOW_LOCAL_PRESENCE
 #allow_local_presence = true
 
 # Allow incoming federated presence updates.
@@ -1417,6 +1568,7 @@
 # offline to your local users. This does not affect typing indicators or
 # read receipts.
 #
+# env: CONTINUWUITY_ALLOW_INCOMING_PRESENCE
 #allow_incoming_presence = true
 
 # Allow outgoing presence updates/requests.
@@ -1429,16 +1581,19 @@
 # There are only a few clients that even implement presence, so you
 # probably don't want to enable this.
 #
+# env: CONTINUWUITY_ALLOW_OUTGOING_PRESENCE
 #allow_outgoing_presence = false
 
 # How many seconds without presence updates before you become idle.
 # Defaults to 5 minutes.
 #
+# env: CONTINUWUITY_PRESENCE_IDLE_TIMEOUT_S
 #presence_idle_timeout_s = 300
 
 # How many seconds without presence updates before you become offline.
 # Defaults to 30 minutes.
 #
+# env: CONTINUWUITY_PRESENCE_OFFLINE_TIMEOUT_S
 #presence_offline_timeout_s = 1800
 
 # Enable the presence idle timer for remote users.
@@ -1448,6 +1603,7 @@
 # incorrect presence states (i.e. stuck online) to be seen for some remote
 # users.
 #
+# env: CONTINUWUITY_PRESENCE_TIMEOUT_REMOTE_USERS
 #presence_timeout_remote_users = true
 
 # Allow local read receipts.
@@ -1455,10 +1611,12 @@
 # Disabling this will effectively also disable outgoing federated read
 # receipts.
 #
+# env: CONTINUWUITY_ALLOW_LOCAL_READ_RECEIPTS
 #allow_local_read_receipts = true
 
 # Allow receiving incoming read receipts from remote servers.
 #
+# env: CONTINUWUITY_ALLOW_INCOMING_READ_RECEIPTS
 #allow_incoming_read_receipts = true
 
 # Allow sending read receipts to remote servers.
@@ -1467,6 +1625,7 @@
 # lots of other homeservers may cause additional strain on the CPU and
 # network.
 #
+# env: CONTINUWUITY_ALLOW_OUTGOING_READ_RECEIPTS
 #allow_outgoing_read_receipts = true
 
 # Allow local typing updates.
@@ -1474,6 +1633,7 @@
 # Disabling this will effectively also disable outgoing federated typing
 # updates.
 #
+# env: CONTINUWUITY_ALLOW_LOCAL_TYPING
 #allow_local_typing = true
 
 # Allow outgoing typing updates to federation.
@@ -1482,30 +1642,36 @@
 # with lots of other homeservers may cause additional strain on the CPU
 # and network.
 #
+# env: CONTINUWUITY_ALLOW_OUTGOING_TYPING
 #allow_outgoing_typing = true
 
 # Allow incoming typing updates from federation.
 #
+# env: CONTINUWUITY_ALLOW_INCOMING_TYPING
 #allow_incoming_typing = true
 
 # Allow the use of unstable persistent "sticky events" ([MSC4354])
 #
 # MSC4354: https://c10y.cc/MSC4354
 #
+# env: CONTINUWUITY_ALLOW_STICKY_EVENTS
 #allow_sticky_events = false
 
 # Maximum time federation user can indicate typing.
 #
+# env: CONTINUWUITY_TYPING_FEDERATION_TIMEOUT_S
 #typing_federation_timeout_s = 30
 
 # Minimum time local client can indicate typing. This does not override a
 # client's request to stop typing. It only enforces a minimum value in
 # case of no stop request.
 #
+# env: CONTINUWUITY_TYPING_CLIENT_TIMEOUT_MIN_S
 #typing_client_timeout_min_s = 15
 
 # Maximum time local client can indicate typing.
 #
+# env: CONTINUWUITY_TYPING_CLIENT_TIMEOUT_MAX_S
 #typing_client_timeout_max_s = 45
 
 # Set this to true for continuwuity to compress HTTP response bodies using
@@ -1515,6 +1681,7 @@
 # See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
 # before deciding to enable this.
 #
+# env: CONTINUWUITY_ZSTD_COMPRESSION
 #zstd_compression = false
 
 # Set this to true for continuwuity to compress HTTP response bodies using
@@ -1527,6 +1694,7 @@
 # If you are in a large amount of rooms, you may find that enabling this
 # is necessary to reduce the significantly large response bodies.
 #
+# env: CONTINUWUITY_GZIP_COMPRESSION
 #gzip_compression = false
 
 # Set this to true for continuwuity to compress HTTP response bodies using
@@ -1536,6 +1704,7 @@
 # See https://breachattack.com/ and https://wikipedia.org/wiki/BREACH
 # before deciding to enable this.
 #
+# env: CONTINUWUITY_BROTLI_COMPRESSION
 #brotli_compression = false
 
 # Enable the legacy unauthenticated Matrix media repository endpoints.
@@ -1550,6 +1719,7 @@
 #
 # Defaults to false, as unauthenticated media has been sunsetted.
 #
+# env: CONTINUWUITY_ALLOW_LEGACY_MEDIA
 #allow_legacy_media = false
 
 # If set to true, prevents fetching new legacy remote media.
@@ -1557,6 +1727,7 @@
 # Legacy media may still be accessible if it was already fetched
 # previously and allow_legacy_media is true.
 #
+# env: CONTINUWUITY_FREEZE_LEGACY_MEDIA
 #freeze_legacy_media = true
 
 # Check consistency of the media directory at startup:
@@ -1570,6 +1741,7 @@
 # directory is significantly large setting this to false may reduce
 # startup time.
 #
+# env: CONTINUWUITY_MEDIA_STARTUP_CHECK
 #media_startup_check = true
 
 # Enable backward-compatibility with Conduit's media directory by creating
@@ -1583,6 +1755,7 @@
 # media_startup_check to take place before shutting down to return to
 # Conduit.
 #
+# env: CONTINUWUITY_MEDIA_COMPAT_FILE_LINK
 #media_compat_file_link = false
 
 # Prune missing media from the database as part of the media startup
@@ -1594,6 +1767,7 @@
 # or inaccessible, the metadata entries in the database will be lost with
 # sadness.
 #
+# env: CONTINUWUITY_PRUNE_MISSING_MEDIA
 #prune_missing_media = false
 
 # List of forbidden server names via regex patterns that we will block
@@ -1613,6 +1787,7 @@
 #
 # example: ["badserver\\.tld$", "badphrase", "19dollarfortnitecards"]
 #
+# env: CONTINUWUITY_FORBIDDEN_REMOTE_SERVER_NAMES
 #forbidden_remote_server_names = []
 
 # List of allowed server names via regex patterns that we will allow,
@@ -1622,6 +1797,7 @@
 #
 # example: ["goodserver\\.tld$", "goodphrase"]
 #
+# env: CONTINUWUITY_ALLOWED_REMOTE_SERVER_NAMES
 #allowed_remote_server_names = []
 
 # Vector list of regex patterns of server names that continuwuity will
@@ -1629,6 +1805,7 @@
 #
 # example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
 #
+# env: CONTINUWUITY_PREVENT_MEDIA_DOWNLOADS_FROM
 #prevent_media_downloads_from = []
 
 # List of forbidden server names via regex patterns that we will block all
@@ -1637,6 +1814,7 @@
 #
 # example: ["badserver\.tld$", "badphrase", "19dollarfortnitecards"]
 #
+# env: CONTINUWUITY_FORBIDDEN_REMOTE_ROOM_DIRECTORY_SERVER_NAMES
 #forbidden_remote_room_directory_server_names = []
 
 # Vector list of regex patterns of server names that continuwuity will not
@@ -1650,6 +1828,7 @@
 # example: ["reallybadserver\.tld$", "reallybadphrase",
 # "69dollarfortnitecards"]
 #
+# env: CONTINUWUITY_IGNORE_MESSAGES_FROM_SERVER_NAMES
 #ignore_messages_from_server_names = []
 
 # List of server names that continuwuity will deprioritize (try last) when
@@ -1664,6 +1843,7 @@
 #
 # example: ["example.com"]
 #
+# env: CONTINUWUITY_DEPRIORITIZE_JOINS_THROUGH_SERVERS
 #deprioritize_joins_through_servers = []
 
 # Send messages from users that the user has ignored to the client.
@@ -1674,11 +1854,13 @@
 # responsibility of ignoring messages to the client, which can avoid this
 # limitation.
 #
+# env: CONTINUWUITY_SEND_MESSAGES_FROM_IGNORED_USERS_TO_CLIENT
 #send_messages_from_ignored_users_to_client = false
 
 # Send "org.matrix.dummy_event" events to the client. This is a debugging
 # option.
 #
+# env: CONTINUWUITY_SEND_DUMMY_EVENTS_TO_CLIENTS
 #send_dummy_events_to_clients = false
 
 # Vector list of IPv4 and IPv6 CIDR ranges / subnets *in quotes* that you
@@ -1701,6 +1883,7 @@
 # "203.0.113.0/24", "224.0.0.0/4", "::1/128", "fe80::/10", "fc00::/7",
 # "2001:db8::/32", "ff00::/8", "fec0::/10"]
 #
+# env: CONTINUWUITY_IP_RANGE_DENYLIST
 #ip_range_denylist =
 
 # Optional IP address or network interface-name to bind as the source of
@@ -1713,6 +1896,7 @@
 #
 # example: `"eth0"` or `"1.2.3.4"`
 #
+# env: CONTINUWUITY_URL_PREVIEW_BOUND_INTERFACE
 #url_preview_bound_interface =
 
 # Vector list of domains allowed to send requests to for URL previews.
@@ -1724,6 +1908,7 @@
 # attack surface to your server, you are expected to be aware of the risks
 # by doing so.
 #
+# env: CONTINUWUITY_URL_PREVIEW_DOMAIN_CONTAINS_ALLOWLIST
 #url_preview_domain_contains_allowlist = []
 
 # Vector list of explicit domains allowed to send requests to for URL
@@ -1736,6 +1921,7 @@
 # attack surface to your server, you are expected to be aware of the risks
 # by doing so.
 #
+# env: CONTINUWUITY_URL_PREVIEW_DOMAIN_EXPLICIT_ALLOWLIST
 #url_preview_domain_explicit_allowlist = []
 
 # Vector list of explicit domains not allowed to send requests to for URL
@@ -1746,6 +1932,7 @@
 # "https://mymaliciousdomainexamplegoogle.com". The denylist is checked
 # first before allowlist. Setting this to "*" will not do anything.
 #
+# env: CONTINUWUITY_URL_PREVIEW_DOMAIN_EXPLICIT_DENYLIST
 #url_preview_domain_explicit_denylist = []
 
 # Vector list of URLs allowed to send requests to for URL previews.
@@ -1758,16 +1945,19 @@
 # attack surface to your server, you are expected to be aware of the risks
 # by doing so.
 #
+# env: CONTINUWUITY_URL_PREVIEW_URL_CONTAINS_ALLOWLIST
 #url_preview_url_contains_allowlist = []
 
 # Maximum amount of bytes allowed in a URL preview body size when
 # spidering. Defaults to 256KB in bytes.
 #
+# env: CONTINUWUITY_URL_PREVIEW_MAX_SPIDER_SIZE
 #url_preview_max_spider_size = 256000
 
 # Total request timeout for URL previews (seconds). This includes
 # connection, request, and response body reading time.
 #
+# env: CONTINUWUITY_URL_PREVIEW_TIMEOUT
 #url_preview_timeout = 120
 
 # Option to decide whether you would like to run the domain allowlist
@@ -1781,15 +1971,18 @@
 # allowlist is still too broad for you but you still want to allow all the
 # subdomains under a root domain.
 #
+# env: CONTINUWUITY_URL_PREVIEW_CHECK_ROOT_DOMAIN
 #url_preview_check_root_domain = false
 
 # User agent that is used specifically when fetching url previews.
 #
+# env: CONTINUWUITY_URL_PREVIEW_USER_AGENT
 #url_preview_user_agent = "continuwuity/<version> (embedbot; facebookexternalhit/1.1; +https://continuwuity.org)"
 
 # Determines whether audio and video files will be downloaded for URL
 # previews.
 #
+# env: CONTINUWUITY_URL_PREVIEW_ALLOW_AUDIO_VIDEO
 #url_preview_allow_audio_video = false
 
 # List of forbidden room aliases and room IDs as strings of regex
@@ -1804,6 +1997,7 @@
 #
 # example: ["19dollarfortnitecards", "b[4a]droom", "badphrase"]
 #
+# env: CONTINUWUITY_FORBIDDEN_ALIAS_NAMES
 #forbidden_alias_names = []
 
 # List of forbidden username patterns/strings.
@@ -1817,6 +2011,7 @@
 #
 # example: ["administrator", "b[a4]dusernam[3e]", "badphrase"]
 #
+# env: CONTINUWUITY_FORBIDDEN_USERNAMES
 #forbidden_usernames = []
 
 # Retry failed and incomplete messages to remote servers immediately upon
@@ -1826,6 +2021,7 @@
 # scale of the server's deployment is huge. Do not disable this unless you
 # know what you are doing.
 #
+# env: CONTINUWUITY_STARTUP_NETBURST
 #startup_netburst = true
 
 # Messages are dropped and not reattempted. The `startup_netburst` option
@@ -1835,6 +2031,7 @@
 # significant disk. Set this value to 0 to drop all messages without any
 # attempt at redelivery.
 #
+# env: CONTINUWUITY_STARTUP_NETBURST_KEEP
 #startup_netburst_keep = 50
 
 # Block non-admin local users from sending room invites (local and
@@ -1842,6 +2039,7 @@
 #
 # Admins are always allowed to send and receive all room invites.
 #
+# env: CONTINUWUITY_BLOCK_NON_ADMIN_INVITES
 #block_non_admin_invites = false
 
 # Allow admins to enter commands in rooms other than "#admins" (admin
@@ -1851,12 +2049,14 @@
 #
 # example: \\!admin debug ping continuwuity.org
 #
+# env: CONTINUWUITY_ADMIN_ESCAPE_COMMANDS
 #admin_escape_commands = true
 
 # Automatically activate the continuwuity admin room console / CLI on
 # startup. This option can also be enabled with `--console` continuwuity
 # argument.
 #
+# env: CONTINUWUITY_ADMIN_CONSOLE_AUTOMATIC
 #admin_console_automatic = false
 
 # List of admin commands to execute on startup.
@@ -1870,6 +2070,7 @@
 # example: admin_execute = ["debug ping continuwuity.org", "debug echo
 # hi"]`
 #
+# env: CONTINUWUITY_ADMIN_EXECUTE
 #admin_execute = []
 
 # Ignore errors in startup commands.
@@ -1877,6 +2078,7 @@
 # If false, continuwuity will error and fail to start if an admin execute
 # command (`--execute` / `admin_execute`) fails.
 #
+# env: CONTINUWUITY_ADMIN_EXECUTE_ERRORS_IGNORE
 #admin_execute_errors_ignore = false
 
 # List of admin commands to execute on SIGUSR2.
@@ -1884,12 +2086,14 @@
 # Similar to admin_execute, but these commands are executed when the
 # server receives SIGUSR2 on supporting platforms.
 #
+# env: CONTINUWUITY_ADMIN_SIGNAL_EXECUTE
 #admin_signal_execute = []
 
 # Controls the max log level for admin command log captures (logs
 # generated from running admin commands). Defaults to "info" on release
 # builds, else "debug" on debug builds.
 #
+# env: CONTINUWUITY_ADMIN_LOG_CAPTURE
 #admin_log_capture = "info"
 
 # The default room tag to apply on the admin room.
@@ -1899,6 +2103,7 @@
 # continuwuity admin room can be pinned here so you always have an
 # easy-to-access shortcut dedicated to your admin room.
 #
+# env: CONTINUWUITY_ADMIN_ROOM_TAG
 #admin_room_tag = "m.server_notice"
 
 # A list of Matrix IDs that are qualified as server admins.
@@ -1906,25 +2111,30 @@
 # Any Matrix IDs within this list are regarded as an admin
 # regardless of whether they are in the admin room or not
 #
+# env: CONTINUWUITY_ADMINS_LIST
 #admins_list = []
 
 # Defines whether those within the admin room are added to the
 # admins_list.
 #
+# env: CONTINUWUITY_ADMINS_FROM_ROOM
 #admins_from_room = true
 
 # Sentry.io crash/panic reporting, performance monitoring/metrics, etc.
 # This is NOT enabled by default.
 #
+# env: CONTINUWUITY_SENTRY
 #sentry = false
 
 # Sentry reporting URL, if a custom one is desired.
 #
+# env: CONTINUWUITY_SENTRY_ENDPOINT
 #sentry_endpoint = ""
 
 # Report your continuwuity server_name in Sentry.io crash reports and
 # metrics.
 #
+# env: CONTINUWUITY_SENTRY_SEND_SERVER_NAME
 #sentry_send_server_name = false
 
 # Performance monitoring/tracing sample rate for Sentry.io.
@@ -1933,27 +2143,32 @@
 # setting it to 0.0 (0%) This value is read as a percentage to Sentry,
 # represented as a decimal. Defaults to 15% of traces (0.15)
 #
+# env: CONTINUWUITY_SENTRY_TRACES_SAMPLE_RATE
 #sentry_traces_sample_rate = 0.15
 
 # Whether to attach a stacktrace to Sentry reports.
 #
+# env: CONTINUWUITY_SENTRY_ATTACH_STACKTRACE
 #sentry_attach_stacktrace = false
 
 # Send panics to Sentry. This is true by default, but Sentry has to be
 # enabled. The global `sentry` config option must be enabled to send any
 # data.
 #
+# env: CONTINUWUITY_SENTRY_SEND_PANIC
 #sentry_send_panic = true
 
 # Send errors to sentry. This is true by default, but sentry has to be
 # enabled. This option is only effective in release-mode; forced to false
 # in debug-mode.
 #
+# env: CONTINUWUITY_SENTRY_SEND_ERROR
 #sentry_send_error = true
 
 # Controls the tracing log level for Sentry to send things like
 # breadcrumbs and transactions
 #
+# env: CONTINUWUITY_SENTRY_FILTER
 #sentry_filter = "info"
 
 # Enable the tokio-console. This option is only relevant to developers.
@@ -1961,6 +2176,7 @@
 #    For more information, see:
 # https://continuwuity.org/development.html#debugging-with-tokio-console
 #
+# env: CONTINUWUITY_TOKIO_CONSOLE
 #tokio_console = false
 
 # A list of flags that modify startup behavior.
@@ -1976,6 +2192,7 @@
 # Currently this only checks for "smoke" which enables "Smoketest mode."
 # This mode exits the program after running startup tasks.
 #
+# env: CONTINUWUITY_TEST
 #test = false
 
 # Controls whether admin room notices like account registrations, password
@@ -1983,12 +2200,14 @@
 # sent to the admin room. Update notices and normal admin command
 # responses will still be sent.
 #
+# env: CONTINUWUITY_ADMIN_ROOM_NOTICES
 #admin_room_notices = true
 
 # Enable database pool affinity support. On supporting systems, block
 # device queue topologies are detected and the request pool is optimized
 # for the hardware; db_pool_workers is determined automatically.
 #
+# env: CONTINUWUITY_DB_POOL_AFFINITY
 #db_pool_affinity = true
 
 # Sets the number of worker threads in the frontend-pool of the database.
@@ -2000,6 +2219,7 @@
 # Note: This value is only used if db_pool_affinity is disabled or not
 # detected on the system, otherwise it is determined automatically.
 #
+# env: CONTINUWUITY_DB_POOL_WORKERS
 #db_pool_workers = 32
 
 # When db_pool_affinity is enabled and detected, the size of any worker
@@ -2011,6 +2231,7 @@
 # The value is multiplied by the number of cores which share a device
 # queue, since group workers can be scheduled on any of those cores.
 #
+# env: CONTINUWUITY_DB_POOL_WORKERS_LIMIT
 #db_pool_workers_limit = 64
 
 # Determines the size of the queues feeding the database's frontend-pool.
@@ -2020,6 +2241,7 @@
 # flow-control by avoiding buffer-bloat, but can inhibit throughput if
 # too low.
 #
+# env: CONTINUWUITY_DB_POOL_QUEUE_MULT
 #db_pool_queue_mult = 4
 
 # Sets the initial value for the concurrency of streams. This value simply
@@ -2028,6 +2250,7 @@
 # overridden by the computed stream_width_scale, unless that is disabled;
 # this value can serve as a fixed-width instead.
 #
+# env: CONTINUWUITY_STREAM_WIDTH_DEFAULT
 #stream_width_default = 32
 
 # Scales the stream width starting from a base value detected for the
@@ -2043,6 +2266,7 @@
 # value of stream_width_default. The default scale is 1.0 to match the
 # capabilities detected for the system.
 #
+# env: CONTINUWUITY_STREAM_WIDTH_SCALE
 #stream_width_scale = 1.0
 
 # Sets the initial amplification factor. This controls batch sizes of
@@ -2056,6 +2280,7 @@
 # complexity. The maximum value is 32768, though sufficient hardware is
 # still advised for that.
 #
+# env: CONTINUWUITY_STREAM_AMPLIFICATION
 #stream_amplification = 1024
 
 # Number of sender task workers; determines sender parallelism. Default is
@@ -2063,21 +2288,25 @@
 # number of tokio worker-threads or number of cores, etc. Override by
 # setting a non-zero value.
 #
+# env: CONTINUWUITY_SENDER_WORKERS
 #sender_workers = 0
 
 # Enables listener sockets; can be set to false to disable listening. This
 # option is intended for developer/diagnostic purposes only.
 #
+# env: CONTINUWUITY_LISTENING
 #listening = true
 
 # Enables configuration reload when the server receives SIGUSR1 on
 # supporting platforms.
 #
+# env: CONTINUWUITY_CONFIG_RELOAD_SIGNAL
 #config_reload_signal = true
 
 # Allow search engines and crawlers to index Continuwuity's built-in
 # webpages served under the `/_continuwuity/` prefix.
 #
+# env: CONTINUWUITY_ALLOW_WEB_INDEXING
 #allow_web_indexing = false
 
 [global.tls]
@@ -2086,16 +2315,19 @@
 #
 # example: "/path/to/my/certificate.crt"
 #
+# env: CONTINUWUITY_TLS__CERTS
 #certs =
 
 # Path to a valid TLS certificate private key.
 #
 # example: "/path/to/my/certificate.key"
 #
+# env: CONTINUWUITY_TLS__KEY
 #key =
 
 # Whether to listen and allow for HTTP and HTTPS connections (insecure!)
 #
+# env: CONTINUWUITY_TLS__DUAL_PROTOCOL
 #dual_protocol = false
 
 [global.well_known]
@@ -2105,6 +2337,7 @@
 #
 # example: "https://matrix.example.com"
 #
+# env: CONTINUWUITY_WELL_KNOWN__CLIENT
 #client =
 
 # The server base domain of the URL with a specific port that the server
@@ -2113,28 +2346,33 @@
 #
 # example: "matrix.example.com:443"
 #
+# env: CONTINUWUITY_WELL_KNOWN__SERVER
 #server =
 
 # URL to a support page for the server, which will be served as part of
 # the MSC1929 server support endpoint at /.well-known/matrix/support.
 # Will be included alongside any contact information
 #
+# env: CONTINUWUITY_WELL_KNOWN__SUPPORT_PAGE
 #support_page =
 
 # The ed25519 public key for the policy server available at this server's
 # name. Must be unpadded base64.
 #
+# env: CONTINUWUITY_WELL_KNOWN__POLICY_SERVER_PUBLIC_KEY
 #policy_server_public_key =
 
 # Role string for server support contacts, to be served as part of the
 # MSC1929 server support endpoint at /.well-known/matrix/support.
 #
+# env: CONTINUWUITY_WELL_KNOWN__SUPPORT_ROLE
 #support_role = "m.role.admin"
 
 # Email address for server support contacts, to be served as part of the
 # MSC1929 server support endpoint.
 # This will be used along with support_mxid if specified.
 #
+# env: CONTINUWUITY_WELL_KNOWN__SUPPORT_EMAIL
 #support_email =
 
 # Matrix ID for server support contacts, to be served as part of the
@@ -2144,11 +2382,13 @@
 # If no email or mxid is specified, all of the server's admins will be
 # listed.
 #
+# env: CONTINUWUITY_WELL_KNOWN__SUPPORT_MXID
 #support_mxid =
 
 # PGP key URI for server support contacts, to be served as part of the
 # MSC1929 server support endpoint.
 #
+# env: CONTINUWUITY_WELL_KNOWN__SUPPORT_PGP_KEY
 #support_pgp_key =
 
 [global.matrix_rtc]
@@ -2166,6 +2406,7 @@
 #
 # To disable, set this to an empty list (`[]`).
 #
+# env: CONTINUWUITY_MATRIX_RTC__FOCI
 #foci = []
 
 #[global.antispam]
@@ -2176,15 +2417,18 @@
 #
 # Example: "http://127.0.0.1:29339"
 #
+# env: CONTINUWUITY_ANTISPAM__MEOWLNIR__BASE_URL
 #base_url =
 
 # The authentication secret defined in antispam->secret. Required for
 # continuwuity to talk to Meowlnir.
 #
+# env: CONTINUWUITY_ANTISPAM__MEOWLNIR__SECRET
 #secret =
 
 # The management room for which to send requests
 #
+# env: CONTINUWUITY_ANTISPAM__MEOWLNIR__MANAGEMENT_ROOM
 #management_room =
 
 # If enabled run all federated join attempts (both federated and local)
@@ -2193,6 +2437,7 @@
 # By default, only join attempts for rooms with the `fi.mau.spam_checker`
 # restricted join rule are checked.
 #
+# env: CONTINUWUITY_ANTISPAM__MEOWLNIR__CHECK_ALL_JOINS
 #check_all_joins = false
 
 #[global.antispam.draupnir]
@@ -2201,11 +2446,13 @@
 #
 # Example: "http://127.0.0.1:29339"
 #
+# env: CONTINUWUITY_ANTISPAM__DRAUPNIR__BASE_URL
 #base_url =
 
 # The authentication secret defined in
 # web->synapseHTTPAntispam->authorization
 #
+# env: CONTINUWUITY_ANTISPAM__DRAUPNIR__SECRET
 #secret =
 
 #[global.smtp]
@@ -2224,6 +2471,7 @@
 # For a guide on the accepted URI syntax, consult Lettre's documentation:
 # https://docs.rs/lettre/latest/lettre/transport/smtp/struct.AsyncSmtpTransport.html#method.from_url
 #
+# env: CONTINUWUITY_SMTP__CONNECTION_URI
 #connection_uri =
 
 # Same as `connection_uri`, except loaded from a file. If `connection_uri`
@@ -2233,6 +2481,7 @@
 # currently reread when the server configuration is reloaded. If the file
 # cannot be read, Continuwuity will fail to start.
 #
+# env: CONTINUWUITY_SMTP__CONNECTION_URI_FILE
 #connection_uri_file =
 
 # The outgoing address which will be used for sending emails.
@@ -2243,6 +2492,7 @@
 # - `Name <address@domain.org>` to specify a sender name
 # - `address@domain.org` to not use a name
 #
+# env: CONTINUWUITY_SMTP__SENDER
 #sender =
 
 # Whether to allow public registration with an email address.
@@ -2253,18 +2503,21 @@
 # If either this option or `require_email_for_token_registration` are set,
 # users will not be allowed to remove their email address.
 #
+# env: CONTINUWUITY_SMTP__REQUIRE_EMAIL_FOR_REGISTRATION
 #require_email_for_registration = false
 
 # Whether to require that users who register with a registration token
 # provide an email address. This option is independent of
 # `require_email_for_registration`.
 #
+# env: CONTINUWUITY_SMTP__REQUIRE_EMAIL_FOR_TOKEN_REGISTRATION
 #require_email_for_token_registration = false
 
 #[global.registration_terms]
 
 # The language code to provide to clients along with the policy documents.
 #
+# env: CONTINUWUITY_REGISTRATION_TERMS__LANGUAGE
 #language = "en"
 
 # Policy documents, such as terms and conditions or a privacy policy,
@@ -2276,6 +2529,7 @@
 # privacy_policy = { name = "Privacy Policy", url = "https://homeserver.example/en/privacy_policy.html" }
 # ```
 #
+# env: CONTINUWUITY_REGISTRATION_TERMS__DOCUMENTS
 #documents =
 
 #[global.oauth]
@@ -2289,6 +2543,7 @@
 # - "exclusive": Only OAuth will be available. Clients which require
 #   legacy authentication will be unable to log in.
 #
+# env: CONTINUWUITY_OAUTH__COMPATIBILITY_MODE
 #compatibility_mode = "hybrid"
 
 #[global.oauth.oidc]
@@ -2307,16 +2562,19 @@
 # Generally you should set this to the base domain your identity provider
 # runs on.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__DISCOVERY_URL
 #discovery_url =
 
 # The OAuth client ID for Continuwuity to use when communicating with the
 # identity provider.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__CLIENT_ID
 #client_id =
 
 # The OAuth client secret for Continuwuity to use when communicating with
 # the identity provider.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__CLIENT_SECRET
 #client_secret =
 
 # A path to a file which Continuwuity will read the client secret from.
@@ -2324,12 +2582,14 @@
 #
 # The server will fail to start if the file cannot be read.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__CLIENT_SECRET_FILE
 #client_secret_file =
 
 # Additional scopes Continuwuity should request from the IDP. This may be
 # necessary to access certain claims. Continuwuity always requests the
 # `openid` scope.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__ADDITIONAL_SCOPES
 #additional_scopes = []
 
 # Additional trusted audiences that Continuwuity will accept in the `aud`
@@ -2340,6 +2600,7 @@
 # Most deployments will not need to set this, because most identity
 # providers only include the client ID in the `aud` claim by default.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__ADDITIONAL_TRUSTED_AUDIENCES
 #additional_trusted_audiences = []
 
 # The name of the identity provider. If this is set, the login page's
@@ -2347,6 +2608,7 @@
 #
 # example: "Kanidm"
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PROVIDER_NAME
 #provider_name =
 
 # The URL of an icon for the identity provider, shown on the login page
@@ -2354,6 +2616,7 @@
 #
 # example: "https://idm.example.com/pkg/img/logo-square.svg"
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PROVIDER_ICON
 #provider_icon =
 
 # Whether the user should be prompted to choose a localpart
@@ -2362,11 +2625,13 @@
 # (see below) as the user's localpart. Authentication will
 # fail if this claim is missing or is not a valid localpart.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PROMPT_FOR_LOCALPART
 #prompt_for_localpart = true
 
 # The claim to use for the user's localpart, if `prompt_for_localpart` is
 # false.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PREFERRED_USERNAME_CLAIM
 #preferred_username_claim = "preferred_username"
 
 # The claim which will be used to set the user's email address,
@@ -2380,6 +2645,7 @@
 # If this option is set, and `profile_key_import_mode` is `on_login`,
 # users will not be able to change their email addresses themselves.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__EMAIL_CLAIM
 #email_claim = "email"
 
 # Defines how claims returned from the IDP should be mapped to a user's
@@ -2401,6 +2667,7 @@
 # If you map these fields to claims, make sure your users cannot set those
 # claims to arbitrary URLs.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PROFILE_KEY_MAP
 #profile_key_map = { displayname = "name" }
 
 # When profile keys should be imported from the IDP's claims.
@@ -2411,4 +2678,5 @@
 #   Additionally, users will not be able to manually edit any listed keys
 #   through their Matrix client.
 #
+# env: CONTINUWUITY_OAUTH__OIDC__PROFILE_KEY_IMPORT_MODE
 #profile_key_import_mode = "on_registration"

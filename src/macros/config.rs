@@ -89,6 +89,8 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 		}
 	}
 
+	let env_prefix = env_prefix(section);
+
 	let mut summary: Vec<TokenStream2> = Vec::new();
 	let mut nested_displays: Vec<TokenStream2> = Vec::new();
 
@@ -143,6 +145,12 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 				if let Some(file) = file.as_mut() {
 					file.write_fmt(format_args!("\n{doc}"))
 						.expect("written to config file");
+
+					file.write_fmt(format_args!(
+						"# env: {env_prefix}{}\n",
+						ident.to_string().to_uppercase()
+					))
+					.expect("written to config file");
 
 					file.write_fmt(format_args!("#{ident} ={default}\n"))
 						.expect("written to config file");
@@ -211,6 +219,19 @@ fn generate_example(input: &ItemStruct, args: &[Meta], write: bool) -> Result<To
 	};
 
 	Ok(display)
+}
+
+fn env_prefix(section: &str) -> String {
+	let nested = section
+		.strip_prefix("global")
+		.unwrap_or(section)
+		.trim_start_matches('.');
+
+	if nested.is_empty() {
+		"CONTINUWUITY_".to_owned()
+	} else {
+		format!("CONTINUWUITY_{}__", nested.replace('.', "__").to_uppercase())
+	}
 }
 
 fn get_default(field: &Field) -> Option<String> {
