@@ -60,11 +60,6 @@ impl Service {
 		event: &ReceiptEvent,
 	) {
 		self.db.readreceipt_update(user_id, room_id, event).await;
-		self.services
-			.sending
-			.flush_room(room_id)
-			.await
-			.expect("room flush failed");
 		self.services.sync.wake_all_joined(room_id).await;
 	}
 
