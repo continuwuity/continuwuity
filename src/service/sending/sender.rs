@@ -414,7 +414,10 @@ impl Service {
 		let (mut allow, mut retry) = (true, false);
 		if let Destination::Federation(server_name) = dest {
 			if let Some(retry_after) = self.services.federation.retry_after(server_name) {
-				allow = retry_after.is_zero();
+				if !retry_after.is_zero() {
+					trace!("{dest:?} is in backoff, refusing send");
+					return Ok((false, false));
+				}
 			}
 			statuses
 				.entry(dest.clone())
