@@ -59,7 +59,7 @@ pub(super) async fn process(subcommand: PusherCommand, context: &Context<'_>) ->
 			pushers
 				.stream()
 				.for_each(async |pushkey| {
-					services.pusher.delete_pusher(&user_id, pushkey).await;
+					services.pusher.delete_pusher(&user_id, &pushkey).await;
 				})
 				.await;
 			write!(context, "Deleted {pusher_count} pushers for {user_id}.")
@@ -68,7 +68,6 @@ pub(super) async fn process(subcommand: PusherCommand, context: &Context<'_>) ->
 			let pushers = services
 				.pusher
 				.get_pushkeys(&user_id)
-				.map(ToOwned::to_owned)
 				.broad_filter_map(async |pushkey| {
 					services
 						.pusher

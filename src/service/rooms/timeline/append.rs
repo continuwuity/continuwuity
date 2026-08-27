@@ -540,7 +540,7 @@ impl super::Service {
 				.ready_for_each(|push_key| {
 					self.services
 						.sending
-						.send_pdu_push(pdu_id, user, push_key.to_owned())
+						.send_pdu_push(pdu_id, user, push_key)
 						.expect("TODO: replace with future");
 				})
 				.await;

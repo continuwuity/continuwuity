@@ -182,13 +182,14 @@ impl Service {
 	pub fn get_pushkeys<'a>(
 		&'a self,
 		sender: &'a UserId,
-	) -> impl Stream<Item = &'a str> + Send + 'a {
+	) -> impl Stream<Item = String> + Send + 'a {
 		let prefix = (sender, Interfix);
 		self.db
 			.senderkey_pusher
 			.keys_prefix(&prefix)
 			.ignore_err()
 			.map(|(_, pushkey): (Ignore, &str)| pushkey)
+			.map(ToOwned::to_owned)
 	}
 
 	#[tracing::instrument(skip(self, dest, request))]

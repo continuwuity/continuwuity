@@ -298,7 +298,6 @@ pub(crate) async fn logout_route(
 	services
 		.pusher
 		.get_pushkeys(sender_user)
-		.map(ToOwned::to_owned)
 		.broad_filter_map(async |pushkey| {
 			services
 				.pusher
@@ -345,7 +344,7 @@ pub(crate) async fn logout_all_route(
 		.pusher
 		.get_pushkeys(sender_user)
 		.for_each(async |pushkey| {
-			services.pusher.delete_pusher(sender_user, pushkey).await;
+			services.pusher.delete_pusher(sender_user, &pushkey).await;
 		})
 		.await;
 

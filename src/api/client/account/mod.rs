@@ -145,7 +145,6 @@ pub(crate) async fn change_password_route(
 		services
 			.pusher
 			.get_pushkeys(&sender_user)
-			.map(ToOwned::to_owned)
 			.broad_filter_map(async |pushkey| {
 				services
 					.pusher
@@ -339,7 +338,7 @@ pub async fn full_user_deactivate(
 		.pusher
 		.get_pushkeys(user_id)
 		.for_each(async |pushkey| {
-			services.pusher.delete_pusher(user_id, pushkey).await;
+			services.pusher.delete_pusher(user_id, &pushkey).await;
 		})
 		.await;
 
