@@ -37,32 +37,18 @@ struct SnakeSyncCache {
 	subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
 	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
 	acknowledged_pos: u64,
-	pending: Option<PendingSnakeSync>,
+	pending: BTreeMap<u64, BTreeMap<String, BTreeMap<OwnedRoomId, u64>>>,
 	extensions: v5::request::Extensions,
-}
-
-struct PendingSnakeSync {
-	pos: u64,
-	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
 }
 
 impl SnakeSyncCache {
 	fn accepts_pos(&self, pos: u64) -> bool {
-		self.acknowledged_pos == pos
-			|| self
-				.pending
-				.as_ref()
-				.is_some_and(|pending| pending.pos == pos)
+		self.acknowledged_pos == pos || self.pending.contains_key(&pos)
 	}
 
 	fn acknowledge(&mut self, pos: u64) {
-		if self
-			.pending
-			.as_ref()
-			.is_some_and(|pending| pending.pos == pos)
-		{
-			let pending = self.pending.take().expect("pending sync checked above");
-			self.known_rooms = pending.known_rooms;
+		if let Some(known_rooms) = self.pending.remove(&pos) {
+			self.known_rooms = known_rooms;
 			self.acknowledged_pos = pos;
 		}
 	}
@@ -308,7 +294,7 @@ impl Service {
 				list.insert(room_id, pos);
 			}
 		}
-		cached.pending = Some(PendingSnakeSync { pos, known_rooms: pending_rooms });
+		cached.pending.insert(pos, pending_rooms);
 	}
 
 	pub fn update_snake_sync_subscriptions(
@@ -425,13 +411,10 @@ mod tests {
 	fn pending_rooms_are_committed_only_when_the_response_pos_is_acknowledged() {
 		let room_id = OwnedRoomId::try_from("!room:example.com").unwrap();
 		let mut cache = SnakeSyncCache {
-			pending: Some(PendingSnakeSync {
-				pos: 42,
-				known_rooms: BTreeMap::from([(
-					"list".to_owned(),
-					BTreeMap::from([(room_id, 42)]),
-				)]),
-			}),
+			pending: BTreeMap::from([(
+				42,
+				BTreeMap::from([("list".to_owned(), BTreeMap::from([(room_id, 42)]))]),
+			)]),
 			..Default::default()
 		};
 
@@ -446,5 +429,20 @@ mod tests {
 		cache.acknowledge(42);
 		assert_eq!(cache.acknowledged_pos, 42);
 		assert_eq!(cache.known_rooms["list"].len(), 1);
+	}
+
+	#[test]
+	fn overlapping_responses_accept_either_response_position() {
+		let mut cache = SnakeSyncCache {
+			acknowledged_pos: 100,
+			pending: BTreeMap::from([(200, BTreeMap::new()), (201, BTreeMap::new())]),
+			..Default::default()
+		};
+
+		assert!(cache.accepts_pos(200));
+		assert!(cache.accepts_pos(201));
+
+		cache.acknowledge(200);
+		assert!(cache.accepts_pos(201));
 	}
 }
