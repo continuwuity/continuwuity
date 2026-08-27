@@ -16,13 +16,13 @@ use conduwuit_core::{
 		event::Event,
 		pdu::{PduCount, PduEvent},
 	},
-	utils::{MutexMap, MutexMapGuard, future::TryExtExt, stream::TryIgnore},
+	utils::{MutexMap, MutexMapGuard, ReadyExt, future::TryExtExt, stream::TryIgnore},
 	warn,
 };
-use futures::{Future, Stream, TryStreamExt, pin_mut};
+use futures::{Future, Stream, StreamExt, TryStreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	events::room::encrypted::Relation,
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId,
+	api::Direction, events::room::encrypted::Relation,
 };
 use serde::Deserialize;
 
@@ -271,5 +271,73 @@ impl Service {
 		from: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
 		self.db.pdus(room_id, from.unwrap_or_else(PduCount::min))
+	}
+
+	async fn pdu_at_or_after(&self, room_id: &RoomId, count: PduCount) -> Option<PdusIterItem> {
+		let pdus = self
+			.pdus(room_id, Some(count.saturating_sub(1)))
+			.ignore_err()
+			.ready_filter(move |(at, _)| *at >= count);
+
+		pin_mut!(pdus);
+		pdus.next().await
+	}
+
+	async fn pdu_at_or_before(&self, room_id: &RoomId, count: PduCount) -> Option<PdusIterItem> {
+		let pdus = self
+			.pdus_rev(room_id, Some(count.saturating_add(1)))
+			.ignore_err()
+			.ready_filter(move |(at, _)| *at <= count);
+
+		pin_mut!(pdus);
+		pdus.next().await
+	}
+
+	pub async fn event_by_timestamp(
+		&self,
+		room_id: &RoomId,
+		ts: MilliSecondsSinceUnixEpoch,
+		dir: Direction,
+	) -> Option<PdusIterItem> {
+		let first = self.pdu_at_or_after(room_id, PduCount::min()).await?.0;
+		let last = self.pdu_at_or_before(room_id, PduCount::max()).await?.0;
+		let mut low = first.into_signed();
+		let mut high = last.into_signed();
+		let mut result = None;
+
+		match dir {
+			| Direction::Forward =>
+				while low <= high {
+					let count = PduCount::from_signed(low.midpoint(high));
+					let Some((at, pdu)) = self.pdu_at_or_after(room_id, count).await else {
+						high = count.into_signed().saturating_sub(1);
+						continue;
+					};
+
+					if pdu.origin_server_ts() >= ts {
+						result = Some((at, pdu));
+						high = at.into_signed().saturating_sub(1);
+					} else {
+						low = at.into_signed().saturating_add(1);
+					}
+				},
+			| Direction::Backward =>
+				while low <= high {
+					let count = PduCount::from_signed(low.midpoint(high));
+					let Some((at, pdu)) = self.pdu_at_or_before(room_id, count).await else {
+						low = count.into_signed().saturating_add(1);
+						continue;
+					};
+
+					if pdu.origin_server_ts() <= ts {
+						result = Some((at, pdu));
+						low = at.into_signed().saturating_add(1);
+					} else {
+						high = at.into_signed().saturating_sub(1);
+					}
+				},
+		}
+
+		result
 	}
 }
