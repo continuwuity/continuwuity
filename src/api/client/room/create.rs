@@ -156,14 +156,12 @@ pub(crate) async fn create_room_route(
 	let mut invitees = BTreeSet::new();
 
 	for recipient_user in &body.invite {
-		if !matches!(
-			services
-				.users
-				.invite_filter_level(recipient_user, sender_user)
-				.await,
-			FilterLevel::Allow
-		) {
-			// drop invites if the creator has them blocked
+		// silently drop invites to users the creator has ignored
+		if services
+			.users
+			.user_is_ignored(recipient_user, sender_user)
+			.await
+		{
 			continue;
 		}
 

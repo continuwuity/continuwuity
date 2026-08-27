@@ -49,13 +49,12 @@ pub(crate) async fn invite_user_route(
 			reason,
 			..
 		}) => {
-			let sender_filter_level = services
+			// silently drop invites to users the sender has ignored
+			if services
 				.users
-				.invite_filter_level(recipient_user, sender_user)
-				.await;
-
-			if !matches!(sender_filter_level, FilterLevel::Allow) {
-				// drop invites if the sender has the recipient filtered
+				.user_is_ignored(recipient_user, sender_user)
+				.await
+			{
 				return Ok(invite_user::v3::Response::new());
 			}
 
