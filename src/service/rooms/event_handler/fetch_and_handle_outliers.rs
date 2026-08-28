@@ -626,6 +626,10 @@ impl super::Service {
 			if discovered_events.contains_key(&next_id) {
 				continue;
 			}
+			if let Err(e) = self.ensure_can_pull_event(&next_id) {
+				debug_warn!(error=?e, "Not attempting to pull missing prev event");
+				continue;
+			}
 			let pdu = match self
 				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
 				.await
