@@ -28,13 +28,12 @@ pub use fetch_and_handle_outliers::{
 };
 use http::StatusCode;
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId,
+	EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
 	api::error::{ErrorKind, LimitExceededErrorData, RetryAfter},
 	events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
 use serde_json::value::RawValue as RawJsonValue;
-
 use tokio::sync::{Notify, mpsc};
 
 use crate::{Dep, globals, rooms, sending, server_keys};
