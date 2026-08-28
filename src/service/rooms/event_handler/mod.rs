@@ -44,7 +44,7 @@ pub struct Service {
 	pub mutex_federation: RoomMutexMap,
 	pub federation_handletime: SyncRwLock<HandleTimeMap>,
 	pub extremity_squashers: SyncRwLock<HashMap<OwnedRoomId, mpsc::Sender<(usize, bool)>>>,
-	pub failed_pdu_pulls: SyncRwLock<HashMap<OwnedEventId, FailedPDUPull>>,
+	failed_pdu_pulls: SyncRwLock<HashMap<OwnedEventId, FailedPDUPull>>,
 	joining_rooms: SyncRwLock<HashMap<OwnedRoomId, mpsc::Sender<PendingJoinPdu>>>,
 	services: Services,
 	server_shutdown: Notify,
@@ -149,9 +149,7 @@ impl Service {
 		let Some((retry_count, last_retry)) = map.get(event_id) else {
 			return Ok(());
 		};
-		let min = Duration::from_secs(self.services.server.config.sender_retry_backoff_base);
-		let max = Duration::from_secs(self.services.server.config.sender_retry_backoff_limit);
-		let next_retry = min.saturating_mul(*retry_count).min(max);
+		let next_retry = calc_next_retry(&self.services.server.config, *retry_count);
 		if last_retry.elapsed() >= next_retry {
 			Ok(())
 		} else {
@@ -168,11 +166,13 @@ impl Service {
 	/// Marks a PDU as having a failed pull attempt, preventing it from being
 	/// immediately re-fetched without a short cooldown.
 	pub(super) fn hit_failed_pdu_pull(&self, event_id: OwnedEventId) {
-		let now = Instant::now();
 		let mut map = self.failed_pdu_pulls.write();
 		map.entry(event_id)
 			.and_modify(|(retries, last_retry)| {
-				if *last_retry > now {
+				let next_retry = calc_next_retry(&self.services.server.config, *retries);
+				if next_retry > last_retry.elapsed() {
+					// Don't increment the retry if a retry was illegal.
+					// This can happen if an event was fetched multiple times concurrently.
 					return;
 				}
 				*retries = retries.saturating_add(1);
@@ -199,4 +199,10 @@ fn get_room_version_rules<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionR
 	};
 
 	Ok(room_version_rules)
+}
+
+fn calc_next_retry(config: &conduwuit::Config, retries: u32) -> Duration {
+	let min = Duration::from_secs(config.sender_retry_backoff_base);
+	let max = Duration::from_secs(config.sender_retry_backoff_limit);
+	min.saturating_mul(retries).min(max)
 }
