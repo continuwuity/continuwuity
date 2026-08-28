@@ -435,7 +435,7 @@ impl super::Service {
 		events: Vec<OwnedEventId>,
 		create_event: &Pdu,
 		room_id: &RoomId,
-	) -> HashMap<OwnedEventId, PduEvent>
+	) -> Result<HashMap<OwnedEventId, PduEvent>>
 	where
 		Pdu: Event + Send + Sync,
 	{
@@ -458,7 +458,6 @@ impl super::Service {
 			candidates.len()
 		);
 
-		let mut seen: HashMap<OwnedEventId, u8> = HashMap::new();
 		for apex_event_id in &events {
 			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
 
@@ -473,26 +472,31 @@ impl super::Service {
 					discovered_events.insert(target_id.clone(), obj);
 					continue;
 				}
-				let attempts = seen.get(&*target_id).copied().unwrap_or_default();
-				if attempts >= 5 {
-					debug_error!(
-						elapsed=?start.elapsed(),
-						%attempts,
-						%target_id,
-						"Could not fetch missing event after 5 attempts, giving up"
-					);
-					continue;
-				}
 
-				debug!(elapsed=?start.elapsed(),"Fetching {target_id} over federation");
+				self.ensure_can_pull_event(&target_id).inspect_err(|e| {
+					debug_warn!(
+						error=?e,
+						%apex_event_id,
+						auth_event_id=%target_id,
+						"Failed to fetch missing auth event over federation"
+					);
+				})?;
+				debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
 				let value = match self
 					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
 					.await
 				{
-					| Ok((_, x)) => x,
+					| Ok((_, x)) => {
+						self.clear_failed_pdu(&target_id);
+						x
+					},
 					| Err(e) => {
-						warn!(elapsed=?start.elapsed(),"failed to fetch missing event {target_id} from any candidate: {e}");
-						continue;
+						self.hit_failed_pdu_pull(target_id.clone());
+						return Err!(Request(NotFound(warn!(
+							elapsed=?start.elapsed(),
+							%apex_event_id,
+							"failed to fetch missing auth event {target_id} from any candidate: {e}"
+						))));
 					},
 				};
 				let auth_events =
@@ -523,17 +527,10 @@ impl super::Service {
 						continue;
 					}
 					if discovered_events.contains_key(&auth_event_id) {
-						trace!(elapsed=?start.elapsed(),%auth_event_id, "Already found auth event");
+						trace!(elapsed=?start.elapsed(), %auth_event_id, "Already found auth event");
 						continue;
 					}
-					debug!(elapsed=?start.elapsed(),"Missing auth event {auth_event_id} for event {target_id}");
-					seen.insert(
-						auth_event_id.clone(),
-						seen.get(&auth_event_id)
-							.copied()
-							.unwrap_or_default()
-							.saturating_add(1),
-					);
+					debug!(elapsed=?start.elapsed(), "Missing auth event {auth_event_id} for event {target_id}");
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
 				}
@@ -546,7 +543,6 @@ impl super::Service {
 					debug_warn!(elapsed=?start.elapsed(),
 						"Fetched {target_id} but missing some auth events, will have to re-fetch."
 					);
-					seen.insert(target_id.clone(), attempts.saturating_add(1));
 					todo.push_back(target_id);
 				}
 			}
@@ -590,7 +586,7 @@ impl super::Service {
 		);
 		pdus.retain(|id, _| events.contains(id)); // Only return state events
 		trace!(elapsed=?start.elapsed(), "Filtered return value down to {} PDUs", pdus.len());
-		pdus
+		Ok(pdus)
 	}
 
 	/// Similar to `fetch_and_handle_missing_events`, but simply walks the
@@ -634,8 +630,15 @@ impl super::Service {
 				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
 				.await
 			{
-				| Ok((_, data)) => data,
+				| Ok((_, data)) => {
+					self.clear_failed_pdu(&next_id);
+					data
+				},
 				| Err(e) => {
+					// NOTE: Unlike fetch_and_handle_auth_events, it's okay if we're missing some
+					// prevs, since we will fall back to other behaviours for resolving things like
+					// state. As such, we can just continue as before.
+					self.hit_failed_pdu_pull(next_id.clone());
 					warn!("Failed to fetch prev event {next_id} from any candidate: {e}");
 					continue;
 				},
@@ -657,13 +660,9 @@ impl super::Service {
 				.iter()
 				.stream()
 				.broad_filter_map(|event_id| async {
-					if discovered_events.contains_key(event_id)
-						|| self.services.timeline.pdu_exists(event_id).await
-					{
-						None
-					} else {
-						Some(event_id.to_owned())
-					}
+					(discovered_events.contains_key(event_id)
+						|| self.services.timeline.pdu_exists(event_id).await)
+						.then(|| event_id.to_owned())
 				})
 				.collect::<Vec<_>>()
 				.await;

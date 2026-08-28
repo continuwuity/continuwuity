@@ -161,7 +161,7 @@ impl super::Service {
 							create_event,
 							room_id,
 						)
-						.await
+						.await?
 					},
 					| Err(e) => {
 						warn!(
@@ -176,7 +176,7 @@ impl super::Service {
 							create_event,
 							room_id,
 						)
-						.await
+						.await?
 					},
 				};
 
@@ -213,7 +213,7 @@ impl super::Service {
 				);
 				let fetched_state = self
 					.fetch_and_handle_auth_events(origin, to_fetch, create_event, room_id)
-					.await;
+					.await?;
 				state_events.extend(fetched_state);
 			}
 		}
