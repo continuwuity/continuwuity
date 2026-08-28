@@ -13,27 +13,33 @@ mod resolve_state;
 mod state_at_incoming;
 mod upgrade_outlier_pdu;
 
-use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
-use std::time::Duration;
+use std::{
+	collections::HashMap,
+	fmt::Write,
+	sync::Arc,
+	time::{Duration, Instant},
+};
+
 use assign::assign;
 use async_trait::async_trait;
-use http::StatusCode;
-use conduwuit::{utils::MutexMap, Err, Error, Event, PduEvent, Result, Server, SyncRwLock};
+use conduwuit::{Err, Error, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
 pub use fetch_and_handle_outliers::{
 	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
 };
+use http::StatusCode;
 use ruma::{
-	EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
+	EventId, OwnedEventId, OwnedRoomId,
 	api::error::{ErrorKind, LimitExceededErrorData, RetryAfter},
 	events::room::create::RoomCreateEventContent,
 	room_version_rules::RoomVersionRules,
 };
 use serde_json::value::RawValue as RawJsonValue;
+
 use tokio::sync::{Notify, mpsc};
 
 use crate::{Dep, globals, rooms, sending, server_keys};
 
-pub type FailedPDUPull = (u32, Instant);  // (pull count, last retry)
+pub type FailedPDUPull = (u32, Instant); // (pull count, last retry)
 
 pub struct Service {
 	pub mutex_federation: RoomMutexMap,
@@ -135,7 +141,8 @@ impl Service {
 		self.services.timeline.get_pdu(&event_id).await.ok()
 	}
 
-	/// Returns a rate-limit error if the requested event had a recent failed pull attempt.
+	/// Returns a rate-limit error if the requested event had a recent failed
+	/// pull attempt.
 	///
 	/// If the event is not being backed off from, `Ok(())` is returned.
 	pub(super) fn ensure_can_pull_event(&self, event_id: &EventId) -> Result<()> {
@@ -159,22 +166,28 @@ impl Service {
 		}
 	}
 
-	/// Marks a PDU as having a failed pull attempt, preventing it from being immediately re-fetched without a short cooldown.
+	/// Marks a PDU as having a failed pull attempt, preventing it from being
+	/// immediately re-fetched without a short cooldown.
 	pub(super) fn hit_failed_pdu_pull(&self, event_id: OwnedEventId) {
 		let now = Instant::now();
 		let mut map = self.failed_pdu_pulls.write();
-		map.entry(event_id).and_modify(|(retries, last_retry)| {
-			if *last_retry > now {
-				return;
-			}
-			*retries = retries.saturating_add(1);
-			*last_retry = Instant::now();
-		}).or_insert_with(|| (1, Instant::now()));
+		map.entry(event_id)
+			.and_modify(|(retries, last_retry)| {
+				if *last_retry > now {
+					return;
+				}
+				*retries = retries.saturating_add(1);
+				*last_retry = Instant::now();
+			})
+			.or_insert_with(|| (1, Instant::now()));
 	}
 
-	/// Removes a PDU from the failed pulls map, allowing it to be re-fetched in future if needed.
+	/// Removes a PDU from the failed pulls map, allowing it to be re-fetched in
+	/// future if needed.
 	pub(super) fn clear_failed_pdu(&self, event_id: &EventId) {
-		// NOTE: this is a bit pointless since we're unlikely to try pulling an event again if we fetch it successfully, but it doesn't hurt to have to prevent the map growing indefinitely.
+		// NOTE: this is a bit pointless since we're unlikely to try pulling an event
+		// again if we fetch it successfully, but it doesn't hurt to have to prevent the
+		// map growing indefinitely.
 		let mut map = self.failed_pdu_pulls.write();
 		map.remove(event_id);
 	}

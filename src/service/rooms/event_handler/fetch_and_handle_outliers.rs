@@ -8,7 +8,7 @@ use assign::assign;
 #[cfg(debug_assertions)]
 use conduwuit::error;
 use conduwuit::{
-	Err, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, err,
+	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err,
 	result::FlatOk,
 	state_res::lexicographical_topological_sort,
 	trace,
@@ -636,8 +636,8 @@ impl super::Service {
 				},
 				| Err(e) => {
 					// NOTE: Unlike fetch_and_handle_auth_events, it's okay if we're missing some
-					// prevs, since we will fall back to other behaviours for resolving things like
-					// state. As such, we can just continue as before.
+					// prevs, since we will fall back to other behaviours for resolving things
+					// like state. As such, we can just continue as before.
 					self.hit_failed_pdu_pull(next_id.clone());
 					warn!("Failed to fetch prev event {next_id} from any candidate: {e}");
 					continue;
