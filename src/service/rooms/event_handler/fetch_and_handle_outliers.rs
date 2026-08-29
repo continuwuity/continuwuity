@@ -664,8 +664,8 @@ impl super::Service {
 				.iter()
 				.stream()
 				.broad_filter_map(|event_id| async {
-					(discovered_events.contains_key(event_id)
-						|| self.services.timeline.pdu_exists(event_id).await)
+					(!discovered_events.contains_key(event_id)
+						&& !self.services.timeline.pdu_exists(event_id).await)
 						.then(|| event_id.to_owned())
 				})
 				.collect::<Vec<_>>()
