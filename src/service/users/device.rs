@@ -102,7 +102,33 @@ impl super::Service {
 			.ready_for_each(|key| self.db.todeviceid_events.remove(key))
 			.await;
 
-		// TODO: Remove onetimekeys
+		// Remove one-time keys and fallback keys
+		let mut otk_prefix = user_id.as_bytes().to_vec();
+		otk_prefix.push(0xFF);
+		otk_prefix.extend_from_slice(device_id.as_bytes());
+		otk_prefix.push(0xFF);
+		self.db
+			.onetimekeyid_onetimekeys
+			.keys_prefix_raw(&otk_prefix)
+			.ignore_err()
+			.ready_for_each(|key| {
+				self.db.onetimekeyid_onetimekeys.remove(key);
+			})
+			.await;
+		self.db
+			.fallbackkeyid_fallbackkey
+			.keys_prefix_raw(&prefix)
+			.ignore_err()
+			.ready_for_each(|key| self.db.fallbackkeyid_fallbackkey.remove(key))
+			.await;
+
+		let count = self
+			.services
+			.globals
+			.next_count()
+			.expect("must be able to get the next count")
+			.to_be_bytes();
+		self.db.userid_lastonetimekeyupdate.insert(user_id, count);
 
 		// Remove OAuth session information
 		self.services.oauth.remove_session(user_id, device_id).await;
