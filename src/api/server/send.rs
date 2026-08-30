@@ -151,11 +151,11 @@ async fn process_inbound_transaction(
 		{
 			| Ok(pdu) => Some(pdu),
 			| Err(error) => {
-				if !services
+				let queued = services
 					.rooms
 					.event_handler
-					.queue_pending_join_pdu(&body.identity, pdu.clone())
-				{
+					.queue_pending_join_pdu(&body.identity, pdu.clone());
+				if !queued && !error.is_not_found() {
 					warn!("Could not parse incoming PDU: {error}");
 				}
 				None
