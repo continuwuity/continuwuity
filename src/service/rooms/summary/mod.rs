@@ -1,7 +1,7 @@
 use std::{collections::HashSet, sync::Arc};
 
 use conduwuit::{
-	Err, Event, Result, info,
+	Err, Event, Result, debug, info,
 	utils::{IterStream, ReadyExt, TryFutureExtExt, stream::BroadbandExt},
 	warn,
 };
@@ -370,7 +370,7 @@ impl Service {
 		// If we can't find a version for this room, it doesn't exist.
 		let room_version = self.services.state.get_room_version(room_id).await.ok()?;
 
-		info!(%room_id, "Preparing local summary for room");
+		debug!(%room_id, "Preparing local summary for room");
 		let (
 			join_rule,
 			guest_can_join,
