@@ -6,9 +6,9 @@ Remove a device
 
 {%- block content -%}
 <div class="panel">
-    <h1>Remove a device <a class="back" href=".">Back</a></h1>
     {% match body %}
         {% when RemoveDeviceBody::Form { device_card, last_device } %}
+            <h1>Remove a device <a class="back" href=".">Back</a></h1>
             {{ device_card }}
             <p>
                 Do you want to remove this device from your account? It will be signed out immediately.
@@ -29,8 +29,10 @@ Remove a device
             </form>
             <script src="{{ crate::ROUTE_PREFIX }}/resources/slowdown.js" nonce="{{ context.csp_nonce }}"></script>
         {% when RemoveDeviceBody::Success %}
+            <h1>Remove a device</h1>
             <p>
-                The device has been signed out successfully.
+                The device has been removed successfully.
+                <a href="{{ crate::ROUTE_PREFIX }}/account/">Back to account settings</a>
             </p>
     {% endmatch %}
 </div>
