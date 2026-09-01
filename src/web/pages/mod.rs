@@ -16,6 +16,7 @@ pub(super) mod account;
 mod components;
 pub(super) mod debug;
 pub(super) mod index;
+pub(super) mod media;
 pub(super) mod oauth;
 pub(super) mod oidc;
 pub(super) mod resources;
@@ -60,8 +61,11 @@ pub(super) async fn template_context_middleware(
 	response.headers_mut().insert(
 		header::CONTENT_SECURITY_POLICY,
 		HeaderValue::from_str(&format!(
-			"default-src 'none'; style-src 'self'; img-src 'self' https: data:; script-src \
-			 'nonce-{csp_nonce}'; child-src {child_src};"
+			// TODO: `unsafe-inline` for `style-src` defeats the purpose of having it, but
+			// it's necessary to set CSS variables using the `style` attribute without
+			// JavaScript. Come back to this once there's a less shitty solution.
+			"default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; \
+			 script-src 'nonce-{csp_nonce}'; child-src {child_src};"
 		))
 		.expect("should be able to build CSP header"),
 	);

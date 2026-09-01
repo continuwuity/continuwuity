@@ -3,10 +3,17 @@
     --font-stack: sans-serif;
 
     --background-color: #fff;
+
     --text-color: #000;
+    --text-color-dark: #f5ebeb;
     --secondary: #555;
+    --secondary-dark: #aaa;
+
     --bg: oklch(0.76 0.0854 317.27);
+    --bg-dark: oklch(0.15 0.042 317.27);
     --panel-bg: oklch(0.91 0.042 317.27);
+    --panel-bg-dark: oklch(0.24 0.03 317.27);
+    --card-bg: oklch(from var(--panel-bg) calc(l - 0.05) c h);
     --c1: oklch(0.44 0.177 353.06);
     --c2: oklch(0.59 0.158 150.88);
     --avatar-color: var(--c2);
@@ -19,6 +26,9 @@
         radial-gradient(42.01% 79.63% at 52.86% 0%, #d9ff5333 0%, #fff0 100%),
         radial-gradient(79.67% 58.09% at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #fff0 100%);
 
+    --glass-outline: 1px solid rgba(237,231,244,.1);
+    --glass-filter: blur(15px) brightness(0.6);
+
     --normal-font-size: 1rem;
     --small-font-size: 0.8rem;
 
@@ -27,10 +37,10 @@
 
     @media (prefers-color-scheme: dark) {
         color-scheme: dark;
-        --text-color: #f5ebeb;
-        --secondary: #999;
-        --bg: oklch(0.15 0.042 317.27);
-        --panel-bg: oklch(0.24 0.03 317.27);
+        --text-color: var(--text-color-dark);
+        --secondary: var(--secondary-dark);
+        --bg: var(--bg-dark);
+        --panel-bg: var(--panel-bg-dark);
 
         --name-lightness: 0.8;
         --background-lightness: 0.2;
@@ -330,7 +340,7 @@ ul.bullet-separated {
     }
 }
 
-@media (max-width: 425px) {
+@media (max-width: 450px) {
     main {
         padding-block-start: 2rem;
         width: 100%;

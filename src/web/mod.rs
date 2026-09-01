@@ -132,6 +132,7 @@ pub fn build(services: &Services) -> Router<state::State> {
 				.nest("/about", about::build())
 				.nest("/account/", account::build())
 				.merge(debug::build())
+				.nest("/media/", media::build())
 				.nest("/oauth2/", oauth::build())
 				.nest("/oidc/", oidc::build())
 				.merge(resources::build())
