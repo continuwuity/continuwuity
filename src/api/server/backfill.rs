@@ -85,8 +85,8 @@ pub(crate) async fn get_backfill_route(
 			pdu.remove_transaction_id().log_err().ok();
 			// Add age, as this is specified
 			pdu.add_age().log_err().ok();
-			// It's not clear if we should strip or add any more data, leave as is.
-			// In particular: Redaction?
+			// It's not clear if we should strip or add any more data, leave as
+			// is. In particular: Redaction?
 			Ok(pdu)
 		})
 		.try_filter_map(|pdu| async move {

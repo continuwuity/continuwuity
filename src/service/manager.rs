@@ -53,8 +53,8 @@ impl Manager {
 				.spawn(async move { self_.worker().await }),
 		);
 
-		// we can't hold the lock during the iteration with start_worker so the values
-		// are snapshotted here
+		// we can't hold the lock during the iteration with start_worker so the
+		// values are snapshotted here
 		let services: Vec<Arc<dyn Service>> = self
 			.service
 			.read()

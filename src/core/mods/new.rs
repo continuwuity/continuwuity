@@ -11,8 +11,8 @@ pub fn from_name(name: &str) -> Result<Library> {
 }
 
 pub fn from_path(path: &OsStr) -> Result<Library> {
-	//SAFETY: Calls dlopen(3) on unix platforms. This might not have to be unsafe
-	// if wrapped in with_dlerror.
+	//SAFETY: Calls dlopen(3) on unix platforms. This might not have to be
+	// unsafe if wrapped in with_dlerror.
 	let lib = unsafe { Library::open(Some(path), OPEN_FLAGS) };
 	if let Err(e) = lib {
 		let name = path::to_name(path)?;

@@ -120,10 +120,11 @@ pub fn cores_available() -> impl Iterator<Item = Id> { from_mask(*CORES_AVAILABL
 pub fn getcpu() -> Result<usize> {
 	use crate::{Error, utils::math};
 
-	// SAFETY: This is part of an interface with many low-level calls taking many
-	// raw params, but it's unclear why this specific call is unsafe. Nevertheless
-	// the value obtained here is semantically unsafe because it can change on the
-	// instruction boundary trailing its own acquisition and also any other time.
+	// SAFETY: This is part of an interface with many low-level calls taking
+	// many raw params, but it's unclear why this specific call is unsafe.
+	// Nevertheless the value obtained here is semantically unsafe because it
+	// can change on the instruction boundary trailing its own acquisition and
+	// also any other time.
 	let ret: i32 = unsafe { libc::sched_getcpu() };
 
 	#[cfg(target_os = "linux")]

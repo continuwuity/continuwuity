@@ -83,8 +83,8 @@ pub(crate) async fn change_password_route(
 	body: Ruma<change_password::v3::Request>,
 ) -> Result<change_password::v3::Response> {
 	let identity = if let Some(identity) = body.identity.as_ref() {
-		// A signed-in user is trying to change their password, prompt them for their
-		// existing one
+		// A signed-in user is trying to change their password, prompt them for
+		// their existing one
 
 		services
 			.uiaa
@@ -99,10 +99,10 @@ pub(crate) async fn change_password_route(
 			)
 			.await?
 	} else {
-		// A signed-out user is trying to reset their password, prompt them for email
-		// confirmation. Note that we do not _send_ an email here, their client should
-		// have already hit `/account/password/requestToken` to send the email. We
-		// just validate it.
+		// A signed-out user is trying to reset their password, prompt them for
+		// email confirmation. Note that we do not _send_ an email here, their
+		// client should have already hit `/account/password/requestToken` to
+		// send the email. We just validate it.
 
 		services
 			.uiaa

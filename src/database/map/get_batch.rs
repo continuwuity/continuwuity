@@ -80,8 +80,8 @@ impl super::Map {
 		I: Iterator<Item = &'a K> + ExactSizeIterator + Send,
 		K: AsRef<[u8]> + Send + ?Sized + Sync + 'a,
 	{
-		// Optimization can be `true` if key vector is pre-sorted **by the column
-		// comparator**.
+		// Optimization can be `true` if key vector is pre-sorted **by the
+		// column comparator**.
 		const SORTED: bool = false;
 
 		self.db

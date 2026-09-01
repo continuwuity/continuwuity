@@ -103,10 +103,10 @@ impl super::Service {
 			auth_chain_map.insert(auth_event_id, auth_pdu);
 		}
 
-		// We need to authorise each returned PDU to make sure that the caller can
-		// correctly detect if one of them is rejected. We don't remove the event from
-		// the map in case the caller incorrectly then identifies that event as missing,
-		// rather than rejected.
+		// We need to authorise each returned PDU to make sure that the caller
+		// can correctly detect if one of them is rejected. We don't remove
+		// the event from the map in case the caller incorrectly then
+		// identifies that event as missing, rather than rejected.
 		self.authorise_remote_auth_chain(
 			&auth_chain_map,
 			room_version_rules,
@@ -142,10 +142,11 @@ impl super::Service {
 			.collect::<HashMap<_, _>>();
 
 		'outer: for (event_id, pdu) in auth_chain_topo {
-			// If we know the event is rejected OR have it locally, we can skip this check.
-			// This is safe because if we know the event is rejected, running event auth
-			// will just reject it again. And, if we have it locally, and HAVEN'T flagged it
-			// as rejected, then we know it was at least accepted under the check we would
+			// If we know the event is rejected OR have it locally, we can skip
+			// this check. This is safe because if we know the event is
+			// rejected, running event auth will just reject it again. And,
+			// if we have it locally, and HAVEN'T flagged it as rejected,
+			// then we know it was at least accepted under the check we would
 			// otherwise be about to perform, previously.
 			let (is_rejected, have_locally) = join!(
 				self.services.pdu_metadata.is_event_rejected(&event_id),
@@ -155,10 +156,11 @@ impl super::Service {
 				continue;
 			}
 
-			// IMPORTANT: We can't use the handy dandy `handle_outlier_pdu` function here
-			// because it may then try to fetch missing auth events, resulting in deep
-			// recursion. We will do the minimum required steps to validate the PDU here.
-			// Checks 1-3 were already done before this function is called, so we only need
+			// IMPORTANT: We can't use the handy dandy `handle_outlier_pdu`
+			// function here because it may then try to fetch missing auth
+			// events, resulting in deep recursion. We will do the minimum
+			// required steps to validate the PDU here. Checks 1-3 were
+			// already done before this function is called, so we only need
 			// to do check 4.
 
 			let mut auth_events_by_key: HashMap<_, _> =

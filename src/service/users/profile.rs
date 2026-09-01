@@ -52,17 +52,17 @@ impl super::Service {
 		let field_name = change.field_name();
 
 		// TODO: The spec mentions special error codes (M_PROFILE_TOO_LARGE,
-		// M_KEY_TOO_LARGE) for profile field size limits, but they're not in its list
-		// of error codes and Ruma doesn't have them. Should we return those, or is
-		// M_TOO_LARGE okay?
+		// M_KEY_TOO_LARGE) for profile field size limits, but they're not in
+		// its list of error codes and Ruma doesn't have them. Should we
+		// return those, or is M_TOO_LARGE okay?
 		if field_name.as_str().len() > MAX_KEY_LENGTH_BYTES {
 			return Err!(Request(TooLarge(
 				"Individual profile keys must not exceed {MAX_KEY_LENGTH_BYTES} bytes in length."
 			)));
 		}
 
-		// Serialize the entire profile as canonical JSON, including the new change,
-		// to check if it exceeds 64 KiB
+		// Serialize the entire profile as canonical JSON, including the new
+		// change, to check if it exceeds 64 KiB
 		{
 			let mut full_profile = self.get_local_profile(user_id).await;
 
@@ -102,9 +102,10 @@ impl super::Service {
 			return Ok(());
 		}
 
-		// If the user is local and changed their displayname or avatar_url, update it
-		// in all their joined rooms. This is done before updating their profile data
-		// so we can check the old value of the field if `propagate_to` is `unchanged`.
+		// If the user is local and changed their displayname or avatar_url,
+		// update it in all their joined rooms. This is done before updating
+		// their profile data so we can check the old value of the field if
+		// `propagate_to` is `unchanged`.
 		if matches!(field_name, ProfileFieldName::AvatarUrl | ProfileFieldName::DisplayName)
 			&& matches!(propagate_to, PropagateTo::All | PropagateTo::Unchanged)
 			&& self.services.globals.user_is_local(user_id)
@@ -143,8 +144,9 @@ impl super::Service {
 					},
 				};
 
-				// If `propagate_to` is `unchanged`, and the current value of the field we're
-				// updating was changed from its global value in this room, skip it.
+				// If `propagate_to` is `unchanged`, and the current value of
+				// the field we're updating was changed from its global
+				// value in this room, skip it.
 				if matches!(propagate_to, PropagateTo::Unchanged) {
 					let field_changed_from_global = match field_name {
 						| ProfileFieldName::AvatarUrl =>
@@ -229,8 +231,8 @@ impl super::Service {
 	pub async fn get_local_profile(&self, user_id: &UserId) -> BTreeMap<String, Value> {
 		let mut profile = BTreeMap::new();
 
-		// Get displayname and avatar_url independently because `all_profile_keys`
-		// doesn't include them
+		// Get displayname and avatar_url independently because
+		// `all_profile_keys` doesn't include them
 		for field in [ProfileFieldName::AvatarUrl, ProfileFieldName::DisplayName] {
 			let key = field.as_str().to_owned();
 

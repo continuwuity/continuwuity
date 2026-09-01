@@ -133,20 +133,22 @@ fn keyval_longevity<'a, 'b: 'a>(item: KeyVal<'a>) -> KeyVal<'b> {
 }
 
 fn slice_longevity<'a, 'b: 'a>(item: &'a Slice) -> &'b Slice {
-	// SAFETY: The lifetime of the data returned by the rocksdb cursor is only valid
-	// between each movement of the cursor. It is hereby unsafely extended to match
-	// the lifetime of the cursor itself. This is due to the limitation of the
-	// Stream trait where the Item is incapable of conveying a lifetime; this is due
-	// to GAT's being unstable during its development. This unsafety can be removed
-	// as soon as this limitation is addressed by an upcoming version.
+	// SAFETY: The lifetime of the data returned by the rocksdb cursor is only
+	// valid between each movement of the cursor. It is hereby unsafely
+	// extended to match the lifetime of the cursor itself. This is due to the
+	// limitation of the Stream trait where the Item is incapable of conveying
+	// a lifetime; this is due to GAT's being unstable during its development.
+	// This unsafety can be removed as soon as this limitation is addressed by
+	// an upcoming version.
 	//
 	// We have done our best to mitigate the implications of this in conjunction
-	// with the deserialization API such that borrows being held across movements of
-	// the cursor do not happen accidentally. The compiler will still error when
-	// values herein produced try to leave a closure passed to a StreamExt API. But
-	// escapes can happen if you explicitly and intentionally attempt it, and there
-	// will be no compiler error or warning. This is primarily the case with
-	// calling collect() without a preceding map(ToOwned::to_owned). A collection
-	// of references here is illegal, but this will not be enforced by the compiler.
+	// with the deserialization API such that borrows being held across
+	// movements of the cursor do not happen accidentally. The compiler will
+	// still error when values herein produced try to leave a closure passed to
+	// a StreamExt API. But escapes can happen if you explicitly and
+	// intentionally attempt it, and there will be no compiler error or
+	// warning. This is primarily the case with calling collect() without a
+	// preceding map(ToOwned::to_owned). A collection of references here is
+	// illegal, but this will not be enforced by the compiler.
 	unsafe { std::mem::transmute(item) }
 }

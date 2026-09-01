@@ -43,8 +43,8 @@ impl super::Service {
 		// Use the server user to grant the new admin's power level
 		let server_user = self.services.globals.server_user.as_ref();
 
-		// if this is our local user, just forcefully join them in the room. otherwise,
-		// invite the remote user.
+		// if this is our local user, just forcefully join them in the room.
+		// otherwise, invite the remote user.
 		if self.services.globals.user_is_local(user_id) {
 			debug_info!("Inviting local user {user_id} to admin room {room_id}");
 			self.services

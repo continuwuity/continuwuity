@@ -178,7 +178,8 @@ impl super::Service {
 				);
 				return Ok(());
 			}
-			// N.B. In a future room version, this will be a soft failure specifically.
+			// N.B. In a future room version, this will be a soft failure
+			// specifically.
 			debug_info!(
 				via = %ps.via,
 				"Event is incoming but does not have a valid policy server signature; asking policy \
@@ -400,9 +401,9 @@ impl super::Service {
 		};
 
 		let Some(signatures) = response.signatures.get(via) else {
-			// NOTE: Legacy policy servers return a `200 {}` to indicate that the event was
-			// flagged as spam. We'll make a distinction in the error message in case
-			// it's unexpected.
+			// NOTE: Legacy policy servers return a `200 {}` to indicate that
+			// the event was flagged as spam. We'll make a distinction in the
+			// error message in case it's unexpected.
 			return Err!(Request(Forbidden("Policy server did not sign the event")));
 		};
 		if response.signatures.len() > 1 {

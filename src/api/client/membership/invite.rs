@@ -77,8 +77,9 @@ pub(crate) async fn invite_user_route(
 					.await;
 
 				// ignored invites aren't handled here
-				// since the recipient's membership should still be changed to `invite`.
-				// they're filtered out in the individual /sync handlers.
+				// since the recipient's membership should still be changed to
+				// `invite`. they're filtered out in the individual /sync
+				// handlers.
 				if matches!(recipient_filter_level, FilterLevel::Block) {
 					return Err!(Request(InviteBlocked(
 						"{recipient_user} has blocked invites from you."
@@ -190,8 +191,8 @@ pub(crate) async fn invite_helper(
 			.send_federation_request(recipient_user.server_name(), request)
 			.await?;
 
-		// We do not add the event_id field to the pdu here because of signature and
-		// hashes checks
+		// We do not add the event_id field to the pdu here because of signature
+		// and hashes checks
 		let (event_id, value) = gen_event_id_canonical_json(
 			&response.event,
 			&room_version_id

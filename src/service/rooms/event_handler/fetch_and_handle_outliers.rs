@@ -69,8 +69,9 @@ pub async fn build_local_dag(
 	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
 
 	for (event_id, value) in pdu_map {
-		// Parse all prev events as event IDs - if they are missing, return an error (we
-		// can't sanely continue in this case), otherwise skip invalid prev events.
+		// Parse all prev events as event IDs - if they are missing, return an
+		// error (we can't sanely continue in this case), otherwise skip
+		// invalid prev events.
 		let prev_events = value
 			.get(tree.as_str())
 			.and_then(CanonicalJsonValue::as_array)
@@ -94,9 +95,10 @@ pub async fn build_local_dag(
 
 	debug!(count = dag.len(), "Sorting incoming events with partial graph");
 	lexicographical_topological_sort(&dag, &async |node_id| {
-		// Note: we don't bother fetching power levels because that would massively slow
-		// this function down. This is a best-effort attempt to order events correctly
-		// for processing, however ultimately that should be the sender's job.
+		// Note: we don't bother fetching power levels because that would
+		// massively slow this function down. This is a best-effort attempt to
+		// order events correctly for processing, however ultimately that
+		// should be the sender's job.
 		let ts = id_origin_ts.get(&node_id).copied().unwrap_or_default();
 		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
 	})
@@ -168,14 +170,15 @@ impl super::Service {
 		assert!(!tail.is_empty(), "empty tail");
 		assert_ne!(via, self.services.globals.server_name(), "cannot ask ourselves for events");
 
-		// The iteration limit is in place to ensure that if the remote server leaves us
-		// in a state of infinite recursion (as old versions of continuwuity and
-		// predecessors would), we give up. However, get_missing_events doesn't return
-		// that many events per-request. Synapse returns 20, and conduwuit+ return 50.
-		// This means with a hard iteration limit, we might give up too early, before
-		// we get a chance to even come close to max_fetch_prev_events. As such, we'll
-		// calculate the limit based on that config option and the aforementioned
-		// averages.
+		// The iteration limit is in place to ensure that if the remote server
+		// leaves us in a state of infinite recursion (as old versions of
+		// continuwuity and predecessors would), we give up. However,
+		// get_missing_events doesn't return that many events per-request.
+		// Synapse returns 20, and conduwuit+ return 50. This means with a
+		// hard iteration limit, we might give up too early, before
+		// we get a chance to even come close to max_fetch_prev_events. As such,
+		// we'll calculate the limit based on that config option and the
+		// aforementioned averages.
 		let max_fetch = self.services.server.config.max_fetch_prev_events;
 		let iteration_limit = max_fetch.saturating_div(20).max(10);
 
@@ -256,9 +259,9 @@ impl super::Service {
 					.non_outlier_pdu_exists(&event_id)
 					.await
 				{
-					// NOTE: we explicitly check for *non*-outlier events here, as if we end
-					// up discovering outlier events, we will be able to upgrade them
-					// immediately.
+					// NOTE: we explicitly check for *non*-outlier events here,
+					// as if we end up discovering outlier events, we will
+					// be able to upgrade them immediately.
 					trace!("Already have {event_id} as a timeline PDU");
 					continue;
 				}
@@ -286,16 +289,17 @@ impl super::Service {
 						.non_outlier_pdu_exists(prev_event_id)
 						.await
 					{
-						// NOTE: we explicitly check for *non*-outlier events here, as if we end
-						// up discovering outlier events, we will be able to upgrade them
+						// NOTE: we explicitly check for *non*-outlier events
+						// here, as if we end up discovering outlier
+						// events, we will be able to upgrade them
 						// immediately.
 						trace!("Already have prev event {prev_event_id} as a timeline PDU");
 						continue;
 					}
 					if let Ok(outlier) = self.services.timeline.get_pdu(prev_event_id).await {
 						// We already have this PDU as an outlier, don't ask for
-						// it. However, if we are missing any prev events for it, add it to the
-						// latest events anyway.
+						// it. However, if we are missing any prev events for
+						// it, add it to the latest events anyway.
 						let outlier_missing_prevs = outlier
 							.prev_events()
 							.stream()
@@ -333,9 +337,10 @@ impl super::Service {
 				break;
 			}
 			if discovered.len() >= self.services.server.config.max_fetch_prev_events.into() {
-				// Stupid hack, debug_error!() drops the log to a DEBUG when not in debug mode,
-				// which is bad because this should at least produce a warning. It's an error in
-				// debug mode because this can be important, but typically not much can be done
+				// Stupid hack, debug_error!() drops the log to a DEBUG when not
+				// in debug mode, which is bad because this should at least
+				// produce a warning. It's an error in debug mode because
+				// this can be important, but typically not much can be done
 				// about it as a user.
 				#[cfg(debug_assertions)]
 				error!(elapsed=?start.elapsed(),
@@ -534,8 +539,9 @@ impl super::Service {
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
 				}
-				// Insert this PDU back at the end of the queue so that it will be resolved once
-				// all of its auth events have been fetched.
+				// Insert this PDU back at the end of the queue so that it will
+				// be resolved once all of its auth events have been
+				// fetched.
 				if have_all_auth {
 					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
 					discovered_events.insert(target_id, value);
@@ -639,9 +645,10 @@ impl super::Service {
 					data
 				},
 				| Err(e) => {
-					// NOTE: Unlike fetch_and_handle_auth_events, it's okay if we're missing some
-					// prevs, since we will fall back to other behaviours for resolving things
-					// like state. As such, we can just continue as before.
+					// NOTE: Unlike fetch_and_handle_auth_events, it's okay if
+					// we're missing some prevs, since we will fall back to
+					// other behaviours for resolving things like state. As
+					// such, we can just continue as before.
 					self.hit_failed_pdu_pull(next_id.clone());
 					warn!("Failed to fetch prev event {next_id} from any candidate: {e}");
 					continue;

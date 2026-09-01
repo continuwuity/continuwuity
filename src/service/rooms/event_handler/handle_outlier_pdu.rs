@@ -30,8 +30,8 @@ impl super::Service {
 	where
 		Pdu: Event + Send + Sync,
 	{
-		// Skip outlier handling if we already have this event as either a timeline or
-		// outlier PDU.
+		// Skip outlier handling if we already have this event as either a
+		// timeline or outlier PDU.
 		if let Ok(pdu_event) = self.services.timeline.get_pdu(event_id).await {
 			debug!(
 				"Database hit for {event_id} (event is either an outlier or already promoted), \
@@ -63,8 +63,8 @@ impl super::Service {
 			.signature_hash_check_2_3(value, &room_version_rules)
 			.await?;
 
-		// Now that we have checked the signature and hashes we can add the eventID and
-		// convert to our PduEvent type
+		// Now that we have checked the signature and hashes we can add the
+		// eventID and convert to our PduEvent type
 		incoming_pdu.insert(
 			"event_id".to_owned(),
 			CanonicalJsonValue::String(event_id.as_str().to_owned()),
@@ -74,17 +74,18 @@ impl super::Service {
 		)
 		.map_err(|e| err!(Request(BadJson(debug_warn!("Event is not a valid PDU: {e}")))))?;
 
-		// TODO(nex): From hereon the event is not dropped, and thus always added as an
-		// outlier. However, we only do that at the end of this function, which means
-		// several duplicated calls to add_pdu_outlier. Shouldn't we just do it here
-		// instead, since we know it's going to be persisted as an outlier no matter
-		// what? the rest of this function is basically just to check PDU check 4.
+		// TODO(nex): From hereon the event is not dropped, and thus always
+		// added as an outlier. However, we only do that at the end of this
+		// function, which means several duplicated calls to add_pdu_outlier.
+		// Shouldn't we just do it here instead, since we know it's going to
+		// be persisted as an outlier no matter what? the rest of this
+		// function is basically just to check PDU check 4.
 
-		// NOTE^: Technically, persisting the event before knowing if it's rejected
-		// introduces a race condition in fetch_and_persist_event_auth, where we have
-		// the event locally, but haven't yet flagged it as rejected, which the
-		// fetcher perceives as "accepted". I'm not sure if that's practically possible
-		// though.
+		// NOTE^: Technically, persisting the event before knowing if it's
+		// rejected introduces a race condition in
+		// fetch_and_persist_event_auth, where we have the event locally, but
+		// haven't yet flagged it as rejected, which the fetcher perceives as
+		// "accepted". I'm not sure if that's practically possible though.
 
 		// Fetch all auth events
 		let mut auth_events: HashMap<OwnedEventId, PduEvent> = HashMap::new();
@@ -127,7 +128,8 @@ impl super::Service {
 			}
 		}
 
-		// Ensure none of the auth events are rejected - if they are, reject too.
+		// Ensure none of the auth events are rejected - if they are, reject
+		// too.
 		for (auth_event_id, auth_event) in &auth_events {
 			if self
 				.services
@@ -159,8 +161,8 @@ impl super::Service {
 			}
 		}
 
-		// 4. Reject "due to auth events" if the event doesn't pass auth based on the
-		//    claimed auth events
+		// 4. Reject "due to auth events" if the event doesn't pass auth based
+		//    on the claimed auth events
 		debug!("Checking based on auth events");
 		let mut auth_events_by_key: HashMap<_, _> = HashMap::with_capacity(auth_events.len());
 		// Build map of auth events

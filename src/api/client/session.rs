@@ -222,7 +222,8 @@ pub(crate) async fn login_route(
 			.await?
 	};
 
-	// send client well-known if specified so the client knows to reconfigure itself
+	// send client well-known if specified so the client knows to reconfigure
+	// itself
 	let client_discovery_info: Option<DiscoveryInfo> = services
 		.server
 		.config

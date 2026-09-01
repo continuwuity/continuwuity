@@ -662,8 +662,8 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 
 const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &[u8] = b"fix_corrupt_msc4133_fields";
 async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
-	// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz` user
-	// profile fields with raw strings instead of quoted JSON ones.
+	// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz`
+	// user profile fields with raw strings instead of quoted JSON ones.
 	// This migration fixes that.
 
 	use serde_json::{Value, from_slice};

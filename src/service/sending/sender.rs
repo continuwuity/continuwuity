@@ -545,8 +545,8 @@ impl Service {
 					continue;
 				}
 
-				// Empty prev id forces synapse to resync; because synapse resyncs,
-				// we can just insert placeholder data
+				// Empty prev id forces synapse to resync; because synapse
+				// resyncs, we can just insert placeholder data
 				let edu = Edu::DeviceListUpdate(DeviceListUpdateContent::new(
 					user_id,
 					device_id!("placeholder").to_owned(),
@@ -876,7 +876,8 @@ impl Service {
 		}
 
 		for pdu in pdus {
-			// Redacted events are not notification targets (we don't send push for them)
+			// Redacted events are not notification targets (we don't send push
+			// for them)
 			if pdu.is_redacted() {
 				continue;
 			}
@@ -1011,8 +1012,8 @@ impl Service {
 			// TODO: remove all unsigned data over federation.
 			unsigned.remove("transaction_id");
 		}
-		// We don't support any room versions that have the event_id in the PDU JSON,
-		// so we can safely remove it here.
+		// We don't support any room versions that have the event_id in the PDU
+		// JSON, so we can safely remove it here.
 		pdu_json.remove("event_id");
 
 		std::future::ready(

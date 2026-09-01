@@ -41,7 +41,8 @@ pub(super) async fn build_state_initial(
 	let event_ids_in_timeline: HashSet<_> =
 		timeline.pdus.iter().map(|pdu| &pdu.1.event_id).collect();
 
-	// load the keys and event IDs of the state events at the start of the timeline
+	// load the keys and event IDs of the state events at the start of the
+	// timeline
 	let (shortstatekeys, event_ids): (Vec<_>, Vec<_>) = services
 		.rooms
 		.state_accessor
@@ -167,11 +168,11 @@ pub(super) async fn build_state_incremental<'a>(
 		.await;
 
 	if !use_state_after {
-		// If state_after isn't enabled, filter out state events which also exist
-		// in the timeline. If splits exist in the DAG, this may not be exactly the same
-		// thing as the state diff ending at the start of the timeline, but Synapse
-		// also does this and it's technically more useful behavior anyway.
-		// See: https://github.com/element-hq/synapse/issues/16941
+		// If state_after isn't enabled, filter out state events which also
+		// exist in the timeline. If splits exist in the DAG, this may not be
+		// exactly the same thing as the state diff ending at the start of the
+		// timeline, but Synapse also does this and it's technically more
+		// useful behavior anyway. See: https://github.com/element-hq/synapse/issues/16941
 
 		for (_, pdu) in &timeline.pdus {
 			state_event_ids.remove(pdu.event_id());

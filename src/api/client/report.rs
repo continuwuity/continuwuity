@@ -48,8 +48,8 @@ pub(crate) async fn report_room_route(
 	delay_response().await;
 
 	// We log this early in case the room ID does actually exist, in which case
-	// admins who scan their logs can see the report and choose to investigate at
-	// their discretion.
+	// admins who scan their logs can see the report and choose to investigate
+	// at their discretion.
 	info!(
 		"Received room report by user {sender_user} for room {} with reason: \"{}\"",
 		body.room_id, body.reason

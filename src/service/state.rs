@@ -24,8 +24,9 @@ pub fn create(services: Arc<Services>) -> (State, Guard) {
 impl Drop for Guard {
 	fn drop(&mut self) {
 		let ptr = Arc::as_ptr(&self.services);
-		// SAFETY: Parity with Arc::into_raw() called in create(). This revivifies the
-		// Arc lost to State so it can be dropped, otherwise Services will leak.
+		// SAFETY: Parity with Arc::into_raw() called in create(). This
+		// revivifies the Arc lost to State so it can be dropped, otherwise
+		// Services will leak.
 		let arc = unsafe { Arc::from_raw(ptr) };
 		debug_assert!(
 			Arc::strong_count(&arc) > 1,
@@ -54,10 +55,11 @@ unsafe impl Sync for State {}
 
 fn deref(services: &*const Services) -> Option<&Services> {
 	// SAFETY: We replaced Arc<Services> with *const Services in State. This is
-	// worth about 10 clones (20 reference count updates) for each request handled.
-	// Though this is not an incredibly large quantity, it's woefully unnecessary
-	// given the context as explained below; though it is not currently known to be
-	// a performance bottleneck, the front-line position justifies preempting it.
+	// worth about 10 clones (20 reference count updates) for each request
+	// handled. Though this is not an incredibly large quantity, it's woefully
+	// unnecessary given the context as explained below; though it is not
+	// currently known to be a performance bottleneck, the front-line position
+	// justifies preempting it.
 	//
 	// Services is created prior to the axum/tower stack and Router, and prior
 	// to serving any requests through the handlers in this crate. It is then

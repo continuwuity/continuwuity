@@ -224,9 +224,10 @@ impl Service {
 				let session: Cow<'_, str> = match auth.session() {
 					| Some(session) => session.into(),
 					| None => {
-						// Clients are allowed to send UIAA requests with an auth dict and no
-						// session if they want to start the UIAA exchange with existing
-						// authentication data. If that happens, we create a new session
+						// Clients are allowed to send UIAA requests with an
+						// auth dict and no session if they want to start
+						// the UIAA exchange with existing authentication
+						// data. If that happens, we create a new session
 						// here.
 						self.create_session(flows, params, initiator)
 							.await?
@@ -363,8 +364,9 @@ impl Service {
 		auth: &AuthData,
 		session: &str,
 	) -> Result<Result<Identity, UiaaInfo>> {
-		// Hold this lock for the entire function to make sure that, if try_auth()
-		// is called concurrently with the same session, only one call will succeed
+		// Hold this lock for the entire function to make sure that, if
+		// try_auth() is called concurrently with the same session, only one
+		// call will succeed
 		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
 
 		let Entry::Occupied(mut session) = uiaa_sessions.entry(session.to_owned()) else {
@@ -372,13 +374,13 @@ impl Service {
 		};
 
 		if let &AuthData::FallbackAcknowledgement(_) = auth {
-			// The client is checking if authentication has succeeded out-of-band. This is
-			// possible if the client is using "fallback auth" (see spec section
-			// 4.9.1.4), which we don't support (and probably never will, because it's a
-			// disgusting hack).
+			// The client is checking if authentication has succeeded
+			// out-of-band. This is possible if the client is using "fallback
+			// auth" (see spec section 4.9.1.4), which we don't support (and
+			// probably never will, because it's a disgusting hack).
 
-			// Return early to tell the client that no, authentication did not succeed while
-			// it wasn't looking.
+			// Return early to tell the client that no, authentication did not
+			// succeed while it wasn't looking.
 			return Ok(Err(session.get().info.clone()));
 		}
 
@@ -414,7 +416,8 @@ impl Service {
 				return Err!(Request(InvalidParam("No flows include the supplied stage")));
 			}
 
-			// If the provided stage hasn't already been completed, check it for completion
+			// If the provided stage hasn't already been completed, check it for
+			// completion
 			if !completed_stages.contains(auth_type.as_str()) {
 				match self.check_stage(auth, session_metadata.clone()).await {
 					| Ok((completed_stage, updated_metadata)) => {
@@ -455,13 +458,15 @@ impl Service {
 		auth: &AuthData,
 		mut session_metadata: UiaaSessionMetadata,
 	) -> Result<(AuthType, UiaaSessionMetadata), StandardErrorBody> {
-		// Note: This function takes ownership of `session_metadata` because mutations
-		// to the identity (if it's a legacy session) must not be applied unless
-		// checking the stage succeeds. The updated identity is returned as part of
-		// the Ok value, and `continue_session` handles saving it to `uiaa_sessions`.
+		// Note: This function takes ownership of `session_metadata` because
+		// mutations to the identity (if it's a legacy session) must not be
+		// applied unless checking the stage succeeds. The updated identity is
+		// returned as part of the Ok value, and `continue_session` handles
+		// saving it to `uiaa_sessions`.
 		//
-		// This also means it's fine to mutate `identity` at any point in this function,
-		// because those mutations won't be saved unless the function returns Ok.
+		// This also means it's fine to mutate `identity` at any point in this
+		// function, because those mutations won't be saved unless the
+		// function returns Ok.
 
 		let completed_auth_type = match &mut session_metadata {
 			| UiaaSessionMetadata::OAuth { localpart, ticket } => {
@@ -615,9 +620,9 @@ impl Service {
 				},
 				| AuthData::Terms(_) => Ok(AuthType::Terms),
 				| unknown => {
-					// We already checked that the stage type is one that exists in the flow,
-					// so we can only get here if we ourselves served a flow with a stage that we
-					// don't understand.
+					// We already checked that the stage type is one that exists
+					// in the flow, so we can only get here if we ourselves
+					// served a flow with a stage that we don't understand.
 					panic!("tried to check an unsupported stage type: {unknown:?}");
 				},
 			},
@@ -627,8 +632,8 @@ impl Service {
 	}
 
 	pub async fn registration_flow_status(&self) -> FlowStatus {
-		// Allow registration if it's enabled in the config file or if this is the first
-		// run (so the first user account can be created)
+		// Allow registration if it's enabled in the config file or if this is
+		// the first run (so the first user account can be created)
 		let allow_registration =
 			self.services.config.allow_registration || self.services.firstrun.is_first_run();
 

@@ -90,15 +90,15 @@ pub(crate) async fn create_room_route(
 	};
 	let room_version_rules = room_version.rules().unwrap();
 
-	// For custom room IDs, if the user is creating a room with a v1 room ID format,
-	// we can just use that ID directly. However, if it's a custom *v2* room ID, we
-	// need to make sure that we don't generate one, which would in turn trick us
-	// into generating invalid v2 room events.
+	// For custom room IDs, if the user is creating a room with a v1 room ID
+	// format, we can just use that ID directly. However, if it's a custom *v2*
+	// room ID, we need to make sure that we don't generate one, which would in
+	// turn trick us into generating invalid v2 room events.
 	//
 	// expect_room_id is the custom room ID that the user is expecting - for v2
-	// formatted rooms, we check that the m.room.create event's generated room ID
-	// exactly matches this, and abort if it doesn't. Otherwise, we use it as the
-	// room ID itself.
+	// formatted rooms, we check that the m.room.create event's generated room
+	// ID exactly matches this, and abort if it doesn't. Otherwise, we use it
+	// as the room ID itself.
 	let expect_room_id = {
 		let body_ref = body.json_body.as_ref().unwrap();
 		if let Some(CanonicalJsonValue::String(room_id)) = body_ref
@@ -165,10 +165,10 @@ pub(crate) async fn create_room_route(
 			continue;
 		}
 
-		// if the recipient of the invite is local and has the sender blocked, error
-		// out. if the recipient is remote we can't tell yet, and if they're local and
-		// have the sender _ignored_ their invite will be filtered out in
-		// the handlers for the individual /sync endpoints
+		// if the recipient of the invite is local and has the sender blocked,
+		// error out. if the recipient is remote we can't tell yet, and if
+		// they're local and have the sender _ignored_ their invite will be
+		// filtered out in the handlers for the individual /sync endpoints
 		if services.globals.user_is_local(recipient_user)
 			&& matches!(
 				services
@@ -652,8 +652,8 @@ fn default_power_levels_content(
 	power_levels_content["events"]["m.poll.response"] =
 		serde_json::to_value(0).expect("0 is valid Value");
 
-	// synapse does this too. clients do not expose these permissions. it prevents
-	// default users from calling public rooms, for obvious reasons.
+	// synapse does this too. clients do not expose these permissions. it
+	// prevents default users from calling public rooms, for obvious reasons.
 	if *visibility == room::Visibility::Public {
 		power_levels_content["events"]["m.call.invite"] =
 			serde_json::to_value(50).expect("50 is valid Value");

@@ -161,8 +161,8 @@ impl Service {
 			.server_is_ours(room_alias.server_name());
 
 		if !server_is_ours {
-			// TODO: The spec advises servers may cache remote room aliases temporarily.
-			// We might want to look at doing that.
+			// TODO: The spec advises servers may cache remote room aliases
+			// temporarily. We might want to look at doing that.
 			return self.remote_resolve(room_alias).await;
 		}
 
@@ -231,7 +231,8 @@ impl Service {
 			return Ok(true);
 		}
 
-		// Checking whether the user is able to change canonical aliases of the room
+		// Checking whether the user is able to change canonical aliases of the
+		// room
 		let can_change_canonical_alias = self
 			.services
 			.state_accessor

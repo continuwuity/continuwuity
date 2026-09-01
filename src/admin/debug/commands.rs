@@ -206,8 +206,9 @@ impl crate::Context<'_> {
 
 				let first_seen = scheduled.insert(auth_event_id.clone());
 				let auth_pdu = if let Some(auth_pdu) = cached_events.get(&auth_event_id) {
-					// NOTE: events might be referenced multiple times (like the create event)
-					// so this saves some cheeky db lookup time
+					// NOTE: events might be referenced multiple times (like the
+					// create event) so this saves some cheeky db lookup
+					// time
 					Some(auth_pdu.clone())
 				} else if first_seen {
 					match self.services.rooms.timeline.get_pdu(&auth_event_id).await {
@@ -221,9 +222,10 @@ impl crate::Context<'_> {
 					None
 				};
 
-				// NOTE: Depth is used as the primary sorting key here, even though it has no
-				// bearing on state resolution or anything. Timestamp is used as a
-				// tiebreaker, failing back to lexicographical comparison.
+				// NOTE: Depth is used as the primary sorting key here, even
+				// though it has no bearing on state resolution or anything.
+				// Timestamp is used as a tiebreaker, failing back to
+				// lexicographical comparison.
 				let (depth, ts) = auth_pdu
 					.as_ref()
 					.map_or((UInt::MAX, UInt::MAX), |pdu| (pdu.depth, pdu.origin_server_ts));
@@ -254,8 +256,8 @@ impl crate::Context<'_> {
 					// We have this PDU so will want to traverse it.
 					stack.push(child_pdu);
 				} else {
-					// We don't have this PDU locally so we can't traverse its auth events,
-					// but we can still render it as a node.
+					// We don't have this PDU locally so we can't traverse its
+					// auth events, but we can still render it as a node.
 					render_node(
 						&mut graph,
 						&child.node_id,

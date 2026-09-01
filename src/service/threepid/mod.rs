@@ -81,10 +81,10 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	// Each address gets two tickets to send an email, which refill at a rate of one
-	// per ten minutes. This allows two emails to be sent at once without waiting
-	// (in case the first one gets eaten), but requires a wait of at least ten
-	// minutes before sending another.
+	// Each address gets two tickets to send an email, which refill at a rate of
+	// one per ten minutes. This allows two emails to be sent at once without
+	// waiting (in case the first one gets eaten), but requires a wait of at
+	// least ten minutes before sending another.
 	const EMAIL_RATELIMIT: Quota =
 		Quota::per_minute(nonzero!(10_u32)).allow_burst(nonzero!(2_u32));
 	const VALIDATION_URL_PATH: &str = "/_continuwuity/3pid/email/validate";
@@ -133,7 +133,8 @@ impl Service {
 
 				match session.validation_state {
 					| ValidationState::Validated => {
-						// If the existing session is already valid, don't send an email.
+						// If the existing session is already valid, don't send
+						// an email.
 						return Ok(session.session_id.clone());
 					},
 					| ValidationState::Pending(ref mut token) => {
@@ -153,8 +154,8 @@ impl Service {
 							.or_default();
 
 						if send_attempt <= *last_send_attempt {
-							// If the supplied send attempt isn't higher than the last
-							// one, don't send an email.
+							// If the supplied send attempt isn't higher than
+							// the last one, don't send an email.
 							return Ok(session.session_id.clone());
 						}
 
@@ -192,8 +193,8 @@ impl Service {
 			.append_pair("session", session_id.as_str())
 			.append_pair("token", &token.token);
 
-		// Once the validation URL is built, we don't need any data borrowed from
-		// `sessions` anymore and can release our lock
+		// Once the validation URL is built, we don't need any data borrowed
+		// from `sessions` anymore and can release our lock
 		drop(sessions);
 
 		let message = prepare_body(validation_url.to_string());
@@ -279,8 +280,8 @@ impl Service {
 				Err!(Request(ThreepidInUse("This email address is already in use.")))
 			},
 			| Some(_) => {
-				// The supplied localpart is already associated with the supplied email,
-				// no changes are necessary.
+				// The supplied localpart is already associated with the
+				// supplied email, no changes are necessary.
 				Ok(())
 			},
 			| None => {

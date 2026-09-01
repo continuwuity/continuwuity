@@ -231,8 +231,8 @@ impl Service {
 
 		let mut state = self.federation_txn_state.write();
 
-		// Explicitly set cached first so there is no gap where receivers get a closed
-		// channel
+		// Explicitly set cached first so there is no gap where receivers get a
+		// closed channel
 		state.insert(
 			key,
 			TxnState::Cached(CachedTxnResponse {

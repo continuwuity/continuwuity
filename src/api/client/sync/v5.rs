@@ -205,8 +205,8 @@ async fn collect_sync_response(
 	globalsince: u64,
 	known_rooms: &KnownRooms,
 ) -> Result<SyncCollection> {
-	// Bounds every read below and becomes the `pos` returned to the client. Zero
-	// would be echoed back as a request for an initial sync.
+	// Bounds every read below and becomes the `pos` returned to the client.
+	// Zero would be echoed back as a request for an initial sync.
 	let next_batch = services.globals.current_count()?.max(1);
 
 	let all_joined_rooms = services
@@ -1132,8 +1132,8 @@ async fn collect_sticky_events(
 		.iter()
 		.filter(|room_id| joined_room_ids.contains(*room_id))
 	{
-		// a room the client has not seen before needs its whole backlog, which a
-		// single stream position cannot express
+		// a room the client has not seen before needs its whole backlog, which
+		// a single stream position cannot express
 		let initial = todo_rooms
 			.get(room_id)
 			.is_some_and(|&(_, _, roomsince)| roomsince == 0);
@@ -1462,7 +1462,8 @@ where
 			.await
 			.is_ok();
 
-		// Skip the state diff only: `room_keys_changed` below must run for every room.
+		// Skip the state diff only: `room_keys_changed` below must run for
+		// every room.
 		if let Some(since_shortstatehash) =
 			since_shortstatehash.filter(|since| *since != current_shortstatehash)
 		{
@@ -1533,8 +1534,8 @@ where
 										}
 									},
 									| MembershipState::Leave => {
-										// Write down users that have left encrypted rooms we
-										// are in
+										// Write down users that have left
+										// encrypted rooms we are in
 										left_encrypted_users.insert(user_id.clone());
 									},
 									| _ => {},
@@ -1544,7 +1545,8 @@ where
 					}
 				}
 				if joined_since_last_sync || new_encrypted_room {
-					// If the user is in a new encrypted room, give them all joined users
+					// If the user is in a new encrypted room, give them all
+					// joined users
 					device_list_changes.extend(
 						services
 						.rooms
@@ -1580,8 +1582,8 @@ where
 		let dont_share_encrypted_room =
 			!share_encrypted_room(services, sender_user, &user_id, None).await;
 
-		// If the user doesn't share an encrypted room with the target anymore, we need
-		// to tell them
+		// If the user doesn't share an encrypted room with the target anymore,
+		// we need to tell them
 		if dont_share_encrypted_room {
 			device_list_left.insert(user_id);
 		}

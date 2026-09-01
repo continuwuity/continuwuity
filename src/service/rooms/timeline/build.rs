@@ -41,7 +41,8 @@ impl super::Service {
 			self.check_pdu_for_admin_room(&pdu, sender).boxed().await?;
 		}
 
-		// If redaction event is not authorized, do not append it to the timeline
+		// If redaction event is not authorized, do not append it to the
+		// timeline
 		if *pdu.kind() == TimelineEventType::RoomRedaction {
 			use ruma::RoomVersionId::*;
 			trace!("Running redaction checks for room {room_id}");
@@ -105,16 +106,16 @@ impl super::Service {
 				.await;
 		}
 
-		// We append to state before appending the pdu, so we don't have a moment in
-		// time with the pdu without it's state. This is okay because append_pdu can't
-		// fail.
+		// We append to state before appending the pdu, so we don't have a
+		// moment in time with the pdu without it's state. This is okay
+		// because append_pdu can't fail.
 		trace!("Appending {} state for room {room_id}", pdu.event_id());
 		let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
 		trace!("State hash ID for {room_id}: {statehashid:?}");
 
-		// prev_events is capped at the room version's limit, so this PDU does not
-		// necessarily reference every extremity. Any it did not reference is still a
-		// head of the DAG and has to be kept.
+		// prev_events is capped at the room version's limit, so this PDU does
+		// not necessarily reference every extremity. Any it did not reference
+		// is still a head of the DAG and has to be kept.
 		let prev_events: HashSet<&EventId> = pdu.prev_events().collect();
 		let unreferenced: Vec<OwnedEventId> = self
 			.services
@@ -159,8 +160,9 @@ impl super::Service {
 			}
 		}
 
-		// We set the room state after inserting the pdu, so that we never have a moment
-		// in time where events in the current room state do not exist
+		// We set the room state after inserting the pdu, so that we never have
+		// a moment in time where events in the current room state do not
+		// exist
 		trace!("Setting room state for room {room_id}");
 		self.services
 			.state
@@ -187,8 +189,8 @@ impl super::Service {
 			.collect()
 			.await;
 
-		// In case we are kicking or banning a user, we need to inform their server of
-		// the change
+		// In case we are kicking or banning a user, we need to inform their
+		// server of the change
 		if *pdu.kind() == TimelineEventType::RoomMember {
 			if let Some(state_key_uid) = &pdu
 				.state_key
@@ -199,8 +201,8 @@ impl super::Service {
 			}
 		}
 
-		// Remove our server from the server list since it will be added to it by
-		// room_servers() and/or the if statement above
+		// Remove our server from the server list since it will be added to it
+		// by room_servers() and/or the if statement above
 		servers.remove(self.services.globals.server_name());
 
 		trace!("Sending PDU {} to {} servers", pdu.event_id(), servers.len());

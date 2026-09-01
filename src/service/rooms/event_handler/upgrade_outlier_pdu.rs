@@ -40,8 +40,8 @@ impl super::Service {
 			return Err!(Request(Forbidden(debug_info!("Event has been soft-failed"))));
 		}
 
-		// These should never happen, but they're good last-minute sanity checks to
-		// ensure we never promote totally illegal events.
+		// These should never happen, but they're good last-minute sanity checks
+		// to ensure we never promote totally illegal events.
 		assert_eq!(
 			*create_event.kind(),
 			StateEventType::RoomCreate.into(),
@@ -61,10 +61,10 @@ impl super::Service {
 		let min_depth = self.services.metadata.get_mindepth(room_id).await;
 		let room_version_rules = get_room_version_rules(create_event)?;
 
-		// We now need to resolve the state before the event so that we can perform PDU
-		// check 5 (event auth passes based on state before the event). To do this, we
-		// either need to have all the prev events locally, or ask a remote server
-		// for the state at the event.
+		// We now need to resolve the state before the event so that we can
+		// perform PDU check 5 (event auth passes based on state before the
+		// event). To do this, we either need to have all the prev events
+		// locally, or ask a remote server for the state at the event.
 		let (passes_state_before, state_before) = self
 			.state_before_check_5(&incoming_pdu, &room_version_rules, create_event, origin)
 			.await?;
@@ -77,13 +77,13 @@ impl super::Service {
 		}
 
 		// Now that we know the event passes both self-authentication, and
-		// authentication based on the state before the event, we need to check that it
-		// passes based on the *current* room state (state across all forward
-		// extremities). If it doesn't, we accept it, but soft-fail it, and this
-		// prevents it being promoted.
+		// authentication based on the state before the event, we need to check
+		// that it passes based on the *current* room state (state across all
+		// forward extremities). If it doesn't, we accept it, but soft-fail
+		// it, and this prevents it being promoted.
 
-		// We lock the room here to prevent the current state from changing beneath us
-		// mid-check.
+		// We lock the room here to prevent the current state from changing
+		// beneath us mid-check.
 		trace!(
 			room_id = %room_id,
 			"Locking the room"
@@ -102,8 +102,8 @@ impl super::Service {
 			})?;
 
 		// Determine whether this PDU should be soft-failed.
-		// If the auth check failed, invariably yes. Otherwise, only if the user isn't
-		// allowed to redact the target event (if any).
+		// If the auth check failed, invariably yes. Otherwise, only if the user
+		// isn't allowed to redact the target event (if any).
 		let redaction_permitted =
 			if let Some(redacted_id) = incoming_pdu.redacts_id(&room_version_rules) {
 				self.services
@@ -117,10 +117,11 @@ impl super::Service {
 		let mut should_soft_fail = !redaction_permitted || !passes_current_state;
 
 		if !should_soft_fail {
-			// Now we can perform check 7, which is ensuring the event passes policy server
-			// checks.
-			// We explicitly only do this if we aren't already going to soft-fail the event,
-			// since the policy server refusing this event also soft-fails it.
+			// Now we can perform check 7, which is ensuring the event passes
+			// policy server checks.
+			// We explicitly only do this if we aren't already going to
+			// soft-fail the event, since the policy server refusing this
+			// event also soft-fails it.
 			debug!("Checking policy server for event");
 			should_soft_fail = !self
 				.policy_server_check_7(&incoming_pdu, &mut val, &room_version_rules)
@@ -133,9 +134,10 @@ impl super::Service {
 					}
 				})?;
 
-			// TODO: this is supposed to hide redactions from policy servers and janitorial
-			// bots, however, for full efficacy it also needs to hide redactions for
-			// unknown events. This needs to be investigated at a later time.
+			// TODO: this is supposed to hide redactions from policy servers and
+			// janitorial bots, however, for full efficacy it also needs to
+			// hide redactions for unknown events. This needs to be
+			// investigated at a later time.
 			if let Some(redact_id) = incoming_pdu.redacts_id(&room_version_rules) {
 				debug!(
 					redact_id = %redact_id,
@@ -161,8 +163,8 @@ impl super::Service {
 			);
 		}
 
-		// The PDU has now passed all checks! We can now promote it (or soft-fail it if
-		// the verdict is such).
+		// The PDU has now passed all checks! We can now promote it (or
+		// soft-fail it if the verdict is such).
 		trace!("Appending pdu to timeline");
 		let pdu_id = self
 			.services

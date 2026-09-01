@@ -25,7 +25,8 @@ use super::RoomMutexGuard;
 /// Ensures the given PDU fits inside the size limits for a PDU.
 #[must_use]
 pub fn pdu_fits(owned_obj: &CanonicalJsonObject) -> bool {
-	// room IDs, event IDs, senders, types, and state keys must all be <= 255 bytes
+	// room IDs, event IDs, senders, types, and state keys must all be <= 255
+	// bytes
 	if let Some(CanonicalJsonValue::String(room_id)) = owned_obj.get("room_id") {
 		if room_id.len() > 255 {
 			return false;
@@ -341,10 +342,11 @@ impl super::Service {
 				"Checking event in room {} with policy server",
 				pdu.room_id.as_ref().map_or("None", |id| id.as_str())
 			);
-			// We need to remove the event ID before getting a PS signature on the event.
-			// Note that we seemingly pointlessly add it above just to remove it here, but
-			// it's important to make sure the event ID isn't the field that makes the
-			// difference between an illegally-large event and one that is okay.
+			// We need to remove the event ID before getting a PS signature on
+			// the event. Note that we seemingly pointlessly add it above
+			// just to remove it here, but it's important to make sure the
+			// event ID isn't the field that makes the difference between an
+			// illegally-large event and one that is okay.
 			pdu_json.remove("event_id");
 			self.services
 				.event_handler

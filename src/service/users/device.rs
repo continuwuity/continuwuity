@@ -328,7 +328,8 @@ impl super::Service {
 		if let Some(device_id) = device_id {
 			if let Ok(mut device) = self.get_device_metadata(user_id, device_id).await {
 				device.last_seen_ip = Some(ip.to_string());
-				// If the last update was less than 10 seconds ago, don't update the timestamp
+				// If the last update was less than 10 seconds ago, don't update
+				// the timestamp
 				if let Some(prev) = device.last_seen_ts {
 					if now.get().saturating_sub(prev.get()) < uint!(10_000) {
 						return;

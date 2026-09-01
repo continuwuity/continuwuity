@@ -24,7 +24,8 @@ fn load(db: &Arc<Database>) -> Result<Box<Ed25519KeyPair>> {
 	let (version, key) = db["global"]
 		.get_blocking(b"keypair")
 		.map(|ref val| {
-			// database deserializer is having trouble with this so it's manual for now
+			// database deserializer is having trouble with this so it's manual
+			// for now
 			let mut elems = val.split(|&b| b == b'\xFF');
 			let vlen = elems.next().expect("invalid keypair entry").len();
 			let ver = string_from_bytes(&val[..vlen]).expect("invalid keypair version");

@@ -55,8 +55,8 @@ impl super::Service {
 		create_event_id: &EventId,
 	) -> Result<()> {
 		let event_format = &room_version_rules.event_format;
-		// NOTE: if we do any more validation outside of deserialisation, it has to be
-		// done here.
+		// NOTE: if we do any more validation outside of deserialisation, it has
+		// to be done here.
 
 		if !pdu_fits(pdu_json) {
 			return Err!(Request(TooLarge("PDU is too large")));
@@ -76,9 +76,10 @@ impl super::Service {
 			check_event_id_format(auth_event_id, room_version_rules)?;
 		}
 
-		// The m.room.create event is the genesis event and has empty auth_events
-		// by definition, so it is exempt from the checks below requiring or
-		// forbidding the create event in auth_events (it cannot reference itself).
+		// The m.room.create event is the genesis event and has empty
+		// auth_events by definition, so it is exempt from the checks below
+		// requiring or forbidding the create event in auth_events (it cannot
+		// reference itself).
 		let Some(event_type) = pdu_json.get("type").and_then(CanonicalJsonValue::as_str) else {
 			return Err!(Request(BadJson("PDU is missing a type")));
 		};
@@ -190,12 +191,13 @@ impl super::Service {
 		);
 		let room_id = incoming_pdu.room_id_or_hash();
 
-		// If the incoming event only has one prev event, we can just use the state at
-		// that event, but otherwise we have to resolve across each fork. If we're
-		// missing even one of the prev events, we have to ask a remote server for help.
+		// If the incoming event only has one prev event, we can just use the
+		// state at that event, but otherwise we have to resolve across each
+		// fork. If we're missing even one of the prev events, we have to ask
+		// a remote server for help.
 		//
-		// TODO: this can be optimised by only loading auth chain events into memory,
-		// rather than the entire state.
+		// TODO: this can be optimised by only loading auth chain events into
+		// memory, rather than the entire state.
 		let state_before = self
 			.state_before_incoming(&incoming_pdu, room_version_rules)
 			.await?;
@@ -214,10 +216,11 @@ impl super::Service {
 		if state_before.is_empty()
 			&& *incoming_pdu.event_type() != StateEventType::RoomCreate.into()
 		{
-			// This can happen if the remote sends an event but cannot be reached to fetch
-			// the state at it, and all other servers in the room (which might just be the
-			// unreachable server) are unable to provide required info.
-			// returning an error here allows the upgrade to be attempted at another time.
+			// This can happen if the remote sends an event but cannot be
+			// reached to fetch the state at it, and all other servers in the
+			// room (which might just be the unreachable server) are unable
+			// to provide required info. returning an error here allows the
+			// upgrade to be attempted at another time.
 			return Err!(Request(Forbidden("Could not resolve incoming state before event")));
 		}
 		trace!(state_events = state_before.len(), "Calculated incoming state");
@@ -386,8 +389,9 @@ mod tests {
 	fn v3_event_id_errors_in_room_v3() {
 		let v3_event_id = EventId::new_v2_or_v3("zsj67_pqjr5qqh5GMTXqxLM0FqjP5OLrvXO0PjwWe88")
 			.expect("fixture event hash must be valid");
-		// Since the urlsafe replacements aren't in the standard base64 alphabet, this
-		// simply errors instead of decoding to potentially incorrect bytes.
+		// Since the urlsafe replacements aren't in the standard base64
+		// alphabet, this simply errors instead of decoding to potentially
+		// incorrect bytes.
 		assert!(
 			check_event_id_format(&v3_event_id, &RoomVersionRules::V3).is_err(),
 			"V3 event ID should not be valid in room V3"
@@ -397,8 +401,9 @@ mod tests {
 	fn v3_event_id_ok_in_room_v4_onward() {
 		let v3_event_id = EventId::new_v2_or_v3("zsj67_pqjr5qqh5GMTXqxLM0FqjP5OLrvXO0PjwWe88")
 			.expect("fixture event hash must be valid");
-		// Since the urlsafe replacements aren't in the standard base64 alphabet, this
-		// simply errors instead of decoding to potentially incorrect bytes.
+		// Since the urlsafe replacements aren't in the standard base64
+		// alphabet, this simply errors instead of decoding to potentially
+		// incorrect bytes.
 		let expected_bytes = vec![
 			206, 200, 250, 239, 250, 106, 142, 190, 106, 170, 30, 70, 49, 53, 234, 196, 179, 52,
 			22, 168, 207, 228, 226, 235, 189, 115, 180, 62, 60, 22, 123, 207,
@@ -409,8 +414,8 @@ mod tests {
 			expected_bytes,
 			"V3 event ID in room V4 did not decode to expected bytes"
 		);
-		// These versions didn't change the algorithm, but might as well test them
-		// anyway
+		// These versions didn't change the algorithm, but might as well test
+		// them anyway
 		assert_eq!(
 			check_event_id_format(&v3_event_id, &RoomVersionRules::V6)
 				.expect("V3 event should be valid room V6"),

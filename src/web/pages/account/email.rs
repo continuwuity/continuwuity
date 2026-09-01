@@ -120,8 +120,8 @@ async fn route_change_email(
 		{
 			| Ok(session_id) => session_id,
 			| Err(err) => {
-				// If we couldn't send an email, generate a random session ID to not give that
-				// away
+				// If we couldn't send an email, generate a random session ID to
+				// not give that away
 				warn!(
 					"Failed to send email change message for {user_id} to {}: {err}",
 					form.email

@@ -191,8 +191,9 @@ impl Service {
 				match (&mut list.filters, cached_list.filters.clone()) {
 					| (Some(filters), Some(cached_filters)) => {
 						some_or_sticky(&mut filters.is_invite, cached_filters.is_invite);
-						// TODO (morguldir): Find out how a client can unset this, probably need
-						// to change into an option inside ruma
+						// TODO (morguldir): Find out how a client can unset
+						// this, probably need to change into an option
+						// inside ruma
 						list_or_sticky(
 							&mut filters.not_room_types,
 							&cached_filters.not_room_types,

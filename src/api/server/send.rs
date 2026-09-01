@@ -173,9 +173,9 @@ async fn process_inbound_transaction(
 
 	debug!(pdus = body.pdus.len(), edus = body.edus.len(), "Processing transaction",);
 	// We have an additional panic catch here because if there's a panic in the
-	// handle, the sender will effectively become defederated until restart after
-	// never being removed from the tracking map. Ideally the handle function
-	// doesn't panic, but when has "ideally" ever worked for us.
+	// handle, the sender will effectively become defederated until restart
+	// after never being removed from the tracking map. Ideally the handle
+	// function doesn't panic, but when has "ideally" ever worked for us.
 	let handle_result =
 		std::panic::AssertUnwindSafe(handle(&services, &body.identity, pdus, edus))
 			.catch_unwind()
@@ -319,9 +319,9 @@ async fn handle_room(
 		.into_iter()
 		.map(|(_, event_id, value)| (event_id, value))
 		.collect();
-	// Try to sort PDUs by their dependencies, but fall back to arbitrary order on
-	// failure (e.g., cycles). This is best-effort; proper ordering is the sender's
-	// responsibility.
+	// Try to sort PDUs by their dependencies, but fall back to arbitrary order
+	// on failure (e.g., cycles). This is best-effort; proper ordering is the
+	// sender's responsibility.
 	let sorted_event_ids = build_local_dag(&pdu_map, DagBuilderTree::PrevEvents)
 		.await
 		.unwrap_or_else(|e| {

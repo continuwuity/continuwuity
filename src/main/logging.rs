@@ -154,8 +154,8 @@ pub(crate) fn init(
 	let ret = (reload_handles, flame_guard, cap_state);
 
 	// Enable the tokio console. This is slightly kludgy because we're judggling
-	// compile-time and runtime conditions to elide it, each of those changing the
-	// subscriber's type.
+	// compile-time and runtime conditions to elide it, each of those changing
+	// the subscriber's type.
 	let (console_enabled, console_disabled_reason) = tokio_console_enabled(config);
 	#[cfg(all(feature = "tokio_console", tokio_unstable))]
 	if console_enabled {
@@ -169,8 +169,8 @@ pub(crate) fn init(
 
 	set_global_default(subscriber);
 
-	// If there's a reason the tokio console was disabled when it might be desired
-	// we output that here after initializing logging
+	// If there's a reason the tokio console was disabled when it might be
+	// desired we output that here after initializing logging
 	if !console_enabled && !console_disabled_reason.is_empty() {
 		debug_warn!("{console_disabled_reason}");
 	}

@@ -120,7 +120,8 @@ impl super::Service {
 			.write_to(&mut cursor, image::ImageFormat::Png)
 			.map_err(|error| err!(error!(%error, "Error writing PNG thumbnail.")))?;
 
-		// Save thumbnail in database so we don't have to generate it again next time
+		// Save thumbnail in database so we don't have to generate it again next
+		// time
 		let thumbnail_key = self.db.create_file_metadata(
 			mxc,
 			None,

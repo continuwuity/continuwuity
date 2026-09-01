@@ -15,9 +15,9 @@ pub(crate) async fn get_hierarchy_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_hierarchy::v1::Request>,
 ) -> Result<get_hierarchy::v1::Response> {
-	// We don't do pagination for this route (and therefore ignore `limit`), since
-	// there's no reasonable way to handle a space hierarchy changing during
-	// pagination.
+	// We don't do pagination for this route (and therefore ignore `limit`),
+	// since there's no reasonable way to handle a space hierarchy changing
+	// during pagination.
 
 	// Default to MAX_MAX_DEPTH when the client doesn't specify one, so an
 	// unbounded traversal can never happen.

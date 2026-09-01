@@ -405,8 +405,8 @@ impl Service {
 	pub fn get_media_file_sha256(&self, key: &[u8]) -> PathBuf {
 		let mut r = self.get_media_dir();
 		// Using the hash of the base64 key as the filename
-		// This is to prevent the total length of the path from exceeding the maximum
-		// length in most filesystems
+		// This is to prevent the total length of the path from exceeding the
+		// maximum length in most filesystems
 		let digest = <sha2::Sha256 as sha2::Digest>::digest(key);
 		let encoded = encode_key(&digest);
 		r.push(encoded);

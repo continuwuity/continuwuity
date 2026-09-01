@@ -142,8 +142,8 @@ where
 	// We used to check that all events are events from the correct room
 	// this is now a check the caller of `resolve` must make.
 
-	// Get only the control events with a state_key: "" or ban/kick event (sender !=
-	// state_key)
+	// Get only the control events with a state_key: "" or ban/kick event
+	// (sender != state_key)
 	let control_events: Vec<_> = all_conflicted
 		.iter()
 		.stream()
@@ -187,8 +187,8 @@ where
 	debug!(count = deduped_power_ev.len(), "deduped power events");
 	trace!(set = ?deduped_power_ev, "deduped power events");
 
-	// This removes the control events that passed auth and more importantly those
-	// that failed auth
+	// This removes the control events that passed auth and more importantly
+	// those that failed auth
 	let events_to_resolve: Vec<_> = all_conflicted
 		.iter()
 		.filter(|&id| !deduped_power_ev.contains(id))
@@ -490,8 +490,8 @@ where
 	for (node, edges) in graph {
 		if edges.is_empty() {
 			let (power_level, origin_server_ts) = key_fn(node.clone()).await?;
-			// The `Reverse` is because rusts `BinaryHeap` sorts largest -> smallest we need
-			// smallest -> largest
+			// The `Reverse` is because rusts `BinaryHeap` sorts largest ->
+			// smallest we need smallest -> largest
 			zero_outdegree.push(Reverse(TieBreaker {
 				power_level,
 				origin_server_ts,
@@ -507,7 +507,8 @@ where
 
 	let mut heap = BinaryHeap::from(zero_outdegree);
 
-	// We remove the oldest node (most incoming edges) and check against all other
+	// We remove the oldest node (most incoming edges) and check against all
+	// other
 	let mut sorted = vec![];
 	// Destructure the `Reverse` and take the smallest `node` each time
 	while let Some(Reverse(item)) = heap.pop() {
@@ -574,8 +575,8 @@ where
 	let sender_is_creator =
 		sender_is_creator(&event, room_version, &auth_events, fetch_event).await?;
 
-	// Since v12 the room creators outrank any m.room.power_levels event, so their
-	// ordering position does not depend on one being in scope.
+	// Since v12 the room creators outrank any m.room.power_levels event, so
+	// their ordering position does not depend on one being in scope.
 	if sender_is_creator
 		&& room_version
 			.authorization
@@ -628,8 +629,8 @@ where
 		.find(|aev| is_type_and_key(*aev, &TimelineEventType::RoomCreate, ""))
 		.cloned();
 
-	// Since v12 the create event is no longer listed in auth_events; the room ID
-	// is its event ID.
+	// Since v12 the create event is no longer listed in auth_events; the room
+	// ID is its event ID.
 	let create_event = match create_event {
 		| Some(create_event) => Some(create_event),
 		| None =>
@@ -738,10 +739,11 @@ where
 	trace!(map = ?auth_events.keys().collect::<Vec<_>>(), "fetched auth events");
 
 	let auth_events = &auth_events;
-	// NOTE: in state resolution v2.1, auth checks should start with an empty state
-	// map. It is the caller's job to do this. Previously, this function would
-	// force an empty state map in this case, and this resulted in power events
-	// going missing from the resolved state as they'd be discarded here.
+	// NOTE: in state resolution v2.1, auth checks should start with an empty
+	// state map. It is the caller's job to do this. Previously, this function
+	// would force an empty state map in this case, and this resulted in power
+	// events going missing from the resolved state as they'd be discarded
+	// here.
 	let mut resolved_state = unconflicted_state;
 	for event in events_to_check {
 		trace!(event_id = event.event_id().as_str(), "checking event");
@@ -774,8 +776,8 @@ where
 		}
 		for aid in event.auth_events() {
 			if let Some(ev) = auth_events.get(aid) {
-				//TODO: synapse checks "rejected_reason" which is most likely related to
-				// soft-failing
+				//TODO: synapse checks "rejected_reason" which is most likely
+				// related to soft-failing
 				trace!(event_id = aid.as_str(), "found auth event");
 				auth_state.insert(
 					ev.event_type()
@@ -809,8 +811,8 @@ where
 
 		debug!(event_id = event.event_id().as_str(), "Running auth checks");
 
-		// The key for this is (eventType + a state_key of the signed token not sender)
-		// so search for it
+		// The key for this is (eventType + a state_key of the signed token not
+		// sender) so search for it
 		let current_third_party = auth_state.iter().find_map(|(_, pdu)| {
 			(*pdu.event_type() == TimelineEventType::RoomThirdPartyInvite).then_some(pdu)
 		});
@@ -848,7 +850,8 @@ where
 				trace!(map = ?resolved_state, "new resolved state");
 			},
 			| Ok(false) => {
-				// synapse passes here on AuthError. We do not add this event to resolved_state.
+				// synapse passes here on AuthError. We do not add this event to
+				// resolved_state.
 				warn!("event {} failed the authentication check", event.event_id());
 			},
 			| Err(e) => {
@@ -1276,8 +1279,8 @@ mod tests {
 	// #[tokio::test]
 	async fn test_sort() {
 		for _ in 0..20 {
-			// since we shuffle the eventIds before we sort them introducing randomness
-			// seems like we should test this a few times
+			// since we shuffle the eventIds before we sort them introducing
+			// randomness seems like we should test this a few times
 			test_event_sort().await;
 		}
 	}
@@ -1917,7 +1920,8 @@ mod tests {
 			.iter(),
 		);
 
-		// HashMap iteration order is random, so sort this before asserting on it
+		// HashMap iteration order is random, so sort this before asserting on
+		// it
 		for v in conflicted.values_mut() {
 			v.sort_unstable();
 		}

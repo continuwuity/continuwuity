@@ -195,9 +195,11 @@ where
 		"auth_check beginning"
 	);
 
-	// [synapse] check that all the events are in the same room as `incoming_event`
+	// [synapse] check that all the events are in the same room as
+	// `incoming_event`
 
-	// [synapse] do_sig_check check the event has valid signatures for member events
+	// [synapse] do_sig_check check the event has valid signatures for member
+	// events
 
 	let sender = incoming_event.sender();
 
@@ -213,7 +215,8 @@ where
 			return Ok(false);
 		}
 
-		// If the domain of the room_id does not match the domain of the sender, reject
+		// If the domain of the room_id does not match the domain of the sender,
+		// reject
 		if incoming_event.room_id().is_some() {
 			let Some(room_id_server_name) = incoming_event.room_id().unwrap().server_name()
 			else {
@@ -230,7 +233,8 @@ where
 			}
 		}
 
-		// If content.room_version is present and is not a recognized version, reject
+		// If content.room_version is present and is not a recognized version,
+		// reject
 		let content: RoomCreateContentFields = from_json_str(incoming_event.content().get())?;
 		if content
 			.room_version
@@ -326,8 +330,8 @@ where
 		return Ok(false);
 	}
 
-	// If the create event is referenced in the event's auth events, and this is a
-	// v12 room, reject
+	// If the create event is referenced in the event's auth events, and this is
+	// a v12 room, reject
 	let claims_create_event = incoming_event
 		.auth_events()
 		.any(|id| id == room_create_event.event_id());
@@ -335,8 +339,8 @@ where
 		warn!("event incorrectly references m.room.create event in auth events");
 		return Ok(false);
 	} else if !(room_version.room_id_format == RoomIdFormatVersion::V2) && !claims_create_event {
-		// If the create event is not referenced in the event's auth events, and this is
-		// a v11 room, reject
+		// If the create event is not referenced in the event's auth events, and
+		// this is a v11 room, reject
 		warn!(
 			missing = %room_create_event.event_id(),
 			"event incorrectly did not reference an m.room.create in its auth events"
@@ -545,9 +549,9 @@ where
 		return Ok(true);
 	}
 
-	// If the event type's required power level is greater than the sender's power
-	// level, reject If the event has a state_key that starts with an @ and does
-	// not match the sender, reject.
+	// If the event type's required power level is greater than the sender's
+	// power level, reject If the event has a state_key that starts with an @
+	// and does not match the sender, reject.
 	if !can_send_event(incoming_event, power_levels_event.as_ref(), sender_power_level) {
 		warn!(
 			%sender,
@@ -590,13 +594,13 @@ where
 		debug!("m.room.power_levels event allowed");
 	}
 
-	// Room version 3: Redaction events are always accepted (provided the event is
-	// allowed by `events` and `events_default` in the power levels). However,
-	// servers should not apply or send redaction's to clients until both the
-	// redaction event and original event have been seen, and are valid. Servers
-	// should only apply redaction's to events where the sender's domains match, or
-	// the sender of the redaction has the appropriate permissions per the
-	// power levels.
+	// Room version 3: Redaction events are always accepted (provided the event
+	// is allowed by `events` and `events_default` in the power levels).
+	// However, servers should not apply or send redaction's to clients until
+	// both the redaction event and original event have been seen, and are
+	// valid. Servers should only apply redaction's to events where the
+	// sender's domains match, or the sender of the redaction has the
+	// appropriate permissions per the power levels.
 
 	if room_version.authorization.special_case_room_redaction
 		&& *incoming_event.event_type() == TimelineEventType::RoomRedaction
@@ -759,8 +763,8 @@ where
 	Ok(match target_membership {
 		| MembershipState::Join => {
 			trace!("starting target_membership=join check");
-			// 1. If the only previous event is an m.room.create and the state_key is the
-			//    creator,
+			// 1. If the only previous event is an m.room.create and the
+			//    state_key is the creator,
 			// allow
 			let mut prev_events = current_event.prev_events();
 
@@ -960,8 +964,8 @@ where
 		},
 		| MembershipState::Leave => {
 			if sender == target_user {
-				// If the sender matches state_key, allow if that user's current membership
-				// state is invite, join, or knock.
+				// If the sender matches state_key, allow if that user's current
+				// membership state is invite, join, or knock.
 				let allow = matches!(
 					target_user_current_membership,
 					MembershipState::Join | MembershipState::Invite | MembershipState::Knock
@@ -985,10 +989,11 @@ where
 				);
 				false
 			} else {
-				// If the target user's current membership state is ban, and the sender's power
-				// level is less than the ban level, reject. If the sender's power level is
-				// greater than or equal to the kick level, and the target user's power level is
-				// less than the sender's power level, allow.
+				// If the target user's current membership state is ban, and the
+				// sender's power level is less than the ban level, reject.
+				// If the sender's power level is greater than or equal to
+				// the kick level, and the target user's power level is less
+				// than the sender's power level, allow.
 				let cannot_unban = target_user_current_membership == MembershipState::Ban
 					&& sender_power < effective_power_levels.ban;
 				let can_kick =
@@ -1030,9 +1035,9 @@ where
 				);
 				false
 			} else {
-				// If the sender's power level is greater than or equal to the ban level, and
-				// the target user's power level is less than the sender's power level, allow.
-				// Otherwise, reject.
+				// If the sender's power level is greater than or equal to the
+				// ban level, and the target user's power level is less than
+				// the sender's power level, allow. Otherwise, reject.
 				let allow =
 					sender_power >= effective_power_levels.ban && target_power < sender_power;
 				if !allow {
@@ -1047,8 +1052,8 @@ where
 				allow
 			},
 		| MembershipState::Knock if room_version.authorization.knocking => {
-			// 1. If the `join_rule` is anything other than `knock` or `knock_restricted`,
-			//    reject.
+			// 1. If the `join_rule` is anything other than `knock` or
+			//    `knock_restricted`, reject.
 			if !matches!(join_rules, JoinRule::KnockRestricted(_) | JoinRule::Knock) {
 				warn!(
 					"Join rule is not set to knock or knock_restricted, knocking is not allowed"
@@ -1057,8 +1062,8 @@ where
 			} else if matches!(join_rules, JoinRule::KnockRestricted(_))
 				&& !room_version.authorization.knock_restricted_join_rule
 			{
-				// 2. If the `join_rule` is `knock_restricted`, but the room does not support
-				//    `knock_restricted`, reject.
+				// 2. If the `join_rule` is `knock_restricted`, but the room
+				//    does not support `knock_restricted`, reject.
 				warn!(
 					"Join rule is set to knock_restricted but room version does not support \
 					 knock_restricted, knocking is not allowed"
@@ -1076,8 +1081,8 @@ where
 				sender_membership,
 				MembershipState::Ban | MembershipState::Invite | MembershipState::Join
 			) {
-				// 4. If the `sender`'s current membership is not `ban`, `invite`, or `join`,
-				//    allow.
+				// 4. If the `sender`'s current membership is not `ban`,
+				//    `invite`, or `join`, allow.
 				// 5. Otherwise, reject.
 				warn!(
 					?target_user_membership_event_id,
@@ -1170,16 +1175,17 @@ fn check_power_levels(
 	}
 
 	// - If any of the keys users_default, events_default, state_default, ban,
-	//   redact, kick, or invite in content are present and not an integer, reject.
-	// - If either of the keys events or notifications in content are present and
-	//   not a dictionary with values that are integers, reject.
-	// - If users key in content is not a dictionary with keys that are valid user
-	//   IDs with values that are integers, reject.
+	//   redact, kick, or invite in content are present and not an integer,
+	//   reject.
+	// - If either of the keys events or notifications in content are present
+	//   and not a dictionary with values that are integers, reject.
+	// - If users key in content is not a dictionary with keys that are valid
+	//   user IDs with values that are integers, reject.
 	let user_content: RoomPowerLevelsEventContent =
 		deserialize_power_levels(power_event.content().get(), room_version)?;
 
-	// Validation of users is done in Ruma, synapse for loops validating user_ids
-	// and integers here
+	// Validation of users is done in Ruma, synapse for loops validating
+	// user_ids and integers here
 	debug!("validation of power event finished");
 
 	#[allow(clippy::manual_let_else)]
@@ -1214,8 +1220,8 @@ fn check_power_levels(
 	let old_state = &current_content;
 	let new_state = &user_content;
 
-	// synapse does not have to split up these checks since we can't combine UserIds
-	// and EventTypes we do 2 loops
+	// synapse does not have to split up these checks since we can't combine
+	// UserIds and EventTypes we do 2 loops
 
 	// UserId loop
 	for user in user_levels_to_check {
@@ -1229,7 +1235,8 @@ fn check_power_levels(
 			continue;
 		}
 
-		// If the current value is equal to the sender's current power level, reject
+		// If the current value is equal to the sender's current power level,
+		// reject
 		if user != power_event.sender()
 			&& old_level.map(|i| UserPowerLevel::Int(*i)) == Some(user_level)
 		{
@@ -1244,8 +1251,9 @@ fn check_power_levels(
 			return Some(false); // cannot remove ops level == to own
 		}
 
-		// If the current value is higher than the sender's current power level, reject
-		// If the new value is higher than the sender's current power level, reject
+		// If the current value is higher than the sender's current power level,
+		// reject If the new value is higher than the sender's current power
+		// level, reject
 		let old_level_too_big = old_level.map(|i| UserPowerLevel::Int(*i)) > Some(user_level);
 		let new_level_too_big = new_level.map(|i| UserPowerLevel::Int(*i)) > Some(user_level);
 		if old_level_too_big {
@@ -1280,8 +1288,9 @@ fn check_power_levels(
 			continue;
 		}
 
-		// If the current value is higher than the sender's current power level, reject
-		// If the new value is higher than the sender's current power level, reject
+		// If the current value is higher than the sender's current power level,
+		// reject If the new value is higher than the sender's current power
+		// level, reject
 		let old_level_too_big = old_level.map(|i| UserPowerLevel::Int(*i)) > Some(user_level);
 		let new_level_too_big = new_level.map(|i| UserPowerLevel::Int(*i)) > Some(user_level);
 		if old_level_too_big {
@@ -1313,8 +1322,9 @@ fn check_power_levels(
 		let old_level = old_state.notifications.room;
 		let new_level = new_state.notifications.room;
 		if old_level != new_level {
-			// If the current value is higher than the sender's current power level, reject
-			// If the new value is higher than the sender's current power level, reject
+			// If the current value is higher than the sender's current power
+			// level, reject If the new value is higher than the sender's
+			// current power level, reject
 			let old_level_too_big = old_level > user_level;
 			let new_level_too_big = new_level > user_level;
 			if old_level_too_big || new_level_too_big {
@@ -1388,8 +1398,8 @@ fn check_redaction(
 		return Ok(true);
 	}
 
-	// If the domain of the event_id of the event being redacted is the same as the
-	// domain of the event_id of the m.room.redaction, allow
+	// If the domain of the event_id of the event being redacted is the same as
+	// the domain of the event_id of the m.room.redaction, allow
 	if redaction_event.event_id().server_name()
 		== redaction_event
 			.redacts()

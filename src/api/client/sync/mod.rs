@@ -67,14 +67,16 @@ async fn load_timeline(
 				})?;
 
 			if last_timeline_count <= starting_count {
-				// no messages have been sent in this room since `starting_count`
+				// no messages have been sent in this room since
+				// `starting_count`
 				return Ok(TimelinePdus::default());
 			}
 
-			// for incremental sync, stream from the DB all PDUs which were sent after
-			// `starting_count` but before `ending_count`, including `ending_count` but
-			// not `starting_count`. this code is pretty similar to the initial sync
-			// branch, they're separate to allow for future optimization
+			// for incremental sync, stream from the DB all PDUs which were sent
+			// after `starting_count` but before `ending_count`, including
+			// `ending_count` but not `starting_count`. this code is pretty
+			// similar to the initial sync branch, they're separate to allow
+			// for future optimization
 			services
 				.rooms
 				.timeline
@@ -99,8 +101,8 @@ async fn load_timeline(
 				.boxed()
 		},
 		| None => {
-			// For initial sync, stream from the DB all PDUs before and including
-			// `ending_count` in reverse order
+			// For initial sync, stream from the DB all PDUs before and
+			// including `ending_count` in reverse order
 			services
 				.rooms
 				.timeline

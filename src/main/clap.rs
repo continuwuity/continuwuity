@@ -158,7 +158,8 @@ pub(crate) fn update(mut config: Figment, args: &Args) -> Result<Figment> {
 	config = config.adjoin(("test", &args.test));
 
 	// All other individual overrides can go last in case we have options which
-	// set multiple conf items at once and the user still needs granular overrides.
+	// set multiple conf items at once and the user still needs granular
+	// overrides.
 	for option in &args.option {
 		let (key, val) = option
 			.split_once('=')
@@ -172,7 +173,8 @@ pub(crate) fn update(mut config: Figment, args: &Args) -> Result<Figment> {
 			return Err!("Missing =val in -O/--option: {option:?}");
 		}
 
-		// The value has to pass for what would appear as a line in the TOML file.
+		// The value has to pass for what would appear as a line in the TOML
+		// file.
 		let val = toml::from_str::<FigmentValue>(option)?;
 		let FigmentValue::Dict(_, val) = val else {
 			panic!("Unexpected Figment Value: {val:#?}");

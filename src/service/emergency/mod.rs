@@ -97,7 +97,8 @@ impl Service {
 			);
 			Ok(())
 		} else {
-			// logs out any users still in the server service account and removes sessions
+			// logs out any users still in the server service account and
+			// removes sessions
 			self.services.users.deactivate_account(server_user).await
 		}
 	}

@@ -90,8 +90,8 @@ pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
 	use conduwuit_core::event;
 	use tracing::Level;
 
-	// The final metrics output is promoted to INFO when tokio_unstable is active in
-	// a release/bench mode and DEBUG is likely optimized out
+	// The final metrics output is promoted to INFO when tokio_unstable is
+	// active in a release/bench mode and DEBUG is likely optimized out
 	const LEVEL: Level = if cfg!(debug_assertions) {
 		Level::DEBUG
 	} else {

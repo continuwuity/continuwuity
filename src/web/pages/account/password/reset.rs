@@ -117,8 +117,8 @@ async fn route_reset_password(
 	}
 	.await
 	.unwrap_or_else(|| {
-		// If we couldn't send an email, generate a random session ID to not give that
-		// away
+		// If we couldn't send an email, generate a random session ID to not
+		// give that away
 		ValidationSessions::generate_session_id()
 	});
 

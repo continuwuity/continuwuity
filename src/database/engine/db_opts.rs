@@ -109,8 +109,8 @@ pub(crate) fn db_options(config: &Config, env: &Env, row_cache: &Cache) -> Resul
 
 	// <https://github.com/facebook/rocksdb/wiki/Track-WAL-in-MANIFEST>
 	// "We recommend to set track_and_verify_wals_in_manifest to true for
-	// production, it has been enabled in production for the entire database cluster
-	// serving the social graph for all Meta apps."
+	// production, it has been enabled in production for the entire database
+	// cluster serving the social graph for all Meta apps."
 	opts.set_track_and_verify_wals_in_manifest(true);
 
 	opts.set_paranoid_checks(config.rocksdb_paranoid_file_checks);

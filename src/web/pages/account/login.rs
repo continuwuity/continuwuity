@@ -130,7 +130,8 @@ async fn route_login(
 	if let Some(form) = form {
 		let login_result = match (user_id, form.identifier) {
 			| (Some(user_id), _) => {
-				// The user is already authenticated, we need to check their password
+				// The user is already authenticated, we need to check their
+				// password
 				services
 					.users
 					.check_password(&user_id, &form.password)

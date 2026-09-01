@@ -59,22 +59,23 @@ pub(super) async fn load_left_room(
 		.await
 		.ok()
 	else {
-		// if we get here, the membership cache is incorrect, likely due to a state
-		// reset
+		// if we get here, the membership cache is incorrect, likely due to a
+		// state reset
 		debug_warn!("attempting to sync left room but no left count exists");
 		return Ok(None);
 	};
 
 	// return early if we haven't gotten to this leave yet.
-	// this can happen if the user leaves while a sync response is being generated
+	// this can happen if the user leaves while a sync response is being
+	// generated
 	if current_count < left_count {
 		return Ok(None);
 	}
 
 	// return early if:
 	// - this is an initial sync and the room filter doesn't include leaves, or
-	// - this is an incremental sync, and we've already synced the leave, and the
-	//   room filter doesn't include leaves
+	// - this is an incremental sync, and we've already synced the leave, and
+	//   the room filter doesn't include leaves
 	if last_sync_end_count.is_none_or(|last_sync_end_count| last_sync_end_count >= left_count)
 		&& !filter.room.include_leave
 	{
@@ -110,8 +111,8 @@ pub(super) async fn load_left_room(
 			(TimelinePdus::default(), vec![leave_membership_event])
 		},
 		| Some(leave_membership_event) => {
-			// we have this room in our DB, and can fetch the state and timeline from when
-			// the user left.
+			// we have this room in our DB, and can fetch the state and timeline
+			// from when the user left.
 
 			let leave_state_key = syncing_user;
 			debug_assert_eq!(
@@ -120,9 +121,9 @@ pub(super) async fn load_left_room(
 				"leave PDU should be for the user requesting the sync"
 			);
 
-			// the shortstatehash of the state _immediately before_ the syncing user left
-			// this room. the state represented here _does not_ include
-			// `leave_membership_event`.
+			// the shortstatehash of the state _immediately before_ the syncing
+			// user left this room. the state represented here _does not_
+			// include `leave_membership_event`.
 			let leave_shortstatehash = services
 				.rooms
 				.state_accessor
@@ -246,9 +247,9 @@ async fn build_left_state_and_timeline(
 	)
 	.await?;
 
-	// the timeline index can lag behind the leave PDU, so `load_timeline` may omit
-	// it. we already hold the leave event, so ensure it's always synced to the
-	// client.
+	// the timeline index can lag behind the leave PDU, so `load_timeline` may
+	// omit it. we already hold the leave event, so ensure it's always synced
+	// to the client.
 	let leave_synced = timeline
 		.pdus
 		.iter()
@@ -294,7 +295,8 @@ async fn build_left_state_and_timeline(
 	[1]: https://github.com/matrix-org/matrix-js-sdk/issues/5071
 	*/
 
-	// `state` should only ever include one membership event for the syncing user
+	// `state` should only ever include one membership event for the syncing
+	// user
 	let membership_event_index = state.iter().position(|pdu| {
 		*pdu.event_type() == TimelineEventType::RoomMember
 			&& pdu.state_key() == Some(syncing_user.as_str())

@@ -92,7 +92,8 @@ impl super::Service {
 
 		match history_visibility {
 			| HistoryVisibility::Invited => {
-				// Allow if any member on requesting server was AT LEAST invited, else deny
+				// Allow if any member on requesting server was AT LEAST
+				// invited, else deny
 				self.user_was_invited(shortstatehash, user_id).await
 			},
 			| HistoryVisibility::Joined => {

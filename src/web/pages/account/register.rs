@@ -186,8 +186,8 @@ async fn route_register(
 	if let Some(username) = &query.username
 		&& query.from_landing
 	{
-		// Check if the username is valid and available before showing the details form
-		// to keep the user from wasting their time
+		// Check if the username is valid and available before showing the
+		// details form to keep the user from wasting their time
 
 		if let Err(err) = services
 			.users
@@ -382,10 +382,12 @@ async fn begin_registration(
 			registration_token = Some(valid_token);
 		},
 		| RequestedRegistrationFlow::Untrusted => {
-			// Don't check auth for the untrusted flow at all if open reg is enabled
+			// Don't check auth for the untrusted flow at all if open reg is
+			// enabled
 			if !open_registration {
-				// If the form claims to be using the untrusted flow, it _may_ need to have a
-				// reCAPTCHA response if reCAPTCHA is configured
+				// If the form claims to be using the untrusted flow, it _may_
+				// need to have a reCAPTCHA response if reCAPTCHA is
+				// configured
 
 				if let Some(recaptcha_private_site_key) =
 					&services.config.recaptcha_private_site_key

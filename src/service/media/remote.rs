@@ -427,8 +427,9 @@ impl super::Service {
 			.moderation
 			.is_remote_server_media_downloads_forbidden(mxc.server_name)
 		{
-			// we'll lie to the client and say the blocked server's media was not found and
-			// log. the client has no way of telling anyways so this is a security bonus.
+			// we'll lie to the client and say the blocked server's media was
+			// not found and log. the client has no way of telling anyways so
+			// this is a security bonus.
 			debug_warn!(%mxc, "Received request for media on blocklisted server");
 			return Err!(Request(NotFound("Media not found.")));
 		}

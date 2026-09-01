@@ -163,8 +163,8 @@ impl Service {
 		&'a self,
 		query: &'a RoomQuery<'_>,
 	) -> Result<impl Stream<Item = RawPduId> + Send + 'a + use<'a>> {
-		// result is modeled as a stream such that callers don't have to be refactored
-		// though an additional async/wrap still exists for now
+		// result is modeled as a stream such that callers don't have to be
+		// refactored though an additional async/wrap still exists for now
 		let shortroomid = self.services.short.get_shortroomid(query.room_id).await?;
 
 		let pdu_ids = self.search_pdu_ids_query_room(query, shortroomid).await;

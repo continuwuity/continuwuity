@@ -217,8 +217,8 @@ where
 		.get_mut("signatures")
 		.and_then(|v| v.as_object_mut())
 	{
-		// Don't allocate for the full size of the current signatures, but require
-		// at most one resize if nothing is dropped
+		// Don't allocate for the full size of the current signatures, but
+		// require at most one resize if nothing is dropped
 		let new_capacity = signatures.len() / 2;
 		for (user, signature) in
 			mem::replace(signatures, serde_json::Map::with_capacity(new_capacity))

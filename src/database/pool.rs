@@ -381,15 +381,15 @@ impl Pool {
 		// Obtain the result channel.
 		let chan = cmd.res.take().expect("missing result channel");
 
-		// It is worth checking if the future was dropped while the command was queued
-		// so we can bail without paying for any query.
+		// It is worth checking if the future was dropped while the command was
+		// queued so we can bail without paying for any query.
 		if chan.is_canceled() {
 			return;
 		}
 
-		// Perform the actual database query. We reuse our database::Map interface but
-		// limited to the blocking calls, rather than creating another surface directly
-		// with rocksdb here.
+		// Perform the actual database query. We reuse our database::Map
+		// interface but limited to the blocking calls, rather than creating
+		// another surface directly with rocksdb here.
 		let result = cmd.map.get_blocking(&cmd.key[0]);
 
 		// Send the result back to the submitter.
@@ -416,10 +416,10 @@ impl Drop for Pool {
 }
 
 fn into_send_get(result: BatchResult<'_>) -> BatchResult<'static> {
-	// SAFETY: Necessary to send the Handle (rust_rocksdb::PinnableSlice) through
-	// the channel. The lifetime on the handle is a device by rust-rocksdb to
-	// associate a database lifetime with its assets. The Handle must be dropped
-	// before the database is dropped.
+	// SAFETY: Necessary to send the Handle (rust_rocksdb::PinnableSlice)
+	// through the channel. The lifetime on the handle is a device by
+	// rust-rocksdb to associate a database lifetime with its assets. The
+	// Handle must be dropped before the database is dropped.
 	unsafe { std::mem::transmute(result) }
 }
 

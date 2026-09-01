@@ -44,8 +44,9 @@ pub(crate) async fn run(services: Arc<Services>) -> Result<()> {
 	// panics.
 	services.admin.startup_execute().await?;
 
-	// Print first-run banner if necessary. This needs to be done after the startup
-	// admin commands are run in case one of them created the first user.
+	// Print first-run banner if necessary. This needs to be done after the
+	// startup admin commands are run in case one of them created the first
+	// user.
 	services.firstrun.print_first_run_banner();
 
 	debug!("Running");
@@ -93,9 +94,9 @@ pub(crate) async fn stop(services: Arc<Services>) -> Result<()> {
 	// unload and explode.
 	services.stop().await;
 
-	// Check that Services and Database will drop as expected, The complex of Arc's
-	// used for various components can easily lead to references being held
-	// somewhere improperly; this can hang shutdowns.
+	// Check that Services and Database will drop as expected, The complex of
+	// Arc's used for various components can easily lead to references being
+	// held somewhere improperly; this can hang shutdowns.
 	debug!("Cleaning up...");
 	let db = Arc::downgrade(&services.db);
 	if let Err(services) = Arc::try_unwrap(services) {

@@ -110,16 +110,16 @@ pub async fn leave_room(
 	otherwise `build_and_append_pdu` will take care of updating the state cache for us.
 	*/
 
-	// `leave_pdu` is the outlier `m.room.member` event which will be synced to the
-	// user. if it's None the sync handler will create a dummy PDU.
+	// `leave_pdu` is the outlier `m.room.member` event which will be synced to
+	// the user. if it's None the sync handler will create a dummy PDU.
 	let leave_pdu = if is_banned.or(is_disabled).await {
-		// case 1: the room is banned/disabled. we don't want to federate with another
-		// server to leave, so we can't create an outlier PDU.
+		// case 1: the room is banned/disabled. we don't want to federate with
+		// another server to leave, so we can't create an outlier PDU.
 		None
 	} else if dont_have_room.and(not_knocked).await {
 		// case 2: ask a remote server to assist us with leaving
-		// we always mark the room as left locally, regardless of if the federated leave
-		// failed
+		// we always mark the room as left locally, regardless of if the
+		// federated leave failed
 
 		remote_leave_room(services, user_id, room_id, reason.clone(), HashSet::new())
 			.await
@@ -159,12 +159,14 @@ pub async fn leave_room(
 					)
 					.await?;
 
-				// `build_and_append_pdu` calls `mark_as_left` internally, so we return early.
+				// `build_and_append_pdu` calls `mark_as_left` internally, so we
+				// return early.
 				return Ok(());
 			},
 			| Err(_) => {
-				// an exception to case 3 is if the user isn't even in the room they're trying
-				// to leave. this can happen if the client's caching is wrong.
+				// an exception to case 3 is if the user isn't even in the room
+				// they're trying to leave. this can happen if the client's
+				// caching is wrong.
 				debug_warn!(
 					"Trying to leave a room you are not a member of, marking room as left \
 					 locally."
@@ -177,11 +179,13 @@ pub async fn leave_room(
 					.left_state(user_id, room_id)
 					.await
 					.inspect_err(|err| {
-						// `left_state` may return an Err if the user _is_ in the room they're
-						// trying to leave, but the membership cache is incorrect and
+						// `left_state` may return an Err if the user _is_ in
+						// the room they're trying to leave, but the
+						// membership cache is incorrect and
 						// they're cached as being joined. In this situation
-						// we save a `None` to the `roomuserid_leftcount` table, which generates
-						// and sends a dummy leave to the client.
+						// we save a `None` to the `roomuserid_leftcount` table,
+						// which generates and sends a dummy leave to the
+						// client.
 						warn!(
 							?err,
 							"Trying to leave room not cached as leave, sending dummy leave \
@@ -370,8 +374,8 @@ pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
 	// room v3 and above removed the "event_id" field from remote PDU format
 	leave_event_stub.remove("event_id");
 
-	// In order to create a compatible ref hash (EventID) the `hashes` field needs
-	// to be present
+	// In order to create a compatible ref hash (EventID) the `hashes` field
+	// needs to be present
 	services
 		.server_keys
 		.hash_and_sign_event(&mut leave_event_stub, &room_version_rules)?;

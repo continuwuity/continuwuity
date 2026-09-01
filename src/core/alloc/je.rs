@@ -99,8 +99,8 @@ pub fn memory_stats(opts: &str) -> Option<String> {
 	// Acquire the epoch; ensure latest stats are pulled in
 	acq_epoch().ok()?;
 
-	// SAFETY: calls malloc_stats_print() with our string instance which must remain
-	// in this frame. https://docs.rs/tikv-jemalloc-sys/latest/tikv_jemalloc_sys/fn.malloc_stats_print.html
+	// SAFETY: calls malloc_stats_print() with our string instance which must
+	// remain in this frame. https://docs.rs/tikv-jemalloc-sys/latest/tikv_jemalloc_sys/fn.malloc_stats_print.html
 	unsafe { ffi::malloc_stats_print(Some(malloc_stats_cb), opaque, opts_p) };
 
 	str.truncate(MAX_LENGTH);
@@ -227,7 +227,8 @@ pub mod this_thread {
 		cell.get_or_init(|| {
 			let ptr: *const u64 = super::get(&mallctl!(name)).expect("failed to obtain pointer");
 
-			// SAFETY: ptr points directly to the internal state of jemalloc for this thread
+			// SAFETY: ptr points directly to the internal state of jemalloc for
+			// this thread
 			unsafe { ptr.as_ref() }.expect("pointer must not be null")
 		})
 	}
@@ -291,7 +292,8 @@ pub fn is_phycpu_arena() -> bool { percpu_arenas().is_ok_and(is_equal_to!("phycp
 
 pub fn percpu_arenas() -> Result<&'static str> {
 	let ptr = get::<*const c_char>(&mallctl!("opt.percpu_arena"))?;
-	//SAFETY: ptr points to a null-terminated string returned for opt.percpu_arena.
+	//SAFETY: ptr points to a null-terminated string returned for
+	// opt.percpu_arena.
 	let cstr = unsafe { CStr::from_ptr(ptr) };
 	cstr.to_str().map_err(Into::into)
 }
@@ -370,8 +372,8 @@ where
 }
 
 fn key(name: &str) -> Result<Key> {
-	// tikv asserts the output buffer length is tight to the number of required mibs
-	// so we slice that down here.
+	// tikv asserts the output buffer length is tight to the number of required
+	// mibs so we slice that down here.
 	let segs = name.chars().filter(is_equal_to!(&'.')).count().try_add(1)?;
 
 	let name = self::name(name)?;

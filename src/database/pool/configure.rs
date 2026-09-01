@@ -21,11 +21,12 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 	let device_name = storage::name_from_path(&path).log_debug_err().ok();
 	let device_prop = storage::parallelism(&path);
 
-	// The default worker count is masked-on if we didn't find better information.
+	// The default worker count is masked-on if we didn't find better
+	// information.
 	let default_worker_count = device_prop.mq.is_empty().then_some(config.db_pool_workers);
 
-	// Determine the worker groupings. Each indice represents a hardware queue and
-	// contains the number of workers which will service it.
+	// Determine the worker groupings. Each indice represents a hardware queue
+	// and contains the number of workers which will service it.
 	let worker_counts: Vec<_> = device_prop
 		.mq
 		.iter()
@@ -47,8 +48,8 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 		.chain(default_worker_count)
 		.collect();
 
-	// Determine our software queue size for each hardware queue. This is the mpmc
-	// between the tokio worker and the pool worker.
+	// Determine our software queue size for each hardware queue. This is the
+	// mpmc between the tokio worker and the pool worker.
 	let queue_sizes: Vec<_> = worker_counts
 		.iter()
 		.map(|worker_count| {
@@ -58,10 +59,10 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 		})
 		.collect();
 
-	// Determine the CPU affinities of each hardware queue. Each indice is a cpu and
-	// each value is the associated hardware queue. There is a little shiftiness
-	// going on because cpu's which are not available to the process are filtered
-	// out, similar to the worker_counts.
+	// Determine the CPU affinities of each hardware queue. Each indice is a cpu
+	// and each value is the associated hardware queue. There is a little
+	// shiftiness going on because cpu's which are not available to the process
+	// are filtered out, similar to the worker_counts.
 	let topology = device_prop
 		.mq
 		.iter()
@@ -76,8 +77,8 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 			topology
 		});
 
-	// Regardless of the capacity of all queues we establish some limit on the total
-	// number of workers; this is hopefully hinted by nr_requests.
+	// Regardless of the capacity of all queues we establish some limit on the
+	// total number of workers; this is hopefully hinted by nr_requests.
 	let max_workers = device_prop
 		.mq
 		.iter()
@@ -92,8 +93,8 @@ pub(super) fn configure(server: &Arc<Server>) -> (usize, Vec<usize>, Vec<usize>)
 		.sum::<usize>()
 		.clamp(WORKER_LIMIT.0, max_workers);
 
-	// After computing all of the above we can update the global automatic stream
-	// width, hopefully with a better value tailored to this system.
+	// After computing all of the above we can update the global automatic
+	// stream width, hopefully with a better value tailored to this system.
 	if config.stream_width_scale > 0.0 {
 		let num_queues = queue_sizes.len().max(1);
 		update_stream_width(server, num_queues, total_workers);

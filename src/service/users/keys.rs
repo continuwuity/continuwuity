@@ -26,8 +26,8 @@ impl super::Service {
 		one_time_key_value: &Raw<OneTimeKey>,
 	) -> Result {
 		// All devices have metadata
-		// Only existing devices should be able to call this, but we shouldn't assert
-		// either...
+		// Only existing devices should be able to call this, but we shouldn't
+		// assert either...
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
 			return Err!(Database(error!(
@@ -41,8 +41,8 @@ impl super::Service {
 		key.push(0xFF);
 		key.extend_from_slice(device_id.as_bytes());
 		key.push(0xFF);
-		// TODO: Use DeviceKeyId::to_string when it's available (and update everything,
-		// because there are no wrapping quotation marks anymore)
+		// TODO: Use DeviceKeyId::to_string when it's available (and update
+		// everything, because there are no wrapping quotation marks anymore)
 		key.extend_from_slice(
 			serde_json::to_string(one_time_key_key)
 				.expect("DeviceKeyId::to_string always works")
@@ -72,8 +72,8 @@ impl super::Service {
 		used: bool,
 	) -> Result {
 		// All devices have metadata
-		// Only existing devices should be able to call this, but we shouldn't assert
-		// either...
+		// Only existing devices should be able to call this, but we shouldn't
+		// assert either...
 		let key = (user_id, device_id);
 		if self.db.userdeviceid_metadata.qry(&key).await.is_err() {
 			return Err!(Database(error!(

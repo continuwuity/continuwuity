@@ -186,12 +186,13 @@ impl super::Service {
 				self.handle_response::<T>(dest, actual, &method, &url, response)
 					.await,
 			| Err(error) => {
-				// This awful wrapping hack is required because `reqwest::Error` does not
-				// implement `Clone`, but we need to convert it into a local error type to pass
-				// to should_mark_stale, but handle_error then itself expects the original
+				// This awful wrapping hack is required because `reqwest::Error`
+				// does not implement `Clone`, but we need to convert it
+				// into a local error type to pass to should_mark_stale, but
+				// handle_error then itself expects the original
 				// reqwest error.
-				// handle_error *could* just take the wrapped error, but it'd have to unwrap it
-				// anyway.
+				// handle_error *could* just take the wrapped error, but it'd
+				// have to unwrap it anyway.
 				let wrapped = Error::Reqwest(error.into());
 				if self.should_mark_stale(&wrapped) {
 					debug_info!("{dest} is unhealthy & stale due to a connect error");
@@ -236,8 +237,8 @@ impl super::Service {
 		const HUGE_ENDPOINTS: [&str; 2] =
 			["/_matrix/federation/v2/send_join/", "/_matrix/federation/v2/state/"];
 		let size_limit: u64 = if HUGE_ENDPOINTS.iter().any(|e| url.path().starts_with(e)) {
-			// Some federation endpoints can return huge response bodies, so we'll bump the
-			// limit for those endpoints specifically.
+			// Some federation endpoints can return huge response bodies, so
+			// we'll bump the limit for those endpoints specifically.
 			self.services
 				.server
 				.config
@@ -260,8 +261,9 @@ impl super::Service {
 			self.mark_healthy(dest);
 		})
 		.map_err(|e| {
-			// Bad 200 response is usually a sign of bad routing, so we'll mark as stale.
-			// We won't mark as offline though since we technically got a response.
+			// Bad 200 response is usually a sign of bad routing, so we'll mark
+			// as stale. We won't mark as offline though since we technically
+			// got a response.
 			self.mark_destination_stale(dest);
 			err!(BadServerResponse("Server returned bad 200 response: {e:?}"))
 		})

@@ -40,8 +40,8 @@ pub(crate) async fn get_pushrules_all_route(
 		.and_then(|event| event.get("content").cloned())
 		.filter(CanonicalJsonValue::is_object)
 	else {
-		// user somehow has non-existent push rule event. recreate it and return server
-		// default silently
+		// user somehow has non-existent push rule event. recreate it and return
+		// server default silently
 		return recreate_push_rules_and_return(&services, sender_user).await;
 	};
 
@@ -111,8 +111,8 @@ pub(crate) async fn get_pushrules_global_route(
 		.and_then(|event| event.get("content").cloned())
 		.filter(CanonicalJsonValue::is_object)
 	else {
-		// user somehow has non-existent push rule event. recreate it and return server
-		// default silently
+		// user somehow has non-existent push rule event. recreate it and return
+		// server default silently
 
 		let global_ruleset = Ruleset::server_default(sender_user);
 		let event = PushRulesEvent::new(PushRulesEventContent::new(global_ruleset.clone()));

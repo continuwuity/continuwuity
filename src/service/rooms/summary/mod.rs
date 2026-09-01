@@ -129,9 +129,9 @@ impl Service {
 				// We have this room locally.
 				let children_state = self.get_space_child_events(room_id, suggested_only).await;
 
-				// All of the room's children are accessible to this server (because we have the
-				// full room and its state), although some of them may not be accessible to
-				// the querying user.
+				// All of the room's children are accessible to this server
+				// (because we have the full room and its state), although
+				// some of them may not be accessible to the querying user.
 				(SpaceHierarchyRoomsChunk::new(summary, children_state), vec![])
 			} else if let Some(via) = via
 				&& let Some((
@@ -197,11 +197,11 @@ impl Service {
 		max_depth: Option<UInt>,
 		suggested_only: bool,
 	) -> Result<Accessibility<Vec<SpaceHierarchyRoomsChunk>>> {
-		// This function traverses the space hierarchy tree depth-first as required by
-		// the specification.
+		// This function traverses the space hierarchy tree depth-first as
+		// required by the specification.
 
-		// Check accessibility of the root room first, because we need to error out
-		// if it isn't accessible.
+		// Check accessibility of the root room first, because we need to error
+		// out if it isn't accessible.
 		// TODO refactor this once the Try trait is stable
 		let root_summary = match self
 			.get_room_summary_and_children_for_user(
@@ -222,27 +222,29 @@ impl Service {
 		let mut summaries = vec![root_summary.summary];
 		let mut inaccessible_children: HashSet<_> =
 			root_summary.inaccessible_children.into_iter().collect();
-		// Rooms already included in the response. The spec requires each room to
-		// appear at most once, and this also terminates traversal of cyclic space
-		// graphs (e.g. a space containing itself).
+		// Rooms already included in the response. The spec requires each room
+		// to appear at most once, and this also terminates traversal of
+		// cyclic space graphs (e.g. a space containing itself).
 		let mut visited: HashSet<OwnedRoomId> = HashSet::from([room_id]);
 
 		// TODO refactor this with Vec::peek_mut once it's stabilized
 		while let Some(layer) = queue.last_mut() {
 			let Some(SpaceChild { room_id, via }) = layer.pop() else {
-				// If this layer is empty, discard it from the queue and continue
+				// If this layer is empty, discard it from the queue and
+				// continue
 				queue.pop();
 				continue;
 			};
 
-			// The root room is at depth zero, so the current layer is the depth of
-			// the child about to be processed.
+			// The root room is at depth zero, so the current layer is the depth
+			// of the child about to be processed.
 			let depth = u64::try_from(queue.len()).expect("hierarchy depth should fit into u64");
 			if max_depth.is_some_and(|max_depth| depth > max_depth.into()) {
 				continue;
 			}
 
-			// Do not request rooms which have been determined to be inaccessible
+			// Do not request rooms which have been determined to be
+			// inaccessible
 			if inaccessible_children.contains(&room_id) {
 				continue;
 			}
@@ -280,11 +282,11 @@ impl Service {
 			summaries.push(summary.summary);
 			inaccessible_children.extend(summary.inaccessible_children);
 
-			// Bail out if queue length exceeds 50 to keep cycles in the space graph from
-			// blowing up the traversal. If you actually have over fifty nested spaces,
-			// and you're looking at this function to figure out what the issue is, I
-			// suggest you reconsider some of the choices you made which led you to this
-			// point.
+			// Bail out if queue length exceeds 50 to keep cycles in the space
+			// graph from blowing up the traversal. If you actually have over
+			// fifty nested spaces, and you're looking at this function to
+			// figure out what the issue is, I suggest you reconsider some of
+			// the choices you made which led you to this point.
 			if queue.len() > 50 {
 				return Err!(Request(TooLarge("Space hierarchy is unreasonably large")));
 			}
@@ -601,9 +603,9 @@ impl Service {
 			return false;
 		}
 
-		// Servers may always see summaries if any of their users are participating in
-		// the room. It's the requesting server's job to restrict visibility on a
-		// per-user basis.
+		// Servers may always see summaries if any of their users are
+		// participating in the room. It's the requesting server's job to
+		// restrict visibility on a per-user basis.
 		if self
 			.services
 			.state_cache
@@ -613,8 +615,9 @@ impl Service {
 			return true;
 		}
 
-		// For restricted rooms, federation responses must include the summary when
-		// a user on the querying server can satisfy one of the join conditions.
+		// For restricted rooms, federation responses must include the summary
+		// when a user on the querying server can satisfy one of the join
+		// conditions.
 		if let JoinRuleSummary::Restricted(RestrictedSummary { allowed_room_ids, .. }) =
 			&summary.join_rule
 		{
@@ -630,8 +633,8 @@ impl Service {
 			}
 		}
 
-		// If the server isn't in the room, the same visibility rules apply as for
-		// anonymous summary requests.
+		// If the server isn't in the room, the same visibility rules apply as
+		// for anonymous summary requests.
 		self.user_may_see_summary(None, summary).await
 	}
 }

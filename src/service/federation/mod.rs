@@ -121,10 +121,10 @@ impl Service {
 		if was_unhealthy {
 			debug!("{} is now healthy", server_name);
 		}
-		// The lock for remote_health is deliberately retained until the end of the
-		// function to prevent parallel requests from marking the server as healthy
-		// and then immediately marking it as unhealthy again due to the stale cache
-		// we might be about to clear
+		// The lock for remote_health is deliberately retained until the end of
+		// the function to prevent parallel requests from marking the server
+		// as healthy and then immediately marking it as unhealthy again due
+		// to the stale cache we might be about to clear
 		let mut stale_destinations = self.stale_destinations.write();
 		if stale_destinations.remove(server_name) {
 			debug!(

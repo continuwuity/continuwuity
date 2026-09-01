@@ -107,11 +107,11 @@ impl super::Service {
 			let missing_count = to_fetch.len();
 			let missing_threshold = max(50, total_count >> 2);
 			if missing_count >= missing_threshold {
-				// If there's more than 50 events to fetch, or we're missing 25% or more of the
-				// state, we would need to make a lot of atomic requests, so we'll just try
-				// to fetch the full state from the remote instead.
-				// Since this endpoint might fail in huge rooms, we fall back to atomic fetch
-				// anyway.
+				// If there's more than 50 events to fetch, or we're missing 25%
+				// or more of the state, we would need to make a lot of
+				// atomic requests, so we'll just try to fetch the full
+				// state from the remote instead. Since this endpoint might
+				// fail in huge rooms, we fall back to atomic fetch anyway.
 				warn!(
 					elapsed=?start.elapsed(),
 					%missing_count,
@@ -133,10 +133,10 @@ impl super::Service {
 				);
 				let fetched_state = match state_response {
 					| Ok(Ok(state)) => {
-						// Filter to ensure we only use the PDUs we were expecting, preventing
-						// arbitrary state injection.
-						// Atomic fetch does not have this problem as each PDU is evaluated
-						// individually.
+						// Filter to ensure we only use the PDUs we were
+						// expecting, preventing arbitrary state
+						// injection. Atomic fetch does not have this
+						// problem as each PDU is evaluated individually.
 						let expected: &HashSet<OwnedEventId, BuildHasherDefault<DefaultHasher>> =
 							&HashSet::from_iter(res.pdu_ids.clone());
 						state

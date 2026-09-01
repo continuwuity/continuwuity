@@ -327,9 +327,9 @@ impl super::Service {
 		last_state: Vec<RawStrippedState>,
 		invite_via: Option<Vec<OwnedServerName>>,
 	) -> Result<()> {
-		// return an error for blocked invites. ignored invites aren't handled here
-		// since the recipient's membership should still be changed to `invite`.
-		// they're filtered out in the individual /sync handlers
+		// return an error for blocked invites. ignored invites aren't handled
+		// here since the recipient's membership should still be changed to
+		// `invite`. they're filtered out in the individual /sync handlers
 		if matches!(
 			self.services
 				.users

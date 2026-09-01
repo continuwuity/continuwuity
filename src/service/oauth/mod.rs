@@ -171,9 +171,9 @@ impl crate::Service for Service {
 
 impl Service {
 	const ACCESS_TOKEN_MAX_AGE: Duration = Duration::from_hours(1);
-	// Maximum number of pending code grants which will be held in memory at once,
-	// to prevent unbounded memory use if someone decides to repeatedly reload the
-	// grant page.
+	// Maximum number of pending code grants which will be held in memory at
+	// once, to prevent unbounded memory use if someone decides to repeatedly
+	// reload the grant page.
 	const MAX_PENDING_GRANTS: usize = 100;
 	const RANDOM_TOKEN_LENGTH: usize = 32;
 	const USER_CODE_CHARACTERS: &[char] = &['0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
@@ -265,8 +265,8 @@ impl Service {
 					.host_str()
 					.is_some_and(|host| ClientMetadata::ACCEPTABLE_LOCALHOSTS.contains(&host))
 			{
-				// Remove the port from localhost redirect URIs for native applications when
-				// checking if it's valid
+				// Remove the port from localhost redirect URIs for native
+				// applications when checking if it's valid
 				stripped_uri.set_port(None).unwrap();
 			}
 

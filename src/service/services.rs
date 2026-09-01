@@ -146,8 +146,8 @@ impl Services {
 			.start()
 			.await?;
 
-		// reset dormant online/away statuses to offline, and set the server user as
-		// online
+		// reset dormant online/away statuses to offline, and set the server
+		// user as online
 		if self.server.config.allow_local_presence {
 			self.presence.unset_all_presence().await;
 			_ = self

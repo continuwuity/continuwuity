@@ -221,8 +221,9 @@ impl<E: Event + Clone> TestStore<E> {
 	) -> Result<Vec<OwnedEventId>> {
 		let mut auth_chain_sets = vec![];
 		for ids in event_ids {
-			// TODO state store `auth_event_ids` returns self in the event ids list
-			// when an event returns `auth_event_ids` self is not contained
+			// TODO state store `auth_event_ids` returns self in the event ids
+			// list when an event returns `auth_event_ids` self is not
+			// contained
 			let chain = self
 				.auth_event_ids(room_id, ids)?
 				.into_iter()

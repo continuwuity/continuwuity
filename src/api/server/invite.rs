@@ -75,8 +75,8 @@ pub(crate) async fn create_invite_route(
 		.expect("must have create event in invite state by this point");
 
 	// We can now perform the banned remote server check with the create event.
-	// N.B. this checks the sender field, which is technically incorrect for rooms
-	// v10 and below. This usually isn't the case though so sue me
+	// N.B. this checks the sender field, which is technically incorrect for
+	// rooms v10 and below. This usually isn't the case though so sue me
 	let creator = create_event_json
 		.get("sender")
 		.and_then(|v| v.as_str())
@@ -122,8 +122,8 @@ pub(crate) async fn create_invite_route(
 		return Err!(Request(Forbidden("Invite rejected by antispam service.")));
 	}
 
-	// If we're already in the room, ensure that neither the origin nor ourselves
-	// are ACL'd.
+	// If we're already in the room, ensure that neither the origin nor
+	// ourselves are ACL'd.
 	let resident = services
 		.rooms
 		.state_cache
@@ -159,15 +159,15 @@ pub(crate) async fn create_invite_route(
 
 	// If we are active in the room, the remote server will notify us about the
 	// join/invite through /send. If we are not in the room, we need to manually
-	// record the invited state for client /sync through update_membership(), and
-	// send the invite PDU to the relevant appservices.
+	// record the invited state for client /sync through update_membership(),
+	// and send the invite PDU to the relevant appservices.
 	if !resident {
 		// We will start by recording the room's create event as an outlier.
-		// This will allow us to recognise it later in case the sender revokes the
-		// invite over federation later. We could store more state from the invite
-		// request, but we will get that during send_join anyway.
-		// This is safe to just add directly as an outlier as we already auth checked it
-		// during validation.
+		// This will allow us to recognise it later in case the sender revokes
+		// the invite over federation later. We could store more state from
+		// the invite request, but we will get that during send_join anyway.
+		// This is safe to just add directly as an outlier as we already auth
+		// checked it during validation.
 		services
 			.rooms
 			.outlier

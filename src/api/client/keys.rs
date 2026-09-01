@@ -111,8 +111,9 @@ pub(crate) async fn upload_keys_route(
 			.await
 			.and_then(|keys| keys.deserialize().map_err(Into::into))
 		{
-			// NOTE: also serves as a workaround for a nheko bug which omits cross-signing
-			// NOTE: signatures when re-uploading the same DeviceKeys.
+			// NOTE: also serves as a workaround for a nheko bug which omits
+			// cross-signing NOTE: signatures when re-uploading the same
+			// DeviceKeys.
 			if existing_keys.keys == deser_device_keys.keys {
 				debug!(
 					%sender_user,
@@ -273,7 +274,8 @@ async fn uiaa_needed_to_upload_keys(
 	);
 
 	if let Some(existing_master_signing_key) = existing_master_signing_key {
-		// If a master key exists, UIAA is required if any of the keys are different.
+		// If a master key exists, UIAA is required if any of the keys are
+		// different.
 
 		master_signing_key != Some(existing_master_signing_key)
 			|| user_signing_key != existing_user_signing_key

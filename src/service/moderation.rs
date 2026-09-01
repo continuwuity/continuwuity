@@ -76,8 +76,8 @@ impl Service {
 	/// remote from reading our room directory.
 	#[must_use]
 	pub fn is_remote_server_room_directory_forbidden(&self, server_name: &ServerName) -> bool {
-		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
-		// OR forbidden contains server
+		// Forbidden if NOT (allowed is empty OR allowed contains server OR is
+		// self) OR forbidden contains server
 		self.is_remote_server_forbidden(server_name)
 			|| self
 				.services
@@ -92,8 +92,8 @@ impl Service {
 	/// from us.
 	#[must_use]
 	pub fn is_remote_server_media_downloads_forbidden(&self, server_name: &ServerName) -> bool {
-		// Forbidden if NOT (allowed is empty OR allowed contains server OR is self)
-		// OR forbidden contains server
+		// Forbidden if NOT (allowed is empty OR allowed contains server OR is
+		// self) OR forbidden contains server
 		self.is_remote_server_forbidden(server_name)
 			|| self
 				.services

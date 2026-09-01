@@ -78,8 +78,8 @@ impl super::Service {
 
 		let mut bundled = BundledMessageLikeRelations::<Box<serde_json::value::RawValue>>::new();
 
-		// Handle m.replace relations - find the most recent valid one (lazy load
-		// original event)
+		// Handle m.replace relations - find the most recent valid one (lazy
+		// load original event)
 		if !replace_events.is_empty() {
 			if let Some(replacement) = self
 				.find_most_recent_valid_replacement(user_id, pdu, &replace_events)
@@ -139,7 +139,8 @@ impl super::Service {
 			let next = match result {
 				| None => Some(pdu),
 				| Some(current) => {
-					// Compare by origin_server_ts first, then event_id lexicographically
+					// Compare by origin_server_ts first, then event_id
+					// lexicographically
 					match pdu.origin_server_ts().cmp(&current.origin_server_ts()) {
 						| std::cmp::Ordering::Greater => Some(pdu),
 						| std::cmp::Ordering::Equal if pdu.event_id() > current.event_id() =>

@@ -172,7 +172,8 @@ impl Service {
 				let next_retry = calc_next_retry(&self.services.server.config, *retries);
 				if next_retry > last_retry.elapsed() {
 					// Don't increment the retry if a retry was illegal.
-					// This can happen if an event was fetched multiple times concurrently.
+					// This can happen if an event was fetched multiple times
+					// concurrently.
 					return;
 				}
 				*retries = retries.saturating_add(1);
@@ -184,9 +185,9 @@ impl Service {
 	/// Removes a PDU from the failed pulls map, allowing it to be re-fetched in
 	/// future if needed.
 	pub(super) fn clear_failed_pdu(&self, event_id: &EventId) {
-		// NOTE: this is a bit pointless since we're unlikely to try pulling an event
-		// again if we fetch it successfully, but it doesn't hurt to have to prevent the
-		// map growing indefinitely.
+		// NOTE: this is a bit pointless since we're unlikely to try pulling an
+		// event again if we fetch it successfully, but it doesn't hurt to
+		// have to prevent the map growing indefinitely.
 		let mut map = self.failed_pdu_pulls.write();
 		map.remove(event_id);
 	}

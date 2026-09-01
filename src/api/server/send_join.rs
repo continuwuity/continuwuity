@@ -58,8 +58,8 @@ async fn create_join_event(
 		.acl_check(origin, room_id)
 		.await?;
 
-	// We need to return the state prior to joining, let's keep a reference to that
-	// here
+	// We need to return the state prior to joining, let's keep a reference to
+	// that here
 	let shortstatehash = services
 		.rooms
 		.state

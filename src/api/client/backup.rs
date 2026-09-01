@@ -247,8 +247,8 @@ pub(crate) async fn add_backup_keys_for_session_route(
 				| Ordering::Less => true,
 				| Ordering::Greater => false,
 				| Ordering::Equal => {
-					// If both have same `first_message_index`, prefer the one with lower
-					// `forwarded_count`
+					// If both have same `first_message_index`, prefer the one
+					// with lower `forwarded_count`
 					let old_forwarded_count = old_key
 						.get_field::<UInt>("forwarded_count")?
 						.unwrap_or(UInt::MAX);

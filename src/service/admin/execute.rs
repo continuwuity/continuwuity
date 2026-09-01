@@ -36,7 +36,8 @@ impl super::Service {
 		// List of commands to execute
 		let commands = &self.services.server.config.admin_execute;
 
-		// Determine if we're running in smoketest-mode which will change some behaviors
+		// Determine if we're running in smoketest-mode which will change some
+		// behaviors
 		let smoketest = self.services.server.config.test.contains("smoke");
 
 		// When true, errors are ignored and startup continues.
@@ -55,8 +56,8 @@ impl super::Service {
 			tokio::task::yield_now().await;
 		}
 
-		// The smoketest functionality is placed here for now and simply initiates
-		// shutdown after all commands have executed.
+		// The smoketest functionality is placed here for now and simply
+		// initiates shutdown after all commands have executed.
 		if smoketest {
 			debug_info!("Smoketest mode. All commands complete. Shutting down now...");
 			self.services

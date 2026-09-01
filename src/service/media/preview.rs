@@ -311,7 +311,8 @@ impl Service {
 
 		let props = html.opengraph.properties;
 
-		/* use OpenGraph title/description, but fall back to HTML if not available */
+		/* use OpenGraph title/description, but fall back to HTML if not
+		 * available */
 		preview_data.title = props.get("title").cloned().or(html.title);
 		preview_data.description = props.get("description").cloned().or(html.description);
 

@@ -198,12 +198,14 @@ impl super::Service {
 			.await
 			.expect("should be able to update account data");
 
-		// If the user registered with an email, associate it with their account.
+		// If the user registered with an email, associate it with their
+		// account.
 		if let Some(email) = email {
-			// This may fail if the email is already in use, but we should have already
-			// checked that when we sent the validation email, so ignoring the error is
-			// acceptable here in the rare case that an email is sniped by another user
-			// between the validation email being sent and the account being created.
+			// This may fail if the email is already in use, but we should have
+			// already checked that when we sent the validation email, so
+			// ignoring the error is acceptable here in the rare case that an
+			// email is sniped by another user between the validation email
+			// being sent and the account being created.
 			let _ = self
 				.services
 				.threepid
@@ -214,15 +216,16 @@ impl super::Service {
 		// Attempt to empower the first user and disable first-run mode.
 		let was_first_user = self.services.firstrun.empower_first_user(user_id).await;
 
-		// If the registering user was not the first and we're suspending users on
-		// register, suspend them.
+		// If the registering user was not the first and we're suspending users
+		// on register, suspend them.
 		if !was_first_user && self.services.config.suspend_on_register {
 			// Note that we can still do auto joins for suspended users
 			self.suspend_account(user_id, &self.services.globals.server_user)
 				.await;
 
-			// And send an @room notice to the admin room, to prompt admins to review the
-			// new user and ideally unsuspend them if deemed appropriate.
+			// And send an @room notice to the admin room, to prompt admins to
+			// review the new user and ideally unsuspend them if deemed
+			// appropriate.
 			if self.services.config.admin_room_notices {
 				self.services
 					.admin
@@ -274,7 +277,8 @@ impl super::Service {
 					.await
 				{
 					| Err(e) => {
-						// don't return this error so we don't fail registrations
+						// don't return this error so we don't fail
+						// registrations
 						error!(
 							"Failed to automatically join room {room} for user {user_id}: {e}"
 						);
@@ -308,8 +312,8 @@ impl super::Service {
 		});
 
 		if let Some(supplied_username) = supplied_username {
-			// The user gets to pick their username. Do some validation to make sure it's
-			// acceptable.
+			// The user gets to pick their username. Do some validation to make
+			// sure it's acceptable.
 
 			// Don't allow registration with forbidden usernames.
 			if self
@@ -336,9 +340,9 @@ impl super::Service {
 			};
 
 			if let Err(e) = user_id.validate_strict() {
-				// Unless we are in emergency mode, we should follow synapse's behaviour
-				// on not allowing things like spaces and UTF-8 characters in
-				// usernames
+				// Unless we are in emergency mode, we should follow synapse's
+				// behaviour on not allowing things like spaces and UTF-8
+				// characters in usernames
 				if !emergency_mode_enabled {
 					return Err!(Request(InvalidUsername(debug_warn!(
 						"Username {supplied_username} contains disallowed characters or spaces: \
@@ -429,7 +433,8 @@ impl super::Service {
 	/// Locks an account, preventing it being used until it is unlocked.
 	pub async fn lock_account(&self, user_id: &UserId, locking_user: &UserId) {
 		// NOTE: Locking is basically just suspension with a more severe effect,
-		// so we'll just re-use the suspension data structure to store the lock state.
+		// so we'll just re-use the suspension data structure to store the lock
+		// state.
 		let suspension = self
 			.db
 			.userid_lock
@@ -626,8 +631,8 @@ impl super::Service {
 			if let Ok(hash) = self.db.userid_password.get(user_id).await.deserialized() {
 				(hash, user_id.to_owned())
 			} else {
-				// We also check the lowercased version of the user ID to handle legacy user IDs
-				// better
+				// We also check the lowercased version of the user ID to handle
+				// legacy user IDs better
 				let lowercase_user_id = UserId::parse(user_id.as_str().to_lowercase()).unwrap();
 
 				let hash = self

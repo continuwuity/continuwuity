@@ -99,9 +99,9 @@ impl UserSession {
 		if let Ok(duration) = now.duration_since(self.last_login) {
 			duration < Self::RECENT_LOGIN_THRESHOLD
 		} else {
-			// Clock drift might cause the last login time to be later than the current
-			// system time. We play it safe and say the session isn't recent if that
-			// happens.
+			// Clock drift might cause the last login time to be later than the
+			// current system time. We play it safe and say the session isn't
+			// recent if that happens.
 			false
 		}
 	}

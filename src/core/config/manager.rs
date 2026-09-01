@@ -47,8 +47,8 @@ impl Manager {
 		let new = Arc::into_raw(config);
 		let old = self.active.swap(new.cast_mut(), Ordering::AcqRel);
 
-		// SAFETY: The old active pointer was set using an Arc::into_raw(). We're
-		// obliged to reconstitute that into Arc otherwise it will leak.
+		// SAFETY: The old active pointer was set using an Arc::into_raw().
+		// We're obliged to reconstitute that into Arc otherwise it will leak.
 		Ok(unsafe { Arc::from_raw(old) })
 	}
 
@@ -68,17 +68,18 @@ impl Manager {
 			.as_ref()
 			.expect("handle was already cached for this thread");
 
-		// SAFETY: The caller should not hold multiple references at a time directly
-		// into Config, as a subsequent reference might invalidate the thread's cache
-		// causing another reference to dangle.
+		// SAFETY: The caller should not hold multiple references at a time
+		// directly into Config, as a subsequent reference might invalidate
+		// the thread's cache causing another reference to dangle.
 		//
-		// This is a highly unusual pattern as most config values are copied by value or
-		// used immediately without running overlap with another value. Even if it does
-		// actually occur somewhere, the window of danger is limited to the config being
-		// reloaded while the reference is held and another access is made by the same
-		// thread into a different config value. This is mitigated by creating a buffer
-		// of old configs rather than discarding at the earliest opportunity; the odds
-		// of this scenario are thus astronomical.
+		// This is a highly unusual pattern as most config values are copied by
+		// value or used immediately without running overlap with another
+		// value. Even if it does actually occur somewhere, the window of
+		// danger is limited to the config being reloaded while the reference
+		// is held and another access is made by the same thread into a
+		// different config value. This is mitigated by creating a buffer
+		// of old configs rather than discarding at the earliest opportunity;
+		// the odds of this scenario are thus astronomical.
 		unsafe { std::mem::transmute(config) }
 	}
 }
@@ -87,8 +88,8 @@ impl Drop for Manager {
 	fn drop(&mut self) {
 		let config = self.active.swap(null_mut(), Ordering::AcqRel);
 
-		// SAFETY: The active pointer was set using an Arc::into_raw(). We're obliged to
-		// reconstitute that into Arc otherwise it will leak.
+		// SAFETY: The active pointer was set using an Arc::into_raw(). We're
+		// obliged to reconstitute that into Arc otherwise it will leak.
 		unsafe { Arc::from_raw(config) };
 	}
 }
@@ -119,8 +120,9 @@ fn load_miss(
 		Arc::from_raw(config)
 	};
 
-	// SAFETY: See the note on the transmute above. The caller should not hold more
-	// than one reference at a time directly into Config, as the second access
-	// might invalidate the thread's cache, dangling the reference to the first.
+	// SAFETY: See the note on the transmute above. The caller should not hold
+	// more than one reference at a time directly into Config, as the second
+	// access might invalidate the thread's cache, dangling the reference to
+	// the first.
 	unsafe { std::mem::transmute(handle[index].insert(config)) }
 }

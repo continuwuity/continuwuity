@@ -77,8 +77,8 @@ async fn update_parents(
 			continue; // Skip updating rooms the sender isn't in.
 		}
 		let state_lock = services.rooms.state.mutex.lock(parent_id.as_str()).await;
-		// We're now fetching state from the *space* that has the old room as a *child*.
-		// Follow along. This will be on the test.
+		// We're now fetching state from the *space* that has the old room as a
+		// *child*. Follow along. This will be on the test.
 		let Ok(child) = services
 			.rooms
 			.state_accessor
@@ -98,13 +98,15 @@ async fn update_parents(
 				);
 			})
 		else {
-			// If the space does not have a child event for this room, we can skip it
+			// If the space does not have a child event for this room, we can
+			// skip it
 			continue;
 		};
 
-		// ...the upgrading server SHOULD send a new m.space.child event with state_key
-		// set to the new room's ID, copying the order and suggested fields from the
-		// content of the m.space.child with state_key of the previous room ID.
+		// ...the upgrading server SHOULD send a new m.space.child event with
+		// state_key set to the new room's ID, copying the order and suggested
+		// fields from the content of the m.space.child with state_key of the
+		// previous room ID.
 		services
 			.rooms
 			.timeline
@@ -199,7 +201,8 @@ async fn update_children(
 				);
 			})
 		else {
-			// If the child does not have a parent event for this room, we can skip it.
+			// If the child does not have a parent event for this room, we can
+			// skip it.
 			continue;
 		};
 
@@ -228,9 +231,10 @@ async fn update_children(
 			))
 			.ok();
 
-		// If the previous m.space.parent event has canonical set to true in content,
-		// homeservers SHOULD update the old state event to set canonical to false,
-		// while setting it to true in the newly-sent m.space.parent event.
+		// If the previous m.space.parent event has canonical set to true in
+		// content, homeservers SHOULD update the old state event to set
+		// canonical to false, while setting it to true in the newly-sent
+		// m.space.parent event.
 		if parent.canonical {
 			services
 				.rooms
@@ -301,11 +305,12 @@ pub(crate) async fn upgrade_room_route(
 		return Err!(Request(Forbidden("Upgrading the admin room this way is not allowed.")));
 	}
 
-	// 1. Check that the user has permission to send m.room.tombstone events in the
-	//    room.
+	// 1. Check that the user has permission to send m.room.tombstone events in
+	//    the room.
 	let old_room_state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
-	// Check tombstone permission by attempting to create (but not send) the event.
+	// Check tombstone permission by attempting to create (but not send) the
+	// event.
 	services
 		.rooms
 		.timeline
@@ -389,9 +394,9 @@ pub(crate) async fn upgrade_room_route(
 	let new_room_state_lock = if let Some(new_room_id) = replacement_room_id.as_ref() {
 		services.rooms.state.mutex.lock(new_room_id.as_str()).await
 	} else {
-		// NOTE: Using a hardcoded room ID for the temporary mutex means only one room
-		// can be created at a time. This is actually beneficial, as it reduces the
-		// risk of concurrent in-flight collisions.
+		// NOTE: Using a hardcoded room ID for the temporary mutex means only
+		// one room can be created at a time. This is actually beneficial, as
+		// it reduces the risk of concurrent in-flight collisions.
 		services.rooms.state.mutex.lock("!new-room").await
 	};
 	debug!("Upgrading {} to room version {}", &body.room_id, &body.new_version);
@@ -408,9 +413,9 @@ pub(crate) async fn upgrade_room_route(
 		.await?;
 	drop(new_room_state_lock);
 	// re-acquire a new lock with the new room ID.
-	// We don't actually need a state lock for sending the m.room.create event, but
-	// we get one anyway because the function requires it and I can't be bothered
-	// refactoring it.
+	// We don't actually need a state lock for sending the m.room.create event,
+	// but we get one anyway because the function requires it and I can't be
+	// bothered refactoring it.
 	let (replacement_room_id, new_room_state_lock) =
 		if new_version_rules.room_id_format == RoomIdFormatVersion::V2 {
 			let parsed_room_id = RoomId::new_v2(
@@ -470,8 +475,9 @@ pub(crate) async fn upgrade_room_route(
 				| Ok(v) => v.content().to_owned(),
 				| Err(_) => continue, // Skipping missing events.
 			};
-			// If this is a power levels event, and the new room version has creators,
-			// we need to make sure they dont appear in the users block of power levels.
+			// If this is a power levels event, and the new room version has
+			// creators, we need to make sure they dont appear in the users
+			// block of power levels.
 			if *event_type == StateEventType::RoomPowerLevels {
 				let creators = body
 					.additional_creators
@@ -550,8 +556,8 @@ pub(crate) async fn upgrade_room_route(
 		)?;
 	}
 
-	// 5. Send a `m.room.tombstone` event to the old room to indicate that it is not
-	//    intended to be used any further.
+	// 5. Send a `m.room.tombstone` event to the old room to indicate that it is
+	//    not intended to be used any further.
 	debug!(target=?body.room_id, "Sending tombstone to old room");
 	services
 		.rooms
@@ -577,7 +583,8 @@ pub(crate) async fn upgrade_room_route(
 		.get_room_power_levels(&body.room_id)
 		.await;
 
-	// Setting events_default and invite to the greater of 50 and users_default + 1
+	// Setting events_default and invite to the greater of 50 and users_default
+	// + 1
 	let new_level = max(
 		int!(50),
 		power_levels
@@ -591,7 +598,8 @@ pub(crate) async fn upgrade_room_route(
 	power_levels.events_default = new_level;
 	power_levels.invite = new_level;
 
-	// 6. Modify the power levels in the old room to prevent sending of events and
+	// 6. Modify the power levels in the old room to prevent sending of events
+	//    and
 	// inviting new users
 	// Spec dictates that this is allowed to fail.
 	debug!(target=?body.room_id, ?new_level, "Raising power level in old room to lock it");

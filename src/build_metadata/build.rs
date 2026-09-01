@@ -69,8 +69,8 @@ fn main() {
 		.write_all(format!("{workspace_packages:?}").as_bytes())
 		.unwrap();
 
-	// built gets the default crate from the workspace. Not sure if this is intended
-	// behavior, but it's what we want.
+	// built gets the default crate from the workspace. Not sure if this is
+	// intended behavior, but it's what we want.
 	built::write_built_file().expect("Failed to acquire build-time information");
 
 	// --- Git Information ---
@@ -133,10 +133,10 @@ fn main() {
 	// TODO: The git rerun triggers seem to always run
 	// // Rerun if the git HEAD changes
 	// println!("cargo:rerun-if-changed=.git/HEAD");
-	// // Rerun if the ref pointed to by HEAD changes (e.g., new commit on branch)
-	// if let Some(ref_path) = run_git_command(&["symbolic-ref", "--quiet", "HEAD"])
-	// { 	println!("cargo:rerun-if-changed=.git/{ref_path}");
-	// }
+	// // Rerun if the ref pointed to by HEAD changes (e.g., new commit on
+	// branch) if let Some(ref_path) = run_git_command(&["symbolic-ref",
+	// "--quiet", "HEAD"]) { 	println!("cargo:rerun-if-changed=.git/{ref_path}"
+	// ); }
 
 	println!("cargo:rerun-if-env-changed=GIT_COMMIT_HASH");
 	println!("cargo:rerun-if-env-changed=GIT_COMMIT_HASH_SHORT");

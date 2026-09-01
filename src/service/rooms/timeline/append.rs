@@ -72,9 +72,9 @@ impl super::Service {
 			.map(Arc::new)
 			.await;
 
-		// We append to state before appending the pdu, so we don't have a moment in
-		// time with the pdu without it's state. This is okay because append_pdu can't
-		// fail.
+		// We append to state before appending the pdu, so we don't have a
+		// moment in time with the pdu without it's state. This is okay
+		// because append_pdu can't fail.
 		self.services
 			.state
 			.set_event_state(&pdu.event_id, &room_id, state_ids_compressed)
@@ -91,8 +91,9 @@ impl super::Service {
 		// Per https://spec.matrix.org/unstable/server-server-api/#soft-failure, soft-failed events
 		// are not added as forward extremities.
 		// This also means we set the state here.
-		// We do this BEFORE setting the extremities so that there's never a point in
-		// time where we have fresh extremities referencing stale state.
+		// We do this BEFORE setting the extremities so that there's never a
+		// point in time where we have fresh extremities referencing stale
+		// state.
 		let mut extremities: Vec<_> = self
 			.services
 			.state
@@ -177,12 +178,14 @@ impl super::Service {
 
 		let start = Instant::now();
 		trace!("Calculating extremities");
-		// Start with the current extremity set, to avoid dropping unreferenced events.
+		// Start with the current extremity set, to avoid dropping unreferenced
+		// events.
 		let mut new_extremities: HashSet<OwnedEventId> =
 			current_extremities.into_iter().collect();
 		// Add the incoming event
 		new_extremities.insert(incoming_pdu.event_id().to_owned());
-		// Remove any extremities that have since been referenced but not removed(?)
+		// Remove any extremities that have since been referenced but not
+		// removed(?)
 		new_extremities = new_extremities
 			.into_iter()
 			.stream()
@@ -197,16 +200,17 @@ impl super::Service {
 			.collect()
 			.await;
 
-		// Also iteratively walk prev events to ensure we drop any ancestors which are
-		// referenced regardless of soft-fail or rejection status. Soft-failed events
-		// and rejected events are not added as forward extremities, and as such do not
-		// remove their own prevs from the extremity set. This can lead to a situation
-		// where extremities build up because there's lots of soft-fails in the room,
-		// ultimately resulting in excessive cross-state boundary dummy events being
+		// Also iteratively walk prev events to ensure we drop any ancestors
+		// which are referenced regardless of soft-fail or rejection status.
+		// Soft-failed events and rejected events are not added as forward
+		// extremities, and as such do not remove their own prevs from the
+		// extremity set. This can lead to a situation where extremities build
+		// up because there's lots of soft-fails in the room, ultimately
+		// resulting in excessive cross-state boundary dummy events being
 		// created to squash the references. By walking the prevs until we stop
-		// reaching soft-fails, we can ensure that we properly prune all events which
-		// have actually been referenced, regardless of their soft-fail or rejection
-		// status.
+		// reaching soft-fails, we can ensure that we properly prune all events
+		// which have actually been referenced, regardless of their soft-fail
+		// or rejection status.
 		let mut ancestors_todo: VecDeque<OwnedEventId> =
 			VecDeque::from_iter(incoming_pdu.prev_events.clone());
 		let room_id = incoming_pdu.room_id_or_hash();
@@ -376,14 +380,15 @@ impl super::Service {
 			.await
 			.map_err(|_| err!(Database("Room does not exist")))?;
 
-		// Make unsigned fields correct. This is not properly documented in the spec,
-		// but state events need to have previous content in the unsigned field, so
-		// clients can easily interpret things like membership changes
+		// Make unsigned fields correct. This is not properly documented in the
+		// spec, but state events need to have previous content in the
+		// unsigned field, so clients can easily interpret things like
+		// membership changes
 
 		// TODO: This needs to be refactored to add this information on the fly.
-		// Because the prev content becomes part of the unsigned object in the PDU, we
-		// unintentionally leak redacted or hidden content to local users.
-		// See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/1103
+		// Because the prev content becomes part of the unsigned object in the
+		// PDU, we unintentionally leak redacted or hidden content to local
+		// users. See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/1103
 		self.populate_unsigned(pdu, &mut pdu_json).await;
 
 		// We must keep track of all events that have been referenced.
@@ -600,13 +605,13 @@ impl super::Service {
 					let target_user_id = UserId::parse(state_key)
 						.expect("This state_key was previously validated");
 
-					// must be checked before the membership update, which is what
-					// marks the server as being in the room
+					// must be checked before the membership update, which is
+					// what marks the server as being in the room
 					let joining_server = self.joining_server(pdu, &target_user_id, room_id).await;
 
-					// Update our membership info, we do this here incase a user is invited or
-					// knocked and immediately leaves we need the DB to record the invite or
-					// knock event for auth
+					// Update our membership info, we do this here incase a user
+					// is invited or knocked and immediately leaves we need
+					// the DB to record the invite or knock event for auth
 					self.services
 						.state_cache
 						.update_membership(room_id, &target_user_id, pdu, true)
@@ -706,9 +711,10 @@ impl super::Service {
 
 	/// Adds relation data to the incoming event and events it relates to.
 	async fn aggregate_relations(&self, pdu: &PduEvent, count2: Count) {
-		// CONCERN: If we receive events with a relation out-of-order, we never write
-		// their relation / thread. We need some kind of way to trigger when we receive
-		// this event, and potentially a way to rebuild the table entirely.
+		// CONCERN: If we receive events with a relation out-of-order, we never
+		// write their relation / thread. We need some kind of way to trigger
+		// when we receive this event, and potentially a way to rebuild the
+		// table entirely.
 
 		if let Ok(content) = pdu.get_content::<ExtractRelatesToEventId>() {
 			if let Ok(related_pducount) = self.get_pdu_count(&content.relates_to.event_id).await {

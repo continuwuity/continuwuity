@@ -226,16 +226,17 @@ impl Service {
 			&& matches!(join_rules, JoinRule::Restricted(_) | JoinRule::KnockRestricted(_))
 		{
 			if room_version_rules.authorization.restricted_join_rule {
-				// This is a restricted room, check if we can complete the join requirements
-				// locally.
+				// This is a restricted room, check if we can complete the join
+				// requirements locally.
 				let needs_auth_user = self
 					.user_can_perform_restricted_join(sender_user, room_id)
 					.await;
 				if needs_auth_user.is_ok_and(is_true!()) {
-					// If there was an error or the value is false, we'll try joining over
-					// federation. Since it's Ok(true), we can authorise this locally.
-					// If we can't select a local user, this will remain None, the join will fail,
-					// and we'll fall back to federation.
+					// If there was an error or the value is false, we'll try
+					// joining over federation. Since it's Ok(true), we can
+					// authorise this locally. If we can't select a local
+					// user, this will remain None, the join will fail, and
+					// we'll fall back to federation.
 					auth_user = self
 						.select_authorising_user(room_id, sender_user, &state_lock)
 						.await
@@ -370,8 +371,8 @@ impl Service {
 		// Remove event id if it exists
 		join_event_stub.remove("event_id");
 
-		// In order to create a compatible ref hash (EventID) the `hashes` field needs
-		// to be present
+		// In order to create a compatible ref hash (EventID) the `hashes` field
+		// needs to be present
 		self.services
 			.server_keys
 			.hash_and_sign_event(&mut join_event_stub, &room_version_rules)?;
@@ -394,11 +395,11 @@ impl Service {
 				.await,
 		);
 
-		// NOTE: send_join can take a long time to respond, but from the point of view
-		// of other servers, we may already have finished joining. This means they
-		// sometimes end up sending PDUs to us that we aren't yet ready to accept, and
-		// consequently drop. Holding the mutex over the room while processing mitigates
-		// this.
+		// NOTE: send_join can take a long time to respond, but from the point
+		// of view of other servers, we may already have finished joining.
+		// This means they sometimes end up sending PDUs to us that we aren't
+		// yet ready to accept, and consequently drop. Holding the mutex over
+		// the room while processing mitigates this.
 		let _room_lock = self
 			.services
 			.event_handler
@@ -628,9 +629,9 @@ impl Service {
 		debug!("Updating joined counts for new room");
 		self.services.state_cache.update_joined_count(room_id).await;
 
-		// We append to state before appending the pdu, so we don't have a moment in
-		// time with the pdu without it's state. This is okay because append_pdu can't
-		// fail.
+		// We append to state before appending the pdu, so we don't have a
+		// moment in time with the pdu without it's state. This is okay
+		// because append_pdu can't fail.
 		let statehash_after_join = self
 			.services
 			.state
@@ -654,17 +655,18 @@ impl Service {
 			.await;
 
 		info!("Setting final room state for new room");
-		// We set the room state after inserting the pdu, so that we never have a moment
-		// in time where events in the current room state do not exist
+		// We set the room state after inserting the pdu, so that we never have
+		// a moment in time where events in the current room state do not
+		// exist
 		self.services
 			.state
 			.set_room_state(room_id, statehash_after_join, &state_lock);
 		if !resident_before {
-			// NOTE: We replace local extremities for this room if we were not a resident
-			// before. We might be doing a remote join to satisfy restricted join rules,
-			// so we don't want to do this if we're already a resident. Otherwise, we
-			// want to replace our forward extremities whole-sale in case we were
-			// desynced.
+			// NOTE: We replace local extremities for this room if we were not a
+			// resident before. We might be doing a remote join to satisfy
+			// restricted join rules, so we don't want to do this if we're
+			// already a resident. Otherwise, we want to replace our forward
+			// extremities whole-sale in case we were desynced.
 			info!("Replacing local forward extremities");
 			self.services
 				.state
@@ -821,7 +823,8 @@ impl Service {
 			)
 			.await
 		else {
-			// No join rules means there's nothing to authorise (defaults to invite)
+			// No join rules means there's nothing to authorise (defaults to
+			// invite)
 			return Ok(false);
 		};
 
@@ -847,8 +850,9 @@ impl Service {
 						.server_in_room(self.services.globals.server_name(), &membership.room_id)
 						.await
 					{
-						// Since we can't check this room, mark could_satisfy as false
-						// so that we can return M_UNABLE_TO_AUTHORIZE_JOIN later.
+						// Since we can't check this room, mark could_satisfy as
+						// false so that we can return
+						// M_UNABLE_TO_AUTHORIZE_JOIN later.
 						could_satisfy = false;
 						continue;
 					}
@@ -877,7 +881,8 @@ impl Service {
 						| Err(_) => Err!(Request(Forbidden("Antispam rejected join request."))),
 					},
 				| _ => {
-					// We don't recognise this join rule, so we cannot satisfy the request.
+					// We don't recognise this join rule, so we cannot satisfy
+					// the request.
 					could_satisfy = false;
 					debug_info!(
 						"Unsupported allow rule in restricted join for room {}: {:?}",
@@ -889,15 +894,16 @@ impl Service {
 		}
 
 		if could_satisfy {
-			// We were able to check all the restrictions and can be certain that the
-			// prospective member is not permitted to join.
+			// We were able to check all the restrictions and can be certain
+			// that the prospective member is not permitted to join.
 			Err!(Request(Forbidden(
 				"You do not belong to any of the rooms or spaces required to join this room."
 			)))
 		} else {
-			// We were unable to check all the restrictions. This usually means we aren't in
-			// one of the rooms this one is restricted to, ergo can't check its state for
-			// the user's membership, and consequently the user *might* be able to join if
+			// We were unable to check all the restrictions. This usually means
+			// we aren't in one of the rooms this one is restricted to, ergo
+			// can't check its state for the user's membership, and
+			// consequently the user *might* be able to join if
 			// they ask another server.
 			Err!(Request(UnableToAuthorizeJoin(
 				"You do not belong to any of the recognised rooms or spaces required to join \

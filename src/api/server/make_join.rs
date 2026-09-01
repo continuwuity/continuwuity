@@ -99,8 +99,8 @@ pub(crate) async fn create_join_event_template_route(
 	);
 	let join_authorized_via_users_server: Option<OwnedUserId> = {
 		if is_joined || is_invited {
-			// User is already joined or invited and consequently does not need an
-			// authorising user
+			// User is already joined or invited and consequently does not need
+			// an authorising user
 			None
 		} else if !room_version_rules.authorization.restricted_join_rule {
 			// room version does not support restricted join rules
@@ -223,8 +223,9 @@ pub(crate) async fn user_can_perform_restricted_join(
 					.server_in_room(services.globals.server_name(), &membership.room_id)
 					.await
 				{
-					// Since we can't check this room, mark could_satisfy as false
-					// so that we can return M_UNABLE_TO_AUTHORIZE_JOIN later.
+					// Since we can't check this room, mark could_satisfy as
+					// false so that we can return
+					// M_UNABLE_TO_AUTHORIZE_JOIN later.
 					could_satisfy = false;
 					continue;
 				}
@@ -252,7 +253,8 @@ pub(crate) async fn user_can_perform_restricted_join(
 					| Err(_) => Err!(Request(Forbidden("Antispam rejected join request."))),
 				},
 			| _ => {
-				// We don't recognise this join rule, so we cannot satisfy the request.
+				// We don't recognise this join rule, so we cannot satisfy the
+				// request.
 				could_satisfy = false;
 				debug_info!(
 					"Unsupported allow rule in restricted join for room {}: {:?}",
@@ -264,16 +266,16 @@ pub(crate) async fn user_can_perform_restricted_join(
 	}
 
 	if could_satisfy {
-		// We were able to check all the restrictions and can be certain that the
-		// prospective member is not permitted to join.
+		// We were able to check all the restrictions and can be certain that
+		// the prospective member is not permitted to join.
 		Err!(Request(Forbidden(
 			"You do not belong to any of the rooms or spaces required to join this room."
 		)))
 	} else {
-		// We were unable to check all the restrictions. This usually means we aren't in
-		// one of the rooms this one is restricted to, ergo can't check its state for
-		// the user's membership, and consequently the user *might* be able to join if
-		// they ask another server.
+		// We were unable to check all the restrictions. This usually means we
+		// aren't in one of the rooms this one is restricted to, ergo can't
+		// check its state for the user's membership, and consequently the
+		// user *might* be able to join if they ask another server.
 		Err!(Request(UnableToAuthorizeJoin(
 			"You do not belong to any of the recognised rooms or spaces required to join this \
 			 room, but this server is unable to verify every requirement. You may be able to \

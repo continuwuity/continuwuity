@@ -62,8 +62,8 @@ where
 		let body = {
 			let max_body_size = services.server.config.max_request_size;
 
-			// Check if the Content-Length header is present and valid, saves us streaming
-			// the response into memory
+			// Check if the Content-Length header is present and valid, saves us
+			// streaming the response into memory
 			if let Some(content_length) = parts.headers.get(http::header::CONTENT_LENGTH) {
 				if let Ok(content_length) = content_length
 					.to_str()

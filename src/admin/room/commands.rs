@@ -14,7 +14,8 @@ impl crate::Context<'_> {
 		include_empty: bool,
 		no_details: bool,
 	) -> Result {
-		// TODO: i know there's a way to do this with clap, but i can't seem to find it
+		// TODO: i know there's a way to do this with clap, but i can't seem to
+		// find it
 		let page = page.unwrap_or(1);
 		let mut rooms = self
 			.services

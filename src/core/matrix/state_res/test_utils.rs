@@ -86,8 +86,8 @@ pub(crate) async fn do_check(
 	// event_id -> StateMap<OwnedEventId>
 	let mut state_at_event: HashMap<OwnedEventId, StateMap<OwnedEventId>> = HashMap::new();
 
-	// Resolve the current state and add it to the state_at_event map then continue
-	// on in "time"
+	// Resolve the current state and add it to the state_at_event map then
+	// continue on in "time"
 	for node in super::lexicographical_topological_sort(&graph, &|_id| async {
 		Ok((int!(0), MilliSecondsSinceUnixEpoch(uint!(0))))
 	})
@@ -172,8 +172,9 @@ pub(crate) async fn do_check(
 			}
 		}
 
-		// TODO The event is just remade, adding the auth_events and prev_events here
-		// the `to_pdu_event` was split into `init` and the fn below, could be better
+		// TODO The event is just remade, adding the auth_events and prev_events
+		// here the `to_pdu_event` was split into `init` and the fn below,
+		// could be better
 		let e = fake_event;
 		let ev_id = e.event_id();
 		let event = to_pdu_event(

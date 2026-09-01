@@ -568,7 +568,8 @@ impl Service {
 				return None;
 			}
 
-			// Ignore messages from the server user _unless_ the emergency password is set
+			// Ignore messages from the server user _unless_ the emergency
+			// password is set
 			let emergency_password_set = self.services.server.config.emergency_password.is_some();
 			if event.sender() == server_user && !emergency_password_set {
 				return None;
@@ -588,7 +589,8 @@ impl Service {
 				return None;
 			}
 
-			// Only admin users belonging to this server can use escaped commands
+			// Only admin users belonging to this server can use escaped
+			// commands
 			if !self.services.globals.user_is_local(event.sender()) {
 				return None;
 			}
@@ -598,7 +600,8 @@ impl Service {
 				return None;
 			}
 
-			// Escaped commands must be sent locally (via client API), not via federation
+			// Escaped commands must be sent locally (via client API), not via
+			// federation
 			if !sent_locally {
 				conduwuit::warn!(
 					"Ignoring escaped admin command from {} that arrived via federation",

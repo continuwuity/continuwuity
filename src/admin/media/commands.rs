@@ -361,7 +361,8 @@ impl crate::Context<'_> {
 			.fetch_remote_content(&mxc, None, server.as_deref(), timeout)
 			.await?;
 
-		// Grab the length of the content before clearing it to not flood the output
+		// Grab the length of the content before clearing it to not flood the
+		// output
 		let len = result.content.as_ref().expect("content").len();
 		result.content.as_mut().expect("content").clear();
 
@@ -386,7 +387,8 @@ impl crate::Context<'_> {
 			.fetch_remote_thumbnail(&mxc, None, server.as_deref(), timeout, &dim)
 			.await?;
 
-		// Grab the length of the content before clearing it to not flood the output
+		// Grab the length of the content before clearing it to not flood the
+		// output
 		let len = result.content.as_ref().expect("content").len();
 		result.content.as_mut().expect("content").clear();
 

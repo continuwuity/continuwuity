@@ -113,8 +113,8 @@ impl super::Service {
 		room_id: &RoomId,
 		json: &Raw<AnyStateEventContent>,
 	) -> Result {
-		// prevents common ACL paw-guns as ACL management is difficult and prone to
-		// irreversible mistakes
+		// prevents common ACL paw-guns as ACL management is difficult and prone
+		// to irreversible mistakes
 
 		let acl_content = json
 			.deserialize_as_unchecked::<RoomServerAclEventContent>()
@@ -203,7 +203,8 @@ impl super::Service {
 		room_id: &RoomId,
 		json: &Raw<AnyStateEventContent>,
 	) -> Result {
-		// admin room is a sensitive room, it should not ever be made world readable
+		// admin room is a sensitive room, it should not ever be made world
+		// readable
 
 		if let Ok(admin_room_id) = self.services.admin.get_admin_room().await
 			&& admin_room_id == room_id

@@ -37,7 +37,8 @@ pub(super) async fn process(command: RoomDirectoryCommand, context: &Context<'_>
 			context.write_str("Room unpublished").await
 		},
 		| RoomDirectoryCommand::List { page } => {
-			// TODO: i know there's a way to do this with clap, but i can't seem to find it
+			// TODO: i know there's a way to do this with clap, but i can't seem
+			// to find it
 			let page = page.unwrap_or(1);
 			let mut rooms: Vec<_> = services
 				.rooms

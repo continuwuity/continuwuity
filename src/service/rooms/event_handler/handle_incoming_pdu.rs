@@ -48,8 +48,8 @@ impl super::Service {
 		value: BTreeMap<String, CanonicalJsonValue>,
 		is_backfilled_event: bool,
 	) -> Result<Option<RawPduId>> {
-		// Skip the PDU if we already have it as a timeline event. We still re-process
-		// outliers in this scenario.
+		// Skip the PDU if we already have it as a timeline event. We still
+		// re-process outliers in this scenario.
 		if let Ok(pdu_id) = self.services.timeline.get_pdu_id(event_id).await {
 			debug!("Database hit for incoming PDU, skipping processing");
 			return Ok(Some(pdu_id));
@@ -58,9 +58,10 @@ impl super::Service {
 			"processing incoming PDU from {origin} for room {room_id} with event id {event_id}"
 		);
 
-		// If this is a membership state event for a local user, we will be interested
-		// in this event even if we aren't in the room. This allows us to process things
-		// like revoking invites over federation, without being in the room.
+		// If this is a membership state event for a local user, we will be
+		// interested in this event even if we aren't in the room. This allows
+		// us to process things like revoking invites over federation, without
+		// being in the room.
 		let is_interesting_member_event = value.get("type").and_then(|t| t.as_str())
 			== Some("m.room.member")
 			&& value
@@ -89,14 +90,14 @@ impl super::Service {
 			)));
 		}
 
-		// If the room doesn't exist (we don't have the create event), there's nothing
-		// we can do.
+		// If the room doesn't exist (we don't have the create event), there's
+		// nothing we can do.
 		if !room_exists {
 			return Err!(Request(NotFound("Room is unknown to this server")));
 		}
 		// If the room does exist, but we aren't a resident of it, we might be
-		// interested in an out-of-band membership (for example, an inviter rescinding
-		// their invite).
+		// interested in an out-of-band membership (for example, an inviter
+		// rescinding their invite).
 		if !is_resident {
 			if is_interesting_member_event {
 				// TODO: handle interesting membership events where we aren't in
@@ -127,15 +128,17 @@ impl super::Service {
 			.handle_outlier_pdu(origin, create_event, event_id, room_id, value)
 			.await?;
 
-		// If this event is being processed as part of backfill, we don't want to end up
-		// *appending* it during the upgrade process, so we return early.
+		// If this event is being processed as part of backfill, we don't want
+		// to end up *appending* it during the upgrade process, so we return
+		// early.
 		if is_backfilled_event {
 			debug!("Not promoting incoming event as it is being backfilled");
 			return Ok(None);
 		}
 
-		// Skip events sent before we joined (they need to be persisted as backfilled
-		// events, not timeline events, which is handled elsewhere).
+		// Skip events sent before we joined (they need to be persisted as
+		// backfilled events, not timeline events, which is handled
+		// elsewhere).
 		let first_ts_in_room = self
 			.services
 			.timeline
@@ -150,8 +153,8 @@ impl super::Service {
 			return Ok(None);
 		}
 
-		// Fetch any missing prev events doing all checks listed here starting at 1.
-		// These are timeline events.
+		// Fetch any missing prev events doing all checks listed here starting
+		// at 1. These are timeline events.
 		// TODO: This part needs to be done in a background queue somewhere.
 
 		debug!("Fetching and persisting any missing prev events");

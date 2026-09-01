@@ -122,7 +122,8 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
-	// yeah, unless the user built a debug build hopefully for local testing only
+	// yeah, unless the user built a debug build hopefully for local testing
+	// only
 	if cfg!(not(debug_assertions)) && config.server_name == "your.server.name" {
 		return Err!(Config(
 			"server_name",

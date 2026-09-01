@@ -28,8 +28,9 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn reload_config(&self, path: Option<PathBuf>) -> Result {
-		// The path argument is only what's optionally passed via the admin command,
-		// so we need to merge it with the existing paths if any were given at startup.
+		// The path argument is only what's optionally passed via the admin
+		// command, so we need to merge it with the existing paths if any were
+		// given at startup.
 		let mut paths = Vec::new();
 
 		// Add previously saved paths to the argument list

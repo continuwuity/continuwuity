@@ -65,8 +65,8 @@ impl crate::Service for Service {
 
 		// Process each appservice
 		for (id, registration) in appservices {
-			// During startup, resolve any token collisions in favour of appservices
-			// by logging out conflicting user devices
+			// During startup, resolve any token collisions in favour of
+			// appservices by logging out conflicting user devices
 			if let Some((user_id, device_id, _)) = self
 				.services
 				.users
@@ -137,8 +137,8 @@ impl Service {
 	) -> Result {
 		//TODO: Check for collisions between exclusive appservice namespaces
 
-		// Check for token collision with other appservices (allow re-registration of
-		// same appservice)
+		// Check for token collision with other appservices (allow
+		// re-registration of same appservice)
 		if let Ok(existing) = self.find_from_token(&registration.as_token).await {
 			if existing.registration.id != registration.id {
 				return Err(err!(Request(InvalidParam(
@@ -189,8 +189,8 @@ impl Service {
 		// remove the appservice from the database
 		self.db.id_appserviceregistrations.del(appservice_id);
 
-		// deletes all active requests for the appservice if there are any so we stop
-		// sending to the URL
+		// deletes all active requests for the appservice if there are any so we
+		// stop sending to the URL
 		self.services
 			.sending
 			.cleanup_events(Some(appservice_id), None, None)
