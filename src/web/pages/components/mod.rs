@@ -1,11 +1,9 @@
 use std::{collections::BTreeSet, time::SystemTime};
 
 use askama::{Template, filters::HtmlSafe};
-use base64::Engine;
-use conduwuit_core::{result::FlatOk, utils};
+use conduwuit_core::utils;
 use conduwuit_service::{
 	Services,
-	media::mxc::Mxc,
 	oauth::{client_metadata::ClientMetadata, grant::Scope},
 };
 use ruma::{OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device};
@@ -30,28 +28,8 @@ impl Avatar {
 	pub(super) async fn for_local_user(services: &Services, user_id: &UserId) -> Self {
 		let display_name = services.users.displayname(user_id).await.ok();
 
-		let avatar_src = async {
-			let avatar_url = services.users.avatar_url(user_id).await.ok()?;
-			let (server_name, media_id) = avatar_url.parts().ok()?;
-			let file = services
-				.media
-				.get(&Mxc { media_id, server_name })
-				.await
-				.flat_ok()?;
-
-			Some(format!(
-				"data:{};base64,{}",
-				file.content_type
-					.unwrap_or_else(|| "application/octet-stream".to_owned()),
-				file.content
-					.map(|content| base64::prelude::BASE64_STANDARD.encode(content))
-					.unwrap_or_default(),
-			))
-		}
-		.await;
-
-		let avatar_type = if let Some(avatar_src) = avatar_src {
-			AvatarType::Image(avatar_src)
+		let avatar_type = if services.users.avatar_url(user_id).await.is_ok() {
+			AvatarType::Image(profile_media_url(user_id, "avatar_url"))
 		} else if let Some(initial) = display_name
 			.as_ref()
 			.and_then(|display_name| display_name.chars().next())
@@ -111,16 +89,29 @@ pub(super) struct UserCard {
 	pub user_id: OwnedUserId,
 	pub display_name: Option<String>,
 	pub avatar: Avatar,
+	pub banner: Option<String>,
 }
 
 impl HtmlSafe for UserCard {}
 
 impl UserCard {
+	const BANNER_KEY: &str = "chat.commet.profile_banner";
+
 	pub(super) async fn for_local_user(services: &Services, user_id: OwnedUserId) -> Self {
 		let display_name = services.users.displayname(&user_id).await.ok();
 		let avatar = Avatar::for_local_user(services, &user_id).await;
+		let banner = if services
+			.users
+			.get_local_profile_field(&user_id, Self::BANNER_KEY.into())
+			.await
+			.is_some()
+		{
+			Some(profile_media_url(&user_id, Self::BANNER_KEY))
+		} else {
+			None
+		};
 
-		Self { user_id, display_name, avatar }
+		Self { user_id, display_name, avatar, banner }
 	}
 }
 
@@ -215,3 +206,7 @@ pub(super) struct ClientScopes {
 }
 
 impl HtmlSafe for ClientScopes {}
+
+fn profile_media_url(user_id: &UserId, profile_key: &str) -> String {
+	format!("{}/media/profile/{user_id}/{profile_key}", crate::ROUTE_PREFIX)
+}

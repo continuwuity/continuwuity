@@ -1,4 +1,8 @@
+{% if let Some(banner) = banner %}
+<div class="card red-avatar has-banner" style="--banner-url: url('{{ banner }}');">
+{% else %}
 <div class="card red-avatar">
+{% endif %}
     {{ avatar }}
     <div class="info">
         {% if let Some(display_name) = display_name %}
