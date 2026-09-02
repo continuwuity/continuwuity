@@ -68,7 +68,7 @@ async fn route_deactivate(
 	let user_card = UserCard::for_local_user(&services, user_id.clone()).await;
 
 	let body = {
-		if !services.config.allow_deactivation {
+		if !services.config.allow_deactivation || services.oidc.enabled() {
 			DeactivateBody::Unavailable
 		} else if let Some(form) = form {
 			if let Err(err) = validate_deactivate_form(&services, &user_id, form).await {
