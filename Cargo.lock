@@ -4646,8 +4646,8 @@ dependencies = [
 
 [[package]]
 name = "ruma"
-version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.17.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "assign",
  "js_int",
@@ -4665,8 +4665,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-appservice-api"
-version = "0.16.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.17.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "http",
  "js_int",
@@ -4678,8 +4678,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-client-api"
-version = "0.24.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.25.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "as_variant",
  "assign",
@@ -4700,11 +4700,11 @@ dependencies = [
 
 [[package]]
 name = "ruma-common"
-version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.20.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "as_variant",
- "base64 0.22.1",
+ "base64 0.23.1",
  "bytes",
  "date_header",
  "form_urlencoded",
@@ -4733,8 +4733,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-events"
-version = "0.34.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.35.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "as_variant",
  "indexmap 2.14.0",
@@ -4754,11 +4754,10 @@ dependencies = [
 
 [[package]]
 name = "ruma-federation-api"
-version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.16.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "bytes",
- "headers",
  "http",
  "http-auth",
  "httparse",
@@ -4778,7 +4777,7 @@ dependencies = [
 [[package]]
 name = "ruma-identifiers-validation"
 version = "0.12.1"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "js_int",
  "thiserror 2.0.20",
@@ -4786,8 +4785,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-macros"
-version = "0.19.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.20.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "as_variant",
  "cfg-if",
@@ -4802,8 +4801,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-push-gateway-api"
-version = "0.15.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.16.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "js_int",
  "ruma-common",
@@ -4814,10 +4813,10 @@ dependencies = [
 
 [[package]]
 name = "ruma-signatures"
-version = "0.21.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.22.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
- "base64 0.22.1",
+ "base64 0.23.1",
  "ed25519-dalek 3.0.0",
  "memchr",
  "pkcs8 0.11.0",
@@ -4831,8 +4830,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-state-res"
-version = "0.17.0"
-source = "git+https://github.com/ruma/ruma.git?rev=83d80c8d869e0ba09becbf7e7378eefc7377cfdb#83d80c8d869e0ba09becbf7e7378eefc7377cfdb"
+version = "0.18.0"
+source = "git+https://github.com/ruma/ruma.git?rev=84051b5ddddfb0eabddcf69460627b7ed97bc551#84051b5ddddfb0eabddcf69460627b7ed97bc551"
 dependencies = [
  "js_int",
  "ruma-common",
