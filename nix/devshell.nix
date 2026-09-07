@@ -16,7 +16,7 @@
               pkgs.nodejs
               pkgs.pkg-config
             ]
-            ++ lib.optionals pkgs.stdenv.isLinux [
+            ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
               pkgs.liburing
               pkgs.rust-jemalloc-sys-unprefixed
             ];
@@ -27,13 +27,13 @@
                 [
                   pkgs.stdenv.cc.cc.lib
                 ]
-                ++ lib.optionals pkgs.stdenv.isLinux [
+                ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [
                   pkgs.liburing
                   pkgs.jemalloc
                 ]
               );
             }
-            // lib.optionalAttrs pkgs.stdenv.isLinux {
+            // lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
               PKG_CONFIG_PATH = lib.makeSearchPath "lib/pkgconfig" [
                 pkgs.liburing.dev
               ];
