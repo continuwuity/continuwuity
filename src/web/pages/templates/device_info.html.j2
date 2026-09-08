@@ -26,7 +26,7 @@ Device information
         <p>
             {% if let Some((_, session_info)) = client_metadata %}
                 This device has permission to:
-                {{ ClientScopes { scopes: session_info.scopes.clone() } }}
+                {{ ClientScopes { scopes: session_info.scopes() } }}
             {% else if device_card.dehydrated %}
                 This is your dehydrated device. It saves encryption keys for you while you're offline.
             {% else %}
@@ -45,7 +45,7 @@ Device information
             </p>
             <p>
                 Scopes: <code>
-                {% for scope in session_info.scopes %}
+                {% for scope in session_info.scopes() %}
                     {{ scope | safe }}
                 {% endfor %}
                 </code>

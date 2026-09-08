@@ -14,7 +14,7 @@ use ruma::{
 			AuthScheme, NoAccessToken, NoAuthentication,
 		},
 		client,
-		error::{ErrorKind, UnknownTokenErrorData},
+		error::{ErrorKind, InsufficientUserAuthenticationErrorData, UnknownTokenErrorData},
 		federation::authentication::ServerSignatures,
 	},
 	assign,
@@ -111,7 +111,7 @@ impl CheckAuth for ServerSignatures {
 		let keys: PubKeys = [(authentication.key.to_string(), key.key)].into();
 		let keys: PubKeyMap = [(authentication.origin.as_str().into(), keys)].into();
 
-		match authentication.verify_request(
+		match authentication.verify_http_request(
 			incoming_request,
 			services.globals.server_name(),
 			&keys,
@@ -303,7 +303,7 @@ async fn check_access_token(
 			.get_session_info_for_device(&sender_user, &sender_device)
 			.await
 		{
-			session_info.scopes
+			session_info.scopes()
 		} else {
 			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
 
@@ -318,9 +318,15 @@ async fn check_access_token(
 			.iter()
 			.any(|scope| user_scopes.contains(scope))
 		{
-			return Err!(Request(Forbidden(
-				"You do not have permission to access this endpoint."
-			)));
+			return Err(Error::Request(
+				ErrorKind::InsufficientUserAuthentication(Box::new(
+					assign!(InsufficientUserAuthenticationErrorData::new(), {
+						scope: required_scopes.iter().cloned().collect()
+					}),
+				)),
+				"You do not have permission to access this endpoint.".into(),
+				StatusCode::UNAUTHORIZED,
+			));
 		}
 
 		Ok(ClientIdentity::User { sender_user, sender_device })

@@ -14,7 +14,7 @@ use ruma::{
 		SupportedVersions,
 		auth_scheme::{AuthScheme, NoAuthentication},
 		error::Error as RumaError,
-		federation::authentication::{ServerSignatures, ServerSignaturesInput},
+		federation::authentication::{ServerSignatures, XMatrixSigningInput},
 		path_builder::PathBuilder,
 	},
 };
@@ -92,7 +92,7 @@ impl super::Service {
 				PathBuilder: PathBuilder<Input<'i>: FederationPathBuilderInput>,
 			> + Send,
 	{
-		let authentication = ServerSignaturesInput::new(
+		let authentication = XMatrixSigningInput::new(
 			self.services.server.name.clone(),
 			dest.to_owned(),
 			self.services.server_keys.keypair(),

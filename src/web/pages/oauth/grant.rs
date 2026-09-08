@@ -5,8 +5,9 @@ use axum::{
 	routing::on,
 };
 use conduwuit_service::oauth::{
+	SessionInfo,
 	client_metadata::ClientMetadata,
-	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt, RequestedScope},
+	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt, RequestedScopes},
 };
 use ruma::{OwnedUserId, api::OAuthClientScope};
 use serde::{Deserialize, de::IgnoredAny};
@@ -37,6 +38,7 @@ template! {
 		user_avatar: Avatar,
 		client_metadata: ClientMetadata,
 		scopes: ClientScopes,
+		existing_session_info: Option<SessionInfo>,
 		device_code: Option<String>
 	}
 }
@@ -102,13 +104,23 @@ async fn route_authorization_code(
 		return Err(WebError::BadRequest("Invalid client ID".to_owned()));
 	};
 
-	let scopes = query
-		.scope
-		.to_scopes()
-		.map_err(WebError::BadRequest)?
-		.iter()
-		.filter_map(RequestedScope::as_client_scope)
-		.collect();
+	let RequestedScopes { device_id, mut scopes } =
+		query.scope.to_scopes().map_err(WebError::BadRequest)?;
+
+	let existing_session_info = if let Some(device_id) = &device_id {
+		services
+			.oauth
+			.get_session_info_for_device(&user_id, device_id)
+			.await
+	} else {
+		None
+	};
+
+	if let Some(existing_session_info) = &existing_session_info {
+		// For step-up auth, don't show scopes that the device already has
+		let existing_scopes = existing_session_info.scopes();
+		scopes.retain(|scope| !existing_scopes.contains(scope));
+	}
 
 	let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
@@ -124,6 +136,7 @@ async fn route_authorization_code(
 		user_avatar,
 		client,
 		ClientScopes { scopes },
+		existing_session_info,
 		None,
 	))
 }
@@ -189,11 +202,23 @@ async fn route_device_code(
 				));
 			};
 
-			let scopes = grant_info
-				.requested_scopes
-				.iter()
-				.filter_map(RequestedScope::as_client_scope)
-				.collect();
+			let RequestedScopes { device_id, mut scopes } = grant_info.requested_scopes;
+
+			let existing_session_info = if let Some(device_id) = &device_id {
+				services
+					.oauth
+					.get_session_info_for_device(&user_id, device_id)
+					.await
+			} else {
+				None
+			};
+
+			if let Some(existing_session_info) = &existing_session_info {
+				// For step-up auth, don't show scopes that the device already
+				// has
+				let existing_scopes = existing_session_info.scopes();
+				scopes.retain(|scope| !existing_scopes.contains(scope));
+			}
 
 			let user_avatar = Avatar::for_local_user(&services, &user_id).await;
 
@@ -209,6 +234,7 @@ async fn route_device_code(
 				user_avatar,
 				grant_info.client_metadata,
 				ClientScopes { scopes },
+				existing_session_info,
 				Some(grant_info.device_code),
 			))
 		},

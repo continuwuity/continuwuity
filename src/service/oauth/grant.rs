@@ -1,10 +1,8 @@
 use std::{
 	borrow::Cow,
-	collections::HashSet,
+	collections::BTreeSet,
 	error::Error,
 	fmt::{Debug, Display},
-	hash::Hash,
-	mem::discriminant,
 };
 
 use regex::regex;
@@ -82,42 +80,25 @@ pub enum Prompt {
 	Unknown,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub enum RequestedScope {
-	Device(OwnedDeviceId),
-	ClientApi,
-	ServerAdministration,
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct RequestedScopes {
+	pub device_id: Option<OwnedDeviceId>,
+	pub scopes: BTreeSet<OAuthClientScope>,
 }
 
-impl RequestedScope {
-	#[must_use]
-	pub fn as_client_scope(&self) -> Option<OAuthClientScope> {
-		match self {
-			| Self::ClientApi => Some(OAuthClientScope::ApiFullAccess),
-			| Self::Device(_) => None,
-			| Self::ServerAdministration => Some(OAuthClientScope::ServerAdministration),
-		}
-	}
-}
-
-impl PartialEq for RequestedScope {
-	fn eq(&self, other: &Self) -> bool { discriminant(self) == discriminant(other) }
-}
-
-impl Eq for RequestedScope {}
-
-impl Hash for RequestedScope {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) { discriminant(self).hash(state); }
-}
-
-impl Display for RequestedScope {
+impl Display for RequestedScopes {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match self {
-			| Self::ClientApi => write!(f, "urn:matrix:client:api:*"),
-			| Self::Device(device_id) => write!(f, "urn:matrix:client:device:{device_id}"),
-			| Self::ServerAdministration =>
-				write!(f, "urn:matrix:client:cc.c10y.msc4484.server_administration"),
+		let mut scopes: Vec<_> = self
+			.scopes
+			.iter()
+			.map(OAuthClientScope::to_string)
+			.collect();
+
+		if let Some(device_id) = &self.device_id {
+			scopes.push(device_id.to_string());
 		}
+
+		f.write_str(&scopes.join(" "))
 	}
 }
 
@@ -126,7 +107,7 @@ pub struct RawScopes(String);
 
 impl RawScopes {
 	#[allow(clippy::trivial_regex)]
-	pub fn to_scopes(&self) -> Result<HashSet<RequestedScope>, String> {
+	pub fn to_scopes(&self) -> Result<RequestedScopes, String> {
 		let client_api_token_regex =
 			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
 		let device_token_regex =
@@ -134,17 +115,19 @@ impl RawScopes {
 		let server_administration_regex =
 			regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
 
-		let mut scopes = HashSet::new();
+		let mut scopes = RequestedScopes::default();
 
 		for token in self.0.split(' ') {
 			let scope_was_new = {
 				if client_api_token_regex.is_match(token) {
-					scopes.insert(RequestedScope::ClientApi)
+					scopes.scopes.insert(OAuthClientScope::ApiFullAccess)
 				} else if server_administration_regex.is_match(token) {
-					scopes.insert(RequestedScope::ServerAdministration)
+					scopes.scopes.insert(OAuthClientScope::ServerAdministration)
 				} else if let Some(captures) = device_token_regex.captures(token) {
 					scopes
-						.insert(RequestedScope::Device(captures.get(2).unwrap().as_str().into()))
+						.device_id
+						.replace(captures.get(2).unwrap().as_str().into())
+						.is_none()
 				} else {
 					continue;
 				}
