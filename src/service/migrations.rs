@@ -21,7 +21,8 @@ use database::{Database, Json};
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
+	OwnedDeviceId, OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
+	api::OAuthClientScope,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
 		push_rules::PushRulesEvent,
@@ -30,9 +31,9 @@ use ruma::{
 	push::Ruleset,
 	serde::{Raw, from_raw_json_value},
 };
-use serde_json::value::to_raw_value;
+use serde_json::{Value, value::to_raw_value};
 
-use crate::{Services, media, rooms, rooms::short::ShortStateHash};
+use crate::{Services, media, oauth::SessionInfo, rooms, rooms::short::ShortStateHash};
 
 /// The current schema version.
 /// - If database is opened at greater version we reject with error. The
@@ -40,7 +41,7 @@ use crate::{Services, media, rooms, rooms::short::ShortStateHash};
 /// - If database is opened at lesser version we apply migrations up to this.
 ///   Note that named-feature migrations may also be performed when opening at
 ///   equal or lesser version. These are expected to be backward-compatible.
-pub(crate) const DATABASE_VERSION: u64 = 19;
+pub(crate) const DATABASE_VERSION: u64 = 20;
 
 pub(crate) async fn migrations(services: &Services) -> Result<()> {
 	let users_count = services.users.count().await;
@@ -284,6 +285,18 @@ async fn migrate(services: &Services) -> Result<()> {
 			.drop_column("server_signingkeys")
 			.inspect(|()| services.db["global"].insert(DROP_OLD_SIGNING_KEYS_STORAGE, []))
 			.map_err(|e| err!("Failed to drop server_signingkeys: {e:?}"))?;
+	}
+
+	if services.globals.db.database_version().await < 20 {
+		services.globals.db.bump_database_version(20);
+		info!("Migration: Bumped database version to 20");
+	}
+
+	if db["global"].get(FIX_OAUTH_SCOPE_NAMES).await.is_not_found() {
+		info!("Running migration 'fix_oauth_scope_names'");
+		fix_oauth_scope_names(services)
+			.await
+			.map_err(|e| err!("Failed to run 'fix_oauth_scope_names' migration': {e}"))?;
 	}
 
 	assert_eq!(
@@ -1003,3 +1016,37 @@ async fn unembed_unsigned_info(
 }
 
 const DROP_OLD_SIGNING_KEYS_STORAGE: &str = "drop_server_signingkeys";
+
+const FIX_OAUTH_SCOPE_NAMES: &str = "fix_oauth_scope_names";
+async fn fix_oauth_scope_names(services: &Services) -> Result {
+	let db = &services.db;
+	let cork = db.cork_and_sync();
+	let userdeviceid_oauthsessioninfo = db["userdeviceid_oauthsessioninfo"].clone();
+
+	userdeviceid_oauthsessioninfo
+		.stream::<(OwnedUserId, OwnedDeviceId), Value>()
+		.ignore_err()
+		.for_each(async |((user_id, device_id), mut session_info)| {
+			let map = session_info.as_object_mut().unwrap();
+			let scopes = map.get_mut("scopes").unwrap().as_array_mut().unwrap();
+
+			if let Some(old_scope_index) = scopes
+				.iter()
+				.position(|value| *value == Value::String("ClientApi".to_owned()))
+			{
+				scopes[old_scope_index] =
+					Value::String(OAuthClientScope::ApiFullAccess.to_string());
+			}
+
+			userdeviceid_oauthsessioninfo.put((user_id, device_id), Json(session_info));
+		})
+		.await;
+
+	drop(cork);
+	info!("Fixed OAuth session scope names");
+
+	db["global"].insert(FIX_OAUTH_SCOPE_NAMES, []);
+	db.db.sort()?;
+
+	Ok(())
+}

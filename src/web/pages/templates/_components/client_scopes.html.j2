@@ -4,7 +4,7 @@
             {% when OAuthClientScope::ApiFullAccess %}
                 <li>Access and control all features of your Matrix account</li>
             {% when OAuthClientScope::ServerAdministration %}
-                <li><em class="danger">Access your homeserver's administrator tools</em></li>
+                <li>⚠️ Access your homeserver's administrator tools</li>
             {% when _ %}
                 <li>missingno</li>
         {% endmatch %}
