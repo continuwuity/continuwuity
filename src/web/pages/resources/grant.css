@@ -8,7 +8,6 @@
         margin-inline: 1em;
         color: var(--secondary);
 	    font-size: x-large;
-        font-weight: bold;
         user-select: none;
     }
 }
