@@ -22,9 +22,9 @@
     --background-lightness: 0.9;
 
     --background-gradient:
-        radial-gradient(42.12% 56.13% at 100% 0%, oklch(from var(--c2) var(--background-lightness) c h) 0%, #fff0 100%),
-        radial-gradient(42.01% 79.63% at 52.86% 0%, #d9ff5333 0%, #fff0 100%),
-        radial-gradient(79.67% 58.09% at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #fff0 100%);
+        radial-gradient(42.12% 56.13vh at 100% 0%, oklch(from var(--c2) var(--background-lightness) c h) 0%, #fff0 100%),
+        radial-gradient(42.01% 79.63vh at 52.86% 0%, #d9ff5333 0%, #fff0 100%),
+        radial-gradient(79.67% 58.09vh at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #fff0 100%);
 
     --glass-outline: 1px solid rgba(237,231,244,.1);
     --glass-filter: blur(15px) brightness(0.6);
@@ -47,13 +47,13 @@
 
         --background-gradient:
             radial-gradient(
-                42.12% 56.13% at 100% 0%,
+                42.12% 56.13vh at 100% 0%,
                 oklch(from var(--c2) var(--background-lightness) c h) 0%,
                 #12121200 100%
             ),
-            radial-gradient(55.81% 87.78% at 48.37% 0%, #000 0%, #12121200 89.55%),
+            radial-gradient(55.81% 87.78vh at 48.37% 0%, #000 0%, #12121200 89.55%),
             radial-gradient(
-                122.65% 88.24% at 0% 0%,
+                122.65% 88.24vh at 0% 0%,
                 oklch(from var(--c1) var(--background-lightness) c h) 0%,
                 #12121200 100%
             );
