@@ -1,7 +1,7 @@
-use std::{collections::BTreeSet, hash::Hash};
+use std::{collections::BTreeSet, fmt::Debug, hash::Hash};
 
 use itertools::Itertools;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::DeserializeOwned};
 use url::Url;
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -150,7 +150,7 @@ pub enum ResponseType {
 pub(super) fn btreeset_skip_err<'de, D, V>(de: D) -> Result<BTreeSet<V>, D::Error>
 where
 	D: Deserializer<'de>,
-	V: Deserialize<'de> + Hash + Eq + Ord,
+	V: DeserializeOwned + Hash + Eq + Ord + Debug,
 {
 	use std::marker::PhantomData;
 
@@ -162,7 +162,7 @@ where
 
 	impl<'de, V> Visitor<'de> for BTreeSetVisitor<V>
 	where
-		V: Deserialize<'de> + Hash + Eq + Ord,
+		V: DeserializeOwned + Hash + Eq + Ord + Debug,
 	{
 		type Value = BTreeSet<V>;
 
@@ -176,8 +176,14 @@ where
 		{
 			let mut set = BTreeSet::new();
 
-			while let Some(element) = seq.next_element().transpose() {
-				if let Ok(element) = element {
+			while let Some(element) = seq.next_element::<serde_json::Value>().transpose() {
+				// This trip through serde_json::Value is necessary because the
+				// serde_json serializer will not advance to the next
+				// element if an element fails to deserialize. Without it this
+				// would loop forever.
+				if let Ok(element) = element
+					&& let Ok(element) = serde_json::from_value(element)
+				{
 					set.insert(element);
 				}
 			}
