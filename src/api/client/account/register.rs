@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, debug_info, info};
+use conduwuit::{Err, Result, info};
 use conduwuit_service::Services;
 use futures::StreamExt;
 use lettre::{Address, message::Mailbox};
@@ -137,28 +137,6 @@ pub(crate) async fn register_route(
 		// Don't create a device for inhibited logins
 		(None, None)
 	};
-
-	debug_info!(%user_id, ?device, "New account created via legacy registration");
-	// Only log if the user wasn't registered via an appservice.
-	if body.identity.is_none() {
-		let notice = if device.is_some()
-			&& let Some(device_name) = body.initial_device_display_name.as_ref()
-		{
-			format!(
-				"New user \"{user_id}\" registered on this server from IP {client} and device \
-				 display name \"{device_name}\" via legacy registration",
-			)
-		} else {
-			format!(
-				"New user \"{user_id}\" registered on this server from IP {client} via legacy \
-				 registration."
-			)
-		};
-		info!("{notice}");
-		if services.server.config.admin_room_notices {
-			services.admin.notice(&notice).await;
-		}
-	}
 
 	Ok(assign!(register::v3::Response::new(user_id), {
 		access_token: token.map(DeviceToken::into_token),
