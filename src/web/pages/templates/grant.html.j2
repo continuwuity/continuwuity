@@ -27,10 +27,16 @@ Authorize client
     </div>
 
     <p>
-        <b>{{ client_name }}</b> (<a href="{{ client_metadata.client_uri }}">{{ client_metadata.client_uri.domain().unwrap() }}</a>) would like
-        your permission to:
-
-        {{ scopes }}
+        <b>{{ client_name }}</b> (<a href="{{ client_metadata.client_uri }}">{{ client_metadata.client_uri.domain().unwrap() }}</a>)
+        {% if let Some(existing_session_info) = existing_session_info %}
+            would like temporary additional permissions to:
+            {{ scopes }}
+            {{ client_name }} already has permission to:
+            {{ ClientScopes { scopes: existing_session_info.scopes() } }}
+        {% else %}
+            would like your permission to:
+            {{ scopes }}
+        {% endif %}
     </p>
 
     {% if scopes.scopes.contains(&OAuthClientScope::ServerAdministration) %}
