@@ -33,7 +33,7 @@ use ruma::{
 };
 use serde_json::{Value, value::to_raw_value};
 
-use crate::{Services, media, oauth::SessionInfo, rooms, rooms::short::ShortStateHash};
+use crate::{Services, media, rooms, rooms::short::ShortStateHash};
 
 /// The current schema version.
 /// - If database is opened at greater version we reject with error. The
