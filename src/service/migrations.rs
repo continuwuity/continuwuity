@@ -26,7 +26,7 @@ use ruma::{
 };
 use serde_json::Value;
 
-use crate::{Services, media, oauth::SessionInfo, rooms::short::ShortStateHash};
+use crate::{Services, media, rooms::short::ShortStateHash};
 
 /// The current schema version.
 /// - If database is opened at greater version we reject with error. The
