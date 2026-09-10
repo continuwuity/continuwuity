@@ -52,6 +52,17 @@ impl SnakeSyncCache {
 			self.acknowledged_pos = pos;
 		}
 	}
+
+	fn stage_pending(&mut self, pos: u64, known_rooms: BTreeMap<String, BTreeSet<OwnedRoomId>>) {
+		let mut pending_rooms = self.known_rooms.clone();
+		for (list_id, rooms) in known_rooms {
+			let list = pending_rooms.entry(list_id).or_default();
+			for room_id in rooms {
+				list.insert(room_id, pos);
+			}
+		}
+		self.pending.insert(pos, pending_rooms);
+	}
 }
 
 type DbConnections<K, V> = SyncMutex<BTreeMap<K, V>>;
@@ -285,17 +296,7 @@ impl Service {
 		let cached = &mut cached.lock();
 		drop(cache);
 
-		let mut pending_rooms = cached.known_rooms.clone();
-		for (list_id, rooms) in known_rooms {
-			let list = pending_rooms.entry(list_id).or_default();
-			for last_seen in list.values_mut() {
-				*last_seen = 0;
-			}
-			for room_id in rooms {
-				list.insert(room_id, pos);
-			}
-		}
-		cached.pending.insert(pos, pending_rooms);
+		cached.stage_pending(pos, known_rooms);
 	}
 
 	pub fn update_snake_sync_subscriptions(
@@ -430,6 +431,28 @@ mod tests {
 		cache.acknowledge(42);
 		assert_eq!(cache.acknowledged_pos, 42);
 		assert_eq!(cache.known_rooms["list"].len(), 1);
+	}
+
+	#[test]
+	fn rooms_outside_the_served_ranges_keep_their_position() {
+		let windowed = OwnedRoomId::try_from("!windowed:example.com").unwrap();
+		let dropped = OwnedRoomId::try_from("!dropped:example.com").unwrap();
+		let mut cache = SnakeSyncCache::default();
+		let stage = |cache: &mut SnakeSyncCache, pos, rooms: BTreeSet<OwnedRoomId>| {
+			cache.stage_pending(pos, BTreeMap::from([("all_rooms".to_owned(), rooms)]));
+			cache.acknowledge(pos);
+		};
+
+		stage(&mut cache, 100, BTreeSet::from([windowed.clone(), dropped.clone()]));
+		stage(&mut cache, 200, BTreeSet::from([windowed.clone()]));
+
+		assert_eq!(cache.known_rooms["all_rooms"][&windowed], 200);
+		assert_eq!(cache.known_rooms["all_rooms"][&dropped], 100);
+
+		stage(&mut cache, 300, BTreeSet::from([windowed.clone(), dropped.clone()]));
+
+		assert_eq!(cache.known_rooms["all_rooms"][&windowed], 300);
+		assert_eq!(cache.known_rooms["all_rooms"][&dropped], 300);
 	}
 
 	#[test]
