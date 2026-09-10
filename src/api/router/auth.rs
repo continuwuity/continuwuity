@@ -21,6 +21,7 @@ use ruma::{
 };
 use service::{
 	Services,
+	oauth::SessionInfo,
 	server_keys::{PubKeyMap, PubKeys},
 	users::AccessTokenStatus,
 };
@@ -31,6 +32,7 @@ pub(crate) enum ClientIdentity {
 	User {
 		sender_user: OwnedUserId,
 		sender_device: OwnedDeviceId,
+		session_info: Option<Box<SessionInfo>>,
 	},
 	Appservice {
 		sender_user: OwnedUserId,
@@ -74,6 +76,13 @@ impl ClientIdentity {
 		match self {
 			| Self::User { .. } => None,
 			| Self::Appservice { appservice_info, .. } => Some(appservice_info),
+		}
+	}
+
+	pub(crate) fn session_info(&self) -> Option<&SessionInfo> {
+		match self {
+			| Self::User { session_info, .. } => session_info.as_deref(),
+			| Self::Appservice { .. } => None,
 		}
 	}
 
@@ -297,12 +306,14 @@ async fn check_access_token(
 			}
 		}
 
-		// Make sure the user has the right scopes to use the route
-		let user_scopes = if let Some(session_info) = services
+		let session_info = services
 			.oauth
 			.get_session_info_for_device(&sender_user, &sender_device)
 			.await
-		{
+			.map(Box::new);
+
+		// Make sure the user has the right scopes to use the route
+		let user_scopes = if let Some(session_info) = &session_info {
 			session_info.scopes()
 		} else {
 			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
@@ -329,7 +340,7 @@ async fn check_access_token(
 			));
 		}
 
-		Ok(ClientIdentity::User { sender_user, sender_device })
+		Ok(ClientIdentity::User { sender_user, sender_device, session_info })
 	} else if let Ok(appservice_info) = services.appservice.find_from_token(token).await {
 		let Ok(sender_user) = query.user_id.clone().map_or_else(
 			|| {

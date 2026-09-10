@@ -343,7 +343,7 @@ version = "1.1.1"
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
 git = "https://github.com/gingershaped/ruwuma.git"
-rev = "2bbec6d679310062f3f2db098dab3b7e97c1cf8f"
+rev = "058feedb7176ccf657b1a92982cba21202dc7dd6"
 features = [
     "appservice-api-c",
     "client-api",
@@ -381,6 +381,7 @@ features = [
     "unstable-msc4480",
     "unstable-msc4466",
     "unstable-msc4484",
+    "unstable-msc4540",
     "unstable-extensible-events",
 ]
 

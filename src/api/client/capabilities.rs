@@ -1,14 +1,17 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{Result, Server};
 use ruma::{
 	RoomVersionId,
-	api::client::discovery::get_capabilities::{
-		self,
-		v3::{
-			Capabilities, GetLoginTokenCapability, ProfileFieldsCapability, RoomVersionStability,
-			RoomVersionsCapability, ThirdPartyIdChangesCapability,
+	api::{
+		OAuthClientScope,
+		client::discovery::get_capabilities::{
+			self,
+			v3::{
+				AdminCapability, Capabilities, GetLoginTokenCapability, ProfileFieldsCapability,
+				RoomVersionStability, RoomVersionsCapability, ThirdPartyIdChangesCapability,
+			},
 		},
 	},
 	assign,
@@ -49,6 +52,14 @@ pub(crate) async fn get_capabilities_route(
 	{
 		capabilities.account_moderation.lock = true;
 		capabilities.account_moderation.suspend = true;
+
+		capabilities.admin = Some(if body.identity.session_info().is_some() {
+			AdminCapability::new_oauth(BTreeSet::from_iter([
+				OAuthClientScope::ServerAdministration,
+			]))
+		} else {
+			AdminCapability::new_legacy(true)
+		});
 	}
 
 	capabilities.profile_fields = Some(
