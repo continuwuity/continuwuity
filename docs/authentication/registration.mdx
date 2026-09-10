@@ -1,0 +1,37 @@
+# Registration
+
+Registration is disabled by default. To enable it, set `allow_registration = true` in your config file and configure at least one of the registration methods below.
+
+## Registration methods
+
+| Method                                                 | Additional configuration needed                                          |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| Admin-issued tokens (recommended)                      | None. Use the `!admin issue token` command                               |
+| Static registration token                              | `registration_token` or `registration_token_file`                        |
+| reCAPTCHA-only registration                            | `recaptcha_site_key` and `recaptcha_private_site_key`                    |
+| Static token + reCAPTCHA                               | Set both requirements above                                              |
+| Require additional email for token-based registrations | `require_email_for_token_registration = true` in `[global.smtp]` section |
+| Email only                                             | `require_email_for_registration = true` in `[global.smtp]` section       |
+
+Admin-issued tokens is the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
+
+Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
+
+Challengeless registration (i.e. "open registration" where only a username and password is needed) is not supported in standard builds. See [#2071][pr-2071] for more details.
+
+[pr-2071]: https://forgejo.ellis.link/continuwuation/continuwuity/issues/2071
+
+## Email configuration
+
+Continuwuity can be configured to send emails via an SMTP relay of your choice. These are used for verifying user email addresses, and sending password resets links to them.
+
+A user is associated with only **one** email address at a time.
+
+All email options are in the `[global.smtp]` block of the configuration file, and are toggled on when the block is uncommented. For example:
+
+```toml
+[global.smtp]
+# Example URI for the user john@example.com on the `mail.example.net` mail server
+connection_uri = "smtps://john%40example.com:password@mail.example.net:465"
+sender = "John's Continuwuity server <john@example.com>"
+```
