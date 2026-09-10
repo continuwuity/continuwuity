@@ -122,7 +122,6 @@ pub(super) struct DeviceCard {
 	pub display_name: Option<String>,
 	pub avatar: Avatar,
 	pub last_active: String,
-	pub oauth_metadata: Option<ClientMetadata>,
 	pub style: DeviceCardStyle,
 	pub dehydrated: bool,
 }
@@ -192,7 +191,6 @@ impl DeviceCard {
 			display_name,
 			avatar,
 			last_active,
-			oauth_metadata,
 			style,
 			dehydrated,
 		}

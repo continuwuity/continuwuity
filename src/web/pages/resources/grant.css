@@ -9,6 +9,12 @@
         color: var(--secondary);
 	    font-size: x-large;
         user-select: none;
+
+        svg {
+            vertical-align: center;
+            width: 24px;
+            height: 24px;
+        }
     }
 }
 
