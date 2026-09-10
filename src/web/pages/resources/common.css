@@ -4,11 +4,14 @@
 
     --background-color: #fff;
     --text-color: #000;
+    --text-color-dark: #f5ebeb;
     --secondary: #555;
     --bg: oklch(0.76 0.0854 317.27);
     --panel-bg: oklch(0.91 0.042 317.27);
+    --card-bg: oklch(from var(--panel-bg) calc(l - 0.05) c h);
     --c1: oklch(0.44 0.177 353.06);
     --c2: oklch(0.59 0.158 150.88);
+    --danger-color: oklch(87.303% 0.06774 18.457);
     --avatar-color: var(--c2);
 
     --name-lightness: 0.45;
@@ -27,10 +30,11 @@
 
     @media (prefers-color-scheme: dark) {
         color-scheme: dark;
-        --text-color: #f5ebeb;
+        --text-color: var(--text-color-dark);
         --secondary: #999;
         --bg: oklch(0.15 0.042 317.27);
         --panel-bg: oklch(0.24 0.03 317.27);
+        --danger-color: oklch(0.2 0.197 20.272);
 
         --name-lightness: 0.8;
         --background-lightness: 0.2;
@@ -133,7 +137,6 @@ small.error {
     margin-bottom: 0.5rem;
 }
 
-
 img.matrix-icon {
     @media (prefers-color-scheme: dark) {
         filter: invert();
@@ -163,7 +166,8 @@ label {
     margin-bottom: 0.2em;
 }
 
-a, a:visited {
+a,
+a:visited {
     color: oklch(from var(--c1) var(--name-lightness) c h);
 }
 
@@ -172,13 +176,15 @@ code {
 }
 
 pre {
-    background-color: oklch(from var(--panel-bg) calc(l - 0.05) c h);
+    background-color: var(--card-bg);
     border-radius: var(--border-radius-sm);
     padding: 8px;
     overflow-x: scroll;
 }
 
-input, button, a.button {
+input,
+button,
+a.button {
     display: inline-block;
     padding: 0.5em;
 
@@ -208,10 +214,11 @@ input[type="checkbox"] {
     width: auto !important;
 }
 
-button, a.button {
+button,
+a.button {
     color: white;
     background-color: var(--c1);
-    transition: opacity .2s;
+    transition: opacity 0.2s;
     text-align: center;
     margin: 0.5rem 0;
 
@@ -221,7 +228,9 @@ button, a.button {
     }
 
     &:not(:disabled) {
-        transition: linear color, background-color 0.1s;
+        transition:
+            linear color,
+            background-color 0.1s;
 
         &:hover {
             opacity: 0.8;
@@ -255,6 +264,44 @@ ul.bullet-separated {
     }
 }
 
+ul.list-group {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+
+    li {
+        display: block;
+        background-color: var(--card-bg);
+        padding: 10px;
+        margin-bottom: 3px;
+        color: var(--secondary);
+
+        &:first-child {
+            border-top-left-radius: var(--border-radius-lg);
+            border-top-right-radius: var(--border-radius-lg);
+        }
+
+        &:last-child {
+            border-bottom-left-radius: var(--border-radius-lg);
+            border-bottom-right-radius: var(--border-radius-lg);
+            margin-bottom: 0;
+        }
+
+        &.danger {
+            color: var(--text-color);
+            background-color: var(--danger-color);
+        }
+
+        svg {
+            vertical-align: center;
+            margin-inline-end: 0.5rem;
+            width: 20px;
+            height: 20px;
+        }
+    }
+}
+
 .fullwidth {
     width: 100%;
     margin-bottom: 0 !important;
@@ -262,6 +309,10 @@ ul.bullet-separated {
 
 .select-all {
     user-select: all;
+}
+
+.small-text {
+    font-size: small;
 }
 
 .panel {
@@ -287,7 +338,9 @@ ul.bullet-separated {
         --preferred-width: 12rem + 20dvw;
         --maximum-width: 36rem;
 
-        input, button, a.button {
+        input,
+        button,
+        a.button {
             width: 100%;
         }
     }
@@ -330,6 +383,11 @@ ul.bullet-separated {
     }
 }
 
+.bi {
+    display: inline-block;
+    vertical-align: -.125em;
+}
+
 @media (max-width: 425px) {
     main {
         padding-block-start: 2rem;
@@ -352,7 +410,14 @@ ul.bullet-separated {
 }
 
 @media (max-width: 799px) {
-    input, button, a.button {
+    input,
+    button,
+    a.button {
         width: 100%;
     }
+}
+
+@font-face {
+    font-family: "Boots";
+    src: url();
 }

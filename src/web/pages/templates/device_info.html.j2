@@ -9,36 +9,35 @@ Device information
     <h1>About device <a class="back" href="{{ crate::ROUTE_PREFIX }}/account/">Back</a></h1>
     {{ device_card }}
     {% if let Some((client_metadata, _)) = client_metadata %}
-        {% if client_metadata.tos_uri.is_some() || client_metadata.policy_uri.is_some() %}
-            <section>
-                <ul class="bullet-separated">
-                    {% if let Some(tos_uri) = &client_metadata.tos_uri %}
-                        <li><a href="{{ tos_uri }}">Terms of service</a></li>
-                    {% endif %}
-                    {% if let Some(policy_uri) = &client_metadata.policy_uri %}
-                        <li><a href="{{ policy_uri }}">Policies</a></li>
-                    {% endif %}
-                </ul>
-            </section>
-        {% endif %}
+        <section>
+            <ul class="bullet-separated">
+                <li><a href="{{ client_metadata.client_uri }}">Client website</a></li>
+                {% if let Some(tos_uri) = &client_metadata.tos_uri %}
+                    <li><a href="{{ tos_uri }}">Terms of service</a></li>
+                {% endif %}
+                {% if let Some(policy_uri) = &client_metadata.policy_uri %}
+                    <li><a href="{{ policy_uri }}">Policies</a></li>
+                {% endif %}
+            </ul>
+        </section>
     {% endif %}
     <section>
-        <p>
-            {% if let Some((_, session_info)) = client_metadata %}
-                This device has permission to:
-                {{ ClientScopes { scopes: session_info.scopes() } }}
-            {% else if device_card.dehydrated %}
-                This is your dehydrated device. It saves encryption keys for you while you're offline.
-            {% else %}
+        {% if let Some((_, session_info)) = client_metadata %}
+            <p>This device has permission to:</p>
+            {{ ClientScopes { scopes: session_info.scopes() } }}
+        {% else if device_card.dehydrated %}
+            <p>This is your dehydrated device. It saves encryption keys for you while you're offline.</p>
+        {% else %}
+            <p>
                 This device can access and control all features of your Matrix account.
                 <br>
                 <small>❖ This is a legacy device. Legacy devices always have full access to your account.</small>
-            {% endif %}
-        </p>
+            </p>
+        {% endif %}
+        <a class="button" href="remove">Remove this device</a>
     </section>
-    <a class="button" href="remove">Remove this device</a>
     {% if let Some((client_metadata, session_info)) = client_metadata %}
-        <details>
+        <details class="small-text">
             <summary>Client registration</summary>
             <p>
                 OAuth client ID: <code>{{ session_info.client_id }}</code>

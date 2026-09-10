@@ -41,12 +41,14 @@
         .id {
             color: var(--secondary);
             font-weight: normal;
+            font-family: monospace;
         }
     }
 
     &.danger {
         display: block;
-        background-color: oklch(from red 0.2 c h);
+        color: var(--text-color);
+        background-color: var(--danger-color);
         border: 1px dashed red;
     }
 }
