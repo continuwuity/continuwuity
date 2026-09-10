@@ -1,4 +1,5 @@
 {% extends "_layout.html.j2" %}
+{% import "_icons.html.j2" as icons %}
 
 {%- block head -%}
 <link rel="stylesheet" href="{{ crate::ROUTE_PREFIX }}/resources/grant.css">
@@ -17,7 +18,7 @@ Authorize client
             {{ user_avatar }}
         </div>
         <div class="separator" aria-hidden="true">
-            ⇄
+            {{ icons::arrow_left_right() }}
         </div>
         {{ Avatar::for_client(client_metadata) }}
     </div>
