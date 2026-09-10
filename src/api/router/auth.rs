@@ -297,12 +297,14 @@ async fn check_access_token(
 			}
 		}
 
-		// Make sure the user has the right scopes to use the route
-		let user_scopes = if let Some(session_info) = services
+		let session_info = services
 			.oauth
 			.get_session_info_for_device(&sender_user, &sender_device)
 			.await
-		{
+			.map(Box::new);
+
+		// Make sure the user has the right scopes to use the route
+		let user_scopes = if let Some(session_info) = &session_info {
 			session_info.scopes()
 		} else {
 			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
