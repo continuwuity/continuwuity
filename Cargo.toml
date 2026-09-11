@@ -176,7 +176,7 @@ version = "0.4.0"
 
 # Used for password hashing
 [workspace.dependencies.argon2]
-version = "0.5.3"
+version = "0.6.0"
 features = ["alloc", "rand"]
 default-features = false
 
