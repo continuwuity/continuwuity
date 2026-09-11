@@ -1495,10 +1495,9 @@
 #
 # The authenticated equivalent endpoints are always enabled.
 #
-# Defaults to true for now, but this is highly subject to change, likely
-# in the next release.
+# Defaults to false, as unauthenticated media has been sunsetted.
 #
-#allow_legacy_media = true
+#allow_legacy_media = false
 
 # If set to true, prevents fetching new legacy remote media.
 #

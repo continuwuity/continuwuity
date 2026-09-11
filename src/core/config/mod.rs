@@ -1758,11 +1758,10 @@ pub struct Config {
 	///
 	/// The authenticated equivalent endpoints are always enabled.
 	///
-	/// Defaults to true for now, but this is highly subject to change, likely
-	/// in the next release.
+	/// Defaults to false, as unauthenticated media has been sunsetted.
 	///
-	/// default: true
-	#[serde(default = "true_fn")]
+	/// default: false
+	#[serde(default)]
 	pub allow_legacy_media: bool,
 
 	/// If set to true, prevents fetching new legacy remote media.
