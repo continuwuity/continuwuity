@@ -1,6 +1,10 @@
 use std::{collections::BTreeMap, fmt::Debug};
 
-use conduwuit::{Err, Result, debug};
+use conduwuit::{
+	Err, Result, debug,
+	utils::{IterStream, stream::BroadbandExt},
+};
+use futures::TryStreamExt;
 use get_remote_server_keys_batch::v2::Request;
 use ruma::{
 	OwnedServerName, OwnedServerSigningKeyId, ServerName, ServerSigningKeyId,
@@ -40,7 +44,7 @@ impl super::Service {
 			return Ok(vec![]);
 		}
 
-		let mut results = Vec::new();
+		let mut requests = Vec::new();
 		while let Some(batch) = server_keys
 			.keys()
 			.rev()
@@ -58,18 +62,26 @@ impl super::Service {
 				"notary request"
 			);
 
-			let response = self
-				.services
-				.sending
-				.send_unauthenticated_request(notary, request)
-				.await?
-				.server_keys
-				.into_iter()
-				.map(|key| key.deserialize())
-				.filter_map(Result::ok);
-
-			results.extend(response);
+			requests.push(request);
 		}
+
+		let responses: Vec<_> = requests
+			.into_iter()
+			.stream()
+			.broad_then(|request| {
+				self.services
+					.sending
+					.send_unauthenticated_request(notary, request)
+			})
+			.try_collect()
+			.await?;
+
+		let results = responses
+			.into_iter()
+			.flat_map(|response| response.server_keys)
+			.map(|key| key.deserialize())
+			.filter_map(Result::ok)
+			.collect();
 
 		Ok(results)
 	}
