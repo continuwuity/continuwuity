@@ -2,7 +2,7 @@ use std::sync::OnceLock;
 
 use argon2::{
 	Algorithm, Argon2, Params, PasswordHash, PasswordHasher, PasswordVerifier, Version,
-	password_hash, password_hash::SaltString,
+	password_hash,
 };
 
 use crate::{Error, Result, err};
@@ -28,16 +28,15 @@ fn init_argon() -> Argon2<'static> {
 }
 
 pub(super) fn password(password: &str) -> Result<String> {
-	let salt = SaltString::generate(rand_core::OsRng);
 	ARGON
 		.get_or_init(init_argon)
-		.hash_password(password.as_bytes(), &salt)
+		.hash_password(password.as_bytes())
 		.map(|it| it.to_string())
 		.map_err(map_err)
 }
 
 pub(super) fn verify_password(password: &str, password_hash: &str) -> Result<()> {
-	let password_hash = PasswordHash::new(password_hash).map_err(map_err)?;
+	let password_hash = PasswordHash::new(password_hash).map_err(|e| map_err(e.into()))?;
 	ARGON
 		.get_or_init(init_argon)
 		.verify_password(password.as_bytes(), &password_hash)
