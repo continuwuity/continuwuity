@@ -763,8 +763,8 @@ where
 	Ok(match target_membership {
 		| MembershipState::Join => {
 			trace!("starting target_membership=join check");
-			// 1. If the only previous event is an m.room.create and the
-			//    state_key is the creator,
+			// 1. If the only previous event is an m.room.create and the state_key is the
+			//    creator,
 			// allow
 			let mut prev_events = current_event.prev_events();
 
@@ -1052,8 +1052,8 @@ where
 				allow
 			},
 		| MembershipState::Knock if room_version.authorization.knocking => {
-			// 1. If the `join_rule` is anything other than `knock` or
-			//    `knock_restricted`, reject.
+			// 1. If the `join_rule` is anything other than `knock` or `knock_restricted`,
+			//    reject.
 			if !matches!(join_rules, JoinRule::KnockRestricted(_) | JoinRule::Knock) {
 				warn!(
 					"Join rule is not set to knock or knock_restricted, knocking is not allowed"
@@ -1062,8 +1062,8 @@ where
 			} else if matches!(join_rules, JoinRule::KnockRestricted(_))
 				&& !room_version.authorization.knock_restricted_join_rule
 			{
-				// 2. If the `join_rule` is `knock_restricted`, but the room
-				//    does not support `knock_restricted`, reject.
+				// 2. If the `join_rule` is `knock_restricted`, but the room does not support
+				//    `knock_restricted`, reject.
 				warn!(
 					"Join rule is set to knock_restricted but room version does not support \
 					 knock_restricted, knocking is not allowed"
@@ -1081,8 +1081,8 @@ where
 				sender_membership,
 				MembershipState::Ban | MembershipState::Invite | MembershipState::Join
 			) {
-				// 4. If the `sender`'s current membership is not `ban`,
-				//    `invite`, or `join`, allow.
+				// 4. If the `sender`'s current membership is not `ban`, `invite`, or `join`,
+				//    allow.
 				// 5. Otherwise, reject.
 				warn!(
 					?target_user_membership_event_id,
@@ -1175,12 +1175,11 @@ fn check_power_levels(
 	}
 
 	// - If any of the keys users_default, events_default, state_default, ban,
-	//   redact, kick, or invite in content are present and not an integer,
-	//   reject.
-	// - If either of the keys events or notifications in content are present
-	//   and not a dictionary with values that are integers, reject.
-	// - If users key in content is not a dictionary with keys that are valid
-	//   user IDs with values that are integers, reject.
+	//   redact, kick, or invite in content are present and not an integer, reject.
+	// - If either of the keys events or notifications in content are present and
+	//   not a dictionary with values that are integers, reject.
+	// - If users key in content is not a dictionary with keys that are valid user
+	//   IDs with values that are integers, reject.
 	let user_content: RoomPowerLevelsEventContent =
 		deserialize_power_levels(power_event.content().get(), room_version)?;
 
