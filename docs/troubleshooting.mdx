@@ -64,7 +64,7 @@ Matrix federation is extremely heavy and sends wild amounts of DNS requests. Thi
 
 Follow the [**DNS tuning guide**](./guides/dns) for details on setting it up.
 
-### Intermittent federation failures to a specific server
+### Intermittent federation failures to a specific server {#intermittent}
 
 There may be circumstances where servers fail to connect to each other, probably due to a bad DNS cache. In such cases, issuing `!admin debug ping <SERVER_NAME>` would return some errors, and `!admin query resolver cache <SERVER_NAME>` would return a wrong destination endpoint.
 

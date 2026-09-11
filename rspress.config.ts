@@ -65,16 +65,13 @@ export default defineConfig({
     }),
     pluginClientRedirects({
         redirects: [{
-            from: '/configuration/examples',
+            from: '^/config_reference$',
             to: '/reference/config'
         }, {
-            from: '/admin_reference',
+            from: '^/admin_reference$',
             to: '/reference/admin'
         }, {
-            from: '/server_reference',
-            to: '/reference/server'
-        }, {
-            from: '/community$',
+            from: '^/community$',
             to: '/community/guidelines'
         }, {
             from: "^/turn$",
@@ -83,7 +80,7 @@ export default defineConfig({
             from: "^/livekit$",
             to: "/calls/livekit",
         }, {
-            from: "^/dns",
+            from: "^/dns$",
             to: "/guides/dns",
         }, {
             from: "^/source(|_code)$",
