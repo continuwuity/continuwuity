@@ -58,7 +58,7 @@ features = ["parse", "serde"]
 version = "0.6.0"
 
 [workspace.dependencies.base64]
-version = "0.22.1"
+version = "0.23.0"
 default-features = false
 
 # used for TURN server authentication
