@@ -161,8 +161,8 @@ impl super::Service {
 			}
 		}
 
-		// 4. Reject "due to auth events" if the event doesn't pass auth based on the
-		//    claimed auth events
+		// 4. Reject "due to auth events" if the event doesn't pass auth based
+		//    on the claimed auth events
 		debug!("Checking based on auth events");
 		let mut auth_events_by_key: HashMap<_, _> = HashMap::with_capacity(auth_events.len());
 		// Build map of auth events

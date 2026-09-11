@@ -433,8 +433,9 @@ impl Service {
 				},
 			});
 
-			// Only claim the destination if we are actually going to send. A status
-			// inserted here without a transaction being queued is never cleared.
+			// Only claim the destination if we are actually going to send. A
+			// status inserted here without a transaction being queued is
+			// never cleared.
 			if allow {
 				trace!("Inserting running status for {dest:?}");
 				entry.or_insert(TransactionStatus::Running);

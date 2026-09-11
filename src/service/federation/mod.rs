@@ -142,8 +142,8 @@ impl Service {
 
 	/// Returns a rate-limited error if the remote is unhealthy.
 	fn ensure_remote_is_healthy(&self, server_name: &ServerName) -> Result<()> {
-		// Read the backoff window once. The remote can be marked healthy between two
-		// lookups.
+		// Read the backoff window once. The remote can be marked healthy
+		// between two lookups.
 		let Some(retry_after) = self
 			.retry_after(server_name)
 			.filter(|retry_after| !retry_after.is_zero())
