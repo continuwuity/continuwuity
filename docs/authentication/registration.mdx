@@ -4,16 +4,17 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 
 ## Registration methods
 
-| Method                                                 | Additional configuration needed                                          |
-| ------------------------------------------------------ | ------------------------------------------------------------------------ |
-| Admin-issued tokens (recommended)                      | None. Use the `!admin issue token` command                               |
-| Static registration token                              | `registration_token` or `registration_token_file`                        |
-| reCAPTCHA-only registration                            | `recaptcha_site_key` and `recaptcha_private_site_key`                    |
-| Static token + reCAPTCHA                               | Set both requirements above                                              |
-| Require additional email for token-based registrations | `require_email_for_token_registration = true` in `[global.smtp]` section |
-| Email only                                             | `require_email_for_registration = true` in `[global.smtp]` section       |
+| Method | Description                       | Additional configuration needed                                                     |
+| ------ | --------------------------------- | ----------------------------------------------------------------------------------- |
+| 1      | Admin-issued tokens (recommended) | None. Use the `!admin issue token` command                                          |
+| 2      | Static registration token         | `registration_token` or `registration_token_file`                                   |
+| 3      | reCAPTCHA-only registration       | `recaptcha_site_key` and `recaptcha_private_site_key`                               |
+| 4      | Static token + reCAPTCHA          | Methods 2 + 3                                                                       |
+| 5      | Static token + email              | Method 2 + `require_email_for_token_registration = true` in `[global.smtp]` section |
+| 6      | Static token + email + reCAPTCHA  | Methods 3 + 5                                                                       |
+| 7      | Email only                        | `require_email_for_registration = true` in `[global.smtp]` section                  |
 
-Admin-issued tokens is the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
+Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
 
 Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
 
@@ -36,4 +37,6 @@ connection_uri = "smtps://john%40example.com:password@mail.example.net:465"
 sender = "John's Continuwuity server <john@example.com>"
 ```
 
-{/* TODO: Add relevant admin commands for email */}
+A user's email address can also be modified by the `!admin users change-email` command. To view current user-email associations, use the `!admin users get-email` and `!admin users get-user-by-email` command.
+
+Use `!admin debug send-test-email` to test that your email setup is working.
