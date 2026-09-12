@@ -1,0 +1,1 @@
+Removed unused dependencies and added cargo-shear step to CI. Contributed by Lake (@ezera)

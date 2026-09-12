@@ -96,7 +96,6 @@ log.workspace = true
 loole.workspace = true
 lru-cache.workspace = true
 nonzero_ext.workspace = true
-rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
 assign.workspace = true
@@ -122,6 +121,7 @@ lettre.workspace = true
 resolvematrix.workspace = true
 serde_urlencoded.workspace = true
 openidconnect.workspace = true
+rand.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
 sd-notify.workspace = true

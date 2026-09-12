@@ -1,58 +1,69 @@
 [package]
-name = "conduwuit_web"
 description.workspace = true
-edition.workspace = true
-homepage.workspace = true
-license.workspace = true
-readme.workspace = true
-repository.workspace = true
-version.workspace = true
+edition.workspace     = true
+homepage.workspace    = true
+license.workspace     = true
+name                  = "conduwuit_web"
+readme.workspace      = true
+repository.workspace  = true
+version.workspace     = true
 
 [lib]
-path = "mod.rs"
 crate-type = [
-	"rlib",
-#	"dylib",
+    "rlib",
+    #	"dylib",
 ]
+path = "mod.rs"
 
 [features]
 
 
 [dependencies]
+askama.workspace = true
+async-trait.workspace = true
+axum.workspace = true
+base64.workspace = true
+conduwuit-api.workspace = true
 conduwuit-build-metadata.workspace = true
-conduwuit-service.workspace = true
 conduwuit-core.workspace = true
 conduwuit-database.workspace = true
-conduwuit-api.workspace = true
-async-trait.workspace = true
-askama.workspace = true
-axum.workspace = true
-axum-extra.workspace = true
-base64.workspace = true
+conduwuit-service.workspace = true
+form_urlencoded = "1.2.2"
 futures.workspace = true
-tracing.workspace = true
-rand.workspace = true
-assign.workspace = true
-ruma.workspace = true
-thiserror.workspace = true
-tower-http.workspace = true
-serde.workspace = true
-serde_json.workspace = true
 lettre.workspace = true
 memory-serve = "2.1.0"
-validator = { version = "0.21.0", features = ["derive"] }
-tower-sec-fetch = { version = "0.1.2", features = ["tracing"] }
-tower-sessions = { version = "0.15.0", default-features = false, features = ["axum-core"] }
-tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
-serde_urlencoded.workspace = true
-url.workspace = true
-recaptcha-verify = { version = "0.2.0", default-features = false }
-reqwest_recaptcha = { package = "reqwest", version = "0.12.28", default-features = false, features = ["rustls-tls-native-roots-no-provider"]  } # As long as recaptcha-verify's reqwest is outdated
-form_urlencoded = "1.2.2"
 openidconnect.workspace = true
+recaptcha-verify = { default-features = false, version = "0.2.0" }
+reqwest_recaptcha = { default-features = false, features = [
+    "rustls-tls-native-roots-no-provider",
+], package = "reqwest", version = "0.12.28" } # As long as recaptcha-verify's reqwest is outdated
+ruma.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_urlencoded.workspace = true
+thiserror.workspace = true
+tower-http.workspace = true
+tower-sec-fetch = { features = ["tracing"], version = "0.1.2" }
+tower-sessions = { default-features = false, features = [
+    "axum-core",
+], version = "0.15.0" }
+tower-sessions-core = { features = ["deletion-task"], version = "0.15.0" }
+tracing.workspace = true
+url.workspace = true
+validator = { version = "0.21.0", features = ["derive"] }
 
 [build-dependencies]
 memory-serve = "2.1.0"
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-shear]
+ignored = [
+    "conduwuit_build_metadata",
+    "form_urlencoded",
+    "reqwest_recaptcha",
+    "serde_json",
+    "tower-sessions-core",
+    "tracing",
+]
