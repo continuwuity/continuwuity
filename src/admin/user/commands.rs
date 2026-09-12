@@ -206,12 +206,12 @@ impl crate::Context<'_> {
 					);
 				},
 			}
-
-			self.write_str(&format!(
-				"Successfully reset the password for user {user_id}: `{new_password}`"
-			))
-			.await?;
 		}
+
+		self.write_str(&format!(
+			"Successfully reset the password for user {user_id}: `{new_password}`"
+		))
+		.await?;
 
 		if logout {
 			self.services
