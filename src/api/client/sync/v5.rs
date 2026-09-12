@@ -855,15 +855,21 @@ where
 		};
 
 		if body.extensions.account_data.enabled == Some(true) {
-			response.extensions.account_data.rooms.insert(
-				room_id.to_owned(),
-				services
+			let room_account_data: Vec<_> = services
+				.account_data
+				.changes_since(Some(room_id), sender_user, Some(*roomsince), Some(next_batch))
+				.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
+				.collect()
+				.await;
+
+			// An empty entry makes clients treat the room as updated.
+			if !room_account_data.is_empty() {
+				response
+					.extensions
 					.account_data
-					.changes_since(Some(room_id), sender_user, Some(*roomsince), Some(next_batch))
-					.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Room))
-					.collect()
-					.await,
-			);
+					.rooms
+					.insert(room_id.to_owned(), room_account_data);
+			}
 		}
 
 		let last_privateread_update = services
