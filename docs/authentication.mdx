@@ -1,5 +1,30 @@
 # Authentication
 
-{/* TODO: explain internal authn vs delegated authn */}
+This chapter describes various ways to authenticate to Continuwuity.
 
-{/* TODO: consider explaining UIA authz versus OAuth authz here */}
+## Authentication flows
+
+Continuwuity implements the following authentication flows:
+
+- **OAuth login** (also known as **next-gen auth**): clients redirect the user to Continuwuity's login/signup page.
+- **Legacy login** (also known as the **UIAA** framework): clients logs in/signs up directly to the server via its own UI.
+
+Different sets of clients support different flows, but most clients are moving towards next-gen auth. One can set which login mode(s) are allowed via the `compatibility_mode` variable of the `[global.oauth]` config file section.
+
+## Authentication sources
+
+Continuwuity can read user authentication data from the following sources:
+
+- **Internal database** - this is the default setup, which allows for self-service registration and email configuration.
+- **Delegated authentication** - the server connects to an OpenID Connect identity provider for user authentication. This is useful for Single-Sign On against a central identity directory.
+
+:::important Delegated authentication and legacy logins
+When configuring Delegated authentication, **legacy login will be implicitly disabled** and local passwords made redundant.
+:::
+
+## Further reading
+
+See the following pages for further details:
+
+- [**Registration and email configuration**](./authentication/registration)
+- [**Delegated authentication**](./authentication/oidc)
