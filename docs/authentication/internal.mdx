@@ -1,0 +1,49 @@
+# Internal authentication
+
+Continuwuity by default comes with an internal database for user authentication. Using the internal database allows for self-servicing of account registration, linking emails, and password resets.
+
+## Registration
+
+Registration is disabled by default. To enable it, set `allow_registration = true` in your config file and configure at least one of the registration methods below.
+
+| Method | Description                       | Additional configuration needed                                                                                              |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1      | Admin-issued tokens (recommended) | None. Use the `!admin issue token` command                                                                                   |
+| 2      | Static registration token         | `registration_token` or `registration_token_file`                                                                            |
+| 3      | reCAPTCHA-only registration       | `recaptcha_site_key` and `recaptcha_private_site_key`                                                                        |
+| 4      | Static token + reCAPTCHA          | Methods 2 + 3                                                                                                                |
+| 5      | Static token + email              | Method 2 + `require_email_for_token_registration = true` in `[global.smtp]`. See [Email configuration](#email-configuration) |
+| 6      | Static token + email + reCAPTCHA  | Methods 3 + 5                                                                                                                |
+| 7      | Email only                        | `require_email_for_registration = true` in `[global.smtp]` section. See [Email configuration](#email-configuration)          |
+
+Registrations can be made via Continuwuity's account management page, as well as in-band from within a Matrix client (if legacy login is enabled).
+
+Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
+
+Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
+
+## Email configuration
+
+Continuwuity can be configured to send emails via an SMTP relay of your choice. These are used for verifying user email addresses and sending password resets links to them.
+
+A user is associated with only **one** email address at a time.
+
+All email options are in the `[global.smtp]` block of the configuration file, and are toggled on when the block is uncommented. For example:
+
+```toml
+[global.smtp]
+# Example URI for the user john@example.com on the `mail.example.net` mail server
+connection_uri = "smtps://john%40example.com:password@mail.example.net:465"
+sender = "John's Continuwuity server <john@example.com>"
+```
+
+A user's email address can also be modified by the `!admin users change-email` command. To view current user-email associations, use the `!admin users get-email` and `!admin users get-user-by-email` command.
+
+Use `!admin debug send-test-email` to test that your email setup is working.
+
+## Password resets
+
+Password resets in Continuwuity can be made via:
+
+- Self-service password resets. This requires a user's email to be set up and verified.
+- Using the `!admin users reset-password` command.

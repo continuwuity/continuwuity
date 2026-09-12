@@ -1,8 +1,8 @@
 [
     {
         "type": "file",
-        "name": "registration",
-        "label": "Registration"
+        "name": "internal",
+        "label": "Internal authentication"
     },
     {
         "type": "file",
