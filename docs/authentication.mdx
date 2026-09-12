@@ -6,14 +6,14 @@ This chapter describes various ways to authenticate to Continuwuity.
 
 Continuwuity implements the following authentication flows:
 
-- **OAuth login** (also known as **next-gen auth**): clients redirect the user to Continuwuity's login/signup page.
-- **Legacy login** (also known as the **UIAA** framework): clients logs in/signs up directly to the server via its own UI.
+- **OAuth login** (also known as **next-gen auth**): clients redirect the user to Continuwuity's own login and registration page to complete the authentication process.
+- **Legacy login** (also known as the **UIAA** framework): clients provide their own UI to log in to or register with the server directly.
 
 Different sets of clients support different flows, but most clients are moving towards next-gen auth. One can set which login mode(s) are allowed via the `compatibility_mode` variable of the `[global.oauth]` config file section.
 
 :::important Configure your client well-known for OAuth logins
 
-To ensure OAuth logins work, Continuwuity must know the path from which its Client-Server API is being served from:
+To ensure OAuth logins work, Continuwuity must know the base URL its Client-Server API is being served on:
 
 ```toml
 [global.well_known]

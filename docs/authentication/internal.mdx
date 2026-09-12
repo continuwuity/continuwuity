@@ -1,6 +1,6 @@
 # Internal authentication
 
-Continuwuity by default comes with an internal database for user authentication. Using the internal database allows for self-servicing of account registration, linking emails, and password resets.
+Continuwuity comes with an internal database for user authentication, which it uses by default. This allows for self-servicing of account registration, linking emails, and password resets.
 
 ## Registration
 
@@ -16,7 +16,7 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 | 6      | Static token + email + reCAPTCHA  | Methods 3 + 5                                                                                                                |
 | 7      | Email only                        | `require_email_for_registration = true` in `[global.smtp]` section. See [Email configuration](#email-configuration)          |
 
-Registrations can be made via Continuwuity's account management page, as well as in-band from within a Matrix client (if legacy login is enabled).
+Users can register on Continuwiity's account management page, or directly within a Matrix client if legacy login is enabled.
 
 Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
 
