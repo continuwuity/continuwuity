@@ -893,9 +893,7 @@ dependencies = [
 name = "conduwuit_api"
 version = "26.8.1"
 dependencies = [
- "async-trait",
  "axum",
- "axum-extra",
  "base64 0.23.1",
  "bytes",
  "client-ip",
@@ -910,7 +908,6 @@ dependencies = [
  "http",
  "http-body-util",
  "hyper",
- "ipaddress",
  "itertools 0.15.0",
  "lettre",
  "log",
@@ -1094,6 +1091,7 @@ dependencies = [
  "lru-cache",
  "nonzero_ext",
  "openidconnect",
+ "rand 0.10.2",
  "recaptcha-verify",
  "regex",
  "reqwest 0.12.28",
@@ -1123,7 +1121,6 @@ dependencies = [
  "askama",
  "async-trait",
  "axum",
- "base64 0.23.1",
  "conduwuit_api",
  "conduwuit_build_metadata",
  "conduwuit_core",

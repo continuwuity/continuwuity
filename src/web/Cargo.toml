@@ -22,7 +22,6 @@ path = "mod.rs"
 askama.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-base64.workspace = true
 conduwuit-api.workspace = true
 conduwuit-build-metadata.workspace = true
 conduwuit-core.workspace = true
