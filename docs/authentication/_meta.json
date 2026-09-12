@@ -7,6 +7,6 @@
     {
         "type": "file",
         "name": "oidc",
-        "label": "OIDC Delegated authentication"
+        "label": "Delegated authentication (OIDC)"
     }
 ]
