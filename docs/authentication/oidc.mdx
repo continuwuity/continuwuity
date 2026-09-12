@@ -2,6 +2,10 @@
 
 Continuwuity supports delegating user authentication to an external identity provider that implements the OpenID Connect specification, such as Authentik, kanidm, or Keycloak.
 
+:::important Delegated authentication and legacy logins
+When delegated authentication is configured, Continuwuity will disable its support for legacy logins. **Only clients that support OAuth** will be able to login.
+:::
+
 ## Instructions
 
 A simple OIDC configuration is as easy as creating a new OIDC application in your identity provider's settings and supplying Continuwuity with the client ID and client secret.
@@ -58,7 +62,9 @@ client_id = "c10y"
 client_secret = "d1qgx352kkuvs1j70b6w293d65x68jve1f7b27fyk90gjhpr"
 ```
 
-Finally, restart Continuwuity, and log out and back in again. Your client should prompt you to continue in your web browser and open a webpage with the Continuwuity logo that allows you to continue in your identity provider. Once you log in successfully, you will be prompted to choose a user ID -- to link your existing account, enter its user ID, and then your old password when prompted.
+### Testing that it works
+
+Finally, restart Continuwuity, and log out and back in again. Your client should prompt you to continue in your web browser and open a webpage with the Continuwuity logo that allows you to continue in your identity provider. Once you log in successfully there, you will be prompted to choose a user ID -- to link your existing account, enter its user ID, and then your old password.
 
 Continuwuity offers several additional configuration options to tweak its integration with your identity provider. Review the `[global.oauth.oidc]` section towards the bottom of the [reference configuration](../reference/config) for a complete list of options and documentation.
 
