@@ -4,6 +4,8 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 
 ## Registration methods
 
+The registration methods below can be completed via Continuwuity's account management page. If legacy login is allowed, it can also be completed in-band with a supporting Matrix client.
+
 | Method | Description                       | Additional configuration needed                                                     |
 | ------ | --------------------------------- | ----------------------------------------------------------------------------------- |
 | 1      | Admin-issued tokens (recommended) | None. Use the `!admin issue token` command                                          |
@@ -17,10 +19,6 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the `!admin token` commands for more details.
 
 Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
-
-Challengeless registration (i.e. "open registration" where only a username and password is needed) is not supported in standard builds. See [#2071][pr-2071] for more details.
-
-[pr-2071]: https://forgejo.ellis.link/continuwuation/continuwuity/issues/2071
 
 ## Email configuration
 
