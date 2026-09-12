@@ -11,22 +11,23 @@ Continuwuity implements the following authentication flows:
 
 Different sets of clients support different flows, but most clients are moving towards next-gen auth. One can set which login mode(s) are allowed via the `compatibility_mode` variable of the `[global.oauth]` config file section.
 
-{/* TODO: !important Annontation block for .well-known/matrix/client requirement */}
+:::important Configure your client well-known for OAuth logins
+
+To ensure OAuth logins work, Continuwuity must know the path from which its Client-Server API is being served from:
+
+```toml
+[global.well_known]
+client = "https://matrix.example.com"
+```
+
+Refer to the [delegation](./guides/delegation) documentation for more details.
+
+:::
+{/* TODO: !important Annotation block for .well-known/matrix/client requirement */}
 
 ## Authentication sources
 
 Continuwuity can read user authentication data from the following sources:
 
-- **Internal database** - this is the default setup, which allows for self-service registration and email configuration.
-- **Delegated authentication** - the server connects to an OpenID Connect identity provider for user authentication. This is useful for Single-Sign On against a central identity directory.
-
-:::important Delegated authentication and legacy logins
-When configuring Delegated authentication, **legacy login will be implicitly disabled** and local passwords made redundant.
-:::
-
-## Further reading
-
-See the following pages for further details:
-
-- [**Registration and email configuration**](./authentication/registration)
-- [**Delegated authentication**](./authentication/oidc)
+- **Internal database** - this is the default setup for Continuwuity. It allows for registration, email, and password reset self-service. See the [**internal authentication documentation**](./authentication/internal).
+- **Delegated authentication** - in this mode, the server connects to an OpenID Connect identity provider for user authentication. See the [**delegated authentication documentation**](./authentication/oidc).
