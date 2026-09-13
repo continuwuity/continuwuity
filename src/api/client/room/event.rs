@@ -1,14 +1,28 @@
-use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug_warn, err};
-use ruma::api::client::room::get_room_event;
+use axum::extract::{Query, State};
+use conduwuit::{Err, Error, Event, PduEvent, Result, debug_warn, err};
+use futures::{FutureExt, TryFutureExt, future::try_join};
+use http::StatusCode;
+use ruma::{
+	UserId,
+	api::{client::room::get_room_event, error::ErrorKind},
+};
+use serde::Deserialize;
+use serde_json::json;
 
 use crate::{Ruma, client::is_ignored_pdu};
+
+#[derive(Deserialize)]
+pub(crate) struct Msc2815Params {
+	#[serde(rename = "fi.mau.msc2815.include_unredacted_content", default)]
+	include_unredacted_content: Option<String>,
+}
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/event/{eventId}`
 ///
 /// Gets a single event.
 pub(crate) async fn get_room_event_route(
 	State(ref services): State<crate::State>,
+	Query(params): Query<Msc2815Params>,
 	ref body: Ruma<get_room_event::v3::Request>,
 ) -> Result<get_room_event::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
@@ -54,6 +68,13 @@ pub(crate) async fn get_room_event_route(
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));
 	}
 
+	if services.config.allow_moderators_to_view_redacted_content
+		&& params.include_unredacted_content.as_deref() == Some("true")
+		&& event.is_redacted()
+	{
+		unredact(services, sender_user, &mut event).await?;
+	}
+
 	if let Err(e) = services
 		.rooms
 		.pdu_metadata
@@ -71,4 +92,50 @@ pub(crate) async fn get_room_event_route(
 	event.set_unsigned(Some(ctx))?;
 
 	Ok(get_room_event::v3::Response::new(event.into_format()))
+}
+
+async fn unredact(services: &crate::State, sender_user: &UserId, event: &mut PduEvent) -> Result {
+	let power_levels = services
+		.rooms
+		.state_accessor
+		.get_room_power_levels(&event.room_id_or_hash())
+		.await;
+
+	if power_levels.for_user(sender_user) < power_levels.redact
+		&& !services.users.is_admin(sender_user).await
+	{
+		return Err!(Request(Forbidden(
+			"You don't have permission to view redacted content in this room."
+		)));
+	}
+
+	let Ok(pdu_id) = services.rooms.timeline.get_pdu_id(event.event_id()).await else {
+		return Err(content_unavailable());
+	};
+
+	let Ok(content) = services
+		.rooms
+		.timeline
+		.get_unredacted_content(&pdu_id)
+		.await
+	else {
+		return Err(content_unavailable());
+	};
+
+	event.content = content;
+
+	Ok(())
+}
+
+fn content_unavailable() -> Error {
+	let kind = serde_json::from_value::<ErrorKind>(
+		json!({ "errcode": "FI.MAU.MSC2815_UNREDACTED_CONTENT_DELETED" }),
+	)
+	.expect("errcode is a valid custom error kind");
+
+	Error::Request(
+		kind,
+		"The unredacted content of this event is not available.".into(),
+		StatusCode::NOT_FOUND,
+	)
 }

@@ -25,6 +25,7 @@ use ruma::{
 	events::room::encrypted::Relation,
 };
 use serde::Deserialize;
+use serde_json::value::RawValue as RawJsonValue;
 
 use self::data::Data;
 pub use self::{create::pdu_fits, data::PdusIterItem};
@@ -240,6 +241,11 @@ impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub async fn replace_pdu(&self, pdu_id: &RawPduId, pdu_json: &CanonicalJsonObject) -> Result {
 		self.db.replace_pdu(pdu_id, pdu_json).await
+	}
+
+	#[inline]
+	pub async fn get_unredacted_content(&self, pdu_id: &RawPduId) -> Result<Box<RawJsonValue>> {
+		self.db.get_unredacted_content(pdu_id).await
 	}
 
 	/// Returns an iterator over all PDUs in a room. Unknown rooms produce no

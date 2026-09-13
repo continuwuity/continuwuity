@@ -8,6 +8,7 @@ use conduwuit::{
 use database::{Database, Deserialized, Json, KeyVal, Map};
 use futures::{FutureExt, Stream, TryFutureExt, TryStreamExt, future::select_ok, pin_mut};
 use ruma::{CanonicalJsonObject, EventId, OwnedUserId, RoomId, api::Direction};
+use serde_json::value::RawValue as RawJsonValue;
 
 use super::{PduId, RawPduId};
 use crate::{Dep, rooms, rooms::short::ShortRoomId};
@@ -16,6 +17,7 @@ pub(super) struct Data {
 	eventid_outlierpdu: Arc<Map>,
 	eventid_pduid: Arc<Map>,
 	pduid_pdu: Arc<Map>,
+	pduid_unredactedcontent: Arc<Map>,
 	roomid_lasttimelinecount: Arc<Map>,
 	userroomid_highlightcount: Arc<Map>,
 	userroomid_notificationcount: Arc<Map>,
@@ -36,6 +38,7 @@ impl Data {
 			eventid_outlierpdu: db["eventid_outlierpdu"].clone(),
 			eventid_pduid: db["eventid_pduid"].clone(),
 			pduid_pdu: db["pduid_pdu"].clone(),
+			pduid_unredactedcontent: db["pduid_unredactedcontent"].clone(),
 			roomid_lasttimelinecount: db["roomid_lasttimelinecount"].clone(),
 			userroomid_highlightcount: db["userroomid_highlightcount"].clone(),
 			userroomid_notificationcount: db["userroomid_notificationcount"].clone(),
@@ -232,6 +235,20 @@ impl Data {
 		self.pduid_pdu.raw_put(pdu_id, Json(pdu_json));
 
 		Ok(())
+	}
+
+	pub(super) fn save_unredacted_content(&self, pdu_id: &RawPduId, content: &RawJsonValue) {
+		self.pduid_unredactedcontent.raw_put(pdu_id, Json(content));
+	}
+
+	pub(super) async fn get_unredacted_content(
+		&self,
+		pdu_id: &RawPduId,
+	) -> Result<Box<RawJsonValue>> {
+		self.pduid_unredactedcontent
+			.get(pdu_id)
+			.await
+			.deserialized()
 	}
 
 	/// Returns an iterator over all events and their tokens in a room that

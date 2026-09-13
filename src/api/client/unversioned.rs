@@ -34,6 +34,11 @@ pub(crate) async fn get_supported_versions_route(
 		unstable_features.insert("org.matrix.msc4354".to_owned(), true);
 	}
 
+	if services.config.allow_moderators_to_view_redacted_content {
+		// moderators can view redacted content (https://github.com/matrix-org/matrix-spec-proposals/pull/2815)
+		unstable_features.insert("fi.mau.msc2815".to_owned(), true);
+	}
+
 	Ok(assign!(get_supported_versions::Response::new(versions()), {
 		unstable_features
 	}))

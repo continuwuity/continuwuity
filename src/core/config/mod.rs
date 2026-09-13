@@ -1776,6 +1776,17 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_sticky_events: bool,
 
+	/// Allow room moderators to view redacted event content ([MSC2815]).
+	///
+	/// Redacted content is kept in the database indefinitely, and readable by
+	/// users at or above the room's `redact` power level, and server admins.
+	///
+	/// MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
+	///
+	/// default: false
+	#[serde(default)]
+	pub allow_moderators_to_view_redacted_content: bool,
+
 	/// Maximum time federation user can indicate typing.
 	///
 	/// default: 30

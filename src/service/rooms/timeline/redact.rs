@@ -52,6 +52,15 @@ impl super::Service {
 			.get_room_version(&pdu.room_id_or_hash())
 			.await?;
 
+		if !pdu.is_redacted()
+			&& self
+				.services
+				.config
+				.allow_moderators_to_view_redacted_content
+		{
+			self.db.save_unredacted_content(&pdu_id, &pdu.content);
+		}
+
 		pdu.redact(&room_version_id, Some(reason.event_id()))?;
 
 		let obj = utils::to_canonical_object(&pdu).map_err(|e| {
