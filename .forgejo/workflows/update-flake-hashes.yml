@@ -1,7 +1,6 @@
 name: Update flake hashes
 
 on:
-  workflow_dispatch:
   pull_request:
     paths:
       - "Cargo.lock"
