@@ -1778,14 +1778,24 @@ pub struct Config {
 
 	/// Allow room moderators to view redacted event content ([MSC2815]).
 	///
-	/// Redacted content is kept in the database indefinitely, and readable by
-	/// users at or above the room's `redact` power level, and server admins.
+	/// Redacted content is readable by users at or above the room's `redact`
+	/// power level, and by server admins, until it expires.
 	///
 	/// MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
 	///
 	/// default: false
 	#[serde(default)]
 	pub allow_moderators_to_view_redacted_content: bool,
+
+	/// How long to retain the content of redacted events, in seconds. Expired
+	/// content is deleted by a periodic purge and is no longer served.
+	///
+	/// Only has an effect when allow_moderators_to_view_redacted_content is
+	/// enabled.
+	///
+	/// default: 7776000 (90 days)
+	#[serde(default = "default_unredacted_content_max_age_secs")]
+	pub unredacted_content_max_age_secs: u64,
 
 	/// Maximum time federation user can indicate typing.
 	///
@@ -3253,6 +3263,8 @@ fn default_max_concurrent_inbound_transactions() -> usize { 150 }
 fn default_remote_join_pdu_queue_capacity() -> usize { 50 }
 
 fn default_transaction_id_cache_max_age_secs() -> u64 { 60 * 60 * 2 }
+
+fn default_unredacted_content_max_age_secs() -> u64 { 60 * 60 * 24 * 90 }
 
 fn default_transaction_id_cache_max_entries() -> usize { 8192 }
 

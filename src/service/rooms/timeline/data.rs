@@ -3,11 +3,17 @@ use std::sync::Arc;
 use conduwuit::{
 	Err, PduCount, PduEvent, Result, at, err,
 	result::NotFound,
-	utils::{self, stream::TryReadyExt},
+	utils::{
+		self,
+		stream::{ReadyExt, TryReadyExt},
+	},
 };
 use database::{Database, Deserialized, Json, KeyVal, Map};
-use futures::{FutureExt, Stream, TryFutureExt, TryStreamExt, future::select_ok, pin_mut};
+use futures::{
+	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::select_ok, pin_mut,
+};
 use ruma::{CanonicalJsonObject, EventId, OwnedUserId, RoomId, api::Direction};
+use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue as RawJsonValue;
 
 use super::{PduId, RawPduId};
@@ -30,6 +36,12 @@ struct Services {
 }
 
 pub type PdusIterItem = (PduCount, PduEvent);
+
+#[derive(Deserialize, Serialize)]
+pub(super) struct UnredactedContent {
+	pub(super) created: u64,
+	pub(super) content: Box<RawJsonValue>,
+}
 
 impl Data {
 	pub(super) fn new(args: &crate::Args<'_>) -> Self {
@@ -238,17 +250,41 @@ impl Data {
 	}
 
 	pub(super) fn save_unredacted_content(&self, pdu_id: &RawPduId, content: &RawJsonValue) {
-		self.pduid_unredactedcontent.raw_put(pdu_id, Json(content));
+		let entry = UnredactedContent {
+			created: utils::millis_since_unix_epoch(),
+			content: content.to_owned(),
+		};
+
+		self.pduid_unredactedcontent.raw_put(pdu_id, Json(&entry));
 	}
 
 	pub(super) async fn get_unredacted_content(
 		&self,
 		pdu_id: &RawPduId,
-	) -> Result<Box<RawJsonValue>> {
+	) -> Result<UnredactedContent> {
 		self.pduid_unredactedcontent
 			.get(pdu_id)
 			.await
 			.deserialized()
+	}
+
+	pub(super) async fn purge_unredacted_content(&self, cutoff: u64) -> usize {
+		let expired: Vec<_> = self
+			.pduid_unredactedcontent
+			.raw_stream()
+			.ready_filter_map(Result::ok)
+			.ready_filter_map(|(key, val)| {
+				let entry: UnredactedContent = serde_json::from_slice(val).ok()?;
+				(entry.created < cutoff).then(|| key.to_vec())
+			})
+			.collect()
+			.await;
+
+		for key in &expired {
+			self.pduid_unredactedcontent.remove(key);
+		}
+
+		expired.len()
 	}
 
 	/// Returns an iterator over all events and their tokens in a room that

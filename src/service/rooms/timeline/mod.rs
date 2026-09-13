@@ -6,17 +6,17 @@ mod data;
 mod helpers;
 mod redact;
 
-use std::{fmt::Write, sync::Arc};
+use std::{fmt::Write, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 pub use conduwuit_core::matrix::pdu::{PduId, RawPduId};
 use conduwuit_core::{
-	Result, Server, at, err,
+	Err, Result, Server, at, debug, err,
 	matrix::{
 		event::Event,
 		pdu::{PduCount, PduEvent},
 	},
-	utils::{MutexMap, MutexMapGuard, future::TryExtExt, stream::TryIgnore},
+	utils::{self, MutexMap, MutexMapGuard, future::TryExtExt, stream::TryIgnore},
 	warn,
 };
 use futures::{Future, Stream, TryStreamExt, pin_mut};
@@ -26,6 +26,10 @@ use ruma::{
 };
 use serde::Deserialize;
 use serde_json::value::RawValue as RawJsonValue;
+use tokio::{
+	sync::Notify,
+	time::{MissedTickBehavior, interval},
+};
 
 use self::data::Data;
 pub use self::{create::pdu_fits, data::PdusIterItem};
@@ -57,6 +61,7 @@ struct ExtractBody {
 }
 
 pub struct Service {
+	interrupt: Notify,
 	services: Services,
 	db: Data,
 	pub mutex_insert: RoomMutexMap,
@@ -87,6 +92,8 @@ struct Services {
 	user: Dep<rooms::user::Service>,
 	users: Dep<users::Service>,
 }
+
+const PURGE_INTERVAL_SECS: u64 = 60 * 60;
 
 type RoomMutexMap = MutexMap<OwnedRoomId, ()>;
 pub type RoomMutexGuard = MutexMapGuard<OwnedRoomId, ()>;
@@ -125,8 +132,34 @@ impl crate::Service for Service {
 			},
 			db: Data::new(&args),
 			mutex_insert: RoomMutexMap::new(),
+			interrupt: Notify::new(),
 		}))
 	}
+
+	#[tracing::instrument(skip_all, name = "unredacted_content_purge", level = "debug")]
+	async fn worker(self: Arc<Self>) -> Result<()> {
+		// Runs while disabled too, so old retained content still ages out.
+		let mut i = interval(Duration::from_secs(PURGE_INTERVAL_SECS));
+		i.set_missed_tick_behavior(MissedTickBehavior::Delay);
+		loop {
+			tokio::select! {
+				() = self.interrupt.notified() => break,
+				_ = i.tick() => (),
+			}
+
+			let purged = self
+				.db
+				.purge_unredacted_content(self.unredacted_content_cutoff())
+				.await;
+			if purged > 0 {
+				debug!("Purged {purged} expired unredacted event contents");
+			}
+		}
+
+		Ok(())
+	}
+
+	fn interrupt(&self) { self.interrupt.notify_waiters(); }
 
 	async fn memory_usage(&self, out: &mut (dyn Write + Send)) -> Result {
 		let mutex_insert = self.mutex_insert.len();
@@ -243,9 +276,20 @@ impl Service {
 		self.db.replace_pdu(pdu_id, pdu_json).await
 	}
 
-	#[inline]
 	pub async fn get_unredacted_content(&self, pdu_id: &RawPduId) -> Result<Box<RawJsonValue>> {
-		self.db.get_unredacted_content(pdu_id).await
+		let entry = self.db.get_unredacted_content(pdu_id).await?;
+
+		if entry.created < self.unredacted_content_cutoff() {
+			return Err!(Request(NotFound("Unredacted content has expired.")));
+		}
+
+		Ok(entry.content)
+	}
+
+	fn unredacted_content_cutoff(&self) -> u64 {
+		let max_age = self.services.config.unredacted_content_max_age_secs;
+
+		utils::millis_since_unix_epoch().saturating_sub(max_age.saturating_mul(1000))
 	}
 
 	/// Returns an iterator over all PDUs in a room. Unknown rooms produce no

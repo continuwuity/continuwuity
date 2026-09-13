@@ -1,1 +1,1 @@
-Added [MSC2815](https://github.com/matrix-org/matrix-spec-proposals/pull/2815), letting room moderators fetch the content of redacted events, behind the `allow_moderators_to_view_redacted_content` config option. Contributed by @eleboucher.
+Added support for [MSC2815](https://github.com/matrix-org/matrix-spec-proposals/pull/2815), allowing room moderators to fetch the original content of redacted events, behind the `allow_moderators_to_view_redacted_content` config option. Contributed by @eleboucher.

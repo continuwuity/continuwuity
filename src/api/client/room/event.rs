@@ -1,6 +1,6 @@
 use axum::extract::{Query, State};
 use conduwuit::{Err, Error, Event, PduEvent, Result, debug_warn, err};
-use futures::{FutureExt, TryFutureExt, future::try_join};
+use futures::TryFutureExt;
 use http::StatusCode;
 use ruma::{
 	UserId,
@@ -14,7 +14,7 @@ use crate::{Ruma, client::is_ignored_pdu};
 #[derive(Deserialize)]
 pub(crate) struct Msc2815Params {
 	#[serde(rename = "fi.mau.msc2815.include_unredacted_content", default)]
-	include_unredacted_content: Option<String>,
+	include_unredacted_content: Option<bool>,
 }
 
 /// # `GET /_matrix/client/r0/rooms/{roomId}/event/{eventId}`
@@ -69,7 +69,7 @@ pub(crate) async fn get_room_event_route(
 	}
 
 	if services.config.allow_moderators_to_view_redacted_content
-		&& params.include_unredacted_content.as_deref() == Some("true")
+		&& params.include_unredacted_content.unwrap_or(false)
 		&& event.is_redacted()
 	{
 		unredact(services, sender_user, &mut event).await?;
@@ -109,33 +109,40 @@ async fn unredact(services: &crate::State, sender_user: &UserId, event: &mut Pdu
 		)));
 	}
 
-	let Ok(pdu_id) = services.rooms.timeline.get_pdu_id(event.event_id()).await else {
-		return Err(content_unavailable());
-	};
-
-	let Ok(content) = services
+	let content = services
 		.rooms
 		.timeline
-		.get_unredacted_content(&pdu_id)
-		.await
-	else {
-		return Err(content_unavailable());
+		.get_pdu_id(event.event_id())
+		.and_then(async |pdu_id| {
+			services
+				.rooms
+				.timeline
+				.get_unredacted_content(&pdu_id)
+				.await
+		})
+		.await;
+
+	let Ok(content) = content else {
+		// CustomErrorKind has private fields; only serde can build one.
+		let keep_ms = services
+			.config
+			.unredacted_content_max_age_secs
+			.saturating_mul(1000);
+
+		let kind = serde_json::from_value::<ErrorKind>(json!({
+			"errcode": "FI.MAU.MSC2815_UNREDACTED_CONTENT_DELETED",
+			"fi.mau.msc2815.content_keep_ms": keep_ms,
+		}))
+		.expect("errcode is a valid custom error kind");
+
+		return Err(Error::Request(
+			kind,
+			"The unredacted content of this event is not available.".into(),
+			StatusCode::NOT_FOUND,
+		));
 	};
 
 	event.content = content;
 
 	Ok(())
-}
-
-fn content_unavailable() -> Error {
-	let kind = serde_json::from_value::<ErrorKind>(
-		json!({ "errcode": "FI.MAU.MSC2815_UNREDACTED_CONTENT_DELETED" }),
-	)
-	.expect("errcode is a valid custom error kind");
-
-	Error::Request(
-		kind,
-		"The unredacted content of this event is not available.".into(),
-		StatusCode::NOT_FOUND,
-	)
 }
