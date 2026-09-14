@@ -86,17 +86,6 @@ If you want to try it out as a user, we have some partnered homeservers you can 
 
 * There's also [https://continuwuity.rocks/](https://continuwuity.rocks/). You can register a new account using Cinny via [this convenient link](https://app.cinny.in/register/continuwuity.rocks), or you can use Element or another matrix client *that supports registration*.
 
-## What are we working on?
-
-We're working our way through all of the issues in the [Forgejo project](https://forgejo.ellis.link/continuwuation/continuwuity/issues).
-
-- [Packaging & availability in more places](https://forgejo.ellis.link/continuwuation/continuwuity/issues/747)
-- [Appservices bugs & features](https://forgejo.ellis.link/continuwuation/continuwuity/issues?q=&type=all&state=open&labels=178&milestone=0&assignee=0&poster=0)
-- [Improving compatibility and spec compliance](https://forgejo.ellis.link/continuwuation/continuwuity/issues?labels=119)
-- Automated testing
-- [Admin API](https://forgejo.ellis.link/continuwuation/continuwuity/issues/748)
-- [Policy-list controlled moderation](https://forgejo.ellis.link/continuwuation/continuwuity/issues/750)
-
 ## Can I migrate my data from x?
 
 - **Conduwuit**: Yes
