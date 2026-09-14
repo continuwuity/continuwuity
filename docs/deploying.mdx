@@ -1,3 +1,50 @@
 # Deploying
 
-This chapter describes various ways to deploy Continuwuity.
+This chapter describes various ways to deploy Continuwuity. Read more on this page for useful general information.
+
+:::tip Getting help
+If you run into any problems while setting up Continuwuity, ask us in `#continuwuity:continuwuity.org` or [open an issue on Forgejo][forgejo-new-issue].
+:::
+
+[forgejo-new-issue]: https://forgejo.ellis.link/continuwuation/continuwuity/issues/new
+
+## Release tracks
+
+Continuwuity offers two release tracks to accommodate different needs:
+
+- Tracking the **main branch**. See the [repository] for more details.
+- Following the **regular release** schedule, which are published periodically. See the [Releases] page for more details.
+
+[repository]: https://forgejo.ellis.link/continuwuation/continuwuity
+[Releases]: https://forgejo.ellis.link/continuwuation/continuwuity/releases
+
+### Main branch
+
+As Continuwuity is a rapidly evolving software in a fast-paced ecosystem, we encourage deployments to follow the main branch where possible, as it contains the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
+
+### Regular releases
+
+Regular releases are simply cutoffs from the main branch from time to time, and are tagged with a version number. They are suitable for cases where updating regularly are not possible (such as when tracking with third-party packaging), and receive prominent announcements in our channels.
+
+## Updating
+
+For regular releases, **read the release notes before upgrading to a new version**, as it may contain breaking changes that impact your deployment. Then, proceed to update Continuwuity according to your deployment method.
+
+For main branch followers, the best way to be notified of new changes is to track [`/changelog.d`][changelog-d] in the repository. The directory contains changelog snippets from pull requests that will eventually feature in regular release notes.
+
+[changelog-d]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/changelog.d
+
+## Installation
+
+Navigate to the pages in this section that corresponds to your desired method of deploying Continuwuity, and follow the instructions there.
+
+## Post-installation
+
+After successfully deploying Continuwuity, these next steps can be done:
+
+- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](./guides/dns.mdx) (strongly recommended)
+- To set up Audio/Video communication, see the [**Calls**](./calls.mdx) page.
+- See the [Authentication chapter] for various ways to configure access to your homeserver, such as logging in with an external OIDC provider.
+- Consult the [Maintenance](./maintenance.mdx) page for guidance on maintaining your homeserver.
+- If you want to set up an appservice, take a look at the [**Appservice Guide**](./appservices.mdx).
+- See the [Troubleshooting](./troubleshooting.mdx) page for commonly diagnosed issues.
