@@ -23,11 +23,13 @@ client = "https://matrix.example.com"
 Refer to the [delegation](./guides/delegation) documentation for more details.
 
 :::
-{/* TODO: !important Annotation block for .well-known/matrix/client requirement */}
 
 ## Authentication sources
 
 Continuwuity can read user authentication data from the following sources:
 
 - **Internal database** - this is the default setup for Continuwuity. It allows for registration, email, and password reset self-service. See the [**internal authentication documentation**](./authentication/internal).
-- **Delegated authentication** - in this mode, the server connects to an OpenID Connect identity provider for user authentication. See the [**delegated authentication documentation**](./authentication/oidc).
+
+- **Delegated authentication** - in this mode, the server connects to an OpenID Connect identity provider for user authentication. This method allows for integrating with single sign-on services, but enabling it will disable legacy logins. See the [**delegated authentication documentation**](./authentication/oidc).
+
+Only one authentication source can be used at a time.
