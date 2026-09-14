@@ -13,10 +13,5 @@
         "type": "file",
         "name": "performance",
         "label": "Performance tuning"
-    },
-    {
-        "type": "file",
-        "name": "oidc",
-        "label": "Delegated authentication"
     }
 ]
