@@ -809,6 +809,19 @@ where
 			.await;
 		trace!(map = ?auth_state.keys().collect::<Vec<_>>(), event_id = event.event_id().as_str(), "auth state for event");
 
+		// If this is not a create event, we must have the room create event in
+		// the auth state by now.
+		if *event.event_type() != StateEventType::RoomCreate.into()
+			|| event.state_key().is_none_or(|k| !k.is_empty())
+		{
+			if !auth_state.contains_key(&StateEventType::RoomCreate.with_state_key("")) {
+				return Err(Error::NotFound(format!(
+					"m.room.create did not appear in the auth state for {}",
+					event.event_id()
+				)));
+			}
+		}
+
 		debug!(event_id = event.event_id().as_str(), "Running auth checks");
 
 		// The key for this is (eventType + a state_key of the signed token not
