@@ -4,7 +4,12 @@
 
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
 
-[![Chat on Matrix](https://img.shields.io/matrix/continuwuity%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix)](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) [![Join the space](https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space)](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
+[![Chat on Matrix][matrix-chat-badge]][matrix-chatroom] [![Join the space][matrix-space-badge]][matrix-space]
+
+[matrix-chat-badge]: https://img.shields.io/matrix/continuwuity%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix
+[matrix-chatroom]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
+[matrix-space-badge]: https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space
+[matrix-space]: https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 
 <!-- ANCHOR_END: catchphrase -->
 
@@ -13,13 +18,35 @@ It's the official community continuation of the [conduwuit](https://github.com/g
 
 <!-- ANCHOR: body -->
 
-[![forgejo.ellis.link](https://img.shields.io/badge/Ellis%20Git-main+packages-green?style=flat&logo=forgejo&labelColor=fff)](https://forgejo.ellis.link/continuwuation/continuwuity) [![Stars](https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat)](https://forgejo.ellis.link/continuwuation/continuwuity/stars) [![Issues](https://forgejo.ellis.link/continuwuation/continuwuity/badges/issues/open.svg?style=flat)](https://forgejo.ellis.link/continuwuation/continuwuity/issues?state=open) [![Pull Requests](https://forgejo.ellis.link/continuwuation/continuwuity/badges/pulls/open.svg?style=flat)](https://forgejo.ellis.link/continuwuation/continuwuity/pulls?state=open)
+[![forgejo.ellis.link][forge-badge]][forge-link]
+[![Stars][forge-stars-badge]][forge-stars-link]
+[![Issues][forge-issues-badge]][forge-issues-link]
+[![Pull Requests][forge-pulls-badge]][forge-pulls-link]
 
-[![GitHub](https://img.shields.io/badge/GitHub-mirror-blue?style=flat&logo=github&labelColor=fff&logoColor=24292f)](https://github.com/continuwuity/continuwuity) [![Stars](https://img.shields.io/github/stars/continuwuity/continuwuity?style=flat)](https://github.com/continuwuity/continuwuity/stargazers)
+[![GitHub][github-badge]][github-link] ![Stars][github-stars-badge] -
+[![Codeberg][codeberg-badge]][codeberg-link] [![Stars][codeberg-stars-badge]][codeberg-stars-link] -
+[![GitLab][gitlab-badge]][gitlab-link] [![Stars][gitlab-stars-badge]][gitlab-stars-link]
 
-[![GitLab](https://img.shields.io/badge/GitLab-mirror-blue?style=flat&logo=gitlab&labelColor=fff)](https://gitlab.com/continuwuity/continuwuity) [![Stars](https://img.shields.io/gitlab/stars/continuwuity/continuwuity?style=flat)](https://gitlab.com/continuwuity/continuwuity/-/starrers)
+[forge-badge]: https://img.shields.io/badge/Ellis%20Git-main+packages-green?style=flat&logo=forgejo&labelColor=fff
+[forge-link]: https://forgejo.ellis.link/continuwuation/continuwuity
+[forge-stars-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat
+[forge-stars-link]: https://forgejo.ellis.link/continuwuation/continuwuity/stars
+[forge-issues-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/issues/open.svg?style=flat
+[forge-issues-link]: https://forgejo.ellis.link/continuwuation/continuwuity/issues?state=open
+[forge-pulls-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/pulls/open.svg?style=flat
+[forge-pulls-link]: https://forgejo.ellis.link/continuwuation/continuwuity/pulls?state=open
 
-[![Codeberg](https://img.shields.io/badge/Codeberg-mirror-2185D0?style=flat&logo=codeberg&labelColor=fff)](https://codeberg.org/continuwuity/continuwuity) [![Stars](https://codeberg.org/continuwuity/continuwuity/badges/stars.svg?style=flat)](https://codeberg.org/continuwuity/continuwuity/stars)
+[github-badge]: https://img.shields.io/badge/GitHub-mirror-blue?style=flat&logo=github&labelColor=fff&logoColor=24292f
+[github-link]: https://github.com/continuwuity/continuwuity
+[github-stars-badge]: https://img.shields.io/github/stars/continuwuity/continuwuity?style=flat
+[gitlab-badge]:https://img.shields.io/badge/GitLab-mirror-blue?style=flat&logo=gitlab&labelColor=fff
+[gitlab-link]: https://gitlab.com/continuwuity/continuwuity
+[gitlab-stars-badge]: https://img.shields.io/gitlab/stars/continuwuity/continuwuity?style=flat
+[gitlab-stars-link]: https://gitlab.com/continuwuity/continuwuity/-/starrers
+[codeberg-badge]:https://img.shields.io/badge/Codeberg-mirror-2185D0?style=flat&logo=codeberg&labelColor=fff
+[codeberg-link]: https://codeberg.org/continuwuity/continuwuity
+[codeberg-stars-badge]: https://codeberg.org/continuwuity/continuwuity/badges/stars.svg?style=flat
+[codeberg-stars-link]: https://codeberg.org/continuwuity/continuwuity/stars
 
 ## Why does this exist?
 
