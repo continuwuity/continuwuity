@@ -1,10 +1,12 @@
-# Configuring delegated authentication
+# Delegated authentication with OIDC
 
-Continuwuity supports delegating user authentication to an external identity provider that implements the OpenID Connect specification, such as Authentik, kanidm, or Keycloak.
+Continuwuity supports delegating user authentication to an external identity provider that implements the OpenID Connect (OIDC) specification, such as Authentik, kanidm, or Keycloak.
 
 :::important Delegated authentication and legacy logins
 When delegated authentication is configured, Continuwuity will disable its support for legacy logins. **Only clients that support OAuth** will be able to login.
 :::
+
+An account on the homeserver can be linked with only **one** OIDC subject claim at a time. Linked accounts will also lose the ability to self-deactivate.
 
 ## Instructions
 
@@ -46,7 +48,7 @@ d1qgx352kkuvs1j70b6w293d65x68jve1f7b27fyk90gjhpr
 
 ### Configuring Continuwuity
 
-Configure Continuwuity with the client ID, client secret, and discovery URL. kanidm has a different discovery URL for each client, but other identity providers may have a single discovery URL at the root of their domain.
+Configure Continuwuity with the client ID, client secret, and discovery URL provided from the steps above. kanidm has a different discovery URL for each client, but other identity providers may have a single discovery URL at the root of their domain.
 
 ```toml
 [global.oauth.oidc]
@@ -68,6 +70,32 @@ Finally, restart Continuwuity, and log out and back in again. Your client should
 
 Continuwuity offers several additional configuration options to tweak its integration with your identity provider. Review the `[global.oauth.oidc]` section towards the bottom of the [reference configuration](../reference/config) for a complete list of options and documentation.
 
-{/* TODO: Section on OIDC decommissioning */}
+## Advanced options
 
-{/* TODO: Section on minting tokens */}
+### Minting tokens for non-OIDC accounts
+
+With OIDC delegation enabled, accounts without an OIDC mapping can still be created (via `!admin users create`), but will not be able to log in to the homeserver. To accommodate this, homeserver admins can use the `!admin users issue-token` command to issue tokens for them. This command requires their local password to work, which can be set with `!admin users reset-password`.
+
+### Decommissioning OIDC delegation
+
+It is possible to revert to using the internal database for authentication. First, uncomment the `[global.oauth.oidc]` section in your config file and restart the homeserver. Then, execute the `!admin users reset-password --convert-to-local-account` for each user, to assign them a local password and convert their linked accounts into local ones.
+
+### Manually linking users to OIDC claims
+
+To view associations between local users and their linked Subject Identifier (i.e. the unique ID of the account on the OIDC provider's side), issue the following command:
+
+```
+!admin query raw raw-iter openidsubject_localpart
+("1d3fc994-3947-406d-b22c-0fc529baf235", "john")
+("ba543628-e6a5-45d8-9bd2-6cc497400136", "jane")
+```
+
+These associations can be changed manually with the `!admin oidc` commands, which is useful to debug some account linkage issues. For example, to link the user `jane` to a new Subject Identifier of `721c36a8-ce04-4474-8e97-b62655b07340`:
+
+```
+!admin oidc unlink ba543628-e6a5-45d8-9bd2-6cc497400136
+!admin oidc link jane 721c36a8-ce04-4474-8e97-b62655b07340
+!admin query raw raw-iter openidsubject_localpart
+("1d3fc994-3947-406d-b22c-0fc529baf235", "john")
+("721c36a8-ce04-4474-8e97-b62655b07340", "jane")
+```
