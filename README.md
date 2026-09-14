@@ -1,7 +1,5 @@
 # Continuwuity
 
-<!-- ANCHOR: catchphrase -->
-
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
 
 [![Chat on Matrix][matrix-chat-badge]][matrix-chatroom] [![Join the space][matrix-space-badge]][matrix-space]
@@ -11,12 +9,8 @@
 [matrix-space-badge]: https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space
 [matrix-space]: https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 
-<!-- ANCHOR_END: catchphrase -->
-
 [continuwuity] is a Matrix homeserver written in Rust.
 It's the official community continuation of the [conduwuit](https://github.com/girlbossceo/conduwuit) homeserver.
-
-<!-- ANCHOR: body -->
 
 [![forgejo.ellis.link][forge-badge]][forge-link]
 [![Stars][forge-stars-badge]][forge-stars-link]
@@ -113,8 +107,6 @@ We're working our way through all of the issues in the [Forgejo project](https:/
 
 We haven't written up a guide on migrating from incompatible homeservers yet. Reach out to us if you need to do this!
 
-<!-- ANCHOR_END: body -->
-
 ## Contribution
 
 ### Development flow
@@ -142,13 +134,8 @@ When incorporating code from other forks:
 - We prioritize stability and compatibility when evaluating external contributions
 - Features that align with our project goals will be given priority consideration
 
-<!-- ANCHOR: footer -->
-
 ## Contact
 
 Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) and [space](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) to chat with us about the project!
-
-<!-- ANCHOR_END: footer -->
-
 
 [continuwuity]: https://forgejo.ellis.link/continuwuation/continuwuity
