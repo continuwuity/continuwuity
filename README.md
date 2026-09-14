@@ -1,12 +1,10 @@
-# continuwuity
+# Continuwuity
 
 <!-- ANCHOR: catchphrase -->
 
 ## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
 
 [![Chat on Matrix](https://img.shields.io/matrix/continuwuity%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix)](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) [![Join the space](https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space)](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org)
-
-
 
 <!-- ANCHOR_END: catchphrase -->
 
@@ -23,27 +21,27 @@ It's the official community continuation of the [conduwuit](https://github.com/g
 
 [![Codeberg](https://img.shields.io/badge/Codeberg-mirror-2185D0?style=flat&logo=codeberg&labelColor=fff)](https://codeberg.org/continuwuity/continuwuity) [![Stars](https://codeberg.org/continuwuity/continuwuity/badges/stars.svg?style=flat)](https://codeberg.org/continuwuity/continuwuity/stars)
 
-### Why does this exist?
+## Why does this exist?
 
 The original conduwuit project has been archived and is no longer maintained. Rather than letting this Rust-based Matrix homeserver disappear, a group of community contributors have forked the project to continue its development, fix outstanding issues, and add new features.
 
 We aim to provide a stable, well-maintained alternative for current conduwuit users and welcome newcomers seeking a lightweight, efficient Matrix homeserver.
 
-### Who are we?
+## Who are we?
 
 We are a group of Matrix enthusiasts, developers and system administrators who have used conduwuit and believe in its potential. Our team includes both previous
 contributors to the original project and new developers who want to help maintain and improve this important piece of Matrix infrastructure.
 
 We operate as an open community project, welcoming contributions from anyone interested in improving continuwuity.
 
-### What is Matrix?
+## What is Matrix?
 
 [Matrix](https://matrix.org) is an open, federated, and extensible network for
 decentralized communication. Users from any Matrix homeserver can chat with users from all
 other homeservers over federation. Matrix is designed to be extensible and built on top of.
 You can even use bridges such as Matrix Appservices to communicate with users outside of Matrix, like a community on Discord.
 
-### What are the project's goals?
+## What are the project's goals?
 
 Continuwuity aims to:
 
@@ -55,7 +53,7 @@ Continuwuity aims to:
 - Create a sustainable development model for long-term maintenance
 - Keep a lightweight, efficient codebase that can run on modest hardware
 
-### Can I try it out?
+## Can I try it out?
 
 Check out the [documentation](https://continuwuity.org) for installation instructions.
 
@@ -67,7 +65,7 @@ If you want to try it out as a user, we have some partnered homeservers you can 
 
 * There's also [https://continuwuity.rocks/](https://continuwuity.rocks/). You can register a new account using Cinny via [this convenient link](https://app.cinny.in/register/continuwuity.rocks), or you can use Element or another matrix client *that supports registration*.
 
-### What are we working on?
+## What are we working on?
 
 We're working our way through all of the issues in the [Forgejo project](https://forgejo.ellis.link/continuwuation/continuwuity/issues).
 
@@ -78,13 +76,13 @@ We're working our way through all of the issues in the [Forgejo project](https:/
 - [Admin API](https://forgejo.ellis.link/continuwuation/continuwuity/issues/748)
 - [Policy-list controlled moderation](https://forgejo.ellis.link/continuwuation/continuwuity/issues/750)
 
-### Can I migrate my data from x?
+## Can I migrate my data from x?
 
-- Conduwuit: Yes
-- Conduit: No, database is now incompatible
-- Grapevine: No, database is now incompatible
-- Dendrite: No
-- Synapse: No
+- **Conduwuit**: Yes
+- **Conduit**: No, database is now incompatible
+- **Grapevine**: No, database is now incompatible
+- **Dendrite**: No
+- **Synapse**: No
 
 We haven't written up a guide on migrating from incompatible homeservers yet. Reach out to us if you need to do this!
 
@@ -119,7 +117,7 @@ When incorporating code from other forks:
 
 <!-- ANCHOR: footer -->
 
-#### Contact
+## Contact
 
 Join our [Matrix room](https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) and [space](https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org) to chat with us about the project!
 
