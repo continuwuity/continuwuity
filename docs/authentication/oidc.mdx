@@ -6,7 +6,7 @@ Continuwuity supports delegating user authentication to an external identity pro
 When delegated authentication is configured, Continuwuity will disable its support for legacy logins. **Only clients that support OAuth** will be able to login.
 :::
 
-An account on the homeserver can be linked with only **one** OIDC subject claim at a time. Linked accounts will also lose the ability to self-deactivate.
+An account on the homeserver can be linked with only **one** OIDC subject claim (i.e. one account on the OIDC side) at a time. Linking an account will also disable its ability for do self-deactivation.
 
 ## Instructions
 
@@ -74,15 +74,15 @@ Continuwuity offers several additional configuration options to tweak its integr
 
 ### Minting tokens for non-OIDC accounts
 
-With OIDC delegation enabled, accounts without an OIDC mapping can still be created (via `!admin users create`), but will not be able to log in to the homeserver. To accommodate this, homeserver admins can use the `!admin users issue-token` command to issue tokens for them. This command requires their local password to work, which can be set with `!admin users reset-password`.
+With OIDC delegation enabled, accounts without an OIDC mapping can still be created (via `!admin users create`), but will not be able to log in to the homeserver. To accommodate this, homeserver admins can use the [`!admin users issue-token`](../reference/admin/users#admin-users-issue-token) command to issue tokens for them. This command requires the account to have set a local password, which can be done with [`!admin users reset-password`](../reference/admin/users#admin-users-reset-password).
 
 ### Decommissioning OIDC delegation
 
-It is possible to revert to using the internal database for authentication. First, uncomment the `[global.oauth.oidc]` section in your config file and restart the homeserver. Then, execute the `!admin users reset-password --convert-to-local-account` for each user, to assign them a local password and convert their linked accounts into local ones.
+It is possible to revert to using the internal database for authentication. First, uncomment the `[global.oauth.oidc]` section in your config file and restart the homeserver. Then, execute the [`!admin users reset-password --convert-to-local-account`](../reference/admin/users#admin-users-reset-password) for each user, to assign them a local password and convert their linked accounts into local ones.
 
 ### Manually linking users to OIDC claims
 
-To view associations between local users and their linked Subject Identifier (i.e. the unique ID of the account on the OIDC provider's side), issue the following command:
+To view associations between local users and their linked Subject Identifier claim (i.e. the unique ID of the account on the OIDC provider's side), issue the following command:
 
 ```
 !admin query raw raw-iter openidsubject_localpart
@@ -90,7 +90,7 @@ To view associations between local users and their linked Subject Identifier (i.
 ("ba543628-e6a5-45d8-9bd2-6cc497400136", "jane")
 ```
 
-These associations can be changed manually with the `!admin oidc` commands, which is useful to debug some account linkage issues. For example, to link the user `jane` to a new Subject Identifier of `721c36a8-ce04-4474-8e97-b62655b07340`:
+These associations can be changed manually with the [`!admin oidc`](../reference/admin/oidc) commands, which is useful to debug some account linkage issues. For example, to link the user `jane` to a new Subject Identifier claim of `721c36a8-ce04-4474-8e97-b62655b07340`:
 
 ```
 !admin oidc unlink ba543628-e6a5-45d8-9bd2-6cc497400136
