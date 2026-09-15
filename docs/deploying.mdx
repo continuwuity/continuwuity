@@ -10,29 +10,24 @@ If you run into any problems while setting up Continuwuity, ask us in `#continuw
 
 ## Release tracks
 
-Continuwuity offers two release tracks to accommodate different needs:
-
-- Tracking the **main branch**. See the [repository] for more details.
-- Following the **regular release** schedule, which are published periodically. See the [Releases] page for more details.
-
-[repository]: https://forgejo.ellis.link/continuwuation/continuwuity
-[Releases]: https://forgejo.ellis.link/continuwuation/continuwuity/releases
+Continuwuity offers two release tracks to accommodate different needs: tracking the **main branch** of the [repository], and following the **regular release** schedule.
 
 ### Main branch
 
-As Continuwuity is a rapidly evolving software in a fast-paced ecosystem, we encourage deployments to follow the main branch where possible, as it contains the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
+The main branch [repository]. As Continuwuity is a rapidly evolving software, we encourage deployments to follow it where possible to receive the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
+
+To be notified of new updates to main, it is best track the [`/changelog.d`][changelog-d] directory in the repository, which contains changelog snippets from merged pull requests. These may include breaking changes, so . Then, proceed to update or build Continuwuity according to your deployment method.
+
+[repository]: https://forgejo.ellis.link/continuwuation/continuwuity
+[changelog-d]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/changelog.d
 
 ### Regular releases
 
-Regular releases are simply cutoffs from the main branch from time to time, and are tagged with a version number. They are suitable for cases where updating regularly are not possible (such as when tracking with third-party packaging), and receive prominent announcements in our channels.
+Regular releases are periodic, versioned cutoffs from the main branch from time to time, and can be found on the [Releases] page. They are suitable for cases where updating regularly are inconvenient or not possible (such as when tracking with third-party packaging).
 
-## Updating
+For regular releases, **always read the release notes before upgrading to a new version**, as it may contain breaking changes that affect your deployment.
 
-For regular releases, **read the release notes before upgrading to a new version**, as it may contain breaking changes that impact your deployment. Then, proceed to update Continuwuity according to your deployment method.
-
-For main branch followers, the best way to be notified of new changes is to track [`/changelog.d`][changelog-d] in the repository. The directory contains changelog snippets from pull requests that will eventually feature in regular release notes.
-
-[changelog-d]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/changelog.d
+[Releases]: https://forgejo.ellis.link/continuwuation/continuwuity/releases
 
 ## Installation
 
