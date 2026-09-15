@@ -4,20 +4,20 @@ Continuwuity comes with an internal database for user authentication, which it u
 
 ## Registration
 
-Registration is disabled by default. To enable it, set `allow_registration = true` in your config file and configure at least one of the registration methods below.
+Registration is disabled by default. To enable it, set `allow_registration = true` in your config file and use at least one of the registration methods below.
 
 | Method | Description                       | Additional configuration needed                                                                                              |
 | ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | 1      | Admin-issued tokens (recommended) | None. Use the [`!admin token issue`](../reference/admin/token#admin-token-issue) command                                     |
 | 2      | Static registration token         | `registration_token` or `registration_token_file`                                                                            |
 | 3      | reCAPTCHA-only registration       | `recaptcha_site_key` and `recaptcha_private_site_key`                                                                        |
-| 4      | Email only registration           | `require_email_for_registration = true` in `[global.smtp]` section. See [Email configuration](#email-configuration)          |
+| 4      | Email-only registration           | `require_email_for_registration = true` in `[global.smtp]` section. See [Email configuration](#email-configuration)          |
 | 5      | Static token + reCAPTCHA          | Methods 2 + 3                                                                                                                |
 | 6      | Email + reCAPTCHA                 | Methods 3 + 4                                                                                                                |
 | 7      | Static token + email              | Method 2 + `require_email_for_token_registration = true` in `[global.smtp]`. See [Email configuration](#email-configuration) |
 | 8      | Static token + email + reCAPTCHA  | Methods 3 + 7                                                                                                                |
 
-Users can register on Continuwiity's account management page, or directly within a Matrix client if legacy login is enabled.
+Users can register on Continuwuity's account management page, or directly within a Matrix client if legacy login is enabled.
 
 Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the [`!admin token`](../reference/admin/token) commands for more details.
 
