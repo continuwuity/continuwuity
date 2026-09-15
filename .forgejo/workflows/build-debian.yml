@@ -144,7 +144,7 @@ jobs:
               COMPONENT="dev-$(echo '${{ forge.ref_name }}' | sed 's/[^a-zA-Z0-9.+]/-/g' | tr '[:upper:]' '[:lower:]' | cut -c1-30)"
             fi
             CLEAN_COMPONENT=$(echo $COMPONENT | sed 's/[^a-zA-Z0-9.+]/~/g')
-            VERSION="$BASE_VERSION~git$DATE.$SHA-$CLEAN_COMPONENT"
+            VERSION="$BASE_VERSION-git$DATE.$SHA-$CLEAN_COMPONENT"
           fi
           echo "component=$COMPONENT" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
