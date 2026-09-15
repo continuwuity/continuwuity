@@ -31,6 +31,11 @@
     },
     {
         "type": "file",
+        "name": "freebsd",
+        "label": "FreeBSD"
+    },
+    {
+        "type": "file",
         "name": "kubernetes",
         "label": "Kubernetes"
     },
@@ -38,10 +43,5 @@
         "type": "file",
         "name": "nomad",
         "label": "Nomad"
-    },
-    {
-        "type": "file",
-        "name": "freebsd",
-        "label": "FreeBSD"
     }
 ]
