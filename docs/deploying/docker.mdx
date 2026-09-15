@@ -210,7 +210,13 @@ docker compose pull
 docker compose up -d
 ```
 
-## Other deployment methods
+## What's next?
+
+Navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
+
+---
+
+## Appendix - Other deployment methods
 
 ### Docker - Quick Run
 
@@ -289,11 +295,3 @@ From there you can access the server's console by running `docker attach <contai
 Note that using `CTRL+c` within `docker attach`'s context will forward the signal to the server, stopping it. See [Docker's reference][docker-attach-reference] for more information.
 
 [docker-attach-reference]: https://docs.docker.com/reference/cli/docker/container/attach/
-
-## Next steps
-
-- For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](../guides/dns.mdx) (recommended)
-- To configure OIDC integration with an identity provider, see the [**delegated authentication guide**](../authentication/oidc.mdx).
-- To set up Audio/Video communication, see the [**Calls**](../calls.mdx) page.
-- Consult the [Maintenance](../maintenance.mdx) page for guidance on maintaining your homeserver.
-- If you want to set up an appservice, take a look at the [**Appservice Guide**](../appservices.mdx).
