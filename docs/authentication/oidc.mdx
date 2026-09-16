@@ -6,7 +6,7 @@ Continuwuity supports delegating user authentication to an external identity pro
 When delegated authentication is configured, Continuwuity will disable its support for legacy logins. **Only clients that support OAuth** will be able to login.
 :::
 
-An account on the homeserver can be linked with only **one** OIDC subject claim (i.e. one account on the OIDC side) at a time. Linking an account will also disable its ability to do self-deactivation.
+An account on the homeserver can only be associated with one OIDC subject claim - that is, one account on the identity provider - at a time. Linking an account will also prevent the user from deactivating it themselves.
 
 ## Instructions
 
@@ -78,7 +78,7 @@ With OIDC delegation enabled, accounts without an OIDC mapping (such as bot acco
 
 ### Manually linking users to OIDC claims
 
-To view associations between local users and their linked Subject Identifier claim (i.e. the unique ID of the account on the OIDC provider's side), issue the following command:
+To view associations between local users and their linked subject claim, issue the following command:
 
 ```
 !admin query raw raw-iter openidsubject_localpart
@@ -86,11 +86,13 @@ To view associations between local users and their linked Subject Identifier cla
 ("ba543628-e6a5-45d8-9bd2-6cc497400136", "jane")
 ```
 
-These associations can be changed manually with the [`!admin oidc`](../reference/admin/oidc) commands, which is useful to debug some account linkage issues. For example, to link the user `jane` to a new Subject Identifier claim of `721c36a8-ce04-4474-8e97-b62655b07340`:
+These associations can be changed manually with the [`!admin oidc`](../reference/admin/oidc) commands, which are useful to debug some account linkage issues. For example, to link the user `jane` to a new Subject Identifier claim of `721c36a8-ce04-4474-8e97-b62655b07340`:
 
 ```
 !admin oidc unlink ba543628-e6a5-45d8-9bd2-6cc497400136
+Subject `ba543628-e6a5-45d8-9bd2-6cc497400136` unlinked.
 !admin oidc link jane 721c36a8-ce04-4474-8e97-b62655b07340
+Subject `721c36a8-ce04-4474-8e97-b62655b07340` linked to account @jane:example.com.
 !admin query raw raw-iter openidsubject_localpart
 ("1d3fc994-3947-406d-b22c-0fc529baf235", "john")
 ("721c36a8-ce04-4474-8e97-b62655b07340", "jane")
@@ -98,4 +100,4 @@ These associations can be changed manually with the [`!admin oidc`](../reference
 
 ### Decommissioning OIDC delegation
 
-It is possible to revert to using the internal database for authentication. First, comment out the `[global.oauth.oidc]` section in your config file and restart the homeserver. Then, execute the [`!admin users reset-password --convert-to-local-account`](../reference/admin/users#admin-users-reset-password) for each user, to assign them a local password and convert their linked accounts into local ones.
+It is possible to revert to using the internal database for authentication. First, comment out the `[global.oauth.oidc]` section in your config file and restart the homeserver. Then, execute the [`!admin users reset-password --convert-to-local-account`](../reference/admin/users#admin-users-reset-password) for each user to assign them a local password and convert their linked accounts into local ones.
