@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Instant};
 
 use conduwuit::{
-	Event, PduEvent, debug, debug_info, debug_warn, trace,
+	Err, Event, PduEvent, debug, debug_info, debug_warn, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
 use futures::StreamExt;
@@ -45,6 +45,16 @@ impl super::Service {
 			.get_forward_extremities(room_id)
 			.collect::<Vec<_>>()
 			.await;
+		if tail.is_empty() {
+			// Without any forward extremities, we don't know what the latest
+			// events are in the room, and consequently have no idea what we
+			// might be missing.
+			//
+			// See also: https://forgejo.ellis.link/continuwuation/continuwuity/issues/2259
+			return Err!(
+				"No forward extremities found in {room_id}, unable to determine horizon"
+			);
+		}
 
 		let mut gapfilled = self
 			.get_missing_events(
