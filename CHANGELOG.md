@@ -1,3 +1,38 @@
+# Continuwuity v26.9.0 (2026-09-16)
+
+## Features
+
+- Added connection_uri_file to configuration options ([#1790](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1790))
+- Removed the ability to run a server with "challengeless registration" (i.e. the big scary long config option, with no captcha, email, or registration token requirements), without manually compiling
+  the server with non-default arguments. Contributed by @nex.
+
+  (This is part of a wider effort to reduce abuse in the Matrix network, of which servers that are easily automated cause a disproportionate amount of) ([#2189](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2189))
+- Disable legacy, unauthenticated media (`allow_legacy_media`) by default as the Matrix ecosystem has completely sunsetted this functionality. Legacy media allows anyone to access a file just by knowing its URL, thereby turning homeservers into unwitting CDNs. Homeserver admins are strongly encouraged to check and turn off this option. ([#2225](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2225))
+- Added the `provider_name` and `provider_icon` OIDC options, which show the identity provider's name and icon on the web login page. Contributed by @eleboucher.
+- Advertised MatrixRTC ([MSC4143](https://github.com/matrix-org/matrix-spec-proposals/pull/4143)) support in `/_matrix/client/versions`. Contributed by @eleboucher.
+- The account management web UI now shows users' [MSC4427](https://github.com/matrix-org/matrix-spec-proposals/pull/4427) profile banners. Contributed by @ginger.
+
+## Bugfixes
+
+- Fixed simplified Sliding Sync lists returning rooms out of activity order. Contributed by @eleboucher. (sliding-sync-activity-ordering)
+- Fixed simplified Sliding Sync restarting when overlapping sync responses arrive out of order. Contributed by @eleboucher. (sliding-sync-overlapping-responses)
+- Fixed simplified Sliding Sync re-sending rooms in full after a list's window shrinks and grows again. Contributed by @eleboucher. (sliding-sync-window-positions)
+- Fixed [MSC4155](https://github.com/matrix-org/matrix-spec-proposals/pull/4155) invite filtering being applied to outgoing invites, which prevented users from inviting anyone they had blocked or ignored invites from. Contributed by @eleboucher. (msc4155-outbound-invites)
+- Fixed `!admin query pusher delete-all-user` reporting success without deleting any pushers. Contributed by @eleboucher. ([#1726](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/1726))
+- Removing a device from the web UI will no longer show a "Back" link pointing to a 404. Contributed by @ginger. ([#2062](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2062))
+- Fixed simplified sliding sync omitting device list updates for rooms with only timeline changes. Contributed by @eleboucher. ([#2175](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2175))
+- Fixed federation transactions never being sent to a remote that was put into backoff by an unrelated request. Contributed by @eleboucher. ([#2188](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2188))
+- Re-added a cooldown when fetching events from remote servers that have previously failed to be pulled, preventing request spam. ([#2201](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2201))
+- One-time keys and fallback keys are now properly cleaned up when a device is deleted. ([#2202](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2202))
+- Sliding sync responses no longer include an empty room account data entry for every room in a list's range. Contributed by @eleboucher. ([#2226](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2226))
+- Fixed the space hierarchy endpoints returning non-suggested `m.space.child` events in `children_state` when `suggested_only` was requested. Contributed by @eleboucher.
+- The account deactivation page in the account management web UI now shows a message when OIDC is enabled instead of prompting users for a nonexistent account password.
+
+## Misc
+
+- #1976
+
+
 # Continuwuity v26.8.1 (2026-08-22)
 
 No significant changes.
