@@ -1,6 +1,6 @@
 # Continuwuity
 
-## A community-driven [Matrix](https://matrix.org/) homeserver in Rust
+## A community-driven [Matrix](https://matrix.org/) homeserver
 
 [![Chat on Matrix][matrix-chat-badge]][matrix-chatroom] [![Join the space][matrix-space-badge]][matrix-space]
 
