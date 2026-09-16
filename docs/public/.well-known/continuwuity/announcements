@@ -6,10 +6,10 @@
             "message": "Welcome to Continuwuity! Important announcements about the project will appear here."
         },
         {
-            "id": 19,
+            "id": 20,
             "mention_room": true,
-            "date": "2026-08-24",
-            "message": "[Continuwuity 26.8.1](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.8.1) has just been released - this is a bug fix and feature release, with one small security patch. Please read the release notes for more information, before updating as soon as possible.\n\nAny questions? Ask in our [support room](https://matrix.to/#/#continuwuity:continuwuity.org)."
+            "date": "2026-09-16",
+            "message": "[Continuwuity 26.9.0](https://forgejo.ellis.link/continuwuation/continuwuity/releases/tag/v26.9.0) has just been released - this update features a bunch of bug fixes, and some bandwidth saving improvements for sliding sync.\n\nAny questions? Ask in our [support room](https://matrix.to/#/#continuwuity:continuwuity.org)!"
         }
     ]
 }
