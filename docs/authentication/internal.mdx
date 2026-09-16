@@ -17,19 +17,17 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 | 7      | Static token + email              | Method 2 + `require_email_for_token_registration = true` in `[global.smtp]`. See [Email configuration](#email-configuration) |
 | 8      | Static token + email + reCAPTCHA  | Methods 3 + 7                                                                                                                |
 
-Users can register on Continuwuity's account management page, or directly within a Matrix client if legacy login is enabled.
-
-Admin-issued tokens are the recommended method of registration. These tokens can be scoped with an expiry duration or maximum times used, and are suited for private/invite-only homeservers. See the [`!admin token`](../reference/admin/token) commands for more details.
+Admin-issued tokens are the recommended registration method. These tokens are well suited for private or invite-only servers, and they can be scoped with an expiry duration or given a usage limit. See the [`!admin token`](../reference/admin/token) commands for more details.
 
 Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
 
 ## Email configuration
 
-Continuwuity can be configured to send emails via an SMTP relay of your choice. These are used for verifying user email addresses and sending password resets links to them.
+Continuwuity can be configured to send emails via an SMTP relay of your choice. These are used for verifying user email addresses and sending password reset links to them.
 
 A user is associated with only **one** email address at a time.
 
-All email options are in the `[global.smtp]` block of the configuration file, and are toggled on when the block is uncommented. For example:
+All email options are in the `[global.smtp]` block of the [configuration file](../reference/config.mdx), and are toggled on when the block is uncommented. For example:
 
 ```toml
 [global.smtp]

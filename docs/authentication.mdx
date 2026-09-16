@@ -1,15 +1,15 @@
 # Authentication
 
-This chapter describes various ways to authenticate to Continuwuity.
+This chapter describes various ways to authenticate with Continuwuity.
 
 ## Authentication flows
 
 Continuwuity implements the following authentication flows:
 
 - **OAuth login** (also known as **next-gen auth**): clients redirect the user to Continuwuity's own login and registration page to complete the authentication process.
-- **Legacy login** (also known as the **UIAA** framework): clients provide their own UI to log in to or register with the server directly.
+- **Legacy login** (also known as the **User Interactive Authentication** framework): clients provide their own UI to log in to or register with the server directly.
 
-Different sets of clients support different flows, but most clients are moving towards next-gen auth. One can set which login mode(s) are allowed via the `compatibility_mode` variable of the `[global.oauth]` config file section.
+Different sets of clients support different flows, but most clients are moving towards next-gen auth. One can set which login modes are allowed via the `compatibility_mode` variable of the `[global.oauth]` config file section.
 
 :::important Configure your client well-known for OAuth logins
 
@@ -28,7 +28,7 @@ Refer to the [delegation](./guides/delegation) documentation for more details.
 
 Continuwuity can read user authentication data from the following sources:
 
-- **Internal database** - this is the default setup for Continuwuity. It allows for registration, email, and password reset self-service. See the [**internal authentication documentation**](./authentication/internal).
+- **Internal authentication** - this is the default setup, where Continuwuity reads user authentication data from its local database. It allows for registration, email, and password reset self-service. See the [**internal authentication documentation**](./authentication/internal).
 
 - **Delegated authentication** - in this mode, the server connects to an OpenID Connect identity provider for user authentication. This method allows for integrating with single sign-on services, but enabling it will disable legacy logins. See the [**delegated authentication documentation**](./authentication/oidc).
 
