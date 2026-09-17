@@ -7,6 +7,7 @@ use std::{
 	collections::{BTreeMap, BTreeSet, HashMap},
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
 	path::PathBuf,
+	time::Duration,
 };
 
 use conduwuit_macros::config_example_generator;
@@ -2981,6 +2982,16 @@ const DEPRECATED_KEYS: &[&str] = &[
 ];
 
 impl Config {
+	/// Returns the capped linear retry delay for a federation send attempt.
+	#[must_use]
+	pub fn sender_retry_backoff(&self, attempt: u32) -> Duration {
+		crate::utils::linear_backoff(
+			Duration::from_secs(self.sender_retry_backoff_base),
+			Duration::from_secs(self.sender_retry_backoff_limit),
+			attempt,
+		)
+	}
+
 	/// Get the base domain to use for user-facing URLs.
 	#[must_use]
 	pub fn get_client_domain(&self) -> Url {

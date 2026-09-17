@@ -132,7 +132,7 @@ impl Service {
 		let state = WebPushState {
 			activated: false,
 			ack_token: Some(token.clone()),
-			token_expires_at: utils::millis_since_unix_epoch().saturating_add(ACK_TOKEN_TTL_MS),
+			token_expires_at: utils::millis_from_now(Duration::from_millis(ACK_TOKEN_TTL_MS)),
 		};
 
 		self.put_webpush_state(sender, pusher.ids.pushkey.as_str(), &state);
@@ -301,7 +301,7 @@ impl Service {
 					}
 
 					let delay = retry_after
-						.unwrap_or_else(|| RETRY_BASE.saturating_mul(attempt))
+						.unwrap_or_else(|| utils::linear_backoff(RETRY_BASE, RETRY_MAX, attempt))
 						.min(RETRY_MAX);
 					sleep(delay).await;
 					attempt = attempt.saturating_add(1);
@@ -413,8 +413,7 @@ impl Service {
 			|retry_after| retry_after.min(BACKOFF_MAX),
 		);
 
-		backoff.next_attempt_at = utils::millis_since_unix_epoch()
-			.saturating_add(delay.as_millis().try_into().unwrap_or(u64::MAX));
+		backoff.next_attempt_at = utils::millis_from_now(delay);
 
 		self.db.senderkey_webpushbackoff.put(key, Json(&backoff));
 	}

@@ -13,12 +13,7 @@ mod resolve_state;
 mod state_at_incoming;
 mod upgrade_outlier_pdu;
 
-use std::{
-	collections::HashMap,
-	fmt::Write,
-	sync::Arc,
-	time::{Duration, Instant},
-};
+use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use assign::assign;
 use async_trait::async_trait;
@@ -149,7 +144,11 @@ impl Service {
 		let Some((retry_count, last_retry)) = map.get(event_id) else {
 			return Ok(());
 		};
-		let next_retry = calc_next_retry(&self.services.server.config, *retry_count);
+		let next_retry = self
+			.services
+			.server
+			.config
+			.sender_retry_backoff(*retry_count);
 		if last_retry.elapsed() >= next_retry {
 			Ok(())
 		} else {
@@ -169,7 +168,7 @@ impl Service {
 		let mut map = self.failed_pdu_pulls.write();
 		map.entry(event_id)
 			.and_modify(|(retries, last_retry)| {
-				let next_retry = calc_next_retry(&self.services.server.config, *retries);
+				let next_retry = self.services.server.config.sender_retry_backoff(*retries);
 				if next_retry > last_retry.elapsed() {
 					// Don't increment the retry if a retry was illegal.
 					// This can happen if an event was fetched multiple times
@@ -200,10 +199,4 @@ fn get_room_version_rules<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionR
 	};
 
 	Ok(room_version_rules)
-}
-
-fn calc_next_retry(config: &conduwuit::Config, retries: u32) -> Duration {
-	let min = Duration::from_secs(config.sender_retry_backoff_base);
-	let max = Duration::from_secs(config.sender_retry_backoff_limit);
-	min.saturating_mul(retries).min(max)
 }

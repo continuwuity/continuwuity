@@ -450,9 +450,7 @@ impl Service {
 			.entry(dest.clone())
 			.and_modify(|e| match e {
 				| TransactionStatus::Failed(tries, time) => {
-					let min = Duration::from_secs(self.server.config.sender_retry_backoff_base);
-					let max = Duration::from_secs(self.server.config.sender_retry_backoff_limit);
-					let retry_after = min.saturating_mul(*tries).min(max);
+					let retry_after = self.server.config.sender_retry_backoff(*tries);
 					if time.elapsed() < retry_after {
 						debug_warn!("Not retrying destination for another {retry_after:?}");
 						allow = false;

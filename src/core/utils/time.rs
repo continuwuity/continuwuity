@@ -16,6 +16,20 @@ pub fn now_millis() -> u64 {
 		.as_millis() as u64
 }
 
+/// Returns a capped linear retry delay for a failed attempt.
+#[must_use]
+pub fn linear_backoff(base: Duration, limit: Duration, attempt: u32) -> Duration {
+	base.saturating_mul(attempt).min(limit)
+}
+
+/// Returns a saturated Unix-millisecond deadline after `duration`.
+#[must_use]
+pub fn millis_from_now(duration: Duration) -> u64 { add_millis(now_millis(), duration) }
+
+fn add_millis(now: u64, duration: Duration) -> u64 {
+	now.saturating_add(u64::try_from(duration.as_millis()).unwrap_or(u64::MAX))
+}
+
 #[inline]
 pub fn parse_timepoint_ago(ago: &str) -> Result<SystemTime> {
 	timepoint_ago(parse_duration(ago)?)
@@ -153,5 +167,31 @@ pub fn is_within_bounds(
 	match direction {
 		| TimeDirection::Before => item_time <= time_boundary,
 		| TimeDirection::After => item_time >= time_boundary,
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use std::time::Duration;
+
+	use super::{add_millis, linear_backoff};
+
+	#[test]
+	fn linear_backoff_scales_and_caps() {
+		let base = Duration::from_secs(10);
+		let limit = Duration::from_secs(25);
+
+		assert_eq!(linear_backoff(base, limit, 0), Duration::ZERO);
+		assert_eq!(linear_backoff(base, limit, 1), Duration::from_secs(10));
+		assert_eq!(linear_backoff(base, limit, 2), Duration::from_secs(20));
+		assert_eq!(linear_backoff(base, limit, 3), limit);
+		assert_eq!(linear_backoff(base, limit, u32::MAX), limit);
+	}
+
+	#[test]
+	fn millis_deadline_saturates() {
+		assert_eq!(add_millis(10, Duration::from_millis(20)), 30);
+		assert_eq!(add_millis(u64::MAX, Duration::from_millis(1)), u64::MAX);
+		assert_eq!(add_millis(0, Duration::from_secs(u64::MAX)), u64::MAX);
 	}
 }

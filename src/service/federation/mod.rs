@@ -8,7 +8,10 @@ use std::{
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{Error, Result, Server, SyncRwLock, debug, utils::millis_since_unix_epoch};
+use conduwuit::{
+	Error, Result, Server, SyncRwLock, debug,
+	utils::{millis_from_now, millis_since_unix_epoch},
+};
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
 use ruma::{
@@ -105,15 +108,9 @@ impl Service {
 			return;
 		}
 
-		let min = Duration::from_secs(self.services.server.config.sender_retry_backoff_base);
-		let max = Duration::from_secs(self.services.server.config.sender_retry_backoff_limit);
-
 		*retries = retries.saturating_add(1);
-		let next_interval = min.saturating_mul(*retries).min(max);
-		*next_retry = unix_now.saturating_add(
-			u64::try_from(next_interval.as_millis())
-				.expect("backoff milliseconds should not exceed u64::MAX"),
-		);
+		let next_interval = self.services.server.config.sender_retry_backoff(*retries);
+		*next_retry = millis_from_now(next_interval);
 		debug!(
 			"{} is (now) unhealthy ({} retries, blocked until: {})",
 			sn2, *retries, *next_retry
