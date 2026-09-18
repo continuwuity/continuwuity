@@ -1120,9 +1120,6 @@ fn can_send_event(
 	ple: Option<&impl Event>,
 	user_level: UserPowerLevel,
 ) -> bool {
-	if user_level == UserPowerLevel::Infinite {
-		return true;
-	}
 	let event_type_power_level = get_send_level(event.event_type(), event.state_key(), ple);
 
 	debug!(
@@ -1137,8 +1134,9 @@ fn can_send_event(
 		return false;
 	}
 
-	if event.state_key().is_some_and(|k| k.starts_with('@'))
-		&& event.state_key() != Some(event.sender().as_str())
+	if event
+		.state_key()
+		.is_some_and(|k| k.starts_with('@') && k != event.sender().as_str())
 	{
 		warn!(
 			?user_level,
