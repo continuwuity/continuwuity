@@ -53,4 +53,21 @@ impl super::Map {
 		let key = ser::serialize(buf, key).expect("failed to serialize query key");
 		self.get(key)
 	}
+
+	pub fn qry_blocking<K>(self: &Arc<Self>, key: &K) -> Result<Handle<'_>>
+	where
+		K: Serialize + ?Sized + Debug,
+	{
+		let mut buf = KeyBuf::new();
+		self.bqry_blocking(key, &mut buf)
+	}
+
+	pub fn bqry_blocking<K, B>(self: &Arc<Self>, key: &K, buf: &mut B) -> Result<Handle<'_>>
+	where
+		K: Serialize + ?Sized + Debug,
+		B: Write + AsRef<[u8]>,
+	{
+		let key = ser::serialize(buf, key).expect("failed to serialize query key");
+		self.get_blocking(key)
+	}
 }

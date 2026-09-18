@@ -17,10 +17,14 @@ use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{Err, Error, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
+use conduwuit::{
+	Err, Error, Event, PduEvent, Result, Server, SyncRwLock,
+	utils::{MutexMap, TryFutureExtExt},
+};
 pub use fetch_and_handle_outliers::{
 	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
 };
+use futures::future::ok;
 use http::StatusCode;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
@@ -131,8 +135,8 @@ impl Service {
 	}
 
 	/// Fetches a single PDU, returning None if there is an error.
-	async fn event_fetch(&self, event_id: OwnedEventId) -> Option<PduEvent> {
-		self.services.timeline.get_pdu(&event_id).await.ok()
+	fn event_fetch(&self, event_id: &EventId) -> Option<PduEvent> {
+		self.services.timeline.get_pdu_blocking(event_id).ok()
 	}
 
 	/// Returns a rate-limit error if the requested event had a recent failed

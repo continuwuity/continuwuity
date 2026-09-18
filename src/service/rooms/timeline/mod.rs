@@ -211,6 +211,12 @@ impl Service {
 		self.db.get_pdu(event_id).await
 	}
 
+	/// Returns the PDU. Checks the outlier tree BEFORE the timeline tree, as
+	/// this operation is synchronous.
+	pub fn get_pdu_blocking(&self, event_id: &EventId) -> Result<PduEvent> {
+		self.db.get_pdu_blocking(event_id)
+	}
+
 	/// Returns the pdu.
 	///
 	/// This does __NOT__ check the outliers `Tree`.

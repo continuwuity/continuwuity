@@ -65,14 +65,14 @@ impl super::Service {
 		// perform PDU check 5 (event auth passes based on state before the
 		// event). To do this, we either need to have all the prev events
 		// locally, or ask a remote server for the state at the event.
-		let (passes_state_before, state_before) = self
+		let (state_before_failure_reason, state_before) = self
 			.state_before_check_5(&incoming_pdu, &room_version_rules, create_event, origin)
 			.await?;
 
-		if !passes_state_before {
+		if let Some(msg) = state_before_failure_reason {
 			self.reject_and_persist(incoming_pdu.event_id(), &val);
 			return Err!(Request(Forbidden(debug_warn!(
-				"Event authorisation fails based on the state before the event"
+				"Event authorisation fails based on the state before the event: {msg}"
 			))));
 		}
 
@@ -90,16 +90,16 @@ impl super::Service {
 		);
 		let state_lock = self.services.state.mutex.lock(room_id).await;
 		let passes_current_state = self
-			.current_state_check_6(&incoming_pdu, &room_version_rules, create_event)
+			.current_state_check_6(&incoming_pdu, &room_version_rules)
 			.await
-			.inspect(|passes| {
-				if !*passes {
-					debug_warn!(
-						"Event authorisation fails based on the current room state - will be \
-						 soft-failed"
-					);
-				}
-			})?;
+			.inspect_err(|reason| {
+				debug_warn!(
+					%reason,
+					"Event authorisation fails based on the current room state - will be \
+					 soft-failed"
+				);
+			})
+			.is_ok();
 
 		// Determine whether this PDU should be soft-failed.
 		// If the auth check failed, invariably yes. Otherwise, only if the user
