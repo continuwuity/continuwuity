@@ -130,7 +130,7 @@ pub enum Error {
 	#[error(transparent)]
 	SignatureVerification(#[from] ruma::signatures::VerificationError),
 	#[error(transparent)]
-	StateRes(#[from] crate::state_res::Error),
+	StateRes(#[from] ruma::state_res::Error),
 	#[error("uiaa")]
 	Uiaa(ruma::api::client::uiaa::UiaaInfo),
 

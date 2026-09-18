@@ -1,6 +1,8 @@
 use std::collections::{HashMap, hash_map};
 
-use conduwuit::{Err, Event, EventTypeExt, PduEvent, Result, err, warn};
+use conduwuit::{
+	Err, Event, EventTypeExt, PduEvent, Result, debug_info, err, utils::TryFutureExtExt, warn,
+};
 use ruma::{
 	OwnedEventId, ServerName, api::federation::authorization::get_event_authorization,
 	room_version_rules::RoomVersionRules,
@@ -191,15 +193,8 @@ impl super::Service {
 					},
 				}
 			}
-			if !self
-				.auth_state_check_4(
-					&pdu,
-					room_version_rules,
-					create_event.as_pdu(),
-					&auth_events_by_key,
-				)
-				.await?
-			{
+			if let Some(msg) = self.auth_state_check_4(&pdu, room_version_rules) {
+				debug_info!("Rejecting auth chain event {event_id}: {msg}");
 				self.reject_and_persist(&event_id, &pdu.to_canonical_object());
 			}
 		}
