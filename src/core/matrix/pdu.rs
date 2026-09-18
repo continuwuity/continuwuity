@@ -72,6 +72,9 @@ pub struct Pdu {
 	// BTreeMap<Box<ServerName>, BTreeMap<ServerSigningKeyId, String>>
 	#[serde(default, skip_serializing_if = "Option::is_none")]
 	pub signatures: Option<Box<RawJsonValue>>,
+
+	#[serde(default)]
+	pub rejected: bool,
 }
 
 /// Content hashes of a PDU.
@@ -252,4 +255,36 @@ impl Ord for Pdu {
 /// Ordering determined by the Pdu's ID, not the memory representations.
 impl PartialOrd for Pdu {
 	fn partial_cmp(&self, other: &Self) -> Option<Ordering> { Some(self.cmp(other)) }
+}
+
+impl ruma::state_res::Event for Pdu {
+	type Id = OwnedEventId;
+
+	fn event_id(&self) -> &Self::Id { &self.event_id }
+
+	fn room_id(&self) -> Option<&RoomId> { self.room_id.as_deref() }
+
+	fn sender(&self) -> &UserId { self.sender.as_ref() }
+
+	fn origin_server_ts(&self) -> MilliSecondsSinceUnixEpoch {
+		MilliSecondsSinceUnixEpoch(self.origin_server_ts)
+	}
+
+	fn event_type(&self) -> &TimelineEventType { &self.kind }
+
+	fn content(&self) -> &RawJsonValue { &self.content }
+
+	fn state_key(&self) -> Option<&str> { self.state_key.as_deref() }
+
+	fn prev_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + '_> {
+		Box::new(self.prev_events.iter())
+	}
+
+	fn auth_events(&self) -> Box<dyn DoubleEndedIterator<Item = &Self::Id> + '_> {
+		Box::new(self.auth_events.iter())
+	}
+
+	fn redacts(&self) -> Option<&Self::Id> { self.redacts.as_ref() }
+
+	fn rejected(&self) -> bool { self.rejected }
 }

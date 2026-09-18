@@ -1,11 +1,10 @@
 use std::{collections::HashMap, fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{debug, utils::stream::WidebandExt};
+use conduwuit::{debug, matrix::StateKey, smallstr::SmallString, utils::stream::WidebandExt};
 use conduwuit_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
-	state_res::{self, StateMap},
 	utils::{
 		IterStream, MutexMap, MutexMapGuard, ReadyExt, calculate_hash,
 		stream::{BroadbandExt, TryIgnore},
@@ -21,6 +20,7 @@ use ruma::{
 	api::federation::membership::RawStrippedState,
 	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
 	room_version_rules::RoomVersionRules,
+	state_res,
 };
 
 use crate::{
@@ -452,7 +452,7 @@ impl Service {
 		state_key: Option<&str>,
 		content: &serde_json::value::RawValue,
 		room_version_rules: &RoomVersionRules,
-	) -> Result<StateMap<PduEvent>> {
+	) -> Result<HashMap<(StateEventType, String), PduEvent>> {
 		let Ok(shortstatehash) = self.get_room_shortstatehash(room_id).await else {
 			return Ok(HashMap::new());
 		};
@@ -462,8 +462,9 @@ impl Service {
 			sender,
 			state_key,
 			content,
-			room_version_rules,
-		)?;
+			&room_version_rules.authorization,
+		)
+		.map_err(|e| err!("failed to select auth types for event: {e:?}"))?;
 		debug!(?auth_types, "Auth types for event");
 		let sauthevents: HashMap<_, _> = auth_types
 			.iter()

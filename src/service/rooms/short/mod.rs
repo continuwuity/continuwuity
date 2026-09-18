@@ -154,6 +154,15 @@ impl Service {
 			.deserialized()
 	}
 
+	pub fn get_shortstatekey_blocking(
+		&self,
+		event_type: &StateEventType,
+		state_key: &str,
+	) -> Result<ShortStateKey> {
+		let key = (event_type, state_key);
+		self.db.shortstatekey_statekey.qry()
+	}
+
 	/// Gets a full event ID from a short event ID.
 	pub async fn get_eventid_from_short<Id>(&self, shorteventid: ShortEventId) -> Result<Id>
 	where

@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use base64::Engine;
 use conduwuit::{
 	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error,
-	debug_info, err, info, matrix::StateKey, state_res, trace,
+	debug_info, err, info, matrix::StateKey, trace,
 };
 use futures::future::ready;
 use ruma::{
@@ -12,6 +12,8 @@ use ruma::{
 	canonical_json::redact,
 	events::StateEventType,
 	room_version_rules::{EventIdFormatVersion, RoomVersionRules},
+	state_res,
+	state_res::check_state_independent_auth_rules,
 };
 
 use crate::rooms::{
@@ -145,30 +147,21 @@ impl super::Service {
 	/// Checks PDU check 4: Passes authorisation rules based on the event's auth
 	/// events ([spec]).
 	///
-	/// If the auth check fails, false is returned, otherwise true.
+	/// If the auth check fails, the error message is returned, otherwise
+	/// `None`.
 	///
 	/// [spec]: https://spec.matrix.org/v1.19/server-server-api/#checks-performed-on-receipt-of-a-pdu
-	pub async fn auth_state_check_4(
+	pub fn auth_state_check_4(
 		&self,
 		pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-		auth_events_by_key: &HashMap<(StateEventType, StateKey), PduEvent>,
-	) -> Result<bool> {
-		let state_fetch = |ty: &StateEventType, sk: &str| {
-			let key = (ty.to_owned(), sk.into());
-			ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
-		};
-
-		state_res::event_auth::auth_check(
-			room_version_rules,
-			pdu,
-			None, // TODO: third party invite
-			state_fetch,
-			create_event,
-		)
-		.await
-		.map_err(|e| err!("Event self-authentication failed: {e:?}"))
+	) -> Option<String> {
+		match check_state_independent_auth_rules(&room_version_rules.authorization, pdu, |e| {
+			self.event_fetch(e)
+		}) {
+			| Ok(_) => None,
+			| Err(msg) => Some(msg),
+		}
 	}
 
 	/// Checks that the event passes PDU check 5, which ensures that the event
@@ -184,7 +177,7 @@ impl super::Service {
 		room_version_rules: &RoomVersionRules,
 		create_event: &PduEvent,
 		origin: &ServerName,
-	) -> Result<(bool, HashMap<u64, OwnedEventId>)> {
+	) -> Result<(Option<String>, HashMap<u64, OwnedEventId>)> {
 		debug!(
 			event_id = %incoming_pdu.event_id,
 			"Resolving state at event"
@@ -225,30 +218,27 @@ impl super::Service {
 		}
 		trace!(state_events = state_before.len(), "Calculated incoming state");
 
-		let state_fetch_state = &state_before;
-		let state_fetch = |k: StateEventType, s: StateKey| async move {
-			let shortstatekey = self.services.short.get_shortstatekey(&k, &s).await.ok()?;
-
-			let event_id = state_fetch_state.get(&shortstatekey)?;
-			self.services.timeline.get_pdu(event_id).await.ok()
-		};
-
 		debug!(
 			event_id = %incoming_pdu.event_id,
 			"Running state-before auth check"
 		);
 
 		// PDU check: 5
-		let auth_check = state_res::event_auth::auth_check(
-			room_version_rules,
+		let state_fetch_state = &state_before;
+		let auth_result = state_res::check_state_dependent_auth_rules(
+			&room_version_rules.authorization,
 			incoming_pdu,
-			None, // TODO: third party invite
-			|ty, sk| state_fetch(ty.clone(), sk.into()),
-			create_event.as_pdu(),
-		)
-		.await
-		.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))?;
-		Ok((auth_check, state_before))
+			|event_type, state_key| {
+				let ssk = self
+					.services
+					.short
+					.get_shortstatekey_blocking(event_type, state_key)
+					.ok()?;
+				let event_id = state_fetch_state.get(&ssk)?;
+				self.services.timeline.get_pdu_blocking(event_id).ok()
+			},
+		);
+		Ok((auth_result.err(), state_before))
 	}
 
 	/// Checks that the event passes PDU check 6, which ensures that the event
@@ -261,8 +251,7 @@ impl super::Service {
 		&self,
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
-		create_event: &PduEvent,
-	) -> Result<bool> {
+	) -> Result<(), String> {
 		debug!(
 			event_id = %incoming_pdu.event_id,
 			"Gathering auth events"
@@ -278,26 +267,22 @@ impl super::Service {
 				incoming_pdu.content(),
 				room_version_rules,
 			)
-			.await?;
-
-		let state_fetch = |k: &StateEventType, s: &str| {
-			let key = k.with_state_key(s);
-			ready(auth_events.get(&key).map(ToOwned::to_owned))
-		};
+			.await
+			.map_err(|e| e.to_string())?;
 
 		debug!(
 			event_id = %incoming_pdu.event_id,
 			"Running current state auth check"
 		);
-		state_res::event_auth::auth_check(
-			room_version_rules,
+		state_res::check_state_dependent_auth_rules(
+			&room_version_rules.authorization,
 			incoming_pdu,
-			None, // third-party invite
-			state_fetch,
-			create_event.as_pdu(),
+			|t, s| {
+				auth_events
+					.get(&(t.to_owned(), s.to_owned()))
+					.map(ToOwned::to_owned)
+			},
 		)
-		.await
-		.map_err(|e| err!(Request(Forbidden("Auth check failed: {e:?}"))))
 	}
 
 	/// Performs PDU check 7 - does the policy server allow this event.

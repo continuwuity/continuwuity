@@ -161,6 +161,22 @@ impl Data {
 		select_ok([accepted, outlier]).await.map(at!(0))
 	}
 
+	pub(super) fn get_pdu_blocking(&self, event_id: &EventId) -> Result<PduEvent> {
+		if let Ok(outlier) = self
+			.eventid_outlierpdu
+			.get_blocking(event_id)?
+			.deserialized()
+		{
+			return Ok(outlier);
+		};
+
+		let pdu_id = self
+			.eventid_pduid
+			.get_blocking(event_id)
+			.map(|h| RawPduId::from(&*h))?;
+		self.pduid_pdu.get_blocking(&pdu_id)?.deserialized()
+	}
+
 	/// Like get_non_outlier_pdu(), but without the expense of fetching and
 	/// parsing the PduEvent
 	#[inline]

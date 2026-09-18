@@ -195,18 +195,10 @@ impl super::Service {
 			}
 		}
 
-		if !self
-			.auth_state_check_4(
-				&pdu_event,
-				&room_version_rules,
-				create_event.as_pdu(),
-				&auth_events_by_key,
-			)
-			.await?
-		{
+		if let Some(msg) = self.auth_state_check_4(&pdu_event, &room_version_rules) {
 			self.reject_and_persist(event_id, &incoming_pdu);
 			return Err!(Request(Forbidden(debug_warn!(
-				"Event authorisation fails based on event's claimed auth events"
+				"Event authorisation fails based on event's claimed auth events: {msg}"
 			))));
 		}
 
