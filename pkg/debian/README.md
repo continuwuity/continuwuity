@@ -42,4 +42,4 @@ For information about setting up a reverse proxy and TLS, consult online documen
 
 ## What's next?
 
-Navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
+Navigate to [Post-installation](/deploying#post-installation) for next steps.

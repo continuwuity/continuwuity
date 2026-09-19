@@ -1,11 +1,12 @@
 # Deploying
 
-This chapter describes various ways to deploy Continuwuity. Read more on this page for useful general information.
+This chapter describes various ways to deploy Continuwuity. Read more on this page for useful general information, and then proceed to one of the deployment methods.
 
 :::tip Getting help
-If you run into any problems while setting up Continuwuity, ask us in `#continuwuity:continuwuity.org` or [open an issue on Forgejo][forgejo-new-issue].
+If you run into any problems while setting up Continuwuity, ask us in [`#continuwuity:continuwuity.org`][support-room] or [open an issue on Forgejo][forgejo-new-issue].
 :::
 
+[support-room]: https://matrix.to/#/%23continuwuity:continuwuity.org
 [forgejo-new-issue]: https://forgejo.ellis.link/continuwuation/continuwuity/issues/new
 
 ## Release tracks
@@ -14,16 +15,16 @@ Continuwuity offers two release tracks to accommodate different needs: tracking 
 
 ### Main branch
 
-The main branch [repository]. As Continuwuity is a rapidly evolving software, we encourage deployments to follow it where possible to receive the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
+As Continuwuity is a rapidly evolving software, we encourage deployments to follow the `main` branch where possible to receive the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
 
-To be notified of new updates to main, it is best track the [`/changelog.d`][changelog-d] directory in the repository, which contains changelog snippets from merged pull requests. These may include breaking changes, so . Then, proceed to update or build Continuwuity according to your deployment method.
+To be notified of new updates to main, it is best track the [`/changelog.d`][changelog-d] directory in the repository, which contains changelog snippets from merged pull requests. These may include breaking changes. Then, proceed to update or build Continuwuity according to your deployment method.
 
 [repository]: https://forgejo.ellis.link/continuwuation/continuwuity
 [changelog-d]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/changelog.d
 
 ### Regular releases
 
-Regular releases are periodic, versioned cutoffs from the main branch from time to time, and can be found on the [Releases] page. They are suitable for cases where updating regularly are inconvenient or not possible (such as when tracking with third-party packaging).
+Regular releases are periodic, versioned cutoffs from the main branch from time to time, and can be found on the [Releases] page. They are suitable for cases where updating regularly are not suitable or possible (such as when tracking with third-party packaging).
 
 For regular releases, **always read the release notes before upgrading to a new version**, as it may contain breaking changes that affect your deployment.
 
