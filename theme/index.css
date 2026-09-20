@@ -10,7 +10,11 @@
     --background-lightness: 0.9;
 
     --c1: oklch(0.44 0.177 353.06);
+    --c1-light: oklch(from var(--c1) 0.5  c h);
+    --c1-bg: oklch(from var(--c1) var(--background-lightness)  c h);
     --c2: oklch(0.59 0.158 150.88);
+    --c2-light: oklch(from var(--c2) var(--name-lightness) c h);
+    --c2-bg: oklch(from var(--c2) var(--background-lightness) c h);
     .rp-home-hero__title-brand {
         --rp-home-hero-title-bg: linear-gradient(
             130deg,
@@ -19,6 +23,10 @@
         );
     }
 
+    /* Use panel colors for rp buttons */
+    --panel-bg: oklch(0.91 0.042 317.27);
+    --panel-bg-dark: oklch(0.24 0.03 317.27);
+    --card-bg: oklch(from var(--panel-bg) var(--background-lightness) c h);
 
     --rp-home-background-bg: radial-gradient(42.12% 56.13% at 100% 0%, oklch(from var(--c2) var(--background-lightness) c h) 0%, #fff0 100%), radial-gradient(42.01% 79.63% at 52.86% 0%, #d9ff5333 0%, #fff0 100%), radial-gradient(79.67% 58.09% at 0% 0%, oklch(from var(--c1) var(--background-lightness) c h) 0%, #fff0 100%), var(--rp-c-bg);
 
@@ -62,6 +70,14 @@
     --rp-c-text-code-bg: oklch(0.59 0.158 150.88 / 0.15);
 
     --rp-c-link: oklch(0.69 0.158 150.88);
+
+    --card-bg: oklch(from var(--panel-bg-dark) calc(l - 0.05) c h);
+
+    /* Make background gradient undisrupted in dark mode */
+    .custom-section, .rp-home-feature {
+        background:none
+    }
+
 }
 
 img {
@@ -75,8 +91,63 @@ img {
     color: var(--rp-c-link);
 }
 
+
+/* Smaller subtitle font so it fits in one line */
+.rp-home-hero__subtitle {
+    font-size: 3rem;
+}
+
+/* CSS for main buttons */
+
+/* Do not mute colors when hovered */
+/* Hovering will invoke color rather than opacity changes */
+.rp-button:hover {
+    opacity:1
+}
+/* No transitions, make button hovers snappier */
+.rp-button:hover {
+    transition: all 0s
+}
+
+/* Square buttons just like c10y's account mgmt page */
 .rp-button--big {
     padding-inline: 1.25em;
+    border-radius: 5px
+}
+
+/* Colors from c10y's mgmt page */
+.rp-button--brand {
+    background: var(--c1);
+}
+.rp-button--brand:hover {
+    background: var(--c1-light);
+}
+.rp-button--alt, .dark .rp-button--alt {
+    background: var(--card-bg);
+}
+.rp-button--alt {
+    border: 1px solid var(--rp-c-gray-light-1);
+}
+.rp-button--alt:hover {
+    border-color: var(--c1-light)
+}
+
+/* Stylize "Donate to us" button */
+
+/* Light mode */
+a.rp-button:nth-child(4) {
+    border: 1.5px solid var(--c2);
+}
+a.rp-button:nth-child(4):hover {
+    color: var(--c2);
+}
+/* Dark */
+.dark a.rp-button:nth-child(4) {
+    color: var(--rp-c-text-0);
+    background: var(--card-bg)
+}
+.dark a.rp-button:nth-child(4):hover {
+    background: var(--c2-bg)
 }
 
 /* Vertical layout */
