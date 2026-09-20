@@ -78,6 +78,11 @@
         background:none
     }
 
+    /* Use lighter color for nav bars */
+    .rp-nav-menu__item--active .rp-nav-menu__item__container,
+    .rp-nav-menu__item:hover .rp-nav-menu__item__container {
+        color: oklch(from var(--rp-c-brand) 0.8 c h)
+    }
 }
 
 img {
