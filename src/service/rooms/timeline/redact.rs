@@ -45,7 +45,7 @@ impl super::Service {
 			.get_room_version(&pdu.room_id_or_hash())
 			.await?;
 
-		pdu.redact(&room_version_id, reason.to_value())?;
+		pdu.redact(&room_version_id, Some(reason.event_id()))?;
 
 		let obj = utils::to_canonical_object(&pdu).map_err(|e| {
 			err!(Database(error!(%event_id, ?e, "Failed to convert PDU to canonical JSON")))

@@ -3,7 +3,7 @@ use std::collections::{HashSet, VecDeque};
 use axum::extract::State;
 use conduwuit::{Err, Event, Result, debug, info, trace, utils::to_canonical_object, warn};
 use ruma::{OwnedEventId, api::federation::event::get_missing_events};
-use serde_json::{json, value::RawValue};
+use serde_json::value::RawValue;
 use service::rooms::event_handler::GET_MISSING_EVENTS_MAX_BATCH_SIZE;
 
 use super::AccessCheck;
@@ -91,7 +91,7 @@ pub(crate) async fn get_missing_events_route(
 			.await
 		{
 			debug!(%next_event_id, origin = %body.identity, "redacting event origin cannot see");
-			pdu.redact(&room_version, json!({}))?;
+			pdu.redact(&room_version, None)?;
 		}
 
 		trace!(
