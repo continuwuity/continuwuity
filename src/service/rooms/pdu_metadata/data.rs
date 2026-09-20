@@ -2,7 +2,7 @@ use std::{mem::size_of, sync::Arc};
 
 use conduwuit::{
 	arrayvec::ArrayVec,
-	matrix::{Event, PduCount},
+	matrix::PduCount,
 	utils::{
 		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
@@ -94,7 +94,12 @@ impl Data {
 
 			let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
-			pdu.as_mut_pdu().set_unsigned(Some(user_id));
+			let ctx = self
+				.services
+				.timeline
+				.get_unsigned_context(&pdu, Some(user_id))
+				.await;
+			pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
 
 			Some((shorteventid, pdu))
 		})

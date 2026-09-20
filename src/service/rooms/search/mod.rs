@@ -136,10 +136,20 @@ impl Service {
 			})
 			.skip(query.skip)
 			.take(query.limit)
-			.map(move |mut pdu| {
-				pdu.set_unsigned(query.user_id);
+			.wide_filter_map(async move |mut pdu| {
+				let ctx = self
+					.services
+					.timeline
+					.get_unsigned_context(&pdu, Some(sender_user))
+					.await;
+				pdu.set_unsigned(
+					ctx.user_id,
+					ctx.membership,
+					ctx.prev_content,
+					ctx.redacted_because,
+				);
 
-				pdu
+				Some(pdu)
 			})
 			.then(async move |mut pdu| {
 				if let Err(e) = self
