@@ -1,10 +1,14 @@
 use ruma::{RoomVersionId, canonical_json::redact_content_in_place};
-use serde_json::{Value as JsonValue, json, value::to_raw_value};
+use serde_json::{json, value::to_raw_value};
 
 use crate::{Err, Result, err};
 
 impl super::Pdu {
-	pub fn redact(&mut self, room_version_id: &RoomVersionId, reason: JsonValue) -> Result {
+	pub fn redact(
+		&mut self,
+		room_version_id: &RoomVersionId,
+		redacted_because: Option<&ruma::EventId>,
+	) -> Result {
 		let Some(rules) = room_version_id.rules() else {
 			return Err!("Cannot redact event for unknown room version {room_version_id}");
 		};
@@ -20,15 +24,13 @@ impl super::Pdu {
 
 		redact_content_in_place(&mut content, &rules.redaction, self.kind.to_string());
 
-		let reason = serde_json::to_value(reason).expect("Failed to preserialize reason");
-
-		let redacted_because = json!({
-			"redacted_because": reason,
-		});
-
-		self.unsigned = to_raw_value(&redacted_because)
+		if let Some(event_id) = redacted_because {
+			self.unsigned = to_raw_value(&json!({
+				"redacted_because_id": event_id,
+			}))
 			.expect("Failed to serialize unsigned")
 			.into();
+		}
 
 		self.content = to_raw_value(&content).expect("Failed to serialize content");
 
