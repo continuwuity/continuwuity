@@ -322,7 +322,12 @@ async fn build_sticky_events(
 			continue;
 		}
 
-		pdu.set_unsigned(Some(syncing_user));
+		let ctx = services
+			.rooms
+			.timeline
+			.get_unsigned_context(&pdu, Some(sync_context.syncing_user))
+			.await;
+		pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
 		events.push(Event::into_format(pdu));
 	}
 

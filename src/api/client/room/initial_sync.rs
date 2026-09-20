@@ -53,7 +53,17 @@ pub(crate) async fn room_initial_sync_route(
 		.pdus_rev(room_id, None)
 		.try_take(limit)
 		.and_then(async |mut pdu| {
-			pdu.1.set_unsigned(Some(sender_user));
+			let ctx = services
+				.rooms
+				.timeline
+				.get_unsigned_context(&pdu.1, Some(sender_user))
+				.await;
+			pdu.1.set_unsigned(
+				ctx.user_id,
+				ctx.membership,
+				ctx.prev_content,
+				ctx.redacted_because,
+			);
 			if let Err(e) = services
 				.rooms
 				.pdu_metadata

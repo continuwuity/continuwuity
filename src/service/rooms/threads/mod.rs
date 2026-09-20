@@ -164,7 +164,17 @@ impl Service {
 				let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
 				let pdu_id: PduId = pdu_id.into();
-				pdu.as_mut_pdu().set_unsigned(Some(user_id));
+				let ctx = self
+					.services
+					.timeline
+					.get_unsigned_context(&pdu, Some(user_id))
+					.await;
+				pdu.set_unsigned(
+					ctx.user_id,
+					ctx.membership,
+					ctx.prev_content,
+					ctx.redacted_because,
+				);
 
 				Some((pdu_id.shorteventid, pdu))
 			});

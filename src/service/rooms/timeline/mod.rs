@@ -21,8 +21,12 @@ use conduwuit_core::{
 };
 use futures::{Future, Stream, TryStreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	events::room::encrypted::Relation,
+	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId, UserId,
+	events::{
+		AnyTimelineEvent,
+		room::{encrypted::Relation, member::MembershipState},
+	},
+	serde::Raw,
 };
 use serde::Deserialize;
 
@@ -59,6 +63,14 @@ pub struct Service {
 	services: Services,
 	db: Data,
 	pub mutex_insert: RoomMutexMap,
+}
+
+#[derive(Default, Clone)]
+pub struct UnsignedContext<'a> {
+	pub user_id: Option<&'a UserId>,
+	pub membership: Option<MembershipState>,
+	pub prev_content: Option<Box<serde_json::value::RawValue>>,
+	pub redacted_because: Option<Raw<AnyTimelineEvent>>,
 }
 
 struct Services {
@@ -271,5 +283,79 @@ impl Service {
 		from: Option<PduCount>,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
 		self.db.pdus(room_id, from.unwrap_or_else(PduCount::min))
+	}
+
+	/// Fetches contextual unsigned information, like prev content, membership,
+	/// and redacted because.
+	pub async fn get_unsigned_context<'a, E>(
+		&self,
+		event: E,
+		user_id: Option<&'a UserId>,
+	) -> UnsignedContext<'a>
+	where
+		E: Event,
+	{
+		let ssh = self
+			.services
+			.state_accessor
+			.pdu_shortstatehash(event.event_id())
+			.await;
+		let (membership, prev_content) = if let Some(sender_user) = user_id
+			&& let Ok(ssh) = ssh
+		{
+			let membership = Some(
+				self.services
+					.state_accessor
+					.user_membership(ssh, sender_user)
+					.await,
+			);
+			let prev_content = match event.get_unsigned_property::<OwnedEventId>("replaces_state")
+			{
+				| Ok(event_id) => {
+					// Only include prev content if the sender is allowed to see
+					// the event
+					let can_see = self
+						.services
+						.state_accessor
+						.user_can_see_event(
+							sender_user,
+							&event.room_id_or_hash(),
+							event.event_id(),
+						)
+						.await;
+					if can_see {
+						self.get_pdu(&event_id).await.map(|p| p.content).ok()
+					} else {
+						None
+					}
+				},
+				| _ => None,
+			};
+
+			(membership, prev_content)
+		} else {
+			(None, None)
+		};
+
+		// N.B. Theoretically, the redaction event should be included in a
+		// redacted capacity if the requesting user isn't allowed to see the
+		// redaction event. However, the cost of looking up that information
+		// is extraordinary compared to the value it would provide, so is
+		// deliberately not done.
+		let redacted_because =
+			match event.get_unsigned_property::<OwnedEventId>("redacted_because_id") {
+				| Ok(event_id) => self
+					.get_pdu(&event_id)
+					.await
+					.map(Event::into_format::<Raw<AnyTimelineEvent>>)
+					.ok(),
+				| _ => None,
+			};
+		UnsignedContext {
+			user_id,
+			membership,
+			prev_content,
+			redacted_because,
+		}
 	}
 }

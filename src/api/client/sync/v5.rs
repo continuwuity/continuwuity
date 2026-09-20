@@ -1188,12 +1188,12 @@ async fn collect_sticky_events(
 
 	// MSC4480 lets us ignore the limit for a newly visible room's backlog
 	for (room_id, pdu) in backlog {
-		push_sticky_event(&mut response, sender_user, room_id, pdu);
+		push_sticky_event(services, &mut response, sender_user, room_id, pdu).await;
 	}
 
 	let mut next_batch = None;
 	for (count, room_id, pdu) in stream.into_iter().take(limit) {
-		push_sticky_event(&mut response, sender_user, room_id, pdu);
+		push_sticky_event(services, &mut response, sender_user, room_id, pdu).await;
 		next_batch = Some(count);
 	}
 
@@ -1204,13 +1204,19 @@ async fn collect_sticky_events(
 	Ok(response)
 }
 
-fn push_sticky_event(
+async fn push_sticky_event(
+	services: &Services,
 	response: &mut sync_events::v5::response::StickyEvents,
 	sender_user: &UserId,
 	room_id: OwnedRoomId,
 	mut pdu: PduEvent,
 ) {
-	pdu.set_unsigned(Some(sender_user));
+	let ctx = services
+		.rooms
+		.timeline
+		.get_unsigned_context(&pdu, Some(sender_user))
+		.await;
+	pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
 	response
 		.rooms
 		.entry(room_id)

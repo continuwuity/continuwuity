@@ -43,7 +43,12 @@ pub(crate) async fn get_room_event_route(
 		debug_warn!("Failed to add bundled aggregations to event: {e}");
 	}
 
-	event.set_unsigned(Some(body.identity.expect_sender_user()?));
+	let ctx = services
+		.rooms
+		.timeline
+		.get_unsigned_context(&event, Some(sender_user))
+		.await;
+	event.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
 
 	Ok(get_room_event::v3::Response::new(event.into_format()))
 }

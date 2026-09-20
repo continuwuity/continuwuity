@@ -7,7 +7,7 @@ use conduwuit::{
 	Event, PduCount, Result, debug_warn, err,
 	matrix::pdu::PduEvent,
 	ref_at, trace,
-	utils::stream::{BroadbandExt, ReadyExt, TryIgnore},
+	utils::stream::{BroadbandExt, ReadyExt, TryIgnore, WidebandExt},
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
@@ -83,9 +83,19 @@ async fn load_timeline(
 				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
 				.ready_take_while(move |&(pducount, _)| pducount > starting_count)
-				.map(move |mut pdu| {
-					pdu.1.set_unsigned(Some(sender_user));
-					pdu
+				.wide_filter_map(async |mut pdu| {
+					let ctx = services
+						.rooms
+						.timeline
+						.get_unsigned_context(&pdu.1, Some(sender_user))
+						.await;
+					pdu.1.set_unsigned(
+						ctx.user_id,
+						ctx.membership,
+						ctx.prev_content,
+						ctx.redacted_because,
+					);
+					Some(pdu)
 				})
 				.then(async move |mut pdu| {
 					if let Err(e) = services
@@ -108,9 +118,19 @@ async fn load_timeline(
 				.timeline
 				.pdus_rev(room_id, ending_count.map(|count| count.saturating_add(1)))
 				.ignore_err()
-				.map(move |mut pdu| {
-					pdu.1.set_unsigned(Some(sender_user));
-					pdu
+				.wide_filter_map(async |mut pdu| {
+					let ctx = services
+						.rooms
+						.timeline
+						.get_unsigned_context(&pdu.1, Some(sender_user))
+						.await;
+					pdu.1.set_unsigned(
+						ctx.user_id,
+						ctx.membership,
+						ctx.prev_content,
+						ctx.redacted_because,
+					);
+					Some(pdu)
 				})
 				.then(async move |mut pdu| {
 					if let Err(e) = services
