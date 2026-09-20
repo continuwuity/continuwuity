@@ -21,6 +21,10 @@ It's the official community continuation of the [conduwuit](https://github.com/g
 [![Codeberg][codeberg-badge]][codeberg-link] [![Stars][codeberg-stars-badge]][codeberg-stars-link] -
 [![GitLab][gitlab-badge]][gitlab-link] [![Stars][gitlab-stars-badge]][gitlab-stars-link]
 
+<a style="display:flex; margin-top:2rem" href="https://opencollective.com/continuwuity" target="_blank">
+<img style="margin:auto" src="https://opencollective.com/webpack/donate/button@2x.png?color=blue" width="250"/>
+</a>
+
 [forge-badge]: https://img.shields.io/badge/Ellis%20Git-main+packages-green?style=flat&logo=forgejo&labelColor=fff
 [forge-link]: https://forgejo.ellis.link/continuwuation/continuwuity
 [forge-stars-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat
