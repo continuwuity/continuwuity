@@ -1006,16 +1006,10 @@ impl Service {
 		&self,
 		mut pdu_json: CanonicalJsonObject,
 	) -> impl Future<Output = Box<RawJsonValue>> {
-		if let Some(unsigned) = pdu_json
-			.get_mut("unsigned")
-			.and_then(|val| val.as_object_mut())
-		{
-			// TODO: remove all unsigned data over federation.
-			unsigned.remove("transaction_id");
-		}
 		// We don't support any room versions that have the event_id in the PDU
 		// JSON, so we can safely remove it here.
 		pdu_json.remove("event_id");
+		pdu_json.remove("unsigned");
 
 		std::future::ready(
 			to_raw_value(&pdu_json).expect("CanonicalJson is valid serde_json::Value"),
