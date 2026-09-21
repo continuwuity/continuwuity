@@ -53,6 +53,11 @@ impl Pdu {
 
 		if let Some(prev_content) = prev_content {
 			unsigned.insert("prev_content".to_owned(), to_raw_value(&prev_content)?);
+			// TODO(nex): prev_sender is still inserted in append.rs because
+			// only the prev *content* is passed to this function.
+			// I think ideally passing the actual direct `UnsignedContext` to
+			// this function instead of unpacking its parameters would be the
+			// proper solution, especially since every callsite has one
 		}
 		if let Some(redacted_because) = redacted_because {
 			unsigned.remove("org.continuwuity.redacted_by");
