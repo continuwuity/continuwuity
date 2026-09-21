@@ -6,7 +6,9 @@ use std::collections::VecDeque;
 use conduwuit::{
 	Event, PduCount, Result, debug_warn, err,
 	matrix::pdu::PduEvent,
-	ref_at, trace,
+	ref_at,
+	result::LogErr,
+	trace,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore, WidebandExt},
 };
 use conduwuit_service::Services;
@@ -89,12 +91,15 @@ async fn load_timeline(
 						.timeline
 						.get_unsigned_context(&pdu.1, Some(sender_user))
 						.await;
-					pdu.1.set_unsigned(
-						ctx.user_id,
-						ctx.membership,
-						ctx.prev_content,
-						ctx.redacted_because,
-					);
+					pdu.1
+						.set_unsigned(
+							ctx.user_id,
+							ctx.membership,
+							ctx.prev_content,
+							ctx.redacted_because,
+						)
+						.log_err()
+						.ok();
 					Some(pdu)
 				})
 				.then(async move |mut pdu| {
@@ -124,12 +129,15 @@ async fn load_timeline(
 						.timeline
 						.get_unsigned_context(&pdu.1, Some(sender_user))
 						.await;
-					pdu.1.set_unsigned(
-						ctx.user_id,
-						ctx.membership,
-						ctx.prev_content,
-						ctx.redacted_because,
-					);
+					pdu.1
+						.set_unsigned(
+							ctx.user_id,
+							ctx.membership,
+							ctx.prev_content,
+							ctx.redacted_because,
+						)
+						.log_err()
+						.ok();
 					Some(pdu)
 				})
 				.then(async move |mut pdu| {

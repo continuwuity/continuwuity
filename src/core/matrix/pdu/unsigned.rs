@@ -34,40 +34,29 @@ impl Pdu {
 		membership: Option<MembershipState>,
 		prev_content: Option<Box<RawJsonValue>>,
 		redacted_because: Option<Raw<AnyTimelineEvent>>,
-	) {
+	) -> crate::Result<Unsigned> {
 		// See: https://spec.matrix.org/v1.19/client-server-api/#definition-clientevent_unsigneddata
-		let Some(mut unsigned) = self.unsigned().map_or_else(
-			|| Some(Unsigned::new()),
-			|u| serde_json::from_str::<Unsigned>(u.get()).ok(),
-		) else {
-			return;
-		};
+		let mut unsigned = self
+			.unsigned()
+			.map_or_else(|| Ok(Unsigned::new()), |u| serde_json::from_str::<Unsigned>(u.get()))?;
 
 		let now = MilliSecondsSinceUnixEpoch::now().get();
 		let now_i: ruma::Int = now.into();
 		unsigned.insert(
 			"age".to_owned(),
-			to_raw_value(&now_i.saturating_sub(self.origin_server_ts.into())).unwrap(),
+			to_raw_value(&now_i.saturating_sub(self.origin_server_ts.into()))?,
 		);
 
 		if let Some(membership) = membership {
-			unsigned.insert("membership".to_owned(), to_raw_value(&membership).unwrap());
+			unsigned.insert("membership".to_owned(), to_raw_value(&membership)?);
 		}
 
 		if let Some(prev_content) = prev_content {
-			unsigned.insert(
-				"prev_content".to_owned(),
-				to_raw_value(&prev_content)
-					.expect("prev_content must be a valid JSON value for unsigned"),
-			);
+			unsigned.insert("prev_content".to_owned(), to_raw_value(&prev_content)?);
 		}
 		if let Some(redacted_because) = redacted_because {
 			unsigned.remove("org.continuwuity.redacted_by");
-			unsigned.insert(
-				"redacted_because".to_owned(),
-				to_raw_value(&redacted_because)
-					.expect("redacted_because must be a valid JSON value for unsigned"),
-			);
+			unsigned.insert("redacted_because".to_owned(), to_raw_value(&redacted_because)?);
 		}
 
 		// Remove transaction_id unless the user is the sender
@@ -82,11 +71,11 @@ impl Pdu {
 		{
 			unsigned.insert(
 				sticky::TTL_UNSIGNED_KEY.to_owned(),
-				to_raw_value(&expires_at.saturating_sub(u64::from(now)))
-					.expect("sticky event TTL must be a valid JSON value for unsigned"),
+				to_raw_value(&expires_at.saturating_sub(u64::from(now)))?,
 			);
 		}
 
-		self.unsigned = Some(to_raw_value(&unsigned).unwrap());
+		self.unsigned = Some(to_raw_value(&unsigned)?);
+		Ok(unsigned)
 	}
 }

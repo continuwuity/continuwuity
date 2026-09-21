@@ -48,7 +48,7 @@ pub(crate) async fn get_room_event_route(
 		.timeline
 		.get_unsigned_context(&event, Some(sender_user))
 		.await;
-	event.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
+	event.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)?;
 
 	Ok(get_room_event::v3::Response::new(event.into_format()))
 }

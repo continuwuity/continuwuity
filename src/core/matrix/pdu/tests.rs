@@ -74,7 +74,7 @@ fn redaction_removes_stickiness() {
 fn sticky_ttl_is_added_to_unsigned() {
 	let mut pdu = sticky_pdu(&serde_json::json!({ "duration_ms": 300_000 }));
 	pdu.origin_server_ts = ruma::MilliSecondsSinceUnixEpoch::now().get();
-	pdu.set_unsigned(None, None, None, None);
+	pdu.set_unsigned(None, None, None, None).unwrap();
 
 	let unsigned: serde_json::Value =
 		serde_json::from_str(pdu.unsigned.as_deref().expect("unsigned is set").get())
@@ -99,7 +99,7 @@ fn set_unsigned_adds_the_sticky_ttl() {
 	// section
 	let mut pdu = sticky_pdu(&serde_json::json!({ "duration_ms": 300_000 }));
 	pdu.origin_server_ts = ruma::MilliSecondsSinceUnixEpoch::now().get();
-	pdu.set_unsigned(None, None, None, None);
+	pdu.set_unsigned(None, None, None, None).unwrap();
 
 	let unsigned: serde_json::Value =
 		serde_json::from_str(pdu.unsigned.as_deref().expect("unsigned is set").get())

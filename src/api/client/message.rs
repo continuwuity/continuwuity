@@ -145,12 +145,10 @@ pub(crate) async fn get_message_events_route(
 				.timeline
 				.get_unsigned_context(&pdu.1, Some(sender_user))
 				.await;
-			pdu.1.set_unsigned(
-				ctx.user_id,
-				ctx.membership,
-				ctx.prev_content,
-				ctx.redacted_because,
-			);
+			pdu.1
+				.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)
+				.log_err()
+				.ok();
 			if let Err(e) = services
 				.rooms
 				.pdu_metadata

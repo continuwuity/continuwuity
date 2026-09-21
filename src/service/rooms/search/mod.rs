@@ -5,6 +5,7 @@ use conduwuit::{
 	arrayvec::ArrayVec,
 	debug_warn,
 	matrix::event::{Event, Matches},
+	result::LogErr,
 	utils::{
 		ArrayVecExt, IterStream, ReadyExt, set,
 		stream::{TryIgnore, WidebandExt},
@@ -147,7 +148,9 @@ impl Service {
 					ctx.membership,
 					ctx.prev_content,
 					ctx.redacted_because,
-				);
+				)
+				.log_err()
+				.ok();
 
 				Some(pdu)
 			})

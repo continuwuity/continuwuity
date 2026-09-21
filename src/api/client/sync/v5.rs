@@ -11,6 +11,7 @@ use conduwuit::{
 		Event, TypeStateKey,
 		pdu::{PduCount, PduEvent, sticky},
 	},
+	result::LogErr,
 	trace,
 	utils::{
 		BoolExt, FutureBoolExt, IterStream, ReadyExt, TryFutureExtExt,
@@ -1216,7 +1217,9 @@ async fn push_sticky_event(
 		.timeline
 		.get_unsigned_context(&pdu, Some(sender_user))
 		.await;
-	pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because);
+	pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)
+		.log_err()
+		.ok();
 	response
 		.rooms
 		.entry(room_id)
