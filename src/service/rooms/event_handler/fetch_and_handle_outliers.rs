@@ -461,6 +461,9 @@ impl super::Service {
 		assert!(!candidates.is_empty(), "no candidates to fetch missing events from");
 		let mut discovered_events =
 			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
+		// Events we fetched, but can never resolve (e.g. they are malformed).
+		let mut unusable_events: HashSet<OwnedEventId> = HashSet::new();
+		let mut fetched_events: HashMap<OwnedEventId, CanonicalJsonObject> = HashMap::new();
 		trace!(
 			elapsed=?start.elapsed(),
 			"Fetching {} unknown PDUs on demand from {} candidates",
@@ -483,30 +486,38 @@ impl super::Service {
 					continue;
 				}
 
-				self.ensure_can_pull_event(&target_id).inspect_err(|e| {
-					debug_warn!(
-						error=?e,
-						%apex_event_id,
-						auth_event_id=%target_id,
-						"Failed to fetch missing auth event over federation"
-					);
-				})?;
-				debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
-				let value = match self
-					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
-					.await
-				{
-					| Ok((_, x)) => {
-						self.clear_failed_pdu(&target_id);
-						x
-					},
-					| Err(e) => {
-						self.hit_failed_pdu_pull(target_id.clone());
-						return Err!(Request(NotFound(warn!(
-							elapsed=?start.elapsed(),
-							%apex_event_id,
-							"failed to fetch missing auth event {target_id} from any candidate: {e}"
-						))));
+				// Re-queued events would otherwise be re-fetched on every pass.
+				let value = match fetched_events.get(&target_id) {
+					| Some(cached) => cached.clone(),
+					| None => {
+						self.ensure_can_pull_event(&target_id).inspect_err(|e| {
+							debug_warn!(
+								error=?e,
+								%apex_event_id,
+								auth_event_id=%target_id,
+								"Failed to fetch missing auth event over federation"
+							);
+						})?;
+						debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
+						match self
+							.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
+							.await
+						{
+							| Ok((_, x)) => {
+								self.clear_failed_pdu(&target_id);
+								fetched_events.insert(target_id.clone(), x.clone());
+								x
+							},
+							| Err(e) => {
+								self.hit_failed_pdu_pull(target_id.clone());
+								return Err!(Request(NotFound(warn!(
+									elapsed=?start.elapsed(),
+									%apex_event_id,
+									"failed to fetch missing auth event {target_id} from any \
+									 candidate: {e}"
+								))));
+							},
+						}
 					},
 				};
 				let auth_events =
@@ -524,10 +535,13 @@ impl super::Service {
 								?e,
 								"event {target_id} is malformed (bad auth_events), skipping"
 							);
+							self.hit_failed_pdu_pull(target_id.clone());
+							unusable_events.insert(target_id);
 							continue;
 						},
 					};
 				let mut have_all_auth = true;
+				let mut has_unusable_auth = false;
 				for auth_event_id in auth_events {
 					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
 						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
@@ -540,9 +554,18 @@ impl super::Service {
 						trace!(elapsed=?start.elapsed(), %auth_event_id, "Already found auth event");
 						continue;
 					}
+					if unusable_events.contains(&auth_event_id) {
+						debug_warn!(elapsed=?start.elapsed(), %auth_event_id, "Auth event {auth_event_id} of {target_id} is unusable, giving up on it");
+						has_unusable_auth = true;
+						break;
+					}
 					debug!(elapsed=?start.elapsed(), "Missing auth event {auth_event_id} for event {target_id}");
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
+				}
+				if has_unusable_auth {
+					unusable_events.insert(target_id);
+					continue;
 				}
 				// Insert this PDU back at the end of the queue so that it will
 				// be resolved once all of its auth events have been
