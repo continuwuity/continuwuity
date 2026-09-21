@@ -13,11 +13,21 @@ use crate::Event;
 type Unsigned = BTreeMap<String, Box<RawJsonValue>>;
 
 impl Pdu {
-	/// Set the `unsigned` field of the PDU using only information in the PDU.
-	/// Some unsigned data is already set within the database (eg. prev events,
-	/// threads). Once this is done, other data must be calculated from the
-	/// database (eg. relations) This is for server-to-client events.
-	/// Backfill handles this itself.
+	/// Sets the `unsigned` field of the PDU using a mix of the provided
+	/// optional data, and information available in the PDU itself. The
+	/// `unsigned` field will always be inserted if it is not attached to the
+	/// PDU, however no operations will be performed if `unsigned` is present
+	/// but malformed and unparseable.
+	///
+	/// `age` is always inserted and is calculated based on the time of the
+	/// function call. `membership`, `prev_content`, and `redacted_by` are
+	/// inserted if not `None`. If `user_id` is `None`, `transaction_id` will be
+	/// removed. The sticky event TTL field is always inserted and calculated
+	/// (per `age`) if the PDU is sticky.
+	///
+	/// This function panics if any value cannot be serialised, which should not
+	/// happen provided `membership`, `prev_content`, and `redacted_because` are
+	/// well-formed.
 	pub fn set_unsigned(
 		&mut self,
 		user_id: Option<&ruma::UserId>,
