@@ -471,13 +471,24 @@ impl super::Service {
 			candidates.len()
 		);
 
+		// For each event in the apex set,
 		for apex_event_id in &events {
+			// Seed the search queue with the apex event (which itself may be
+			// missing).
 			let mut todo: VecDeque<OwnedEventId> = [apex_event_id.to_owned()].into();
 
+			// For each event in the queue,
 			while let Some(target_id) = todo.pop_front() {
+				// If we already discovered this event, skip
 				if discovered_events.contains_key(&target_id) {
 					continue;
 				}
+				// If we already have this event locally (even as an outlier),
+				// discover it locally and continue.
+				// If this function returns a value, we already have all the
+				// auth events for the event (since we were able to persist it
+				// at all), so there's no need to add its dependencies to the
+				// queue.
 				if let Ok(local_pdu) = self.services.timeline.get_pdu(&target_id).await {
 					trace!(elapsed=?start.elapsed(), "Found {target_id} in db");
 					let mut obj = local_pdu.into_canonical_object();
@@ -486,10 +497,13 @@ impl super::Service {
 					continue;
 				}
 
-				// Re-queued events would otherwise be re-fetched on every pass.
+				// If we already fetched this event before, re-use the previous
+				// result to avoid another network hit.
 				let value = match fetched_events.get(&target_id) {
 					| Some(cached) => cached.clone(),
 					| None => {
+						// Otherwise, are we allowed to try to pull this event?
+						// If not, propagate the error.
 						self.ensure_can_pull_event(&target_id).inspect_err(|e| {
 							debug_warn!(
 								error=?e,
@@ -504,11 +518,21 @@ impl super::Service {
 							.await
 						{
 							| Ok((_, x)) => {
+								// We successfully fetched this PDU, so we can
+								// now clear the backoff, and add it to the
+								// fetch cache.
+								// Do not yet add it to the discovery result as
+								// we have not validated it.
 								self.clear_failed_pdu(&target_id);
 								fetched_events.insert(target_id.clone(), x.clone());
 								x
 							},
 							| Err(e) => {
+								// The remote server returned an error for this
+								// event. Back off on the event,
+								// and fail the fetch attempt (since even one
+								// missing auth event makes the entire call
+								// unusable).
 								self.hit_failed_pdu_pull(target_id.clone());
 								return Err!(Request(NotFound(warn!(
 									elapsed=?start.elapsed(),
@@ -520,6 +544,8 @@ impl super::Service {
 						}
 					},
 				};
+				// Find out what this event's auth events might be missing
+				// locally.
 				let auth_events =
 					match expect_event_id_array(&value, "auth_events").map_err(|e| {
 						err!(Request(BadJson(warn!(
@@ -530,6 +556,11 @@ impl super::Service {
 					}) {
 						| Ok(auth_events) => auth_events,
 						| Err(e) => {
+							// This event is not well-formed and cannot be used.
+							// Add it to the unusable events set to avoid trying
+							// it again.
+							// We don't reject here because the server we pulled
+							// from might just be lying.
 							warn!(
 								elapsed=?start.elapsed(),
 								?e,
@@ -540,9 +571,25 @@ impl super::Service {
 							continue;
 						},
 					};
+
+				// Now we need to append any missing auth events to the queue.
 				let mut have_all_auth = true;
 				let mut has_unusable_auth = false;
 				for auth_event_id in auth_events {
+					// If we already discovered this event, skip
+					//
+					// TODO(nex): Is this even possible?
+					// D -> C -> B -> A
+					// if we get D, check discovered_events for C, we obviously
+					// won't have it yet. Get C, check for B, don't have it...
+					// The only thing I can think of is a circular reference?
+					// which is illegal.
+					if discovered_events.contains_key(&auth_event_id) {
+						trace!(elapsed=?start.elapsed(), %auth_event_id, "Already found auth event");
+						continue;
+					}
+					// Do we have this event locally? Again if so, use local
+					// copy, don't add work.
 					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
 						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
 						let mut obj = local_pdu.into_canonical_object();
@@ -550,15 +597,22 @@ impl super::Service {
 						discovered_events.insert(auth_event_id.clone(), obj);
 						continue;
 					}
-					if discovered_events.contains_key(&auth_event_id) {
-						trace!(elapsed=?start.elapsed(), %auth_event_id, "Already found auth event");
-						continue;
-					}
+					// If this event depends on an unusable auth event, we'll
+					// never be able to satisfy it, and as such the entire chain
+					// is corrupted.
 					if unusable_events.contains(&auth_event_id) {
-						debug_warn!(elapsed=?start.elapsed(), %auth_event_id, "Auth event {auth_event_id} of {target_id} is unusable, giving up on it");
+						debug_warn!(
+							elapsed=?start.elapsed(),
+							%auth_event_id,
+							"Auth event {auth_event_id} of {target_id} is unusable, giving up on it"
+						);
 						has_unusable_auth = true;
 						break;
 					}
+					// Otherwise, we're missing this auth event: add it to the
+					// queue. This will also re-add this parent event to the
+					// queue again, so that it can be re-processed after
+					// fetching the auth event (and any missing dependencies).
 					debug!(elapsed=?start.elapsed(), "Missing auth event {auth_event_id} for event {target_id}");
 					todo.push_back(auth_event_id);
 					have_all_auth = false;
@@ -582,6 +636,8 @@ impl super::Service {
 			}
 		}
 
+		// For each discovered event, handle it as an outlier, returning the
+		// parsed PDU map.
 		let seeded_ordered = build_local_dag(&discovered_events, DagBuilderTree::AuthEvents)
 			.await
 			.expect("failed to build local DAG");
