@@ -1,13 +1,14 @@
 //! Helpers for submitting events with the right checks performed
 
 use conduwuit::{
-	Err, Result, err,
+	Err, Event, Result, err,
 	matrix::pdu::{PartialPdu, sticky},
+	trace,
 };
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedEventId, RoomId, UserId,
 	events::{
-		AnyStateEventContent, StateEventType,
+		AnyStateEventContent, AnyTimelineEvent, StateEventType,
 		room::{
 			canonical_alias::RoomCanonicalAliasEventContent,
 			history_visibility::{HistoryVisibility, RoomHistoryVisibilityEventContent},
@@ -21,6 +22,14 @@ use ruma::{
 };
 
 use crate::rooms::state::RoomMutexGuard;
+
+#[derive(Default, Clone)]
+pub struct UnsignedContext<'a> {
+	pub user_id: Option<&'a UserId>,
+	pub membership: Option<MembershipState>,
+	pub prev_content: Option<Box<serde_json::value::RawValue>>,
+	pub redacted_because: Option<Raw<AnyTimelineEvent>>,
+}
 
 impl super::Service {
 	#[allow(clippy::too_many_arguments)]
@@ -324,5 +333,97 @@ impl super::Service {
 		}
 
 		Ok(())
+	}
+
+	/// Fetches contextual unsigned information, like prev content, membership,
+	/// and redacted because.
+	#[tracing::instrument(skip_all, fields(event_id=%event.event_id(), ?user_id))]
+	pub async fn get_unsigned_context<'a, E>(
+		&self,
+		event: E,
+		user_id: Option<&'a UserId>,
+	) -> UnsignedContext<'a>
+	where
+		E: Event,
+	{
+		let ssh = self
+			.services
+			.state_accessor
+			.pdu_shortstatehash(event.event_id())
+			.await;
+		let (membership, prev_content) = if let Some(sender_user) = user_id
+			&& let Ok(ssh) = ssh
+		{
+			trace!("Fetching membership");
+			let membership = Some(
+				self.services
+					.state_accessor
+					.user_membership(ssh, sender_user)
+					.await,
+			);
+			let prev_content = match event.get_unsigned_property::<OwnedEventId>("replaces_state")
+			{
+				| Ok(event_id) => {
+					// Only include prev content if the sender is allowed to see
+					// the event
+					let can_see = self
+						.services
+						.state_accessor
+						.user_can_see_event(
+							sender_user,
+							&event.room_id_or_hash(),
+							event.event_id(),
+						)
+						.await;
+					if can_see {
+						trace!(prev_event_id=%event_id, "Fetching prev content");
+						self.get_pdu(&event_id).await.map(|p| p.content).ok()
+					} else {
+						trace!(
+							prev_event_id=%event_id,
+							"Not fetching prev content as sender cannot see the event"
+						);
+						None
+					}
+				},
+				| _ => None,
+			};
+
+			(membership, prev_content)
+		} else {
+			trace!(?ssh, "No shortstatehash, cannot fetch prev content or membership");
+			(None, None)
+		};
+
+		// N.B. Theoretically, the redaction event should be included in a
+		// redacted capacity if the requesting user isn't allowed to see the
+		// redaction event. However, the cost of looking up that information
+		// is extraordinary compared to the value it would provide, so is
+		// deliberately not done.
+		let redacted_because = match event
+			.get_unsigned_property::<OwnedEventId>("org.continuwuity.redacted_by")
+		{
+			| Ok(event_id) => self
+				.get_pdu(&event_id)
+				.await
+				.map(|mut e| {
+					// We don't include unsigned here since the other option is
+					// to recursively generate unsigned data, which is
+					// expensive.
+					// Synapse seems to do that, but I don't see a use for it.
+					e.unsigned = None;
+					e
+				})
+				.map(Event::into_format::<Raw<AnyTimelineEvent>>)
+				.ok()
+				.inspect(|_| trace!(redacted_because_id=%event_id, "Fetched redacted_because")),
+			| _ => None,
+		};
+		UnsignedContext {
+			user_id,
+			membership,
+			prev_content,
+			redacted_because,
+		}
 	}
 }
