@@ -64,7 +64,7 @@ fn nonsense_sticky_object_does_not_reject_the_pdu() {
 #[test]
 fn redaction_removes_stickiness() {
 	let mut pdu = sticky_pdu(&serde_json::json!({ "duration_ms": 300_000 }));
-	pdu.redact(&ruma::RoomVersionId::V11, serde_json::json!({}))
+	pdu.redact(&ruma::RoomVersionId::V11, None)
 		.expect("redaction succeeds");
 
 	assert!(pdu.sticky.is_none());
@@ -74,7 +74,7 @@ fn redaction_removes_stickiness() {
 fn sticky_ttl_is_added_to_unsigned() {
 	let mut pdu = sticky_pdu(&serde_json::json!({ "duration_ms": 300_000 }));
 	pdu.origin_server_ts = ruma::MilliSecondsSinceUnixEpoch::now().get();
-	pdu.add_sticky_duration_ttl().expect("ttl is added");
+	pdu.set_unsigned(None, None, None, None);
 
 	let unsigned: serde_json::Value =
 		serde_json::from_str(pdu.unsigned.as_deref().expect("unsigned is set").get())
@@ -88,8 +88,7 @@ fn sticky_ttl_is_added_to_unsigned() {
 
 #[test]
 fn no_ttl_for_events_that_are_not_sticky() {
-	let mut pdu = sticky_pdu(&serde_json::json!({ "duration_ms": "nonsense" }));
-	pdu.add_sticky_duration_ttl().expect("ttl is skipped");
+	let pdu = sticky_pdu(&serde_json::json!({ "duration_ms": "nonsense" }));
 
 	assert!(pdu.unsigned.is_none());
 }

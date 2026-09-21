@@ -26,7 +26,7 @@ impl super::Pdu {
 
 		if let Some(event_id) = redacted_because {
 			self.unsigned = to_raw_value(&json!({
-				"redacted_because_id": event_id,
+				"org.continuwuity.redacted_by": event_id,
 			}))
 			.expect("Failed to serialize unsigned")
 			.into();

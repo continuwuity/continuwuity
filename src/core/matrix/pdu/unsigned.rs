@@ -5,10 +5,10 @@ use ruma::{
 	events::{AnyTimelineEvent, room::member::MembershipState},
 	serde::Raw,
 };
-use serde_json::value::{RawValue as RawJsonValue, Value as JsonValue, to_raw_value};
+use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
 
 use super::{Pdu, sticky};
-use crate::{Event, Result, err, result::LogErr};
+use crate::Event;
 
 type Unsigned = BTreeMap<String, Box<RawJsonValue>>;
 
@@ -26,17 +26,18 @@ impl Pdu {
 		redacted_because: Option<Raw<AnyTimelineEvent>>,
 	) {
 		// See: https://spec.matrix.org/v1.19/client-server-api/#definition-clientevent_unsigneddata
-		let Some(mut unsigned) = self
-			.unsigned()
-			.and_then(|u| serde_json::from_str::<Unsigned>(u.get()).ok())
-		else {
+		let Some(mut unsigned) = self.unsigned().map_or_else(
+			|| Some(Unsigned::new()),
+			|u| serde_json::from_str::<Unsigned>(u.get()).ok(),
+		) else {
 			return;
 		};
 
-		let now: ruma::Int = MilliSecondsSinceUnixEpoch::now().get().into();
+		let now = MilliSecondsSinceUnixEpoch::now().get();
+		let now_i: ruma::Int = now.into();
 		unsigned.insert(
 			"age".to_owned(),
-			to_raw_value(&now.saturating_sub(self.origin_server_ts.into())).unwrap(),
+			to_raw_value(&now_i.saturating_sub(self.origin_server_ts.into())).unwrap(),
 		);
 
 		if let Some(membership) = membership {
@@ -51,7 +52,7 @@ impl Pdu {
 			);
 		}
 		if let Some(redacted_because) = redacted_because {
-			unsigned.remove("redacted_because_id");
+			unsigned.remove("org.continuwuity.redacted_by");
 			unsigned.insert(
 				"redacted_because".to_owned(),
 				to_raw_value(&redacted_because)
@@ -63,57 +64,17 @@ impl Pdu {
 		if user_id.is_none_or(|u| u != self.sender()) {
 			unsigned.remove("transaction_id");
 		}
-		self.add_sticky_duration_ttl().log_err().ok();
-	}
 
-	pub fn add_sticky_duration_ttl(&mut self) -> Result {
-		use BTreeMap as Map;
-
-		let now = u64::from(MilliSecondsSinceUnixEpoch::now().get());
-		let Some(expires_at) = self
+		if let Some(expires_at) = self
 			.sticky
 			.as_deref()
-			.and_then(|sticky| sticky::expires_at(self.origin_server_ts, sticky, now))
-		else {
-			return Ok(());
-		};
-
-		let mut unsigned: Map<&str, Box<RawJsonValue>> = self
-			.unsigned
-			.as_deref()
-			.map(RawJsonValue::get)
-			.map_or_else(|| Ok(Map::new()), serde_json::from_str)
-			.map_err(|e| err!(Database("Invalid unsigned in pdu event: {e}")))?;
-
-		unsigned.insert(sticky::TTL_UNSIGNED_KEY, to_raw_value(&expires_at.saturating_sub(now))?);
-		self.unsigned = Some(to_raw_value(&unsigned)?);
-
-		Ok(())
-	}
-
-	pub fn add_relation(&mut self, name: &str, pdu: Option<&Self>) -> Result {
-		use serde_json::Map;
-
-		let mut unsigned: Map<String, JsonValue> = self
-			.unsigned
-			.as_deref()
-			.map(RawJsonValue::get)
-			.map_or_else(|| Ok(Map::new()), serde_json::from_str)
-			.map_err(|e| err!(Database("Invalid unsigned in pdu event: {e}")))?;
-
-		let pdu = pdu
-			.map(serde_json::to_value)
-			.transpose()?
-			.unwrap_or_else(|| JsonValue::Object(Map::new()));
-
-		unsigned
-			.entry("m.relations")
-			.or_insert(JsonValue::Object(Map::new()))
-			.as_object_mut()
-			.map(|object| object.insert(name.to_owned(), pdu));
-
-		self.unsigned = Some(to_raw_value(&unsigned)?);
-
-		Ok(())
+			.and_then(|sticky| sticky::expires_at(self.origin_server_ts, sticky, u64::from(now)))
+		{
+			unsigned.insert(
+				sticky::TTL_UNSIGNED_KEY.to_owned(),
+				to_raw_value(&expires_at.saturating_sub(u64::from(now)))
+					.expect("sticky event TTL must be a valid JSON value for unsigned"),
+			);
+		}
 	}
 }
