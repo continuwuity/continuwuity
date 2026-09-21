@@ -1,6 +1,7 @@
 use axum::extract::State;
 use conduwuit::{
 	Err, Event, Result, at, debug_warn,
+	result::LogErr,
 	utils::{BoolExt, stream::TryTools},
 };
 use futures::{FutureExt, TryStreamExt, future::try_join4};
@@ -58,12 +59,10 @@ pub(crate) async fn room_initial_sync_route(
 				.timeline
 				.get_unsigned_context(&pdu.1, Some(sender_user))
 				.await;
-			pdu.1.set_unsigned(
-				ctx.user_id,
-				ctx.membership,
-				ctx.prev_content,
-				ctx.redacted_because,
-			);
+			pdu.1
+				.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)
+				.log_err()
+				.ok();
 			if let Err(e) = services
 				.rooms
 				.pdu_metadata

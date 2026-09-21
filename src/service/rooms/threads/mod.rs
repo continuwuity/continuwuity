@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
+use conduwuit::result::LogErr;
 use conduwuit_core::{
 	Event, Result, err,
 	matrix::pdu::{PduCount, PduEvent, PduId, RawPduId},
@@ -174,7 +175,9 @@ impl Service {
 					ctx.membership,
 					ctx.prev_content,
 					ctx.redacted_because,
-				);
+				)
+				.log_err()
+				.ok();
 
 				Some((pdu_id.shorteventid, pdu))
 			});
