@@ -86,5 +86,7 @@ impl Pdu {
 					.expect("sticky event TTL must be a valid JSON value for unsigned"),
 			);
 		}
+
+		self.unsigned = Some(to_raw_value(&unsigned).unwrap());
 	}
 }
