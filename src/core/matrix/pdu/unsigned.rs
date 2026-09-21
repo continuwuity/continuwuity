@@ -17,7 +17,7 @@ impl Pdu {
 	/// optional data, and information available in the PDU itself. The
 	/// `unsigned` field will always be inserted if it is not attached to the
 	/// PDU, however no operations will be performed if `unsigned` is present
-	/// but malformed and unparseable.
+	/// but malformed and unparsable.
 	///
 	/// `age` is always inserted and is calculated based on the time of the
 	/// function call. `membership`, `prev_content`, and `redacted_by` are
