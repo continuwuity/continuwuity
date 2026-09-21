@@ -17,18 +17,13 @@ pub(crate) async fn get_room_event_route(
 
 	let mut event = match services.rooms.timeline.get_pdu(event_id).await {
 		| Ok(event) => event,
-		| Err(_) => {
+		| Err(e) if e.is_not_found() => {
 			// Only fetch over federation for users who could see the event.
-			if !services
-				.rooms
-				.state_cache
-				.is_joined(sender_user, room_id)
-				.await && !services
-				.rooms
-				.state_accessor
-				.is_world_readable(room_id)
-				.await
-			{
+			let (joined, world_readable) = tokio::join!(
+				services.rooms.state_cache.is_joined(sender_user, room_id),
+				services.rooms.state_accessor.is_world_readable(room_id)
+			);
+			if !joined && !world_readable {
 				return Err!(Request(NotFound("Event {} not found.", event_id)));
 			}
 
@@ -39,6 +34,7 @@ pub(crate) async fn get_room_event_route(
 				.await
 				.map_err(|_| err!(Request(NotFound("Event {} not found.", event_id))))?
 		},
+		| Err(e) => return Err(e),
 	};
 
 	// NOTE: checked after fetching, as visibility of an unknown event cannot
