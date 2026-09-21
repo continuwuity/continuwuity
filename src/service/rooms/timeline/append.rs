@@ -337,13 +337,6 @@ impl super::Service {
 			return;
 		};
 		unsigned.insert(
-			"prev_content".to_owned(),
-			CanonicalJsonValue::Object(
-				utils::to_canonical_object(prev_state.get_content_as_value())
-					.expect("Failed to convert prev_content into canonical JSON object"),
-			),
-		);
-		unsigned.insert(
 			String::from("prev_sender"),
 			CanonicalJsonValue::String(prev_state.sender().to_string()),
 		);
