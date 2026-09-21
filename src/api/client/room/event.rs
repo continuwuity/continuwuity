@@ -1,6 +1,5 @@
 use axum::extract::State;
 use conduwuit::{Err, Event, Result, debug_warn, err};
-use futures::{FutureExt, TryFutureExt, future::try_join};
 use ruma::api::client::room::get_room_event;
 
 use crate::{Ruma, client::is_ignored_pdu};
@@ -16,19 +15,39 @@ pub(crate) async fn get_room_event_route(
 	let event_id = &body.event_id;
 	let room_id = &body.room_id;
 
-	let event = services
-		.rooms
-		.timeline
-		.get_remote_pdu(room_id, event_id)
-		.map_err(|_| err!(Request(NotFound("Event {} not found.", event_id))));
+	let mut event = match services.rooms.timeline.get_pdu(event_id).await {
+		| Ok(event) => event,
+		| Err(_) => {
+			// Only fetch over federation for users who could see the event.
+			if !services
+				.rooms
+				.state_cache
+				.is_joined(sender_user, room_id)
+				.await && !services
+				.rooms
+				.state_accessor
+				.is_world_readable(room_id)
+				.await
+			{
+				return Err!(Request(NotFound("Event {} not found.", event_id)));
+			}
 
+			services
+				.rooms
+				.timeline
+				.get_remote_pdu(room_id, event_id)
+				.await
+				.map_err(|_| err!(Request(NotFound("Event {} not found.", event_id))))?
+		},
+	};
+
+	// NOTE: checked after fetching, as visibility of an unknown event cannot
+	// be determined (user_can_see_event returns true for those).
 	let visible = services
 		.rooms
 		.state_accessor
 		.user_can_see_event(sender_user, room_id, event_id)
-		.map(Ok);
-
-	let (mut event, visible) = try_join(event, visible).await?;
+		.await;
 
 	if !visible || is_ignored_pdu(services, &event, sender_user).await? {
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));

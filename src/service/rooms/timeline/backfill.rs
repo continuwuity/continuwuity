@@ -120,6 +120,13 @@ impl super::Service {
 			return Err!(Request(NotFound("No one can backfill this PDU, room is empty.")));
 		}
 
+		self.services
+			.event_handler
+			.ensure_can_pull_event(event_id)
+			.inspect_err(|e| {
+				debug_warn!(%event_id, error=?e, "Not attempting to fetch remote PDU");
+			})?;
+
 		let servers = self.candidate_backfill_servers(room_id).await;
 
 		for backfill_server in servers {
@@ -145,7 +152,12 @@ impl super::Service {
 						.event_handler
 						.handle_incoming_pdu(&backfill_server, room_id, event_id, value, true)
 						.boxed()
-						.await?;
+						.await
+						.inspect_err(|_| {
+							self.services
+								.event_handler
+								.hit_failed_pdu_pull(event_id.to_owned());
+						})?;
 					debug!("Successfully backfilled {event_id} from {backfill_server}");
 					Some(self.get_pdu(event_id).await)
 				},
@@ -156,10 +168,14 @@ impl super::Service {
 			};
 			if let Some(pdu) = pdu {
 				debug!("Fetched {event_id} from {backfill_server}");
+				self.services.event_handler.clear_failed_pdu(event_id);
 				return pdu;
 			}
 		}
 
+		self.services
+			.event_handler
+			.hit_failed_pdu_pull(event_id.to_owned());
 		Err!("No servers could be used to fetch {} in {}.", room_id, event_id)
 	}
 
