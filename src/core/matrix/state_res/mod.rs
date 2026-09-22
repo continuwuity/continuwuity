@@ -809,11 +809,17 @@ where
 			.await;
 		trace!(map = ?auth_state.keys().collect::<Vec<_>>(), event_id = event.event_id().as_str(), "auth state for event");
 
-		// If this is not a create event, we must have the room create event in
-		// the auth state by now.
-		if *event.event_type() != StateEventType::RoomCreate.into()
-			|| event.state_key().is_none_or(|k| !k.is_empty())
+		if *event.event_type() == StateEventType::RoomCreate.into()
+			&& event.state_key().is_some_and(str::is_empty)
 		{
+			// Inject the create event so that the call to auth_check doesn't
+			// explode. It's not used otherwise.
+			auth_state
+				.entry(StateEventType::RoomCreate.with_state_key(""))
+				.or_insert_with(|| event.clone());
+		} else {
+			// If this is not a create event, we must have the room create event
+			// in the auth state by now.
 			if !auth_state.contains_key(&StateEventType::RoomCreate.with_state_key("")) {
 				return Err(Error::NotFound(format!(
 					"m.room.create did not appear in the auth state for {}",
