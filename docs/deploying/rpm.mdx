@@ -28,7 +28,7 @@ Available for openSUSE Tumbleweed, Slowroll, and [supported Leap versions](https
 
 ## Installation methods
 
-### Stable releases (recommended)
+### Stable releases
 
 <Tabs groupId="distro">
 <Tab label="Fedora">
@@ -49,6 +49,7 @@ openSUSE packages are available through an openSUSE Build Service project namesp
 </Tabs>
 
 ### Nightly releases
+
 Nightly versions are built from the latest commit on the `main` branch every 24 hours.
 
 <Tabs groupId="distro">
@@ -68,14 +69,22 @@ In the meantime, you may follow the [generic deployment instructions](generic).
 </Tab>
 </Tabs>
 
-## Service management and removal
+## Configuration
 
-**Systemd service commands**
+Consult the [generic deployment instructions](./generic.mdx) for detailed steps. At the minimum, you will need to edit the [config file](../configuration.mdx) located at `/etc/conduwuit/conduwuit.toml` to your needs, and configure a [reverse proxy](./generic.mdx#setting-up-the-reverse-proxy).
+
+## Service management
+
+Now, you can start your Continuwuity service with:
 
 ```bash
 # Start the service
 sudo systemctl start conduwuit
+```
 
+Other useful commands include:
+
+```bash
 # Enable on boot
 sudo systemctl enable conduwuit
 
@@ -84,17 +93,9 @@ sudo systemctl status conduwuit
 
 # View logs
 sudo journalctl -u conduwuit -f
-```
 
-**Uninstallation**
-
-```bash
-# Stop and disable the service
+# Stopping the service
 sudo systemctl stop conduwuit
-sudo systemctl disable conduwuit
-
-# Remove the package
-sudo dnf remove continuwuity # replace `dnf` with `zypper` on openSUSE
 ```
 
 ## Troubleshooting
@@ -122,7 +123,28 @@ dnf --showduplicates list continuwuity
 sudo dnf install continuwuity-<version>
 ```
 
-## Building locally
+## What's next?
+
+Navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
+
+---
+
+## Appendix
+
+### Uninstallation
+
+To uninstall Continuwuity:
+
+```bash
+# Stop and disable the service
+sudo systemctl stop conduwuit
+sudo systemctl disable conduwuit
+
+# Remove the package
+sudo dnf remove continuwuity # replace `dnf` with `zypper` on openSUSE
+```
+
+### Building locally
 
 <Tabs groupId="distro">
 <Tab label="Fedora">
