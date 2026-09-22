@@ -463,7 +463,6 @@ impl super::Service {
 			HashMap::with_capacity(events.len().saturating_add(events.len().saturating_mul(3)));
 		// Events we fetched, but can never resolve (e.g. they are malformed).
 		let mut unusable_events: HashSet<OwnedEventId> = HashSet::new();
-		let mut fetched_events: HashMap<OwnedEventId, CanonicalJsonObject> = HashMap::new();
 		trace!(
 			elapsed=?start.elapsed(),
 			"Fetching {} unknown PDUs on demand from {} candidates",
@@ -479,8 +478,11 @@ impl super::Service {
 
 			// For each event in the queue,
 			while let Some(target_id) = todo.pop_front() {
-				// If we already discovered this event, skip
-				if discovered_events.contains_key(&target_id) {
+				// If we already discovered this event, or know it to be
+				// unusable, skip
+				if discovered_events.contains_key(&target_id)
+					|| unusable_events.contains(&target_id)
+				{
 					continue;
 				}
 				// If we already have this event locally (even as an outlier),
@@ -497,55 +499,41 @@ impl super::Service {
 					continue;
 				}
 
-				// If we already fetched this event before, re-use the previous
-				// result to avoid another network hit.
-				let value = match fetched_events.get(&target_id) {
-					| Some(cached) => cached.clone(),
-					| None => {
-						// Otherwise, are we allowed to try to pull this event?
-						// If not, propagate the error.
-						self.ensure_can_pull_event(&target_id).inspect_err(|e| {
-							debug_warn!(
-								error=?e,
-								%apex_event_id,
-								auth_event_id=%target_id,
-								"Failed to fetch missing auth event over federation"
-							);
-						})?;
-						debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
-						match self
-							.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
-							.await
-						{
-							| Ok((_, x)) => {
-								// We successfully fetched this PDU, so we can
-								// now clear the backoff, and add it to the
-								// fetch cache.
-								// Do not yet add it to the discovery result as
-								// we have not validated it.
-								self.clear_failed_pdu(&target_id);
-								fetched_events.insert(target_id.clone(), x.clone());
-								x
-							},
-							| Err(e) => {
-								// The remote server returned an error for this
-								// event. Back off on the event,
-								// and fail the fetch attempt (since even one
-								// missing auth event makes the entire call
-								// unusable).
-								self.hit_failed_pdu_pull(target_id.clone());
-								// TODO(nex): We should still persist the events
-								// we already fetched to avoid another event
-								// being received and immediately triggering the
-								// same walk we're aborting now.
-								return Err!(Request(NotFound(warn!(
-									elapsed=?start.elapsed(),
-									%apex_event_id,
-									"failed to fetch missing auth event {target_id} from any \
-									 candidate: {e}"
-								))));
-							},
-						}
+				// Are we allowed to try to pull this event? If not, propagate
+				// the error.
+				self.ensure_can_pull_event(&target_id).inspect_err(|e| {
+					debug_warn!(
+						error=?e,
+						%apex_event_id,
+						auth_event_id=%target_id,
+						"Failed to fetch missing auth event over federation"
+					);
+				})?;
+				debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
+				let value = match self
+					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
+					.await
+				{
+					| Ok((_, value)) => {
+						self.clear_failed_pdu(&target_id);
+						value
+					},
+					| Err(e) => {
+						// The remote server returned an error for this event.
+						// Back off on the event, and fail the fetch attempt
+						// (since even one missing auth event makes the entire
+						// call unusable).
+						self.hit_failed_pdu_pull(target_id.clone());
+						// TODO(nex): We should still persist the events we
+						// already fetched to avoid another event being received
+						// and immediately triggering the same walk we're
+						// aborting now.
+						return Err!(Request(NotFound(warn!(
+							elapsed=?start.elapsed(),
+							%apex_event_id,
+							"failed to fetch missing auth event {target_id} from any candidate: \
+							 {e}"
+						))));
 					},
 				};
 				// Find out what this event's auth events might be missing
@@ -576,67 +564,12 @@ impl super::Service {
 						},
 					};
 
-				// Now we need to append any missing auth events to the queue.
-				let mut have_all_auth = true;
-				let mut has_unusable_auth = false;
-				for auth_event_id in auth_events {
-					// If we already discovered this event, skip
-					//
-					// TODO(nex): Is this even possible?
-					// D -> C -> B -> A
-					// if we get D, check discovered_events for C, we obviously
-					// won't have it yet. Get C, check for B, don't have it...
-					// The only thing I can think of is a circular reference?
-					// which is illegal.
-					if discovered_events.contains_key(&auth_event_id) {
-						trace!(elapsed=?start.elapsed(), %auth_event_id, "Already found auth event");
-						continue;
-					}
-					// Do we have this event locally? Again if so, use local
-					// copy, don't add work.
-					if let Ok(local_pdu) = self.services.timeline.get_pdu(&auth_event_id).await {
-						trace!(elapsed=?start.elapsed(),"Found auth event {auth_event_id} in db");
-						let mut obj = local_pdu.into_canonical_object();
-						obj.remove("event_id");
-						discovered_events.insert(auth_event_id.clone(), obj);
-						continue;
-					}
-					// If this event depends on an unusable auth event, we'll
-					// never be able to satisfy it, and as such the entire chain
-					// is corrupted.
-					if unusable_events.contains(&auth_event_id) {
-						debug_warn!(
-							elapsed=?start.elapsed(),
-							%auth_event_id,
-							"Auth event {auth_event_id} of {target_id} is unusable, giving up on it"
-						);
-						has_unusable_auth = true;
-						break;
-					}
-					// Otherwise, we're missing this auth event: add it to the
-					// queue. This will also re-add this parent event to the
-					// queue again, so that it can be re-processed after
-					// fetching the auth event (and any missing dependencies).
-					debug!(elapsed=?start.elapsed(), "Missing auth event {auth_event_id} for event {target_id}");
-					todo.push_back(auth_event_id);
-					have_all_auth = false;
-				}
-				if has_unusable_auth {
-					unusable_events.insert(target_id);
-					continue;
-				}
-				// Insert this PDU back at the end of the queue so that it will
-				// be resolved once all of its auth events have been
-				// fetched.
-				if have_all_auth {
-					debug!(elapsed=?start.elapsed(),%target_id, "Have all auth events");
-					discovered_events.insert(target_id, value);
-				} else {
-					debug_warn!(elapsed=?start.elapsed(),
-						"Fetched {target_id} but missing some auth events, will have to re-fetch."
-					);
-					todo.push_back(target_id);
-				}
+				// Queue this event's auth events. They are discovered by
+				// this same loop, and the whole result is topologically sorted
+				// below, so there's no need to hold this event back until they
+				// arrive.
+				todo.extend(auth_events);
+				discovered_events.insert(target_id, value);
 			}
 		}
 
