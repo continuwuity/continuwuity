@@ -534,6 +534,10 @@ impl super::Service {
 								// missing auth event makes the entire call
 								// unusable).
 								self.hit_failed_pdu_pull(target_id.clone());
+								// TODO(nex): We should still persist the events
+								// we already fetched to avoid another event
+								// being received and immediately triggering the
+								// same walk we're aborting now.
 								return Err!(Request(NotFound(warn!(
 									elapsed=?start.elapsed(),
 									%apex_event_id,
