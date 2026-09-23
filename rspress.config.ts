@@ -11,6 +11,10 @@ export default defineConfig({
         light: '/assets/logo.svg',
         dark: '/assets/logo.svg',
     },
+    // Use `.no-zoom` class to disable image zooms
+    mediumZoom: {
+        selector: '.rspress-doc :not(.no-zoom *) > img',
+    },
     markdown: {
         link: {
             checkDeadLinks: {
