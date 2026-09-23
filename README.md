@@ -105,7 +105,7 @@ We haven't written up a guide on migrating from incompatible homeservers yet. Re
 
 ## Contribution
 
-See our [Contributing page](CONTRIBUTING.md) for more details. 
+See our [Contributing page](CONTRIBUTING.md) for more details.
 
 ### Development flow
 
