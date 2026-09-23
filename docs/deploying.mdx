@@ -1,6 +1,8 @@
+import { OverviewGroup } from '@rspress/core/theme';
+
 # Deploying
 
-This chapter describes various ways to deploy Continuwuity. Read more on this page for useful general information, and then proceed to one of the deployment methods.
+This chapter describes various ways to deploy Continuwuity. Start reading on this page for useful general information, and then proceed to one of the deployment methods.
 
 :::tip Getting help
 If you run into any problems while setting up Continuwuity, ask us in [`#continuwuity:continuwuity.org`][support-room] or [open an issue on Forgejo][forgejo-new-issue].
@@ -32,15 +34,71 @@ For regular releases, **always read the release notes before upgrading to a new 
 
 ## Installation
 
+To have Continuwuity working, you'll generally need to:
+
+1. Have a domain name pointing to your server's IP address - we will be using `example.com` in our guides.
+2. Download or build Continuwuity from your preferred source.
+3. Configure Continuwuity via the config file or environment variables. See the [Configuration](./configuration.mdx) page for more.
+4. Employ a reverse proxy in front of Continuwuity - we will be using Caddy for our guides.
+5. And finally, start the Continuwuity service.
+
 Navigate to the pages in this section that corresponds to your desired method of deploying Continuwuity, and follow the instructions there.
+
+<OverviewGroup 
+    group={{
+        items: [
+            {
+                "link": "deploying/generic",
+                "text": "Generic"
+            },
+            {
+                "link": "deploying/docker",
+                "text": "Docker"
+            },
+            {
+                "link": "deploying/debian",
+                "text": "Debian"
+            },
+            {
+                "link": "deploying/rpm",
+                "text": "RPM"
+            },
+            {
+                "link": "deploying/nixos",
+                "text": "NixOS"
+            },
+            {
+                "link": "deploying/arch-linux",
+                "text": "Arch Linux"
+            },
+            {
+                "link": "deploying/freebsd",
+                "text": "FreeBSD"
+            },
+            {
+                "link": "deploying/kubernetes",
+                "text": "Kubernetes"
+            },
+            {
+                "link": "deploying/nomad",
+                "text": "Nomad"
+            }
+        ],
+    }}
+/>
 
 ## Post-installation
 
 After successfully deploying Continuwuity, these next steps can be done:
 
 - For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](./guides/dns.mdx) (strongly recommended).
+
 - To set up Audio/Video communication, see the [**Calls**](./calls.mdx) page.
-- See the [Authentication chapter] for various ways to configure access to your homeserver, such as logging in with an external OIDC provider.
-- Consult the [Maintenance](./maintenance.mdx) page for guidance on maintaining your homeserver.
+
+- See the [**Authentication chapter**] for various ways to configure access to your homeserver, such as logging in with an external OIDC provider.
+
+- Consult the [**Maintenance**](./maintenance.mdx) page for guidance on maintaining your homeserver.
+
 - If you want to set up an appservice, take a look at the [**Appservice Guide**](./appservices.mdx).
-- See the [Troubleshooting](./troubleshooting.mdx) page for commonly diagnosed issues.
+
+- See the [**Troubleshooting**](./troubleshooting.mdx) page for commonly diagnosed issues.
