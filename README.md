@@ -27,11 +27,11 @@ It's the official community continuation of the [conduwuit](https://github.com/g
 
 [forge-badge]: https://img.shields.io/badge/Ellis%20Git-main+packages-green?style=flat&logo=forgejo&labelColor=fff
 [forge-link]: https://forgejo.ellis.link/continuwuation/continuwuity
-[forge-stars-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat
+[forge-stars-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/stars.svg?style=flat&labelColor=fff&color=8a5cd0
 [forge-stars-link]: https://forgejo.ellis.link/continuwuation/continuwuity/stars
-[forge-issues-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/issues/open.svg?style=flat
+[forge-issues-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/issues/open.svg?style=flat&labelColor=fff&color=8a5cd0
 [forge-issues-link]: https://forgejo.ellis.link/continuwuation/continuwuity/issues?state=open
-[forge-pulls-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/pulls/open.svg?style=flat
+[forge-pulls-badge]: https://forgejo.ellis.link/continuwuation/continuwuity/badges/pulls/open.svg?style=flat&labelColor=fff&color=8a5cd0
 [forge-pulls-link]: https://forgejo.ellis.link/continuwuation/continuwuity/pulls?state=open
 
 [github-badge]: https://img.shields.io/badge/GitHub-mirror-blue?style=flat&logo=github&labelColor=fff&logoColor=24292f
