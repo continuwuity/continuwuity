@@ -30,7 +30,8 @@ export default defineConfig({
                     '/advanced/delegated.docker-compose.for-traefik.yml',
                     '/advanced/delegated.docker-compose.with-traefik.yml',
                     '/calls/livekit.docker-compose.with-caddy-labels.yml',
-                    '/calls/livekit.nginx.conf'
+                    '/calls/livekit.nginx.conf',
+                    'CONTRIBUTING.md'
                 ]
             },
         },
@@ -96,6 +97,9 @@ export default defineConfig({
         }, {
             from: "^/source(|_code)$",
             to: "https://forgejo.ellis.link/continuwuation/continuwuity",
+        }, {
+	            from: "^/(CONTRIBUTING.md|contributing)$",
+	            to: "/development/contributing"
         }
         ]
     })],

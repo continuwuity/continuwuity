@@ -76,9 +76,9 @@ Continuwuity aims to:
 
 ## Can I try it out?
 
-Check out the [documentation](https://continuwuity.org) for installation instructions.
+Check out our [website](https://continuwuity.org) for installation instructions. Start with the [deployment section](https://continuwuity.org/deploying).
 
-If you want to try it out as a user, we have some partnered homeservers you can use:
+If you want to try it out as a user, we have some partnered homeservers you can join:
 * You can head over to [https://federated.nexus](https://federated.nexus/) in your browser.
   * Hit the `Apply to Join` button. Once your request has been accepted, you will receive an email with your username and password.
   * Head over to [https://app.federated.nexus](https://app.federated.nexus/) and you can sign in there, or use any other matrix chat client you wish elsewhere.
@@ -98,6 +98,8 @@ We haven't written up a guide on migrating from incompatible homeservers yet. Re
 
 ## Contribution
 
+See our [Contributing page](CONTRIBUTING.md) for more details. 
+
 ### Development flow
 
 - Features / changes must developed in a separate branch
@@ -109,7 +111,6 @@ We haven't written up a guide on migrating from incompatible homeservers yet. Re
 - Every week or two, a new release is cut.
 
 The main branch is always green!
-
 
 ### Policy on pulling from other forks
 
