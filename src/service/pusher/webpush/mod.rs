@@ -270,7 +270,7 @@ impl Service {
 		payload: Vec<u8>,
 		prio: NotificationPriority,
 	) -> Result {
-		let endpoint = self.validate_push_url(&data.url, WEBPUSH_SCHEMES)?;
+		let endpoint = self.validate_push_url(&data.url, WEBPUSH_SCHEMES).await?;
 		let authorization = self.vapid.authorization(&endpoint)?;
 		let pushkey = pusher.ids.pushkey.as_str();
 

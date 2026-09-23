@@ -50,6 +50,15 @@ impl ProxyConfig {
 			})),
 		})
 	}
+
+	#[must_use]
+	pub fn url_for(&self, url: &Url) -> Option<&Url> {
+		match self {
+			| Self::None => None,
+			| Self::Global { url } => Some(url),
+			| Self::ByDomain(proxies) => proxies.iter().find_map(|proxy| proxy.for_url(url)),
+		}
+	}
 }
 
 #[derive(Clone, Debug, Deserialize)]

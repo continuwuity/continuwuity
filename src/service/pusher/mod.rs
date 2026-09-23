@@ -1,6 +1,6 @@
 mod webpush;
 
-use std::{fmt::Debug, mem, sync::Arc};
+use std::{fmt::Debug, mem, net::IpAddr, sync::Arc};
 
 use bytes::BytesMut;
 use conduwuit::utils::response::LimitReadExt;
@@ -32,6 +32,7 @@ use ruma::{
 	uint,
 };
 use ruminuwuity::pushers::{Pusher, PusherKind, set_pusher::v3::PusherAction};
+use url::Host;
 
 pub use self::webpush::ActivationOutcome;
 use self::webpush::Vapid;
@@ -129,10 +130,11 @@ impl Service {
 
 		match &pusher.kind {
 			| PusherKind::Http(http) => {
-				self.validate_push_url(&http.url, PUSH_GATEWAY_SCHEMES)?;
+				self.validate_push_url(&http.url, PUSH_GATEWAY_SCHEMES)
+					.await?;
 			},
 			| PusherKind::WebPush(data) => {
-				self.validate_push_url(&data.url, WEBPUSH_SCHEMES)?;
+				self.validate_push_url(&data.url, WEBPUSH_SCHEMES).await?;
 				webpush::decode_pushkey(pushkey)?;
 				webpush::decode_auth(&data.auth)?;
 
@@ -235,7 +237,7 @@ impl Service {
 
 	/// Checks that a pusher URL is well-formed and not pointing at a forbidden
 	/// address.
-	fn validate_push_url(&self, url: &str, allowed: &[&str]) -> Result<url::Url> {
+	async fn validate_push_url(&self, url: &str, allowed: &[&str]) -> Result<url::Url> {
 		let parsed = url::Url::parse(url).map_err(|e| {
 			err!(Request(InvalidParam(warn!(%url, "Pusher URL is not a valid URL: {e}"))))
 		})?;
@@ -248,18 +250,51 @@ impl Service {
 			))));
 		}
 
-		if let Some(host) = parsed.host_str() {
-			if let Ok(ip) = IPAddress::parse(host) {
-				if !self.services.client.valid_cidr_range(&ip) {
-					return Err!(Request(InvalidParam(warn!(
+		// Proxies that resolve names remotely must enforce the denylist
+		// themselves.
+		let resolves_remotely =
+			matches!(self.proxy_scheme(&parsed), Some("http" | "https" | "socks4a" | "socks5h"));
+
+		let forbidden = match parsed.host() {
+			| Some(Host::Ipv4(ip)) => !self.allowed_ip(ip.into()),
+			| Some(Host::Ipv6(ip)) => !self.allowed_ip(ip.into()),
+			| Some(Host::Domain(host)) if !resolves_remotely => self
+				.services
+				.client
+				.dns_resolver
+				.lookup_ip(host)
+				.await
+				.map_err(|e| {
+					err!(Request(InvalidParam(warn!(
 						%url,
-						"Pusher URL is a forbidden remote address"
-					))));
-				}
-			}
+						"Pusher URL host could not be resolved: {e}"
+					))))
+				})?
+				.iter()
+				.any(|ip| !self.allowed_ip(ip)),
+			| _ => false,
+		};
+		if forbidden {
+			return Err!(Request(InvalidParam(warn!(
+				%url,
+				"Pusher URL is a forbidden remote address"
+			))));
 		}
 
 		Ok(parsed)
+	}
+
+	fn proxy_scheme(&self, url: &url::Url) -> Option<&str> {
+		self.services
+			.config
+			.proxy
+			.url_for(url)
+			.map(url::Url::scheme)
+	}
+
+	fn allowed_ip(&self, ip: IpAddr) -> bool {
+		IPAddress::parse(ip.to_string())
+			.is_ok_and(|ip| self.services.client.valid_cidr_range(&ip))
 	}
 
 	#[tracing::instrument(skip(self, dest, request))]
@@ -319,21 +354,29 @@ impl Service {
 			trace!("Checking request URL for IP");
 			if let Ok(ip) = IPAddress::parse(url_host) {
 				if !self.services.client.valid_cidr_range(&ip) {
-					return Err!(BadServerResponse("Not allowed to send requests to this IP"));
+					return Err!(BadServerResponse(warn!(
+						%url_host,
+						"Not allowed to send requests to this IP"
+					)));
 				}
 			}
 		}
 
 		let dest = request.url().clone();
+		let proxied = self.proxy_scheme(&dest).is_some();
+
 		let mut response = client.execute(request).await.map_err(|e| {
 			err!(BadServerResponse(warn!(%dest, "Could not send request to pusher: {e}")))
 		})?;
 
-		trace!("Checking response destination's IP");
-		if let Some(remote_addr) = response.remote_addr() {
-			if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
-				if !self.services.client.valid_cidr_range(&ip) {
-					return Err!(BadServerResponse("Not allowed to send requests to this IP"));
+		if !proxied {
+			trace!("Checking response destination's IP");
+			if let Some(remote_addr) = response.remote_addr() {
+				if !self.allowed_ip(remote_addr.ip()) {
+					return Err!(BadServerResponse(warn!(
+						%dest,
+						"Pusher host resolved to a forbidden address after validation"
+					)));
 				}
 			}
 		}
@@ -482,7 +525,8 @@ impl Service {
 		// TODO: email
 		match &pusher.kind {
 			| PusherKind::Http(http) => {
-				self.validate_push_url(&http.url, PUSH_GATEWAY_SCHEMES)?;
+				self.validate_push_url(&http.url, PUSH_GATEWAY_SCHEMES)
+					.await?;
 
 				let notify = self
 					.build_notification(
