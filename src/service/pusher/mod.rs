@@ -304,11 +304,13 @@ impl Service {
 			+ Debug
 			+ Send,
 	{
-		let dest = dest.replace(self.services.globals.notification_push_path(), "");
+		let dest = dest
+			.strip_suffix(self.services.globals.notification_push_path())
+			.unwrap_or(dest);
 		trace!("Push gateway destination: {dest}");
 
 		let http_request = request
-			.try_into_http_request::<BytesMut>(&dest, (), ())
+			.try_into_http_request::<BytesMut>(dest, (), ())
 			.map_err(|e| {
 				err!(BadServerResponse(warn!(
 					"Failed to find destination {dest} for push gateway: {e}"

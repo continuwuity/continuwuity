@@ -1392,15 +1392,9 @@
 #
 #emergency_password =
 
-# Specifies the path where push notifications will be sent to a
-# push gateway.
-#
-# When a Matrix client registers for push notifications, it will specify
-# a push gateway url where notification events will be sent.
-# According to the current spec for Matrix Push Gateways, the path should
-# always be "/_matrix/push/v1/notify".
-# You should only change this if you have configured your own push gateway
-# that requires a different path.
+# Suffix stripped from the end of a pusher URL before appending
+# "/_matrix/push/v1/notify". Only change this if your pushers register
+# URLs ending in a different path.
 #
 # For more information on Push Gateways: https://spec.matrix.org/latest/push-gateway-api/
 #

@@ -1,0 +1,1 @@
+Fixed push gateway URLs containing the configured notification path outside of their suffix. Contributed by @eleboucher.
