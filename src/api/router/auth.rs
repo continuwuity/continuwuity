@@ -138,7 +138,7 @@ impl CheckAuth for ServerSignatures {
 		let keys: PubKeys = [(output.key.to_string(), key.key)].into();
 		let keys: PubKeyMap = [(output.origin.as_str().into(), keys)].into();
 
-		match output.verify_request(request, destination, &keys) {
+		match output.verify_http_request(request, destination, &keys) {
 			| Ok(()) => {
 				if services
 					.moderation

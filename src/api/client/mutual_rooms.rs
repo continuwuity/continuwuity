@@ -1,7 +1,7 @@
 use axum::extract::State;
 use conduwuit::{Err, Result};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, api::client::membership::mutual_rooms};
+use ruma::{OwnedRoomId, api::client::membership::get_mutual_rooms};
 
 use crate::Ruma;
 
@@ -13,8 +13,8 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, name = "mutual_rooms", level = "info")]
 pub(crate) async fn get_mutual_rooms_unstable_route(
 	State(services): State<crate::State>,
-	body: Ruma<mutual_rooms::unstable::Request>,
-) -> Result<mutual_rooms::unstable::Response> {
+	body: Ruma<get_mutual_rooms::unstable::Request>,
+) -> Result<get_mutual_rooms::unstable::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
 	if sender_user == body.user_id {
@@ -28,7 +28,7 @@ pub(crate) async fn get_mutual_rooms_unstable_route(
 		.collect()
 		.await;
 
-	Ok(mutual_rooms::unstable::Response::new(mutual_rooms))
+	Ok(get_mutual_rooms::unstable::Response::new(mutual_rooms))
 }
 
 /// # `GET /_matrix/client/v1/mutual_rooms`
@@ -37,8 +37,8 @@ pub(crate) async fn get_mutual_rooms_unstable_route(
 #[tracing::instrument(skip_all, name = "mutual_rooms", level = "info")]
 pub(crate) async fn get_mutual_rooms_route(
 	State(services): State<crate::State>,
-	body: Ruma<mutual_rooms::v1::Request>,
-) -> Result<mutual_rooms::v1::Response> {
+	body: Ruma<get_mutual_rooms::v1::Request>,
+) -> Result<get_mutual_rooms::v1::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
 	if sender_user == body.user_id {
@@ -52,7 +52,7 @@ pub(crate) async fn get_mutual_rooms_route(
 		.collect()
 		.await;
 
-	Ok(mutual_rooms::v1::Response::new(
+	Ok(get_mutual_rooms::v1::Response::new(
 		mutual_rooms
 			.len()
 			.try_into()
