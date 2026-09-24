@@ -31,6 +31,7 @@ export default defineConfig({
                     '/advanced/delegated.docker-compose.with-traefik.yml',
                     '/calls/livekit.docker-compose.with-caddy-labels.yml',
                     '/calls/livekit.nginx.conf',
+                    '/guides/grafana-dashboard.json',
                     'CONTRIBUTING.md'
                 ]
             },
