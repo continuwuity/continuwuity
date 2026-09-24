@@ -47,7 +47,7 @@ pub struct Service {
 
 struct Data {
 	openidsubject_localpart: Arc<Map>,
-	openidsubject_currentpictureurl: Arc<Map>,
+	openidsubjectprofilefield_url: Arc<Map>,
 }
 struct Services {
 	config: Dep<config::Service>,
@@ -144,7 +144,7 @@ impl crate::Service for Service {
 			runtime: args.server.runtime().clone(),
             db: Data {
                 openidsubject_localpart: args.db["openidsubject_localpart"].clone(),
-				openidsubject_currentpictureurl: args.db["openidsubject_currentpictureurl"].clone(),
+				openidsubjectprofilefield_url: args.db["openidsubjectprofilefield_url"].clone(),
             },
             client: args.server.config.oauth.oidc.as_ref().map(|config| -> Result<OidcClient> {
 				Ok(OidcClient {
@@ -214,6 +214,10 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	// Profile keys that will be treated as image URLs and imported
+	// into the media repository. Keep this synced with the list in the
+	// doc comment for `profile_key_map` in the config.
+	const IMAGE_PROFILE_KEYS: &[&str] = &["avatar_url", "chat.commet.profile_banner"];
 	const SERVER_MISCONFIGURED: &str =
 		"Identity server is misconfigured. Contact your homeserver's administrator.";
 
@@ -426,41 +430,66 @@ impl Service {
 			let user_id = user_id.clone();
 			let subject = claims.subject().to_string();
 			let profile_key_map = config.profile_key_map.clone();
-			let openidsubject_currentpictureurl = self.db.openidsubject_currentpictureurl.clone();
+			let openidsubjectprofilefield_url = self.db.openidsubjectprofilefield_url.clone();
 			let users = self.services.users.clone();
 			let media = self.services.media.clone();
 
 			let import_task = self.runtime.spawn(async move {
+				// TODO: once we get support for full profile replacement, use
+				// that logic instead
 				for (field, claim) in &profile_key_map {
 					let Some(value) = all_claims.get(claim).cloned() else {
 						warn!(?field, ?claim, "IDP provided no value for this mapped claim");
 						continue;
 					};
 
-					let value = if let Some(picture_url) = value.as_str()
-						&& field == ProfileFieldName::AvatarUrl.as_str()
-						&& openidsubject_currentpictureurl
-							.get(&subject)
-							.await
-							.deserialized::<String>()
-							.ok()
-							.is_none_or(|current_picture| current_picture != picture_url)
-					{
-						match media.download_media(picture_url).await {
-							| Ok((mxc, size)) => {
-								openidsubject_currentpictureurl.insert(&subject, picture_url);
-								info!(?picture_url, ?mxc, ?size, "Downloaded profile picture");
+					let value = if Self::IMAGE_PROFILE_KEYS.contains(&field.as_str()) {
+						if let Some(url) = value.as_str() {
+							// Check the last value the IDP gave us for this
+							// profile field. We have to track this in a
+							// separate keyspace because, for fields in
+							// `IMAGE_PROFILE_KEYS`, what gets saved in
+							// the user's profile data is a MXC URI that has no
+							// relationship to the URL the IDP gave us.
+							if openidsubjectprofilefield_url
+								.qry(&(&subject, field))
+								.await
+								.deserialized::<String>()
+								.ok()
+								.is_none_or(|current_url| current_url != url)
+							{
+								match media.download_media(url).await {
+									| Ok((mxc, _)) => {
+										openidsubjectprofilefield_url.put((&subject, field), url);
+										info!(?url, ?field, ?mxc, "Downloaded profile image");
 
-								ProfileFieldValue::AvatarUrl(mxc)
-							},
-							| Err(err) => {
-								warn!(
-									?claim,
-									?picture_url,
-									"Failed to download profile picture: {err}"
-								);
+										ProfileFieldValue::new(
+											field,
+											Value::String(mxc.to_string()),
+										)
+										.expect("MXC should be valid for this field")
+									},
+									| Err(err) => {
+										warn!(
+											?field,
+											?url,
+											"Failed to download profile image: {err}"
+										);
+										continue;
+									},
+								}
+							} else {
+								// This claim hasn't changed from its previous
+								// value, don't update it.
 								continue;
-							},
+							}
+						} else {
+							warn!(
+								?claim,
+								?value,
+								"Claim value for profile image was not a string"
+							);
+							continue;
 						}
 					} else {
 						match ProfileFieldValue::new(field, value.clone()) {
@@ -492,8 +521,10 @@ impl Service {
 				info!("Profile import complete");
 			});
 
-			// Only wait for import to complete if this is a new account,
-			// so they see the correct profile information in the account panel
+			// Only wait for the import to complete if this is a new account,
+			// so they see the correct profile information in the account panel.
+			// Otherwise let it run in the background to avoid blocking the
+			// sign-in process.
 			if new_account_registered {
 				let _ = import_task.await;
 			}

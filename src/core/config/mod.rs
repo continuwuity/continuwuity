@@ -2808,10 +2808,15 @@ pub struct OidcConfig {
 	/// Per-room overrides to the user's display name or avatar will be
 	/// preserved by the import process.
 	///
-	/// SECURITY NOTE: If the `avatar_url` field is set, Continuwuity will
-	/// perform a HTTP GET to the URL in the mapped claim and use the returned
-	/// file as the user's profile picture. Make sure your users are not able
-	/// to set the value of the mapped claim to an arbitrary URL.
+	/// SECURITY NOTE: For the following profile fields, Continuwuity will treat
+	/// the value of the mapped claim as an HTTP URL and upload the file located
+	/// at that URL to its internal media repository:
+	///
+	/// - `avatar_url`
+	/// - `chat.commet.profile_banner`
+	///
+	/// If you map these fields to claims, make sure your users cannot set those
+	/// claims to arbitrary URLs.
 	///
 	/// default: { displayname = "name" }
 	#[serde(default = "default_profile_key_map")]
