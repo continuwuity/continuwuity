@@ -1,1 +1,1 @@
-Added an opt-in Prometheus metrics endpoint at `/_continuwuity/metrics` covering HTTP requests, federation, the sender queue, database and cache memory, and the tokio runtime, along with a Grafana dashboard. Contributed by @eleboucher.
+Added opt-in OpenTelemetry metrics, exported over OTLP or scraped by Prometheus from `/_continuwuity/metrics`, and a Grafana dashboard. Contributed by @eleboucher.

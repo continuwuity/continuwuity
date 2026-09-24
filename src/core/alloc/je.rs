@@ -56,25 +56,15 @@ fn _static_initialization() {
 #[must_use]
 #[cfg(feature = "jemalloc_stats")]
 pub fn memory_usage() -> Option<String> {
-	use mallctl::stats;
-
-	let mibs = |input: Result<usize, mallctl::Error>| {
-		let input = input.unwrap_or_default();
+	let mibs = |input: usize| {
 		let kibs = input / 1024;
 		let kibs = u32::try_from(kibs).unwrap_or_default();
 		let kibs = f64::from(kibs);
 		kibs / 1024.0
 	};
 
-	// Acquire the epoch; ensure latest stats are pulled in
-	acq_epoch().ok()?;
-
-	let allocated = mibs(stats::allocated::read());
-	let active = mibs(stats::active::read());
-	let mapped = mibs(stats::mapped::read());
-	let metadata = mibs(stats::metadata::read());
-	let resident = mibs(stats::resident::read());
-	let retained = mibs(stats::retained::read());
+	let [allocated, active, mapped, metadata, resident, retained] =
+		memory_usage_stats()?.map(|(_, bytes)| mibs(bytes));
 	Some(format!(
 		"allocated: {allocated:.2} MiB\nactive: {active:.2} MiB\nmapped: {mapped:.2} \
 		 MiB\nmetadata: {metadata:.2} MiB\nresident: {resident:.2} MiB\nretained: {retained:.2} \
@@ -85,6 +75,28 @@ pub fn memory_usage() -> Option<String> {
 #[must_use]
 #[cfg(not(feature = "jemalloc_stats"))]
 pub fn memory_usage() -> Option<String> { None }
+
+#[must_use]
+#[cfg(feature = "jemalloc_stats")]
+pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> {
+	use mallctl::stats;
+
+	// Acquire the epoch; ensure latest stats are pulled in
+	acq_epoch().ok()?;
+
+	Some([
+		("allocated", stats::allocated::read().unwrap_or_default()),
+		("active", stats::active::read().unwrap_or_default()),
+		("mapped", stats::mapped::read().unwrap_or_default()),
+		("metadata", stats::metadata::read().unwrap_or_default()),
+		("resident", stats::resident::read().unwrap_or_default()),
+		("retained", stats::retained::read().unwrap_or_default()),
+	])
+}
+
+#[must_use]
+#[cfg(not(feature = "jemalloc_stats"))]
+pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> { None }
 
 pub fn memory_stats(opts: &str) -> Option<String> {
 	const MAX_LENGTH: usize = 1_048_576;

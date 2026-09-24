@@ -10,7 +10,9 @@ use std::{path::PathBuf, sync::Arc, time::SystemTime};
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
-	Err, Result, Server, debug, debug_error, debug_info, debug_warn, err, error, trace,
+	Err, Result, Server, debug, debug_error, debug_info, debug_warn, err, error,
+	metrics::KeyValue,
+	trace,
 	utils::{
 		self, MutexMap,
 		time::{self, TimeDirection},
@@ -110,7 +112,24 @@ impl Service {
 			err!(Database(error!("Failed to write media file for MXC {mxc} at key {key:?}: {e}")))
 		})?;
 
+		self.services
+			.server
+			.metrics
+			.instruments
+			.media_write_size
+			.record(file.len().try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
+
 		Ok(())
+	}
+
+	fn origin(&self, mxc: &Mxc<'_>) -> KeyValue {
+		let origin = if self.services.globals.server_is_ours(mxc.server_name) {
+			"local"
+		} else {
+			"remote"
+		};
+
+		KeyValue::new("origin", origin)
 	}
 
 	/// Deletes a file in the database and from the media directory via an MXC
@@ -176,6 +195,13 @@ impl Service {
 				BufReader::new(fs::File::open(path).await?)
 					.read_to_end(&mut content)
 					.await?;
+
+				self.services
+					.server
+					.metrics
+					.instruments
+					.media_read_size
+					.record(content.len().try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
 
 				Ok(Some(FileMeta {
 					content: Some(content),

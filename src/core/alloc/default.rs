@@ -10,3 +10,6 @@ pub fn memory_stats(_opts: &str) -> Option<String> { None }
 /// Always returns None
 #[must_use]
 pub fn memory_usage() -> Option<String> { None }
+
+#[must_use]
+pub fn memory_usage_stats() -> Option<[(&'static str, usize); 6]> { None }

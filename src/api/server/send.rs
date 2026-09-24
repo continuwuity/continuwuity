@@ -6,6 +6,7 @@ use std::{
 use axum::extract::State;
 use conduwuit::{
 	Err, Error, Result, debug, debug_error, debug_warn, err, error,
+	metrics::KeyValue,
 	result::LogErr,
 	trace,
 	utils::{
@@ -22,7 +23,8 @@ use futures::{FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt};
 use http::StatusCode;
 use itertools::Itertools;
 use ruma::{
-	CanonicalJsonObject, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId,
+	ServerName, UserId,
 	api::{
 		error::{ErrorKind, LimitExceededErrorData},
 		federation::transactions::{
@@ -34,7 +36,10 @@ use ruma::{
 			send_transaction_message,
 		},
 	},
-	events::receipt::{ReceiptEvent, ReceiptEventContent, ReceiptType},
+	events::{
+		TimelineEventType,
+		receipt::{ReceiptEvent, ReceiptEventContent, ReceiptType},
+	},
 	serde::Raw,
 	to_device::DeviceIdOrAllDevices,
 };
@@ -151,6 +156,12 @@ async fn process_inbound_transaction(
 		{
 			| Ok(pdu) => Some(pdu),
 			| Err(error) => {
+				services
+					.server
+					.metrics
+					.instruments
+					.federation_incoming_pdus
+					.add(1, &[KeyValue::new("outcome", "unparsable")]);
 				let queued = services
 					.rooms
 					.event_handler
@@ -181,6 +192,17 @@ async fn process_inbound_transaction(
 			.catch_unwind()
 			.map_err(Error::from_panic)
 			.await;
+	let outcome = if matches!(handle_result, Ok(Ok(_))) {
+		"success"
+	} else {
+		"failure"
+	};
+	services
+		.server
+		.metrics
+		.instruments
+		.federation_incoming_transaction_duration
+		.record(txn_start_time.elapsed().as_secs_f64(), &[KeyValue::new("outcome", outcome)]);
 	let results = match handle_result {
 		| Ok(Ok(results)) => results,
 		| Ok(Err(err)) => {
@@ -337,6 +359,13 @@ async fn handle_room(
 			.server
 			.check_running()
 			.map_err(|_| TransactionError::ShuttingDown)?;
+		let event_type = KeyValue::new("type", pdu_type_label(&value));
+		let origin_server_ts = value
+			.get("origin_server_ts")
+			.and_then(CanonicalJsonValue::as_integer)
+			.and_then(|ts| u64::try_from(i64::from(ts)).ok());
+
+		let start = Instant::now();
 		let result = services
 			.rooms
 			.event_handler
@@ -344,12 +373,44 @@ async fn handle_room(
 			.boxed()
 			.await
 			.map(|_| ());
+
+		let outcome = KeyValue::new("outcome", match &result {
+			| Ok(()) => "accepted",
+			| Err(Error::BadRequest(ErrorKind::Forbidden, ..)) => "forbidden",
+			| Err(Error::BadRequest(ErrorKind::InvalidParam | ErrorKind::BadJson, ..)) =>
+				"invalid",
+			| Err(_) => "error",
+		});
+		let instruments = &services.server.metrics.instruments;
+		instruments
+			.federation_incoming_pdu_duration
+			.record(start.elapsed().as_secs_f64(), std::slice::from_ref(&outcome));
+		if let (Ok(()), Some(ts)) = (&result, origin_server_ts) {
+			let lag = millis_since_unix_epoch().saturating_sub(ts);
+			instruments
+				.federation_incoming_pdu_lag
+				.record(Duration::from_millis(lag).as_secs_f64(), &[]);
+		}
+		instruments
+			.federation_incoming_pdus
+			.add(1, &[event_type, outcome]);
+
 		results.push((event_id, result));
 	}
 	Ok(results)
 }
 
 async fn handle_edu(services: &Services, origin: &ServerName, edu: Edu) {
+	let edu_type = match &edu {
+		| Edu::Presence(_) => "m.presence",
+		| Edu::Receipt(_) => "m.receipt",
+		| Edu::Typing(_) => "m.typing",
+		| Edu::DeviceListUpdate(_) => "m.device_list_update",
+		| Edu::DirectToDevice(_) => "m.direct_to_device",
+		| Edu::SigningKeyUpdate(_) => "m.signing_key_update",
+		| _ => "other",
+	};
+	let start = Instant::now();
 	match edu {
 		| Edu::Presence(presence) if services.server.config.allow_incoming_presence =>
 			handle_edu_presence(services, origin, presence).await,
@@ -372,6 +433,26 @@ async fn handle_edu(services: &Services, origin: &ServerName, edu: Edu) {
 		| Edu::_Custom(ref _custom) => debug_warn!(?edu, "received custom/unknown EDU"),
 
 		| _ => trace!(?edu, "skipped"),
+	}
+
+	let edu_type = [KeyValue::new("type", edu_type)];
+	let instruments = &services.server.metrics.instruments;
+	instruments
+		.federation_incoming_edu_duration
+		.record(start.elapsed().as_secs_f64(), &edu_type);
+	instruments.federation_incoming_edus.add(1, &edu_type);
+}
+
+/// Known event types, or `other`, so remote servers cannot create new
+/// attribute values.
+fn pdu_type_label(value: &CanonicalJsonObject) -> String {
+	match value
+		.get("type")
+		.and_then(CanonicalJsonValue::as_str)
+		.map(TimelineEventType::from)
+	{
+		| Some(TimelineEventType::_Custom(_)) | None => "other".to_owned(),
+		| Some(event_type) => event_type.to_string(),
 	}
 }
 

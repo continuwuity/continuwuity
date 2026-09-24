@@ -131,9 +131,7 @@ media_thumbnail = [
     "conduwuit-service/media_thumbnail",
 ]
 otlp_telemetry = [
-    "dep:opentelemetry",
     "dep:tracing-opentelemetry",
-    "dep:opentelemetry_sdk",
     "dep:opentelemetry-otlp",
 ]
 perf_measurements = [
@@ -221,12 +219,12 @@ console-subscriber.optional = true
 console-subscriber.workspace = true
 const-str.workspace = true
 log.workspace = true
-opentelemetry.optional = true
 opentelemetry.workspace = true
 opentelemetry-otlp.optional = true
 opentelemetry-otlp.workspace = true
-opentelemetry_sdk.optional = true
+opentelemetry-prometheus.workspace = true
 opentelemetry_sdk.workspace = true
+prometheus.workspace = true
 sentry-tower.optional = true
 sentry-tower.workspace = true
 sentry-tracing.optional = true

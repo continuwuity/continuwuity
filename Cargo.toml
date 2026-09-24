@@ -260,9 +260,6 @@ features = [
 [workspace.dependencies.tokio-metrics]
 version = "0.5.0"
 
-[workspace.dependencies.prometheus-client]
-version = "0.25.1"
-
 [workspace.dependencies.libloading]
 version = "0.9.0"
 
@@ -430,6 +427,13 @@ version = "0.34.0"
 [workspace.dependencies.opentelemetry_sdk]
 version = "0.33.0"
 features = ["rt-tokio"]
+
+[workspace.dependencies.opentelemetry-prometheus]
+version = "0.33.0"
+
+[workspace.dependencies.prometheus]
+version = "0.14.0"
+default-features = false
 
 [workspace.dependencies.opentelemetry-otlp]
 version = "0.33.0"

@@ -7,6 +7,7 @@ extern crate conduwuit_database as database;
 conduwuit_macros::introspect_crate! {}
 
 mod manager;
+mod metrics;
 mod migrations;
 mod service;
 pub mod services;

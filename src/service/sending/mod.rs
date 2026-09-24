@@ -14,6 +14,7 @@ use std::{
 use async_trait::async_trait;
 use conduwuit::{
 	Result, Server, debug, debug_warn, err, error,
+	metrics::KeyValue,
 	smallvec::SmallVec,
 	utils::{ReadyExt, TryReadyExt, available_parallelism, math::usize_from_u64_truncated},
 	warn,
@@ -480,6 +481,22 @@ impl Service {
 			.get(shard)
 			.expect("missing sender worker channels")
 			.0;
+
+		let kind = match msg.event {
+			| SendingEvent::Pdu(_) => Some("pdu"),
+			| SendingEvent::Edu(_) => Some("edu"),
+			| SendingEvent::Flush => None,
+		};
+		if let Some(kind) = kind {
+			self.server
+				.metrics
+				.instruments
+				.sender_events_queued
+				.add(1, &[
+					KeyValue::new("destination", msg.dest.kind()),
+					KeyValue::new("kind", kind),
+				]);
+		}
 
 		debug_assert!(!sender.is_full(), "channel full");
 		debug_assert!(!sender.is_closed(), "channel closed");

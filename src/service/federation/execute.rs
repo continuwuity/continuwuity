@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
 use conduwuit::{
-	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, metrics::OutcomeLabels,
+	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, metrics::KeyValue,
 	trace, utils::response::LimitReadExt,
 };
 use ipaddress::IPAddress;
@@ -191,10 +191,9 @@ impl super::Service {
 		self.services
 			.server
 			.metrics
-			.prometheus
-			.federation_request_duration
-			.get_or_create(&OutcomeLabels { outcome })
-			.observe(elapsed.as_secs_f64());
+			.instruments
+			.federation_outgoing_request_duration
+			.record(elapsed.as_secs_f64(), &[KeyValue::new("outcome", outcome)]);
 		match response {
 			| Ok(response) =>
 				self.handle_response::<T>(dest, actual, &method, &url, response)

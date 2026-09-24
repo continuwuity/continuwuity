@@ -13,7 +13,7 @@ use conduwuit::{debug_info, debug_warn, info, trace};
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	matrix::pdu::sticky,
-	metrics::TransactionLabels,
+	metrics::KeyValue,
 	result::LogErr,
 	utils::{
 		ReadyExt, calculate_hash,
@@ -140,17 +140,6 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
-		let (dest, outcome) = match &response {
-			| Ok(dest) => (dest, "success"),
-			| Err((dest, _)) => (dest, "failure"),
-		};
-		self.server
-			.metrics
-			.prometheus
-			.sender_transactions
-			.get_or_create(&TransactionLabels { destination: dest.kind(), outcome })
-			.inc();
-
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
 			| Err((dest, e)) => {
@@ -770,13 +759,44 @@ impl Service {
 			debug_warn!(?dest, "Attempted to send empty transaction!");
 			return std::future::ready(Ok(dest)).boxed();
 		}
-		match dest {
+
+		let destination = KeyValue::new("destination", dest.kind());
+		let (pdus, edus) =
+			events
+				.iter()
+				.fold((0_u64, 0_u64), |(pdus, edus), event| match event {
+					| SendingEvent::Pdu(_) => (pdus.saturating_add(1), edus),
+					| SendingEvent::Edu(_) => (pdus, edus.saturating_add(1)),
+					| SendingEvent::Flush => (pdus, edus),
+				});
+
+		let start = Instant::now();
+		let send = match dest {
 			| Destination::Federation(server) =>
 				self.send_events_dest_federation(server, events).boxed(),
 			| Destination::Appservice(id) => self.send_events_dest_appservice(id, events).boxed(),
 			| Destination::Push(user_id, pushkey) =>
 				self.send_events_dest_push(user_id, pushkey, events).boxed(),
-		}
+		};
+
+		send.inspect(move |result| {
+			let instruments = &self.server.metrics.instruments;
+			let outcome =
+				KeyValue::new("outcome", if result.is_ok() { "success" } else { "failure" });
+			instruments
+				.sender_transaction_duration
+				.record(start.elapsed().as_secs_f64(), &[destination.clone(), outcome.clone()]);
+			for (kind, count) in [("pdu", pdus), ("edu", edus)] {
+				if count > 0 {
+					instruments.sender_events.add(count, &[
+						destination.clone(),
+						KeyValue::new("kind", kind),
+						outcome.clone(),
+					]);
+				}
+			}
+		})
+		.boxed()
 	}
 
 	#[tracing::instrument(

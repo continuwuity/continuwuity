@@ -2,6 +2,7 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{event::gen_event_id_canonical_json, pdu::PartialPdu},
+	metrics::KeyValue,
 	trace, warn,
 };
 use futures::FutureExt;
@@ -107,6 +108,31 @@ pub(crate) async fn invite_user_route(
 }
 
 pub(crate) async fn invite_helper(
+	services: &Services,
+	sender_user: &UserId,
+	recipient_user: &UserId,
+	room_id: &RoomId,
+	reason: Option<String>,
+	is_direct: bool,
+) -> Result {
+	let result =
+		send_invite(services, sender_user, recipient_user, room_id, reason, is_direct).await;
+
+	let destination = if services.globals.user_is_local(recipient_user) {
+		"local"
+	} else {
+		"remote"
+	};
+	services.server.metrics.instruments.invites.add(1, &[
+		KeyValue::new("direction", "outgoing"),
+		KeyValue::new("destination", destination),
+		KeyValue::new("outcome", if result.is_ok() { "success" } else { "failure" }),
+	]);
+
+	result
+}
+
+async fn send_invite(
 	services: &Services,
 	sender_user: &UserId,
 	recipient_user: &UserId,

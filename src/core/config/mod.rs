@@ -1026,6 +1026,15 @@ pub struct Config {
 	#[serde(default = "default_otlp_protocol")]
 	pub otlp_protocol: String,
 
+	/// Enable OpenTelemetry OTLP metrics export, using the same endpoint and
+	/// `otlp_protocol` as traces.
+	///
+	/// The export interval can be changed with the
+	/// OTEL_METRIC_EXPORT_INTERVAL environment variable (milliseconds,
+	/// defaults to 60000).
+	#[serde(default)]
+	pub allow_otlp_metrics: bool,
+
 	/// Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
 	///
 	/// The endpoint is served on the same listener as the rest of the server.

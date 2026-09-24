@@ -2,6 +2,7 @@ use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
 	Err, Result,
 	matrix::versions::{unstable_features, versions},
+	metrics::PROMETHEUS_CONTENT_TYPE,
 	utils::string::constant_time_eq,
 };
 use futures::StreamExt;
@@ -80,7 +81,7 @@ pub(crate) async fn continuwuity_local_user_count(
 
 /// # `GET /_continuwuity/metrics`
 ///
-/// Prometheus metrics in the OpenMetrics text format. Only routed when
+/// Prometheus metrics in the text exposition format. Only routed when
 /// `allow_prometheus_metrics` is enabled.
 pub(crate) async fn continuwuity_metrics(
 	State(services): State<crate::State>,
@@ -100,14 +101,7 @@ pub(crate) async fn continuwuity_metrics(
 		}
 	}
 
-	services.update_metrics()?;
-	let body = services.server.metrics.prometheus.encode()?;
+	let body = services.server.metrics.render()?;
 
-	Ok((
-		[(
-			header::CONTENT_TYPE,
-			"application/openmetrics-text; version=1.0.0; charset=utf-8",
-		)],
-		body,
-	))
+	Ok(([(header::CONTENT_TYPE, PROMETHEUS_CONTENT_TYPE)], body))
 }

@@ -5,6 +5,7 @@ use base64::{Engine as _, engine::general_purpose};
 use conduwuit::{
 	Err, Error, EventTypeExt, PduEvent, Result, debug, err, error,
 	matrix::{Event, StateKey},
+	metrics::KeyValue,
 	result::FlatOk,
 	state_res, trace,
 	utils::hash::sha256,
@@ -30,6 +31,21 @@ use crate::{Ruma, server::utils::validate_any_membership_event};
 #[tracing::instrument(skip_all, name = "invite", level = "info")]
 pub(crate) async fn create_invite_route(
 	State(services): State<crate::State>,
+	body: Ruma<create_invite::v2::Request>,
+) -> Result<create_invite::v2::Response> {
+	let result = create_invite(&services, body).await;
+
+	services.server.metrics.instruments.invites.add(1, &[
+		KeyValue::new("direction", "incoming"),
+		KeyValue::new("destination", "local"),
+		KeyValue::new("outcome", if result.is_ok() { "success" } else { "failure" }),
+	]);
+
+	result
+}
+
+async fn create_invite(
+	services: &crate::State,
 	body: Ruma<create_invite::v2::Request>,
 ) -> Result<create_invite::v2::Response> {
 	if !services.server.supported_room_version(&body.room_version) {
@@ -64,7 +80,7 @@ pub(crate) async fn create_invite_route(
 		"Validating invite room state for invite request"
 	);
 	let (create_event_id, state) = validate_invite_state(
-		&services,
+		services,
 		&body.invite_room_state,
 		&room_version_rules,
 		body.room_id.clone(),
@@ -92,7 +108,7 @@ pub(crate) async fn create_invite_route(
 
 	// And then we can validate the member event itself
 	let (mut signed_event, sender_user, recipient_user) = validate_invite_membership_event(
-		&services,
+		services,
 		&body.event,
 		&room_version_rules,
 		&body.identity,

@@ -9,6 +9,7 @@ conduwuit_macros::introspect_crate! {}
 mod clap;
 mod deadlock;
 mod logging;
+mod metrics;
 mod mods;
 mod panic;
 mod restart;

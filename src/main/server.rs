@@ -23,6 +23,8 @@ pub(crate) struct Server {
 
 	_tracing_flame_guard: TracingFlameGuard,
 
+	_meter_provider: opentelemetry_sdk::metrics::SdkMeterProvider,
+
 	#[cfg(feature = "sentry_telemetry")]
 	_sentry_guard: Option<::sentry::ClientInitGuard>,
 
@@ -56,6 +58,8 @@ impl Server {
 		sys::maximize_fd_limit()
 			.expect("Unable to increase maximum soft and hard file descriptor limit");
 
+		let (metrics, meter_provider) = crate::metrics::init(&config, runtime)?;
+
 		let (_old_width, _new_width) = stream::set_width(config.stream_width_default);
 		let (_old_amp, _new_amp) = stream::set_amplification(config.stream_amplification);
 
@@ -68,14 +72,18 @@ impl Server {
 		);
 
 		Ok(Arc::new(Self {
-			server: Arc::new(conduwuit_core::Server::new(config, runtime.cloned(), Log {
-				reload: tracing_reload_handle,
-				capture,
-			})),
+			server: Arc::new(conduwuit_core::Server::new(
+				config,
+				runtime.cloned(),
+				Log { reload: tracing_reload_handle, capture },
+				metrics,
+			)),
 
 			services: None.into(),
 
 			_tracing_flame_guard: tracing_flame_guard,
+
+			_meter_provider: meter_provider,
 
 			#[cfg(feature = "sentry_telemetry")]
 			_sentry_guard: sentry_guard,

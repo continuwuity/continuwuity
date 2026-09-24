@@ -1,16 +1,20 @@
-mod prometheus;
+mod instruments;
+mod process;
+mod tests;
 
 use std::sync::atomic::AtomicU32;
 
+use opentelemetry::metrics::Meter;
+pub use opentelemetry::{KeyValue, metrics::AsyncInstrument};
+pub use prometheus::TEXT_FORMAT as PROMETHEUS_CONTENT_TYPE;
+use prometheus::{Encoder, TextEncoder};
 use tokio::runtime;
 use tokio_metrics::TaskMonitor;
 #[cfg(tokio_unstable)]
 use tokio_metrics::{RuntimeIntervals, RuntimeMonitor};
 
-pub use self::prometheus::{
-	ColumnLabels, HttpLabels, NameLabels, OutcomeLabels, Prometheus, TransactionLabels,
-	method_label,
-};
+pub use self::instruments::{Instruments, method_label};
+use crate::{Err, Result};
 
 pub struct Metrics {
 	_runtime: Option<runtime::Handle>,
@@ -30,12 +34,18 @@ pub struct Metrics {
 	pub requests_handle_finished: AtomicU32,
 	pub requests_panic: AtomicU32,
 
-	pub prometheus: Prometheus,
+	pub meter: Meter,
+	pub instruments: Instruments,
+	registry: Option<prometheus::Registry>,
 }
 
 impl Metrics {
 	#[must_use]
-	pub fn new(runtime: Option<runtime::Handle>) -> Self {
+	pub fn new(
+		runtime: Option<runtime::Handle>,
+		meter: Meter,
+		registry: Option<prometheus::Registry>,
+	) -> Self {
 		#[cfg(tokio_unstable)]
 		let runtime_monitor = runtime.as_ref().map(RuntimeMonitor::new);
 
@@ -47,7 +57,9 @@ impl Metrics {
 		Self {
 			_runtime: runtime.clone(),
 
-			prometheus: Prometheus::new(runtime_metrics.clone()),
+			instruments: Instruments::new(&meter, runtime_metrics.clone()),
+			meter,
+			registry,
 
 			runtime_metrics,
 
@@ -73,6 +85,19 @@ impl Metrics {
 			.as_mut()
 			.map(Iterator::next)
 			.expect("next interval")
+	}
+
+	pub fn render(&self) -> Result<String> {
+		let Some(registry) = &self.registry else {
+			return Err!("Prometheus metrics are not enabled");
+		};
+
+		let mut buf = Vec::new();
+		TextEncoder::new()
+			.encode(&registry.gather(), &mut buf)
+			.map_err(|e| crate::err!("{e}"))?;
+
+		Ok(String::from_utf8(buf)?)
 	}
 
 	#[inline]

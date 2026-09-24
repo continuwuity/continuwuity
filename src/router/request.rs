@@ -10,7 +10,7 @@ use axum::{
 };
 use conduwuit::{
 	Result, debug, debug_error, debug_warn, err, error,
-	metrics::{HttpLabels, method_label},
+	metrics::{KeyValue, method_label},
 	trace,
 };
 use conduwuit_service::Services;
@@ -37,16 +37,22 @@ pub(crate) async fn handle(
 		return Err(StatusCode::SERVICE_UNAVAILABLE);
 	}
 
-	let prometheus = &services.server.metrics.prometheus;
-	prometheus.http_requests_in_flight.inc();
-	conduwuit::defer! {{ prometheus.http_requests_in_flight.dec(); }};
+	let instruments = &services.server.metrics.instruments;
+	let method_attr = KeyValue::new("http.request.method", method_label(req.method()));
+	instruments
+		.http_server_active_requests
+		.add(1, std::slice::from_ref(&method_attr));
+	conduwuit::defer! {{
+		instruments
+			.http_server_active_requests
+			.add(-1, std::slice::from_ref(&method_attr));
+	}};
 
 	let start = Instant::now();
 	let route = req
 		.extensions()
 		.get::<MatchedPath>()
-		.map_or("unmatched", truncated_matched_path)
-		.to_owned();
+		.map(|path| KeyValue::new("http.route", truncated_matched_path(path).to_owned()));
 	let uri = req.uri().clone();
 	let method = req.method().clone();
 	let services_ = services.clone();
@@ -73,14 +79,17 @@ pub(crate) async fn handle(
 	let status = result
 		.as_ref()
 		.map_or_else(|status| *status, Response::status);
-	prometheus
-		.http_request_duration
-		.get_or_create(&HttpLabels {
-			method: method_label(&method),
-			route,
-			status: status.as_u16(),
-		})
-		.observe(start.elapsed().as_secs_f64());
+	let mut attributes = vec![
+		method_attr.clone(),
+		KeyValue::new("http.response.status_code", i64::from(status.as_u16())),
+	];
+	attributes.extend(route);
+	if status.is_server_error() {
+		attributes.push(KeyValue::new("error.type", status.as_str().to_owned()));
+	}
+	instruments
+		.http_server_request_duration
+		.record(start.elapsed().as_secs_f64(), &attributes);
 
 	result
 }

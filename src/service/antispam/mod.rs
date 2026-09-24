@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Result, config::Antispam, debug};
+use conduwuit::{Result, Server, config::Antispam, debug, metrics::KeyValue};
 use ruma::{
 	OwnedRoomId, OwnedUserId,
 	api::{auth_scheme::AppserviceToken, path_builder::VersionHistory},
@@ -11,6 +11,7 @@ use ruminuwuity::{draupnir_antispam, meowlnir_antispam};
 use crate::{client, config, sending, service::Dep};
 
 struct Services {
+	server: Arc<Server>,
 	config: Dep<config::Service>,
 	client: Dep<client::Service>,
 }
@@ -24,6 +25,7 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
+				server: args.server.clone(),
 				client: args.depend::<client::Service>("client"),
 				config: args.depend::<config::Service>("config"),
 			},
@@ -101,6 +103,7 @@ impl Service {
 			} else {
 				Ok(())
 			};
+			self.record("user_may_invite", &result);
 			return result;
 		}
 		Ok(())
@@ -146,6 +149,7 @@ impl Service {
 			} else {
 				Ok(())
 			};
+			self.record("user_may_join_room", &result);
 			return result;
 		}
 		Ok(())
@@ -160,22 +164,35 @@ impl Service {
 	) -> Result<()> {
 		if let Some(Antispam { meowlnir: Some(meowlnir), .. }) = &self.services.config.antispam {
 			debug!(?room_id, ?user_id, "Asking meowlnir for accept_make_join");
-			self.send_antispam_request(
-				meowlnir.base_url.as_str(),
-				&meowlnir.secret,
-				meowlnir_antispam::accept_make_join::v1::Request::new(
-					meowlnir.management_room.clone(),
-					user_id,
-					room_id,
-				),
-			)
-			.await
-			.inspect(|_| debug!("meowlnir allowed the make_join"))
-			.inspect_err(|e| debug!("meowlnir denied the make_join: {e:?}"))
-			.map(|_| ())
+			let result = self
+				.send_antispam_request(
+					meowlnir.base_url.as_str(),
+					&meowlnir.secret,
+					meowlnir_antispam::accept_make_join::v1::Request::new(
+						meowlnir.management_room.clone(),
+						user_id,
+						room_id,
+					),
+				)
+				.await
+				.inspect(|_| debug!("meowlnir allowed the make_join"))
+				.inspect_err(|e| debug!("meowlnir denied the make_join: {e:?}"))
+				.map(|_| ());
+			self.record("accept_make_join", &result);
+			result
 		} else {
 			Ok(())
 		}
+	}
+
+	fn record(&self, check: &'static str, result: &Result) {
+		let outcome = if result.is_ok() { "allowed" } else { "denied" };
+		self.services
+			.server
+			.metrics
+			.instruments
+			.antispam_checks
+			.add(1, &[KeyValue::new("check", check), KeyValue::new("outcome", outcome)]);
 	}
 
 	/// Returns whether all joins should be checked with Meowlnir.
