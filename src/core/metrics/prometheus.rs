@@ -170,7 +170,7 @@ pub fn method_label(method: &http::Method) -> &'static str {
 	}
 }
 
-fn duration_histogram() -> Histogram { Histogram::new(exponential_buckets(0.005, 2.0, 14)) }
+fn duration_histogram() -> Histogram { Histogram::new(exponential_buckets(0.001, 2.0, 16)) }
 
 #[derive(Debug)]
 struct RuntimeCollector(runtime::RuntimeMetrics);
