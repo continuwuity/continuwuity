@@ -130,6 +130,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "openidsubject_currentpictureurl",
+		..descriptor::DROPPED
+	},
+	Descriptor {
+		name: "openidsubjectprofilefield_url",
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
