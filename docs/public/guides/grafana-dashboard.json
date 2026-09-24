@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Continuwuity homeserver metrics from /_continuwuity/metrics",
+  "description": "Continuwuity homeserver metrics, scraped from /_continuwuity/metrics or pushed over OTLP",
   "editable": true,
   "graphTooltip": 1,
   "links": [],
@@ -54,8 +54,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "continuwuity_build_info{instance=~\"$instance\"}",
-          "legendFormat": "{{version}}",
+          "expr": "count by (service_version) (target_info{instance=~\"$instance\"})",
+          "legendFormat": "{{service_version}}",
           "refId": "A",
           "range": true
         }
@@ -95,7 +95,7 @@
     },
     {
       "type": "stat",
-      "title": "Requests",
+      "title": "Uptime",
       "description": "",
       "id": 3,
       "datasource": {
@@ -114,7 +114,67 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "max(process_uptime_seconds{instance=~\"$instance\"})",
+          "legendFormat": "",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "area",
+        "textMode": "auto",
+        "justifyMode": "auto",
+        "orientation": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Requests",
+      "description": "",
+      "id": 4,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "",
           "refId": "A",
           "range": true
@@ -157,7 +217,7 @@
       "type": "stat",
       "title": "Server errors",
       "description": "Share of requests answered with a 5xx status",
-      "id": 4,
+      "id": 5,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -165,7 +225,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 8,
+        "x": 12,
         "y": 1
       },
       "targets": [
@@ -174,7 +234,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "(sum(rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\",status=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "(sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\",http_response_status_code=~\"5..\"}[$__rate_interval])) or vector(0)) / sum(rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "",
           "refId": "A",
           "range": true
@@ -225,7 +285,7 @@
       "type": "stat",
       "title": "p95 latency",
       "description": "Includes long-polling /sync requests",
-      "id": 5,
+      "id": 6,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -233,7 +293,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 12,
+        "x": 16,
         "y": 1
       },
       "targets": [
@@ -242,7 +302,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "",
           "refId": "A",
           "range": true
@@ -283,67 +343,7 @@
     },
     {
       "type": "stat",
-      "title": "Sender queue",
-      "description": "",
-      "id": 6,
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${datasource}"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 4,
-        "x": 16,
-        "y": 1
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${datasource}"
-          },
-          "expr": "sum(continuwuity_sender_queue_depth{instance=~\"$instance\"})",
-          "legendFormat": "",
-          "refId": "A",
-          "range": true
-        }
-      ],
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "color": {
-            "mode": "thresholds"
-          },
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "colorMode": "value",
-        "graphMode": "area",
-        "textMode": "auto",
-        "justifyMode": "auto",
-        "orientation": "auto"
-      }
-    },
-    {
-      "type": "stat",
-      "title": "Servers in backoff",
+      "title": "Resident memory",
       "description": "",
       "id": 7,
       "datasource": {
@@ -362,7 +362,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(continuwuity_federation_unhealthy_destinations{instance=~\"$instance\"})",
+          "expr": "sum(process_memory_usage_bytes{instance=~\"$instance\"})",
           "legendFormat": "",
           "refId": "A",
           "range": true
@@ -370,7 +370,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "bytes",
           "color": {
             "mode": "thresholds"
           },
@@ -380,10 +380,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 50
               }
             ]
           }
@@ -439,7 +435,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (class) (label_replace(rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]), \"class\", \"${1}xx\", \"status\", \"([0-9])..\"))",
+          "expr": "sum by (class) (label_replace(rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]), \"class\", \"${1}xx\", \"http_response_status_code\", \"([0-9])..\"))",
           "legendFormat": "{{class}}",
           "refId": "A",
           "range": true
@@ -500,7 +496,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "refId": "A",
           "range": true
@@ -510,7 +506,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "B",
           "range": true
@@ -520,7 +516,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "refId": "C",
           "range": true
@@ -581,8 +577,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (method, route) (rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval])))",
-          "legendFormat": "{{method}} {{route}}",
+          "expr": "topk(10, sum by (http_request_method, http_route) (rate(http_server_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "{{http_request_method}} {{http_route}}",
           "refId": "A",
           "range": true
         }
@@ -645,8 +641,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, histogram_quantile(0.95, sum by (le, method, route) (rate(continuwuity_http_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval]))))",
-          "legendFormat": "{{method}} {{route}}",
+          "expr": "topk(10, histogram_quantile(0.95, sum by (le, http_request_method, http_route) (rate(http_server_request_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval]))))",
+          "legendFormat": "{{http_request_method}} {{http_route}}",
           "refId": "A",
           "range": true
         }
@@ -709,8 +705,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "topk(10, sum by (method, route, status) (rate(continuwuity_http_request_duration_seconds_count{instance=~\"$instance\",status=~\"5..\"}[$__rate_interval])))",
-          "legendFormat": "{{status}} {{method}} {{route}}",
+          "expr": "topk(10, sum by (http_request_method, http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{instance=~\"$instance\",http_response_status_code=~\"5..\"}[$__rate_interval])))",
+          "legendFormat": "{{http_response_status_code}} {{http_request_method}} {{http_route}}",
           "refId": "A",
           "range": true
         }
@@ -770,7 +766,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(continuwuity_http_requests_in_flight{instance=~\"$instance\"})",
+          "expr": "sum(http_server_active_requests{instance=~\"$instance\"})",
           "legendFormat": "in flight",
           "refId": "A",
           "range": true
@@ -812,7 +808,7 @@
     },
     {
       "type": "row",
-      "title": "Federation",
+      "title": "Incoming federation",
       "id": 15,
       "collapsed": false,
       "gridPos": {
@@ -825,7 +821,7 @@
     },
     {
       "type": "timeseries",
-      "title": "Outgoing requests by outcome",
+      "title": "Transactions by outcome",
       "description": "",
       "id": 16,
       "datasource": {
@@ -834,7 +830,7 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
         "y": 33
       },
@@ -844,7 +840,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (outcome) (rate(continuwuity_federation_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (outcome) (rate(continuwuity_federation_incoming_transaction_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{outcome}}",
           "refId": "A",
           "range": true
@@ -852,7 +848,7 @@
       ],
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "ops",
           "min": 0,
           "color": {
             "mode": "palette-classic"
@@ -886,8 +882,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Outgoing request latency",
-      "description": "Successful requests only",
+      "title": "Transaction processing time",
+      "description": "",
       "id": 17,
       "datasource": {
         "type": "prometheus",
@@ -895,8 +891,8 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 8,
         "y": 33
       },
       "targets": [
@@ -905,7 +901,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_federation_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_federation_incoming_transaction_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p50",
           "refId": "A",
           "range": true
@@ -915,7 +911,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_federation_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_federation_incoming_transaction_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "B",
           "range": true
@@ -925,7 +921,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_federation_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_federation_incoming_transaction_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
           "legendFormat": "p99",
           "refId": "C",
           "range": true
@@ -967,9 +963,70 @@
     },
     {
       "type": "timeseries",
-      "title": "Sender transactions",
+      "title": "Transactions in progress",
       "description": "",
       "id": 18,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 33
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(continuwuity_federation_incoming_transactions_active{instance=~\"$instance\"})",
+          "legendFormat": "active",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PDUs by outcome",
+      "description": "",
+      "id": 19,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -986,8 +1043,632 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum by (destination, outcome) (rate(continuwuity_sender_transactions_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "expr": "sum by (outcome) (rate(continuwuity_federation_incoming_pdus_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PDU handling time",
+      "description": "",
+      "id": 20,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 41
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_federation_incoming_pdu_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_federation_incoming_pdu_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_federation_incoming_pdu_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "PDU lag",
+      "description": "Time between an accepted PDU's origin_server_ts and its arrival; affected by clock skew",
+      "id": 21,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 41
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_federation_incoming_pdu_lag_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_federation_incoming_pdu_lag_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_federation_incoming_pdu_lag_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Top PDU types",
+      "description": "",
+      "id": 22,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "topk(10, sum by (type) (rate(continuwuity_federation_incoming_pdus_total{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "{{type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "EDUs by type",
+      "description": "",
+      "id": 23,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (type) (rate(continuwuity_federation_incoming_edus_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "EDU handling time by type",
+      "description": "",
+      "id": 24,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 49
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le, type) (rate(continuwuity_federation_incoming_edu_duration_seconds_bucket{instance=~\"$instance\"}[$__rate_interval])))",
+          "legendFormat": "p95 {{type}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Outgoing federation",
+      "id": 25,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 57
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Transactions by destination and outcome",
+      "description": "",
+      "id": 26,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 58
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (destination, outcome) (rate(continuwuity_sender_transaction_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
           "legendFormat": "{{destination}} {{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Transaction time",
+      "description": "Successful transactions only",
+      "id": 27,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 58
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_sender_transaction_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p50",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_sender_transaction_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p95",
+          "refId": "B",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_sender_transaction_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Events sent",
+      "description": "",
+      "id": 28,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 66
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (destination, kind, outcome) (rate(continuwuity_sender_events_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{destination}} {{kind}} {{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Events queued",
+      "description": "",
+      "id": 29,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 66
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (destination, kind) (rate(continuwuity_sender_events_queued_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{destination}} {{kind}}",
           "refId": "A",
           "range": true
         }
@@ -1030,7 +1711,7 @@
       "type": "timeseries",
       "title": "Sender queue depth",
       "description": "",
-      "id": 19,
+      "id": 30,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1038,8 +1719,8 @@
       "gridPos": {
         "h": 8,
         "w": 8,
-        "x": 8,
-        "y": 41
+        "x": 16,
+        "y": 66
       },
       "targets": [
         {
@@ -1089,9 +1770,9 @@
     },
     {
       "type": "timeseries",
-      "title": "Remote server health",
+      "title": "Requests by outcome",
       "description": "",
-      "id": 20,
+      "id": 31,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1099,8 +1780,8 @@
       "gridPos": {
         "h": 8,
         "w": 8,
-        "x": 16,
-        "y": 41
+        "x": 0,
+        "y": 74
       },
       "targets": [
         {
@@ -1108,8 +1789,69 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(continuwuity_federation_unhealthy_destinations{instance=~\"$instance\"})",
-          "legendFormat": "in backoff",
+          "expr": "sum by (outcome) (rate(continuwuity_federation_outgoing_request_duration_seconds_count{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Request latency",
+      "description": "Successful requests only",
+      "id": 32,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 74
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(continuwuity_federation_outgoing_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p50",
           "refId": "A",
           "range": true
         },
@@ -1118,9 +1860,80 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(continuwuity_federation_stale_destinations{instance=~\"$instance\"})",
-          "legendFormat": "stale destination",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(continuwuity_federation_outgoing_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p95",
           "refId": "B",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(continuwuity_federation_outgoing_request_duration_seconds_bucket{instance=~\"$instance\",outcome=\"success\"}[$__rate_interval])))",
+          "legendFormat": "p99",
+          "refId": "C",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Remote servers",
+      "description": "",
+      "id": 33,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 74
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (state) (continuwuity_federation_destinations{instance=~\"$instance\"})",
+          "legendFormat": "{{state}}",
+          "refId": "A",
           "range": true
         }
       ],
@@ -1160,14 +1973,342 @@
     },
     {
       "type": "row",
-      "title": "Database & caches",
-      "id": 21,
+      "title": "Users & media",
+      "id": 34,
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 82
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Users",
+      "description": "Local users include deactivated accounts",
+      "id": 35,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 83
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (origin) (continuwuity_users{instance=~\"$instance\"})",
+          "legendFormat": "{{origin}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Invites",
+      "description": "",
+      "id": 36,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 83
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (direction, destination, outcome) (rate(continuwuity_invites_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{direction}} {{destination}} {{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Media traffic",
+      "description": "Remote writes are remote media cached locally",
+      "id": 37,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 83
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (origin) (rate(continuwuity_media_write_size_bytes_sum{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "written {{origin}}",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (origin) (rate(continuwuity_media_read_size_bytes_sum{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "served {{origin}}",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Stored media files",
+      "description": "Includes thumbnails",
+      "id": 38,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 83
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(continuwuity_media_files{instance=~\"$instance\"})",
+          "legendFormat": "files",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Antispam checks",
+      "description": "Denials include the antispam service being unreachable",
+      "id": 39,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 91
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (check, outcome) (rate(continuwuity_antispam_checks_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{check}} {{outcome}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Database & caches",
+      "id": 40,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 97
       },
       "panels": []
     },
@@ -1175,16 +2316,16 @@
       "type": "timeseries",
       "title": "RocksDB memory",
       "description": "Unflushed memtables are included in mem_tables",
-      "id": 22,
+      "id": 41,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
+        "w": 6,
         "x": 0,
-        "y": 50
+        "y": 98
       },
       "targets": [
         {
@@ -1236,16 +2377,16 @@
       "type": "timeseries",
       "title": "RocksDB block cache",
       "description": "",
-      "id": 23,
+      "id": 42,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 8,
-        "y": 50
+        "w": 6,
+        "x": 6,
+        "y": 98
       },
       "targets": [
         {
@@ -1297,18 +2438,79 @@
     },
     {
       "type": "timeseries",
-      "title": "Cache entries",
+      "title": "Database size",
       "description": "",
-      "id": 24,
+      "id": 43,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
       },
       "gridPos": {
         "h": 8,
-        "w": 8,
-        "x": 16,
-        "y": 50
+        "w": 6,
+        "x": 12,
+        "y": 98
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(continuwuity_database_size_bytes{instance=~\"$instance\"})",
+          "legendFormat": "SST files",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache entries",
+      "description": "",
+      "id": 44,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 98
       },
       "targets": [
         {
@@ -1358,14 +2560,281 @@
     },
     {
       "type": "row",
-      "title": "Tokio runtime",
-      "id": 25,
+      "title": "Process",
+      "id": 45,
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 58
+        "y": 106
+      },
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "CPU",
+      "description": "CPU cores in use",
+      "id": 46,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 0,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (cpu_mode) (rate(process_cpu_time_seconds_total{instance=~\"$instance\"}[$__rate_interval]))",
+          "legendFormat": "{{cpu_mode}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 25,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory",
+      "description": "",
+      "id": 47,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 6,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(process_memory_usage_bytes{instance=~\"$instance\"})",
+          "legendFormat": "resident",
+          "refId": "A",
+          "range": true
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(process_memory_virtual_bytes{instance=~\"$instance\"})",
+          "legendFormat": "virtual",
+          "refId": "B",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "jemalloc",
+      "description": "Only reported when built with the jemalloc_stats feature",
+      "id": 48,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 12,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum by (kind) (continuwuity_jemalloc_memory_bytes{instance=~\"$instance\"})",
+          "legendFormat": "{{kind}}",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "File descriptors",
+      "description": "",
+      "id": 49,
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 6,
+        "x": 18,
+        "y": 107
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "sum(process_unix_file_descriptor_count{instance=~\"$instance\"})",
+          "legendFormat": "fds",
+          "refId": "A",
+          "range": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 1,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "mode": "none",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Tokio runtime",
+      "id": 50,
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 115
       },
       "panels": []
     },
@@ -1373,7 +2842,7 @@
       "type": "timeseries",
       "title": "Worker utilisation",
       "description": "Average share of time worker threads spend busy",
-      "id": 26,
+      "id": 51,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1382,7 +2851,7 @@
         "h": 8,
         "w": 8,
         "x": 0,
-        "y": 59
+        "y": 116
       },
       "targets": [
         {
@@ -1390,7 +2859,7 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "sum(rate(continuwuity_tokio_worker_busy_seconds_total{instance=~\"$instance\"}[$__rate_interval])) / sum(continuwuity_tokio_workers{instance=~\"$instance\"})",
+          "expr": "sum(rate(continuwuity_tokio_worker_busy_time_seconds_total{instance=~\"$instance\"}[$__rate_interval])) / sum(continuwuity_tokio_workers{instance=~\"$instance\"})",
           "legendFormat": "busy",
           "refId": "A",
           "range": true
@@ -1434,7 +2903,7 @@
       "type": "timeseries",
       "title": "Tasks",
       "description": "",
-      "id": 27,
+      "id": 52,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1443,7 +2912,7 @@
         "h": 8,
         "w": 8,
         "x": 8,
-        "y": 59
+        "y": 116
       },
       "targets": [
         {
@@ -1505,7 +2974,7 @@
       "type": "timeseries",
       "title": "Worker parks",
       "description": "",
-      "id": 28,
+      "id": 53,
       "datasource": {
         "type": "prometheus",
         "uid": "${datasource}"
@@ -1514,7 +2983,7 @@
         "h": 8,
         "w": 8,
         "x": 16,
-        "y": 59
+        "y": 116
       },
       "targets": [
         {
@@ -1590,9 +3059,9 @@
           "type": "prometheus",
           "uid": "${datasource}"
         },
-        "definition": "label_values(continuwuity_build_info, instance)",
+        "definition": "label_values(target_info, instance)",
         "query": {
-          "query": "label_values(continuwuity_build_info, instance)",
+          "query": "label_values(target_info, instance)",
           "refId": "instance"
         },
         "includeAll": true,

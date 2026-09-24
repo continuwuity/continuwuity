@@ -1,8 +1,11 @@
-# Prometheus metrics
+# Metrics
 
-Continuwuity can expose metrics in the OpenMetrics text format at `/_continuwuity/metrics`. The endpoint is disabled by default.
+Continuwuity records metrics with OpenTelemetry and can export them in two ways, both disabled by default:
 
-## Configuration
+- **Prometheus scraping** from `/_continuwuity/metrics`
+- **OTLP push**, alongside traces
+
+## Prometheus
 
 ```toml
 [global]
@@ -11,8 +14,6 @@ prometheus_metrics_token = "a-long-random-secret"
 ```
 
 The endpoint is served on the same listener as the rest of the server. Either set `prometheus_metrics_token` or block `/_continuwuity/metrics` at your reverse proxy so it is not publicly readable.
-
-## Scrape config
 
 ```yaml
 scrape_configs:
@@ -25,28 +26,72 @@ scrape_configs:
       - targets: ["matrix.example.com"]
 ```
 
+## OTLP
+
+Requires the `otlp_telemetry` feature, enabled in default builds.
+
+```toml
+[global]
+allow_otlp_metrics = true
+otlp_protocol = "http" # or "grpc"
+```
+
+Configure the exporter with the standard OpenTelemetry environment variables:
+
+```sh
+OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
+OTEL_METRIC_EXPORT_INTERVAL=15000
+```
+
+`service.instance.id` defaults to the server name, and `OTEL_RESOURCE_ATTRIBUTES` or `OTEL_SERVICE_NAME` override the defaults.
+
+Prometheus can receive OTLP directly when started with `--web.enable-otlp-receiver`, using `http://prometheus:9090/api/v1/otlp` as the endpoint.
+
 ## Exported metrics
 
-All metrics are prefixed with `continuwuity_`.
+Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry names, such as `continuwuity.sender.events`. HTTP and process metrics follow the OpenTelemetry semantic conventions.
 
 | Metric | Type | Labels | Description |
 | --- | --- | --- | --- |
-| `build_info` | info | `version` | Running server version |
-| `http_request_duration_seconds` | histogram | `method`, `route`, `status` | Handled HTTP requests, by route template |
-| `http_requests_in_flight` | gauge | | Requests currently being handled |
-| `federation_request_duration_seconds` | histogram | `outcome` | Outgoing federation requests |
-| `federation_unhealthy_destinations` | gauge | | Remote servers currently in retry backoff |
-| `federation_stale_destinations` | gauge | | Remote servers with a stale destination cache entry |
-| `sender_transactions_total` | counter | `destination`, `outcome` | Outgoing federation, appservice and push transactions |
-| `sender_queue_depth` | gauge | | Messages waiting for the sender workers |
-| `database_memory_bytes` | gauge | `name` | RocksDB memtable, table reader and row cache usage |
-| `database_block_cache_bytes` | gauge | `column` | RocksDB block cache usage |
-| `cache_entries` | gauge | `name` | Entries in the auth chain and state info caches |
-| `tokio_workers` | gauge | | Tokio runtime worker threads |
-| `tokio_alive_tasks` | gauge | | Alive tokio tasks |
-| `tokio_global_queue_depth` | gauge | | Tasks in the tokio global queue |
-| `tokio_worker_busy_seconds_total` | counter | | Time worker threads spent busy |
-| `tokio_worker_parks_total` | counter | | Number of times worker threads parked |
+| `target_info` | gauge | `service_version`, `service_instance_id` | Running server version and name |
+| `http_server_request_duration_seconds` | histogram | `http_request_method`, `http_route`, `http_response_status_code`, `error_type` | Handled HTTP requests, by route template |
+| `http_server_active_requests` | gauge | `http_request_method` | Requests currently being handled |
+| `continuwuity_federation_incoming_transaction_duration_seconds` | histogram | `outcome` | Processing time of incoming transactions |
+| `continuwuity_federation_incoming_transactions_active` | gauge | | Incoming transactions currently being processed |
+| `continuwuity_federation_incoming_pdus_total` | counter | `type`, `outcome` | Incoming PDUs by event type and outcome: `accepted`, `forbidden`, `invalid`, `error` or `unparsable` |
+| `continuwuity_federation_incoming_pdu_duration_seconds` | histogram | `outcome` | Time to handle an incoming PDU |
+| `continuwuity_federation_incoming_pdu_lag_seconds` | histogram | | Time between an accepted PDU's `origin_server_ts` and its arrival |
+| `continuwuity_federation_incoming_edus_total` | counter | `type` | Incoming EDUs by type |
+| `continuwuity_federation_incoming_edu_duration_seconds` | histogram | `type` | Time to handle an incoming EDU |
+| `continuwuity_federation_outgoing_request_duration_seconds` | histogram | `outcome` | Outgoing federation requests |
+| `continuwuity_federation_destinations` | gauge | `state` | Remote servers in retry `backoff` or with a `stale` destination cache entry |
+| `continuwuity_sender_transaction_duration_seconds` | histogram | `destination`, `outcome` | Outgoing federation, appservice and push transactions |
+| `continuwuity_sender_events_total` | counter | `destination`, `kind`, `outcome` | PDUs and EDUs sent in outgoing transactions |
+| `continuwuity_sender_events_queued_total` | counter | `destination`, `kind` | PDUs and EDUs queued for sending |
+| `continuwuity_sender_queue_depth` | gauge | | Messages waiting for the sender workers |
+| `continuwuity_users` | gauge | `origin` | Known `local` users, including deactivated, and `remote` users |
+| `continuwuity_invites_total` | counter | `direction`, `destination`, `outcome` | Invites sent by local users or received over federation |
+| `continuwuity_media_write_size_bytes` | histogram | `origin` | Media files written, from local uploads or cached remote media |
+| `continuwuity_media_read_size_bytes` | histogram | `origin` | Media files served |
+| `continuwuity_media_files` | gauge | | Stored media files, including thumbnails |
+| `continuwuity_antispam_checks_total` | counter | `check`, `outcome` | Antispam service checks; denials include the service being unreachable |
+| `continuwuity_database_size_bytes` | gauge | | Total size of RocksDB SST files |
+| `continuwuity_database_memory_bytes` | gauge | `name` | RocksDB memtable, table reader and row cache usage |
+| `continuwuity_database_block_cache_bytes` | gauge | `column` | RocksDB block cache usage |
+| `continuwuity_cache_entries` | gauge | `name` | Entries in the auth chain and state info caches |
+| `continuwuity_jemalloc_memory_bytes` | gauge | `kind` | jemalloc statistics, only with the `jemalloc_stats` feature |
+| `process_uptime_seconds` | gauge | | Time since the server started |
+| `process_cpu_time_seconds_total` | counter | `cpu_mode` | CPU time used by the process |
+| `process_memory_usage_bytes` | gauge | | Resident memory (Linux) |
+| `process_memory_virtual_bytes` | gauge | | Virtual memory (Linux) |
+| `process_unix_file_descriptor_count` | gauge | | Open file descriptors (Linux) |
+| `continuwuity_tokio_workers` | gauge | | Tokio runtime worker threads |
+| `continuwuity_tokio_alive_tasks` | gauge | | Alive tokio tasks |
+| `continuwuity_tokio_global_queue_depth` | gauge | | Tasks in the tokio global queue |
+| `continuwuity_tokio_worker_busy_time_seconds_total` | counter | | Time worker threads spent busy |
+| `continuwuity_tokio_worker_parks_total` | counter | | Number of times worker threads parked |
+
+User and media file counts are refreshed every minute.
 
 ## Grafana dashboard
 
