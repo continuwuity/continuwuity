@@ -113,6 +113,7 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 url.workspace = true
 parking_lot.workspace = true
+prometheus-client.workspace = true
 lock_api.workspace = true
 hyper-util.workspace = true
 resolvematrix.workspace = true

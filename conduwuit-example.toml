@@ -837,6 +837,19 @@
 #
 #otlp_protocol = "http"
 
+# Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
+#
+# The endpoint is served on the same listener as the rest of the server.
+# Set `prometheus_metrics_token` or restrict access at your reverse proxy
+# to avoid exposing it publicly.
+#
+#allow_prometheus_metrics = false
+
+# Bearer token required to scrape the Prometheus metrics endpoint. When
+# set, requests must include an `Authorization: Bearer <token>` header.
+#
+#prometheus_metrics_token =
+
 # If the 'perf_measurements' compile-time feature is enabled, enables
 # collecting folded stack trace profile of tracing spans using
 # tracing_flame. The resulting profile can be visualized with inferno[1],

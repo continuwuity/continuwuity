@@ -194,6 +194,14 @@ pub fn check(config: &Config) -> Result {
 		);
 	}
 
+	if config.allow_prometheus_metrics && config.prometheus_metrics_token.is_none() {
+		warn!(
+			"The Prometheus metrics endpoint is enabled without `prometheus_metrics_token`. \
+			 Anyone who can reach /_continuwuity/metrics can read server metrics unless access \
+			 is restricted at your reverse proxy."
+		);
+	}
+
 	if config.allow_outgoing_presence && !config.allow_local_presence {
 		return Err!(Config(
 			"allow_local_presence",

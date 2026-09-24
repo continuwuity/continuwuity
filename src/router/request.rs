@@ -1,19 +1,25 @@
 use std::{
 	fmt::Debug,
 	sync::{Arc, atomic::Ordering},
-	time::Duration,
+	time::{Duration, Instant},
 };
 
 use axum::{
-	extract::State,
+	extract::{MatchedPath, State},
 	response::{IntoResponse, Response},
 };
-use conduwuit::{Result, debug, debug_error, debug_warn, err, error, trace};
+use conduwuit::{
+	Result, debug, debug_error, debug_warn, err, error,
+	metrics::{HttpLabels, method_label},
+	trace,
+};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};
 use tokio::time::sleep;
 use tracing::Span;
+
+use crate::layers::truncated_matched_path;
 
 #[tracing::instrument(name = "request", level = "debug", skip_all)]
 pub(crate) async fn handle(
@@ -31,6 +37,16 @@ pub(crate) async fn handle(
 		return Err(StatusCode::SERVICE_UNAVAILABLE);
 	}
 
+	let prometheus = &services.server.metrics.prometheus;
+	prometheus.http_requests_in_flight.inc();
+	conduwuit::defer! {{ prometheus.http_requests_in_flight.dec(); }};
+
+	let start = Instant::now();
+	let route = req
+		.extensions()
+		.get::<MatchedPath>()
+		.map_or("unmatched", truncated_matched_path)
+		.to_owned();
 	let uri = req.uri().clone();
 	let method = req.method().clone();
 	let services_ = services.clone();
@@ -49,9 +65,24 @@ pub(crate) async fn handle(
 		}
 	});
 
-	task.await
+	let result = task
+		.await
 		.map_err(unhandled)
-		.and_then(move |result| handle_result(&method, &uri, result))
+		.and_then(|result| handle_result(&method, &uri, result));
+
+	let status = result
+		.as_ref()
+		.map_or_else(|status| *status, Response::status);
+	prometheus
+		.http_request_duration
+		.get_or_create(&HttpLabels {
+			method: method_label(&method),
+			route,
+			status: status.as_u16(),
+		})
+		.observe(start.elapsed().as_secs_f64());
+
+	result
 }
 
 #[tracing::instrument(

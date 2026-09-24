@@ -13,6 +13,7 @@ use conduwuit::{debug_info, debug_warn, info, trace};
 use conduwuit_core::{
 	Error, Event, Result, at, debug, err, error,
 	matrix::pdu::sticky,
+	metrics::TransactionLabels,
 	result::LogErr,
 	utils::{
 		ReadyExt, calculate_hash,
@@ -139,6 +140,17 @@ impl Service {
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
+		let (dest, outcome) = match &response {
+			| Ok(dest) => (dest, "success"),
+			| Err((dest, _)) => (dest, "failure"),
+		};
+		self.server
+			.metrics
+			.prometheus
+			.sender_transactions
+			.get_or_create(&TransactionLabels { destination: dest.kind(), outcome })
+			.inc();
+
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
 			| Err((dest, e)) => {

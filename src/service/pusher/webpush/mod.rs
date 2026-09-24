@@ -3,7 +3,11 @@ mod vapid;
 
 use std::time::{Duration, SystemTime};
 
-use conduwuit_core::{Err, Result, debug, debug_warn, err, utils, warn};
+use conduwuit_core::{
+	Err, Result, debug, debug_warn, err,
+	utils::{self, string::constant_time_eq},
+	warn,
+};
 use conduwuit_database::{Deserialized, Json};
 use futures::StreamExt;
 pub(super) use helpers::{decode_auth, decode_pushkey};
@@ -20,7 +24,7 @@ use tokio::time::sleep;
 pub(super) use vapid::Vapid;
 use web_push_native::WebPushBuilder;
 
-use self::helpers::{build_payload, constant_time_eq};
+use self::helpers::build_payload;
 use super::{Service, WEBPUSH_SCHEMES};
 
 const TTL: Duration = Duration::from_hours(48);

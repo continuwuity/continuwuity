@@ -1026,6 +1026,20 @@ pub struct Config {
 	#[serde(default = "default_otlp_protocol")]
 	pub otlp_protocol: String,
 
+	/// Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
+	///
+	/// The endpoint is served on the same listener as the rest of the server.
+	/// Set `prometheus_metrics_token` or restrict access at your reverse proxy
+	/// to avoid exposing it publicly.
+	#[serde(default)]
+	pub allow_prometheus_metrics: bool,
+
+	/// Bearer token required to scrape the Prometheus metrics endpoint. When
+	/// set, requests must include an `Authorization: Bearer <token>` header.
+	///
+	/// display: sensitive
+	pub prometheus_metrics_token: Option<String>,
+
 	/// If the 'perf_measurements' compile-time feature is enabled, enables
 	/// collecting folded stack trace profile of tracing spans using
 	/// tracing_flame. The resulting profile can be visualized with inferno[1],

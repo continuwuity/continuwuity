@@ -486,6 +486,10 @@ impl Service {
 		sender.send(msg).map_err(|e| err!("{e}"))
 	}
 
+	pub fn queue_depth(&self) -> usize {
+		self.channels.iter().map(|(sender, _)| sender.len()).sum()
+	}
+
 	pub(super) fn shard_id(&self, dest: &Destination) -> usize {
 		if self.channels.len() <= 1 {
 			return 0;

@@ -13,5 +13,15 @@
         "type": "file",
         "name": "performance",
         "label": "Performance tuning"
+    },
+    {
+        "type": "file",
+        "name": "metrics",
+        "label": "Prometheus metrics"
+    },
+    {
+        "type": "file",
+        "name": "oidc",
+        "label": "Delegated authentication"
     }
 ]

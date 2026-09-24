@@ -49,6 +49,17 @@ where
 	Ok(out)
 }
 
+/// Compare two strings without short-circuiting on the first mismatch, for
+/// checking secrets.
+#[must_use]
+pub fn constant_time_eq(a: &str, b: &str) -> bool {
+	a.len() == b.len()
+		&& a.bytes()
+			.zip(b.bytes())
+			.fold(0_u8, |acc, (x, y)| acc | (x ^ y))
+			== 0
+}
+
 #[inline]
 #[must_use]
 pub fn camel_to_snake_string(s: &str) -> String {

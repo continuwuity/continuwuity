@@ -1,8 +1,8 @@
 use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
 use conduwuit::{
-	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, trace,
-	utils::response::LimitReadExt,
+	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, metrics::OutcomeLabels,
+	trace, utils::response::LimitReadExt,
 };
 use ipaddress::IPAddress;
 use reqwest::{Client, Method, Request, Response, Url};
@@ -175,12 +175,26 @@ impl super::Service {
 		);
 		let start = Instant::now();
 		let response = client.execute(request).await;
+		let elapsed = start.elapsed();
 		debug_info!(
-			"Request finished in {:?}: {} matrix-federation://{dest}{}",
-			start.elapsed(),
+			"Request finished in {elapsed:?}: {} matrix-federation://{dest}{}",
 			method.as_str(),
 			url.path(),
 		);
+		let outcome = match &response {
+			| Ok(response) if response.status().is_success() => "success",
+			| Ok(response) if response.status().is_client_error() => "client_error",
+			| Ok(response) if response.status().is_server_error() => "server_error",
+			| Ok(_) => "other",
+			| Err(_) => "network_error",
+		};
+		self.services
+			.server
+			.metrics
+			.prometheus
+			.federation_request_duration
+			.get_or_create(&OutcomeLabels { outcome })
+			.observe(elapsed.as_secs_f64());
 		match response {
 			| Ok(response) =>
 				self.handle_response::<T>(dest, actual, &method, &url, response)

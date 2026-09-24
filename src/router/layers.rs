@@ -241,7 +241,7 @@ fn request_path_str<T>(request: &http::Request<T>) -> &str {
 		.as_str()
 }
 
-fn truncated_matched_path(path: &MatchedPath) -> &str {
+pub(crate) fn truncated_matched_path(path: &MatchedPath) -> &str {
 	path.as_str()
 		.rsplit_once(':')
 		.map_or(path.as_str(), |path| path.0.strip_suffix('/').unwrap_or(path.0))

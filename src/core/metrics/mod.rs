@@ -1,9 +1,16 @@
+mod prometheus;
+
 use std::sync::atomic::AtomicU32;
 
 use tokio::runtime;
 use tokio_metrics::TaskMonitor;
 #[cfg(tokio_unstable)]
 use tokio_metrics::{RuntimeIntervals, RuntimeMonitor};
+
+pub use self::prometheus::{
+	ColumnLabels, HttpLabels, NameLabels, OutcomeLabels, Prometheus, TransactionLabels,
+	method_label,
+};
 
 pub struct Metrics {
 	_runtime: Option<runtime::Handle>,
@@ -22,6 +29,8 @@ pub struct Metrics {
 	pub requests_handle_active: AtomicU32,
 	pub requests_handle_finished: AtomicU32,
 	pub requests_panic: AtomicU32,
+
+	pub prometheus: Prometheus,
 }
 
 impl Metrics {
@@ -33,10 +42,14 @@ impl Metrics {
 		#[cfg(tokio_unstable)]
 		let runtime_intervals = runtime_monitor.as_ref().map(RuntimeMonitor::intervals);
 
+		let runtime_metrics = runtime.as_ref().map(runtime::Handle::metrics);
+
 		Self {
 			_runtime: runtime.clone(),
 
-			runtime_metrics: runtime.as_ref().map(runtime::Handle::metrics),
+			prometheus: Prometheus::new(runtime_metrics.clone()),
+
+			runtime_metrics,
 
 			task_monitor: runtime.map(|_| TaskMonitor::new()),
 

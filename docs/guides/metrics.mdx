@@ -1,0 +1,49 @@
+# Prometheus metrics
+
+Continuwuity can expose metrics in the OpenMetrics text format at `/_continuwuity/metrics`. The endpoint is disabled by default.
+
+## Configuration
+
+```toml
+[global]
+allow_prometheus_metrics = true
+prometheus_metrics_token = "a-long-random-secret"
+```
+
+The endpoint is served on the same listener as the rest of the server. Either set `prometheus_metrics_token` or block `/_continuwuity/metrics` at your reverse proxy so it is not publicly readable.
+
+## Scrape config
+
+```yaml
+scrape_configs:
+  - job_name: continuwuity
+    scheme: https
+    metrics_path: /_continuwuity/metrics
+    authorization:
+      credentials: a-long-random-secret
+    static_configs:
+      - targets: ["matrix.example.com"]
+```
+
+## Exported metrics
+
+All metrics are prefixed with `continuwuity_`.
+
+| Metric | Type | Labels | Description |
+| --- | --- | --- | --- |
+| `build_info` | info | `version` | Running server version |
+| `http_request_duration_seconds` | histogram | `method`, `route`, `status` | Handled HTTP requests, by route template |
+| `http_requests_in_flight` | gauge | | Requests currently being handled |
+| `federation_request_duration_seconds` | histogram | `outcome` | Outgoing federation requests |
+| `federation_unhealthy_destinations` | gauge | | Remote servers currently in retry backoff |
+| `federation_stale_destinations` | gauge | | Remote servers with a stale destination cache entry |
+| `sender_transactions_total` | counter | `destination`, `outcome` | Outgoing federation, appservice and push transactions |
+| `sender_queue_depth` | gauge | | Messages waiting for the sender workers |
+| `database_memory_bytes` | gauge | `name` | RocksDB memtable, table reader and row cache usage |
+| `database_block_cache_bytes` | gauge | `column` | RocksDB block cache usage |
+| `cache_entries` | gauge | `name` | Entries in the auth chain and state info caches |
+| `tokio_workers` | gauge | | Tokio runtime worker threads |
+| `tokio_alive_tasks` | gauge | | Alive tokio tasks |
+| `tokio_global_queue_depth` | gauge | | Tasks in the tokio global queue |
+| `tokio_worker_busy_seconds_total` | counter | | Time worker threads spent busy |
+| `tokio_worker_parks_total` | counter | | Number of times worker threads parked |

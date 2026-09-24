@@ -68,3 +68,10 @@ fn between_infallible() {
 	assert_eq!("\"foo".between_infallible(("\"", "\"")), "\"foo");
 	assert_eq!("foo".between_infallible(("\"", "\"")), "foo");
 }
+
+#[test]
+fn constant_time_eq() {
+	assert!(super::constant_time_eq("abc", "abc"));
+	assert!(!super::constant_time_eq("abc", "abz"));
+	assert!(!super::constant_time_eq("abc", "abcd"));
+}

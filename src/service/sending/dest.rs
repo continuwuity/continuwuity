@@ -10,6 +10,15 @@ pub enum Destination {
 }
 
 impl Destination {
+	#[must_use]
+	pub(super) fn kind(&self) -> &'static str {
+		match self {
+			| Self::Appservice(_) => "appservice",
+			| Self::Push(..) => "push",
+			| Self::Federation(_) => "federation",
+		}
+	}
+
 	/// Gets the prefix for this destination.
 	#[must_use]
 	pub(super) fn get_prefix(&self) -> Vec<u8> {

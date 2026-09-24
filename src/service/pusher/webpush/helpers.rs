@@ -37,14 +37,6 @@ pub(crate) fn decode_auth(auth: &str) -> Result<Auth> {
 	Ok(Auth::from(bytes))
 }
 
-pub(super) fn constant_time_eq(a: &str, b: &str) -> bool {
-	a.len() == b.len()
-		&& a.bytes()
-			.zip(b.bytes())
-			.fold(0_u8, |acc, (x, y)| acc | (x ^ y))
-			== 0
-}
-
 pub(super) fn build_payload(notify: &Notification, data: &JsonObject) -> Result<Vec<u8>> {
 	let JsonValue::Object(mut payload) = serde_json::to_value(notify)? else {
 		return Err!("Notification did not serialize to an object");
@@ -117,7 +109,7 @@ mod tests {
 	};
 	use serde_json::{Value as JsonValue, json};
 
-	use super::{MAX_BODY_LENGTH, build_payload, constant_time_eq};
+	use super::{MAX_BODY_LENGTH, build_payload};
 
 	fn payload_of(notify: &Notification, data: &JsonObject) -> JsonObject {
 		let encoded = build_payload(notify, data).unwrap();
@@ -197,12 +189,5 @@ mod tests {
 		data.insert("default_payload".to_owned(), json!({ "pad": "x".repeat(4000) }));
 
 		build_payload(&Notification::new(vec![]), &data).unwrap_err();
-	}
-
-	#[test]
-	fn token_comparison() {
-		assert!(constant_time_eq("abc", "abc"));
-		assert!(!constant_time_eq("abc", "abz"));
-		assert!(!constant_time_eq("abc", "abcd"));
 	}
 }

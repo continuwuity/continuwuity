@@ -199,6 +199,10 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&admin::rooms::ban::ban_room)
 		.ruma_route(&admin::rooms::list::list_rooms);
 
+	if config.allow_prometheus_metrics {
+		router = router.route("/_continuwuity/metrics", get(client::continuwuity_metrics));
+	}
+
 	if config.allow_federation {
 		router = router
 			.ruma_route(&server::get_server_version_route)

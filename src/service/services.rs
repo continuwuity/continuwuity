@@ -1,7 +1,10 @@
 use std::{any::Any, collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
-	Result, Server, SyncRwLock, debug, debug_info, error, info, trace, utils::stream::IterStream,
+	Result, Server, SyncRwLock, debug, debug_info, error, info,
+	metrics::{ColumnLabels, NameLabels},
+	trace,
+	utils::{millis_since_unix_epoch, stream::IterStream},
 };
 use database::Database;
 use futures::{Stream, StreamExt, TryStreamExt};
@@ -206,6 +209,61 @@ impl Services {
 				Ok(out)
 			})
 			.await
+	}
+
+	/// Refresh the Prometheus gauges which are sampled rather than recorded
+	/// as events happen.
+	pub fn update_metrics(&self) -> Result {
+		let prometheus = &self.server.metrics.prometheus;
+
+		prometheus
+			.sender_queue_depth
+			.set(i64::try_from(self.sending.queue_depth())?);
+
+		let now = millis_since_unix_epoch();
+		let unhealthy = self
+			.federation
+			.remote_health
+			.read()
+			.values()
+			.filter(|&&(_, next_retry)| now < next_retry)
+			.count();
+		prometheus
+			.federation_unhealthy_destinations
+			.set(i64::try_from(unhealthy)?);
+		prometheus
+			.federation_stale_destinations
+			.set(i64::try_from(self.federation.stale_destinations.read().len())?);
+
+		let usage = self.db.db.memory_usage_stats()?;
+		for (name, bytes) in [
+			("mem_tables", usage.mem_table_total),
+			("mem_tables_unflushed", usage.mem_table_unflushed),
+			("table_readers", usage.mem_table_readers_total),
+			("row_cache", usage.row_cache),
+		] {
+			prometheus
+				.database_memory
+				.get_or_create(&NameLabels { name })
+				.set(i64::try_from(bytes)?);
+		}
+		for (column, bytes) in usage.col_caches {
+			prometheus
+				.database_block_cache
+				.get_or_create(&ColumnLabels { column })
+				.set(i64::try_from(bytes)?);
+		}
+
+		let (auth_chain, _) = self.rooms.auth_chain.get_cache_usage();
+		let stateinfo = self.rooms.state_compressor.stateinfo_cache.lock().len();
+		for (name, entries) in [("auth_chain", auth_chain), ("stateinfo", stateinfo)] {
+			prometheus
+				.cache_entries
+				.get_or_create(&NameLabels { name })
+				.set(i64::try_from(entries)?);
+		}
+
+		Ok(())
 	}
 
 	fn interrupt(&self) {

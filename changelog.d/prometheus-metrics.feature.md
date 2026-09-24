@@ -1,0 +1,1 @@
+Added an opt-in Prometheus metrics endpoint at `/_continuwuity/metrics` covering HTTP requests, federation, the sender queue, database and cache memory, and the tokio runtime. Contributed by @eleboucher.
