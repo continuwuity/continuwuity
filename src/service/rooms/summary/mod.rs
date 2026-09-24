@@ -550,11 +550,12 @@ impl Service {
 				.services
 				.state_cache
 				.is_joined(querying_user, &summary.room_id)
-				.await || self
-				.services
-				.state_cache
-				.is_invited(querying_user, &summary.room_id)
-				.await)
+				.await
+				|| self
+					.services
+					.state_cache
+					.is_invited(querying_user, &summary.room_id)
+					.await)
 		{
 			return true;
 		}
