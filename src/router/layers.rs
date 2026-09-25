@@ -11,6 +11,7 @@ use http::{
 	HeaderValue, Method, StatusCode,
 	header::{self, HeaderName},
 };
+use opentelemetry_instrumentation_tower::http::server::LayerBuilder as OtelHttpLayerBuilder;
 use tower::ServiceBuilder;
 use tower_http::{
 	catch_panic::CatchPanicLayer,
@@ -49,6 +50,13 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 
 	let services_ = services.clone();
 	let layers = layers
+		.map_request(bound_method)
+		.layer(
+			OtelHttpLayerBuilder::builder()
+				.with_tracing(false)
+				.build()
+				.expect("valid HTTP metrics layer"),
+		)
 		.layer(SetSensitiveHeadersLayer::new([header::AUTHORIZATION]))
 		.layer(
 			TraceLayer::new_for_http()
@@ -165,6 +173,30 @@ fn cors_layer(_server: &Server) -> CorsLayer {
 		.max_age(Duration::from_hours(24))
 }
 
+/// Methods outside the standard set can never match a route; record them as
+/// `_OTHER`, as the semantic conventions ask, so clients cannot create new
+/// metric attribute values.
+fn bound_method<B>(mut request: http::Request<B>) -> http::Request<B> {
+	const KNOWN: [Method; 9] = [
+		Method::GET,
+		Method::HEAD,
+		Method::POST,
+		Method::PUT,
+		Method::DELETE,
+		Method::CONNECT,
+		Method::OPTIONS,
+		Method::TRACE,
+		Method::PATCH,
+	];
+
+	if !KNOWN.contains(request.method()) {
+		*request.method_mut() =
+			Method::from_bytes(b"_OTHER").expect("_OTHER is a valid method token");
+	}
+
+	request
+}
+
 fn body_limit_layer(server: &Server) -> DefaultBodyLimit {
 	DefaultBodyLimit::max(server.config.max_request_size)
 }
@@ -207,7 +239,7 @@ fn tracing_span<T>(request: &http::Request<T>) -> tracing::Span {
 	let path = request
 		.extensions()
 		.get::<MatchedPath>()
-		.map_or_else(|| request_path_str(request), truncated_matched_path);
+		.map_or_else(|| request_path_str(request), MatchedPath::as_str);
 
 	tracing::span! {
 		parent: None,
@@ -241,8 +273,22 @@ fn request_path_str<T>(request: &http::Request<T>) -> &str {
 		.as_str()
 }
 
-pub(crate) fn truncated_matched_path(path: &MatchedPath) -> &str {
-	path.as_str()
-		.rsplit_once(':')
-		.map_or(path.as_str(), |path| path.0.strip_suffix('/').unwrap_or(path.0))
+#[cfg(test)]
+mod tests {
+	use http::{Method, Request};
+
+	use super::bound_method;
+
+	#[test]
+	fn bound_method_collapses_unknown_methods() {
+		let request = |method: &[u8]| {
+			Request::builder()
+				.method(Method::from_bytes(method).unwrap())
+				.body(())
+				.unwrap()
+		};
+
+		assert_eq!(bound_method(request(b"GET")).method(), Method::GET);
+		assert_eq!(bound_method(request(b"BREW")).method().as_str(), "_OTHER");
+	}
 }

@@ -194,6 +194,14 @@ pub fn check(config: &Config) -> Result {
 		);
 	}
 
+	if !matches!(config.otlp_protocol.as_str(), "http" | "grpc") {
+		warn!(
+			"Invalid OTLP protocol '{}', falling back to HTTP. Valid options are 'http' or \
+			 'grpc'.",
+			config.otlp_protocol
+		);
+	}
+
 	if config.allow_prometheus_metrics && config.prometheus_metrics_token.is_none() {
 		warn!(
 			"The Prometheus metrics endpoint is enabled without `prometheus_metrics_token`. \

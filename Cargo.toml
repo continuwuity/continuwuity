@@ -418,6 +418,15 @@ version = "4.0.1"
 [workspace.dependencies.opentelemetry]
 version = "0.33.0"
 
+[workspace.dependencies.opentelemetry-instrumentation-tower]
+version = "0.19.0"
+default-features = false
+features = ["axum"]
+
+[workspace.dependencies.opentelemetry-semantic-conventions]
+version = "0.33.0"
+features = ["semconv_experimental"]
+
 [workspace.dependencies.tracing-flame]
 version = "0.2.0"
 

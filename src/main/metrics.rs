@@ -1,36 +1,41 @@
-use conduwuit_core::{Result, config::Config, err, metrics::Metrics};
-use opentelemetry::{KeyValue, metrics::MeterProvider};
+use conduwuit_core::{
+	Result,
+	config::Config,
+	err,
+	metrics::{Metrics, duration_buckets},
+};
+use opentelemetry::{InstrumentationScope, KeyValue, global, metrics::MeterProvider};
 use opentelemetry_sdk::{
 	Resource,
-	metrics::SdkMeterProvider,
+	metrics::{Aggregation, Instrument, SdkMeterProvider, Stream},
 	resource::{EnvResourceDetector, TelemetryResourceDetector},
 };
+use opentelemetry_semantic_conventions::{SCHEMA_URL, attribute, metric};
 use tokio::runtime;
 
-/// The returned provider must outlive the server so pending OTLP exports are
-/// flushed on drop.
+/// The returned provider must be shut down before the runtime stops so pending
+/// OTLP exports are flushed.
 pub(crate) fn init(
 	config: &Config,
 	runtime: Option<&runtime::Handle>,
 ) -> Result<(Metrics, SdkMeterProvider)> {
-	// Defaults first so OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME win.
-	let mut resource = Resource::builder_empty()
-		.with_detector(Box::new(TelemetryResourceDetector))
-		.with_service_name(conduwuit_core::BRANDING)
-		.with_attributes([
-			KeyValue::new("service.version", conduwuit_core::version()),
-			KeyValue::new("service.instance.id", config.server_name.to_string()),
-		])
-		.with_detector(Box::new(EnvResourceDetector::new()));
-	if let Some(name) = std::env::var("OTEL_SERVICE_NAME")
-		.ok()
-		.filter(|name| !name.is_empty())
-	{
-		resource = resource.with_service_name(name);
-	}
-	let resource = resource.build();
+	let resource = resource(config);
 
-	let mut builder = SdkMeterProvider::builder().with_resource(resource);
+	let mut builder = SdkMeterProvider::builder()
+		.with_resource(resource)
+		.with_view(|instrument: &Instrument| {
+			(instrument.name() == metric::HTTP_SERVER_REQUEST_DURATION)
+				.then(|| {
+					Stream::builder()
+						.with_aggregation(Aggregation::ExplicitBucketHistogram {
+							boundaries: duration_buckets(),
+							record_min_max: true,
+						})
+						.build()
+						.ok()
+				})
+				.flatten()
+		});
 
 	let registry = config
 		.allow_prometheus_metrics
@@ -70,7 +75,32 @@ pub(crate) fn init(
 	}
 
 	let provider = builder.build();
-	let meter = provider.meter(conduwuit_core::BRANDING);
+	global::set_meter_provider(provider.clone());
+	let meter = provider.meter_with_scope(
+		InstrumentationScope::builder(conduwuit_core::BRANDING)
+			.with_version(conduwuit_core::version())
+			.with_schema_url(SCHEMA_URL)
+			.build(),
+	);
 
 	Ok((Metrics::new(runtime.cloned(), meter, registry), provider))
+}
+
+pub(crate) fn resource(config: &Config) -> Resource {
+	// Defaults first so OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME win.
+	let mut resource = Resource::builder_empty()
+		.with_detector(Box::new(TelemetryResourceDetector))
+		.with_service_name(conduwuit_core::BRANDING)
+		.with_attributes([
+			KeyValue::new(attribute::SERVICE_VERSION, conduwuit_core::version()),
+			KeyValue::new(attribute::SERVICE_INSTANCE_ID, config.server_name.to_string()),
+		])
+		.with_detector(Box::new(EnvResourceDetector::new()));
+	if let Some(name) = std::env::var("OTEL_SERVICE_NAME")
+		.ok()
+		.filter(|name| !name.is_empty())
+	{
+		resource = resource.with_service_name(name);
+	}
+	resource.build()
 }

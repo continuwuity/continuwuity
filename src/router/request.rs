@@ -1,25 +1,19 @@
 use std::{
 	fmt::Debug,
 	sync::{Arc, atomic::Ordering},
-	time::{Duration, Instant},
+	time::Duration,
 };
 
 use axum::{
-	extract::{MatchedPath, State},
+	extract::State,
 	response::{IntoResponse, Response},
 };
-use conduwuit::{
-	Result, debug, debug_error, debug_warn, err, error,
-	metrics::{KeyValue, method_label},
-	trace,
-};
+use conduwuit::{Result, debug, debug_error, debug_warn, err, error, trace};
 use conduwuit_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};
 use tokio::time::sleep;
 use tracing::Span;
-
-use crate::layers::truncated_matched_path;
 
 #[tracing::instrument(name = "request", level = "debug", skip_all)]
 pub(crate) async fn handle(
@@ -37,22 +31,6 @@ pub(crate) async fn handle(
 		return Err(StatusCode::SERVICE_UNAVAILABLE);
 	}
 
-	let instruments = &services.server.metrics.instruments;
-	let method_attr = KeyValue::new("http.request.method", method_label(req.method()));
-	instruments
-		.http_server_active_requests
-		.add(1, std::slice::from_ref(&method_attr));
-	conduwuit::defer! {{
-		instruments
-			.http_server_active_requests
-			.add(-1, std::slice::from_ref(&method_attr));
-	}};
-
-	let start = Instant::now();
-	let route = req
-		.extensions()
-		.get::<MatchedPath>()
-		.map(|path| KeyValue::new("http.route", truncated_matched_path(path).to_owned()));
 	let uri = req.uri().clone();
 	let method = req.method().clone();
 	let services_ = services.clone();
@@ -71,27 +49,9 @@ pub(crate) async fn handle(
 		}
 	});
 
-	let result = task
-		.await
+	task.await
 		.map_err(unhandled)
-		.and_then(|result| handle_result(&method, &uri, result));
-
-	let status = result
-		.as_ref()
-		.map_or_else(|status| *status, Response::status);
-	let mut attributes = vec![
-		method_attr.clone(),
-		KeyValue::new("http.response.status_code", i64::from(status.as_u16())),
-	];
-	attributes.extend(route);
-	if status.is_server_error() {
-		attributes.push(KeyValue::new("error.type", status.as_str().to_owned()));
-	}
-	instruments
-		.http_server_request_duration
-		.record(start.elapsed().as_secs_f64(), &attributes);
-
-	result
+		.and_then(|result| handle_result(&method, &uri, result))
 }
 
 #[tracing::instrument(

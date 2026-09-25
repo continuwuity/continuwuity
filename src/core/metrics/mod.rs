@@ -13,7 +13,7 @@ use tokio_metrics::TaskMonitor;
 #[cfg(tokio_unstable)]
 use tokio_metrics::{RuntimeIntervals, RuntimeMonitor};
 
-pub use self::instruments::{Instruments, method_label};
+pub use self::instruments::{Instruments, duration_buckets};
 use crate::{Err, Result};
 
 pub struct Metrics {

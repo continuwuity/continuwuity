@@ -2,16 +2,14 @@ use std::time::{Duration, SystemTime};
 
 use opentelemetry::{
 	KeyValue,
-	metrics::{Counter, Histogram, Meter, UpDownCounter},
+	metrics::{Counter, Histogram, Meter},
 };
+use opentelemetry_semantic_conventions::{attribute, metric};
 use tokio::runtime;
 
 use super::process;
 
 pub struct Instruments {
-	pub http_server_request_duration: Histogram<f64>,
-	pub http_server_active_requests: UpDownCounter<i64>,
-
 	pub federation_outgoing_request_duration: Histogram<f64>,
 	pub federation_incoming_transaction_duration: Histogram<f64>,
 	pub federation_incoming_pdus: Counter<u64>,
@@ -57,16 +55,6 @@ impl Instruments {
 		};
 
 		Self {
-			http_server_request_duration: duration(
-				"http.server.request.duration",
-				"Duration of handled HTTP requests",
-			),
-			http_server_active_requests: meter
-				.i64_up_down_counter("http.server.active_requests")
-				.with_description("Number of HTTP requests currently being handled")
-				.with_unit("{request}")
-				.build(),
-
 			federation_outgoing_request_duration: duration(
 				"continuwuity.federation.outgoing.request.duration",
 				"Duration of outgoing federation requests",
@@ -139,33 +127,15 @@ impl Instruments {
 	}
 }
 
-/// Collapse non-standard methods so arbitrary client input cannot create new
-/// attribute values.
 #[must_use]
-pub fn method_label(method: &http::Method) -> &'static str {
-	match *method {
-		| http::Method::GET => "GET",
-		| http::Method::HEAD => "HEAD",
-		| http::Method::POST => "POST",
-		| http::Method::PUT => "PUT",
-		| http::Method::DELETE => "DELETE",
-		| http::Method::OPTIONS => "OPTIONS",
-		| http::Method::PATCH => "PATCH",
-		| http::Method::CONNECT => "CONNECT",
-		| http::Method::TRACE => "TRACE",
-		| _ if method.as_str() == "QUERY" => "QUERY",
-		| _ => "_OTHER",
-	}
-}
-
-fn duration_buckets() -> Vec<f64> { (0..16).map(|i| 0.001 * f64::from(1_u32 << i)).collect() }
+pub fn duration_buckets() -> Vec<f64> { (0..16).map(|i| 0.001 * f64::from(1_u32 << i)).collect() }
 
 fn size_buckets() -> Vec<f64> { (0..11).map(|i| 1024.0 * f64::from(4_u32.pow(i))).collect() }
 
 fn register_process(meter: &Meter) {
 	let started = SystemTime::now();
 	meter
-		.f64_observable_gauge("process.uptime")
+		.f64_observable_gauge(metric::PROCESS_UPTIME)
 		.with_description("Time since the server started")
 		.with_unit("s")
 		.with_callback(move |observer| {
@@ -175,19 +145,23 @@ fn register_process(meter: &Meter) {
 		.build();
 
 	meter
-		.f64_observable_counter("process.cpu.time")
+		.f64_observable_counter(metric::PROCESS_CPU_TIME)
 		.with_description("Total CPU time spent by the process")
 		.with_unit("s")
 		.with_callback(|observer| {
 			if let Some((user, system)) = process::cpu_time() {
-				observer.observe(user.as_secs_f64(), &[KeyValue::new("cpu.mode", "user")]);
-				observer.observe(system.as_secs_f64(), &[KeyValue::new("cpu.mode", "system")]);
+				observer
+					.observe(user.as_secs_f64(), &[KeyValue::new(attribute::CPU_MODE, "user")]);
+				observer.observe(system.as_secs_f64(), &[KeyValue::new(
+					attribute::CPU_MODE,
+					"system",
+				)]);
 			}
 		})
 		.build();
 
 	meter
-		.i64_observable_up_down_counter("process.memory.usage")
+		.i64_observable_up_down_counter(metric::PROCESS_MEMORY_USAGE)
 		.with_description("Resident memory of the process")
 		.with_unit("By")
 		.with_callback(|observer| {
@@ -200,7 +174,7 @@ fn register_process(meter: &Meter) {
 		.build();
 
 	meter
-		.i64_observable_up_down_counter("process.memory.virtual")
+		.i64_observable_up_down_counter(metric::PROCESS_MEMORY_VIRTUAL)
 		.with_description("Virtual memory of the process")
 		.with_unit("By")
 		.with_callback(|observer| {
@@ -211,7 +185,7 @@ fn register_process(meter: &Meter) {
 		.build();
 
 	meter
-		.i64_observable_up_down_counter("process.unix.file_descriptor.count")
+		.i64_observable_up_down_counter(metric::PROCESS_UNIX_FILE_DESCRIPTOR_COUNT)
 		.with_description("Number of file descriptors in use by the process")
 		.with_unit("{file_descriptor}")
 		.with_callback(|observer| {

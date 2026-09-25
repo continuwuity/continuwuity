@@ -51,6 +51,7 @@ pub fn run_with_args(args: &Args) -> Result<()> {
 
 	runtime.spawn(signal::signal(server.clone()));
 	runtime.block_on(async_main(&server))?;
+	server.shutdown_metrics();
 	runtime::shutdown(&server, runtime);
 
 	#[cfg(unix)]

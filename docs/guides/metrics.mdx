@@ -54,8 +54,10 @@ Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry
 | Metric | Type | Labels | Description |
 | --- | --- | --- | --- |
 | `target_info` | gauge | `service_version`, `service_instance_id` | Running server version and name |
-| `http_server_request_duration_seconds` | histogram | `http_request_method`, `http_route`, `http_response_status_code`, `error_type` | Handled HTTP requests, by route template |
-| `http_server_active_requests` | gauge | `http_request_method` | Requests currently being handled |
+| `http_server_request_duration_seconds` | histogram | `http_request_method`, `http_route`, `http_response_status_code`, `network_protocol_name`, `network_protocol_version`, `url_scheme` | Handled HTTP requests, by route template |
+| `http_server_active_requests` | gauge | `http_request_method`, `url_scheme` | Requests currently being handled |
+| `http_server_request_body_size_bytes` | histogram | HTTP request duration labels | Request body sizes, when `Content-Length` is supplied |
+| `http_server_response_body_size_bytes` | histogram | HTTP request duration labels | Response body sizes, when known |
 | `continuwuity_federation_incoming_transaction_duration_seconds` | histogram | `outcome` | Processing time of incoming transactions |
 | `continuwuity_federation_incoming_transactions_active` | gauge | | Incoming transactions currently being processed |
 | `continuwuity_federation_incoming_pdus_total` | counter | `type`, `outcome` | Incoming PDUs by event type and outcome: `accepted`, `forbidden`, `invalid`, `error` or `unparsable` |

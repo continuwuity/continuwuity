@@ -3,7 +3,7 @@ use std::sync::Arc;
 use conduwuit_core::{
 	Error, Result,
 	config::Config,
-	info,
+	error, info,
 	log::Log,
 	utils::{stream, sys},
 };
@@ -23,7 +23,7 @@ pub(crate) struct Server {
 
 	_tracing_flame_guard: TracingFlameGuard,
 
-	_meter_provider: opentelemetry_sdk::metrics::SdkMeterProvider,
+	meter_provider: opentelemetry_sdk::metrics::SdkMeterProvider,
 
 	#[cfg(feature = "sentry_telemetry")]
 	_sentry_guard: Option<::sentry::ClientInitGuard>,
@@ -83,7 +83,7 @@ impl Server {
 
 			_tracing_flame_guard: tracing_flame_guard,
 
-			_meter_provider: meter_provider,
+			meter_provider,
 
 			#[cfg(feature = "sentry_telemetry")]
 			_sentry_guard: sentry_guard,
@@ -91,5 +91,11 @@ impl Server {
 			#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
 			mods: tokio::sync::RwLock::new(Vec::new()),
 		}))
+	}
+
+	pub(crate) fn shutdown_metrics(&self) {
+		if let Err(e) = self.meter_provider.shutdown() {
+			error!("Failed to shut down metrics: {e}");
+		}
 	}
 }

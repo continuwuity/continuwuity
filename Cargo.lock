@@ -324,6 +324,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "31b698c5f9a010f6573133b09e0de5408834d0c82f8d7475a89fc1867a71cd90"
 dependencies = [
  "axum-core",
+ "axum-macros",
  "bytes",
  "form_urlencoded",
  "futures-util",
@@ -390,6 +391,17 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "axum-macros"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7aa268c23bfbbd2c4363b9cd302a4f504fb2a9dfe7e3451d66f35dd392e20aca"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
 ]
 
 [[package]]
@@ -917,6 +929,7 @@ dependencies = [
  "opentelemetry",
  "opentelemetry-otlp",
  "opentelemetry-prometheus",
+ "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "parking_lot",
  "prometheus",
@@ -1040,6 +1053,7 @@ dependencies = [
  "openidconnect",
  "opentelemetry",
  "opentelemetry-prometheus",
+ "opentelemetry-semantic-conventions",
  "opentelemetry_sdk",
  "parking_lot",
  "prometheus",
@@ -1123,6 +1137,7 @@ dependencies = [
  "hyper",
  "hyper-util",
  "log",
+ "opentelemetry-instrumentation-tower",
  "ruma",
  "rustls",
  "sd-notify",
@@ -4060,6 +4075,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "opentelemetry-instrumentation-tower"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e7006f3b1853d315462a7237c81eec3d7adfa5b70975a02b19e92d045bc22d7"
+dependencies = [
+ "axum",
+ "http",
+ "http-body",
+ "opentelemetry",
+ "opentelemetry-http",
+ "opentelemetry-semantic-conventions",
+ "pin-project-lite",
+ "tower-layer",
+ "tower-service",
+]
+
+[[package]]
 name = "opentelemetry-otlp"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4104,6 +4136,12 @@ dependencies = [
  "tonic",
  "tonic-prost",
 ]
+
+[[package]]
+name = "opentelemetry-semantic-conventions"
+version = "0.33.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d288b1e1bc3590052fbb8f0f635ef248dd9022cf1fbaeb6582b7ad6081a17b87"
 
 [[package]]
 name = "opentelemetry_sdk"
