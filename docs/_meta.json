@@ -5,14 +5,14 @@
         "label": "Introduction"
     },
     {
-        "type": "file",
-        "name": "configuration",
-        "label": "Configuration"
-    },
-    {
         "type": "dir",
         "name": "deploying",
         "label": "Deploying"
+    },
+    {
+        "type": "file",
+        "name": "configuration",
+        "label": "Configuration"
     },
     {
         "type": "dir",
