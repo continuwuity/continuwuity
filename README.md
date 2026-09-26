@@ -2,12 +2,16 @@
 
 ## A community-driven [Matrix](https://matrix.org/) homeserver
 
-[![Chat on Matrix][matrix-chat-badge]][matrix-chatroom] [![Join the space][matrix-space-badge]][matrix-space]
+[![Chat on Matrix][matrix-chat-badge]][matrix-chatroom]
+[![Join the space][matrix-space-badge]][matrix-space]
+[![Open Collective backers and sponsors][opencollective-contributors-badge]][opencollective]
 
 [matrix-chat-badge]: https://img.shields.io/matrix/continuwuity%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix
 [matrix-chatroom]: https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
 [matrix-space-badge]: https://img.shields.io/matrix/space%3Acontinuwuity.org?server_fqdn=matrix.continuwuity.org&fetchMode=summary&logo=matrix&label=space
 [matrix-space]: https://matrix.to/#/#space:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org
+[opencollective-contributors-badge]: https://img.shields.io/opencollective/all/continuwuity
+[opencollective]: https://opencollective.com/continuwuity
 
 [continuwuity] is a Matrix homeserver written in Rust.
 It's the official community continuation of the [conduwuit](https://github.com/girlbossceo/conduwuit) homeserver.
@@ -24,7 +28,7 @@ It's the official community continuation of the [conduwuit](https://github.com/g
 <div align="center">
 <br>
 <a href="https://opencollective.com/continuwuity" target="_blank">
-<img src="https://opencollective.com/webpack/donate/button@2x.png?color=blue" width="250"/>
+<img src="https://opencollective.com/webpack/donate/button.png?color=blue" width="250"/>
 </a>
 </div>
 
@@ -130,6 +134,16 @@ When incorporating code from other forks:
 - Attribution will be given to original authors and forks
 - We prioritize stability and compatibility when evaluating external contributions
 - Features that align with our project goals will be given priority consideration
+
+## Donate to us!
+
+If you like what we're doing, consider donating to our [**Open Collective**][opencollective]!
+
+You can also donate individually to each of the maintainers:
+
+- Nex: https://timedout.uk/donate.html
+- Jade: https://jade.ellis.link/sponsors
+- Ginger: https://github.com/sponsors/gingershaped
 
 ## Contact
 
