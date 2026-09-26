@@ -19,7 +19,7 @@ Continuwuity offers two release tracks to accommodate different needs: tracking 
 
 As Continuwuity is a rapidly evolving software, we encourage deployments to follow the `main` branch where possible to receive the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
 
-To be notified of new updates to main, it is best track the [`/changelog.d`][changelog-d] directory in the repository, which contains changelog snippets from merged pull requests. These may include breaking changes. Then, proceed to update or build Continuwuity according to your deployment method.
+To be notified of updates to main, it is best to [**track the `/changelog.d` directory**][changelog-d] in the repository, which contains changelog snippets from merged pull requests. These may contain breaking changes. Then, proceed to update or build Continuwuity according to your deployment method.
 
 [repository]: https://forgejo.ellis.link/continuwuation/continuwuity
 [changelog-d]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/changelog.d
@@ -34,17 +34,21 @@ For regular releases, **always read the release notes before upgrading to a new 
 
 ## Installation
 
-To have Continuwuity working, you'll generally need to:
+:::info Mind the name!
+The binary for Continuwuity is called `conduwuit`, and the configuration file `conduwuit.toml`.
+:::
+
+To have Continuwuity working, you will generally need to:
 
 1. Have a domain name pointing to your server's IP address - we will be using `example.com` in our guides.
 2. Download or build Continuwuity from your preferred source.
 3. Configure Continuwuity via the config file or environment variables. See the [Configuration](./configuration.mdx) page for more.
-4. Employ a reverse proxy in front of Continuwuity - we will be using Caddy for our guides.
+4. Employ a reverse proxy in front of Continuwuity - we will mainly provide examples for Caddy in our guides.
 5. And finally, start the Continuwuity service.
 
-Navigate to the pages in this section that corresponds to your desired method of deploying Continuwuity, and follow the instructions there.
+Navigate to your preferred method of deploying Continuwuity as listed below, and follow the instructions there.
 
-<OverviewGroup 
+<OverviewGroup
     group={{
         items: [
             {
@@ -95,7 +99,7 @@ After successfully deploying Continuwuity, these next steps can be done:
 
 - To set up Audio/Video communication, see the [**Calls**](./calls.mdx) page.
 
-- See the [**Authentication chapter**] for various ways to configure access to your homeserver, such as logging in with an external OIDC provider.
+- See the [**Authentication chapter**] for various ways to access to your homeserver, such as logging in with an external OIDC provider.
 
 - Consult the [**Maintenance**](./maintenance.mdx) page for guidance on maintaining your homeserver.
 
