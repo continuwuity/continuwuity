@@ -13,11 +13,11 @@ If you run into any problems while setting up Continuwuity, ask us in [`#continu
 
 ## Release tracks
 
-Continuwuity offers two release tracks to accommodate different needs: tracking the **main branch** of the [repository], and following the **regular release** schedule.
+Continuwuity offers two release tracks to accommodate different needs: tracking the **main branch** of the [repository], and following the regular **release schedule**.
 
 ### Main branch
 
-As Continuwuity is a rapidly evolving software, we encourage deployments to follow the `main` branch where possible to receive the latest bugfixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
+As Continuwuity is rapidly evolving software, we encourage deployments to follow the main branch to receive the latest fixes and features. Commits in main are stable and have been thoroughly tested by the maintainers before merging.
 
 To be notified of updates to main, it is best to [**track the `/changelog.d` directory**][changelog-d] in the repository, which contains changelog snippets from merged pull requests. These may contain breaking changes. Then, proceed to update or build Continuwuity according to your deployment method.
 
@@ -26,9 +26,9 @@ To be notified of updates to main, it is best to [**track the `/changelog.d` dir
 
 ### Regular releases
 
-Regular releases are periodic, versioned cutoffs from the main branch from time to time, and can be found on the [Releases] page. They are suitable for cases where updating regularly are not suitable or possible (such as when tracking with third-party packaging).
+Regular releases are periodic, versioned cutoffs from the main branch from time to time, and can be found on the [Releases] page. They are suitable in cases where updating more frequently is not viable, such as when using third-party packaging.
 
-For regular releases, **always read the release notes before upgrading to a new version**, as it may contain breaking changes that affect your deployment.
+For regular releases, **always read the release notes before upgrading to a new version**, as they may contain breaking changes that affect your deployment.
 
 [Releases]: https://forgejo.ellis.link/continuwuation/continuwuity/releases
 
@@ -93,7 +93,7 @@ Navigate to your preferred method of deploying Continuwuity as listed below, and
 
 ## Post-installation
 
-After successfully deploying Continuwuity, these next steps can be done:
+After Continuwuity is up and running, consider the following:
 
 - For smooth federation, set up a caching resolver according to the [**DNS tuning guide**](./guides/dns.mdx) (strongly recommended).
 
