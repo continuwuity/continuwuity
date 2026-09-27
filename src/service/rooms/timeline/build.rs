@@ -18,7 +18,7 @@ use ruma::{
 	},
 };
 
-use super::{ExtractBody, RoomMutexGuard};
+use super::RoomMutexGuard;
 
 impl super::Service {
 	/// Creates a new persisted data unit and adds it to a room. This function
@@ -141,23 +141,10 @@ impl super::Service {
 			.await?;
 
 		// Process admin commands for locally sent events
-		if *pdu.kind() == TimelineEventType::RoomMessage {
-			let content: ExtractBody = pdu.get_content()?;
-			if let Some(body) = content.body {
-				if let Some(source) = self
-					.services
-					.admin
-					.is_admin_command(&pdu, &body, true)
-					.await
-				{
-					self.services.admin.command_with_sender(
-						body,
-						Some(pdu.event_id().into()),
-						source,
-						pdu.sender.clone(),
-					)?;
-				}
-			}
+		if *pdu.kind() == TimelineEventType::RoomMessage
+			|| *pdu.kind() == TimelineEventType::from("m.room.bot.command")
+		{
+			self.services.admin.handle_room_message(&pdu, true).await?;
 		}
 
 		// We set the room state after inserting the pdu, so that we never have

@@ -7,6 +7,7 @@ conduwuit_macros::introspect_crate! {}
 
 pub(crate) mod admin;
 pub(crate) mod context;
+mod msc4391;
 pub(crate) mod processor;
 mod tests;
 pub(crate) mod utils;
@@ -41,6 +42,7 @@ pub use crate::admin::AdminCommand;
 /// Install the admin command processor
 pub async fn init(admin_service: &service::admin::Service) {
 	_ = admin_service.complete.write().insert(processor::complete);
+	_ = admin_service.describe.write().insert(msc4391::descriptions);
 	_ = admin_service
 		.handle
 		.write()
@@ -52,4 +54,5 @@ pub async fn init(admin_service: &service::admin::Service) {
 pub async fn fini(admin_service: &service::admin::Service) {
 	_ = admin_service.handle.write().await.take();
 	_ = admin_service.complete.write().take();
+	_ = admin_service.describe.write().take();
 }

@@ -1,4 +1,4 @@
-use conduwuit::{Result, info, pdu::PartialPdu};
+use conduwuit::{Result, info, pdu::PartialPdu, warn};
 use futures::FutureExt;
 use ruma::{
 	Int, RoomId,
@@ -232,6 +232,11 @@ pub async fn create_admin_room(services: &Services) -> Result {
 		.rooms
 		.alias
 		.set_alias(&services.globals.admin_alias, &room_id, server_user)?;
+	drop(state_lock);
+
+	if let Err(error) = services.admin.publish_command_descriptions().await {
+		warn!(?error, "Failed to publish admin command descriptions");
+	}
 
 	Ok(())
 }
