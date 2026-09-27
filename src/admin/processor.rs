@@ -27,7 +27,7 @@ use service::{
 use tracing::Level;
 use tracing_subscriber::{EnvFilter, filter::LevelFilter};
 
-use crate::{admin, admin::AdminCommand, context::Context};
+use crate::{admin, admin::AdminCommand, context::Context, msc4391};
 
 #[must_use]
 pub(super) fn complete(line: &str) -> String { complete_command(AdminCommand::command(), line) }
@@ -174,6 +174,18 @@ fn parse<'a>(
 	services: &Arc<Services>,
 	input: &'a CommandInput,
 ) -> Result<(AdminCommand, Vec<String>, Vec<&'a str>), CommandOutput> {
+	if let Some(invocation) = &input.structured {
+		let failed = |error: &dyn std::fmt::Display| {
+			reply(
+				RoomMessageEventContent::notice_plain(error.to_string()),
+				input.reply_id.as_deref(),
+			)
+		};
+		let argv = msc4391::argv(invocation).map_err(|error| failed(&error))?;
+		let command = AdminCommand::try_parse_from(&argv).map_err(|error| failed(&error))?;
+		return Ok((command, argv, Vec::new()));
+	}
+
 	let lines = input.command.lines().filter(|line| !line.trim().is_empty());
 	let command_line = lines.clone().next().expect("command missing first line");
 	let body = lines.skip(1).collect();

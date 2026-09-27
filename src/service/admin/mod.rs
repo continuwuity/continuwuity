@@ -2,6 +2,7 @@ pub mod console;
 mod create;
 mod execute;
 mod grant;
+mod msc4391;
 
 use std::{
 	pin::Pin,
@@ -16,6 +17,7 @@ use conduwuit_core::{
 pub use create::create_admin_room;
 use futures::{Future, FutureExt, StreamExt, TryFutureExt};
 use loole::{Receiver, Sender};
+pub use msc4391::Describer;
 use ruma::{
 	OwnedEventId, OwnedMxcUri, OwnedRoomId, OwnedUserId, RoomId, UInt, UserId,
 	api::client::discovery::discover_support::{Contact, ContactRole},
@@ -40,6 +42,7 @@ pub struct Service {
 	channel: (Sender<CommandInput>, Receiver<CommandInput>),
 	pub handle: RwLock<Option<Processor>>,
 	pub complete: SyncRwLock<Option<Completer>>,
+	pub describe: SyncRwLock<Option<Describer>>,
 	#[cfg(feature = "console")]
 	pub console: Arc<console::Console>,
 }
@@ -63,6 +66,8 @@ struct Services {
 #[derive(Debug)]
 pub struct CommandInput {
 	pub command: String,
+	/// A structured MSC4391 invocation, which takes the place of `command`.
+	pub structured: Option<serde_json::Value>,
 	pub reply_id: Option<OwnedEventId>,
 	pub source: InvocationSource,
 	pub sender: Option<OwnedUserId>,
@@ -133,6 +138,7 @@ impl crate::Service for Service {
 			channel: loole::bounded(COMMAND_QUEUE_LIMIT),
 			handle: RwLock::new(None),
 			complete: SyncRwLock::new(None),
+			describe: SyncRwLock::new(None),
 			#[cfg(feature = "console")]
 			console: console::Console::new(&args),
 		}))
@@ -309,7 +315,13 @@ impl Service {
 	) -> Result<()> {
 		self.channel
 			.0
-			.send(CommandInput { command, reply_id, source, sender: None })
+			.send(CommandInput {
+				command,
+				structured: None,
+				reply_id,
+				source,
+				sender: None,
+			})
 			.map_err(|e| err!("Failed to enqueue admin command: {e:?}"))
 	}
 
@@ -327,6 +339,7 @@ impl Service {
 			.0
 			.send(CommandInput {
 				command,
+				structured: None,
 				reply_id,
 				source,
 				sender: Some(sender),
@@ -342,8 +355,14 @@ impl Service {
 		reply_id: Option<OwnedEventId>,
 		source: InvocationSource,
 	) -> ProcessorResult {
-		self.process_command(CommandInput { command, reply_id, source, sender: None })
-			.await
+		self.process_command(CommandInput {
+			command,
+			structured: None,
+			reply_id,
+			source,
+			sender: None,
+		})
+		.await
 	}
 
 	/// Invokes the tab-completer to complete the command. When unavailable,

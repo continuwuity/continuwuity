@@ -8,7 +8,7 @@ use std::{
 };
 
 use axum_server::{Address, Handle as ServerHandle};
-use conduwuit::{Error, Result, Server, debug, debug_error, debug_info, error, info};
+use conduwuit::{Error, Result, Server, debug, debug_error, debug_info, error, info, warn};
 use futures::FutureExt;
 use service::Services;
 use tokio::{
@@ -43,6 +43,10 @@ pub(crate) async fn run(services: Arc<Services>) -> Result<()> {
 	// This has to be done after the admin service is initialized otherwise it
 	// panics.
 	services.admin.startup_execute().await?;
+
+	if let Err(error) = services.admin.publish_command_descriptions().await {
+		warn!(?error, "Failed to publish admin command descriptions");
+	}
 
 	// Print first-run banner if necessary. This needs to be done after the
 	// startup admin commands are run in case one of them created the first
