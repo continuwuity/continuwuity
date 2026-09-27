@@ -1,12 +1,17 @@
-use std::{cmp, collections::HashMap, future::ready};
+use std::{
+	cmp,
+	collections::{BTreeMap, HashMap},
+	future::ready,
+};
 
 use conduwuit::{
-	Err, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
+	Err, Error, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
 	result::NotFound,
 	trace,
 	utils::{
 		IterStream, ReadyExt,
 		stream::{TryExpect, TryIgnore},
+		to_canonical_object,
 	},
 	warn,
 };
@@ -14,15 +19,16 @@ use database::Json;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	OwnedRoomId, OwnedUserId, UserId,
+	OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
 		push_rules::PushRulesEvent,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
 	push::Ruleset,
-	serde::Raw,
+	serde::{Raw, from_raw_json_value},
 };
+use serde_json::value::to_raw_value;
 
 use crate::{Services, media, rooms::short::ShortStateHash};
 
@@ -73,6 +79,7 @@ async fn fresh(services: &Services) -> Result<()> {
 	db["global"].insert(b"fix_local_invite_state", []);
 	db["global"].insert(SPLIT_USERID_PASSWORD, []);
 	db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
+	db["global"].insert(UNEMBED_UNSIGNED_INFO, []);
 
 	// Create the admin room and server user on first run
 	info!("Creating admin room and server user");
@@ -253,6 +260,12 @@ async fn migrate(services: &Services) -> Result<()> {
 			.map_err(|e| {
 				err!("Failed to run 'drop_roomsynctoken_shortstatehash' migration': {e}")
 			})?;
+	}
+
+	if db["global"].get(UNEMBED_UNSIGNED_INFO).await.is_not_found() {
+		unembed_unsigned_info(services)
+			.await
+			.map_err(|e| err!("Failed to run 'unembed_unsigned_info' migration: {e:?}"))?;
 	}
 
 	assert_eq!(
@@ -810,7 +823,7 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 		// if they're a local user on this homeserver
 		.try_filter(|((user_id, _), _): &KeyVal| ready(services.globals.user_is_local(user_id)))
 		.and_then(async |((user_id, room_id), stripped_state): KeyVal| Ok::<_,
-			conduwuit::Error>((user_id.clone(), room_id.clone(), stripped_state.deserialize
+			Error>((user_id.clone(), room_id.clone(), stripped_state.deserialize
 		().unwrap_or_else(|e| {
 			trace!("Failed to deserialize: {:?}", stripped_state.json());
 			warn!(
@@ -898,6 +911,60 @@ async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
 	info!("Cleared roomsynctoken_shortstatehash.");
 
 	services.db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
+
+	Ok(())
+}
+
+const UNEMBED_UNSIGNED_INFO: &str = "unembed_unsigned_info";
+async fn unembed_unsigned_info(services: &Services) -> Result {
+	type Map = BTreeMap<String, Box<serde_json::value::RawValue>>;
+
+	let mut all_rooms = services.rooms.metadata.iter_ids();
+	while let Some(room_id) = all_rooms.next().await {
+		let mut pdus = std::pin::pin!(services.rooms.timeline.all_pdus(&room_id));
+		while let Some((_, pdu)) = pdus.next().await {
+			let mut pdu = pdu.clone();
+			let mut unsigned: Map = pdu
+				.unsigned()
+				.and_then(|u| from_raw_json_value::<Map, Error>(u).ok())
+				.unwrap_or_default();
+			unsigned.remove("age");
+			unsigned.remove("membership");
+			unsigned.remove("prev_content");
+			unsigned.remove("prev_sender");
+
+			if let Some(redacted_because) = unsigned
+				.remove("redacted_because")
+				.and_then(|r| from_raw_json_value::<Map, Error>(&r).ok())
+			{
+				match redacted_because
+					.get("event_id")
+					.and_then(|e| from_raw_json_value::<OwnedEventId, Error>(e).ok())
+				{
+					| None => {},
+					| Some(event_id) => {
+						unsigned.insert(
+							"org.continuwuity.redacted_by".to_owned(),
+							to_raw_value(event_id.as_str()).expect("str must be raw value"),
+						);
+					},
+				}
+			}
+			pdu.unsigned = Some(to_raw_value(&unsigned).expect("unsigned must be valid JSON"));
+			let pdu_id = services
+				.rooms
+				.timeline
+				.get_pdu_id(pdu.event_id())
+				.await
+				.expect("PDU must have an id");
+			services
+				.rooms
+				.timeline
+				.replace_pdu(&pdu_id, &to_canonical_object(pdu).expect("PDU must be valid JSON"))
+				.await
+				.expect("must be able to replace PDU after migrating unsigned data");
+		}
+	}
 
 	Ok(())
 }
