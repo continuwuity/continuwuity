@@ -337,10 +337,6 @@ impl super::Service {
 			return;
 		};
 		unsigned.insert(
-			String::from("prev_sender"),
-			CanonicalJsonValue::String(prev_state.sender().to_string()),
-		);
-		unsigned.insert(
 			String::from("replaces_state"),
 			CanonicalJsonValue::String(prev_state.event_id().to_string()),
 		);
