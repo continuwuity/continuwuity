@@ -97,7 +97,7 @@ If you want to try it out as a user, we have some partnered homeservers you can 
 
 * There's also [https://continuwuity.rocks/](https://continuwuity.rocks/). You can register a new account using Cinny via [this convenient link](https://app.cinny.in/register/continuwuity.rocks), or you can use Element or another matrix client *that supports registration*.
 
-## Can I migrate my data from x?
+## Can I migrate my data from X?
 
 - **Conduwuit**: Yes
 - **Conduit**: No, database is now incompatible
