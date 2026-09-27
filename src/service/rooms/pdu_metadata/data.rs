@@ -100,9 +100,7 @@ impl Data {
 				.timeline
 				.get_unsigned_context(&pdu, Some(user_id))
 				.await;
-			pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)
-				.log_err()
-				.ok();
+			pdu.set_unsigned(Some(ctx)).log_err().ok();
 
 			Some((shorteventid, pdu))
 		})

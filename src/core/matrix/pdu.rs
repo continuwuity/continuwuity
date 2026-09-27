@@ -23,6 +23,7 @@ pub use self::{
 	id::{ShortId, *},
 	partial::PartialPdu,
 	raw_id::*,
+	unsigned::UnsignedContext,
 };
 use super::{Event, StateKey};
 use crate::Result;

@@ -1,8 +1,8 @@
 //! Helpers for submitting events with the right checks performed
 
-use conduwuit::{
+pub(crate) use conduwuit::{
 	Err, Event, Result, err,
-	matrix::pdu::{PartialPdu, sticky},
+	matrix::pdu::{PartialPdu, UnsignedContext, sticky},
 	trace,
 };
 use ruma::{
@@ -22,14 +22,6 @@ use ruma::{
 };
 
 use crate::rooms::state::RoomMutexGuard;
-
-#[derive(Default, Clone)]
-pub struct UnsignedContext<'a> {
-	pub user_id: Option<&'a UserId>,
-	pub membership: Option<MembershipState>,
-	pub prev_content: Option<Box<serde_json::value::RawValue>>,
-	pub redacted_because: Option<Raw<AnyTimelineEvent>>,
-}
 
 impl super::Service {
 	#[allow(clippy::too_many_arguments)]
@@ -369,11 +361,7 @@ impl super::Service {
 					let can_see = self
 						.services
 						.state_accessor
-						.user_can_see_event(
-							sender_user,
-							&event.room_id_or_hash(),
-							event.event_id(),
-						)
+						.user_can_see_event(sender_user, &event.room_id_or_hash(), &event_id)
 						.await;
 					if can_see {
 						trace!(prev_event_id=%event_id, "Fetching prev content");

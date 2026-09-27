@@ -1218,9 +1218,7 @@ async fn push_sticky_event(
 		.timeline
 		.get_unsigned_context(&pdu, Some(sender_user))
 		.await;
-	pdu.set_unsigned(ctx.user_id, ctx.membership, ctx.prev_content, ctx.redacted_because)
-		.log_err()
-		.ok();
+	pdu.set_unsigned(Some(ctx)).log_err().ok();
 	response
 		.rooms
 		.entry(room_id)

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use ruma::{
-	MilliSecondsSinceUnixEpoch,
+	MilliSecondsSinceUnixEpoch, UserId,
 	events::{AnyTimelineEvent, room::member::MembershipState},
 	serde::Raw,
 };
@@ -11,6 +11,14 @@ use super::{Pdu, sticky};
 use crate::Event;
 
 type Unsigned = BTreeMap<String, Box<RawJsonValue>>;
+
+#[derive(Default, Clone)]
+pub struct UnsignedContext<'a> {
+	pub user_id: Option<&'a UserId>,
+	pub membership: Option<MembershipState>,
+	pub prev_content: Option<Box<serde_json::value::RawValue>>,
+	pub redacted_because: Option<Raw<AnyTimelineEvent>>,
+}
 
 impl Pdu {
 	/// Sets the `unsigned` field of the PDU using a mix of the provided
@@ -30,10 +38,7 @@ impl Pdu {
 	/// well-formed.
 	pub fn set_unsigned(
 		&mut self,
-		user_id: Option<&ruma::UserId>,
-		membership: Option<MembershipState>,
-		prev_content: Option<Box<RawJsonValue>>,
-		redacted_because: Option<Raw<AnyTimelineEvent>>,
+		context: Option<UnsignedContext<'_>>,
 	) -> crate::Result<Unsigned> {
 		// See: https://spec.matrix.org/v1.19/client-server-api/#definition-clientevent_unsigneddata
 		let mut unsigned = self
@@ -47,25 +52,25 @@ impl Pdu {
 			to_raw_value(&now_i.saturating_sub(self.origin_server_ts.into()))?,
 		);
 
-		if let Some(membership) = membership {
-			unsigned.insert("membership".to_owned(), to_raw_value(&membership)?);
-		}
+		if let Some(context) = context {
+			if let Some(membership) = context.membership {
+				unsigned.insert("membership".to_owned(), to_raw_value(&membership)?);
+			}
 
-		if let Some(prev_content) = prev_content {
-			unsigned.insert("prev_content".to_owned(), to_raw_value(&prev_content)?);
-			// TODO(nex): prev_sender is still inserted in append.rs because
-			// only the prev *content* is passed to this function.
-			// I think ideally passing the actual direct `UnsignedContext` to
-			// this function instead of unpacking its parameters would be the
-			// proper solution, especially since every callsite has one
-		}
-		if let Some(redacted_because) = redacted_because {
-			unsigned.remove("org.continuwuity.redacted_by");
-			unsigned.insert("redacted_because".to_owned(), to_raw_value(&redacted_because)?);
-		}
+			if let Some(prev_content) = context.prev_content {
+				unsigned.insert("prev_content".to_owned(), to_raw_value(&prev_content)?);
+			}
+			if let Some(redacted_because) = context.redacted_because {
+				unsigned.remove("org.continuwuity.redacted_by");
+				unsigned.insert("redacted_because".to_owned(), to_raw_value(&redacted_because)?);
+			}
 
-		// Remove transaction_id unless the user is the sender
-		if user_id.is_none_or(|u| u != self.sender()) {
+			// replaces_state is embedded and always included.
+
+			if context.user_id.is_none_or(|u| u != self.sender()) {
+				unsigned.remove("transaction_id");
+			}
+		} else {
 			unsigned.remove("transaction_id");
 		}
 
