@@ -4,7 +4,7 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug_error, debug_warn, err, error, info, trace,
+	Err, Result, debug, debug_error, debug_warn, err, error, info, trace,
 	utils::{self, stream::TryIgnore},
 	warn,
 };
@@ -16,10 +16,12 @@ use ruma::{
 	api::client::profile::PropagateTo,
 	events::{
 		GlobalAccountDataEventType, ignored_user_list::IgnoredUserListEvent,
-		push_rules::PushRulesEvent, room::message::RoomMessageEventContent,
+		invite_permission_config::InvitePermissionAction, push_rules::PushRulesEvent,
+		room::message::RoomMessageEventContent,
 	},
 	profile::ProfileFieldValue,
 	push::Ruleset,
+	room::JoinRule,
 };
 use ruminuwuity::invite_permission_config::{FilterLevel, InvitePermissionConfigEvent};
 
@@ -105,11 +107,45 @@ impl super::Service {
 			if stable.is_err() && unstable.is_err() {
 				return FilterLevel::Allow;
 			}
-			stable
-				.unwrap_or_else(|_| unstable.unwrap())
-				.content
-				.user_filter_level(sender_user)
+			let content = stable.unwrap_or_else(|_| unstable.unwrap()).content;
+			let verdict = content.user_filter_level(sender_user);
+			if verdict != FilterLevel::Allow {
+				return verdict;
+			}
+			// Apply other layers of invite blocking first, so that user/server
+			// denies take priority over implicit allows.
+			if content.default_action != Some(InvitePermissionAction::DenyPublic)
+				&& self
+					.check_msc4494_mutual_room(sender_user, recipient_user)
+					.await
+			{
+				FilterLevel::Block
+			} else {
+				FilterLevel::Allow
+			}
 		}
+	}
+
+	/// Checks that sender and recipient share at least one rule that has a join
+	/// rule other than `public`.
+	async fn check_msc4494_mutual_room(&self, sender: &UserId, recipient: &UserId) -> bool {
+		let mut mutual_rooms = std::pin::pin!(
+			self.services
+				.state_cache
+				.get_shared_rooms(sender, recipient)
+		);
+		while let Some(room_id) = mutual_rooms.next().await {
+			if self.services.state_accessor.get_join_rules(&room_id).await != JoinRule::Public {
+				debug!(
+					%sender,
+					%recipient,
+					%room_id,
+					"Sender and recipient share a non-public room"
+				);
+				return true;
+			}
+		}
+		false
 	}
 
 	/// Check if a user is an admin
