@@ -23,8 +23,9 @@ use crate::{
 		client_metadata::{ApplicationType, ClientMetadata, GrantType, ResponseType},
 		grant::{
 			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
-			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RequestedScopes,
-			ResponseMode, TokenRequest, TokenRequestType, TokenResponse, TokenType,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RawScopes,
+			RequestedScopes, ResponseMode, TokenRequest, TokenRequestType, TokenResponse,
+			TokenType,
 		},
 	},
 	users::{self, DeviceToken},
@@ -39,6 +40,7 @@ pub struct Service {
 	tickets: Mutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
 	pending_auth_code_grants: tokio::sync::Mutex<LruCache<String, PendingAuthCodeGrant>>,
 	pending_device_code_grants: tokio::sync::Mutex<LruCache<String, PendingDeviceCodeGrant>>,
+	client_credential_sessions: tokio::sync::Mutex<HashMap<String, ClientCredentialsSession>>,
 }
 
 struct Data {
@@ -76,6 +78,12 @@ struct RefreshTokenInfo {
 	client_id: String,
 	user_id: OwnedUserId,
 	device_id: OwnedDeviceId,
+}
+
+pub struct ClientCredentialsSession {
+	pub client_id: String,
+	pub scopes: BTreeSet<OAuthClientScope>,
+	created_at: SystemTime,
 }
 
 struct PendingAuthCodeGrant {
@@ -176,6 +184,7 @@ impl crate::Service for Service {
 			pending_device_code_grants: tokio::sync::Mutex::new(LruCache::new(
 				Self::MAX_PENDING_GRANTS,
 			)),
+			client_credential_sessions: tokio::sync::Mutex::default(),
 		}))
 	}
 
@@ -450,12 +459,25 @@ impl Service {
 	pub async fn issue_token(&self, request: TokenRequest) -> Result<TokenResponse, OAuthError> {
 		let TokenRequest { client_id, request } = request;
 
-		let Some(client_metadata) = self.get_client_metadata(&client_id).await else {
-			return Err(OAuthError::new_static(ErrorCode::InvalidClient, "Invalid client ID"));
-		};
+		if !matches!(request, TokenRequestType::ClientCredentials { .. }) {
+			// The client credentials grant can only be used by statically
+			// registered clients, and the other grant types can
+			// only be used by dynamically registered clients, so we
+			// don't look up the dynamic client metadata if the token request is
+			// for the client credentials grant.
 
-		if !client_metadata.grant_types.contains(&request.grant_type()) {
-			return Err(OAuthError::unauthorized_client("Client cannot request this grant type"));
+			let Some(client_metadata) = self.get_client_metadata(&client_id).await else {
+				return Err(OAuthError::new_static(
+					ErrorCode::InvalidClient,
+					"Invalid client ID",
+				));
+			};
+
+			if !client_metadata.grant_types.contains(&request.grant_type()) {
+				return Err(OAuthError::unauthorized_client(
+					"Client cannot request this grant type",
+				));
+			}
 		}
 
 		match request {
@@ -521,6 +543,9 @@ impl Service {
 			},
 			| TokenRequestType::RefreshToken { refresh_token } =>
 				self.refresh_session(client_id, refresh_token).await,
+			| TokenRequestType::ClientCredentials { client_secret, scopes } =>
+				self.create_client_credentials_token(&client_id, &client_secret, scopes)
+					.await,
 		}
 	}
 
@@ -664,7 +689,7 @@ impl Service {
 			token_type: TokenType::Bearer,
 			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
 			scope: response_scope,
-			refresh_token,
+			refresh_token: Some(refresh_token),
 		})
 	}
 
@@ -734,8 +759,87 @@ impl Service {
 			token_type: TokenType::Bearer,
 			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
 			scope,
-			refresh_token: new_refresh_token,
+			refresh_token: Some(new_refresh_token),
 		})
+	}
+
+	async fn create_client_credentials_token(
+		&self,
+		client_id: &str,
+		client_secret: &str,
+		scopes: RawScopes,
+	) -> Result<TokenResponse, OAuthError> {
+		let now = SystemTime::now();
+
+		let Some(client) = self.services.config.oauth.clients.get(client_id) else {
+			return Err(OAuthError::new_static(ErrorCode::InvalidClient, "Unknown client ID"));
+		};
+
+		let RequestedScopes { device_id, scopes } = scopes
+			.to_scopes()
+			.map_err(|err| OAuthError::new(ErrorCode::InvalidGrant, err))?;
+
+		if device_id.is_some() {
+			return Err(OAuthError::new_static(
+				ErrorCode::InvalidGrant,
+				"Static clients may not request a device ID",
+			));
+		}
+
+		if client_secret != client.client_secret {
+			return Err(OAuthError::new_static(
+				ErrorCode::InvalidClient,
+				"Client secret does not match",
+			));
+		}
+
+		if !scopes.is_subset(&client.scopes) {
+			return Err(OAuthError::new_static(
+				ErrorCode::InvalidScope,
+				"This client may not request those scopes",
+			));
+		}
+
+		let mut sessions = self.client_credential_sessions.lock().await;
+
+		// Clear expired sessions while we're at it
+		sessions.retain(|_, session| {
+			now.duration_since(session.created_at)
+				.is_ok_and(|age| age <= Self::ACCESS_TOKEN_MAX_AGE)
+		});
+
+		let access_token = Self::generate_token();
+		let scope = scopes.iter().join(" ");
+
+		sessions.insert(access_token.clone(), ClientCredentialsSession {
+			client_id: client_id.to_owned(),
+			scopes,
+			created_at: now,
+		});
+
+		Ok(TokenResponse {
+			access_token,
+			token_type: TokenType::Bearer,
+			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
+			refresh_token: None,
+			scope,
+		})
+	}
+
+	pub async fn get_client_credentials_session(
+		&self,
+		token: &str,
+	) -> Option<tokio::sync::MappedMutexGuard<'_, ClientCredentialsSession>> {
+		let sessions = self.client_credential_sessions.lock().await;
+
+		tokio::sync::MutexGuard::try_map(sessions, |sessions| {
+			sessions.get_mut(token).filter(|session| {
+				SystemTime::now()
+					.duration_since(session.created_at)
+					.is_ok_and(|age| age <= Self::ACCESS_TOKEN_MAX_AGE)
+			})
+		})
+		.ok()
 	}
 
 	pub async fn remove_session(&self, user_id: &UserId, device_id: &DeviceId) {
