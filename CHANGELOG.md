@@ -1,3 +1,21 @@
+# Continuwuity v26.9.1 (2026-09-28)
+
+## Features
+
+- The server now calculates some data for `unsigned` data when sending it to clients, rather than embedding it at rest. This brings decreased storage costs and improved access control checks.
+  Contributed by @nex. ([#2270](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2270))
+- Added encrypted Web Push ([MSC4174](https://github.com/matrix-org/matrix-spec-proposals/pull/4174)), enabled by default. Contributed by @eleboucher.
+
+## Bugfixes
+
+- Fixed exponential blowup in auth event fetching for deep auth chains, which caused runaway CPU and RAM until restart. Contributed by @eleboucher. (auth-event-walk)
+- Fixed events being repeatedly re-requested over federation when they were fetched successfully but could not be resolved, and throttled remote event fetches made on behalf of clients. Contributed by @eleboucher. ([#2090](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2090))
+
+## Improved Documentation
+
+- Add Open Collective links to docs and restyle action buttons. Contributed by @stratself ([#2269](https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2269))
+
+
 # Continuwuity v26.9.0 (2026-09-16)
 
 ## Features
