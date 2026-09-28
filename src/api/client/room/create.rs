@@ -9,8 +9,8 @@ use conduwuit::{
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
-	OwnedUserId, RoomAliasId, RoomId, RoomVersionId, UserId,
+	CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId, OwnedUserId,
+	RoomAliasId, RoomId,
 	api::{
 		client::room::{self, create_room},
 		error::ErrorKind::Forbidden,
@@ -36,7 +36,7 @@ use ruma::{
 	serde::{JsonObject, Raw},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
-use serde_json::{json, value::to_raw_value};
+use serde_json::value::to_raw_value;
 
 use crate::{Ruma, client::invite_helper};
 
@@ -153,6 +153,12 @@ pub(crate) async fn create_room_route(
 		return Err!(Request(Forbidden("Publishing rooms to the room directory is not allowed")));
 	}
 
+	// Figure out preset. We need it for preset specific events
+	let preset = body.preset.clone().unwrap_or(match &body.visibility {
+		| room::Visibility::Public => RoomPreset::PublicChat,
+		| _ => RoomPreset::PrivateChat, // Room visibility should not be custom
+	});
+
 	let mut invitees = BTreeSet::new();
 
 	for recipient_user in &body.invite {
@@ -191,53 +197,50 @@ pub(crate) async fn create_room_route(
 		| _ => None,
 	};
 
-	let create_content = match &body.creation_content {
-		| Some(content) => {
-			use RoomVersionId::*;
+	let creation_content = body
+		.creation_content
+		.as_ref()
+		.map(Raw::deserialize)
+		.transpose()
+		.map_err(|e| err!(Request(BadJson(error!("Failed to parse creation content: {e}")))))?
+		.unwrap_or_default();
 
-			let mut content = content
-				.deserialize_as_unchecked::<CanonicalJsonObject>()
-				.map_err(|e| {
-					err!(Request(BadJson(error!(
-						"Failed to deserialise content as canonical JSON: {e}"
-					))))
-				})?;
-
-			match room_version {
-				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 => {
-					content.insert(
-						"creator".into(),
-						json!(&sender_user).try_into().map_err(|e| {
-							err!(Request(BadJson(debug_error!("Invalid creation content: {e}"))))
-						})?,
-					);
-				},
-				| _ => {
-					// V11+ removed the "creator" key
-				},
-			}
-			content.insert(
-				"room_version".into(),
-				json!(room_version.as_str())
-					.try_into()
-					.map_err(|e| err!(Request(BadJson("Invalid creation content: {e}"))))?,
-			);
-			content
-		},
-		| None => {
-			use RoomVersionId::*;
-
-			let content = match room_version {
-				| V1 | V2 | V3 | V4 | V5 | V6 | V7 | V8 | V9 | V10 =>
-					RoomCreateEventContent::new_v1(sender_user.to_owned()),
-				| _ => RoomCreateEventContent::new_v11(),
-			};
-			let mut content =
-				serde_json::from_str::<CanonicalJsonObject>(to_raw_value(&content)?.get())?;
-			content.insert("room_version".into(), json!(room_version.as_str()).try_into()?);
-			content
-		},
+	let mut create_event_content = if room_version_rules.authorization.use_room_create_sender {
+		RoomCreateEventContent::new_v11()
+	} else {
+		RoomCreateEventContent::new_v1(sender_user.to_owned())
 	};
+
+	let mut privileged_creators = vec![];
+
+	create_event_content.federate = creation_content.federate;
+	create_event_content.predecessor = creation_content.predecessor;
+	create_event_content.room_type = creation_content.room_type;
+	create_event_content.room_version = room_version.clone();
+
+	if room_version_rules.authorization.additional_room_creators {
+		create_event_content.additional_creators = creation_content.additional_creators;
+
+		// If we're making a trusted private chat, add the invitees as
+		// additional creators
+		if preset == RoomPreset::TrustedPrivateChat {
+			create_event_content
+				.additional_creators
+				.extend(invitees.iter().cloned());
+		}
+	}
+
+	// Track privileged creators so we can remove them from PLs later
+	if room_version_rules
+		.authorization
+		.explicitly_privilege_room_creators
+	{
+		privileged_creators.push(sender_user.to_owned());
+
+		if room_version_rules.authorization.additional_room_creators {
+			privileged_creators.extend_from_slice(&create_event_content.additional_creators);
+		}
+	}
 
 	let state_lock = match room_id.clone() {
 		| Some(room_id) => {
@@ -278,7 +281,7 @@ pub(crate) async fn create_room_route(
 		.build_and_append_pdu(
 			PartialPdu {
 				event_type: TimelineEventType::RoomCreate,
-				content: to_raw_value(&create_content)?,
+				content: to_raw_value(&create_event_content)?,
 				state_key: Some(StateKey::new()),
 				timestamp: custom_origin_server_ts,
 				..Default::default()
@@ -289,6 +292,7 @@ pub(crate) async fn create_room_route(
 		)
 		.boxed()
 		.await?;
+
 	trace!("Created room create event with ID {}", &create_event_id);
 	let room_id = match room_id.clone() {
 		| Some(room_id) => room_id,
@@ -330,55 +334,20 @@ pub(crate) async fn create_room_route(
 		.await?;
 
 	// 3. Power levels
+	let mut power_levels_to_grant = BTreeMap::new();
 
-	// Figure out preset. We need it for preset specific events
-	let preset = body.preset.clone().unwrap_or(match &body.visibility {
-		| room::Visibility::Public => RoomPreset::PublicChat,
-		| _ => RoomPreset::PrivateChat, // Room visibility should not be custom
-	});
-
-	let mut power_levels_to_grant = BTreeMap::from_iter([(sender_user.to_owned(), int!(100))]);
-	let mut creators: Vec<OwnedUserId> = vec![sender_user.to_owned()];
-
-	if preset == RoomPreset::TrustedPrivateChat {
-		for recipient_user in invitees.iter().cloned() {
-			if room_version_rules
-				.authorization
-				.explicitly_privilege_room_creators
-			{
-				creators.push(recipient_user);
-			} else {
-				power_levels_to_grant.insert(recipient_user, int!(100));
-			}
-		}
-	}
-
-	// Do we care about additional_creators?
-	if room_version_rules
+	// If this room version doesn't privilege creators, grant PLs to them
+	if !room_version_rules
 		.authorization
 		.explicitly_privilege_room_creators
 	{
-		// Have they been specified?
-		if let Some(additional_creators) = create_content.get("additional_creators") {
-			// Are they a real array?
-			if let Some(additional_creators) = additional_creators.as_array() {
-				// Iterate through them
-				for creator in additional_creators {
-					// Are they a string?
-					if let Some(creator) = creator.as_str() {
-						// Do they parse into a real user ID?
-						if let Ok(creator) = UserId::parse(creator) {
-							// Add them to the power levels and creators
-							creators.push(creator);
-						}
-					}
-				}
+		power_levels_to_grant.insert(sender_user.to_owned(), int!(100));
+
+		if preset == RoomPreset::TrustedPrivateChat {
+			for recipient_user in invitees.iter().cloned() {
+				power_levels_to_grant.insert(recipient_user, int!(100));
 			}
 		}
-	} else {
-		power_levels_to_grant.insert(sender_user.to_owned(), int!(100));
-		creators.clear(); // If this vec is not empty, default_power_levels_content will
-		// treat this as a v12 room
 	}
 
 	let power_levels_content = default_power_levels_content(
@@ -387,7 +356,7 @@ pub(crate) async fn create_room_route(
 			.map(Raw::cast_ref),
 		&body.visibility,
 		power_levels_to_grant,
-		creators,
+		privileged_creators,
 		&room_version_rules.authorization,
 	)?;
 
