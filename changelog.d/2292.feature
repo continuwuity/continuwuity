@@ -1,0 +1,1 @@
+"!admin users list" now hides deactivated users by default, but can display them with the optional "--show-deactivated" flag. "--hide-suspended" and "--hide-locked" have been added as well, which stop suspended and locked users from being displayed respectively. Contributed by @Clubs.
