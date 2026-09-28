@@ -1083,6 +1083,9 @@ impl crate::Context<'_> {
 
 	pub(super) async fn change_email(&self, user_id: String, email: Option<String>) -> Result {
 		let user_id = parse_local_user_id(self.services, &user_id)?;
+		if matches!(self.services.users.status(&user_id).await, AccountStatus::NotFound) {
+			return Err!("This account does not exist.");
+		}
 		let Ok(new_email) = email.map(Address::try_from).transpose() else {
 			return Err!("Invalid email address.");
 		};

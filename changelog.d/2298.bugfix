@@ -1,0 +1,1 @@
+"!admin users change-email" now verifies a user exists before attempting to change their email. Contributed by @Clubs.
