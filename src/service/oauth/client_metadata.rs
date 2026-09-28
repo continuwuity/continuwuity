@@ -125,6 +125,12 @@ impl ClientMetadata {
 			}
 		}
 
+		if self.grant_types.contains(&GrantType::ClientCredentials) {
+			return Err(
+				"Dynamically registered clients may not use the client credentials grant."
+			);
+		}
+
 		Ok(())
 	}
 }
@@ -144,6 +150,7 @@ pub enum GrantType {
 	#[serde(rename = "urn:ietf:params:oauth:grant-type:device_code")]
 	DeviceCode,
 	RefreshToken,
+	ClientCredentials,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
