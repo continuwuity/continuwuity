@@ -31,14 +31,36 @@ const AUTO_GEN_PASSWORD_LENGTH: usize = 25;
 const BULK_JOIN_REASON: &str = "Bulk force joining this room as initiated by the server admin.";
 
 impl crate::Context<'_> {
-	pub(super) async fn list_users(&self) -> Result {
-		let users: Vec<_> = self
-			.services
-			.users
-			.stream_local_users()
-			.map(|id| id.as_str().to_owned())
-			.collect()
-			.await;
+	pub(super) async fn list_users(
+		&self,
+		show_deactivated: bool,
+		hide_suspended: bool,
+		hide_locked: bool,
+	) -> Result {
+		let mut users: Vec<String> = Vec::new();
+		let mut user_stream = self.services.users.stream_local_users();
+		while let Some(id) = user_stream.next().await {
+			if !show_deactivated {
+				if matches!(self.services.users.status(&id).await, AccountStatus::Deactivated) {
+					continue;
+				}
+			}
+			let suspended = match self.services.users.is_suspended(&id).await {
+				| Err(_) => continue,
+				| Ok(suspended) => suspended,
+			};
+			if hide_suspended && suspended {
+				continue;
+			}
+			let locked = match self.services.users.is_locked(&id).await {
+				| Err(_) => continue,
+				| Ok(locked) => locked,
+			};
+			if hide_locked && locked {
+				continue;
+			}
+			users.push(id.as_str().to_owned());
+		}
 
 		let mut plain_msg = format!("Found {} local user account(s):\n```\n", users.len());
 		plain_msg += users.join("\n").as_str();
