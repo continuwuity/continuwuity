@@ -317,7 +317,7 @@ impl Service {
 		for (dest, events) in txns {
 			if self.server.config.startup_netburst && !events.is_empty() {
 				statuses.insert(dest.clone(), TransactionStatus::Running);
-				futures.push(self.send_events(dest.clone(), events));
+				futures.push(self.send_events(dest, events));
 			}
 		}
 	}
@@ -661,7 +661,7 @@ impl Service {
 				.remove(&user_id)
 				.expect("our read receipts always have the user here");
 
-			let receipt_data = ReceiptData::new(receipt, vec![event_id.clone()]);
+			let receipt_data = ReceiptData::new(receipt, vec![event_id]);
 
 			if read.insert(user_id, receipt_data).is_none() {
 				*num = num.saturating_add(1);

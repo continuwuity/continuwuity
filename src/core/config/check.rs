@@ -1,8 +1,8 @@
-use std::env::consts::OS;
+use std::{collections::HashSet, env::consts::OS};
 
 use either::Either;
 use figment::Figment;
-use ruma::events::room::server_acl::RoomServerAclEventContent;
+use ruma::{OwnedServerName, events::room::server_acl::RoomServerAclEventContent};
 
 use super::DEPRECATED_KEYS;
 use crate::{Config, Err, Result, Server, debug, debug_info, debug_warn, error, warn};
@@ -317,6 +317,33 @@ pub fn check(config: &Config) -> Result {
 			"Either `client_secret` or `client_secret_file` must be set if OIDC is configured."
 		);
 	}
+
+	if config
+		.trusted_servers
+		.iter()
+		.any(|t| t.server_name() == config.server_name)
+		&& !config.federation_loopback
+	{
+		return Err!(Config(
+			"trusted_servers",
+			"Your own `server_name` cannot appear in `trusted_servers`"
+		));
+	}
+	config
+		.trusted_servers
+		.iter()
+		.map(super::TrustedServer::server_name)
+		.try_fold(HashSet::<OwnedServerName>::new(), |mut servers, server_name| {
+			if !servers.insert(server_name.to_owned()) {
+				Err!(Config(
+					"trusted_servers",
+					"Duplicate `server_name` in `trusted_servers`: {}",
+					server_name.as_str()
+				))
+			} else {
+				Ok(servers)
+			}
+		})?;
 
 	Ok(())
 }

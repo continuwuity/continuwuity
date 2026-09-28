@@ -103,22 +103,6 @@ pub enum DebugCommand {
 		event_id: OwnedEventId,
 	},
 
-	/// Get and display signing keys from local cache or remote server.
-	GetSigningKeys {
-		server_name: Option<OwnedServerName>,
-
-		#[arg(long)]
-		notary: Option<OwnedServerName>,
-
-		#[arg(short, long)]
-		query: bool,
-	},
-
-	/// Get and display signing keys from local cache or remote server.
-	GetVerifyKeys {
-		server_name: Option<OwnedServerName>,
-	},
-
 	/// Sends a federation request to the remote server's
 	///   `/_matrix/federation/v1/version` endpoint and measures the latency it
 	///   took for the server to respond

@@ -275,7 +275,7 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::RANDOM_SMALL
 	},
 	Descriptor {
-		name: "server_signingkeys",
+		name: "servernamekeyid_response",
 		..descriptor::RANDOM
 	},
 	Descriptor {

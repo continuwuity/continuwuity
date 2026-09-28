@@ -324,7 +324,7 @@ async fn validate_invite_state(
 
 		services
 			.server_keys
-			.verify_event(&state_event_json, room_version_rules)
+			.verify_event_json(&state_event_json, room_version_rules)
 			.await
 			.map_err(|e| {
 				err!(Request(InvalidParam("Signature verification failed on invite event: {e}")))

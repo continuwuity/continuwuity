@@ -10,18 +10,18 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
-        - id: fix-byte-order-marker
-        - id: check-case-conflict
-        - id: check-symlinks
-        - id: destroyed-symlinks
-        - id: check-yaml
-        - id: check-json
-        - id: check-toml
-        - id: end-of-file-fixer
-        - id: trailing-whitespace
-        - id: mixed-line-ending
-        - id: check-merge-conflict
-        - id: check-added-large-files
+      - id: fix-byte-order-marker
+      - id: check-case-conflict
+      - id: check-symlinks
+      - id: destroyed-symlinks
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: mixed-line-ending
+      - id: check-merge-conflict
+      - id: check-added-large-files
 
   - repo: https://github.com/crate-ci/typos
     rev: v1.50.2
@@ -29,12 +29,12 @@ repos:
       - id: typos
       - id: typos
         name: commit-msg-typos
-        stages: [commit-msg]
+        stages: [ commit-msg ]
 
   - repo: https://github.com/crate-ci/committed
     rev: v1.1.11
     hooks:
-    - id: committed
+      - id: committed
 
   - repo: local
     hooks:
@@ -42,10 +42,10 @@ repos:
         name: cargo fmt
         entry: cargo +nightly fmt --
         language: system
-        types: [rust]
+        types: [ rust ]
         pass_filenames: false
         stages:
-            - pre-commit
+          - pre-commit
 
   - repo: local
     hooks:
@@ -54,18 +54,6 @@ repos:
         entry: cargo clippy -- -D warnings
         language: system
         pass_filenames: false
-        types: [rust]
+        types: [ rust ]
         stages:
           - pre-push
-
-  - repo: local
-    hooks:
-      - id: docs-build
-        name: docs build
-        entry: npm run docs:build
-        language: system
-        pass_filenames: false
-        files: docs/
-        types: [mdx]
-        stages:
-          - pre-commit

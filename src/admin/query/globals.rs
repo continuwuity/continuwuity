@@ -1,6 +1,5 @@
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::OwnedServerName;
 
 use crate::Context;
 
@@ -12,12 +11,6 @@ pub enum GlobalsCommand {
 	CurrentCount,
 
 	LastCheckForAnnouncementsId,
-
-	/// This returns an empty `Ok(BTreeMap<..>)` when there are no keys found
-	///   for the server.
-	SigningKeysFor {
-		origin: OwnedServerName,
-	},
 }
 
 /// All the getters and iterators from src/database/key_value/globals.rs
@@ -45,13 +38,6 @@ pub(super) async fn process(subcommand: GlobalsCommand, context: &Context<'_>) -
 				.announcements
 				.last_check_for_announcements_id()
 				.await;
-			let query_time = timer.elapsed();
-
-			write!(context, "Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```")
-		},
-		| GlobalsCommand::SigningKeysFor { origin } => {
-			let timer = tokio::time::Instant::now();
-			let results = services.server_keys.verify_keys_for(&origin).await;
 			let query_time = timer.elapsed();
 
 			write!(context, "Query completed in {query_time:?}:\n\n```rs\n{results:#?}\n```")

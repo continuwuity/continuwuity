@@ -1,9 +1,13 @@
 use std::any::{Any, TypeId};
 
-use conduwuit::{Err, Error, Result, err, utils::IterStream};
+use conduwuit::{
+	Err, Error, Result, err,
+	utils::{IterStream, millis_since_unix_epoch},
+};
 use http::StatusCode;
 use ruma::{
-	DeviceId, OwnedDeviceId, OwnedServerName, OwnedUserId, UserId,
+	DeviceId, MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedServerName, OwnedUserId, UInt,
+	UserId,
 	api::{
 		IncomingRequest,
 		auth_scheme::{
@@ -127,12 +131,18 @@ impl CheckAuth for ServerSignatures {
 			return Err!(Request(Unauthorized("Destination mismatch.")));
 		}
 
+		let min_valid_ts =
+			MilliSecondsSinceUnixEpoch(UInt::new_saturating(millis_since_unix_epoch()));
 		let key = services
 			.server_keys
-			.get_verify_key(&output.origin, &output.key)
+			.get_single_verify_key(&output.origin, &output.key, min_valid_ts)
 			.await
-			.map_err(|e| {
-				err!(Request(Unauthorized(warn!("Failed to fetch signing keys: {e}"))))
+			.ok_or_else(|| {
+				err!(Request(Unauthorized(debug_warn!(
+					origin=%output.origin,
+					"Unable to acquire your signing key (ID: {})",
+					output.key
+				))))
 			})?;
 
 		let keys: PubKeys = [(output.key.to_string(), key.key)].into();
@@ -160,8 +170,9 @@ impl CheckAuth for ServerSignatures {
 
 				Ok(output.origin)
 			},
-			| Err(err) =>
-				Err!(Request(Unauthorized(warn!("Failed to verify X-Matrix header: {err}")))),
+			| Err(err) => Err!(Request(Unauthorized(debug_warn!(
+				"Failed to verify X-Matrix header: {err}"
+			)))),
 		}
 	}
 }

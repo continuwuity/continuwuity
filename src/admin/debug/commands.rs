@@ -694,11 +694,11 @@ impl crate::Context<'_> {
 			| Ok(value) => match self
 				.services
 				.server_keys
-				.verify_json(&value, &room_version_rules)
+				.verify_event_json(&value, &room_version_rules)
 				.await
 			{
 				| Err(e) => return Err!("Signature verification failed: {e}"),
-				| Ok(()) => write!(self, "Signature correct"),
+				| Ok(_) => write!(self, "Signature correct"),
 			},
 		}
 		.await
@@ -714,7 +714,7 @@ impl crate::Context<'_> {
 		let msg = match self
 			.services
 			.server_keys
-			.verify_event(&event, &room_version_rules)
+			.verify_event_json(&event, &room_version_rules)
 			.await
 		{
 			| Err(e) => return Err(e),
@@ -849,7 +849,7 @@ impl crate::Context<'_> {
 		for result in remote_state_response.pdus.iter().map(|pdu| {
 			self.services
 				.server_keys
-				.validate_and_add_event_id(pdu, &room_version_rules)
+				.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
 		}) {
 			let Ok((event_id, value)) = result.await else {
 				continue;
@@ -887,7 +887,7 @@ impl crate::Context<'_> {
 		for result in remote_state_response.auth_chain.iter().map(|pdu| {
 			self.services
 				.server_keys
-				.validate_and_add_event_id(pdu, &room_version_rules)
+				.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
 		}) {
 			let Ok((event_id, value)) = result.await else {
 				continue;
@@ -941,60 +941,6 @@ impl crate::Context<'_> {
 
 		self.write_str("Successfully forced the room state from the requested remote server.")
 			.await
-	}
-
-	pub(super) async fn get_signing_keys(
-		&self,
-		server_name: Option<OwnedServerName>,
-		notary: Option<OwnedServerName>,
-		query: bool,
-	) -> Result {
-		let server_name = server_name.unwrap_or_else(|| self.services.server.name.clone());
-
-		if let Some(notary) = notary {
-			let signing_keys = self
-				.services
-				.server_keys
-				.notary_request(&notary, &server_name)
-				.await?;
-
-			let out = format!("```rs\n{signing_keys:#?}\n```");
-			return self.write_str(&out).await;
-		}
-
-		let signing_keys = if query {
-			self.services
-				.server_keys
-				.server_request(&server_name)
-				.await?
-		} else {
-			self.services
-				.server_keys
-				.signing_keys_for(&server_name)
-				.await?
-		};
-
-		let out = format!("```rs\n{signing_keys:#?}\n```");
-		self.write_str(&out).await
-	}
-
-	pub(super) async fn get_verify_keys(&self, server_name: Option<OwnedServerName>) -> Result {
-		let server_name = server_name.unwrap_or_else(|| self.services.server.name.clone());
-
-		let keys = self
-			.services
-			.server_keys
-			.verify_keys_for(&server_name)
-			.await;
-
-		let mut out = String::new();
-		writeln!(out, "| Key ID | Public Key |")?;
-		writeln!(out, "| --- | --- |")?;
-		for (key_id, key) in keys {
-			writeln!(out, "| {key_id} | {key:?} |")?;
-		}
-
-		self.write_str(&out).await
 	}
 
 	pub(super) async fn resolve_true_destination(

@@ -123,7 +123,7 @@ impl super::Service {
 		match self
 			.services
 			.server_keys
-			.verify_event(&pdu_json, room_version_rules)
+			.verify_event_json(&pdu_json, room_version_rules)
 			.await
 		{
 			| Ok(ruma::signatures::Verified::All) => {

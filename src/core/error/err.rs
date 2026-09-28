@@ -100,7 +100,7 @@ macro_rules! err {
 	};
 
 	($variant:ident($($args:tt)+)) => {
-		$crate::error::Error::$variant($crate::format_maybe!($($args)+))
+		$crate::error::Error::$variant($crate::format_maybe!($($args)+), /* Cow<'static, str> */)
 	};
 
 	($level:ident!($($args:tt)+)) => {{

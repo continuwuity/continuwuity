@@ -2,7 +2,7 @@ use std::fmt::Write;
 
 use conduwuit::{Err, Result, utils::response::LimitReadExt};
 use futures::StreamExt;
-use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
+use ruma::{MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId};
 
 use crate::get_room_info;
 
@@ -130,5 +130,31 @@ impl crate::Context<'_> {
 
 		self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```"))
 			.await
+	}
+
+	pub(super) async fn get_signing_keys(&self, server_name: OwnedServerName) -> Result {
+		let response = self
+			.services
+			.server_keys
+			.origin_request(server_name, MilliSecondsSinceUnixEpoch::now())
+			.await?;
+		self.write_str("| Key ID | Public Key | Expired (unix milliseconds) |\n")
+			.await?;
+		self.write_str("| ------ | ---------- | --------------------------- |\n")
+			.await?;
+		for (key_id, key) in &response.verify_keys {
+			self.write_str(&format!("| {key_id} | {} | |\n", key.key))
+				.await?;
+		}
+		for (key_id, old_key) in &response.old_verify_keys {
+			self.write_str(&format!(
+				"| {key_id} | {} | {:0<13} |\n",
+				old_key.key,
+				old_key.expired_ts.get().to_string()
+			))
+			.await?;
+		}
+
+		Ok(())
 	}
 }

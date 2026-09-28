@@ -492,7 +492,7 @@ impl Service {
 		let resp_auth = &resp_events.auth_chain;
 		self.services
 			.server_keys
-			.acquire_events_pubkeys(resp_auth.iter().chain(resp_state.iter()))
+			.get_events_keys(resp_auth.iter().chain(resp_state.iter()), &room_version_rules)
 			.await;
 
 		info!("Going through send_join response room_state");
@@ -505,7 +505,7 @@ impl Service {
 			.then(|pdu| {
 				self.services
 					.server_keys
-					.validate_and_add_event_id_no_fetch(pdu, &room_version_rules)
+					.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
 					.inspect_err(|e| {
 						debug_warn!(
 							"Could not validate send_join response room_state event: {e:?}"
@@ -558,7 +558,7 @@ impl Service {
 			.then(|pdu| {
 				self.services
 					.server_keys
-					.validate_and_add_event_id_no_fetch(pdu, &room_version_rules)
+					.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
 			})
 			.ready_filter_map(Result::ok)
 			.ready_for_each(|(event_id, value)| {

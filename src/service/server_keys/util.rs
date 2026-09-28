@@ -7,7 +7,10 @@ use ruma::{
 	signatures::{VerificationError, required_server_signatures_to_verify_event},
 };
 
-/// Extracts the server names and key ids to check signatures for given event.
+/// Extracts the server names and key ids required to check signatures for the
+/// given event.
+///
+/// Spec: https://spec.matrix.org/v1.19/server-server-api/#validating-hashes-and-signatures-on-received-events
 pub(super) fn required_keys(
 	object: &CanonicalJsonObject,
 	rules: &SignaturesRules,

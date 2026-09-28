@@ -20,8 +20,12 @@ use lettre::message::Mailbox;
 use openidconnect::{ClientId, ClientSecret, Scope};
 use regex::RegexSet;
 use ruma::{
-	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, RoomVersionId,
-	api::client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
+	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedServerSigningKeyId, OwnedUserId,
+	RoomVersionId, ServerName,
+	api::{
+		client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
+		federation::discovery::OldVerifyKey,
+	},
 	profile::ProfileFieldName,
 	serde::Base64,
 };
@@ -1085,52 +1089,92 @@ pub struct Config {
 	pub proxy: ProxyConfig,
 
 	/// Servers listed here will be used to gather public keys of other servers
-	/// (notary trusted key servers).
+	/// (trusted key notary servers), as well as serve as trusted servers for
+	/// other operations like backfill and event fetching.
 	///
-	/// Currently, continuwuity doesn't support inbound batched key requests, so
+	/// Currently, continuwuity doesn't support inbound key requests, so
 	/// this list should only contain other Synapse servers.
 	///
-	/// example: ["matrix.org", "tchncs.de"]
+	/// example: ["matrix.org", "starstruck.systems"]
+	///
+	/// It is possible to restrict which signing keys trusted servers are
+	/// allowed to sign responses with. Without configuring this, all responses
+	/// from trusted servers will be implicitly trusted, which is fine for most
+	/// users. Strict verification is only necessary if TLS interception is part
+	/// of your threat model. Even without strict verification, signatures from
+	/// the originating server must be valid, regardless of whether the trusted
+	/// server's is valid or not.
+	///
+	/// To enable strict validation, you need to pass a TOML table containing
+	/// the trusted server name, and any public keys (not key IDs!) that you
+	/// expect to sign responses. You can fetch the current public keys a remote
+	/// server uses with `!admin federation get-signing-keys <server name>`.
+	/// Only add public keys that aren't expired, and make sure to remove any
+	/// that expire at a later date!
+	///
+	/// Example:
+	/// ```ignore
+	/// trusted_servers = [{server_name = "starstruck.systems", verify_keys=["Z+WZUaLLgkclXn1iQVzYIiJMjMEyltxg5LG8Dndu34A"]}]
+	/// ```
+	///
+	/// You can also mix-and-match strict verification and lax verification
+	/// trusted servers:
+	///
+	/// ```ignore
+	/// trusted_servers = [
+	/// 	{server_name = "starstruck.systems", verify_keys=["Z+WZUaLLgkclXn1iQVzYIiJMjMEyltxg5LG8Dndu34A"]},
+	/// 	"matrix.org"
+	/// ]
+	/// ```
+	///
+	/// Trusted servers are queried in parallel, so order does not matter. You
+	/// should not have more than five entries. You can set this value to an
+	/// empty list (`[]`) to operate without trusted server assistance, but this
+	/// is discouraged for performance and reliability reasons.
 	///
 	/// default: ["matrix.org"]
 	#[serde(default = "default_trusted_servers")]
-	pub trusted_servers: Vec<OwnedServerName>,
+	pub trusted_servers: Vec<TrustedServer>,
 
-	/// Whether to query the servers listed in trusted_servers first or query
-	/// the origin server first. For best security, querying the origin server
-	/// first is advised to minimize the exposure to a compromised trusted
-	/// server. For maximum federation/join performance this can be set to true,
-	/// however other options exist to query trusted servers first under
-	/// specific high-load circumstances and should be evaluated before setting
-	/// this to true.
+	/// Whether to prioritise trusted server lookups over origin server lookups.
+	///
+	/// By default, both notaries and origin servers are queried in parallel,
+	/// and handled on a first-come-first-serve basis, meaning the server always
+	/// uses the fastest response(s).
+	///
+	/// If you wish to prioritise handling responses from trusted servers
+	/// *before* handling responses from origin servers, set this to true.
 	#[serde(default)]
 	pub query_trusted_key_servers_first: bool,
 
-	/// Whether to query the servers listed in trusted_servers first
-	/// specifically on room joins. This option limits the exposure to a
-	/// compromised trusted server to room joins only. The join operation
-	/// requires gathering keys from many origin servers which can cause
-	/// significant delays. Therefor this defaults to true to mitigate
-	/// unexpected delays out-of-the-box. The security-paranoid or those willing
-	/// to tolerate delays are advised to set this to false. Note that setting
-	/// query_trusted_key_servers_first to true causes this option to be
-	/// ignored.
-	#[serde(default = "true_fn")]
-	pub query_trusted_key_servers_first_on_join: bool,
-
-	/// Only query trusted servers for keys and never the origin server. This is
-	/// intended for clusters or custom deployments using their trusted_servers
-	/// as forwarding-agents to cache and deduplicate requests. Notary servers
-	/// do not act as forwarding-agents by default, therefor do not enable this
-	/// unless you know exactly what you are doing.
-	#[serde(default)]
-	pub only_query_trusted_key_servers: bool,
-
-	/// Maximum number of keys to request in each trusted server batch query.
+	/// Any old signing keys that were used to sign events using this server
+	/// name.
 	///
-	/// default: 1024
-	#[serde(default = "default_trusted_server_batch_size")]
-	pub trusted_server_batch_size: usize,
+	/// You do not need to populate this unless you previously used a different
+	/// server software with the same server_name configured, and then have
+	/// migrated to continuwuity.
+	///
+	/// The expiry timestamp should be as exact as you can get it, as making it
+	/// too old may inadvertently invalidate historical events sent by your
+	/// server, and potentially make it impossible for you to use some rooms as
+	/// a result. If your key was compromised, and you set the expiry timestamp
+	/// too late, some forged events may continue to be allowed.
+	///
+	/// If not configured, continuwuity will discover its own historical keys
+	/// through trusted servers. For improved security, you can set this to an
+	/// empty map ({}) to disable this behaviour, if you know you have no old
+	/// signing keys.
+	///
+	/// Example:
+	/// {"ed25519:1"={expired_ts=1790506890859,key="d29vZndvb2Z3b29md29vZg"}}
+	///
+	/// The map key should be the key ID, expired_ts should be unix
+	/// milliseconds, and the actual key value should be the unpadded base64
+	/// representation of the public key component of the expired signing key.
+	///
+	/// default:
+	#[serde(default)]
+	pub old_verify_keys: Option<BTreeMap<OwnedServerSigningKeyId, OldVerifyKey>>,
 
 	/// Max log level for continuwuity. Allows debug, info, warn, or error.
 	///
@@ -2838,6 +2882,45 @@ pub enum OidcProfileKeyImportMode {
 	OnLogin,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(untagged)]
+pub enum TrustedServer {
+	Config(TrustedServerConfig),
+	Name(OwnedServerName),
+}
+
+impl TrustedServer {
+	#[must_use]
+	pub fn server_name(&self) -> &ServerName {
+		match self {
+			| Self::Name(server_name) => server_name,
+			| Self::Config(config) => &config.server_name,
+		}
+	}
+
+	#[must_use]
+	pub fn verify_keys(&self) -> &[Base64] {
+		let Self::Config(config) = self else {
+			return &[];
+		};
+		config.verify_keys.as_slice()
+	}
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct TrustedServerConfig {
+	pub server_name: OwnedServerName,
+	#[serde(default)]
+	pub verify_keys: Vec<Base64>,
+}
+
+impl TrustedServerConfig {
+	#[must_use]
+	pub fn new(server_name: OwnedServerName) -> Self {
+		Self { server_name, verify_keys: Vec::new() }
+	}
+}
+
 const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
@@ -3092,8 +3175,17 @@ fn default_otlp_protocol() -> String { "http".to_owned() }
 
 fn default_tracing_flame_output_path() -> String { "./tracing.folded".to_owned() }
 
-fn default_trusted_servers() -> Vec<OwnedServerName> {
-	vec![OwnedServerName::try_from("matrix.org").unwrap()]
+fn default_trusted_servers() -> Vec<TrustedServer> {
+	// TODO(nex): Once we can be a notary, add maintainer(?) homeservers here.
+	// Rationale: Users are already running our code, arguably that's a higher
+	// level of trust than is assigned to notaries in the first place.
+	// We should still remind everyone that notaries are evil and out to get you
+	// and to replace this list with servers they actually trust.
+	let trusted_servers = vec![ruma::owned_server_name!("matrix.org")];
+	trusted_servers
+		.into_iter()
+		.map(TrustedServer::Name)
+		.collect()
 }
 
 /// do debug logging by default for debug builds
@@ -3229,8 +3321,6 @@ fn parallelism_scaled_u32(val: u32) -> u32 {
 }
 
 fn parallelism_scaled(val: usize) -> usize { val.saturating_mul(sys::available_parallelism()) }
-
-fn default_trusted_server_batch_size() -> usize { 256 }
 
 fn default_db_pool_workers() -> usize {
 	sys::available_parallelism()

@@ -204,7 +204,7 @@ impl crate::Context<'_> {
 							},
 						};
 
-						room_ids.push(room_id.clone());
+						room_ids.push(room_id);
 					}
 
 					if room_alias_or_id.is_room_alias_id() {

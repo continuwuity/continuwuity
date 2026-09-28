@@ -39,4 +39,9 @@ pub enum FederationCommand {
 	RemoteUserInRooms {
 		user_id: OwnedUserId,
 	},
+
+	/// Queries the remote server for their current signing keys.
+	GetSigningKeys {
+		server_name: OwnedServerName,
+	},
 }

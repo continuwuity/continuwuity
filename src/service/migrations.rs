@@ -82,6 +82,7 @@ async fn fresh(services: &Services) -> Result<()> {
 	db["global"].insert(SPLIT_USERID_PASSWORD, []);
 	db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
 	db["global"].insert(UNEMBED_UNSIGNED_INFO, []);
+	db["global"].insert(DROP_OLD_SIGNING_KEYS_STORAGE, []);
 
 	// Create the admin room and server user on first run
 	info!("Creating admin room and server user");
@@ -270,6 +271,19 @@ async fn migrate(services: &Services) -> Result<()> {
 			services.rooms.metadata.clone(),
 			services.rooms.timeline.clone(),
 		));
+	}
+
+	if db["global"]
+		.get(DROP_OLD_SIGNING_KEYS_STORAGE)
+		.await
+		.is_not_found()
+	{
+		services
+			.db
+			.db
+			.drop_column("server_signingkeys")
+			.inspect(|()| services.db["global"].insert(DROP_OLD_SIGNING_KEYS_STORAGE, []))
+			.map_err(|e| err!("Failed to drop server_signingkeys: {e:?}"))?;
 	}
 
 	assert_eq!(
@@ -987,3 +1001,5 @@ async fn unembed_unsigned_info(
 
 	Ok(())
 }
+
+const DROP_OLD_SIGNING_KEYS_STORAGE: &str = "drop_server_signingkeys";

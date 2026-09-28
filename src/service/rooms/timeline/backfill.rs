@@ -288,8 +288,14 @@ impl super::Service {
 		}
 
 		// Insert all trusted servers in the config
-		candidate_backfill_servers
-			.extend(self.services.server.config.trusted_servers.iter().cloned());
+		candidate_backfill_servers.extend(
+			self.services
+				.server
+				.config
+				.trusted_servers
+				.iter()
+				.map(|n| n.server_name().to_owned()),
+		);
 
 		// Remove our own name, we can't request backfill from ourselves
 		candidate_backfill_servers.remove(self.services.globals.server_name());

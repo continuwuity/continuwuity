@@ -142,7 +142,7 @@ pub(crate) async fn validate_any_membership_event(
 
 	services
 		.server_keys
-		.verify_event(&pdu, room_version_rules)
+		.verify_event_json(&pdu, room_version_rules)
 		.await
 		.map_err(|e| {
 			err!(Request(InvalidParam("Signature verification failed on membership event: {e}")))

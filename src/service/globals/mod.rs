@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use conduwuit::{Result, Server, SyncRwLock, error, utils::bytes::pretty};
 use data::Data;
 use regex::RegexSet;
-use ruma::{OwnedEventId, OwnedRoomAliasId, OwnedServerName, OwnedUserId, ServerName, UserId};
+use ruma::{OwnedEventId, OwnedRoomAliasId, OwnedUserId, ServerName, UserId};
 
 use crate::service;
 
@@ -105,8 +105,6 @@ impl Service {
 	pub fn allow_announcements_check(&self) -> bool {
 		self.server.config.allow_announcements_check
 	}
-
-	pub fn trusted_servers(&self) -> &[OwnedServerName] { &self.server.config.trusted_servers }
 
 	pub fn turn_password(&self) -> &String { &self.server.config.turn_password }
 
