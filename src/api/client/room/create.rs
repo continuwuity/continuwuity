@@ -4,15 +4,20 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Error, Result, debug, debug_info, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
-	trace, warn,
+	trace,
+	utils::to_canonical_object,
+	warn,
 };
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
-	CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId, OwnedUserId,
-	RoomAliasId, RoomId,
+	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
+	OwnedUserId, RoomAliasId, RoomId,
 	api::{
-		client::room::{self, create_room},
+		client::room::{
+			self,
+			create_room::{self, v3::CreationContent},
+		},
 		error::ErrorKind::Forbidden,
 	},
 	assign,
@@ -36,9 +41,20 @@ use ruma::{
 	serde::{JsonObject, Raw},
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
+use serde::Deserialize;
 use serde_json::value::to_raw_value;
 
 use crate::{Ruma, client::invite_helper};
+
+// We use this to keep around extra data in the `creation_content`
+// while still parsing and validating keys that we care about.
+#[derive(Deserialize, Default)]
+struct FullCreationContent {
+	#[serde(flatten)]
+	creation_content: CreationContent,
+	#[serde(flatten)]
+	extra_create_keys: CanonicalJsonObject,
+}
 
 /// # `POST /_matrix/client/v3/createRoom`
 ///
@@ -197,10 +213,10 @@ pub(crate) async fn create_room_route(
 		| _ => None,
 	};
 
-	let creation_content = body
+	let FullCreationContent { creation_content, mut extra_create_keys } = body
 		.creation_content
 		.as_ref()
-		.map(Raw::deserialize)
+		.map(Raw::deserialize_as_unchecked::<FullCreationContent>)
 		.transpose()
 		.map_err(|e| err!(Request(BadJson(error!("Failed to parse creation content: {e}")))))?
 		.unwrap_or_default();
@@ -274,6 +290,13 @@ pub(crate) async fn create_room_route(
 			.and_then(|value: i64| value.try_into().ok())
 			.map(MilliSecondsSinceUnixEpoch)
 	};
+
+	let mut create_event_content = to_canonical_object(create_event_content)
+		.expect("should be able to serialize create event content");
+
+	// `extra_create_keys` can't clobber any important fields because we
+	// already pulled them out into `create_event_content`
+	create_event_content.append(&mut extra_create_keys);
 
 	let create_event_id = services
 		.rooms
