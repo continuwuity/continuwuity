@@ -8,13 +8,15 @@ use std::{
 use conduwuit::{
 	Err, Result, at, debug_error, err, info,
 	matrix::{
-		Event,
+		Event, StateKey,
 		pdu::{PduEvent, PduId, RawPduId},
 	},
+	state_res::EventTypeExt,
 	trace, utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
+		to_canonical_object,
 	},
 	warn,
 };
@@ -27,7 +29,9 @@ use resolvematrix::{
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
 	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
-	api::federation::event::get_room_state, events::AnyStateEvent, serde::Raw,
+	api::federation::event::get_room_state,
+	events::{AnyStateEvent, StateEventType},
+	serde::Raw,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -533,19 +537,36 @@ impl crate::Context<'_> {
 			.collect()
 			.await;
 
-		let pdus: Vec<CanonicalJsonObject> = state_ids
+		let mut pdus: HashMap<(StateEventType, StateKey), CanonicalJsonObject> = state_ids
 			.iter()
-			.try_stream()
-			.and_then(|id| self.services.rooms.timeline.get_pdu_json(id))
+			.try_stream::<conduwuit::Error>()
+			.and_then(|id| async {
+				let pdu_json = self.services.rooms.timeline.get_pdu_json(id).await?;
+				let event_type = pdu_json
+					.get("type")
+					.and_then(CanonicalJsonValue::as_str)
+					.expect("event type must be present in events");
+				let state_key = pdu_json
+					.get("state_key")
+					.and_then(CanonicalJsonValue::as_str)
+					.expect("state keys must be present for events in the room state");
+				Ok(((event_type.into(), state_key.into()), pdu_json))
+			})
 			.try_collect()
 			.await?;
 
-		let json = serde_json::to_string_pretty(&pdus).map_err(|e| {
-			err!(Database(
-				"Failed to convert room state events to pretty JSON, possible invalid room \
-				 state events in our database {e}",
-			))
-		})?;
+		let pdu = self.services.rooms.timeline.get_pdu(&event_id).await?;
+		if let Some(state_key) = pdu.state_key() {
+			pdus.insert(pdu.kind().with_state_key(state_key), to_canonical_object(pdu)?);
+		}
+
+		let json =
+			serde_json::to_string_pretty(&pdus.values().collect::<Vec<_>>()).map_err(|e| {
+				err!(Database(
+					"Failed to convert room state events to pretty JSON, possible invalid room \
+					 state events in our database {e}",
+				))
+			})?;
 
 		let out = format!("```json\n{json}\n```");
 		self.write_str(&out).await
