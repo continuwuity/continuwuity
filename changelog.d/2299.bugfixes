@@ -1,0 +1,1 @@
+`!admin token issue` can no longer issue registration tokens when `allow_registration` is false. Contributed by @Clubs.
