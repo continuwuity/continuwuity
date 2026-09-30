@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use axum::extract::State;
 use conduwuit::{
@@ -16,7 +16,7 @@ use ruma::{
 	api::{
 		client::room::{
 			self,
-			create_room::{self, v3::CreationContent},
+			create_room::{self, RoomPowerLevelsContentOverride, v3::CreationContent},
 		},
 		error::ErrorKind::Forbidden,
 	},
@@ -38,7 +38,7 @@ use ruma::{
 	},
 	int,
 	room_version_rules::{AuthorizationRules, RoomIdFormatVersion},
-	serde::{JsonObject, Raw},
+	serde::Raw,
 };
 use ruminuwuity::invite_permission_config::FilterLevel;
 use serde::Deserialize;
@@ -227,7 +227,7 @@ pub(crate) async fn create_room_route(
 		RoomCreateEventContent::new_v1(sender_user.to_owned())
 	};
 
-	let mut privileged_creators = vec![];
+	let mut privileged_creators = HashSet::new();
 
 	create_event_content.federate = creation_content.federate;
 	create_event_content.predecessor = creation_content.predecessor;
@@ -244,6 +244,22 @@ pub(crate) async fn create_room_route(
 				.additional_creators
 				.extend(invitees.iter().cloned());
 		}
+
+		// Make sure the primary creator of the room isn't in the additional
+		// creator list
+		if create_event_content
+			.additional_creators
+			.iter()
+			.any(|user| user == sender_user)
+		{
+			return Err!(Request(InvalidParam(
+				"The primary creator of the room may not also be an additional creator."
+			)));
+		}
+
+		// Sort and deduplicate additional creators to avoid any funny business
+		create_event_content.additional_creators.sort();
+		create_event_content.additional_creators.dedup();
 	}
 
 	// Track privileged creators so we can remove them from PLs later
@@ -251,10 +267,10 @@ pub(crate) async fn create_room_route(
 		.authorization
 		.explicitly_privilege_room_creators
 	{
-		privileged_creators.push(sender_user.to_owned());
+		privileged_creators.insert(sender_user.to_owned());
 
 		if room_version_rules.authorization.additional_room_creators {
-			privileged_creators.extend_from_slice(&create_event_content.additional_creators);
+			privileged_creators.extend(create_event_content.additional_creators.iter().cloned());
 		}
 	}
 
@@ -374,9 +390,7 @@ pub(crate) async fn create_room_route(
 	}
 
 	let power_levels_content = default_power_levels_content(
-		body.power_level_content_override
-			.as_ref()
-			.map(Raw::cast_ref),
+		body.power_level_content_override.as_ref(),
 		&body.visibility,
 		power_levels_to_grant,
 		privileged_creators,
@@ -611,74 +625,83 @@ pub(crate) async fn create_room_route(
 }
 
 /// creates the power_levels_content for the PDU builder
+#[allow(clippy::or_fun_call)]
 fn default_power_levels_content(
-	power_level_content_override: Option<&Raw<RoomPowerLevelsEventContent>>,
+	power_level_content_override: Option<&Raw<RoomPowerLevelsContentOverride>>,
 	visibility: &room::Visibility,
-	users: BTreeMap<OwnedUserId, Int>,
-	creators: Vec<OwnedUserId>,
+	mut users: BTreeMap<OwnedUserId, Int>,
+	creators: HashSet<OwnedUserId>,
 	authorization_rules: &AuthorizationRules,
-) -> Result<serde_json::Value> {
-	let mut power_levels_content =
-		serde_json::to_value(assign!(RoomPowerLevelsEventContent::new(authorization_rules), {
-			users
-		}))
-		.unwrap();
+) -> Result<RoomPowerLevelsEventContent> {
+	use ruma::events::TimelineEventType::*;
+
+	let mut power_levels_content = power_level_content_override
+		.map(Raw::cast_ref::<RoomPowerLevelsEventContent>)
+		.map(Raw::deserialize)
+		.transpose()
+		.map_err(|err| err!(Request(BadJson("Invalid power_level_content_override: {err:?}"))))?
+		.map_or_else(
+			|| RoomPowerLevelsEventContent::new(authorization_rules),
+			|mut content| {
+				if authorization_rules.explicitly_privilege_room_creators {
+					// If an override was supplied we need to make sure the
+					// tombstone default is raised to 150
+					// for v12+. Otherwise, if one wasn't supplied,
+					// `RoomPowerLevelsEventContent::new` will handle this.
+
+					content.events.entry(RoomTombstone).or_insert(int!(150));
+				}
+
+				content
+			},
+		);
+
+	power_levels_content.users.append(&mut users);
+
+	for creator in creators {
+		power_levels_content.users.remove(&creator);
+	}
 
 	// secure proper defaults of sensitive/dangerous permissions that moderators
 	// (power level 50) should not have easy access to
-	power_levels_content["events"]["m.room.power_levels"] =
-		serde_json::to_value(100).expect("100 is valid Value");
-	power_levels_content["events"]["m.room.server_acl"] =
-		serde_json::to_value(100).expect("100 is valid Value");
-	power_levels_content["events"]["m.room.tombstone"] =
-		serde_json::to_value(100).expect("100 is valid Value");
-	power_levels_content["events"]["m.room.encryption"] =
-		serde_json::to_value(100).expect("100 is valid Value");
-	power_levels_content["events"]["m.room.history_visibility"] =
-		serde_json::to_value(100).expect("100 is valid Value");
+	let admin_only_events = [
+		RoomPowerLevels,
+		RoomServerAcl,
+		// this will not apply for v12+ rooms since we raised it to 150 earlier
+		RoomTombstone,
+		RoomEncryption,
+		RoomHistoryVisibility,
+	];
+
+	for event_type in admin_only_events {
+		power_levels_content
+			.events
+			.entry(event_type)
+			.or_insert(int!(100));
+	}
 
 	// always allow users to respond (not post new) to polls. this is primarily
 	// useful in read-only announcement rooms that post a public poll.
-	power_levels_content["events"]["org.matrix.msc3381.poll.response"] =
-		serde_json::to_value(0).expect("0 is valid Value");
-	power_levels_content["events"]["m.poll.response"] =
-		serde_json::to_value(0).expect("0 is valid Value");
+	power_levels_content
+		.events
+		.entry(PollResponse)
+		.or_insert(int!(0));
+	power_levels_content
+		.events
+		.entry(UnstablePollResponse)
+		.or_insert(int!(0));
 
 	// synapse does this too. clients do not expose these permissions. it
 	// prevents default users from calling public rooms, for obvious reasons.
 	if *visibility == room::Visibility::Public {
-		power_levels_content["events"]["m.call.invite"] =
-			serde_json::to_value(50).expect("50 is valid Value");
-		power_levels_content["events"]["m.call"] =
-			serde_json::to_value(50).expect("50 is valid Value");
-		power_levels_content["events"]["m.call.member"] =
-			serde_json::to_value(50).expect("50 is valid Value");
-		power_levels_content["events"]["org.matrix.msc3401.call"] =
-			serde_json::to_value(50).expect("50 is valid Value");
-		power_levels_content["events"]["org.matrix.msc3401.call.member"] =
-			serde_json::to_value(50).expect("50 is valid Value");
-	}
-
-	if let Some(power_level_content_override) = power_level_content_override {
-		let json: JsonObject = serde_json::from_str(power_level_content_override.json().get())
-			.map_err(|e| err!(Request(BadJson("Invalid power_level_content_override: {e:?}"))))?;
-
-		for (key, value) in json {
-			power_levels_content[key] = value;
-		}
-	}
-
-	if !creators.is_empty() {
-		// Raise the default power level of tombstone to 150
-		power_levels_content["events"]["m.room.tombstone"] =
-			serde_json::to_value(150).expect("150 is valid Value");
-		for creator in creators {
-			// Omit creators from the power level list altogether
-			power_levels_content["users"]
-				.as_object_mut()
-				.expect("users is an object")
-				.remove(creator.as_str());
-		}
+		power_levels_content
+			.events
+			.entry(CallInvite)
+			.or_insert(int!(50));
+		power_levels_content
+			.events
+			.entry(CallMember)
+			.or_insert(int!(50));
 	}
 
 	Ok(power_levels_content)
