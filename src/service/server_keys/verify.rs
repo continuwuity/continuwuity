@@ -156,12 +156,9 @@ impl super::Service {
 }
 
 #[cfg(test)]
+#[allow(clippy::unreadable_literal)]
 mod tests {
-	use ruma::{
-		ServerSigningKeyId,
-		api::federation::discovery::get_server_keys::v2::Response as DirectKeysResponse,
-		owned_server_name, serde::Raw, server_name,
-	};
+	use ruma::{serde::Raw, server_name};
 
 	use super::*;
 	use crate::server_keys::Service;
