@@ -4,6 +4,9 @@ use service::registration_tokens::TokenExpires;
 
 impl crate::Context<'_> {
 	pub(super) async fn issue_registration_token(&self, expires: super::TokenExpires) -> Result {
+		if !self.services.config.allow_registration {
+			return Err!("Registration has been disabled on this homeserver.");
+		}
 		let expires = {
 			if expires.immortal {
 				None
