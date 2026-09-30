@@ -2319,6 +2319,16 @@
 #
 #additional_scopes = []
 
+# Additional trusted audiences that Continuwuity will accept in the `aud`
+# claim of the OIDC token returned by the IDP. If your identity
+# provider includes other values in the `aud` claim in addition to the
+# client ID, they must be listed here for Continuwuity to accept them.
+#
+# Most deployments will not need to set this, because most identity
+# providers only include the client ID in the `aud` claim by default.
+#
+#additional_trusted_audiences = []
+
 # The name of the identity provider. If this is set, the login page's
 # button reads "Continue with <name>" instead of just "Continue".
 #

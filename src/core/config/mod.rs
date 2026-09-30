@@ -17,7 +17,7 @@ use either::{
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use lettre::message::Mailbox;
-use openidconnect::{ClientId, ClientSecret, Scope};
+use openidconnect::{Audience, ClientId, ClientSecret, Scope};
 use regex::RegexSet;
 use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedServerSigningKeyId, OwnedUserId,
@@ -2799,6 +2799,18 @@ pub struct OidcConfig {
 	/// default: []
 	#[serde(default)]
 	pub additional_scopes: Vec<Scope>,
+
+	/// Additional trusted audiences that Continuwuity will accept in the `aud`
+	/// claim of the OIDC token returned by the IDP. If your identity
+	/// provider includes other values in the `aud` claim in addition to the
+	/// client ID, they must be listed here for Continuwuity to accept them.
+	///
+	/// Most deployments will not need to set this, because most identity
+	/// providers only include the client ID in the `aud` claim by default.
+	///
+	/// default: []
+	#[serde(default)]
+	pub additional_trusted_audiences: BTreeSet<Audience>,
 
 	/// The name of the identity provider. If this is set, the login page's
 	/// button reads "Continue with <name>" instead of just "Continue".

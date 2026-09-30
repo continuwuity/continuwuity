@@ -275,7 +275,7 @@ impl Service {
 		session: PendingSession,
 		response: AuthorizationCodeResponse,
 	) -> Result<Claims, &'static str> {
-		let Some(OidcClient { machine, client, .. }) = self.client.as_ref() else {
+		let Some(OidcClient { machine, client, config, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
 		};
 
@@ -293,7 +293,8 @@ impl Service {
 			.await
 			.map_err(|err| {
 				error!(error=?err, "Failed to exchange OIDC authorization code");
-				"Code exchange failed."
+				"Code exchange failed. The identity provider may be unreachable. Contact your \
+				 homeserver's administrator."
 			})?;
 
 		let Some(id_token) = token_response.id_token() else {
@@ -301,8 +302,14 @@ impl Service {
 			return Err(Self::SERVER_MISCONFIGURED);
 		};
 
+		let verifier = machine
+			.id_token_verifier()
+			.set_other_audience_verifier_fn(|audience| {
+				config.additional_trusted_audiences.contains(audience)
+			});
+
 		let claims = id_token
-			.claims(&machine.id_token_verifier(), &session.nonce)
+			.claims(&verifier, &session.nonce)
 			.map_err(|err| {
 				error!("Failed to verify id token claims: {err}");
 				Self::SERVER_MISCONFIGURED
