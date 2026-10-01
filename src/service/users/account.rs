@@ -114,8 +114,8 @@ impl super::Service {
 			}
 			// Apply other layers of invite blocking first, so that user/server
 			// denies take priority over implicit allows.
-			if content.default_action != Some(InvitePermissionAction::DenyPublic)
-				&& self
+			if content.default_action == Some(InvitePermissionAction::DenyPublic)
+				&& !self
 					.check_msc4494_mutual_room(sender_user, recipient_user)
 					.await
 			{
