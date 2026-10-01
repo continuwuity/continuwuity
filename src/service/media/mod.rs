@@ -36,6 +36,8 @@ pub struct FileMeta {
 
 pub struct Service {
 	url_preview_mutex: MutexMap<String, ()>,
+	#[cfg(feature = "url_preview")]
+	url_preview_image_semaphore: Arc<tokio::sync::Semaphore>,
 	pub(super) db: Data,
 	services: Services,
 }
@@ -62,6 +64,8 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			url_preview_mutex: MutexMap::new(),
+			#[cfg(feature = "url_preview")]
+			url_preview_image_semaphore: Arc::new(tokio::sync::Semaphore::new(2)),
 			db: Data::new(args.db),
 			services: Services {
 				server: args.server.clone(),

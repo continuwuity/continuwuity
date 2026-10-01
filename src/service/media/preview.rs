@@ -139,13 +139,18 @@ impl Service {
 
 		let mut preview_data = preview_data.unwrap_or_default();
 
-		let image = self
-			.services
-			.client
-			.url_preview
-			.get(url)
-			.send()
-			.await?
+		let response = self.services.client.url_preview.get(url).send().await?;
+		if !response.status().is_success() {
+			return Err!(Request(Unknown("Image download returned HTTP {}", response.status())));
+		}
+
+		let permit = self
+			.url_preview_image_semaphore
+			.clone()
+			.acquire_owned()
+			.await
+			.map_err(|error| err!(Request(Unknown("Image decoder unavailable: {error}"))))?;
+		let image = response
 			.limit_read(
 				self.services
 					.server
@@ -156,27 +161,45 @@ impl Service {
 			)
 			.await?;
 
+		let (image, content_type, width, height) = self
+			.services
+			.server
+			.runtime()
+			.spawn_blocking(move || -> Result<_> {
+				// Keep the slot until decoding finishes, even if the request is
+				// cancelled.
+				let _permit = permit;
+				let mut reader =
+					ImageReader::new(std::io::Cursor::new(&image)).with_guessed_format()?;
+				let mut limits = image::Limits::default();
+				limits.max_image_width = Some(8192);
+				limits.max_image_height = Some(8192);
+				limits.max_alloc = Some(64 * 1024 * 1024);
+				reader.limits(limits);
+				let content_type = reader
+					.format()
+					.ok_or_else(|| {
+						err!(Request(Unknown("Downloaded file is not a supported image")))
+					})?
+					.to_mime_type();
+				let decoded = reader.decode().map_err(|error| {
+					err!(Request(Unknown("Failed to decode preview image: {error}")))
+				})?;
+				Ok((image, content_type, decoded.width(), decoded.height()))
+			})
+			.await??;
+
 		let mxc = Mxc {
 			server_name: self.services.globals.server_name(),
 			media_id: &random_string(super::MXC_LENGTH),
 		};
 
-		self.create(&mxc, None, None, None, &image).await?;
+		self.create(&mxc, None, None, Some(content_type), &image)
+			.await?;
 
 		preview_data.image = Some(mxc.to_string());
-		if preview_data.image_height.is_none() || preview_data.image_width.is_none() {
-			let cursor = std::io::Cursor::new(&image);
-			let (width, height) = match ImageReader::new(cursor).with_guessed_format() {
-				| Err(_) => (None, None),
-				| Ok(reader) => match reader.into_dimensions() {
-					| Err(_) => (None, None),
-					| Ok((width, height)) => (Some(width), Some(height)),
-				},
-			};
-
-			preview_data.image_width = width;
-			preview_data.image_height = height;
-		}
+		preview_data.image_width = Some(width);
+		preview_data.image_height = Some(height);
 
 		Ok(preview_data)
 	}
