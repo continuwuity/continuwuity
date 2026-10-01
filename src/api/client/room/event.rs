@@ -95,18 +95,18 @@ pub(crate) async fn get_room_event_route(
 }
 
 async fn unredact(services: &crate::State, sender_user: &UserId, event: &mut PduEvent) -> Result {
-	let power_levels = services
-		.rooms
-		.state_accessor
-		.get_room_power_levels(&event.room_id_or_hash())
-		.await;
+	if !services.users.is_admin(sender_user).await {
+		let power_levels = services
+			.rooms
+			.state_accessor
+			.get_room_power_levels(&event.room_id_or_hash())
+			.await;
 
-	if power_levels.for_user(sender_user) < power_levels.redact
-		&& !services.users.is_admin(sender_user).await
-	{
-		return Err!(Request(Forbidden(
-			"You don't have permission to view redacted content in this room."
-		)));
+		if power_levels.for_user(sender_user) < power_levels.redact {
+			return Err!(Request(Forbidden(
+				"You don't have permission to view redacted content in this room."
+			)));
+		}
 	}
 
 	let content = services

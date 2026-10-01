@@ -93,7 +93,7 @@ struct Services {
 	users: Dep<users::Service>,
 }
 
-const PURGE_INTERVAL_SECS: u64 = 60 * 60;
+const PURGE_INTERVAL_SECS: u64 = 3600;
 
 type RoomMutexMap = MutexMap<OwnedRoomId, ()>;
 pub type RoomMutexGuard = MutexMapGuard<OwnedRoomId, ()>;
