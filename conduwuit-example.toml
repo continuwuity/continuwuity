@@ -1671,6 +1671,7 @@
 #
 # MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
 #
+# env: CONTINUWUITY_ALLOW_MODERATORS_TO_VIEW_REDACTED_CONTENT
 #allow_moderators_to_view_redacted_content = false
 
 # How long to retain the content of redacted events, in seconds. Expired
@@ -1679,6 +1680,7 @@
 # Only has an effect when allow_moderators_to_view_redacted_content is
 # enabled.
 #
+# env: CONTINUWUITY_UNREDACTED_CONTENT_MAX_AGE_SECS
 #unredacted_content_max_age_secs = 7776000 (90 days)
 
 # Maximum time federation user can indicate typing.
