@@ -149,9 +149,7 @@ migration!(stringify!($name) => $name)
 					let timeline = services.rooms.timeline.clone();
 
 					services.server.runtime().spawn(async move {
-						unembed_unsigned_info(metadata, timeline).await.expect(
-							"unembed_unsigned_info failed! your database is broken, sorry >.>",
-						);
+						unembed_unsigned_info(metadata, timeline).await;
 						db["global"].insert(b"unembed_unsigned_info", []);
 					});
 				}
@@ -871,7 +869,7 @@ async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
 async fn unembed_unsigned_info(
 	metadata: Arc<rooms::metadata::Service>,
 	timeline: Arc<rooms::timeline::Service>,
-) -> Result {
+) {
 	type Map = BTreeMap<String, Box<serde_json::value::RawValue>>;
 	info!(
 		"Starting background migration. This may take a long time, and may cause your server to \
@@ -929,8 +927,6 @@ async fn unembed_unsigned_info(
 	}
 
 	info!(elapsed=?start.elapsed(), total_migrated_pdus=total_migrated, "Finished migration.");
-
-	Ok(())
 }
 
 async fn drop_server_signingkeys(services: &Services) -> Result<()> {
