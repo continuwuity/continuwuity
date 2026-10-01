@@ -2,6 +2,7 @@ use std::{
 	cmp,
 	collections::{BTreeMap, HashMap},
 	future::ready,
+	pin::Pin,
 	sync::Arc,
 	time::Instant,
 };
@@ -17,7 +18,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use database::{Database, Json};
+use database::Json;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
@@ -34,13 +35,159 @@ use serde_json::value::to_raw_value;
 
 use crate::{Services, media, rooms, rooms::short::ShortStateHash};
 
-/// The current schema version.
-/// - If database is opened at greater version we reject with error. The
-///   software must be updated for backward-incompatible changes.
-/// - If database is opened at lesser version we apply migrations up to this.
-///   Note that named-feature migrations may also be performed when opening at
-///   equal or lesser version. These are expected to be backward-compatible.
-pub(crate) const DATABASE_VERSION: u64 = 19;
+type MigrationFn =
+	for<'a> fn(&'a Services) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
+
+enum DatabaseMigrationStep {
+	Migration(&'static str, MigrationFn),
+	VersionBump(u64),
+}
+
+static MIGRATIONS: &[DatabaseMigrationStep] = const {
+	use DatabaseMigrationStep::*;
+
+	macro_rules! migration {
+		($name:expr => $function:path) => {
+			Migration($name, |services| {
+				Box::pin(async {
+					let db = &services.db;
+					#[allow(clippy::string_lit_as_bytes)]
+					let key = $name.as_bytes();
+
+					if db["global"].get(key).await.is_not_found() {
+						info!("Starting migration {}", $name);
+						let cork = db.cork_and_sync();
+
+						$function(services)
+							.await
+							.map_err(|err| err!("Failed to run migration {}: {err}", $name))?;
+
+						drop(cork);
+						db["global"].insert(key, []);
+						db.db.sort()?;
+					}
+
+					Ok(())
+				})
+			})
+		};
+
+		($name:ident) => {
+// cargo fmt really wants this to be left-aligned, I guess?
+migration!(stringify!($name) => $name)
+		};
+	}
+
+	// When you're writing a migration that makes backwards-incompatible
+	// changes, you need to use `VersionBump` to keep old versions from
+	// accepting the new database. The `VersionBump` command should come
+	// _before_ your migration, which ensures that old versions will reject
+	// the new database even if the server crashes or restarts while your
+	// migration is running.
+
+	// If your migration is backwards-compatible, meaning that its changes can
+	// be understood by a version of continuwuity that has not run it, it
+	// doesn't need a version bump. Use your best discretion when deciding what
+	// "be understood" means. Also, make sure to add a comment that explains
+	// why the bump was necessary, for the sake of future developers.
+
+	// Database versions should increase monotonically (you'll get a const-eval
+	// panic if they don't) and linearly. I don't know why conduit skipped
+	// from 13 to 17, don't bother asking.
+
+	&[
+		// Begin pre-fork logic. We don't have insight into why this works
+		// the way it does, so there are no comments here.
+		VersionBump(12),
+		migration!(fix_push_rule_names),
+		VersionBump(13),
+		migration!(fix_server_default_push_rules),
+		VersionBump(17),
+		migration!("feat_sha256_media" => media::migrations::migrate_sha256_media),
+		migration!(fix_bad_double_separator_in_state_cache),
+		migration!(retroactively_fix_bad_data_from_roomuserid_joined),
+		migration!(fix_referencedevents_missing_sep),
+		migration!(fix_readreceiptid_readreceipt_duplicates),
+		// End pre-fork logic.
+
+		// v18: `fix_corrupt_msc4133_fields` will change the `us.cloke.msc4175.tz` field
+		// in a way that old versions don't understand.
+		VersionBump(18),
+		migration!(fix_corrupt_msc4133_fields),
+		// v19: `populate_userroomid_leftstate_table` will put data in the values of
+		// `userroomid_leftstate` that old versions will fail to deserialize because
+		// they expect the values to be empty.
+		VersionBump(19),
+		migration!(populate_userroomid_leftstate_table),
+		// This is backwards compatible because it fixes some data that clients care about but we
+		// don't.
+		migration!(fix_local_invite_state),
+		// v20: Old versions expect remote users to be tracked in `userid_password`. This
+		// migration moves them to a different keyspace.
+		VersionBump(20),
+		migration!(split_userid_password),
+		// This is backwards compatible because old versions will recreate the keyspace if it's
+		// missing.
+		migration!("drop_roomsynctoken_shortstatehash" => obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice),
+		// v21: `unembed_unsigned_info` will remove `unsigned` data from PDUs that old versions
+		// expect to be embedded.
+		VersionBump(21),
+		// This migration can take several hours on old databases, so we run it in the background
+		// to keep the service manager from killing us for taking too long to start.
+		// Future maintainers: !!! BE VERY CAREFUL !!! if you need to write more migrations like
+		// this! This one is fine because it deletes data that we don't check anymore,
+		// but migrations which replace existing data that we do check should NOT run in
+		// the background. If they do, the server will finish starting up and might
+		// access data that the migration hasn't gotten to yet.
+		Migration("unembed_unsigned_info", |services| {
+			Box::pin(async {
+				if services.db["global"]
+					.get(b"unembed_unsigned_info")
+					.await
+					.is_not_found()
+				{
+					let db = services.db.clone();
+					let metadata = services.rooms.metadata.clone();
+					let timeline = services.rooms.timeline.clone();
+
+					services.server.runtime().spawn(async move {
+						unembed_unsigned_info(metadata, timeline).await.expect(
+							"unembed_unsigned_info failed! your database is broken, sorry >.>",
+						);
+						db["global"].insert(b"unembed_unsigned_info", []);
+					});
+				}
+
+				Ok(())
+			})
+		}),
+		// This is backwards compatible because old versions will recreate the keyspace if it's
+		// missing.
+		migration!(drop_server_signingkeys),
+	]
+};
+
+pub(crate) const DATABASE_VERSION: u64 = const {
+	let mut latest_version = 0_u64;
+	// TODO: refactor once slice iter is const stable
+	let mut i = 0;
+
+	while i < MIGRATIONS.len() {
+		if let DatabaseMigrationStep::VersionBump(version) = &MIGRATIONS[i] {
+			if *version > latest_version {
+				latest_version = *version;
+			} else {
+				panic!("Database version must monotonically increase");
+			}
+		}
+		i += 1;
+	}
+
+	latest_version
+};
+
+// This should match the first `VersionBump` in `MIGRATIONS`.
+const OLDEST_SUPPORTED_VERSION: u64 = 11;
 
 pub(crate) async fn migrations(services: &Services) -> Result<()> {
 	let users_count = services.users.count().await;
@@ -71,18 +218,11 @@ async fn fresh(services: &Services) -> Result<()> {
 
 	services.globals.db.bump_database_version(DATABASE_VERSION);
 
-	db["global"].insert(b"feat_sha256_media", []);
-	db["global"].insert(b"fix_bad_double_separator_in_state_cache", []);
-	db["global"].insert(b"retroactively_fix_bad_data_from_roomuserid_joined", []);
-	db["global"].insert(b"fix_referencedevents_missing_sep", []);
-	db["global"].insert(b"fix_readreceiptid_readreceipt_duplicates", []);
-	db["global"].insert(b"fix_corrupt_msc4133_fields", []);
-	db["global"].insert(b"populate_userroomid_leftstate_table", []);
-	db["global"].insert(b"fix_local_invite_state", []);
-	db["global"].insert(SPLIT_USERID_PASSWORD, []);
-	db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
-	db["global"].insert(UNEMBED_UNSIGNED_INFO, []);
-	db["global"].insert(DROP_OLD_SIGNING_KEYS_STORAGE, []);
+	for step in MIGRATIONS {
+		if let DatabaseMigrationStep::Migration(key, _) = step {
+			db["global"].insert(key, []);
+		}
+	}
 
 	// Create the admin room and server user on first run
 	info!("Creating admin room and server user");
@@ -98,35 +238,27 @@ async fn fresh(services: &Services) -> Result<()> {
 
 /// Apply any migrations
 async fn migrate(services: &Services) -> Result<()> {
-	let db = &services.db;
-	let config = &services.server.config;
-
-	if services.globals.db.database_version().await < 11 {
+	if services.globals.db.database_version().await < OLDEST_SUPPORTED_VERSION {
 		return Err!(Database(
-			"Database schema version {} is no longer supported",
+			"Database schema version {} is too old to migrate. Please use an old version of \
+			 conduwuit to migrate to version 11 and then run Continuwuity again.",
 			services.globals.db.database_version().await
 		));
 	}
 
-	if services.globals.db.database_version().await < 12 {
-		db_lt_12(services)
-			.await
-			.map_err(|e| err!("Failed to run v12 migrations: {e}"))?;
+	for step in MIGRATIONS {
+		match step {
+			| DatabaseMigrationStep::Migration(_, migration) => {
+				migration(services).await?;
+			},
+			| DatabaseMigrationStep::VersionBump(version) => {
+				services.globals.db.bump_database_version(*version);
+				info!("Bumped database version to {version}.");
+			},
+		}
 	}
 
-	// This migration can be reused as-is anytime the server-default rules are
-	// updated.
-	if services.globals.db.database_version().await < 13 {
-		db_lt_13(services)
-			.await
-			.map_err(|e| err!("Failed to run v13 migrations: {e}"))?;
-	}
-
-	if db["global"].get(b"feat_sha256_media").await.is_not_found() {
-		media::migrations::migrate_sha256_media(services)
-			.await
-			.map_err(|e| err!("Failed to run SHA256 media migration: {e}"))?;
-	} else if config.media_startup_check {
+	if services.config.media_startup_check {
 		info!("Starting media startup integrity check.");
 		let now = Instant::now();
 		media::migrations::checkup_sha256_media(services)
@@ -136,154 +268,6 @@ async fn migrate(services: &Services) -> Result<()> {
 			"Finished media startup integrity check in {} seconds.",
 			now.elapsed().as_secs_f32()
 		);
-	}
-
-	if db["global"]
-		.get(b"fix_bad_double_separator_in_state_cache")
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'fix_bad_double_separator_in_state_cache'");
-		fix_bad_double_separator_in_state_cache(services)
-			.await
-			.map_err(|e| {
-				err!("Failed to run 'fix_bad_double_separator_in_state_cache' migration: {e}")
-			})?;
-	}
-
-	if db["global"]
-		.get(b"retroactively_fix_bad_data_from_roomuserid_joined")
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'retroactively_fix_bad_data_from_roomuserid_joined'");
-		retroactively_fix_bad_data_from_roomuserid_joined(services)
-			.await
-			.map_err(|e| {
-				err!(
-					"Failed to run 'retroactively_fix_bad_data_from_roomuserid_joined' \
-					 migration: {e}"
-				)
-			})?;
-	}
-
-	if db["global"]
-		.get(b"fix_referencedevents_missing_sep")
-		.await
-		.is_not_found()
-		|| services.globals.db.database_version().await < 17
-	{
-		info!("Running migration 'fix_referencedevents_missing_sep'");
-		fix_referencedevents_missing_sep(services)
-			.await
-			.map_err(|e| {
-				err!("Failed to run 'fix_referencedevents_missing_sep' migration': {e}")
-			})?;
-	}
-
-	if db["global"]
-		.get(b"fix_readreceiptid_readreceipt_duplicates")
-		.await
-		.is_not_found()
-		|| services.globals.db.database_version().await < 17
-	{
-		info!("Running migration 'fix_readreceiptid_readreceipt_duplicates'");
-		fix_readreceiptid_readreceipt_duplicates(services)
-			.await
-			.map_err(|e| {
-				err!("Failed to run 'fix_readreceiptid_readreceipt_duplicates' migration': {e}")
-			})?;
-	}
-
-	if services.globals.db.database_version().await < 17 {
-		services.globals.db.bump_database_version(17);
-		info!("Migration: Bumped database version to 17");
-	}
-
-	if db["global"]
-		.get(FIXED_CORRUPT_MSC4133_FIELDS_MARKER)
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'fix_corrupt_msc4133_fields'");
-		fix_corrupt_msc4133_fields(services)
-			.await
-			.map_err(|e| err!("Failed to run 'fix_corrupt_msc4133_fields' migration': {e}"))?;
-	}
-
-	if services.globals.db.database_version().await < 18 {
-		services.globals.db.bump_database_version(18);
-		info!("Migration: Bumped database version to 18");
-	}
-
-	if db["global"]
-		.get(POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER)
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'populate_userroomid_leftstate_table'");
-		populate_userroomid_leftstate_table(services)
-			.await
-			.map_err(|e| {
-				err!("Failed to run 'populate_userroomid_leftstate_table' migration': {e}")
-			})?;
-	}
-
-	if db["global"]
-		.get(FIXED_LOCAL_INVITE_STATE_MARKER)
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'fix_local_invite_state'");
-		fix_local_invite_state(services)
-			.await
-			.map_err(|e| err!("Failed to run 'fix_local_invite_state' migration': {e}"))?;
-	}
-
-	if services.globals.db.database_version().await < 19 {
-		services.globals.db.bump_database_version(19);
-		info!("Migration: Bumped database version to 19");
-	}
-
-	if db["global"].get(SPLIT_USERID_PASSWORD).await.is_not_found() {
-		info!("Running migration 'split_userid_password'");
-		split_userid_password(services)
-			.await
-			.map_err(|e| err!("Failed to run 'split_userid_password' migration': {e}"))?;
-	}
-
-	if db["global"]
-		.get(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH)
-		.await
-		.is_not_found()
-	{
-		info!("Running migration 'drop_roomsynctoken_shortstatehash'");
-		obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(services)
-			.await
-			.map_err(|e| {
-				err!("Failed to run 'drop_roomsynctoken_shortstatehash' migration': {e}")
-			})?;
-	}
-
-	if db["global"].get(UNEMBED_UNSIGNED_INFO).await.is_not_found() {
-		services.server.runtime().spawn(unembed_unsigned_info(
-			services.db.clone(),
-			services.rooms.metadata.clone(),
-			services.rooms.timeline.clone(),
-		));
-	}
-
-	if db["global"]
-		.get(DROP_OLD_SIGNING_KEYS_STORAGE)
-		.await
-		.is_not_found()
-	{
-		services
-			.db
-			.db
-			.drop_column("server_signingkeys")
-			.inspect(|()| services.db["global"].insert(DROP_OLD_SIGNING_KEYS_STORAGE, []))
-			.map_err(|e| err!("Failed to drop server_signingkeys: {e:?}"))?;
 	}
 
 	assert_eq!(
@@ -358,7 +342,7 @@ async fn migrate(services: &Services) -> Result<()> {
 	Ok(())
 }
 
-async fn db_lt_12(services: &Services) -> Result<()> {
+async fn fix_push_rule_names(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.stream_local_users()
@@ -433,12 +417,10 @@ async fn db_lt_12(services: &Services) -> Result<()> {
 			.await?;
 	}
 
-	services.globals.db.bump_database_version(12);
-	info!("Migration: 11 -> 12 finished");
 	Ok(())
 }
 
-async fn db_lt_13(services: &Services) -> Result<()> {
+async fn fix_server_default_push_rules(services: &Services) -> Result<()> {
 	for username in &services
 		.users
 		.stream_local_users()
@@ -478,8 +460,6 @@ async fn db_lt_13(services: &Services) -> Result<()> {
 			.await?;
 	}
 
-	services.globals.db.bump_database_version(13);
-	info!("Migration: 12 -> 13 finished");
 	Ok(())
 }
 
@@ -488,7 +468,6 @@ async fn fix_bad_double_separator_in_state_cache(services: &Services) -> Result<
 
 	let db = &services.db;
 	let roomuserid_joined = &db["roomuserid_joined"];
-	let _cork = db.cork_and_sync();
 
 	let mut iter_count: usize = 0;
 	roomuserid_joined
@@ -520,18 +499,12 @@ async fn fix_bad_double_separator_in_state_cache(services: &Services) -> Result<
 		})
 		.await;
 
-	db.db.sort()?;
-	db["global"].insert(b"fix_bad_double_separator_in_state_cache", []);
-
 	info!("Finished fixing");
 	Ok(())
 }
 
 async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) -> Result<()> {
 	info!("Retroactively fixing bad data from broken roomuserid_joined");
-
-	let db = &services.db;
-	let _cork = db.cork_and_sync();
 
 	let room_ids = services.rooms.metadata.iter_ids().collect::<Vec<_>>().await;
 
@@ -603,9 +576,6 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 			.await;
 	}
 
-	db.db.sort()?;
-	db["global"].insert(b"retroactively_fix_bad_data_from_roomuserid_joined", []);
-
 	info!("Finished fixing");
 	Ok(())
 }
@@ -613,10 +583,7 @@ async fn retroactively_fix_bad_data_from_roomuserid_joined(services: &Services) 
 async fn fix_referencedevents_missing_sep(services: &Services) -> Result {
 	info!("Fixing missing record separator between room_id and event_id in referencedevents");
 
-	let db = &services.db;
-	let cork = db.cork_and_sync();
-
-	let referencedevents = db["referencedevents"].clone();
+	let referencedevents = services.db["referencedevents"].clone();
 
 	let totals: (usize, usize) = (0, 0);
 	let (total, fixed) = referencedevents
@@ -645,11 +612,8 @@ async fn fix_referencedevents_missing_sep(services: &Services) -> Result {
 		})
 		.await;
 
-	drop(cork);
 	info!(?total, ?fixed, "Fixed missing record separators in 'referencedevents'.");
-
-	db["global"].insert(b"fix_referencedevents_missing_sep", []);
-	db.db.sort()
+	Ok(())
 }
 
 async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result {
@@ -659,7 +623,6 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 	info!("Fixing undeleted entries in readreceiptid_readreceipt...");
 
 	let db = &services.db;
-	let cork = db.cork_and_sync();
 	let readreceiptid_readreceipt = db["readreceiptid_readreceipt"].clone();
 
 	let mut cur_room: Option<ArrayId> = None;
@@ -684,14 +647,10 @@ async fn fix_readreceiptid_readreceipt_duplicates(services: &Services) -> Result
 		})
 		.await;
 
-	drop(cork);
 	info!(?total, ?fixed, "Fixed undeleted entries in readreceiptid_readreceipt.");
-
-	db["global"].insert(b"fix_readreceiptid_readreceipt_duplicates", []);
-	db.db.sort()
+	Ok(())
 }
 
-const FIXED_CORRUPT_MSC4133_FIELDS_MARKER: &[u8] = b"fix_corrupt_msc4133_fields";
 async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	// Due to an old bug, some conduwuit databases have `us.cloke.msc4175.tz`
 	// user profile fields with raw strings instead of quoted JSON ones.
@@ -703,7 +662,6 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 	info!("Fixing corrupted `us.cloke.msc4175.tz` fields...");
 
 	let db = &services.db;
-	let cork = db.cork_and_sync();
 	let useridprofilekey_value = db["useridprofilekey_value"].clone();
 
 	let (total, fixed) = useridprofilekey_value
@@ -742,21 +700,15 @@ async fn fix_corrupt_msc4133_fields(services: &Services) -> Result {
 		)
 		.await?;
 
-	drop(cork);
 	info!(?total, ?fixed, "Fixed corrupted `us.cloke.msc4175.tz` fields.");
-
-	db["global"].insert(FIXED_CORRUPT_MSC4133_FIELDS_MARKER, []);
-	db.db.sort()?;
 	Ok(())
 }
 
-const POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER: &str = "populate_userroomid_leftstate_table";
 async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 	type KeyVal = (Key, Raw<Option<Pdu>>);
 	type Key = (OwnedUserId, OwnedRoomId);
 
 	let db = &services.db;
-	let cork = db.cork_and_sync();
 	let userroomid_leftstate = db["userroomid_leftstate"].clone();
 
 	let (total, fixed, _) = userroomid_leftstate
@@ -817,15 +769,10 @@ async fn populate_userroomid_leftstate_table(services: &Services) -> Result {
 		)
 		.await?;
 
-	drop(cork);
 	info!(?total, ?fixed, "Fixed entries in `userroomid_leftstate`.");
-
-	db["global"].insert(POPULATED_USERROOMID_LEFTSTATE_TABLE_MARKER, []);
-	db.db.sort()?;
 	Ok(())
 }
 
-const FIXED_LOCAL_INVITE_STATE_MARKER: &str = "fix_local_invite_state";
 async fn fix_local_invite_state(services: &Services) -> Result {
 	// Clean up the effects of !1249 by caching stripped state for invites
 
@@ -833,7 +780,6 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 	type Key = (OwnedUserId, OwnedRoomId);
 
 	let db = &services.db;
-	let cork = db.cork_and_sync();
 	let userroomid_invitestate = db["userroomid_invitestate"].clone();
 
 	// for each user invited to a room
@@ -871,20 +817,14 @@ async fn fix_local_invite_state(services: &Services) -> Result {
 		})
 		.await?;
 
-	drop(cork);
 	info!(?fixed, "Fixed local invite state cache entries.");
-
-	db["global"].insert(FIXED_LOCAL_INVITE_STATE_MARKER, []);
-	db.db.sort()?;
 	Ok(())
 }
 
-const SPLIT_USERID_PASSWORD: &str = "split_userid_password";
 async fn split_userid_password(services: &Services) -> Result {
 	// Split remote and deactivated users out from the `userid_password` table
 
 	let db = &services.db;
-	let cork = db.cork_and_sync();
 	let userid_password = db["userid_password"].clone();
 	let remoteuserid_remoteuser = db["remoteuserid_remoteuser"].clone();
 	let userid_deactivated = db["userid_deactivated"].clone();
@@ -912,15 +852,11 @@ async fn split_userid_password(services: &Services) -> Result {
 		})
 		.await;
 
-	drop(cork);
 	info!(?remote_users, "Split userid_password.");
 
-	db["global"].insert(SPLIT_USERID_PASSWORD, []);
-	db.db.sort()?;
 	Ok(())
 }
 
-const DROP_ROOMSYNCTOKEN_SHORTSTATEHASH: &str = "drop_roomsynctoken_shortstatehash";
 async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
 	services: &Services,
 ) -> Result {
@@ -928,15 +864,11 @@ async fn obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice(
 
 	info!("Cleared roomsynctoken_shortstatehash.");
 
-	services.db["global"].insert(DROP_ROOMSYNCTOKEN_SHORTSTATEHASH, []);
-
 	Ok(())
 }
 
-const UNEMBED_UNSIGNED_INFO: &str = "unembed_unsigned_info";
 #[tracing::instrument(name = "unembed_unsigned_info", skip_all)]
 async fn unembed_unsigned_info(
-	db: Arc<Database>,
 	metadata: Arc<rooms::metadata::Service>,
 	timeline: Arc<rooms::timeline::Service>,
 ) -> Result {
@@ -996,10 +928,15 @@ async fn unembed_unsigned_info(
 		info!(elapsed=?start.elapsed(), "Migrated {migrated} PDUs in {room_id}");
 	}
 
-	db["global"].insert(UNEMBED_UNSIGNED_INFO, []);
 	info!(elapsed=?start.elapsed(), total_migrated_pdus=total_migrated, "Finished migration.");
 
 	Ok(())
 }
 
-const DROP_OLD_SIGNING_KEYS_STORAGE: &str = "drop_server_signingkeys";
+async fn drop_server_signingkeys(services: &Services) -> Result<()> {
+	services.db.db.drop_column("server_signingkeys")?;
+
+	info!("Cleared server_signingkeys.");
+
+	Ok(())
+}
