@@ -250,8 +250,10 @@ async fn migrate(services: &Services) -> Result<()> {
 				migration(services).await?;
 			},
 			| DatabaseMigrationStep::VersionBump(version) => {
-				services.globals.db.bump_database_version(*version);
-				info!("Bumped database version to {version}.");
+				if services.globals.db.database_version().await < *version {
+					services.globals.db.bump_database_version(*version);
+					info!("Bumped database version to {version}.");
+				}
 			},
 		}
 	}
