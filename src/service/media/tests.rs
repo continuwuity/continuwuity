@@ -108,8 +108,6 @@ mod url_preview {
 						&server.url,
 						Some(UrlPreviewData {
 							title: Some("Example preview".into()),
-							image_width: Some(99),
-							image_height: Some(99),
 							..UrlPreviewData::default()
 						}),
 					)
@@ -127,6 +125,34 @@ mod url_preview {
 	}
 
 	#[tokio::test]
+	async fn preview_images_preserve_remote_dimensions() {
+		let (_directory, services) = services().await;
+		let server = ImageServer::new(
+			&services,
+			StatusCode::OK,
+			Some("image/png"),
+			image(ImageFormat::Png),
+		)
+		.await;
+		for (width, height) in [(Some(99), Some(98)), (Some(99), None), (None, Some(98))] {
+			let preview = services
+				.media
+				.download_image(
+					&server.url,
+					Some(UrlPreviewData {
+						image_width: width,
+						image_height: height,
+						..UrlPreviewData::default()
+					}),
+				)
+				.await
+				.unwrap();
+			assert_eq!(preview.image_width, width.or(Some(2)));
+			assert_eq!(preview.image_height, height.or(Some(3)));
+		}
+	}
+
+	#[tokio::test]
 	async fn preview_images_reject_failed_or_invalid_downloads_before_storage() {
 		let (_directory, services) = services().await;
 		let png = image(ImageFormat::Png);
@@ -138,7 +164,6 @@ mod url_preview {
 			(StatusCode::OK, b"<html>Access denied</html>".to_vec()),
 			(StatusCode::OK, Vec::new()),
 			(StatusCode::OK, png[..33].to_vec()),
-			(StatusCode::OK, png[..png.len() - 20].to_vec()),
 			(StatusCode::OK, vec![0; 4097]),
 		];
 		for (status, bytes) in cases {
@@ -156,22 +181,34 @@ mod url_preview {
 	}
 
 	#[tokio::test]
-	async fn preview_images_reject_excessive_decoded_dimensions_and_memory() {
+	async fn preview_images_read_dimensions_without_decoding_pixels() {
 		let (_directory, services) = services().await;
+		let mut png = image(ImageFormat::Png);
+		png.truncate(png.len() - 20);
+		assert!(image::load_from_memory(&png).is_err());
+		let server = ImageServer::new(&services, StatusCode::OK, Some("image/png"), png).await;
+		let preview = services
+			.media
+			.download_image(&server.url, None)
+			.await
+			.unwrap();
+		assert_eq!((preview.image_width, preview.image_height), (Some(2), Some(3)));
+
 		for (width, height) in [(8193_u16, 1_u16), (5000, 5000)] {
 			let mut bytes = image(ImageFormat::Gif);
 			bytes[6..8].copy_from_slice(&width.to_le_bytes());
 			bytes[8..10].copy_from_slice(&height.to_le_bytes());
 			let server =
 				ImageServer::new(&services, StatusCode::OK, Some("image/gif"), bytes).await;
-			assert!(
-				services
-					.media
-					.download_image(&server.url, None)
-					.await
-					.is_err()
+			let preview = services
+				.media
+				.download_image(&server.url, None)
+				.await
+				.unwrap();
+			assert_eq!(
+				(preview.image_width, preview.image_height),
+				(Some(u32::from(width)), Some(u32::from(height))),
 			);
-			assert!(services.media.get_all_mxcs().await.unwrap().is_empty());
 		}
 	}
 }

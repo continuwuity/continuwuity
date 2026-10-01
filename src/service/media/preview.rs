@@ -144,12 +144,6 @@ impl Service {
 			return Err!(Request(Unknown("Image download returned HTTP {}", response.status())));
 		}
 
-		let permit = self
-			.url_preview_image_semaphore
-			.clone()
-			.acquire_owned()
-			.await
-			.map_err(|error| err!(Request(Unknown("Image decoder unavailable: {error}"))))?;
 		let image = response
 			.limit_read(
 				self.services
@@ -161,31 +155,30 @@ impl Service {
 			)
 			.await?;
 
+		let needs_dimensions =
+			preview_data.image_width.is_none() || preview_data.image_height.is_none();
 		let (image, content_type, width, height) = self
 			.services
 			.server
 			.runtime()
 			.spawn_blocking(move || -> Result<_> {
-				// Keep the slot until decoding finishes, even if the request is
-				// cancelled.
-				let _permit = permit;
-				let mut reader =
+				let reader =
 					ImageReader::new(std::io::Cursor::new(&image)).with_guessed_format()?;
-				let mut limits = image::Limits::default();
-				limits.max_image_width = Some(8192);
-				limits.max_image_height = Some(8192);
-				limits.max_alloc = Some(64 * 1024 * 1024);
-				reader.limits(limits);
 				let content_type = reader
 					.format()
 					.ok_or_else(|| {
 						err!(Request(Unknown("Downloaded file is not a supported image")))
 					})?
 					.to_mime_type();
-				let decoded = reader.decode().map_err(|error| {
-					err!(Request(Unknown("Failed to decode preview image: {error}")))
-				})?;
-				Ok((image, content_type, decoded.width(), decoded.height()))
+				let (width, height) = if needs_dimensions {
+					let (width, height) = reader.into_dimensions().map_err(|error| {
+						err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
+					})?;
+					(Some(width), Some(height))
+				} else {
+					(None, None)
+				};
+				Ok((image, content_type, width, height))
 			})
 			.await??;
 
@@ -198,8 +191,8 @@ impl Service {
 			.await?;
 
 		preview_data.image = Some(mxc.to_string());
-		preview_data.image_width = Some(width);
-		preview_data.image_height = Some(height);
+		preview_data.image_width = preview_data.image_width.or(width);
+		preview_data.image_height = preview_data.image_height.or(height);
 
 		Ok(preview_data)
 	}
