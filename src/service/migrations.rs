@@ -51,10 +51,8 @@ static MIGRATIONS: &[DatabaseMigrationStep] = const {
 			Migration($name, |services| {
 				Box::pin(async {
 					let db = &services.db;
-					#[allow(clippy::string_lit_as_bytes)]
-					let key = $name.as_bytes();
 
-					if db["global"].get(key).await.is_not_found() {
+					if db["global"].get($name).await.is_not_found() {
 						info!("Starting migration {}", $name);
 						let cork = db.cork_and_sync();
 
@@ -63,7 +61,7 @@ static MIGRATIONS: &[DatabaseMigrationStep] = const {
 							.map_err(|err| err!("Failed to run migration {}: {err}", $name))?;
 
 						drop(cork);
-						db["global"].insert(key, []);
+						db["global"].insert($name, []);
 						db.db.sort()?;
 					}
 
