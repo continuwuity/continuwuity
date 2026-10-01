@@ -1,9 +1,9 @@
 # Troubleshooting Continuwuity
 
-:::warning{title="Docker users:"}
-Docker can be difficult to use and debug. It's common for Docker
-misconfigurations to cause issues, particularly with networking and permissions.
-Please check that your issues are not due to problems with your Docker setup.
+:::warning{title="For Docker users"}
+It's common for Docker misconfigurations to cause issues, particularly with networking and
+permissions. Before continuing, please first check that your issues are **not** due Docker
+problems. See the dedicated section on [Docker](#docker) for more details.
 :::
 
 ## Continuwuity issues
@@ -118,6 +118,12 @@ client cache to account for the rollback
 much possible corruption is restored
 - If all goes will, you should be able to restore back to using
 `TolerateCorruptedTailRecords` and you have successfully recovered your database
+
+## Docker issues {#docker}
+
+### Debugging Docker containers
+
+### Docker loopback networking issues
 
 ## Debugging
 
