@@ -155,32 +155,19 @@ impl Service {
 			)
 			.await?;
 
-		let needs_dimensions =
-			preview_data.image_width.is_none() || preview_data.image_height.is_none();
-		let (image, content_type, width, height) = self
-			.services
-			.server
-			.runtime()
-			.spawn_blocking(move || -> Result<_> {
-				let reader =
-					ImageReader::new(std::io::Cursor::new(&image)).with_guessed_format()?;
-				let content_type = reader
-					.format()
-					.ok_or_else(|| {
-						err!(Request(Unknown("Downloaded file is not a supported image")))
-					})?
-					.to_mime_type();
-				let (width, height) = if needs_dimensions {
-					let (width, height) = reader.into_dimensions().map_err(|error| {
-						err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
-					})?;
-					(Some(width), Some(height))
-				} else {
-					(None, None)
-				};
-				Ok((image, content_type, width, height))
-			})
-			.await??;
+		let reader = ImageReader::new(std::io::Cursor::new(&image)).with_guessed_format()?;
+		let content_type = reader
+			.format()
+			.ok_or_else(|| err!(Request(Unknown("Downloaded file is not a supported image"))))?
+			.to_mime_type();
+
+		if preview_data.image_height.is_none() || preview_data.image_width.is_none() {
+			let (width, height) = reader.into_dimensions().map_err(|error| {
+				err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
+			})?;
+			preview_data.image_width.get_or_insert(width);
+			preview_data.image_height.get_or_insert(height);
+		}
 
 		let mxc = Mxc {
 			server_name: self.services.globals.server_name(),
@@ -191,8 +178,6 @@ impl Service {
 			.await?;
 
 		preview_data.image = Some(mxc.to_string());
-		preview_data.image_width = preview_data.image_width.or(width);
-		preview_data.image_height = preview_data.image_height.or(height);
 
 		Ok(preview_data)
 	}

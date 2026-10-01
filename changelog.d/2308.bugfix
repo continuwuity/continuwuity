@@ -1,1 +1,1 @@
-Fixed missing MIME types on URL preview images and rejected failed or invalid image downloads. Contributed by @eleboucher.
+Fixed URL preview image MIME types and rejected failed downloads. Contributed by @eleboucher.
