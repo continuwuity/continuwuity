@@ -1,18 +1,26 @@
 use std::{collections::BTreeMap, mem::take, time::Duration};
 
 use axum::{Json, extract::State, response::IntoResponse};
-use conduwuit::{Result, utils::timepoint_from_now};
+use conduwuit::{
+	Err, Result,
+	utils::{stream::BroadbandExt, timepoint_from_now, to_canonical_object},
+};
 use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
 	api::{
 		OutgoingResponseExt,
-		federation::discovery::{OldVerifyKey, ServerSigningKeys, get_server_keys},
+		federation::discovery::{
+			OldVerifyKey, ServerSigningKeys, get_remote_server_keys_batch, get_server_keys,
+		},
 	},
 	assign,
 	serde::Raw,
 };
+use serde_json::value::to_raw_value;
 use service::{server_keys, server_keys::in_one_week};
+
+use crate::router::Ruma;
 
 /// # `GET /_matrix/key/v2/server`
 ///
@@ -86,4 +94,63 @@ fn valid_until_ts() -> MilliSecondsSinceUnixEpoch {
 	let dur = Duration::from_hours(12);
 	let timepoint = timepoint_from_now(dur).expect("SystemTime should not overflow");
 	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
+}
+
+pub(crate) async fn get_remote_server_keys_route(
+	State(services): State<crate::State>,
+	body: Ruma<get_remote_server_keys_batch::v2::Request>,
+) -> Result<get_remote_server_keys_batch::v2::Response> {
+	let total_queried_keys = body
+		.server_keys
+		.iter()
+		.fold(0_usize, |acc, _| acc.saturating_add(1));
+
+	if total_queried_keys > 16384 {
+		return Err!(Request(Forbidden("Too many keys requested")));
+	} else if total_queried_keys == 0 {
+		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
+	}
+
+	let mut response = Vec::with_capacity(total_queried_keys);
+
+	for (server_name, queries) in &body.server_keys {
+		if queries.is_empty() {
+			response.extend(
+				services
+					.server_keys
+					.signing_keys_for(server_name)
+					.broad_filter_map(|ssk| async move {
+						let mut canonical = to_canonical_object(&ssk).ok()?;
+						services.server_keys.sign_json(&mut canonical).ok()?;
+						to_raw_value(&canonical)
+							.map(Raw::<ServerSigningKeys>::from_json)
+							.ok()
+					})
+					.collect::<Vec<_>>()
+					.await,
+			);
+			continue;
+		}
+
+		for (key_id, criteria) in queries {
+			let minimum_valid_until_ts = criteria
+				.minimum_valid_until_ts
+				.unwrap_or_else(MilliSecondsSinceUnixEpoch::now);
+			let Some(ssk) = services
+				.server_keys
+				.get_signing_key(server_name, key_id)
+				.await
+			else {
+				continue;
+			};
+			if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
+				continue;
+			}
+			let mut canonical = to_canonical_object(&ssk)?;
+			services.server_keys.sign_json(&mut canonical)?;
+			response.push(to_raw_value(&canonical).map(Raw::<ServerSigningKeys>::from_json)?);
+		}
+	}
+
+	Ok(get_remote_server_keys_batch::v2::Response::new(response))
 }
