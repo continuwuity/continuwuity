@@ -11,7 +11,8 @@ use ruma::{
 	api::{
 		OutgoingResponseExt,
 		federation::discovery::{
-			OldVerifyKey, ServerSigningKeys, get_remote_server_keys_batch, get_server_keys,
+			OldVerifyKey, ServerSigningKeys, get_remote_server_keys,
+			get_remote_server_keys_batch, get_server_keys,
 		},
 	},
 	assign,
@@ -96,7 +97,9 @@ fn valid_until_ts() -> MilliSecondsSinceUnixEpoch {
 	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
 }
 
-pub(crate) async fn get_remote_server_keys_route(
+const MAX_KEYS_PER_QUERY: usize = 16 * 1024;
+
+pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
@@ -105,8 +108,10 @@ pub(crate) async fn get_remote_server_keys_route(
 		.iter()
 		.fold(0_usize, |acc, _| acc.saturating_add(1));
 
-	if total_queried_keys > 16384 {
-		return Err!(Request(Forbidden("Too many keys requested")));
+	if total_queried_keys > MAX_KEYS_PER_QUERY {
+		return Err!(Request(Forbidden(
+			"Too many keys requested ({total_queried_keys} > {MAX_KEYS_PER_QUERY})"
+		)));
 	} else if total_queried_keys == 0 {
 		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
 	}
@@ -122,6 +127,9 @@ pub(crate) async fn get_remote_server_keys_route(
 					.broad_filter_map(|ssk| async move {
 						let mut canonical = to_canonical_object(&ssk).ok()?;
 						services.server_keys.sign_json(&mut canonical).ok()?;
+						server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[
+							services.globals.server_name(),
+						]);
 						to_raw_value(&canonical)
 							.map(Raw::<ServerSigningKeys>::from_json)
 							.ok()
@@ -148,9 +156,36 @@ pub(crate) async fn get_remote_server_keys_route(
 			}
 			let mut canonical = to_canonical_object(&ssk)?;
 			services.server_keys.sign_json(&mut canonical)?;
+			server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[services
+				.globals
+				.server_name()]);
 			response.push(to_raw_value(&canonical).map(Raw::<ServerSigningKeys>::from_json)?);
 		}
 	}
 
 	Ok(get_remote_server_keys_batch::v2::Response::new(response))
+}
+
+pub(crate) async fn get_remote_server_keys_route(
+	State(services): State<crate::State>,
+	body: Ruma<get_remote_server_keys::v2::Request>,
+) -> Result<get_remote_server_keys::v2::Response> {
+	let min_valid_ts = body.minimum_valid_until_ts;
+	let response = services
+		.server_keys
+		.signing_keys_for(&body.server_name)
+		.broad_filter_map(|ssk| async move {
+			if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < min_valid_ts {
+				return None;
+			}
+
+			let mut canonical = to_canonical_object(&ssk).ok()?;
+			services.server_keys.sign_json(&mut canonical).ok()?;
+			to_raw_value(&canonical)
+				.map(Raw::<ServerSigningKeys>::from_json)
+				.ok()
+		})
+		.collect::<Vec<_>>()
+		.await;
+	Ok(get_remote_server_keys::v2::Response::new(response))
 }
