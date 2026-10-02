@@ -18,6 +18,7 @@ use wildmatch::WildMatch;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterLevel {
 	Allow,
+	ExplicitAllow,
 	Ignore,
 	Block,
 }
@@ -124,7 +125,7 @@ impl InvitePermissionConfigEventContent {
 		} else if !self.enabled {
 			FilterLevel::Allow
 		} else if Self::matches(&self.allowed_users, user.as_str()) {
-			FilterLevel::Allow
+			FilterLevel::ExplicitAllow
 		} else if Self::matches(&self.ignored_users, user.as_str()) {
 			FilterLevel::Ignore
 		} else if Self::matches(&self.blocked_users, user.as_str()) {
@@ -144,7 +145,7 @@ impl InvitePermissionConfigEventContent {
 		} else {
 			let server = server.host();
 			if Self::matches(&self.allowed_servers, server) {
-				FilterLevel::Allow
+				FilterLevel::ExplicitAllow
 			} else if Self::matches(&self.ignored_servers, server) {
 				FilterLevel::Ignore
 			} else if Self::matches(&self.blocked_servers, server) {

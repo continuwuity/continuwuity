@@ -119,14 +119,14 @@ impl super::Service {
 					.check_msc4494_mutual_room(sender_user, recipient_user)
 					.await
 			{
-				FilterLevel::Block
-			} else {
-				FilterLevel::Allow
+				return FilterLevel::Block;
 			}
+
+			FilterLevel::Allow
 		}
 	}
 
-	/// Checks that sender and recipient share at least one rule that has a join
+	/// Checks that sender and recipient share at least one room that has a join
 	/// rule other than `public`.
 	async fn check_msc4494_mutual_room(&self, sender: &UserId, recipient: &UserId) -> bool {
 		let mut mutual_rooms = std::pin::pin!(
