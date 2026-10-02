@@ -1,14 +1,17 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
 use conduwuit::{Result, Server};
 use ruma::{
 	RoomVersionId,
-	api::client::discovery::get_capabilities::{
-		self,
-		v3::{
-			Capabilities, GetLoginTokenCapability, ProfileFieldsCapability, RoomVersionStability,
-			RoomVersionsCapability, ThirdPartyIdChangesCapability,
+	api::{
+		OAuthClientScope,
+		client::discovery::get_capabilities::{
+			self,
+			v3::{
+				AdminCapability, Capabilities, GetLoginTokenCapability, ProfileFieldsCapability,
+				RoomVersionStability, RoomVersionsCapability, ThirdPartyIdChangesCapability,
+			},
 		},
 	},
 	assign,
@@ -25,6 +28,8 @@ pub(crate) async fn get_capabilities_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_capabilities::v3::Request>,
 ) -> Result<get_capabilities::v3::Response> {
+	let sender_user = body.identity.expect_sender_user()?;
+
 	let available: BTreeMap<RoomVersionId, RoomVersionStability> =
 		Server::available_room_versions().collect();
 
@@ -43,13 +48,12 @@ pub(crate) async fn get_capabilities_route(
 
 	capabilities.forget_forced_upon_leave.enabled = true;
 
-	if services
-		.users
-		.is_admin(body.identity.expect_sender_user()?)
-		.await
-	{
+	if services.users.is_admin(sender_user).await {
 		capabilities.account_moderation.lock = true;
 		capabilities.account_moderation.suspend = true;
+
+		capabilities.admin =
+			AdminCapability::new(BTreeSet::from_iter([OAuthClientScope::ServerAdministration]));
 	}
 
 	capabilities.profile_fields = Some(

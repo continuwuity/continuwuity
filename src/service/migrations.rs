@@ -22,7 +22,8 @@ use database::Json;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
+	OwnedDeviceId, OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
+	api::OAuthClientScope,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
 		push_rules::PushRulesEvent,
@@ -31,7 +32,7 @@ use ruma::{
 	push::Ruleset,
 	serde::{Raw, from_raw_json_value},
 };
-use serde_json::value::to_raw_value;
+use serde_json::{Value, value::to_raw_value};
 
 use crate::{Services, media, rooms, rooms::short::ShortStateHash};
 
@@ -160,6 +161,10 @@ migration!(stringify!($name) => $name)
 		// This is backwards compatible because old versions will recreate the keyspace if it's
 		// missing.
 		migration!(drop_server_signingkeys),
+		// v22: Old versions will fail to deserialize the fixed OAuth scope names,
+		// preventing users from signing in.
+		VersionBump(22),
+		migration!(fix_oauth_scope_names),
 	]
 };
 
@@ -941,6 +946,34 @@ async fn drop_server_signingkeys(services: &Services) -> Result<()> {
 	services.db.db.drop_column("server_signingkeys")?;
 
 	info!("Cleared server_signingkeys.");
+
+	Ok(())
+}
+
+async fn fix_oauth_scope_names(services: &Services) -> Result {
+	let db = &services.db;
+	let userdeviceid_oauthsessioninfo = db["userdeviceid_oauthsessioninfo"].clone();
+
+	userdeviceid_oauthsessioninfo
+		.stream::<(OwnedUserId, OwnedDeviceId), Value>()
+		.ignore_err()
+		.for_each(async |((user_id, device_id), mut session_info)| {
+			let map = session_info.as_object_mut().unwrap();
+			let scopes = map.get_mut("scopes").unwrap().as_array_mut().unwrap();
+
+			if let Some(old_scope_index) = scopes
+				.iter()
+				.position(|value| *value == Value::String("ClientApi".to_owned()))
+			{
+				scopes[old_scope_index] =
+					Value::String(OAuthClientScope::ApiFullAccess.to_string());
+			}
+
+			userdeviceid_oauthsessioninfo.put((user_id, device_id), Json(session_info));
+		})
+		.await;
+
+	info!("Fixed OAuth session scope names");
 
 	Ok(())
 }

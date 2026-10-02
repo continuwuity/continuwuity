@@ -1,10 +1,20 @@
-<ul>
+{% import "../_icons.html.j2" as icons %}
+
+<ul class="list-group">
     {% for scope in scopes %}
         {% match scope %}
-            {% when Scope::ClientApi %}
-                <li>Send messages and interact with chatrooms on your behalf</li>
-            {% when Scope::Device(_) %}
-                <li>Access your Matrix account</li>
+            {% when OAuthClientScope::ApiFullAccess %}
+                <li>
+                    {{ icons::person_circle() }}
+                    Access and control all features of your Matrix account
+                </li>
+            {% when OAuthClientScope::ServerAdministration %}
+                <li class="danger">
+                    {{ icons::house_gear() }}
+                    Access your homeserver's administrator tools
+                </li>
+            {% when _ %}
+                <li>missingno</li>
         {% endmatch %}
     {% endfor %}
 </ul>

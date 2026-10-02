@@ -3,12 +3,10 @@ use std::{
 	collections::BTreeSet,
 	error::Error,
 	fmt::{Debug, Display},
-	hash::Hash,
-	mem::discriminant,
 };
 
-use regex::Regex;
-use ruma::OwnedDeviceId;
+use regex::regex;
+use ruma::{OwnedDeviceId, api::OAuthClientScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
@@ -82,30 +80,25 @@ pub enum Prompt {
 	Unknown,
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialOrd, Ord)]
-pub enum Scope {
-	Device(OwnedDeviceId),
-	ClientApi,
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+pub struct RequestedScopes {
+	pub device_id: Option<OwnedDeviceId>,
+	pub scopes: BTreeSet<OAuthClientScope>,
 }
 
-impl PartialEq for Scope {
-	fn eq(&self, other: &Self) -> bool { discriminant(self) == discriminant(other) }
-}
-
-impl Eq for Scope {}
-
-impl Hash for Scope {
-	fn hash<H: std::hash::Hasher>(&self, state: &mut H) { discriminant(self).hash(state); }
-}
-
-impl Display for Scope {
+impl Display for RequestedScopes {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		let urn = match self {
-			| Self::ClientApi => "urn:matrix:client:api:*".to_owned(),
-			| Self::Device(device_id) => format!("urn:matrix:client:device:{device_id}"),
-		};
+		let mut scopes: Vec<_> = self
+			.scopes
+			.iter()
+			.map(OAuthClientScope::to_string)
+			.collect();
 
-		f.write_str(&urn)
+		if let Some(device_id) = &self.device_id {
+			scopes.push(device_id.to_string());
+		}
+
+		f.write_str(&scopes.join(" "))
 	}
 }
 
@@ -113,28 +106,30 @@ impl Display for Scope {
 pub struct RawScopes(String);
 
 impl RawScopes {
-	pub fn to_scopes(&self) -> Result<BTreeSet<Scope>, String> {
+	#[allow(clippy::trivial_regex)]
+	pub fn to_scopes(&self) -> Result<RequestedScopes, String> {
 		let client_api_token_regex =
-			Regex::new(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*").unwrap();
-		let device_token_regex = Regex::new(
-			r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})",
-		)
-		.unwrap();
+			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
+		let device_token_regex =
+			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})");
+		let server_administration_regex =
+			regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
 
-		let mut scopes = BTreeSet::new();
+		let mut scopes = RequestedScopes::default();
 
 		for token in self.0.split(' ') {
 			let scope_was_new = {
 				if client_api_token_regex.is_match(token) {
-					scopes.insert(Scope::ClientApi)
+					scopes.scopes.insert(OAuthClientScope::ApiFullAccess)
+				} else if server_administration_regex.is_match(token) {
+					scopes.scopes.insert(OAuthClientScope::ServerAdministration)
 				} else if let Some(captures) = device_token_regex.captures(token) {
-					scopes.insert(Scope::Device(captures.get(2).unwrap().as_str().into()))
-				} else if token == "openid" {
-					// TODO(unspecced): Element sets this scope but doesn't use
-					// it for anything
-					true
+					scopes
+						.device_id
+						.replace(captures.get(2).unwrap().as_str().into())
+						.is_none()
 				} else {
-					return Err(format!("Invalid scope: {token}"));
+					continue;
 				}
 			};
 

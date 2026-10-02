@@ -13,18 +13,18 @@ use database::{Deserialized, Json, Map};
 use itertools::Itertools;
 use lru_cache::LruCache;
 use rand::distr::{Distribution, slice::Choose};
-use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId};
+use ruma::{DeviceId, OwnedDeviceId, OwnedUserId, UserId, api::OAuthClientScope};
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 use crate::{
-	Dep, config,
+	Dep, admin, config,
 	oauth::{
 		client_metadata::{ApplicationType, ClientMetadata, GrantType, ResponseType},
 		grant::{
 			AuthorizationCodeQuery, AuthorizationCodeResponse, CodeChallengeMethod,
-			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, ResponseMode, Scope,
-			TokenRequest, TokenRequestType, TokenResponse, TokenType,
+			DeviceCodeRequest, DeviceCodeResponse, ErrorCode, OAuthError, RequestedScopes,
+			ResponseMode, TokenRequest, TokenRequestType, TokenResponse, TokenType,
 		},
 	},
 	users::{self, DeviceToken},
@@ -48,6 +48,7 @@ struct Data {
 }
 
 struct Services {
+	admin: Dep<admin::Service>,
 	users: Dep<users::Service>,
 	config: Dep<config::Service>,
 }
@@ -55,8 +56,19 @@ struct Services {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct SessionInfo {
 	pub client_id: String,
-	pub scopes: BTreeSet<Scope>,
+	#[serde(deserialize_with = "client_metadata::btreeset_skip_err")]
+	scopes: BTreeSet<OAuthClientScope>,
+	#[serde(default)]
+	temporary_scopes: BTreeSet<OAuthClientScope>,
+	#[serde(default)]
 	current_refresh_token: String,
+}
+
+impl SessionInfo {
+	#[must_use]
+	pub fn scopes(&self) -> BTreeSet<OAuthClientScope> {
+		self.scopes.union(&self.temporary_scopes).cloned().collect()
+	}
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -68,7 +80,7 @@ struct RefreshTokenInfo {
 
 struct PendingAuthCodeGrant {
 	authorizing_user: OwnedUserId,
-	requested_scopes: BTreeSet<Scope>,
+	requested_scopes: RequestedScopes,
 	client_name: Option<String>,
 	expected_client_id: String,
 	expected_redirect_uri: Url,
@@ -92,7 +104,7 @@ impl PendingAuthCodeGrant {
 
 struct PendingDeviceCodeGrant {
 	state: DeviceCodeGrantState,
-	requested_scopes: BTreeSet<Scope>,
+	requested_scopes: RequestedScopes,
 	client_name: Option<String>,
 	client_id: String,
 	requested_at: SystemTime,
@@ -124,7 +136,7 @@ impl PendingDeviceCodeGrant {
 pub struct DeviceCodeGrantInfo {
 	pub device_code: String,
 	pub client_metadata: ClientMetadata,
-	pub requested_scopes: BTreeSet<Scope>,
+	pub requested_scopes: RequestedScopes,
 }
 
 /// A time-limited grant for a client to perform some sensitive action.
@@ -148,6 +160,7 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
+				admin: args.depend::<admin::Service>("admin"),
 				users: args.depend::<users::Service>("users"),
 				config: args.depend::<config::Service>("config"),
 			},
@@ -540,73 +553,98 @@ impl Service {
 	async fn create_session(
 		&self,
 		authorizing_user: OwnedUserId,
-		requested_scopes: BTreeSet<Scope>,
+		requested_scopes: RequestedScopes,
 		client_name: Option<String>,
 		client_id: String,
 	) -> Result<TokenResponse, OAuthError> {
+		self.check_requested_scopes(&authorizing_user, &requested_scopes.scopes)
+			.await?;
+
 		let access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
-		let refresh_token = Self::generate_token();
+		let response_scope = requested_scopes.to_string();
 
 		let device_id = requested_scopes
-			.iter()
-			.find_map(|scope| {
-				if let Scope::Device(device_id) = scope {
-					Some(device_id.to_owned())
-				} else {
-					None
-				}
-			})
+			.device_id
 			.ok_or_else(|| OAuthError::invalid_grant("No device ID scope supplied"))?;
 
-		if self
+		let session_info = if self
 			.services
 			.users
 			.get_device_metadata(&authorizing_user, &device_id)
 			.await
 			.is_ok()
 		{
-			return Err(OAuthError::new_static(
-				ErrorCode::InvalidScope,
-				"A device with the supplied ID already exists for this user",
-			));
-		}
+			// We're doing step-up authentication for an existing device
+			let Some(mut session_info) = self
+				.get_session_info_for_device(&authorizing_user, &device_id)
+				.await
+			else {
+				// The device ID doesn't refer to an OAuth device
+				return Err(OAuthError::new_static(
+					ErrorCode::InvalidScope,
+					"A device with the supplied ID already exists for this user",
+				));
+			};
 
-		let device_id = self.services
-			.users
-			.create_device(
-				&authorizing_user,
-				Some(device_id),
-				Some(access_token.clone()),
-				client_name,
-				None,
-			)
-			.await
-			// This can only panic if the authorizing user suffered a spontaneous existence
-			// failure during authentication, which should(?) be impossible(?)
-			.expect("failed to create device");
+			session_info.temporary_scopes = requested_scopes.scopes;
 
-		info!(
-			?client_id,
-			?authorizing_user,
-			?device_id,
-			?requested_scopes,
-			"Created new oauth session"
-		);
+			self.services
+				.users
+				.set_token(&authorizing_user, &device_id, access_token.clone())
+				.await
+				.expect("should be able to set access token");
 
-		self.db.userdeviceid_oauthsessioninfo.put(
-			(&authorizing_user, &device_id),
-			Json(SessionInfo {
+			info!(
+				?client_id,
+				?authorizing_user,
+				?device_id,
+				scopes = ?session_info.temporary_scopes,
+				"Granted temporary scopes to device"
+			);
+
+			session_info
+		} else {
+			self.services
+				.users
+				.create_device(
+					&authorizing_user,
+					Some(device_id.clone()),
+					Some(access_token.clone()),
+					client_name,
+					None,
+				)
+				.await
+				// This can only panic if the authorizing user suffered a spontaneous existence
+				// failure during authentication, which should(?) be impossible(?)
+				.expect("should be able to create device");
+
+			info!(
+				?client_id,
+				?authorizing_user,
+				?device_id,
+				scopes = ?requested_scopes.scopes,
+				"Created new OAuth device"
+			);
+
+			SessionInfo {
 				client_id: client_id.clone(),
-				current_refresh_token: refresh_token.clone(),
-				scopes: requested_scopes.clone(),
-			}),
-		);
+				current_refresh_token: Self::generate_token(),
+				scopes: requested_scopes.scopes,
+				temporary_scopes: BTreeSet::new(),
+			}
+		};
+
+		let refresh_token = session_info.current_refresh_token.clone();
+
+		self.db
+			.userdeviceid_oauthsessioninfo
+			.put((&authorizing_user, &device_id), Json(session_info));
 
 		self.db.refreshtoken_refreshtokeninfo.raw_put(
 			&refresh_token,
 			Json(RefreshTokenInfo {
-				client_id: client_id.clone(),
-				user_id: authorizing_user.clone(),
+				client_id,
+				user_id: authorizing_user,
 				device_id,
 			}),
 		);
@@ -615,7 +653,7 @@ impl Service {
 			access_token: access_token.into_token(),
 			token_type: TokenType::Bearer,
 			expires_in: Self::ACCESS_TOKEN_MAX_AGE.as_secs(),
-			scope: requested_scopes.iter().join(" "),
+			scope: response_scope,
 			refresh_token,
 		})
 	}
@@ -648,9 +686,12 @@ impl Service {
 
 		assert_eq!(&client_id, &session_info.client_id, "session info client id mismatch");
 
+		// TODO: this doesn't include the device ID "scope", do any clients rely
+		// on that?
+		let scope = session_info.scopes.iter().join(" ");
+
 		let new_access_token = DeviceToken::new_random().with_max_age(Self::ACCESS_TOKEN_MAX_AGE);
 		let new_refresh_token = Self::generate_token();
-		let scope = session_info.scopes.iter().join(" ");
 		session_info
 			.current_refresh_token
 			.clone_from(&new_refresh_token);
@@ -664,6 +705,8 @@ impl Service {
 			)
 			.await
 			.expect("should be able to set token");
+
+		session_info.temporary_scopes.clear();
 
 		self.db.userdeviceid_oauthsessioninfo.put(
 			(&refresh_token_info.user_id, &refresh_token_info.device_id),
@@ -697,6 +740,23 @@ impl Service {
 				.del((user_id, device_id));
 			info!(?user_id, ?device_id, "Removed OAuth session");
 		}
+	}
+
+	async fn check_requested_scopes(
+		&self,
+		authorizing_user: &UserId,
+		scopes: &BTreeSet<OAuthClientScope>,
+	) -> Result<(), OAuthError> {
+		if scopes.contains(&OAuthClientScope::ServerAdministration)
+			&& !self.services.admin.user_is_admin(authorizing_user).await
+		{
+			return Err(OAuthError::new(
+				ErrorCode::AccessDenied,
+				"You are not a server administrator.".to_owned(),
+			));
+		}
+
+		Ok(())
 	}
 
 	/// Issue a ticket for `localpart` to perform some action.

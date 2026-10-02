@@ -2,11 +2,11 @@ use std::{collections::BTreeSet, time::SystemTime};
 
 use askama::{Template, filters::HtmlSafe};
 use conduwuit_core::utils;
-use conduwuit_service::{
-	Services,
-	oauth::{client_metadata::ClientMetadata, grant::Scope},
+use conduwuit_service::{Services, oauth::client_metadata::ClientMetadata};
+use ruma::{
+	OwnedDeviceId, OwnedUserId, UserId,
+	api::{OAuthClientScope, client::device::Device},
 };
-use ruma::{OwnedDeviceId, OwnedUserId, UserId, api::client::device::Device};
 
 pub(super) mod form;
 
@@ -122,7 +122,6 @@ pub(super) struct DeviceCard {
 	pub display_name: Option<String>,
 	pub avatar: Avatar,
 	pub last_active: String,
-	pub oauth_metadata: Option<ClientMetadata>,
 	pub style: DeviceCardStyle,
 	pub dehydrated: bool,
 }
@@ -192,7 +191,6 @@ impl DeviceCard {
 			display_name,
 			avatar,
 			last_active,
-			oauth_metadata,
 			style,
 			dehydrated,
 		}
@@ -202,7 +200,7 @@ impl DeviceCard {
 #[derive(Debug, Template)]
 #[template(path = "_components/client_scopes.html.j2")]
 pub(super) struct ClientScopes {
-	pub scopes: BTreeSet<Scope>,
+	pub scopes: BTreeSet<OAuthClientScope>,
 }
 
 impl HtmlSafe for ClientScopes {}
