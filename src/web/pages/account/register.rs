@@ -398,13 +398,10 @@ async fn begin_registration(
 						));
 					};
 
-					if recaptcha_verify::verify_v3(
-						recaptcha_private_site_key,
-						&recaptcha_response,
-						None,
-					)
-					.await
-					.is_err()
+					if !services
+						.client
+						.recaptcha_verify(recaptcha_private_site_key, &recaptcha_response)
+						.await
 					{
 						errors.add(
 							"recaptcha",

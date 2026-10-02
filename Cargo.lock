@@ -1162,9 +1162,7 @@ dependencies = [
  "openidconnect",
  "p256",
  "rand 0.10.3",
- "recaptcha-verify",
  "regex",
- "reqwest 0.12.28",
  "reqwest 0.13.5",
  "resolvematrix",
  "ruma",
@@ -1202,8 +1200,6 @@ dependencies = [
  "lettre",
  "memory-serve",
  "openidconnect",
- "recaptcha-verify",
- "reqwest 0.12.28",
  "ruma",
  "serde",
  "serde_json",
@@ -2749,7 +2745,6 @@ dependencies = [
  "hyper",
  "hyper-util",
  "rustls",
- "rustls-native-certs",
  "tokio",
  "tokio-rustls",
  "tower-service",
@@ -4740,17 +4735,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "recaptcha-verify"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "409bf11a93fe93093f3c0254aab67576524f1e0524692615b5b63091dbc88a79"
-dependencies = [
- "reqwest 0.12.28",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.5.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4829,7 +4813,6 @@ dependencies = [
  "pin-project-lite",
  "quinn",
  "rustls",
- "rustls-native-certs",
  "rustls-pki-types",
  "serde",
  "serde_json",
@@ -4879,6 +4862,7 @@ dependencies = [
  "rustls-platform-verifier",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "sync_wrapper",
  "tokio",
  "tokio-rustls",

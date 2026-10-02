@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::{Err, Error, Result, error, utils};
+use conduwuit::{Err, Error, Result, utils};
 use futures::StreamExt;
 use lettre::Address;
 use ruma::{
@@ -26,7 +26,7 @@ use serde_json::{
 use tokio::sync::Mutex;
 
 use crate::{
-	Dep, config, firstrun, globals,
+	Dep, client, config, firstrun, globals,
 	oauth::{self, OAuthTicket},
 	registration_tokens, threepid, users,
 };
@@ -38,6 +38,7 @@ pub struct Service {
 
 struct Services {
 	config: Dep<config::Service>,
+	client: Dep<client::Service>,
 	firstrun: Dep<firstrun::Service>,
 	globals: Dep<globals::Service>,
 	oauth: Dep<oauth::Service>,
@@ -78,6 +79,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			services: Services {
 				config: args.depend::<config::Service>("config"),
+				client: args.depend::<client::Service>("client"),
 				firstrun: args.depend::<firstrun::Service>("firstrun"),
 				globals: args.depend::<globals::Service>("globals"),
 				oauth: args.depend::<oauth::Service>("oauth"),
@@ -586,15 +588,18 @@ impl Service {
 						));
 					};
 
-					match recaptcha_verify::verify_v3(private_site_key, response, None).await {
-						| Ok(()) => Ok(AuthType::ReCaptcha),
-						| Err(e) => {
-							error!("ReCaptcha verification failed: {e:?}");
-							Err(StandardErrorBody::new(
-								ErrorKind::CaptchaInvalid,
-								"ReCaptcha verification failed".to_owned(),
-							))
-						},
+					if self
+						.services
+						.client
+						.recaptcha_verify(private_site_key, response)
+						.await
+					{
+						Ok(AuthType::ReCaptcha)
+					} else {
+						Err(StandardErrorBody::new(
+							ErrorKind::CaptchaInvalid,
+							"ReCaptcha verification failed".to_owned(),
+						))
 					}
 				},
 				| AuthData::RegistrationToken(RegistrationToken { token, .. }) => {

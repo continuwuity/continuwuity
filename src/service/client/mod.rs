@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Config, Result, Server, err, trace};
+use conduwuit::{Config, Result, Server, err, trace, utils::response::LimitReadExt, warn};
 use either::Either;
 use hickory_resolver::{
 	TokioResolver, config::ConnectionConfig, net::runtime::TokioRuntimeProvider,
@@ -9,6 +9,7 @@ use hickory_resolver::{
 use ipaddress::IPAddress;
 use reqwest::redirect;
 use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
+use serde::Deserialize;
 
 use crate::service;
 
@@ -177,6 +178,43 @@ impl Service {
 		self.cidr_range_denylist
 			.iter()
 			.all(|cidr| !cidr.includes(ip))
+	}
+
+	#[tracing::instrument(skip_all)]
+	pub async fn recaptcha_verify(&self, secret: &str, response: &str) -> bool {
+		#[derive(Deserialize, Default, Debug, Clone)]
+		struct RecaptchaResponse {
+			success: bool,
+			#[serde(rename(deserialize = "error-codes"))]
+			_error_codes: Option<Vec<String>>,
+		}
+
+		let response = match self
+			.external_resource
+			.post("https://www.google.com/recaptcha/api/siteverify")
+			.form(&[("secret", secret), ("response", response)])
+			.send()
+			.await
+		{
+			| Ok(response) => response,
+			| Err(err) => {
+				warn!("ReCaptcha request failed: {err}");
+				return false;
+			},
+		};
+
+		let Ok(response) = response.limit_read_text(1024).await else {
+			warn!("ReCaptcha response was too large??");
+			return false;
+		};
+
+		match serde_json::from_str::<RecaptchaResponse>(&response) {
+			| Ok(response) => response.success,
+			| Err(err) => {
+				warn!("ReCaptcha response failed to deserialize: {err}");
+				false
+			},
+		}
 	}
 }
 

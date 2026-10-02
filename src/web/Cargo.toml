@@ -32,10 +32,6 @@ futures.workspace = true
 lettre.workspace = true
 memory-serve = "2.1.0"
 openidconnect.workspace = true
-recaptcha-verify = { default-features = false, version = "0.2.0" }
-reqwest_recaptcha = { default-features = false, features = [
-    "rustls-tls-native-roots-no-provider",
-], package = "reqwest", version = "0.12.28" } # As long as recaptcha-verify's reqwest is outdated
 ruma.workspace = true
 serde.workspace = true
 serde_json.workspace = true
