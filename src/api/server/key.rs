@@ -105,8 +105,8 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
 	let total_queried_keys = body
 		.server_keys
-		.iter()
-		.fold(0_usize, |acc, _| acc.saturating_add(1));
+		.values()
+		.fold(0_usize, |acc, q| acc.saturating_add(q.len()));
 
 	if total_queried_keys > MAX_KEYS_PER_QUERY {
 		return Err!(Request(Forbidden(
