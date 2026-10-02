@@ -7,7 +7,7 @@ use conduwuit::{
 };
 use futures::StreamExt;
 use ruma::{
-	MilliSecondsSinceUnixEpoch,
+	MilliSecondsSinceUnixEpoch, ServerName,
 	api::{
 		OutgoingResponseExt,
 		federation::discovery::{
@@ -19,7 +19,7 @@ use ruma::{
 	serde::Raw,
 };
 use serde_json::value::to_raw_value;
-use service::{server_keys, server_keys::in_one_week};
+use service::{Services, server_keys, server_keys::in_one_week};
 
 use crate::router::Ruma;
 
@@ -120,19 +120,13 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 
 	for (server_name, queries) in &body.server_keys {
 		if queries.is_empty() {
+			// Fetch any in-date signing key responses
 			response.extend(
 				services
 					.server_keys
 					.signing_keys_for(server_name)
 					.broad_filter_map(|ssk| async move {
-						let mut canonical = to_canonical_object(&ssk).ok()?;
-						services.server_keys.sign_json(&mut canonical).ok()?;
-						server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[
-							services.globals.server_name(),
-						]);
-						to_raw_value(&canonical)
-							.map(Raw::<ServerSigningKeys>::from_json)
-							.ok()
+						sign_ssk(&services.clone(), ssk, server_name).await.ok()
 					})
 					.collect::<Vec<_>>()
 					.await,
@@ -140,6 +134,8 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 			continue;
 		}
 
+		// Fetch any signing key responses associated with the given key_id, if
+		// they're in-date
 		for (key_id, criteria) in queries {
 			let minimum_valid_until_ts = criteria
 				.minimum_valid_until_ts
@@ -154,16 +150,26 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 			if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
 				continue;
 			}
-			let mut canonical = to_canonical_object(&ssk)?;
-			services.server_keys.sign_json(&mut canonical)?;
-			server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[services
-				.globals
-				.server_name()]);
-			response.push(to_raw_value(&canonical).map(Raw::<ServerSigningKeys>::from_json)?);
+			response.push(sign_ssk(&services, ssk, server_name).await?);
 		}
 	}
 
 	Ok(get_remote_server_keys_batch::v2::Response::new(response))
+}
+
+async fn sign_ssk(
+	services: &Services,
+	ssk: ServerSigningKeys,
+	server_name: &ServerName,
+) -> Result<Raw<ServerSigningKeys>> {
+	let mut canonical = to_canonical_object(&ssk)?;
+	services.server_keys.sign_json(&mut canonical)?;
+	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[services
+		.globals
+		.server_name()]);
+	to_raw_value(&canonical)
+		.map(Raw::<ServerSigningKeys>::from_json)
+		.map_err(Into::into)
 }
 
 pub(crate) async fn get_remote_server_keys_route(
@@ -171,19 +177,20 @@ pub(crate) async fn get_remote_server_keys_route(
 	body: Ruma<get_remote_server_keys::v2::Request>,
 ) -> Result<get_remote_server_keys::v2::Response> {
 	let min_valid_ts = body.minimum_valid_until_ts;
+	let server_name = body.server_name.clone();
+
 	let response = services
 		.server_keys
 		.signing_keys_for(&body.server_name)
-		.broad_filter_map(|ssk| async move {
-			if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < min_valid_ts {
-				return None;
-			}
+		.broad_filter_map(|ssk| {
+			let server_name = server_name.clone();
+			async move {
+				if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < min_valid_ts {
+					return None;
+				}
 
-			let mut canonical = to_canonical_object(&ssk).ok()?;
-			services.server_keys.sign_json(&mut canonical).ok()?;
-			to_raw_value(&canonical)
-				.map(Raw::<ServerSigningKeys>::from_json)
-				.ok()
+				sign_ssk(&services, ssk, server_name.as_ref()).await.ok()
+			}
 		})
 		.collect::<Vec<_>>()
 		.await;
