@@ -261,9 +261,11 @@ impl CheckAuth for NoAccessToken {
 			})?;
 
 		if let Some(authentication) = authentication {
-			check_access_token(services, &authentication, query, TypeId::of::<R>(), &[])
-				.await
-				.map(Some)
+			check_access_token(services, &authentication, query, TypeId::of::<R>(), &[
+				OAuthClientScope::ApiFullAccess,
+			])
+			.await
+			.map(Some)
 		} else {
 			Ok(None)
 		}
