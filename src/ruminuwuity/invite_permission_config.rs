@@ -17,8 +17,8 @@ use wildmatch::WildMatch;
 /// MSC4283: https://github.com/matrix-org/matrix-spec-proposals/pull/4283
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterLevel {
+	Default,
 	Allow,
-	ExplicitAllow,
 	Ignore,
 	Block,
 }
@@ -123,9 +123,9 @@ impl InvitePermissionConfigEventContent {
 		if self.are_all_blocked() {
 			FilterLevel::Block
 		} else if !self.enabled {
-			FilterLevel::Allow
+			FilterLevel::Default
 		} else if Self::matches(&self.allowed_users, user.as_str()) {
-			FilterLevel::ExplicitAllow
+			FilterLevel::Allow
 		} else if Self::matches(&self.ignored_users, user.as_str()) {
 			FilterLevel::Ignore
 		} else if Self::matches(&self.blocked_users, user.as_str()) {
@@ -141,17 +141,17 @@ impl InvitePermissionConfigEventContent {
 		if self.are_all_blocked() {
 			FilterLevel::Block
 		} else if !self.enabled {
-			FilterLevel::Allow
+			FilterLevel::Default
 		} else {
 			let server = server.host();
 			if Self::matches(&self.allowed_servers, server) {
-				FilterLevel::ExplicitAllow
+				FilterLevel::Allow
 			} else if Self::matches(&self.ignored_servers, server) {
 				FilterLevel::Ignore
 			} else if Self::matches(&self.blocked_servers, server) {
 				FilterLevel::Block
 			} else {
-				FilterLevel::Allow
+				FilterLevel::Default
 			}
 		}
 	}
@@ -199,13 +199,13 @@ mod tests {
 			event
 				.content
 				.user_filter_level(user_id("@alice:example.com")),
-			FilterLevel::Allow
+			FilterLevel::Default
 		);
 		assert_eq!(
 			event
 				.content
 				.server_filter_level(server_name("example.com")),
-			FilterLevel::Allow
+			FilterLevel::Default
 		);
 	}
 
@@ -246,8 +246,8 @@ mod tests {
 			..Default::default()
 		};
 
-		assert_eq!(event.user_filter_level(user_id("@alice:goodguys.org")), FilterLevel::Allow);
-		assert_eq!(event.user_filter_level(user_id("@bob:bar.com")), FilterLevel::Allow);
+		assert_eq!(event.user_filter_level(user_id("@alice:goodguys.org")), FilterLevel::Default);
+		assert_eq!(event.user_filter_level(user_id("@bob:bar.com")), FilterLevel::Default);
 		assert_eq!(
 			event.user_filter_level(user_id("@kevin:badguys.org:8080")),
 			FilterLevel::Block
@@ -279,9 +279,9 @@ mod tests {
 			..Default::default()
 		};
 
-		assert_eq!(event.user_filter_level(user_id("@alice:goodguys.org")), FilterLevel::Allow);
+		assert_eq!(event.user_filter_level(user_id("@alice:goodguys.org")), FilterLevel::Default);
 		assert_eq!(event.user_filter_level(user_id("@alice:badguys.org")), FilterLevel::Allow);
-		assert_eq!(event.user_filter_level(user_id("@bob:bar.com")), FilterLevel::Allow);
+		assert_eq!(event.user_filter_level(user_id("@bob:bar.com")), FilterLevel::Default);
 		assert_eq!(event.user_filter_level(user_id("@kevin:badguys.org")), FilterLevel::Block);
 	}
 

@@ -105,11 +105,11 @@ impl super::Service {
 					) // TODO: MSC4155 probably needs upstreaming to ruma at some point
 			);
 			if stable.is_err() && unstable.is_err() {
-				return FilterLevel::Allow;
+				return FilterLevel::Default;
 			}
 			let content = stable.unwrap_or_else(|_| unstable.unwrap()).content;
 			let verdict = content.user_filter_level(sender_user);
-			if verdict != FilterLevel::Allow {
+			if verdict != FilterLevel::Default {
 				return verdict;
 			}
 			// Apply other layers of invite blocking first, so that user/server
@@ -122,7 +122,7 @@ impl super::Service {
 				return FilterLevel::Block;
 			}
 
-			FilterLevel::Allow
+			FilterLevel::Default
 		}
 	}
 
