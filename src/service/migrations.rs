@@ -357,11 +357,15 @@ async fn fix_push_rule_names(services: &Services) -> Result<()> {
 			},
 		};
 
-		let mut account_data: PushRulesEvent = services
+		let Some(mut account_data) = services
 			.account_data
-			.get_global(&user, GlobalAccountDataEventType::PushRules)
+			.get_global::<PushRulesEvent>(&user, GlobalAccountDataEventType::PushRules)
 			.await
-			.expect("Username is invalid");
+			.ok()
+		else {
+			// Skip users with no push rules
+			continue;
+		};
 
 		let rules_list = &mut account_data.content.global;
 
@@ -435,11 +439,15 @@ async fn fix_server_default_push_rules(services: &Services) -> Result<()> {
 			},
 		};
 
-		let mut account_data: PushRulesEvent = services
+		let Some(mut account_data) = services
 			.account_data
-			.get_global(&user, GlobalAccountDataEventType::PushRules)
+			.get_global::<PushRulesEvent>(&user, GlobalAccountDataEventType::PushRules)
 			.await
-			.expect("Username is invalid");
+			.ok()
+		else {
+			// Skip users with no push rules
+			continue;
+		};
 
 		let user_default_rules = Ruleset::server_default(&user);
 		account_data
