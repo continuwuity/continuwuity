@@ -23,6 +23,7 @@ use ruma::{
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
 };
 use verify::IncomingServerKeys;
+pub use verify::strip_extraneous_signatures;
 
 use crate::{Dep, globals, sending, server_keys::util::required_keys};
 

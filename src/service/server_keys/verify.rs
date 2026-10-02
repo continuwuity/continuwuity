@@ -107,7 +107,7 @@ impl super::Service {
 		pubkey_map.insert(incoming.parsed.server_name.to_string(), set);
 
 		let mut canonical = to_canonical_object(&incoming.raw)?;
-		Self::strip_extraneous_signatures(&mut canonical, &incoming.parsed.server_name, &[]);
+		strip_extraneous_signatures(&mut canonical, &incoming.parsed.server_name, &[]);
 		ruma::signatures::verify_json(&pubkey_map, &canonical).map_err(Into::into)
 	}
 
@@ -163,22 +163,22 @@ impl super::Service {
 			"No valid signature from {notary_name} present on signing keys response"
 		)))
 	}
+}
 
-	fn strip_extraneous_signatures(
-		canonical: &mut CanonicalJsonObject,
-		origin: &ServerName,
-		notaries: &[&ServerName],
-	) {
-		canonical.entry("signatures".to_owned()).and_modify(|sigs| {
-			sigs.as_object_mut().map(|s| {
-				s.retain(|server_name, _| {
-					let Ok(server_name) = ServerName::parse(server_name) else { return false };
-					origin == server_name || notaries.iter().any(|ns| *ns == server_name)
-				});
-				Some(s)
+pub fn strip_extraneous_signatures(
+	canonical: &mut CanonicalJsonObject,
+	origin: &ServerName,
+	notaries: &[&ServerName],
+) {
+	canonical.entry("signatures".to_owned()).and_modify(|sigs| {
+		sigs.as_object_mut().map(|s| {
+			s.retain(|server_name, _| {
+				let Ok(server_name) = ServerName::parse(server_name) else { return false };
+				origin == server_name || notaries.iter().any(|ns| *ns == server_name)
 			});
+			Some(s)
 		});
-	}
+	});
 }
 
 #[cfg(test)]
