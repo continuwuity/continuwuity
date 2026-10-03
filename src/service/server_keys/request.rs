@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, time::Instant};
 
 use conduwuit::{Err, Result, trace, utils::millis_since_unix_epoch, warn};
 use ruma::{
@@ -30,6 +30,16 @@ impl super::Service {
 	) -> Result<ServerSigningKeys> {
 		use get_server_keys::v2::Request;
 
+		// N.B. The "last lookup" is written before the request is actually made
+		// to prevent concurrent notary requests from spawning... concurrent
+		// origin requests, especially if the origin is slow.
+		// This has the downside that, if the origin is temporarily unreachable
+		// (including if we're backing off from it), the notary might take an
+		// additional minute to recover compared to the rest of the server. This
+		// is deemed acceptable.
+		self.last_lookup
+			.write()
+			.insert(target.clone(), Instant::now());
 		let server_signing_key = self
 			.services
 			.sending
