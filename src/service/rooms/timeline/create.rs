@@ -183,11 +183,6 @@ impl super::Service {
 					.room_state_get(room_id, &event_type.clone().to_string().into(), state_key)
 					.await
 				{
-					unsigned.insert("prev_content".to_owned(), prev_pdu.get_content_as_value());
-					unsigned.insert(
-						"prev_sender".to_owned(),
-						serde_json::to_value(prev_pdu.sender())?,
-					);
 					unsigned.insert(
 						"replaces_state".to_owned(),
 						serde_json::to_value(prev_pdu.event_id())?,
@@ -195,9 +190,17 @@ impl super::Service {
 				}
 			}
 		}
+		let redacts = match redacts {
+			// If this isn't a real redaction event, there's no redacts field.
+			| _ if event_type != TimelineEventType::RoomRedaction || state_key.is_some() => None,
+			// If the redaction is itself in the event content, we don't set the top-level field.
+			| Some(_) if room_version_rules.redaction.content_field_redacts => None,
+			// Otherwise, we do if it's present
+			| other => other,
+		};
 
 		let pdu = PduEvent {
-			event_id: ruma::event_id!("$thiswillbefilledinlater").into(),
+			event_id: ruma::owned_event_id!("$thiswillbefilledinlater"),
 			room_id: room_id.map(ToOwned::to_owned),
 			sender: sender.to_owned(),
 			origin: None,
