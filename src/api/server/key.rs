@@ -177,10 +177,13 @@ pub(crate) async fn get_remote_server_keys_route(
 	body: Ruma<get_remote_server_keys::v2::Request>,
 ) -> Result<get_remote_server_keys::v2::Response> {
 	let min_valid_ts = body.minimum_valid_until_ts;
-	if let Ok(response) = services
+	if services
 		.server_keys
-		.origin_request(body.server_name.clone(), min_valid_ts)
-		.await
+		.notary_may_contact_origin(&body.server_name)
+		&& let Ok(response) = services
+			.server_keys
+			.origin_request(body.server_name.clone(), min_valid_ts)
+			.await
 	{
 		return sign_ssk(&services, response, &body.server_name)
 			.await
