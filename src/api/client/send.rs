@@ -102,7 +102,9 @@ pub(crate) async fn send_message_event_route(
 					.flatten()
 					.map(sticky::object),
 				unsigned: Some(unsigned),
-				timestamp: if body.identity.is_appservice() {
+				timestamp: if body.identity.is_appservice()
+					|| services.admin.user_is_admin(sender_user).await
+				{
 					body.timestamp
 				} else {
 					None
