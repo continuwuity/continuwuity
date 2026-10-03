@@ -5,18 +5,22 @@ mod sign;
 mod util;
 mod verify;
 
-use std::{collections::BTreeMap, sync::Arc};
+use std::{
+	collections::{BTreeMap, HashMap},
+	sync::Arc,
+	time::{Duration, Instant},
+};
 
 use conduwuit::{
-	Result, Server,
+	Result, Server, SyncRwLock,
 	utils::{IterStream, ReadyExt, stream::TryIgnore},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
 pub use request::in_one_week;
 use ruma::{
-	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerSigningKeyId, ServerName,
-	ServerSigningKeyId,
+	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId,
+	ServerName, ServerSigningKeyId,
 	api::federation::discovery::{ServerSigningKeys, VerifyKey},
 	room_version_rules::RoomVersionRules,
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
@@ -30,6 +34,7 @@ pub struct Service {
 	verify_keys: VerifyKeys,
 	services: Services,
 	db: Data,
+	last_lookup: SyncRwLock<HashMap<OwnedServerName, Instant>>,
 }
 
 struct Services {
@@ -62,6 +67,7 @@ impl crate::Service for Service {
 			db: Data {
 				servernamekeyid_response: args.db["servernamekeyid_response"].clone(),
 			},
+			last_lookup: SyncRwLock::new(HashMap::new()),
 		}))
 	}
 
@@ -193,5 +199,16 @@ impl Service {
 			.stream_prefix(&(origin, Interfix))
 			.ignore_err()
 			.map(|(_, v): (Ignore, ServerSigningKeys)| v)
+	}
+
+	/// Determines if the server may contact the origin server to fetch keys
+	/// when acting as a notary server. This limits origin lookups to once per
+	/// minute, which prevents amplification attacks.
+	#[must_use]
+	pub fn notary_may_contact_origin(&self, server_name: &ServerName) -> bool {
+		self.last_lookup
+			.read()
+			.get(server_name)
+			.is_none_or(|last| last.elapsed() >= Duration::from_mins(1))
 	}
 }
