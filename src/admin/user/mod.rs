@@ -164,7 +164,17 @@ pub enum UserCommand {
 
 	/// List local users in the database
 	#[command(name = "list", alias = "list-users")]
-	ListUsers,
+	ListUsers {
+		// Include deactivated users in the user list
+		#[arg(long)]
+		show_deactivated: bool,
+		// Hide suspended accounts from the user list
+		#[arg(long)]
+		hide_suspended: bool,
+		// Hide locked accounts from the user list
+		#[arg(long)]
+		hide_locked: bool,
+	},
 
 	/// Lists all the rooms (local and remote) that the specified user is
 	///   invited to
