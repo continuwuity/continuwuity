@@ -934,7 +934,7 @@
 # empty list (`[]`) to operate without trusted server assistance, but this
 # is discouraged for performance and reliability reasons.
 #
-#trusted_servers = ["matrix.org"]
+#trusted_servers = ["continuwuity.org", "continuwuity.rocks", "matrix.org"]
 
 # Whether to prioritise trusted server lookups over origin server lookups.
 #
