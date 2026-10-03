@@ -1,25 +1,31 @@
-use std::{collections::BTreeMap, mem::take, time::Duration};
+use std::{
+	collections::{BTreeMap, HashMap},
+	mem::take,
+	sync::Arc,
+	time::Duration,
+};
 
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
 	Err, Result,
-	utils::{stream::BroadbandExt, timepoint_from_now, to_canonical_object},
+	utils::{IterStream, stream::BroadbandExt, timepoint_from_now, to_canonical_object},
 };
-use futures::StreamExt;
+use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
-	MilliSecondsSinceUnixEpoch, ServerName,
+	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
 	api::{
 		OutgoingResponseExt,
 		federation::discovery::{
 			OldVerifyKey, ServerSigningKeys, get_remote_server_keys,
-			get_remote_server_keys_batch, get_server_keys,
+			get_remote_server_keys_batch, get_remote_server_keys_batch::v2::QueryCriteria,
+			get_server_keys,
 		},
 	},
 	assign,
 	serde::Raw,
 };
 use serde_json::value::to_raw_value;
-use service::{Services, server_keys, server_keys::in_one_week};
+use service::{server_keys, server_keys::in_one_week};
 
 use crate::router::Ruma;
 
@@ -117,73 +123,93 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
 	}
 
+	let mut futs: FuturesUnordered<_> = FuturesUnordered::new();
+	for (server_name, queries) in body.server_keys.clone() {
+		futs.push(acquire_keys_as_notary(
+			services.server_keys.clone(),
+			services.globals.server_name().to_owned(),
+			server_name,
+			queries,
+			start,
+		));
+	}
 	let mut response = Vec::with_capacity(total_queried_keys);
-
-	for (server_name, queries) in &body.server_keys {
-		if queries.is_empty() {
-			// TODO: this should be done in parallel to prevent blocking
-			if services.server_keys.notary_may_contact_origin(server_name)
-				&& let Ok(res) = services
-					.server_keys
-					.origin_request(server_name.to_owned(), start)
-					.await
-				&& let Ok(ssk) = sign_ssk(&services, res, server_name).await
-			{
-				response.push(ssk);
-				continue;
-			}
-
-			// Fetch any in-date signing key responses
-			response.extend(
-				services
-					.server_keys
-					.signing_keys_for(server_name)
-					.broad_filter_map(|ssk| async move {
-						sign_ssk(&services.clone(), ssk, server_name).await.ok()
-					})
-					.collect::<Vec<_>>()
-					.await,
-			);
-			continue;
-		}
-
-		// Fetch any signing key responses associated with the given key_id, if
-		// they're in-date
-		for (key_id, criteria) in queries {
-			let minimum_valid_until_ts = criteria
-				.minimum_valid_until_ts
-				.unwrap_or_else(MilliSecondsSinceUnixEpoch::now);
-			let Some(ssk) = services
-				.server_keys
-				.get_signing_key(server_name, key_id)
-				.await
-			else {
-				// TODO: consult origin
-				continue;
-			};
-			if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
-				continue;
-			}
-			response.push(sign_ssk(&services, ssk, server_name).await?);
-		}
+	while let Some(v) = futs.next().await {
+		response.extend(v);
 	}
 
 	Ok(get_remote_server_keys_batch::v2::Response::new(response))
 }
 
 async fn sign_ssk(
-	services: &Services,
+	server_keys: &server_keys::Service,
 	ssk: ServerSigningKeys,
 	server_name: &ServerName,
+	our_name: &ServerName,
 ) -> Result<Raw<ServerSigningKeys>> {
 	let mut canonical = to_canonical_object(&ssk)?;
-	services.server_keys.sign_json(&mut canonical)?;
-	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[services
-		.globals
-		.server_name()]);
+	server_keys.sign_json(&mut canonical)?;
+	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[our_name]);
 	to_raw_value(&canonical)
 		.map(Raw::<ServerSigningKeys>::from_json)
 		.map_err(Into::into)
+}
+
+async fn acquire_keys_as_notary(
+	server_keys: Arc<server_keys::Service>,
+	my_name: OwnedServerName,
+	remote: OwnedServerName,
+	queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
+	start: MilliSecondsSinceUnixEpoch,
+) -> Vec<Raw<ServerSigningKeys>> {
+	let mut results = HashMap::with_capacity(queries.len().max(1));
+
+	// First contact the origin (if we're allowed to)
+	if server_keys.notary_may_contact_origin(&remote)
+		&& let Ok(res) = server_keys.origin_request(remote.clone(), start).await
+		&& let Ok(ssk) = sign_ssk(&server_keys, res.clone(), &remote, &my_name).await
+	{
+		for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
+			if queries.is_empty()
+				|| queries
+					.get(key_id)
+					.and_then(|c| c.minimum_valid_until_ts)
+					.is_none_or(|m| res.valid_until_ts >= m)
+			{
+				results.insert(key_id.to_owned(), ssk.clone());
+			}
+		}
+	}
+
+	// If we're still missing some keys, fetch them from the local cache
+	let local = queries
+		.into_iter()
+		.stream()
+		.broad_filter_map(|(key_id, criteria)| {
+			let results = &results;
+			let my_name = &my_name;
+			let remote = &remote;
+			let server_keys = &server_keys;
+			async move {
+				if results.contains_key(&key_id) {
+					return None;
+				}
+				let minimum_valid_until_ts = criteria
+					.minimum_valid_until_ts
+					.unwrap_or_else(MilliSecondsSinceUnixEpoch::now);
+				let ssk = server_keys.get_signing_key(remote, &key_id).await?;
+				if ssk.valid_until_ts < minimum_valid_until_ts
+					|| ssk.valid_until_ts > in_one_week()
+				{
+					return None;
+				}
+				sign_ssk(server_keys, ssk, remote, my_name).await.ok()
+			}
+		})
+		.collect::<Vec<_>>()
+		.await;
+
+	results.values().cloned().chain(local).collect()
 }
 
 pub(crate) async fn get_remote_server_keys_route(
@@ -199,9 +225,14 @@ pub(crate) async fn get_remote_server_keys_route(
 			.origin_request(body.server_name.clone(), min_valid_ts)
 			.await
 	{
-		return sign_ssk(&services, response, &body.server_name)
-			.await
-			.map(|r| Ok(get_remote_server_keys::v2::Response::new(vec![r])))?;
+		return sign_ssk(
+			&services.server_keys,
+			response,
+			&body.server_name,
+			services.globals.server_name(),
+		)
+		.await
+		.map(|r| Ok(get_remote_server_keys::v2::Response::new(vec![r])))?;
 	}
 
 	let response = services
@@ -214,7 +245,14 @@ pub(crate) async fn get_remote_server_keys_route(
 					return None;
 				}
 
-				sign_ssk(&services, ssk, server_name.as_ref()).await.ok()
+				sign_ssk(
+					&services.server_keys,
+					ssk,
+					server_name.as_ref(),
+					services.globals.server_name(),
+				)
+				.await
+				.ok()
 			}
 		})
 		.collect::<Vec<_>>()
