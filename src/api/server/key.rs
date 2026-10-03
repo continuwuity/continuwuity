@@ -103,6 +103,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
+	let start = MilliSecondsSinceUnixEpoch::now();
 	let total_queried_keys = body
 		.server_keys
 		.values()
@@ -120,6 +121,18 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 
 	for (server_name, queries) in &body.server_keys {
 		if queries.is_empty() {
+			// TODO: this should be done in parallel to prevent blocking
+			if services.server_keys.notary_may_contact_origin(server_name)
+				&& let Ok(res) = services
+					.server_keys
+					.origin_request(server_name.to_owned(), start)
+					.await
+				&& let Ok(ssk) = sign_ssk(&services, res, server_name).await
+			{
+				response.push(ssk);
+				continue;
+			}
+
 			// Fetch any in-date signing key responses
 			response.extend(
 				services
@@ -145,6 +158,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 				.get_signing_key(server_name, key_id)
 				.await
 			else {
+				// TODO: consult origin
 				continue;
 			};
 			if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
