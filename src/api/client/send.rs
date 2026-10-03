@@ -6,7 +6,10 @@ use conduwuit::{
 	matrix::pdu::{PartialPdu, sticky},
 	utils,
 };
-use ruma::{api::client::message::send_message_event, events::MessageLikeEventType};
+use ruma::{
+	OwnedEventId, api::client::message::send_message_event, events::MessageLikeEventType,
+};
+use serde::Deserialize;
 use serde_json::from_str;
 
 use crate::{Ruma, client_ip::ClientIp};
@@ -77,6 +80,13 @@ pub(crate) async fn send_message_event_route(
 
 	let content = from_str(body.body.body.json().get())
 		.map_err(|e| err!(Request(BadJson("Invalid JSON body: {e}"))))?;
+	let redacts = if body.body.event_type == MessageLikeEventType::RoomRedaction {
+		from_str::<MaybeRedaction>(body.body.body.json().get())
+			.ok()
+			.and_then(|r| r.redacts)
+	} else {
+		None
+	};
 
 	let event_id = services
 		.rooms
@@ -97,6 +107,7 @@ pub(crate) async fn send_message_event_route(
 				} else {
 					None
 				},
+				redacts,
 				..Default::default()
 			},
 			sender_user,
@@ -115,4 +126,12 @@ pub(crate) async fn send_message_event_route(
 	drop(state_lock);
 
 	Ok(send_message_event::v3::Response::new(event_id))
+}
+
+/// Struct containing exclusively the `redacts` field for MSC4169 compatible
+/// redaction moving.
+#[derive(Deserialize)]
+struct MaybeRedaction {
+	#[serde(default)]
+	redacts: Option<OwnedEventId>,
 }
