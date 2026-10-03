@@ -1132,7 +1132,7 @@ pub struct Config {
 	/// empty list (`[]`) to operate without trusted server assistance, but this
 	/// is discouraged for performance and reliability reasons.
 	///
-	/// default: ["matrix.org"]
+	/// default: ["continuwuity.org", "continuwuity.rocks", "matrix.org"]
 	#[serde(default = "default_trusted_servers")]
 	pub trusted_servers: Vec<TrustedServer>,
 
@@ -3176,12 +3176,11 @@ fn default_otlp_protocol() -> String { "http".to_owned() }
 fn default_tracing_flame_output_path() -> String { "./tracing.folded".to_owned() }
 
 fn default_trusted_servers() -> Vec<TrustedServer> {
-	// TODO(nex): Once we can be a notary, add maintainer(?) homeservers here.
-	// Rationale: Users are already running our code, arguably that's a higher
-	// level of trust than is assigned to notaries in the first place.
-	// We should still remind everyone that notaries are evil and out to get you
-	// and to replace this list with servers they actually trust.
-	let trusted_servers = vec![ruma::owned_server_name!("matrix.org")];
+	let trusted_servers = vec![
+		ruma::owned_server_name!("continuwuity.org"),
+		ruma::owned_server_name!("continuwuity.rocks"),
+		ruma::owned_server_name!("matrix.org"),
+	];
 	trusted_servers
 		.into_iter()
 		.map(TrustedServer::Name)
