@@ -520,7 +520,7 @@ impl Service {
 				let pdu = match Pdu::from_id_val(&event_id, value.clone()) {
 					| Ok(pdu) => pdu,
 					| Err(e) => {
-						debug_warn!("Invalid PDU in send_join response: {e:?}: {value:#?}");
+						warn!("Invalid PDU in send_join response: {e:?}: {value:#?}");
 						return state;
 					},
 				};
@@ -550,7 +550,7 @@ impl Service {
 
 		info!("Going through send_join response auth_chain");
 		let cork = self.services.db.cork_and_flush();
-		send_join_response
+		let send_join_auth_chain = send_join_response
 			.room_state
 			.auth_chain
 			.iter()
@@ -561,10 +561,22 @@ impl Service {
 					.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
 			})
 			.ready_filter_map(Result::ok)
-			.ready_for_each(|(event_id, value)| {
+			.ready_fold(Vec::new(), |mut chain, (event_id, value)| {
 				trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
 				self.services.pdu_metadata.clear_pdu_markers(&event_id);
+				let state_key = value
+					.get("state_key")
+					.and_then(|s| s.as_str())
+					.unwrap_or_default()
+					.to_owned();
+				let event_type = value
+					.get("type")
+					.and_then(|s| s.as_str())
+					.unwrap_or_default()
+					.to_owned();
+				chain.push((event_type, state_key));
+				chain
 			})
 			.await;
 
@@ -578,21 +590,37 @@ impl Service {
 			let event_id = fetch_state.get(&shortstatekey)?;
 			self.services.timeline.get_pdu(event_id).await.ok()
 		};
+		let Some(create_event) = state_fetch(StateEventType::RoomCreate, "".into()).await else {
+			let in_auth_chain = send_join_auth_chain
+				.iter()
+				.any(|(t, s)| t == "m.room.create" && s.is_empty());
+			return Err!(BadServerResponse(debug_error!(
+				?state,
+				"bad response from {remote_server}: m.room.create event is missing from \
+				 send_join state{}",
+				if in_auth_chain {
+					", but it was found in the auth_chain"
+				} else {
+					""
+				}
+			)));
+		};
+		drop(send_join_auth_chain);
 
 		let auth_check = state_res::event_auth::auth_check(
 			&room_version.rules().unwrap(),
 			&parsed_join_pdu,
 			None, // TODO: third party invite
 			|k, s| state_fetch(k.clone(), s.into()),
-			&state_fetch(StateEventType::RoomCreate, "".into())
-				.await
-				.expect("create event is missing from send_join auth"),
+			&create_event,
 		)
 		.await
 		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
 
 		if !auth_check {
-			return Err!(Request(Forbidden("Auth check failed")));
+			return Err!(Request(Forbidden(
+				"Join event returned by {remote_server} is not self-authorised (try again?)"
+			)));
 		}
 		let resident_before = self
 			.services
