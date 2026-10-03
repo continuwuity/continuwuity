@@ -177,13 +177,21 @@ pub(crate) async fn get_remote_server_keys_route(
 	body: Ruma<get_remote_server_keys::v2::Request>,
 ) -> Result<get_remote_server_keys::v2::Response> {
 	let min_valid_ts = body.minimum_valid_until_ts;
-	let server_name = body.server_name.clone();
+	if let Ok(response) = services
+		.server_keys
+		.origin_request(body.server_name.clone(), min_valid_ts)
+		.await
+	{
+		return sign_ssk(&services, response, &body.server_name)
+			.await
+			.map(|r| Ok(get_remote_server_keys::v2::Response::new(vec![r])))?;
+	}
 
 	let response = services
 		.server_keys
 		.signing_keys_for(&body.server_name)
 		.broad_filter_map(|ssk| {
-			let server_name = server_name.clone();
+			let server_name = body.server_name.clone();
 			async move {
 				if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < min_valid_ts {
 					return None;
