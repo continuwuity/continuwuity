@@ -7,7 +7,7 @@ use std::{
 
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
-	Err, Result,
+	Err, Result, debug, debug_info,
 	utils::{IterStream, stream::BroadbandExt, timepoint_from_now, to_canonical_object},
 };
 use futures::{StreamExt, stream::FuturesUnordered};
@@ -23,6 +23,7 @@ use ruma::{
 	},
 	assign,
 	serde::Raw,
+	uint,
 };
 use serde_json::value::to_raw_value;
 use service::{server_keys, server_keys::in_one_week};
@@ -113,7 +114,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 	let total_queried_keys = body
 		.server_keys
 		.values()
-		.fold(0_usize, |acc, q| acc.saturating_add(q.len()));
+		.fold(body.server_keys.len(), |acc, q| acc.saturating_add(q.len()));
 
 	if total_queried_keys > MAX_KEYS_PER_QUERY {
 		return Err!(Request(Forbidden(
@@ -123,6 +124,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
 	}
 
+	debug_info!("Fetching {total_queried_keys} keys across {} servers", body.server_keys.len());
 	let mut futs: FuturesUnordered<_> = FuturesUnordered::new();
 	for (server_name, queries) in body.server_keys.clone() {
 		futs.push(acquire_keys_as_notary(
@@ -138,6 +140,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		response.extend(v);
 	}
 
+	debug_info!("Fetched {} key responses", response.len());
 	Ok(get_remote_server_keys_batch::v2::Response::new(response))
 }
 
@@ -155,6 +158,7 @@ async fn sign_ssk(
 		.map_err(Into::into)
 }
 
+#[tracing::instrument(skip(server_keys, my_name, queries, start))]
 async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
 	my_name: OwnedServerName,
@@ -165,51 +169,65 @@ async fn acquire_keys_as_notary(
 	let mut results = HashMap::with_capacity(queries.len().max(1));
 
 	// First contact the origin (if we're allowed to)
-	if server_keys.notary_may_contact_origin(&remote)
-		&& let Ok(res) = server_keys.origin_request(remote.clone(), start).await
-		&& let Ok(ssk) = sign_ssk(&server_keys, res.clone(), &remote, &my_name).await
-	{
-		for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
-			if queries.is_empty()
-				|| queries
-					.get(key_id)
-					.and_then(|c| c.minimum_valid_until_ts)
-					.is_none_or(|m| res.valid_until_ts >= m)
-			{
-				results.insert(key_id.to_owned(), ssk.clone());
+	if server_keys.notary_may_contact_origin(&remote) {
+		debug_info!("Asking remote directly for verify keys");
+		if let Ok(res) = server_keys.origin_request(remote.clone(), start).await
+			&& let Ok(ssk) = sign_ssk(&server_keys, res.clone(), &remote, &my_name).await
+		{
+			for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
+				if queries.is_empty()
+					|| queries
+						.get(key_id)
+						.and_then(|c| c.minimum_valid_until_ts)
+						.is_none_or(|m| res.valid_until_ts >= m)
+				{
+					results.insert(key_id.to_owned(), ssk.clone());
+				}
 			}
 		}
+	} else {
+		debug!("Not asking remote for keys (already asked recently)");
 	}
+	debug!(keys=?results.keys(), "Live verify keys");
 
 	// If we're still missing some keys, fetch them from the local cache
 	let local = queries
 		.into_iter()
 		.stream()
 		.broad_filter_map(|(key_id, criteria)| {
+			debug!(%key_id, "Fetching verify key from local repository");
 			let results = &results;
 			let my_name = &my_name;
 			let remote = &remote;
 			let server_keys = &server_keys;
 			async move {
 				if results.contains_key(&key_id) {
+					debug!(%key_id, "Already found key");
 					return None;
 				}
 				let minimum_valid_until_ts = criteria
 					.minimum_valid_until_ts
-					.unwrap_or_else(MilliSecondsSinceUnixEpoch::now);
+					.unwrap_or_else(|| MilliSecondsSinceUnixEpoch(uint!(0)));
 				let ssk = server_keys.get_signing_key(remote, &key_id).await?;
 				if ssk.valid_until_ts < minimum_valid_until_ts
 					|| ssk.valid_until_ts > in_one_week()
 				{
+					debug!(
+						%key_id,
+						valid_until_ts=?ssk.valid_until_ts,
+						?minimum_valid_until_ts,
+						"Stored verify key does not satisfy query criteria"
+					);
 					return None;
 				}
+				debug!(%key_id, ?ssk, "Found key locally");
 				sign_ssk(server_keys, ssk, remote, my_name).await.ok()
 			}
 		})
 		.collect::<Vec<_>>()
 		.await;
 
-	results.values().cloned().chain(local).collect()
+	results.into_values().chain(local).collect()
 }
 
 pub(crate) async fn get_remote_server_keys_route(
