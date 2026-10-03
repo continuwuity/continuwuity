@@ -183,11 +183,6 @@ impl super::Service {
 					.room_state_get(room_id, &event_type.clone().to_string().into(), state_key)
 					.await
 				{
-					unsigned.insert("prev_content".to_owned(), prev_pdu.get_content_as_value());
-					unsigned.insert(
-						"prev_sender".to_owned(),
-						serde_json::to_value(prev_pdu.sender())?,
-					);
 					unsigned.insert(
 						"replaces_state".to_owned(),
 						serde_json::to_value(prev_pdu.event_id())?,
