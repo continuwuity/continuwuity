@@ -1,14 +1,16 @@
 use std::{
-	collections::{BTreeMap, HashMap},
+	clone,
+	collections::{BTreeMap, HashMap, HashSet},
 	mem::take,
+	ops::Index,
 	sync::Arc,
 	time::Duration,
 };
 
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
-	Err, Result, debug, debug_info,
-	utils::{IterStream, stream::BroadbandExt, timepoint_from_now, to_canonical_object},
+	Err, Result, debug, debug_info, error,
+	utils::{ReadyExt, stream::BroadbandExt, timepoint_from_now, to_canonical_object},
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
@@ -166,7 +168,8 @@ async fn acquire_keys_as_notary(
 	queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
 ) -> Vec<Raw<ServerSigningKeys>> {
-	let mut results = HashMap::with_capacity(queries.len().max(1));
+	let mut results = Vec::with_capacity(queries.len().max(1));
+	let mut keymap = HashMap::with_capacity(queries.len().max(1));
 
 	// First contact the origin (if we're allowed to)
 	if server_keys.notary_may_contact_origin(&remote) {
@@ -174,6 +177,8 @@ async fn acquire_keys_as_notary(
 		if let Ok(res) = server_keys.origin_request(remote.clone(), start).await
 			&& let Ok(ssk) = sign_ssk(&server_keys, res.clone(), &remote, &my_name).await
 		{
+			let index = results.len();
+			results.push(ssk);
 			for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
 				if queries.is_empty()
 					|| queries
@@ -181,53 +186,100 @@ async fn acquire_keys_as_notary(
 						.and_then(|c| c.minimum_valid_until_ts)
 						.is_none_or(|m| res.valid_until_ts >= m)
 				{
-					results.insert(key_id.to_owned(), ssk.clone());
+					keymap.insert(key_id.to_owned(), index);
 				}
 			}
 		}
 	} else {
 		debug!("Not asking remote for keys (already asked recently)");
 	}
-	debug!(keys=?results.keys(), "Live verify keys");
+	debug!(keys=?keymap.keys(), "Live verify keys");
+	if queries.is_empty() {
+		// If the server asked for all keys, just fetch any fresh responses we
+		// have.
+		server_keys
+			.signing_keys_for(&remote)
+			.broad_filter_map(|ssk| {
+				let server_name = &remote;
+				let my_name = &my_name;
+				let server_keys = &server_keys;
+				async move {
+					if ssk.valid_until_ts > in_one_week() {
+						return None;
+					}
+
+					sign_ssk(server_keys, ssk, server_name, my_name).await.ok()
+				}
+			})
+			.ready_for_each(|signed_ssk| {
+				let ssk = signed_ssk.deserialize().unwrap();
+				let idx = results.len();
+				results.push(signed_ssk);
+				for key_id in ssk.verify_keys.keys().chain(ssk.old_verify_keys.keys()) {
+					keymap.insert(key_id.to_owned(), idx);
+				}
+			})
+			.await;
+	}
 
 	// If we're still missing some keys, fetch them from the local cache
-	let local = queries
-		.into_iter()
-		.stream()
-		.broad_filter_map(|(key_id, criteria)| {
-			debug!(%key_id, "Fetching verify key from local repository");
-			let results = &results;
-			let my_name = &my_name;
-			let remote = &remote;
-			let server_keys = &server_keys;
-			async move {
-				if results.contains_key(&key_id) {
-					debug!(%key_id, "Already found key");
-					return None;
-				}
-				let minimum_valid_until_ts = criteria
-					.minimum_valid_until_ts
-					.unwrap_or_else(|| MilliSecondsSinceUnixEpoch(uint!(0)));
-				let ssk = server_keys.get_signing_key(remote, &key_id).await?;
-				if ssk.valid_until_ts < minimum_valid_until_ts
-					|| ssk.valid_until_ts > in_one_week()
-				{
-					debug!(
-						%key_id,
-						valid_until_ts=?ssk.valid_until_ts,
-						?minimum_valid_until_ts,
-						"Stored verify key does not satisfy query criteria"
-					);
-					return None;
-				}
-				debug!(%key_id, ?ssk, "Found key locally");
-				sign_ssk(server_keys, ssk, remote, my_name).await.ok()
-			}
-		})
-		.collect::<Vec<_>>()
-		.await;
+	for (key_id, criteria) in queries {
+		debug!(%key_id, "Fetching verify key from local repository");
 
-	results.into_values().chain(local).collect()
+		if keymap.contains_key(&key_id) {
+			debug!(%key_id, "Already found key");
+			continue;
+		}
+
+		let minimum_valid_until_ts = criteria
+			.clone()
+			.minimum_valid_until_ts
+			.unwrap_or_else(|| MilliSecondsSinceUnixEpoch(uint!(0)));
+
+		let Some(ssk) = server_keys.get_signing_key(&remote, &key_id).await else {
+			debug!(%remote, %key_id, "Could not find a matching signing key locally.");
+			continue;
+		};
+
+		if ssk.valid_until_ts < minimum_valid_until_ts || ssk.valid_until_ts > in_one_week() {
+			debug!(
+				%key_id,
+				valid_until_ts=?ssk.valid_until_ts,
+				?minimum_valid_until_ts,
+				"Stored verify key does not satisfy query criteria"
+			);
+			continue;
+		}
+
+		debug!(%key_id, ?ssk, "Found key locally");
+		let rep_key_ids = ssk
+			.verify_keys
+			.keys()
+			.chain(ssk.old_verify_keys.keys())
+			.cloned()
+			.collect::<Vec<_>>();
+		let Ok(signed_ssk) = sign_ssk(&server_keys, ssk.clone(), &remote, &my_name)
+			.await
+			.inspect_err(
+				|e| error!(%key_id, %remote, "Failed to sign signing keys chunk: {e:?}"),
+			)
+		else {
+			continue;
+		};
+
+		let idx = results.len();
+		results.push(signed_ssk);
+		for key_id in rep_key_ids {
+			keymap.insert(key_id, idx);
+		}
+	}
+
+	keymap
+		.into_values()
+		.collect::<HashSet<_>>()
+		.into_iter()
+		.map(|idx| results.index(idx).to_owned())
+		.collect()
 }
 
 pub(crate) async fn get_remote_server_keys_route(
