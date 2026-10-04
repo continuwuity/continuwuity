@@ -3,7 +3,7 @@
 :::warning{title="For Docker users"}
 It's common for Docker misconfigurations to cause issues, particularly with networking and
 permissions. Before continuing, please first check that your issues are **not** due Docker
-problems. See the dedicated section on [Docker](#docker) for more details.
+problems. See the dedicated section on [Docker](#docker-issues) for more details.
 :::
 
 ## Continuwuity issues
@@ -119,11 +119,54 @@ much possible corruption is restored
 - If all goes will, you should be able to restore back to using
 `TolerateCorruptedTailRecords` and you have successfully recovered your database
 
-## Docker issues {#docker}
+## Docker issues
 
-### Debugging Docker containers
+### Debugging Docker networking
+
+The Continuwuity image does not ship with any shell or internal debugging utilities. To debug network conditions for Continuwuity, run another sidecar container that is attached to its network namespace. For example, using the `curl` container:
+
+```bash
+docker run --rm -it \
+    --network container:continuwuity \
+    docker.io/curlimages/curl \ 
+    curl https://continuwuity.org/.well-known/matrix/server
+```
 
 ### Docker loopback networking issues
+
+Some distros disallow Docker containers in bridge networks to reach out to their host's public IP by default. This can cause connectivity issues between Continuwuity and other services that are on the same host machine, such as LiveKit or a push server.
+
+One can test if this is the case by cURLing those services with a sidecar container:
+
+```bash
+docker run --rm -it --network container:continuwuity docker.io/curlimages/curl curl https://push.example.com
+# --- some errors ---
+```
+
+To fix this, use the `extra_hosts` parameter to map local service domains to `host-gateway` - a special Docker value that resolves to the internal IP address of the host.
+
+```diff
+# in docker-compose.yaml
+services:
+  continuwuity:
+    ...
++    extra_hosts:
++     - "push.example.com:host-gateway"
++     - "livekit.example.com:host-gateway"
+
+  lk-jwt-service:
+    ...
++    extra_hosts:
++     - "livekit.example.com:host-gateway"
++     - "matrix.example.com:host-gateway"
+```
+
+Reload the compose file, and connections between these services (as well as the sidecar container test above) should now work.
+
+For more information about the `host-gateway` parameter, kindly consult [this link][docker-custom-dns] and the [`--add-host` documentation for Docker][docker-add-host].
+
+[docker-custom-dns]: https://docs.docker.com/compose/how-tos/networking/#custom-dns-with-extra_hosts
+[docker-add-host]: https://docs.docker.com/reference/cli/docker/container/run/#add-host
 
 ## Debugging
 
