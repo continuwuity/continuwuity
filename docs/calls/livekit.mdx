@@ -303,33 +303,14 @@ For browser-based clients, you can also inspect connections using DevTools' Netw
 
 ### Docker loopback networking issues
 
-Some distros do not allow Docker containers in bridge networks to connect to their host's public IP by default. This makes `lk-jwt-service` fail connecting to `livekit` or `continuwuity` on the same host, causing refused and timed out connections to appear in the log entries of the JWT service, even when `LIVEKIT_URL` has been configured correctly.
-
-You can also test that this is the case by cURLing from a sidecar container:
+Some distros do not allow Docker containers to connect to the host's public IP, and this breaks connections from `lk-jwt-service` towards `livekit` and `continuwuity` if they're on the same host. This can be tested by the following command:
 
 ```bash
 docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https://livekit.example.com
 # --- some errors ---
 ```
 
-To resolve this, configure an `extra_hosts` file mapping LiveKit's and Continuwuity's domain names to Docker's custom host loopback address, represented here by `host-gateway`:
-
-```diff
-# in docker-compose.yaml
-services:
-  lk-jwt-service:
-    ...
-+    extra_hosts:
-+     - "livekit.example.com:host-gateway"
-+     - "matrix.example.com:host-gateway"
-```
-
-After implementing the changes and restarting your compose, `lk-jwt-service` should now connect to your other services. The sidecar container test above should now return an `OK` from LiveKit.
-
-For more information about the `host-gateway` parameter, kindly refer to the `--add-host` documentation for [Docker][docker-add-host] and [Podman][podman-add-host]. Should you have further difficulties, feel free to enquire in the support rooms.
-
-[docker-add-host]: https://docs.docker.com/reference/cli/docker/container/run/#add-host
-[podman-add-host]: https://docs.podman.io/en/latest/markdown/podman-run.1.html#add-host-hostname-hostname-ip
+To resolve this, follow the steps in [Docker loopback networking issues](../troubleshooting.mdx#docker-loopback-networking-issues) of the Troubleshooting page.
 
 ### Incorrect IP address for LiveKit
 

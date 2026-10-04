@@ -140,7 +140,7 @@ One can test if this is the case by cURLing those services with a sidecar contai
 
 ```bash
 docker run --rm -it --network container:continuwuity docker.io/curlimages/curl curl https://push.example.com
-# --- some errors ---
+# --- some timeout or refused connection errors ---
 ```
 
 To fix this, use the `extra_hosts` parameter to map local service domains to `host-gateway` - a special Docker value that resolves to the internal IP address of the host.
