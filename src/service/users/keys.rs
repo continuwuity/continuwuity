@@ -449,7 +449,12 @@ impl super::Service {
 			.rooms_joined(user_id)
 			// Don't send key updates to unencrypted rooms
 			.filter_map(async |room_id| {
-				if self.services.state_accessor.is_encrypted_room(&room_id).await {
+				if self
+					.services
+					.state_accessor
+					.is_encrypted_room(&room_id)
+					.await
+				{
 					Some(room_id)
 				} else {
 					None

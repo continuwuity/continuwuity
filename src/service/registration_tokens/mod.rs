@@ -72,7 +72,10 @@ impl std::fmt::Display for ValidTokenSource {
 
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
-		let registration_tokens_from_file = args.server.config.registration_token_file
+		let registration_tokens_from_file = args
+			.server
+			.config
+			.registration_token_file
 			.clone()
 			// If the token file option was set, read the path it points to
 			.map(std::fs::read_to_string)
@@ -80,7 +83,8 @@ impl crate::Service for Service {
 			.map_err(|err| err!("Failed to read registration token file: {err}"))
 			.map(|tokens| {
 				if let Some(tokens) = tokens {
-					// If the token file option was set, return the file's lines as tokens
+					// If the token file option was set, return the file's lines
+					// as tokens
 					tokens.lines().map(ToOwned::to_owned).collect()
 				} else {
 					// Otherwise, if the option wasn't set, return no tokens

@@ -164,12 +164,12 @@ impl Service {
 		}
 
 		let mut children: Vec<_> = summary
-            .children_state
-            .iter()
-            // Ignore deserialization failures
-            .flat_map(Raw::deserialize)
-            // Filter out non-suggested children if suggested_only is set
-            .filter(|child| !suggested_only || child.content.suggested)
+			.children_state
+			.iter()
+			// Ignore deserialization failures
+			.flat_map(Raw::deserialize)
+			// Filter out non-suggested children if suggested_only is set
+			.filter(|child| !suggested_only || child.content.suggested)
 			.collect();
 		children.sort();
 		let children = children
@@ -323,43 +323,46 @@ impl Service {
 		};
 
 		let (accessible_children, inaccessible_children) = children_state
-            .iter()
-            // Ignore deserialization failures
-            .flat_map(Raw::deserialize)
-            // Fetch summaries for the children in parallel
-            .stream()
-            .broad_then(async |child| {
-                let summary = {
-                    if let Some(summary) = self.build_local_room_summary(&child.state_key).await {
-                        if self.server_may_see_summary(querying_server, &summary).await {
-                            Accessibility::Accessible(summary)
-                        } else {
-                            Accessibility::Inaccessible
-                        }
-                    } else {
-                        Accessibility::NotFound
-                    }
-                };
+			.iter()
+			// Ignore deserialization failures
+			.flat_map(Raw::deserialize)
+			// Fetch summaries for the children in parallel
+			.stream()
+			.broad_then(async |child| {
+				let summary = {
+					if let Some(summary) = self.build_local_room_summary(&child.state_key).await {
+						if self.server_may_see_summary(querying_server, &summary).await {
+							Accessibility::Accessible(summary)
+						} else {
+							Accessibility::Inaccessible
+						}
+					} else {
+						Accessibility::NotFound
+					}
+				};
 
-                (child.state_key, summary)
-            })
-            // Sort the children into two Vecs by accessibility
-            .ready_fold_default(|(mut accessible_children, mut inaccessible_children): (Vec<_>, Vec<_>), (room_id, summary)| {
-                match summary {
-                    Accessibility::Accessible(summary) => {
-                        accessible_children.push(summary);
-                    },
-                    Accessibility::Inaccessible => {
-                        inaccessible_children.push(room_id);
-                    },
-                    Accessibility::NotFound => {
-                        // Skip inaccessible children
-                    }
-                }
+				(child.state_key, summary)
+			})
+			// Sort the children into two Vecs by accessibility
+			.ready_fold_default(
+				|(mut accessible_children, mut inaccessible_children): (Vec<_>, Vec<_>),
+				 (room_id, summary)| {
+					match summary {
+						| Accessibility::Accessible(summary) => {
+							accessible_children.push(summary);
+						},
+						| Accessibility::Inaccessible => {
+							inaccessible_children.push(room_id);
+						},
+						| Accessibility::NotFound => {
+							// Skip inaccessible children
+						},
+					}
 
-                (accessible_children, inaccessible_children)
-            })
-            .await;
+					(accessible_children, inaccessible_children)
+				},
+			)
+			.await;
 
 		Accessibility::Accessible(assign!(
 			get_hierarchy::v1::Response::new(SpaceHierarchyParentSummary::new(summary, children_state)),

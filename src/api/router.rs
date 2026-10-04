@@ -21,7 +21,7 @@ use crate::{admin, client, server};
 pub fn build(router: Router<State>, state: State) -> Router<State> {
 	let config = &state.server.config;
 	let mut router = router
-        .ruma_route(&client::appservice_ping)
+		.ruma_route(&client::appservice_ping)
 		.ruma_route(&client::get_supported_versions_route)
 		.ruma_route(&client::get_register_available_route)
 		.ruma_route(&client::register::register_route)
@@ -61,8 +61,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_global_account_data_route)
 		.ruma_route(&client::get_room_account_data_route)
 		.ruma_route(&client::get_profile_field_route)
-        .ruma_route(&client::set_profile_field_route)
-        .ruma_route(&client::delete_profile_field_route)
+		.ruma_route(&client::set_profile_field_route)
+		.ruma_route(&client::delete_profile_field_route)
 		.ruma_route(&client::get_profile_route)
 		.ruma_route(&client::set_presence_route)
 		.ruma_route(&client::get_presence_route)
@@ -112,14 +112,17 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::search_users_route)
 		.ruma_route(&client::get_member_events_route)
 		.ruma_route(&client::get_protocols_route)
-		.route("/_matrix/client/unstable/thirdparty/protocols",
-			get(client::get_protocols_route_unstable))
+		.route(
+			"/_matrix/client/unstable/thirdparty/protocols",
+			get(client::get_protocols_route_unstable),
+		)
 		.ruma_route(&client::send_message_event_route)
 		.ruma_route(&client::send_state_event_for_key_route)
 		.ruma_route(&client::get_state_events_route)
 		.ruma_route(&client::get_state_event_for_key_route)
-		// Ruma doesn't have support for multiple paths for a single endpoint yet, and these routes
-		// share one Ruma request / response type pair with {get,send}_state_event_for_key_route
+		// Ruma doesn't have support for multiple paths for a single endpoint yet, and these
+		// routes share one Ruma request / response type pair with
+		// {get,send}_state_event_for_key_route
 		.route(
 			"/_matrix/client/r0/rooms/{room_id}/state/{event_type}",
 			get(client::get_state_events_for_empty_key_route)

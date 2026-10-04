@@ -571,7 +571,8 @@ impl Service {
 			));
 		}
 
-		let device_id = self.services
+		let device_id = self
+			.services
 			.users
 			.create_device(
 				&authorizing_user,

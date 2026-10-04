@@ -1563,20 +1563,25 @@ where
 					// joined users
 					device_list_changes.extend(
 						services
-						.rooms
-						.state_cache
-						.room_members(room_id)
-						// Don't send key updates from the sender to the sender
-						.ready_filter(|user_id| sender_user != *user_id)
-						// Only send keys if the sender doesn't share an encrypted room with the target
-						// already
-						.filter_map(async |user_id| {
-							share_encrypted_room(services, sender_user, &user_id, Some(room_id))
+							.rooms
+							.state_cache
+							.room_members(room_id)
+							// Don't send key updates from the sender to the sender
+							.ready_filter(|user_id| sender_user != *user_id)
+							// Only send keys if the sender doesn't share an encrypted room with
+							// the target already
+							.filter_map(async |user_id| {
+								share_encrypted_room(
+									services,
+									sender_user,
+									&user_id,
+									Some(room_id),
+								)
 								.map(|res| res.or_some(user_id.clone()))
 								.await
-						})
-						.collect::<Vec<_>>()
-						.await,
+							})
+							.collect::<Vec<_>>()
+							.await,
 					);
 				}
 			}

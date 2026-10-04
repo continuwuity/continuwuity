@@ -267,11 +267,19 @@ pub(crate) async fn get_public_rooms_filtered_helper(
 			summary.into()
 		})
 		.ready_filter_map(|chunk: PublicRoomsChunk| {
-			if !filter.room_types.is_empty() && !filter.room_types.contains(&RoomTypeFilter::from(chunk.room_type.clone())) {
+			if !filter.room_types.is_empty()
+				&& !filter
+					.room_types
+					.contains(&RoomTypeFilter::from(chunk.room_type.clone()))
+			{
 				return None;
 			}
 
-			if let Some(query) = filter.generic_search_term.as_ref().map(|q| q.to_lowercase()) {
+			if let Some(query) = filter
+				.generic_search_term
+				.as_ref()
+				.map(|q| q.to_lowercase())
+			{
 				if let Some(name) = &chunk.name {
 					if name.to_lowercase().contains(&query) {
 						return Some(chunk);

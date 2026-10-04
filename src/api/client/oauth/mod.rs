@@ -55,5 +55,8 @@ fn oauth_router() -> Router<crate::State> {
 		.route(concat!("/", JWKS_URI_PATH), get(async || Json(json!({"keys": []}))))
 		.route(concat!("/", TOKEN_PATH), post(token::token_route))
 		.route(concat!("/", TOKEN_REVOKE_PATH), post(token::revoke_token_route))
-		.route(concat!("/", DEVICE_AUTHORIZATION_PATH), post(device::device_authorization_route))
+		.route(
+			concat!("/", DEVICE_AUTHORIZATION_PATH),
+			post(device::device_authorization_route),
+		)
 }

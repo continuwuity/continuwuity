@@ -449,7 +449,12 @@ impl super::Service {
 			// Don't notify the sender of their own events, and don't send from ignored users
 			.ready_filter(|user| *user != pdu.sender())
 			.filter_map(|recipient_user| async move {
-				(!self.services.users.user_is_ignored(pdu.sender(), &recipient_user).await).then_some(recipient_user)
+				(!self
+					.services
+					.users
+					.user_is_ignored(pdu.sender(), &recipient_user)
+					.await)
+					.then_some(recipient_user)
 			})
 			.collect()
 			.await;
@@ -806,7 +811,7 @@ impl super::Service {
 			.read()
 			.await
 			.values()
-			.map(ToOwned::to_owned)  // TODO: is this to_owned expensive?
+			.map(ToOwned::to_owned) // TODO: is this to_owned expensive?
 			.collect::<Vec<_>>();
 		interested_appservices
 			.stream()
