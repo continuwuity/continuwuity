@@ -1,16 +1,16 @@
 use std::{
-	clone,
 	collections::{BTreeMap, HashMap, HashSet},
 	mem::take,
 	ops::Index,
 	sync::Arc,
-	time::Duration,
+	time::{Duration, Instant},
 };
 
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
 	Err, Result, debug, debug_info, error,
 	utils::{ReadyExt, stream::BroadbandExt, timepoint_from_now, to_canonical_object},
+	warn,
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
@@ -106,29 +106,44 @@ fn valid_until_ts() -> MilliSecondsSinceUnixEpoch {
 	MilliSecondsSinceUnixEpoch::from_system_time(timepoint).expect("UInt should not overflow")
 }
 
-const MAX_KEYS_PER_QUERY: usize = 8192;
+const MAX_KEYS_PER_QUERY: usize = 16384;
 const MAX_SERVERS_PER_QUERY: usize = 4096;
 
 pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
-	let start = MilliSecondsSinceUnixEpoch::now();
+	let start = (Instant::now(), MilliSecondsSinceUnixEpoch::now());
 	if body.server_keys.is_empty() {
 		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
-	} else if body.server_keys.len() > MAX_SERVERS_PER_QUERY {
-		return Err!(Request(TooLarge(
-			"Too many server keys requested ({} > {MAX_SERVERS_PER_QUERY}",
-			body.server_keys.len()
-		)));
 	}
 
+	let total_queried_servers = body.server_keys.len();
 	let total_queried_keys = body
 		.server_keys
 		.values()
 		.fold(body.server_keys.len(), |acc, q| acc.saturating_add(q.len()));
 
+	if body.server_keys.len() > MAX_SERVERS_PER_QUERY {
+		// TODO(nex): enforce once MSC4556 is merged
+		warn!(
+			%total_queried_servers,
+			%total_queried_keys,
+			"Received a large notary request (too many servers)"
+		);
+		// return Err!(Request(TooLarge(
+		// 	"Too many server keys requested ({} > {MAX_SERVERS_PER_QUERY}",
+		// 	body.server_keys.len()
+		// )));
+	}
 	if total_queried_keys > MAX_KEYS_PER_QUERY {
+		// We shouldn't really enforce this before MSC4456 either, but not doing
+		// so may cause performance degradation.
+		warn!(
+			%total_queried_servers,
+			%total_queried_keys,
+			"Received a huge notary request (too many keys), rejecting",
+		);
 		return Err!(Request(TooLarge(
 			"Too many keys requested ({total_queried_keys} > {MAX_KEYS_PER_QUERY})"
 		)));
@@ -142,7 +157,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 			services.globals.server_name().to_owned(),
 			server_name,
 			queries,
-			start,
+			start.1,
 		));
 	}
 	let mut response = Vec::with_capacity(total_queried_keys);
@@ -150,7 +165,13 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		response.extend(v);
 	}
 
-	debug_info!("Fetched {} key responses", response.len());
+	debug_info!(
+		elapsed=?start.0.elapsed(),
+		%total_queried_servers,
+		%total_queried_keys,
+		"Fetched {} key responses",
+		response.len()
+	);
 	Ok(get_remote_server_keys_batch::v2::Response::new(response))
 }
 
