@@ -194,7 +194,7 @@ async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
 	my_name: OwnedServerName,
 	remote: OwnedServerName,
-	queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
+	mut queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
 ) -> Vec<Raw<ServerSigningKeys>> {
 	let mut results = Vec::with_capacity(queries.len().max(1));
@@ -215,6 +215,7 @@ async fn acquire_keys_as_notary(
 						.and_then(|c| c.minimum_valid_until_ts)
 						.is_none_or(|m| res.valid_until_ts >= m)
 				{
+					queries.remove(key_id);
 					keymap.insert(key_id.to_owned(), index);
 				}
 			}
@@ -223,9 +224,9 @@ async fn acquire_keys_as_notary(
 		debug!("Not asking remote for keys (already asked recently)");
 	}
 	debug!(keys=?keymap.keys(), "Live verify keys");
-	if queries.is_empty() {
-		// If the server asked for all keys, just fetch any fresh responses we
-		// have.
+	if queries.is_empty() && keymap.is_empty() {
+		// If the server asked for all keys, AND we didn't get anything from the
+		// origin, just fetch any fresh responses we have.
 		server_keys
 			.signing_keys_for(&remote)
 			.broad_filter_map(|ssk| {
@@ -233,7 +234,7 @@ async fn acquire_keys_as_notary(
 				let my_name = &my_name;
 				let server_keys = &server_keys;
 				async move {
-					if ssk.valid_until_ts > in_one_week() {
+					if ssk.valid_until_ts > in_one_week() || ssk.valid_until_ts < start {
 						return None;
 					}
 

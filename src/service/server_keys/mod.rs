@@ -195,6 +195,8 @@ impl Service {
 	}
 
 	/// Returns the stored server signing keys responses for the origin.
+	///
+	/// Does not imply that the stored responses are still in-date.
 	pub fn signing_keys_for<'a>(
 		&'a self,
 		origin: &'a ServerName,
