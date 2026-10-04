@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 
-use conduwuit::{
+use continuwuity::{
 	Result, at, debug_warn, err, extract_variant,
 	matrix::{
 		Event,
@@ -15,7 +15,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::{
 	FutureExt, StreamExt, TryFutureExt,
 	future::{OptionFuture, join, join3, join4, try_join, try_join3},

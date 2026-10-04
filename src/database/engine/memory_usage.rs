@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use conduwuit::Result;
+use continuwuity::Result;
 use rocksdb::perf::get_memory_usage_stats;
 
 use crate::or_else;

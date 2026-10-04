@@ -1,8 +1,8 @@
 use std::{collections::HashMap, fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{debug, utils::stream::WidebandExt};
-use conduwuit_core::{
+use continuwuity::{debug, utils::stream::WidebandExt};
+use continuwuity_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
 	state_res::{self, StateMap},
@@ -12,7 +12,7 @@ use conduwuit_core::{
 	},
 	warn,
 };
-use conduwuit_database::{Deserialized, Ignore, Interfix, Map};
+use continuwuity_database::{Deserialized, Ignore, Interfix, Map};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::join_all, pin_mut,
 };

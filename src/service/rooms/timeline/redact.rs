@@ -1,4 +1,4 @@
-use conduwuit_core::{
+use continuwuity_core::{
 	Result, err,
 	matrix::event::Event,
 	utils::{self},

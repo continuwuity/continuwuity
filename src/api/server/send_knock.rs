@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug_info, err, matrix::pdu::PduEvent, warn};
+use continuwuity::{Err, Event, Result, debug_info, err, matrix::pdu::PduEvent, warn};
 use futures::FutureExt;
 use ruma::{
 	api::federation::membership::create_knock_event, events::room::member::MembershipState,

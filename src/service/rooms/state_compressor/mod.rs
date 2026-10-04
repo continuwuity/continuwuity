@@ -6,7 +6,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Result, SyncMutex,
 	arrayvec::ArrayVec,
 	at, checked, err, expected, utils,

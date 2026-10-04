@@ -2,7 +2,7 @@
 
 use std::{collections::VecDeque, sync::Arc};
 
-use conduwuit::{Server, SyncMutex, debug, defer, error, log, log::is_systemd_mode};
+use continuwuity::{Server, SyncMutex, debug, defer, error, log, log::is_systemd_mode};
 use futures::future::{AbortHandle, Abortable};
 use ruma::events::room::message::RoomMessageEventContent;
 use rustyline_async::{Readline, ReadlineError, ReadlineEvent};
@@ -93,8 +93,10 @@ impl Console {
 	async fn worker(self: Arc<Self>) {
 		debug!("session starting");
 
-		self.output
-			.print_inline(&format!("**conduwuit {}** admin console\n", conduwuit::version()));
+		self.output.print_inline(&format!(
+			"**continuwuity {}** admin console\n",
+			continuwuity::version()
+		));
 		self.output
 			.print_text("\"help\" for help, ^D to exit the console, ^\\ to stop the server\n");
 

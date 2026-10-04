@@ -1,6 +1,8 @@
 use std::{panic::AssertUnwindSafe, sync::Arc, time::Duration};
 
-use conduwuit::{Err, Error, Result, Server, debug, debug_warn, error, trace, utils::time, warn};
+use continuwuity::{
+	Err, Error, Result, Server, debug, debug_warn, error, trace, utils::time, warn,
+};
 use futures::{FutureExt, TryFutureExt};
 use tokio::{
 	sync::{Mutex, MutexGuard},

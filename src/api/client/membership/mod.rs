@@ -9,7 +9,7 @@ mod members;
 mod unban;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, warn};
+use continuwuity::{Err, Result, warn};
 use futures::{FutureExt, StreamExt};
 use ruma::{OwnedRoomId, RoomId, ServerName, UserId, api::client::membership::joined_rooms};
 use service::Services;

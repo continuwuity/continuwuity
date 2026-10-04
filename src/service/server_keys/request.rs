@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{Err, Result, trace, utils::millis_since_unix_epoch, warn};
+use continuwuity::{Err, Result, trace, utils::millis_since_unix_epoch, warn};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName, UInt,
 	api::federation::discovery::{

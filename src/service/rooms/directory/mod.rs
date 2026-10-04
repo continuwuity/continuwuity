@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Result, utils::stream::TryIgnore};
+use continuwuity::{Result, utils::stream::TryIgnore};
 use database::Map;
 use futures::Stream;
 use ruma::{OwnedRoomId, RoomId, api::client::room::Visibility};

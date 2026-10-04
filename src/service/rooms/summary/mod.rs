@@ -1,6 +1,6 @@
 use std::{collections::HashSet, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, debug, info,
 	utils::{IterStream, ReadyExt, TryFutureExtExt, stream::BroadbandExt},
 	warn,

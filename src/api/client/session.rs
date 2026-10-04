@@ -1,12 +1,12 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, err, info,
 	utils::{ReadyExt, stream::BroadbandExt},
 	warn,
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::StreamExt;
 use lettre::Address;
 use ruma::{

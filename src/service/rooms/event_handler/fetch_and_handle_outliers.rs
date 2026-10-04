@@ -6,8 +6,8 @@ use std::{
 
 use assign::assign;
 #[cfg(debug_assertions)]
-use conduwuit::error;
-use conduwuit::{
+use continuwuity::error;
+use continuwuity::{
 	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err,
 	result::FlatOk,
 	state_res::lexicographical_topological_sort,

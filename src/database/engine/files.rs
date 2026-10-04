@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use rocksdb::LiveFile as SstFile;
 
 use crate::util::map_err;

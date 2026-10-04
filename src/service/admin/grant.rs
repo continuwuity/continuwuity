@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{Err, Result, debug_info, debug_warn, error, matrix::pdu::PartialPdu, warn};
+use continuwuity::{Err, Result, debug_info, debug_warn, error, matrix::pdu::PartialPdu, warn};
 use ruma::{
 	Int, RoomId, UserId,
 	events::{
@@ -15,7 +15,7 @@ use ruma::{
 };
 
 impl super::Service {
-	/// Invite the user to the conduwuit admin room.
+	/// Invite the user to the continuwuity admin room.
 	///
 	/// This is equivalent to granting server admin privileges.
 	pub async fn make_user_admin(&self, user_id: &UserId) -> Result {

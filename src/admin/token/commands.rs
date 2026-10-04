@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, utils};
+use continuwuity::{Err, Result, utils};
 use futures::StreamExt;
 use service::registration_tokens::TokenExpires;
 
@@ -57,7 +57,7 @@ impl crate::Context<'_> {
 					.get_client_domain()
 					.join(&format!(
 						"{}/account/register/?flow=trusted&token={token}",
-						conduwuit::ROUTE_PREFIX
+						continuwuity::ROUTE_PREFIX
 					))
 					.unwrap()
 			))

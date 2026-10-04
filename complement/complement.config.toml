@@ -10,7 +10,7 @@ allow_device_name_federation = true
 allow_public_room_directory_over_federation = true
 allow_registration = true
 database_path = "/database"
-log = "trace,h2=debug,hyper=debug,conduwuit_database=warn,conduwuit_service::manager=info,conduwuit_api::router=error,conduwuit_router=error,tower_http=error"
+log = "trace,h2=debug,hyper=debug,continuwuity_database=warn,continuwuity_service::manager=info,continuwuity_api::router=error,continuwuity_router=error,tower_http=error"
 port = [8008, 8448]
 trusted_servers = []
 only_query_trusted_key_servers = false

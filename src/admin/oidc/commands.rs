@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 
 use crate::utils::parse_active_local_user_id;
 

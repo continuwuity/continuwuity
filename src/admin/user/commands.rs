@@ -3,7 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use api::client::{
 	full_user_deactivate, leave_room, recreate_push_rules_and_return, remote_leave_room,
 };
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug_warn, info,
 	matrix::{Event, pdu::PartialPdu},
 	utils::{self, ReadyExt},

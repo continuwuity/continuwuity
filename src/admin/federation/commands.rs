@@ -1,6 +1,6 @@
 use std::fmt::Write;
 
-use conduwuit::{Err, Result, utils::response::LimitReadExt};
+use continuwuity::{Err, Result, utils::response::LimitReadExt};
 use futures::StreamExt;
 use ruma::{MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId};
 

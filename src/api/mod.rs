@@ -2,10 +2,10 @@
 #![recursion_limit = "256"] // My Giant Async Function
 #![allow(clippy::toplevel_ref_arg)]
 
-extern crate conduwuit_core as conduwuit;
-extern crate conduwuit_service as service;
+extern crate continuwuity_core as continuwuity;
+extern crate continuwuity_service as service;
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
 pub mod client;
 pub mod router;
@@ -17,5 +17,5 @@ pub mod admin;
 
 pub(crate) use self::router::{Ruma, RumaResponse, State};
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
+continuwuity::mod_ctor! {}
+continuwuity::mod_dtor! {}

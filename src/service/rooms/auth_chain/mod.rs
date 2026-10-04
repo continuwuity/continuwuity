@@ -7,7 +7,7 @@ use std::{
 	time::Instant,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, at, debug, debug_error, trace,
 	utils::{
 		IterStream,
@@ -140,7 +140,7 @@ impl Service {
 
 		let chunk_cache: Vec<_> = chunk
 			.into_iter()
-			.try_stream::<conduwuit::Error>()
+			.try_stream::<continuwuity::Error>()
 			.broad_and_then(|(shortid, event_id)| async move {
 				if let Ok(cached) = self.get_cached_eventid_authchain(&[shortid]).await {
 					return Ok(cached.to_vec());

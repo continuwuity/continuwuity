@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug_warn, err};
+use continuwuity::{Err, Event, Result, debug_warn, err};
 use ruma::api::client::room::get_room_event;
 
 use crate::{Ruma, client::is_ignored_pdu};

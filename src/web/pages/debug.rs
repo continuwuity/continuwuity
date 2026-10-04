@@ -1,7 +1,7 @@
 use std::convert::Infallible;
 
 use axum::{Router, routing::get};
-use conduwuit_core::Error;
+use continuwuity_core::Error;
 
 use crate::WebError;
 

@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{future::BoolExt, stream::BroadbandExt},
 };
@@ -12,7 +12,7 @@ use ruma::{
 
 use crate::Ruma;
 
-// conduwuit can handle a lot more results than synapse
+// continuwuity can handle a lot more results than synapse
 const LIMIT_MAX: usize = 500;
 const LIMIT_DEFAULT: usize = 10;
 

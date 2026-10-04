@@ -5,7 +5,7 @@ use std::{
 	time::{Instant, SystemTime},
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, at, debug_error, err, info,
 	matrix::{
 		Event, StateKey,
@@ -539,7 +539,7 @@ impl crate::Context<'_> {
 
 		let mut pdus: HashMap<(StateEventType, StateKey), CanonicalJsonObject> = state_ids
 			.iter()
-			.try_stream::<conduwuit::Error>()
+			.try_stream::<continuwuity::Error>()
 			.and_then(|id| async {
 				let pdu_json = self.services.rooms.timeline.get_pdu_json(id).await?;
 				let event_type = pdu_json
@@ -1017,7 +1017,7 @@ impl crate::Context<'_> {
 			})
 			.collect();
 
-		let stats = conduwuit::alloc::memory_stats(&opts).unwrap_or_default();
+		let stats = continuwuity::alloc::memory_stats(&opts).unwrap_or_default();
 
 		self.write_str("```\n").await?;
 		self.write_str(&stats).await?;
@@ -1123,7 +1123,7 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn trim_memory(&self) -> Result {
-		conduwuit::alloc::trim(None)?;
+		continuwuity::alloc::trim(None)?;
 
 		writeln!(self, "done").await
 	}

@@ -2,7 +2,7 @@ mod data;
 
 use std::{future::ready, pin::Pin, sync::Arc};
 
-use conduwuit::{Err, Result, err, utils};
+use continuwuity::{Err, Result, err, utils};
 use data::Data;
 pub use data::{DatabaseTokenInfo, TokenExpires};
 use futures::{

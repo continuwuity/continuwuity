@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, debug_info, err};
+use continuwuity::{Err, Result, debug_info, err};
 use futures::FutureExt;
 use ruma::{
 	api::federation::membership::create_leave_event, events::room::member::MembershipState,

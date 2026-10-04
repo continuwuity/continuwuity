@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
 use clap::Subcommand;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use futures::StreamExt;
 use ruma::{OwnedRoomAliasId, OwnedRoomId, RoomAliasId};
 

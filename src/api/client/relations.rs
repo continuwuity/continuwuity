@@ -1,10 +1,10 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, at, debug_warn, err,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
 	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::StreamExt;
 use ruma::{
 	EventId, RoomId, UInt, UserId,

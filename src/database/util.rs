@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use rocksdb::{Direction, ErrorKind, IteratorMode};
 
 //#[cfg(debug_assertions)]
@@ -39,19 +39,19 @@ pub(crate) fn _into_direction(mode: &IteratorMode<'_>) -> Direction {
 #[inline]
 pub(crate) fn result<T>(
 	r: std::result::Result<T, rocksdb::Error>,
-) -> Result<T, conduwuit::Error> {
+) -> Result<T, continuwuity::Error> {
 	r.map_or_else(or_else, and_then)
 }
 
 #[inline(always)]
-pub(crate) fn and_then<T>(t: T) -> Result<T, conduwuit::Error> { Ok(t) }
+pub(crate) fn and_then<T>(t: T) -> Result<T, continuwuity::Error> { Ok(t) }
 
-pub(crate) fn or_else<T>(e: rocksdb::Error) -> Result<T, conduwuit::Error> { Err(map_err(e)) }
+pub(crate) fn or_else<T>(e: rocksdb::Error) -> Result<T, continuwuity::Error> { Err(map_err(e)) }
 
 #[inline]
 pub(crate) fn is_incomplete(e: &rocksdb::Error) -> bool { e.kind() == ErrorKind::Incomplete }
 
-pub(crate) fn map_err(e: rocksdb::Error) -> conduwuit::Error {
+pub(crate) fn map_err(e: rocksdb::Error) -> continuwuity::Error {
 	let kind = io_error_kind(&e.kind());
 	let string = e.into_string();
 

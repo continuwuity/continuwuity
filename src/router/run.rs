@@ -1,6 +1,6 @@
-extern crate conduwuit_admin as admin;
-extern crate conduwuit_core as conduwuit;
-extern crate conduwuit_service as service;
+extern crate continuwuity_admin as admin;
+extern crate continuwuity_core as continuwuity;
+extern crate continuwuity_service as service;
 
 use std::{
 	sync::{Arc, Weak, atomic::Ordering},
@@ -8,7 +8,7 @@ use std::{
 };
 
 use axum_server::{Address, Handle as ServerHandle};
-use conduwuit::{Error, Result, Server, debug, debug_error, debug_info, error, info};
+use continuwuity::{Error, Result, Server, debug, debug_error, debug_info, error, info};
 use futures::FutureExt;
 use service::Services;
 use tokio::{

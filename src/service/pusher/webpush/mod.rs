@@ -3,8 +3,8 @@ mod vapid;
 
 use std::time::{Duration, SystemTime};
 
-use conduwuit_core::{Err, Result, debug, debug_warn, err, utils, warn};
-use conduwuit_database::{Deserialized, Json};
+use continuwuity_core::{Err, Result, debug, debug_warn, err, utils, warn};
+use continuwuity_database::{Deserialized, Json};
 use futures::StreamExt;
 pub(super) use helpers::{decode_auth, decode_pushkey};
 use http::StatusCode;

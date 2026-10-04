@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::SystemTime};
 
-use conduwuit::utils::{
+use continuwuity::utils::{
 	self,
 	stream::{ReadyExt, TryIgnore},
 };

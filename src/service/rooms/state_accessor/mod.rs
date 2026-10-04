@@ -6,7 +6,7 @@ mod user_can;
 use std::{collections::HashSet, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Event, Pdu, Result, err};
+use continuwuity::{Event, Pdu, Result, err};
 use database::Map;
 use ruma::{
 	EventEncryptionAlgorithm, JsOption, OwnedRoomAliasId, OwnedUserId, RoomId, UserId,

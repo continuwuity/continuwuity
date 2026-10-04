@@ -1,6 +1,6 @@
 use std::{convert::AsRef, fmt::Debug, future::Future, io::Write, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result,
 	arrayvec::ArrayVec,
 	err,

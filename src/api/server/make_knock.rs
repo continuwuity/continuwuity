@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, debug_warn, info, matrix::pdu::PartialPdu, utils, warn};
+use continuwuity::{Err, Error, Result, debug_warn, info, matrix::pdu::PartialPdu, utils, warn};
 use ruma::{
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},

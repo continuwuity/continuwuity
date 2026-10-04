@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err,
 	utils::{ReadyExt, result::LogErr, stream::TryIgnore},
 };

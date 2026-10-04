@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, utils, utils::math::Tried};
+use continuwuity::{Err, Result, utils, utils::math::Tried};
 use ruma::api::client::typing::create_typing_event::{self, v3::TypingInfo};
 
 use crate::{Ruma, client_ip::ClientIp};

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::{Extension, Router, extract::State, routing::get};
-use conduwuit_core::config::TermsDocument;
+use continuwuity_core::config::TermsDocument;
 use ruma::{
 	OwnedServerName,
 	api::client::discovery::discover_support::{Contact, ContactRole},

@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Config, Result, Server, err, trace, utils::response::LimitReadExt, warn};
+use continuwuity::{Config, Result, Server, err, trace, utils::response::LimitReadExt, warn};
 use either::Either;
 use hickory_resolver::{
 	TokioResolver, config::ConnectionConfig, net::runtime::TokioRuntimeProvider,
@@ -65,7 +65,7 @@ impl crate::Service for Service {
 		let url_preview_user_agent = config
 			.url_preview_user_agent
 			.clone()
-			.unwrap_or_else(|| conduwuit::user_agent_media().to_owned());
+			.unwrap_or_else(|| continuwuity::user_agent_media().to_owned());
 
 		Ok(Arc::new(Self {
 			matrix_resolver,
@@ -226,7 +226,7 @@ pub fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
 		.timeout(Duration::from_secs(config.request_total_timeout))
 		.pool_idle_timeout(Duration::from_secs(config.request_idle_timeout))
 		.pool_max_idle_per_host(config.request_idle_per_host.into())
-		.user_agent(conduwuit::user_agent())
+		.user_agent(continuwuity::user_agent())
 		.redirect(redirect::Policy::limited(6))
         .danger_accept_invalid_certs(config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
 		.connection_verbose(cfg!(debug_assertions));
@@ -296,7 +296,7 @@ fn builder_interface(
 	builder: reqwest::ClientBuilder,
 	config: Option<&str>,
 ) -> Result<reqwest::ClientBuilder> {
-	use conduwuit::Err;
+	use continuwuity::Err;
 
 	if let Some(iface) = config {
 		Err!("Binding to network-interface {iface:?} by name is not supported on this platform.")

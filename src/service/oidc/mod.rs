@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Result,
 	config::{OidcConfig, OidcProfileKeyImportMode},
 	debug, err, error, info, warn,
@@ -168,7 +168,7 @@ impl crate::Service for Service {
                         .timeout(Duration::from_secs(args.server.config.request_total_timeout))
                         .pool_idle_timeout(Duration::from_secs(args.server.config.request_idle_timeout))
                         .pool_max_idle_per_host(args.server.config.request_idle_per_host.into())
-                        .user_agent(conduwuit::user_agent())
+                        .user_agent(continuwuity::user_agent())
                         .redirect(reqwest::redirect::Policy::none())
                         .danger_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
                         .build()
@@ -184,7 +184,7 @@ impl crate::Service for Service {
 				.services
 				.config
 				.get_client_domain()
-				.join(&format!("{}/oidc/complete", conduwuit::ROUTE_PREFIX))
+				.join(&format!("{}/oidc/complete", continuwuity::ROUTE_PREFIX))
 				.expect("redirect url should be valid");
 
 			let provider_metadata = CoreProviderMetadata::discover_async(

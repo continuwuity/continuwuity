@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_info, debug_warn, is_true,
 	matrix::{Event, PduEvent},
 	trace,

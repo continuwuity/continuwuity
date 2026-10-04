@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, checked};
+use continuwuity::{Err, Result, checked};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 
 impl crate::Context<'_> {

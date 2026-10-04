@@ -5,7 +5,7 @@ default-members = ["src/*"]
 
 [workspace.package]
 authors = ["Continuwuity Team and contributors <team@continuwuity.org>"]
-description = "A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver."
+description = "A community-driven Matrix homeserver"
 edition = "2024"
 homepage = "https://continuwuity.org/"
 license = "Apache-2.0"
@@ -15,7 +15,7 @@ repository = "https://forgejo.ellis.link/continuwuation/continuwuity"
 version = "26.9.1"
 
 [workspace.metadata.crane]
-name = "conduwuit"
+name = "continuwuity"
 
 [workspace.dependencies.arrayvec]
 version = "0.7.6"
@@ -121,7 +121,7 @@ features = ["typed-header", "tracing", "cookie"]
 version = "0.8.0"
 default-features = false
 
-# to listen on both HTTP and HTTPS if listening on TLS dierctly from conduwuit for complement or sytest
+# to listen on both HTTP and HTTPS if listening on TLS dierctly from continuwuity for complement or sytest
 [workspace.dependencies.axum-server-dual-protocol]
 # version = "0.7"
 git = "https://github.com/vinchona/axum-server-dual-protocol.git"
@@ -223,7 +223,7 @@ default-features = false
 version = "2.0.1"
 default-features = false
 
-# used for conduwuit's CLI and admin room command parsing
+# used for continuwuity's CLI and admin room command parsing
 [workspace.dependencies.clap]
 version = "4.5.35"
 default-features = false
@@ -314,7 +314,7 @@ features = [
     "tokio",
 ]
 
-# Used for conduwuit::Error type
+# Used for continuwuity::Error type
 [workspace.dependencies.thiserror]
 version = "2.0.12"
 default-features = false
@@ -610,49 +610,49 @@ rev = "09fcd3bf4656c81a8ad573bee410ab2b57f60b86"
 # Our crates
 #
 
-[workspace.dependencies.conduwuit-router]
-package = "conduwuit_router"
+[workspace.dependencies.continuwuity-router]
+package = "continuwuity_router"
 path = "src/router"
 default-features = false
 
-[workspace.dependencies.conduwuit-admin]
-package = "conduwuit_admin"
+[workspace.dependencies.continuwuity-admin]
+package = "continuwuity_admin"
 path = "src/admin"
 default-features = false
 
-[workspace.dependencies.conduwuit-api]
-package = "conduwuit_api"
+[workspace.dependencies.continuwuity-api]
+package = "continuwuity_api"
 path = "src/api"
 default-features = false
 
-[workspace.dependencies.conduwuit-service]
-package = "conduwuit_service"
+[workspace.dependencies.continuwuity-service]
+package = "continuwuity_service"
 path = "src/service"
 default-features = false
 
-[workspace.dependencies.conduwuit-database]
-package = "conduwuit_database"
+[workspace.dependencies.continuwuity-database]
+package = "continuwuity_database"
 path = "src/database"
 default-features = false
 
-[workspace.dependencies.conduwuit-core]
-package = "conduwuit_core"
+[workspace.dependencies.continuwuity-core]
+package = "continuwuity_core"
 path = "src/core"
 default-features = false
 
-[workspace.dependencies.conduwuit-macros]
-package = "conduwuit_macros"
+[workspace.dependencies.continuwuity-macros]
+package = "continuwuity_macros"
 path = "src/macros"
 default-features = false
 
-[workspace.dependencies.conduwuit-web]
-package = "conduwuit_web"
+[workspace.dependencies.continuwuity-web]
+package = "continuwuity_web"
 path = "src/web"
 default-features = false
 
 
-[workspace.dependencies.conduwuit-build-metadata]
-package = "conduwuit_build_metadata"
+[workspace.dependencies.continuwuity-build-metadata]
+package = "continuwuity_build_metadata"
 path = "src/build_metadata"
 default-features = false
 
@@ -697,7 +697,7 @@ codegen-units = 32
 #	'-Clink-arg=-Wl,--no-gc-sections',
 #]
 
-[profile.release-max-perf.package.conduwuit_macros]
+[profile.release-max-perf.package.continuwuity_macros]
 inherits = "release-max-perf.build-override"
 #rustflags = [
 #	'-Crelocation-model=pic',
@@ -731,7 +731,7 @@ panic = "unwind"
 debug-assertions = true
 incremental = true
 #rustflags = [
-#	'--cfg', 'conduwuit_mods',
+#	'--cfg', 'continuwuity_mods',
 #	'-Ztime-passes',
 #	'-Zmir-opt-level=0',
 #	'-Zvalidate-mir=false',
@@ -748,12 +748,12 @@ incremental = true
 #	'-Clink-arg=-Wl,-z,lazy',
 #]
 
-[profile.dev.package.conduwuit_core]
+[profile.dev.package.continuwuity_core]
 inherits = "dev"
-[profile.dev.package.conduwuit]
+[profile.dev.package.continuwuity]
 inherits = "dev"
 #rustflags = [
-#	'--cfg', 'conduwuit_mods',
+#	'--cfg', 'continuwuity_mods',
 #	'-Ztime-passes',
 #	'-Zmir-opt-level=0',
 #	'-Zvalidate-mir=false',
@@ -774,7 +774,7 @@ debug = 'limited'
 codegen-units = 1
 opt-level = 'z'
 #rustflags = [
-#	'--cfg', 'conduwuit_mods',
+#	'--cfg', 'continuwuity_mods',
 #	'-Ztls-model=global-dynamic',
 #	'-Cprefer-dynamic=true',
 #	'-Zstaticlib-prefer-dynamic=true',
@@ -974,7 +974,7 @@ suspicious = { level = "warn", priority = -1 }
 ## some sadness
 let_underscore_future = { level = "allow", priority = 1 }
 
-# rust doesnt understand conduwuit's custom log macros
+# rust doesnt understand continuwuity's custom log macros
 literal_string_with_formatting_args = { level = "allow", priority = 1 }
 
 # This lint is stupid, there's no point defining generics for simple trait params

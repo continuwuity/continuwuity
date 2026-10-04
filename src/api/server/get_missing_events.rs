@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug, info, trace, utils::to_canonical_object, warn};
+use continuwuity::{Err, Event, Result, debug, info, trace, utils::to_canonical_object, warn};
 use ruma::{OwnedEventId, api::federation::event::get_missing_events};
 use serde_json::value::RawValue;
 use service::rooms::event_handler::GET_MISSING_EVENTS_MAX_BATCH_SIZE;

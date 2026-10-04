@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err,
 	matrix::pdu::{PartialPdu, sticky},
 	utils,

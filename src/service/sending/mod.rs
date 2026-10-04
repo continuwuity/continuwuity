@@ -12,7 +12,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Result, Server, debug, debug_warn, err, error,
 	smallvec::SmallVec,
 	utils::{ReadyExt, TryReadyExt, available_parallelism, math::usize_from_u64_truncated},

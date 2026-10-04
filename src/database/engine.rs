@@ -17,7 +17,7 @@ use std::{
 	},
 };
 
-use conduwuit::{Err, Result, debug, err, info, warn};
+use continuwuity::{Err, Result, debug, err, info, warn};
 use rocksdb::{
 	AsColumnFamilyRef, BoundColumnFamily, DBCommon, DBWithThreadMode, MultiThreaded,
 	WaitForCompactOptions,

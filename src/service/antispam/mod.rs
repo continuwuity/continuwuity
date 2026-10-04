@@ -1,7 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Result, config::Antispam, debug};
+use continuwuity::{Result, config::Antispam, debug};
 use ruma::{
 	OwnedRoomId, OwnedUserId,
 	api::{auth_scheme::AppserviceToken, path_builder::VersionHistory},

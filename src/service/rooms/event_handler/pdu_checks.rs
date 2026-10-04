@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use base64::Engine;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, EventTypeExt, PduEvent, Result, debug, debug::DebugInspect, debug_error,
 	debug_info, err, info, matrix::StateKey, state_res, trace,
 };

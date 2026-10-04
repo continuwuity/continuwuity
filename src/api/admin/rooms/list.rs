@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use futures::StreamExt;
 use ruma::OwnedRoomId;
 use ruminuwuity::admin::continuwuity::rooms;

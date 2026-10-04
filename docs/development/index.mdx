@@ -56,7 +56,7 @@ workspace crate(s) must define the feature there in its `Cargo.toml`.
 
 So, if this is adding a feature to the API such as `woof`, you define the
 feature in the `api` crate's `Cargo.toml` as `woof = []`. The feature definition
-in `main`'s `Cargo.toml` will be `woof = ["conduwuit-api/woof"]`.
+in `main`'s `Cargo.toml` will be `woof = ["continuwuity-api/woof"]`.
 
 The rationale for this is due to Rust / Cargo not supporting ["workspace level
 features"][9], we must make a choice of; either scattering features all over the

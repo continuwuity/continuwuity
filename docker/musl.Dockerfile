@@ -103,7 +103,7 @@ ARG TARGETPLATFORM
 # Verify environment configuration
 RUN xx-cargo --print-target-triple
 
-# Conduwuit version info
+# Continuwuity version info
 ARG GIT_COMMIT_HASH
 ARG GIT_COMMIT_HASH_SHORT
 ARG GIT_REMOTE_URL
@@ -130,7 +130,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     TARGET_DIR=($(cargo metadata --no-deps --format-version 1 | \
             jq -r ".target_directory"))
     mkdir /out/sbin
-    PACKAGE=conduwuit
+    PACKAGE=continuwuity
     xx-cargo build --locked --profile ${RUST_PROFILE} \
         -p $PACKAGE --no-default-features --features bindgen-static,release_max_log_level,standard;
     BINARIES=($(cargo metadata --no-deps --format-version 1 | \
@@ -197,4 +197,4 @@ ENV LD_LIBRARY_PATH=/usr/lib
 # Continuwuity default port
 EXPOSE 8008
 
-CMD ["/sbin/conduwuit"]
+CMD ["/sbin/continuwuity"]

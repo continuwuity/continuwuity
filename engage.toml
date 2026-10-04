@@ -186,5 +186,5 @@ name = "example-config"
 group = "tests"
 depends = ["cargo/default"]
 script = """
-git diff --exit-code conduwuit-example.toml
+git diff --exit-code continuwuity-example.toml
 """

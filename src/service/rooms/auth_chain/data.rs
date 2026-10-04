@@ -1,6 +1,6 @@
 use std::{mem::size_of, sync::Arc};
 
-use conduwuit::{Err, Result, SyncMutex, err, utils, utils::math::usize_from_f64};
+use continuwuity::{Err, Result, SyncMutex, err, utils, utils::math::usize_from_f64};
 use database::Map;
 use lru_cache::LruCache;
 

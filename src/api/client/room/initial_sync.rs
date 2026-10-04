@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, at, debug_warn,
 	result::LogErr,
 	utils::{BoolExt, stream::TryTools},

@@ -1,7 +1,7 @@
 use std::{fmt, time::SystemTime};
 
-use conduwuit::{Err, Result};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result};
+use continuwuity_service::Services;
 use futures::{
 	Future, FutureExt, TryFutureExt,
 	io::{AsyncWriteExt, BufWriter},

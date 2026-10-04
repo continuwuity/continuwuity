@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, ops::Deref, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Pdu, Result, at, err,
 	matrix::{Event, StateKey},
 	pair_of,

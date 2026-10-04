@@ -92,7 +92,7 @@ pub enum Error {
 	#[error(transparent)]
 	ServerResolutionError(#[from] resolvematrix::error::ServerResolutionError),
 
-	// ruma/conduwuit
+	// ruma/continuwuity
 	#[error("Arithmetic operation failed: {0}")]
 	Arithmetic(Cow<'static, str>),
 	#[error("{0:?}: {1}")]

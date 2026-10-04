@@ -3,7 +3,7 @@ mod data;
 use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, SyncRwLock, error, utils::bytes::pretty};
+use continuwuity::{Result, Server, SyncRwLock, error, utils::bytes::pretty};
 use data::Data;
 use regex::RegexSet;
 use ruma::{OwnedEventId, OwnedRoomAliasId, OwnedUserId, ServerName, UserId};

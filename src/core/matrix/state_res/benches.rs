@@ -1,4 +1,4 @@
-#[cfg(conduwuit_bench)]
+#[cfg(continuwuity_bench)]
 extern crate test;
 
 use std::{
@@ -32,8 +32,8 @@ use crate::{
 
 static SERVER_TIMESTAMP: AtomicU64 = AtomicU64::new(0);
 
-#[cfg(conduwuit_bench)]
-#[cfg_attr(conduwuit_bench, bench)]
+#[cfg(continuwuity_bench)]
+#[cfg_attr(continuwuity_bench, bench)]
 fn lexico_topo_sort(c: &mut test::Bencher) {
 	let graph = hashmap! {
 		event_id("l") => hashset![event_id("o")],
@@ -50,8 +50,8 @@ fn lexico_topo_sort(c: &mut test::Bencher) {
 	});
 }
 
-#[cfg(conduwuit_bench)]
-#[cfg_attr(conduwuit_bench, bench)]
+#[cfg(continuwuity_bench)]
+#[cfg_attr(continuwuity_bench, bench)]
 fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
 	let mut store = TestStore(hashmap! {});
 
@@ -87,8 +87,8 @@ fn resolution_shallow_auth_chain(c: &mut test::Bencher) {
 	});
 }
 
-#[cfg(conduwuit_bench)]
-#[cfg_attr(conduwuit_bench, bench)]
+#[cfg(continuwuity_bench)]
+#[cfg_attr(continuwuity_bench, bench)]
 fn resolve_deeper_event_set(c: &mut test::Bencher) {
 	let mut inner = INITIAL_EVENTS();
 	let ban = BAN_STATE_SET();

@@ -3,7 +3,7 @@ mod via;
 
 use std::{collections::HashMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Pdu, Result, SyncRwLock,
 	result::LogErr,
 	utils::{ReadyExt, stream::TryIgnore},
@@ -205,7 +205,7 @@ impl Service {
 		user_a: &'a UserId,
 		user_b: &'a UserId,
 	) -> impl Stream<Item = OwnedRoomId> + Send + 'a {
-		use conduwuit::utils::set;
+		use continuwuity::utils::set;
 
 		let a = self.rooms_joined(user_a);
 		let b = self.rooms_joined(user_b);

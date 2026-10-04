@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeMap};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result,
 	pdu::PartialPdu,
 	utils::{ReadyExt, stream::TryIgnore, to_canonical_object},

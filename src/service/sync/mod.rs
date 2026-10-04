@@ -3,7 +3,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::{Result, SyncMutex, trace};
+use continuwuity::{Result, SyncMutex, trace};
 use futures::StreamExt;
 use ruma::{
 	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::sync::sync_events::v5,

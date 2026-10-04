@@ -6,7 +6,7 @@ use axum::{
 	response::{IntoResponse, Redirect},
 	routing::{get, on},
 };
-use conduwuit_api::client::handle_login;
+use continuwuity_api::client::handle_login;
 use openidconnect::core::CoreAuthPrompt;
 use ruma::{
 	OwnedUserId,
@@ -162,7 +162,8 @@ async fn route_login(
 		let user_id = match login_result {
 			| Ok(user_id) => user_id,
 			| Err(err) => {
-				let error_message = if let conduwuit_core::Error::Request(_, message, _) = err {
+				let error_message = if let continuwuity_core::Error::Request(_, message, _) = err
+				{
 					message.into_owned()
 				} else {
 					"Internal login error".to_owned()

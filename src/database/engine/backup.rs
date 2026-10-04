@@ -1,6 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 
-use conduwuit::{Err, Result, error, info, utils::time::rfc2822_from_seconds, warn};
+use continuwuity::{Err, Result, error, info, utils::time::rfc2822_from_seconds, warn};
 use rocksdb::backup::{BackupEngine, BackupEngineOptions};
 
 use crate::util::map_err;

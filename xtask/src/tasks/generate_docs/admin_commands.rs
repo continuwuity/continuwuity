@@ -7,7 +7,7 @@ use std::path::Path;
 
 use askama::Template;
 use clap::{Command, CommandFactory};
-use conduwuit_admin::AdminCommand;
+use continuwuity_admin::AdminCommand;
 
 use crate::tasks::{TaskResult, generate_docs::FileOutput};
 

@@ -2,7 +2,7 @@ mod remote;
 
 use std::sync::Arc;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err,
 	utils::{ReadyExt, stream::TryIgnore},
 };

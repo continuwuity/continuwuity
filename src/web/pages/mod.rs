@@ -7,7 +7,7 @@ use axum::{
 	response::Response,
 	routing::MethodFilter,
 };
-use conduwuit_core::utils;
+use continuwuity_core::utils;
 
 use crate::WebError;
 
@@ -35,7 +35,7 @@ pub(crate) struct TemplateContext {
 const CSP_NONCE_LENGTH: usize = 32;
 
 pub(super) async fn template_context_middleware(
-	State(config): State<Arc<conduwuit_service::config::Service>>,
+	State(config): State<Arc<continuwuity_service::config::Service>>,
 	mut request: Request,
 	next: Next,
 ) -> Response {

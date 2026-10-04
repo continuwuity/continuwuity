@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, at, debug_warn,
 	matrix::{
 		event::{Event, Matches},
@@ -12,7 +12,7 @@ use conduwuit::{
 		stream::{BroadbandExt, TryIgnore, WidebandExt},
 	},
 };
-use conduwuit_service::{
+use continuwuity_service::{
 	Services,
 	rooms::{
 		lazy_loading,

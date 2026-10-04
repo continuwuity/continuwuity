@@ -4,7 +4,7 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::oauth::{
+use continuwuity_service::oauth::{
 	client_metadata::ClientMetadata,
 	grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery, Prompt},
 };

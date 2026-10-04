@@ -1,6 +1,6 @@
 use std::{fmt::Debug, time::Duration};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, debug_warn, err,
 	utils::{content_disposition::make_content_disposition, response::LimitReadExt},
 };

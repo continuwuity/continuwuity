@@ -2,7 +2,7 @@ mod commands;
 pub(crate) mod tester;
 
 use clap::Subcommand;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName};
 use service::rooms::short::{ShortEventId, ShortRoomId};
 

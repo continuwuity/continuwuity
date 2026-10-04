@@ -1,10 +1,10 @@
 #![type_length_limit = "8192"]
 #![allow(refining_impl_trait)]
 
-extern crate conduwuit_core as conduwuit;
-extern crate conduwuit_database as database;
+extern crate continuwuity_core as continuwuity;
+extern crate continuwuity_database as database;
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
 mod manager;
 mod migrations;
@@ -45,12 +45,12 @@ pub(crate) use service::{Args, Dep, Service};
 
 pub use crate::services::Services;
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
+continuwuity::mod_ctor! {}
+continuwuity::mod_dtor! {}
 
 use std::sync::LazyLock;
 
-use conduwuit::matrix::versions::{unstable_features, versions};
+use continuwuity::matrix::versions::{unstable_features, versions};
 use ruma::api::SupportedVersions;
 
 pub static SUPPORTED_VERSIONS: LazyLock<SupportedVersions> =

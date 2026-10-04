@@ -1,5 +1,5 @@
 [package]
-name = "conduwuit_build_metadata"
+name = "continuwuity_build_metadata"
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -12,7 +12,7 @@ version.workspace = true
 build = "build.rs"
 # [[bin]]
 # path = "main.rs"
-# name = "conduwuit_build_metadata"
+# name = "continuwuity_build_metadata"
 
 [lib]
 path = "mod.rs"

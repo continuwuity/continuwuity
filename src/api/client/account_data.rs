@@ -1,6 +1,6 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, err};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result, err};
+use continuwuity_service::Services;
 use ruma::{
 	RoomId, UserId,
 	api::client::config::{

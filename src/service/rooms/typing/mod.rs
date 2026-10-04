@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result, Server, debug_info,
 	utils::{self, IterStream},
 };

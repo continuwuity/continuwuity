@@ -1,6 +1,6 @@
 # Local build and dev artifacts
 target/
-!target/debug/conduwuit
+!target/debug/continuwuity
 
 # Docker files
 Dockerfile*

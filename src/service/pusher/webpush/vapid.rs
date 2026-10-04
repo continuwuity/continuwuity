@@ -3,8 +3,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use conduwuit_core::{Result, SyncRwLock, debug_info, err, utils};
-use conduwuit_database::Database;
+use continuwuity_core::{Result, SyncRwLock, debug_info, err, utils};
+use continuwuity_database::Database;
 use p256::{
 	SecretKey,
 	ecdsa::{Signature, SigningKey, signature::Signer},

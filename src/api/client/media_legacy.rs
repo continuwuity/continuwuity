@@ -1,11 +1,11 @@
 #![allow(deprecated)]
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err,
 	utils::{content_disposition::make_content_disposition, math::ruma_from_usize},
 };
-use conduwuit_service::media::{CORP_CROSS_ORIGIN, Dim, FileMeta};
+use continuwuity_service::media::{CORP_CROSS_ORIGIN, Dim, FileMeta};
 use reqwest::Url;
 use ruma::{
 	api::client::media::{
@@ -33,7 +33,7 @@ pub(crate) async fn get_media_config_legacy_route(
 /// # `GET /_matrix/media/v1/config`
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// Returns max upload size.
@@ -86,7 +86,7 @@ pub(crate) async fn get_media_preview_legacy_route(
 /// # `GET /_matrix/media/v1/preview_url`
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// Returns URL preview.
@@ -104,7 +104,7 @@ pub(crate) async fn get_media_preview_legacy_legacy_route(
 /// Permanently save media in the server.
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// - Some metadata will be saved in the database
@@ -195,7 +195,7 @@ pub(crate) async fn get_content_legacy_route(
 /// Load media from our server or over federation.
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// - Only allows federation if `allow_remote` is true
@@ -287,7 +287,7 @@ pub(crate) async fn get_content_as_filename_legacy_route(
 /// Load media from our server or over federation, permitting desired filename.
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// - Only allows federation if `allow_remote` is true
@@ -381,7 +381,7 @@ pub(crate) async fn get_content_thumbnail_legacy_route(
 /// Load media thumbnail from our server or over federation.
 ///
 /// This is a legacy endpoint ("/v1/") that some very old homeservers and/or
-/// clients may call. conduwuit adds these for compatibility purposes.
+/// clients may call. continuwuity adds these for compatibility purposes.
 /// See <https://spec.matrix.org/legacy/legacy/#id27>
 ///
 /// - Only allows federation if `allow_remote` is true

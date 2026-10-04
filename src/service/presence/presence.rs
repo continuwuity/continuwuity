@@ -1,4 +1,4 @@
-use conduwuit::{Error, Result, utils};
+use continuwuity::{Error, Result, utils};
 use ruma::{
 	UInt, UserId,
 	events::presence::{PresenceEvent, PresenceEventContent},

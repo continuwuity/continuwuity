@@ -1,8 +1,10 @@
 use std::{fmt::Write as _, time::Duration};
 
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt};
-use conduwuit_service::Services;
+use continuwuity::{
+	Err, Event, Result, debug_info, info, matrix::pdu::PduEvent, utils::ReadyExt,
+};
+use continuwuity_service::Services;
 use ruma::{
 	EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId,
 	api::client::{

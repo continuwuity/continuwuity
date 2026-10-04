@@ -9,8 +9,8 @@ mod redact;
 use std::{fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
-pub use conduwuit_core::matrix::pdu::{PduId, RawPduId};
-use conduwuit_core::{
+pub use continuwuity_core::matrix::pdu::{PduId, RawPduId};
+use continuwuity_core::{
 	Result, Server, at, err,
 	matrix::{
 		event::Event,

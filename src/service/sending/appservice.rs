@@ -1,7 +1,7 @@
 use std::{fmt::Debug, mem};
 
 use bytes::BytesMut;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug_error, err, trace, utils, utils::response::LimitReadExt, warn,
 };
 use ruma::api::{

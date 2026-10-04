@@ -4,12 +4,12 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_warn, err,
 	result::FlatOk,
 	utils::{IterStream, TryFutureExtExt, stream::WidebandExt},
 };
-use conduwuit_service::{Services, users::parse_master_key};
+use continuwuity_service::{Services, users::parse_master_key};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
 	OneTimeKeyAlgorithm, OwnedDeviceId, OwnedUserId, UserId,

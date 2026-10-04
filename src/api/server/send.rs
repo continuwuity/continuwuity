@@ -4,7 +4,7 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, debug, debug_error, debug_warn, err, error,
 	result::LogErr,
 	trace,
@@ -14,7 +14,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::{
+use continuwuity_service::{
 	Services,
 	sending::{EDU_LIMIT, PDU_LIMIT},
 };

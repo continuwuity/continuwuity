@@ -3,8 +3,8 @@ use axum::{
 	extract::{Query, State},
 	routing::on,
 };
-use conduwuit_core::warn;
-use conduwuit_service::{
+use continuwuity_core::warn;
+use continuwuity_service::{
 	mailer::messages, threepid::session::ValidationSessions, users::HashedPassword,
 };
 use lettre::{Address, message::Mailbox};

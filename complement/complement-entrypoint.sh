@@ -64,4 +64,4 @@ export CONTINUWUITY_SERVER_NAME="$SERVER_NAME"
 
 echo "Starting Continuwuity with SERVER_NAME=$SERVER_NAME"
 # Start continuwuity
-/usr/local/bin/conduwuit --config /etc/continuwuity/config.toml
+/usr/local/bin/continuwuity --config /etc/continuwuity/config.toml

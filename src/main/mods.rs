@@ -1,7 +1,7 @@
-#![cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
+#![cfg(all(continuwuity_mods, feature = "continuwuity_mods"))]
 
 #[unsafe(no_link)]
-extern crate conduwuit_service;
+extern crate continuwuity_service;
 
 use std::{
 	future::Future,
@@ -9,13 +9,13 @@ use std::{
 	sync::{Arc, atomic::Ordering},
 };
 
-use conduwuit_core::{Error, Result, debug, error, mods};
-use conduwuit_service::Services;
+use continuwuity_core::{Error, Result, debug, error, mods};
+use continuwuity_service::Services;
 
 use crate::Server;
 
 type StartFuncResult = Pin<Box<dyn Future<Output = Result<Arc<Services>>> + Send>>;
-type StartFuncProto = fn(&Arc<conduwuit_core::Server>) -> StartFuncResult;
+type StartFuncProto = fn(&Arc<continuwuity_core::Server>) -> StartFuncResult;
 
 type RunFuncResult = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 type RunFuncProto = fn(&Arc<Services>) -> RunFuncResult;
@@ -23,19 +23,19 @@ type RunFuncProto = fn(&Arc<Services>) -> RunFuncResult;
 type StopFuncResult = Pin<Box<dyn Future<Output = Result<()>> + Send>>;
 type StopFuncProto = fn(Arc<Services>) -> StopFuncResult;
 
-const RESTART_THRESH: &str = "conduwuit_service";
+const RESTART_THRESH: &str = "continuwuity_service";
 const MODULE_NAMES: &[&str] = &[
-	//"conduwuit_core",
-	"conduwuit_database",
-	"conduwuit_service",
-	"conduwuit_api",
-	"conduwuit_admin",
-	"conduwuit_router",
+	//"continuwuity_core",
+	"continuwuity_database",
+	"continuwuity_service",
+	"continuwuity_api",
+	"continuwuity_admin",
+	"continuwuity_router",
 ];
 
 #[cfg(panic_trap)]
-conduwuit_core::mod_init! {{
-	conduwuit_core::debug::set_panic_trap();
+continuwuity_core::mod_init! {{
+	continuwuity_core::debug::set_panic_trap();
 }}
 
 pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, bool), Error> {

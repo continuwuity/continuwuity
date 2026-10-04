@@ -5,8 +5,8 @@ use crate::Result;
 
 pub(super) fn introspect(_args: TokenStream) -> Result<TokenStream> {
 	let cargo_crate_name = std::env::var("CARGO_CRATE_NAME").unwrap();
-	let crate_name = cargo_crate_name.trim_start_matches("conduwuit_");
-	let is_core = cargo_crate_name == "conduwuit_core";
+	let crate_name = cargo_crate_name.trim_start_matches("continuwuity_");
+	let is_core = cargo_crate_name == "continuwuity_core";
 
 	let flags = std::env::args().collect::<Vec<_>>();
 
@@ -16,9 +16,9 @@ pub(super) fn introspect(_args: TokenStream) -> Result<TokenStream> {
 	let enabled_count = enabled_features.len();
 
 	let import_path = if is_core {
-		quote! { use crate::conduwuit_core; }
+		quote! { use crate::continuwuity_core; }
 	} else {
-		quote! { use ::conduwuit_core; }
+		quote! { use ::continuwuity_core; }
 	};
 
 	let ret = quote! {
@@ -34,11 +34,11 @@ pub(super) fn introspect(_args: TokenStream) -> Result<TokenStream> {
 			/// Register this crate's features with the global registry during static initialization
 			#[::ctor::ctor(unsafe)]
 			fn register() {
-				conduwuit_core::info::introspection::ENABLED_FEATURES.lock().unwrap().insert(#crate_name, &ENABLED);
+				continuwuity_core::info::introspection::ENABLED_FEATURES.lock().unwrap().insert(#crate_name, &ENABLED);
 			}
 			#[::dtor::dtor(unsafe)]
 			fn unregister() {
-				conduwuit_core::info::introspection::ENABLED_FEATURES.lock().unwrap().remove(#crate_name);
+				continuwuity_core::info::introspection::ENABLED_FEATURES.lock().unwrap().remove(#crate_name);
 			}
 		}
 	};

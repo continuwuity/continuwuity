@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug,
 	result::FlatOk,
 	utils::{shuffle, stream::IterStream},

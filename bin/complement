@@ -99,7 +99,7 @@ fi
 
 if ! docker image inspect "$COMPLEMENT_BASE_IMAGE" > /dev/null 2>&1; then
     echo "Complement base image not found: $COMPLEMENT_BASE_IMAGE"
-    echo "Build it with: cargo build -p conduwuit && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
+    echo "Build it with: cargo build -p continuwuity && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
     exit 1
 fi
 
@@ -141,6 +141,7 @@ if [ -n "$MSC" ]; then
 fi
 
 # `COMPLEMENT_ENABLE_DIRTY_RUNS=1`  reuses the same complement container for faster complement, at the possible expense of test environment pollution
+# TODO: upstream complement handling to replace conduwuit_blacklist
 set +e
 (cd "$COMPLEMENT_SRC" && \
     COMPLEMENT_BASE_IMAGE="$COMPLEMENT_BASE_IMAGE" \

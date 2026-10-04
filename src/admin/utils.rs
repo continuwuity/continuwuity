@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use conduwuit_core::{Err, Result, err};
+use continuwuity_core::{Err, Result, err};
 use ruma::{OwnedRoomId, OwnedUserId, RoomId, UserId};
 use service::Services;
 

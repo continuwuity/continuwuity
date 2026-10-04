@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, info, matrix::pdu::PartialPdu, utils};
+use continuwuity::{Err, Result, info, matrix::pdu::PartialPdu, utils};
 use ruma::{
 	api::federation::membership::prepare_leave_event,
 	events::room::member::{MembershipState, RoomMemberEventContent},

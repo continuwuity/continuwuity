@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, at, debug_warn, err, ref_at,
 	result::LogErr,
 	utils::{
@@ -8,7 +8,7 @@ use conduwuit::{
 		stream::{BroadbandExt, ReadyExt, TryIgnore, WidebandExt},
 	},
 };
-use conduwuit_service::rooms::{lazy_loading, lazy_loading::Options, short::ShortStateKey};
+use continuwuity_service::rooms::{lazy_loading, lazy_loading::Options, short::ShortStateKey};
 use futures::{
 	FutureExt, StreamExt, TryFutureExt, TryStreamExt,
 	future::{OptionFuture, join, join3, try_join3},

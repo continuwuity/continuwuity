@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, trace,
 	utils::response::LimitReadExt,
 };

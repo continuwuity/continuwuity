@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::api::federation::openid::get_openid_userinfo;
 
 use crate::Ruma;

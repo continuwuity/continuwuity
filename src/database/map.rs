@@ -33,7 +33,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::Result;
+use continuwuity::Result;
 use rocksdb::{AsColumnFamilyRef, ColumnFamily, ReadOptions, WriteOptions};
 
 pub(crate) use self::options::{

@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use conduwuit::{Error, Result, debug::type_name, err, result::DebugInspect, utils::exchange};
+use continuwuity::{Error, Result, debug::type_name, err, result::DebugInspect, utils::exchange};
 use serde::{Deserialize, Serialize, ser};
 
 use crate::util::unhandled;

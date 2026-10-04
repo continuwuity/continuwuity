@@ -1,4 +1,4 @@
-use conduwuit::utils::stream::TryIgnore;
+use continuwuity::utils::stream::TryIgnore;
 use futures::Stream;
 use ruma::{OwnedUserId, UserId};
 

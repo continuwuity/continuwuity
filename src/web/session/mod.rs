@@ -10,7 +10,7 @@ use axum::{
 	http::request::Parts,
 	response::{IntoResponse, Redirect, Response},
 };
-use conduwuit_service::oauth::grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery};
+use continuwuity_service::oauth::grant::{AuthorizationCodeQuery, DeviceCodeVerifyQuery};
 use ruma::{OwnedUserId, UserId};
 use serde::{Deserialize, Serialize};
 use tower_sessions::Session;

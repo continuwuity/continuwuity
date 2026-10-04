@@ -1,11 +1,11 @@
 use std::time::Duration;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_info, debug_warn, error, info, trace,
 	utils::time::{TimeDirection, parse_timepoint_ago},
 	warn,
 };
-use conduwuit_service::media::Dim;
+use continuwuity_service::media::Dim;
 use ruma::{OwnedEventId, OwnedMxcUri, OwnedServerName};
 use service::media::mxc::Mxc;
 

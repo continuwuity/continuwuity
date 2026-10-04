@@ -1,7 +1,7 @@
 use std::{fmt::Write, mem::take, panic::AssertUnwindSafe, sync::Arc, time::SystemTime};
 
 use clap::{CommandFactory, Parser};
-use conduwuit::{
+use continuwuity::{
 	Error, Result, SyncMutex, debug, error,
 	log::{
 		capture,

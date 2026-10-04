@@ -1,5 +1,5 @@
 [package]
-name = "conduwuit_admin"
+name = "continuwuity_admin"
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -17,68 +17,68 @@ crate-type = [
 
 [features]
 brotli_compression = [
-	"conduwuit-api/brotli_compression",
-	"conduwuit-core/brotli_compression",
-	"conduwuit-service/brotli_compression",
+	"continuwuity-api/brotli_compression",
+	"continuwuity-core/brotli_compression",
+	"continuwuity-service/brotli_compression",
 ]
 gzip_compression = [
-	"conduwuit-api/gzip_compression",
-	"conduwuit-core/gzip_compression",
-	"conduwuit-service/gzip_compression",
+	"continuwuity-api/gzip_compression",
+	"continuwuity-core/gzip_compression",
+	"continuwuity-service/gzip_compression",
 ]
 io_uring = [
-	"conduwuit-api/io_uring",
-	"conduwuit-database/io_uring",
-	"conduwuit-service/io_uring",
+	"continuwuity-api/io_uring",
+	"continuwuity-database/io_uring",
+	"continuwuity-service/io_uring",
 ]
 jemalloc = [
-	"conduwuit-api/jemalloc",
-	"conduwuit-core/jemalloc",
-	"conduwuit-database/jemalloc",
-	"conduwuit-service/jemalloc",
+	"continuwuity-api/jemalloc",
+	"continuwuity-core/jemalloc",
+	"continuwuity-database/jemalloc",
+	"continuwuity-service/jemalloc",
 ]
 jemalloc_conf = [
-	"conduwuit-api/jemalloc_conf",
-	"conduwuit-core/jemalloc_conf",
-	"conduwuit-database/jemalloc_conf",
-	"conduwuit-service/jemalloc_conf",
+	"continuwuity-api/jemalloc_conf",
+	"continuwuity-core/jemalloc_conf",
+	"continuwuity-database/jemalloc_conf",
+	"continuwuity-service/jemalloc_conf",
 ]
 jemalloc_prof = [
-	"conduwuit-api/jemalloc_prof",
-	"conduwuit-core/jemalloc_prof",
-	"conduwuit-database/jemalloc_prof",
-	"conduwuit-service/jemalloc_prof",
+	"continuwuity-api/jemalloc_prof",
+	"continuwuity-core/jemalloc_prof",
+	"continuwuity-database/jemalloc_prof",
+	"continuwuity-service/jemalloc_prof",
 ]
 jemalloc_stats = [
-	"conduwuit-api/jemalloc_stats",
-	"conduwuit-core/jemalloc_stats",
-	"conduwuit-database/jemalloc_stats",
-	"conduwuit-service/jemalloc_stats",
+	"continuwuity-api/jemalloc_stats",
+	"continuwuity-core/jemalloc_stats",
+	"continuwuity-database/jemalloc_stats",
+	"continuwuity-service/jemalloc_stats",
 ]
 release_max_log_level = [
-	"conduwuit-api/release_max_log_level",
-	"conduwuit-core/release_max_log_level",
-	"conduwuit-database/release_max_log_level",
-	"conduwuit-service/release_max_log_level",
+	"continuwuity-api/release_max_log_level",
+	"continuwuity-core/release_max_log_level",
+	"continuwuity-database/release_max_log_level",
+	"continuwuity-service/release_max_log_level",
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 	"log/max_level_trace",
 	"log/release_max_level_info",
 ]
 zstd_compression = [
-	"conduwuit-api/zstd_compression",
-	"conduwuit-core/zstd_compression",
-	"conduwuit-database/zstd_compression",
-	"conduwuit-service/zstd_compression",
+	"continuwuity-api/zstd_compression",
+	"continuwuity-core/zstd_compression",
+	"continuwuity-database/zstd_compression",
+	"continuwuity-service/zstd_compression",
 ]
 
 [dependencies]
 clap.workspace = true
-conduwuit-api.workspace = true
-conduwuit-core.workspace = true
-conduwuit-database.workspace = true
-conduwuit-macros.workspace = true
-conduwuit-service.workspace = true
+continuwuity-api.workspace = true
+continuwuity-core.workspace = true
+continuwuity-database.workspace = true
+continuwuity-macros.workspace = true
+continuwuity-service.workspace = true
 const-str.workspace = true
 ctor.workspace = true
 dtor.workspace = true

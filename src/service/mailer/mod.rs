@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{Err, Result, err, info};
+use continuwuity::{Err, Result, err, info};
 use lettre::{
 	AsyncSmtpTransport, AsyncTransport, Tokio1Executor,
 	message::{Mailbox, MessageBuilder, header::ContentType},

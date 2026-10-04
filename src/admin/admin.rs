@@ -1,5 +1,5 @@
 use clap::Parser;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 
 use crate::{
 	appservice::{self, AppserviceCommand},
@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = conduwuit_core::BRANDING, version = conduwuit_core::version())]
+#[command(name = continuwuity_core::BRANDING, version = continuwuity_core::version())]
 pub enum AdminCommand {
 	/// Commands for managing appservices
 	#[command(subcommand)]

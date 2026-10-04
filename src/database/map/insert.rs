@@ -5,7 +5,7 @@
 
 use std::{convert::AsRef, fmt::Debug, io::Write};
 
-use conduwuit::arrayvec::ArrayVec;
+use continuwuity::arrayvec::ArrayVec;
 use rocksdb::WriteBatchWithTransaction;
 use serde::Serialize;
 

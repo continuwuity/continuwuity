@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, info};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result, info};
+use continuwuity_service::Services;
 use futures::StreamExt;
 use lettre::{Address, message::Mailbox};
 use ruma::{

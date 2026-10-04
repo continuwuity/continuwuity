@@ -1,5 +1,5 @@
 [package]
-name = "conduwuit_core"
+name = "continuwuity_core"
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -20,7 +20,7 @@ crate-type = [
 brotli_compression = [
     "reqwest/brotli",
 ]
-conduwuit_mods = [
+continuwuity_mods = [
     "dep:libloading"
 ]
 gzip_compression = [
@@ -67,8 +67,8 @@ cargo_toml.workspace = true
 checked_ops.workspace = true
 chrono.workspace = true
 clap.workspace = true
-conduwuit-macros.workspace = true
-conduwuit-build-metadata.workspace = true
+continuwuity-macros.workspace = true
+continuwuity-build-metadata.workspace = true
 const-str.workspace = true
 core_affinity.workspace = true
 ctor.workspace = true

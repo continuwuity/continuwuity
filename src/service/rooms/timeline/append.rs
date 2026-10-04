@@ -7,7 +7,7 @@ use std::{
 	time::Instant,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_warn,
 	matrix::{Event, PduEvent},
 	pdu::{Count, ShortRoomId},
@@ -19,7 +19,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_core::{
+use continuwuity_core::{
 	err, error,
 	matrix::pdu::{PduCount, PduId, RawPduId, sticky},
 	result::LogErr,

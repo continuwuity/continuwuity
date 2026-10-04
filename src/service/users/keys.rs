@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, err,
 	utils::{ReadyExt, stream::TryIgnore, string::Unquoted},
 };

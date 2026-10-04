@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, iter::once};
 
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, at, err, info, utils::IterStream};
+use continuwuity::{Err, Event, Result, at, err, info, utils::IterStream};
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{OwnedEventId, api::federation::event::get_room_state};
 

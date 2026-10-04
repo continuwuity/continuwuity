@@ -4,14 +4,14 @@ set -e
 # TODO: implement debconf support that is maintainable without duplicating the config
 #. /usr/share/debconf/confmodule
 
-CONDUWUIT_DATABASE_PATH=/var/lib/conduwuit
-CONDUWUIT_CONFIG_PATH=/etc/conduwuit
+CONTINUWUITY_DATABASE_PATH=/var/lib/continuwuity
+CONTINUWUITY_CONFIG_PATH=/etc/continuwuity
 
 case "$1" in
   configure)
     echo ''
-    echo 'Make sure you edit the example config at /etc/conduwuit/conduwuit.toml before starting!'
-    echo 'To start the server, run: systemctl start conduwuit.service'
+    echo 'Make sure you edit the example config at /etc/continuwuity/continuwuity.toml before starting!'
+    echo 'To start the server, run: systemctl start continuwuity.service'
     echo ''
 
     ;;

@@ -3,7 +3,7 @@
 use std::path::PathBuf;
 
 use clap::{ArgAction, Parser};
-use conduwuit_core::{
+use continuwuity_core::{
 	Err, Result,
 	config::{Figment, FigmentValue},
 	err, toml,
@@ -15,8 +15,8 @@ use conduwuit_core::{
 #[clap(
 	about,
 	long_about = None,
-	name = conduwuit_core::BRANDING,
-	version = conduwuit_core::version(),
+	name = continuwuity_core::BRANDING,
+	version = continuwuity_core::version(),
 )]
 pub struct Args {
 	#[arg(short, long)]

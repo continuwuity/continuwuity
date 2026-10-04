@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use ruma::api::federation::discovery::discover_homeserver;
 
 use crate::Ruma;

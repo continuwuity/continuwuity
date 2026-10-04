@@ -2,7 +2,7 @@
 use std::collections::BTreeMap;
 
 use assign::assign;
-use conduwuit::{Result, debug, debug_error, debug_info, debug_warn, err, info, trace};
+use continuwuity::{Result, debug, debug_error, debug_info, debug_warn, err, info, trace};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, MilliSecondsSinceUnixEpoch, ServerName,

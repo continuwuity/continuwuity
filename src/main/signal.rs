@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit_core::{debug_error, trace, warn};
+use continuwuity_core::{debug_error, trace, warn};
 use tokio::signal;
 
 use super::server::Server;
@@ -12,7 +12,8 @@ pub(super) async fn signal(server: Arc<Server>) {
 	use unix::SignalKind;
 
 	const CONSOLE: bool = cfg!(feature = "console");
-	const RELOADING: bool = cfg!(all(conduwuit_mods, feature = "conduwuit_mods", not(CONSOLE)));
+	const RELOADING: bool =
+		cfg!(all(continuwuity_mods, feature = "continuwuity_mods", not(CONSOLE)));
 
 	let mut quit = unix::signal(SignalKind::quit()).expect("SIGQUIT handler");
 	let mut term = unix::signal(SignalKind::terminate()).expect("SIGTERM handler");

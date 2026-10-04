@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, at, debug_warn, is_true,
 	matrix::Event,
 	result::FlatOk,
 	utils::{IterStream, stream::ReadyExt},
 };
-use conduwuit_service::{Services, rooms::search::RoomQuery};
+use continuwuity_service::{Services, rooms::search::RoomQuery};
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use ruma::{
 	OwnedRoomId, RoomId, UInt, UserId,

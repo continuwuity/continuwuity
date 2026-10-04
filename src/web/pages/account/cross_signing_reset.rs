@@ -1,5 +1,5 @@
 use axum::{Extension, Router, extract::State, routing::on};
-use conduwuit_service::oauth::OAuthTicket;
+use continuwuity_service::oauth::OAuthTicket;
 
 use crate::{
 	extract::PostForm,

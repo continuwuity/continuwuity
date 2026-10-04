@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Instant};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, PduEvent, debug, debug_info, debug_warn, trace,
 	utils::{BoolExt, IterStream, stream::BroadbandExt},
 };
@@ -19,7 +19,7 @@ impl super::Service {
 		incoming_pdu: &PduEvent,
 		origin: &ServerName,
 		first_ts_in_room: MilliSecondsSinceUnixEpoch,
-	) -> conduwuit::Result<()> {
+	) -> continuwuity::Result<()> {
 		let start = Instant::now();
 		let mut missing = incoming_pdu
 			.prev_events()

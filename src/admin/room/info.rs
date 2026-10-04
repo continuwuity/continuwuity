@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::{Err, Result, utils::ReadyExt};
+use continuwuity::{Err, Result, utils::ReadyExt};
 use futures::StreamExt;
 use ruma::OwnedRoomId;
 

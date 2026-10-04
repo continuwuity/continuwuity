@@ -1,6 +1,6 @@
 use std::io::IsTerminal;
 
-use conduwuit::{Err, Result, debug, debug_info, error, info, warn};
+use continuwuity::{Err, Result, debug, debug_info, error, info, warn};
 use ruma::events::room::message::RoomMessageEventContent;
 use tokio::time::{Duration, sleep};
 

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit_core::{
+use continuwuity_core::{
 	Result,
 	config::Config,
 	debug_warn, err,
@@ -110,7 +110,7 @@ pub(crate) fn init(
 				.with_batch_exporter(exporter)
 				.build();
 
-			let tracer = provider.tracer(conduwuit_core::BRANDING);
+			let tracer = provider.tracer(continuwuity_core::BRANDING);
 
 			let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 

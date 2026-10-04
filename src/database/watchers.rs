@@ -4,7 +4,7 @@ use std::{
 	pin::Pin,
 };
 
-use conduwuit::SyncRwLock;
+use continuwuity::SyncRwLock;
 use tokio::sync::watch;
 
 type Watcher = SyncRwLock<HashMap<Vec<u8>, (watch::Sender<()>, watch::Receiver<()>)>>;

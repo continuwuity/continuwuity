@@ -1,5 +1,5 @@
 use axum::{Extension, Router, extract::State, routing::on};
-use conduwuit_service::users::HashedPassword;
+use continuwuity_service::users::HashedPassword;
 use ruma::UserId;
 use validator::{Validate, ValidationError, ValidationErrors};
 

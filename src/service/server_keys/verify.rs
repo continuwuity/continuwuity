@@ -1,4 +1,4 @@
-use conduwuit::{
+use continuwuity::{
 	Err, Result, matrix::event::gen_event_id_canonical_json, trace, utils::to_canonical_object,
 };
 use ruma::{

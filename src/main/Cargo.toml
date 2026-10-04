@@ -1,6 +1,6 @@
 [package]
-name = "conduwuit"
-default-run = "conduwuit"
+name = "continuwuity"
+default-run = "continuwuity"
 authors.workspace = true
 description.workspace = true
 edition.workspace = true
@@ -28,21 +28,20 @@ license-file = ["../../LICENSE", "3"]
 depends = "$auto, ca-certificates"
 breaks = ["conduwuit (<<0.5.0)"]
 replaces = ["conduwuit (<<0.5.0)"]
-extended-description = """\
-A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver."""
+extended-description = """A community-driven Matrix homeserver."""
 section = "net"
 priority = "optional"
-conf-files = ["/etc/conduwuit/conduwuit.toml"]
+conf-files = ["/etc/continuwuity/continuwuity.toml"]
 maintainer-scripts = "../../pkg/debian/"
-systemd-units = { unit-name = "conduwuit", start = false, unit-scripts = "../../pkg/" }
+systemd-units = { unit-name = "continuwuity", start = false, unit-scripts = "../../pkg/" }
 assets = [
-    ["../../pkg/debian/README.md", "usr/share/doc/conduwuit/README.Debian", "644"],
-    ["../../README.md", "usr/share/doc/conduwuit/", "644"],
+    ["../../pkg/debian/README.md", "usr/share/doc/continuwuity/README.Debian", "644"],
+    ["../../README.md", "usr/share/doc/continuwuity/", "644"],
     # cargo-deb only treats the exact prefix "target/release/" as the magic
     # path that resolves to the real build dir (e.g. target/<triple>/release
     # when cross-compiling); a ../../ prefix would be read as a literal path
-    ["target/release/conduwuit", "usr/bin/conduwuit", "755"],
-    ["../../conduwuit-example.toml", "etc/conduwuit/conduwuit.toml", "640"],
+    ["target/release/continuwuity", "usr/bin/continuwuity", "755"],
+    ["../../continuwuity-example.toml", "etc/continuwuity/continuwuity.toml", "640"],
 ]
 
 [features]
@@ -77,29 +76,29 @@ full = [
 ]
 
 brotli_compression = [
-    "conduwuit-api/brotli_compression",
-    "conduwuit-core/brotli_compression",
-    "conduwuit-router/brotli_compression",
-    "conduwuit-service/brotli_compression",
+    "continuwuity-api/brotli_compression",
+    "continuwuity-core/brotli_compression",
+    "continuwuity-router/brotli_compression",
+    "continuwuity-service/brotli_compression",
 ]
 console = [
-    "conduwuit-service/console",
+    "continuwuity-service/console",
 ]
 direct_tls = [
-    "conduwuit-router/direct_tls"
+    "continuwuity-router/direct_tls"
 ]
 element_hacks = [
-    "conduwuit-api/element_hacks",
-    "conduwuit-service/element_hacks",
+    "continuwuity-api/element_hacks",
+    "continuwuity-service/element_hacks",
 ]
 gzip_compression = [
-    "conduwuit-api/gzip_compression",
-    "conduwuit-core/gzip_compression",
-    "conduwuit-router/gzip_compression",
-    "conduwuit-service/gzip_compression",
+    "continuwuity-api/gzip_compression",
+    "continuwuity-core/gzip_compression",
+    "continuwuity-router/gzip_compression",
+    "continuwuity-service/gzip_compression",
 ]
 hardened_malloc = [
-    "conduwuit-core/hardened_malloc",
+    "continuwuity-core/hardened_malloc",
 ]
 http3 = [
     "reqwest/http3"
@@ -112,23 +111,23 @@ aws_lc_rs = [
     "dep:aws-lc-rs"
 ]
 io_uring = [
-    "conduwuit-database/io_uring",
+    "continuwuity-database/io_uring",
 ]
 jemalloc = [
-    "conduwuit-core/jemalloc",
-    "conduwuit-database/jemalloc",
+    "continuwuity-core/jemalloc",
+    "continuwuity-database/jemalloc",
 ]
 jemalloc_prof = [
-    "conduwuit-core/jemalloc_prof",
+    "continuwuity-core/jemalloc_prof",
 ]
 jemalloc_stats = [
-    "conduwuit-core/jemalloc_stats",
+    "continuwuity-core/jemalloc_stats",
 ]
 jemalloc_conf = [
-    "conduwuit-core/jemalloc_conf",
+    "continuwuity-core/jemalloc_conf",
 ]
 media_thumbnail = [
-    "conduwuit-service/media_thumbnail",
+    "continuwuity-service/media_thumbnail",
 ]
 otlp_telemetry = [
     "dep:opentelemetry",
@@ -139,8 +138,8 @@ otlp_telemetry = [
 perf_measurements = [
     "dep:tracing-flame",
     "otlp_telemetry",
-    "conduwuit-core/perf_measurements",
-    "conduwuit-core/sentry_telemetry",
+    "continuwuity-core/perf_measurements",
+    "continuwuity-core/sentry_telemetry",
 ]
 # increases performance, reduces build times, and reduces binary size by not compiling or
 # genreating code for log level filters that users will generally not use (debug and trace)
@@ -149,28 +148,28 @@ release_max_log_level = [
     "tracing/release_max_level_info",
     "log/max_level_trace",
     "log/release_max_level_info",
-    "conduwuit-admin/release_max_log_level",
-    "conduwuit-api/release_max_log_level",
-    "conduwuit-core/release_max_log_level",
-    "conduwuit-database/release_max_log_level",
-    "conduwuit-router/release_max_log_level",
-    "conduwuit-service/release_max_log_level",
+    "continuwuity-admin/release_max_log_level",
+    "continuwuity-api/release_max_log_level",
+    "continuwuity-core/release_max_log_level",
+    "continuwuity-database/release_max_log_level",
+    "continuwuity-router/release_max_log_level",
+    "continuwuity-service/release_max_log_level",
 ]
 sentry_telemetry = [
     "dep:sentry",
     "dep:sentry-tracing",
     "dep:sentry-tower",
-    "conduwuit-core/sentry_telemetry",
-    "conduwuit-router/sentry_telemetry",
+    "continuwuity-core/sentry_telemetry",
+    "continuwuity-router/sentry_telemetry",
 ]
 systemd = [
-    "conduwuit-router/systemd",
-    "conduwuit-service/systemd"
+    "continuwuity-router/systemd",
+    "continuwuity-service/systemd"
 ]
 journald = [# This is a stub on non-unix platforms
     "dep:tracing-journald",
 ]
-openreg = ["conduwuit-core/openreg"]
+openreg = ["continuwuity-core/openreg"]
 
 
 # enable the tokio_console server ncompatible with release_max_log_level
@@ -179,25 +178,25 @@ tokio_console = [
     "tokio/tracing",
 ]
 url_preview = [
-    "conduwuit-service/url_preview",
+    "continuwuity-service/url_preview",
 ]
 zstd_compression = [
-    "conduwuit-api/zstd_compression",
-    "conduwuit-core/zstd_compression",
-    "conduwuit-database/zstd_compression",
-    "conduwuit-router/zstd_compression",
-    "conduwuit-service/zstd_compression",
+    "continuwuity-api/zstd_compression",
+    "continuwuity-core/zstd_compression",
+    "continuwuity-database/zstd_compression",
+    "continuwuity-router/zstd_compression",
+    "continuwuity-service/zstd_compression",
 ]
-conduwuit_mods = [
-    "conduwuit-core/conduwuit_mods",
+continuwuity_mods = [
+    "continuwuity-core/continuwuity_mods",
 ]
 bindgen-static = [
     # "bindgen/static"
     # "clang-sys/static"
-    "conduwuit-database/bindgen-static"
+    "continuwuity-database/bindgen-static"
 ]
 bindgen-runtime = [
-    "conduwuit-database/bindgen-runtime"
+    "continuwuity-database/bindgen-runtime"
 ]
 
 [build-dependencies]
@@ -205,14 +204,14 @@ bindgen-runtime = [
 # clang-sys = {version = "1", default-features = false}
 
 [dependencies]
-conduwuit-admin.workspace = true
-conduwuit-api.workspace = true
-conduwuit-core.workspace = true
-conduwuit-database.workspace = true
-conduwuit-router.workspace = true
-conduwuit-service.workspace = true
-conduwuit-build-metadata.workspace = true
-conduwuit-macros.workspace = true
+continuwuity-admin.workspace = true
+continuwuity-api.workspace = true
+continuwuity-core.workspace = true
+continuwuity-database.workspace = true
+continuwuity-router.workspace = true
+continuwuity-service.workspace = true
+continuwuity-build-metadata.workspace = true
+continuwuity-macros.workspace = true
 
 clap.workspace = true
 ctor.workspace = true
@@ -257,5 +256,5 @@ hardened_malloc-rs.optional = true
 workspace = true
 
 [[bin]]
-name = "conduwuit"
+name = "continuwuity"
 path = "main.rs"

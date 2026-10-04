@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use conduwuit::{
+use continuwuity::{
 	Result, at,
 	matrix::{Event, pdu::PduEvent},
 	utils::{
@@ -8,7 +8,7 @@ use conduwuit::{
 		stream::{BroadbandExt, TryIgnore},
 	},
 };
-use conduwuit_service::{
+use continuwuity_service::{
 	Services,
 	rooms::{lazy_loading::MemberSet, short::ShortStateHash},
 };

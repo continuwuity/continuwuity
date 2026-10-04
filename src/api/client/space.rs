@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use ruma::{UInt, api::client::space::get_hierarchy, assign};
 use service::rooms::summary::Accessibility;
 

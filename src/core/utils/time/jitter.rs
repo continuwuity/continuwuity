@@ -6,7 +6,7 @@ use std::{ops::RangeInclusive, time::Duration};
 ///
 /// # Example
 /// ```
-/// use conduwuit_core::utils::time::jitter;
+/// use continuwuity_core::utils::time::jitter;
 /// let sleep_duration = jitter(Duration::from_secs(1), -10..=10);
 /// // Adds a jitter of between -10% and 10% to the duration.
 /// ```

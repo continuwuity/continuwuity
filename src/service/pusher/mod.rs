@@ -3,13 +3,13 @@ mod webpush;
 use std::{fmt::Debug, mem, sync::Arc};
 
 use bytes::BytesMut;
-use conduwuit::utils::response::LimitReadExt;
-use conduwuit_core::{
+use continuwuity::utils::response::LimitReadExt;
+use continuwuity_core::{
 	Err, Event, Result, Server, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
 	warn,
 };
-use conduwuit_database::{Deserialized, Ignore, Interfix, Json, Map};
+use continuwuity_database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
 use ipaddress::IPAddress;
 use ruma::{

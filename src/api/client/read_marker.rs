@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, PduCount, Result, err};
+use continuwuity::{Err, PduCount, Result, err};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
 	api::client::{read_marker::set_read_marker, receipt::create_receipt},

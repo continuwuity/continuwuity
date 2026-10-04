@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, matrix::Event, pdu::PartialPdu, trace};
+use continuwuity::{Err, Result, matrix::Event, pdu::PartialPdu, trace};
 use ruma::{
 	EventId, RoomId, UserId,
 	events::{

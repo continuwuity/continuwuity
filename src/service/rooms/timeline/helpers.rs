@@ -1,6 +1,6 @@
 //! Helpers for submitting events with the right checks performed
 
-pub(crate) use conduwuit::{
+pub(crate) use continuwuity::{
 	Err, Event, Result, err,
 	matrix::pdu::{PartialPdu, UnsignedContext, sticky},
 	trace,

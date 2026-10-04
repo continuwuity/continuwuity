@@ -1,6 +1,6 @@
 use std::{path::PathBuf, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Server, debug, debug_info, expected, is_equal_to,
 	utils::{
 		math::usize_from_f64,

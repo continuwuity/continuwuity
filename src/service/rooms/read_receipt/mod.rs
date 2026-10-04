@@ -2,7 +2,7 @@ mod data;
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result, debug, err,
 	matrix::{
 		Event,
@@ -168,7 +168,7 @@ where
 	}
 	let content = ReceiptEventContent::from_iter(json);
 
-	conduwuit::trace!(?content);
+	continuwuity::trace!(?content);
 	Raw::from_json(
 		serde_json::value::to_raw_value(&SyncEphemeralRoomEvent::new(content))
 			.expect("received valid json"),

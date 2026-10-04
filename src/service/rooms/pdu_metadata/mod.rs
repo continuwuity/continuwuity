@@ -2,7 +2,7 @@ mod bundled_aggregations;
 mod data;
 use std::sync::Arc;
 
-use conduwuit::{Result, matrix::PduCount};
+use continuwuity::{Result, matrix::PduCount};
 use futures::{StreamExt, future::try_join};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 

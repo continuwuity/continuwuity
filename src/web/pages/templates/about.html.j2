@@ -59,8 +59,8 @@ About server
     {% endif %}
     <p>
         Server version <b>{{ env!("CARGO_PKG_VERSION") }}</b>
-        {%~ if let Some(version_info) = conduwuit_build_metadata::version_tag() ~%}
-            {%~ if let Some(url) = conduwuit_build_metadata::GIT_REMOTE_COMMIT_URL.or(conduwuit_build_metadata::GIT_REMOTE_WEB_URL) ~%}
+        {%~ if let Some(version_info) = continuwuity_build_metadata::version_tag() ~%}
+            {%~ if let Some(url) = continuwuity_build_metadata::GIT_REMOTE_COMMIT_URL.or(continuwuity_build_metadata::GIT_REMOTE_WEB_URL) ~%}
                 (<a href="{{ url }}">{{ version_info }}</a>)
             {%~ else ~%}
                 ({{ version_info }})

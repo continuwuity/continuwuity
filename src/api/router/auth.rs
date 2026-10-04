@@ -1,6 +1,6 @@
 use std::any::{Any, TypeId};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, err,
 	utils::{IterStream, millis_since_unix_epoch},
 };

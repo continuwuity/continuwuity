@@ -1,6 +1,6 @@
 use api::client::leave_room;
 use clap::Subcommand;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, info,
 	utils::{IterStream, ReadyExt},
 	warn,

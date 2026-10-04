@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, err};
+use continuwuity::{Err, Result, err};
 use ruma::{
 	api::federation::directory::{get_public_rooms, get_public_rooms_filtered},
 	assign,

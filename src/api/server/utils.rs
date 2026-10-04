@@ -1,5 +1,5 @@
-use conduwuit::{Err, Result, err, is_false};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result, err, is_false};
+use continuwuity_service::Services;
 use futures::{FutureExt, future::OptionFuture, join};
 use ruma::{
 	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, ServerName,

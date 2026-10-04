@@ -1,7 +1,7 @@
 use std::cmp;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, PduCount, Result, info,
 	utils::{IterStream, ReadyExt, stream::TryTools},
 };

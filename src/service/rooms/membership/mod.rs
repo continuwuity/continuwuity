@@ -1,6 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, defer, err, error, info,
 	is_true,
 	matrix::{

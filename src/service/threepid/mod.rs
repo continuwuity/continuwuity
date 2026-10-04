@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use conduwuit::{Err, Error, Result, config::OidcProfileKeyImportMode, result::FlatOk};
+use continuwuity::{Err, Error, Result, config::OidcProfileKeyImportMode, result::FlatOk};
 use database::{Deserialized, Map};
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{Address, message::Mailbox};

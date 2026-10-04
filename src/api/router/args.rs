@@ -5,7 +5,7 @@ use axum::{
 	body::Body,
 	extract::{FromRequest, Path, Query},
 };
-use conduwuit::{Error, Result, err};
+use continuwuity::{Error, Result, err};
 use ruma::{
 	CanonicalJsonObject,
 	api::{IncomingRequest, IncomingRequestExt},

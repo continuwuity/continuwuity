@@ -3,7 +3,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, debug, debug_error, debug_warn, defer, matrix::PartialPdu, trace,
 	utils::time::jitter,
 };

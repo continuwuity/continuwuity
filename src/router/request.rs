@@ -8,8 +8,8 @@ use axum::{
 	extract::State,
 	response::{IntoResponse, Response},
 };
-use conduwuit::{Result, debug, debug_error, debug_warn, err, error, trace};
-use conduwuit_service::Services;
+use continuwuity::{Result, debug, debug_error, debug_warn, err, error, trace};
+use continuwuity_service::Services;
 use futures::FutureExt;
 use http::{Method, StatusCode, Uri};
 use tokio::time::sleep;
@@ -82,7 +82,7 @@ async fn execute(
 	parent: &Span,
 ) -> Response {
 	#[cfg(debug_assertions)]
-	conduwuit::defer! {{
+	continuwuity::defer! {{
 		_ = services.server
 			.metrics
 			.requests_handle_finished

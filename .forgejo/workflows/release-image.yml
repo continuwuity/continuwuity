@@ -214,7 +214,7 @@ jobs:
       - name: Download binary artifacts
         uses: forgejo/download-artifact@v4
         with:
-          pattern: conduwuit*
+          pattern: continuwuity*
           path: binaries
           merge-multiple: true
       - name: Create Release and Upload

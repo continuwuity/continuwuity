@@ -1,4 +1,4 @@
-use conduwuit::{
+use continuwuity::{
 	Event, PduEvent, Result, at, debug_warn,
 	pdu::EventHash,
 	trace,

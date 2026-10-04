@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result};
-use conduwuit_service::sending::EduBuf;
+use continuwuity::{Err, Result};
+use continuwuity_service::sending::EduBuf;
 use futures::StreamExt;
 use ruma::{
 	api::{

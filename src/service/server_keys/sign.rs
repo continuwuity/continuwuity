@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{
 	CanonicalJsonObject, room_version_rules::RoomVersionRules, signatures::hash_and_sign_event,
 };

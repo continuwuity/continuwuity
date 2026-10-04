@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, hash_map};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, EventTypeExt, PduEvent, Result, debug, debug_warn, err, info, trace,
 };
 use ruma::{CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName};

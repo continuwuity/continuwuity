@@ -1,7 +1,7 @@
 mod commands;
 
 use clap::Subcommand;
-use conduwuit::Result;
+use continuwuity::Result;
 
 use crate::admin_command_dispatch;
 

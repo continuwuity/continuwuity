@@ -1,5 +1,5 @@
 [package]
-name = "conduwuit_database"
+name = "continuwuity_database"
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -20,27 +20,27 @@ io_uring = [
 	"rust-rocksdb/io-uring",
 ]
 jemalloc = [
-	"conduwuit-core/jemalloc",
+	"continuwuity-core/jemalloc",
 	"rust-rocksdb/jemalloc",
 ]
 jemalloc_conf = [
-	"conduwuit-core/jemalloc_conf",
+	"continuwuity-core/jemalloc_conf",
 ]
 jemalloc_prof = [
-	"conduwuit-core/jemalloc_prof",
+	"continuwuity-core/jemalloc_prof",
 ]
 jemalloc_stats = [
-	"conduwuit-core/jemalloc_stats",
+	"continuwuity-core/jemalloc_stats",
 ]
 release_max_log_level = [
-	"conduwuit-core/release_max_log_level",
+	"continuwuity-core/release_max_log_level",
 	"log/max_level_trace",
 	"log/release_max_level_info",
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 ]
 zstd_compression = [
-	"conduwuit-core/zstd_compression",
+	"continuwuity-core/zstd_compression",
 	"rust-rocksdb/zstd",
 ]
 bindgen-static = [
@@ -54,8 +54,8 @@ bindgen-runtime = [
 
 [dependencies]
 async-channel.workspace = true
-conduwuit-core.workspace = true
-conduwuit-macros.workspace = true
+continuwuity-core.workspace = true
+continuwuity-macros.workspace = true
 const-str.workspace = true
 ctor.workspace = true
 dtor.workspace = true

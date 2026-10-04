@@ -84,10 +84,10 @@
 # including media. Note: this was previously "/var/lib/matrix-conduit".
 #
 # YOU NEED TO EDIT THIS, UNLESS you are running continuwuity as a
-# `systemd` service. The service file sets it to `/var/lib/conduwuit`
+# `systemd` service. The service file sets it to `/var/lib/continuwuity`
 # using an environment variable and also grants write access.
 #
-# example: "/var/lib/conduwuit"
+# example: "/var/lib/continuwuity"
 #
 #database_path =
 
@@ -1548,7 +1548,7 @@
 
 # Check consistency of the media directory at startup:
 # 1. When `media_compat_file_link` is enabled, this check will upgrade
-#    media when switching back and forth between Conduit and conduwuit.
+#    media when switching back and forth between Conduit and continuwuity.
 #    Both options must be enabled to handle this.
 # 2. When media is deleted from the directory, this check will also delete
 #    its database entry.

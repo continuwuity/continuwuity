@@ -7,7 +7,7 @@ use std::{
 	time::Instant,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
 	result::NotFound,
 	trace,

@@ -3,7 +3,7 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
-use conduwuit::utils;
+use continuwuity::utils;
 use lettre::Address;
 use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId};
 

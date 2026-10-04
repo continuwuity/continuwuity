@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{Result, Server, SyncMutex, debug, utils::math::usize_from_f64};
+use continuwuity::{Result, Server, SyncMutex, debug, utils::math::usize_from_f64};
 use rocksdb::{Cache, Env, LruCacheOptions};
 
 use crate::{or_else, pool::Pool};

@@ -1,4 +1,4 @@
-use conduwuit::{debug, error, warn};
+use continuwuity::{debug, error, warn};
 use rocksdb::LogLevel;
 
 #[tracing::instrument(

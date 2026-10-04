@@ -1,6 +1,6 @@
 use clap::Subcommand;
-use conduwuit::Result;
-use conduwuit_database::Deserialized as _;
+use continuwuity::Result;
+use continuwuity_database::Deserialized as _;
 use futures::StreamExt;
 use ruma::{OwnedRoomId, OwnedUserId, exports::serde::Serialize};
 

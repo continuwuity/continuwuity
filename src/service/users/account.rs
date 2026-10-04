@@ -3,7 +3,7 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_error, debug_warn, err, error, info, trace,
 	utils::{self, stream::TryIgnore},
 	warn,

@@ -4,8 +4,8 @@ use axum::{
 	http::{self, HeaderMap},
 	routing::get,
 };
-use conduwuit_core::result::FlatOk;
-use conduwuit_service::media::mxc::Mxc;
+use continuwuity_core::result::FlatOk;
+use continuwuity_service::media::mxc::Mxc;
 use ruma::{OwnedUserId, profile::ProfileFieldName};
 use serde::{Deserialize, Serialize};
 

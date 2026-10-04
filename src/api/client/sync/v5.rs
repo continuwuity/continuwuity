@@ -5,7 +5,7 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, at, error, extract_variant, is_equal_to,
 	matrix::{
 		Event, TypeStateKey,
@@ -21,7 +21,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::{
+use continuwuity_service::{
 	Services,
 	rooms::read_receipt::pack_receipts,
 	sync::{SnakeConnectionsKey, into_snake_key},

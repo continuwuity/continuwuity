@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, debug, debug_info, debug_warn, err, info,
 	matrix::{
 		event::gen_event_id,

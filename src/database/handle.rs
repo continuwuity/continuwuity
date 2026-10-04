@@ -1,6 +1,6 @@
 use std::{fmt, fmt::Debug, ops::Deref};
 
-use conduwuit::Result;
+use continuwuity::Result;
 use rocksdb::DBPinnableSlice;
 use serde::{Deserialize, Serialize, Serializer};
 

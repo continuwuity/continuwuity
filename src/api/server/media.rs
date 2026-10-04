@@ -1,6 +1,6 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, utils::content_disposition::make_content_disposition};
-use conduwuit_service::media::{Dim, FileMeta};
+use continuwuity::{Err, Result, utils::content_disposition::make_content_disposition};
+use continuwuity_service::media::{Dim, FileMeta};
 use ruma::api::federation::authenticated_media::{
 	Content, ContentMetadata, FileOrLocation, get_content, get_content_thumbnail,
 };

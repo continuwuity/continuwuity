@@ -1,15 +1,15 @@
 use std::{borrow::Cow, collections::BTreeMap, ops::Deref, sync::Arc};
 
 use clap::Subcommand;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, apply, at, is_zero,
 	utils::{
 		stream::{IterStream, ReadyExt, TryIgnore, TryParallelExt},
 		string::EMPTY,
 	},
 };
-use conduwuit_database::Map;
-use conduwuit_service::Services;
+use continuwuity_database::Map;
+use continuwuity_service::Services;
 use futures::{FutureExt, Stream, StreamExt, TryStreamExt};
 use tokio::time::Instant;
 
@@ -170,7 +170,7 @@ impl crate::Context<'_> {
 		parallelism: Option<usize>,
 		exhaustive: bool,
 	) -> Result {
-		use conduwuit_database::compact::Options;
+		use continuwuity_database::compact::Options;
 
 		let default_all_maps: Option<_> = map.is_none().then(|| {
 			self.services
@@ -209,7 +209,7 @@ impl crate::Context<'_> {
 		let parallelism = parallelism.unwrap_or(1);
 		let results = maps
 			.into_iter()
-			.try_stream::<conduwuit::Error>()
+			.try_stream::<continuwuity::Error>()
 			.paralleln_and_then(runtime, parallelism, move |map| {
 				map.compact_blocking(options.clone())?;
 				Ok(map.name().to_owned())

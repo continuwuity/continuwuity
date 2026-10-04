@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit_core::{
+use continuwuity_core::{
 	Error, Result,
 	config::Config,
 	info,
@@ -17,18 +17,18 @@ use crate::{
 /// Server runtime state; complete
 pub(crate) struct Server {
 	/// Server runtime state; public portion
-	pub(crate) server: Arc<conduwuit_core::Server>,
+	pub(crate) server: Arc<continuwuity_core::Server>,
 
-	pub(crate) services: Mutex<Option<Arc<conduwuit_service::Services>>>,
+	pub(crate) services: Mutex<Option<Arc<continuwuity_service::Services>>>,
 
 	_tracing_flame_guard: TracingFlameGuard,
 
 	#[cfg(feature = "sentry_telemetry")]
 	_sentry_guard: Option<::sentry::ClientInitGuard>,
 
-	#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
+	#[cfg(all(continuwuity_mods, feature = "continuwuity_mods"))]
 	// Module instances; TODO: move to mods::loaded mgmt vector
-	pub(crate) mods: tokio::sync::RwLock<Vec<conduwuit_core::mods::Module>>,
+	pub(crate) mods: tokio::sync::RwLock<Vec<continuwuity_core::mods::Module>>,
 }
 
 impl Server {
@@ -64,11 +64,11 @@ impl Server {
 			database_path = ?config.database_path,
 			log_levels = %config.log,
 			"{}",
-			conduwuit_core::version(),
+			continuwuity_core::version(),
 		);
 
 		Ok(Arc::new(Self {
-			server: Arc::new(conduwuit_core::Server::new(config, runtime.cloned(), Log {
+			server: Arc::new(continuwuity_core::Server::new(config, runtime.cloned(), Log {
 				reload: tracing_reload_handle,
 				capture,
 			})),
@@ -80,7 +80,7 @@ impl Server {
 			#[cfg(feature = "sentry_telemetry")]
 			_sentry_guard: sentry_guard,
 
-			#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
+			#[cfg(all(continuwuity_mods, feature = "continuwuity_mods"))]
 			mods: tokio::sync::RwLock::new(Vec::new()),
 		}))
 	}

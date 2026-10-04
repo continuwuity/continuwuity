@@ -14,7 +14,7 @@
 [opencollective]: https://opencollective.com/continuwuity
 
 [continuwuity] is a Matrix homeserver written in Rust.
-It's the official community continuation of the [conduwuit](https://github.com/girlbossceo/conduwuit) homeserver.
+
 
 [![forgejo.ellis.link][forge-badge]][forge-link]
 [![Stars][forge-stars-badge]][forge-stars-link]

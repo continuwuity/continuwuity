@@ -1,12 +1,12 @@
 use std::{borrow::Borrow, time::Instant, vec};
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, at, debug, err, info, trace,
 	utils::stream::{BroadbandExt, IterStream, TryBroadbandExt},
 	warn,
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, RoomId, ServerName, UserId,

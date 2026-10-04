@@ -8,7 +8,7 @@ use std::{
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{Error, Result, Server, SyncRwLock, debug, utils::millis_since_unix_epoch};
+use continuwuity::{Error, Result, Server, SyncRwLock, debug, utils::millis_since_unix_epoch};
 pub(crate) use execute::FederationPathBuilderInput;
 use http::StatusCode;
 use ruma::{

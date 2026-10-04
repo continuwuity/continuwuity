@@ -1,7 +1,7 @@
 use std::{collections::HashSet, iter::once};
 
-use conduwuit::trace;
-use conduwuit_core::{
+use continuwuity::trace;
+use continuwuity_core::{
 	Err, Result,
 	matrix::{event::Event, pdu::PartialPdu},
 	utils::{IterStream, ReadyExt},

@@ -3,7 +3,7 @@ description.workspace = true
 edition.workspace     = true
 homepage.workspace    = true
 license.workspace     = true
-name                  = "conduwuit_web"
+name                  = "continuwuity_web"
 readme.workspace      = true
 repository.workspace  = true
 version.workspace     = true
@@ -22,11 +22,11 @@ path = "mod.rs"
 askama.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-conduwuit-api.workspace = true
-conduwuit-build-metadata.workspace = true
-conduwuit-core.workspace = true
-conduwuit-database.workspace = true
-conduwuit-service.workspace = true
+continuwuity-api.workspace = true
+continuwuity-build-metadata.workspace = true
+continuwuity-core.workspace = true
+continuwuity-database.workspace = true
+continuwuity-service.workspace = true
 form_urlencoded = "1.2.2"
 futures.workspace = true
 lettre.workspace = true
@@ -55,7 +55,7 @@ workspace = true
 
 [package.metadata.cargo-shear]
 ignored = [
-    "conduwuit_build_metadata",
+    "continuwuity_build_metadata",
     "form_urlencoded",
     "reqwest_recaptcha",
     "serde_json",

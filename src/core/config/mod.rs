@@ -9,7 +9,7 @@ use std::{
 	path::PathBuf,
 };
 
-use conduwuit_macros::config_example_generator;
+use continuwuity_macros::config_example_generator;
 use either::{
 	Either,
 	Either::{Left, Right},
@@ -41,7 +41,7 @@ use crate::{Result, err, error::Error, utils::sys};
 #[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global",
 	undocumented = "# This item is undocumented. Please contribute documentation for it.",
 	header = r#"### continuwuity Configuration
@@ -143,10 +143,10 @@ pub struct Config {
 	/// including media. Note: this was previously "/var/lib/matrix-conduit".
 	///
 	/// YOU NEED TO EDIT THIS, UNLESS you are running continuwuity as a
-	/// `systemd` service. The service file sets it to `/var/lib/conduwuit`
+	/// `systemd` service. The service file sets it to `/var/lib/continuwuity`
 	/// using an environment variable and also grants write access.
 	///
-	/// example: "/var/lib/conduwuit"
+	/// example: "/var/lib/continuwuity"
 	pub database_path: PathBuf,
 
 	/// continuwuity supports online database backups using RocksDB's Backup
@@ -1819,7 +1819,7 @@ pub struct Config {
 
 	/// Check consistency of the media directory at startup:
 	/// 1. When `media_compat_file_link` is enabled, this check will upgrade
-	///    media when switching back and forth between Conduit and conduwuit.
+	///    media when switching back and forth between Conduit and continuwuity.
 	///    Both options must be enabled to handle this.
 	/// 2. When media is deleted from the directory, this check will also delete
 	///    its database entry.
@@ -2451,7 +2451,7 @@ pub struct Config {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.tls")]
+#[config_example_generator(filename = "continuwuity-example.toml", section = "global.tls")]
 pub struct TlsConfig {
 	/// Path to a valid TLS certificate file.
 	///
@@ -2470,7 +2470,7 @@ pub struct TlsConfig {
 
 #[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]
 #[derive(Clone, Debug, Deserialize, Default)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.well_known")]
+#[config_example_generator(filename = "continuwuity-example.toml", section = "global.well_known")]
 pub struct WellKnownConfig {
 	/// The server URL that the client well-known file will serve. This should
 	/// not contain a port, and should just be a valid HTTPS URL.
@@ -2519,7 +2519,7 @@ pub struct WellKnownConfig {
 }
 
 #[derive(Clone, Debug, Deserialize, Default)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.matrix_rtc")]
+#[config_example_generator(filename = "continuwuity-example.toml", section = "global.matrix_rtc")]
 pub struct MatrixRtcConfig {
 	/// A list of MatrixRTC foci (transports) which will be served via the
 	/// MSC4143 RTC transports endpoint at
@@ -2555,7 +2555,7 @@ struct ListeningAddr {
 
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.antispam",
 	optional = "true"
 )]
@@ -2568,7 +2568,7 @@ pub struct Antispam {
 
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.antispam.meowlnir",
 	optional = "true"
 )]
@@ -2598,7 +2598,7 @@ pub struct MeowlnirConfig {
 // Maybe management_room could just become an Option<> and these structs merged?
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.antispam.draupnir",
 	optional = "true"
 )]
@@ -2615,7 +2615,7 @@ pub struct DraupnirConfig {
 
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.smtp",
 	optional = "true"
 )]
@@ -2675,7 +2675,7 @@ pub struct SmtpConfig {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.registration_terms",
 	optional = "true"
 )]
@@ -2705,7 +2705,7 @@ pub struct TermsDocument {
 
 #[derive(Clone, Debug, Default, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.oauth",
 	optional = "true"
 )]
@@ -2757,7 +2757,7 @@ impl OAuthMode {
 
 #[derive(Clone, Debug, Deserialize)]
 #[config_example_generator(
-	filename = "conduwuit-example.toml",
+	filename = "continuwuity-example.toml",
 	section = "global.oauth.oidc",
 	optional = "true",
 	subheader = "\

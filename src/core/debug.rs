@@ -3,7 +3,7 @@
 use std::{any::Any, env, panic, sync::LazyLock};
 
 // Export debug proc_macros
-pub use conduwuit_macros::recursion_depth;
+pub use continuwuity_macros::recursion_depth;
 use tracing::Level;
 
 // Export all of the ancillary tools from here as well.

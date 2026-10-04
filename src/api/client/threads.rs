@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Result, at, debug_warn,
 	matrix::{
 		Event,

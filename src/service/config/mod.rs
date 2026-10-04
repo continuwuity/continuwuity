@@ -1,7 +1,7 @@
 use std::{ops::Deref, path::PathBuf, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Result, Server,
 	config::{Config, check},
 	error,

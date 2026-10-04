@@ -1,4 +1,4 @@
-use conduwuit::{Event, PduEvent, Result, err};
+use continuwuity::{Event, PduEvent, Result, err};
 use ruma::{
 	UserId,
 	api::Direction,
@@ -31,7 +31,7 @@ impl super::Service {
 				user_id,
 				&pdu.room_id_or_hash(),
 				pdu.event_id(),
-				conduwuit::PduCount::max(),
+				continuwuity::PduCount::max(),
 				MAX_BUNDLED_RELATIONS,
 				0,
 				Direction::Backward,
@@ -270,7 +270,7 @@ enum RelationType<'a> {
 
 #[cfg(test)]
 mod tests {
-	use conduwuit_core::pdu::{EventHash, PduEvent};
+	use continuwuity_core::pdu::{EventHash, PduEvent};
 	use ruma::{UInt, events::TimelineEventType, owned_event_id, owned_room_id, owned_user_id};
 	use serde_json::{Value as JsonValue, json, value::to_raw_value};
 

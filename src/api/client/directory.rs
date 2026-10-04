@@ -1,12 +1,12 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err, info,
 	utils::{
 		math::Expected,
 		stream::{ReadyExt, WidebandExt},
 	},
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::StreamExt;
 use ruma::{
 	RoomId, ServerName, UInt, UserId,

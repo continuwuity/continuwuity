@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::{PduCount, Result, utils::stream::TryTools};
+use continuwuity::{PduCount, Result, utils::stream::TryTools};
 use futures::TryStreamExt;
 use ruma::OwnedRoomOrAliasId;
 

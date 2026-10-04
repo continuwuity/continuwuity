@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::{
+use continuwuity::{
 	PduCount, PduEvent, Result,
 	arrayvec::ArrayVec,
 	debug_warn,

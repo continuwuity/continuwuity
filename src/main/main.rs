@@ -1,3 +1,3 @@
-use conduwuit::Result;
+use continuwuity::Result;
 
-fn main() -> Result<()> { conduwuit::run() }
+fn main() -> Result<()> { continuwuity::run() }

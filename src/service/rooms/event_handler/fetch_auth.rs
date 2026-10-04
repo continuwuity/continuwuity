@@ -1,6 +1,6 @@
 use std::collections::{HashMap, hash_map};
 
-use conduwuit::{Err, Event, EventTypeExt, PduEvent, Result, err, warn};
+use continuwuity::{Err, Event, EventTypeExt, PduEvent, Result, err, warn};
 use ruma::{
 	OwnedEventId, ServerName, api::federation::authorization::get_event_authorization,
 	room_version_rules::RoomVersionRules,

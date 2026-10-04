@@ -1,6 +1,6 @@
 use std::{any::Any, collections::BTreeMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result, Server, SyncRwLock, debug, debug_info, error, info, trace, utils::stream::IterStream,
 };
 use database::Database;

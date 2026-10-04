@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use conduwuit::{Err, Event, Pdu, Result, is_not_empty, utils::ReadyExt};
+use continuwuity::{Err, Event, Pdu, Result, is_not_empty, utils::ReadyExt};
 use database::{Json, serialize_key};
 use futures::StreamExt;
 use ruma::{

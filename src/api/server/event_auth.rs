@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, iter::once};
 
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, info, utils::stream::ReadyExt};
+use continuwuity::{Err, Event, Result, info, utils::stream::ReadyExt};
 use futures::StreamExt;
 use ruma::api::federation::authorization::get_event_authorization;
 

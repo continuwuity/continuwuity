@@ -23,7 +23,7 @@ Requires:       glibc
 Requires:       libstdc++
 
 %global _description %{expand:
-A Matrix homeserver written in Rust, the official continuation of the conduwuit homeserver.}
+A community-driven Matrix homeserver.}
 
 %description %{_description}
 
@@ -49,9 +49,9 @@ find .cargo/registry/ -executable -name "*.rs" -exec chmod -x {} +
 # {cargo_license -- --no-dev} > LICENSE.dependencies
 
 %install
-install -Dpm0755 target/rpm/conduwuit -t %{buildroot}%{_bindir}
-install -Dpm0644 pkg/conduwuit.service -t %{buildroot}%{_unitdir}
-install -Dpm0600 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/conduwuit.toml
+install -Dpm0755 target/rpm/continuwuity -t %{buildroot}%{_bindir}
+install -Dpm0644 pkg/continuwuity.service -t %{buildroot}%{_unitdir}
+install -Dpm0600 continuwuity-example.toml %{buildroot}%{_sysconfdir}/continuwuity/continuwuity.toml
 
 %files
 %license LICENSE
@@ -60,20 +60,20 @@ install -Dpm0600 conduwuit-example.toml %{buildroot}%{_sysconfdir}/conduwuit/con
 %doc CONTRIBUTING.md
 %doc README.md
 %doc SECURITY.md
-%config(noreplace) %{_sysconfdir}/conduwuit/conduwuit.toml
+%config(noreplace) %{_sysconfdir}/continuwuity/continuwuity.toml
 
-%{_bindir}/conduwuit
-%{_unitdir}/conduwuit.service
-# Do not create /var/lib/conduwuit, systemd will create it if necessary
+%{_bindir}/continuwuity
+%{_unitdir}/continuwuity.service
+# Do not create /var/lib/continuwuity, systemd will create it if necessary
 
 %post
-%systemd_post conduwuit.service
+%systemd_post continuwuity.service
 
 %preun
-%systemd_preun conduwuit.service
+%systemd_preun continuwuity.service
 
 %postun
-%systemd_postun_with_restart conduwuit.service
+%systemd_postun_with_restart continuwuity.service
 
 %changelog
 {{{ git_repo_changelog }}}

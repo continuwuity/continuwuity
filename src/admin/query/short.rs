@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{OwnedEventId, OwnedRoomOrAliasId};
 
 use crate::admin_command_dispatch;

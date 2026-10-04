@@ -1,8 +1,8 @@
 mod commands;
 
 use clap::Subcommand;
-use conduwuit::Result;
-use conduwuit_macros::admin_command_dispatch;
+use continuwuity::Result;
+use continuwuity_macros::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]

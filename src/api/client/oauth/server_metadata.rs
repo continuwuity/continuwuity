@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use ruma::{
 	api::client::discovery::get_authorization_server_metadata::{
 		self, v1::AccountManagementAction,

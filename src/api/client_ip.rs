@@ -5,7 +5,7 @@ use axum::{
 	extract::{ConnectInfo, FromRequestParts},
 	response::{IntoResponse, Response},
 };
-use conduwuit::{debug_info, debug_warn};
+use continuwuity::{debug_info, debug_warn};
 use http::{HeaderMap, StatusCode, request::Parts};
 use service::Services;
 

@@ -6,8 +6,8 @@ use std::{
 	sync::{Arc, OnceLock},
 };
 
-use conduwuit_build_metadata as build;
-use conduwuit_core::{config::Config, debug, trace};
+use continuwuity_build_metadata as build;
+use continuwuity_core::{config::Config, debug, trace};
 use sentry::{
 	Breadcrumb, ClientOptions, Level,
 	types::{
@@ -47,7 +47,7 @@ fn options(config: &Config) -> ClientOptions {
 		traces_sample_rate: config.sentry_traces_sample_rate,
 		debug: cfg!(debug_assertions),
 		release: release_name(),
-		user_agent: conduwuit_core::user_agent().into(),
+		user_agent: continuwuity_core::user_agent().into(),
 		attach_stacktrace: config.sentry_attach_stacktrace,
 		before_send: Some(Arc::new(before_send)),
 		before_breadcrumb: Some(Arc::new(before_breadcrumb)),

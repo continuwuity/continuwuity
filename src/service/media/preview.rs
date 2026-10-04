@@ -8,8 +8,8 @@
 use std::time::SystemTime;
 
 #[cfg(feature = "url_preview")]
-use conduwuit::utils::response::LimitReadExt;
-use conduwuit::{Err, Result, debug, err};
+use continuwuity::utils::response::LimitReadExt;
+use continuwuity::{Err, Result, debug, err};
 use ipaddress::IPAddress;
 #[cfg(feature = "url_preview")]
 use ruma::OwnedMxcUri;
@@ -132,7 +132,7 @@ impl Service {
 		url: &str,
 		preview_data: Option<UrlPreviewData>,
 	) -> Result<UrlPreviewData> {
-		use conduwuit::utils::random_string;
+		use continuwuity::utils::random_string;
 		use image::ImageReader;
 
 		use crate::media::mxc::Mxc;
@@ -217,7 +217,7 @@ impl Service {
 	}
 
 	pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
-		use conduwuit::utils::random_string;
+		use continuwuity::utils::random_string;
 		use http::header::CONTENT_TYPE;
 
 		let response = self.services.client.url_preview.get(url).send().await?;

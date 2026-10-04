@@ -1,4 +1,4 @@
-use conduwuit::{
+use continuwuity::{
 	Error, Result, arrayvec::ArrayVec, checked, debug::DebugInspect, err, utils::string,
 };
 use serde::{

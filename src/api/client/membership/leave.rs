@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Pdu, Result, debug_info, debug_warn, err,
 	matrix::{event::gen_event_id, pdu::PartialPdu},
 	utils::{self, FutureBoolExt, future::ReadyEqExt},

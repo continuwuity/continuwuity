@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::result::LogErr;
-use conduwuit_core::{
+use continuwuity::result::LogErr;
+use continuwuity_core::{
 	Event, Result, err,
 	matrix::pdu::{PduCount, PduEvent, PduId, RawPduId},
 	utils::{
@@ -9,7 +9,7 @@ use conduwuit_core::{
 		stream::{TryIgnore, WidebandExt},
 	},
 };
-use conduwuit_database::{Deserialized, Map};
+use continuwuity_database::{Deserialized, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
 	CanonicalJsonValue, EventId, OwnedUserId, RoomId, UserId,

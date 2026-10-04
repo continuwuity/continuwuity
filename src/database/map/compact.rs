@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use rocksdb::{BottommostLevelCompaction, CompactOptions};
 
 use crate::keyval::KeyBuf;

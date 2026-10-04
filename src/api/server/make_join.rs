@@ -1,10 +1,10 @@
 use std::{borrow::ToOwned, pin::pin};
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, debug, debug_info, info, matrix::pdu::PartialPdu, utils, warn,
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::StreamExt;
 use ruma::{
 	OwnedUserId, RoomId, UserId,

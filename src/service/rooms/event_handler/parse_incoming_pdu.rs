@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, err,
 	matrix::event::{gen_event_id, gen_event_id_canonical_json},
 };

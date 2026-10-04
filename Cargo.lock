@@ -895,326 +895,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "conduwuit"
-version = "26.9.1"
-dependencies = [
- "aws-lc-rs",
- "clap",
- "conduwuit_admin",
- "conduwuit_api",
- "conduwuit_build_metadata",
- "conduwuit_core",
- "conduwuit_database",
- "conduwuit_macros",
- "conduwuit_router",
- "conduwuit_service",
- "console-subscriber",
- "const-str",
- "ctor",
- "dtor",
- "hardened_malloc-rs",
- "log",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "parking_lot",
- "reqwest 0.13.5",
- "rustls",
- "sentry",
- "sentry-tower",
- "sentry-tracing",
- "tokio",
- "tokio-metrics",
- "tracing",
- "tracing-flame",
- "tracing-journald",
- "tracing-opentelemetry",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "conduwuit_admin"
-version = "26.9.1"
-dependencies = [
- "clap",
- "conduwuit_api",
- "conduwuit_core",
- "conduwuit_database",
- "conduwuit_macros",
- "conduwuit_service",
- "const-str",
- "ctor",
- "dtor",
- "futures",
- "lettre",
- "log",
- "resolvematrix",
- "ruma",
- "serde-saphyr",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "conduwuit_api"
-version = "26.9.1"
-dependencies = [
- "axum",
- "base64 0.23.1",
- "bytes",
- "client-ip",
- "conduwuit_core",
- "conduwuit_macros",
- "conduwuit_service",
- "const-str",
- "ctor",
- "dtor",
- "futures",
- "hmac 0.13.0",
- "http",
- "http-body-util",
- "hyper",
- "itertools 0.15.0",
- "lettre",
- "log",
- "rand 0.10.3",
- "reqwest 0.13.5",
- "ruma",
- "ruminuwuity",
- "serde",
- "serde_json",
- "sha1 0.11.0",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "conduwuit_build_metadata"
-version = "26.9.1"
-dependencies = [
- "built",
- "cargo_metadata",
-]
-
-[[package]]
-name = "conduwuit_core"
-version = "26.9.1"
-dependencies = [
- "argon2",
- "arrayvec",
- "axum",
- "axum-extra",
- "bytes",
- "bytesize",
- "cargo_toml",
- "checked_ops",
- "chrono",
- "clap",
- "conduwuit_build_metadata",
- "conduwuit_macros",
- "const-str",
- "core_affinity",
- "ctor",
- "cyborgtime",
- "dtor",
- "either",
- "figment",
- "futures",
- "hardened_malloc-rs",
- "http",
- "http-body-util",
- "hyper-util",
- "ipaddress",
- "lettre",
- "libc",
- "libloading 0.9.0",
- "lock_api",
- "log",
- "maplit",
- "nix",
- "num-traits",
- "openidconnect",
- "parking_lot",
- "rand 0.10.3",
- "regex",
- "reqwest 0.13.5",
- "resolvematrix",
- "ruma",
- "sanitize-filename",
- "serde",
- "serde-saphyr",
- "serde_json",
- "serde_regex",
- "sha2 0.11.0",
- "smallstr",
- "smallvec",
- "thiserror 2.0.21",
- "tikv-jemalloc-ctl",
- "tikv-jemalloc-sys",
- "tikv-jemallocator",
- "tokio",
- "tokio-metrics",
- "toml 1.1.6+spec-1.1.0",
- "tracing",
- "tracing-core",
- "tracing-subscriber",
- "url",
-]
-
-[[package]]
-name = "conduwuit_database"
-version = "26.9.1"
-dependencies = [
- "async-channel",
- "conduwuit_core",
- "conduwuit_macros",
- "const-str",
- "ctor",
- "dtor",
- "futures",
- "log",
- "minicbor",
- "minicbor-serde",
- "rust-rocksdb",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "conduwuit_macros"
-version = "26.9.1"
-dependencies = [
- "itertools 0.15.0",
- "proc-macro2",
- "quote",
- "syn 3.0.6",
-]
-
-[[package]]
-name = "conduwuit_router"
-version = "26.9.1"
-dependencies = [
- "axum",
- "axum-server",
- "axum-server-dual-protocol",
- "bytes",
- "conduwuit_admin",
- "conduwuit_api",
- "conduwuit_core",
- "conduwuit_macros",
- "conduwuit_service",
- "conduwuit_web",
- "const-str",
- "ctor",
- "dtor",
- "futures",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "log",
- "ruma",
- "rustls",
- "sd-notify",
- "sentry",
- "sentry-tower",
- "sentry-tracing",
- "serde_json",
- "tokio",
- "tower",
- "tower-http 0.7.1",
- "tracing",
-]
-
-[[package]]
-name = "conduwuit_service"
-version = "26.9.1"
-dependencies = [
- "askama",
- "assign",
- "async-trait",
- "base64 0.23.1",
- "bytes",
- "conduwuit_core",
- "conduwuit_database",
- "conduwuit_macros",
- "const-str",
- "ctor",
- "dtor",
- "either",
- "futures",
- "governor",
- "hickory-resolver",
- "http",
- "httpdate",
- "image",
- "ipaddress",
- "itertools 0.15.0",
- "lettre",
- "log",
- "loole",
- "lru-cache",
- "nonzero_ext",
- "openidconnect",
- "p256",
- "rand 0.10.3",
- "regex",
- "reqwest 0.13.5",
- "resolvematrix",
- "ruma",
- "ruminuwuity",
- "rustyline-async",
- "sd-notify",
- "serde",
- "serde-saphyr",
- "serde_json",
- "serde_urlencoded",
- "sha2 0.11.0",
- "termimad",
- "tokio",
- "tracing",
- "url",
- "web-push-native",
- "webpage",
- "yansi",
-]
-
-[[package]]
-name = "conduwuit_web"
-version = "26.9.1"
-dependencies = [
- "askama",
- "async-trait",
- "axum",
- "conduwuit_api",
- "conduwuit_build_metadata",
- "conduwuit_core",
- "conduwuit_database",
- "conduwuit_service",
- "form_urlencoded",
- "futures",
- "lettre",
- "memory-serve",
- "openidconnect",
- "ruma",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "thiserror 2.0.21",
- "tower-http 0.7.1",
- "tower-sec-fetch",
- "tower-sessions",
- "tower-sessions-core",
- "tracing",
- "url",
- "validator",
-]
-
-[[package]]
 name = "console-api"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1279,6 +959,326 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9603f79528ece8163c496f8932121cb36cfe46259e9c907bb3d8205139d7caa3"
 dependencies = [
  "typewit",
+]
+
+[[package]]
+name = "continuwuity"
+version = "26.9.1"
+dependencies = [
+ "aws-lc-rs",
+ "clap",
+ "console-subscriber",
+ "const-str",
+ "continuwuity_admin",
+ "continuwuity_api",
+ "continuwuity_build_metadata",
+ "continuwuity_core",
+ "continuwuity_database",
+ "continuwuity_macros",
+ "continuwuity_router",
+ "continuwuity_service",
+ "ctor",
+ "dtor",
+ "hardened_malloc-rs",
+ "log",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "parking_lot",
+ "reqwest 0.13.5",
+ "rustls",
+ "sentry",
+ "sentry-tower",
+ "sentry-tracing",
+ "tokio",
+ "tokio-metrics",
+ "tracing",
+ "tracing-flame",
+ "tracing-journald",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "continuwuity_admin"
+version = "26.9.1"
+dependencies = [
+ "clap",
+ "const-str",
+ "continuwuity_api",
+ "continuwuity_core",
+ "continuwuity_database",
+ "continuwuity_macros",
+ "continuwuity_service",
+ "ctor",
+ "dtor",
+ "futures",
+ "lettre",
+ "log",
+ "resolvematrix",
+ "ruma",
+ "serde-saphyr",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "continuwuity_api"
+version = "26.9.1"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "bytes",
+ "client-ip",
+ "const-str",
+ "continuwuity_core",
+ "continuwuity_macros",
+ "continuwuity_service",
+ "ctor",
+ "dtor",
+ "futures",
+ "hmac 0.13.0",
+ "http",
+ "http-body-util",
+ "hyper",
+ "itertools 0.15.0",
+ "lettre",
+ "log",
+ "rand 0.10.3",
+ "reqwest 0.13.5",
+ "ruma",
+ "ruminuwuity",
+ "serde",
+ "serde_json",
+ "sha1 0.11.0",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "continuwuity_build_metadata"
+version = "26.9.1"
+dependencies = [
+ "built",
+ "cargo_metadata",
+]
+
+[[package]]
+name = "continuwuity_core"
+version = "26.9.1"
+dependencies = [
+ "argon2",
+ "arrayvec",
+ "axum",
+ "axum-extra",
+ "bytes",
+ "bytesize",
+ "cargo_toml",
+ "checked_ops",
+ "chrono",
+ "clap",
+ "const-str",
+ "continuwuity_build_metadata",
+ "continuwuity_macros",
+ "core_affinity",
+ "ctor",
+ "cyborgtime",
+ "dtor",
+ "either",
+ "figment",
+ "futures",
+ "hardened_malloc-rs",
+ "http",
+ "http-body-util",
+ "hyper-util",
+ "ipaddress",
+ "lettre",
+ "libc",
+ "libloading 0.9.0",
+ "lock_api",
+ "log",
+ "maplit",
+ "nix",
+ "num-traits",
+ "openidconnect",
+ "parking_lot",
+ "rand 0.10.3",
+ "regex",
+ "reqwest 0.13.5",
+ "resolvematrix",
+ "ruma",
+ "sanitize-filename",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "serde_regex",
+ "sha2 0.11.0",
+ "smallstr",
+ "smallvec",
+ "thiserror 2.0.21",
+ "tikv-jemalloc-ctl",
+ "tikv-jemalloc-sys",
+ "tikv-jemallocator",
+ "tokio",
+ "tokio-metrics",
+ "toml 1.1.6+spec-1.1.0",
+ "tracing",
+ "tracing-core",
+ "tracing-subscriber",
+ "url",
+]
+
+[[package]]
+name = "continuwuity_database"
+version = "26.9.1"
+dependencies = [
+ "async-channel",
+ "const-str",
+ "continuwuity_core",
+ "continuwuity_macros",
+ "ctor",
+ "dtor",
+ "futures",
+ "log",
+ "minicbor",
+ "minicbor-serde",
+ "rust-rocksdb",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "continuwuity_macros"
+version = "26.9.1"
+dependencies = [
+ "itertools 0.15.0",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.6",
+]
+
+[[package]]
+name = "continuwuity_router"
+version = "26.9.1"
+dependencies = [
+ "axum",
+ "axum-server",
+ "axum-server-dual-protocol",
+ "bytes",
+ "const-str",
+ "continuwuity_admin",
+ "continuwuity_api",
+ "continuwuity_core",
+ "continuwuity_macros",
+ "continuwuity_service",
+ "continuwuity_web",
+ "ctor",
+ "dtor",
+ "futures",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "log",
+ "ruma",
+ "rustls",
+ "sd-notify",
+ "sentry",
+ "sentry-tower",
+ "sentry-tracing",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tower-http 0.7.1",
+ "tracing",
+]
+
+[[package]]
+name = "continuwuity_service"
+version = "26.9.1"
+dependencies = [
+ "askama",
+ "assign",
+ "async-trait",
+ "base64 0.23.1",
+ "bytes",
+ "const-str",
+ "continuwuity_core",
+ "continuwuity_database",
+ "continuwuity_macros",
+ "ctor",
+ "dtor",
+ "either",
+ "futures",
+ "governor",
+ "hickory-resolver",
+ "http",
+ "httpdate",
+ "image",
+ "ipaddress",
+ "itertools 0.15.0",
+ "lettre",
+ "log",
+ "loole",
+ "lru-cache",
+ "nonzero_ext",
+ "openidconnect",
+ "p256",
+ "rand 0.10.3",
+ "regex",
+ "reqwest 0.13.5",
+ "resolvematrix",
+ "ruma",
+ "ruminuwuity",
+ "rustyline-async",
+ "sd-notify",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "serde_urlencoded",
+ "sha2 0.11.0",
+ "termimad",
+ "tokio",
+ "tracing",
+ "url",
+ "web-push-native",
+ "webpage",
+ "yansi",
+]
+
+[[package]]
+name = "continuwuity_web"
+version = "26.9.1"
+dependencies = [
+ "askama",
+ "async-trait",
+ "axum",
+ "continuwuity_api",
+ "continuwuity_build_metadata",
+ "continuwuity_core",
+ "continuwuity_database",
+ "continuwuity_service",
+ "form_urlencoded",
+ "futures",
+ "lettre",
+ "memory-serve",
+ "openidconnect",
+ "ruma",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "thiserror 2.0.21",
+ "tower-http 0.7.1",
+ "tower-sec-fetch",
+ "tower-sessions",
+ "tower-sessions-core",
+ "tracing",
+ "url",
+ "validator",
 ]
 
 [[package]]
@@ -7290,7 +7290,7 @@ dependencies = [
  "askama",
  "cargo_metadata",
  "clap",
- "conduwuit_admin",
+ "continuwuity_admin",
 ]
 
 [[package]]

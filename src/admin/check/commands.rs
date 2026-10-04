@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use futures::StreamExt;
 
 use crate::Context;

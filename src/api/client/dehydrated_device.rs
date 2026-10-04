@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, at};
+use continuwuity::{Err, Result, at};
 use futures::StreamExt;
 use ruma::{
 	api::client::dehydrated_device::{

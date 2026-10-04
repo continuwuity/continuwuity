@@ -1,5 +1,5 @@
 use axum::{Json, extract::State, response::IntoResponse};
-use conduwuit::{
+use continuwuity::{
 	Result,
 	matrix::versions::{unstable_features, versions},
 };
@@ -38,18 +38,18 @@ pub(crate) async fn get_supported_versions_route(
 
 /// # `GET /_continuwuity/server_version`
 ///
-/// Conduwuit-specific API to get the server version, results akin to
+/// Continuwuity-specific API to get the server version, results akin to
 /// `/_matrix/federation/v1/version`
 pub(crate) async fn continuwuity_server_version() -> Result<impl IntoResponse> {
 	Ok(Json(serde_json::json!({
-		"name": conduwuit::BRANDING,
-		"version": conduwuit::version(),
+		"name": continuwuity::BRANDING,
+		"version": continuwuity::version(),
 	})))
 }
 
 /// # `GET /_continuwuity/local_user_count`
 ///
-/// conduwuit-specific API to return the amount of users registered on this
+/// continuwuity-specific API to return the amount of users registered on this
 /// homeserver. Endpoint is disabled if federation is disabled for privacy. This
 ///
 /// only includes active users (not deactivated, etc)

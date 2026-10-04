@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, Result};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result};
+use continuwuity_service::Services;
 use ruma::{
 	UserId,
 	api::{

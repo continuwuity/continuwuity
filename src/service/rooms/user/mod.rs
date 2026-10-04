@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::Result;
+use continuwuity::Result;
 use database::{Deserialized, Map};
 use ruma::{RoomId, UserId};
 

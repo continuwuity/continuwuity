@@ -2,7 +2,7 @@ use std::collections::{HashMap, hash_map::Entry};
 
 use axum::extract::State;
 use base64::{Engine as _, engine::general_purpose};
-use conduwuit::{
+use continuwuity::{
 	Err, Error, EventTypeExt, PduEvent, Result, debug, err, error,
 	matrix::{Event, StateKey},
 	result::FlatOk,

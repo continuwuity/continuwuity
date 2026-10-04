@@ -1,6 +1,6 @@
 use std::{convert::AsRef, fmt::Debug, sync::Arc};
 
-use conduwuit::{Err, Result, err, utils::result::MapExpect};
+use continuwuity::{Err, Result, err, utils::result::MapExpect};
 use futures::{Future, FutureExt, TryFutureExt, future::ready};
 use rocksdb::{DBPinnableSlice, ReadOptions};
 use tokio::task;

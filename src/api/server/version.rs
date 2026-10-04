@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{api::federation::discovery::get_server_version, assign};
 
 use crate::Ruma;
@@ -11,8 +11,8 @@ pub(crate) async fn get_server_version_route(
 ) -> Result<get_server_version::v1::Response> {
 	Ok(assign!(get_server_version::v1::Response::new(), {
 		server: Some(assign!(get_server_version::v1::Server::new(), {
-			name: Some(conduwuit::BRANDING.into()),
-			version: Some(conduwuit::version().into()),
+			name: Some(continuwuity::BRANDING.into()),
+			version: Some(continuwuity::version().into()),
 		})),
 	}))
 }

@@ -3,7 +3,7 @@
 #![allow(clippy::enum_glob_use)]
 #![allow(clippy::too_many_arguments)]
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
 pub(crate) mod admin;
 pub(crate) mod context;
@@ -23,18 +23,18 @@ pub(crate) mod server;
 pub(crate) mod token;
 pub(crate) mod user;
 
-extern crate conduwuit_api as api;
-extern crate conduwuit_core as conduwuit;
-extern crate conduwuit_service as service;
+extern crate continuwuity_api as api;
+extern crate continuwuity_core as continuwuity;
+extern crate continuwuity_service as service;
 
-pub(crate) use conduwuit_macros::admin_command_dispatch;
+pub(crate) use continuwuity_macros::admin_command_dispatch;
 
 pub(crate) use crate::{context::Context, utils::get_room_info};
 
 pub(crate) const PAGE_SIZE: usize = 100;
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
+continuwuity::mod_ctor! {}
+continuwuity::mod_dtor! {}
 
 pub use crate::admin::AdminCommand;
 

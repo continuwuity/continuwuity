@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Result, Server};
+use continuwuity::{Result, Server};
 use ruma::{
 	RoomVersionId,
 	api::client::discovery::get_capabilities::{

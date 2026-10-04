@@ -9,7 +9,7 @@ pub(super) mod remote;
 use std::{mem, sync::Arc};
 
 pub use account::{AccessTokenStatus, AccountStatus};
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, err,
 	utils::{self},
 };

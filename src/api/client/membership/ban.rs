@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, matrix::pdu::PartialPdu};
+use continuwuity::{Err, Result, matrix::pdu::PartialPdu};
 use ruma::{
 	api::client::membership::ban_user,
 	assign,

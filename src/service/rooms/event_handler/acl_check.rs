@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, debug, debug_warn, trace};
+use continuwuity::{Err, Result, debug, debug_warn, trace};
 use ruma::{
 	RoomId, ServerName,
 	events::{StateEventType, room::server_acl::RoomServerAclEventContent},

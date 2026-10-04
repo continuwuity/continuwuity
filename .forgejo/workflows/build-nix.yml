@@ -21,14 +21,14 @@ jobs:
       matrix:
         include:
           - package: default-static-x86_64
-            filename: conduwuit-linux-static-amd64
+            filename: continuwuity-linux-static-amd64
           - package: default-static-aarch64
-            filename: conduwuit-linux-static-arm64
+            filename: continuwuity-linux-static-arm64
 
           - package: max-perf-static-aarch64
-            filename: conduwuit-linux-static-arm64-maxperf
+            filename: continuwuity-linux-static-arm64-maxperf
           - package: max-perf-haswell-static-x86_64
-            filename: conduwuit-haswell-linux-static-amd64-maxperf
+            filename: continuwuity-haswell-linux-static-amd64-maxperf
 
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
@@ -41,7 +41,7 @@ jobs:
       - name: Build static binary
         run: |
           nix build .#${{ matrix.package }}
-          install -D result/bin/conduwuit /tmp/binaries/${{ matrix.filename }}
+          install -D result/bin/continuwuity /tmp/binaries/${{ matrix.filename }}
 
       - name: Upload binary artifact
         uses: forgejo/upload-artifact@v4
@@ -61,7 +61,7 @@ jobs:
       - name: Download binary artifacts
         uses: forgejo/download-artifact@v4
         with:
-          pattern: conduwuit*
+          pattern: continuwuity*
           path: binaries
           merge-multiple: true
       - name: Create Release and Upload

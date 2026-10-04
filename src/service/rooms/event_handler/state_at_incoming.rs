@@ -4,7 +4,7 @@ use std::{
 	iter::Iterator,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Result, debug, debug_error, err, error,
 	matrix::{Event, StateMap},
 	trace,

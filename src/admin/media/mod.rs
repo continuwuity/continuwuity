@@ -2,7 +2,7 @@
 mod commands;
 
 use clap::Subcommand;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{OwnedEventId, OwnedMxcUri, OwnedServerName};
 
 use crate::admin_command_dispatch;

@@ -1,4 +1,4 @@
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{StreamTools, stream::TryIgnore},
 };

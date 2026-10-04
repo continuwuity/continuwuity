@@ -28,13 +28,13 @@ See the [generic deployment guide](/deploying/generic.mdx) for additional inform
 
 ## Configuration
 
-After installation, Continuwuity places the example configuration at `/etc/conduwuit/conduwuit.toml` as the default configuration file. The configuration file indicates which settings you must change before starting the service.
+After installation, Continuwuity places the example configuration at `/etc/continuwuity/continuwuity.toml` as the default configuration file. The configuration file indicates which settings you must change before starting the service.
 
-You can customize additional settings by uncommenting and modifying the configuration options in `/etc/conduwuit/conduwuit.toml`.
+You can customize additional settings by uncommenting and modifying the configuration options in `/etc/continuwuity/continuwuity.toml`.
 
 ## Running
 
-The package uses the `conduwuit.service` systemd unit file to start and stop Continuwuity. The binary installs at `/usr/bin/conduwuit`.
+The package uses the `continuwuity.service` systemd unit file to start and stop Continuwuity. The binary installs at `/usr/bin/continuwuity`.
 
 By default, this package assumes that Continuwuity runs behind a reverse proxy. The default configuration options apply (listening on `localhost` and TCP port `6167`). Matrix federation requires a valid domain name and TLS. To federate properly, you must set up TLS certificates and certificate renewal.
 

@@ -5,7 +5,7 @@
 
 use std::{collections::BTreeMap, time::Duration};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error, info,
 	state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
 };

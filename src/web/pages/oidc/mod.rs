@@ -1,5 +1,5 @@
 use axum::Router;
-use conduwuit_service::oidc::{self, Claims};
+use continuwuity_service::oidc::{self, Claims};
 use ruma::OwnedUserId;
 use serde::{Deserialize, Serialize};
 

@@ -8,7 +8,7 @@ use axum::{
 	middleware::from_fn_with_state,
 	response::{Html, IntoResponse, Redirect, Response},
 };
-use conduwuit_service::{Services, state};
+use continuwuity_service::{Services, state};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_sec_fetch::SecFetchLayer;
 use tower_sessions::{ExpiredDeletion, SessionManagerLayer, cookie::SameSite};
@@ -27,7 +27,7 @@ type State = state::State;
 const CATASTROPHIC_FAILURE: &str = "cat-astrophic failure! we couldn't even render the error template. \
 please contact the team @ https://continuwuity.org";
 
-const ROUTE_PREFIX: &str = conduwuit_core::ROUTE_PREFIX;
+const ROUTE_PREFIX: &str = continuwuity_core::ROUTE_PREFIX;
 
 #[derive(Debug, thiserror::Error)]
 enum WebError {
@@ -52,7 +52,7 @@ enum WebError {
 	#[error("Failed to render template: {0}")]
 	Render(#[from] askama::Error),
 	#[error("{0}")]
-	InternalError(#[from] conduwuit_core::Error),
+	InternalError(#[from] continuwuity_core::Error),
 	#[error("Request handler panicked! {0}")]
 	Panic(String),
 }

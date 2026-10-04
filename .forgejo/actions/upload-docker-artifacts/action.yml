@@ -26,7 +26,7 @@ inputs:
 outputs:
   binary_artifact_name:
     description: The name of the uploaded binary artifact
-    value: conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+    value: continuwuity${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
 
 runs:
   using: composite
@@ -51,13 +51,13 @@ runs:
 
     - name: Rename extracted binary
       shell: bash
-      run: mv /tmp/binaries/sbin/conduwuit /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+      run: mv /tmp/binaries/sbin/continuwuity /tmp/binaries/continuwuity${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
 
     - name: Upload binary artifact
       uses: forgejo/upload-artifact@v4
       with:
-        name: conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
-        path: /tmp/binaries/conduwuit${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+        name: continuwuity${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
+        path: /tmp/binaries/continuwuity${{ inputs.cpu_suffix }}-${{ inputs.slug }}${{ inputs.artifact_suffix }}
         if-no-files-found: error
 
     - name: Upload digest

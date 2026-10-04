@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Event, Result, debug,
 	debug::DebugInspect,
 	err, error,

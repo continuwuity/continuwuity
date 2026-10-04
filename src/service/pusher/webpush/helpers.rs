@@ -1,7 +1,7 @@
 //! Web Push key validation, token comparison, and payload shaping helpers.
 
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use conduwuit_core::{Err, Result, err};
+use continuwuity_core::{Err, Result, err};
 use ruma::{api::push_gateway::send_event_notification::v1::Notification, serde::JsonObject};
 use serde_json::Value as JsonValue;
 use web_push_native::{Auth, p256::PublicKey};

@@ -6,18 +6,18 @@ mod router;
 mod run;
 mod serve;
 
-extern crate conduwuit_core as conduwuit;
+extern crate continuwuity_core as continuwuity;
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
 use std::{panic::AssertUnwindSafe, pin::Pin, sync::Arc};
 
-use conduwuit::{Error, Result, Server};
-use conduwuit_service::Services;
+use continuwuity::{Error, Result, Server};
+use continuwuity_service::Services;
 use futures::{Future, FutureExt, TryFutureExt};
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
+continuwuity::mod_ctor! {}
+continuwuity::mod_dtor! {}
 
 #[unsafe(no_mangle)]
 pub extern "Rust" fn start(

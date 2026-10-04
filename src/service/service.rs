@@ -7,7 +7,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, Server, SyncRwLock, err, error::inspect_log, utils::string::SplitInfallible,
 };
 use database::Database;

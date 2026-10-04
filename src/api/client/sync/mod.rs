@@ -3,7 +3,7 @@ mod v5;
 
 use std::collections::VecDeque;
 
-use conduwuit::{
+use continuwuity::{
 	Event, PduCount, Result, debug_warn, err,
 	matrix::pdu::PduEvent,
 	ref_at,
@@ -11,7 +11,7 @@ use conduwuit::{
 	trace,
 	utils::stream::{BroadbandExt, ReadyExt, TryIgnore, WidebandExt},
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::StreamExt;
 use ruma::{
 	OwnedUserId, RoomId, UserId,

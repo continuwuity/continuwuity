@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use conduwuit::{
+use continuwuity::{
 	arrayvec::ArrayVec,
 	ruma::{
 		EventId, OwnedEventId, OwnedRoomId, OwnedUserId, RoomId, UserId, room_id, serde::Raw,
@@ -79,7 +79,7 @@ fn ser_overflow() {
 
 #[test]
 fn ser_json() {
-	use conduwuit::ruma::api::client::filter::FilterDefinition;
+	use continuwuity::ruma::api::client::filter::FilterDefinition;
 
 	let mut filter = FilterDefinition::default();
 	filter.event_fields = Some(vec!["content.body".to_owned()]);
@@ -92,7 +92,7 @@ fn ser_json() {
 
 #[test]
 fn ser_json_value() {
-	use conduwuit::ruma::api::client::filter::FilterDefinition;
+	use continuwuity::ruma::api::client::filter::FilterDefinition;
 
 	let mut filter = FilterDefinition::default();
 	filter.event_fields = Some(vec!["content.body".to_owned()]);
@@ -129,7 +129,7 @@ fn ser_json_macro() {
 #[test]
 #[cfg_attr(debug_assertions, should_panic(expected = "serializing string at the top-level"))]
 fn ser_json_raw() {
-	use conduwuit::ruma::api::client::filter::FilterDefinition;
+	use continuwuity::ruma::api::client::filter::FilterDefinition;
 
 	let mut filter = FilterDefinition::default();
 	filter.event_fields = Some(vec!["content.body".to_owned()]);
@@ -144,7 +144,7 @@ fn ser_json_raw() {
 #[test]
 #[cfg_attr(debug_assertions, should_panic(expected = "you can skip serialization instead"))]
 fn ser_json_raw_json() {
-	use conduwuit::ruma::api::client::filter::FilterDefinition;
+	use continuwuity::ruma::api::client::filter::FilterDefinition;
 
 	let mut filter = FilterDefinition::default();
 	filter.event_fields = Some(vec!["content.body".to_owned()]);

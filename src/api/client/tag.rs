@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::{
 	api::client::tag::{create_tag, delete_tag, get_tags},
 	events::{

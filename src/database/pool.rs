@@ -11,7 +11,7 @@ use std::{
 };
 
 use async_channel::{QueueStrategy, Receiver, RecvError, Sender};
-use conduwuit::{
+use continuwuity::{
 	Error, Result, Server, SyncMutex, debug, err, error,
 	result::DebugInspect,
 	smallvec::SmallVec,
@@ -70,7 +70,7 @@ const QUEUE_LIMIT: (usize, usize) = (1, 4096);
 const BATCH_INLINE: usize = 1;
 
 const WORKER_STACK_SIZE: usize = 1_048_576;
-const WORKER_NAME: &str = "conduwuit:db";
+const WORKER_NAME: &str = "continuwuity:db";
 
 impl Pool {
 	pub(crate) fn new(server: &Arc<Server>) -> Result<Arc<Self>> {
@@ -261,8 +261,8 @@ impl Pool {
 		set_affinity(affinity.clone());
 
 		#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
-		if affinity.clone().count() == 1 && conduwuit::alloc::je::is_affine_arena() {
-			use conduwuit::{
+		if affinity.clone().count() == 1 && continuwuity::alloc::je::is_affine_arena() {
+			use continuwuity::{
 				alloc::je::this_thread::{arena_id, set_arena},
 				result::LogDebugErr,
 			};

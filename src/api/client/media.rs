@@ -1,12 +1,12 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 };
-use conduwuit_core::error;
-use conduwuit_service::{
+use continuwuity_core::error;
+use continuwuity_service::{
 	Services,
 	media::{Dim, FileMeta, MXC_LENGTH},
 };
@@ -91,7 +91,7 @@ pub(crate) async fn get_content_thumbnail_route(
 		content_disposition,
 	} = match fetch_thumbnail_meta(&services, &mxc, user, body.timeout_ms, &dim).await {
 		| Ok(meta) => meta,
-		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+		| Err(continuwuity::Error::Io(e)) => match e.kind() {
 			| std::io::ErrorKind::NotFound =>
 				return Err!(Request(NotFound("Thumbnail not found."))),
 			| std::io::ErrorKind::PermissionDenied => {
@@ -132,7 +132,7 @@ pub(crate) async fn get_content_route(
 		content_disposition,
 	} = match fetch_file_meta(&services, &mxc, user, body.timeout_ms).await {
 		| Ok(meta) => meta,
-		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+		| Err(continuwuity::Error::Io(e)) => match e.kind() {
 			| std::io::ErrorKind::NotFound => return Err!(Request(NotFound("Media not found."))),
 			| std::io::ErrorKind::PermissionDenied => {
 				error!("Permission denied when trying to read file: {e:?}");
@@ -173,7 +173,7 @@ pub(crate) async fn get_content_as_filename_route(
 		content_disposition,
 	} = match fetch_file_meta(&services, &mxc, user, body.timeout_ms).await {
 		| Ok(meta) => meta,
-		| Err(conduwuit::Error::Io(e)) => match e.kind() {
+		| Err(continuwuity::Error::Io(e)) => match e.kind() {
 			| std::io::ErrorKind::NotFound => return Err!(Request(NotFound("Media not found."))),
 			| std::io::ErrorKind::PermissionDenied => {
 				error!("Permission denied when trying to read file: {e:?}");

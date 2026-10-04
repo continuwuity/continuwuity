@@ -5,7 +5,7 @@ use std::{
 
 use askama::Template;
 use async_trait::async_trait;
-use conduwuit::{Result, info, utils::ReadyExt};
+use continuwuity::{Result, info, utils::ReadyExt};
 use futures::StreamExt;
 use ruma::{UserId, events::room::message::RoomMessageEventContent};
 
@@ -186,7 +186,7 @@ impl Service {
 		eprintln!(
 			"Welcome to {} {}!",
 			"Continuwuity".bold().bright_magenta(),
-			conduwuit::version().bold()
+			continuwuity::version().bold()
 		);
 		eprintln!();
 		eprintln!(

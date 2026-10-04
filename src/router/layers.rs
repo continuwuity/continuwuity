@@ -4,9 +4,9 @@ use axum::{
 	Router,
 	extract::{self, DefaultBodyLimit, FromRequestParts, MatchedPath, State},
 };
-use conduwuit::{Result, Server, debug, error};
-use conduwuit_api::client_ip::ClientIp;
-use conduwuit_service::{Services, state::Guard};
+use continuwuity::{Result, Server, debug, error};
+use continuwuity_api::client_ip::ClientIp;
+use continuwuity_service::{Services, state::Guard};
 use http::{
 	HeaderValue, Method, StatusCode,
 	header::{self, HeaderName},
@@ -23,7 +23,7 @@ use tower_http::{
 
 use crate::{request, router};
 
-const CONDUWUIT_CSP: &[&str; 5] = &[
+const DEFAULT_CSP: &[&str; 5] = &[
 	"default-src 'none'",
 	"frame-ancestors 'none'",
 	"form-action 'none'",
@@ -31,7 +31,7 @@ const CONDUWUIT_CSP: &[&str; 5] = &[
 	"sandbox",
 ];
 
-const CONDUWUIT_PERMISSIONS_POLICY: &[&str; 2] = &["interest-cohort=()", "browsing-topics=()"];
+const DEFAULT_PERMISSIONS_POLICY: &[&str; 2] = &["interest-cohort=()", "browsing-topics=()"];
 
 pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 	let server = &services.server;
@@ -87,11 +87,11 @@ pub(crate) fn build(services: &Arc<Services>) -> Result<(Router, Guard)> {
 		))
 		.layer(SetResponseHeaderLayer::if_not_present(
 			HeaderName::from_static("permissions-policy"),
-			HeaderValue::from_str(&CONDUWUIT_PERMISSIONS_POLICY.join(","))?,
+			HeaderValue::from_str(&DEFAULT_PERMISSIONS_POLICY.join(","))?,
 		))
 		.layer(SetResponseHeaderLayer::if_not_present(
 			header::CONTENT_SECURITY_POLICY,
-			HeaderValue::from_str(&CONDUWUIT_CSP.join(";"))?,
+			HeaderValue::from_str(&DEFAULT_CSP.join(";"))?,
 		))
 		.layer(cors_layer(server))
 		.layer(body_limit_layer(server))

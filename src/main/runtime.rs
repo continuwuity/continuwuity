@@ -9,8 +9,8 @@ use std::{
 };
 
 #[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
-use conduwuit_core::result::LogDebugErr;
-use conduwuit_core::{
+use continuwuity_core::result::LogDebugErr;
+use continuwuity_core::{
 	Result, debug, is_true,
 	utils::sys::compute::{nth_core_available, set_affinity},
 };
@@ -18,7 +18,7 @@ use tokio::runtime::Builder;
 
 use crate::{clap::Args, server::Server};
 
-const WORKER_NAME: &str = "conduwuit:worker";
+const WORKER_NAME: &str = "continuwuity:worker";
 const WORKER_MIN: usize = 2;
 const WORKER_KEEPALIVE: u64 = 36;
 const MAX_BLOCKING_THREADS: usize = 1024;
@@ -87,7 +87,7 @@ fn enable_histogram(builder: &mut Builder, args: &Args) {
 #[cfg(tokio_unstable)]
 #[tracing::instrument(name = "stop", level = "info", skip_all)]
 pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
-	use conduwuit_core::event;
+	use continuwuity_core::event;
 	use tracing::Level;
 
 	// The final metrics output is promoted to INFO when tokio_unstable is
@@ -120,7 +120,7 @@ fn wait_shutdown(_server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
 
 	// Join any jemalloc threads so they don't appear in use at exit.
 	#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
-	conduwuit_core::alloc::je::background_thread_enable(false)
+	continuwuity_core::alloc::je::background_thread_enable(false)
 		.log_debug_err()
 		.ok();
 }
@@ -166,7 +166,7 @@ fn set_worker_affinity() {
 
 #[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
 fn set_worker_mallctl(id: usize) {
-	use conduwuit_core::alloc::je::{
+	use continuwuity_core::alloc::je::{
 		is_affine_arena,
 		this_thread::{set_arena, set_muzzy_decay},
 	};
@@ -180,7 +180,7 @@ fn set_worker_mallctl(id: usize) {
 		.expect("GC_MUZZY initialized by runtime::new()");
 
 	let muzzy_auto_disable =
-		conduwuit_core::utils::available_parallelism() >= DISABLE_MUZZY_THRESHOLD;
+		continuwuity_core::utils::available_parallelism() >= DISABLE_MUZZY_THRESHOLD;
 	if matches!(muzzy_option, Some(false) | None if muzzy_auto_disable) {
 		set_muzzy_decay(-1).log_debug_err().ok();
 	}
@@ -233,7 +233,7 @@ fn thread_park() {
 
 fn gc_on_park() {
 	#[cfg(all(not(target_env = "msvc"), feature = "jemalloc"))]
-	conduwuit_core::alloc::je::this_thread::decay()
+	continuwuity_core::alloc::je::this_thread::decay()
 		.log_debug_err()
 		.ok();
 }

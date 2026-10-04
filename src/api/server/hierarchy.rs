@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, info};
+use continuwuity::{Err, Result, info};
 use ruma::api::federation::space::get_hierarchy;
 use service::rooms::summary::Accessibility;
 

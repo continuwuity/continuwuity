@@ -1,6 +1,6 @@
 use std::{fmt::Debug, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{
 		IterStream,

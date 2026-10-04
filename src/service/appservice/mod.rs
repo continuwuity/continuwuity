@@ -4,7 +4,7 @@ mod registration_info;
 use std::{collections::BTreeMap, iter::IntoIterator, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Err, Result, err, utils::stream::IterStream};
+use continuwuity::{Err, Result, err, utils::stream::IterStream};
 use database::Map;
 use futures::{Future, FutureExt, Stream, TryStreamExt};
 use ruma::{RoomAliasId, RoomId, UserId, api::appservice::Registration};
@@ -73,7 +73,7 @@ impl crate::Service for Service {
 				.find_from_token(&registration.as_token)
 				.await
 			{
-				conduwuit::warn!(
+				continuwuity::warn!(
 					"Token collision detected during startup: Appservice '{}' token was also \
 					 used by user '{}' device '{}'. Logging out the user device to resolve \
 					 conflict.",

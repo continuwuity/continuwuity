@@ -3,8 +3,8 @@ use axum::{
 	extract::{Query, State},
 	routing::{get, on, post},
 };
-use conduwuit_core::warn;
-use conduwuit_service::{mailer::messages, threepid::session::ValidationSessions};
+use continuwuity_core::warn;
+use continuwuity_service::{mailer::messages, threepid::session::ValidationSessions};
 use lettre::{Address, message::Mailbox};
 use ruma::{ClientSecret, OwnedClientSecret, OwnedSessionId};
 use serde::{Deserialize, Serialize};

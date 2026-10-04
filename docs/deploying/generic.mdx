@@ -70,16 +70,16 @@ sudo useradd -r --shell /usr/bin/nologin --no-create-home continuwuity
 
 You can find an example unit for continuwuity below.
 You may need to change the `ExecStart=` path to match where you placed the Continuwuity
-binary if it is not in `/usr/bin/conduwuit`.
+binary if it is not in `/usr/bin/continuwuity`.
 
 On systems where rsyslog is used alongside journald (i.e. Red Hat-based distros
 and OpenSUSE), put `$EscapeControlCharactersOnReceive off` inside
 `/etc/rsyslog.conf` to allow color in logs.
 
 If you are using a different `database_path` than the systemd unit's
-configured default (`/var/lib/conduwuit`), you need to add your path to the
+configured default (`/var/lib/continuwuity`), you need to add your path to the
 systemd unit's `ReadWritePaths=`. You can do this by either directly editing
-`conduwuit.service` and reloading systemd, or by running `systemctl edit conduwuit.service`
+`continuwuity.service` and reloading systemd, or by running `systemctl edit continuwuity.service`
 and entering the following:
 
 ```
@@ -90,9 +90,9 @@ ReadWritePaths=/path/to/custom/database/path
 ### Example systemd Unit File
 
 <details>
-<summary>Click to expand systemd unit file (conduwuit.service)</summary>
+<summary>Click to expand systemd unit file (continuwuity.service)</summary>
 
-```ini file="../../pkg/conduwuit.service"
+```ini file="../../pkg/continuwuity.service"
 
 ```
 
@@ -100,13 +100,13 @@ ReadWritePaths=/path/to/custom/database/path
 
 You can also [view the file on Foregejo][systemd-file].
 
-[systemd-file]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/pkg/conduwuit.service
+[systemd-file]: https://forgejo.ellis.link/continuwuation/continuwuity/src/branch/main/pkg/continuwuity.service
 
 ## Creating the Continuwuity configuration file
 
 Now you need to create the Continuwuity configuration file in
-`/etc/conduwuit/conduwuit.toml`. You can find an example configuration at
-[conduwuit-example.toml](../reference/config.mdx).
+`/etc/continuwuity/continuwuity.toml`. You can find an example configuration at
+[continuwuity-example.toml](../reference/config.mdx).
 
 **Please take a moment to read the config. You need to change at least the
 server name.**
@@ -117,16 +117,16 @@ If you are using a dedicated user for Continuwuity, you need to allow it to
 read the configuration. To do this, run:
 
 ```bash
-sudo chown -R root:root /etc/conduwuit
-sudo chmod -R 755 /etc/conduwuit
+sudo chown -R root:root /etc/continuwuity
+sudo chmod -R 755 /etc/continuwuity
 ```
 
 If you use the default database path you also need to run this:
 
 ```bash
-sudo mkdir -p /var/lib/conduwuit/
-sudo chown -R continuwuity:continuwuity /var/lib/conduwuit/
-sudo chmod 700 /var/lib/conduwuit/
+sudo mkdir -p /var/lib/continuwuity/
+sudo chown -R continuwuity:continuwuity /var/lib/continuwuity/
+sudo chmod 700 /var/lib/continuwuity/
 ```
 
 ## Exposing ports in the firewall or the router
@@ -197,26 +197,26 @@ header, making federation non-functional. If you find a workaround, please share
     - `proxy_pass http://127.0.0.1:6167$request_uri;`
     - `proxy_pass http://127.0.0.1:6167;`
 
-    Furthermore, Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the `max_request_size` defined in conduwuit.toml.
+    Furthermore, Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the `max_request_size` defined in continuwuity.toml.
 
 ## Starting Your Server
 
 Now you can start Continuwuity with:
 
 ```bash
-sudo systemctl start conduwuit
+sudo systemctl start continuwuity
 ```
 
 Set it to start automatically when your system boots with:
 
 ```bash
-sudo systemctl enable conduwuit
+sudo systemctl enable continuwuity
 ```
 
 Check Continuwuity logs with the following command:
 
 ```bash
-sudo journalctl -u conduwuit.service
+sudo journalctl -u continuwuity.service
 ```
 
 If Continuwuity has successfully initialized, you'll see output as below.

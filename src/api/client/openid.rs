@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, utils};
+use continuwuity::{Err, Result, utils};
 use ruma::{api::client::account, authentication::TokenType};
 
 use super::TOKEN_LENGTH;

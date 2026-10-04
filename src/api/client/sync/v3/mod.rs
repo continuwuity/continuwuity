@@ -9,14 +9,14 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, at, error, extract_variant,
 	utils::{
 		ReadyExt, TryFutureExtExt,
 		stream::{BroadbandExt, Tools, WidebandExt},
 	},
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture};
 use ruma::{
 	DeviceId, OwnedUserId, RoomId, UserId,

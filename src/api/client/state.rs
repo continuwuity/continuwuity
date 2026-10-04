@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 use axum::extract::State;
-use conduwuit::{Err, Result, err, matrix::Event};
+use continuwuity::{Err, Result, err, matrix::Event};
 use futures::{FutureExt, TryStreamExt};
 use ruma::{
 	RoomId,

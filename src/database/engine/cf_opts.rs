@@ -1,4 +1,4 @@
-use conduwuit::{Config, Result, err, utils::math::Expected};
+use continuwuity::{Config, Result, err, utils::math::Expected};
 use rocksdb::{
 	BlockBasedIndexType, BlockBasedOptions, BlockBasedPinningTier, Cache,
 	DBCompressionType as CompressionType, DataBlockIndexType, FifoCompactOptions,

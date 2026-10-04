@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use ruma::api::client::alias::{create_alias, delete_alias, get_alias};
 
 use crate::Ruma;

@@ -2,7 +2,7 @@
 
 use std::{env, os::unix::process::CommandExt, process::Command};
 
-use conduwuit_core::{debug, info, utils};
+use continuwuity_core::{debug, info, utils};
 
 #[cold]
 pub(super) fn restart() -> ! {

@@ -1,6 +1,6 @@
 use std::{mem::size_of, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	arrayvec::ArrayVec,
 	matrix::PduCount,
 	result::LogErr,

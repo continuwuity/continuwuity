@@ -18,7 +18,7 @@
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Result, Server, debug, error,
 	utils::{response::LimitReadExt, time::jitter},
 	warn,

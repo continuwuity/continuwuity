@@ -26,7 +26,7 @@ pub fn reload(old: &Config, new: &Config) -> Result {
 #[allow(clippy::cognitive_complexity)]
 pub fn check(config: &Config) -> Result {
 	if cfg!(debug_assertions) {
-		warn!("Note: conduwuit was built without optimisations (i.e. debug build)");
+		warn!("Note: continuwuity was built without optimisations (i.e. debug build)");
 	}
 
 	if config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure {
@@ -90,7 +90,7 @@ pub fn check(config: &Config) -> Result {
 					error!(
 						"You are detected using Docker with a loopback/localhost listening \
 						 address of {addr}. If you are using a reverse proxy on the host and \
-						 require communication to conduwuit in the Docker container via \
+						 require communication to continuwuity in the Docker container via \
 						 NAT-based networking, this will NOT work. Please change this to \
 						 \"0.0.0.0\". If this is expected, you can ignore.",
 					);
@@ -98,7 +98,7 @@ pub fn check(config: &Config) -> Result {
 					error!(
 						"You are detected using Podman with a loopback/localhost listening \
 						 address of {addr}. If you are using a reverse proxy on the host and \
-						 require communication to conduwuit in the Podman container via \
+						 require communication to continuwuity in the Podman container via \
 						 NAT-based networking, this will NOT work. Please change this to \
 						 \"0.0.0.0\". If this is expected, you can ignore.",
 					);
@@ -379,7 +379,7 @@ fn warn_unknown_key(config: &Config) {
 		.keys()
 		.filter(|key| "config".to_owned().ne(key.to_owned()) /* "config" is expected */)
 	{
-		warn!("Config parameter \"{}\" is unknown to conduwuit, ignoring.", key);
+		warn!("Config parameter \"{}\" is unknown to continuwuity, ignoring.", key);
 	}
 }
 

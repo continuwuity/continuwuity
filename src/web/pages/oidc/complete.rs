@@ -6,7 +6,7 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_service::{
+use continuwuity_service::{
 	oauth::grant::AuthorizationCodeResponse,
 	oidc::{ClaimedLocalUser, SessionCompletionStatus},
 };

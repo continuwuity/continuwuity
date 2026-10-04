@@ -1,6 +1,6 @@
 use std::{fmt::Write, path::PathBuf, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Err, Result,
 	utils::{stream::IterStream, time},
 	warn,
@@ -59,7 +59,7 @@ impl crate::Context<'_> {
 	pub(super) async fn memory_usage(&self) -> Result {
 		let services_usage = self.services.memory_usage().await?;
 		let database_usage = self.services.db.db.memory_usage()?;
-		let allocator_usage = conduwuit::alloc::memory_usage()
+		let allocator_usage = continuwuity::alloc::memory_usage()
 			.map_or(String::new(), |s| format!("\nAllocator:\n{s}"));
 
 		self.write_str(&format!(
@@ -120,7 +120,7 @@ impl crate::Context<'_> {
 
 	#[cfg(unix)]
 	pub(super) async fn restart(&self, force: bool) -> Result {
-		use conduwuit::utils::sys::current_exe_deleted;
+		use continuwuity::utils::sys::current_exe_deleted;
 
 		if !force && current_exe_deleted() {
 			return Err!(
@@ -144,7 +144,7 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn list_features(&self) -> Result {
-		let mut enabled_features = conduwuit::info::introspection::ENABLED_FEATURES
+		let mut enabled_features = continuwuity::info::introspection::ENABLED_FEATURES
 			.lock()
 			.expect("locked")
 			.values()
@@ -154,7 +154,7 @@ impl crate::Context<'_> {
 		enabled_features.sort_unstable();
 		enabled_features.dedup();
 
-		let mut available_features = conduwuit::build_metadata::WORKSPACE_FEATURES
+		let mut available_features = continuwuity::build_metadata::WORKSPACE_FEATURES
 			.iter()
 			.flat_map(|(_, f)| f.iter())
 			.collect::<Vec<_>>();
@@ -175,7 +175,7 @@ impl crate::Context<'_> {
 	}
 
 	pub(super) async fn build_info(&self) -> Result {
-		use conduwuit::build_metadata::built;
+		use continuwuity::build_metadata::built;
 
 		let mut info = String::new();
 
@@ -187,16 +187,16 @@ impl crate::Context<'_> {
 
 		// Git information
 		writeln!(info, "\n## Git Information\n")?;
-		if let Some(hash) = conduwuit::build_metadata::GIT_COMMIT_HASH {
+		if let Some(hash) = continuwuity::build_metadata::GIT_COMMIT_HASH {
 			writeln!(info, "**Commit Hash:** {hash}")?;
 		}
-		if let Some(hash) = conduwuit::build_metadata::GIT_COMMIT_HASH_SHORT {
+		if let Some(hash) = continuwuity::build_metadata::GIT_COMMIT_HASH_SHORT {
 			writeln!(info, "**Commit Hash (short):** {hash}")?;
 		}
-		if let Some(url) = conduwuit::build_metadata::GIT_REMOTE_WEB_URL {
+		if let Some(url) = continuwuity::build_metadata::GIT_REMOTE_WEB_URL {
 			writeln!(info, "**Repository:** {url}")?;
 		}
-		if let Some(url) = conduwuit::build_metadata::GIT_REMOTE_COMMIT_URL {
+		if let Some(url) = continuwuity::build_metadata::GIT_REMOTE_COMMIT_URL {
 			writeln!(info, "**Commit URL:** {url}")?;
 		}
 

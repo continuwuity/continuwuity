@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, mem::take, time::Duration};
 
 use axum::{Json, extract::State, response::IntoResponse};
-use conduwuit::{Result, utils::timepoint_from_now};
+use continuwuity::{Result, utils::timepoint_from_now};
 use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch,

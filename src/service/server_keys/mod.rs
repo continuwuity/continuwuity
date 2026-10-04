@@ -7,7 +7,7 @@ mod verify;
 
 use std::{collections::BTreeMap, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result, Server,
 	utils::{IterStream, ReadyExt, stream::TryIgnore},
 };

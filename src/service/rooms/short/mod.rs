@@ -1,7 +1,7 @@
 use std::{borrow::Borrow, fmt::Debug, mem::size_of_val, sync::Arc};
 
-pub use conduwuit::matrix::pdu::{ShortEventId, ShortId, ShortRoomId, ShortStateKey};
-use conduwuit::{
+pub use continuwuity::matrix::pdu::{ShortEventId, ShortId, ShortRoomId, ShortStateKey};
+use continuwuity::{
 	Result, err,
 	matrix::StateKey,
 	pair_of,

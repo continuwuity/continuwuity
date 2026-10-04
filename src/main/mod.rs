@@ -2,9 +2,9 @@
 
 use std::sync::{Arc, atomic::Ordering};
 
-use conduwuit_core::{debug_info, error};
+use continuwuity_core::{debug_info, error};
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
 mod clap;
 mod deadlock;
@@ -17,7 +17,7 @@ mod sentry;
 mod server;
 mod signal;
 
-pub use conduwuit_core::{Error, Result};
+pub use continuwuity_core::{Error, Result};
 use server::Server;
 
 pub use crate::clap::Args;
@@ -63,7 +63,7 @@ pub fn run_with_args(args: &Args) -> Result<()> {
 
 /// Operate the server normally in release-mode static builds. This will start,
 /// run and stop the server within the asynchronous runtime.
-#[cfg(any(not(conduwuit_mods), not(feature = "conduwuit_mods")))]
+#[cfg(any(not(continuwuity_mods), not(feature = "continuwuity_mods")))]
 #[tracing::instrument(
 	name = "main",
 	parent = None,
@@ -71,7 +71,7 @@ pub fn run_with_args(args: &Args) -> Result<()> {
 	level = "info"
 )]
 async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
-	extern crate conduwuit_router as router;
+	extern crate continuwuity_router as router;
 
 	match router::start(&server.server).await {
 		| Ok(services) => server.services.lock().await.insert(services),
@@ -116,7 +116,7 @@ async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
 /// Operate the server in developer-mode dynamic builds. This will start, run,
 /// and hot-reload portions of the server as-needed before returning for an
 /// actual shutdown. This is not available in release-mode or static builds.
-#[cfg(all(conduwuit_mods, feature = "conduwuit_mods"))]
+#[cfg(all(continuwuity_mods, feature = "continuwuity_mods"))]
 async fn async_main(server: &Arc<Server>) -> Result<(), Error> {
 	let mut starts = true;
 	let mut reloads = true;

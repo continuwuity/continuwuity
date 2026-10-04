@@ -5,7 +5,7 @@ mod info;
 mod moderation;
 
 use clap::Subcommand;
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::OwnedRoomId;
 
 use self::{

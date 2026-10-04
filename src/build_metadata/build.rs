@@ -47,7 +47,7 @@ fn main() {
 	for package in &workspace_packages {
 		let crate_name = package
 			.name
-			.trim_start_matches("conduwuit-")
+			.trim_start_matches("continuwuity-")
 			.replace('-', "_");
 		let features: Vec<String> = package.features.keys().cloned().collect();
 		if !features.is_empty() {

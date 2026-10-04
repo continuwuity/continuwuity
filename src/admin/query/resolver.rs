@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::{Err, Result, utils::time};
+use continuwuity::{Err, Result, utils::time};
 use resolvematrix::resolution::Resolution;
 use ruma::OwnedServerName;
 

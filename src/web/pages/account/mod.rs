@@ -4,8 +4,8 @@ use axum::{
 	response::Redirect,
 	routing::get,
 };
-use conduwuit_core::utils::{IterStream, ReadyExt, stream::TryExpect};
-use conduwuit_service::threepid::EmailRequirement;
+use continuwuity_core::utils::{IterStream, ReadyExt, stream::TryExpect};
+use continuwuity_service::threepid::EmailRequirement;
 use futures::StreamExt;
 use ruma::{
 	OwnedClientSecret, OwnedDeviceId, OwnedSessionId,

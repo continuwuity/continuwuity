@@ -7,7 +7,7 @@
 
 use std::{cmp, num::Saturating as Sat};
 
-use conduwuit::{Result, checked, err};
+use continuwuity::{Result, checked, err};
 use ruma::{UInt, UserId, http_headers::ContentDisposition, media::Method};
 use tokio::{
 	fs,

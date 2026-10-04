@@ -1,5 +1,5 @@
 use clap::Subcommand;
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{IterStream, stream::BroadbandExt},
 };

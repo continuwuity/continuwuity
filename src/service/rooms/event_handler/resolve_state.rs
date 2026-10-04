@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Error, Result, err,
 	state_res::{self, StateMap},
 	trace,

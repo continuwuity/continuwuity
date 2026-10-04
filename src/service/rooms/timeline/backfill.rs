@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
-use conduwuit::{Err, PduEvent};
-use conduwuit_core::{
+use continuwuity::{Err, PduEvent};
+use continuwuity_core::{
 	Result, debug, debug_warn, err, info,
 	matrix::{
 		event::Event,

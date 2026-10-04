@@ -1,6 +1,6 @@
 use std::borrow::Borrow;
 
-use conduwuit::{
+use continuwuity::{
 	Pdu, Result, err,
 	matrix::{Event, StateKey},
 };

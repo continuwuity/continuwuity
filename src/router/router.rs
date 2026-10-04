@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use axum::{Router, response::IntoResponse};
-use conduwuit::Error;
-use conduwuit_service::{Services, state, state::Guard};
+use continuwuity::Error;
+use continuwuity_service::{Services, state, state::Guard};
 use http::{StatusCode, Uri};
 use ruma::api::error::ErrorKind;
 
 pub(crate) fn build(services: &Arc<Services>) -> (Router, Guard) {
 	let router = Router::<state::State>::new();
 	let (state, guard) = state::create(services.clone());
-	let router = conduwuit_api::router::build(router, state)
-		.merge(conduwuit_web::build(services))
+	let router = continuwuity_api::router::build(router, state)
+		.merge(continuwuity_web::build(services))
 		.fallback(not_found)
 		.with_state(state);
 

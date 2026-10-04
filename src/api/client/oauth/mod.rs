@@ -15,14 +15,15 @@ mod register_client;
 mod server_metadata;
 mod token;
 
-const BASE_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/oauth2/");
+const BASE_PATH: &str = concat!(continuwuity_core::ROUTE_PREFIX, "/oauth2/");
 const AUTH_CODE_PATH: &str = "grant/authorization_code";
 const JWKS_URI_PATH: &str = "client/keys.json";
 const CLIENT_REGISTER_PATH: &str = "client/register";
 const TOKEN_REVOKE_PATH: &str = "client/revoke";
 const TOKEN_PATH: &str = "grant/token";
 const DEVICE_AUTHORIZATION_PATH: &str = "device";
-const ACCOUNT_MANAGEMENT_PATH: &str = concat!(conduwuit_core::ROUTE_PREFIX, "/account/deeplink");
+const ACCOUNT_MANAGEMENT_PATH: &str =
+	concat!(continuwuity_core::ROUTE_PREFIX, "/account/deeplink");
 
 pub(crate) fn router(state: crate::State) -> Router<crate::State> {
 	Router::new()

@@ -1,6 +1,6 @@
 use std::pin::Pin;
 
-use conduwuit::Result;
+use continuwuity::Result;
 use futures::{
 	Stream,
 	stream::FusedStream,

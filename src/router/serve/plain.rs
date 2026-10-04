@@ -5,7 +5,7 @@ use std::{
 
 use axum::Router;
 use axum_server::{Handle as ServerHandle, bind};
-use conduwuit::{Result, Server, debug_info, info};
+use continuwuity::{Result, Server, debug_info, info};
 use tokio::task::JoinSet;
 
 pub(super) async fn serve(

@@ -1,5 +1,5 @@
-use conduwuit::{Err, Result, trace};
-use conduwuit_database::{Deserialized, Json};
+use continuwuity::{Err, Result, trace};
+use continuwuity_database::{Deserialized, Json};
 use ruma::{
 	DeviceId, OwnedDeviceId, UserId,
 	api::client::dehydrated_device::{

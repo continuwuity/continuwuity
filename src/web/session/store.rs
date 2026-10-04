@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use conduwuit_core::utils::stream::TryIgnore;
-use conduwuit_database::{Database, Deserialized, Json, Map};
+use continuwuity_core::utils::stream::TryIgnore;
+use continuwuity_database::{Database, Deserialized, Json, Map};
 use futures::StreamExt;
 use tower_sessions::{
 	ExpiredDeletion, SessionStore,

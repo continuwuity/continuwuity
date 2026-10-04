@@ -1,7 +1,7 @@
 use std::time::SystemTime;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, err};
+use continuwuity::{Err, Result, err};
 use lettre::{Address, message::Mailbox};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,

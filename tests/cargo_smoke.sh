@@ -18,7 +18,7 @@ run () {
 	fi
 }
 
-conduwuit () {
+continuwuity () {
 	UWU_OPTS=$@
 	rm -rf /tmp/uwu_smoketest.db
 	echo -e "[global]\nserver_name = \"localhost\"\ndatabase_path = \"/tmp/uwu_smoketest.db\"" > /tmp/uwu_smoketest.toml
@@ -38,8 +38,8 @@ element () {
 		run cargo "$TOOLCHAIN" build $ELEMENT_OPTS --all-targets
 		run cargo "$TOOLCHAIN" test $ELEMENT_OPTS --all-targets
 		run cargo "$TOOLCHAIN" bench $ELEMENT_OPTS --all-targets
-		run cargo "$TOOLCHAIN" run $ELEMENT_OPTS --bin conduwuit -- -V
-		run conduwuit "$TOOLCHAIN" run $ELEMENT_OPTS --bin conduwuit
+		run cargo "$TOOLCHAIN" run $ELEMENT_OPTS --bin continuwuity -- -V
+		run continuwuity "$TOOLCHAIN" run $ELEMENT_OPTS --bin continuwuity
 	fi
 }
 

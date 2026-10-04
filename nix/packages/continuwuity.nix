@@ -62,19 +62,19 @@ craneLib.buildPackage (
 
     # Needed to make continuwuity link to rocksdb
     postFixup = lib.optionalString (stdenv.hostPlatform.isLinux && rocksdb != null) ''
-      old_rpath="$(patchelf --print-rpath $out/bin/conduwuit)"
+      old_rpath="$(patchelf --print-rpath $out/bin/continuwuity)"
       extra_rpath="${
         lib.makeLibraryPath [
           rocksdb
         ]
       }"
 
-      patchelf --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
+      patchelf --set-rpath "$old_rpath:$extra_rpath" $out/bin/continuwuity
     '';
 
     meta = {
       description = "A community-driven Matrix homeserver in Rust";
-      mainProgram = "conduwuit";
+      mainProgram = "continuwuity";
       platforms = lib.platforms.all;
       maintainers = with lib.maintainers; [ quadradical ];
     };

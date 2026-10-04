@@ -1,5 +1,5 @@
 use axum::{Extension, Router, extract::State, routing::on};
-use conduwuit_api::client::full_user_deactivate;
+use continuwuity_api::client::full_user_deactivate;
 use futures::StreamExt;
 use ruma::{OwnedRoomId, OwnedUserId, UserId};
 use tower_sessions::Session;

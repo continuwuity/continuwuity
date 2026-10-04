@@ -7,7 +7,7 @@ use std::{
 	time::Instant,
 };
 
-use conduwuit::{
+use continuwuity::{
 	Config, Result, debug, debug_info, debug_warn, error, info,
 	utils::{ReadyExt, stream::TryIgnore},
 	warn,

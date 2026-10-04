@@ -4,7 +4,7 @@ mod presence;
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{
+use continuwuity::{
 	Error, Result, Server, checked, debug, debug_warn, error, result::LogErr, trace,
 };
 use database::Database;

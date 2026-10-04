@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use conduwuit::{Result, error, warn};
+use continuwuity::{Result, error, warn};
 use ruma::{
 	events::{
 		GlobalAccountDataEvent, GlobalAccountDataEventType, push_rules::PushRulesEventContent,

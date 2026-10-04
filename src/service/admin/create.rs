@@ -1,4 +1,4 @@
-use conduwuit::{Result, info, pdu::PartialPdu};
+use continuwuity::{Result, info, pdu::PartialPdu};
 use futures::FutureExt;
 use ruma::{
 	Int, RoomId,
@@ -23,8 +23,8 @@ use crate::Services;
 
 /// Create the admin room.
 ///
-/// Users in this room are considered admins by conduwuit, and the room can be
-/// used to issue admin commands by talking to the server user inside it.
+/// Users in this room are considered admins by continuwuity, and the room can
+/// be used to issue admin commands by talking to the server user inside it.
 pub async fn create_admin_room(services: &Services) -> Result {
 	let room_version = services.config.default_room_version.clone();
 	let room_version_rules = room_version

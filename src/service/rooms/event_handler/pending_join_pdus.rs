@@ -1,4 +1,4 @@
-use conduwuit::{debug, debug_warn};
+use continuwuity::{debug, debug_warn};
 use ruma::{CanonicalJsonObject, RoomId, ServerName};
 use serde_json::value::RawValue as RawJsonValue;
 

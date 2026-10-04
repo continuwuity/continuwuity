@@ -1,6 +1,6 @@
 use std::{cmp, convert::TryFrom};
 
-use conduwuit::{Config, Result, utils, warn};
+use continuwuity::{Config, Result, utils, warn};
 use rocksdb::{
 	Cache, DBCompressionType, DBRecoveryMode, Env, LogLevel, Options, statistics::StatsLevel,
 };

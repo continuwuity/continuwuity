@@ -22,7 +22,7 @@ use std::{
 
 use assign::assign;
 use async_trait::async_trait;
-use conduwuit::{Err, Error, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
+use continuwuity::{Err, Error, Event, PduEvent, Result, Server, SyncRwLock, utils::MutexMap};
 pub use fetch_and_handle_outliers::{
 	DagBuilderTree, GET_MISSING_EVENTS_MAX_BATCH_SIZE, build_local_dag,
 };
@@ -202,7 +202,7 @@ fn get_room_version_rules<Pdu: Event>(create_event: &Pdu) -> Result<RoomVersionR
 	Ok(room_version_rules)
 }
 
-fn calc_next_retry(config: &conduwuit::Config, retries: u32) -> Duration {
+fn calc_next_retry(config: &continuwuity::Config, retries: u32) -> Duration {
 	let min = Duration::from_secs(config.sender_retry_backoff_base);
 	let max = Duration::from_secs(config.sender_retry_backoff_limit);
 	min.saturating_mul(retries).min(max)

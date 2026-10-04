@@ -25,7 +25,7 @@ impl<T: fmt::Debug> fmt::Debug for TruncatedSlice<'_, T> {
 /// See [`TruncatedSlice`]. Useful for `#[instrument]`:
 ///
 /// ```
-/// use conduwuit_core::utils::debug::slice_truncated;
+/// use continuwuity_core::utils::debug::slice_truncated;
 ///
 /// #[tracing::instrument(fields(foos = slice_truncated(foos, 42)))]
 /// fn bar(foos: &[&str]) {};

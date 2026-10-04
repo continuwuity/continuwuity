@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 use ruma::{
 	api::federation::{

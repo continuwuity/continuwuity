@@ -149,7 +149,7 @@ ARG TARGETPLATFORM
 # Verify environment configuration
 RUN xx-cargo --print-target-triple
 
-# Conduwuit version info
+# Continuwuity version info
 ARG GIT_COMMIT_HASH
 ARG GIT_COMMIT_HASH_SHORT
 ARG GIT_REMOTE_URL
@@ -191,7 +191,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     TARGET_DIR=($(cargo metadata --no-deps --format-version 1 | \
             jq -r ".target_directory"))
     mkdir /out/sbin
-    PACKAGE=conduwuit
+    PACKAGE=continuwuity
     CARGO_LOG=debug xx-cargo build --locked --profile ${RUST_PROFILE} \
         --no-default-features --features ${CARGO_FEATURES} \
         -p $PACKAGE;
@@ -202,6 +202,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         xx-verify $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE_DIR}/$BINARY
         cp $TARGET_DIR/$(xx-cargo --print-target-triple)/${RUST_PROFILE_DIR}/$BINARY /out/sbin/$BINARY
     done
+    ln -s continuwuity /out/sbin/conduwuit
 EOF
 
 # Generate Software Bill of Materials (SBOM)
@@ -213,6 +214,9 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     mkdir /out/sbom
     typeset -A PACKAGES
     for BINARY in /out/sbin/*; do
+        if [ -L "$BINARY" ]; then
+            continue
+        fi
         BINARY_BASE=$(basename ${BINARY})
         package=$(cargo metadata --no-deps --format-version 1 | jq -r ".packages[] | select(.targets[] | select( .kind | map(. == \"bin\") | any ) | .name == \"$BINARY_BASE\") | .name")
         if [ -z "$package" ]; then
@@ -233,6 +237,9 @@ RUN <<'DEPS_EOF'
 
     # Process each binary
     for BINARY in /out/sbin/*; do
+        if [ -L "$BINARY" ]; then
+            continue
+        fi
         if lddtree_output=$(lddtree "$BINARY" 2>/dev/null) && [ -n "$lddtree_output" ]; then
             echo "$lddtree_output" | awk '{print $(NF-0) " " $1}' | sort -u -k 1,1 | \
                 awk '{dest = ($2 ~ /^\//) ? "/out/libs-root" $2 : "/out/libs/" $2; print "install -D " $1 " " dest}' | \
@@ -285,4 +292,4 @@ ENV LD_LIBRARY_PATH=/usr/lib
 # Continuwuity default port
 EXPOSE 8008
 
-CMD ["/sbin/conduwuit"]
+CMD ["/sbin/continuwuity"]

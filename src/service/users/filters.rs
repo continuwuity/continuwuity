@@ -1,4 +1,4 @@
-use conduwuit::utils;
+use continuwuity::utils;
 use database::{Deserialized, Json};
 use ruma::{UserId, api::client::filter::FilterDefinition};
 
@@ -19,7 +19,7 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		filter_id: &str,
-	) -> conduwuit::Result<FilterDefinition> {
+	) -> continuwuity::Result<FilterDefinition> {
 		let key = (user_id, filter_id);
 		self.db.userfilterid_filter.qry(&key).await.deserialized()
 	}

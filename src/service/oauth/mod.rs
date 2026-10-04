@@ -5,7 +5,7 @@ use std::{
 };
 
 use base64::Engine;
-use conduwuit::{
+use continuwuity::{
 	Result, info,
 	utils::{self, hash::sha256},
 };
@@ -345,7 +345,7 @@ impl Service {
 			.services
 			.config
 			.get_client_domain()
-			.join(&format!("{}/oauth2/grant/device_code", conduwuit::ROUTE_PREFIX))
+			.join(&format!("{}/oauth2/grant/device_code", continuwuity::ROUTE_PREFIX))
 			.unwrap();
 
 		let mut verification_uri_complete = verification_uri.clone();

@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result, debug, err};
+use continuwuity::{Err, Result, debug, err};
 use futures::StreamExt;
 use ruma::{
 	MilliSecondsSinceUnixEpoch,

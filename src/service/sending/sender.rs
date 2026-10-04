@@ -9,8 +9,8 @@ use std::{
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use conduwuit::{debug_info, debug_warn, info, trace};
-use conduwuit_core::{
+use continuwuity::{debug_info, debug_warn, info, trace};
+use continuwuity_core::{
 	Error, Event, Result, at, debug, err, error,
 	matrix::pdu::sticky,
 	result::LogErr,

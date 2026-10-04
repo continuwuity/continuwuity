@@ -1,4 +1,4 @@
-use conduwuit::utils::string::EMPTY;
+use continuwuity::utils::string::EMPTY;
 use rocksdb::{
 	DBCompactionPri as CompactionPri, DBCompactionStyle as CompactionStyle,
 	DBCompressionType as CompressionType,

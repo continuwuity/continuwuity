@@ -10,7 +10,7 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-conduwuit-admin.workspace = true
+continuwuity-admin.workspace = true
 clap.workspace = true
 
 askama = "0.16.0"

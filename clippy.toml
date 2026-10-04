@@ -8,25 +8,25 @@ type-complexity-threshold = 250             # reduce me to ~200
 large-error-threshold = 256                 # TODO reduce me ALARA
 
 disallowed-macros = [
-	{ path = "log::error", reason = "use conduwuit_core::error" },
-	{ path = "log::warn", reason = "use conduwuit_core::warn" },
-	{ path = "log::info", reason = "use conduwuit_core::info" },
-	{ path = "log::debug", reason = "use conduwuit_core::debug" },
-	{ path = "log::trace", reason = "use conduwuit_core::trace" },
+	{ path = "log::error", reason = "use continuwuity_core::error" },
+	{ path = "log::warn", reason = "use continuwuity_core::warn" },
+	{ path = "log::info", reason = "use continuwuity_core::info" },
+	{ path = "log::debug", reason = "use continuwuity_core::debug" },
+	{ path = "log::trace", reason = "use continuwuity_core::trace" },
 ]
 
 [[disallowed-methods]]
 path = "tokio::spawn"
-reason = "use and pass conduwuit_core::server::Server::runtime() to spawn from"
+reason = "use and pass continuwuity_core::server::Server::runtime() to spawn from"
 
 [[disallowed-methods]]
 path = "reqwest::Response::bytes"
-reason = "bytes is unsafe, use limit_read via the conduwuit_core::utils::LimitReadExt trait instead"
+reason = "bytes is unsafe, use limit_read via the continuwuity_core::utils::LimitReadExt trait instead"
 
 [[disallowed-methods]]
 path = "reqwest::Response::text"
-reason = "text is unsafe, use limit_read_text via the conduwuit_core::utils::LimitReadExt trait instead"
+reason = "text is unsafe, use limit_read_text via the continuwuity_core::utils::LimitReadExt trait instead"
 
 [[disallowed-methods]]
 path = "reqwest::Response::json"
-reason = "json is unsafe, use limit_read_text via the conduwuit_core::utils::LimitReadExt trait instead"
+reason = "json is unsafe, use limit_read_text via the continuwuity_core::utils::LimitReadExt trait instead"

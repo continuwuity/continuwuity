@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Event, Result, at,
 	utils::{
 		future::TryExtExt,

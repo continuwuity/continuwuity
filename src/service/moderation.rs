@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use conduwuit::Result;
+use continuwuity::Result;
 use ruma::ServerName;
 
 use crate::{Dep, config};

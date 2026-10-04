@@ -9,8 +9,8 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{Err, SyncRwLock, utils};
-use conduwuit_core::{
+use continuwuity::{Err, SyncRwLock, utils};
+use continuwuity_core::{
 	Error, Event, Result, Server, debug, err, error, error::default_log, pdu::PartialPdu,
 };
 pub use create::create_admin_room;
@@ -603,7 +603,7 @@ impl Service {
 			// Escaped commands must be sent locally (via client API), not via
 			// federation
 			if !sent_locally {
-				conduwuit::warn!(
+				continuwuity::warn!(
 					"Ignoring escaped admin command from {} that arrived via federation",
 					event.sender()
 				);

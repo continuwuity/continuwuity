@@ -5,7 +5,7 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use conduwuit::{
+use continuwuity::{
 	Err, Event, PduEvent, Result, debug, debug_warn, err, info, trace,
 	utils::{BoolExt, IterStream},
 	warn,
@@ -16,7 +16,7 @@ use ruma::{
 	api::federation::event::{get_room_state, get_room_state_ids},
 };
 
-use crate::{conduwuit::utils::stream::BroadbandExt, rooms::short::ShortStateKey};
+use crate::{continuwuity::utils::stream::BroadbandExt, rooms::short::ShortStateKey};
 
 impl super::Service {
 	/// Asks a remote server what the state at this event is.

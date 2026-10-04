@@ -4,7 +4,7 @@ use std::{
 	sync::{Arc, atomic::AtomicU32},
 };
 
-use conduwuit::{Result, debug, info, warn};
+use continuwuity::{Result, debug, info, warn};
 use rocksdb::{ColumnFamilyDescriptor, Options};
 
 use super::{

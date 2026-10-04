@@ -1,12 +1,12 @@
 #![type_length_limit = "3072"]
 
-extern crate conduwuit_core as conduwuit;
+extern crate continuwuity_core as continuwuity;
 extern crate rust_rocksdb as rocksdb;
 
-conduwuit_macros::introspect_crate! {}
+continuwuity_macros::introspect_crate! {}
 
-conduwuit::mod_ctor! {}
-conduwuit::mod_dtor! {}
+continuwuity::mod_ctor! {}
+continuwuity::mod_dtor! {}
 
 #[cfg(test)]
 mod benches;
@@ -28,7 +28,7 @@ mod watchers;
 
 use std::{ops::Index, sync::Arc};
 
-use conduwuit::{Result, Server, err};
+use continuwuity::{Result, Server, err};
 
 pub use self::{
 	de::{Ignore, IgnoreAll},

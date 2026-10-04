@@ -2,7 +2,7 @@
 
 use std::{collections::HashSet, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{IterStream, ReadyExt, stream::TryIgnore},
 };

@@ -4,7 +4,7 @@ use std::{
 	sync::Arc,
 };
 
-use conduwuit::{Err, Error, Result, utils};
+use continuwuity::{Err, Error, Result, utils};
 use futures::StreamExt;
 use lettre::Address;
 use ruma::{
@@ -304,7 +304,7 @@ impl Service {
 						.get_client_domain()
 						.join(&format!(
 							"{}{}",
-							conduwuit_core::ROUTE_PREFIX,
+							continuwuity_core::ROUTE_PREFIX,
 							oauth_ticket.ticket_issue_path()
 						))
 						.unwrap();

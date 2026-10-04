@@ -3,9 +3,9 @@ set -e
 
 #. /usr/share/debconf/confmodule
 
-CONDUWUIT_CONFIG_PATH=/etc/conduwuit
-CONDUWUIT_DATABASE_PATH=/var/lib/conduwuit
-CONDUWUIT_DATABASE_PATH_SYMLINK=/var/lib/matrix-conduit
+CONTINUWUITY_CONFIG_PATH=/etc/continuwuity
+CONTINUWUITY_DATABASE_PATH=/var/lib/continuwuity
+CONTINUWUITY_DATABASE_PATH_SYMLINK=/var/lib/matrix-conduit
 
 case $1 in
   purge)
@@ -18,17 +18,17 @@ case $1 in
 
     #
 
-    if [ -d "$CONDUWUIT_CONFIG_PATH" ]; then
-      if test -L "$CONDUWUIT_CONFIG_PATH"; then
+    if [ -d "$CONTINUWUITY_CONFIG_PATH" ]; then
+      if test -L "$CONTINUWUITY_CONFIG_PATH"; then
         echo "Deleting continuwuity configuration files"
-        rm -v -r "$CONDUWUIT_CONFIG_PATH"
+        rm -v -r "$CONTINUWUITY_CONFIG_PATH"
       fi
     fi
 
-    if [ -d "$CONDUWUIT_DATABASE_PATH" ]; then
-      if test -L "$CONDUWUIT_DATABASE_PATH"; then
+    if [ -d "$CONTINUWUITY_DATABASE_PATH" ]; then
+      if test -L "$CONTINUWUITY_DATABASE_PATH"; then
         echo "Deleting continuwuity database directory"
-        rm -r "$CONDUWUIT_DATABASE_PATH"
+        rm -r "$CONTINUWUITY_DATABASE_PATH"
       fi
     fi
 

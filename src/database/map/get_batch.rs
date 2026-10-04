@@ -1,6 +1,6 @@
 use std::{convert::AsRef, sync::Arc};
 
-use conduwuit::{
+use continuwuity::{
 	Result,
 	utils::{
 		IterStream,

@@ -6,7 +6,7 @@ use axum_server_dual_protocol::{
 	ServerExt,
 	axum_server::{bind_rustls, tls_rustls::RustlsConfig},
 };
-use conduwuit::{Result, Server, err};
+use continuwuity::{Result, Server, err};
 use tokio::task::JoinSet;
 use tracing::{debug, info, warn};
 
@@ -26,7 +26,7 @@ pub(super) async fn serve(
 		.ok_or_else(|| err!(Config("tls.key", "Missing required value in tls config section")))?;
 	info!(
 		"Note: It is strongly recommended that you use a reverse proxy instead of running \
-		 conduwuit directly with TLS."
+		 continuwuity directly with TLS."
 	);
 	debug!("Using direct TLS. Certificate path {certs} and certificate private key path {key}",);
 	let conf = RustlsConfig::from_pem_file(certs, key)

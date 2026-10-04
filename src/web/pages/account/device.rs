@@ -3,7 +3,7 @@ use axum::{
 	extract::{Path, State},
 	routing::{get, on},
 };
-use conduwuit_service::oauth::{SessionInfo, client_metadata::ClientMetadata};
+use continuwuity_service::oauth::{SessionInfo, client_metadata::ClientMetadata};
 use futures::StreamExt;
 use ruma::OwnedDeviceId;
 use serde::{Deserialize, Serialize};

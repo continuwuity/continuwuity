@@ -10,8 +10,8 @@ use axum::{
 	response::{IntoResponse, Redirect},
 	routing::{any, get, post},
 };
-use conduwuit::err;
-pub(super) use conduwuit_service::state::State;
+use continuwuity::err;
+pub(super) use continuwuity_service::state::State;
 use http::{Uri, uri};
 
 use self::handler::RouterExt;

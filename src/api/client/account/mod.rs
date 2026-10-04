@@ -1,10 +1,10 @@
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Result, err, info,
 	pdu::PartialPdu,
 	utils::{ReadyExt, stream::BroadbandExt},
 };
-use conduwuit_service::Services;
+use continuwuity_service::Services;
 use futures::{FutureExt, StreamExt};
 use lettre::{Address, message::Mailbox};
 use ruma::{

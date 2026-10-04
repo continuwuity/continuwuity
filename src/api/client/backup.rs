@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
 use axum::extract::State;
-use conduwuit::{Err, Result, err};
-use conduwuit_service::Services;
+use continuwuity::{Err, Result, err};
+use continuwuity_service::Services;
 use ruma::{
 	UInt, UserId,
 	api::client::backup::{

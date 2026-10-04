@@ -1,8 +1,8 @@
 use std::{collections::BTreeSet, time::SystemTime};
 
 use askama::{Template, filters::HtmlSafe};
-use conduwuit_core::utils;
-use conduwuit_service::{
+use continuwuity_core::utils;
+use continuwuity_service::{
 	Services,
 	oauth::{client_metadata::ClientMetadata, grant::Scope},
 };

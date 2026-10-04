@@ -1,14 +1,14 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use axum::extract::State;
-use conduwuit::{
+use continuwuity::{
 	Err, Error, Result, debug, debug_info, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
 	trace,
 	utils::to_canonical_object,
 	warn,
 };
-use conduwuit_service::{Services, appservice::RegistrationInfo};
+use continuwuity_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,

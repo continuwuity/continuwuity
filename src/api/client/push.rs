@@ -1,8 +1,8 @@
 use std::sync::LazyLock;
 
 use axum::extract::State;
-use conduwuit::{Err, Error, Result, err, utils::IterStream};
-use conduwuit_service::{Services, pusher::ActivationOutcome};
+use continuwuity::{Err, Error, Result, err, utils::IterStream};
+use continuwuity_service::{Services, pusher::ActivationOutcome};
 use futures::StreamExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue,

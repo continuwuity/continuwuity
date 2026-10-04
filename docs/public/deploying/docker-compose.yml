@@ -4,7 +4,7 @@ services:
     homeserver:
         image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
         restart: unless-stopped
-        command: /sbin/conduwuit
+        command: /sbin/continuwuity
         ports:
 
             # If your reverse proxy is on the host, use this

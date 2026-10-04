@@ -1,7 +1,7 @@
 use std::{cmp, collections::HashMap};
 
-use conduwuit::{smallstr::SmallString, trace};
-use conduwuit_core::{
+use continuwuity::{smallstr::SmallString, trace};
+use continuwuity_core::{
 	Err, Error, Result, err,
 	matrix::{
 		event::{Event, gen_event_id},

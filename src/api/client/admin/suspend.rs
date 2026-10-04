@@ -1,5 +1,5 @@
 use axum::extract::State;
-use conduwuit::{Err, Result};
+use continuwuity::{Err, Result};
 use ruma::api::client::admin::{is_user_suspended, suspend_user};
 
 use crate::Ruma;

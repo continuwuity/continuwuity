@@ -2,7 +2,7 @@
 
 #[test]
 fn common_prefix() {
-	let input = ["conduwuit", "conduit", "construct"];
+	let input = ["continuwuity", "conduit", "construct"];
 	let output = super::common_prefix(&input);
 	assert_eq!(output, "con");
 }

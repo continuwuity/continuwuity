@@ -1,5 +1,5 @@
 [package]
-name = "conduwuit_macros"
+name = "continuwuity_macros"
 description.workspace = true
 edition.workspace = true
 homepage.workspace = true
@@ -9,7 +9,7 @@ repository.workspace = true
 version.workspace = true
 
 [lib]
-name = "conduwuit_macros"
+name = "continuwuity_macros"
 path = "mod.rs"
 proc-macro = true
 

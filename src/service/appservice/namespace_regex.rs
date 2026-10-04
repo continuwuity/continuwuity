@@ -1,4 +1,4 @@
-use conduwuit::Result;
+use continuwuity::Result;
 use regex::RegexSet;
 use ruma::api::appservice::Namespace;
 
