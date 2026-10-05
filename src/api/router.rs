@@ -224,7 +224,6 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 			.ruma_route(&server::get_profile_information_route)
 			.ruma_route(&server::get_keys_route)
 			.ruma_route(&server::claim_keys_route)
-			.ruma_route(&server::get_openid_userinfo_route)
 			.ruma_route(&server::get_hierarchy_route)
 			.ruma_route(&server::well_known_server)
 			.ruma_route(&server::get_content_route)
@@ -237,6 +236,10 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 			.route("/_matrix/key/{*path}", any(federation_disabled))
 			.route("/_continuwuity/local_user_count", any(federation_disabled));
 	}
+
+	// Always add userinfo endpoint, even if federation is disabled, so livekit
+	// and other functionality will continue to work
+	router = router.ruma_route(&server::get_openid_userinfo_route);
 
 	if config.allow_legacy_media {
 		router = router
