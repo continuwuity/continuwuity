@@ -2,13 +2,17 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
 	Result, Server, debug_info,
+	result::LogErr,
 	utils::{self, IterStream},
 };
 use futures::StreamExt;
 use ruma::{
 	OwnedRoomId, OwnedUserId, RoomId, UserId,
-	api::federation::transactions::edu::{Edu, TypingContent},
-	events::{SyncEphemeralRoomEvent, typing::TypingEventContent},
+	api::{
+		appservice::event::push_events::v1::EphemeralData,
+		federation::transactions::edu::{Edu, TypingContent},
+	},
+	events::{EphemeralRoomEvent, SyncEphemeralRoomEvent, typing::TypingEventContent},
 };
 use tokio::sync::RwLock;
 
@@ -73,6 +77,9 @@ impl Service {
 
 		self.services.sync.wake_all_joined(room_id).await;
 
+		// update appservices
+		_ = self.appservice_send(room_id).await.log_err();
+
 		// update federation
 		if self.services.globals.user_is_local(user_id) {
 			self.federation_send(room_id, user_id, true).await?;
@@ -98,6 +105,9 @@ impl Service {
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
 		self.services.sync.wake_all_joined(room_id).await;
+
+		// update appservices
+		_ = self.appservice_send(room_id).await.log_err();
 
 		// update federation
 		if self.services.globals.user_is_local(user_id) {
@@ -125,27 +135,33 @@ impl Service {
 			}
 		};
 
-		if !removable.is_empty() {
-			let typing = &mut self.typing.write().await;
+		if removable.is_empty() {
+			return Ok(());
+		}
+		{
+			let mut typing = self.typing.write().await;
 			let room = typing.entry(room_id.to_owned()).or_default();
 			for user in &removable {
 				debug_info!("typing timeout {user:?} in {room_id:?}");
 				room.remove(user);
 			}
+		}
 
-			// update clients
-			self.last_typing_update
-				.write()
-				.await
-				.insert(room_id.to_owned(), self.services.globals.next_count()?);
+		// update clients
+		self.last_typing_update
+			.write()
+			.await
+			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
-			self.services.sync.wake_all_joined(room_id).await;
+		self.services.sync.wake_all_joined(room_id).await;
 
-			// update federation
-			for user in &removable {
-				if self.services.globals.user_is_local(user) {
-					self.federation_send(room_id, user, false).await?;
-				}
+		// update appservices
+		_ = self.appservice_send(room_id).await.log_err();
+
+		// update federation
+		for user in &removable {
+			if self.services.globals.user_is_local(user) {
+				self.federation_send(room_id, user, false).await?;
 			}
 		}
 
@@ -162,6 +178,24 @@ impl Service {
 			.get(room_id)
 			.copied()
 			.unwrap_or(0))
+	}
+
+	/// Returns a new typing EDU's content.
+	pub async fn typings_content(&self, room_id: &RoomId) -> TypingEventContent {
+		let room_typing_indicators = self.typing.read().await.get(room_id).cloned();
+
+		let Some(typing_indicators) = room_typing_indicators else {
+			return TypingEventContent::new(Vec::new());
+		};
+
+		let now = utils::millis_since_unix_epoch();
+		let user_ids: Vec<_> = typing_indicators
+			.into_iter()
+			.filter(|(_, timeout)| *timeout > now)
+			.map(|(user_id, _)| user_id)
+			.collect();
+
+		TypingEventContent::new(user_ids)
 	}
 
 	pub async fn typing_users_for_user(
@@ -192,7 +226,7 @@ impl Service {
 		Ok(user_ids)
 	}
 
-	/// Returns a new typing EDU.
+	/// Returns a new typing EDU, filtered for a specific user
 	pub async fn typings_event_for_user(
 		&self,
 		room_id: &RoomId,
@@ -226,5 +260,20 @@ impl Service {
 		self.services.sending.send_edu_room(room_id, buf).await?;
 
 		Ok(())
+	}
+
+	async fn appservice_send(&self, room_id: &RoomId) -> Result<()> {
+		let edu = EphemeralData::Typing(EphemeralRoomEvent::new(
+			room_id.to_owned(),
+			self.typings_content(room_id).await,
+		));
+
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, &edu).expect("Serialized Edu::Typing");
+
+		self.services
+			.sending
+			.send_edu_appservice_room(room_id, buf)
+			.await
 	}
 }

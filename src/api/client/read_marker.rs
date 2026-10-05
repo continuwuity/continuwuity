@@ -77,7 +77,7 @@ pub(crate) async fn set_read_marker_route(
 				.readreceipt_update(
 					sender_user,
 					&body.room_id,
-					&ReceiptEvent::new(
+					ReceiptEvent::new(
 						body.room_id.clone(),
 						ReceiptEventContent::from_iter(receipt_content),
 					),
@@ -176,7 +176,7 @@ pub(crate) async fn create_receipt_route(
 				.readreceipt_update(
 					sender_user,
 					&body.room_id,
-					&ReceiptEvent::new(
+					ReceiptEvent::new(
 						body.room_id.clone(),
 						ReceiptEventContent::from_iter(receipt_content),
 					),

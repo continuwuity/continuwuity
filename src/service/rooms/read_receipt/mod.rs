@@ -8,11 +8,13 @@ use conduwuit::{
 		Event,
 		pdu::{PduCount, PduId, RawPduId},
 	},
+	result::LogErr,
 	warn,
 };
 use futures::{Stream, TryFutureExt, try_join};
 use ruma::{
 	OwnedEventId, OwnedUserId, RoomId, UserId,
+	api::appservice::event::push_events::v1::EphemeralData,
 	events::{
 		AnySyncEphemeralRoomEvent, SyncEphemeralRoomEvent,
 		receipt::{ReceiptEvent, ReceiptEventContent, Receipts},
@@ -21,7 +23,11 @@ use ruma::{
 };
 
 use self::data::{Data, ReceiptItem};
-use crate::{Dep, rooms, sync};
+use crate::{
+	Dep, rooms,
+	sending::{self, EduBuf},
+	sync,
+};
 
 pub struct Service {
 	services: Services,
@@ -29,6 +35,7 @@ pub struct Service {
 }
 
 struct Services {
+	sending: Dep<sending::Service>,
 	short: Dep<rooms::short::Service>,
 	sync: Dep<sync::Service>,
 	timeline: Dep<rooms::timeline::Service>,
@@ -38,6 +45,7 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
+				sending: args.depend::<sending::Service>("sending"),
 				short: args.depend::<rooms::short::Service>("rooms::short"),
 				sync: args.depend::<sync::Service>("sync"),
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
@@ -55,10 +63,20 @@ impl Service {
 		&self,
 		user_id: &UserId,
 		room_id: &RoomId,
-		event: &ReceiptEvent,
+		event: ReceiptEvent,
 	) {
-		self.db.readreceipt_update(user_id, room_id, event).await;
+		self.db.readreceipt_update(user_id, room_id, &event).await;
 		self.services.sync.wake_all_joined(room_id).await;
+		// update appservices
+		let edu = EphemeralData::Receipt(event);
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, &edu).expect("Serialized EphemeralData::Receipt");
+		_ = self
+			.services
+			.sending
+			.send_edu_appservice_room(room_id, buf)
+			.await
+			.log_err();
 	}
 
 	/// Gets the latest private read receipt from the user in the room

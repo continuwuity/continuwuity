@@ -36,7 +36,9 @@ pub use self::{
 	sender::{EDU_LIMIT, PDU_LIMIT},
 };
 use crate::{
-	Dep, account_data, client,
+	Dep, account_data,
+	appservice::NamespaceRegex,
+	client,
 	federation::{self, FederationPathBuilderInput},
 	globals, presence, pusher,
 	rooms::{self, timeline::RawPduId},
@@ -51,6 +53,7 @@ pub struct Service {
 }
 
 struct Services {
+	alias: Dep<rooms::alias::Service>,
 	client: Dep<client::Service>,
 	globals: Dep<globals::Service>,
 	state_cache: Dep<rooms::state_cache::Service>,
@@ -94,6 +97,7 @@ impl crate::Service for Service {
 			db: Data::new(&args),
 			server: args.server.clone(),
 			services: Services {
+				alias: args.depend::<rooms::alias::Service>("rooms::alias"),
 				client: args.depend::<client::Service>("client"),
 				globals: args.depend::<globals::Service>("globals"),
 				state_cache: args.depend::<rooms::state_cache::Service>("rooms::state_cache"),
@@ -226,6 +230,64 @@ impl Service {
 			event,
 			queue_id: keys.into_iter().next().expect("request queue key"),
 		})
+	}
+
+	#[tracing::instrument(skip(self, serialized), level = "debug")]
+	pub fn send_edu_appservice(&self, appservice_id: &str, serialized: EduBuf) -> Result {
+		let dest = Destination::Appservice(appservice_id.to_owned());
+		let event = SendingEvent::Edu(serialized);
+		let _cork = self.db.db.cork();
+		let keys = self.db.queue_requests(once((&event, &dest)));
+		self.dispatch(Msg {
+			dest,
+			event,
+			queue_id: keys.into_iter().next().expect("request queue key"),
+		})
+	}
+
+	#[tracing::instrument(skip(self, room_id, serialized), level = "debug")]
+	pub async fn send_edu_appservice_room(
+		&self,
+		room_id: &RoomId,
+		serialized: EduBuf,
+	) -> Result<()> {
+		let appservices: Vec<_> = self
+			.services
+			.appservice
+			.read()
+			.await
+			.values()
+			.filter(|appservice| appservice.registration.receive_ephemeral)
+			.cloned()
+			.collect();
+
+		for appservice in appservices {
+			let matching_aliases = |aliases: NamespaceRegex| {
+				self.services
+					.alias
+					.local_aliases_for_room(room_id)
+					.ready_any(move |room_alias| aliases.is_match(room_alias.as_str()))
+			};
+
+			if appservice.rooms.is_match(room_id.as_str())
+				|| self
+					.services
+					.state_cache
+					.appservice_in_room(room_id, &appservice)
+					.await
+				|| matching_aliases(appservice.aliases.clone()).await
+			{
+				_ = self
+					.send_edu_appservice(&appservice.registration.id, serialized.clone())
+					.inspect_err(|e| {
+						warn!(
+							"failed to send EDU to appservice {}: {e:?}",
+							appservice.registration.id
+						);
+					});
+			}
+		}
+		Ok(())
 	}
 
 	#[tracing::instrument(skip(self, room_id, serialized), level = "debug")]

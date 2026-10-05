@@ -502,7 +502,7 @@ async fn handle_edu_receipt_room_user(
 				.readreceipt_update(
 					user_id,
 					room_id,
-					&ReceiptEvent::new(
+					ReceiptEvent::new(
 						room_id.to_owned(),
 						ReceiptEventContent::from_iter(content),
 					),
