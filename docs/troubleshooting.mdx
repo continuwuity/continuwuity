@@ -172,7 +172,7 @@ For more information about the `host-gateway` parameter, kindly consult [this li
 
 Note that users should not really need to debug things. If you find yourself
 debugging and find the issue, please let us know and/or how we can fix it.
-Various debug commands can be [found in `!admin debug`](./reference/admin/debug).
+Various debug commands can be found in [`!admin debug`](./reference/admin/debug).
 
 ### Debug/Trace log level
 
@@ -185,23 +185,34 @@ you need to access debug/trace log levels, you will need to build without the
 
 Continuwuity supports changing the tracing log environment filter on-the-fly using
 the admin command `!admin debug change-log-level <log env filter>`. This accepts
-a string **without quotes** the same format as the `log` config option.
+a string **without quotes** in the same format as the `log` config option. Complex
+filters are also supported as well.
 
-Example: `!admin debug change-log-level debug`
+```bash
+# set log level to debug
+!admin debug change-log-level debug
 
-This can also accept complex filters such as:
-`!admin debug change-log-level info,conduit_service[{dest="example.com"}]=trace,ruma_state_res=trace`
-`!admin debug change-log-level info,conduit_service[{dest="example.com"}]=trace,conduit_service[send{dest="example.org"}]=trace`
+# trace logs for all outgoing federation to `example.com`
+!admin debug change-log-level info,conduwuit_service::federation[{dest="example.com"}]=trace
 
-And to reset the log level to the one that was set at startup / last config
-load, simply pass the `--reset` flag.
+# trace logs for client syncs
+!admin debug change-log-level info,conduwuit_api::client=trace
 
-`!admin debug change-log-level --reset`
+# debug logs for everything except h2 and presence
+!admin debug change-log-level trace,h2=off,conduwuit_service::presence=off
+```
+
+To reset the log level to the one that was set at last config
+load, simply do:
+
+```bash
+!admin debug change-log-level --reset
+```
 
 ### Pinging servers
 
 Continuwuity can ping other servers using `!admin debug ping <server>`. This takes
-a server name and goes through the server discovery process and queries
+a server name, goes through the server discovery process, and queries
 `/_matrix/federation/v1/version`. Errors are outputted.
 
 While it does measure the latency of the request, it is not indicative of
