@@ -197,7 +197,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.merge(client::oauth::router(state))
 		.route("/_continuwuity/server_version", get(client::continuwuity_server_version))
 		.ruma_route(&admin::rooms::ban::ban_room)
-		.ruma_route(&admin::rooms::list::list_rooms);
+		.ruma_route(&admin::rooms::list::list_rooms)
+		.ruma_route(&admin::users::list::list_users);
 
 	if config.allow_federation {
 		router = router

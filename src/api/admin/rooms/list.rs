@@ -6,7 +6,7 @@ use ruminuwuity::admin::continuwuity::rooms;
 
 use crate::Ruma;
 
-/// # `GET /_continuwuity/admin/rooms/list`
+/// # `GET /_continuwuity/admin/v1/rooms/list`
 ///
 /// Lists all rooms known to this server, excluding banned ones.
 pub(crate) async fn list_rooms(

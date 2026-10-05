@@ -18,6 +18,7 @@ server = []
 unstable-exhaustive-types = []
 unstable-msc3202 = []
 unstable-msc4203 = []
+unstable-msc4484 = ["ruma/unstable-msc4484"]
 
 [dependencies]
 assign.workspace = true

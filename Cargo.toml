@@ -659,6 +659,9 @@ default-features = false
 [workspace.dependencies.ruminuwuity]
 package = "ruminuwuity"
 path = "src/ruminuwuity"
+features = [
+    "unstable-msc4484"
+]
 
 ###############################################################################
 #

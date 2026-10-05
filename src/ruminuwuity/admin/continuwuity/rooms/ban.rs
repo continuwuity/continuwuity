@@ -1,7 +1,7 @@
 pub mod v1 {
 	use ruma::{
 		OwnedRoomAliasId, OwnedRoomId, OwnedUserId,
-		api::{auth_scheme::AccessToken, request, response},
+		api::{OAuthClientScope, auth_scheme::AccessToken, request, response},
 		metadata,
 	};
 
@@ -10,8 +10,9 @@ pub mod v1 {
 		rate_limited: false,
 		authentication: AccessToken,
 		history: {
-			1.0 => "/_continuwuity/admin/rooms/{room_id}/ban",
-		}
+			1.0 => "/_continuwuity/admin/v1/rooms/{room_id}/ban",
+		},
+		required_client_scopes: [OAuthClientScope::ServerAdministration]
 	}
 
 	#[request]

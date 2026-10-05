@@ -37,7 +37,7 @@ pub enum AccessTokenStatus {
 }
 
 /// The status of a user account.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug, Eq)]
 pub enum AccountStatus {
 	NotFound,
 	Active,

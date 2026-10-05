@@ -6,7 +6,7 @@ use ruminuwuity::admin::continuwuity::rooms;
 
 use crate::{Ruma, client::leave_room};
 
-/// # `PUT /_continuwuity/admin/rooms/{roomID}/ban`
+/// # `PUT /_continuwuity/admin/v1/rooms/{roomID}/ban`
 ///
 /// Bans or unbans a room.
 pub(crate) async fn ban_room(
