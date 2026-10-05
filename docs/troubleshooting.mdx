@@ -13,9 +13,9 @@ problems. See the dedicated [**Docker issues**](#docker-issues) section for more
 Some slowness is to be expected if you're the first person on your homeserver to join a room (which will
 always be the case for single-user homeservers). In this situation, your homeserver has to verify the signatures of
 all of the state events sent by other servers before your join. To make this process as fast as possible, make sure you have
-[multiple fast, trusted servers](./guides/performance.mdx#tuning-your-trusted-servers) listed in `trusted_servers` in your configuration, and ensure
-`query_trusted_key_servers_first_on_join` is set to true (the default).
-If you need suggestions for trusted servers, ask in the Continuwuity main room.
+multiple fast, trusted servers listed in `trusted_servers` in your configuration, and ensure
+`query_trusted_key_servers_first_on_join` is set to true (the default). Read the
+[Tuning your trusted servers](./guides/performance.mdx#tuning-your-trusted-servers) section for more details on doing so.
 
 However, _very_ slow joins, especially to rooms with only a few users in them or rooms created by another user
 on your homeserver, may be caused by [issue !779](https://forgejo.ellis.link/continuwuation/continuwuity/issues/779),
