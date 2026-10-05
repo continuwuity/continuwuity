@@ -103,7 +103,8 @@ pub(crate) async fn set_read_marker_route(
 		services
 			.rooms
 			.read_receipt
-			.private_read_set(&body.room_id, sender_user, count);
+			.private_read_set(&body.room_id, sender_user, event, count)
+			.await;
 	}
 
 	services.sync.wake(sender_user).await;
@@ -200,7 +201,8 @@ pub(crate) async fn create_receipt_route(
 			services
 				.rooms
 				.read_receipt
-				.private_read_set(&body.room_id, sender_user, count);
+				.private_read_set(&body.room_id, sender_user, &body.event_id, count)
+				.await;
 		},
 		| _ => {
 			return Err!(Request(InvalidParam(warn!(

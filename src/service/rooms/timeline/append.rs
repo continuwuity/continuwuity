@@ -423,7 +423,8 @@ impl super::Service {
 
 		self.services
 			.read_receipt
-			.private_read_set(room_id, pdu.sender(), count1);
+			.private_read_set(room_id, pdu.sender(), pdu.event_id(), count1)
+			.await;
 
 		self.services
 			.user

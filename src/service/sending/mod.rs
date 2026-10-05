@@ -37,7 +37,7 @@ pub use self::{
 };
 use crate::{
 	Dep, account_data,
-	appservice::NamespaceRegex,
+	appservice::{NamespaceRegex, RegistrationInfo},
 	client,
 	federation::{self, FederationPathBuilderInput},
 	globals, presence, pusher,
@@ -251,13 +251,27 @@ impl Service {
 		room_id: &RoomId,
 		serialized: EduBuf,
 	) -> Result<()> {
+		self.send_edu_appservice_room_filtered(room_id, serialized, |_| true)
+			.await
+	}
+
+	#[tracing::instrument(skip(self, room_id, serialized, filter), level = "debug")]
+	pub async fn send_edu_appservice_room_filtered<F>(
+		&self,
+		room_id: &RoomId,
+		serialized: EduBuf,
+		filter: F,
+	) -> Result<()>
+	where
+		F: Fn(&RegistrationInfo) -> bool + Send,
+	{
 		let appservices: Vec<_> = self
 			.services
 			.appservice
 			.read()
 			.await
 			.values()
-			.filter(|appservice| appservice.registration.receive_ephemeral)
+			.filter(|appservice| appservice.registration.receive_ephemeral && filter(appservice))
 			.cloned()
 			.collect();
 

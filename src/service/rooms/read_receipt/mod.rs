@@ -13,7 +13,7 @@ use conduwuit::{
 };
 use futures::{Stream, TryFutureExt, try_join};
 use ruma::{
-	OwnedEventId, OwnedUserId, RoomId, UserId,
+	EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedUserId, RoomId, UserId,
 	api::appservice::event::push_events::v1::EphemeralData,
 	events::{
 		AnySyncEphemeralRoomEvent, SyncEphemeralRoomEvent,
@@ -133,11 +133,44 @@ impl Service {
 		self.db.readreceipts_since(room_id, since.unwrap_or(0))
 	}
 
-	/// Sets a private read marker at PDU `count`.
-	#[inline]
+	/// Sets a private read marker at PDU `count` and notifies interested
+	/// appservices matching the user's namespace.
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub fn private_read_set(&self, room_id: &RoomId, user_id: &UserId, count: u64) {
+	pub async fn private_read_set(
+		&self,
+		room_id: &RoomId,
+		user_id: &UserId,
+		event_id: &EventId,
+		count: u64,
+	) {
 		self.db.private_read_set(room_id, user_id, count);
+
+		// update appservices matching the user's namespace (MSC2409)
+		let receipt_content = [(
+			event_id.to_owned(),
+			BTreeMap::from_iter([(
+				ruma::events::receipt::ReceiptType::ReadPrivate,
+				BTreeMap::from_iter([(
+					user_id.to_owned(),
+					ruma::events::receipt::Receipt::new(MilliSecondsSinceUnixEpoch::now()),
+				)]),
+			)]),
+		)];
+		let event = ReceiptEvent::new(
+			room_id.to_owned(),
+			ReceiptEventContent::from_iter(receipt_content),
+		);
+		let edu = EphemeralData::Receipt(event);
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, &edu).expect("Serialized EphemeralData::Receipt");
+		_ = self
+			.services
+			.sending
+			.send_edu_appservice_room_filtered(room_id, buf, |appservice| {
+				appservice.is_user_match(user_id)
+			})
+			.await
+			.log_err();
 	}
 
 	/// Returns the private read marker PDU count.
