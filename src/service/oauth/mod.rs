@@ -586,6 +586,16 @@ impl Service {
 				));
 			};
 
+			if session_info.client_id != client_id {
+				// This device was created by a different piece of client
+				// software. Either the client stepping up
+				// changed its registration without logging out
+				// or someone is screwing with things.
+				return Err(OAuthError::invalid_grant(
+					"The supplied device was created by a different client",
+				));
+			}
+
 			session_info.temporary_scopes = requested_scopes.scopes;
 
 			self.services
