@@ -95,7 +95,7 @@ impl Display for RequestedScopes {
 			.collect();
 
 		if let Some(device_id) = &self.device_id {
-			scopes.push(device_id.to_string());
+			scopes.push(format!("urn:matrix:client:device:{device_id}"));
 		}
 
 		f.write_str(&scopes.join(" "))
