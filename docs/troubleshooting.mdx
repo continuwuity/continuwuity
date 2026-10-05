@@ -2,8 +2,8 @@
 
 :::warning{title="For Docker users"}
 It's common for Docker misconfigurations to cause issues, particularly with networking and
-permissions. Before continuing, please first check that your issues are **not** due Docker
-problems. See the dedicated section on [Docker](#docker-issues) for more details.
+permissions. Before continuing, please first check that your issues are notdue Docker
+problems. See the dedicated [**Docker issues**](#docker-issues) section for more details.
 :::
 
 ## Continuwuity issues
@@ -145,17 +145,20 @@ docker run --rm -it --network container:continuwuity docker.io/curlimages/curl c
 
 To fix this, use the `extra_hosts` parameter to map local service domains to `host-gateway` - a special Docker value that resolves to the internal IP address of the host.
 
-```diff
-# in docker-compose.yaml
+```diff title="docker-compose.yaml"
 services:
   continuwuity:
     ...
+# allow Continuwuity to reach out to the push server and livekit
+# via the host gateway loopback address
 +    extra_hosts:
 +     - "push.example.com:host-gateway"
 +     - "livekit.example.com:host-gateway"
 
   lk-jwt-service:
     ...
+# allow jwt service to reach out to Continuwuity and livekit
+# via the host gateway loopback address
 +    extra_hosts:
 +     - "livekit.example.com:host-gateway"
 +     - "matrix.example.com:host-gateway"
@@ -163,7 +166,7 @@ services:
 
 Reload the compose file, and connections between these services (as well as the sidecar container test above) should now work.
 
-For more information about the `host-gateway` parameter, kindly consult [this link][docker-custom-dns] and the [`--add-host` documentation for Docker][docker-add-host].
+For more information about the `host-gateway` parameter, kindly consult the Docker docs on [custom DNS with `extra_hosts`][docker-custom-dns] and the [`--add-host` option][docker-add-host].
 
 [docker-custom-dns]: https://docs.docker.com/compose/how-tos/networking/#custom-dns-with-extra_hosts
 [docker-add-host]: https://docs.docker.com/reference/cli/docker/container/run/#add-host
