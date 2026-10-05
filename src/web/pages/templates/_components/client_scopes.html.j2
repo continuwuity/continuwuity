@@ -13,8 +13,8 @@
                     {{ icons::house_gear() }}
                     Access your homeserver's administrator tools
                 </li>
-            {% when _ %}
-                <li>missingno</li>
+            {% when other %}
+                <li><em class="negative">Missing scope description for {{ other }} (this is a bug)</em></li>
         {% endmatch %}
     {% endfor %}
 </ul>
