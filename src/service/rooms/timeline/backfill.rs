@@ -225,7 +225,8 @@ impl super::Service {
 		.into();
 
 		// Insert pdu
-		self.db.prepend_backfill_pdu(&pdu_id, &event_id, &value);
+		self.db
+			.prepend_backfill_pdu(&pdu_id, &event_id, &value, pdu.origin_server_ts());
 
 		drop(insert_lock);
 		if pdu.kind == TimelineEventType::RoomMessage {

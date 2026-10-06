@@ -233,6 +233,10 @@ pub(super) static MAPS: &[Descriptor] = &[
 		..descriptor::DROPPED
 	},
 	Descriptor {
+		name: "roomts_pduid",
+		..descriptor::SEQUENTIAL_SMALL
+	},
+	Descriptor {
 		name: "roomuserdataid_accountdata",
 		..descriptor::RANDOM_SMALL
 	},

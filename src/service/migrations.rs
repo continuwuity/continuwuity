@@ -18,11 +18,11 @@ use conduwuit::{
 	},
 	warn,
 };
-use database::{Deserialized, Ignore, Json};
+use database::{Database, Deserialized, Ignore, Json};
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
-	OwnedDeviceId, OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
+	MilliSecondsSinceUnixEpoch, OwnedDeviceId, OwnedEventId, OwnedRoomId, OwnedUserId, UserId,
 	api::OAuthClientScope,
 	events::{
 		AnyStrippedStateEvent, GlobalAccountDataEventType, StateEventType,
@@ -32,9 +32,13 @@ use ruma::{
 	push::Ruleset,
 	serde::{Raw, from_raw_json_value},
 };
+use serde::Deserialize;
 use serde_json::{Value, value::to_raw_value};
 
-use crate::{Services, media, rooms, rooms::short::ShortStateHash};
+use crate::{
+	Services, media, rooms,
+	rooms::{short::ShortStateHash, timeline::RawPduId},
+};
 
 type MigrationFn =
 	for<'a> fn(&'a Services) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'a>>;
@@ -176,6 +180,35 @@ migration!(stringify!($name) => $name)
 		// This is backwards compatible because old versions never read the
 		// account data entries it removes.
 		migration!(remove_replaced_account_data),
+		// This is backwards compatible because old versions ignore the `roomts_pduid` keyspace.
+		Migration(rooms::timeline::TIMESTAMP_INDEX_MIGRATION, |services| {
+			Box::pin(async {
+				let global = &services.db["global"];
+				if global
+					.exists(rooms::timeline::TIMESTAMP_INDEX_MIGRATION)
+					.await
+					.is_ok()
+				{
+					return Ok(());
+				}
+
+				let until = match global.get(ROOMTS_UNTIL).await.deserialized::<u64>() {
+					| Ok(until) => until,
+					| Err(_) => {
+						let until = services.globals.current_count()?;
+						global.insert(ROOMTS_UNTIL, until.to_be_bytes());
+						until
+					},
+				};
+
+				services
+					.server
+					.runtime()
+					.spawn(populate_roomts_pduid(services.db.clone(), until));
+
+				Ok(())
+			})
+		}),
 	]
 };
 
@@ -951,6 +984,38 @@ async fn unembed_unsigned_info(
 	}
 
 	info!(elapsed=?start.elapsed(), total_migrated_pdus=total_migrated, "Finished migration.");
+}
+
+const ROOMTS_UNTIL: &str = "populate_roomts_pduid_until";
+
+async fn populate_roomts_pduid(db: Arc<Database>, until: u64) {
+	#[derive(Deserialize)]
+	struct ExtractTs {
+		origin_server_ts: MilliSecondsSinceUnixEpoch,
+	}
+
+	info!("Starting background migration to index PDUs by timestamp.");
+	let start = Instant::now();
+	let roomts_pduid = db["roomts_pduid"].clone();
+
+	db["pduid_pdu"]
+		.raw_stream()
+		.ignore_err()
+		.ready_for_each(|(key, val)| {
+			let pdu_id = RawPduId::from(key);
+			if matches!(pdu_id.pdu_count(), PduCount::Normal(count) if count > until) {
+				return;
+			}
+			if let Ok(pdu) = serde_json::from_slice::<ExtractTs>(val) {
+				roomts_pduid
+					.insert(&rooms::timeline::roomts_key(&pdu_id, pdu.origin_server_ts), []);
+			}
+		})
+		.await;
+
+	db["global"].insert(rooms::timeline::TIMESTAMP_INDEX_MIGRATION, []);
+	db["global"].remove(ROOMTS_UNTIL);
+	info!(elapsed = ?start.elapsed(), "Finished indexing PDUs by timestamp.");
 }
 
 async fn drop_server_signingkeys(services: &Services) -> Result<()> {

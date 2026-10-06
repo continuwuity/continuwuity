@@ -12,7 +12,9 @@ use database::{Database, Deserialized, Json, KeyVal, Map};
 use futures::{
 	FutureExt, Stream, StreamExt, TryFutureExt, TryStreamExt, future::select_ok, pin_mut,
 };
-use ruma::{CanonicalJsonObject, EventId, OwnedUserId, RoomId, api::Direction};
+use ruma::{
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedUserId, RoomId, api::Direction,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::value::RawValue as RawJsonValue;
 
@@ -25,6 +27,7 @@ pub(super) struct Data {
 	pduid_pdu: Arc<Map>,
 	pduid_unredactedcontent: Arc<Map>,
 	roomid_lasttimelinecount: Arc<Map>,
+	roomts_pduid: Arc<Map>,
 	userroomid_highlightcount: Arc<Map>,
 	userroomid_notificationcount: Arc<Map>,
 	pub(super) db: Arc<Database>,
@@ -52,6 +55,7 @@ impl Data {
 			pduid_pdu: db["pduid_pdu"].clone(),
 			pduid_unredactedcontent: db["pduid_unredactedcontent"].clone(),
 			roomid_lasttimelinecount: db["roomid_lasttimelinecount"].clone(),
+			roomts_pduid: db["roomts_pduid"].clone(),
 			userroomid_highlightcount: db["userroomid_highlightcount"].clone(),
 			userroomid_notificationcount: db["userroomid_notificationcount"].clone(),
 			db: args.db.clone(),
@@ -213,10 +217,12 @@ impl Data {
 		room_id: &RoomId,
 		json: &CanonicalJsonObject,
 		count: PduCount,
+		index_ts: MilliSecondsSinceUnixEpoch,
 	) {
 		debug_assert!(matches!(count, PduCount::Normal(_)), "PduCount not Normal");
 
 		self.pduid_pdu.raw_put(pdu_id, Json(json));
+		self.roomts_pduid.insert(&roomts_key(pdu_id, index_ts), []);
 		self.eventid_pduid.insert(pdu.event_id.as_bytes(), pdu_id);
 		self.eventid_outlierpdu.remove(pdu.event_id.as_bytes());
 		self.roomid_lasttimelinecount
@@ -228,8 +234,10 @@ impl Data {
 		pdu_id: &RawPduId,
 		event_id: &EventId,
 		json: &CanonicalJsonObject,
+		index_ts: MilliSecondsSinceUnixEpoch,
 	) {
 		self.pduid_pdu.raw_put(pdu_id, Json(json));
+		self.roomts_pduid.insert(&roomts_key(pdu_id, index_ts), []);
 		self.eventid_pduid.insert(event_id, pdu_id);
 		self.eventid_outlierpdu.remove(event_id);
 	}
@@ -322,6 +330,48 @@ impl Data {
 			.try_flatten_stream()
 	}
 
+	pub(super) fn pdus_by_ts<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+		ts: MilliSecondsSinceUnixEpoch,
+		dir: Direction,
+	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
+		self.services
+			.short
+			.get_shortroomid(room_id)
+			.map_err(move |e| err!(Request(NotFound("Room {room_id:?} not found: {e:?}"))))
+			.map_ok(move |shortroomid| {
+				let seek =
+					|shorteventid| roomts_key(&PduId { shortroomid, shorteventid }.into(), ts);
+				let keys = match dir {
+					| Direction::Forward => self
+						.roomts_pduid
+						.raw_keys_from(&seek(PduCount::min()))
+						.left_stream(),
+					| Direction::Backward => self
+						.roomts_pduid
+						.rev_raw_keys_from(&seek(PduCount::max()))
+						.right_stream(),
+				};
+
+				keys.ready_try_take_while(move |key| {
+					Ok(key.starts_with(&shortroomid.to_be_bytes()))
+				})
+				.map_ok(roomts_key_to_pdu_id)
+				.and_then(async move |pdu_id| {
+					Ok((pdu_id.pdu_count(), self.get_pdu_from_id(&pdu_id).await?))
+				})
+			})
+			.try_flatten_stream()
+	}
+
+	pub(super) async fn timestamp_index_ready(&self) -> bool {
+		self.db["global"]
+			.exists(TIMESTAMP_INDEX_MIGRATION)
+			.await
+			.is_ok()
+	}
+
 	fn from_json_slice((pdu_id, pdu): KeyVal<'_>) -> Result<PdusIterItem> {
 		let pdu_id: RawPduId = pdu_id.into();
 
@@ -376,9 +426,52 @@ impl Data {
 	}
 }
 
+pub const TIMESTAMP_INDEX_MIGRATION: &str = "populate_roomts_pduid";
+
+#[must_use]
+pub fn roomts_key(pdu_id: &RawPduId, ts: MilliSecondsSinceUnixEpoch) -> Vec<u8> {
+	let count = pdu_id.pdu_count().into_signed().cast_unsigned() ^ (1 << 63);
+	[pdu_id.shortroomid(), u64::from(ts.get()).to_be_bytes(), count.to_be_bytes()].concat()
+}
+
+fn roomts_key_to_pdu_id(key: &[u8]) -> RawPduId {
+	let shortroomid = u64::from_be_bytes(key[0..8].try_into().expect("roomts key shortroomid"));
+	let count = u64::from_be_bytes(key[16..24].try_into().expect("roomts key count")) ^ (1 << 63);
+
+	PduId {
+		shortroomid,
+		shorteventid: PduCount::from_signed(count.cast_signed()),
+	}
+	.into()
+}
+
 //TODO: this is an ABA
 fn increment(db: &Arc<Map>, key: &[u8]) {
 	let old = db.get_blocking(key);
 	let new = utils::increment(old.ok().as_deref());
 	db.insert(key, new);
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::uint;
+
+	use super::*;
+
+	#[test]
+	fn roomts_key_orders_by_ts_then_count() {
+		let ids = [
+			(PduCount::Normal(9), uint!(1)),
+			(PduCount::Backfilled(-5), uint!(2)),
+			(PduCount::Normal(3), uint!(2)),
+			(PduCount::Normal(1), uint!(3)),
+		]
+		.map(|(count, ts)| (RawPduId::from(PduId { shortroomid: 7, shorteventid: count }), ts));
+		let keys = ids.map(|(id, ts)| roomts_key(&id, MilliSecondsSinceUnixEpoch(ts)));
+
+		assert!(keys.is_sorted());
+		for ((id, _), key) in ids.iter().zip(&keys) {
+			assert_eq!(roomts_key_to_pdu_id(key), *id);
+		}
+	}
 }

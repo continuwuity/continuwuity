@@ -21,8 +21,8 @@ use conduwuit_core::{
 };
 use futures::{Future, Stream, TryStreamExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, RoomId,
-	events::room::encrypted::Relation,
+	CanonicalJsonObject, EventId, MilliSecondsSinceUnixEpoch, OwnedEventId, OwnedRoomId, RoomId,
+	api::Direction, events::room::encrypted::Relation,
 };
 use serde::Deserialize;
 use serde_json::value::RawValue as RawJsonValue;
@@ -32,7 +32,10 @@ use tokio::{
 };
 
 use self::data::Data;
-pub use self::{create::pdu_fits, data::PdusIterItem};
+pub use self::{
+	create::pdu_fits,
+	data::{PdusIterItem, TIMESTAMP_INDEX_MIGRATION, roomts_key},
+};
 use crate::{
 	Dep, account_data, admin, appservice, config, globals, pusher, rooms, sending, server_keys,
 	sync, users,
@@ -306,6 +309,17 @@ impl Service {
 	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
 		self.pdus(room_id, None).ignore_err()
 	}
+
+	pub fn pdus_by_timestamp<'a>(
+		&'a self,
+		room_id: &'a RoomId,
+		ts: MilliSecondsSinceUnixEpoch,
+		dir: Direction,
+	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
+		self.db.pdus_by_ts(room_id, ts, dir)
+	}
+
+	pub async fn timestamp_index_ready(&self) -> bool { self.db.timestamp_index_ready().await }
 
 	/// Reverse iteration starting after `until`.
 	#[tracing::instrument(skip(self), level = "debug")]
