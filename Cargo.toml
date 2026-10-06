@@ -809,37 +809,37 @@ codegen-units = 16
 #
 
 [workspace.lints.rust]
-absolute-paths-not-starting-with-crate = "warn"
-#box-pointers = "warn"
-deprecated-in-future = "warn"
-elided-lifetimes-in-paths = "warn"
-explicit-outlives-requirements = "warn"
-ffi-unwind-calls = "warn"
-keyword-idents = "warn"
-macro-use-extern-crate = "warn"
-meta-variable-misuse = "warn"
-missing-abi = "warn"
-#missing-copy-implementations = "warn"                               # TODO
-#missing-debug-implementations = "warn"                              # TODO
-non-ascii-idents = "warn"
-rust-2021-incompatible-closure-captures = "warn"
-rust-2021-incompatible-or-patterns = "warn"
-rust-2021-prefixes-incompatible-syntax = "warn"
-rust-2021-prelude-collisions = "warn"
-single-use-lifetimes = "warn"
-trivial-casts = "warn"
-trivial-numeric-casts = "warn"
-unit-bindings = "warn"
-#unnameable-types = "warn"                                           # TODO
-unreachable-pub = "warn"
-unsafe-op-in-unsafe-fn = "warn"
-unstable-features = "warn"
-unused-extern-crates = "warn"
-unused-import-braces = "warn"
-unused-lifetimes = "warn"
-unused-macro-rules = "warn"
-unused-qualifications = "warn"
-#unused-results = "warn"                                             # TODO
+absolute_paths_not_starting_with_crate = "warn"
+#box_pointers = "warn"
+deprecated_in_future = "warn"
+elided_lifetimes_in_paths = "warn"
+explicit_outlives_requirements = "warn"
+ffi_unwind_calls = "warn"
+keyword_idents = { level = "warn", priority = -1 }
+macro_use_extern_crate = "warn"
+meta_variable_misuse = "warn"
+missing_abi = "warn"
+#missing_copy_implementations = "warn"                               # TODO
+#missing_debug_implementations = "warn"                              # TODO
+non_ascii_idents = "warn"
+rust_2021_incompatible_closure_captures = "warn"
+rust_2021_incompatible_or_patterns = "warn"
+rust_2021_prefixes_incompatible_syntax = "warn"
+rust_2021_prelude_collisions = "warn"
+single_use_lifetimes = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unit_bindings = "warn"
+#unnameable_types = "warn"                                           # TODO
+unreachable_pub = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unstable_features = "warn"
+unused_extern_crates = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+unused_qualifications = "warn"
+#unused_results = "warn"                                             # TODO
 
 ## some sadness
 mismatched_lifetime_syntaxes = "allow"                               # TODO!
@@ -936,7 +936,6 @@ float_cmp_const = "warn"
 fn_to_numeric_cast_any = "warn"
 format_push_string = "warn"
 get_unwrap = "warn"
-impl_trait_in_params = "warn"
 lossy_float_literal = "warn"
 mem_forget = "warn"
 missing_assert_message = "warn"
@@ -982,7 +981,7 @@ let_underscore_future = { level = "allow", priority = 1 }
 literal_string_with_formatting_args = { level = "allow", priority = 1 }
 
 # This lint is stupid, there's no point defining generics for simple trait params
-impl-trait-in-params = { level = "allow", priority = 1 }
+impl_trait_in_params = { level = "allow", priority = 1 }
 
 needless_raw_string_hashes = "allow"
 
