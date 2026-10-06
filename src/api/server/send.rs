@@ -161,7 +161,10 @@ async fn process_inbound_transaction(
 					.metrics
 					.instruments
 					.federation_incoming_pdus
-					.add(1, &[KeyValue::new("outcome", "unparsable")]);
+					.add(1, &[
+						KeyValue::new("type", pdu_type_label(raw_pdu_type(pdu).as_deref())),
+						KeyValue::new("outcome", "unparsable"),
+					]);
 				let queued = services
 					.rooms
 					.event_handler
@@ -359,7 +362,10 @@ async fn handle_room(
 			.server
 			.check_running()
 			.map_err(|_| TransactionError::ShuttingDown)?;
-		let event_type = KeyValue::new("type", pdu_type_label(&value));
+		let event_type = KeyValue::new(
+			"type",
+			pdu_type_label(value.get("type").and_then(CanonicalJsonValue::as_str)),
+		);
 		let origin_server_ts = value
 			.get("origin_server_ts")
 			.and_then(CanonicalJsonValue::as_integer)
@@ -445,15 +451,21 @@ async fn handle_edu(services: &Services, origin: &ServerName, edu: Edu) {
 
 /// Known event types, or `other`, so remote servers cannot create new
 /// attribute values.
-fn pdu_type_label(value: &CanonicalJsonObject) -> String {
-	match value
-		.get("type")
-		.and_then(CanonicalJsonValue::as_str)
-		.map(TimelineEventType::from)
-	{
+fn pdu_type_label(event_type: Option<&str>) -> String {
+	match event_type.map(TimelineEventType::from) {
 		| Some(TimelineEventType::_Custom(_)) | None => "other".to_owned(),
 		| Some(event_type) => event_type.to_string(),
 	}
+}
+
+fn raw_pdu_type(pdu: &serde_json::value::RawValue) -> Option<String> {
+	#[derive(serde::Deserialize)]
+	struct Typed {
+		#[serde(rename = "type")]
+		kind: Option<String>,
+	}
+
+	serde_json::from_str::<Typed>(pdu.get()).ok()?.kind
 }
 
 async fn handle_edu_presence(

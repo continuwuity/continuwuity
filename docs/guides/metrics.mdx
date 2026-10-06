@@ -93,7 +93,7 @@ Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry
 | `continuwuity_tokio_worker_busy_time_seconds_total` | counter | | Time worker threads spent busy |
 | `continuwuity_tokio_worker_parks_total` | counter | | Number of times worker threads parked |
 
-User and media file counts are refreshed every minute.
+User and media file counts are estimates taken from RocksDB (`rocksdb.estimate-num-keys`), so they may lag slightly or drift after deletions.
 
 ## Grafana dashboard
 

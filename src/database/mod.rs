@@ -33,6 +33,7 @@ use conduwuit::{Result, Server, err};
 pub use self::{
 	de::{Ignore, IgnoreAll},
 	deserialized::Deserialized,
+	engine::MemoryUsage,
 	handle::Handle,
 	keyval::{KeyVal, Slice, serialize_key, serialize_val},
 	map::{Get, Map, Qry, compact},

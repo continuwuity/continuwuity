@@ -35,7 +35,11 @@ pub(super) fn memory() -> Option<(u64, u64)> { None }
 
 #[cfg(target_os = "linux")]
 pub(super) fn open_fds() -> Option<u64> {
-	let count = std::fs::read_dir("/proc/self/fd").ok()?.count();
+	// The directory handle used for the listing is itself an open descriptor.
+	let count = std::fs::read_dir("/proc/self/fd")
+		.ok()?
+		.count()
+		.checked_sub(1)?;
 	count.try_into().ok()
 }
 

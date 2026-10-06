@@ -1,20 +1,19 @@
 use std::{
-	sync::{
-		Arc,
-		atomic::{AtomicU64, Ordering},
-	},
-	time::Duration,
+	sync::{Arc, Mutex},
+	time::{Duration, Instant},
 };
 
 use conduwuit::{
 	metrics::{AsyncInstrument, KeyValue},
 	utils::millis_since_unix_epoch,
 };
-use futures::StreamExt;
+use database::MemoryUsage;
 
 use crate::Services;
 
-const COUNT_INTERVAL: Duration = Duration::from_mins(1);
+/// Both database memory gauges are collected in the same scrape, so the
+/// statistics are shared between them for this long.
+const MEMORY_USAGE_TTL: Duration = Duration::from_secs(1);
 
 impl Services {
 	pub(crate) fn register_metrics(self: &Arc<Self>) {
@@ -36,25 +35,28 @@ impl Services {
 			},
 		);
 
-		let counts = self.spawn_counter();
-		let users = counts.clone();
 		self.gauge(
 			"continuwuity.users",
-			"Known users, local including deactivated, refreshed every minute",
+			"Estimated known users, local including deactivated",
 			"{user}",
-			move |_, observer| {
-				let local = users.local_users.load(Ordering::Relaxed);
-				let remote = users.remote_users.load(Ordering::Relaxed);
-				observer.observe(local, &[KeyValue::new("origin", "local")]);
-				observer.observe(remote, &[KeyValue::new("origin", "remote")]);
+			|services, observer| {
+				for (map, origin) in
+					[("userid_password", "local"), ("remoteuserid_remoteuser", "remote")]
+				{
+					if let Some(keys) = estimate_keys(services, map) {
+						observer.observe(keys, &[KeyValue::new("origin", origin)]);
+					}
+				}
 			},
 		);
 		self.gauge(
 			"continuwuity.media.files",
-			"Stored media files including thumbnails, refreshed every minute",
+			"Estimated stored media files including thumbnails",
 			"{file}",
-			move |_, observer| {
-				observer.observe(counts.media_files.load(Ordering::Relaxed), &[]);
+			|services, observer| {
+				if let Some(keys) = estimate_keys(services, "mediaid_file") {
+					observer.observe(keys, &[]);
+				}
 			},
 		);
 
@@ -78,12 +80,14 @@ impl Services {
 			},
 		);
 
+		let memory = Arc::new(MemoryUsageCache::default());
+		let block_cache_memory = memory.clone();
 		self.gauge(
 			"continuwuity.database.memory",
 			"RocksDB memory usage by component",
 			"By",
-			|services, observer| {
-				let Ok(usage) = services.db.db.memory_usage_stats() else {
+			move |services, observer| {
+				let Some(usage) = memory.get(services) else {
 					return;
 				};
 
@@ -102,13 +106,13 @@ impl Services {
 			"continuwuity.database.block_cache",
 			"RocksDB block cache usage by column family",
 			"By",
-			|services, observer| {
-				let Ok(usage) = services.db.db.memory_usage_stats() else {
+			move |services, observer| {
+				let Some(usage) = block_cache_memory.get(services) else {
 					return;
 				};
 
-				for (column, bytes) in usage.col_caches {
-					observer.observe(bytes, &[KeyValue::new("column", column)]);
+				for (column, bytes) in &usage.col_caches {
+					observer.observe(*bytes, &[KeyValue::new("column", column.clone())]);
 				}
 			},
 		);
@@ -144,43 +148,6 @@ impl Services {
 		);
 	}
 
-	/// Counting requires iterating the database, so it runs in the background
-	/// instead of in the collection callback.
-	fn spawn_counter(self: &Arc<Self>) -> Arc<Counts> {
-		let counts = Arc::new(Counts::default());
-		let services = Arc::downgrade(self);
-		let task_counts = counts.clone();
-		self.server.runtime().spawn(async move {
-			let mut interval = tokio::time::interval(COUNT_INTERVAL);
-			loop {
-				interval.tick().await;
-				let Some(services) = services.upgrade() else {
-					break;
-				};
-				if !services.server.running() {
-					break;
-				}
-
-				let local = services.users.count().await;
-				let remote = services.users.stream_remote_users().count().await;
-				let media = match services.db.get("mediaid_file") {
-					| Ok(map) => map.count().await,
-					| Err(_) => 0,
-				};
-
-				for (count, value) in [
-					(&task_counts.local_users, local),
-					(&task_counts.remote_users, remote),
-					(&task_counts.media_files, media),
-				] {
-					count.store(value.try_into().unwrap_or(u64::MAX), Ordering::Relaxed);
-				}
-			}
-		});
-
-		counts
-	}
-
 	fn gauge<F>(
 		self: &Arc<Self>,
 		name: &'static str,
@@ -207,10 +174,31 @@ impl Services {
 }
 
 #[derive(Default)]
-struct Counts {
-	local_users: AtomicU64,
-	remote_users: AtomicU64,
-	media_files: AtomicU64,
+struct MemoryUsageCache(Mutex<Option<(Instant, Arc<MemoryUsage>)>>);
+
+impl MemoryUsageCache {
+	fn get(&self, services: &Services) -> Option<Arc<MemoryUsage>> {
+		let mut cached = self.0.lock().expect("locked");
+		if let Some((at, usage)) = &*cached {
+			if at.elapsed() < MEMORY_USAGE_TTL {
+				return Some(usage.clone());
+			}
+		}
+
+		let usage = Arc::new(services.db.db.memory_usage_stats().ok()?);
+		*cached = Some((Instant::now(), usage.clone()));
+		Some(usage)
+	}
+}
+
+/// Cheap estimate from RocksDB properties, unlike iterating the column.
+fn estimate_keys(services: &Services, map: &'static str) -> Option<u64> {
+	services
+		.db
+		.get(map)
+		.ok()?
+		.property_integer(c"rocksdb.estimate-num-keys")
+		.ok()
 }
 
 fn observe(observer: &dyn AsyncInstrument<u64>, value: usize, attributes: &[KeyValue]) {

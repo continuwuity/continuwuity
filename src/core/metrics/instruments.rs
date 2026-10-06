@@ -1,4 +1,4 @@
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant};
 
 use opentelemetry::{
 	KeyValue,
@@ -133,14 +133,13 @@ pub fn duration_buckets() -> Vec<f64> { (0..16).map(|i| 0.001 * f64::from(1_u32 
 fn size_buckets() -> Vec<f64> { (0..11).map(|i| 1024.0 * f64::from(4_u32.pow(i))).collect() }
 
 fn register_process(meter: &Meter) {
-	let started = SystemTime::now();
+	let started = Instant::now();
 	meter
 		.f64_observable_gauge(metric::PROCESS_UPTIME)
 		.with_description("Time since the server started")
 		.with_unit("s")
 		.with_callback(move |observer| {
-			let uptime = started.elapsed().unwrap_or_default();
-			observer.observe(uptime.as_secs_f64(), &[]);
+			observer.observe(started.elapsed().as_secs_f64(), &[]);
 		})
 		.build();
 

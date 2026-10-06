@@ -97,7 +97,7 @@ pub(crate) async fn continuwuity_metrics(
 			});
 
 		if !authorized {
-			return Err!(Request(Forbidden("Invalid metrics token")));
+			return Err!(Request(Unauthorized("Invalid metrics token")));
 		}
 	}
 
