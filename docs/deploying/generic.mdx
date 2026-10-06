@@ -199,6 +199,11 @@ header, making federation non-functional. If you find a workaround, please share
 
     Furthermore, Nginx users need to increase the `client_max_body_size` setting (default is 1M) to match the `max_request_size` defined in conduwuit.toml.
 
+- For HAProxy, ensure that the ACL for the `Host` header matches both the domain and the domain with the port, as federation requests are often sent with the port included. This can be done by using the `host_only` directive:
+    ```
+    acl matrix-host hdr(host),host_only -i example.com
+    ```
+
 ## Starting Your Server
 
 Now you can start Continuwuity with:
