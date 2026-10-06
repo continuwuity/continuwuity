@@ -459,21 +459,18 @@ impl Service {
 						push_key.to_owned(),
 					))
 					.await;
-
-				Ok(())
 			},
 			| (Some(appservice_id), None, None) => {
 				self.db
 					.delete_all_requests_for(&Destination::Appservice(appservice_id.to_owned()))
 					.await;
-
-				Ok(())
 			},
 			| _ => {
 				debug_warn!("cleanup_events called with too many or too few arguments");
-				Ok(())
 			},
 		}
+
+		Ok(())
 	}
 
 	fn dispatch(&self, msg: Msg) -> Result {
