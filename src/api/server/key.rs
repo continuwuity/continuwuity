@@ -143,6 +143,7 @@ async fn acquire_keys_as_notary(
 	mut queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
 ) -> Vec<Raw<ServerSigningKeys>> {
+	let fetch_all = queries.is_empty();
 	let mut results = Vec::with_capacity(queries.len().max(1));
 	let mut keymap = HashMap::with_capacity(queries.len().max(1));
 
@@ -155,12 +156,11 @@ async fn acquire_keys_as_notary(
 			let index = results.len();
 			results.push(ssk);
 			for key_id in res.verify_keys.keys().chain(res.old_verify_keys.keys()) {
-				if queries.is_empty()
-					|| queries
-						.get(key_id)
-						.and_then(|c| c.minimum_valid_until_ts)
-						.is_none_or(|m| res.valid_until_ts >= m)
-				{
+				if fetch_all
+					|| queries.get(key_id).is_some_and(|c| {
+						c.minimum_valid_until_ts
+							.is_none_or(|m| res.valid_until_ts >= m)
+					}) {
 					queries.remove(key_id);
 					keymap.insert(key_id.to_owned(), index);
 				}
@@ -170,7 +170,7 @@ async fn acquire_keys_as_notary(
 		debug!("Not asking remote for keys (already asked recently)");
 	}
 	debug!(keys=?keymap.keys(), "Live verify keys");
-	if queries.is_empty() && keymap.is_empty() {
+	if fetch_all && keymap.is_empty() {
 		// If the server asked for all keys, AND we didn't get anything from the
 		// origin, just fetch any fresh responses we have.
 		server_keys
@@ -228,14 +228,20 @@ async fn acquire_keys_as_notary(
 			);
 			continue;
 		}
+		if let Some(old_verify_key) = ssk.old_verify_keys.get(&key_id) {
+			if old_verify_key.expired_ts < minimum_valid_until_ts {
+				debug!(
+					%key_id,
+					expired_ts=?old_verify_key.expired_ts,
+					?minimum_valid_until_ts,
+					"Stored old verify key does not satisfy query criteria"
+				);
+				continue;
+			}
+		}
 
 		debug!(%key_id, ?ssk, "Found key locally");
-		let rep_key_ids = ssk
-			.verify_keys
-			.keys()
-			.chain(ssk.old_verify_keys.keys())
-			.cloned()
-			.collect::<Vec<_>>();
+		let rep_key_ids = ssk.verify_keys.keys().cloned().collect::<Vec<_>>();
 		let Ok(signed_ssk) = sign_ssk(&server_keys, ssk.clone(), &remote, &my_name)
 			.await
 			.inspect_err(
@@ -247,6 +253,7 @@ async fn acquire_keys_as_notary(
 
 		let idx = results.len();
 		results.push(signed_ssk);
+		keymap.insert(key_id, idx);
 		for key_id in rep_key_ids {
 			keymap.insert(key_id, idx);
 		}

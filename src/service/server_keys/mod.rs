@@ -12,6 +12,7 @@ use std::{
 };
 
 use assign::assign;
+use async_trait::async_trait;
 use conduwuit::{
 	Result, Server, SyncRwLock,
 	utils::{IterStream, ReadyExt, stream::TryIgnore, timepoint_from_now, to_canonical_object},
@@ -56,6 +57,7 @@ pub type VerifyKeys = BTreeMap<OwnedServerSigningKeyId, VerifyKey>;
 pub type PubKeyMap = PublicKeyMap;
 pub type PubKeys = PublicKeySet;
 
+#[async_trait]
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let (keypair, verify_keys) = keypair::init(args.db)?;
@@ -75,6 +77,8 @@ impl crate::Service for Service {
 			last_lookup: SyncRwLock::new(HashMap::new()),
 		}))
 	}
+
+	async fn clear_cache(&self) { self.last_lookup.write().clear(); }
 
 	fn name(&self) -> &str { crate::service::make_name(std::module_path!()) }
 }
@@ -214,8 +218,9 @@ impl Service {
 	#[must_use]
 	pub fn notary_may_contact_origin(&self, server_name: &ServerName) -> bool {
 		if server_name == self.services.server.name {
-			// We always intercept origin requests to us with build_server_keys_response,
-			// so this is equivalent to calling `/_matrix/key/v2/server`.
+			// We always intercept origin requests to us with
+			// build_server_keys_response, so this is equivalent to
+			// calling `/_matrix/key/v2/server`.
 			return true;
 		}
 		self.last_lookup

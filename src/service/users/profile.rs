@@ -81,7 +81,8 @@ impl super::Service {
 			if let Ok(canonical_profile) = to_canonical_object(full_profile) {
 				if serde_json::to_string(&canonical_profile)
 					.expect("should be able to serialize to string")
-					.len() > MAX_PROFILE_LENGTH_BYTES
+					.len()
+					> MAX_PROFILE_LENGTH_BYTES
 				{
 					return Err!(
 						"Profile data must not exceed {MAX_PROFILE_LENGTH_BYTES} bytes in \

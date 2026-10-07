@@ -726,7 +726,8 @@ async fn stripped_state_event(
 				.get_field::<StateEventType>("type")
 				.ok()
 				.flatten()
-				.as_ref() == Some(event_type)
+				.as_ref()
+				== Some(event_type)
 		})
 }
 
