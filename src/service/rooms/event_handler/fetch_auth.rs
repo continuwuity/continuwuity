@@ -1,7 +1,7 @@
 use std::collections::{HashMap, hash_map};
 
 use conduwuit::{
-	Err, Event, EventTypeExt, PduEvent, Result, debug_info, err, utils::TryFutureExtExt, warn,
+	Err, Event, EventTypeExt, PduEvent, Result, debug_info, err, warn,
 };
 use ruma::{
 	OwnedEventId, ServerName, api::federation::authorization::get_event_authorization,
