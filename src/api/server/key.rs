@@ -137,7 +137,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		// )));
 	}
 	if total_queried_keys > MAX_KEYS_PER_QUERY {
-		// We shouldn't really enforce this before MSC4456 either, but not doing
+		// We shouldn't really enforce this before 4556 either, but not doing
 		// so may cause performance degradation.
 		warn!(
 			%total_queried_servers,
