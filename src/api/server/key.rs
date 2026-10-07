@@ -6,7 +6,11 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{debug, debug_info, debug_warn, error, utils::{ReadyExt, stream::BroadbandExt, to_canonical_object}, warn, Err, Result};
+use conduwuit::{
+	Err, Result, debug, debug_info, error,
+	utils::{ReadyExt, stream::BroadbandExt, to_canonical_object},
+	warn,
+};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
@@ -180,11 +184,13 @@ async fn acquire_keys_as_notary(
 						return None;
 					}
 
-					sign_ssk(server_keys, ssk, server_name, my_name).await.ok()
+					sign_ssk(server_keys, ssk.clone(), server_name, my_name)
+						.await
+						.map(|signed_ssk| (ssk, signed_ssk))
+						.ok()
 				}
 			})
-			.ready_for_each(|signed_ssk| {
-				let ssk = signed_ssk.deserialize().unwrap();
+			.ready_for_each(|(ssk, signed_ssk)| {
 				let idx = results.len();
 				results.push(signed_ssk);
 				for key_id in ssk.verify_keys.keys().chain(ssk.old_verify_keys.keys()) {
