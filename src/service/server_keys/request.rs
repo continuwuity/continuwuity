@@ -30,6 +30,13 @@ impl super::Service {
 	) -> Result<ServerSigningKeys> {
 		use get_server_keys::v2::Request;
 
+		if target == self.services.server.name {
+			return self
+				.build_server_keys_response()
+				.await
+				.and_then(|r| r.deserialize().map_err(Into::into));
+		}
+
 		// N.B. The "last lookup" is written before the request is actually made
 		// to prevent concurrent notary requests from spawning... concurrent
 		// origin requests, especially if the origin is slow.

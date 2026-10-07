@@ -11,9 +11,10 @@ use std::{
 	time::{Duration, Instant},
 };
 
+use assign::assign;
 use conduwuit::{
 	Result, Server, SyncRwLock,
-	utils::{IterStream, ReadyExt, stream::TryIgnore},
+	utils::{IterStream, ReadyExt, stream::TryIgnore, timepoint_from_now, to_canonical_object},
 };
 use database::{Deserialized, Ignore, Interfix, Json, Map};
 use futures::{Stream, StreamExt};
@@ -21,13 +22,17 @@ pub use request::in_one_week;
 use ruma::{
 	CanonicalJsonObject, MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId,
 	ServerName, ServerSigningKeyId,
-	api::federation::discovery::{ServerSigningKeys, VerifyKey},
+	api::federation::discovery::{OldVerifyKey, ServerSigningKeys, VerifyKey},
 	room_version_rules::RoomVersionRules,
+	serde::Raw,
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
 };
+use serde_json::value::to_raw_value;
 pub use verify::strip_extraneous_signatures;
 
 use crate::{Dep, globals, sending, server_keys::util::required_keys};
+
+const VALID_UNTIL_TS_DURATION: Duration = Duration::from_hours(12);
 
 pub struct Service {
 	keypair: Box<Ed25519KeyPair>,
@@ -208,9 +213,84 @@ impl Service {
 	/// minute, which prevents amplification attacks.
 	#[must_use]
 	pub fn notary_may_contact_origin(&self, server_name: &ServerName) -> bool {
+		if server_name == self.services.server.name {
+			// We always intercept origin requests to us with build_server_keys_response,
+			// so this is equivalent to calling `/_matrix/key/v2/server`.
+			return true;
+		}
 		self.last_lookup
 			.read()
 			.get(server_name)
 			.is_none_or(|last| last.elapsed() >= Duration::from_mins(1))
+	}
+
+	/// Generates a signing key response to serve to `/_matrix/key/v2/server`.
+	pub async fn build_server_keys_response(&self) -> Result<Raw<ServerSigningKeys>> {
+		let verify_keys = BTreeMap::from([self.active_verify_key()]);
+		let old_verify_keys = match &self.services.server.config.old_verify_keys {
+			| Some(old_verify_keys) => old_verify_keys.to_owned(),
+			| None => self.discover_old_signing_keys().await,
+		};
+		let valid_until_ts = timepoint_from_now(VALID_UNTIL_TS_DURATION)
+			.map(|tp| {
+				MilliSecondsSinceUnixEpoch::from_system_time(tp)
+					.expect("key validity period must be before the heat death of the universe")
+			})
+			.expect("key validity period must be before the heat death of the universe");
+		let server_keys = assign!(
+			ServerSigningKeys::new(self.services.server.name.clone(), valid_until_ts),
+			{verify_keys, old_verify_keys}
+		);
+		let mut canonical_obj = to_canonical_object(&server_keys)?;
+		self.sign_json(&mut canonical_obj)
+			.and_then(|()| to_raw_value(&canonical_obj).map_err(Into::into))
+			.map(Raw::from_json)
+	}
+
+	async fn discover_old_signing_keys(&self) -> BTreeMap<OwnedServerSigningKeyId, OldVerifyKey> {
+		let now = MilliSecondsSinceUnixEpoch::now();
+		let mut keys = self.signing_keys_for(&self.services.server.name);
+		let mut old_keys = BTreeMap::new();
+		while let Some(resp) = keys.next().await {
+			// We need to verify that this response is still trusted based on
+			// the current configuration. It's possible we got this response
+			// from a notary who we no longer trust.
+			if resp.valid_until_ts > in_one_week() || resp.valid_until_ts < now {
+				continue;
+			}
+			let trusted = self
+				.services
+				.server
+				.config
+				.trusted_servers
+				.iter()
+				.any(|notary| {
+					Self::verify_server_keys_response(
+						&resp,
+						Some((notary.server_name(), notary.verify_keys())),
+					)
+					.is_ok()
+				});
+			if !trusted {
+				continue;
+			}
+			for (old_key_id, old_key) in resp.old_verify_keys {
+				if old_key.expired_ts > resp.valid_until_ts {
+					// This key expired in the future which is probably illegal
+					continue;
+				}
+				old_keys
+					.entry(old_key_id)
+					.and_modify(|current_old_key: &mut OldVerifyKey| {
+						// Use the lowest expiry timestamp
+						if current_old_key.expired_ts < old_key.expired_ts {
+							*current_old_key = old_key.clone();
+						}
+					})
+					.or_insert(old_key);
+			}
+		}
+
+		old_keys
 	}
 }
