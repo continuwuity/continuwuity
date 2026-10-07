@@ -87,21 +87,10 @@ fn enable_histogram(builder: &mut Builder, args: &Args) {
 #[cfg(tokio_unstable)]
 #[tracing::instrument(name = "stop", level = "info", skip_all)]
 pub(super) fn shutdown(server: &Arc<Server>, runtime: tokio::runtime::Runtime) {
-	use conduwuit_core::event;
-	use tracing::Level;
-
-	// The final metrics output is promoted to INFO when tokio_unstable is
-	// active in a release/bench mode and DEBUG is likely optimized out
-	const LEVEL: Level = if cfg!(debug_assertions) {
-		Level::DEBUG
-	} else {
-		Level::INFO
-	};
-
 	wait_shutdown(server, runtime);
 	let runtime_metrics = server.server.metrics.runtime_interval().unwrap_or_default();
 
-	event!(LEVEL, ?runtime_metrics, "Final runtime metrics");
+	conduwuit_core::debug!(?runtime_metrics, "Final runtime metrics");
 }
 
 #[cfg(not(tokio_unstable))]
