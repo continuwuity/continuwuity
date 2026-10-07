@@ -103,10 +103,9 @@ impl super::Service {
 		strip_extraneous_signatures(&mut canonical_object, &server_keys.server_name, &[
 			notary_name,
 		]);
-		let for_verify = ruma::signatures::to_canonical_json_string_for_signing(
-			&to_canonical_object(server_keys).expect("server keys object must be canonical json"),
-		)
-		.expect("canonical JSON must be stringable");
+		let for_verify =
+			ruma::signatures::to_canonical_json_string_for_signing(&canonical_object)
+				.expect("canonical JSON must be stringable");
 
 		let raw_notary_keys = notary_keys.iter().map(Base64::as_bytes).collect::<Vec<_>>();
 		let raw_notary_signatures = notary_signatures
