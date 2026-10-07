@@ -6,13 +6,13 @@ use std::{
 
 use conduwuit::{
 	Result, debug, debug_error, err, error,
-	matrix::{Event, StateMap},
 	trace,
 	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, TryWidebandExt},
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future::try_join};
-use ruma::{OwnedEventId, RoomId, room_version_rules::RoomVersionRules};
-
+use ruma::{room_version_rules::RoomVersionRules, EventId, OwnedEventId, RoomId};
+use ruma::state_res::{Event, StateMap};
+use ruma::state_res::utils::event_id_set::EventIdSet;
 use crate::rooms::short::ShortStateHash;
 
 impl super::Service {
@@ -27,7 +27,7 @@ impl super::Service {
 		room_version_rules: &RoomVersionRules,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>>
 	where
-		Pdu: Event + Send + Sync,
+		Pdu: Event<Id = EventId> + Send + Sync,
 	{
 		if incoming_pdu.prev_events().count() == 1 {
 			self.state_before_incoming_degree_one(incoming_pdu).await
@@ -45,7 +45,7 @@ impl super::Service {
 		incoming_pdu: &Pdu,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>>
 	where
-		Pdu: Event + Send + Sync,
+		Pdu: Event<Id = EventId> + Send + Sync,
 	{
 		let prev_event = incoming_pdu
 			.prev_events()
@@ -106,8 +106,11 @@ impl super::Service {
 		room_version_rules: &RoomVersionRules,
 	) -> Result<Option<HashMap<u64, OwnedEventId>>>
 	where
-		Pdu: Event + Send + Sync,
+		Pdu: Event<Id = EventId> + Send + Sync,
 	{
+		if incoming_pdu.prev_events().count() == 0 {
+			return Ok(None);
+		}
 		trace!("Calculating extremity statehashes...");
 		let Ok(extremity_sstatehashes) = incoming_pdu
 			.prev_events()
@@ -132,8 +135,8 @@ impl super::Service {
 		};
 
 		trace!("Calculating fork states...");
-		let room_id = &incoming_pdu.room_id_or_hash();
-		let (fork_states, auth_chain_sets): (Vec<StateMap<_>>, Vec<HashSet<_>>) =
+		let room_id = incoming_pdu.room_id().unwrap();
+		let (fork_states, auth_chain_sets): (Vec<StateMap<_>>, Vec<EventIdSet<_>>) =
 			extremity_sstatehashes
 				.into_iter()
 				.try_stream()
@@ -146,9 +149,7 @@ impl super::Service {
 				.await?;
 
 		let Ok(new_state) = self
-			.state_resolution(room_version_rules, fork_states.iter(), &auth_chain_sets)
-			.boxed()
-			.await
+			.state_resolution(room_version_rules, fork_states.as_slice(), auth_chain_sets)
 			.inspect_err(|e| error!("State resolution failed: {e:?}"))
 		else {
 			return Ok(None);
@@ -179,7 +180,7 @@ impl super::Service {
 		prev_event: Pdu,
 	) -> Result<(StateMap<OwnedEventId>, HashSet<OwnedEventId>)>
 	where
-		Pdu: Event,
+		Pdu: Event<Id = OwnedEventId>,
 	{
 		let mut leaf_state: HashMap<_, _> = self
 			.services
@@ -192,7 +193,7 @@ impl super::Service {
 			let shortstatekey = self
 				.services
 				.short
-				.get_or_create_shortstatekey(&prev_event.kind().to_string().into(), state_key)
+				.get_or_create_shortstatekey(&prev_event.event_type().to_string().into(), state_key)
 				.await;
 
 			let event_id = prev_event.event_id();
@@ -213,11 +214,10 @@ impl super::Service {
 				self.services
 					.short
 					.get_statekey_from_short(*k)
-					.map_ok(|(ty, sk)| ((ty, sk), id.clone()))
+					.map_ok(|(ty, sk)| ((ty, sk.to_string()), id.clone()))
 			})
 			.ready_filter_map(Result::ok)
-			.collect()
-			.map(Ok);
+			.collect();
 
 		try_join(fork_state, auth_chain).await
 	}

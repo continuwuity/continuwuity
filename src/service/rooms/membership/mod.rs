@@ -8,29 +8,22 @@ use conduwuit::{
 		event::{gen_event_id, gen_event_id_canonical_json},
 	},
 	pdu::PartialPdu,
-	state_res, trace,
+	trace,
 	utils::{self, IterStream, ReadyExt, to_canonical_object},
 	warn,
 };
 use database::Database;
 use futures::{FutureExt, StreamExt, TryFutureExt, join};
-use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
-	RoomVersionId, UserId,
-	api::{
-		error::{ErrorKind, IncompatibleRoomVersionErrorData},
-		federation,
+use ruma::{api::{
+	error::{ErrorKind, IncompatibleRoomVersionErrorData},
+	federation,
+}, canonical_json::to_canonical_value, events::{
+	StateEventType, StaticEventContent,
+	room::{
+		join_rules::RoomJoinRulesEventContent,
+		member::{MembershipState, RoomMemberEventContent},
 	},
-	canonical_json::to_canonical_value,
-	events::{
-		StateEventType, StaticEventContent,
-		room::{
-			join_rules::RoomJoinRulesEventContent,
-			member::{MembershipState, RoomMemberEventContent},
-		},
-	},
-	room::{AllowRule, JoinRule},
-};
+}, room::{AllowRule, JoinRule}, state_res, CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId, RoomVersionId, UserId};
 
 use crate::{
 	Dep, antispam, globals,
@@ -584,13 +577,13 @@ impl Service {
 
 		debug!("Running send_join auth check");
 		let fetch_state = &state;
-		let state_fetch = |k: StateEventType, s: StateKey| async move {
-			let shortstatekey = self.services.short.get_shortstatekey(&k, &s).await.ok()?;
+		let state_fetch = |k: StateEventType, s: StateKey| {
+			let shortstatekey = self.services.short.get_shortstatekey_blocking(&k, &s).ok()?;
 
 			let event_id = fetch_state.get(&shortstatekey)?;
-			self.services.timeline.get_pdu(event_id).await.ok()
+			self.services.timeline.get_pdu_blocking(event_id).ok()
 		};
-		let Some(create_event) = state_fetch(StateEventType::RoomCreate, "".into()).await else {
+		if state_fetch(StateEventType::RoomCreate, "".into()).is_none() {
 			let in_auth_chain = send_join_auth_chain
 				.iter()
 				.any(|(t, s)| t == "m.room.create" && s.is_empty());
@@ -607,21 +600,20 @@ impl Service {
 		};
 		drop(send_join_auth_chain);
 
-		let auth_check = state_res::event_auth::auth_check(
-			&room_version.rules().unwrap(),
+		// TODO: These calls should be in a thread to avoid blocking the main event loop.
+		state_res::check_state_independent_auth_rules(
+			&room_version.rules().unwrap().authorization,
 			&parsed_join_pdu,
-			None, // TODO: third party invite
-			|k, s| state_fetch(k.clone(), s.into()),
-			&create_event,
+			|event_id| self.services.timeline.get_pdu_blocking(event_id).ok(),
 		)
-		.await
-		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
+			.map_err(|e| err!(Request(Forbidden("Join event returned by {remote_server} is not self-authorised (try again?): {e}"))))?;
+		state_res::check_state_dependent_auth_rules(
+			&room_version.rules().unwrap().authorization,
+			&parsed_join_pdu,
+			|k, s| state_fetch(k.clone(), s.into()),
+		)
+		.map_err(|e| err!(Request(Forbidden("Join event returned by {remote_server} is not self-authorised (try again?): {e}"))))?;
 
-		if !auth_check {
-			return Err!(Request(Forbidden(
-				"Join event returned by {remote_server} is not self-authorised (try again?)"
-			)));
-		}
 		let resident_before = self
 			.services
 			.state_cache

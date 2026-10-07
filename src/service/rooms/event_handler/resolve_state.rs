@@ -6,7 +6,6 @@ use std::{
 
 use conduwuit::{
 	Error, Result, err,
-	state_res::{self, StateMap},
 	trace,
 	utils::stream::{IterStream, ReadyExt, TryWidebandExt, WidebandExt},
 	warn,
@@ -115,7 +114,7 @@ impl super::Service {
 		auth_chain_sets: Vec<EventIdSet<OwnedEventId>>,
 	) -> Result<ruma::state_res::StateMap<OwnedEventId>> {
 		let event_fetch = |event_id| self.event_fetch(event_id);
-		let calc_subgraph = |ss| self.calculate_conflicted_state_subgraph(ss);
+		let calc_subgraph = |ss| self.calculate_conflicted_state_subgraph(ss).ok();
 		ruma::state_res::resolve(
 			&room_version_rules.authorization,
 			&room_version_rules

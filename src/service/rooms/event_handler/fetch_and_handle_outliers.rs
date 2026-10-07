@@ -10,7 +10,6 @@ use conduwuit::error;
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err,
 	result::FlatOk,
-	state_res::lexicographical_topological_sort,
 	trace,
 	utils::{IterStream, math::Expected, stream::BroadbandExt},
 	warn,
@@ -23,7 +22,9 @@ use ruma::{
 	int,
 	room_version_rules::RoomVersionRules,
 };
-
+use ruma::events::room::power_levels::UserPowerLevel;
+use ruma::state_res::utils::event_id_map::EventIdMap;
+use conduwuit::debug::DebugInspect;
 use super::get_room_version_rules;
 use crate::rooms::event_handler::parse_incoming_pdu::expect_event_id_array;
 
@@ -64,8 +65,7 @@ pub async fn build_local_dag(
 		return Ok(pdu_map.keys().cloned().collect());
 	}
 
-	let mut dag: HashMap<OwnedEventId, HashSet<OwnedEventId>> =
-		HashMap::with_capacity(pdu_map.len());
+	let mut dag = EventIdMap::with_capacity(pdu_map.len());
 	let mut id_origin_ts: HashMap<OwnedEventId, _> = HashMap::with_capacity(pdu_map.len());
 
 	for (event_id, value) in pdu_map {
@@ -94,17 +94,16 @@ pub async fn build_local_dag(
 	}
 
 	debug!(count = dag.len(), "Sorting incoming events with partial graph");
-	lexicographical_topological_sort(&dag, &async |node_id| {
+	ruma::state_res::reverse_topological_power_sort(&dag, |node_id| {
 		// Note: we don't bother fetching power levels because that would
 		// massively slow this function down. This is a best-effort attempt to
 		// order events correctly for processing, however ultimately that
 		// should be the sender's job.
-		let ts = id_origin_ts.get(&node_id).copied().unwrap_or_default();
-		Ok((int!(0), MilliSecondsSinceUnixEpoch(ts)))
+		let ts = id_origin_ts.get(node_id).copied().unwrap_or_default();
+		Ok((UserPowerLevel::Infinite, MilliSecondsSinceUnixEpoch(ts)))
 	})
-	.await
-	.inspect(|sorted| {
-		debug_assert_eq!(
+	.debug_inspect(|sorted| {
+		assert_eq!(
 			sorted.len(),
 			pdu_map.len(),
 			"Sorted graph was not the same size as the input graph"

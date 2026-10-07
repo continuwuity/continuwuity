@@ -160,7 +160,7 @@ impl Service {
 		state_key: &str,
 	) -> Result<ShortStateKey> {
 		let key = (event_type, state_key);
-		self.db.shortstatekey_statekey.qry()
+		self.db.shortstatekey_statekey.qry_blocking(&key).deserialized()
 	}
 
 	/// Gets a full event ID from a short event ID.

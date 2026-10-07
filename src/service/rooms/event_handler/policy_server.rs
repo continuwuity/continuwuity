@@ -5,10 +5,7 @@
 
 use std::{collections::BTreeMap, time::Duration};
 
-use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error, info,
-	state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
-};
+use conduwuit::{debug, debug_error, debug_info, debug_warn, error, info, trace, utils::to_canonical_object, warn, Err, Error, Event, EventTypeExt, PduEvent, Result};
 use http::StatusCode;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, KeyId, RoomId, ServerName, SigningKeyAlgorithm,

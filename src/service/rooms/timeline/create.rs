@@ -6,18 +6,11 @@ use conduwuit_core::{
 	matrix::{
 		event::{Event, gen_event_id},
 		pdu::{EventHash, PartialPdu, PduEvent},
-		state_res,
 	},
 	utils::{self, IterStream, ReadyExt, stream::TryIgnore},
 };
 use futures::{StreamExt, TryStreamExt, future, future::ready};
-use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId,
-	UserId,
-	events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent},
-	room_version_rules::RoomVersionRules,
-	uint,
-};
+use ruma::{events::{StateEventType, TimelineEventType, room::create::RoomCreateEventContent}, room_version_rules::RoomVersionRules, state_res, uint, CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, RoomId, RoomVersionId, UserId};
 use serde_json::value::{RawValue, to_raw_value};
 
 use super::RoomMutexGuard;
@@ -142,7 +135,7 @@ impl super::Service {
 			| None => Vec::new(),
 		};
 
-		let auth_events: HashMap<(StateEventType, SmallString<[u8; 48]>), PduEvent> =
+		let auth_events: HashMap<(StateEventType, String), PduEvent> =
 			match room_id {
 				| Some(room_id) =>
 					self.services
@@ -230,44 +223,27 @@ impl super::Service {
 			},
 			hashes: EventHash { sha256: String::new() },
 			signatures: None,
+			rejected: false,
 		};
 
 		let auth_fetch = |k: &StateEventType, s: &str| {
 			let key = (k.clone(), s.into());
-			ready(auth_events.get(&key).map(ToOwned::to_owned))
+			auth_events.get(&key).map(ToOwned::to_owned)
 		};
 
 		let room_id_or_hash = pdu.room_id_or_hash();
-		let create_pdu = match &pdu.kind {
-			| TimelineEventType::RoomCreate => None,
-			| _ => Some(
-				self.services
-					.state_accessor
-					.room_state_get(&room_id_or_hash, &StateEventType::RoomCreate, "")
-					.await
-					.map_err(|e| {
-						err!(Request(Forbidden(warn!("Failed to fetch room create event: {e}"))))
-					})?,
-			),
-		};
-		let create_event = match &pdu.kind {
-			| TimelineEventType::RoomCreate => &pdu,
-			| _ => create_pdu.as_ref().unwrap().as_pdu(),
-		};
 
-		let auth_check = state_res::auth_check(
-			&room_version_rules,
+		state_res::check_state_independent_auth_rules(
+			&room_version_rules.authorization,
 			&pdu,
-			None, // TODO: third_party_invite
-			auth_fetch,
-			create_event,
+			|event_id| self.get_pdu_blocking(event_id).ok(),
 		)
-		.await
-		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
-
-		if !auth_check {
-			return Err!(Request(Forbidden("Event is not authorized.")));
-		}
+		.map_err(|e| err!(Request(Forbidden("{e}"))))?;
+		state_res::check_state_dependent_auth_rules(
+			&room_version_rules.authorization,
+			&pdu,
+			auth_fetch
+		).map_err(|e| err!(Request(Forbidden("{e}"))))?;
 		trace!(
 			"Event {} in room {} is authorized",
 			pdu.event_id,
