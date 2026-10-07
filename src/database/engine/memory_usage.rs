@@ -10,13 +10,13 @@ pub struct MemoryUsage {
 	pub mem_table_unflushed: u64,
 	pub mem_table_readers_total: u64,
 	pub row_cache: u64,
-	pub col_caches: Vec<(String, u64)>,
 }
 
 impl super::Engine {
 	pub fn memory_usage(&self) -> Result<String> {
 		let mut res = String::new();
 		let stats = self.memory_usage_stats()?;
+		let col_caches = self.col_cache_usage()?;
 		let mibs = |input| f64::from(u32::try_from(input / 1024).unwrap_or(0)) / 1024.0;
 		writeln!(
 			res,
@@ -28,7 +28,7 @@ impl super::Engine {
 			mibs(stats.row_cache),
 		)?;
 
-		for (name, usage) in stats.col_caches {
+		for (name, usage) in col_caches {
 			writeln!(res, "{name} cache: {:.2} MiB", mibs(usage))?;
 		}
 
@@ -40,20 +40,20 @@ impl super::Engine {
 			get_memory_usage_stats(Some(&[&self.db]), Some(&[&*self.ctx.row_cache.lock()]))
 				.or_else(or_else)?;
 
-		let col_caches = self
-			.ctx
-			.col_cache
-			.lock()
-			.iter()
-			.map(|(name, cache)| Ok((name.clone(), u64::try_from(cache.get_usage())?)))
-			.collect::<Result<_>>()?;
-
 		Ok(MemoryUsage {
 			mem_table_total: stats.mem_table_total,
 			mem_table_unflushed: stats.mem_table_unflushed,
 			mem_table_readers_total: stats.mem_table_readers_total,
 			row_cache: u64::try_from(self.ctx.row_cache.lock().get_usage())?,
-			col_caches,
 		})
+	}
+
+	pub fn col_cache_usage(&self) -> Result<Vec<(String, u64)>> {
+		self.ctx
+			.col_cache
+			.lock()
+			.iter()
+			.map(|(name, cache)| Ok((name.clone(), u64::try_from(cache.get_usage())?)))
+			.collect()
 	}
 }

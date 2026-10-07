@@ -1,19 +1,11 @@
-use std::{
-	sync::{Arc, Mutex},
-	time::{Duration, Instant},
-};
+use std::sync::Arc;
 
 use conduwuit::{
 	metrics::{AsyncInstrument, KeyValue},
 	utils::millis_since_unix_epoch,
 };
-use database::MemoryUsage;
 
 use crate::Services;
-
-/// Both database memory gauges are collected in the same scrape, so the
-/// statistics are shared between them for this long.
-const MEMORY_USAGE_TTL: Duration = Duration::from_secs(1);
 
 impl Services {
 	pub(crate) fn register_metrics(self: &Arc<Self>) {
@@ -80,14 +72,12 @@ impl Services {
 			},
 		);
 
-		let memory = Arc::new(MemoryUsageCache::default());
-		let block_cache_memory = memory.clone();
 		self.gauge(
 			"continuwuity.database.memory",
 			"RocksDB memory usage by component",
 			"By",
-			move |services, observer| {
-				let Some(usage) = memory.get(services) else {
+			|services, observer| {
+				let Ok(usage) = services.db.db.memory_usage_stats() else {
 					return;
 				};
 
@@ -106,13 +96,13 @@ impl Services {
 			"continuwuity.database.block_cache",
 			"RocksDB block cache usage by column family",
 			"By",
-			move |services, observer| {
-				let Some(usage) = block_cache_memory.get(services) else {
+			|services, observer| {
+				let Ok(col_caches) = services.db.db.col_cache_usage() else {
 					return;
 				};
 
-				for (column, bytes) in &usage.col_caches {
-					observer.observe(*bytes, &[KeyValue::new("column", column.clone())]);
+				for (column, bytes) in col_caches {
+					observer.observe(bytes, &[KeyValue::new("column", column)]);
 				}
 			},
 		);
@@ -170,24 +160,6 @@ impl Services {
 				}
 			})
 			.build();
-	}
-}
-
-#[derive(Default)]
-struct MemoryUsageCache(Mutex<Option<(Instant, Arc<MemoryUsage>)>>);
-
-impl MemoryUsageCache {
-	fn get(&self, services: &Services) -> Option<Arc<MemoryUsage>> {
-		let mut cached = self.0.lock().expect("locked");
-		if let Some((at, usage)) = &*cached {
-			if at.elapsed() < MEMORY_USAGE_TTL {
-				return Some(usage.clone());
-			}
-		}
-
-		let usage = Arc::new(services.db.db.memory_usage_stats().ok()?);
-		*cached = Some((Instant::now(), usage.clone()));
-		Some(usage)
 	}
 }
 

@@ -6,7 +6,6 @@ pub(crate) mod descriptor;
 mod files;
 mod logger;
 mod memory_usage;
-pub use memory_usage::MemoryUsage;
 mod open;
 mod repair;
 
