@@ -4,7 +4,10 @@ use conduwuit_core::{
 	err,
 	metrics::{Metrics, duration_buckets},
 };
-use opentelemetry::{InstrumentationScope, KeyValue, global, metrics::MeterProvider};
+use opentelemetry::{
+	InstrumentationScope, KeyValue, global,
+	metrics::{MeterProvider, noop::NoopMeterProvider},
+};
 use opentelemetry_sdk::{
 	Resource,
 	metrics::{Aggregation, Instrument, SdkMeterProvider, Stream},
@@ -40,6 +43,7 @@ pub(crate) fn init(
 	let registry = config
 		.allow_prometheus_metrics
 		.then(prometheus::Registry::new);
+	let mut readers = registry.is_some();
 	if let Some(registry) = &registry {
 		let exporter = opentelemetry_prometheus::exporter()
 			.with_registry(registry.clone())
@@ -64,6 +68,7 @@ pub(crate) fn init(
 		.map_err(|e| err!(Config("allow_otlp_metrics", "{e}")))?;
 
 		builder = builder.with_periodic_exporter(exporter);
+		readers = true;
 	}
 
 	#[cfg(not(feature = "otlp_telemetry"))]
@@ -75,13 +80,19 @@ pub(crate) fn init(
 	}
 
 	let provider = builder.build();
-	global::set_meter_provider(provider.clone());
-	let meter = provider.meter_with_scope(
-		InstrumentationScope::builder(conduwuit_core::BRANDING)
-			.with_version(conduwuit_core::version())
-			.with_schema_url(SCHEMA_URL)
-			.build(),
-	);
+	let scope = InstrumentationScope::builder(conduwuit_core::BRANDING)
+		.with_version(conduwuit_core::version())
+		.with_schema_url(SCHEMA_URL)
+		.build();
+
+	// Without a reader the SDK rejects every instrument and logs an error for
+	// each, so nothing is recorded.
+	let meter = if readers {
+		global::set_meter_provider(provider.clone());
+		provider.meter_with_scope(scope)
+	} else {
+		NoopMeterProvider::new().meter_with_scope(scope)
+	};
 
 	Ok((Metrics::new(runtime.cloned(), meter, registry), provider))
 }
