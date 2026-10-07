@@ -5,7 +5,7 @@ use std::{
 	time::Instant,
 };
 
-use axum::{Json, extract::State, response::IntoResponse};
+use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug, debug_info, error,
 	utils::{ReadyExt, stream::BroadbandExt, to_canonical_object},
@@ -16,7 +16,7 @@ use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
 	api::federation::discovery::{
 		ServerSigningKeys, get_remote_server_keys, get_remote_server_keys_batch,
-		get_remote_server_keys_batch::v2::QueryCriteria,
+		get_remote_server_keys_batch::v2::QueryCriteria, get_server_keys,
 	},
 	serde::Raw,
 	uint,
@@ -31,8 +31,13 @@ use crate::router::Ruma;
 /// Gets the public signing keys of this server.
 pub(crate) async fn get_server_keys_route(
 	State(services): State<crate::State>,
-) -> Result<impl IntoResponse> {
-	Ok(Json(services.server_keys.build_server_keys_response().await?))
+	_body: Ruma<get_server_keys::v2::Request>,
+) -> Result<get_server_keys::v2::Response> {
+	services
+		.server_keys
+		.build_server_keys_response()
+		.await
+		.map(get_server_keys::v2::Response::new)
 }
 
 const MAX_KEYS_PER_QUERY: usize = 16384;
