@@ -288,7 +288,8 @@ impl Service {
 					.services
 					.state_cache
 					.appservice_in_room(room_id, &appservice)
-					.await || matching_aliases(appservice.aliases.clone()).await
+					.await
+				|| matching_aliases(appservice.aliases.clone()).await
 			{
 				_ = self
 					.send_edu_appservice(&appservice.registration.id, serialized.clone())
