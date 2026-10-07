@@ -387,6 +387,5 @@ pub(crate) async fn is_ignored_invite(
 	services
 		.users
 		.invite_filter_level(&sender_user, recipient_user)
-		.await
-		== FilterLevel::Ignore
+		.await == FilterLevel::Ignore
 }

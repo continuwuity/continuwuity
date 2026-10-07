@@ -305,8 +305,8 @@ pub(crate) async fn upgrade_room_route(
 		return Err!(Request(Forbidden("Upgrading the admin room this way is not allowed.")));
 	}
 
-	// 1. Check that the user has permission to send m.room.tombstone events in
-	//    the room.
+	// 1. Check that the user has permission to send m.room.tombstone events in the
+	//    room.
 	let old_room_state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
 
 	// Check tombstone permission by attempting to create (but not send) the
@@ -556,8 +556,8 @@ pub(crate) async fn upgrade_room_route(
 		)?;
 	}
 
-	// 5. Send a `m.room.tombstone` event to the old room to indicate that it is
-	//    not intended to be used any further.
+	// 5. Send a `m.room.tombstone` event to the old room to indicate that it is not
+	//    intended to be used any further.
 	debug!(target=?body.room_id, "Sending tombstone to old room");
 	services
 		.rooms
@@ -598,8 +598,7 @@ pub(crate) async fn upgrade_room_route(
 	power_levels.events_default = new_level;
 	power_levels.invite = new_level;
 
-	// 6. Modify the power levels in the old room to prevent sending of events
-	//    and
+	// 6. Modify the power levels in the old room to prevent sending of events and
 	// inviting new users
 	// Spec dictates that this is allowed to fail.
 	debug!(target=?body.room_id, ?new_level, "Raising power level in old room to lock it");
