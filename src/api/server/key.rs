@@ -6,11 +6,7 @@ use std::{
 };
 
 use axum::extract::State;
-use conduwuit::{
-	Err, Result, debug, debug_info, error,
-	utils::{ReadyExt, stream::BroadbandExt, to_canonical_object},
-	warn,
-};
+use conduwuit::{debug, debug_info, debug_warn, error, utils::{ReadyExt, stream::BroadbandExt, to_canonical_object}, warn, Err, Result};
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName,
@@ -115,6 +111,18 @@ async fn sign_ssk(
 	server_name: &ServerName,
 	our_name: &ServerName,
 ) -> Result<Raw<ServerSigningKeys>> {
+	if server_name == our_name {
+		// Should already be signed by us if we got this far.
+		debug_info!(
+			object=?ssk,
+			%server_name,
+			%our_name,
+			"Refusing to sign our own signing keys response (should already be signed)"
+		);
+		return to_raw_value(&ssk)
+			.map(Raw::<ServerSigningKeys>::from_json)
+			.map_err(Into::into);
+	}
 	let mut canonical = to_canonical_object(&ssk)?;
 	server_keys.sign_json(&mut canonical)?;
 	server_keys::strip_extraneous_signatures(&mut canonical, server_name, &[our_name]);
