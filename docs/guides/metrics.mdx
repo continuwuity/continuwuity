@@ -33,13 +33,13 @@ Requires the `otlp_telemetry` feature, enabled in default builds.
 ```toml
 [global]
 allow_otlp_metrics = true
-otlp_protocol = "http" # or "grpc"
 ```
 
-Configure the exporter with the standard OpenTelemetry environment variables:
+Configure the exporter with standard OpenTelemetry environment variables:
 
 ```sh
 OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:4318
+OTEL_EXPORTER_OTLP_METRICS_PROTOCOL=http/protobuf # or "grpc"
 OTEL_METRIC_EXPORT_INTERVAL=15000
 ```
 

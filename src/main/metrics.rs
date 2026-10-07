@@ -56,16 +56,11 @@ pub(crate) fn init(
 
 	#[cfg(feature = "otlp_telemetry")]
 	if config.allow_otlp_metrics {
-		use opentelemetry_otlp::{MetricExporter, Protocol, WithExportConfig};
+		use opentelemetry_otlp::MetricExporter;
 
-		let exporter = match config.otlp_protocol.as_str() {
-			| "grpc" => MetricExporter::builder()
-				.with_tonic()
-				.with_protocol(Protocol::Grpc)
-				.build(),
-			| _ => MetricExporter::builder().with_http().build(),
-		}
-		.map_err(|e| err!(Config("allow_otlp_metrics", "{e}")))?;
+		let exporter = MetricExporter::builder()
+			.build()
+			.map_err(|e| err!(Config("allow_otlp_metrics", "{e}")))?;
 
 		builder = builder.with_periodic_exporter(exporter);
 		readers = true;

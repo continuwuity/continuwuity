@@ -1008,7 +1008,7 @@ pub struct Config {
 	/// Jaeger) that supports the OpenTelemetry Protocol.
 	///
 	/// Configure your OTLP endpoint using the OTEL_EXPORTER_OTLP_ENDPOINT
-	/// environment variable (defaults to http://localhost:4318).
+	/// environment variable, or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT (defaults to http://localhost:4318), and OTEL_EXPORTER_OTLP_PROTOCOL for the protocol.
 	#[serde(default, alias = "allow_jaeger")]
 	pub allow_otlp: bool,
 
@@ -1019,15 +1019,10 @@ pub struct Config {
 	#[serde(default = "default_otlp_filter", alias = "jaeger_filter")]
 	pub otlp_filter: String,
 
-	/// Protocol to use for OTLP tracing export. Options are "http" or "grpc".
-	/// The HTTP protocol uses port 4318 by default, while gRPC uses port 4317.
-	///
-	/// default: "http"
-	#[serde(default = "default_otlp_protocol")]
-	pub otlp_protocol: String,
-
-	/// Enable OpenTelemetry OTLP metrics export, using the same endpoint and
-	/// `otlp_protocol` as traces.
+	/// Enable OpenTelemetry OTLP metrics export. Configure your OTLP endpoint
+	/// and protocol using standard OpenTelemetry environment variables
+	/// (such as OTEL_EXPORTER_OTLP_ENDPOINT, OTEL_EXPORTER_OTLP_PROTOCOL and
+	/// OTEL_EXPORTER_OTLP_METRICS_PROTOCOL).
 	///
 	/// The export interval can be changed with the
 	/// OTEL_METRIC_EXPORT_INTERVAL environment variable (milliseconds,
@@ -2965,6 +2960,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
+	"otlp_protocol",
 	"roomid_spacehierarchy_cache_capacity",
 	"well_known_client",
 	"well_known_server",
@@ -3210,8 +3206,6 @@ fn default_otlp_filter() -> String {
 		.unwrap_or("info")
 		.to_owned()
 }
-
-fn default_otlp_protocol() -> String { "http".to_owned() }
 
 fn default_tracing_flame_output_path() -> String { "./tracing.folded".to_owned() }
 

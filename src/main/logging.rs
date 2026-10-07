@@ -6,12 +6,9 @@ use conduwuit_core::{
 	debug_warn, err,
 	log::{ConsoleFormat, ConsoleWriter, LogLevelReloadHandles, capture, fmt_span},
 	result::UnwrapOrErr,
-	warn,
 };
 #[cfg(feature = "otlp_telemetry")]
 use opentelemetry::trace::TracerProvider;
-#[cfg(feature = "otlp_telemetry")]
-use opentelemetry_otlp::WithExportConfig;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt, layer::SubscriberExt, reload};
 
 #[cfg(feature = "perf_measurements")]
@@ -83,28 +80,9 @@ pub(crate) fn init(
 				opentelemetry_sdk::propagation::TraceContextPropagator::new(),
 			);
 
-			let exporter = match config.otlp_protocol.as_str() {
-				| "grpc" => opentelemetry_otlp::SpanExporter::builder()
-					.with_tonic()
-					.with_protocol(opentelemetry_otlp::Protocol::Grpc) // TODO: build from env when 0.32 is released
-					.build()
-					.expect("Failed to create OTLP gRPC exporter"),
-				| "http" => opentelemetry_otlp::SpanExporter::builder()
-					.with_http()
-					.build()
-					.expect("Failed to create OTLP HTTP exporter"),
-				| protocol => {
-					warn!(
-						"Invalid OTLP protocol '{}', falling back to HTTP. Valid options are \
-						 'http' or 'grpc'.",
-						protocol
-					);
-					opentelemetry_otlp::SpanExporter::builder()
-						.with_http()
-						.build()
-						.expect("Failed to create OTLP HTTP exporter")
-				},
-			};
+			let exporter = opentelemetry_otlp::SpanExporter::builder()
+				.build()
+				.expect("Failed to create OTLP span exporter");
 
 			let provider = opentelemetry_sdk::trace::SdkTracerProvider::builder()
 				.with_resource(crate::metrics::resource(config))
