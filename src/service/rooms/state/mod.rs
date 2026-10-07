@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fmt::Write, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{debug, matrix::StateKey, smallstr::SmallString, utils::stream::WidebandExt};
+use conduwuit::{debug, utils::stream::WidebandExt};
 use conduwuit_core::{
 	Event, PduEvent, Result, err,
 	result::FlatOk,
