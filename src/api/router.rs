@@ -202,7 +202,9 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 	if config.allow_federation {
 		router = router
 			.ruma_route(&server::get_server_version_route)
-			.route("/_matrix/key/v2/server", get(server::get_server_keys_route))
+			.ruma_route(&server::get_server_keys_route)
+			.ruma_route(&server::get_remote_server_keys_batch_route)
+			.ruma_route(&server::get_remote_server_keys_route)
 			.ruma_route(&server::get_public_rooms_route)
 			.ruma_route(&server::get_public_rooms_filtered_route)
 			.ruma_route(&server::send_transaction_message_route)

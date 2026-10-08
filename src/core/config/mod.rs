@@ -1092,10 +1092,7 @@ pub struct Config {
 	/// (trusted key notary servers), as well as serve as trusted servers for
 	/// other operations like backfill and event fetching.
 	///
-	/// Currently, continuwuity doesn't support inbound key requests, so
-	/// this list should only contain other Synapse servers.
-	///
-	/// example: ["matrix.org", "starstruck.systems"]
+	/// example: ["continuwuity.org", "matrix.org"]
 	///
 	/// It is possible to restrict which signing keys trusted servers are
 	/// allowed to sign responses with. Without configuring this, all responses
@@ -1132,7 +1129,7 @@ pub struct Config {
 	/// empty list (`[]`) to operate without trusted server assistance, but this
 	/// is discouraged for performance and reliability reasons.
 	///
-	/// default: ["matrix.org"]
+	/// default: ["continuwuity.org", "continuwuity.rocks", "matrix.org"]
 	#[serde(default = "default_trusted_servers")]
 	pub trusted_servers: Vec<TrustedServer>,
 
@@ -3193,12 +3190,11 @@ fn default_otlp_protocol() -> String { "http".to_owned() }
 fn default_tracing_flame_output_path() -> String { "./tracing.folded".to_owned() }
 
 fn default_trusted_servers() -> Vec<TrustedServer> {
-	// TODO(nex): Once we can be a notary, add maintainer(?) homeservers here.
-	// Rationale: Users are already running our code, arguably that's a higher
-	// level of trust than is assigned to notaries in the first place.
-	// We should still remind everyone that notaries are evil and out to get you
-	// and to replace this list with servers they actually trust.
-	let trusted_servers = vec![ruma::owned_server_name!("matrix.org")];
+	let trusted_servers = vec![
+		ruma::owned_server_name!("continuwuity.org"),
+		ruma::owned_server_name!("continuwuity.rocks"),
+		ruma::owned_server_name!("matrix.org"),
+	];
 	trusted_servers
 		.into_iter()
 		.map(TrustedServer::Name)

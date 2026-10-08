@@ -78,7 +78,7 @@ impl super::Service {
 		pubkey_map.insert(server_keys.server_name.to_string(), set);
 
 		let mut canonical = to_canonical_object(server_keys)?;
-		Self::strip_extraneous_signatures(&mut canonical, &server_keys.server_name, &[]);
+		strip_extraneous_signatures(&mut canonical, &server_keys.server_name, &[]);
 		ruma::signatures::verify_json(&pubkey_map, &canonical).map_err(Into::into)
 	}
 
@@ -100,13 +100,12 @@ impl super::Service {
 			)));
 		};
 		let mut canonical_object = to_canonical_object(notary_signatures)?;
-		Self::strip_extraneous_signatures(&mut canonical_object, &server_keys.server_name, &[
+		strip_extraneous_signatures(&mut canonical_object, &server_keys.server_name, &[
 			notary_name,
 		]);
-		let for_verify = ruma::signatures::to_canonical_json_string_for_signing(
-			&to_canonical_object(server_keys).expect("server keys object must be canonical json"),
-		)
-		.expect("canonical JSON must be stringable");
+		let for_verify =
+			ruma::signatures::to_canonical_json_string_for_signing(&canonical_object)
+				.expect("canonical JSON must be stringable");
 
 		let raw_notary_keys = notary_keys.iter().map(Base64::as_bytes).collect::<Vec<_>>();
 		let raw_notary_signatures = notary_signatures
@@ -137,22 +136,22 @@ impl super::Service {
 			"No valid signature from {notary_name} present on signing keys response"
 		)))
 	}
+}
 
-	fn strip_extraneous_signatures(
-		canonical: &mut CanonicalJsonObject,
-		origin: &ServerName,
-		notaries: &[&ServerName],
-	) {
-		canonical.entry("signatures".to_owned()).and_modify(|sigs| {
-			sigs.as_object_mut().map(|s| {
-				s.retain(|server_name, _| {
-					let Ok(server_name) = ServerName::parse(server_name) else { return false };
-					origin == server_name || notaries.iter().any(|ns| *ns == server_name)
-				});
-				Some(s)
+pub fn strip_extraneous_signatures(
+	canonical: &mut CanonicalJsonObject,
+	origin: &ServerName,
+	notaries: &[&ServerName],
+) {
+	canonical.entry("signatures".to_owned()).and_modify(|sigs| {
+		sigs.as_object_mut().map(|s| {
+			s.retain(|server_name, _| {
+				let Ok(server_name) = ServerName::parse(server_name) else { return false };
+				origin == server_name || notaries.iter().any(|ns| *ns == server_name)
 			});
+			Some(s)
 		});
-	}
+	});
 }
 
 #[cfg(test)]
