@@ -6,8 +6,8 @@
 use std::{collections::BTreeMap, time::Duration};
 
 use conduwuit::{
-	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, error, info,
-	state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
+	Err, Error, Event, PduEvent, Result, debug, debug_error, debug_info, debug_warn, err, error,
+	info, state_res::EventTypeExt, trace, utils::to_canonical_object, warn,
 };
 use http::StatusCode;
 use ruma::{
@@ -238,6 +238,7 @@ impl super::Service {
 	/// should be returned to the user, it is propagated, otherwise the request
 	/// may be retried (for example, when rate-limited).
 	#[allow(clippy::too_many_arguments)]
+	#[tracing::instrument(skip_all, fields(?error,%retries,?timeout))]
 	async fn handle_policy_server_error(
 		&self,
 		error: Error,
@@ -254,22 +255,10 @@ impl super::Service {
 			| StatusCode::OK => unreachable!("ok response passed to handle_policy_server_error"),
 			| StatusCode::BAD_REQUEST => {
 				if matches!(error.kind(), ErrorKind::Forbidden) {
-					warn!(
-						via = %via,
-						event_id = %pdu.event_id(),
-						%room_id,
-						error = ?error,
-						"Policy server marked the event as spam"
-					);
+					warn!("Policy server marked the event as spam");
 					return Err(error);
 				}
-				error!(
-					via = %via,
-					event_id = %pdu.event_id(),
-					%room_id,
-					error = ?error.to_string(),
-					"Policy server could not understand our request",
-				);
+				error!("Policy server could not understand our request");
 				Err!(BadServerResponse("Error communicating with policy server"))
 			},
 			| StatusCode::FORBIDDEN => {
@@ -279,10 +268,8 @@ impl super::Service {
 			},
 			| StatusCode::NOT_FOUND => {
 				debug_info!(
-					via = %via,
-					event_id = %pdu.event_id(),
-					%room_id,
-					"Policy server is not actually a policy server or is not protecting this room: {}",
+					"Policy server is not actually a policy server or is not protecting this \
+					 room: {}",
 					error.message()
 				);
 				Err(error)
@@ -301,14 +288,7 @@ impl super::Service {
 					}
 					let saturated = retry_after.min(timeout);
 					// ^ don't wait more than 60 seconds
-					info!(
-						via = %via,
-						event_id = %pdu.event_id(),
-						room_id = %room_id,
-						retry_after = %saturated.as_secs(),
-						retries,
-						"Policy server rate-limited us; retrying after {retry_after:?}"
-					);
+					info!("Policy server rate-limited us; retrying after {retry_after:?}");
 					tokio::select! {
 						() = self.server_shutdown.notified() => (),
 						() = sleep(saturated) => (),
@@ -316,6 +296,7 @@ impl super::Service {
 					if !self.services.server.running() {
 						return Err(error);
 					}
+					info!("Attempting to fetch policy server signature again");
 					return Box::pin(self.fetch_policy_server_signature(
 						pdu,
 						pdu_json,
@@ -327,20 +308,15 @@ impl super::Service {
 					))
 					.await;
 				}
-				warn!(
-					via = %via,
-					event_id = %pdu.event_id(),
-					room_id = %room_id,
-					retries,
-					"Policy server rate-limited us without giving a retry window; giving up"
-				);
+				warn!("Policy server rate-limited us without giving a retry window; giving up");
 				Err(error)
 			},
-			| _ => Err!(BadServerResponse(
+			| _ => Err!(BadServerResponse(debug_info!(
+				?error,
 				"Unexpected response from policy server: {}/{:?}",
 				error.status_code(),
 				error.kind()
-			)),
+			))),
 		}
 	}
 
@@ -368,12 +344,17 @@ impl super::Service {
 				.sending
 				.send_federation_request(via, sign_event::v1::Request::new(outgoing.clone())),
 		)
-		.await;
+		.await
+		.map_err(|e| {
+			err!(Request(Forbidden(warn!(
+				error=%e,
+				"Policy server did not respond in time"
+			))))
+		})?;
 
 		let response = match response {
-			| Ok(Ok(response)) => response,
-			| Ok(Err(e)) => {
-				debug_error!("Error from policy server: {:?}", e);
+			| Ok(response) => response,
+			| Err(e) => {
 				return self
 					.handle_policy_server_error(
 						e,
@@ -387,16 +368,6 @@ impl super::Service {
 						timeout,
 					)
 					.await;
-			},
-			| Err(elapsed) => {
-				warn!(
-					%via,
-					event_id = %pdu.event_id(),
-					%room_id,
-					%elapsed,
-					"Policy server signature request timed out"
-				);
-				return Err!(Request(Forbidden("Policy server did not respond in time")));
 			},
 		};
 
