@@ -2,15 +2,21 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Event, Result, at, debug_warn,
 	result::LogErr,
-	utils::{BoolExt, stream::TryTools},
+	utils::{
+		BoolExt,
+		stream::{TryIgnore, WidebandExt},
+	},
 };
-use futures::{FutureExt, TryStreamExt, future::try_join4};
+use futures::{FutureExt, StreamExt, TryStreamExt, future::try_join4};
 use ruma::{
 	api::client::peeking::get_current_state::v3::{PaginationChunk, Request, Response},
 	assign,
 };
 
-use crate::Ruma;
+use crate::{
+	Ruma,
+	client::{ignored_filter, visibility_filter},
+};
 
 const LIMIT_MAX: usize = 100;
 
@@ -52,8 +58,11 @@ pub(crate) async fn room_initial_sync_route(
 		.rooms
 		.timeline
 		.pdus_rev(room_id, None)
-		.try_take(limit)
-		.and_then(async |mut pdu| {
+		.ignore_err()
+		.wide_filter_map(|item| ignored_filter(&services, item, sender_user))
+		.wide_filter_map(|item| visibility_filter(&services, item, sender_user))
+		.take(limit)
+		.wide_then(async |mut pdu| {
 			let ctx = services
 				.rooms
 				.timeline
@@ -76,6 +85,10 @@ pub(crate) async fn room_initial_sync_route(
 		try_join4(membership, visibility, state, events)
 			.boxed()
 			.await?;
+
+	if events.is_empty() {
+		return Ok(Response::new(room_id.to_owned()));
+	}
 
 	let end = events
 		.first()
