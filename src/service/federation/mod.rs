@@ -60,6 +60,9 @@ impl Service {
 	/// * The remote has not been marked as having a failed request, OR
 	/// * The next retry timestamp is in the past
 	pub fn is_healthy(&self, server_name: &ServerName) -> bool {
+		if server_name == self.services.server.name {
+			return true;
+		}
 		let map = self.remote_health.read();
 		let unix_now = millis_since_unix_epoch();
 		if let Some((_, next_retry)) = map.get(server_name) {
@@ -72,6 +75,9 @@ impl Service {
 	/// Returns how long the server should wait before attempting to contact the
 	/// remote again.
 	pub fn retry_after(&self, server_name: &ServerName) -> Option<Duration> {
+		if server_name == self.services.server.name {
+			return None;
+		}
 		let map = self.remote_health.read();
 		let unix_now = millis_since_unix_epoch();
 		map.get(server_name)
@@ -84,6 +90,9 @@ impl Service {
 	///
 	/// Does not update the marker if the backoff period is already in effect.
 	pub fn hit_unhealthy(&self, server_name: OwnedServerName) {
+		if server_name == self.services.server.name {
+			return;
+		}
 		let unix_now = millis_since_unix_epoch();
 		let mut map = self.remote_health.write();
 		let sn2 = server_name.clone(); // for logging since map.entry() moves
@@ -116,6 +125,9 @@ impl Service {
 	/// Returns true if the server was previously marked as unhealthy, false
 	/// otherwise.
 	pub fn mark_healthy(&self, server_name: &ServerName) -> bool {
+		if server_name == self.services.server.name {
+			return false;
+		}
 		let mut health_map = self.remote_health.write();
 		let was_unhealthy = health_map.remove(server_name).is_some();
 		if was_unhealthy {
@@ -142,6 +154,9 @@ impl Service {
 
 	/// Returns a rate-limited error if the remote is unhealthy.
 	fn ensure_remote_is_healthy(&self, server_name: &ServerName) -> Result<()> {
+		if server_name == self.services.server.name {
+			return Ok(());
+		}
 		// Read the backoff window once. The remote can be marked healthy
 		// between two lookups.
 		let Some(retry_after) = self
