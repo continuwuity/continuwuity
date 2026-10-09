@@ -8,8 +8,11 @@ use std::{
 use axum::extract::State;
 use conduwuit::{
 	Err, Result, debug, debug_info, error,
-	utils::{ReadyExt, stream::BroadbandExt, to_canonical_object},
-	warn,
+	utils::{
+		ReadyExt,
+		stream::{BroadbandExt, automatic_width},
+		to_canonical_object,
+	},
 };
 use futures::{StreamExt, stream::FuturesUnordered};
 use ruma::{
@@ -43,55 +46,101 @@ pub(crate) async fn get_server_keys_route(
 const MAX_KEYS_PER_QUERY: usize = 16384;
 const MAX_SERVERS_PER_QUERY: usize = 4096;
 
+/// # `POST /_matrix/key/v2/query`
+///
+/// Fetches remote server signing keys in bulk, seeding from the local server's
+/// database.
+///
+/// This route applies a semaphore to slow down requests that query more signing
+/// keys than is allowed by [MSC4556].
+///
+/// [MSC4556]: https://github.com/matrix-org/matrix-spec-proposals/pull/4556
 pub(crate) async fn get_remote_server_keys_batch_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys_batch::v2::Request>,
 ) -> Result<get_remote_server_keys_batch::v2::Response> {
+	query_inner(&services, &body.server_keys, false)
+		.await
+		.map(get_remote_server_keys_batch::v2::Response::new)
+}
+
+/// # `POST /_matrix/key/unstable/org.continuwuity.msc4556/query`
+/// ## `POST /_matrix/key/v3/query`
+///
+/// Fetches remote server signing keys in bulk, seeding from the local server's
+/// database.
+///
+/// MSC4556: https://github.com/matrix-org/matrix-spec-proposals/pull/4556
+pub(crate) async fn get_remote_server_keys_batch_v3_unstable_route(
+	State(services): State<crate::State>,
+	body: Ruma<ruminuwuity::federation::notary::unstable::Request>,
+) -> Result<ruminuwuity::federation::notary::unstable::Response> {
+	query_inner(&services, &body.server_keys, false)
+		.await
+		.map(ruminuwuity::federation::notary::unstable::Response::new)
+}
+
+/// Handles querying the server keys for `/_matrix/key/*/query`.
+///
+/// `v2` should be `true` if the request path is `/_matrix/key/v2/query` - this
+/// will potentially apply a rate-limit to the request.
+async fn query_inner(
+	services: &crate::State,
+	body: &BTreeMap<OwnedServerName, BTreeMap<OwnedServerSigningKeyId, QueryCriteria>>,
+	v2: bool,
+) -> Result<Vec<Raw<ServerSigningKeys>>> {
 	let start = (Instant::now(), MilliSecondsSinceUnixEpoch::now());
-	if body.server_keys.is_empty() {
-		return Ok(get_remote_server_keys_batch::v2::Response::new(Vec::new()));
+	// If the remote server isn't asking for any keys, we can return an empty
+	// array immediately.
+	if body.is_empty() {
+		return Ok(Vec::new());
 	}
 
-	let total_queried_servers = body.server_keys.len();
+	// Count how many keys are being requested.
+	// Each server incurs a cost of at least one, and then the count of each key
+	// being queried per-server.
+	let total_queried_servers = body.len();
 	let total_queried_keys = body
-		.server_keys
 		.values()
-		.fold(body.server_keys.len(), |acc, q| acc.saturating_add(q.len()));
+		.fold(body.len(), |acc, q| acc.saturating_add(q.len()));
 
-	if body.server_keys.len() > MAX_SERVERS_PER_QUERY {
-		// TODO(nex): enforce once MSC4556 is merged
-		warn!(
-			%total_queried_servers,
-			%total_queried_keys,
-			"Received a large notary request (too many servers)"
-		);
-		// return Err!(Request(TooLarge(
-		// 	"Too many server keys requested ({} > {MAX_SERVERS_PER_QUERY}",
-		// 	body.server_keys.len()
-		// )));
+	if !v2 {
+		// If we're on the v3 endpoint, we can apply these limits explicitly.
+		if total_queried_servers > MAX_SERVERS_PER_QUERY {
+			return Err!(Request(TooLarge(
+				"Too many server keys requested ({total_queried_servers} > \
+				 {MAX_SERVERS_PER_QUERY}",
+			)));
+		}
+		if total_queried_keys > MAX_KEYS_PER_QUERY {
+			return Err!(Request(TooLarge(
+				"Too many keys requested ({total_queried_keys} > {MAX_KEYS_PER_QUERY})"
+			)));
+		}
 	}
-	if total_queried_keys > MAX_KEYS_PER_QUERY {
-		// We shouldn't really enforce this before 4556 either, but not doing
-		// so may cause performance degradation.
-		warn!(
-			%total_queried_servers,
-			%total_queried_keys,
-			"Received a huge notary request (too many keys), rejecting",
-		);
-		return Err!(Request(TooLarge(
-			"Too many keys requested ({total_queried_keys} > {MAX_KEYS_PER_QUERY})"
-		)));
-	}
+	let penalise =
+		total_queried_servers > MAX_SERVERS_PER_QUERY || total_queried_keys > MAX_KEYS_PER_QUERY;
 
-	debug_info!("Fetching {total_queried_keys} keys across {} servers", body.server_keys.len());
+	debug_info!("Fetching {total_queried_keys} keys across {} servers", body.len());
 	let mut futs: FuturesUnordered<_> = FuturesUnordered::new();
-	for (server_name, queries) in body.server_keys.clone() {
+
+	// If we're on the v2 endpoint, we aren't allowed to reject the request.
+	// To avoid overloading the server, we'll apply a semaphore to limit how
+	// many futures can be active at a time.
+	let width = automatic_width();
+	let sem = if v2 && penalise {
+		Some(Arc::new(tokio::sync::Semaphore::new(width)))
+	} else {
+		None
+	};
+	for (server_name, queries) in body.clone() {
 		futs.push(acquire_keys_as_notary(
 			services.server_keys.clone(),
 			services.globals.server_name().to_owned(),
 			server_name,
 			queries,
 			start.1,
+			sem.clone(),
 		));
 	}
 	let mut response = Vec::with_capacity(total_queried_keys);
@@ -106,7 +155,7 @@ pub(crate) async fn get_remote_server_keys_batch_route(
 		"Fetched {} key responses",
 		response.len()
 	);
-	Ok(get_remote_server_keys_batch::v2::Response::new(response))
+	Ok(response)
 }
 
 async fn sign_ssk(
@@ -135,14 +184,26 @@ async fn sign_ssk(
 		.map_err(Into::into)
 }
 
-#[tracing::instrument(skip(server_keys, my_name, queries, start))]
+#[tracing::instrument(skip(server_keys, my_name, queries, start, semaphore))]
 async fn acquire_keys_as_notary(
 	server_keys: Arc<server_keys::Service>,
 	my_name: OwnedServerName,
 	remote: OwnedServerName,
 	mut queries: BTreeMap<OwnedServerSigningKeyId, QueryCriteria>,
 	start: MilliSecondsSinceUnixEpoch,
+	semaphore: Option<Arc<tokio::sync::Semaphore>>,
 ) -> Vec<Raw<ServerSigningKeys>> {
+	let cost = queries
+		.len()
+		.saturating_add(1)
+		.min(automatic_width())
+		.try_into()
+		.unwrap_or(u32::MAX);
+	let _permit = if let Some(sem) = semaphore {
+		sem.acquire_many_owned(cost).await.ok()
+	} else {
+		None
+	};
 	let fetch_all = queries.is_empty();
 	let mut results = Vec::with_capacity(queries.len().max(1));
 	let mut keymap = HashMap::with_capacity(queries.len().max(1));
@@ -267,6 +328,9 @@ async fn acquire_keys_as_notary(
 		.collect()
 }
 
+/// `GET /_matrix/key/v2/query/{serverName}`
+///
+/// Fetches the latest keys for a specific server name.
 pub(crate) async fn get_remote_server_keys_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_remote_server_keys::v2::Request>,
