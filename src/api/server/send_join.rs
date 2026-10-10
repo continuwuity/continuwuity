@@ -163,7 +163,14 @@ async fn create_join_event(
 			}
 			Some(event_id)
 		})
-		.broad_and_then(|event_id| services.rooms.timeline.get_pdu_json(event_id))
+		.broad_and_then(|event_id| async move {
+			services
+				.rooms
+				.timeline
+				.get_pdu_json(event_id)
+				.await
+				.map_err(|e| err!(Database("Could not fetch state event {event_id}: {e:?}")))
+		})
 		.broad_and_then(|pdu| {
 			services
 				.sending
@@ -172,7 +179,12 @@ async fn create_join_event(
 		})
 		.try_collect()
 		.boxed()
-		.await?;
+		.await
+		.map_err(|e| {
+			err!(BadServerResponse(
+				error!(err=?e, "Failed to build room state at new join event")
+			))
+		})?;
 
 	let starting_events = state_ids.iter().map(Borrow::borrow);
 	trace!("Constructing auth chain");
@@ -181,7 +193,12 @@ async fn create_join_event(
 		.auth_chain
 		.event_ids_iter(room_id, starting_events)
 		.broad_and_then(|event_id| async move {
-			services.rooms.timeline.get_pdu_json(&event_id).await
+			services
+				.rooms
+				.timeline
+				.get_pdu_json(&event_id)
+				.await
+				.map_err(|e| err!(Database("Could not fetch state event {event_id}: {e:?}")))
 		})
 		.broad_and_then(|pdu| {
 			services
@@ -191,7 +208,12 @@ async fn create_join_event(
 		})
 		.try_collect()
 		.boxed()
-		.await?;
+		.await
+		.map_err(|e| {
+			err!(BadServerResponse(
+				error!(err=?e, "Failed to build auth chain for new join event")
+			))
+		})?;
 	info!(fast_join = %omit_members, "Sending join event to other servers");
 	services.sending.send_pdu_room(room_id, &pdu_id).await?;
 	debug!("Finished sending join event");
