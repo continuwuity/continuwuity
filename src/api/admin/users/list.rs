@@ -11,7 +11,7 @@ use service::users::AccountStatus;
 
 use crate::router::Ruma;
 
-/// # `PUT /_continuwuity/admin/v1/users`
+/// # `GET /_continuwuity/admin/v1/users`
 ///
 /// Lists users on this homeserver
 pub(crate) async fn list_users(
