@@ -41,6 +41,7 @@ pub(crate) enum ClientIdentity {
 		sender_device: Option<OwnedDeviceId>,
 		appservice_info: Box<RegistrationInfo>,
 	},
+	StaticClient,
 }
 
 impl ClientIdentity {
@@ -48,6 +49,7 @@ impl ClientIdentity {
 		match self {
 			| Self::User { sender_user, .. } | Self::Appservice { sender_user, .. } =>
 				Some(sender_user),
+			| Self::StaticClient => None,
 		}
 	}
 
@@ -55,6 +57,8 @@ impl ClientIdentity {
 		match self {
 			| Self::User { sender_user, .. } | Self::Appservice { sender_user, .. } =>
 				Ok(sender_user),
+			| Self::StaticClient =>
+				Err!(Request(Forbidden("Static clients cannot use this endpoint."))),
 		}
 	}
 
@@ -62,6 +66,7 @@ impl ClientIdentity {
 		match self {
 			| Self::User { sender_device, .. } => Some(sender_device),
 			| Self::Appservice { sender_device, .. } => sender_device.as_deref(),
+			| Self::StaticClient => None,
 		}
 	}
 
@@ -71,12 +76,14 @@ impl ClientIdentity {
 			| Self::Appservice { sender_device: Some(sender_device), .. } => Ok(sender_device),
 			| Self::Appservice { sender_device: None, .. } =>
 				Err!(Request(Forbidden("Appservices must masquerade to use this endpoint."))),
+			| Self::StaticClient =>
+				Err!(Request(Forbidden("Static clients cannot use this endpoint."))),
 		}
 	}
 
 	pub(crate) fn appservice_info(&self) -> Option<&RegistrationInfo> {
 		match self {
-			| Self::User { .. } => None,
+			| Self::User { .. } | Self::StaticClient => None,
 			| Self::Appservice { appservice_info, .. } => Some(appservice_info),
 		}
 	}
@@ -395,6 +402,23 @@ async fn check_access_token(
 			sender_device,
 			appservice_info: Box::new(appservice_info),
 		})
+	} else if let Some(session) = services.oauth.get_client_credentials_session(token).await {
+		if !required_scopes
+			.iter()
+			.any(|scope| session.scopes.contains(scope))
+		{
+			return Err(Error::Request(
+				ErrorKind::InsufficientUserAuthentication(Box::new(
+					assign!(InsufficientUserAuthenticationErrorData::new(), {
+						scope: required_scopes.iter().cloned().collect()
+					}),
+				)),
+				"You do not have permission to access this endpoint.".into(),
+				StatusCode::UNAUTHORIZED,
+			));
+		}
+
+		Ok(ClientIdentity::StaticClient)
 	} else {
 		Err(Error::Request(
 			ErrorKind::UnknownToken(UnknownTokenErrorData::new()),

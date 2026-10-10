@@ -23,6 +23,7 @@ use ruma::{
 	OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedServerSigningKeyId, OwnedUserId,
 	RoomVersionId, ServerName,
 	api::{
+		OAuthClientScope,
 		client::{discovery::discover_support::ContactRole, rtc::RtcTransport},
 		federation::discovery::OldVerifyKey,
 	},
@@ -2722,6 +2723,9 @@ pub struct OauthConfig {
 
 	/// display: hidden
 	pub oidc: Option<OidcConfig>,
+
+	/// display: hidden
+	pub clients: HashMap<String, OAuthClient>,
 }
 
 impl OauthConfig {
@@ -2933,6 +2937,54 @@ impl TrustedServerConfig {
 	pub fn new(server_name: OwnedServerName) -> Self {
 		Self { server_name, verify_keys: Vec::new() }
 	}
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.oauth.clients.\"$id\"",
+	optional = "true",
+	subheader = "\
+# Use this section to add static OAuth clients for bots and automation.
+# Clients added here may use the client credentials OAuth grant to authorize
+# themselves with Continuwuity.
+#
+# Make sure to replace `$id` in the header with your client ID of choice! You can
+# add more copies of this section with different IDs to add multiple clients.
+#
+# Because the client credentials grant authorizes the client as itself, without
+# an attached user, clients that use it will not be able to access most of the Matrix
+# client-server API. Administrative functionality that does not require a user
+# will still be available."
+)]
+pub struct OAuthClient {
+	/// The client's client secret.
+	///
+	/// This must be supplied as the `client_secret` parameter when requesting
+	/// an access token with the OAuth 2.0 token endpoint. Continuwuity does
+	/// not check the `Authorization` header for requests to this endpoint.
+	pub client_secret: String,
+
+	/// A list of scopes that the client may request. Continuwuity allows static
+	/// clients to request the following scopes:
+	///
+	/// - "urn:matrix:client:cc.c10y.msc4484.server_administration" (MSC4484):
+	///   This scope grants access to the Matrix server administration APIs, as
+	///   well as Continuwuity's internal admin API (currently a work in
+	///   progress).
+	/// - "urn:matrix:client:api:*": This scope grants access to the Matrix
+	///   client-server API. Most endpoints require an authenticated Matrix user
+	///   and thus will not be usable by static clients.
+	///
+	/// The `urn:matrix:client:device:<id>` scope may not be requested by static
+	/// clients.
+	///
+	/// Scopes listed here are not granted by default. The client must
+	/// explicitly include them in the `scope` parameter of its access token
+	/// request.
+	///
+	/// default: []
+	pub scopes: BTreeSet<OAuthClientScope>,
 }
 
 const DEPRECATED_KEYS: &[&str] = &[

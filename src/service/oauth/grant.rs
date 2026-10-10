@@ -225,6 +225,10 @@ pub enum TokenRequestType {
 	RefreshToken {
 		refresh_token: String,
 	},
+	ClientCredentials {
+		client_secret: String,
+		scopes: RawScopes,
+	},
 }
 
 impl TokenRequestType {
@@ -234,6 +238,7 @@ impl TokenRequestType {
 			| Self::AuthorizationCode { .. } => GrantType::AuthorizationCode,
 			| Self::DeviceCode { .. } => GrantType::DeviceCode,
 			| Self::RefreshToken { .. } => GrantType::RefreshToken,
+			| Self::ClientCredentials { .. } => GrantType::ClientCredentials,
 		}
 	}
 }
@@ -243,7 +248,7 @@ pub struct TokenResponse {
 	pub access_token: String,
 	pub token_type: TokenType,
 	pub expires_in: u64,
-	pub refresh_token: String,
+	pub refresh_token: Option<String>,
 	pub scope: String,
 }
 

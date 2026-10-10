@@ -345,6 +345,15 @@ pub fn check(config: &Config) -> Result {
 			}
 		})?;
 
+	for (id, client) in &config.oauth.clients {
+		if client.scopes.is_empty() {
+			warn!(
+				"The static OAuth client `{id}` has no scopes configured. It will not be able \
+				 to access any API endpoints."
+			);
+		}
+	}
+
 	Ok(())
 }
 
