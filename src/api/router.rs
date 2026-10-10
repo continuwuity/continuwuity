@@ -199,7 +199,8 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&admin::rooms::ban::ban_room)
 		.ruma_route(&admin::rooms::list::list_rooms)
 		.ruma_route(&admin::users::list::list_users)
-		.ruma_route(&admin::users::create::create_user);
+		.ruma_route(&admin::users::create::create_user)
+		.ruma_route(&admin::users::rooms::list_user_rooms);
 
 	if config.allow_federation {
 		router = router
