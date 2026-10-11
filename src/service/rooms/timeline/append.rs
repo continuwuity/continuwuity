@@ -94,18 +94,16 @@ impl super::Service {
 		// We do this BEFORE setting the extremities so that there's never a
 		// point in time where we have fresh extremities referencing stale
 		// state.
-		let mut extremities: Vec<_> = self
-			.services
-			.state
-			.get_forward_extremities(&room_id)
-			.collect()
-			.await;
-		extremities = self
+		let extremities = self
 			.progress_state_and_extremities(
 				pdu,
 				room_version_rules,
 				state_before.clone(),
-				extremities,
+				self.services
+					.state
+					.get_forward_extremities(&room_id)
+					.collect()
+					.await,
 				state_lock,
 			)
 			.await?;
@@ -222,14 +220,15 @@ impl super::Service {
 			let Ok(prev_event) = self.get_pdu(&prev_event_id).await else {
 				continue;
 			};
-			// Only retain prevs which are themselves not referenced AND
-			// soft-failed/rejected/outlier.
+			// Only retain prevs that we have, which are themselves not
+			// referenced AND soft-failed/rejected/outlier.
 			let outlier_prevs = prev_event
 				.prev_events()
 				.map(ToOwned::to_owned)
 				.stream()
 				.broad_filter_map(|prev_id| async {
-					let (referenced, is_outlier, is_soft_failed, is_rejected) = tokio::join!(
+					let (exists, referenced, is_outlier, is_soft_failed, is_rejected) = tokio::join!(
+						self.pdu_exists(&prev_id),
 						self.services
 							.pdu_metadata
 							.is_event_referenced(&room_id, &prev_id),
@@ -237,7 +236,7 @@ impl super::Service {
 						self.services.pdu_metadata.is_event_soft_failed(&prev_id),
 						self.services.pdu_metadata.is_event_rejected(&prev_id)
 					);
-					(!referenced && (is_outlier || is_soft_failed || is_rejected))
+					(exists && !referenced && (is_outlier || is_soft_failed || is_rejected))
 						.then_some(prev_id)
 				})
 				.collect::<Vec<_>>()
