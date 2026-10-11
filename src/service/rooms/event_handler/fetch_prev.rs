@@ -107,9 +107,6 @@ impl super::Service {
 			);
 			let obj = mapped.get(event_id).cloned().unwrap();
 			let persist_start = Instant::now();
-			self.services
-				.pdu_metadata
-				.mark_as_referenced(room_id, once(event_id.to_owned().as_ref()));
 			match self
 				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj)
 				.await
