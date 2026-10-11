@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::Instant};
+use std::{collections::HashMap, iter::once, time::Instant};
 
 use conduwuit::{
 	Err, Event, PduEvent, debug, debug_info, debug_warn, trace,
@@ -107,6 +107,9 @@ impl super::Service {
 			);
 			let obj = mapped.get(event_id).cloned().unwrap();
 			let persist_start = Instant::now();
+			self.services
+				.pdu_metadata
+				.mark_as_referenced(room_id, once(event_id.to_owned().as_ref()));
 			match self
 				.handle_outlier_pdu(origin, create_event, event_id, room_id, obj)
 				.await
@@ -148,8 +151,6 @@ impl super::Service {
 			}
 		}
 
-		// NOTE because i keep forgetting: the caller persists incoming_pdu.
-		// we only care about its prev events
 		trace!(
 			total_elapsed=?start.elapsed(),
 			persist_elapsed=?job_start.elapsed(),
