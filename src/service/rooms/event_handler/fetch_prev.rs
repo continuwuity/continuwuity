@@ -1,4 +1,4 @@
-use std::{collections::HashMap, iter::once, time::Instant};
+use std::{collections::HashMap, time::Instant};
 
 use conduwuit::{
 	Err, Event, PduEvent, debug, debug_info, debug_warn, trace,
