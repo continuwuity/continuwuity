@@ -20,13 +20,13 @@ pub(crate) fn cf_options(ctx: &Context, opts: Options, desc: &Descriptor) -> Res
 }
 
 fn descriptor_cf_options(
-	mut opts: Options,
+	opts: Options,
 	mut desc: Descriptor,
 	config: &Config,
 	cache: Option<&Cache>,
 ) -> Result<Options> {
 	set_compression(&mut desc, config);
-	set_table_options(&mut opts, &desc, cache)?;
+	let mut opts = set_table_options(opts, &desc, cache)?;
 
 	opts.set_min_write_buffer_number(1);
 	opts.set_max_write_buffer_number(2);
@@ -87,7 +87,11 @@ fn descriptor_cf_options(
 	Ok(opts)
 }
 
-fn set_table_options(opts: &mut Options, desc: &Descriptor, cache: Option<&Cache>) -> Result {
+fn set_table_options(
+	mut opts: Options,
+	desc: &Descriptor,
+	cache: Option<&Cache>,
+) -> Result<Options> {
 	let mut table = table_options(desc, cache.is_some());
 
 	if let Some(cache) = cache {
@@ -113,7 +117,7 @@ fn set_table_options(opts: &mut Options, desc: &Descriptor, cache: Option<&Cache
 
 	opts.set_block_based_table_factory(&table);
 
-	Ok(())
+	Ok(opts)
 }
 
 fn set_compression(desc: &mut Descriptor, config: &Config) {
