@@ -2,11 +2,13 @@ import { Tab, Tabs} from '@rspress/core/theme';
 
 # MatrixRTC/Element Call Setup
 
-This guide assumes that you are using docker compose for deployment.
+This guide assumes that you are using `docker compose` for deployment.
 
 :::tip
-You can find help setting up MatrixRTC in our dedicated room - [#matrixrtc:continuwuity.org](https://matrix.to/#/%23matrixrtc%3Acontinuwuity.org)
+You can find help setting up MatrixRTC in our support room - [`#continuwuity:continuwuity.org`][support-room]
 :::
+
+[support-room]: https://matrix.to/#/%23continuwuity:continuwuity.org
 
 ## Instructions
 
@@ -58,7 +60,9 @@ services:
       - ./livekit.yaml:/etc/livekit.yaml:ro
     network_mode: "host" # /!\ LiveKit binds to all addresses by default.
     # Make sure port 7880 is blocked by your firewall to prevent access bypassing your reverse proxy
-    # Alternatively, uncomment the lines below and comment `network_mode: "host"` above to specify port mappings.
+
+    # Alternatively, uncomment the lines below and comment out `network_mode: "host"`
+    # above to specify port mappings.
 #    ports:
 #      - "127.0.0.1:7880:7880/tcp"
 #      - "7881:7881/tcp"
