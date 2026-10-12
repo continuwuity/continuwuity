@@ -1,12 +1,12 @@
 use std::{
 	collections::{BTreeSet, HashMap},
-	sync::{Arc, Mutex},
+	sync::Arc,
 	time::{Duration, SystemTime},
 };
 
 use base64::Engine;
 use conduwuit::{
-	Result, info,
+	Result, SyncMutex, info,
 	utils::{self, hash::sha256},
 };
 use database::{Deserialized, Json, Map};
@@ -36,9 +36,9 @@ pub mod grant;
 pub struct Service {
 	services: Services,
 	db: Data,
-	tickets: Mutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
-	pending_auth_code_grants: tokio::sync::Mutex<LruCache<String, PendingAuthCodeGrant>>,
-	pending_device_code_grants: tokio::sync::Mutex<LruCache<String, PendingDeviceCodeGrant>>,
+	tickets: SyncMutex<HashMap<String, HashMap<OAuthTicket, SystemTime>>>,
+	pending_auth_code_grants: SyncMutex<LruCache<String, PendingAuthCodeGrant>>,
+	pending_device_code_grants: SyncMutex<LruCache<String, PendingDeviceCodeGrant>>,
 }
 
 struct Data {
@@ -169,13 +169,9 @@ impl crate::Service for Service {
 				userdeviceid_oauthsessioninfo: args.db["userdeviceid_oauthsessioninfo"].clone(),
 				refreshtoken_refreshtokeninfo: args.db["refreshtoken_refreshtokeninfo"].clone(),
 			},
-			tickets: Mutex::default(),
-			pending_auth_code_grants: tokio::sync::Mutex::new(LruCache::new(
-				Self::MAX_PENDING_GRANTS,
-			)),
-			pending_device_code_grants: tokio::sync::Mutex::new(LruCache::new(
-				Self::MAX_PENDING_GRANTS,
-			)),
+			tickets: SyncMutex::default(),
+			pending_auth_code_grants: SyncMutex::new(LruCache::new(Self::MAX_PENDING_GRANTS)),
+			pending_device_code_grants: SyncMutex::new(LruCache::new(Self::MAX_PENDING_GRANTS)),
 		}))
 	}
 
@@ -328,7 +324,6 @@ impl Service {
 
 		self.pending_auth_code_grants
 			.lock()
-			.await
 			.insert(code, pending_grant);
 
 		Ok(redirect_uri)
@@ -383,7 +378,6 @@ impl Service {
 
 		self.pending_device_code_grants
 			.lock()
-			.await
 			.insert(device_code.clone(), pending_grant);
 
 		Ok(DeviceCodeResponse {
@@ -399,32 +393,36 @@ impl Service {
 		&self,
 		supplied_user_code: &str,
 	) -> Option<DeviceCodeGrantInfo> {
-		let pending_grants = self.pending_device_code_grants.lock().await;
+		let (device_code, client_id, requested_scopes) = {
+			let pending_grants = self.pending_device_code_grants.lock();
 
-		let (device_code, grant) = pending_grants
-			.iter()
-			.find(|(_, grant)| {
-				matches!(&grant.state, DeviceCodeGrantState::Unverified { user_code } if user_code == supplied_user_code)
-			})?;
+			let (device_code, grant) = pending_grants
+				.iter()
+				.find(|(_, grant)| {
+					matches!(&grant.state, DeviceCodeGrantState::Unverified { user_code } if user_code == supplied_user_code)
+				})?;
+
+			(device_code.clone(), grant.client_id.clone(), grant.requested_scopes.clone())
+		};
 
 		let client_metadata = self
-			.get_client_metadata(&grant.client_id)
+			.get_client_metadata(&client_id)
 			.await
 			.expect("client should exist");
 
 		Some(DeviceCodeGrantInfo {
-			device_code: device_code.clone(),
+			device_code,
 			client_metadata,
-			requested_scopes: grant.requested_scopes.clone(),
+			requested_scopes,
 		})
 	}
 
-	pub async fn validate_device_code(
+	pub fn validate_device_code(
 		&self,
 		authorizing_user: OwnedUserId,
 		device_code: &str,
 	) -> Result<(), String> {
-		let mut pending_grants = self.pending_device_code_grants.lock().await;
+		let mut pending_grants = self.pending_device_code_grants.lock();
 
 		let Some(pending_grant) = pending_grants.get_mut(device_code) else {
 			return Err("Invalid device code".to_owned());
@@ -460,24 +458,28 @@ impl Service {
 
 		match request {
 			| TokenRequestType::AuthorizationCode { code, redirect_uri, code_verifier } => {
-				let mut pending_grants = self.pending_auth_code_grants.lock().await;
+				let pending_grant = {
+					let mut pending_grants = self.pending_auth_code_grants.lock();
 
-				let Some(pending_grant) = pending_grants
-					.remove(&code)
-					.filter(|grant| grant.is_valid_for(&client_id))
-				else {
-					return Err(OAuthError::invalid_grant("Invalid authorization code"));
+					let Some(pending_grant) = pending_grants
+						.remove(&code)
+						.filter(|grant| grant.is_valid_for(&client_id))
+					else {
+						return Err(OAuthError::invalid_grant("Invalid authorization code"));
+					};
+
+					if redirect_uri != pending_grant.expected_redirect_uri {
+						return Err(OAuthError::invalid_grant("Invalid redirect URI"));
+					}
+
+					let expected_code_challenge = base64::prelude::BASE64_URL_SAFE_NO_PAD
+						.encode(sha256::hash(&code_verifier));
+					if expected_code_challenge != pending_grant.code_challenge {
+						return Err(OAuthError::invalid_grant("Invalid code challenge"));
+					}
+
+					pending_grant
 				};
-
-				if redirect_uri != pending_grant.expected_redirect_uri {
-					return Err(OAuthError::invalid_grant("Invalid redirect URI"));
-				}
-
-				let expected_code_challenge =
-					base64::prelude::BASE64_URL_SAFE_NO_PAD.encode(sha256::hash(&code_verifier));
-				if expected_code_challenge != pending_grant.code_challenge {
-					return Err(OAuthError::invalid_grant("Invalid code challenge"));
-				}
 
 				self.create_session(
 					pending_grant.authorizing_user,
@@ -488,36 +490,38 @@ impl Service {
 				.await
 			},
 			| TokenRequestType::DeviceCode { device_code } => {
-				let mut pending_grants = self.pending_device_code_grants.lock().await;
+				let (authorizing_user, requested_scopes, client_name) = {
+					let mut pending_grants = self.pending_device_code_grants.lock();
 
-				let Some(pending_grant) = pending_grants
-					.remove(&device_code)
-					.filter(|grant| grant.is_valid_for(&client_id))
-				else {
-					return Err(OAuthError::new_static(
-						ErrorCode::ExpiredToken,
-						"Invalid device code",
-					));
-				};
+					let Some(pending_grant) = pending_grants
+						.remove(&device_code)
+						.filter(|grant| grant.is_valid_for(&client_id))
+					else {
+						return Err(OAuthError::new_static(
+							ErrorCode::ExpiredToken,
+							"Invalid device code",
+						));
+					};
 
-				match &pending_grant.state {
-					| DeviceCodeGrantState::Unverified { .. } => {
-						pending_grants.insert(device_code, pending_grant);
+					match &pending_grant.state {
+						| DeviceCodeGrantState::Unverified { .. } => {
+							pending_grants.insert(device_code, pending_grant);
 
-						Err(OAuthError::new_static(
-							ErrorCode::AuthorizationPending,
-							"Authorization is pending",
-						))
-					},
-					| DeviceCodeGrantState::Verified { authorizing_user } =>
-						self.create_session(
+							return Err(OAuthError::new_static(
+								ErrorCode::AuthorizationPending,
+								"Authorization is pending",
+							));
+						},
+						| DeviceCodeGrantState::Verified { authorizing_user } => (
 							authorizing_user.to_owned(),
 							pending_grant.requested_scopes,
 							pending_grant.client_name,
-							client_id,
-						)
-						.await,
-				}
+						),
+					}
+				};
+
+				self.create_session(authorizing_user, requested_scopes, client_name, client_id)
+					.await
 			},
 			| TokenRequestType::RefreshToken { refresh_token } =>
 				self.refresh_session(client_id, refresh_token).await,
@@ -773,7 +777,6 @@ impl Service {
 	pub fn issue_ticket(&self, localpart: String, ticket: OAuthTicket) {
 		self.tickets
 			.lock()
-			.unwrap()
 			.entry(localpart)
 			.or_default()
 			.insert(ticket, SystemTime::now());
@@ -785,7 +788,6 @@ impl Service {
 
 		self.tickets
 			.lock()
-			.unwrap()
 			.get_mut(localpart)
 			.and_then(|tickets| tickets.remove(&ticket))
 			.is_some_and(|issued| {

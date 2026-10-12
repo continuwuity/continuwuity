@@ -242,7 +242,6 @@ async fn route_device_code(
 			services
 				.oauth
 				.validate_device_code(user_id, &device_code)
-				.await
 				.map_err(WebError::BadRequest)?;
 
 			response!(DeviceCodeGrant::new(context, user_card, DeviceCodeGrantBody::Success))
