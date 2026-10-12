@@ -226,9 +226,10 @@ impl Service {
 			}
 		}
 
+		drop(state_lock);
 		// If we aren't participating in the room, or failed to join locally,
 		// try to join over federation.
-		self.join_remote_room(sender_user, room_id, reason, &servers, &state_lock)
+		self.join_remote_room(sender_user, room_id, reason, &servers)
 			.boxed()
 			.await?;
 
@@ -305,7 +306,6 @@ impl Service {
 		room_id: &RoomId,
 		reason: Option<String>,
 		servers: &[&OwnedServerName],
-		state_lock: &RoomMutexGuard,
 	) -> Result {
 		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
@@ -662,9 +662,10 @@ impl Service {
 			.await?;
 
 		debug!("Forcing state for new room");
+		let state_lock = self.services.state.mutex.lock(room_id).await;
 		self.services
 			.state
-			.force_state(room_id, statehash_before_join, added, removed, state_lock)
+			.force_state(room_id, statehash_before_join, added, removed, &state_lock)
 			.await?;
 
 		debug!("Updating joined counts for new room");
@@ -686,7 +687,7 @@ impl Service {
 				&parsed_join_pdu,
 				join_event,
 				once(parsed_join_pdu.event_id.as_ref()),
-				state_lock,
+				&state_lock,
 				room_id,
 			)
 			.await?;
@@ -701,7 +702,7 @@ impl Service {
 		// exist
 		self.services
 			.state
-			.set_room_state(room_id, statehash_after_join, state_lock);
+			.set_room_state(room_id, statehash_after_join, &state_lock);
 		if !resident_before {
 			// NOTE: We replace local extremities for this room if we were not a
 			// resident before. We might be doing a remote join to satisfy
@@ -711,7 +712,7 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), state_lock)
+				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
 				.await;
 		}
 		drop(cork);
