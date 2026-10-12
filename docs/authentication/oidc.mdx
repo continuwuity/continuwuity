@@ -18,7 +18,9 @@ A simple OIDC configuration is as easy as creating a new OIDC application in you
 
 This guide will cover [**Kanidm**][kanidm] and [**Authelia**][authelia], but the basic concepts apply to most identity providers. Contributions for them are welcome.
 
-Before you start, note the domain that clients can reach Continuwuity at, which may not be the same as your server name if you have configured well-known delegation. In this example, we will use `https://matrix.yourdomain.com`.
+:::important Server domain or account domain?
+Before you start, note the domain that clients can reach Continuwuity at, which may not be the same as your account domain if you have configured well-known delegation. In this example, we will use `https://matrix.yourdomain.com` for the server domain.
+:::
 
 <Tabs groupId="idp">
 <Tab label="KanIDM">
@@ -57,32 +59,39 @@ Now the discovery URL for KanIDM is: https://idm.yourdomain.com/oauth2/openid/c1
 These instructions assume you have already set up Authelia as an OIDC provider and are just adding Continuwuity to it. If you are looking how to set up your Authelia as an OIDC provider, [this article](https://blog.stonegarden.dev/articles/2025/06/authelia-oidc/) is very useful.
 To create a new client in your identity provider, it is [recommended](https://www.authelia.com/integration/openid-connect/frequently-asked-questions/#how-do-i-generate-a-client-identifier-or-client-secret) to randomly generate both the client id and client secret. The commands below should get you those:
 
+<Tabs groupId="authelia-docker-or-not">
+<Tab label="bare binary">
 ```sh
-# Generate client ID:
+echo "Random value for Client ID:"
 authelia crypto rand --length 72 --charset rfc3986
-# or using Docker:
-docker run --rm authelia/authelia:latest authelia crypto rand --length 72 --charset rfc3986
-```
-
-Generate the client secret (shown as password in output) and its digest:
-```sh
+echo "\nClient Secret (labeled Random Password) and its Digest:"
 authelia crypto hash generate pbkdf2 --variant sha512 --random --random.length 72 --random.charset rfc3986
-# or using Docker:
+```
+</Tab>
+<Tab label="docker">
+```sh
+echo "Random value for Client ID:"
+docker run --rm authelia/authelia:latest authelia crypto rand --length 72 --charset rfc3986
+echo "\nClient Secret (labeled Random Password) and its Digest:"
 docker run --rm authelia/authelia:latest authelia crypto hash generate pbkdf2 --variant sha512 --random --random.length 72 --random.charset rfc3986
 ```
+</Tab>
+</Tabs>
 
-Authelia only needs to know the digest (hash) of the secret, whereas Continuwuity requires the secret itself.
+:::important client secret or digest?
+Authelia only needs to know the digest of the secret, whereas Continuwuity requires the secret itself.
+:::
 
-Now we have everything we need to add Continuwuity to Authelia's OIDC client configuration. Go to your Authelia configuration file, find the `identity_provers` block, and add to the `clients` list:
+Go to your Authelia configuration file, find the `identity_provers` block, and add a block for Continuwuity to the `clients` list:
 
 ```yaml
 identity_providers:
   oidc:
     jwks:
        # This part has the JWKs and is what you configured previously
-       [...]
+       # ...
     clients:
-      # Add this block below
+      # Add this block below to the clients list
       - client_name: continuwuity
         client_id: "client-id-goes-here"
         client_secret: "client-secret-DIGEST-goes-here"
