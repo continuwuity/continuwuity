@@ -1,3 +1,5 @@
+import { Tab, Tabs } from '@rspress/core/theme';
+
 # Delegated authentication with OIDC
 
 Continuwuity supports delegating user authentication to an external identity provider that implements the OpenID Connect (OIDC) specification, such as Authentik, Kanidm, or Keycloak.
@@ -16,7 +18,8 @@ A simple OIDC configuration is as easy as creating a new OIDC application in you
 
 This guide will cover [**Kanidm**][kanidm] and [**Authelia**][authelia], but the described steps are broadly applicable to other identity providers. Contributions for them are welcome.
 
-#### KanIDM
+<Tabs groupId="idp">
+<Tab label="KanIDM">
 
 First, create a new application for Continuwuity in your identity provider.
 
@@ -46,10 +49,10 @@ kanidm system oauth2 show-basic-secret c10y
 d1qgx352kkuvs1j70b6w293d65x68jve1f7b27fyk90gjhpr
 ```
 
-[kanidm]: https://kanidm.com
+If you followed these steps, the discovery URL for KanIDM is: https://idm.example.com/oauth2/openid/c10y
 
-#### Authelia
-
+</Tab>
+<Tab label="Authelia">
 These instructions assume you have already set up Authelia as an OIDC provider and are just adding Continuwuity to it. If you are looking how to set up your Authelia as an OIDC provider, [this article](https://blog.stonegarden.dev/articles/2025/06/authelia-oidc/) is very useful.
 To create a new client in your identity provider, it is [recommended](https://www.authelia.com/integration/openid-connect/frequently-asked-questions/#how-do-i-generate-a-client-identifier-or-client-secret) to randomly generate both the client id and client secret. The commands below should get you those:
 
@@ -89,25 +92,32 @@ identity_providers:
 ```
 
 The discovery URL that continuwuity can use with Authelia is simply the root domain at which your Authelia can be reached by clients, which should be something like `https://authelia.example.com`.
+</Tab>
+</Tabs>
 
+Whichever identity provider you\'re using, you should now have 3 things, which you\'ll need in the next section to configure Continuwuity itself:
+
+- Client Identifier (or client id)
+- Client Secret
+- Discovery URL
+
+[kanidm]: https://kanidm.com
 [authelia]: https://www.authelia.com
 
 ### Configuring Continuwuity
 
-Configure Continuwuity with the client ID, client secret, and discovery URL provided from the steps above. Kanidm has a different discovery URL for each client, but other identity providers may have a single discovery URL at the root of their domain.
+Configure Continuwuity with the client ID, client secret, and discovery URL provided from the steps above.
 
 ```toml
 [global.oauth.oidc]
 
 # `/.well-known/openid-configuration` will be appended automatically
 # Choose the appropriate option from below, not both
-discovery_url = "https://idm.example.com/oauth2/openid/c10y" # For KanIDM
-discovery_url = "https://authelia.example.com/" # For Authelia
+discovery_url = "https://your-discovery-url"
 
-client_id = "c10y"
+client_id = "your-client-id"
 
-# From the previous step
-client_secret = "d1qgx352kkuvs1j70b6w293d65x68jve1f7b27fyk90gjhpr"
+client_secret = "your-client-secret"
 ```
 
 ### Testing that it works
