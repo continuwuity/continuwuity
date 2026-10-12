@@ -552,6 +552,7 @@ impl Service {
 			.await
 	}
 
+	/// Prepares the stripped state of a local or remote room for a user.
 	pub async fn get_stripped_state_for_user(
 		&self,
 		querying_user: Option<&UserId>,
@@ -575,6 +576,7 @@ impl Service {
 		}
 	}
 
+	/// Prepares the stripped state of a local room for a server.
 	pub async fn get_local_stripped_state_for_server(
 		&self,
 		querying_server: &ServerName,
@@ -596,6 +598,8 @@ impl Service {
 		}
 	}
 
+	/// Build a local room's stripped state. Returns None if we don't have the
+	/// room.
 	async fn build_local_stripped_state(
 		&self,
 		room_id: &RoomId,
@@ -650,6 +654,7 @@ impl Service {
 		Some(RoomStrippedState { state, num_joined_members })
 	}
 
+	/// Ask remote servers for a room's stripped state.
 	async fn fetch_remote_stripped_state(
 		&self,
 		room_id: &RoomId,
@@ -686,15 +691,24 @@ impl Service {
 		while let Some(response) = responses.next().await {
 			match response {
 				| Accessibility::Accessible((server, response)) => {
+					// The via has the room.
 					return Accessibility::Accessible((server, RoomStrippedState {
 						state: response.state,
 						num_joined_members: response.num_joined_members,
 					}));
 				},
 				| Accessibility::Inaccessible => {
+					// The via has the room and was able to determine that we
+					// can't access it. We don't stop
+					// checking in case it's malicious or wrong,
+					// but we do switch to returning M_FORBIDDEN instead of
+					// M_NOT_FOUND if no other via lets us
+					// see the room.
 					got_inaccessible = true;
+					continue;
 				},
 				| Accessibility::NotFound => {
+					// The via doesn't have the room.
 					continue;
 				},
 			}
