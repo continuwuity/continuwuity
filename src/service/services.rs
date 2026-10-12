@@ -142,13 +142,8 @@ impl Services {
 		super::migrations::migrations(self)
 			.await
 			.inspect_err(|e| error!("Migrations failed: {e}"))?;
-		self.manager
-			.lock()
-			.await
-			.insert(Manager::new(self))
-			.clone()
-			.start()
-			.await?;
+		let manager = self.manager.lock().await.insert(Manager::new(self)).clone();
+		manager.start().await?;
 
 		// reset dormant online/away statuses to offline, and set the server
 		// user as online
@@ -177,7 +172,8 @@ impl Services {
 		}
 
 		self.interrupt();
-		if let Some(manager) = self.manager.lock().await.as_ref() {
+		let manager = self.manager.lock().await.clone();
+		if let Some(manager) = manager {
 			manager.stop().await;
 		}
 
@@ -187,7 +183,8 @@ impl Services {
 	}
 
 	pub async fn poll(&self) -> Result<()> {
-		if let Some(manager) = self.manager.lock().await.as_ref() {
+		let manager = self.manager.lock().await.clone();
+		if let Some(manager) = manager {
 			return manager.poll().await;
 		}
 
