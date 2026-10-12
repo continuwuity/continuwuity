@@ -14,6 +14,8 @@ use tokio_metrics::TaskMonitor;
 use tokio_metrics::{RuntimeIntervals, RuntimeMonitor};
 
 pub use self::instruments::{Instruments, duration_buckets};
+#[cfg(tokio_unstable)]
+use crate::SyncMutex;
 use crate::{Err, Result};
 
 pub struct Metrics {
@@ -27,7 +29,7 @@ pub struct Metrics {
 	_runtime_monitor: Option<RuntimeMonitor>,
 
 	#[cfg(tokio_unstable)]
-	runtime_intervals: std::sync::Mutex<Option<RuntimeIntervals>>,
+	runtime_intervals: SyncMutex<Option<RuntimeIntervals>>,
 
 	// TODO: move stats
 	pub requests_handle_active: AtomicU32,
@@ -69,7 +71,7 @@ impl Metrics {
 			_runtime_monitor: runtime_monitor,
 
 			#[cfg(tokio_unstable)]
-			runtime_intervals: std::sync::Mutex::new(runtime_intervals),
+			runtime_intervals: SyncMutex::new(runtime_intervals),
 
 			requests_handle_active: AtomicU32::new(0),
 			requests_handle_finished: AtomicU32::new(0),
@@ -81,7 +83,6 @@ impl Metrics {
 	pub fn runtime_interval(&self) -> Option<tokio_metrics::RuntimeMetrics> {
 		self.runtime_intervals
 			.lock()
-			.expect("locked")
 			.as_mut()
 			.map(Iterator::next)
 			.expect("next interval")
