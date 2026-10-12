@@ -278,8 +278,6 @@ impl Service {
 		params: Box<RawValue>,
 		initiator: Option<UiaaInitiator<'_>>,
 	) -> Result<UiaaInfo> {
-		let mut uiaa_sessions = self.uiaa_sessions.lock().await;
-
 		let session_id = utils::random_string(Self::SESSION_ID_LENGTH);
 
 		let mut info = assign!(UiaaInfo::new(flows), { params: Some(params), session: Some(session_id.clone()) });
@@ -355,7 +353,10 @@ impl Service {
 			)));
 		}
 
-		uiaa_sessions.insert(session_id, UiaaSession { session_metadata, info: info.clone() });
+		self.uiaa_sessions
+			.lock()
+			.await
+			.insert(session_id, UiaaSession { session_metadata, info: info.clone() });
 
 		Ok(info)
 	}
