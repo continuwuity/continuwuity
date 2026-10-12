@@ -1,4 +1,8 @@
-use std::{collections::HashSet, sync::Arc};
+use std::{
+	collections::{BTreeSet, HashSet},
+	pin::pin,
+	sync::Arc,
+};
 
 use conduwuit::{
 	Err, Event, Result, debug, info,
@@ -10,18 +14,27 @@ use ruma::{
 	OwnedEventId, OwnedRoomId, OwnedServerName, RoomId, ServerName, UInt, UserId,
 	api::{
 		client::space::SpaceHierarchyRoomsChunk,
-		federation::space::{SpaceHierarchyParentSummary, get_hierarchy},
+		error::ErrorKind,
+		federation::{
+			event::get_stripped_state,
+			space::{SpaceHierarchyParentSummary, get_hierarchy},
+		},
 	},
 	assign,
 	events::{
-		StateEventType,
+		AnyStrippedStateEvent, StateEventType,
+		room::member::MembershipState,
 		space::child::{HierarchySpaceChildEvent, SpaceChildEventContent},
 	},
-	room::{JoinRuleSummary, RestrictedSummary, RoomSummary, RoomType},
+	room::{JoinRule, RoomSummary, RoomType},
 	serde::Raw,
 };
 
-use crate::{Dep, rooms, sending};
+use crate::{
+	Dep, globals,
+	rooms::{self, membership::JoinConditionResult},
+	sending,
+};
 
 pub struct Service {
 	services: Services,
@@ -29,7 +42,8 @@ pub struct Service {
 
 struct Services {
 	event_handler: Dep<rooms::event_handler::Service>,
-	metadata: Dep<rooms::metadata::Service>,
+	globals: Dep<globals::Service>,
+	membership: Dep<rooms::membership::Service>,
 	sending: Dep<sending::Service>,
 	state: Dep<rooms::state::Service>,
 	state_accessor: Dep<rooms::state_accessor::Service>,
@@ -57,13 +71,21 @@ struct SpaceChild {
 	via: Vec<OwnedServerName>,
 }
 
+#[derive(Default)]
+#[non_exhaustive]
+pub struct RoomStrippedState {
+	pub state: Vec<Raw<AnyStrippedStateEvent>>,
+	pub num_joined_members: Option<UInt>,
+}
+
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
 			services: Services {
 				event_handler: args
 					.depend::<rooms::event_handler::Service>("rooms::event_handler"),
-				metadata: args.depend::<rooms::metadata::Service>("rooms::metadata"),
+				globals: args.depend::<globals::Service>("globals"),
+				membership: args.depend::<rooms::membership::Service>("rooms::membership"),
 				sending: args.depend::<sending::Service>("sending"),
 				state: args.depend::<rooms::state::Service>("rooms::state"),
 				state_accessor: args
@@ -92,7 +114,7 @@ impl Service {
 
 				summary
 			} else if let Some((SpaceHierarchyParentSummary { summary, .. }, _)) =
-				self.fetch_remote_summary(room_id, via, false).await?
+				self.fetch_remote_room_summary(room_id, via, false).await
 			{
 				// A via has this room.
 
@@ -105,7 +127,7 @@ impl Service {
 		};
 
 		// Check if the room is visible to the querying user.
-		if !self.user_may_see_summary(querying_user, &summary).await {
+		if !self.user_may_see_summary(querying_user, room_id).await {
 			return Ok(Accessibility::Inaccessible);
 		}
 
@@ -138,8 +160,8 @@ impl Service {
 					SpaceHierarchyParentSummary { summary, children_state, .. },
 					inaccessible_children,
 				)) = self
-					.fetch_remote_summary(room_id, via, suggested_only)
-					.await?
+					.fetch_remote_room_summary(room_id, via, suggested_only)
+					.await
 			{
 				// A via has this room.
 
@@ -152,10 +174,7 @@ impl Service {
 		};
 
 		// Check if the room is visible to the querying user.
-		if !self
-			.user_may_see_summary(querying_user, &summary.summary)
-			.await
-		{
+		if !self.user_may_see_summary(querying_user, room_id).await {
 			return Ok(Accessibility::Inaccessible);
 		}
 
@@ -312,7 +331,7 @@ impl Service {
 		};
 
 		// Check if the server can see the root room's summary
-		if !self.server_may_see_summary(querying_server, &summary).await {
+		if !self.server_may_see_summary(querying_server, room_id).await {
 			return Accessibility::Inaccessible;
 		}
 
@@ -331,7 +350,10 @@ impl Service {
 			.broad_then(async |child| {
 				let summary = {
 					if let Some(summary) = self.build_local_room_summary(&child.state_key).await {
-						if self.server_may_see_summary(querying_server, &summary).await {
+						if self
+							.server_may_see_summary(querying_server, &child.state_key)
+							.await
+						{
 							Accessibility::Accessible(summary)
 						} else {
 							Accessibility::Inaccessible
@@ -439,20 +461,14 @@ impl Service {
 	}
 
 	/// Query remote servers for the summary of a room.
-	async fn fetch_remote_summary(
+	async fn fetch_remote_room_summary(
 		&self,
 		room_id: &RoomId,
 		via: &[OwnedServerName],
 		suggested_only: bool,
-	) -> Result<Option<(SpaceHierarchyParentSummary, Vec<OwnedRoomId>)>> {
-		if self.services.metadata.is_disabled(room_id).await {
-			return Err!(Request(Forbidden("This room is blocked by this server.")));
-		}
-
+	) -> Option<(SpaceHierarchyParentSummary, Vec<OwnedRoomId>)> {
 		if via.is_empty() {
-			return Err!(Request(MissingParam(
-				"No servers were provided with which to query this room's summary."
-			)));
+			return None;
 		}
 
 		info!(%room_id, ?via, "Asking for room summary over federation");
@@ -477,7 +493,7 @@ impl Service {
 					}
 
 					info!(%room_id, %server, "Got room summary");
-					return Ok(Some((room, inaccessible_children)));
+					return Some((room, inaccessible_children));
 				},
 				| Err(err) => {
 					info!(%room_id, %server, %err, "Server could not provide a summary for this room");
@@ -486,7 +502,7 @@ impl Service {
 		}
 
 		info!(%room_id, "No servers queried could provide a summary for this room");
-		Ok(None)
+		None
 	}
 
 	/// Get the stripped m.space.child events of a room.
@@ -536,54 +552,207 @@ impl Service {
 			.await
 	}
 
+	pub async fn get_stripped_state_for_user(
+		&self,
+		querying_user: Option<&UserId>,
+		room_id: &RoomId,
+		via: &[OwnedServerName],
+		state: &BTreeSet<StateEventType>,
+		num_joined_members: bool,
+	) -> Accessibility<(OwnedServerName, RoomStrippedState)> {
+		if let Some(state) = self
+			.build_local_stripped_state(room_id, state, num_joined_members)
+			.await
+		{
+			if self.user_may_see_summary(querying_user, room_id).await {
+				Accessibility::Accessible((self.services.globals.server_name().to_owned(), state))
+			} else {
+				Accessibility::Inaccessible
+			}
+		} else {
+			self.fetch_remote_stripped_state(room_id, via, state, num_joined_members)
+				.await
+		}
+	}
+
+	pub async fn get_local_stripped_state_for_server(
+		&self,
+		querying_server: &ServerName,
+		room_id: &RoomId,
+		state: &BTreeSet<StateEventType>,
+		num_joined_members: bool,
+	) -> Accessibility<RoomStrippedState> {
+		if let Some(state) = self
+			.build_local_stripped_state(room_id, state, num_joined_members)
+			.await
+		{
+			if self.server_may_see_summary(querying_server, room_id).await {
+				Accessibility::Accessible(state)
+			} else {
+				Accessibility::Inaccessible
+			}
+		} else {
+			Accessibility::NotFound
+		}
+	}
+
+	async fn build_local_stripped_state(
+		&self,
+		room_id: &RoomId,
+		state: &BTreeSet<StateEventType>,
+		num_joined_members: bool,
+	) -> Option<RoomStrippedState> {
+		if !self
+			.services
+			.state_cache
+			.server_in_room(self.services.globals.server_name(), room_id)
+			.await
+		{
+			return None;
+		}
+
+		let current_shortstatehash = self
+			.services
+			.state
+			.get_room_shortstatehash(room_id)
+			.await
+			.expect("room should have state");
+
+		let state = state
+			.iter()
+			.stream()
+			.broad_flat_map(|event_type| {
+				self.services
+					.state_accessor
+					.state_keys_with_ids::<OwnedEventId>(current_shortstatehash, event_type)
+			})
+			.broad_filter_map(async |(_, event_id)| {
+				self.services.timeline.get_pdu(&event_id).ok().await
+			})
+			.ready_filter_map(|pdu| Some(pdu.into_format()))
+			.collect()
+			.await;
+
+		let num_joined_members = if num_joined_members {
+			Some(
+				self.services
+					.state_cache
+					.room_joined_count(room_id)
+					.await
+					.expect("room should have a joined count")
+					.try_into()
+					.expect("joined count should fit into uint"),
+			)
+		} else {
+			None
+		};
+
+		Some(RoomStrippedState { state, num_joined_members })
+	}
+
+	async fn fetch_remote_stripped_state(
+		&self,
+		room_id: &RoomId,
+		via: &[OwnedServerName],
+		state: &BTreeSet<StateEventType>,
+		num_joined_members: bool,
+	) -> Accessibility<(OwnedServerName, RoomStrippedState)> {
+		if via.is_empty() {
+			return Accessibility::NotFound;
+		}
+
+		let request = assign!(get_stripped_state::unstable::Request::new(room_id.to_owned()), {
+			state: state.to_owned(),
+			num_joined_members
+		});
+
+		let mut responses = pin!(via.iter().stream().broad_then(async |server| {
+			match self
+				.services
+				.sending
+				.send_federation_request(server, request.clone())
+				.await
+			{
+				| Ok(response) => Accessibility::Accessible((server.to_owned(), response)),
+				| Err(err) => match err.kind() {
+					| ErrorKind::Forbidden => Accessibility::Inaccessible,
+					| _ => Accessibility::NotFound,
+				},
+			}
+		}));
+
+		let mut got_inaccessible = false;
+
+		while let Some(response) = responses.next().await {
+			match response {
+				| Accessibility::Accessible((server, response)) => {
+					return Accessibility::Accessible((server, RoomStrippedState {
+						state: response.state,
+						num_joined_members: response.num_joined_members,
+					}));
+				},
+				| Accessibility::Inaccessible => {
+					got_inaccessible = true;
+				},
+				| Accessibility::NotFound => {
+					continue;
+				},
+			}
+		}
+
+		if got_inaccessible {
+			Accessibility::Inaccessible
+		} else {
+			Accessibility::NotFound
+		}
+	}
+
 	/// Determine if a user (possibly anonymous) may view a room summary.
 	async fn user_may_see_summary(
 		&self,
 		querying_user: Option<&UserId>,
-		summary: &RoomSummary,
+		room_id: &RoomId,
 	) -> bool {
 		// Anyone can view the summary of world-readable rooms.
-		if summary.world_readable {
-			return true;
-		}
-
-		// If the user is joined or invited they may always view the summary.
-		if let Some(querying_user) = querying_user
-			&& (self
-				.services
-				.state_cache
-				.is_joined(querying_user, &summary.room_id)
-				.await
-				|| self
-					.services
-					.state_cache
-					.is_invited(querying_user, &summary.room_id)
-					.await)
+		if self
+			.services
+			.state_accessor
+			.is_world_readable(room_id)
+			.await
 		{
 			return true;
 		}
 
+		// If the user is joined or invited they may always view the summary.
+		if let Some(querying_user) = querying_user {
+			let membership = self
+				.services
+				.state_accessor
+				.get_member(room_id, querying_user)
+				.await
+				.ok()
+				.map_or_else(|| MembershipState::Leave, |content| content.membership);
+
+			if matches!(membership, MembershipState::Join | MembershipState::Invite) {
+				return true;
+			}
+		}
+
 		// Otherwise, visibility depends on the join rule.
-		match (&summary.join_rule, querying_user) {
+		let join_rule = self.services.state_accessor.get_join_rules(room_id).await;
+
+		match (join_rule, querying_user) {
 			// Anyone can view summaries for `public`, `knock`, and `knock_restricted` rooms.
-			| (
-				JoinRuleSummary::Public
-				| JoinRuleSummary::Knock
-				| JoinRuleSummary::KnockRestricted(_),
-				_,
-			) => true,
+			| (JoinRule::Public | JoinRule::Knock | JoinRule::KnockRestricted(_), _) => true,
 
 			// The user may be able to view the summary for a `restricted` room, even if they
-			// aren't invited, provided they're in one of the allowed rooms.
-			| (
-				JoinRuleSummary::Restricted(RestrictedSummary { allowed_room_ids, .. }),
-				Some(querying_user),
-			) =>
+			// aren't invited, provided they fulfill the join rules.
+			| (JoinRule::Restricted(conditions), Some(querying_user)) =>
 				self.services
-					.state_cache
-					.rooms_joined(querying_user)
-					.ready_any(|room_id| allowed_room_ids.contains(&room_id))
-					.await,
+					.membership
+					.evaluate_join_conditions(room_id, querying_user.into(), &conditions)
+					.await
+					== JoinConditionResult::Satisfied,
 
 			// In all other cases, the user may not view the summary.
 			| _ => false,
@@ -594,13 +763,13 @@ impl Service {
 	async fn server_may_see_summary(
 		&self,
 		querying_server: &ServerName,
-		summary: &RoomSummary,
+		room_id: &RoomId,
 	) -> bool {
 		// Servers may not see summaries of rooms they're ACLed from.
 		if self
 			.services
 			.event_handler
-			.acl_check(querying_server, &summary.room_id)
+			.acl_check(querying_server, room_id)
 			.await
 			.is_err()
 		{
@@ -613,32 +782,27 @@ impl Service {
 		if self
 			.services
 			.state_cache
-			.server_in_room(querying_server, &summary.room_id)
+			.server_in_room(querying_server, room_id)
 			.await
 		{
 			return true;
 		}
 
-		// For restricted rooms, federation responses must include the summary
-		// when a user on the querying server can satisfy one of the join
-		// conditions.
-		if let JoinRuleSummary::Restricted(RestrictedSummary { allowed_room_ids, .. }) =
-			&summary.join_rule
-		{
-			for room_id in allowed_room_ids {
-				if self
-					.services
-					.state_cache
-					.server_in_room(querying_server, room_id)
-					.await
-				{
-					return true;
-				}
-			}
+		let join_rule = self.services.state_accessor.get_join_rules(room_id).await;
+
+		// Servers may see summaries in restricted rooms if they satisfy the
+		// join conditions.
+		if let JoinRule::Restricted(conditions) = join_rule {
+			return self
+				.services
+				.membership
+				.evaluate_join_conditions(room_id, querying_server.into(), &conditions)
+				.await
+				== JoinConditionResult::Satisfied;
 		}
 
 		// If the server isn't in the room, the same visibility rules apply as
 		// for anonymous summary requests.
-		self.user_may_see_summary(None, summary).await
+		self.user_may_see_summary(None, room_id).await
 	}
 }

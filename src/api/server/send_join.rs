@@ -20,7 +20,7 @@ use ruma::{
 	room_version_rules::RoomVersionRules,
 };
 use serde_json::value::to_raw_value;
-use service::rooms::membership::JoinConditionResult;
+use service::rooms::membership::{JoinConditionEntity, JoinConditionResult};
 
 use crate::{Ruma, server::utils::validate_any_membership_event};
 
@@ -123,7 +123,11 @@ async fn create_join_event(
 			match services
 				.rooms
 				.membership
-				.evaluate_join_conditions(room_id, &sender, &conditions)
+				.evaluate_join_conditions(
+					room_id,
+					JoinConditionEntity::User(&sender),
+					&conditions,
+				)
 				.await
 			{
 				| JoinConditionResult::Satisfied => {

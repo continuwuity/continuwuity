@@ -13,7 +13,7 @@ use ruma::{
 	},
 };
 use serde_json::value::to_raw_value;
-use service::rooms::membership::JoinConditionResult;
+use service::rooms::membership::{JoinConditionEntity, JoinConditionResult};
 
 use crate::Ruma;
 
@@ -95,7 +95,11 @@ pub(crate) async fn create_join_event_template_route(
 				match services
 					.rooms
 					.membership
-					.evaluate_join_conditions(&body.room_id, &body.user_id, &conditions)
+					.evaluate_join_conditions(
+						&body.room_id,
+						JoinConditionEntity::User(&body.user_id),
+						&conditions,
+					)
 					.await
 				{
 					| JoinConditionResult::Satisfied => {

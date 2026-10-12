@@ -15,7 +15,7 @@ use database::Database;
 use futures::{FutureExt, StreamExt, TryFutureExt, join};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedRoomId, OwnedServerName, OwnedUserId, RoomId,
-	RoomVersionId, UserId,
+	RoomVersionId, ServerName, UserId,
 	api::{
 		error::{ErrorKind, IncompatibleRoomVersionErrorData},
 		federation,
@@ -50,6 +50,20 @@ pub enum JoinConditionResult {
 	Unsatisfied,
 	/// The local server could not check all join conditions.
 	UnableToAuthorizeJoin,
+}
+
+#[derive(Copy, Clone, Debug)]
+pub enum JoinConditionEntity<'id> {
+	User(&'id UserId),
+	Server(&'id ServerName),
+}
+
+impl<'id> From<&'id UserId> for JoinConditionEntity<'id> {
+	fn from(value: &'id UserId) -> Self { Self::User(value) }
+}
+
+impl<'id> From<&'id ServerName> for JoinConditionEntity<'id> {
+	fn from(value: &'id ServerName) -> Self { Self::Server(value) }
 }
 
 pub struct Service {
@@ -250,7 +264,7 @@ impl Service {
 				// This is a restricted room, check if we can complete the join
 				// requirements locally.
 				if self
-					.evaluate_join_conditions(room_id, sender_user, conditions)
+					.evaluate_join_conditions(room_id, sender_user.into(), conditions)
 					.await
 					== JoinConditionResult::Satisfied
 				{
@@ -834,7 +848,7 @@ impl Service {
 	pub async fn evaluate_join_conditions(
 		&self,
 		room_id: &RoomId,
-		user_id: &UserId,
+		entity: JoinConditionEntity<'_>,
 		conditions: &Restricted,
 	) -> JoinConditionResult {
 		if conditions.allow.is_empty() {
@@ -845,7 +859,7 @@ impl Service {
 		let mut unable_to_authorize = false;
 
 		for rule in &conditions.allow {
-			match self.evaluate_allow_rule(room_id, user_id, rule).await {
+			match self.evaluate_allow_rule(room_id, entity, rule).await {
 				| JoinConditionResult::Satisfied => {
 					// This allow rule is satisfied, the user can join.
 					return JoinConditionResult::Satisfied;
@@ -879,7 +893,7 @@ impl Service {
 	async fn evaluate_allow_rule(
 		&self,
 		room_id: &RoomId,
-		user_id: &UserId,
+		entity: JoinConditionEntity<'_>,
 		rule: &AllowRule,
 	) -> JoinConditionResult {
 		match rule {
@@ -890,17 +904,25 @@ impl Service {
 					.server_in_room(self.services.globals.server_name(), condition_room)
 					.await
 				{
-					if self
-						.services
-						.state_cache
-						.is_joined(user_id, condition_room)
-						.await
-					{
+					let is_joined = match entity {
+						| JoinConditionEntity::User(user_id) =>
+							self.services
+								.state_cache
+								.is_joined(user_id, condition_room)
+								.await,
+						| JoinConditionEntity::Server(server) =>
+							self.services
+								.state_cache
+								.server_in_room(server, room_id)
+								.await,
+					};
+
+					if is_joined {
 						debug!(
-							?user_id,
+							?entity,
 							?room_id,
 							?condition_room,
-							"User may join via membership in {condition_room}"
+							"Entity may join via membership"
 						);
 						JoinConditionResult::Satisfied
 					} else {
@@ -910,14 +932,22 @@ impl Service {
 					JoinConditionResult::UnableToAuthorizeJoin
 				}
 			},
-			| other if other.rule_type() == "fi.mau.spam_checker" =>
-				self.services
-					.antispam
-					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
-					.await,
+			| other if other.rule_type() == "fi.mau.spam_checker" => {
+				if let JoinConditionEntity::User(user_id) = entity {
+					self.services
+						.antispam
+						.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
+						.await
+				} else {
+					// We can't currently check server names against the spam
+					// checker, so we just assume that they
+					// can't access the room for now.
+					JoinConditionResult::Unsatisfied
+				}
+			},
 			| unknown => {
 				debug!(
-					?user_id,
+					?entity,
 					?room_id,
 					rule_type = unknown.rule_type(),
 					"Could not check unknown allow rule"

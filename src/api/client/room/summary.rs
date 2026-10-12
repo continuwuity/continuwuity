@@ -13,7 +13,7 @@ pub(crate) async fn get_room_summary(
 	State(services): State<crate::State>,
 	body: Ruma<get_summary::v1::Request>,
 ) -> Result<get_summary::v1::Response> {
-	let (room_id, servers) = services
+	let (room_id, _) = services
 		.rooms
 		.alias
 		.resolve_with_servers(&body.room_id_or_alias, Some(body.via.clone()))
@@ -27,12 +27,9 @@ pub(crate) async fn get_room_summary(
 		.rooms
 		.summary
 		.get_room_summary_for_user(
-			body.identity
-				.as_ref()
-				.map(ClientIdentity::expect_sender_user)
-				.transpose()?,
+			body.identity.as_ref().and_then(ClientIdentity::sender_user),
 			&room_id,
-			&servers,
+			&body.via,
 		)
 		.await?;
 
