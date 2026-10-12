@@ -18,6 +18,8 @@ export default defineConfig({
     markdown: {
         link: {
             checkDeadLinks: {
+                // exclude files in the `docs/public` folder from dead link checking
+                // (they are linked to without the `/public` prefix)
                 excludes: [
                     '/deploying/docker-compose.with-caddy.yml',
                     '/deploying/docker-compose.with-caddy-labels.yml',
@@ -32,6 +34,7 @@ export default defineConfig({
                     '/calls/livekit.docker-compose.with-caddy-labels.yml',
                     '/calls/livekit.nginx.conf',
                     '/guides/grafana-dashboard.json',
+                    '/guides/push-notifications.excalidraw',
                     'CONTRIBUTING.md'
                 ]
             },
