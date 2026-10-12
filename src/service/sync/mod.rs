@@ -8,7 +8,7 @@ use futures::StreamExt;
 use ruma::{
 	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::sync::sync_events::v5,
 };
-use tokio::sync::{Mutex, watch};
+use tokio::sync::watch;
 
 use crate::{Dep, rooms};
 
@@ -71,28 +71,27 @@ pub type SnakeConnectionsKey = (OwnedUserId, OwnedDeviceId, Option<String>);
 type SnakeConnectionsVal = Arc<SyncMutex<SnakeSyncCache>>;
 
 #[derive(Default)]
-struct Wakers(Mutex<HashMap<OwnedUserId, watch::Sender<u64>>>);
+struct Wakers(SyncMutex<HashMap<OwnedUserId, watch::Sender<u64>>>);
 
 impl Wakers {
-	async fn subscribe(&self, user: &UserId) -> watch::Receiver<u64> {
+	fn subscribe(&self, user: &UserId) -> watch::Receiver<u64> {
 		self.0
 			.lock()
-			.await
 			.entry(user.to_owned())
 			.or_insert_with(|| watch::channel(0).0)
 			.subscribe()
 	}
 
-	async fn wake(&self, user: &UserId) {
-		let mut wakers = self.0.lock().await;
+	fn wake(&self, user: &UserId) {
+		let mut wakers = self.0.lock();
 		wake_waker(&mut wakers, user);
 	}
 
-	async fn wake_all<I>(&self, users: I)
+	fn wake_all<I>(&self, users: I)
 	where
-		I: IntoIterator<Item = OwnedUserId> + Send,
+		I: IntoIterator<Item = OwnedUserId>,
 	{
-		let mut wakers = self.0.lock().await;
+		let mut wakers = self.0.lock();
 		for user in users {
 			wake_waker(&mut wakers, &user);
 		}
@@ -129,8 +128,8 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn subscribe_to_wake(&self, user: &UserId) -> watch::Receiver<u64> {
-		self.wakers.subscribe(user).await
+	pub fn subscribe_to_wake(&self, user: &UserId) -> watch::Receiver<u64> {
+		self.wakers.subscribe(user)
 	}
 
 	/// Wake the target user's sync loop. Call this when something
@@ -143,7 +142,7 @@ impl Service {
 	pub async fn wake(&self, user: &UserId) {
 		trace!(?user, "Waking user's sync loops");
 
-		self.wakers.wake(user).await;
+		self.wakers.wake(user);
 	}
 
 	/// Wake all of our users who are joined to the specified room.
@@ -156,7 +155,7 @@ impl Service {
 			.collect()
 			.await;
 
-		self.wakers.wake_all(users).await;
+		self.wakers.wake_all(users);
 	}
 
 	pub fn snake_connection_cached(&self, key: &SnakeConnectionsKey) -> bool {
@@ -359,11 +358,11 @@ mod tests {
 	async fn wake_after_subscription_is_observable() {
 		let wakers = Wakers::default();
 		let user = UserId::parse("@alice:example.com").unwrap();
-		let mut receiver = wakers.subscribe(&user).await;
+		let mut receiver = wakers.subscribe(&user);
 		let generation = *receiver.borrow_and_update();
 
-		wakers.wake(&user).await;
-		wakers.wake(&user).await;
+		wakers.wake(&user);
+		wakers.wake(&user);
 
 		receiver.changed().await.unwrap();
 		assert_eq!(*receiver.borrow_and_update(), generation.wrapping_add(2));
@@ -373,10 +372,10 @@ mod tests {
 	async fn wake_notifies_all_subscribers() {
 		let wakers = Wakers::default();
 		let user = UserId::parse("@alice:example.com").unwrap();
-		let mut first = wakers.subscribe(&user).await;
-		let mut second = wakers.subscribe(&user).await;
+		let mut first = wakers.subscribe(&user);
+		let mut second = wakers.subscribe(&user);
 
-		wakers.wake(&user).await;
+		wakers.wake(&user);
 
 		first.changed().await.unwrap();
 		second.changed().await.unwrap();
@@ -387,24 +386,24 @@ mod tests {
 		let wakers = Wakers::default();
 		let user = UserId::parse("@alice:example.com").unwrap();
 
-		wakers.wake(&user).await;
-		assert!(wakers.0.lock().await.is_empty());
+		wakers.wake(&user);
+		assert!(wakers.0.lock().is_empty());
 
-		drop(wakers.subscribe(&user).await);
-		assert_eq!(wakers.0.lock().await.len(), 1);
+		drop(wakers.subscribe(&user));
+		assert_eq!(wakers.0.lock().len(), 1);
 
-		wakers.wake(&user).await;
-		assert!(wakers.0.lock().await.is_empty());
+		wakers.wake(&user);
+		assert!(wakers.0.lock().is_empty());
 	}
 
 	#[tokio::test]
 	async fn subscriber_still_woken_after_a_sibling_disconnects() {
 		let wakers = Wakers::default();
 		let user = UserId::parse("@alice:example.com").unwrap();
-		let mut receiver = wakers.subscribe(&user).await;
-		drop(wakers.subscribe(&user).await);
+		let mut receiver = wakers.subscribe(&user);
+		drop(wakers.subscribe(&user));
 
-		wakers.wake(&user).await;
+		wakers.wake(&user);
 
 		receiver.changed().await.unwrap();
 	}

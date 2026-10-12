@@ -270,7 +270,6 @@ impl Service {
 			.services
 			.appservice
 			.read()
-			.await
 			.values()
 			.filter(|appservice| appservice.registration.receive_ephemeral && filter(appservice))
 			.cloned()

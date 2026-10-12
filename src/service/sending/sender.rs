@@ -810,7 +810,7 @@ impl Service {
 		id: String,
 		events: Vec<SendingEvent>,
 	) -> SendingResult {
-		let Some(appservice) = self.services.appservice.get_registration(&id).await else {
+		let Some(appservice) = self.services.appservice.get_registration(&id) else {
 			return Err((
 				Destination::Appservice(id.clone()),
 				Box::new(err!(Database(warn!(?id, "Missing appservice registration")))),

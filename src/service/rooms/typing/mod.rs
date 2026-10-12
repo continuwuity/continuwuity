@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, sync::Arc};
 
 use conduwuit::{
-	Result, Server, debug_info,
+	Result, Server, SyncRwLock, debug_info,
 	result::LogErr,
 	utils::{self, IterStream},
 };
@@ -14,7 +14,6 @@ use ruma::{
 	},
 	events::{EphemeralRoomEvent, SyncEphemeralRoomEvent, typing::TypingEventContent},
 };
-use tokio::sync::RwLock;
 
 use crate::{Dep, globals, sending, sending::EduBuf, sync, users};
 
@@ -22,9 +21,9 @@ pub struct Service {
 	server: Arc<Server>,
 	services: Services,
 	/// u64 is unix timestamp of timeout
-	pub typing: RwLock<BTreeMap<OwnedRoomId, BTreeMap<OwnedUserId, u64>>>,
+	pub typing: SyncRwLock<BTreeMap<OwnedRoomId, BTreeMap<OwnedUserId, u64>>>,
 	/// timestamp of the last change to typing users
-	pub last_typing_update: RwLock<BTreeMap<OwnedRoomId, u64>>,
+	pub last_typing_update: SyncRwLock<BTreeMap<OwnedRoomId, u64>>,
 }
 
 struct Services {
@@ -44,8 +43,8 @@ impl crate::Service for Service {
 				sync: args.depend::<sync::Service>("sync"),
 				users: args.depend::<users::Service>("users"),
 			},
-			typing: RwLock::new(BTreeMap::new()),
-			last_typing_update: RwLock::new(BTreeMap::new()),
+			typing: SyncRwLock::new(BTreeMap::new()),
+			last_typing_update: SyncRwLock::new(BTreeMap::new()),
 		}))
 	}
 
@@ -65,14 +64,12 @@ impl Service {
 		// update clients
 		self.typing
 			.write()
-			.await
 			.entry(room_id.to_owned())
 			.or_default()
 			.insert(user_id.to_owned(), timeout);
 
 		self.last_typing_update
 			.write()
-			.await
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
 		self.services.sync.wake_all_joined(room_id).await;
@@ -94,14 +91,12 @@ impl Service {
 		// update clients
 		self.typing
 			.write()
-			.await
 			.entry(room_id.to_owned())
 			.or_default()
 			.remove(user_id);
 
 		self.last_typing_update
 			.write()
-			.await
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
 		self.services.sync.wake_all_joined(room_id).await;
@@ -123,7 +118,7 @@ impl Service {
 		let mut removable = Vec::new();
 
 		{
-			let typing = self.typing.read().await;
+			let typing = self.typing.read();
 			let Some(room) = typing.get(room_id) else {
 				return Ok(());
 			};
@@ -139,7 +134,7 @@ impl Service {
 			return Ok(());
 		}
 		{
-			let mut typing = self.typing.write().await;
+			let mut typing = self.typing.write();
 			let room = typing.entry(room_id.to_owned()).or_default();
 			for user in &removable {
 				debug_info!("typing timeout {user:?} in {room_id:?}");
@@ -150,7 +145,6 @@ impl Service {
 		// update clients
 		self.last_typing_update
 			.write()
-			.await
 			.insert(room_id.to_owned(), self.services.globals.next_count()?);
 
 		self.services.sync.wake_all_joined(room_id).await;
@@ -174,15 +168,14 @@ impl Service {
 		Ok(self
 			.last_typing_update
 			.read()
-			.await
 			.get(room_id)
 			.copied()
 			.unwrap_or(0))
 	}
 
 	/// Returns a new typing EDU's content.
-	pub async fn typings_content(&self, room_id: &RoomId) -> TypingEventContent {
-		let room_typing_indicators = self.typing.read().await.get(room_id).cloned();
+	pub fn typings_content(&self, room_id: &RoomId) -> TypingEventContent {
+		let room_typing_indicators = self.typing.read().get(room_id).cloned();
 
 		let Some(typing_indicators) = room_typing_indicators else {
 			return TypingEventContent::new(Vec::new());
@@ -203,7 +196,7 @@ impl Service {
 		room_id: &RoomId,
 		sender_user: &UserId,
 	) -> Result<Vec<OwnedUserId>> {
-		let room_typing_indicators = self.typing.read().await.get(room_id).cloned();
+		let room_typing_indicators = self.typing.read().get(room_id).cloned();
 
 		let Some(typing_indicators) = room_typing_indicators else {
 			return Ok(Vec::new());
@@ -265,7 +258,7 @@ impl Service {
 	async fn appservice_send(&self, room_id: &RoomId) -> Result<()> {
 		let edu = EphemeralData::Typing(EphemeralRoomEvent::new(
 			room_id.to_owned(),
-			self.typings_content(room_id).await,
+			self.typings_content(room_id),
 		));
 
 		let mut buf = EduBuf::new();

@@ -201,7 +201,7 @@ pub(crate) async fn sync_events_route(
 		.update_device_last_seen(sender_user, Some(sender_device), client_ip)
 		.await;
 
-	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user).await;
+	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user);
 	let response = build_sync_events(&services, &body).await?;
 	if body.body.full_state
 		|| !(response.rooms.is_empty()

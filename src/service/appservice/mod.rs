@@ -1,20 +1,19 @@
 mod namespace_regex;
 mod registration_info;
 
-use std::{collections::BTreeMap, iter::IntoIterator, sync::Arc};
+use std::{collections::BTreeMap, sync::Arc};
 
 use async_trait::async_trait;
-use conduwuit::{Err, Result, err, utils::stream::IterStream};
+use conduwuit::{Err, Result, SyncRwLock, SyncRwLockReadGuard, err, utils::stream::IterStream};
 use database::Map;
-use futures::{Future, FutureExt, Stream, TryStreamExt};
+use futures::{Stream, TryStreamExt};
 use ruma::{RoomAliasId, RoomId, UserId, api::appservice::Registration};
-use tokio::sync::{RwLock, RwLockReadGuard};
 
 pub use self::{namespace_regex::NamespaceRegex, registration_info::RegistrationInfo};
 use crate::{Dep, globals, sending, users};
 
 pub struct Service {
-	registration_info: RwLock<Registrations>,
+	registration_info: SyncRwLock<Registrations>,
 	services: Services,
 	db: Data,
 }
@@ -35,7 +34,7 @@ type Registrations = BTreeMap<String, RegistrationInfo>;
 impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		Ok(Arc::new(Self {
-			registration_info: RwLock::new(BTreeMap::new()),
+			registration_info: SyncRwLock::new(BTreeMap::new()),
 			services: Services {
 				globals: args.depend::<globals::Service>("globals"),
 				sending: args.depend::<sending::Service>("sending"),
@@ -123,7 +122,6 @@ impl Service {
 
 		self.registration_info
 			.write()
-			.await
 			.insert(id, registration.try_into()?);
 
 		Ok(())
@@ -139,7 +137,7 @@ impl Service {
 
 		// Check for token collision with other appservices (allow
 		// re-registration of same appservice)
-		if let Ok(existing) = self.find_from_token(&registration.as_token).await {
+		if let Ok(existing) = self.find_from_token(&registration.as_token) {
 			if existing.registration.id != registration.id {
 				return Err(err!(Request(InvalidParam(
 					"Cannot register appservice: Token is already used by appservice '{}'. \
@@ -182,7 +180,6 @@ impl Service {
 		// removes the appservice registration info
 		self.registration_info
 			.write()
-			.await
 			.remove(appservice_id)
 			.ok_or_else(|| err!("Appservice not found"))?;
 
@@ -197,19 +194,17 @@ impl Service {
 			.await
 	}
 
-	pub async fn get_registration(&self, id: &str) -> Option<Registration> {
+	pub fn get_registration(&self, id: &str) -> Option<Registration> {
 		self.registration_info
 			.read()
-			.await
 			.get(id)
 			.cloned()
 			.map(|info| info.registration)
 	}
 
 	/// Returns Result to match users::find_from_token for select_ok usage
-	pub async fn find_from_token(&self, token: &str) -> Result<RegistrationInfo> {
+	pub fn find_from_token(&self, token: &str) -> Result<RegistrationInfo> {
 		self.read()
-			.await
 			.values()
 			.find(|info| info.registration.as_token == token)
 			.cloned()
@@ -217,26 +212,21 @@ impl Service {
 	}
 
 	/// Checks if a given user id matches any exclusive appservice regex
-	pub async fn is_exclusive_user_id(&self, user_id: &UserId) -> bool {
+	pub fn is_exclusive_user_id(&self, user_id: &UserId) -> bool {
 		self.read()
-			.await
 			.values()
 			.any(|info| info.is_exclusive_user_match(user_id))
 	}
 
 	/// Checks if a given user id matches any appservice regex, exclusive or
 	/// otherwise
-	pub async fn is_user_id(&self, user_id: &UserId) -> bool {
-		self.read()
-			.await
-			.values()
-			.any(|info| info.is_user_match(user_id))
+	pub fn is_user_id(&self, user_id: &UserId) -> bool {
+		self.read().values().any(|info| info.is_user_match(user_id))
 	}
 
 	/// Checks if a given room alias matches any exclusive appservice regex
-	pub async fn is_exclusive_alias(&self, alias: &RoomAliasId) -> bool {
+	pub fn is_exclusive_alias(&self, alias: &RoomAliasId) -> bool {
 		self.read()
-			.await
 			.values()
 			.any(|info| info.aliases.is_exclusive_match(alias.as_str()))
 	}
@@ -245,19 +235,15 @@ impl Service {
 	///
 	/// TODO: use this?
 	#[allow(dead_code)]
-	pub async fn is_exclusive_room_id(&self, room_id: &RoomId) -> bool {
+	pub fn is_exclusive_room_id(&self, room_id: &RoomId) -> bool {
 		self.read()
-			.await
 			.values()
 			.any(|info| info.rooms.is_exclusive_match(room_id.as_str()))
 	}
 
 	pub fn iter_ids(&self) -> impl Stream<Item = String> + Send {
-		self.read()
-			.map(|info| info.keys().cloned().collect::<Vec<_>>())
-			.map(IntoIterator::into_iter)
-			.map(IterStream::stream)
-			.flatten_stream()
+		let ids: Vec<String> = self.read().keys().cloned().collect();
+		ids.stream()
 	}
 
 	pub fn iter_db_ids(&self) -> impl Stream<Item = Result<(String, Registration)>> + Send {
@@ -281,7 +267,5 @@ impl Service {
 			})
 	}
 
-	pub fn read(&self) -> impl Future<Output = RwLockReadGuard<'_, Registrations>> + Send {
-		self.registration_info.read()
-	}
+	pub fn read(&self) -> SyncRwLockReadGuard<'_, Registrations> { self.registration_info.read() }
 }

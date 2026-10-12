@@ -269,18 +269,26 @@ impl Service {
 	) -> Result<Option<OwnedRoomId>> {
 		use ruma::api::appservice::query::query_room_alias;
 
-		for appservice in self.services.appservice.read().await.values() {
-			if appservice.aliases.is_match(room_alias.as_str())
-				&& matches!(
-					self.services
-						.sending
-						.send_appservice_request(
-							appservice.registration.clone(),
-							query_room_alias::v1::Request::new(room_alias.to_owned()),
-						)
-						.await,
-					Ok(Some(_opt_result))
-				) {
+		let matching_appservices: Vec<_> = self
+			.services
+			.appservice
+			.read()
+			.values()
+			.filter(|appservice| appservice.aliases.is_match(room_alias.as_str()))
+			.cloned()
+			.collect();
+
+		for appservice in matching_appservices {
+			if matches!(
+				self.services
+					.sending
+					.send_appservice_request(
+						appservice.registration.clone(),
+						query_room_alias::v1::Request::new(room_alias.to_owned()),
+					)
+					.await,
+				Ok(Some(_opt_result))
+			) {
 				return self
 					.resolve_local_alias(room_alias)
 					.await
@@ -292,7 +300,7 @@ impl Service {
 		Ok(None)
 	}
 
-	pub async fn appservice_checks(
+	pub fn appservice_checks(
 		&self,
 		room_alias: &RoomAliasId,
 		appservice_info: Option<&RegistrationInfo>,
@@ -309,12 +317,7 @@ impl Service {
 			if !info.aliases.is_match(room_alias.as_str()) {
 				return Err!(Request(Exclusive("Room alias is not in namespace.")));
 			}
-		} else if self
-			.services
-			.appservice
-			.is_exclusive_alias(room_alias)
-			.await
-		{
+		} else if self.services.appservice.is_exclusive_alias(room_alias) {
 			return Err!(Request(Exclusive("Room alias reserved by appservice.")));
 		}
 

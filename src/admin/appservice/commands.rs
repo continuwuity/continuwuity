@@ -1,4 +1,4 @@
-use conduwuit::{Err, Result, checked};
+use conduwuit::{Err, Result, checked, utils::ReadyExt};
 use futures::{FutureExt, StreamExt, TryFutureExt};
 
 impl crate::Context<'_> {
@@ -49,7 +49,6 @@ impl crate::Context<'_> {
 			.services
 			.appservice
 			.get_registration(&appservice_identifier)
-			.await
 		{
 			| None => return Err!("Appservice does not exist."),
 			| Some(config) => {
@@ -78,12 +77,11 @@ impl crate::Context<'_> {
 		self.services
 			.users
 			.stream_local_users()
-			.filter_map(async |user_id| {
-				if self.services.appservice.is_user_id(&user_id).await {
-					Some(user_id)
-				} else {
-					None
-				}
+			.ready_filter_map(|user_id| {
+				self.services
+					.appservice
+					.is_user_id(&user_id)
+					.then_some(user_id)
 			})
 			.for_each(async |user_id| {
 				self.services

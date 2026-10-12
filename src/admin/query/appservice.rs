@@ -24,7 +24,7 @@ pub(super) async fn process(subcommand: AppserviceCommand, context: &Context<'_>
 	match subcommand {
 		| AppserviceCommand::GetRegistration { appservice_id } => {
 			let timer = tokio::time::Instant::now();
-			let results = services.appservice.get_registration(&appservice_id).await;
+			let results = services.appservice.get_registration(&appservice_id);
 
 			let query_time = timer.elapsed();
 

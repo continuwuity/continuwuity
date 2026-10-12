@@ -175,13 +175,7 @@ impl super::Service {
 		}
 
 		// Check for token collision with appservices
-		if self
-			.services
-			.appservice
-			.find_from_token(&token)
-			.await
-			.is_ok()
-		{
+		if self.services.appservice.find_from_token(&token).is_ok() {
 			return Err!(Request(InvalidParam(
 				"Token conflicts with an existing appservice token"
 			)));

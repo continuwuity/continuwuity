@@ -20,8 +20,7 @@ pub(crate) async fn create_alias_route(
 	services
 		.rooms
 		.alias
-		.appservice_checks(&body.room_alias, body.identity.appservice_info())
-		.await?;
+		.appservice_checks(&body.room_alias, body.identity.appservice_info())?;
 
 	// this isn't apart of alias_checks or delete alias route because we should
 	// allow removing forbidden room aliases
@@ -69,8 +68,7 @@ pub(crate) async fn delete_alias_route(
 	services
 		.rooms
 		.alias
-		.appservice_checks(&body.room_alias, body.identity.appservice_info())
-		.await?;
+		.appservice_checks(&body.room_alias, body.identity.appservice_info())?;
 
 	services
 		.rooms

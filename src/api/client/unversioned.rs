@@ -64,7 +64,7 @@ pub(crate) async fn continuwuity_local_user_count(
 		.stream_local_users()
 		.filter_map(async |user_id| {
 			if !services.users.status(&user_id).await.is_active()
-				|| services.appservice.is_exclusive_user_id(&user_id).await
+				|| services.appservice.is_exclusive_user_id(&user_id)
 			{
 				None
 			} else {
