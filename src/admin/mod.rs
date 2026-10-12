@@ -39,17 +39,13 @@ conduwuit::mod_dtor! {}
 pub use crate::admin::AdminCommand;
 
 /// Install the admin command processor
-pub async fn init(admin_service: &service::admin::Service) {
+pub fn init(admin_service: &service::admin::Service) {
 	_ = admin_service.complete.write().insert(processor::complete);
-	_ = admin_service
-		.handle
-		.write()
-		.await
-		.insert(processor::dispatch);
+	_ = admin_service.handle.write().insert(processor::dispatch);
 }
 
 /// Uninstall the admin command handler
-pub async fn fini(admin_service: &service::admin::Service) {
-	_ = admin_service.handle.write().await.take();
+pub fn fini(admin_service: &service::admin::Service) {
+	_ = admin_service.handle.write().take();
 	_ = admin_service.complete.write().take();
 }

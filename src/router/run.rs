@@ -25,7 +25,7 @@ pub(crate) async fn run(services: Arc<Services>) -> Result<()> {
 	debug!("Start");
 
 	// Install the admin room callback here for now
-	admin::init(&services.admin).await;
+	admin::init(&services.admin);
 
 	// Setup shutdown/signal handling
 	let handle = ServerHandle::new();
@@ -60,7 +60,7 @@ pub(crate) async fn run(services: Arc<Services>) -> Result<()> {
 	_ = sigs.await;
 
 	// Remove the admin room callback
-	admin::fini(&services.admin).await;
+	admin::fini(&services.admin);
 
 	debug_info!("Finish");
 	res
