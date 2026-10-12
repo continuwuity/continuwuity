@@ -27,7 +27,6 @@ use ruma::{
 		},
 	},
 };
-use tokio::sync::RwLock;
 
 use crate::{
 	Dep, account_data, config, globals,
@@ -38,7 +37,7 @@ use crate::{
 pub struct Service {
 	services: Services,
 	channel: (Sender<CommandInput>, Receiver<CommandInput>),
-	pub handle: RwLock<Option<Processor>>,
+	pub handle: SyncRwLock<Option<Processor>>,
 	pub complete: SyncRwLock<Option<Completer>>,
 	#[cfg(feature = "console")]
 	pub console: Arc<console::Console>,
@@ -131,7 +130,7 @@ impl crate::Service for Service {
 				media: args.depend::<crate::media::Service>("media"),
 			},
 			channel: loole::bounded(COMMAND_QUEUE_LIMIT),
-			handle: RwLock::new(None),
+			handle: SyncRwLock::new(None),
 			complete: SyncRwLock::new(None),
 			#[cfg(feature = "console")]
 			console: console::Console::new(&args),
@@ -372,8 +371,11 @@ impl Service {
 	}
 
 	async fn process_command(&self, command: CommandInput) -> ProcessorResult {
-		let handle_guard = self.handle.read().await;
-		let handle = handle_guard.as_ref().expect("Admin module is not loaded");
+		let handle = *self
+			.handle
+			.read()
+			.as_ref()
+			.expect("Admin module is not loaded");
 
 		let services = self
 			.services
