@@ -758,11 +758,7 @@ async fn room_alias_check(
 		if !info.aliases.is_match(full_room_alias.as_str()) {
 			return Err!(Request(Exclusive("Room alias is not in namespace.")));
 		}
-	} else if services
-		.appservice
-		.is_exclusive_alias(&full_room_alias)
-		.await
-	{
+	} else if services.appservice.is_exclusive_alias(&full_room_alias) {
 		return Err!(Request(Exclusive("Room alias reserved by appservice.",)));
 	}
 

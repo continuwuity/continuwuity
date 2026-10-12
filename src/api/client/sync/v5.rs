@@ -147,7 +147,7 @@ pub(crate) async fn sync_events_v5_route(
 			.sync
 			.update_snake_sync_request_with_cache(&snake_key, globalsince, &mut body);
 
-	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user).await;
+	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user);
 	let mut collection = collect_sync_response(
 		services,
 		sender_user,

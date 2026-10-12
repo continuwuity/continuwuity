@@ -809,7 +809,6 @@ impl super::Service {
 			.services
 			.appservice
 			.read()
-			.await
 			.values()
 			.map(ToOwned::to_owned) // TODO: is this to_owned expensive?
 			.collect::<Vec<_>>();

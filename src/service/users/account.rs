@@ -405,11 +405,7 @@ impl super::Service {
 						"Username is not in this appservice's namespace."
 					)));
 				}
-			} else if self
-				.services
-				.appservice
-				.is_exclusive_user_id(&user_id)
-				.await
+			} else if self.services.appservice.is_exclusive_user_id(&user_id)
 				&& !emergency_mode_enabled
 			{
 				return Err!(Request(Exclusive("Username is reserved by an appservice.")));

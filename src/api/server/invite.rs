@@ -209,31 +209,35 @@ async fn create_invite(
 
 		services.sync.wake(&recipient_user).await;
 
-		for appservice in services.appservice.read().await.values() {
-			if appservice.is_user_match(&recipient_user) {
-				let transaction_id = general_purpose::URL_SAFE_NO_PAD
-					.encode(sha256::hash(pdu.event_id.as_bytes()))
-					.into();
+		let matching_appservices: Vec<_> = services
+			.appservice
+			.read()
+			.values()
+			.filter(|appservice| appservice.is_user_match(&recipient_user))
+			.cloned()
+			.collect();
 
-				let request = ruma::api::appservice::event::push_events::v1::Request::new(
-					transaction_id,
-					vec![pdu.to_format()],
-				);
+		for appservice in matching_appservices {
+			let transaction_id = general_purpose::URL_SAFE_NO_PAD
+				.encode(sha256::hash(pdu.event_id.as_bytes()))
+				.into();
 
-				services
-					.sending
-					.send_appservice_request(appservice.registration.clone(), request)
-					.await
-					.map_err(|e| {
-						error!(
-							"failed to notify appservice {} about incoming invite: {e}",
-							appservice.registration.id
-						);
-						err!(BadServerResponse(
-							"Failed to notify appservice about incoming invite."
-						))
-					})?;
-			}
+			let request = ruma::api::appservice::event::push_events::v1::Request::new(
+				transaction_id,
+				vec![pdu.to_format()],
+			);
+
+			services
+				.sending
+				.send_appservice_request(appservice.registration.clone(), request)
+				.await
+				.map_err(|e| {
+					error!(
+						"failed to notify appservice {} about incoming invite: {e}",
+						appservice.registration.id
+					);
+					err!(BadServerResponse("Failed to notify appservice about incoming invite."))
+				})?;
 		}
 	}
 

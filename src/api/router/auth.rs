@@ -346,7 +346,7 @@ async fn check_access_token(
 		}
 
 		Ok(ClientIdentity::User { sender_user, sender_device })
-	} else if let Ok(appservice_info) = services.appservice.find_from_token(token).await {
+	} else if let Ok(appservice_info) = services.appservice.find_from_token(token) {
 		let Ok(sender_user) = query.user_id.clone().map_or_else(
 			|| {
 				UserId::parse_with_server_name(
@@ -405,7 +405,7 @@ async fn check_access_token(
 }
 
 async fn check_appservice_token(services: &Services, token: &str) -> Result<RegistrationInfo> {
-	let Ok(appservice_info) = services.appservice.find_from_token(token).await else {
+	let Ok(appservice_info) = services.appservice.find_from_token(token) else {
 		return Err!(Request(Unauthorized("Invalid appservice token.")));
 	};
 
