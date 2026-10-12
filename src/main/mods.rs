@@ -69,7 +69,7 @@ pub(crate) async fn run(server: &Arc<Server>, starts: bool) -> Result<(bool, boo
 
 	let reloads = server.server.reloading.swap(false, Ordering::AcqRel);
 
-	let stops = !reloads || stale(server).await? <= restart_thresh();
+	let stops = !reloads || stale_from_mods(&main_lock)? <= restart_thresh();
 	let starts = reloads && stops;
 	if stops {
 		let stop = main_mod.get::<StopFuncProto>("stop")?;
@@ -140,7 +140,10 @@ async fn stale_count(server: &Arc<Server>) -> usize {
 
 async fn stale(server: &Arc<Server>) -> Result<usize, Error> {
 	let mods_lock = server.mods.read().await;
-	let mods: &Vec<mods::Module> = &mods_lock;
+	stale_from_mods(&mods_lock)
+}
+
+fn stale_from_mods(mods: &[mods::Module]) -> Result<usize, Error> {
 	for (i, module) in mods.iter().enumerate() {
 		if module.deleted()? {
 			return Ok(i);
