@@ -683,14 +683,8 @@ impl Service {
 		info!("Appending new room join event");
 		self.services
 			.timeline
-			.append_pdu(
-				&parsed_join_pdu,
-				join_event,
-				once(parsed_join_pdu.event_id.as_ref()),
-				&state_lock,
-				room_id,
-			)
-			.await?;
+			.append_pdu(&parsed_join_pdu, join_event, room_id)
+			.await;
 		self.services
 			.metadata
 			.maybe_set_mindepth(room_id, parsed_join_pdu.depth.into())
@@ -712,7 +706,7 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
+				.replace_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
 				.await;
 		}
 		drop(cork);

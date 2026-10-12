@@ -115,20 +115,6 @@ impl Service {
 		pdus
 	}
 
-	#[tracing::instrument(skip_all, level = "debug")]
-	pub fn mark_as_referenced<'a, I>(&self, room_id: &RoomId, event_ids: I)
-	where
-		I: Iterator<Item = &'a EventId>,
-	{
-		self.db.mark_as_referenced(room_id, event_ids);
-	}
-
-	#[inline]
-	#[tracing::instrument(skip(self), level = "debug")]
-	pub async fn is_event_referenced(&self, room_id: &RoomId, event_id: &EventId) -> bool {
-		self.db.is_event_referenced(room_id, event_id).await
-	}
-
 	#[inline]
 	#[tracing::instrument(skip(self), level = "debug")]
 	pub fn mark_event_soft_failed(&self, event_id: &EventId) {
