@@ -14,13 +14,15 @@ An account on the homeserver can only be associated with one OIDC subject claim 
 
 A simple OIDC configuration is as easy as creating a new OIDC application in your identity provider's settings and supplying Continuwuity with the client ID and client secret.
 
+:::important Server domain or account domain?
+Before you start, note the server domain that clients can reach Continuwuity at, which may not be the same as your account domain if you have [configured well-known delegation](../guides/delegation).
+:::
+
+In this guide, we will use https://matrix.yourdomain.com for the homeserver address that clients can reach, and https://idm.yourdomain.com for the identity provider address.
+
 ### Configuring the OIDC provider
 
 This guide will cover [**Kanidm**][kanidm] and [**Authelia**][authelia], but the basic concepts apply to most identity providers. Contributions for them are welcome.
-
-:::important Server domain or account domain?
-Before you start, note the domain that clients can reach Continuwuity at, which may not be the same as your account domain if you have configured well-known delegation. In this example, we will use `https://matrix.yourdomain.com` for the server domain.
-:::
 
 <Tabs groupId="idp">
 <Tab label="KanIDM">
@@ -56,31 +58,28 @@ Now the discovery URL for KanIDM is: https://idm.yourdomain.com/oauth2/openid/c1
 </Tab>
 <Tab label="Authelia">
 
-These instructions assume you have already set up Authelia as an OIDC provider and are just adding Continuwuity to it. If you are looking how to set up your Authelia as an OIDC provider, [this article](https://blog.stonegarden.dev/articles/2025/06/authelia-oidc/) is very useful.
-To create a new client in your identity provider, it is [recommended](https://www.authelia.com/integration/openid-connect/frequently-asked-questions/#how-do-i-generate-a-client-identifier-or-client-secret) to randomly generate both the client id and client secret. The commands below should get you those:
+To create a new client in Authelia, it is [recommended][authelia-faq-client-secret] to randomly generate both the client id and client secret. The commands below should get you those:
 
 <Tabs groupId="authelia-docker-or-not">
 <Tab label="bare binary">
 ```sh
-echo "Random value for Client ID:"
+# Random value for Client ID:
 authelia crypto rand --length 72 --charset rfc3986
-echo "\nClient Secret (labeled Random Password) and its Digest:"
+# Client Secret (labeled Random Password) and its Digest:
 authelia crypto hash generate pbkdf2 --variant sha512 --random --random.length 72 --random.charset rfc3986
 ```
 </Tab>
 <Tab label="docker">
 ```sh
-echo "Random value for Client ID:"
+# Random value for Client ID:
 docker run --rm authelia/authelia:latest authelia crypto rand --length 72 --charset rfc3986
-echo "\nClient Secret (labeled Random Password) and its Digest:"
+# Client Secret (labeled Random Password) and its Digest:
 docker run --rm authelia/authelia:latest authelia crypto hash generate pbkdf2 --variant sha512 --random --random.length 72 --random.charset rfc3986
 ```
 </Tab>
 </Tabs>
 
-:::important client secret or digest?
 Authelia only needs to know the digest of the secret, whereas Continuwuity requires the secret itself.
-:::
 
 Go to your Authelia configuration file, find the `identity_provers` block, and add a block for Continuwuity to the `clients` list:
 
@@ -94,13 +93,14 @@ identity_providers:
       # Add this block below to the clients list
       - client_name: continuwuity
         client_id: "client-id-goes-here"
+        # Use the client secret's DIGEST, not the client secret itself
         client_secret: "client-secret-DIGEST-goes-here"
         redirect_uris: ["https://matrix.yourdomain.com/_continuwuity/oidc/complete"]
         scopes: [openid]
 ```
 Then restart Authelia to load the new configuration.
 
-The discovery URL is simply the root domain at which your Authelia can be reached by clients, which should be something like `https://authelia.yourdomain.com`.
+The discovery URL is simply the root domain at which your Authelia can be reached by clients, which should be something like `https://idm.yourdomain.com`.
 
 </Tab>
 </Tabs>
@@ -108,6 +108,7 @@ The discovery URL is simply the root domain at which your Authelia can be reache
 
 [kanidm]: https://kanidm.com
 [authelia]: https://www.authelia.com
+[authelia-faq-client-secret]: https://www.authelia.com/integration/openid-connect/frequently-asked-questions/#how-do-i-generate-a-client-identifier-or-client-secret
 
 ### Configuring Continuwuity
 
