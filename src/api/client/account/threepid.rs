@@ -135,7 +135,6 @@ pub(crate) async fn add_3pid_route(
 	let email = services
 		.threepid
 		.get_valid_session(&body.sid, &body.client_secret)
-		.await
 		.map_err(|message| err!(Request(ThreepidAuthFailed("{message}"))))?
 		.consume();
 

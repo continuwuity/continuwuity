@@ -189,7 +189,6 @@ async fn route_reset_password_validate(
 	let body = match services
 		.threepid
 		.get_valid_session(&query.threepid.session_id, &query.threepid.client_secret)
-		.await
 	{
 		| Ok(session) => {
 			let Some(localpart) = services

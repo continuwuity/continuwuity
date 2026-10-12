@@ -492,31 +492,24 @@ impl Service {
 				| AuthData::EmailIdentity(EmailIdentity {
 					thirdparty_id_creds: ThirdpartyIdCredentials { client_secret, sid, .. },
 					..
-				}) => {
-					match self
-						.services
-						.threepid
-						.get_valid_session(sid, client_secret)
-						.await
-					{
-						| Ok(session) => {
-							let email = session.consume();
+				}) => match self.services.threepid.get_valid_session(sid, client_secret) {
+					| Ok(session) => {
+						let email = session.consume();
 
-							if let Some(localpart) =
-								self.services.threepid.get_localpart_for_email(&email).await
-							{
-								identity.try_set_localpart(localpart)?;
-							}
+						if let Some(localpart) =
+							self.services.threepid.get_localpart_for_email(&email).await
+						{
+							identity.try_set_localpart(localpart)?;
+						}
 
-							identity.try_set_email(email)?;
+						identity.try_set_email(email)?;
 
-							Ok(AuthType::EmailIdentity)
-						},
-						| Err(message) => Err(StandardErrorBody::new(
-							ErrorKind::ThreepidAuthFailed,
-							message.into_owned(),
-						)),
-					}
+						Ok(AuthType::EmailIdentity)
+					},
+					| Err(message) => Err(StandardErrorBody::new(
+						ErrorKind::ThreepidAuthFailed,
+						message.into_owned(),
+					)),
 				},
 				#[allow(clippy::useless_let_if_seq)]
 				| AuthData::Password(Password { identifier, password, .. }) => {

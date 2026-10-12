@@ -33,7 +33,6 @@ async fn threepid_validation(
 	services
 		.threepid
 		.try_validate_session(&query.session, &query.token)
-		.await
 		.map_err(|message| WebError::BadRequest(message.into_owned()))?;
 
 	Ok(ThreepidValidation::new(context))
