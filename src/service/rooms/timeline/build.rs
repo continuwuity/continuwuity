@@ -1,4 +1,4 @@
-use std::{collections::HashSet, iter::once};
+use std::collections::HashSet;
 
 use conduwuit::trace;
 use conduwuit_core::{
@@ -8,7 +8,7 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	EventId, OwnedEventId, OwnedServerName, RoomId, UserId,
+	OwnedEventId, OwnedServerName, RoomId, UserId,
 	events::{
 		TimelineEventType,
 		room::{
@@ -113,32 +113,8 @@ impl super::Service {
 		let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
 		trace!("State hash ID for {room_id}: {statehashid:?}");
 
-		// prev_events is capped at the room version's limit, so this PDU does
-		// not necessarily reference every extremity. Any it did not reference
-		// is still a head of the DAG and has to be kept.
-		let prev_events: HashSet<&EventId> = pdu.prev_events().collect();
-		let unreferenced: Vec<OwnedEventId> = self
-			.services
-			.state
-			.get_forward_extremities(&room_id)
-			.ready_filter(|extremity| !prev_events.contains(&**extremity))
-			.collect()
-			.await;
-
 		trace!("Generating raw ID for PDU {}", pdu.event_id());
-		let pdu_id = self
-			.append_pdu(
-				&pdu,
-				pdu_json,
-				unreferenced
-					.iter()
-					.map(AsRef::as_ref)
-					.chain(once(pdu.event_id())),
-				state_lock,
-				&room_id,
-			)
-			.boxed()
-			.await?;
+		let pdu_id = self.append_pdu(&pdu, pdu_json, &room_id).boxed().await;
 
 		// Process admin commands for locally sent events
 		if *pdu.kind() == TimelineEventType::RoomMessage {

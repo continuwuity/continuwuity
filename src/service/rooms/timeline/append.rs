@@ -1,17 +1,13 @@
 use std::{
-	borrow::Borrow,
 	collections::{BTreeMap, HashMap, HashSet, VecDeque},
 	iter::once,
-	ops::Not,
 	sync::Arc,
-	time::Instant,
 };
 
 use conduwuit::{
-	Err, Result, debug, debug_warn,
+	Result, debug, debug_warn,
 	matrix::{Event, PduEvent},
 	pdu::{Count, ShortRoomId},
-	trace,
 	utils::{
 		IterStream, TryFutureExtExt,
 		mutex_map::Guard,
@@ -20,15 +16,15 @@ use conduwuit::{
 	warn,
 };
 use conduwuit_core::{
-	err, error,
+	error,
 	matrix::pdu::{PduCount, PduId, RawPduId, sticky},
 	result::LogErr,
 	utils::{self, stream::TryIgnore},
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
-	RoomId, RoomVersionId, ServerName, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName, RoomId,
+	RoomVersionId, ServerName, UserId,
 	events::{
 		AnySyncTimelineEvent, GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
@@ -94,29 +90,14 @@ impl super::Service {
 		// We do this BEFORE setting the extremities so that there's never a
 		// point in time where we have fresh extremities referencing stale
 		// state.
-		let extremities = self
-			.progress_state_and_extremities(
-				pdu,
-				room_version_rules,
-				state_before.clone(),
-				self.services
-					.state
-					.get_forward_extremities(&room_id)
-					.collect()
-					.await,
-				state_lock,
-			)
-			.await?;
+		if pdu.state_key().is_some() {
+			debug!("Event is a state-event. Deriving new room state");
+			self.derive_new_state(pdu, &room_id, room_version_rules, state_before, state_lock)
+				.await?;
+		}
+		self.progress_extremities(pdu).await?;
 
-		let pdu_id = self
-			.append_pdu(
-				pdu,
-				pdu_json,
-				extremities.iter().map(Borrow::borrow),
-				state_lock,
-				&room_id,
-			)
-			.await?;
+		let pdu_id = self.append_pdu(pdu, pdu_json, &room_id).await;
 
 		// Process admin commands for federation events
 		if *pdu.kind() == TimelineEventType::RoomMessage {
@@ -156,105 +137,66 @@ impl super::Service {
 	}
 
 	/// Derives new room state from the incoming event and filters forward
-	/// extremities accordingly. Does not set forward extremities.
+	/// extremities accordingly.
 	///
 	/// Only call this function if the incoming PDU is not soft-failed or
 	/// rejected.
-	async fn progress_state_and_extremities(
-		&self,
-		incoming_pdu: &PduEvent,
-		room_version_rules: &RoomVersionRules,
-		state_before: HashMap<u64, OwnedEventId>,
-		current_extremities: Vec<OwnedEventId>,
-		state_lock: &Guard<OwnedRoomId, ()>,
-	) -> Result<Vec<OwnedEventId>> {
-		if incoming_pdu.state_key().is_some() {
-			debug!("Event is a state-event. Deriving new room state");
-			self.derive_new_state(incoming_pdu, room_version_rules, state_before, state_lock)
-				.await?;
-		}
+	pub async fn progress_extremities(&self, incoming_pdu: &PduEvent) -> Result<()> {
+		// Add this PDU to the list of extremities (unreferenced events).
+		// Note that we add it *again* as a no-op in append_pdu. This is done
+		// now so that there's never a point in time where we have zero forward
+		// extremities.
+		self.services
+			.state
+			.add_forward_extremity(&incoming_pdu.room_id_or_hash(), incoming_pdu.event_id());
+		let Some(room_id) = incoming_pdu.room_id() else {
+			// If there's no room ID, this is a v12+ create event, which never
+			// has any predecessors, and consequently will be the
+			// only forward extremity.
+			return Ok(());
+		};
 
-		let start = Instant::now();
-		trace!("Calculating extremities");
-		// Start with the current extremity set, to avoid dropping unreferenced
-		// events.
-		let mut new_extremities: HashSet<OwnedEventId> =
-			current_extremities.into_iter().collect();
-		// Add the incoming event
-		new_extremities.insert(incoming_pdu.event_id().to_owned());
-		// Remove any extremities that have since been referenced but not
-		// removed(?)
-		new_extremities = new_extremities
-			.into_iter()
-			.stream()
-			.broad_filter_map(|extremity| async {
-				self.services
-					.pdu_metadata
-					.is_event_referenced(&incoming_pdu.room_id_or_hash(), &extremity)
-					.await
-					.not()
-					.then_some(extremity)
-			})
-			.collect()
-			.await;
-
-		// Also iteratively walk prev events to ensure we drop any ancestors
-		// which are referenced regardless of soft-fail or rejection status.
-		// Soft-failed events and rejected events are not added as forward
-		// extremities, and as such do not remove their own prevs from the
-		// extremity set. This can lead to a situation where extremities build
-		// up because there's lots of soft-fails in the room, ultimately
-		// resulting in excessive cross-state boundary dummy events being
-		// created to squash the references. By walking the prevs until we stop
-		// reaching soft-fails, we can ensure that we properly prune all events
-		// which have actually been referenced, regardless of their soft-fail
-		// or rejection status.
-		let mut ancestors_todo: VecDeque<OwnedEventId> =
-			VecDeque::from_iter(incoming_pdu.prev_events.clone());
-		let room_id = incoming_pdu.room_id_or_hash();
+		// Walk backwards from this event to find any rejected or soft-failed
+		// events. Discovering these events may discover implicitly
+		// referenced extremities that we can now remove. Doing the walk
+		// from the prev events also means they will all automatically be
+		// removed from the extremity set.
+		let mut ancestors_todo = VecDeque::from_iter(incoming_pdu.prev_events.clone());
 		while let Some(prev_event_id) = ancestors_todo.pop_front() {
-			new_extremities.remove(&prev_event_id);
+			assert_ne!(
+				incoming_pdu.event_id, prev_event_id,
+				"Current event appeared in extremity purge path (cycle)"
+			);
+			// This event is known to be referenced, so we can remove it.
 			self.services
-				.pdu_metadata
-				.mark_as_referenced(&room_id, once(prev_event_id.as_ref()));
+				.state
+				.remove_forward_extremity(room_id, &prev_event_id);
 			let Ok(prev_event) = self.get_pdu(&prev_event_id).await else {
+				// If we don't have this PDU, we can't walk its prev events.
 				continue;
 			};
-			// Only retain prevs that we have, which are themselves not
-			// referenced AND soft-failed/rejected/outlier.
+			// Now we collect all the prev events of this predecessor and filter
+			// for ones that we 1. know, and 2. have rejected/soft-failed.
 			let outlier_prevs = prev_event
 				.prev_events()
 				.map(ToOwned::to_owned)
 				.stream()
 				.broad_filter_map(|prev_id| async {
-					let (exists, referenced, is_outlier, is_soft_failed, is_rejected) = tokio::join!(
+					let (is_known, is_accepted) = tokio::join!(
 						self.pdu_exists(&prev_id),
-						self.services
-							.pdu_metadata
-							.is_event_referenced(&room_id, &prev_id),
-						self.db.outlier_pdu_exists(&prev_id).is_ok(),
-						self.services.pdu_metadata.is_event_soft_failed(&prev_id),
-						self.services.pdu_metadata.is_event_rejected(&prev_id)
+						self.services.pdu_metadata.is_event_accepted(&prev_id),
 					);
-					(exists && !referenced && (is_outlier || is_soft_failed || is_rejected))
-						.then_some(prev_id)
+					(is_known && !is_accepted).then_some(prev_id)
 				})
 				.collect::<Vec<_>>()
 				.await;
+			// We then add them to the queue to repeat the process.
+			// Eventually, we might end up walking back far enough to discover
+			// an accepted event that was added as a forward extremity, which
+			// means (since we can reach it) we can now remove it.
 			ancestors_todo.extend(outlier_prevs);
 		}
-
-		debug!(
-			"Retained {} extremities against {} prev_events in {:?}",
-			new_extremities.len(),
-			incoming_pdu.prev_events().count(),
-			start.elapsed(),
-		);
-		if new_extremities.is_empty() {
-			Err!("Resolved extremity set was empty after processing incoming event")
-		} else {
-			Ok(new_extremities.into_iter().collect())
-		}
+		Ok(())
 	}
 
 	/// Derives a new room state by adding the incoming PDU to the state before
@@ -267,11 +209,11 @@ impl super::Service {
 	async fn derive_new_state(
 		&self,
 		incoming_pdu: &PduEvent,
+		room_id: &RoomId,
 		room_version_rules: &RoomVersionRules,
 		state_before: HashMap<u64, OwnedEventId>,
 		state_lock: &Guard<OwnedRoomId, ()>,
 	) -> Result {
-		let room_id = incoming_pdu.room_id_or_hash();
 		// We also add state after incoming event to the fork states
 		let mut state_at_incoming_event = state_before;
 		let shortstatekey = self
@@ -290,19 +232,19 @@ impl super::Service {
 		let new_room_state = self
 			.services
 			.event_handler
-			.resolve_state(&room_id, room_version_rules, state_at_incoming_event)
+			.resolve_state(room_id, room_version_rules, state_at_incoming_event)
 			.await?;
 
 		debug!("Forcing new room state");
 		let HashSetCompressStateEvent { shortstatehash, added, removed } = self
 			.services
 			.state_compressor
-			.save_state(&room_id, new_room_state)
+			.save_state(room_id, new_room_state)
 			.await?;
 
 		self.services
 			.state
-			.force_state(&room_id, shortstatehash, added, removed, state_lock)
+			.force_state(room_id, shortstatehash, added, removed, state_lock)
 			.await
 	}
 
@@ -341,23 +283,18 @@ impl super::Service {
 		);
 	}
 
-	/// Creates a new persisted data unit and adds it to a room.
+	/// Creates a new persistent data unit and adds it to a room.
 	///
 	/// By this point the incoming event should be fully authenticated, no auth
 	/// happens in `append_pdu`.
 	///
 	/// Returns pdu id
-	pub async fn append_pdu<'a, Leaves>(
-		&'a self,
-		pdu: &'a PduEvent,
+	pub async fn append_pdu(
+		&self,
+		pdu: &PduEvent,
 		mut pdu_json: CanonicalJsonObject,
-		leaves: Leaves,
-		state_lock: &'a RoomMutexGuard,
-		room_id: &'a RoomId,
-	) -> Result<RawPduId>
-	where
-		Leaves: Iterator<Item = &'a EventId> + Send + 'a,
-	{
+		room_id: &RoomId,
+	) -> RawPduId {
 		// Coalesce database writes for the remainder of this scope.
 		let _cork = self.db.db.cork_and_flush();
 
@@ -366,29 +303,13 @@ impl super::Service {
 			.short
 			.get_shortroomid(room_id)
 			.await
-			.map_err(|_| err!(Database("Room does not exist")))?;
+			.expect("room ID must have a short room ID");
 
 		// Make unsigned fields correct. This is not properly documented in the
 		// spec, but state events need to have previous content in the
 		// unsigned field, so clients can easily interpret things like
 		// membership changes
-
-		// TODO: This needs to be refactored to add this information on the fly.
-		// Because the prev content becomes part of the unsigned object in the
-		// PDU, we unintentionally leak redacted or hidden content to local
-		// users. See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/1103
 		self.populate_unsigned(pdu, &mut pdu_json).await;
-
-		// We must keep track of all events that have been referenced.
-		self.services
-			.pdu_metadata
-			.mark_as_referenced(room_id, pdu.prev_events().map(AsRef::as_ref));
-
-		trace!("setting forward extremities");
-		self.services
-			.state
-			.set_forward_extremities(room_id, leaves, state_lock)
-			.await;
 
 		let insert_lock = self.mutex_insert.lock(room_id).await;
 
@@ -401,6 +322,9 @@ impl super::Service {
 		self.db
 			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2)
 			.await;
+		self.services
+			.state
+			.add_forward_extremity(room_id, pdu.event_id());
 
 		drop(insert_lock);
 
@@ -432,7 +356,7 @@ impl super::Service {
 		self.send_to_interested_appservices(pdu, &pdu_id, room_id)
 			.await;
 
-		Ok(pdu_id)
+		pdu_id
 	}
 
 	/// Notifies local users of the incoming event with a power levels context.
