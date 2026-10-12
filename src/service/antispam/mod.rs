@@ -8,7 +8,7 @@ use ruma::{
 };
 use ruminuwuity::{draupnir_antispam, meowlnir_antispam};
 
-use crate::{client, config, sending, service::Dep};
+use crate::{client, config, rooms::membership::JoinConditionResult, sending, service::Dep};
 
 struct Services {
 	server: Arc<Server>,
@@ -103,7 +103,7 @@ impl Service {
 			} else {
 				Ok(())
 			};
-			self.record("user_may_invite", &result);
+			self.record("user_may_invite", if result.is_ok() { "allowed" } else { "denied" });
 			return result;
 		}
 		Ok(())
@@ -149,7 +149,7 @@ impl Service {
 			} else {
 				Ok(())
 			};
-			self.record("user_may_join_room", &result);
+			self.record("user_may_join_room", if result.is_ok() { "allowed" } else { "denied" });
 			return result;
 		}
 		Ok(())
@@ -161,10 +161,10 @@ impl Service {
 		&self,
 		room_id: OwnedRoomId,
 		user_id: OwnedUserId,
-	) -> Result<()> {
+	) -> JoinConditionResult {
 		if let Some(Antispam { meowlnir: Some(meowlnir), .. }) = &self.services.config.antispam {
 			debug!(?room_id, ?user_id, "Asking meowlnir for accept_make_join");
-			let result = self
+			match self
 				.send_antispam_request(
 					meowlnir.base_url.as_str(),
 					&meowlnir.secret,
@@ -175,18 +175,24 @@ impl Service {
 					),
 				)
 				.await
-				.inspect(|_| debug!("meowlnir allowed the make_join"))
-				.inspect_err(|e| debug!("meowlnir denied the make_join: {e:?}"))
-				.map(|_| ());
-			self.record("accept_make_join", &result);
-			result
+			{
+				| Ok(_) => {
+					debug!("meowlnir allowed the make_join");
+					self.record("accept_make_join", "allowed");
+					JoinConditionResult::Satisfied
+				},
+				| Err(err) => {
+					debug!("meowlnir denied the make_join: {err:?}");
+					self.record("accept_make_join", "denied");
+					JoinConditionResult::Unsatisfied
+				},
+			}
 		} else {
-			Ok(())
+			JoinConditionResult::UnableToAuthorizeJoin
 		}
 	}
 
-	fn record(&self, check: &'static str, result: &Result) {
-		let outcome = if result.is_ok() { "allowed" } else { "denied" };
+	fn record(&self, check: &'static str, outcome: &'static str) {
 		self.services
 			.server
 			.metrics

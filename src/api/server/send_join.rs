@@ -16,9 +16,11 @@ use ruma::{
 		TimelineEventType,
 		room::member::{MembershipState, RoomMemberEventContent},
 	},
+	room::JoinRule,
 	room_version_rules::RoomVersionRules,
 };
 use serde_json::value::to_raw_value;
+use service::rooms::membership::JoinConditionResult;
 
 use crate::{Ruma, server::utils::validate_any_membership_event};
 
@@ -108,18 +110,52 @@ async fn create_join_event(
 				 they cannot authorise your join."
 			)));
 		}
-		if !super::user_can_perform_restricted_join(services, &sender, room_id).await? {
-			return Err!(Request(UnableToAuthorizeJoin(
-				"Joining user did not pass restricted room's rules."
+
+		// If the user is invited or joined we don't need to check the join
+		// conditions, but in that case the requesting server shouldn't
+		// have set `join_authorized_via_users_server` in the first place.
+
+		let join_rules = services.rooms.state_accessor.get_join_rules(room_id).await;
+
+		if let JoinRule::Restricted(conditions) | JoinRule::KnockRestricted(conditions) =
+			join_rules
+		{
+			match services
+				.rooms
+				.membership
+				.evaluate_join_conditions(room_id, &sender, &conditions)
+				.await
+			{
+				| JoinConditionResult::Satisfied => {
+					// Sign the join to prove that we checked the conditions.
+
+					services
+						.server_keys
+						.hash_and_sign_event(&mut pdu, room_version_rules)
+						.map_err(|e| {
+							err!(Request(InvalidParam(warn!(
+								"Failed to sign send_join event: {e}"
+							))))
+						})?;
+				},
+				| JoinConditionResult::Unsatisfied => {
+					return Err!(Request(Forbidden(
+						"You do not satisfy this room's join conditions."
+					)));
+				},
+				| JoinConditionResult::UnableToAuthorizeJoin => {
+					return Err!(Request(UnableToAuthorizeJoin(
+						"This server cannot check this room's join conditions."
+					)));
+				},
+			}
+		} else {
+			// We can't sign this, and if we don't sign it our event will fail
+			// the auth check, so we have to bail out here.
+			return Err!(Request(InvalidParam(
+				"join_authorized_via_users_server was supplied for a room that is not restricted"
 			)));
 		}
-
-		services
-			.server_keys
-			.hash_and_sign_event(&mut pdu, room_version_rules)
-			.map_err(|e| {
-				err!(Request(InvalidParam(warn!("Failed to sign send_join event: {e}"))))
-			})?;
 	}
 
 	let mutex_lock = services

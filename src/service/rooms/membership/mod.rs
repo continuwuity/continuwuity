@@ -2,7 +2,6 @@ use std::{collections::HashMap, iter::once, sync::Arc};
 
 use conduwuit::{
 	Err, Event, Pdu, Result, Server, debug, debug_info, debug_warn, defer, err, error, info,
-	is_true,
 	matrix::{
 		StateKey,
 		event::{gen_event_id, gen_event_id_canonical_json},
@@ -24,12 +23,9 @@ use ruma::{
 	canonical_json::to_canonical_value,
 	events::{
 		StateEventType, StaticEventContent,
-		room::{
-			join_rules::RoomJoinRulesEventContent,
-			member::{MembershipState, RoomMemberEventContent},
-		},
+		room::member::{MembershipState, RoomMemberEventContent},
 	},
-	room::{AllowRule, JoinRule},
+	room::{AllowRule, JoinRule, Restricted, RoomMembership},
 };
 
 use crate::{
@@ -43,6 +39,18 @@ use crate::{
 	},
 	sending, server_keys, sync, users,
 };
+
+#[derive(PartialEq, Eq)]
+pub enum JoinConditionResult {
+	/// The local server verified that the user satisfies at least one join
+	/// condition.
+	Satisfied,
+	/// The local server verified that the user does not satisfy any join
+	/// conditions.
+	Unsatisfied,
+	/// The local server could not check all join conditions.
+	UnableToAuthorizeJoin,
+}
 
 pub struct Service {
 	services: Services,
@@ -110,16 +118,36 @@ impl Service {
 	) -> Result<OwnedRoomId> {
 		assert!(self.services.globals.user_is_local(sender_user), "user should be local");
 
+		let servers: Vec<_> = servers
+			.iter()
+			.filter(|server| !self.services.globals.server_is_ours(server))
+			.collect();
+
 		let state_lock = self.services.state.mutex.lock(room_id).await;
 
-		if self
+		let server_in_room = self
 			.services
 			.state_cache
-			.is_joined(sender_user, room_id)
-			.await
-		{
-			debug_warn!("{sender_user} is already joined in {room_id}");
+			.server_in_room(self.services.globals.server_name(), room_id)
+			.await;
+
+		// Only check our known membership if we're already in the room.
+		// See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/855
+		let current_membership = if server_in_room {
+			self.services
+				.state_accessor
+				.get_member(room_id, sender_user)
+				.await
+				.ok()
+				.map_or_else(|| MembershipState::Leave, |content| content.membership)
+		} else {
+			MembershipState::Leave
+		};
+
+		if current_membership == MembershipState::Join {
 			return Ok(room_id.to_owned());
+		} else if current_membership == MembershipState::Ban {
+			return Err!(Request(Forbidden("You are banned from this room.")));
 		}
 
 		if let Err(e) = self
@@ -137,31 +165,16 @@ impl Service {
 		{
 			warn!("Antispam prevented user {} from joining room {}: {}", sender_user, room_id, e);
 			return Err!(Request(Forbidden("You are not allowed to join this room.")));
-		}
-
-		let server_in_room = self
-			.services
-			.state_cache
-			.server_in_room(self.services.globals.server_name(), room_id)
-			.await;
-
-		// Only check our known membership if we're already in the room.
-		// See: https://forgejo.ellis.link/continuwuation/continuwuity/issues/855
-		let membership = if server_in_room {
-			self.services
-				.state_accessor
-				.get_member(room_id, sender_user)
+		} else if self.services.antispam.check_all_joins() {
+			if self
+				.services
+				.antispam
+				.meowlnir_accept_make_join(room_id.to_owned(), sender_user.to_owned())
 				.await
-		} else {
-			debug!("Ignoring local state for join {room_id}, we aren't in the room yet.");
-			Ok(RoomMemberEventContent::new(MembershipState::Leave))
-		};
-
-		if let Ok(m) = membership {
-			if m.membership == MembershipState::Ban {
-				debug_warn!("{sender_user} is banned from {room_id} but attempted to join");
-				// TODO: return reason
-				return Err!(Request(Forbidden("You are banned from the room.")));
+				!= JoinConditionResult::Satisfied
+			{
+				warn!("Antispam prevented user {} from joining room {}", sender_user, room_id);
+				return Err!(Request(Forbidden("Antispam rejected join request.")));
 			}
 		}
 
@@ -172,31 +185,38 @@ impl Service {
 			)));
 		}
 
-		if self.services.antispam.check_all_joins() {
-			if let Err(e) = self
-				.services
-				.antispam
-				.meowlnir_accept_make_join(room_id.to_owned(), sender_user.to_owned())
+		if server_in_room {
+			// Try to join the room locally.
+			match self
+				.join_local_room(
+					sender_user,
+					room_id,
+					current_membership,
+					reason.clone(),
+					&state_lock,
+				)
+				.boxed()
 				.await
 			{
-				warn!(
-					"Antispam prevented user {} from joining room {}: {}",
-					sender_user, room_id, e
-				);
-				return Err!(Request(Forbidden("Antispam rejected join request.")));
+				| Ok(()) => {
+					// We were able to authorize a local join.
+					info!("Joined room locally");
+					return Ok(room_id.to_owned());
+				},
+				| Err(err) => {
+					// We couldn't authorize a local join, probably because it's
+					// restricted and we couldn't satisfy
+					// the join rules ourselves.
+					info!(?err, "Failed to join room locally, trying over federation instead");
+				},
 			}
 		}
 
-		if server_in_room {
-			self.join_local_room(sender_user, room_id, reason, servers, state_lock)
-				.boxed()
-				.await?;
-		} else {
-			// Ask a remote server if we are not participating in this room
-			self.join_remote_room(sender_user, room_id, reason, servers, state_lock)
-				.boxed()
-				.await?;
-		}
+		// If we aren't participating in the room, or failed to join locally,
+		// try to join over federation.
+		self.join_remote_room(sender_user, room_id, reason, &servers, &state_lock)
+			.boxed()
+			.await?;
 
 		Ok(room_id.to_owned())
 	}
@@ -206,39 +226,39 @@ impl Service {
 		&self,
 		sender_user: &UserId,
 		room_id: &RoomId,
+		current_membership: MembershipState,
 		reason: Option<String>,
-		servers: &[OwnedServerName],
-		state_lock: RoomMutexGuard,
+		state_lock: &RoomMutexGuard,
 	) -> Result {
 		info!("Joining room locally");
 
-		let (room_version, join_rules, is_invited) = join!(
+		let (room_version, join_rules) = join!(
 			self.services.state.get_room_version(room_id),
 			self.services.state_accessor.get_join_rules(room_id),
-			self.services.state_cache.is_invited(sender_user, room_id)
 		);
 
 		let room_version = room_version?;
 		let room_version_rules = room_version.rules().unwrap();
 
 		let mut auth_user: Option<OwnedUserId> = None;
-		if !is_invited
-			&& matches!(join_rules, JoinRule::Restricted(_) | JoinRule::KnockRestricted(_))
+
+		if !matches!(current_membership, MembershipState::Invite | MembershipState::Knock)
+			&& let JoinRule::Restricted(conditions) | JoinRule::KnockRestricted(conditions) =
+				&join_rules
 		{
 			if room_version_rules.authorization.restricted_join_rule {
 				// This is a restricted room, check if we can complete the join
 				// requirements locally.
-				let needs_auth_user = self
-					.user_can_perform_restricted_join(sender_user, room_id)
-					.await;
-				if needs_auth_user.is_ok_and(is_true!()) {
-					// If there was an error or the value is false, we'll try
-					// joining over federation. Since it's Ok(true), we can
-					// authorise this locally. If we can't select a local
-					// user, this will remain None, the join will fail, and
-					// we'll fall back to federation.
+				if self
+					.evaluate_join_conditions(room_id, sender_user, conditions)
+					.await
+					== JoinConditionResult::Satisfied
+				{
+					// Try to find an authorizing user. If we can't find one,
+					// the local join will fail to authorize and we'll fall back
+					// to federation.
 					auth_user = self
-						.select_authorising_user(room_id, sender_user, &state_lock)
+						.select_authorizing_user(room_id, sender_user, state_lock)
 						.await
 						.ok();
 				}
@@ -251,54 +271,27 @@ impl Service {
 		content.reason.clone_from(&reason);
 		content.join_authorized_via_users_server = auth_user;
 
-		// Try normal join first
-		let Err(error) = self
-			.services
+		self.services
 			.timeline
 			.build_and_append_pdu(
 				PartialPdu::state(sender_user.to_string(), &content),
 				sender_user,
 				Some(room_id),
-				&state_lock,
+				state_lock,
 			)
-			.await
-		else {
-			info!("Joined room locally");
-			return Ok(());
-		};
+			.await?;
 
-		if servers.is_empty()
-			|| servers.len() == 1 && self.services.globals.server_is_ours(&servers[0])
-		{
-			if !self.services.metadata.exists(room_id).await {
-				return Err!(Request(
-					Unknown(
-						"Room was not found locally and no servers were found to help us \
-						 discover it"
-					),
-					NOT_FOUND
-				));
-			}
-
-			return Err(error);
-		}
-
-		info!(
-			?error,
-			remote_servers = %servers.len(),
-			"Could not join room locally, attempting remote join",
-		);
-		Box::pin(self.join_remote_room(sender_user, room_id, reason, servers, state_lock)).await
+		Ok(())
 	}
 
 	#[tracing::instrument(skip_all, fields(%sender_user, %room_id), name = "join_remote_room", level = "info")]
-	pub async fn join_remote_room(
+	async fn join_remote_room(
 		&self,
 		sender_user: &UserId,
 		room_id: &RoomId,
 		reason: Option<String>,
-		servers: &[OwnedServerName],
-		state_lock: RoomMutexGuard,
+		servers: &[&OwnedServerName],
+		state_lock: &RoomMutexGuard,
 	) -> Result {
 		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
@@ -657,7 +650,7 @@ impl Service {
 		debug!("Forcing state for new room");
 		self.services
 			.state
-			.force_state(room_id, statehash_before_join, added, removed, &state_lock)
+			.force_state(room_id, statehash_before_join, added, removed, state_lock)
 			.await?;
 
 		debug!("Updating joined counts for new room");
@@ -679,7 +672,7 @@ impl Service {
 				&parsed_join_pdu,
 				join_event,
 				once(parsed_join_pdu.event_id.as_ref()),
-				&state_lock,
+				state_lock,
 				room_id,
 			)
 			.await?;
@@ -694,7 +687,7 @@ impl Service {
 		// exist
 		self.services
 			.state
-			.set_room_state(room_id, statehash_after_join, &state_lock);
+			.set_room_state(room_id, statehash_after_join, state_lock);
 		if !resident_before {
 			// NOTE: We replace local extremities for this room if we were not a
 			// resident before. We might be doing a remote join to satisfy
@@ -704,7 +697,7 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
+				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), state_lock)
 				.await;
 		}
 		drop(cork);
@@ -722,7 +715,7 @@ impl Service {
 		&self,
 		sender_user: &UserId,
 		room_id: &RoomId,
-		servers: &[OwnedServerName],
+		servers: &[&OwnedServerName],
 	) -> Result<(federation::membership::prepare_join_event::v1::Response, OwnedServerName)> {
 		let mut make_join_counter: usize = 1;
 
@@ -762,7 +755,7 @@ impl Service {
 						warn!("make_join response from {remote_server} failed validation: {e}");
 						continue;
 					}
-					return Ok((response, remote_server.clone()));
+					return Ok((response, (*remote_server).clone()));
 				},
 				| Err(e) => match e.kind() {
 					| ErrorKind::UnableToAuthorizeJoin => {
@@ -810,7 +803,7 @@ impl Service {
 
 	/// Attempts to find a user who is able to issue an invite in the target
 	/// room.
-	pub async fn select_authorising_user<'a>(
+	pub async fn select_authorizing_user<'a>(
 		&self,
 		room_id: &'a RoomId,
 		user_id: &'a UserId,
@@ -838,108 +831,99 @@ impl Service {
 
 	/// Checks whether the given user can join the given room via a restricted
 	/// join.
-	pub(crate) async fn user_can_perform_restricted_join(
+	pub async fn evaluate_join_conditions(
 		&self,
-		user_id: &UserId,
 		room_id: &RoomId,
-	) -> Result<bool> {
-		let Ok(join_rules_event_content) = self
-			.services
-			.state_accessor
-			.room_state_get_content::<RoomJoinRulesEventContent>(
-				room_id,
-				&StateEventType::RoomJoinRules,
-				"",
-			)
-			.await
-		else {
-			// No join rules means there's nothing to authorise (defaults to
-			// invite)
-			return Ok(false);
-		};
-
-		let (JoinRule::Restricted(r) | JoinRule::KnockRestricted(r)) =
-			join_rules_event_content.join_rule
-		else {
-			// This is not a restricted room
-			return Ok(false);
-		};
-
-		if r.allow.is_empty() {
+		user_id: &UserId,
+		conditions: &Restricted,
+	) -> JoinConditionResult {
+		if conditions.allow.is_empty() {
 			// This will never be authorisable, return forbidden.
-			return Err!(Request(Forbidden("You are not invited to this room.")));
+			return JoinConditionResult::Unsatisfied;
 		}
 
-		let mut could_satisfy = true;
-		for allow_rule in &r.allow {
-			match allow_rule {
-				| AllowRule::RoomMembership(membership) => {
-					if !self
-						.services
-						.state_cache
-						.server_in_room(self.services.globals.server_name(), &membership.room_id)
-						.await
-					{
-						// Since we can't check this room, mark could_satisfy as
-						// false so that we can return
-						// M_UNABLE_TO_AUTHORIZE_JOIN later.
-						could_satisfy = false;
-						continue;
-					}
+		let mut unable_to_authorize = false;
 
-					if self
-						.services
-						.state_cache
-						.is_joined(user_id, &membership.room_id)
-						.await
-					{
-						debug!(
-							"User {} is allowed to join room {} via membership in room {}",
-							user_id, room_id, membership.room_id
-						);
-						return Ok(true);
-					}
+		for rule in &conditions.allow {
+			match self.evaluate_allow_rule(room_id, user_id, rule).await {
+				| JoinConditionResult::Satisfied => {
+					// This allow rule is satisfied, the user can join.
+					return JoinConditionResult::Satisfied;
 				},
-				| other if other.rule_type() == "fi.mau.spam_checker" =>
-					return match self
-						.services
-						.antispam
-						.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
-						.await
-					{
-						| Ok(()) => Ok(true),
-						| Err(_) => Err!(Request(Forbidden("Antispam rejected join request."))),
-					},
-				| _ => {
-					// We don't recognise this join rule, so we cannot satisfy
-					// the request.
-					could_satisfy = false;
-					debug_info!(
-						"Unsupported allow rule in restricted join for room {}: {:?}",
-						room_id,
-						allow_rule
-					);
+				| JoinConditionResult::Unsatisfied => {
+					// This allow rule is not satisfied, but the user might be
+					// able to join if they satisfy another
+					// rule. Keep checking.
+					continue;
+				},
+				| JoinConditionResult::UnableToAuthorizeJoin => {
+					// We couldn't check this allow rule, but the user might be
+					// able to join if they satisfy another
+					// rule. Keep checking.
+					unable_to_authorize = true;
+					continue;
 				},
 			}
 		}
 
-		if could_satisfy {
-			// We were able to check all the restrictions and can be certain
-			// that the prospective member is not permitted to join.
-			Err!(Request(Forbidden(
-				"You do not belong to any of the rooms or spaces required to join this room."
-			)))
+		if unable_to_authorize {
+			// We couldn't conclusively determine if the user satisfies some
+			// rules.
+			JoinConditionResult::UnableToAuthorizeJoin
 		} else {
-			// We were unable to check all the restrictions. This usually means
-			// we aren't in one of the rooms this one is restricted to, ergo
-			// can't check its state for the user's membership, and
-			// consequently the user *might* be able to join if
-			// they ask another server.
-			Err!(Request(UnableToAuthorizeJoin(
-				"You do not belong to any of the recognised rooms or spaces required to join \
-				 this room, but this server is unable to verify every requirement. You may be \
-				 able to join via another server."
-			)))
+			// We determined that the user does not satisfy any rules.
+			JoinConditionResult::Unsatisfied
+		}
+	}
+
+	async fn evaluate_allow_rule(
+		&self,
+		room_id: &RoomId,
+		user_id: &UserId,
+		rule: &AllowRule,
+	) -> JoinConditionResult {
+		match rule {
+			| AllowRule::RoomMembership(RoomMembership { room_id: condition_room, .. }) => {
+				if self
+					.services
+					.state_cache
+					.server_in_room(self.services.globals.server_name(), condition_room)
+					.await
+				{
+					if self
+						.services
+						.state_cache
+						.is_joined(user_id, condition_room)
+						.await
+					{
+						debug!(
+							?user_id,
+							?room_id,
+							?condition_room,
+							"User may join via membership in {condition_room}"
+						);
+						JoinConditionResult::Satisfied
+					} else {
+						JoinConditionResult::Unsatisfied
+					}
+				} else {
+					JoinConditionResult::UnableToAuthorizeJoin
+				}
+			},
+			| other if other.rule_type() == "fi.mau.spam_checker" =>
+				self.services
+					.antispam
+					.meowlnir_accept_make_join(room_id.to_owned(), user_id.to_owned())
+					.await,
+			| unknown => {
+				debug!(
+					?user_id,
+					?room_id,
+					rule_type = unknown.rule_type(),
+					"Could not check unknown allow rule"
+				);
+				JoinConditionResult::UnableToAuthorizeJoin
+			},
 		}
 	}
 }
