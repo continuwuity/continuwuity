@@ -289,7 +289,6 @@ async fn get_register_email_validate(
 	let Ok(session) = services
 		.threepid
 		.get_valid_session(&session_id, &client_secret)
-		.await
 	else {
 		return response!(RegisterEmailValidate::new(context, session_id, client_secret, true));
 	};

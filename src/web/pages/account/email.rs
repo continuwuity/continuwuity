@@ -167,7 +167,6 @@ async fn get_change_email_validate(
 	let Ok(session) = services
 		.threepid
 		.get_valid_session(&session_id, &client_secret)
-		.await
 	else {
 		return response!(ChangeEmailValidate::new(
 			context,

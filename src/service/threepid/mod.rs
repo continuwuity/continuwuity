@@ -1,6 +1,8 @@
 use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use conduwuit::{Err, Error, Result, config::OidcProfileKeyImportMode, result::FlatOk};
+use conduwuit::{
+	Err, Error, Result, SyncMutex, config::OidcProfileKeyImportMode, result::FlatOk,
+};
 use database::{Deserialized, Map};
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::{Address, message::Mailbox};
@@ -9,7 +11,6 @@ use ruma::{
 	ClientSecret, OwnedClientSecret, OwnedSessionId, SessionId,
 	api::error::{ErrorKind, LimitExceededErrorData},
 };
-use tokio::sync::MutexGuard;
 
 pub mod session;
 
@@ -22,8 +23,8 @@ use crate::{
 pub struct Service {
 	db: Data,
 	services: Services,
-	sessions: tokio::sync::Mutex<ValidationSessions>,
-	send_attempts: std::sync::Mutex<HashMap<(OwnedClientSecret, Address), usize>>,
+	sessions: SyncMutex<ValidationSessions>,
+	send_attempts: SyncMutex<HashMap<(OwnedClientSecret, Address), usize>>,
 	ratelimiter: DefaultKeyedRateLimiter<Address>,
 }
 
@@ -71,8 +72,8 @@ impl crate::Service for Service {
 				config: args.depend("config"),
 				mailer: args.depend("mailer"),
 			},
-			sessions: tokio::sync::Mutex::default(),
-			send_attempts: std::sync::Mutex::default(),
+			sessions: SyncMutex::default(),
+			send_attempts: SyncMutex::default(),
 			ratelimiter: RateLimiter::keyed(Self::EMAIL_RATELIMIT),
 		}))
 	}
@@ -121,64 +122,68 @@ impl Service {
 		send_attempt: usize,
 	) -> Result<OwnedSessionId> {
 		let mailer = self.services.mailer.expect_mailer()?;
-		let mut sessions = self.sessions.lock().await;
+		let (session_id, token_str) = {
+			let mut sessions = self.sessions.lock();
 
-		let session = match sessions.get_session_by_client_secret(client_secret) {
-			// If a validation session already exists for this client secret, we can either
-			// reuse it with a new token or return early because it's already valid.
-			| Some(session) => {
-				if session.email != recipient.email {
-					return Err!(Request(InvalidParam("Wrong email for session.")));
-				}
+			let session = match sessions.get_session_by_client_secret(client_secret) {
+				// If a validation session already exists for this client secret, we can either
+				// reuse it with a new token or return early because it's already valid.
+				| Some(session) => {
+					if session.email != recipient.email {
+						return Err!(Request(InvalidParam("Wrong email for session.")));
+					}
 
-				match session.validation_state {
-					| ValidationState::Validated => {
-						// If the existing session is already valid, don't send
-						// an email.
-						return Ok(session.session_id.clone());
-					},
-					| ValidationState::Pending(ref mut token) => {
-						// Check ratelimiting for the target address.
-						if self.ratelimiter.check_key(&session.email).is_err() {
-							return Err(Error::BadRequest(
-								ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
-								"You're sending emails too fast, try again in a few minutes.",
-							));
-						}
-
-						// Check the send attempt for this session.
-						let mut send_attempts = self.send_attempts.lock().unwrap();
-
-						let last_send_attempt = send_attempts
-							.entry((session.client_secret.clone(), session.email.clone()))
-							.or_default();
-
-						if send_attempt <= *last_send_attempt {
-							// If the supplied send attempt isn't higher than
-							// the last one, don't send an email.
+					match session.validation_state {
+						| ValidationState::Validated => {
+							// If the existing session is already valid, don't
+							// send an email.
 							return Ok(session.session_id.clone());
-						}
+						},
+						| ValidationState::Pending(ref mut token) => {
+							// Check ratelimiting for the target address.
+							if self.ratelimiter.check_key(&session.email).is_err() {
+								return Err(Error::BadRequest(
+									ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
+									"You're sending emails too fast, try again in a few minutes.",
+								));
+							}
 
-						// Save this send attempt.
-						*last_send_attempt = send_attempt;
-						drop(send_attempts);
+							// Check the send attempt for this session.
+							let mut send_attempts = self.send_attempts.lock();
 
-						// Create a new token for the existing session.
-						*token = ValidationToken::new_random();
+							let last_send_attempt = send_attempts
+								.entry((session.client_secret.clone(), session.email.clone()))
+								.or_default();
 
-						session
-					},
-				}
-			},
-			// If no session exists, create a new one.
-			| None => sessions.create_session(recipient.email.clone(), client_secret.to_owned()),
-		};
+							if send_attempt <= *last_send_attempt {
+								// If the supplied send attempt isn't higher
+								// than the last
+								// one, don't send an email.
+								return Ok(session.session_id.clone());
+							}
 
-		// Clone this so it can outlive the lock we're holding on `sessions`
-		let session_id = session.session_id.clone();
+							// Save this send attempt.
+							*last_send_attempt = send_attempt;
+							drop(send_attempts);
 
-		let ValidationState::Pending(token) = &session.validation_state else {
-			unreachable!("session should be pending")
+							// Create a new token for the existing session.
+							*token = ValidationToken::new_random();
+
+							session
+						},
+					}
+				},
+				// If no session exists, create a new one.
+				| None =>
+					sessions.create_session(recipient.email.clone(), client_secret.to_owned()),
+			};
+
+			let session_id = session.session_id.clone();
+			let ValidationState::Pending(token) = &session.validation_state else {
+				unreachable!("session should be pending")
+			};
+
+			(session_id, token.token.clone())
 		};
 
 		let mut validation_url = self
@@ -191,11 +196,7 @@ impl Service {
 		validation_url
 			.query_pairs_mut()
 			.append_pair("session", session_id.as_str())
-			.append_pair("token", &token.token);
-
-		// Once the validation URL is built, we don't need any data borrowed
-		// from `sessions` anymore and can release our lock
-		drop(sessions);
+			.append_pair("token", &token_str);
 
 		let message = prepare_body(validation_url.to_string());
 
@@ -205,12 +206,12 @@ impl Service {
 	}
 
 	/// Attempt to mark a validation session as valid using a validation token.
-	pub async fn try_validate_session(
+	pub fn try_validate_session(
 		&self,
 		session_id: &SessionId,
 		supplied_token: &str,
 	) -> Result<(), Cow<'static, str>> {
-		let mut sessions = self.sessions.lock().await;
+		let mut sessions = self.sessions.lock();
 
 		let Some(session) = sessions.get_session(session_id) else {
 			return Err("Validation session does not exist".into());
@@ -239,12 +240,12 @@ impl Service {
 	}
 
 	/// Get a validated validation session.
-	pub async fn get_valid_session(
+	pub fn get_valid_session(
 		&self,
 		session_id: &SessionId,
 		client_secret: &ClientSecret,
 	) -> Result<ValidSession<'_>, Cow<'static, str>> {
-		let mut sessions = self.sessions.lock().await;
+		let mut sessions = self.sessions.lock();
 
 		let Some(session) = sessions.get_session(session_id) else {
 			return Err("Validation session does not exist".into());
@@ -258,7 +259,7 @@ impl Service {
 			Ok(ValidSession {
 				email,
 				session_id: session_id.to_owned(),
-				sessions,
+				service: self,
 			})
 		} else {
 			Err("This email address has not been validated. Did you use the link that was sent \
@@ -336,18 +337,21 @@ impl Service {
 	}
 }
 
-pub struct ValidSession<'lock> {
+pub struct ValidSession<'a> {
 	pub email: Address,
 	session_id: OwnedSessionId,
-	sessions: MutexGuard<'lock, ValidationSessions>,
+	service: &'a Service,
 }
 
 impl ValidSession<'_> {
 	/// Consume this session, removing it from the database and releasing the
 	/// lock it holds.
 	#[must_use]
-	pub fn consume(mut self) -> Address {
-		self.sessions.remove_session(&self.session_id);
+	pub fn consume(self) -> Address {
+		self.service
+			.sessions
+			.lock()
+			.remove_session(&self.session_id);
 
 		self.email
 	}
