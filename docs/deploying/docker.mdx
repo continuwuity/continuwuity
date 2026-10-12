@@ -283,12 +283,6 @@ Get a working Continuwuity server with an admin user in four steps:
 
 Once configured, log in to your server with any Matrix client, and register for an account with the registration token from step 3. If you did not configure step 4., log in via the `http://<your_server_ip>:8008` address. You will be automatically invited to the admin room where you can [manage your server](../reference/admin).
 
-### (Optional) Building Custom Images
-
-For information on building your own Continuwuity Docker images, see the
-[Building Docker Images](../development/index.mdx#building-docker-images)
-section in the development documentation.
-
 ### Accessing the Server's Console
 
 Before you can access the server's console and [send admin commands](../reference/admin/index.md) from the CLI, you will need to make the container interactive and allocate a pseudo-tty. Make sure you set `admin_console_automatic` to `true` in [the config](../reference/config.mdx) as well for Continuwuity to activate the CLI on startup.
@@ -310,3 +304,28 @@ From there you can access the server's console by running `docker attach <contai
 Note that using `CTRL+c` within `docker attach`'s context will forward the signal to the server, stopping it. See [Docker's reference][docker-attach-reference] for more information.
 
 [docker-attach-reference]: https://docs.docker.com/reference/cli/docker/container/attach/
+
+### Using Docker volumes
+
+The example compose files above utilizes [bind mounts][docker-bind-mounts]. If you want to use [Docker volumes][docker-volumes] instead, apply these changes to your compose file:
+
+```diff
+ services:
+   continuwuity:
+     # ...
+     volumes:
+-      - ./continuwuity-data:/var/lib/continuwuity
++      - continuwuity-data:/var/lib/continuwuity
+
++volumes:
++  continuwuity-data:
+```
+
+[docker-bind-mounts]: https://docs.docker.com/engine/storage/bind-mounts/
+[docker-volumes]: https://docs.docker.com/engine/storage/volumes/
+
+### Building Custom Images
+
+For information on building your own Continuwuity Docker images, see the
+[Building Docker Images](../development/index.mdx#building-docker-images)
+section in the development documentation.
