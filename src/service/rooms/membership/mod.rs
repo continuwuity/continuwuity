@@ -192,8 +192,9 @@ impl Service {
 				.boxed()
 				.await?;
 		} else {
+			drop(state_lock);
 			// Ask a remote server if we are not participating in this room
-			self.join_remote_room(sender_user, room_id, reason, servers, state_lock)
+			self.join_remote_room(sender_user, room_id, reason, servers)
 				.boxed()
 				.await?;
 		}
@@ -288,7 +289,8 @@ impl Service {
 			remote_servers = %servers.len(),
 			"Could not join room locally, attempting remote join",
 		);
-		Box::pin(self.join_remote_room(sender_user, room_id, reason, servers, state_lock)).await
+		drop(state_lock);
+		Box::pin(self.join_remote_room(sender_user, room_id, reason, servers)).await
 	}
 
 	#[tracing::instrument(skip_all, fields(%sender_user, %room_id), name = "join_remote_room", level = "info")]
@@ -298,7 +300,6 @@ impl Service {
 		room_id: &RoomId,
 		reason: Option<String>,
 		servers: &[OwnedServerName],
-		state_lock: RoomMutexGuard,
 	) -> Result {
 		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
@@ -655,6 +656,7 @@ impl Service {
 			.await?;
 
 		debug!("Forcing state for new room");
+		let state_lock = self.services.state.mutex.lock(room_id).await;
 		self.services
 			.state
 			.force_state(room_id, statehash_before_join, added, removed, &state_lock)
