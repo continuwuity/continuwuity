@@ -212,7 +212,9 @@ Test that your setup works by following these [instructions](./generic.mdx#how-d
 
 Check your container logs using `docker-compose logs --follow` to debug any issues. See the [Troubleshooting](../troubleshooting.mdx) page for common errors and how to fix them.
 
-## Updating
+## Maintenance
+
+### Updating
 
 To update to a new version of Continuwuity, use the following commands:
 
@@ -224,6 +226,10 @@ docker compose pull
 # spin up the containers again
 docker compose up -d
 ```
+
+### Backups
+
+The database in `./continuwuity-data` is present on the host system as a regular directory, and therefore can be backed up using normal mechanisms. See the [Backup](../maintenance.mdx#backups) section of the Maintenance page for more details.
 
 ## What's next?
 
@@ -321,8 +327,11 @@ The example compose files above utilizes [bind mounts][docker-bind-mounts]. If y
 +  continuwuity-data:
 ```
 
+Consult the [Docker docs][docker-volumes-backup-restore] for details on backing up and restoring Docker volumes
+
 [docker-bind-mounts]: https://docs.docker.com/engine/storage/bind-mounts/
 [docker-volumes]: https://docs.docker.com/engine/storage/volumes/
+[docker-volumes-backup-restore]: https://docs.docker.com/engine/storage/volumes/#back-up-restore-or-migrate-data-volumes
 
 ### Building Custom Images
 
