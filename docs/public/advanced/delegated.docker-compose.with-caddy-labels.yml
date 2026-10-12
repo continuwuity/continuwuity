@@ -12,7 +12,7 @@ services:
       - proxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./data:/data
+      - ./caddy-data:/data
     restart: unless-stopped
     labels:
       caddy: example.com
@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
     command: /sbin/conduwuit
     volumes:
-      - db:/var/lib/continuwuity
+      - ./continuwuity-data:/var/lib/continuwuity
       - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
       # - ./continuwuity.toml:/etc/continuwuity.toml
     environment:
@@ -45,9 +45,6 @@ services:
     labels:
       caddy: matrix.example.com
       caddy.reverse_proxy: "{{upstreams 8008}}"
-
-volumes:
-  db:
 
 networks:
   proxy:

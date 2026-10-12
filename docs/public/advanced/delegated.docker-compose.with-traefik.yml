@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     command: /sbin/conduwuit
     volumes:
-      - db:/var/lib/continuwuity
+      - ./continuwuity-data:/var/lib/continuwuity
       - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
       #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
@@ -40,7 +40,7 @@ services:
       - "443:443"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "acme:/etc/traefik/acme"
+      - "./traefik-acme-data:/etc/traefik/acme"
     labels:
       - "traefik.enable=true"
 
@@ -76,10 +76,6 @@ services:
       TRAEFIK_PROVIDERS_DOCKER: true
       TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: "unix:///var/run/docker.sock"
       TRAEFIK_PROVIDERS_DOCKER_EXPOSEDBYDEFAULT: false
-
-volumes:
-  db:
-  acme:
 
 networks:
   proxy:

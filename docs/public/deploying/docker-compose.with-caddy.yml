@@ -10,7 +10,7 @@ services:
     networks:
       - proxy
     volumes:
-      - ./data:/data
+      - ./caddy-data:/data
       # mount your created Caddyfile into the container
       - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     command: /sbin/conduwuit
     volumes:
-      - db:/var/lib/continuwuity
+      - ./continuwuity-data:/var/lib/continuwuity
       - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
       # - ./continuwuity.toml:/etc/continuwuity.toml
     environment:
@@ -43,6 +43,3 @@ services:
 
 networks:
   proxy:
-
-volumes:
-  db:

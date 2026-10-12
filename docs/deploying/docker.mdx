@@ -53,7 +53,7 @@ For more setups with `.well-known` delegation and split-domain deployments, cons
 Docker Compose is the recommended deployment method for Continuwuity containers. The following environment variables will be set:
 
 - `CONTINUWUITY_SERVER_NAME` - Your Matrix server's domain name. **This CANNOT be changed later without a data wipe.**
-- `CONTINUWUITY_DATABASE_PATH` - Where to store your database. This must match the docker volume mount.
+- `CONTINUWUITY_DATABASE_PATH` - Where to store your database. This must match the docker bind mount.
 - `CONTINUWUITY_ADDRESS` - Bind address (for Docker, use `0.0.0.0` to listen on all interfaces).
 
 Alternatively, you can specify a path to mount the configuration file using the `CONTINUWUITY_CONFIG` environment variable.
@@ -89,7 +89,9 @@ Consult the [**DNS tuning guide (recommended)**](../guides/dns.mdx) for full sol
 
 <summary>docker-compose.with-caddy.yml ([view raw](/deploying/docker-compose.with-caddy.yml))</summary>
 
-Create a Caddyfile with the following content:
+Create a directory called `caddy-data`, which will store TLS certs obtained by Caddy.
+
+Then, create a Caddyfile with the following content:
 
 ```
 https://example.com:443, https://example.com:8448 {
@@ -97,7 +99,7 @@ https://example.com:443, https://example.com:8448 {
 }
 ```
 
-Then, for the docker-compose:
+Then, for the docker compose file:
 
 ```yaml file="../public/deploying/docker-compose.with-caddy.yml"
 
@@ -109,6 +111,10 @@ Then, for the docker-compose:
 
 <details>
 <summary>docker-compose.with-caddy-labels.yml ([view raw](/deploying/docker-compose.with-caddy-labels.yml))</summary>
+
+Create a directory called `caddy-data`, which will store TLS certs obtained by Caddy.
+
+Then, for the docker compose file:
 
 ```yaml file="../public/deploying/docker-compose.with-caddy-labels.yml"
 
@@ -131,6 +137,10 @@ Then, for the docker-compose:
 
 <details>
 <summary>docker-compose.with-traefik.yml ([view raw](/deploying/docker-compose.with-traefik.yml))</summary>
+
+Create a directory called `traefik-acme-data`, which will store TLS certs obtained by Caddy.
+
+Then, for the docker compose file:
 
 ```yaml file="../public/deploying/docker-compose.with-traefik.yml"
 
@@ -164,10 +174,15 @@ See the [Other reverse proxies](generic.mdx#setting-up-the-reverse-proxy) sectio
 
 ### Starting Your Server
 
-1. Choose your compose file from the above, and rename it to `docker-compose.yml`. Replace `example.com` with your homeserver's domain name, and edit other values as you see fit.
-2. If using the override file, rename it to `docker-compose.override.yml` and
-   edit your values.
-3. Start the server:
+1. Create a directory named `continuwuity-data`. This will be where your server's database lives.
+
+2. Choose your compose file from the above, and rename it to `docker-compose.yml`. Replace `example.com` with your homeserver's domain name, and edit other values as you see fit.
+
+    - Follow all extra instructions as needed.
+
+    - If using the override file, rename it to `docker-compose.override.yml` and edit your values.
+
+3. Start the server with the following command:
 
     ```bash
     docker compose up -d
@@ -189,9 +204,7 @@ See the [Other reverse proxies](generic.mdx#setting-up-the-reverse-proxy) sectio
     Pick your own username and password!
     ```
 
-5. Log in to your server with any Matrix client, and register for an account with the registration token from step 4. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
-
-See the [generic deployment guide](generic.mdx) for more deployment options.
+5. Log in to your server with any Matrix client, and register for an account with the registration token from the previous step. You'll automatically be invited to the admin room where you can [manage your server](../reference/admin).
 
 ## Testing
 

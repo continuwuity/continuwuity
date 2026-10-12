@@ -6,7 +6,7 @@ services:
     restart: unless-stopped
     command: /sbin/conduwuit
     volumes:
-      - db:/var/lib/continuwuity
+      - ./continuwuity-data:/var/lib/continuwuity
       - ./continuwuity-resolv.conf:/etc/resolv.conf # use custom resolvers rather than Docker's
       #- ./continuwuity.toml:/etc/continuwuity.toml
     networks:
@@ -18,7 +18,7 @@ services:
       - "traefik.http.routers.continuwuity.tls=true"
       - "traefik.http.routers.continuwuity.service=continuwuity"
       - "traefik.http.services.continuwuity.loadbalancer.server.port=8008"
-      # possibly, depending on your config:
+      # enable tls with the `letsencrypt` certificate resolver (actual name dependant on your static config)
       # - "traefik.http.routers.continuwuity.tls.certresolver=letsencrypt"
     environment:
       CONTINUWUITY_SERVER_NAME: example.com
@@ -33,9 +33,6 @@ services:
         client=https://example.com,
         server=example.com:443
         }
-
-volumes:
-  db:
 
 networks:
   # This must match the network name that Traefik listens on
