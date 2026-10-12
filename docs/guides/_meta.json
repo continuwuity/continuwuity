@@ -21,11 +21,6 @@
     },
     {
         "type": "file",
-        "name": "oidc",
-        "label": "Delegated authentication"
-    },
-    {
-        "type": "file",
         "name": "push",
         "label": "Push notifications"
     }
