@@ -540,9 +540,6 @@ impl Service {
 				}
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
 				self.services.pdu_metadata.clear_pdu_markers(&event_id);
-				self.services
-					.pdu_metadata
-					.mark_as_referenced(room_id, once(event_id.as_ref()));
 				if let Some(state_key) = &pdu.state_key {
 					let shortstatekey = self
 						.services
@@ -575,9 +572,6 @@ impl Service {
 				trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
 				self.services.pdu_metadata.clear_pdu_markers(&event_id);
-				self.services
-					.pdu_metadata
-					.mark_as_referenced(room_id, once(event_id.as_ref()));
 				let state_key = value
 					.get("state_key")
 					.and_then(|s| s.as_str())
