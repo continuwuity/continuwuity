@@ -313,10 +313,10 @@ impl Service {
 	pub fn pdus_by_timestamp<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-		ts: MilliSecondsSinceUnixEpoch,
+		timestamp: MilliSecondsSinceUnixEpoch,
 		dir: Direction,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
-		self.db.pdus_by_ts(room_id, ts, dir)
+		self.db.pdus_by_timestamp(room_id, timestamp, dir)
 	}
 
 	pub async fn timestamp_index_ready(&self) -> bool { self.db.timestamp_index_ready().await }

@@ -330,10 +330,10 @@ impl Data {
 			.try_flatten_stream()
 	}
 
-	pub(super) fn pdus_by_ts<'a>(
+	pub(super) fn pdus_by_timestamp<'a>(
 		&'a self,
 		room_id: &'a RoomId,
-		ts: MilliSecondsSinceUnixEpoch,
+		timestamp: MilliSecondsSinceUnixEpoch,
 		dir: Direction,
 	) -> impl Stream<Item = Result<PdusIterItem>> + Send + 'a {
 		self.services
@@ -341,8 +341,9 @@ impl Data {
 			.get_shortroomid(room_id)
 			.map_err(move |e| err!(Request(NotFound("Room {room_id:?} not found: {e:?}"))))
 			.map_ok(move |shortroomid| {
-				let seek =
-					|shorteventid| roomts_key(&PduId { shortroomid, shorteventid }.into(), ts);
+				let seek = |shorteventid| {
+					roomts_key(&PduId { shortroomid, shorteventid }.into(), timestamp)
+				};
 				let keys = match dir {
 					| Direction::Forward => self
 						.roomts_pduid

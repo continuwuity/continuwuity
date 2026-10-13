@@ -986,6 +986,14 @@ async fn unembed_unsigned_info(
 	info!(elapsed=?start.elapsed(), total_migrated_pdus=total_migrated, "Finished migration.");
 }
 
+async fn drop_server_signingkeys(services: &Services) -> Result<()> {
+	services.db.db.drop_column("server_signingkeys")?;
+
+	info!("Cleared server_signingkeys.");
+
+	Ok(())
+}
+
 const ROOMTS_UNTIL: &str = "populate_roomts_pduid_until";
 
 async fn populate_roomts_pduid(db: Arc<Database>, until: u64) {
@@ -1016,14 +1024,6 @@ async fn populate_roomts_pduid(db: Arc<Database>, until: u64) {
 	db["global"].insert(rooms::timeline::TIMESTAMP_INDEX_MIGRATION, []);
 	db["global"].remove(ROOMTS_UNTIL);
 	info!(elapsed = ?start.elapsed(), "Finished indexing PDUs by timestamp.");
-}
-
-async fn drop_server_signingkeys(services: &Services) -> Result<()> {
-	services.db.db.drop_column("server_signingkeys")?;
-
-	info!("Cleared server_signingkeys.");
-
-	Ok(())
 }
 
 async fn fix_oauth_scope_names(services: &Services) -> Result {
