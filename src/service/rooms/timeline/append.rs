@@ -176,17 +176,21 @@ impl super::Service {
 				continue;
 			};
 			// Now we collect all the prev events of this predecessor and filter
-			// for ones that we 1. know, and 2. have rejected/soft-failed.
+			// for ones that we 1. know, 2. are not backfilled, and 3. have
+			// rejected/soft-failed.
 			let outlier_prevs = prev_event
 				.prev_events()
 				.map(ToOwned::to_owned)
 				.stream()
 				.broad_filter_map(|prev_id| async {
-					let (is_known, is_accepted) = tokio::join!(
+					let (exists, count, is_accepted) = tokio::join!(
 						self.pdu_exists(&prev_id),
+						self.get_pdu_count(&prev_id)
+							.unwrap_or(PduCount::Backfilled(i64::MIN)),
 						self.services.pdu_metadata.is_event_accepted(&prev_id),
 					);
-					(is_known && !is_accepted).then_some(prev_id)
+					(exists && !matches!(count, PduCount::Backfilled(_)) && !is_accepted)
+						.then_some(prev_id)
 				})
 				.collect::<Vec<_>>()
 				.await;
