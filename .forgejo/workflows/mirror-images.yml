@@ -55,7 +55,7 @@ jobs:
       #     repositories: continuwuity
 
       - name: Install regsync
-        uses: https://github.com/regclient/actions/regsync-installer@b7d935a4b4f550aa3b5ad20941f7d2f9285565b2 # main
+        uses: https://github.com/regclient/actions/regsync-installer@dd58ad94f76adb73d8ac1bf75ed25f01545d5b32 # main
 
       - name: Check what images need mirroring
         run: |
