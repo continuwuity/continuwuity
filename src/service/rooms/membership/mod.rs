@@ -668,6 +668,7 @@ impl Service {
 		// We append to state before appending the pdu, so we don't have a
 		// moment in time with the pdu without it's state. This is okay
 		// because append_pdu can't fail.
+		self.services.timeline.progress_extremities(&parsed_join_pdu).await?;
 		let statehash_after_join = self
 			.services
 			.state
