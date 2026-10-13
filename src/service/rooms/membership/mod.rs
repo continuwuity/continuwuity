@@ -291,7 +291,7 @@ impl Service {
 				PartialPdu::state(sender_user.to_string(), &content),
 				sender_user,
 				Some(room_id),
-				state_lock,
+				Some(&state_lock),
 			)
 			.await?;
 
@@ -664,7 +664,7 @@ impl Service {
 		debug!("Forcing state for new room");
 		self.services
 			.state
-			.force_state(room_id, statehash_before_join, added, removed, state_lock)
+			.force_state(room_id, statehash_before_join, added, removed)
 			.await?;
 
 		debug!("Updating joined counts for new room");
@@ -701,7 +701,7 @@ impl Service {
 		// exist
 		self.services
 			.state
-			.set_room_state(room_id, statehash_after_join, state_lock);
+			.set_room_state(room_id, statehash_after_join);
 		if !resident_before {
 			// NOTE: We replace local extremities for this room if we were not a
 			// resident before. We might be doing a remote join to satisfy

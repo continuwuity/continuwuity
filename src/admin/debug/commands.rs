@@ -849,6 +849,7 @@ impl crate::Context<'_> {
 				get_room_state::v1::Request::new(at_event_id, room_id.clone()),
 			)
 			.await?;
+		let _state_lock = self.services.rooms.state.mutex.lock(&*room_id).await;
 
 		for pdu in remote_state_response.pdus.clone() {
 			match self
@@ -944,13 +945,11 @@ impl crate::Context<'_> {
 			.save_state(room_id.clone().as_ref(), new_room_state)
 			.await?;
 
-		let state_lock = self.services.rooms.state.mutex.lock(&*room_id).await;
-
 		info!("Forcing new room state");
 		self.services
 			.rooms
 			.state
-			.force_state(room_id.clone().as_ref(), short_state_hash, added, removed, &state_lock)
+			.force_state(room_id.clone().as_ref(), short_state_hash, added, removed)
 			.await?;
 
 		info!("Updating joined counts for room");

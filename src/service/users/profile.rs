@@ -191,7 +191,7 @@ impl super::Service {
 						PartialPdu::state(user_id.to_string(), &current_membership),
 						user_id,
 						Some(&room_id),
-						&state_lock,
+						Some(&state_lock),
 					)
 					.await;
 			}

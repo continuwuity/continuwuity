@@ -123,7 +123,7 @@ async fn update_parents(
 				),
 				sender,
 				Some(&parent_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.boxed()
 			.await
@@ -218,7 +218,7 @@ async fn update_children(
 				),
 				sender,
 				Some(&child_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.boxed()
 			.await
@@ -246,7 +246,7 @@ async fn update_children(
 					),
 					sender,
 					Some(&child_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.boxed()
 				.await
@@ -324,7 +324,7 @@ pub(crate) async fn upgrade_room_route(
 			),
 			sender_user,
 			Some(&body.room_id),
-			&old_room_state_lock,
+			Some(&old_room_state_lock),
 		)
 		.await
 		.map_err(|_| {
@@ -407,7 +407,7 @@ pub(crate) async fn upgrade_room_route(
 			PartialPdu::state(StateKey::new(), &create_event_content),
 			sender_user,
 			replacement_room_id.as_deref(),
-			&new_room_state_lock,
+			Some(&new_room_state_lock),
 		)
 		.boxed()
 		.await?;
@@ -453,7 +453,7 @@ pub(crate) async fn upgrade_room_route(
 			),
 			sender_user,
 			replacement_room_id.as_deref(),
-			&new_room_state_lock,
+			Some(&new_room_state_lock),
 		)
 		.boxed()
 		.await?;
@@ -527,7 +527,7 @@ pub(crate) async fn upgrade_room_route(
 					},
 					sender_user,
 					replacement_room_id.as_deref(),
-					&new_room_state_lock,
+					Some(&new_room_state_lock),
 				)
 				.boxed()
 				.await?;
@@ -572,7 +572,7 @@ pub(crate) async fn upgrade_room_route(
 			),
 			sender_user,
 			Some(&body.room_id),
-			&old_room_state_lock,
+			Some(&old_room_state_lock),
 		)
 		.await?;
 
@@ -613,7 +613,7 @@ pub(crate) async fn upgrade_room_route(
 			),
 			sender_user,
 			Some(&body.room_id),
-			&old_room_state_lock,
+			Some(&old_room_state_lock),
 		)
 		.boxed()
 		.await

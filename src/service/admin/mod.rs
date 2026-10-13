@@ -32,7 +32,7 @@ use tokio::sync::RwLock;
 use crate::{
 	Dep, account_data, config, globals,
 	media::{MXC_LENGTH, mxc::Mxc},
-	rooms::{self, state::RoomMutexGuard},
+	rooms,
 };
 
 pub struct Service {
@@ -492,7 +492,6 @@ impl Service {
 	) -> Result<()> {
 		assert!(self.user_is_admin(user_id).await, "sender is not admin");
 
-		let state_lock = self.services.state.mutex.lock(room_id).await;
 		if let Err(e) = self
 			.services
 			.timeline
@@ -500,11 +499,11 @@ impl Service {
 				PartialPdu::timeline(&self.text_or_file(content).await),
 				user_id,
 				Some(room_id),
-				&state_lock,
+				None,
 			)
 			.await
 		{
-			self.handle_response_error(e, room_id, user_id, &state_lock)
+			self.handle_response_error(e, room_id, user_id)
 				.boxed()
 				.await
 				.unwrap_or_else(default_log);
@@ -518,7 +517,6 @@ impl Service {
 		e: Error,
 		room_id: &RoomId,
 		user_id: &UserId,
-		state_lock: &RoomMutexGuard,
 	) -> Result<()> {
 		error!("Failed to build and append admin room response PDU: \"{e}\"");
 		let content = RoomMessageEventContent::text_plain(format!(
@@ -528,12 +526,7 @@ impl Service {
 
 		self.services
 			.timeline
-			.build_and_append_pdu(
-				PartialPdu::timeline(&content),
-				user_id,
-				Some(room_id),
-				state_lock,
-			)
+			.build_and_append_pdu(PartialPdu::timeline(&content), user_id, Some(room_id), None)
 			.await?;
 
 		Ok(())

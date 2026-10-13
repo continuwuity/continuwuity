@@ -30,7 +30,7 @@ impl super::Service {
 		partial_pdu: PartialPdu,
 		sender: &UserId,
 		room_id: Option<&RoomId>,
-		state_lock: &RoomMutexGuard,
+		state_lock: Option<&RoomMutexGuard>,
 	) -> Result<OwnedEventId> {
 		let (pdu, pdu_json) = self
 			.create_hash_and_sign_event(partial_pdu, sender, room_id, state_lock)
@@ -164,9 +164,7 @@ impl super::Service {
 		// a moment in time where events in the current room state do not
 		// exist
 		trace!("Setting room state for room {room_id}");
-		self.services
-			.state
-			.set_room_state(&room_id, statehashid, state_lock);
+		self.services.state.set_room_state(&room_id, statehashid);
 
 		self.services.sync.wake_all_joined(&room_id).await;
 

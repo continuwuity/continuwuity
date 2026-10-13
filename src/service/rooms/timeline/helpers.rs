@@ -61,7 +61,7 @@ impl super::Service {
 				},
 				sender,
 				Some(room_id),
-				state_lock,
+				Some(state_lock),
 			)
 			.await?;
 

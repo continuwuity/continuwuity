@@ -773,7 +773,7 @@ impl crate::Context<'_> {
 				),
 				&user_id,
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.await?;
 
@@ -911,14 +911,6 @@ impl crate::Context<'_> {
 		);
 
 		let redaction_event_id = {
-			let state_lock = self
-				.services
-				.rooms
-				.state
-				.mutex
-				.lock(event.room_id_or_hash().as_str())
-				.await;
-
 			self.services
 				.rooms
 				.timeline
@@ -932,7 +924,7 @@ impl crate::Context<'_> {
 					},
 					event.sender(),
 					Some(&event.room_id_or_hash()),
-					&state_lock,
+					None,
 				)
 				.await?
 		};

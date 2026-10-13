@@ -60,6 +60,14 @@ impl super::Service {
 		let timer = Instant::now();
 		let min_depth = self.services.metadata.get_mindepth(room_id).await;
 		let room_version_rules = get_room_version_rules(create_event)?;
+		// We lock the room here to prevent the current state from changing
+		// beneath us mid-check.
+		let state_lock = if incoming_pdu.state_key.is_some() || incoming_pdu.prev_events.len() > 1
+		{
+			Some(self.services.state.mutex.lock(room_id).await)
+		} else {
+			None
+		};
 
 		// We now need to resolve the state before the event so that we can
 		// perform PDU check 5 (event auth passes based on state before the
@@ -81,14 +89,6 @@ impl super::Service {
 		// that it passes based on the *current* room state (state across all
 		// forward extremities). If it doesn't, we accept it, but soft-fail
 		// it, and this prevents it being promoted.
-
-		// We lock the room here to prevent the current state from changing
-		// beneath us mid-check.
-		trace!(
-			room_id = %room_id,
-			"Locking the room"
-		);
-		let state_lock = self.services.state.mutex.lock(room_id).await;
 		let passes_current_state = self
 			.current_state_check_6(&incoming_pdu, &room_version_rules, create_event)
 			.await
@@ -175,9 +175,9 @@ impl super::Service {
 				&room_version_rules,
 				state_before,
 				should_soft_fail,
-				&state_lock,
 			)
 			.await?;
+		drop(state_lock);
 
 		if should_soft_fail {
 			debug_info!(
@@ -193,7 +193,6 @@ impl super::Service {
 		}
 
 		// Event has passed all auth/stateres checks
-		drop(state_lock);
 		if incoming_pdu.depth > min_depth && incoming_pdu.state_key().is_some() {
 			self.services
 				.metadata

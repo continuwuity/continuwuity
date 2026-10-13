@@ -84,7 +84,7 @@ impl super::Service {
 		partial_pdu: PartialPdu,
 		sender: &UserId,
 		room_id: Option<&RoomId>,
-		_mutex_lock: &RoomMutexGuard,
+		mutex_lock: Option<&RoomMutexGuard>,
 	) -> Result<(PduEvent, RoomVersionRules)> {
 		let PartialPdu {
 			event_type,
@@ -95,6 +95,9 @@ impl super::Service {
 			redacts,
 			timestamp,
 		} = partial_pdu;
+		if state_key.is_some() {
+			debug_assert!(mutex_lock.is_some(), "No state mutex held while creating state event");
+		}
 
 		trace!(
 			"Creating event of type {} in room {}",
@@ -287,7 +290,7 @@ impl super::Service {
 		partial_pdu: PartialPdu,
 		sender: &UserId,
 		room_id: Option<&RoomId>,
-		mutex_lock: &RoomMutexGuard,
+		mutex_lock: Option<&RoomMutexGuard>,
 	) -> Result<(PduEvent, CanonicalJsonObject)> {
 		if !self.services.globals.user_is_local(sender) {
 			return Err!(Request(Forbidden("Sender must be a local user")));

@@ -14,7 +14,6 @@ use conduwuit::{
 	trace,
 	utils::{
 		IterStream, TryFutureExtExt,
-		mutex_map::Guard,
 		stream::{BroadbandExt, ReadyExt},
 	},
 	warn,
@@ -27,7 +26,7 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedServerName,
 	RoomId, RoomVersionId, ServerName, UserId,
 	events::{
 		AnySyncTimelineEvent, GlobalAccountDataEventType, TimelineEventType,
@@ -43,7 +42,7 @@ use ruma::{
 	serde::Raw,
 };
 
-use super::{ExtractBody, ExtractRelatesTo, ExtractRelatesToEventId, RoomMutexGuard};
+use super::{ExtractBody, ExtractRelatesTo, ExtractRelatesToEventId};
 use crate::{
 	appservice::RegistrationInfo,
 	rooms::state_compressor::{CompressedState, HashSetCompressStateEvent},
@@ -59,7 +58,6 @@ impl super::Service {
 		room_version_rules: &RoomVersionRules,
 		state_before: HashMap<u64, OwnedEventId>,
 		should_soft_fail: bool,
-		state_lock: &'a RoomMutexGuard,
 	) -> Result<Option<RawPduId>> {
 		let room_id = pdu.room_id_or_hash();
 
@@ -104,7 +102,6 @@ impl super::Service {
 					.get_forward_extremities(&room_id)
 					.collect()
 					.await,
-				state_lock,
 			)
 			.await?;
 
@@ -113,7 +110,6 @@ impl super::Service {
 				pdu,
 				pdu_json,
 				extremities.iter().map(Borrow::borrow),
-				state_lock,
 				&room_id,
 			)
 			.await?;
@@ -166,11 +162,10 @@ impl super::Service {
 		room_version_rules: &RoomVersionRules,
 		state_before: HashMap<u64, OwnedEventId>,
 		current_extremities: Vec<OwnedEventId>,
-		state_lock: &Guard<OwnedRoomId, ()>,
 	) -> Result<Vec<OwnedEventId>> {
 		if incoming_pdu.state_key().is_some() {
 			debug!("Event is a state-event. Deriving new room state");
-			self.derive_new_state(incoming_pdu, room_version_rules, state_before, state_lock)
+			self.derive_new_state(incoming_pdu, room_version_rules, state_before)
 				.await?;
 		}
 
@@ -269,7 +264,6 @@ impl super::Service {
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
 		state_before: HashMap<u64, OwnedEventId>,
-		state_lock: &Guard<OwnedRoomId, ()>,
 	) -> Result {
 		let room_id = incoming_pdu.room_id_or_hash();
 		// We also add state after incoming event to the fork states
@@ -302,7 +296,7 @@ impl super::Service {
 
 		self.services
 			.state
-			.force_state(&room_id, shortstatehash, added, removed, state_lock)
+			.force_state(&room_id, shortstatehash, added, removed)
 			.await
 	}
 
@@ -352,7 +346,6 @@ impl super::Service {
 		pdu: &'a PduEvent,
 		mut pdu_json: CanonicalJsonObject,
 		leaves: Leaves,
-		state_lock: &'a RoomMutexGuard,
 		room_id: &'a RoomId,
 	) -> Result<RawPduId>
 	where
@@ -387,7 +380,7 @@ impl super::Service {
 		trace!("setting forward extremities");
 		self.services
 			.state
-			.set_forward_extremities(room_id, leaves, state_lock)
+			.set_forward_extremities(room_id, leaves)
 			.await;
 
 		let insert_lock = self.mutex_insert.lock(room_id).await;

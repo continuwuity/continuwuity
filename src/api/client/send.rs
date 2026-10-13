@@ -46,8 +46,6 @@ pub(crate) async fn send_message_event_route(
 		return Err!(Request(Forbidden("Encryption has been disabled")));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
-
 	if body.event_type == MessageLikeEventType::CallInvite
 		&& services.rooms.directory.is_public_room(&body.room_id).await
 	{
@@ -114,7 +112,7 @@ pub(crate) async fn send_message_event_route(
 			},
 			sender_user,
 			Some(&body.room_id),
-			&state_lock,
+			None,
 		)
 		.await?;
 
@@ -124,8 +122,6 @@ pub(crate) async fn send_message_event_route(
 		&body.txn_id,
 		event_id.as_bytes(),
 	);
-
-	drop(state_lock);
 
 	Ok(send_message_event::v3::Response::new(event_id))
 }

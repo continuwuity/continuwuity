@@ -266,16 +266,9 @@ async fn knock_room_by_id_helper(
 						.boxed()
 						.await?;
 					} else {
-						knock_room_helper_remote(
-							services,
-							sender_user,
-							room_id,
-							reason,
-							servers,
-							new_state_lock,
-						)
-						.boxed()
-						.await?;
+						knock_room_helper_remote(services, sender_user, room_id, reason, servers)
+							.boxed()
+							.await?;
 					}
 
 					return Ok(knock_room::v3::Response::new(room_id.to_owned()));
@@ -304,7 +297,7 @@ async fn knock_room_by_id_helper(
 			.boxed()
 			.await?;
 	} else {
-		knock_room_helper_remote(services, sender_user, room_id, reason, servers, state_lock)
+		knock_room_helper_remote(services, sender_user, room_id, reason, servers)
 			.boxed()
 			.await?;
 	}
@@ -344,7 +337,7 @@ async fn knock_room_helper_local(
 			PartialPdu::state(sender_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.await
 	else {
@@ -479,7 +472,6 @@ async fn knock_room_helper_remote(
 	room_id: &RoomId,
 	reason: Option<String>,
 	servers: &[OwnedServerName],
-	state_lock: RoomMutexGuard,
 ) -> Result {
 	info!("Knocking {room_id} over federation.");
 
@@ -641,7 +633,7 @@ async fn knock_room_helper_remote(
 	services
 		.rooms
 		.state
-		.force_state(room_id, statehash_before_knock, added, removed, &state_lock)
+		.force_state(room_id, statehash_before_knock, added, removed)
 		.await?;
 
 	let statehash_after_knock = services
@@ -677,7 +669,7 @@ async fn knock_room_helper_remote(
 	services
 		.rooms
 		.state
-		.set_room_state(room_id, statehash_after_knock, &state_lock);
+		.set_room_state(room_id, statehash_after_knock);
 
 	Ok(())
 }

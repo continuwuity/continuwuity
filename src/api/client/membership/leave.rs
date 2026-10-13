@@ -155,7 +155,7 @@ pub async fn leave_room(
 						PartialPdu::state(user_id.to_string(), &content),
 						user_id,
 						Some(room_id),
-						&state_lock,
+						Some(&state_lock),
 					)
 					.await?;
 

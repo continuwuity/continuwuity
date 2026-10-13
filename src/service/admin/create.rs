@@ -75,7 +75,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &create_content),
 			server_user,
 			room_id.as_deref(),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -100,7 +100,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -135,7 +135,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &power_levels_content),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -148,7 +148,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &RoomJoinRulesEventContent::new(JoinRule::Invite)),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -164,7 +164,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -180,7 +180,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -194,7 +194,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &RoomNameEventContent::new(room_name)),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -207,7 +207,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &RoomTopicEventContent::markdown(room_topic)),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -223,7 +223,7 @@ pub async fn create_admin_room(services: &Services) -> Result {
 			PartialPdu::state(String::new(), &alias_content),
 			server_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;

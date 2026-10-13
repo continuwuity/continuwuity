@@ -102,7 +102,6 @@ impl Service {
 		shortstatehash: u64,
 		statediffnew: Arc<CompressedState>,
 		_statediffremoved: Arc<CompressedState>,
-		state_lock: &RoomMutexGuard,
 	) -> Result {
 		let event_ids = statediffnew
 			.iter()
@@ -139,7 +138,7 @@ impl Service {
 
 		self.services.state_cache.update_joined_count(room_id).await;
 
-		self.set_room_state(room_id, shortstatehash, state_lock);
+		self.set_room_state(room_id, shortstatehash);
 
 		self.services.sync.wake_all_joined(room_id).await;
 
@@ -363,14 +362,8 @@ impl Service {
 	}
 
 	/// Set the state hash to a new version, but does not update state_cache.
-	#[tracing::instrument(skip(self, _mutex_lock), level = "debug")]
-	pub fn set_room_state(
-		&self,
-		room_id: &RoomId,
-		shortstatehash: u64,
-		// Take mutex guard to make sure users get the room state mutex
-		_mutex_lock: &RoomMutexGuard,
-	) {
+	#[tracing::instrument(skip(self), level = "debug")]
+	pub fn set_room_state(&self, room_id: &RoomId, shortstatehash: u64) {
 		const BUFSIZE: usize = size_of::<u64>();
 
 		self.db
