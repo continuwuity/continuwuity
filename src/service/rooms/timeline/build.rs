@@ -111,6 +111,7 @@ impl super::Service {
 		// because append_pdu can't fail.
 		trace!("Appending {} state for room {room_id}", pdu.event_id());
 		let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
+		self.progress_extremities(&pdu).await?;
 		trace!("State hash ID for {room_id}: {statehashid:?}");
 
 		trace!("Generating raw ID for PDU {}", pdu.event_id());
