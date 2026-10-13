@@ -458,7 +458,11 @@ async fn knock_room_helper_local(
 		.await?;
 
 	info!("Appending room knock event locally");
-	services.rooms.timeline.progress_extremities(&parsed_knock_pdu).await?;
+	services
+		.rooms
+		.timeline
+		.progress_extremities(&parsed_knock_pdu)
+		.await?;
 	services
 		.rooms
 		.timeline
@@ -654,7 +658,11 @@ async fn knock_room_helper_remote(
 		.await?;
 
 	info!("Appending room knock event locally");
-	services.rooms.timeline.progress_extremities(&parsed_knock_pdu).await?;
+	services
+		.rooms
+		.timeline
+		.progress_extremities(&parsed_knock_pdu)
+		.await?;
 	services
 		.rooms
 		.timeline

@@ -660,7 +660,10 @@ impl Service {
 		// We append to state before appending the pdu, so we don't have a
 		// moment in time with the pdu without it's state. This is okay
 		// because append_pdu can't fail.
-		self.services.timeline.progress_extremities(&parsed_join_pdu).await?;
+		self.services
+			.timeline
+			.progress_extremities(&parsed_join_pdu)
+			.await?;
 		let statehash_after_join = self
 			.services
 			.state
@@ -693,7 +696,11 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.replace_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
+				.replace_forward_extremities(
+					room_id,
+					once(parsed_join_pdu.event_id()),
+					&state_lock,
+				)
 				.await;
 		}
 		drop(cork);
