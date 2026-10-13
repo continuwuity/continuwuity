@@ -13,7 +13,7 @@ use conduwuit::{
 	trace,
 	utils::{
 		IterStream, ReadyExt,
-		stream::{TryExpect, TryIgnore, automatic_width},
+		stream::{TryExpect, TryIgnore, WidebandExt, automatic_width},
 		to_canonical_object,
 	},
 	warn,
@@ -994,7 +994,18 @@ async fn remove_unknown_extremities(services: &Services) -> Result {
 			automatic_width(),
 			|(room_id, event_id): (OwnedRoomId, OwnedEventId)| async move {
 				if !services.rooms.timeline.pdu_exists(&event_id).await {
-					debug!("Removing unknown extremity in {room_id}: {event_id}");
+					info!("Removing unknown extremity in {room_id}: {event_id}");
+					services
+						.rooms
+						.state
+						.remove_forward_extremity(&room_id, &event_id);
+				} else if !services
+					.rooms
+					.pdu_metadata
+					.is_event_accepted(&event_id)
+					.await
+				{
+					info!("Removing failed extremity in {room_id}: {event_id}");
 					services
 						.rooms
 						.state
@@ -1020,54 +1031,92 @@ async fn consistency_check_extremity_tracker(services: &Services) -> Result {
 			.count()
 			.await;
 
-		if extremity_count > 20 {
-			warn!(%extremity_count, "Room {room_id} has an abnormal number of forward extremities, attempting to re-calculate to a sane value. This might take a while.");
-			services
-				.rooms
-				.state
-				.get_forward_extremities(&room_id)
-				.ready_for_each(|event_id| {
-					services
-						.rooms
-						.state
-						.remove_forward_extremity(&room_id, &event_id);
-				})
-				.await;
-		} else if extremity_count == 0 {
+		if extremity_count == 0 {
 			warn!(
 				"Room {room_id} is missing extremity information, recalculating. This may take \
 				 a long time if this room is old."
 			);
-		}
-
-		services
-			.rooms
-			.timeline
-			.pdus(&room_id, Some(PduCount::Normal(0)))
-			.ignore_err()
-			.for_each(|(_, pdu)| {
-				let room_id = &room_id;
-				async move {
-					if !services
-						.rooms
-						.pdu_metadata
-						.is_event_accepted(pdu.event_id())
-						.await
-					{
-						return;
+			let epoch_ts = services
+				.rooms
+				.timeline
+				.first_pdu_in_room(&room_id)
+				.await
+				.map_or_default(|e| e.origin_server_ts().0);
+			services
+				.rooms
+				.timeline
+				.pdus(&room_id, Some(PduCount::Normal(0)))
+				.ignore_err()
+				.for_each(|(_, pdu)| {
+					let room_id = &room_id;
+					async move {
+						if pdu.origin_server_ts < epoch_ts {
+							return;
+						}
+						if !services
+							.rooms
+							.pdu_metadata
+							.is_event_accepted(pdu.event_id())
+							.await
+						{
+							return;
+						}
+						services
+							.rooms
+							.timeline
+							.progress_extremities(&pdu)
+							.await
+							.inspect_err(|e| {
+								error!("Failed to progress extremities in {room_id}: {e:?}");
+							})
+							.ok();
 					}
+				})
+				.await;
+		} else if extremity_count > 20 {
+			warn!(
+				%extremity_count,
+				"Room {room_id} has an abnormal number of forward extremities, retaining latest 20"
+			);
+			let mut thinned = services
+				.rooms
+				.state
+				.get_forward_extremities(&room_id)
+				.wide_filter_map(|event_id| {
+					let room_id = &room_id;
+					async move {
+						let Ok(pdu) =
+							services.rooms.timeline.get_non_outlier_pdu(&event_id).await
+						else {
+							services
+								.rooms
+								.state
+								.remove_forward_extremity(room_id, &event_id);
+							return None;
+						};
+						Some(pdu)
+					}
+				})
+				.collect::<Vec<_>>()
+				.await;
+			thinned.sort_by_key(|pdu| {
+				(
+					i64::from(pdu.depth).saturating_mul(-1),
+					i64::from(pdu.origin_server_ts).saturating_mul(-1),
+				)
+			});
+			thinned
+				.into_iter()
+				.stream()
+				.skip(20)
+				.ready_for_each(move |pdu| {
 					services
 						.rooms
-						.timeline
-						.progress_extremities(&pdu)
-						.await
-						.inspect_err(|e| {
-							error!("Failed to progress extremities in {room_id}: {e:?}");
-						})
-						.ok();
-				}
-			})
-			.await;
+						.state
+						.remove_forward_extremity(&room_id, pdu.event_id());
+				})
+				.await;
+		}
 	}
 
 	Ok(())
