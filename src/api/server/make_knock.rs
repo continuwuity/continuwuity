@@ -107,7 +107,7 @@ pub(crate) async fn create_knock_event_template_route(
 			),
 			&body.user_id,
 			Some(&body.room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.await?;
 

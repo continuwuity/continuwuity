@@ -383,7 +383,7 @@ pub async fn full_user_deactivate(
 		let _ = services
 			.rooms
 			.timeline
-			.build_and_append_pdu(pdu, user_id, Some(room_id.as_ref()), &state_lock)
+			.build_and_append_pdu(pdu, user_id, Some(room_id.as_ref()), Some(&state_lock))
 			.await;
 	}
 

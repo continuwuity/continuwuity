@@ -102,7 +102,6 @@ impl Service {
 		shortstatehash: u64,
 		statediffnew: Arc<CompressedState>,
 		_statediffremoved: Arc<CompressedState>,
-		state_lock: &RoomMutexGuard,
 	) -> Result {
 		let event_ids = statediffnew
 			.iter()
@@ -139,7 +138,7 @@ impl Service {
 
 		self.services.state_cache.update_joined_count(room_id).await;
 
-		self.set_room_state(room_id, shortstatehash, state_lock);
+		self.set_room_state(room_id, shortstatehash);
 
 		self.services.sync.wake_all_joined(room_id).await;
 
@@ -363,14 +362,8 @@ impl Service {
 	}
 
 	/// Set the state hash to a new version, but does not update state_cache.
-	#[tracing::instrument(skip(self, _mutex_lock), level = "debug")]
-	pub fn set_room_state(
-		&self,
-		room_id: &RoomId,
-		shortstatehash: u64,
-		// Take mutex guard to make sure users get the room state mutex
-		_mutex_lock: &RoomMutexGuard,
-	) {
+	#[tracing::instrument(skip(self), level = "debug")]
+	pub fn set_room_state(&self, room_id: &RoomId, shortstatehash: u64) {
 		const BUFSIZE: usize = size_of::<u64>();
 
 		self.db
@@ -420,7 +413,11 @@ impl Service {
 			.ignore_err()
 	}
 
-	pub async fn set_forward_extremities<'a, I>(
+	/// Replaces the forward extremity set whole-sale.
+	///
+	/// This should only be done during room joins, where our only source of
+	/// extremities is the join itself.
+	pub async fn replace_forward_extremities<'a, I>(
 		&'a self,
 		room_id: &'a RoomId,
 		event_ids: I,
@@ -428,6 +425,15 @@ impl Service {
 	) where
 		I: Iterator<Item = &'a EventId> + Send + 'a,
 	{
+		self.clear_forward_extremities(room_id).await;
+
+		for event_id in event_ids {
+			let key = (room_id, event_id);
+			self.db.roomid_pduleaves.put_raw(key, event_id);
+		}
+	}
+
+	pub async fn clear_forward_extremities(&self, room_id: &RoomId) {
 		let prefix = (room_id, Interfix);
 		self.db
 			.roomid_pduleaves
@@ -435,11 +441,18 @@ impl Service {
 			.ignore_err()
 			.ready_for_each(|key| self.db.roomid_pduleaves.remove(key))
 			.await;
+	}
 
-		for event_id in event_ids {
-			let key = (room_id, event_id);
-			self.db.roomid_pduleaves.put_raw(key, event_id);
-		}
+	/// Appends a forward extremity to the extremity tracker.
+	pub fn add_forward_extremity(&self, room_id: &RoomId, event_id: &EventId) {
+		let key = (room_id, event_id);
+		self.db.roomid_pduleaves.put_raw(key, []);
+	}
+
+	/// Removes a forward extremity from the extremity tracker.
+	pub fn remove_forward_extremity(&self, room_id: &RoomId, event_id: &EventId) {
+		let key = (room_id, event_id);
+		self.db.roomid_pduleaves.del(key);
 	}
 
 	/// This fetches auth events from the current state.

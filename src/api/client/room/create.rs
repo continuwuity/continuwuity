@@ -327,7 +327,7 @@ pub(crate) async fn create_room_route(
 			},
 			sender_user,
 			tmp_id,
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -367,7 +367,7 @@ pub(crate) async fn create_room_route(
 			PartialPdu::state(sender_user.to_string(), &join_event),
 			sender_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -409,7 +409,7 @@ pub(crate) async fn create_room_route(
 			},
 			sender_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -429,7 +429,7 @@ pub(crate) async fn create_room_route(
 				),
 				sender_user,
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.boxed()
 			.await?;
@@ -452,7 +452,7 @@ pub(crate) async fn create_room_route(
 			),
 			sender_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -468,7 +468,7 @@ pub(crate) async fn create_room_route(
 			),
 			sender_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -487,7 +487,7 @@ pub(crate) async fn create_room_route(
 			),
 			sender_user,
 			Some(&room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.boxed()
 		.await?;
@@ -512,7 +512,7 @@ pub(crate) async fn create_room_route(
 		services
 			.rooms
 			.timeline
-			.build_and_append_pdu(pdu, sender_user, Some(&room_id), &state_lock)
+			.build_and_append_pdu(pdu, sender_user, Some(&room_id), Some(&state_lock))
 			.boxed()
 			.await?;
 	}
@@ -567,7 +567,7 @@ pub(crate) async fn create_room_route(
 				PartialPdu::state(String::new(), &RoomNameEventContent::new(name.clone())),
 				sender_user,
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.boxed()
 			.await?;
@@ -581,7 +581,7 @@ pub(crate) async fn create_room_route(
 				PartialPdu::state(String::new(), &RoomTopicEventContent::new(topic.clone())),
 				sender_user,
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.boxed()
 			.await?;

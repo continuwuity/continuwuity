@@ -47,7 +47,7 @@ pub(crate) async fn unban_user_route(
 			PartialPdu::state(body.user_id.to_string(), &current_member_content),
 			sender_user,
 			Some(&body.room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.await?;
 

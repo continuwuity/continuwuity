@@ -27,8 +27,6 @@ pub(crate) async fn redact_event_route(
 		return Err!(Request(UserSuspended("You cannot perform this action while suspended.")));
 	}
 
-	let state_lock = services.rooms.state.mutex.lock(body.room_id.as_str()).await;
-
 	let event_id = services
 		.rooms
 		.timeline
@@ -43,11 +41,9 @@ pub(crate) async fn redact_event_route(
 			},
 			sender_user,
 			Some(&body.room_id),
-			&state_lock,
+			None,
 		)
 		.await?;
-
-	drop(state_lock);
 
 	Ok(redact_event::v3::Response::new(event_id))
 }

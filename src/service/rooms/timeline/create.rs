@@ -84,7 +84,7 @@ impl super::Service {
 		partial_pdu: PartialPdu,
 		sender: &UserId,
 		room_id: Option<&RoomId>,
-		_mutex_lock: &RoomMutexGuard,
+		mutex_lock: Option<&RoomMutexGuard>,
 	) -> Result<(PduEvent, RoomVersionRules)> {
 		let PartialPdu {
 			event_type,
@@ -95,6 +95,19 @@ impl super::Service {
 			redacts,
 			timestamp,
 		} = partial_pdu;
+		#[cfg(not(feature = "release_max_log_level"))]
+		if state_key.is_some() && mutex_lock.is_none() {
+			return Err!(error!(
+				?event_type,
+				?content,
+				?sticky,
+				?unsigned,
+				?state_key,
+				?redacts,
+				?timestamp,
+				"Attempted to build a state event without a state mutex lock"
+			));
+		}
 
 		trace!(
 			"Creating event of type {} in room {}",
@@ -287,7 +300,7 @@ impl super::Service {
 		partial_pdu: PartialPdu,
 		sender: &UserId,
 		room_id: Option<&RoomId>,
-		mutex_lock: &RoomMutexGuard,
+		mutex_lock: Option<&RoomMutexGuard>,
 	) -> Result<(PduEvent, CanonicalJsonObject)> {
 		if !self.services.globals.user_is_local(sender) {
 			return Err!(Request(Forbidden("Sender must be a local user")));

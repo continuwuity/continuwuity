@@ -325,7 +325,6 @@ impl super::Service {
 				trace!(%user_id, "user does not have power level to send dummy event, skipping");
 				continue;
 			}
-			let state_lock = self.services.state.mutex.lock(room_id).await;
 			if self
 				.services
 				.timeline
@@ -336,7 +335,7 @@ impl super::Service {
 					},
 					&user_id,
 					Some(room_id),
-					&state_lock,
+					None,
 				)
 				.await
 				.inspect(|_| debug!(sender=%user_id, "Successfully sent a dummy event"))

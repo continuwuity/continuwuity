@@ -259,7 +259,7 @@ impl Service {
 				PartialPdu::state(sender_user.to_string(), &content),
 				sender_user,
 				Some(room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.await
 		else {
@@ -533,9 +533,6 @@ impl Service {
 				}
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
 				self.services.pdu_metadata.clear_pdu_markers(&event_id);
-				self.services
-					.pdu_metadata
-					.mark_as_referenced(room_id, once(event_id.as_ref()));
 				if let Some(state_key) = &pdu.state_key {
 					let shortstatekey = self
 						.services
@@ -568,9 +565,6 @@ impl Service {
 				trace!(%event_id, "Adding PDU as an outlier from send_join auth_chain");
 				self.services.outlier.add_pdu_outlier(&event_id, &value);
 				self.services.pdu_metadata.clear_pdu_markers(&event_id);
-				self.services
-					.pdu_metadata
-					.mark_as_referenced(room_id, once(event_id.as_ref()));
 				let state_key = value
 					.get("state_key")
 					.and_then(|s| s.as_str())
@@ -657,7 +651,7 @@ impl Service {
 		debug!("Forcing state for new room");
 		self.services
 			.state
-			.force_state(room_id, statehash_before_join, added, removed, &state_lock)
+			.force_state(room_id, statehash_before_join, added, removed)
 			.await?;
 
 		debug!("Updating joined counts for new room");
@@ -666,6 +660,10 @@ impl Service {
 		// We append to state before appending the pdu, so we don't have a
 		// moment in time with the pdu without it's state. This is okay
 		// because append_pdu can't fail.
+		self.services
+			.timeline
+			.progress_extremities(&parsed_join_pdu)
+			.await?;
 		let statehash_after_join = self
 			.services
 			.state
@@ -675,14 +673,8 @@ impl Service {
 		info!("Appending new room join event");
 		self.services
 			.timeline
-			.append_pdu(
-				&parsed_join_pdu,
-				join_event,
-				once(parsed_join_pdu.event_id.as_ref()),
-				&state_lock,
-				room_id,
-			)
-			.await?;
+			.append_pdu(&parsed_join_pdu, join_event, room_id)
+			.await;
 		self.services
 			.metadata
 			.maybe_set_mindepth(room_id, parsed_join_pdu.depth.into())
@@ -694,7 +686,7 @@ impl Service {
 		// exist
 		self.services
 			.state
-			.set_room_state(room_id, statehash_after_join, &state_lock);
+			.set_room_state(room_id, statehash_after_join);
 		if !resident_before {
 			// NOTE: We replace local extremities for this room if we were not a
 			// resident before. We might be doing a remote join to satisfy
@@ -704,7 +696,11 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), &state_lock)
+				.replace_forward_extremities(
+					room_id,
+					once(parsed_join_pdu.event_id()),
+					&state_lock,
+				)
 				.await;
 		}
 		drop(cork);

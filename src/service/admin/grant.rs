@@ -56,7 +56,7 @@ impl super::Service {
 					),
 					server_user,
 					Some(&room_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.await?;
 
@@ -70,7 +70,7 @@ impl super::Service {
 					),
 					user_id,
 					Some(&room_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.await?;
 		} else {
@@ -84,7 +84,7 @@ impl super::Service {
 					),
 					server_user,
 					Some(&room_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.await?;
 		}
@@ -116,7 +116,7 @@ impl super::Service {
 				PartialPdu::state(String::new(), &room_power_levels),
 				server_user,
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.await?;
 
@@ -196,7 +196,7 @@ impl super::Service {
 					PartialPdu::state(String::new(), &room_power_levels),
 					self.services.globals.server_user.as_ref(),
 					Some(&room_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.await
 				.inspect_err(|e| {
@@ -243,7 +243,7 @@ impl super::Service {
 				PartialPdu::state(user_id.to_string(), &member_content),
 				self.services.globals.server_user.as_ref(),
 				Some(&room_id),
-				&state_lock,
+				Some(&state_lock),
 			)
 			.await
 			.map(|_| ())

@@ -177,7 +177,7 @@ async fn send_invite(
 					PartialPdu::state(recipient_user.to_string(), &content),
 					sender_user,
 					Some(room_id),
-					&state_lock,
+					Some(&state_lock),
 				)
 				.await?;
 
@@ -276,7 +276,7 @@ async fn send_invite(
 			PartialPdu::state(recipient_user.to_string(), &content),
 			sender_user,
 			Some(room_id),
-			&state_lock,
+			Some(&state_lock),
 		)
 		.await?;
 
