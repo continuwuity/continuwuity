@@ -983,6 +983,7 @@ async fn fix_oauth_scope_names(services: &Services) -> Result {
 	Ok(())
 }
 
+#[tracing::instrument(skip_all)]
 async fn remove_unknown_extremities(services: &Services) -> Result {
 	services.db["roomid_pduleaves"]
 		.keys()
@@ -1003,27 +1004,36 @@ async fn remove_unknown_extremities(services: &Services) -> Result {
 	Ok(())
 }
 
+#[tracing::instrument(skip_all)]
 async fn consistency_check_extremity_tracker(services: &Services) -> Result {
 	let mut rooms = services.rooms.metadata.iter_ids();
 
 	// For every room the server is a member of,
 	while let Some(room_id) = rooms.next().await {
 		// If this room has no extremities, re-calculate
-		if services
+		let extremity_count = services
 			.rooms
 			.state
 			.get_forward_extremities(&room_id)
 			.count()
-			.await
-			>= 1
+			.await;
+
+		if extremity_count > 20
 		{
-			continue;
+			warn!(%extremity_count, "Room {room_id} has an abnormal number of forward extremities, attempting to re-calculate to a sane value. This might take a while.");
+			services
+				.rooms
+				.state
+				.get_forward_extremities(&room_id)
+				.ready_for_each(|event_id| services.rooms.state.remove_forward_extremity(&room_id, &event_id))
+				.await;
+		} else if extremity_count == 0 {
+			warn!(
+				"Room {room_id} is missing extremity information, recalculating. This may take a \
+				 long time if this room is old."
+			);
 		}
 
-		warn!(
-			"Room {room_id} is missing extremity information, recalculating. This may take a \
-			 long time if this room is old."
-		);
 		services
 			.rooms
 			.timeline
