@@ -138,7 +138,11 @@ impl super::Service {
 			.client
 			.matrix_resolver
 			.resolve_server(dest.as_str())
-			.await?;
+			.await
+			.inspect_err(|_| {
+				self.hit_unhealthy(dest.to_owned());
+				self.mark_destination_stale(dest);
+			})?;
 
 		let request = Request::try_from(request.try_into_http_request::<Vec<u8>>(
 			actual.base_url().as_str(),
