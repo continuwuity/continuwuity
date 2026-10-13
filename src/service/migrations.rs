@@ -180,7 +180,8 @@ migration!(stringify!($name) => $name)
 		// This is backwards compatible because old versions never read the
 		// account data entries it removes.
 		migration!(remove_replaced_account_data),
-		// This is backwards compatible because old versions ignore the `roomts_pduid` keyspace.
+		// This is backwards compatible because old versions ignore the
+		// `roomts_pduid` keyspace.
 		Migration(rooms::timeline::TIMESTAMP_INDEX_MIGRATION, |services| {
 			Box::pin(async {
 				let global = &services.db["global"];
