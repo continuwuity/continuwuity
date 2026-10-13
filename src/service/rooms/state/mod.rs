@@ -432,6 +432,15 @@ impl Service {
 	) where
 		I: Iterator<Item = &'a EventId> + Send + 'a,
 	{
+		self.clear_forward_extremities(room_id).await;
+
+		for event_id in event_ids {
+			let key = (room_id, event_id);
+			self.db.roomid_pduleaves.put_raw(key, event_id);
+		}
+	}
+
+	pub async fn clear_forward_extremities(&self, room_id: &RoomId) {
 		let prefix = (room_id, Interfix);
 		self.db
 			.roomid_pduleaves
@@ -439,11 +448,6 @@ impl Service {
 			.ignore_err()
 			.ready_for_each(|key| self.db.roomid_pduleaves.remove(key))
 			.await;
-
-		for event_id in event_ids {
-			let key = (room_id, event_id);
-			self.db.roomid_pduleaves.put_raw(key, event_id);
-		}
 	}
 
 	/// Appends a forward extremity to the extremity tracker.

@@ -1020,19 +1020,23 @@ async fn consistency_check_extremity_tracker(services: &Services) -> Result {
 			.count()
 			.await;
 
-		if extremity_count > 20
-		{
+		if extremity_count > 20 {
 			warn!(%extremity_count, "Room {room_id} has an abnormal number of forward extremities, attempting to re-calculate to a sane value. This might take a while.");
 			services
 				.rooms
 				.state
 				.get_forward_extremities(&room_id)
-				.ready_for_each(|event_id| services.rooms.state.remove_forward_extremity(&room_id, &event_id))
+				.ready_for_each(|event_id| {
+					services
+						.rooms
+						.state
+						.remove_forward_extremity(&room_id, &event_id);
+				})
 				.await;
 		} else if extremity_count == 0 {
 			warn!(
-				"Room {room_id} is missing extremity information, recalculating. This may take a \
-				 long time if this room is old."
+				"Room {room_id} is missing extremity information, recalculating. This may take \
+				 a long time if this room is old."
 			);
 		}
 
@@ -1044,6 +1048,14 @@ async fn consistency_check_extremity_tracker(services: &Services) -> Result {
 			.for_each(|(_, pdu)| {
 				let room_id = &room_id;
 				async move {
+					if !services
+						.rooms
+						.pdu_metadata
+						.is_event_accepted(pdu.event_id())
+						.await
+					{
+						return;
+					}
 					services
 						.rooms
 						.timeline
