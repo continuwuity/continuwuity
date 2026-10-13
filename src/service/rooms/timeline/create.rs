@@ -95,8 +95,18 @@ impl super::Service {
 			redacts,
 			timestamp,
 		} = partial_pdu;
-		if state_key.is_some() {
-			debug_assert!(mutex_lock.is_some(), "No state mutex held while creating state event");
+		#[cfg(not(feature = "release_max_log_level"))]
+		if state_key.is_some() && mutex_lock.is_none() {
+			return Err!(error!(
+				?event_type,
+				?content,
+				?sticky,
+				?unsigned,
+				?state_key,
+				?redacts,
+				?timestamp,
+				"Attempted to build a state event without a state mutex lock"
+			));
 		}
 
 		trace!(
