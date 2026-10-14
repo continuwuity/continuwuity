@@ -31,7 +31,14 @@ services.matrix-continuwuity = {
       # address and port are handled automatically
 
       # You can add any further configuration here, e.g.
-	  # trusted_servers = [ "matrix.org" ];
+      # trusted_servers = [ "matrix.org" ];
+
+      ## (if using well-known delegation)
+      # well_known = {
+      #   client = "https://matrix.example.com";
+      #   server = "matrix.example.com:443";
+      # }
+
     };
   };
 };
@@ -79,3 +86,9 @@ client = "https://matrix.example.com"
 
 You'll need to set up a reverse proxy (like NGINX or Caddy) to expose Continuwuity to the internet. You can configure your reverse proxy using NixOS options (e.g. `services.caddy`).
 See the [reverse proxy setup guide](./generic.mdx#setting-up-the-reverse-proxy) for information on correct reverse proxy configuration.
+
+Then, test that your setup works by following these [instructions](./generic.mdx#how-do-i-know-it-works).
+
+## What's next?
+
+Navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
