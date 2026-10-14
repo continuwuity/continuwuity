@@ -1,4 +1,9 @@
-use std::{borrow::Cow, fmt::Debug, mem, time::Instant};
+use std::{
+	borrow::Cow,
+	fmt::Debug,
+	mem,
+	time::{Duration, Instant},
+};
 
 use conduwuit::{
 	Err, Error, Result, debug, debug_error, debug_info, debug_warn, err, metrics::KeyValue,
@@ -133,6 +138,10 @@ impl super::Service {
 
 		self.ensure_remote_is_healthy(dest)?;
 
+		/// How long to mark a server as unhealthy before attempting
+		/// re-resolution
+		const UNHEALTHY_TIMEOUT: Duration = Duration::from_hours(24 * 90);
+
 		let actual = self
 			.services
 			.client
@@ -140,7 +149,7 @@ impl super::Service {
 			.resolve_server(dest.as_str())
 			.await
 			.inspect_err(|_| {
-				self.hit_unhealthy(dest.to_owned());
+				self.hit_unhealthy(dest.to_owned(), Some(UNHEALTHY_TIMEOUT));
 				self.mark_destination_stale(dest);
 			})?;
 
@@ -214,7 +223,7 @@ impl super::Service {
 				if self.should_mark_stale(&wrapped) {
 					debug_info!("{dest} is unhealthy & stale due to a connect error");
 					self.mark_destination_stale(dest);
-					self.hit_unhealthy(dest.to_owned());
+					self.hit_unhealthy(dest.to_owned(), None);
 				}
 				let Error::Reqwest(unwrapped) = wrapped else {
 					unreachable!("wrapped reqwest error must unwrap to a reqwest error");

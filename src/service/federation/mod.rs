@@ -18,6 +18,7 @@ use ruma::{
 	OwnedServerName, ServerName,
 	api::error::{ErrorKind, LimitExceededErrorData, RetryAfter},
 };
+use yansi::Paint;
 
 use crate::{Dep, client, moderation, server_keys};
 
@@ -92,7 +93,7 @@ impl Service {
 	/// retry count is incremented and next retry window is updated.
 	///
 	/// Does not update the marker if the backoff period is already in effect.
-	pub fn hit_unhealthy(&self, server_name: OwnedServerName) {
+	pub fn hit_unhealthy(&self, server_name: OwnedServerName, next_attempt: Option<Duration>) {
 		if server_name == self.services.server.name {
 			return;
 		}
@@ -109,7 +110,8 @@ impl Service {
 		}
 
 		*retries = retries.saturating_add(1);
-		let next_interval = self.services.server.config.sender_retry_backoff(*retries);
+		let next_interval = next_attempt
+			.unwrap_or_else(|| self.services.server.config.sender_retry_backoff(*retries));
 		*next_retry = millis_from_now(next_interval);
 		debug!(
 			"{} is (now) unhealthy ({} retries, blocked until: {})",
@@ -200,14 +202,14 @@ impl Service {
 		}
 
 		match error.status_code() {
-			// Some special servers account for this specifically
-			| StatusCode::MISDIRECTED_REQUEST
-			// Common error codes observed for misdirected requests
-			// | StatusCode::NOT_FOUND  This one can be encountered naturally
-			| StatusCode::METHOD_NOT_ALLOWED
-			| StatusCode::IM_A_TEAPOT => true,
-			_ => false,
-		}
+            // Some special servers account for this specifically
+            | StatusCode::MISDIRECTED_REQUEST
+            // Common error codes observed for misdirected requests
+            // | StatusCode::NOT_FOUND  This one can be encountered naturally
+            | StatusCode::METHOD_NOT_ALLOWED
+            | StatusCode::IM_A_TEAPOT => true,
+            _ => false,
+        }
 	}
 
 	/// Returns a clone of the internal remote health tracking map.
