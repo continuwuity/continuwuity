@@ -4,7 +4,7 @@ Continuwuity comes with an internal database for user authentication, which it u
 
 ## Registration
 
-Registration is disabled by default. To enable it, set `allow_registration = true` in your config file and use at least one of the registration methods below.
+The following registration methods are available for Continuwuity:
 
 | Method | Description                       | Additional configuration needed                                                                                                   |
 | ------ | --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
@@ -18,6 +18,8 @@ Registration is disabled by default. To enable it, set `allow_registration = tru
 Admin-issued tokens are the recommended registration method. These tokens are well suited for private or invite-only servers, and they can be scoped with an expiry duration or given a usage limit. See the [`!admin token`](../reference/admin/token) commands for more details.
 
 Other registration methods are meant for **untrusted, public registration**. Care must be taken when allowing these modes of operation.
+
+If you wish to disable registration entirely, set `allow_registration = false` in your config file.
 
 ## Email configuration
 
