@@ -69,7 +69,7 @@ Docker's default DNS resolver is known to [**cause timeout issues**](../troubles
 
 ```yaml title='docker-compose.yml'
 services:
-  homeserver:
+  continuwuity:
     # ...
     volumes:
       - ./continuwuity-resolv.conf:/etc/resolv.conf
@@ -95,7 +95,7 @@ Then, create a Caddyfile with the following content:
 
 ```
 https://example.com:443, https://example.com:8448 {
-    reverse_proxy http://homeserver:8008
+    reverse_proxy http://continuwuity:8008
 }
 ```
 
@@ -297,7 +297,7 @@ For Docker Compose deployments this means adding `stdin_open: true` and `tty: tr
 
 ```yaml
 services:
-    homeserver:
+    continuwuity:
         stdin_open: true
         tty: true
         # ...

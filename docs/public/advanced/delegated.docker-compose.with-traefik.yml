@@ -1,7 +1,7 @@
 # Continuwuity - With Traefik Reverse Proxy
 
 services:
-  homeserver:
+  continuwuity:
     image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
     restart: unless-stopped
     command: /sbin/conduwuit

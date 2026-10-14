@@ -15,7 +15,7 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
     restart: unless-stopped
 
-  homeserver:
+  continuwuity:
     image: "forgejo.ellis.link/continuwuation/continuwuity:latest"
     restart: unless-stopped
     command: /sbin/conduwuit

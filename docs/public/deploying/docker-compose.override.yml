@@ -1,7 +1,7 @@
 # Continuwuity - Traefik Reverse Proxy Labels (override file)
 
 services:
-  homeserver:
+  continuwuity:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy" # Change this to the name of your Traefik docker proxy network

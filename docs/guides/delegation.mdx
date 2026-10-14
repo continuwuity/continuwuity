@@ -226,10 +226,10 @@ The following Compose files are taken from [Docker deployment instructions](../d
 
 ```txt title="Caddyfile"
 https://matrix.example.com:443 {
-    reverse_proxy http://homeserver:8008
+    reverse_proxy http://continuwuity:8008
 }
 https://example.com:443 {
-    reverse_proxy /.well-known/matrix* http://homeserver:8008
+    reverse_proxy /.well-known/matrix* http://continuwuity:8008
 }
 ```
 

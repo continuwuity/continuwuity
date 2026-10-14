@@ -37,7 +37,7 @@ services:
 
       # If you already configured `[global.well_known]` with Continuwuity,
       # comment out the *_respond labels and uncomment the line below:
-      # caddy.reverse_proxy: /.well-known/matrix/* homeserver:8008
+      # caddy.reverse_proxy: /.well-known/matrix/* continuwuity:8008
 
       # If you are having problems with continuwuity serving headers,
       # uncomment the header section below.
@@ -48,7 +48,7 @@ services:
       # caddy.0_header.Access-Control-Allow-Headers: "Authorization"
       # caddy.0_header.Content-Type: "application/json"
 
-  homeserver:
+  continuwuity:
     image: forgejo.ellis.link/continuwuation/continuwuity:latest
     restart: unless-stopped
     # add additional environment, volume, and network config here...
