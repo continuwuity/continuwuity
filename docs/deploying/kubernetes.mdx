@@ -1,11 +1,11 @@
 # Continuwuity for Kubernetes
 
 Continuwuity doesn't support horizontal scalability or distributed loading
-natively. However, a deployment in Kubernetes is very similar to the docker
-setup. This is because Continuwuity can be fully configured using environment
-variables. A sample StatefulSet is shared below. The only thing missing is
+natively. However, a deployment in Kubernetes is very similar to the [docker setup](./docker.mdx).
+This is because Continuwuity can be fully configured using environment
+variables. A sample `StatefulSet` is shared below. The only thing missing is
 a PVC definition (named `continuwuity-data`) for the volume mounted to
-the StatefulSet, an Ingress resources to point your webserver to the
+the `StatefulSet`, an Ingress resources to point your webserver to the
 Continuwuity Pods, and a Service resource (targeting `app.kubernetes.io/name: continuwuity`)
 to glue the Ingress and Pod together.
 
@@ -103,10 +103,18 @@ spec:
 
 ---
 
-Apart from manually configuring the containers,
-[a community-maintained Helm Chart is available here to run
-conduwuit on Kubernetes](https://gitlab.cronce.io/charts/conduwuit)
+## Community maintained Helm Chart
 
-This should be compatible with Continuwuity, but you will need to change the image reference.
+Apart from manually configuring the containers, you can consult
+a community-maintained Helm Chart for the former `conduwuit` project,
+which is available [here][community-helm-chart].
 
-If changes need to be made, please reach out to the maintainer, as this is not maintained or controlled by the Continuwuity maintainers.
+[community-helm-chart]: https://gitlab.cronce.io/charts/conduwuit
+
+This should be compatible with Continuwuity, but you will need to switch the image reference.
+
+If changes are needed to be made, please reach out to the maintainer of that repository, as it is not maintained nor controlled by the Continuwuity maintainers.
+
+## Post-installation
+
+After successfully setting up your Continuwuity, navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
