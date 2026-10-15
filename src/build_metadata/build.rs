@@ -1,5 +1,10 @@
 use std::{
-	collections::BTreeMap, env, fmt::Write as FmtWrite, fs, io::Write, path::Path,
+	collections::BTreeMap,
+	env,
+	fmt::Write as FmtWrite,
+	fs,
+	io::Write,
+	path::{Path, PathBuf},
 	process::Command,
 };
 
@@ -130,18 +135,68 @@ fn main() {
 	}
 
 	// --- Rerun Triggers ---
-	// TODO: The git rerun triggers seem to always run
-	// // Rerun if the git HEAD changes
-	// println!("cargo:rerun-if-changed=.git/HEAD");
-	// // Rerun if the ref pointed to by HEAD changes (e.g., new commit on
-	// branch) if let Some(ref_path) = run_git_command(&["symbolic-ref",
-	// "--quiet", "HEAD"]) { 	println!("cargo:rerun-if-changed=.git/{ref_path}"
-	// ); }
+	let resolve_git_path = |path_str: &str| -> PathBuf {
+		let p = Path::new(path_str);
+		if p.is_absolute() {
+			p.to_path_buf()
+		} else {
+			Path::new(&manifest_dir).join(p)
+		}
+	};
+
+	// If workspace root has a .git file (e.g., git worktree or submodule),
+	// watch it
+	let workspace_git = metadata.workspace_root.as_std_path().join(".git");
+	if workspace_git.is_file() {
+		println!("cargo:rerun-if-changed={}", workspace_git.display());
+	}
+
+	// Rerun if the git HEAD changes
+	if let Some(git_head) = run_git_command(&["rev-parse", "--git-path", "HEAD"]) {
+		let head_path = resolve_git_path(&git_head);
+		if head_path.exists() {
+			println!("cargo:rerun-if-changed={}", head_path.display());
+		}
+	}
+
+	// Rerun if the ref pointed to by HEAD changes (e.g., new commit on branch)
+	if let Some(ref_name) = run_git_command(&["symbolic-ref", "--quiet", "HEAD"]) {
+		if let Some(git_ref) = run_git_command(&["rev-parse", "--git-path", &ref_name]) {
+			let ref_path = resolve_git_path(&git_ref);
+			if ref_path.exists() {
+				println!("cargo:rerun-if-changed={}", ref_path.display());
+			} else {
+				// If the loose ref file does not exist (e.g. refs are packed),
+				// watch the nearest existing ancestor directory
+				// so newly created refs trigger rerun.
+				let mut dir = ref_path.parent();
+				while let Some(d) = dir {
+					if d.exists() {
+						println!("cargo:rerun-if-changed={}", d.display());
+						break;
+					}
+					dir = d.parent();
+				}
+			}
+		}
+	}
+
+	// If packed-refs exists, watch it so git pack-refs or updates to packed
+	// refs trigger rerun
+	if let Some(git_packed) = run_git_command(&["rev-parse", "--git-path", "packed-refs"]) {
+		let packed_path = resolve_git_path(&git_packed);
+		if packed_path.exists() {
+			println!("cargo:rerun-if-changed={}", packed_path.display());
+		}
+	}
 
 	println!("cargo:rerun-if-env-changed=GIT_COMMIT_HASH");
 	println!("cargo:rerun-if-env-changed=GIT_COMMIT_HASH_SHORT");
 	println!("cargo:rerun-if-env-changed=GIT_REMOTE_URL");
 	println!("cargo:rerun-if-env-changed=GIT_REMOTE_COMMIT_URL");
+	println!("cargo:rerun-if-env-changed=CONTINUWUITY_VERSION_EXTRA");
+	println!("cargo:rerun-if-env-changed=CONDUWUIT_VERSION_EXTRA");
+	println!("cargo:rerun-if-env-changed=CONDUIT_VERSION_EXTRA");
 }
 
 fn generate_features_code(features: &BTreeMap<String, Vec<String>>) -> String {
