@@ -228,7 +228,7 @@ impl Service {
 
 		// If we aren't participating in the room, or failed to join locally,
 		// try to join over federation.
-		self.join_remote_room(sender_user, room_id, reason, &servers, &state_lock)
+		self.join_remote_room(sender_user, room_id, reason, &servers)
 			.boxed()
 			.await?;
 
@@ -291,7 +291,7 @@ impl Service {
 				PartialPdu::state(sender_user.to_string(), &content),
 				sender_user,
 				Some(room_id),
-				Some(&state_lock),
+				Some(state_lock),
 			)
 			.await?;
 
@@ -305,7 +305,6 @@ impl Service {
 		room_id: &RoomId,
 		reason: Option<String>,
 		servers: &[&OwnedServerName],
-		state_lock: &RoomMutexGuard,
 	) -> Result {
 		// public so the admin command force-join-room-remotely works
 		info!("Joining {room_id} over federation.");
@@ -686,7 +685,6 @@ impl Service {
 				&parsed_join_pdu,
 				join_event,
 				once(parsed_join_pdu.event_id.as_ref()),
-				state_lock,
 				room_id,
 			)
 			.await?;
@@ -711,7 +709,7 @@ impl Service {
 			info!("Replacing local forward extremities");
 			self.services
 				.state
-				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()), state_lock)
+				.set_forward_extremities(room_id, once(parsed_join_pdu.event_id()))
 				.await;
 		}
 		drop(cork);

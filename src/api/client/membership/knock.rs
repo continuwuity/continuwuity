@@ -458,7 +458,6 @@ async fn knock_room_helper_local(
 			&parsed_knock_pdu,
 			knock_event,
 			once(parsed_knock_pdu.event_id.borrow()),
-			&state_lock,
 			room_id,
 		)
 		.await?;
@@ -658,7 +657,6 @@ async fn knock_room_helper_remote(
 			&parsed_knock_pdu,
 			knock_event,
 			once(parsed_knock_pdu.event_id.borrow()),
-			&state_lock,
 			room_id,
 		)
 		.await?;

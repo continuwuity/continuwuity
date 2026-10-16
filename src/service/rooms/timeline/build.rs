@@ -134,7 +134,6 @@ impl super::Service {
 					.iter()
 					.map(AsRef::as_ref)
 					.chain(once(pdu.event_id())),
-				state_lock,
 				&room_id,
 			)
 			.boxed()

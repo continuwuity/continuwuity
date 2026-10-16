@@ -26,8 +26,8 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, pin_mut};
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedServerName,
-	RoomId, RoomVersionId, ServerName, UserId,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedServerName, RoomId,
+	RoomVersionId, ServerName, UserId,
 	events::{
 		AnySyncTimelineEvent, GlobalAccountDataEventType, TimelineEventType,
 		push_rules::PushRulesEvent,
@@ -106,12 +106,7 @@ impl super::Service {
 			.await?;
 
 		let pdu_id = self
-			.append_pdu(
-				pdu,
-				pdu_json,
-				extremities.iter().map(Borrow::borrow),
-				&room_id,
-			)
+			.append_pdu(pdu, pdu_json, extremities.iter().map(Borrow::borrow), &room_id)
 			.await?;
 
 		// Process admin commands for federation events

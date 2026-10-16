@@ -413,12 +413,8 @@ impl Service {
 			.ignore_err()
 	}
 
-	pub async fn set_forward_extremities<'a, I>(
-		&'a self,
-		room_id: &'a RoomId,
-		event_ids: I,
-		_state_lock: &'a RoomMutexGuard,
-	) where
+	pub async fn set_forward_extremities<'a, I>(&'a self, room_id: &'a RoomId, event_ids: I)
+	where
 		I: Iterator<Item = &'a EventId> + Send + 'a,
 	{
 		let prefix = (room_id, Interfix);
