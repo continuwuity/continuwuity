@@ -347,8 +347,8 @@ version = "1.1.1"
 
 # Used for matrix spec type definitions and helpers
 [workspace.dependencies.ruma]
-git = "https://github.com/gingershaped/ruwuma.git"
-rev = "ef98d8d0b111f563fab960c3f696493979fba3a7"
+git = "https://github.com/ruma/ruma.git"
+rev = "62659d64f712adf3cad126df6b8969f785414bd5"
 features = [
     "appservice-api-c",
     "client-api",
