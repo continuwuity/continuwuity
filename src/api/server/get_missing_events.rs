@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use axum::extract::State;
-use conduwuit::{Err, Event, Result, debug, info, trace, utils::to_canonical_object, warn};
+use conduwuit::{debug, debug_warn, info, trace, utils::to_canonical_object, Err, Event, Result};
 use ruma::{OwnedEventId, api::federation::event::get_missing_events};
 use serde_json::value::RawValue;
 use service::rooms::event_handler::GET_MISSING_EVENTS_MAX_BATCH_SIZE;
@@ -64,7 +64,7 @@ pub(crate) async fn get_missing_events_route(
 		let mut pdu = match services.rooms.timeline.get_pdu(&next_event_id).await {
 			| Ok(pdu) => pdu,
 			| Err(e) => {
-				warn!("could not find event {next_event_id} while walking missing events: {e}");
+				debug_warn!("could not find event {next_event_id} while walking missing events: {e}");
 				continue;
 			},
 		};
