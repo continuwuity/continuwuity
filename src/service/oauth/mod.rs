@@ -563,7 +563,7 @@ impl Service {
 		{
 			(user_id, device_id)
 		} else {
-			return Err(OAuthError::invalid_grant("Invalid access or refersh token"));
+			return Err(OAuthError::invalid_grant("Invalid access or refresh token"));
 		};
 
 		// This will also call [`Self::remove_session`]
