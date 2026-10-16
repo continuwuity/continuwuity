@@ -1,7 +1,7 @@
 use std::collections::{HashSet, VecDeque};
 
 use axum::extract::State;
-use conduwuit::{debug, debug_warn, info, trace, utils::to_canonical_object, Err, Event, Result};
+use conduwuit::{Err, Event, Result, debug, debug_warn, info, trace, utils::to_canonical_object};
 use ruma::{OwnedEventId, api::federation::event::get_missing_events};
 use serde_json::value::RawValue;
 use service::rooms::event_handler::GET_MISSING_EVENTS_MAX_BATCH_SIZE;
@@ -44,6 +44,13 @@ pub(crate) async fn get_missing_events_route(
 		.unwrap_or(10)
 		.min(GET_MISSING_EVENTS_MAX_BATCH_SIZE);
 
+	if body.latest_events.len() > limit {
+		return Err!(Request(InvalidParam("Too many latest_events")));
+	}
+	if body.earliest_events.len() > limit {
+		return Err!(Request(InvalidParam("Too many earliest_events")));
+	}
+
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
 
 	let mut queue: VecDeque<OwnedEventId> = VecDeque::from(body.latest_events.clone());
@@ -64,7 +71,9 @@ pub(crate) async fn get_missing_events_route(
 		let mut pdu = match services.rooms.timeline.get_pdu(&next_event_id).await {
 			| Ok(pdu) => pdu,
 			| Err(e) => {
-				debug_warn!("could not find event {next_event_id} while walking missing events: {e}");
+				debug_warn!(
+					"could not find event {next_event_id} while walking missing events: {e}"
+				);
 				continue;
 			},
 		};
@@ -73,6 +82,10 @@ pub(crate) async fn get_missing_events_route(
 				"Event {next_event_id} is not in room {}",
 				body.room_id
 			)));
+		}
+		if pdu.depth < body.min_depth {
+			debug!(%next_event_id, %pdu.depth, %body.min_depth, "event is below minimum depth, not traversing");
+			continue;
 		}
 		if services
 			.rooms
