@@ -21,7 +21,7 @@ impl super::Service {
 	/// If we do not know enough information to resolve the state, `Ok(None)` is
 	/// returned, and the caller will have to figure it out some other way (e.g.
 	/// by fetching the state from a remote server).
-	pub(super) async fn state_before_incoming<Pdu>(
+	pub async fn state_before_incoming<Pdu>(
 		&self,
 		incoming_pdu: &Pdu,
 		room_version_rules: &RoomVersionRules,
@@ -29,7 +29,10 @@ impl super::Service {
 	where
 		Pdu: Event + Send + Sync,
 	{
-		if incoming_pdu.prev_events().count() == 1 {
+		let prev_count = incoming_pdu.prev_events().count();
+		if prev_count == 0 {
+			Ok(Some(HashMap::new()))
+		} else if incoming_pdu.prev_events().count() == 1 {
 			self.state_before_incoming_degree_one(incoming_pdu).await
 		} else {
 			self.state_before_incoming_resolved(incoming_pdu, room_version_rules)

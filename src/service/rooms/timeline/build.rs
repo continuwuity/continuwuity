@@ -1,6 +1,6 @@
 use std::{collections::HashSet, iter::once};
 
-use conduwuit::trace;
+use conduwuit::{Pdu, err, pdu::RawId, trace};
 use conduwuit_core::{
 	Err, Result,
 	matrix::{event::Event, pdu::PartialPdu},
@@ -8,7 +8,7 @@ use conduwuit_core::{
 };
 use futures::{FutureExt, StreamExt};
 use ruma::{
-	EventId, OwnedEventId, OwnedServerName, RoomId, UserId,
+	CanonicalJsonObject, EventId, OwnedEventId, OwnedServerName, RoomId, RoomVersionId, UserId,
 	events::{
 		TimelineEventType,
 		room::{
@@ -17,6 +17,7 @@ use ruma::{
 		},
 	},
 };
+use serde::Deserialize;
 
 use super::{ExtractBody, RoomMutexGuard};
 
@@ -43,6 +44,13 @@ impl super::Service {
 
 		// If redaction event is not authorized, do not append it to the
 		// timeline
+		let _room_version_rules = self
+			.services
+			.state
+			.get_room_version(&room_id)
+			.await?
+			.rules()
+			.expect("room version must have algorithm rules");
 		if *pdu.kind() == TimelineEventType::RoomRedaction {
 			use ruma::RoomVersionId::*;
 			trace!("Running redaction checks for room {room_id}");
@@ -106,16 +114,6 @@ impl super::Service {
 				.await;
 		}
 
-		// We append to state before appending the pdu, so we don't have a
-		// moment in time with the pdu without it's state. This is okay
-		// because append_pdu can't fail.
-		trace!("Appending {} state for room {room_id}", pdu.event_id());
-		let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
-		trace!("State hash ID for {room_id}: {statehashid:?}");
-
-		// prev_events is capped at the room version's limit, so this PDU does
-		// not necessarily reference every extremity. Any it did not reference
-		// is still a head of the DAG and has to be kept.
 		let prev_events: HashSet<&EventId> = pdu.prev_events().collect();
 		let unreferenced: Vec<OwnedEventId> = self
 			.services
@@ -125,9 +123,17 @@ impl super::Service {
 			.collect()
 			.await;
 
-		trace!("Generating raw ID for PDU {}", pdu.event_id());
-		let pdu_id = self
-			.append_pdu(
+		// We set the event's state before we actually append the PDU so that
+		// there isn't a moment in time where the PDU exists without its
+		// associated state.
+		let pdu_id = if pdu.prev_events.len() <= 1 {
+			// We can simply append the event to the current state in this case,
+			// and skip state resolution.
+			let statehashid = self.services.state.append_to_state(&pdu, &room_id).await?;
+			self.services
+				.state
+				.set_room_state(&room_id, statehashid, state_lock);
+			self.append_pdu(
 				&pdu,
 				pdu_json,
 				unreferenced
@@ -138,7 +144,16 @@ impl super::Service {
 				&room_id,
 			)
 			.boxed()
-			.await?;
+			.await
+			.expect("append_pdu should be infallible")
+		} else {
+			// Otherwise, we have to resolve the state across the prev events
+			// and go through append_incoming_pdu. Despite checking auth events,
+			// we now have to do PDU check 5 to make sure we even
+			// want to keep this event based on the state before it.
+			self.resolve_and_append(&room_id, &pdu, pdu_json, state_lock)
+				.await?
+		};
 
 		// Process admin commands for locally sent events
 		if *pdu.kind() == TimelineEventType::RoomMessage {
@@ -164,9 +179,6 @@ impl super::Service {
 		// a moment in time where events in the current room state do not
 		// exist
 		trace!("Setting room state for room {room_id}");
-		self.services
-			.state
-			.set_room_state(&room_id, statehashid, state_lock);
 
 		self.services.sync.wake_all_joined(&room_id).await;
 
@@ -293,4 +305,62 @@ impl super::Service {
 
 		Ok(())
 	}
+
+	/// Resolves the state before a new event and runs it through
+	/// append_incoming_pdu to persist the state update, instead of simply
+	/// appending it to the current state.
+	async fn resolve_and_append(
+		&self,
+		room_id: &RoomId,
+		pdu: &Pdu,
+		pdu_json: CanonicalJsonObject,
+		state_lock: &RoomMutexGuard,
+	) -> Result<RawId> {
+		let create_event =
+			if pdu.kind == TimelineEventType::RoomCreate && pdu.state_key() == Some("") {
+				pdu
+			} else {
+				&self
+					.services
+					.state_accessor
+					.get_room_create_event(room_id)
+					.await
+			};
+		let room_version_rules = create_event
+			.get_content::<ExtractRoomVersion>()?
+			.room_version
+			.rules()
+			.ok_or_else(|| err!("Unsupported room version"))?;
+		let (ok, state_before) = self
+			.services
+			.event_handler
+			.state_before_check_5(
+				pdu,
+				&room_version_rules,
+				create_event,
+				self.services.globals.server_name(),
+			)
+			.await?;
+		if !ok {
+			return Err!(Request(Forbidden("Event is not authorised")));
+		}
+
+		self.append_incoming_pdu(
+			pdu,
+			pdu_json,
+			&room_version_rules,
+			state_before,
+			false,
+			state_lock,
+		)
+		.boxed()
+		.await
+		.transpose()
+		.expect("Only soft-failed events cannot return a PduId, which is impossible in this path")
+	}
+}
+
+#[derive(Deserialize)]
+struct ExtractRoomVersion {
+	room_version: RoomVersionId,
 }

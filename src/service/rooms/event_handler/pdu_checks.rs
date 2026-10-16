@@ -178,7 +178,7 @@ impl super::Service {
 	/// Returns a boolean indicating whether the event is authorised, and also
 	/// the resolved state before the event for later use. Returns an error if
 	/// state fetching or auth checking fails.
-	pub(super) async fn state_before_check_5(
+	pub async fn state_before_check_5(
 		&self,
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
@@ -203,13 +203,18 @@ impl super::Service {
 			.await?;
 		let state_before = match state_before {
 			| Some(s) => s,
-			| None => {
+			| None if !self.services.globals.server_is_ours(origin) => {
 				trace!("Could not calculate incoming state, asking remote {origin} for it");
 				self.fetch_state(origin, create_event, &room_id, incoming_pdu.event_id())
 					.await
 					.inspect_err(|e| {
 						debug_error!("Could not fetch state from {origin}: {e}");
 					})?
+			},
+			| None => {
+				// This should be impossible as we must know all prev_events
+				// locally, meaning we can resolve the state?
+				return Err!("Could not resolve state before new event");
 			},
 		};
 
@@ -257,7 +262,7 @@ impl super::Service {
 	///
 	/// Returns a boolean indicating whether the event is authorised, or an
 	/// error if the auth check fails.
-	pub(super) async fn current_state_check_6(
+	pub async fn current_state_check_6(
 		&self,
 		incoming_pdu: &PduEvent,
 		room_version_rules: &RoomVersionRules,
