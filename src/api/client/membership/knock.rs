@@ -587,7 +587,7 @@ async fn knock_room_helper_remote(
 
 	let mut state_map: HashMap<u64, OwnedEventId> = HashMap::new();
 
-	for event in state {
+	for mut event in state {
 		let Some(state_key) = event.get("state_key") else {
 			debug_warn!("send_knock stripped state event missing state_key: {event:?}");
 			continue;
@@ -614,6 +614,7 @@ async fn knock_room_helper_remote(
 			.get_or_create_shortstatekey(&event_type, &state_key)
 			.await;
 
+		event.insert("event_id".into(), CanonicalJsonValue::String(event_id.to_string()));
 		services.rooms.outlier.add_pdu_outlier(&event_id, &event);
 		state_map.insert(shortstatekey, event_id.clone());
 	}
