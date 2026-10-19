@@ -330,7 +330,7 @@ version = "2.1.1"
 
 # used for MPSC channels
 [workspace.dependencies.loole]
-version = "0.4.0"
+version = "0.6.0"
 
 # used for MPMC channels
 [workspace.dependencies.async-channel]
