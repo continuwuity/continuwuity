@@ -1018,10 +1018,7 @@
 # (trusted key notary servers), as well as serve as trusted servers for
 # other operations like backfill and event fetching.
 #
-# Currently, continuwuity doesn't support inbound key requests, so
-# this list should only contain other Synapse servers.
-#
-# example: ["matrix.org", "starstruck.systems"]
+# example: ["continuwuity.org", "matrix.org"]
 #
 # It is possible to restrict which signing keys trusted servers are
 # allowed to sign responses with. Without configuring this, all responses
@@ -1059,7 +1056,7 @@
 # is discouraged for performance and reliability reasons.
 #
 # env: CONTINUWUITY_TRUSTED_SERVERS
-#trusted_servers = ["matrix.org"]
+#trusted_servers = ["continuwuity.org", "continuwuity.rocks", "matrix.org"]
 
 # Whether to prioritise trusted server lookups over origin server lookups.
 #
