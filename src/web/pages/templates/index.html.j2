@@ -11,8 +11,9 @@
     </h1>
     <p>Continuwuity is successfully installed and working.</p>
     {%- if first_run %}
-    <p>To get started, <em>check the server logs</em> for instructions on how to create the first account.</p>
+    <p>To get started, <em>create the first account</em> through your Matrix client or through Continuwuity.</p>
     <p>For support, take a look at the <a href="https://continuwuity.org/introduction">documentation</a> or join the <a href="https://matrix.to/#/#continuwuity:continuwuity.org?via=continuwuity.org&via=ellis.link&via=explodie.org&via=matrix.org">Continuwuity Matrix room</a>.</p>
+    <p><a class="button" href="{{ crate::ROUTE_PREFIX }}/account/">Create the first account</a></p>
     {%- else %}
     <p>To get started, <a href="https://matrix.org/ecosystem/clients">choose a client</a> and connect to <code class="select-all">{{ server_name }}</code>.</p>
     <p><a class="button" href="{{ crate::ROUTE_PREFIX }}/account/">Manage your account</a></p>
