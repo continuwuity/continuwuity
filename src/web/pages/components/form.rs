@@ -48,11 +48,12 @@ pub(crate) struct FormInput<'a> {
 	pub autocomplete: &'a str,
 
 	// This is a hack to make the form! macro's support for client-only fields
-	// work properly. Client-only fields are specified in the macro without a type and aren't
-	// included in the POST body or as a field in the generated struct.
-	// To keep the field from being included in the POST body, its `name` property needs not to
-	// be set in the template. Because of limitations of macro_rules!'s repetition feature, this
-	// field needs to exist to allow the template to check if the field is client-only.
+	// work properly. Client-only fields are specified in the macro without a
+	// type and aren't included in the POST body or as a field in the generated
+	// struct. To keep the field from being included in the POST body, its
+	// `name` property needs not to be set in the template. Because of
+	// limitations of macro_rules!'s repetition feature, this field needs to
+	// exist to allow the template to check if the field is client-only.
 	#[doc(hidden)]
 	pub type_name: Option<&'static str>,
 }

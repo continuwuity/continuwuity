@@ -109,35 +109,37 @@ migration!(stringify!($name) => $name)
 		migration!(fix_readreceiptid_readreceipt_duplicates),
 		// End pre-fork logic.
 
-		// v18: `fix_corrupt_msc4133_fields` will change the `us.cloke.msc4175.tz` field
-		// in a way that old versions don't understand.
+		// v18: `fix_corrupt_msc4133_fields` will change the
+		// `us.cloke.msc4175.tz` field in a way that old versions don't
+		// understand.
 		VersionBump(18),
 		migration!(fix_corrupt_msc4133_fields),
-		// v19: `populate_userroomid_leftstate_table` will put data in the values of
-		// `userroomid_leftstate` that old versions will fail to deserialize because
-		// they expect the values to be empty.
+		// v19: `populate_userroomid_leftstate_table` will put data in the
+		// values of `userroomid_leftstate` that old versions will fail to
+		// deserialize because they expect the values to be empty.
 		VersionBump(19),
 		migration!(populate_userroomid_leftstate_table),
-		// This is backwards compatible because it fixes some data that clients care about but we
-		// don't.
+		// This is backwards compatible because it fixes some data that clients
+		// care about but we don't.
 		migration!(fix_local_invite_state),
-		// v20: Old versions expect remote users to be tracked in `userid_password`. This
-		// migration moves them to a different keyspace.
+		// v20: Old versions expect remote users to be tracked in
+		// `userid_password`. This migration moves them to a different keyspace.
 		VersionBump(20),
 		migration!(split_userid_password),
-		// This is backwards compatible because old versions will recreate the keyspace if it's
-		// missing.
+		// This is backwards compatible because old versions will recreate the
+		// keyspace if it's missing.
 		migration!("drop_roomsynctoken_shortstatehash" => obliterate_roomsynctoken_shortstatehash_with_extreme_prejudice),
-		// v21: `unembed_unsigned_info` will remove `unsigned` data from PDUs that old versions
-		// expect to be embedded.
+		// v21: `unembed_unsigned_info` will remove `unsigned` data from PDUs
+		// that old versions expect to be embedded.
 		VersionBump(21),
-		// This migration can take several hours on old databases, so we run it in the background
-		// to keep the service manager from killing us for taking too long to start.
-		// Future maintainers: !!! BE VERY CAREFUL !!! if you need to write more migrations like
-		// this! This one is fine because it deletes data that we don't check anymore,
-		// but migrations which replace existing data that we do check should NOT run in
-		// the background. If they do, the server will finish starting up and might
-		// access data that the migration hasn't gotten to yet.
+		// This migration can take several hours on old databases, so we run it
+		// in the background to keep the service manager from killing us for
+		// taking too long to start. Future maintainers: !!! BE VERY CAREFUL !!!
+		// if you need to write more migrations like this! This one is fine
+		// because it deletes data that we don't check anymore, but migrations
+		// which replace existing data that we do check should NOT run in
+		// the background. If they do, the server will finish starting up and
+		// might access data that the migration hasn't gotten to yet.
 		Migration("unembed_unsigned_info", |services| {
 			Box::pin(async {
 				if services.db["global"]
@@ -158,11 +160,11 @@ migration!(stringify!($name) => $name)
 				Ok(())
 			})
 		}),
-		// This is backwards compatible because old versions will recreate the keyspace if it's
-		// missing.
+		// This is backwards compatible because old versions will recreate the
+		// keyspace if it's missing.
 		migration!(drop_server_signingkeys),
-		// v22: Old versions will fail to deserialize the fixed OAuth scope names,
-		// preventing users from signing in.
+		// v22: Old versions will fail to deserialize the fixed OAuth scope
+		// names, preventing users from signing in.
 		VersionBump(22),
 		migration!(fix_oauth_scope_names),
 	]

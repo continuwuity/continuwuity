@@ -756,11 +756,13 @@ impl Service {
 		let join_rule = self.services.state_accessor.get_join_rules(room_id).await;
 
 		match (join_rule, querying_user) {
-			// Anyone can view summaries for `public`, `knock`, and `knock_restricted` rooms.
+			// Anyone can view summaries for `public`, `knock`, and
+			// `knock_restricted` rooms.
 			| (JoinRule::Public | JoinRule::Knock | JoinRule::KnockRestricted(_), _) => true,
 
-			// The user may be able to view the summary for a `restricted` room, even if they
-			// aren't invited, provided they fulfill the join rules.
+			// The user may be able to view the summary for a `restricted` room,
+			// even if they aren't invited, provided they fulfill the join
+			// rules.
 			| (JoinRule::Restricted(conditions), Some(querying_user)) =>
 				self.services
 					.membership

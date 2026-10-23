@@ -193,7 +193,8 @@ impl super::Service {
 		let redacts = match redacts {
 			// If this isn't a real redaction event, there's no redacts field.
 			| _ if event_type != TimelineEventType::RoomRedaction || state_key.is_some() => None,
-			// If the redaction is itself in the event content, we don't set the top-level field.
+			// If the redaction is itself in the event content, we don't set the
+			// top-level field.
 			| Some(_) if room_version_rules.redaction.content_field_redacts => None,
 			// Otherwise, we do if it's present
 			| other => other,

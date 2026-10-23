@@ -124,8 +124,9 @@ impl Service {
 		let mut sessions = self.sessions.lock().await;
 
 		let session = match sessions.get_session_by_client_secret(client_secret) {
-			// If a validation session already exists for this client secret, we can either
-			// reuse it with a new token or return early because it's already valid.
+			// If a validation session already exists for this client secret, we
+			// can either reuse it with a new token or return early because it's
+			// already valid.
 			| Some(session) => {
 				if session.email != recipient.email {
 					return Err!(Request(InvalidParam("Wrong email for session.")));

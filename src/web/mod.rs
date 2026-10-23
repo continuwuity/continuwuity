@@ -94,7 +94,8 @@ impl IntoResponse for WebError {
 			error: self,
 			status,
 			context: TemplateContext {
-				// Statically set false to prevent error pages from being indexed.
+				// Statically set false to prevent error pages from being
+				// indexed.
 				allow_indexing: false,
 				csp_nonce: String::new(),
 			},

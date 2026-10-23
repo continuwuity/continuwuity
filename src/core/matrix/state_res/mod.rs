@@ -590,8 +590,8 @@ where
 		.find(|aev| is_type_and_key(*aev, &TimelineEventType::RoomPowerLevels, ""));
 
 	let content: PowerLevelsContentFields = match pl {
-		// With no m.room.power_levels in scope the create event's defaults apply,
-		// under which the room creator holds 100 and everyone else 0.
+		// With no m.room.power_levels in scope the create event's defaults
+		// apply, under which the room creator holds 100 and everyone else 0.
 		| None => return Ok(if sender_is_creator { int!(100) } else { int!(0) }),
 		| Some(ev) => from_json_str(ev.content().get())?,
 	};

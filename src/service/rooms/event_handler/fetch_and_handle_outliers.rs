@@ -203,8 +203,8 @@ impl super::Service {
 					"GET_MISSING_EVENTS_MAX_BATCH_SIZE (usize) should fit in u16 (<=65536)",
 				))
 				.max(
-					// This max call ensures we fetch *at least* all the prev events the
-					// head has.
+					// This max call ensures we fetch *at least* all the prev
+					// events the head has.
 					u16::try_from(head.prev_events.len())
 						.expect("cannot have more than 20 prev events, which fits in u16"),
 				);

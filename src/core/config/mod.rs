@@ -65,8 +65,8 @@ use crate::{Result, err, error::Error, utils::sys};
 	ignore = "config_paths catchall"
 )]
 pub struct Config {
-	// Paths to config file(s). Not supposed to be set manually in the config file,
-	// only updated dynamically from the --config option given at runtime.
+	// Paths to config file(s). Not supposed to be set manually in the config
+	// file, only updated dynamically from the --config option given at runtime.
 	pub config_paths: Option<Vec<PathBuf>>,
 
 	/// The server_name is the pretty name of this server. It is used as a

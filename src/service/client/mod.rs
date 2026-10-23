@@ -146,8 +146,8 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(2))
 				.build()?,
 
-			// MSC4174 recommends against following redirects, since the destination
-			// is only checked before the request is sent.
+			// MSC4174 recommends against following redirects, since the
+			// destination is only checked before the request is sent.
 			webpush: base(config)?
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))

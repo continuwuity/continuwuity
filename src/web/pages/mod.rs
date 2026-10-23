@@ -61,9 +61,10 @@ pub(super) async fn template_context_middleware(
 	response.headers_mut().insert(
 		header::CONTENT_SECURITY_POLICY,
 		HeaderValue::from_str(&format!(
-			// TODO: `unsafe-inline` for `style-src` defeats the purpose of having it, but
-			// it's necessary to set CSS variables using the `style` attribute without
-			// JavaScript. Come back to this once there's a less shitty solution.
+			// TODO: `unsafe-inline` for `style-src` defeats the purpose of
+			// having it, but it's necessary to set CSS variables using the
+			// `style` attribute without JavaScript. Come back to this once
+			// there's a less shitty solution.
 			"default-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; \
 			 script-src 'nonce-{csp_nonce}'; child-src {child_src};"
 		))
