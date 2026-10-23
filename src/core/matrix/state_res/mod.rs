@@ -39,7 +39,7 @@ use crate::{
 	debug, debug_error, err,
 	matrix::{Event, StateKey},
 	trace,
-	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryBroadbandExt, WidebandExt},
+	utils::stream::{BroadbandExt, IterStream, ReadyExt, TryWidebandExt, WidebandExt},
 	warn,
 };
 
@@ -706,7 +706,7 @@ where
 
 	let events_to_check: Vec<_> = events_to_check
 		.map(Result::Ok)
-		.broad_and_then(async |event_id| {
+		.wide_and_then(async |event_id| {
 			fetch_event(event_id.to_owned())
 				.await
 				.ok_or_else(|| Error::NotFound(format!("Failed to find {event_id}")))
@@ -1122,6 +1122,68 @@ mod tests {
 		matrix::{Event, EventTypeExt, Pdu as PduEvent},
 		utils::stream::IterStream,
 	};
+
+	#[tokio::test]
+	async fn iterative_auth_check_keeps_event_order() {
+		let mut events = INITIAL_EVENTS();
+		let initial_state = ["CREATE", "IPOWER", "IJR", "IMB"]
+			.into_iter()
+			.map(|id| {
+				let event = &events[&event_id(id)];
+				(
+					event
+						.event_type()
+						.with_state_key(event.state_key().unwrap()),
+					event.event_id.clone(),
+				)
+			})
+			.collect();
+		let leave = to_pdu_event(
+			"LEAVE",
+			bob(),
+			TimelineEventType::RoomMember,
+			Some(bob().as_str()),
+			to_raw_json_value(&json!({ "membership": "leave" })).unwrap(),
+			&["CREATE", "IPOWER", "IMB"],
+			&["IMB"],
+		);
+		let rejoin = to_pdu_event(
+			"REJOIN",
+			bob(),
+			TimelineEventType::RoomMember,
+			Some(bob().as_str()),
+			member_content_join(),
+			&["CREATE", "IPOWER", "IJR", "LEAVE"],
+			&["LEAVE"],
+		);
+		let ordered_events = [leave.event_id.clone(), rejoin.event_id.clone()];
+		for event in [leave, rejoin] {
+			events.insert(event.event_id.clone(), event);
+		}
+		let fetcher = |id: OwnedEventId| {
+			let events = &events;
+			async move {
+				// Let the rejoin fetch finish before the leave.
+				if id == event_id("LEAVE") {
+					tokio::task::yield_now().await;
+				}
+				events.get(&id).cloned()
+			}
+		};
+		let resolved = super::iterative_auth_check(
+			&RoomVersionRules::V6,
+			ordered_events.iter().map(AsRef::as_ref).stream(),
+			initial_state,
+			&fetcher,
+		)
+		.await
+		.unwrap();
+
+		assert_eq!(
+			resolved[&StateEventType::RoomMember.with_state_key(bob().as_str())],
+			event_id("REJOIN"),
+		);
+	}
 
 	/// Events at the start of a room have no `m.room.power_levels` in their
 	/// auth events, so the sender's power for sort ordering comes from the
