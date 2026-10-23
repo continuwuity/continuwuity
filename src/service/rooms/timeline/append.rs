@@ -95,7 +95,6 @@ impl super::Service {
 			self.derive_new_state(pdu, &room_id, room_version_rules, state_before, state_lock)
 				.await?;
 		}
-		self.progress_extremities(pdu).await?;
 
 		let pdu_id = self.append_pdu(pdu, pdu_json, &room_id).await;
 
@@ -326,9 +325,7 @@ impl super::Service {
 		self.db
 			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2)
 			.await;
-		self.services
-			.state
-			.add_forward_extremity(room_id, pdu.event_id());
+        self.progress_extremities(pdu).await.expect("progressing extremities should never fail");
 
 		drop(insert_lock);
 
