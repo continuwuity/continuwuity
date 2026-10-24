@@ -112,6 +112,11 @@ impl Service {
 			if let Some(summary) = self.build_local_room_summary(room_id).await {
 				// We have this room locally.
 
+				// Check if the room is visible to the querying user.
+				if !self.user_may_see_summary(querying_user, room_id).await {
+					return Ok(Accessibility::Inaccessible);
+				}
+
 				summary
 			} else if let Some((SpaceHierarchyParentSummary { summary, .. }, _)) =
 				self.fetch_remote_room_summary(room_id, via, false).await
@@ -125,11 +130,6 @@ impl Service {
 				return Ok(Accessibility::NotFound);
 			}
 		};
-
-		// Check if the room is visible to the querying user.
-		if !self.user_may_see_summary(querying_user, room_id).await {
-			return Ok(Accessibility::Inaccessible);
-		}
 
 		Ok(Accessibility::Accessible(summary))
 	}
@@ -146,10 +146,18 @@ impl Service {
 		via: Option<&[OwnedServerName]>,
 		suggested_only: bool,
 	) -> Result<Accessibility<SpaceSummaryAndChildren>> {
-		let (mut summary, inaccessible_children) = {
+		let (summary, inaccessible_children) = {
 			if let Some(summary) = self.build_local_room_summary(room_id).await {
 				// We have this room locally.
-				let children_state = self.get_space_child_events(room_id, suggested_only).await;
+				if !self.user_may_see_summary(querying_user, room_id).await {
+					return Ok(Accessibility::Inaccessible);
+				}
+
+				let children_state = if matches!(summary.room_type, Some(RoomType::Space)) {
+					self.get_space_child_events(room_id, suggested_only).await
+				} else {
+					vec![]
+				};
 
 				// All of the room's children are accessible to this server
 				// (because we have the full room and its state), although
@@ -172,15 +180,6 @@ impl Service {
 				return Ok(Accessibility::NotFound);
 			}
 		};
-
-		// Check if the room is visible to the querying user.
-		if !self.user_may_see_summary(querying_user, room_id).await {
-			return Ok(Accessibility::Inaccessible);
-		}
-
-		if !matches!(summary.summary.room_type.as_ref(), Some(RoomType::Space)) {
-			summary.children_state.clear();
-		}
 
 		let mut children: Vec<_> = summary
 			.children_state
@@ -301,11 +300,12 @@ impl Service {
 			summaries.push(summary.summary);
 			inaccessible_children.extend(summary.inaccessible_children);
 
-			// Bail out if queue length exceeds 50 to keep cycles in the space
-			// graph from blowing up the traversal. If you actually have over
-			// fifty nested spaces, and you're looking at this function to
-			// figure out what the issue is, I suggest you reconsider some of
-			// the choices you made which led you to this point.
+			// Bail out if more than fifty rooms are queued to prevent a DOS
+			// when traversing incredibly large hierarchies. If you
+			// actually have over fifty nested rooms, and you're
+			// looking at this function to figure out what the issue
+			// is, I suggest you reconsider some of the choices you
+			// made which led you to this point.
 			if queue.len() > 50 {
 				return Err!(Request(TooLarge("Space hierarchy is unreasonably large")));
 			}
@@ -793,8 +793,9 @@ impl Service {
 		}
 
 		// Servers may always see summaries if any of their users are
-		// participating in the room. It's the requesting server's job to
-		// restrict visibility on a per-user basis.
+		// participating in the room. The server really should have generated a
+		// summary itself, instead of asking us for it, but we might as
+		// well save ourselves a bit of time checking the other rules.
 		if self
 			.services
 			.state_cache
