@@ -145,3 +145,7 @@ workspace = true
 
 [package.metadata.cargo-shear]
 ignored = ["reqwest_0_12"]
+
+[dev-dependencies]
+opentelemetry.workspace = true
+rustls = { workspace = true, features = ["ring"] }
