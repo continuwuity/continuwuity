@@ -66,6 +66,8 @@ impl super::Service {
 			if pdu_json.get("room_id").is_none() {
 				return Err!(Request(BadJson("Missing required PDU field: `room_id`")));
 			}
+		} else if pdu_json.get("room_id").is_some() {
+			return Err!(Request(BadJson("Unexpected PDU field: `room_id`")));
 		}
 
 		let auth_events = expect_event_id_array(pdu_json, "auth_events")?;
