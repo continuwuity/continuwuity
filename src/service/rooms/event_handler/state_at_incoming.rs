@@ -15,6 +15,9 @@ use ruma::{OwnedEventId, RoomId, room_version_rules::RoomVersionRules};
 
 use crate::rooms::short::ShortStateHash;
 
+#[cfg(test)]
+mod tests;
+
 impl super::Service {
 	/// Resolves the state before the incoming event.
 	///
@@ -124,7 +127,7 @@ impl super::Service {
 					.pdu_shortstatehash(prev_eventid)
 					.map_ok(move |sstatehash| (sstatehash, prev_event))
 			})
-			.try_collect::<HashMap<_, _>>()
+			.try_collect::<Vec<_>>()
 			.inspect_err(|e| debug_error!("failed to calculate N-degree short state hashes: {e}"))
 			.await
 		else {
