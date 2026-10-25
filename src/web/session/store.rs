@@ -32,6 +32,19 @@ impl SessionStore for RocksDbSessionStore {
 		Ok(())
 	}
 
+	async fn create(&self, session: &mut Record) -> Result<(), Error> {
+		while self
+			.websessionid_session
+			.exists(&session.id.0.to_be_bytes())
+			.await
+			.is_ok()
+		{
+			session.id = Id::default();
+		}
+
+		self.save(session).await
+	}
+
 	async fn load(&self, session_id: &Id) -> Result<Option<Record>, Error> {
 		let Some(session) = self
 			.websessionid_session
