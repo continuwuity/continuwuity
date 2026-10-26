@@ -6598,9 +6598,9 @@ checksum = "121c2a6cda46980bb0fcd1647ffaf6cd3fc79a013de288782836f6df9c48780e"
 
 [[package]]
 name = "tower-sec-fetch"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff1e78d241de2527d3ef67e49d65d8cb08468c644c3aafac7a988c4accd76547"
+checksum = "88a13d0fc16129bf9e98fb869f369e867090afab7730d91ab4f68084bd037093"
 dependencies = [
  "futures",
  "http",

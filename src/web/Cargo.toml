@@ -38,7 +38,7 @@ serde_json.workspace = true
 serde_urlencoded.workspace = true
 thiserror.workspace = true
 tower-http.workspace = true
-tower-sec-fetch = { features = ["tracing"], version = "0.1.2" }
+tower-sec-fetch = { features = ["tracing"], version = "0.2.0" }
 tower-sessions = { default-features = false, features = [
     "axum-core",
 ], version = "0.15.0" }
