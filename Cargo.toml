@@ -539,7 +539,7 @@ version = "1.0"
 version = "1.0"
 
 [workspace.dependencies.parking_lot]
-version = "0.12.4"
+version = "0.13.0"
 features = ["hardware-lock-elision", "deadlock_detection"] # TODO: Check if deadlock_detection has a perf impact, if it does only enable with debug_assertions
 
 # Use this when extending with_lock::WithLock to parking_lot
