@@ -544,7 +544,7 @@ features = ["hardware-lock-elision", "deadlock_detection"] # TODO: Check if dead
 
 # Use this when extending with_lock::WithLock to parking_lot
 [workspace.dependencies.lock_api]
-version = "0.4.13"
+version = "0.5.0"
 
 [workspace.dependencies.bytesize]
 version = "2.0"
