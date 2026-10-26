@@ -37,9 +37,15 @@ pub(crate) async fn get_server_keys_route(
 			if resp.valid_until_ts > in_one_week() {
 				continue;
 			}
+			let raw_resp = Raw::new(&resp)?;
 			let trusted = services.config.trusted_servers.iter().any(|notary| {
+				// Re-verifying here rejects any key that passes extra,
+				// non-standard json keys as a part of the ServerSigningKeys
+				// object. Since these extra json keys are stripped, the
+				// signature won't validate.
 				server_keys::Service::verify_server_keys_response(
 					&resp,
+					&raw_resp,
 					Some((notary.server_name(), notary.verify_keys())),
 				)
 				.is_ok()

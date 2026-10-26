@@ -1,0 +1,1 @@
+Fix remote server key signature verification when extra fields exist. Contributed by @hexchen

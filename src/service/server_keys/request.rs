@@ -11,7 +11,7 @@ use ruma::{
 		},
 		get_server_keys,
 	},
-	serde::Base64,
+	serde::{Base64, Raw},
 	uint,
 };
 
@@ -30,13 +30,14 @@ impl super::Service {
 	) -> Result<ServerSigningKeys> {
 		use get_server_keys::v2::Request;
 
-		let server_signing_key = self
+		let raw_server_key = self
 			.services
 			.sending
 			.send_unauthenticated_request(&target, Request::new())
 			.await
-			.map(|response| response.server_key)
-			.and_then(|key| key.deserialize().map_err(Into::into))?;
+			.map(|response| response.server_key)?;
+
+		let server_signing_key = raw_server_key.deserialize()?;
 
 		if server_signing_key.server_name != target {
 			return Err!(BadServerResponse(debug_warn!(
@@ -57,7 +58,9 @@ impl super::Service {
 			)));
 		}
 
-		if let Err(e) = Self::verify_server_keys_response(&server_signing_key, None) {
+		if let Err(e) =
+			Self::verify_server_keys_response(&server_signing_key, &raw_server_key, None)
+		{
 			return Err!(BadServerResponse(debug_warn!(
 				?target,
 				"Origin server failed to self-sign key response: {e}"
@@ -108,20 +111,29 @@ impl super::Service {
 			.await
 			.map(|response| Self::parse_notary_response(&response))?
 			.into_iter()
-			.filter(|keys| {
-				Self::validate_notary_chunk(&batch, keys, notary, notary_keys.as_slice())
+			.filter(|(keys, raw_keys)| {
+				Self::validate_notary_chunk(
+					&batch,
+					keys,
+					raw_keys,
+					notary,
+					notary_keys.as_slice(),
+				)
 			})
+			.map(|(keys, _)| keys)
 			.collect();
 		Ok(keys)
 	}
 
 	/// Parses a notary response, returning a vec of server signing key
-	/// responses. Drops any chunks that cannot be deserialized.
-	fn parse_notary_response(raw: &NotaryResponse) -> Vec<ServerSigningKeys> {
+	/// responses, each paired with its raw JSON (which is what the signatures
+	/// were made over). Drops any chunks that cannot be deserialized.
+	fn parse_notary_response(
+		raw: &NotaryResponse,
+	) -> Vec<(ServerSigningKeys, Raw<ServerSigningKeys>)> {
 		raw.server_keys
 			.iter()
-			.map(ruma::serde::Raw::deserialize)
-			.filter_map(Result::ok)
+			.filter_map(|chunk| chunk.deserialize().ok().map(|keys| (keys, chunk.clone())))
 			.collect()
 	}
 
@@ -130,6 +142,7 @@ impl super::Service {
 	fn validate_notary_chunk(
 		batch: &ServerKeysQuery,
 		keys: &ServerSigningKeys,
+		raw_keys: &Raw<ServerSigningKeys>,
 		notary_name: &ServerName,
 		notary_keys: &[Base64],
 	) -> bool {
@@ -182,7 +195,7 @@ impl super::Service {
 			return false;
 		}
 
-		Self::verify_server_keys_response(keys, Some((notary_name, notary_keys)))
+		Self::verify_server_keys_response(keys, raw_keys, Some((notary_name, notary_keys)))
 			.inspect_err(|e| {
 				trace!(
 					?e,

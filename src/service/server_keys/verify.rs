@@ -5,7 +5,7 @@ use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, ServerName, SigningKeyAlgorithm,
 	api::federation::discovery::ServerSigningKeys,
 	room_version_rules::RoomVersionRules,
-	serde::{Base64, base64::Standard},
+	serde::{Base64, Raw, base64::Standard},
 	signatures::Verified,
 };
 use serde_json::value::RawValue as RawJsonValue;
@@ -57,13 +57,23 @@ impl super::Service {
 	///
 	/// `notary` must either be empty or have ONE entry. Extraneous notaries
 	/// will be ignored.
+	///
+	/// `raw_server_keys` must be the response exactly as received. Signatures
+	/// cover every field the origin sent, including ones `ServerSigningKeys`
+	/// does not include, so verifying a re-serialised response would fail.
 	pub fn verify_server_keys_response(
 		server_keys: &ServerSigningKeys,
+		raw_server_keys: &Raw<ServerSigningKeys>,
 		notary: Option<(&ServerName, &[Base64])>,
 	) -> Result<()> {
 		if let Some((notary_name, notary_keys)) = notary {
 			if !notary_keys.is_empty() {
-				Self::verify_notary_signature(server_keys, notary_name, notary_keys)?;
+				Self::verify_notary_signature(
+					server_keys,
+					raw_server_keys,
+					notary_name,
+					notary_keys,
+				)?;
 			}
 		}
 
@@ -77,7 +87,7 @@ impl super::Service {
 		let mut pubkey_map = ruma::signatures::PublicKeyMap::new();
 		pubkey_map.insert(server_keys.server_name.to_string(), set);
 
-		let mut canonical = to_canonical_object(server_keys)?;
+		let mut canonical = to_canonical_object(raw_server_keys)?;
 		Self::strip_extraneous_signatures(&mut canonical, &server_keys.server_name, &[]);
 		ruma::signatures::verify_json(&pubkey_map, &canonical).map_err(Into::into)
 	}
@@ -86,6 +96,7 @@ impl super::Service {
 	/// the provided signing keys.
 	fn verify_notary_signature(
 		server_keys: &ServerSigningKeys,
+		raw_server_keys: &Raw<ServerSigningKeys>,
 		notary_name: &ServerName,
 		notary_keys: &[Base64],
 	) -> Result<()> {
@@ -99,14 +110,11 @@ impl super::Service {
 				"Missing notary server signature from {notary_name}"
 			)));
 		};
-		let mut canonical_object = to_canonical_object(notary_signatures)?;
-		Self::strip_extraneous_signatures(&mut canonical_object, &server_keys.server_name, &[
-			notary_name,
-		]);
+		// The notary signed the response as the origin served it, so verify
+		// over the raw JSON, not a re-serialised `ServerSigningKeys`.
 		let for_verify = ruma::signatures::to_canonical_json_string_for_signing(
-			&to_canonical_object(server_keys).expect("server keys object must be canonical json"),
-		)
-		.expect("canonical JSON must be stringable");
+			&to_canonical_object(raw_server_keys)?,
+		)?;
 
 		let raw_notary_keys = notary_keys.iter().map(Base64::as_bytes).collect::<Vec<_>>();
 		let raw_notary_signatures = notary_signatures
@@ -183,8 +191,12 @@ mod tests {
 			}
 		)).map(Raw::from_json).unwrap();
 
-		Service::verify_server_keys_response(&response_data.deserialize().unwrap(), None)
-			.expect("Self-signature of real key response is valid");
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			None,
+		)
+		.expect("Self-signature of real key response is valid");
 	}
 
 	#[test]
@@ -210,8 +222,12 @@ mod tests {
 			}
 		)).map(Raw::from_json).unwrap();
 
-		Service::verify_server_keys_response(&response_data.deserialize().unwrap(), None)
-			.expect("Self-signature of real key response is valid");
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			None,
+		)
+		.expect("Self-signature of real key response is valid");
 	}
 
 	#[test]
@@ -240,6 +256,7 @@ mod tests {
 			Base64::<Standard>::parse("Z4oHuEjdUbtC5W/z/gzc5B8raxNk+8gGwbNwgxHqW8Y").unwrap();
 		Service::verify_server_keys_response(
 			&response_data.deserialize().unwrap(),
+			&response_data,
 			Some((server_name!("starstruck.systems"), &[starstruck_pubkey])),
 		)
 		.expect("Server keys from notary are valid");
@@ -266,8 +283,12 @@ mod tests {
 			  }
 			}
 		)).map(Raw::from_json).unwrap();
-		Service::verify_server_keys_response(&response_data.deserialize().unwrap(), None)
-			.expect_err("Tampered response should fail self-signature check");
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			None,
+		)
+		.expect_err("Tampered response should fail self-signature check");
 	}
 
 	#[test]
@@ -304,7 +325,61 @@ mod tests {
 			  }
 			}
 		)).map(Raw::from_json).unwrap();
-		Service::verify_server_keys_response(&response_data.deserialize().unwrap(), None)
-			.expect_err("Intercepted notary response should fail strict validation");
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			None,
+		)
+		.expect_err("Intercepted notary response should fail strict validation");
+	}
+
+	#[test]
+	fn verify_response_with_extra_fields() {
+		let response_data = serde_json::from_value(serde_json::json!(
+			{
+				"old_verify_keys": {},
+				"server_name": "origin.example",
+				"signatures": {
+					"notary.example": {
+						"ed25519:a_RBdc": "ozlc2T5TlUa9XAsmeam+ESr20573vqFJvYHonj3nG8x+m6v7K5TSlEKTAlTRrJYiC6T/aWB+yxMae6FYR6nqCA"
+					},
+					"origin.example": {
+						"ed25519:a_jUhC": "+8xKspAfqI8SfrioOVliQ/jCPRDZEuag6JfkN5dXx9gsCX2rSnbvVTJlTJXFiDYUSyIJZg8ilq1QaPsT85ltBA"
+					}
+				},
+				"tls_fingerprints": [],
+				"valid_until_ts": 1900000000000_i64,
+				"verify_keys": {
+					"ed25519:a_jUhC": {
+						"key": "idcPtcSpRB5Chnlv1azhL3rMlcTawgQhoGNZWKaNFGI"
+					}
+				}
+			}
+		)).map(Raw::from_json).unwrap();
+
+		let notary_pubkey =
+			Base64::<Standard>::parse("0ocHGigwa/ap6gSZzzspDQhhOkVkloaf9apolOvwqo8").unwrap();
+
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			None,
+		)
+		.expect("Self-signature must verify over the raw response");
+
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&response_data,
+			Some((server_name!("notary.example"), &[notary_pubkey])),
+		)
+		.expect("Notary signature must verify over the raw response");
+
+		let reserialised = Raw::new(&response_data.deserialize().unwrap()).unwrap();
+		Service::verify_server_keys_response(
+			&response_data.deserialize().unwrap(),
+			&reserialised,
+			None,
+		)
+		.expect_err("Re-serialisation must not verify");
 	}
 }
