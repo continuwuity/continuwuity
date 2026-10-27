@@ -1,19 +1,12 @@
 #![cfg(feature = "sentry_telemetry")]
 
-use std::{
-	borrow::Cow,
-	str::FromStr,
-	sync::{Arc, OnceLock},
-};
+use std::{borrow::Cow, sync::OnceLock};
 
 use conduwuit_build_metadata as build;
 use conduwuit_core::{config::Config, debug, trace};
 use sentry::{
 	Breadcrumb, ClientOptions, Level,
-	types::{
-		Dsn,
-		protocol::v7::{Context, Event},
-	},
+	types::protocol::v7::{Context, Event},
 };
 
 static SEND_PANIC: OnceLock<bool> = OnceLock::new();
@@ -37,22 +30,21 @@ fn options(config: &Config) -> ClientOptions {
 		.expect("init_sentry should only be called if sentry is enabled and this is not None")
 		.as_str();
 
-	let server_name = config
-		.sentry_send_server_name
-		.then(|| config.server_name.to_string().into());
+	let options = ClientOptions::new()
+		.dsn(dsn)
+		.traces_sample_rate(config.sentry_traces_sample_rate)
+		.debug(cfg!(debug_assertions))
+		.maybe_release(release_name())
+		.user_agent(conduwuit_core::user_agent())
+		.attach_stacktrace(config.sentry_attach_stacktrace)
+		.before_send(before_send)
+		.before_breadcrumb(before_breadcrumb);
 
-	ClientOptions {
-		dsn: Some(Dsn::from_str(dsn).expect("sentry_endpoint must be a valid URL")),
-		server_name,
-		traces_sample_rate: config.sentry_traces_sample_rate,
-		debug: cfg!(debug_assertions),
-		release: release_name(),
-		user_agent: conduwuit_core::user_agent().into(),
-		attach_stacktrace: config.sentry_attach_stacktrace,
-		before_send: Some(Arc::new(before_send)),
-		before_breadcrumb: Some(Arc::new(before_breadcrumb)),
-		..Default::default()
-	}
+	config
+		.sentry_send_server_name
+		.then(|| config.server_name.to_string())
+		.into_iter()
+		.fold(options, ClientOptions::server_name)
 }
 
 fn before_send(event: Event<'static>) -> Option<Event<'static>> {
