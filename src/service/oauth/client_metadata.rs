@@ -81,6 +81,15 @@ impl ClientMetadata {
 					if !uri.username().is_empty() || uri.password().is_some() {
 						return Err("HTTPS redirect URIs must not contain credentials.");
 					}
+
+					if !uri
+						.domain()
+						.is_some_and(|domain| is_subdomain(domain, client_domain))
+					{
+						return Err(
+							"All HTTPS redirect URIs must be subdomains of the client URI."
+						);
+					}
 				},
 				| "http" if self.application_type == ApplicationType::Native => {
 					if uri
