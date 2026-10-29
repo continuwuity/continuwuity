@@ -106,12 +106,14 @@ impl Display for RequestedScopes {
 pub struct RawScopes(String);
 
 impl RawScopes {
+	const MIN_DEVICE_ID_LENGTH: usize = 5;
+
 	#[allow(clippy::trivial_regex)]
 	pub fn to_scopes(&self) -> Result<RequestedScopes, String> {
 		let client_api_token_regex =
 			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
 		let device_token_regex =
-			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):device:([a-zA-Z0-9-._~]{5,})");
+			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):device:(.+)");
 		let server_administration_regex =
 			regex!(r"urn:matrix:client:cc.c10y.msc4484.server_administration");
 
@@ -124,10 +126,40 @@ impl RawScopes {
 				} else if server_administration_regex.is_match(token) {
 					scopes.scopes.insert(OAuthClientScope::ServerAdministration)
 				} else if let Some(captures) = device_token_regex.captures(token) {
-					scopes
-						.device_id
-						.replace(captures.get(2).unwrap().as_str().into())
-						.is_none()
+					let device_id = captures.get(2).unwrap().as_str();
+
+					if device_id.len() < Self::MIN_DEVICE_ID_LENGTH {
+						return Err(format!(
+							"Device ID is too short, it must be at least {} characters",
+							Self::MIN_DEVICE_ID_LENGTH
+						));
+					}
+
+					// The Matrix specification has a "suggested" set of
+					// characters to be used in the device
+					// ID scope. In the past we checked against this set, but we
+					// no longer do that; instead we check
+					// against the _required_ set of
+					// characters defined by the OAuth specification.
+					// We do this because we have observed SDKs in the wild
+					// (*cough* matrix-rust-sdk) that will provide device IDs
+					// that are just unpadded base64, which they're allowed to
+					// do, since the spec just says that
+					// clients "SHOULD" only use the suggested character set and
+					// servers "MAY" choose to require that they do.
+					// Of course this actually means that clients will do
+					// whatever the hell they want and
+					// servers can never ever be stricter
+					// than they absolutely have to be. What
+					// a stupid provision.
+					if device_id
+						.chars()
+						.any(|char| !matches!(char, '\x21' | '\x23'..'\x5b' | '\x5d'..'\x7e'))
+					{
+						return Err("Device ID contains disallowed characters".to_owned());
+					}
+
+					scopes.device_id.replace(device_id.into()).is_none()
 				} else {
 					continue;
 				}
