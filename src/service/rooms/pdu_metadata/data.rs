@@ -12,7 +12,7 @@ use conduwuit::{
 };
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::{EventId, RoomId, UserId, api::Direction};
+use ruma::{EventId, UserId, api::Direction};
 
 use crate::{
 	Dep,
@@ -25,7 +25,6 @@ use crate::{
 
 pub(super) struct Data {
 	tofrom_relation: Arc<Map>,
-	referencedevents: Arc<Map>,
 	softfailedeventids: Arc<Map>,
 	rejectedeventids: Arc<Map>,
 	services: Services,
@@ -40,7 +39,6 @@ impl Data {
 		let db = &args.db;
 		Self {
 			tofrom_relation: db["tofrom_relation"].clone(),
-			referencedevents: db["referencedevents"].clone(),
 			softfailedeventids: db["softfailedeventids"].clone(),
 			rejectedeventids: db["rejectedeventids"].clone(),
 			services: Services {
@@ -104,22 +102,6 @@ impl Data {
 
 			Some((shorteventid, pdu))
 		})
-	}
-
-	#[inline]
-	pub(super) fn mark_as_referenced<'a, I>(&self, room_id: &RoomId, event_ids: I)
-	where
-		I: Iterator<Item = &'a EventId>,
-	{
-		for prev in event_ids {
-			let key = (room_id, prev);
-			self.referencedevents.put_raw(key, []);
-		}
-	}
-
-	pub(super) async fn is_event_referenced(&self, room_id: &RoomId, event_id: &EventId) -> bool {
-		let key = (room_id, event_id);
-		self.referencedevents.qry(&key).await.is_ok()
 	}
 
 	pub(super) fn mark_event_soft_failed(&self, event_id: &EventId) {

@@ -420,7 +420,11 @@ impl Service {
 			.ignore_err()
 	}
 
-	pub async fn set_forward_extremities<'a, I>(
+	/// Replaces the forward extremity set whole-sale.
+	///
+	/// This should only be done during room joins, where our only source of
+	/// extremities is the join itself.
+	pub async fn replace_forward_extremities<'a, I>(
 		&'a self,
 		room_id: &'a RoomId,
 		event_ids: I,
@@ -428,6 +432,15 @@ impl Service {
 	) where
 		I: Iterator<Item = &'a EventId> + Send + 'a,
 	{
+		self.clear_forward_extremities(room_id).await;
+
+		for event_id in event_ids {
+			let key = (room_id, event_id);
+			self.db.roomid_pduleaves.put_raw(key, []);
+		}
+	}
+
+	pub async fn clear_forward_extremities(&self, room_id: &RoomId) {
 		let prefix = (room_id, Interfix);
 		self.db
 			.roomid_pduleaves
@@ -435,11 +448,18 @@ impl Service {
 			.ignore_err()
 			.ready_for_each(|key| self.db.roomid_pduleaves.remove(key))
 			.await;
+	}
 
-		for event_id in event_ids {
-			let key = (room_id, event_id);
-			self.db.roomid_pduleaves.put_raw(key, event_id);
-		}
+	/// Appends a forward extremity to the extremity tracker.
+	pub fn add_forward_extremity(&self, room_id: &RoomId, event_id: &EventId) {
+		let key = (room_id, event_id);
+		self.db.roomid_pduleaves.put_raw(key, []);
+	}
+
+	/// Removes a forward extremity from the extremity tracker.
+	pub fn remove_forward_extremity(&self, room_id: &RoomId, event_id: &EventId) {
+		let key = (room_id, event_id);
+		self.db.roomid_pduleaves.del(key);
 	}
 
 	/// This fetches auth events from the current state.

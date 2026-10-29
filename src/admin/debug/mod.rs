@@ -234,6 +234,10 @@ pub enum DebugCommand {
 		page: Option<usize>,
 	},
 
+	RoomExtremities {
+		room_id: OwnedRoomId,
+	},
+
 	/// Lists remote servers that are currently in a "backoff" state.
 	///
 	/// Servers in this list will not be contacted until the retry time elapses,

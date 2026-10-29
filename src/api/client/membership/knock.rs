@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, collections::HashMap, iter::once, sync::Arc};
+use std::{borrow::Borrow, collections::HashMap, sync::Arc};
 
 use axum::extract::State;
 use conduwuit::{
@@ -461,14 +461,13 @@ async fn knock_room_helper_local(
 	services
 		.rooms
 		.timeline
-		.append_pdu(
-			&parsed_knock_pdu,
-			knock_event,
-			once(parsed_knock_pdu.event_id.borrow()),
-			&state_lock,
-			room_id,
-		)
+		.progress_extremities(&parsed_knock_pdu)
 		.await?;
+	services
+		.rooms
+		.timeline
+		.append_pdu(&parsed_knock_pdu, knock_event, room_id)
+		.await;
 
 	Ok(())
 }
@@ -663,14 +662,13 @@ async fn knock_room_helper_remote(
 	services
 		.rooms
 		.timeline
-		.append_pdu(
-			&parsed_knock_pdu,
-			knock_event,
-			once(parsed_knock_pdu.event_id.borrow()),
-			&state_lock,
-			room_id,
-		)
+		.progress_extremities(&parsed_knock_pdu)
 		.await?;
+	services
+		.rooms
+		.timeline
+		.append_pdu(&parsed_knock_pdu, knock_event, room_id)
+		.await;
 
 	info!("Setting final room state for new room");
 	// We set the room state after inserting the pdu, so that we never have a

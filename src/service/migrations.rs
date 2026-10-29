@@ -8,12 +8,12 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Error, Event, Pdu, Result, debug, debug_info, debug_warn, err, error, info,
+	Err, Error, Event, Pdu, PduCount, Result, debug, debug_info, debug_warn, err, error, info,
 	result::NotFound,
 	trace,
 	utils::{
 		IterStream, ReadyExt,
-		stream::{TryExpect, TryIgnore},
+		stream::{TryExpect, TryIgnore, WidebandExt, automatic_width},
 		to_canonical_object,
 	},
 	warn,
@@ -167,6 +167,11 @@ migration!(stringify!($name) => $name)
 		// names, preventing users from signing in.
 		VersionBump(22),
 		migration!(fix_oauth_scope_names),
+		// Removes any extremities in roomid_pduleaves that we do not know about (and
+		// consequently should not reference).
+		migration!(remove_unknown_extremities),
+		// Re-calculates extremities for any rooms that actually lack any extremities at all.
+		migration!(consistency_check_extremity_tracker),
 	]
 };
 
@@ -976,6 +981,143 @@ async fn fix_oauth_scope_names(services: &Services) -> Result {
 		.await;
 
 	info!("Fixed OAuth session scope names");
+
+	Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+async fn remove_unknown_extremities(services: &Services) -> Result {
+	services.db["roomid_pduleaves"]
+		.keys()
+		.ignore_err()
+		.for_each_concurrent(
+			automatic_width(),
+			|(room_id, event_id): (OwnedRoomId, OwnedEventId)| async move {
+				if !services.rooms.timeline.pdu_exists(&event_id).await {
+					info!("Removing unknown extremity in {room_id}: {event_id}");
+					services
+						.rooms
+						.state
+						.remove_forward_extremity(&room_id, &event_id);
+				} else if !services
+					.rooms
+					.pdu_metadata
+					.is_event_accepted(&event_id)
+					.await
+				{
+					info!("Removing failed extremity in {room_id}: {event_id}");
+					services
+						.rooms
+						.state
+						.remove_forward_extremity(&room_id, &event_id);
+				}
+			},
+		)
+		.await;
+	Ok(())
+}
+
+#[tracing::instrument(skip_all)]
+async fn consistency_check_extremity_tracker(services: &Services) -> Result {
+	let mut rooms = services.rooms.metadata.iter_ids();
+
+	// For every room the server is a member of,
+	while let Some(room_id) = rooms.next().await {
+		// If this room has no extremities, re-calculate
+		let extremity_count = services
+			.rooms
+			.state
+			.get_forward_extremities(&room_id)
+			.count()
+			.await;
+
+		if extremity_count == 0 {
+			warn!(
+				"Room {room_id} is missing extremity information, recalculating. This may take \
+				 a long time if this room is old."
+			);
+			let epoch_ts = services
+				.rooms
+				.timeline
+				.first_pdu_in_room(&room_id)
+				.await
+				.map_or_default(|e| e.origin_server_ts().0);
+			services
+				.rooms
+				.timeline
+				.pdus(&room_id, Some(PduCount::Normal(0)))
+				.ignore_err()
+				.for_each(|(_, pdu)| {
+					let room_id = &room_id;
+					async move {
+						if pdu.origin_server_ts < epoch_ts {
+							return;
+						}
+						if !services
+							.rooms
+							.pdu_metadata
+							.is_event_accepted(pdu.event_id())
+							.await
+						{
+							return;
+						}
+						services
+							.rooms
+							.timeline
+							.progress_extremities(&pdu)
+							.await
+							.inspect_err(|e| {
+								error!("Failed to progress extremities in {room_id}: {e:?}");
+							})
+							.ok();
+					}
+				})
+				.await;
+		} else if extremity_count > 20 {
+			warn!(
+				%extremity_count,
+				"Room {room_id} has an abnormal number of forward extremities, retaining latest 20"
+			);
+			let mut thinned = services
+				.rooms
+				.state
+				.get_forward_extremities(&room_id)
+				.wide_filter_map(|event_id| {
+					let room_id = &room_id;
+					async move {
+						let Ok(pdu) =
+							services.rooms.timeline.get_non_outlier_pdu(&event_id).await
+						else {
+							services
+								.rooms
+								.state
+								.remove_forward_extremity(room_id, &event_id);
+							return None;
+						};
+						Some(pdu)
+					}
+				})
+				.collect::<Vec<_>>()
+				.await;
+			thinned.sort_by_key(|pdu| {
+				(
+					i64::from(pdu.depth).saturating_mul(-1),
+					i64::from(pdu.origin_server_ts).saturating_mul(-1),
+				)
+			});
+			thinned
+				.into_iter()
+				.stream()
+				.skip(20)
+				.ready_for_each(move |pdu| {
+					services
+						.rooms
+						.state
+						.remove_forward_extremity(&room_id, pdu.event_id());
+				})
+				.await;
+		}
+	}
 
 	Ok(())
 }
