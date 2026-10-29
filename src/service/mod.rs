@@ -33,6 +33,7 @@ pub mod oidc;
 pub mod presence;
 pub mod pusher;
 pub mod registration_tokens;
+pub mod rendezvous;
 pub mod rooms;
 pub mod sending;
 pub mod server_keys;
