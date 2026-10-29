@@ -436,7 +436,7 @@ impl Service {
 
 		for event_id in event_ids {
 			let key = (room_id, event_id);
-			self.db.roomid_pduleaves.put_raw(key, event_id);
+			self.db.roomid_pduleaves.put_raw(key, []);
 		}
 	}
 
