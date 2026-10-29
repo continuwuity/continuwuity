@@ -37,7 +37,8 @@ pub use error::Error;
 pub use info::version::*;
 pub use matrix::{Event, EventTypeExt, Pdu, PduCount, PduEvent, PduId, pdu, state_res};
 pub use parking_lot::{
-	Mutex as SyncMutex, RwLock as SyncRwLock, RwLockReadGuard as SyncRwLockReadGuard,
+	MappedMutexGuard as SyncMappedMutexGuard, Mutex as SyncMutex, MutexGuard as SyncMutexGuard,
+	RwLock as SyncRwLock, RwLockReadGuard as SyncRwLockReadGuard,
 	RwLockWriteGuard as SyncRwLockWriteGuard,
 };
 pub use server::Server;
