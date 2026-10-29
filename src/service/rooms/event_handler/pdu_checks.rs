@@ -62,12 +62,6 @@ impl super::Service {
 			return Err!(Request(TooLarge("PDU is too large")));
 		}
 
-		if event_format.require_room_create_room_id {
-			if pdu_json.get("room_id").is_none() {
-				return Err!(Request(BadJson("Missing required PDU field: `room_id`")));
-			}
-		}
-
 		let auth_events = expect_event_id_array(pdu_json, "auth_events")?;
 		if auth_events.len() > 10 {
 			return Err!(Request(BadJson("PDU has too many auth events")));
@@ -90,6 +84,9 @@ impl super::Service {
 		let is_create_event = event_type == "m.room.create" && state_key == Some("");
 
 		if !is_create_event {
+			if pdu_json.get("room_id").is_none() {
+				return Err!(Request(BadJson("Missing required PDU field: `room_id`")));
+			}
 			let create_event_in_auth_events = auth_events.iter().any(|id| id == create_event_id);
 			if !event_format.allow_room_create_in_auth_events && create_event_in_auth_events {
 				return Err!(Request(BadJson("PDU references a create event")));
@@ -98,6 +95,8 @@ impl super::Service {
 			{
 				return Err!(Request(BadJson("PDU does not reference the room create event")));
 			}
+		} else if !event_format.require_room_create_room_id && pdu_json.get("room_id").is_some() {
+			return Err!(Request(BadJson("Unexpected PDU field: `room_id`")));
 		}
 
 		let prev_events = expect_event_id_array(pdu_json, "prev_events")?;

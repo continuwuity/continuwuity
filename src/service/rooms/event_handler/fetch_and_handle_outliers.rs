@@ -9,7 +9,7 @@ use assign::assign;
 use conduwuit::error;
 use conduwuit::{
 	Err, Event, PduEvent, Result, debug, debug_info, debug_warn, err,
-	result::FlatOk,
+	result::{FlatOk, LogErr},
 	state_res::lexicographical_topological_sort,
 	trace,
 	utils::{IterStream, math::Expected, stream::BroadbandExt},
@@ -387,6 +387,7 @@ impl super::Service {
 		remote: OwnedServerName,
 		event_id: OwnedEventId,
 		room_version_rules: &RoomVersionRules,
+		create_event_id: &EventId,
 	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 		let res = self
 			.services
@@ -399,21 +400,28 @@ impl super::Service {
 			.await?;
 
 		if calculated_event_id != event_id {
-			Err!(Request(BadJson(warn!(
+			return Err!(Request(BadJson(warn!(
 				expected=%event_id,
 				received=%calculated_event_id,
 				"Server didn't return event id we requested",
-			))))
-		} else {
-			Ok((event_id, value))
+			))));
 		}
+
+		Self::pdu_format_check_1(&value, room_version_rules, create_event_id)?;
+		self.signature_hash_check_2_3(value, room_version_rules)
+			.await
+			.map(|value| (calculated_event_id, value))
 	}
 
+	/// Fetches an event from multiple candidates in parallel (by calling
+	/// fetch_event_via on each candidate), returning the first successful
+	/// result.
 	async fn fetch_event_vias(
 		&self,
 		candidates: impl Iterator<Item = &OwnedServerName>,
 		event_id: &EventId,
 		room_version_rules: &RoomVersionRules,
+		create_event_id: &EventId,
 	) -> Result<(OwnedEventId, CanonicalJsonObject)> {
 		if let Ok(pdu_json) = self.services.timeline.get_pdu_json(event_id).await {
 			return Ok((event_id.to_owned(), pdu_json));
@@ -424,6 +432,7 @@ impl super::Service {
 					remote.to_owned(),
 					event_id.to_owned(),
 					room_version_rules,
+					create_event_id,
 				))
 			})
 			.collect::<Vec<_>>();
@@ -511,7 +520,12 @@ impl super::Service {
 				})?;
 				debug!(elapsed=?start.elapsed(), "Fetching {target_id} over federation");
 				let value = match self
-					.fetch_event_vias(candidates.iter(), &target_id, room_version_rules)
+					.fetch_event_vias(
+						candidates.iter(),
+						&target_id,
+						room_version_rules,
+						create_event.event_id(),
+					)
 					.await
 				{
 					| Ok((_, value)) => {
@@ -657,8 +671,13 @@ impl super::Service {
 				debug_warn!(error=?e, "Not attempting to pull missing prev event");
 				continue;
 			}
-			let pdu = match self
-				.fetch_event_vias(candidates.iter(), &next_id, room_version_rules)
+			let pdu_json = match self
+				.fetch_event_vias(
+					candidates.iter(),
+					&next_id,
+					room_version_rules,
+					create_event.event_id(),
+				)
 				.await
 			{
 				| Ok((_, data)) => {
@@ -676,7 +695,7 @@ impl super::Service {
 				},
 			};
 
-			let prev_events = match expect_event_id_array(&pdu, "prev_events").map_err(|e| {
+			let prev_events = match expect_event_id_array(&pdu_json, "prev_events").map_err(|e| {
 				err!(Request(BadJson(warn!(
 					event_id=%next_id,
 					"Failed to parse event fetched from remote: {e}"
@@ -698,11 +717,14 @@ impl super::Service {
 				})
 				.collect::<Vec<_>>()
 				.await;
+			let Ok(pdu) = PduEvent::from_id_val(&next_id, pdu_json.clone())
+				.map_err(|e| err!("Failed to parse already validated PDU {next_id}: {e:?}"))
+				.log_err()
+			else {
+				continue;
+			};
 			todo.extend(missing_prev);
-			discovered_events.insert(
-				next_id.clone(),
-				PduEvent::from_id_val(&next_id, pdu).expect("fetched PDU was already validated"),
-			);
+			discovered_events.insert(next_id, pdu);
 		}
 
 		discovered_events
