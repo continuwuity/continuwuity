@@ -55,7 +55,10 @@ impl Service {
 
 	fn create_token() -> String { utils::random_string(Self::TOKEN_LENGTH) }
 
+	/// Lock and fetch an unexpired rendezvous session.
 	fn lock_session(&self, id: &str) -> Result<SyncMappedMutexGuard<'_, Session>> {
+		// We don't clear out expired sessions manually, the LRU cache will
+		// evict them over time
 		SyncMutexGuard::try_map_or_err(self.sessions.lock(), |sessions| {
 			sessions
 				.get_mut(id)
@@ -69,6 +72,7 @@ impl Service {
 		.map_err(at!(1))
 	}
 
+	/// Create a fresh rendezvous session.
 	pub fn create_session(
 		&self,
 		data: String,
@@ -91,6 +95,7 @@ impl Service {
 		))
 	}
 
+	/// Update a rendezvous session with new data.
 	pub fn update_session(
 		&self,
 		id: &str,
@@ -104,8 +109,9 @@ impl Service {
 			return Err!(Request(TooLarge("Data too large")));
 		}
 
-		let mut session = self.lock_session(id)?;
-
+		// If the provided transaction ID was used already, we have to return
+		// the sequence token that we returned last time it was used.
+		// This makes session updates with the same transaction ID idempotent.
 		if let Some(sequence_token) = session.transaction_sequences.get_mut(&transaction) {
 			return Ok(update_rendezvous_session::msc4388::Response::new(
 				sequence_token.to_owned(),
@@ -127,7 +133,8 @@ impl Service {
 		Ok(update_rendezvous_session::msc4388::Response::new(new_sequence_token))
 	}
 
-	pub fn get_session(&self, id: &str) -> Result<get_rendezvous_session::unstable::Response> {
+	/// Look up a rendezvous session by ID.
+	pub fn get_session(&self, id: &str) -> Result<get_rendezvous_session::msc4388::Response> {
 		let session = self.lock_session(id)?;
 
 		let session_age = SystemTime::now()
@@ -143,6 +150,7 @@ impl Service {
 		))
 	}
 
+	/// Delete a rendezvous session.
 	pub fn delete_session(
 		&self,
 		id: &str,
