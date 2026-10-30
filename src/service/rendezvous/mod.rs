@@ -122,13 +122,15 @@ impl Service {
 			return Err!(Request(ConcurrentWrite("Sequence token mismatch")));
 		}
 
+		drop(sequence_token);
+
 		let new_sequence_token = Self::create_token();
 
 		session.data = data;
 		session.last_sequence_token.clone_from(&new_sequence_token);
 		session
 			.transaction_sequences
-			.insert(transaction, sequence_token);
+			.insert(transaction, new_sequence_token.clone());
 
 		Ok(update_rendezvous_session::unstable::Response::new(new_sequence_token))
 	}
