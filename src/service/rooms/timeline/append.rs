@@ -325,7 +325,9 @@ impl super::Service {
 		self.db
 			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2)
 			.await;
-        self.progress_extremities(pdu).await.expect("progressing extremities should never fail");
+		self.progress_extremities(pdu)
+			.await
+			.expect("progressing extremities should never fail");
 
 		drop(insert_lock);
 
