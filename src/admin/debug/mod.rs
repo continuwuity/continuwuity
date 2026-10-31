@@ -3,7 +3,7 @@ pub(crate) mod tester;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName};
+use ruma::{OwnedEventId, OwnedRoomId, OwnedServerName};
 use service::rooms::short::{ShortEventId, ShortRoomId};
 
 use self::tester::TesterCommand;
@@ -78,29 +78,6 @@ pub enum DebugCommand {
 		/// If set, ignores errors, else stops at the first error/failure.
 		#[arg(short, long)]
 		force: bool,
-	},
-
-	/// Gets all the room state events for the specified room.
-	///
-	/// This is functionally equivalent to `GET
-	/// /_matrix/client/v3/rooms/{roomid}/state`, except the admin command does
-	/// *not* check if the sender user is allowed to see state events. This is
-	/// done because it's implied that server admins here have database access
-	/// and can see/get room info themselves anyways if they were malicious
-	/// admins.
-	///
-	/// Of course the check is still done on the actual client API.
-	GetRoomState {
-		/// Room ID
-		room_id: OwnedRoomOrAliasId,
-	},
-
-	/// Gets all the room state events at the specified event.
-	///
-	/// State at event might not be available for some PDUs, such as rejected
-	/// ones.
-	GetStateAt {
-		event_id: OwnedEventId,
 	},
 
 	/// Sends a federation request to the remote server's

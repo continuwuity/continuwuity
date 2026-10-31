@@ -6,17 +6,15 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, at, debug_error, err, info,
+	Err, Result, debug_error, err, info,
 	matrix::{
-		Event, StateKey,
+		Event,
 		pdu::{PduEvent, PduId, RawPduId},
 	},
-	state_res::EventTypeExt,
 	trace, utils,
 	utils::{
 		stream::{BroadbandExt, IterStream, ReadyExt},
 		string::EMPTY,
-		to_canonical_object,
 	},
 	warn,
 };
@@ -27,11 +25,8 @@ use resolvematrix::{
 	server::{MatrixResolver, MatrixResolverBuilder},
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId,
-	OwnedRoomOrAliasId, OwnedServerName, RoomId, RoomVersionId, UInt,
-	api::federation::event::get_room_state,
-	events::{AnyStateEvent, StateEventType},
-	serde::Raw,
+	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
+	RoomId, RoomVersionId, UInt, api::federation::event::get_room_state,
 };
 use service::rooms::{
 	short::{ShortEventId, ShortRoomId},
@@ -516,88 +511,6 @@ impl crate::Context<'_> {
 			},
 		}
 		.await
-	}
-
-	pub(super) async fn get_state_at(&self, event_id: OwnedEventId) -> Result {
-		self.bail_restricted()?;
-
-		let shortstatehash = self
-			.services
-			.rooms
-			.state_accessor
-			.pdu_shortstatehash(&event_id)
-			.await?;
-
-		let state_ids: Vec<OwnedEventId> = self
-			.services
-			.rooms
-			.state_accessor
-			.state_full_ids(shortstatehash)
-			.map(at!(1))
-			.collect()
-			.await;
-
-		let mut pdus: HashMap<(StateEventType, StateKey), CanonicalJsonObject> = state_ids
-			.iter()
-			.try_stream::<conduwuit::Error>()
-			.and_then(|id| async {
-				let pdu_json = self.services.rooms.timeline.get_pdu_json(id).await?;
-				let event_type = pdu_json
-					.get("type")
-					.and_then(CanonicalJsonValue::as_str)
-					.expect("event type must be present in events");
-				let state_key = pdu_json
-					.get("state_key")
-					.and_then(CanonicalJsonValue::as_str)
-					.expect("state keys must be present for events in the room state");
-				Ok(((event_type.into(), state_key.into()), pdu_json))
-			})
-			.try_collect()
-			.await?;
-
-		let pdu = self.services.rooms.timeline.get_pdu(&event_id).await?;
-		if let Some(state_key) = pdu.state_key() {
-			pdus.insert(pdu.kind().with_state_key(state_key), to_canonical_object(pdu)?);
-		}
-
-		let json =
-			serde_json::to_string_pretty(&pdus.values().collect::<Vec<_>>()).map_err(|e| {
-				err!(Database(
-					"Failed to convert room state events to pretty JSON, possible invalid room \
-					 state events in our database {e}",
-				))
-			})?;
-
-		let out = format!("```json\n{json}\n```");
-		self.write_str(&out).await
-	}
-
-	pub(super) async fn get_room_state(&self, room: OwnedRoomOrAliasId) -> Result {
-		self.bail_restricted()?;
-
-		let room_id = self.services.rooms.alias.resolve(&room).await?;
-		let room_state: Vec<Raw<AnyStateEvent>> = self
-			.services
-			.rooms
-			.state_accessor
-			.room_state_full_pdus(&room_id)
-			.map_ok(Event::into_format)
-			.try_collect()
-			.await?;
-
-		if room_state.is_empty() {
-			return Err!("Unable to find room state in our database (vector is empty)",);
-		}
-
-		let json = serde_json::to_string_pretty(&room_state).map_err(|e| {
-			err!(Database(
-				"Failed to convert room state events to pretty JSON, possible invalid room \
-				 state events in our database {e}",
-			))
-		})?;
-
-		let out = format!("```json\n{json}\n```");
-		self.write_str(&out).await
 	}
 
 	pub(super) async fn ping(&self, server: OwnedServerName) -> Result {

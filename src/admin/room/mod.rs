@@ -6,7 +6,7 @@ mod moderation;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::OwnedRoomId;
+use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId};
 
 use self::{
 	alias::RoomAliasCommand, directory::RoomDirectoryCommand, info::RoomInfoCommand,
@@ -59,5 +59,16 @@ pub enum RoomCommand {
 	/// Check if we know about a room
 	Exists {
 		room_id: OwnedRoomId,
+	},
+
+	/// Exports the room's current state as a JSON file.
+	/// If an event ID is supplied, the state at that event (the state preceding
+	/// it, plus any change made by the named event) is returned instead, if it
+	/// is known.
+	ExportState {
+		/// The room ID or alias to get the state for.
+		room: OwnedRoomOrAliasId,
+		/// The event ID to get the state at, if any.
+		event_id: Option<OwnedEventId>,
 	},
 }
