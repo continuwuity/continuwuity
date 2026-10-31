@@ -40,30 +40,6 @@ pub enum DebugCommand {
 	/// the command.
 	ParsePdu,
 
-	/// Attempts to retrieve a PDU from a remote server. **Does not** insert
-	///   it into the database
-	/// or persist it anywhere.
-	GetRemotePdu {
-		/// An event ID (a $ followed by the base64 reference hash)
-		event_id: OwnedEventId,
-
-		/// Argument for us to attempt to fetch the event from the
-		/// specified remote server.
-		server: OwnedServerName,
-	},
-
-	/// Same as `get-remote-pdu` but accepts a codeblock newline delimited
-	///   list of PDUs and a single server to fetch from
-	GetRemotePduList {
-		/// Argument for us to attempt to fetch all the events from the
-		/// specified remote server.
-		server: OwnedServerName,
-
-		/// If set, ignores errors, else stops at the first error/failure.
-		#[arg(short, long)]
-		force: bool,
-	},
-
 	/// Forces device lists for all local and remote users to be updated (as
 	///   having new keys available)
 	ForceDeviceListUpdates,

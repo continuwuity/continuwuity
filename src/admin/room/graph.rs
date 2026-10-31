@@ -2,7 +2,7 @@ use clap::Subcommand;
 use conduwuit::{Err, Event, Result, err, utils::stream::BroadbandExt};
 use conduwuit_macros::admin_command_dispatch;
 use futures::StreamExt;
-use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId};
+use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName};
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
@@ -16,6 +16,12 @@ pub enum GraphCommand {
 	/// includes details about the PDU state.
 	GetPDU {
 		event_id: OwnedEventId,
+	},
+
+	/// Fetches a PDU over federation. Does not store the result.
+	FetchPDU {
+		event_id: OwnedEventId,
+		server_name: OwnedServerName,
 	},
 
 	/// Yields the first PDU we became aware of in a room.
@@ -117,6 +123,32 @@ impl crate::Context<'_> {
 				write!(self, "{msg}\n```json\n{text}\n```")
 			},
 		}
+		.await
+	}
+
+	pub(super) async fn fetch_pdu(
+		&self,
+		event_id: OwnedEventId,
+		server: OwnedServerName,
+	) -> Result {
+		let response = self
+			.services
+			.sending
+			.send_federation_request(
+				&server,
+				ruma::api::federation::event::get_event::v1::Request::new(event_id.clone()),
+			)
+			.await?;
+		let (real_event_id, room_id, pdu_json) = self
+			.services
+			.rooms
+			.event_handler
+			.parse_incoming_pdu(&response.pdu, None)
+			.await?;
+		self.write_str(&format!(
+			"Event ID: {real_event_id}\nRoom ID: {room_id}\nPDU:\n```json\n{}\n```",
+			serde_json::to_string_pretty(&pdu_json)?
+		))
 		.await
 	}
 

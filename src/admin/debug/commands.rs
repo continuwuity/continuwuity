@@ -8,14 +8,14 @@ use std::{
 use conduwuit::{
 	Err, Result, debug_error, err, info,
 	matrix::{Event, pdu::PduEvent},
-	trace, utils,
+	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
 	},
 	warn,
 };
-use futures::{FutureExt, StreamExt, TryStreamExt};
+use futures::{StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
 use resolvematrix::{
 	resolution::ResolvedDestination,
@@ -289,146 +289,6 @@ impl crate::Context<'_> {
 						| Ok(pdu) => write!(self, "EventId: {event_id:?}\n{pdu:#?}"),
 					}
 				},
-			},
-		}
-		.await
-	}
-
-	pub(super) async fn get_remote_pdu_list(
-		&self,
-		server: OwnedServerName,
-		force: bool,
-	) -> Result {
-		if !self.services.server.config.allow_federation {
-			return Err!("Federation is disabled on this homeserver.",);
-		}
-
-		if server == self.services.globals.server_name() {
-			return Err!(
-				"Not allowed to send federation requests to ourselves. Please use `get-pdu` for \
-				 fetching local PDUs from the database.",
-			);
-		}
-
-		if self.body.len() < 2
-			|| !self.body[0].trim().starts_with("```")
-			|| self.body.last().unwrap_or(&EMPTY).trim() != "```"
-		{
-			return Err!("Expected code block in command body. Add --help for details.",);
-		}
-
-		let list = self
-			.body
-			.iter()
-			.collect::<Vec<_>>()
-			.drain(1..self.body.len().saturating_sub(1))
-			.filter_map(|pdu| EventId::parse(pdu).ok())
-			.collect::<Vec<_>>();
-
-		let mut failed_count: usize = 0;
-		let mut success_count: usize = 0;
-
-		for event_id in list {
-			if force {
-				match self.get_remote_pdu(event_id.clone(), server.clone()).await {
-					| Err(e) => {
-						failed_count = failed_count.saturating_add(1);
-						self.services
-							.admin
-							.send_text(&format!("Failed to get remote PDU, ignoring error: {e}"))
-							.await;
-
-						warn!("Failed to get remote PDU, ignoring error: {e}");
-					},
-					| _ => {
-						success_count = success_count.saturating_add(1);
-					},
-				}
-			} else {
-				self.get_remote_pdu(event_id.clone(), server.clone())
-					.await?;
-				success_count = success_count.saturating_add(1);
-			}
-		}
-
-		let out = format!(
-			"Fetched {success_count} remote PDUs successfully with {failed_count} failures"
-		);
-
-		self.write_str(&out).await
-	}
-
-	pub(super) async fn get_remote_pdu(
-		&self,
-		event_id: OwnedEventId,
-		server: OwnedServerName,
-	) -> Result {
-		if !self.services.server.config.allow_federation {
-			return Err!("Federation is disabled on this homeserver.");
-		}
-
-		if server == self.services.globals.server_name() {
-			return Err!(
-				"Not allowed to send federation requests to ourselves. Please use `get-pdu` for \
-				 fetching local PDUs.",
-			);
-		}
-
-		match self
-			.services
-			.sending
-			.send_federation_request(
-				&server,
-				ruma::api::federation::event::get_event::v1::Request::new(event_id.clone()),
-			)
-			.await
-		{
-			| Err(e) => {
-				return Err!(
-					"Remote server did not have PDU or failed sending request to remote server: \
-					 {e}"
-				);
-			},
-			| Ok(response) => {
-				let json: CanonicalJsonObject = serde_json::from_str(response.pdu.get())
-					.map_err(|e| {
-						warn!(
-							"Requested event ID {event_id} from server but failed to convert \
-							 from RawValue to CanonicalJsonObject (malformed event/response?): \
-							 {e}"
-						);
-						err!(Request(Unknown(
-							"Received response from server but failed to parse PDU"
-						)))
-					})?;
-
-				trace!("Attempting to parse PDU: {:?}", &response.pdu);
-				let _parsed_pdu = {
-					let parsed_result = self
-						.services
-						.rooms
-						.event_handler
-						.parse_incoming_pdu(&response.pdu, None)
-						.boxed()
-						.await;
-
-					let (event_id, value, room_id) = match parsed_result {
-						| Ok(t) => t,
-						| Err(e) => {
-							warn!("Failed to parse PDU: {e}");
-							info!("Full PDU: {:?}", &response.pdu);
-							return Err!(
-								"Failed to parse PDU remote server {server} sent us: {e}"
-							);
-						},
-					};
-
-					vec![(event_id, value, room_id)]
-				};
-
-				let text = serde_json::to_string_pretty(&json)?;
-				let msg = "Got PDU from specified server:";
-				write!(self, "{msg}. Event body:\n```json\n{text}\n```")
 			},
 		}
 		.await
