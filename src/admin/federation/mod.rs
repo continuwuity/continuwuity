@@ -10,19 +10,21 @@ use crate::admin_command_dispatch;
 #[derive(Debug, Subcommand)]
 pub enum FederationCommand {
 	/// List all rooms we are currently handling an incoming pdu from
-	#[clap(name="incoming", alias="inbound")]
+	#[clap(name = "incoming", alias = "inbound")]
 	IncomingFederation,
 
 	/// Disables incoming federation handling for a room.
 	///
-	/// The room can still be used locally, but events from other servers will stop being received.
+	/// The room can still be used locally, but events from other servers will
+	/// stop being received.
 	DisableRoom {
 		room: OwnedRoomOrAliasId,
 	},
 
 	/// Enables incoming federation handling for a room again.
 	///
-	/// This does not unban the room if it was banned, it only re-enables incoming events.
+	/// This does not unban the room if it was banned, it only re-enables
+	/// incoming events.
 	EnableRoom {
 		room: OwnedRoomOrAliasId,
 	},
@@ -36,6 +38,15 @@ pub enum FederationCommand {
 
 	/// Queries the remote server for their current signing keys.
 	GetSigningKeys {
+		server_name: OwnedServerName,
+	},
+
+	/// Makes a federation request to the remote server, to test connectivity.
+	///
+	/// The request is made to the federation version endpoint, which if
+	/// successful, will also reveal how long the request took and what the
+	/// remote server's software is.
+	Ping {
 		server_name: OwnedServerName,
 	},
 }

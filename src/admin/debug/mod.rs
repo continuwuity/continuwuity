@@ -80,13 +80,6 @@ pub enum DebugCommand {
 		force: bool,
 	},
 
-	/// Sends a federation request to the remote server's
-	///   `/_matrix/federation/v1/version` endpoint and measures the latency it
-	///   took for the server to respond
-	Ping {
-		server: OwnedServerName,
-	},
-
 	/// Forces device lists for all local and remote users to be updated (as
 	///   having new keys available)
 	ForceDeviceListUpdates,

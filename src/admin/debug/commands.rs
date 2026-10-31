@@ -513,41 +513,6 @@ impl crate::Context<'_> {
 		.await
 	}
 
-	pub(super) async fn ping(&self, server: OwnedServerName) -> Result {
-		if server == self.services.globals.server_name() {
-			return Err!("Not allowed to send federation requests to ourselves.");
-		}
-
-		let timer = tokio::time::Instant::now();
-
-		match self
-			.services
-			.sending
-			.send_unauthenticated_request(
-				&server,
-				ruma::api::federation::discovery::get_server_version::v1::Request::new(),
-			)
-			.await
-		{
-			| Err(e) => {
-				return Err!("Failed sending federation request to specified server:\n\n{e}");
-			},
-			| Ok(response) => {
-				let ping_time = timer.elapsed();
-				let json_text_res = serde_json::to_string_pretty(&response.server);
-
-				let out = if let Ok(json) = json_text_res {
-					format!("Got response which took {ping_time:?} time:\n```json\n{json}\n```")
-				} else {
-					format!("Got non-JSON response which took {ping_time:?} time:\n{response:?}")
-				};
-
-				write!(self, "{out}")
-			},
-		}
-		.await
-	}
-
 	pub(super) async fn force_device_list_updates(&self) -> Result {
 		// Force E2EE device list updates for all users
 		self.services
