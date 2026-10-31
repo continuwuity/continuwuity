@@ -208,20 +208,6 @@ pub enum DebugCommand {
 		room_id: OwnedRoomId,
 	},
 
-	/// Lists remote servers that are currently in a "backoff" state.
-	///
-	/// Servers in this list will not be contacted until the retry time elapses,
-	/// or they make contact first.
-	///
-	/// "Stale" indicates that routing information may be out of date, and the
-	/// remote will be re-resolved immediately before the next contact attempt.
-	ServersInBackoff {
-		#[arg(short, long, alias = "room")]
-		room_id: Option<OwnedRoomId>,
-		#[arg(short, long)]
-		name: Option<OwnedServerName>,
-	},
-
 	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]

@@ -1,10 +1,11 @@
 mod commands;
+mod health;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId};
+use ruma::{OwnedRoomOrAliasId, OwnedServerName};
 
-use crate::admin_command_dispatch;
+use crate::{admin_command_dispatch, federation::health::HealthCommand};
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
@@ -49,4 +50,7 @@ pub enum FederationCommand {
 	Ping {
 		server_name: OwnedServerName,
 	},
+
+	#[command(subcommand)]
+	Health(HealthCommand),
 }
