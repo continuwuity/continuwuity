@@ -7,10 +7,7 @@ use std::{
 
 use conduwuit::{
 	Err, Result, debug_error, err, info,
-	matrix::{
-		Event,
-		pdu::{PduEvent, PduId, RawPduId},
-	},
+	matrix::{Event, pdu::PduEvent},
 	trace, utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
@@ -28,10 +25,7 @@ use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
 	RoomId, RoomVersionId, UInt, api::federation::event::get_room_state,
 };
-use service::rooms::{
-	short::{ShortEventId, ShortRoomId},
-	state_compressor::HashSetCompressStateEvent,
-};
+use service::rooms::state_compressor::HashSetCompressStateEvent;
 use tracing_subscriber::EnvFilter;
 
 use crate::PAGE_SIZE;
@@ -300,79 +294,6 @@ impl crate::Context<'_> {
 		.await
 	}
 
-	pub(super) async fn get_pdu(&self, event_id: OwnedEventId) -> Result {
-		let mut outlier = false;
-		let mut pdu_json = self
-			.services
-			.rooms
-			.timeline
-			.get_non_outlier_pdu_json(&event_id)
-			.await;
-
-		if pdu_json.is_err() {
-			outlier = true;
-			pdu_json = self.services.rooms.timeline.get_pdu_json(&event_id).await;
-		}
-		let rejected = self
-			.services
-			.rooms
-			.pdu_metadata
-			.is_event_rejected(&event_id)
-			.await;
-		let soft_failed = self
-			.services
-			.rooms
-			.pdu_metadata
-			.is_event_soft_failed(&event_id)
-			.await;
-
-		match pdu_json {
-			| Err(_) => return Err!("PDU not found locally."),
-			| Ok(json) => {
-				let text = serde_json::to_string_pretty(&json)?;
-				let msg = if rejected {
-					"Rejected PDU:"
-				} else if soft_failed {
-					"Soft-failed PDU:"
-				} else if outlier {
-					"Outlier PDU:"
-				} else {
-					"PDU:"
-				};
-				write!(self, "{msg}\n```json\n{text}\n```")
-			},
-		}
-		.await
-	}
-
-	pub(super) async fn get_short_pdu(
-		&self,
-		shortroomid: ShortRoomId,
-		shorteventid: ShortEventId,
-	) -> Result {
-		let pdu_id: RawPduId = PduId {
-			shortroomid,
-			shorteventid: shorteventid.into(),
-		}
-		.into();
-
-		let pdu_json = self
-			.services
-			.rooms
-			.timeline
-			.get_pdu_json_from_id(&pdu_id)
-			.await;
-
-		match pdu_json {
-			| Err(_) => return Err!("PDU not found locally."),
-			| Ok(json) => {
-				let json_text = serde_json::to_string_pretty(&json)?;
-				write!(self, "```json\n{json_text}\n```")
-			},
-		}
-		.await
-	}
-
 	pub(super) async fn get_remote_pdu_list(
 		&self,
 		server: OwnedServerName,
@@ -622,62 +543,6 @@ impl crate::Context<'_> {
 		};
 
 		self.write_str(msg).await
-	}
-
-	#[tracing::instrument(skip(self), level = "info")]
-	pub(super) async fn first_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
-		self.bail_restricted()?;
-
-		if !self
-			.services
-			.rooms
-			.state_cache
-			.server_in_room(&self.services.server.name, &room_id)
-			.await
-		{
-			return Err!(
-				"We are not participating in the room / we don't know about the room ID.",
-			);
-		}
-
-		let first_pdu = self
-			.services
-			.rooms
-			.timeline
-			.first_pdu_in_room(&room_id)
-			.await
-			.map_err(|_| err!(Database("Failed to find the first PDU in database")))?;
-
-		let out = format!("{first_pdu:?}");
-		self.write_str(&out).await
-	}
-
-	#[tracing::instrument(skip(self), level = "info")]
-	pub(super) async fn latest_pdu_in_room(&self, room_id: OwnedRoomId) -> Result {
-		self.bail_restricted()?;
-
-		if !self
-			.services
-			.rooms
-			.state_cache
-			.server_in_room(&self.services.server.name, &room_id)
-			.await
-		{
-			return Err!(
-				"We are not participating in the room / we don't know about the room ID."
-			);
-		}
-
-		let latest_pdu = self
-			.services
-			.rooms
-			.timeline
-			.latest_pdu_in_room(&room_id)
-			.await
-			.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?;
-
-		let out = format!("{latest_pdu:?}");
-		self.write_str(&out).await
 	}
 
 	#[tracing::instrument(skip(self), level = "info")]

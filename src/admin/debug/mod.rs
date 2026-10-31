@@ -4,7 +4,6 @@ pub(crate) mod tester;
 use clap::Subcommand;
 use conduwuit::Result;
 use ruma::{OwnedEventId, OwnedRoomId, OwnedServerName};
-use service::rooms::short::{ShortEventId, ShortRoomId};
 
 use self::tester::TesterCommand;
 use crate::admin_command_dispatch;
@@ -40,21 +39,6 @@ pub enum DebugCommand {
 	/// This command needs a JSON blob provided in a Markdown code block below
 	/// the command.
 	ParsePdu,
-
-	/// Retrieve and print a PDU by EventID from the Continuwuity database
-	GetPdu {
-		/// An event ID (a $ followed by the base64 reference hash)
-		event_id: OwnedEventId,
-	},
-
-	/// Retrieve and print a PDU by PduId from the Continuwuity database
-	GetShortPdu {
-		/// Shortroomid integer
-		shortroomid: ShortRoomId,
-
-		/// Shorteventid integer
-		shorteventid: ShortEventId,
-	},
 
 	/// Attempts to retrieve a PDU from a remote server. **Does not** insert
 	///   it into the database
@@ -107,20 +91,6 @@ pub enum DebugCommand {
 	/// This re-verifies a PDU existing in the database found by ID.
 	VerifyPdu {
 		event_id: OwnedEventId,
-	},
-
-	/// Prints the very first PDU in the specified room (typically
-	///   m.room.create)
-	FirstPduInRoom {
-		/// The room ID
-		room_id: OwnedRoomId,
-	},
-
-	/// Prints the latest ("last") PDU in the specified room (typically a
-	///   message)
-	LatestPduInRoom {
-		/// The room ID
-		room_id: OwnedRoomId,
 	},
 
 	/// Forcefully replaces the room state of our local copy of the specified
