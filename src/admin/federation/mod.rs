@@ -2,7 +2,7 @@ mod commands;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{OwnedRoomId, OwnedServerName, OwnedUserId};
+use ruma::{OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId};
 
 use crate::admin_command_dispatch;
 
@@ -10,34 +10,28 @@ use crate::admin_command_dispatch;
 #[derive(Debug, Subcommand)]
 pub enum FederationCommand {
 	/// List all rooms we are currently handling an incoming pdu from
+	#[clap(name="incoming", alias="inbound")]
 	IncomingFederation,
 
 	/// Disables incoming federation handling for a room.
+	///
+	/// The room can still be used locally, but events from other servers will stop being received.
 	DisableRoom {
-		room_id: OwnedRoomId,
+		room: OwnedRoomOrAliasId,
 	},
 
 	/// Enables incoming federation handling for a room again.
+	///
+	/// This does not unban the room if it was banned, it only re-enables incoming events.
 	EnableRoom {
-		room_id: OwnedRoomId,
+		room: OwnedRoomOrAliasId,
 	},
 
-	/// Fetch `/.well-known/matrix/support` from the specified server
+	/// Fetch support details from the given server.
 	///
-	/// Despite the name, this is not a federation endpoint and does not go
-	/// through the federation / server resolution process as per-spec this is
-	/// supposed to be served at the server_name.
-	///
-	/// Respecting homeservers put this file here for listing administration,
-	/// moderation, and security inquiries. This command provides a way to
-	/// easily fetch that information.
-	FetchSupportWellKnown {
+	/// This makes a request to `https://<server_name>/.well-known/matrix/support`. Many servers do not advertise support information, but those that do usually provide a way to contact homeserver administrators.
+	FetchSupport {
 		server_name: OwnedServerName,
-	},
-
-	/// Lists all the rooms we share/track with the specified *remote* user
-	RemoteUserInRooms {
-		user_id: OwnedUserId,
 	},
 
 	/// Queries the remote server for their current signing keys.

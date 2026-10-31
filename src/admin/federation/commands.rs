@@ -1,20 +1,19 @@
 use std::fmt::Write;
 
 use conduwuit::{Err, Result, utils::response::LimitReadExt};
-use futures::StreamExt;
-use ruma::{MilliSecondsSinceUnixEpoch, OwnedRoomId, OwnedServerName, OwnedUserId};
-
-use crate::get_room_info;
+use ruma::{MilliSecondsSinceUnixEpoch, OwnedRoomOrAliasId, OwnedServerName};
 
 impl crate::Context<'_> {
-	pub(super) async fn disable_room(&self, room_id: OwnedRoomId) -> Result {
+	pub(super) async fn disable_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		self.bail_restricted()?;
+		let room_id = self.services.rooms.alias.resolve(&room).await?;
 		self.services.rooms.metadata.disable_room(&room_id, true);
 		self.write_str("Room disabled.").await
 	}
 
-	pub(super) async fn enable_room(&self, room_id: OwnedRoomId) -> Result {
+	pub(super) async fn enable_room(&self, room: OwnedRoomOrAliasId) -> Result {
 		self.bail_restricted()?;
+		let room_id = self.services.rooms.alias.resolve(&room).await?;
 		self.services.rooms.metadata.disable_room(&room_id, false);
 		self.write_str("Room enabled.").await
 	}
@@ -33,13 +32,13 @@ impl crate::Context<'_> {
 				map.len(),
 				self.services.transactions.txn_active_handle_count()
 			);
-			for (r, (e, i)) in map.iter() {
-				let elapsed = i.elapsed();
+			for (room_id, (event_id, started_at)) in map.iter() {
+				let elapsed = started_at.elapsed();
 				writeln!(
 					msg,
 					"{} {}: {}m{}s",
-					r,
-					e,
+					room_id,
+					event_id,
 					elapsed.as_secs() / 60,
 					elapsed.as_secs() % 60
 				)?;
@@ -50,7 +49,7 @@ impl crate::Context<'_> {
 		self.write_str(&msg).await
 	}
 
-	pub(super) async fn fetch_support_well_known(&self, server_name: OwnedServerName) -> Result {
+	pub(super) async fn fetch_support(&self, server_name: OwnedServerName) -> Result {
 		let response = self
 			.services
 			.client
@@ -94,41 +93,6 @@ impl crate::Context<'_> {
 		};
 
 		self.write_str(&format!("Got JSON response:\n\n```json\n{pretty_json}\n```"))
-			.await
-	}
-
-	pub(super) async fn remote_user_in_rooms(&self, user_id: OwnedUserId) -> Result {
-		if user_id.server_name() == self.services.server.name {
-			return Err!(
-				"User belongs to our server, please use `list-joined-rooms` user admin command \
-				 instead.",
-			);
-		}
-
-		let mut rooms: Vec<(OwnedRoomId, u64, String)> = self
-			.services
-			.rooms
-			.state_cache
-			.rooms_joined(&user_id)
-			.then(async |room_id| get_room_info(self.services, &room_id).await)
-			.collect()
-			.await;
-
-		if rooms.is_empty() {
-			return Err!("User is not in any rooms.");
-		}
-
-		rooms.sort_by_key(|r| r.1);
-		rooms.reverse();
-
-		let num = rooms.len();
-		let body = rooms
-			.iter()
-			.map(|(id, members, name)| format!("{id} | Members: {members} | Name: {name}"))
-			.collect::<Vec<_>>()
-			.join("\n");
-
-		self.write_str(&format!("Rooms {user_id} shares with us ({num}):\n```\n{body}\n```"))
 			.await
 	}
 
