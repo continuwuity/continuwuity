@@ -1,6 +1,7 @@
 mod alias;
 mod commands;
 mod directory;
+mod graph;
 mod info;
 mod moderation;
 
@@ -9,8 +10,8 @@ use conduwuit::Result;
 use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId};
 
 use self::{
-	alias::RoomAliasCommand, directory::RoomDirectoryCommand, info::RoomInfoCommand,
-	moderation::RoomModerationCommand,
+	alias::RoomAliasCommand, directory::RoomDirectoryCommand, graph::GraphCommand,
+	info::RoomInfoCommand, moderation::RoomModerationCommand,
 };
 use crate::admin_command_dispatch;
 
@@ -40,21 +41,25 @@ pub enum RoomCommand {
 		no_details: bool,
 	},
 
-	#[command(subcommand)]
 	/// View information about a room we know about
+	#[command(subcommand)]
 	Info(RoomInfoCommand),
 
-	#[command(subcommand)]
 	/// Manage moderation of remote or local rooms
+	#[command(subcommand)]
 	Moderation(RoomModerationCommand),
 
-	#[command(subcommand)]
 	/// Manage rooms' aliases
+	#[command(subcommand)]
 	Alias(RoomAliasCommand),
 
-	#[command(subcommand)]
 	/// Manage the room directory
+	#[command(subcommand)]
 	Directory(RoomDirectoryCommand),
+
+	/// Interface with room graphs directly (advanced).
+	#[command(subcommand)]
+	Graph(GraphCommand),
 
 	/// Check if we know about a room
 	Exists {

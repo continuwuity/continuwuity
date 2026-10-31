@@ -13,7 +13,7 @@ use conduwuit::{
 	},
 	trace, utils,
 	utils::{
-		stream::{BroadbandExt, IterStream, ReadyExt},
+		stream::{IterStream, ReadyExt},
 		string::EMPTY,
 	},
 	warn,
@@ -1083,45 +1083,5 @@ impl crate::Context<'_> {
 			body.join("\n")
 		))
 		.await
-	}
-
-	pub(super) async fn room_extremities(&self, room_id: OwnedRoomId) -> Result {
-		let mut extremities = self
-			.services
-			.rooms
-			.state
-			.get_forward_extremities(&room_id)
-			.broad_filter_map(|event_id| async move {
-				self.services.rooms.timeline.get_pdu(&event_id).await.ok()
-			})
-			.collect::<Vec<_>>()
-			.await;
-		extremities.sort_by_key(|pdu| (pdu.depth, pdu.origin_server_ts));
-		if extremities.is_empty() {
-			return Err!("No room extremities.");
-		}
-		self.write_str("| Event ID | Kind | Sender | Timestamp | Depth |\n")
-			.await?;
-		self.write_str("| -------- | ---- | ------ | --------- | ----- |\n")
-			.await?;
-		for pdu in extremities {
-			let url = format!(
-				"https://matrix.to/#/{}/{}?via={}",
-				room_id,
-				pdu.event_id(),
-				self.services.server.name
-			);
-			self.write_str(&format!(
-				"| [`{}`]({url}) | `{}` | `{}` | `{}` | `{}` |\n",
-				pdu.event_id(),
-				pdu.kind(),
-				pdu.sender(),
-				pdu.origin_server_ts,
-				pdu.depth
-			))
-			.await?;
-		}
-
-		Ok(())
 	}
 }

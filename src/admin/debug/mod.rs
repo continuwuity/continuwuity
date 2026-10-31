@@ -204,10 +204,6 @@ pub enum DebugCommand {
 		page: Option<usize>,
 	},
 
-	RoomExtremities {
-		room_id: OwnedRoomId,
-	},
-
 	/// Developer test stubs
 	#[command(subcommand)]
 	#[allow(non_snake_case)]
