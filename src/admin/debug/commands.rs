@@ -82,35 +82,6 @@ impl crate::Context<'_> {
 		self.write_str(&message).await
 	}
 
-	pub(super) async fn get_auth_chain(&self, event_id: OwnedEventId) -> Result {
-		let Ok(event) = self.services.rooms.timeline.get_pdu_json(&event_id).await else {
-			return Err!("Event not found.");
-		};
-
-		let room_id_str = event
-			.get("room_id")
-			.and_then(CanonicalJsonValue::as_str)
-			.ok_or_else(|| err!(Database("Invalid event in database")))?;
-
-		let room_id = <&RoomId>::try_from(room_id_str)
-			.map_err(|_| err!(Database("Invalid room id field in event in database")))?;
-
-		let start = Instant::now();
-		let count = self
-			.services
-			.rooms
-			.auth_chain
-			.event_ids_iter(room_id, once(event_id.as_ref()))
-			.ready_filter_map(Result::ok)
-			.count()
-			.await;
-
-		let elapsed = start.elapsed();
-		let out = format!("Loaded auth chain with length {count} in {elapsed:?}");
-
-		self.write_str(&out).await
-	}
-
 	pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
 		let node_status = async |event_id: &EventId, missing: bool| -> NodeStatus {
 			if self
