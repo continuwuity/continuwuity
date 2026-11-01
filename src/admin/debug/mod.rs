@@ -1,11 +1,9 @@
 mod commands;
-pub(crate) mod tester;
 
 use clap::Subcommand;
 use conduwuit::Result;
 use ruma::OwnedServerName;
 
-use self::tester::TesterCommand;
 use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
@@ -69,10 +67,4 @@ pub enum DebugCommand {
 	RoomsByExtremityCount {
 		page: Option<usize>,
 	},
-
-	/// Developer test stubs
-	#[command(subcommand)]
-	#[allow(non_snake_case)]
-	#[clap(hide(true))]
-	Tester(TesterCommand),
 }
