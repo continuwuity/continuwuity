@@ -239,21 +239,6 @@ pub enum UserCommand {
 		event_id: OwnedEventId,
 	},
 
-	/// Force joins a specified list of local users to join the specified
-	///   room.
-	///
-	/// Specify a codeblock of usernames.
-	///
-	/// At least 1 server admin must be in the room to reduce abuse.
-	///
-	/// Requires the `--yes-i-want-to-do-this` flag.
-	ForceJoinListOfLocalUsers {
-		room_id: OwnedRoomOrAliasId,
-
-		#[arg(long)]
-		yes_i_want_to_do_this: bool,
-	},
-
 	/// Resets the push-rules (notification settings) of the target user to the
 	/// server defaults.
 	ResetPushRules {
