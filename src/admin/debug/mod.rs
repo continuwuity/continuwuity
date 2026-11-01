@@ -16,15 +16,6 @@ pub enum DebugCommand {
 		message: Vec<String>,
 	},
 
-	/// Walks & displays the auth_chain of a PDU in a mermaid graph format.
-	///
-	/// This is useless to basically anyone but developers, and is also probably
-	/// slow and memory hungry.
-	ShowAuthChain {
-		/// The root event ID to start walking back from.
-		event_id: OwnedEventId,
-	},
-
 	/// Parse and print a PDU from a JSON
 	///
 	/// The PDU event is only checked for validity and is not added to the

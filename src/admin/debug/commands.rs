@@ -1,9 +1,4 @@
-use std::{
-	collections::{HashMap, HashSet},
-	fmt::Write,
-	iter::once,
-	time::{Instant, SystemTime},
-};
+use std::{collections::HashMap, time::SystemTime};
 
 use conduwuit::{
 	Err, Result, debug_error, err, info,
@@ -22,219 +17,18 @@ use resolvematrix::{
 	server::{MatrixResolver, MatrixResolverBuilder},
 };
 use ruma::{
-	CanonicalJsonObject, CanonicalJsonValue, EventId, OwnedEventId, OwnedRoomId, OwnedServerName,
-	RoomId, RoomVersionId, UInt, api::federation::event::get_room_state,
+	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, OwnedServerName, RoomVersionId,
+	api::federation::event::get_room_state,
 };
 use service::rooms::state_compressor::HashSetCompressStateEvent;
 use tracing_subscriber::EnvFilter;
 
 use crate::PAGE_SIZE;
 
-#[derive(Clone, Copy, Eq, PartialEq)]
-enum NodeStatus {
-	Normal(bool),
-	SoftFailed(bool),
-	Rejected(bool),
-}
-
-struct AuthChild {
-	node_id: String,
-	event_id: OwnedEventId,
-	depth: UInt,
-	ts: UInt,
-	first_seen: bool,
-	pdu: Option<PduEvent>,
-}
-
-fn render_node(
-	graph: &mut String,
-	node_id: &str,
-	event_id: &EventId,
-	name: &str,
-	status: NodeStatus,
-) -> Result {
-	let evt_str = event_id.to_string();
-
-	let status_label = match status {
-		| NodeStatus::Normal(false) => format!("{evt_str}: {name}"),
-		| NodeStatus::Normal(true) => format!("{evt_str}: {name} (missing locally)"),
-		| NodeStatus::SoftFailed(false) => format!("{evt_str}: {name} (soft-failed)"),
-		| NodeStatus::SoftFailed(true) =>
-			format!("{evt_str}: {name} (soft-failed & missing locally)"),
-		| NodeStatus::Rejected(false) => format!("{evt_str}: {name} (rejected)"),
-		| NodeStatus::Rejected(true) => format!("{evt_str}: {name} (rejected & missing locally)"),
-	};
-
-	writeln!(graph, "{node_id}[\"{}\"]", status_label.as_str())?;
-
-	match status {
-		| NodeStatus::Rejected(_) => writeln!(graph, "class {node_id} rejected;")?,
-		| NodeStatus::SoftFailed(_) => writeln!(graph, "class {node_id} soft_failed;")?,
-		| NodeStatus::Normal(_) => {},
-	}
-
-	Ok(())
-}
-
 impl crate::Context<'_> {
 	pub(super) async fn echo(&self, message: Vec<String>) -> Result {
 		let message = message.join(" ");
 		self.write_str(&message).await
-	}
-
-	pub(super) async fn show_auth_chain(&self, event_id: OwnedEventId) -> Result {
-		let node_status = async |event_id: &EventId, missing: bool| -> NodeStatus {
-			if self
-				.services
-				.rooms
-				.pdu_metadata
-				.is_event_rejected(event_id)
-				.await
-			{
-				NodeStatus::Rejected(missing)
-			} else if self
-				.services
-				.rooms
-				.pdu_metadata
-				.is_event_soft_failed(event_id)
-				.await
-			{
-				NodeStatus::SoftFailed(missing)
-			} else {
-				NodeStatus::Normal(missing)
-			}
-		};
-
-		let Ok(root) = self.services.rooms.timeline.get_pdu(&event_id).await else {
-			return Err!("Event not found.");
-		};
-
-		let mut graph = String::from(
-			"```mermaid\n%% This is a mermaid graph. You can plug this output into\n\
-		%% https://mermaid.live/edit to visualise it on-the-fly.\nflowchart TD\n\
-		classDef rejected fill:#ffe5e5,stroke:#cc0000,stroke-width:2px,color:#000;\n\
-		classDef soft_failed fill:#fff6cc,stroke:#c9a400,stroke-width:2px,color:#000;\n"
-		);
-
-		let mut node_ids: HashMap<OwnedEventId, String> = HashMap::new();
-		let mut cached_events: HashMap<OwnedEventId, PduEvent> =
-			HashMap::from([(event_id.clone(), root.clone())]);
-		let mut scheduled: HashSet<OwnedEventId> = HashSet::from([event_id.clone()]);
-		let mut visited: HashSet<OwnedEventId> = HashSet::new();
-		let mut stack = vec![root];
-		let mut next_node_id = 0_usize;
-
-		let node_id_for = |event_id: &OwnedEventId,
-		                   node_ids: &mut HashMap<OwnedEventId, String>,
-		                   next_node_id: &mut usize| {
-			node_ids
-				.entry(event_id.clone())
-				.or_insert_with(|| {
-					let id = format!("n{}", *next_node_id);
-					*next_node_id = next_node_id.saturating_add(1);
-					id
-				})
-				.clone()
-		};
-		let node_name = |e: &PduEvent| {
-			if let Some(state_key) = e.state_key() {
-				format!("{},'{}'", e.event_type(), state_key)
-			} else {
-				format!("{}", e.event_type())
-			}
-		};
-
-		while let Some(event) = stack.pop() {
-			let current_event_id = event.event_id().to_owned();
-			if !visited.insert(current_event_id.clone()) {
-				continue;
-			}
-
-			let current_node_id =
-				node_id_for(&current_event_id, &mut node_ids, &mut next_node_id);
-			let current_status = node_status(&current_event_id, false).await;
-
-			render_node(
-				&mut graph,
-				&current_node_id,
-				&current_event_id,
-				&node_name(&event),
-				current_status,
-			)?;
-
-			let mut children = Vec::with_capacity(event.auth_events.len());
-			for auth_event_id in event.auth_events().rev() {
-				let auth_event_id = auth_event_id.to_owned();
-				let auth_node_id = node_id_for(&auth_event_id, &mut node_ids, &mut next_node_id);
-				writeln!(graph, "{current_node_id} --> {auth_node_id}")?;
-
-				let first_seen = scheduled.insert(auth_event_id.clone());
-				let auth_pdu = if let Some(auth_pdu) = cached_events.get(&auth_event_id) {
-					// NOTE: events might be referenced multiple times (like the
-					// create event) so this saves some cheeky db lookup
-					// time
-					Some(auth_pdu.clone())
-				} else if first_seen {
-					match self.services.rooms.timeline.get_pdu(&auth_event_id).await {
-						| Ok(auth_event) => {
-							cached_events.insert(auth_event_id.clone(), auth_event.clone());
-							Some(auth_event)
-						},
-						| Err(_) => None,
-					}
-				} else {
-					None
-				};
-
-				// NOTE: Depth is used as the primary sorting key here, even
-				// though it has no bearing on state resolution or anything.
-				// Timestamp is used as a tiebreaker, failing back to
-				// lexicographical comparison.
-				let (depth, ts) = auth_pdu
-					.as_ref()
-					.map_or((UInt::MAX, UInt::MAX), |pdu| (pdu.depth, pdu.origin_server_ts));
-
-				children.push(AuthChild {
-					node_id: auth_node_id,
-					event_id: auth_event_id,
-					depth,
-					ts,
-					first_seen,
-					pdu: auth_pdu,
-				});
-			}
-
-			children.sort_by(|a, b| {
-				a.depth
-					.cmp(&b.depth)
-					.then(a.ts.cmp(&b.ts))
-					.then(a.event_id.as_str().cmp(b.event_id.as_str()))
-			});
-
-			for child in children.into_iter().rev() {
-				if !child.first_seen {
-					continue;
-				}
-
-				if let Some(child_pdu) = child.pdu {
-					// We have this PDU so will want to traverse it.
-					stack.push(child_pdu);
-				} else {
-					// We don't have this PDU locally so we can't traverse its
-					// auth events, but we can still render it as a node.
-					render_node(
-						&mut graph,
-						&child.node_id,
-						&child.event_id,
-						"",
-						node_status(&child.event_id, true).await,
-					)?;
-				}
-			}
-		}
-
-		graph.push_str("```\n");
-		self.write_str(&graph).await
 	}
 
 	pub(super) async fn parse_pdu(&self) -> Result {
