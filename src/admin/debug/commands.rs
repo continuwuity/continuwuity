@@ -2,7 +2,6 @@ use std::{collections::HashMap, time::SystemTime};
 
 use conduwuit::{
 	Err, Result,
-	matrix::pdu::PduEvent,
 	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
@@ -16,7 +15,7 @@ use resolvematrix::{
 	server::{MatrixResolver, MatrixResolverBuilder},
 };
 use ruma::{
-	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, OwnedServerName, RoomVersionId,
+	OwnedRoomId, OwnedServerName,
 };
 use tracing_subscriber::EnvFilter;
 
@@ -26,34 +25,6 @@ impl crate::Context<'_> {
 	pub(super) async fn echo(&self, message: Vec<String>) -> Result {
 		let message = message.join(" ");
 		self.write_str(&message).await
-	}
-
-	pub(super) async fn parse_pdu(&self) -> Result {
-		if self.body.len() < 2
-			|| !self.body[0].trim().starts_with("```")
-			|| self.body.last().unwrap_or(&EMPTY).trim() != "```"
-		{
-			return Err!("Expected code block in command body. Add --help for details.");
-		}
-
-		let string = self.body[1..self.body.len().saturating_sub(1)].join("\n");
-		let room_version_rules = RoomVersionId::V12.rules().unwrap();
-
-		match serde_json::from_str(&string) {
-			| Err(e) => return Err!("Invalid json in command body: {e}"),
-			| Ok(value) => match ruma::signatures::reference_hash(&value, &room_version_rules) {
-				| Err(e) => return Err!("Could not parse PDU JSON: {e:?}"),
-				| Ok(hash) => {
-					let event_id = EventId::parse(format!("${hash}"));
-					match serde_json::from_value::<PduEvent>(serde_json::to_value(value)?) {
-						| Err(e) =>
-							return Err!("EventId: {event_id:?}\nCould not parse event: {e}"),
-						| Ok(pdu) => write!(self, "EventId: {event_id:?}\n{pdu:#?}"),
-					}
-				},
-			},
-		}
-		.await
 	}
 
 	pub(super) async fn force_device_list_updates(&self) -> Result {
@@ -118,53 +89,6 @@ impl crate::Context<'_> {
 		}
 
 		Err!("No log level was specified.")
-	}
-
-	pub(super) async fn verify_json(&self) -> Result {
-		if self.body.len() < 2
-			|| !self.body[0].trim().starts_with("```")
-			|| self.body.last().unwrap_or(&"").trim() != "```"
-		{
-			return Err!("Expected code block in command body. Add --help for details.");
-		}
-
-		let string = self.body[1..self.body.len().checked_sub(1).unwrap()].join("\n");
-		let room_version_rules = RoomVersionId::V12.rules().unwrap();
-
-		match serde_json::from_str::<CanonicalJsonObject>(&string) {
-			| Err(e) => return Err!("Invalid json: {e}"),
-			| Ok(value) => match self
-				.services
-				.server_keys
-				.verify_event_json(&value, &room_version_rules)
-				.await
-			{
-				| Err(e) => return Err!("Signature verification failed: {e}"),
-				| Ok(_) => write!(self, "Signature correct"),
-			},
-		}
-		.await
-	}
-
-	pub(super) async fn verify_pdu(&self, event_id: OwnedEventId) -> Result {
-		use ruma::signatures::Verified;
-
-		let mut event = self.services.rooms.timeline.get_pdu_json(&event_id).await?;
-		let room_version_rules = RoomVersionId::V12.rules().unwrap();
-
-		event.remove("event_id");
-		let msg = match self
-			.services
-			.server_keys
-			.verify_event_json(&event, &room_version_rules)
-			.await
-		{
-			| Err(e) => return Err(e),
-			| Ok(Verified::Signatures) => "signatures OK, but content hash failed (redaction).",
-			| Ok(Verified::All) => "signatures and hashes OK.",
-		};
-
-		self.write_str(msg).await
 	}
 
 	pub(super) async fn resolve_true_destination(

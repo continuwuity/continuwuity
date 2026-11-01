@@ -16,15 +16,6 @@ pub enum DebugCommand {
 		message: Vec<String>,
 	},
 
-	/// Parse and print a PDU from a JSON
-	///
-	/// The PDU event is only checked for validity and is not added to the
-	/// database.
-	///
-	/// This command needs a JSON blob provided in a Markdown code block below
-	/// the command.
-	ParsePdu,
-
 	/// Forces device lists for all local and remote users to be updated (as
 	///   having new keys available)
 	ForceDeviceListUpdates,
@@ -39,19 +30,6 @@ pub enum DebugCommand {
 		/// Resets the log level/filter to the one in your config
 		#[arg(short, long)]
 		reset: bool,
-	},
-
-	/// Verify JSON signatures
-	///
-	/// This command needs a JSON blob provided in a Markdown code block below
-	/// the command.
-	VerifyJson,
-
-	/// Verify PDU
-	///
-	/// This re-verifies a PDU existing in the database found by ID.
-	VerifyPdu {
-		event_id: OwnedEventId,
 	},
 
 	/// Runs a server name through Continuwuity's true destination resolution
@@ -80,9 +58,6 @@ pub enum DebugCommand {
 	/// Print detailed tokio runtime metrics accumulated since last command
 	///   invocation.
 	RuntimeInterval,
-
-	/// Print the current time
-	Time,
 
 	/// Get database statistics
 	DatabaseStats {
