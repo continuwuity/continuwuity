@@ -193,32 +193,6 @@ pub enum UserCommand {
 		user_id: String,
 	},
 
-	/// Manually join a local user to a room.
-	ForceJoinRoom {
-		/// The user to join
-		user_id: String,
-		/// The room to join
-		room_id: OwnedRoomOrAliasId,
-		/// The server name to join via.
-		///
-		/// This server will always be tried first, however if more are
-		/// available, they may be tried after.
-		via: Option<String>,
-	},
-
-	/// Manually leave a local user from a room.
-	ForceLeaveRoom {
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-	},
-
-	/// Manually leave a remote room for a local user.
-	ForceLeaveRemoteRoom {
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-		via: Option<String>,
-	},
-
 	/// Forces the specified user to drop their power levels to the room
 	///   default, if their permissions allow and the auth check permits
 	ForceDemote {

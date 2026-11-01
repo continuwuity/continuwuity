@@ -214,7 +214,7 @@ pub async fn leave_room(
 	Ok(())
 }
 
-pub async fn remote_leave_room<S: ::std::hash::BuildHasher>(
+pub async fn remote_leave_room<S: std::hash::BuildHasher>(
 	services: &Services,
 	user_id: &UserId,
 	room_id: &RoomId,

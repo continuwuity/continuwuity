@@ -3,6 +3,7 @@ mod commands;
 mod directory;
 mod graph;
 mod info;
+mod membership;
 mod moderation;
 mod state;
 
@@ -12,9 +13,10 @@ use ruma::OwnedRoomId;
 
 use self::{
 	alias::RoomAliasCommand, directory::RoomDirectoryCommand, graph::GraphCommand,
-	info::RoomInfoCommand, moderation::RoomModerationCommand,
+	info::RoomInfoCommand, membership::RoomMembershipCommands, moderation::RoomModerationCommand,
+	state::RoomStateCommand,
 };
-use crate::{admin_command_dispatch, room::state::RoomStateCommand};
+use crate::admin_command_dispatch;
 
 #[admin_command_dispatch]
 #[derive(Debug, Subcommand)]
@@ -57,6 +59,10 @@ pub enum RoomCommand {
 	/// Manage the room directory
 	#[command(subcommand)]
 	Directory(RoomDirectoryCommand),
+
+	/// Manage room memberships (join, leave, invite, etc.) for local users.
+	#[command(subcommand)]
+	Membership(RoomMembershipCommands),
 
 	/// Interface with room graphs directly (advanced).
 	#[command(subcommand)]

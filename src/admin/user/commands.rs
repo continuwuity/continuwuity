@@ -1,8 +1,6 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 
-use api::client::{
-	full_user_deactivate, leave_room, recreate_push_rules_and_return, remote_leave_room,
-};
+use api::client::{full_user_deactivate, leave_room, recreate_push_rules_and_return};
 use conduwuit::{
 	Err, Result, debug_warn, info,
 	matrix::{Event, pdu::PartialPdu},
@@ -12,8 +10,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt};
 use lettre::Address;
 use ruma::{
-	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedServerName, OwnedUserId, ServerName,
-	UserId, assign,
+	OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId, OwnedUserId, UserId, assign,
 	events::{
 		RoomAccountDataEventType,
 		room::{power_levels::RoomPowerLevelsEventContent, redaction::RoomRedactionEventContent},
@@ -667,69 +664,6 @@ impl crate::Context<'_> {
 		.await
 	}
 
-	pub(super) async fn force_join_room(
-		&self,
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-		via: Option<String>,
-	) -> Result {
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		let (room_id, mut servers) = self
-			.services
-			.rooms
-			.alias
-			.resolve_with_servers(&room_id, None)
-			.await?;
-		if let Some(via) = via.map(ServerName::parse).transpose()? {
-			servers.retain(|n| *n != via);
-			servers.insert(0, via);
-		}
-
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
-		self.services
-			.rooms
-			.membership
-			.join_room(&user_id, &room_id, None, &servers)
-			.await?;
-
-		self.write_str(&format!("{user_id} has been joined to {room_id}."))
-			.await
-	}
-
-	pub(super) async fn force_leave_room(
-		&self,
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-	) -> Result {
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		let room_id = self.services.rooms.alias.resolve(&room_id).await?;
-
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
-
-		if !self
-			.services
-			.rooms
-			.state_cache
-			.is_joined(&user_id, &room_id)
-			.await
-		{
-			return Err!("{user_id} is not joined in the room");
-		}
-
-		leave_room(self.services, &user_id, &room_id, None)
-			.boxed()
-			.await?;
-
-		self.write_str(&format!("{user_id} has left {room_id}."))
-			.await
-	}
-
 	pub(super) async fn force_demote(
 		&self,
 		user_id: String,
@@ -941,46 +875,6 @@ impl crate::Context<'_> {
 			"Successfully redacted event. Redaction event ID: {redaction_event_id}"
 		))
 		.await
-	}
-
-	pub(super) async fn force_leave_remote_room(
-		&self,
-		user_id: String,
-		room_id: OwnedRoomOrAliasId,
-		via: Option<String>,
-	) -> Result {
-		let user_id = parse_local_user_id(self.services, &user_id)?;
-		let (room_id, vias_raw) = self
-			.services
-			.rooms
-			.alias
-			.resolve_with_servers(
-				&room_id,
-				if let Some(v) = via.clone() {
-					Some(vec![ServerName::parse(v)?])
-				} else {
-					None
-				},
-			)
-			.await?;
-
-		assert!(
-			self.services.globals.user_is_local(&user_id),
-			"Parsed user_id must be a local user"
-		);
-		let mut vias: HashSet<OwnedServerName> = HashSet::new();
-		if let Some(via) = via {
-			vias.insert(ServerName::parse(via)?);
-		}
-		for server in vias_raw {
-			vias.insert(server);
-		}
-		remote_leave_room(self.services, &user_id, &room_id, None, vias)
-			.boxed()
-			.await?;
-
-		self.write_str(&format!("{user_id} successfully left {room_id} via remote server."))
-			.await
 	}
 
 	pub(super) async fn lock(&self, user_id: String) -> Result {
