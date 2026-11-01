@@ -1,14 +1,13 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use conduwuit::{
-	Err, Result, debug_error, err, info,
-	matrix::{Event, pdu::PduEvent},
+	Err, Result,
+	matrix::pdu::PduEvent,
 	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
 	},
-	warn,
 };
 use futures::{StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
@@ -18,9 +17,7 @@ use resolvematrix::{
 };
 use ruma::{
 	CanonicalJsonObject, EventId, OwnedEventId, OwnedRoomId, OwnedServerName, RoomVersionId,
-	api::federation::event::get_room_state,
 };
-use service::rooms::state_compressor::HashSetCompressStateEvent;
 use tracing_subscriber::EnvFilter;
 
 use crate::PAGE_SIZE;
@@ -168,168 +165,6 @@ impl crate::Context<'_> {
 		};
 
 		self.write_str(msg).await
-	}
-
-	#[tracing::instrument(skip(self), level = "info")]
-	pub(super) async fn force_set_room_state_from_server(
-		&self,
-		room_id: OwnedRoomId,
-		server_name: OwnedServerName,
-		at_event: Option<OwnedEventId>,
-	) -> Result {
-		self.bail_restricted()?;
-
-		if !self
-			.services
-			.rooms
-			.state_cache
-			.server_in_room(&self.services.server.name, &room_id)
-			.await
-		{
-			return Err!(
-				"We are not participating in the room / we don't know about the room ID."
-			);
-		}
-
-		let at_event_id = match at_event {
-			| Some(event_id) => event_id,
-			| None => self
-				.services
-				.rooms
-				.timeline
-				.latest_pdu_in_room(&room_id)
-				.await
-				.map_err(|_| err!(Database("Failed to find the latest PDU in database")))?
-				.event_id()
-				.to_owned(),
-		};
-
-		let room_version = self.services.rooms.state.get_room_version(&room_id).await?;
-		let room_version_rules = room_version.rules().unwrap();
-
-		let mut state: HashMap<u64, OwnedEventId> = HashMap::new();
-
-		let remote_state_response = self
-			.services
-			.sending
-			.send_federation_request(
-				&server_name,
-				get_room_state::v1::Request::new(at_event_id, room_id.clone()),
-			)
-			.await?;
-
-		for pdu in remote_state_response.pdus.clone() {
-			match self
-				.services
-				.rooms
-				.event_handler
-				.parse_incoming_pdu(&pdu, Some(&room_version_rules))
-				.await
-			{
-				| Ok(t) => t,
-				| Err(e) => {
-					warn!("Could not parse PDU, ignoring: {e}");
-					continue;
-				},
-			};
-		}
-
-		info!("Going through room_state response PDUs");
-		for result in remote_state_response.pdus.iter().map(|pdu| {
-			self.services
-				.server_keys
-				.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
-		}) {
-			let Ok((event_id, value)) = result.await else {
-				continue;
-			};
-
-			let pdu = PduEvent::from_id_val(&event_id, value.clone()).map_err(|e| {
-				debug_error!(
-					"Invalid PDU in fetching remote room state PDUs response: {value:#?}"
-				);
-				err!(BadServerResponse(debug_error!("Invalid PDU in send_join response: {e:?}")))
-			})?;
-
-			self.services
-				.rooms
-				.outlier
-				.add_pdu_outlier(&event_id, &value);
-
-			if let Some(state_key) = &pdu.state_key {
-				let shortstatekey = self
-					.services
-					.rooms
-					.short
-					.get_or_create_shortstatekey(&pdu.kind.to_string().into(), state_key)
-					.await;
-
-				state.insert(shortstatekey, pdu.event_id.clone());
-				self.services
-					.rooms
-					.pdu_metadata
-					.clear_pdu_markers(pdu.event_id());
-			}
-		}
-
-		info!("Going through auth_chain response");
-		for result in remote_state_response.auth_chain.iter().map(|pdu| {
-			self.services
-				.server_keys
-				.verify_event_json_no_fetch_add_event_id(pdu, &room_version_rules)
-		}) {
-			let Ok((event_id, value)) = result.await else {
-				continue;
-			};
-
-			self.services
-				.rooms
-				.outlier
-				.add_pdu_outlier(&event_id, &value);
-			self.services
-				.rooms
-				.pdu_metadata
-				.clear_pdu_markers(&event_id);
-		}
-
-		info!("Resolving new room state");
-		let new_room_state = self
-			.services
-			.rooms
-			.event_handler
-			.resolve_state(&room_id, &room_version_rules, state)
-			.await?;
-
-		info!("Compressing new room state");
-		let HashSetCompressStateEvent {
-			shortstatehash: short_state_hash,
-			added,
-			removed,
-		} = self
-			.services
-			.rooms
-			.state_compressor
-			.save_state(room_id.clone().as_ref(), new_room_state)
-			.await?;
-
-		let state_lock = self.services.rooms.state.mutex.lock(&*room_id).await;
-
-		info!("Forcing new room state");
-		self.services
-			.rooms
-			.state
-			.force_state(room_id.clone().as_ref(), short_state_hash, added, removed, &state_lock)
-			.await?;
-
-		info!("Updating joined counts for room");
-		self.services
-			.rooms
-			.state_cache
-			.update_joined_count(&room_id)
-			.await;
-
-		self.write_str("Successfully forced the room state from the requested remote server.")
-			.await
 	}
 
 	pub(super) async fn resolve_true_destination(

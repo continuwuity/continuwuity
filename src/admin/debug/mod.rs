@@ -3,7 +3,7 @@ pub(crate) mod tester;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{OwnedEventId, OwnedRoomId, OwnedServerName};
+use ruma::{OwnedEventId, OwnedServerName};
 
 use self::tester::TesterCommand;
 use crate::admin_command_dispatch;
@@ -52,30 +52,6 @@ pub enum DebugCommand {
 	/// This re-verifies a PDU existing in the database found by ID.
 	VerifyPdu {
 		event_id: OwnedEventId,
-	},
-
-	/// Forcefully replaces the room state of our local copy of the specified
-	///   room, with the copy (auth chain and room state events) the specified
-	///   remote server says.
-	///
-	/// A common desire for room deletion is to simply "reset" our copy of the
-	/// room. While this admin command is not a replacement for that, if you
-	/// know you have split/broken room state and you know another server in the
-	/// room that has the best/working room state, this command can let you use
-	/// their room state. Such example is your server saying users are in a
-	/// room, but other servers are saying they're not in the room in question.
-	///
-	/// This command will get the latest PDU in the room we know about, and
-	/// request the room state at that point in time via
-	/// `/_matrix/federation/v1/state/{roomId}`.
-	ForceSetRoomStateFromServer {
-		/// The impacted room ID
-		room_id: OwnedRoomId,
-		/// The server we will use to query the room state for
-		server_name: OwnedServerName,
-		/// The event ID of the latest known PDU in the room. Will be found
-		/// automatically if not provided.
-		event_id: Option<OwnedEventId>,
 	},
 
 	/// Runs a server name through Continuwuity's true destination resolution

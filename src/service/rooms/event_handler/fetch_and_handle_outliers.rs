@@ -382,7 +382,7 @@ impl super::Service {
 	/// returned the correct event.
 	/// Allows `fetch_and_handle_missing_events` to atomically fetch events from
 	/// multiple remotes in parallel.
-	async fn fetch_event_via(
+	pub async fn fetch_event_via(
 		&self,
 		remote: OwnedServerName,
 		event_id: OwnedEventId,

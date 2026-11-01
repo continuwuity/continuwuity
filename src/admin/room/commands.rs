@@ -1,8 +1,8 @@
-use conduwuit::{Err, Event, Result, err};
+use conduwuit::{Err, Result};
 use futures::StreamExt;
+use ruma::OwnedRoomId;
 #[allow(unused_imports)]
 use ruma::state_res::Event as _;
-use ruma::{OwnedEventId, OwnedRoomId, OwnedRoomOrAliasId};
 
 use crate::{PAGE_SIZE, get_room_info};
 
@@ -83,58 +83,5 @@ impl crate::Context<'_> {
 		let result = self.services.rooms.metadata.exists(&room_id).await;
 
 		self.write_str(&format!("{result}")).await
-	}
-
-	pub(super) async fn export_state(
-		&self,
-		room: OwnedRoomOrAliasId,
-		event_id: Option<OwnedEventId>,
-	) -> Result {
-		self.bail_restricted()?;
-
-		let room_id = self.services.rooms.alias.resolve(&room).await?;
-		let shortstatehash = match &event_id {
-			| Some(event_id) =>
-				self.services
-					.rooms
-					.state_accessor
-					.pdu_shortstatehash(event_id)
-					.await?,
-			| None =>
-				self.services
-					.rooms
-					.state
-					.get_room_shortstatehash(&room_id)
-					.await?,
-		};
-		let mut state_at: Vec<_> = self
-			.services
-			.rooms
-			.state_accessor
-			.state_full_pdus(shortstatehash)
-			.map(Event::into_pdu)
-			.collect()
-			.await;
-
-		if let Some(event_id) = event_id {
-			let pdu = self.services.rooms.timeline.get_pdu(&event_id).await?;
-			if let Some(state_key) = pdu.state_key() {
-				state_at.retain(|p| p.kind() != pdu.kind() || p.state_key() != Some(state_key));
-				state_at.push(pdu);
-			}
-		}
-
-		if state_at.is_empty() {
-			return Err!(Request(NotFound("No state found.")));
-		}
-
-		let json = serde_json::to_string_pretty(&state_at).map_err(|e| {
-			err!(Database(
-				"Failed to convert room state events to pretty JSON, possible invalid room \
-				 state events in the database: {e:?}",
-			))
-		})?;
-
-		self.write_str(&format!("```json\n{json}\n```")).await
 	}
 }
