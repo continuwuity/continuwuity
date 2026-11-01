@@ -3,7 +3,7 @@ pub(crate) mod tester;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::{OwnedEventId, OwnedServerName};
+use ruma::OwnedServerName;
 
 use self::tester::TesterCommand;
 use crate::admin_command_dispatch;
@@ -14,18 +14,6 @@ pub enum DebugCommand {
 	/// Echo input of admin command
 	Echo {
 		message: Vec<String>,
-	},
-
-	/// Change tracing log level/filter on the fly
-	///
-	/// This accepts the same format as the `log` config option.
-	ChangeLogLevel {
-		/// Log level/filter
-		filter: Option<String>,
-
-		/// Resets the log level/filter to the one in your config
-		#[arg(short, long)]
-		reset: bool,
 	},
 
 	/// Runs a server name through Continuwuity's true destination resolution

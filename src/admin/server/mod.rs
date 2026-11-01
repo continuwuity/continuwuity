@@ -58,4 +58,16 @@ pub enum ServerCommand {
 
 	/// Build information
 	BuildInfo,
+
+	/// Change tracing log level/filter on the fly
+	///
+	/// This accepts the same format as the `log` config option.
+	ChangeLogLevel {
+		/// Log level/filter
+		filter: Option<String>,
+
+		/// Resets the log level/filter to the one in your config
+		#[arg(short, long)]
+		reset: bool,
+	},
 }

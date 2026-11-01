@@ -1,11 +1,12 @@
 use std::{fmt::Write, path::PathBuf, sync::Arc};
 
 use conduwuit::{
-	Err, Result,
+	Err, Result, err,
 	utils::{stream::IterStream, time},
 	warn,
 };
 use futures::TryStreamExt;
+use tracing_subscriber::EnvFilter;
 
 impl crate::Context<'_> {
 	pub(super) async fn uptime(&self) -> Result {
@@ -233,5 +234,38 @@ impl crate::Context<'_> {
 		}
 
 		self.write_str(&info).await
+	}
+
+	pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool) -> Result {
+		let handles = &["console"];
+
+		if reset {
+			let old_filter_layer = EnvFilter::try_new(&self.services.server.config.log)
+				.map_err(|e| err!("Log level from config appears to be invalid now: {e}"))?;
+			self.services
+				.server
+				.log
+				.reload
+				.reload(&old_filter_layer, Some(handles))
+				.map_err(|e| {
+					err!("Failed to modify and reload the global tracing log level: {e}")
+				})?;
+			self.write_str("Successfully changed log level back to config value")
+				.await
+		} else {
+			let filter = filter.ok_or_else(|| err!("No log level was specified."))?;
+			let new_filter_layer = EnvFilter::try_new(filter)
+				.map_err(|e| err!("Invalid log level filter specified: {e}"))?;
+			self.services
+				.server
+				.log
+				.reload
+				.reload(&new_filter_layer, Some(handles))
+				.map_err(|e| {
+					err!("Failed to modify and reload the global tracing log level: {e}")
+				})?;
+			self.write_str("Successfully changed log level back to config value")
+				.await
+		}
 	}
 }

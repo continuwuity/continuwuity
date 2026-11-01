@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 
 use api::client::{full_user_deactivate, leave_room, recreate_push_rules_and_return};
 use conduwuit::{
-	Err, Result, debug_warn, info,
+	Err, Result, info,
 	matrix::{Event, pdu::PartialPdu},
-	utils::{self, ReadyExt},
+	utils::{self},
 	warn,
 };
 use futures::{FutureExt, StreamExt};
@@ -25,7 +25,6 @@ use crate::{
 };
 
 const AUTO_GEN_PASSWORD_LENGTH: usize = 25;
-const BULK_JOIN_REASON: &str = "Bulk force joining this room as initiated by the server admin.";
 
 impl crate::Context<'_> {
 	pub(super) async fn list_users(

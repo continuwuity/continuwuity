@@ -1,8 +1,7 @@
-use std::{collections::HashMap, time::SystemTime};
+use std::collections::HashMap;
 
 use conduwuit::{
 	Err, Result,
-	utils,
 	utils::{
 		stream::{IterStream, ReadyExt},
 		string::EMPTY,
@@ -14,10 +13,7 @@ use resolvematrix::{
 	resolution::ResolvedDestination,
 	server::{MatrixResolver, MatrixResolverBuilder},
 };
-use ruma::{
-	OwnedRoomId, OwnedServerName,
-};
-use tracing_subscriber::EnvFilter;
+use ruma::{OwnedRoomId, OwnedServerName};
 
 use crate::PAGE_SIZE;
 
@@ -25,59 +21,6 @@ impl crate::Context<'_> {
 	pub(super) async fn echo(&self, message: Vec<String>) -> Result {
 		let message = message.join(" ");
 		self.write_str(&message).await
-	}
-
-	pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool) -> Result {
-		let handles = &["console"];
-
-		if reset {
-			let old_filter_layer = match EnvFilter::try_new(&self.services.server.config.log) {
-				| Ok(s) => s,
-				| Err(e) => return Err!("Log level from config appears to be invalid now: {e}"),
-			};
-
-			match self
-				.services
-				.server
-				.log
-				.reload
-				.reload(&old_filter_layer, Some(handles))
-			{
-				| Err(e) => {
-					return Err!("Failed to modify and reload the global tracing log level: {e}");
-				},
-				| Ok(()) => {
-					let value = &self.services.server.config.log;
-					let out =
-						format!("Successfully changed log level back to config value {value}");
-					return self.write_str(&out).await;
-				},
-			}
-		}
-
-		if let Some(filter) = filter {
-			let new_filter_layer = match EnvFilter::try_new(filter) {
-				| Ok(s) => s,
-				| Err(e) => return Err!("Invalid log level filter specified: {e}"),
-			};
-
-			match self
-				.services
-				.server
-				.log
-				.reload
-				.reload(&new_filter_layer, Some(handles))
-			{
-				| Ok(()) => {
-					return self.write_str("Successfully changed log level").await;
-				},
-				| Err(e) => {
-					return Err!("Failed to modify and reload the global tracing log level: {e}");
-				},
-			}
-		}
-
-		Err!("No log level was specified.")
 	}
 
 	pub(super) async fn resolve_true_destination(
@@ -180,13 +123,6 @@ impl crate::Context<'_> {
 	pub(super) async fn runtime_interval(&self) -> Result {
 		self.write_str("Runtime metrics require building with `tokio_unstable`.")
 			.await
-	}
-
-	pub(super) async fn time(&self) -> Result {
-		let now = SystemTime::now();
-		let now = utils::time::format(now, "%+");
-
-		self.write_str(&now).await
 	}
 
 	pub(super) async fn database_stats(
