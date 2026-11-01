@@ -27,17 +27,6 @@ impl crate::Context<'_> {
 		self.write_str(&message).await
 	}
 
-	pub(super) async fn force_device_list_updates(&self) -> Result {
-		// Force E2EE device list updates for all users
-		self.services
-			.users
-			.stream_local_users()
-			.for_each(async |user_id| self.services.users.mark_device_key_update(&user_id).await)
-			.await;
-
-		write!(self, "Marked all devices for all users as having new keys to update").await
-	}
-
 	pub(super) async fn change_log_level(&self, filter: Option<String>, reset: bool) -> Result {
 		let handles = &["console"];
 

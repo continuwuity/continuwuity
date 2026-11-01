@@ -16,10 +16,6 @@ pub enum DebugCommand {
 		message: Vec<String>,
 	},
 
-	/// Forces device lists for all local and remote users to be updated (as
-	///   having new keys available)
-	ForceDeviceListUpdates,
-
 	/// Change tracing log level/filter on the fly
 	///
 	/// This accepts the same format as the `log` config option.
