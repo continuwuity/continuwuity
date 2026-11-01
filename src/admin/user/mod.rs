@@ -254,18 +254,6 @@ pub enum UserCommand {
 		yes_i_want_to_do_this: bool,
 	},
 
-	/// Force joins all local users to the specified room.
-	///
-	/// At least 1 server admin must be in the room to reduce abuse.
-	///
-	/// Requires the `--yes-i-want-to-do-this` flag.
-	ForceJoinAllLocalUsers {
-		room_id: OwnedRoomOrAliasId,
-
-		#[arg(long)]
-		yes_i_want_to_do_this: bool,
-	},
-
 	/// Resets the push-rules (notification settings) of the target user to the
 	/// server defaults.
 	ResetPushRules {
