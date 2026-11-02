@@ -39,7 +39,7 @@ runs:
   steps:
     - name: Detect runner OS
       id: runner-os
-      uses: https://git.tomfos.tr/actions/detect-versions@v1
+      uses: https://forgejo.ellis.link/continuwuation/detect-versions@v1
 
     - name: Configure Cargo environment
       shell: bash
@@ -147,7 +147,7 @@ runs:
       run: echo "::group::📦 Restoring build cache"
 
     - name: Setup sccache
-      uses: https://git.tomfos.tr/tom/sccache-action@v1
+      uses: https://forgejo.ellis.link/continuwuation/sccache-action@v1
 
     - name: End build cache restore group
       shell: bash

@@ -29,7 +29,7 @@ runs:
   steps:
     - name: Detect runner OS
       id: runner-os
-      uses: https://git.tomfos.tr/actions/detect-versions@v1
+      uses: https://forgejo.ellis.link/continuwuation/detect-versions@v1
 
     - name: Configure cross-compilation architecture
       if: inputs.dpkg-arch != ''
