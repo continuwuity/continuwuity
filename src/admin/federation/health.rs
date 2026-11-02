@@ -42,6 +42,9 @@ pub enum HealthCommand {
 	/// the `forbidden_remote_server_names` configuration option.
 	ForceUnhealthy {
 		server_name: OwnedServerName,
+		/// If set, the server will also be marked as having stale routing
+		/// information. This means the address will be re-resolved on the next
+		/// connection attempt.
 		#[arg(long)]
 		stale: bool,
 	},

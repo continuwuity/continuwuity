@@ -9,11 +9,7 @@ use conduwuit::{
 };
 use futures::{StreamExt, TryStreamExt};
 use lettre::message::Mailbox;
-use resolvematrix::{
-	resolution::ResolvedDestination,
-	server::{MatrixResolver, MatrixResolverBuilder},
-};
-use ruma::{OwnedRoomId, OwnedServerName};
+use ruma::OwnedRoomId;
 
 use crate::PAGE_SIZE;
 
@@ -21,45 +17,6 @@ impl crate::Context<'_> {
 	pub(super) async fn echo(&self, message: Vec<String>) -> Result {
 		let message = message.join(" ");
 		self.write_str(&message).await
-	}
-
-	pub(super) async fn resolve_true_destination(
-		&self,
-		server_name: OwnedServerName,
-		no_cache: bool,
-	) -> Result {
-		if !self.services.server.config.allow_federation {
-			return Err!("Federation is disabled on this homeserver.",);
-		}
-
-		if server_name == self.services.server.name {
-			return Err!(
-				"Not allowed to send federation requests to ourselves. Please use `get-pdu` for \
-				 fetching local PDUs.",
-			);
-		}
-
-		let resolver: &MatrixResolver = if no_cache {
-			&MatrixResolverBuilder::new()
-				.dangerous_tls_accept_invalid_certs(self.services.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
-				.http_client(self.services.client.dns.clone())
-				.build()?
-		} else {
-			&self.services.client.matrix_resolver
-		};
-
-		let actual = resolver.resolve_server(server_name.as_str()).await?;
-
-		let destination = match actual.destination {
-			| ResolvedDestination::Literal(addr) => addr.to_string(),
-			| ResolvedDestination::Named(host, port) => format!("{host}:{port}"),
-		};
-
-		let msg = format!(
-			"Destination: {}\nHostname URI (SNI): {}\nIs override?: {}\nResolution step: {}",
-			destination, actual.host, actual.is_override, actual.resolution_step
-		);
-		self.write_str(&msg).await
 	}
 
 	pub(super) async fn memory_stats(&self, opts: Option<String>) -> Result {

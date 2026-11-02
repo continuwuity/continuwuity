@@ -2,7 +2,6 @@ mod commands;
 
 use clap::Subcommand;
 use conduwuit::Result;
-use ruma::OwnedServerName;
 
 use crate::admin_command_dispatch;
 
@@ -12,17 +11,6 @@ pub enum DebugCommand {
 	/// Echo input of admin command
 	Echo {
 		message: Vec<String>,
-	},
-
-	/// Runs a server name through Continuwuity's true destination resolution
-	///   process
-	///
-	/// Useful for debugging well-known issues
-	ResolveTrueDestination {
-		server_name: OwnedServerName,
-
-		#[arg(short, long)]
-		no_cache: bool,
 	},
 
 	/// Print extended memory usage

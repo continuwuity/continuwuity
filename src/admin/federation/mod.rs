@@ -37,6 +37,16 @@ pub enum FederationCommand {
 		server_name: OwnedServerName,
 	},
 
+	/// Runs a server name through Continuwuity's server-to-server address
+	/// resolution process.
+	#[clap(name = "resolve")]
+	ResolveTrueDestination {
+		server_name: OwnedServerName,
+
+		#[arg(short, long)]
+		skip_cache: bool,
+	},
+
 	/// Queries the remote server for their current signing keys.
 	GetSigningKeys {
 		server_name: OwnedServerName,
