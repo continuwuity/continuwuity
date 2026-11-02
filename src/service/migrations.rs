@@ -167,10 +167,11 @@ migration!(stringify!($name) => $name)
 		// names, preventing users from signing in.
 		VersionBump(22),
 		migration!(fix_oauth_scope_names),
-		// Removes any extremities in roomid_pduleaves that we do not know about (and
-		// consequently should not reference).
+		// Removes any extremities in roomid_pduleaves that we do not know about
+		// (and consequently should not reference).
 		migration!(remove_unknown_extremities),
-		// Re-calculates extremities for any rooms that actually lack any extremities at all.
+		// Re-calculates extremities for any rooms that actually lack any
+		// extremities at all.
 		migration!(consistency_check_extremity_tracker),
 	]
 };
