@@ -1,8 +1,6 @@
 use conduwuit::{Err, Result};
 use futures::StreamExt;
 use ruma::OwnedRoomId;
-#[allow(unused_imports)]
-use ruma::state_res::Event as _;
 
 use crate::{PAGE_SIZE, get_room_info};
 
