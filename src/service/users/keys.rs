@@ -442,9 +442,8 @@ impl super::Service {
 	/// Marks that a user's device keys have been updated, so that other users
 	/// can be notified of the change.
 	pub async fn mark_device_key_update(&self, user_id: &UserId) {
-		let count = self.services.globals.next_count().unwrap();
-
-		self.services
+		let encrypted_rooms: Vec<_> = self
+			.services
 			.state_cache
 			.rooms_joined(user_id)
 			// Don't send key updates to unencrypted rooms
@@ -460,16 +459,26 @@ impl super::Service {
 					None
 				}
 			})
-			.for_each(async |room_id| {
-				let key = (&room_id, count);
-				self.db.keychangeid_userid.put_raw(key, user_id);
-
-				self.services.sync.wake_all_joined(&room_id).await;
-			})
+			.collect()
 			.await;
 
-		let key = (user_id, count);
-		self.db.keychangeid_userid.put_raw(key, user_id);
+		self.services
+			.globals
+			.next_count_with(|count| {
+				self.db
+					.keychangeid_userid
+					.put_raw((user_id, count), user_id);
+				for room_id in &encrypted_rooms {
+					self.db
+						.keychangeid_userid
+						.put_raw((room_id, count), user_id);
+				}
+			})
+			.unwrap();
+
+		for room_id in &encrypted_rooms {
+			self.services.sync.wake_all_joined(room_id).await;
+		}
 	}
 
 	/// Returns the device identity keys for a given device.

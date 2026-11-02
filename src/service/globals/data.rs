@@ -21,7 +21,9 @@ impl Data {
 		}
 	}
 
-	pub fn next_count(&self) -> Result<u64> {
+	pub fn next_count(&self) -> Result<u64> { self.next_count_with(|_| ()) }
+
+	pub fn next_count_with(&self, write: impl FnOnce(u64)) -> Result<u64> {
 		let _cork = self.db.cork();
 		let mut lock = self.counter.write();
 		let counter: &mut u64 = &mut lock;
@@ -30,7 +32,9 @@ impl Data {
 			"counter mismatch"
 		);
 
-		*counter = counter.checked_add(1).unwrap_or(*counter);
+		let next = counter.checked_add(1).unwrap_or(*counter);
+		write(next);
+		*counter = next;
 
 		self.global.insert(COUNTER, counter.to_be_bytes());
 

@@ -81,6 +81,11 @@ impl Service {
 	pub fn next_count(&self) -> Result<u64> { self.db.next_count() }
 
 	#[inline]
+	pub fn next_count_with(&self, write: impl FnOnce(u64)) -> Result<u64> {
+		self.db.next_count_with(write)
+	}
+
+	#[inline]
 	pub fn current_count(&self) -> Result<u64> { Ok(self.db.current_count()) }
 
 	#[inline]
