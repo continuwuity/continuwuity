@@ -1,18 +1,21 @@
-use std::ops::Deref;
+use std::{
+	net::{IpAddr, Ipv4Addr},
+	ops::Deref,
+};
 
 use axum::{
 	RequestExt, RequestPartsExt,
 	body::Body,
 	extract::{FromRequest, Path, Query},
 };
-use conduwuit::{Error, Result, err};
+use conduwuit::{Error, Result, err, error};
 use ruma::{
 	CanonicalJsonObject,
 	api::{IncomingRequest, IncomingRequestExt, auth_scheme::AuthScheme},
 };
 use serde::Deserialize;
 
-use crate::{State, router::auth::CheckAuth};
+use crate::{State, client_ip::ClientIp, router::auth::CheckAuth};
 
 /// Query parameters needed to authenticate requests
 #[derive(Deserialize)]
@@ -87,6 +90,11 @@ where
 		let Path(path): Path<Vec<String>> = parts.extract().await?;
 		let borrowed_path: Vec<_> = path.iter().map(String::as_str).collect();
 		let Query(auth_query): Query<AuthQueryParams> = parts.extract().await?;
+		let ClientIp(ip) = parts
+			.extract_with_state(services)
+			.await
+			.inspect_err(|err| error!("Failed to extract client IP: {err:?}"))
+			.unwrap_or(ClientIp(IpAddr::V4(Ipv4Addr::UNSPECIFIED)));
 
 		// Assemble a new request from the read body and parts
 		let request = hyper::Request::from_parts(parts, body.as_ref());
@@ -102,7 +110,8 @@ where
 			})?;
 
 		let identity =
-			R::Authentication::check::<R>(services, &request, authentication, auth_query).await?;
+			R::Authentication::check::<R>(services, &request, ip, authentication, auth_query)
+				.await?;
 
 		// Deserialize the body
 		let body = R::try_from_http_request(request, &borrowed_path)

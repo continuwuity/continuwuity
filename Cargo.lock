@@ -1037,6 +1037,7 @@ dependencies = [
  "either",
  "figment",
  "futures",
+ "governor",
  "hardened_malloc-rs",
  "http",
  "http-body-util",

@@ -685,6 +685,13 @@
 # env: CONTINUWUITY_SENDER_SHUTDOWN_TIMEOUT
 #sender_shutdown_timeout = 5
 
+# Maximum number of requests per minute that unauthenticated clients
+# may make to ratelimited client-server API routes. This ratelimit is
+# global across all endpoints for each IP.
+#
+# env: CONTINUWUITY_UNAUTHENTICATED_REQUEST_RATELIMIT
+#unauthenticated_request_ratelimit = 30
+
 # Enables registration. If set to false, no users can register on this
 # server.
 #

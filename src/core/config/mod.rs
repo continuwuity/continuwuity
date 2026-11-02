@@ -5,7 +5,10 @@ pub mod proxy;
 
 use std::{
 	collections::{BTreeMap, BTreeSet, HashMap},
+	hash::Hash,
 	net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+	num::NonZero,
+	ops::Deref,
 	path::PathBuf,
 	time::Duration,
 };
@@ -17,6 +20,7 @@ use either::{
 };
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
+use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
 use lettre::message::Mailbox;
 use openidconnect::{Audience, ClientId, ClientSecret, Scope};
 use regex::RegexSet;
@@ -40,7 +44,7 @@ use crate::{Result, err, error::Error, utils::sys};
 /// All the config options for continuwuity.
 #[allow(clippy::struct_excessive_bools)]
 #[allow(rustdoc::broken_intra_doc_links, rustdoc::bare_urls)]
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[config_example_generator(
 	filename = "conduwuit-example.toml",
 	section = "global",
@@ -789,6 +793,14 @@ pub struct Config {
 	/// default: 5
 	#[serde(default = "default_sender_shutdown_timeout")]
 	pub sender_shutdown_timeout: u64,
+
+	/// Maximum number of requests per minute that unauthenticated clients
+	/// may make to ratelimited client-server API routes. This ratelimit is
+	/// global across all endpoints for each IP.
+	///
+	/// default: 30
+	#[serde(default = "default_unauthenticated_request_ratelimit")]
+	pub unauthenticated_request_ratelimit: PerMinuteRatelimiter<IpAddr>,
 
 	/// Enables registration. If set to false, no users can register on this
 	/// server.
@@ -2960,6 +2972,32 @@ impl TrustedServerConfig {
 	}
 }
 
+#[derive(Debug)]
+pub struct PerMinuteRatelimiter<K: Hash + Eq + Clone> {
+	ratelimiter: DefaultKeyedRateLimiter<K>,
+}
+
+impl<K: Hash + Eq + Clone> PerMinuteRatelimiter<K> {
+	fn new(quota: Quota) -> Self { Self { ratelimiter: RateLimiter::keyed(quota) } }
+}
+
+impl<K: Hash + Eq + Clone> Deref for PerMinuteRatelimiter<K> {
+	type Target = DefaultKeyedRateLimiter<K>;
+
+	fn deref(&self) -> &Self::Target { &self.ratelimiter }
+}
+
+impl<'de, K: Hash + Eq + Clone> Deserialize<'de> for PerMinuteRatelimiter<K> {
+	fn deserialize<D>(deserializer: D) -> std::prelude::v1::Result<Self, D::Error>
+	where
+		D: serde::Deserializer<'de>,
+	{
+		let max_burst = NonZero::<u32>::deserialize(deserializer)?;
+
+		Ok(Self::new(Quota::per_minute(max_burst)))
+	}
+}
+
 const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
 	"conduit_cache_capacity_modifier",
@@ -3402,4 +3440,8 @@ fn default_preferred_username_claim() -> String { "preferred_username".to_owned(
 
 fn default_profile_key_map() -> HashMap<String, String> {
 	HashMap::from_iter([(ProfileFieldName::DisplayName.to_string(), "name".to_owned())])
+}
+
+fn default_unauthenticated_request_ratelimit<K: Hash + Eq + Clone>() -> PerMinuteRatelimiter<K> {
+	PerMinuteRatelimiter::new(Quota::per_minute(30.try_into().unwrap()))
 }

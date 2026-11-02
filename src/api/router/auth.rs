@@ -1,6 +1,7 @@
 use std::{
 	any::{Any, TypeId},
 	collections::BTreeSet,
+	net::IpAddr,
 };
 
 use conduwuit::{
@@ -18,7 +19,10 @@ use ruma::{
 			AuthScheme, NoAccessToken, NoAuthentication,
 		},
 		client,
-		error::{ErrorKind, InsufficientUserAuthenticationErrorData, UnknownTokenErrorData},
+		error::{
+			ErrorKind, InsufficientUserAuthenticationErrorData, LimitExceededErrorData,
+			UnknownTokenErrorData,
+		},
 		federation::authentication::ServerSignatures,
 	},
 	assign,
@@ -90,6 +94,7 @@ pub(crate) trait CheckAuth: AuthScheme {
 	fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
+		request_ip: IpAddr,
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> impl Future<Output = Result<Self::Identity>> + Send;
@@ -101,6 +106,7 @@ impl CheckAuth for ServerSignatures {
 	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
+		_request_ip: IpAddr,
 		authentication: Self::Output,
 		_query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -161,6 +167,7 @@ impl CheckAuth for AccessToken {
 	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
+		_request_ip: IpAddr,
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -181,6 +188,7 @@ impl CheckAuth for AccessTokenOptional {
 	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
+		request_ip: IpAddr,
 		authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -195,6 +203,10 @@ impl CheckAuth for AccessTokenOptional {
 			.await
 			.map(Some)
 		} else {
+			if R::RATE_LIMITED {
+				check_unauthenticated_request_ratelimiting(services, request_ip)?;
+			}
+
 			Ok(None)
 		}
 	}
@@ -206,6 +218,7 @@ impl CheckAuth for AppserviceToken {
 	async fn check<R: IncomingRequest + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
+		_request_ip: IpAddr,
 		authentication: Self::Output,
 		_query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -219,6 +232,7 @@ impl CheckAuth for AppserviceTokenOptional {
 	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
+		_request_ip: IpAddr,
 		authentication: Self::Output,
 		_query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -238,6 +252,7 @@ impl CheckAuth for NoAuthentication {
 	fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		_services: &Services,
 		_incoming_request: &hyper::Request<&[u8]>,
+		_request_ip: IpAddr,
 		_authentication: Self::Output,
 		_query: AuthQueryParams,
 	) -> impl Future<Output = Result<Self::Identity>> + Send {
@@ -251,6 +266,7 @@ impl CheckAuth for NoAccessToken {
 	async fn check<R: IncomingRequest<Authentication = Self> + Any>(
 		services: &Services,
 		incoming_request: &hyper::Request<&[u8]>,
+		request_ip: IpAddr,
 		_authentication: Self::Output,
 		query: AuthQueryParams,
 	) -> Result<Self::Identity> {
@@ -267,6 +283,10 @@ impl CheckAuth for NoAccessToken {
 			.await
 			.map(Some)
 		} else {
+			if R::RATE_LIMITED {
+				check_unauthenticated_request_ratelimiting(services, request_ip)?;
+			}
+
 			Ok(None)
 		}
 	}
@@ -407,4 +427,20 @@ async fn check_appservice_token(services: &Services, token: &str) -> Result<Regi
 	};
 
 	Ok(appservice_info)
+}
+
+fn check_unauthenticated_request_ratelimiting(services: &Services, ip: IpAddr) -> Result<()> {
+	if services
+		.config
+		.unauthenticated_request_ratelimit
+		.check_key(&ip)
+		.is_err()
+	{
+		return Err(Error::BadRequest(
+			ErrorKind::LimitExceeded(LimitExceededErrorData::new()),
+			"Rate limit exceeded.",
+		));
+	}
+
+	Ok(())
 }
