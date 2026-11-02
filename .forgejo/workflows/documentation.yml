@@ -28,7 +28,7 @@ jobs:
 
       - name: Detect runner environment
         id: runner-env
-        uses: https://git.tomfos.tr/actions/detect-versions@v1
+        uses: https://forgejo.ellis.link/continuwuation/detect-versions@v1
 
       - name: Setup Node.js
         if: steps.runner-env.outputs.node_major == '' || steps.runner-env.outputs.node_major < '20'

@@ -60,7 +60,7 @@ jobs:
             cargo-debian-${{ steps.debian-version.outputs.distribution }}-${{ matrix.arch }}-
 
       - name: Setup sccache
-        uses: https://git.tomfos.tr/tom/sccache-action@v1
+        uses: https://forgejo.ellis.link/continuwuation/sccache-action@v1
 
       - name: Configure sccache environment
         run: |
