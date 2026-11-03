@@ -224,6 +224,8 @@ pub(crate) async fn get_media_preview_route(
 		.media
 		.get_url_preview(&url)
 		.await
+		.inspect(|_| info!(user=%sender_user, "Finished fetching a URL preview for {url}"))
+		.inspect_err(|e| info!(user=%sender_user, "Failed to fetch a URL preview for {url}: {e}"))
 		.map_err(|error| {
 			err!(Request(Unknown(
 				debug_error!(%sender_user, %url, "Failed to fetch URL preview: {error}")
