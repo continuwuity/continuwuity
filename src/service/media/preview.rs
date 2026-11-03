@@ -17,7 +17,7 @@ use url::Url;
 use super::Service;
 use crate::media::mxc::Mxc;
 
-#[derive(Serialize, Default)]
+#[derive(Serialize, Default, Debug)]
 pub struct UrlPreviewData {
 	// From https://ogp.me/
 	/// The title of your object as it should appear within the graph
@@ -324,9 +324,10 @@ impl Service {
 		};
 
 		let mut preview_data = UrlPreviewData::from(&html.opengraph);
+		debug!(parsed=?preview_data, deserialised=?html.opengraph, "Parsed opengraph data");
 
 		if let Some(obj) = html.opengraph.images.first() {
-			info!("Downloading URL preview image from {}", obj.url);
+			info!(asset_url=%obj.url, "Downloading preview image");
 			if let Ok(image_data) = self.download_image(&obj.url).await.inspect_err(
 				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview image"),
 			) {
@@ -341,6 +342,7 @@ impl Service {
 		}
 
 		if let Some(obj) = html.opengraph.videos.first() {
+			info!(asset_url=%obj.url, "Downloading preview video");
 			if let Ok(video_data) = self.download_video(&obj.url).await.inspect_err(
 				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview video"),
 			) {
@@ -350,6 +352,7 @@ impl Service {
 		}
 
 		if let Some(obj) = html.opengraph.audios.first() {
+			info!(asset_url=%obj.url, "Downloading URL preview audio");
 			if let Ok(audio_data) = self.download_audio(&obj.url).await.inspect_err(
 				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview audio"),
 			) {
@@ -362,6 +365,27 @@ impl Service {
 		preview_data.title = preview_data.title.or(html.title);
 		preview_data.description = preview_data.description.or(html.description);
 		preview_data.url = preview_data.url.or_else(|| Some(url.to_owned()));
+
+		// We remove og:image:*, og:video:*, and og:audio:* if their respective
+		// prior-level properties are not present.
+		// We do this here instead of in the From<> impl because we can't know
+		// if we'll be able to fetch the media to convert it to an mxc that
+		// point.
+		if preview_data.image.is_none() {
+			preview_data.image_type = None;
+			preview_data.image_alt = None;
+			preview_data.image_height = None;
+			preview_data.image_width = None;
+		}
+		if preview_data.video.is_none() {
+			preview_data.video_type = None;
+			preview_data.video_alt = None;
+			preview_data.video_height = None;
+			preview_data.video_width = None;
+		}
+		if preview_data.audio.is_none() {
+			preview_data.audio_size = None;
+		}
 
 		Ok(preview_data)
 	}
