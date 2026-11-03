@@ -78,9 +78,9 @@ To debug and test your UnifiedPush installation, use the [UP-Example] app for An
 
 ### UnifiedPush and push gateways
 
-The push gateway URL is usually pre-configured by the client app. However, some clients (such as Element X) implement UnifiedPush's [Gateway Discovery] mechanism, and attempt to detect a push gateway _on the same domain as the push provider_, before falling back to a hardcoded one.
+Normally, the push gateway URL is pre-configured by the client app. However, some clients (such as Element X) implement UnifiedPush's [Gateway Discovery] mechanism, and attempt to detect a push gateway _on the same domain as the push provider_ to use before falling back to a hardcoded one. Users of these clients can therefore self-host their own push gateway.
 
-Per the [spec][spec-push-gateway-api], these push gateways must be available on the `/_matrix/push/v1/notify` path of said domain. To test that a push gateway is accessible to the homeserver, make a request for it from the homeserver's IP:
+Per the [spec][spec-push-gateway-api], these push gateways must be available on the `/_matrix/push/v1/notify` path of said domain. To test that a push gateway is usable, make a request to it from both the homeserver and the client. The returned response should look like the following:
 
 ```txt
 curl https://push.example.com/_matrix/push/v1/notify
@@ -122,7 +122,7 @@ Community tutorials for selfhosting some of these stacks are listed below. Unles
     - Push gateway: [common-proxies]
     - Push server: [ejabberd's mod_unified_push]
     - Push app: [Conversations] (and forks)
-- [Element X push notifications via Conversations][alfredolin-xmpp], by Alfredo Lin.
+- [Element X push notifications via Conversations][alfredolin-xmpp], by Alfredolin.
     - Push gateway: [common-proxies]
     - Push server: [Prosody's mod_unified_push]
     - Push app: [Conversations]
@@ -156,6 +156,8 @@ WARN conduwuit_service::pusher: Pusher URL is a forbidden remote address url=htt
 
 To fix this, remove your push gateway or push server's address from `ip_range_denylist`, and restart Continuwuity to apply the changes.
 
+Docker deployments with the push server/gateway on the same host as Continuwuity may run into some further network issues. In this case, consult the [Docker loopback networking issues] section and its workarounds.
+
 ### Push notifications not audible/not displaying
 
 This is likely an issue with your account's _push rules_, which determines which events are shown to to the user as notifications. Check these push rules in the client's notifications settings and tweak accordingly. Continuwuity also provides an [`!admin users reset-push-rules`](../reference/admin/users#admin-users-reset-push-rules) command, which restores the rules to the default of notifying for every message.
@@ -175,7 +177,7 @@ If you find spurious log entries like this in your Continuwuity deployment:
 WARN push{user_id="@user:example.com" pushkey="very-long-string-of-letters" events=1}:send_push_notice:send_notice:send_request: conduwuit_service::pusher: Could not send request to pusher https//push.example.com: error sending request for url (https://push.example.com/_matrix/push/v1/notify)
 ```
 
-Then, your server is most likely sending push requests to too many invalid targets. This could be due to one of the following reasons:
+Then, your server is sending push requests to too many invalid targets. This could be due to one of the following reasons:
 
 #### Connection issues between the server and the push gateway
 
