@@ -337,7 +337,8 @@ impl Service {
 					.map(|s| s.parse())
 					.transpose()
 					.ok()
-					.flatten();
+					.flatten()
+					.or(image_data.image_type);
 				preview_data.image_alt = obj
 					.properties
 					.get("image:alt")
@@ -361,7 +362,8 @@ impl Service {
 					.map(|s| s.parse())
 					.transpose()
 					.ok()
-					.flatten();
+					.flatten()
+					.or(video_data.video_type);
 				preview_data.video_alt = obj
 					.properties
 					.get("video:alt")
