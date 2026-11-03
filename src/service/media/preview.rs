@@ -26,8 +26,8 @@ pub struct UrlPreviewData {
 	pub title: Option<String>,
 
 	/// The type of your object, e.g., "video.movie".
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:type"))]
-	pub site_type: Option<String>,
+	#[serde(skip_serializing_if = "String::is_empty", rename(serialize = "og:type"))]
+	pub site_type: String,
 	/// The canonical URL of your object that will be used as its permanent ID
 	/// in the graph.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:url"))]
@@ -214,6 +214,7 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
+	#[tracing::instrument(skip(self))]
 	pub async fn download_video(&self, url: &str) -> Result<UrlPreviewData> {
 		let mut preview_data = UrlPreviewData::default();
 
@@ -227,6 +228,7 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
+	#[tracing::instrument(skip(self))]
 	pub async fn download_audio(&self, url: &str) -> Result<UrlPreviewData> {
 		let mut preview_data = UrlPreviewData::default();
 
@@ -239,6 +241,7 @@ impl Service {
 		Ok(preview_data)
 	}
 
+	#[tracing::instrument(skip(self))]
 	pub async fn download_media(&self, url: &str) -> Result<(OwnedMxcUri, usize)> {
 		use conduwuit::utils::random_string;
 		use http::header::CONTENT_TYPE;
@@ -296,6 +299,7 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
+	#[tracing::instrument(skip(self))]
 	async fn download_html(&self, url: &str) -> Result<UrlPreviewData> {
 		use webpage::HTML;
 
@@ -358,9 +362,6 @@ impl Service {
 		preview_data.title = preview_data.title.or(html.title);
 		preview_data.description = preview_data.description.or(html.description);
 		preview_data.url = preview_data.url.or_else(|| Some(url.to_owned()));
-		preview_data.site_type = preview_data
-			.site_type
-			.or_else(|| Some("website".to_owned()));
 
 		Ok(preview_data)
 	}
@@ -498,12 +499,11 @@ impl From<&webpage::Opengraph> for UrlPreviewData {
 		Self {
 			title: og.properties.get("title").cloned(),
 			description: og.properties.get("description").cloned(),
-			site_type: og.properties.get("type").cloned(),
+			site_type: og.og_type.clone(),
 			url: og.properties.get("url").cloned(),
 			determiner: og.properties.get("determiner").cloned(),
 			locale: og.properties.get("locale").cloned(),
 			site_name: og.properties.get("site_name").cloned(),
-			image: og.images.first().map(|img| img.url.clone()),
 			image_type: og
 				.images
 				.first()
@@ -520,7 +520,6 @@ impl From<&webpage::Opengraph> for UrlPreviewData {
 				.images
 				.first()
 				.and_then(|img| img.properties.get("alt").cloned()),
-			video: og.videos.first().map(|vid| vid.url.clone()),
 			video_type: og
 				.videos
 				.first()
@@ -561,11 +560,13 @@ mod tests {
 					<meta property="og:image" content="https://example.com/image.png" />
 					<meta property="og:url" content="https://example.com/index.html" />
 					<meta property="og:type" content="org.continuwuity.other" />
-					<meta propery="og:site_name" content="Example Site" />
+					<meta property="og:site_name" content="Example Site" />
 					<meta property="og:image:alt" content="An example image" />
 					<meta property="og:image:type" content="image/png" />
 					<meta property="og:image:height" content="69" />
 					<meta property="og:image:width" content="420" />
+					<meta property="og:video" content="https://example.com/video.mp4" />
+					<meta property="og:audio" content="https://example.com/audio.ogg" />
 				</head>
 				<body></body>
 			</html>
@@ -583,8 +584,16 @@ mod tests {
 			data.image, None,
 			"UrlPreviewData should not inherit HTTP/S URL from URL preview"
 		);
+		assert_eq!(
+			data.video, None,
+			"UrlPreviewData should not inherit HTTP/S URL from URL preview"
+		);
+		assert_eq!(
+			data.audio, None,
+			"UrlPreviewData should not inherit HTTP/S URL from URL preview"
+		);
 		assert_eq!(data.url, Some("https://example.com/index.html".to_owned()));
-		assert_eq!(data.site_type, Some("org.continuwuity.other".to_owned()));
+		assert_eq!(data.site_type, "org.continuwuity.other".to_owned());
 		assert_eq!(data.site_name, Some("Example Site".to_owned()));
 		assert_eq!(data.image_alt, Some("An example image".to_owned()));
 		assert_eq!(data.image_type, Some("image/png".parse().unwrap()));
