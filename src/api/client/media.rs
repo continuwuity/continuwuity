@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, err,
+	Err, Result, err, info,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 };
 use conduwuit_core::error;
@@ -219,6 +219,7 @@ pub(crate) async fn get_media_preview_route(
 		)));
 	}
 
+	info!("Fetching a URL preview for {url} on behalf of {sender_user}");
 	let preview = services
 		.media
 		.get_url_preview(&url)
