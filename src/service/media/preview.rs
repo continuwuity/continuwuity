@@ -7,7 +7,7 @@
 
 use std::time::SystemTime;
 
-use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
+use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt, info};
 use ipaddress::IPAddress;
 use ruma::OwnedMxcUri;
 use serde::Serialize;
@@ -100,7 +100,9 @@ impl Service {
 		}
 
 		let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) else {
-			return Err!(Request(Unknown("Unknown or invalid Content-Type header")));
+			return Err!(Request(Unknown(
+				"Response contains unknown, invalid, or missing Content-Type header"
+			)));
 		};
 
 		let content_type = content_type
@@ -109,12 +111,10 @@ impl Service {
 
 		let data = match content_type {
 			| html if html.starts_with("text/html") => self.download_html(url.as_str()).await?,
-			| img if img.starts_with("image/") => self.download_image(url.as_str(), None).await?,
-			| video if video.starts_with("video/") =>
-				self.download_video(url.as_str(), None).await?,
-			| audio if audio.starts_with("audio/") =>
-				self.download_audio(url.as_str(), None).await?,
-			| _ => return Err!(Request(Unknown("Unsupported Content-Type"))),
+			| img if img.starts_with("image/") => self.download_image(url.as_str()).await?,
+			| video if video.starts_with("video/") => self.download_video(url.as_str()).await?,
+			| audio if audio.starts_with("audio/") => self.download_audio(url.as_str()).await?,
+			| other => return Err!(Request(Unknown("Unsupported Content-Type: {other}"))),
 		};
 
 		self.set_url_preview(url.as_str(), &data).await?;
@@ -123,17 +123,13 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-	pub async fn download_image(
-		&self,
-		url: &str,
-		preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
+	pub async fn download_image(&self, url: &str) -> Result<UrlPreviewData> {
 		use conduwuit::utils::random_string;
 		use image::ImageReader;
 
 		use crate::media::mxc::Mxc;
 
-		let mut preview_data = preview_data.unwrap_or_default();
+		let mut preview_data = UrlPreviewData::default();
 
 		let response = self.services.client.url_preview.get(url).send().await?;
 		if !response.status().is_success() {
@@ -179,12 +175,8 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-	pub async fn download_video(
-		&self,
-		url: &str,
-		preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
-		let mut preview_data = preview_data.unwrap_or_default();
+	pub async fn download_video(&self, url: &str) -> Result<UrlPreviewData> {
+		let mut preview_data = UrlPreviewData::default();
 
 		if self.services.globals.url_preview_allow_audio_video() {
 			let (url, size) = self.download_media(url).await?;
@@ -196,12 +188,8 @@ impl Service {
 	}
 
 	#[cfg(feature = "url_preview")]
-	pub async fn download_audio(
-		&self,
-		url: &str,
-		preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
-		let mut preview_data = preview_data.unwrap_or_default();
+	pub async fn download_audio(&self, url: &str) -> Result<UrlPreviewData> {
+		let mut preview_data = UrlPreviewData::default();
 
 		if self.services.globals.url_preview_allow_audio_video() {
 			let (url, size) = self.download_media(url).await?;
@@ -286,24 +274,43 @@ impl Service {
 					.expect("u64 should fit in usize"),
 			)
 			.await?;
-		let Ok(html) = HTML::from_string(body.clone(), Some(url.to_owned())) else {
+		let Ok(html) = HTML::from_string(body.clone(), Some(url.to_owned()))
+			.inspect_err(|e| debug!(error=?e, "Failed to parse HTML data"))
+		else {
 			return Err!(Request(Unknown("Failed to parse HTML")));
 		};
 
 		let mut preview_data = UrlPreviewData::default();
 
 		if let Some(obj) = html.opengraph.images.first() {
-			preview_data = self.download_image(&obj.url, Some(preview_data)).await?;
+			if let Ok(image_data) = self.download_image(&obj.url).await.inspect_err(
+				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview image"),
+			) {
+				preview_data.image = image_data.image;
+				preview_data.image_size = image_data.image_size;
+				preview_data.image_width = image_data.image_width;
+				preview_data.image_height = image_data.image_height;
+			}
 		}
 
 		if let Some(obj) = html.opengraph.videos.first() {
-			preview_data = self.download_video(&obj.url, Some(preview_data)).await?;
-			preview_data.video_width = obj.properties.get("width").and_then(|v| v.parse().ok());
-			preview_data.video_height = obj.properties.get("height").and_then(|v| v.parse().ok());
+			if let Ok(video_data) = self.download_video(&obj.url).await.inspect_err(
+				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview video"),
+			) {
+				preview_data.video = video_data.video;
+				preview_data.video_width = video_data.video_width;
+				preview_data.video_height = video_data.video_height;
+				preview_data.video_size = video_data.video_size;
+			}
 		}
 
 		if let Some(obj) = html.opengraph.audios.first() {
-			preview_data = self.download_audio(&obj.url, Some(preview_data)).await?;
+			if let Ok(audio_data) = self.download_audio(&obj.url).await.inspect_err(
+				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview audio"),
+			) {
+				preview_data.audio = audio_data.audio;
+				preview_data.audio_size = audio_data.audio_size;
+			}
 		}
 
 		let props = html.opengraph.properties;
