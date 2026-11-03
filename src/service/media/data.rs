@@ -348,10 +348,11 @@ impl Data {
 			video_height,
 			audio,
 			audio_size,
-			..Default::default() /* TODO(nex): This weird manual field de/serialisation just
-			                      * needs replacing with JSON storage to avoid this mess.
-			                      * This is consequently intentionally dropping information
-			                      * added later (like image alt text). I'll do it later. */
+			..Default::default() /* TODO(nex,silversys): This weird manual field
+			                      * de/serialisation just needs replacing with JSON storage to
+			                      * avoid this mess. This is consequently intentionally
+			                      * dropping information added later (like image alt text).
+			                      * I'll do it later. */
 		})
 	}
 }
