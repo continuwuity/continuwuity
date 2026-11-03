@@ -1,18 +1,21 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::{
+	collections::{BTreeMap, BTreeSet, HashSet},
+	sync::atomic::{AtomicU64, Ordering::SeqCst},
+};
 
 use axum::extract::State;
 use conduwuit::{
 	Err, Error, Result, debug, debug_info, err, info,
 	matrix::{StateKey, pdu::PartialPdu},
 	trace,
-	utils::to_canonical_object,
+	utils::{self, to_canonical_object},
 	warn,
 };
 use conduwuit_service::{Services, appservice::RegistrationInfo};
 use futures::FutureExt;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, Int, MilliSecondsSinceUnixEpoch, OwnedRoomAliasId,
-	OwnedUserId, RoomAliasId, RoomId,
+	OwnedUserId, RoomAliasId, RoomId, UInt,
 	api::{
 		client::room::{
 			self,
@@ -45,6 +48,8 @@ use serde::Deserialize;
 use serde_json::value::to_raw_value;
 
 use crate::{Ruma, client::invite_helper};
+
+static LAST_CREATE_TS: AtomicU64 = AtomicU64::new(0);
 
 // We use this to keep around extra data in the `creation_content`
 // while still parsing and validating keys that we care about.
@@ -307,6 +312,17 @@ pub(crate) async fn create_room_route(
 			.map(MilliSecondsSinceUnixEpoch)
 	};
 
+	// v12+ room IDs are the create event's hash, so give each create event a
+	// unique timestamp to avoid collisions.
+	let create_timestamp = custom_origin_server_ts.or_else(|| {
+		room_id.is_none().then(|| {
+			let now = utils::millis_since_unix_epoch();
+			let next = |last: u64| now.max(last.saturating_add(1));
+			let prev = LAST_CREATE_TS.update(SeqCst, SeqCst, next);
+			MilliSecondsSinceUnixEpoch(UInt::new_saturating(next(prev)))
+		})
+	});
+
 	let mut create_event_content = to_canonical_object(create_event_content)
 		.expect("should be able to serialize create event content");
 
@@ -322,7 +338,7 @@ pub(crate) async fn create_room_route(
 				event_type: TimelineEventType::RoomCreate,
 				content: to_raw_value(&create_event_content)?,
 				state_key: Some(StateKey::new()),
-				timestamp: custom_origin_server_ts,
+				timestamp: create_timestamp,
 				..Default::default()
 			},
 			sender_user,
