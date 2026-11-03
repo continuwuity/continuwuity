@@ -193,13 +193,12 @@ impl Service {
 			.ok_or_else(|| err!(Request(Unknown("Downloaded file is not a supported image"))))?
 			.to_mime_type();
 
-		if preview_data.image_height.is_none() || preview_data.image_width.is_none() {
-			let (width, height) = reader.into_dimensions().map_err(|error| {
-				err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
-			})?;
-			preview_data.image_width.get_or_insert(width);
-			preview_data.image_height.get_or_insert(height);
-		}
+		let (width, height) = reader.into_dimensions().map_err(|error| {
+			err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
+		})?;
+		preview_data.image_width.get_or_insert(width);
+		preview_data.image_height.get_or_insert(height);
+		preview_data.image_type = content_type.parse().ok();
 
 		let mxc = Mxc {
 			server_name: self.services.globals.server_name(),
@@ -320,30 +319,20 @@ impl Service {
 			return Err!(Request(Unknown("Failed to parse HTML")));
 		};
 
-		let mut preview_data = UrlPreviewData::default();
+		let mut preview_data = UrlPreviewData::from(&html.opengraph);
 
 		if let Some(obj) = html.opengraph.images.first() {
+			info!("Downloading URL preview image from {}", obj.url);
 			if let Ok(image_data) = self.download_image(&obj.url).await.inspect_err(
 				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview image"),
 			) {
 				preview_data.image = image_data.image;
 				preview_data.image_size = image_data.image_size;
-				preview_data.image_width = image_data.image_width;
-				preview_data.image_height = image_data.image_height;
-				preview_data.image_type = obj
-					.properties
-					.get("image:type")
-					.cloned()
-					.map(|s| s.parse())
-					.transpose()
-					.ok()
-					.flatten()
-					.or(image_data.image_type);
-				preview_data.image_alt = obj
-					.properties
-					.get("image:alt")
-					.cloned()
-					.or(image_data.image_alt);
+				// Prioritise what the top-level site specified, falling back to
+				// detected params.
+				preview_data.image_width = preview_data.image_width.or(image_data.image_width);
+				preview_data.image_height = preview_data.image_height.or(image_data.image_height);
+				preview_data.image_type = preview_data.image_type.or(image_data.image_type);
 			}
 		}
 
@@ -352,23 +341,7 @@ impl Service {
 				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview video"),
 			) {
 				preview_data.video = video_data.video;
-				preview_data.video_width = video_data.video_width;
-				preview_data.video_height = video_data.video_height;
 				preview_data.video_size = video_data.video_size;
-				preview_data.video_type = obj
-					.properties
-					.get("video:type")
-					.cloned()
-					.map(|s| s.parse())
-					.transpose()
-					.ok()
-					.flatten()
-					.or(video_data.video_type);
-				preview_data.video_alt = obj
-					.properties
-					.get("video:alt")
-					.cloned()
-					.or(video_data.video_alt);
 			}
 		}
 
@@ -381,15 +354,13 @@ impl Service {
 			}
 		}
 
-		let props = html.opengraph.properties;
-
-		preview_data.title = props.get("title").cloned().or(html.title);
-		preview_data.description = props.get("description").cloned().or(html.description);
-		preview_data.determiner = props.get("determiner").cloned();
-		preview_data.locale = props.get("locale").cloned();
-		preview_data.site_name = props.get("site_name").cloned();
-		preview_data.site_type = props.get("type").cloned();
-		preview_data.url = props.get("url").cloned().or_else(|| Some(url.to_owned()));
+		// Provide defaults for some params
+		preview_data.title = preview_data.title.or(html.title);
+		preview_data.description = preview_data.description.or(html.description);
+		preview_data.url = preview_data.url.or_else(|| Some(url.to_owned()));
+		preview_data.site_type = preview_data
+			.site_type
+			.or_else(|| Some("website".to_owned()));
 
 		Ok(preview_data)
 	}
@@ -519,5 +490,108 @@ impl Service {
 		}
 
 		false
+	}
+}
+
+impl From<&webpage::Opengraph> for UrlPreviewData {
+	fn from(og: &webpage::Opengraph) -> Self {
+		Self {
+			title: og.properties.get("title").cloned(),
+			description: og.properties.get("description").cloned(),
+			site_type: og.properties.get("type").cloned(),
+			url: og.properties.get("url").cloned(),
+			determiner: og.properties.get("determiner").cloned(),
+			locale: og.properties.get("locale").cloned(),
+			site_name: og.properties.get("site_name").cloned(),
+			image: og.images.first().map(|img| img.url.clone()),
+			image_type: og
+				.images
+				.first()
+				.and_then(|img| img.properties.get("type").and_then(|t| t.parse().ok())),
+			image_width: og
+				.images
+				.first()
+				.and_then(|img| img.properties.get("width").and_then(|w| w.parse().ok())),
+			image_height: og
+				.images
+				.first()
+				.and_then(|img| img.properties.get("height").and_then(|h| h.parse().ok())),
+			image_alt: og
+				.images
+				.first()
+				.and_then(|img| img.properties.get("alt").cloned()),
+			video: og.videos.first().map(|vid| vid.url.clone()),
+			video_type: og
+				.videos
+				.first()
+				.and_then(|vid| vid.properties.get("type"))
+				.and_then(|t| t.parse().ok()),
+			video_width: og
+				.videos
+				.first()
+				.and_then(|vid| vid.properties.get("width"))
+				.and_then(|w| w.parse().ok()),
+			video_height: og
+				.videos
+				.first()
+				.and_then(|vid| vid.properties.get("height"))
+				.and_then(|h| h.parse().ok()),
+			video_alt: og
+				.videos
+				.first()
+				.and_then(|vid| vid.properties.get("alt").cloned()),
+			..Default::default()
+		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use webpage::HTML;
+
+	use super::UrlPreviewData;
+
+	#[test]
+	fn test_urlpreviewdata_parses_correctly() {
+		let html = r#"
+			<html>
+				<head>
+					<meta property="og:title" content="Test Title" />
+					<meta property="og:description" content="Test Description" />
+					<meta property="og:image" content="https://example.com/image.png" />
+					<meta property="og:url" content="https://example.com/index.html" />
+					<meta property="og:type" content="org.continuwuity.other" />
+					<meta propery="og:site_name" content="Example Site" />
+					<meta property="og:image:alt" content="An example image" />
+					<meta property="og:image:type" content="image/png" />
+					<meta property="og:image:height" content="69" />
+					<meta property="og:image:width" content="420" />
+				</head>
+				<body></body>
+			</html>
+		"#;
+
+		let parsed_html =
+			HTML::from_string(html.to_owned(), Some("https://example.com".to_owned()))
+				.expect("Failed to parse HTML");
+
+		let data = UrlPreviewData::from(&parsed_html.opengraph);
+
+		assert_eq!(data.title, Some("Test Title".to_owned()));
+		assert_eq!(data.description, Some("Test Description".to_owned()));
+		assert_eq!(
+			data.image, None,
+			"UrlPreviewData should not inherit HTTP/S URL from URL preview"
+		);
+		assert_eq!(data.url, Some("https://example.com/index.html".to_owned()));
+		assert_eq!(data.site_type, Some("org.continuwuity.other".to_owned()));
+		assert_eq!(data.site_name, Some("Example Site".to_owned()));
+		assert_eq!(data.image_alt, Some("An example image".to_owned()));
+		assert_eq!(data.image_type, Some("image/png".parse().unwrap()));
+		assert_eq!(data.image_height, Some(69));
+		assert_eq!(data.image_width, Some(420));
+		assert_eq!(data.image_size, None, "*_size must be None when pulling from opengraph");
+		assert_eq!(data.video_size, None, "*_size must be None when pulling from opengraph");
+		assert_eq!(data.audio_size, None, "*_size must be None when pulling from opengraph");
 	}
 }
