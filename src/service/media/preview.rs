@@ -9,6 +9,7 @@ use std::time::SystemTime;
 
 use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt, info};
 use ipaddress::IPAddress;
+use lettre::message::header::ContentType;
 use ruma::OwnedMxcUri;
 use serde::Serialize;
 use url::Url;
@@ -18,18 +19,52 @@ use crate::media::mxc::Mxc;
 
 #[derive(Serialize, Default)]
 pub struct UrlPreviewData {
+	// From https://ogp.me/
+	/// The title of your object as it should appear within the graph
+	/// "The Rock".
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:title"))]
 	pub title: Option<String>,
+
+	/// The type of your object, e.g., "video.movie".
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:type"))]
+	pub site_type: Option<String>,
+	/// The canonical URL of your object that will be used as its permanent ID
+	/// in the graph.
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:url"))]
+	pub url: Option<String>,
+	/// A one to two sentence description of your object.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:description"))]
 	pub description: Option<String>,
+	/// The word that appears before this object's title in a sentence.
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:determiner"))]
+	pub determiner: Option<String>,
+	/// The locale these tags are marked up in
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:locale"))]
+	pub locale: Option<String>,
+	/// If your object is part of a larger web site, the name which should be
+	/// displayed for the overall site.
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:site_name"))]
+	pub site_name: Option<String>,
+
+	/// An image URL which should represent your object within the graph.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image"))]
 	pub image: Option<String>,
+	/// A MIME type for this image.
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:type"))]
+	pub image_type: Option<ContentType>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:image:size"))]
 	pub image_size: Option<usize>,
+	/// The number of pixels wide.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:width"))]
 	pub image_width: Option<u32>,
+	/// The number of pixels high.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:height"))]
 	pub image_height: Option<u32>,
+	/// A description of what is in the image (not a caption).
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:alt"))]
+	pub image_alt: Option<String>,
+
+	/// A URL to a video file that complements this object.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video"))]
 	pub video: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:video:size"))]
@@ -38,6 +73,11 @@ pub struct UrlPreviewData {
 	pub video_width: Option<u32>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:height"))]
 	pub video_height: Option<u32>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:type"))]
+	pub video_type: Option<ContentType>,
+	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:alt"))]
+	pub video_alt: Option<String>,
+	/// A URL to an audio file to accompany this object.
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:audio"))]
 	pub audio: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:audio:size"))]
@@ -290,6 +330,19 @@ impl Service {
 				preview_data.image_size = image_data.image_size;
 				preview_data.image_width = image_data.image_width;
 				preview_data.image_height = image_data.image_height;
+				preview_data.image_type = obj
+					.properties
+					.get("image:type")
+					.cloned()
+					.map(|s| s.parse())
+					.transpose()
+					.ok()
+					.flatten();
+				preview_data.image_alt = obj
+					.properties
+					.get("image:alt")
+					.cloned()
+					.or(image_data.image_alt);
 			}
 		}
 
@@ -301,6 +354,19 @@ impl Service {
 				preview_data.video_width = video_data.video_width;
 				preview_data.video_height = video_data.video_height;
 				preview_data.video_size = video_data.video_size;
+				preview_data.video_type = obj
+					.properties
+					.get("video:type")
+					.cloned()
+					.map(|s| s.parse())
+					.transpose()
+					.ok()
+					.flatten();
+				preview_data.video_alt = obj
+					.properties
+					.get("video:alt")
+					.cloned()
+					.or(video_data.video_alt);
 			}
 		}
 
@@ -315,10 +381,13 @@ impl Service {
 
 		let props = html.opengraph.properties;
 
-		/* use OpenGraph title/description, but fall back to HTML if not
-		 * available */
 		preview_data.title = props.get("title").cloned().or(html.title);
 		preview_data.description = props.get("description").cloned().or(html.description);
+		preview_data.determiner = props.get("determiner").cloned();
+		preview_data.locale = props.get("locale").cloned();
+		preview_data.site_name = props.get("site_name").cloned();
+		preview_data.site_type = props.get("type").cloned();
+		preview_data.url = props.get("url").cloned().or_else(|| Some(url.to_owned()));
 
 		Ok(preview_data)
 	}
