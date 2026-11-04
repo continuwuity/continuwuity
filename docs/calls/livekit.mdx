@@ -299,7 +299,7 @@ To debug any issues, you can place a call or redo the Testing instructions, and 
 
 Before debugging, ensure the following prerequisites:
 
-- The user has permissions to send call events into the room. For legacy calls, this require them to hold a power level (usually 50 or more).
+- The user has permissions to send call events into the room. For legacy/compatibility mode, this require them to hold a power level (usually 50 or more).
 - WebRTC is enabled, if using a browser client.
 
 ### Common errors in Element Call UI
@@ -323,9 +323,9 @@ docker run --rm --net container:lk-jwt-service docker.io/curlimages/curl https:/
 
 To resolve this, follow the steps in [Docker loopback networking issues](../troubleshooting.mdx#docker-loopback-networking-issues) of the Troubleshooting page.
 
-### Incorrect IP address for LiveKit
+### Incorrect IP addresses for LiveKit
 
-By default, LiveKit automatically finds its public IP address(es), which can be seen in the "Establishing WebRTC connection" section of the connection test page. If these IPs are incorrect, you may want to hardcode your own IP by doing the following:
+By default, LiveKit automatically finds its public IP address(es), which are reflected in the "Establishing WebRTC connection" section of the connection test page. If these IPs are incorrect, you may want to hardcode your own IP by doing the following:
 
 ```diff
 ### in your livekit.yaml ###
@@ -334,6 +334,21 @@ rtc:
 - use_external_ip: true
 + use_external_ip: false
 + node_ip: "1.2.3.4"
+```
+
+Run the LiveKit tests again, and the new updated `node_ip` should be included as one of the candidates.
+
+You may further restrict the advertised address to only the `node_ip` with the following configurations:
+
+```diff
+### in your livekit.yaml ###
+rtc:
+  # ... other configs here ...
++ enable_loopback_candidate: false
++ interfaces:
++   includes: []
++ ips:
++   includes: [ "1.2.3.4/32" ]
 ```
 
 ## Related Documentation
