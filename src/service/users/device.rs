@@ -216,17 +216,19 @@ impl super::Service {
 		event_type: &str,
 		content: serde_json::Value,
 	) {
-		let count = self.services.globals.next_count().unwrap();
-
-		let key = (target_user_id, target_device_id, count);
-		self.db.todeviceid_events.put(
-			key,
-			Json(json!({
-				"type": event_type,
-				"sender": sender,
-				"content": content,
-			})),
-		);
+		let event = Json(json!({
+			"type": event_type,
+			"sender": sender,
+			"content": content,
+		}));
+		self.services
+			.globals
+			.next_count_with(|count| {
+				self.db
+					.todeviceid_events
+					.put((target_user_id, target_device_id, count), event);
+			})
+			.unwrap();
 
 		self.services.sync.wake(target_user_id).await;
 	}
