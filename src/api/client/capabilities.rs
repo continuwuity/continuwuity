@@ -46,7 +46,8 @@ pub(crate) async fn get_capabilities_route(
 	capabilities.get_login_token =
 		GetLoginTokenCapability::new(services.server.config.login_via_existing_session);
 
-	capabilities.forget_forced_upon_leave.enabled = true;
+	capabilities.forget_forced_upon_leave.enabled =
+		services.server.config.forget_forced_upon_leave;
 
 	if services.users.is_admin(sender_user).await {
 		capabilities.account_moderation.lock = true;
