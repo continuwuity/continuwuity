@@ -117,10 +117,13 @@ async fn set_account_data(
 	data: &RawJsonValue,
 ) -> Result {
 	if event_type_s == "m.fully_read" {
-		return Err!(Request(BadJson(
-			"This endpoint cannot be used for marking a room as fully read (setting \
-			 m.fully_read)"
-		)));
+		return Err!(Request(
+			BadJson(
+				"This endpoint cannot be used for marking a room as fully read (setting \
+				 m.fully_read)"
+			),
+			METHOD_NOT_ALLOWED
+		));
 	}
 
 	let data: serde_json::Value = serde_json::from_str(data.get())
