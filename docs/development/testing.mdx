@@ -12,10 +12,13 @@ Install Git, Rust, Docker, Go, and `jq`. From this repository's root, build the
 server image and run the suite:
 
 ```bash
-cargo build -p conduwuit
+cargo build -p conduwuit --features openreg
 docker build -t continuwuity:complement -f docker/complement.Dockerfile .
 ./bin/complement
 ```
+
+The `openreg` feature is required: without it the server refuses the open
+registrations Complement uses to create test users, and almost every test fails.
 
 The run can take up to an hour. The runner writes the full Go test stream to
 `tests/test_results/complement/test_logs.jsonl` and a sorted pass/fail/skip

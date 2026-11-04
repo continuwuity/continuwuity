@@ -53,7 +53,7 @@ fi
 
 # The base docker image to use for complement tests
 # You can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`
-# after running `cargo build`. Only the debug binary is used.
+# after running `cargo build -p conduwuit --features openreg`. Only the debug binary is used.
 COMPLEMENT_BASE_IMAGE="${COMPLEMENT_BASE_IMAGE:-continuwuity:complement}"
 
 # Complement tests that are skipped due to flakiness/reliability issues or we don't implement such features and won't for a long time
@@ -99,7 +99,7 @@ fi
 
 if ! docker image inspect "$COMPLEMENT_BASE_IMAGE" > /dev/null 2>&1; then
     echo "Complement base image not found: $COMPLEMENT_BASE_IMAGE"
-    echo "Build it with: cargo build -p conduwuit && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
+    echo "Build it with: cargo build -p conduwuit --features openreg && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
     exit 1
 fi
 
