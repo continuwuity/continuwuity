@@ -5,7 +5,7 @@ mod preview;
 mod remote;
 mod tests;
 mod thumbnail;
-use std::{path::PathBuf, sync::Arc, time::SystemTime};
+use std::{collections::HashSet, path::PathBuf, sync::Arc, time::SystemTime};
 
 use async_trait::async_trait;
 use base64::{Engine as _, engine::general_purpose};
@@ -19,7 +19,11 @@ use conduwuit::{
 	},
 	warn,
 };
-use ruma::{OwnedMxcUri, UserId, http_headers::ContentDisposition};
+use ruma::{
+	OwnedMxcUri, OwnedServerName, ServerName, UserId,
+	api::federation::transactions::edu::{Edu, MediaRedactionContent},
+	http_headers::ContentDisposition,
+};
 use tokio::{
 	fs,
 	io::{AsyncReadExt, AsyncWriteExt, BufReader},
@@ -158,6 +162,31 @@ impl Service {
 		}
 	}
 
+	/// Mark a media file as redacted and delete it from the database.
+	pub async fn redact(&self, mxc: &Mxc<'_>) -> Result<()> {
+		self.db.mark_redacted(mxc.media_id);
+		self.delete(mxc).await?;
+
+		let edu = Edu::MediaRedaction(MediaRedactionContent::new(mxc.media_id.to_owned()));
+
+		for server in self.find_remote_downloads(mxc.media_id).await {
+			if let Err(err) = self.services.sending.send_edu_server(&server, &edu) {
+				error!(?server, %mxc, ?err, "Failed to queue media redaction EDU");
+			}
+		}
+
+		Ok(())
+	}
+
+	/// Check if a user uploaded a file with the given MXC.
+	pub async fn user_owns(&self, user: &UserId, mxc: &Mxc<'_>) -> bool {
+		// TODO: do this more efficiently when we refactor this garbage fire of
+		// a service
+
+		let mxc = OwnedMxcUri::from(mxc.to_string());
+		self.db.get_all_user_mxcs(user).await.contains(&mxc)
+	}
+
 	/// Deletes all media by the specified user
 	///
 	/// currently, this is only practical for local users
@@ -253,6 +282,20 @@ impl Service {
 		}
 
 		Ok(mxcs)
+	}
+
+	/// Mark a remote server as having downloaded a media file.
+	pub fn track_remote_download(&self, remote: &ServerName, media_id: &str) {
+		self.db.track_remote_download(remote, media_id);
+	}
+
+	/// Find all remote servers that have downloaded the local media file with
+	/// the given ID.
+	pub fn find_remote_downloads(
+		&self,
+		media_id: &str,
+	) -> impl Future<Output = HashSet<OwnedServerName>> {
+		self.db.find_remote_downloads(media_id)
 	}
 
 	/// Deletes all media files in the given time frame.

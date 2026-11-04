@@ -18,7 +18,7 @@ use ruma::{
 			get_content, get_content_as_filename, get_content_thumbnail, get_media_config,
 			get_media_preview,
 		},
-		media::create_content,
+		media::{self, create_content},
 	},
 };
 use service::media::mxc::Mxc;
@@ -236,6 +236,27 @@ pub(crate) async fn get_media_preview_route(
 				debug_error!(%sender_user, %url, "Failed to parse URL preview: {error}")
 			)))
 		})
+}
+
+/// # `POST /_matrix/client/unstable/uk.timedout.msc4322/media/redact/{server_name}/{media_id}`
+pub(crate) async fn unstable_redact_media_route(
+	State(services): State<crate::State>,
+	body: Ruma<media::redact::unstable::Request>,
+) -> Result<media::redact::unstable::Response> {
+	let user = body.identity.expect_sender_user()?;
+
+	let mxc = Mxc {
+		server_name: &body.server_name,
+		media_id: &body.media_id,
+	};
+
+	if !(services.media.user_owns(user, &mxc).await || services.admin.user_is_admin(user).await) {
+		return Err!(Request(Forbidden("You cannot redact this media.")));
+	}
+
+	services.media.redact(&mxc).await?;
+
+	Ok(media::redact::unstable::Response::new())
 }
 
 async fn fetch_thumbnail_meta(

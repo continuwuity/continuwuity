@@ -38,6 +38,10 @@ pub(crate) async fn get_content_route(
 		content_disposition,
 	);
 
+	services
+		.media
+		.track_remote_download(&body.identity, &body.media_id);
+
 	Ok(get_content::v1::Response::new(
 		ContentMetadata::new(),
 		FileOrLocation::File(content),

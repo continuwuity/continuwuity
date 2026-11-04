@@ -1,12 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 
 use conduwuit::{
-	Err, Result, debug, debug_info, err,
+	Err, Result, at, debug, debug_info, err,
 	utils::{ReadyExt, str_from_bytes, stream::TryIgnore, string_from_bytes},
 };
 use database::{Database, Interfix, Map};
 use futures::StreamExt;
-use ruma::{OwnedMxcUri, OwnedUserId, UserId, http_headers::ContentDisposition};
+use ruma::{
+	OwnedMxcUri, OwnedServerName, OwnedUserId, ServerName, UserId,
+	http_headers::ContentDisposition,
+};
 
 use super::{preview::UrlPreviewData, thumbnail::Dim};
 use crate::media::mxc::Mxc;
@@ -15,6 +18,8 @@ pub(crate) struct Data {
 	mediaid_file: Arc<Map>,
 	mediaid_user: Arc<Map>,
 	url_previews: Arc<Map>,
+	mediaidremote_remotedownload: Arc<Map>,
+	mediaid_redacted: Arc<Map>,
 }
 
 #[derive(Debug)]
@@ -30,6 +35,8 @@ impl Data {
 			mediaid_file: db["mediaid_file"].clone(),
 			mediaid_user: db["mediaid_user"].clone(),
 			url_previews: db["url_previews"].clone(),
+			mediaidremote_remotedownload: db["mediaidremote_remotedownload"].clone(),
+			mediaid_redacted: db["mediaid_redacted"].clone(),
 		}
 	}
 
@@ -347,5 +354,23 @@ impl Data {
 			audio,
 			audio_size,
 		})
+	}
+
+	pub(super) fn track_remote_download(&self, remote: &ServerName, media_id: &str) {
+		self.mediaidremote_remotedownload
+			.put_raw((media_id, remote), []);
+	}
+
+	pub(super) async fn find_remote_downloads(&self, media_id: &str) -> HashSet<OwnedServerName> {
+		self.mediaidremote_remotedownload
+			.keys_prefix::<(String, OwnedServerName), _>(media_id)
+			.ignore_err()
+			.map(at!(1))
+			.collect()
+			.await
+	}
+
+	pub(super) fn mark_redacted(&self, media_id: &str) {
+		self.mediaid_redacted.insert(media_id, []);
 	}
 }
