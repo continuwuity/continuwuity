@@ -901,7 +901,7 @@ impl Service {
 					.server_in_room(self.services.globals.server_name(), condition_room)
 					.await
 				{
-					let is_joined = match entity {
+					let is_joined_to_condition_room = match entity {
 						| JoinConditionEntity::User(user_id) =>
 							self.services
 								.state_cache
@@ -910,11 +910,11 @@ impl Service {
 						| JoinConditionEntity::Server(server) =>
 							self.services
 								.state_cache
-								.server_in_room(server, room_id)
+								.server_in_room(server, condition_room)
 								.await,
 					};
 
-					if is_joined {
+					if is_joined_to_condition_room {
 						debug!(
 							?entity,
 							?room_id,
