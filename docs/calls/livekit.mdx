@@ -548,6 +548,8 @@ Then configure LiveKit, making sure to replace `COTURN_SECRET` with the one you 
 ### in your livekit.yaml ###
 rtc:
   # ... other configs here ...
+  stun_servers:
+    - coturn.example.com
   turn_servers:
     - host: coturn.example.com
       port: 443
