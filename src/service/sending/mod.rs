@@ -24,8 +24,9 @@ use ruma::{
 	OwnedServerName, RoomId, ServerName, UserId,
 	api::{
 		OutgoingRequest,
+		appservice::event::push_events::v1::EphemeralData,
 		auth_scheme::{NoAccessToken, NoAuthentication, SendAccessToken},
-		federation::authentication::ServerSignatures,
+		federation::{authentication::ServerSignatures, transactions::edu::Edu},
 		path_builder::PathBuilder,
 	},
 };
@@ -220,10 +221,12 @@ impl Service {
 		Ok(())
 	}
 
-	#[tracing::instrument(skip(self, server, serialized), level = "debug")]
-	pub fn send_edu_server(&self, server: &ServerName, serialized: EduBuf) -> Result {
+	#[tracing::instrument(skip(self, server, edu), level = "debug")]
+	pub fn send_edu_server(&self, server: &ServerName, edu: &Edu) -> Result {
 		let dest = Destination::Federation(server.to_owned());
-		let event = SendingEvent::Edu(serialized);
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, edu).expect("should be able to serialize edu");
+		let event = SendingEvent::Edu(buf);
 		let _cork = self.db.db.cork();
 		let keys = self.db.queue_requests(once((&event, &dest)));
 		self.dispatch(Msg {
@@ -233,10 +236,12 @@ impl Service {
 		})
 	}
 
-	#[tracing::instrument(skip(self, serialized), level = "debug")]
-	pub fn send_edu_appservice(&self, appservice_id: &str, serialized: EduBuf) -> Result {
+	#[tracing::instrument(skip(self, edu), level = "debug")]
+	pub fn send_edu_appservice(&self, appservice_id: &str, edu: &EphemeralData) -> Result {
 		let dest = Destination::Appservice(appservice_id.to_owned());
-		let event = SendingEvent::Edu(serialized);
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, edu).expect("should be able to serialize edu");
+		let event = SendingEvent::Edu(buf);
 		let _cork = self.db.db.cork();
 		let keys = self.db.queue_requests(once((&event, &dest)));
 		self.dispatch(Msg {
@@ -246,21 +251,21 @@ impl Service {
 		})
 	}
 
-	#[tracing::instrument(skip(self, room_id, serialized), level = "debug")]
+	#[tracing::instrument(skip(self, room_id, edu), level = "debug")]
 	pub async fn send_edu_appservice_room(
 		&self,
 		room_id: &RoomId,
-		serialized: EduBuf,
+		edu: &EphemeralData,
 	) -> Result<()> {
-		self.send_edu_appservice_room_filtered(room_id, serialized, |_| true)
+		self.send_edu_appservice_room_filtered(room_id, edu, |_| true)
 			.await
 	}
 
-	#[tracing::instrument(skip(self, room_id, serialized, filter), level = "debug")]
+	#[tracing::instrument(skip(self, room_id, edu, filter), level = "debug")]
 	pub async fn send_edu_appservice_room_filtered<F>(
 		&self,
 		room_id: &RoomId,
-		serialized: EduBuf,
+		edu: &EphemeralData,
 		filter: F,
 	) -> Result<()>
 	where
@@ -292,7 +297,7 @@ impl Service {
 				|| matching_aliases(appservice.aliases.clone()).await
 			{
 				_ = self
-					.send_edu_appservice(&appservice.registration.id, serialized.clone())
+					.send_edu_appservice(&appservice.registration.id, edu)
 					.inspect_err(|e| {
 						warn!(
 							"failed to send EDU to appservice {}: {e:?}",
@@ -304,26 +309,27 @@ impl Service {
 		Ok(())
 	}
 
-	#[tracing::instrument(skip(self, room_id, serialized), level = "debug")]
-	pub async fn send_edu_room(&self, room_id: &RoomId, serialized: EduBuf) -> Result {
+	#[tracing::instrument(skip(self, room_id, edu), level = "debug")]
+	pub async fn send_edu_room(&self, room_id: &RoomId, edu: &Edu) -> Result {
 		let servers = self
 			.services
 			.state_cache
 			.room_servers(room_id)
 			.ready_filter(|server_name| !self.services.globals.server_is_ours(server_name));
 
-		self.send_edu_servers(servers, serialized).await
+		self.send_edu_servers(servers, edu).await
 	}
 
-	#[tracing::instrument(skip(self, servers, serialized), level = "debug")]
-	pub async fn send_edu_servers<S>(&self, servers: S, serialized: EduBuf) -> Result
+	#[tracing::instrument(skip(self, servers, edu), level = "debug")]
+	pub async fn send_edu_servers<S>(&self, servers: S, edu: &Edu) -> Result
 	where
 		S: Stream<Item = OwnedServerName> + Send,
 	{
+		let mut buf = EduBuf::new();
+		serde_json::to_writer(&mut buf, edu).expect("should be able to serialize edu");
+
 		let requests = servers
-			.map(|server| {
-				(Destination::Federation(server), SendingEvent::Edu(serialized.clone()))
-			})
+			.map(|server| (Destination::Federation(server), SendingEvent::Edu(buf.clone())))
 			.collect::<Vec<_>>()
 			.await;
 

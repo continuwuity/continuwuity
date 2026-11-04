@@ -15,7 +15,7 @@ use ruma::{
 	events::{EphemeralRoomEvent, SyncEphemeralRoomEvent, typing::TypingEventContent},
 };
 
-use crate::{Dep, globals, sending, sending::EduBuf, sync, users};
+use crate::{Dep, globals, sending, sync, users};
 
 pub struct Service {
 	server: Arc<Server>,
@@ -244,13 +244,9 @@ impl Service {
 			return Ok(());
 		}
 
-		let content = TypingContent::new(room_id.to_owned(), user_id.to_owned(), typing);
-		let edu = Edu::Typing(content);
+		let edu = Edu::Typing(TypingContent::new(room_id.to_owned(), user_id.to_owned(), typing));
 
-		let mut buf = EduBuf::new();
-		serde_json::to_writer(&mut buf, &edu).expect("Serialized Edu::Typing");
-
-		self.services.sending.send_edu_room(room_id, buf).await?;
+		self.services.sending.send_edu_room(room_id, &edu).await?;
 
 		Ok(())
 	}
@@ -261,12 +257,9 @@ impl Service {
 			self.typings_content(room_id),
 		));
 
-		let mut buf = EduBuf::new();
-		serde_json::to_writer(&mut buf, &edu).expect("Serialized Edu::Typing");
-
 		self.services
 			.sending
-			.send_edu_appservice_room(room_id, buf)
+			.send_edu_appservice_room(room_id, &edu)
 			.await
 	}
 }

@@ -23,11 +23,7 @@ use ruma::{
 };
 
 use self::data::{Data, ReceiptItem};
-use crate::{
-	Dep, rooms,
-	sending::{self, EduBuf},
-	sync,
-};
+use crate::{Dep, rooms, sending, sync};
 
 pub struct Service {
 	services: Services,
@@ -69,12 +65,10 @@ impl Service {
 		self.services.sync.wake_all_joined(room_id).await;
 		// update appservices
 		let edu = EphemeralData::Receipt(event);
-		let mut buf = EduBuf::new();
-		serde_json::to_writer(&mut buf, &edu).expect("Serialized EphemeralData::Receipt");
 		_ = self
 			.services
 			.sending
-			.send_edu_appservice_room(room_id, buf)
+			.send_edu_appservice_room(room_id, &edu)
 			.await
 			.log_err();
 	}
@@ -156,19 +150,17 @@ impl Service {
 				)]),
 			)]),
 		)];
-		let event = ReceiptEvent::new(
-			room_id.to_owned(),
-			ReceiptEventContent::from_iter(receipt_content),
-		);
-		let edu = EphemeralData::Receipt(event);
-		let mut buf = EduBuf::new();
-		serde_json::to_writer(&mut buf, &edu).expect("Serialized EphemeralData::Receipt");
 		_ = self
 			.services
 			.sending
-			.send_edu_appservice_room_filtered(room_id, buf, |appservice| {
-				appservice.is_user_match(user_id)
-			})
+			.send_edu_appservice_room_filtered(
+				room_id,
+				&EphemeralData::Receipt(ReceiptEvent::new(
+					room_id.to_owned(),
+					ReceiptEventContent::from_iter(receipt_content),
+				)),
+				|appservice| appservice.is_user_match(user_id),
+			)
 			.await
 			.log_err();
 	}

@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use axum::extract::State;
 use conduwuit::{Err, Result};
-use conduwuit_service::sending::EduBuf;
 use futures::StreamExt;
 use ruma::{
 	api::{
@@ -44,9 +43,8 @@ pub(crate) async fn send_event_to_device_route(
 				messages.insert(target_user_id.clone(), map);
 				let count = services.globals.next_count()?;
 
-				let mut buf = EduBuf::new();
-				serde_json::to_writer(
-					&mut buf,
+				services.sending.send_edu_server(
+					target_user_id.server_name(),
 					&Edu::DirectToDevice(assign!(
 						DirectDeviceContent::new(
 							sender_user.to_owned(),
@@ -55,12 +53,7 @@ pub(crate) async fn send_event_to_device_route(
 						),
 						{ messages }
 					)),
-				)
-				.expect("DirectToDevice EDU can be serialized");
-
-				services
-					.sending
-					.send_edu_server(target_user_id.server_name(), buf)?;
+				)?;
 
 				continue;
 			}
