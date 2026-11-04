@@ -379,10 +379,7 @@ async fn check_access_token(
 				.await
 				.is_err()
 			{
-				return Err!(Request(Forbidden(
-					"Device does not exist for user or appservice cannot masquerade as this \
-					 device."
-				)));
+				return Err!(Request(UnknownDevice("Device does not exist for this user.")));
 			}
 
 			Some(device_id.to_owned())
