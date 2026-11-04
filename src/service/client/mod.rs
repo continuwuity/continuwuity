@@ -1,26 +1,36 @@
+mod dns_resolver;
+
 use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use conduwuit::{Config, Result, Server, err, trace, utils::response::LimitReadExt, warn};
+use conduwuit::{
+	Config, Result, Server, debug, err, info, trace, utils::response::LimitReadExt, warn,
+};
+use dns_resolver::DnsResolver;
 use either::Either;
 use hickory_resolver::{
 	TokioResolver,
-	config::{ConnectionConfig, NameServerConfig},
+	config::{ConnectionConfig, NameServerConfig, ResolverConfig},
 	net::runtime::TokioRuntimeProvider,
 	proto::rr::IntoName,
 };
 use ipaddress::IPAddress;
-use reqwest::redirect;
+use reqwest::{dns::Resolve, redirect};
 use resolvematrix::server::{MatrixResolver, MatrixResolverBuilder};
 use serde::Deserialize;
 
 use crate::service;
 
 pub struct Service {
-	pub matrix_resolver: Arc<MatrixResolver>,
+	/// Regular DNS resolver
 	pub dns_resolver: Arc<TokioResolver>,
 
-	pub dns: reqwest::Client,
+	/// Matrix server resolver according to server resolution spec
+	pub matrix_resolver: Arc<MatrixResolver>,
+
+	/// HTTP client used for fetching files during server resolution
+	pub matrix_http_client: reqwest::Client,
+
 	pub url_preview: reqwest::Client,
 	pub external_resource: reqwest::Client,
 	pub federation: reqwest::Client,
@@ -38,9 +48,18 @@ impl crate::Service for Service {
 	fn build(args: crate::Args<'_>) -> Result<Arc<Self>> {
 		let config = &args.server.config;
 
-		let dns_resolver = get_dns_resolver(args.server)?;
+		// Regular DNS resolver
+		let tokio_dns_resolver = get_dns_resolver(args.server)?;
 
-		let dns_client = base(&args.server.config)?
+		// More different DNS resolver that also implements
+		// reqwest::dns::Resolve (which is required for reqwest to use it).
+		// Don't ask me, I just work here. - @silversys
+		let reqwest_dns_resolver = Arc::new(DnsResolver::new(tokio_dns_resolver.clone()));
+
+		// Regular HTTP client that does regular HTTP requests with regular DNS
+		// resolution, but with timeouts for /.well-known/matrix/* files
+		// according to c10y config.
+		let matrix_http_client = base(&args.server.config, reqwest_dns_resolver.clone())?
 			.connect_timeout(Duration::from_secs(args.server.config.well_known_conn_timeout))
 			.read_timeout(Duration::from_secs(args.server.config.well_known_timeout))
 			.timeout(Duration::from_secs(args.server.config.well_known_timeout))
@@ -48,12 +67,17 @@ impl crate::Service for Service {
 			.redirect(redirect::Policy::limited(4))
 			.build()?;
 
+		// Resolves hostnames into ip+port or hostname+port server combinations
+		// according to the server resolution spec
 		let matrix_resolver = Arc::new(MatrixResolverBuilder::new()
-			.dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
-			.http_client(dns_client.clone())
-			.dns_resolver(dns_resolver.clone())
-			.build()?);
-		let matrix_dns_resolver = matrix_resolver.create_dns_resolver();
+            .dangerous_tls_accept_invalid_certs(args.server.config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
+            .http_client(matrix_http_client.clone())
+            .dns_resolver(tokio_dns_resolver.clone())
+            .build()?);
+		// Does the same as the above, but acts as a DNS resolver for reqwest
+		// (implementing caching and following the matrix server resolution
+		// spec)
+		let matrix_dns_resolver = Arc::new(matrix_resolver.create_dns_resolver());
 
 		let url_preview_bind_addr = config
 			.url_preview_bound_interface
@@ -72,11 +96,11 @@ impl crate::Service for Service {
 
 		Ok(Arc::new(Self {
 			matrix_resolver,
-			dns_resolver,
+			matrix_http_client,
 
-			dns: dns_client,
+			dns_resolver: tokio_dns_resolver,
 
-			url_preview: base(config)
+			url_preview: base(config, reqwest_dns_resolver.clone())
 				.and_then(|builder| {
 					builder_interface(builder, url_preview_bind_iface.as_deref())
 				})?
@@ -86,12 +110,11 @@ impl crate::Service for Service {
 				.user_agent(url_preview_user_agent)
 				.build()?,
 
-			external_resource: base(config)?
+			external_resource: base(config, reqwest_dns_resolver.clone())?
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
-			federation: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
+			federation: base(config, matrix_dns_resolver.clone())?
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout))
 				.timeout(Duration::from_secs(
@@ -104,8 +127,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
-			federation_slow: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
+			federation_slow: base(config, matrix_dns_resolver.clone())?
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.federation_timeout.saturating_mul(6)))
 				.timeout(Duration::from_secs(
@@ -118,8 +140,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(3))
 				.build()?,
 
-			sender: base(config)?
-				.dns_resolver(matrix_dns_resolver.clone())
+			sender: base(config, matrix_dns_resolver)?
 				.connect_timeout(Duration::from_secs(config.federation_conn_timeout))
 				.read_timeout(Duration::from_secs(config.sender_timeout))
 				.timeout(Duration::from_secs(config.sender_timeout))
@@ -128,8 +149,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(2))
 				.build()?,
 
-			appservice: base(config)?
-				.dns_resolver(matrix_dns_resolver)
+			appservice: base(config, reqwest_dns_resolver.clone())?
 				.connect_timeout(Duration::from_secs(5))
 				.read_timeout(Duration::from_secs(config.appservice_timeout))
 				.timeout(Duration::from_secs(config.appservice_timeout))
@@ -138,7 +158,7 @@ impl crate::Service for Service {
 				.redirect(redirect::Policy::limited(2))
 				.build()?,
 
-			pusher: base(config)?
+			pusher: base(config, reqwest_dns_resolver.clone())?
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)
@@ -148,7 +168,7 @@ impl crate::Service for Service {
 
 			// MSC4174 recommends against following redirects, since the
 			// destination is only checked before the request is sent.
-			webpush: base(config)?
+			webpush: base(config, reqwest_dns_resolver)?
 				.connect_timeout(Duration::from_secs(config.pusher_conn_timeout))
 				.timeout(Duration::from_secs(config.pusher_timeout))
 				.pool_max_idle_per_host(1)
@@ -221,18 +241,22 @@ impl Service {
 	}
 }
 
-pub fn base(config: &Config) -> Result<reqwest::ClientBuilder> {
+pub(crate) fn base(
+	config: &Config,
+	resolver: Arc<dyn Resolve>,
+) -> Result<reqwest::ClientBuilder> {
 	let mut builder = reqwest::Client::builder()
-		.hickory_dns(true)
-		.connect_timeout(Duration::from_secs(config.request_conn_timeout))
-		.read_timeout(Duration::from_secs(config.request_timeout))
-		.timeout(Duration::from_secs(config.request_total_timeout))
-		.pool_idle_timeout(Duration::from_secs(config.request_idle_timeout))
-		.pool_max_idle_per_host(config.request_idle_per_host.into())
-		.user_agent(conduwuit::user_agent())
-		.redirect(redirect::Policy::limited(6))
+        .hickory_dns(true)
+        .dns_resolver(resolver)
+        .connect_timeout(Duration::from_secs(config.request_conn_timeout))
+        .read_timeout(Duration::from_secs(config.request_timeout))
+        .timeout(Duration::from_secs(config.request_total_timeout))
+        .pool_idle_timeout(Duration::from_secs(config.request_idle_timeout))
+        .pool_max_idle_per_host(config.request_idle_per_host.into())
+        .user_agent(conduwuit::user_agent())
+        .redirect(redirect::Policy::limited(6))
         .danger_accept_invalid_certs(config.allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure)
-		.connection_verbose(cfg!(debug_assertions));
+        .connection_verbose(cfg!(debug_assertions));
 
 	#[cfg(feature = "gzip_compression")]
 	{
@@ -310,19 +334,21 @@ fn builder_interface(
 
 fn get_dns_resolver(server: &Arc<Server>) -> Result<Arc<TokioResolver>> {
 	let config = &server.config;
-	let (sys_conf, mut opts) = hickory_resolver::system_conf::read_system_conf()
+
+	let (system_resolver_config, mut opts) = hickory_resolver::system_conf::read_system_conf()
 		.map_err(|e| err!(error!("Failed to configure DNS resolver from system: {e}")))?;
 
-	let mut conf = hickory_resolver::config::ResolverConfig::default();
+	let mut conf = ResolverConfig::from_name_servers(vec![]);
 
-	if let Some(domain) = sys_conf.domain() {
+	// Set domain and search domains from system config (/etc/resolv.conf)
+	if let Some(domain) = system_resolver_config.domain() {
 		conf.set_domain(domain.clone());
 	}
-
-	for sys_conf in sys_conf.search() {
+	for sys_conf in system_resolver_config.search() {
 		conf.add_search(sys_conf.clone());
 	}
 
+	// Read nameservers from c10y config file
 	let config_nameservers: Vec<NameServerConfig> = server
 		.config
 		.dns_servers
@@ -330,11 +356,16 @@ fn get_dns_resolver(server: &Arc<Server>) -> Result<Arc<TokioResolver>> {
 		.filter_map(IntoName::to_ip)
 		.map(NameServerConfig::udp_and_tcp)
 		.collect();
+	let system_nameservers = system_resolver_config.name_servers().to_vec();
+
 	let nameservers = if !config_nameservers.is_empty() {
+		debug!("Using DNS nameservers from config file");
 		config_nameservers
 	} else {
-		sys_conf.name_servers().to_vec()
+		debug!("Using DNS nameservers from /etc/resolv.conf");
+		system_nameservers
 	};
+	info!(?nameservers, "Resolved nameservers for DNS client");
 
 	for sys_conf in nameservers {
 		let mut ns = sys_conf.clone();
