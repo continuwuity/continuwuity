@@ -297,11 +297,18 @@ Use this token to test at the [LiveKit Connection Tester][livekit-connection-tes
 
 To debug any issues, you can place a call or redo the Testing instructions, and check the container logs for any specific errors. Use `docker compose logs --follow` to follow these logs in real-time.
 
+Before debugging, ensure the following prerequisites:
+
+- The user has permissions to send call events into the room. For legacy calls, this require them to hold a power level (usually 50 or more).
+- WebRTC is enabled, if using a browser client.
+
 ### Common errors in Element Call UI
 
-- `MISSING_MATRIX_RTC_FOCUS`/`MISSING_MATRIX_RTC_TRANSPORT`: LiveKit is missing from Continuwuity's config file
-- "Waiting for media" popup always showing for yourself: a LiveKit URL has been configured in Continuwuity, but your client cannot connect to it for some reason
-- `OPEN_ID_ERROR`: Your client can reach out to `lk-jwt-service`, but has problems authenticating with it. In this case, check `lk-jwt-service` logs for more details
+- `MISSING_MATRIX_RTC_FOCUS`/`MISSING_MATRIX_RTC_TRANSPORT`: the client cannot find a suitable SFU. This is likely due to LiveKit being missing from Continuwuity's config file, and therefore not being exposed properly.
+
+- `OPEN_ID_ERROR`: Your client can reach out to `lk-jwt-service`, but `lk-jwt-service` has problems authenticating you against Continuwuity. In this case, check `lk-jwt-service` logs for more details. The section below on [Docker loopback networking issues](#docker-loopback-networking-issues) may be of help.
+
+- Calls fail to start with `ServerUnreachable` error: a LiveKit URL has been properly configured and exposed in Continuwuity, but the client cannot connect to it for some reason.
 
 For browser-based clients, you can also inspect connections using DevTools' Networking tab, to see which requests are erroring out.
 
