@@ -285,7 +285,7 @@ You can then send this payload to the lk-jwt-service:
 curl -X POST -d @payload.json https://livekit.example.com/get_token
 ```
 
-The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt` token to create a LiveKit media room:
+The lk-jwt-service will, after checking against Continuwuity, answer with a `jwt` token to [create a LiveKit media room](#livekit-cli):
 
 ```json
 {"url":"wss://livekit.example.com","jwt":"a_really_really_long_string"}
@@ -375,12 +375,13 @@ Specifications:
 - [MSC4195: MatrixRTC Transport using LiveKit Backend][MSC4195]
 - [MSC3401: Native Group VoIP Signalling][MSC3401] - state events for legacy calls
 - [MSC4075: MatrixRTC invites and notifications][MSC4075] - for ringing users
-- [MSC4354: Sticky Events] - for MatrixRTC 2.0 calls
+- [MSC4354: Sticky Events][MSC4354] - for MatrixRTC 2.0 calls
 
 [MSC4143]: https://github.com/matrix-org/matrix-spec-proposals/pull/4143
 [MSC4195]: https://github.com/matrix-org/matrix-spec-proposals/pull/4195
 [MSC3401]: https://github.com/matrix-org/matrix-spec-proposals/pull/3401
 [MSC4075]: https://github.com/matrix-org/matrix-spec-proposals/pull/4075
+[MSC4354]: https://github.com/matrix-org/matrix-spec-proposals/pull/4354
 
 Source code:
 
@@ -411,6 +412,35 @@ MatrixRTC currently supports 3 calling modes:
 To support Legacy and Compatibility mode, ensure that the user is allowed to send the relevant state events. Usually, this means promoting them to a power level of 50 or above. Alternatively, set the power level required to send `org.matrix.msc3401.call.member` events to 0.
 
 To support MatrixRTC 2.0 mode, sticky events has to be enabled on the Matrix server. In Continuwuity, this is as easy as setting `enable_sticky_events = true` in the config file.
+
+### Creating LiveKit tokens via `livekit-cli` {#livekit-cli}
+
+To create room tokens directly without going through `lk-jwt-service`, use the [Livekit CLI tool][livekit-cli].
+
+<Tabs groupId="livekit">
+<Tab label="Bare Binary">
+
+First, download the [release tarball][livekit-cli-releases] and extract it. Then:
+
+```sh
+./lk --url https://livekit.example.com \
+  --api-key APIUxUnMnSkuFWV \
+  --api-secret t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A \
+  token create --create --join
+```
+</Tab>
+<Tab label="Docker">
+```sh
+docker run --rm docker.io/livekit/livekit-cli --url https://livekit.example.com \
+  --api-key APIUxUnMnSkuFWV \
+  --api-secret t93ZVjPeoEdyx7Wbet3kG4L3NGZIZVEFvqe0UuiVc22A \
+  token create --create --join
+```
+</Tab>
+</Tabs>
+
+[livekit-cli]: https://github.com/livekit/livekit-cli
+[livekit-cli-releases]: https://github.com/livekit/livekit-cli
 
 ### Additional TURN-over-TLS on 443 configuration
 
