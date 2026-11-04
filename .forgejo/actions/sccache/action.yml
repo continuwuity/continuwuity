@@ -7,7 +7,7 @@ runs:
   using: composite
   steps:
   - name: Install sccache
-    uses: https://forgejo.ellis.link/continuwuation/sccache-action@v1
+    uses: https://forgejo.ellis.link/continuwuation/sccache-action@b5ae5b4541ed5fb0f616e3cb616bf213fefa1c40 # v1
   - name: Configure sccache
     uses: https://github.com/actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
     with:

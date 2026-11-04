@@ -29,7 +29,7 @@ runs:
   steps:
     - name: Detect runner OS
       id: runner-os
-      uses: https://forgejo.ellis.link/continuwuation/detect-versions@v1
+      uses: https://forgejo.ellis.link/continuwuation/detect-versions@d39555789fed25b8eb8e086d9f199c514dfa311e # v1
 
     - name: Configure cross-compilation architecture
       if: inputs.dpkg-arch != ''
