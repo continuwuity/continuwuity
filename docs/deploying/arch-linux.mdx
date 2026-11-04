@@ -2,12 +2,16 @@
 
 Continuwuity is available in the [`archlinuxcn`][archlinuxcn] repository and AUR with the same package name, [`continuwuity`][aur-continuwuity].
 
-The development version is available on the AUR as [`continuwuity-git`][aur-continuwuity-git].
+For instructions on adding the archlinuxcn repo to your machine, see the [archlinuxcn README][archlinuxcn-readme] page. For AUR instructions, consult its [entry][aur-archwiki] on the Arch Wiki.
+
+The development version, which tracks latest commits to the main branch, is also available on the AUR as [`continuwuity-git`][aur-continuwuity-git].
 
 [archlinuxcn]: https://www.archlinuxcn.org/
+[archlinuxcn-readme]: https://github.com/archlinuxcn/repo#usage
+[aur-archwiki]: https://wiki.archlinux.org/title/Arch_User_Repository
 [aur-continuwuity]: https://aur.archlinux.org/packages/continuwuity
 [aur-continuwuity-git]: https://aur.archlinux.org/packages/continuwuity-git
 
-Simply install the `continuwuity` package. Consult the [generic deployment instructions](./generic.mdx) for detailed installation steps, which involves editing `/etc/conduwuit/conduwuit.toml` and setting up a reverse proxy. Finally, enable and start the `continuwuity.service`.
+Once you're done configuring your repos, simply install the `continuwuity` package with `pacman -S continuwuity`. Consult the [generic deployment instructions](./generic.mdx) for detailed steps, which involves editing `/etc/conduwuit/conduwuit.toml` and setting up a reverse proxy. Finally, enable and start the `continuwuity.service`.
 
 After successfully setting up Continuwuity, navigate to [Post-installation](../deploying.mdx#post-installation) for next steps.
