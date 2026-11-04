@@ -80,10 +80,10 @@ impl super::Service {
 					.len()
 					> MAX_PROFILE_LENGTH_BYTES
 				{
-					return Err!(
+					return Err!(Request(ProfileTooLarge(
 						"Profile data must not exceed {MAX_PROFILE_LENGTH_BYTES} bytes in \
 						 length."
-					);
+					)));
 				}
 			} else {
 				return Err!(Request(BadJson("Failed to canonicalize profile.")));
