@@ -301,7 +301,7 @@ To debug any issues, you can place a call or redo the Testing instructions, and 
 
 Before debugging, ensure the following prerequisites:
 
-- The user has permissions to send call events into the room. For legacy/compatibility mode, this require them to hold a power level (usually 50 or more).
+- The user has permissions to send call events into the room. See the Appendix section on [call modes](#call-modes) for more details.
 - WebRTC is enabled, if using a browser client.
 
 ### Common errors in Element Call UI
@@ -374,7 +374,8 @@ Specifications:
 - [MSC4143: MatrixRTC \- Real-time communication over Matrix][MSC4143]
 - [MSC4195: MatrixRTC Transport using LiveKit Backend][MSC4195]
 - [MSC3401: Native Group VoIP Signalling][MSC3401] - state events for legacy calls
-- [MSC4075: MatrixRTC invites and notifications - #4075][MSC4075] - for ringing users
+- [MSC4075: MatrixRTC invites and notifications][MSC4075] - for ringing users
+- [MSC4354: Sticky Events] - for MatrixRTC 2.0 calls
 
 [MSC4143]: https://github.com/matrix-org/matrix-spec-proposals/pull/4143
 [MSC4195]: https://github.com/matrix-org/matrix-spec-proposals/pull/4195
@@ -398,6 +399,18 @@ Other:
 [sspaeth-matrix-voip]: https://sspaeth.de/2026/04/matrix-voip-and-livekit/
 
 ## Appendix
+
+### MatrixRTC calling modes and enabling sticky events {#call-modes}
+
+MatrixRTC currently supports 3 calling modes:
+
+- **Legacy mode** (deprecated): calls are established by sending state events to a room. The call initiator's SFU hosts the entire call for all remote and local participants.
+- **Compatibility mode*: same as Legacy mode, but utilizes multiple SFUs between federating servers. Clients publish media streams to their own SFUs, and fetch remote streams from remote SFUs. This is the most commonly used mode nowadays.
+- **MatrixRTC 2.0 mode**: also utilizes multiple SFUs, but establishes calls with [sticky events] instead of state events.
+
+To support Legacy and Compatibility mode, ensure that the user is allowed to send the relevant state events. Usually, this means promoting them to a power level of 50 or above. Alternatively, set the power level required to send `org.matrix.msc3401.call.member` events to 0.
+
+To support MatrixRTC 2.0 mode, sticky events has to be enabled on the Matrix server. In Continuwuity, this is as easy as setting `enable_sticky_events = true` in the config file.
 
 ### Additional TURN-over-TLS on 443 configuration
 
