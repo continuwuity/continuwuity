@@ -104,6 +104,7 @@ version = "0.8.8"
 default-features = false
 features = [
     "form",
+    "query",
     "http1",
     "http2",
     "json",
