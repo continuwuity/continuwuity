@@ -532,6 +532,7 @@ impl Service {
 
 				let notify = self
 					.build_notification(
+						user,
 						pusher,
 						&http.data,
 						http.format.as_ref(),
@@ -549,6 +550,7 @@ impl Service {
 			| PusherKind::WebPush(data) => {
 				let notify = self
 					.build_notification(
+						user,
 						pusher,
 						&data.data,
 						data.format.as_ref(),
@@ -564,8 +566,10 @@ impl Service {
 		}
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	async fn build_notification<E>(
 		&self,
+		user: &UserId,
 		pusher: &Pusher,
 		data: &JsonObject,
 		format: Option<&PushFormat>,
@@ -614,7 +618,7 @@ impl Service {
 			notify.content = serde_json::value::to_raw_value(event.content()).ok();
 
 			if *event.kind() == TimelineEventType::RoomMember {
-				notify.user_is_target = event.state_key() == Some(event.sender().as_str());
+				notify.user_is_target = event.state_key() == Some(user.as_str());
 			}
 
 			notify.sender_display_name =
