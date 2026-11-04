@@ -51,12 +51,8 @@ impl super::Service {
 
 		let field_name = change.field_name();
 
-		// TODO: The spec mentions special error codes (M_PROFILE_TOO_LARGE,
-		// M_KEY_TOO_LARGE) for profile field size limits, but they're not in
-		// its list of error codes and Ruma doesn't have them. Should we
-		// return those, or is M_TOO_LARGE okay?
 		if field_name.as_str().len() > MAX_KEY_LENGTH_BYTES {
-			return Err!(Request(TooLarge(
+			return Err!(Request(KeyTooLarge(
 				"Individual profile keys must not exceed {MAX_KEY_LENGTH_BYTES} bytes in length."
 			)));
 		}
