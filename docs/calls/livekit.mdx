@@ -222,7 +222,9 @@ Start up the services using your usual method - for example `docker compose up -
 
 ## Testing
 
-To test that LiveKit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow](https://github.com/element-hq/lk-jwt-service#%EF%B8%8F-how-it-works--token-exchange-flow). Follow the steps below while checking Docker logs (`docker compose logs --follow`), in order to help [troubleshooting](#troubleshooting) any issues.
+To test that LiveKit is successfully integrated with Continuwuity, you will need to replicate its [Token Exchange Flow][token-exchange-flow]. Follow the steps below while checking Docker logs (`docker compose logs --follow`), in order to help [troubleshooting](#troubleshooting) any issues.
+
+[token-exchange-flow]: https://github.com/element-hq/lk-jwt-service/tree/v0.6.0#%EF%B8%8F-how-it-works--token-exchange-flow
 
 First, you will need an access token for your current login session. These can be found in your client's settings or obtained via [this website][starstruck-mxtoken2].
 
