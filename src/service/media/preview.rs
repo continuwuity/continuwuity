@@ -7,17 +7,13 @@
 
 use std::time::SystemTime;
 
-#[cfg(feature = "url_preview")]
-use conduwuit::utils::response::LimitReadExt;
-use conduwuit::{Err, Result, debug, err};
+use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
 use ipaddress::IPAddress;
-#[cfg(feature = "url_preview")]
 use ruma::OwnedMxcUri;
 use serde::Serialize;
 use url::Url;
 
 use super::Service;
-#[cfg(feature = "url_preview")]
 use crate::media::mxc::Mxc;
 
 #[derive(Serialize, Default)]
