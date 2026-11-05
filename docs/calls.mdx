@@ -2,15 +2,16 @@
 
 Matrix supports two types of calls:
 
-- Element Call powered by [MatrixRTC][MSC4143] and [LiveKit][livekit-server-github]
-- Legacy calls, supported by a STUN/TURN server.
+- [MatrixRTC][MSC4143] calls, powered by [LiveKit][livekit-server-github] and frontends such as [Element Call][element-call].
+- Legacy 1-to-1 calls, supported by a STUN/TURN server.
 
 [MSC4143]: https://github.com/matrix-org/matrix-spec-proposals/pull/4143
+[element-call-github]: https://github.com/element-hq/element-call/
 [livekit-server-github]: https://github.com/livekit/livekit
 
-Both types of calls are supported by different sets of clients, but most clients are moving towards MatrixRTC / Element Call.
+Both types of calls are supported by different sets of clients, but most clients are moving towards MatrixRTC.
 
 For either one to work correctly, you have to do some additional setup:
 
 - For legacy calls to work, you need to set up a TURN/STUN server. [Read the TURN guide for instructions on how to set up coturn](./calls/turn.mdx)
-- For MatrixRTC / Element Call to work, you have to set up the LiveKit backend, and optionally configure a TURN server for increased reliability. [Read the LiveKit guide](./calls/livekit.mdx)
+- For MatrixRTC calls to work, you have to set up the LiveKit backend, and optionally configure a TURN server for increased reliability. [Read the LiveKit guide](./calls/livekit.mdx)
