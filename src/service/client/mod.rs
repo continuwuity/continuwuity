@@ -83,7 +83,7 @@ impl crate::Service for Service {
 				.local_address(url_preview_bind_addr)
 				.timeout(Duration::from_secs(config.url_preview_timeout))
 				.redirect(redirect::Policy::limited(3))
-				.user_agent(url_preview_user_agent)
+				.user_agent(url_preview_user_agent.replace("<version>", conduwuit::version_ua()))
 				.build()?,
 
 			external_resource: base(config)?
