@@ -207,6 +207,14 @@ impl Service {
 		self.db.is_event_rejected(event_id).await
 	}
 
+	pub async fn is_event_referenced(&self, room_id: &RoomId, event_id: &EventId) -> bool {
+		self.db.is_event_referenced(room_id, event_id).await
+	}
+
+	pub fn mark_as_referenced(&self, room_id: &RoomId, event_id: &EventId) {
+		self.db.mark_as_referenced(room_id, event_id);
+	}
+
 	pub fn mark_event_rejected(&self, event_id: &EventId) {
 		self.db.mark_event_rejected(event_id);
 	}

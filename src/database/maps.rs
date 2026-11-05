@@ -171,7 +171,7 @@ pub(super) static MAPS: &[Descriptor] = &[
 	},
 	Descriptor {
 		name: "referencedevents",
-		..descriptor::DROPPED
+		..descriptor::RANDOM
 	},
 	Descriptor {
 		name: "refreshtoken_refreshtokeninfo",

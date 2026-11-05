@@ -145,9 +145,17 @@ impl super::Service {
 		// Note that we add it *again* as a no-op in append_pdu. This is done
 		// now so that there's never a point in time where we have zero forward
 		// extremities.
-		self.services
-			.state
-			.add_forward_extremity(&incoming_pdu.room_id_or_hash(), incoming_pdu.event_id());
+		let effective_room_id = incoming_pdu.room_id_or_hash();
+		if !self
+			.services
+			.pdu_metadata
+			.is_event_referenced(&effective_room_id, incoming_pdu.event_id())
+			.await
+		{
+			self.services
+				.state
+				.add_forward_extremity(&incoming_pdu.room_id_or_hash(), incoming_pdu.event_id());
+		}
 		let Some(room_id) = incoming_pdu.room_id() else {
 			// If there's no room ID, this is a v12+ create event, which never
 			// has any predecessors, and consequently will be the
@@ -177,19 +185,37 @@ impl super::Service {
 			// Now we collect all the prev events of this predecessor and filter
 			// for ones that we 1. know, 2. are not backfilled, and 3. have
 			// rejected/soft-failed.
+			// Additionally, drop any events that were referenced late.
 			let outlier_prevs = prev_event
 				.prev_events()
 				.map(ToOwned::to_owned)
 				.stream()
 				.broad_filter_map(|prev_id| async {
-					let (exists, count, is_accepted) = tokio::join!(
+					let (exists, count, is_accepted, is_referenced) = tokio::join!(
 						self.pdu_exists(&prev_id),
 						self.get_pdu_count(&prev_id)
 							.unwrap_or(PduCount::Backfilled(i64::MIN)),
 						self.services.pdu_metadata.is_event_accepted(&prev_id),
+						self.services
+							.pdu_metadata
+							.is_event_referenced(room_id, &prev_id)
 					);
-					(exists && !matches!(count, PduCount::Backfilled(_)) && !is_accepted)
-						.then_some(prev_id)
+					let is_backfilled = matches!(count, PduCount::Backfilled(_));
+					if is_referenced {
+						self.services
+							.state
+							.remove_forward_extremity(room_id, &prev_id);
+					} else {
+						// If we got here, that means there's now at least an
+						// indirect reference to the event.
+						self.services
+							.pdu_metadata
+							.mark_as_referenced(room_id, &prev_id);
+					}
+					if is_referenced || !exists || !is_accepted || is_backfilled {
+						return None;
+					}
+					Some(prev_id)
 				})
 				.collect::<Vec<_>>()
 				.await;

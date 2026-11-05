@@ -11,7 +11,7 @@ use conduwuit::{
 };
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::{EventId, api::Direction};
+use ruma::{EventId, RoomId, api::Direction};
 
 use crate::{
 	Dep,
@@ -26,6 +26,7 @@ pub(super) struct Data {
 	tofrom_relation: Arc<Map>,
 	softfailedeventids: Arc<Map>,
 	rejectedeventids: Arc<Map>,
+	referencedevents: Arc<Map>,
 	services: Services,
 }
 
@@ -40,6 +41,7 @@ impl Data {
 			tofrom_relation: db["tofrom_relation"].clone(),
 			softfailedeventids: db["softfailedeventids"].clone(),
 			rejectedeventids: db["rejectedeventids"].clone(),
+			referencedevents: db["referencedevents"].clone(),
 			services: Services {
 				timeline: args.depend::<rooms::timeline::Service>("rooms::timeline"),
 			},
@@ -131,5 +133,17 @@ impl Data {
 	pub(super) fn clear_pdu_markers(&self, event_id: &EventId) {
 		self.unmark_event_rejected(event_id);
 		self.unmark_event_soft_failed(event_id);
+	}
+
+	#[inline]
+	pub(super) fn mark_as_referenced(&self, room_id: &RoomId, event_id: &EventId) {
+		let key = (room_id, event_id);
+		self.referencedevents.put_raw(key, []);
+	}
+
+	#[inline]
+	pub(super) async fn is_event_referenced(&self, room_id: &RoomId, event_id: &EventId) -> bool {
+		let key = (room_id, event_id);
+		self.referencedevents.qry(&key).await.is_ok()
 	}
 }
