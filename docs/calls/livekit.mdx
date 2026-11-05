@@ -62,7 +62,7 @@ services:
     # Make sure port 7880 is blocked by your firewall to prevent access bypassing your reverse proxy
 
     # Alternatively, uncomment the lines below and comment out `network_mode: "host"`
-    # above to specify port mappings.
+    # above to use bridge networking and manually specify port mappings.
 #    ports:
 #      - "127.0.0.1:7880:7880/tcp"
 #      - "7881:7881/tcp"
@@ -312,7 +312,7 @@ Before debugging, ensure the following prerequisites:
 
 - Calls fail to start with `ServerUnreachable` error: a LiveKit URL has been properly configured and exposed in Continuwuity, but the client cannot connect to it for some reason.
 
-For browser-based clients, you can also inspect connections using DevTools' Networking tab, to see which requests are erroring out.
+For browser-based clients, you can inspect connections using DevTools' Networking tab, to see which requests are erroring out. You may also want to toggle on Element Call's Developer tab via _Settings > Preferences > Developer mode_ \- various call details and advanced settings can be further tweaked there.
 
 ### Docker loopback networking issues
 
