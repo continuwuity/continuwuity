@@ -248,6 +248,8 @@ impl Data {
 			x => x,
 		};*/
 
+		// TODO(nex): Oh my god this is awful when can we kill it
+
 		let title = match values
 			.next()
 			.and_then(|b| String::from_utf8(b.to_vec()).ok())
@@ -346,6 +348,11 @@ impl Data {
 			video_height,
 			audio,
 			audio_size,
+			..Default::default() /* TODO(nex,silversys): This weird manual field
+			                      * de/serialisation just needs replacing with JSON storage to
+			                      * avoid this mess. This is consequently intentionally
+			                      * dropping information added later (like image alt text).
+			                      * I'll do it later. */
 		})
 	}
 }
