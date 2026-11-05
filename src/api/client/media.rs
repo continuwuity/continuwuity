@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use axum::extract::State;
 use conduwuit::{
-	Err, Result, err,
+	Err, Result, err, info,
 	utils::{self, content_disposition::make_content_disposition, math::ruma_from_usize},
 };
 use conduwuit_core::error;
@@ -219,10 +219,15 @@ pub(crate) async fn get_media_preview_route(
 		)));
 	}
 
+	info!("Fetching a URL preview for {url} on behalf of {sender_user}");
 	let preview = services
 		.media
 		.get_url_preview(&url)
 		.await
+		.inspect(|_| info!(user=%sender_user, %url, "Finished fetching a URL preview"))
+		.inspect_err(
+			|e| info!(user=%sender_user, %url, error=?e, "Failed to fetch a URL preview"),
+		)
 		.map_err(|error| {
 			err!(Request(Unknown(
 				debug_error!(%sender_user, %url, "Failed to fetch URL preview: {error}")
