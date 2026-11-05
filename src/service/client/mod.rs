@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use conduwuit::{
 	Config, Result, Server, debug, err, info, trace, utils::response::LimitReadExt, warn,
 };
-use dns_resolver::DnsResolver;
+pub(crate) use dns_resolver::DnsResolver;
 use either::Either;
 use hickory_resolver::{
 	TokioResolver,
@@ -24,6 +24,9 @@ use crate::service;
 pub struct Service {
 	/// Regular DNS resolver
 	pub dns_resolver: Arc<TokioResolver>,
+
+	/// Tokio system resolver wrapped
+	pub reqwest_resolver: Arc<DnsResolver>,
 
 	/// Matrix server resolver according to server resolution spec
 	pub matrix_resolver: Arc<MatrixResolver>,
@@ -97,6 +100,7 @@ impl crate::Service for Service {
 		Ok(Arc::new(Self {
 			matrix_resolver,
 			matrix_http_client,
+			reqwest_resolver: reqwest_dns_resolver.clone(),
 
 			dns_resolver: tokio_dns_resolver,
 
