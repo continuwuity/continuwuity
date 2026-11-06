@@ -98,6 +98,10 @@ pub(crate) async fn get_relating_events_route(
 	.await
 }
 
+// Spec (v1.10) recommends a depth of at least 3
+const RECURSION_DEPTH: u8 = 3;
+const LEVELS_BELOW: u8 = RECURSION_DEPTH - 1;
+
 #[allow(clippy::too_many_arguments)]
 async fn paginate_relations_with_filter(
 	services: &Services,
@@ -147,9 +151,6 @@ async fn paginate_relations_with_filter(
 		.unwrap_or(30)
 		.min(100);
 
-	// Spec (v1.10) recommends a depth of at least 3
-	const RECURSION_DEPTH: u8 = 3;
-	const LEVELS_BELOW: u8 = RECURSION_DEPTH - 1;
 	let max_depth = if recurse { LEVELS_BELOW } else { 0 };
 
 	// One more than the limit, to know whether there's another page

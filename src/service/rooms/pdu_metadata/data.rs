@@ -53,13 +53,13 @@ impl Data {
 		self.tofrom_relation.aput_raw::<BUFSIZE, _, _>(key, []);
 	}
 
-	pub(super) fn get_relations<'a>(
-		&'a self,
+	pub(super) fn get_relations(
+		&self,
 		shortroomid: ShortRoomId,
 		target: u64,
 		from: PduCount,
 		dir: Direction,
-	) -> impl Stream<Item = (u64, PduEvent)> + Send + 'a {
+	) -> impl Stream<Item = (u64, PduEvent)> + Send + '_ {
 		let start_count = match from {
 			| PduCount::Normal(count) => count,
 			| PduCount::Backfilled(_) => 0,
