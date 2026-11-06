@@ -2,7 +2,7 @@ use axum::extract::State;
 use conduwuit::{
 	Err, Result, at, debug_warn, err,
 	matrix::{Event, event::RelationTypeEqual, pdu::PduCount},
-	utils::{IterStream, ReadyExt, result::FlatOk, stream::WidebandExt},
+	utils::{IterStream, result::FlatOk, stream::WidebandExt},
 };
 use conduwuit_service::Services;
 use futures::StreamExt;
@@ -147,28 +147,52 @@ async fn paginate_relations_with_filter(
 		.unwrap_or(30)
 		.min(100);
 
-	// Spec (v1.10) recommends depth of at least 3
-	let depth: u8 = if recurse { 3 } else { 1 };
+	// Spec (v1.10) recommends a depth of at least 3
+	const RECURSION_DEPTH: u8 = 3;
+	const LEVELS_BELOW: u8 = RECURSION_DEPTH - 1;
+	let max_depth = if recurse { LEVELS_BELOW } else { 0 };
 
-	let events: Vec<_> = services
+	// One more than the limit, to know whether there's another page
+	let mut events = services
 		.rooms
 		.pdu_metadata
-		.get_relations(sender_user, room_id, target, start, limit, depth, dir)
-		.await
+		.get_relations(
+			sender_user,
+			room_id,
+			target,
+			start,
+			limit.saturating_add(1),
+			max_depth,
+			dir,
+			|pdu| {
+				filter_event_type
+					.as_ref()
+					.is_none_or(|kind| kind == pdu.kind())
+					&& filter_rel_type
+						.as_ref()
+						.is_none_or(|rel_type| rel_type.relation_type_equal(pdu))
+			},
+		)
+		.await;
+
+	let past_to = to.and_then(|to| {
+		events
+			.iter()
+			.position(|(count, _)| !to.is_after(*count, dir))
+	});
+	if let Some(past_to) = past_to {
+		events.truncate(past_to);
+	}
+
+	let has_more = past_to.is_none() && events.len() > limit;
+	events.truncate(limit);
+
+	let next_batch =
+		has_more.then(|| events.last().map_or(start, |(count, _)| *count).to_string());
+
+	let chunk: Vec<_> = events
 		.into_iter()
-		.filter(|(_, pdu)| {
-			filter_event_type
-				.as_ref()
-				.is_none_or(|kind| kind == pdu.kind())
-		})
-		.filter(|(_, pdu)| {
-			filter_rel_type
-				.as_ref()
-				.is_none_or(|rel_type| rel_type.relation_type_equal(pdu))
-		})
 		.stream()
-		.ready_take_while(|(count, _)| Some(*count) != to)
-		.take(limit)
 		.wide_filter_map(|item| visibility_filter(services, sender_user, item))
 		.wide_filter_map(|item| ignored_filter(services, item, sender_user))
 		.then(async |mut pdu| {
@@ -182,32 +206,15 @@ async fn paginate_relations_with_filter(
 			}
 			pdu
 		})
-		.collect()
-		.await;
-
-	// Determine if there are more events to fetch
-	let has_more = events.len() >= limit;
-
-	let next_batch = if has_more {
-		match dir {
-			| Direction::Forward => events.last(),
-			| Direction::Backward => events.first(),
-		}
-		.map(|(count, _)| count.to_string())
-	} else {
-		None
-	};
-
-	let chunk: Vec<_> = events
-		.into_iter()
 		.map(at!(1))
 		.map(Event::into_format)
-		.collect();
+		.collect()
+		.await;
 
 	Ok(assign!(get_relating_events::v1::Response::new(chunk), {
 		next_batch,
 		prev_batch: from.map(Into::into),
-		recursion_depth: recurse.then_some(depth.into()),
+		recursion_depth: recurse.then_some(RECURSION_DEPTH.into()),
 	}))
 }
 

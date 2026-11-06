@@ -1,15 +1,20 @@
 mod bundled_aggregations;
 mod data;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 
-use conduwuit::{Result, matrix::PduCount};
+use conduwuit::{
+	Result,
+	matrix::{PduCount, PduEvent},
+	result::LogErr,
+	utils::{IterStream, ReadyExt, stream::WidebandExt},
+};
 use futures::{StreamExt, future::try_join};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use self::data::Data;
 use crate::{
 	Dep,
-	rooms::{self, timeline::PdusIterItem},
+	rooms::{self, short::ShortRoomId, timeline::PdusIterItem},
 };
 
 pub struct Service {
@@ -51,7 +56,7 @@ impl Service {
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	pub async fn get_relations<'a>(
+	pub async fn get_relations<'a, F>(
 		&'a self,
 		user_id: &'a UserId,
 		room_id: &'a RoomId,
@@ -60,59 +65,113 @@ impl Service {
 		limit: usize,
 		max_depth: u8,
 		dir: Direction,
-	) -> Vec<PdusIterItem> {
-		let room_id = self.services.short.get_shortroomid(room_id);
-
-		let target = self.services.timeline.get_pdu_count(target);
-
-		let Ok((room_id, target)) = try_join(room_id, target).await else {
+		matches: F,
+	) -> Vec<PdusIterItem>
+	where
+		F: Fn(&PduEvent) -> bool + Send + Sync,
+	{
+		let Some((room_id, target)) = self.relation_target(room_id, target).await else {
 			return Vec::new();
 		};
 
-		let target = match target {
-			| PduCount::Normal(c) => c,
-			// TODO: Support backfilled relations
-			| _ => 0, // This will result in an empty iterator
-		};
-
-		let mut pdus: Vec<_> = self
-			.db
-			.get_relations(user_id, room_id, target, from, dir)
-			.collect()
-			.await;
-
-		let mut stack: Vec<_> = pdus
-			.iter()
-			.filter(|_| max_depth > 0)
-			.map(|pdu| (pdu.clone(), 1))
-			.collect();
-
-		'limit: while let Some(stack_pdu) = stack.pop() {
-			let target = match stack_pdu.0.0 {
-				| PduCount::Normal(c) => c,
-				// TODO: Support backfilled relations
-				| PduCount::Backfilled(_) => 0, // This will result in an empty iterator
-			};
-
-			let relations: Vec<_> = self
+		// Direct relations are already in order
+		if max_depth == 0 {
+			return self
 				.db
-				.get_relations(user_id, room_id, target, from, dir)
+				.get_relations(room_id, target, from, dir)
+				.ready_filter(|(_, pdu)| matches(pdu))
+				.take(limit)
+				.wide_then(|relation| self.finish_relation(user_id, relation))
 				.collect()
 				.await;
-
-			for relation in relations {
-				if stack_pdu.1 < max_depth {
-					stack.push((relation.clone(), stack_pdu.1.saturating_add(1)));
-				}
-
-				pdus.push(relation);
-				if pdus.len() >= limit {
-					break 'limit;
-				}
-			}
 		}
 
-		pdus
+		let scan_from = match dir {
+			| Direction::Forward => PduCount::min(),
+			| Direction::Backward => from,
+		};
+
+		// An event can relate to two others in the tree, like a thread reply
+		// that also replies to another reply in the thread, so it's only kept
+		// and looked through the first time it's found
+		let mut seen = HashSet::new();
+		let mut relations = Vec::new();
+		let mut level: Vec<_> = self
+			.db
+			.get_relations(room_id, target, scan_from, dir)
+			.collect()
+			.await;
+		seen.extend(level.iter().map(|(count, _)| *count));
+		for _ in 0..max_depth {
+			let next: Vec<Vec<_>> = level
+				.iter()
+				.map(|(count, _)| *count)
+				.stream()
+				.wide_then(|target| {
+					self.db
+						.get_relations(room_id, target, scan_from, dir)
+						.collect::<Vec<_>>()
+				})
+				.collect()
+				.await;
+			relations.append(&mut level);
+			level = next
+				.into_iter()
+				.flatten()
+				.filter(|(count, _)| seen.insert(*count))
+				.collect();
+		}
+		relations.append(&mut level);
+
+		relations
+			.retain(|(count, pdu)| PduCount::Normal(*count).is_after(from, dir) && matches(pdu));
+		relations.sort_unstable_by(|(a, _), (b, _)| match dir {
+			| Direction::Forward => a.cmp(b),
+			| Direction::Backward => b.cmp(a),
+		});
+		relations.truncate(limit);
+
+		relations
+			.into_iter()
+			.stream()
+			.wide_then(|relation| self.finish_relation(user_id, relation))
+			.collect()
+			.await
+	}
+
+	/// The short room ID and count of `target`
+	async fn relation_target(
+		&self,
+		room_id: &RoomId,
+		target: &EventId,
+	) -> Option<(ShortRoomId, u64)> {
+		let room_id = self.services.short.get_shortroomid(room_id);
+		let target = self.services.timeline.get_pdu_count(target);
+
+		match try_join(room_id, target).await {
+			| Ok((room_id, PduCount::Normal(target))) => Some((room_id, target)),
+			// TODO: Support backfilled relations
+			| _ => None,
+		}
+	}
+
+	async fn finish_relation(
+		&self,
+		user_id: &UserId,
+		(count, pdu): (u64, PduEvent),
+	) -> PdusIterItem {
+		(PduCount::Normal(count), self.with_unsigned(user_id, pdu).await)
+	}
+
+	async fn with_unsigned(&self, user_id: &UserId, mut pdu: PduEvent) -> PduEvent {
+		let ctx = self
+			.services
+			.timeline
+			.get_unsigned_context(&pdu, Some(user_id))
+			.await;
+		pdu.set_unsigned(Some(ctx)).log_err().ok();
+
+		pdu
 	}
 
 	#[inline]

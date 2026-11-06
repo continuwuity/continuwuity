@@ -2,8 +2,7 @@ use std::{mem::size_of, sync::Arc};
 
 use conduwuit::{
 	arrayvec::ArrayVec,
-	matrix::PduCount,
-	result::LogErr,
+	matrix::{PduCount, PduEvent},
 	utils::{
 		ReadyExt,
 		stream::{TryIgnore, WidebandExt},
@@ -12,14 +11,14 @@ use conduwuit::{
 };
 use database::Map;
 use futures::{Stream, StreamExt};
-use ruma::{EventId, UserId, api::Direction};
+use ruma::{EventId, api::Direction};
 
 use crate::{
 	Dep,
 	rooms::{
 		self,
-		short::{ShortEventId, ShortRoomId},
-		timeline::{PduId, PdusIterItem, RawPduId},
+		short::ShortRoomId,
+		timeline::{PduId, RawPduId},
 	},
 };
 
@@ -56,51 +55,34 @@ impl Data {
 
 	pub(super) fn get_relations<'a>(
 		&'a self,
-		user_id: &'a UserId,
 		shortroomid: ShortRoomId,
-		target: ShortEventId,
+		target: u64,
 		from: PduCount,
 		dir: Direction,
-	) -> impl Stream<Item = PdusIterItem> + Send + 'a {
-		// Query from exact position then filter excludes it (saturating_inc
-		// could skip events at min/max boundaries)
-		let from_unsigned = from.into_unsigned();
-		let mut current = ArrayVec::<u8, 16>::new();
-		current.extend(target.to_be_bytes());
-		current.extend(from_unsigned.to_be_bytes());
-		let current = current.as_slice();
+	) -> impl Stream<Item = (u64, PduEvent)> + Send + 'a {
+		let start_count = match from {
+			| PduCount::Normal(count) => count,
+			| PduCount::Backfilled(_) => 0,
+		};
+		let mut start = ArrayVec::<u8, 16>::new();
+		start.extend(target.to_be_bytes());
+		start.extend(start_count.to_be_bytes());
+		let start = start.as_slice();
 		match dir {
-			| Direction::Forward => self.tofrom_relation.raw_keys_from(current).boxed(),
-			| Direction::Backward => self.tofrom_relation.rev_raw_keys_from(current).boxed(),
+			| Direction::Forward => self.tofrom_relation.raw_keys_from(start).boxed(),
+			| Direction::Backward => self.tofrom_relation.rev_raw_keys_from(start).boxed(),
 		}
 		.ignore_err()
 		.ready_take_while(move |key| key.starts_with(&target.to_be_bytes()))
 		.map(|to_from| u64_from_u8(&to_from[8..16]))
-		.map(PduCount::from_unsigned)
-		.ready_filter(move |count| {
-			if from == PduCount::min() || from == PduCount::max() {
-				true
-			} else {
-				let count_unsigned = count.into_unsigned();
-				match dir {
-					| Direction::Forward => count_unsigned > from_unsigned,
-					| Direction::Backward => count_unsigned < from_unsigned,
-				}
-			}
-		})
-		.wide_filter_map(move |shorteventid| async move {
+		// The scan includes `from` itself, which should be skipped
+		.ready_filter(move |&count| PduCount::Normal(count).is_after(from, dir))
+		.wide_filter_map(move |count| async move {
+			let shorteventid = PduCount::Normal(count);
 			let pdu_id: RawPduId = PduId { shortroomid, shorteventid }.into();
+			let pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
 
-			let mut pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
-
-			let ctx = self
-				.services
-				.timeline
-				.get_unsigned_context(&pdu, Some(user_id))
-				.await;
-			pdu.set_unsigned(Some(ctx)).log_err().ok();
-
-			Some((shorteventid, pdu))
+			Some((count, pdu))
 		})
 	}
 

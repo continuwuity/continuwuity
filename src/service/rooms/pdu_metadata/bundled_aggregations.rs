@@ -1,13 +1,15 @@
-use conduwuit::{Event, PduEvent, Result, err};
+use conduwuit::{
+	Event, PduEvent, Result, err,
+	matrix::{PduCount, event::relation_type},
+	utils::ReadyExt,
+};
 use ruma::{
 	UserId,
 	api::Direction,
-	events::relation::{BundledMessageLikeRelations, BundledReference, ReferenceChunk},
+	events::relation::{
+		BundledMessageLikeRelations, BundledReference, ReferenceChunk, RelationType,
+	},
 };
-
-use crate::rooms::timeline::PdusIterItem;
-
-const MAX_BUNDLED_RELATIONS: usize = 50;
 
 impl super::Service {
 	/// Gets bundled aggregations for an event according to the Matrix
@@ -26,52 +28,24 @@ impl super::Service {
 			return Ok(None);
 		}
 
-		let relations = self
-			.get_relations(
-				user_id,
-				&pdu.room_id_or_hash(),
-				pdu.event_id(),
-				conduwuit::PduCount::max(),
-				MAX_BUNDLED_RELATIONS,
-				0,
-				Direction::Backward,
-			)
+		let Some((room_id, target)) = self
+			.relation_target(&pdu.room_id_or_hash(), pdu.event_id())
+			.await
+		else {
+			return Ok(None);
+		};
+
+		let mut replace_events = Vec::new();
+		let mut reference_events = Vec::new();
+		self.db
+			.get_relations(room_id, target, PduCount::max(), Direction::Backward)
+			.ready_for_each(|(_, relation)| match relation_type(&relation) {
+				| Some(RelationType::Replacement) => replace_events.push(relation),
+				| Some(RelationType::Reference) => reference_events.push(relation),
+				| _ => {},
+			})
 			.await;
 
-		// The relations database code still handles the basic unsigned data
-		// We don't want to recursively fetch relations
-
-		if relations.is_empty() {
-			return Ok(None);
-		}
-
-		// Partition relations by type
-		let (replace_events, reference_events): (Vec<_>, Vec<_>) = relations
-			.iter()
-			.filter_map(|relation| {
-				let pdu = &relation.1;
-				let content = pdu.get_content_as_value();
-
-				content
-					.get("m.relates_to")
-					.and_then(|relates_to| relates_to.get("rel_type"))
-					.and_then(|rel_type| rel_type.as_str())
-					.and_then(|rel_type_str| match rel_type_str {
-						| "m.replace" => Some(RelationType::Replace(relation)),
-						| "m.reference" => Some(RelationType::Reference(relation)),
-						| _ => None, /* Ignore other relation types (threads are in DB but not
-						              * handled here) */
-					})
-			})
-			.fold((Vec::new(), Vec::new()), |(mut replaces, mut references), rel_type| {
-				match rel_type {
-					| RelationType::Replace(r) => replaces.push(r),
-					| RelationType::Reference(r) => references.push(r),
-				}
-				(replaces, references)
-			});
-
-		// If no relations to bundle, return None
 		if replace_events.is_empty() && reference_events.is_empty() {
 			return Ok(None);
 		}
@@ -85,7 +59,9 @@ impl super::Service {
 				.find_most_recent_valid_replacement(user_id, pdu, &replace_events)
 				.await?
 			{
-				bundled.replace = Some(Self::serialize_replacement(replacement)?);
+				bundled.replace = Some(Self::serialize_replacement(
+					&self.with_unsigned(user_id, replacement.clone()).await,
+				)?);
 			}
 		}
 
@@ -93,7 +69,7 @@ impl super::Service {
 		if !reference_events.is_empty() {
 			let reference_chunk: Vec<_> = reference_events
 				.into_iter()
-				.map(|relation| BundledReference::new(relation.1.event_id().to_owned()))
+				.map(|relation| BundledReference::new(relation.event_id().to_owned()))
 				.collect();
 
 			if !reference_chunk.is_empty() {
@@ -123,14 +99,12 @@ impl super::Service {
 		&self,
 		user_id: &UserId,
 		original_event: &PduEvent,
-		replacement_events: &[&'a PdusIterItem],
+		replacement_events: &'a [PduEvent],
 	) -> Result<Option<&'a PduEvent>> {
 		// Filter valid replacements and find the maximum in a single pass
 		let mut result: Option<&PduEvent> = None;
 
-		for relation in replacement_events {
-			let pdu = &relation.1;
-
+		for pdu in replacement_events {
 			// Validate replacement
 			if !Self::is_valid_replacement_event(original_event, pdu).await? {
 				continue;
@@ -245,12 +219,7 @@ impl super::Service {
 	/// Check if an event is itself a replacement
 	#[inline]
 	fn is_replacement_event(event: &PduEvent) -> bool {
-		event
-			.get_content_as_value()
-			.get("m.relates_to")
-			.and_then(|relates_to| relates_to.get("rel_type"))
-			.and_then(|rel_type| rel_type.as_str())
-			.is_some_and(|rel_type| rel_type == "m.replace")
+		relation_type(event) == Some(RelationType::Replacement)
 	}
 
 	/// Check if event has m.new_content or is encrypted (where m.new_content
@@ -260,12 +229,6 @@ impl super::Service {
 		event.event_type() == &ruma::events::TimelineEventType::RoomEncrypted
 			|| event.get_content_as_value().get("m.new_content").is_some()
 	}
-}
-
-/// Helper enum for partitioning relations
-enum RelationType<'a> {
-	Replace(&'a PdusIterItem),
-	Reference(&'a PdusIterItem),
 }
 
 #[cfg(test)]

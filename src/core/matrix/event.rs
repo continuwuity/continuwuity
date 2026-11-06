@@ -16,7 +16,12 @@ use ruma::{
 use serde::Deserialize;
 use serde_json::{Value as JsonValue, value::RawValue as RawJsonValue};
 
-pub use self::{filter::Matches, id::*, relation::RelationTypeEqual, type_ext::TypeExt};
+pub use self::{
+	filter::Matches,
+	id::*,
+	relation::{RelationTypeEqual, relation_type},
+	type_ext::TypeExt,
+};
 use super::{pdu::Pdu, state_key::StateKey};
 use crate::{Result, utils};
 
