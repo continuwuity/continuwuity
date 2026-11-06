@@ -161,7 +161,6 @@ default-features = false
 features = [
     "rustls-no-provider",
     "socks",
-    "hickory-dns",
     "http2",
     "stream",
     "form",

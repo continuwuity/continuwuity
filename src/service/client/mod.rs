@@ -250,7 +250,6 @@ pub(crate) fn base(
 	resolver: Arc<dyn Resolve>,
 ) -> Result<reqwest::ClientBuilder> {
 	let mut builder = reqwest::Client::builder()
-        .hickory_dns(true)
         .dns_resolver(resolver)
         .connect_timeout(Duration::from_secs(config.request_conn_timeout))
         .read_timeout(Duration::from_secs(config.request_timeout))
