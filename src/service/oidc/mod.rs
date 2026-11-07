@@ -32,7 +32,7 @@ use tokio::{runtime, sync::SetOnce};
 use url::Url;
 
 use crate::{
-	Dep, config, globals, media,
+	Dep, client, config, globals, media,
 	oauth::grant::AuthorizationCodeResponse,
 	threepid,
 	users::{self, AccountStatus, ProfileFieldChange},
@@ -163,6 +163,7 @@ impl crate::Service for Service {
                     machine: SetOnce::new(),
                     // This isn't in the client service because it has to use the `reqwest` shipped by `openidconnect`
                     client: reqwest::ClientBuilder::new()
+						.dns_resolver(args.depend::<client::Service>("client").reqwest_resolver.clone())
                         .connect_timeout(Duration::from_secs(args.server.config.request_conn_timeout))
                         .read_timeout(Duration::from_secs(args.server.config.request_timeout))
                         .timeout(Duration::from_secs(args.server.config.request_total_timeout))
