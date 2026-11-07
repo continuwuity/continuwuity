@@ -105,6 +105,16 @@ impl Count {
 		}
 	}
 
+	/// Whether this comes after `other` when going in the direction of `dir`
+	#[inline]
+	#[must_use]
+	pub fn is_after(self, other: Self, dir: Direction) -> bool {
+		match dir {
+			| Direction::Forward => self > other,
+			| Direction::Backward => self < other,
+		}
+	}
+
 	#[inline]
 	#[must_use]
 	pub fn saturating_add(self, add: u64) -> Self {
