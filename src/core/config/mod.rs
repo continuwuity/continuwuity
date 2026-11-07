@@ -1052,19 +1052,36 @@ pub struct Config {
 	#[serde(default)]
 	pub allow_otlp_metrics: bool,
 
-	/// Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
-	///
-	/// The endpoint is served on the same listener as the rest of the server.
-	/// Set `prometheus_metrics_token` or restrict access at your reverse proxy
-	/// to avoid exposing it publicly.
+	/// Enable the Prometheus metrics endpoint at `/metrics`, served over plain
+	/// HTTP on `prometheus_metrics_address`.
 	#[serde(default)]
 	pub allow_prometheus_metrics: bool,
+
+	/// Address and port the Prometheus metrics listener binds to.
+	///
+	/// default: "127.0.0.1:9100"
+	#[serde(default = "default_prometheus_metrics_address")]
+	pub prometheus_metrics_address: SocketAddr,
+
+	/// A UNIX socket for the Prometheus metrics endpoint to listen on instead
+	/// of `prometheus_metrics_address`, with `unix_socket_perms` permissions.
+	///
+	/// example: "/run/continuwuity/metrics.sock"
+	pub prometheus_metrics_unix_socket_path: Option<PathBuf>,
 
 	/// Bearer token required to scrape the Prometheus metrics endpoint. When
 	/// set, requests must include an `Authorization: Bearer <token>` header.
 	///
 	/// display: sensitive
 	pub prometheus_metrics_token: Option<String>,
+
+	/// A path to a file containing the Prometheus metrics bearer token. If
+	/// this option is set, it will override `prometheus_metrics_token`.
+	///
+	/// The server will fail to start if the file cannot be read or is empty.
+	///
+	/// example: "/run/secrets/prometheus_metrics_token"
+	pub prometheus_metrics_token_file: Option<PathBuf>,
 
 	/// If the 'perf_measurements' compile-time feature is enabled, enables
 	/// collecting folded stack trace profile of tracing spans using
@@ -3287,6 +3304,10 @@ fn default_notification_push_path() -> String { "/_matrix/push/v1/notify".to_own
 fn default_openid_token_ttl() -> u64 { 60 * 60 }
 
 fn default_login_token_ttl() -> u64 { 2 * 60 * 1000 }
+
+fn default_prometheus_metrics_address() -> SocketAddr {
+	SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 9100)
+}
 
 fn default_turn_ttl() -> u64 { 60 * 60 * 24 }
 

@@ -949,20 +949,40 @@
 # env: CONTINUWUITY_ALLOW_OTLP_METRICS
 #allow_otlp_metrics = false
 
-# Enable the Prometheus metrics endpoint at `/_continuwuity/metrics`.
-#
-# The endpoint is served on the same listener as the rest of the server.
-# Set `prometheus_metrics_token` or restrict access at your reverse proxy
-# to avoid exposing it publicly.
+# Enable the Prometheus metrics endpoint at `/metrics`, served over plain
+# HTTP on `prometheus_metrics_address`.
 #
 # env: CONTINUWUITY_ALLOW_PROMETHEUS_METRICS
 #allow_prometheus_metrics = false
+
+# Address and port the Prometheus metrics listener binds to.
+#
+# env: CONTINUWUITY_PROMETHEUS_METRICS_ADDRESS
+#prometheus_metrics_address = "127.0.0.1:9100"
+
+# A UNIX socket for the Prometheus metrics endpoint to listen on instead
+# of `prometheus_metrics_address`, with `unix_socket_perms` permissions.
+#
+# example: "/run/continuwuity/metrics.sock"
+#
+# env: CONTINUWUITY_PROMETHEUS_METRICS_UNIX_SOCKET_PATH
+#prometheus_metrics_unix_socket_path =
 
 # Bearer token required to scrape the Prometheus metrics endpoint. When
 # set, requests must include an `Authorization: Bearer <token>` header.
 #
 # env: CONTINUWUITY_PROMETHEUS_METRICS_TOKEN
 #prometheus_metrics_token =
+
+# A path to a file containing the Prometheus metrics bearer token. If
+# this option is set, it will override `prometheus_metrics_token`.
+#
+# The server will fail to start if the file cannot be read or is empty.
+#
+# example: "/run/secrets/prometheus_metrics_token"
+#
+# env: CONTINUWUITY_PROMETHEUS_METRICS_TOKEN_FILE
+#prometheus_metrics_token_file =
 
 # If the 'perf_measurements' compile-time feature is enabled, enables
 # collecting folded stack trace profile of tracing spans using

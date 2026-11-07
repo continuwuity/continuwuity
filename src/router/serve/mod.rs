@@ -1,3 +1,4 @@
+mod metrics;
 mod plain;
 #[cfg(feature = "direct_tls")]
 mod tls;
@@ -8,12 +9,24 @@ use std::sync::Arc;
 use axum_server::Handle as ServerHandle;
 use conduwuit::{Result, err};
 use conduwuit_service::Services;
+use futures::future::try_join;
 use tokio::sync::broadcast;
 
 use super::layers;
 
 /// Serve clients
 pub(super) async fn serve(
+	services: Arc<Services>,
+	handle: ServerHandle<std::net::SocketAddr>,
+	shutdown: broadcast::Receiver<()>,
+) -> Result {
+	let metrics = metrics::serve(&services, shutdown.resubscribe());
+	let clients = serve_clients(services.clone(), handle, shutdown);
+
+	try_join(clients, metrics).await.map(|_| ())
+}
+
+async fn serve_clients(
 	services: Arc<Services>,
 	handle: ServerHandle<std::net::SocketAddr>,
 	mut shutdown: broadcast::Receiver<()>,

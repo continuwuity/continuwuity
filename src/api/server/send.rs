@@ -332,6 +332,7 @@ async fn handle_room(
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
 ) -> std::result::Result<Vec<(OwnedEventId, Result)>, TransactionError> {
+	let arrived = millis_since_unix_epoch();
 	let _room_lock = services
 		.rooms
 		.event_handler
@@ -392,7 +393,7 @@ async fn handle_room(
 			.federation_incoming_pdu_duration
 			.record(start.elapsed().as_secs_f64(), std::slice::from_ref(&outcome));
 		if let (Ok(()), Some(ts)) = (&result, origin_server_ts) {
-			let lag = millis_since_unix_epoch().saturating_sub(ts);
+			let lag = arrived.saturating_sub(ts);
 			instruments
 				.federation_incoming_pdu_lag
 				.record(Duration::from_millis(lag).as_secs_f64(), &[]);

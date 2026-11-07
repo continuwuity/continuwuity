@@ -1,12 +1,9 @@
 use axum::{Json, extract::State, response::IntoResponse};
 use conduwuit::{
-	Err, Result,
+	Result,
 	matrix::versions::{unstable_features, versions},
-	metrics::PROMETHEUS_CONTENT_TYPE,
-	utils::string::constant_time_eq,
 };
 use futures::StreamExt;
-use http::{HeaderMap, header};
 use ruma::{api::client::discovery::get_supported_versions, assign};
 
 use crate::Ruma;
@@ -77,31 +74,4 @@ pub(crate) async fn continuwuity_local_user_count(
 	Ok(Json(serde_json::json!({
 		"count": user_count
 	})))
-}
-
-/// # `GET /_continuwuity/metrics`
-///
-/// Prometheus metrics in the text exposition format. Only routed when
-/// `allow_prometheus_metrics` is enabled.
-pub(crate) async fn continuwuity_metrics(
-	State(services): State<crate::State>,
-	headers: HeaderMap,
-) -> Result<impl IntoResponse> {
-	if let Some(token) = &services.config.prometheus_metrics_token {
-		let authorized = headers
-			.get(header::AUTHORIZATION)
-			.and_then(|value| value.to_str().ok())
-			.and_then(|value| value.split_once(' '))
-			.is_some_and(|(scheme, provided)| {
-				scheme.eq_ignore_ascii_case("bearer") && constant_time_eq(provided, token)
-			});
-
-		if !authorized {
-			return Err!(Request(Unauthorized("Invalid metrics token")));
-		}
-	}
-
-	let body = services.server.metrics.render()?;
-
-	Ok(([(header::CONTENT_TYPE, PROMETHEUS_CONTENT_TYPE)], body))
 }

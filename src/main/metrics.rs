@@ -27,17 +27,23 @@ pub(crate) fn init(
 	let mut builder = SdkMeterProvider::builder()
 		.with_resource(resource)
 		.with_view(|instrument: &Instrument| {
-			(instrument.name() == metric::HTTP_SERVER_REQUEST_DURATION)
-				.then(|| {
-					Stream::builder()
-						.with_aggregation(Aggregation::ExplicitBucketHistogram {
-							boundaries: duration_buckets(),
-							record_min_max: true,
-						})
-						.build()
-						.ok()
-				})
-				.flatten()
+			match instrument.name() {
+				// The tower layer never decrements for requests dropped on client
+				// disconnect, so it drifts upward. Replaced by
+				// continuwuity.http.server.active_requests.
+				| metric::HTTP_SERVER_ACTIVE_REQUESTS => Stream::builder()
+					.with_aggregation(Aggregation::Drop)
+					.build()
+					.ok(),
+				| metric::HTTP_SERVER_REQUEST_DURATION => Stream::builder()
+					.with_aggregation(Aggregation::ExplicitBucketHistogram {
+						boundaries: duration_buckets(),
+						record_min_max: true,
+					})
+					.build()
+					.ok(),
+				| _ => None,
+			}
 		});
 
 	let registry = config

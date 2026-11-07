@@ -2,7 +2,7 @@
 
 Continuwuity records metrics with OpenTelemetry and can export them in two ways, both disabled by default:
 
-- **Prometheus scraping** from `/_continuwuity/metrics`
+- **Prometheus scraping** from a dedicated listener at `/metrics`
 - **OTLP push**, alongside traces
 
 ## Prometheus
@@ -10,20 +10,21 @@ Continuwuity records metrics with OpenTelemetry and can export them in two ways,
 ```toml
 [global]
 allow_prometheus_metrics = true
-prometheus_metrics_token = "a-long-random-secret"
+prometheus_metrics_address = "0.0.0.0:9100"
+prometheus_metrics_token_file = "/run/secrets/prometheus_metrics_token"
 ```
 
-The endpoint is served on the same listener as the rest of the server. Either set `prometheus_metrics_token` or block `/_continuwuity/metrics` at your reverse proxy so it is not publicly readable.
+The endpoint is served over plain HTTP on its own listener, which defaults to `127.0.0.1:9100`. When binding to a non-loopback address, set `prometheus_metrics_token` or `prometheus_metrics_token_file`. The file takes priority over the inline token.
+
+To listen on a UNIX socket instead, set `prometheus_metrics_unix_socket_path`.
 
 ```yaml
 scrape_configs:
   - job_name: continuwuity
-    scheme: https
-    metrics_path: /_continuwuity/metrics
     authorization:
-      credentials: a-long-random-secret
+      credentials_file: /etc/prometheus/continuwuity_token
     static_configs:
-      - targets: ["matrix.example.com"]
+      - targets: ["matrix.example.com:9100"]
 ```
 
 ## OTLP
@@ -55,14 +56,14 @@ Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry
 | --- | --- | --- | --- |
 | `target_info` | gauge | `service_version`, `service_instance_id` | Running server version and name |
 | `http_server_request_duration_seconds` | histogram | `http_request_method`, `http_route`, `http_response_status_code`, `network_protocol_name`, `network_protocol_version`, `url_scheme` | Handled HTTP requests, by route template |
-| `http_server_active_requests` | gauge | `http_request_method`, `url_scheme` | Requests currently being handled |
+| `continuwuity_http_server_active_requests` | gauge | | Requests currently being handled |
 | `http_server_request_body_size_bytes` | histogram | HTTP request duration labels | Request body sizes, when `Content-Length` is supplied |
 | `http_server_response_body_size_bytes` | histogram | HTTP request duration labels | Response body sizes, when known |
 | `continuwuity_federation_incoming_transaction_duration_seconds` | histogram | `outcome` | Processing time of incoming transactions |
 | `continuwuity_federation_incoming_transactions_active` | gauge | | Incoming transactions currently being processed |
 | `continuwuity_federation_incoming_pdus_total` | counter | `type`, `outcome` | Incoming PDUs by event type and outcome: `accepted`, `forbidden`, `invalid`, `error` or `unparsable` |
 | `continuwuity_federation_incoming_pdu_duration_seconds` | histogram | `outcome` | Time to handle an incoming PDU |
-| `continuwuity_federation_incoming_pdu_lag_seconds` | histogram | | Time between an accepted PDU's `origin_server_ts` and its arrival |
+| `continuwuity_federation_incoming_pdu_lag_seconds` | histogram | | Time between an accepted PDU's `origin_server_ts` and its transaction arriving |
 | `continuwuity_federation_incoming_edus_total` | counter | `type` | Incoming EDUs by type |
 | `continuwuity_federation_incoming_edu_duration_seconds` | histogram | `type` | Time to handle an incoming EDU |
 | `continuwuity_federation_outgoing_request_duration_seconds` | histogram | `outcome` | Outgoing federation requests |

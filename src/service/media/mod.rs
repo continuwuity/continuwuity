@@ -112,14 +112,27 @@ impl Service {
 			err!(Database(error!("Failed to write media file for MXC {mxc} at key {key:?}: {e}")))
 		})?;
 
+		self.record_write(mxc, file.len());
+
+		Ok(())
+	}
+
+	fn record_write(&self, mxc: &Mxc<'_>, len: usize) {
 		self.services
 			.server
 			.metrics
 			.instruments
 			.media_write_size
-			.record(file.len().try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
+			.record(len.try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
+	}
 
-		Ok(())
+	fn record_read(&self, mxc: &Mxc<'_>, len: usize) {
+		self.services
+			.server
+			.metrics
+			.instruments
+			.media_read_size
+			.record(len.try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
 	}
 
 	fn origin(&self, mxc: &Mxc<'_>) -> KeyValue {
@@ -196,12 +209,7 @@ impl Service {
 					.read_to_end(&mut content)
 					.await?;
 
-				self.services
-					.server
-					.metrics
-					.instruments
-					.media_read_size
-					.record(content.len().try_into().unwrap_or(u64::MAX), &[self.origin(mxc)]);
+				self.record_read(mxc, content.len());
 
 				Ok(Some(FileMeta {
 					content: Some(content),

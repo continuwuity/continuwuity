@@ -58,6 +58,14 @@ pub fn check(config: &Config) -> Result {
 		));
 	}
 
+	if cfg!(not(unix)) && config.prometheus_metrics_unix_socket_path.is_some() {
+		return Err!(Config(
+			"prometheus_metrics_unix_socket_path",
+			"UNIX socket support is only available on *nix platforms. Please remove \
+			 'prometheus_metrics_unix_socket_path' from your config."
+		));
+	}
+
 	if config.unix_socket_path.is_none() && config.get_bind_hosts().is_empty() {
 		return Err!(Config("address", "No TCP addresses were specified to listen on"));
 	}
@@ -194,11 +202,16 @@ pub fn check(config: &Config) -> Result {
 		);
 	}
 
-	if config.allow_prometheus_metrics && config.prometheus_metrics_token.is_none() {
+	if config.allow_prometheus_metrics
+		&& config.prometheus_metrics_token.is_none()
+		&& config.prometheus_metrics_token_file.is_none()
+		&& config.prometheus_metrics_unix_socket_path.is_none()
+		&& !config.prometheus_metrics_address.ip().is_loopback()
+	{
 		warn!(
-			"The Prometheus metrics endpoint is enabled without `prometheus_metrics_token`. \
-			 Anyone who can reach /_continuwuity/metrics can read server metrics unless access \
-			 is restricted at your reverse proxy."
+			"The Prometheus metrics endpoint is listening on {} without a \
+			 `prometheus_metrics_token`. Anyone who can reach it can read server metrics.",
+			config.prometheus_metrics_address
 		);
 	}
 

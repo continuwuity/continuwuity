@@ -3,7 +3,7 @@ mod data;
 use std::{collections::HashMap, fmt::Write, sync::Arc, time::Instant};
 
 use async_trait::async_trait;
-use conduwuit::{Result, Server, SyncRwLock, error, utils::bytes::pretty};
+use conduwuit::{Err, Result, Server, SyncRwLock, err, error, utils::bytes::pretty};
 use data::Data;
 use regex::RegexSet;
 use ruma::{OwnedEventId, OwnedRoomAliasId, OwnedUserId, ServerName, UserId};
@@ -18,6 +18,7 @@ pub struct Service {
 	pub server_user: OwnedUserId,
 	pub admin_alias: OwnedRoomAliasId,
 	pub turn_secret: String,
+	pub prometheus_metrics_token: Option<String>,
 }
 
 type RateLimitState = (Instant, u32); // Time if last failed try, number of failed tries
@@ -40,6 +41,20 @@ impl crate::Service for Service {
 			},
 		);
 
+		let prometheus_metrics_token = match &config.prometheus_metrics_token_file {
+			| Some(path) => {
+				let token = std::fs::read_to_string(path)
+					.map_err(|e| err!("Failed to read the Prometheus metrics token file: {e}"))?;
+				let token = token.trim();
+				if token.is_empty() {
+					return Err!("The Prometheus metrics token file is empty");
+				}
+
+				Some(token.to_owned())
+			},
+			| None => config.prometheus_metrics_token.clone(),
+		};
+
 		Ok(Arc::new(Self {
 			db,
 			server: args.server.clone(),
@@ -52,6 +67,7 @@ impl crate::Service for Service {
 			)
 			.expect("@conduit:server_name is valid"),
 			turn_secret,
+			prometheus_metrics_token,
 		}))
 	}
 

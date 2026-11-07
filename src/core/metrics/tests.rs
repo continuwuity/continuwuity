@@ -31,6 +31,7 @@ async fn renders_prometheus_names() {
 	for expected in [
 		"continuwuity_sender_events_total{destination=\"federation\",kind=\"pdu\"} 3",
 		"# TYPE process_uptime_seconds gauge",
+		"# TYPE continuwuity_http_server_active_requests gauge",
 		"process_cpu_time_seconds_total{cpu_mode=\"user\"}",
 		"# TYPE continuwuity_tokio_worker_busy_time_seconds_total counter",
 	] {

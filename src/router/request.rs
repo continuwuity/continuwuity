@@ -64,7 +64,7 @@ pub(crate) async fn handle(
 			.server
 			.metrics
 			.requests_handle_active
-			.fetch_add(1, Ordering::Relaxed),
+			.load(Ordering::Relaxed),
 		handled = %services
 			.server
 			.metrics
@@ -81,7 +81,11 @@ async fn execute(
 	next: axum::middleware::Next,
 	parent: &Span,
 ) -> Response {
-	#[cfg(debug_assertions)]
+	services
+		.server
+		.metrics
+		.requests_handle_active
+		.fetch_add(1, Ordering::Relaxed);
 	conduwuit::defer! {{
 		_ = services.server
 			.metrics
