@@ -60,6 +60,18 @@ impl Data {
 		from: PduCount,
 		dir: Direction,
 	) -> impl Stream<Item = (u64, PduEvent)> + Send + '_ {
+		self.relation_counts(target, from, dir)
+			.wide_filter_map(move |count| self.get_relation_pdu(shortroomid, count))
+	}
+
+	/// The counts of the direct relations of `target`, in the order of `dir`,
+	/// starting after `from`.
+	pub(super) fn relation_counts(
+		&self,
+		target: u64,
+		from: PduCount,
+		dir: Direction,
+	) -> impl Stream<Item = u64> + Send + '_ {
 		let start_count = match from {
 			| PduCount::Normal(count) => count,
 			| PduCount::Backfilled(_) => 0,
@@ -77,13 +89,18 @@ impl Data {
 		.map(|to_from| u64_from_u8(&to_from[8..16]))
 		// The scan includes `from` itself, which should be skipped
 		.ready_filter(move |&count| PduCount::Normal(count).is_after(from, dir))
-		.wide_filter_map(move |count| async move {
-			let shorteventid = PduCount::Normal(count);
-			let pdu_id: RawPduId = PduId { shortroomid, shorteventid }.into();
-			let pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
+	}
 
-			Some((count, pdu))
-		})
+	pub(super) async fn get_relation_pdu(
+		&self,
+		shortroomid: ShortRoomId,
+		count: u64,
+	) -> Option<(u64, PduEvent)> {
+		let shorteventid = PduCount::Normal(count);
+		let pdu_id: RawPduId = PduId { shortroomid, shorteventid }.into();
+		let pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await.ok()?;
+
+		Some((count, pdu))
 	}
 
 	pub(super) fn mark_event_soft_failed(&self, event_id: &EventId) {

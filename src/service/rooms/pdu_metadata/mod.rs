@@ -8,7 +8,7 @@ use conduwuit::{
 	result::LogErr,
 	utils::{IterStream, ReadyExt, stream::WidebandExt},
 };
-use futures::{StreamExt, future::try_join};
+use futures::{Stream, StreamExt, future::try_join};
 use ruma::{EventId, RoomId, UserId, api::Direction};
 
 use self::data::Data;
@@ -76,13 +76,9 @@ impl Service {
 
 		// Direct relations are already in order
 		if max_depth == 0 {
+			let counts = self.db.relation_counts(target, from, dir);
 			return self
-				.db
-				.get_relations(room_id, target, from, dir)
-				.ready_filter(|(_, pdu)| matches(pdu))
-				.take(limit)
-				.wide_then(|relation| self.finish_relation(user_id, relation))
-				.collect()
+				.load_relations(user_id, room_id, counts, limit, &matches)
 				.await;
 		}
 
@@ -95,45 +91,61 @@ impl Service {
 		// that also replies to another reply in the thread, so it's only kept
 		// and looked through the first time it's found
 		let mut seen = HashSet::new();
-		let mut relations = Vec::new();
+		let mut counts = Vec::new();
 		let mut level: Vec<_> = self
 			.db
-			.get_relations(room_id, target, scan_from, dir)
+			.relation_counts(target, scan_from, dir)
 			.collect()
 			.await;
-		seen.extend(level.iter().map(|(count, _)| *count));
+		seen.extend(level.iter().copied());
 		for _ in 0..max_depth {
 			let next: Vec<Vec<_>> = level
 				.iter()
-				.map(|(count, _)| *count)
+				.copied()
 				.stream()
 				.wide_then(|target| {
 					self.db
-						.get_relations(room_id, target, scan_from, dir)
+						.relation_counts(target, scan_from, dir)
 						.collect::<Vec<_>>()
 				})
 				.collect()
 				.await;
-			relations.append(&mut level);
+			counts.append(&mut level);
 			level = next
 				.into_iter()
 				.flatten()
-				.filter(|(count, _)| seen.insert(*count))
+				.filter(|&count| seen.insert(count))
 				.collect();
 		}
-		relations.append(&mut level);
+		counts.append(&mut level);
 
-		relations
-			.retain(|(count, pdu)| PduCount::Normal(*count).is_after(from, dir) && matches(pdu));
-		relations.sort_unstable_by(|(a, _), (b, _)| match dir {
+		counts.retain(|&count| PduCount::Normal(count).is_after(from, dir));
+		counts.sort_unstable_by(|a, b| match dir {
 			| Direction::Forward => a.cmp(b),
 			| Direction::Backward => b.cmp(a),
 		});
-		relations.truncate(limit);
 
-		relations
-			.into_iter()
-			.stream()
+		self.load_relations(user_id, room_id, counts.into_iter().stream(), limit, &matches)
+			.await
+	}
+
+	/// Loads the pdus of relations in the order of `counts`
+	async fn load_relations<S, F>(
+		&self,
+		user_id: &UserId,
+		room_id: ShortRoomId,
+		counts: S,
+		limit: usize,
+		matches: &F,
+	) -> Vec<PdusIterItem>
+	where
+		S: Stream<Item = u64> + Send,
+		F: Fn(&PduEvent) -> bool + Send + Sync,
+	{
+		counts
+			.wide_filter_map(|count| self.db.get_relation_pdu(room_id, count))
+			.ready_filter(|(_, pdu)| matches(pdu))
+			.take(limit)
 			.wide_then(|relation| self.finish_relation(user_id, relation))
 			.collect()
 			.await
