@@ -2,10 +2,11 @@ use conduwuit_core::{
 	Result, err,
 	matrix::event::Event,
 	utils::{self},
+	warn,
 };
-use ruma::EventId;
+use ruma::{EventId, events::room::encrypted::Relation};
 
-use super::ExtractBody;
+use super::{ExtractBody, ExtractRelatesTo};
 use crate::rooms::short::ShortRoomId;
 
 impl super::Service {
@@ -31,6 +32,12 @@ impl super::Service {
 				err!(Database(error!(?pdu_id, %event_id, ?e, "PDU ID points to invalid PDU.")))
 			})?;
 
+		let thread_root = match pdu.get_content::<ExtractRelatesTo>() {
+			| Ok(ExtractRelatesTo { relates_to: Relation::Thread(thread) }) =>
+				Some(thread.event_id),
+			| _ => None,
+		};
+
 		if let Ok(content) = pdu.get_content::<ExtractBody>() {
 			if let Some(body) = content.body {
 				self.services
@@ -51,6 +58,21 @@ impl super::Service {
 			err!(Database(error!(%event_id, ?e, "Failed to convert PDU to canonical JSON")))
 		})?;
 
-		self.replace_pdu(&pdu_id, &obj).await
+		self.replace_pdu(&pdu_id, &obj).await?;
+
+		// So the thread's root doesn't keep the original content in its
+		// `latest_event` aggregation
+		if let Some(thread_root) = thread_root {
+			self.services
+				.threads
+				.remove_from_thread(&thread_root, &pdu)
+				.await
+				.inspect_err(|e| {
+					warn!("Failed to remove redacted event from thread {thread_root}: {e:?}");
+				})
+				.ok();
+		}
+
+		Ok(())
 	}
 }
