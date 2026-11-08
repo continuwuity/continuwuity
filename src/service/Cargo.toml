@@ -122,6 +122,8 @@ lettre.workspace = true
 resolvematrix.workspace = true
 serde_urlencoded.workspace = true
 openidconnect.workspace = true
+# This is here to set features on the outdated openidconnect reqwest
+reqwest_0_12.workspace = true
 rand.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]

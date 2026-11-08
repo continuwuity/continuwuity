@@ -105,11 +105,12 @@ http3 = [
     "reqwest/http3"
 ]
 ring = [
-    "rustls/ring"
+    "rustls/ring",
 ]
+
 aws_lc_rs = [
     "rustls/aws_lc_rs",
-    "dep:aws-lc-rs"
+    "dep:aws-lc-rs",
 ]
 io_uring = [
     "conduwuit-database/io_uring",

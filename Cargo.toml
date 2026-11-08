@@ -166,6 +166,15 @@ features = [
     "form",
 ]
 
+# Needed for as long as openidconnect is on an outdated reqwest
+[workspace.dependencies.reqwest_0_12]
+package = "reqwest"
+version = "0.12"
+default-features = false
+features = [
+    "rustls-tls-native-roots-no-provider",
+]
+
 [workspace.dependencies.serde]
 version = "1.0.229"
 default-features = false
@@ -414,6 +423,8 @@ default-features = false
 
 [workspace.dependencies.openidconnect]
 version = "4.1.0"
+default-features = false
+features = ["reqwest"]
 
 # optional opentelemetry, performance measurements, flamegraphs, etc for performance measurements and monitoring
 [workspace.dependencies.opentelemetry]
