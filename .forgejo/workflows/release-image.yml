@@ -27,12 +27,6 @@ env:
   BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
   IMAGE_PATH: forgejo.ellis.link/continuwuation/continuwuity
 
-permissions:
-  contents: write
-  packages: write
-  attestations: write
-  id-token: write
-
 jobs:
   build-release:
     name: "Build ${{ matrix.slug }} (release)"
