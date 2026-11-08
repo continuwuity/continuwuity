@@ -65,7 +65,10 @@ impl Service {
 		room_id: &RoomId,
 		event: ReceiptEvent,
 	) {
-		self.db.readreceipt_update(user_id, room_id, &event).await;
+		if !self.db.readreceipt_update(user_id, room_id, &event).await {
+			return;
+		}
+
 		self.services.sync.wake_all_joined(room_id).await;
 		// update appservices
 		let edu = EphemeralData::Receipt(event);
@@ -142,7 +145,9 @@ impl Service {
 		event_id: &EventId,
 		count: u64,
 	) {
-		self.db.private_read_set(room_id, user_id, count);
+		if !self.db.private_read_set(room_id, user_id, count).await {
+			return;
+		}
 
 		// update appservices matching the user's namespace (MSC2409)
 		let receipt_content = [(

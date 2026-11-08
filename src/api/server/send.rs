@@ -581,28 +581,20 @@ async fn handle_edu_receipt_room_user(
 	}
 
 	let data = &user_updates.data;
-	user_updates
-		.event_ids
-		.into_iter()
-		.stream()
-		.for_each_concurrent(automatic_width(), |event_id| async move {
-			let user_data = [(user_id.to_owned(), data.clone())];
-			let receipts = [(ReceiptType::Read, BTreeMap::from(user_data))];
-			let content = [(event_id.clone(), BTreeMap::from(receipts))];
-			services
-				.rooms
-				.read_receipt
-				.readreceipt_update(
-					user_id,
-					room_id,
-					ReceiptEvent::new(
-						room_id.to_owned(),
-						ReceiptEventContent::from_iter(content),
-					),
-				)
-				.await;
-		})
-		.await;
+	for event_id in user_updates.event_ids {
+		let user_data = [(user_id.to_owned(), data.clone())];
+		let receipts = [(ReceiptType::Read, BTreeMap::from(user_data))];
+		let content = [(event_id, BTreeMap::from(receipts))];
+		services
+			.rooms
+			.read_receipt
+			.readreceipt_update(
+				user_id,
+				room_id,
+				ReceiptEvent::new(room_id.to_owned(), ReceiptEventContent::from_iter(content)),
+			)
+			.await;
+	}
 }
 
 async fn handle_edu_typing(services: &Services, origin: &ServerName, typing: TypingContent) {

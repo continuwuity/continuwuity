@@ -45,20 +45,67 @@ impl Data {
 		user_id: &UserId,
 		room_id: &RoomId,
 		event: &ReceiptEvent,
-	) {
-		// Remove old entry
+	) -> bool {
+		let new_target = event.content.0.iter().find_map(|(ev_id, types)| {
+			types
+				.iter()
+				.find_map(|(rtype, users)| users.get(user_id).map(|r| (ev_id, rtype, &r.thread)))
+		});
+
+		// Find old entries for this user in this room
 		let last_possible_key = (room_id, u64::MAX);
+		let mut keys = Vec::new();
 		self.readreceiptid_readreceipt
 			.rev_keys_from_raw(&last_possible_key)
 			.ignore_err()
 			.ready_take_while(|key| key.starts_with(room_id.as_bytes()))
-			.ready_filter_map(|key| key.ends_with(user_id.as_bytes()).then_some(key))
-			.ready_for_each(|key| self.readreceiptid_readreceipt.del(key))
+			.ready_filter_map(|key| key.ends_with(user_id.as_bytes()).then(|| key.to_vec()))
+			.ready_for_each(|key| keys.push(key))
 			.await;
+
+		let mut to_del = Vec::new();
+		let mut is_dup = false;
+
+		for key in keys {
+			if let Ok(val) = self.readreceiptid_readreceipt.get(&key).await {
+				if let Ok(existing) = serde_json::from_slice::<ReceiptEvent>(&val) {
+					let existing_target = existing.content.0.iter().find_map(|(ev_id, types)| {
+						types.iter().find_map(|(rtype, users)| {
+							users.get(user_id).map(|r| (ev_id, rtype, &r.thread))
+						})
+					});
+
+					if let (Some(new_t), Some(old_t)) = (new_target, existing_target) {
+						if new_t.1 == old_t.1 && new_t.2 == old_t.2 {
+							if new_t.0 == old_t.0 {
+								is_dup = true;
+							} else {
+								to_del.push(key);
+							}
+						}
+					} else {
+						to_del.push(key);
+					}
+				} else {
+					to_del.push(key);
+				}
+			} else {
+				to_del.push(key);
+			}
+		}
+
+		if is_dup {
+			return false;
+		}
+
+		for key in to_del {
+			self.readreceiptid_readreceipt.del(&key);
+		}
 
 		let count = self.services.globals.next_count().unwrap();
 		let latest_id = (room_id, count, user_id);
 		self.readreceiptid_readreceipt.put(latest_id, Json(event));
+		true
 	}
 
 	pub(super) fn readreceipts_since<'a>(
@@ -86,12 +133,28 @@ impl Data {
 			.ignore_err()
 	}
 
-	pub(super) fn private_read_set(&self, room_id: &RoomId, user_id: &UserId, pdu_count: u64) {
+	pub(super) async fn private_read_set(
+		&self,
+		room_id: &RoomId,
+		user_id: &UserId,
+		pdu_count: u64,
+	) -> bool {
 		let key = (room_id, user_id);
-		let next_count = self.services.globals.next_count().unwrap();
+		if let Ok(current) = self
+			.roomuserid_privateread
+			.qry(&key)
+			.await
+			.deserialized::<u64>()
+		{
+			if current == pdu_count {
+				return false;
+			}
+		}
 
+		let next_count = self.services.globals.next_count().unwrap();
 		self.roomuserid_privateread.put(key, pdu_count);
 		self.roomuserid_lastprivatereadupdate.put(key, next_count);
+		true
 	}
 
 	pub(super) async fn private_read_get_count(
