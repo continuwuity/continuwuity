@@ -300,6 +300,23 @@ async fn into_http_response(
 		actual.base_url(),
 	);
 
+	if url.path() != "/.well-known/matrix/server" {
+		// For some reason, the spec starts off saying federation responses MUST
+		// include a `Content-Type` header of `application/json` on all
+		// responses. Then, the definition for the well-known server endpoint
+		// says that it's a SHOULD and that servers SHOULD just assume that the
+		// response is JSON regardless... And then there's media wayyyy down in
+		// the spec doc that just throws a `multipart/mixed` in there.
+		enforce_content_type(
+			&response,
+			if url.path().starts_with("/_matrix/federation/v1/media/") {
+				"multipart/mixed"
+			} else {
+				"application/json"
+			},
+		)?;
+	}
+
 	let mut http_response_builder = http::Response::builder()
 		.status(status)
 		.version(response.version());
@@ -351,6 +368,34 @@ fn handle_error(
 	}
 
 	Err(e.into())
+}
+
+/// Enforces that the `Content-Type` response header is present, and that the
+/// first part matches the expected header. This does not enforce that multipart
+/// responses have a boundary as only the text left of a semicolon, if present,
+/// is compared.
+///
+/// Returns `M_UNKNOWN` with HTTP 415 (Unsupported Media Type) if the response
+/// header is missing or mismatched.
+fn enforce_content_type(response: &Response, expected: &str) -> Result<()> {
+	match response
+		.headers()
+		.get(&http::header::CONTENT_TYPE)
+		.and_then(|h| h.to_str().ok())
+		.map(|h| h.split_once(';').unwrap_or((h, "")).0)
+	{
+		| Some(ct) if ct == expected => Ok(()),
+		| Some(ct) => Err!(Request(
+			Unknown(
+				"Remote server returned the wrong Content-Type: expected {expected}, got {ct:?}"
+			),
+			UNSUPPORTED_MEDIA_TYPE
+		)),
+		| None => Err!(Request(
+			Unknown("Remote server did not return a Content-Type header"),
+			UNSUPPORTED_MEDIA_TYPE
+		)),
+	}
 }
 
 /// A trait for the input types of acceptable path builders for outgoing
