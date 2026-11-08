@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use axum::extract::State;
-use conduwuit::{Err, PduCount, Result, err};
+use conduwuit::{Err, Result, err};
 use ruma::{
 	MilliSecondsSinceUnixEpoch,
 	api::client::{read_marker::set_read_marker, receipt::create_receipt},
@@ -94,11 +94,7 @@ pub(crate) async fn set_read_marker_route(
 			.await
 			.map_err(|_| err!(Request(NotFound("Event not found."))))?;
 
-		let PduCount::Normal(count) = count else {
-			return Err!(Request(InvalidParam(
-				"Event is a backfilled PDU and cannot be marked as read."
-			)));
-		};
+		let count = count.into_unsigned();
 
 		services
 			.rooms
@@ -192,11 +188,7 @@ pub(crate) async fn create_receipt_route(
 				.await
 				.map_err(|_| err!(Request(NotFound("Event not found."))))?;
 
-			let PduCount::Normal(count) = count else {
-				return Err!(Request(InvalidParam(
-					"Event is a backfilled PDU and cannot be marked as read."
-				)));
-			};
+			let count = count.into_unsigned();
 
 			services
 				.rooms

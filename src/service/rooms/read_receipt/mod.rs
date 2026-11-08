@@ -93,7 +93,7 @@ impl Service {
 		});
 
 		let (pdu_count, shortroomid) = try_join!(pdu_count, shortroomid)?;
-		let shorteventid = PduCount::Normal(pdu_count);
+		let shorteventid = PduCount::from_unsigned(pdu_count);
 		let pdu_id: RawPduId = PduId { shortroomid, shorteventid }.into();
 		let pdu = self.services.timeline.get_pdu_from_id(&pdu_id).await?;
 
@@ -101,8 +101,7 @@ impl Service {
 		let user_id: OwnedUserId = user_id.to_owned();
 
 		let mut receipt = ruma::events::receipt::Receipt::default();
-		// TODO: start storing the timestamp so we can return one
-		receipt.ts = None;
+		receipt.ts = Some(pdu.origin_server_ts());
 		receipt.thread = ruma::events::receipt::ReceiptThread::Unthreaded;
 
 		let content: BTreeMap<OwnedEventId, Receipts> = BTreeMap::from_iter([(
