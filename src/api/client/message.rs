@@ -22,7 +22,7 @@ use conduwuit_service::{
 };
 use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture, pin_mut};
 use ruma::{
-	RoomId, UserId,
+	EventId, RoomId, UserId,
 	api::{
 		Direction,
 		client::{filter::RoomEventFilter, message::get_message_events},
@@ -30,8 +30,9 @@ use ruma::{
 	},
 	assign,
 	events::{
-		AnyStateEvent, StateEventType,
+		AnyStateEvent, StateEventType, SyncEphemeralRoomEvent,
 		TimelineEventType::{self, *},
+		receipt::ReceiptEventContent,
 	},
 	serde::Raw,
 };
@@ -209,36 +210,32 @@ pub(crate) async fn lazy_loading_witness<'a, I>(
 where
 	I: Iterator<Item = &'a PdusIterItem> + Clone + Send,
 {
-	let oldest = events
-		.clone()
-		.map(|(count, _)| count)
-		.copied()
-		.min()
-		.unwrap_or_else(PduCount::max);
-
-	let newest = events
-		.clone()
-		.map(|(count, _)| count)
-		.copied()
-		.max()
-		.unwrap_or_else(PduCount::max);
+	let chunk_event_ids: std::collections::HashSet<&EventId> =
+		events.clone().map(|(_, event)| event.event_id()).collect();
 
 	let receipts = services
 		.rooms
 		.read_receipt
-		.readreceipts_since(lazy_loading_context.room_id, Some(oldest.into_unsigned()));
+		.readreceipts_since(lazy_loading_context.room_id, None);
 
 	pin_mut!(receipts);
+	let receipt_users = receipts.ready_filter_map(|(user_id, _, raw)| {
+		let event =
+			serde_json::from_str::<SyncEphemeralRoomEvent<ReceiptEventContent>>(raw.json().get())
+				.ok()?;
+		event
+			.content
+			.keys()
+			.any(|id| chunk_event_ids.contains(&**id))
+			.then_some(user_id)
+	});
+
 	let witness: MemberSet = events
 		.stream()
 		.map(ref_at!(1))
 		.map(Event::sender)
 		.map(ToOwned::to_owned)
-		.chain(
-			receipts
-				.ready_take_while(|(_, c, _)| *c <= newest.into_unsigned())
-				.map(|(user_id, ..)| user_id),
-		)
+		.chain(receipt_users)
 		.collect()
 		.await;
 
