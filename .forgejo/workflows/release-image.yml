@@ -27,15 +27,16 @@ env:
   BUILTIN_REGISTRY_ENABLED: "${{ ((vars.BUILTIN_REGISTRY_USER && secrets.BUILTIN_REGISTRY_PASSWORD) || (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)) && 'true' || 'false' }}"
   IMAGE_PATH: forgejo.ellis.link/continuwuation/continuwuity
 
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
 jobs:
   build-release:
     name: "Build ${{ matrix.slug }} (release)"
     runs-on: dind
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     strategy:
       matrix:
         include:
@@ -117,11 +118,6 @@ jobs:
     name: "Build ${{ matrix.slug }} (max-perf)"
     runs-on: dind
     needs: build-release
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     strategy:
       matrix:
         include:
@@ -207,8 +203,6 @@ jobs:
     needs:
       - build-release
       - build-maxperf
-    permissions:
-      contents: write
     if: startsWith(github.ref, 'refs/tags/')
     steps:
       - name: Download binary artifacts
