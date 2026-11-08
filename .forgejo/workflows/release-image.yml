@@ -85,6 +85,7 @@ jobs:
           outputs: |
             ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', env.IMAGE_PATH) || format('type=image,"name={0}",push=false', env.IMAGE_PATH) }}
             type=local,dest=/tmp/binaries
+          pull: true # Base images were becoming out of date
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
       - name: Upload Docker artifacts
@@ -168,6 +169,7 @@ jobs:
           outputs: |
             ${{ env.BUILTIN_REGISTRY_ENABLED == 'true' && format('type=image,"name={0}",push-by-digest=true,name-canonical=true,push=true', env.IMAGE_PATH) || format('type=image,"name={0}",push=false', env.IMAGE_PATH) }}
             type=local,dest=/tmp/binaries
+          pull: true # Base images were becoming out of date
         env:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
       - name: Upload max-perf Docker artifacts
