@@ -245,7 +245,7 @@ tracing-journald = { workspace = true, optional = true }
 parking_lot.workspace = true
 reqwest = { workspace = true, default-features = false }
 rustls = { workspace = true, default-features = false }
-aws-lc-rs = { version = "1.16.3", default-features = false, optional = true }
+aws-lc-rs = { version = "1.19.0", default-features = false, optional = true }
 
 
 [target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]

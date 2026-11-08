@@ -18,11 +18,11 @@ version = "26.9.1"
 name = "conduwuit"
 
 [workspace.dependencies.arrayvec]
-version = "0.7.6"
+version = "0.7.8"
 features = ["serde"]
 
 [workspace.dependencies.smallvec]
-version = "1.14.0"
+version = "1.16.5"
 features = [
     "const_generics",
     "const_new",
@@ -39,10 +39,10 @@ features = ["ffi", "std", "union"]
 version = "1.1.0"
 
 [workspace.dependencies.ctor]
-version = "1.0.6"
+version = "1.0.13"
 
 [workspace.dependencies.dtor]
-version = "1.0.0"
+version = "1.0.6"
 
 [workspace.dependencies.cargo_toml]
 version = "1.0"
@@ -50,7 +50,7 @@ default-features = false
 features = ["features"]
 
 [workspace.dependencies.toml]
-version = "1.1.2"
+version = "1.2.1"
 default-features = false
 features = ["parse", "serde"]
 
@@ -58,7 +58,7 @@ features = ["parse", "serde"]
 version = "0.6.0"
 
 [workspace.dependencies.base64]
-version = "0.23.0"
+version = "0.23.1"
 default-features = false
 
 # used for TURN server authentication
@@ -71,36 +71,36 @@ version = "0.5.0"
 default-features = false
 
 [workspace.dependencies.p256]
-version = "0.13.2"
+version = "0.14.0"
 default-features = false
 features = ["ecdsa", "std"]
 
 # used for checking if an IP is in specific subnets / CIDR ranges easier
 [workspace.dependencies.ipaddress]
-version = "0.2.0"
+version = "0.2.11"
 
 [workspace.dependencies.rand]
-version = "0.10.1"
+version = "0.10.3"
 
 # Used for the http request / response body type for Ruma endpoints used with reqwest
 [workspace.dependencies.bytes]
-version = "1.10.1"
+version = "1.12.1"
 
 [workspace.dependencies.http-body-util]
-version = "0.1.3"
+version = "0.1.5"
 
 [workspace.dependencies.http]
-version = "1.3.1"
+version = "1.5.0"
 
 # parses the HTTP-date form of Retry-After
 [workspace.dependencies.httpdate]
 version = "1.0.3"
 
 [workspace.dependencies.regex]
-version = "1.11.1"
+version = "1.13.1"
 
 [workspace.dependencies.axum]
-version = "0.8.8"
+version = "0.8.9"
 default-features = false
 features = [
     "form",
@@ -114,7 +114,7 @@ features = [
 ]
 
 [workspace.dependencies.axum-extra]
-version = "0.12.0"
+version = "0.12.6"
 default-features = false
 features = ["typed-header", "tracing", "cookie"]
 
@@ -133,12 +133,12 @@ default-features = false
 version = "0.2"
 
 [workspace.dependencies.tower]
-version = "0.5.2"
+version = "0.5.3"
 default-features = false
 features = ["util"]
 
 [workspace.dependencies.tower-http]
-version = "0.7.0"
+version = "0.7.1"
 default-features = false
 features = [
     "add-extension",
@@ -156,7 +156,7 @@ version = "0.23.46"
 default-features = false
 
 [workspace.dependencies.reqwest]
-version = "0.13.2"
+version = "0.13.5"
 default-features = false
 features = [
     "rustls-no-provider",
@@ -168,22 +168,22 @@ features = [
 ]
 
 [workspace.dependencies.serde]
-version = "1.0.219"
+version = "1.0.229"
 default-features = false
 features = ["rc"]
 
 [workspace.dependencies.serde_json]
-version = "1.0.140"
+version = "1.0.154"
 default-features = false
 features = ["raw_value"]
 
 # Used for appservice registration files
 [workspace.dependencies.serde-saphyr]
-version = "1.0.0"
+version = "2.1.1"
 
 # Used to load forbidden room/user regex from config
 [workspace.dependencies.serde_regex]
-version = "1.1.0"
+version = "1.2.0"
 
 # Used for password hashing
 [workspace.dependencies.argon2]
@@ -193,7 +193,7 @@ default-features = false
 
 # Used to generate thumbnails for images
 [workspace.dependencies.image]
-version = "0.25.5"
+version = "0.25.10"
 default-features = false
 features = [
     "jpeg",
@@ -204,29 +204,29 @@ features = [
 
 # logging
 [workspace.dependencies.log]
-version = "0.4.27"
+version = "0.4.35"
 default-features = false
 [workspace.dependencies.tracing]
-version = "0.1.41"
+version = "0.1.44"
 default-features = false
 [workspace.dependencies.tracing-subscriber]
-version = "0.3.20"
+version = "0.3.23"
 default-features = false
 features = ["env-filter", "std", "tracing", "tracing-log", "ansi", "fmt"]
 [workspace.dependencies.tracing-journald]
-version = "0.3.1"
+version = "0.3.2"
 [workspace.dependencies.tracing-core]
-version = "0.1.34"
+version = "0.1.36"
 default-features = false
 
 # for URL previews
 [workspace.dependencies.webpage]
-version = "2.0.1"
+version = "2.1.0"
 default-features = false
 
 # used for conduwuit's CLI and admin room command parsing
 [workspace.dependencies.clap]
-version = "4.5.35"
+version = "4.6.7"
 default-features = false
 features = [
     "derive",
@@ -239,12 +239,12 @@ features = [
 ]
 
 [workspace.dependencies.futures]
-version = "0.3.31"
+version = "0.3.34"
 default-features = false
 features = ["std", "async-await"]
 
 [workspace.dependencies.tokio]
-version = "1.44.2"
+version = "1.54.1"
 default-features = false
 features = [
     "fs",
@@ -259,25 +259,25 @@ features = [
 ]
 
 [workspace.dependencies.tokio-metrics]
-version = "0.5.0"
+version = "0.5.2"
 
 [workspace.dependencies.libloading]
 version = "0.9.0"
 
 # Validating urls in config, was already a transitive dependency
 [workspace.dependencies.url]
-version = "2.5.4"
+version = "2.5.8"
 default-features = false
 features = ["serde"]
 
 # standard date and time tools
 [workspace.dependencies.chrono]
-version = "0.4.38"
+version = "0.4.45"
 features = ["alloc", "std"]
 default-features = false
 
 [workspace.dependencies.hyper]
-version = "1.6.0"
+version = "1.12.0"
 default-features = false
 features = [
     "server",
@@ -296,7 +296,7 @@ features = [
 
 # to support multiple variations of setting a config option
 [workspace.dependencies.either]
-version = "1.15.0"
+version = "1.19.0"
 default-features = false
 features = ["serde"]
 
@@ -307,7 +307,7 @@ default-features = false
 features = ["env", "toml"]
 
 [workspace.dependencies.hickory-resolver]
-version = "0.26.0"
+version = "0.26.3"
 default-features = false
 features = [
     "serde",
@@ -317,7 +317,7 @@ features = [
 
 # Used for conduwuit::Error type
 [workspace.dependencies.thiserror]
-version = "2.0.12"
+version = "2.0.21"
 default-features = false
 
 # Used to make working with iterators easier, was already a transitive depdendency
@@ -338,7 +338,7 @@ version = "0.6.0"
 version = "2.5.0"
 
 [workspace.dependencies.async-trait]
-version = "0.1.88"
+version = "0.1.92"
 
 [workspace.dependencies.lru-cache]
 version = "0.1.2"
@@ -406,7 +406,7 @@ features = [
 ]
 
 [workspace.dependencies.sha2]
-version = "0.11.0"
+version = "0.11.1"
 default-features = false
 
 [workspace.dependencies.sha1]
@@ -414,11 +414,11 @@ version = "0.11.0"
 default-features = false
 
 [workspace.dependencies.openidconnect]
-version = "4.0.1"
+version = "4.1.0"
 
 # optional opentelemetry, performance measurements, flamegraphs, etc for performance measurements and monitoring
 [workspace.dependencies.opentelemetry]
-version = "0.33.0"
+version = "0.33.1"
 
 [workspace.dependencies.opentelemetry-instrumentation-tower]
 version = "0.19.0"
@@ -426,7 +426,7 @@ default-features = false
 features = ["axum"]
 
 [workspace.dependencies.opentelemetry-semantic-conventions]
-version = "0.33.0"
+version = "0.33.1"
 features = ["semconv_experimental"]
 
 [workspace.dependencies.tracing-flame]
@@ -436,25 +436,25 @@ version = "0.2.0"
 version = "0.34.0"
 
 [workspace.dependencies.opentelemetry_sdk]
-version = "0.33.0"
+version = "0.33.1"
 features = ["rt-tokio"]
 
 [workspace.dependencies.opentelemetry-prometheus]
-version = "0.33.0"
+version = "0.33.1"
 
 [workspace.dependencies.prometheus]
 version = "0.14.0"
 default-features = false
 
 [workspace.dependencies.opentelemetry-otlp]
-version = "0.33.0"
+version = "0.33.1"
 features = ["http", "grpc-tonic", "trace", "logs", "metrics"]
 
 
 
 # optional sentry metrics for crash/panic reporting
 [workspace.dependencies.sentry]
-version = "0.49.0"
+version = "0.49.5"
 default-features = false
 features = [
     "backtrace",
@@ -469,9 +469,9 @@ features = [
 ]
 
 [workspace.dependencies.sentry-tracing]
-version = "0.49.0"
+version = "0.49.5"
 [workspace.dependencies.sentry-tower]
-version = "0.49.0"
+version = "0.49.5"
 
 # jemalloc usage
 [workspace.dependencies.tikv-jemalloc-sys]
@@ -500,7 +500,7 @@ features = ["use_std"]
 version = "0.5"
 
 [workspace.dependencies.nix]
-version = "0.31.0"
+version = "0.31.3"
 default-features = false
 features = ["resource"]
 
@@ -522,7 +522,7 @@ version = "0.4.9"
 default-features = false
 
 [workspace.dependencies.termimad]
-version = "0.35.0"
+version = "0.35.5"
 default-features = false
 
 [workspace.dependencies.checked_ops]
@@ -548,7 +548,7 @@ features = ["hardware-lock-elision", "deadlock_detection"] # TODO: Check if dead
 version = "0.5.0"
 
 [workspace.dependencies.bytesize]
-version = "2.0"
+version = "2.7"
 
 [workspace.dependencies.core_affinity]
 version = "0.8.3"
@@ -560,11 +560,11 @@ version = "0.2"
 version = "0.2"
 
 [workspace.dependencies.minicbor]
-version = "2.1.1"
+version = "2.3.1"
 features = ["std"]
 
 [workspace.dependencies.minicbor-serde]
-version = "0.7.0"
+version = "0.7.2"
 features = ["std"]
 
 [workspace.dependencies.maplit]
@@ -574,10 +574,10 @@ version = "1.0.2"
 version = "1.0.1"
 
 [workspace.dependencies.askama]
-version = "0.16.0"
+version = "0.16.1"
 
 [workspace.dependencies.lettre]
-version = "0.11.19"
+version = "0.11.23"
 default-features = false
 features = ["smtp-transport", "pool", "hostname", "builder", "rustls", "rustls-native-certs", "tokio1", "rustls-no-provider", "tokio1-rustls", "tracing", "serde"]
 
@@ -590,7 +590,7 @@ features = ["std"]
 version = "0.3.0"
 
 [workspace.dependencies.resolvematrix]
-version = "1.3.0"
+version = "1.4.0"
 
 [workspace.dependencies.serde_urlencoded]
 version = "0.7.1"

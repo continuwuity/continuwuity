@@ -60,10 +60,18 @@ pub(crate) fn init(
 
 	#[cfg(feature = "sentry_telemetry")]
 	let subscriber = {
+		use tracing::Level;
+		use tracing_subscriber::filter::{LevelFilter, filter_fn};
+
 		let sentry_filter = EnvFilter::try_new(&config.sentry_filter)
 			.map_err(|e| err!(Config("sentry_filter", "{e}.")))?;
 
-		let sentry_layer = sentry_tracing::layer();
+		let sentry_layer = sentry_tracing::SpanLayer::new()
+			.with_filter(LevelFilter::INFO)
+			.and_then(sentry_tracing::BreadcrumbLayer::new().with_filter(filter_fn(|metadata| {
+				matches!(*metadata.level(), Level::WARN | Level::INFO)
+			})))
+			.and_then(sentry_tracing::ErrorLayer::new().with_filter(LevelFilter::ERROR));
 		let (sentry_reload_filter, sentry_reload_handle) = reload::Layer::new(sentry_filter);
 
 		reload_handles.add("sentry", Box::new(sentry_reload_handle));

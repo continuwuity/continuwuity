@@ -13,7 +13,7 @@ version.workspace = true
 conduwuit-admin.workspace = true
 clap.workspace = true
 
-askama = "0.16.0"
+askama = "0.16.1"
 cargo_metadata = "0.23.1"
 
 [lints]

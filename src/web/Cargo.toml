@@ -30,7 +30,7 @@ conduwuit-service.workspace = true
 form_urlencoded = "1.2.2"
 futures.workspace = true
 lettre.workspace = true
-memory-serve = "2.1.0"
+memory-serve = "2.4.0"
 openidconnect.workspace = true
 ruma.workspace = true
 serde.workspace = true
@@ -48,7 +48,7 @@ url.workspace = true
 validator = { version = "0.21.0", features = ["derive"] }
 
 [build-dependencies]
-memory-serve = "2.1.0"
+memory-serve = "2.4.0"
 
 [lints]
 workspace = true
