@@ -99,6 +99,10 @@ impl Service {
 			.await;
 		seen.extend(level.iter().copied());
 		for _ in 0..max_depth {
+			if level.is_empty() {
+				break;
+			}
+
 			let next: Vec<Vec<_>> = level
 				.iter()
 				.copied()
@@ -110,6 +114,7 @@ impl Service {
 				})
 				.collect()
 				.await;
+
 			counts.append(&mut level);
 			level = next
 				.into_iter()
