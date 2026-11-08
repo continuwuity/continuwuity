@@ -8,7 +8,7 @@ use ruma::{
 	events::{
 		RoomAccountDataEventType,
 		fully_read::{FullyReadEvent, FullyReadEventContent},
-		receipt::{Receipt, ReceiptEvent, ReceiptEventContent, ReceiptType},
+		receipt::{Receipt, ReceiptEvent, ReceiptEventContent, ReceiptThread, ReceiptType},
 	},
 };
 
@@ -26,6 +26,15 @@ pub(crate) async fn set_read_marker_route(
 	body: Ruma<set_read_marker::v3::Request>,
 ) -> Result<set_read_marker::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
+
+	if !services
+		.rooms
+		.state_cache
+		.is_joined(sender_user, &body.room_id)
+		.await
+	{
+		return Err!(Request(Forbidden("You are not in this room.")));
+	}
 
 	if let Some(event) = &body.fully_read {
 		let fully_read_event = FullyReadEvent::new(FullyReadEventContent::new(event.to_owned()));
@@ -92,9 +101,8 @@ pub(crate) async fn set_read_marker_route(
 			.timeline
 			.get_pdu_count(event)
 			.await
-			.map_err(|_| err!(Request(NotFound("Event not found."))))?;
-
-		let count = count.into_unsigned();
+			.map_err(|_| err!(Request(NotFound("Event not found."))))?
+			.into_unsigned();
 
 		services
 			.rooms
@@ -118,10 +126,25 @@ pub(crate) async fn create_receipt_route(
 ) -> Result<create_receipt::v3::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
+	if !services
+		.rooms
+		.state_cache
+		.is_joined(sender_user, &body.room_id)
+		.await
+	{
+		return Err!(Request(Forbidden("You are not in this room.")));
+	}
+
 	services
 		.users
 		.update_device_last_seen(sender_user, body.identity.sender_device(), client_ip)
 		.await;
+
+	if body.receipt_type == create_receipt::v3::ReceiptType::FullyRead
+		&& body.thread != ReceiptThread::Unthreaded
+	{
+		return Err!(Request(InvalidParam("thread_id cannot be specified for m.fully_read")));
+	}
 
 	if matches!(
 		&body.receipt_type,
@@ -155,40 +178,41 @@ pub(crate) async fn create_receipt_route(
 				)
 				.await?;
 		},
-		| create_receipt::v3::ReceiptType::Read => {
-			let receipt_content = [(
-				body.event_id.clone(),
-				BTreeMap::from_iter([(
-					ReceiptType::Read,
+		| create_receipt::v3::ReceiptType::Read =>
+			if services.config.allow_local_read_receipts
+				&& !services.users.is_suspended(sender_user).await?
+			{
+				let mut receipt = Receipt::new(MilliSecondsSinceUnixEpoch::now());
+				receipt.thread = body.thread.clone();
+				let receipt_content = [(
+					body.event_id.clone(),
 					BTreeMap::from_iter([(
-						sender_user.to_owned(),
-						Receipt::new(MilliSecondsSinceUnixEpoch::now()),
+						ReceiptType::Read,
+						BTreeMap::from_iter([(sender_user.to_owned(), receipt)]),
 					)]),
-				)]),
-			)];
+				)];
 
-			services
-				.rooms
-				.read_receipt
-				.readreceipt_update(
-					sender_user,
-					&body.room_id,
-					ReceiptEvent::new(
-						body.room_id.clone(),
-						ReceiptEventContent::from_iter(receipt_content),
-					),
-				)
-				.await;
-		},
+				services
+					.rooms
+					.read_receipt
+					.readreceipt_update(
+						sender_user,
+						&body.room_id,
+						ReceiptEvent::new(
+							body.room_id.clone(),
+							ReceiptEventContent::from_iter(receipt_content),
+						),
+					)
+					.await;
+			},
 		| create_receipt::v3::ReceiptType::ReadPrivate => {
 			let count = services
 				.rooms
 				.timeline
 				.get_pdu_count(&body.event_id)
 				.await
-				.map_err(|_| err!(Request(NotFound("Event not found."))))?;
-
-			let count = count.into_unsigned();
+				.map_err(|_| err!(Request(NotFound("Event not found."))))?
+				.into_unsigned();
 
 			services
 				.rooms
