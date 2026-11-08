@@ -579,21 +579,21 @@ impl Service {
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
 	) -> Option<EduBuf> {
-		let mut num = 0;
+		let num = AtomicUsize::new(0);
 		let receipts: BTreeMap<OwnedRoomId, ReceiptMap> = self
 			.services
 			.state_cache
 			.server_rooms(server_name)
-			.broad_filter_map(|room_id| async move {
+			.broad_filter_map(|room_id| async {
+				if num.load(Ordering::Relaxed) >= SELECT_RECEIPT_LIMIT {
+					return None;
+				}
+
 				let receipt_map = self
-					.select_edus_receipts_room(&room_id, since, max_edu_count, &mut num)
+					.select_edus_receipts_room(&room_id, since, max_edu_count, &num)
 					.await;
 
-				receipt_map
-					.read
-					.is_empty()
-					.eq(&false)
-					.then_some((room_id, receipt_map))
+				(!receipt_map.read.is_empty()).then_some((room_id, receipt_map))
 			})
 			.collect()
 			.await;
@@ -612,13 +612,17 @@ impl Service {
 	}
 
 	/// Look for read receipts in this room
-	#[tracing::instrument(name = "receipts", level = "trace", skip(self, since, max_edu_count))]
+	#[tracing::instrument(
+		name = "receipts",
+		level = "trace",
+		skip(self, since, max_edu_count, num)
+	)]
 	async fn select_edus_receipts_room(
 		&self,
 		room_id: &RoomId,
 		since: (u64, u64),
 		max_edu_count: &AtomicU64,
-		num: &mut usize,
+		num: &AtomicUsize,
 	) -> ReceiptMap {
 		let receipts = self
 			.services
@@ -647,24 +651,23 @@ impl Service {
 				continue;
 			};
 
-			let (event_id, mut receipt) = r
-				.content
-				.0
-				.into_iter()
-				.next()
-				.expect("we only use one event per read receipt");
+			let Some((event_id, mut receipt)) = r.content.0.into_iter().next() else {
+				error!(%user_id, %count, "Empty content in read_receipts");
+				continue;
+			};
 
-			let receipt = receipt
+			let Some(receipt) = receipt
 				.remove(&ReceiptType::Read)
-				.expect("our read receipts always set this")
-				.remove(&user_id)
-				.expect("our read receipts always have the user here");
+				.and_then(|mut u| u.remove(&user_id))
+			else {
+				error!(%user_id, %count, "Missing user receipt for ReceiptType::Read in read_receipts");
+				continue;
+			};
 
 			let receipt_data = ReceiptData::new(receipt, vec![event_id]);
 
 			if read.insert(user_id, receipt_data).is_none() {
-				*num = num.saturating_add(1);
-				if *num >= SELECT_RECEIPT_LIMIT {
+				if num.fetch_add(1, Ordering::Relaxed).saturating_add(1) >= SELECT_RECEIPT_LIMIT {
 					break;
 				}
 			}
