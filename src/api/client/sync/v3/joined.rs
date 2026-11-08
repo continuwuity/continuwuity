@@ -15,7 +15,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use conduwuit_service::Services;
+use conduwuit_service::{Services, rooms::read_receipt::pack_receipts};
 use futures::{
 	FutureExt, StreamExt, TryFutureExt,
 	future::{OptionFuture, join, join3, join4, try_join, try_join3},
@@ -243,9 +243,14 @@ async fn build_ephemeral(
 	let (receipt_events, typing_event, private_read_event) =
 		join3(receipt_events, typing_event, private_read_event).await;
 
-	let mut edus = receipt_events;
+	let mut all_receipts = receipt_events;
+	all_receipts.extend(private_read_event);
+
+	let mut edus = Vec::new();
+	if !all_receipts.is_empty() {
+		edus.push(pack_receipts(all_receipts.into_iter()).cast());
+	}
 	edus.extend(typing_event);
-	edus.extend(private_read_event);
 
 	Ok(assign!(Ephemeral::new(), { events: edus }))
 }
