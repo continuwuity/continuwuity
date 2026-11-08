@@ -271,4 +271,54 @@ mod tests {
 		assert!(users.contains_key(user_id!("@alice:example.org")));
 		assert!(users.contains_key(user_id!("@bob:example.org")));
 	}
+
+	#[test]
+	fn pack_receipts_merges_threaded_and_private_receipts() {
+		let event_a: OwnedEventId = "$event_a:example.org".try_into().expect("valid event ID");
+		let event_b: OwnedEventId = "$event_b:example.org".try_into().expect("valid event ID");
+
+		let mut public_threaded_receipt = Receipt::default();
+		public_threaded_receipt.thread = ruma::events::receipt::ReceiptThread::Main;
+
+		let r1_content = ReceiptEventContent::from_iter([(
+			event_a.clone(),
+			BTreeMap::from([(
+				ReceiptType::Read,
+				BTreeMap::from([(
+					user_id!("@alice:example.org").to_owned(),
+					public_threaded_receipt,
+				)]),
+			)]),
+		)]);
+		let r1: Raw<AnySyncEphemeralRoomEvent> = Raw::from_json(
+			serde_json::value::to_raw_value(&SyncEphemeralRoomEvent::new(r1_content)).unwrap(),
+		);
+
+		let mut private_receipt = Receipt::default();
+		private_receipt.thread = ruma::events::receipt::ReceiptThread::Unthreaded;
+		let r2_content = ReceiptEventContent::from_iter([(
+			event_b.clone(),
+			BTreeMap::from([(
+				ReceiptType::ReadPrivate,
+				BTreeMap::from([(user_id!("@alice:example.org").to_owned(), private_receipt)]),
+			)]),
+		)]);
+		let r2: Raw<AnySyncEphemeralRoomEvent> = Raw::from_json(
+			serde_json::value::to_raw_value(&SyncEphemeralRoomEvent::new(r2_content)).unwrap(),
+		);
+
+		let packed = pack_receipts([r1, r2].into_iter());
+		let packed: SyncEphemeralRoomEvent<ReceiptEventContent> =
+			serde_json::from_str(packed.json().get()).expect("packed receipt is valid");
+
+		assert_eq!(
+			packed.content[&event_a][&ReceiptType::Read][user_id!("@alice:example.org")].thread,
+			ruma::events::receipt::ReceiptThread::Main
+		);
+		assert_eq!(
+			packed.content[&event_b][&ReceiptType::ReadPrivate][user_id!("@alice:example.org")]
+				.thread,
+			ruma::events::receipt::ReceiptThread::Unthreaded
+		);
+	}
 }
