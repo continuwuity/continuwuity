@@ -152,7 +152,7 @@ features = [
 ]
 
 [workspace.dependencies.rustls]
-version = "0.23.25"
+version = "0.23.46"
 default-features = false
 
 [workspace.dependencies.reqwest]
