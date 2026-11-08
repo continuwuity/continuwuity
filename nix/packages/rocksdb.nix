@@ -18,13 +18,13 @@
   inherit enableJemalloc;
 }).overrideAttrs
   ({
-    version = "continuwuity-v0.5.0-unstable-2026-05-19";
+    version = "continuwuity-v0.5.0-unstable-2026-11-08";
     src = fetchFromGitea {
       domain = "forgejo.ellis.link";
       owner = "continuwuation";
       repo = "rocksdb";
-      rev = "3756b2b905e13216d8b56bcc783d814e7b073aff";
-      hash = "sha256-rSv4fr2bf9JJwdodgeuPCuceeh7k97KVxrAOC0wyPQY=";
+      rev = "722fa3219df4169610fda8962221a1ff74026fdb";
+      hash = "sha256-ZuXXp83Hgj0B5v499CNxa9oNQUS/ZKYOAZEhmarUifc=";
     };
 
     # We have this already at https://forgejo.ellis.link/continuwuation/rocksdb/commit/a935c0273e1ba44eacf88ce3685a9b9831486155
