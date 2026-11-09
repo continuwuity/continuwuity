@@ -42,7 +42,12 @@ let
 
     env = {
       CARGO_PROFILE = profile;
-      RUSTFLAGS = rustflags;
+      # Rust links with its bundled rust-lld by default on linux-gnu targets.
+      # This bypasses nixpkgs' linker wrapper (and its rpaths), so we make it use the system one.
+      # `-C linker-features=-lld` is only stable on x86_64, but cc takes the last `-fuse-ld`.
+      RUSTFLAGS = lib.concatStringsSep " " (
+        lib.optional stdenv.hostPlatform.isLinux "-C link-arg=-fuse-ld=bfd" ++ [ rustflags ]
+      );
       GIT_COMMIT_HASH = self.rev or self.dirtyRev or "";
       GIT_COMMIT_HASH_SHORT = self.shortRev or self.dirtyShortRev or "";
     }
@@ -59,18 +64,6 @@ craneLib.buildPackage (
   lib.recursiveUpdate attrs {
     inherit cargoExtraArgs;
     cargoArtifacts = craneLib.buildDepsOnly attrs;
-
-    # Needed to make continuwuity link to rocksdb
-    postFixup = lib.optionalString (stdenv.hostPlatform.isLinux && rocksdb != null) ''
-      old_rpath="$(patchelf --print-rpath $out/bin/conduwuit)"
-      extra_rpath="${
-        lib.makeLibraryPath [
-          rocksdb
-        ]
-      }"
-
-      patchelf --set-rpath "$old_rpath:$extra_rpath" $out/bin/conduwuit
-    '';
 
     meta = {
       description = "A community-driven Matrix homeserver in Rust";
