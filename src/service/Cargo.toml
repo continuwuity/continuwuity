@@ -16,12 +16,6 @@ crate-type = [
 ]
 
 [features]
-bindgen-runtime = [
-    "conduwuit-database/bindgen-runtime"
-]
-bindgen-static = [
-    "conduwuit-database/bindgen-static"
-]
 brotli_compression = [
 	"conduwuit-core/brotli_compression",
 	"reqwest/brotli",
@@ -34,9 +28,6 @@ element_hacks = []
 gzip_compression = [
 	"conduwuit-core/gzip_compression",
 	"reqwest/gzip",
-]
-http3 = [
-    "reqwest/http3"
 ]
 io_uring = [
 	"conduwuit-database/io_uring",
@@ -131,9 +122,6 @@ lettre.workspace = true
 resolvematrix.workspace = true
 serde_urlencoded.workspace = true
 openidconnect.workspace = true
-# We use this to set TLS backend features on the outdated reqwest bundled by openidconnect,
-# which is necessary to call `danger_accept_invalid_certs`.
-reqwest_0_12.workspace = true
 rand.workspace = true
 
 [target.'cfg(all(unix, target_os = "linux"))'.dependencies]
