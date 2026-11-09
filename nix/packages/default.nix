@@ -18,6 +18,23 @@
     {
       packages =
         let
+          # These musl deps aren't in the binary cache, so they're built locally, and their
+          # test suites run (and break) when the builder can execute musl binaries.
+          #
+          # TODO: drop tzdata override once https://github.com/NixOS/nixpkgs/pull/582577 reaches nixos-unstable
+          # - tzdata: `now.ck` checks against the current date.
+          # TODO: drop sqlite override once https://github.com/NixOS/nixpkgs/issues/580629 is resolved
+          # - sqlite: its test runner fails to build `testfixture` when cross-compiling to musl.
+          muslOverlay =
+            _final: prev:
+            lib.genAttrs [ "tzdata" "sqlite" ] (
+              name:
+              if prev.stdenv.hostPlatform.isMusl then
+                prev.${name}.overrideAttrs { doCheck = false; }
+              else
+                prev.${name}
+            );
+
           mkPackages =
             pkgs:
             let
@@ -78,6 +95,7 @@
             import inputs.nixpkgs {
               localSystem = system;
               crossSystem = "x86_64-unknown-linux-musl";
+              overlays = [ muslOverlay ];
             }
           )
         ))
@@ -86,6 +104,7 @@
             import inputs.nixpkgs {
               localSystem = system;
               crossSystem = "aarch64-unknown-linux-musl";
+              overlays = [ muslOverlay ];
             }
           )
         ));
