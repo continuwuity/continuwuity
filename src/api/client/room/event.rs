@@ -24,7 +24,7 @@ pub(crate) async fn get_room_event_route(
 				services.rooms.state_accessor.is_world_readable(room_id)
 			);
 			if !joined && !world_readable {
-				return Err!(Request(NotFound("Event {} not found.", event_id)));
+				return Err!(Request(NotFound("Event {event_id} not found.")));
 			}
 
 			services
@@ -32,10 +32,15 @@ pub(crate) async fn get_room_event_route(
 				.timeline
 				.get_remote_pdu(room_id, event_id)
 				.await
-				.map_err(|_| err!(Request(NotFound("Event {} not found.", event_id))))?
+				.map_err(|_| err!(Request(NotFound("Event {event_id} not found."))))?
 		},
 		| Err(e) => return Err(e),
 	};
+	if !event.room_id_or_hash().eq(room_id) {
+		// Return not found instead of invalid param to avoid revealing the
+		// existence of events the user might not be allowed to know about.
+		return Err!(Request(NotFound("Event {event_id} not found.")));
+	}
 
 	// NOTE: checked after fetching, as visibility of an unknown event cannot
 	// be determined (user_can_see_event returns true for those).
