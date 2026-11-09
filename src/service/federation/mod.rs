@@ -18,7 +18,6 @@ use ruma::{
 	OwnedServerName, ServerName,
 	api::error::{ErrorKind, LimitExceededErrorData, RetryAfter},
 };
-use yansi::Paint;
 
 use crate::{Dep, client, moderation, server_keys};
 
