@@ -5,17 +5,21 @@ use futures::{
 	future::{OptionFuture, join, join3},
 };
 use ruma::{
-	Int, OwnedUserId, RoomVersionId, UserId,
+	AnyKeyName, CanonicalJsonObject, Int, OwnedUserId, RoomVersionId, SigningKeyId, UserId,
 	events::room::{
 		join_rules::{JoinRule, RoomJoinRulesEventContent},
-		member::{MembershipState, ThirdPartyInvite},
+		member::MembershipState,
 		power_levels::{RoomPowerLevelsEventContent, UserPowerLevel},
+		third_party_invite::PublicKey,
 	},
 	int,
 	room_version_rules::{RoomIdFormatVersion, RoomVersionRules},
-	serde::Raw,
+	serde::{Raw, base64, base64::Standard},
+	signatures,
+	signatures::to_canonical_json_string_for_signing,
+	third_party_invite::IdentityServerBase64PublicKey,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{from_str as from_json_str, value::RawValue as RawJsonValue};
 
 use super::{
@@ -25,7 +29,7 @@ use super::{
 		deserialize_power_levels_content_redact,
 	},
 };
-use crate::{debug, error, trace, warn};
+use crate::{debug, err, error, trace, warn};
 
 // FIXME: field extracting could be bundled for `content`
 #[derive(Deserialize)]
@@ -48,6 +52,40 @@ struct RoomCreateContentFields {
 	federate: bool,
 }
 
+// Workaround for https://github.com/matrix-org/matrix-spec/issues/2471
+#[derive(Deserialize, Debug)]
+struct RoomThirdPartyInviteContentFields {
+	public_key: Option<IdentityServerBase64PublicKey>,
+	public_keys: Option<Vec<PublicKey>>,
+}
+
+// same here sort of (maintainers see https://forgejo.ellis.link/continuwuation/continuwuity-sec/issues/41)
+#[derive(Deserialize, Debug)]
+struct MemberThirdPartyInviteSignedContent {
+	signed: ThirdPartyInviteSignedObject,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ThirdPartyInviteSignedObject(CanonicalJsonObject);
+
+impl ThirdPartyInviteSignedObject {
+	#[inline]
+	fn mxid(&self) -> Option<OwnedUserId> {
+		self.0
+			.get("mxid")?
+			.as_str()
+			.and_then(|raw| UserId::parse(raw).ok())
+	}
+
+	#[inline]
+	fn token(&self) -> Option<&str> { self.0.get("token")?.as_str() }
+
+	#[inline]
+	fn signatures(&self) -> Option<CanonicalJsonObject> {
+		self.0.get("signatures")?.as_object().map(ToOwned::to_owned)
+	}
+}
+
 /// For the given event `kind` what are the relevant auth events that are needed
 /// to authenticate this `content`.
 ///
@@ -61,7 +99,7 @@ pub fn auth_types_for_event(
 	state_key: Option<&str>,
 	content: &RawJsonValue,
 	room_version: &RoomVersionRules,
-) -> serde_json::Result<Vec<(StateEventType, StateKey)>> {
+) -> crate::Result<Vec<(StateEventType, StateKey)>> {
 	if kind == &TimelineEventType::RoomCreate {
 		return Ok(vec![]);
 	}
@@ -84,7 +122,7 @@ pub fn auth_types_for_event(
 		#[allow(unused)]
 		struct RoomMemberContentFields {
 			membership: Option<Raw<MembershipState>>,
-			third_party_invite: Option<Raw<ThirdPartyInvite>>,
+			third_party_invite: Option<Raw<MemberThirdPartyInviteSignedContent>>,
 			join_authorised_via_users_server: Option<Raw<OwnedUserId>>,
 		}
 
@@ -116,16 +154,24 @@ pub fn auth_types_for_event(
 					auth_types.push(key);
 				}
 
-				// TODO: restore this once 3pid support isn't broken
-				// if membership == MembershipState::Invite {
-				// 	if let Some(Ok(t_id)) = content.third_party_invite.map(|t|
-				// t.deserialize()) { 		let key =
-				// 			(StateEventType::RoomThirdPartyInvite,
-				// t_id.signed.token.into()); 		if !auth_types.contains(&
-				// key) { 			auth_types.push(key);
-				// 		}
-				// 	}
-				// }
+				if membership == MembershipState::Invite {
+					if let Some(Ok(t_id)) = content.third_party_invite.map(|t| t.deserialize()) {
+						let key = (
+							StateEventType::RoomThirdPartyInvite,
+							t_id.signed
+								.token()
+								.ok_or_else(|| {
+									err!(Request(BadJson(
+										"Third party invite content missing a token"
+									)))
+								})?
+								.into(),
+						);
+						if !auth_types.contains(&key) {
+							auth_types.push(key);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -179,12 +225,11 @@ fn get_user_power_level(
 pub async fn auth_check<E, F, Fut>(
 	room_version: &RoomVersionRules,
 	incoming_event: &E,
-	current_third_party_invite: Option<&E>,
 	fetch_state: F,
 	create_event: &E,
 ) -> Result<bool, Error>
 where
-	F: Fn(&StateEventType, &str) -> Fut + Send,
+	F: Fn(&StateEventType, &str) -> Fut + Send + Copy,
 	Fut: Future<Output = Option<E>> + Send,
 	E: Event + Send + Sync,
 	for<'a> &'a E: Event + Send,
@@ -444,13 +489,15 @@ where
 			sender,
 			sender_member_event.as_ref(),
 			incoming_event,
-			current_third_party_invite,
+			fetch_state,
 			power_levels_event.as_ref(),
 			join_rules_event.as_ref(),
 			user_for_join_auth.as_deref(),
 			&user_for_join_auth_membership,
 			&room_create_event,
-		)? {
+		)
+		.await?
+		{
 			return Ok(false);
 		}
 
@@ -639,14 +686,14 @@ where
 /// event and the current State.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::cognitive_complexity)]
-fn valid_membership_change<E>(
+async fn valid_membership_change<E, F, Fut>(
 	room_version: &RoomVersionRules,
 	target_user: &UserId,
 	target_user_membership_event: Option<&E>,
 	sender: &UserId,
 	sender_membership_event: Option<&E>,
 	current_event: &E,
-	current_third_party_invite: Option<&E>,
+	fetch_state: F,
 	power_levels_event: Option<&E>,
 	join_rules_event: Option<&E>,
 	user_for_join_auth: Option<&UserId>,
@@ -655,11 +702,13 @@ fn valid_membership_change<E>(
 ) -> Result<bool>
 where
 	E: Event + Send + Sync,
+	F: Fn(&StateEventType, &str) -> Fut + Send + Copy,
+	Fut: Future<Output = Option<E>> + Send,
 	for<'a> &'a E: Event + Send,
 {
 	#[derive(Deserialize)]
 	struct GetThirdPartyInvite {
-		third_party_invite: Option<Raw<ThirdPartyInvite>>,
+		third_party_invite: Option<Raw<MemberThirdPartyInviteSignedContent>>,
 	}
 	let create_content = from_json_str::<RoomCreateContentFields>(create_room.content().get())?;
 	let creator = if room_version.authorization.use_room_create_sender {
@@ -901,22 +950,18 @@ where
 		| MembershipState::Invite => {
 			// If content has third_party_invite key
 			trace!("starting target_membership=invite check");
-			match third_party_invite.and_then(|i| i.deserialize().ok()) {
-				| Some(tp_id) =>
+			match third_party_invite {
+				| Some(raw_tp_id) =>
 					if target_user_current_membership == MembershipState::Ban {
 						warn!(?target_user_membership_event_id, "Can't invite banned user");
 						false
 					} else {
-						let allow = verify_third_party_invite(
-							Some(target_user),
-							sender,
-							&tp_id,
-							current_third_party_invite,
-						);
-						if !allow {
-							warn!("Third party invite invalid");
-						}
-						allow
+						let Ok(tp_id) = raw_tp_id.deserialize() else {
+							warn!("Invite third party content is invalid");
+							return Ok(false);
+						};
+						verify_third_party_invite(Some(target_user), sender, &tp_id, fetch_state)
+							.await
 					},
 				| _ =>
 					if !sender_is_joined {
@@ -1435,14 +1480,133 @@ fn get_send_level(
 		.unwrap_or_else(|| if state_key.is_some() { int!(50) } else { int!(0) })
 }
 
-fn verify_third_party_invite(
-	_target_user: Option<&UserId>,
-	_sender: &UserId,
-	_tp_id: &ThirdPartyInvite,
-	_current_third_party_invite: Option<&impl Event>,
-) -> bool {
-	// TODO: implement proper verification here
-	true
+async fn verify_third_party_invite<F, Fut, E>(
+	target_user: Option<&UserId>,
+	sender: &UserId,
+	tp_id: &MemberThirdPartyInviteSignedContent,
+	fetch_state: F,
+) -> bool
+where
+	F: Fn(&StateEventType, &str) -> Fut + Send,
+	Fut: Future<Output = Option<E>> + Send,
+	E: Event + Send + Sync,
+{
+	// If content.third_party_invite does not have a signed property, reject.
+	// ^ This would be a deserialization error before this function call, which
+	// equates to a rejection
+	let signed = &tp_id.signed;
+	// If signed does not have mxid and token properties, reject.
+	let Some(mxid) = signed.mxid() else {
+		warn!("Invite third party signed content is missing or has invalid `mxid` property");
+		return false;
+	};
+	let Some(token) = signed.token() else {
+		warn!("Invite third party signed content is missing or has invalid `token` property");
+		return false;
+	};
+	if let Err(e) = mxid.validate_historical() {
+		warn!(error=?e, ?mxid, "Invite third party signed content has invalid `mxid` property");
+		return false;
+	}
+	// If mxid does not match state_key, reject.
+	// N.B. target_user is the state_key
+	if target_user.is_none_or(|u| u != mxid) {
+		warn!(?target_user, %mxid, "Invite third party mxid does not match membership state key");
+		return false;
+	}
+	// If there is no m.room.third_party_invite event in the current room state
+	// with state_key matching token, reject.
+	let Some(current_third_party_invite) =
+		fetch_state(&StateEventType::RoomThirdPartyInvite, token).await
+	else {
+		warn!("No third party invite associated with the invite's third party invite found");
+		return false;
+	};
+	let Ok(tpi_content) = current_third_party_invite
+		.get_content::<RoomThirdPartyInviteContentFields>()
+		.inspect_err(
+			|e| warn!(error=?e, "Third party invite event content is invalid (cannot deserialize)"),
+		)
+	else {
+		return false;
+	};
+	if current_third_party_invite.state_key() != Some(token) {
+		warn!(
+			state_key=?current_third_party_invite.state_key(),
+			%token,
+			"Third party invite state key mismatch with signed invite token"
+		);
+		return false;
+	}
+	// If sender does not match sender of the m.room.third_party_invite, reject.
+	if sender != current_third_party_invite.sender() {
+		warn!(
+			?sender,
+			third_party_invite_sender=%current_third_party_invite.sender(),
+			"Third party invite sender does not match invite membership sender"
+		);
+		return false;
+	}
+	// If any signature in signed matches any public key in the
+	// m.room.third_party_invite event, allow. The public keys are in content of
+	// m.room.third_party_invite as:
+	//
+	//     A single public key in the public_key property.
+	//     A list of public keys in the public_keys property.
+
+	// NOTE: Technically the two below operations shouldn't be fallible at this
+	// point in execution, but if we can't de/serialize them now, we won't be
+	// able to in the future, so rejecting the event is the right way to go.
+	// We log an error though since this is unexpected.
+	let Ok(signed_json) = to_canonical_json_string_for_signing(&signed.0).inspect_err(
+		|e| error!(error=?e, "Canonical signed object cannot be cast to a signing string"),
+	) else {
+		return false;
+	};
+	let signatures = signed
+		.signatures()
+		.unwrap_or_default() // Empty sigs object will never pass so this is fine
+		.values()
+		.filter_map(|signatures| signatures.as_object())
+		.flat_map(|signatures| {
+			signatures.iter().map(|(key, sig)| {
+				let key_id = SigningKeyId::<AnyKeyName>::parse(key).ok()?;
+				base64::Base64::<Standard>::parse(sig.as_str()?)
+					.map(|parsed| (key_id.algorithm(), parsed))
+					.ok()
+			})
+		})
+		.flatten()
+		.collect::<Vec<_>>();
+
+	for public_key_bytes in tpi_content
+		.public_key
+		.into_iter()
+		.chain(
+			tpi_content
+				.public_keys
+				.unwrap_or_default()
+				.iter()
+				.map(|pk| pk.public_key.clone()),
+		)
+		.filter_map(|pk| pk.decode().ok())
+	{
+		for (algorithm, signature) in &signatures {
+			if signatures::verify_canonical_json_bytes(
+				algorithm,
+				&public_key_bytes,
+				signature.as_bytes(),
+				signed_json.as_bytes(),
+			)
+			.is_ok()
+			{
+				return true;
+			}
+		}
+	}
+
+	warn!("Invite via third party was not signed by any associated public keys");
+	false
 }
 
 #[cfg(test)]
@@ -1461,7 +1625,7 @@ mod tests {
 	use serde_json::value::to_raw_value as to_raw_json_value;
 
 	use crate::{
-		matrix::{Event, EventTypeExt, Pdu as PduEvent},
+		matrix::{Event, EventTypeExt},
 		state_res::{
 			StateMap,
 			event_auth::valid_membership_change,
@@ -1472,8 +1636,8 @@ mod tests {
 		},
 	};
 
-	#[test]
-	fn test_ban_pass() {
+	#[tokio::test]
+	async fn test_ban_pass() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1495,6 +1659,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = charlie();
 		let sender = alice();
 
@@ -1506,19 +1672,20 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				None,
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}
 
-	#[test]
-	fn test_join_non_creator() {
+	#[tokio::test]
+	async fn test_join_non_creator() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1540,6 +1707,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = charlie();
 		let sender = charlie();
 
@@ -1551,19 +1720,20 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				None,
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}
 
-	#[test]
-	fn test_join_creator() {
+	#[tokio::test]
+	async fn test_join_creator() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1585,6 +1755,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = alice();
 		let sender = alice();
 
@@ -1596,19 +1768,20 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				None,
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}
 
-	#[test]
-	fn test_ban_fail() {
+	#[tokio::test]
+	async fn test_ban_fail() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1630,6 +1803,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = alice();
 		let sender = charlie();
 
@@ -1641,19 +1816,20 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				None,
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}
 
-	#[test]
-	fn test_restricted_join_rule() {
+	#[tokio::test]
+	async fn test_restricted_join_rule() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1692,6 +1868,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = ella();
 		let sender = ella();
 
@@ -1703,13 +1881,14 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				Some(alice()),
 				&MembershipState::Join,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 
@@ -1721,19 +1900,20 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				Some(ella()),
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}
 
-	#[test]
-	fn test_knock() {
+	#[tokio::test]
+	async fn test_knock() {
 		let _ = tracing::subscriber::set_default(
 			tracing_subscriber::fmt().with_test_writer().finish(),
 		);
@@ -1764,6 +1944,8 @@ mod tests {
 		);
 
 		let fetch_state = |ty, key| auth_events.get(&(ty, key)).cloned();
+		let async_fetch_state =
+			|t: &StateEventType, k: &str| std::future::ready(fetch_state(t.to_owned(), k.into()));
 		let target_user = ella();
 		let sender = ella();
 
@@ -1775,13 +1957,14 @@ mod tests {
 				sender,
 				fetch_state(StateEventType::RoomMember, sender.as_str().into()).as_ref(),
 				&requester,
-				None::<&PduEvent>,
+				&async_fetch_state,
 				fetch_state(StateEventType::RoomPowerLevels, "".into()).as_ref(),
 				fetch_state(StateEventType::RoomJoinRules, "".into()).as_ref(),
 				None,
 				&MembershipState::Leave,
 				&fetch_state(StateEventType::RoomCreate, "".into()).unwrap(),
 			)
+			.await
 			.unwrap()
 		);
 	}

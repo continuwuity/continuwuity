@@ -314,6 +314,7 @@ async fn get_register_email_validate(
 			Some(email),
 			&client
 		)
+		.boxed()
 		.await?
 	)
 }
@@ -508,6 +509,7 @@ async fn begin_registration(
 		// If email isn't required we can immediately complete registration
 		Ok(response!(
 			complete_registration(services, session_store, completed_registration, None, client)
+				.boxed()
 				.await?
 		))
 	}

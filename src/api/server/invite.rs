@@ -401,7 +401,6 @@ async fn validate_invite_create_event(
 	if !state_res::auth_check(
 		room_version_rules,
 		pdu,
-		None,
 		|_, _| async {
 			unreachable!("No state should be fetched when processing a lone create event");
 		},

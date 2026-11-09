@@ -160,15 +160,9 @@ impl super::Service {
 			ready(auth_events_by_key.get(&key).map(ToOwned::to_owned))
 		};
 
-		state_res::event_auth::auth_check(
-			room_version_rules,
-			pdu,
-			None, // TODO: third party invite
-			state_fetch,
-			create_event,
-		)
-		.await
-		.map_err(|e| err!("Event self-authentication failed: {e:?}"))
+		state_res::event_auth::auth_check(room_version_rules, pdu, state_fetch, create_event)
+			.await
+			.map_err(|e| err!("Event self-authentication failed: {e:?}"))
 	}
 
 	/// Checks that the event passes PDU check 5, which ensures that the event
@@ -242,7 +236,6 @@ impl super::Service {
 		let auth_check = state_res::event_auth::auth_check(
 			room_version_rules,
 			incoming_pdu,
-			None, // TODO: third party invite
 			|ty, sk| state_fetch(ty.clone(), sk.into()),
 			create_event.as_pdu(),
 		)
@@ -292,7 +285,6 @@ impl super::Service {
 		state_res::event_auth::auth_check(
 			room_version_rules,
 			incoming_pdu,
-			None, // third-party invite
 			state_fetch,
 			create_event.as_pdu(),
 		)
