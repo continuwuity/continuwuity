@@ -8,7 +8,10 @@ use database::{Deserialized, Json, Map};
 use futures::{Stream, StreamExt};
 use ruma::{
 	CanonicalJsonObject, OwnedRoomId, OwnedUserId, RoomId, UserId,
-	events::{AnySyncEphemeralRoomEvent, receipt::ReceiptEvent},
+	events::{
+		AnySyncEphemeralRoomEvent,
+		receipt::{ReceiptEvent, ReceiptType},
+	},
 	serde::Raw,
 };
 
@@ -46,56 +49,46 @@ impl Data {
 		room_id: &RoomId,
 		event: &ReceiptEvent,
 	) -> bool {
-		let new_target = event.content.0.iter().find_map(|(ev_id, types)| {
-			types
-				.iter()
-				.find_map(|(rtype, users)| users.get(user_id).map(|r| (ev_id, rtype, &r.thread)))
-		});
+		let Some((new_event, new_receipt)) =
+			event.content.user_receipt(user_id, ReceiptType::Read)
+		else {
+			return false;
+		};
 
 		// Find old entries for this user in this room
 		let last_possible_key = (room_id, u64::MAX);
-		let mut keys = Vec::new();
+		let mut old_entries = Vec::new();
 		self.readreceiptid_readreceipt
-			.rev_keys_from_raw(&last_possible_key)
+			.rev_stream_from_raw(&last_possible_key)
 			.ignore_err()
-			.ready_take_while(|key| key.starts_with(room_id.as_bytes()))
-			.ready_filter_map(|key| key.ends_with(user_id.as_bytes()).then(|| key.to_vec()))
-			.ready_for_each(|key| keys.push(key))
+			.ready_take_while(|(key, _)| key.starts_with(room_id.as_bytes()))
+			.ready_filter_map(|(key, val)| {
+				key.ends_with(user_id.as_bytes())
+					.then(|| (key.to_vec(), serde_json::from_slice::<ReceiptEvent>(val).ok()))
+			})
+			.ready_for_each(|entry| old_entries.push(entry))
 			.await;
 
 		let mut to_del = Vec::new();
-		let mut is_dup = false;
 
-		for key in keys {
-			if let Ok(val) = self.readreceiptid_readreceipt.get(&key).await {
-				if let Ok(existing) = serde_json::from_slice::<ReceiptEvent>(&val) {
-					let existing_target = existing.content.0.iter().find_map(|(ev_id, types)| {
-						types.iter().find_map(|(rtype, users)| {
-							users.get(user_id).map(|r| (ev_id, rtype, &r.thread))
-						})
-					});
+		for (key, existing) in old_entries {
+			let Some(existing) = existing else {
+				to_del.push(key);
+				continue;
+			};
+			let Some((old_event, old_receipt)) =
+				existing.content.user_receipt(user_id, ReceiptType::Read)
+			else {
+				to_del.push(key);
+				continue;
+			};
 
-					if let (Some(new_t), Some(old_t)) = (new_target, existing_target) {
-						if new_t.1 == old_t.1 && new_t.2 == old_t.2 {
-							if new_t.0 == old_t.0 {
-								is_dup = true;
-							} else {
-								to_del.push(key);
-							}
-						}
-					} else {
-						to_del.push(key);
-					}
-				} else {
-					to_del.push(key);
+			if old_receipt.thread == new_receipt.thread {
+				if old_event == new_event {
+					return false;
 				}
-			} else {
 				to_del.push(key);
 			}
-		}
-
-		if is_dup {
-			return false;
 		}
 
 		for key in to_del {
