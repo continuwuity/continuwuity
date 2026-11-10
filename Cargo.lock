@@ -865,7 +865,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "clap",
  "conduwuit_build_metadata",
@@ -897,7 +897,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_admin"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "clap",
  "conduwuit_api",
@@ -921,7 +921,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_api"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "axum",
  "base64 0.23.1",
@@ -953,7 +953,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_build_metadata"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "built",
  "cargo_metadata",
@@ -961,7 +961,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_core"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "argon2",
  "arrayvec",
@@ -1031,7 +1031,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_database"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "async-channel",
  "conduwuit_core",
@@ -1051,7 +1051,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_macros"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "itertools 0.15.0",
  "proc-macro2",
@@ -1061,7 +1061,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_router"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "axum",
  "axum-server",
@@ -1094,7 +1094,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_service"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "askama",
  "assign",
@@ -1150,7 +1150,7 @@ dependencies = [
 
 [[package]]
 name = "conduwuit_web"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "askama",
  "async-trait",
@@ -5167,7 +5167,7 @@ dependencies = [
 
 [[package]]
 name = "ruminuwuity"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "assign",
  "http",
@@ -7351,7 +7351,7 @@ dependencies = [
 
 [[package]]
 name = "xtask"
-version = "26.9.1"
+version = "26.11.0-alpha.1"
 dependencies = [
  "askama",
  "cargo_metadata",
