@@ -256,15 +256,10 @@ impl super::Service {
 			| _ => create_pdu.as_ref().unwrap().as_pdu(),
 		};
 
-		let auth_check = state_res::auth_check(
-			&room_version_rules,
-			&pdu,
-			None, // TODO: third_party_invite
-			auth_fetch,
-			create_event,
-		)
-		.await
-		.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
+		let auth_check =
+			state_res::auth_check(&room_version_rules, &pdu, auth_fetch, create_event)
+				.await
+				.map_err(|e| err!(Request(Forbidden(warn!("Auth check failed: {e:?}")))))?;
 
 		if !auth_check {
 			return Err!(Request(Forbidden("Event is not authorized.")));

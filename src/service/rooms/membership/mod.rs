@@ -617,7 +617,6 @@ impl Service {
 		let auth_check = state_res::event_auth::auth_check(
 			&room_version.rules().unwrap(),
 			&parsed_join_pdu,
-			None, // TODO: third party invite
 			|k, s| state_fetch(k.clone(), s.into()),
 			&create_event,
 		)
