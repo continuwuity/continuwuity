@@ -1,3 +1,8 @@
+# Continuwuity v26.9.3 (2026-11-10)
+
+No significant changes.
+
+
 # Continuwuity v26.9.2 (2026-11-10)
 
 ## Bugfixes
