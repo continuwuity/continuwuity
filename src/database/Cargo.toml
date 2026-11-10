@@ -34,8 +34,6 @@ jemalloc_stats = [
 ]
 release_max_log_level = [
 	"conduwuit-core/release_max_log_level",
-	"log/max_level_trace",
-	"log/release_max_level_info",
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 ]
@@ -60,7 +58,6 @@ const-str.workspace = true
 ctor.workspace = true
 dtor.workspace = true
 futures.workspace = true
-log.workspace = true
 minicbor.workspace = true
 minicbor-serde.workspace = true
 rust-rocksdb.workspace = true

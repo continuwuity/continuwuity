@@ -18,3 +18,8 @@ cargo_metadata = "0.23.1"
 
 [lints]
 workspace = true
+
+[package.metadata.cargo-shear]
+# Task modules are linked by a macro that cargo-shear doesn't expand,
+# so we tell it to ignore them specifically.
+ignored-paths = ["src/tasks/*/mod.rs"]

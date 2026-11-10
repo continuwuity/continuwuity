@@ -47,8 +47,6 @@ perf_measurements = []
 release_max_log_level = [
     "tracing/max_level_trace",
     "tracing/release_max_level_info",
-    "log/max_level_trace",
-    "log/release_max_level_info",
 ]
 sentry_telemetry = []
 zstd_compression = [
@@ -84,7 +82,6 @@ ipaddress.workspace = true
 libc.workspace = true
 libloading.workspace = true
 libloading.optional = true
-log.workspace = true
 lettre.workspace = true
 num-traits.workspace = true
 rand.workspace = true

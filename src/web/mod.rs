@@ -11,7 +11,8 @@ use axum::{
 use conduwuit_service::{Services, state};
 use tower_http::catch_panic::CatchPanicLayer;
 use tower_sec_fetch::SecFetchLayer;
-use tower_sessions::{ExpiredDeletion, SessionManagerLayer, cookie::SameSite};
+use tower_sessions::{SessionManagerLayer, cookie::SameSite};
+use tower_sessions_core::ExpiredDeletion;
 
 use crate::{
 	pages::TemplateContext,

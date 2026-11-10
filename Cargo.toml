@@ -1020,4 +1020,7 @@ collapsible_if = "allow"
 cognitive_complexity = "allow"
 
 [workspace.metadata.cargo-shear]
-ignored = ["const-str", "ctor", "dtor"]
+# All of these crates provide macros that are used across the codebase
+# and that every crate depends on. cargo-shear can't tell this because
+# it doesn't expand macros.
+ignored = ["const-str", "ctor", "dtor", "tracing"]

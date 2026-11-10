@@ -51,8 +51,6 @@ jemalloc_stats = [
 release_max_log_level = [
 	"conduwuit-core/release_max_log_level",
 	"conduwuit-service/release_max_log_level",
-	"log/max_level_trace",
-	"log/release_max_level_info",
 	"tracing/max_level_trace",
 	"tracing/release_max_level_info",
 ]
@@ -80,7 +78,6 @@ http-body-util.workspace = true
 hyper.workspace = true
 itertools.workspace = true
 lettre.workspace = true
-log.workspace = true
 rand.workspace = true
 reqwest.workspace = true
 ruma.workspace = true

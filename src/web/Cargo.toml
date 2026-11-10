@@ -54,11 +54,11 @@ memory-serve = "2.4.0"
 workspace = true
 
 [package.metadata.cargo-shear]
+# All of these dependencies are only used in Askama templates,
+# which are transformed into Rust by a proc macro.
+# cargo-shear can't see them because it doesn't expand macros.
 ignored = [
     "conduwuit_build_metadata",
     "form_urlencoded",
-    "reqwest_recaptcha",
     "serde_json",
-    "tower-sessions-core",
-    "tracing",
 ]

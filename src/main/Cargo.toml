@@ -77,7 +77,6 @@ full = [
 ]
 
 brotli_compression = [
-    "conduwuit-api/brotli_compression",
     "conduwuit-core/brotli_compression",
     "conduwuit-router/brotli_compression",
     "conduwuit-service/brotli_compression",
@@ -89,11 +88,10 @@ direct_tls = [
     "conduwuit-router/direct_tls"
 ]
 element_hacks = [
-    "conduwuit-api/element_hacks",
     "conduwuit-service/element_hacks",
+    "conduwuit-router/element_hacks",
 ]
 gzip_compression = [
-    "conduwuit-api/gzip_compression",
     "conduwuit-core/gzip_compression",
     "conduwuit-router/gzip_compression",
     "conduwuit-service/gzip_compression",
@@ -102,7 +100,7 @@ hardened_malloc = [
     "conduwuit-core/hardened_malloc",
 ]
 http3 = [
-    "reqwest/http3"
+    "conduwuit-service/http3"
 ]
 ring = [
     "rustls/ring",
@@ -110,14 +108,13 @@ ring = [
 
 aws_lc_rs = [
     "rustls/aws_lc_rs",
-    "dep:aws-lc-rs",
 ]
 io_uring = [
-    "conduwuit-database/io_uring",
+    "conduwuit-service/io_uring",
 ]
 jemalloc = [
     "conduwuit-core/jemalloc",
-    "conduwuit-database/jemalloc",
+    "conduwuit-service/jemalloc",
 ]
 jemalloc_prof = [
     "conduwuit-core/jemalloc_prof",
@@ -146,19 +143,13 @@ perf_measurements = [
 release_max_log_level = [
     "tracing/max_level_trace",
     "tracing/release_max_level_info",
-    "log/max_level_trace",
-    "log/release_max_level_info",
-    "conduwuit-admin/release_max_log_level",
-    "conduwuit-api/release_max_log_level",
     "conduwuit-core/release_max_log_level",
-    "conduwuit-database/release_max_log_level",
     "conduwuit-router/release_max_log_level",
     "conduwuit-service/release_max_log_level",
 ]
 sentry_telemetry = [
     "dep:sentry",
     "dep:sentry-tracing",
-    "dep:sentry-tower",
     "conduwuit-core/sentry_telemetry",
     "conduwuit-router/sentry_telemetry",
 ]
@@ -181,9 +172,7 @@ url_preview = [
     "conduwuit-service/url_preview",
 ]
 zstd_compression = [
-    "conduwuit-api/zstd_compression",
     "conduwuit-core/zstd_compression",
-    "conduwuit-database/zstd_compression",
     "conduwuit-router/zstd_compression",
     "conduwuit-service/zstd_compression",
 ]
@@ -193,10 +182,10 @@ conduwuit_mods = [
 bindgen-static = [
     # "bindgen/static"
     # "clang-sys/static"
-    "conduwuit-database/bindgen-static"
+    "conduwuit-service/bindgen-static"
 ]
 bindgen-runtime = [
-    "conduwuit-database/bindgen-runtime"
+    "conduwuit-service/bindgen-runtime"
 ]
 
 [build-dependencies]
@@ -204,10 +193,7 @@ bindgen-runtime = [
 # clang-sys = {version = "1", default-features = false}
 
 [dependencies]
-conduwuit-admin.workspace = true
-conduwuit-api.workspace = true
 conduwuit-core.workspace = true
-conduwuit-database.workspace = true
 conduwuit-router.workspace = true
 conduwuit-service.workspace = true
 conduwuit-build-metadata.workspace = true
@@ -219,7 +205,6 @@ dtor.workspace = true
 console-subscriber.optional = true
 console-subscriber.workspace = true
 const-str.workspace = true
-log.workspace = true
 opentelemetry.workspace = true
 opentelemetry-otlp.optional = true
 opentelemetry-otlp.workspace = true
@@ -227,14 +212,10 @@ opentelemetry-prometheus.workspace = true
 opentelemetry-semantic-conventions.workspace = true
 opentelemetry_sdk.workspace = true
 prometheus.workspace = true
-sentry-tower.optional = true
-sentry-tower.workspace = true
 sentry-tracing.optional = true
 sentry-tracing.workspace = true
 sentry.optional = true
 sentry.workspace = true
-tokio-metrics.optional = true
-tokio-metrics.workspace = true
 tokio.workspace = true
 tracing-flame.optional = true
 tracing-flame.workspace = true
@@ -244,14 +225,7 @@ tracing-subscriber.workspace = true
 tracing.workspace = true
 tracing-journald = { workspace = true, optional = true }
 parking_lot.workspace = true
-reqwest = { workspace = true, default-features = false }
 rustls = { workspace = true, default-features = false }
-aws-lc-rs = { version = "1.19.0", default-features = false, optional = true }
-
-
-[target.'cfg(all(not(target_env = "msvc"), target_os = "linux"))'.dependencies]
-hardened_malloc-rs.workspace = true
-hardened_malloc-rs.optional = true
 
 [lints]
 workspace = true
