@@ -105,7 +105,7 @@ impl Service {
 			return Ok(());
 		};
 
-		let thread: Vec<_> = self
+		let thread = self
 			.services
 			.pdu_metadata
 			.get_relations(
@@ -116,11 +116,9 @@ impl Service {
 				usize::MAX,
 				0,
 				Direction::Backward,
+				|pdu| RelationType::Thread.relation_type_equal(pdu),
 			)
-			.await
-			.into_iter()
-			.filter(|(_, pdu)| RelationType::Thread.relation_type_equal(pdu))
-			.collect();
+			.await;
 
 		match thread.first() {
 			| Some((_, latest)) => Self::set_thread(
