@@ -77,11 +77,19 @@ impl super::Service {
 		room_id: &RoomId,
 		event_id: &EventId,
 	) -> bool {
-		let Ok(shortstatehash) = self.pdu_shortstatehash(event_id).await else {
-			return true;
-		};
-
 		let currently_member = self.services.state_cache.is_joined(user_id, room_id).await;
+
+		let Ok(shortstatehash) = self.pdu_shortstatehash(event_id).await else {
+			// We haven't calculated the state at this event, so we can't
+			// properly history visibility check it. This happens for outliers
+			// and backfilled events. Since continuwuity is primarily targeting
+			// single-user/trusted deployments, an acceptable compromise for now
+			// is to ensure that the user is currently joined to the room.
+			// Federation fails closed here, but if that was replicated for the
+			// check used for client-server, nobody would be allowed to see
+			// events before their server started participating in the room.
+			return currently_member;
+		};
 
 		let history_visibility = self
 			.state_get_content(shortstatehash, &StateEventType::RoomHistoryVisibility, "")
