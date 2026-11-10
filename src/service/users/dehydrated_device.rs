@@ -3,7 +3,7 @@ use conduwuit_database::{Deserialized, Json};
 use ruma::{
 	DeviceId, OwnedDeviceId, UserId,
 	api::client::dehydrated_device::{
-		DehydratedDeviceData, put_dehydrated_device::unstable::Request,
+		DehydratedDeviceData, put_dehydrated_device::msc3814::Request,
 	},
 	serde::Raw,
 };

@@ -6,7 +6,8 @@ use std::{
 use conduwuit::{Result, SyncMutex, trace};
 use futures::StreamExt;
 use ruma::{
-	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId, api::client::sync::sync_events::v5,
+	OwnedDeviceId, OwnedRoomId, OwnedUserId, RoomId, UserId,
+	api::client::sync::sync_events::msc4186,
 };
 use tokio::sync::watch;
 
@@ -24,21 +25,32 @@ struct Services {
 
 #[allow(unused, reason = "TODO refactor")]
 struct SlidingSyncCache {
-	lists: BTreeMap<String, v5::request::List>,
-	subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
+	lists: BTreeMap<String, msc4186::request::List>,
+	subscriptions: BTreeMap<OwnedRoomId, msc4186::request::RoomSubscription>,
 	// For every room, the roomsince number
 	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
-	extensions: v5::request::Extensions,
+	extensions: msc4186::request::Extensions,
 }
+
+/// For every in-scope room, the stream position up to which sticky events
+/// have been delivered on this connection.
+pub type StickyDelivered = BTreeMap<OwnedRoomId, u64>;
 
 #[derive(Default)]
 struct SnakeSyncCache {
-	lists: BTreeMap<String, v5::request::List>,
-	subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
+	lists: BTreeMap<String, msc4186::request::List>,
+	subscriptions: BTreeMap<OwnedRoomId, msc4186::request::RoomSubscription>,
 	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
+	sticky_delivered: StickyDelivered,
 	acknowledged_pos: u64,
-	pending: BTreeMap<u64, BTreeMap<String, BTreeMap<OwnedRoomId, u64>>>,
-	extensions: v5::request::Extensions,
+	pending: BTreeMap<u64, PendingState>,
+	extensions: msc4186::request::Extensions,
+}
+
+#[derive(Default)]
+struct PendingState {
+	known_rooms: BTreeMap<String, BTreeMap<OwnedRoomId, u64>>,
+	sticky_delivered: StickyDelivered,
 }
 
 impl SnakeSyncCache {
@@ -47,13 +59,19 @@ impl SnakeSyncCache {
 	}
 
 	fn acknowledge(&mut self, pos: u64) {
-		if let Some(known_rooms) = self.pending.remove(&pos) {
-			self.known_rooms = known_rooms;
+		if let Some(pending) = self.pending.remove(&pos) {
+			self.known_rooms = pending.known_rooms;
+			self.sticky_delivered = pending.sticky_delivered;
 			self.acknowledged_pos = pos;
 		}
 	}
 
-	fn stage_pending(&mut self, pos: u64, known_rooms: BTreeMap<String, BTreeSet<OwnedRoomId>>) {
+	fn stage_pending(
+		&mut self,
+		pos: u64,
+		known_rooms: BTreeMap<String, BTreeSet<OwnedRoomId>>,
+		sticky_delivered: StickyDelivered,
+	) {
 		let mut pending_rooms = self.known_rooms.clone();
 		for (list_id, rooms) in known_rooms {
 			let list = pending_rooms.entry(list_id).or_default();
@@ -61,7 +79,10 @@ impl SnakeSyncCache {
 				list.insert(room_id, pos);
 			}
 		}
-		self.pending.insert(pos, pending_rooms);
+		self.pending.insert(pos, PendingState {
+			known_rooms: pending_rooms,
+			sticky_delivered,
+		});
 	}
 }
 
@@ -177,8 +198,8 @@ impl Service {
 		&self,
 		snake_key: &SnakeConnectionsKey,
 		pos: u64,
-		request: &mut v5::Request,
-	) -> BTreeMap<String, BTreeMap<OwnedRoomId, u64>> {
+		request: &mut msc4186::Request,
+	) -> (BTreeMap<String, BTreeMap<OwnedRoomId, u64>>, StickyDelivered) {
 		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
 			cache
@@ -190,7 +211,7 @@ impl Service {
 
 		cached.acknowledge(pos);
 
-		//v5::Request::try_from_http_request(req, path_args);
+		//msc4186::Request::try_from_http_request(req, path_args);
 		for (list_id, list) in &mut request.lists {
 			if let Some(cached_list) = cached.lists.get(list_id) {
 				list_or_sticky(
@@ -223,18 +244,6 @@ impl Service {
 		request
 			.room_subscriptions
 			.extend(cached.subscriptions.clone());
-
-		request.extensions.e2ee.enabled = request
-			.extensions
-			.e2ee
-			.enabled
-			.or(cached.extensions.e2ee.enabled);
-
-		request.extensions.to_device.enabled = request
-			.extensions
-			.to_device
-			.enabled
-			.or(cached.extensions.to_device.enabled);
 
 		request.extensions.account_data.enabled = request
 			.extensions
@@ -275,9 +284,25 @@ impl Service {
 			&mut request.extensions.receipts.lists,
 			cached.extensions.receipts.lists.clone(),
 		);
+		some_or_sticky(
+			&mut request.extensions.sticky_events.enabled,
+			cached.extensions.sticky_events.enabled,
+		);
+		some_or_sticky(
+			&mut request.extensions.sticky_events.limit,
+			cached.extensions.sticky_events.limit,
+		);
+		some_or_sticky(
+			&mut request.extensions.sticky_events.rooms,
+			cached.extensions.sticky_events.rooms.clone(),
+		);
+		some_or_sticky(
+			&mut request.extensions.sticky_events.lists,
+			cached.extensions.sticky_events.lists.clone(),
+		);
 
 		cached.extensions = request.extensions.clone();
-		cached.known_rooms.clone()
+		(cached.known_rooms.clone(), cached.sticky_delivered.clone())
 	}
 
 	pub fn store_snake_sync_pending(
@@ -285,6 +310,7 @@ impl Service {
 		key: &SnakeConnectionsKey,
 		pos: u64,
 		known_rooms: BTreeMap<String, BTreeSet<OwnedRoomId>>,
+		sticky_delivered: StickyDelivered,
 	) {
 		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
@@ -295,13 +321,13 @@ impl Service {
 		let cached = &mut cached.lock();
 		drop(cache);
 
-		cached.stage_pending(pos, known_rooms);
+		cached.stage_pending(pos, known_rooms, sticky_delivered);
 	}
 
 	pub fn update_snake_sync_subscriptions(
 		&self,
 		key: &SnakeConnectionsKey,
-		subscriptions: BTreeMap<OwnedRoomId, v5::request::RoomSubscription>,
+		subscriptions: BTreeMap<OwnedRoomId, msc4186::request::RoomSubscription>,
 	) {
 		let mut cache = self.snake_connections.lock();
 		let cached = Arc::clone(
@@ -412,10 +438,13 @@ mod tests {
 	fn pending_rooms_are_committed_only_when_the_response_pos_is_acknowledged() {
 		let room_id = OwnedRoomId::try_from("!room:example.com").unwrap();
 		let mut cache = SnakeSyncCache {
-			pending: BTreeMap::from([(
-				42,
-				BTreeMap::from([("list".to_owned(), BTreeMap::from([(room_id, 42)]))]),
-			)]),
+			pending: BTreeMap::from([(42, PendingState {
+				known_rooms: BTreeMap::from([(
+					"list".to_owned(),
+					BTreeMap::from([(room_id, 42)]),
+				)]),
+				sticky_delivered: StickyDelivered::new(),
+			})]),
 			..Default::default()
 		};
 
@@ -438,7 +467,11 @@ mod tests {
 		let dropped = OwnedRoomId::try_from("!dropped:example.com").unwrap();
 		let mut cache = SnakeSyncCache::default();
 		let stage = |cache: &mut SnakeSyncCache, pos, rooms: BTreeSet<OwnedRoomId>| {
-			cache.stage_pending(pos, BTreeMap::from([("all_rooms".to_owned(), rooms)]));
+			cache.stage_pending(
+				pos,
+				BTreeMap::from([("all_rooms".to_owned(), rooms)]),
+				StickyDelivered::new(),
+			);
 			cache.acknowledge(pos);
 		};
 
@@ -458,7 +491,10 @@ mod tests {
 	fn overlapping_responses_accept_either_response_position() {
 		let mut cache = SnakeSyncCache {
 			acknowledged_pos: 100,
-			pending: BTreeMap::from([(200, BTreeMap::new()), (201, BTreeMap::new())]),
+			pending: BTreeMap::from([
+				(200, PendingState::default()),
+				(201, PendingState::default()),
+			]),
 			..Default::default()
 		};
 

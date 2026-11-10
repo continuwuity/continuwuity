@@ -14,8 +14,8 @@ use crate::Ruma;
 /// [MSC4560]: https://github.com/matrix-org/matrix-spec-proposals/pull/4560
 pub(crate) async fn get_stripped_state_route(
 	State(services): State<crate::State>,
-	body: Ruma<get_stripped_state::unstable::Request>,
-) -> Result<get_stripped_state::unstable::Response> {
+	body: Ruma<get_stripped_state::msc4560::Request>,
+) -> Result<get_stripped_state::msc4560::Response> {
 	if let Some(forbidden_type) = body
 		.state
 		.iter()
@@ -42,7 +42,7 @@ pub(crate) async fn get_stripped_state_route(
 		.await
 	{
 		| Accessibility::Accessible(RoomStrippedState { state, num_joined_members, .. }) => Ok(
-			assign!(get_stripped_state::unstable::Response::default(), { state, num_joined_members }),
+			assign!(get_stripped_state::msc4560::Response::default(), { state, num_joined_members }),
 		),
 		| Accessibility::Inaccessible => {
 			Err!(Request(Forbidden("You may not access this room's stripped state.")))

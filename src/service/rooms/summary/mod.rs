@@ -666,7 +666,7 @@ impl Service {
 			return Accessibility::NotFound;
 		}
 
-		let request = assign!(get_stripped_state::unstable::Request::new(room_id.to_owned()), {
+		let request = assign!(get_stripped_state::msc4560::Request::new(room_id.to_owned()), {
 			state: state.to_owned(),
 			num_joined_members
 		});

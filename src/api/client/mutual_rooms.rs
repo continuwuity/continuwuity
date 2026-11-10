@@ -13,8 +13,8 @@ use crate::Ruma;
 #[tracing::instrument(skip_all, name = "mutual_rooms", level = "info")]
 pub(crate) async fn get_mutual_rooms_unstable_route(
 	State(services): State<crate::State>,
-	body: Ruma<get_mutual_rooms::unstable::Request>,
-) -> Result<get_mutual_rooms::unstable::Response> {
+	body: Ruma<get_mutual_rooms::msc2666::Request>,
+) -> Result<get_mutual_rooms::msc2666::Response> {
 	let sender_user = body.identity.expect_sender_user()?;
 
 	if sender_user == body.user_id {
@@ -28,7 +28,7 @@ pub(crate) async fn get_mutual_rooms_unstable_route(
 		.collect()
 		.await;
 
-	Ok(get_mutual_rooms::unstable::Response::new(mutual_rooms))
+	Ok(get_mutual_rooms::msc2666::Response::new(mutual_rooms))
 }
 
 /// # `GET /_matrix/client/v1/mutual_rooms`

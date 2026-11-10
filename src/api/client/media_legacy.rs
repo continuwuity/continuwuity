@@ -25,9 +25,9 @@ pub(crate) async fn get_media_config_legacy_route(
 	State(services): State<crate::State>,
 	_body: Ruma<get_media_config::v3::Request>,
 ) -> Result<get_media_config::v3::Response> {
-	Ok(get_media_config::v3::Response::new(ruma_from_usize(
+	Ok(get_media_config::v3::Response::new(Some(ruma_from_usize(
 		services.server.config.max_request_size,
-	)))
+	))))
 }
 
 /// # `GET /_matrix/media/v1/config`

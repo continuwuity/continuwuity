@@ -43,9 +43,9 @@ pub(crate) async fn well_known_client(
 /// homeserver, implementing MSC4143.
 pub(crate) async fn get_rtc_transports(
 	State(services): State<crate::State>,
-	_body: Ruma<ruma::api::client::rtc::transports::v1::Request>,
-) -> Result<ruma::api::client::rtc::transports::v1::Response> {
-	Ok(ruma::api::client::rtc::transports::v1::Response::new(
+	_body: Ruma<ruma::api::client::rtc::transports::msc4143::Request>,
+) -> Result<ruma::api::client::rtc::transports::msc4143::Response> {
+	Ok(ruma::api::client::rtc::transports::msc4143::Response::new(
 		services.config.matrix_rtc.foci.clone(),
 	))
 }

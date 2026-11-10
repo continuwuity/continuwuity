@@ -15,11 +15,11 @@ use crate::{Ruma, router::ClientIdentity};
 #[tracing::instrument(skip_all, name = "stripped_state", level = "info")]
 pub(crate) async fn get_stripped_state_route(
 	State(services): State<crate::State>,
-	body: Ruma<get_stripped_state::unstable::Request>,
-) -> Result<get_stripped_state::unstable::Response> {
+	body: Ruma<get_stripped_state::msc4560::Request>,
+) -> Result<get_stripped_state::msc4560::Response> {
 	let user_id = body.identity.as_ref().and_then(ClientIdentity::sender_user);
 
-	if body.via.len() > get_stripped_state::unstable::MAX_VIAS {
+	if body.via.len() > get_stripped_state::msc4560::MAX_VIAS {
 		return Err!(Request(TooLarge("Too many vias, please be less indecisive.")));
 	}
 
@@ -59,7 +59,7 @@ pub(crate) async fn get_stripped_state_route(
 			via,
 			RoomStrippedState { state, num_joined_members, .. },
 		)) => Ok(
-			assign!(get_stripped_state::unstable::Response::new(via), { state, num_joined_members }),
+			assign!(get_stripped_state::msc4560::Response::new(via), { state, num_joined_members }),
 		),
 		| Accessibility::Inaccessible => {
 			Err!(Request(Forbidden("You may not request this room's stripped state.")))
