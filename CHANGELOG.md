@@ -1,3 +1,14 @@
+# Continuwuity v26.9.2 (2026-11-10)
+
+## Bugfixes
+
+- SEC15, reported by @stratself (SEC15)
+- SEC31, reported by @tulir (SEC31)
+- SEC34, reported by @jade (SEC34)
+- SEC36, reported by @nex (SEC36)
+- SEC39, reported by @Henry-Hiles (SEC39)
+
+
 # Continuwuity v26.9.1 (2026-09-28)
 
 ## Features
