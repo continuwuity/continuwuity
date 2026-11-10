@@ -211,8 +211,7 @@ async fn collect_sync_response(
 	sticky_delivered: &StickyDelivered,
 ) -> Result<SyncCollection> {
 	// Bounds every read below and becomes the `pos` returned to the client.
-	// Zero would be echoed back as a request for an initial sync.
-	let next_batch = services.globals.current_count()?.max(1);
+	let next_batch = services.globals.next_count()?;
 
 	let all_joined_rooms = services
 		.rooms
