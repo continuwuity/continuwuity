@@ -307,14 +307,17 @@ async fn into_http_response(
 		// says that it's a SHOULD and that servers SHOULD just assume that the
 		// response is JSON regardless... And then there's media wayyyy down in
 		// the spec doc that just throws a `multipart/mixed` in there.
-		enforce_content_type(
-			&response,
-			if url.path().starts_with("/_matrix/federation/v1/media/") {
-				"multipart/mixed"
-			} else {
-				"application/json"
-			},
-		)?;
+		//
+		// Media has a special case regarding status codes. Only 200 OK
+		// responses should have the multipart assertion, as errors are JSON.
+		let ct = if url.path().starts_with("/_matrix/federation/v1/media/")
+			&& response.status().is_success()
+		{
+			"multipart/mixed"
+		} else {
+			"application/json"
+		};
+		enforce_content_type(&response, ct)?;
 	}
 
 	let mut http_response_builder = http::Response::builder()
@@ -378,11 +381,19 @@ fn handle_error(
 /// Returns `M_UNKNOWN` with HTTP 415 (Unsupported Media Type) if the response
 /// header is missing or mismatched.
 fn enforce_content_type(response: &Response, expected: &str) -> Result<()> {
+	// N.B. Content type's value is case-insensitive per RFC 9110. The Matrix
+	// spec explicitly prescribes `application/json` and `multipart/mixed` etc,
+	// but it's assumed they're intended to be case-insensitive.
+	debug_assert_eq!(
+		expected,
+		expected.to_lowercase(),
+		"Content type checks should use the lowercase content type"
+	); // ^ Saves us double-folding
 	match response
 		.headers()
 		.get(&http::header::CONTENT_TYPE)
 		.and_then(|h| h.to_str().ok())
-		.map(|h| h.split_once(';').unwrap_or((h, "")).0)
+		.map(|h| h.split_once(';').unwrap_or((h, "")).0.to_lowercase())
 	{
 		| Some(ct) if ct == expected => Ok(()),
 		| Some(ct) => Err!(Request(
