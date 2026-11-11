@@ -1127,6 +1127,7 @@ dependencies = [
  "log",
  "loole",
  "lru-cache",
+ "mime",
  "nonzero_ext",
  "openidconnect",
  "opentelemetry",
