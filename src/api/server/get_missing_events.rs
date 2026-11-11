@@ -47,9 +47,6 @@ pub(crate) async fn get_missing_events_route(
 	if body.latest_events.len() > limit {
 		return Err!(Request(InvalidParam("Too many latest_events")));
 	}
-	if body.earliest_events.len() > limit {
-		return Err!(Request(InvalidParam("Too many earliest_events")));
-	}
 
 	let room_version = services.rooms.state.get_room_version(&body.room_id).await?;
 
