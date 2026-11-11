@@ -7,15 +7,24 @@
 
 use std::time::SystemTime;
 
-use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt, info};
+use conduwuit::{Err, Result, debug, err, info, utils::response::LimitReadExt};
 use ipaddress::IPAddress;
-use lettre::message::header::ContentType;
+use mime::Mime;
 use ruma::OwnedMxcUri;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use url::Url;
 
 use super::Service;
 use crate::media::mxc::Mxc;
+
+// serde `serialize_with` passes `&Option<T>` for `Option<T>` fields.
+#[allow(clippy::ref_option)]
+fn serialize_mime<S: Serializer>(mime: &Option<Mime>, serializer: S) -> Result<S::Ok, S::Error> {
+	match mime {
+		| Some(m) => serializer.serialize_str(m.as_ref()),
+		| None => serializer.serialize_none(),
+	}
+}
 
 #[derive(Serialize, Default, Debug)]
 pub struct UrlPreviewData {
@@ -50,8 +59,12 @@ pub struct UrlPreviewData {
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image"))]
 	pub image: Option<String>,
 	/// A MIME type for this image.
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:image:type"))]
-	pub image_type: Option<ContentType>,
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		serialize_with = "serialize_mime",
+		rename(serialize = "og:image:type")
+	)]
+	pub image_type: Option<Mime>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "matrix:image:size"))]
 	pub image_size: Option<usize>,
 	/// The number of pixels wide.
@@ -73,8 +86,12 @@ pub struct UrlPreviewData {
 	pub video_width: Option<u32>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:height"))]
 	pub video_height: Option<u32>,
-	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:type"))]
-	pub video_type: Option<ContentType>,
+	#[serde(
+		skip_serializing_if = "Option::is_none",
+		serialize_with = "serialize_mime",
+		rename(serialize = "og:video:type")
+	)]
+	pub video_type: Option<Mime>,
 	#[serde(skip_serializing_if = "Option::is_none", rename(serialize = "og:video:alt"))]
 	pub video_alt: Option<String>,
 	/// A URL to an audio file to accompany this object.
@@ -145,16 +162,18 @@ impl Service {
 			)));
 		};
 
-		let content_type = content_type
+		let content_type: Mime = content_type
 			.to_str()
+			.map_err(|e| err!(Request(Unknown("Unknown or invalid Content-Type header: {e}"))))?
+			.parse()
 			.map_err(|e| err!(Request(Unknown("Unknown or invalid Content-Type header: {e}"))))?;
 
-		let data = match content_type {
-			| html if html.starts_with("text/html") => self.download_html(url.as_str()).await?,
-			| img if img.starts_with("image/") => self.download_image(url.as_str()).await?,
-			| video if video.starts_with("video/") => self.download_video(url.as_str()).await?,
-			| audio if audio.starts_with("audio/") => self.download_audio(url.as_str()).await?,
-			| other => return Err!(Request(Unknown("Unsupported Content-Type: {other}"))),
+		let data = match (content_type.type_(), content_type.subtype()) {
+			| (mime::TEXT, mime::HTML) => self.download_html(url.as_str()).await?,
+			| (mime::IMAGE, _) => self.download_image(url.as_str()).await?,
+			| (mime::VIDEO, _) => self.download_video(url.as_str()).await?,
+			| (mime::AUDIO, _) => self.download_audio(url.as_str()).await?,
+			| _ => return Err!(Request(Unknown("Unsupported Content-Type: {content_type}"))),
 		};
 
 		self.set_url_preview(url.as_str(), &data).await?;

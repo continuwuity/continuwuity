@@ -589,6 +589,9 @@ version = "0.10.4"
 default-features = false
 features = ["std"]
 
+[workspace.dependencies.mime]
+version = "0.3.18"
+
 [workspace.dependencies.nonzero_ext]
 version = "0.3.0"
 

@@ -105,6 +105,7 @@ itertools.workspace = true
 log.workspace = true
 loole.workspace = true
 lru-cache.workspace = true
+mime.workspace = true
 nonzero_ext.workspace = true
 p256.workspace = true
 regex.workspace = true
