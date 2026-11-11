@@ -137,25 +137,19 @@ impl Service {
 	}
 
 	async fn request_url_preview(&self, url: &Url) -> Result<UrlPreviewData> {
-		if let Ok(ip) = IPAddress::parse(url.host_str().expect("URL previously validated")) {
-			if !self.services.client.valid_cidr_range(&ip) {
-				return Err!(Request(Forbidden("Requesting from this address is forbidden")));
-			}
-		}
+		self.check_url_ip(url.as_str())?;
 
 		let client = &self.services.client.url_preview;
 		let response = client.head(url.as_str()).send().await?;
 
 		debug!(%url, "URL preview response headers: {:?}", response.headers());
 
-		if let Some(remote_addr) = response.remote_addr() {
-			debug!(%url, "URL preview response remote address: {:?}", remote_addr);
-
-			if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
-				if !self.services.client.valid_cidr_range(&ip) {
-					return Err!(Request(Forbidden("Requesting from this address is forbidden")));
-				}
-			}
+		self.check_response_ip(&response)?;
+		if !response.status().is_success() {
+			return Err!(Request(Unknown(
+				"URL preview request returned HTTP {}",
+				response.status()
+			)));
 		}
 
 		let Some(content_type) = response.headers().get(reqwest::header::CONTENT_TYPE) else {
@@ -192,7 +186,10 @@ impl Service {
 
 		let mut preview_data = UrlPreviewData::default();
 
+		self.check_url_ip(url)?;
+
 		let response = self.services.client.url_preview.get(url).send().await?;
+		self.check_response_ip(&response)?;
 		if !response.status().is_success() {
 			return Err!(Request(Unknown("Image download returned HTTP {}", response.status())));
 		}
@@ -268,7 +265,13 @@ impl Service {
 		use conduwuit::utils::random_string;
 		use http::header::CONTENT_TYPE;
 
+		self.check_url_ip(url)?;
+
 		let response = self.services.client.url_preview.get(url).send().await?;
+		self.check_response_ip(&response)?;
+		if !response.status().is_success() {
+			return Err!(Request(Unknown("Media download returned HTTP {}", response.status())));
+		}
 		let content_type = response.headers().get(CONTENT_TYPE).cloned();
 		let media = response
 			.limit_read(
@@ -314,10 +317,12 @@ impl Service {
 		use webpage::HTML;
 
 		let client = &self.services.client.url_preview;
-		let body = client
-			.get(url)
-			.send()
-			.await?
+		let response = client.get(url).send().await?;
+		self.check_response_ip(&response)?;
+		if !response.status().is_success() {
+			return Err!(Request(Unknown("HTML download returned HTTP {}", response.status())));
+		}
+		let body = response
 			.limit_read_text(
 				self.services
 					.server
@@ -406,6 +411,33 @@ impl Service {
 	#[allow(clippy::unused_self)]
 	fn download_html(&self, _url: &str) -> impl Future<Output = Result<UrlPreviewData>> {
 		std::future::ready(Err!(FeatureDisabled("url_preview")))
+	}
+
+	fn check_url_ip(&self, url: &str) -> Result<()> {
+		let parsed = Url::parse(url)
+			.map_err(|e| err!(Request(InvalidParam("Requested URL is not valid: {e}"))))?;
+		let Some(host) = parsed.host_str() else {
+			return Err!(Request(InvalidParam("Requested URL does not have a host")));
+		};
+		if let Ok(ip) = IPAddress::parse(host) {
+			if !self.services.client.valid_cidr_range(&ip) {
+				return Err!(Request(Forbidden("Requesting from this address is forbidden")));
+			}
+		}
+		Ok(())
+	}
+
+	fn check_response_ip(&self, response: &reqwest::Response) -> Result<()> {
+		if let Some(remote_addr) = response.remote_addr() {
+			debug!(url = %response.url(), "URL preview response remote address: {:?}", remote_addr);
+
+			if let Ok(ip) = IPAddress::parse(remote_addr.ip().to_string()) {
+				if !self.services.client.valid_cidr_range(&ip) {
+					return Err!(Request(Forbidden("Requesting from this address is forbidden")));
+				}
+			}
+		}
+		Ok(())
 	}
 
 	pub fn url_preview_allowed(&self, url: &Url) -> bool {
