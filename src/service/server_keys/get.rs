@@ -241,9 +241,9 @@ impl super::Service {
 								continue;
 							}
 						};
-						trace!(?origin_response, "Got signing key response from origin");
+						trace!(?origin_response.raw, "Got signing key response from origin");
 						self.add_signing_keys(&origin_response);
-						Self::track_result(&mut result, &mut still_missing, &origin_response);
+						Self::track_result(&mut result, &mut still_missing, &origin_response.parsed);
 						if still_missing.is_empty() {
 							break;
 						}
@@ -262,9 +262,9 @@ impl super::Service {
 							"Got signing keys response from a notary"
 						);
 						for server_keys in notary_response {
-							trace!(?server_keys, "Adding response from notary");
+							trace!(?server_keys.raw, "Adding response from notary");
 							self.add_signing_keys(&server_keys);
-							Self::track_result(&mut result, &mut still_missing, &server_keys);
+							Self::track_result(&mut result, &mut still_missing, &server_keys.parsed);
 							if still_missing.is_empty() {
 								break;
 							}
@@ -285,9 +285,9 @@ impl super::Service {
 					continue;
 				};
 				for server_keys in res {
-					trace!(?server_keys, "Adding response from notary");
+					trace!(?server_keys.raw, "Adding response from notary");
 					self.add_signing_keys(&server_keys);
-					Self::track_result(&mut result, &mut still_missing, &server_keys);
+					Self::track_result(&mut result, &mut still_missing, &server_keys.parsed);
 				}
 				if still_missing.is_empty() {
 					break;
@@ -300,9 +300,9 @@ impl super::Service {
 						debug_warn!(err=?res.err(), "Got error response from origin");
 						continue;
 					};
-					trace!(response=?res, "Got signing key response from origin");
+					trace!(response=?res.raw, "Got signing key response from origin");
 					self.add_signing_keys(&res);
-					Self::track_result(&mut result, &mut still_missing, &res);
+					Self::track_result(&mut result, &mut still_missing, &res.parsed);
 					if still_missing.is_empty() {
 						break;
 					}
@@ -400,7 +400,7 @@ impl super::Service {
 			.inspect_err(|e| info!("Could not acquire signing key from origin server: {e:?}"))
 			.ok()?;
 
-		verify_key_from_response(key_id, &response, min_valid_ts)
+		verify_key_from_response(key_id, &response.parsed, min_valid_ts)
 			.inspect(|_| self.add_signing_keys(&response))
 	}
 }

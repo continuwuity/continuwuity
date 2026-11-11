@@ -34,18 +34,12 @@ pub(crate) async fn get_server_keys_route(
 			// We need to verify that this response is still trusted based on
 			// the current configuration. It's possible we got this response
 			// from a notary who we no longer trust.
-			if resp.valid_until_ts > in_one_week() {
+			if resp.parsed.valid_until_ts > in_one_week() {
 				continue;
 			}
-			let raw_resp = Raw::new(&resp)?;
 			let trusted = services.config.trusted_servers.iter().any(|notary| {
-				// Re-verifying here rejects any key that passes extra,
-				// non-standard json keys as a part of the ServerSigningKeys
-				// object. Since these extra json keys are stripped, the
-				// signature won't validate.
 				server_keys::Service::verify_server_keys_response(
 					&resp,
-					&raw_resp,
 					Some((notary.server_name(), notary.verify_keys())),
 				)
 				.is_ok()
@@ -53,8 +47,8 @@ pub(crate) async fn get_server_keys_route(
 			if !trusted {
 				continue;
 			}
-			for (old_key_id, old_key) in resp.old_verify_keys {
-				if old_key.expired_ts > resp.valid_until_ts {
+			for (old_key_id, old_key) in resp.parsed.old_verify_keys {
+				if old_key.expired_ts > resp.parsed.valid_until_ts {
 					// This key expired in the future which is probably illegal
 					continue;
 				}

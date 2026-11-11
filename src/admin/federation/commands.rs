@@ -142,11 +142,11 @@ impl crate::Context<'_> {
 			.await?;
 		self.write_str("| ------ | ---------- | --------------------------- |\n")
 			.await?;
-		for (key_id, key) in &response.verify_keys {
+		for (key_id, key) in &response.parsed.verify_keys {
 			self.write_str(&format!("| {key_id} | {} | |\n", key.key))
 				.await?;
 		}
-		for (key_id, old_key) in &response.old_verify_keys {
+		for (key_id, old_key) in &response.parsed.old_verify_keys {
 			self.write_str(&format!(
 				"| {key_id} | {} | {:0<13} |\n",
 				old_key.key,

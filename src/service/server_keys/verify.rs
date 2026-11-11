@@ -10,6 +10,31 @@ use ruma::{
 };
 use serde_json::value::RawValue as RawJsonValue;
 
+pub struct IncomingServerKeys {
+	pub raw: Raw<ServerSigningKeys>,
+	pub parsed: ServerSigningKeys,
+}
+
+impl TryFrom<Raw<ServerSigningKeys>> for IncomingServerKeys {
+	type Error = serde_json::Error;
+
+	fn try_from(value: Raw<ServerSigningKeys>) -> std::result::Result<Self, Self::Error> {
+		value
+			.deserialize()
+			.map(|parsed| Self { raw: value, parsed })
+	}
+}
+
+impl TryFrom<&Raw<ServerSigningKeys>> for IncomingServerKeys {
+	type Error = serde_json::Error;
+
+	fn try_from(value: &Raw<ServerSigningKeys>) -> std::result::Result<Self, Self::Error> {
+		value
+			.deserialize()
+			.map(|parsed| Self { raw: value.to_owned(), parsed })
+	}
+}
+
 impl super::Service {
 	/// Validates the incoming event only using locally known verification keys.
 	/// Inserts the calculated event ID into the event_id field upon success.
@@ -57,46 +82,39 @@ impl super::Service {
 	///
 	/// `notary` must either be empty or have ONE entry. Extraneous notaries
 	/// will be ignored.
-	///
-	/// `raw_server_keys` must be the response exactly as received. Signatures
-	/// cover every field the origin sent, including ones `ServerSigningKeys`
-	/// does not include, so verifying a re-serialised response would fail.
 	pub fn verify_server_keys_response(
-		server_keys: &ServerSigningKeys,
-		raw_server_keys: &Raw<ServerSigningKeys>,
+		incoming: &IncomingServerKeys,
 		notary: Option<(&ServerName, &[Base64])>,
 	) -> Result<()> {
 		if let Some((notary_name, notary_keys)) = notary {
 			if !notary_keys.is_empty() {
-				Self::verify_notary_signature(
-					server_keys,
-					raw_server_keys,
-					notary_name,
-					notary_keys,
-				)?;
+				Self::verify_notary_signature(incoming, notary_name, notary_keys)?;
 			}
 		}
 
 		// NOTE: old_verify_keys aren't considered here because old keys can't
 		// be used to sign key responses.
 		let mut set = ruma::signatures::PublicKeySet::new();
-		server_keys.verify_keys.iter().for_each(|(key_id, key)| {
-			set.insert(key_id.to_string(), key.key.clone());
-		});
+		incoming
+			.parsed
+			.verify_keys
+			.iter()
+			.for_each(|(key_id, key)| {
+				set.insert(key_id.to_string(), key.key.clone());
+			});
 
 		let mut pubkey_map = ruma::signatures::PublicKeyMap::new();
-		pubkey_map.insert(server_keys.server_name.to_string(), set);
+		pubkey_map.insert(incoming.parsed.server_name.to_string(), set);
 
-		let mut canonical = to_canonical_object(raw_server_keys)?;
-		Self::strip_extraneous_signatures(&mut canonical, &server_keys.server_name, &[]);
+		let mut canonical = to_canonical_object(&incoming.raw)?;
+		Self::strip_extraneous_signatures(&mut canonical, &incoming.parsed.server_name, &[]);
 		ruma::signatures::verify_json(&pubkey_map, &canonical).map_err(Into::into)
 	}
 
 	/// Verifies that the notary has at least one valid signature present with
 	/// the provided signing keys.
 	fn verify_notary_signature(
-		server_keys: &ServerSigningKeys,
-		raw_server_keys: &Raw<ServerSigningKeys>,
+		incoming: &IncomingServerKeys,
 		notary_name: &ServerName,
 		notary_keys: &[Base64],
 	) -> Result<()> {
@@ -105,7 +123,7 @@ impl super::Service {
 		// certificate has been compromised, which would otherwise allow
 		// them to produce attacker-controlled signing keys with valid
 		// self-signatures.
-		let Some(notary_signatures) = server_keys.signatures.get(notary_name) else {
+		let Some(notary_signatures) = incoming.parsed.signatures.get(notary_name) else {
 			return Err!(Request(Forbidden(
 				"Missing notary server signature from {notary_name}"
 			)));
@@ -113,7 +131,7 @@ impl super::Service {
 		// The notary signed the response as the origin served it, so verify
 		// over the raw JSON, not a re-serialised `ServerSigningKeys`.
 		let for_verify = ruma::signatures::to_canonical_json_string_for_signing(
-			&to_canonical_object(raw_server_keys)?,
+			&to_canonical_object(&incoming.raw)?,
 		)?;
 
 		let raw_notary_keys = notary_keys.iter().map(Base64::as_bytes).collect::<Vec<_>>();
@@ -134,7 +152,7 @@ impl super::Service {
 					trace!(
 						"Valid signature from {notary_name} present on signing keys response \
 						 for {}",
-						server_keys.server_name
+						incoming.parsed.server_name
 					);
 					return Ok(());
 				}
@@ -189,14 +207,10 @@ mod tests {
 				}
 			  }
 			}
-		)).map(Raw::from_json).unwrap();
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
 
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&response_data,
-			None,
-		)
-		.expect("Self-signature of real key response is valid");
+		Service::verify_server_keys_response(&response_data, None)
+			.expect("Self-signature of real key response is valid");
 	}
 
 	#[test]
@@ -220,14 +234,10 @@ mod tests {
 				}
 			  }
 			}
-		)).map(Raw::from_json).unwrap();
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
 
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&response_data,
-			None,
-		)
-		.expect("Self-signature of real key response is valid");
+		Service::verify_server_keys_response(&response_data, None)
+			.expect("Self-signature of real key response is valid");
 	}
 
 	#[test]
@@ -251,11 +261,10 @@ mod tests {
 				}
 			  }
 			}
-		)).map(Raw::from_json).unwrap();
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
 		let starstruck_pubkey =
 			Base64::<Standard>::parse("Z4oHuEjdUbtC5W/z/gzc5B8raxNk+8gGwbNwgxHqW8Y").unwrap();
 		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
 			&response_data,
 			Some((server_name!("starstruck.systems"), &[starstruck_pubkey])),
 		)
@@ -282,13 +291,9 @@ mod tests {
 				}
 			  }
 			}
-		)).map(Raw::from_json).unwrap();
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&response_data,
-			None,
-		)
-		.expect_err("Tampered response should fail self-signature check");
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
+		Service::verify_server_keys_response(&response_data, None)
+			.expect_err("Tampered response should fail self-signature check");
 	}
 
 	#[test]
@@ -324,13 +329,9 @@ mod tests {
 				}
 			  }
 			}
-		)).map(Raw::from_json).unwrap();
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&response_data,
-			None,
-		)
-		.expect_err("Intercepted notary response should fail strict validation");
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
+		Service::verify_server_keys_response(&response_data, None)
+			.expect_err("Intercepted notary response should fail strict validation");
 	}
 
 	#[test]
@@ -355,31 +356,18 @@ mod tests {
 					}
 				}
 			}
-		)).map(Raw::from_json).unwrap();
+		)).map(Raw::from_json).unwrap().try_into().unwrap();
 
 		let notary_pubkey =
 			Base64::<Standard>::parse("0ocHGigwa/ap6gSZzzspDQhhOkVkloaf9apolOvwqo8").unwrap();
 
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&response_data,
-			None,
-		)
-		.expect("Self-signature must verify over the raw response");
+		Service::verify_server_keys_response(&response_data, None)
+			.expect("Self-signature must verify over the raw response");
 
 		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
 			&response_data,
 			Some((server_name!("notary.example"), &[notary_pubkey])),
 		)
 		.expect("Notary signature must verify over the raw response");
-
-		let reserialised = Raw::new(&response_data.deserialize().unwrap()).unwrap();
-		Service::verify_server_keys_response(
-			&response_data.deserialize().unwrap(),
-			&reserialised,
-			None,
-		)
-		.expect_err("Re-serialisation must not verify");
 	}
 }

@@ -4,16 +4,17 @@ use conduwuit::{Err, Result, trace, utils::millis_since_unix_epoch, warn};
 use ruma::{
 	MilliSecondsSinceUnixEpoch, OwnedServerName, OwnedServerSigningKeyId, ServerName, UInt,
 	api::federation::discovery::{
-		ServerSigningKeys,
 		get_remote_server_keys_batch::{
 			self,
 			v2::{QueryCriteria, Response as NotaryResponse},
 		},
 		get_server_keys,
 	},
-	serde::{Base64, Raw},
+	serde::Base64,
 	uint,
 };
+
+use crate::server_keys::verify::IncomingServerKeys;
 
 pub(crate) type ServerKeysQuery = BTreeMap<OwnedServerName, ServerKeysQuerySet>;
 pub(crate) type ServerKeysQuerySet = BTreeMap<OwnedServerSigningKeyId, QueryCriteria>;
@@ -27,7 +28,7 @@ impl super::Service {
 		&self,
 		target: OwnedServerName,
 		min_valid_ts: MilliSecondsSinceUnixEpoch,
-	) -> Result<ServerSigningKeys> {
+	) -> Result<IncomingServerKeys> {
 		use get_server_keys::v2::Request;
 
 		let raw_server_key = self
@@ -37,30 +38,28 @@ impl super::Service {
 			.await
 			.map(|response| response.server_key)?;
 
-		let server_signing_key = raw_server_key.deserialize()?;
+		let server_signing_key: IncomingServerKeys = raw_server_key.try_into()?;
 
-		if server_signing_key.server_name != target {
+		if server_signing_key.parsed.server_name != target {
 			return Err!(BadServerResponse(debug_warn!(
 				requested = ?target,
-				response = ?server_signing_key.server_name,
+				response = ?server_signing_key.parsed.server_name,
 				"Origin server responded with bogus server_name"
 			)));
 		}
 
-		if server_signing_key.valid_until_ts < min_valid_ts
-			|| server_signing_key.valid_until_ts > in_one_week()
+		if server_signing_key.parsed.valid_until_ts < min_valid_ts
+			|| server_signing_key.parsed.valid_until_ts > in_one_week()
 		{
 			return Err!(BadServerResponse(debug_warn!(
 				?target,
 				?min_valid_ts,
-				?server_signing_key.valid_until_ts,
+				?server_signing_key.parsed.valid_until_ts,
 				"Origin server responded with server keys that are not in-date"
 			)));
 		}
 
-		if let Err(e) =
-			Self::verify_server_keys_response(&server_signing_key, &raw_server_key, None)
-		{
+		if let Err(e) = Self::verify_server_keys_response(&server_signing_key, None) {
 			return Err!(BadServerResponse(debug_warn!(
 				?target,
 				"Origin server failed to self-sign key response: {e}"
@@ -86,7 +85,7 @@ impl super::Service {
 		&self,
 		notary: &ServerName,
 		batch: ServerKeysQuery,
-	) -> Result<Vec<ServerSigningKeys>> {
+	) -> Result<Vec<IncomingServerKeys>> {
 		use get_remote_server_keys_batch::v2::Request;
 
 		let is_empty = batch.is_empty() || batch.values().all(BTreeMap::is_empty);
@@ -111,16 +110,9 @@ impl super::Service {
 			.await
 			.map(|response| Self::parse_notary_response(&response))?
 			.into_iter()
-			.filter(|(keys, raw_keys)| {
-				Self::validate_notary_chunk(
-					&batch,
-					keys,
-					raw_keys,
-					notary,
-					notary_keys.as_slice(),
-				)
+			.filter(|keys| {
+				Self::validate_notary_chunk(&batch, keys, notary, notary_keys.as_slice())
 			})
-			.map(|(keys, _)| keys)
 			.collect();
 		Ok(keys)
 	}
@@ -128,12 +120,10 @@ impl super::Service {
 	/// Parses a notary response, returning a vec of server signing key
 	/// responses, each paired with its raw JSON (which is what the signatures
 	/// were made over). Drops any chunks that cannot be deserialized.
-	fn parse_notary_response(
-		raw: &NotaryResponse,
-	) -> Vec<(ServerSigningKeys, Raw<ServerSigningKeys>)> {
+	fn parse_notary_response(raw: &NotaryResponse) -> Vec<IncomingServerKeys> {
 		raw.server_keys
 			.iter()
-			.filter_map(|chunk| chunk.deserialize().ok().map(|keys| (keys, chunk.clone())))
+			.filter_map(|chunk| chunk.try_into().ok())
 			.collect()
 	}
 
@@ -141,13 +131,15 @@ impl super::Service {
 	/// if the response should be dropped, true if it should be kept.
 	fn validate_notary_chunk(
 		batch: &ServerKeysQuery,
-		keys: &ServerSigningKeys,
-		raw_keys: &Raw<ServerSigningKeys>,
+		incoming: &IncomingServerKeys,
 		notary_name: &ServerName,
 		notary_keys: &[Base64],
 	) -> bool {
-		let Some(expected_keys) = batch.get(&keys.server_name) else {
-			trace!("Dropping signing keys chunk for unrequested server: {}", keys.server_name);
+		let Some(expected_keys) = batch.get(&incoming.parsed.server_name) else {
+			trace!(
+				"Dropping signing keys chunk for unrequested server: {}",
+				incoming.parsed.server_name
+			);
 			return false;
 		};
 		let min_valid_ts = expected_keys
@@ -161,13 +153,15 @@ impl super::Service {
 
 		// If this notary response is older than any of the min_valid_ts we
 		// requested, then we should drop it.
-		if keys.valid_until_ts < min_valid_ts || keys.valid_until_ts > in_one_week() {
+		if incoming.parsed.valid_until_ts < min_valid_ts
+			|| incoming.parsed.valid_until_ts > in_one_week()
+		{
 			trace!(
 				?min_valid_ts,
-				?keys.valid_until_ts,
+				?incoming.parsed.valid_until_ts,
 				"Dropping signing keys chunk for server {} because it is older than the minimum \
 				 valid timestamp we requested",
-				keys.server_name
+				incoming.parsed.server_name
 			);
 			return false;
 		}
@@ -175,38 +169,39 @@ impl super::Service {
 		// Does this chunk even contain any keys we asked for?
 		// Note that this enforces min_valid_ts per-key, instead of using the
 		// lowest denominator.
-		let all_key_ids = keys
+		let all_key_ids = incoming
+			.parsed
 			.verify_keys
 			.keys()
-			.chain(keys.old_verify_keys.keys())
+			.chain(incoming.parsed.old_verify_keys.keys())
 			.map(ToOwned::to_owned)
 			.collect::<Vec<_>>();
 		let interesting = expected_keys.iter().any(|(k, q)| {
 			all_key_ids.contains(k)
 				&& q.minimum_valid_until_ts
-					.is_none_or(|m| m <= keys.valid_until_ts)
+					.is_none_or(|m| m <= incoming.parsed.valid_until_ts)
 		});
 		if !interesting {
 			trace!(
 				"Dropping signing keys chunk for server {} because it does not contain any keys \
 				 we requested",
-				keys.server_name
+				incoming.parsed.server_name
 			);
 			return false;
 		}
 
-		Self::verify_server_keys_response(keys, raw_keys, Some((notary_name, notary_keys)))
+		Self::verify_server_keys_response(incoming, Some((notary_name, notary_keys)))
 			.inspect_err(|e| {
 				trace!(
 					?e,
-					?keys,
+					?incoming.raw,
 					?notary_name,
 					?notary_keys,
 					"Dropping illegal server signing keys response chunk"
 				);
 				warn!(
 					%notary_name,
-					server_name=%keys.server_name,
+					server_name=%incoming.parsed.server_name,
 					"Dropping illegal server signing keys response chunk: {e:?}"
 				);
 			})

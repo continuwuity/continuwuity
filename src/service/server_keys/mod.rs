@@ -19,8 +19,10 @@ use ruma::{
 	ServerSigningKeyId,
 	api::federation::discovery::{ServerSigningKeys, VerifyKey},
 	room_version_rules::RoomVersionRules,
+	serde::Raw,
 	signatures::{Ed25519KeyPair, PublicKeyMap, PublicKeySet},
 };
+use verify::IncomingServerKeys;
 
 use crate::{Dep, globals, sending, server_keys::util::required_keys};
 
@@ -83,19 +85,22 @@ impl Service {
 	}
 
 	/// Adds a signing key response to the database.
-	fn add_signing_keys(&self, new_keys: &ServerSigningKeys) {
+	fn add_signing_keys(&self, new_keys: &IncomingServerKeys) {
 		// TODO(nex): this results in massive amounts of data duplication.
 		// Perhaps a sliding approach would be better? where we just update the
 		// last known response if the only thing that changed was the
 		// valid_until_ts. This would require a more complex data structure
 		// though. For now, just storing the duplicated data is fine.
 		for key in new_keys
+			.parsed
 			.verify_keys
 			.keys()
-			.chain(new_keys.old_verify_keys.keys())
+			.chain(new_keys.parsed.old_verify_keys.keys())
 		{
-			let db_key = (new_keys.server_name.as_str(), key.as_str());
-			self.db.servernamekeyid_response.put(db_key, Json(new_keys));
+			let db_key = (new_keys.parsed.server_name.as_str(), key.as_str());
+			self.db
+				.servernamekeyid_response
+				.put(db_key, Json(&new_keys.raw));
 		}
 	}
 
@@ -170,7 +175,7 @@ impl Service {
 		let mut keys = self
 			.signing_keys_for(origin)
 			.ready_fold(BTreeMap::new(), |mut base, keys| {
-				base.extend(keys.verify_keys);
+				base.extend(keys.parsed.verify_keys);
 				base
 			})
 			.await;
@@ -186,11 +191,12 @@ impl Service {
 	pub fn signing_keys_for<'a>(
 		&'a self,
 		origin: &'a ServerName,
-	) -> impl Stream<Item = ServerSigningKeys> + Send + 'a {
+	) -> impl Stream<Item = IncomingServerKeys> + Send + 'a {
 		self.db
 			.servernamekeyid_response
 			.stream_prefix(&(origin, Interfix))
 			.ignore_err()
-			.map(|(_, v): (Ignore, ServerSigningKeys)| v)
+			.map(|(_, v): (Ignore, Raw<ServerSigningKeys>)| v.try_into().map_err(Into::into))
+			.ignore_err()
 	}
 }
