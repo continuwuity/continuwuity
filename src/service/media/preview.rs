@@ -332,7 +332,7 @@ impl Service {
 					.expect("u64 should fit in usize"),
 			)
 			.await?;
-		let Ok(html) = HTML::from_string(body.clone(), Some(url.to_owned()))
+		let Ok(html) = HTML::from_string(body, Some(url.to_owned()))
 			.inspect_err(|e| debug!(error=?e, "Failed to parse HTML data"))
 		else {
 			return Err!(Request(Unknown("Failed to parse HTML")));
@@ -341,10 +341,24 @@ impl Service {
 		let mut preview_data = UrlPreviewData::from(&html.opengraph);
 		debug!(parsed=?preview_data, deserialised=?html.opengraph, "Parsed opengraph data");
 
-		if let Some(obj) = html.opengraph.images.first() {
-			info!(asset_url=%obj.url, "Downloading preview image");
-			if let Ok(image_data) = self.download_image(&obj.url).await.inspect_err(
-				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview image"),
+		let base_url = Url::parse(url).ok();
+		let resolve_asset_url = |asset_url: &str| -> String {
+			base_url
+				.as_ref()
+				.and_then(|base| base.join(asset_url).ok())
+				.map_or_else(|| asset_url.to_owned(), Into::into)
+		};
+
+		if let Some(obj) = html
+			.opengraph
+			.images
+			.first()
+			.filter(|obj| !obj.url.is_empty())
+		{
+			let asset_url = resolve_asset_url(&obj.url);
+			info!(%asset_url, "Downloading preview image");
+			if let Ok(image_data) = self.download_image(&asset_url).await.inspect_err(
+				|e| info!(error=?e, %asset_url, "Could not download URL preview image"),
 			) {
 				preview_data.image = image_data.image;
 				preview_data.image_size = image_data.image_size;
@@ -356,20 +370,32 @@ impl Service {
 			}
 		}
 
-		if let Some(obj) = html.opengraph.videos.first() {
-			info!(asset_url=%obj.url, "Downloading preview video");
-			if let Ok(video_data) = self.download_video(&obj.url).await.inspect_err(
-				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview video"),
+		if let Some(obj) = html
+			.opengraph
+			.videos
+			.first()
+			.filter(|obj| !obj.url.is_empty())
+		{
+			let asset_url = resolve_asset_url(&obj.url);
+			info!(%asset_url, "Downloading preview video");
+			if let Ok(video_data) = self.download_video(&asset_url).await.inspect_err(
+				|e| info!(error=?e, %asset_url, "Could not download URL preview video"),
 			) {
 				preview_data.video = video_data.video;
 				preview_data.video_size = video_data.video_size;
 			}
 		}
 
-		if let Some(obj) = html.opengraph.audios.first() {
-			info!(asset_url=%obj.url, "Downloading URL preview audio");
-			if let Ok(audio_data) = self.download_audio(&obj.url).await.inspect_err(
-				|e| info!(error=?e, asset_url=%obj.url, "Could not download URL preview audio"),
+		if let Some(obj) = html
+			.opengraph
+			.audios
+			.first()
+			.filter(|obj| !obj.url.is_empty())
+		{
+			let asset_url = resolve_asset_url(&obj.url);
+			info!(%asset_url, "Downloading URL preview audio");
+			if let Ok(audio_data) = self.download_audio(&asset_url).await.inspect_err(
+				|e| info!(error=?e, %asset_url, "Could not download URL preview audio"),
 			) {
 				preview_data.audio = audio_data.audio;
 				preview_data.audio_size = audio_data.audio_size;
