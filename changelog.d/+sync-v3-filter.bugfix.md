@@ -1,0 +1,1 @@
+Legacy `/sync` now honours the `room.rooms`, `room.not_rooms`, `account_data.types` and `account_data.not_types` filter fields instead of returning every room and all account data. Contributed by @eleboucher.
