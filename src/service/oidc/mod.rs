@@ -2,17 +2,17 @@ use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use conduwuit::{
-	Result,
+	Result, SyncRwLock,
 	config::{OidcConfig, OidcProfileKeyImportMode},
 	debug, err, error, info, warn,
 };
 use database::{Deserialized, Map};
 use lettre::Address;
 use openidconnect::{
-	AdditionalClaims, AuthorizationCode, ClientSecret, CsrfToken, EmptyExtraTokenFields,
-	EndpointMaybeSet, EndpointNotSet, EndpointSet, IdTokenClaims, IdTokenFields, IssuerUrl,
-	Nonce, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl, StandardErrorResponse,
-	StandardTokenResponse, TokenResponse,
+	AdditionalClaims, AuthorizationCode, ClaimsVerificationError, ClientSecret, CsrfToken,
+	EmptyExtraTokenFields, EndpointMaybeSet, EndpointNotSet, EndpointSet, IdTokenClaims,
+	IdTokenFields, IssuerUrl, Nonce, PkceCodeChallenge, PkceCodeVerifier, RedirectUrl,
+	SignatureVerificationError, StandardErrorResponse, StandardTokenResponse, TokenResponse,
 	core::{
 		CoreAuthDisplay, CoreAuthPrompt, CoreAuthenticationFlow, CoreErrorResponseType,
 		CoreGenderClaim, CoreJsonWebKey, CoreJweContentEncryptionAlgorithm,
@@ -60,7 +60,7 @@ struct Services {
 struct OidcClient {
 	config: OidcConfig,
 	client_secret: ClientSecret,
-	machine: SetOnce<OidcClientMachine>,
+	machine: SetOnce<SyncRwLock<Arc<OidcClientMachine>>>,
 	client: reqwest::Client,
 }
 
@@ -180,31 +180,10 @@ impl crate::Service for Service {
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		if let Some(OidcClient { config, client_secret, machine, client }) = &self.client {
-			let redirect_url = self
-				.services
-				.config
-				.get_client_domain()
-				.join(&format!("{}/oidc/complete", conduwuit::ROUTE_PREFIX))
-				.expect("redirect url should be valid");
-
-			let provider_metadata = CoreProviderMetadata::discover_async(
-				IssuerUrl::new(config.discovery_url.clone())
-					.map_err(|err| err!("Failed to parse OIDC discovery URL: {err}"))?,
-				client,
-			)
-			.await
-			.map_err(|err| err!("Failed to discover OIDC provider metadata: {err}"))?;
-
+		if let Some(OidcClient { machine, .. }) = &self.client {
+			let discovered = self.discover().await?;
 			machine
-				.set(
-					OidcClientMachine::from_provider_metadata(
-						provider_metadata,
-						config.client_id.clone(),
-						Some(client_secret.clone()),
-					)
-					.set_redirect_uri(RedirectUrl::from_url(redirect_url)),
-				)
+				.set(SyncRwLock::new(Arc::new(discovered)))
 				.expect("machine should be empty");
 		}
 
@@ -223,6 +202,33 @@ impl Service {
 		"Identity server is misconfigured. Contact your homeserver's administrator.";
 
 	pub fn enabled(&self) -> bool { self.client.is_some() }
+
+	async fn discover(&self) -> Result<OidcClientMachine> {
+		let OidcClient { config, client_secret, client, .. } =
+			self.client.as_ref().expect("oidc should be configured");
+
+		let redirect_url = self
+			.services
+			.config
+			.get_client_domain()
+			.join(&format!("{}/oidc/complete", conduwuit::ROUTE_PREFIX))
+			.expect("redirect url should be valid");
+
+		let provider_metadata = CoreProviderMetadata::discover_async(
+			IssuerUrl::new(config.discovery_url.clone())
+				.map_err(|err| err!("Failed to parse OIDC discovery URL: {err}"))?,
+			client,
+		)
+		.await
+		.map_err(|err| err!("Failed to discover OIDC provider metadata: {err}"))?;
+
+		Ok(OidcClientMachine::from_provider_metadata(
+			provider_metadata,
+			config.client_id.clone(),
+			Some(client_secret.clone()),
+		)
+		.set_redirect_uri(RedirectUrl::from_url(redirect_url)))
+	}
 
 	pub fn provider_name(&self) -> Option<String> {
 		let OidcClient { config, .. } = self.client.as_ref().expect("oidc should be configured");
@@ -253,7 +259,7 @@ impl Service {
 	pub async fn begin_session(&self, prompt: Option<CoreAuthPrompt>) -> (PendingSession, Url) {
 		let OidcClient { machine, config, .. } =
 			self.client.as_ref().expect("oidc should be configured");
-		let machine = machine.wait().await;
+		let machine = machine.wait().await.read().clone();
 
 		let (pkce_challenge, pkce_verifier) = PkceCodeChallenge::new_random_sha256();
 
@@ -284,13 +290,13 @@ impl Service {
 			return Err("Delegated authentication is not enabled on this server.");
 		};
 
-		let machine = machine.wait().await;
+		let current = machine.wait().await.read().clone();
 
 		if session.csrf_token.into_secret() != response.state {
 			return Err("State mismatch.");
 		}
 
-		let token_response = machine
+		let token_response = current
 			.exchange_code(AuthorizationCode::new(response.code))
 			.expect("machine should be configured correctly")
 			.set_pkce_verifier(session.pkce_verifier)
@@ -307,19 +313,41 @@ impl Service {
 			return Err(Self::SERVER_MISCONFIGURED);
 		};
 
-		let verifier = machine
-			.id_token_verifier()
-			.set_other_audience_verifier_fn(|audience| {
-				config.additional_trusted_audiences.contains(audience)
-			});
+		let verify = |machine: &OidcClientMachine| {
+			let verifier =
+				machine
+					.id_token_verifier()
+					.set_other_audience_verifier_fn(|audience| {
+						config.additional_trusted_audiences.contains(audience)
+					});
 
-		let claims = id_token
-			.claims(&verifier, &session.nonce)
-			.map_err(|err| {
-				error!("Failed to verify id token claims: {err}");
-				Self::SERVER_MISCONFIGURED
-			})?
-			.to_owned();
+			id_token
+				.claims(&verifier, &session.nonce)
+				.map(ToOwned::to_owned)
+		};
+
+		let mut result = verify(&current);
+
+		if matches!(
+			result,
+			Err(ClaimsVerificationError::SignatureVerification(
+				SignatureVerificationError::NoMatchingKey
+			))
+		) {
+			match self.discover().await {
+				| Ok(discovered) => {
+					info!("Refreshed OIDC provider metadata after an unknown signing key");
+					result = verify(&discovered);
+					*machine.wait().await.write() = Arc::new(discovered);
+				},
+				| Err(err) => warn!("Failed to refresh OIDC provider metadata: {err}"),
+			}
+		}
+
+		let claims = result.map_err(|err| {
+			error!("Failed to verify id token claims: {err}");
+			Self::SERVER_MISCONFIGURED
+		})?;
 
 		info!(subject = claims.subject().as_str(), "Authenticated subject");
 
