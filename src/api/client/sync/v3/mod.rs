@@ -21,7 +21,7 @@ use futures::{FutureExt, StreamExt, TryFutureExt, future::OptionFuture};
 use ruma::{
 	DeviceId, OwnedUserId, RoomId, UserId,
 	api::client::{
-		filter::FilterDefinition,
+		filter::{self, FilterDefinition, RoomFilter},
 		sync::sync_events::{
 			self, DeviceLists,
 			v3::{
@@ -39,6 +39,7 @@ use service::{
 	account_data::AnyRawAccountDataEvent,
 	rooms::lazy_loading::{self, MemberSet, Options as _},
 };
+use wildmatch::WildMatch;
 
 use super::{load_timeline, share_encrypted_room};
 use crate::{
@@ -267,15 +268,27 @@ pub(crate) async fn build_sync_events(
 		use_state_after: body.use_state_after,
 	};
 
+	let unfiltered = Box::new(FilterDefinition::default());
+	let unfiltered_context = SyncContext { filter: &unfiltered, ..context };
+
 	let joined_rooms = services
 		.rooms
 		.state_cache
 		.rooms_joined(syncing_user)
+		// a filtered out room still contributes its device list updates, which
+		// an initial sync does not have
+		.ready_filter(|room_id| {
+			last_sync_end_count.is_some() || room_selected(&filter.room, room_id)
+		})
 		.broad_filter_map(|room_id| async {
+			let selected = room_selected(&filter.room, &room_id);
+			// the client is not sent this room, so its lazy loading state must
+			// not change
+			let context = if selected { context } else { unfiltered_context };
 			let joined_room = load_joined_room(services, context, room_id.clone()).await;
 
 			match joined_room {
-				| Ok((room, updates)) => Some((room_id, room, updates)),
+				| Ok((room, updates)) => Some((room_id, selected.then_some(room), updates)),
 				| Err(err) => {
 					error!(?err, %room_id, "error loading joined room");
 					None
@@ -287,7 +300,9 @@ pub(crate) async fn build_sync_events(
 			|(mut joined_rooms, mut all_updates), (room_id, joined_room, updates)| {
 				all_updates.merge(updates);
 
-				if !joined_room.is_empty() {
+				if let Some(joined_room) = joined_room
+					&& !joined_room.is_empty()
+				{
 					joined_rooms.insert(room_id, joined_room);
 				}
 
@@ -299,6 +314,7 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_left(syncing_user)
+		.ready_filter(|(room_id, _)| room_selected(&filter.room, room_id))
 		.broad_filter_map(|(room_id, leave_pdu)| async {
 			let left_room = load_left_room(services, context, room_id.clone(), leave_pdu).await;
 
@@ -317,6 +333,7 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_invited(syncing_user)
+		.ready_filter(|(room_id, _)| room_selected(&filter.room, room_id))
 		.wide_filter_map(async |(room_id, invite_state)| {
 			if is_ignored_invite(services, syncing_user, &room_id).await {
 				None
@@ -347,6 +364,7 @@ pub(crate) async fn build_sync_events(
 		.rooms
 		.state_cache
 		.rooms_knocked(syncing_user)
+		.ready_filter(|(room_id, _)| room_selected(&filter.room, room_id))
 		.fold_default(|mut knocked_rooms: BTreeMap<_, _>, (room_id, knock_state)| async move {
 			let knock_count = services
 				.rooms
@@ -376,6 +394,13 @@ pub(crate) async fn build_sync_events(
 		.account_data
 		.changes_since(None, syncing_user, last_sync_end_count, Some(current_count))
 		.ready_filter_map(|e| extract_variant!(e, AnyRawAccountDataEvent::Global))
+		.ready_filter(|event| {
+			event
+				.get_field::<String>("type")
+				.ok()
+				.flatten()
+				.is_some_and(|event_type| type_selected(&filter.account_data, &event_type))
+		})
 		.collect();
 
 	let to_device_events = services
@@ -465,6 +490,24 @@ pub(crate) async fn build_sync_events(
 	Ok(response)
 }
 
+fn room_selected(filter: &RoomFilter, room_id: &RoomId) -> bool {
+	!filter.not_rooms.iter().any(|not_room| not_room == room_id)
+		&& filter
+			.rooms
+			.as_ref()
+			.is_none_or(|rooms| rooms.iter().any(|room| room == room_id))
+}
+
+fn type_selected(filter: &filter::Filter, event_type: &str) -> bool {
+	let matches = |pattern: &String| WildMatch::new(pattern).matches(event_type);
+
+	!filter.not_types.iter().any(matches)
+		&& filter
+			.types
+			.as_ref()
+			.is_none_or(|types| types.iter().any(matches))
+}
+
 #[tracing::instrument(name = "presence", level = "debug", skip_all)]
 async fn process_presence_updates(
 	services: &Services,
@@ -527,4 +570,46 @@ async fn prepare_lazily_loaded_members(
 		.await;
 
 	lazily_loaded_members
+}
+
+#[cfg(test)]
+mod tests {
+	use ruma::{owned_room_id, room_id};
+
+	use super::*;
+
+	#[test]
+	fn rooms_filter_selects_rooms() {
+		let room_id = room_id!("!a:example.com");
+		let mut filter = RoomFilter::default();
+		assert!(room_selected(&filter, room_id));
+
+		filter.rooms = Some(Vec::new());
+		assert!(!room_selected(&filter, room_id));
+
+		filter.rooms = Some(vec![room_id.to_owned()]);
+		assert!(room_selected(&filter, room_id));
+
+		filter.not_rooms = vec![owned_room_id!("!a:example.com")];
+		assert!(!room_selected(&filter, room_id));
+	}
+
+	#[test]
+	fn types_filter_selects_account_data() {
+		let mut filter = filter::Filter::default();
+		assert!(type_selected(&filter, "m.direct"));
+
+		filter.types = Some(Vec::new());
+		assert!(!type_selected(&filter, "m.direct"));
+
+		filter.types = Some(vec!["m.direct".to_owned()]);
+		assert!(type_selected(&filter, "m.direct"));
+
+		filter.types = Some(vec!["m.*".to_owned()]);
+		assert!(type_selected(&filter, "m.direct"));
+		assert!(!type_selected(&filter, "im.ponies.user_emotes"));
+
+		filter.not_types = vec!["m.direct".to_owned()];
+		assert!(!type_selected(&filter, "m.direct"));
+	}
 }
