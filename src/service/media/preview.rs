@@ -217,8 +217,9 @@ impl Service {
 		let (width, height) = reader.into_dimensions().map_err(|error| {
 			err!(Request(Unknown("Failed to read preview image dimensions: {error}")))
 		})?;
-		preview_data.image_width.get_or_insert(width);
-		preview_data.image_height.get_or_insert(height);
+		preview_data.image_width = Some(width);
+		preview_data.image_height = Some(height);
+		preview_data.image_size = Some(image.len());
 		preview_data.image_type = content_type.parse().ok();
 
 		let mxc = Mxc {
@@ -385,12 +386,14 @@ impl Service {
 			preview_data.image_alt = None;
 			preview_data.image_height = None;
 			preview_data.image_width = None;
+			preview_data.image_size = None;
 		}
 		if preview_data.video.is_none() {
 			preview_data.video_type = None;
 			preview_data.video_alt = None;
 			preview_data.video_height = None;
 			preview_data.video_width = None;
+			preview_data.video_size = None;
 		}
 		if preview_data.audio.is_none() {
 			preview_data.audio_size = None;
