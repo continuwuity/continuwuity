@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use conduwuit::{
 	Err, Result, err,
-	utils::{ReadyExt, result::LogErr, stream::TryIgnore},
+	utils::{MutexMap, ReadyExt, result::LogErr, stream::TryIgnore},
 };
 use database::{Deserialized, Handle, Ignore, Json, Map};
 use futures::{Stream, StreamExt, TryFutureExt};
@@ -27,6 +27,7 @@ pub enum AnyRawAccountDataEvent {
 pub struct Service {
 	services: Services,
 	db: Data,
+	update_mutex: MutexMap<OwnedUserId, ()>,
 }
 
 struct Data {
@@ -50,6 +51,7 @@ impl crate::Service for Service {
 				roomuserdataid_accountdata: args.db["roomuserdataid_accountdata"].clone(),
 				roomusertype_roomuserdataid: args.db["roomusertype_roomuserdataid"].clone(),
 			},
+			update_mutex: MutexMap::new(),
 		}))
 	}
 
@@ -70,6 +72,10 @@ impl Service {
 		if data.get("type").is_none() || data.get("content").is_none() {
 			return Err!(Request(InvalidParam("Account data doesn't have all required fields.")));
 		}
+
+		// Two updates reading the same previous entry would both remove it,
+		// and the entry of the one that lost the index would stay forever.
+		let _lock = self.update_mutex.lock(user_id).await;
 
 		let count = self.services.globals.next_count().unwrap();
 		let roomuserdataid = (room_id, user_id, count, &event_type);

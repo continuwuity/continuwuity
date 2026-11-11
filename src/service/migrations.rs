@@ -18,7 +18,7 @@ use conduwuit::{
 	},
 	warn,
 };
-use database::Json;
+use database::{Deserialized, Ignore, Json};
 use futures::{FutureExt, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use ruma::{
@@ -173,6 +173,9 @@ migration!(stringify!($name) => $name)
 		// Re-calculates extremities for any rooms that actually lack any
 		// extremities at all.
 		migration!(consistency_check_extremity_tracker),
+		// This is backwards compatible because old versions never read the
+		// account data entries it removes.
+		migration!(remove_replaced_account_data),
 	]
 };
 
@@ -1015,6 +1018,35 @@ async fn remove_unknown_extremities(services: &Services) -> Result {
 			},
 		)
 		.await;
+	Ok(())
+}
+
+async fn remove_replaced_account_data(services: &Services) -> Result {
+	type Key = (Option<OwnedRoomId>, OwnedUserId, u64, String);
+	type Latest = (Ignore, Ignore, u64, Ignore);
+
+	let entries = services.db["roomuserdataid_accountdata"].clone();
+	let latest_of_type = services.db["roomusertype_roomuserdataid"].clone();
+
+	let keys: Vec<Key> = entries.keys().ignore_err().collect().await;
+	let mut removed: usize = 0;
+	for (room_id, user_id, count, event_type) in &keys {
+		let latest = latest_of_type
+			.qry(&(room_id, user_id, event_type))
+			.await
+			.deserialized::<Latest>();
+
+		if latest.is_ok_and(|(_, _, latest, _)| latest != *count) {
+			entries.del((room_id, user_id, count, event_type));
+			removed = removed.saturating_add(1);
+		}
+	}
+
+	info!(
+		total = keys.len(),
+		?removed,
+		"Removed replaced entries in 'roomuserdataid_accountdata'."
+	);
 	Ok(())
 }
 
