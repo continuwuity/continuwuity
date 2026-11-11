@@ -338,8 +338,16 @@ fn builder_interface(
 fn get_dns_resolver(server: &Arc<Server>) -> Result<Arc<TokioResolver>> {
 	let config = &server.config;
 
-	let (system_resolver_config, mut opts) = hickory_resolver::system_conf::read_system_conf()
-		.map_err(|e| err!(error!("Failed to configure DNS resolver from system: {e}")))?;
+	let (system_resolver_config, mut opts) =
+		match hickory_resolver::system_conf::read_system_conf() {
+			| Ok(system_conf) => system_conf,
+			| Err(e) if config.dns_servers.is_empty() =>
+				return Err(err!(error!("Failed to configure DNS resolver from system: {e}"))),
+			| Err(e) => {
+				warn!("Failed to read system DNS configuration, using dns_servers: {e}");
+				Default::default()
+			},
+		};
 
 	let mut conf = ResolverConfig::from_name_servers(vec![]);
 

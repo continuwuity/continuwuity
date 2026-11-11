@@ -222,7 +222,8 @@ async fn test_services() -> (Arc<crate::Services>, std::path::PathBuf) {
 		"database_path": path,
 		"db_cache_capacity_mb": 16.0,
 		"rocksdb_write_buffer_capacity_mb": 4.0,
-		"allow_local_presence": false
+		"allow_local_presence": false,
+		"dns_servers": ["127.0.0.1"]
 	}))
 	.unwrap();
 	let runtime = tokio::runtime::Handle::current();
