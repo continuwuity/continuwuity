@@ -7,7 +7,9 @@
 
 use std::time::SystemTime;
 
-use conduwuit::{Err, Result, debug, err, info, utils::response::LimitReadExt};
+#[cfg(feature = "url_preview")]
+use conduwuit::info;
+use conduwuit::{Err, Result, debug, err, utils::response::LimitReadExt};
 use ipaddress::IPAddress;
 use mime::Mime;
 use ruma::OwnedMxcUri;
@@ -291,30 +293,18 @@ impl Service {
 	}
 
 	#[cfg(not(feature = "url_preview"))]
-	pub async fn download_image(
-		&self,
-		_url: &str,
-		_preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
-		Err!(FeatureDisabled("url_preview"))
+	pub fn download_image(&self, _url: &str) -> impl Future<Output = Result<UrlPreviewData>> {
+		std::future::ready(Err!(FeatureDisabled("url_preview")))
 	}
 
 	#[cfg(not(feature = "url_preview"))]
-	pub async fn download_video(
-		&self,
-		_url: &str,
-		_preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
-		Err!(FeatureDisabled("url_preview"))
+	pub fn download_video(&self, _url: &str) -> impl Future<Output = Result<UrlPreviewData>> {
+		std::future::ready(Err!(FeatureDisabled("url_preview")))
 	}
 
 	#[cfg(not(feature = "url_preview"))]
-	pub async fn download_audio(
-		&self,
-		_url: &str,
-		_preview_data: Option<UrlPreviewData>,
-	) -> Result<UrlPreviewData> {
-		Err!(FeatureDisabled("url_preview"))
+	pub fn download_audio(&self, _url: &str) -> impl Future<Output = Result<UrlPreviewData>> {
+		std::future::ready(Err!(FeatureDisabled("url_preview")))
 	}
 
 	#[cfg(feature = "url_preview")]
@@ -410,8 +400,9 @@ impl Service {
 	}
 
 	#[cfg(not(feature = "url_preview"))]
-	async fn download_html(&self, _url: &str) -> Result<UrlPreviewData> {
-		Err!(FeatureDisabled("url_preview"))
+	#[allow(clippy::unused_self)]
+	fn download_html(&self, _url: &str) -> impl Future<Output = Result<UrlPreviewData>> {
+		std::future::ready(Err!(FeatureDisabled("url_preview")))
 	}
 
 	pub fn url_preview_allowed(&self, url: &Url) -> bool {
@@ -537,6 +528,7 @@ impl Service {
 	}
 }
 
+#[cfg(feature = "url_preview")]
 impl From<&webpage::Opengraph> for UrlPreviewData {
 	fn from(og: &webpage::Opengraph) -> Self {
 		Self {
@@ -589,12 +581,12 @@ impl From<&webpage::Opengraph> for UrlPreviewData {
 
 #[cfg(test)]
 mod tests {
-	use webpage::HTML;
-
-	use super::UrlPreviewData;
-
+	#[cfg(feature = "url_preview")]
 	#[test]
 	fn test_urlpreviewdata_parses_correctly() {
+		use webpage::HTML;
+
+		use super::UrlPreviewData;
 		let html = r#"
 			<html>
 				<head>
