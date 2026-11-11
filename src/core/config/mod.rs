@@ -931,16 +931,19 @@ pub struct Config {
 	#[serde(default)]
 	pub require_auth_for_profile_requests: bool,
 
-	/// Set this to false to allow rendezvous sessions to be created without
-	/// authentication. Rendezvous sessions are used for QR code sign-in.
+	/// Set this to true to require authentication to create a rendezvous
+	/// session. Rendezvous sessions are used for QR code login.
 	///
-	/// By default this is true, meaning that a user must use their signed-in
-	/// device to generate a QR code when signing in. Setting this to false will
-	/// allow signed-out devices to generate QR codes using this homeserver,
-	/// which may be desirable for public-registration homeservers.
-	/// 
+	/// For QR code login, the device that shows the QR code is the one that
+	/// creates the rendezvous session. Therefore, this must be false to let
+	/// a logged-out device show a QR code.
+	///
+	/// By default this is false, allowing logged-out desktop devices (which may
+	/// not have a camera) to show a QR code. Setting this to true will
+	/// require logged-out devices to scan the QR code instead.
+	///
 	/// default: true
-	#[serde(default = "true_fn")]
+	#[serde(default)]
 	pub require_auth_for_rendezvous: bool,
 
 	/// Set this to true to allow your server's public room directory to be
