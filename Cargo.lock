@@ -412,11 +412,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "axum-server"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3766086d344b8f8d2a9cf6fb211b581de5b160e052d7bc75a92e58cc41909054"
+dependencies = [
+ "arc-swap",
+ "bytes",
+ "either",
+ "fs-err",
+ "http",
+ "http-body",
+ "hyper",
+ "hyper-util",
+ "pin-project-lite",
+ "rustls",
+ "rustls-pki-types",
+ "socket2",
+ "tokio",
+ "tokio-rustls",
+ "tower-service",
+]
+
+[[package]]
 name = "axum-server-dual-protocol"
 version = "0.8.0"
 source = "git+https://github.com/vinchona/axum-server-dual-protocol.git?rev=ca6db055254255b74238673ce4135698e347d71c#ca6db055254255b74238673ce4135698e347d71c"
 dependencies = [
- "axum-server",
+ "axum-server 0.8.0",
  "bytes",
  "http",
  "http-body-util",
@@ -1064,7 +1087,7 @@ name = "conduwuit_router"
 version = "26.11.0-alpha.1"
 dependencies = [
  "axum",
- "axum-server",
+ "axum-server 0.9.2",
  "axum-server-dual-protocol",
  "bytes",
  "conduwuit_admin",
