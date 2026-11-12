@@ -64,7 +64,7 @@ pub(super) async fn load_joined_room(
 	services: &Services,
 	sync_context: SyncContext<'_>,
 	ref room_id: OwnedRoomId,
-) -> Result<(JoinedRoom, DeviceListUpdates)> {
+) -> Result<JoinedRoom> {
 	/*
 	Building a sync response involves many steps which all depend on each other.
 	To parallelize the process as much as possible, each step is divided into its own function,
@@ -80,7 +80,6 @@ pub(super) async fn load_joined_room(
 			sticky,
 			summary,
 			notification_counts,
-			device_list_updates,
 		},
 	) = try_join3(
 		build_account_data(services, sync_context, room_id),
@@ -117,7 +116,7 @@ pub(super) async fn load_joined_room(
 		unread_thread_notifications: BTreeMap::new(),
 	});
 
-	Ok((joined_room, device_list_updates))
+	Ok(joined_room)
 }
 
 /// Collect changes to the syncing user's account data events.
@@ -263,7 +262,6 @@ struct StateAndTimeline {
 	sticky: Sticky,
 	summary: Option<RoomSummary>,
 	notification_counts: Option<UnreadNotificationsCount>,
-	device_list_updates: DeviceListUpdates,
 }
 
 async fn build_sticky_events(
@@ -377,24 +375,14 @@ async fn build_state_and_timeline(
 		debug_warn!("timeline for newly joined room is empty");
 	}
 
-	let (summary, device_list_updates) = try_join(
-		build_room_summary(
-			services,
-			sync_context,
-			room_id,
-			shortstatehashes,
-			&timeline,
-			&state_events,
-			joined_since_last_sync,
-		),
-		build_device_list_updates(
-			services,
-			sync_context,
-			room_id,
-			shortstatehashes,
-			&state_events,
-			joined_since_last_sync,
-		),
+	let summary = build_room_summary(
+		services,
+		sync_context,
+		room_id,
+		shortstatehashes,
+		&timeline,
+		&state_events,
+		joined_since_last_sync,
 	)
 	.await?;
 
@@ -430,7 +418,6 @@ async fn build_state_and_timeline(
 		sticky,
 		summary,
 		notification_counts,
-		device_list_updates,
 	})
 }
 
@@ -854,34 +841,33 @@ async fn build_heroes(
 		.await
 }
 
-/// Collect updates to users' device lists for E2EE.
-#[tracing::instrument(level = "debug", skip_all)]
-async fn build_device_list_updates(
+/// Collect updates to users' device lists for E2EE in a joined room.
+#[tracing::instrument(level = "debug", skip_all, fields(%room_id))]
+pub(super) async fn load_device_list_updates(
 	services: &Services,
-	SyncContext {
+	sync_context: SyncContext<'_>,
+	room_id: &RoomId,
+) -> Result<DeviceListUpdates> {
+	let SyncContext {
 		syncing_user,
 		last_sync_end_count,
 		current_count,
 		..
-	}: SyncContext<'_>,
-	room_id: &RoomId,
-	ShortStateHashes { current_shortstatehash, .. }: ShortStateHashes,
-	state_events: &Vec<PduEvent>,
-	joined_since_last_sync: bool,
-) -> Result<DeviceListUpdates> {
-	let is_encrypted_room = services
-		.rooms
-		.state_accessor
-		.state_get(current_shortstatehash, &StateEventType::RoomEncryption, "")
-		.is_ok();
+	} = sync_context;
+
+	let mut device_list_updates = DeviceListUpdates::new();
 
 	// initial syncs don't include device updates, and rooms which aren't
 	// encrypted don't affect them, so return early in either of those cases
-	if last_sync_end_count.is_none() || !(is_encrypted_room.await) {
-		return Ok(DeviceListUpdates::new());
+	if last_sync_end_count.is_none()
+		|| !services
+			.rooms
+			.state_accessor
+			.is_encrypted_room(room_id)
+			.await
+	{
+		return Ok(device_list_updates);
 	}
-
-	let mut device_list_updates = DeviceListUpdates::new();
 
 	// add users with changed keys to the `changed` list
 	services
@@ -893,19 +879,56 @@ async fn build_device_list_updates(
 		})
 		.await;
 
-	// add users who now share encrypted rooms to `changed` and
-	// users who no longer share encrypted rooms to `left`
-	for state_event in state_events {
-		if state_event.kind == RoomMember {
-			let Some(content): Option<RoomMemberEventContent> = state_event.get_content().ok()
+	let shortstatehashes = fetch_shortstatehashes(services, sync_context, room_id).await?;
+	let ShortStateHashes {
+		current_shortstatehash,
+		last_sync_end_shortstatehash,
+	} = shortstatehashes;
+
+	if check_joined_since_last_sync(services, shortstatehashes, sync_context).await? {
+		// the syncing user now shares an encrypted room with every member
+		services
+			.rooms
+			.state_cache
+			.room_members(room_id)
+			.ready_for_each(|user_id| {
+				device_list_updates.changed.insert(user_id);
+			})
+			.await;
+	} else if let Some(last_sync_end_shortstatehash) = last_sync_end_shortstatehash
+		&& last_sync_end_shortstatehash != current_shortstatehash
+	{
+		// add users who now share encrypted rooms to `changed` and
+		// users who no longer share encrypted rooms to `left`
+		let state_added = services
+			.rooms
+			.state_accessor
+			.state_added((last_sync_end_shortstatehash, current_shortstatehash))
+			.await?;
+
+		for (shortstatekey, _) in state_added {
+			let Ok((StateEventType::RoomMember, state_key)) = services
+				.rooms
+				.short
+				.get_statekey_from_short(shortstatekey)
+				.await
 			else {
 				continue;
 			};
 
-			let Some(user_id): Option<OwnedUserId> = state_event
-				.state_key
-				.as_ref()
-				.and_then(|key| key.parse().ok())
+			let Ok(user_id) = OwnedUserId::try_from(state_key.as_str()) else {
+				continue;
+			};
+
+			let Ok(content): Result<RoomMemberEventContent> = services
+				.rooms
+				.state_accessor
+				.state_get_content(
+					current_shortstatehash,
+					&StateEventType::RoomMember,
+					user_id.as_str(),
+				)
+				.await
 			else {
 				continue;
 			};
@@ -921,7 +944,7 @@ async fn build_device_list_updates(
 						| Leave if !shares_encrypted_room => {
 							device_list_updates.left.insert(user_id);
 						},
-						| Join if joined_since_last_sync || shares_encrypted_room => {
+						| Join if shares_encrypted_room => {
 							device_list_updates.changed.insert(user_id);
 						},
 						| _ => (),

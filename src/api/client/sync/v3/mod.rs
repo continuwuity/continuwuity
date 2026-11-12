@@ -46,7 +46,10 @@ use crate::{
 	Ruma,
 	client::{
 		is_ignored_invite,
-		sync::v3::{joined::load_joined_room, left::load_left_room},
+		sync::v3::{
+			joined::{load_device_list_updates, load_joined_room},
+			left::load_left_room,
+		},
 	},
 	client_ip::ClientIp,
 };
@@ -268,47 +271,45 @@ pub(crate) async fn build_sync_events(
 		use_state_after: body.use_state_after,
 	};
 
-	let unfiltered = Box::new(FilterDefinition::default());
-	let unfiltered_context = SyncContext { filter: &unfiltered, ..context };
-
 	let joined_rooms = services
 		.rooms
 		.state_cache
 		.rooms_joined(syncing_user)
-		// a filtered out room still contributes its device list updates, which
-		// an initial sync does not have
-		.ready_filter(|room_id| {
-			last_sync_end_count.is_some() || room_selected(&filter.room, room_id)
-		})
+		.ready_filter(|room_id| room_selected(&filter.room, room_id))
 		.broad_filter_map(|room_id| async {
-			let selected = room_selected(&filter.room, &room_id);
-			// the client is not sent this room, so its lazy loading state must
-			// not change
-			let context = if selected { context } else { unfiltered_context };
 			let joined_room = load_joined_room(services, context, room_id.clone()).await;
 
 			match joined_room {
-				| Ok((room, updates)) => Some((room_id, selected.then_some(room), updates)),
+				| Ok(room) => Some((room_id, room)),
 				| Err(err) => {
 					error!(?err, %room_id, "error loading joined room");
 					None
 				},
 			}
 		})
-		.ready_fold(
-			(BTreeMap::new(), DeviceListUpdates::new()),
-			|(mut joined_rooms, mut all_updates), (room_id, joined_room, updates)| {
-				all_updates.merge(updates);
+		.ready_fold(BTreeMap::new(), |mut joined_rooms, (room_id, joined_room)| {
+			if !joined_room.is_empty() {
+				joined_rooms.insert(room_id, joined_room);
+			}
 
-				if let Some(joined_room) = joined_room
-					&& !joined_room.is_empty()
-				{
-					joined_rooms.insert(room_id, joined_room);
-				}
+			joined_rooms
+		});
 
-				(joined_rooms, all_updates)
-			},
-		);
+	// a filtered out room still contributes its device list updates
+	let device_list_updates = services
+		.rooms
+		.state_cache
+		.rooms_joined(syncing_user)
+		.broad_filter_map(|room_id| async move {
+			load_device_list_updates(services, context, &room_id)
+				.await
+				.inspect_err(|err| error!(?err, %room_id, "error loading device list updates"))
+				.ok()
+		})
+		.ready_fold(DeviceListUpdates::new(), |mut all_updates, updates| {
+			all_updates.merge(updates);
+			all_updates
+		});
 
 	let left_rooms = services
 		.rooms
@@ -429,7 +430,8 @@ pub(crate) async fn build_sync_events(
 		.list_unused_fallback_key_types(syncing_user, syncing_device);
 
 	let (
-		(joined_rooms, mut device_list_updates),
+		joined_rooms,
+		mut device_list_updates,
 		left_rooms,
 		invited_rooms,
 		knocked_rooms,
@@ -442,6 +444,7 @@ pub(crate) async fn build_sync_events(
 	) = async {
 		futures::join!(
 			joined_rooms,
+			device_list_updates,
 			left_rooms,
 			invited_rooms,
 			knocked_rooms,
