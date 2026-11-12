@@ -138,9 +138,8 @@ impl super::Service {
 
 		self.ensure_remote_is_healthy(dest)?;
 
-		/// How long to mark a server as unhealthy before attempting
-		/// re-resolution
-		const UNHEALTHY_TIMEOUT: Duration = Duration::from_hours(24 * 90);
+		/// How long to wait with re-resolution if a server fails to resolve
+		const UNRESOLVABLE_RETRY_AFTER: Duration = Duration::from_hours(24 * 90);
 
 		let actual = self
 			.services
@@ -149,7 +148,7 @@ impl super::Service {
 			.resolve_server(dest.as_str())
 			.await
 			.inspect_err(|_| {
-				self.hit_unhealthy(dest.to_owned(), Some(UNHEALTHY_TIMEOUT));
+				self.hit_unhealthy(dest.to_owned(), Some(UNRESOLVABLE_RETRY_AFTER));
 				self.mark_destination_stale(dest);
 			})?;
 
