@@ -15,6 +15,15 @@ typically only accept implementations of proposals that seem like they are a net
 large portion of the Matrix ecosystem, rather than aiming to "implement everything". As such, the
 unstable feature list should typically be small and manageable.
 
+**All** unstable proposals require an experiment before their implementation can be accepted.
+Likewise, all experiments should default to being disabled, requiring explicit configuration to
+enable.
+
+**Draft proposals** will not be merged until their proposal is undrafted. Likewise, the pull request
+that implements the draft proposal should itself be marked "WIP", to avoid being merged or
+prioritised for review. Review is still possible for WIP PRs, so feel free to request a round of
+feedback.
+
 ## Adding an unstable feature
 
 First, navigate to `src/core/config/experiments.rs`. There, you have two options for adding an
@@ -73,3 +82,24 @@ const DEPRECATED_KEYS: &[&str] = [
 +   "experiments.msc9999",
 ];
 ```
+
+## Always-on experiments
+
+Some experiments can be forcefully enabled (i.e. always-on), or enabled by default. This should only
+be the case in exceptional circumstances, and must be adequately well documented. Some examples of
+situations that may warrant an experiment being always-enabled:
+
+* A proposal was implemented AFTER it was merged, but BEFORE it had a merged spec PR.
+These proposals are typically as stable as they'll get, as major changes post-factum of an MSC
+merge requires another MSC, so only minor changes can be made in the spec PR phase.
+* The daily experience of users would be at a great detriment without the experiment being enabled.
+* A proposal is so simple that making it opt-in would be pointless. This is *incredibly* rare.
+
+The latter two require explicit maintainer approval, so discuss those with the maintainer team
+first. You can exercise your own judgement for the first.
+
+Always-on or enabled-by-default experiments must explain in detail why they're exempt from the
+standard experiments policy via comments in surrounding areas, like
+`src/core/config/experiments.rs` and `src/core/matrix/versions.rs`. Ideally, these features are not
+unstable for too long, so explaining a timescale for how long before the feature is stabilised is
+also helpful.
