@@ -221,6 +221,9 @@ impl Service {
 					// We couldn't authorize a local join, probably because it's
 					// restricted and we couldn't satisfy
 					// the join rules ourselves.
+					if servers.is_empty() {
+						return Err(err);
+					}
 					info!(?err, "Failed to join room locally, trying over federation instead");
 				},
 			}
