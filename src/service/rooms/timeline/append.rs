@@ -591,9 +591,7 @@ impl super::Service {
 		room_id: &RoomId,
 	) -> Option<OwnedServerName> {
 		let server = target_user_id.server_name();
-		if !self.services.config.allow_sticky_events
-			|| self.services.globals.server_is_ours(server)
-		{
+		if self.services.globals.server_is_ours(server) {
 			return None;
 		}
 

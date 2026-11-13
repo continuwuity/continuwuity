@@ -1123,7 +1123,7 @@ async fn collect_sticky_events(
 	let mut delivered = StickyDelivered::new();
 
 	let sticky_events = &body.extensions.sticky_events;
-	if !services.config.allow_sticky_events || !sticky_events.enabled.unwrap_or(false) {
+	if !sticky_events.enabled.unwrap_or(false) {
 		return (response, delivered);
 	}
 

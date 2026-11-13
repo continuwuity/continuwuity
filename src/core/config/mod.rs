@@ -1,5 +1,6 @@
 #![allow(clippy::doc_link_with_quotes)]
 pub mod check;
+pub mod experiments;
 pub mod manager;
 pub mod proxy;
 
@@ -18,6 +19,7 @@ use either::{
 	Either,
 	Either::{Left, Right},
 };
+pub use experiments::Experiments;
 use figment::providers::{Env, Format, Toml};
 pub use figment::{Figment, value::Value as FigmentValue};
 use governor::{DefaultKeyedRateLimiter, Quota, RateLimiter};
@@ -1768,35 +1770,6 @@ pub struct Config {
 	#[serde(default = "true_fn")]
 	pub allow_incoming_typing: bool,
 
-	/// Allow the use of unstable persistent "sticky events" ([MSC4354])
-	///
-	/// MSC4354: https://c10y.cc/MSC4354
-	///
-	/// default: false
-	#[serde(default)]
-	pub allow_sticky_events: bool,
-
-	/// Allow room moderators to view redacted event content ([MSC2815]).
-	///
-	/// Redacted content is readable by users at or above the room's `redact`
-	/// power level, and by server admins, until it expires.
-	///
-	/// MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
-	///
-	/// default: false
-	#[serde(default)]
-	pub allow_moderators_to_view_redacted_content: bool,
-
-	/// How long to retain the content of redacted events, in seconds. Expired
-	/// content is deleted by a periodic purge and is no longer served.
-	///
-	/// Only has an effect when allow_moderators_to_view_redacted_content is
-	/// enabled.
-	///
-	/// default: 7776000 (90 days)
-	#[serde(default = "default_unredacted_content_max_age_secs")]
-	pub unredacted_content_max_age_secs: u64,
-
 	/// Maximum time federation user can indicate typing.
 	///
 	/// default: 30
@@ -2474,6 +2447,12 @@ pub struct Config {
 	#[serde(default)]
 	pub matrix_rtc: MatrixRtcConfig,
 
+	/// Configuration for unstable features.
+	///
+	/// display: none
+	#[serde(default)]
+	pub experiments: Experiments,
+
 	#[serde(flatten)]
 	#[allow(clippy::zero_sized_map_values)]
 	// this is a catchall, the map shouldn't be zero at runtime
@@ -3007,6 +2986,9 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"well_known_support_email",
 	"well_known_support_mxid",
 	"well_known.rtc_focus_server_urls",
+	"allow_sticky_events",
+	"allow_moderators_to_view_redacted_content",
+	"unredacted_content_max_age_secs",
 ];
 
 impl Config {
@@ -3238,8 +3220,6 @@ fn default_max_concurrent_inbound_transactions() -> usize { 150 }
 fn default_remote_join_pdu_queue_capacity() -> usize { 50 }
 
 fn default_transaction_id_cache_max_age_secs() -> u64 { 60 * 60 * 2 }
-
-fn default_unredacted_content_max_age_secs() -> u64 { 60 * 60 * 24 * 90 }
 
 fn default_transaction_id_cache_max_entries() -> usize { 8192 }
 

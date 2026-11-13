@@ -95,12 +95,7 @@ pub(crate) async fn send_message_event_route(
 			PartialPdu {
 				event_type: body.event_type.clone().into(),
 				content,
-				sticky: services
-					.config
-					.allow_sticky_events
-					.then_some(body.sticky_duration_ms)
-					.flatten()
-					.map(sticky::object),
+				sticky: body.sticky_duration_ms.map(sticky::object),
 				unsigned: Some(unsigned),
 				timestamp: if body.identity.is_appservice()
 					|| services.admin.user_is_admin(sender_user).await

@@ -287,7 +287,12 @@ impl Service {
 	}
 
 	fn unredacted_content_cutoff(&self) -> u64 {
-		let max_age = self.services.config.unredacted_content_max_age_secs;
+		let max_age = self
+			.services
+			.config
+			.experiments
+			.msc2815
+			.map_or_default(|c| c.unredacted_content_max_age_secs);
 
 		utils::millis_since_unix_epoch().saturating_sub(max_age.saturating_mul(1000))
 	}

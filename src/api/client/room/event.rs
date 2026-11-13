@@ -1,5 +1,7 @@
 use axum::extract::{Query, State};
-use conduwuit::{Err, Error, Event, PduEvent, Result, debug_warn, err};
+use conduwuit::{
+	Err, Error, Event, PduEvent, Result, config::experiments::ToggledExperiment, debug_warn, err,
+};
 use futures::TryFutureExt;
 use http::StatusCode;
 use ruma::{
@@ -68,7 +70,7 @@ pub(crate) async fn get_room_event_route(
 		return Err!(Request(Forbidden("You don't have permission to view this event.")));
 	}
 
-	if services.config.allow_moderators_to_view_redacted_content
+	if services.config.experiments.msc2815.is_enabled()
 		&& params.include_unredacted_content.unwrap_or(false)
 		&& event.is_redacted()
 	{
@@ -126,6 +128,9 @@ async fn unredact(services: &crate::State, sender_user: &UserId, event: &mut Pdu
 		// CustomErrorKind has private fields; only serde can build one.
 		let keep_ms = services
 			.config
+			.experiments
+			.msc2815
+			.expect("msc2815 config is disabled but unredact() attempted to access it anyway")
 			.unredacted_content_max_age_secs
 			.saturating_mul(1000);
 

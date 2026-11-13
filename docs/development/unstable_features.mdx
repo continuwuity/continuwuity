@@ -1,0 +1,75 @@
+# Unstable features policy
+
+Like several other homeservers in the Matrix ecosystem, Continuwuity adopts a "disable by default"
+approach to experimental features. This ensures every deployment gets the same baseline stability,
+allowing users to opt in to potentially unstable features.
+
+Historically, Continuwuity used maintainer discretion to decide whether an unstable feature should
+be enabled by default. However, as the project has grown, and the pace of spec development has
+increased, keeping up with unstable proposals becomes less and less feasible by the day, and this
+causes the implementation of unstable proposals to gradually drift. This can lead to implementations
+becoming so stale they're incompatible, with no bandwidth to get them fixed up.
+
+Continuwuity is already selective about which unstable features it implements: the maintainer team
+typically only accept implementations of proposals that seem like they are a net positive for a
+large portion of the Matrix ecosystem, rather than aiming to "implement everything". As such, the
+unstable feature list should typically be small and manageable.
+
+## Adding an unstable feature
+
+First, navigate to `src/core/config/experiments.rs`. There, you have two options for adding an
+experiment to the `Experiments` struct:
+
+1. Use `SimpleExperiment` if the experiment only requires enabling with no further configuration.
+2. Define a new struct that implements the `ToggledExperiment` trait.
+
+All experiments must be optional and default to off (i.e. `is_enabled()` returns `false`).
+`SimpleExperiment` is actually a wrapper around `Option<bool>`, and the omission of the
+configuration OR setting it to `false` disables the experiment. `ToggledExperiment` impls should
+copy similar behaviour.
+
+Then, add a public field to the `Experiments` struct that is named the MSC's ID in lowercase.
+Add a docstring to it, starting with the proposal title (including ID), then a brief paragraph or
+so explaining what the proposal does in simple terms, and then finally end the docstring with a link
+to the proposal.
+
+### Advertising support for unstable features
+
+If the proposal requires advertising an unstable feature flag, that flag must be added to
+`unstable_features` in `src/core/matrix/versions.rs`. For example:
+
+```diff
+pub fn unstable_features(experiments: &Experiments) -> BTreeMap<String, bool> {
+	BTreeMap::from_iter([
+		// Always enabled feature (https://github.com/matrix-org/matrix-spec-proposals/pull/0000)
+		// Expected for spec v1.20
+		("org.matrix.msc0000".to_owned(), true),
++		// MSC9999: My Cool Feature (https://github.com/matrix-org/matrix-spec-proposals/pull/9999)
++       ("example.matrix.msc9999".to_owned(), experiments.msc9999.is_enabled())
+	])
+}
+```
+
+This will allow the `/_matrix/client/versions` endpoint to dynamically advertise whether the unstable
+feature is enabled on the current server.
+
+## Removing unstable features
+
+If a proposal is abandoned, becomes obsolete, or is accepted into the specification, the unstable
+configuration should be removed (and possibly migrated) as soon as possible.
+
+After removing a field from `experiments`, the key should be added to the `DEPRECATED_KEYS` slice in
+`src/core/config/mod.rs` (really far down). This will ensure that a warning is printed on startup
+when a configuration is using a now-removed config key. For example:
+
+```diff
+pub struct Experiments {
+-   pub msc9999: SimpleExperiment,
+}
+```
+```diff
+const DEPRECATED_KEYS: &[&str] = [
+    "foo",
++   "experiments.msc9999",
+];
+```

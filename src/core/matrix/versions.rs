@@ -1,5 +1,7 @@
 use std::collections::BTreeMap;
 
+use crate::config::{Experiments, experiments::ToggledExperiment};
+
 #[must_use]
 pub fn versions() -> Vec<String> {
 	vec![
@@ -25,32 +27,26 @@ pub fn versions() -> Vec<String> {
 		"v1.16".to_owned(),
 		"v1.17".to_owned(),
 		"v1.18".to_owned(),
+		"v1.19".to_owned(),
 	]
 }
 
 #[must_use]
-pub fn unstable_features() -> BTreeMap<String, bool> {
+pub fn unstable_features(experiments: &Experiments) -> BTreeMap<String, bool> {
 	BTreeMap::from_iter([
 		// MatrixRTC (https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
+		// Expected for spec v1.20
 		("org.matrix.msc4143".to_owned(), true),
-		// query mutual rooms (https://github.com/matrix-org/matrix-spec-proposals/pull/2666)
-		// Expected for spec v1.19
-		("uk.half-shot.msc2666.query_mutual_rooms".to_owned(), true),
-		("uk.half-shot.msc2666.query_mutual_rooms.stable".to_owned(), true),
 		// Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186)
-		// Expected for spec v1.19
+		// Expected for spec v1.20
 		("org.matrix.simplified_msc3575".to_owned(), true),
-		// invite filtering (https://github.com/matrix-org/matrix-spec-proposals/pull/4155)
-		("org.matrix.msc4155".to_owned(), true),
+		("org.matrix.msc4155".to_owned(), experiments.msc4155.is_enabled()),
 		// profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466)
 		("computer.gingershaped.msc4466".to_owned(), true),
-		// web push (https://github.com/matrix-org/matrix-spec-proposals/pull/4174)
-		("org.matrix.msc4174".to_owned(), true),
-		// Membership-based invite blocking (https://github.com/matrix-org/matrix-spec-proposals/pull/4494)
-		("uk.timedout.msc4494".to_owned(), true),
-		// server administration OAuth scope (https://github.com/matrix-org/matrix-spec-proposals/pull/4484)
-		("org.continuwuity.msc4484.unstable".to_owned(), true),
-		// stripped state over federation (https://github.com/matrix-org/matrix-spec-proposals/pull/4560)
-		("org.continuwuity.msc4560".to_owned(), true),
+		("org.matrix.msc4174".to_owned(), experiments.msc4174.is_enabled()),
+		("uk.timedout.msc4494".to_owned(), experiments.msc4494.is_enabled()),
+		("org.continuwuity.msc4484.unstable".to_owned(), experiments.msc4484.is_enabled()),
+		("org.continuwuity.msc4560".to_owned(), experiments.msc4560.is_enabled()),
+		("fi.mau.msc2815".to_owned(), experiments.msc2815.is_enabled()),
 	])
 }

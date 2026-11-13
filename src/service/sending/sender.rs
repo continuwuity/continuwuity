@@ -327,7 +327,7 @@ impl Service {
 	/// still-sticky events. Only netburst delivers this queue, so with it
 	/// disabled there is nothing to keep the event for.
 	async fn survives_netburst_trim(&self, event: &SendingEvent) -> bool {
-		if !self.server.config.allow_sticky_events || !self.server.config.startup_netburst {
+		if !self.server.config.startup_netburst {
 			return false;
 		}
 

@@ -27,17 +27,7 @@ pub(crate) async fn get_supported_versions_route(
 	State(services): State<crate::State>,
 	_body: Ruma<get_supported_versions::Request>,
 ) -> Result<get_supported_versions::Response> {
-	let mut unstable_features = unstable_features();
-
-	if services.config.allow_sticky_events {
-		// sticky events (https://github.com/matrix-org/matrix-spec-proposals/pull/4354)
-		unstable_features.insert("org.matrix.msc4354".to_owned(), true);
-	}
-
-	if services.config.allow_moderators_to_view_redacted_content {
-		// moderators can view redacted content (https://github.com/matrix-org/matrix-spec-proposals/pull/2815)
-		unstable_features.insert("fi.mau.msc2815".to_owned(), true);
-	}
+	let unstable_features = unstable_features(&services.config.experiments);
 
 	Ok(assign!(get_supported_versions::Response::new(versions()), {
 		unstable_features

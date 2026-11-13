@@ -48,13 +48,7 @@ impl super::Service {
 				PartialPdu {
 					event_type: event_type.to_string().into(),
 					content,
-					sticky: self
-						.services
-						.config
-						.allow_sticky_events
-						.then_some(sticky_duration_ms)
-						.flatten()
-						.map(sticky::object),
+					sticky: sticky_duration_ms.map(sticky::object),
 					state_key: Some(state_key.into()),
 					timestamp,
 					..Default::default()

@@ -273,10 +273,6 @@ async fn build_sticky_events(
 	timeline: &TimelinePdus,
 	joined_since_last_sync: bool,
 ) -> Sticky {
-	if !services.config.allow_sticky_events {
-		return Sticky::new();
-	}
-
 	let SyncContext {
 		syncing_user,
 		last_sync_end_count,

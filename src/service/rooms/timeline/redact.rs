@@ -1,3 +1,4 @@
+use conduwuit::config::experiments::ToggledExperiment;
 use conduwuit_core::{
 	Result, err,
 	matrix::event::Event,
@@ -52,11 +53,7 @@ impl super::Service {
 			.get_room_version(&pdu.room_id_or_hash())
 			.await?;
 
-		if self
-			.services
-			.config
-			.allow_moderators_to_view_redacted_content
-		{
+		if self.services.config.experiments.msc2815.is_enabled() {
 			let mut pdu_json = self.get_pdu_json_from_id(&pdu_id).await?;
 			pdu_json.remove("event_id");
 			if content_hash(&pdu_json)
