@@ -2286,11 +2286,6 @@
 # env: CONTINUWUITY_ALLOW_WEB_INDEXING
 #allow_web_indexing = false
 
-# Configuration for unstable features.
-#
-# env: CONTINUWUITY_EXPERIMENTS
-#experiments = false
-
 [global.tls]
 
 # Path to a valid TLS certificate file.
