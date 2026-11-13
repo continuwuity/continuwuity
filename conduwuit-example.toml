@@ -1657,32 +1657,6 @@
 # env: CONTINUWUITY_ALLOW_INCOMING_TYPING
 #allow_incoming_typing = true
 
-# Allow the use of unstable persistent "sticky events" ([MSC4354])
-#
-# MSC4354: https://c10y.cc/MSC4354
-#
-# env: CONTINUWUITY_ALLOW_STICKY_EVENTS
-#allow_sticky_events = false
-
-# Allow room moderators to view redacted event content ([MSC2815]).
-#
-# Redacted content is readable by users at or above the room's `redact`
-# power level, and by server admins, until it expires.
-#
-# MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
-#
-# env: CONTINUWUITY_ALLOW_MODERATORS_TO_VIEW_REDACTED_CONTENT
-#allow_moderators_to_view_redacted_content = false
-
-# How long to retain the content of redacted events, in seconds. Expired
-# content is deleted by a periodic purge and is no longer served.
-#
-# Only has an effect when allow_moderators_to_view_redacted_content is
-# enabled.
-#
-# env: CONTINUWUITY_UNREDACTED_CONTENT_MAX_AGE_SECS
-#unredacted_content_max_age_secs = 7776000 (90 days)
-
 # Maximum time federation user can indicate typing.
 #
 # env: CONTINUWUITY_TYPING_FEDERATION_TIMEOUT_S
@@ -2311,6 +2285,11 @@
 #
 # env: CONTINUWUITY_ALLOW_WEB_INDEXING
 #allow_web_indexing = false
+
+# Configuration for unstable features.
+#
+# env: CONTINUWUITY_EXPERIMENTS
+#experiments = false
 
 [global.tls]
 
