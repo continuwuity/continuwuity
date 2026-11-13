@@ -1847,31 +1847,6 @@ pub struct Config {
 	#[serde(default)]
 	pub brotli_compression: bool,
 
-	/// Enable the legacy unauthenticated Matrix media repository endpoints.
-	/// These endpoints consist of:
-	/// - /_matrix/media/*/config
-	/// - /_matrix/media/*/upload
-	/// - /_matrix/media/*/preview_url
-	/// - /_matrix/media/*/download/*
-	/// - /_matrix/media/*/thumbnail/*
-	///
-	/// The authenticated equivalent endpoints are always enabled.
-	///
-	/// Defaults to false, as unauthenticated media has been sunsetted.
-	///
-	/// default: false
-	#[serde(default)]
-	pub allow_legacy_media: bool,
-
-	/// If set to true, prevents fetching new legacy remote media.
-	///
-	/// Legacy media may still be accessible if it was already fetched
-	/// previously and allow_legacy_media is true.
-	///
-	/// default: true
-	#[serde(default = "true_fn")]
-	pub freeze_legacy_media: bool,
-
 	/// Check consistency of the media directory at startup:
 	/// 1. When `media_compat_file_link` is enabled, this check will upgrade
 	///    media when switching back and forth between Conduit and conduwuit.
