@@ -2657,3 +2657,97 @@
 #
 # env: CONTINUWUITY_OAUTH__OIDC__PROFILE_KEY_IMPORT_MODE
 #profile_key_import_mode = "on_registration"
+
+[global.experiments]
+
+# MSC4155: Invite filtering
+#
+# Provides advanced invite filtering rules for users, allowing complex
+# configurations that can allow, ignore, and reject invites from users and
+# servers broadly.
+#
+# Requires a supporting client to set up on an account.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4155
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4155
+#msc4155 = false
+
+# MSC4174: Web push
+#
+# Adds server-side support for web push, allowing web clients to receive
+# push notifications directly without the need for an intermediary push
+# gateway like Sygnal.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4174
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4174
+#msc4174 = false
+
+# MSC4484: Server Administration OAuth Scope
+#
+# Adds a new OAuth2 scope that explicitly grants a token temporary
+# homeserver administrator privileges, granting temporary token access
+# to administrator endpoints like locking & suspension.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4484
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4484
+#msc4484 = false
+
+# MSC4494: Membership-based invite blocking
+#
+# Adds a new invite blocking action that will reject all invites coming
+# from users who do not share a room with the invitee that is not `public`
+# (the join rule).
+#
+# This is not related to MSC4155, this proposal instead builds on the
+# "invite blocking" proposal that landed in the specification in v1.17,
+# which simply allows enabling or disabling invites altogether.
+#
+# MSC4494 is a good middle-ground between the allowlisting possible with
+# MSC4155, and the general desire to block invites from users you may not
+# know.
+#
+# Requires a supporting client to enable on an account.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4494
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4494
+#msc4494 = false
+
+# MSC4560: Stripped state requests over federation
+#
+# Implements a more efficient way for servers to acquire and serve
+# "stripped state" to clients, which is typically only used for displaying
+# rooms. The display of space hierarchies and room summaries is
+# significantly faster when this proposal is enabled and used.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4560
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4560
+#msc4560 = false
+
+#[global.experiments.msc2815]
+# MSC2815: Proposal to allow room moderators to view redacted event content
+#
+# Allows the server to retain unredacted copies of events that have been
+# redacted for a limited period of time, which allows room moderators and
+# server administrators to reveal redacted contents. Useful for moderation
+# and investigating reports.
+#
+# Requires a supporting client to use.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/2815
+
+
+# Whether to enable MSC2815.
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC2815__ENABLED
+#enabled = false
+
+# How long, in seconds, to retain the original content of redacted
+# events before it is permanently erased. Defaults to 90 days.
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC2815__UNREDACTED_CONTENT_MAX_AGE_SECS
+#unredacted_content_max_age_secs = 7776000

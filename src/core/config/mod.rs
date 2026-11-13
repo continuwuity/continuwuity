@@ -1,6 +1,5 @@
 #![allow(clippy::doc_link_with_quotes)]
 pub mod check;
-pub mod experiments;
 pub mod manager;
 pub mod proxy;
 
@@ -3423,3 +3422,9 @@ fn default_profile_key_map() -> HashMap<String, String> {
 fn default_unauthenticated_request_ratelimit<K: Hash + Eq + Clone>() -> PerMinuteRatelimiter<K> {
 	PerMinuteRatelimiter::new(Quota::per_minute(30.try_into().unwrap()))
 }
+
+// NOTE: This must be declared *after* every config struct in this file. The
+// example config generator writes sections in macro expansion order, and the
+// `global` section truncates the file, so declaring this module any earlier
+// causes its sections to be wiped from the generated example config.
+pub mod experiments;

@@ -8,16 +8,9 @@ pub struct Experiments {
 	/// MSC2815: Proposal to allow room moderators to view redacted event
 	/// content
 	///
-	/// Allows the server to retain unredacted copies of events that have been
-	/// redacted for a limited period of time, which allows room moderators and
-	/// server administrators to reveal redacted contents. Useful for moderation
-	/// and investigating reports.
+	/// See [`MSC2815`] for details.
 	///
-	/// Requires a supporting client to use.
-	///
-	/// https://github.com/matrix-org/matrix-spec-proposals/pull/2815
-	///
-	/// default: false
+	/// display: nested
 	#[serde(default)]
 	pub msc2815: Option<MSC2815>,
 	/// MSC4155: Invite filtering
@@ -113,9 +106,32 @@ impl ToggledExperiment for SimpleExperiment {
 ///
 /// MSC2815: https://github.com/matrix-org/matrix-spec-proposals/pull/2815
 #[derive(Debug, Deserialize, Default, Clone, Copy)]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.experiments.msc2815",
+	optional = "true",
+	subheader = r#"# MSC2815: Proposal to allow room moderators to view redacted event content
+#
+# Allows the server to retain unredacted copies of events that have been
+# redacted for a limited period of time, which allows room moderators and
+# server administrators to reveal redacted contents. Useful for moderation
+# and investigating reports.
+#
+# Requires a supporting client to use.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/2815"#
+)]
 pub struct MSC2815 {
+	/// Whether to enable MSC2815.
+	///
+	/// default: false
 	#[serde(default)]
 	pub enabled: bool,
+
+	/// How long, in seconds, to retain the original content of redacted
+	/// events before it is permanently erased. Defaults to 90 days.
+	///
+	/// default: 7776000
 	#[serde(default = "default_unredacted_content_max_age_secs")]
 	pub unredacted_content_max_age_secs: u64,
 }
