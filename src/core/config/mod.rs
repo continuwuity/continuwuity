@@ -2449,7 +2449,7 @@ pub struct Config {
 
 	/// Configuration for unstable features.
 	///
-	/// display: hidden
+	/// display: nested
 	#[serde(default)]
 	pub experiments: Experiments,
 

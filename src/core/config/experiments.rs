@@ -1,7 +1,9 @@
+use conduwuit_macros::config_example_generator;
 use serde::Deserialize;
 
 /// Configuration for experimental features.
 #[derive(Debug, Deserialize, Default, Clone)]
+#[config_example_generator(filename = "conduwuit-example.toml", section = "global.experiments")]
 pub struct Experiments {
 	/// MSC2815: Proposal to allow room moderators to view redacted event
 	/// content
@@ -14,6 +16,8 @@ pub struct Experiments {
 	/// Requires a supporting client to use.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/2815
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc2815: Option<MSC2815>,
 	/// MSC4155: Invite filtering
@@ -25,6 +29,8 @@ pub struct Experiments {
 	/// Requires a supporting client to set up on an account.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4155
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc4155: SimpleExperiment,
 	/// MSC4174: Web push
@@ -34,6 +40,8 @@ pub struct Experiments {
 	/// gateway like Sygnal.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4174
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc4174: SimpleExperiment,
 	/// MSC4484: Server Administration OAuth Scope
@@ -43,6 +51,8 @@ pub struct Experiments {
 	/// to administrator endpoints like locking & suspension.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4484
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc4484: SimpleExperiment,
 	/// MSC4494: Membership-based invite blocking
@@ -62,6 +72,8 @@ pub struct Experiments {
 	/// Requires a supporting client to enable on an account.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4494
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc4494: SimpleExperiment,
 	/// MSC4560: Stripped state requests over federation
@@ -72,6 +84,8 @@ pub struct Experiments {
 	/// significantly faster when this proposal is enabled and used.
 	///
 	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4560
+	///
+	/// default: false
 	#[serde(default)]
 	pub msc4560: SimpleExperiment,
 }
