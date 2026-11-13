@@ -3,7 +3,18 @@ use serde::Deserialize;
 
 /// Configuration for experimental features.
 #[derive(Debug, Deserialize, Default, Clone)]
-#[config_example_generator(filename = "conduwuit-example.toml", section = "global.experiments")]
+#[config_example_generator(
+	filename = "conduwuit-example.toml",
+	section = "global.experiments",
+	subheader = r##"# Continuwuity's experimental features are frequently updated.
+# If you got this configuration via a package manager, chances are it's outdated.
+# Check out the configuration reference online to see a fresh version:
+# https://continuwuity.org/reference/config.html#:~:text=global.experiments
+#
+# Please keep in mind that experiments are used to enable unstable features.
+# You probably don't need to enable any of these unless you know what they are,
+# and consequently know why you should enable them."##
+)]
 pub struct Experiments {
 	/// MSC2815: Proposal to allow room moderators to view redacted event
 	/// content

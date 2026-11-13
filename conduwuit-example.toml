@@ -2659,6 +2659,15 @@
 #profile_key_import_mode = "on_registration"
 
 [global.experiments]
+# Continuwuity's experimental features are frequently updated.
+# If you got this configuration via a package manager, chances are it's outdated.
+# Check out the configuration reference online to see a fresh version:
+# https://continuwuity.org/reference/config.html#:~:text=global.experiments
+#
+# Please keep in mind that experiments are used to enable unstable features.
+# You probably don't need to enable any of these unless you know what they are,
+# and consequently know why you should enable them.
+
 
 # MSC4155: Invite filtering
 #
