@@ -59,6 +59,7 @@
 - Joining a local room the user is not allowed to join now returns `403 M_FORBIDDEN` instead of `500 M_UNKNOWN` when there are no other servers to try.
 - Room summary visibility checks are no longer incorrectly applied for remote rooms. Contributed by @ginger.
 - The userinfo endpoint is now accessible even if federation is disabled, allowing LiveKit to be used on servers with federation disabled without using the server name whitelist.
+- `!admin token issue` can no longer issue registration tokens when `allow_registration` is false. Contributed by @Clubs.
 
 ## Improved Documentation
 
@@ -74,7 +75,7 @@
 
 ## Misc
 
-- #2423
+- Updated internal Sentry integration setup to the new pattern required by the SDK. #2423
 - Upgraded rocksdb from 11.1.1 to 11.12.0 and jemalloc to 5.4.0.
 
 
