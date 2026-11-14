@@ -1,5 +1,5 @@
 use conduwuit_core::{
-	Result, err,
+	Err, Result, err,
 	matrix::event::Event,
 	utils::{self},
 	warn,
@@ -31,6 +31,12 @@ impl super::Service {
 			.map_err(|e| {
 				err!(Database(error!(?pdu_id, %event_id, ?e, "PDU ID points to invalid PDU.")))
 			})?;
+
+		if pdu.room_id() != reason.room_id() {
+			return Err!(Request(Forbidden(
+				"Cannot redact an event that belongs to a different room."
+			)));
+		}
 
 		let thread_root = match pdu.get_content::<ExtractRelatesTo>() {
 			| Ok(ExtractRelatesTo { relates_to: Relation::Thread(thread) }) =>
