@@ -121,7 +121,10 @@ pub(crate) async fn create_room_route(
 	// ID exactly matches this, and abort if it doesn't. Otherwise, we use it
 	// as the room ID itself.
 	let expect_room_id = {
-		let body_ref = body.json_body.as_ref().unwrap();
+		let body_ref = body
+			.json_body
+			.as_ref()
+			.ok_or_else(|| err!(Request(BadJson("Invalid JSON body"))))?;
 		if let Some(CanonicalJsonValue::String(room_id)) = body_ref
 			.get("fi.mau.room_id")
 			.or_else(|| body_ref.get("room_id"))
@@ -302,7 +305,10 @@ pub(crate) async fn create_room_route(
 	// Allow requesters to override the `origin_server_ts` to customize room ids
 	// from v12 onwards
 	let custom_origin_server_ts = {
-		let body_ref = body.json_body.as_ref().unwrap();
+		let body_ref = body
+			.json_body
+			.as_ref()
+			.ok_or_else(|| err!(Request(BadJson("Invalid JSON body"))))?;
 		body_ref
 			.get("origin_server_ts")
 			.or_else(|| body_ref.get("fi.mau.origin_server_ts"))
