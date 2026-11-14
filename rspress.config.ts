@@ -41,6 +41,7 @@ export default defineConfig({
         },
     },
     themeConfig: {
+        llmsUI: false,
         socialLinks: [
             {
                 icon: {
