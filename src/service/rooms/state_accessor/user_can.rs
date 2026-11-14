@@ -33,6 +33,16 @@ impl super::Service {
 			return Err!(Request(Forbidden("Redacting m.room.create is not safe, forbidding.")));
 		}
 
+		// Defense in depth, shouldn't be reachable
+		if redacting_event
+			.as_ref()
+			.is_ok_and(|pdu| pdu.room_id() != Some(room_id))
+		{
+			return Err!(Request(Forbidden(
+				"Cannot redact an event that belongs to a different room."
+			)));
+		}
+
 		if redacting_event
 			.as_ref()
 			.is_ok_and(|pdu| *pdu.kind() == TimelineEventType::RoomServerAcl)
