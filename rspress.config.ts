@@ -40,6 +40,7 @@ export default defineConfig({
             },
         },
     },
+    webMcp: false,
     themeConfig: {
         llmsUI: false,
         socialLinks: [
