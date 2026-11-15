@@ -62,10 +62,15 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           command: pages deploy ./doc_build --branch="main" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}"
 
-      - name: Deploy to Cloudflare Pages (Preview)
-        if: github.ref != 'refs/heads/main' && vars.CLOUDFLARE_PROJECT_NAME != ''
-        uses: https://github.com/cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4
+      - name: Deploy to Grebedoc (Preview)
+        if: github.ref != 'refs/heads/main'
+        uses: actions/git-pages@v2
         with:
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          command: pages deploy ./doc_build --branch="${{ github.head_ref || github.ref_name }}" --commit-dirty=true --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}"
+          site: https://preview.continuwuity.org
+          path: "pr/${{ forgejo.event.number }}"
+          server: grebedoc.dev
+          token: ${{ forgejo.token }}
+          source: doc_build/
+          strict: true
+          pretty-urls: true
+          comment: ${{ forgejo.sha }}
