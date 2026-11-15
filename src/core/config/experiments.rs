@@ -24,6 +24,26 @@ pub struct Experiments {
 	/// display: nested
 	#[serde(default)]
 	pub msc2815: Option<MSC2815>,
+	/// MSC3814: Dehydrated devices with SSSS
+	///
+	/// Enables server-side support for "dehydrated devices", which are
+	/// server-side devices (created by supporting clients) that can collect
+	/// encryption keys when there are no online devices, which supporting
+	/// clients can then "hydrate" to download any encryption keys that were
+	/// sent while they were offline.
+	///
+	/// Important: this is NOT required to receive encrypted messages while you
+	/// are offline. Devices can still receive encrypted messages while they are
+	/// offline, but to share those keys with new devices, they have to be
+	/// online. Dehydrated devices work around this by providing a "shared"
+	/// device new sessions can bootstrap from, to receive keys from before they
+	/// logged in that haven't been uploaded to the server-side key backup yet.
+	///
+	/// https://github.com/matrix-org/matrix-spec-proposals/pull/3814
+	///
+	/// default: false
+	#[serde(default)]
+	pub msc3814: SimpleExperiment,
 	/// MSC4155: Invite filtering
 	///
 	/// Provides advanced invite filtering rules for users, allowing complex

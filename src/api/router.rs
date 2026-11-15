@@ -162,10 +162,6 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::update_device_route)
 		.ruma_route(&client::delete_device_route)
 		.ruma_route(&client::delete_devices_route)
-		.ruma_route(&client::put_dehydrated_device_route)
-		.ruma_route(&client::delete_dehydrated_device_route)
-		.ruma_route(&client::get_dehydrated_device_route)
-		.ruma_route(&client::get_dehydrated_events_route)
 		.ruma_route(&client::get_tags_route)
 		.ruma_route(&client::update_tag_route)
 		.ruma_route(&client::delete_tag_route)
@@ -198,6 +194,13 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.route("/_continuwuity/server_version", get(client::continuwuity_server_version))
 		.ruma_route(&admin::rooms::ban::ban_room)
 		.ruma_route(&admin::rooms::list::list_rooms);
+	if config.experiments.msc3814.is_enabled() {
+		router = router
+			.ruma_route(&client::put_dehydrated_device_route)
+			.ruma_route(&client::delete_dehydrated_device_route)
+			.ruma_route(&client::get_dehydrated_device_route)
+			.ruma_route(&client::get_dehydrated_events_route);
+	}
 	if config.experiments.msc4560.is_enabled() {
 		router = router.ruma_route(&client::get_stripped_state_route);
 	}
