@@ -68,6 +68,24 @@ pub struct Experiments {
 	/// default: false
 	#[serde(default)]
 	pub msc4174: SimpleExperiment,
+	/// MSC4406: `M_SENDER_IGNORED` error code
+	///
+	/// Introduces a new error code that explicitly informs clients the reason
+	/// they cannot access an event if it is sent by an ignored user. Without
+	/// this proposal, clients will simply get a "not found" or "forbidden"
+	/// error when requesting events sent by users that have been ignored, which
+	/// leads to replies being shown as "this message could not be found".
+	/// The new error code allows clients to distinguish unknown/forbidden
+	/// events from ignored senders, allowing them to display an error message
+	/// like "you have blocked this sender" instead.
+	///
+	/// Requires a supporting client to be useful.
+	///
+	/// https://github.com/matrix-org/matrix-spec-proposals/pull/4406
+	///
+	/// default: false
+	#[serde(default)]
+	pub msc4406: SimpleExperiment,
 	/// MSC4484: Server Administration OAuth Scope
 	///
 	/// Adds a new OAuth2 scope that explicitly grants a token temporary

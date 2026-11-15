@@ -1,6 +1,8 @@
 use axum::extract::State;
 use conduwuit::{
-	Err, Error, Result, at, debug_warn,
+	Err, Error, Result, at,
+	config::experiments::ToggledExperiment,
+	debug_warn,
 	matrix::{
 		event::{Event, Matches},
 		pdu::PduCount,
@@ -315,21 +317,29 @@ where
 
 	if server_ignored {
 		// the sender's server is ignored, so ignore this event
-		return Err(Error::BadRequest(
-			ErrorKind::SenderIgnored(SenderIgnoredErrorData::new()),
-			"The sender's server is ignored by this server.",
-		));
+		return if services.config.experiments.msc4406.is_enabled() {
+			Err(Error::BadRequest(
+				ErrorKind::SenderIgnored(SenderIgnoredErrorData::new()),
+				"The sender's server is ignored by this server.",
+			))
+		} else {
+			Err!(Request(NotFound("This event's sender's homeserver is ignored by this server.")))
+		};
 	}
 
 	if user_ignored && !services.config.send_messages_from_ignored_users_to_client {
 		// the recipient of this PDU has the sender ignored, and we're not
 		// configured to send ignored messages to clients
-		return Err(Error::BadRequest(
-			ErrorKind::SenderIgnored(SenderIgnoredErrorData::with_sender(
-				event.sender().to_owned(),
-			)),
-			"You have ignored this sender.",
-		));
+		return if services.config.experiments.msc4406.is_enabled() {
+			Err(Error::BadRequest(
+				ErrorKind::SenderIgnored(SenderIgnoredErrorData::with_sender(
+					event.sender().to_owned(),
+				)),
+				"You have ignored this sender.",
+			))
+		} else {
+			Err!(Request(NotFound("You have ignored the sender of this event.")))
+		};
 	}
 
 	Ok(false)
