@@ -4,7 +4,6 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
-use conduwuit_core::config::experiments::ToggledExperiment;
 use conduwuit_service::oauth::{
 	SessionInfo,
 	client_metadata::ClientMetadata,
@@ -105,10 +104,8 @@ async fn route_authorization_code(
 		return Err(WebError::BadRequest("Invalid client ID".to_owned()));
 	};
 
-	let RequestedScopes { device_id, mut scopes } = query
-		.scope
-		.to_scopes(services.config.experiments.msc4484.is_enabled())
-		.map_err(WebError::BadRequest)?;
+	let RequestedScopes { device_id, mut scopes } =
+		query.scope.to_scopes().map_err(WebError::BadRequest)?;
 
 	let existing_session_info = if let Some(device_id) = &device_id {
 		services

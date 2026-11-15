@@ -286,9 +286,7 @@ impl Service {
 			}
 		}
 
-		let requested_scopes = query
-			.scope
-			.to_scopes(self.services.config.experiments.msc4484.is_enabled())?;
+		let requested_scopes = query.scope.to_scopes()?;
 
 		let redirect_uri_query_separator = match query.response_mode {
 			| ResponseMode::Fragment => '#',
@@ -347,7 +345,7 @@ impl Service {
 
 		let requested_scopes = query
 			.scope
-			.to_scopes(self.services.config.experiments.msc4484.is_enabled())
+			.to_scopes()
 			.map_err(|err| OAuthError::new(ErrorCode::InvalidGrant, err))?;
 
 		let device_code = Self::generate_token();

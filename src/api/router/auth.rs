@@ -340,19 +340,19 @@ async fn check_access_token(
 			.map(Box::new);
 
 		// Make sure the user has the right scopes to use the route
-		let user_scopes = if let Some(session_info) = &session_info {
+		let mut user_scopes = if let Some(session_info) = &session_info {
 			session_info.scopes()
 		} else {
-			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
-
-			if services.config.experiments.msc4484.is_enabled()
-				&& services.admin.user_is_admin(&sender_user).await
-			{
-				scopes.insert(OAuthClientScope::ServerAdministration);
-			}
-
-			scopes
+			BTreeSet::from_iter([OAuthClientScope::ApiFullAccess])
 		};
+		if (!services.config.experiments.msc4484.is_enabled() || session_info.is_none())
+			&& services.admin.user_is_admin(&sender_user).await
+		{
+			// This is required to make sure admin APIs still work when msc4484
+			// is disabled.
+			// https://forgejo.ellis.link/continuwuation/continuwuity/pulls/2533#issuecomment-40042
+			user_scopes.insert(OAuthClientScope::ServerAdministration);
+		}
 
 		if !required_scopes
 			.iter()

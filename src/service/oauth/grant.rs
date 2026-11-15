@@ -107,7 +107,7 @@ pub struct RawScopes(String);
 
 impl RawScopes {
 	#[allow(clippy::trivial_regex)]
-	pub fn to_scopes(&self, msc4484: bool) -> Result<RequestedScopes, String> {
+	pub fn to_scopes(&self) -> Result<RequestedScopes, String> {
 		let client_api_token_regex =
 			regex!(r"urn:matrix:(client|org.matrix.msc2967.client):api:\*");
 		let device_token_regex =
@@ -121,7 +121,7 @@ impl RawScopes {
 			let scope_was_new = {
 				if client_api_token_regex.is_match(token) {
 					scopes.scopes.insert(OAuthClientScope::ApiFullAccess)
-				} else if msc4484 && server_administration_regex.is_match(token) {
+				} else if server_administration_regex.is_match(token) {
 					scopes.scopes.insert(OAuthClientScope::ServerAdministration)
 				} else if let Some(captures) = device_token_regex.captures(token) {
 					scopes
