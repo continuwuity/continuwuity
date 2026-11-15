@@ -10,7 +10,7 @@ use axum::{
 	response::{IntoResponse, Redirect},
 	routing::{any, get},
 };
-use conduwuit::err;
+use conduwuit::{config::experiments::ToggledExperiment, err};
 pub(super) use conduwuit_service::state::State;
 use http::{Uri, uri};
 
@@ -184,7 +184,6 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::get_mutual_rooms_unstable_route)
 		.ruma_route(&client::get_mutual_rooms_route)
 		.ruma_route(&client::get_room_summary)
-		.ruma_route(&client::get_stripped_state_route)
 		.ruma_route(&client::get_suspended_status)
 		.ruma_route(&client::put_suspended_status)
 		.ruma_route(&client::get_lock_status)
@@ -199,6 +198,9 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.route("/_continuwuity/server_version", get(client::continuwuity_server_version))
 		.ruma_route(&admin::rooms::ban::ban_room)
 		.ruma_route(&admin::rooms::list::list_rooms);
+	if config.experiments.msc4560.is_enabled() {
+		router = router.ruma_route(&client::get_stripped_state_route);
+	}
 
 	if config.allow_prometheus_metrics {
 		router = router.route("/_continuwuity/metrics", get(client::continuwuity_metrics));
@@ -230,11 +232,13 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 			.ruma_route(&server::get_keys_route)
 			.ruma_route(&server::claim_keys_route)
 			.ruma_route(&server::get_hierarchy_route)
-			.ruma_route(&server::get_stripped_state_route)
 			.ruma_route(&server::well_known_server)
 			.ruma_route(&server::get_content_route)
 			.ruma_route(&server::get_content_thumbnail_route)
 			.route("/_continuwuity/local_user_count", get(client::continuwuity_local_user_count));
+		if config.experiments.msc4560.is_enabled() {
+			router = router.ruma_route(&server::get_stripped_state_route);
+		}
 	} else {
 		router = router
 			.route("/_matrix/federation/{*path}", any(federation_disabled))
