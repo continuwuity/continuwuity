@@ -2669,6 +2669,26 @@
 # and consequently know why you should enable them.
 
 
+# MSC3814: Dehydrated devices with SSSS
+#
+# Enables server-side support for "dehydrated devices", which are
+# server-side devices (created by supporting clients) that can collect
+# encryption keys when there are no online devices, which supporting
+# clients can then "hydrate" to download any encryption keys that were
+# sent while they were offline.
+#
+# Important: this is NOT required to receive encrypted messages while you
+# are offline. Devices can still receive encrypted messages while they are
+# offline, but to share those keys with new devices, they have to be
+# online. Dehydrated devices work around this by providing a "shared"
+# device new sessions can bootstrap from, to receive keys from before they
+# logged in that haven't been uploaded to the server-side key backup yet.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/3814
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC3814
+#msc3814 = false
+
 # MSC4155: Invite filtering
 #
 # Provides advanced invite filtering rules for users, allowing complex
@@ -2692,6 +2712,24 @@
 #
 # env: CONTINUWUITY_EXPERIMENTS__MSC4174
 #msc4174 = false
+
+# MSC4406: `M_SENDER_IGNORED` error code
+#
+# Introduces a new error code that explicitly informs clients the reason
+# they cannot access an event if it is sent by an ignored user. Without
+# this proposal, clients will simply get a "not found" or "forbidden"
+# error when requesting events sent by users that have been ignored, which
+# leads to replies being shown as "this message could not be found".
+# The new error code allows clients to distinguish unknown/forbidden
+# events from ignored senders, allowing them to display an error message
+# like "you have blocked this sender" instead.
+#
+# Requires a supporting client to be useful.
+#
+# https://github.com/matrix-org/matrix-spec-proposals/pull/4406
+#
+# env: CONTINUWUITY_EXPERIMENTS__MSC4406
+#msc4406 = false
 
 # MSC4484: Server Administration OAuth Scope
 #
