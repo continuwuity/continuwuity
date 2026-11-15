@@ -66,7 +66,10 @@ pub(crate) async fn get_capabilities_route(
 
 	capabilities.set(
 		"org.matrix.msc4174.webpush",
-		json!({ "enabled": true, "vapid": services.pusher.webpush_vapid_public_key() }),
+		json!({
+			"enabled": services.config.experiments.msc4174.is_enabled(),
+			"vapid": services.pusher.webpush_vapid_public_key()
+		}),
 	)?;
 
 	Ok(get_capabilities::v3::Response::new(capabilities))
