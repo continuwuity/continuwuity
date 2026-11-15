@@ -99,6 +99,7 @@ impl Services {
 				metadata: build!(rooms::metadata::Service),
 				outlier: build!(rooms::outlier::Service),
 				pdu_metadata: build!(rooms::pdu_metadata::Service),
+				queue: build!(rooms::queue::Service),
 				read_receipt: build!(rooms::read_receipt::Service),
 				search: build!(rooms::search::Service),
 				short: build!(rooms::short::Service),

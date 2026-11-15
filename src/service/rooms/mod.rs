@@ -7,6 +7,7 @@ pub mod membership;
 pub mod metadata;
 pub mod outlier;
 pub mod pdu_metadata;
+pub mod queue;
 pub mod read_receipt;
 pub mod search;
 pub mod short;
@@ -32,6 +33,7 @@ pub struct Service {
 	pub metadata: Arc<metadata::Service>,
 	pub outlier: Arc<outlier::Service>,
 	pub pdu_metadata: Arc<pdu_metadata::Service>,
+	pub queue: Arc<queue::Service>,
 	pub read_receipt: Arc<read_receipt::Service>,
 	pub search: Arc<search::Service>,
 	pub short: Arc<short::Service>,
