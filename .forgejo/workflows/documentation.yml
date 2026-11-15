@@ -73,4 +73,5 @@ jobs:
           source: doc_build/
           strict: true
           pretty-urls: true
+          expires: 14
           comment: ${{ forgejo.sha }}
