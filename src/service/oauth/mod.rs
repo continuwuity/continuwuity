@@ -6,7 +6,9 @@ use std::{
 
 use base64::Engine;
 use conduwuit::{
-	Result, SyncMutex, info,
+	Result, SyncMutex,
+	config::experiments::ToggledExperiment,
+	info,
 	utils::{self, hash::sha256},
 };
 use database::{Deserialized, Json, Map};
@@ -284,7 +286,9 @@ impl Service {
 			}
 		}
 
-		let requested_scopes = query.scope.to_scopes()?;
+		let requested_scopes = query
+			.scope
+			.to_scopes(self.services.config.experiments.msc4484.is_enabled())?;
 
 		let redirect_uri_query_separator = match query.response_mode {
 			| ResponseMode::Fragment => '#',
@@ -343,7 +347,7 @@ impl Service {
 
 		let requested_scopes = query
 			.scope
-			.to_scopes()
+			.to_scopes(self.services.config.experiments.msc4484.is_enabled())
 			.map_err(|err| OAuthError::new(ErrorCode::InvalidGrant, err))?;
 
 		let device_code = Self::generate_token();
@@ -762,6 +766,7 @@ impl Service {
 		scopes: &BTreeSet<OAuthClientScope>,
 	) -> Result<(), OAuthError> {
 		if scopes.contains(&OAuthClientScope::ServerAdministration)
+			&& self.services.config.experiments.msc4484.is_enabled()
 			&& !self.services.admin.user_is_admin(authorizing_user).await
 		{
 			return Err(OAuthError::new(

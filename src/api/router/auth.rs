@@ -5,7 +5,9 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Error, Result, err,
+	Err, Error, Result,
+	config::experiments::ToggledExperiment,
+	err,
 	utils::{IterStream, millis_since_unix_epoch},
 };
 use http::StatusCode;
@@ -343,7 +345,9 @@ async fn check_access_token(
 		} else {
 			let mut scopes = BTreeSet::from_iter([OAuthClientScope::ApiFullAccess]);
 
-			if services.admin.user_is_admin(&sender_user).await {
+			if services.config.experiments.msc4484.is_enabled()
+				&& services.admin.user_is_admin(&sender_user).await
+			{
 				scopes.insert(OAuthClientScope::ServerAdministration);
 			}
 

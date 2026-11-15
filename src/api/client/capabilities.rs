@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use axum::extract::State;
-use conduwuit::{Result, Server};
+use conduwuit::{Result, Server, config::experiments::ToggledExperiment};
 use ruma::{
 	RoomVersionId,
 	api::{
@@ -53,8 +53,11 @@ pub(crate) async fn get_capabilities_route(
 		capabilities.account_moderation.lock = true;
 		capabilities.account_moderation.suspend = true;
 
-		capabilities.admin =
-			AdminCapability::new(BTreeSet::from_iter([OAuthClientScope::ServerAdministration]));
+		if services.config.experiments.msc4484.is_enabled() {
+			capabilities.admin = AdminCapability::new(BTreeSet::from_iter([
+				OAuthClientScope::ServerAdministration,
+			]));
+		}
 	}
 
 	capabilities.profile_fields = Some(
