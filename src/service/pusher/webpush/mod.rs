@@ -3,6 +3,7 @@ mod vapid;
 
 use std::time::{Duration, SystemTime};
 
+use conduwuit::config::experiments::ToggledExperiment;
 use conduwuit_core::{
 	Err, Result, debug, debug_warn, err,
 	utils::{self, string::constant_time_eq},
@@ -85,6 +86,9 @@ impl Service {
 	/// Reports whether a Web Push pusher has completed its activation
 	/// handshake.
 	pub async fn is_webpush_activated(&self, sender: &UserId, pushkey: &str) -> bool {
+		if !self.services.config.experiments.msc4174.is_enabled() {
+			return false;
+		}
 		self.webpush_state(sender, pushkey).await.activated
 	}
 
@@ -109,6 +113,9 @@ impl Service {
 		pusher: &Pusher,
 		previous: Option<&Pusher>,
 	) -> bool {
+		if !self.services.config.experiments.msc4174.is_enabled() {
+			return false;
+		}
 		let Some(data) = pusher.kind.as_webpush() else {
 			return false;
 		};
@@ -126,6 +133,13 @@ impl Service {
 	}
 
 	pub(super) fn begin_webpush_activation(&self, sender: &UserId, pusher: &Pusher) {
+		debug_assert!(
+			self.services.config.experiments.msc4174.is_enabled(),
+			"begin_webpush_activation should not be called with MSC4174 disabled"
+		);
+		if !self.services.config.experiments.msc4174.is_enabled() {
+			return;
+		}
 		// Send a one-time encrypted token before allowing notification
 		// delivery.
 		let token = utils::rand::string(ACK_TOKEN_LENGTH);

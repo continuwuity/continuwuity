@@ -3,7 +3,7 @@ mod webpush;
 use std::{fmt::Debug, mem, net::IpAddr, sync::Arc};
 
 use bytes::BytesMut;
-use conduwuit::utils::response::LimitReadExt;
+use conduwuit::{config::experiments::ToggledExperiment, utils::response::LimitReadExt};
 use conduwuit_core::{
 	Err, Event, Result, Server, debug_warn, err, trace,
 	utils::{stream::TryIgnore, string_from_bytes},
@@ -133,7 +133,9 @@ impl Service {
 				self.validate_push_url(&http.url, PUSH_GATEWAY_SCHEMES)
 					.await?;
 			},
-			| PusherKind::WebPush(data) => {
+			| PusherKind::WebPush(data)
+				if self.services.config.experiments.msc4174.is_enabled() =>
+			{
 				self.validate_push_url(&data.url, WEBPUSH_SCHEMES).await?;
 				webpush::decode_pushkey(pushkey)?;
 				webpush::decode_auth(&data.auth)?;
@@ -147,7 +149,7 @@ impl Service {
 					}
 				}
 			},
-			| PusherKind::Email(_) | PusherKind::Custom { .. } => (),
+			| _ => (),
 		}
 
 		let key = (sender, pushkey);
@@ -547,7 +549,9 @@ impl Service {
 
 				Ok(())
 			},
-			| PusherKind::WebPush(data) => {
+			| PusherKind::WebPush(data)
+				if self.services.config.experiments.msc4174.is_enabled() =>
+			{
 				let notify = self
 					.build_notification(
 						user,
@@ -562,7 +566,7 @@ impl Service {
 
 				self.send_webpush_notice(user, pusher, data, notify).await
 			},
-			| PusherKind::Email(_) | PusherKind::Custom { .. } => Ok(()),
+			| _ => Ok(()),
 		}
 	}
 
