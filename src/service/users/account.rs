@@ -4,7 +4,9 @@ use std::{
 };
 
 use conduwuit::{
-	Err, Result, debug, debug_error, debug_warn, err, error, info, trace,
+	Err, Result,
+	config::experiments::ToggledExperiment,
+	debug, debug_error, debug_warn, err, error, info, trace,
 	utils::{self, stream::TryIgnore},
 	warn,
 };
@@ -107,6 +109,27 @@ impl super::Service {
 			if stable.is_err() && unstable.is_err() {
 				return FilterLevel::Default;
 			}
+			let msc4494_enabled = self.services.config.experiments.msc4494.is_enabled();
+			if !self.services.config.experiments.msc4155.is_enabled() {
+				// Only MSC4380 should be checked here, since it's in spec.
+				let Some(action) = stable.ok().and_then(|c| c.content.default_action) else {
+					return FilterLevel::Default;
+				};
+				return match action {
+					| InvitePermissionAction::Block => FilterLevel::Block,
+					| InvitePermissionAction::DenyPublic if msc4494_enabled => {
+						if !self
+							.check_msc4494_mutual_room(sender_user, recipient_user)
+							.await
+						{
+							FilterLevel::Block
+						} else {
+							FilterLevel::Default
+						}
+					},
+					| _ => FilterLevel::Allow,
+				};
+			}
 			let content = stable.unwrap_or_else(|_| unstable.unwrap()).content;
 			let verdict = content.user_filter_level(sender_user);
 			if verdict != FilterLevel::Default {
@@ -114,7 +137,8 @@ impl super::Service {
 			}
 			// Apply other layers of invite blocking first, so that user/server
 			// denies take priority over implicit allows.
-			if content.default_action == Some(InvitePermissionAction::DenyPublic)
+			if msc4494_enabled
+				&& content.default_action == Some(InvitePermissionAction::DenyPublic)
 				&& !self
 					.check_msc4494_mutual_room(sender_user, recipient_user)
 					.await
