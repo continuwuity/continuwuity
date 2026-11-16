@@ -5,14 +5,17 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{Error, Server, debug, error, utils::millis_since_unix_epoch};
+use conduwuit::{Error, Server, debug, err, error, utils::millis_since_unix_epoch};
 use opentelemetry::KeyValue;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
 	api::error::ErrorKind, events::TimelineEventType,
 };
 use tokio::{
-	sync::{Notify, mpsc, mpsc::UnboundedReceiver},
+	sync::{
+		Notify, mpsc,
+		mpsc::{Sender, UnboundedReceiver, UnboundedSender},
+	},
 	task::JoinSet,
 };
 
@@ -27,8 +30,8 @@ pub struct Services {
 }
 
 pub struct Service {
-	queues: conduwuit::SyncMutex<HashMap<OwnedRoomId, mpsc::UnboundedSender<QueueJob>>>,
-	send: mpsc::Sender<QueueJob>,
+	queues: conduwuit::SyncMutex<HashMap<OwnedRoomId, UnboundedSender<QueueJob>>>,
+	send: Sender<QueueJob>,
 	recv: tokio::sync::Mutex<mpsc::Receiver<QueueJob>>,
 	shutdown: Notify,
 	services: Services,
@@ -56,10 +59,20 @@ impl crate::Service for Service {
 	async fn worker(self: Arc<Self>) -> conduwuit::Result<()> {
 		let mut recv = self.recv.lock().await;
 		let mut handles = JoinSet::new();
+		let (yielder, mut yielding) = mpsc::channel(5);
 
 		loop {
 			let job = tokio::select! {
-				() = self.shutdown.notified() => break,
+				() = self.shutdown.notified() => {
+					yielding.close();
+					break;
+				},
+				room_id = yielding.recv() => {
+					if let Some(room_id) = room_id {
+						self.queues.lock().remove(&room_id);
+					}
+					continue;
+				}
 				job = recv.recv() => job
 			};
 			let Some(job) = job else {
@@ -69,14 +82,20 @@ impl crate::Service for Service {
 
 			let mut queues = self.queues.lock();
 			match queues.entry(job.room_id.clone()) {
-				| Entry::Occupied(entry) => entry.get().send(job).unwrap(), // TODO: handle error
+				| Entry::Occupied(entry) => {
+					entry.get().send(job).unwrap();
+					// TODO: handle error
+					// It might be possible for a self-reaping worker to close
+					// at the same time we try to send to it, which will cause
+					// this send to return a "channel closed" error.
+				},
 				| Entry::Vacant(entry) => {
 					let room_id = entry.key().to_owned();
 					let (sender, receiver) = mpsc::unbounded_channel();
 					sender.send(job).unwrap(); // TODO: handle error
 
 					handles.spawn_on(
-						Self::room_worker(self.clone(), room_id, receiver),
+						Self::room_worker(self.clone(), room_id, receiver, yielder.clone()),
 						self.services.server.runtime(),
 					);
 					entry.insert(sender);
@@ -105,29 +124,34 @@ impl crate::Service for Service {
 
 	fn interrupt(&self) { self.shutdown.notify_waiters(); }
 
-	// TODO: clear_cache should trim unused queues
-
 	fn name(&self) -> &'static str { module_path!() }
 }
 
 impl Service {
-	pub async fn new_job(&self, job: QueueJob) -> bool {
+	pub async fn new_job(&self, job: QueueJob) -> conduwuit::Result<()> {
 		self.send
 			.send(job)
 			.await
-			.inspect_err(|e| conduwuit::error!(error=?e, "failed to queue new pdu job"))
-			.is_ok()
+			.map_err(|e| err!("failed to send PDU to worker: {e}"))
 	}
 
-	#[tracing::instrument(skip(self,channel), fields(%room_id))]
+	#[tracing::instrument(skip(self,channel,yielder), fields(%room_id))]
 	async fn room_worker(
 		self: Arc<Self>,
 		room_id: OwnedRoomId,
 		mut channel: UnboundedReceiver<QueueJob>,
+		yielder: Sender<OwnedRoomId>,
 	) {
 		loop {
 			let job = tokio::select! {
-				() = self.shutdown.notified() => break,
+				() = self.shutdown.notified() => {
+					channel.close();
+					return;
+				},
+				() = tokio::time::sleep(Duration::from_mins(5)) => {
+					yielder.send(room_id).await.ok();
+					return;
+				},
 				job = channel.recv() => job
 			};
 			let Some(job) = job else {
@@ -179,10 +203,10 @@ impl Service {
 }
 
 pub struct QueueJob {
-	origin: OwnedServerName,
-	event_id: OwnedEventId,
-	room_id: OwnedRoomId,
-	object: CanonicalJsonObject,
+	pub origin: OwnedServerName,
+	pub event_id: OwnedEventId,
+	pub room_id: OwnedRoomId,
+	pub object: CanonicalJsonObject,
 }
 
 /// Known event types, or `other`, so remote servers cannot create new

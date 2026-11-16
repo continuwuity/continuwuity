@@ -44,7 +44,10 @@ use ruma::{
 	to_device::DeviceIdOrAllDevices,
 };
 use service::{
-	rooms::event_handler::{DagBuilderTree, build_local_dag},
+	rooms::{
+		event_handler::{DagBuilderTree, build_local_dag},
+		queue::QueueJob,
+	},
 	transactions::{FederationTxnState, TransactionError, TxnKey, WrappedTransactionResponse},
 };
 use tokio::sync::watch::{Receiver, Sender};
@@ -358,50 +361,30 @@ async fn handle_room(
 		let value = pdu_map
 			.remove(&event_id)
 			.expect("sorted event IDs must be from the original map");
-		services
-			.server
-			.check_running()
-			.map_err(|_| TransactionError::ShuttingDown)?;
-		let event_type = KeyValue::new(
-			"type",
-			pdu_type_label(value.get("type").and_then(CanonicalJsonValue::as_str)),
-		);
-		let origin_server_ts = value
-			.get("origin_server_ts")
-			.and_then(CanonicalJsonValue::as_integer)
-			.and_then(|ts| u64::try_from(i64::from(ts)).ok());
+		let room_id = match value
+			.get("room_id")
+			.and_then(CanonicalJsonValue::as_str)
+			.map(|v| v.try_into().map_err(Into::into))
+		{
+			| Some(Ok(v)) => v,
+			| Some(Err(e)) => {
+				results.push((event_id, Err(e)));
+				continue;
+			},
+			| None => {
+				results
+					.push((event_id, Err!(Request(BadJson("PDU is missing a room_id field")))));
+				continue;
+			},
+		};
+		let job = QueueJob {
+			room_id,
+			event_id: event_id.clone(),
+			origin: origin.to_owned(),
+			object: value,
+		};
 
-		let start = Instant::now();
-		let result = services
-			.rooms
-			.event_handler
-			.handle_incoming_pdu(origin, room_id, &event_id, value, false)
-			.boxed()
-			.await
-			.map(|_| ());
-
-		let outcome = KeyValue::new("outcome", match &result {
-			| Ok(()) => "accepted",
-			| Err(Error::BadRequest(ErrorKind::Forbidden, ..)) => "forbidden",
-			| Err(Error::BadRequest(ErrorKind::InvalidParam | ErrorKind::BadJson, ..)) =>
-				"invalid",
-			| Err(_) => "error",
-		});
-		let instruments = &services.server.metrics.instruments;
-		instruments
-			.federation_incoming_pdu_duration
-			.record(start.elapsed().as_secs_f64(), std::slice::from_ref(&outcome));
-		if let (Ok(()), Some(ts)) = (&result, origin_server_ts) {
-			let lag = millis_since_unix_epoch().saturating_sub(ts);
-			instruments
-				.federation_incoming_pdu_lag
-				.record(Duration::from_millis(lag).as_secs_f64(), &[]);
-		}
-		instruments
-			.federation_incoming_pdus
-			.add(1, &[event_type, outcome]);
-
-		results.push((event_id, result));
+		results.push((event_id, services.rooms.queue.new_job(job).await));
 	}
 	Ok(results)
 }
