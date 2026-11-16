@@ -64,7 +64,9 @@ impl crate::Service for Service {
 		loop {
 			let job = tokio::select! {
 				() = self.shutdown.notified() => {
+					conduwuit::info!("Shutting down");
 					yielding.close();
+					recv.close();
 					break;
 				},
 				room_id = yielding.recv() => {
@@ -159,6 +161,12 @@ impl Service {
 				break;
 			};
 			conduwuit::debug!(event_id=%job.event_id, origin=%job.origin, "Handling incoming job");
+			let _room_lock = self
+				.services
+				.event_handler
+				.mutex_federation
+				.lock(room_id.as_str())
+				.await;
 
 			let event_type = KeyValue::new(
 				"type",

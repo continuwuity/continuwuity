@@ -335,13 +335,6 @@ async fn handle_room(
 	room_id: OwnedRoomId,
 	pdus: impl Iterator<Item = Pdu> + Send,
 ) -> std::result::Result<Vec<(OwnedEventId, Result)>, TransactionError> {
-	let _room_lock = services
-		.rooms
-		.event_handler
-		.mutex_federation
-		.lock(room_id.as_str())
-		.await;
-
 	let room_id = &room_id;
 	let mut pdu_map: HashMap<OwnedEventId, CanonicalJsonObject> = pdus
 		.into_iter()
