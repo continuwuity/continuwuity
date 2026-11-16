@@ -21,6 +21,7 @@ pub struct Instruments {
 	pub sender_transaction_duration: Histogram<f64>,
 	pub sender_events: Counter<u64>,
 	pub sender_events_queued: Counter<u64>,
+	pub sender_panics: Counter<u64>,
 
 	pub media_write_size: Histogram<u64>,
 	pub media_read_size: Histogram<u64>,
@@ -115,6 +116,11 @@ impl Instruments {
 				.u64_counter("continuwuity.sender.events.queued")
 				.with_description("PDUs and EDUs queued for sending")
 				.with_unit("{event}")
+				.build(),
+			sender_panics: meter
+				.u64_counter("continuwuity.sender.panics")
+				.with_description("Panics caught in outgoing transactions and sender workers")
+				.with_unit("{panic}")
 				.build(),
 
 			media_write_size: size(

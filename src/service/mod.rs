@@ -13,6 +13,8 @@ mod migrations;
 mod service;
 pub mod services;
 pub mod state;
+#[cfg(test)]
+mod test_utils;
 
 pub mod account_data;
 pub mod admin;

@@ -3,12 +3,19 @@ mod appservice;
 mod data;
 mod dest;
 mod sender;
+#[cfg(test)]
+mod tests;
 
 use std::{
+	collections::HashMap,
 	fmt::Debug,
 	hash::{DefaultHasher, Hash, Hasher},
 	iter::once,
-	sync::Arc,
+	sync::{
+		Arc,
+		atomic::{AtomicUsize, Ordering},
+	},
+	time::{Duration, Instant},
 };
 
 use async_trait::async_trait;
@@ -19,7 +26,7 @@ use conduwuit::{
 	utils::{ReadyExt, TryReadyExt, available_parallelism, math::usize_from_u64_truncated},
 	warn,
 };
-use futures::{FutureExt, Stream, StreamExt};
+use futures::{FutureExt, Stream, StreamExt, stream::FuturesUnordered};
 use ruma::{
 	OwnedServerName, RoomId, ServerName, UserId,
 	api::{
@@ -27,7 +34,7 @@ use ruma::{
 		federation::authentication::ServerSignatures, path_builder::PathBuilder,
 	},
 };
-use tokio::{task, task::JoinSet};
+use tokio::{task, task::JoinSet, time::sleep};
 
 use self::data::Data;
 pub use self::{
@@ -49,6 +56,7 @@ pub struct Service {
 	server: Arc<Server>,
 	services: Services,
 	channels: Vec<(loole::Sender<Msg>, loole::Receiver<Msg>)>,
+	workers_alive: AtomicUsize,
 }
 
 struct Services {
@@ -87,6 +95,8 @@ pub type EduVec = SmallVec<[EduBuf; EDU_VEC_CAP]>;
 
 const EDU_BUF_CAP: usize = 128;
 const EDU_VEC_CAP: usize = 1;
+const WORKER_RESTART_DELAY: Duration = Duration::from_millis(2500);
+const WORKER_RESTART_DELAY_MAX: Duration = Duration::from_secs(300);
 
 #[async_trait]
 impl crate::Service for Service {
@@ -111,36 +121,67 @@ impl crate::Service for Service {
 				federation: args.depend::<federation::Service>("federation"),
 			},
 			channels: (0..num_senders).map(|_| loole::unbounded()).collect(),
+			workers_alive: AtomicUsize::new(0),
 		}))
 	}
 
 	async fn worker(self: Arc<Self>) -> Result {
-		let mut senders =
-			self.channels
-				.iter()
-				.enumerate()
-				.fold(JoinSet::new(), |mut joinset, (id, _)| {
-					let self_ = self.clone();
-					let worker = self_.sender(id);
-					let worker = if self.unconstrained() {
-						task::unconstrained(worker).boxed()
-					} else {
-						worker.boxed()
+		if self.server.config.startup_netburst {
+			self.dispatch_queued(None).await;
+		}
+
+		let num_senders = self.channels.len();
+		let mut senders = JoinSet::new();
+		let mut shards = HashMap::new();
+		let mut started = vec![Instant::now(); num_senders];
+		let mut failures = vec![0_u32; num_senders];
+		let mut restarts = FuturesUnordered::new();
+		for id in 0..num_senders {
+			self.spawn_sender(&mut senders, &mut shards, id, false);
+		}
+
+		loop {
+			tokio::select! {
+				Some(ret) = senders.join_next_with_id() => {
+					self.workers_alive.fetch_sub(1, Ordering::Relaxed);
+					let (task_id, panicked) = match &ret {
+						| Ok((task_id, _)) => (*task_id, false),
+						| Err(error) => (error.id(), error.is_panic()),
 					};
+					let shard = shards.remove(&task_id).expect("sender worker has a shard");
 
-					let runtime = self.server.runtime();
-					let _abort = joinset.spawn_on(worker, runtime);
-					joinset
-				});
+					if panicked {
+						self.server
+							.metrics
+							.instruments
+							.sender_panics
+							.add(1, &[KeyValue::new("scope", "worker")]);
+					}
 
-		while let Some(ret) = senders.join_next_with_id().await {
-			match ret {
-				| Ok((id, error)) => {
-					debug!(?id, ?error, "sender worker finished");
+					if self.channels[shard].1.is_closed() || !self.server.running() {
+						debug!(shard, ?ret, "sender worker finished");
+						continue;
+					}
+
+					// A worker that ran a while before failing starts over from
+					// the shortest delay.
+					failures[shard] = if started[shard].elapsed() > WORKER_RESTART_DELAY_MAX {
+						1
+					} else {
+						failures[shard].saturating_add(1)
+					};
+					let delay = restart_delay(failures[shard]);
+					error!(shard, ?ret, ?delay, "sender worker stopped, restarting");
+					restarts.push(sleep(delay).map(move |()| shard));
 				},
-				| Err(error) => {
-					error!(id = ?error.id(), ?error, "sender worker failed");
+				Some(shard) = restarts.next() => {
+					if !self.channels[shard].1.is_closed() {
+						started[shard] = Instant::now();
+						self.spawn_sender(&mut senders, &mut shards, shard, true);
+					}
 				},
+				() = self.server.until_shutdown(), if !restarts.is_empty() => restarts.clear(),
+				else => break,
 			}
 		}
 
@@ -161,6 +202,25 @@ impl crate::Service for Service {
 }
 
 impl Service {
+	fn spawn_sender(
+		self: &Arc<Self>,
+		senders: &mut JoinSet<Result>,
+		shards: &mut HashMap<task::Id, usize>,
+		id: usize,
+		restarted: bool,
+	) {
+		let worker = self.clone().sender(id, restarted);
+		let worker = if crate::Service::unconstrained(&**self) {
+			task::unconstrained(worker).boxed()
+		} else {
+			worker.boxed()
+		};
+
+		let handle = senders.spawn_on(worker, self.server.runtime());
+		shards.insert(handle.id(), id);
+		self.workers_alive.fetch_add(1, Ordering::Relaxed);
+	}
+
 	#[tracing::instrument(skip(self, pdu_id, user, pushkey), level = "debug")]
 	pub fn send_pdu_push(&self, pdu_id: &RawPduId, user: &UserId, pushkey: String) -> Result {
 		let dest = Destination::Push(user.to_owned(), pushkey);
@@ -480,9 +540,23 @@ impl Service {
 		sender.send(msg).map_err(|e| err!("{e}"))
 	}
 
+	/// Hands the oldest unsent request of each destination to its worker, so
+	/// a backlog with nothing in flight is sent without waiting for a new
+	/// event. Bypasses `dispatch` as these requests were already counted.
+	async fn dispatch_queued(&self, shard: Option<usize>) {
+		for (dest, (queue_id, event)) in self.db.queued_heads().await {
+			let id = self.shard_id(&dest);
+			if shard.is_none_or(|shard| shard == id) {
+				self.channels[id].0.send(Msg { dest, event, queue_id }).ok();
+			}
+		}
+	}
+
 	pub fn queue_depth(&self) -> usize {
 		self.channels.iter().map(|(sender, _)| sender.len()).sum()
 	}
+
+	pub fn workers_alive(&self) -> usize { self.workers_alive.load(Ordering::Relaxed) }
 
 	pub(super) fn shard_id(&self, dest: &Destination) -> usize {
 		if self.channels.len() <= 1 {
@@ -518,4 +592,12 @@ fn num_senders(args: &crate::Args<'_>) -> usize {
 	} else {
 		worker_count.clamp(MIN_SENDERS, max_senders)
 	}
+}
+
+/// Delay before restarting a worker after its `failures`-th consecutive
+/// failure, doubling each time.
+fn restart_delay(failures: u32) -> Duration {
+	WORKER_RESTART_DELAY
+		.saturating_mul(2_u32.saturating_pow(failures.saturating_sub(1)))
+		.min(WORKER_RESTART_DELAY_MAX)
 }

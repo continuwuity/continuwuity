@@ -71,6 +71,9 @@ Names below are as they appear in Prometheus. OTLP uses the dotted OpenTelemetry
 | `continuwuity_sender_events_total` | counter | `destination`, `kind`, `outcome` | PDUs and EDUs sent in outgoing transactions |
 | `continuwuity_sender_events_queued_total` | counter | `destination`, `kind` | PDUs and EDUs queued for sending |
 | `continuwuity_sender_queue_depth` | gauge | | Messages waiting for the sender workers |
+| `continuwuity_sender_requests` | gauge | `state` | Estimated outgoing requests stored as `queued` or `active` (in flight) |
+| `continuwuity_sender_workers` | gauge | | Running sender workers; below the configured count means a worker is restarting |
+| `continuwuity_sender_panics_total` | counter | `scope` | Panics caught in a single outgoing `transaction` or a whole sender `worker` |
 | `continuwuity_users` | gauge | `origin` | Known `local` users, including deactivated, and `remote` users |
 | `continuwuity_invites_total` | counter | `direction`, `destination`, `outcome` | Invites sent by local users or received over federation |
 | `continuwuity_media_write_size_bytes` | histogram | `origin` | Media files written, from local uploads or cached remote media |
