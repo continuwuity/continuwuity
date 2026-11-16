@@ -5,7 +5,9 @@ use std::{
 };
 
 use async_trait::async_trait;
-use conduwuit::{Error, Server, debug, err, error, utils::millis_since_unix_epoch};
+use conduwuit::{
+	Error, Result, Server, SyncMutex, debug, err, error, info, utils::millis_since_unix_epoch,
+};
 use opentelemetry::KeyValue;
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
@@ -30,7 +32,7 @@ pub struct Services {
 }
 
 pub struct Service {
-	queues: conduwuit::SyncMutex<HashMap<OwnedRoomId, UnboundedSender<QueueJob>>>,
+	queues: SyncMutex<HashMap<OwnedRoomId, UnboundedSender<QueueJob>>>,
 	send: Sender<QueueJob>,
 	recv: tokio::sync::Mutex<mpsc::Receiver<QueueJob>>,
 	shutdown: Notify,
@@ -39,13 +41,13 @@ pub struct Service {
 
 #[async_trait]
 impl crate::Service for Service {
-	fn build(args: Args<'_>) -> conduwuit::Result<Arc<Self>>
+	fn build(args: Args<'_>) -> Result<Arc<Self>>
 	where
 		Self: Sized,
 	{
 		let (send, recv) = mpsc::channel(1);
 		Ok(Arc::new(Self {
-			queues: conduwuit::SyncMutex::new(HashMap::new()),
+			queues: SyncMutex::new(HashMap::new()),
 			shutdown: Notify::new(),
 			send,
 			recv: tokio::sync::Mutex::new(recv),
@@ -56,7 +58,7 @@ impl crate::Service for Service {
 		}))
 	}
 
-	async fn worker(self: Arc<Self>) -> conduwuit::Result<()> {
+	async fn worker(self: Arc<Self>) -> Result<()> {
 		let mut recv = self.recv.lock().await;
 		let mut handles = JoinSet::new();
 		let (yielder, mut yielding) = mpsc::channel(5);
@@ -64,7 +66,7 @@ impl crate::Service for Service {
 		loop {
 			let job = tokio::select! {
 				() = self.shutdown.notified() => {
-					conduwuit::info!("Shutting down");
+					info!("Shutting down");
 					yielding.close();
 					recv.close();
 					break;
@@ -78,7 +80,7 @@ impl crate::Service for Service {
 				job = recv.recv() => job
 			};
 			let Some(job) = job else {
-				conduwuit::debug!("No job (channel closed)");
+				debug!("No job (channel closed)");
 				break;
 			};
 
@@ -130,7 +132,7 @@ impl crate::Service for Service {
 }
 
 impl Service {
-	pub async fn new_job(&self, job: QueueJob) -> conduwuit::Result<()> {
+	pub async fn new_job(&self, job: QueueJob) -> Result<()> {
 		self.send
 			.send(job)
 			.await
@@ -144,29 +146,39 @@ impl Service {
 		mut channel: UnboundedReceiver<QueueJob>,
 		yielder: Sender<OwnedRoomId>,
 	) {
+		debug!("Room worker starting up");
 		loop {
 			let job = tokio::select! {
 				() = self.shutdown.notified() => {
+					debug!("Room worker shutting down");
 					channel.close();
 					return;
 				},
 				() = tokio::time::sleep(Duration::from_mins(5)) => {
+					debug!("Room worker self-reaping (no activity in 5 minutes)");
 					yielder.send(room_id).await.ok();
+					debug!("Room worker reaped. Goodbye.");
 					return;
 				},
 				job = channel.recv() => job
 			};
 			let Some(job) = job else {
-				conduwuit::debug!("No job (channel closed)");
+				debug!("Room worker channel closed without shutdown?");
 				break;
 			};
-			conduwuit::debug!(event_id=%job.event_id, origin=%job.origin, "Handling incoming job");
+			debug!(
+				event_id=%job.event_id,
+				origin=%job.origin,
+				backpressure=%channel.len(),
+				"Handling incoming job"
+			);
 			let _room_lock = self
 				.services
 				.event_handler
 				.mutex_federation
 				.lock(room_id.as_str())
 				.await;
+			debug!(event_id=%job.event_id, origin=%job.origin, "Acquired room federation lock");
 
 			let event_type = KeyValue::new(
 				"type",
@@ -206,6 +218,7 @@ impl Service {
 			instruments
 				.federation_incoming_pdus
 				.add(1, &[event_type, outcome]);
+			debug!(event_id=%job.event_id, origin=%job.origin, "Job finished");
 		}
 	}
 }
