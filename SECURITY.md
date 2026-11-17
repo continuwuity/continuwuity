@@ -23,12 +23,15 @@ to encourage users to stay up-to-date with the latest release, and we have no co
 We appreciate the efforts of security researchers and the community in identifying and reporting vulnerabilities. To
 ensure that potential vulnerabilities are addressed properly, please follow these guidelines:
 
-1. **Contact members of the team directly** over E2EE private message.
+1. **Contact _all_ members of the team** over E2EE private message on Matrix.
+   Add each contact to the same encrypted room. **Do not message maintainers individually**.
+   If you cannot reach us from matrix.org, please try [another server][sl] (e.g. continuwuity.rocks).
     - [@jade:ellis.link](https://matrix.to/#/@jade:ellis.link)
     - [@nex:nexy7574.co.uk](https://matrix.to/#/@nex:nexy7574.co.uk)
     - [@ginger:gingershaped.computer](https://matrix.to/#/@ginger:gingershaped.computer)
 2. **Email the security team** at [security@continuwuity.org](mailto:security@continuwuity.org). This is not E2EE, so
-   don't include sensitive details.
+   don't include sensitive details. Do not ask where to send sensitive details either; that
+   information is included in this security policy. We may not respond to emails that do this.
 3. **Do not disclose the vulnerability publicly** until a fix has been pushed to the main branch.
 4. **Provide detailed information** about the vulnerability, including:
     - A clear description of the issue
@@ -41,6 +44,8 @@ ensure that potential vulnerabilities are addressed properly, please follow thes
 
 If you have any doubts about a potential security vulnerability, contact us via private channels first! We'd prefer that
 you bother us, instead of having a vulnerability disclosed without a fix.
+
+[sl]: https://servers.joinmatrix.org
 
 ### Terms for credit
 
@@ -105,4 +110,4 @@ When security vulnerabilities are identified:
 
 ---
 
-This security policy was last updated on May 25, 2025.
+This security policy was last updated on November 17th, 2026.
