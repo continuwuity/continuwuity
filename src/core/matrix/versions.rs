@@ -35,10 +35,10 @@ pub fn versions() -> Vec<String> {
 pub fn unstable_features(experiments: &Experiments) -> BTreeMap<String, bool> {
 	BTreeMap::from_iter([
 		// MatrixRTC (https://github.com/matrix-org/matrix-spec-proposals/pull/4143)
-		// Expected for spec v1.20
+		// Expected for spec v1.20/v2.0
 		("org.matrix.msc4143".to_owned(), true),
 		// Simplified Sliding sync (https://github.com/matrix-org/matrix-spec-proposals/pull/4186)
-		// Expected for spec v1.20
+		// Expected for spec v1.20/v2.0
 		("org.matrix.simplified_msc3575".to_owned(), true),
 		("org.matrix.msc4155".to_owned(), experiments.msc4155.is_enabled()),
 		// profile change propagation (https://github.com/matrix-org/matrix-spec-proposals/pull/4466)
@@ -48,5 +48,8 @@ pub fn unstable_features(experiments: &Experiments) -> BTreeMap<String, bool> {
 		("org.continuwuity.msc4484.unstable".to_owned(), experiments.msc4484.is_enabled()),
 		("org.continuwuity.msc4560".to_owned(), experiments.msc4560.is_enabled()),
 		("fi.mau.msc2815".to_owned(), experiments.msc2815.is_enabled()),
+		// Sticky events (https://github.com/matrix-org/matrix-spec-proposals/pull/4354)
+		// Proposal merged, expected for spec v1.20/v2.0
+		("org.matrix.msc4354".to_owned(), true),
 	])
 }
