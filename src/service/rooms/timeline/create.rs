@@ -330,7 +330,7 @@ impl super::Service {
 		pdu_json
 			.insert("event_id".into(), CanonicalJsonValue::String(pdu.event_id.clone().into()));
 		// Verify that the *full* PDU isn't over 64KiB.
-		if !pdu_fits(&pdu_json.clone()) {
+		if !pdu_fits(&pdu_json) {
 			// feckin huge PDU mate
 			return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65536 bytes)")));
 		}
