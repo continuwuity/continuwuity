@@ -225,7 +225,11 @@ pub(crate) async fn sync_events_route(
 	// seconds (this isn't specced, but a reasonable cap since most clients have
 	// a 30-second polling interval).
 	let duration = timeout_duration.min(Duration::from_secs(30));
-	_ = tokio::time::timeout(duration, wake_receiver.changed()).await;
+	let mut shutdown_signal = services.server.signal.subscribe();
+	tokio::select! {
+		_ = tokio::time::timeout(duration, wake_receiver.changed()) => {},
+		_ = shutdown_signal.recv() => return Err!(Request(Unknown("Server is shutting down"), SERVICE_UNAVAILABLE)),
+	};
 
 	// Retry returning data
 	build_sync_events(&services, &body).await
