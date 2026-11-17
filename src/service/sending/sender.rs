@@ -151,17 +151,10 @@ impl Service {
 		statuses: &mut CurTransactionStatus,
 	) {
 		match response {
-			| Ok(dest) => {
-				if let Destination::Federation(server_name) = &dest {
-					self.services.federation.mark_healthy(server_name);
-				}
-				self.handle_response_ok(&dest, futures, statuses).await;
-			},
-			// A bug on our side, not the remote's fault, and resending the same
-			// events would panic again: drop them and move on.
-			| Err((dest, e)) if e.is_panic() => {
-				self.handle_response_ok(&dest, futures, statuses).await;
-			},
+			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
+			// A bug on our side, not the remote's fault: retry with backoff
+			// without marking the remote unhealthy.
+			| Err((dest, e)) if e.is_panic() => Self::handle_response_err(dest, statuses, &e),
 			| Err((dest, e)) => {
 				if let Destination::Federation(dest) = &dest {
 					if self.services.federation.should_mark_stale(&e)
@@ -208,6 +201,9 @@ impl Service {
 	) {
 		let _cork = self.db.db.cork();
 		self.db.delete_all_active_requests_for(dest).await;
+		if let Destination::Federation(server_name) = dest {
+			self.services.federation.mark_healthy(server_name);
+		}
 
 		// Find events that have been added since starting the last request
 		let new_events = self
@@ -292,7 +288,7 @@ impl Service {
 
 	/// Performs startup netburst, which sends any previously queued up but not
 	/// yet sent requests immediately. A restarted worker always resends its
-	/// shard's requests in flight, without trimming them.
+	/// shard's requests in flight.
 	#[tracing::instrument(
 		name = "netburst",
 		level = "debug",
@@ -318,9 +314,8 @@ impl Service {
 			}
 
 			let entry = txns.entry(dest.clone()).or_default();
-			let over_budget = !restarted
-				&& self.server.config.startup_netburst_keep >= 0
-				&& entry.len() >= keep;
+			let over_budget =
+				self.server.config.startup_netburst_keep >= 0 && entry.len() >= keep;
 
 			if over_budget && !self.survives_netburst_trim(&event).await {
 				warn!(
@@ -810,7 +805,7 @@ impl Service {
 			.map(move |result| {
 				result.unwrap_or_else(|panic| {
 					let error = Error::from_panic(panic);
-					error!(dest = ?panic_dest, ?error, "Panicked while sending transaction, dropping it");
+					error!(dest = ?panic_dest, ?error, "Panicked while sending transaction");
 					self.server
 						.metrics
 						.instruments

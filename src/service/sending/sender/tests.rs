@@ -12,7 +12,7 @@ use crate::{
 };
 
 #[tokio::test]
-async fn panicked_transaction_is_dropped_without_blaming_the_remote() {
+async fn panicked_transaction_is_kept_for_retry_without_blaming_the_remote() {
 	let (services, path, _database) = test_services().await;
 	let sending = &services.sending;
 	let server = server_name!("remote.example");
@@ -22,7 +22,6 @@ async fn panicked_transaction_is_dropped_without_blaming_the_remote() {
 	sending.db.queue_requests(once((&event, &dest)));
 	let in_flight: Vec<_> = sending.db.queued_requests(&dest).collect().await;
 	sending.db.mark_as_active(in_flight.iter());
-	let next = sending.db.queue_requests(once((&event, &dest)));
 
 	let mut futures = FuturesUnordered::new();
 	let mut statuses = CurTransactionStatus::from([(dest.clone(), TransactionStatus::Running)]);
@@ -39,17 +38,25 @@ async fn panicked_transaction_is_dropped_without_blaming_the_remote() {
 		.await;
 	let retry_after = sending.services.federation.retry_after(server);
 	let sending_next = futures.len();
+	let failed = matches!(statuses.get(&dest), Some(TransactionStatus::Failed(1, _)));
 
 	drop(futures);
 	drop(services);
 	std::fs::remove_dir_all(path).unwrap();
-	assert_eq!(active, next);
-	assert_eq!(sending_next, 1);
+	assert_eq!(
+		active,
+		in_flight
+			.into_iter()
+			.map(|(key, _)| key)
+			.collect::<Vec<_>>()
+	);
+	assert_eq!(sending_next, 0);
+	assert!(failed);
 	assert_eq!(retry_after, None);
 }
 
 #[tokio::test]
-async fn restarted_worker_resends_in_flight_requests_without_trimming() {
+async fn restarted_worker_resends_trimmed_in_flight_requests() {
 	let (services, path, _database) =
 		test_services_with(json!({ "startup_netburst_keep": 1 })).await;
 	let sending = &services.sending;
@@ -68,15 +75,12 @@ async fn restarted_worker_resends_in_flight_requests_without_trimming() {
 	sending
 		.startup_netburst(id, true, &mut futures, &mut statuses)
 		.await;
-	let after_restart = sending.db.active_requests_for(&dest).count().await;
-	sending
-		.startup_netburst(id, false, &mut futures, &mut statuses)
-		.await;
-	let after_startup = sending.db.active_requests_for(&dest).count().await;
+	let active = sending.db.active_requests_for(&dest).count().await;
+	let sending_now = futures.len();
 
 	drop(futures);
 	drop(services);
 	std::fs::remove_dir_all(path).unwrap();
-	assert_eq!(after_restart, 3);
-	assert_eq!(after_startup, 1);
+	assert_eq!(active, 1);
+	assert_eq!(sending_now, 1);
 }

@@ -37,6 +37,6 @@ fn restart_delay_doubles_up_to_the_cap() {
 	assert_eq!(restart_delay(1), Duration::from_millis(2500));
 	assert_eq!(restart_delay(2), Duration::from_secs(5));
 	assert_eq!(restart_delay(4), Duration::from_secs(20));
-	assert_eq!(restart_delay(9), Duration::from_secs(300));
-	assert_eq!(restart_delay(u32::MAX), Duration::from_secs(300));
+	assert_eq!(restart_delay(5), Duration::from_secs(30));
+	assert_eq!(restart_delay(u32::MAX), Duration::from_secs(30));
 }

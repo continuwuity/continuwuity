@@ -96,7 +96,7 @@ pub type EduVec = SmallVec<[EduBuf; EDU_VEC_CAP]>;
 const EDU_BUF_CAP: usize = 128;
 const EDU_VEC_CAP: usize = 1;
 const WORKER_RESTART_DELAY: Duration = Duration::from_millis(2500);
-const WORKER_RESTART_DELAY_MAX: Duration = Duration::from_secs(300);
+const WORKER_RESTART_DELAY_MAX: Duration = Duration::from_secs(30);
 
 #[async_trait]
 impl crate::Service for Service {
@@ -171,7 +171,7 @@ impl crate::Service for Service {
 						failures[shard].saturating_add(1)
 					};
 					let delay = restart_delay(failures[shard]);
-					error!(shard, ?ret, ?delay, "sender worker stopped, restarting");
+					error!(shard, ?ret, ?delay, "sender worker unexpectedly finished, restarting");
 					restarts.push(sleep(delay).map(move |()| shard));
 				},
 				Some(shard) = restarts.next() => {
