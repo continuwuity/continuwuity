@@ -54,7 +54,7 @@ pub fn pdu_fits(owned_obj: &CanonicalJsonObject) -> bool {
 	}
 	// Now check the full PDU size
 	match serde_json::to_string(owned_obj) {
-		| Ok(s) => s.len() <= 65535,
+		| Ok(s) => s.len() <= 65536,
 		| Err(_) => false,
 	}
 }
@@ -305,7 +305,7 @@ impl super::Service {
 		{
 			return match e {
 				| Error::SignatureJson(ruma::signatures::JsonError::PduTooLarge) => {
-					Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")))
+					Err!(Request(TooLarge("Message/PDU is too long (exceeds 65536 bytes)")))
 				},
 				| _ => Err!(Request(Unknown(warn!("Signing event failed: {e}")))),
 			};
@@ -332,7 +332,7 @@ impl super::Service {
 		// Verify that the *full* PDU isn't over 64KiB.
 		if !pdu_fits(&pdu_json.clone()) {
 			// feckin huge PDU mate
-			return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65535 bytes)")));
+			return Err!(Request(TooLarge("Message/PDU is too long (exceeds 65536 bytes)")));
 		}
 
 		// Check with the policy server
