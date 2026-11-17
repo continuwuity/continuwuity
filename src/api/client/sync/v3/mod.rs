@@ -3,7 +3,6 @@ mod left;
 mod state;
 
 use std::{
-	cmp::{self},
 	collections::{BTreeMap, HashMap, HashSet},
 	time::Duration,
 };
@@ -207,7 +206,12 @@ pub(crate) async fn sync_events_route(
 
 	let mut wake_receiver = services.sync.subscribe_to_wake(sender_user);
 	let response = build_sync_events(&services, &body).await?;
-	if body.body.full_state
+
+	let timeout_duration = body.body.timeout.unwrap_or_default();
+	// If the timeout is zero, request has full_state=true, or there's
+	// meaningful data to return, do so immediately.
+	if timeout_duration.is_zero()
+		|| body.body.full_state
 		|| !(response.rooms.is_empty()
 			&& response.presence.is_empty()
 			&& response.account_data.is_empty()
@@ -217,10 +221,10 @@ pub(crate) async fn sync_events_route(
 		return Ok(response);
 	}
 
-	// Hang a few seconds so requests are not spammed
-	// Stop hanging if new info arrives
-	let default = Duration::from_secs(30);
-	let duration = cmp::min(body.body.timeout.unwrap_or(default), default);
+	// Otherwise, wait for a wake signal to rebuild changes. Cap timeout at 30
+	// seconds (this isn't specced, but a reasonable cap since most clients have
+	// a 30-second polling interval).
+	let duration = timeout_duration.min(Duration::from_secs(30));
 	_ = tokio::time::timeout(duration, wake_receiver.changed()).await;
 
 	// Retry returning data
