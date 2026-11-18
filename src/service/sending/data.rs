@@ -3,6 +3,7 @@ use std::{fmt::Debug, sync::Arc};
 use conduwuit::{
 	Error, Result, at, utils,
 	utils::{ReadyExt, stream::TryIgnore},
+	warn,
 };
 use database::{Database, Deserialized, Map};
 use futures::{Stream, StreamExt};
@@ -167,6 +168,33 @@ impl Data {
 
 				(key.to_vec(), event)
 			})
+	}
+
+	/// The oldest queued request of each destination, not yet in flight.
+	pub(super) async fn queued_heads(&self) -> Vec<(Destination, QueueItem)> {
+		let mut heads: Vec<(Destination, QueueItem)> = Vec::new();
+		self.servernameevent_data
+			.raw_stream()
+			.ignore_err()
+			.ready_for_each(|(key, val)| match parse_servercurrentevent(key, val) {
+				| Ok((dest, event)) =>
+					if heads.last().is_none_or(|(last, _)| *last != dest) {
+						heads.push((dest, (key.to_vec(), event)));
+					},
+				| Err(e) => warn!(?key, "invalid queued request key: {e}"),
+			})
+			.await;
+
+		heads
+	}
+
+	/// Estimated number of requests waiting to be sent and in flight.
+	pub(crate) fn request_counts(&self) -> [(&'static str, Option<u64>); 2] {
+		[
+			("queued", &self.servernameevent_data),
+			("active", &self.servercurrentevent_data),
+		]
+		.map(|(state, map)| (state, map.property_integer(c"rocksdb.estimate-num-keys").ok()))
 	}
 
 	pub(super) fn set_latest_educount(&self, server_name: &ServerName, last_count: u64) {

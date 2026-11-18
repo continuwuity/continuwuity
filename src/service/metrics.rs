@@ -19,6 +19,28 @@ impl Services {
 		);
 
 		self.gauge(
+			"continuwuity.sender.requests",
+			"Estimated outgoing requests stored as queued or in flight",
+			"{request}",
+			|services, observer| {
+				for (state, count) in services.sending.db.request_counts() {
+					if let Some(count) = count {
+						observer.observe(count, &[KeyValue::new("state", state)]);
+					}
+				}
+			},
+		);
+
+		self.gauge(
+			"continuwuity.sender.workers",
+			"Running sender workers",
+			"{worker}",
+			|services, observer| {
+				observe(observer, services.sending.workers_alive(), &[]);
+			},
+		);
+
+		self.gauge(
 			"continuwuity.federation.incoming.transactions.active",
 			"Incoming federation transactions currently being processed",
 			"{transaction}",

@@ -1,6 +1,7 @@
 use std::{
 	collections::{BTreeMap, HashMap, HashSet},
 	fmt::Debug,
+	panic::AssertUnwindSafe,
 	sync::{
 		Arc,
 		atomic::{AtomicU64, AtomicUsize, Ordering},
@@ -55,6 +56,9 @@ use serde_json::value::{RawValue as RawJsonValue, to_raw_value};
 
 use super::{Destination, EduBuf, EduVec, Msg, SendingEvent, Service, data::QueueItem};
 
+#[cfg(test)]
+mod tests;
+
 #[derive(Debug)]
 enum TransactionStatus {
 	Running,
@@ -78,12 +82,18 @@ pub const EDU_LIMIT: usize = 100;
 
 impl Service {
 	#[tracing::instrument(skip(self), level = "debug")]
-	pub(super) async fn sender(self: Arc<Self>, id: usize) -> Result {
+	pub(super) async fn sender(self: Arc<Self>, id: usize, restarted: bool) -> Result {
 		let mut statuses: CurTransactionStatus = CurTransactionStatus::new();
 		let mut futures: SendingFutures<'_> = FuturesUnordered::new();
 
+		// The previous worker of this shard may have dropped requests it had
+		// taken from the channel.
+		if restarted {
+			self.dispatch_queued(Some(id)).await;
+		}
+
 		info!(shard = id, "Running startup netburst");
-		self.startup_netburst(id, &mut futures, &mut statuses)
+		self.startup_netburst(id, restarted, &mut futures, &mut statuses)
 			.boxed()
 			.await;
 		info!(shard = id, "Finished startup netburst");
@@ -142,6 +152,9 @@ impl Service {
 	) {
 		match response {
 			| Ok(dest) => self.handle_response_ok(&dest, futures, statuses).await,
+			// A bug on our side, not the remote's fault: retry with backoff
+			// without marking the remote unhealthy.
+			| Err((dest, e)) if e.is_panic() => Self::handle_response_err(dest, statuses, &e),
 			| Err((dest, e)) => {
 				if let Destination::Federation(dest) = &dest {
 					if self.services.federation.should_mark_stale(&e)
@@ -274,7 +287,8 @@ impl Service {
 	}
 
 	/// Performs startup netburst, which sends any previously queued up but not
-	/// yet sent requests immediately.
+	/// yet sent requests immediately. A restarted worker always resends its
+	/// shard's requests in flight.
 	#[tracing::instrument(
 		name = "netburst",
 		level = "debug",
@@ -285,6 +299,7 @@ impl Service {
 	async fn startup_netburst<'a>(
 		&'a self,
 		id: usize,
+		restarted: bool,
 		futures: &mut SendingFutures<'a>,
 		statuses: &mut CurTransactionStatus,
 	) {
@@ -315,8 +330,12 @@ impl Service {
 			}
 		}
 
+		if !restarted && !self.server.config.startup_netburst {
+			return;
+		}
+
 		for (dest, events) in txns {
-			if self.server.config.startup_netburst && !events.is_empty() {
+			if !events.is_empty() {
 				statuses.insert(dest.clone(), TransactionStatus::Running);
 				futures.push(self.send_events(dest, events));
 			}
@@ -772,6 +791,7 @@ impl Service {
 				});
 
 		let start = Instant::now();
+		let panic_dest = dest.clone();
 		let send = match dest {
 			| Destination::Federation(server) =>
 				self.send_events_dest_federation(server, events).boxed(),
@@ -780,24 +800,42 @@ impl Service {
 				self.send_events_dest_push(user_id, pushkey, events).boxed(),
 		};
 
-		send.inspect(move |result| {
-			let instruments = &self.server.metrics.instruments;
-			let outcome =
-				KeyValue::new("outcome", if result.is_ok() { "success" } else { "failure" });
-			instruments
-				.sender_transaction_duration
-				.record(start.elapsed().as_secs_f64(), &[destination.clone(), outcome.clone()]);
-			for (kind, count) in [("pdu", pdus), ("edu", edus)] {
-				if count > 0 {
-					instruments.sender_events.add(count, &[
+		AssertUnwindSafe(send)
+			.catch_unwind()
+			.map(move |result| {
+				result.unwrap_or_else(|panic| {
+					let error = Error::from_panic(panic);
+					error!(dest = ?panic_dest, ?error, "Panicked while sending transaction");
+					self.server
+						.metrics
+						.instruments
+						.sender_panics
+						.add(1, &[KeyValue::new("scope", "transaction")]);
+
+					Err((panic_dest, Box::new(error)))
+				})
+			})
+			.inspect(move |result| {
+				let instruments = &self.server.metrics.instruments;
+				let outcome =
+					KeyValue::new("outcome", if result.is_ok() { "success" } else { "failure" });
+				instruments
+					.sender_transaction_duration
+					.record(start.elapsed().as_secs_f64(), &[
 						destination.clone(),
-						KeyValue::new("kind", kind),
 						outcome.clone(),
 					]);
+				for (kind, count) in [("pdu", pdus), ("edu", edus)] {
+					if count > 0 {
+						instruments.sender_events.add(count, &[
+							destination.clone(),
+							KeyValue::new("kind", kind),
+							outcome.clone(),
+						]);
+					}
 				}
-			}
-		})
-		.boxed()
+			})
+			.boxed()
 	}
 
 	#[tracing::instrument(

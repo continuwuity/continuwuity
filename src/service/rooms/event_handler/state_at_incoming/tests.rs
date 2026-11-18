@@ -1,13 +1,9 @@
-use std::sync::Arc;
-
-use conduwuit::{
-	Config, PduEvent, Server,
-	log::{Log, LogLevelReloadHandles},
-	metrics::Metrics,
-};
+use conduwuit::PduEvent;
 use futures::StreamExt;
 use ruma::{RoomId, RoomVersionId, events::StateEventType};
 use serde_json::json;
+
+use crate::test_utils::test_services;
 
 #[tokio::test]
 async fn admitted_joins_do_not_disappear_after_a_merge() {
@@ -20,7 +16,7 @@ async fn admitted_joins_do_not_disappear_after_a_merge() {
 		},
 	};
 
-	let (services, path) = test_services().await;
+	let (services, path, _database) = test_services().await;
 	let alice = UserId::parse("@alice:test.example").unwrap();
 	let bob = UserId::parse("@bob:bob.example").unwrap();
 	let charlie = UserId::parse("@charlie:charlie.example").unwrap();
@@ -210,35 +206,6 @@ async fn admitted_joins_do_not_disappear_after_a_merge() {
 	drop(services);
 	std::fs::remove_dir_all(path).unwrap();
 	assert_eq!(results, [true, true], "both joined users must be able to send messages");
-}
-
-async fn test_services() -> (Arc<crate::Services>, std::path::PathBuf) {
-	let _ = rustls::crypto::ring::default_provider().install_default();
-	let path = std::env::temp_dir()
-		.join(format!("continuwuity-shared-state-{:016x}", rand::random::<u64>()));
-	std::fs::create_dir(&path).unwrap();
-	let config: Config = serde_json::from_value(json!({
-		"server_name": "test.example",
-		"database_path": path,
-		"db_cache_capacity_mb": 16.0,
-		"rocksdb_write_buffer_capacity_mb": 4.0,
-		"allow_local_presence": false,
-		"dns_servers": ["127.0.0.1"],
-		"allow_invalid_tls_certificates_yes_i_know_what_the_fuck_i_am_doing_with_this_and_i_know_this_is_insecure": true
-	}))
-	.unwrap();
-	let runtime = tokio::runtime::Handle::current();
-	let server = Arc::new(Server::new(
-		config,
-		Some(runtime.clone()),
-		Log {
-			reload: LogLevelReloadHandles::default(),
-			capture: Arc::default(),
-		},
-		Metrics::new(Some(runtime), opentelemetry::global::meter("test"), None),
-	));
-	let services = crate::Services::build(server).await.unwrap();
-	(services, path)
 }
 
 fn cache_key(
