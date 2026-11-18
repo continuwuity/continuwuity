@@ -625,6 +625,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cache_control"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1bf2a5fb3207c12b5d208ebc145f967fea5cac41a021c37417ccc31ba40f39ee"
+
+[[package]]
 name = "camino"
 version = "1.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4898,10 +4904,11 @@ checksum = "1e061d1b48cb8d38042de4ae0a7a6401009d6143dc80d2e2d6f31f0bdd6470c7"
 
 [[package]]
 name = "resolvematrix"
-version = "1.4.2"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d6e659fe17ed82acfac43641d00d1bbfd0a9d53ec4d2f901b01f792f0e2c9e3c"
+checksum = "39a1efc3c55274528f8b1a916eb0edf5c40a8364b4899fbc1283a57c8d0024db"
 dependencies = [
+ "cache_control",
  "hickory-resolver",
  "num-traits",
  "parking_lot",
