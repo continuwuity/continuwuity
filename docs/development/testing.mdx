@@ -20,6 +20,20 @@ docker build -t continuwuity:complement -f docker/complement.Dockerfile .
 The `openreg` feature is required: without it the server refuses the open
 registrations Complement uses to create test users, and almost every test fails.
 
+On non-Linux (or to build inside a container instead of on the host), build the Continuwuity image with the `openreg` feature and `RUST_PROFILE=dev` first (open
+registration is only enabled when `debug_assertions` are active), then build
+the Complement image using the `container` target:
+
+```bash
+docker buildx build --load -t continuwuity:latest-openreg --build-arg RUST_PROFILE=dev --build-arg CARGO_FEATURES=default,openreg -f docker/Dockerfile .
+docker build -t continuwuity:complement --target container -f docker/complement.Dockerfile .
+./bin/complement
+```
+
+Pass `--build-arg CONTINUWUITY_IMAGE=your-image:tag` when building
+`docker/complement.Dockerfile` if your Continuwuity container image uses a
+different tag.
+
 The run can take up to an hour. The runner writes the full Go test stream to
 `tests/test_results/complement/test_logs.jsonl` and a sorted pass/fail/skip
 summary to `tests/test_results/complement/test_results.jsonl`. It exits nonzero

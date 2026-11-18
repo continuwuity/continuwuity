@@ -52,8 +52,10 @@ else
 fi
 
 # The base docker image to use for complement tests
-# You can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`
-# after running `cargo build -p conduwuit --features openreg`. Only the debug binary is used.
+# On Linux, you can build the default with `docker build -t continuwuity:complement -f ./docker/complement.Dockerfile .`
+# after running `cargo build -p conduwuit --features openreg`.
+# On non-Linux platforms (or to use a container build), build `docker/Dockerfile` with debuginfo and openreg `--build-arg RUST_PROFILE=dev --build-arg CARGO_FEATURES=default,openreg`
+# and then run `docker build -t continuwuity:complement --target container -f ./docker/complement.Dockerfile .`.
 COMPLEMENT_BASE_IMAGE="${COMPLEMENT_BASE_IMAGE:-continuwuity:complement}"
 
 # Complement tests that are skipped due to flakiness/reliability issues or we don't implement such features and won't for a long time
@@ -83,6 +85,13 @@ for command in docker go jq; do
     fi
 done
 
+if [ -z "${DOCKER_HOST:-}" ]; then
+    DOCKER_HOST="$(docker context inspect --format '{{.Endpoints.docker.Host}}' 2>/dev/null || true)"
+    if [ -n "$DOCKER_HOST" ]; then
+        export DOCKER_HOST
+    fi
+fi
+
 if [ -n "$IMAGE_ARCHIVE" ]; then
     if [ ! -f "$IMAGE_ARCHIVE" ]; then
         echo "Docker image archive not found: $IMAGE_ARCHIVE"
@@ -99,7 +108,12 @@ fi
 
 if ! docker image inspect "$COMPLEMENT_BASE_IMAGE" > /dev/null 2>&1; then
     echo "Complement base image not found: $COMPLEMENT_BASE_IMAGE"
-    echo "Build it with: cargo build -p conduwuit --features openreg && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
+    if [ "$(uname -s)" != "Linux" ]; then
+        echo "Build it with: docker buildx build --load -t continuwuity:latest-openreg --build-arg RUST_PROFILE=dev --build-arg CARGO_FEATURES=default,openreg -f docker/Dockerfile . && docker build -t $COMPLEMENT_BASE_IMAGE --target container -f docker/complement.Dockerfile ."
+    else
+        echo "Build it with: cargo build -p conduwuit --features openreg && docker build -t $COMPLEMENT_BASE_IMAGE -f docker/complement.Dockerfile ."
+        echo "Or from a container build: docker buildx build --load -t continuwuity:latest-openreg --build-arg RUST_PROFILE=dev --build-arg CARGO_FEATURES=default,openreg -f docker/Dockerfile . && docker build -t $COMPLEMENT_BASE_IMAGE --target container -f docker/complement.Dockerfile ."
+    fi
     exit 1
 fi
 
