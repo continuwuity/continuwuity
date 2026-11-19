@@ -349,7 +349,7 @@ impl super::Service {
 
 		// Insert pdu
 		self.db
-			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2)
+			.append_pdu(&pdu_id, pdu, room_id, &pdu_json, count2, pdu.origin_server_ts())
 			.await;
 		self.progress_extremities(pdu)
 			.await

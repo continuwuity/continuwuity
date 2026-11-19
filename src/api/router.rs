@@ -52,6 +52,7 @@ pub fn build(router: Router<State>, state: State) -> Router<State> {
 		.ruma_route(&client::set_pushrule_actions_route)
 		.ruma_route(&client::delete_pushrule_route)
 		.ruma_route(&client::get_room_event_route)
+		.ruma_route(&client::get_event_by_timestamp_route)
 		.ruma_route(&client::get_room_aliases_route)
 		.ruma_route(&client::get_filter_route)
 		.ruma_route(&client::create_filter_route)
