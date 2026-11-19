@@ -49,6 +49,8 @@ jobs:
         run: npm ci
 
       - name: Build Rspress documentation
+        env:
+          SITE_PATH: ${{ github.ref != 'refs/heads/main' && format('/pr/{0}/', '${{ forgejo.event.number }}') || '/' }}
         run: npm run docs:build
 
       - name: Install Wrangler

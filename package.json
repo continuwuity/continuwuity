@@ -20,11 +20,11 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@rspress/core": "^2.0.0",
     "@rspress/plugin-client-redirects": "^2.0.0",
-    "@rspress/plugin-sitemap": "^2.0.0",
+    "@types/node": "^26.6.6",
     "typescript": "^7.0.0"
   }
 }

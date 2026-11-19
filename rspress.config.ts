@@ -1,10 +1,13 @@
 import { defineConfig } from '@rspress/core';
-import { pluginSitemap } from '@rspress/plugin-sitemap';
 import { pluginClientRedirects } from '@rspress/plugin-client-redirects';
+
+const sitePath: string = process.env.SITE_PATH ?? '/';
 
 export default defineConfig({
     root: 'docs',
     title: 'Continuwuity',
+    siteOrigin: sitePath != "/" ? "https://preview.continuwuity.org" : "https://continuwuity.org",
+    base: sitePath,
     description: 'A community-driven Matrix homeserver',
     icon: '/assets/logo.svg',
     logo: {
@@ -75,14 +78,10 @@ export default defineConfig({
         lastUpdated: true,
         enableContentAnimation: true,
         enableAppearanceAnimation: false,
-        footer: {
-        },
+        footer: {},
     },
 
-    plugins: [pluginSitemap({
-        siteUrl: 'https://continuwuity.org', // TODO: Set automatically in build pipeline
-    }),
-    pluginClientRedirects({
+    plugins: [pluginClientRedirects({
         redirects: [{
             from: '^/config_reference$',
             to: '/reference/config'
@@ -105,8 +104,8 @@ export default defineConfig({
             from: "^/source(|_code)$",
             to: "https://forgejo.ellis.link/continuwuation/continuwuity",
         }, {
-	            from: "^/(CONTRIBUTING.md|contributing)$",
-	            to: "/development/contributing"
+            from: "^/(CONTRIBUTING.md|contributing)$",
+            to: "/development/contributing"
         }
         ]
     })],
