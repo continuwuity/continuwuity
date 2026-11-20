@@ -105,10 +105,6 @@ impl Service {
 	) -> Result<update_rendezvous_session::msc4388::Response> {
 		let mut session = self.lock_session(id)?;
 
-		if data.len() > Self::MAX_DATA_SIZE_BYTES {
-			return Err!(Request(TooLarge("Data too large")));
-		}
-
 		// If the provided transaction ID was used already, we have to return
 		// the sequence token that we returned last time it was used.
 		// This makes session updates with the same transaction ID idempotent.
@@ -125,6 +121,10 @@ impl Service {
 		drop(sequence_token);
 
 		let new_sequence_token = Self::create_token();
+
+		if data.len() > Self::MAX_DATA_SIZE_BYTES {
+			return Err!(Request(TooLarge("Data too large")));
+		}
 
 		session.data = data;
 		session.last_sequence_token.clone_from(&new_sequence_token);
