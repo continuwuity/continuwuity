@@ -94,8 +94,7 @@ pub(crate) async fn room_initial_sync_route(
 		.first()
 		.map(at!(0))
 		.as_ref()
-		.map(ToString::to_string)
-		.unwrap_or_default();
+		.map_or_default(ToString::to_string);
 	let start = events.last().map(at!(0)).as_ref().map(ToString::to_string);
 
 	let chunk = events

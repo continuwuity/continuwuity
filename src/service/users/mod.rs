@@ -9,10 +9,7 @@ pub(super) mod remote;
 use std::{mem, sync::Arc};
 
 pub use account::{AccessTokenStatus, AccountStatus};
-use conduwuit::{
-	Err, Error, Result, err,
-	utils::{self},
-};
+use conduwuit::{Err, Error, Result, err, utils};
 use database::Map;
 pub use device::DeviceToken;
 pub use profile::ProfileFieldChange;

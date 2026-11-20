@@ -1,4 +1,5 @@
 #![type_length_limit = "8192"]
+#![recursion_limit = "256"]
 #![allow(refining_impl_trait)]
 
 extern crate conduwuit_core as conduwuit;

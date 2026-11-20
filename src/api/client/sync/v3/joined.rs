@@ -787,8 +787,7 @@ async fn build_room_summary(
 
 	Ok(Some(assign!(RoomSummary::new(), {
 		heroes: heroes
-			.map(|heroes| heroes.into_iter().collect())
-			.unwrap_or_default(),
+			.map_or_default(|heroes| heroes.into_iter().collect()),
 		joined_member_count: Some(ruma_from_u64(joined_member_count)),
 		invited_member_count: Some(ruma_from_u64(invited_member_count)),
 	})))

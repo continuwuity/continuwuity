@@ -10,10 +10,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedServerName, RoomId, UserId,
-	api::{
-		client::membership::leave_room,
-		federation::{self},
-	},
+	api::{client::membership::leave_room, federation},
 	events::{
 		StateEventType,
 		room::member::{MembershipState, RoomMemberEventContent},

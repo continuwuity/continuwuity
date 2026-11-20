@@ -1,7 +1,7 @@
 use std::{
 	collections::HashSet,
 	ffi::{OsStr, OsString},
-	fs::{self},
+	fs,
 	path::PathBuf,
 	sync::Arc,
 	time::Instant,

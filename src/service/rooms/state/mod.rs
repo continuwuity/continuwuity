@@ -264,14 +264,11 @@ impl Service {
 					.compress_state_event(shortstatekey, &new_pdu.event_id)
 					.await;
 
-				let replaces = states_parents
-					.last()
-					.map(|info| {
-						info.full_state
-							.iter()
-							.find(|bytes| bytes.starts_with(&shortstatekey.to_be_bytes()))
-					})
-					.unwrap_or_default();
+				let replaces = states_parents.last().map_or_default(|info| {
+					info.full_state
+						.iter()
+						.find(|bytes| bytes.starts_with(&shortstatekey.to_be_bytes()))
+				});
 
 				if Some(&new) == replaces {
 					return Ok(previous_shortstatehash.expect("must exist"));

@@ -9,7 +9,7 @@ use conduwuit::{
 use futures::{FutureExt, StreamExt, future::join};
 use ruma::{
 	api::client::membership::{
-		get_member_events::{self},
+		get_member_events,
 		joined_members::{self, v3::RoomMember},
 	},
 	events::{

@@ -745,7 +745,7 @@ impl Service {
 				.get_member(room_id, querying_user)
 				.await
 				.ok()
-				.map_or_else(|| MembershipState::Leave, |content| content.membership);
+				.map_or(MembershipState::Leave, |content| content.membership);
 
 			if matches!(membership, MembershipState::Join | MembershipState::Invite) {
 				return true;

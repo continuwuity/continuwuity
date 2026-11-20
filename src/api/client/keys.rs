@@ -15,8 +15,7 @@ use ruma::{
 	OneTimeKeyAlgorithm, OwnedDeviceId, OwnedUserId, UserId,
 	api::{
 		client::keys::{
-			claim_keys, get_key_changes, get_keys, upload_keys,
-			upload_signatures::{self},
+			claim_keys, get_key_changes, get_keys, upload_keys, upload_signatures,
 			upload_signing_keys,
 		},
 		federation,

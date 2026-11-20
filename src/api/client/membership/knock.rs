@@ -16,10 +16,7 @@ use futures::{FutureExt, StreamExt};
 use ruma::{
 	CanonicalJsonObject, CanonicalJsonValue, OwnedEventId, OwnedRoomId, OwnedServerName,
 	OwnedUserId, RoomId, UserId,
-	api::{
-		client::knock::knock_room,
-		federation::{self},
-	},
+	api::{client::knock::knock_room, federation},
 	canonical_json::to_canonical_value,
 	events::{
 		StateEventType,

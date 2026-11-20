@@ -8,10 +8,7 @@ use conduwuit::{
 	utils::{self, IterStream, ReadyExt},
 };
 use database::{Deserialized, Get, Map, Qry};
-use futures::{
-	Stream, StreamExt,
-	stream::{self},
-};
+use futures::{Stream, StreamExt, stream};
 use ruma::{EventId, OwnedEventId, RoomId, events::StateEventType};
 use serde::Deserialize;
 

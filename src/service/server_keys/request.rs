@@ -101,8 +101,7 @@ impl super::Service {
 			.trusted_servers
 			.iter()
 			.find(|n| n.server_name() == notary)
-			.map(|nk| nk.verify_keys().to_owned())
-			.unwrap_or_default();
+			.map_or_default(|nk| nk.verify_keys().to_owned());
 		let keys = self
 			.services
 			.sending

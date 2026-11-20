@@ -143,7 +143,7 @@ impl Service {
 	) {
 		let mut key = user_id.as_bytes().to_vec();
 		key.push(0xFF);
-		key.extend_from_slice(device_id.map(DeviceId::as_bytes).unwrap_or_default());
+		key.extend_from_slice(device_id.map_or_default(DeviceId::as_bytes));
 		key.push(0xFF);
 		key.extend_from_slice(txn_id.as_bytes());
 

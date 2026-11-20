@@ -153,7 +153,7 @@ impl Service {
 				.get_member(room_id, sender_user)
 				.await
 				.ok()
-				.map_or_else(|| MembershipState::Leave, |content| content.membership)
+				.map_or(MembershipState::Leave, |content| content.membership)
 		} else {
 			MembershipState::Leave
 		};

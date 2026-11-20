@@ -5,9 +5,7 @@ use conduwuit::{
 };
 use futures::{FutureExt, StreamExt, pin_mut};
 use ruma::{
-	api::client::user_directory::search_users::{self},
-	assign,
-	events::room::join_rules::JoinRule,
+	api::client::user_directory::search_users, assign, events::room::join_rules::JoinRule,
 };
 
 use crate::Ruma;

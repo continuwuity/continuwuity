@@ -69,7 +69,7 @@ pub(crate) async fn create_join_event_template_route(
 		.get_member(&body.room_id, &body.user_id)
 		.await
 		.ok()
-		.map_or_else(|| MembershipState::Leave, |content| content.membership);
+		.map_or(MembershipState::Leave, |content| content.membership);
 
 	let join_authorized_via_users_server: Option<OwnedUserId> = {
 		if matches!(

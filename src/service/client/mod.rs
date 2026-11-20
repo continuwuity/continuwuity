@@ -379,7 +379,7 @@ fn get_dns_resolver(server: &Arc<Server>) -> Result<Arc<TokioResolver>> {
 	info!(?nameservers, "Resolved nameservers for DNS client");
 
 	for sys_conf in nameservers {
-		let mut ns = sys_conf.clone();
+		let mut ns = sys_conf;
 
 		if config.query_over_tcp_only {
 			ns.connections = vec![ConnectionConfig::tcp()];

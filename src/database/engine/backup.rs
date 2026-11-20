@@ -76,8 +76,7 @@ impl super::Engine {
 			.config
 			.database_backup_path
 			.clone()
-			.map(PathBuf::into_os_string)
-			.unwrap_or_default();
+			.map_or_default(PathBuf::into_os_string);
 
 		if path.is_empty() {
 			return Err!(Config("database_backup_path", "Configure path to enable backups"));

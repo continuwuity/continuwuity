@@ -1,10 +1,5 @@
 use conduwuit::config::experiments::ToggledExperiment;
-use conduwuit_core::{
-	Err, Result, err,
-	matrix::event::Event,
-	utils::{self},
-	warn,
-};
+use conduwuit_core::{Err, Result, err, matrix::event::Event, utils, warn};
 use ruma::{EventId, events::room::encrypted::Relation, signatures::content_hash};
 
 use super::{ExtractBody, ExtractRelatesTo};

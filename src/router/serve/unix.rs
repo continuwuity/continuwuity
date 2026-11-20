@@ -22,7 +22,7 @@ use hyper_util::{
 use tokio::{
 	fs,
 	net::{UnixListener, UnixStream, unix::SocketAddr},
-	sync::broadcast::{self},
+	sync::broadcast,
 	task::JoinSet,
 	time::{Duration, sleep},
 };
