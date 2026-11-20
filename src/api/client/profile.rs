@@ -29,7 +29,7 @@ pub(crate) async fn get_profile_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_profile::v3::Request>,
 ) -> Result<get_profile::v3::Response> {
-	if services.config.require_auth_for_profile_requests && body.identity.is_none() {
+	if body.identity.is_none() {
 		return Err!(Request(Unauthorized(
 			"This server requires authentication to access user profiles."
 		)));
@@ -46,7 +46,7 @@ pub(crate) async fn get_profile_field_route(
 	State(services): State<crate::State>,
 	body: Ruma<get_profile_field::v3::Request>,
 ) -> Result<get_profile_field::v3::Response> {
-	if services.config.require_auth_for_profile_requests && body.identity.is_none() {
+	if body.identity.is_none() {
 		return Err!(Request(Unauthorized(
 			"This server requires authentication to access user profiles."
 		)));
