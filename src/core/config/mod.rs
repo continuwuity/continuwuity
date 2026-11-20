@@ -195,7 +195,7 @@ pub struct Config {
 	/// announcements or major updates. This is not an update check endpoint.
 	///
 	/// default: true
-	#[serde(alias = "allow_check_for_updates", default = "true_fn")]
+	#[serde(default = "true_fn")]
 	pub allow_announcements_check: bool,
 
 	/// Set this to any float value to multiply continuwuity's in-memory LRU
@@ -2994,6 +2994,7 @@ impl<'de, K: Hash + Eq + Clone> Deserialize<'de> for PerMinuteRatelimiter<K> {
 
 const DEPRECATED_KEYS: &[&str] = &[
 	"cache_capacity",
+	"allow_check_for_updates",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
 	"otlp_protocol",
