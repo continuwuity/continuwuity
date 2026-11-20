@@ -2993,12 +2993,15 @@ impl<'de, K: Hash + Eq + Clone> Deserialize<'de> for PerMinuteRatelimiter<K> {
 }
 
 const DEPRECATED_KEYS: &[&str] = &[
-	"cache_capacity",
 	"allow_check_for_updates",
+	"allow_moderators_to_view_redacted_content",
+	"allow_sticky_events",
+	"cache_capacity",
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
 	"otlp_protocol",
 	"roomid_spacehierarchy_cache_capacity",
+	"unredacted_content_max_age_secs",
 	"well_known_client",
 	"well_known_server",
 	"well_known_support_page",
@@ -3006,9 +3009,6 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"well_known_support_email",
 	"well_known_support_mxid",
 	"well_known.rtc_focus_server_urls",
-	"allow_sticky_events",
-	"allow_moderators_to_view_redacted_content",
-	"unredacted_content_max_age_secs",
 ];
 
 impl Config {
