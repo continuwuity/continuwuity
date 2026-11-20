@@ -6,6 +6,7 @@ use axum::{
 	response::Redirect,
 	routing::on,
 };
+use conduwuit_api::client_ip::ClientIp;
 use conduwuit_service::{
 	oauth::grant::AuthorizationCodeResponse,
 	oidc::{ClaimedLocalUser, SessionCompletionStatus},
@@ -63,6 +64,7 @@ async fn route_complete(
 	Expect(Query(query)): Expect<Query<AuthorizationCodeResponse>>,
 	session_store: Session,
 	user: User<true>,
+	ClientIp(client_ip): ClientIp,
 	PostForm(form): PostForm<LoginForm>,
 ) -> Result {
 	let user_id = user.into_session().map(|session| session.user_id);
@@ -104,7 +106,10 @@ async fn route_complete(
 				.await
 				.expect("should be able to serialize oidc session");
 
-			services.oidc.complete_session(&claims, None).await
+			services
+				.oidc
+				.complete_session(&claims, None, &client_ip)
+				.await
 		},
 		| OidcSessionState::Authorized { claims } => {
 			let supplied_user_id = if let Some(form) = form {
@@ -163,7 +168,7 @@ async fn route_complete(
 
 			services
 				.oidc
-				.complete_session(&claims, supplied_user_id)
+				.complete_session(&claims, supplied_user_id, &client_ip)
 				.await
 		},
 	}

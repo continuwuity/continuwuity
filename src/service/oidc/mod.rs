@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc, time::Duration};
+use std::{collections::HashMap, net::IpAddr, str::FromStr, sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use conduwuit::{
@@ -359,6 +359,7 @@ impl Service {
 		&self,
 		claims: &Claims,
 		supplied_user_id: Option<OwnedUserId>,
+		client_ip: &IpAddr,
 	) -> Result<SessionCompletionStatus, &'static str> {
 		let Some(OidcClient { config, .. }) = self.client.as_ref() else {
 			return Err("Delegated authentication is not enabled on this server.");
@@ -419,7 +420,7 @@ impl Service {
 				// Create a new shadow user
 				self.services
 					.users
-					.create_local_account(&user_id, None, None, None, None)
+					.create_local_account(&user_id, None, None, Some(client_ip), None)
 					.await
 					.map_err(|err| {
 						error!("Failed to create a shadow user for {user_id}: {err}");
