@@ -939,7 +939,7 @@ pub struct Config {
 	/// creates the rendezvous session. Therefore, this must be false to let
 	/// a logged-out device show a QR code.
 	///
-	/// By default this is false, allowing logged-out desktop devices (which may
+	/// By default this is false to allow logged-out desktop devices (which may
 	/// not have a camera) to show a QR code. Setting this to true will
 	/// require logged-out devices to scan the QR code instead.
 	///
