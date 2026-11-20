@@ -919,14 +919,6 @@ pub struct Config {
 	#[serde(default)]
 	pub forget_forced_upon_leave: bool,
 
-	/// Set this to true to require authentication on the normally
-	/// unauthenticated profile retrieval endpoints (GET)
-	/// "/_matrix/client/v3/profile/{userId}".
-	///
-	/// This can prevent profile scraping.
-	#[serde(default)]
-	pub require_auth_for_profile_requests: bool,
-
 	/// Set this to true to allow your server's public room directory to be
 	/// federated. Set this to false to protect against /publicRooms spiders,
 	/// but will forbid external users from viewing your server's public room
@@ -2977,6 +2969,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"conduit_cache_capacity_modifier",
 	"max_concurrent_requests",
 	"otlp_protocol",
+	"require_auth_for_profile_requests",
 	"roomid_spacehierarchy_cache_capacity",
 	"well_known_client",
 	"well_known_server",
