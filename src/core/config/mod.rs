@@ -920,19 +920,6 @@ pub struct Config {
 	#[serde(default)]
 	pub forget_forced_upon_leave: bool,
 
-	/// Set this to true to require authentication when looking up user profiles
-	/// through this server.
-	///
-	/// By default this is false, allowing tools such as matrix.to to access
-	/// profiles of users on this server and on other servers.
-	/// Setting this to true will block those tools, and may block automated
-	/// crawlers from scraping users' profiles, although it will not block
-	/// other homeservers from accessing users' profiles.
-	///
-	/// default: false
-	#[serde(default)]
-	pub require_auth_for_profile_requests: bool,
-
 	/// Set this to true to require authentication to create a rendezvous
 	/// session. Rendezvous sessions are used for QR code login.
 	///
@@ -3001,6 +2988,7 @@ const DEPRECATED_KEYS: &[&str] = &[
 	"max_concurrent_requests",
 	"otlp_protocol",
 	"request_ip_source",
+	"require_auth_for_profile_requests",
 	"roomid_spacehierarchy_cache_capacity",
 	"unredacted_content_max_age_secs",
 	"well_known_client",
