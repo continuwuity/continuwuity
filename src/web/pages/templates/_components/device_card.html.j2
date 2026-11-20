@@ -23,7 +23,7 @@
             </div>
             <div>
             {% if style != DeviceCardStyle::Detailed %}
-                <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id }}/">Details</a>
+                <a href="{{ crate::ROUTE_PREFIX }}/account/device/{{ device_id | urlencode_strict }}/">Details</a>
             {% endif %}
             </div>
         {% endif %}
