@@ -943,7 +943,7 @@ pub struct Config {
 	/// not have a camera) to show a QR code. Setting this to true will
 	/// require logged-out devices to scan the QR code instead.
 	///
-	/// default: true
+	/// default: false
 	#[serde(default)]
 	pub require_auth_for_rendezvous: bool,
 

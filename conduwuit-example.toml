@@ -836,7 +836,7 @@
 # require logged-out devices to scan the QR code instead.
 #
 # env: CONTINUWUITY_REQUIRE_AUTH_FOR_RENDEZVOUS
-#require_auth_for_rendezvous = true
+#require_auth_for_rendezvous = false
 
 # Set this to true to allow your server's public room directory to be
 # federated. Set this to false to protect against /publicRooms spiders,
